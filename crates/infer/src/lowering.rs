@@ -10849,6 +10849,20 @@ mod tests {
     }
 
     #[test]
+    fn unannotated_callback_return_effect_surfaces_without_empty_stack() {
+        let root = parse("my h(x, f) = f x\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (h, _) = binding_def_and_order(&lower.modules, module, "h");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, h));
+        assert_eq!(rendered, "'a -> ('a -> ['b] 'c) -> ['b] 'c");
+    }
+
+    #[test]
     fn annotated_local_arg_keeps_return_effect_unannotated_for_call_subtract() {
         let root = parse("my h(x: [_] _) = x\n");
         let binding = binding_node(&root, "h").expect("h binding");

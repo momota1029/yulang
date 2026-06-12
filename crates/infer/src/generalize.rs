@@ -137,6 +137,7 @@ fn generalize_compact_root_with_simplification(
     );
     prune_unreachable_recursive_bounds(&mut root, &role_predicates);
     cleanup_stack_weights_in_root_and_roles(&mut root, &mut role_predicates);
+    cleanup_empty_stack_entries_with_plain_negative_occurrence(&mut root, &mut role_predicates);
     quantifiers =
         quantified_vars_in_root_and_roles(machine, boundary, &root, &role_predicates, non_generic);
     let quantifier_set = quantifiers.iter().copied().collect::<FxHashSet<_>>();
@@ -650,6 +651,10 @@ pub(crate) fn finalize_generalized_compact_root_with_ancestors(
     prune_dead_quantifiers(&mut root);
     prune_existing_subtracts(&mut root);
     cleanup_stack_weights_in_root_and_roles(&mut root.compact, &mut root.role_predicates);
+    cleanup_empty_stack_entries_with_plain_negative_occurrence(
+        &mut root.compact,
+        &mut root.role_predicates,
+    );
     prune_unreachable_recursive_bounds(&mut root.compact, &root.role_predicates);
     prune_dead_quantifiers(&mut root);
     let quantifier_set = root.quantifiers.iter().copied().collect::<FxHashSet<_>>();
@@ -1954,6 +1959,335 @@ fn cleanup_stack_weights_in_root_and_roles(
     prune_dead_subtract_weights_in_root_and_roles(root, role_predicates, &dead_ids)
 }
 
+fn cleanup_empty_stack_entries_with_plain_negative_occurrence(
+    root: &mut CompactRoot,
+    role_predicates: &mut [CompactRoleConstraint],
+) -> bool {
+    let mut occurrences = EmptyStackOccurrences::default();
+    collect_empty_stack_occurrences_in_type(&root.root, true, &mut occurrences);
+    for rec in &root.rec_vars {
+        collect_empty_stack_occurrences_in_bounds(&rec.bounds, true, &mut occurrences);
+    }
+    for role in role_predicates.iter() {
+        collect_empty_stack_occurrences_in_role(role, &mut occurrences);
+    }
+
+    let redundant = occurrences.redundant_positive_entries();
+    if redundant.is_empty() {
+        return false;
+    }
+
+    let mut changed = prune_redundant_empty_stack_entries_in_type(&mut root.root, true, &redundant);
+    for rec in &mut root.rec_vars {
+        changed |= prune_redundant_empty_stack_entries_in_bounds(&mut rec.bounds, true, &redundant);
+    }
+    for role in role_predicates {
+        changed |= prune_redundant_empty_stack_entries_in_role(role, &redundant);
+    }
+    changed
+}
+
+#[derive(Default)]
+struct EmptyStackOccurrences {
+    positive_empty_entries: FxHashMap<TypeVar, FxHashSet<SubtractId>>,
+    plain_negative_vars: FxHashSet<TypeVar>,
+}
+
+impl EmptyStackOccurrences {
+    fn record_type(&mut self, var: &CompactVar, covariant: bool) {
+        if covariant {
+            for entry in var.weight.entries() {
+                if empty_stack_entry_only(entry) {
+                    self.positive_empty_entries
+                        .entry(var.var)
+                        .or_default()
+                        .insert(entry.id);
+                }
+            }
+        } else if var.weight.is_empty() {
+            self.plain_negative_vars.insert(var.var);
+        }
+    }
+
+    fn record_interval_center(&mut self, var: TypeVar) {
+        self.plain_negative_vars.insert(var);
+    }
+
+    fn redundant_positive_entries(self) -> FxHashMap<TypeVar, FxHashSet<SubtractId>> {
+        self.positive_empty_entries
+            .into_iter()
+            .filter(|(var, _)| self.plain_negative_vars.contains(var))
+            .collect()
+    }
+}
+
+fn empty_stack_entry_only(entry: &poly::types::StackWeightEntry) -> bool {
+    entry.pops == 0
+        && entry.floor.is_empty()
+        && !entry.stack.is_empty()
+        && entry
+            .stack
+            .iter()
+            .all(|item| matches!(item, Subtractability::Empty))
+}
+
+fn collect_empty_stack_occurrences_in_role(
+    role: &CompactRoleConstraint,
+    out: &mut EmptyStackOccurrences,
+) {
+    for input in &role.inputs {
+        collect_empty_stack_occurrences_in_role_arg(input, out);
+    }
+    for associated in &role.associated {
+        collect_empty_stack_occurrences_in_role_arg(&associated.value, out);
+    }
+}
+
+fn collect_empty_stack_occurrences_in_role_arg(
+    arg: &CompactRoleArg,
+    out: &mut EmptyStackOccurrences,
+) {
+    collect_empty_stack_occurrences_in_type(&arg.lower, true, out);
+    collect_empty_stack_occurrences_in_type(&arg.upper, false, out);
+}
+
+fn collect_empty_stack_occurrences_in_type(
+    ty: &CompactType,
+    covariant: bool,
+    out: &mut EmptyStackOccurrences,
+) {
+    for var in &ty.vars {
+        out.record_type(var, covariant);
+    }
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_empty_stack_occurrences_in_bounds(arg, covariant, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_empty_stack_occurrences_in_type(&fun.arg, !covariant, out);
+        collect_empty_stack_occurrences_in_type(&fun.arg_eff, !covariant, out);
+        collect_empty_stack_occurrences_in_type(&fun.ret_eff, covariant, out);
+        collect_empty_stack_occurrences_in_type(&fun.ret, covariant, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_empty_stack_occurrences_in_type(&field.value, covariant, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_empty_stack_occurrences_in_type(&field.value, covariant, out);
+        }
+        collect_empty_stack_occurrences_in_type(&spread.tail, covariant, out);
+    }
+    for variant in &ty.poly_variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_empty_stack_occurrences_in_type(payload, covariant, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in &tuple.items {
+            collect_empty_stack_occurrences_in_type(item, covariant, out);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_empty_stack_occurrences_in_type(item, covariant, out);
+        }
+        collect_empty_stack_occurrences_in_type(&row.tail, covariant, out);
+    }
+}
+
+fn collect_empty_stack_occurrences_in_bounds(
+    bounds: &CompactBounds,
+    covariant: bool,
+    out: &mut EmptyStackOccurrences,
+) {
+    match bounds {
+        CompactBounds::Interval {
+            self_var,
+            lower,
+            upper,
+        } => {
+            out.record_interval_center(*self_var);
+            collect_empty_stack_occurrences_in_type(lower, covariant, out);
+            collect_empty_stack_occurrences_in_type(upper, !covariant, out);
+        }
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
+            for arg in args {
+                collect_empty_stack_occurrences_in_bounds(arg, covariant, out);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_empty_stack_occurrences_in_bounds(arg, !covariant, out);
+            collect_empty_stack_occurrences_in_bounds(arg_eff, !covariant, out);
+            collect_empty_stack_occurrences_in_bounds(ret_eff, covariant, out);
+            collect_empty_stack_occurrences_in_bounds(ret, covariant, out);
+        }
+        CompactBounds::Record { fields } => {
+            for field in fields {
+                collect_empty_stack_occurrences_in_bounds(&field.value, covariant, out);
+            }
+        }
+        CompactBounds::PolyVariant { items } => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    collect_empty_stack_occurrences_in_bounds(payload, covariant, out);
+                }
+            }
+        }
+    }
+}
+
+fn prune_redundant_empty_stack_entries_in_role(
+    role: &mut CompactRoleConstraint,
+    redundant: &FxHashMap<TypeVar, FxHashSet<SubtractId>>,
+) -> bool {
+    let mut changed = false;
+    for input in &mut role.inputs {
+        changed |= prune_redundant_empty_stack_entries_in_role_arg(input, redundant);
+    }
+    for associated in &mut role.associated {
+        changed |=
+            prune_redundant_empty_stack_entries_in_role_arg(&mut associated.value, redundant);
+    }
+    changed
+}
+
+fn prune_redundant_empty_stack_entries_in_role_arg(
+    arg: &mut CompactRoleArg,
+    redundant: &FxHashMap<TypeVar, FxHashSet<SubtractId>>,
+) -> bool {
+    prune_redundant_empty_stack_entries_in_type(&mut arg.lower, true, redundant)
+        | prune_redundant_empty_stack_entries_in_type(&mut arg.upper, false, redundant)
+}
+
+fn prune_redundant_empty_stack_entries_in_type(
+    ty: &mut CompactType,
+    covariant: bool,
+    redundant: &FxHashMap<TypeVar, FxHashSet<SubtractId>>,
+) -> bool {
+    let mut changed = false;
+    if covariant {
+        for var in &mut ty.vars {
+            let Some(ids) = redundant.get(&var.var) else {
+                continue;
+            };
+            let before = var.weight.clone();
+            var.weight = var.weight.without_ids(|id| ids.contains(&id));
+            changed |= var.weight != before;
+        }
+    }
+    for con in &mut ty.cons {
+        for arg in &mut con.args {
+            changed |= prune_redundant_empty_stack_entries_in_bounds(arg, covariant, redundant);
+        }
+    }
+    for fun in &mut ty.funs {
+        changed |= prune_redundant_empty_stack_entries_in_type(&mut fun.arg, !covariant, redundant);
+        changed |=
+            prune_redundant_empty_stack_entries_in_type(&mut fun.arg_eff, !covariant, redundant);
+        changed |=
+            prune_redundant_empty_stack_entries_in_type(&mut fun.ret_eff, covariant, redundant);
+        changed |= prune_redundant_empty_stack_entries_in_type(&mut fun.ret, covariant, redundant);
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            changed |=
+                prune_redundant_empty_stack_entries_in_type(&mut field.value, covariant, redundant);
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            changed |=
+                prune_redundant_empty_stack_entries_in_type(&mut field.value, covariant, redundant);
+        }
+        changed |=
+            prune_redundant_empty_stack_entries_in_type(&mut spread.tail, covariant, redundant);
+    }
+    for variant in &mut ty.poly_variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                changed |=
+                    prune_redundant_empty_stack_entries_in_type(payload, covariant, redundant);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in &mut tuple.items {
+            changed |= prune_redundant_empty_stack_entries_in_type(item, covariant, redundant);
+        }
+    }
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            changed |= prune_redundant_empty_stack_entries_in_type(item, covariant, redundant);
+        }
+        changed |= prune_redundant_empty_stack_entries_in_type(&mut row.tail, covariant, redundant);
+    }
+    changed
+}
+
+fn prune_redundant_empty_stack_entries_in_bounds(
+    bounds: &mut CompactBounds,
+    covariant: bool,
+    redundant: &FxHashMap<TypeVar, FxHashSet<SubtractId>>,
+) -> bool {
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            prune_redundant_empty_stack_entries_in_type(lower, covariant, redundant)
+                | prune_redundant_empty_stack_entries_in_type(upper, !covariant, redundant)
+        }
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
+            let mut changed = false;
+            for arg in args {
+                changed |= prune_redundant_empty_stack_entries_in_bounds(arg, covariant, redundant);
+            }
+            changed
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            prune_redundant_empty_stack_entries_in_bounds(arg, !covariant, redundant)
+                | prune_redundant_empty_stack_entries_in_bounds(arg_eff, !covariant, redundant)
+                | prune_redundant_empty_stack_entries_in_bounds(ret_eff, covariant, redundant)
+                | prune_redundant_empty_stack_entries_in_bounds(ret, covariant, redundant)
+        }
+        CompactBounds::Record { fields } => {
+            let mut changed = false;
+            for field in fields {
+                changed |= prune_redundant_empty_stack_entries_in_bounds(
+                    &mut field.value,
+                    covariant,
+                    redundant,
+                );
+            }
+            changed
+        }
+        CompactBounds::PolyVariant { items } => {
+            let mut changed = false;
+            for (_, payloads) in items {
+                for payload in payloads {
+                    changed |= prune_redundant_empty_stack_entries_in_bounds(
+                        payload, covariant, redundant,
+                    );
+                }
+            }
+            changed
+        }
+    }
+}
+
 fn live_covariant_stack_ids_in_root_and_roles(
     root: &CompactRoot,
     role_predicates: &[CompactRoleConstraint],
@@ -2693,7 +3027,7 @@ mod tests {
     }
 
     #[test]
-    fn empty_stack_entry_keeps_stack_quantifier_live() {
+    fn empty_stack_entry_with_plain_negative_var_is_internal() {
         let mut machine = ConstraintMachine::new();
         let effect = TypeVar(2);
         let subtract = SubtractId(3);
@@ -2714,14 +3048,14 @@ mod tests {
         let mut types = TypeArena::new();
         let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
 
-        assert_eq!(generalized.stack_quantifiers, vec![subtract]);
+        assert!(generalized.stack_quantifiers.is_empty());
         assert!(generalized.subtracts.is_empty());
         assert!(
-            generalized.compact.root.funs[0].ret_eff.vars[0]
+            !generalized.compact.root.funs[0].ret_eff.vars[0]
                 .weight
                 .contains(subtract)
         );
-        assert_eq!(finalized.scheme.stack_quantifiers, vec![subtract]);
+        assert!(finalized.scheme.stack_quantifiers.is_empty());
         assert!(finalized.scheme.subtracts.is_empty());
     }
 
