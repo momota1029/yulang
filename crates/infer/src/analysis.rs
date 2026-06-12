@@ -1289,9 +1289,9 @@ impl AnalysisSession {
             if applied_role_candidates.is_empty() && applied_role_demands.is_empty() {
                 vec![false; coalesced_roles.len()]
             } else {
-                self.simplified_demands_already_applied(
-                    def,
+                self.simplified_role_predicates_already_applied(
                     &compact,
+                    &coalesced_roles,
                     &applied_role_candidates,
                     &applied_role_demands,
                 )
@@ -1328,6 +1328,24 @@ impl AnalysisSession {
             &mut compact,
             &mut role_predicates,
         );
+        if !role_predicates.is_empty()
+            && (!applied_role_candidates.is_empty() || !applied_role_demands.is_empty())
+        {
+            let applied_after_final_simplification = self
+                .simplified_role_predicates_already_applied(
+                    &compact,
+                    &role_predicates,
+                    &applied_role_candidates,
+                    &applied_role_demands,
+                );
+            role_predicates = role_predicates
+                .into_iter()
+                .zip(applied_after_final_simplification)
+                .filter_map(|(role, applied)| {
+                    (!applied && !applied_role_demands.contains(&role)).then_some(role)
+                })
+                .collect();
+        }
 
         let mut generalized = generalize_prepared_compact_root_with_roles(
             self.infer.constraints(),
@@ -1366,21 +1384,40 @@ impl AnalysisSession {
             &mut roles,
             &FxHashSet::default(),
         );
+        coalesce_floor_interval_equalities(
+            self.infer.constraints(),
+            TypeLevel::root(),
+            &mut role_compact,
+            &mut roles,
+        );
+        eliminate_floor_redundant_variables(
+            self.infer.constraints(),
+            TypeLevel::root(),
+            &mut role_compact,
+            &mut roles,
+        );
         (role_compact, roles)
     }
 
-    /// 世代化の最終出力から落としてよい残置述語を、coalesce 済み role と同じ並びの
-    /// bool 列で返す。true は簡約済み全体ビューで「適用済み demand と一致する」か
+    /// 世代化の最終出力から落としてよい残置述語を、入力 role と同じ並びの bool 列で返す。
+    /// true は簡約済み全体ビューで「適用済み demand と一致する」か
     /// 「適用済み impl 候補へ一意に解決する」。
-    fn simplified_demands_already_applied(
+    fn simplified_role_predicates_already_applied(
         &self,
-        def: DefId,
         compact: &crate::compact::CompactRoot,
+        role_predicates: &[CompactRoleConstraint],
         applied_candidates: &FxHashSet<CompactRoleConstraint>,
         applied_demands: &FxHashSet<CompactRoleConstraint>,
     ) -> Vec<bool> {
-        let (role_compact, simplified_roles) =
-            self.simplified_reachable_role_constraints(def, compact);
+        let mut role_compact = compact.clone();
+        let mut simplified_roles = role_predicates.to_vec();
+        simplify_compact_root_with_roles_and_non_generic(
+            self.infer.constraints(),
+            TypeLevel::root().child(),
+            &mut role_compact,
+            &mut simplified_roles,
+            &FxHashSet::default(),
+        );
         if applied_candidates.is_empty() {
             return simplified_roles
                 .iter()
@@ -1395,7 +1432,11 @@ impl AnalysisSession {
             &FxHashSet::default(),
         )
         .into_iter()
-        .filter(|resolution| applied_candidates.contains(&resolution.candidate))
+        .filter(|resolution| {
+            applied_candidates.iter().any(|candidate| {
+                Self::same_role_candidate_identity(candidate, &resolution.candidate)
+            })
+        })
         .map(|resolution| resolution.demand)
         .collect::<FxHashSet<_>>();
         simplified_roles
@@ -1413,6 +1454,13 @@ impl AnalysisSession {
         for prerequisite in &resolution.solved_prerequisites {
             self.collect_resolved_role_demands(prerequisite, out);
         }
+    }
+
+    fn same_role_candidate_identity(
+        left: &CompactRoleConstraint,
+        right: &CompactRoleConstraint,
+    ) -> bool {
+        left.role == right.role && left.inputs == right.inputs
     }
 
     fn constrain_role_resolution(&mut self, def: DefId, resolution: &RoleResolution) {
@@ -3454,6 +3502,142 @@ mod tests {
             .alloc_pos(Pos::Tuple(vec![first_output, second_output]));
         let root_upper = session.infer.alloc_neg(Neg::Var(root));
         session.infer.subtype(root_lower, root_upper);
+
+        let generalized = session.generalize_root_with_prepasses(owner, root);
+
+        assert!(
+            generalized
+                .role_predicates
+                .iter()
+                .all(|predicate| predicate.role != role),
+            "{:?}",
+            generalized.role_predicates
+        );
+    }
+
+    #[test]
+    fn role_prepass_resolves_receiver_first_concrete_with_negative_extra_inputs() {
+        let role = vec!["Index".to_string()];
+        let ref_lines_path = vec!["ref_lines".to_string()];
+        let int_path = vec!["int".to_string()];
+        let owner = DefId(0);
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let previous_level = session.infer.enter_child_level();
+        let root = session.infer.fresh_type_var();
+        let receiver_extra = session.infer.fresh_type_var();
+        let key_extra = session.infer.fresh_type_var();
+        let receiver_payload = session.infer.fresh_type_var();
+        let lower_payload = session.infer.fresh_type_var();
+        let upper_payload = session.infer.fresh_type_var();
+        let candidate_payload = session.infer.fresh_type_var();
+        let associated_value = session.infer.fresh_type_var();
+
+        let receiver_arg = role_unary_con_open_or_var_arg(
+            &mut session.infer,
+            ref_lines_path.clone(),
+            receiver_payload,
+            lower_payload,
+            upper_payload,
+            receiver_extra,
+        );
+        let int_lower = session
+            .infer
+            .alloc_pos(Pos::Con(int_path.clone(), Vec::new()));
+        let key_extra_lower = session.infer.alloc_pos(Pos::Var(key_extra));
+        let key_lower = session
+            .infer
+            .alloc_pos(Pos::Union(key_extra_lower, int_lower));
+        let key_upper = session.infer.alloc_neg(Neg::Var(key_extra));
+        session.roles.insert(
+            owner,
+            RoleConstraint {
+                role: role.clone(),
+                inputs: vec![
+                    receiver_arg,
+                    RoleConstraintArg {
+                        lower: key_lower,
+                        upper: key_upper,
+                    },
+                ],
+                associated: vec![RoleAssociatedConstraint {
+                    name: "value".into(),
+                    value: role_var_arg(&mut session.infer, associated_value),
+                }],
+            },
+        );
+        session.role_impls.insert(RoleImplCandidate {
+            impl_def: None,
+            role: role.clone(),
+            inputs: vec![
+                role_unary_con_var_arg(
+                    &mut session.infer,
+                    ref_lines_path.clone(),
+                    candidate_payload,
+                ),
+                role_exact_arg(&mut session.infer, int_path.clone()),
+            ],
+            associated: vec![RoleAssociatedConstraint {
+                name: "value".into(),
+                value: role_var_arg(&mut session.infer, candidate_payload),
+            }],
+            prerequisites: Vec::new(),
+        });
+
+        let receiver_payload_lower = session.infer.alloc_pos(Pos::Var(lower_payload));
+        let receiver_payload_upper = session.infer.alloc_neg(Neg::Var(upper_payload));
+        let receiver_payload = session.infer.alloc_neu(Neu::Bounds(
+            receiver_payload_lower,
+            receiver_payload,
+            receiver_payload_upper,
+        ));
+        let receiver_con = session
+            .infer
+            .alloc_neg(Neg::Con(ref_lines_path, vec![receiver_payload]));
+        let receiver_extra_upper = session.infer.alloc_neg(Neg::Var(receiver_extra));
+        let receiver_arg = session
+            .infer
+            .alloc_neg(Neg::Intersection(receiver_extra_upper, receiver_con));
+        let key_con = session.infer.alloc_neg(Neg::Con(int_path, Vec::new()));
+        let key_extra_upper = session.infer.alloc_neg(Neg::Var(key_extra));
+        let key_arg = session
+            .infer
+            .alloc_neg(Neg::Intersection(key_extra_upper, key_con));
+        let ret = session.infer.alloc_pos(Pos::Var(associated_value));
+        let inner_arg_eff = session.infer.alloc_neg(Neg::Bot);
+        let inner_ret_eff = session.infer.alloc_pos(Pos::Bot);
+        let inner = session.infer.alloc_pos(Pos::Fun {
+            arg: key_arg,
+            arg_eff: inner_arg_eff,
+            ret_eff: inner_ret_eff,
+            ret,
+        });
+        let outer_arg_eff = session.infer.alloc_neg(Neg::Bot);
+        let outer_ret_eff = session.infer.alloc_pos(Pos::Bot);
+        let outer = session.infer.alloc_pos(Pos::Fun {
+            arg: receiver_arg,
+            arg_eff: outer_arg_eff,
+            ret_eff: outer_ret_eff,
+            ret: inner,
+        });
+        let root_upper = session.infer.alloc_neg(Neg::Var(root));
+        session.infer.subtype(outer, root_upper);
+        session.infer.restore_level(previous_level);
+
+        let compact = compact_type_var(session.infer.constraints(), root);
+        let (role_compact, roles) = session.simplified_reachable_role_constraints(owner, &compact);
+        let resolutions = resolve_role_constraints(
+            session.infer.constraints(),
+            &role_compact,
+            &roles,
+            &session.role_impls,
+            &FxHashSet::default(),
+        );
+        assert_eq!(
+            resolutions.len(),
+            1,
+            "roles={roles:?} candidates={:?}",
+            session.role_impls.candidates(&role)
+        );
 
         let generalized = session.generalize_root_with_prepasses(owner, root);
 

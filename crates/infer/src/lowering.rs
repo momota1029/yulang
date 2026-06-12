@@ -1299,7 +1299,20 @@ impl BodyLowerer {
             .ok_or(LoweringError::UnsupportedSyntax { kind: node.kind() })?;
         let role_input_names = self.modules.role_inputs(spec.role).to_vec();
         let role_associated_names = self.modules.role_associated(spec.role).to_vec();
-        let associated_anns = role_associated_names
+        let explicit_associated = role_impl_associated_type_exprs(node);
+        let candidate_associated_anns = role_associated_names
+            .iter()
+            .map(|name| {
+                let ann = explicit_associated
+                    .get(name)
+                    .map(|type_expr| ann_builder.build_type_expr(type_expr))
+                    .transpose()
+                    .map_err(|error| LoweringError::AnnotationBuild { error })?
+                    .unwrap_or_else(|| AnnType::Var(ann_builder.ann_type_var_for_role(name)));
+                Ok((name.clone(), ann))
+            })
+            .collect::<Result<Vec<_>, LoweringError>>()?;
+        let requirement_associated_anns = role_associated_names
             .iter()
             .map(|name| {
                 (
@@ -1308,28 +1321,20 @@ impl BodyLowerer {
                 )
             })
             .collect::<Vec<_>>();
-        let mut ann_solver_vars = FxHashMap::default();
-        let vars = std::mem::take(&mut ann_solver_vars);
-        let mut lowerer =
-            AnnConstraintLowerer::with_vars(&mut self.session.infer, &self.modules, vars);
-        let mut inputs = Vec::with_capacity(spec.inputs.len());
-        for input in &spec.inputs {
-            inputs.push(
-                lowerer
-                    .lower_role_arg(input)
-                    .map_err(|error| LoweringError::AnnotationConstraint { error })?,
-            );
-        }
-        let mut associated = Vec::with_capacity(associated_anns.len());
-        for (name, ann) in &associated_anns {
-            associated.push(RoleAssociatedConstraint {
-                name: name.clone(),
-                value: lowerer
-                    .lower_role_arg(ann)
-                    .map_err(|error| LoweringError::AnnotationConstraint { error })?,
-            });
-        }
-        ann_solver_vars = lowerer.into_vars();
+        let type_var_bindings = ann_builder.type_var_bindings();
+        let explicit_associated_complete = role_associated_names
+            .iter()
+            .all(|name| explicit_associated.contains_key(name));
+        let (candidate_inputs, candidate_associated, ann_solver_vars) =
+            if explicit_associated_complete {
+                let (candidate_inputs, candidate_associated, _) =
+                    self.lower_role_impl_args(&spec.inputs, &candidate_associated_anns)?;
+                let (_, _, ann_solver_vars) =
+                    self.lower_role_impl_args(&spec.inputs, &requirement_associated_anns)?;
+                (candidate_inputs, candidate_associated, ann_solver_vars)
+            } else {
+                self.lower_role_impl_args(&spec.inputs, &candidate_associated_anns)?
+            };
         let role = self
             .modules
             .type_decl_by_id(spec.role)
@@ -1345,8 +1350,8 @@ impl BodyLowerer {
         self.session.role_impls.insert(RoleImplCandidate {
             impl_def: Some(impl_def),
             role,
-            inputs,
-            associated,
+            inputs: candidate_inputs,
+            associated: candidate_associated,
             prerequisites: Vec::new(),
         });
         Ok(RoleImplLoweringContext {
@@ -1354,13 +1359,46 @@ impl BodyLowerer {
             target_ann: spec.target,
             input_names: role_input_names,
             input_signatures: spec.inputs.iter().map(signature_from_ann_type).collect(),
-            associated_signatures: associated_anns
+            associated_signatures: requirement_associated_anns
                 .iter()
                 .map(|(name, ann)| (name.clone(), signature_from_ann_type(ann)))
                 .collect(),
-            type_var_bindings: ann_builder.type_var_bindings(),
+            type_var_bindings,
             ann_solver_vars,
         })
+    }
+
+    fn lower_role_impl_args(
+        &mut self,
+        inputs: &[AnnType],
+        associated_anns: &[(String, AnnType)],
+    ) -> Result<
+        (
+            Vec<RoleConstraintArg>,
+            Vec<RoleAssociatedConstraint>,
+            FxHashMap<AnnTypeVarId, TypeVar>,
+        ),
+        LoweringError,
+    > {
+        let mut lowerer = AnnConstraintLowerer::new(&mut self.session.infer, &self.modules);
+        let mut lowered_inputs = Vec::with_capacity(inputs.len());
+        for input in inputs {
+            lowered_inputs.push(
+                lowerer
+                    .lower_role_arg(input)
+                    .map_err(|error| LoweringError::AnnotationConstraint { error })?,
+            );
+        }
+        let mut lowered_associated = Vec::with_capacity(associated_anns.len());
+        for (name, ann) in associated_anns {
+            lowered_associated.push(RoleAssociatedConstraint {
+                name: name.clone(),
+                value: lowerer
+                    .lower_role_arg(ann)
+                    .map_err(|error| LoweringError::AnnotationConstraint { error })?,
+            });
+        }
+        Ok((lowered_inputs, lowered_associated, lowerer.into_vars()))
     }
 
     fn role_impl_method_requirement(
@@ -8106,6 +8144,59 @@ fn impl_description_type_expr(node: &Cst) -> Option<Cst> {
         .find(|child| child.kind() == SyntaxKind::TypeExpr)
 }
 
+fn role_impl_associated_type_exprs(node: &Cst) -> FxHashMap<String, Cst> {
+    let mut out = FxHashMap::default();
+    collect_role_impl_associated_type_exprs(node, &mut out);
+    out
+}
+
+fn collect_role_impl_associated_type_exprs(node: &Cst, out: &mut FxHashMap<String, Cst>) {
+    for child in node.children() {
+        match child.kind() {
+            SyntaxKind::IndentBlock | SyntaxKind::BraceGroup => {
+                collect_role_impl_associated_type_exprs(&child, out);
+            }
+            SyntaxKind::TypeDecl => {
+                let Some(name) = crate::type_decl_name(&child) else {
+                    continue;
+                };
+                let Some(type_expr) = type_decl_rhs_type_expr(&child) else {
+                    continue;
+                };
+                out.insert(name.0, type_expr);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn type_decl_rhs_type_expr(node: &Cst) -> Option<Cst> {
+    let mut after_equal = false;
+    for item in node.children_with_tokens() {
+        match item {
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::Equal => {
+                after_equal = true;
+            }
+            NodeOrToken::Node(child) if after_equal && child.kind() == SyntaxKind::TypeExpr => {
+                return Some(child);
+            }
+            NodeOrToken::Node(child)
+                if after_equal
+                    && matches!(
+                        child.kind(),
+                        SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+                    ) =>
+            {
+                return child
+                    .children()
+                    .find(|child| child.kind() == SyntaxKind::TypeExpr);
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -10522,6 +10613,32 @@ mod tests {
         // receiver demand は 1 引数 role 限定なので、複数引数 role の selection でも
         // method instantiation 由来の demand だけが残り、concrete なら discharge される。
         assert_eq!(rendered, "int -> int -> int");
+    }
+
+    #[test]
+    fn explicit_associated_type_keeps_impl_input_type_parameter() {
+        let root = parse(concat!(
+            "type box 'a with:\n",
+            "  struct self:\n",
+            "    item: 'a\n",
+            "role Index 'container 'key:\n",
+            "  type value\n",
+            "  pub container.index: 'key -> value\n",
+            "impl Index (box 'a) int:\n",
+            "  type value = 'a\n",
+            "  our c.index i = c.item\n",
+            "my pick(c: box int, i: int) = c.index i\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (pick, _) = binding_def_and_order(&lower.modules, module, "pick");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let rendered =
+            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, pick));
+        assert_eq!(rendered, "box int -> int -> int");
     }
 
     #[test]
