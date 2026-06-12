@@ -984,6 +984,110 @@ impl BodyLowerer {
         self.local_method_scope = previous_scope;
     }
 
+    fn lower_act_operation_binding(
+        &mut self,
+        node: &Cst,
+        companion: ModuleId,
+        decl: &ModuleTypeDecl,
+        type_var_aliases: &[(String, String)],
+    ) {
+        let Some(name) = crate::binding_name(node) else {
+            return;
+        };
+        let Some(def) = self
+            .modules
+            .value_at(companion, &name, signature_module_path_site())
+        else {
+            self.errors
+                .push(BodyLoweringError::MissingBindingDecl { name });
+            return;
+        };
+        let Some(signature) = binding_type_expr(node) else {
+            self.errors.push(BodyLoweringError::Expr {
+                def,
+                name,
+                error: LoweringError::SignatureShapeMismatch {
+                    expected: SignatureShape::Function,
+                },
+            });
+            return;
+        };
+        let Some(operation_decl) = self.modules.act_operation_decl_by_def(def) else {
+            self.errors.push(BodyLoweringError::NonLetDef { def, name });
+            return;
+        };
+
+        let previous_level = self.session.infer.enter_child_level();
+        let root = self.session.infer.fresh_type_var();
+        self.typing.set_def(def, root);
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef { def, root }));
+
+        let lowered = self.lower_act_operation_type(&operation_decl, &signature, type_var_aliases);
+        match lowered {
+            Ok(predicate) => {
+                let root_upper = self.session.infer.alloc_neg(Neg::Var(root));
+                self.session.infer.subtype(predicate, root_upper);
+                self.session
+                    .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
+            }
+            Err(error) => self
+                .errors
+                .push(BodyLoweringError::Expr { def, name, error }),
+        }
+
+        self.session.infer.restore_level(previous_level);
+
+        debug_assert_eq!(decl.id, operation_decl.effect.id);
+    }
+
+    fn lower_act_operation_type(
+        &mut self,
+        operation_decl: &ActOperationDecl,
+        signature: &Cst,
+        type_var_aliases: &[(String, String)],
+    ) -> Result<PosId, LoweringError> {
+        let signature =
+            self.act_operation_signature_type(operation_decl, signature, type_var_aliases)?;
+        let mut lowerer = SignatureLowerer::new(&mut self.session.infer, &self.modules);
+        lowerer
+            .lower_pos(&signature)
+            .map_err(|error| LoweringError::SignatureConstraint { error })
+    }
+
+    fn act_operation_signature_type(
+        &self,
+        operation_decl: &ActOperationDecl,
+        signature: &Cst,
+        type_var_aliases: &[(String, String)],
+    ) -> Result<SignatureType, LoweringError> {
+        let effect_type_vars = self
+            .modules
+            .act_template(operation_decl.effect.id)
+            .map(crate::act_type_var_names)
+            .unwrap_or_default();
+        let mut builder = ann_type_builder(
+            &self.modules,
+            operation_decl.effect.module,
+            operation_decl.effect.order,
+            None,
+        );
+        for name in &effect_type_vars {
+            builder.add_bare_type_var(name.clone());
+        }
+        add_type_var_aliases(&mut builder, type_var_aliases);
+
+        let signature = build_signature_type_expr(&mut builder, signature)
+            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        let effect_ann = builder.type_decl_application(operation_decl.effect.id, &effect_type_vars);
+        let effect = signature_from_ann_type(&effect_ann);
+        operation_signature_with_effect(signature, effect).ok_or(
+            LoweringError::SignatureShapeMismatch {
+                expected: SignatureShape::Function,
+            },
+        )
+    }
+
     fn lower_synthetic_act_copy_bodies(&mut self) {
         let ids = self.modules.synthetic_var_act_copy_ids();
         for id in ids {
@@ -1019,7 +1123,9 @@ impl BodyLowerer {
     ) {
         for child in body.children() {
             match child.kind() {
-                SyntaxKind::Binding if crate::act_operation_binding(&child) => {}
+                SyntaxKind::Binding if crate::act_operation_binding(&child) => {
+                    self.lower_act_operation_binding(&child, companion, decl, type_var_aliases);
+                }
                 SyntaxKind::Binding if crate::type_method_binding(&child).is_some() => {
                     let method = self
                         .modules
@@ -1728,6 +1834,7 @@ impl BodyLowerer {
         let ann = builder
             .build_type_expr(&type_expr)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        self.check_binding_annotation_type(computation.value, &ann)?;
         AnnConstraintLowerer::new(&mut self.session.infer, &self.modules)
             .connect_computation(
                 AnnComputationTarget {
@@ -1737,6 +1844,22 @@ impl BodyLowerer {
                 &ann,
             )
             .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+        Ok(())
+    }
+
+    fn check_binding_annotation_type(
+        &self,
+        value: TypeVar,
+        ann: &AnnType,
+    ) -> Result<(), LoweringError> {
+        let expected = signature_from_ann_type(ann);
+        let actual = compact_type_var(self.session.infer.constraints(), value);
+        if let Some((actual, expected)) = builtin_annotation_mismatch(&actual.root, &expected) {
+            return Err(LoweringError::TypeMismatch {
+                actual: actual.surface_name().to_string(),
+                expected: expected.surface_name().to_string(),
+            });
+        }
         Ok(())
     }
 
@@ -2051,6 +2174,39 @@ fn split_effectful_signature(
         SignatureType::Effectful { eff, ret } => (Some(eff), *ret),
         signature => (None, signature),
     }
+}
+
+fn operation_signature_with_effect(
+    signature: SignatureType,
+    effect: SignatureType,
+) -> Option<SignatureType> {
+    let SignatureType::Function {
+        param,
+        arg_eff,
+        ret_eff,
+        ret,
+    } = signature
+    else {
+        return None;
+    };
+    Some(SignatureType::Function {
+        param,
+        arg_eff,
+        ret_eff: Some(operation_return_effect_row(ret_eff, effect)),
+        ret,
+    })
+}
+
+fn operation_return_effect_row(
+    ret_eff: Option<SignatureEffectRow>,
+    effect: SignatureType,
+) -> SignatureEffectRow {
+    let mut row = ret_eff.unwrap_or(SignatureEffectRow {
+        items: Vec::new(),
+        tail: None,
+    });
+    row.items.insert(0, SignatureEffectAtom::Type(effect));
+    row
 }
 
 fn signature_from_ann_type(ann: &AnnType) -> SignatureType {
@@ -6273,6 +6429,7 @@ pub enum LoweringError {
     SignatureConstraint { error: SignatureConstraintError },
     SignatureShapeMismatch { expected: SignatureShape },
     SignatureTypeMismatch { expected: SignatureShape },
+    TypeMismatch { actual: String, expected: String },
 }
 
 fn item_is_trivia(item: &NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>) -> bool {
@@ -6607,11 +6764,15 @@ fn collect_binding_arg_patterns(node: &Cst, out: &mut Vec<Cst>) {
             continue;
         }
         collect_binding_arg_patterns(&child, out);
-        out.extend(
-            child
-                .children()
-                .filter(|item| item.kind() == SyntaxKind::Pattern),
-        );
+        let args = child
+            .children()
+            .filter(|item| item.kind() == SyntaxKind::Pattern)
+            .collect::<Vec<_>>();
+        if args.is_empty() && child.kind() == SyntaxKind::ApplyC {
+            out.push(child);
+        } else {
+            out.extend(args);
+        }
     }
 }
 
@@ -7019,6 +7180,49 @@ fn expected_constructor_signature(
             None
         }
     }
+}
+
+fn builtin_annotation_mismatch(
+    actual: &CompactType,
+    expected: &SignatureType,
+) -> Option<(BuiltinType, BuiltinType)> {
+    let actual = compact_type_single_builtin(actual)?;
+    let expected = signature_single_builtin(expected)?;
+    (actual != expected && !builtin_annotation_mismatch_can_be_deferred(actual, expected))
+        .then_some((actual, expected))
+}
+
+fn compact_type_single_builtin(ty: &CompactType) -> Option<BuiltinType> {
+    if ty.never
+        || !ty.cons.is_empty()
+        || !ty.funs.is_empty()
+        || !ty.records.is_empty()
+        || !ty.record_spreads.is_empty()
+        || !ty.poly_variants.is_empty()
+        || !ty.tuples.is_empty()
+        || !ty.rows.is_empty()
+    {
+        return None;
+    }
+    let [builtin] = ty.builtins.as_slice() else {
+        return None;
+    };
+    Some(*builtin)
+}
+
+fn signature_single_builtin(signature: &SignatureType) -> Option<BuiltinType> {
+    match signature {
+        SignatureType::Effectful { ret, .. } => signature_single_builtin(ret),
+        SignatureType::Builtin(builtin) => Some(*builtin),
+        _ => None,
+    }
+}
+
+fn builtin_annotation_mismatch_can_be_deferred(actual: BuiltinType, expected: BuiltinType) -> bool {
+    matches!(
+        (actual, expected),
+        (BuiltinType::Int, BuiltinType::Float) | (BuiltinType::Float, BuiltinType::Int)
+    )
 }
 
 fn signature_type_decl_path(id: TypeDeclId, modules: &ModuleTable) -> Option<Vec<String>> {
@@ -10512,6 +10716,27 @@ mod tests {
         let body_ref = expr_ref(&session, body);
 
         assert_eq!(session.poly.ref_target(body_ref), Some(param));
+    }
+
+    #[test]
+    fn binding_empty_call_header_lowers_to_unit_lambda_param() {
+        let root = parse("my f() = 1\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let f = lower.modules.value_decls(module, &Name("f".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert_eq!(output.errors, Vec::new());
+        let body = binding_body_id(&output, f);
+        let (param, _) = match output.session.poly.expr(body) {
+            Expr::Lambda(param, body) => (*param, *body),
+            _ => panic!("expected unit lambda body"),
+        };
+        assert!(matches!(
+            output.session.poly.pat(param),
+            Pat::Lit(Lit::Unit)
+        ));
     }
 
     #[test]

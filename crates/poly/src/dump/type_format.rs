@@ -598,48 +598,90 @@ impl<'a> TypeFormatter<'a> {
     }
 
     fn neg_row_inline(&mut self, id: NegId) -> Option<String> {
+        self.render_neg_row_inline(id).map(|rendered| rendered.text)
+    }
+
+    fn render_neg_row_inline(&mut self, id: NegId) -> Option<Rendered> {
         match self.arena.neg(id) {
             Neg::Top => None,
             Neg::Bot => None,
-            Neg::Row(items, tail) => self.neg_row_inline_items(items, *tail),
+            Neg::Row(items, tail) => self.render_neg_row_inline_items(items, *tail),
             Neg::Intersection(left, right) => {
                 let mut parts = Vec::new();
-                if let Some(left) = self.neg_row_inline(*left) {
+                if let Some(left) = self.render_neg_row_intersection_part(*left) {
                     parts.push(left);
                 }
-                if let Some(right) = self.neg_row_inline(*right) {
+                if let Some(right) = self.render_neg_row_intersection_part(*right) {
                     parts.push(right);
                 }
-                (!parts.is_empty()).then(|| parts.join(" & "))
+                (!parts.is_empty()).then(|| Rendered::intersection(parts.join(" & ")))
             }
-            _ => Some(self.neg(id, Context::Free)),
+            _ => Some(self.render_neg(id)),
         }
     }
 
-    fn neg_row_inline_items(&mut self, items: &[NegId], tail: NegId) -> Option<String> {
+    fn render_neg_row_intersection_part(&mut self, id: NegId) -> Option<String> {
+        let rendered = match self.arena.neg(id) {
+            Neg::Intersection(left, right) => {
+                let mut parts = Vec::new();
+                if let Some(left) = self.render_neg_row_intersection_part(*left) {
+                    parts.push(left);
+                }
+                if let Some(right) = self.render_neg_row_intersection_part(*right) {
+                    parts.push(right);
+                }
+                (!parts.is_empty()).then(|| Rendered::intersection(parts.join(" & ")))?
+            }
+            Neg::Row(items, tail) => self.render_neg_row_inline_items(items, *tail)?,
+            _ => self.render_neg_row_inline(id)?,
+        };
+        if rendered.has_bare_space {
+            Some(format!("[{}]", rendered.text))
+        } else {
+            Some(rendered.text)
+        }
+    }
+
+    fn render_neg_row_inline_items(&mut self, items: &[NegId], tail: NegId) -> Option<Rendered> {
         let items = items
             .iter()
-            .map(|item| self.neg(*item, Context::Free))
+            .map(|item| self.render_neg(*item))
+            .collect::<Vec<_>>();
+        let item_has_bare_space = items.iter().any(|item| item.has_bare_space);
+        let item_texts = items
+            .into_iter()
+            .map(|item| item.in_context(Context::Free))
             .collect::<Vec<_>>();
         match self.arena.neg(tail) {
-            Neg::Top if items.is_empty() => None,
-            Neg::Top => Some(items.join(", ")),
+            Neg::Top if item_texts.is_empty() => None,
+            Neg::Top => {
+                let text = item_texts.join(", ");
+                Some(Rendered {
+                    text,
+                    prec: Prec::Atom,
+                    has_bare_space: item_has_bare_space || item_texts.len() > 1,
+                })
+            }
             _ => {
                 let tail = self
-                    .neg_row_inline(tail)
-                    .unwrap_or_else(|| self.neg(tail, Context::Free));
-                if items.is_empty() {
+                    .render_neg_row_inline(tail)
+                    .unwrap_or_else(|| self.render_neg(tail));
+                if item_texts.is_empty() {
                     Some(tail)
                 } else {
-                    Some(format!("{}; {tail}", items.join(", ")))
+                    Some(Rendered {
+                        text: format!("{}; {}", item_texts.join(", "), tail.text),
+                        prec: Prec::Atom,
+                        has_bare_space: true,
+                    })
                 }
             }
         }
     }
 
     fn neg_row(&mut self, items: &[NegId], tail: NegId) -> String {
-        self.neg_row_inline_items(items, tail)
-            .map(|items| format!("[{items}]"))
+        self.render_neg_row_inline_items(items, tail)
+            .map(|items| format!("[{}]", items.text))
             .unwrap_or_else(|| "[]".to_string())
     }
 
@@ -1189,6 +1231,40 @@ mod tests {
         let row = arena.alloc_neg(Neg::Row(vec![item], tail));
 
         assert_eq!(format_neg(&arena, row), "'[nondet; 'a]");
+    }
+
+    #[test]
+    fn brackets_row_intersection_parts_with_bare_space() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let e = TypeVar(1);
+        let arg = arena.alloc_neg(Neg::Var(a));
+        let signal = arena.alloc_neg(Neg::Con(vec!["signal".into()], Vec::new()));
+        let row_tail = arena.alloc_neg(Neg::Var(e));
+        let row = arena.alloc_neg(Neg::Row(vec![signal], row_tail));
+        let var = arena.alloc_neg(Neg::Var(e));
+        let arg_eff = arena.alloc_neg(Neg::Intersection(var, row));
+        let ret_eff = arena.alloc_pos(Pos::Bot);
+        let ret = arena.alloc_pos(Pos::Var(a));
+        let predicate = arena.alloc_pos(Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        });
+        let scheme = Scheme {
+            quantifiers: vec![a, e],
+            role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            predicate,
+            subtracts: Vec::new(),
+        };
+
+        assert_eq!(
+            format_scheme(&arena, &scheme),
+            "'a ['b & [signal; 'b]] -> 'a"
+        );
     }
 
     #[test]

@@ -293,13 +293,23 @@ fn dump_poly_from_sources(files: Vec<CollectedSource>) -> Result<DumpPolyOutput,
         .lowering
         .errors
         .iter()
-        .map(|error| format!("{error:?}"))
+        .map(format_body_lowering_error)
         .collect();
     Ok(DumpPolyOutput {
         text: dump.text,
         file_count: loaded.len(),
         errors,
     })
+}
+
+fn format_body_lowering_error(error: &infer::lowering::BodyLoweringError) -> String {
+    match error {
+        infer::lowering::BodyLoweringError::Expr {
+            error: infer::lowering::LoweringError::TypeMismatch { actual, expected },
+            ..
+        } => format!("type mismatch: {actual} is not {expected}"),
+        _ => format!("{error:?}"),
+    }
 }
 
 fn resolve_nearby_std_root(base: &FsPath) -> Option<PathBuf> {
@@ -539,18 +549,36 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         fs::write(
             root.join("main.yu"),
-            "act signal:\n    pub ping: () -> int\n\nmy handled = catch signal::ping():\n    signal::ping(), k -> k 1\n",
+            "act signal:\n    pub ping: () -> int\n\nmy handled() = catch signal::ping():\n    signal::ping(), k -> k 1\n",
         )
         .unwrap();
 
         let output = dump_poly_from_entry(root.join("main.yu")).unwrap();
 
         assert_eq!(output.file_count, 1);
-        assert_dump_has_line_starting_with(&output, "my d2:handled = ");
+        assert_eq!(output.errors, Vec::<String>::new());
+        assert_dump_has_line_starting_with(&output, "my d2:handled: () -> [signal] int = ");
         assert_dump_contains(&output, "catch ");
         assert_dump_contains(&output, "\"signal::ping\"");
         assert_dump_contains(&output, "\"signal.ping\"");
         assert_dump_contains(&output, ":k ->");
+        assert!(!output.text.contains("std::"));
+    }
+
+    #[test]
+    fn dump_poly_without_std_reports_type_annotation_mismatch() {
+        let root = temp_root("dump-poly-type-error");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "my x: bool = 1\n").unwrap();
+
+        let output = dump_poly_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_eq!(
+            output.errors,
+            vec!["type mismatch: int is not bool".to_string()]
+        );
         assert!(!output.text.contains("std::"));
     }
 

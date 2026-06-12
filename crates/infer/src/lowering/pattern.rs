@@ -96,6 +96,10 @@ impl<'a> ExprLowerer<'a> {
             SyntaxKind::PatParenGroup => {
                 return self.lower_paren_pattern(node, value, local_effect, call_return_effect);
             }
+            SyntaxKind::ApplyC if empty_apply_c(node) => {
+                self.constrain_exact_primitive(value, "unit");
+                return Ok(self.session.poly.add_pat(Pat::Lit(Lit::Unit)));
+            }
             _ => {}
         }
 
@@ -734,6 +738,16 @@ fn path_sep_name(node: &Cst) -> Option<Name> {
         .filter_map(|item| item.into_token())
         .find(|token| token.kind() == SyntaxKind::Ident)
         .map(|token| Name(token.text().to_string()))
+}
+
+fn empty_apply_c(node: &Cst) -> bool {
+    node.kind() == SyntaxKind::ApplyC
+        && !node.children().any(|child| {
+            matches!(
+                child.kind(),
+                SyntaxKind::Pattern | SyntaxKind::PatParenGroup
+            )
+        })
 }
 
 pub(super) fn pattern_payloads(node: &Cst) -> Vec<Cst> {

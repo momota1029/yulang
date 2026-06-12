@@ -24,7 +24,7 @@ fn main() {
                 print_usage_and_exit(&program);
             }
             match yulang2::dump_poly_from_entry(PathBuf::from(path)) {
-                Ok(output) => print!("{}", output.text),
+                Ok(output) => print_dump_poly_output(&output),
                 Err(error) => {
                     eprintln!("{error}");
                     process::exit(1);
@@ -39,12 +39,7 @@ fn main() {
                 print_usage_and_exit(&program);
             }
             match yulang2::dump_poly_from_entry_with_std(PathBuf::from(path)) {
-                Ok(output) => {
-                    print!("{}", output.text);
-                    for error in &output.errors {
-                        eprintln!("error: {error}");
-                    }
-                }
+                Ok(output) => print_dump_poly_output(&output),
                 Err(error) => {
                     eprintln!("{error}");
                     process::exit(1);
@@ -52,6 +47,13 @@ fn main() {
             }
         }
         _ => print_usage_and_exit(&program),
+    }
+}
+
+fn print_dump_poly_output(output: &yulang2::DumpPolyOutput) {
+    print!("{}", output.text);
+    for error in &output.errors {
+        eprintln!("error: {error}");
     }
 }
 
