@@ -853,6 +853,32 @@ fn stmt_impl_decl_colon_description() {
 }
 
 #[test]
+fn stmt_impl_decl_colon_description_with_role_args() {
+    let got = parse_stmt_once("impl lines: Index int;");
+    let expected = vec![
+        "(ImplDecl",
+        "  Impl \"impl\"",
+        "  (TypeExpr",
+        "    Ident \"lines\"",
+        "  )",
+        "  (ImplDescription",
+        "    Colon \":\"",
+        "    (TypeExpr",
+        "      Ident \"Index\"",
+        "      (TypeApply",
+        "        (TypeExpr",
+        "          Ident \"int\"",
+        "        )",
+        "      )",
+        "    )",
+        "  )",
+        "  Semicolon \";\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn stmt_cast_decl_inline_body() {
     let got = parse_stmt_once("cast(x: user_id): int = x.raw");
     let expected = vec![

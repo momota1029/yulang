@@ -1414,6 +1414,38 @@ mod tests {
     }
 
     #[test]
+    fn formats_multi_input_role_predicate_with_first_input_as_subject() {
+        let mut arena = TypeArena::new();
+        let container = TypeVar(0);
+        let key = TypeVar(1);
+        let item = TypeVar(2);
+        let neu_container = plain_neu(&mut arena, container);
+        let neu_key = plain_neu(&mut arena, key);
+        let neu_item = plain_neu(&mut arena, item);
+        let predicate = arena.alloc_pos(Pos::Var(item));
+        let scheme = Scheme {
+            quantifiers: vec![container, key, item],
+            role_predicates: vec![RolePredicate {
+                role: vec!["Index".into()],
+                inputs: vec![neu_container, neu_key],
+                associated: vec![crate::types::RoleAssociatedType {
+                    name: "value".into(),
+                    value: neu_item,
+                }],
+            }],
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            predicate,
+            subtracts: Vec::new(),
+        };
+
+        assert_eq!(
+            format_scheme(&arena, &scheme),
+            "'c where 'a: Index('b, value = 'c)"
+        );
+    }
+
+    #[test]
     fn formats_non_subtract_as_weight_suffix() {
         let mut arena = TypeArena::new();
         let a = TypeVar(0);

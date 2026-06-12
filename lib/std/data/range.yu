@@ -60,7 +60,7 @@ my fold_from(f, i: int, acc) =
     else:
         acc
 
-impl Fold range:
+impl range: Fold:
     type item = int
     our r.fold z f = case r:
         range::within (start, bound::unbounded) -> fold_from(f, first_int start, z)

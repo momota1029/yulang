@@ -9,43 +9,43 @@ pub role Ord 'a:
     pub a.gt: 'a -> bool
     pub a.ge: 'a -> bool
 
-impl Eq int:
+impl int: Eq:
     our x.eq y = std::int::eq x y
 
-impl Ord int:
+impl int: Ord:
     our x.lt y = std::int::lt x y
     our x.le y = std::int::le x y
     our x.gt y = std::int::gt x y
     our x.ge y = std::int::ge x y
 
-impl Eq float:
+impl float: Eq:
     our x.eq y = std::float::eq x y
 
-impl Ord float:
+impl float: Ord:
     our x.lt y = std::float::lt x y
     our x.le y = std::float::le x y
     our x.gt y = std::float::gt x y
     our x.ge y = std::float::ge x y
 
-impl Eq frac:
+impl frac: Eq:
     our x.eq y = std::num::frac::eq x y
 
-impl Ord frac:
+impl frac: Ord:
     our x.lt y = std::num::frac::lt x y
     our x.le y = std::num::frac::le x y
     our x.gt y = std::num::frac::gt x y
     our x.ge y = std::num::frac::ge x y
 
-impl Eq bool:
+impl bool: Eq:
     our x.eq y = std::bool::eq x y
 
-impl Eq str:
+impl str: Eq:
     our x.eq y = std::text::str::eq x y
 
-impl Eq char:
+impl char: Eq:
     our x.eq y = std::text::char::eq x y
 
-impl Eq (list int):
+impl (list int): Eq:
     our xs.eq ys = case (std::data::list::view_raw xs, std::data::list::view_raw ys):
         (std::data::list::list_view::empty, std::data::list::list_view::empty) -> true
         (std::data::list::list_view::leaf x, std::data::list::list_view::leaf y) -> std::int::eq x y

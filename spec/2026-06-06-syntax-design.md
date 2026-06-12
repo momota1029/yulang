@@ -574,13 +574,24 @@ impl_body =
 
 ```yu
 impl Eq Int;
+impl Int: Eq;
 impl Eq via Ord;
-impl Eq Int {
+impl Int: Eq {
   our eq = id
 }
+impl Index lines int:
+  type value = str
+  our xs.index i = ...
+impl lines: Index int:
+  type value = str
+  our xs.index i = ...
 ```
 
 `impl` は複数の type を `,` で並べられる。`via` の後には type を 1 つ読む。
+role の impl は、prefix 形の `impl Role First Rest...` と receiver-first 形の
+`impl First: Role Rest...` の両方を書ける。どちらも同じ role impl として読む。
+receiver-first で左側へ出せるのは role の第1通常引数だけで、第2引数以降は role 名の
+後ろに通常の type argument として置く。
 
 ### `cast`
 
@@ -669,7 +680,8 @@ where_clause =
   "where" (":" indent_where_constraints | where_constraint)
 
 where_constraint =
-  type ":" type ("," type)*
+    type
+  | type ":" type ("," type)*
 ```
 
 indent block 内の constraint は semicolon も item separator になる。
@@ -682,8 +694,14 @@ semicolon が外へ返り、`U: Ord` は別 statement として読まれる。
 ```yu
 where:
   Self: Sized
-  Int: Add Int
+  Int: Add
+  container: Index key
 ```
+
+role predicate も impl と同じく、role の第1通常引数を左側の receiver として書く。
+`where Index container key` と `where container: Index key` はどちらも同じ role predicate
+として読む。関連型を持つ predicate の dump 表示は `where container: Index(key, value = item)`
+のように role call の括弧内へ置く。
 
 ### operator definition
 

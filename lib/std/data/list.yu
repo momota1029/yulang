@@ -19,15 +19,15 @@ pub type list 'a with:
     pub xs.sort = std::data::list::sort xs
     pub &xs.push x = &xs = $xs.append [x]
 
-impl Index (list 'a) int:
+impl (list 'a): Index int:
     type value = 'a
     our xs.index i = std::data::list::index_raw xs i
 
-impl Index (list 'a) range:
+impl (list 'a): Index range:
     type value = list 'a
     our xs.index r = std::data::list::index_range xs r
 
-impl Index (ref 'e (list 'a)) int:
+impl (ref 'e (list 'a)): Index int:
     type value = ref 'e 'a
     our r.index i = ref {
         get: \() -> std::data::list::index_raw (r.get()) i,
@@ -53,7 +53,7 @@ my fold_impl xs z f = case std::data::list::view_raw xs:
     list_view::leaf x -> f z x
     list_view::node(left, right) -> fold_impl(right, fold_impl left z f, f)
 
-impl Fold (list 'a):
+impl (list 'a): Fold:
     type item = 'a
     our xs.fold z f = fold_impl xs z f
 

@@ -32,13 +32,13 @@ pub str_line_view(source: str): lines =
 pub line_view(source: ref 'e str): ref_lines 'e =
     ref_lines { source: source }
 
-impl Index lines int:
+impl lines: Index int:
     type value = str
     our ls.index i =
         my line_range = std::text::str::line_range ls.source i
         std::text::str::index_range ls.source line_range
 
-impl Index (ref_lines 'e) int:
+impl (ref_lines 'e): Index int:
     type value = ref 'e str
     our ls.index i = ref {
         get: \() ->
@@ -61,11 +61,11 @@ my fold_ref_lines(ls: ref_lines 'e, i: int, end: int, acc, f) =
     else:
         acc
 
-impl Fold lines:
+impl lines: Fold:
     type item = str
     our ls.fold z f = fold_lines(ls, 0, std::text::str::line_count ls.source, z, f)
 
-impl Fold (ref_lines 'e):
+impl (ref_lines 'e): Fold:
     type item = ref 'e str
     our ls.fold z f = fold_ref_lines(ls, 0, std::text::str::line_count (ls.source.get()), z, f)
 
@@ -82,15 +82,15 @@ pub type str with:
 
 pub is_empty(s: str): bool = std::int::eq(std::text::str::len s, 0)
 
-impl Index str int:
+impl str: Index int:
     type value = char
     our s.index i = std::text::str::index_raw s i
 
-impl Index str range:
+impl str: Index range:
     type value = str
     our s.index r = std::text::str::index_range s r
 
-impl Index (ref 'e str) range:
+impl (ref 'e str): Index range:
     type value = ref 'e str
     our r.index i = ref {
         get: \() -> std::text::str::index_range (r.get()) i,
@@ -102,7 +102,7 @@ impl Index (ref 'e str) range:
             loop:r.update_effect()
     }
 
-impl Index (ref 'e str) int:
+impl (ref 'e str): Index int:
     type value = ref 'e char
     our r.index i = ref {
         get: \() -> std::text::str::index_raw (r.get()) i,

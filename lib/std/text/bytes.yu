@@ -21,10 +21,10 @@ pub is_empty(b: bytes): bool = std::int::eq(std::text::bytes::len b, 0)
 pub to_utf8_lossy(b: bytes): str = case std::text::bytes::to_utf8_raw b:
     (text, _) -> text
 
-impl Index bytes int:
+impl bytes: Index int:
     type value = int
     our b.index i = std::text::bytes::index_raw b i
 
-impl Index bytes range:
+impl bytes: Index range:
     type value = bytes
     our b.index r = std::text::bytes::index_range b r

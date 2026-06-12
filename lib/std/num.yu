@@ -21,53 +21,53 @@ pub role LowerHex 'a:
 pub role UpperHex 'a:
     pub a.upper_hex: str
 
-impl Add int:
+impl int: Add:
     our x.add y = std::int::add x y
 
-impl Sub int:
+impl int: Sub:
     our x.sub y = std::int::sub x y
 
-impl Mul int:
+impl int: Mul:
     our x.mul y = std::int::mul x y
 
-impl Div int:
+impl int: Div:
     type out = frac
     our x.div y = std::num::frac::new x y
 
-impl LowerHex int:
+impl int: LowerHex:
     our x.lower_hex = std::int::to_hex x
 
-impl UpperHex int:
+impl int: UpperHex:
     our x.upper_hex = std::int::to_upper_hex x
 
-impl Add float:
+impl float: Add:
     our x.add y = std::float::add x y
 
-impl Sub float:
+impl float: Sub:
     our x.sub y = std::float::sub x y
 
-impl Mul float:
+impl float: Mul:
     our x.mul y = std::float::mul x y
 
-impl Div float:
+impl float: Div:
     type out = float
     our x.div y = std::float::div x y
 
-impl Add frac:
+impl frac: Add:
     our x.add y = std::num::frac::add x y
 
-impl Sub frac:
+impl frac: Sub:
     our x.sub y = std::num::frac::sub x y
 
-impl Mul frac:
+impl frac: Mul:
     our x.mul y = std::num::frac::mul x y
 
-impl Div frac:
+impl frac: Div:
     type out = frac
     our x.div y = std::num::frac::div x y
 
-impl Add str:
+impl str: Add:
     our x.add y = std::text::str::concat x y
 
-impl Add (list 'a):
+impl (list 'a): Add:
     our xs.add ys = std::data::list::merge xs ys

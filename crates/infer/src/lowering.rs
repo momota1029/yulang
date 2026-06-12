@@ -8843,6 +8843,35 @@ mod tests {
     }
 
     #[test]
+    fn role_impl_prefix_and_colon_description_register_same_multi_input_shape() {
+        for impl_head in ["impl Index lines int:", "impl lines: Index int:"] {
+            let root = parse(&format!(
+                concat!(
+                    "struct lines;\n",
+                    "role Index 'container 'key:\n",
+                    "  type value\n",
+                    "  our x.index: 'key -> value\n",
+                    "{impl_head}\n",
+                    "  type value = lines\n",
+                    "  our x.index i = x\n",
+                ),
+                impl_head = impl_head,
+            ));
+            let lower = lower_module_map(&root);
+
+            let output = lower_binding_bodies(&root, lower);
+
+            assert!(output.errors.is_empty(), "{:?}", output.errors);
+            let candidates = output.session.role_impls.candidates(&["Index".to_string()]);
+            assert_eq!(candidates.len(), 1, "{impl_head}");
+            let candidate = &candidates[0];
+            assert_eq!(candidate.inputs.len(), 2);
+            assert_role_arg_is_exact_con(&output.session, &candidate.inputs[0], "lines");
+            assert_role_arg_is_exact_con(&output.session, &candidate.inputs[1], "int");
+        }
+    }
+
+    #[test]
     fn role_impl_method_receiver_is_constrained_to_impl_target() {
         let root = parse(
             "struct User;\nrole Box 'a:\n  our x.get: 'a\nimpl User: Box {\n  our x.get = x\n}\n",
