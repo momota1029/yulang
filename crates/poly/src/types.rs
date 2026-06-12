@@ -144,10 +144,11 @@ pub struct TypeVar(pub u32);
 pub struct SubtractId(pub u32);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-/// stack entry の effect path 集合。
+/// stack entry の effect family 集合。
 ///
 /// 旧 `S-subtract` の名前を残しているが、現行仕様では `stack(T, @S)` の `H` として使う。
-/// 引数付き effect は stack 集合演算では path family だけを見る。引数そのものは通常の型制約で見る。
+/// 引数付き effect は path family としてまとめるが、引数は捨てず、infer 側の通常型制約で
+/// すり合わせる。
 pub enum Subtractability {
     Empty,
     All,
@@ -158,27 +159,41 @@ pub enum Subtractability {
 }
 
 impl Subtractability {
-    /// stack 集合の共通部分。effect family は path だけで比較し、
-    /// 2つ以上の family を畳んだ結果は path のみを持つ。
+    /// stack 集合の共通部分。
+    ///
+    /// ここは純粋な型表現の正規化なので、同じ path の引数すり合わせで生じる制約は
+    /// infer 側が生成する。この関数は代表として左側の引数列を保ち、path 情報だけへ潰さない。
     pub fn intersect(self, other: Self) -> Self {
         use Subtractability::*;
         match (self, other) {
             (Empty, _) | (_, Empty) => Empty,
             (All, other) | (other, All) => other,
             (lhs, rhs) => match (FamilyBound::from(lhs), FamilyBound::from(rhs)) {
-                (FamilyBound::Include(lhs), FamilyBound::Include(rhs)) => FamilyBound::Include(
-                    lhs.into_iter().filter(|path| rhs.contains(path)).collect(),
-                )
-                .into(),
+                (FamilyBound::Include(lhs), FamilyBound::Include(rhs)) => {
+                    let rhs = effect_family_path_index(&rhs);
+                    FamilyBound::Include(
+                        lhs.into_iter()
+                            .filter(|family| rhs.contains_key(&family.path))
+                            .collect(),
+                    )
+                    .into()
+                }
                 (FamilyBound::Include(lhs), FamilyBound::Exclude(rhs))
-                | (FamilyBound::Exclude(rhs), FamilyBound::Include(lhs)) => FamilyBound::Include(
-                    lhs.into_iter().filter(|path| !rhs.contains(path)).collect(),
-                )
-                .into(),
+                | (FamilyBound::Exclude(rhs), FamilyBound::Include(lhs)) => {
+                    let rhs = effect_family_path_index(&rhs);
+                    FamilyBound::Include(
+                        lhs.into_iter()
+                            .filter(|family| !rhs.contains_key(&family.path))
+                            .collect(),
+                    )
+                    .into()
+                }
                 (FamilyBound::Exclude(mut lhs), FamilyBound::Exclude(rhs)) => {
-                    for path in rhs {
-                        if !lhs.contains(&path) {
-                            lhs.push(path);
+                    let mut lhs_index = effect_family_path_index(&lhs);
+                    for family in rhs {
+                        if !lhs_index.contains_key(&family.path) {
+                            lhs_index.insert(family.path.clone(), lhs.len());
+                            lhs.push(family);
                         }
                     }
                     FamilyBound::Exclude(lhs).into()
@@ -190,8 +205,14 @@ impl Subtractability {
 
 /// path family 集合を「含む側」「除く側」の正規形で見るための補助。
 enum FamilyBound {
-    Include(Vec<Vec<String>>),
-    Exclude(Vec<Vec<String>>),
+    Include(Vec<EffectFamily>),
+    Exclude(Vec<EffectFamily>),
+}
+
+#[derive(Clone)]
+struct EffectFamily {
+    path: Vec<String>,
+    args: Vec<NeuId>,
 }
 
 impl From<Subtractability> for FamilyBound {
@@ -200,10 +221,10 @@ impl From<Subtractability> for FamilyBound {
         match value {
             Empty => FamilyBound::Include(Vec::new()),
             All => FamilyBound::Exclude(Vec::new()),
-            Set(path, _) => FamilyBound::Include(vec![path]),
-            SetMany(families) => FamilyBound::Include(dedup_family_paths(families)),
-            AllExcept(path, _) => FamilyBound::Exclude(vec![path]),
-            AllExceptMany(families) => FamilyBound::Exclude(dedup_family_paths(families)),
+            Set(path, args) => FamilyBound::Include(vec![EffectFamily { path, args }]),
+            SetMany(families) => FamilyBound::Include(dedup_families_by_path(families)),
+            AllExcept(path, args) => FamilyBound::Exclude(vec![EffectFamily { path, args }]),
+            AllExceptMany(families) => FamilyBound::Exclude(dedup_families_by_path(families)),
         }
     }
 }
@@ -212,26 +233,46 @@ impl From<FamilyBound> for Subtractability {
     fn from(value: FamilyBound) -> Self {
         use Subtractability::*;
         match value {
-            FamilyBound::Include(paths) => match paths.as_slice() {
+            FamilyBound::Include(families) => match families.as_slice() {
                 [] => Empty,
-                [path] => Set(path.clone(), Vec::new()),
-                _ => SetMany(paths.into_iter().map(|path| (path, Vec::new())).collect()),
+                [family] => Set(family.path.clone(), family.args.clone()),
+                _ => SetMany(
+                    families
+                        .into_iter()
+                        .map(|family| (family.path, family.args))
+                        .collect(),
+                ),
             },
-            FamilyBound::Exclude(paths) => match paths.as_slice() {
+            FamilyBound::Exclude(families) => match families.as_slice() {
                 [] => All,
-                [path] => AllExcept(path.clone(), Vec::new()),
-                _ => AllExceptMany(paths.into_iter().map(|path| (path, Vec::new())).collect()),
+                [family] => AllExcept(family.path.clone(), family.args.clone()),
+                _ => AllExceptMany(
+                    families
+                        .into_iter()
+                        .map(|family| (family.path, family.args))
+                        .collect(),
+                ),
             },
         }
     }
 }
 
-fn dedup_family_paths(families: Vec<(Vec<String>, Vec<NeuId>)>) -> Vec<Vec<String>> {
+fn dedup_families_by_path(families: Vec<(Vec<String>, Vec<NeuId>)>) -> Vec<EffectFamily> {
+    let mut seen = FxHashMap::default();
     let mut out = Vec::new();
-    for (path, _) in families {
-        if !out.contains(&path) {
-            out.push(path);
+    for (path, args) in families {
+        if !seen.contains_key(&path) {
+            seen.insert(path.clone(), out.len());
+            out.push(EffectFamily { path, args });
         }
+    }
+    out
+}
+
+fn effect_family_path_index(families: &[EffectFamily]) -> FxHashMap<Vec<String>, usize> {
+    let mut out = FxHashMap::default();
+    for (index, family) in families.iter().enumerate() {
+        out.entry(family.path.clone()).or_insert(index);
     }
     out
 }

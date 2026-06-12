@@ -865,6 +865,7 @@ impl ConstraintMachine {
 
         let combined = weights.left.compose(&weights.right);
         let retained_items = self.intersect_row_items_with_stack(items, &combined);
+        let retained_items = self.collect_neg_effect_items(retained_items);
         if retained_items.is_empty() {
             let source_pos = self.alloc_pos(Pos::Var(source));
             self.enqueue_subtype(
@@ -878,15 +879,12 @@ impl ConstraintMachine {
             return;
         }
 
-        let residual_weight = subtract_row_items_from_stack_weight(
-            &combined,
-            retained_items
-                .iter()
-                .filter_map(|item| self.neg_effect_family(*item)),
-        );
+        let retained_families = self.neg_effect_families(&retained_items);
+        let residual_weight =
+            self.subtract_row_items_from_stack_weight(&combined, retained_families.clone());
         let key = RowResidualKey {
             source,
-            retained_families: self.neg_effect_family_paths(&retained_items),
+            retained_families: sorted_effect_families(retained_families),
             weight: residual_weight.clone(),
         };
         let gamma = if let Some(gamma) = self.row_residuals.get(&key) {
@@ -916,74 +914,254 @@ impl ConstraintMachine {
     }
 
     fn intersect_row_items_with_stack(
-        &self,
+        &mut self,
         items: Vec<NegId>,
         weight: &StackWeight,
     ) -> Vec<NegId> {
+        self.collect_stack_effect_families(weight);
         let subtractability = common_stack_subtractability(weight.stack_items());
         self.intersect_row_items_with_subtractability(items, &subtractability)
     }
 
     fn intersect_row_items_with_subtractability(
-        &self,
+        &mut self,
         items: Vec<NegId>,
         subtractability: &Subtractability,
     ) -> Vec<NegId> {
         match subtractability {
             Subtractability::All => items,
             Subtractability::Empty => Vec::new(),
-            Subtractability::Set(path, _) => items
+            Subtractability::Set(path, args) => items
                 .into_iter()
-                .filter(|item| self.neg_effect_family_matches(*item, path))
+                .filter(|item| self.constrain_neg_effect_family_args(*item, path, args))
                 .collect(),
             Subtractability::SetMany(families) => items
                 .into_iter()
                 .filter(|item| {
-                    families
-                        .iter()
-                        .any(|(path, _)| self.neg_effect_family_matches(*item, path))
+                    families.iter().any(|(path, args)| {
+                        self.constrain_neg_effect_family_args(*item, path, args)
+                    })
                 })
                 .collect(),
-            Subtractability::AllExcept(path, _) => items
+            Subtractability::AllExcept(path, args) => items
                 .into_iter()
-                .filter(|item| !self.neg_effect_family_matches(*item, path))
+                .filter(|item| !self.constrain_neg_effect_family_args(*item, path, args))
                 .collect(),
             Subtractability::AllExceptMany(families) => items
                 .into_iter()
                 .filter(|item| {
-                    !families
-                        .iter()
-                        .any(|(path, _)| self.neg_effect_family_matches(*item, path))
+                    !families.iter().any(|(path, args)| {
+                        self.constrain_neg_effect_family_args(*item, path, args)
+                    })
                 })
                 .collect(),
         }
     }
 
-    fn neg_effect_family_matches(&self, item: NegId, path: &[String]) -> bool {
-        matches!(self.types.neg(item), Neg::Con(item_path, _) if item_path == path)
+    fn constrain_neg_effect_family_args(
+        &mut self,
+        item: NegId,
+        path: &[String],
+        args: &[NeuId],
+    ) -> bool {
+        let Neg::Con(item_path, item_args) = self.types.neg(item).clone() else {
+            return false;
+        };
+        if item_path != path {
+            return false;
+        }
+        self.enqueue_invariant_neu_args(item_args, args.to_vec(), ConstraintWeights::empty());
+        true
     }
 
-    fn neg_effect_family(&self, item: NegId) -> Option<EffectFamily> {
-        match self.types.neg(item) {
-            Neg::Con(path, args) => Some(EffectFamily {
-                path: path.clone(),
-                args: args.clone(),
-            }),
-            _ => None,
+    fn collect_stack_effect_families(&mut self, weight: &StackWeight) {
+        let mut families = EffectFamilyMap::default();
+        for family in weight.stack_items().flat_map(subtractability_families) {
+            self.insert_effect_family(&mut families, family);
         }
     }
 
-    fn neg_effect_family_paths(&self, items: &[NegId]) -> Vec<Vec<String>> {
-        let mut paths = items
-            .iter()
-            .filter_map(|item| match self.types.neg(*item) {
-                Neg::Con(path, _) => Some(path.clone()),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        paths.sort();
-        paths.dedup();
-        paths
+    fn collect_neg_effect_items(&mut self, items: Vec<NegId>) -> Vec<NegId> {
+        let mut by_path = FxHashMap::<Vec<String>, (usize, Vec<NeuId>)>::default();
+        let mut out = Vec::new();
+        for item in items {
+            let Neg::Con(path, args) = self.types.neg(item).clone() else {
+                out.push(item);
+                continue;
+            };
+            if let Some((_, existing_args)) = by_path.get(&path) {
+                self.enqueue_invariant_neu_args(
+                    existing_args.clone(),
+                    args,
+                    ConstraintWeights::empty(),
+                );
+                continue;
+            }
+            by_path.insert(path, (out.len(), args));
+            out.push(item);
+        }
+        out
+    }
+
+    fn neg_effect_families(&self, items: &[NegId]) -> Vec<EffectFamily> {
+        let mut families = EffectFamilyMap::default();
+        for item in items {
+            if let Neg::Con(path, args) = self.types.neg(*item) {
+                families.insert_first(EffectFamily {
+                    path: path.clone(),
+                    args: args.clone(),
+                });
+            }
+        }
+        families.into_entries()
+    }
+
+    fn insert_effect_family(&mut self, families: &mut EffectFamilyMap, family: EffectFamily) {
+        if let EffectFamilyInsert::Duplicate {
+            existing_args,
+            duplicate_args,
+        } = families.insert(family)
+        {
+            self.enqueue_invariant_neu_args(
+                existing_args,
+                duplicate_args,
+                ConstraintWeights::empty(),
+            );
+        }
+    }
+
+    fn collect_effect_families(
+        &mut self,
+        families: impl IntoIterator<Item = EffectFamily>,
+    ) -> Vec<EffectFamily> {
+        let mut out = EffectFamilyMap::default();
+        for family in families {
+            self.insert_effect_family(&mut out, family);
+        }
+        out.into_entries()
+    }
+
+    fn set_effect_families(
+        &mut self,
+        families: impl IntoIterator<Item = EffectFamily>,
+    ) -> Subtractability {
+        match self.collect_effect_families(families).as_slice() {
+            [] => Subtractability::Empty,
+            [family] => Subtractability::Set(family.path.clone(), family.args.clone()),
+            families => Subtractability::SetMany(
+                families
+                    .iter()
+                    .cloned()
+                    .map(|family| (family.path, family.args))
+                    .collect(),
+            ),
+        }
+    }
+
+    fn all_except_effect_families(
+        &mut self,
+        families: impl IntoIterator<Item = EffectFamily>,
+    ) -> Subtractability {
+        match self.collect_effect_families(families).as_slice() {
+            [] => Subtractability::All,
+            [family] => Subtractability::AllExcept(family.path.clone(), family.args.clone()),
+            families => Subtractability::AllExceptMany(
+                families
+                    .iter()
+                    .cloned()
+                    .map(|family| (family.path, family.args))
+                    .collect(),
+            ),
+        }
+    }
+
+    fn subtract_row_items_from_stack_weight(
+        &mut self,
+        weight: &StackWeight,
+        removed: impl IntoIterator<Item = EffectFamily>,
+    ) -> StackWeight {
+        let removed = self.collect_effect_families(removed);
+        if removed.is_empty() {
+            return weight.clone();
+        }
+
+        let mut out = StackWeight::empty();
+        for entry in weight.entries() {
+            let mut residual_parts = Vec::new();
+            if entry.floor.is_empty() && entry.stack.is_empty() {
+                residual_parts.push(self.subtract_effect_families(Subtractability::All, &removed));
+            } else {
+                for subtractability in &entry.floor {
+                    residual_parts
+                        .push(self.subtract_effect_families(subtractability.clone(), &removed));
+                }
+                for subtractability in &entry.stack {
+                    residual_parts
+                        .push(self.subtract_effect_families(subtractability.clone(), &removed));
+                }
+            }
+            if let Some(floor) = residual_parts.into_iter().reduce(intersect_subtractability) {
+                out = out.compose(&StackWeight::floor(entry.id, floor));
+            }
+            out = out.compose(&StackWeight::pops(entry.id, entry.pops));
+            for subtractability in &entry.stack {
+                out = out.compose(&StackWeight::push(
+                    entry.id,
+                    self.subtract_effect_families(subtractability.clone(), &removed),
+                ));
+            }
+        }
+        out
+    }
+
+    fn subtract_effect_families(
+        &mut self,
+        subtractability: Subtractability,
+        removed: &[EffectFamily],
+    ) -> Subtractability {
+        use Subtractability::*;
+        match subtractability {
+            Empty => Empty,
+            All => self.all_except_effect_families(removed.iter().cloned()),
+            Set(path, args) => {
+                let family = EffectFamily { path, args };
+                if let Some(removed) = find_removed_family(&family, removed) {
+                    self.enqueue_invariant_neu_args(
+                        family.args,
+                        removed.args.clone(),
+                        ConstraintWeights::empty(),
+                    );
+                    Empty
+                } else {
+                    self.set_effect_families([family])
+                }
+            }
+            SetMany(families) => {
+                let mut remaining = Vec::new();
+                for family in families_from_pairs(families) {
+                    if let Some(removed) = find_removed_family(&family, removed) {
+                        self.enqueue_invariant_neu_args(
+                            family.args,
+                            removed.args.clone(),
+                            ConstraintWeights::empty(),
+                        );
+                    } else {
+                        remaining.push(family);
+                    }
+                }
+                self.set_effect_families(remaining)
+            }
+            AllExcept(path, args) => self.all_except_effect_families(
+                [EffectFamily { path, args }]
+                    .into_iter()
+                    .chain(removed.iter().cloned()),
+            ),
+            AllExceptMany(families) => self.all_except_effect_families(
+                families_from_pairs(families)
+                    .into_iter()
+                    .chain(removed.iter().cloned()),
+            ),
+        }
     }
 
     fn add_lower_bound(&mut self, target: TypeVar, pos: PosId, weights: ConstraintWeights) {
@@ -1323,7 +1501,7 @@ struct QueuedSubtractFact {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct RowResidualKey {
     source: TypeVar,
-    retained_families: Vec<Vec<String>>,
+    retained_families: Vec<EffectFamily>,
     weight: StackWeight,
 }
 
@@ -1524,7 +1702,7 @@ pub struct SubtractFact {
     pub subtractability: Subtractability,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct EffectFamily {
     path: Vec<String>,
     args: Vec<NeuId>,
@@ -1539,86 +1717,20 @@ fn common_stack_subtractability<'a>(
         .unwrap_or(Subtractability::All)
 }
 
-fn subtract_row_items_from_stack_weight(
-    weight: &StackWeight,
-    removed: impl IntoIterator<Item = EffectFamily>,
-) -> StackWeight {
-    let removed = removed
-        .into_iter()
-        .map(path_only_family)
-        .collect::<Vec<_>>();
-    if removed.is_empty() {
-        return weight.clone();
-    }
-
-    let mut out = StackWeight::empty();
-    for entry in weight.entries() {
-        let mut residual_parts = Vec::new();
-        if entry.floor.is_empty() && entry.stack.is_empty() {
-            residual_parts.push(subtract_effect_families(Subtractability::All, &removed));
-        } else {
-            for subtractability in &entry.floor {
-                residual_parts.push(subtract_effect_families(subtractability.clone(), &removed));
-            }
-            residual_parts.extend(
-                entry
-                    .stack
-                    .iter()
-                    .cloned()
-                    .map(|subtractability| subtract_effect_families(subtractability, &removed)),
-            );
-        }
-        if let Some(floor) = residual_parts.into_iter().reduce(intersect_subtractability) {
-            out = out.compose(&StackWeight::floor(entry.id, floor));
-        }
-        out = out.compose(&StackWeight::pops(entry.id, entry.pops));
-        for subtractability in &entry.stack {
-            out = out.compose(&StackWeight::push(
-                entry.id,
-                subtract_effect_families(subtractability.clone(), &removed),
-            ));
-        }
-    }
-    out
-}
-
-fn subtract_effect_families(
-    subtractability: Subtractability,
-    removed: &[EffectFamily],
-) -> Subtractability {
-    use Subtractability::*;
-    match subtractability {
-        Empty => Empty,
-        All => all_except_families(removed.iter().cloned()),
-        Set(path, args) => set_families(
-            [EffectFamily { path, args }]
-                .into_iter()
-                .filter(|family| !family_is_removed(family, removed)),
-        ),
-        SetMany(families) => set_families(
-            families_from_pairs(families)
-                .into_iter()
-                .filter(|family| !family_is_removed(family, removed)),
-        ),
-        AllExcept(path, args) => all_except_families(
-            [EffectFamily { path, args }]
-                .into_iter()
-                .chain(removed.iter().cloned()),
-        ),
-        AllExceptMany(families) => all_except_families(
-            families_from_pairs(families)
-                .into_iter()
-                .chain(removed.iter().cloned()),
-        ),
-    }
-}
-
-fn family_is_removed(family: &EffectFamily, removed: &[EffectFamily]) -> bool {
-    removed.iter().any(|removed| removed.path == family.path)
-}
-
 fn intersect_subtractability(lhs: Subtractability, rhs: Subtractability) -> Subtractability {
     lhs.intersect(rhs)
+}
+
+fn sorted_effect_families(mut families: Vec<EffectFamily>) -> Vec<EffectFamily> {
+    families.sort_by(|left, right| left.path.cmp(&right.path));
+    families
+}
+
+fn find_removed_family<'a>(
+    family: &EffectFamily,
+    removed: &'a [EffectFamily],
+) -> Option<&'a EffectFamily> {
+    removed.iter().find(|removed| removed.path == family.path)
 }
 
 fn families_from_pairs(families: Vec<(Vec<String>, Vec<NeuId>)>) -> Vec<EffectFamily> {
@@ -1628,49 +1740,65 @@ fn families_from_pairs(families: Vec<(Vec<String>, Vec<NeuId>)>) -> Vec<EffectFa
         .collect()
 }
 
-fn set_families(families: impl IntoIterator<Item = EffectFamily>) -> Subtractability {
-    let mut out = Vec::new();
-    for family in families {
-        push_unique_effect_family(&mut out, family);
-    }
-    match out.as_slice() {
-        [] => Subtractability::Empty,
-        [family] => Subtractability::Set(family.path.clone(), family.args.clone()),
-        _ => Subtractability::SetMany(
-            out.into_iter()
-                .map(|family| (family.path, family.args))
-                .collect(),
-        ),
-    }
-}
-
-fn all_except_families(families: impl IntoIterator<Item = EffectFamily>) -> Subtractability {
-    let mut out = Vec::new();
-    for family in families {
-        push_unique_effect_family(&mut out, family);
-    }
-    match out.as_slice() {
-        [] => Subtractability::All,
-        [family] => Subtractability::AllExcept(family.path.clone(), family.args.clone()),
-        _ => Subtractability::AllExceptMany(
-            out.into_iter()
-                .map(|family| (family.path, family.args))
-                .collect(),
-        ),
+fn subtractability_families(subtractability: &Subtractability) -> Vec<EffectFamily> {
+    match subtractability {
+        Subtractability::Empty | Subtractability::All => Vec::new(),
+        Subtractability::Set(path, args) | Subtractability::AllExcept(path, args) => {
+            vec![EffectFamily {
+                path: path.clone(),
+                args: args.clone(),
+            }]
+        }
+        Subtractability::SetMany(families) | Subtractability::AllExceptMany(families) => families
+            .iter()
+            .map(|(path, args)| EffectFamily {
+                path: path.clone(),
+                args: args.clone(),
+            })
+            .collect(),
     }
 }
 
-fn push_unique_effect_family(families: &mut Vec<EffectFamily>, family: EffectFamily) {
-    let family = path_only_family(family);
-    if !families.iter().any(|existing| existing.path == family.path) {
-        families.push(family);
-    }
+#[derive(Default)]
+struct EffectFamilyMap {
+    by_path: FxHashMap<Vec<String>, usize>,
+    entries: Vec<EffectFamily>,
 }
 
-fn path_only_family(family: EffectFamily) -> EffectFamily {
-    EffectFamily {
-        path: family.path,
-        args: Vec::new(),
+enum EffectFamilyInsert {
+    Inserted,
+    Duplicate {
+        existing_args: Vec<NeuId>,
+        duplicate_args: Vec<NeuId>,
+    },
+}
+
+impl EffectFamilyMap {
+    fn insert(&mut self, family: EffectFamily) -> EffectFamilyInsert {
+        if let Some(index) = self.by_path.get(&family.path).copied() {
+            return EffectFamilyInsert::Duplicate {
+                existing_args: self.entries[index].args.clone(),
+                duplicate_args: family.args,
+            };
+        }
+        self.insert_new(family);
+        EffectFamilyInsert::Inserted
+    }
+
+    fn insert_first(&mut self, family: EffectFamily) {
+        if !self.by_path.contains_key(&family.path) {
+            self.insert_new(family);
+        }
+    }
+
+    fn insert_new(&mut self, family: EffectFamily) {
+        let index = self.entries.len();
+        self.by_path.insert(family.path.clone(), index);
+        self.entries.push(family);
+    }
+
+    fn into_entries(self) -> Vec<EffectFamily> {
+        self.entries
     }
 }
 
@@ -2748,7 +2876,7 @@ mod tests {
     }
 
     #[test]
-    fn var_to_effect_row_upper_reuses_residual_by_effect_path_not_payload() {
+    fn var_to_effect_row_upper_keeps_residuals_distinct_by_effect_payload() {
         let mut machine = ConstraintMachine::new();
         let source = TypeVar(0);
         let tail_var = TypeVar(1);
@@ -2783,20 +2911,28 @@ mod tests {
         machine.weighted_subtype(first_lower, weights.clone(), first_upper);
         machine.weighted_subtype(second_lower, weights, second_upper);
 
-        assert_eq!(machine.row_residuals.len(), 1);
-        let gamma = *machine.row_residuals.values().next().expect("row residual");
-        let residual_weights = ConstraintWeights {
-            left: residual_stack_weight(
-                subtract,
-                Subtractability::AllExcept(ref_update, Vec::new()),
-            ),
-            right: StackWeight::empty(),
-        };
-        assert_single_weighted_upper_var(&machine, gamma, tail_var, residual_weights);
+        assert_eq!(machine.row_residuals.len(), 2);
+        for (key, gamma) in &machine.row_residuals {
+            let [family] = key.retained_families.as_slice() else {
+                panic!(
+                    "expected one retained family, got {:?}",
+                    key.retained_families
+                );
+            };
+            assert_eq!(family.path, ref_update);
+            let residual_weights = ConstraintWeights {
+                left: residual_stack_weight(
+                    subtract,
+                    Subtractability::AllExcept(family.path.clone(), family.args.clone()),
+                ),
+                right: StackWeight::empty(),
+            };
+            assert_weighted_upper_var(&machine, *gamma, tail_var, residual_weights);
+        }
     }
 
     #[test]
-    fn var_to_effect_row_upper_drops_effect_payloads_from_residual_stack_weight() {
+    fn var_to_effect_row_upper_keeps_effect_payloads_in_residual_stack_weight() {
         let mut machine = ConstraintMachine::new();
         let source = TypeVar(0);
         let tail_var = TypeVar(1);
@@ -2824,13 +2960,69 @@ mod tests {
             left: residual_stack_weight(
                 subtract,
                 Subtractability::AllExceptMany(vec![
-                    (ref_update, Vec::new()),
+                    (ref_update, vec![payload]),
                     (vec!["io".into()], Vec::new()),
                 ]),
             ),
             right: StackWeight::empty(),
         };
         assert_single_weighted_upper_var(&machine, gamma, tail_var, residual_weights);
+    }
+
+    #[test]
+    fn var_to_effect_row_upper_collects_duplicate_effect_paths_with_payload_constraints() {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let tail_var = TypeVar(1);
+        let subtract = SubtractId(0);
+        let ref_update = crate::std_paths::control_var_ref_update_effect();
+        let first_payload_lower = machine.alloc_pos(Pos::Bot);
+        let first_payload_upper = machine.alloc_neg(Neg::Top);
+        let first_payload = machine.alloc_neu(Neu::Bounds(
+            first_payload_lower,
+            TypeVar(10),
+            first_payload_upper,
+        ));
+        let second_payload_lower = machine.alloc_pos(Pos::Bot);
+        let second_payload_upper = machine.alloc_neg(Neg::Top);
+        let second_payload = machine.alloc_neu(Neu::Bounds(
+            second_payload_lower,
+            TypeVar(11),
+            second_payload_upper,
+        ));
+        let first_item = machine.alloc_neg(Neg::Con(ref_update.clone(), vec![first_payload]));
+        let second_item = machine.alloc_neg(Neg::Con(ref_update.clone(), vec![second_payload]));
+        let tail = machine.alloc_neg(Neg::Var(tail_var));
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Row(vec![first_item, second_item], tail));
+        let weights = ConstraintWeights {
+            left: StackWeight::push(subtract, Subtractability::All),
+            right: StackWeight::empty(),
+        };
+
+        machine.weighted_subtype(lower, weights, upper);
+
+        let gamma = single_upper_row_tail(&machine, source, &["std::control::var::ref_update"]);
+        let residual_weights = ConstraintWeights {
+            left: residual_stack_weight(
+                subtract,
+                Subtractability::AllExcept(ref_update, vec![first_payload]),
+            ),
+            right: StackWeight::empty(),
+        };
+        assert_single_weighted_upper_var(&machine, gamma, tail_var, residual_weights);
+        assert_weighted_upper_var(
+            &machine,
+            TypeVar(10),
+            TypeVar(11),
+            ConstraintWeights::empty(),
+        );
+        assert_weighted_upper_var(
+            &machine,
+            TypeVar(11),
+            TypeVar(10),
+            ConstraintWeights::empty(),
+        );
     }
 
     fn single_upper_row_tail(

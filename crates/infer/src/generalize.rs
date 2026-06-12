@@ -183,8 +183,16 @@ pub(crate) fn finalize_generalized_compact_root(
     machine: &ConstraintMachine,
     root: &GeneralizedCompactRoot,
 ) -> FinalizedGeneralizedCompactRoot {
-    let finalized = finalize_compact_root(types, &root.compact);
-    let role_predicates = finalize_compact_role_predicates(types, &root.role_predicates);
+    let mut compact = root.compact.clone();
+    let mut role_predicates = root.role_predicates.clone();
+    clone_compact_stack_weights_for_scheme(
+        machine.types(),
+        types,
+        &mut compact,
+        &mut role_predicates,
+    );
+    let finalized = finalize_compact_root(types, &compact);
+    let role_predicates = finalize_compact_role_predicates(types, &role_predicates);
     let subtracts = finalize_scheme_subtracts(types, machine, &root.subtracts);
     FinalizedGeneralizedCompactRoot {
         scheme: Scheme {
@@ -236,6 +244,133 @@ fn finalize_compact_role_arg(types: &mut TypeArena, arg: &CompactRoleArg) -> Neu
     let lower = finalize_compact_type(types, &arg.lower);
     let upper = finalize_compact_type_to_neg(types, &arg.upper);
     types.alloc_neu(Neu::Bounds(lower, self_var, upper))
+}
+
+fn clone_compact_stack_weights_for_scheme(
+    source: &TypeArena,
+    target: &mut TypeArena,
+    root: &mut CompactRoot,
+    role_predicates: &mut [CompactRoleConstraint],
+) {
+    clone_compact_stack_weights_in_type(source, target, &mut root.root);
+    for rec in &mut root.rec_vars {
+        clone_compact_stack_weights_in_bounds(source, target, &mut rec.bounds);
+    }
+    for predicate in role_predicates {
+        for input in &mut predicate.inputs {
+            clone_compact_stack_weights_in_role_arg(source, target, input);
+        }
+        for associated in &mut predicate.associated {
+            clone_compact_stack_weights_in_role_arg(source, target, &mut associated.value);
+        }
+    }
+}
+
+fn clone_compact_stack_weights_in_role_arg(
+    source: &TypeArena,
+    target: &mut TypeArena,
+    arg: &mut CompactRoleArg,
+) {
+    clone_compact_stack_weights_in_type(source, target, &mut arg.lower);
+    clone_compact_stack_weights_in_type(source, target, &mut arg.upper);
+}
+
+fn clone_compact_stack_weights_in_type(
+    source: &TypeArena,
+    target: &mut TypeArena,
+    ty: &mut CompactType,
+) {
+    for var in &mut ty.vars {
+        if !var.weight.is_empty() {
+            var.weight = clone_stack_weight_between_arenas(source, target, var.weight.clone());
+        }
+    }
+    for con in &mut ty.cons {
+        for arg in &mut con.args {
+            clone_compact_stack_weights_in_bounds(source, target, arg);
+        }
+    }
+    for fun in &mut ty.funs {
+        clone_compact_stack_weights_in_type(source, target, &mut fun.arg);
+        clone_compact_stack_weights_in_type(source, target, &mut fun.arg_eff);
+        clone_compact_stack_weights_in_type(source, target, &mut fun.ret_eff);
+        clone_compact_stack_weights_in_type(source, target, &mut fun.ret);
+    }
+    for record in &mut ty.records {
+        for field in &mut record.fields {
+            clone_compact_stack_weights_in_type(source, target, &mut field.value);
+        }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            clone_compact_stack_weights_in_type(source, target, &mut field.value);
+        }
+        clone_compact_stack_weights_in_type(source, target, &mut spread.tail);
+    }
+    for variant in &mut ty.poly_variants {
+        for (_, payloads) in &mut variant.items {
+            for payload in payloads {
+                clone_compact_stack_weights_in_type(source, target, payload);
+            }
+        }
+    }
+    for tuple in &mut ty.tuples {
+        for item in &mut tuple.items {
+            clone_compact_stack_weights_in_type(source, target, item);
+        }
+    }
+    for row in &mut ty.rows {
+        for item in &mut row.items {
+            clone_compact_stack_weights_in_type(source, target, item);
+        }
+        clone_compact_stack_weights_in_type(source, target, &mut row.tail);
+    }
+}
+
+fn clone_compact_stack_weights_in_bounds(
+    source: &TypeArena,
+    target: &mut TypeArena,
+    bounds: &mut CompactBounds,
+) {
+    match bounds {
+        CompactBounds::Interval { lower, upper, .. } => {
+            clone_compact_stack_weights_in_type(source, target, lower);
+            clone_compact_stack_weights_in_type(source, target, upper);
+        }
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                clone_compact_stack_weights_in_bounds(source, target, arg);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            clone_compact_stack_weights_in_bounds(source, target, arg);
+            clone_compact_stack_weights_in_bounds(source, target, arg_eff);
+            clone_compact_stack_weights_in_bounds(source, target, ret_eff);
+            clone_compact_stack_weights_in_bounds(source, target, ret);
+        }
+        CompactBounds::Record { fields } => {
+            for field in fields {
+                clone_compact_stack_weights_in_bounds(source, target, &mut field.value);
+            }
+        }
+        CompactBounds::PolyVariant { items } => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    clone_compact_stack_weights_in_bounds(source, target, payload);
+                }
+            }
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                clone_compact_stack_weights_in_bounds(source, target, item);
+            }
+        }
+    }
 }
 
 fn finalize_scheme_subtracts(
@@ -2710,7 +2845,7 @@ fn collect_row_free_vars(row: &CompactRow, out: &mut Vec<TypeVar>) {
 
 #[cfg(test)]
 mod tests {
-    use poly::types::{Pos, SubtractId, Subtractability};
+    use poly::types::{Neg, Neu, Pos, SubtractId, Subtractability};
 
     use super::*;
     use crate::compact::CompactSandwichKind;
@@ -2863,6 +2998,47 @@ mod tests {
             Subtractability::Set(path, args)
                 if path == &vec!["io".to_string()] && args.is_empty()
         ));
+    }
+
+    #[test]
+    fn finalized_scheme_clones_stack_weight_payloads_into_poly_arena() {
+        let mut machine = ConstraintMachine::new();
+        let effect = TypeVar(2);
+        let payload_var = TypeVar(10);
+        let subtract = SubtractId(3);
+        let ref_update = vec!["ref_update".into()];
+        machine.register_type_var(effect, TypeLevel::root().child());
+        machine.register_type_var(payload_var, TypeLevel::root().child());
+        let payload_lower = machine.alloc_pos(Pos::Var(payload_var));
+        let payload_upper = machine.alloc_neg(Neg::Var(payload_var));
+        let payload = machine.alloc_neu(Neu::Bounds(payload_lower, payload_var, payload_upper));
+        machine.declared_subtract_fact(
+            effect,
+            subtract,
+            Subtractability::Set(ref_update.clone(), vec![payload]),
+        );
+        let root = CompactRoot {
+            root: live_subtract_effect_fun(
+                effect,
+                CompactType::from_var(CompactVar::covariant(
+                    effect,
+                    StackWeight::push(subtract, Subtractability::Set(ref_update, vec![payload])),
+                )),
+            ),
+            rec_vars: Vec::new(),
+        };
+        let generalized =
+            generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        let mut types = TypeArena::new();
+
+        let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
+        let mut target = crate::arena::Arena::new();
+        let _ = crate::instantiate::instantiate_scheme(
+            &types,
+            &mut target,
+            TypeLevel::root(),
+            &finalized.scheme,
+        );
     }
 
     #[test]
