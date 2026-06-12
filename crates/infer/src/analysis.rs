@@ -20,6 +20,7 @@ use crate::compact::{
     CompactSimplification, CompactType, compact_reachable_role_constraints,
     compact_role_constraint, compact_type_var, finalize_compact_type_to_neg_constraint,
     finalize_compact_type_to_pos_constraint, find_next_compact_cast, normalize_compact_casts,
+    simplify_compact_root_with_roles_and_non_generic,
 };
 use crate::constraints::{ConstraintEvent, ConstraintWeights, TypeLevel};
 use crate::generalize::{
@@ -1214,14 +1215,10 @@ impl AnalysisSession {
                 continue;
             }
 
-            let roles = coalesce_role_constraints(compact_reachable_role_constraints(
-                self.infer.constraints(),
-                &compact,
-                self.roles.for_owner(def),
-            ));
+            let (role_compact, roles) = self.simplified_reachable_role_constraints(def, &compact);
             let resolutions = resolve_role_constraints(
                 self.infer.constraints(),
-                &compact,
+                &role_compact,
                 &roles,
                 &self.role_impls,
                 &applied_roles,
@@ -1238,14 +1235,11 @@ impl AnalysisSession {
             break;
         }
 
-        let role_predicates = coalesce_role_constraints(compact_reachable_role_constraints(
-            self.infer.constraints(),
-            &compact,
-            self.roles.for_owner(def),
-        ))
-        .into_iter()
-        .filter(|role| !applied_role_demands.contains(role))
-        .collect();
+        let (_, role_predicates) = self.simplified_reachable_role_constraints(def, &compact);
+        let role_predicates = role_predicates
+            .into_iter()
+            .filter(|role| !applied_role_demands.contains(role))
+            .collect();
 
         let simplifications = self
             .role_impl_member_simplifications
@@ -1261,6 +1255,30 @@ impl AnalysisSession {
             &simplifications,
             &FxHashSet::default(),
         )
+    }
+
+    fn simplified_reachable_role_constraints(
+        &self,
+        def: DefId,
+        compact: &crate::compact::CompactRoot,
+    ) -> (crate::compact::CompactRoot, Vec<CompactRoleConstraint>) {
+        let mut role_compact = compact.clone();
+        let mut roles = coalesce_role_constraints(compact_reachable_role_constraints(
+            self.infer.constraints(),
+            compact,
+            self.roles.for_owner(def),
+        ));
+        if roles.is_empty() {
+            return (compact.clone(), roles);
+        }
+        simplify_compact_root_with_roles_and_non_generic(
+            self.infer.constraints(),
+            TypeLevel::root().child(),
+            &mut role_compact,
+            &mut roles,
+            &FxHashSet::default(),
+        );
+        (role_compact, roles)
     }
 
     fn collect_resolved_role_demands(
@@ -3078,6 +3096,102 @@ mod tests {
     }
 
     #[test]
+    fn role_prepass_resolves_unary_con_candidate_with_open_payload_bounds() {
+        let role = vec!["Add".to_string()];
+        let list_path = vec!["list".to_string()];
+        let owner = DefId(0);
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let root = session.infer.fresh_type_var();
+        let payload = session.infer.fresh_type_var();
+        let lower_payload = session.infer.fresh_type_var();
+        let upper_payload = session.infer.fresh_type_var();
+        let item = session.infer.fresh_type_var();
+        session.roles.insert(
+            owner,
+            RoleConstraint {
+                role: role.clone(),
+                inputs: vec![role_unary_con_open_arg(
+                    &mut session.infer,
+                    list_path.clone(),
+                    payload,
+                    lower_payload,
+                    upper_payload,
+                )],
+                associated: Vec::new(),
+            },
+        );
+        session.role_impls.insert(RoleImplCandidate {
+            impl_def: None,
+            role: role.clone(),
+            inputs: vec![role_unary_con_var_arg(&mut session.infer, list_path, item)],
+            associated: Vec::new(),
+            prerequisites: Vec::new(),
+        });
+
+        let root_lower = session.infer.alloc_pos(Pos::Var(payload));
+        let root_upper = session.infer.alloc_neg(Neg::Var(root));
+        session.infer.subtype(root_lower, root_upper);
+
+        let generalized = session.generalize_root_with_prepasses(owner, root);
+
+        assert!(
+            generalized
+                .role_predicates
+                .iter()
+                .all(|predicate| predicate.role != role)
+        );
+    }
+
+    #[test]
+    fn role_prepass_resolves_unary_con_candidate_with_open_payload_and_top_var() {
+        let role = vec!["Add".to_string()];
+        let list_path = vec!["list".to_string()];
+        let owner = DefId(0);
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let root = session.infer.fresh_type_var();
+        let payload = session.infer.fresh_type_var();
+        let lower_payload = session.infer.fresh_type_var();
+        let upper_payload = session.infer.fresh_type_var();
+        let extra = session.infer.fresh_type_var();
+        let item = session.infer.fresh_type_var();
+        session.roles.insert(
+            owner,
+            RoleConstraint {
+                role: role.clone(),
+                inputs: vec![role_unary_con_open_or_var_arg(
+                    &mut session.infer,
+                    list_path.clone(),
+                    payload,
+                    lower_payload,
+                    upper_payload,
+                    extra,
+                )],
+                associated: Vec::new(),
+            },
+        );
+        session.role_impls.insert(RoleImplCandidate {
+            impl_def: None,
+            role: role.clone(),
+            inputs: vec![role_unary_con_var_arg(&mut session.infer, list_path, item)],
+            associated: Vec::new(),
+            prerequisites: Vec::new(),
+        });
+
+        let root_lower = session.infer.alloc_pos(Pos::Var(extra));
+        let root_upper = session.infer.alloc_neg(Neg::Var(root));
+        session.infer.subtype(root_lower, root_upper);
+
+        let generalized = session.generalize_root_with_prepasses(owner, root);
+
+        assert!(
+            generalized
+                .role_predicates
+                .iter()
+                .all(|predicate| predicate.role != role)
+        );
+    }
+
+    #[test]
     fn role_prepass_does_not_resolve_left_concrete_when_main_var_is_negative() {
         let role = vec!["Add".to_string()];
         let int_path = vec!["int".to_string()];
@@ -3457,6 +3571,41 @@ mod tests {
         RoleConstraintArg {
             lower: infer.alloc_pos(Pos::Con(path.clone(), vec![item])),
             upper: infer.alloc_neg(Neg::Con(path, vec![item])),
+        }
+    }
+
+    fn role_unary_con_open_arg(
+        infer: &mut crate::arena::Arena,
+        path: Vec<String>,
+        item: TypeVar,
+        lower_item: TypeVar,
+        upper_item: TypeVar,
+    ) -> RoleConstraintArg {
+        let lower = infer.alloc_pos(Pos::Var(lower_item));
+        let upper = infer.alloc_neg(Neg::Var(upper_item));
+        let item = infer.alloc_neu(Neu::Bounds(lower, item, upper));
+        RoleConstraintArg {
+            lower: infer.alloc_pos(Pos::Con(path.clone(), vec![item])),
+            upper: infer.alloc_neg(Neg::Con(path, vec![item])),
+        }
+    }
+
+    fn role_unary_con_open_or_var_arg(
+        infer: &mut crate::arena::Arena,
+        path: Vec<String>,
+        item: TypeVar,
+        lower_item: TypeVar,
+        upper_item: TypeVar,
+        extra: TypeVar,
+    ) -> RoleConstraintArg {
+        let lower_item = infer.alloc_pos(Pos::Var(lower_item));
+        let upper_item = infer.alloc_neg(Neg::Var(upper_item));
+        let item = infer.alloc_neu(Neu::Bounds(lower_item, item, upper_item));
+        let con = infer.alloc_pos(Pos::Con(path, vec![item]));
+        let extra_pos = infer.alloc_pos(Pos::Var(extra));
+        RoleConstraintArg {
+            lower: infer.alloc_pos(Pos::Union(con, extra_pos)),
+            upper: infer.alloc_neg(Neg::Var(extra)),
         }
     }
 

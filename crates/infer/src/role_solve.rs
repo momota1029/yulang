@@ -522,6 +522,11 @@ fn match_bounds_pattern(
             if !subst.bind(*self_var, demand_ty.clone()) {
                 return false;
             }
+            // `impl Add (list 'a)` の `'a` は payload 全体を受ける pattern なので、
+            // demand の invariant bounds をさらに同じ変数へ分解照合しない。
+            if interval_pattern_is_identity(*self_var, lower, upper) {
+                return true;
+            }
             match demand {
                 CompactBounds::Interval {
                     lower: demand_lower,
@@ -635,6 +640,28 @@ fn match_bounds_pattern(
             match_type_pattern(&pattern, &demand, true, subst)
         }
     }
+}
+
+fn interval_pattern_is_identity(
+    self_var: TypeVar,
+    lower: &CompactType,
+    upper: &CompactType,
+) -> bool {
+    compact_type_is_plain_var(lower, self_var) && compact_type_is_plain_var(upper, self_var)
+}
+
+fn compact_type_is_plain_var(ty: &CompactType, var: TypeVar) -> bool {
+    ty.vars.len() == 1
+        && ty.vars[0].var == var
+        && !ty.never
+        && ty.builtins.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.poly_variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty.rows.is_empty()
 }
 
 fn demand_has_builtin(demand: &CompactType, builtin: BuiltinType) -> bool {
