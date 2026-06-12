@@ -6,7 +6,10 @@
 //! Concrete shape には subtract weight を持たせず、展開時に covariant な変数 occurrence へ
 //! 押し込む。contravariant な変数 occurrence では weight を持たない。
 
-use std::mem;
+use std::{
+    hash::{Hash, Hasher},
+    mem,
+};
 
 use poly::types::{
     BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, SchemeRecursiveBound,
@@ -38,6 +41,44 @@ pub(crate) use casts::{
 pub(crate) struct CompactRoot {
     pub(crate) root: CompactType,
     pub(crate) rec_vars: Vec<CompactRecursiveVar>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct CompactMergeConstraint {
+    key: CompactMergeConstraintKey,
+    lhs: CompactBounds,
+    rhs: CompactBounds,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct CompactMergeConstraintKey {
+    lhs: CompactMergeConstraintShape,
+    rhs: CompactMergeConstraintShape,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum CompactMergeConstraintShape {
+    Interval(TypeVar),
+    Con {
+        path: Vec<String>,
+        args: Vec<CompactMergeConstraintShape>,
+    },
+    Tuple(Vec<CompactMergeConstraintShape>),
+    Fun {
+        arg: Box<CompactMergeConstraintShape>,
+        arg_eff: Box<CompactMergeConstraintShape>,
+        ret_eff: Box<CompactMergeConstraintShape>,
+        ret: Box<CompactMergeConstraintShape>,
+    },
+    Record(Vec<CompactMergeConstraintFieldShape>),
+    PolyVariant(Vec<(String, Vec<CompactMergeConstraintShape>)>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct CompactMergeConstraintFieldShape {
+    name: String,
+    value: CompactMergeConstraintShape,
+    optional: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,18 +137,36 @@ pub(crate) struct FinalizedCompactRoot {
     pub(crate) rec_vars: Vec<SchemeRecursiveBound>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub(crate) type CompactConMap = FxHashMap<Vec<String>, Vec<CompactBounds>>;
+pub(crate) type CompactRowItemMap = FxHashMap<Vec<String>, Vec<CompactBounds>>;
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct CompactType {
     pub(crate) vars: Vec<CompactVar>,
     pub(crate) never: bool,
     pub(crate) builtins: Vec<BuiltinType>,
-    pub(crate) cons: Vec<CompactCon>,
+    pub(crate) cons: CompactConMap,
     pub(crate) funs: Vec<CompactFun>,
     pub(crate) records: Vec<CompactRecord>,
     pub(crate) record_spreads: Vec<CompactRecordSpread>,
     pub(crate) poly_variants: Vec<CompactPolyVariant>,
     pub(crate) tuples: Vec<CompactTuple>,
     pub(crate) rows: Vec<CompactRow>,
+}
+
+impl Hash for CompactType {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.vars.hash(state);
+        self.never.hash(state);
+        self.builtins.hash(state);
+        compact_con_entries(&self.cons).hash(state);
+        self.funs.hash(state);
+        self.records.hash(state);
+        self.record_spreads.hash(state);
+        self.poly_variants.hash(state);
+        self.tuples.hash(state);
+        self.rows.hash(state);
+    }
 }
 
 impl CompactType {
@@ -146,8 +205,10 @@ impl CompactType {
     }
 
     pub(crate) fn from_con(con: CompactCon) -> Self {
+        let mut cons = CompactConMap::default();
+        cons.insert(con.path, con.args);
         Self {
-            cons: vec![con],
+            cons,
             ..Self::default()
         }
     }
@@ -238,6 +299,11 @@ impl CompactVar {
         Self::contravariant(var)
     }
 
+    pub(crate) fn with_origin(mut self, origin: CompactVarOrigin) -> Self {
+        self.origin = origin;
+        self
+    }
+
     #[cfg(test)]
     pub(crate) fn secondary(mut self) -> Self {
         self.origin = CompactVarOrigin::Secondary;
@@ -309,10 +375,17 @@ pub(crate) struct CompactTuple {
     pub(crate) items: Vec<CompactType>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CompactRow {
-    pub(crate) items: Vec<CompactType>,
+    pub(crate) items: CompactRowItemMap,
     pub(crate) tail: Box<CompactType>,
+}
+
+impl Hash for CompactRow {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        compact_row_item_entries(&self.items).hash(state);
+        self.tail.hash(state);
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -336,6 +409,35 @@ impl Polarity {
 
 pub(crate) fn compact_type_var(machine: &ConstraintMachine, root: TypeVar) -> CompactRoot {
     CompactCollector::new(machine).compact_root(root)
+}
+
+pub(crate) fn compact_type_var_recording_merge_constraints(
+    machine: &ConstraintMachine,
+    root: TypeVar,
+) -> (CompactRoot, Vec<CompactMergeConstraint>) {
+    CompactCollector::new_recording(machine).compact_root_with_merge_constraints(root)
+}
+
+pub(crate) fn apply_compact_merge_constraints(
+    machine: &mut ConstraintMachine,
+    constraints: Vec<CompactMergeConstraint>,
+    applied: &mut FxHashSet<CompactMergeConstraintKey>,
+) -> bool {
+    let mut changed = false;
+    for constraint in constraints {
+        if constraint.lhs == constraint.rhs || !applied.insert(constraint.key.clone()) {
+            continue;
+        }
+        let (lhs, rhs) = {
+            let mut finalizer = CompactFinalizer::new(&mut *machine);
+            (
+                finalizer.finalize_bounds(&constraint.lhs),
+                finalizer.finalize_bounds(&constraint.rhs),
+            )
+        };
+        changed |= machine.constrain_invariant_neu(lhs, rhs);
+    }
+    changed
 }
 
 pub(crate) fn compact_reachable_role_constraints(
@@ -386,10 +488,102 @@ pub(crate) fn finalize_compact_bounds(types: &mut TypeArena, bounds: &CompactBou
     CompactFinalizer::new(types).finalize_bounds(bounds)
 }
 
+trait CompactMergeConstraintSink {
+    fn record_merge_constraint(&mut self, lhs: &CompactBounds, rhs: &CompactBounds);
+}
+
+struct NoopCompactMergeConstraintSink;
+
+impl CompactMergeConstraintSink for NoopCompactMergeConstraintSink {
+    fn record_merge_constraint(&mut self, _lhs: &CompactBounds, _rhs: &CompactBounds) {}
+}
+
+impl CompactMergeConstraintSink for Vec<CompactMergeConstraint> {
+    fn record_merge_constraint(&mut self, lhs: &CompactBounds, rhs: &CompactBounds) {
+        if lhs != rhs {
+            self.push(CompactMergeConstraint {
+                key: compact_merge_constraint_key(lhs, rhs),
+                lhs: lhs.clone(),
+                rhs: rhs.clone(),
+            });
+        }
+    }
+}
+
+fn compact_merge_constraint_key(
+    lhs: &CompactBounds,
+    rhs: &CompactBounds,
+) -> CompactMergeConstraintKey {
+    CompactMergeConstraintKey {
+        lhs: compact_merge_constraint_shape(lhs),
+        rhs: compact_merge_constraint_shape(rhs),
+    }
+}
+
+fn compact_merge_constraint_shape(bounds: &CompactBounds) -> CompactMergeConstraintShape {
+    match bounds {
+        CompactBounds::Interval { self_var, .. } => {
+            CompactMergeConstraintShape::Interval(*self_var)
+        }
+        CompactBounds::Con { path, args } => CompactMergeConstraintShape::Con {
+            path: path.clone(),
+            args: args.iter().map(compact_merge_constraint_shape).collect(),
+        },
+        CompactBounds::Tuple { items } => CompactMergeConstraintShape::Tuple(
+            items.iter().map(compact_merge_constraint_shape).collect(),
+        ),
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => CompactMergeConstraintShape::Fun {
+            arg: Box::new(compact_merge_constraint_shape(arg)),
+            arg_eff: Box::new(compact_merge_constraint_shape(arg_eff)),
+            ret_eff: Box::new(compact_merge_constraint_shape(ret_eff)),
+            ret: Box::new(compact_merge_constraint_shape(ret)),
+        },
+        CompactBounds::Record { fields } => CompactMergeConstraintShape::Record(
+            fields
+                .iter()
+                .map(|field| CompactMergeConstraintFieldShape {
+                    name: field.name.clone(),
+                    value: compact_merge_constraint_shape(&field.value),
+                    optional: field.optional,
+                })
+                .collect(),
+        ),
+        CompactBounds::PolyVariant { items } => CompactMergeConstraintShape::PolyVariant(
+            items
+                .iter()
+                .map(|(name, payloads)| {
+                    (
+                        name.clone(),
+                        payloads
+                            .iter()
+                            .map(compact_merge_constraint_shape)
+                            .collect(),
+                    )
+                })
+                .collect(),
+        ),
+    }
+}
+
 pub(crate) fn merge_compact_types(
     positive: bool,
     lhs: CompactType,
     rhs: CompactType,
+) -> CompactType {
+    let mut sink = NoopCompactMergeConstraintSink;
+    merge_compact_types_with_sink(positive, lhs, rhs, &mut sink)
+}
+
+fn merge_compact_types_with_sink<S: CompactMergeConstraintSink>(
+    positive: bool,
+    lhs: CompactType,
+    rhs: CompactType,
+    sink: &mut S,
 ) -> CompactType {
     if is_empty_compact_type(&lhs) {
         return rhs;
@@ -424,13 +618,13 @@ pub(crate) fn merge_compact_types(
     }
     lhs.vars = merge_compact_vars(lhs.vars, vars);
     lhs.builtins = merge_unique_owned(lhs.builtins, builtins);
-    lhs.cons = merge_cons(positive, lhs.cons, cons);
-    lhs.funs = merge_funs(positive, lhs.funs, funs);
-    lhs.records = merge_records(positive, lhs.records, records);
+    lhs.cons = merge_cons_with_sink(positive, lhs.cons, cons, sink);
+    lhs.funs = merge_funs_with_sink(positive, lhs.funs, funs, sink);
+    lhs.records = merge_records_with_sink(positive, lhs.records, records, sink);
     lhs.record_spreads = merge_unique_owned(lhs.record_spreads, record_spreads);
-    lhs.poly_variants = merge_variants(positive, lhs.poly_variants, poly_variants);
-    lhs.tuples = merge_tuples(positive, lhs.tuples, tuples);
-    lhs.rows = merge_rows(positive, lhs.rows, rows);
+    lhs.poly_variants = merge_variants_with_sink(positive, lhs.poly_variants, poly_variants, sink);
+    lhs.tuples = merge_tuples_with_sink(positive, lhs.tuples, tuples, sink);
+    lhs.rows = merge_rows_with_sink(positive, lhs.rows, rows, sink);
     lhs
 }
 
@@ -477,8 +671,8 @@ fn collect_free_vars_in_type(ty: &CompactType, vars: &mut FxHashSet<TypeVar>) {
     for var in &ty.vars {
         vars.insert(var.var);
     }
-    for con in &ty.cons {
-        for arg in &con.args {
+    for args in ty.cons.values() {
+        for arg in args {
             collect_free_vars_in_bounds(arg, vars);
         }
     }
@@ -512,8 +706,10 @@ fn collect_free_vars_in_type(ty: &CompactType, vars: &mut FxHashSet<TypeVar>) {
         }
     }
     for row in &ty.rows {
-        for item in &row.items {
-            collect_free_vars_in_type(item, vars);
+        for args in row.items.values() {
+            for arg in args {
+                collect_free_vars_in_bounds(arg, vars);
+            }
         }
         collect_free_vars_in_type(&row.tail, vars);
     }
@@ -650,8 +846,8 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
         for builtin in &ty.builtins {
             parts.push(self.alloc_pos(Pos::Con(builtin_path(*builtin), Vec::new())));
         }
-        for con in &ty.cons {
-            parts.push(self.finalize_pos_con(con));
+        for con in compact_con_entries(&ty.cons) {
+            parts.push(self.finalize_pos_con(&con));
         }
         for fun in &ty.funs {
             parts.push(self.finalize_pos_fun(fun));
@@ -689,8 +885,8 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
         for builtin in &ty.builtins {
             parts.push(self.alloc_neg(Neg::Con(builtin_path(*builtin), Vec::new())));
         }
-        for con in &ty.cons {
-            parts.push(self.finalize_neg_con(con));
+        for con in compact_con_entries(&ty.cons) {
+            parts.push(self.finalize_neg_con(&con));
         }
         for fun in &ty.funs {
             parts.push(self.finalize_neg_fun(fun));
@@ -798,8 +994,8 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
 
     fn finalize_pos_fun(&mut self, fun: &CompactFun) -> PosId {
         let arg = self.finalize_neg_type(&fun.arg);
-        let arg_eff = self.finalize_neg_type(&fun.arg_eff);
-        let ret_eff = self.finalize_pos_type(&fun.ret_eff);
+        let arg_eff = self.finalize_neg_effect_type(&fun.arg_eff);
+        let ret_eff = self.finalize_pos_effect_type(&fun.ret_eff);
         let ret = self.finalize_pos_type(&fun.ret);
         self.alloc_pos(Pos::Fun {
             arg,
@@ -811,8 +1007,8 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
 
     fn finalize_neg_fun(&mut self, fun: &CompactFun) -> NegId {
         let arg = self.finalize_pos_type(&fun.arg);
-        let arg_eff = self.finalize_pos_type(&fun.arg_eff);
-        let ret_eff = self.finalize_neg_type(&fun.ret_eff);
+        let arg_eff = self.finalize_pos_effect_type(&fun.arg_eff);
+        let ret_eff = self.finalize_neg_effect_type(&fun.ret_eff);
         let ret = self.finalize_neg_type(&fun.ret);
         self.alloc_neg(Neg::Fun {
             arg,
@@ -930,12 +1126,48 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
         self.alloc_pos(Pos::Row(items))
     }
 
+    fn finalize_pos_effect_type(&mut self, ty: &CompactType) -> PosId {
+        if !self.is_positive_effect_rowish(ty) {
+            return self.finalize_pos_type(ty);
+        }
+
+        let mut items = Vec::new();
+        for var in &ty.vars {
+            push_unique_pos(&mut items, self.finalize_pos_var(var));
+        }
+        for con in compact_con_entries(&ty.cons) {
+            push_unique_pos(&mut items, self.finalize_pos_con(&con));
+        }
+        for row in &ty.rows {
+            self.extend_pos_row_items(row, &mut items);
+        }
+        self.alloc_pos(Pos::Row(items))
+    }
+
     fn finalize_neg_rowish_type(&mut self, ty: &CompactType) -> NegId {
         let rows = ty
             .rows
             .iter()
             .map(|row| self.finalize_neg_row(row))
             .collect();
+        self.intersection_neg(rows)
+    }
+
+    fn finalize_neg_effect_type(&mut self, ty: &CompactType) -> NegId {
+        if !self.is_negative_effect_rowish(ty) {
+            return self.finalize_neg_type(ty);
+        }
+
+        let mut rows = Vec::new();
+        if !ty.cons.is_empty() {
+            let items = compact_con_entries(&ty.cons)
+                .iter()
+                .map(|con| self.finalize_neg_con(con))
+                .collect();
+            let tail = self.alloc_neg(Neg::Top);
+            rows.push(self.alloc_neg(Neg::Row(items, tail)));
+        }
+        rows.extend(ty.rows.iter().map(|row| self.finalize_neg_row(row)));
         self.intersection_neg(rows)
     }
 
@@ -957,21 +1189,22 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
     }
 
     fn finalize_neg_row(&mut self, row: &CompactRow) -> NegId {
-        let items = row
-            .items
+        let items = compact_row_item_entries(&row.items)
             .iter()
-            .map(|item| self.finalize_neg_type(item))
+            .map(|item| self.finalize_neg_con(item))
             .collect();
         let tail = self.finalize_neg_row_tail(&row.tail);
         self.alloc_neg(Neg::Row(items, tail))
     }
 
     fn extend_pos_row_items(&mut self, row: &CompactRow, out: &mut Vec<PosId>) {
-        for item in &row.items {
-            out.push(self.finalize_pos_type(item));
+        for item in compact_row_item_entries(&row.items) {
+            let item = self.finalize_pos_con(&item);
+            push_unique_pos(out, item);
         }
         if !is_empty_compact_type(&row.tail) {
-            out.push(self.finalize_pos_type(&row.tail));
+            let tail = self.finalize_pos_type(&row.tail);
+            push_unique_pos(out, tail);
         }
     }
 
@@ -994,11 +1227,34 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
             && ty.tuples.is_empty()
     }
 
+    fn is_positive_effect_rowish(&self, ty: &CompactType) -> bool {
+        !ty.never
+            && (!ty.cons.is_empty() || !ty.rows.is_empty())
+            && ty.builtins.is_empty()
+            && ty.funs.is_empty()
+            && ty.records.is_empty()
+            && ty.record_spreads.is_empty()
+            && ty.poly_variants.is_empty()
+            && ty.tuples.is_empty()
+    }
+
     fn is_negative_rowish(&self, ty: &CompactType) -> bool {
         !ty.rows.is_empty()
             && ty.vars.is_empty()
             && ty.builtins.is_empty()
             && ty.cons.is_empty()
+            && ty.funs.is_empty()
+            && ty.records.is_empty()
+            && ty.record_spreads.is_empty()
+            && ty.poly_variants.is_empty()
+            && ty.tuples.is_empty()
+    }
+
+    fn is_negative_effect_rowish(&self, ty: &CompactType) -> bool {
+        !ty.never
+            && ty.vars.is_empty()
+            && (!ty.cons.is_empty() || !ty.rows.is_empty())
+            && ty.builtins.is_empty()
             && ty.funs.is_empty()
             && ty.records.is_empty()
             && ty.record_spreads.is_empty()
@@ -1062,6 +1318,69 @@ fn builtin_path(builtin: BuiltinType) -> Vec<String> {
     vec![builtin.surface_name().into()]
 }
 
+fn push_unique_pos(items: &mut Vec<PosId>, item: PosId) {
+    if !items.contains(&item) {
+        items.push(item);
+    }
+}
+
+pub(crate) fn compact_con_entries(cons: &CompactConMap) -> Vec<CompactCon> {
+    let mut entries = cons
+        .iter()
+        .map(|(path, args)| CompactCon {
+            path: path.clone(),
+            args: args.clone(),
+        })
+        .collect::<Vec<_>>();
+    entries.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
+    entries
+}
+
+pub(crate) fn compact_row_item_entries(items: &CompactRowItemMap) -> Vec<CompactCon> {
+    let mut entries = items
+        .iter()
+        .map(|(path, args)| CompactCon {
+            path: path.clone(),
+            args: args.clone(),
+        })
+        .collect::<Vec<_>>();
+    entries.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
+    entries
+}
+
+fn singleton_row_item_map(path: Vec<String>, args: Vec<CompactBounds>) -> CompactRowItemMap {
+    let mut items = CompactRowItemMap::default();
+    items.insert(path, args);
+    items
+}
+
+#[derive(Debug, Clone)]
+struct CompactStackFamily {
+    path: Vec<String>,
+    args: Vec<CompactBounds>,
+}
+
+fn compact_weight_effect_families(weight: &ConstraintWeight) -> Vec<(Vec<String>, Vec<NeuId>)> {
+    weight
+        .stack_items()
+        .flat_map(compact_subtractability_families)
+        .collect()
+}
+
+fn compact_subtractability_families(
+    subtractability: &Subtractability,
+) -> Vec<(Vec<String>, Vec<NeuId>)> {
+    match subtractability {
+        Subtractability::Empty | Subtractability::All => Vec::new(),
+        Subtractability::Set(path, args) | Subtractability::AllExcept(path, args) => {
+            vec![(path.clone(), args.clone())]
+        }
+        Subtractability::SetMany(families) | Subtractability::AllExceptMany(families) => {
+            families.clone()
+        }
+    }
+}
+
 fn merge_unique_owned<T: PartialEq>(mut lhs: Vec<T>, rhs: Vec<T>) -> Vec<T> {
     for item in rhs {
         if !lhs.contains(&item) {
@@ -1087,26 +1406,52 @@ fn merge_compact_vars(mut lhs: Vec<CompactVar>, rhs: Vec<CompactVar>) -> Vec<Com
     lhs
 }
 
-fn merge_cons(positive: bool, lhs: Vec<CompactCon>, rhs: Vec<CompactCon>) -> Vec<CompactCon> {
-    let mut out = lhs;
-    for other in rhs {
-        if let Some(existing) = out
-            .iter_mut()
-            .find(|con| con.path == other.path && con.args.len() == other.args.len())
-        {
-            existing.args = mem::take(&mut existing.args)
-                .into_iter()
-                .zip(other.args)
-                .map(|(lhs, rhs)| merge_compact_bounds(positive, lhs, rhs))
-                .collect();
-        } else if !out.contains(&other) {
-            out.push(other);
-        }
-    }
-    out
+pub(crate) fn merge_cons(positive: bool, lhs: CompactConMap, rhs: CompactConMap) -> CompactConMap {
+    let mut sink = NoopCompactMergeConstraintSink;
+    merge_cons_with_sink(positive, lhs, rhs, &mut sink)
 }
 
-fn merge_compact_bounds(positive: bool, lhs: CompactBounds, rhs: CompactBounds) -> CompactBounds {
+fn merge_cons_with_sink<S: CompactMergeConstraintSink>(
+    positive: bool,
+    mut lhs: CompactConMap,
+    rhs: CompactConMap,
+    sink: &mut S,
+) -> CompactConMap {
+    for (path, args) in rhs {
+        if let Some(existing) = lhs.get_mut(&path) {
+            *existing =
+                merge_compact_bound_args_with_sink(positive, mem::take(existing), args, sink);
+        } else {
+            lhs.insert(path, args);
+        }
+    }
+    lhs
+}
+
+fn merge_compact_bound_args_with_sink<S: CompactMergeConstraintSink>(
+    positive: bool,
+    lhs: Vec<CompactBounds>,
+    rhs: Vec<CompactBounds>,
+    sink: &mut S,
+) -> Vec<CompactBounds> {
+    if lhs.len() != rhs.len() {
+        return lhs;
+    }
+    lhs.into_iter()
+        .zip(rhs)
+        .map(|(lhs, rhs)| {
+            sink.record_merge_constraint(&lhs, &rhs);
+            merge_compact_bounds_with_sink(positive, lhs, rhs, sink)
+        })
+        .collect()
+}
+
+fn merge_compact_bounds_with_sink<S: CompactMergeConstraintSink>(
+    positive: bool,
+    lhs: CompactBounds,
+    rhs: CompactBounds,
+    sink: &mut S,
+) -> CompactBounds {
     match (lhs, rhs) {
         (
             CompactBounds::Interval {
@@ -1120,18 +1465,20 @@ fn merge_compact_bounds(positive: bool, lhs: CompactBounds, rhs: CompactBounds) 
                 upper: rhs_upper,
             },
         ) => {
-            let mut lower = merge_compact_types(positive, lower, rhs_lower);
-            let mut upper = merge_compact_types(!positive, upper, rhs_upper);
+            let mut lower = merge_compact_types_with_sink(positive, lower, rhs_lower, sink);
+            let mut upper = merge_compact_types_with_sink(!positive, upper, rhs_upper, sink);
             if self_var != rhs_self {
-                lower = merge_compact_types(
+                lower = merge_compact_types_with_sink(
                     positive,
                     lower,
                     CompactType::from_var(CompactVar::plain(rhs_self)),
+                    sink,
                 );
-                upper = merge_compact_types(
+                upper = merge_compact_types_with_sink(
                     !positive,
                     upper,
                     CompactType::from_var(CompactVar::plain(rhs_self)),
+                    sink,
                 );
             }
             CompactBounds::Interval {
@@ -1148,21 +1495,13 @@ fn merge_compact_bounds(positive: bool, lhs: CompactBounds, rhs: CompactBounds) 
             },
         ) if path == rhs_path && args.len() == rhs_args.len() => CompactBounds::Con {
             path,
-            args: args
-                .into_iter()
-                .zip(rhs_args)
-                .map(|(lhs, rhs)| merge_compact_bounds(positive, lhs, rhs))
-                .collect(),
+            args: merge_compact_bound_args_with_sink(positive, args, rhs_args, sink),
         },
         (CompactBounds::Tuple { items }, CompactBounds::Tuple { items: rhs_items })
             if items.len() == rhs_items.len() =>
         {
             CompactBounds::Tuple {
-                items: items
-                    .into_iter()
-                    .zip(rhs_items)
-                    .map(|(lhs, rhs)| merge_compact_bounds(positive, lhs, rhs))
-                    .collect(),
+                items: merge_compact_bound_args_with_sink(positive, items, rhs_items, sink),
             }
         }
         (
@@ -1178,12 +1517,32 @@ fn merge_compact_bounds(positive: bool, lhs: CompactBounds, rhs: CompactBounds) 
                 ret_eff: rhs_ret_eff,
                 ret: rhs_ret,
             },
-        ) => CompactBounds::Fun {
-            arg: Box::new(merge_compact_bounds(!positive, *arg, *rhs_arg)),
-            arg_eff: Box::new(merge_compact_bounds(!positive, *arg_eff, *rhs_arg_eff)),
-            ret_eff: Box::new(merge_compact_bounds(positive, *ret_eff, *rhs_ret_eff)),
-            ret: Box::new(merge_compact_bounds(positive, *ret, *rhs_ret)),
-        },
+        ) => {
+            sink.record_merge_constraint(&arg, &rhs_arg);
+            sink.record_merge_constraint(&arg_eff, &rhs_arg_eff);
+            sink.record_merge_constraint(&ret_eff, &rhs_ret_eff);
+            sink.record_merge_constraint(&ret, &rhs_ret);
+            CompactBounds::Fun {
+                arg: Box::new(merge_compact_bounds_with_sink(
+                    !positive, *arg, *rhs_arg, sink,
+                )),
+                arg_eff: Box::new(merge_compact_bounds_with_sink(
+                    !positive,
+                    *arg_eff,
+                    *rhs_arg_eff,
+                    sink,
+                )),
+                ret_eff: Box::new(merge_compact_bounds_with_sink(
+                    positive,
+                    *ret_eff,
+                    *rhs_ret_eff,
+                    sink,
+                )),
+                ret: Box::new(merge_compact_bounds_with_sink(
+                    positive, *ret, *rhs_ret, sink,
+                )),
+            }
+        }
         (CompactBounds::Record { fields }, CompactBounds::Record { fields: rhs_fields }) => {
             CompactBounds::Record {
                 fields: fields
@@ -1191,7 +1550,15 @@ fn merge_compact_bounds(positive: bool, lhs: CompactBounds, rhs: CompactBounds) 
                     .zip(rhs_fields)
                     .map(|(field, rhs_field)| RecordField {
                         name: field.name,
-                        value: merge_compact_bounds(positive, field.value, rhs_field.value),
+                        value: {
+                            sink.record_merge_constraint(&field.value, &rhs_field.value);
+                            merge_compact_bounds_with_sink(
+                                positive,
+                                field.value,
+                                rhs_field.value,
+                                sink,
+                            )
+                        },
                         optional: field.optional && rhs_field.optional,
                     })
                     .collect(),
@@ -1207,26 +1574,32 @@ fn merge_compact_bounds(positive: bool, lhs: CompactBounds, rhs: CompactBounds) 
     }
 }
 
-fn merge_funs(positive: bool, lhs: Vec<CompactFun>, rhs: Vec<CompactFun>) -> Vec<CompactFun> {
+fn merge_funs_with_sink<S: CompactMergeConstraintSink>(
+    positive: bool,
+    lhs: Vec<CompactFun>,
+    rhs: Vec<CompactFun>,
+    sink: &mut S,
+) -> Vec<CompactFun> {
     let mut iter = lhs.into_iter().chain(rhs);
     let Some(mut acc) = iter.next() else {
         return Vec::new();
     };
     for other in iter {
         acc = CompactFun {
-            arg: merge_compact_types(!positive, acc.arg, other.arg),
-            arg_eff: merge_compact_types(!positive, acc.arg_eff, other.arg_eff),
-            ret_eff: merge_compact_types(positive, acc.ret_eff, other.ret_eff),
-            ret: merge_compact_types(positive, acc.ret, other.ret),
+            arg: merge_compact_types_with_sink(!positive, acc.arg, other.arg, sink),
+            arg_eff: merge_compact_types_with_sink(!positive, acc.arg_eff, other.arg_eff, sink),
+            ret_eff: merge_compact_types_with_sink(positive, acc.ret_eff, other.ret_eff, sink),
+            ret: merge_compact_types_with_sink(positive, acc.ret, other.ret, sink),
         };
     }
     vec![acc]
 }
 
-fn merge_records(
+fn merge_records_with_sink<S: CompactMergeConstraintSink>(
     positive: bool,
     lhs: Vec<CompactRecord>,
     rhs: Vec<CompactRecord>,
+    sink: &mut S,
 ) -> Vec<CompactRecord> {
     let mut iter = lhs.into_iter().chain(rhs);
     let Some(mut acc) = iter.next() else {
@@ -1243,7 +1616,12 @@ fn merge_records(
             match rhs_fields.remove(&lhs_field.name) {
                 Some(rhs_field) => fields.push(RecordField {
                     name: lhs_field.name,
-                    value: merge_compact_types(positive, lhs_field.value, rhs_field.value),
+                    value: merge_compact_types_with_sink(
+                        positive,
+                        lhs_field.value,
+                        rhs_field.value,
+                        sink,
+                    ),
                     optional: lhs_field.optional && rhs_field.optional,
                 }),
                 None if !positive => fields.push(lhs_field),
@@ -1262,10 +1640,11 @@ fn merge_records(
     vec![acc]
 }
 
-fn merge_variants(
+fn merge_variants_with_sink<S: CompactMergeConstraintSink>(
     positive: bool,
     lhs: Vec<CompactPolyVariant>,
     rhs: Vec<CompactPolyVariant>,
+    sink: &mut S,
 ) -> Vec<CompactPolyVariant> {
     let mut items = Vec::<(String, Vec<CompactType>)>::new();
     for variant in lhs.into_iter().chain(rhs) {
@@ -1278,7 +1657,7 @@ fn merge_variants(
                 *existing_payloads = mem::take(existing_payloads)
                     .into_iter()
                     .zip(payloads)
-                    .map(|(lhs, rhs)| merge_compact_types(positive, lhs, rhs))
+                    .map(|(lhs, rhs)| merge_compact_types_with_sink(positive, lhs, rhs, sink))
                     .collect();
             } else {
                 items.push((name, payloads));
@@ -1292,10 +1671,11 @@ fn merge_variants(
     }
 }
 
-fn merge_tuples(
+fn merge_tuples_with_sink<S: CompactMergeConstraintSink>(
     positive: bool,
     lhs: Vec<CompactTuple>,
     rhs: Vec<CompactTuple>,
+    sink: &mut S,
 ) -> Vec<CompactTuple> {
     let mut out = lhs;
     for other in rhs {
@@ -1306,7 +1686,7 @@ fn merge_tuples(
             existing.items = mem::take(&mut existing.items)
                 .into_iter()
                 .zip(other.items)
-                .map(|(lhs, rhs)| merge_compact_types(positive, lhs, rhs))
+                .map(|(lhs, rhs)| merge_compact_types_with_sink(positive, lhs, rhs, sink))
                 .collect();
         } else if !out.contains(&other) {
             out.push(other);
@@ -1315,29 +1695,37 @@ fn merge_tuples(
     out
 }
 
-fn merge_rows(positive: bool, lhs: Vec<CompactRow>, rhs: Vec<CompactRow>) -> Vec<CompactRow> {
+fn merge_rows_with_sink<S: CompactMergeConstraintSink>(
+    positive: bool,
+    lhs: Vec<CompactRow>,
+    rhs: Vec<CompactRow>,
+    sink: &mut S,
+) -> Vec<CompactRow> {
     if !positive {
-        return merge_negative_rows(lhs, rhs);
+        return merge_negative_rows_with_sink(lhs, rhs, sink);
     }
 
-    let mut out = lhs;
-    for other in rhs {
-        if let Some(existing) = out.iter_mut().find(|row| row.tail == other.tail) {
-            existing.items = merge_row_items(positive, mem::take(&mut existing.items), other.items);
-        } else if let Some(existing) = out.iter_mut().find(|row| row.items == other.items) {
-            existing.tail = Box::new(merge_compact_types(
-                positive,
-                (*existing.tail).clone(),
-                (*other.tail).clone(),
-            ));
-        } else if !out.contains(&other) {
-            out.push(other);
-        }
+    let mut iter = lhs.into_iter().chain(rhs);
+    let Some(mut acc) = iter.next() else {
+        return Vec::new();
+    };
+    for other in iter {
+        acc.items = merge_row_items_with_sink(positive, acc.items, other.items, sink);
+        acc.tail = Box::new(merge_compact_types_with_sink(
+            positive,
+            *acc.tail,
+            *other.tail,
+            sink,
+        ));
     }
-    out
+    vec![acc]
 }
 
-fn merge_negative_rows(lhs: Vec<CompactRow>, rhs: Vec<CompactRow>) -> Vec<CompactRow> {
+fn merge_negative_rows_with_sink<S: CompactMergeConstraintSink>(
+    lhs: Vec<CompactRow>,
+    rhs: Vec<CompactRow>,
+    sink: &mut S,
+) -> Vec<CompactRow> {
     if lhs.is_empty() {
         return rhs;
     }
@@ -1349,11 +1737,17 @@ fn merge_negative_rows(lhs: Vec<CompactRow>, rhs: Vec<CompactRow>) -> Vec<Compac
     for left in lhs {
         for right in &rhs {
             let row = CompactRow {
-                items: merge_row_items(false, left.items.clone(), right.items.clone()),
-                tail: Box::new(merge_compact_types(
+                items: merge_row_items_with_sink(
+                    false,
+                    left.items.clone(),
+                    right.items.clone(),
+                    sink,
+                ),
+                tail: Box::new(merge_compact_types_with_sink(
                     false,
                     (*left.tail).clone(),
                     (*right.tail).clone(),
+                    sink,
                 )),
             };
             if !out.contains(&row) {
@@ -1366,67 +1760,55 @@ fn merge_negative_rows(lhs: Vec<CompactRow>, rhs: Vec<CompactRow>) -> Vec<Compac
 
 fn merge_row_items(
     positive: bool,
-    lhs: Vec<CompactType>,
-    rhs: Vec<CompactType>,
-) -> Vec<CompactType> {
+    lhs: CompactRowItemMap,
+    rhs: CompactRowItemMap,
+) -> CompactRowItemMap {
+    let mut sink = NoopCompactMergeConstraintSink;
+    merge_row_items_with_sink(positive, lhs, rhs, &mut sink)
+}
+
+fn merge_row_items_with_sink<S: CompactMergeConstraintSink>(
+    positive: bool,
+    mut lhs: CompactRowItemMap,
+    rhs: CompactRowItemMap,
+    sink: &mut S,
+) -> CompactRowItemMap {
     if !positive {
-        let mut out = Vec::new();
-        for mut item in lhs {
-            if let Some(other) = rhs
-                .iter()
-                .find(|other| compact_row_items_mergeable(&item, other))
-                .cloned()
+        let mut out = CompactRowItemMap::default();
+        for (path, args) in lhs {
+            if let Some(rhs_args) = rhs.get(&path)
+                && args.len() == rhs_args.len()
             {
-                item = merge_compact_types(false, item, other);
-                out.push(item);
+                out.insert(
+                    path,
+                    args.into_iter()
+                        .zip(rhs_args.clone())
+                        .map(|(lhs, rhs)| {
+                            sink.record_merge_constraint(&lhs, &rhs);
+                            merge_compact_bounds_with_sink(false, lhs, rhs, sink)
+                        })
+                        .collect(),
+                );
             }
         }
         return out;
     }
 
-    let mut out = lhs;
-    for other in rhs {
-        if let Some(existing) = out
-            .iter_mut()
-            .find(|item| compact_row_items_mergeable(item, &other))
-        {
-            *existing = merge_compact_types(positive, mem::take(existing), other);
-        } else if !out.contains(&other) {
-            out.push(other);
+    for (path, args) in rhs {
+        if let Some(existing) = lhs.get_mut(&path) {
+            *existing =
+                merge_compact_bound_args_with_sink(positive, mem::take(existing), args, sink);
+        } else {
+            lhs.insert(path, args);
         }
     }
-    out
-}
-
-fn compact_row_items_mergeable(lhs: &CompactType, rhs: &CompactType) -> bool {
-    let Some(lhs) = single_compact_con(lhs) else {
-        return lhs == rhs;
-    };
-    let Some(rhs) = single_compact_con(rhs) else {
-        return false;
-    };
-    lhs.path == rhs.path && lhs.args.len() == rhs.args.len()
-}
-
-fn single_compact_con(ty: &CompactType) -> Option<&CompactCon> {
-    if ty.never
-        || !ty.vars.is_empty()
-        || !ty.builtins.is_empty()
-        || !ty.funs.is_empty()
-        || !ty.records.is_empty()
-        || !ty.record_spreads.is_empty()
-        || !ty.poly_variants.is_empty()
-        || !ty.tuples.is_empty()
-        || !ty.rows.is_empty()
-        || ty.cons.len() != 1
-    {
-        return None;
-    }
-    ty.cons.first()
+    lhs
 }
 
 struct CompactCollector<'a> {
     machine: &'a ConstraintMachine,
+    record_merge_constraints: bool,
+    merge_constraints: Vec<CompactMergeConstraint>,
     in_progress: FxHashSet<(TypeVar, Polarity)>,
     recursive: FxHashSet<(TypeVar, Polarity)>,
     rec_vars: FxHashMap<TypeVar, CompactBounds>,
@@ -1444,6 +1826,8 @@ impl<'a> CompactCollector<'a> {
     fn new(machine: &'a ConstraintMachine) -> Self {
         Self {
             machine,
+            record_merge_constraints: false,
+            merge_constraints: Vec::new(),
             in_progress: FxHashSet::default(),
             recursive: FxHashSet::default(),
             rec_vars: FxHashMap::default(),
@@ -1451,7 +1835,21 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    fn compact_root(mut self, root: TypeVar) -> CompactRoot {
+    fn new_recording(machine: &'a ConstraintMachine) -> Self {
+        Self {
+            record_merge_constraints: true,
+            ..Self::new(machine)
+        }
+    }
+
+    fn compact_root(self, root: TypeVar) -> CompactRoot {
+        self.compact_root_with_merge_constraints(root).0
+    }
+
+    fn compact_root_with_merge_constraints(
+        mut self,
+        root: TypeVar,
+    ) -> (CompactRoot, Vec<CompactMergeConstraint>) {
         let root_ty = self.compact_var_side(root, Polarity::Positive, ConstraintWeight::empty());
         let mut rec_vars = self
             .rec_vars
@@ -1459,9 +1857,266 @@ impl<'a> CompactCollector<'a> {
             .map(|(var, bounds)| CompactRecursiveVar { var, bounds })
             .collect::<Vec<_>>();
         rec_vars.sort_by_key(|rec| rec.var.0);
-        CompactRoot {
-            root: root_ty,
-            rec_vars,
+        (
+            CompactRoot {
+                root: root_ty,
+                rec_vars,
+            },
+            self.merge_constraints,
+        )
+    }
+
+    fn merge_types(&mut self, positive: bool, lhs: CompactType, rhs: CompactType) -> CompactType {
+        if !self.record_merge_constraints {
+            return merge_compact_types(positive, lhs, rhs);
+        }
+        let out = merge_compact_types_with_sink(positive, lhs, rhs, &mut self.merge_constraints);
+        self.record_stack_row_coexistence(&out);
+        out
+    }
+
+    fn merge_row_items(
+        &mut self,
+        positive: bool,
+        lhs: CompactRowItemMap,
+        rhs: CompactRowItemMap,
+    ) -> CompactRowItemMap {
+        if !self.record_merge_constraints {
+            return merge_row_items(positive, lhs, rhs);
+        }
+        merge_row_items_with_sink(positive, lhs, rhs, &mut self.merge_constraints)
+    }
+
+    fn record_stack_row_coexistence(&mut self, ty: &CompactType) {
+        if ty.vars.is_empty() || ty.rows.is_empty() {
+            return;
+        }
+
+        let mut families = Vec::new();
+        for var in &ty.vars {
+            if var.weight.is_empty() {
+                continue;
+            }
+            families.extend(self.compact_weight_stack_families(&var.weight));
+        }
+        self.record_stack_families_row_coexistence(&families, ty);
+    }
+
+    fn compact_weight_stack_families(
+        &mut self,
+        weight: &ConstraintWeight,
+    ) -> Vec<CompactStackFamily> {
+        compact_weight_effect_families(weight)
+            .into_iter()
+            .map(|(path, args)| CompactStackFamily {
+                path,
+                args: args
+                    .into_iter()
+                    .map(|arg| self.compact_neu_id(arg, ConstraintWeight::empty()))
+                    .collect(),
+            })
+            .collect()
+    }
+
+    fn record_stack_families_row_coexistence(
+        &mut self,
+        families: &[CompactStackFamily],
+        ty: &CompactType,
+    ) {
+        if families.is_empty() || ty.rows.is_empty() {
+            return;
+        }
+
+        let mut row_items = Vec::new();
+        for row in &ty.rows {
+            for (path, args) in &row.items {
+                row_items.push((path, args));
+            }
+        }
+        for (row_path, row_args) in row_items {
+            for family in families
+                .iter()
+                .filter(|family| &family.path == row_path && family.args.len() == row_args.len())
+            {
+                self.record_merge_bound_args(&family.args, row_args);
+            }
+        }
+    }
+
+    fn record_stack_families_row_item_coexistence(
+        &mut self,
+        families: &[CompactStackFamily],
+        path: &[String],
+        args: &[CompactBounds],
+    ) {
+        for family in families
+            .iter()
+            .filter(|family| family.path == path && family.args.len() == args.len())
+        {
+            self.record_merge_bound_args(&family.args, args);
+        }
+    }
+
+    fn compact_pos_stack_families(&mut self, id: PosId) -> Vec<CompactStackFamily> {
+        match self.machine.types().pos(id).clone() {
+            Pos::Bot | Pos::Var(_) => Vec::new(),
+            Pos::Con(_, args) => self.compact_neu_stack_families(args),
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                let mut out = self.compact_neg_stack_families(arg);
+                out.extend(self.compact_neg_stack_families(arg_eff));
+                out.extend(self.compact_pos_stack_families(ret_eff));
+                out.extend(self.compact_pos_stack_families(ret));
+                out
+            }
+            Pos::Record(fields) => fields
+                .into_iter()
+                .flat_map(|field| self.compact_pos_stack_families(field.value))
+                .collect(),
+            Pos::RecordTailSpread { fields, tail } => {
+                let mut out = fields
+                    .into_iter()
+                    .flat_map(|field| self.compact_pos_stack_families(field.value))
+                    .collect::<Vec<_>>();
+                out.extend(self.compact_pos_stack_families(tail));
+                out
+            }
+            Pos::RecordHeadSpread { tail, fields } => {
+                let mut out = self.compact_pos_stack_families(tail);
+                out.extend(
+                    fields
+                        .into_iter()
+                        .flat_map(|field| self.compact_pos_stack_families(field.value)),
+                );
+                out
+            }
+            Pos::PolyVariant(items) => items
+                .into_iter()
+                .flat_map(|(_, payloads)| payloads)
+                .flat_map(|payload| self.compact_pos_stack_families(payload))
+                .collect(),
+            Pos::Tuple(items) | Pos::Row(items) => items
+                .into_iter()
+                .flat_map(|item| self.compact_pos_stack_families(item))
+                .collect(),
+            Pos::NonSubtract(inner, _) => self.compact_pos_stack_families(inner),
+            Pos::Stack {
+                inner,
+                weight: stack_weight,
+            } => {
+                let mut out = self.compact_weight_stack_families(&stack_weight);
+                out.extend(self.compact_pos_stack_families(inner));
+                out
+            }
+            Pos::Union(lhs, rhs) => {
+                let mut out = self.compact_pos_stack_families(lhs);
+                out.extend(self.compact_pos_stack_families(rhs));
+                out
+            }
+        }
+    }
+
+    fn compact_neg_stack_families(&mut self, id: NegId) -> Vec<CompactStackFamily> {
+        match self.machine.types().neg(id).clone() {
+            Neg::Top | Neg::Bot | Neg::Var(_) => Vec::new(),
+            Neg::Con(_, args) => self.compact_neu_stack_families(args),
+            Neg::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                let mut out = self.compact_pos_stack_families(arg);
+                out.extend(self.compact_pos_stack_families(arg_eff));
+                out.extend(self.compact_neg_stack_families(ret_eff));
+                out.extend(self.compact_neg_stack_families(ret));
+                out
+            }
+            Neg::Record(fields) => fields
+                .into_iter()
+                .flat_map(|field| self.compact_neg_stack_families(field.value))
+                .collect(),
+            Neg::PolyVariant(items) => items
+                .into_iter()
+                .flat_map(|(_, payloads)| payloads)
+                .flat_map(|payload| self.compact_neg_stack_families(payload))
+                .collect(),
+            Neg::Tuple(items) => items
+                .into_iter()
+                .flat_map(|item| self.compact_neg_stack_families(item))
+                .collect(),
+            Neg::Row(items, tail) => {
+                let mut out = items
+                    .into_iter()
+                    .flat_map(|item| self.compact_neg_stack_families(item))
+                    .collect::<Vec<_>>();
+                out.extend(self.compact_neg_stack_families(tail));
+                out
+            }
+            Neg::Stack {
+                inner,
+                weight: stack_weight,
+            } => {
+                let mut out = self.compact_weight_stack_families(&stack_weight);
+                out.extend(self.compact_neg_stack_families(inner));
+                out
+            }
+            Neg::Intersection(lhs, rhs) => {
+                let mut out = self.compact_neg_stack_families(lhs);
+                out.extend(self.compact_neg_stack_families(rhs));
+                out
+            }
+        }
+    }
+
+    fn compact_neu_stack_families(&mut self, ids: Vec<NeuId>) -> Vec<CompactStackFamily> {
+        ids.into_iter()
+            .flat_map(|id| self.compact_neu_id_stack_families(id))
+            .collect()
+    }
+
+    fn compact_neu_id_stack_families(&mut self, id: NeuId) -> Vec<CompactStackFamily> {
+        match self.machine.types().neu(id).clone() {
+            Neu::Bounds(lower, _, upper) => {
+                let mut out = self.compact_pos_stack_families(lower);
+                out.extend(self.compact_neg_stack_families(upper));
+                out
+            }
+            Neu::Con(_, args) | Neu::Tuple(args) => self.compact_neu_stack_families(args),
+            Neu::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                let mut out = self.compact_neu_id_stack_families(arg);
+                out.extend(self.compact_neu_id_stack_families(arg_eff));
+                out.extend(self.compact_neu_id_stack_families(ret_eff));
+                out.extend(self.compact_neu_id_stack_families(ret));
+                out
+            }
+            Neu::Record(fields) => fields
+                .into_iter()
+                .flat_map(|field| self.compact_neu_id_stack_families(field.value))
+                .collect(),
+            Neu::PolyVariant(items) => items
+                .into_iter()
+                .flat_map(|(_, payloads)| payloads)
+                .flat_map(|payload| self.compact_neu_id_stack_families(payload))
+                .collect(),
+        }
+    }
+
+    fn record_merge_bound_args(&mut self, lhs: &[CompactBounds], rhs: &[CompactBounds]) {
+        if lhs.len() != rhs.len() {
+            return;
+        }
+        for (lhs, rhs) in lhs.iter().zip(rhs) {
+            self.merge_constraints.record_merge_constraint(lhs, rhs);
         }
     }
 
@@ -1555,7 +2210,7 @@ impl<'a> CompactCollector<'a> {
 
         self.in_progress.insert(key);
         let bounds = self.compact_var_bounds(var, polarity, &weight);
-        let with_self = merge_compact_types(
+        let with_self = self.merge_types(
             polarity.is_positive(),
             CompactType::from_var(self.compact_var_occurrence(var, polarity, weight)),
             bounds,
@@ -1590,6 +2245,16 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
+    fn compact_secondary_var_occurrence(
+        &self,
+        var: TypeVar,
+        polarity: Polarity,
+        weight: ConstraintWeight,
+    ) -> CompactVar {
+        self.compact_var_occurrence(var, polarity, weight)
+            .with_origin(CompactVarOrigin::Secondary)
+    }
+
     fn compact_var_bounds(
         &mut self,
         var: TypeVar,
@@ -1600,26 +2265,47 @@ impl<'a> CompactCollector<'a> {
             return CompactType::default();
         };
         match polarity {
-            Polarity::Positive => self.compact_lower_bounds(&bounds, weight),
+            Polarity::Positive => self.compact_lower_bounds(var, &bounds, weight),
             Polarity::Negative => self.compact_upper_bounds(var, &bounds, weight),
         }
     }
 
     fn compact_lower_bounds(
         &mut self,
+        var: TypeVar,
         bounds: &VarBounds,
         outer_weight: &ConstraintWeight,
     ) -> CompactType {
-        bounds
-            .lowers()
+        let mut acc = CompactType::default();
+        let mut pending_stack_families = self.compact_pre_pop_stack_families(var);
+        for bound in bounds.lowers() {
+            let mut bound_stack_families = self.compact_weight_stack_families(&bound.weights.left);
+            bound_stack_families.extend(self.compact_pos_stack_families(bound.pos));
+            let compact =
+                self.compact_pos_bound_id(bound.pos, bound.weights.left.union(outer_weight));
+            self.record_stack_families_row_coexistence(&pending_stack_families, &compact);
+            self.record_stack_families_row_coexistence(&bound_stack_families, &acc);
+            self.record_stack_families_row_coexistence(&bound_stack_families, &compact);
+            acc = self.merge_types(true, acc, compact);
+            pending_stack_families.extend(bound_stack_families);
+        }
+        acc
+    }
+
+    fn compact_pre_pop_stack_families(&mut self, var: TypeVar) -> Vec<CompactStackFamily> {
+        self.machine
+            .pre_pop_effect_families(var)
             .iter()
-            .fold(CompactType::default(), |acc, bound| {
-                merge_compact_types(
-                    true,
-                    acc,
-                    self.compact_pos_bound_id(bound.pos, bound.weights.left.union(outer_weight)),
-                )
+            .cloned()
+            .map(|family| CompactStackFamily {
+                path: family.path,
+                args: family
+                    .args
+                    .into_iter()
+                    .map(|arg| self.compact_neu_id(arg, ConstraintWeight::empty()))
+                    .collect(),
             })
+            .collect()
     }
 
     fn compact_upper_bounds(
@@ -1628,16 +2314,12 @@ impl<'a> CompactCollector<'a> {
         bounds: &VarBounds,
         outer_weight: &ConstraintWeight,
     ) -> CompactType {
-        bounds
-            .uppers()
-            .iter()
-            .fold(CompactType::default(), |acc, bound| {
-                merge_compact_types(
-                    false,
-                    acc,
-                    self.compact_upper_bound(var, bound, outer_weight),
-                )
-            })
+        let mut acc = CompactType::default();
+        for bound in bounds.uppers() {
+            let compact = self.compact_upper_bound(var, bound, outer_weight);
+            acc = self.merge_types(false, acc, compact);
+        }
+        acc
     }
 
     fn compact_upper_bound(
@@ -1720,14 +2402,54 @@ impl<'a> CompactCollector<'a> {
 
     fn compact_pos_bound_id(&mut self, id: PosId, weight: ConstraintWeight) -> CompactType {
         match self.machine.types().pos(id).clone() {
-            Pos::Var(var) => CompactType::from_var(CompactVar::covariant(var, weight)),
+            Pos::Var(var) => CompactType::from_var(self.compact_secondary_var_occurrence(
+                var,
+                Polarity::Positive,
+                weight,
+            )),
+            Pos::NonSubtract(pos, subtract) => {
+                let weight = weight.union(&ConstraintWeight::from_ids([subtract]));
+                self.compact_pos_bound_id(pos, weight)
+            }
+            Pos::Stack {
+                inner,
+                weight: stack_weight,
+            } => {
+                let families = self.compact_weight_stack_families(&stack_weight);
+                let compact = self.compact_pos_bound_id(inner, stack_weight.union(&weight));
+                self.record_stack_families_row_coexistence(&families, &compact);
+                compact
+            }
+            Pos::Union(lhs, rhs) => {
+                let lhs = self.compact_pos_bound_id(lhs, weight.clone());
+                let rhs = self.compact_pos_bound_id(rhs, weight);
+                self.merge_types(true, lhs, rhs)
+            }
             _ => self.compact_pos_id(id, weight),
         }
     }
 
     fn compact_neg_bound_id(&mut self, id: NegId, weight: ConstraintWeight) -> CompactType {
         match self.machine.types().neg(id).clone() {
-            Neg::Var(var) => CompactType::from_var(CompactVar::contravariant(var)),
+            Neg::Var(var) => CompactType::from_var(self.compact_secondary_var_occurrence(
+                var,
+                Polarity::Negative,
+                ConstraintWeight::empty(),
+            )),
+            Neg::Stack {
+                inner,
+                weight: stack_weight,
+            } => {
+                let families = self.compact_weight_stack_families(&stack_weight);
+                let compact = self.compact_neg_bound_id(inner, stack_weight.union(&weight));
+                self.record_stack_families_row_coexistence(&families, &compact);
+                compact
+            }
+            Neg::Intersection(lhs, rhs) => {
+                let lhs = self.compact_neg_bound_id(lhs, weight.clone());
+                let rhs = self.compact_neg_bound_id(rhs, weight);
+                self.merge_types(false, lhs, rhs)
+            }
             _ => self.compact_neg_id(id, weight),
         }
     }
@@ -1744,8 +2466,8 @@ impl<'a> CompactCollector<'a> {
                 ret,
             } => CompactType::from_fun(CompactFun {
                 arg: self.compact_neg_id(arg, ConstraintWeight::empty()),
-                arg_eff: self.compact_neg_id(arg_eff, ConstraintWeight::empty()),
-                ret_eff: self.compact_pos_id(ret_eff, weight.clone()),
+                arg_eff: self.compact_neg_effect_id(arg_eff, ConstraintWeight::empty()),
+                ret_eff: self.compact_pos_effect_id(ret_eff, weight.clone()),
                 ret: self.compact_pos_id(ret, weight),
             }),
             Pos::Record(fields) => CompactType::from_record(CompactRecord {
@@ -1814,11 +2536,16 @@ impl<'a> CompactCollector<'a> {
             Pos::Stack {
                 inner,
                 weight: stack_weight,
-            } => self.compact_pos_id(inner, stack_weight.union(&weight)),
+            } => {
+                let families = self.compact_weight_stack_families(&stack_weight);
+                let compact = self.compact_pos_id(inner, stack_weight.union(&weight));
+                self.record_stack_families_row_coexistence(&families, &compact);
+                compact
+            }
             Pos::Union(lhs, rhs) => {
                 let lhs = self.compact_pos_id(lhs, weight.clone());
                 let rhs = self.compact_pos_id(rhs, weight);
-                merge_compact_types(true, lhs, rhs)
+                self.merge_types(true, lhs, rhs)
             }
         }
     }
@@ -1838,8 +2565,8 @@ impl<'a> CompactCollector<'a> {
                 ret,
             } => CompactType::from_fun(CompactFun {
                 arg: self.compact_pos_id(arg, weight.clone()),
-                arg_eff: self.compact_pos_id(arg_eff, weight.clone()),
-                ret_eff: self.compact_neg_id(ret_eff, ConstraintWeight::empty()),
+                arg_eff: self.compact_pos_effect_id(arg_eff, weight.clone()),
+                ret_eff: self.compact_neg_effect_id(ret_eff, ConstraintWeight::empty()),
                 ret: self.compact_neg_id(ret, ConstraintWeight::empty()),
             }),
             Neg::Record(fields) => CompactType::from_record(CompactRecord {
@@ -1878,11 +2605,16 @@ impl<'a> CompactCollector<'a> {
             Neg::Stack {
                 inner,
                 weight: stack_weight,
-            } => self.compact_neg_id(inner, stack_weight.union(&weight)),
+            } => {
+                let families = self.compact_weight_stack_families(&stack_weight);
+                let compact = self.compact_neg_id(inner, stack_weight.union(&weight));
+                self.record_stack_families_row_coexistence(&families, &compact);
+                compact
+            }
             Neg::Intersection(lhs, rhs) => {
                 let lhs = self.compact_neg_id(lhs, weight.clone());
                 let rhs = self.compact_neg_id(rhs, weight);
-                merge_compact_types(false, lhs, rhs)
+                self.merge_types(false, lhs, rhs)
             }
         }
     }
@@ -1908,6 +2640,115 @@ impl<'a> CompactCollector<'a> {
         })
     }
 
+    fn compact_pos_effect_id(&mut self, id: PosId, weight: ConstraintWeight) -> CompactType {
+        match self.machine.types().pos(id).clone() {
+            Pos::Bot => CompactType::default(),
+            Pos::Var(var) => self.compact_var_side(var, Polarity::Positive, weight),
+            Pos::Con(_, _) | Pos::NonSubtract(_, _) | Pos::Stack { .. } | Pos::Union(_, _) => {
+                match self.machine.types().pos(id).clone() {
+                    Pos::Union(lhs, rhs) => {
+                        let lhs = self.compact_pos_effect_id(lhs, weight.clone());
+                        let rhs = self.compact_pos_effect_id(rhs, weight);
+                        self.merge_types(true, lhs, rhs)
+                    }
+                    _ => {
+                        if let Some((path, args)) = self.compact_pos_row_item(id, weight.clone()) {
+                            CompactType::from_row(CompactRow {
+                                items: singleton_row_item_map(path, args),
+                                tail: Box::new(CompactType::default()),
+                            })
+                        } else {
+                            self.compact_pos_id(id, weight)
+                        }
+                    }
+                }
+            }
+            Pos::Row(items) => self.compact_pos_row(items, weight),
+            _ => self.compact_pos_id(id, weight),
+        }
+    }
+
+    fn compact_neg_effect_id(&mut self, id: NegId, weight: ConstraintWeight) -> CompactType {
+        match self.machine.types().neg(id).clone() {
+            Neg::Top => CompactType::default(),
+            Neg::Bot => CompactType::never(),
+            Neg::Var(var) => {
+                self.compact_var_side(var, Polarity::Negative, ConstraintWeight::empty())
+            }
+            Neg::Con(_, _) | Neg::Stack { .. } => {
+                if let Some((path, args)) = self.compact_neg_row_item(id) {
+                    CompactType::from_row(CompactRow {
+                        items: singleton_row_item_map(path, args),
+                        tail: Box::new(CompactType::default()),
+                    })
+                } else {
+                    self.compact_neg_id(id, weight)
+                }
+            }
+            Neg::Row(items, tail) => self.compact_neg_row(items, tail, weight),
+            Neg::Intersection(lhs, rhs) => {
+                let lhs = self.compact_neg_effect_id(lhs, weight.clone());
+                let rhs = self.compact_neg_effect_id(rhs, weight);
+                self.merge_types(false, lhs, rhs)
+            }
+            _ => self.compact_neg_id(id, weight),
+        }
+    }
+
+    fn compact_pos_row_item(
+        &mut self,
+        id: PosId,
+        weight: ConstraintWeight,
+    ) -> Option<(Vec<String>, Vec<CompactBounds>)> {
+        match self.machine.types().pos(id).clone() {
+            Pos::Con(path, args) => Some((
+                path,
+                args.into_iter()
+                    .map(|arg| self.compact_neu_id(arg, weight.clone()))
+                    .collect(),
+            )),
+            Pos::NonSubtract(pos, subtract) => {
+                let weight = weight.union(&ConstraintWeight::from_ids([subtract]));
+                self.compact_pos_row_item(pos, weight)
+            }
+            Pos::Stack {
+                inner,
+                weight: stack_weight,
+            } => {
+                let families = self.compact_weight_stack_families(&stack_weight);
+                let item = self.compact_pos_row_item(inner, stack_weight.union(&weight));
+                if let Some((path, args)) = &item {
+                    self.record_stack_families_row_item_coexistence(&families, path, args);
+                }
+                item
+            }
+            _ => None,
+        }
+    }
+
+    fn compact_neg_row_item(&mut self, id: NegId) -> Option<(Vec<String>, Vec<CompactBounds>)> {
+        match self.machine.types().neg(id).clone() {
+            Neg::Con(path, args) => Some((
+                path,
+                args.into_iter()
+                    .map(|arg| self.compact_neu_id(arg, ConstraintWeight::empty()))
+                    .collect(),
+            )),
+            Neg::Stack {
+                inner,
+                weight: stack_weight,
+            } => {
+                let families = self.compact_weight_stack_families(&stack_weight);
+                let item = self.compact_neg_row_item(inner);
+                if let Some((path, args)) = &item {
+                    self.record_stack_families_row_item_coexistence(&families, path, args);
+                }
+                item
+            }
+            _ => None,
+        }
+    }
+
     fn compact_neu_id(&mut self, id: NeuId, weight: ConstraintWeight) -> CompactBounds {
         match self.machine.types().neu(id).clone() {
             Neu::Bounds(lower, self_var, upper) => CompactBounds::Interval {
@@ -1929,8 +2770,8 @@ impl<'a> CompactCollector<'a> {
                 ret,
             } => CompactBounds::Fun {
                 arg: Box::new(self.compact_neu_id(arg, ConstraintWeight::empty())),
-                arg_eff: Box::new(self.compact_neu_id(arg_eff, ConstraintWeight::empty())),
-                ret_eff: Box::new(self.compact_neu_id(ret_eff, weight.clone())),
+                arg_eff: Box::new(self.compact_effect_neu_id(arg_eff, ConstraintWeight::empty())),
+                ret_eff: Box::new(self.compact_effect_neu_id(ret_eff, weight.clone())),
                 ret: Box::new(self.compact_neu_id(ret, weight)),
             },
             Neu::Record(fields) => CompactBounds::Record {
@@ -1966,32 +2807,59 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
+    fn compact_effect_neu_id(&mut self, id: NeuId, weight: ConstraintWeight) -> CompactBounds {
+        match self.machine.types().neu(id).clone() {
+            Neu::Bounds(lower, self_var, upper) => CompactBounds::Interval {
+                self_var,
+                lower: self.compact_pos_effect_id(lower, weight),
+                upper: self.compact_neg_effect_id(upper, ConstraintWeight::empty()),
+            },
+            Neu::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => CompactBounds::Fun {
+                arg: Box::new(self.compact_neu_id(arg, ConstraintWeight::empty())),
+                arg_eff: Box::new(self.compact_effect_neu_id(arg_eff, ConstraintWeight::empty())),
+                ret_eff: Box::new(self.compact_effect_neu_id(ret_eff, weight.clone())),
+                ret: Box::new(self.compact_neu_id(ret, weight)),
+            },
+            _ => self.compact_neu_id(id, weight),
+        }
+    }
+
     fn compact_pos_row(&mut self, items: Vec<PosId>, weight: ConstraintWeight) -> CompactType {
         let mut vars_and_nested = CompactType::default();
-        let mut concrete_items = Vec::new();
+        let mut concrete_items = CompactRowItemMap::default();
         for item in items {
             match self.machine.types().pos(item).clone() {
                 Pos::Var(var) => {
-                    vars_and_nested = merge_compact_types(
-                        true,
-                        vars_and_nested,
-                        self.compact_var_side(var, Polarity::Positive, weight.clone()),
-                    );
+                    let compact = self.compact_var_side(var, Polarity::Positive, weight.clone());
+                    vars_and_nested = self.merge_types(true, vars_and_nested, compact);
                 }
                 Pos::Row(nested) => {
-                    vars_and_nested = merge_compact_types(
-                        true,
-                        vars_and_nested,
-                        self.compact_pos_row(nested, weight.clone()),
-                    );
+                    let compact = self.compact_pos_row(nested, weight.clone());
+                    vars_and_nested = self.merge_types(true, vars_and_nested, compact);
                 }
-                _ => concrete_items.push(self.compact_pos_id(item, weight.clone())),
+                _ => {
+                    if let Some((path, args)) = self.compact_pos_row_item(item, weight.clone()) {
+                        concrete_items = self.merge_row_items(
+                            true,
+                            concrete_items,
+                            singleton_row_item_map(path, args),
+                        );
+                    } else {
+                        let compact = self.compact_pos_id(item, weight.clone());
+                        vars_and_nested = self.merge_types(true, vars_and_nested, compact);
+                    }
+                }
             }
         }
         if concrete_items.is_empty() {
             vars_and_nested
         } else {
-            merge_compact_types(
+            self.merge_types(
                 true,
                 vars_and_nested,
                 CompactType::from_row(CompactRow {
@@ -2008,12 +2876,22 @@ impl<'a> CompactCollector<'a> {
         tail: NegId,
         weight: ConstraintWeight,
     ) -> CompactType {
+        let mut concrete_items = CompactRowItemMap::default();
+        let mut item_tail = CompactType::default();
+        for item in items {
+            if let Some((path, args)) = self.compact_neg_row_item(item) {
+                concrete_items =
+                    self.merge_row_items(true, concrete_items, singleton_row_item_map(path, args));
+            } else {
+                let compact = self.compact_neg_id(item, ConstraintWeight::empty());
+                item_tail = self.merge_types(false, item_tail, compact);
+            }
+        }
+        let compact_tail = self.compact_neg_row_tail_id(tail, weight);
+        let tail = self.merge_types(false, item_tail, compact_tail);
         CompactType::from_row(CompactRow {
-            items: items
-                .into_iter()
-                .map(|item| self.compact_neg_id(item, ConstraintWeight::empty()))
-                .collect(),
-            tail: Box::new(self.compact_neg_row_tail_id(tail, weight)),
+            items: concrete_items,
+            tail: Box::new(tail),
         })
     }
 
@@ -2030,7 +2908,7 @@ impl<'a> CompactCollector<'a> {
             Neg::Intersection(lhs, rhs) => {
                 let lhs = self.compact_neg_row_tail_id(lhs, weight.clone());
                 let rhs = self.compact_neg_row_tail_id(rhs, weight);
-                merge_compact_types(false, lhs, rhs)
+                self.merge_types(false, lhs, rhs)
             }
             Neg::Con(_, _)
             | Neg::Fun { .. }
@@ -2041,7 +2919,11 @@ impl<'a> CompactCollector<'a> {
     }
 
     fn compact_neg_row_tail_var(&mut self, var: TypeVar, weight: ConstraintWeight) -> CompactType {
-        let mut out = CompactType::from_var(CompactVar::contravariant(var));
+        let mut out = CompactType::from_var(self.compact_var_occurrence(
+            var,
+            Polarity::Negative,
+            ConstraintWeight::empty(),
+        ));
         let Some(bounds) = self.machine.bounds().of(var).cloned() else {
             return out;
         };
@@ -2055,7 +2937,11 @@ impl<'a> CompactCollector<'a> {
                     bound_weight,
                     &bound.weights.left,
                 ),
-                Neg::Var(other) => CompactType::from_var(CompactVar::contravariant(other)),
+                Neg::Var(other) => CompactType::from_var(self.compact_secondary_var_occurrence(
+                    other,
+                    Polarity::Negative,
+                    ConstraintWeight::empty(),
+                )),
                 Neg::Stack {
                     inner,
                     weight: stack_weight,
@@ -2063,7 +2949,7 @@ impl<'a> CompactCollector<'a> {
                 Neg::Intersection(lhs, rhs) => {
                     let lhs = self.compact_neg_row_tail_id(lhs, bound_weight.clone());
                     let rhs = self.compact_neg_row_tail_id(rhs, bound_weight);
-                    merge_compact_types(false, lhs, rhs)
+                    self.merge_types(false, lhs, rhs)
                 }
                 Neg::Top => CompactType::default(),
                 Neg::Bot => CompactType::never(),
@@ -2073,7 +2959,7 @@ impl<'a> CompactCollector<'a> {
                 | Neg::PolyVariant(_)
                 | Neg::Tuple(_) => CompactType::default(),
             };
-            out = merge_compact_types(false, out, compact);
+            out = self.merge_types(false, out, compact);
         }
         out
     }
@@ -2105,6 +2991,29 @@ mod tests {
     use crate::constraints::{ConstraintMachine, ConstraintWeights, TypeLevel};
     use crate::roles::{RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg};
 
+    fn invariant_var(machine: &mut ConstraintMachine, var: TypeVar) -> NeuId {
+        let lower = machine.alloc_pos(Pos::Var(var));
+        let upper = machine.alloc_neg(Neg::Var(var));
+        machine.alloc_neu(Neu::Bounds(lower, var, upper))
+    }
+
+    fn apply_merge_constraints_until_quiescent(
+        machine: &mut ConstraintMachine,
+        root: TypeVar,
+    ) -> bool {
+        let mut applied = FxHashSet::<CompactMergeConstraintKey>::default();
+        let mut saw_change = false;
+        for _ in 0..8 {
+            let (_, constraints) = compact_type_var_recording_merge_constraints(&*machine, root);
+            let changed = apply_compact_merge_constraints(machine, constraints, &mut applied);
+            saw_change |= changed;
+            if !changed {
+                return saw_change;
+            }
+        }
+        panic!("compact merge constraints did not reach quiescence");
+    }
+
     #[test]
     fn covariant_vars_keep_weight() {
         let weight = ConstraintWeight::from_ids([SubtractId(1), SubtractId(1), SubtractId(0)]);
@@ -2121,6 +3030,91 @@ mod tests {
 
         assert_eq!(var.var, TypeVar(3));
         assert!(var.weight.is_empty());
+    }
+
+    #[test]
+    fn compact_duplicate_constructor_args_generate_constraints() {
+        let mut machine = ConstraintMachine::new();
+        let root = TypeVar(0);
+        let left = invariant_var(&mut machine, TypeVar(1));
+        let right = invariant_var(&mut machine, TypeVar(2));
+        let root_upper = machine.alloc_neg(Neg::Var(root));
+        let left_box = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![left]));
+        let right_box = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![right]));
+        machine.subtype(left_box, root_upper);
+        machine.subtype(right_box, root_upper);
+
+        let (compact, constraints) = compact_type_var_recording_merge_constraints(&machine, root);
+
+        assert_eq!(compact.root.cons.len(), 1);
+        assert!(!constraints.is_empty());
+        assert!(apply_merge_constraints_until_quiescent(&mut machine, root));
+    }
+
+    #[test]
+    fn compact_stack_family_and_row_item_coexistence_generate_constraints() {
+        let mut machine = ConstraintMachine::new();
+        let root = TypeVar(0);
+        let tail = TypeVar(1);
+        let stack_arg = invariant_var(&mut machine, TypeVar(2));
+        let row_arg = invariant_var(&mut machine, TypeVar(3));
+        let effect_path = vec!["parse".into()];
+        let stack_weight = ConstraintWeight::push(
+            SubtractId(9),
+            Subtractability::Set(effect_path.clone(), vec![stack_arg]),
+        );
+        let tail_var = machine.alloc_pos(Pos::Var(tail));
+        let stacked_tail = machine.alloc_pos(Pos::Stack {
+            inner: tail_var,
+            weight: stack_weight,
+        });
+        let row_item = machine.alloc_pos(Pos::Con(effect_path, vec![row_arg]));
+        let row = machine.alloc_pos(Pos::Row(vec![row_item]));
+        let root_upper = machine.alloc_neg(Neg::Var(root));
+        machine.subtype(stacked_tail, root_upper);
+        machine.subtype(row, root_upper);
+
+        let (compact, constraints) = compact_type_var_recording_merge_constraints(&machine, root);
+
+        assert_eq!(compact.root.rows.len(), 1);
+        assert!(!constraints.is_empty());
+        assert!(apply_merge_constraints_until_quiescent(&mut machine, root));
+    }
+
+    #[test]
+    fn compact_popped_stack_family_still_merges_with_coexisting_row_item() {
+        let mut machine = ConstraintMachine::new();
+        let root = TypeVar(0);
+        let tail = TypeVar(1);
+        let stack_arg = invariant_var(&mut machine, TypeVar(2));
+        let row_arg = invariant_var(&mut machine, TypeVar(3));
+        let subtract = SubtractId(11);
+        let effect_path = vec!["parse".into()];
+        let stack_weight = ConstraintWeight::push(
+            subtract,
+            Subtractability::Set(effect_path.clone(), vec![stack_arg]),
+        );
+        let tail_var = machine.alloc_pos(Pos::Var(tail));
+        let stacked_tail = machine.alloc_pos(Pos::Stack {
+            inner: tail_var,
+            weight: stack_weight,
+        });
+        let row_item = machine.alloc_pos(Pos::Con(effect_path, vec![row_arg]));
+        let row = machine.alloc_pos(Pos::Row(vec![row_item]));
+        let root_upper = machine.alloc_neg(Neg::Var(root));
+        machine.weighted_subtype(
+            stacked_tail,
+            ConstraintWeights::empty().with_left(subtract),
+            root_upper,
+        );
+        machine.subtype(row, root_upper);
+
+        let (compact, constraints) = compact_type_var_recording_merge_constraints(&machine, root);
+
+        assert!(compact.root.vars.iter().all(|var| var.weight.is_empty()));
+        assert_eq!(compact.root.rows.len(), 1);
+        assert!(!constraints.is_empty());
+        assert!(apply_merge_constraints_until_quiescent(&mut machine, root));
     }
 
     #[test]
@@ -2158,18 +3152,19 @@ mod tests {
             .root
             .cons
             .iter()
-            .find(|con| compact_path_is(con.path.as_slice(), "list"))
+            .find(|(path, _)| compact_path_is(path.as_slice(), "list"))
             .expect("list lower bound should be collected");
-        let CompactBounds::Interval { lower, upper, .. } = &list.args[0] else {
+        let CompactBounds::Interval { lower, upper, .. } = &list.1[0] else {
             panic!("list payload should be an interval");
         };
 
-        assert!(
-            lower
-                .vars
-                .iter()
-                .any(|var| var.var == payload && var.weight.contains(SubtractId(4)))
-        );
+        let payload_lower = lower
+            .vars
+            .iter()
+            .find(|var| var.var == payload)
+            .expect("payload var");
+        assert!(payload_lower.weight.contains(SubtractId(4)));
+        assert_eq!(payload_lower.origin, CompactVarOrigin::Primary);
         assert!(
             upper
                 .vars
@@ -2192,13 +3187,14 @@ mod tests {
 
         let compact = compact_type_var(&machine, root);
 
-        assert!(
-            compact
-                .root
-                .vars
-                .iter()
-                .any(|var| var.var == payload && var.weight.contains(subtract))
-        );
+        let payload_var = compact
+            .root
+            .vars
+            .iter()
+            .find(|var| var.var == payload)
+            .expect("payload var");
+        assert!(payload_var.weight.contains(subtract));
+        assert_eq!(payload_var.origin, CompactVarOrigin::Secondary);
     }
 
     #[test]
@@ -2747,7 +3743,11 @@ mod tests {
 
         let substitutions = coalesce_by_co_occurrence(&machine, TypeLevel::root(), &mut root);
 
-        let CompactBounds::Interval { lower, upper, .. } = &root.root.funs[0].arg.cons[0].args[0]
+        let CompactBounds::Interval { lower, upper, .. } = &root.root.funs[0]
+            .arg
+            .cons
+            .get(&vec!["list".into()])
+            .expect("list")[0]
         else {
             panic!("expected interval");
         };
@@ -2819,7 +3819,9 @@ mod tests {
         let inner = &outer.ret.funs[0];
         assert_eq!(inner.arg.vars, vec![CompactVar::plain(receiver)]);
         assert_eq!(inner.ret.vars, vec![CompactVar::plain(receiver)]);
-        let CompactBounds::Interval { lower, upper, .. } = &outer.arg.cons[0].args[0] else {
+        let CompactBounds::Interval { lower, upper, .. } =
+            &outer.arg.cons.get(&vec!["view".into()]).expect("view")[0]
+        else {
             panic!("expected view payload interval");
         };
         assert_eq!(lower.vars, vec![CompactVar::plain(receiver)]);
@@ -2870,7 +3872,7 @@ mod tests {
                 ConstraintWeight::from_ids([subtract]),
             )],
             rows: vec![CompactRow {
-                items: Vec::new(),
+                items: CompactRowItemMap::default(),
                 tail: Box::new(CompactType::default()),
             }],
             ..CompactType::default()
@@ -2942,7 +3944,15 @@ mod tests {
         coalesce_by_co_occurrence(&machine, TypeLevel::root(), &mut root);
 
         let outer = &root.root.funs[0];
-        let receiver = &outer.arg.cons[0];
+        let receiver = CompactCon {
+            path: vec!["ref".into()],
+            args: outer
+                .arg
+                .cons
+                .get(&vec!["ref".into()])
+                .expect("ref")
+                .clone(),
+        };
         assert_eq!(
             receiver.args[0],
             CompactBounds::Interval {
@@ -3054,7 +4064,9 @@ mod tests {
 
         let sandwiches = sandwich_compact_root(&machine, TypeLevel::root(), &mut root);
 
-        let CompactBounds::Con { path, args } = &root.root.cons[0].args[0] else {
+        let CompactBounds::Con { path, args } =
+            &root.root.cons.get(&vec!["box".into()]).expect("box")[0]
+        else {
             panic!("box payload should be lifted to list");
         };
         assert!(compact_path_is(path, "list"));
@@ -3118,7 +4130,7 @@ mod tests {
 
         assert!(sandwiches.is_empty());
         assert!(matches!(
-            &root.root.cons[0].args[0],
+            &root.root.cons.get(&vec!["box".into()]).expect("box")[0],
             CompactBounds::Interval { self_var, .. } if *self_var == center
         ));
     }
@@ -3162,7 +4174,12 @@ mod tests {
         let sandwiches =
             sandwich_compact_root_with_roles(&machine, TypeLevel::root(), &mut root, &mut roles);
 
-        let CompactBounds::Con { path, args } = &roles[0].inputs[0].lower.cons[0].args[0] else {
+        let CompactBounds::Con { path, args } = &roles[0].inputs[0]
+            .lower
+            .cons
+            .get(&vec!["box".into()])
+            .expect("box")[0]
+        else {
             panic!("role predicate payload should be lifted to list");
         };
         assert!(compact_path_is(path, "list"));
@@ -3216,7 +4233,9 @@ mod tests {
 
         let sandwiches = sandwich_compact_root(&machine, TypeLevel::root(), &mut root);
 
-        let CompactBounds::Con { args, .. } = &root.root.cons[0].args[0] else {
+        let CompactBounds::Con { args, .. } =
+            &root.root.cons.get(&vec!["box".into()]).expect("box")[0]
+        else {
             panic!("box payload should be lifted to list");
         };
         let CompactBounds::Interval { self_var, .. } = &args[0] else {
@@ -3272,7 +4291,7 @@ mod tests {
 
         assert!(sandwiches.is_empty());
         assert!(matches!(
-            &root.root.cons[0].args[0],
+            &root.root.cons.get(&vec!["box".into()]).expect("box")[0],
             CompactBounds::Interval { .. }
         ));
     }
@@ -3316,7 +4335,7 @@ mod tests {
 
         assert!(sandwiches.is_empty());
         assert!(matches!(
-            &root.root.cons[0].args[0],
+            &root.root.cons.get(&vec!["box".into()]).expect("box")[0],
             CompactBounds::Interval { self_var, .. } if *self_var == outer
         ));
     }
@@ -3412,10 +4431,10 @@ mod tests {
         let ty = CompactType {
             vars: vec![CompactVar::plain(TypeVar(1))],
             rows: vec![CompactRow {
-                items: vec![CompactType::from_con(CompactCon {
+                items: row_items_from_con(CompactCon {
                     path: vec!["io".into()],
                     args: Vec::new(),
-                })],
+                }),
                 tail: Box::new(CompactType::default()),
             }],
             ..CompactType::default()
@@ -3481,7 +4500,7 @@ mod tests {
             self_var,
             lower,
             upper,
-        } = &merged.cons[0].args[0]
+        } = &merged.cons.get(&vec!["list".into()]).expect("list cons")[0]
         else {
             panic!("expected merged payload interval");
         };
@@ -3495,19 +4514,22 @@ mod tests {
         let merged = merge_compact_types(
             true,
             CompactType::from_row(CompactRow {
-                items: vec![effect_with_empty_payload(TypeVar(1))],
+                items: row_items_from_con(effect_con_with_empty_payload(TypeVar(1))),
                 tail: Box::new(CompactType::default()),
             }),
             CompactType::from_row(CompactRow {
-                items: vec![effect_with_empty_payload(TypeVar(2))],
+                items: row_items_from_con(effect_con_with_empty_payload(TypeVar(2))),
                 tail: Box::new(CompactType::default()),
             }),
         );
 
         assert_eq!(merged.rows.len(), 1);
         assert_eq!(merged.rows[0].items.len(), 1);
-        let item = single_compact_con(&merged.rows[0].items[0]).expect("effect item");
-        let CompactBounds::Interval { lower, upper, .. } = &item.args[0] else {
+        let args = merged.rows[0]
+            .items
+            .get(&vec!["effect".into()])
+            .expect("effect item");
+        let CompactBounds::Interval { lower, upper, .. } = &args[0] else {
             panic!("expected merged effect payload interval");
         };
         assert!(compact_type_contains_var(lower, TypeVar(2)));
@@ -3517,8 +4539,8 @@ mod tests {
     fn compact_row_contains_path(compact: &CompactType, path: &str) -> bool {
         compact.rows.iter().any(|row| {
             row.items
-                .iter()
-                .any(|item| compact_type_contains_path(item, path))
+                .keys()
+                .any(|item_path| compact_path_is(item_path.as_slice(), path))
                 || compact_type_contains_path(&row.tail, path)
         }) || compact_type_contains_path_without_rows(compact, path)
     }
@@ -3527,8 +4549,8 @@ mod tests {
         compact_type_contains_path_without_rows(compact, path)
             || compact.rows.iter().any(|row| {
                 row.items
-                    .iter()
-                    .any(|item| compact_type_contains_path(item, path))
+                    .keys()
+                    .any(|item_path| compact_path_is(item_path.as_slice(), path))
                     || compact_type_contains_path(&row.tail, path)
             })
     }
@@ -3536,8 +4558,8 @@ mod tests {
     fn compact_type_contains_path_without_rows(compact: &CompactType, path: &str) -> bool {
         compact
             .cons
-            .iter()
-            .any(|con| compact_path_is(con.path.as_slice(), path))
+            .keys()
+            .any(|con_path| compact_path_is(con_path.as_slice(), path))
             || compact
                 .builtins
                 .iter()
@@ -3555,11 +4577,15 @@ mod tests {
         })
     }
 
-    fn effect_with_empty_payload(center: TypeVar) -> CompactType {
-        CompactType::from_con(CompactCon {
+    fn effect_con_with_empty_payload(center: TypeVar) -> CompactCon {
+        CompactCon {
             path: vec!["effect".into()],
             args: vec![empty_interval(center)],
-        })
+        }
+    }
+
+    fn row_items_from_con(con: CompactCon) -> CompactRowItemMap {
+        singleton_row_item_map(con.path, con.args)
     }
 
     fn empty_interval(center: TypeVar) -> CompactBounds {

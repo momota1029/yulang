@@ -15,13 +15,17 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::arena::Arena as InferArena;
 use crate::casts::CastTable;
+#[cfg(test)]
+use crate::compact::compact_type_var;
 use crate::compact::{
-    CompactBounds, CompactCastApplication, CompactCastKey, CompactRoleArg, CompactRoleConstraint,
-    CompactSimplification, CompactType, coalesce_floor_interval_equalities,
-    compact_reachable_role_constraints, compact_role_constraint, compact_type_var,
-    eliminate_floor_redundant_variables, finalize_compact_type_to_neg_constraint,
-    finalize_compact_type_to_pos_constraint, find_next_compact_cast, normalize_compact_casts,
-    normalize_var_substitutions, simplify_compact_root_with_roles_and_non_generic,
+    CompactBounds, CompactCastApplication, CompactCastKey, CompactMergeConstraintKey,
+    CompactRoleArg, CompactRoleConstraint, CompactSimplification, CompactType,
+    apply_compact_merge_constraints, coalesce_floor_interval_equalities,
+    compact_reachable_role_constraints, compact_role_constraint,
+    compact_type_var_recording_merge_constraints, eliminate_floor_redundant_variables,
+    finalize_compact_type_to_neg_constraint, finalize_compact_type_to_pos_constraint,
+    find_next_compact_cast, normalize_compact_casts, normalize_var_substitutions,
+    simplify_compact_root_with_roles_and_non_generic,
 };
 use crate::constraints::{ConstraintEvent, ConstraintWeights, TypeLevel};
 use crate::generalize::{
@@ -512,8 +516,19 @@ impl AnalysisSession {
         method_taint: &MethodTaintIndex,
     ) -> bool {
         let mut progressed = false;
+        let mut applied_merge_constraints = FxHashSet::<CompactMergeConstraintKey>::default();
         loop {
-            let mut compact = compact_type_var(self.infer.constraints(), root);
+            let (mut compact, merge_constraints) =
+                compact_type_var_recording_merge_constraints(self.infer.constraints(), root);
+            if apply_compact_merge_constraints(
+                self.infer.constraints_mut(),
+                merge_constraints,
+                &mut applied_merge_constraints,
+            ) {
+                self.route_constraint_events();
+                progressed = true;
+                continue;
+            }
             normalize_compact_casts(&mut compact, &FxHashSet::default());
             let roles = self.method_tainted_role_constraints(def, method_taint);
             let resolutions = resolve_role_constraints_with_method_taint(
@@ -1239,9 +1254,20 @@ impl AnalysisSession {
             .iter()
             .map(|key| key.demand.clone())
             .collect::<FxHashSet<_>>();
+        let mut applied_merge_constraints = FxHashSet::<CompactMergeConstraintKey>::default();
         let mut compact;
         loop {
-            compact = compact_type_var(self.infer.constraints(), root);
+            let (next_compact, merge_constraints) =
+                compact_type_var_recording_merge_constraints(self.infer.constraints(), root);
+            compact = next_compact;
+            if apply_compact_merge_constraints(
+                self.infer.constraints_mut(),
+                merge_constraints,
+                &mut applied_merge_constraints,
+            ) {
+                self.route_constraint_events();
+                continue;
+            }
             normalize_compact_casts(&mut compact, &applied_casts);
             if let Some(batch) = find_next_compact_cast(&compact, &self.casts, &applied_casts) {
                 for application in &batch.applications {
@@ -1985,9 +2011,8 @@ fn compact_type_has_method_taint(ty: &CompactType, method_taint: &MethodTaintInd
         method_taint
             .get(&var.var)
             .is_some_and(|selects| !selects.is_empty())
-    }) || ty.cons.iter().any(|con| {
-        con.args
-            .iter()
+    }) || ty.cons.values().any(|args| {
+        args.iter()
             .any(|arg| compact_bounds_has_method_taint(arg, method_taint))
     }) || ty.funs.iter().any(|fun| {
         compact_type_has_method_taint(&fun.arg, method_taint)
@@ -2017,10 +2042,10 @@ fn compact_type_has_method_taint(ty: &CompactType, method_taint: &MethodTaintInd
             .iter()
             .any(|item| compact_type_has_method_taint(item, method_taint))
     }) || ty.rows.iter().any(|row| {
-        row.items
-            .iter()
-            .any(|item| compact_type_has_method_taint(item, method_taint))
-            || compact_type_has_method_taint(&row.tail, method_taint)
+        row.items.values().any(|args| {
+            args.iter()
+                .any(|arg| compact_bounds_has_method_taint(arg, method_taint))
+        }) || compact_type_has_method_taint(&row.tail, method_taint)
     })
 }
 
@@ -3159,7 +3184,7 @@ mod tests {
         let generalized = session.generalize_root_with_prepasses(DefId(0), root);
 
         assert_eq!(generalized.compact.root.cons.len(), 1);
-        assert_eq!(generalized.compact.root.cons[0].path, target);
+        assert!(generalized.compact.root.cons.contains_key(&target));
     }
 
     #[test]
@@ -3188,7 +3213,7 @@ mod tests {
         let generalized = session.generalize_root_with_prepasses(DefId(0), root);
 
         assert_eq!(generalized.compact.root.cons.len(), 1);
-        assert_eq!(generalized.compact.root.cons[0].path, target);
+        assert!(generalized.compact.root.cons.contains_key(&target));
         assert!(
             session
                 .infer

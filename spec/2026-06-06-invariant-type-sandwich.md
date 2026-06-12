@@ -43,6 +43,69 @@ enum CompactBounds {
   `CompactType.tuples` 等から shape を `CompactBounds::Tuple` 等へ引き上げる。
 - 触るのは **sandwich・比較(Eq/型等価)・変換(display / freeze / solver の Pos/Neg 戻し)** だけ。
 
+### CompactType の nominal / row 成分
+
+`CompactType` の concrete nominal 成分は、同じ path の候補を `Vec` に重ねない。
+次の正規形で持つ。
+
+```rust
+CompactType.cons: FxHashMap<Vec<String>, Vec<CompactBounds>>
+```
+
+同じ path が再度入る場合は、新しい entry を追加せず、既存の `args` と新しい `args` を同じ
+不変実引数として併合する。併合では、前半の `args` の中心変数を代表として残し、lower / upper
+をそれぞれ足す。あわせて、同じ実引数が両区間を満たすために `loA <: upB` と `loB <: upA`
+の交差条件を生成する。
+
+この交差条件は compact 表現の局所 rewrite ではなく、通常の `ConstraintMachine` へ戻す制約である。
+compact collect は同じ slot に落ちた `CompactBounds` のペアを記録し、制約が新規に記録された場合だけ
+collect をやり直す。毎回固定で不動点を回すのではなく、同一 slot merge から新しい制約候補が出た
+ときだけ再 collect する。
+
+再 collect の停止判定では、merge 後に合算された lower / upper 全体を key にしない。
+`Interval(self_var)` や constructor path とその子 slot からなる「同じ場所に来た原因」だけを key にする。
+合算後の bounds を key にすると、前回 merge で足した制約を再展開した結果同士がまた別 key として
+merge され、制約生成が止まらない。
+
+effect row の concrete item も同じ形で持つ。
+
+```rust
+CompactRow.items: FxHashMap<Vec<String>, Vec<CompactBounds>>
+```
+
+row item は任意の `CompactType` ではなく、effect family `path(args...)` だけを表す。
+row の tail や nested row に出る変数は `CompactRow.tail` 側の `CompactType` に残す。
+この正規形により、同じ effect path の item が collect 中に複数現れても、共起分析へ渡る前に
+args をすり合わせた1 entryへ畳まれる。
+
+stack weight に載る effect family も concrete row item と同じ slot に来ることがある。
+たとえば `α@push[K(args)]` と `K(args')` が同じ effect row に同居するなら、`K` の実引数は
+`CompactRow.items` 同士の merge と同じ規則で交差条件を生成する。
+
+`pop` によって `push[K(args)]` が surface weight から消える場合も、展開時に同じ row slot へ
+同居することが確定していれば、`pop` で消す前に `K(args)` と row item 側 `K(args')` を
+merge 済みとして扱う。実装では、constraint machine が `Pos::Stack` を weight へ移す時点で
+pop 前の effect family を root 変数ごとの side table に残し、compact collect が同じ root の
+row item と照合して交差条件へ戻す。この side table は表示・極性消去・共起保護には使わない。
+
+function の effect slot を freeze するときも、bare `Con(K,args)` は通常の nominal type ではなく
+effect row item として扱う。したがって effect slot に `K(args)` と `[K(args)]` が同居しても、
+最終 `Pos::Row` では同じ item に dedup される。裸の effect 変数だけがある場合は従来どおり
+裸変数として残し、不要に `Row([α])` へ包まない。
+
+### 二次変数
+
+compact collect で型変数の bounds を展開したとき、その bound 自体が裸の別型変数だった場合、
+その変数を二次変数（secondary variable）として記録する。`α` の bound が `β` なら `β` は
+二次変数である。一方、`α` の bound が `list β` や `β -> γ` のような構造を持つ場合、その中の
+`β` / `γ` は構造の payload / field / slot であり、二次変数ではない。
+
+二次変数は compact 表現には残すが、再 collect でそれ自身の bounds を展開しない。
+
+これは「展開された変数を再 collect で再展開する」循環を避けるための表現上の規則であり、
+極性消去を止める保護集合ではない。主型から直接見えている変数は従来通り primary variable
+として collect される。
+
 ### sandwich の1ステップ（例）
 
 ```

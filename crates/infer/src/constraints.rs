@@ -28,6 +28,7 @@ pub struct ConstraintMachine {
     next_internal_type_var: u32,
     row_residuals: FxHashMap<RowResidualKey, TypeVar>,
     declared_subtracts: FxHashSet<SubtractId>,
+    pre_pop_effect_families: FxHashMap<TypeVar, Vec<ConstraintEffectFamily>>,
     seen: FxHashSet<SubtypeConstraint>,
     events: Vec<ConstraintEvent>,
 }
@@ -43,6 +44,7 @@ impl ConstraintMachine {
             next_internal_type_var: 0,
             row_residuals: FxHashMap::default(),
             declared_subtracts: FxHashSet::default(),
+            pre_pop_effect_families: FxHashMap::default(),
             seen: FxHashSet::default(),
             events: Vec::new(),
         }
@@ -109,6 +111,13 @@ impl ConstraintMachine {
         self.drain();
     }
 
+    pub(crate) fn constrain_invariant_neu(&mut self, lower: NeuId, upper: NeuId) -> bool {
+        let seen_len = self.seen.len();
+        self.enqueue_invariant_neu(lower, upper, ConstraintWeights::empty());
+        self.drain();
+        self.seen.len() != seen_len
+    }
+
     pub fn subtract_fact(
         &mut self,
         effect: TypeVar,
@@ -144,6 +153,13 @@ impl ConstraintMachine {
         self.declared_subtracts.contains(&id)
     }
 
+    pub(crate) fn pre_pop_effect_families(&self, var: TypeVar) -> &[ConstraintEffectFamily] {
+        self.pre_pop_effect_families
+            .get(&var)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
     pub fn drain(&mut self) {
         while let Some(work) = self.queue.pop_front() {
             self.step(work);
@@ -175,6 +191,19 @@ impl ConstraintMachine {
         if self.subtracts.record(effect, fact) {
             self.events
                 .push(ConstraintEvent::SubtractFactAdded { effect, id });
+        }
+    }
+
+    fn record_pre_pop_effect_families(&mut self, target: TypeVar, weight: &StackWeight) {
+        let families = self.pre_pop_effect_families.entry(target).or_default();
+        for family in weight.stack_items().flat_map(subtractability_families) {
+            let family = ConstraintEffectFamily {
+                path: family.path,
+                args: family.args,
+            };
+            if !families.contains(&family) {
+                families.push(family);
+            }
         }
     }
 
@@ -364,6 +393,9 @@ impl ConstraintMachine {
         ) {
             (Pos::Bot, _) | (_, Neg::Top) => {}
             (Pos::Stack { inner, weight }, _) => {
+                if let Neg::Var(target) = self.types.neg(constraint.upper) {
+                    self.record_pre_pop_effect_families(*target, &weight);
+                }
                 self.enqueue_subtype(
                     inner,
                     constraint.weights.with_left_prefix(weight),
@@ -1700,6 +1732,12 @@ pub struct SubtypeConstraint {
 pub struct SubtractFact {
     pub id: SubtractId,
     pub subtractability: Subtractability,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct ConstraintEffectFamily {
+    pub(crate) path: Vec<String>,
+    pub(crate) args: Vec<NeuId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

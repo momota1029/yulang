@@ -329,11 +329,11 @@ struct CollapseContext<'a> {
 }
 
 fn collapse_intervals_in_type(ty: &mut CompactType, ctx: &mut CollapseContext) {
-    for con in &mut ty.cons {
+    for (path, args) in &mut ty.cons {
         // ref の payload は `Neu::Bounds` の形そのものに意味がある（ref selection probe が
         // positional に var を読む）ので、直下の interval は畳まない。
-        let keep_interval = crate::std_paths::is_control_var_ref_type(&con.path);
-        for arg in &mut con.args {
+        let keep_interval = crate::std_paths::is_control_var_ref_type(path);
+        for arg in args {
             collapse_intervals_in_bounds(arg, ctx, keep_interval);
         }
     }
@@ -367,8 +367,10 @@ fn collapse_intervals_in_type(ty: &mut CompactType, ctx: &mut CollapseContext) {
         }
     }
     for row in &mut ty.rows {
-        for item in &mut row.items {
-            collapse_intervals_in_type(item, ctx);
+        for args in row.items.values_mut() {
+            for arg in args {
+                collapse_intervals_in_bounds(arg, ctx, false);
+            }
         }
         collapse_intervals_in_type(&mut row.tail, ctx);
     }
@@ -464,7 +466,11 @@ fn sole_concrete_component(ty: &CompactType) -> Option<CompactType> {
     }
     let mut found = Vec::new();
     found.extend(ty.builtins.iter().copied().map(CompactType::from_builtin));
-    found.extend(ty.cons.iter().cloned().map(CompactType::from_con));
+    found.extend(
+        compact_con_entries(&ty.cons)
+            .into_iter()
+            .map(CompactType::from_con),
+    );
     found.extend(ty.funs.iter().cloned().map(CompactType::from_fun));
     found.extend(ty.records.iter().cloned().map(CompactType::from_record));
     found.extend(
@@ -489,9 +495,10 @@ fn concrete_compact_bounds(ty: &CompactType) -> Option<CompactBounds> {
     if !ty.vars.is_empty() || ty.never {
         return None;
     }
+    let cons = compact_con_entries(&ty.cons);
     match (
         ty.builtins.as_slice(),
-        ty.cons.as_slice(),
+        cons.as_slice(),
         ty.tuples.as_slice(),
         ty.funs.as_slice(),
         ty.records.as_slice(),
@@ -737,8 +744,8 @@ fn visit_type_for_sandwich_verdict(
         record_sandwich_var_occurrence(verdicts, var.var, &kinds);
     }
 
-    for con in &ty.cons {
-        for arg in &con.args {
+    for args in ty.cons.values() {
+        for arg in args {
             visit_bounds_for_sandwich_verdict(arg, verdicts);
         }
     }
@@ -772,8 +779,10 @@ fn visit_type_for_sandwich_verdict(
         }
     }
     for row in &ty.rows {
-        for item in &row.items {
-            visit_type_for_sandwich_verdict(item, verdicts);
+        for args in row.items.values() {
+            for arg in args {
+                visit_bounds_for_sandwich_verdict(arg, verdicts);
+            }
         }
         visit_type_for_sandwich_verdict(&row.tail, verdicts);
     }
@@ -826,8 +835,8 @@ fn visit_bounds_for_sandwich_verdict(
 
 fn sandwich_kinds(ty: &CompactType) -> Vec<SandwichKind> {
     let mut kinds = Vec::new();
-    for con in &ty.cons {
-        kinds.push(SandwichKind::Con(con.path.clone(), con.args.len()));
+    for con in compact_con_entries(&ty.cons) {
+        kinds.push(SandwichKind::Con(con.path, con.args.len()));
     }
     for tuple in &ty.tuples {
         kinds.push(SandwichKind::Tuple(tuple.items.len()));
@@ -884,15 +893,17 @@ fn sandwich_type(
     ty.cons = ty
         .cons
         .into_iter()
-        .map(|con| CompactCon {
-            path: con.path,
-            args: con
-                .args
-                .into_iter()
-                .map(|arg| {
-                    sandwich_bounds(machine, boundary, arg, verdicts, fresh, changed, sandwiches)
-                })
-                .collect(),
+        .map(|(path, args)| {
+            (
+                path,
+                args.into_iter()
+                    .map(|arg| {
+                        sandwich_bounds(
+                            machine, boundary, arg, verdicts, fresh, changed, sandwiches,
+                        )
+                    })
+                    .collect(),
+            )
         })
         .collect();
     for fun in &mut ty.funs {
@@ -997,16 +1008,18 @@ fn sandwich_type(
         }
     }
     for row in &mut ty.rows {
-        for item in &mut row.items {
-            *item = sandwich_type(
-                machine,
-                boundary,
-                mem::take(item),
-                verdicts,
-                fresh,
-                changed,
-                sandwiches,
-            );
+        for args in row.items.values_mut() {
+            for arg in args {
+                *arg = sandwich_bounds(
+                    machine,
+                    boundary,
+                    mem::replace(arg, empty_interval(TypeVar(0))),
+                    verdicts,
+                    fresh,
+                    changed,
+                    sandwiches,
+                );
+            }
         }
         row.tail = Box::new(sandwich_type(
             machine,
@@ -1355,8 +1368,6 @@ fn single_con<'a>(
     arity: usize,
 ) -> Option<&'a [CompactBounds]> {
     if ty.cons.len() == 1
-        && ty.cons[0].path == path
-        && ty.cons[0].args.len() == arity
         && ty.builtins.is_empty()
         && ty.funs.is_empty()
         && ty.records.is_empty()
@@ -1364,8 +1375,10 @@ fn single_con<'a>(
         && ty.poly_variants.is_empty()
         && ty.tuples.is_empty()
         && ty.rows.is_empty()
+        && let Some(args) = ty.cons.get(path)
+        && args.len() == arity
     {
-        Some(&ty.cons[0].args)
+        Some(args)
     } else {
         None
     }
@@ -1436,8 +1449,8 @@ fn max_type_var_in_type(ty: &CompactType, max: &mut Option<TypeVar>) {
     for var in &ty.vars {
         update_max_type_var(var.var, max);
     }
-    for con in &ty.cons {
-        for arg in &con.args {
+    for args in ty.cons.values() {
+        for arg in args {
             max_type_var_in_bounds(arg, max);
         }
     }
@@ -1471,8 +1484,10 @@ fn max_type_var_in_type(ty: &CompactType, max: &mut Option<TypeVar>) {
         }
     }
     for row in &ty.rows {
-        for item in &row.items {
-            max_type_var_in_type(item, max);
+        for args in row.items.values() {
+            for arg in args {
+                max_type_var_in_bounds(arg, max);
+            }
         }
         max_type_var_in_type(&row.tail, max);
     }
@@ -1584,8 +1599,8 @@ fn visit_type_polarity(ty: &CompactType, polarity: Polarity, out: &mut VarPolari
     for var in &ty.vars {
         out.record(var.var, polarity);
     }
-    for con in &ty.cons {
-        for arg in &con.args {
+    for args in ty.cons.values() {
+        for arg in args {
             visit_bounds_polarity(arg, polarity, out);
         }
     }
@@ -1619,8 +1634,10 @@ fn visit_type_polarity(ty: &CompactType, polarity: Polarity, out: &mut VarPolari
         }
     }
     for row in &ty.rows {
-        for item in &row.items {
-            visit_type_polarity(item, polarity, out);
+        for args in row.items.values() {
+            for arg in args {
+                visit_bounds_polarity(arg, polarity, out);
+            }
         }
         visit_type_polarity(&row.tail, polarity, out);
     }
@@ -2014,8 +2031,8 @@ fn visit_type_co_occurrence(
 ) {
     out.record_group(along_group(ty, extra_vars, ignored_vars), polarity);
 
-    for con in &ty.cons {
-        for arg in &con.args {
+    for args in ty.cons.values() {
+        for arg in args {
             visit_bounds_co_occurrence(arg, polarity, ignored_vars, out);
         }
     }
@@ -2051,8 +2068,10 @@ fn visit_type_co_occurrence(
     for row in &ty.rows {
         let group = row_along_group(row, ignored_vars);
         visit_row_tail_vars(&row.tail, polarity, Some(&group), ignored_vars, out);
-        for item in &row.items {
-            visit_type_co_occurrence(item, polarity, &[], ignored_vars, out);
+        for args in row.items.values() {
+            for arg in args {
+                visit_bounds_co_occurrence(arg, polarity, ignored_vars, out);
+            }
         }
         visit_type_co_occurrence(&row.tail, polarity, &[], ignored_vars, out);
     }
@@ -2093,7 +2112,10 @@ fn along_group(
 fn row_along_group(row: &CompactRow, ignored_vars: &[TypeVar]) -> FxHashSet<AlongItem> {
     let mut group = FxHashSet::default();
     collect_row_tail_vars(&row.tail, ignored_vars, &mut group);
-    let mut item_keys = row.items.iter().flat_map(exact_group).collect::<Vec<_>>();
+    let mut item_keys = compact_row_item_entries(&row.items)
+        .into_iter()
+        .map(|item| ExactKey::Con(item.path, item.args.len()))
+        .collect::<Vec<_>>();
     item_keys.sort_by_key(ExactKey::sort_key);
     item_keys.dedup();
     group.extend(item_keys.into_iter().map(AlongItem::Exact));
@@ -2122,7 +2144,7 @@ fn exact_group(ty: &CompactType) -> Vec<ExactKey> {
     group.extend(
         ty.cons
             .iter()
-            .map(|con| ExactKey::Con(con.path.clone(), con.args.len())),
+            .map(|(path, args)| ExactKey::Con(path.clone(), args.len())),
     );
     if !ty.funs.is_empty() {
         group.push(ExactKey::Fun);
@@ -2160,7 +2182,10 @@ fn exact_group(ty: &CompactType) -> Vec<ExactKey> {
             .map(|tuple| ExactKey::Tuple(tuple.items.len())),
     );
     group.extend(ty.rows.iter().map(|row| {
-        let mut item_keys = row.items.iter().flat_map(exact_group).collect::<Vec<_>>();
+        let mut item_keys = compact_row_item_entries(&row.items)
+            .into_iter()
+            .map(|item| ExactKey::Con(item.path, item.args.len()))
+            .collect::<Vec<_>>();
         item_keys.sort_by_key(ExactKey::sort_key);
         item_keys.dedup();
         ExactKey::Row(item_keys)
@@ -2352,8 +2377,8 @@ fn rewrite_type_vars(
     }
     ty.vars = vars;
 
-    for con in &mut ty.cons {
-        for arg in &mut con.args {
+    for args in ty.cons.values_mut() {
+        for arg in args {
             rewrite_bounds_vars(arg, rewrite, substitutions);
         }
     }
@@ -2387,8 +2412,10 @@ fn rewrite_type_vars(
         }
     }
     for row in &mut ty.rows {
-        for item in &mut row.items {
-            rewrite_type_vars(item, rewrite, substitutions);
+        for args in row.items.values_mut() {
+            for arg in args {
+                rewrite_bounds_vars(arg, rewrite, substitutions);
+            }
         }
         rewrite_type_vars(&mut row.tail, rewrite, substitutions);
     }

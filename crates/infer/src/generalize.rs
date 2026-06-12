@@ -13,9 +13,10 @@ use crate::compact::{
     CompactBounds, CompactCon, CompactFun, CompactPolyVariant, CompactRecord, CompactRecordSpread,
     CompactRecursiveVar, CompactRoleArg, CompactRoleConstraint, CompactRoot, CompactRow,
     CompactSandwich, CompactSandwichKind, CompactSimplification, CompactTuple, CompactType,
-    CompactVar, CompactVarSubstitution, compact_type_var, finalize_compact_bounds,
-    finalize_compact_root, finalize_compact_type, finalize_compact_type_to_neg,
-    merge_compact_types, simplify_compact_root_with_roles_and_non_generic,
+    CompactVar, CompactVarSubstitution, compact_con_entries, compact_row_item_entries,
+    compact_type_var, finalize_compact_bounds, finalize_compact_root, finalize_compact_type,
+    finalize_compact_type_to_neg, merge_compact_types,
+    simplify_compact_root_with_roles_and_non_generic,
 };
 #[cfg(test)]
 use crate::constraints::ConstraintWeight;
@@ -285,8 +286,8 @@ fn clone_compact_stack_weights_in_type(
             var.weight = clone_stack_weight_between_arenas(source, target, var.weight.clone());
         }
     }
-    for con in &mut ty.cons {
-        for arg in &mut con.args {
+    for args in ty.cons.values_mut() {
+        for arg in args {
             clone_compact_stack_weights_in_bounds(source, target, arg);
         }
     }
@@ -320,8 +321,10 @@ fn clone_compact_stack_weights_in_type(
         }
     }
     for row in &mut ty.rows {
-        for item in &mut row.items {
-            clone_compact_stack_weights_in_type(source, target, item);
+        for args in row.items.values_mut() {
+            for arg in args {
+                clone_compact_stack_weights_in_bounds(source, target, arg);
+            }
         }
         clone_compact_stack_weights_in_type(source, target, &mut row.tail);
     }
@@ -721,7 +724,7 @@ fn exact_compact_type_bounds(ty: &CompactType) -> Option<CompactBounds> {
         && ty.tuples.is_empty()
         && ty.rows.is_empty()
     {
-        let con = ty.cons[0].clone();
+        let con = compact_con_entries(&ty.cons).into_iter().next()?;
         return Some(CompactBounds::Con {
             path: con.path,
             args: con.args,
@@ -1040,8 +1043,8 @@ fn rewrite_type_vars(ty: &mut CompactType, substitutions: &FxHashMap<TypeVar, Op
     }
     ty.vars = vars;
 
-    for con in &mut ty.cons {
-        for arg in &mut con.args {
+    for args in ty.cons.values_mut() {
+        for arg in args {
             rewrite_bounds_vars(arg, substitutions);
         }
     }
@@ -1075,8 +1078,10 @@ fn rewrite_type_vars(ty: &mut CompactType, substitutions: &FxHashMap<TypeVar, Op
         }
     }
     for row in &mut ty.rows {
-        for item in &mut row.items {
-            rewrite_type_vars(item, substitutions);
+        for args in row.items.values_mut() {
+            for arg in args {
+                rewrite_bounds_vars(arg, substitutions);
+            }
         }
         rewrite_type_vars(&mut row.tail, substitutions);
     }
@@ -1226,8 +1231,8 @@ fn apply_sandwiches_to_type(
     fresh: &mut FreshCompactVars,
     changed: &mut bool,
 ) -> CompactType {
-    for con in &mut ty.cons {
-        for arg in &mut con.args {
+    for args in ty.cons.values_mut() {
+        for arg in args {
             *arg = apply_sandwiches_to_bounds(
                 std::mem::replace(arg, empty_interval(TypeVar(0))),
                 sandwiches,
@@ -1286,8 +1291,15 @@ fn apply_sandwiches_to_type(
         }
     }
     for row in &mut ty.rows {
-        for item in &mut row.items {
-            *item = apply_sandwiches_to_type(std::mem::take(item), sandwiches, fresh, changed);
+        for args in row.items.values_mut() {
+            for arg in args {
+                *arg = apply_sandwiches_to_bounds(
+                    std::mem::replace(arg, empty_interval(TypeVar(0))),
+                    sandwiches,
+                    fresh,
+                    changed,
+                );
+            }
         }
         row.tail = Box::new(apply_sandwiches_to_type(
             *std::mem::take(&mut row.tail),
@@ -1613,8 +1625,6 @@ fn single_con<'a>(
     arity: usize,
 ) -> Option<&'a [CompactBounds]> {
     if ty.cons.len() == 1
-        && ty.cons[0].path == path
-        && ty.cons[0].args.len() == arity
         && ty.builtins.is_empty()
         && ty.funs.is_empty()
         && ty.records.is_empty()
@@ -1622,8 +1632,10 @@ fn single_con<'a>(
         && ty.poly_variants.is_empty()
         && ty.tuples.is_empty()
         && ty.rows.is_empty()
+        && let Some(args) = ty.cons.get(path)
+        && args.len() == arity
     {
-        Some(&ty.cons[0].args)
+        Some(args)
     } else {
         None
     }
@@ -1744,8 +1756,8 @@ fn max_type_var_in_type(ty: &CompactType, max: &mut Option<TypeVar>) {
     for var in &ty.vars {
         update_max_type_var(var.var, max);
     }
-    for con in &ty.cons {
-        for arg in &con.args {
+    for args in ty.cons.values() {
+        for arg in args {
             max_type_var_in_bounds(arg, max);
         }
     }
@@ -1779,8 +1791,10 @@ fn max_type_var_in_type(ty: &CompactType, max: &mut Option<TypeVar>) {
         }
     }
     for row in &ty.rows {
-        for item in &row.items {
-            max_type_var_in_type(item, max);
+        for args in row.items.values() {
+            for arg in args {
+                max_type_var_in_bounds(arg, max);
+            }
         }
         max_type_var_in_type(&row.tail, max);
     }
@@ -1855,8 +1869,8 @@ fn collect_live_subtracts_in_type(
         }
     }
 
-    for con in &ty.cons {
-        for arg in &con.args {
+    for args in ty.cons.values() {
+        for arg in args {
             collect_live_subtracts_in_bounds(arg, covariant, candidate_map, live);
         }
     }
@@ -1890,8 +1904,10 @@ fn collect_live_subtracts_in_type(
         }
     }
     for row in &ty.rows {
-        for item in &row.items {
-            collect_live_subtracts_in_type(item, covariant, candidate_map, live);
+        for args in row.items.values() {
+            for arg in args {
+                collect_live_subtracts_in_bounds(arg, covariant, candidate_map, live);
+            }
         }
         collect_live_subtracts_in_type(&row.tail, covariant, candidate_map, live);
     }
@@ -1989,8 +2005,8 @@ fn prune_dead_subtract_weights_in_type(
         var.weight = var.weight.without_ids(|id| dead_ids.contains(&id));
         changed |= var.weight != before;
     }
-    for con in &mut ty.cons {
-        for arg in &mut con.args {
+    for args in ty.cons.values_mut() {
+        for arg in args {
             changed |= prune_dead_subtract_weights_in_bounds(arg, dead_ids);
         }
     }
@@ -2024,8 +2040,10 @@ fn prune_dead_subtract_weights_in_type(
         }
     }
     for row in &mut ty.rows {
-        for item in &mut row.items {
-            changed |= prune_dead_subtract_weights_in_type(item, dead_ids);
+        for args in row.items.values_mut() {
+            for arg in args {
+                changed |= prune_dead_subtract_weights_in_bounds(arg, dead_ids);
+            }
         }
         changed |= prune_dead_subtract_weights_in_type(&mut row.tail, dead_ids);
     }
@@ -2194,8 +2212,8 @@ fn collect_empty_stack_occurrences_in_type(
     for var in &ty.vars {
         out.record_type(var, covariant);
     }
-    for con in &ty.cons {
-        for arg in &con.args {
+    for args in ty.cons.values() {
+        for arg in args {
             collect_empty_stack_occurrences_in_bounds(arg, covariant, out);
         }
     }
@@ -2229,8 +2247,10 @@ fn collect_empty_stack_occurrences_in_type(
         }
     }
     for row in &ty.rows {
-        for item in &row.items {
-            collect_empty_stack_occurrences_in_type(item, covariant, out);
+        for args in row.items.values() {
+            for arg in args {
+                collect_empty_stack_occurrences_in_bounds(arg, covariant, out);
+            }
         }
         collect_empty_stack_occurrences_in_type(&row.tail, covariant, out);
     }
@@ -2321,8 +2341,8 @@ fn prune_redundant_empty_stack_entries_in_type(
             changed |= var.weight != before;
         }
     }
-    for con in &mut ty.cons {
-        for arg in &mut con.args {
+    for args in ty.cons.values_mut() {
+        for arg in args {
             changed |= prune_redundant_empty_stack_entries_in_bounds(arg, covariant, redundant);
         }
     }
@@ -2362,8 +2382,10 @@ fn prune_redundant_empty_stack_entries_in_type(
         }
     }
     for row in &mut ty.rows {
-        for item in &mut row.items {
-            changed |= prune_redundant_empty_stack_entries_in_type(item, covariant, redundant);
+        for args in row.items.values_mut() {
+            for arg in args {
+                changed |= prune_redundant_empty_stack_entries_in_bounds(arg, covariant, redundant);
+            }
         }
         changed |= prune_redundant_empty_stack_entries_in_type(&mut row.tail, covariant, redundant);
     }
@@ -2521,8 +2543,8 @@ fn collect_live_stack_ids_in_type(
             }
         }
     }
-    for con in &ty.cons {
-        for arg in &con.args {
+    for args in ty.cons.values() {
+        for arg in args {
             collect_live_stack_ids_in_bounds(arg, covariant, var_filter, out);
         }
     }
@@ -2556,8 +2578,10 @@ fn collect_live_stack_ids_in_type(
         }
     }
     for row in &ty.rows {
-        for item in &row.items {
-            collect_live_stack_ids_in_type(item, covariant, var_filter, out);
+        for args in row.items.values() {
+            for arg in args {
+                collect_live_stack_ids_in_bounds(arg, covariant, var_filter, out);
+            }
         }
         collect_live_stack_ids_in_type(&row.tail, covariant, var_filter, out);
     }
@@ -2619,8 +2643,8 @@ fn collect_all_stack_ids_in_type(ty: &CompactType, out: &mut FxHashSet<SubtractI
             out.insert(id);
         }
     }
-    for con in &ty.cons {
-        for arg in &con.args {
+    for args in ty.cons.values() {
+        for arg in args {
             collect_all_stack_ids_in_bounds(arg, out);
         }
     }
@@ -2654,8 +2678,10 @@ fn collect_all_stack_ids_in_type(ty: &CompactType, out: &mut FxHashSet<SubtractI
         }
     }
     for row in &ty.rows {
-        for item in &row.items {
-            collect_all_stack_ids_in_type(item, out);
+        for args in row.items.values() {
+            for arg in args {
+                collect_all_stack_ids_in_bounds(arg, out);
+            }
         }
         collect_all_stack_ids_in_type(&row.tail, out);
     }
@@ -2773,8 +2799,8 @@ fn collect_bounds_free_vars(bounds: &CompactBounds, out: &mut Vec<TypeVar>) {
 
 fn collect_type_free_vars(ty: &CompactType, out: &mut Vec<TypeVar>) {
     out.extend(ty.vars.iter().map(|var| var.var));
-    for con in &ty.cons {
-        collect_con_free_vars(con, out);
+    for con in compact_con_entries(&ty.cons) {
+        collect_con_free_vars(&con, out);
     }
     for fun in &ty.funs {
         collect_fun_free_vars(fun, out);
@@ -2837,8 +2863,8 @@ fn collect_tuple_free_vars(tuple: &CompactTuple, out: &mut Vec<TypeVar>) {
 }
 
 fn collect_row_free_vars(row: &CompactRow, out: &mut Vec<TypeVar>) {
-    for item in &row.items {
-        collect_type_free_vars(item, out);
+    for item in compact_row_item_entries(&row.items) {
+        collect_con_free_vars(&item, out);
     }
     collect_type_free_vars(&row.tail, out);
 }
@@ -3628,9 +3654,8 @@ mod tests {
 
     fn compact_type_contains_var(ty: &CompactType, expected: TypeVar) -> bool {
         ty.vars.iter().any(|var| var.var == expected)
-            || ty.cons.iter().any(|con| {
-                con.args
-                    .iter()
+            || ty.cons.values().any(|args| {
+                args.iter()
                     .any(|arg| compact_bounds_contains_var(arg, expected))
             })
             || ty.funs.iter().any(|fun| {
@@ -3666,10 +3691,10 @@ mod tests {
                     .any(|item| compact_type_contains_var(item, expected))
             })
             || ty.rows.iter().any(|row| {
-                row.items
-                    .iter()
-                    .any(|item| compact_type_contains_var(item, expected))
-                    || compact_type_contains_var(&row.tail, expected)
+                row.items.values().any(|args| {
+                    args.iter()
+                        .any(|arg| compact_bounds_contains_var(arg, expected))
+                }) || compact_type_contains_var(&row.tail, expected)
             })
     }
 

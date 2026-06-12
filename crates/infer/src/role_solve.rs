@@ -6,9 +6,10 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::compact::{
-    CompactBounds, CompactCon, CompactFun, CompactPolyVariant, CompactRecord, CompactRecordSpread,
-    CompactRoleArg, CompactRoleAssociatedType, CompactRoleConstraint, CompactRoot, CompactRow,
-    CompactTuple, CompactType, compact_role_constraint, merge_compact_types,
+    CompactBounds, CompactCon, CompactConMap, CompactFun, CompactPolyVariant, CompactRecord,
+    CompactRecordSpread, CompactRoleArg, CompactRoleAssociatedType, CompactRoleConstraint,
+    CompactRoot, CompactRow, CompactRowItemMap, CompactTuple, CompactType, compact_con_entries,
+    compact_role_constraint, compact_row_item_entries, merge_compact_types, merge_cons,
     simplify_compact_root_with_roles_and_non_generic,
 };
 use crate::constraints::{ConstraintMachine, TypeLevel};
@@ -350,8 +351,8 @@ fn match_type_pattern(
         }
         matched = true;
     }
-    for con in &pattern.cons {
-        if !match_con_pattern(con, demand, subst) {
+    for con in compact_con_entries(&pattern.cons) {
+        if !match_con_pattern(&con, demand, subst) {
             return false;
         }
         matched = true;
@@ -401,15 +402,24 @@ fn match_con_pattern(pattern: &CompactCon, demand: &CompactType, subst: &mut Typ
     {
         return demand_has_builtin(demand, builtin);
     }
-    match_alternative(subst, demand.cons.iter(), |demand, subst| {
-        pattern.path == demand.path
-            && pattern.args.len() == demand.args.len()
-            && pattern
-                .args
-                .iter()
-                .zip(&demand.args)
-                .all(|(pattern, demand)| match_bounds_pattern(pattern, demand, subst))
-    })
+    let Some(demand_args) = demand.cons.get(&pattern.path) else {
+        return false;
+    };
+    if pattern.args.len() != demand_args.len() {
+        return false;
+    }
+    let mut candidate_subst = subst.clone();
+    if pattern
+        .args
+        .iter()
+        .zip(demand_args)
+        .all(|(pattern, demand)| match_bounds_pattern(pattern, demand, &mut candidate_subst))
+    {
+        *subst = candidate_subst;
+        true
+    } else {
+        false
+    }
 }
 
 fn match_fun_pattern(pattern: &CompactFun, demand: &CompactType, subst: &mut TypeSubst) -> bool {
@@ -497,14 +507,34 @@ fn match_tuple_pattern(
 
 fn match_row_pattern(pattern: &CompactRow, demand: &CompactType, subst: &mut TypeSubst) -> bool {
     match_alternative(subst, demand.rows.iter(), |demand, subst| {
-        pattern.items.len() == demand.items.len()
-            && pattern
-                .items
-                .iter()
-                .zip(&demand.items)
-                .all(|(pattern, demand)| match_type_pattern(pattern, demand, true, subst))
+        match_row_items(&pattern.items, &demand.items, subst)
             && match_type_pattern(&pattern.tail, &demand.tail, true, subst)
     })
+}
+
+fn match_row_items(
+    pattern: &CompactRowItemMap,
+    demand: &CompactRowItemMap,
+    subst: &mut TypeSubst,
+) -> bool {
+    if pattern.len() != demand.len() {
+        return false;
+    }
+    for item in compact_row_item_entries(pattern) {
+        let Some(demand_args) = demand.get(&item.path) else {
+            return false;
+        };
+        if item.args.len() != demand_args.len()
+            || !item
+                .args
+                .iter()
+                .zip(demand_args)
+                .all(|(pattern, demand)| match_bounds_pattern(pattern, demand, subst))
+        {
+            return false;
+        }
+    }
+    true
 }
 
 fn match_alternative<'a, T: 'a>(
@@ -686,7 +716,7 @@ fn demand_has_builtin(demand: &CompactType, builtin: BuiltinType) -> bool {
         || demand
             .cons
             .iter()
-            .any(|con| con.args.is_empty() && builtin_for_path(&con.path) == Some(builtin))
+            .any(|(path, args)| args.is_empty() && builtin_for_path(path) == Some(builtin))
 }
 
 fn compact_type_from_bounds(bounds: &CompactBounds) -> Option<CompactType> {
@@ -787,7 +817,12 @@ fn rewrite_type(ty: &CompactType, subst: &TypeSubst, positive: bool) -> CompactT
     let mut out = CompactType {
         never: ty.never,
         builtins: ty.builtins.clone(),
-        cons: ty.cons.iter().map(|con| rewrite_con(con, subst)).collect(),
+        cons: compact_con_entries(&ty.cons)
+            .into_iter()
+            .map(|con| rewrite_con(&con, subst))
+            .fold(CompactConMap::default(), |acc, con| {
+                merge_cons(positive, acc, compact_con_map(con))
+            }),
         funs: ty
             .funs
             .iter()
@@ -867,7 +902,12 @@ fn rewrite_type(ty: &CompactType, subst: &TypeSubst, positive: bool) -> CompactT
                 items: row
                     .items
                     .iter()
-                    .map(|item| rewrite_type(item, subst, positive))
+                    .map(|(path, args)| {
+                        (
+                            path.clone(),
+                            args.iter().map(|arg| rewrite_bounds(arg, subst)).collect(),
+                        )
+                    })
                     .collect(),
                 tail: Box::new(rewrite_type(&row.tail, subst, positive)),
             })
@@ -1007,7 +1047,7 @@ fn compact_bounds_from_type(ty: &CompactType) -> Option<CompactBounds> {
         && ty.tuples.is_empty()
         && ty.rows.is_empty()
     {
-        let con = ty.cons[0].clone();
+        let con = compact_con_entries(&ty.cons).into_iter().next()?;
         return Some(CompactBounds::Con {
             path: con.path,
             args: con.args,
@@ -1021,7 +1061,7 @@ fn canonical_substitution_type(ty: CompactType) -> CompactType {
         vars: ty.vars,
         never: ty.never,
         builtins: ty.builtins,
-        cons: Vec::new(),
+        cons: CompactConMap::default(),
         funs: ty.funs,
         records: ty.records,
         record_spreads: ty.record_spreads,
@@ -1029,18 +1069,24 @@ fn canonical_substitution_type(ty: CompactType) -> CompactType {
         tuples: ty.tuples,
         rows: ty.rows,
     };
-    for con in ty.cons {
+    for con in compact_con_entries(&ty.cons) {
         if con.args.is_empty()
             && let Some(builtin) = builtin_for_path(&con.path)
         {
             if !out.builtins.contains(&builtin) {
                 out.builtins.push(builtin);
             }
-        } else if !out.cons.contains(&con) {
-            out.cons.push(con);
+        } else {
+            out.cons.insert(con.path, con.args);
         }
     }
     out
+}
+
+fn compact_con_map(con: CompactCon) -> CompactConMap {
+    let mut cons = CompactConMap::default();
+    cons.insert(con.path, con.args);
+    cons
 }
 
 fn builtin_for_path(path: &[String]) -> Option<BuiltinType> {
@@ -1147,7 +1193,11 @@ fn single_concrete_type(ty: &CompactType) -> Option<CompactType> {
         found.push(CompactType::never());
     }
     found.extend(ty.builtins.iter().copied().map(CompactType::from_builtin));
-    found.extend(ty.cons.iter().cloned().map(CompactType::from_con));
+    found.extend(
+        compact_con_entries(&ty.cons)
+            .into_iter()
+            .map(CompactType::from_con),
+    );
     found.extend(ty.funs.iter().cloned().map(CompactType::from_fun));
     found.extend(ty.records.iter().cloned().map(CompactType::from_record));
     found.extend(
@@ -1175,9 +1225,8 @@ fn compact_type_has_method_taint(
         method_taint
             .get(&var.var)
             .is_some_and(|selects| !selects.is_empty())
-    }) || ty.cons.iter().any(|con| {
-        con.args
-            .iter()
+    }) || ty.cons.values().any(|args| {
+        args.iter()
             .any(|arg| compact_bounds_has_method_taint(arg, method_taint))
     }) || ty.funs.iter().any(|fun| {
         compact_type_has_method_taint(&fun.arg, method_taint)
@@ -1207,10 +1256,10 @@ fn compact_type_has_method_taint(
             .iter()
             .any(|item| compact_type_has_method_taint(item, method_taint))
     }) || ty.rows.iter().any(|row| {
-        row.items
-            .iter()
-            .any(|item| compact_type_has_method_taint(item, method_taint))
-            || compact_type_has_method_taint(&row.tail, method_taint)
+        row.items.values().any(|args| {
+            args.iter()
+                .any(|arg| compact_bounds_has_method_taint(arg, method_taint))
+        }) || compact_type_has_method_taint(&row.tail, method_taint)
     })
 }
 
@@ -1351,8 +1400,8 @@ impl MainPolarity {
                     .push(ty.clone());
             }
         }
-        for con in &ty.cons {
-            for arg in &con.args {
+        for args in ty.cons.values() {
+            for arg in args {
                 self.collect_bounds(arg, positive);
             }
         }
@@ -1386,8 +1435,10 @@ impl MainPolarity {
             }
         }
         for row in &ty.rows {
-            for item in &row.items {
-                self.collect_type(item, positive);
+            for args in row.items.values() {
+                for arg in args {
+                    self.collect_bounds(arg, positive);
+                }
             }
             self.collect_type(&row.tail, positive);
         }
@@ -1446,8 +1497,8 @@ fn role_arg_vars(arg: &CompactRoleArg) -> FxHashSet<TypeVar> {
 
 fn collect_type_vars(ty: &CompactType, vars: &mut FxHashSet<TypeVar>) {
     vars.extend(ty.vars.iter().map(|var| var.var));
-    for con in &ty.cons {
-        for arg in &con.args {
+    for args in ty.cons.values() {
+        for arg in args {
             collect_bounds_vars(arg, vars);
         }
     }
@@ -1481,8 +1532,10 @@ fn collect_type_vars(ty: &CompactType, vars: &mut FxHashSet<TypeVar>) {
         }
     }
     for row in &ty.rows {
-        for item in &row.items {
-            collect_type_vars(item, vars);
+        for args in row.items.values() {
+            for arg in args {
+                collect_bounds_vars(arg, vars);
+            }
         }
         collect_type_vars(&row.tail, vars);
     }

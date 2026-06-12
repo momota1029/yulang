@@ -2,7 +2,10 @@ use rustc_hash::FxHashSet;
 
 use crate::casts::CastTable;
 
-use super::{CompactBounds, CompactCon, CompactRoot, CompactType, Polarity, merge_cons};
+use super::{
+    CompactBounds, CompactCon, CompactConMap, CompactRoot, CompactType, Polarity,
+    compact_con_entries, compact_row_item_entries, merge_cons,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CompactCastBatch {
@@ -75,8 +78,9 @@ fn collect_cast_pairs_in_type(
     ty: &CompactType,
     out: &mut Vec<(CompactCastKey, CompactCon, CompactCon)>,
 ) {
-    for (source_index, source) in ty.cons.iter().enumerate() {
-        for (target_index, target) in ty.cons.iter().enumerate() {
+    let cons = compact_con_entries(&ty.cons);
+    for (source_index, source) in cons.iter().enumerate() {
+        for (target_index, target) in cons.iter().enumerate() {
             if source_index == target_index {
                 continue;
             }
@@ -84,7 +88,7 @@ fn collect_cast_pairs_in_type(
         }
     }
 
-    for con in &ty.cons {
+    for con in &cons {
         for arg in &con.args {
             collect_cast_pairs_in_bounds(arg, out);
         }
@@ -119,8 +123,10 @@ fn collect_cast_pairs_in_type(
         }
     }
     for row in &ty.rows {
-        for item in &row.items {
-            collect_cast_pairs_in_type(item, out);
+        for item in compact_row_item_entries(&row.items) {
+            for arg in &item.args {
+                collect_cast_pairs_in_bounds(arg, out);
+            }
         }
         collect_cast_pairs_in_type(&row.tail, out);
     }
@@ -167,8 +173,8 @@ fn collect_cast_pairs_in_bounds(
 }
 
 fn normalize_type(ty: &mut CompactType, polarity: Polarity, applied: &FxHashSet<CompactCastKey>) {
-    for con in &mut ty.cons {
-        for arg in &mut con.args {
+    for args in ty.cons.values_mut() {
+        for arg in args {
             normalize_bounds(arg, applied);
         }
     }
@@ -202,8 +208,10 @@ fn normalize_type(ty: &mut CompactType, polarity: Polarity, applied: &FxHashSet<
         }
     }
     for row in &mut ty.rows {
-        for item in &mut row.items {
-            normalize_type(item, polarity, applied);
+        for args in row.items.values_mut() {
+            for arg in args {
+                normalize_bounds(arg, applied);
+            }
         }
         normalize_type(&mut row.tail, polarity, applied);
     }
@@ -256,16 +264,21 @@ fn normalize_type_cons(
         return;
     }
 
-    let targets = ty.cons.clone();
-    let mut normalized = Vec::with_capacity(ty.cons.len());
-    for source in std::mem::take(&mut ty.cons) {
+    let targets = compact_con_entries(&ty.cons);
+    let sources = compact_con_entries(&std::mem::take(&mut ty.cons));
+    let mut normalized = CompactConMap::default();
+    for source in sources {
         let replacement = targets
             .iter()
             .find(|target| applied.contains(&cast_key(&source, target)))
             .cloned();
-        normalized.push(replacement.unwrap_or(source));
+        normalized = merge_cons(
+            polarity.is_positive(),
+            normalized,
+            compact_con_map(replacement.unwrap_or(source)),
+        );
     }
-    ty.cons = merge_cons(polarity.is_positive(), Vec::new(), normalized);
+    ty.cons = normalized;
 }
 
 fn cast_key(source: &CompactCon, target: &CompactCon) -> CompactCastKey {
@@ -275,4 +288,10 @@ fn cast_key(source: &CompactCon, target: &CompactCon) -> CompactCastKey {
         target: target.path.clone(),
         target_arity: target.args.len(),
     }
+}
+
+fn compact_con_map(con: CompactCon) -> CompactConMap {
+    let mut cons = CompactConMap::default();
+    cons.insert(con.path, con.args);
+    cons
 }

@@ -7097,16 +7097,12 @@ fn compact_type_matches_constructor_signature(
         .builtins
         .iter()
         .all(|builtin| Some(*builtin) == expected_builtin)
-        && actual.cons.iter().all(|con| {
-            con.path == expected.path
-                && con.args.len() == expected.args.len()
-                && con
-                    .args
-                    .iter()
-                    .zip(&expected.args)
-                    .all(|(actual, expected)| {
-                        compact_bounds_matches_signature(actual, expected, modules)
-                    })
+        && actual.cons.iter().all(|(path, args)| {
+            path == &expected.path
+                && args.len() == expected.args.len()
+                && args.iter().zip(&expected.args).all(|(actual, expected)| {
+                    compact_bounds_matches_signature(actual, expected, modules)
+                })
         })
 }
 
