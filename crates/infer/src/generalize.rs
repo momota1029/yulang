@@ -2045,7 +2045,7 @@ fn collect_live_stack_ids_in_type(
                 continue;
             }
             for entry in var.weight.entries() {
-                if !entry.floor.is_empty() || !entry.stack.is_empty() {
+                if stack_entry_keeps_stack_id_live(entry) {
                     out.insert(entry.id);
                 }
             }
@@ -2133,6 +2133,14 @@ fn collect_live_stack_ids_in_bounds(
             }
         }
     }
+}
+
+fn stack_entry_keeps_stack_id_live(entry: &poly::types::StackWeightEntry) -> bool {
+    !entry.stack.is_empty()
+        || entry
+            .floor
+            .iter()
+            .any(|floor| !matches!(floor, Subtractability::Empty))
 }
 
 fn collect_all_stack_ids_in_type(ty: &CompactType, out: &mut FxHashSet<SubtractId>) {
@@ -2655,6 +2663,32 @@ mod tests {
         assert!(generalized.subtracts.is_empty());
         assert!(!weight.contains(subtract));
         assert!(!weight.contains(unrelated));
+    }
+
+    #[test]
+    fn cleanup_removes_empty_floor_weights_without_live_stack_entries() {
+        let mut machine = ConstraintMachine::new();
+        let effect = TypeVar(2);
+        let subtract = SubtractId(3);
+        machine.register_type_var(effect, TypeLevel::root().child());
+        let root = CompactRoot {
+            root: bipolar_effect_fun(
+                effect,
+                CompactType::from_var(CompactVar::covariant(
+                    effect,
+                    StackWeight::floor(subtract, Subtractability::Empty)
+                        .compose(&StackWeight::pops(subtract, 2)),
+                )),
+            ),
+            rec_vars: Vec::new(),
+        };
+
+        let generalized =
+            generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+
+        let weight = &generalized.compact.root.funs[0].ret_eff.vars[0].weight;
+        assert!(generalized.stack_quantifiers.is_empty());
+        assert!(!weight.contains(subtract));
     }
 
     #[test]

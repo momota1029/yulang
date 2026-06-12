@@ -13,7 +13,9 @@ use crate::expr::{
 };
 
 mod type_format;
+mod type_raw;
 pub use self::type_format::{format_neg, format_neu, format_pos, format_scheme};
+pub use self::type_raw::{dump_neg_raw, dump_neu_raw, dump_pos_raw, dump_scheme_raw};
 
 /// `poly::Arena` を compact dump として返す。
 ///
@@ -27,6 +29,14 @@ pub fn dump_arena(arena: &Arena) -> String {
 /// 呼び出し側が知っている source 名を併記しながら compact dump を返す。
 pub fn dump_arena_with_labels(arena: &Arena, labels: &DumpLabels) -> String {
     Dumper::new(arena, labels).dump()
+}
+
+/// 呼び出し側が知っている source 名を併記しながら raw debug dump を返す。
+///
+/// compact dump は surface に近い読みやすさを優先する。こちらは scheme の型 graph と
+/// 式 graph を ID のまま出し、stack weight や極性付き node がどこに残ったかを見るための入口。
+pub fn dump_arena_raw_with_labels(arena: &Arena, labels: &DumpLabels) -> String {
+    RawDumper::new(arena, labels).dump()
 }
 
 /// compact dump にだけ使う表示名 table。
@@ -60,6 +70,473 @@ struct Dumper<'a> {
     labels: &'a DumpLabels,
     out: String,
     visited_defs: FxHashSet<DefId>,
+}
+
+struct RawDumper<'a> {
+    arena: &'a Arena,
+    labels: &'a DumpLabels,
+    out: String,
+    exprs: std::collections::BTreeSet<u32>,
+    pats: std::collections::BTreeSet<u32>,
+}
+
+impl<'a> RawDumper<'a> {
+    fn new(arena: &'a Arena, labels: &'a DumpLabels) -> Self {
+        Self {
+            arena,
+            labels,
+            out: String::new(),
+            exprs: std::collections::BTreeSet::new(),
+            pats: std::collections::BTreeSet::new(),
+        }
+    }
+
+    fn dump(mut self) -> String {
+        let roots = self
+            .arena
+            .roots
+            .iter()
+            .map(|id| self.def_id(*id))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let _ = writeln!(self.out, "raw roots [{roots}]");
+        let _ = writeln!(self.out, "defs {{");
+        let mut defs = self.arena.defs.iter().map(|(id, _)| id).collect::<Vec<_>>();
+        defs.sort_by_key(|id| id.0);
+        for id in defs {
+            self.write_raw_def(id);
+        }
+        let _ = writeln!(self.out, "}}");
+        self.write_raw_exprs();
+        self.write_raw_pats();
+        self.out
+    }
+
+    fn write_raw_def(&mut self, id: DefId) {
+        let Some(def) = self.arena.defs.get(id) else {
+            let _ = writeln!(self.out, "  {} = <missing>", self.def_id(id));
+            return;
+        };
+        match def {
+            Def::Mod { vis, children } => {
+                let children = children
+                    .iter()
+                    .map(|child| self.def_id(*child))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let _ = writeln!(
+                    self.out,
+                    "  {} = Mod {{ vis: {}, children: [{children}] }}",
+                    self.def_id(id),
+                    raw_vis(*vis)
+                );
+            }
+            Def::Let {
+                vis,
+                scheme,
+                body,
+                children,
+            } => {
+                let children = children
+                    .iter()
+                    .map(|child| self.def_id(*child))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let body_text = body
+                    .map(|body| {
+                        self.mark_expr(body);
+                        self.expr_id(body)
+                    })
+                    .unwrap_or_else(|| "<missing>".to_string());
+                let _ = writeln!(
+                    self.out,
+                    "  {} = Let {{ vis: {}, body: {body_text}, children: [{children}] }}",
+                    self.def_id(id),
+                    raw_vis(*vis)
+                );
+                if let Some(scheme) = scheme {
+                    let _ = writeln!(self.out, "    scheme:");
+                    for line in dump_scheme_raw(&self.arena.typ, scheme).lines() {
+                        let _ = writeln!(self.out, "      {line}");
+                    }
+                }
+            }
+            Def::Arg => {
+                let _ = writeln!(self.out, "  {} = Arg", self.def_id(id));
+            }
+        }
+    }
+
+    fn write_raw_exprs(&mut self) {
+        if self.exprs.is_empty() {
+            return;
+        }
+        let _ = writeln!(self.out, "exprs {{");
+        let exprs = self.exprs.iter().copied().collect::<Vec<_>>();
+        for id in exprs {
+            let id = ExprId(id);
+            let _ = writeln!(self.out, "  {} = {}", self.expr_id(id), self.raw_expr(id));
+        }
+        let _ = writeln!(self.out, "}}");
+    }
+
+    fn write_raw_pats(&mut self) {
+        if self.pats.is_empty() {
+            return;
+        }
+        let _ = writeln!(self.out, "pats {{");
+        let pats = self.pats.iter().copied().collect::<Vec<_>>();
+        for id in pats {
+            let id = PatId(id);
+            let _ = writeln!(self.out, "  {} = {}", self.pat_id(id), self.raw_pat(id));
+        }
+        let _ = writeln!(self.out, "}}");
+    }
+
+    fn mark_expr(&mut self, id: ExprId) {
+        if !self.exprs.insert(id.0) {
+            return;
+        }
+        match self.arena.expr(id) {
+            Expr::Lit(_) | Expr::PrimitiveOp(_) | Expr::Var(_) => {}
+            Expr::App(callee, arg) | Expr::RefSet(callee, arg) => {
+                self.mark_expr(*callee);
+                self.mark_expr(*arg);
+            }
+            Expr::Lambda(param, body) => {
+                self.mark_pat(*param);
+                self.mark_expr(*body);
+            }
+            Expr::Tuple(items) => {
+                for item in items {
+                    self.mark_expr(*item);
+                }
+            }
+            Expr::Record { fields, spread } => {
+                for (_, expr) in fields {
+                    self.mark_expr(*expr);
+                }
+                if let RecordSpread::Head(spread) | RecordSpread::Tail(spread) = spread {
+                    self.mark_expr(*spread);
+                }
+            }
+            Expr::PolyVariant(_, payloads) => {
+                for payload in payloads {
+                    self.mark_expr(*payload);
+                }
+            }
+            Expr::Select(receiver, _) => self.mark_expr(*receiver),
+            Expr::Case(scrutinee, arms) => {
+                self.mark_expr(*scrutinee);
+                for arm in arms {
+                    self.mark_pat(arm.pat);
+                    if let Some(guard) = arm.guard {
+                        self.mark_expr(guard);
+                    }
+                    self.mark_expr(arm.body);
+                }
+            }
+            Expr::Catch(body, arms) => {
+                self.mark_expr(*body);
+                for arm in arms {
+                    self.mark_pat(arm.pat);
+                    if let Some(continuation) = arm.continuation {
+                        self.mark_pat(continuation);
+                    }
+                    if let Some(guard) = arm.guard {
+                        self.mark_expr(guard);
+                    }
+                    self.mark_expr(arm.body);
+                }
+            }
+            Expr::Block(stmts, tail) => {
+                for stmt in stmts {
+                    self.mark_stmt(stmt);
+                }
+                if let Some(tail) = tail {
+                    self.mark_expr(*tail);
+                }
+            }
+        }
+    }
+
+    fn mark_stmt(&mut self, stmt: &Stmt) {
+        match stmt {
+            Stmt::Let(_, pat, expr) => {
+                self.mark_pat(*pat);
+                self.mark_expr(*expr);
+            }
+            Stmt::Expr(expr) => self.mark_expr(*expr),
+            Stmt::Module(_, stmts) => {
+                for stmt in stmts {
+                    self.mark_stmt(stmt);
+                }
+            }
+        }
+    }
+
+    fn mark_pat(&mut self, id: PatId) {
+        if !self.pats.insert(id.0) {
+            return;
+        }
+        match self.arena.pat(id) {
+            Pat::Wild | Pat::Lit(_) | Pat::Ref(_) | Pat::Var(_) => {}
+            Pat::Tuple(items) => {
+                for item in items {
+                    self.mark_pat(*item);
+                }
+            }
+            Pat::List {
+                prefix,
+                spread,
+                suffix,
+            } => {
+                for item in prefix {
+                    self.mark_pat(*item);
+                }
+                if let Some(spread) = spread {
+                    self.mark_pat(*spread);
+                }
+                for item in suffix {
+                    self.mark_pat(*item);
+                }
+            }
+            Pat::Record { fields, .. } => {
+                for (_, pat) in fields {
+                    self.mark_pat(*pat);
+                }
+            }
+            Pat::PolyVariant(_, payloads) | Pat::Con(_, payloads) => {
+                for payload in payloads {
+                    self.mark_pat(*payload);
+                }
+            }
+            Pat::Or(lhs, rhs) => {
+                self.mark_pat(*lhs);
+                self.mark_pat(*rhs);
+            }
+            Pat::As(pat, _) => self.mark_pat(*pat),
+        }
+    }
+
+    fn raw_expr(&self, id: ExprId) -> String {
+        match self.arena.expr(id) {
+            Expr::Lit(lit) => format!("Lit({})", raw_lit(lit)),
+            Expr::PrimitiveOp(op) => format!("PrimitiveOp({})", primitive_op_name(*op)),
+            Expr::Var(reference) => format!("Var({})", self.ref_id(*reference)),
+            Expr::App(callee, arg) => {
+                format!("App({}, {})", self.expr_id(*callee), self.expr_id(*arg))
+            }
+            Expr::RefSet(target, value) => {
+                format!(
+                    "RefSet({}, {})",
+                    self.expr_id(*target),
+                    self.expr_id(*value)
+                )
+            }
+            Expr::Lambda(param, body) => {
+                format!("Lambda({}, {})", self.pat_id(*param), self.expr_id(*body))
+            }
+            Expr::Tuple(items) => format!("Tuple({})", self.expr_ids(items)),
+            Expr::Record { fields, spread } => {
+                let fields = fields
+                    .iter()
+                    .map(|(name, expr)| format!("{}: {}", label_name(name), self.expr_id(*expr)))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("Record({fields}; spread: {})", self.expr_spread(spread))
+            }
+            Expr::PolyVariant(name, payloads) => {
+                format!(
+                    "PolyVariant({}, {})",
+                    label_name(name),
+                    self.expr_ids(payloads)
+                )
+            }
+            Expr::Select(receiver, select) => {
+                format!(
+                    "Select({}, {})",
+                    self.expr_id(*receiver),
+                    self.select_id(*select)
+                )
+            }
+            Expr::Case(scrutinee, arms) => {
+                let arms = arms
+                    .iter()
+                    .map(|arm| {
+                        let guard = arm
+                            .guard
+                            .map(|guard| self.expr_id(guard))
+                            .unwrap_or_else(|| "none".to_string());
+                        format!(
+                            "{{ pat: {}, guard: {guard}, body: {} }}",
+                            self.pat_id(arm.pat),
+                            self.expr_id(arm.body)
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("Case({}, [{arms}])", self.expr_id(*scrutinee))
+            }
+            Expr::Catch(body, arms) => {
+                let arms = arms
+                    .iter()
+                    .map(|arm| {
+                        let continuation = arm
+                            .continuation
+                            .map(|continuation| self.pat_id(continuation))
+                            .unwrap_or_else(|| "none".to_string());
+                        let guard = arm
+                            .guard
+                            .map(|guard| self.expr_id(guard))
+                            .unwrap_or_else(|| "none".to_string());
+                        format!(
+                            "{{ pat: {}, k: {continuation}, guard: {guard}, body: {} }}",
+                            self.pat_id(arm.pat),
+                            self.expr_id(arm.body)
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("Catch({}, [{arms}])", self.expr_id(*body))
+            }
+            Expr::Block(stmts, tail) => {
+                let stmts = stmts
+                    .iter()
+                    .map(|stmt| self.raw_stmt(stmt))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let tail = tail
+                    .map(|tail| self.expr_id(tail))
+                    .unwrap_or_else(|| "none".to_string());
+                format!("Block([{stmts}], {tail})")
+            }
+        }
+    }
+
+    fn raw_stmt(&self, stmt: &Stmt) -> String {
+        match stmt {
+            Stmt::Let(vis, pat, expr) => {
+                format!(
+                    "Let({}, {}, {})",
+                    raw_vis(*vis),
+                    self.pat_id(*pat),
+                    self.expr_id(*expr)
+                )
+            }
+            Stmt::Expr(expr) => format!("Expr({})", self.expr_id(*expr)),
+            Stmt::Module(def, stmts) => {
+                let stmts = stmts
+                    .iter()
+                    .map(|stmt| self.raw_stmt(stmt))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("Module({}, [{stmts}])", self.def_id(*def))
+            }
+        }
+    }
+
+    fn raw_pat(&self, id: PatId) -> String {
+        match self.arena.pat(id) {
+            Pat::Wild => "Wild".to_string(),
+            Pat::Lit(lit) => format!("Lit({})", raw_lit(lit)),
+            Pat::Tuple(items) => format!("Tuple({})", self.pat_ids(items)),
+            Pat::List {
+                prefix,
+                spread,
+                suffix,
+            } => format!(
+                "List(prefix: {}, spread: {}, suffix: {})",
+                self.pat_ids(prefix),
+                spread
+                    .map(|spread| self.pat_id(spread))
+                    .unwrap_or_else(|| "none".to_string()),
+                self.pat_ids(suffix)
+            ),
+            Pat::Record { fields, spread } => {
+                let fields = fields
+                    .iter()
+                    .map(|(name, pat)| format!("{}: {}", label_name(name), self.pat_id(*pat)))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("Record({fields}; spread: {})", self.def_spread(spread))
+            }
+            Pat::PolyVariant(name, payloads) => {
+                format!(
+                    "PolyVariant({}, {})",
+                    label_name(name),
+                    self.pat_ids(payloads)
+                )
+            }
+            Pat::Con(reference, payloads) => {
+                format!(
+                    "Con({}, {})",
+                    self.ref_id(*reference),
+                    self.pat_ids(payloads)
+                )
+            }
+            Pat::Ref(reference) => format!("Ref({})", self.ref_id(*reference)),
+            Pat::Var(def) => format!("Var({})", self.def_id(*def)),
+            Pat::Or(lhs, rhs) => format!("Or({}, {})", self.pat_id(*lhs), self.pat_id(*rhs)),
+            Pat::As(pat, def) => format!("As({}, {})", self.pat_id(*pat), self.def_id(*def)),
+        }
+    }
+
+    fn expr_ids(&self, ids: &[ExprId]) -> String {
+        format!(
+            "[{}]",
+            ids.iter()
+                .map(|id| self.expr_id(*id))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+
+    fn pat_ids(&self, ids: &[PatId]) -> String {
+        format!(
+            "[{}]",
+            ids.iter()
+                .map(|id| self.pat_id(*id))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+
+    fn expr_spread(&self, spread: &RecordSpread<ExprId>) -> String {
+        match spread {
+            RecordSpread::None => "none".to_string(),
+            RecordSpread::Head(expr) => format!("head {}", self.expr_id(*expr)),
+            RecordSpread::Tail(expr) => format!("tail {}", self.expr_id(*expr)),
+        }
+    }
+
+    fn def_spread(&self, spread: &RecordSpread<DefId>) -> String {
+        match spread {
+            RecordSpread::None => "none".to_string(),
+            RecordSpread::Head(def) => format!("head {}", self.def_id(*def)),
+            RecordSpread::Tail(def) => format!("tail {}", self.def_id(*def)),
+        }
+    }
+
+    fn expr_id(&self, id: ExprId) -> String {
+        format!("e{}", id.0)
+    }
+
+    fn pat_id(&self, id: PatId) -> String {
+        format!("p{}", id.0)
+    }
+
+    fn ref_id(&self, id: RefId) -> String {
+        Dumper::new(self.arena, self.labels).ref_id(id)
+    }
+
+    fn select_id(&self, id: SelectId) -> String {
+        Dumper::new(self.arena, self.labels).select_id(id)
+    }
+
+    fn def_id(&self, id: DefId) -> String {
+        Dumper::new(self.arena, self.labels).def_id(id)
+    }
 }
 
 impl<'a> Dumper<'a> {
@@ -535,6 +1012,25 @@ fn vis_prefix(vis: Vis) -> &'static str {
     }
 }
 
+fn raw_vis(vis: Vis) -> &'static str {
+    match vis {
+        Vis::Pub => "pub",
+        Vis::Our => "our",
+        Vis::My => "my",
+    }
+}
+
+fn raw_lit(lit: &Lit) -> String {
+    match lit {
+        Lit::Int(value) => format!("Int({value})"),
+        Lit::BigInt(value) => format!("BigInt({value})"),
+        Lit::Float(value) => format!("Float({})", float_lit(*value)),
+        Lit::Str(value) => format!("Str({value:?})"),
+        Lit::Bool(value) => format!("Bool({value})"),
+        Lit::Unit => "Unit".to_string(),
+    }
+}
+
 fn field_name(name: &str) -> String {
     if is_plain_name(name) {
         name.to_string()
@@ -618,6 +1114,56 @@ mod tests {
         arena.roots.push(def);
 
         assert_eq!(dump_arena(&arena), "roots d0\nd0: 'a = e0:1\n");
+    }
+
+    #[test]
+    fn raw_dump_includes_scheme_type_graph_and_expr_graph() {
+        let mut arena = Arena::new();
+        let def = arena.defs.fresh();
+        let arg = arena.defs.fresh();
+        let pat = arena.add_pat(Pat::Var(arg));
+        let body = arena.add_expr(Expr::Lit(Lit::Int(1)));
+        let lambda = arena.add_expr(Expr::Lambda(pat, body));
+        let var = TypeVar(0);
+        let arg_ty = arena.typ.alloc_neg(crate::types::Neg::Var(var));
+        let arg_eff = arena.typ.alloc_neg(crate::types::Neg::Bot);
+        let ret_eff = arena.typ.alloc_pos(Pos::Bot);
+        let ret = arena.typ.alloc_pos(Pos::Var(var));
+        let predicate = arena.typ.alloc_pos(Pos::Fun {
+            arg: arg_ty,
+            arg_eff,
+            ret_eff,
+            ret,
+        });
+        arena.defs.set(
+            def,
+            Def::Let {
+                vis: Vis::Our,
+                scheme: Some(Scheme {
+                    quantifiers: vec![var],
+                    role_predicates: Vec::new(),
+                    recursive_bounds: Vec::new(),
+                    stack_quantifiers: Vec::new(),
+                    predicate,
+                    subtracts: Vec::new(),
+                }),
+                body: Some(lambda),
+                children: Vec::new(),
+            },
+        );
+        arena.defs.set(arg, Def::Arg);
+        arena.roots.push(def);
+
+        let raw = dump_arena_raw_with_labels(&arena, &DumpLabels::new());
+
+        assert!(raw.contains("raw roots [d0]"), "{raw}");
+        assert!(raw.contains("scheme {"), "{raw}");
+        assert!(
+            raw.contains("p2 = Fun { arg: n0, arg_eff: n1, ret_eff: p0, ret: p1 }"),
+            "{raw}"
+        );
+        assert!(raw.contains("e1 = Lambda(p0, e0)"), "{raw}");
+        assert!(raw.contains("p0 = Var(d1)"), "{raw}");
     }
 
     #[test]

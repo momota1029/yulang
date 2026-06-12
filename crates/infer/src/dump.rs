@@ -28,10 +28,22 @@ pub fn dump_loaded_files(files: &[LoadedFile]) -> Result<PolyDumpOutput, LoadedF
     Ok(dump_lowering(lowering))
 }
 
+/// 複数 loaded files を body lowering まで進め、raw poly debug dump を返す。
+pub fn dump_loaded_files_raw(files: &[LoadedFile]) -> Result<PolyDumpOutput, LoadedFilesError> {
+    let lowering = lower_loaded_files(files)?;
+    Ok(dump_lowering_raw(lowering))
+}
+
 /// 1つの loaded file を lower し、`poly` compact dump を返す。
 pub fn dump_loaded_file(file: &LoadedFile) -> PolyDumpOutput {
     let lowering = lower_loaded_file(file);
     dump_lowering(lowering)
+}
+
+/// 1つの loaded file を lower し、raw poly debug dump を返す。
+pub fn dump_loaded_file_raw(file: &LoadedFile) -> PolyDumpOutput {
+    let lowering = lower_loaded_file(file);
+    dump_lowering_raw(lowering)
 }
 
 /// source 文字列を `sources::load` に通してから dump する。
@@ -48,6 +60,18 @@ pub fn dump_source(source: &str) -> PolyDumpOutput {
     dump_loaded_file(file)
 }
 
+/// source 文字列を `sources::load` に通してから raw dump する。
+pub fn dump_source_raw(source: &str) -> PolyDumpOutput {
+    let files = sources::load(vec![SourceFile {
+        module_path: Path::default(),
+        source: source.to_string(),
+    }]);
+    let [file] = files.as_slice() else {
+        unreachable!("one input source should produce one loaded file");
+    };
+    dump_loaded_file_raw(file)
+}
+
 /// 1つの loaded file を body lowering まで進める。
 pub fn lower_loaded_file(file: &LoadedFile) -> BodyLowering {
     let root = SyntaxNode::<YulangLanguage>::new_root(file.cst.clone());
@@ -58,6 +82,12 @@ pub fn lower_loaded_file(file: &LoadedFile) -> BodyLowering {
 /// 既に作った lowering state を dump text へ変換する。
 pub fn dump_lowering(lowering: BodyLowering) -> PolyDumpOutput {
     let text = poly::dump::dump_arena_with_labels(&lowering.session.poly, &lowering.labels);
+    PolyDumpOutput { text, lowering }
+}
+
+/// 既に作った lowering state を raw dump text へ変換する。
+pub fn dump_lowering_raw(lowering: BodyLowering) -> PolyDumpOutput {
+    let text = poly::dump::dump_arena_raw_with_labels(&lowering.session.poly, &lowering.labels);
     PolyDumpOutput { text, lowering }
 }
 

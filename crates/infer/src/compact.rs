@@ -1614,7 +1614,7 @@ impl<'a> CompactCollector<'a> {
                 merge_compact_types(
                     true,
                     acc,
-                    self.compact_pos_bound_id(bound.pos, outer_weight.union(&bound.weights.left)),
+                    self.compact_pos_bound_id(bound.pos, bound.weights.left.union(outer_weight)),
                 )
             })
     }
@@ -2195,6 +2195,55 @@ mod tests {
                 .vars
                 .iter()
                 .any(|var| var.var == payload && var.weight.contains(subtract))
+        );
+    }
+
+    #[test]
+    fn collect_composes_lower_bound_weight_before_outer_weight() {
+        let mut machine = ConstraintMachine::new();
+        let root = TypeVar(0);
+        let outer = TypeVar(1);
+        let inner = TypeVar(2);
+        let subtract = SubtractId(4);
+
+        let inner_pos = machine.alloc_pos(Pos::Var(inner));
+        let pushed_inner = machine.alloc_pos(Pos::Stack {
+            inner: inner_pos,
+            weight: ConstraintWeight::push(subtract, Subtractability::Empty),
+        });
+        let outer_upper = machine.alloc_neg(Neg::Var(outer));
+        machine.subtype(pushed_inner, outer_upper);
+
+        let outer_pos = machine.alloc_pos(Pos::Var(outer));
+        let popped_outer = machine.alloc_pos(Pos::Stack {
+            inner: outer_pos,
+            weight: ConstraintWeight::pop(subtract),
+        });
+        let root_upper = machine.alloc_neg(Neg::Var(root));
+        machine.subtype(popped_outer, root_upper);
+
+        let compact = compact_type_var(&machine, root);
+
+        assert!(
+            compact
+                .root
+                .vars
+                .iter()
+                .any(|var| var.var == inner && var.weight.is_empty()),
+            "{:?}",
+            compact.root
+        );
+        assert!(
+            compact.root.vars.iter().all(|var| {
+                var.weight.entries().iter().all(|entry| {
+                    !entry
+                        .stack
+                        .iter()
+                        .any(|item| matches!(item, Subtractability::Empty))
+                })
+            }),
+            "{:?}",
+            compact.root
         );
     }
 

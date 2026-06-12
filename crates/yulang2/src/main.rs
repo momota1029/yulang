@@ -31,6 +31,21 @@ fn main() {
                 }
             }
         }
+        Some("dump-poly-raw") => {
+            let Some(path) = args.next() else {
+                print_usage_and_exit(&program);
+            };
+            if args.next().is_some() {
+                print_usage_and_exit(&program);
+            }
+            match yulang2::dump_poly_raw_from_entry(PathBuf::from(path)) {
+                Ok(output) => print_dump_poly_output(&output),
+                Err(error) => {
+                    eprintln!("{error}");
+                    process::exit(1);
+                }
+            }
+        }
         Some("dump-poly-std") => {
             let Some(path) = args.next() else {
                 print_usage_and_exit(&program);
@@ -39,6 +54,21 @@ fn main() {
                 print_usage_and_exit(&program);
             }
             match yulang2::dump_poly_from_entry_with_std(PathBuf::from(path)) {
+                Ok(output) => print_dump_poly_output(&output),
+                Err(error) => {
+                    eprintln!("{error}");
+                    process::exit(1);
+                }
+            }
+        }
+        Some("dump-poly-std-raw") => {
+            let Some(path) = args.next() else {
+                print_usage_and_exit(&program);
+            };
+            if args.next().is_some() {
+                print_usage_and_exit(&program);
+            }
+            match yulang2::dump_poly_raw_from_entry_with_std(PathBuf::from(path)) {
                 Ok(output) => print_dump_poly_output(&output),
                 Err(error) => {
                     eprintln!("{error}");
@@ -59,6 +89,8 @@ fn print_dump_poly_output(output: &yulang2::DumpPolyOutput) {
 
 fn print_usage_and_exit(program: &str) -> ! {
     eprintln!("usage: {program} dump-poly <path>");
+    eprintln!("       {program} dump-poly-raw <path>");
     eprintln!("       {program} dump-poly-std <path>");
+    eprintln!("       {program} dump-poly-std-raw <path>");
     process::exit(2);
 }

@@ -18,7 +18,12 @@ const YULANG_STD_ENV: &str = "YULANG_STD";
 
 /// entry file から local module file を読み、1つの module tree として poly dump を返す。
 pub fn dump_poly_from_entry(entry: impl AsRef<FsPath>) -> Result<DumpPolyOutput, RouteError> {
-    dump_poly_from_sources(collect_local_sources(entry)?)
+    dump_poly_from_sources(collect_local_sources(entry)?, DumpPolyKind::Compact)
+}
+
+/// entry file から local module file を読み、raw poly debug dump を返す。
+pub fn dump_poly_raw_from_entry(entry: impl AsRef<FsPath>) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(collect_local_sources(entry)?, DumpPolyKind::Raw)
 }
 
 /// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで poly dump を返す。
@@ -28,7 +33,17 @@ pub fn dump_poly_from_entry(entry: impl AsRef<FsPath>) -> Result<DumpPolyOutput,
 pub fn dump_poly_from_entry_with_std(
     entry: impl AsRef<FsPath>,
 ) -> Result<DumpPolyOutput, RouteError> {
-    dump_poly_from_sources(collect_local_sources_with_std(entry)?)
+    dump_poly_from_sources(
+        collect_local_sources_with_std(entry)?,
+        DumpPolyKind::Compact,
+    )
+}
+
+/// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで raw poly debug dump を返す。
+pub fn dump_poly_raw_from_entry_with_std(
+    entry: impl AsRef<FsPath>,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(collect_local_sources_with_std(entry)?, DumpPolyKind::Raw)
 }
 
 /// `mod foo;` / `use mod foo::*` だけを辿って raw source file を集める。
@@ -77,6 +92,12 @@ pub struct CollectedSource {
     pub path: PathBuf,
     pub module_path: Path,
     pub source: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DumpPolyKind {
+    Compact,
+    Raw,
 }
 
 #[derive(Debug)]
@@ -279,7 +300,10 @@ impl Collector {
     }
 }
 
-fn dump_poly_from_sources(files: Vec<CollectedSource>) -> Result<DumpPolyOutput, RouteError> {
+fn dump_poly_from_sources(
+    files: Vec<CollectedSource>,
+    kind: DumpPolyKind,
+) -> Result<DumpPolyOutput, RouteError> {
     let source_files = files
         .iter()
         .map(|file| SourceFile {
@@ -288,7 +312,11 @@ fn dump_poly_from_sources(files: Vec<CollectedSource>) -> Result<DumpPolyOutput,
         })
         .collect::<Vec<_>>();
     let loaded = sources::load(source_files);
-    let dump = infer::dump::dump_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let dump = match kind {
+        DumpPolyKind::Compact => infer::dump::dump_loaded_files(&loaded),
+        DumpPolyKind::Raw => infer::dump::dump_loaded_files_raw(&loaded),
+    }
+    .map_err(RouteError::Lower)?;
     let errors = dump
         .lowering
         .errors
@@ -543,6 +571,29 @@ mod tests {
     }
 
     #[test]
+    fn dump_poly_without_std_keeps_annotated_shallow_handler_type_clean() {
+        let root = temp_root("dump-poly-clean-shallow-handler");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "act signal:\n    pub ping: () -> int\n\nmy handle(x: [signal] _) = catch x:\n    signal::ping(), k -> k 1\n    v -> v\n",
+        )
+        .unwrap();
+
+        let output = dump_poly_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_eq!(output.errors, Vec::<String>::new());
+        assert_dump_has_line_starting_with(
+            &output,
+            "my d2:handle: 'a ['b & [signal; 'b]] -> ['b] 'a = ",
+        );
+        assert!(!output.text.contains("stack("));
+        assert!(!output.text.contains("std::"));
+    }
+
+    #[test]
     fn dump_poly_without_std_handles_local_effect_call() {
         let root = temp_root("dump-poly-handle-effect-call");
         let _ = fs::remove_dir_all(&root);
@@ -579,6 +630,26 @@ mod tests {
             output.errors,
             vec!["type mismatch: int is not bool".to_string()]
         );
+        assert!(!output.text.contains("std::"));
+    }
+
+    #[test]
+    fn dump_poly_raw_without_std_includes_type_and_expr_graphs() {
+        let root = temp_root("dump-poly-raw");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "my id x = x\n").unwrap();
+
+        let output = dump_poly_raw_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_eq!(output.errors, Vec::<String>::new());
+        assert_dump_contains(&output, "raw roots [d0:id]");
+        assert_dump_contains(&output, "scheme {");
+        assert_dump_contains(&output, "types:");
+        assert_dump_contains(&output, "exprs {");
+        assert_dump_contains(&output, "pats {");
+        assert_dump_contains(&output, "Lambda(");
         assert!(!output.text.contains("std::"));
     }
 
