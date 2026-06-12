@@ -267,6 +267,14 @@ value: (a [b] -> [c] d) -> [e] list(f -> [g] h)
 上の例の`list(f -> [g] h)`では、`g`そのものと`stack('eff1, @g1)`を組み合わせて、`list(f -> [g; stack('eff1, @g1)] h)`として上下の両側に現れる。
 ただし、不変位置に書けるeffectは具体effectだけであり、effect変数やwildcardをそのまま書くことはできない。
 
+`ref '[file] str` のように、effect row 型そのものが型コンストラクタの引数として現れる場合、
+その引数は `['e]` / `[ref_update a; 'e]` の tail に入る effect-kind 型として読む。
+したがって下側には `Pos::Row([file])` ではなく、row item / tail を ordinary effect 型として
+合流した `file`（tail があれば `file | tail`）を置く。上側は具体 effect 集合を引ける
+stack 付き proxy として置く。ここで `Pos::Row([file])` をそのまま型引数に入れると、
+body から来る裸の `file` と注釈由来の ` '[file]` が別成分として残り、
+`ref(file | '[file], str)` のような二重 row になる。
+
 また、同じ関数型
 ```yu
 a [b] -> [c] d

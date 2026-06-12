@@ -133,6 +133,15 @@ impl Rendered {
     }
 }
 
+fn rendered_exact_bounds_part(text: String) -> Rendered {
+    let has_bare_space = text.chars().any(char::is_whitespace);
+    Rendered {
+        text,
+        prec: Prec::Atom,
+        has_bare_space,
+    }
+}
+
 struct TypeFormatter<'a> {
     arena: &'a TypeArena,
     namer: TypeVarNamer,
@@ -780,6 +789,10 @@ impl<'a> TypeFormatter<'a> {
         let mut upper_parts = Vec::new();
         self.bounds_upper_parts(upper, var, &mut upper_parts);
 
+        if lower_parts.len() == 1 && lower_parts == upper_parts {
+            return rendered_exact_bounds_part(lower_parts.remove(0));
+        }
+
         let mut text = String::new();
         for part in &lower_parts {
             text.push_str(part);
@@ -1302,6 +1315,22 @@ mod tests {
         let outer = arena.alloc_pos(Pos::Con(vec!["list".into()], vec![inner]));
 
         assert_eq!(format_pos(&arena, outer), "list(list 'a)");
+    }
+
+    #[test]
+    fn formats_exact_pinned_bounds_as_concrete() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let item_pos = arena.alloc_pos(Pos::Con(vec!["file".into()], Vec::new()));
+        let item_neg = arena.alloc_neg(Neg::Con(vec!["file".into()], Vec::new()));
+        let var_pos = arena.alloc_pos(Pos::Var(a));
+        let var_neg = arena.alloc_neg(Neg::Var(a));
+        let lower = arena.alloc_pos(Pos::Union(item_pos, var_pos));
+        let upper = arena.alloc_neg(Neg::Intersection(var_neg, item_neg));
+        let arg = arena.alloc_neu(Neu::Bounds(lower, a, upper));
+        let outer = arena.alloc_pos(Pos::Con(vec!["box".into()], vec![arg]));
+
+        assert_eq!(format_pos(&arena, outer), "box file");
     }
 
     #[test]

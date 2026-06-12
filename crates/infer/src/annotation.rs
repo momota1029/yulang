@@ -530,6 +530,25 @@ impl<'a> AnnConstraintLowerer<'a> {
         Ok(self.alloc_neg(Neg::Row(items, tail)))
     }
 
+    fn lower_subtractable_effect_row_neg(
+        &mut self,
+        row: &AnnEffectRow,
+    ) -> Result<NegId, AnnConstraintError> {
+        if row.items.is_empty()
+            && let Some(tail) = &row.tail
+        {
+            let tail = self.annotation_var(tail);
+            return Ok(self.alloc_neg(Neg::Var(tail)));
+        }
+
+        let effect = self.infer.fresh_type_var();
+        self.connect_effect_tail_lower(effect, row)?;
+        let stack = self.effect_row_stack(row)?;
+        self.register_stack_facts(effect, &stack.weight);
+        let effect = self.alloc_neg(Neg::Var(effect));
+        Ok(self.wrap_neg_with_stack(effect, &stack.weight))
+    }
+
     fn lower_effect_atom_pos(&mut self, atom: &AnnEffectAtom) -> Result<PosId, AnnConstraintError> {
         match atom {
             AnnEffectAtom::Type(ty) => self.lower_value_bounds(ty).map(|bounds| bounds.pos),
@@ -556,12 +575,45 @@ impl<'a> AnnConstraintLowerer<'a> {
     }
 
     fn lower_invariant_arg(&mut self, ann: &AnnType) -> Result<NeuId, AnnConstraintError> {
-        let bounds = self.lower_value_bounds(ann)?;
+        let bounds = self.lower_invariant_arg_bounds(ann)?;
         let var = match ann {
             AnnType::Var(var) => self.annotation_var(var),
             _ => self.infer.fresh_type_var(),
         };
         Ok(self.alloc_neu(Neu::Bounds(bounds.pos, var, bounds.neg)))
+    }
+
+    fn lower_invariant_arg_bounds(
+        &mut self,
+        ann: &AnnType,
+    ) -> Result<AnnValueBounds, AnnConstraintError> {
+        match ann {
+            AnnType::EffectRow(row) => Ok(AnnValueBounds {
+                pos: self.lower_effect_row_tail_pos(row)?,
+                neg: self.lower_subtractable_effect_row_neg(row)?,
+                output_subtracts: Vec::new(),
+            }),
+            _ => self.lower_value_bounds(ann),
+        }
+    }
+
+    fn lower_effect_row_tail_pos(
+        &mut self,
+        row: &AnnEffectRow,
+    ) -> Result<PosId, AnnConstraintError> {
+        if effect_row_has_wildcard(row) {
+            return Err(AnnConstraintError::WildcardEffectRowInTypePosition);
+        }
+        let mut items = row
+            .items
+            .iter()
+            .map(|atom| self.lower_effect_atom_pos(atom))
+            .collect::<Result<Vec<_>, _>>()?;
+        if let Some(tail) = &row.tail {
+            let tail = self.annotation_var(tail);
+            items.push(self.alloc_pos(Pos::Var(tail)));
+        }
+        Ok(self.union_pos(items))
     }
 
     fn lower_builtin_pos(&mut self, builtin: BuiltinType) -> PosId {
@@ -654,6 +706,35 @@ impl<'a> AnnConstraintLowerer<'a> {
             inner: pos,
             weight: weight.clone(),
         })
+    }
+
+    fn wrap_neg_with_stack(&mut self, neg: NegId, weight: &StackWeight) -> NegId {
+        if weight.is_empty() {
+            return neg;
+        }
+        self.alloc_neg(Neg::Stack {
+            inner: neg,
+            weight: weight.clone(),
+        })
+    }
+
+    fn union_pos(&mut self, input: Vec<PosId>) -> PosId {
+        let mut parts = Vec::new();
+        for part in input {
+            if matches!(self.infer.constraints().types().pos(part), Pos::Bot)
+                || parts.contains(&part)
+            {
+                continue;
+            }
+            parts.push(part);
+        }
+        let Some(first) = parts.first().copied() else {
+            return self.alloc_pos(Pos::Bot);
+        };
+        parts
+            .into_iter()
+            .skip(1)
+            .fold(first, |acc, part| self.alloc_pos(Pos::Union(acc, part)))
     }
 
     fn alloc_pos(&mut self, pos: Pos) -> PosId {
@@ -1525,6 +1606,48 @@ mod tests {
             ),
             Ok(ann_apply(AnnType::Named(result), vec![ann_var_id("t", 0)]))
         );
+    }
+
+    #[test]
+    fn effect_row_type_argument_lowers_as_effect_tail() {
+        let root = parse("type io\ntype Box\nmy site: Box '[io] = 1\n");
+        let lower = crate::lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let site = lower.modules.value_decls(module, &Name("site".into()))[0].order;
+        let io = lower.modules.type_decls(module, &Name("io".into()))[0].id;
+        let expected = type_decl_path(&lower.modules, io);
+        let ann = build_ann_type_expr(&lower.modules, module, site, &first_type_expr(&root))
+            .expect("annotation should build");
+        let mut infer = crate::Arena::new();
+
+        let bounds = AnnConstraintLowerer::new(&mut infer, &lower.modules)
+            .lower_value_bounds(&ann)
+            .expect("annotation constraints should lower");
+
+        let types = infer.constraints().types();
+        let Pos::Con(_, args) = types.pos(bounds.pos) else {
+            panic!("expected constructor lower bound");
+        };
+        let [arg] = args.as_slice() else {
+            panic!("expected one type argument");
+        };
+        let Neu::Bounds(lower, _, upper) = types.neu(*arg) else {
+            panic!("expected invariant type argument bounds");
+        };
+        assert!(
+            matches!(types.pos(*lower), Pos::Con(path, args) if path == &expected && args.is_empty()),
+            "effect row argument lower should expose the row item as the effect tail type, got {:?}",
+            types.pos(*lower)
+        );
+        let Neg::Stack { inner, weight } = types.neg(*upper) else {
+            panic!(
+                "effect row argument upper should be subtractable, got {:?}",
+                types.neg(*upper)
+            );
+        };
+        assert!(matches!(types.neg(*inner), Neg::Var(_)));
+        let entry = single_stack_entry(weight);
+        assert!(weight_has_set_path(weight, entry.id, &expected));
     }
 
     #[test]
