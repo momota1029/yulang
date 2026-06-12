@@ -10293,6 +10293,44 @@ mod tests {
     }
 
     #[test]
+    fn act_operation_signature_keeps_declared_act_type_vars() {
+        let root = parse(concat!(
+            "act parse 'item 'err 'pos 'snap:\n",
+            "  pub item: () -> 'item\n",
+            "  pub fail: 'err -> never\n",
+            "  pub pos: () -> 'pos\n",
+            "  pub snapshot: () -> 'snap\n",
+            "my site = 1\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let parse_act = lower.modules.type_decls(module, &Name("parse".into()))[0].clone();
+        let companion = lower
+            .modules
+            .type_companion(parse_act.id)
+            .expect("act companion");
+        let item = lower.modules.value_decls(companion, &Name("item".into()))[0].def;
+        let pos = lower.modules.value_decls(companion, &Name("pos".into()))[0].def;
+        let snapshot = lower
+            .modules
+            .value_decls(companion, &Name("snapshot".into()))[0]
+            .def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let item_rendered =
+            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, item));
+        let pos_rendered =
+            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, pos));
+        let snapshot_rendered =
+            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, snapshot));
+        assert_eq!(item_rendered, "() -> [parse 'a 'b 'c 'd] 'a");
+        assert_eq!(pos_rendered, "() -> [parse 'a 'b 'c 'd] 'c");
+        assert_eq!(snapshot_rendered, "() -> [parse 'a 'b 'c 'd] 'd");
+    }
+
+    #[test]
     fn top_level_tuple_binding_registers_each_name() {
         let root = parse("my (x, y) = (1, 2)\nmy site = y\n");
         let lower = lower_module_map(&root);

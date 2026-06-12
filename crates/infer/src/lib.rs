@@ -3003,6 +3003,14 @@ pub(crate) fn act_type_var_names(node: &Cst) -> Vec<String> {
                 seen_act_name = true;
             }
             NodeOrToken::Token(token)
+                if seen_act_name && token.kind() == SyntaxKind::SigilIdent =>
+            {
+                let name = token.text().trim_start_matches('\'').to_string();
+                if !out.contains(&name) {
+                    out.push(name);
+                }
+            }
+            NodeOrToken::Token(token)
                 if matches!(
                     token.kind(),
                     SyntaxKind::Equal
@@ -3023,16 +3031,52 @@ pub(crate) fn act_type_var_names(node: &Cst) -> Vec<String> {
                 break;
             }
             NodeOrToken::Node(child) if seen_act_name && child.kind() == SyntaxKind::TypeExpr => {
-                if let Some(name) = bare_type_var_expr(&child)
-                    && !out.contains(&name)
-                {
-                    out.push(name);
-                }
+                collect_act_type_param_names(&child, &mut out);
             }
             _ => {}
         }
     }
     out
+}
+
+fn collect_act_type_param_names(type_expr: &Cst, out: &mut Vec<String>) {
+    if let Some(name) = bare_type_var_expr(type_expr) {
+        push_unique_type_name(out, name);
+    }
+    for apply in type_expr
+        .children()
+        .filter(|child| child.kind() == SyntaxKind::TypeApply)
+    {
+        for arg in apply
+            .children()
+            .filter(|child| child.kind() == SyntaxKind::TypeExpr)
+        {
+            if let Some(name) = bare_type_var_expr(&arg) {
+                push_unique_type_name(out, name);
+            }
+        }
+    }
+}
+
+fn bare_type_var_expr(type_expr: &Cst) -> Option<String> {
+    let items = type_expr
+        .children_with_tokens()
+        .filter(|item| !item_is_trivia(item))
+        .filter(
+            |item| !matches!(item, NodeOrToken::Node(node) if node.kind() == SyntaxKind::TypeApply),
+        )
+        .collect::<Vec<_>>();
+    let [NodeOrToken::Token(token)] = items.as_slice() else {
+        return None;
+    };
+    (token.kind() == SyntaxKind::SigilIdent)
+        .then(|| token.text().trim_start_matches('\'').to_string())
+}
+
+fn push_unique_type_name(out: &mut Vec<String>, name: String) {
+    if !out.contains(&name) {
+        out.push(name);
+    }
 }
 
 pub(crate) fn struct_field_nodes(node: &Cst) -> Vec<Cst> {
@@ -3245,18 +3289,6 @@ fn act_copy_source_type_expr(node: &Cst) -> Option<Cst> {
         }
     }
     None
-}
-
-fn bare_type_var_expr(type_expr: &Cst) -> Option<String> {
-    let items = type_expr
-        .children_with_tokens()
-        .filter(|item| !item_is_trivia(item))
-        .collect::<Vec<_>>();
-    let [NodeOrToken::Token(token)] = items.as_slice() else {
-        return None;
-    };
-    (token.kind() == SyntaxKind::SigilIdent)
-        .then(|| token.text().trim_start_matches('\'').to_string())
 }
 
 fn act_type_var_arg_name(arg: &ActTypeExpr) -> Option<String> {
@@ -3746,6 +3778,25 @@ mod tests {
                 .act_operation_decls_at(root, &[Name("out".into())], module_path_site())[0]
                 .def,
             Some(op_def)
+        );
+    }
+
+    #[test]
+    fn act_type_vars_include_bare_application_chain() {
+        let cst = parse("act parse 'item 'err 'pos 'snap:\n  our item: () -> 'item\n");
+        let root = cst
+            .descendants()
+            .find(|child| child.kind() == SyntaxKind::ActDecl)
+            .expect("act declaration");
+
+        assert_eq!(
+            act_type_var_names(&root),
+            vec![
+                "item".to_string(),
+                "err".to_string(),
+                "pos".to_string(),
+                "snap".to_string()
+            ]
         );
     }
 
