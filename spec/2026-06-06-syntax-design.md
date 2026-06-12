@@ -1399,6 +1399,15 @@ Some(x)  // ApplyC
 Some (x) // ApplyML(PatParenGroup)
 ```
 
+型付きloweringでは、名前解決できたstruct/enum/error constructor patternは、
+constructor関数の通常適用としてpayload型を推測しない。
+宣言済みconstructor payloadのsignatureを読み、scrutineeをそのowner型へ制約し、
+payload patternの値slotを宣言payload型のlower/upper両側へ接続する。
+
+空白ありの`(`が`PatParenGroup`としてpayloadに来た場合でも、解決済みconstructorのpayload arityが
+1ではなく、group内のpattern数がarityと一致するときだけ、そのgroupをpayload列として展開する。
+一致しない場合、`PatParenGroup`は通常どおり単一payloadとして扱う。
+
 ### pattern list
 
 ```text

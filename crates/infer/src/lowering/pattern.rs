@@ -1,6 +1,7 @@
 //! lambda / case / catch arm に共通する pattern lowering。
 
 use super::*;
+use crate::ConstructorDecl;
 
 impl<'a> ExprLowerer<'a> {
     pub(super) fn lower_lambda_pattern(
@@ -474,7 +475,20 @@ impl<'a> ExprLowerer<'a> {
             .ok_or(LoweringError::UnsupportedPatternSyntax { kind: node.kind() })?;
         let payloads = pattern_payloads(node);
         let constructor_value = self.fresh_type_var();
-        let reference = self.lower_pattern_constructor_reference(&path, constructor_value);
+        let target = self.modules.value_path_at(self.module, &path, self.site);
+        let reference = self.lower_pattern_constructor_reference(&path, constructor_value, target);
+
+        if let Some(target) = target
+            && let Some(constructor) = self.modules.constructor_by_def(target).cloned()
+        {
+            return self.lower_declared_constructor_pattern(
+                reference,
+                constructor,
+                payloads,
+                value,
+                call_return_effect,
+            );
+        }
 
         let mut payload_pats = Vec::with_capacity(payloads.len());
         let mut applied_value = constructor_value;
@@ -496,7 +510,96 @@ impl<'a> ExprLowerer<'a> {
         Ok(self.session.poly.add_pat(Pat::Con(reference, payload_pats)))
     }
 
-    fn lower_pattern_constructor_reference(&mut self, path: &[Name], value: TypeVar) -> RefId {
+    fn lower_declared_constructor_pattern(
+        &mut self,
+        reference: RefId,
+        constructor: ConstructorDecl,
+        payloads: Vec<Cst>,
+        value: TypeVar,
+        call_return_effect: LocalCallReturnEffect,
+    ) -> Result<PatId, LoweringError> {
+        let owner = self.modules.type_decl_by_id(constructor.owner).ok_or(
+            LoweringError::UnsupportedPatternSyntax {
+                kind: SyntaxKind::Pattern,
+            },
+        )?;
+        let owner_arg_vars = constructor
+            .type_vars
+            .iter()
+            .map(|_| self.fresh_type_var())
+            .collect::<Vec<_>>();
+        let signature_builder = NegSignatureBuilder::with_self_alias(
+            self.modules,
+            constructor.module,
+            owner.order,
+            SignatureSelfAlias {
+                owner: constructor.owner,
+                type_vars: constructor.type_vars.clone(),
+            },
+        );
+        let signature_vars = constructor
+            .type_vars
+            .iter()
+            .cloned()
+            .zip(owner_arg_vars.iter().copied())
+            .collect::<FxHashMap<_, _>>();
+        let payload =
+            build_constructor_payload_signatures(constructor.payload.clone(), &signature_builder)?;
+        let args = prepare_constructor_args(&mut self.session.infer, payload);
+        let payloads = declared_constructor_pattern_payloads(payloads, args.len());
+        if args.len() != payloads.len() {
+            return Err(LoweringError::UnsupportedPatternSyntax {
+                kind: SyntaxKind::Pattern,
+            });
+        }
+
+        connect_constructor_pattern_arg_signatures(
+            &mut self.session.infer,
+            self.modules,
+            signature_vars,
+            &args,
+        )?;
+        constrain_constructor_arg_shapes(&mut self.session.infer, &args);
+        self.constrain_constructor_pattern_owner(value, &owner, &owner_arg_vars);
+
+        let payload_pats = payloads
+            .into_iter()
+            .zip(args)
+            .map(|(payload, arg)| {
+                self.lower_pattern(&payload, arg.value(), None, call_return_effect)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(self.session.poly.add_pat(Pat::Con(reference, payload_pats)))
+    }
+
+    fn constrain_constructor_pattern_owner(
+        &mut self,
+        value: TypeVar,
+        owner: &ModuleTypeDecl,
+        owner_arg_vars: &[TypeVar],
+    ) {
+        let path = self
+            .modules
+            .type_decl_path(owner)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect::<Vec<_>>();
+        let args = owner_arg_vars
+            .iter()
+            .copied()
+            .map(|var| self.invariant_var_arg(var))
+            .collect::<Vec<_>>();
+        self.constrain_lower(value, Pos::Con(path.clone(), args.clone()));
+        self.constrain_upper(value, Neg::Con(path, args));
+    }
+
+    fn lower_pattern_constructor_reference(
+        &mut self,
+        path: &[Name],
+        value: TypeVar,
+        target: Option<DefId>,
+    ) -> RefId {
         let reference = self.session.poly.add_ref();
         if let Some(labels) = self.labels.as_mut() {
             labels.set_ref_label(reference, path_label(path));
@@ -508,7 +611,7 @@ impl<'a> ExprLowerer<'a> {
                 value,
             },
         );
-        if let Some(target) = self.modules.value_path_at(self.module, path, self.site) {
+        if let Some(target) = target {
             self.session.enqueue(AnalysisWork::ApplyRefResolution {
                 ref_id: reference,
                 target,
@@ -770,6 +873,39 @@ pub(super) fn pattern_payloads(node: &Cst) -> Vec<Cst> {
                 .collect::<Vec<_>>()
         })
         .collect()
+}
+
+fn declared_constructor_pattern_payloads(payloads: Vec<Cst>, arity: usize) -> Vec<Cst> {
+    if arity == 1 || payloads.len() != 1 {
+        return payloads;
+    }
+
+    let Some(group) = single_paren_group_payload(&payloads[0]) else {
+        return payloads;
+    };
+    let grouped = group
+        .children()
+        .filter(|child| child.kind() == SyntaxKind::Pattern)
+        .collect::<Vec<_>>();
+    if grouped.len() == arity {
+        grouped
+    } else {
+        payloads
+    }
+}
+
+fn single_paren_group_payload(node: &Cst) -> Option<Cst> {
+    match node.kind() {
+        SyntaxKind::PatParenGroup => Some(node.clone()),
+        SyntaxKind::Pattern => {
+            let children = pattern_children(node);
+            let [child] = children.as_slice() else {
+                return None;
+            };
+            (child.kind() == SyntaxKind::PatParenGroup).then_some(child.clone())
+        }
+        _ => None,
+    }
 }
 
 fn transparent_pattern_child(node: &Cst) -> Option<Cst> {

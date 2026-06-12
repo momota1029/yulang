@@ -155,10 +155,11 @@ impl SelectionUseTable {
 /// 1つの `SelectId` use-site に対応する推論メタデータ。
 ///
 /// `method_value` は、selection lowering が作った method 関数 slot。
-/// receiver/result/effect はこの slot の関数上界からたどれるため、table には持たせない。
+/// `receiver_value` は dot selection の subject で、typeclass method 解決時の role demand に使う。
 pub struct SelectionUse {
     pub parent: DefId,
     pub method_value: TypeVar,
+    pub receiver_value: TypeVar,
     pub local_method_scope: Option<ModuleId>,
 }
 
@@ -188,7 +189,7 @@ mod tests {
     }
 
     #[test]
-    fn selection_use_keeps_only_unresolved_method_slot_and_watch_sets() {
+    fn selection_use_keeps_unresolved_slots_and_watch_sets() {
         let mut table = SelectionUseTable::new();
         let select = SelectId(0);
         table.insert(
@@ -196,6 +197,7 @@ mod tests {
             SelectionUse {
                 parent: DefId(1),
                 method_value: TypeVar(4),
+                receiver_value: TypeVar(2),
                 local_method_scope: None,
             },
         );
@@ -210,6 +212,7 @@ mod tests {
         assert_eq!(table.pending_for_lower_bound(TypeVar(3)), vec![select]);
         assert_eq!(table.pending_for_effect_fact(TypeVar(3)), vec![select]);
         assert_eq!(table.get(select).unwrap().method_value, TypeVar(4));
+        assert_eq!(table.get(select).unwrap().receiver_value, TypeVar(2));
         assert_eq!(table.remove(select).unwrap().parent, DefId(1));
         assert!(table.get(select).is_none());
     }

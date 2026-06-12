@@ -20,7 +20,10 @@ use crate::roles::{RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg};
 mod analysis;
 #[cfg(test)]
 pub(crate) use analysis::simplify_compact_root;
-pub(crate) use analysis::simplify_compact_root_with_roles_and_non_generic;
+pub(crate) use analysis::{
+    coalesce_floor_interval_equalities, normalize_var_substitutions,
+    simplify_compact_root_with_roles_and_non_generic,
+};
 mod casts;
 #[cfg(test)]
 use analysis::{
@@ -2700,6 +2703,85 @@ mod tests {
             vec![CompactVarSubstitution {
                 source: extra,
                 target: Some(center)
+            }]
+        );
+    }
+
+    #[test]
+    fn co_occurrence_uses_role_interval_to_coalesce_returned_receiver_and_argument() {
+        let machine = ConstraintMachine::new();
+        let receiver = TypeVar(10);
+        let argument = TypeVar(11);
+        let payload = CompactBounds::Interval {
+            self_var: receiver,
+            lower: CompactType::from_var(CompactVar::plain(receiver)),
+            upper: CompactType {
+                vars: vec![CompactVar::plain(receiver), CompactVar::plain(argument)],
+                ..CompactType::default()
+            },
+        };
+        let mut root = CompactRoot {
+            root: CompactType::from_fun(CompactFun {
+                arg: CompactType::from_con(CompactCon {
+                    path: vec!["view".into()],
+                    args: vec![payload],
+                }),
+                arg_eff: CompactType::default(),
+                ret_eff: CompactType::default(),
+                ret: CompactType::from_fun(CompactFun {
+                    arg: CompactType::from_var(CompactVar::plain(argument)),
+                    arg_eff: CompactType::default(),
+                    ret_eff: CompactType::default(),
+                    ret: CompactType::from_var(CompactVar::plain(receiver)),
+                }),
+            }),
+            rec_vars: Vec::new(),
+        };
+        let mut roles = vec![CompactRoleConstraint {
+            role: vec!["Ord".into()],
+            inputs: vec![CompactRoleArg {
+                lower: CompactType {
+                    vars: vec![CompactVar::plain(receiver), CompactVar::plain(argument)],
+                    ..CompactType::default()
+                },
+                upper: CompactType {
+                    vars: vec![CompactVar::plain(receiver), CompactVar::plain(argument)],
+                    ..CompactType::default()
+                },
+            }],
+            associated: Vec::new(),
+        }];
+
+        let substitutions = simplify_compact_root_with_roles_and_non_generic(
+            &machine,
+            TypeLevel::root(),
+            &mut root,
+            &mut roles,
+            &FxHashSet::default(),
+        );
+
+        let outer = &root.root.funs[0];
+        let inner = &outer.ret.funs[0];
+        assert_eq!(inner.arg.vars, vec![CompactVar::plain(receiver)]);
+        assert_eq!(inner.ret.vars, vec![CompactVar::plain(receiver)]);
+        let CompactBounds::Interval { lower, upper, .. } = &outer.arg.cons[0].args[0] else {
+            panic!("expected view payload interval");
+        };
+        assert_eq!(lower.vars, vec![CompactVar::plain(receiver)]);
+        assert_eq!(upper.vars, vec![CompactVar::plain(receiver)]);
+        assert_eq!(
+            roles[0].inputs[0].lower.vars,
+            vec![CompactVar::plain(receiver)]
+        );
+        assert_eq!(
+            roles[0].inputs[0].upper.vars,
+            vec![CompactVar::plain(receiver)]
+        );
+        assert_eq!(
+            substitutions.substitutions,
+            vec![CompactVarSubstitution {
+                source: argument,
+                target: Some(receiver)
             }]
         );
     }

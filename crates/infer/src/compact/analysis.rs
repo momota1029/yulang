@@ -126,6 +126,43 @@ pub(crate) fn simplify_compact_root_with_roles_and_non_generic(
     }
 }
 
+/// 世代化で確定した def のスキームに掛ける、level 保護の床下だけの併合パス。
+///
+/// simplify は `boundary` 以下の変数を不可侵にするため、impl requirement などの足場が
+/// 低 level に生んだ変数は、不変区間の両側出現で等値が確定していても junk として残る。
+/// 区間由来の等式は demand 自体が機械側で強制する等値なので、スキームに自由変数として
+/// 残る床下の変数でも併合してよい。一方、極性消去や通常の共起併合は「このスキーム内の
+/// 全出現」を根拠にするため、他 def と共有されうる床下の変数には適用できない。
+/// ここでは区間等式だけを使う。一回パスで、不動点反復には入れない。
+pub(crate) fn coalesce_floor_interval_equalities(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+) -> Vec<CompactVarSubstitution> {
+    let co_occurrences = collect_co_occurrences(root, roles);
+    let mut union = VarUnion::default();
+    for (alpha, beta) in &co_occurrences.interval_equalities {
+        let alpha_floor = machine.level_of(*alpha) <= boundary;
+        let beta_floor = machine.level_of(*beta) <= boundary;
+        // 床上同士は通常の simplify（共起分析の区間規則）が併合する。
+        if !alpha_floor && !beta_floor {
+            continue;
+        }
+        let rep = [*alpha, *beta]
+            .into_iter()
+            .min_by_key(|var| (machine.level_of(*var), var.0))
+            .expect("pair is non-empty");
+        union.union_to(rep, *alpha);
+        union.union_to(rep, *beta);
+    }
+    let subst = union.into_substitution(FxHashSet::default());
+    if subst.is_empty() {
+        return Vec::new();
+    }
+    rewrite_root_and_role_vars(root, roles, |var| subst.rewrite(var))
+}
+
 fn simplify_polar_and_co_occurrence_to_fixed_point(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
@@ -1555,9 +1592,49 @@ fn visit_bounds_polarity(bounds: &CompactBounds, polarity: Polarity, out: &mut V
 struct CoOccurrences {
     positive: FxHashMap<TypeVar, FxHashSet<AlongItem>>,
     negative: FxHashMap<TypeVar, FxHashSet<AlongItem>>,
+    interval_equalities: Vec<(TypeVar, TypeVar)>,
 }
 
 impl CoOccurrences {
+    /// 不変区間 `[lower, upper]` は instantiation ごとに `lower ≤ 実型 ≤ upper` を要求するので、
+    /// 両側に現れる変数は実型と等しく確定する。他の出現位置での同伴に関係なく、
+    /// この区間単独を根拠に互いに（中心があれば中心と）併合できる。
+    /// 具体型との等値は変数の除去になり他出現を壊すため、ここでは変数同士に限る。
+    fn record_interval_equalities(
+        &mut self,
+        lower: &CompactType,
+        upper: &CompactType,
+        center: Option<TypeVar>,
+    ) {
+        let upper_vars = upper
+            .vars
+            .iter()
+            .map(|var| var.var)
+            .collect::<FxHashSet<_>>();
+        let mut both = lower
+            .vars
+            .iter()
+            .map(|var| var.var)
+            .filter(|var| upper_vars.contains(var))
+            .collect::<Vec<_>>();
+        both.sort_by_key(|var| var.0);
+        both.dedup();
+        match center {
+            Some(center) => {
+                for var in both {
+                    if var != center {
+                        self.interval_equalities.push((center, var));
+                    }
+                }
+            }
+            None => {
+                for pair in both.windows(2) {
+                    self.interval_equalities.push((pair[0], pair[1]));
+                }
+            }
+        }
+    }
+
     fn record_group(&mut self, group: FxHashSet<AlongItem>, polarity: Polarity) {
         let mut vars = group
             .iter()
@@ -1594,6 +1671,9 @@ impl CoOccurrences {
     ) -> VarSubstitution {
         let mut union = VarUnion::default();
         let mut removals = FxHashSet::default();
+        for (alpha, beta) in &self.interval_equalities {
+            register_co_occurrence_pair(*alpha, *beta, machine, boundary, non_generic, &mut union);
+        }
         register_co_occurrence_table(
             &self.positive,
             &self.negative,
@@ -1834,6 +1914,7 @@ fn visit_role_arg_co_occurrence(
     ignored_vars: &[TypeVar],
     out: &mut CoOccurrences,
 ) {
+    out.record_interval_equalities(&arg.lower, &arg.upper, None);
     visit_type_co_occurrence(&arg.lower, Polarity::Positive, &[], ignored_vars, out);
     visit_type_co_occurrence(&arg.upper, Polarity::Negative, &[], ignored_vars, out);
 }
@@ -2013,6 +2094,7 @@ fn visit_bounds_co_occurrence(
             lower,
             upper,
         } => {
+            out.record_interval_equalities(lower, upper, Some(*self_var));
             let mut body_ignored = ignored_vars.to_vec();
             if !body_ignored.contains(self_var) {
                 body_ignored.push(*self_var);
@@ -2312,7 +2394,7 @@ fn sorted_var_substitutions(
     substitutions
 }
 
-fn normalize_var_substitutions(
+pub(crate) fn normalize_var_substitutions(
     substitutions: Vec<CompactVarSubstitution>,
 ) -> Vec<CompactVarSubstitution> {
     let map = substitutions

@@ -46,10 +46,11 @@ use crate::scc::SccInput;
 use crate::typing::{EffectViewId, Typing};
 use crate::uses::{RefUse, SelectionUse};
 use crate::{
-    ActMethodDecl, ActOperationDecl, LoadedFileCsts, LoadedFilesError, Lower, ModuleChildDecl,
-    ModuleId, ModuleOrder, ModuleTable, ModuleTypeDecl, ModuleTypeKind, RoleImplDecl,
-    RoleImplMethodDecl, RoleMethodDecl, SyntheticVarActUse, TypeDeclId, TypeFieldMethodDecl,
-    TypeMethodDecl, TypeMethodReceiver, binding_type_expr, lower_loaded_file_csts_module_map,
+    ActMethodDecl, ActOperationDecl, ConstructorPayload, LoadedFileCsts, LoadedFilesError, Lower,
+    ModuleChildDecl, ModuleId, ModuleOrder, ModuleTable, ModuleTypeDecl, ModuleTypeKind,
+    RoleImplDecl, RoleImplMethodDecl, RoleMethodDecl, SyntheticVarActUse, TypeDeclId,
+    TypeFieldMethodDecl, TypeMethodDecl, TypeMethodReceiver, binding_type_expr,
+    lower_loaded_file_csts_module_map,
 };
 
 type Cst = SyntaxNode<YulangLanguage>;
@@ -845,7 +846,7 @@ impl BodyLowerer {
             .into_iter()
             .map(|var| self.invariant_var_arg(var))
             .collect::<Vec<_>>();
-        let args = self.prepare_constructor_args(payload);
+        let args = prepare_constructor_args(&mut self.session.infer, payload);
         connect_constructor_arg_signatures(
             &mut self.session.infer,
             &self.modules,
@@ -853,7 +854,7 @@ impl BodyLowerer {
             &args,
         )?;
 
-        self.constrain_constructor_arg_shapes(&args);
+        constrain_constructor_arg_shapes(&mut self.session.infer, &args);
         let path = self
             .modules
             .type_decl_path(owner)
@@ -863,78 +864,6 @@ impl BodyLowerer {
             .collect::<Vec<_>>();
         let ret = self.session.infer.alloc_pos(Pos::Con(path, owner_args));
         Ok(self.constructor_function_type(args, ret))
-    }
-
-    fn prepare_constructor_args(
-        &mut self,
-        payload: ConstructorSignaturePayload,
-    ) -> Vec<ConstructorArg> {
-        match payload {
-            ConstructorSignaturePayload::Unit => Vec::new(),
-            ConstructorSignaturePayload::Tuple(items) => items
-                .into_iter()
-                .map(|item| self.prepare_constructor_value_arg(item))
-                .collect(),
-            ConstructorSignaturePayload::Record(fields) => {
-                let record = self.session.infer.fresh_type_var();
-                let fields = fields
-                    .into_iter()
-                    .map(|field| {
-                        let value = self.session.infer.fresh_type_var();
-                        ConstructorRecordField {
-                            name: field.name.0,
-                            value,
-                            signature: field.signature,
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                vec![ConstructorArg::Record {
-                    value: record,
-                    fields,
-                }]
-            }
-        }
-    }
-
-    fn prepare_constructor_value_arg(
-        &mut self,
-        item: ConstructorSignaturePayloadItem,
-    ) -> ConstructorArg {
-        let value = self.session.infer.fresh_type_var();
-        ConstructorArg::Value {
-            value,
-            signature: item.signature,
-        }
-    }
-
-    fn constrain_constructor_arg_shapes(&mut self, args: &[ConstructorArg]) {
-        for arg in args {
-            let ConstructorArg::Record { value, fields } = arg else {
-                continue;
-            };
-            let lower_fields = fields
-                .iter()
-                .map(|field| RecordField {
-                    name: field.name.clone(),
-                    value: self.session.infer.alloc_pos(Pos::Var(field.value)),
-                    optional: false,
-                })
-                .collect();
-            let upper_fields = fields
-                .iter()
-                .map(|field| RecordField {
-                    name: field.name.clone(),
-                    value: self.session.infer.alloc_neg(Neg::Var(field.value)),
-                    optional: false,
-                })
-                .collect();
-            let lower = self.session.infer.alloc_pos(Pos::Record(lower_fields));
-            let upper = self.session.infer.alloc_neg(Neg::Record(upper_fields));
-            let value_upper = self.session.infer.alloc_neg(Neg::Var(*value));
-            let value_lower = self.session.infer.alloc_pos(Pos::Var(*value));
-            self.session.infer.subtype(lower, value_upper);
-            self.session.infer.subtype(value_lower, upper);
-        }
     }
 
     fn constructor_function_type(&mut self, args: Vec<ConstructorArg>, ret: PosId) -> PosId {
@@ -2093,7 +2022,13 @@ fn register_declared_companion_local_methods(session: &mut AnalysisSession, modu
             .into_iter()
             .map(|name| name.0)
             .collect::<Vec<_>>();
-        session.register_local_role_method(scope, role, method.name.0.clone(), method.def);
+        session.register_local_role_method(
+            scope,
+            role,
+            method.name.0.clone(),
+            method.def,
+            modules.role_inputs(method.owner).len(),
+        );
     }
 }
 
@@ -2111,7 +2046,12 @@ fn register_declared_role_methods(session: &mut AnalysisSession, modules: &Modul
             .into_iter()
             .map(|name| name.0)
             .collect::<Vec<_>>();
-        session.register_role_method(role, method.name.0.clone(), method.def);
+        session.register_role_method(
+            role,
+            method.name.0.clone(),
+            method.def,
+            modules.role_inputs(method.owner).len(),
+        );
     }
 }
 
@@ -5375,6 +5315,7 @@ impl<'a> ExprLowerer<'a> {
             SelectionUse {
                 parent: self.parent,
                 method_value,
+                receiver_value: receiver.value,
                 local_method_scope: self.local_method_scope,
             },
         );
@@ -5440,7 +5381,7 @@ impl<'a> ExprLowerer<'a> {
         match part {
             ListLiteralItem::Single(node) => {
                 let value = self.lower_expr(node)?;
-                let singleton = self.list_singleton_callee(item, list_path);
+                let singleton = self.list_singleton_callee(value.value, list_path);
                 Ok(self.make_app(singleton, value))
             }
             ListLiteralItem::Spread(node) => {
@@ -6194,44 +6135,6 @@ enum LambdaScope {
     Anonymous,
 }
 
-enum ConstructorPayload {
-    Unit,
-    Tuple(Vec<ConstructorPayloadItem>),
-    Record(Vec<ConstructorRecordPayloadField>),
-}
-
-impl ConstructorPayload {
-    fn from_struct(node: &Cst) -> Self {
-        let fields = crate::struct_field_nodes(node);
-        payload_from_fields(fields)
-    }
-
-    fn from_enum_variant(node: &Cst) -> Self {
-        let fields = crate::enum_variant_field_nodes(node);
-        if !fields.is_empty() {
-            return payload_from_fields(fields);
-        }
-        let items = crate::enum_variant_direct_type_exprs(node)
-            .into_iter()
-            .map(|ty| ConstructorPayloadItem { ty: Some(ty) })
-            .collect::<Vec<_>>();
-        if items.is_empty() {
-            Self::Unit
-        } else {
-            Self::Tuple(items)
-        }
-    }
-}
-
-struct ConstructorPayloadItem {
-    ty: Option<Cst>,
-}
-
-struct ConstructorRecordPayloadField {
-    name: Name,
-    ty: Option<Cst>,
-}
-
 enum ConstructorSignaturePayload {
     Unit,
     Tuple(Vec<ConstructorSignaturePayloadItem>),
@@ -6272,6 +6175,78 @@ struct ConstructorRecordField {
     signature: Option<NegSignature>,
 }
 
+fn prepare_constructor_args(
+    infer: &mut crate::Arena,
+    payload: ConstructorSignaturePayload,
+) -> Vec<ConstructorArg> {
+    match payload {
+        ConstructorSignaturePayload::Unit => Vec::new(),
+        ConstructorSignaturePayload::Tuple(items) => items
+            .into_iter()
+            .map(|item| prepare_constructor_value_arg(infer, item))
+            .collect(),
+        ConstructorSignaturePayload::Record(fields) => {
+            let record = infer.fresh_type_var();
+            let fields = fields
+                .into_iter()
+                .map(|field| {
+                    let value = infer.fresh_type_var();
+                    ConstructorRecordField {
+                        name: field.name.0,
+                        value,
+                        signature: field.signature,
+                    }
+                })
+                .collect::<Vec<_>>();
+            vec![ConstructorArg::Record {
+                value: record,
+                fields,
+            }]
+        }
+    }
+}
+
+fn prepare_constructor_value_arg(
+    infer: &mut crate::Arena,
+    item: ConstructorSignaturePayloadItem,
+) -> ConstructorArg {
+    let value = infer.fresh_type_var();
+    ConstructorArg::Value {
+        value,
+        signature: item.signature,
+    }
+}
+
+fn constrain_constructor_arg_shapes(infer: &mut crate::Arena, args: &[ConstructorArg]) {
+    for arg in args {
+        let ConstructorArg::Record { value, fields } = arg else {
+            continue;
+        };
+        let lower_fields = fields
+            .iter()
+            .map(|field| RecordField {
+                name: field.name.clone(),
+                value: infer.alloc_pos(Pos::Var(field.value)),
+                optional: false,
+            })
+            .collect();
+        let upper_fields = fields
+            .iter()
+            .map(|field| RecordField {
+                name: field.name.clone(),
+                value: infer.alloc_neg(Neg::Var(field.value)),
+                optional: false,
+            })
+            .collect();
+        let lower = infer.alloc_pos(Pos::Record(lower_fields));
+        let upper = infer.alloc_neg(Neg::Record(upper_fields));
+        let value_upper = infer.alloc_neg(Neg::Var(*value));
+        let value_lower = infer.alloc_pos(Pos::Var(*value));
+        infer.subtype(lower, value_upper);
+        infer.subtype(value_lower, upper);
+    }
+}
+
 fn build_constructor_payload_signatures(
     payload: ConstructorPayload,
     builder: &NegSignatureBuilder,
@@ -6305,33 +6280,6 @@ fn build_constructor_payload_signatures(
             })
             .collect::<Result<Vec<_>, LoweringError>>()
             .map(ConstructorSignaturePayload::Record),
-    }
-}
-
-fn payload_from_fields(fields: Vec<Cst>) -> ConstructorPayload {
-    if fields.is_empty() {
-        return ConstructorPayload::Unit;
-    }
-
-    let mut record = Vec::new();
-    let mut tuple = Vec::new();
-    for field in fields {
-        if let Some(name) = crate::struct_field_name(&field) {
-            record.push(ConstructorRecordPayloadField {
-                name,
-                ty: crate::field_type_expr(&field),
-            });
-        } else {
-            tuple.push(ConstructorPayloadItem {
-                ty: crate::field_type_expr(&field),
-            });
-        }
-    }
-
-    if !record.is_empty() {
-        ConstructorPayload::Record(record)
-    } else {
-        ConstructorPayload::Tuple(tuple)
     }
 }
 
@@ -6370,6 +6318,59 @@ fn connect_constructor_arg_signatures(
             }
         }
     }
+    Ok(())
+}
+
+fn connect_constructor_pattern_arg_signatures(
+    infer: &mut crate::Arena,
+    modules: &ModuleTable,
+    vars: FxHashMap<String, TypeVar>,
+    args: &[ConstructorArg],
+) -> Result<(), LoweringError> {
+    let mut lowerer = SignatureLowerer::with_vars(infer, modules, vars);
+    for arg in args {
+        match arg {
+            ConstructorArg::Value {
+                value,
+                signature: Some(signature),
+            } => {
+                connect_constructor_pattern_value_signature(&mut lowerer, *value, signature)?;
+            }
+            ConstructorArg::Value {
+                signature: None, ..
+            } => {}
+            ConstructorArg::Record { fields, .. } => {
+                for field in fields {
+                    if let Some(signature) = &field.signature {
+                        connect_constructor_pattern_value_signature(
+                            &mut lowerer,
+                            field.value,
+                            signature,
+                        )?;
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn connect_constructor_pattern_value_signature(
+    lowerer: &mut SignatureLowerer<'_>,
+    value: TypeVar,
+    signature: &NegSignature,
+) -> Result<(), LoweringError> {
+    let lower = lowerer
+        .lower_data_pos(signature.as_type())
+        .map_err(|error| LoweringError::SignatureConstraint { error })?;
+    let value_upper = lowerer.alloc_neg(Neg::Var(value));
+    lowerer.infer.subtype(lower, value_upper);
+
+    let value_lower = lowerer.alloc_pos(Pos::Var(value));
+    let upper = lowerer
+        .lower_data_neg(signature.as_type())
+        .map_err(|error| LoweringError::SignatureConstraint { error })?;
+    lowerer.infer.subtype(value_lower, upper);
     Ok(())
 }
 
@@ -10415,6 +10416,90 @@ mod tests {
     }
 
     #[test]
+    fn tuple_impl_member_coalesces_requirement_scaffolding_vars() {
+        let root = parse(concat!(
+            "role Size 'a:\n",
+            "  our x.size: int\n",
+            "impl Size int:\n",
+            "  our x.size = x\n",
+            "impl Size ('a, 'b):\n",
+            "  where 'a: Size\n",
+            "  where 'b: Size\n",
+            "  our value.size = case value:\n",
+            "    (a, b) -> case a.size:\n",
+            "      _ -> b.size\n",
+        ));
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let rendered = output
+            .session
+            .poly
+            .defs
+            .iter()
+            .filter_map(|(_, def_data)| match def_data {
+                Def::Let {
+                    scheme: Some(scheme),
+                    ..
+                } => Some(poly::dump::format_scheme(&output.session.poly.typ, scheme)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            rendered.iter().any(
+                |scheme| scheme == "('a, 'b) -> int where 'b: Size, 'a: Size"
+                    || scheme == "('a, 'b) -> int where 'a: Size, 'b: Size"
+            ),
+            "{rendered:?}"
+        );
+    }
+
+    #[test]
+    fn typeclass_method_receiver_participates_in_selected_method_scheme() {
+        let root = parse("role Ord 'a:\n  our x.le: 'a -> bool\nmy le = \\x -> \\y -> x.le y\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (le, _) = binding_def_and_order(&lower.modules, module, "le");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, le));
+        assert_eq!(rendered, "'a -> 'a -> bool where 'a: Ord");
+    }
+
+    #[test]
+    fn multi_input_role_method_selection_resolves_concrete_demand() {
+        let root = parse(concat!(
+            "role Index 'container 'key:\n",
+            "  type value\n",
+            "  pub container.index: 'key -> value\n",
+            "impl Index int int:\n",
+            "  type value = int\n",
+            "  our c.index i = c\n",
+            "my pick(c: int, i: int) = c.index i\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (pick, _) = binding_def_and_order(&lower.modules, module, "pick");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let rendered =
+            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, pick));
+        // receiver demand は 1 引数 role 限定なので、複数引数 role の selection でも
+        // method instantiation 由来の demand だけが残り、concrete なら discharge される。
+        // 戻り値に残る床下 var の union（'a|…|int）は selection 連鎖の extrude 起因で別件。
+        assert!(
+            !rendered.contains("where") && rendered.starts_with("int -> int ->"),
+            "{rendered}"
+        );
+    }
+
+    #[test]
     fn role_method_signature_is_lowered_as_positive_shape() {
         let root = parse("role Display 'a:\n  our x.display: unit\n");
         let lower = lower_module_map(&root);
@@ -10935,6 +11020,66 @@ mod tests {
 
         assert_eq!(output.session.poly.ref_target(reference), Some(constructor));
         assert_eq!(output.session.poly.ref_target(body_ref), Some(payload));
+    }
+
+    #[test]
+    fn constructor_pattern_payload_flows_from_scrutinee_without_annotation() {
+        let root = parse(concat!(
+            "pub enum opt 'a = none | some 'a\n",
+            "my id_from_some o = case o:\n",
+            "  opt::some x -> x\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (id_from_some, _) = binding_def_and_order(&lower.modules, module, "id_from_some");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert_eq!(output.errors, Vec::new());
+        let rendered =
+            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, id_from_some));
+        assert_eq!(rendered, "opt 'a -> 'a");
+    }
+
+    #[test]
+    fn constructor_pattern_spaced_tuple_group_matches_tuple_payload_fields() {
+        let root = parse(concat!(
+            "pub enum bound = unbounded | included int\n",
+            "pub enum range = within (bound, bound)\n",
+            "my start r = case r:\n",
+            "  range::within (start, _) -> start\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (start, _) = binding_def_and_order(&lower.modules, module, "start");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert_eq!(output.errors, Vec::new());
+        let rendered =
+            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, start));
+        assert_eq!(rendered, "range -> bound");
+    }
+
+    #[test]
+    fn constructor_pattern_payload_participates_in_guard_role_method() {
+        let root = parse_with_junction_std(concat!(
+            "role Ord 'a:\n",
+            "  our x.le: 'a -> bool\n",
+            "pub enum view 'a = empty | leaf 'a\n",
+            "my keep v x = case v:\n",
+            "  view::leaf y if y.le x -> y\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (keep, _) = binding_def_and_order(&lower.modules, module, "keep");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert_eq!(output.errors, Vec::new());
+        let rendered =
+            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, keep));
+        assert_eq!(rendered, "view 'a -> 'a -> 'a where 'a: Ord");
     }
 
     #[test]

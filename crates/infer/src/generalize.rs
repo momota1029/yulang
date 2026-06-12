@@ -80,6 +80,7 @@ pub(crate) fn generalize_prepared_compact_root_with_roles(
     )
 }
 
+#[cfg(test)]
 pub(crate) fn generalize_prepared_compact_root_with_roles_and_simplifications(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
@@ -790,7 +791,7 @@ fn apply_ancestor_simplifications(
     }
 }
 
-fn apply_compact_simplifications_to_root_and_roles(
+pub(crate) fn apply_compact_simplifications_to_root_and_roles(
     root: &mut CompactRoot,
     roles: &mut [CompactRoleConstraint],
     simplifications: &[CompactSimplification],

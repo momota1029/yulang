@@ -122,6 +122,82 @@ pub struct ModuleValueDecl {
     pub def: DefId,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ConstructorDecl {
+    pub owner: TypeDeclId,
+    pub module: ModuleId,
+    pub type_vars: Vec<String>,
+    pub payload: ConstructorPayload,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ConstructorPayload {
+    Unit,
+    Tuple(Vec<ConstructorPayloadItem>),
+    Record(Vec<ConstructorRecordPayloadField>),
+}
+
+impl ConstructorPayload {
+    fn from_struct(node: &Cst) -> Self {
+        let fields = crate::struct_field_nodes(node);
+        payload_from_fields(fields)
+    }
+
+    fn from_enum_variant(node: &Cst) -> Self {
+        let fields = crate::enum_variant_field_nodes(node);
+        if !fields.is_empty() {
+            return payload_from_fields(fields);
+        }
+        let items = crate::enum_variant_direct_type_exprs(node)
+            .into_iter()
+            .map(|ty| ConstructorPayloadItem { ty: Some(ty) })
+            .collect::<Vec<_>>();
+        if items.is_empty() {
+            Self::Unit
+        } else {
+            Self::Tuple(items)
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ConstructorPayloadItem {
+    pub ty: Option<Cst>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ConstructorRecordPayloadField {
+    pub name: Name,
+    pub ty: Option<Cst>,
+}
+
+fn payload_from_fields(fields: Vec<Cst>) -> ConstructorPayload {
+    if fields.is_empty() {
+        return ConstructorPayload::Unit;
+    }
+
+    let mut record = Vec::new();
+    let mut tuple = Vec::new();
+    for field in fields {
+        if let Some(name) = crate::struct_field_name(&field) {
+            record.push(ConstructorRecordPayloadField {
+                name,
+                ty: crate::field_type_expr(&field),
+            });
+        } else {
+            tuple.push(ConstructorPayloadItem {
+                ty: crate::field_type_expr(&field),
+            });
+        }
+    }
+
+    if !record.is_empty() {
+        ConstructorPayload::Record(record)
+    } else {
+        ConstructorPayload::Tuple(tuple)
+    }
+}
+
 /// module 内の型宣言を外へ見せるための summary。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleTypeDecl {
@@ -316,6 +392,7 @@ pub struct ModuleTable {
     act_op_defs: FxHashMap<DefId, ActOperationDef>,
     lazy_ops: FxHashSet<DefId>,
     act_methods: FxHashMap<TypeDeclId, Vec<ActMethodDecl>>,
+    constructors: FxHashMap<DefId, ConstructorDecl>,
     role_inputs: FxHashMap<TypeDeclId, Vec<String>>,
     role_associated: FxHashMap<TypeDeclId, Vec<String>>,
     role_impls: FxHashMap<ModuleId, Vec<RoleImplDecl>>,
@@ -367,6 +444,7 @@ impl ModuleTable {
             act_op_defs: FxHashMap::default(),
             lazy_ops: FxHashSet::default(),
             act_methods: FxHashMap::default(),
+            constructors: FxHashMap::default(),
             role_inputs: FxHashMap::default(),
             role_associated: FxHashMap::default(),
             role_impls: FxHashMap::default(),
@@ -498,6 +576,12 @@ impl ModuleTable {
     }
     pub fn all_act_methods(&self) -> impl Iterator<Item = &ActMethodDecl> {
         self.act_methods.values().flat_map(|methods| methods.iter())
+    }
+    fn insert_constructor(&mut self, def: DefId, constructor: ConstructorDecl) {
+        self.constructors.insert(def, constructor);
+    }
+    pub(crate) fn constructor_by_def(&self, def: DefId) -> Option<&ConstructorDecl> {
+        self.constructors.get(&def)
     }
     fn set_role_inputs(&mut self, id: TypeDeclId, inputs: Vec<String>) {
         self.role_inputs.insert(id, inputs);
@@ -1826,17 +1910,37 @@ impl Lower {
         vis: Vis,
         children: &mut Vec<DefId>,
     ) {
+        let type_vars = type_var_names(node);
         match kind {
             ModuleTypeKind::TypeAlias if type_self_struct_node(node).is_some() => {
                 let def = self.register_synthetic_value(module, name, vis);
                 children.push(def);
                 if let Some(self_struct) = type_self_struct_node(node) {
+                    let payload = ConstructorPayload::from_struct(&self_struct);
+                    self.modules.insert_constructor(
+                        def,
+                        ConstructorDecl {
+                            owner,
+                            module,
+                            type_vars: type_vars.clone(),
+                            payload,
+                        },
+                    );
                     self.register_struct_field_methods(&self_struct, owner, vis);
                 }
             }
             ModuleTypeKind::Struct => {
                 let def = self.register_synthetic_value(module, name, vis);
                 children.push(def);
+                self.modules.insert_constructor(
+                    def,
+                    ConstructorDecl {
+                        owner,
+                        module,
+                        type_vars: type_vars.clone(),
+                        payload: ConstructorPayload::from_struct(node),
+                    },
+                );
                 self.register_struct_field_methods(node, owner, vis);
             }
             ModuleTypeKind::Enum | ModuleTypeKind::Error => {
@@ -1851,6 +1955,15 @@ impl Lower {
                         continue;
                     };
                     let variant_def = self.register_synthetic_value(companion, variant_name, vis);
+                    self.modules.insert_constructor(
+                        variant_def,
+                        ConstructorDecl {
+                            owner,
+                            module: companion,
+                            type_vars: type_vars.clone(),
+                            payload: ConstructorPayload::from_enum_variant(&variant),
+                        },
+                    );
                     companion_children.push(variant_def);
                 }
                 self.append_module_children(def, companion_children);

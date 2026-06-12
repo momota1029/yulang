@@ -9,8 +9,9 @@ use crate::compact::{
     CompactBounds, CompactCon, CompactFun, CompactPolyVariant, CompactRecord, CompactRecordSpread,
     CompactRoleArg, CompactRoleAssociatedType, CompactRoleConstraint, CompactRoot, CompactRow,
     CompactTuple, CompactType, compact_role_constraint, merge_compact_types,
+    simplify_compact_root_with_roles_and_non_generic,
 };
-use crate::constraints::ConstraintMachine;
+use crate::constraints::{ConstraintMachine, TypeLevel};
 use crate::roles::{RoleConstraint, RoleImplCandidate, RoleImplTable};
 use poly::expr::SelectId;
 use poly::types::{BuiltinType, RecordField, TypeVar};
@@ -181,7 +182,7 @@ fn resolve_role_candidate(
         return None;
     }
     let raw_candidate = candidate;
-    let candidate = compact_role_constraint(machine, &raw_candidate.as_constraint());
+    let candidate = compact_role_impl_candidate(machine, raw_candidate);
     let mut subst = TypeSubst::default();
     for (demand, candidate) in constraint.inputs.iter().zip(&candidate.inputs) {
         let demand = role_arg_concrete_type(demand, main_polarity, method_taint)?;
@@ -214,6 +215,22 @@ fn resolve_role_candidate(
         solved_prerequisites: prerequisites.solved,
         residual_prerequisites: prerequisites.residuals,
     })
+}
+
+fn compact_role_impl_candidate(
+    machine: &ConstraintMachine,
+    candidate: &RoleImplCandidate,
+) -> CompactRoleConstraint {
+    let mut root = CompactRoot::default();
+    let mut roles = vec![compact_role_constraint(machine, &candidate.as_constraint())];
+    simplify_compact_root_with_roles_and_non_generic(
+        machine,
+        TypeLevel::root(),
+        &mut root,
+        &mut roles,
+        &FxHashSet::default(),
+    );
+    roles.pop().expect("candidate role should remain present")
 }
 
 fn resolve_candidate_prerequisites(

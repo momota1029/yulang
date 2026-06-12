@@ -17,20 +17,21 @@ use crate::arena::Arena as InferArena;
 use crate::casts::CastTable;
 use crate::compact::{
     CompactBounds, CompactCastApplication, CompactCastKey, CompactRoleArg, CompactRoleConstraint,
-    CompactSimplification, CompactType, compact_reachable_role_constraints,
-    compact_role_constraint, compact_type_var, finalize_compact_type_to_neg_constraint,
-    finalize_compact_type_to_pos_constraint, find_next_compact_cast, normalize_compact_casts,
+    CompactSimplification, CompactType, coalesce_floor_interval_equalities,
+    compact_reachable_role_constraints, compact_role_constraint, compact_type_var,
+    finalize_compact_type_to_neg_constraint, finalize_compact_type_to_pos_constraint,
+    find_next_compact_cast, normalize_compact_casts, normalize_var_substitutions,
     simplify_compact_root_with_roles_and_non_generic,
 };
 use crate::constraints::{ConstraintEvent, ConstraintWeights, TypeLevel};
 use crate::generalize::{
-    GeneralizedCompactRoot, finalize_generalized_compact_root_with_ancestors,
-    generalize_prepared_compact_root_with_roles_and_simplifications,
+    GeneralizedCompactRoot, apply_compact_simplifications_to_root_and_roles,
+    finalize_generalized_compact_root_with_ancestors, generalize_prepared_compact_root_with_roles,
 };
 use crate::instantiate::{instantiate_scheme, instantiate_scheme_with_roles};
 use crate::methods::{
-    CompanionMethodTable, EffectMethodCandidate, EffectMethodTable, RoleMethodTable,
-    TypeMethodTable,
+    CompanionMethodTable, EffectMethodCandidate, EffectMethodTable, RoleMethodCandidate,
+    RoleMethodTable, TypeMethodTable,
 };
 use crate::role_solve::{
     RoleResolution, RoleResolutionKey, coalesce_role_constraints, resolve_role_constraints,
@@ -143,8 +144,9 @@ impl AnalysisSession {
         role: impl Into<Vec<String>>,
         method: impl Into<String>,
         def: DefId,
+        input_count: usize,
     ) {
-        self.role_methods.insert(role, method, def);
+        self.role_methods.insert(role, method, def, input_count);
     }
 
     pub fn register_role_impl_member(&mut self, member: DefId, impl_def: DefId) {
@@ -220,9 +222,10 @@ impl AnalysisSession {
         role: impl Into<Vec<String>>,
         method: impl Into<String>,
         def: DefId,
+        input_count: usize,
     ) {
         self.local_methods
-            .insert_role_method(scope, role, method, def);
+            .insert_role_method(scope, role, method, def, input_count);
     }
 
     pub fn work(&self) -> &VecDeque<AnalysisWork> {
@@ -352,7 +355,17 @@ impl AnalysisSession {
                             use_value: use_site.method_value,
                         });
                     }
-                    SelectionTarget::TypeclassMethod { member } => {
+                    SelectionTarget::TypeclassMethod {
+                        receiver_role,
+                        member,
+                    } => {
+                        if let Some(role) = receiver_role {
+                            self.insert_selection_receiver_role_constraint(
+                                use_site.parent,
+                                role,
+                                use_site.receiver_value,
+                            );
+                        }
                         self.scc.use_resolved(SccInput::UseResolved {
                             parent: use_site.parent,
                             target: member,
@@ -851,6 +864,7 @@ impl AnalysisSession {
             match self.local_methods.role_candidates(scope, name) {
                 [candidate] => {
                     return Some(SelectionTarget::TypeclassMethod {
+                        receiver_role: Self::receiver_demand_role(candidate),
                         member: candidate.def,
                     });
                 }
@@ -859,6 +873,7 @@ impl AnalysisSession {
         }
         match self.role_methods.candidates(name) {
             [candidate] => Some(SelectionTarget::TypeclassMethod {
+                receiver_role: Self::receiver_demand_role(candidate),
                 member: candidate.def,
             }),
             [] | [_, ..] => None,
@@ -869,6 +884,10 @@ impl AnalysisSession {
         self.selections
             .get(select_id)
             .and_then(|use_site| use_site.local_method_scope)
+    }
+
+    fn receiver_demand_role(candidate: &RoleMethodCandidate) -> Option<Vec<String>> {
+        (candidate.input_count == 1).then(|| candidate.role.clone())
     }
 
     fn ref_payload_probe(&self, args: &[poly::types::NeuId]) -> Option<RefPayloadProbe> {
@@ -942,6 +961,24 @@ impl AnalysisSession {
         let record = self.infer.alloc_neg(Neg::Record(vec![field]));
         self.infer.subtype(receiver, record);
         self.infer.subtype(receiver_effect, result_effect);
+    }
+
+    fn insert_selection_receiver_role_constraint(
+        &mut self,
+        owner: DefId,
+        role: Vec<String>,
+        receiver: TypeVar,
+    ) {
+        let lower = self.infer.alloc_pos(Pos::Var(receiver));
+        let upper = self.infer.alloc_neg(Neg::Var(receiver));
+        self.roles.insert(
+            owner,
+            RoleConstraint {
+                role,
+                inputs: vec![RoleConstraintArg { lower, upper }],
+                associated: Vec::new(),
+            },
+        );
     }
 
     fn route_scc_events(&mut self) {
@@ -1235,10 +1272,36 @@ impl AnalysisSession {
             break;
         }
 
-        let (_, role_predicates) = self.simplified_reachable_role_constraints(def, &compact);
-        let role_predicates = role_predicates
+        let applied_role_candidates = applied_roles
+            .iter()
+            .map(|key| key.candidate.clone())
+            .collect::<FxHashSet<_>>();
+        // ループ中に適用した demand は簡約済みビューの表記なので、生の述語と一致しない
+        // ことがある。再判定はループ末尾と同じ「主型＋全 role」一括簡約ビューで行う。
+        // role 単独で簡約すると共起が減って併合が強く効きすぎ、ループでは適用されなかった
+        // 解決をここで初めて作ってしまう（制約を注入せずに述語だけ消える）恐れがある。
+        let coalesced_roles = coalesce_role_constraints(compact_reachable_role_constraints(
+            self.infer.constraints(),
+            &compact,
+            self.roles.for_owner(def),
+        ));
+        let applied_in_simplified_view =
+            if applied_role_candidates.is_empty() && applied_role_demands.is_empty() {
+                vec![false; coalesced_roles.len()]
+            } else {
+                self.simplified_demands_already_applied(
+                    def,
+                    &compact,
+                    &applied_role_candidates,
+                    &applied_role_demands,
+                )
+            };
+        let mut role_predicates: Vec<CompactRoleConstraint> = coalesced_roles
             .into_iter()
-            .filter(|role| !applied_role_demands.contains(role))
+            .zip(applied_in_simplified_view)
+            .filter_map(|(role, applied)| {
+                (!applied && !applied_role_demands.contains(&role)).then_some(role)
+            })
             .collect();
 
         let simplifications = self
@@ -1246,15 +1309,33 @@ impl AnalysisSession {
             .get(&def)
             .cloned()
             .unwrap_or_default();
+        apply_compact_simplifications_to_root_and_roles(
+            &mut compact,
+            &mut role_predicates,
+            &simplifications,
+        );
+        // simplify の level 保護（boundary.child()）が触れない床下の変数は、不変区間の
+        // 両側出現で等値が確定しているものだけ、世代化の確定直前にここで併合する。
+        let floor_substitutions = coalesce_floor_interval_equalities(
+            self.infer.constraints(),
+            TypeLevel::root(),
+            &mut compact,
+            &mut role_predicates,
+        );
 
-        generalize_prepared_compact_root_with_roles_and_simplifications(
+        let mut generalized = generalize_prepared_compact_root_with_roles(
             self.infer.constraints(),
             TypeLevel::root(),
             compact,
             role_predicates,
-            &simplifications,
             &FxHashSet::default(),
-        )
+        );
+        if !floor_substitutions.is_empty() {
+            let mut combined = floor_substitutions;
+            combined.extend(generalized.substitutions);
+            generalized.substitutions = normalize_var_substitutions(combined);
+        }
+        generalized
     }
 
     fn simplified_reachable_role_constraints(
@@ -1279,6 +1360,41 @@ impl AnalysisSession {
             &FxHashSet::default(),
         );
         (role_compact, roles)
+    }
+
+    /// 世代化の最終出力から落としてよい残置述語を、coalesce 済み role と同じ並びの
+    /// bool 列で返す。true は簡約済み全体ビューで「適用済み demand と一致する」か
+    /// 「適用済み impl 候補へ一意に解決する」。
+    fn simplified_demands_already_applied(
+        &self,
+        def: DefId,
+        compact: &crate::compact::CompactRoot,
+        applied_candidates: &FxHashSet<CompactRoleConstraint>,
+        applied_demands: &FxHashSet<CompactRoleConstraint>,
+    ) -> Vec<bool> {
+        let (role_compact, simplified_roles) =
+            self.simplified_reachable_role_constraints(def, compact);
+        if applied_candidates.is_empty() {
+            return simplified_roles
+                .iter()
+                .map(|role| applied_demands.contains(role))
+                .collect();
+        }
+        let resolved_demands = resolve_role_constraints(
+            self.infer.constraints(),
+            &role_compact,
+            &simplified_roles,
+            &self.role_impls,
+            &FxHashSet::default(),
+        )
+        .into_iter()
+        .filter(|resolution| applied_candidates.contains(&resolution.candidate))
+        .map(|resolution| resolution.demand)
+        .collect::<FxHashSet<_>>();
+        simplified_roles
+            .iter()
+            .map(|role| applied_demands.contains(role) || resolved_demands.contains(role))
+            .collect()
     }
 
     fn collect_resolved_role_demands(
@@ -1543,25 +1659,37 @@ pub enum AnalysisWork {
     Scc(SccInput),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// selection が何として解けたか。
 ///
 /// `RecordField` は値の projection だけなので SCC edge を作らない。
 /// `Method` / `TypeclassMethod` は hidden use なので、method def を parent def からの依存として SCC に渡す。
 pub enum SelectionTarget {
     RecordField,
-    Method { def: DefId },
-    EffectMethod { def: DefId },
-    TypeclassMethod { member: DefId },
+    Method {
+        def: DefId,
+    },
+    EffectMethod {
+        def: DefId,
+    },
+    TypeclassMethod {
+        /// receiver demand を張る role。複数引数の role では、receiver 以外の位置を
+        /// 共有できない demand は merge も解決もできず残骸になるため `None`
+        /// （method scheme の instantiation が作る demand に receiver が下界として流れる）。
+        receiver_role: Option<Vec<String>>,
+        member: DefId,
+    },
 }
 
 impl SelectionTarget {
-    pub fn resolution(self) -> SelectResolution {
+    pub fn resolution(&self) -> SelectResolution {
         match self {
             Self::RecordField => SelectResolution::RecordField,
-            Self::Method { def } => SelectResolution::Method { def },
-            Self::EffectMethod { def } => SelectResolution::Method { def },
-            Self::TypeclassMethod { member } => SelectResolution::TypeclassMethod { member },
+            Self::Method { def } => SelectResolution::Method { def: *def },
+            Self::EffectMethod { def } => SelectResolution::Method { def: *def },
+            Self::TypeclassMethod { member, .. } => {
+                SelectResolution::TypeclassMethod { member: *member }
+            }
         }
     }
 }
@@ -1960,6 +2088,7 @@ mod tests {
             SelectionUse {
                 parent,
                 method_value,
+                receiver_value: receiver,
                 local_method_scope: None,
             },
         );
@@ -2523,6 +2652,59 @@ mod tests {
                 session.infer.constraints().types().pos(bound.pos),
                 Pos::Var(var) if *var == receiver_effect
             )
+        }));
+    }
+
+    #[test]
+    fn typeclass_selection_fallback_inserts_receiver_role_constraint() {
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let select = session.poly.add_select("le");
+        let parent = DefId(1);
+        let method = DefId(2);
+        let receiver = TypeVar(3);
+        let method_value = TypeVar(4);
+        let receiver_effect = TypeVar(5);
+        let result = TypeVar(6);
+        let result_effect = TypeVar(7);
+        let role = vec!["Ord".to_string()];
+        register_test_selection_use(
+            &mut session,
+            select,
+            parent,
+            method_value,
+            receiver,
+            receiver_effect,
+            result,
+            result_effect,
+        );
+        session.role_methods.insert(role.clone(), "le", method, 1);
+
+        session.resolve_unresolved_selections_as_record_fields();
+
+        assert_eq!(
+            session.poly.select(select).resolution,
+            Some(SelectResolution::TypeclassMethod { member: method })
+        );
+        let roles = session.roles.for_owner(parent);
+        assert!(roles.iter().any(|constraint| {
+            constraint.role == role
+                && constraint.associated.is_empty()
+                && matches!(
+                    session
+                        .infer
+                        .constraints()
+                        .types()
+                        .pos(constraint.inputs[0].lower),
+                    Pos::Var(var) if *var == receiver
+                )
+                && matches!(
+                    session
+                        .infer
+                        .constraints()
+                        .types()
+                        .neg(constraint.inputs[0].upper),
+                    Neg::Var(var) if *var == receiver
+                )
         }));
     }
 
@@ -3192,6 +3374,93 @@ mod tests {
     }
 
     #[test]
+    fn role_prepass_resolves_unary_con_candidate_with_positive_extra_outputs() {
+        let role = vec!["Add".to_string()];
+        let list_path = vec!["list".to_string()];
+        let owner = DefId(0);
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let root = session.infer.fresh_type_var();
+        let first_extra = session.infer.fresh_type_var();
+        let second_extra = session.infer.fresh_type_var();
+        let payload = session.infer.fresh_type_var();
+        let lower_payload = session.infer.fresh_type_var();
+        let upper_payload = session.infer.fresh_type_var();
+        let candidate_item = session.infer.fresh_type_var();
+        let candidate_extra = session.infer.fresh_type_var();
+
+        let payload_lower = session.infer.alloc_pos(Pos::Var(lower_payload));
+        let payload_upper = session.infer.alloc_neg(Neg::Var(upper_payload));
+        let payload = session
+            .infer
+            .alloc_neu(Neu::Bounds(payload_lower, payload, payload_upper));
+        let list_lower = session
+            .infer
+            .alloc_pos(Pos::Con(list_path.clone(), vec![payload]));
+        let first_extra_lower = session.infer.alloc_pos(Pos::Var(first_extra));
+        let second_extra_lower = session.infer.alloc_pos(Pos::Var(second_extra));
+        let rest_lower = session
+            .infer
+            .alloc_pos(Pos::Union(second_extra_lower, list_lower));
+        let lower = session
+            .infer
+            .alloc_pos(Pos::Union(first_extra_lower, rest_lower));
+        let first_extra_upper = session.infer.alloc_neg(Neg::Var(first_extra));
+        let second_extra_upper = session.infer.alloc_neg(Neg::Var(second_extra));
+        let upper = session
+            .infer
+            .alloc_neg(Neg::Intersection(first_extra_upper, second_extra_upper));
+        session.roles.insert(
+            owner,
+            RoleConstraint {
+                role: role.clone(),
+                inputs: vec![RoleConstraintArg { lower, upper }],
+                associated: Vec::new(),
+            },
+        );
+        session.role_impls.insert(RoleImplCandidate {
+            impl_def: None,
+            role: role.clone(),
+            inputs: vec![role_unary_con_var_and_extra_arg(
+                &mut session.infer,
+                list_path.clone(),
+                candidate_item,
+                candidate_extra,
+            )],
+            associated: Vec::new(),
+            prerequisites: Vec::new(),
+        });
+
+        let first_output_var = session.infer.alloc_pos(Pos::Var(first_extra));
+        let first_output_list = session
+            .infer
+            .alloc_pos(Pos::Con(list_path.clone(), vec![payload]));
+        let first_output = session
+            .infer
+            .alloc_pos(Pos::Union(first_output_var, first_output_list));
+        let second_output_var = session.infer.alloc_pos(Pos::Var(second_extra));
+        let second_output_list = session.infer.alloc_pos(Pos::Con(list_path, vec![payload]));
+        let second_output = session
+            .infer
+            .alloc_pos(Pos::Union(second_output_var, second_output_list));
+        let root_lower = session
+            .infer
+            .alloc_pos(Pos::Tuple(vec![first_output, second_output]));
+        let root_upper = session.infer.alloc_neg(Neg::Var(root));
+        session.infer.subtype(root_lower, root_upper);
+
+        let generalized = session.generalize_root_with_prepasses(owner, root);
+
+        assert!(
+            generalized
+                .role_predicates
+                .iter()
+                .all(|predicate| predicate.role != role),
+            "{:?}",
+            generalized.role_predicates
+        );
+    }
+
+    #[test]
     fn role_prepass_does_not_resolve_left_concrete_when_main_var_is_negative() {
         let role = vec!["Add".to_string()];
         let int_path = vec!["int".to_string()];
@@ -3567,6 +3836,25 @@ mod tests {
     ) -> RoleConstraintArg {
         let lower = infer.alloc_pos(Pos::Var(item));
         let upper = infer.alloc_neg(Neg::Var(item));
+        let item = infer.alloc_neu(Neu::Bounds(lower, item, upper));
+        RoleConstraintArg {
+            lower: infer.alloc_pos(Pos::Con(path.clone(), vec![item])),
+            upper: infer.alloc_neg(Neg::Con(path, vec![item])),
+        }
+    }
+
+    fn role_unary_con_var_and_extra_arg(
+        infer: &mut crate::arena::Arena,
+        path: Vec<String>,
+        item: TypeVar,
+        extra: TypeVar,
+    ) -> RoleConstraintArg {
+        let item_lower = infer.alloc_pos(Pos::Var(item));
+        let extra_lower = infer.alloc_pos(Pos::Var(extra));
+        let lower = infer.alloc_pos(Pos::Union(item_lower, extra_lower));
+        let item_upper = infer.alloc_neg(Neg::Var(item));
+        let extra_upper = infer.alloc_neg(Neg::Var(extra));
+        let upper = infer.alloc_neg(Neg::Intersection(item_upper, extra_upper));
         let item = infer.alloc_neu(Neu::Bounds(lower, item, upper));
         RoleConstraintArg {
             lower: infer.alloc_pos(Pos::Con(path.clone(), vec![item])),
