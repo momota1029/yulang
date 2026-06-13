@@ -26,6 +26,14 @@ pub(crate) fn control_flow_loop_for_in_value() -> Vec<String> {
     path(&["std", "control", "flow", "loop", "for_in"])
 }
 
+pub(crate) fn control_flow_label_loop_for_in_value() -> Vec<String> {
+    path(&["std", "control", "flow", "label_loop", "for_in"])
+}
+
+pub(crate) fn text_str_concat_value() -> Vec<String> {
+    path(&["std", "text", "str", "concat"])
+}
+
 pub(crate) fn control_var_var_act() -> Vec<String> {
     path(&["std", "control", "var", "var"])
 }

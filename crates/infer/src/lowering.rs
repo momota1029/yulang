@@ -4659,11 +4659,14 @@ impl<'a> ExprLowerer<'a> {
     }
 
     fn lower_for_stmt(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
-        if for_label(node).is_some() {
-            return Err(LoweringError::UnsupportedSyntax {
-                kind: SyntaxKind::ForLabel,
-            });
-        }
+        let label = for_label(node)
+            .map(|label| {
+                for_label_name(&label).ok_or(LoweringError::UnsupportedSyntax {
+                    kind: SyntaxKind::ForLabel,
+                })
+            })
+            .transpose()?;
+        let has_label = label.is_some();
         let iter_node = for_iter_expr(node).ok_or(LoweringError::UnsupportedSyntax {
             kind: SyntaxKind::ForHeader,
         })?;
@@ -4683,18 +4686,85 @@ impl<'a> ExprLowerer<'a> {
             &self.type_var_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
-        let body = self.lower_lambda_params(
-            &[pattern],
-            &body,
-            LambdaScope::Anonymous,
-            &mut ann_builder,
-            &mut ann_solver_vars,
-            None,
-            None,
-        )?;
-        let for_in = self.lower_std_value_ref(crate::std_paths::control_flow_loop_for_in_value())?;
+        let body = match label {
+            Some(label) => self.lower_labeled_for_body(
+                label,
+                pattern,
+                &body,
+                &mut ann_builder,
+                &mut ann_solver_vars,
+            )?,
+            None => self.lower_lambda_params(
+                &[pattern],
+                &body,
+                LambdaScope::Anonymous,
+                &mut ann_builder,
+                &mut ann_solver_vars,
+                None,
+                None,
+            )?,
+        };
+        let for_in = if has_label {
+            self.lower_std_value_ref(crate::std_paths::control_flow_label_loop_for_in_value())?
+        } else {
+            self.lower_std_value_ref(crate::std_paths::control_flow_loop_for_in_value())?
+        };
         let applied_iter = self.make_app(for_in, iter);
         Ok(self.make_app(applied_iter, body))
+    }
+
+    fn lower_labeled_for_body(
+        &mut self,
+        label: Name,
+        item_pattern: Cst,
+        body: &Cst,
+        ann_builder: &mut AnnTypeBuilder,
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<Computation, LoweringError> {
+        let label_value = self.fresh_type_var();
+        let before_locals = self.locals.len();
+        let pat =
+            self.bind_pattern_local(label, label_value, None, LocalCallReturnEffect::Annotated);
+
+        self.function_frames
+            .push(FunctionPredicateFrame::new(LambdaScope::Anonymous));
+        let previous_level = self.session.infer.enter_child_level();
+        let body_result = self.lower_lambda_params(
+            &[item_pattern],
+            body,
+            LambdaScope::Anonymous,
+            ann_builder,
+            ann_solver_vars,
+            None,
+            None,
+        );
+        self.session.infer.restore_level(previous_level);
+        let frame = self
+            .function_frames
+            .pop()
+            .expect("labeled for lambda predicate frame should be balanced");
+        self.locals.truncate(before_locals);
+        let body = body_result?;
+
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(label_value));
+        let arg_eff = self.never_neg();
+        let predicate_subtracts =
+            self.lambda_predicate_subtracts(LambdaScope::Anonymous, Vec::new(), frame);
+        let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+
+        let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
+        Ok(Computation::value(expr, value, effect))
     }
 
     fn lower_local_binding_stmt(&mut self, node: &Cst) -> Result<LoweredLocalStmt, LoweringError> {
@@ -5063,6 +5133,48 @@ impl<'a> ExprLowerer<'a> {
     }
 
     fn lower_string_lit(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+        if node
+            .children()
+            .all(|child| child.kind() != SyntaxKind::StringInterp)
+        {
+            return self.lower_plain_string_lit(node);
+        }
+
+        self.lower_string_lit_parts(string_lit_parts(node)?)
+    }
+
+    fn lower_string_lit_parts(
+        &mut self,
+        parts: Vec<StringLitPart>,
+    ) -> Result<Computation, LoweringError> {
+        let mut acc = None;
+        for part in parts {
+            let part = match part {
+                StringLitPart::Text(text) => self.string_value(text),
+                StringLitPart::Interp(expr) => {
+                    let value = self.lower_expr(&expr)?;
+                    self.lower_synthetic_selection(value, "show".to_string())
+                }
+            };
+            acc = Some(match acc {
+                Some(left) => self.concat_string_values(left, part)?,
+                None => part,
+            });
+        }
+        Ok(acc.unwrap_or_else(|| self.string_value(String::new())))
+    }
+
+    fn concat_string_values(
+        &mut self,
+        left: Computation,
+        right: Computation,
+    ) -> Result<Computation, LoweringError> {
+        let concat = self.lower_std_value_ref(crate::std_paths::text_str_concat_value())?;
+        let partial = self.make_app(concat, left);
+        Ok(self.make_app(partial, right))
+    }
+
+    fn lower_plain_string_lit(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
         let text = plain_string_lit_text(node)?;
         Ok(self.string_value(text))
     }
@@ -7017,6 +7129,11 @@ struct PipeArg {
     expr: Computation,
 }
 
+enum StringLitPart {
+    Text(String),
+    Interp(Cst),
+}
+
 enum RuleLitPart {
     Token(String),
     Parser(Cst),
@@ -7672,6 +7789,13 @@ fn for_label(node: &Cst) -> Option<Cst> {
         .find(|child| child.kind() == SyntaxKind::ForLabel)
 }
 
+fn for_label_name(node: &Cst) -> Option<Name> {
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::SigilIdent)
+        .map(|token| Name(token.text().to_string()))
+}
+
 fn for_pattern(node: &Cst) -> Option<Cst> {
     let header = node
         .children()
@@ -7889,6 +8013,70 @@ fn plain_string_lit_text(node: &Cst) -> Result<String, LoweringError> {
         }
     }
     Ok(text)
+}
+
+fn string_lit_parts(node: &Cst) -> Result<Vec<StringLitPart>, LoweringError> {
+    let mut parts = Vec::new();
+    let mut tokens = node.children_with_tokens().peekable();
+    while let Some(item) = tokens.next() {
+        if item_is_trivia(&item) {
+            continue;
+        }
+        match item {
+            NodeOrToken::Token(token) => match token.kind() {
+                SyntaxKind::StringText => {
+                    push_string_lit_text_part(&mut parts, token.text().to_string());
+                }
+                SyntaxKind::StringEscapeLead => {
+                    push_string_lit_text_part(&mut parts, collect_string_escape_text(&mut tokens));
+                }
+                SyntaxKind::StringStart | SyntaxKind::StringEnd => {}
+                _ => return Err(LoweringError::UnsupportedSyntax { kind: token.kind() }),
+            },
+            NodeOrToken::Node(child) if child.kind() == SyntaxKind::StringInterp => {
+                parts.push(string_interp_part(&child)?);
+            }
+            NodeOrToken::Node(child) => {
+                return Err(LoweringError::UnsupportedSyntax { kind: child.kind() });
+            }
+        }
+    }
+    Ok(parts)
+}
+
+fn string_interp_part(node: &Cst) -> Result<StringLitPart, LoweringError> {
+    if node
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .any(|token| token.kind() == SyntaxKind::StringInterpFormatText)
+    {
+        return Err(LoweringError::UnsupportedSyntax {
+            kind: SyntaxKind::StringInterpFormatText,
+        });
+    }
+    let expr = string_interp_body_expr(node).ok_or(LoweringError::UnsupportedSyntax {
+        kind: SyntaxKind::StringInterp,
+    })?;
+    Ok(StringLitPart::Interp(expr))
+}
+
+fn string_interp_body_expr(node: &Cst) -> Option<Cst> {
+    node.children().find(|child| {
+        matches!(
+            child.kind(),
+            SyntaxKind::Expr | SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+        )
+    })
+}
+
+fn push_string_lit_text_part(parts: &mut Vec<StringLitPart>, text: String) {
+    if text.is_empty() {
+        return;
+    }
+    match parts.last_mut() {
+        Some(StringLitPart::Text(existing)) => existing.push_str(&text),
+        _ => parts.push(StringLitPart::Text(text)),
+    }
 }
 
 fn collect_string_escape_text(
@@ -9451,6 +9639,29 @@ mod tests {
         ))
     }
 
+    fn parse_with_flow_loop_and_label_std(src: &str) -> Cst {
+        parse(&format!(
+            concat!(
+                "mod std:\n",
+                "  pub mod control:\n",
+                "    pub mod flow:\n",
+                "      pub act loop:\n",
+                "        pub for_in xs f = f xs\n",
+                "      pub act label_loop:\n",
+                "        pub label = 0\n",
+                "        pub for_in xs f = f label xs\n",
+                "{}"
+            ),
+            src
+        ))
+    }
+
+    fn parse_with_text_str_std(src: &str) -> Cst {
+        parse(&format!(
+            "mod std:\n  pub mod text:\n    pub mod str:\n      pub concat a b = a\n{src}"
+        ))
+    }
+
     fn binding_expr(root: &Cst, name: &str) -> Cst {
         binding_node(root, name)
             .and_then(|binding| binding_body_expr(&binding))
@@ -9512,6 +9723,26 @@ mod tests {
         modules
             .value_path_at(modules.root_id(), &path, ModuleOrder::from_index(u32::MAX))
             .expect("std control flow loop for_in")
+    }
+
+    fn control_flow_label_loop_for_in_def(modules: &ModuleTable) -> DefId {
+        let path = crate::std_paths::control_flow_label_loop_for_in_value()
+            .into_iter()
+            .map(Name)
+            .collect::<Vec<_>>();
+        modules
+            .value_path_at(modules.root_id(), &path, ModuleOrder::from_index(u32::MAX))
+            .expect("std control flow label_loop for_in")
+    }
+
+    fn text_str_concat_def(modules: &ModuleTable) -> DefId {
+        let path = crate::std_paths::text_str_concat_value()
+            .into_iter()
+            .map(Name)
+            .collect::<Vec<_>>();
+        modules
+            .value_path_at(modules.root_id(), &path, ModuleOrder::from_index(u32::MAX))
+            .expect("std text str concat")
     }
 
     fn assert_junction_app(session: &AnalysisSession, expr: ExprId, junction: DefId) -> ExprId {
@@ -10929,23 +11160,61 @@ mod tests {
     }
 
     #[test]
-    fn labeled_for_stmt_reports_label_unsupported() {
-        let root = parse_with_flow_loop_std("my xs = 1\npub main = { for 'outer x in xs: x }\n");
+    fn labeled_for_stmt_lowers_to_std_label_loop_for_in() {
+        let root = parse_with_flow_loop_and_label_std(
+            "my xs = 1\npub main = { for 'outer x in xs: 'outer }\n",
+        );
         let lower = lower_module_map(&root);
+        let for_in = control_flow_label_loop_for_in_def(&lower.modules);
+        let module = lower.modules.root_id();
+        let xs = lower.modules.value_decls(module, &Name("xs".into()))[0].def;
+        let main = lower.modules.value_decls(module, &Name("main".into()))[0].def;
 
         let output = lower_binding_bodies(&root, lower);
 
-        assert!(output.errors.iter().any(|error| {
-            matches!(
-                error,
-                BodyLoweringError::Expr {
-                    error: LoweringError::UnsupportedSyntax {
-                        kind: SyntaxKind::ForLabel
-                    },
-                    ..
-                }
-            )
-        }));
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let (applied_iter, label_lambda) =
+            match output.session.poly.expr(binding_body_id(&output, main)) {
+                Expr::App(callee, arg) => (*callee, *arg),
+                _ => panic!("expected label_loop for_in body application"),
+            };
+        let (for_in_ref, iter_arg) = match output.session.poly.expr(applied_iter) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected label_loop for_in iterator application"),
+        };
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, for_in_ref)),
+            Some(for_in)
+        );
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, iter_arg)),
+            Some(xs)
+        );
+        let (label_pat, item_lambda) = match output.session.poly.expr(label_lambda) {
+            Expr::Lambda(pat, body) => (*pat, *body),
+            _ => panic!("expected label lambda"),
+        };
+        let label = match output.session.poly.pat(label_pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected label param"),
+        };
+        let item_body = match output.session.poly.expr(item_lambda) {
+            Expr::Lambda(_, body) => *body,
+            _ => panic!("expected item lambda"),
+        };
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, item_body)),
+            Some(label)
+        );
     }
 
     #[test]
@@ -11048,6 +11317,94 @@ mod tests {
             Expr::Lit(Lit::Str(text)) if text == "a\n"
         ));
         assert_var_has_lower_con_path(&session, computation.value, &["std", "text", "str", "str"]);
+    }
+
+    #[test]
+    fn string_interpolation_lowers_to_show_and_concat() {
+        let root = parse_with_text_str_std("my x = 1\nmy text = \"hello %{x}\"\n");
+        let lower = lower_module_map(&root);
+        let concat = text_str_concat_def(&lower.modules);
+        let module = lower.modules.root_id();
+        let x = lower.modules.value_decls(module, &Name("x".into()))[0].def;
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "text");
+        let expr = binding_expr(&root, "text");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+        session.drain_work();
+
+        let (concat_partial, interpolation) = match session.poly.expr(computation.expr) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected concat application"),
+        };
+        let (concat_ref, text) = match session.poly.expr(concat_partial) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected concat partial application"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, concat_ref)),
+            Some(concat)
+        );
+        assert!(matches!(
+            session.poly.expr(text),
+            Expr::Lit(Lit::Str(text)) if text == "hello "
+        ));
+        let (receiver, show) = match session.poly.expr(interpolation) {
+            Expr::Select(receiver, select) => (*receiver, *select),
+            _ => panic!("expected interpolation show selection"),
+        };
+        assert_eq!(session.poly.select(show).name, "show");
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, receiver)),
+            Some(x)
+        );
+    }
+
+    #[test]
+    fn string_interpolation_lowers_statement_block_body() {
+        let root = parse("my text = \"%{my x = 41; x}\"\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "text");
+        let expr = binding_expr(&root, "text");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        let (receiver, show) = match session.poly.expr(computation.expr) {
+            Expr::Select(receiver, select) => (*receiver, *select),
+            _ => panic!("expected interpolation show selection"),
+        };
+        assert_eq!(session.poly.select(show).name, "show");
+        assert!(matches!(session.poly.expr(receiver), Expr::Block(..)));
+    }
+
+    #[test]
+    fn string_interpolation_format_text_reports_unsupported() {
+        let root = parse("my n = 1\nmy text = \"%04{n}\"\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "text");
+        let expr = binding_expr(&root, "text");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let error = match ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+        {
+            Ok(_) => panic!("expected string format interpolation to be unsupported"),
+            Err(error) => error,
+        };
+
+        assert!(matches!(
+            error,
+            LoweringError::UnsupportedSyntax {
+                kind: SyntaxKind::StringInterpFormatText
+            }
+        ));
     }
 
     #[test]
