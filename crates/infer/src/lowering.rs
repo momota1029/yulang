@@ -2822,6 +2822,7 @@ pub struct ExprLowerer<'a> {
     local_method_scope: Option<ModuleId>,
     synthetic_var_acts: Vec<SyntheticVarActUse>,
     synthetic_var_act_cursor: usize,
+    known_ref_targets: FxHashMap<RefId, DefId>,
     locals: Vec<LocalBinding>,
     effect_views: Vec<LocalEffect>,
     function_frames: Vec<FunctionPredicateFrame>,
@@ -2855,6 +2856,7 @@ impl<'a> ExprLowerer<'a> {
             local_method_scope: None,
             synthetic_var_acts,
             synthetic_var_act_cursor: 0,
+            known_ref_targets: FxHashMap::default(),
             locals: Vec::new(),
             effect_views: Vec::new(),
             function_frames: Vec::new(),
@@ -2884,6 +2886,7 @@ impl<'a> ExprLowerer<'a> {
             local_method_scope: None,
             synthetic_var_acts,
             synthetic_var_act_cursor: 0,
+            known_ref_targets: FxHashMap::default(),
             locals: Vec::new(),
             effect_views: Vec::new(),
             function_frames: Vec::new(),
@@ -4723,6 +4726,7 @@ impl<'a> ExprLowerer<'a> {
                 value,
             },
         );
+        self.known_ref_targets.insert(reference, target);
         self.session.enqueue(AnalysisWork::ApplyRefResolution {
             ref_id: reference,
             target,
@@ -5247,6 +5251,7 @@ impl<'a> ExprLowerer<'a> {
                 value,
             },
         );
+        self.known_ref_targets.insert(reference, target);
         self.session.enqueue(AnalysisWork::ApplyRefResolution {
             ref_id: reference,
             target,
@@ -5394,10 +5399,7 @@ impl<'a> ExprLowerer<'a> {
         mut callee: Computation,
         node: &Cst,
     ) -> Result<Computation, LoweringError> {
-        let args = node
-            .children()
-            .filter(|child| child.kind() == SyntaxKind::Expr)
-            .collect::<Vec<_>>();
+        let args = self.apply_argument_exprs(callee, node);
         if args.is_empty() {
             let unit = self.unit_expr();
             return Ok(self.make_app(callee, unit));
@@ -5407,6 +5409,30 @@ impl<'a> ExprLowerer<'a> {
             callee = self.make_app(callee, lowered_arg);
         }
         Ok(callee)
+    }
+
+    fn apply_argument_exprs(&self, callee: Computation, node: &Cst) -> Vec<Cst> {
+        let args = node
+            .children()
+            .filter(|child| child.kind() == SyntaxKind::Expr)
+            .collect::<Vec<_>>();
+        let Some(arity) = self.declared_constructor_payload_arity(callee) else {
+            return args;
+        };
+        declared_constructor_expr_payloads(args, arity)
+    }
+
+    fn declared_constructor_payload_arity(&self, callee: Computation) -> Option<usize> {
+        let Expr::Var(reference) = self.session.poly.expr(callee.expr) else {
+            return None;
+        };
+        let target = self
+            .known_ref_targets
+            .get(reference)
+            .copied()
+            .or_else(|| self.session.poly.ref_target(*reference))?;
+        let constructor = self.modules.constructor_by_def(target)?;
+        Some(constructor_payload_arity(&constructor.payload))
     }
 
     fn lower_field_selection(
@@ -5756,6 +5782,7 @@ impl<'a> ExprLowerer<'a> {
                 value,
             },
         );
+        self.known_ref_targets.insert(reference, target);
         self.session.enqueue(AnalysisWork::ApplyRefResolution {
             ref_id: reference,
             target,
@@ -6386,6 +6413,41 @@ fn prepare_constructor_args(
             }]
         }
     }
+}
+
+fn constructor_payload_arity(payload: &ConstructorPayload) -> usize {
+    match payload {
+        ConstructorPayload::Unit => 0,
+        ConstructorPayload::Tuple(items) => items.len(),
+        ConstructorPayload::Record(_) => 1,
+    }
+}
+
+fn declared_constructor_expr_payloads(payloads: Vec<Cst>, arity: usize) -> Vec<Cst> {
+    if arity == 1 || payloads.len() != 1 {
+        return payloads;
+    }
+
+    let Some(group) = single_expr_paren_group_payload(&payloads[0]) else {
+        return payloads;
+    };
+    let grouped = group
+        .children()
+        .filter(|child| child.kind() == SyntaxKind::Expr)
+        .collect::<Vec<_>>();
+    if grouped.len() == arity {
+        grouped
+    } else {
+        payloads
+    }
+}
+
+fn single_expr_paren_group_payload(payload: &Cst) -> Option<Cst> {
+    let children = payload.children().collect::<Vec<_>>();
+    let [group] = children.as_slice() else {
+        return None;
+    };
+    (group.kind() == SyntaxKind::Paren).then(|| group.clone())
 }
 
 fn prepare_constructor_value_arg(
@@ -8837,6 +8899,24 @@ mod tests {
         };
         let reference = expr_ref(&output.session, *callee);
         assert_eq!(output.session.poly.ref_target(reference), Some(constructor));
+    }
+
+    #[test]
+    fn declared_constructor_expression_spaced_tuple_group_matches_payload_fields() {
+        let root = parse(concat!(
+            "pub enum bound = unbounded | included int\n",
+            "pub enum range = within (bound, bound)\n",
+            "my mk(start: bound, end: bound): range = range::within (start, end)\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (mk, _) = binding_def_and_order(&lower.modules, module, "mk");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert_eq!(output.errors, Vec::new());
+        let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, mk));
+        assert_eq!(rendered, "bound -> bound -> range");
     }
 
     #[test]
