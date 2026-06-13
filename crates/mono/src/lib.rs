@@ -56,6 +56,10 @@ pub enum Type {
         ret_effect: Box<Type>,
         ret: Box<Type>,
     },
+    Thunk {
+        effect: Box<Type>,
+        value: Box<Type>,
+    },
     Record(Vec<TypeField>),
     PolyVariant(Vec<TypeVariant>),
     Tuple(Vec<Type>),

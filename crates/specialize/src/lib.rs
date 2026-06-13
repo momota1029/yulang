@@ -12,9 +12,9 @@ use std::collections::HashMap;
 use std::fmt;
 
 use mono::{
-    Block, CaseArm, CatchArm, DefId, Expr, ExprKind, FunctionAdapterHygiene, Instance, InstanceId,
-    InstanceSource, Lit, Pat, Program, RecordField, RecordSpread, Root, SelectResolution, Stmt,
-    Type, Vis,
+    Block, CaseArm, CatchArm, ComputationType, DefId, EffectiveThunkType, Expr, ExprKind,
+    FunctionAdapterHygiene, Instance, InstanceId, InstanceSource, Lit, Pat, Program, RecordField,
+    RecordSpread, Root, SelectResolution, Stmt, Type, Vis,
 };
 use poly::expr as poly_expr;
 
@@ -600,6 +600,36 @@ fn lit_type(lit: &poly_expr::Lit) -> Type {
 }
 
 fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr {
+    if let Type::Thunk { effect, value } = expected
+        && equivalent_boundary_types(actual, value)
+    {
+        return Expr::new(ExprKind::MakeThunk {
+            source: ComputationType {
+                effect: effect.as_ref().clone(),
+                value: actual.clone(),
+            },
+            target: EffectiveThunkType {
+                effect: effect.as_ref().clone(),
+                value: value.as_ref().clone(),
+            },
+            body: Box::new(expr),
+        });
+    }
+    if let Type::Thunk { effect, value } = actual
+        && equivalent_boundary_types(value, expected)
+    {
+        return Expr::new(ExprKind::ForceThunk {
+            source: EffectiveThunkType {
+                effect: effect.as_ref().clone(),
+                value: value.as_ref().clone(),
+            },
+            target: ComputationType {
+                effect: effect.as_ref().clone(),
+                value: expected.clone(),
+            },
+            thunk: Box::new(expr),
+        });
+    }
     if function_boundary_types(actual, expected) {
         return Expr::new(ExprKind::FunctionAdapter {
             source: actual.clone(),
@@ -624,6 +654,12 @@ fn equivalent_boundary_types(actual: &Type, expected: &Type) -> bool {
         return true;
     }
     match (actual, expected) {
+        (actual, Type::Thunk { effect, value }) if effect.is_pure_effect() => {
+            equivalent_boundary_types(actual, value)
+        }
+        (Type::Thunk { effect, value }, expected) if effect.is_pure_effect() => {
+            equivalent_boundary_types(value, expected)
+        }
         (
             Type::Con {
                 path: actual_path,
@@ -674,6 +710,19 @@ fn equivalent_boundary_types(actual: &Type, expected: &Type) -> bool {
                     .zip(expected_items)
                     .all(|(actual, expected)| equivalent_boundary_types(actual, expected))
         }
+        (
+            Type::Thunk {
+                effect: actual_effect,
+                value: actual_value,
+            },
+            Type::Thunk {
+                effect: expected_effect,
+                value: expected_value,
+            },
+        ) => {
+            equivalent_boundary_types(actual_effect, expected_effect)
+                && equivalent_boundary_types(actual_value, expected_value)
+        }
         _ => false,
     }
 }
@@ -709,7 +758,7 @@ fn def_kind(def: &poly_expr::Def) -> DefKind {
 #[cfg(test)]
 mod tests {
     use super::{boundary_expr, specialize, specialize_roots};
-    use mono::{ExprKind, InstanceSource, Lit, Type};
+    use mono::{ComputationType, EffectiveThunkType, ExprKind, InstanceSource, Lit, Type};
 
     #[test]
     fn empty_arena_specializes_to_empty_program() {
@@ -780,6 +829,56 @@ mod tests {
         assert_eq!(target, expected);
         assert_eq!(*wrapped_function, function);
         assert!(hygiene.markers.is_empty());
+    }
+
+    #[test]
+    fn boundary_expr_uses_make_thunk_for_thunk_expected_boundary() {
+        let actual = int_type();
+        let effect = io_effect_type();
+        let expected = thunk_type(effect.clone(), int_type());
+        let body = mono::Expr::new(ExprKind::Lit(Lit::Int(1)));
+
+        let wrapped = boundary_expr(&actual, &expected, body.clone());
+
+        assert_eq!(
+            wrapped.kind,
+            ExprKind::MakeThunk {
+                source: ComputationType {
+                    effect: effect.clone(),
+                    value: actual,
+                },
+                target: EffectiveThunkType {
+                    effect,
+                    value: int_type(),
+                },
+                body: Box::new(body),
+            }
+        );
+    }
+
+    #[test]
+    fn boundary_expr_uses_force_thunk_for_thunk_actual_boundary() {
+        let effect = io_effect_type();
+        let actual = thunk_type(effect.clone(), int_type());
+        let expected = int_type();
+        let thunk = mono::Expr::new(ExprKind::Local(mono::DefId(0)));
+
+        let wrapped = boundary_expr(&actual, &expected, thunk.clone());
+
+        assert_eq!(
+            wrapped.kind,
+            ExprKind::ForceThunk {
+                source: EffectiveThunkType {
+                    effect: effect.clone(),
+                    value: int_type(),
+                },
+                target: ComputationType {
+                    effect,
+                    value: expected,
+                },
+                thunk: Box::new(thunk),
+            }
+        );
     }
 
     #[test]
@@ -944,5 +1043,19 @@ mod tests {
             path: vec!["float".to_string()],
             args: Vec::new(),
         }
+    }
+
+    fn thunk_type(effect: Type, value: Type) -> Type {
+        Type::Thunk {
+            effect: Box::new(effect),
+            value: Box::new(value),
+        }
+    }
+
+    fn io_effect_type() -> Type {
+        Type::EffectRow(vec![Type::Con {
+            path: vec!["io".to_string()],
+            args: Vec::new(),
+        }])
     }
 }

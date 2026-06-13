@@ -60,6 +60,32 @@ pub(crate) fn pure_function_type(arg: Type, ret: Type) -> Type {
     }
 }
 
+fn runtime_function_type(arg: Type, arg_effect: Type, ret_effect: Type, ret: Type) -> Type {
+    Type::Fun {
+        arg: Box::new(runtime_shape(arg_effect, arg)),
+        arg_effect: Box::new(Type::pure_effect()),
+        ret_effect: Box::new(Type::pure_effect()),
+        ret: Box::new(runtime_shape(ret_effect, ret)),
+    }
+}
+
+fn runtime_shape(effect: Type, value: Type) -> Type {
+    if effect.is_pure_effect() {
+        return value;
+    }
+    Type::Thunk {
+        effect: Box::new(effect),
+        value: Box::new(value),
+    }
+}
+
+fn split_runtime_shape(shape: &Type, legacy_effect: &Type) -> (Type, Type) {
+    match shape {
+        Type::Thunk { effect, value } => (value.as_ref().clone(), effect.as_ref().clone()),
+        _ => (shape.clone(), legacy_effect.clone()),
+    }
+}
+
 fn reject_unsupported_scheme_features(
     def: poly_expr::DefId,
     scheme: &Scheme,
@@ -259,10 +285,14 @@ impl<'a> SchemeMaterializer<'a> {
                 else {
                     return Ok(());
                 };
-                self.match_neg(*arg, expected_arg, TypeContext::Value)?;
-                self.match_neg(*arg_eff, expected_arg_eff, TypeContext::Effect)?;
-                self.match_pos(*ret_eff, expected_ret_eff, TypeContext::Effect)?;
-                self.match_pos(*ret, expected_ret, TypeContext::Value)
+                let (expected_arg, expected_arg_eff) =
+                    split_runtime_shape(expected_arg, expected_arg_eff);
+                let (expected_ret, expected_ret_eff) =
+                    split_runtime_shape(expected_ret, expected_ret_eff);
+                self.match_neg(*arg, &expected_arg, TypeContext::Value)?;
+                self.match_neg(*arg_eff, &expected_arg_eff, TypeContext::Effect)?;
+                self.match_pos(*ret_eff, &expected_ret_eff, TypeContext::Effect)?;
+                self.match_pos(*ret, &expected_ret, TypeContext::Value)
             }
             Pos::Record(fields) => {
                 let Type::Record(expected_fields) = expected else {
@@ -371,10 +401,14 @@ impl<'a> SchemeMaterializer<'a> {
                 else {
                     return Ok(());
                 };
-                self.match_pos(*arg, expected_arg, TypeContext::Value)?;
-                self.match_pos(*arg_eff, expected_arg_eff, TypeContext::Effect)?;
-                self.match_neg(*ret_eff, expected_ret_eff, TypeContext::Effect)?;
-                self.match_neg(*ret, expected_ret, TypeContext::Value)
+                let (expected_arg, expected_arg_eff) =
+                    split_runtime_shape(expected_arg, expected_arg_eff);
+                let (expected_ret, expected_ret_eff) =
+                    split_runtime_shape(expected_ret, expected_ret_eff);
+                self.match_pos(*arg, &expected_arg, TypeContext::Value)?;
+                self.match_pos(*arg_eff, &expected_arg_eff, TypeContext::Effect)?;
+                self.match_neg(*ret_eff, &expected_ret_eff, TypeContext::Effect)?;
+                self.match_neg(*ret, &expected_ret, TypeContext::Value)
             }
             Neg::Record(fields) => {
                 let Type::Record(expected_fields) = expected else {
@@ -476,10 +510,14 @@ impl<'a> SchemeMaterializer<'a> {
                 else {
                     return Ok(());
                 };
-                self.match_neu(*arg, expected_arg, TypeContext::Value)?;
-                self.match_neu(*arg_eff, expected_arg_eff, TypeContext::Effect)?;
-                self.match_neu(*ret_eff, expected_ret_eff, TypeContext::Effect)?;
-                self.match_neu(*ret, expected_ret, TypeContext::Value)
+                let (expected_arg, expected_arg_eff) =
+                    split_runtime_shape(expected_arg, expected_arg_eff);
+                let (expected_ret, expected_ret_eff) =
+                    split_runtime_shape(expected_ret, expected_ret_eff);
+                self.match_neu(*arg, &expected_arg, TypeContext::Value)?;
+                self.match_neu(*arg_eff, &expected_arg_eff, TypeContext::Effect)?;
+                self.match_neu(*ret_eff, &expected_ret_eff, TypeContext::Effect)?;
+                self.match_neu(*ret, &expected_ret, TypeContext::Value)
             }
             Neu::Record(fields) => {
                 let Type::Record(expected_fields) = expected else {
@@ -534,12 +572,12 @@ impl<'a> SchemeMaterializer<'a> {
                 arg_eff,
                 ret_eff,
                 ret,
-            } => Type::Fun {
-                arg: Box::new(self.materialize_neg(*arg, TypeContext::Value)?),
-                arg_effect: Box::new(self.materialize_neg(*arg_eff, TypeContext::Effect)?),
-                ret_effect: Box::new(self.materialize_pos(*ret_eff, TypeContext::Effect)?),
-                ret: Box::new(self.materialize_pos(*ret, TypeContext::Value)?),
-            },
+            } => runtime_function_type(
+                self.materialize_neg(*arg, TypeContext::Value)?,
+                self.materialize_neg(*arg_eff, TypeContext::Effect)?,
+                self.materialize_pos(*ret_eff, TypeContext::Effect)?,
+                self.materialize_pos(*ret, TypeContext::Value)?,
+            ),
             Pos::Record(fields) => Type::Record(self.materialize_fields(
                 fields,
                 TypeContext::Value,
@@ -606,12 +644,12 @@ impl<'a> SchemeMaterializer<'a> {
                 arg_eff,
                 ret_eff,
                 ret,
-            } => Type::Fun {
-                arg: Box::new(self.materialize_pos(*arg, TypeContext::Value)?),
-                arg_effect: Box::new(self.materialize_pos(*arg_eff, TypeContext::Effect)?),
-                ret_effect: Box::new(self.materialize_neg(*ret_eff, TypeContext::Effect)?),
-                ret: Box::new(self.materialize_neg(*ret, TypeContext::Value)?),
-            },
+            } => runtime_function_type(
+                self.materialize_pos(*arg, TypeContext::Value)?,
+                self.materialize_pos(*arg_eff, TypeContext::Effect)?,
+                self.materialize_neg(*ret_eff, TypeContext::Effect)?,
+                self.materialize_neg(*ret, TypeContext::Value)?,
+            ),
             Neg::Record(fields) => Type::Record(self.materialize_fields(
                 fields,
                 TypeContext::Value,
@@ -663,12 +701,12 @@ impl<'a> SchemeMaterializer<'a> {
                 arg_eff,
                 ret_eff,
                 ret,
-            } => Type::Fun {
-                arg: Box::new(self.materialize_neu(*arg, TypeContext::Value)?),
-                arg_effect: Box::new(self.materialize_neu(*arg_eff, TypeContext::Effect)?),
-                ret_effect: Box::new(self.materialize_neu(*ret_eff, TypeContext::Effect)?),
-                ret: Box::new(self.materialize_neu(*ret, TypeContext::Value)?),
-            },
+            } => runtime_function_type(
+                self.materialize_neu(*arg, TypeContext::Value)?,
+                self.materialize_neu(*arg_eff, TypeContext::Effect)?,
+                self.materialize_neu(*ret_eff, TypeContext::Effect)?,
+                self.materialize_neu(*ret, TypeContext::Value)?,
+            ),
             Neu::Record(fields) => Type::Record(self.materialize_fields(
                 fields,
                 TypeContext::Value,

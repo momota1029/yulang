@@ -370,6 +370,9 @@ impl TypeDumper {
                 ret_effect,
                 ret,
             } => self.fun(arg, arg_effect, ret_effect, ret),
+            Type::Thunk { effect, value } => {
+                format!("thunk[{}, {}]", self.ty(effect), self.ty(value))
+            }
             Type::Record(fields) => self.record_type(fields),
             Type::PolyVariant(variants) => self.variant_type(variants),
             Type::Tuple(items) => self.tuple_type(items),
@@ -521,7 +524,7 @@ mod tests {
         Root, Type,
     };
 
-    use super::dump_program;
+    use super::{dump_program, dump_type};
 
     #[test]
     fn dump_boundary_nodes() {
@@ -574,6 +577,17 @@ mod tests {
                 "adapter[int -> int => any -> any; hygiene[]](d1)",
                 "]\n",
             )
+        );
+    }
+
+    #[test]
+    fn dump_thunk_type() {
+        assert_eq!(
+            dump_type(&Type::Thunk {
+                effect: Box::new(parse_effect_type()),
+                value: Box::new(str_type()),
+            }),
+            "thunk[[std::text::parse::parse], str]"
         );
     }
 

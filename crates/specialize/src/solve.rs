@@ -465,6 +465,39 @@ impl<'a> ConstraintGraph<'a> {
                 self.constrain_subtype(*lower_ret, *upper_ret)
             }
             (
+                Type::Thunk {
+                    effect: lower_effect,
+                    value: lower_value,
+                },
+                Type::Thunk {
+                    effect: upper_effect,
+                    value: upper_value,
+                },
+            ) => {
+                self.constrain_subtype(*lower_effect, *upper_effect)?;
+                self.constrain_subtype(*lower_value, *upper_value)
+            }
+            (
+                lower,
+                Type::Thunk {
+                    effect: upper_effect,
+                    value: upper_value,
+                },
+            ) => {
+                self.constrain_subtype(lower, *upper_value)?;
+                self.constrain_subtype(Type::pure_effect(), *upper_effect)
+            }
+            (
+                Type::Thunk {
+                    effect: lower_effect,
+                    value: lower_value,
+                },
+                upper,
+            ) => {
+                self.constrain_subtype(*lower_value, upper)?;
+                self.constrain_subtype(*lower_effect, Type::pure_effect())
+            }
+            (
                 Type::Con {
                     path: lower_path,
                     args: lower_args,
@@ -701,6 +734,17 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
                 ret_effect: Box::new(self.resolve(ret_effect)?),
                 ret: Box::new(self.resolve(ret)?),
             }),
+            Type::Thunk { effect, value } => {
+                let effect = self.resolve(effect)?;
+                let value = self.resolve(value)?;
+                if effect.is_pure_effect() {
+                    return Ok(value);
+                }
+                Ok(Type::Thunk {
+                    effect: Box::new(effect),
+                    value: Box::new(value),
+                })
+            }
             Type::Record(fields) => fields
                 .iter()
                 .map(|field| {
@@ -888,6 +932,12 @@ fn type_candidate_subtype(graph: &ConstraintGraph<'_>, lower: &Type, upper: &Typ
             type_candidate_subtype(graph, lower, left)
                 && type_candidate_subtype(graph, lower, right)
         }
+        (lower, Type::Thunk { effect, value }) if effect.is_pure_effect() => {
+            type_candidate_subtype(graph, lower, value)
+        }
+        (Type::Thunk { effect, value }, upper) if effect.is_pure_effect() => {
+            type_candidate_subtype(graph, value, upper)
+        }
         (
             Type::Con {
                 path: lower_path,
@@ -923,6 +973,19 @@ fn type_candidate_subtype(graph: &ConstraintGraph<'_>, lower: &Type, upper: &Typ
                 && type_candidate_subtype(graph, upper_arg_effect, lower_arg_effect)
                 && type_candidate_subtype(graph, lower_ret_effect, upper_ret_effect)
                 && type_candidate_subtype(graph, lower_ret, upper_ret)
+        }
+        (
+            Type::Thunk {
+                effect: lower_effect,
+                value: lower_value,
+            },
+            Type::Thunk {
+                effect: upper_effect,
+                value: upper_value,
+            },
+        ) => {
+            type_candidate_subtype(graph, lower_effect, upper_effect)
+                && type_candidate_subtype(graph, lower_value, upper_value)
         }
         (Type::Tuple(lower_items), Type::Tuple(upper_items)) => {
             lower_items.len() == upper_items.len()
