@@ -122,6 +122,73 @@ impl<'a> ExprLowerer<'a> {
         let scrutinee_node =
             case_like_scrutinee_expr(node).ok_or(LoweringError::MissingCaseScrutinee)?;
         let scrutinee = self.lower_expr(&scrutinee_node)?;
+        self.lower_case_with_scrutinee(node, scrutinee)
+    }
+
+    pub(super) fn lower_case_lambda(
+        &mut self,
+        node: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
+        if case_like_label(node).is_some() {
+            return Err(LoweringError::UnsupportedSyntax {
+                kind: SyntaxKind::SigilIdent,
+            });
+        }
+
+        let scrutinee_name = Name("#case-scrutinee".to_string());
+        let scrutinee_value = self.fresh_type_var();
+        let before_locals = self.locals.len();
+        let pat = self.bind_pattern_local(
+            scrutinee_name.clone(),
+            scrutinee_value,
+            None,
+            LocalCallReturnEffect::Annotated,
+        );
+        let scrutinee_local = self
+            .locals
+            .last()
+            .cloned()
+            .expect("case lambda scrutinee should be the last local");
+        let scrutinee = self.lower_local_name(scrutinee_name, scrutinee_local);
+
+        self.function_frames
+            .push(FunctionPredicateFrame::new(lambda_scope));
+        let previous_level = self.session.infer.enter_child_level();
+        let body_result = self.lower_case_with_scrutinee(node, scrutinee);
+        self.session.infer.restore_level(previous_level);
+        let frame = self
+            .function_frames
+            .pop()
+            .expect("case lambda predicate frame should be balanced");
+        self.locals.truncate(before_locals);
+        let body = body_result?;
+
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(scrutinee_value));
+        let arg_eff = self.never_neg();
+        let predicate_subtracts = self.lambda_predicate_subtracts(lambda_scope, Vec::new(), frame);
+        let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+
+        let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_case_with_scrutinee(
+        &mut self,
+        node: &Cst,
+        scrutinee: Computation,
+    ) -> Result<Computation, LoweringError> {
         let value = self.fresh_type_var();
         let effect = self.fresh_type_var();
         self.subtype_var_to_var(scrutinee.effect, effect);
@@ -174,6 +241,74 @@ impl<'a> ExprLowerer<'a> {
         let scrutinee_node =
             case_like_scrutinee_expr(node).ok_or(LoweringError::MissingCatchScrutinee)?;
         let scrutinee = self.lower_expr(&scrutinee_node)?;
+        self.lower_catch_with_scrutinee(node, scrutinee)
+    }
+
+    pub(super) fn lower_catch_lambda(
+        &mut self,
+        node: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
+        if case_like_label(node).is_some() {
+            return Err(LoweringError::UnsupportedSyntax {
+                kind: SyntaxKind::SigilIdent,
+            });
+        }
+
+        let scrutinee_name = Name("#catch-scrutinee".to_string());
+        let scrutinee_value = self.fresh_type_var();
+        let scrutinee_effect = self.fresh_type_var();
+        let before_locals = self.locals.len();
+        let pat = self.bind_pattern_local(
+            scrutinee_name.clone(),
+            scrutinee_value,
+            Some(LocalEffect::Var(scrutinee_effect)),
+            LocalCallReturnEffect::Annotated,
+        );
+        let scrutinee_local = self
+            .locals
+            .last()
+            .cloned()
+            .expect("catch lambda scrutinee should be the last local");
+        let scrutinee = self.lower_local_name(scrutinee_name, scrutinee_local);
+
+        self.function_frames
+            .push(FunctionPredicateFrame::new(lambda_scope));
+        let previous_level = self.session.infer.enter_child_level();
+        let body_result = self.lower_catch_with_scrutinee(node, scrutinee);
+        self.session.infer.restore_level(previous_level);
+        let frame = self
+            .function_frames
+            .pop()
+            .expect("catch lambda predicate frame should be balanced");
+        self.locals.truncate(before_locals);
+        let body = body_result?;
+
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(scrutinee_value));
+        let arg_eff = self.alloc_neg(Neg::Var(scrutinee_effect));
+        let predicate_subtracts = self.lambda_predicate_subtracts(lambda_scope, Vec::new(), frame);
+        let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+
+        let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_catch_with_scrutinee(
+        &mut self,
+        node: &Cst,
+        scrutinee: Computation,
+    ) -> Result<Computation, LoweringError> {
         let value = self.fresh_type_var();
         let effect = self.fresh_type_var();
         let rest_effect = self.fresh_type_var();
@@ -702,6 +837,13 @@ enum LoweredCatchArmKind {
 fn case_like_scrutinee_expr(node: &Cst) -> Option<Cst> {
     node.children()
         .find(|child| child.kind() == SyntaxKind::Expr)
+}
+
+fn case_like_label(node: &Cst) -> Option<Name> {
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::SigilIdent)
+        .map(|token| Name(token.text().to_string()))
 }
 
 fn case_arm_nodes(node: &Cst) -> Vec<Cst> {

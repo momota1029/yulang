@@ -117,8 +117,13 @@ The columns trace a value through the pipeline:
 - Library code that surfaces failures (notably `std::fs::read_text`) still
   uses provisional shapes such as `opt str` while host requests learn to
   return typed filesystem errors. These should not be treated as stable.
-- `rule { … }` and `~"..."` parse, but they do not yet have a defined
-  meaning as ordinary expressions and are not exposed through the runtime.
+- `rule { … }` and `~"..."` lower to the `std::text::parse` combinator
+  surface for the basic parser DSL. Plain tokens, lazy captures, single-item
+  interpolation, alternation, and eager `*` / `+` / `?` quantifiers are covered;
+  lazy quantifiers, multi-item interpolation, and runtime exposure are still
+  incomplete.
+- Quoted Yumark expressions (`'[...]` / `'{...}`) parse, but the active infer
+  lowering does not assign them a value model yet.
 - The compiled-unit cache and the `realm.toml` / `yulang.lock` package
   workflow are not part of the main lowering pipeline yet.
 - Full diagnostics polish is still in progress. Parser, type, role, and

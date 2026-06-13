@@ -288,6 +288,13 @@ pub struct RoleImplMethodDecl {
     pub order: ModuleOrder,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CastDecl {
+    pub def: DefId,
+    pub module: ModuleId,
+    pub order: ModuleOrder,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypeMethodReceiver {
     Value,
@@ -393,6 +400,7 @@ pub struct ModuleTable {
     lazy_ops: FxHashSet<DefId>,
     act_methods: FxHashMap<TypeDeclId, Vec<ActMethodDecl>>,
     constructors: FxHashMap<DefId, ConstructorDecl>,
+    casts: FxHashMap<ModuleId, Vec<CastDecl>>,
     role_inputs: FxHashMap<TypeDeclId, Vec<String>>,
     role_associated: FxHashMap<TypeDeclId, Vec<String>>,
     role_impls: FxHashMap<ModuleId, Vec<RoleImplDecl>>,
@@ -445,6 +453,7 @@ impl ModuleTable {
             lazy_ops: FxHashSet::default(),
             act_methods: FxHashMap::default(),
             constructors: FxHashMap::default(),
+            casts: FxHashMap::default(),
             role_inputs: FxHashMap::default(),
             role_associated: FxHashMap::default(),
             role_impls: FxHashMap::default(),
@@ -582,6 +591,12 @@ impl ModuleTable {
     }
     pub(crate) fn constructor_by_def(&self, def: DefId) -> Option<&ConstructorDecl> {
         self.constructors.get(&def)
+    }
+    fn insert_cast_decl(&mut self, decl: CastDecl) {
+        self.casts.entry(decl.module).or_default().push(decl);
+    }
+    pub(crate) fn cast_decls(&self, module: ModuleId) -> &[CastDecl] {
+        self.casts.get(&module).map(Vec::as_slice).unwrap_or(&[])
     }
     fn set_role_inputs(&mut self, id: TypeDeclId, inputs: Vec<String>) {
         self.role_inputs.insert(id, inputs);
@@ -1664,6 +1679,9 @@ impl Lower {
                         children.push(def);
                     }
                 }
+                SyntaxKind::CastDecl => {
+                    self.register_cast_decl(&child, module);
+                }
                 SyntaxKind::TypeDecl
                 | SyntaxKind::StructDecl
                 | SyntaxKind::EnumDecl
@@ -1706,6 +1724,17 @@ impl Lower {
             children.push(def);
             self.register_local_var_act_copies_in_binding(binding, module, def);
         }
+    }
+
+    fn register_cast_decl(&mut self, node: &Cst, module: ModuleId) -> DefId {
+        let def = self.register_synthetic_let(Vis::My);
+        let order = self.modules.next_order(module);
+        self.modules
+            .insert_cast_decl(CastDecl { def, module, order });
+        if let Some(body) = cast_body_expr(node) {
+            self.register_local_var_act_copies_in_expr(&body, module, def);
+        }
+        def
     }
 
     fn register_role_impl_decl(&mut self, node: &Cst, module: ModuleId) -> Option<DefId> {
@@ -1785,6 +1814,9 @@ impl Lower {
                         children.push(def);
                         self.register_local_var_act_copies_in_binding(&child, module, def);
                     }
+                }
+                SyntaxKind::CastDecl => {
+                    self.register_cast_decl(&child, module);
                 }
                 SyntaxKind::ModDecl => {
                     if let Some(name) = mod_name(&child) {
@@ -1872,6 +1904,15 @@ impl Lower {
         let Some(body) = binding_body_expr(binding) else {
             return;
         };
+        self.register_local_var_act_copies_in_expr(&body, module, owner);
+    }
+
+    fn register_local_var_act_copies_in_expr(
+        &mut self,
+        body: &Cst,
+        module: ModuleId,
+        owner: DefId,
+    ) {
         for (index, local) in body
             .descendants()
             .filter(|node| node.kind() == SyntaxKind::Binding)
@@ -2087,6 +2128,9 @@ impl Lower {
                         self.register_local_var_act_copies_in_binding(&child, module, def);
                     }
                 }
+                SyntaxKind::CastDecl => {
+                    self.register_cast_decl(&child, module);
+                }
                 SyntaxKind::ModDecl => {
                     if let Some(name) = mod_name(&child) {
                         let vis = vis_of(&child);
@@ -2212,6 +2256,9 @@ impl Lower {
                     children.push(def);
                     self.register_local_var_act_copies_in_binding(&child, module, def);
                 }
+                SyntaxKind::CastDecl => {
+                    self.register_cast_decl(&child, module);
+                }
                 SyntaxKind::ModDecl => {
                     if let Some(name) = mod_name(&child) {
                         let (def, sub, created) =
@@ -2321,6 +2368,9 @@ impl Lower {
                         children.push(def);
                         self.register_local_var_act_copies_in_binding(&child, module, def);
                     }
+                }
+                SyntaxKind::CastDecl => {
+                    self.register_cast_decl(&child, module);
                 }
                 SyntaxKind::ModDecl => {
                     if let Some(name) = mod_name(&child) {
@@ -2933,6 +2983,33 @@ fn binding_body_expr(binding: &Cst) -> Option<Cst> {
     })
 }
 
+pub(crate) fn cast_pattern(cast: &Cst) -> Option<Cst> {
+    child_node(cast, SyntaxKind::Pattern)
+}
+
+pub(crate) fn cast_source_type_expr(cast: &Cst) -> Option<Cst> {
+    direct_pattern_type_expr(&cast_pattern(cast)?)
+}
+
+pub(crate) fn cast_target_type_expr(cast: &Cst) -> Option<Cst> {
+    cast.children()
+        .find(|child| child.kind() == SyntaxKind::TypeAnn)
+        .and_then(|ann| {
+            ann.children()
+                .find(|child| child.kind() == SyntaxKind::TypeExpr)
+        })
+}
+
+pub(crate) fn cast_body_expr(cast: &Cst) -> Option<Cst> {
+    let body = child_node(cast, SyntaxKind::BindingBody)?;
+    body.children().find(|child| {
+        matches!(
+            child.kind(),
+            SyntaxKind::Expr | SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+        )
+    })
+}
+
 fn local_var_act_name(binding: &Cst) -> Option<Name> {
     let source = binding_name(binding)?;
     let base = source.0.strip_prefix('$')?;
@@ -3421,6 +3498,22 @@ mod tests {
         assert_eq!(f.len(), 1);
         assert_eq!(g.len(), 1);
         assert_eq!(lower.arena.roots.len(), 2);
+    }
+
+    #[test]
+    fn registers_cast_decl_as_hidden_cast_metadata() {
+        let cst = parse("cast(x: int): int = x\nmy site = 1\n");
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+
+        assert_eq!(lower.modules.cast_decls(root).len(), 1);
+        assert!(
+            lower
+                .modules
+                .value_decls(root, &Name("#cast".into()))
+                .is_empty()
+        );
+        assert_eq!(lower.arena.roots.len(), 1);
     }
 
     #[test]

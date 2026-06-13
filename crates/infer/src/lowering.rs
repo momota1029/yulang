@@ -47,10 +47,10 @@ use crate::scc::SccInput;
 use crate::typing::{EffectViewId, Typing};
 use crate::uses::{RefUse, SelectionUse};
 use crate::{
-    ActMethodDecl, ActOperationDecl, ConstructorPayload, LoadedFileCsts, LoadedFilesError, Lower,
-    ModuleChildDecl, ModuleId, ModuleOrder, ModuleTable, ModuleTypeDecl, ModuleTypeKind,
-    RoleImplDecl, RoleImplMethodDecl, RoleMethodDecl, SyntheticVarActUse, TypeDeclId,
-    TypeFieldMethodDecl, TypeMethodDecl, TypeMethodReceiver, binding_type_expr,
+    ActMethodDecl, ActOperationDecl, CastDecl, ConstructorPayload, LoadedFileCsts,
+    LoadedFilesError, Lower, ModuleChildDecl, ModuleId, ModuleOrder, ModuleTable, ModuleTypeDecl,
+    ModuleTypeKind, RoleImplDecl, RoleImplMethodDecl, RoleMethodDecl, SyntheticVarActUse,
+    TypeDeclId, TypeFieldMethodDecl, TypeMethodDecl, TypeMethodReceiver, binding_type_expr,
     lower_loaded_file_csts_module_map,
 };
 
@@ -146,6 +146,7 @@ struct BodyLowerer {
     module_cursors: FxHashMap<(ModuleId, Name), usize>,
     type_cursors: FxHashMap<(ModuleId, Name), usize>,
     impl_cursors: FxHashMap<ModuleId, usize>,
+    cast_cursors: FxHashMap<ModuleId, usize>,
     role_requirements: FxHashMap<DefId, RoleMethodRequirement>,
     local_method_scope: Option<ModuleId>,
 }
@@ -169,6 +170,7 @@ impl BodyLowerer {
             module_cursors: FxHashMap::default(),
             type_cursors: FxHashMap::default(),
             impl_cursors: FxHashMap::default(),
+            cast_cursors: FxHashMap::default(),
             role_requirements: FxHashMap::default(),
             local_method_scope: None,
         };
@@ -200,6 +202,7 @@ impl BodyLowerer {
                 SyntaxKind::RoleDecl => self.lower_role_decl_body(&child, module),
                 SyntaxKind::ActDecl => self.lower_act_decl_body(&child, module),
                 SyntaxKind::ImplDecl => self.lower_role_impl_decl(&child, module),
+                SyntaxKind::CastDecl => self.lower_cast_decl(&child, module),
                 _ => {}
             }
         }
@@ -525,6 +528,99 @@ impl BodyLowerer {
         self.session.infer.restore_level(previous_level);
     }
 
+    fn lower_cast_decl(&mut self, node: &Cst, module: ModuleId) {
+        let Some(decl) = self.next_cast_decl(module) else {
+            return;
+        };
+        self.labels.set_def_label(decl.def, "#cast");
+        if let Err(error) = self.lower_cast_decl_body(node, &decl) {
+            self.errors.push(BodyLoweringError::Expr {
+                def: decl.def,
+                name: Name("#cast".into()),
+                error,
+            });
+        }
+    }
+
+    fn lower_cast_decl_body(&mut self, node: &Cst, decl: &CastDecl) -> Result<(), LoweringError> {
+        let pattern = crate::cast_pattern(node).ok_or(LoweringError::UnsupportedSyntax {
+            kind: SyntaxKind::CastDecl,
+        })?;
+        let source_type_expr =
+            crate::cast_source_type_expr(node).ok_or(LoweringError::UnsupportedSyntax {
+                kind: SyntaxKind::CastDecl,
+            })?;
+        let target_type_expr =
+            crate::cast_target_type_expr(node).ok_or(LoweringError::UnsupportedSyntax {
+                kind: SyntaxKind::CastDecl,
+            })?;
+        let body = crate::cast_body_expr(node).ok_or(LoweringError::UnsupportedSyntax {
+            kind: SyntaxKind::CastDecl,
+        })?;
+
+        let cast_scheme = self.build_cast_scheme(
+            decl.module,
+            decl.order,
+            &source_type_expr,
+            &target_type_expr,
+        )?;
+
+        let previous_level = self.session.infer.enter_child_level();
+        let root = self.session.infer.fresh_type_var();
+        self.typing.set_def(decl.def, root);
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+                def: decl.def,
+                root,
+            }));
+
+        let lowered = ExprLowerer::with_labels(
+            &mut self.session,
+            &self.modules,
+            decl.module,
+            decl.order,
+            decl.def,
+            &mut self.labels,
+        )
+        .lower_binding_body_with_args_to_self(
+            std::slice::from_ref(&pattern),
+            &body,
+            Some(&target_type_expr),
+            root,
+        );
+        let result = match lowered {
+            Ok(computation) => {
+                self.session.casts.insert(
+                    cast_scheme.source,
+                    cast_scheme.target,
+                    cast_scheme.scheme,
+                );
+                self.finish_binding(decl.def, Name("#cast".into()), root, computation, false);
+                Ok(())
+            }
+            Err(error) => Err(error),
+        };
+        self.session.infer.restore_level(previous_level);
+        result
+    }
+
+    fn build_cast_scheme(
+        &mut self,
+        module: ModuleId,
+        site: ModuleOrder,
+        source_type_expr: &Cst,
+        target_type_expr: &Cst,
+    ) -> Result<CastScheme, LoweringError> {
+        let mut builder = ann_type_builder(&self.modules, module, site, None);
+        let source = builder
+            .build_type_expr(source_type_expr)
+            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        let target = builder
+            .build_type_expr(target_type_expr)
+            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        build_cast_scheme_from_ann(&mut self.session.poly, &self.modules, &source, &target)
+    }
+
     fn lower_type_decl(&mut self, node: &Cst, module: ModuleId) {
         let Some(name) = crate::type_decl_name(node) else {
             return;
@@ -569,6 +665,7 @@ impl BodyLowerer {
                     self.lower_binding_with_self_alias(&child, companion, Some(self_alias.clone()));
                 }
                 SyntaxKind::ModDecl => self.lower_mod_decl(&child, companion),
+                SyntaxKind::CastDecl => self.lower_cast_decl(&child, companion),
                 _ => {}
             }
         }
@@ -1084,6 +1181,7 @@ impl BodyLowerer {
                 | SyntaxKind::ErrorDecl => self.lower_type_decl(&child, companion),
                 SyntaxKind::RoleDecl => self.lower_role_decl_body(&child, companion),
                 SyntaxKind::ImplDecl => self.lower_role_impl_decl(&child, companion),
+                SyntaxKind::CastDecl => self.lower_cast_decl(&child, companion),
                 _ => {}
             }
         }
@@ -1155,6 +1253,7 @@ impl BodyLowerer {
                     self.lower_binding(&child, companion);
                 }
                 SyntaxKind::ModDecl => self.lower_mod_decl(&child, companion),
+                SyntaxKind::CastDecl => self.lower_cast_decl(&child, companion),
                 _ => {}
             }
         }
@@ -1306,6 +1405,7 @@ impl BodyLowerer {
                 | SyntaxKind::ErrorDecl => self.lower_type_decl(&child, impl_decl.body_module),
                 SyntaxKind::RoleDecl => self.lower_role_decl_body(&child, impl_decl.body_module),
                 SyntaxKind::ActDecl => self.lower_act_decl_body(&child, impl_decl.body_module),
+                SyntaxKind::CastDecl => self.lower_cast_decl(&child, impl_decl.body_module),
                 _ => {}
             }
         }
@@ -1939,6 +2039,13 @@ impl BodyLowerer {
     fn next_role_impl_decl(&mut self, module: ModuleId) -> Option<RoleImplDecl> {
         let cursor = self.impl_cursors.entry(module).or_default();
         let decl = self.modules.role_impls(module).get(*cursor).cloned();
+        *cursor += usize::from(decl.is_some());
+        decl
+    }
+
+    fn next_cast_decl(&mut self, module: ModuleId) -> Option<CastDecl> {
+        let cursor = self.cast_cursors.entry(module).or_default();
+        let decl = self.modules.cast_decls(module).get(*cursor).cloned();
         *cursor += usize::from(decl.is_some());
         decl
     }
@@ -3710,7 +3817,7 @@ impl<'a> ExprLowerer<'a> {
             .children()
             .find(|child| child.kind() == SyntaxKind::WithBlock)
         {
-            return self.lower_with_expr_chain(node, &with_block, head_lambda_scope);
+            return self.lower_with_expr_chain(node, &with_block, head_lambda_scope, None);
         }
         self.lower_expr_chain_prefix(node, head_lambda_scope, false)
     }
@@ -3721,6 +3828,16 @@ impl<'a> ExprLowerer<'a> {
         head_lambda_scope: LambdaScope,
         stop_at_with: bool,
     ) -> Result<Computation, LoweringError> {
+        self.lower_expr_chain_prefix_with_pipe_arg(node, head_lambda_scope, stop_at_with, None)
+    }
+
+    fn lower_expr_chain_prefix_with_pipe_arg(
+        &mut self,
+        node: &Cst,
+        head_lambda_scope: LambdaScope,
+        stop_at_with: bool,
+        pipe_arg: Option<PipeArg>,
+    ) -> Result<Computation, LoweringError> {
         let items = node
             .children_with_tokens()
             .filter(|item| !item_is_trivia(item))
@@ -3730,13 +3847,16 @@ impl<'a> ExprLowerer<'a> {
         };
 
         if let Some(name) = expr_symbol_head_name(head) {
-            return self.lower_poly_variant_expr_chain(name, &items, 1, stop_at_with);
+            return self.lower_poly_variant_expr_chain(name, &items, 1, stop_at_with, pipe_arg);
         }
 
         let (mut acc, tail_start) = match expr_path_prefix(&items) {
             Some((path, consumed)) if path.len() > 1 => (self.lower_path_name(&path)?, consumed),
             _ => (self.lower_head(head.clone(), head_lambda_scope)?, 1),
         };
+        if let Some(pipe_arg) = pipe_arg {
+            acc = self.make_app(acc, pipe_arg.expr);
+        }
         for item in items.into_iter().skip(tail_start) {
             match item {
                 NodeOrToken::Node(child)
@@ -3759,6 +3879,7 @@ impl<'a> ExprLowerer<'a> {
         items: &[NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>],
         mut tail_start: usize,
         stop_at_with: bool,
+        pipe_arg: Option<PipeArg>,
     ) -> Result<Computation, LoweringError> {
         let mut payloads = Vec::new();
         while let Some(NodeOrToken::Node(node)) = items.get(tail_start) {
@@ -3817,6 +3938,9 @@ impl<'a> ExprLowerer<'a> {
                 Evaluation::Value
             },
         );
+        if let Some(pipe_arg) = pipe_arg {
+            acc = self.make_app(acc, pipe_arg.expr);
+        }
 
         for item in items.iter().skip(tail_start) {
             match item {
@@ -3839,6 +3963,7 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
         with_block: &Cst,
         head_lambda_scope: LambdaScope,
+        pipe_arg: Option<PipeArg>,
     ) -> Result<Computation, LoweringError> {
         let items = with_block_lowering_items(with_block);
         let public_names = with_public_binding_names(&items);
@@ -3851,7 +3976,8 @@ impl<'a> ExprLowerer<'a> {
             .collect::<Vec<_>>();
         self.locals.truncate(before_locals);
         self.locals.extend(public_locals);
-        let tail = self.lower_expr_chain_prefix(node, head_lambda_scope, true);
+        let tail =
+            self.lower_expr_chain_prefix_with_pipe_arg(node, head_lambda_scope, true, pipe_arg);
         self.locals.truncate(before_locals);
         let tail = tail?;
         Ok(self.prepend_block(
@@ -3873,6 +3999,7 @@ impl<'a> ExprLowerer<'a> {
                 SyntaxKind::Ident => self.lower_name(Name(token.text().to_string())),
                 SyntaxKind::SigilIdent => self.lower_sigil_name(token.text()),
                 SyntaxKind::Number => self.lower_number(token.text()),
+                SyntaxKind::YadaYada => Ok(self.lower_yada_yada_expr()),
                 SyntaxKind::Nullfix => self.lower_nullfix_op_use(token.text()),
                 _ => Err(LoweringError::UnsupportedSyntax { kind: token.kind() }),
             },
@@ -3889,10 +4016,16 @@ impl<'a> ExprLowerer<'a> {
             SyntaxKind::Expr => self.lower_expr_chain(node, lambda_scope),
             SyntaxKind::LambdaExpr => self.lower_lambda(node, lambda_scope),
             SyntaxKind::MethodLambdaExpr => self.lower_method_lambda(node, lambda_scope),
+            SyntaxKind::RecursiveLambdaExpr => self.lower_recursive_lambda(node, lambda_scope),
+            SyntaxKind::CaseLambdaExpr => self.lower_case_lambda(node, lambda_scope),
+            SyntaxKind::CatchLambdaExpr => self.lower_catch_lambda(node, lambda_scope),
             SyntaxKind::IfExpr => self.lower_if(node),
             SyntaxKind::CaseExpr => self.lower_case(node),
             SyntaxKind::CatchExpr => self.lower_catch(node),
             SyntaxKind::Number => self.lower_number(&node.text().to_string()),
+            SyntaxKind::YadaYada => Ok(self.lower_yada_yada_expr()),
+            SyntaxKind::RuleLit => self.lower_rule_lit(node),
+            SyntaxKind::RuleExpr => self.lower_rule_expr(node),
             SyntaxKind::StringLit => self.lower_string_lit(node),
             SyntaxKind::Paren => self.lower_paren(node, lambda_scope),
             SyntaxKind::Bracket => self.lower_list_literal(node),
@@ -3943,6 +4076,45 @@ impl<'a> ExprLowerer<'a> {
             None,
             None,
         )
+    }
+
+    fn lower_recursive_lambda(
+        &mut self,
+        node: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
+        let Some(label) = recursive_lambda_label_name(node) else {
+            return self.lower_lambda(node, lambda_scope);
+        };
+
+        let boundary = self.local_generalize_boundary;
+        let previous_level = self.session.infer.enter_child_level();
+        let before_locals = self.locals.len();
+        let result = (|| {
+            let value = self.fresh_type_var();
+            let (pat, def) = self.bind_let_local_with_def(
+                label.clone(),
+                value,
+                LocalCallReturnEffect::Annotated,
+                None,
+            );
+            let body = self.lower_lambda(node, lambda_scope)?;
+            self.subtype_var_to_var(body.value, value);
+            self.subtype_var_to_var(value, body.value);
+            self.set_local_let_body(def, body.expr);
+            self.generalize_local_binding(def, value, boundary);
+            let tail = self.lower_name(label)?;
+            Ok(self.prepend_block(
+                LoweredLocalStmt {
+                    stmt: Stmt::Let(Vis::My, pat, body.expr),
+                    effect: body.effect,
+                },
+                tail,
+            ))
+        })();
+        self.locals.truncate(before_locals);
+        self.session.infer.restore_level(previous_level);
+        result
     }
 
     fn lower_method_lambda(
@@ -4469,8 +4641,60 @@ impl<'a> ExprLowerer<'a> {
                     Ok(self.prepend_block(stmt, tail))
                 }
             }
+            SyntaxKind::ForStmt => {
+                let head = self.lower_for_stmt(head)?;
+                if rest.is_empty() {
+                    Ok(head)
+                } else {
+                    let stmt = LoweredLocalStmt {
+                        stmt: Stmt::Expr(head.expr),
+                        effect: head.effect,
+                    };
+                    let tail = self.lower_block_items(rest)?;
+                    Ok(self.prepend_block(stmt, tail))
+                }
+            }
             kind => Err(LoweringError::UnsupportedSyntax { kind }),
         }
+    }
+
+    fn lower_for_stmt(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+        if for_label(node).is_some() {
+            return Err(LoweringError::UnsupportedSyntax {
+                kind: SyntaxKind::ForLabel,
+            });
+        }
+        let iter_node = for_iter_expr(node).ok_or(LoweringError::UnsupportedSyntax {
+            kind: SyntaxKind::ForHeader,
+        })?;
+        let body = for_body_expr(node).ok_or(LoweringError::UnsupportedSyntax {
+            kind: SyntaxKind::ForBody,
+        })?;
+        let pattern = for_pattern(node).ok_or(LoweringError::UnsupportedPatternSyntax {
+            kind: SyntaxKind::ForHeader,
+        })?;
+
+        let iter = self.lower_expr(&iter_node)?;
+        let mut ann_builder = ann_type_builder_with_aliases(
+            self.modules,
+            self.module,
+            self.site,
+            self.self_alias.clone(),
+            &self.type_var_aliases,
+        );
+        let mut ann_solver_vars = FxHashMap::default();
+        let body = self.lower_lambda_params(
+            &[pattern],
+            &body,
+            LambdaScope::Anonymous,
+            &mut ann_builder,
+            &mut ann_solver_vars,
+            None,
+            None,
+        )?;
+        let for_in = self.lower_std_value_ref(crate::std_paths::control_flow_loop_for_in_value())?;
+        let applied_iter = self.make_app(for_in, iter);
+        Ok(self.make_app(applied_iter, body))
     }
 
     fn lower_local_binding_stmt(&mut self, node: &Cst) -> Result<LoweredLocalStmt, LoweringError> {
@@ -4818,6 +5042,18 @@ impl<'a> ExprLowerer<'a> {
         Ok(Computation::value(expr, value, effect))
     }
 
+    fn lower_yada_yada_expr(&mut self) -> Computation {
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        self.constrain_lower(value, Pos::Bot);
+        self.constrain_upper(value, Neg::Bot);
+        let expr = self
+            .session
+            .poly
+            .add_expr(Expr::PrimitiveOp(PrimitiveOp::YadaYada));
+        Computation::value(expr, value, effect)
+    }
+
     fn lower_bool(&mut self, value: bool) -> Computation {
         let slot = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
@@ -4828,6 +5064,10 @@ impl<'a> ExprLowerer<'a> {
 
     fn lower_string_lit(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
         let text = plain_string_lit_text(node)?;
+        Ok(self.string_value(text))
+    }
+
+    fn string_value(&mut self, text: String) -> Computation {
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
         self.constrain_lower(
@@ -4835,7 +5075,375 @@ impl<'a> ExprLowerer<'a> {
             Pos::Con(crate::std_paths::text_str_type(), Vec::new()),
         );
         let expr = self.session.poly.add_expr(Expr::Lit(Lit::Str(text)));
-        Ok(Computation::value(expr, value, effect))
+        Computation::value(expr, value, effect)
+    }
+
+    fn lower_rule_lit(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+        if let Some(text) = plain_rule_lit_text(node) {
+            return self.rule_token_parser(text);
+        }
+
+        let before_locals = self.locals.len();
+        let result = (|| {
+            let body = self.lower_rule_lit_sequence(rule_lit_parts(node)?)?;
+            Ok(self.thunk_computation(body))
+        })();
+        self.locals.truncate(before_locals);
+        result
+    }
+
+    fn lower_rule_expr(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+        let before_locals = self.locals.len();
+        let result = (|| {
+            let body = self.rule_expr_body(node)?;
+            Ok(self.thunk_computation(body.expr))
+        })();
+        self.locals.truncate(before_locals);
+        result
+    }
+
+    fn lower_rule_lit_sequence(
+        &mut self,
+        parts: Vec<RuleLitPart>,
+    ) -> Result<Computation, LoweringError> {
+        let mut stmts = Vec::new();
+        let mut fields = Vec::new();
+        for part in parts {
+            match part {
+                RuleLitPart::Token(text) => {
+                    if !text.is_empty() {
+                        let parser = self.rule_token_parser(text)?;
+                        let run = self.run_rule_parser(parser);
+                        stmts.push(LoweredLocalStmt {
+                            stmt: Stmt::Expr(run.expr),
+                            effect: run.effect,
+                        });
+                    }
+                }
+                RuleLitPart::Parser(parser) => {
+                    let parser = self.lower_rule_item(&parser)?.parser;
+                    let run = self.run_rule_parser(parser);
+                    stmts.push(LoweredLocalStmt {
+                        stmt: Stmt::Expr(run.expr),
+                        effect: run.effect,
+                    });
+                }
+                RuleLitPart::CaptureWord(name) => {
+                    let parser = self.rule_word_parser()?;
+                    let run = self.run_rule_parser(parser);
+                    let (stmt, captured) = self.bind_rule_capture(name.clone(), run);
+                    stmts.push(stmt);
+                    fields.push((name, captured));
+                }
+                RuleLitPart::CaptureParser { name, parser } => {
+                    let parser = self.lower_expr(&parser)?;
+                    let run = self.run_rule_parser(parser);
+                    let (stmt, captured) = self.bind_rule_capture(name.clone(), run);
+                    stmts.push(stmt);
+                    fields.push((name, captured));
+                }
+            }
+        }
+
+        let tail = if fields.is_empty() {
+            self.unit_expr()
+        } else {
+            self.rule_record_expr(fields)
+        };
+        Ok(self.rule_block_expr(stmts, tail))
+    }
+
+    fn rule_expr_body(&mut self, node: &Cst) -> Result<RuleLowered, LoweringError> {
+        let group = node
+            .children()
+            .find(|child| child.kind() == SyntaxKind::BraceGroup)
+            .ok_or(LoweringError::UnsupportedSyntax {
+                kind: SyntaxKind::RuleExpr,
+            })?;
+        self.lower_rule_container_body(&group)
+    }
+
+    fn lower_rule_container_body(&mut self, node: &Cst) -> Result<RuleLowered, LoweringError> {
+        let mut lowered = rule_branches(node)
+            .into_iter()
+            .map(|branch| self.lower_rule_sequence(branch))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter();
+        let Some(first) = lowered.next() else {
+            return Ok(RuleLowered {
+                expr: self.unit_expr(),
+                semantic: RuleSemantic::Unit,
+            });
+        };
+        lowered.try_fold(first, |left, right| {
+            let choice = self.std_parse_ref("choice")?;
+            let left_parser = self.thunk_computation(left.expr);
+            let right_parser = self.thunk_computation(right.expr);
+            let partial = self.make_app(choice, left_parser);
+            let expr = self.make_app(partial, right_parser);
+            let semantic =
+                if left.semantic == RuleSemantic::Unit && right.semantic == RuleSemantic::Unit {
+                    RuleSemantic::Unit
+                } else {
+                    RuleSemantic::Value
+                };
+            Ok(RuleLowered { expr, semantic })
+        })
+    }
+
+    fn lower_rule_sequence(&mut self, items: Vec<Cst>) -> Result<RuleLowered, LoweringError> {
+        let mut stmts = Vec::new();
+        let mut fields = Vec::new();
+        let mut value = None;
+
+        for item in items {
+            if let Some((name, parser)) = rule_expr_capture(&item) {
+                let parser = self.lower_expr(&parser)?;
+                let unit = self.unit_expr();
+                let run = self.make_app(parser, unit);
+                let (stmt, captured) = self.bind_rule_capture(name.clone(), run);
+                stmts.push(stmt);
+                fields.push((name, captured));
+                continue;
+            }
+
+            let lowered = self.lower_rule_item(&item)?;
+            let unit = self.unit_expr();
+            let run = self.make_app(lowered.parser, unit);
+            match lowered.semantic {
+                RuleSemantic::Unit => stmts.push(LoweredLocalStmt {
+                    stmt: Stmt::Expr(run.expr),
+                    effect: run.effect,
+                }),
+                RuleSemantic::Record | RuleSemantic::Value => {
+                    if value.is_some() {
+                        return Err(LoweringError::UnsupportedSyntax {
+                            kind: SyntaxKind::RuleExpr,
+                        });
+                    }
+                    value = Some(run);
+                }
+            }
+        }
+
+        let (tail, semantic) = if fields.is_empty() {
+            match value {
+                Some(value) => (value, RuleSemantic::Value),
+                None => (self.unit_expr(), RuleSemantic::Unit),
+            }
+        } else {
+            if value.is_some() {
+                return Err(LoweringError::UnsupportedSyntax {
+                    kind: SyntaxKind::RuleExpr,
+                });
+            }
+            (self.rule_record_expr(fields), RuleSemantic::Record)
+        };
+        Ok(RuleLowered {
+            expr: self.rule_block_expr(stmts, tail),
+            semantic,
+        })
+    }
+
+    fn lower_rule_item(&mut self, node: &Cst) -> Result<RuleParserItem, LoweringError> {
+        if let Some(quant) = rule_quant(node) {
+            return self.lower_rule_quant(node, quant);
+        }
+
+        if let Some(text) = plain_string_expr_text(node)? {
+            return Ok(RuleParserItem {
+                parser: self.rule_token_parser(text)?,
+                semantic: RuleSemantic::Unit,
+            });
+        }
+
+        if let Some(paren) = direct_child(node, SyntaxKind::Paren) {
+            let body = self.lower_rule_container_body(&paren)?;
+            return Ok(RuleParserItem {
+                parser: self.thunk_computation(body.expr),
+                semantic: body.semantic,
+            });
+        }
+
+        Ok(RuleParserItem {
+            parser: self.lower_expr(node)?,
+            semantic: RuleSemantic::Value,
+        })
+    }
+
+    fn lower_rule_quant(
+        &mut self,
+        node: &Cst,
+        quant: SyntaxKind,
+    ) -> Result<RuleParserItem, LoweringError> {
+        let combinator = match quant {
+            SyntaxKind::RuleQuantStar => "many",
+            SyntaxKind::RuleQuantPlus => "some",
+            SyntaxKind::RuleQuantOpt => "optional",
+            SyntaxKind::RuleQuantStarLazy | SyntaxKind::RuleQuantPlusLazy => {
+                return Err(LoweringError::UnsupportedSyntax { kind: quant });
+            }
+            _ => {
+                return Err(LoweringError::UnsupportedSyntax {
+                    kind: SyntaxKind::RuleQuant,
+                });
+            }
+        };
+        let base = self.lower_rule_quant_base(node)?;
+        let combinator = self.std_parse_ref(combinator)?;
+        Ok(RuleParserItem {
+            parser: self.make_app(combinator, base.parser),
+            semantic: if base.semantic == RuleSemantic::Unit {
+                RuleSemantic::Unit
+            } else {
+                RuleSemantic::Value
+            },
+        })
+    }
+
+    fn lower_rule_quant_base(&mut self, node: &Cst) -> Result<RuleParserItem, LoweringError> {
+        if let Some(text) = plain_string_expr_text(node)? {
+            return Ok(RuleParserItem {
+                parser: self.rule_token_parser(text)?,
+                semantic: RuleSemantic::Unit,
+            });
+        }
+        if let Some(paren) = direct_child(node, SyntaxKind::Paren) {
+            let body = self.lower_rule_container_body(&paren)?;
+            return Ok(RuleParserItem {
+                parser: self.thunk_computation(body.expr),
+                semantic: body.semantic,
+            });
+        }
+        if let Some(parser) = self.rule_parser_ref_expr(node)? {
+            return Ok(RuleParserItem {
+                parser,
+                semantic: RuleSemantic::Value,
+            });
+        }
+        Err(LoweringError::UnsupportedSyntax {
+            kind: SyntaxKind::RuleQuant,
+        })
+    }
+
+    fn rule_parser_ref_expr(&mut self, node: &Cst) -> Result<Option<Computation>, LoweringError> {
+        let mut path = Vec::new();
+        for item in node
+            .children_with_tokens()
+            .filter(|item| !item_is_trivia(item))
+        {
+            match item {
+                NodeOrToken::Token(token)
+                    if token.kind() == SyntaxKind::Ident && path.is_empty() =>
+                {
+                    path.push(Name(token.text().to_string()));
+                }
+                NodeOrToken::Node(child) if child.kind() == SyntaxKind::PathSep => {
+                    let Some(name) = path_sep_name(&child) else {
+                        return Ok(None);
+                    };
+                    path.push(name);
+                }
+                NodeOrToken::Node(child) if child.kind() == SyntaxKind::RuleQuant => {}
+                _ => return Ok(None),
+            }
+        }
+        if path.is_empty() {
+            Ok(None)
+        } else if path.len() == 1 {
+            self.lower_name(path.remove(0)).map(Some)
+        } else {
+            self.lower_path_name(&path).map(Some)
+        }
+    }
+
+    fn rule_token_parser(&mut self, text: String) -> Result<Computation, LoweringError> {
+        let token = self.std_parse_ref("token")?;
+        let expected = self.string_value(text);
+        Ok(self.make_app(token, expected))
+    }
+
+    fn rule_word_parser(&mut self) -> Result<Computation, LoweringError> {
+        self.std_parse_ref("word")
+    }
+
+    fn run_rule_parser(&mut self, parser: Computation) -> Computation {
+        let unit = self.unit_expr();
+        self.make_app(parser, unit)
+    }
+
+    fn std_parse_ref(&mut self, name: &str) -> Result<Computation, LoweringError> {
+        self.lower_std_value_ref(crate::std_paths::text_parse_value(name))
+    }
+
+    fn bind_rule_capture(
+        &mut self,
+        name: Name,
+        value: Computation,
+    ) -> (LoweredLocalStmt, Computation) {
+        let pat = self.bind_pattern_local(
+            name.clone(),
+            value.value,
+            None,
+            LocalCallReturnEffect::Annotated,
+        );
+        let local = self
+            .locals
+            .last()
+            .cloned()
+            .expect("rule capture should be the last local");
+        let captured = self.lower_local_name(name, local);
+        (
+            LoweredLocalStmt {
+                stmt: Stmt::Let(Vis::My, pat, value.expr),
+                effect: value.effect,
+            },
+            captured,
+        )
+    }
+
+    fn rule_record_expr(&mut self, fields: Vec<(Name, Computation)>) -> Computation {
+        let result_value = self.fresh_type_var();
+        let result_effect = self.fresh_exact_pure_effect();
+        let record_fields = fields
+            .iter()
+            .map(|(name, value)| RecordField {
+                name: name.0.clone(),
+                value: self.alloc_pos(Pos::Var(value.value)),
+                optional: false,
+            })
+            .collect::<Vec<_>>();
+        for (_, value) in &fields {
+            self.subtype_var_to_var(value.effect, result_effect);
+        }
+        self.constrain_lower(result_value, Pos::Record(record_fields));
+
+        let expr_fields = fields
+            .into_iter()
+            .map(|(name, value)| (name.0, value.expr))
+            .collect();
+        let expr = self.session.poly.add_expr(Expr::Record {
+            fields: expr_fields,
+            spread: RecordSpread::None,
+        });
+        Computation::value(expr, result_value, result_effect)
+    }
+
+    fn rule_block_expr(&mut self, stmts: Vec<LoweredLocalStmt>, tail: Computation) -> Computation {
+        let value = self.fresh_type_var();
+        let effect = self.fresh_type_var();
+        let mut ir_stmts = Vec::with_capacity(stmts.len());
+        for stmt in stmts {
+            self.subtype_var_to_var(stmt.effect, effect);
+            ir_stmts.push(stmt.stmt);
+        }
+        self.subtype_var_to_var(tail.effect, effect);
+        self.subtype_var_to_var(tail.value, value);
+        let expr = self
+            .session
+            .poly
+            .add_expr(Expr::Block(ir_stmts, Some(tail.expr)));
+        Computation::computation(expr, value, effect)
     }
 
     fn lower_record_literal(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
@@ -5355,9 +5963,31 @@ impl<'a> ExprLowerer<'a> {
             SyntaxKind::Assign => self.lower_ref_assignment(acc, node),
             SyntaxKind::InfixNode => self.lower_infix_op_use(acc, node),
             SyntaxKind::SuffixNode => self.lower_suffix_op_use(acc, node),
+            SyntaxKind::PipeNode => self.lower_pipe_node(acc, node),
             SyntaxKind::TypeAnn => self.lower_type_annotation_tail(acc, node),
             kind => Err(LoweringError::UnsupportedSyntax { kind }),
         }
+    }
+
+    fn lower_pipe_node(
+        &mut self,
+        acc: Computation,
+        node: &Cst,
+    ) -> Result<Computation, LoweringError> {
+        let rhs = node
+            .children()
+            .find(|child| child.kind() == SyntaxKind::Expr)
+            .ok_or(LoweringError::UnsupportedSyntax {
+                kind: SyntaxKind::PipeNode,
+            })?;
+        let pipe_arg = Some(PipeArg { expr: acc });
+        if let Some(with_block) = rhs
+            .children()
+            .find(|child| child.kind() == SyntaxKind::WithBlock)
+        {
+            return self.lower_with_expr_chain(&rhs, &with_block, LambdaScope::Anonymous, pipe_arg);
+        }
+        self.lower_expr_chain_prefix_with_pipe_arg(&rhs, LambdaScope::Anonymous, false, pipe_arg)
     }
 
     fn lower_type_annotation_tail(
@@ -6383,6 +7013,208 @@ struct ConstructorRecordField {
     signature: Option<NegSignature>,
 }
 
+struct PipeArg {
+    expr: Computation,
+}
+
+enum RuleLitPart {
+    Token(String),
+    Parser(Cst),
+    CaptureWord(Name),
+    CaptureParser { name: Name, parser: Cst },
+}
+
+struct RuleParserItem {
+    parser: Computation,
+    semantic: RuleSemantic,
+}
+
+struct RuleLowered {
+    expr: Computation,
+    semantic: RuleSemantic,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RuleSemantic {
+    Unit,
+    Record,
+    Value,
+}
+
+struct CastScheme {
+    source: Vec<String>,
+    target: Vec<String>,
+    scheme: Scheme,
+}
+
+struct CastSchemeBuilder<'a> {
+    arena: &'a mut poly::expr::Arena,
+    modules: &'a ModuleTable,
+    vars: FxHashMap<AnnTypeVarId, TypeVar>,
+    quantifiers: Vec<TypeVar>,
+}
+
+impl<'a> CastSchemeBuilder<'a> {
+    fn new(arena: &'a mut poly::expr::Arena, modules: &'a ModuleTable) -> Self {
+        Self {
+            arena,
+            modules,
+            vars: FxHashMap::default(),
+            quantifiers: Vec::new(),
+        }
+    }
+
+    fn build(mut self, source: &AnnType, target: &AnnType) -> Result<CastScheme, LoweringError> {
+        let source_path = self.constructor_path(source)?;
+        let target_path = self.constructor_path(target)?;
+        let arg = self.lower_neg(source)?;
+        let arg_eff = self.arena.typ.alloc_neg(Neg::Bot);
+        let ret_eff = self.arena.typ.alloc_pos(Pos::Bot);
+        let ret = self.lower_pos(target)?;
+        let predicate = self.arena.typ.alloc_pos(Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        });
+        Ok(CastScheme {
+            source: source_path,
+            target: target_path,
+            scheme: Scheme {
+                quantifiers: self.quantifiers,
+                role_predicates: Vec::new(),
+                recursive_bounds: Vec::new(),
+                stack_quantifiers: Vec::new(),
+                predicate,
+            },
+        })
+    }
+
+    fn constructor_path(&self, ann: &AnnType) -> Result<Vec<String>, LoweringError> {
+        match ann {
+            AnnType::Builtin(builtin) => Ok(vec![builtin.surface_name().to_string()]),
+            AnnType::Named(id) => self.type_decl_path(*id),
+            AnnType::Apply { callee, .. } => self.constructor_path(callee),
+            ty => Err(LoweringError::AnnotationConstraint {
+                error: AnnConstraintError::InvalidConstructorCallee { ty: ty.clone() },
+            }),
+        }
+    }
+
+    fn lower_pos(&mut self, ann: &AnnType) -> Result<PosId, LoweringError> {
+        match ann {
+            AnnType::Builtin(BuiltinType::Never) => Ok(self.arena.typ.alloc_pos(Pos::Bot)),
+            AnnType::Builtin(builtin) => Ok(self.arena.typ.alloc_pos(Pos::Con(
+                vec![builtin.surface_name().to_string()],
+                Vec::new(),
+            ))),
+            AnnType::Named(id) => {
+                let path = self.type_decl_path(*id)?;
+                Ok(self.arena.typ.alloc_pos(Pos::Con(path, Vec::new())))
+            }
+            AnnType::Apply { callee, args } => {
+                let path = self.constructor_path(callee)?;
+                let args = args
+                    .iter()
+                    .map(|arg| self.lower_neu(arg))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(self.arena.typ.alloc_pos(Pos::Con(path, args)))
+            }
+            AnnType::Var(var) | AnnType::Wildcard(var) => {
+                let var = self.type_var(var.id);
+                Ok(self.arena.typ.alloc_pos(Pos::Var(var)))
+            }
+            AnnType::Tuple(items) => {
+                let items = items
+                    .iter()
+                    .map(|item| self.lower_pos(item))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(self.arena.typ.alloc_pos(Pos::Tuple(items)))
+            }
+            ty => Err(LoweringError::AnnotationConstraint {
+                error: AnnConstraintError::InvalidConstructorCallee { ty: ty.clone() },
+            }),
+        }
+    }
+
+    fn lower_neg(&mut self, ann: &AnnType) -> Result<NegId, LoweringError> {
+        match ann {
+            AnnType::Builtin(BuiltinType::Never) => Ok(self.arena.typ.alloc_neg(Neg::Bot)),
+            AnnType::Builtin(builtin) => Ok(self.arena.typ.alloc_neg(Neg::Con(
+                vec![builtin.surface_name().to_string()],
+                Vec::new(),
+            ))),
+            AnnType::Named(id) => {
+                let path = self.type_decl_path(*id)?;
+                Ok(self.arena.typ.alloc_neg(Neg::Con(path, Vec::new())))
+            }
+            AnnType::Apply { callee, args } => {
+                let path = self.constructor_path(callee)?;
+                let args = args
+                    .iter()
+                    .map(|arg| self.lower_neu(arg))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(self.arena.typ.alloc_neg(Neg::Con(path, args)))
+            }
+            AnnType::Var(var) | AnnType::Wildcard(var) => {
+                let var = self.type_var(var.id);
+                Ok(self.arena.typ.alloc_neg(Neg::Var(var)))
+            }
+            AnnType::Tuple(items) => {
+                let items = items
+                    .iter()
+                    .map(|item| self.lower_neg(item))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(self.arena.typ.alloc_neg(Neg::Tuple(items)))
+            }
+            ty => Err(LoweringError::AnnotationConstraint {
+                error: AnnConstraintError::InvalidConstructorCallee { ty: ty.clone() },
+            }),
+        }
+    }
+
+    fn lower_neu(&mut self, ann: &AnnType) -> Result<NeuId, LoweringError> {
+        let lower = self.lower_pos(ann)?;
+        let upper = self.lower_neg(ann)?;
+        Ok(self.arena.typ.alloc_neu(Neu::Bounds(lower, upper)))
+    }
+
+    fn type_var(&mut self, id: AnnTypeVarId) -> TypeVar {
+        if let Some(var) = self.vars.get(&id) {
+            return *var;
+        }
+        let var = self.arena.fresh_type_var();
+        self.vars.insert(id, var);
+        self.quantifiers.push(var);
+        var
+    }
+
+    fn type_decl_path(&self, id: TypeDeclId) -> Result<Vec<String>, LoweringError> {
+        let decl = self
+            .modules
+            .type_decl_by_id(id)
+            .ok_or(LoweringError::AnnotationConstraint {
+                error: AnnConstraintError::MissingTypeDecl { id },
+            })?;
+        Ok(self
+            .modules
+            .type_decl_path(&decl)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect())
+    }
+}
+
+fn build_cast_scheme_from_ann(
+    arena: &mut poly::expr::Arena,
+    modules: &ModuleTable,
+    source: &AnnType,
+    target: &AnnType,
+) -> Result<CastScheme, LoweringError> {
+    CastSchemeBuilder::new(arena, modules).build(source, target)
+}
+
 fn prepare_constructor_args(
     infer: &mut crate::Arena,
     payload: ConstructorSignaturePayload,
@@ -6773,7 +7605,12 @@ fn record_field_value(node: &Cst) -> Option<Cst> {
 
 fn block_lowering_items(node: &Cst) -> Vec<Cst> {
     node.children()
-        .filter(|child| matches!(child.kind(), SyntaxKind::Binding | SyntaxKind::Expr))
+        .filter(|child| {
+            matches!(
+                child.kind(),
+                SyntaxKind::Binding | SyntaxKind::Expr | SyntaxKind::ForStmt
+            )
+        })
         .collect()
 }
 
@@ -6789,7 +7626,7 @@ fn collect_with_block_lowering_items(node: &Cst, out: &mut Vec<Cst>) {
             SyntaxKind::IndentBlock | SyntaxKind::BraceGroup | SyntaxKind::WithBlock => {
                 collect_with_block_lowering_items(&child, out);
             }
-            SyntaxKind::Binding | SyntaxKind::Expr => out.push(child),
+            SyntaxKind::Binding | SyntaxKind::Expr | SyntaxKind::ForStmt => out.push(child),
             _ => {}
         }
     }
@@ -6826,6 +7663,48 @@ fn assignment_value_expr(node: &Cst) -> Option<Cst> {
         .last()
 }
 
+fn for_label(node: &Cst) -> Option<Cst> {
+    let header = node
+        .children()
+        .find(|child| child.kind() == SyntaxKind::ForHeader)?;
+    header
+        .children()
+        .find(|child| child.kind() == SyntaxKind::ForLabel)
+}
+
+fn for_pattern(node: &Cst) -> Option<Cst> {
+    let header = node
+        .children()
+        .find(|child| child.kind() == SyntaxKind::ForHeader)?;
+    header.children().find(|child| {
+        matches!(
+            child.kind(),
+            SyntaxKind::Pattern | SyntaxKind::PatOr | SyntaxKind::PatAs | SyntaxKind::PatParenGroup
+        )
+    })
+}
+
+fn for_iter_expr(node: &Cst) -> Option<Cst> {
+    let header = node
+        .children()
+        .find(|child| child.kind() == SyntaxKind::ForHeader)?;
+    header
+        .children()
+        .find(|child| child.kind() == SyntaxKind::Expr)
+}
+
+fn for_body_expr(node: &Cst) -> Option<Cst> {
+    let body = node
+        .children()
+        .find(|child| child.kind() == SyntaxKind::ForBody)?;
+    body.children().find(|child| {
+        matches!(
+            child.kind(),
+            SyntaxKind::IndentBlock | SyntaxKind::BraceGroup | SyntaxKind::Expr
+        )
+    })
+}
+
 fn var_read_reference_name(text: &str) -> Option<Name> {
     let raw = text.strip_prefix('$')?;
     (!raw.is_empty()).then(|| Name(format!("&{raw}")))
@@ -6844,6 +7723,146 @@ fn var_init_name(source: &Name) -> Option<Name> {
 fn var_reference_name(source: &Name) -> Option<Name> {
     let raw = source.0.strip_prefix('$')?;
     (!raw.is_empty()).then(|| Name(format!("&{raw}")))
+}
+
+fn plain_rule_lit_text(node: &Cst) -> Option<String> {
+    if node.children().any(|child| {
+        matches!(
+            child.kind(),
+            SyntaxKind::RuleLazyCapture | SyntaxKind::RuleLitInterp
+        )
+    }) {
+        return None;
+    }
+
+    Some(
+        node.children_with_tokens()
+            .filter_map(|item| item.into_token())
+            .filter(|token| token.kind() == SyntaxKind::RuleLitText)
+            .map(|token| token.text().to_string())
+            .collect(),
+    )
+}
+
+fn rule_lit_parts(node: &Cst) -> Result<Vec<RuleLitPart>, LoweringError> {
+    let mut parts = Vec::new();
+    for item in node.children_with_tokens() {
+        if item_is_trivia(&item) {
+            continue;
+        }
+        match item {
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::RuleLitText => {
+                parts.push(RuleLitPart::Token(token.text().to_string()));
+            }
+            NodeOrToken::Token(token)
+                if matches!(
+                    token.kind(),
+                    SyntaxKind::RuleLitStart | SyntaxKind::RuleLitEnd
+                ) => {}
+            NodeOrToken::Node(child) if child.kind() == SyntaxKind::RuleLazyCapture => {
+                let name = lazy_capture_name(&child).ok_or(LoweringError::UnsupportedSyntax {
+                    kind: SyntaxKind::RuleLazyCapture,
+                })?;
+                parts.push(RuleLitPart::CaptureWord(name));
+            }
+            NodeOrToken::Node(child) if child.kind() == SyntaxKind::RuleLitInterp => {
+                let parser = single_rule_lit_interp_expr(&child).ok_or(
+                    LoweringError::UnsupportedSyntax {
+                        kind: SyntaxKind::RuleLitInterp,
+                    },
+                )?;
+                if let Some((name, parser)) = rule_expr_capture(&parser) {
+                    parts.push(RuleLitPart::CaptureParser { name, parser });
+                } else {
+                    parts.push(RuleLitPart::Parser(parser));
+                }
+            }
+            NodeOrToken::Node(child) => {
+                return Err(LoweringError::UnsupportedSyntax { kind: child.kind() });
+            }
+            NodeOrToken::Token(token) => {
+                return Err(LoweringError::UnsupportedSyntax { kind: token.kind() });
+            }
+        }
+    }
+    Ok(parts)
+}
+
+fn single_rule_lit_interp_expr(node: &Cst) -> Option<Cst> {
+    let mut exprs = node
+        .children()
+        .filter(|child| child.kind() == SyntaxKind::Expr);
+    let expr = exprs.next()?;
+    exprs.next().is_none().then_some(expr)
+}
+
+fn lazy_capture_name(node: &Cst) -> Option<Name> {
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::RuleLitText)
+        .map(|token| Name(token.text().to_string()))
+}
+
+fn rule_branches(node: &Cst) -> Vec<Vec<Cst>> {
+    let mut branches = vec![Vec::new()];
+    for child in node.children() {
+        match child.kind() {
+            SyntaxKind::Expr => {
+                if let Some(branch) = branches.last_mut() {
+                    branch.push(child);
+                }
+            }
+            SyntaxKind::Separator => branches.push(Vec::new()),
+            _ => {}
+        }
+    }
+    branches
+}
+
+fn rule_expr_capture(node: &Cst) -> Option<(Name, Cst)> {
+    let name = node
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::Ident)
+        .map(|token| Name(token.text().to_string()))?;
+    let parser = node
+        .children()
+        .find(|child| child.kind() == SyntaxKind::RuleCapture)?
+        .children()
+        .find(|child| child.kind() == SyntaxKind::Expr)?;
+    Some((name, parser))
+}
+
+fn rule_quant(node: &Cst) -> Option<SyntaxKind> {
+    node.children()
+        .find(|child| child.kind() == SyntaxKind::RuleQuant)?
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find_map(|token| match token.kind() {
+            SyntaxKind::RuleQuantStar
+            | SyntaxKind::RuleQuantPlus
+            | SyntaxKind::RuleQuantStarLazy
+            | SyntaxKind::RuleQuantPlusLazy
+            | SyntaxKind::RuleQuantOpt => Some(token.kind()),
+            _ => None,
+        })
+}
+
+fn direct_child(node: &Cst, kind: SyntaxKind) -> Option<Cst> {
+    node.children().find(|child| child.kind() == kind)
+}
+
+fn plain_string_expr_text(node: &Cst) -> Result<Option<String>, LoweringError> {
+    let mut strings = node
+        .children()
+        .filter(|child| child.kind() == SyntaxKind::StringLit);
+    let Some(first) = strings.next() else {
+        return Ok(None);
+    };
+    if strings.next().is_some() {
+        return Ok(None);
+    }
+    plain_string_lit_text(&first).map(Some)
 }
 
 fn plain_string_lit_text(node: &Cst) -> Result<String, LoweringError> {
@@ -6957,6 +7976,13 @@ fn expr_symbol_head_name(
 ) -> Option<String> {
     let token = head.as_token()?;
     (token.kind() == SyntaxKind::Symbol).then(|| token.text().trim_start_matches(':').to_string())
+}
+
+fn recursive_lambda_label_name(node: &Cst) -> Option<Name> {
+    node.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::SigilIdent && token.text().starts_with('\''))
+        .map(|token| Name(token.text().to_string()))
 }
 
 fn binding_body_expr(binding: &Cst) -> Option<Cst> {
@@ -8413,6 +9439,18 @@ mod tests {
         ))
     }
 
+    fn parse_with_text_parse_std(src: &str) -> Cst {
+        parse(&format!(
+            "mod std:\n  pub mod text:\n    pub mod parse:\n      pub token expected = expected\n      pub word() = 0\n      pub choice p q = p\n      pub many p = p\n      pub some p = p\n      pub optional p = p\n{src}"
+        ))
+    }
+
+    fn parse_with_flow_loop_std(src: &str) -> Cst {
+        parse(&format!(
+            "mod std:\n  pub mod control:\n    pub mod flow:\n      pub act loop:\n        pub for_in xs f = f xs\n{src}"
+        ))
+    }
+
     fn binding_expr(root: &Cst, name: &str) -> Cst {
         binding_node(root, name)
             .and_then(|binding| binding_body_expr(&binding))
@@ -8454,6 +9492,26 @@ mod tests {
         modules
             .value_path_at(modules.root_id(), &path, ModuleOrder::from_index(u32::MAX))
             .expect("std junction value")
+    }
+
+    fn text_parse_def(modules: &ModuleTable, name: &str) -> DefId {
+        let path = crate::std_paths::text_parse_value(name)
+            .into_iter()
+            .map(Name)
+            .collect::<Vec<_>>();
+        modules
+            .value_path_at(modules.root_id(), &path, ModuleOrder::from_index(u32::MAX))
+            .unwrap_or_else(|| panic!("std text parse value {name}"))
+    }
+
+    fn control_flow_loop_for_in_def(modules: &ModuleTable) -> DefId {
+        let path = crate::std_paths::control_flow_loop_for_in_value()
+            .into_iter()
+            .map(Name)
+            .collect::<Vec<_>>();
+        modules
+            .value_path_at(modules.root_id(), &path, ModuleOrder::from_index(u32::MAX))
+            .expect("std control flow loop for_in")
     }
 
     fn assert_junction_app(session: &AnalysisSession, expr: ExprId, junction: DefId) -> ExprId {
@@ -9488,6 +10546,406 @@ mod tests {
                 .ref_target(expr_ref(&output.session, site_body)),
             Some(add)
         );
+    }
+
+    #[test]
+    fn yada_yada_syntax_lowers_to_primitive_never() {
+        let root = parse("pub main = ...\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "main");
+        let expr = binding_expr(&root, "main");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        assert!(matches!(
+            session.poly.expr(computation.expr),
+            Expr::PrimitiveOp(PrimitiveOp::YadaYada)
+        ));
+        let bounds = session
+            .infer
+            .constraints()
+            .bounds()
+            .of(computation.value)
+            .expect("yada yada should constrain value");
+        let types = session.infer.constraints().types();
+        assert!(
+            bounds
+                .uppers()
+                .iter()
+                .any(|bound| matches!(types.neg(bound.neg), Neg::Bot))
+        );
+    }
+
+    #[test]
+    fn pipeline_lowers_lhs_as_first_rhs_argument() {
+        let root = parse("my f = builtin_op::int_add\nmy x = 1\nmy y = 2\npub z = x | f y\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let f = lower.modules.value_decls(module, &Name("f".into()))[0].def;
+        let x = lower.modules.value_decls(module, &Name("x".into()))[0].def;
+        let y = lower.modules.value_decls(module, &Name("y".into()))[0].def;
+        let z = lower.modules.value_decls(module, &Name("z".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let (outer_callee, outer_arg) = match output.session.poly.expr(binding_body_id(&output, z))
+        {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected outer app"),
+        };
+        let (inner_callee, inner_arg) = match output.session.poly.expr(outer_callee) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected inner app"),
+        };
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, inner_callee)),
+            Some(f)
+        );
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, inner_arg)),
+            Some(x)
+        );
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, outer_arg)),
+            Some(y)
+        );
+    }
+
+    #[test]
+    fn rule_lit_lowers_plain_text_to_text_parse_token() {
+        let root = parse_with_text_parse_std("pub main = ~\"hello\"\n");
+        let lower = lower_module_map(&root);
+        let token = text_parse_def(&lower.modules, "token");
+        let module = lower.modules.root_id();
+        let main = lower.modules.value_decls(module, &Name("main".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let (callee, arg) = match output.session.poly.expr(binding_body_id(&output, main)) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected token application"),
+        };
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, callee)),
+            Some(token)
+        );
+        assert!(
+            matches!(output.session.poly.expr(arg), Expr::Lit(Lit::Str(text)) if text == "hello")
+        );
+    }
+
+    #[test]
+    fn rule_expr_wraps_sequence_in_unit_lambda() {
+        let root = parse_with_text_parse_std("pub main = rule { \"a\" }\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let main = lower.modules.value_decls(module, &Name("main".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let (pat, body) = match output.session.poly.expr(binding_body_id(&output, main)) {
+            Expr::Lambda(pat, body) => (*pat, *body),
+            _ => panic!("expected rule expr lambda"),
+        };
+        assert!(matches!(output.session.poly.pat(pat), Pat::Lit(Lit::Unit)));
+        let (stmts, tail) = match output.session.poly.expr(body) {
+            Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+            _ => panic!("expected rule sequence block"),
+        };
+        assert_eq!(stmts.len(), 1);
+        assert!(matches!(stmts[0], Stmt::Expr(_)));
+        assert!(matches!(
+            output.session.poly.expr(tail),
+            Expr::Lit(Lit::Unit)
+        ));
+    }
+
+    #[test]
+    fn rule_lit_lazy_capture_builds_record_parser() {
+        let root = parse_with_text_parse_std("pub main = ~\"users/:id\"\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let main = lower.modules.value_decls(module, &Name("main".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let (_, body) = match output.session.poly.expr(binding_body_id(&output, main)) {
+            Expr::Lambda(pat, body) => {
+                assert!(matches!(output.session.poly.pat(*pat), Pat::Lit(Lit::Unit)));
+                (*pat, *body)
+            }
+            _ => panic!("expected rule literal lambda"),
+        };
+        let (stmts, tail) = match output.session.poly.expr(body) {
+            Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+            _ => panic!("expected rule literal block"),
+        };
+        assert_eq!(stmts.len(), 2);
+        assert!(matches!(stmts[0], Stmt::Expr(_)));
+        assert!(matches!(stmts[1], Stmt::Let(..)));
+        match output.session.poly.expr(tail) {
+            Expr::Record {
+                fields,
+                spread: RecordSpread::None,
+            } => {
+                assert_eq!(fields.len(), 1);
+                assert_eq!(fields[0].0, "id");
+            }
+            _ => panic!("expected capture record"),
+        }
+    }
+
+    #[test]
+    fn rule_lit_interp_runs_parser_without_capture() {
+        let root = parse_with_text_parse_std(
+            "my id = std::text::parse::word\npub main = ~\"users/{id}\"\n",
+        );
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let id = lower.modules.value_decls(module, &Name("id".into()))[0].def;
+        let main = lower.modules.value_decls(module, &Name("main".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let (_, body) = match output.session.poly.expr(binding_body_id(&output, main)) {
+            Expr::Lambda(pat, body) => {
+                assert!(matches!(output.session.poly.pat(*pat), Pat::Lit(Lit::Unit)));
+                (*pat, *body)
+            }
+            _ => panic!("expected rule literal lambda"),
+        };
+        let (stmts, tail) = match output.session.poly.expr(body) {
+            Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+            _ => panic!("expected rule literal block"),
+        };
+        assert_eq!(stmts.len(), 2);
+        let parser_run = match &stmts[1] {
+            Stmt::Expr(expr) => *expr,
+            _ => panic!("expected parser interpolation statement"),
+        };
+        let (callee, _unit) = match output.session.poly.expr(parser_run) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected parser interpolation application"),
+        };
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, callee)),
+            Some(id)
+        );
+        assert!(matches!(
+            output.session.poly.expr(tail),
+            Expr::Lit(Lit::Unit)
+        ));
+    }
+
+    #[test]
+    fn rule_lit_interp_capture_builds_record_parser() {
+        let root = parse_with_text_parse_std(
+            "my ident = std::text::parse::word\npub main = ~\"users/{id = ident}/posts\"\n",
+        );
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let ident = lower.modules.value_decls(module, &Name("ident".into()))[0].def;
+        let main = lower.modules.value_decls(module, &Name("main".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let (_, body) = match output.session.poly.expr(binding_body_id(&output, main)) {
+            Expr::Lambda(pat, body) => {
+                assert!(matches!(output.session.poly.pat(*pat), Pat::Lit(Lit::Unit)));
+                (*pat, *body)
+            }
+            _ => panic!("expected rule literal lambda"),
+        };
+        let (stmts, tail) = match output.session.poly.expr(body) {
+            Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+            _ => panic!("expected rule literal block"),
+        };
+        assert_eq!(stmts.len(), 3);
+        let captured_expr = match &stmts[1] {
+            Stmt::Let(_, _, expr) => *expr,
+            _ => panic!("expected interpolation capture statement"),
+        };
+        let (callee, _unit) = match output.session.poly.expr(captured_expr) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected capture parser application"),
+        };
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, callee)),
+            Some(ident)
+        );
+        match output.session.poly.expr(tail) {
+            Expr::Record {
+                fields,
+                spread: RecordSpread::None,
+            } => {
+                assert_eq!(fields.len(), 1);
+                assert_eq!(fields[0].0, "id");
+            }
+            _ => panic!("expected interpolation capture record"),
+        }
+    }
+
+    #[test]
+    fn rule_expr_alternation_uses_text_parse_choice() {
+        let root = parse_with_text_parse_std("pub main = rule { \"a\" | \"b\" }\n");
+        let lower = lower_module_map(&root);
+        let choice = text_parse_def(&lower.modules, "choice");
+        let module = lower.modules.root_id();
+        let main = lower.modules.value_decls(module, &Name("main".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let (_, body) = match output.session.poly.expr(binding_body_id(&output, main)) {
+            Expr::Lambda(pat, body) => {
+                assert!(matches!(output.session.poly.pat(*pat), Pat::Lit(Lit::Unit)));
+                (*pat, *body)
+            }
+            _ => panic!("expected rule expr lambda"),
+        };
+        let (partial, _right) = match output.session.poly.expr(body) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected choice second application"),
+        };
+        let (choice_ref, _left) = match output.session.poly.expr(partial) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected choice first application"),
+        };
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, choice_ref)),
+            Some(choice)
+        );
+    }
+
+    #[test]
+    fn rule_lazy_quantifier_reports_quantifier_unsupported() {
+        let root = parse_with_text_parse_std("pub main = rule { a*? }\n");
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.iter().any(|error| {
+            matches!(
+                error,
+                BodyLoweringError::Expr {
+                    error: LoweringError::UnsupportedSyntax {
+                        kind: SyntaxKind::RuleQuantStarLazy
+                    },
+                    ..
+                }
+            )
+        }));
+    }
+
+    #[test]
+    fn cast_decl_registers_cast_scheme_before_annotation_generalization() {
+        let root = parse(concat!(
+            "struct user_id { raw: int }\n",
+            "cast(x: int): user_id = user_id { raw: x }\n",
+            "pub main: user_id = 0\n",
+        ));
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let candidates = output
+            .session
+            .casts
+            .candidates(&["int".to_string()], &["user_id".to_string()]);
+        assert_eq!(candidates.len(), 1);
+    }
+
+    #[test]
+    fn for_stmt_lowers_to_std_loop_for_in() {
+        let root = parse_with_flow_loop_std("my xs = 1\npub main = { for x in xs: x }\n");
+        let lower = lower_module_map(&root);
+        let for_in = control_flow_loop_for_in_def(&lower.modules);
+        let module = lower.modules.root_id();
+        let xs = lower.modules.value_decls(module, &Name("xs".into()))[0].def;
+        let main = lower.modules.value_decls(module, &Name("main".into()))[0].def;
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let (applied_iter, body_lambda) =
+            match output.session.poly.expr(binding_body_id(&output, main)) {
+                Expr::App(callee, arg) => (*callee, *arg),
+                _ => panic!("expected for_in body application"),
+            };
+        let (for_in_ref, iter_arg) = match output.session.poly.expr(applied_iter) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected for_in iterator application"),
+        };
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, for_in_ref)),
+            Some(for_in)
+        );
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, iter_arg)),
+            Some(xs)
+        );
+        assert!(matches!(
+            output.session.poly.expr(body_lambda),
+            Expr::Lambda(..)
+        ));
+    }
+
+    #[test]
+    fn labeled_for_stmt_reports_label_unsupported() {
+        let root = parse_with_flow_loop_std("my xs = 1\npub main = { for 'outer x in xs: x }\n");
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.iter().any(|error| {
+            matches!(
+                error,
+                BodyLoweringError::Expr {
+                    error: LoweringError::UnsupportedSyntax {
+                        kind: SyntaxKind::ForLabel
+                    },
+                    ..
+                }
+            )
+        }));
     }
 
     #[test]
@@ -11482,6 +12940,44 @@ mod tests {
     }
 
     #[test]
+    fn recursive_lambda_lowers_to_local_self_binding() {
+        let root = parse("my f = \\'self x -> 'self\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        let (stmts, tail) = match session.poly.expr(computation.expr) {
+            Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+            _ => panic!("expected recursive lambda block"),
+        };
+        let [Stmt::Let(_, self_pat, body)] = stmts.as_slice() else {
+            panic!("expected recursive self let");
+        };
+        let self_def = match session.poly.pat(*self_pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected recursive self local"),
+        };
+        let lambda_body = match session.poly.expr(*body) {
+            Expr::Lambda(_, body) => *body,
+            _ => panic!("expected recursive lambda body"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, lambda_body)),
+            Some(self_def)
+        );
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, tail)),
+            Some(self_def)
+        );
+    }
+
+    #[test]
     fn case_lowering_binds_arm_pattern_local() {
         let root = parse("my f = case 1: n -> n\n");
         let lower = lower_module_map(&root);
@@ -11509,6 +13005,48 @@ mod tests {
 
         assert_eq!(session.poly.ref_target(body_ref), Some(param));
         assert!(computation.is_expansive());
+    }
+
+    #[test]
+    fn case_lambda_lowers_to_lambda_with_case_body() {
+        let root = parse("my f = \\case: n -> n\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        let (scrutinee_pat, body) = match session.poly.expr(computation.expr) {
+            Expr::Lambda(pat, body) => (*pat, *body),
+            _ => panic!("expected case lambda"),
+        };
+        let scrutinee_def = match session.poly.pat(scrutinee_pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected case lambda scrutinee local"),
+        };
+        let (scrutinee, arms) = match session.poly.expr(body) {
+            Expr::Case(scrutinee, arms) => (*scrutinee, arms),
+            _ => panic!("expected case lambda body"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, scrutinee)),
+            Some(scrutinee_def)
+        );
+        let [arm] = arms.as_slice() else {
+            panic!("expected one case arm");
+        };
+        let param = match session.poly.pat(arm.pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected arm pattern local"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, arm.body)),
+            Some(param)
+        );
     }
 
     #[test]
@@ -11641,6 +13179,49 @@ mod tests {
 
         assert_eq!(session.poly.ref_target(body_ref), Some(value));
         assert!(computation.is_expansive());
+    }
+
+    #[test]
+    fn catch_lambda_lowers_to_lambda_with_catch_body() {
+        let root = parse("my f = \\catch: value -> value\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        let (scrutinee_pat, body) = match session.poly.expr(computation.expr) {
+            Expr::Lambda(pat, body) => (*pat, *body),
+            _ => panic!("expected catch lambda"),
+        };
+        let scrutinee_def = match session.poly.pat(scrutinee_pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected catch lambda scrutinee local"),
+        };
+        let (scrutinee, arms) = match session.poly.expr(body) {
+            Expr::Catch(scrutinee, arms) => (*scrutinee, arms),
+            _ => panic!("expected catch lambda body"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, scrutinee)),
+            Some(scrutinee_def)
+        );
+        let [arm] = arms.as_slice() else {
+            panic!("expected one catch arm");
+        };
+        assert!(arm.continuation.is_none());
+        let param = match session.poly.pat(arm.pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected value arm pattern local"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, arm.body)),
+            Some(param)
+        );
     }
 
     #[test]

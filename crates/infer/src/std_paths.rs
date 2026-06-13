@@ -12,8 +12,18 @@ pub(crate) fn text_str_type() -> Vec<String> {
     path(&["std", "text", "str", "str"])
 }
 
+pub(crate) fn text_parse_value(name: &str) -> Vec<String> {
+    let mut path = path(&["std", "text", "parse"]);
+    path.push(name.to_string());
+    path
+}
+
 pub(crate) fn control_junction_value() -> Vec<String> {
     path(&["std", "control", "junction", "junction", "junction"])
+}
+
+pub(crate) fn control_flow_loop_for_in_value() -> Vec<String> {
+    path(&["std", "control", "flow", "loop", "for_in"])
 }
 
 pub(crate) fn control_var_var_act() -> Vec<String> {
