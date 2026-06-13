@@ -591,7 +591,16 @@ operation 宣言が解決済みであれば、effect arm はその operation def
 specialize は operation def の scheme を通常の参照と同じ経路で materialize し、handler payload の
 mono 型と continuation が受け取る値型を得る。`op: A -> [E] B` の arm では、payload pattern は
 `A`、continuation は `B -> shape(scrutinee_effect, scrutinee_value)` として扱う。
+generic operation の型引数は、operation def を fresh instantiate しただけでは決まらないため、
+operation の return effect を scrutinee effect row の同じ family item へ結び直す。
+これにより `get: () -> [var 'a] 'a` のような operation では、`[var int]` を持つ scrutinee から
+continuation 入力も `int` へ解ける。
 operation def が未解決の fallback arm では、payload 型と continuation 入力型を同じ fresh slot とする。
+
+top-level `FetchComputation` binding は source order の runtime root として materialize される。
+`my run = out::say(1); my handled = catch run: ...` の `catch run` は `run` の RHS を handler の
+内側で再評価しない。`run` の effect は先行する runtime root の評価で発生し、後続の handler へは
+計算済み value だけが渡る。
 
 effect id hygiene も同じく、runtime-lower 側の暗黙責務にしてはならない。guard marker の
 runtime 意味、`add_id[n, path, id]` の depth、関数起動時の push / pop、resumable effect を含む

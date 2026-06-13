@@ -1097,6 +1097,65 @@ mod tests {
     }
 
     #[test]
+    fn dump_mono_without_std_lowers_generic_direct_effect_handler() {
+        let root = temp_root("dump-mono-generic-direct-effect-handler");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "act var 't:\n  our get: unit -> 't\n\
+             catch var::get():\n\
+             \x20 var::get(), k -> k(1)\n\
+             \x20 value -> value\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(
+            &output,
+            "catch force-thunk[thunk[[var(int)], int] => int ! [var(int)]]",
+        );
+        assert_mono_dump_contains(&output, "var::get _");
+        assert_mono_dump_contains(
+            &output,
+            "force-thunk[thunk[[var(int)], int] => int ! [var(int)]]((d",
+        );
+    }
+
+    #[test]
+    fn dump_mono_without_std_computed_effect_binding_escapes_later_handler() {
+        let root = temp_root("dump-mono-computed-effect-escapes-handler");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "act out:\n  our say: int -> unit\n\
+             my run = out::say(1)\n\
+             my handled = catch run:\n\
+             \x20 out::say msg, k -> k(())\n\
+             \x20 value -> value\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(&output, "mono roots [m0, m1]");
+        assert_mono_dump_contains(
+            &output,
+            "m0 = d2 : unit\n  force-thunk[thunk[[out], unit] => unit ! [out]]((d1 1))",
+        );
+        assert_mono_dump_contains(&output, "m1 = d3 : unit\n  catch m0: out::say d");
+        assert!(
+            !output.text.contains("catch force-thunk"),
+            "{}",
+            output.text
+        );
+    }
+
+    #[test]
     fn dump_poly_without_std_infers_local_constructor_application() {
         let root = temp_root("dump-poly-local-constructor");
         let _ = fs::remove_dir_all(&root);
