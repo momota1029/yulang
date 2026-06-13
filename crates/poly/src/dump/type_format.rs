@@ -386,16 +386,20 @@ impl<'a> TypeFormatter<'a> {
 
     fn render_neu(&mut self, id: NeuId) -> Rendered {
         match self.arena.neu(id) {
-            Neu::Bounds(lower, var, upper) if self.is_plain_bounds(*lower, *var, *upper) => {
-                Rendered::atom(self.namer.name(*var))
-            }
-            Neu::Bounds(lower, var, upper) => {
-                if let Some(rendered) =
-                    self.render_directional_bounds(*lower, *var, *upper, NeuPolarity::Neutral)
-                {
-                    return rendered;
+            Neu::Bounds(lower, upper) => {
+                let center = self.bounds_center(*lower, *upper);
+                if let Some(var) = center {
+                    if self.is_plain_bounds(*lower, var, *upper) {
+                        return Rendered::atom(self.namer.name(var));
+                    }
+                    if let Some(rendered) =
+                        self.render_directional_bounds(*lower, var, *upper, NeuPolarity::Neutral)
+                    {
+                        return rendered;
+                    }
+                    return self.render_bounds(*lower, var, *upper);
                 }
-                self.render_bounds(*lower, *var, *upper)
+                self.render_centerless_bounds(*lower, *upper)
             }
             Neu::Con(path, args) => self.render_con(path, args, NeuPolarity::Neutral),
             Neu::Fun {
@@ -418,16 +422,20 @@ impl<'a> TypeFormatter<'a> {
 
     fn render_neu_with_polarity(&mut self, id: NeuId, polarity: NeuPolarity) -> Rendered {
         match self.arena.neu(id) {
-            Neu::Bounds(lower, var, upper) if self.is_plain_bounds(*lower, *var, *upper) => {
-                Rendered::atom(self.namer.name(*var))
-            }
-            Neu::Bounds(lower, var, upper) => {
-                if let Some(rendered) =
-                    self.render_directional_bounds(*lower, *var, *upper, polarity)
-                {
-                    return rendered;
+            Neu::Bounds(lower, upper) => {
+                let center = self.bounds_center(*lower, *upper);
+                if let Some(var) = center {
+                    if self.is_plain_bounds(*lower, var, *upper) {
+                        return Rendered::atom(self.namer.name(var));
+                    }
+                    if let Some(rendered) =
+                        self.render_directional_bounds(*lower, var, *upper, polarity)
+                    {
+                        return rendered;
+                    }
+                    return self.render_bounds(*lower, var, *upper);
                 }
-                self.render_bounds(*lower, *var, *upper)
+                self.render_centerless_bounds(*lower, *upper)
             }
             Neu::Con(path, args) => self.render_con(path, args, polarity),
             Neu::Fun {
@@ -812,6 +820,72 @@ impl<'a> TypeFormatter<'a> {
         }
     }
 
+    fn render_centerless_bounds(&mut self, lower: PosId, upper: NegId) -> Rendered {
+        let mut lower_parts = Vec::new();
+        self.bounds_lower_parts_without_center(lower, &mut lower_parts);
+        let mut upper_parts = Vec::new();
+        self.bounds_upper_parts_without_center(upper, &mut upper_parts);
+
+        if lower_parts.len() == 1 && lower_parts == upper_parts {
+            return rendered_exact_bounds_part(lower_parts.remove(0));
+        }
+        if upper_parts.is_empty() {
+            return Rendered::union(lower_parts.join(" | "));
+        }
+        if lower_parts.is_empty() {
+            return Rendered::intersection(upper_parts.join(" & "));
+        }
+        Rendered::atom(format!(
+            "{} <: {}",
+            lower_parts.join(" | "),
+            upper_parts.join(" & ")
+        ))
+    }
+
+    fn bounds_center(&self, lower: PosId, upper: NegId) -> Option<TypeVar> {
+        let mut lower_vars = Vec::new();
+        self.bounds_lower_top_vars(lower, &mut lower_vars);
+        lower_vars.sort_by_key(|var| var.0);
+        lower_vars.dedup();
+        let mut upper_vars = Vec::new();
+        self.bounds_upper_top_vars(upper, &mut upper_vars);
+        upper_vars.sort_by_key(|var| var.0);
+        upper_vars.dedup();
+        let common = lower_vars
+            .into_iter()
+            .filter(|var| upper_vars.contains(var))
+            .collect::<Vec<_>>();
+        (common.len() == 1).then(|| common[0])
+    }
+
+    fn bounds_lower_top_vars(&self, id: PosId, out: &mut Vec<TypeVar>) {
+        match self.arena.pos(id) {
+            Pos::Var(var) => out.push(*var),
+            Pos::Stack { inner, weight } if is_hidden_quantifier_stack(weight) => {
+                self.bounds_lower_top_vars(*inner, out);
+            }
+            Pos::Union(left, right) => {
+                self.bounds_lower_top_vars(*left, out);
+                self.bounds_lower_top_vars(*right, out);
+            }
+            _ => {}
+        }
+    }
+
+    fn bounds_upper_top_vars(&self, id: NegId, out: &mut Vec<TypeVar>) {
+        match self.arena.neg(id) {
+            Neg::Var(var) => out.push(*var),
+            Neg::Stack { inner, weight } if is_hidden_quantifier_stack(weight) => {
+                self.bounds_upper_top_vars(*inner, out);
+            }
+            Neg::Intersection(left, right) => {
+                self.bounds_upper_top_vars(*left, out);
+                self.bounds_upper_top_vars(*right, out);
+            }
+            _ => {}
+        }
+    }
+
     fn bounds_lower_parts(&mut self, id: PosId, var: TypeVar, out: &mut Vec<String>) {
         if self.pos_is_plain_bounds_var(id, var) {
             return;
@@ -836,6 +910,30 @@ impl<'a> TypeFormatter<'a> {
                 let (left, right) = (*left, *right);
                 self.bounds_upper_parts(left, var, out);
                 self.bounds_upper_parts(right, var, out);
+            }
+            Neg::Top => {}
+            _ => out.push(self.neg(id, Context::FunctionArg)),
+        }
+    }
+
+    fn bounds_lower_parts_without_center(&mut self, id: PosId, out: &mut Vec<String>) {
+        match self.arena.pos(id) {
+            Pos::Union(left, right) => {
+                let (left, right) = (*left, *right);
+                self.bounds_lower_parts_without_center(left, out);
+                self.bounds_lower_parts_without_center(right, out);
+            }
+            Pos::Bot => {}
+            _ => out.push(self.pos(id, Context::FunctionArg)),
+        }
+    }
+
+    fn bounds_upper_parts_without_center(&mut self, id: NegId, out: &mut Vec<String>) {
+        match self.arena.neg(id) {
+            Neg::Intersection(left, right) => {
+                let (left, right) = (*left, *right);
+                self.bounds_upper_parts_without_center(left, out);
+                self.bounds_upper_parts_without_center(right, out);
             }
             Neg::Top => {}
             _ => out.push(self.neg(id, Context::FunctionArg)),
@@ -1142,7 +1240,7 @@ mod tests {
 
         let pos_a = arena.alloc_pos(Pos::Var(a));
         let neg_a = arena.alloc_neg(Neg::Var(a));
-        let neu_a = arena.alloc_neu(Neu::Bounds(pos_a, a, neg_a));
+        let neu_a = arena.alloc_neu(Neu::Bounds(pos_a, neg_a));
         let ret = arena.alloc_pos(Pos::Con(vec!["list".into()], vec![neu_a]));
         let ret_eff = arena.alloc_pos(Pos::Var(b));
         let nondet = arena.alloc_neg(Neg::Con(vec!["nondet".into()], Vec::new()));
@@ -1297,7 +1395,7 @@ mod tests {
         let a = TypeVar(0);
         let pos_a = arena.alloc_pos(Pos::Var(a));
         let neg_a = arena.alloc_neg(Neg::Var(a));
-        let neu_a = arena.alloc_neu(Neu::Bounds(pos_a, a, neg_a));
+        let neu_a = arena.alloc_neu(Neu::Bounds(pos_a, neg_a));
         let list_a = arena.alloc_neu(Neu::Con(vec!["list".into()], vec![neu_a]));
         let outer = arena.alloc_pos(Pos::Con(vec!["box".into()], vec![list_a]));
 
@@ -1310,7 +1408,7 @@ mod tests {
         let a = TypeVar(0);
         let pos_a = arena.alloc_pos(Pos::Var(a));
         let neg_a = arena.alloc_neg(Neg::Var(a));
-        let neu_a = arena.alloc_neu(Neu::Bounds(pos_a, a, neg_a));
+        let neu_a = arena.alloc_neu(Neu::Bounds(pos_a, neg_a));
         let inner = arena.alloc_neu(Neu::Con(vec!["list".into()], vec![neu_a]));
         let outer = arena.alloc_pos(Pos::Con(vec!["list".into()], vec![inner]));
 
@@ -1327,7 +1425,7 @@ mod tests {
         let var_neg = arena.alloc_neg(Neg::Var(a));
         let lower = arena.alloc_pos(Pos::Union(item_pos, var_pos));
         let upper = arena.alloc_neg(Neg::Intersection(var_neg, item_neg));
-        let arg = arena.alloc_neu(Neu::Bounds(lower, a, upper));
+        let arg = arena.alloc_neu(Neu::Bounds(lower, upper));
         let outer = arena.alloc_pos(Pos::Con(vec!["box".into()], vec![arg]));
 
         assert_eq!(format_pos(&arena, outer), "box file");
@@ -1344,7 +1442,7 @@ mod tests {
             weight: StackWeight::pops(subtract, u32::MAX),
         });
         let neg_a = arena.alloc_neg(Neg::Var(a));
-        let neu_a = arena.alloc_neu(Neu::Bounds(stacked_a, a, neg_a));
+        let neu_a = arena.alloc_neu(Neu::Bounds(stacked_a, neg_a));
         let list_a = arena.alloc_pos(Pos::Con(vec!["list".into()], vec![neu_a]));
         let scheme = Scheme {
             quantifiers: vec![a],
@@ -1487,6 +1585,6 @@ mod tests {
     fn plain_neu(arena: &mut TypeArena, var: TypeVar) -> NeuId {
         let pos = arena.alloc_pos(Pos::Var(var));
         let neg = arena.alloc_neg(Neg::Var(var));
-        arena.alloc_neu(Neu::Bounds(pos, var, neg))
+        arena.alloc_neu(Neu::Bounds(pos, neg))
     }
 }

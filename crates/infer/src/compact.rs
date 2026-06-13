@@ -24,7 +24,8 @@ mod analysis;
 #[cfg(test)]
 pub(crate) use analysis::simplify_compact_root;
 pub(crate) use analysis::{
-    coalesce_floor_interval_equalities, eliminate_floor_redundant_variables,
+    coalesce_floor_interval_equalities, coalesce_floor_variable_sandwiches,
+    collect_interval_dominance_constraints, eliminate_floor_redundant_variables,
     normalize_var_substitutions, simplify_compact_root_with_roles_and_non_generic,
 };
 mod casts;
@@ -51,6 +52,19 @@ pub(crate) struct CompactMergeConstraint {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct CompactSubtypeConstraint {
+    key: CompactSubtypeConstraintKey,
+    lower: CompactType,
+    upper: CompactType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct CompactSubtypeConstraintKey {
+    lower: CompactType,
+    upper: CompactType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct CompactMergeConstraintKey {
     lhs: CompactMergeConstraintShape,
     rhs: CompactMergeConstraintShape,
@@ -58,7 +72,7 @@ pub(crate) struct CompactMergeConstraintKey {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum CompactMergeConstraintShape {
-    Interval(TypeVar),
+    Interval,
     Con {
         path: Vec<String>,
         args: Vec<CompactMergeConstraintShape>,
@@ -313,7 +327,6 @@ impl CompactVar {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum CompactBounds {
     Interval {
-        self_var: TypeVar,
         lower: CompactType,
         upper: CompactType,
     },
@@ -439,6 +452,28 @@ pub(crate) fn apply_compact_merge_constraints(
     changed
 }
 
+pub(crate) fn apply_compact_subtype_constraints(
+    machine: &mut ConstraintMachine,
+    constraints: Vec<CompactSubtypeConstraint>,
+    applied: &mut FxHashSet<CompactSubtypeConstraintKey>,
+) -> bool {
+    let mut changed = false;
+    for constraint in constraints {
+        if constraint.lower == constraint.upper || !applied.insert(constraint.key.clone()) {
+            continue;
+        }
+        let (lower, upper) = {
+            let mut finalizer = CompactFinalizer::new(&mut *machine);
+            (
+                finalizer.finalize_pos_type(&constraint.lower),
+                finalizer.finalize_neg_type(&constraint.upper),
+            )
+        };
+        changed |= machine.constrain_subtype(lower, upper);
+    }
+    changed
+}
+
 pub(crate) fn compact_reachable_role_constraints(
     machine: &ConstraintMachine,
     seed: &CompactRoot,
@@ -542,9 +577,7 @@ fn compact_merge_constraint_key(
 
 fn compact_merge_constraint_shape(bounds: &CompactBounds) -> CompactMergeConstraintShape {
     match bounds {
-        CompactBounds::Interval { self_var, .. } => {
-            CompactMergeConstraintShape::Interval(*self_var)
-        }
+        CompactBounds::Interval { .. } => CompactMergeConstraintShape::Interval,
         CompactBounds::Con { path, args } => CompactMergeConstraintShape::Con {
             path: path.clone(),
             args: args.iter().map(compact_merge_constraint_shape).collect(),
@@ -695,19 +728,7 @@ fn role_arg_bounds_from_types_with_sink<S: CompactMergeConstraintSink>(
         }
     }
 
-    let self_var = common_var_in_types(&lower, &upper)
-        .or_else(|| unique_var_in_type(&lower))
-        .or_else(|| unique_var_in_type(&upper))
-        .unwrap_or_else(|| {
-            panic!(
-                "compact role arg should be exact or retain a shared variable: {lower:?} <: {upper:?}"
-            )
-        });
-    CompactBounds::Interval {
-        self_var,
-        lower,
-        upper,
-    }
+    CompactBounds::Interval { lower, upper }
 }
 
 fn compact_bounds_can_merge(lhs: &CompactBounds, rhs: &CompactBounds) -> bool {
@@ -749,7 +770,6 @@ fn exact_compact_type_bounds(ty: &CompactType) -> Option<CompactBounds> {
     {
         let var = ty.vars[0].var;
         return Some(CompactBounds::Interval {
-            self_var: var,
             lower: CompactType::from_var(CompactVar::plain(var)),
             upper: CompactType::from_var(CompactVar::plain(var)),
         });
@@ -886,25 +906,22 @@ fn exact_compact_type_bounds(ty: &CompactType) -> Option<CompactBounds> {
     None
 }
 
-fn unique_var_in_type(ty: &CompactType) -> Option<TypeVar> {
-    let mut vars = ty.vars.iter().map(|var| var.var).collect::<Vec<_>>();
-    vars.sort_by_key(|var| var.0);
-    vars.dedup();
-    (vars.len() == 1).then(|| vars[0])
-}
-
-fn common_var_in_types(lower: &CompactType, upper: &CompactType) -> Option<TypeVar> {
-    lower
-        .vars
-        .iter()
-        .map(|var| var.var)
-        .filter(|lower_var| {
-            upper
-                .vars
-                .iter()
-                .any(|upper_var| upper_var.var == *lower_var)
-        })
-        .min_by_key(|var| var.0)
+fn merge_exact_interval_without_center(
+    lower: CompactType,
+    upper: CompactType,
+) -> Option<CompactBounds> {
+    let lower_bounds = exact_compact_type_bounds(&lower)?;
+    let upper_bounds = exact_compact_type_bounds(&upper)?;
+    if lower_bounds == upper_bounds {
+        if matches!(lower_bounds, CompactBounds::Interval { .. }) {
+            return None;
+        }
+        return Some(lower_bounds);
+    }
+    compact_bounds_can_merge(&lower_bounds, &upper_bounds).then(|| {
+        let mut sink = NoopCompactMergeConstraintSink;
+        merge_compact_bounds_with_sink(true, lower_bounds, upper_bounds, &mut sink)
+    })
 }
 
 fn free_vars_in_root(root: &CompactRoot) -> FxHashSet<TypeVar> {
@@ -982,12 +999,7 @@ fn collect_free_vars_in_type(ty: &CompactType, vars: &mut FxHashSet<TypeVar>) {
 
 fn collect_free_vars_in_bounds(bounds: &CompactBounds, vars: &mut FxHashSet<TypeVar>) {
     match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            vars.insert(*self_var);
+        CompactBounds::Interval { lower, upper } => {
             collect_free_vars_in_type(lower, vars);
             collect_free_vars_in_type(upper, vars);
         }
@@ -1173,14 +1185,15 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
 
     fn finalize_bounds(&mut self, bounds: &CompactBounds) -> NeuId {
         match bounds {
-            CompactBounds::Interval {
-                self_var,
-                lower,
-                upper,
-            } => {
+            CompactBounds::Interval { lower, upper } => {
+                if let Some(lifted) =
+                    merge_exact_interval_without_center(lower.clone(), upper.clone())
+                {
+                    return self.finalize_bounds(&lifted);
+                }
                 let lower = self.finalize_pos_type(lower);
                 let upper = self.finalize_neg_type(upper);
-                self.alloc_neu(Neu::Bounds(lower, *self_var, upper))
+                self.alloc_neu(Neu::Bounds(lower, upper))
             }
             CompactBounds::Con { path, args } => {
                 let args = args.iter().map(|arg| self.finalize_bounds(arg)).collect();
@@ -1719,38 +1732,15 @@ fn merge_compact_bounds_with_sink<S: CompactMergeConstraintSink>(
 ) -> CompactBounds {
     match (lhs, rhs) {
         (
+            CompactBounds::Interval { lower, upper },
             CompactBounds::Interval {
-                self_var,
-                lower,
-                upper,
-            },
-            CompactBounds::Interval {
-                self_var: rhs_self,
                 lower: rhs_lower,
                 upper: rhs_upper,
             },
         ) => {
-            let mut lower = merge_compact_types_with_sink(positive, lower, rhs_lower, sink);
-            let mut upper = merge_compact_types_with_sink(!positive, upper, rhs_upper, sink);
-            if self_var != rhs_self {
-                lower = merge_compact_types_with_sink(
-                    positive,
-                    lower,
-                    CompactType::from_var(CompactVar::plain(rhs_self)),
-                    sink,
-                );
-                upper = merge_compact_types_with_sink(
-                    !positive,
-                    upper,
-                    CompactType::from_var(CompactVar::plain(rhs_self)),
-                    sink,
-                );
-            }
-            CompactBounds::Interval {
-                self_var,
-                lower,
-                upper,
-            }
+            let lower = merge_compact_types_with_sink(positive, lower, rhs_lower, sink);
+            let upper = merge_compact_types_with_sink(!positive, upper, rhs_upper, sink);
+            CompactBounds::Interval { lower, upper }
         }
         (
             CompactBounds::Con { path, args },
@@ -2346,7 +2336,7 @@ impl<'a> CompactCollector<'a> {
 
     fn compact_neu_id_stack_families(&mut self, id: NeuId) -> Vec<CompactStackFamily> {
         match self.machine.types().neu(id).clone() {
-            Neu::Bounds(lower, _, upper) => {
+            Neu::Bounds(lower, upper) => {
                 let mut out = self.compact_pos_stack_families(lower);
                 out.extend(self.compact_neg_stack_families(upper));
                 out
@@ -2468,7 +2458,7 @@ impl<'a> CompactCollector<'a> {
         let bounds = if self.record_merge_constraints {
             role_arg_bounds_from_types_with_sink(lower, upper, &mut self.merge_constraints)
         } else {
-            role_arg_bounds_from_types(lower, upper)
+            role_arg_bounds_from_types_with_sink(lower, upper, &mut NoopCompactMergeConstraintSink)
         };
         CompactRoleArg { bounds }
     }
@@ -3037,8 +3027,7 @@ impl<'a> CompactCollector<'a> {
 
     fn compact_neu_id(&mut self, id: NeuId, weight: ConstraintWeight) -> CompactBounds {
         match self.machine.types().neu(id).clone() {
-            Neu::Bounds(lower, self_var, upper) => CompactBounds::Interval {
-                self_var,
+            Neu::Bounds(lower, upper) => CompactBounds::Interval {
                 lower: self.compact_pos_id(lower, weight),
                 upper: self.compact_neg_id(upper, ConstraintWeight::empty()),
             },
@@ -3095,8 +3084,7 @@ impl<'a> CompactCollector<'a> {
 
     fn compact_effect_neu_id(&mut self, id: NeuId, weight: ConstraintWeight) -> CompactBounds {
         match self.machine.types().neu(id).clone() {
-            Neu::Bounds(lower, self_var, upper) => CompactBounds::Interval {
-                self_var,
+            Neu::Bounds(lower, upper) => CompactBounds::Interval {
                 lower: self.compact_pos_effect_id(lower, weight),
                 upper: self.compact_neg_effect_id(upper, ConstraintWeight::empty()),
             },
@@ -3255,7 +3243,6 @@ impl<'a> CompactCollector<'a> {
             .rec_vars
             .entry(var)
             .or_insert_with(|| CompactBounds::Interval {
-                self_var: var,
                 lower: CompactType::default(),
                 upper: CompactType::default(),
             });
@@ -3280,7 +3267,7 @@ mod tests {
     fn invariant_var(machine: &mut ConstraintMachine, var: TypeVar) -> NeuId {
         let lower = machine.alloc_pos(Pos::Var(var));
         let upper = machine.alloc_neg(Neg::Var(var));
-        machine.alloc_neu(Neu::Bounds(lower, var, upper))
+        machine.alloc_neu(Neu::Bounds(lower, upper))
     }
 
     fn apply_merge_constraints_until_quiescent(
@@ -3372,15 +3359,14 @@ mod tests {
         let lhs_center = TypeVar(1);
         let rhs_center = TypeVar(2);
         let shared = TypeVar(3);
-        let role_arg = |self_var, other| CompactRoleArg {
+        let role_arg = |subject: TypeVar, other| CompactRoleArg {
             bounds: CompactBounds::Interval {
-                self_var,
                 lower: CompactType {
-                    vars: vec![CompactVar::plain(self_var), CompactVar::plain(other)],
+                    vars: vec![CompactVar::plain(subject), CompactVar::plain(other)],
                     ..CompactType::default()
                 },
                 upper: CompactType {
-                    vars: vec![CompactVar::plain(self_var), CompactVar::plain(other)],
+                    vars: vec![CompactVar::plain(subject), CompactVar::plain(other)],
                     ..CompactType::default()
                 },
             },
@@ -3404,15 +3390,17 @@ mod tests {
             matches!(
                 (&constraint.lhs, &constraint.rhs),
                 (
-                    CompactBounds::Interval { self_var: lhs, .. },
-                    CompactBounds::Interval { self_var: rhs, .. },
-                ) if *lhs == lhs_center && *rhs == rhs_center
+                    CompactBounds::Interval { .. },
+                    CompactBounds::Interval { .. }
+                )
             )
         }));
         let CompactBounds::Interval { lower, upper, .. } = &roles[0].inputs[0].bounds else {
             panic!("merged role arg should remain interval");
         };
+        assert!(lower.vars.iter().any(|var| var.var == lhs_center));
         assert!(lower.vars.iter().any(|var| var.var == rhs_center));
+        assert!(upper.vars.iter().any(|var| var.var == lhs_center));
         assert!(upper.vars.iter().any(|var| var.var == rhs_center));
     }
 
@@ -3453,17 +3441,17 @@ mod tests {
     }
 
     #[test]
-    fn interval_always_has_center_var() {
+    fn interval_stores_only_lower_and_upper_bounds() {
         let bounds = CompactBounds::Interval {
-            self_var: TypeVar(2),
             lower: CompactType::from_var(CompactVar::plain(TypeVar(2))),
             upper: CompactType::default(),
         };
 
-        let CompactBounds::Interval { self_var, .. } = bounds else {
+        let CompactBounds::Interval { lower, upper } = bounds else {
             panic!("expected interval");
         };
-        assert_eq!(self_var, TypeVar(2));
+        assert_eq!(lower.vars, vec![CompactVar::plain(TypeVar(2))]);
+        assert!(upper.is_empty());
     }
 
     #[test]
@@ -3473,7 +3461,7 @@ mod tests {
         let payload = TypeVar(1);
         let payload_pos = machine.alloc_pos(Pos::Var(payload));
         let payload_neg = machine.alloc_neg(Neg::Var(payload));
-        let payload_neu = machine.alloc_neu(Neu::Bounds(payload_pos, payload, payload_neg));
+        let payload_neu = machine.alloc_neu(Neu::Bounds(payload_pos, payload_neg));
         let list = machine.alloc_pos(Pos::Con(vec!["list".into()], vec![payload_neu]));
         let root_upper = machine.alloc_neg(Neg::Var(root));
         machine.weighted_subtype(
@@ -3744,7 +3732,7 @@ mod tests {
     }
 
     #[test]
-    fn polar_elimination_keeps_interval_center_as_bipolar() {
+    fn polar_elimination_keeps_recursive_interval_var() {
         let machine = ConstraintMachine::new();
         let center = TypeVar(1);
         let one_sided = TypeVar(2);
@@ -3753,7 +3741,6 @@ mod tests {
             rec_vars: vec![CompactRecursiveVar {
                 var: center,
                 bounds: CompactBounds::Interval {
-                    self_var: center,
                     lower: CompactType::from_var(CompactVar::plain(one_sided)),
                     upper: CompactType::default(),
                 },
@@ -3765,11 +3752,7 @@ mod tests {
         assert_eq!(root.rec_vars[0].var, center);
         assert!(matches!(
             &root.rec_vars[0].bounds,
-            CompactBounds::Interval {
-                self_var,
-                lower,
-                ..
-            } if *self_var == center && lower.vars.is_empty()
+            CompactBounds::Interval { lower, .. } if lower.vars.is_empty()
         ));
         assert_eq!(
             substitutions,
@@ -3818,7 +3801,6 @@ mod tests {
             rec_vars: vec![CompactRecursiveVar {
                 var: center,
                 bounds: CompactBounds::Interval {
-                    self_var: center,
                     lower: CompactType::from_var(CompactVar::plain(lower_var)),
                     upper: CompactType::from_var(CompactVar::plain(upper_var)),
                 },
@@ -3830,18 +3812,13 @@ mod tests {
         assert!(substitutions.is_empty());
         assert!(matches!(
             &root.rec_vars[0].bounds,
-            CompactBounds::Interval {
-                self_var,
-                lower,
-                upper,
-            } if *self_var == center
-                && lower.vars == vec![CompactVar::plain(lower_var)]
+            CompactBounds::Interval { lower, upper } if lower.vars == vec![CompactVar::plain(lower_var)]
                 && upper.vars == vec![CompactVar::plain(upper_var)]
         ));
     }
 
     #[test]
-    fn co_occurrence_interval_self_reference_does_not_shrink_center_group() {
+    fn co_occurrence_interval_without_common_var_keeps_bounds_open() {
         let machine = ConstraintMachine::new();
         let center = TypeVar(56);
         let lower_var = TypeVar(34);
@@ -3855,7 +3832,6 @@ mod tests {
             rec_vars: vec![CompactRecursiveVar {
                 var: center,
                 bounds: CompactBounds::Interval {
-                    self_var: center,
                     lower: CompactType {
                         vars: vec![CompactVar::plain(lower_var)],
                         funs: vec![CompactFun {
@@ -3873,23 +3849,12 @@ mod tests {
 
         let substitutions = coalesce_by_co_occurrence(&machine, TypeLevel::root(), &mut root);
 
-        assert_eq!(
-            substitutions,
-            vec![CompactVarSubstitution {
-                source: center,
-                target: Some(lower_var)
-            }]
-        );
-        assert_eq!(root.rec_vars[0].var, lower_var);
+        assert!(substitutions.is_empty());
+        assert_eq!(root.rec_vars[0].var, center);
         assert!(matches!(
             &root.rec_vars[0].bounds,
-            CompactBounds::Interval {
-                self_var,
-                lower,
-                ..
-            } if *self_var == lower_var
-                && lower.vars == vec![CompactVar::plain(lower_var)]
-                && lower.funs[0].ret_eff.vars == vec![CompactVar::plain(lower_var)]
+            CompactBounds::Interval { lower, .. } if lower.vars == vec![CompactVar::plain(lower_var)]
+                && lower.funs[0].ret_eff.vars == vec![CompactVar::plain(center)]
         ));
     }
 
@@ -4051,7 +4016,6 @@ mod tests {
         let center = TypeVar(10);
         let extra = TypeVar(11);
         let payload = CompactBounds::Interval {
-            self_var: center,
             lower: CompactType {
                 vars: vec![CompactVar::plain(center), CompactVar::plain(extra)],
                 ..CompactType::default()
@@ -4099,7 +4063,6 @@ mod tests {
         let receiver = TypeVar(10);
         let argument = TypeVar(11);
         let payload = CompactBounds::Interval {
-            self_var: receiver,
             lower: CompactType::from_var(CompactVar::plain(receiver)),
             upper: CompactType {
                 vars: vec![CompactVar::plain(receiver), CompactVar::plain(argument)],
@@ -4127,7 +4090,6 @@ mod tests {
             role: vec!["Ord".into()],
             inputs: vec![CompactRoleArg {
                 bounds: CompactBounds::Interval {
-                    self_var: receiver,
                     lower: CompactType {
                         vars: vec![CompactVar::plain(receiver), CompactVar::plain(argument)],
                         ..CompactType::default()
@@ -4240,7 +4202,6 @@ mod tests {
                     path: vec!["ref".into()],
                     args: vec![
                         CompactBounds::Interval {
-                            self_var: residual,
                             lower: CompactType::from_var(CompactVar::plain(residual)),
                             upper: CompactType {
                                 vars: vec![
@@ -4251,7 +4212,6 @@ mod tests {
                             },
                         },
                         CompactBounds::Interval {
-                            self_var: value,
                             lower: CompactType::from_var(CompactVar::plain(value)),
                             upper: CompactType::from_var(CompactVar::plain(value)),
                         },
@@ -4292,7 +4252,6 @@ mod tests {
         assert_eq!(
             receiver.args[0],
             CompactBounds::Interval {
-                self_var: residual,
                 lower: CompactType::from_var(CompactVar::plain(residual)),
                 upper: CompactType {
                     vars: vec![CompactVar::plain(residual), CompactVar::plain(captured)],
@@ -4376,11 +4335,9 @@ mod tests {
             root: CompactType::from_con(CompactCon {
                 path: vec!["box".into()],
                 args: vec![CompactBounds::Interval {
-                    self_var: center,
                     lower: list_with_payload_bound(
                         center,
                         CompactBounds::Interval {
-                            self_var: TypeVar(20),
                             lower: CompactType::from_var(CompactVar::plain(payload)),
                             upper: CompactType::default(),
                         },
@@ -4388,7 +4345,6 @@ mod tests {
                     upper: list_with_payload_bound(
                         center,
                         CompactBounds::Interval {
-                            self_var: TypeVar(21),
                             lower: CompactType::default(),
                             upper: CompactType::from_var(CompactVar::plain(payload)),
                         },
@@ -4406,10 +4362,11 @@ mod tests {
             panic!("box payload should be lifted to list");
         };
         assert!(compact_path_is(path, "list"));
-        let CompactBounds::Interval { self_var, .. } = &args[0] else {
+        let CompactBounds::Interval { lower, upper } = &args[0] else {
             panic!("list payload should remain interval");
         };
-        assert_eq!(*self_var, payload);
+        assert!(lower.vars.iter().any(|var| var.var == payload));
+        assert!(upper.vars.iter().any(|var| var.var == payload));
         assert_eq!(
             sandwiches,
             vec![CompactSandwich {
@@ -4431,11 +4388,9 @@ mod tests {
             root: CompactType::from_con(CompactCon {
                 path: vec!["box".into()],
                 args: vec![CompactBounds::Interval {
-                    self_var: center,
                     lower: list_with_payload_bound(
                         center,
                         CompactBounds::Interval {
-                            self_var: TypeVar(20),
                             lower: CompactType::from_var(CompactVar::plain(payload)),
                             upper: CompactType::default(),
                         },
@@ -4443,7 +4398,6 @@ mod tests {
                     upper: list_with_payload_bound(
                         center,
                         CompactBounds::Interval {
-                            self_var: TypeVar(21),
                             lower: CompactType::default(),
                             upper: CompactType::from_var(CompactVar::plain(payload)),
                         },
@@ -4456,7 +4410,6 @@ mod tests {
             role: vec!["Pinned".into()],
             inputs: vec![CompactRoleArg {
                 bounds: CompactBounds::Interval {
-                    self_var: center,
                     lower: CompactType::from_var(CompactVar::plain(center)),
                     upper: CompactType::from_var(CompactVar::plain(center)),
                 },
@@ -4470,7 +4423,9 @@ mod tests {
         assert!(sandwiches.is_empty());
         assert!(matches!(
             &root.root.cons.get(&vec!["box".into()]).expect("box")[0],
-            CompactBounds::Interval { self_var, .. } if *self_var == center
+            CompactBounds::Interval { lower, upper }
+                if lower.vars.iter().any(|var| var.var == center)
+                    && upper.vars.iter().any(|var| var.var == center)
         ));
     }
 
@@ -4485,18 +4440,15 @@ mod tests {
             role: vec!["Ready".into()],
             inputs: vec![CompactRoleArg {
                 bounds: CompactBounds::Interval {
-                    self_var: role_self,
                     lower: merge_compact_types(
                         true,
                         CompactType::from_var(CompactVar::plain(role_self)),
                         CompactType::from_con(CompactCon {
                             path: vec!["box".into()],
                             args: vec![CompactBounds::Interval {
-                                self_var: center,
                                 lower: list_with_payload_bound(
                                     center,
                                     CompactBounds::Interval {
-                                        self_var: TypeVar(20),
                                         lower: CompactType::from_var(CompactVar::plain(payload)),
                                         upper: CompactType::default(),
                                     },
@@ -4504,7 +4456,6 @@ mod tests {
                                 upper: list_with_payload_bound(
                                     center,
                                     CompactBounds::Interval {
-                                        self_var: TypeVar(21),
                                         lower: CompactType::default(),
                                         upper: CompactType::from_var(CompactVar::plain(payload)),
                                     },
@@ -4533,10 +4484,11 @@ mod tests {
             panic!("role predicate payload should be lifted to list");
         };
         assert!(compact_path_is(path, "list"));
-        let CompactBounds::Interval { self_var, .. } = &args[0] else {
+        let CompactBounds::Interval { lower, upper } = &args[0] else {
             panic!("list payload should remain interval");
         };
-        assert_eq!(*self_var, payload);
+        assert!(lower.vars.iter().any(|var| var.var == payload));
+        assert!(upper.vars.iter().any(|var| var.var == payload));
         assert_eq!(
             sandwiches,
             vec![CompactSandwich {
@@ -4550,7 +4502,7 @@ mod tests {
     }
 
     #[test]
-    fn sandwich_lifts_list_and_freshens_interval_var_without_common_var() {
+    fn sandwich_lifts_list_without_freshening_interval_center() {
         let machine = ConstraintMachine::new();
         let center = TypeVar(1);
         let lower_payload = TypeVar(2);
@@ -4559,11 +4511,9 @@ mod tests {
             root: CompactType::from_con(CompactCon {
                 path: vec!["box".into()],
                 args: vec![CompactBounds::Interval {
-                    self_var: center,
                     lower: list_with_payload_bound(
                         center,
                         CompactBounds::Interval {
-                            self_var: TypeVar(4),
                             lower: CompactType::from_var(CompactVar::plain(lower_payload)),
                             upper: CompactType::default(),
                         },
@@ -4571,7 +4521,6 @@ mod tests {
                     upper: list_with_payload_bound(
                         center,
                         CompactBounds::Interval {
-                            self_var: TypeVar(5),
                             lower: CompactType::default(),
                             upper: CompactType::from_var(CompactVar::plain(upper_payload)),
                         },
@@ -4588,10 +4537,11 @@ mod tests {
         else {
             panic!("box payload should be lifted to list");
         };
-        let CompactBounds::Interval { self_var, .. } = &args[0] else {
+        let CompactBounds::Interval { lower, upper } = &args[0] else {
             panic!("list payload should remain interval");
         };
-        assert_eq!(*self_var, TypeVar(6));
+        assert!(lower.vars.iter().any(|var| var.var == lower_payload));
+        assert!(upper.vars.iter().any(|var| var.var == upper_payload));
         assert_eq!(
             sandwiches,
             vec![CompactSandwich {
@@ -4615,11 +4565,9 @@ mod tests {
             root: CompactType::from_con(CompactCon {
                 path: vec!["box".into()],
                 args: vec![CompactBounds::Interval {
-                    self_var: center,
                     lower: list_with_payload_bound(
                         center,
                         CompactBounds::Interval {
-                            self_var: TypeVar(20),
                             lower: CompactType::from_var(CompactVar::plain(payload)),
                             upper: CompactType::default(),
                         },
@@ -4627,7 +4575,6 @@ mod tests {
                     upper: list_with_payload_bound(
                         center,
                         CompactBounds::Interval {
-                            self_var: TypeVar(21),
                             lower: CompactType::default(),
                             upper: CompactType::from_var(CompactVar::plain(payload)),
                         },
@@ -4647,23 +4594,19 @@ mod tests {
     }
 
     #[test]
-    fn sandwich_does_not_lift_low_level_interval_through_high_level_common_var() {
+    fn sandwich_lifts_without_stored_outer_interval_center() {
         let mut machine = ConstraintMachine::new();
-        let outer = TypeVar(1);
         let inner = TypeVar(2);
         let payload = TypeVar(3);
-        machine.register_type_var(outer, TypeLevel::root());
         machine.register_type_var(inner, TypeLevel::root().child());
         machine.register_type_var(payload, TypeLevel::root().child());
         let mut root = CompactRoot {
             root: CompactType::from_con(CompactCon {
                 path: vec!["box".into()],
                 args: vec![CompactBounds::Interval {
-                    self_var: outer,
                     lower: list_with_payload_bound(
                         inner,
                         CompactBounds::Interval {
-                            self_var: TypeVar(20),
                             lower: CompactType::from_var(CompactVar::plain(payload)),
                             upper: CompactType::default(),
                         },
@@ -4671,7 +4614,6 @@ mod tests {
                     upper: list_with_payload_bound(
                         inner,
                         CompactBounds::Interval {
-                            self_var: TypeVar(21),
                             lower: CompactType::default(),
                             upper: CompactType::from_var(CompactVar::plain(payload)),
                         },
@@ -4683,10 +4625,19 @@ mod tests {
 
         let sandwiches = sandwich_compact_root(&machine, TypeLevel::root().child(), &mut root);
 
-        assert!(sandwiches.is_empty());
+        assert_eq!(
+            sandwiches,
+            vec![CompactSandwich {
+                var: inner,
+                kind: CompactSandwichKind::Con {
+                    path: vec!["list".into()],
+                    arity: 1
+                }
+            }]
+        );
         assert!(matches!(
             &root.root.cons.get(&vec!["box".into()]).expect("box")[0],
-            CompactBounds::Interval { self_var, .. } if *self_var == outer
+            CompactBounds::Con { path, .. } if compact_path_is(path, "list")
         ));
     }
 
@@ -4736,17 +4687,15 @@ mod tests {
     fn finalize_interval_bounds_to_neutral_bounds() {
         let mut types = TypeArena::new();
         let bounds = CompactBounds::Interval {
-            self_var: TypeVar(7),
             lower: CompactType::from_builtin(BuiltinType::Unit),
             upper: CompactType::from_var(CompactVar::plain(TypeVar(8))),
         };
 
         let finalized = finalize_compact_bounds(&mut types, &bounds);
 
-        let Neu::Bounds(lower, self_var, upper) = types.neu(finalized) else {
+        let Neu::Bounds(lower, upper) = types.neu(finalized) else {
             panic!("expected neutral bounds");
         };
-        assert_eq!(*self_var, TypeVar(7));
         assert!(pos_contains_path(&types, *lower, "unit"));
         assert!(matches!(types.neg(*upper), Neg::Var(var) if *var == TypeVar(8)));
     }
@@ -4757,7 +4706,6 @@ mod tests {
         let bounds = CompactBounds::Con {
             path: vec!["list".into()],
             args: vec![CompactBounds::Interval {
-                self_var: TypeVar(1),
                 lower: CompactType::from_var(CompactVar::plain(TypeVar(1))),
                 upper: CompactType::from_var(CompactVar::plain(TypeVar(1))),
             }],
@@ -4769,10 +4717,11 @@ mod tests {
             panic!("expected neutral constructor");
         };
         assert!(compact_path_is(path, "list"));
-        let Neu::Bounds(_, self_var, _) = types.neu(args[0]) else {
+        let Neu::Bounds(lower, upper) = types.neu(args[0]) else {
             panic!("expected list payload bounds");
         };
-        assert_eq!(*self_var, TypeVar(1));
+        assert!(matches!(types.pos(*lower), Pos::Var(var) if *var == TypeVar(1)));
+        assert!(matches!(types.neg(*upper), Neg::Var(var) if *var == TypeVar(1)));
     }
 
     #[test]
@@ -4815,7 +4764,6 @@ mod tests {
             rec_vars: vec![CompactRecursiveVar {
                 var: TypeVar(1),
                 bounds: CompactBounds::Interval {
-                    self_var: TypeVar(1),
                     lower: CompactType::from_con(CompactCon {
                         path: vec!["list".into()],
                         args: Vec::new(),
@@ -4830,15 +4778,14 @@ mod tests {
         assert!(matches!(types.pos(finalized.root), Pos::Var(var) if *var == TypeVar(1)));
         assert_eq!(finalized.rec_vars.len(), 1);
         assert_eq!(finalized.rec_vars[0].var, TypeVar(1));
-        let Neu::Bounds(lower, self_var, _) = types.neu(finalized.rec_vars[0].bounds) else {
+        let Neu::Bounds(lower, _) = types.neu(finalized.rec_vars[0].bounds) else {
             panic!("expected recursive bounds");
         };
-        assert_eq!(*self_var, TypeVar(1));
         assert!(pos_contains_path(&types, *lower, "list"));
     }
 
     #[test]
-    fn merge_cons_by_path_and_exposes_discarded_center_on_both_bounds() {
+    fn merge_cons_by_path_combines_interval_lower_and_upper_bounds() {
         let merged = merge_compact_types(
             true,
             list_with_empty_payload(TypeVar(1)),
@@ -4846,17 +4793,70 @@ mod tests {
         );
 
         assert_eq!(merged.cons.len(), 1);
-        let CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } = &merged.cons.get(&vec!["list".into()]).expect("list cons")[0]
+        let CompactBounds::Interval { lower, upper } =
+            &merged.cons.get(&vec!["list".into()]).expect("list cons")[0]
         else {
             panic!("expected merged payload interval");
         };
-        assert_eq!(*self_var, TypeVar(1));
+        assert!(compact_type_contains_var(lower, TypeVar(1)));
         assert!(compact_type_contains_var(lower, TypeVar(2)));
+        assert!(compact_type_contains_var(upper, TypeVar(1)));
         assert!(compact_type_contains_var(upper, TypeVar(2)));
+    }
+
+    #[test]
+    fn interval_dominance_generates_subtype_for_unobservable_witnesses() {
+        let anchor = TypeVar(1);
+        let witness_left = TypeVar(2);
+        let witness_both = TypeVar(3);
+        let upper_left = TypeVar(4);
+        let upper_right = TypeVar(5);
+        let root = CompactRoot {
+            root: CompactType::from_var(CompactVar::plain(anchor)),
+            rec_vars: Vec::new(),
+        };
+        let roles = vec![CompactRoleConstraint {
+            role: vec!["Ord".into()],
+            inputs: vec![CompactRoleArg {
+                bounds: CompactBounds::Interval {
+                    lower: CompactType {
+                        vars: vec![
+                            CompactVar::plain(anchor),
+                            CompactVar::plain(witness_left),
+                            CompactVar::plain(witness_both),
+                        ],
+                        ..CompactType::default()
+                    },
+                    upper: CompactType {
+                        vars: vec![
+                            CompactVar::plain(witness_both),
+                            CompactVar::plain(upper_left),
+                            CompactVar::plain(upper_right),
+                        ],
+                        ..CompactType::default()
+                    },
+                },
+            }],
+            associated: Vec::new(),
+        }];
+
+        let constraints = collect_interval_dominance_constraints(&root, &roles);
+
+        assert_eq!(constraints.len(), 1);
+        assert!(compact_type_contains_var(&constraints[0].lower, anchor));
+        assert!(!compact_type_contains_var(
+            &constraints[0].lower,
+            witness_left
+        ));
+        assert!(!compact_type_contains_var(
+            &constraints[0].upper,
+            witness_both
+        ));
+        assert!(compact_type_contains_var(&constraints[0].upper, upper_left));
+        assert!(compact_type_contains_var(
+            &constraints[0].upper,
+            upper_right
+        ));
     }
 
     #[test]
@@ -4940,9 +4940,8 @@ mod tests {
 
     fn empty_interval(center: TypeVar) -> CompactBounds {
         CompactBounds::Interval {
-            self_var: center,
-            lower: CompactType::default(),
-            upper: CompactType::default(),
+            lower: CompactType::from_var(CompactVar::plain(center)),
+            upper: CompactType::from_var(CompactVar::plain(center)),
         }
     }
 

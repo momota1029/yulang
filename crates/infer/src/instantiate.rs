@@ -257,11 +257,7 @@ impl<'a> SchemeInstantiator<'a> {
 
     fn clone_neu(&mut self, id: NeuId) -> NeuId {
         let neu = match self.source.neu(id).clone() {
-            Neu::Bounds(lower, var, upper) => Neu::Bounds(
-                self.clone_pos(lower),
-                self.clone_var(var),
-                self.clone_neg(upper),
-            ),
+            Neu::Bounds(lower, upper) => Neu::Bounds(self.clone_pos(lower), self.clone_neg(upper)),
             Neu::Con(path, args) => Neu::Con(
                 path,
                 args.into_iter().map(|arg| self.clone_neu(arg)).collect(),
@@ -376,21 +372,14 @@ impl<'a> SchemeInstantiator<'a> {
 
     fn project_recursive_neu_bounds(&mut self, id: NeuId) -> (PosId, NegId) {
         match self.target.constraints().types().neu(id).clone() {
-            Neu::Bounds(lower, _, upper) => (lower, upper),
+            Neu::Bounds(lower, upper) => (lower, upper),
             _ => self.project_neu_bounds(id),
         }
     }
 
     fn project_neu_bounds(&mut self, id: NeuId) -> (PosId, NegId) {
         match self.target.constraints().types().neu(id).clone() {
-            Neu::Bounds(lower, var, upper) => {
-                let var_pos = self.target.alloc_pos(Pos::Var(var));
-                let var_neg = self.target.alloc_neg(Neg::Var(var));
-                (
-                    self.target.alloc_pos(Pos::Union(lower, var_pos)),
-                    self.target.alloc_neg(Neg::Intersection(var_neg, upper)),
-                )
-            }
+            Neu::Bounds(lower, upper) => (lower, upper),
             Neu::Con(path, args) => (
                 self.target.alloc_pos(Pos::Con(path.clone(), args.clone())),
                 self.target.alloc_neg(Neg::Con(path, args)),

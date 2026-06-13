@@ -26,8 +26,8 @@ pub struct Scheme {
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// scheme に残る再帰変数の bounds。
 ///
-/// `predicate` 側へ無理に混ぜると compact の簡約情報を失うため、中心変数と neutral bounds を
-/// side table として保持する。instantiate 時に use-site の constraint へ戻す。
+/// `predicate` 側へ無理に混ぜると compact の簡約情報を失うため、neutral bounds を side table として
+/// 保持する。instantiate 時に use-site の constraint へ戻す。
 pub struct SchemeRecursiveBound {
     pub var: TypeVar,
     pub bounds: NeuId,
@@ -623,10 +623,11 @@ pub enum Neg {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 /// 正負の上下界を挟んだ中立型。
 ///
-/// `Neu::Bounds(lower, var, upper)` は、変数を中心に下界と上界を sandwich として持つ形。
+/// `Neu::Bounds(lower, upper)` は、下界と上界を sandwich として持つ形。
+/// 表示上の中心変数はここへ保存せず、lower/upper に共通して現れる変数から導く。
 /// finalize / scheme 化で極性をまたぐ情報を残すために使う。
 pub enum Neu {
-    Bounds(PosId, TypeVar, NegId),
+    Bounds(PosId, NegId),
     Con(Vec<String>, Vec<NeuId>),
     Fun {
         arg: NeuId,

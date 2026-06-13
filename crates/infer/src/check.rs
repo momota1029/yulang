@@ -401,7 +401,7 @@ impl StackScan {
             return false;
         }
         match arena.neu(id) {
-            Neu::Bounds(lower, _, upper) => self.pos(arena, *lower) || self.neg(arena, *upper),
+            Neu::Bounds(lower, upper) => self.pos(arena, *lower) || self.neg(arena, *upper),
             Neu::Con(_, args) => self.neu_items(arena, args),
             Neu::Fun {
                 arg,

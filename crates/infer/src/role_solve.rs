@@ -570,20 +570,19 @@ fn match_bounds_pattern(
     subst: &mut TypeSubst,
 ) -> bool {
     match pattern {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
+        CompactBounds::Interval { lower, upper } => {
+            let Some(subject_var) = interval_subject_var(lower, upper) else {
+                return false;
+            };
             let Some(demand_ty) = compact_type_from_bounds(demand) else {
                 return false;
             };
-            if !subst.bind(*self_var, demand_ty.clone()) {
+            if !subst.bind(subject_var, demand_ty.clone()) {
                 return false;
             }
             // `impl Add (list 'a)` の `'a` は payload 全体を受ける pattern なので、
             // demand の invariant bounds をさらに同じ変数へ分解照合しない。
-            if interval_pattern_is_identity(*self_var, lower, upper) {
+            if interval_pattern_is_identity(subject_var, lower, upper) {
                 return true;
             }
             match demand {
@@ -702,11 +701,38 @@ fn match_bounds_pattern(
 }
 
 fn interval_pattern_is_identity(
-    self_var: TypeVar,
+    subject_var: TypeVar,
     lower: &CompactType,
     upper: &CompactType,
 ) -> bool {
-    compact_type_is_plain_var(lower, self_var) && compact_type_is_plain_var(upper, self_var)
+    compact_type_is_plain_var(lower, subject_var) && compact_type_is_plain_var(upper, subject_var)
+}
+
+fn interval_subject_var(lower: &CompactType, upper: &CompactType) -> Option<TypeVar> {
+    common_var_in_types(lower, upper)
+        .or_else(|| unique_var_in_type(lower))
+        .or_else(|| unique_var_in_type(upper))
+}
+
+fn common_var_in_types(lower: &CompactType, upper: &CompactType) -> Option<TypeVar> {
+    lower
+        .vars
+        .iter()
+        .map(|var| var.var)
+        .filter(|lower_var| {
+            upper
+                .vars
+                .iter()
+                .any(|upper_var| upper_var.var == *lower_var)
+        })
+        .min_by_key(|var| var.0)
+}
+
+fn unique_var_in_type(ty: &CompactType) -> Option<TypeVar> {
+    let mut vars = ty.vars.iter().map(|var| var.var).collect::<Vec<_>>();
+    vars.sort_by_key(|var| var.0);
+    vars.dedup();
+    (vars.len() == 1).then(|| vars[0])
 }
 
 fn compact_type_is_plain_var(ty: &CompactType, var: TypeVar) -> bool {
@@ -733,16 +759,12 @@ fn demand_has_builtin(demand: &CompactType, builtin: BuiltinType) -> bool {
 
 fn compact_type_from_bounds(bounds: &CompactBounds) -> Option<CompactType> {
     match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => single_concrete_type(lower)
+        CompactBounds::Interval { lower, upper } => single_concrete_type(lower)
             .or_else(|| single_concrete_type(upper))
             .or_else(|| {
-                Some(CompactType::from_var(crate::compact::CompactVar::plain(
-                    *self_var,
-                )))
+                interval_subject_var(lower, upper)
+                    .map(crate::compact::CompactVar::plain)
+                    .map(CompactType::from_var)
             }),
         CompactBounds::Con { path, args } => {
             if args.is_empty()
@@ -949,20 +971,10 @@ fn rewrite_con(con: &CompactCon, subst: &TypeSubst) -> CompactCon {
 
 fn rewrite_bounds(bounds: &CompactBounds, subst: &TypeSubst) -> CompactBounds {
     match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            if let Some(replacement) = subst.get(*self_var).and_then(compact_bounds_from_type) {
-                return replacement;
-            }
-            CompactBounds::Interval {
-                self_var: *self_var,
-                lower: rewrite_type(lower, subst, true),
-                upper: rewrite_type(upper, subst, false),
-            }
-        }
+        CompactBounds::Interval { lower, upper } => CompactBounds::Interval {
+            lower: rewrite_type(lower, subst, true),
+            upper: rewrite_type(upper, subst, false),
+        },
         CompactBounds::Con { path, args } => CompactBounds::Con {
             path: path.clone(),
             args: args.iter().map(|arg| rewrite_bounds(arg, subst)).collect(),
@@ -1026,7 +1038,6 @@ fn compact_bounds_from_type(ty: &CompactType) -> Option<CompactBounds> {
     {
         let var = ty.vars[0].var;
         return Some(CompactBounds::Interval {
-            self_var: var,
             lower: CompactType::from_var(crate::compact::CompactVar::plain(var)),
             upper: CompactType::from_var(crate::compact::CompactVar::plain(var)),
         });
@@ -1394,15 +1405,8 @@ fn compact_bounds_has_method_taint(
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
 ) -> bool {
     match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            method_taint
-                .get(self_var)
-                .is_some_and(|selects| !selects.is_empty())
-                || compact_type_has_method_taint(lower, method_taint)
+        CompactBounds::Interval { lower, upper } => {
+            compact_type_has_method_taint(lower, method_taint)
                 || compact_type_has_method_taint(upper, method_taint)
         }
         CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => args
@@ -1456,7 +1460,7 @@ fn role_arg_allowed_by_main_polarity(
 ///
 /// 見るのは subject の**トップレベル変数だけ**。con 引数の中の不変 interval 変数は
 /// 構造ごと candidate との `match_bounds_pattern` が照合する領分で、ここで両極性
-/// （Interval の self_var は常に bipolar）を理由に拒否すると `list int` のような
+/// （同じ変数が lower/upper の両側に出る）を理由に拒否すると `list int` のような
 /// 入れ子 concrete subject が永遠に解決できない。
 fn role_arg_lower_allowed(
     arg: &CompactRoleArg,
@@ -1479,13 +1483,7 @@ fn role_arg_lower_allowed(
 
 fn role_arg_top_level_vars(arg: &CompactRoleArg) -> FxHashSet<TypeVar> {
     let mut vars = FxHashSet::default();
-    if let CompactBounds::Interval {
-        self_var,
-        lower,
-        upper,
-    } = &arg.bounds
-    {
-        vars.insert(*self_var);
+    if let CompactBounds::Interval { lower, upper } = &arg.bounds {
         vars.extend(lower.vars.iter().map(|var| var.var));
         vars.extend(upper.vars.iter().map(|var| var.var));
     }
@@ -1581,13 +1579,7 @@ impl MainPolarity {
 
     fn collect_bounds(&mut self, bounds: &CompactBounds, positive: bool) {
         match bounds {
-            CompactBounds::Interval {
-                self_var,
-                lower,
-                upper,
-            } => {
-                self.insert(*self_var, true);
-                self.insert(*self_var, false);
+            CompactBounds::Interval { lower, upper } => {
                 self.collect_type(lower, positive);
                 self.collect_type(upper, !positive);
             }
@@ -1677,12 +1669,7 @@ fn collect_type_vars(ty: &CompactType, vars: &mut FxHashSet<TypeVar>) {
 
 fn collect_bounds_vars(bounds: &crate::compact::CompactBounds, vars: &mut FxHashSet<TypeVar>) {
     match bounds {
-        crate::compact::CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            vars.insert(*self_var);
+        crate::compact::CompactBounds::Interval { lower, upper } => {
             collect_type_vars(lower, vars);
             collect_type_vars(upper, vars);
         }

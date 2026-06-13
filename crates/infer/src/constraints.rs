@@ -111,6 +111,13 @@ impl ConstraintMachine {
         self.drain();
     }
 
+    pub(crate) fn constrain_subtype(&mut self, lower: PosId, upper: NegId) -> bool {
+        let seen_len = self.seen.len();
+        self.enqueue_subtype(lower, ConstraintWeights::empty(), upper);
+        self.drain();
+        self.seen.len() != seen_len
+    }
+
     pub(crate) fn constrain_invariant_neu(&mut self, lower: NeuId, upper: NeuId) -> bool {
         let seen_len = self.seen.len();
         self.enqueue_invariant_neu(lower, upper, ConstraintWeights::empty());
@@ -330,9 +337,8 @@ impl ConstraintMachine {
 
     fn observe_neu(&mut self, neu: &Neu) {
         match neu {
-            Neu::Bounds(lower, var, upper) => {
+            Neu::Bounds(lower, upper) => {
                 self.observe_pos_id(*lower);
-                self.observe_type_var(*var);
                 self.observe_neg_id(*upper);
             }
             Neu::Con(_, args) => {
@@ -537,14 +543,7 @@ impl ConstraintMachine {
 
     fn neu_bounds(&mut self, id: NeuId) -> (PosId, NegId) {
         match self.types.neu(id).clone() {
-            Neu::Bounds(lower, var, upper) => {
-                let var_pos = self.alloc_pos(Pos::Var(var));
-                let var_neg = self.alloc_neg(Neg::Var(var));
-                (
-                    self.alloc_pos(Pos::Union(lower, var_pos)),
-                    self.alloc_neg(Neg::Intersection(var_neg, upper)),
-                )
-            }
+            Neu::Bounds(lower, upper) => (lower, upper),
             Neu::Con(path, args) => (
                 self.alloc_pos(Pos::Con(path.clone(), args.clone())),
                 self.alloc_neg(Neg::Con(path, args)),
@@ -1361,9 +1360,8 @@ impl ConstraintMachine {
 
     fn extrude_neu_id(&mut self, id: NeuId, ctx: &mut ExtrudeCtx) {
         match self.types.neu(id).clone() {
-            Neu::Bounds(lower, var, upper) => {
+            Neu::Bounds(lower, upper) => {
                 self.extrude_pos_id(lower, ctx);
-                self.extrude_type_var(var, ctx);
                 self.extrude_neg_id(upper, ctx);
             }
             Neu::Con(_, args) => self.extrude_neu_ids(args, ctx),
@@ -2027,9 +2025,9 @@ mod tests {
         let bound_var_as_upper = machine.alloc_neg(Neg::Var(bound_var));
         machine.subtype(inner_as_lower, bound_var_as_upper);
 
-        let arg_lower = machine.alloc_pos(Pos::Con(vec!["lower".into()], vec![]));
-        let arg_upper = machine.alloc_neg(Neg::Con(vec!["upper".into()], vec![]));
-        let arg = machine.alloc_neu(Neu::Bounds(arg_lower, inner, arg_upper));
+        let arg_lower = machine.alloc_pos(Pos::Var(inner));
+        let arg_upper = machine.alloc_neg(Neg::Var(bound_var));
+        let arg = machine.alloc_neu(Neu::Bounds(arg_lower, arg_upper));
         let lower = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![arg]));
         let upper = machine.alloc_neg(Neg::Var(target));
 
@@ -2098,7 +2096,7 @@ mod tests {
     }
 
     #[test]
-    fn weighted_self_var_constraint_is_noop() {
+    fn weighted_var_to_itself_constraint_is_noop() {
         let mut machine = ConstraintMachine::new();
         let source = TypeVar(0);
         let subtract = SubtractId(0);
@@ -2190,16 +2188,12 @@ mod tests {
     #[test]
     fn constructor_args_propagate_invariant_neutral_bounds() {
         let mut machine = ConstraintMachine::new();
-        let lower_arg_var = TypeVar(10);
-        let upper_arg_var = TypeVar(11);
         let lower_arg_lower = machine.alloc_pos(Pos::Con(vec!["lower_arg_lower".into()], vec![]));
         let lower_arg_upper = machine.alloc_neg(Neg::Con(vec!["lower_arg_upper".into()], vec![]));
-        let lower_arg =
-            machine.alloc_neu(Neu::Bounds(lower_arg_lower, lower_arg_var, lower_arg_upper));
+        let lower_arg = machine.alloc_neu(Neu::Bounds(lower_arg_lower, lower_arg_upper));
         let upper_arg_lower = machine.alloc_pos(Pos::Con(vec!["upper_arg_lower".into()], vec![]));
         let upper_arg_upper = machine.alloc_neg(Neg::Con(vec!["upper_arg_upper".into()], vec![]));
-        let upper_arg =
-            machine.alloc_neu(Neu::Bounds(upper_arg_lower, upper_arg_var, upper_arg_upper));
+        let upper_arg = machine.alloc_neu(Neu::Bounds(upper_arg_lower, upper_arg_upper));
         let lower = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![lower_arg]));
         let upper = machine.alloc_neg(Neg::Con(vec!["box".into()], vec![upper_arg]));
         let weights = ConstraintWeights {
@@ -2209,25 +2203,15 @@ mod tests {
 
         machine.weighted_subtype(lower, weights.clone(), upper);
 
-        let lower_arg_var_pos = machine.alloc_pos(Pos::Var(lower_arg_var));
-        let upper_arg_var_neg = machine.alloc_neg(Neg::Var(upper_arg_var));
-        let lower_arg_union = machine.alloc_pos(Pos::Union(lower_arg_lower, lower_arg_var_pos));
-        let upper_arg_intersection =
-            machine.alloc_neg(Neg::Intersection(upper_arg_var_neg, upper_arg_upper));
         assert!(machine.seen.contains(&SubtypeConstraint {
-            lower: lower_arg_union,
-            upper: upper_arg_intersection,
+            lower: lower_arg_lower,
+            upper: upper_arg_upper,
             weights: weights.clone(),
         }));
 
-        let upper_arg_var_pos = machine.alloc_pos(Pos::Var(upper_arg_var));
-        let lower_arg_var_neg = machine.alloc_neg(Neg::Var(lower_arg_var));
-        let upper_arg_union = machine.alloc_pos(Pos::Union(upper_arg_lower, upper_arg_var_pos));
-        let lower_arg_intersection =
-            machine.alloc_neg(Neg::Intersection(lower_arg_var_neg, lower_arg_upper));
         assert!(machine.seen.contains(&SubtypeConstraint {
-            lower: upper_arg_union,
-            upper: lower_arg_intersection,
+            lower: upper_arg_lower,
+            upper: lower_arg_upper,
             weights: weights.swapped(),
         }));
     }
@@ -2255,22 +2239,12 @@ mod tests {
     #[test]
     fn neutral_structures_build_regular_upper_and_lower_bounds() {
         let mut machine = ConstraintMachine::new();
-        let lower_item_var = TypeVar(10);
-        let upper_item_var = TypeVar(11);
         let lower_item_lower = machine.alloc_pos(Pos::Con(vec!["lower_item_lower".into()], vec![]));
         let lower_item_upper = machine.alloc_neg(Neg::Con(vec!["lower_item_upper".into()], vec![]));
-        let lower_item = machine.alloc_neu(Neu::Bounds(
-            lower_item_lower,
-            lower_item_var,
-            lower_item_upper,
-        ));
+        let lower_item = machine.alloc_neu(Neu::Bounds(lower_item_lower, lower_item_upper));
         let upper_item_lower = machine.alloc_pos(Pos::Con(vec!["upper_item_lower".into()], vec![]));
         let upper_item_upper = machine.alloc_neg(Neg::Con(vec!["upper_item_upper".into()], vec![]));
-        let upper_item = machine.alloc_neu(Neu::Bounds(
-            upper_item_lower,
-            upper_item_var,
-            upper_item_upper,
-        ));
+        let upper_item = machine.alloc_neu(Neu::Bounds(upper_item_lower, upper_item_upper));
         let lower_arg = machine.alloc_neu(Neu::Tuple(vec![lower_item]));
         let upper_arg = machine.alloc_neu(Neu::Tuple(vec![upper_item]));
         let lower = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![lower_arg]));
@@ -2278,25 +2252,15 @@ mod tests {
 
         machine.subtype(lower, upper);
 
-        let lower_item_var_pos = machine.alloc_pos(Pos::Var(lower_item_var));
-        let upper_item_var_neg = machine.alloc_neg(Neg::Var(upper_item_var));
-        let lower_item_union = machine.alloc_pos(Pos::Union(lower_item_lower, lower_item_var_pos));
-        let upper_item_intersection =
-            machine.alloc_neg(Neg::Intersection(upper_item_var_neg, upper_item_upper));
         assert!(machine.seen.contains(&SubtypeConstraint {
-            lower: lower_item_union,
-            upper: upper_item_intersection,
+            lower: lower_item_lower,
+            upper: upper_item_upper,
             weights: ConstraintWeights::empty(),
         }));
 
-        let upper_item_var_pos = machine.alloc_pos(Pos::Var(upper_item_var));
-        let lower_item_var_neg = machine.alloc_neg(Neg::Var(lower_item_var));
-        let upper_item_union = machine.alloc_pos(Pos::Union(upper_item_lower, upper_item_var_pos));
-        let lower_item_intersection =
-            machine.alloc_neg(Neg::Intersection(lower_item_var_neg, lower_item_upper));
         assert!(machine.seen.contains(&SubtypeConstraint {
-            lower: upper_item_union,
-            upper: lower_item_intersection,
+            lower: upper_item_lower,
+            upper: lower_item_upper,
             weights: ConstraintWeights::empty(),
         }));
     }
@@ -2441,26 +2405,18 @@ mod tests {
     #[test]
     fn pos_row_concrete_effect_items_compare_matching_payloads() {
         let mut machine = ConstraintMachine::new();
-        let lower_payload_var = TypeVar(10);
-        let upper_payload_var = TypeVar(11);
         let lower_payload_lower =
             machine.alloc_pos(Pos::Con(vec!["lower_payload_lower".into()], vec![]));
         let lower_payload_upper =
             machine.alloc_neg(Neg::Con(vec!["lower_payload_upper".into()], vec![]));
-        let lower_payload = machine.alloc_neu(Neu::Bounds(
-            lower_payload_lower,
-            lower_payload_var,
-            lower_payload_upper,
-        ));
+        let lower_payload =
+            machine.alloc_neu(Neu::Bounds(lower_payload_lower, lower_payload_upper));
         let upper_payload_lower =
             machine.alloc_pos(Pos::Con(vec!["upper_payload_lower".into()], vec![]));
         let upper_payload_upper =
             machine.alloc_neg(Neg::Con(vec!["upper_payload_upper".into()], vec![]));
-        let upper_payload = machine.alloc_neu(Neu::Bounds(
-            upper_payload_lower,
-            upper_payload_var,
-            upper_payload_upper,
-        ));
+        let upper_payload =
+            machine.alloc_neu(Neu::Bounds(upper_payload_lower, upper_payload_upper));
         let lower_item = machine.alloc_pos(Pos::Con(
             crate::std_paths::control_var_ref_update_effect(),
             vec![lower_payload],
@@ -2475,30 +2431,14 @@ mod tests {
 
         machine.subtype(lower, upper);
 
-        let lower_payload_var_pos = machine.alloc_pos(Pos::Var(lower_payload_var));
-        let lower_payload_union =
-            machine.alloc_pos(Pos::Union(lower_payload_lower, lower_payload_var_pos));
-        let upper_payload_var_neg = machine.alloc_neg(Neg::Var(upper_payload_var));
-        let upper_payload_intersection = machine.alloc_neg(Neg::Intersection(
-            upper_payload_var_neg,
-            upper_payload_upper,
-        ));
         assert!(machine.seen.contains(&SubtypeConstraint {
-            lower: lower_payload_union,
-            upper: upper_payload_intersection,
+            lower: lower_payload_lower,
+            upper: upper_payload_upper,
             weights: ConstraintWeights::empty(),
         }));
-        let upper_payload_var_pos = machine.alloc_pos(Pos::Var(upper_payload_var));
-        let upper_payload_union =
-            machine.alloc_pos(Pos::Union(upper_payload_lower, upper_payload_var_pos));
-        let lower_payload_var_neg = machine.alloc_neg(Neg::Var(lower_payload_var));
-        let lower_payload_intersection = machine.alloc_neg(Neg::Intersection(
-            lower_payload_var_neg,
-            lower_payload_upper,
-        ));
         assert!(machine.seen.contains(&SubtypeConstraint {
-            lower: upper_payload_union,
-            upper: lower_payload_intersection,
+            lower: upper_payload_lower,
+            upper: lower_payload_upper,
             weights: ConstraintWeights::empty(),
         }));
         assert!(!machine.seen.contains(&SubtypeConstraint {
@@ -2513,7 +2453,7 @@ mod tests {
         let mut machine = ConstraintMachine::new();
         let payload_lower = machine.alloc_pos(Pos::Bot);
         let payload_upper = machine.alloc_neg(Neg::Top);
-        let payload = machine.alloc_neu(Neu::Bounds(payload_lower, TypeVar(10), payload_upper));
+        let payload = machine.alloc_neu(Neu::Bounds(payload_lower, payload_upper));
         let lower_item = machine.alloc_pos(Pos::Con(vec!["effect".into()], vec![payload]));
         let upper_item = machine.alloc_neg(Neg::Con(vec!["effect".into()], Vec::new()));
         let upper_tail = machine.alloc_neg(Neg::Var(TypeVar(11)));
@@ -2920,20 +2860,14 @@ mod tests {
         let tail_var = TypeVar(1);
         let subtract = SubtractId(0);
         let ref_update = crate::std_paths::control_var_ref_update_effect();
-        let first_payload_lower = machine.alloc_pos(Pos::Bot);
-        let first_payload_upper = machine.alloc_neg(Neg::Top);
-        let first_payload = machine.alloc_neu(Neu::Bounds(
-            first_payload_lower,
-            TypeVar(10),
-            first_payload_upper,
-        ));
-        let second_payload_lower = machine.alloc_pos(Pos::Bot);
-        let second_payload_upper = machine.alloc_neg(Neg::Top);
-        let second_payload = machine.alloc_neu(Neu::Bounds(
-            second_payload_lower,
-            TypeVar(11),
-            second_payload_upper,
-        ));
+        let first_payload_lower = machine.alloc_pos(Pos::Var(TypeVar(10)));
+        let first_payload_upper = machine.alloc_neg(Neg::Var(TypeVar(10)));
+        let first_payload =
+            machine.alloc_neu(Neu::Bounds(first_payload_lower, first_payload_upper));
+        let second_payload_lower = machine.alloc_pos(Pos::Var(TypeVar(11)));
+        let second_payload_upper = machine.alloc_neg(Neg::Var(TypeVar(11)));
+        let second_payload =
+            machine.alloc_neu(Neu::Bounds(second_payload_lower, second_payload_upper));
         let first_item = machine.alloc_neg(Neg::Con(ref_update.clone(), vec![first_payload]));
         let second_item = machine.alloc_neg(Neg::Con(ref_update.clone(), vec![second_payload]));
         let tail = machine.alloc_neg(Neg::Var(tail_var));
@@ -2976,9 +2910,9 @@ mod tests {
         let tail_var = TypeVar(1);
         let subtract = SubtractId(0);
         let ref_update = crate::std_paths::control_var_ref_update_effect();
-        let payload_lower = machine.alloc_pos(Pos::Bot);
-        let payload_upper = machine.alloc_neg(Neg::Top);
-        let payload = machine.alloc_neu(Neu::Bounds(payload_lower, TypeVar(10), payload_upper));
+        let payload_lower = machine.alloc_pos(Pos::Var(TypeVar(10)));
+        let payload_upper = machine.alloc_neg(Neg::Var(TypeVar(10)));
+        let payload = machine.alloc_neu(Neu::Bounds(payload_lower, payload_upper));
         let io = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
         let tail = machine.alloc_neg(Neg::Var(tail_var));
         let lower = machine.alloc_pos(Pos::Var(source));
@@ -3014,20 +2948,14 @@ mod tests {
         let tail_var = TypeVar(1);
         let subtract = SubtractId(0);
         let ref_update = crate::std_paths::control_var_ref_update_effect();
-        let first_payload_lower = machine.alloc_pos(Pos::Bot);
-        let first_payload_upper = machine.alloc_neg(Neg::Top);
-        let first_payload = machine.alloc_neu(Neu::Bounds(
-            first_payload_lower,
-            TypeVar(10),
-            first_payload_upper,
-        ));
-        let second_payload_lower = machine.alloc_pos(Pos::Bot);
-        let second_payload_upper = machine.alloc_neg(Neg::Top);
-        let second_payload = machine.alloc_neu(Neu::Bounds(
-            second_payload_lower,
-            TypeVar(11),
-            second_payload_upper,
-        ));
+        let first_payload_lower = machine.alloc_pos(Pos::Var(TypeVar(10)));
+        let first_payload_upper = machine.alloc_neg(Neg::Var(TypeVar(10)));
+        let first_payload =
+            machine.alloc_neu(Neu::Bounds(first_payload_lower, first_payload_upper));
+        let second_payload_lower = machine.alloc_pos(Pos::Var(TypeVar(11)));
+        let second_payload_upper = machine.alloc_neg(Neg::Var(TypeVar(11)));
+        let second_payload =
+            machine.alloc_neu(Neu::Bounds(second_payload_lower, second_payload_upper));
         let first_item = machine.alloc_neg(Neg::Con(ref_update.clone(), vec![first_payload]));
         let second_item = machine.alloc_neg(Neg::Con(ref_update.clone(), vec![second_payload]));
         let tail = machine.alloc_neg(Neg::Var(tail_var));

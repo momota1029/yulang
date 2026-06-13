@@ -151,24 +151,13 @@ impl RoleMethodTable {
         Self::default()
     }
 
-    pub fn insert(
-        &mut self,
-        role: impl Into<Vec<String>>,
-        method: impl Into<String>,
-        def: DefId,
-        input_count: usize,
-    ) {
+    pub fn insert(&mut self, role: impl Into<Vec<String>>, method: impl Into<String>, def: DefId) {
         let role = role.into();
         let method = method.into();
         self.methods
             .entry(method.clone())
             .or_default()
-            .push(RoleMethodCandidate {
-                role,
-                method,
-                def,
-                input_count,
-            });
+            .push(RoleMethodCandidate { role, method, def });
     }
 
     pub fn candidates(&self, method: &str) -> &[RoleMethodCandidate] {
@@ -185,10 +174,6 @@ pub struct RoleMethodCandidate {
     pub role: Vec<String>,
     pub method: String,
     pub def: DefId,
-    /// role 宣言の通常引数の数。selection の receiver demand は最初の引数に入るが、
-    /// 引数が複数あると残りの位置を共有できず merge も解決もできない demand を作って
-    /// しまうため、1 引数の role でだけ fabricate する判定に使う。
-    pub input_count: usize,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -248,12 +233,11 @@ impl CompanionMethodTable {
         role: impl Into<Vec<String>>,
         method: impl Into<String>,
         def: DefId,
-        input_count: usize,
     ) {
         self.role_methods
             .entry(scope)
             .or_default()
-            .insert(role, method, def, input_count);
+            .insert(role, method, def);
     }
 
     pub fn value_type_candidates(
@@ -351,7 +335,7 @@ mod tests {
         let mut table = RoleMethodTable::new();
         let method = DefId(1);
 
-        table.insert(vec!["Display".into()], "display", method, 1);
+        table.insert(vec!["Display".into()], "display", method);
 
         assert_eq!(table.candidates("display")[0].role, vec!["Display"]);
         assert_eq!(table.candidates("display")[0].def, method);

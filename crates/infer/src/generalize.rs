@@ -609,9 +609,8 @@ fn clone_neg_between_arenas(source: &TypeArena, target: &mut TypeArena, id: NegI
 
 fn clone_neu_between_arenas(source: &TypeArena, target: &mut TypeArena, id: NeuId) -> NeuId {
     let neu = match source.neu(id).clone() {
-        Neu::Bounds(lower, var, upper) => Neu::Bounds(
+        Neu::Bounds(lower, upper) => Neu::Bounds(
             clone_pos_between_arenas(source, target, lower),
-            var,
             clone_neg_between_arenas(source, target, upper),
         ),
         Neu::Con(path, args) => Neu::Con(
@@ -1000,14 +999,7 @@ fn rewrite_bounds_vars(
     substitutions: &FxHashMap<TypeVar, Option<TypeVar>>,
 ) {
     match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            if let Some(target) = resolve_rewrite_target(*self_var, substitutions) {
-                *self_var = target;
-            }
+        CompactBounds::Interval { lower, upper } => {
             rewrite_type_vars(lower, substitutions);
             rewrite_type_vars(upper, substitutions);
         }
@@ -1214,17 +1206,12 @@ fn apply_sandwiches_to_bounds(
     changed: &mut bool,
 ) -> CompactBounds {
     match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            if let Some(lifted) = try_apply_sandwich(self_var, &lower, &upper, sandwiches, fresh) {
+        CompactBounds::Interval { lower, upper } => {
+            if let Some(lifted) = try_apply_sandwich(&lower, &upper, sandwiches, fresh) {
                 *changed = true;
                 apply_sandwiches_to_bounds(lifted, sandwiches, fresh, changed)
             } else {
                 CompactBounds::Interval {
-                    self_var,
                     lower: apply_sandwiches_to_type(lower, sandwiches, fresh, changed),
                     upper: apply_sandwiches_to_type(upper, sandwiches, fresh, changed),
                 }
@@ -1288,17 +1275,12 @@ fn apply_sandwiches_to_bounds(
 }
 
 fn try_apply_sandwich(
-    self_var: TypeVar,
     lower: &CompactType,
     upper: &CompactType,
     sandwiches: &FxHashMap<TypeVar, CompactSandwichKind>,
     fresh: &mut FreshCompactVars,
 ) -> Option<CompactBounds> {
-    let center = if sandwiches.contains_key(&self_var) {
-        self_var
-    } else {
-        common_var_in_types(lower, upper).filter(|var| sandwiches.contains_key(var))?
-    };
+    let center = common_var_in_types(lower, upper).filter(|var| sandwiches.contains_key(var))?;
     match sandwiches.get(&center)? {
         CompactSandwichKind::Con { path, arity } => {
             let lower_args = single_con(lower, path, *arity)?;
@@ -1491,12 +1473,8 @@ fn interval_from_types(
     upper: CompactType,
     fresh: &mut FreshCompactVars,
 ) -> CompactBounds {
-    let self_var = common_var_in_types(&lower, &upper).unwrap_or_else(|| fresh.fresh());
-    CompactBounds::Interval {
-        self_var,
-        lower,
-        upper,
-    }
+    let _ = fresh;
+    CompactBounds::Interval { lower, upper }
 }
 
 fn common_var_in_types(lower: &CompactType, upper: &CompactType) -> Option<TypeVar> {
@@ -1568,135 +1546,18 @@ fn single_fun(ty: &CompactType) -> Option<&CompactFun> {
     }
 }
 
-fn empty_interval(self_var: TypeVar) -> CompactBounds {
+fn empty_interval(_var: TypeVar) -> CompactBounds {
     CompactBounds::Interval {
-        self_var,
         lower: CompactType::default(),
         upper: CompactType::default(),
     }
 }
 
-struct FreshCompactVars {
-    next: u32,
-}
+struct FreshCompactVars;
 
 impl FreshCompactVars {
-    fn new(root: &CompactRoot) -> Self {
-        Self {
-            next: max_type_var_in_root(root).map_or(0, |var| var.0 + 1),
-        }
-    }
-
-    fn fresh(&mut self) -> TypeVar {
-        let var = TypeVar(self.next);
-        self.next += 1;
-        var
-    }
-}
-
-fn max_type_var_in_root(root: &CompactRoot) -> Option<TypeVar> {
-    let mut max = None;
-    max_type_var_in_type(&root.root, &mut max);
-    for rec in &root.rec_vars {
-        update_max_type_var(rec.var, &mut max);
-        max_type_var_in_bounds(&rec.bounds, &mut max);
-    }
-    max
-}
-
-fn max_type_var_in_bounds(bounds: &CompactBounds, max: &mut Option<TypeVar>) {
-    match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            update_max_type_var(*self_var, max);
-            max_type_var_in_type(lower, max);
-            max_type_var_in_type(upper, max);
-        }
-        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
-            for arg in args {
-                max_type_var_in_bounds(arg, max);
-            }
-        }
-        CompactBounds::Fun {
-            arg,
-            arg_eff,
-            ret_eff,
-            ret,
-        } => {
-            max_type_var_in_bounds(arg, max);
-            max_type_var_in_bounds(arg_eff, max);
-            max_type_var_in_bounds(ret_eff, max);
-            max_type_var_in_bounds(ret, max);
-        }
-        CompactBounds::Record { fields } => {
-            for field in fields {
-                max_type_var_in_bounds(&field.value, max);
-            }
-        }
-        CompactBounds::PolyVariant { items } => {
-            for (_, payloads) in items {
-                for payload in payloads {
-                    max_type_var_in_bounds(payload, max);
-                }
-            }
-        }
-    }
-}
-
-fn max_type_var_in_type(ty: &CompactType, max: &mut Option<TypeVar>) {
-    for var in &ty.vars {
-        update_max_type_var(var.var, max);
-    }
-    for args in ty.cons.values() {
-        for arg in args {
-            max_type_var_in_bounds(arg, max);
-        }
-    }
-    for fun in &ty.funs {
-        max_type_var_in_type(&fun.arg, max);
-        max_type_var_in_type(&fun.arg_eff, max);
-        max_type_var_in_type(&fun.ret_eff, max);
-        max_type_var_in_type(&fun.ret, max);
-    }
-    for record in &ty.records {
-        for field in &record.fields {
-            max_type_var_in_type(&field.value, max);
-        }
-    }
-    for spread in &ty.record_spreads {
-        for field in &spread.fields {
-            max_type_var_in_type(&field.value, max);
-        }
-        max_type_var_in_type(&spread.tail, max);
-    }
-    for variant in &ty.poly_variants {
-        for (_, payloads) in &variant.items {
-            for payload in payloads {
-                max_type_var_in_type(payload, max);
-            }
-        }
-    }
-    for tuple in &ty.tuples {
-        for item in &tuple.items {
-            max_type_var_in_type(item, max);
-        }
-    }
-    for row in &ty.rows {
-        for args in row.items.values() {
-            for arg in args {
-                max_type_var_in_bounds(arg, max);
-            }
-        }
-        max_type_var_in_type(&row.tail, max);
-    }
-}
-
-fn update_max_type_var(var: TypeVar, max: &mut Option<TypeVar>) {
-    if max.is_none_or(|current| var.0 > current.0) {
-        *max = Some(var);
+    fn new(_root: &CompactRoot) -> Self {
+        Self
     }
 }
 
@@ -2054,10 +1915,6 @@ impl EmptyStackOccurrences {
         }
     }
 
-    fn record_interval_center(&mut self, var: TypeVar) {
-        self.plain_negative_vars.insert(var);
-    }
-
     fn redundant_positive_entries(self) -> FxHashMap<TypeVar, FxHashSet<SubtractId>> {
         self.positive_empty_entries
             .into_iter()
@@ -2153,12 +2010,7 @@ fn collect_empty_stack_occurrences_in_bounds(
     out: &mut EmptyStackOccurrences,
 ) {
     match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            out.record_interval_center(*self_var);
+        CompactBounds::Interval { lower, upper } => {
             collect_empty_stack_occurrences_in_type(lower, covariant, out);
             collect_empty_stack_occurrences_in_type(upper, !covariant, out);
         }
@@ -2630,12 +2482,7 @@ fn collect_recursive_var_free_vars(rec: &CompactRecursiveVar, out: &mut Vec<Type
 
 fn collect_bounds_free_vars(bounds: &CompactBounds, out: &mut Vec<TypeVar>) {
     match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            out.push(*self_var);
+        CompactBounds::Interval { lower, upper } => {
             collect_type_free_vars(lower, out);
             collect_type_free_vars(upper, out);
         }
@@ -2822,7 +2669,7 @@ mod tests {
     }
 
     #[test]
-    fn interval_center_vars_are_quantified_when_free() {
+    fn interval_common_vars_are_quantified_when_free() {
         let mut machine = ConstraintMachine::new();
         let center = TypeVar(4);
         machine.register_type_var(center, TypeLevel::root().child());
@@ -2830,9 +2677,8 @@ mod tests {
             root: CompactType::from_con(CompactCon {
                 path: vec!["list".into()],
                 args: vec![CompactBounds::Interval {
-                    self_var: center,
-                    lower: CompactType::default(),
-                    upper: CompactType::default(),
+                    lower: CompactType::from_var(CompactVar::plain(center)),
+                    upper: CompactType::from_var(CompactVar::plain(center)),
                 }],
             }),
             rec_vars: Vec::new(),
@@ -2915,7 +2761,7 @@ mod tests {
         machine.register_type_var(payload_var, TypeLevel::root().child());
         let payload_lower = machine.alloc_pos(Pos::Var(payload_var));
         let payload_upper = machine.alloc_neg(Neg::Var(payload_var));
-        let payload = machine.alloc_neu(Neu::Bounds(payload_lower, payload_var, payload_upper));
+        let payload = machine.alloc_neu(Neu::Bounds(payload_lower, payload_upper));
         machine.declared_subtract_fact(
             effect,
             subtract,
@@ -3250,7 +3096,6 @@ mod tests {
             rec_vars: vec![CompactRecursiveVar {
                 var: rec,
                 bounds: CompactBounds::Interval {
-                    self_var: rec,
                     lower: merge_compact_types(
                         true,
                         CompactType::from_var(CompactVar::plain(rec)),
@@ -3259,7 +3104,7 @@ mod tests {
                             args: Vec::new(),
                         }),
                     ),
-                    upper: CompactType::default(),
+                    upper: CompactType::from_var(CompactVar::plain(rec)),
                 },
             }],
         };
@@ -3301,9 +3146,12 @@ mod tests {
             rec_vars: vec![CompactRecursiveVar {
                 var,
                 bounds: CompactBounds::Interval {
-                    self_var: var,
-                    lower: CompactType::from_builtin(poly::types::BuiltinType::Int),
-                    upper: CompactType::default(),
+                    lower: merge_compact_types(
+                        true,
+                        CompactType::from_var(CompactVar::plain(var)),
+                        CompactType::from_builtin(poly::types::BuiltinType::Int),
+                    ),
+                    upper: CompactType::from_var(CompactVar::plain(var)),
                 },
             }],
         };
@@ -3315,16 +3163,12 @@ mod tests {
 
         assert_eq!(finalized.scheme.recursive_bounds.len(), 1);
         assert_eq!(finalized.scheme.recursive_bounds[0].var, var);
-        assert!(matches!(
-            types.neu(finalized.scheme.recursive_bounds[0].bounds),
-            poly::types::Neu::Bounds(lower, self_var, _)
-                if *self_var == var
-                    && matches!(
-                        types.pos(*lower),
-                        poly::types::Pos::Con(path, args)
-                            if path.len() == 1 && path[0] == "int" && args.is_empty()
-                    )
-        ));
+        let poly::types::Neu::Bounds(lower, _) =
+            types.neu(finalized.scheme.recursive_bounds[0].bounds)
+        else {
+            panic!("expected recursive bounds");
+        };
+        assert!(pos_contains_builtin_path(&types, *lower, "int"));
     }
 
     #[test]
@@ -3340,7 +3184,6 @@ mod tests {
             role: vec!["Ready".into()],
             inputs: vec![CompactRoleArg {
                 bounds: CompactBounds::Interval {
-                    self_var: role_var,
                     lower: CompactType::from_var(CompactVar::plain(role_var)),
                     upper: CompactType::from_var(CompactVar::plain(role_var)),
                 },
@@ -3366,9 +3209,8 @@ mod tests {
         );
         assert!(matches!(
             types.neu(finalized.scheme.role_predicates[0].inputs[0]),
-            poly::types::Neu::Bounds(lower, var, upper)
-                if *var == role_var
-                    && matches!(types.pos(*lower), poly::types::Pos::Var(v) if *v == role_var)
+            poly::types::Neu::Bounds(lower, upper)
+                if matches!(types.pos(*lower), poly::types::Pos::Var(v) if *v == role_var)
                     && matches!(types.neg(*upper), poly::types::Neg::Var(v) if *v == role_var)
         ));
     }
@@ -3387,7 +3229,6 @@ mod tests {
                 role: vec!["Ready".into()],
                 inputs: vec![CompactRoleArg {
                     bounds: CompactBounds::Interval {
-                        self_var: role_var,
                         lower: CompactType::from_builtin(poly::types::BuiltinType::Int),
                         upper: merge_compact_types(
                             true,
@@ -3412,14 +3253,13 @@ mod tests {
         assert!(
             matches!(
                 actual,
-                poly::types::Neu::Bounds(lower, var, upper)
-                    if *var == role_var
-                        && matches!(
-                            types.pos(*lower),
-                            poly::types::Pos::Con(path, args)
-                                if path.len() == 1 && path[0] == "int" && args.is_empty()
-                        )
-                        && neg_contains_var(&types, *upper, role_var)
+                poly::types::Neu::Bounds(lower, upper)
+                    if matches!(
+                        types.pos(*lower),
+                        poly::types::Pos::Con(path, args)
+                            if path.len() == 1 && path[0] == "int" && args.is_empty()
+                    )
+                    && neg_contains_var(&types, *upper, role_var)
             ),
             "{actual:?}"
         );
@@ -3536,6 +3376,19 @@ mod tests {
         ));
     }
 
+    fn pos_contains_builtin_path(types: &TypeArena, id: PosId, expected: &str) -> bool {
+        match types.pos(id) {
+            poly::types::Pos::Con(path, args) => {
+                path.len() == 1 && path[0] == expected && args.is_empty()
+            }
+            poly::types::Pos::Union(left, right) => {
+                pos_contains_builtin_path(types, *left, expected)
+                    || pos_contains_builtin_path(types, *right, expected)
+            }
+            _ => false,
+        }
+    }
+
     fn compact_type_contains_var(ty: &CompactType, expected: TypeVar) -> bool {
         ty.vars.iter().any(|var| var.var == expected)
             || ty.cons.values().any(|args| {
@@ -3584,13 +3437,8 @@ mod tests {
 
     fn compact_bounds_contains_var(bounds: &CompactBounds, expected: TypeVar) -> bool {
         match bounds {
-            CompactBounds::Interval {
-                self_var,
-                lower,
-                upper,
-            } => {
-                *self_var == expected
-                    || compact_type_contains_var(lower, expected)
+            CompactBounds::Interval { lower, upper } => {
+                compact_type_contains_var(lower, expected)
                     || compact_type_contains_var(upper, expected)
             }
             CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => args

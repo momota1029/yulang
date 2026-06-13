@@ -163,6 +163,283 @@ pub(crate) fn coalesce_floor_interval_equalities(
     rewrite_root_and_role_vars(root, roles, |var| subst.rewrite(var))
 }
 
+/// 区間の片側にいる足場変数が、その区間を除く反対側で観測されないなら、
+/// その足場は実際に代入される型にはなれない。観測されている代表変数を実型として選び、
+/// 反対境界へ片方向制約を戻してから、通常の共起分析に渡す。
+pub(crate) fn collect_interval_dominance_constraints(
+    root: &CompactRoot,
+    roles: &[CompactRoleConstraint],
+) -> Vec<CompactSubtypeConstraint> {
+    let counts = collect_var_polarity_counts(root, roles);
+    let mut out = Vec::new();
+    visit_type_interval_dominance(&root.root, Polarity::Positive, &counts, &mut out);
+    for rec in &root.rec_vars {
+        visit_bounds_interval_dominance(&rec.bounds, Polarity::Positive, &counts, &mut out);
+    }
+    for role in roles {
+        for input in &role.inputs {
+            visit_bounds_interval_dominance(&input.bounds, Polarity::Positive, &counts, &mut out);
+        }
+    }
+    out
+}
+
+fn visit_bounds_interval_dominance(
+    bounds: &CompactBounds,
+    polarity: Polarity,
+    counts: &VarPolarityCounts,
+    out: &mut Vec<CompactSubtypeConstraint>,
+) {
+    match bounds {
+        CompactBounds::Interval { lower, upper } => {
+            collect_interval_dominance_constraint(lower, upper, polarity, counts, out);
+            visit_type_interval_dominance(lower, polarity, counts, out);
+            visit_type_interval_dominance(upper, polarity.flipped(), counts, out);
+        }
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
+            for arg in args {
+                visit_bounds_interval_dominance(arg, polarity, counts, out);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            visit_bounds_interval_dominance(arg, polarity.flipped(), counts, out);
+            visit_bounds_interval_dominance(arg_eff, polarity.flipped(), counts, out);
+            visit_bounds_interval_dominance(ret_eff, polarity, counts, out);
+            visit_bounds_interval_dominance(ret, polarity, counts, out);
+        }
+        CompactBounds::Record { fields } => {
+            for field in fields {
+                visit_bounds_interval_dominance(&field.value, polarity, counts, out);
+            }
+        }
+        CompactBounds::PolyVariant { items } => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    visit_bounds_interval_dominance(payload, polarity, counts, out);
+                }
+            }
+        }
+    }
+}
+
+fn visit_type_interval_dominance(
+    ty: &CompactType,
+    polarity: Polarity,
+    counts: &VarPolarityCounts,
+    out: &mut Vec<CompactSubtypeConstraint>,
+) {
+    for args in ty.cons.values() {
+        for arg in args {
+            visit_bounds_interval_dominance(arg, polarity, counts, out);
+        }
+    }
+    for fun in &ty.funs {
+        visit_type_interval_dominance(&fun.arg, polarity.flipped(), counts, out);
+        visit_type_interval_dominance(&fun.arg_eff, polarity.flipped(), counts, out);
+        visit_type_interval_dominance(&fun.ret_eff, polarity, counts, out);
+        visit_type_interval_dominance(&fun.ret, polarity, counts, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            visit_type_interval_dominance(&field.value, polarity, counts, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            visit_type_interval_dominance(&field.value, polarity, counts, out);
+        }
+        visit_type_interval_dominance(&spread.tail, polarity, counts, out);
+    }
+    for variant in &ty.poly_variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                visit_type_interval_dominance(payload, polarity, counts, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in &tuple.items {
+            visit_type_interval_dominance(item, polarity, counts, out);
+        }
+    }
+    for row in &ty.rows {
+        for args in row.items.values() {
+            for arg in args {
+                visit_bounds_interval_dominance(arg, polarity, counts, out);
+            }
+        }
+        visit_type_interval_dominance(&row.tail, polarity, counts, out);
+    }
+}
+
+fn collect_interval_dominance_constraint(
+    lower: &CompactType,
+    upper: &CompactType,
+    polarity: Polarity,
+    counts: &VarPolarityCounts,
+    out: &mut Vec<CompactSubtypeConstraint>,
+) {
+    let lower_vars = top_level_type_vars(lower);
+    let upper_vars = top_level_type_vars(upper);
+    collect_side_dominance_constraint(
+        lower,
+        upper,
+        polarity,
+        &lower_vars,
+        &upper_vars,
+        counts,
+        out,
+    );
+    collect_side_dominance_constraint(
+        upper,
+        lower,
+        polarity.flipped(),
+        &upper_vars,
+        &lower_vars,
+        counts,
+        out,
+    );
+}
+
+fn collect_side_dominance_constraint(
+    side: &CompactType,
+    opposite: &CompactType,
+    side_polarity: Polarity,
+    side_vars: &FxHashSet<TypeVar>,
+    opposite_vars: &FxHashSet<TypeVar>,
+    counts: &VarPolarityCounts,
+    out: &mut Vec<CompactSubtypeConstraint>,
+) {
+    if side_vars.len() < 2 {
+        return;
+    }
+
+    let mut candidates = side_vars
+        .iter()
+        .copied()
+        .filter(|anchor| {
+            has_outside_occurrence(*anchor, side_vars, opposite_vars, side_polarity, counts)
+                && side_vars
+                    .iter()
+                    .copied()
+                    .filter(|var| var != anchor)
+                    .all(|witness| {
+                        !has_outside_polarity(
+                            witness,
+                            side_polarity.flipped(),
+                            side_vars,
+                            opposite_vars,
+                            side_polarity,
+                            counts,
+                        )
+                    })
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|var| var.0);
+    candidates.dedup();
+    let [anchor] = candidates.as_slice() else {
+        return;
+    };
+
+    let witnesses = side_vars
+        .iter()
+        .copied()
+        .filter(|var| var != anchor)
+        .collect::<FxHashSet<_>>();
+    let Some(anchor_type) = top_level_var_type(side, *anchor) else {
+        return;
+    };
+    let opposite_without_witnesses = type_without_top_level_vars(opposite, &witnesses);
+    if opposite_without_witnesses.is_empty() {
+        return;
+    }
+
+    if side_polarity.is_positive() {
+        push_subtype_constraint(out, anchor_type, opposite_without_witnesses);
+    } else {
+        push_subtype_constraint(out, opposite_without_witnesses, anchor_type);
+    }
+}
+
+fn has_outside_occurrence(
+    var: TypeVar,
+    side_vars: &FxHashSet<TypeVar>,
+    opposite_vars: &FxHashSet<TypeVar>,
+    side_polarity: Polarity,
+    counts: &VarPolarityCounts,
+) -> bool {
+    has_outside_polarity(
+        var,
+        Polarity::Positive,
+        side_vars,
+        opposite_vars,
+        side_polarity,
+        counts,
+    ) || has_outside_polarity(
+        var,
+        Polarity::Negative,
+        side_vars,
+        opposite_vars,
+        side_polarity,
+        counts,
+    )
+}
+
+fn has_outside_polarity(
+    var: TypeVar,
+    polarity: Polarity,
+    side_vars: &FxHashSet<TypeVar>,
+    opposite_vars: &FxHashSet<TypeVar>,
+    side_polarity: Polarity,
+    counts: &VarPolarityCounts,
+) -> bool {
+    let mut local = 0usize;
+    if polarity == side_polarity && side_vars.contains(&var) {
+        local += 1;
+    }
+    if polarity == side_polarity.flipped() && opposite_vars.contains(&var) {
+        local += 1;
+    }
+    counts.count(var, polarity) > local
+}
+
+fn top_level_var_type(ty: &CompactType, var: TypeVar) -> Option<CompactType> {
+    ty.vars
+        .iter()
+        .find(|candidate| candidate.var == var)
+        .cloned()
+        .map(CompactType::from_var)
+}
+
+fn type_without_top_level_vars(ty: &CompactType, removals: &FxHashSet<TypeVar>) -> CompactType {
+    let mut ty = ty.clone();
+    ty.vars.retain(|var| !removals.contains(&var.var));
+    ty
+}
+
+fn push_subtype_constraint(
+    out: &mut Vec<CompactSubtypeConstraint>,
+    lower: CompactType,
+    upper: CompactType,
+) {
+    if lower.is_empty() || upper.is_empty() || lower == upper {
+        return;
+    }
+    out.push(CompactSubtypeConstraint {
+        key: CompactSubtypeConstraintKey {
+            lower: lower.clone(),
+            upper: upper.clone(),
+        },
+        lower,
+        upper,
+    });
+}
+
 /// scheme に量化できない床変数のうち、surface に残す根拠を持たないものを落とす。
 ///
 /// 片側極性だけなら通常の極性消去、両極性に出ても同じ concrete に挟まっているなら
@@ -187,6 +464,170 @@ pub(crate) fn eliminate_floor_redundant_variables(
             Some(var)
         }
     })
+}
+
+/// 確定直前の scheme だけに掛ける床下 variable sandwich。
+///
+/// 通常 simplify の level 保護が触れない床下変数でも、Simple-sub 4.3.1 の
+/// indistinguishable variables / variable sandwich として、同じ変数に正負両方で
+/// 挟まっているなら併合できる。role 引数に残った 2 変数区間も、main-polarity から
+/// 片方が反対位置に出ないと分かるなら同じ根拠で畳む。
+pub(crate) fn coalesce_floor_variable_sandwiches(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    root: &mut CompactRoot,
+    roles: &mut [CompactRoleConstraint],
+) -> Vec<CompactVarSubstitution> {
+    let mut substitutions = Vec::new();
+    let co_occurrences = collect_co_occurrences(root, roles);
+    let mut union = VarUnion::default();
+    register_floor_variable_sandwiches(
+        &co_occurrences.positive,
+        &co_occurrences.negative,
+        machine,
+        boundary,
+        &mut union,
+    );
+    register_floor_variable_sandwiches(
+        &co_occurrences.negative,
+        &co_occurrences.positive,
+        machine,
+        boundary,
+        &mut union,
+    );
+    let subst = union.into_substitution(FxHashSet::default());
+    if !subst.is_empty() {
+        substitutions.extend(rewrite_root_and_role_vars(root, roles, |var| {
+            subst.rewrite(var)
+        }));
+    }
+
+    let main_polarity = collect_main_var_polarities(root);
+    let mut union = VarUnion::default();
+    register_role_main_polarity_sandwiches(roles, &main_polarity, machine, boundary, &mut union);
+    let subst = union.into_substitution(FxHashSet::default());
+    if !subst.is_empty() {
+        substitutions.extend(rewrite_root_and_role_vars(root, roles, |var| {
+            subst.rewrite(var)
+        }));
+    }
+    substitutions
+}
+
+fn register_floor_variable_sandwiches(
+    table: &FxHashMap<TypeVar, FxHashSet<AlongItem>>,
+    opposite: &FxHashMap<TypeVar, FxHashSet<AlongItem>>,
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    union: &mut VarUnion,
+) {
+    let mut vars = table.keys().copied().collect::<Vec<_>>();
+    vars.sort_by_key(|var| var.0);
+    for alpha in vars {
+        if machine.level_of(alpha) > boundary {
+            continue;
+        }
+        if union.find(alpha) != alpha {
+            continue;
+        }
+        let (Some(items), Some(opposite_items)) = (table.get(&alpha), opposite.get(&alpha)) else {
+            continue;
+        };
+        let mut sandwiches = items
+            .iter()
+            .filter_map(|item| match item {
+                AlongItem::Var(beta)
+                    if *beta != alpha && opposite_items.contains(&AlongItem::Var(*beta)) =>
+                {
+                    Some(*beta)
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        sandwiches.sort_by_key(|var| (machine.level_of(*var), var.0));
+        let Some(beta) = sandwiches.into_iter().next() else {
+            continue;
+        };
+        let beta_floor = machine.level_of(beta) <= boundary;
+        let rep = if beta_floor {
+            [alpha, beta]
+                .into_iter()
+                .min_by_key(|var| var.0)
+                .expect("pair should be non-empty")
+        } else {
+            beta
+        };
+        union.union_to(rep, alpha);
+        if beta_floor {
+            union.union_to(rep, beta);
+        }
+    }
+}
+
+fn register_role_main_polarity_sandwiches(
+    roles: &[CompactRoleConstraint],
+    main_polarity: &VarPolarities,
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    union: &mut VarUnion,
+) {
+    for role in roles {
+        for input in &role.inputs {
+            register_role_arg_main_polarity_sandwich(
+                &input.bounds,
+                main_polarity,
+                machine,
+                boundary,
+                union,
+            );
+        }
+    }
+}
+
+fn register_role_arg_main_polarity_sandwich(
+    bounds: &CompactBounds,
+    main_polarity: &VarPolarities,
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    union: &mut VarUnion,
+) {
+    let CompactBounds::Interval { lower, upper } = bounds else {
+        return;
+    };
+    let lower_vars = top_level_type_vars(lower);
+    let upper_vars = top_level_type_vars(upper);
+    let mut vars = lower_vars.union(&upper_vars).copied().collect::<Vec<_>>();
+    vars.sort_by_key(|var| var.0);
+    vars.dedup();
+    if vars.len() != 2 {
+        return;
+    }
+    for alpha in vars.iter().copied() {
+        if machine.level_of(alpha) > boundary {
+            continue;
+        }
+        let appears_lower = lower_vars.contains(&alpha);
+        let appears_upper = upper_vars.contains(&alpha);
+        let opposite_main_absent = (appears_lower && !main_polarity.negative.contains(&alpha))
+            || (appears_upper && !main_polarity.positive.contains(&alpha));
+        if !opposite_main_absent {
+            continue;
+        }
+        let beta = vars
+            .iter()
+            .copied()
+            .find(|var| *var != alpha)
+            .expect("two vars");
+        if !main_polarity.positive.contains(&beta) && !main_polarity.negative.contains(&beta) {
+            continue;
+        }
+        union.union_to(beta, alpha);
+        break;
+    }
+}
+
+fn top_level_type_vars(ty: &CompactType) -> FxHashSet<TypeVar> {
+    ty.vars.iter().map(|var| var.var).collect()
 }
 
 fn floor_redundant_vars(
@@ -284,7 +725,7 @@ fn simplify_polar_and_co_occurrence_to_fixed_point(
 
 /// 上下界が同じ concrete 成分で釘付けされた不変 interval を、その concrete に畳む。
 /// `[α∨T, β∧T]` は lower ≤ upper より中心が T に挟まれて確定する（α ≤ T ≤ …）。
-/// interval の self_var は構成上 bipolar で polar 消去が効かないので、ここで畳む。
+/// interval の lower/upper 両側に残る変数は bipolar で polar 消去が効かないので、ここで畳む。
 /// 同伴していた変数の他出現はそのまま残し、後続の polar 消去 / 共起併合に任せる。
 /// bottom-up の一回パスで、不動点ループには入れない。
 fn collapse_pinned_intervals_with_roles_and_non_generic(
@@ -380,17 +821,13 @@ fn collapse_intervals_in_bounds(
     keep_interval: bool,
 ) {
     match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
+        CompactBounds::Interval { lower, upper } => {
             collapse_intervals_in_type(lower, ctx);
             collapse_intervals_in_type(upper, ctx);
             if keep_interval {
                 return;
             }
-            if let Some(collapsed) = try_collapse_pinned_interval(*self_var, lower, upper, ctx) {
+            if let Some(collapsed) = try_collapse_pinned_interval(lower, upper, ctx) {
                 *bounds = collapsed;
             }
         }
@@ -432,16 +869,10 @@ fn collapse_intervals_in_bounds(
 }
 
 fn try_collapse_pinned_interval(
-    self_var: TypeVar,
     lower: &CompactType,
     upper: &CompactType,
     ctx: &CollapseContext,
 ) -> Option<CompactBounds> {
-    if ctx.rec_vars.contains(&self_var)
-        || !is_simplification_candidate(ctx.machine, ctx.boundary, self_var, ctx.non_generic)
-    {
-        return None;
-    }
     for var in lower.vars.iter().chain(upper.vars.iter()) {
         if ctx.rec_vars.contains(&var.var)
             || !is_simplification_candidate(ctx.machine, ctx.boundary, var.var, ctx.non_generic)
@@ -542,7 +973,6 @@ fn component_compact_bounds(ty: &CompactType) -> Option<CompactBounds> {
     if ty.vars.len() == 1 && sole_concrete_component(ty).is_none() && !ty.never {
         let var = ty.vars[0].var;
         return Some(CompactBounds::Interval {
-            self_var: var,
             lower: CompactType::from_var(CompactVar::plain(var)),
             upper: CompactType::from_var(CompactVar::plain(var)),
         });
@@ -646,9 +1076,8 @@ fn sandwich_compact_root_with_roles_and_non_generic(
     }
 }
 
-fn empty_interval(self_var: TypeVar) -> CompactBounds {
+fn empty_interval(_var: TypeVar) -> CompactBounds {
     CompactBounds::Interval {
-        self_var,
         lower: CompactType::default(),
         upper: CompactType::default(),
     }
@@ -1041,13 +1470,8 @@ fn sandwich_bounds(
     sandwiches: &mut FxHashMap<TypeVar, CompactSandwichKind>,
 ) -> CompactBounds {
     match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            if let Some((center, kind, lifted)) =
-                try_lift_interval(machine, boundary, self_var, &lower, &upper, verdicts, fresh)
+        CompactBounds::Interval { lower, upper } => {
+            if let Some((center, kind, lifted)) = try_lift_interval(&lower, &upper, verdicts, fresh)
             {
                 *changed = true;
                 record_sandwich(sandwiches, center, &kind);
@@ -1056,7 +1480,6 @@ fn sandwich_bounds(
                 )
             } else {
                 CompactBounds::Interval {
-                    self_var,
                     lower: sandwich_type(
                         machine, boundary, lower, verdicts, fresh, changed, sandwiches,
                     ),
@@ -1187,22 +1610,12 @@ fn sandwich_role_arg(
 }
 
 fn try_lift_interval(
-    machine: &ConstraintMachine,
-    boundary: TypeLevel,
-    self_var: TypeVar,
     lower: &CompactType,
     upper: &CompactType,
     verdicts: &SandwichVerdicts,
     fresh: &mut FreshCompactVars,
 ) -> Option<(TypeVar, SandwichKind, CompactBounds)> {
-    let center = if verdicts.lift.contains_key(&self_var) {
-        self_var
-    } else {
-        if machine.level_of(self_var) < boundary {
-            return None;
-        }
-        common_var_in_types(lower, upper).filter(|var| verdicts.lift.contains_key(var))?
-    };
+    let center = common_var_in_types(lower, upper).filter(|var| verdicts.lift.contains_key(var))?;
     let kind = verdicts.lift.get(&center)?.clone();
     let lifted = match kind.clone() {
         SandwichKind::Con(path, arity) => {
@@ -1323,12 +1736,8 @@ fn interval_from_types(
     upper: CompactType,
     fresh: &mut FreshCompactVars,
 ) -> CompactBounds {
-    let self_var = common_var_in_types(&lower, &upper).unwrap_or_else(|| fresh.fresh());
-    CompactBounds::Interval {
-        self_var,
-        lower,
-        upper,
-    }
+    let _ = fresh;
+    CompactBounds::Interval { lower, upper }
 }
 
 fn common_var_in_types(lower: &CompactType, upper: &CompactType) -> Option<TypeVar> {
@@ -1400,132 +1809,11 @@ fn single_fun(ty: &CompactType) -> Option<&CompactFun> {
     }
 }
 
-struct FreshCompactVars {
-    next: u32,
-}
+struct FreshCompactVars;
 
 impl FreshCompactVars {
-    fn new(root: &CompactRoot) -> Self {
-        Self {
-            next: max_type_var_in_root(root).map_or(0, |var| var.0 + 1),
-        }
-    }
-
-    fn fresh(&mut self) -> TypeVar {
-        let var = TypeVar(self.next);
-        self.next += 1;
-        var
-    }
-}
-
-fn max_type_var_in_root(root: &CompactRoot) -> Option<TypeVar> {
-    let mut max = None;
-    max_type_var_in_type(&root.root, &mut max);
-    for rec in &root.rec_vars {
-        update_max_type_var(rec.var, &mut max);
-        max_type_var_in_bounds(&rec.bounds, &mut max);
-    }
-    max
-}
-
-fn max_type_var_in_type(ty: &CompactType, max: &mut Option<TypeVar>) {
-    for var in &ty.vars {
-        update_max_type_var(var.var, max);
-    }
-    for args in ty.cons.values() {
-        for arg in args {
-            max_type_var_in_bounds(arg, max);
-        }
-    }
-    for fun in &ty.funs {
-        max_type_var_in_type(&fun.arg, max);
-        max_type_var_in_type(&fun.arg_eff, max);
-        max_type_var_in_type(&fun.ret_eff, max);
-        max_type_var_in_type(&fun.ret, max);
-    }
-    for record in &ty.records {
-        for field in &record.fields {
-            max_type_var_in_type(&field.value, max);
-        }
-    }
-    for spread in &ty.record_spreads {
-        for field in &spread.fields {
-            max_type_var_in_type(&field.value, max);
-        }
-        max_type_var_in_type(&spread.tail, max);
-    }
-    for variant in &ty.poly_variants {
-        for (_, payloads) in &variant.items {
-            for payload in payloads {
-                max_type_var_in_type(payload, max);
-            }
-        }
-    }
-    for tuple in &ty.tuples {
-        for item in &tuple.items {
-            max_type_var_in_type(item, max);
-        }
-    }
-    for row in &ty.rows {
-        for args in row.items.values() {
-            for arg in args {
-                max_type_var_in_bounds(arg, max);
-            }
-        }
-        max_type_var_in_type(&row.tail, max);
-    }
-}
-
-fn max_type_var_in_bounds(bounds: &CompactBounds, max: &mut Option<TypeVar>) {
-    match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            update_max_type_var(*self_var, max);
-            max_type_var_in_type(lower, max);
-            max_type_var_in_type(upper, max);
-        }
-        CompactBounds::Con { args, .. } => {
-            for arg in args {
-                max_type_var_in_bounds(arg, max);
-            }
-        }
-        CompactBounds::Fun {
-            arg,
-            arg_eff,
-            ret_eff,
-            ret,
-        } => {
-            max_type_var_in_bounds(arg, max);
-            max_type_var_in_bounds(arg_eff, max);
-            max_type_var_in_bounds(ret_eff, max);
-            max_type_var_in_bounds(ret, max);
-        }
-        CompactBounds::Record { fields } => {
-            for field in fields {
-                max_type_var_in_bounds(&field.value, max);
-            }
-        }
-        CompactBounds::PolyVariant { items } => {
-            for (_, payloads) in items {
-                for payload in payloads {
-                    max_type_var_in_bounds(payload, max);
-                }
-            }
-        }
-        CompactBounds::Tuple { items } => {
-            for item in items {
-                max_type_var_in_bounds(item, max);
-            }
-        }
-    }
-}
-
-fn update_max_type_var(var: TypeVar, max: &mut Option<TypeVar>) {
-    if max.is_none_or(|current| var.0 > current.0) {
-        *max = Some(var);
+    fn new(_root: &CompactRoot) -> Self {
+        Self
     }
 }
 
@@ -1552,6 +1840,30 @@ impl VarPolarities {
     }
 }
 
+#[derive(Default)]
+struct VarPolarityCounts {
+    positive: FxHashMap<TypeVar, usize>,
+    negative: FxHashMap<TypeVar, usize>,
+}
+
+impl VarPolarityCounts {
+    fn record(&mut self, var: TypeVar, polarity: Polarity) {
+        let table = match polarity {
+            Polarity::Positive => &mut self.positive,
+            Polarity::Negative => &mut self.negative,
+        };
+        *table.entry(var).or_default() += 1;
+    }
+
+    fn count(&self, var: TypeVar, polarity: Polarity) -> usize {
+        let table = match polarity {
+            Polarity::Positive => &self.positive,
+            Polarity::Negative => &self.negative,
+        };
+        table.get(&var).copied().unwrap_or(0)
+    }
+}
+
 fn collect_var_polarities(root: &CompactRoot, roles: &[CompactRoleConstraint]) -> VarPolarities {
     let mut out = VarPolarities::default();
     visit_type_polarity(&root.root, Polarity::Positive, &mut out);
@@ -1560,6 +1872,30 @@ fn collect_var_polarities(root: &CompactRoot, roles: &[CompactRoleConstraint]) -
     }
     for role in roles {
         visit_role_polarity(role, &mut out);
+    }
+    out
+}
+
+fn collect_var_polarity_counts(
+    root: &CompactRoot,
+    roles: &[CompactRoleConstraint],
+) -> VarPolarityCounts {
+    let mut out = VarPolarityCounts::default();
+    visit_type_polarity_counts(&root.root, Polarity::Positive, &mut out);
+    for rec in &root.rec_vars {
+        visit_bounds_polarity_counts(&rec.bounds, Polarity::Positive, &mut out);
+    }
+    for role in roles {
+        visit_role_polarity_counts(role, &mut out);
+    }
+    out
+}
+
+fn collect_main_var_polarities(root: &CompactRoot) -> VarPolarities {
+    let mut out = VarPolarities::default();
+    visit_type_polarity(&root.root, Polarity::Positive, &mut out);
+    for rec in &root.rec_vars {
+        visit_bounds_polarity(&rec.bounds, Polarity::Positive, &mut out);
     }
     out
 }
@@ -1575,6 +1911,15 @@ fn visit_role_polarity(role: &CompactRoleConstraint, out: &mut VarPolarities) {
 
 fn visit_role_arg_polarity(arg: &CompactRoleArg, out: &mut VarPolarities) {
     visit_bounds_polarity(&arg.bounds, Polarity::Positive, out);
+}
+
+fn visit_role_polarity_counts(role: &CompactRoleConstraint, out: &mut VarPolarityCounts) {
+    for input in &role.inputs {
+        visit_bounds_polarity_counts(&input.bounds, Polarity::Positive, out);
+    }
+    for associated in &role.associated {
+        visit_bounds_polarity_counts(&associated.value.bounds, Polarity::Positive, out);
+    }
 }
 
 fn visit_type_polarity(ty: &CompactType, polarity: Polarity, out: &mut VarPolarities) {
@@ -1625,15 +1970,57 @@ fn visit_type_polarity(ty: &CompactType, polarity: Polarity, out: &mut VarPolari
     }
 }
 
+fn visit_type_polarity_counts(ty: &CompactType, polarity: Polarity, out: &mut VarPolarityCounts) {
+    for var in &ty.vars {
+        out.record(var.var, polarity);
+    }
+    for args in ty.cons.values() {
+        for arg in args {
+            visit_bounds_polarity_counts(arg, polarity, out);
+        }
+    }
+    for fun in &ty.funs {
+        visit_type_polarity_counts(&fun.arg, polarity.flipped(), out);
+        visit_type_polarity_counts(&fun.arg_eff, polarity.flipped(), out);
+        visit_type_polarity_counts(&fun.ret_eff, polarity, out);
+        visit_type_polarity_counts(&fun.ret, polarity, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            visit_type_polarity_counts(&field.value, polarity, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            visit_type_polarity_counts(&field.value, polarity, out);
+        }
+        visit_type_polarity_counts(&spread.tail, polarity, out);
+    }
+    for variant in &ty.poly_variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                visit_type_polarity_counts(payload, polarity, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in &tuple.items {
+            visit_type_polarity_counts(item, polarity, out);
+        }
+    }
+    for row in &ty.rows {
+        for args in row.items.values() {
+            for arg in args {
+                visit_bounds_polarity_counts(arg, polarity, out);
+            }
+        }
+        visit_type_polarity_counts(&row.tail, polarity, out);
+    }
+}
+
 fn visit_bounds_polarity(bounds: &CompactBounds, polarity: Polarity, out: &mut VarPolarities) {
     match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            out.record(*self_var, Polarity::Positive);
-            out.record(*self_var, Polarity::Negative);
+        CompactBounds::Interval { lower, upper } => {
             visit_type_polarity(lower, polarity, out);
             visit_type_polarity(upper, polarity.flipped(), out);
         }
@@ -1673,6 +2060,52 @@ fn visit_bounds_polarity(bounds: &CompactBounds, polarity: Polarity, out: &mut V
     }
 }
 
+fn visit_bounds_polarity_counts(
+    bounds: &CompactBounds,
+    polarity: Polarity,
+    out: &mut VarPolarityCounts,
+) {
+    match bounds {
+        CompactBounds::Interval { lower, upper } => {
+            visit_type_polarity_counts(lower, polarity, out);
+            visit_type_polarity_counts(upper, polarity.flipped(), out);
+        }
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                visit_bounds_polarity_counts(arg, polarity, out);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            visit_bounds_polarity_counts(arg, polarity.flipped(), out);
+            visit_bounds_polarity_counts(arg_eff, polarity.flipped(), out);
+            visit_bounds_polarity_counts(ret_eff, polarity, out);
+            visit_bounds_polarity_counts(ret, polarity, out);
+        }
+        CompactBounds::Record { fields } => {
+            for field in fields {
+                visit_bounds_polarity_counts(&field.value, polarity, out);
+            }
+        }
+        CompactBounds::PolyVariant { items } => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    visit_bounds_polarity_counts(payload, polarity, out);
+                }
+            }
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                visit_bounds_polarity_counts(item, polarity, out);
+            }
+        }
+    }
+}
+
 #[derive(Default)]
 struct CoOccurrences {
     positive: FxHashMap<TypeVar, FxHashSet<AlongItem>>,
@@ -1685,12 +2118,7 @@ impl CoOccurrences {
     /// 両側に現れる変数は実型と等しく確定する。他の出現位置での同伴に関係なく、
     /// この区間単独を根拠に互いに（中心があれば中心と）併合できる。
     /// 具体型との等値は変数の除去になり他出現を壊すため、ここでは変数同士に限る。
-    fn record_interval_equalities(
-        &mut self,
-        lower: &CompactType,
-        upper: &CompactType,
-        center: Option<TypeVar>,
-    ) {
+    fn record_interval_equalities(&mut self, lower: &CompactType, upper: &CompactType) {
         let upper_vars = upper
             .vars
             .iter()
@@ -1704,19 +2132,8 @@ impl CoOccurrences {
             .collect::<Vec<_>>();
         both.sort_by_key(|var| var.0);
         both.dedup();
-        match center {
-            Some(center) => {
-                for var in both {
-                    if var != center {
-                        self.interval_equalities.push((center, var));
-                    }
-                }
-            }
-            None => {
-                for pair in both.windows(2) {
-                    self.interval_equalities.push((pair[0], pair[1]));
-                }
-            }
+        for pair in both.windows(2) {
+            self.interval_equalities.push((pair[0], pair[1]));
         }
     }
 
@@ -2180,27 +2597,13 @@ fn visit_bounds_co_occurrence(
     out: &mut CoOccurrences,
 ) {
     match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            out.record_interval_equalities(lower, upper, Some(*self_var));
-            let mut body_ignored = ignored_vars.to_vec();
-            if !body_ignored.contains(self_var) {
-                body_ignored.push(*self_var);
-            }
+        CompactBounds::Interval { lower, upper } => {
+            out.record_interval_equalities(lower, upper);
             if !lower.is_empty() {
-                visit_type_co_occurrence(lower, polarity, &[*self_var], &body_ignored, out);
+                visit_type_co_occurrence(lower, polarity, &[], ignored_vars, out);
             }
             if !upper.is_empty() {
-                visit_type_co_occurrence(
-                    upper,
-                    polarity.flipped(),
-                    &[*self_var],
-                    &body_ignored,
-                    out,
-                );
+                visit_type_co_occurrence(upper, polarity.flipped(), &[], ignored_vars, out);
             }
         }
         CompactBounds::Con { args, .. } => {
@@ -2415,16 +2818,7 @@ fn rewrite_bounds_vars(
     substitutions: &mut FxHashMap<TypeVar, Option<TypeVar>>,
 ) {
     match bounds {
-        CompactBounds::Interval {
-            self_var,
-            lower,
-            upper,
-        } => {
-            let source = *self_var;
-            if let Some(rep) = rewrite(*self_var) {
-                record_var_substitution(substitutions, source, Some(rep));
-                *self_var = rep;
-            }
+        CompactBounds::Interval { lower, upper } => {
             rewrite_type_vars(lower, rewrite, substitutions);
             rewrite_type_vars(upper, rewrite, substitutions);
         }

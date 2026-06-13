@@ -265,7 +265,7 @@ impl<'a> RawTypeDumper<'a> {
 
     fn visit_neu(&mut self, id: NeuId) {
         match self.arena.neu(id) {
-            Neu::Bounds(lower, _, upper) => {
+            Neu::Bounds(lower, upper) => {
                 self.mark_pos(*lower);
                 self.mark_neg(*upper);
             }
@@ -387,13 +387,8 @@ impl<'a> RawTypeDumper<'a> {
 
     fn neu_node(&self, id: NeuId) -> String {
         match self.arena.neu(id) {
-            Neu::Bounds(lower, var_id, upper) => {
-                format!(
-                    "Bounds({}, {}, {})",
-                    pos_ref(*lower),
-                    var(*var_id),
-                    neg_ref(*upper)
-                )
+            Neu::Bounds(lower, upper) => {
+                format!("Bounds({}, {})", pos_ref(*lower), neg_ref(*upper))
             }
             Neu::Con(path, args) => format!("Con({}, {})", path_name(path), neu_refs(args)),
             Neu::Fun {

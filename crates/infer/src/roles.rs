@@ -240,8 +240,7 @@ fn collect_neu_vars_in_slice(types: &TypeArena, ids: &[NeuId], vars: &mut FxHash
 
 fn collect_neu_vars(types: &TypeArena, id: NeuId, vars: &mut FxHashSet<TypeVar>) {
     match types.neu(id) {
-        Neu::Bounds(lower, var, upper) => {
-            vars.insert(*var);
+        Neu::Bounds(lower, upper) => {
             collect_pos_vars(types, *lower, vars);
             collect_neg_vars(types, *upper, vars);
         }

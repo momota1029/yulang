@@ -576,11 +576,7 @@ impl<'a> AnnConstraintLowerer<'a> {
 
     fn lower_invariant_arg(&mut self, ann: &AnnType) -> Result<NeuId, AnnConstraintError> {
         let bounds = self.lower_invariant_arg_bounds(ann)?;
-        let var = match ann {
-            AnnType::Var(var) => self.annotation_var(var),
-            _ => self.infer.fresh_type_var(),
-        };
-        Ok(self.alloc_neu(Neu::Bounds(bounds.pos, var, bounds.neg)))
+        Ok(self.alloc_neu(Neu::Bounds(bounds.pos, bounds.neg)))
     }
 
     fn lower_invariant_arg_bounds(
@@ -1631,7 +1627,7 @@ mod tests {
         let [arg] = args.as_slice() else {
             panic!("expected one type argument");
         };
-        let Neu::Bounds(lower, _, upper) = types.neu(*arg) else {
+        let Neu::Bounds(lower, upper) = types.neu(*arg) else {
             panic!("expected invariant type argument bounds");
         };
         assert!(

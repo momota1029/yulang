@@ -883,7 +883,7 @@ impl BodyLowerer {
     fn invariant_var_arg(&mut self, var: TypeVar) -> NeuId {
         let lower = self.session.infer.alloc_pos(Pos::Var(var));
         let upper = self.session.infer.alloc_neg(Neg::Var(var));
-        self.session.infer.alloc_neu(Neu::Bounds(lower, var, upper))
+        self.session.infer.alloc_neu(Neu::Bounds(lower, upper))
     }
 
     fn lower_act_decl_body(&mut self, node: &Cst, module: ModuleId) {
@@ -2060,13 +2060,7 @@ fn register_declared_companion_local_methods(session: &mut AnalysisSession, modu
             .into_iter()
             .map(|name| name.0)
             .collect::<Vec<_>>();
-        session.register_local_role_method(
-            scope,
-            role,
-            method.name.0.clone(),
-            method.def,
-            modules.role_inputs(method.owner).len(),
-        );
+        session.register_local_role_method(scope, role, method.name.0.clone(), method.def);
     }
 }
 
@@ -2084,12 +2078,7 @@ fn register_declared_role_methods(session: &mut AnalysisSession, modules: &Modul
             .into_iter()
             .map(|name| name.0)
             .collect::<Vec<_>>();
-        session.register_role_method(
-            role,
-            method.name.0.clone(),
-            method.def,
-            modules.role_inputs(method.owner).len(),
-        );
+        session.register_role_method(role, method.name.0.clone(), method.def);
     }
 }
 
@@ -3205,7 +3194,7 @@ impl<'a> ExprLowerer<'a> {
     ) -> Result<Vec<Option<NegId>>, LoweringError> {
         let mut spine = signature_function_step(requirement).map(|(_, ret)| ret);
         let seed = signature_vars_from_ann_vars(type_var_bindings, ann_solver_vars);
-        // 足場の interval 変数（`Bounds(int, v, int)` の v）が root level で生まれると
+        // 足場の区間変数（`Bounds(int|v, v&int)` の v）が root level で生まれると
         // simplify の level 保護で永久に残るので、def の現在 level で lower する。
         let level = self.session.infer.current_level();
         let mut lowerer = SignatureLowerer::with_vars_at_level(
@@ -3540,7 +3529,7 @@ impl<'a> ExprLowerer<'a> {
     fn invariant_var_arg(&mut self, var: TypeVar) -> poly::types::NeuId {
         let lower = self.alloc_pos(Pos::Var(var));
         let upper = self.alloc_neg(Neg::Var(var));
-        self.session.infer.alloc_neu(Neu::Bounds(lower, var, upper))
+        self.session.infer.alloc_neu(Neu::Bounds(lower, upper))
     }
 
     fn lower_expr_with_lambda_scope(
@@ -6128,9 +6117,8 @@ fn collect_neu_ids_vars(types: &TypeArena, ids: &[NeuId], out: &mut FxHashSet<Ty
 
 fn collect_neu_id_vars(types: &TypeArena, id: NeuId, out: &mut FxHashSet<TypeVar>) {
     match types.neu(id) {
-        Neu::Bounds(lower, var, upper) => {
+        Neu::Bounds(lower, upper) => {
             collect_pos_id_vars(types, *lower, out);
-            out.insert(*var);
             collect_neg_id_vars(types, *upper, out);
         }
         Neu::Con(_, args) => collect_neu_ids_vars(types, args, out),
@@ -7851,11 +7839,7 @@ impl<'a> SignatureLowerer<'a> {
     ) -> Result<NeuId, SignatureConstraintError> {
         let lower = self.lower_pos(signature)?;
         let upper = self.lower_neg(signature)?;
-        let var = match signature {
-            SignatureType::Var(var) => self.signature_var(var),
-            _ => self.fresh_type_var(),
-        };
-        Ok(self.alloc_neu(Neu::Bounds(lower, var, upper)))
+        Ok(self.alloc_neu(Neu::Bounds(lower, upper)))
     }
 
     fn lower_builtin_pos(&mut self, builtin: BuiltinType) -> PosId {
@@ -11269,7 +11253,7 @@ mod tests {
         assert_eq!(output.errors, Vec::new());
         let rendered =
             poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, keep));
-        assert_eq!(rendered, "view 'a -> 'a -> 'a where 'a: Ord");
+        assert_eq!(rendered, "view('b & 'a) -> 'a -> 'b where ('b|'a): Ord");
     }
 
     #[test]
