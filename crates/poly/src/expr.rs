@@ -36,6 +36,12 @@ pub struct Arena {
     /// cast は単相化でも subtype 境界として効くため、infer 内部の一時 table だけでなく、
     /// principal scheme と同じ poly 境界へ残す。
     pub cast_rules: Vec<CastRule>,
+    /// source lowering で解決された effect operation。
+    ///
+    /// effect operation は body を持たない `Def::Let` として型だけを持つが、runtime では
+    /// effect request を送出する値である。後段が `DefId` から送出 path を読めるように
+    /// 構造化された metadata として残す。
+    pub effect_operations: FxHashMap<DefId, EffectOperation>,
     expr: Vec<Expr>,
     pat: Vec<Pat>,
     type_ids: TypeIds,
@@ -48,6 +54,11 @@ pub struct CastRule {
     pub source: Vec<String>,
     pub target: Vec<String>,
     pub scheme: Scheme,
+}
+
+#[derive(Clone)]
+pub struct EffectOperation {
+    pub path: Vec<String>,
 }
 
 /// block 内に現れる文の構造。
@@ -68,6 +79,7 @@ impl Arena {
             refs: Vec::new(),
             selects: Vec::new(),
             cast_rules: Vec::new(),
+            effect_operations: FxHashMap::default(),
             expr: Vec::new(),
             pat: Vec::new(),
             type_ids: TypeIds::new(),

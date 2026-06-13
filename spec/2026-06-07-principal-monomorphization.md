@@ -550,6 +550,10 @@ FunctionAdapter {
   function: Expr,
   hygiene: FunctionAdapterHygiene,
 }
+
+EffectOp {
+  path: EffectPath,
+}
 ```
 
 `source` は式が実際に持つ concrete 境界、`target` は文脈が要求する concrete 境界である。
@@ -557,6 +561,9 @@ FunctionAdapter {
 ための node である。`MakeThunk` / `ForceThunk` も同じく、plain computation と first-class
 `Type::Thunk` value の境界を明示する。`FunctionAdapterHygiene` は guard marker spec の
 `add_id[n, path, id]` / `push` / `pop` へ落ちる plan を持ち、空 plan は「追加 hygiene なし」を表す。
+`EffectOp` は effect request を送出する operation value である。act operation def は body を持たない
+`Def::Let` だが、通常の local variable として mono へ落としてはならない。lowering は
+`DefId -> EffectPath` を poly 境界に残し、specialize はその def の参照を `EffectOp` へ変換する。
 
 関数値の concrete 型は、runtime shape へ読む段階で、effectful な parameter / return 境界を
 `Type::Thunk` に畳む。mono の関数型は runtime value の入力型と出力型を持ち、effect row は
@@ -601,6 +608,9 @@ top-level `FetchComputation` binding は source order の runtime root として
 `my run = out::say(1); my handled = catch run: ...` の `catch run` は `run` の RHS を handler の
 内側で再評価しない。`run` の effect は先行する runtime root の評価で発生し、後続の handler へは
 計算済み value だけが渡る。
+top-level root expression も runtime root であるため、root expression の actual 型が `Type::Thunk` なら
+root の出口で `ForceThunk` を挿入して実行対象にする。これは root にだけ効く規則であり、record field や
+関数引数など first-class value として運ばれる thunk を勝手に force しない。
 
 effect id hygiene も同じく、runtime-lower 側の暗黙責務にしてはならない。guard marker の
 runtime 意味、`add_id[n, path, id]` の depth、関数起動時の push / pop、resumable effect を含む

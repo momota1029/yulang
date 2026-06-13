@@ -93,6 +93,7 @@ impl Dumper {
         match &expr.kind {
             ExprKind::Lit(lit) => self.lit(lit),
             ExprKind::PrimitiveOp(name) => format!("<prim {name}>"),
+            ExprKind::EffectOp { path } => format!("<effect-op {}>", path.join("::")),
             ExprKind::Local(def) => format!("d{}", def.0),
             ExprKind::InstanceRef(instance) => format!("m{}", instance.0),
             ExprKind::Coerce {
@@ -567,6 +568,9 @@ mod tests {
                     function: Box::new(Expr::new(ExprKind::Local(crate::DefId(1)))),
                     hygiene: FunctionAdapterHygiene::default(),
                 })),
+                Root::Expr(Expr::new(ExprKind::EffectOp {
+                    path: vec!["out".to_string(), "say".to_string()],
+                })),
             ],
             instances: Vec::new(),
         };
@@ -578,7 +582,8 @@ mod tests {
                 "coerce[int => any](1), ",
                 "make-thunk[str ! [std::text::parse::parse] => thunk[[std::text::parse::parse], str]](\"x\"), ",
                 "force-thunk[thunk[[std::text::parse::parse], str] => str ! [std::text::parse::parse]](d0), ",
-                "adapter[int -> int => any -> any; hygiene[]](d1)",
+                "adapter[int -> int => any -> any; hygiene[]](d1), ",
+                "<effect-op out::say>",
                 "]\n",
             )
         );

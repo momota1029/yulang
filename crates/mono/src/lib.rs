@@ -168,6 +168,9 @@ impl Expr {
 pub enum ExprKind {
     Lit(Lit),
     PrimitiveOp(String),
+    EffectOp {
+        path: Vec<String>,
+    },
     Local(DefId),
     InstanceRef(InstanceId),
     Coerce {

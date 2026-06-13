@@ -82,7 +82,8 @@ impl Specializer {
         match root {
             poly_expr::RuntimeRoot::Expr(expr) => {
                 let plan = solve::solve_expr(arena, expr, None)?;
-                Ok(Root::Expr(self.expr(arena, &plan, expr)?))
+                let expr = self.expr(arena, &plan, expr)?;
+                Ok(Root::Expr(force_root_expr_if_thunk(&plan, root, expr)))
             }
             poly_expr::RuntimeRoot::ComputedDef(def) => {
                 Ok(Root::Instance(self.ensure_def_instance(arena, def, None)?))
@@ -254,6 +255,11 @@ impl Specializer {
         };
         match arena.defs.get(def) {
             Some(poly_expr::Def::Arg) => Ok(ExprKind::Local(convert_def(def))),
+            _ if let Some(operation) = arena.effect_operations.get(&def) => {
+                Ok(ExprKind::EffectOp {
+                    path: operation.path.clone(),
+                })
+            }
             Some(poly_expr::Def::Let { body: Some(_), .. }) => Ok(ExprKind::InstanceRef(
                 self.ensure_def_instance(arena, def, expected)?,
             )),
@@ -649,6 +655,20 @@ fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr {
     })
 }
 
+fn force_root_expr_if_thunk(
+    plan: &solve::ExprTypePlan,
+    root: poly_expr::RuntimeRoot,
+    expr: Expr,
+) -> Expr {
+    let poly_expr::RuntimeRoot::Expr(root) = root else {
+        return expr;
+    };
+    let Some(actual @ Type::Thunk { value, .. }) = plan.actual_type_of(root) else {
+        return expr;
+    };
+    boundary_expr(actual, value, expr)
+}
+
 fn function_boundary_types(actual: &Type, expected: &Type) -> bool {
     matches!((actual, expected), (Type::Fun { .. }, Type::Fun { .. }))
 }
@@ -1010,6 +1030,31 @@ mod tests {
             mono::dump::dump_type(&program.instances[0].signature.ty),
             "int -> int"
         );
+    }
+
+    #[test]
+    fn string_input_materializes_effect_operation_ref_as_effect_op() {
+        let lowering = lower_source("act out:\n  our say: int -> unit\nout::say(1)\n");
+        let arena = &lowering.session.poly;
+
+        let program = specialize(arena).expect("effect operation root should specialize");
+
+        let [mono::Root::Expr(root)] = program.roots.as_slice() else {
+            panic!("expected one root expression");
+        };
+        let ExprKind::ForceThunk { thunk, .. } = &root.kind else {
+            panic!("effect operation call should be forced at the root boundary");
+        };
+        let ExprKind::Apply(callee, arg) = &thunk.kind else {
+            panic!("forced thunk should come from an operation application");
+        };
+        assert_eq!(
+            callee.kind,
+            ExprKind::EffectOp {
+                path: vec!["out".to_string(), "say".to_string()]
+            }
+        );
+        assert_eq!(arg.kind, ExprKind::Lit(Lit::Int(1)));
     }
 
     fn lower_source(source: &str) -> infer::lowering::BodyLowering {

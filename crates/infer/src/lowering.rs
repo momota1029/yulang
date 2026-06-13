@@ -1090,6 +1090,13 @@ impl BodyLowerer {
             self.errors.push(BodyLoweringError::NonLetDef { def, name });
             return;
         };
+        let operation_path = self.operation_path(&operation_decl);
+        self.session.poly.effect_operations.insert(
+            def,
+            poly::expr::EffectOperation {
+                path: operation_path,
+            },
+        );
 
         let previous_level = self.session.infer.enter_child_level();
         let root = self.session.infer.fresh_type_var();
@@ -1113,6 +1120,16 @@ impl BodyLowerer {
         self.session.infer.restore_level(previous_level);
 
         debug_assert_eq!(decl.id, operation_decl.effect.id);
+    }
+
+    fn operation_path(&self, operation_decl: &ActOperationDecl) -> Vec<String> {
+        self.modules
+            .type_decl_path(&operation_decl.effect)
+            .segments
+            .into_iter()
+            .chain(std::iter::once(operation_decl.name.clone()))
+            .map(|name| name.0)
+            .collect()
     }
 
     fn lower_act_operation_type(

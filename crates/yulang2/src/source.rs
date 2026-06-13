@@ -1019,6 +1019,26 @@ mod tests {
     }
 
     #[test]
+    fn dump_mono_without_std_forces_effectful_root_expression() {
+        let root = temp_root("dump-mono-effectful-root");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "act out:\n  our say: int -> unit\nout::say(1)\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(
+            &output,
+            "mono roots [force-thunk[thunk[[out], unit] => unit ! [out]]((<effect-op out::say> 1))]",
+        );
+    }
+
+    #[test]
     fn dump_mono_without_std_rejects_root_case_without_concrete_join() {
         let root = temp_root("dump-mono-root-case-ambiguous");
         let _ = fs::remove_dir_all(&root);
@@ -1089,9 +1109,10 @@ mod tests {
             "catch force-thunk[thunk[[out], unit] => unit ! [out]]",
         );
         assert_mono_dump_contains(&output, "out::say d");
+        assert_mono_dump_contains(&output, "<effect-op out::say>");
         assert_mono_dump_contains(
             &output,
-            "force-thunk[thunk[[out], unit] => unit ! [out]]((d",
+            "force-thunk[thunk[[out], unit] => unit ! [out]]((<effect-op out::say>",
         );
         assert!(!output.text.contains("adapter["), "{}", output.text);
     }
@@ -1118,9 +1139,10 @@ mod tests {
             "catch force-thunk[thunk[[var(int)], int] => int ! [var(int)]]",
         );
         assert_mono_dump_contains(&output, "var::get _");
+        assert_mono_dump_contains(&output, "<effect-op var::get>");
         assert_mono_dump_contains(
             &output,
-            "force-thunk[thunk[[var(int)], int] => int ! [var(int)]]((d",
+            "force-thunk[thunk[[var(int)], int] => int ! [var(int)]]((<effect-op var::get>",
         );
     }
 
@@ -1145,7 +1167,7 @@ mod tests {
         assert_mono_dump_contains(&output, "mono roots [m0, m1]");
         assert_mono_dump_contains(
             &output,
-            "m0 = d2 : unit\n  force-thunk[thunk[[out], unit] => unit ! [out]]((d1 1))",
+            "m0 = d2 : unit\n  force-thunk[thunk[[out], unit] => unit ! [out]]((<effect-op out::say> 1))",
         );
         assert_mono_dump_contains(&output, "m1 = d3 : unit\n  catch m0: out::say d");
         assert!(
