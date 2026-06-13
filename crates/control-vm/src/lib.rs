@@ -5,10 +5,12 @@
 
 #![forbid(unsafe_code)]
 
+mod boundary;
 mod format;
 mod ir;
 mod lower;
 mod runtime;
+mod validate;
 
 pub use format::format_values;
 pub use ir::{
@@ -20,6 +22,7 @@ pub use runtime::{
     CapturedEnv, Closure, ContinuationId, FunctionAdapter, GuardId, RunError, RuntimeError, Thunk,
     Value, ValueField, ValueMarker, run_mono_program, run_program,
 };
+pub use validate::{ValidateError, validate};
 
 #[cfg(test)]
 mod tests;

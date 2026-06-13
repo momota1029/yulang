@@ -7,24 +7,28 @@ use std::rc::Rc;
 use mono::{FunctionAdapterHygiene, Lit, Type};
 use num_bigint::BigInt;
 
+use crate::boundary::{equivalent_runtime_types, function_parts, thunk_value_type};
 use crate::ir::{
     Block, CaseArm, CatchArm, DefId, Expr, ExprId, InstanceId, Pat, Program, RecordField,
     RecordSpread, Root, SelectResolution, Stmt,
 };
 use crate::lower::{LowerError, lower};
+use crate::validate::{ValidateError, validate};
 
 pub fn run_mono_program(program: &mono::Program) -> Result<Vec<Value>, RunError> {
     let program = lower(program).map_err(RunError::Lower)?;
-    run_program(&program).map_err(RunError::Runtime)
+    run_program(&program)
 }
 
-pub fn run_program(program: &Program) -> Result<Vec<Value>, RuntimeError> {
-    Runtime::new(program).run()
+pub fn run_program(program: &Program) -> Result<Vec<Value>, RunError> {
+    validate(program).map_err(RunError::Validate)?;
+    Runtime::new(program).run().map_err(RunError::Runtime)
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RunError {
     Lower(LowerError),
+    Validate(ValidateError),
     Runtime(RuntimeError),
 }
 
@@ -32,6 +36,7 @@ impl fmt::Display for RunError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Lower(error) => write!(f, "{error}"),
+            Self::Validate(error) => write!(f, "{error}"),
             Self::Runtime(error) => write!(f, "{error}"),
         }
     }
@@ -1199,35 +1204,6 @@ impl<'a> Runtime<'a> {
                 }),
             value => Err(RuntimeError::ExpectedRecord { value }),
         }
-    }
-}
-
-fn function_parts(ty: &Type) -> Option<(&Type, &Type)> {
-    let Type::Fun { arg, ret, .. } = ty else {
-        return None;
-    };
-    Some((arg, ret))
-}
-
-fn thunk_value_type(ty: &Type) -> Option<&Type> {
-    let Type::Thunk { value, .. } = ty else {
-        return None;
-    };
-    Some(value)
-}
-
-fn equivalent_runtime_types(source: &Type, target: &Type) -> bool {
-    if source == target || source.is_pure_effect() && target.is_pure_effect() {
-        return true;
-    }
-    match (source, target) {
-        (source, Type::Thunk { effect, value }) if effect.is_pure_effect() => {
-            equivalent_runtime_types(source, value)
-        }
-        (Type::Thunk { effect, value }, target) if effect.is_pure_effect() => {
-            equivalent_runtime_types(value, target)
-        }
-        _ => false,
     }
 }
 

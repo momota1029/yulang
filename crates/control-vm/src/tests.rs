@@ -1,4 +1,9 @@
-use super::{Root, RuntimeError, Value, lower, run_mono_program, run_program};
+use mono::Type;
+
+use super::{
+    DefId, Expr, ExprId, Program, Root, RunError, RuntimeError, SelectResolution, ValidateError,
+    Value, format_values, lower, run_mono_program, run_program, validate,
+};
 
 #[test]
 fn lowers_empty_program() {
@@ -23,24 +28,17 @@ fn lowers_root_expression_to_expr_arena() {
 
 #[test]
 fn runs_specialized_generic_call_like_oracle() {
-    let lowering = lower_source("my id x = x\nid(1)\n");
-    let program = specialize::specialize(&lowering.session.poly).unwrap();
+    assert_oracle_parity("my id x = x\nid(1)\n", "[1]");
+}
 
-    assert_eq!(
-        run_mono_program(&program),
-        Ok(vec![Value::Int(1)]),
-        "{}",
-        mono::dump::dump_program(&program)
-    );
-    assert_eq!(
-        mono_runtime::run_program(&program).unwrap()[0],
-        mono_runtime::Value::Int(1)
-    );
+#[test]
+fn runs_apply_colon_block_argument_like_oracle() {
+    assert_oracle_parity("my id x = x\nid:\n  my x = 1\n  x\n", "[1]");
 }
 
 #[test]
 fn runs_stack_handler_hygiene_to_outer_handler() {
-    let lowering = lower_source(
+    assert_oracle_parity(
         "pub act sub 'a:\n\
              \x20 pub return: 'a -> never\n\
              \x20 pub sub(x: [_] 'a): 'a = catch x:\n\
@@ -52,18 +50,7 @@ fn runs_stack_handler_hygiene_to_outer_handler() {
              sub::sub:\n\
              \x20 g \\i -> sub::return i\n\
              \x20 sub::return 2\n",
-    );
-    let program = specialize::specialize(&lowering.session.poly).unwrap();
-
-    assert_eq!(
-        run_mono_program(&program),
-        Ok(vec![Value::Int(0)]),
-        "{}",
-        mono::dump::dump_program(&program)
-    );
-    assert_eq!(
-        mono_runtime::run_program(&program).unwrap()[0],
-        mono_runtime::Value::Int(0)
+        "[0]",
     );
 }
 
@@ -87,6 +74,71 @@ fn reports_unhandled_effect() {
     );
 }
 
+#[test]
+fn validation_rejects_unsupported_primitive_before_runtime() {
+    let program = Program {
+        roots: vec![Root::Expr(ExprId(0))],
+        instances: Vec::new(),
+        exprs: vec![Expr::PrimitiveOp("add".to_string())],
+    };
+
+    assert_eq!(
+        run_program(&program),
+        Err(RunError::Validate(ValidateError::UnsupportedExpr {
+            expr: ExprId(0),
+            feature: "primitive op add".to_string(),
+        }))
+    );
+}
+
+#[test]
+fn validation_rejects_unresolved_typeclass_method() {
+    let program = Program {
+        roots: vec![Root::Expr(ExprId(1))],
+        instances: Vec::new(),
+        exprs: vec![
+            Expr::Lit(mono::Lit::Unit),
+            Expr::Select {
+                base: ExprId(0),
+                name: "show".to_string(),
+                resolution: Some(SelectResolution::TypeclassMethod { member: DefId(7) }),
+            },
+        ],
+    };
+
+    assert_eq!(
+        validate(&program),
+        Err(ValidateError::UnresolvedTypeclassMethod {
+            expr: ExprId(1),
+            member: DefId(7),
+        })
+    );
+}
+
+#[test]
+fn validation_rejects_unresolved_type_variables_in_boundaries() {
+    let program = Program {
+        roots: vec![Root::Expr(ExprId(1))],
+        instances: Vec::new(),
+        exprs: vec![
+            Expr::Lit(mono::Lit::Int(1)),
+            Expr::Coerce {
+                source: Type::OpenVar(0),
+                target: Type::Any,
+                expr: ExprId(0),
+            },
+        ],
+    };
+
+    assert_eq!(
+        validate(&program),
+        Err(ValidateError::NonVmReadyType {
+            feature: "unresolved type variable".to_string(),
+            ty: Type::OpenVar(0),
+        })
+    );
+}
+
 fn lower_source(source: &str) -> infer::lowering::BodyLowering {
     let files = sources::load(vec![sources::SourceFile {
         module_path: sources::Path::default(),
@@ -99,4 +151,106 @@ fn lower_source(source: &str) -> infer::lowering::BodyLowering {
         output.lowering.errors
     );
     output.lowering
+}
+
+fn assert_oracle_parity(source: &str, expected: &str) {
+    let lowering = lower_source(source);
+    let program = specialize::specialize(&lowering.session.poly).unwrap();
+    let oracle_values = mono_runtime::run_program(&program).unwrap();
+    let control_values = run_mono_program(&program).unwrap();
+    let oracle = format_oracle_values(&oracle_values);
+    let control = format_values(&control_values);
+
+    assert_eq!(oracle, expected, "{}", mono::dump::dump_program(&program));
+    assert_eq!(control, expected, "{}", mono::dump::dump_program(&program));
+    assert_eq!(control, oracle, "{}", mono::dump::dump_program(&program));
+}
+
+fn format_oracle_values(values: &[mono_runtime::Value]) -> String {
+    let mut out = String::new();
+    out.push('[');
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&format_oracle_value(value));
+    }
+    out.push(']');
+    out
+}
+
+fn format_oracle_value(value: &mono_runtime::Value) -> String {
+    match value {
+        mono_runtime::Value::Int(value) => value.to_string(),
+        mono_runtime::Value::BigInt(value) => value.to_string(),
+        mono_runtime::Value::Float(value) => value.to_string(),
+        mono_runtime::Value::Str(value) => format!("{value:?}"),
+        mono_runtime::Value::Bool(value) => value.to_string(),
+        mono_runtime::Value::Unit => "()".to_string(),
+        mono_runtime::Value::Tuple(values) => format_oracle_delimited_values("(", ")", values),
+        mono_runtime::Value::Record(fields) => {
+            let mut out = String::new();
+            out.push('{');
+            for (index, field) in fields.iter().enumerate() {
+                if index > 0 {
+                    out.push_str(", ");
+                }
+                out.push_str(&field.name);
+                out.push_str(": ");
+                out.push_str(&format_oracle_value(&field.value));
+            }
+            out.push('}');
+            out
+        }
+        mono_runtime::Value::PolyVariant { tag, payloads } => {
+            if payloads.is_empty() {
+                return tag.clone();
+            }
+            format!(
+                "{tag}{}",
+                format_oracle_delimited_values("(", ")", payloads)
+            )
+        }
+        mono_runtime::Value::Closure(_) => "<closure>".to_string(),
+        mono_runtime::Value::Thunk(_) => "<thunk>".to_string(),
+        mono_runtime::Value::FunctionAdapter(_) => "<function-adapter>".to_string(),
+        mono_runtime::Value::EffectOp { path } => format!("<effect-op {}>", path.join("::")),
+        mono_runtime::Value::Continuation(id) => format!("<continuation {}>", id.0),
+        mono_runtime::Value::Marked { value, markers } => {
+            let mut out = format_oracle_value(value);
+            out.push_str(" @ [");
+            for (index, marker) in markers.iter().enumerate() {
+                if index > 0 {
+                    out.push_str(", ");
+                }
+                out.push_str(&marker.path.join("::"));
+                out.push('#');
+                out.push_str(&marker.id.0.to_string());
+                out.push(':');
+                out.push_str(&marker.depth.to_string());
+            }
+            out.push(']');
+            out
+        }
+    }
+}
+
+fn format_oracle_delimited_values(
+    open: &str,
+    close: &str,
+    values: &[mono_runtime::Value],
+) -> String {
+    let mut out = String::new();
+    out.push_str(open);
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&format_oracle_value(value));
+    }
+    if values.len() == 1 && open == "(" {
+        out.push(',');
+    }
+    out.push_str(close);
+    out
 }

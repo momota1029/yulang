@@ -378,6 +378,11 @@ runtime lower は次を `mono::Program` の前提としてよい。
 - method selection は `Method { instance }` へ解決済みである。
 - unresolved select、unresolved typeclass method、`OpenVar` は runtime lower に渡さない。
 
+runtime lower / control VM は、実行を始める前に VM-ready validation を行う。
+validation は IR を補正しない。参照先、未解決 method / select、未解決型、まだ実行表現を持たない
+boundary / node / pattern を構造化エラーとして返す。
+この段階で止まったものは、runtime の動的失敗ではなく specialize / mono lower の未完了契約として扱う。
+
 ## 実装順序の目安
 
 runtime lower / VM の初期実装は、次の順に増やすと責務が混ざりにくい。
