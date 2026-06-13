@@ -522,7 +522,6 @@ pub enum DefKind {
 pub enum SchemeFeature {
     RolePredicates,
     RecursiveBounds,
-    StackQuantifiers,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1124,6 +1123,33 @@ mod tests {
             mono::dump::dump_type(&program.instances[0].signature.ty),
             "int -> int"
         );
+    }
+
+    #[test]
+    fn string_input_specializes_stack_quantified_handler_annotation() {
+        let lowering = lower_source(
+            "act signal:\n  our ping: () -> int\n\n\
+             my handle(x: [_] int): int = catch x:\n\
+             \x20 signal::ping(), k -> k 1\n\
+             \x20 v -> v\n\n\
+             handle(signal::ping())\n",
+        );
+        let arena = &lowering.session.poly;
+
+        let program = specialize(arena).expect("[_] handler annotation should specialize");
+
+        let [mono::Root::Expr(root)] = program.roots.as_slice() else {
+            panic!("expected one root expression");
+        };
+        assert!(
+            matches!(root.kind, ExprKind::Apply(_, _)),
+            "root should already be a value application: {:?}",
+            root.kind
+        );
+        assert_eq!(program.instances.len(), 1);
+        let signature = mono::dump::dump_type(&program.instances[0].signature.ty);
+        assert!(signature.ends_with(" -> int"), "{signature}");
+        assert!(!signature.contains("stack("), "{signature}");
     }
 
     #[test]

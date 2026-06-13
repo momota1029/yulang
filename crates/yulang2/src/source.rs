@@ -1019,6 +1019,22 @@ mod tests {
     }
 
     #[test]
+    fn dump_mono_without_std_lowers_apply_colon_indent_block_argument() {
+        let root = temp_root("dump-mono-apply-colon-block-arg");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "my id x = x\nid:\n  my x = 1\n  x\n").unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(&output, "mono roots [(m0 {");
+        assert_mono_dump_contains(&output, " = 1;");
+        assert_mono_dump_contains(&output, "m0 = d0 : int -> int");
+        assert!(!output.text.contains("(m0 ())"), "{}", output.text);
+    }
+
+    #[test]
     fn dump_mono_without_std_forces_effectful_root_expression() {
         let root = temp_root("dump-mono-effectful-root");
         let _ = fs::remove_dir_all(&root);
@@ -1144,6 +1160,55 @@ mod tests {
             &output,
             "force-thunk[thunk[[var(int)], int] => int ! [var(int)]]((<effect-op var::get>",
         );
+    }
+
+    #[test]
+    fn dump_mono_without_std_lowers_wildcard_stack_handler_annotation() {
+        let root = temp_root("dump-mono-wildcard-stack-handler-annotation");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "act signal:\n  our ping: () -> int\n\n\
+             my handle(x: [_] int): int = catch x:\n\
+             \x20 signal::ping(), k -> k 1\n\
+             \x20 v -> v\n\n\
+             handle(signal::ping())\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(&output, "mono roots [(m0 coerce");
+        assert_mono_dump_contains(&output, "m0 = d2 : thunk[");
+        assert_mono_dump_contains(&output, " -> int");
+        assert!(!output.text.contains("stack("), "{}", output.text);
+    }
+
+    #[test]
+    fn dump_mono_without_std_lowers_apply_colon_stack_handler_call() {
+        let root = temp_root("dump-mono-apply-colon-stack-handler");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "pub act sub:\n\
+             \x20 pub return: int -> never\n\
+             \x20 pub sub(x: [_] int): int = catch x:\n\
+             \x20 \x20 return a, _ -> a\n\
+             \x20 \x20 a -> a\n\n\
+             sub::sub:\n\
+             \x20 sub::return 0\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(&output, "mono roots [(m0 coerce");
+        assert_mono_dump_contains(&output, "m0 = d2 : thunk[[sub], int] -> int");
+        assert_mono_dump_contains(&output, "sub::return d");
     }
 
     #[test]

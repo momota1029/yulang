@@ -6403,10 +6403,7 @@ impl<'a> ExprLowerer<'a> {
     }
 
     fn apply_argument_exprs(&self, callee: Computation, node: &Cst) -> Vec<Cst> {
-        let args = node
-            .children()
-            .filter(|child| child.kind() == SyntaxKind::Expr)
-            .collect::<Vec<_>>();
+        let args = apply_argument_nodes(node);
         let Some(arity) = self.declared_constructor_payload_arity(callee) else {
             return args;
         };
@@ -8114,6 +8111,21 @@ fn block_lowering_items(node: &Cst) -> Vec<Cst> {
             )
         })
         .collect()
+}
+
+fn apply_argument_nodes(node: &Cst) -> Vec<Cst> {
+    let mut args = node
+        .children()
+        .filter(|child| child.kind() == SyntaxKind::Expr)
+        .collect::<Vec<_>>();
+    if !args.is_empty() || node.kind() != SyntaxKind::ApplyColon {
+        return args;
+    }
+    args.extend(node.children().filter(|child| {
+        child.kind() == SyntaxKind::IndentBlock
+            || child.kind() == SyntaxKind::BraceGroup && !brace_group_is_record_literal(child)
+    }));
+    args
 }
 
 fn with_block_lowering_items(node: &Cst) -> Vec<Cst> {
@@ -12550,6 +12562,43 @@ mod tests {
         ));
         let tail_ref = expr_ref(&output.session, tail);
 
+        assert_eq!(output.session.poly.ref_target(tail_ref), Some(local));
+    }
+
+    #[test]
+    fn apply_colon_indent_block_lowers_block_as_argument() {
+        let root = parse("my id x = x\nmy got = id:\n  my x = 1\n  x\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (id, _) = binding_def_and_order(&lower.modules, module, "id");
+        let (got, _) = binding_def_and_order(&lower.modules, module, "got");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let body = binding_body_id(&output, got);
+        let (callee, arg) = match output.session.poly.expr(body) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected apply-colon body to lower as app"),
+        };
+        let callee_ref = expr_ref(&output.session, callee);
+        assert_eq!(output.session.poly.ref_target(callee_ref), Some(id));
+        let (stmts, tail) = match output.session.poly.expr(arg) {
+            Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+            _ => panic!("expected apply-colon argument to be a block"),
+        };
+        let [Stmt::Let(_, pat, value)] = stmts.as_slice() else {
+            panic!("expected one local let in argument block");
+        };
+        let local = match output.session.poly.pat(*pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected local pattern"),
+        };
+        assert!(matches!(
+            output.session.poly.expr(*value),
+            Expr::Lit(Lit::Int(1))
+        ));
+        let tail_ref = expr_ref(&output.session, tail);
         assert_eq!(output.session.poly.ref_target(tail_ref), Some(local));
     }
 

@@ -969,13 +969,8 @@ impl<'a> ConstraintGraph<'a> {
                 }
                 Ok(())
             }
-            (Type::EffectRow(lower_items), Type::EffectRow(upper_items))
-                if lower_items.len() == upper_items.len() =>
-            {
-                for (lower, upper) in lower_items.into_iter().zip(upper_items) {
-                    self.constrain_subtype(lower, upper)?;
-                }
-                Ok(())
+            (Type::EffectRow(lower_items), Type::EffectRow(upper_items)) => {
+                self.constrain_effect_rows(lower_items, upper_items)
             }
             (Type::Stack { inner: lower, .. }, Type::Stack { inner: upper, .. }) => {
                 self.constrain_subtype(*lower, *upper)
@@ -1043,6 +1038,57 @@ impl<'a> ConstraintGraph<'a> {
                 && rule.scheme.recursive_bounds.is_empty()
                 && rule.scheme.stack_quantifiers.is_empty()
         })
+    }
+
+    fn constrain_effect_rows(
+        &mut self,
+        lower_items: Vec<Type>,
+        upper_items: Vec<Type>,
+    ) -> Result<(), SpecializeError> {
+        let (lower_items, lower_tail) = self.split_effect_row_tail(lower_items);
+        let (upper_items, upper_tail) = self.split_effect_row_tail(upper_items);
+        let shared_len = lower_items.len().min(upper_items.len());
+        for (lower, upper) in lower_items
+            .iter()
+            .take(shared_len)
+            .cloned()
+            .zip(upper_items.iter().take(shared_len).cloned())
+        {
+            self.constrain_subtype(lower, upper)?;
+        }
+
+        let lower_extra = lower_items[shared_len..].to_vec();
+        let upper_extra = upper_items[shared_len..].to_vec();
+        if !lower_extra.is_empty() {
+            if let Some(upper_tail) = upper_tail.clone() {
+                self.constrain_subtype(Type::EffectRow(lower_extra), upper_tail)?;
+            }
+        }
+        if !upper_extra.is_empty() {
+            if let Some(lower_tail) = lower_tail.clone() {
+                self.constrain_subtype(lower_tail, Type::EffectRow(upper_extra))?;
+            }
+        }
+
+        match (lower_tail, upper_tail) {
+            (Some(lower_tail), Some(upper_tail)) => self.constrain_subtype(lower_tail, upper_tail),
+            _ => Ok(()),
+        }
+    }
+
+    fn split_effect_row_tail(&self, mut items: Vec<Type>) -> (Vec<Type>, Option<Type>) {
+        let Some(Type::OpenVar(slot)) = items.last().cloned() else {
+            return (items, None);
+        };
+        if self
+            .slots
+            .get(slot as usize)
+            .is_some_and(|slot| slot.kind == TypeSlotKind::Effect)
+        {
+            items.pop();
+            return (items, Some(Type::OpenVar(slot)));
+        }
+        (items, None)
     }
 
     fn add_edge(&mut self, lower: u32, upper: u32) -> Result<(), SpecializeError> {
@@ -1196,10 +1242,10 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
                 .map(Type::PolyVariant),
             Type::Tuple(items) => self.resolve_all(items).map(Type::Tuple),
             Type::EffectRow(items) => self.resolve_all(items).map(Type::EffectRow),
-            Type::Stack { inner, weight } => Ok(Type::Stack {
-                inner: Box::new(self.resolve(inner)?),
-                weight: weight.clone(),
-            }),
+            Type::Stack { inner, weight } => Ok(types::simplify_stack_type(
+                self.resolve(inner)?,
+                weight.clone(),
+            )),
             Type::Union(left, right) => Ok(Type::Union(
                 Box::new(self.resolve(left)?),
                 Box::new(self.resolve(right)?),
@@ -1243,6 +1289,7 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
             }
             (Some(lower), None) => lower,
             (None, Some(upper)) => upper,
+            (None, None) if slot_kind == TypeSlotKind::Effect => Type::pure_effect(),
             (None, None) => return Err(SpecializeError::UndeterminedTypeSlot { slot }),
         };
         self.resolving.remove(&slot);

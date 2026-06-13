@@ -102,12 +102,6 @@ fn reject_unsupported_scheme_features(
             feature: SchemeFeature::RecursiveBounds,
         });
     }
-    if !scheme.stack_quantifiers.is_empty() {
-        return Err(SpecializeError::UnsupportedSchemeFeature {
-            def: mono::DefId(def.0),
-            feature: SchemeFeature::StackQuantifiers,
-        });
-    }
     Ok(())
 }
 
@@ -351,9 +345,8 @@ impl<'a> SchemeMaterializer<'a> {
                 }
                 Ok(())
             }
-            Pos::Stack { inner, .. } | Pos::NonSubtract(inner, _) => {
-                self.match_pos(*inner, expected, context)
-            }
+            Pos::Stack { .. } => Ok(()),
+            Pos::NonSubtract(inner, _) => self.match_pos(*inner, expected, context),
             Pos::Union(left, right) => {
                 self.match_pos(*left, expected, context)?;
                 self.match_pos(*right, expected, context)
@@ -459,7 +452,7 @@ impl<'a> SchemeMaterializer<'a> {
                 }
                 Ok(())
             }
-            Neg::Stack { inner, .. } => self.match_neg(*inner, expected, context),
+            Neg::Stack { .. } => Ok(()),
             Neg::Intersection(left, right) => {
                 self.match_neg(*left, expected, context)?;
                 self.match_neg(*right, expected, context)
@@ -608,13 +601,14 @@ impl<'a> SchemeMaterializer<'a> {
             }
             Pos::Tuple(items) => Type::Tuple(self.materialize_poss(items, TypeContext::Value)?),
             Pos::Row(items) => Type::EffectRow(self.materialize_poss(items, TypeContext::Effect)?),
-            Pos::Stack { inner, weight } => Type::Stack {
-                inner: Box::new(self.materialize_pos(*inner, context)?),
-                weight: self.materialize_stack_weight(weight)?,
-            },
-            Pos::NonSubtract(inner, subtract) => Type::Stack {
-                inner: Box::new(self.materialize_pos(*inner, context)?),
-                weight: mono::StackWeight {
+            Pos::Stack { inner, weight } => stack_type(
+                self.materialize_pos(*inner, context)?,
+                self.materialize_stack_weight(weight)?,
+                context,
+            ),
+            Pos::NonSubtract(inner, subtract) => stack_type(
+                self.materialize_pos(*inner, context)?,
+                mono::StackWeight {
                     entries: vec![StackWeightEntry {
                         id: subtract.0,
                         pops: 1,
@@ -622,7 +616,8 @@ impl<'a> SchemeMaterializer<'a> {
                         stack: Vec::new(),
                     }],
                 },
-            },
+                context,
+            ),
             Pos::Union(left, right) => Type::Union(
                 Box::new(self.materialize_pos(*left, context)?),
                 Box::new(self.materialize_pos(*right, context)?),
@@ -662,15 +657,19 @@ impl<'a> SchemeMaterializer<'a> {
             Neg::Row(items, tail) => {
                 let mut items = self.materialize_negs(items, TypeContext::Effect)?;
                 let tail = self.materialize_neg(*tail, TypeContext::Effect)?;
-                if !matches!(tail, Type::Any | Type::Never) && !tail.is_pure_effect() {
-                    items.push(tail);
+                match tail {
+                    Type::EffectRow(tail_items) => items.extend(tail_items),
+                    Type::Any | Type::Never => {}
+                    tail if tail.is_pure_effect() => {}
+                    tail => items.push(tail),
                 }
                 Type::EffectRow(items)
             }
-            Neg::Stack { inner, weight } => Type::Stack {
-                inner: Box::new(self.materialize_neg(*inner, context)?),
-                weight: self.materialize_stack_weight(weight)?,
-            },
+            Neg::Stack { inner, weight } => stack_type(
+                self.materialize_neg(*inner, context)?,
+                self.materialize_stack_weight(weight)?,
+                context,
+            ),
             Neg::Intersection(left, right) => Type::Intersection(
                 Box::new(self.materialize_neg(*left, context)?),
                 Box::new(self.materialize_neg(*right, context)?),
@@ -1056,4 +1055,131 @@ impl<'a> SchemeMaterializer<'a> {
             }
         }
     }
+}
+
+fn stack_type(inner: Type, weight: mono::StackWeight, context: TypeContext) -> Type {
+    if weight.entries.is_empty() {
+        return inner;
+    }
+    if context == TypeContext::Effect {
+        return simplify_stack_type(inner, weight);
+    }
+    Type::Stack {
+        inner: Box::new(inner),
+        weight,
+    }
+}
+
+pub(crate) fn simplify_stack_type(inner: Type, weight: mono::StackWeight) -> Type {
+    if weight.entries.is_empty() {
+        return inner;
+    }
+    if let Some(effect) = apply_stack_to_effect(inner.clone(), &weight) {
+        return effect;
+    }
+    Type::Stack {
+        inner: Box::new(inner),
+        weight,
+    }
+}
+
+fn apply_stack_to_effect(effect: Type, weight: &mono::StackWeight) -> Option<Type> {
+    match effect {
+        Type::EffectRow(items) => Some(Type::EffectRow(filter_effect_row(items, weight))),
+        Type::Intersection(left, right) => {
+            let left = apply_stack_to_effect(*left, weight)?;
+            let right = apply_stack_to_effect(*right, weight)?;
+            Some(simplify_effect_intersection(left, right))
+        }
+        Type::Union(left, right) => {
+            let left = apply_stack_to_effect(*left, weight)?;
+            let right = apply_stack_to_effect(*right, weight)?;
+            Some(simplify_effect_union(left, right))
+        }
+        Type::Any | Type::Never => Some(effect),
+        Type::Stack {
+            inner,
+            weight: inner_weight,
+        } => Some(stack_type(
+            stack_type(*inner, inner_weight, TypeContext::Effect),
+            weight.clone(),
+            TypeContext::Effect,
+        )),
+        Type::Con { .. }
+        | Type::Fun { .. }
+        | Type::Thunk { .. }
+        | Type::Record(_)
+        | Type::PolyVariant(_)
+        | Type::Tuple(_)
+        | Type::OpenVar(_) => None,
+    }
+}
+
+fn filter_effect_row(items: Vec<Type>, weight: &mono::StackWeight) -> Vec<Type> {
+    let mut out = Vec::new();
+    for item in flatten_effect_row_items(items) {
+        if effect_item_survives_stack(&item, weight) && !out.contains(&item) {
+            out.push(item);
+        }
+    }
+    out
+}
+
+fn flatten_effect_row_items(items: Vec<Type>) -> Vec<Type> {
+    let mut out = Vec::new();
+    for item in items {
+        match item {
+            Type::EffectRow(nested) => out.extend(flatten_effect_row_items(nested)),
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+fn effect_item_survives_stack(item: &Type, weight: &mono::StackWeight) -> bool {
+    weight
+        .entries
+        .iter()
+        .flat_map(|entry| entry.floor.iter().chain(&entry.stack))
+        .all(|families| effect_families_allow_item(families, item))
+}
+
+fn effect_families_allow_item(families: &EffectFamilies, item: &Type) -> bool {
+    match families {
+        EffectFamilies::Empty => false,
+        EffectFamilies::All => true,
+        EffectFamilies::Set(allowed) => allowed
+            .iter()
+            .any(|family| effect_family_matches_item(family, item)),
+        EffectFamilies::AllExcept(excluded) => !excluded
+            .iter()
+            .any(|family| effect_family_matches_item(family, item)),
+    }
+}
+
+fn effect_family_matches_item(family: &EffectFamily, item: &Type) -> bool {
+    let Type::Con { path, args } = item else {
+        return false;
+    };
+    path == &family.path && args == &family.args
+}
+
+fn simplify_effect_intersection(left: Type, right: Type) -> Type {
+    if left == right {
+        return left;
+    }
+    if left.is_pure_effect() && right.is_pure_effect() {
+        return Type::pure_effect();
+    }
+    Type::Intersection(Box::new(left), Box::new(right))
+}
+
+fn simplify_effect_union(left: Type, right: Type) -> Type {
+    if left == right {
+        return left;
+    }
+    if left.is_pure_effect() && right.is_pure_effect() {
+        return Type::pure_effect();
+    }
+    Type::Union(Box::new(left), Box::new(right))
 }
