@@ -282,7 +282,7 @@ pub enum Pat {
         spread: RecordSpread<DefId>,
     },
     PolyVariant(String, Vec<Pat>),
-    Con(InstanceId, Vec<Pat>),
+    Con(DefId, Vec<Pat>),
     Ref(InstanceId),
     Var(DefId),
     Or(Box<Pat>, Box<Pat>),

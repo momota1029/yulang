@@ -189,9 +189,10 @@ impl<'a> ExprTypeSolver<'a> {
                 Ok(expected.unwrap_or_else(|| self.fresh_value_slot()))
             }
             PolyExpr::Case(scrutinee, arms) => {
-                self.expr(*scrutinee, None)?;
+                let scrutinee_ty = self.expr(*scrutinee, None)?;
                 let result = expected.unwrap_or_else(|| self.fresh_value_slot());
                 for arm in arms {
+                    self.bind_pat(arm.pat, scrutinee_ty.clone())?;
                     if let Some(guard) = arm.guard {
                         self.expr(guard, Some(bool_type()))?;
                     }
@@ -462,7 +463,53 @@ impl<'a> ExprTypeSolver<'a> {
                     }
                 }
             }
+            PolyPat::Con(ref_id, payloads) => {
+                self.bind_constructor_pat(*ref_id, payloads, ty)?;
+            }
+            PolyPat::PolyVariant(tag, payloads) => {
+                if let Type::PolyVariant(variants) = ty
+                    && let Some(variant) = variants.iter().find(|variant| variant.name == *tag)
+                {
+                    for (payload, payload_ty) in payloads.iter().zip(&variant.payloads) {
+                        self.bind_pat(*payload, payload_ty.clone())?;
+                    }
+                }
+            }
+            PolyPat::Or(left, right) => {
+                self.bind_pat(*left, ty.clone())?;
+                self.bind_pat(*right, ty)?;
+            }
             _ => {}
+        }
+        Ok(())
+    }
+
+    fn bind_constructor_pat(
+        &mut self,
+        ref_id: poly_expr::RefId,
+        payloads: &[poly_expr::PatId],
+        scrutinee_ty: Type,
+    ) -> Result<(), SpecializeError> {
+        let Some(def) = self.arena.ref_target(ref_id) else {
+            return Err(SpecializeError::UnresolvedRef { ref_id: ref_id.0 });
+        };
+        let Some(poly_expr::Def::Let {
+            scheme: Some(scheme),
+            ..
+        }) = self.arena.defs.get(def)
+        else {
+            return Ok(());
+        };
+        let constructor_ty = self.instantiate_scheme(def, scheme)?;
+        let Some((payload_tys, owner_ty)) = split_function_spine(constructor_ty, payloads.len())
+        else {
+            return Ok(());
+        };
+        self.graph
+            .constrain_subtype(owner_ty.clone(), scrutinee_ty.clone())?;
+        self.graph.constrain_subtype(scrutinee_ty, owner_ty)?;
+        for (payload, payload_ty) in payloads.iter().zip(payload_tys) {
+            self.bind_pat(*payload, payload_ty)?;
         }
         Ok(())
     }
@@ -1166,6 +1213,18 @@ fn function_runtime_parts(ty: &Type) -> Option<(Type, Type)> {
     Some((arg.as_ref().clone(), ret.as_ref().clone()))
 }
 
+fn split_function_spine(mut ty: Type, arity: usize) -> Option<(Vec<Type>, Type)> {
+    let mut args = Vec::with_capacity(arity);
+    for _ in 0..arity {
+        let Type::Fun { arg, ret, .. } = ty else {
+            return None;
+        };
+        args.push(*arg);
+        ty = *ret;
+    }
+    Some((args, ty))
+}
+
 fn split_runtime_computation_shape(shape: Type) -> (Type, Type) {
     match shape {
         Type::Thunk { effect, value } => (*value, *effect),
@@ -1396,6 +1455,33 @@ mod tests {
             "int -> thunk[[var(int)], int]"
         );
         assert_eq!(plan.actual_type_of(*resume_value), Some(&int_type()));
+    }
+
+    #[test]
+    fn case_constructor_pattern_binds_payload_from_scrutinee_type() {
+        let lowering = lower_source(
+            "enum opt 'a:\n  none\n  some 'a\n\
+             my id x = x\n\
+             case opt::some 1:\n\
+             \x20 opt::some x -> id(x)\n\
+             \x20 _ -> 0\n",
+        );
+        let arena = &lowering.session.poly;
+        let root = arena.root_exprs[0];
+
+        let plan = solve_expr(arena, root, None).expect("constructor case should solve");
+
+        let poly::expr::Expr::Case(_, arms) = arena.expr(root) else {
+            panic!("root should be a case");
+        };
+        let poly::expr::Expr::App(_, payload_ref) = arena.expr(arms[0].body) else {
+            panic!("first arm body should call id");
+        };
+        assert_eq!(
+            mono::dump::dump_type(plan.actual_type_of(root).unwrap()),
+            "int"
+        );
+        assert_eq!(plan.actual_type_of(*payload_ref), Some(&int_type()));
     }
 
     fn assert_conflicting_type_candidates(error: crate::SpecializeError, left: &str, right: &str) {

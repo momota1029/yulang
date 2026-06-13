@@ -322,16 +322,16 @@ impl Dumper {
                     format!("'{tag} {payloads}")
                 }
             }
-            Pat::Con(instance, payloads) => {
+            Pat::Con(def, payloads) => {
                 let payloads = payloads
                     .iter()
                     .map(|payload| self.pat(payload))
                     .collect::<Vec<_>>()
                     .join(" ");
                 if payloads.is_empty() {
-                    format!("m{}", instance.0)
+                    format!("d{}", def.0)
                 } else {
-                    format!("m{} {payloads}", instance.0)
+                    format!("d{} {payloads}", def.0)
                 }
             }
             Pat::Ref(instance) => format!("m{}", instance.0),

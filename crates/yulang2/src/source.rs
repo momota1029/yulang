@@ -1178,6 +1178,31 @@ mod tests {
     }
 
     #[test]
+    fn dump_mono_without_std_binds_constructor_case_payload_type() {
+        let root = temp_root("dump-mono-constructor-case-payload");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "enum opt 'a:\n  none\n  some 'a\n\
+             my id x = x\n\
+             case opt::some 1:\n\
+             \x20 opt::some x -> id(x)\n\
+             \x20 _ -> 0\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(
+            &output,
+            "mono roots [case (d2 1): d2 d6 -> (m0 d6), _ -> 0]",
+        );
+        assert_mono_dump_contains(&output, "m0 = d3 : int -> int");
+    }
+
+    #[test]
     fn dump_poly_without_std_infers_local_constructor_application() {
         let root = temp_root("dump-poly-local-constructor");
         let _ = fs::remove_dir_all(&root);

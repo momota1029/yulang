@@ -304,8 +304,10 @@ impl Specializer {
                 Ok(Pat::PolyVariant(tag.clone(), self.pats(arena, payloads)?))
             }
             PolyPat::Con(ref_id, payloads) => {
-                let instance = self.ref_instance(arena, *ref_id)?;
-                Ok(Pat::Con(instance, self.pats(arena, payloads)?))
+                let Some(def) = arena.ref_target(*ref_id) else {
+                    return Err(SpecializeError::UnresolvedRef { ref_id: ref_id.0 });
+                };
+                Ok(Pat::Con(convert_def(def), self.pats(arena, payloads)?))
             }
             PolyPat::Ref(ref_id) => Ok(Pat::Ref(self.ref_instance(arena, *ref_id)?)),
             PolyPat::Var(def) => Ok(Pat::Var(convert_def(*def))),
