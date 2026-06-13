@@ -1227,6 +1227,44 @@ mod tests {
     }
 
     #[test]
+    fn dump_mono_without_std_specializes_record_field_select() {
+        let root = temp_root("dump-mono-record-select");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "my id x = x\nid(({ width: 1 }).width)\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(&output, "mono roots [(m0 {width: 1}.width)]");
+        assert_mono_dump_contains(&output, "m0 = d0 : int -> int");
+    }
+
+    #[test]
+    fn dump_mono_without_std_specializes_record_select_from_case_local() {
+        let root = temp_root("dump-mono-record-select-case-local");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "my id x = x\n\
+             case { width: 1 }:\n\
+             \x20 row -> id(row.width)\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(&output, "mono roots [case {width: 1}: d3 -> (m0 d3.width)]");
+        assert_mono_dump_contains(&output, "m0 = d0 : int -> int");
+    }
+
+    #[test]
     fn dump_poly_without_std_infers_local_constructor_application() {
         let root = temp_root("dump-poly-local-constructor");
         let _ = fs::remove_dir_all(&root);

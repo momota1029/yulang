@@ -175,10 +175,7 @@ impl<'a> ExprTypeSolver<'a> {
             PolyExpr::PolyVariant(tag, payloads) => {
                 self.poly_variant_type(tag, payloads, expected.as_ref())
             }
-            PolyExpr::Select(base, _) => {
-                self.expr(*base, None)?;
-                Ok(expected.unwrap_or_else(|| self.fresh_value_slot()))
-            }
+            PolyExpr::Select(base, select) => self.select_type(*base, *select, expected),
             PolyExpr::Case(scrutinee, arms) => {
                 let scrutinee_ty = self.expr(*scrutinee, None)?;
                 let result = expected.unwrap_or_else(|| self.fresh_value_slot());
@@ -491,6 +488,46 @@ impl<'a> ExprTypeSolver<'a> {
             name: tag.to_string(),
             payloads: typed_payloads,
         }]))
+    }
+
+    fn select_type(
+        &mut self,
+        base: poly_expr::ExprId,
+        select: poly_expr::SelectId,
+        expected: Option<Type>,
+    ) -> Result<Type, SpecializeError> {
+        let select = self.arena.select(select);
+        if select.resolution == Some(poly_expr::SelectResolution::RecordField) {
+            return self.record_select_type(base, &select.name, expected);
+        }
+
+        self.expr(base, None)?;
+        Ok(expected.unwrap_or_else(|| self.fresh_value_slot()))
+    }
+
+    fn record_select_type(
+        &mut self,
+        base: poly_expr::ExprId,
+        name: &str,
+        expected: Option<Type>,
+    ) -> Result<Type, SpecializeError> {
+        let base_ty = self.expr(base, None)?;
+        if let Type::Record(fields) = &base_ty
+            && let Some(field) = record_field_type(fields, name)
+        {
+            return Ok(field.value.clone());
+        }
+
+        let field_ty = expected.unwrap_or_else(|| self.fresh_value_slot());
+        self.expr(
+            base,
+            Some(Type::Record(vec![TypeField {
+                name: name.to_string(),
+                value: field_ty.clone(),
+                optional: false,
+            }])),
+        )?;
+        Ok(field_ty)
     }
 
     fn bind_pat(&mut self, pat: poly_expr::PatId, ty: Type) -> Result<(), SpecializeError> {
@@ -1737,6 +1774,24 @@ mod tests {
             "int"
         );
         assert_eq!(plan.actual_type_of(*field_ref), Some(&int_type()));
+    }
+
+    #[test]
+    fn record_select_reads_base_field_type() {
+        let lowering = lower_source("my id x = x\nid(({ width: 1 }).width)\n");
+        let arena = &lowering.session.poly;
+        let root = arena.root_exprs[0];
+
+        let plan = solve_expr(arena, root, None).expect("record select should solve");
+
+        let poly::expr::Expr::App(_, select) = arena.expr(root) else {
+            panic!("root should call id");
+        };
+        assert_eq!(
+            mono::dump::dump_type(plan.actual_type_of(root).unwrap()),
+            "int"
+        );
+        assert_eq!(plan.actual_type_of(*select), Some(&int_type()));
     }
 
     fn assert_conflicting_type_candidates(error: crate::SpecializeError, left: &str, right: &str) {
