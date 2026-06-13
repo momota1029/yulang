@@ -41,6 +41,7 @@ use crate::constraints::TypeLevel;
 use crate::generalize::generalize_prepared_compact_root_with_roles;
 use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate,
+    RoleInputOccurrence, RoleInputVariance,
 };
 use crate::scc::SccInput;
 use crate::typing::{EffectViewId, Typing};
@@ -172,6 +173,7 @@ impl BodyLowerer {
             local_method_scope: None,
         };
         lowerer.collect_declared_role_requirements();
+        lowerer.collect_declared_role_input_variances();
         lowerer
     }
 
@@ -1176,6 +1178,39 @@ impl BodyLowerer {
         }
     }
 
+    fn collect_declared_role_input_variances(&mut self) {
+        let mut role_owners = self
+            .modules
+            .all_role_methods()
+            .map(|method| method.owner)
+            .collect::<Vec<_>>();
+        role_owners.sort_by_key(|owner| owner.0);
+        role_owners.dedup();
+
+        for owner in role_owners {
+            let role_inputs = self.modules.role_inputs(owner);
+            if role_inputs.is_empty() {
+                continue;
+            }
+            let variances = role_input_variances_from_requirements(
+                role_inputs,
+                self.modules.role_methods(owner),
+                &self.role_requirements,
+            );
+            let Some(role) = self.modules.type_decl_by_id(owner) else {
+                continue;
+            };
+            let path = self
+                .modules
+                .type_decl_path(&role)
+                .segments
+                .into_iter()
+                .map(|name| name.0)
+                .collect::<Vec<_>>();
+            self.session.register_role_input_variances(path, variances);
+        }
+    }
+
     fn build_role_method_requirement(
         &self,
         method: &RoleMethodDecl,
@@ -2147,6 +2182,127 @@ fn split_effectful_signature(
     match signature {
         SignatureType::Effectful { eff, ret } => (Some(eff), *ret),
         signature => (None, signature),
+    }
+}
+
+fn role_input_variances_from_requirements(
+    role_inputs: &[String],
+    methods: &[RoleMethodDecl],
+    requirements: &FxHashMap<DefId, RoleMethodRequirement>,
+) -> Vec<RoleInputVariance> {
+    let input_indices = role_inputs
+        .iter()
+        .enumerate()
+        .map(|(index, name)| (name.clone(), index))
+        .collect::<FxHashMap<_, _>>();
+    let mut variances = vec![RoleInputVariance::Unused; role_inputs.len()];
+    for method in methods {
+        let Some(requirement) = requirements.get(&method.def) else {
+            variances.fill(RoleInputVariance::Invariant);
+            break;
+        };
+        record_role_input_variances_in_signature(
+            &requirement.signature,
+            &input_indices,
+            RoleInputOccurrence::Covariant,
+            &mut variances,
+        );
+    }
+    variances
+}
+
+fn record_role_input_variances_in_signature(
+    signature: &SignatureType,
+    input_indices: &FxHashMap<String, usize>,
+    occurrence: RoleInputOccurrence,
+    variances: &mut [RoleInputVariance],
+) {
+    match signature {
+        SignatureType::Builtin(_) | SignatureType::Named(_) => {}
+        SignatureType::Var(var) => {
+            if let Some(index) = input_indices.get(&var.name).copied()
+                && let Some(slot) = variances.get_mut(index)
+            {
+                *slot = slot.record(occurrence);
+            }
+        }
+        SignatureType::EffectRow(row) => {
+            record_role_input_variances_in_effect_row(row, input_indices, variances);
+        }
+        SignatureType::Effectful { eff, ret } => {
+            record_role_input_variances_in_effect_row(eff, input_indices, variances);
+            record_role_input_variances_in_signature(ret, input_indices, occurrence, variances);
+        }
+        SignatureType::Tuple(items) => {
+            for item in items {
+                record_role_input_variances_in_signature(
+                    item,
+                    input_indices,
+                    occurrence,
+                    variances,
+                );
+            }
+        }
+        SignatureType::Apply { callee, args } => {
+            record_role_input_variances_in_signature(
+                callee,
+                input_indices,
+                RoleInputOccurrence::Invariant,
+                variances,
+            );
+            for arg in args {
+                record_role_input_variances_in_signature(
+                    arg,
+                    input_indices,
+                    RoleInputOccurrence::Invariant,
+                    variances,
+                );
+            }
+        }
+        SignatureType::Function {
+            param,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            record_role_input_variances_in_signature(
+                param,
+                input_indices,
+                occurrence.flipped(),
+                variances,
+            );
+            if let Some(arg_eff) = arg_eff {
+                record_role_input_variances_in_effect_row(arg_eff, input_indices, variances);
+            }
+            if let Some(ret_eff) = ret_eff {
+                record_role_input_variances_in_effect_row(ret_eff, input_indices, variances);
+            }
+            record_role_input_variances_in_signature(ret, input_indices, occurrence, variances);
+        }
+    }
+}
+
+fn record_role_input_variances_in_effect_row(
+    row: &SignatureEffectRow,
+    input_indices: &FxHashMap<String, usize>,
+    variances: &mut [RoleInputVariance],
+) {
+    for item in &row.items {
+        match item {
+            SignatureEffectAtom::Type(ty) => record_role_input_variances_in_signature(
+                ty,
+                input_indices,
+                RoleInputOccurrence::Invariant,
+                variances,
+            ),
+            SignatureEffectAtom::Wildcard => {}
+        }
+    }
+    if let Some(tail) = &row.tail
+        && let Some(index) = input_indices.get(&tail.name).copied()
+        && let Some(slot) = variances.get_mut(index)
+    {
+        *slot = slot.record(RoleInputOccurrence::Invariant);
     }
 }
 
@@ -10609,6 +10765,46 @@ mod tests {
     }
 
     #[test]
+    fn role_input_variance_records_method_signature_polarities() {
+        let root = parse("role Cast 'from 'to:\n  our x.cast: 'to\n");
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let role = vec!["Cast".to_string()];
+        assert_eq!(
+            output.session.role_input_variances.for_role(&role),
+            Some(
+                [
+                    RoleInputVariance::Contravariant,
+                    RoleInputVariance::Covariant,
+                ]
+                .as_slice()
+            )
+        );
+    }
+
+    #[test]
+    fn role_input_variance_keeps_data_constructor_arguments_invariant() {
+        let root = parse(concat!(
+            "pub enum wrap 'a = item 'a\n",
+            "role UsesWrap 'a:\n",
+            "  our x.use: wrap 'a -> bool\n",
+        ));
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let role = vec!["UsesWrap".to_string()];
+        assert_eq!(
+            output.session.role_input_variances.for_role(&role),
+            Some([RoleInputVariance::Invariant].as_slice())
+        );
+    }
+
+    #[test]
     fn multi_input_role_method_selection_resolves_concrete_demand() {
         let root = parse(concat!(
             "role Index 'container 'key:\n",
@@ -10628,8 +10824,8 @@ mod tests {
         assert!(output.errors.is_empty(), "{:?}", output.errors);
         let rendered =
             poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, pick));
-        // receiver demand は 1 引数 role 限定なので、複数引数 role の selection でも
-        // method instantiation 由来の demand だけが残り、concrete なら discharge される。
+        // selection 解決は receiver demand を別に fabricate せず、method instantiation
+        // 由来の demand だけを使う。複数引数 role でも concrete なら discharge される。
         assert_eq!(rendered, "int -> int -> int");
     }
 

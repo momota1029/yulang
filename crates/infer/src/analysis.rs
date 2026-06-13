@@ -46,7 +46,8 @@ use crate::role_solve::{
     resolve_role_constraints_with_method_taint, role_constraint_could_resolve,
 };
 use crate::roles::{
-    RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleConstraintTable, RoleImplTable,
+    RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleConstraintTable,
+    RoleImplTable, RoleInputVariance, RoleInputVarianceTable,
 };
 use crate::scc::{SccEvent, SccInput, SccMachine};
 use crate::uses::{RefUseTable, SelectionUse, SelectionUseTable};
@@ -69,6 +70,7 @@ pub struct AnalysisSession {
     pub methods: TypeMethodTable,
     pub effect_methods: EffectMethodTable,
     pub role_methods: RoleMethodTable,
+    pub role_input_variances: RoleInputVarianceTable,
     pub local_methods: CompanionMethodTable,
     pub scc: SccMachine,
     role_impl_members: FxHashMap<DefId, DefId>,
@@ -93,6 +95,7 @@ impl AnalysisSession {
             methods: TypeMethodTable::new(),
             effect_methods: EffectMethodTable::new(),
             role_methods: RoleMethodTable::new(),
+            role_input_variances: RoleInputVarianceTable::new(),
             local_methods: CompanionMethodTable::new(),
             scc: SccMachine::new(),
             role_impl_members: FxHashMap::default(),
@@ -154,6 +157,14 @@ impl AnalysisSession {
         def: DefId,
     ) {
         self.role_methods.insert(role, method, def);
+    }
+
+    pub fn register_role_input_variances(
+        &mut self,
+        role: impl Into<Vec<String>>,
+        variances: Vec<RoleInputVariance>,
+    ) {
+        self.role_input_variances.insert(role, variances);
     }
 
     pub fn register_role_impl_member(&mut self, member: DefId, impl_def: DefId) {

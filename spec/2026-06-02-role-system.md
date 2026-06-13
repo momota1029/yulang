@@ -4,7 +4,18 @@ pub role Mul 'a 'b:
     type out
     pub a.mul(b: 'b): out
 ```
-全ての引数は不変である。また、`mul`はメソッドとして公開され、`mul: Mul<α,β,out=γ> => 'a -> 'b -> γ`と型がつく。
+lowering直後のdemandとimpl head照合では、roleの引数は不変区間として扱う。また、`mul`はメソッドとして公開され、`mul: Mul<α,β,out=γ> => 'a -> 'b -> γ`と型がつく。
+
+role宣言そのものは、通常引数ごとにvarianceを導出する。
+導出に使うのは、role内に宣言されたmethod signatureへreceiverを第1通常引数として補った型である。
+関数引数では極性を反転し、関数戻り値では同じ極性で読む。
+型コンストラクタの引数、effect familyの引数、effect row tailに通常引数が現れる場合は、そのデータ構造自体のvarianceを推論せず、保守的に不変出現として記録する。
+これにより、データ構造は従来どおり不変のまま、`role Ord 'a: our x.le: 'a -> bool` のような「method signature上ではただの関数引数としてしか使われないrole入力」だけを、role側のkind情報として扱える。
+
+導出結果は `Unused | Covariant | Contravariant | Invariant` のいずれかで保持する。
+複数methodで同じ入力が同じ向きにだけ現れるならその向き、両向きに現れるか不変位置に現れるなら `Invariant`、どこにも現れないなら `Unused` である。
+このvarianceは宣言signature内での現れ方なので、residualを`where`束縛としてsurfaceへ浮かせるときは向きを反転して読む。
+例えば `Ord` の `'a` は宣言signature内では反変にだけ現れるため、`where 'a: Ord` 側では共変の要求として扱える。
 
 # 注意
 不変な変数とは共変部分と反変部分の2つ組のことである。`(int|α, α&float)`などと書くとタプルと被ってしまうため、表示では両側に共通して現れる型変数(ここでは`α`)を中心として`int|α&float`と書く。
