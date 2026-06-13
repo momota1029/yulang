@@ -7,8 +7,8 @@ use std::collections::{BTreeSet, VecDeque};
 use std::fmt::Write as _;
 
 use crate::types::{
-    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, Scheme, StackWeight,
-    Subtractability, TypeArena, TypeVar,
+    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, RolePredicateArg, Scheme,
+    StackWeight, Subtractability, TypeArena, TypeVar,
 };
 
 pub fn dump_scheme_raw(arena: &TypeArena, scheme: &Scheme) -> String {
@@ -419,7 +419,7 @@ impl<'a> RawTypeDumper<'a> {
         format!(
             "{} inputs: {}, associated: [{}]",
             path_name(&role.role),
-            neu_refs(&role.inputs),
+            role_arg_refs(&role.inputs),
             associated
         )
     }
@@ -500,10 +500,18 @@ impl<'a> RawTypeDumper<'a> {
 
     fn mark_role(&mut self, role: &RolePredicate) {
         for input in &role.inputs {
-            self.mark_neu(*input);
+            self.mark_role_arg(*input);
         }
         for associated in &role.associated {
             self.mark_neu(associated.value);
+        }
+    }
+
+    fn mark_role_arg(&mut self, arg: RolePredicateArg) {
+        match arg {
+            RolePredicateArg::Covariant(pos) => self.mark_pos(pos),
+            RolePredicateArg::Contravariant(neg) => self.mark_neg(neg),
+            RolePredicateArg::Invariant(neu) => self.mark_neu(neu),
         }
     }
 
@@ -629,6 +637,10 @@ fn neu_refs(items: &[NeuId]) -> String {
     refs(items.iter().map(|id| neu_ref(*id)))
 }
 
+fn role_arg_refs(items: &[RolePredicateArg]) -> String {
+    refs(items.iter().map(|id| role_arg_ref(*id)))
+}
+
 fn refs(items: impl Iterator<Item = String>) -> String {
     format!("[{}]", items.collect::<Vec<_>>().join(", "))
 }
@@ -643,6 +655,14 @@ fn neg_ref(id: NegId) -> String {
 
 fn neu_ref(id: NeuId) -> String {
     format!("u{}", id.0)
+}
+
+fn role_arg_ref(id: RolePredicateArg) -> String {
+    match id {
+        RolePredicateArg::Covariant(pos) => format!("+{}", pos_ref(pos)),
+        RolePredicateArg::Contravariant(neg) => format!("-{}", neg_ref(neg)),
+        RolePredicateArg::Invariant(neu) => neu_ref(neu),
+    }
 }
 
 fn vars(vars: &[TypeVar]) -> String {

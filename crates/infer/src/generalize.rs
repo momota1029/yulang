@@ -4,18 +4,20 @@
 //! を compact 表現のまま決める。`poly::Scheme` への finalize は最後の出口として分ける。
 
 use poly::types::{
-    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RoleAssociatedType, RolePredicate, Scheme,
-    SchemeSubtractFact, StackWeight, SubtractId, Subtractability, TypeArena, TypeVar,
+    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RoleAssociatedType, RolePredicate,
+    RolePredicateArg, Scheme, SchemeSubtractFact, StackWeight, SubtractId, Subtractability,
+    TypeArena, TypeVar,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::compact::{
     CompactBounds, CompactCon, CompactFun, CompactPolyVariant, CompactRecord, CompactRecordSpread,
-    CompactRecursiveVar, CompactRoleArg, CompactRoleConstraint, CompactRoot, CompactRow,
-    CompactSandwich, CompactSandwichKind, CompactSimplification, CompactTuple, CompactType,
-    CompactVar, CompactVarSubstitution, compact_con_entries, compact_row_item_entries,
-    compact_type_var, finalize_compact_bounds, finalize_compact_root, merge_compact_types,
-    simplify_compact_root_with_role_variance_table_and_non_generic,
+    CompactRecursiveVar, CompactRoleArg, CompactRoleArgPolarity, CompactRoleConstraint,
+    CompactRoot, CompactRow, CompactSandwich, CompactSandwichKind, CompactSimplification,
+    CompactTuple, CompactType, CompactVar, CompactVarSubstitution, compact_con_entries,
+    compact_row_item_entries, compact_type_var, finalize_compact_bounds,
+    finalize_compact_bounds_lower, finalize_compact_bounds_upper, finalize_compact_root,
+    merge_compact_types, simplify_compact_root_with_role_variance_table_and_non_generic,
     simplify_compact_root_with_roles_and_non_generic,
 };
 #[cfg(test)]
@@ -253,14 +255,28 @@ fn finalize_compact_role_predicates(
                 .iter()
                 .map(|associated| RoleAssociatedType {
                     name: associated.name.clone(),
-                    value: finalize_compact_role_arg(types, &associated.value),
+                    value: finalize_compact_role_arg_invariant(types, &associated.value),
                 })
                 .collect(),
         })
         .collect()
 }
 
-fn finalize_compact_role_arg(types: &mut TypeArena, arg: &CompactRoleArg) -> NeuId {
+fn finalize_compact_role_arg(types: &mut TypeArena, arg: &CompactRoleArg) -> RolePredicateArg {
+    match arg.polarity {
+        CompactRoleArgPolarity::Covariant => {
+            RolePredicateArg::Covariant(finalize_compact_bounds_lower(types, &arg.bounds))
+        }
+        CompactRoleArgPolarity::Contravariant => {
+            RolePredicateArg::Contravariant(finalize_compact_bounds_upper(types, &arg.bounds))
+        }
+        CompactRoleArgPolarity::Invariant => {
+            RolePredicateArg::Invariant(finalize_compact_bounds(types, &arg.bounds))
+        }
+    }
+}
+
+fn finalize_compact_role_arg_invariant(types: &mut TypeArena, arg: &CompactRoleArg) -> NeuId {
     finalize_compact_bounds(types, &arg.bounds)
 }
 
@@ -3211,12 +3227,10 @@ mod tests {
         };
         let roles = vec![CompactRoleConstraint {
             role: vec!["Ready".into()],
-            inputs: vec![CompactRoleArg {
-                bounds: CompactBounds::Interval {
-                    lower: CompactType::from_var(CompactVar::plain(role_var)),
-                    upper: CompactType::from_var(CompactVar::plain(role_var)),
-                },
-            }],
+            inputs: vec![CompactRoleArg::invariant(CompactBounds::Interval {
+                lower: CompactType::from_var(CompactVar::plain(role_var)),
+                upper: CompactType::from_var(CompactVar::plain(role_var)),
+            })],
             associated: Vec::new(),
         }];
 
@@ -3236,8 +3250,12 @@ mod tests {
             finalized.scheme.role_predicates[0].role,
             vec!["Ready".to_string()]
         );
+        let RolePredicateArg::Invariant(input) = finalized.scheme.role_predicates[0].inputs[0]
+        else {
+            panic!("expected invariant role input");
+        };
         assert!(matches!(
-            types.neu(finalized.scheme.role_predicates[0].inputs[0]),
+            types.neu(input),
             poly::types::Neu::Bounds(lower, upper)
                 if matches!(types.pos(*lower), poly::types::Pos::Var(v) if *v == role_var)
                     && matches!(types.neg(*upper), poly::types::Neg::Var(v) if *v == role_var)
@@ -3256,16 +3274,14 @@ mod tests {
             },
             role_predicates: vec![CompactRoleConstraint {
                 role: vec!["Ready".into()],
-                inputs: vec![CompactRoleArg {
-                    bounds: CompactBounds::Interval {
-                        lower: CompactType::from_builtin(poly::types::BuiltinType::Int),
-                        upper: merge_compact_types(
-                            true,
-                            CompactType::from_var(CompactVar::plain(role_var)),
-                            CompactType::from_builtin(poly::types::BuiltinType::Int),
-                        ),
-                    },
-                }],
+                inputs: vec![CompactRoleArg::invariant(CompactBounds::Interval {
+                    lower: CompactType::from_builtin(poly::types::BuiltinType::Int),
+                    upper: merge_compact_types(
+                        true,
+                        CompactType::from_var(CompactVar::plain(role_var)),
+                        CompactType::from_builtin(poly::types::BuiltinType::Int),
+                    ),
+                })],
                 associated: Vec::new(),
             }],
             quantifiers: vec![role_var],
@@ -3278,7 +3294,11 @@ mod tests {
         let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
 
         assert_eq!(finalized.scheme.role_predicates.len(), 1);
-        let actual = types.neu(finalized.scheme.role_predicates[0].inputs[0]);
+        let RolePredicateArg::Invariant(input) = finalized.scheme.role_predicates[0].inputs[0]
+        else {
+            panic!("expected invariant role input");
+        };
+        let actual = types.neu(input);
         assert!(
             matches!(
                 actual,

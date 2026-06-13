@@ -10826,12 +10826,13 @@ mod tests {
         let output = lower_binding_bodies(&root, lower);
 
         assert!(output.errors.is_empty(), "{:?}", output.errors);
-        let rendered =
-            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, sort_head));
-        assert_eq!(
-            rendered,
-            "mylist('a & 'b) -> mylist('b | 'a) where ('a): Ord"
-        );
+        let scheme = def_scheme(&output, sort_head);
+        assert!(matches!(
+            scheme.role_predicates[0].inputs[0],
+            poly::types::RolePredicateArg::Covariant(_)
+        ));
+        let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
+        assert_eq!(rendered, "mylist('a & 'b) -> mylist('b | 'a) where 'a: Ord");
     }
 
     #[test]
@@ -11477,9 +11478,13 @@ mod tests {
         let output = lower_binding_bodies(&root, lower);
 
         assert_eq!(output.errors, Vec::new());
-        let rendered =
-            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, keep));
-        assert_eq!(rendered, "view('b & 'a) -> 'a -> 'b where ('b|'a): Ord");
+        let scheme = def_scheme(&output, keep);
+        assert!(matches!(
+            scheme.role_predicates[0].inputs[0],
+            poly::types::RolePredicateArg::Covariant(_)
+        ));
+        let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
+        assert_eq!(rendered, "view('b & 'a) -> 'a -> 'b where ('a | 'b): Ord");
     }
 
     #[test]

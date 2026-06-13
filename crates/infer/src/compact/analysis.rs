@@ -6,52 +6,29 @@ use super::*;
 use crate::constraints::{ConstraintMachine, TypeLevel};
 use crate::roles::{RoleInputVariance, RoleInputVarianceTable};
 
-#[derive(Clone, Copy, Default)]
-struct RoleVarianceView<'a> {
-    table: Option<&'a RoleInputVarianceTable>,
-}
-
-impl<'a> RoleVarianceView<'a> {
-    fn invariant() -> Self {
-        Self { table: None }
-    }
-
-    fn for_table(table: &'a RoleInputVarianceTable) -> Self {
-        Self { table: Some(table) }
-    }
-
-    fn where_input(self, role: &[String], index: usize) -> RoleInputVariance {
-        self.table
-            .map(|table| table.input_or_invariant(role, index).flipped_for_where())
-            .unwrap_or(RoleInputVariance::Invariant)
-    }
-}
-
 #[cfg(test)]
 pub(crate) fn eliminate_polar_variables(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
     root: &mut CompactRoot,
 ) -> Vec<CompactVarSubstitution> {
-    eliminate_polar_variables_with_role_variances_and_non_generic(
+    eliminate_polar_variables_with_roles_and_non_generic(
         machine,
         boundary,
         root,
         &mut [],
-        RoleVarianceView::invariant(),
         &FxHashSet::default(),
     )
 }
 
-fn eliminate_polar_variables_with_role_variances_and_non_generic(
+fn eliminate_polar_variables_with_roles_and_non_generic(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
     root: &mut CompactRoot,
     roles: &mut [CompactRoleConstraint],
-    role_variances: RoleVarianceView<'_>,
     non_generic: &FxHashSet<TypeVar>,
 ) -> Vec<CompactVarSubstitution> {
-    let polarity = collect_var_polarities(root, roles, role_variances);
+    let polarity = collect_var_polarities(root, roles);
     rewrite_root_and_role_vars(root, roles, |var| {
         if !is_simplification_candidate(machine, boundary, var, non_generic)
             || polarity.is_bipolar(var)
@@ -69,25 +46,23 @@ pub(crate) fn coalesce_by_co_occurrence(
     boundary: TypeLevel,
     root: &mut CompactRoot,
 ) -> Vec<CompactVarSubstitution> {
-    coalesce_by_co_occurrence_with_role_variances_and_non_generic(
+    coalesce_by_co_occurrence_with_roles_and_non_generic(
         machine,
         boundary,
         root,
         &mut [],
-        RoleVarianceView::invariant(),
         &FxHashSet::default(),
     )
 }
 
-fn coalesce_by_co_occurrence_with_role_variances_and_non_generic(
+fn coalesce_by_co_occurrence_with_roles_and_non_generic(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
     root: &mut CompactRoot,
     roles: &mut [CompactRoleConstraint],
-    role_variances: RoleVarianceView<'_>,
     non_generic: &FxHashSet<TypeVar>,
 ) -> Vec<CompactVarSubstitution> {
-    let co_occurrences = collect_co_occurrences(root, roles, role_variances);
+    let co_occurrences = collect_co_occurrences(root, roles);
     let subst = co_occurrences.substitution(machine, boundary, non_generic);
     if subst.is_empty() {
         return Vec::new();
@@ -117,12 +92,11 @@ pub(crate) fn simplify_compact_root_with_roles_and_non_generic(
     roles: &mut [CompactRoleConstraint],
     non_generic: &FxHashSet<TypeVar>,
 ) -> CompactSimplification {
-    simplify_compact_root_with_role_variances_and_non_generic(
+    simplify_compact_root_with_role_arg_polarities_and_non_generic(
         machine,
         boundary,
         root,
         roles,
-        RoleVarianceView::invariant(),
         non_generic,
     )
 }
@@ -135,22 +109,45 @@ pub(crate) fn simplify_compact_root_with_role_variance_table_and_non_generic(
     role_variances: &RoleInputVarianceTable,
     non_generic: &FxHashSet<TypeVar>,
 ) -> CompactSimplification {
-    simplify_compact_root_with_role_variances_and_non_generic(
+    apply_role_input_variances_to_roles(roles, role_variances);
+    simplify_compact_root_with_role_arg_polarities_and_non_generic(
         machine,
         boundary,
         root,
         roles,
-        RoleVarianceView::for_table(role_variances),
         non_generic,
     )
 }
 
-fn simplify_compact_root_with_role_variances_and_non_generic(
+fn apply_role_input_variances_to_roles(
+    roles: &mut [CompactRoleConstraint],
+    role_variances: &RoleInputVarianceTable,
+) {
+    for role in roles {
+        for (index, input) in role.inputs.iter_mut().enumerate() {
+            let variance = role_variances
+                .input_or_invariant(&role.role, index)
+                .flipped_for_where();
+            input.polarity = compact_role_arg_polarity_from_variance(variance);
+        }
+    }
+}
+
+fn compact_role_arg_polarity_from_variance(variance: RoleInputVariance) -> CompactRoleArgPolarity {
+    match variance {
+        RoleInputVariance::Covariant => CompactRoleArgPolarity::Covariant,
+        RoleInputVariance::Contravariant => CompactRoleArgPolarity::Contravariant,
+        RoleInputVariance::Unused | RoleInputVariance::Invariant => {
+            CompactRoleArgPolarity::Invariant
+        }
+    }
+}
+
+fn simplify_compact_root_with_role_arg_polarities_and_non_generic(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
     root: &mut CompactRoot,
     roles: &mut [CompactRoleConstraint],
-    role_variances: RoleVarianceView<'_>,
     non_generic: &FxHashSet<TypeVar>,
 ) -> CompactSimplification {
     collapse_pinned_intervals_with_roles_and_non_generic(
@@ -166,7 +163,6 @@ fn simplify_compact_root_with_role_variances_and_non_generic(
         boundary,
         root,
         roles,
-        role_variances,
         non_generic,
     ));
     let sandwiches = sandwich_compact_root_with_roles_and_non_generic(
@@ -181,7 +177,6 @@ fn simplify_compact_root_with_role_variances_and_non_generic(
         boundary,
         root,
         roles,
-        role_variances,
         non_generic,
     ));
     CompactSimplification {
@@ -204,7 +199,7 @@ pub(crate) fn coalesce_floor_interval_equalities(
     root: &mut CompactRoot,
     roles: &mut [CompactRoleConstraint],
 ) -> Vec<CompactVarSubstitution> {
-    let co_occurrences = collect_co_occurrences(root, roles, RoleVarianceView::invariant());
+    let co_occurrences = collect_co_occurrences(root, roles);
     let mut union = VarUnion::default();
     for (alpha, beta) in &co_occurrences.interval_equalities {
         let alpha_floor = machine.level_of(*alpha) <= boundary;
@@ -515,8 +510,8 @@ pub(crate) fn eliminate_floor_redundant_variables(
     root: &mut CompactRoot,
     roles: &mut [CompactRoleConstraint],
 ) -> Vec<CompactVarSubstitution> {
-    let polarity = collect_var_polarities(root, roles, RoleVarianceView::invariant());
-    let co_occurrences = collect_co_occurrences(root, roles, RoleVarianceView::invariant());
+    let polarity = collect_var_polarities(root, roles);
+    let co_occurrences = collect_co_occurrences(root, roles);
     let removals = floor_redundant_vars(machine, boundary, &polarity, &co_occurrences);
     if removals.is_empty() {
         return Vec::new();
@@ -543,7 +538,7 @@ pub(crate) fn coalesce_floor_variable_sandwiches(
     roles: &mut [CompactRoleConstraint],
 ) -> Vec<CompactVarSubstitution> {
     let mut substitutions = Vec::new();
-    let co_occurrences = collect_co_occurrences(root, roles, RoleVarianceView::invariant());
+    let co_occurrences = collect_co_occurrences(root, roles);
     let mut union = VarUnion::default();
     register_floor_variable_sandwiches(
         &co_occurrences.positive,
@@ -759,25 +754,22 @@ fn simplify_polar_and_co_occurrence_to_fixed_point(
     boundary: TypeLevel,
     root: &mut CompactRoot,
     roles: &mut [CompactRoleConstraint],
-    role_variances: RoleVarianceView<'_>,
     non_generic: &FxHashSet<TypeVar>,
 ) -> Vec<CompactVarSubstitution> {
     let mut substitutions = Vec::new();
     loop {
-        let eliminated = eliminate_polar_variables_with_role_variances_and_non_generic(
+        let eliminated = eliminate_polar_variables_with_roles_and_non_generic(
             machine,
             boundary,
             root,
             roles,
-            role_variances,
             non_generic,
         );
-        let coalesced = coalesce_by_co_occurrence_with_role_variances_and_non_generic(
+        let coalesced = coalesce_by_co_occurrence_with_roles_and_non_generic(
             machine,
             boundary,
             root,
             roles,
-            role_variances,
             non_generic,
         );
         let changed = !eliminated.is_empty() || !coalesced.is_empty();
@@ -1931,18 +1923,14 @@ impl VarPolarityCounts {
     }
 }
 
-fn collect_var_polarities(
-    root: &CompactRoot,
-    roles: &[CompactRoleConstraint],
-    role_variances: RoleVarianceView<'_>,
-) -> VarPolarities {
+fn collect_var_polarities(root: &CompactRoot, roles: &[CompactRoleConstraint]) -> VarPolarities {
     let mut out = VarPolarities::default();
     visit_type_polarity(&root.root, Polarity::Positive, &mut out);
     for rec in &root.rec_vars {
         visit_bounds_polarity(&rec.bounds, Polarity::Positive, &mut out);
     }
     for role in roles {
-        visit_role_polarity(role, role_variances, &mut out);
+        visit_role_polarity(role, &mut out);
     }
     out
 }
@@ -1971,44 +1959,25 @@ fn collect_main_var_polarities(root: &CompactRoot) -> VarPolarities {
     out
 }
 
-fn visit_role_polarity(
-    role: &CompactRoleConstraint,
-    role_variances: RoleVarianceView<'_>,
-    out: &mut VarPolarities,
-) {
-    for (index, input) in role.inputs.iter().enumerate() {
-        visit_role_arg_polarity(
-            input,
-            role_variances.where_input(&role.role, index),
-            Polarity::Positive,
-            out,
-        );
+fn visit_role_polarity(role: &CompactRoleConstraint, out: &mut VarPolarities) {
+    for input in &role.inputs {
+        visit_role_arg_polarity(input, Polarity::Positive, out);
     }
     for associated in &role.associated {
-        visit_role_arg_polarity(
-            &associated.value,
-            RoleInputVariance::Invariant,
-            Polarity::Positive,
-            out,
-        );
+        visit_bounds_polarity(&associated.value.bounds, Polarity::Positive, out);
     }
 }
 
-fn visit_role_arg_polarity(
-    arg: &CompactRoleArg,
-    variance: RoleInputVariance,
-    polarity: Polarity,
-    out: &mut VarPolarities,
-) {
-    match (&arg.bounds, variance) {
-        (CompactBounds::Interval { lower, upper: _ }, RoleInputVariance::Covariant) => {
+fn visit_role_arg_polarity(arg: &CompactRoleArg, polarity: Polarity, out: &mut VarPolarities) {
+    match (&arg.bounds, arg.polarity) {
+        (CompactBounds::Interval { lower, upper: _ }, CompactRoleArgPolarity::Covariant) => {
             visit_type_polarity(lower, polarity, out)
         }
-        (CompactBounds::Interval { lower: _, upper }, RoleInputVariance::Contravariant) => {
+        (CompactBounds::Interval { lower: _, upper }, CompactRoleArgPolarity::Contravariant) => {
             visit_type_polarity(upper, polarity.flipped(), out)
         }
-        (_, RoleInputVariance::Unused | RoleInputVariance::Invariant)
-        | (_, RoleInputVariance::Covariant | RoleInputVariance::Contravariant) => {
+        (_, CompactRoleArgPolarity::Invariant)
+        | (_, CompactRoleArgPolarity::Covariant | CompactRoleArgPolarity::Contravariant) => {
             visit_bounds_polarity(&arg.bounds, polarity, out);
         }
     }
@@ -2483,11 +2452,7 @@ impl ExactKey {
     }
 }
 
-fn collect_co_occurrences(
-    root: &CompactRoot,
-    roles: &[CompactRoleConstraint],
-    role_variances: RoleVarianceView<'_>,
-) -> CoOccurrences {
+fn collect_co_occurrences(root: &CompactRoot, roles: &[CompactRoleConstraint]) -> CoOccurrences {
     let mut out = CoOccurrences::default();
     let rec_vars = root.rec_vars.iter().map(|rec| rec.var).collect::<Vec<_>>();
     // Recursive center vars are counted through their Interval bounds via `extra_vars`.
@@ -2498,30 +2463,22 @@ fn collect_co_occurrences(
         visit_bounds_co_occurrence(&rec.bounds, Polarity::Positive, &[], &mut out);
     }
     for role in roles {
-        visit_role_co_occurrence(role, role_variances, &rec_vars, &mut out);
+        visit_role_co_occurrence(role, &rec_vars, &mut out);
     }
     out
 }
 
 fn visit_role_co_occurrence(
     role: &CompactRoleConstraint,
-    role_variances: RoleVarianceView<'_>,
     ignored_vars: &[TypeVar],
     out: &mut CoOccurrences,
 ) {
-    for (index, input) in role.inputs.iter().enumerate() {
-        visit_role_arg_co_occurrence(
-            input,
-            role_variances.where_input(&role.role, index),
-            Polarity::Positive,
-            ignored_vars,
-            out,
-        );
+    for input in &role.inputs {
+        visit_role_arg_co_occurrence(input, Polarity::Positive, ignored_vars, out);
     }
     for associated in &role.associated {
-        visit_role_arg_co_occurrence(
-            &associated.value,
-            RoleInputVariance::Invariant,
+        visit_bounds_co_occurrence(
+            &associated.value.bounds,
             Polarity::Positive,
             ignored_vars,
             out,
@@ -2531,20 +2488,19 @@ fn visit_role_co_occurrence(
 
 fn visit_role_arg_co_occurrence(
     arg: &CompactRoleArg,
-    variance: RoleInputVariance,
     polarity: Polarity,
     ignored_vars: &[TypeVar],
     out: &mut CoOccurrences,
 ) {
-    match (&arg.bounds, variance) {
-        (CompactBounds::Interval { lower, upper: _ }, RoleInputVariance::Covariant) => {
+    match (&arg.bounds, arg.polarity) {
+        (CompactBounds::Interval { lower, upper: _ }, CompactRoleArgPolarity::Covariant) => {
             visit_type_co_occurrence(lower, polarity, &[], ignored_vars, out)
         }
-        (CompactBounds::Interval { lower: _, upper }, RoleInputVariance::Contravariant) => {
+        (CompactBounds::Interval { lower: _, upper }, CompactRoleArgPolarity::Contravariant) => {
             visit_type_co_occurrence(upper, polarity.flipped(), &[], ignored_vars, out)
         }
-        (_, RoleInputVariance::Unused | RoleInputVariance::Invariant)
-        | (_, RoleInputVariance::Covariant | RoleInputVariance::Contravariant) => {
+        (_, CompactRoleArgPolarity::Invariant)
+        | (_, CompactRoleArgPolarity::Covariant | CompactRoleArgPolarity::Contravariant) => {
             visit_bounds_co_occurrence(&arg.bounds, polarity, ignored_vars, out);
         }
     }

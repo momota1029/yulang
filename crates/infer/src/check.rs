@@ -6,7 +6,7 @@
 use std::time::{Duration, Instant};
 
 use poly::expr::{Def, DefId};
-use poly::types::{Neg, NegId, Neu, NeuId, Pos, PosId, Scheme, TypeArena};
+use poly::types::{Neg, NegId, Neu, NeuId, Pos, PosId, RolePredicateArg, Scheme, TypeArena};
 use rustc_hash::{FxHashMap, FxHashSet};
 use sources::{LoadedFile, Path};
 
@@ -305,7 +305,7 @@ fn scheme_has_stack(arena: &TypeArena, scheme: &Scheme) -> bool {
     }
     for predicate in &scheme.role_predicates {
         for input in &predicate.inputs {
-            if scan.neu(arena, *input) {
+            if scan.role_arg(arena, *input) {
                 return true;
             }
         }
@@ -331,6 +331,14 @@ struct StackScan {
 }
 
 impl StackScan {
+    fn role_arg(&mut self, arena: &TypeArena, arg: RolePredicateArg) -> bool {
+        match arg {
+            RolePredicateArg::Covariant(pos) => self.pos(arena, pos),
+            RolePredicateArg::Contravariant(neg) => self.neg(arena, neg),
+            RolePredicateArg::Invariant(neu) => self.neu(arena, neu),
+        }
+    }
+
     fn pos(&mut self, arena: &TypeArena, id: PosId) -> bool {
         if !self.pos.insert(id) {
             return false;

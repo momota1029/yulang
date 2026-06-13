@@ -7,8 +7,8 @@
 use rustc_hash::FxHashMap;
 
 use crate::types::{
-    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, Scheme, SchemeSubtractFact,
-    StackWeight, SubtractId, Subtractability, TypeArena, TypeVar,
+    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, RolePredicateArg, Scheme,
+    SchemeSubtractFact, StackWeight, SubtractId, Subtractability, TypeArena, TypeVar,
 };
 
 /// scheme を `list 'a` や `'a [io; 'e] -> ['e] 'a` のような短い構文風表記で返す。
@@ -175,7 +175,7 @@ impl<'a> TypeFormatter<'a> {
         let mut inputs = predicate
             .inputs
             .iter()
-            .map(|arg| self.render_neu(*arg))
+            .map(|arg| self.render_role_predicate_arg(*arg))
             .collect::<Vec<_>>();
         let associated = predicate
             .associated
@@ -196,6 +196,14 @@ impl<'a> TypeFormatter<'a> {
         let subject = inputs.remove(0).in_context(Context::FunctionArg);
         let role = self.role_call(role, inputs, associated);
         format!("{subject}: {role}")
+    }
+
+    fn render_role_predicate_arg(&mut self, arg: RolePredicateArg) -> Rendered {
+        match arg {
+            RolePredicateArg::Covariant(pos) => self.render_pos(pos),
+            RolePredicateArg::Contravariant(neg) => self.render_neg(neg),
+            RolePredicateArg::Invariant(neu) => self.render_neu(neu),
+        }
     }
 
     fn role_call(&mut self, role: String, args: Vec<Rendered>, associated: Vec<String>) -> String {
@@ -1522,7 +1530,10 @@ mod tests {
             quantifiers: vec![a, b, c],
             role_predicates: vec![RolePredicate {
                 role: vec!["Mul".into()],
-                inputs: vec![neu_a, neu_b],
+                inputs: vec![
+                    RolePredicateArg::Invariant(neu_a),
+                    RolePredicateArg::Invariant(neu_b),
+                ],
                 associated: vec![crate::types::RoleAssociatedType {
                     name: "out".into(),
                     value: neu_c,
@@ -1554,7 +1565,10 @@ mod tests {
             quantifiers: vec![container, key, item],
             role_predicates: vec![RolePredicate {
                 role: vec!["Index".into()],
-                inputs: vec![neu_container, neu_key],
+                inputs: vec![
+                    RolePredicateArg::Invariant(neu_container),
+                    RolePredicateArg::Invariant(neu_key),
+                ],
                 associated: vec![crate::types::RoleAssociatedType {
                     name: "value".into(),
                     value: neu_item,

@@ -136,7 +136,29 @@ pub(crate) struct CompactRoleConstraint {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct CompactRoleArg {
+    pub(crate) polarity: CompactRoleArgPolarity,
     pub(crate) bounds: CompactBounds,
+}
+
+impl CompactRoleArg {
+    pub(crate) fn invariant(bounds: CompactBounds) -> Self {
+        Self {
+            polarity: CompactRoleArgPolarity::Invariant,
+            bounds,
+        }
+    }
+
+    pub(crate) fn with_polarity(mut self, polarity: CompactRoleArgPolarity) -> Self {
+        self.polarity = polarity;
+        self
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum CompactRoleArgPolarity {
+    Covariant,
+    Contravariant,
+    Invariant,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -542,6 +564,20 @@ pub(crate) fn finalize_compact_bounds_to_constraint(
 
 pub(crate) fn finalize_compact_bounds(types: &mut TypeArena, bounds: &CompactBounds) -> NeuId {
     CompactFinalizer::new(types).finalize_bounds(bounds)
+}
+
+pub(crate) fn finalize_compact_bounds_lower(
+    types: &mut TypeArena,
+    bounds: &CompactBounds,
+) -> PosId {
+    CompactFinalizer::new(types).finalize_bounds_lower(bounds)
+}
+
+pub(crate) fn finalize_compact_bounds_upper(
+    types: &mut TypeArena,
+    bounds: &CompactBounds,
+) -> NegId {
+    CompactFinalizer::new(types).finalize_bounds_upper(bounds)
 }
 
 trait CompactMergeConstraintSink {
@@ -1249,6 +1285,126 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
                     .map(|item| self.finalize_bounds(item))
                     .collect();
                 self.alloc_neu(Neu::Tuple(items))
+            }
+        }
+    }
+
+    fn finalize_bounds_lower(&mut self, bounds: &CompactBounds) -> PosId {
+        match bounds {
+            CompactBounds::Interval { lower, .. } => self.finalize_pos_type(lower),
+            CompactBounds::Con { path, args } => {
+                let args = args.iter().map(|arg| self.finalize_bounds(arg)).collect();
+                self.alloc_pos(Pos::Con(path.clone(), args))
+            }
+            CompactBounds::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                let arg = self.finalize_bounds_upper(arg);
+                let arg_eff = self.finalize_bounds_upper(arg_eff);
+                let ret_eff = self.finalize_bounds_lower(ret_eff);
+                let ret = self.finalize_bounds_lower(ret);
+                self.alloc_pos(Pos::Fun {
+                    arg,
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                })
+            }
+            CompactBounds::Record { fields } => {
+                let fields = fields
+                    .iter()
+                    .map(|field| RecordField {
+                        name: field.name.clone(),
+                        value: self.finalize_bounds_lower(&field.value),
+                        optional: field.optional,
+                    })
+                    .collect();
+                self.alloc_pos(Pos::Record(fields))
+            }
+            CompactBounds::PolyVariant { items } => {
+                let items = items
+                    .iter()
+                    .map(|(name, payloads)| {
+                        (
+                            name.clone(),
+                            payloads
+                                .iter()
+                                .map(|payload| self.finalize_bounds_lower(payload))
+                                .collect(),
+                        )
+                    })
+                    .collect();
+                self.alloc_pos(Pos::PolyVariant(items))
+            }
+            CompactBounds::Tuple { items } => {
+                let items = items
+                    .iter()
+                    .map(|item| self.finalize_bounds_lower(item))
+                    .collect();
+                self.alloc_pos(Pos::Tuple(items))
+            }
+        }
+    }
+
+    fn finalize_bounds_upper(&mut self, bounds: &CompactBounds) -> NegId {
+        match bounds {
+            CompactBounds::Interval { upper, .. } => self.finalize_neg_type(upper),
+            CompactBounds::Con { path, args } => {
+                let args = args.iter().map(|arg| self.finalize_bounds(arg)).collect();
+                self.alloc_neg(Neg::Con(path.clone(), args))
+            }
+            CompactBounds::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                let arg = self.finalize_bounds_lower(arg);
+                let arg_eff = self.finalize_bounds_lower(arg_eff);
+                let ret_eff = self.finalize_bounds_upper(ret_eff);
+                let ret = self.finalize_bounds_upper(ret);
+                self.alloc_neg(Neg::Fun {
+                    arg,
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                })
+            }
+            CompactBounds::Record { fields } => {
+                let fields = fields
+                    .iter()
+                    .map(|field| RecordField {
+                        name: field.name.clone(),
+                        value: self.finalize_bounds_upper(&field.value),
+                        optional: field.optional,
+                    })
+                    .collect();
+                self.alloc_neg(Neg::Record(fields))
+            }
+            CompactBounds::PolyVariant { items } => {
+                let items = items
+                    .iter()
+                    .map(|(name, payloads)| {
+                        (
+                            name.clone(),
+                            payloads
+                                .iter()
+                                .map(|payload| self.finalize_bounds_upper(payload))
+                                .collect(),
+                        )
+                    })
+                    .collect();
+                self.alloc_neg(Neg::PolyVariant(items))
+            }
+            CompactBounds::Tuple { items } => {
+                let items = items
+                    .iter()
+                    .map(|item| self.finalize_bounds_upper(item))
+                    .collect();
+                self.alloc_neg(Neg::Tuple(items))
             }
         }
     }
@@ -2461,7 +2617,7 @@ impl<'a> CompactCollector<'a> {
         } else {
             role_arg_bounds_from_types_with_sink(lower, upper, &mut NoopCompactMergeConstraintSink)
         };
-        CompactRoleArg { bounds }
+        CompactRoleArg::invariant(bounds)
     }
 
     fn compact_var_side(
@@ -3360,8 +3516,8 @@ mod tests {
         let lhs_center = TypeVar(1);
         let rhs_center = TypeVar(2);
         let shared = TypeVar(3);
-        let role_arg = |subject: TypeVar, other| CompactRoleArg {
-            bounds: CompactBounds::Interval {
+        let role_arg = |subject: TypeVar, other| {
+            CompactRoleArg::invariant(CompactBounds::Interval {
                 lower: CompactType {
                     vars: vec![CompactVar::plain(subject), CompactVar::plain(other)],
                     ..CompactType::default()
@@ -3370,7 +3526,7 @@ mod tests {
                     vars: vec![CompactVar::plain(subject), CompactVar::plain(other)],
                     ..CompactType::default()
                 },
-            },
+            })
         };
         let (roles, constraints) =
             crate::role_solve::coalesce_role_constraints_recording_merge_constraints(vec![
@@ -4089,18 +4245,16 @@ mod tests {
         };
         let mut roles = vec![CompactRoleConstraint {
             role: vec!["Ord".into()],
-            inputs: vec![CompactRoleArg {
-                bounds: CompactBounds::Interval {
-                    lower: CompactType {
-                        vars: vec![CompactVar::plain(receiver), CompactVar::plain(argument)],
-                        ..CompactType::default()
-                    },
-                    upper: CompactType {
-                        vars: vec![CompactVar::plain(receiver), CompactVar::plain(argument)],
-                        ..CompactType::default()
-                    },
+            inputs: vec![CompactRoleArg::invariant(CompactBounds::Interval {
+                lower: CompactType {
+                    vars: vec![CompactVar::plain(receiver), CompactVar::plain(argument)],
+                    ..CompactType::default()
                 },
-            }],
+                upper: CompactType {
+                    vars: vec![CompactVar::plain(receiver), CompactVar::plain(argument)],
+                    ..CompactType::default()
+                },
+            })],
             associated: Vec::new(),
         }];
 
@@ -4409,12 +4563,10 @@ mod tests {
         };
         let mut roles = vec![CompactRoleConstraint {
             role: vec!["Pinned".into()],
-            inputs: vec![CompactRoleArg {
-                bounds: CompactBounds::Interval {
-                    lower: CompactType::from_var(CompactVar::plain(center)),
-                    upper: CompactType::from_var(CompactVar::plain(center)),
-                },
-            }],
+            inputs: vec![CompactRoleArg::invariant(CompactBounds::Interval {
+                lower: CompactType::from_var(CompactVar::plain(center)),
+                upper: CompactType::from_var(CompactVar::plain(center)),
+            })],
             associated: Vec::new(),
         }];
 
@@ -4439,34 +4591,32 @@ mod tests {
         let mut root = CompactRoot::default();
         let mut roles = vec![CompactRoleConstraint {
             role: vec!["Ready".into()],
-            inputs: vec![CompactRoleArg {
-                bounds: CompactBounds::Interval {
-                    lower: merge_compact_types(
-                        true,
-                        CompactType::from_var(CompactVar::plain(role_self)),
-                        CompactType::from_con(CompactCon {
-                            path: vec!["box".into()],
-                            args: vec![CompactBounds::Interval {
-                                lower: list_with_payload_bound(
-                                    center,
-                                    CompactBounds::Interval {
-                                        lower: CompactType::from_var(CompactVar::plain(payload)),
-                                        upper: CompactType::default(),
-                                    },
-                                ),
-                                upper: list_with_payload_bound(
-                                    center,
-                                    CompactBounds::Interval {
-                                        lower: CompactType::default(),
-                                        upper: CompactType::from_var(CompactVar::plain(payload)),
-                                    },
-                                ),
-                            }],
-                        }),
-                    ),
-                    upper: CompactType::from_var(CompactVar::plain(role_self)),
-                },
-            }],
+            inputs: vec![CompactRoleArg::invariant(CompactBounds::Interval {
+                lower: merge_compact_types(
+                    true,
+                    CompactType::from_var(CompactVar::plain(role_self)),
+                    CompactType::from_con(CompactCon {
+                        path: vec!["box".into()],
+                        args: vec![CompactBounds::Interval {
+                            lower: list_with_payload_bound(
+                                center,
+                                CompactBounds::Interval {
+                                    lower: CompactType::from_var(CompactVar::plain(payload)),
+                                    upper: CompactType::default(),
+                                },
+                            ),
+                            upper: list_with_payload_bound(
+                                center,
+                                CompactBounds::Interval {
+                                    lower: CompactType::default(),
+                                    upper: CompactType::from_var(CompactVar::plain(payload)),
+                                },
+                            ),
+                        }],
+                    }),
+                ),
+                upper: CompactType::from_var(CompactVar::plain(role_self)),
+            })],
             associated: Vec::new(),
         }];
 
@@ -4818,26 +4968,24 @@ mod tests {
         };
         let roles = vec![CompactRoleConstraint {
             role: vec!["Ord".into()],
-            inputs: vec![CompactRoleArg {
-                bounds: CompactBounds::Interval {
-                    lower: CompactType {
-                        vars: vec![
-                            CompactVar::plain(anchor),
-                            CompactVar::plain(witness_left),
-                            CompactVar::plain(witness_both),
-                        ],
-                        ..CompactType::default()
-                    },
-                    upper: CompactType {
-                        vars: vec![
-                            CompactVar::plain(witness_both),
-                            CompactVar::plain(upper_left),
-                            CompactVar::plain(upper_right),
-                        ],
-                        ..CompactType::default()
-                    },
+            inputs: vec![CompactRoleArg::invariant(CompactBounds::Interval {
+                lower: CompactType {
+                    vars: vec![
+                        CompactVar::plain(anchor),
+                        CompactVar::plain(witness_left),
+                        CompactVar::plain(witness_both),
+                    ],
+                    ..CompactType::default()
                 },
-            }],
+                upper: CompactType {
+                    vars: vec![
+                        CompactVar::plain(witness_both),
+                        CompactVar::plain(upper_left),
+                        CompactVar::plain(upper_right),
+                    ],
+                    ..CompactType::default()
+                },
+            })],
             associated: Vec::new(),
         }];
 

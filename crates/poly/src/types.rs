@@ -48,11 +48,18 @@ pub struct SchemeSubtractFact {
 /// scheme に残る role predicate。
 ///
 /// `inputs` は通常引数、`associated` は `out = ...` のような関連型を表す。
-/// role 引数は不変なので、final 表現では `NeuId` として持つ。
+/// role 引数は role kind から導出した variance に合わせて、正側・負側・不変のいずれかで持つ。
 pub struct RolePredicate {
     pub role: Vec<String>,
-    pub inputs: Vec<NeuId>,
+    pub inputs: Vec<RolePredicateArg>,
     pub associated: Vec<RoleAssociatedType>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RolePredicateArg {
+    Covariant(PosId),
+    Contravariant(NegId),
+    Invariant(NeuId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

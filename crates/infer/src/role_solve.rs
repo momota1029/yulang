@@ -842,6 +842,7 @@ fn rewrite_role_constraint(
 
 fn rewrite_role_arg(arg: &CompactRoleArg, subst: &TypeSubst) -> CompactRoleArg {
     CompactRoleArg {
+        polarity: arg.polarity,
         bounds: rewrite_bounds(&arg.bounds, subst),
     }
 }
@@ -1272,10 +1273,15 @@ fn merge_role_arg(
     rhs: CompactRoleArg,
     merge_constraints: &mut Vec<CompactMergeConstraint>,
 ) -> CompactRoleArg {
+    let polarity = if lhs.polarity == rhs.polarity {
+        lhs.polarity
+    } else {
+        crate::compact::CompactRoleArgPolarity::Invariant
+    };
     let (bounds, recorded) =
         merge_compact_bounds_recording_merge_constraints(true, lhs.bounds, rhs.bounds);
     merge_constraints.extend(recorded);
-    CompactRoleArg { bounds }
+    CompactRoleArg::invariant(bounds).with_polarity(polarity)
 }
 
 fn role_arg_concrete_type(

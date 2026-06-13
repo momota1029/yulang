@@ -4,8 +4,8 @@
 //! predicate を infer arena へ fresh clone してから通常の subtype 制約として戻す。
 
 use poly::types::{
-    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RoleAssociatedType, RolePredicate, Scheme,
-    StackWeight, SubtractId, Subtractability, TypeArena, TypeVar,
+    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RoleAssociatedType, RolePredicate,
+    RolePredicateArg, Scheme, StackWeight, SubtractId, Subtractability, TypeArena, TypeVar,
 };
 use rustc_hash::FxHashMap;
 
@@ -92,7 +92,7 @@ impl<'a> SchemeInstantiator<'a> {
             inputs: predicate
                 .inputs
                 .iter()
-                .map(|input| self.clone_neu(*input))
+                .map(|input| self.clone_role_predicate_arg(*input))
                 .collect(),
             associated: predicate
                 .associated
@@ -102,6 +102,16 @@ impl<'a> SchemeInstantiator<'a> {
                     value: self.clone_neu(associated.value),
                 })
                 .collect(),
+        }
+    }
+
+    fn clone_role_predicate_arg(&mut self, arg: RolePredicateArg) -> RolePredicateArg {
+        match arg {
+            RolePredicateArg::Covariant(pos) => RolePredicateArg::Covariant(self.clone_pos(pos)),
+            RolePredicateArg::Contravariant(neg) => {
+                RolePredicateArg::Contravariant(self.clone_neg(neg))
+            }
+            RolePredicateArg::Invariant(neu) => RolePredicateArg::Invariant(self.clone_neu(neu)),
         }
     }
 

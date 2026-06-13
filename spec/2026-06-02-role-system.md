@@ -77,6 +77,14 @@ schemeとしてfreezeされたboundsを再びrole demandへ戻す場合も、`Ne
 そうでなければ中心なしの`CompactBounds::Interval`として持つ。
 finalize後の`Neu::Bounds(lower, upper)`も中心を持たない。表示時にだけ、簡約後のlower/upperから共通変数を選んで`lo|α&up`の形へ整える。
 
+ただし、compact上の通常role引数はboundsに加えて`Covariant | Contravariant | Invariant`の極性を持つ。
+この極性はrole解決用の生demandには使わず、解決されずにschemeの`where`へ残るresidualを簡約・freezeするための読みである。
+宣言signatureから導出したvarianceを`where`側へ反転してから、この極性としてcompact role引数へ焼き込む。
+`Covariant`ならlower境界だけを正側型として、`Contravariant`ならupper境界だけを負側型として、`Invariant`ならbounds全体を`Neu::Bounds`として扱う。
+したがってfinalな`poly::Scheme`の通常role入力は`RolePredicateArg::{Covariant(PosId), Contravariant(NegId), Invariant(NeuId)}`のいずれかで保存する。
+関連型引数はvarianceを導出しないため常に不変で、従来どおり`NeuId`として保存する。
+schemeをinstantiateして再び生demandへ戻すときは、`Covariant(pos)`を`pos <: Top`、`Contravariant(neg)`を`Bot <: neg`、`Invariant(neu)`を`Neu::Bounds(lower, upper)`由来の区間として戻す。
+
 同じrole制約が共通変数を通じて同一componentへ併合されるときも、同じ場所に来たrole引数同士は`CompactBounds`のmerge規則で併合する。
 したがって、同じ通常引数位置や同じ関連型名の値に複数のboundsが来た場合は、constructor引数やeffect family引数と同じく`loA <: upB`と`loB <: upA`の交差条件を生成し、制約が増えた場合は再collectを要求する。
 これはrole解決の見かけの正規化ではなく、同じ実引数を要求するrole demand同士が同時に成立するための制約である。

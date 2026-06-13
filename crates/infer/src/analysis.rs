@@ -8,8 +8,8 @@ use std::collections::VecDeque;
 
 use poly::expr::{Arena as PolyArena, Def, DefId, RefId, SelectId, SelectResolution};
 use poly::types::{
-    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, Scheme, Subtractability,
-    TypeArena, TypeVar,
+    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, RolePredicateArg, Scheme,
+    Subtractability, TypeArena, TypeVar,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -1140,7 +1140,7 @@ impl AnalysisSession {
             inputs: predicate
                 .inputs
                 .iter()
-                .map(|input| self.role_arg_from_neu(*input))
+                .map(|input| self.role_arg_from_predicate_arg(*input))
                 .collect(),
             associated: predicate
                 .associated
@@ -1150,6 +1150,20 @@ impl AnalysisSession {
                     value: self.role_arg_from_neu(associated.value),
                 })
                 .collect(),
+        }
+    }
+
+    fn role_arg_from_predicate_arg(&mut self, arg: RolePredicateArg) -> RoleConstraintArg {
+        match arg {
+            RolePredicateArg::Covariant(lower) => RoleConstraintArg {
+                lower,
+                upper: self.infer.alloc_neg(Neg::Top),
+            },
+            RolePredicateArg::Contravariant(upper) => RoleConstraintArg {
+                lower: self.infer.alloc_pos(Pos::Bot),
+                upper,
+            },
+            RolePredicateArg::Invariant(neu) => self.role_arg_from_neu(neu),
         }
     }
 
