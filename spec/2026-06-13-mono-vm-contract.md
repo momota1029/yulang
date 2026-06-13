@@ -158,6 +158,27 @@ VM はこの node がある場所だけで thunk を実行する。
 record field、tuple element、関数引数、戻り値など first-class value として運ばれる thunk は、
 `ForceThunk` なしに勝手に実行してはならない。
 
+### Thunk-to-thunk boundary
+
+`Type::Thunk` から `Type::Thunk` への境界は、`Coerce` ではなく lazy な thunk value として表す。
+この境界は、source thunk をその場で評価して target thunk の値を作る処理ではない。
+
+VM は次の形として読む。
+
+```text
+make target thunk:
+  when forced:
+    value = force source thunk
+    adapt value from source.value to target.value
+    return value
+```
+
+`source.effect` と `target.effect` は specialize 済みの effect contract である。
+force されるまで effect request は発生しない。
+
+この規則が必要な理由は、handler 引数の thunk を `Coerce { source: thunk, target: thunk }` として
+実行すると、`Coerce` が内側式を先に評価し、handler に渡る前に effect が漏れるためである。
+
 ### FunctionAdapter
 
 ```text
@@ -223,6 +244,31 @@ depth の意味は runtime guard marker spec に従う。
 id を付けて外側 handler へ素通りさせるための marker である。
 詳細な request 判定、dynamic unwind、lazy propagation は
 [`2026-06-13-runtime-guard-markers.md`](2026-06-13-runtime-guard-markers.md) に従う。
+
+### MarkerFrame
+
+```text
+MarkerFrame {
+  path: EffectPath,
+  body: Expr,
+}
+```
+
+`MarkerFrame` は stack handler invocation の body を囲む runtime guard marker frame である。
+handler 関数値ではなく、handler が呼び出された後の body に付く。
+
+VM は frame entry で runtime fresh `GuardId` を作り、`push([id])` した状態で `body` を評価する。
+この frame は `path` 自体の request を読めるままにし、frame 内で local function / thunk value を読むときに
+innermost active marker を shape-directed に付ける。
+
+- direct `path` request は marker depth が 1 の frame 内で発生するため、handler 自身が読める。
+- frame 内で読んだ function value を 1 回起動すると depth が 0 になり、その起動内の別 handler は
+  同じ request を読まずに外側へ送る。
+- nested handler の中で読んだ local value には innermost marker だけを付ける。
+  outer marker も同時に付けると、outer handler まで同じ request を読めなくなる。
+
+`MarkerFrame` は `FunctionAdapterHygiene` と同じ guard marker machinery を使うが、producer-consumer
+function boundary ではなく、stack handler の dynamic body boundary を表す。
 
 ### EffectOp
 

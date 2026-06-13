@@ -5,3 +5,10 @@ edition = "2024"
 
 [dependencies]
 mono = { path = "../mono" }
+num-bigint = "0.4"
+
+[dev-dependencies]
+infer = { path = "../infer" }
+mono-runtime = { path = "../mono-runtime" }
+sources = { path = "../sources" }
+specialize = { path = "../specialize" }

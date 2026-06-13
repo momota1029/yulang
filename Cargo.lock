@@ -294,7 +294,12 @@ dependencies = [
 name = "control-vm"
 version = "0.1.0"
 dependencies = [
+ "infer",
  "mono",
+ "mono-runtime",
+ "num-bigint",
+ "sources",
+ "specialize",
 ]
 
 [[package]]
@@ -2431,6 +2436,7 @@ dependencies = [
 name = "yulang2"
 version = "0.1.0"
 dependencies = [
+ "control-vm",
  "infer",
  "mono-runtime",
  "sources",

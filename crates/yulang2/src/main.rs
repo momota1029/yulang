@@ -76,6 +76,21 @@ fn main() {
                 }
             }
         }
+        Some("run-control") => {
+            let Some(path) = args.next() else {
+                print_usage_and_exit(&program);
+            };
+            if args.next().is_some() {
+                print_usage_and_exit(&program);
+            }
+            match yulang2::run_control_from_entry(PathBuf::from(path)) {
+                Ok(output) => print_run_control_output(&output),
+                Err(error) => {
+                    eprintln!("{error}");
+                    process::exit(1);
+                }
+            }
+        }
         Some("dump-poly-std") => {
             let Some(path) = args.next() else {
                 print_usage_and_exit(&program);
@@ -115,6 +130,21 @@ fn main() {
             }
             match yulang2::run_mono_from_entry_with_std(PathBuf::from(path)) {
                 Ok(output) => print_run_mono_output(&output),
+                Err(error) => {
+                    eprintln!("{error}");
+                    process::exit(1);
+                }
+            }
+        }
+        Some("run-control-std") => {
+            let Some(path) = args.next() else {
+                print_usage_and_exit(&program);
+            };
+            if args.next().is_some() {
+                print_usage_and_exit(&program);
+            }
+            match yulang2::run_control_from_entry_with_std(PathBuf::from(path)) {
+                Ok(output) => print_run_control_output(&output),
                 Err(error) => {
                     eprintln!("{error}");
                     process::exit(1);
@@ -240,6 +270,13 @@ fn print_run_mono_output(output: &yulang2::RunMonoOutput) {
     }
 }
 
+fn print_run_control_output(output: &yulang2::RunControlOutput) {
+    print!("{}", output.text);
+    for error in &output.errors {
+        eprintln!("error: {error}");
+    }
+}
+
 fn print_check_poly_output(output: &yulang2::CheckPolyOutput) {
     print!("{}", output.text);
 }
@@ -249,9 +286,11 @@ fn print_usage_and_exit(program: &str) -> ! {
     eprintln!("       {program} dump-poly-raw <path>");
     eprintln!("       {program} dump-mono <path>");
     eprintln!("       {program} run-mono <path>");
+    eprintln!("       {program} run-control <path>");
     eprintln!("       {program} dump-poly-std <path>");
     eprintln!("       {program} dump-mono-std <path>");
     eprintln!("       {program} run-mono-std <path>");
+    eprintln!("       {program} run-control-std <path>");
     eprintln!("       {program} check-poly-std <path>");
     eprintln!("       {program} check-poly-std-in <path> <module>");
     eprintln!("       {program} dump-poly-std-in <path> <module>");

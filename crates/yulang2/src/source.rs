@@ -38,6 +38,11 @@ pub fn run_mono_from_entry(entry: impl AsRef<FsPath>) -> Result<RunMonoOutput, R
     run_mono_from_sources(collect_local_sources(entry)?)
 }
 
+/// entry file から local module file を読み、control VM で root を実行する。
+pub fn run_control_from_entry(entry: impl AsRef<FsPath>) -> Result<RunControlOutput, RouteError> {
+    run_control_from_sources(collect_local_sources(entry)?)
+}
+
 /// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで poly dump を返す。
 ///
 /// デバッグ用の暫定入口。install 済み std ではなく、entry の親から上へ辿って見つかる
@@ -70,6 +75,13 @@ pub fn run_mono_from_entry_with_std(
     entry: impl AsRef<FsPath>,
 ) -> Result<RunMonoOutput, RouteError> {
     run_mono_from_sources(collect_local_sources_with_std(entry)?)
+}
+
+/// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで control VM を実行する。
+pub fn run_control_from_entry_with_std(
+    entry: impl AsRef<FsPath>,
+) -> Result<RunControlOutput, RouteError> {
+    run_control_from_sources(collect_local_sources_with_std(entry)?)
 }
 
 /// entry file と近場の `lib/std.yu` を読み、dump なしで型付け状況を集計する。
@@ -186,6 +198,15 @@ pub struct RunMonoOutput {
     pub values: Vec<mono_runtime::Value>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct RunControlOutput {
+    pub text: String,
+    pub file_count: usize,
+    /// body lowering が報告したエラーの表示用整形。実行結果とは別に stderr へ流す。
+    pub errors: Vec<String>,
+    pub values: Vec<control_vm::Value>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CheckPolyOutput {
     pub text: String,
@@ -242,6 +263,7 @@ pub enum RouteError {
     Lower(infer::LoadedFilesError),
     Specialize(specialize::SpecializeError),
     Runtime(mono_runtime::RuntimeError),
+    Control(control_vm::RunError),
 }
 
 impl fmt::Display for RouteError {
@@ -310,6 +332,7 @@ impl fmt::Display for RouteError {
             RouteError::Lower(error) => write!(f, "{error}"),
             RouteError::Specialize(error) => write!(f, "{error}"),
             RouteError::Runtime(error) => write!(f, "{error}"),
+            RouteError::Control(error) => write!(f, "{error}"),
         }
     }
 }
@@ -565,6 +588,17 @@ fn run_mono_from_sources(files: Vec<CollectedSource>) -> Result<RunMonoOutput, R
     let values = mono_runtime::run_program(&output.program).map_err(RouteError::Runtime)?;
     Ok(RunMonoOutput {
         text: format_run_mono_values(&values),
+        file_count: output.file_count,
+        errors: output.errors,
+        values,
+    })
+}
+
+fn run_control_from_sources(files: Vec<CollectedSource>) -> Result<RunControlOutput, RouteError> {
+    let output = specialize_mono_from_sources(files)?;
+    let values = control_vm::run_mono_program(&output.program).map_err(RouteError::Control)?;
+    Ok(RunControlOutput {
+        text: format!("run roots {}\n", control_vm::format_values(&values)),
         file_count: output.file_count,
         errors: output.errors,
         values,
@@ -1380,6 +1414,20 @@ mod tests {
     }
 
     #[test]
+    fn run_control_without_std_runs_apply_colon_block_argument() {
+        let root = temp_root("run-control-apply-colon-block-arg");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "my id x = x\nid:\n  my x = 1\n  x\n").unwrap();
+
+        let output = run_control_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_eq!(output.values, vec![control_vm::Value::Int(1)]);
+        assert_eq!(output.text, "run roots [1]\n");
+    }
+
+    #[test]
     fn run_mono_without_std_runs_polymorphic_stack_handler_call() {
         let root = temp_root("run-mono-stack-handler");
         let _ = fs::remove_dir_all(&root);
@@ -1428,6 +1476,34 @@ mod tests {
 
         assert_eq!(output.file_count, 1);
         assert_eq!(output.values, vec![mono_runtime::Value::Int(0)]);
+        assert_eq!(output.text, "run roots [0]\n");
+    }
+
+    #[test]
+    fn run_control_without_std_keeps_stack_handler_hygiene() {
+        let root = temp_root("run-control-stack-handler-hygiene");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "pub act sub 'a:\n\
+             \x20 pub return: 'a -> never\n\
+             \x20 pub sub(x: [_] 'a): 'a = catch x:\n\
+             \x20 \x20 return a, _ -> a\n\
+             \x20 \x20 a -> a\n\n\
+             our g h = sub::sub:\n\
+             \x20 h 0\n\
+             \x20 sub::return 1\n\n\
+             sub::sub:\n\
+             \x20 g \\i -> sub::return i\n\
+             \x20 sub::return 2\n",
+        )
+        .unwrap();
+
+        let output = run_control_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_eq!(output.values, vec![control_vm::Value::Int(0)]);
         assert_eq!(output.text, "run roots [0]\n");
     }
 
