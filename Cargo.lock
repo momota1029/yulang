@@ -291,6 +291,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "control-vm"
+version = "0.1.0"
+dependencies = [
+ "mono",
+]
+
+[[package]]
 name = "copy-range"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -982,6 +989,17 @@ name = "mono"
 version = "0.1.0"
 dependencies = [
  "num-bigint",
+]
+
+[[package]]
+name = "mono-runtime"
+version = "0.1.0"
+dependencies = [
+ "infer",
+ "mono",
+ "num-bigint",
+ "sources",
+ "specialize",
 ]
 
 [[package]]

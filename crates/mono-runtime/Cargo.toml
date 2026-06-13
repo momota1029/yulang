@@ -1,0 +1,13 @@
+[package]
+name = "mono-runtime"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+mono = { path = "../mono" }
+num-bigint = "0.4"
+
+[dev-dependencies]
+infer = { path = "../infer" }
+sources = { path = "../sources" }
+specialize = { path = "../specialize" }
