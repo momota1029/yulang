@@ -12,7 +12,6 @@ use rustc_hash::FxHashMap;
 /// `role_predicates` は型クラス相当の未解決 role 制約を、通常の型本体から分けて残す。
 /// `recursive_bounds` は compact finalize で分離した再帰変数の side table。
 /// `stack_quantifiers` は `StackWeight` 内に残る `#id` の量化集合。
-/// `subtracts` は subtract table 由来の side table で、`#id` の量化そのものとは分けて持つ。
 #[derive(Clone)]
 pub struct Scheme {
     pub quantifiers: Vec<TypeVar>,
@@ -20,7 +19,6 @@ pub struct Scheme {
     pub recursive_bounds: Vec<SchemeRecursiveBound>,
     pub stack_quantifiers: Vec<SubtractId>,
     pub predicate: PosId,
-    pub subtracts: Vec<SchemeSubtractFact>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,17 +29,6 @@ pub struct Scheme {
 pub struct SchemeRecursiveBound {
     pub var: TypeVar,
     pub bounds: NeuId,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-/// scheme に残る旧 `S-subtract(α, #a)` fact。
-///
-/// `subtractability` は scheme 側の `TypeArena` に載った `NeuId` を参照する。instantiate はこの fact を
-/// fresh 化して infer 側の subtract table へ戻す。
-pub struct SchemeSubtractFact {
-    pub var: TypeVar,
-    pub id: SubtractId,
-    pub subtractability: Subtractability,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

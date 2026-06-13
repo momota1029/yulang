@@ -61,9 +61,6 @@ impl<'a> RawTypeDumper<'a> {
         for bound in &scheme.recursive_bounds {
             self.mark_neu(bound.bounds);
         }
-        for fact in &scheme.subtracts {
-            self.mark_subtractability(&fact.subtractability);
-        }
 
         let mut out = String::new();
         let _ = writeln!(out, "scheme {{");
@@ -89,18 +86,6 @@ impl<'a> RawTypeDumper<'a> {
             let _ = writeln!(out, "  recursive_bounds:");
             for bound in &scheme.recursive_bounds {
                 let _ = writeln!(out, "    {} = {}", var(bound.var), neu_ref(bound.bounds));
-            }
-        }
-        if !scheme.subtracts.is_empty() {
-            let _ = writeln!(out, "  subtracts:");
-            for fact in &scheme.subtracts {
-                let _ = writeln!(
-                    out,
-                    "    {}: #{} = {}",
-                    var(fact.var),
-                    fact.id.0,
-                    self.subtractability(&fact.subtractability)
-                );
             }
         }
         self.write_types(&mut out, 1);

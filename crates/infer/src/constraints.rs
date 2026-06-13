@@ -4,7 +4,7 @@
 //! 伝播で増えた下界・上界は event として外へ出し、selection や SCC の別 machine が反応できる。
 //!
 //! effect row の subtraction は `stack(T, @S)` と weighted edge として表す。
-//! 旧 subtract fact table は古い scheme との互換入口として残すが、新しい制約生成はここへ依存しない。
+//! subtract fact table は注釈・データ宣言由来の stack id を記録し、generalize の pruning 入力にする。
 
 use std::collections::VecDeque;
 

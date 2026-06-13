@@ -81,7 +81,6 @@ mod tests {
                 recursive_bounds: Vec::new(),
                 stack_quantifiers: Vec::new(),
                 predicate: PosId(0),
-                subtracts: Vec::new(),
             },
         );
 

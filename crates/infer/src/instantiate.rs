@@ -68,10 +68,6 @@ impl<'a> SchemeInstantiator<'a> {
         for id in &scheme.stack_quantifiers {
             self.fresh_subtract(*id);
         }
-        for fact in &scheme.subtracts {
-            self.fresh_subtract(fact.id);
-        }
-        self.clone_scheme_subtract_facts(scheme);
         self.clone_recursive_bounds(scheme);
         let predicate = self.clone_pos(scheme.predicate);
         let predicate = self.wrap_predicate_with_stack_pops(predicate, &scheme.stack_quantifiers);
@@ -302,16 +298,6 @@ impl<'a> SchemeInstantiator<'a> {
         self.target.alloc_neu(neu)
     }
 
-    fn clone_scheme_subtract_facts(&mut self, scheme: &Scheme) {
-        for fact in &scheme.subtracts {
-            let target_var = self.clone_var(fact.var);
-            let target_id = self.clone_subtract(fact.id);
-            let subtractability = self.clone_subtractability(fact.subtractability.clone());
-            self.target
-                .subtract_fact(target_var, target_id, subtractability);
-        }
-    }
-
     fn clone_subtractability(&mut self, subtractability: Subtractability) -> Subtractability {
         match subtractability {
             Subtractability::Empty => Subtractability::Empty,
@@ -514,7 +500,6 @@ mod tests {
             recursive_bounds: Vec::new(),
             stack_quantifiers: vec![source_stack],
             predicate,
-            subtracts: Vec::new(),
         };
         let mut target = InferArena::new();
 

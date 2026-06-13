@@ -2190,8 +2190,7 @@ mod tests {
     use crate::uses::{RefUse, SelectionUse};
     use poly::expr::{Arena as PolyArena, Expr, Lit, Vis};
     use poly::types::{
-        Neg, Neu, NeuId, Pos, Scheme, SchemeRecursiveBound, SchemeSubtractFact, SubtractId,
-        Subtractability, TypeVar,
+        Neg, Neu, NeuId, Pos, Scheme, SchemeRecursiveBound, SubtractId, Subtractability, TypeVar,
     };
 
     #[test]
@@ -2292,7 +2291,6 @@ mod tests {
                 recursive_bounds: Vec::new(),
                 stack_quantifiers: Vec::new(),
                 predicate: cast_predicate,
-                subtracts: Vec::new(),
             },
         );
 
@@ -3056,7 +3054,6 @@ mod tests {
                     recursive_bounds: Vec::new(),
                     stack_quantifiers: Vec::new(),
                     predicate,
-                    subtracts: Vec::new(),
                 }),
                 body: None,
                 children: Vec::new(),
@@ -3094,7 +3091,7 @@ mod tests {
     }
 
     #[test]
-    fn instantiate_use_freshens_non_subtract_weight_ids() {
+    fn instantiate_use_freshens_non_subtract_stack_quantifier_id() {
         let mut poly = PolyArena::new();
         let def = poly.defs.fresh();
         let quantified = TypeVar(42);
@@ -3109,13 +3106,8 @@ mod tests {
                     quantifiers: vec![quantified],
                     role_predicates: Vec::new(),
                     recursive_bounds: Vec::new(),
-                    stack_quantifiers: Vec::new(),
+                    stack_quantifiers: vec![source_subtract],
                     predicate,
-                    subtracts: vec![SchemeSubtractFact {
-                        var: quantified,
-                        id: source_subtract,
-                        subtractability: Subtractability::Empty,
-                    }],
                 }),
                 body: None,
                 children: Vec::new(),
@@ -3150,16 +3142,6 @@ mod tests {
             .expect("non-subtract should add a fresh left weight to the instantiated bound");
         assert_ne!(fresh_var, quantified);
         assert_ne!(fresh_subtract, source_subtract);
-        assert!(
-            session
-                .infer
-                .constraints()
-                .subtracts()
-                .facts(fresh_var)
-                .iter()
-                .any(|fact| fact.id == fresh_subtract
-                    && matches!(fact.subtractability, Subtractability::Empty))
-        );
     }
 
     #[test]
@@ -3184,7 +3166,6 @@ mod tests {
                     }],
                     stack_quantifiers: Vec::new(),
                     predicate,
-                    subtracts: Vec::new(),
                 }),
                 body: None,
                 children: Vec::new(),
@@ -4057,7 +4038,6 @@ mod tests {
             recursive_bounds: Vec::new(),
             stack_quantifiers: Vec::new(),
             predicate,
-            subtracts: Vec::new(),
         }
     }
 
@@ -4085,7 +4065,6 @@ mod tests {
             recursive_bounds: Vec::new(),
             stack_quantifiers: Vec::new(),
             predicate,
-            subtracts: Vec::new(),
         }
     }
 

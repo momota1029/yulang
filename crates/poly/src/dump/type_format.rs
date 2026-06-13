@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 
 use crate::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, RolePredicateArg, Scheme,
-    SchemeSubtractFact, StackWeight, SubtractId, Subtractability, TypeArena, TypeVar,
+    StackWeight, SubtractId, Subtractability, TypeArena, TypeVar,
 };
 
 /// scheme を `list 'a` や `'a [io; 'e] -> ['e] 'a` のような短い構文風表記で返す。
@@ -161,7 +161,6 @@ impl<'a> TypeFormatter<'a> {
                 .iter()
                 .map(|predicate| self.role_predicate(predicate)),
         );
-        predicates.extend(scheme.subtracts.iter().map(|fact| self.subtract_fact(fact)));
         if !predicates.is_empty() {
             let facts = predicates.join(", ");
             body.push_str(" where ");
@@ -220,44 +219,6 @@ impl<'a> TypeFormatter<'a> {
         let mut parts = args.into_iter().map(|arg| arg.text).collect::<Vec<_>>();
         parts.extend(associated);
         format!("{}({})", role, parts.join(", "))
-    }
-
-    fn subtract_fact(&mut self, fact: &SchemeSubtractFact) -> String {
-        format!(
-            "{}: {}{}",
-            self.namer.name(fact.var),
-            self.subtractability_name(&fact.subtractability),
-            self.subtract_id(fact.id)
-        )
-    }
-
-    fn subtractability_name(&mut self, subtractability: &Subtractability) -> String {
-        match subtractability {
-            Subtractability::Empty => "empty-subtract".to_string(),
-            Subtractability::All => "all-subtract".to_string(),
-            Subtractability::AllExcept(path, args) => {
-                format!("{}-except-subtract", self.subtractability_head(path, args))
-            }
-            Subtractability::AllExceptMany(families) => {
-                let heads = families
-                    .iter()
-                    .map(|(path, args)| self.subtractability_head(path, args))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                format!("[{}]-except-subtract", heads)
-            }
-            Subtractability::Set(path, args) => {
-                format!("{}-subtract", self.subtractability_head(path, args))
-            }
-            Subtractability::SetMany(families) => {
-                let heads = families
-                    .iter()
-                    .map(|(path, args)| self.subtractability_head(path, args))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                format!("[{}]-subtract", heads)
-            }
-        }
     }
 
     fn subtractability_head(&mut self, path: &[String], args: &[NeuId]) -> String {
@@ -1267,7 +1228,6 @@ mod tests {
             recursive_bounds: Vec::new(),
             stack_quantifiers: Vec::new(),
             predicate,
-            subtracts: Vec::new(),
         };
 
         assert_eq!(
@@ -1309,7 +1269,6 @@ mod tests {
             recursive_bounds: Vec::new(),
             stack_quantifiers: Vec::new(),
             predicate,
-            subtracts: Vec::new(),
         };
 
         assert_eq!(format_scheme(&arena, &scheme), "'a -> ['b] 'a");
@@ -1335,7 +1294,6 @@ mod tests {
             recursive_bounds: Vec::new(),
             stack_quantifiers: Vec::new(),
             predicate,
-            subtracts: Vec::new(),
         };
 
         assert_eq!(format_scheme(&arena, &scheme), "'a -> 'a");
@@ -1377,7 +1335,6 @@ mod tests {
             recursive_bounds: Vec::new(),
             stack_quantifiers: Vec::new(),
             predicate,
-            subtracts: Vec::new(),
         };
 
         assert_eq!(
@@ -1458,61 +1415,28 @@ mod tests {
             recursive_bounds: Vec::new(),
             stack_quantifiers: vec![subtract],
             predicate: list_a,
-            subtracts: Vec::new(),
         };
 
         assert_eq!(format_scheme(&arena, &scheme), "list 'a");
     }
 
     #[test]
-    fn formats_scheme_subtract_facts_when_present() {
-        let mut arena = TypeArena::new();
-        let a = TypeVar(0);
-        let predicate = arena.alloc_pos(Pos::Var(a));
-        let scheme = Scheme {
-            quantifiers: vec![a],
-            role_predicates: Vec::new(),
-            recursive_bounds: Vec::new(),
-            stack_quantifiers: Vec::new(),
-            predicate,
-            subtracts: vec![crate::types::SchemeSubtractFact {
-                var: a,
-                id: SubtractId(2),
-                subtractability: crate::types::Subtractability::Empty,
-            }],
-        };
-
-        assert_eq!(
-            format_scheme(&arena, &scheme),
-            "'a where 'a: empty-subtract#2"
-        );
-    }
-
-    #[test]
-    fn brackets_subtractability_head_with_bare_space() {
+    fn brackets_stack_subtractability_head_with_bare_space() {
         let mut arena = TypeArena::new();
         let a = TypeVar(0);
         let neu_a = plain_neu(&mut arena, a);
-        let predicate = arena.alloc_pos(Pos::Var(a));
-        let scheme = Scheme {
-            quantifiers: vec![a],
-            role_predicates: Vec::new(),
-            recursive_bounds: Vec::new(),
-            stack_quantifiers: Vec::new(),
-            predicate,
-            subtracts: vec![crate::types::SchemeSubtractFact {
-                var: a,
-                id: SubtractId(2),
-                subtractability: crate::types::Subtractability::Set(
-                    vec!["&var".into()],
-                    vec![neu_a],
-                ),
-            }],
-        };
+        let inner = arena.alloc_pos(Pos::Var(a));
+        let stacked = arena.alloc_pos(Pos::Stack {
+            inner,
+            weight: StackWeight::push(
+                SubtractId(2),
+                crate::types::Subtractability::Set(vec!["&var".into()], vec![neu_a]),
+            ),
+        });
 
         assert_eq!(
-            format_scheme(&arena, &scheme),
-            "'a where 'a: [&var 'a]-subtract#2"
+            format_pos(&arena, stacked),
+            "stack('a, { #2 -> pop(0)[[&var 'a]] })"
         );
     }
 
@@ -1542,7 +1466,6 @@ mod tests {
             recursive_bounds: Vec::new(),
             stack_quantifiers: Vec::new(),
             predicate,
-            subtracts: Vec::new(),
         };
 
         assert_eq!(
@@ -1577,7 +1500,6 @@ mod tests {
             recursive_bounds: Vec::new(),
             stack_quantifiers: Vec::new(),
             predicate,
-            subtracts: Vec::new(),
         };
 
         assert_eq!(

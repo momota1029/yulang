@@ -296,7 +296,7 @@ fn sort_checked_defs(defs: &mut [CheckedDef]) {
 }
 
 fn scheme_has_stack(arena: &TypeArena, scheme: &Scheme) -> bool {
-    if !scheme.stack_quantifiers.is_empty() || !scheme.subtracts.is_empty() {
+    if !scheme.stack_quantifiers.is_empty() {
         return true;
     }
     let mut scan = StackScan::default();
