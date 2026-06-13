@@ -615,6 +615,11 @@ item 型を読み、spread pattern には list 全体の型を渡す。
 record field selection は base expression の `Record` 型から field 名で result 型を読む。
 base 型がまだ open な場合は、選択 field だけを持つ `Record` expected を base へ戻し、field 型 slot を
 selection result として使う。
+method selection は `poly::SelectResolution::Method { def }` の `def` を runtime method identity として
+保持する。specialize は method def の scheme を fresh instantiate し、最初の receiver 引数を base
+expression の expected 型へ流し、method の return 型を selection result として使う。mono instance は
+`receiver_actual -> selection_actual` の concrete function 型で作り、generic method の型引数を unit
+などへ default しない。追加引数を持つ method では、selection result が残りの関数型になる。
 
 top-level `FetchComputation` binding は source order の runtime root として materialize される。
 `my run = out::say(1); my handled = catch run: ...` の `catch run` は `run` の RHS を handler の

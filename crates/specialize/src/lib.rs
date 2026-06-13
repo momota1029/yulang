@@ -187,7 +187,13 @@ impl Specializer {
                 ExprKind::Select {
                     base: Box::new(self.expr(arena, plan, *base)?),
                     name: select.name.clone(),
-                    resolution: self.select_resolution(arena, select.resolution)?,
+                    resolution: self.select_resolution(
+                        arena,
+                        plan,
+                        *base,
+                        expr,
+                        select.resolution,
+                    )?,
                 }
             }
             PolyExpr::Case(scrutinee, arms) => ExprKind::Case {
@@ -335,6 +341,9 @@ impl Specializer {
     fn select_resolution(
         &mut self,
         arena: &poly_expr::Arena,
+        plan: &solve::ExprTypePlan,
+        base: poly_expr::ExprId,
+        select: poly_expr::ExprId,
         resolution: Option<poly_expr::SelectResolution>,
     ) -> Result<Option<SelectResolution>, SpecializeError> {
         match resolution {
@@ -343,8 +352,9 @@ impl Specializer {
                 Ok(Some(SelectResolution::RecordField))
             }
             Some(poly_expr::SelectResolution::Method { def }) => {
+                let expected = method_instance_expected_type(plan, base, select);
                 Ok(Some(SelectResolution::Method {
-                    instance: self.ensure_def_instance(arena, def, None)?,
+                    instance: self.ensure_def_instance(arena, def, expected.as_ref())?,
                 }))
             }
             Some(poly_expr::SelectResolution::TypeclassMethod { member }) => {
@@ -669,6 +679,16 @@ fn force_root_expr_if_thunk(
         return expr;
     };
     boundary_expr(actual, value, expr)
+}
+
+fn method_instance_expected_type(
+    plan: &solve::ExprTypePlan,
+    base: poly_expr::ExprId,
+    select: poly_expr::ExprId,
+) -> Option<Type> {
+    let receiver = plan.actual_type_of(base)?.clone();
+    let result = plan.actual_type_of(select)?.clone();
+    Some(types::pure_function_type(receiver, result))
 }
 
 fn function_boundary_types(actual: &Type, expected: &Type) -> bool {

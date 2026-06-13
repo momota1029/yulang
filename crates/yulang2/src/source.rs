@@ -1288,6 +1288,52 @@ mod tests {
     }
 
     #[test]
+    fn dump_mono_without_std_specializes_method_select_result() {
+        let root = temp_root("dump-mono-method-select-result");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "type User with:\n\
+             \x20 our x.id = x\n\
+             my u: User = 1\n\
+             my keep x = x\n\
+             keep(u.id)\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(&output, ".id <method>");
+        assert_mono_dump_contains(&output, "m0 = d3 : User -> User");
+        assert_mono_dump_contains(&output, "m2 = d1 : User -> User");
+    }
+
+    #[test]
+    fn dump_mono_without_std_specializes_method_select_remaining_function() {
+        let root = temp_root("dump-mono-method-select-function");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "type User with:\n\
+             \x20 our x.pick y = y\n\
+             my u: User = 1\n\
+             my keep x = x\n\
+             keep(u.pick(1))\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(&output, ".pick <method>");
+        assert_mono_dump_contains(&output, "m0 = d3 : int -> int");
+        assert_mono_dump_contains(&output, "m2 = d1 : User -> int -> int");
+    }
+
+    #[test]
     fn dump_poly_without_std_infers_local_constructor_application() {
         let root = temp_root("dump-poly-local-constructor");
         let _ = fs::remove_dir_all(&root);

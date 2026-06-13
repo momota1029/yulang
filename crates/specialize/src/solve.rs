@@ -497,12 +497,18 @@ impl<'a> ExprTypeSolver<'a> {
         expected: Option<Type>,
     ) -> Result<Type, SpecializeError> {
         let select = self.arena.select(select);
-        if select.resolution == Some(poly_expr::SelectResolution::RecordField) {
-            return self.record_select_type(base, &select.name, expected);
+        match select.resolution {
+            Some(poly_expr::SelectResolution::RecordField) => {
+                self.record_select_type(base, &select.name, expected)
+            }
+            Some(poly_expr::SelectResolution::Method { def }) => {
+                self.method_select_type(base, def, expected)
+            }
+            Some(poly_expr::SelectResolution::TypeclassMethod { .. }) | None => {
+                self.expr(base, None)?;
+                Ok(expected.unwrap_or_else(|| self.fresh_value_slot()))
+            }
         }
-
-        self.expr(base, None)?;
-        Ok(expected.unwrap_or_else(|| self.fresh_value_slot()))
     }
 
     fn record_select_type(
@@ -528,6 +534,29 @@ impl<'a> ExprTypeSolver<'a> {
             }])),
         )?;
         Ok(field_ty)
+    }
+
+    fn method_select_type(
+        &mut self,
+        base: poly_expr::ExprId,
+        def: poly_expr::DefId,
+        _expected: Option<Type>,
+    ) -> Result<Type, SpecializeError> {
+        let Some(poly_expr::Def::Let {
+            scheme: Some(scheme),
+            ..
+        }) = self.arena.defs.get(def)
+        else {
+            self.expr(base, None)?;
+            return Ok(self.fresh_value_slot());
+        };
+        let method_ty = self.instantiate_scheme(def, scheme)?;
+        let Some((receiver_ty, result_ty)) = function_runtime_parts(&method_ty) else {
+            self.expr(base, None)?;
+            return Ok(self.fresh_value_slot());
+        };
+        self.expr(base, Some(receiver_ty))?;
+        Ok(result_ty)
     }
 
     fn bind_pat(&mut self, pat: poly_expr::PatId, ty: Type) -> Result<(), SpecializeError> {
