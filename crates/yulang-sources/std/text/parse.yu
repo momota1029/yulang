@@ -98,4 +98,5 @@ pub some(p: () -> [parse 'item 'err 'pos 'snap] 'a)(): [parse 'item 'err 'pos 's
 pub label(p: () -> [parse 'item 'err 'pos 'snap] 'a, label_text: str)(): [parse 'item 'err 'pos 'snap] 'a = catch p():
     parse::fail e, _ -> parse::fail e.label(label_text)
 
-pub word = label(some(satisfy(std::text::char::is_word)), "word")
+pub word(): [parse char 'err 'pos 'snap] list char =
+    label(some(satisfy(std::text::char::is_word)), "word")()
