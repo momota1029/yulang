@@ -638,6 +638,9 @@ effect id hygiene も同じく、runtime-lower 側の暗黙責務にしてはな
 runtime 意味、`add_id[n, path, id]` の depth、関数起動時の push / pop、resumable effect を含む
 unwind 規則は
 [`2026-06-13-runtime-guard-markers.md`](2026-06-13-runtime-guard-markers.md) が定義元である。
+`mono::Program` 全体を VM / runtime lower がどう読むか、root 評価順・Instance store・boundary node・
+VM-ready 条件を含む契約は
+[`2026-06-13-mono-vm-contract.md`](2026-06-13-mono-vm-contract.md) に置く。
 
 旧 runtime IR の `LocalPushId` / `AddId` は、型上の値 cast ではなく、effect request と
 effective thunk に付く runtime control boundary である。ただし、高階関数をさらに高階関数へ
