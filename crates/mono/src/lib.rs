@@ -194,6 +194,10 @@ pub enum ExprKind {
         function: Box<Expr>,
         hygiene: FunctionAdapterHygiene,
     },
+    MarkerFrame {
+        path: Vec<String>,
+        body: Box<Expr>,
+    },
     Apply(Box<Expr>, Box<Expr>),
     RefSet(Box<Expr>, Box<Expr>),
     Lambda(Pat, Box<Expr>),

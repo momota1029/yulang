@@ -33,6 +33,11 @@ pub fn dump_mono_from_entry(entry: impl AsRef<FsPath>) -> Result<DumpMonoOutput,
     dump_mono_from_sources(collect_local_sources(entry)?)
 }
 
+/// entry file から local module file を読み、mono runtime で root を実行する。
+pub fn run_mono_from_entry(entry: impl AsRef<FsPath>) -> Result<RunMonoOutput, RouteError> {
+    run_mono_from_sources(collect_local_sources(entry)?)
+}
+
 /// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで poly dump を返す。
 ///
 /// デバッグ用の暫定入口。install 済み std ではなく、entry の親から上へ辿って見つかる
@@ -58,6 +63,13 @@ pub fn dump_mono_from_entry_with_std(
     entry: impl AsRef<FsPath>,
 ) -> Result<DumpMonoOutput, RouteError> {
     dump_mono_from_sources(collect_local_sources_with_std(entry)?)
+}
+
+/// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで mono runtime を実行する。
+pub fn run_mono_from_entry_with_std(
+    entry: impl AsRef<FsPath>,
+) -> Result<RunMonoOutput, RouteError> {
+    run_mono_from_sources(collect_local_sources_with_std(entry)?)
 }
 
 /// entry file と近場の `lib/std.yu` を読み、dump なしで型付け状況を集計する。
@@ -165,6 +177,15 @@ pub struct DumpMonoOutput {
     pub errors: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct RunMonoOutput {
+    pub text: String,
+    pub file_count: usize,
+    /// body lowering が報告したエラーの表示用整形。実行結果とは別に stderr へ流す。
+    pub errors: Vec<String>,
+    pub values: Vec<mono_runtime::Value>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CheckPolyOutput {
     pub text: String,
@@ -220,6 +241,7 @@ pub enum RouteError {
     },
     Lower(infer::LoadedFilesError),
     Specialize(specialize::SpecializeError),
+    Runtime(mono_runtime::RuntimeError),
 }
 
 impl fmt::Display for RouteError {
@@ -287,6 +309,7 @@ impl fmt::Display for RouteError {
             ),
             RouteError::Lower(error) => write!(f, "{error}"),
             RouteError::Specialize(error) => write!(f, "{error}"),
+            RouteError::Runtime(error) => write!(f, "{error}"),
         }
     }
 }
@@ -529,6 +552,34 @@ fn dump_poly_from_sources(
 }
 
 fn dump_mono_from_sources(files: Vec<CollectedSource>) -> Result<DumpMonoOutput, RouteError> {
+    let output = specialize_mono_from_sources(files)?;
+    Ok(DumpMonoOutput {
+        text: specialize::mono::dump::dump_program(&output.program),
+        file_count: output.file_count,
+        errors: output.errors,
+    })
+}
+
+fn run_mono_from_sources(files: Vec<CollectedSource>) -> Result<RunMonoOutput, RouteError> {
+    let output = specialize_mono_from_sources(files)?;
+    let values = mono_runtime::run_program(&output.program).map_err(RouteError::Runtime)?;
+    Ok(RunMonoOutput {
+        text: format_run_mono_values(&values),
+        file_count: output.file_count,
+        errors: output.errors,
+        values,
+    })
+}
+
+struct SpecializedMonoOutput {
+    program: specialize::mono::Program,
+    file_count: usize,
+    errors: Vec<String>,
+}
+
+fn specialize_mono_from_sources(
+    files: Vec<CollectedSource>,
+) -> Result<SpecializedMonoOutput, RouteError> {
     let source_files = files
         .iter()
         .map(|file| SourceFile {
@@ -546,11 +597,98 @@ fn dump_mono_from_sources(files: Vec<CollectedSource>) -> Result<DumpMonoOutput,
         .collect();
     let program =
         specialize::specialize(&dump.lowering.session.poly).map_err(RouteError::Specialize)?;
-    Ok(DumpMonoOutput {
-        text: specialize::mono::dump::dump_program(&program),
+    Ok(SpecializedMonoOutput {
+        program,
         file_count: loaded.len(),
         errors,
     })
+}
+
+fn format_run_mono_values(values: &[mono_runtime::Value]) -> String {
+    let mut out = String::new();
+    let _ = write!(out, "run roots [");
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            let _ = write!(out, ", ");
+        }
+        let _ = write!(out, "{}", format_runtime_value(value));
+    }
+    let _ = writeln!(out, "]");
+    out
+}
+
+fn format_runtime_value(value: &mono_runtime::Value) -> String {
+    match value {
+        mono_runtime::Value::Int(value) => value.to_string(),
+        mono_runtime::Value::BigInt(value) => value.to_string(),
+        mono_runtime::Value::Float(value) => value.to_string(),
+        mono_runtime::Value::Str(value) => format!("{value:?}"),
+        mono_runtime::Value::Bool(value) => value.to_string(),
+        mono_runtime::Value::Unit => "()".to_string(),
+        mono_runtime::Value::Tuple(values) => format_delimited_values("(", ")", values),
+        mono_runtime::Value::Record(fields) => {
+            let mut out = String::new();
+            out.push('{');
+            for (index, field) in fields.iter().enumerate() {
+                if index > 0 {
+                    out.push_str(", ");
+                }
+                let _ = write!(
+                    out,
+                    "{}: {}",
+                    field.name,
+                    format_runtime_value(&field.value)
+                );
+            }
+            out.push('}');
+            out
+        }
+        mono_runtime::Value::PolyVariant { tag, payloads } => {
+            if payloads.is_empty() {
+                return tag.clone();
+            }
+            format!("{tag}{}", format_delimited_values("(", ")", payloads))
+        }
+        mono_runtime::Value::Closure(_) => "<closure>".to_string(),
+        mono_runtime::Value::Thunk(_) => "<thunk>".to_string(),
+        mono_runtime::Value::FunctionAdapter(_) => "<function-adapter>".to_string(),
+        mono_runtime::Value::EffectOp { path } => format!("<effect-op {}>", path.join("::")),
+        mono_runtime::Value::Continuation(id) => format!("<continuation {}>", id.0),
+        mono_runtime::Value::Marked { value, markers } => {
+            let mut out = format_runtime_value(value);
+            out.push_str(" @ [");
+            for (index, marker) in markers.iter().enumerate() {
+                if index > 0 {
+                    out.push_str(", ");
+                }
+                let _ = write!(
+                    out,
+                    "{}#{}:{}",
+                    marker.path.join("::"),
+                    marker.id.0,
+                    marker.depth
+                );
+            }
+            out.push(']');
+            out
+        }
+    }
+}
+
+fn format_delimited_values(open: &str, close: &str, values: &[mono_runtime::Value]) -> String {
+    let mut out = String::new();
+    out.push_str(open);
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&format_runtime_value(value));
+    }
+    if values.len() == 1 && open == "(" {
+        out.push(',');
+    }
+    out.push_str(close);
+    out
 }
 
 fn format_check_poly_output(
@@ -1180,8 +1318,9 @@ mod tests {
         let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
 
         assert_eq!(output.file_count, 1);
-        assert_mono_dump_contains(&output, "mono roots [(m0 coerce");
+        assert_mono_dump_contains(&output, "mono roots [(m0 make-thunk");
         assert_mono_dump_contains(&output, "m0 = d2 : thunk[");
+        assert_mono_dump_contains(&output, "marker[signal]");
         assert_mono_dump_contains(&output, " -> int");
         assert!(!output.text.contains("stack("), "{}", output.text);
     }
@@ -1206,9 +1345,90 @@ mod tests {
         let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
 
         assert_eq!(output.file_count, 1);
-        assert_mono_dump_contains(&output, "mono roots [(m0 coerce");
+        assert_mono_dump_contains(&output, "mono roots [(m0 make-thunk");
         assert_mono_dump_contains(&output, "m0 = d2 : thunk[[sub(int)], int] -> int");
+        assert_mono_dump_contains(&output, "marker[sub]");
         assert_mono_dump_contains(&output, "sub::return d");
+    }
+
+    #[test]
+    fn run_mono_without_std_runs_root_expression() {
+        let root = temp_root("run-mono-root-expr");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "1\n").unwrap();
+
+        let output = run_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_eq!(output.values, vec![mono_runtime::Value::Int(1)]);
+        assert_eq!(output.text, "run roots [1]\n");
+    }
+
+    #[test]
+    fn run_mono_without_std_runs_apply_colon_block_argument() {
+        let root = temp_root("run-mono-apply-colon-block-arg");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "my id x = x\nid:\n  my x = 1\n  x\n").unwrap();
+
+        let output = run_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_eq!(output.values, vec![mono_runtime::Value::Int(1)]);
+        assert_eq!(output.text, "run roots [1]\n");
+    }
+
+    #[test]
+    fn run_mono_without_std_runs_polymorphic_stack_handler_call() {
+        let root = temp_root("run-mono-stack-handler");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "pub act sub 'a:\n\
+             \x20 pub return: 'a -> never\n\
+             \x20 pub sub(x: [_] 'a): 'a = catch x:\n\
+             \x20 \x20 return a, _ -> a\n\
+             \x20 \x20 a -> a\n\n\
+             sub::sub:\n\
+             \x20 sub::return 0\n",
+        )
+        .unwrap();
+
+        let output = run_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_eq!(output.values, vec![mono_runtime::Value::Int(0)]);
+        assert_eq!(output.text, "run roots [0]\n");
+    }
+
+    #[test]
+    fn run_mono_without_std_keeps_stack_handler_hygiene() {
+        let root = temp_root("run-mono-stack-handler-hygiene");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "pub act sub 'a:\n\
+             \x20 pub return: 'a -> never\n\
+             \x20 pub sub(x: [_] 'a): 'a = catch x:\n\
+             \x20 \x20 return a, _ -> a\n\
+             \x20 \x20 a -> a\n\n\
+             our g h = sub::sub:\n\
+             \x20 h 0\n\
+             \x20 sub::return 1\n\n\
+             sub::sub:\n\
+             \x20 g \\i -> sub::return i\n\
+             \x20 sub::return 2\n",
+        )
+        .unwrap();
+
+        let output = run_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_eq!(output.values, vec![mono_runtime::Value::Int(0)]);
+        assert_eq!(output.text, "run roots [0]\n");
     }
 
     #[test]

@@ -83,8 +83,12 @@ impl Specializer {
         match root {
             poly_expr::RuntimeRoot::Expr(expr) => {
                 let plan = solve::solve_expr(arena, expr, None)?;
-                let expr = self.expr(arena, &plan, expr)?;
-                Ok(Root::Expr(force_root_expr_if_thunk(&plan, root, expr)))
+                let expr_id = expr;
+                let expr = self.expr(arena, &plan, expr_id)?;
+                Ok(Root::Expr(force_expr_if_thunk(
+                    plan.actual_type_of(expr_id),
+                    expr,
+                )))
             }
             poly_expr::RuntimeRoot::ComputedDef(def) => {
                 Ok(Root::Instance(self.ensure_def_instance(arena, def, None)?))
@@ -114,6 +118,7 @@ impl Specializer {
                 def: convert_def(def),
             });
         };
+        let wraps_stack_handler = !scheme.stack_quantifiers.is_empty();
         let signature = types::signature_for_scheme(arena, def, scheme, expected)?;
         let key = InstanceKey {
             def,
@@ -134,6 +139,11 @@ impl Specializer {
 
         let plan = solve::solve_expr(arena, body, Some(&signature.ty))?;
         let body = self.expr(arena, &plan, body)?;
+        let body = if wraps_stack_handler {
+            wrap_stack_handler_marker(&signature.ty, body)
+        } else {
+            body
+        };
         self.instances[id.0 as usize] = Some(Instance {
             id,
             source: InstanceSource::Def(convert_def(def)),
@@ -417,7 +427,11 @@ impl Specializer {
                     self.pat(arena, *pat)?,
                     self.expr(arena, plan, *value)?,
                 )),
-                poly_expr::Stmt::Expr(expr) => Ok(Stmt::Expr(self.expr(arena, plan, *expr)?)),
+                poly_expr::Stmt::Expr(expr) => {
+                    let actual = plan.actual_type_of(*expr).cloned();
+                    let expr = self.expr(arena, plan, *expr)?;
+                    Ok(Stmt::Expr(force_expr_if_thunk(actual.as_ref(), expr)))
+                }
                 poly_expr::Stmt::Module(def, body) => Ok(Stmt::Module(
                     convert_def(*def),
                     self.stmts(arena, plan, body)?,
@@ -622,6 +636,45 @@ fn lit_type(lit: &poly_expr::Lit) -> Type {
 }
 
 fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr {
+    if let (
+        Type::Thunk {
+            effect: source_effect,
+            value: source_value,
+        },
+        Type::Thunk {
+            effect: target_effect,
+            value: target_value,
+        },
+    ) = (actual, expected)
+    {
+        let forced = Expr::new(ExprKind::ForceThunk {
+            source: EffectiveThunkType {
+                effect: source_effect.as_ref().clone(),
+                value: source_value.as_ref().clone(),
+            },
+            target: ComputationType {
+                effect: source_effect.as_ref().clone(),
+                value: source_value.as_ref().clone(),
+            },
+            thunk: Box::new(expr),
+        });
+        let body = if equivalent_boundary_types(source_value, target_value) {
+            forced
+        } else {
+            boundary_expr(source_value, target_value, forced)
+        };
+        return Expr::new(ExprKind::MakeThunk {
+            source: ComputationType {
+                effect: target_effect.as_ref().clone(),
+                value: target_value.as_ref().clone(),
+            },
+            target: EffectiveThunkType {
+                effect: target_effect.as_ref().clone(),
+                value: target_value.as_ref().clone(),
+            },
+            body: Box::new(body),
+        });
+    }
     if let Type::Thunk { effect, value } = expected
         && equivalent_boundary_types(actual, value)
     {
@@ -667,18 +720,59 @@ fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr {
     })
 }
 
-fn force_root_expr_if_thunk(
-    plan: &solve::ExprTypePlan,
-    root: poly_expr::RuntimeRoot,
-    expr: Expr,
-) -> Expr {
-    let poly_expr::RuntimeRoot::Expr(root) = root else {
-        return expr;
-    };
-    let Some(actual @ Type::Thunk { value, .. }) = plan.actual_type_of(root) else {
+fn force_expr_if_thunk(actual: Option<&Type>, expr: Expr) -> Expr {
+    let Some(actual @ Type::Thunk { value, .. }) = actual else {
         return expr;
     };
     boundary_expr(actual, value, expr)
+}
+
+fn wrap_stack_handler_marker(signature: &Type, body: Expr) -> Expr {
+    let Some(path) = stack_handler_marker_path(signature) else {
+        return body;
+    };
+    // The frame belongs to the handler invocation, not to the function value itself. Wrapping the
+    // lambda value would decrement the marker before direct handler effects get a chance to run.
+    match body.kind {
+        ExprKind::Lambda(param, lambda_body) => Expr::new(ExprKind::Lambda(
+            param,
+            Box::new(Expr::new(ExprKind::MarkerFrame {
+                path,
+                body: lambda_body,
+            })),
+        )),
+        other => Expr::new(ExprKind::MarkerFrame {
+            path,
+            body: Box::new(Expr::new(other)),
+        }),
+    }
+}
+
+fn stack_handler_marker_path(signature: &Type) -> Option<Vec<String>> {
+    let Type::Fun { arg, .. } = signature else {
+        return None;
+    };
+    thunk_effect_marker_path(arg)
+}
+
+fn thunk_effect_marker_path(ty: &Type) -> Option<Vec<String>> {
+    match ty {
+        Type::Thunk { effect, .. } => effect_marker_path(effect),
+        Type::Stack { inner, .. } => thunk_effect_marker_path(inner),
+        _ => None,
+    }
+}
+
+fn effect_marker_path(effect: &Type) -> Option<Vec<String>> {
+    match effect {
+        Type::EffectRow(items) => items.iter().find_map(effect_marker_path),
+        Type::Con { path, .. } if !path.is_empty() => Some(path.clone()),
+        Type::Stack { inner, .. } => effect_marker_path(inner),
+        Type::Union(left, right) | Type::Intersection(left, right) => {
+            effect_marker_path(left).or_else(|| effect_marker_path(right))
+        }
+        _ => None,
+    }
 }
 
 fn method_instance_expected_type(

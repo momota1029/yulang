@@ -138,6 +138,9 @@ impl Dumper {
                 self.function_adapter_hygiene(hygiene),
                 self.expr(function)
             ),
+            ExprKind::MarkerFrame { path, body } => {
+                format!("marker[{}]({})", path.join("::"), self.expr(body))
+            }
             ExprKind::Apply(callee, arg) => {
                 format!("({} {})", self.expr(callee), self.expr(arg))
             }

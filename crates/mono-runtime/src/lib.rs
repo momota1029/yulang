@@ -114,10 +114,12 @@ impl<'a> Runtime<'a> {
             }),
             ExprKind::EffectOp { path } => value_result(Value::EffectOp { path: path.clone() }),
             ExprKind::Local(def) => value_result(
-                env.locals
-                    .get(def)
-                    .cloned()
-                    .ok_or(RuntimeError::UnboundLocal { def: *def })?,
+                self.mark_active_value(
+                    env.locals
+                        .get(def)
+                        .cloned()
+                        .ok_or(RuntimeError::UnboundLocal { def: *def })?,
+                ),
             ),
             ExprKind::InstanceRef(instance) => value_result(self.eval_instance(*instance)?),
             ExprKind::Coerce {
@@ -157,6 +159,18 @@ impl<'a> Runtime<'a> {
                         function: Box::new(function),
                         hygiene: hygiene.clone(),
                     }))
+                })
+            }
+            ExprKind::MarkerFrame { path, body } => {
+                let body = body.as_ref().clone();
+                let mut frame_env = env.clone();
+                let marker = ValueMarker {
+                    id: self.fresh_guard_id(),
+                    path: path.clone(),
+                    depth: 1,
+                };
+                self.with_marker_frame(vec![marker], move |runtime| {
+                    runtime.eval_expr(&body, &mut frame_env)
                 })
             }
             ExprKind::Apply(callee, arg) => {
@@ -678,6 +692,15 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    fn mark_active_value(&self, value: Value) -> Value {
+        // Handler marker propagation follows the innermost active handler. Carrying outer
+        // markers into a nested handler would make the outer handler skip the same request.
+        let Some(marker) = self.active_markers.last() else {
+            return value;
+        };
+        mark_value(value, std::slice::from_ref(marker))
+    }
+
     fn request_intersects_guard_stack(&self, request: &Request<'_>) -> bool {
         request
             .guard_ids
@@ -865,7 +888,24 @@ impl<'a> Runtime<'a> {
         if equivalent_runtime_types(source, target) || matches!(target, Type::Any) {
             return value_result(value);
         }
+        if matches!(source, Type::Never) {
+            return value_result(value);
+        }
         match (source, target) {
+            (
+                Type::Thunk {
+                    value: source_value,
+                    ..
+                },
+                Type::Thunk {
+                    value: target_value,
+                    ..
+                },
+            ) => value_result(Value::Thunk(Thunk::Adapter {
+                source: source_value.as_ref().clone(),
+                target: target_value.as_ref().clone(),
+                thunk: Box::new(value),
+            })),
             (Type::Thunk { .. }, target) => {
                 let source_value = thunk_value_type(source).unwrap_or(source).clone();
                 let target = target.clone();
@@ -899,6 +939,16 @@ impl<'a> Runtime<'a> {
             }
             Value::Thunk(Thunk::Expr { body, mut env }) => self.eval_expr(&body, &mut env),
             Value::Thunk(Thunk::Value(value)) => value_result(*value),
+            Value::Thunk(Thunk::Adapter {
+                source,
+                target,
+                thunk,
+            }) => {
+                let value = self.force_thunk(*thunk)?;
+                self.continue_with(value, move |runtime, value| {
+                    runtime.adapt_value(value, &source, &target)
+                })
+            }
             value => Err(RuntimeError::NotThunk { value }),
         }
     }
@@ -1035,8 +1085,16 @@ pub struct Closure {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Thunk {
-    Expr { body: Expr, env: CapturedEnv },
+    Expr {
+        body: Expr,
+        env: CapturedEnv,
+    },
     Value(Box<Value>),
+    Adapter {
+        source: Type,
+        target: Type,
+        thunk: Box<Value>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

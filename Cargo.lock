@@ -2432,6 +2432,7 @@ name = "yulang2"
 version = "0.1.0"
 dependencies = [
  "infer",
+ "mono-runtime",
  "sources",
  "specialize",
 ]
