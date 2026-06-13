@@ -384,7 +384,12 @@ impl<'a> ExprLowerer<'a> {
             self.subtype_var_to_var(body.value, value);
             self.subtype_var_to_var(value, body.value);
             self.set_local_let_body(def, body.expr);
-            self.generalize_local_binding(def, value, boundary);
+            self.generalize_local_binding(
+                def,
+                value,
+                boundary,
+                BindingFetch::from_evaluation(body.evaluation),
+            );
             let self_ref = self.lower_name(label)?;
             let tail = match target {
                 Some(target) => self.make_app(self_ref, target),

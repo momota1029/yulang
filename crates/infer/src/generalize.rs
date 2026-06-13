@@ -38,33 +38,49 @@ pub(crate) struct FinalizedGeneralizedCompactRoot {
     pub(crate) scheme: Scheme,
 }
 
-pub(crate) fn generalize_type_var(
+pub(crate) fn generalize_type_var_with_boundaries(
     machine: &ConstraintMachine,
     root: TypeVar,
-    boundary: TypeLevel,
+    quantification_boundary: TypeLevel,
+    simplification_boundary: TypeLevel,
     non_generic: &FxHashSet<TypeVar>,
 ) -> GeneralizedCompactRoot {
     let compact = compact_type_var(machine, root);
-    generalize_prepared_compact_root(machine, boundary, compact, non_generic)
-}
-
-pub(crate) fn generalize_prepared_compact_root(
-    machine: &ConstraintMachine,
-    boundary: TypeLevel,
-    compact: CompactRoot,
-    non_generic: &FxHashSet<TypeVar>,
-) -> GeneralizedCompactRoot {
-    generalize_prepared_compact_root_with_roles(machine, boundary, compact, Vec::new(), non_generic)
+    generalize_prepared_compact_root_with_roles_and_boundaries(
+        machine,
+        quantification_boundary,
+        simplification_boundary,
+        compact,
+        Vec::new(),
+        non_generic,
+    )
 }
 
 pub(crate) fn generalize_prepared_compact_root_with_roles(
     machine: &ConstraintMachine,
     boundary: TypeLevel,
+    compact: CompactRoot,
+    role_predicates: Vec<CompactRoleConstraint>,
+    non_generic: &FxHashSet<TypeVar>,
+) -> GeneralizedCompactRoot {
+    generalize_prepared_compact_root_with_roles_and_boundaries(
+        machine,
+        boundary,
+        boundary.child(),
+        compact,
+        role_predicates,
+        non_generic,
+    )
+}
+
+fn generalize_prepared_compact_root_with_roles_and_boundaries(
+    machine: &ConstraintMachine,
+    quantification_boundary: TypeLevel,
+    simplification_boundary: TypeLevel,
     mut compact: CompactRoot,
     mut role_predicates: Vec<CompactRoleConstraint>,
     non_generic: &FxHashSet<TypeVar>,
 ) -> GeneralizedCompactRoot {
-    let simplification_boundary = boundary.child();
     let simplification = simplify_compact_root_with_roles_and_non_generic(
         machine,
         simplification_boundary,
@@ -74,7 +90,7 @@ pub(crate) fn generalize_prepared_compact_root_with_roles(
     );
     generalize_compact_root_with_simplification(
         machine,
-        boundary,
+        quantification_boundary,
         compact,
         role_predicates,
         non_generic,
@@ -82,15 +98,15 @@ pub(crate) fn generalize_prepared_compact_root_with_roles(
     )
 }
 
-pub(crate) fn generalize_prepared_compact_root_with_role_variances(
+pub(crate) fn generalize_prepared_compact_root_with_role_variances_and_boundaries(
     machine: &ConstraintMachine,
-    boundary: TypeLevel,
+    quantification_boundary: TypeLevel,
+    simplification_boundary: TypeLevel,
     mut compact: CompactRoot,
     mut role_predicates: Vec<CompactRoleConstraint>,
     role_variances: &RoleInputVarianceTable,
     non_generic: &FxHashSet<TypeVar>,
 ) -> GeneralizedCompactRoot {
-    let simplification_boundary = boundary.child();
     let simplification = simplify_compact_root_with_role_variance_table_and_non_generic(
         machine,
         simplification_boundary,
@@ -101,7 +117,7 @@ pub(crate) fn generalize_prepared_compact_root_with_role_variances(
     );
     generalize_compact_root_with_simplification(
         machine,
-        boundary,
+        quantification_boundary,
         compact,
         role_predicates,
         non_generic,
@@ -3041,8 +3057,13 @@ mod tests {
         let root = TypeVar(1);
         machine.register_type_var(root, TypeLevel::root());
 
-        let generalized =
-            generalize_type_var(&machine, root, TypeLevel::root(), &FxHashSet::default());
+        let generalized = generalize_type_var_with_boundaries(
+            &machine,
+            root,
+            TypeLevel::root(),
+            TypeLevel::root().child(),
+            &FxHashSet::default(),
+        );
 
         assert!(generalized.quantifiers.is_empty());
         assert!(compact_type_contains_var(&generalized.compact.root, root));

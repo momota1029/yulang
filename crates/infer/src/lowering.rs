@@ -27,7 +27,7 @@ use poly::types::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::analysis::{AnalysisSession, AnalysisWork};
+use crate::analysis::{AnalysisDiagnostic, AnalysisSession, AnalysisWork};
 use crate::annotation::{
     AnnBuildError, AnnComputationTarget, AnnConstraintError, AnnConstraintLowerer, AnnSelfAlias,
     AnnType, AnnTypeBuilder, AnnTypeVarId,
@@ -38,7 +38,9 @@ use crate::compact::{
     compact_type_var,
 };
 use crate::constraints::TypeLevel;
-use crate::generalize::generalize_prepared_compact_root_with_roles;
+use crate::generalize::{
+    generalize_prepared_compact_root_with_roles, generalize_type_var_with_boundaries,
+};
 use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate,
     RoleInputOccurrence, RoleInputVariance,
@@ -134,6 +136,7 @@ pub enum BodyLoweringError {
         name: Name,
         error: LoweringError,
     },
+    Analysis(AnalysisDiagnostic),
 }
 
 struct BodyLowerer {
@@ -180,12 +183,20 @@ impl BodyLowerer {
     }
 
     fn finish(self) -> BodyLowering {
+        let mut session = self.session;
+        let mut errors = self.errors;
+        errors.extend(
+            session
+                .take_diagnostics()
+                .into_iter()
+                .map(BodyLoweringError::Analysis),
+        );
         BodyLowering {
-            session: self.session,
+            session,
             modules: self.modules,
             typing: self.typing,
             labels: self.labels,
-            errors: self.errors,
+            errors,
         }
     }
 
@@ -1993,6 +2004,8 @@ impl BodyLowerer {
         if connect_body {
             self.constrain_def_body(root, computation.value);
         }
+        self.session
+            .record_binding_fetch(def, BindingFetch::from_evaluation(computation.evaluation));
         self.session
             .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
     }
@@ -4127,7 +4140,12 @@ impl<'a> ExprLowerer<'a> {
             self.subtype_var_to_var(body.value, value);
             self.subtype_var_to_var(value, body.value);
             self.set_local_let_body(def, body.expr);
-            self.generalize_local_binding(def, value, boundary);
+            self.generalize_local_binding(
+                def,
+                value,
+                boundary,
+                BindingFetch::from_evaluation(body.evaluation),
+            );
             let tail = self.lower_name(label)?;
             Ok(self.prepend_block(
                 LoweredLocalStmt {
@@ -4810,7 +4828,12 @@ impl<'a> ExprLowerer<'a> {
             self.subtype_var_to_var(body.value, value);
             self.connect_local_binding_annotation(node, value, body)?;
             self.set_local_let_body(def, body.expr);
-            self.generalize_local_binding(def, value, boundary);
+            self.generalize_local_binding(
+                def,
+                value,
+                boundary,
+                BindingFetch::from_evaluation(body.evaluation),
+            );
 
             Ok(LoweredLocalStmt {
                 stmt: Stmt::Let(Vis::My, pat, body.expr),
@@ -4872,7 +4895,12 @@ impl<'a> ExprLowerer<'a> {
             LocalCallReturnEffect::Annotated,
             Some(init.expr),
         );
-        self.generalize_local_binding(init_def, init_value, boundary);
+        self.generalize_local_binding(
+            init_def,
+            init_value,
+            boundary,
+            BindingFetch::from_evaluation(init.evaluation),
+        );
         let init_stmt = LoweredLocalStmt {
             stmt: Stmt::Let(Vis::My, init_pat, init.expr),
             effect: init.effect,
@@ -4888,7 +4916,12 @@ impl<'a> ExprLowerer<'a> {
             LocalCallReturnEffect::Annotated,
             Some(reference.expr),
         );
-        self.generalize_local_binding(reference_def, reference_value, boundary);
+        self.generalize_local_binding(
+            reference_def,
+            reference_value,
+            boundary,
+            BindingFetch::from_evaluation(reference.evaluation),
+        );
         let reference_stmt = LoweredLocalStmt {
             stmt: Stmt::Let(Vis::My, reference_pat, reference.expr),
             effect: reference.effect,
@@ -6879,12 +6912,19 @@ impl<'a> ExprLowerer<'a> {
         value
     }
 
-    fn generalize_local_binding(&mut self, def: DefId, value: TypeVar, boundary: TypeLevel) {
+    fn generalize_local_binding(
+        &mut self,
+        def: DefId,
+        value: TypeVar,
+        boundary: TypeLevel,
+        fetch: BindingFetch,
+    ) {
         let non_generic = self.local_non_generic_vars(def);
-        let generalized = crate::generalize::generalize_type_var(
+        let generalized = generalize_type_var_with_boundaries(
             self.session.infer.constraints(),
             value,
-            boundary,
+            fetch.generalize_boundary(boundary),
+            boundary.child(),
             &non_generic,
         );
         let finalized = crate::generalize::finalize_generalized_compact_root(
@@ -7867,7 +7907,7 @@ struct LambdaPatternAnnotation {
     call_return_effect: LocalCallReturnEffect,
 }
 
-pub use crate::typing::{Computation, Evaluation};
+pub use crate::typing::{BindingFetch, Computation, Evaluation};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// expression lowering が構造化して返す失敗。

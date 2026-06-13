@@ -14,6 +14,8 @@ use poly::expr::DefId;
 use poly::types::TypeVar;
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use crate::typing::BindingFetch;
+
 /// open SCC graph と量化済み def を持つ machine。
 ///
 /// `quantified` に入った def は open graph から消えている。以後その def への use は edge を張らず、
@@ -43,6 +45,7 @@ impl SccMachine {
             } => self.add_use(parent, target, use_value),
             SccInput::DependencyAdded { parent, target } => self.add_dependency(parent, target),
             SccInput::RegisterDef { def, root } => self.register_def(def, root),
+            SccInput::DefFetchRecorded { def, fetch } => self.record_fetch(def, fetch),
             SccInput::DefFinished { def } => self.finish_def(def),
             SccInput::MethodDependencyAdded { parent } => self.add_method_dependency(parent),
             SccInput::MethodDependencyResolved { parent } => self.resolve_method_dependency(parent),
@@ -102,6 +105,19 @@ impl SccMachine {
         self.graph.root_of(def)
     }
 
+    pub fn fetch_of(&self, def: DefId) -> BindingFetch {
+        self.graph.fetch_of(def)
+    }
+
+    fn record_fetch(&mut self, def: DefId, fetch: BindingFetch) {
+        self.graph.record_fetch(def, fetch);
+        let Some(component) = self.graph.component_of(def) else {
+            return;
+        };
+        self.report_computed_fetch_cycle_if_needed(component);
+        self.settle_components([component]);
+    }
+
     fn add_use(&mut self, parent: DefId, target: DefId, use_value: TypeVar) {
         if self.quantified.contains_key(&target) {
             self.events.push(SccEvent::InstantiateUse {
@@ -124,6 +140,7 @@ impl SccMachine {
             if let Some(open_use) = self.graph.add_internal_use(from, edge) {
                 self.events.push(open_use.into_event());
             }
+            self.report_computed_fetch_cycle_if_needed(from);
             self.settle_components([from]);
             return;
         }
@@ -148,6 +165,7 @@ impl SccMachine {
             for open_use in merged.open_uses {
                 self.events.push(open_use.into_event());
             }
+            self.report_computed_fetch_cycle_if_needed(merged.id);
             self.settle_components([merged.id]);
         } else {
             self.events.push(SccEvent::ComponentEdgeAdded {
@@ -228,6 +246,7 @@ impl SccMachine {
             for open_use in merged.open_uses {
                 self.events.push(open_use.into_event());
             }
+            self.report_computed_fetch_cycle_if_needed(merged.id);
             self.settle_components([merged.id]);
         } else {
             self.events.push(SccEvent::ComponentEdgeAdded {
@@ -235,6 +254,18 @@ impl SccMachine {
                 to: self.graph.members(to),
             });
         }
+    }
+
+    fn report_computed_fetch_cycle_if_needed(&mut self, component: ComponentId) {
+        let Some(issue) = self.graph.computed_fetch_cycle(component) else {
+            return;
+        };
+        self.graph.mark_computed_fetch_cycle_reported(component);
+        self.events.push(SccEvent::ComputedFetchCycle {
+            component: issue.component,
+            parent: issue.parent,
+            target: issue.target,
+        });
     }
 }
 
@@ -257,6 +288,10 @@ pub enum SccInput {
     RegisterDef {
         def: DefId,
         root: TypeVar,
+    },
+    DefFetchRecorded {
+        def: DefId,
+        fetch: BindingFetch,
     },
     DefFinished {
         def: DefId,
@@ -296,6 +331,11 @@ pub enum SccEvent {
         target: DefId,
         use_value: TypeVar,
     },
+    ComputedFetchCycle {
+        component: Vec<DefId>,
+        parent: DefId,
+        target: DefId,
+    },
     QuantifyComponent {
         component: Vec<DefId>,
         roots: Vec<TypeVar>,
@@ -313,6 +353,7 @@ struct ComponentGraph {
     def_to_component: FxHashMap<DefId, ComponentId>,
     edges: FxHashMap<ComponentId, FxHashMap<ComponentId, Vec<UseEdge>>>,
     reverse_edges: FxHashMap<ComponentId, FxHashSet<ComponentId>>,
+    fetches: FxHashMap<DefId, BindingFetch>,
     next_component: u32,
 }
 
@@ -323,6 +364,7 @@ impl ComponentGraph {
             def_to_component: FxHashMap::default(),
             edges: FxHashMap::default(),
             reverse_edges: FxHashMap::default(),
+            fetches: FxHashMap::default(),
             next_component: 0,
         }
     }
@@ -346,6 +388,17 @@ impl ComponentGraph {
     fn root_of(&self, def: DefId) -> Option<TypeVar> {
         let component = self.component_of(def)?;
         self.components.get(&component)?.roots.get(&def).copied()
+    }
+
+    fn record_fetch(&mut self, def: DefId, fetch: BindingFetch) {
+        self.fetches.insert(def, fetch);
+    }
+
+    fn fetch_of(&self, def: DefId) -> BindingFetch {
+        self.fetches
+            .get(&def)
+            .copied()
+            .unwrap_or(BindingFetch::FetchValue)
     }
 
     fn members(&self, component: ComponentId) -> Vec<DefId> {
@@ -405,6 +458,7 @@ impl ComponentGraph {
             .components
             .get_mut(&component)
             .expect("component must exist before adding internal use");
+        push_unique_use(&mut component.internal_uses, edge);
         let Some(use_value) = edge.use_value else {
             return None;
         };
@@ -715,6 +769,30 @@ impl ComponentGraph {
     fn remove_empty_reverse_entries(&mut self) {
         self.reverse_edges.retain(|_, sources| !sources.is_empty());
     }
+
+    fn computed_fetch_cycle(&self, component: ComponentId) -> Option<ComputedFetchCycle> {
+        let component = self.components.get(&component)?;
+        if component.computed_fetch_cycle_reported || component.members.len() <= 1 {
+            return None;
+        }
+        component
+            .internal_uses
+            .iter()
+            .copied()
+            .filter(|edge| edge.use_value.is_some())
+            .find(|edge| self.fetch_of(edge.target).runs_computation())
+            .map(|edge| ComputedFetchCycle {
+                component: component.members.clone(),
+                parent: edge.parent,
+                target: edge.target,
+            })
+    }
+
+    fn mark_computed_fetch_cycle_reported(&mut self, component: ComponentId) {
+        if let Some(component) = self.components.get_mut(&component) {
+            component.computed_fetch_cycle_reported = true;
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -728,7 +806,9 @@ struct Component {
     roots: FxHashMap<DefId, TypeVar>,
     finished: FxHashSet<DefId>,
     pending_open_uses: Vec<UseEdge>,
+    internal_uses: Vec<UseEdge>,
     method_dependencies: usize,
+    computed_fetch_cycle_reported: bool,
 }
 
 impl Component {
@@ -738,7 +818,9 @@ impl Component {
             roots: FxHashMap::default(),
             finished: FxHashSet::default(),
             pending_open_uses: Vec::new(),
+            internal_uses: Vec::new(),
             method_dependencies: 0,
+            computed_fetch_cycle_reported: false,
         }
     }
 
@@ -748,7 +830,9 @@ impl Component {
             roots: FxHashMap::default(),
             finished: FxHashSet::default(),
             pending_open_uses: Vec::new(),
+            internal_uses: Vec::new(),
             method_dependencies: 0,
+            computed_fetch_cycle_reported: false,
         }
     }
 
@@ -757,7 +841,9 @@ impl Component {
         self.roots.extend(component.roots);
         self.finished.extend(component.finished);
         self.pending_open_uses.extend(component.pending_open_uses);
+        self.internal_uses.extend(component.internal_uses);
         self.method_dependencies += component.method_dependencies;
+        self.computed_fetch_cycle_reported |= component.computed_fetch_cycle_reported;
     }
 }
 
@@ -790,6 +876,13 @@ impl OpenUse {
             use_value: self.use_value,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+struct ComputedFetchCycle {
+    component: Vec<DefId>,
+    parent: DefId,
+    target: DefId,
 }
 
 #[derive(Debug, Clone)]
@@ -926,6 +1019,72 @@ mod tests {
             vec![SccEvent::MergeComponents {
                 components: vec![vec![DefId(1)], vec![DefId(2)], vec![DefId(3)]],
                 merged: vec![DefId(1), DefId(2), DefId(3)],
+            }]
+        );
+    }
+
+    #[test]
+    fn computed_fetch_cycle_reports_when_fetch_is_known_before_merge() {
+        let mut machine = SccMachine::new();
+        machine.apply(SccInput::DefFetchRecorded {
+            def: DefId(2),
+            fetch: BindingFetch::FetchComputation,
+        });
+        machine.use_resolved(SccInput::UseResolved {
+            parent: DefId(1),
+            target: DefId(2),
+            use_value: TypeVar(12),
+        });
+        machine.take_events();
+
+        machine.use_resolved(SccInput::UseResolved {
+            parent: DefId(2),
+            target: DefId(1),
+            use_value: TypeVar(21),
+        });
+
+        assert_eq!(
+            machine.take_events(),
+            vec![
+                SccEvent::MergeComponents {
+                    components: vec![vec![DefId(1)], vec![DefId(2)]],
+                    merged: vec![DefId(1), DefId(2)],
+                },
+                SccEvent::ComputedFetchCycle {
+                    component: vec![DefId(1), DefId(2)],
+                    parent: DefId(1),
+                    target: DefId(2),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn computed_fetch_cycle_reports_when_fetch_is_recorded_after_merge() {
+        let mut machine = SccMachine::new();
+        machine.use_resolved(SccInput::UseResolved {
+            parent: DefId(1),
+            target: DefId(2),
+            use_value: TypeVar(12),
+        });
+        machine.use_resolved(SccInput::UseResolved {
+            parent: DefId(2),
+            target: DefId(1),
+            use_value: TypeVar(21),
+        });
+        machine.take_events();
+
+        machine.apply(SccInput::DefFetchRecorded {
+            def: DefId(2),
+            fetch: BindingFetch::FetchComputation,
+        });
+
+        assert_eq!(
+            machine.take_events(),
+            vec![SccEvent::ComputedFetchCycle {
+                component: vec![DefId(1), DefId(2)],
+                parent: DefId(1),
+                target: DefId(2),
             }]
         );
     }

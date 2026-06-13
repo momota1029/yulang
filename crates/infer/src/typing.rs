@@ -71,6 +71,39 @@ impl Evaluation {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// binding を名前で取得する時に計算が発生するか。
+///
+/// `Evaluation` は式そのものを評価した時の性質で、`BindingFetch` はその式を binding として
+/// 参照した時の性質である。関数値の取得は body を実行しないため `FetchValue` のまま扱う。
+pub enum BindingFetch {
+    FetchValue,
+    FetchComputation,
+}
+
+impl BindingFetch {
+    pub fn from_evaluation(evaluation: Evaluation) -> Self {
+        match evaluation {
+            Evaluation::Value => Self::FetchValue,
+            Evaluation::Computation => Self::FetchComputation,
+        }
+    }
+
+    pub fn runs_computation(self) -> bool {
+        matches!(self, Self::FetchComputation)
+    }
+
+    pub fn generalize_boundary(
+        self,
+        boundary: crate::constraints::TypeLevel,
+    ) -> crate::constraints::TypeLevel {
+        match self {
+            Self::FetchValue => boundary,
+            Self::FetchComputation => boundary.child(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 /// 推論結果として永続的に残す型 table。
 ///

@@ -34,7 +34,7 @@ use crate::constraints::{ConstraintEvent, ConstraintWeights, TypeLevel};
 use crate::generalize::{
     GeneralizedCompactRoot, apply_compact_simplifications_to_root_and_roles,
     finalize_generalized_compact_root_with_ancestors,
-    generalize_prepared_compact_root_with_role_variances,
+    generalize_prepared_compact_root_with_role_variances_and_boundaries,
 };
 use crate::instantiate::{instantiate_scheme, instantiate_scheme_with_roles};
 use crate::methods::{
@@ -51,6 +51,7 @@ use crate::roles::{
     RoleImplTable, RoleInputVariance, RoleInputVarianceTable,
 };
 use crate::scc::{SccEvent, SccInput, SccMachine};
+use crate::typing::BindingFetch;
 use crate::uses::{RefUseTable, SelectionUse, SelectionUseTable};
 
 type MethodTaintIndex = FxHashMap<TypeVar, Vec<SelectId>>;
@@ -79,6 +80,8 @@ pub struct AnalysisSession {
     role_impl_member_simplifications: FxHashMap<DefId, Vec<CompactSimplification>>,
     applied_method_role_resolutions: FxHashSet<RoleResolutionKey>,
     schemes: FxHashMap<DefId, GeneralizedCompactRoot>,
+    binding_fetches: FxHashMap<DefId, BindingFetch>,
+    diagnostics: Vec<AnalysisDiagnostic>,
     scc_events: Vec<SccEvent>,
     work: VecDeque<AnalysisWork>,
 }
@@ -104,6 +107,8 @@ impl AnalysisSession {
             role_impl_member_simplifications: FxHashMap::default(),
             applied_method_role_resolutions: FxHashSet::default(),
             schemes: FxHashMap::default(),
+            binding_fetches: FxHashMap::default(),
+            diagnostics: Vec::new(),
             scc_events: Vec::new(),
             work: VecDeque::new(),
         }
@@ -332,6 +337,15 @@ impl AnalysisSession {
         std::mem::take(&mut self.scc_events)
     }
 
+    pub fn record_binding_fetch(&mut self, def: DefId, fetch: BindingFetch) {
+        self.binding_fetches.insert(def, fetch);
+        self.enqueue(AnalysisWork::Scc(SccInput::DefFetchRecorded { def, fetch }));
+    }
+
+    pub fn take_diagnostics(&mut self) -> Vec<AnalysisDiagnostic> {
+        std::mem::take(&mut self.diagnostics)
+    }
+
     fn apply_work(&mut self, work: AnalysisWork) {
         match work {
             AnalysisWork::ResolveRef(_) => {}
@@ -399,6 +413,7 @@ impl AnalysisSession {
             SccInput::UseResolved { .. }
             | SccInput::DependencyAdded { .. }
             | SccInput::RegisterDef { .. }
+            | SccInput::DefFetchRecorded { .. }
             | SccInput::MethodDependencyAdded { .. } => {}
         }
         self.scc.apply(input);
@@ -1055,6 +1070,23 @@ impl AnalysisSession {
                         use_value,
                     });
                 }
+                SccEvent::ComputedFetchCycle {
+                    component,
+                    parent,
+                    target,
+                } => {
+                    self.diagnostics
+                        .push(AnalysisDiagnostic::ComputedFetchCycle {
+                            component: component.clone(),
+                            parent,
+                            target,
+                        });
+                    self.scc_events.push(SccEvent::ComputedFetchCycle {
+                        component,
+                        parent,
+                        target,
+                    });
+                }
                 other => self.scc_events.push(other),
             }
         }
@@ -1288,6 +1320,8 @@ impl AnalysisSession {
         def: DefId,
         root: TypeVar,
     ) -> GeneralizedCompactRoot {
+        let quantification_boundary = self.generalize_boundary(def);
+        let simplification_boundary = TypeLevel::root().child();
         let mut applied_casts = FxHashSet::<CompactCastKey>::default();
         let mut applied_roles = self.applied_method_role_resolutions.clone();
         let mut applied_role_demands = self
@@ -1324,7 +1358,7 @@ impl AnalysisSession {
             let mut dominance_roles = coalesced_role_constraints.clone();
             simplify_compact_root_with_roles_and_non_generic(
                 self.infer.constraints(),
-                TypeLevel::root().child(),
+                simplification_boundary,
                 &mut dominance_compact,
                 &mut dominance_roles,
                 &FxHashSet::default(),
@@ -1355,7 +1389,8 @@ impl AnalysisSession {
                 continue;
             }
 
-            let (role_compact, roles) = self.simplified_reachable_role_constraints(def, &compact);
+            let (role_compact, roles) =
+                self.simplified_reachable_role_constraints(def, &compact, simplification_boundary);
             let resolutions = resolve_role_constraints(
                 self.infer.constraints(),
                 &role_compact,
@@ -1397,6 +1432,7 @@ impl AnalysisSession {
                     &coalesced_roles,
                     &applied_role_candidates,
                     &applied_role_demands,
+                    simplification_boundary,
                 )
             };
         let mut role_predicates: Vec<CompactRoleConstraint> = coalesced_roles
@@ -1446,6 +1482,7 @@ impl AnalysisSession {
                     &role_predicates,
                     &applied_role_candidates,
                     &applied_role_demands,
+                    simplification_boundary,
                 );
             role_predicates = role_predicates
                 .into_iter()
@@ -1456,9 +1493,10 @@ impl AnalysisSession {
                 .collect();
         }
 
-        let mut generalized = generalize_prepared_compact_root_with_role_variances(
+        let mut generalized = generalize_prepared_compact_root_with_role_variances_and_boundaries(
             self.infer.constraints(),
-            TypeLevel::root(),
+            quantification_boundary,
+            simplification_boundary,
             compact,
             role_predicates,
             &self.role_input_variances,
@@ -1481,6 +1519,7 @@ impl AnalysisSession {
         &self,
         def: DefId,
         compact: &crate::compact::CompactRoot,
+        simplification_boundary: TypeLevel,
     ) -> (crate::compact::CompactRoot, Vec<CompactRoleConstraint>) {
         let mut role_compact = compact.clone();
         let mut roles = coalesce_role_constraints(compact_reachable_role_constraints(
@@ -1493,7 +1532,7 @@ impl AnalysisSession {
         }
         simplify_compact_root_with_roles_and_non_generic(
             self.infer.constraints(),
-            TypeLevel::root().child(),
+            simplification_boundary,
             &mut role_compact,
             &mut roles,
             &FxHashSet::default(),
@@ -1522,12 +1561,13 @@ impl AnalysisSession {
         role_predicates: &[CompactRoleConstraint],
         applied_candidates: &FxHashSet<CompactRoleConstraint>,
         applied_demands: &FxHashSet<CompactRoleConstraint>,
+        simplification_boundary: TypeLevel,
     ) -> Vec<bool> {
         let mut role_compact = compact.clone();
         let mut simplified_roles = role_predicates.to_vec();
         simplify_compact_root_with_roles_and_non_generic(
             self.infer.constraints(),
-            TypeLevel::root().child(),
+            simplification_boundary,
             &mut role_compact,
             &mut simplified_roles,
             &FxHashSet::default(),
@@ -1557,6 +1597,18 @@ impl AnalysisSession {
             .iter()
             .map(|role| applied_demands.contains(role) || resolved_demands.contains(role))
             .collect()
+    }
+
+    fn generalize_boundary(&self, def: DefId) -> TypeLevel {
+        self.binding_fetch(def)
+            .generalize_boundary(TypeLevel::root())
+    }
+
+    fn binding_fetch(&self, def: DefId) -> BindingFetch {
+        self.binding_fetches
+            .get(&def)
+            .copied()
+            .unwrap_or_else(|| self.scc.fetch_of(def))
     }
 
     fn collect_resolved_role_demands(
@@ -1817,6 +1869,23 @@ fn collect_neg_top_vars(types: &TypeArena, id: NegId, out: &mut Vec<TypeVar>) {
             collect_neg_top_vars(types, *right, out);
         }
         _ => {}
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AnalysisDiagnostic {
+    ComputedFetchCycle {
+        component: Vec<DefId>,
+        parent: DefId,
+        target: DefId,
+    },
+}
+
+impl AnalysisDiagnostic {
+    pub fn primary_def(&self) -> DefId {
+        match self {
+            Self::ComputedFetchCycle { parent, .. } => *parent,
+        }
     }
 }
 
@@ -3700,7 +3769,11 @@ mod tests {
         session.infer.restore_level(previous_level);
 
         let compact = compact_type_var(session.infer.constraints(), root);
-        let (role_compact, roles) = session.simplified_reachable_role_constraints(owner, &compact);
+        let (role_compact, roles) = session.simplified_reachable_role_constraints(
+            owner,
+            &compact,
+            TypeLevel::root().child(),
+        );
         let resolutions = resolve_role_constraints(
             session.infer.constraints(),
             &role_compact,
@@ -4015,6 +4088,53 @@ mod tests {
 
         assert!(generalized.quantifiers.is_empty());
         assert!(generalized.compact.root.is_empty());
+    }
+
+    #[test]
+    fn computed_fetch_def_does_not_quantify_binding_level_root() {
+        let def = DefId(0);
+        let mut value_session = AnalysisSession::new(PolyArena::new());
+        let previous = value_session.infer.enter_child_level();
+        let value_root = value_session.infer.fresh_type_var();
+        let value_inner = value_session.infer.fresh_type_var();
+        add_identity_function_lower_bound(&mut value_session, value_root, value_inner);
+        value_session.infer.restore_level(previous);
+
+        let value_generalized = value_session.generalize_root_with_prepasses(def, value_root);
+
+        assert_eq!(value_generalized.quantifiers, vec![value_inner]);
+
+        let mut computed_session = AnalysisSession::new(PolyArena::new());
+        let previous = computed_session.infer.enter_child_level();
+        let computed_root = computed_session.infer.fresh_type_var();
+        let computed_inner = computed_session.infer.fresh_type_var();
+        add_identity_function_lower_bound(&mut computed_session, computed_root, computed_inner);
+        computed_session.infer.restore_level(previous);
+        computed_session.record_binding_fetch(def, BindingFetch::FetchComputation);
+
+        let computed_generalized =
+            computed_session.generalize_root_with_prepasses(def, computed_root);
+
+        assert!(computed_generalized.quantifiers.is_empty());
+    }
+
+    fn add_identity_function_lower_bound(
+        session: &mut AnalysisSession,
+        root: TypeVar,
+        inner: TypeVar,
+    ) {
+        let arg = session.infer.alloc_neg(Neg::Var(inner));
+        let arg_eff = session.infer.alloc_neg(Neg::Bot);
+        let ret_eff = session.infer.alloc_pos(Pos::Bot);
+        let ret = session.infer.alloc_pos(Pos::Var(inner));
+        let lower = session.infer.alloc_pos(Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        });
+        let upper = session.infer.alloc_neg(Neg::Var(root));
+        session.infer.subtype(lower, upper);
     }
 
     fn monomorphic_cast_scheme(

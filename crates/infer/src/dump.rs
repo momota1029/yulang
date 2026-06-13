@@ -219,6 +219,7 @@ pub fn body_error_def(error: &BodyLoweringError) -> Option<DefId> {
         BodyLoweringError::MissingBody { def, .. }
         | BodyLoweringError::NonLetDef { def, .. }
         | BodyLoweringError::Expr { def, .. } => Some(*def),
+        BodyLoweringError::Analysis(error) => Some(error.primary_def()),
     }
 }
 

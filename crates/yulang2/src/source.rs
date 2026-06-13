@@ -664,6 +664,22 @@ fn format_body_lowering_error(error: &infer::lowering::BodyLoweringError) -> Str
             error: infer::lowering::LoweringError::UnresolvedName { name },
             ..
         } => format!("unresolved value name: {}", name.0),
+        infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::ComputedFetchCycle {
+                component,
+                parent,
+                target,
+            },
+        ) => format!(
+            "computed value fetch in recursive component: component {}, edge d{} -> d{}",
+            component
+                .iter()
+                .map(|def| format!("d{}", def.0))
+                .collect::<Vec<_>>()
+                .join(","),
+            parent.0,
+            target.0
+        ),
         _ => format!("{error:?}"),
     }
 }
