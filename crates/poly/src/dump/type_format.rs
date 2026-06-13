@@ -50,7 +50,7 @@ enum Context {
 }
 
 impl Context {
-    fn needs_paren(self, rendered: Rendered) -> bool {
+    fn needs_paren(self, rendered: &Rendered) -> bool {
         match self {
             Context::Free => false,
             Context::FunctionArg => rendered.prec <= Prec::Intersection,
@@ -66,7 +66,7 @@ enum NeuPolarity {
     Negative,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Rendered {
     text: String,
     prec: Prec,
@@ -125,20 +125,15 @@ impl Rendered {
     }
 
     fn in_context(self, context: Context) -> String {
-        if context.needs_paren(self.clone()) {
-            format!("({})", self.text)
-        } else {
-            self.text
-        }
+        self.into_context(context).text
     }
-}
 
-fn rendered_exact_bounds_part(text: String) -> Rendered {
-    let has_bare_space = text.chars().any(char::is_whitespace);
-    Rendered {
-        text,
-        prec: Prec::Atom,
-        has_bare_space,
+    fn into_context(self, context: Context) -> Rendered {
+        if context.needs_paren(&self) {
+            Rendered::atom(format!("({})", self.text))
+        } else {
+            self
+        }
     }
 }
 
@@ -192,6 +187,10 @@ impl<'a> TypeFormatter<'a> {
             return self.role_call(role, inputs, associated);
         }
 
+        if inputs[0].has_bare_space {
+            return self.role_call(role, inputs, associated);
+        }
+
         let subject = inputs.remove(0).in_context(Context::FunctionArg);
         let role = self.role_call(role, inputs, associated);
         format!("{subject}: {role}")
@@ -223,7 +222,7 @@ impl<'a> TypeFormatter<'a> {
 
     fn subtractability_head(&mut self, path: &[String], args: &[NeuId]) -> String {
         let rendered = self.render_subtractability_con(path, args);
-        if rendered.has_bare_space || rendered.text.chars().any(char::is_whitespace) {
+        if rendered.has_bare_space {
             format!("[{}]", rendered.in_context(Context::Free))
         } else {
             rendered.in_context(Context::Free)
@@ -767,18 +766,21 @@ impl<'a> TypeFormatter<'a> {
         self.bounds_upper_parts(upper, var, &mut upper_parts);
 
         if lower_parts.len() == 1 && lower_parts == upper_parts {
-            return rendered_exact_bounds_part(lower_parts.remove(0));
+            return lower_parts.remove(0);
         }
 
-        let mut text = String::new();
-        for part in &lower_parts {
-            text.push_str(part);
-            text.push('|');
-        }
-        text.push_str(&self.namer.name(var));
-        for part in &upper_parts {
-            text.push('&');
-            text.push_str(part);
+        let mut text = if lower_parts.is_empty() {
+            self.namer.name(var)
+        } else {
+            format!(
+                "{} | {}",
+                join_rendered_text(&lower_parts, " | "),
+                self.namer.name(var)
+            )
+        };
+        if !upper_parts.is_empty() {
+            text.push_str(" & ");
+            text.push_str(&join_rendered_text(&upper_parts, " & "));
         }
         if !lower_parts.is_empty() {
             Rendered::union(text)
@@ -796,19 +798,23 @@ impl<'a> TypeFormatter<'a> {
         self.bounds_upper_parts_without_center(upper, &mut upper_parts);
 
         if lower_parts.len() == 1 && lower_parts == upper_parts {
-            return rendered_exact_bounds_part(lower_parts.remove(0));
+            return lower_parts.remove(0);
         }
         if upper_parts.is_empty() {
-            return Rendered::union(lower_parts.join(" | "));
+            return Rendered::union(join_rendered_text(&lower_parts, " | "));
         }
         if lower_parts.is_empty() {
-            return Rendered::intersection(upper_parts.join(" & "));
+            return Rendered::intersection(join_rendered_text(&upper_parts, " & "));
         }
-        Rendered::atom(format!(
-            "{} <: {}",
-            lower_parts.join(" | "),
-            upper_parts.join(" & ")
-        ))
+        Rendered {
+            text: format!(
+                "{} <: {}",
+                join_rendered_text(&lower_parts, " | "),
+                join_rendered_text(&upper_parts, " & ")
+            ),
+            prec: Prec::Atom,
+            has_bare_space: true,
+        }
     }
 
     fn bounds_center(&self, lower: PosId, upper: NegId) -> Option<TypeVar> {
@@ -855,7 +861,7 @@ impl<'a> TypeFormatter<'a> {
         }
     }
 
-    fn bounds_lower_parts(&mut self, id: PosId, var: TypeVar, out: &mut Vec<String>) {
+    fn bounds_lower_parts(&mut self, id: PosId, var: TypeVar, out: &mut Vec<Rendered>) {
         if self.pos_is_plain_bounds_var(id, var) {
             return;
         }
@@ -866,11 +872,11 @@ impl<'a> TypeFormatter<'a> {
                 self.bounds_lower_parts(right, var, out);
             }
             Pos::Bot => {}
-            _ => out.push(self.pos(id, Context::FunctionArg)),
+            _ => out.push(self.render_pos(id).into_context(Context::FunctionArg)),
         }
     }
 
-    fn bounds_upper_parts(&mut self, id: NegId, var: TypeVar, out: &mut Vec<String>) {
+    fn bounds_upper_parts(&mut self, id: NegId, var: TypeVar, out: &mut Vec<Rendered>) {
         if self.neg_is_plain_bounds_var(id, var) {
             return;
         }
@@ -881,11 +887,11 @@ impl<'a> TypeFormatter<'a> {
                 self.bounds_upper_parts(right, var, out);
             }
             Neg::Top => {}
-            _ => out.push(self.neg(id, Context::FunctionArg)),
+            _ => out.push(self.render_neg(id).into_context(Context::FunctionArg)),
         }
     }
 
-    fn bounds_lower_parts_without_center(&mut self, id: PosId, out: &mut Vec<String>) {
+    fn bounds_lower_parts_without_center(&mut self, id: PosId, out: &mut Vec<Rendered>) {
         match self.arena.pos(id) {
             Pos::Union(left, right) => {
                 let (left, right) = (*left, *right);
@@ -893,11 +899,11 @@ impl<'a> TypeFormatter<'a> {
                 self.bounds_lower_parts_without_center(right, out);
             }
             Pos::Bot => {}
-            _ => out.push(self.pos(id, Context::FunctionArg)),
+            _ => out.push(self.render_pos(id).into_context(Context::FunctionArg)),
         }
     }
 
-    fn bounds_upper_parts_without_center(&mut self, id: NegId, out: &mut Vec<String>) {
+    fn bounds_upper_parts_without_center(&mut self, id: NegId, out: &mut Vec<Rendered>) {
         match self.arena.neg(id) {
             Neg::Intersection(left, right) => {
                 let (left, right) = (*left, *right);
@@ -905,7 +911,7 @@ impl<'a> TypeFormatter<'a> {
                 self.bounds_upper_parts_without_center(right, out);
             }
             Neg::Top => {}
-            _ => out.push(self.neg(id, Context::FunctionArg)),
+            _ => out.push(self.render_neg(id).into_context(Context::FunctionArg)),
         }
     }
 
@@ -1052,6 +1058,14 @@ fn pos_contains_var(arena: &TypeArena, id: PosId, expected: TypeVar) -> bool {
         }
         Pos::Bot | Pos::Con(_, _) => false,
     }
+}
+
+fn join_rendered_text(parts: &[Rendered], separator: &str) -> String {
+    parts
+        .iter()
+        .map(|part| part.text.as_str())
+        .collect::<Vec<_>>()
+        .join(separator)
 }
 
 fn neg_contains_var(arena: &TypeArena, id: NegId, expected: TypeVar) -> bool {
@@ -1397,6 +1411,19 @@ mod tests {
     }
 
     #[test]
+    fn exact_bounds_keep_rendered_bare_space_metadata() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let neu_a = plain_neu(&mut arena, a);
+        let lower = arena.alloc_pos(Pos::Con(vec!["list".into()], vec![neu_a]));
+        let upper = arena.alloc_neg(Neg::Con(vec!["list".into()], vec![neu_a]));
+        let exact = arena.alloc_neu(Neu::Bounds(lower, upper));
+        let outer = arena.alloc_pos(Pos::Con(vec!["box".into()], vec![exact]));
+
+        assert_eq!(format_pos(&arena, outer), "box(list 'a)");
+    }
+
+    #[test]
     fn hidden_quantifier_stack_does_not_duplicate_bounds_var() {
         let mut arena = TypeArena::new();
         let a = TypeVar(0);
@@ -1506,6 +1533,74 @@ mod tests {
             format_scheme(&arena, &scheme),
             "'c where 'a: Index('b, value = 'c)"
         );
+    }
+
+    #[test]
+    fn formats_role_predicate_with_union_subject_as_call() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let b = TypeVar(1);
+        let c = TypeVar(2);
+        let pos_a = arena.alloc_pos(Pos::Var(a));
+        let pos_b = arena.alloc_pos(Pos::Var(b));
+        let union = arena.alloc_pos(Pos::Union(pos_a, pos_b));
+        let predicate = arena.alloc_pos(Pos::Var(c));
+        let scheme = Scheme {
+            quantifiers: vec![a, b, c],
+            role_predicates: vec![RolePredicate {
+                role: vec!["Debug".into()],
+                inputs: vec![RolePredicateArg::Covariant(union)],
+                associated: Vec::new(),
+            }],
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            predicate,
+        };
+
+        assert_eq!(format_scheme(&arena, &scheme), "'c where Debug('a | 'b)");
+    }
+
+    #[test]
+    fn formats_role_predicate_with_applied_subject_as_call() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let b = TypeVar(1);
+        let c = TypeVar(2);
+        let neu_a = plain_neu(&mut arena, a);
+        let neu_b = plain_neu(&mut arena, b);
+        let list_a = arena.alloc_neu(Neu::Con(vec!["list".into()], vec![neu_a]));
+        let predicate = arena.alloc_pos(Pos::Var(c));
+        let scheme = Scheme {
+            quantifiers: vec![a, b, c],
+            role_predicates: vec![RolePredicate {
+                role: vec!["Role".into()],
+                inputs: vec![
+                    RolePredicateArg::Invariant(list_a),
+                    RolePredicateArg::Invariant(neu_b),
+                ],
+                associated: Vec::new(),
+            }],
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            predicate,
+        };
+
+        assert_eq!(format_scheme(&arena, &scheme), "'c where Role(list 'a, 'b)");
+    }
+
+    #[test]
+    fn spaces_sandwich_bounds_operators() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let int_pos = arena.alloc_pos(Pos::Con(vec!["int".into()], Vec::new()));
+        let var_pos = arena.alloc_pos(Pos::Var(a));
+        let lower = arena.alloc_pos(Pos::Union(int_pos, var_pos));
+        let var_neg = arena.alloc_neg(Neg::Var(a));
+        let str_neg = arena.alloc_neg(Neg::Con(vec!["str".into()], Vec::new()));
+        let upper = arena.alloc_neg(Neg::Intersection(var_neg, str_neg));
+        let bounds = arena.alloc_neu(Neu::Bounds(lower, upper));
+
+        assert_eq!(format_neu(&arena, bounds), "int | 'a & str");
     }
 
     #[test]

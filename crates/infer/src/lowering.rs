@@ -11609,7 +11609,7 @@ mod tests {
             poly::types::RolePredicateArg::Covariant(_)
         ));
         let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
-        assert_eq!(rendered, "view('b & 'a) -> 'a -> 'b where ('a | 'b): Ord");
+        assert_eq!(rendered, "view('b & 'a) -> 'a -> 'b where Ord('a | 'b)");
     }
 
     #[test]
