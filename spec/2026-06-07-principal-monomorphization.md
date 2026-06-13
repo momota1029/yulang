@@ -134,7 +134,10 @@ computation 型を同時に作るため、この戻し処理は legacy lower と
 型注釈と effect 注釈は infer の入力であり、monomorphize の入力ではない。
 
 注釈によって生まれた subtractability や非 subtract 境界は、infer が主型と scheme の
-obligation に畳み込む。値制限や量化境界は scheme の metadata として残す。後段に
+obligation に畳み込む。値制限や量化境界は scheme の metadata として残す。
+計算を伴う変数取得の値制限と SCC 診断は
+[`2026-06-13-computed-fetch-value-restriction.md`](2026-06-13-computed-fetch-value-restriction.md)
+に従う。後段に
 「この場所に注釈があった」という evidence を渡してはならない。
 
 monomorphize が注釈を再解釈すると、infer と別の意味で注釈を読む経路が生まれる。これは

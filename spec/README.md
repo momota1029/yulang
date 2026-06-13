@@ -28,6 +28,9 @@
 - [2026-06-04-method-selection.md](2026-06-04-method-selection.md)
   — `x.meth` の遅延解決、impl 候補の可視範囲、receiver demand を作らない理由。
   role 関連型による再帰解決ループの詳細は role-system 側に一本化。
+- [2026-06-13-computed-fetch-value-restriction.md](2026-06-13-computed-fetch-value-restriction.md)
+  — 変数取得時に計算が走る binding の値制限。`BindingFetch` metadata、量化境界の
+  1 段引き上げ、multi-root SCC 内の computed fetch 診断、specialize の前提。
 
 ### 構文
 
@@ -40,6 +43,7 @@
 - [2026-06-07-principal-monomorphization.md](2026-06-07-principal-monomorphization.md)
   — 主型からの単相化（作業名 Elaborate）。infer の内部状態を覗かず、主型・erased IR・
   ref table だけから制約を作り直す。cast 挿入、関数 adapter、elaborated IR まで。
+  computed fetch の値制限は 2026-06-13 の infer core 仕様を前提にする。
 
 ### 参考文献
 
