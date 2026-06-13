@@ -7,6 +7,8 @@ members = [
   "crates/yulang-erased-ir",
   "crates/yulang-elaborated-ir",
   "crates/yulang-elaborate",
+  "crates/mono",
+  "crates/specialize",
   "crates/yulang-typed-ir",
   "crates/yulang-runtime-ir",
   "crates/yulang-runtime-types",

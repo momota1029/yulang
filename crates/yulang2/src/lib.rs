@@ -5,10 +5,11 @@
 pub mod source;
 
 pub use source::{
-    CheckPolyOutput, CollectedSource, DumpPolyOutput, IMPLICIT_PRELUDE_IMPORT, RouteError,
-    check_poly_from_entry_with_std, check_poly_from_entry_with_std_in_module,
-    collect_local_sources, collect_local_sources_with_std, dump_poly_from_entry,
-    dump_poly_from_entry_with_std, dump_poly_from_entry_with_std_in_module,
-    dump_poly_raw_from_entry, dump_poly_raw_from_entry_with_std,
-    dump_poly_raw_from_entry_with_std_in_module, find_nearby_std_root,
+    CheckPolyOutput, CollectedSource, DumpMonoOutput, DumpPolyOutput, IMPLICIT_PRELUDE_IMPORT,
+    RouteError, check_poly_from_entry_with_std, check_poly_from_entry_with_std_in_module,
+    collect_local_sources, collect_local_sources_with_std, dump_mono_from_entry,
+    dump_mono_from_entry_with_std, dump_poly_from_entry, dump_poly_from_entry_with_std,
+    dump_poly_from_entry_with_std_in_module, dump_poly_raw_from_entry,
+    dump_poly_raw_from_entry_with_std, dump_poly_raw_from_entry_with_std_in_module,
+    find_nearby_std_root,
 };

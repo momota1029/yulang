@@ -978,6 +978,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mono"
+version = "0.1.0"
+dependencies = [
+ "num-bigint",
+]
+
+[[package]]
 name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1479,6 +1486,16 @@ version = "0.1.0"
 dependencies = [
  "rowan",
  "yulang-parser",
+]
+
+[[package]]
+name = "specialize"
+version = "0.1.0"
+dependencies = [
+ "infer",
+ "mono",
+ "poly",
+ "sources",
 ]
 
 [[package]]
@@ -2398,6 +2415,7 @@ version = "0.1.0"
 dependencies = [
  "infer",
  "sources",
+ "specialize",
 ]
 
 [[package]]

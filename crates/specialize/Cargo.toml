@@ -1,9 +1,12 @@
 [package]
-name = "yulang2"
+name = "specialize"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+mono = { path = "../mono" }
+poly = { path = "../poly" }
+
+[dev-dependencies]
 infer = { path = "../infer" }
-specialize = { path = "../specialize" }
 sources = { path = "../sources" }

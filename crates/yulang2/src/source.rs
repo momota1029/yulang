@@ -28,6 +28,11 @@ pub fn dump_poly_raw_from_entry(entry: impl AsRef<FsPath>) -> Result<DumpPolyOut
     dump_poly_from_sources(collect_local_sources(entry)?, DumpPolyKind::Raw)
 }
 
+/// entry file から local module file を読み、mono dump を返す。
+pub fn dump_mono_from_entry(entry: impl AsRef<FsPath>) -> Result<DumpMonoOutput, RouteError> {
+    dump_mono_from_sources(collect_local_sources(entry)?)
+}
+
 /// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで poly dump を返す。
 ///
 /// デバッグ用の暫定入口。install 済み std ではなく、entry の親から上へ辿って見つかる
@@ -46,6 +51,13 @@ pub fn dump_poly_raw_from_entry_with_std(
     entry: impl AsRef<FsPath>,
 ) -> Result<DumpPolyOutput, RouteError> {
     dump_poly_from_sources(collect_local_sources_with_std(entry)?, DumpPolyKind::Raw)
+}
+
+/// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで mono dump を返す。
+pub fn dump_mono_from_entry_with_std(
+    entry: impl AsRef<FsPath>,
+) -> Result<DumpMonoOutput, RouteError> {
+    dump_mono_from_sources(collect_local_sources_with_std(entry)?)
 }
 
 /// entry file と近場の `lib/std.yu` を読み、dump なしで型付け状況を集計する。
@@ -146,6 +158,14 @@ pub struct DumpPolyOutput {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DumpMonoOutput {
+    pub text: String,
+    pub file_count: usize,
+    /// body lowering が報告したエラーの表示用整形。dump 本文とは別に stderr へ流す。
+    pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CheckPolyOutput {
     pub text: String,
     pub file_count: usize,
@@ -199,6 +219,7 @@ pub enum RouteError {
         module: Path,
     },
     Lower(infer::LoadedFilesError),
+    Specialize(specialize::SpecializeError),
 }
 
 impl fmt::Display for RouteError {
@@ -265,6 +286,7 @@ impl fmt::Display for RouteError {
                 format_module_path(module)
             ),
             RouteError::Lower(error) => write!(f, "{error}"),
+            RouteError::Specialize(error) => write!(f, "{error}"),
         }
     }
 }
@@ -504,6 +526,31 @@ fn dump_poly_from_sources(
             })
         }
     }
+}
+
+fn dump_mono_from_sources(files: Vec<CollectedSource>) -> Result<DumpMonoOutput, RouteError> {
+    let source_files = files
+        .iter()
+        .map(|file| SourceFile {
+            module_path: file.module_path.clone(),
+            source: file.source.clone(),
+        })
+        .collect::<Vec<_>>();
+    let loaded = sources::load(source_files);
+    let dump = infer::dump::dump_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let errors = dump
+        .lowering
+        .errors
+        .iter()
+        .map(format_body_lowering_error)
+        .collect();
+    let program =
+        specialize::specialize(&dump.lowering.session.poly).map_err(RouteError::Specialize)?;
+    Ok(DumpMonoOutput {
+        text: specialize::mono::dump::dump_program(&program),
+        file_count: loaded.len(),
+        errors,
+    })
 }
 
 fn format_check_poly_output(
@@ -864,6 +911,14 @@ mod tests {
         );
     }
 
+    fn assert_mono_dump_contains(output: &DumpMonoOutput, expected: &str) {
+        assert!(
+            output.text.contains(expected),
+            "missing {expected:?} in:\n{}",
+            output.text
+        );
+    }
+
     fn assert_check_contains(output: &CheckPolyOutput, expected: &str) {
         assert!(
             output.text.contains(expected),
@@ -901,6 +956,20 @@ mod tests {
         assert_eq!(output.file_count, 1);
         assert_dump_has_line_starting_with(&output, "my d0:id: 'a -> 'a = ");
         assert!(!output.text.contains("std::"));
+    }
+
+    #[test]
+    fn dump_mono_without_std_ignores_unused_generic_binding() {
+        let root = temp_root("dump-mono-unused-generic");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "my id x = x\n").unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(&output, "mono roots []");
+        assert!(!output.text.contains("d0"));
     }
 
     #[test]
