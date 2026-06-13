@@ -73,7 +73,9 @@ pub(crate) struct CompactMergeConstraintKey {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum CompactMergeConstraintShape {
-    Interval,
+    Interval {
+        center: Option<TypeVar>,
+    },
     Con {
         path: Vec<String>,
         args: Vec<CompactMergeConstraintShape>,
@@ -614,7 +616,9 @@ fn compact_merge_constraint_key(
 
 fn compact_merge_constraint_shape(bounds: &CompactBounds) -> CompactMergeConstraintShape {
     match bounds {
-        CompactBounds::Interval { .. } => CompactMergeConstraintShape::Interval,
+        CompactBounds::Interval { lower, upper } => CompactMergeConstraintShape::Interval {
+            center: compact_interval_center_var(lower, upper),
+        },
         CompactBounds::Con { path, args } => CompactMergeConstraintShape::Con {
             path: path.clone(),
             args: args.iter().map(compact_merge_constraint_shape).collect(),
@@ -657,6 +661,30 @@ fn compact_merge_constraint_shape(bounds: &CompactBounds) -> CompactMergeConstra
                 })
                 .collect(),
         ),
+    }
+}
+
+fn compact_interval_center_var(lower: &CompactType, upper: &CompactType) -> Option<TypeVar> {
+    let lower = single_plain_compact_var(lower)?;
+    let upper = single_plain_compact_var(upper)?;
+    (lower == upper).then_some(lower)
+}
+
+fn single_plain_compact_var(ty: &CompactType) -> Option<TypeVar> {
+    if ty.vars.len() == 1
+        && !ty.never
+        && ty.builtins.is_empty()
+        && ty.cons.is_empty()
+        && ty.funs.is_empty()
+        && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
+        && ty.poly_variants.is_empty()
+        && ty.tuples.is_empty()
+        && ty.rows.is_empty()
+    {
+        Some(ty.vars[0].var)
+    } else {
+        None
     }
 }
 
@@ -726,6 +754,7 @@ fn merge_compact_types_with_sink<S: CompactMergeConstraintSink>(
     lhs.poly_variants = merge_variants_with_sink(positive, lhs.poly_variants, poly_variants, sink);
     lhs.tuples = merge_tuples_with_sink(positive, lhs.tuples, tuples, sink);
     lhs.rows = merge_rows_with_sink(positive, lhs.rows, rows, sink);
+    record_effect_family_coexistence_with_sink(&lhs, sink);
     lhs
 }
 
@@ -1550,14 +1579,7 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
     }
 
     fn finalize_pos_rowish_type(&mut self, ty: &CompactType) -> PosId {
-        let mut items = ty
-            .vars
-            .iter()
-            .map(|var| self.finalize_pos_var(var))
-            .collect::<Vec<_>>();
-        for row in &ty.rows {
-            self.extend_pos_row_items(row, &mut items);
-        }
+        let items = self.finalize_pos_effect_row_items(ty);
         self.alloc_pos(Pos::Row(items))
     }
 
@@ -1566,16 +1588,7 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
             return self.finalize_pos_type(ty);
         }
 
-        let mut items = Vec::new();
-        for var in &ty.vars {
-            push_unique_pos(&mut items, self.finalize_pos_var(var));
-        }
-        for con in compact_con_entries(&ty.cons) {
-            push_unique_pos(&mut items, self.finalize_pos_con(&con));
-        }
-        for row in &ty.rows {
-            self.extend_pos_row_items(row, &mut items);
-        }
+        let items = self.finalize_pos_effect_row_items(ty);
         self.alloc_pos(Pos::Row(items))
     }
 
@@ -1607,8 +1620,7 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
     }
 
     fn finalize_pos_row(&mut self, row: &CompactRow) -> PosId {
-        let mut items = Vec::new();
-        self.extend_pos_row_items(row, &mut items);
+        let items = self.finalize_pos_row_items(row);
         self.alloc_pos(Pos::Row(items))
     }
 
@@ -1632,14 +1644,68 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
         self.alloc_neg(Neg::Row(items, tail))
     }
 
-    fn extend_pos_row_items(&mut self, row: &CompactRow, out: &mut Vec<PosId>) {
-        for item in compact_row_item_entries(&row.items) {
+    fn finalize_pos_effect_row_items(&mut self, ty: &CompactType) -> Vec<PosId> {
+        let mut concrete = CompactRowItemMap::default();
+        let mut opaque = Vec::new();
+        self.collect_pos_effect_type_parts(ty, &mut concrete, &mut opaque);
+        self.finalize_collected_pos_row_items(concrete, opaque)
+    }
+
+    fn finalize_pos_row_items(&mut self, row: &CompactRow) -> Vec<PosId> {
+        let mut concrete = CompactRowItemMap::default();
+        let mut opaque = Vec::new();
+        self.collect_pos_row_parts(row, &mut concrete, &mut opaque);
+        self.finalize_collected_pos_row_items(concrete, opaque)
+    }
+
+    fn finalize_collected_pos_row_items(
+        &mut self,
+        concrete: CompactRowItemMap,
+        mut opaque: Vec<PosId>,
+    ) -> Vec<PosId> {
+        let mut items = Vec::new();
+        for item in compact_row_item_entries(&concrete) {
             let item = self.finalize_pos_con(&item);
-            push_unique_pos(out, item);
+            push_unique_pos(&mut items, item);
         }
+        for item in opaque.drain(..) {
+            push_unique_pos(&mut items, item);
+        }
+        items
+    }
+
+    fn collect_pos_effect_type_parts(
+        &mut self,
+        ty: &CompactType,
+        concrete: &mut CompactRowItemMap,
+        opaque: &mut Vec<PosId>,
+    ) {
+        for con in compact_con_entries(&ty.cons) {
+            merge_pos_row_item(concrete, con);
+        }
+        for row in &ty.rows {
+            self.collect_pos_row_parts(row, concrete, opaque);
+        }
+        for var in &ty.vars {
+            let item = self.finalize_pos_var(var);
+            push_unique_pos(opaque, item);
+        }
+    }
+
+    fn collect_pos_row_parts(
+        &mut self,
+        row: &CompactRow,
+        concrete: &mut CompactRowItemMap,
+        opaque: &mut Vec<PosId>,
+    ) {
+        *concrete = merge_row_items(true, mem::take(concrete), row.items.clone());
         if !is_empty_compact_type(&row.tail) {
-            let tail = self.finalize_pos_type(&row.tail);
-            push_unique_pos(out, tail);
+            if self.is_positive_effect_rowish(&row.tail) {
+                self.collect_pos_effect_type_parts(&row.tail, concrete, opaque);
+            } else {
+                let tail = self.finalize_pos_type(&row.tail);
+                push_unique_pos(opaque, tail);
+            }
         }
     }
 
@@ -1787,6 +1853,54 @@ fn singleton_row_item_map(path: Vec<String>, args: Vec<CompactBounds>) -> Compac
     let mut items = CompactRowItemMap::default();
     items.insert(path, args);
     items
+}
+
+fn merge_pos_row_item(items: &mut CompactRowItemMap, con: CompactCon) {
+    *items = merge_row_items(
+        true,
+        mem::take(items),
+        singleton_row_item_map(con.path, con.args),
+    );
+}
+
+fn record_effect_family_coexistence_with_sink<S: CompactMergeConstraintSink>(
+    ty: &CompactType,
+    sink: &mut S,
+) {
+    let mut families = Vec::new();
+    collect_effect_families(ty, &mut families);
+    for (index, (path, args)) in families.iter().enumerate() {
+        for (other_path, other_args) in families.iter().skip(index + 1) {
+            if path == other_path && args.len() == other_args.len() {
+                record_merge_bound_args_with_sink(sink, args, other_args);
+            }
+        }
+    }
+}
+
+fn collect_effect_families<'a>(
+    ty: &'a CompactType,
+    out: &mut Vec<(&'a Vec<String>, &'a Vec<CompactBounds>)>,
+) {
+    for (path, args) in &ty.cons {
+        out.push((path, args));
+    }
+    for row in &ty.rows {
+        for (path, args) in &row.items {
+            out.push((path, args));
+        }
+        collect_effect_families(&row.tail, out);
+    }
+}
+
+fn record_merge_bound_args_with_sink<S: CompactMergeConstraintSink>(
+    sink: &mut S,
+    lhs: &[CompactBounds],
+    rhs: &[CompactBounds],
+) {
+    for (lhs, rhs) in lhs.iter().zip(rhs) {
+        sink.record_merge_constraint(lhs, rhs);
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -2527,9 +2641,7 @@ impl<'a> CompactCollector<'a> {
         if lhs.len() != rhs.len() {
             return;
         }
-        for (lhs, rhs) in lhs.iter().zip(rhs) {
-            self.merge_constraints.record_merge_constraint(lhs, rhs);
-        }
+        record_merge_bound_args_with_sink(&mut self.merge_constraints, lhs, rhs);
     }
 
     fn compact_reachable_role_constraints(
@@ -4908,6 +5020,38 @@ mod tests {
     }
 
     #[test]
+    fn finalize_positive_row_merges_tail_effect_item_by_path() {
+        let mut types = TypeArena::new();
+        let ty = CompactType::from_row(CompactRow {
+            items: row_items_from_con(effect_con_with_empty_payload(TypeVar(1))),
+            tail: Box::new(CompactType::from_con(effect_con_with_empty_payload(
+                TypeVar(2),
+            ))),
+        });
+
+        let finalized = finalize_compact_type(&mut types, &ty);
+
+        let Pos::Row(items) = types.pos(finalized) else {
+            panic!("expected positive row");
+        };
+        let effect_items = items
+            .iter()
+            .filter_map(|item| match types.pos(*item) {
+                Pos::Con(path, args) if compact_path_is(path, "effect") => Some(args),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(effect_items.len(), 1);
+        let Neu::Bounds(lower, upper) = types.neu(effect_items[0][0]) else {
+            panic!("expected merged effect payload interval");
+        };
+        assert!(pos_contains_var(&types, *lower, TypeVar(1)));
+        assert!(pos_contains_var(&types, *lower, TypeVar(2)));
+        assert!(neg_contains_var(&types, *upper, TypeVar(1)));
+        assert!(neg_contains_var(&types, *upper, TypeVar(2)));
+    }
+
+    #[test]
     fn finalize_root_preserves_recursive_side_table() {
         let mut types = TypeArena::new();
         let root = CompactRoot {
@@ -5057,6 +5201,25 @@ mod tests {
         assert!(compact_type_contains_var(upper, TypeVar(2)));
     }
 
+    #[test]
+    fn row_and_con_same_path_records_payload_merge_constraints() {
+        let mut constraints = Vec::new();
+
+        let merged = merge_compact_types_with_sink(
+            true,
+            CompactType::from_row(CompactRow {
+                items: row_items_from_con(effect_con_with_empty_payload(TypeVar(1))),
+                tail: Box::new(CompactType::default()),
+            }),
+            CompactType::from_con(effect_con_with_empty_payload(TypeVar(2))),
+            &mut constraints,
+        );
+
+        assert_eq!(merged.rows.len(), 1);
+        assert_eq!(merged.cons.len(), 1);
+        assert_eq!(constraints.len(), 1);
+    }
+
     fn compact_row_contains_path(compact: &CompactType, path: &str) -> bool {
         compact.rows.iter().any(|row| {
             row.items
@@ -5129,6 +5292,23 @@ mod tests {
             Pos::Union(left, right) => {
                 pos_contains_var(types, *left, expected)
                     || pos_contains_var(types, *right, expected)
+            }
+            _ => false,
+        }
+    }
+
+    fn neg_contains_var(types: &TypeArena, id: NegId, expected: TypeVar) -> bool {
+        match types.neg(id) {
+            Neg::Var(var) => *var == expected,
+            Neg::Row(items, tail) => {
+                items
+                    .iter()
+                    .any(|item| neg_contains_var(types, *item, expected))
+                    || neg_contains_var(types, *tail, expected)
+            }
+            Neg::Intersection(left, right) => {
+                neg_contains_var(types, *left, expected)
+                    || neg_contains_var(types, *right, expected)
             }
             _ => false,
         }
