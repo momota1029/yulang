@@ -5176,10 +5176,7 @@ impl<'a> ExprLowerer<'a> {
         for part in parts {
             let part = match part {
                 StringLitPart::Text(text) => self.string_value(text),
-                StringLitPart::Interp(expr) => {
-                    let value = self.lower_expr(&expr)?;
-                    self.lower_synthetic_selection(value, "show".to_string())
-                }
+                StringLitPart::Interp(part) => self.lower_string_interp_part(part)?,
             };
             acc = Some(match acc {
                 Some(left) => self.concat_string_values(left, part)?,
@@ -5187,6 +5184,124 @@ impl<'a> ExprLowerer<'a> {
             });
         }
         Ok(acc.unwrap_or_else(|| self.string_value(String::new())))
+    }
+
+    fn lower_string_interp_part(
+        &mut self,
+        part: StringInterpPart,
+    ) -> Result<Computation, LoweringError> {
+        let value = self.lower_expr(&part.expr)?;
+        if !part.format.has_layout() {
+            return Ok(self.lower_format_kind_selection(value, part.format.kind));
+        }
+
+        let format_spec = self.format_spec_value(&part.format)?;
+        let formatter = self.lower_std_value_ref(crate::std_paths::core_fmt_value(
+            part.format.kind.format_function_name(),
+        ))?;
+        let formatter = self.make_app(formatter, format_spec);
+        Ok(self.make_app(formatter, value))
+    }
+
+    fn lower_format_kind_selection(&mut self, value: Computation, kind: FormatKind) -> Computation {
+        self.lower_synthetic_selection(value, kind.method_name().to_string())
+    }
+
+    fn format_spec_value(&mut self, spec: &FormatSpec) -> Result<Computation, LoweringError> {
+        let fields = vec![
+            ("kind".to_string(), self.format_kind_value(spec.kind)?),
+            (
+                "align".to_string(),
+                self.optional_format_align_value(spec.align)?,
+            ),
+            (
+                "sign".to_string(),
+                self.optional_format_sign_value(spec.sign)?,
+            ),
+            (
+                "fill".to_string(),
+                self.optional_string_value(spec.fill.clone())?,
+            ),
+            ("width".to_string(), self.optional_int_value(spec.width)?),
+            (
+                "precision".to_string(),
+                self.optional_int_value(spec.precision)?,
+            ),
+            ("alternate".to_string(), self.lower_bool(spec.alternate)),
+            ("zero_pad".to_string(), self.lower_bool(spec.zero_pad)),
+        ];
+        let record = self.synthetic_record_value(fields);
+        let constructor =
+            self.lower_std_value_ref(crate::std_paths::core_fmt_value("format_spec"))?;
+        Ok(self.make_app(constructor, record))
+    }
+
+    fn format_kind_value(&mut self, kind: FormatKind) -> Result<Computation, LoweringError> {
+        self.lower_std_value_ref(crate::std_paths::core_fmt_format_kind_value(
+            kind.variant_name(),
+        ))
+    }
+
+    fn optional_format_align_value(
+        &mut self,
+        align: Option<FormatAlign>,
+    ) -> Result<Computation, LoweringError> {
+        match align {
+            Some(align) => {
+                let value = self.lower_std_value_ref(
+                    crate::std_paths::core_fmt_format_align_value(align.variant_name()),
+                )?;
+                self.some_value(value)
+            }
+            None => self.none_value(),
+        }
+    }
+
+    fn optional_format_sign_value(
+        &mut self,
+        sign: Option<FormatSign>,
+    ) -> Result<Computation, LoweringError> {
+        match sign {
+            Some(sign) => {
+                let value = self.lower_std_value_ref(
+                    crate::std_paths::core_fmt_format_sign_value(sign.variant_name()),
+                )?;
+                self.some_value(value)
+            }
+            None => self.none_value(),
+        }
+    }
+
+    fn optional_string_value(
+        &mut self,
+        value: Option<String>,
+    ) -> Result<Computation, LoweringError> {
+        match value {
+            Some(value) => {
+                let value = self.string_value(value);
+                self.some_value(value)
+            }
+            None => self.none_value(),
+        }
+    }
+
+    fn optional_int_value(&mut self, value: Option<i64>) -> Result<Computation, LoweringError> {
+        match value {
+            Some(value) => {
+                let value = self.int_value(value);
+                self.some_value(value)
+            }
+            None => self.none_value(),
+        }
+    }
+
+    fn some_value(&mut self, value: Computation) -> Result<Computation, LoweringError> {
+        let some = self.lower_std_value_ref(crate::std_paths::data_opt_value("just"))?;
+        Ok(self.make_app(some, value))
+    }
+
+    fn none_value(&mut self) -> Result<Computation, LoweringError> {
+        self.lower_std_value_ref(crate::std_paths::data_opt_value("nil"))
     }
 
     fn concat_string_values(
@@ -5213,6 +5328,55 @@ impl<'a> ExprLowerer<'a> {
         );
         let expr = self.session.poly.add_expr(Expr::Lit(Lit::Str(text)));
         Computation::value(expr, value, effect)
+    }
+
+    fn int_value(&mut self, number: i64) -> Computation {
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        self.constrain_lower(value, primitive_type("int"));
+        let expr = self.session.poly.add_expr(Expr::Lit(Lit::Int(number)));
+        Computation::value(expr, value, effect)
+    }
+
+    fn synthetic_record_value(&mut self, fields: Vec<(String, Computation)>) -> Computation {
+        let result_value = self.fresh_type_var();
+        let expansive = fields.iter().any(|(_, value)| value.is_expansive());
+        let result_effect = if expansive {
+            self.fresh_type_var()
+        } else {
+            self.fresh_exact_pure_effect()
+        };
+        let record_fields = fields
+            .iter()
+            .map(|(name, value)| RecordField {
+                name: name.clone(),
+                value: self.alloc_pos(Pos::Var(value.value)),
+                optional: false,
+            })
+            .collect::<Vec<_>>();
+        for (_, value) in &fields {
+            self.subtype_var_to_var(value.effect, result_effect);
+        }
+        self.constrain_lower(result_value, Pos::Record(record_fields));
+
+        let expr_fields = fields
+            .into_iter()
+            .map(|(name, value)| (name, value.expr))
+            .collect();
+        let expr = self.session.poly.add_expr(Expr::Record {
+            fields: expr_fields,
+            spread: RecordSpread::None,
+        });
+        Computation::new(
+            expr,
+            result_value,
+            result_effect,
+            if expansive {
+                Evaluation::Computation
+            } else {
+                Evaluation::Value
+            },
+        )
     }
 
     fn lower_rule_lit(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
@@ -7126,7 +7290,127 @@ struct PipeArg {
 
 enum StringLitPart {
     Text(String),
-    Interp(Cst),
+    Interp(StringInterpPart),
+}
+
+struct StringInterpPart {
+    format: FormatSpec,
+    expr: Cst,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FormatSpec {
+    kind: FormatKind,
+    align: Option<FormatAlign>,
+    sign: Option<FormatSign>,
+    fill: Option<String>,
+    width: Option<i64>,
+    precision: Option<i64>,
+    alternate: bool,
+    zero_pad: bool,
+}
+
+impl FormatSpec {
+    fn display() -> Self {
+        Self {
+            kind: FormatKind::Display,
+            align: None,
+            sign: None,
+            fill: None,
+            width: None,
+            precision: None,
+            alternate: false,
+            zero_pad: false,
+        }
+    }
+
+    fn has_layout(&self) -> bool {
+        self.align.is_some()
+            || self.sign.is_some()
+            || self.fill.is_some()
+            || self.width.is_some()
+            || self.precision.is_some()
+            || self.alternate
+            || self.zero_pad
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FormatKind {
+    Display,
+    Debug,
+    LowerHex,
+    UpperHex,
+}
+
+impl FormatKind {
+    fn method_name(self) -> &'static str {
+        match self {
+            Self::Display => "show",
+            Self::Debug => "debug",
+            Self::LowerHex => "lower_hex",
+            Self::UpperHex => "upper_hex",
+        }
+    }
+
+    fn format_function_name(self) -> &'static str {
+        match self {
+            Self::Display => "format_display",
+            Self::Debug => "format_debug",
+            Self::LowerHex => "format_lower_hex",
+            Self::UpperHex => "format_upper_hex",
+        }
+    }
+
+    fn variant_name(self) -> &'static str {
+        match self {
+            Self::Display => "display",
+            Self::Debug => "debug",
+            Self::LowerHex => "lower_hex",
+            Self::UpperHex => "upper_hex",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FormatAlign {
+    Left,
+    Right,
+    Center,
+}
+
+impl FormatAlign {
+    fn from_marker(marker: char) -> Option<Self> {
+        match marker {
+            '<' => Some(Self::Left),
+            '>' => Some(Self::Right),
+            '^' => Some(Self::Center),
+            _ => None,
+        }
+    }
+
+    fn variant_name(self) -> &'static str {
+        match self {
+            Self::Left => "left",
+            Self::Right => "right",
+            Self::Center => "center",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FormatSign {
+    Plus,
+    Minus,
+}
+
+impl FormatSign {
+    fn variant_name(self) -> &'static str {
+        match self {
+            Self::Plus => "plus",
+            Self::Minus => "minus",
+        }
+    }
 }
 
 enum RuleLitPart {
@@ -8048,19 +8332,135 @@ fn string_lit_parts(node: &Cst) -> Result<Vec<StringLitPart>, LoweringError> {
 }
 
 fn string_interp_part(node: &Cst) -> Result<StringLitPart, LoweringError> {
-    if node
+    let format = string_interp_format(node)?;
+    let expr = string_interp_body_expr(node).ok_or(LoweringError::UnsupportedSyntax {
+        kind: SyntaxKind::StringInterp,
+    })?;
+    Ok(StringLitPart::Interp(StringInterpPart { format, expr }))
+}
+
+fn string_interp_format(node: &Cst) -> Result<FormatSpec, LoweringError> {
+    let mut tokens = node
         .children_with_tokens()
         .filter_map(|item| item.into_token())
-        .any(|token| token.kind() == SyntaxKind::StringInterpFormatText)
-    {
+        .filter(|token| token.kind() == SyntaxKind::StringInterpFormatText);
+    let Some(token) = tokens.next() else {
+        return Ok(FormatSpec::display());
+    };
+    if tokens.next().is_some() {
         return Err(LoweringError::UnsupportedSyntax {
             kind: SyntaxKind::StringInterpFormatText,
         });
     }
-    let expr = string_interp_body_expr(node).ok_or(LoweringError::UnsupportedSyntax {
-        kind: SyntaxKind::StringInterp,
-    })?;
-    Ok(StringLitPart::Interp(expr))
+    parse_format_spec(token.text())
+}
+
+fn parse_format_spec(text: &str) -> Result<FormatSpec, LoweringError> {
+    let chars = text.chars().collect::<Vec<_>>();
+    let mut index = 0usize;
+    let mut spec = FormatSpec::display();
+
+    if let Some((fill, align, next)) = parse_format_align(&chars) {
+        spec.fill = fill;
+        spec.align = Some(align);
+        index = next;
+    }
+
+    match chars.get(index).copied() {
+        Some('+') => {
+            spec.sign = Some(FormatSign::Plus);
+            index += 1;
+        }
+        Some('-') => {
+            spec.sign = Some(FormatSign::Minus);
+            index += 1;
+        }
+        _ => {}
+    }
+
+    if chars.get(index) == Some(&'#') {
+        spec.alternate = true;
+        index += 1;
+    }
+
+    if chars.get(index) == Some(&'0') {
+        spec.zero_pad = true;
+        index += 1;
+    }
+
+    let (width, next) = parse_format_decimal(&chars, index)?;
+    spec.width = width;
+    index = next;
+
+    if chars.get(index) == Some(&'.') {
+        let (precision, next) = parse_format_decimal(&chars, index + 1)?;
+        let Some(precision) = precision else {
+            return Err(LoweringError::UnsupportedSyntax {
+                kind: SyntaxKind::StringInterpFormatText,
+            });
+        };
+        spec.precision = Some(precision);
+        index = next;
+    }
+
+    match chars.get(index).copied() {
+        Some('?') => {
+            spec.kind = FormatKind::Debug;
+            index += 1;
+        }
+        Some('x') => {
+            spec.kind = FormatKind::LowerHex;
+            index += 1;
+        }
+        Some('X') => {
+            spec.kind = FormatKind::UpperHex;
+            index += 1;
+        }
+        Some(_) => {
+            return Err(LoweringError::UnsupportedSyntax {
+                kind: SyntaxKind::StringInterpFormatText,
+            });
+        }
+        None => {}
+    }
+
+    if index == chars.len() {
+        Ok(spec)
+    } else {
+        Err(LoweringError::UnsupportedSyntax {
+            kind: SyntaxKind::StringInterpFormatText,
+        })
+    }
+}
+
+fn parse_format_align(chars: &[char]) -> Option<(Option<String>, FormatAlign, usize)> {
+    if let Some(align) = chars.first().copied().and_then(FormatAlign::from_marker) {
+        return Some((None, align, 1));
+    }
+    let fill = *chars.first()?;
+    if fill == '\n' || fill == '\r' {
+        return None;
+    }
+    let align = chars.get(1).copied().and_then(FormatAlign::from_marker)?;
+    Some((Some(fill.to_string()), align, 2))
+}
+
+fn parse_format_decimal(
+    chars: &[char],
+    mut index: usize,
+) -> Result<(Option<i64>, usize), LoweringError> {
+    let start = index;
+    let mut value = 0i64;
+    while let Some(digit) = chars.get(index).and_then(|ch| ch.to_digit(10)) {
+        value = value
+            .checked_mul(10)
+            .and_then(|value| value.checked_add(i64::from(digit)))
+            .ok_or(LoweringError::UnsupportedSyntax {
+                kind: SyntaxKind::StringInterpFormatText,
+            })?;
+        index += 1;
+    }
+    Ok(((index > start).then_some(value), index))
 }
 
 fn string_interp_body_expr(node: &Cst) -> Option<Cst> {
@@ -9665,6 +10065,41 @@ mod tests {
         ))
     }
 
+    fn parse_with_text_str_and_format_std(src: &str) -> Cst {
+        let mut full = concat!(
+            "mod std:\n",
+            "  pub mod data:\n",
+            "    pub mod opt:\n",
+            "      pub enum opt 'a = nil | just 'a\n",
+            "  pub mod core:\n",
+            "    pub mod fmt:\n",
+            "      use std::data::opt::*\n",
+            "      pub enum format_kind = display | debug | lower_hex | upper_hex\n",
+            "      pub enum format_align = left | right | center\n",
+            "      pub enum format_sign = plus | minus\n",
+            "      pub struct format_spec {\n",
+            "        kind: format_kind,\n",
+            "        align: opt format_align,\n",
+            "        sign: opt format_sign,\n",
+            "        fill: opt str,\n",
+            "        width: opt int,\n",
+            "        precision: opt int,\n",
+            "        alternate: bool,\n",
+            "        zero_pad: bool,\n",
+            "      }\n",
+            "      pub format_display spec value = value\n",
+            "      pub format_debug spec value = value\n",
+            "      pub format_lower_hex spec value = value\n",
+            "      pub format_upper_hex spec value = value\n",
+            "  pub mod text:\n",
+            "    pub mod str:\n",
+            "      pub concat a b = a\n",
+        )
+        .to_string();
+        full.push_str(src);
+        parse(&full)
+    }
+
     fn binding_expr(root: &Cst, name: &str) -> Cst {
         binding_node(root, name)
             .and_then(|binding| binding_body_expr(&binding))
@@ -9746,6 +10181,26 @@ mod tests {
         modules
             .value_path_at(modules.root_id(), &path, ModuleOrder::from_index(u32::MAX))
             .expect("std text str concat")
+    }
+
+    fn core_fmt_def(modules: &ModuleTable, name: &str) -> DefId {
+        let path = crate::std_paths::core_fmt_value(name)
+            .into_iter()
+            .map(Name)
+            .collect::<Vec<_>>();
+        modules
+            .value_path_at(modules.root_id(), &path, ModuleOrder::from_index(u32::MAX))
+            .unwrap_or_else(|| panic!("std core fmt value {name}"))
+    }
+
+    fn core_fmt_format_sign_def(modules: &ModuleTable, name: &str) -> DefId {
+        let path = crate::std_paths::core_fmt_format_sign_value(name)
+            .into_iter()
+            .map(Name)
+            .collect::<Vec<_>>();
+        modules
+            .value_path_at(modules.root_id(), &path, ModuleOrder::from_index(u32::MAX))
+            .unwrap_or_else(|| panic!("std core fmt format_sign value {name}"))
     }
 
     fn assert_junction_app(session: &AnalysisSession, expr: ExprId, junction: DefId) -> ExprId {
@@ -11402,8 +11857,156 @@ mod tests {
     }
 
     #[test]
-    fn string_interpolation_format_text_reports_unsupported() {
-        let root = parse("my n = 1\nmy text = \"%04{n}\"\n");
+    fn string_interpolation_kind_only_format_lowers_to_method_selection() {
+        let root =
+            parse("my n = 1\nmy debug = \"%?{n}\"\nmy lower = \"%x{n}\"\nmy upper = \"%X{n}\"\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let n = lower.modules.value_decls(module, &Name("n".into()))[0].def;
+        let mut session = AnalysisSession::new(lower.arena);
+
+        for (binding, method) in [
+            ("debug", "debug"),
+            ("lower", "lower_hex"),
+            ("upper", "upper_hex"),
+        ] {
+            let (owner, site) = binding_def_and_order(&lower.modules, module, binding);
+            let expr = binding_expr(&root, binding);
+
+            let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+                .lower_expr(&expr)
+                .unwrap();
+            session.drain_work();
+
+            let (receiver, select) = match session.poly.expr(computation.expr) {
+                Expr::Select(receiver, select) => (*receiver, *select),
+                _ => panic!("expected interpolation format kind selection"),
+            };
+            assert_eq!(session.poly.select(select).name, method);
+            assert_eq!(
+                session.poly.ref_target(expr_ref(&session, receiver)),
+                Some(n)
+            );
+        }
+    }
+
+    #[test]
+    fn string_interpolation_layout_format_lowers_to_std_format_protocol() {
+        let root = parse_with_text_str_and_format_std("my n = 1\nmy text = \"%+#08x{n}\"\n");
+        let lower = lower_module_map(&root);
+        let format_lower_hex = core_fmt_def(&lower.modules, "format_lower_hex");
+        let format_spec_ctor = core_fmt_def(&lower.modules, "format_spec");
+        let sign_plus = core_fmt_format_sign_def(&lower.modules, "plus");
+        let module = lower.modules.root_id();
+        let n = lower.modules.value_decls(module, &Name("n".into()))[0].def;
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "text");
+        let expr = binding_expr(&root, "text");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+        session.drain_work();
+
+        let (format_partial, receiver) = match session.poly.expr(computation.expr) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected format protocol application"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, receiver)),
+            Some(n)
+        );
+
+        let (format_ref, format_spec) = match session.poly.expr(format_partial) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected format protocol partial application"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, format_ref)),
+            Some(format_lower_hex)
+        );
+
+        let (constructor, record) = match session.poly.expr(format_spec) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected format_spec constructor application"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, constructor)),
+            Some(format_spec_ctor)
+        );
+        let fields = match session.poly.expr(record) {
+            Expr::Record {
+                fields,
+                spread: RecordSpread::None,
+            } => fields,
+            _ => panic!("expected format_spec record payload"),
+        };
+        assert_eq!(
+            fields
+                .iter()
+                .map(|(name, _)| name.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "kind",
+                "align",
+                "sign",
+                "fill",
+                "width",
+                "precision",
+                "alternate",
+                "zero_pad"
+            ]
+        );
+        assert!(matches!(
+            session
+                .poly
+                .expr(format_spec_record_field(fields, "alternate")),
+            Expr::Lit(Lit::Bool(true))
+        ));
+        assert!(matches!(
+            session
+                .poly
+                .expr(format_spec_record_field(fields, "zero_pad")),
+            Expr::Lit(Lit::Bool(true))
+        ));
+        assert!(matches!(
+            format_spec_some_lit_int(&session, format_spec_record_field(fields, "width")),
+            8
+        ));
+        assert_eq!(
+            session.poly.ref_target(expr_ref(
+                &session,
+                format_spec_some_payload(&session, format_spec_record_field(fields, "sign"))
+            )),
+            Some(sign_plus)
+        );
+    }
+
+    fn format_spec_record_field(fields: &[(String, ExprId)], name: &str) -> ExprId {
+        fields
+            .iter()
+            .find_map(|(field, expr)| (field == name).then_some(*expr))
+            .unwrap_or_else(|| panic!("expected format_spec field {name}"))
+    }
+
+    fn format_spec_some_lit_int(session: &AnalysisSession, expr: ExprId) -> i64 {
+        let value = format_spec_some_payload(session, expr);
+        match session.poly.expr(value) {
+            Expr::Lit(Lit::Int(number)) => *number,
+            _ => panic!("expected opt::just int payload"),
+        }
+    }
+
+    fn format_spec_some_payload(session: &AnalysisSession, expr: ExprId) -> ExprId {
+        match session.poly.expr(expr) {
+            Expr::App(_, value) => *value,
+            _ => panic!("expected opt::just application"),
+        }
+    }
+
+    #[test]
+    fn string_interpolation_invalid_format_text_reports_unsupported() {
+        let root = parse("my n = 1\nmy text = \"%q{n}\"\n");
         let lower = lower_module_map(&root);
         let module = lower.modules.root_id();
         let (owner, site) = binding_def_and_order(&lower.modules, module, "text");
@@ -11413,7 +12016,7 @@ mod tests {
         let error = match ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
             .lower_expr(&expr)
         {
-            Ok(_) => panic!("expected string format interpolation to be unsupported"),
+            Ok(_) => panic!("expected invalid string format interpolation to be unsupported"),
             Err(error) => error,
         };
 

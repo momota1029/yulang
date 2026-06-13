@@ -1505,6 +1505,67 @@ interpolation:
 ```
 
 `%` と `{` の間の text は `StringInterpFormatText` になる。
+`format_text` が空なら `Display` 表示である。
+
+`format_text` が空でない場合、parser は中身を一つの `StringInterpFormatText` token
+として保持し、lowering が次の mini grammar として解釈する。
+
+```text
+format_text =
+  format_align? format_sign? "#" ? "0"? format_width? format_precision? format_kind?
+
+format_align =
+    format_fill? ("<" | ">" | "^")
+
+format_fill =
+  any single non-newline character immediately followed by "<" | ">" | "^"
+
+format_sign =
+  "+" | "-"
+
+format_width =
+  decimal_digit+
+
+format_precision =
+  "." decimal_digit+
+
+format_kind =
+    "?"  // Debug
+  | "x"  // LowerHex
+  | "X"  // UpperHex
+```
+
+`format_fill` は align marker の直前にある場合だけ読む。
+そのため `%04{n}` の先頭 `0` は zero padding、`%0>4{n}` の `0` は fill character
+である。
+
+例:
+
+```yu
+"%{x}"      // Display
+"%?{x}"     // Debug
+"%x{n}"     // LowerHex
+"%X{n}"     // UpperHex
+"%04{n}"    // Display, width = 4, zero_pad = true
+"%>8{x}"    // Display, align = right, width = 8
+"%_>8{x}"   // Display, fill = '_', align = right, width = 8
+"%^10{x}"   // Display, align = center, width = 10
+"%.3{x}"    // Display, precision = 3
+"%#08x{n}"  // LowerHex, alternate = true, zero_pad = true, width = 8
+```
+
+`format_kind` を省略した場合は `Display` である。
+`?` は `Debug`、`x` は `LowerHex`、`X` は `UpperHex` を要求する。
+`+` sign は format 済み body が `-` で始まらない場合に `+` を先頭へ付ける。
+`-` sign は default sign と同じ扱いで、追加の prefix を付けない。
+
+lowering は `format_text` を型推論側の名前分岐へ漏らさず、構造化された
+format spec と通常の標準 library 呼び出しへ落とす。
+単純な `%{x}` は従来どおり `x.show` へ落としてよい。
+`%?{x}` / `%x{n}` / `%X{n}` のような layout 指定を持たない kind-only format は、
+それぞれ `x.debug` / `n.lower_hex` / `n.upper_hex` へ直接落としてよい。
+width / precision / align / sign / alternate / zero padding を含む場合は、
+`std::core::fmt` の formatting protocol に format spec と値を渡す通常呼び出しへ落とす。
 
 interpolation body は、先頭 token が statement block を始める種類なら仮想 brace
 statement block として読む。それ以外は `}` を stop にした expression として読む。

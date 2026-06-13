@@ -34,6 +34,36 @@ pub(crate) fn text_str_concat_value() -> Vec<String> {
     path(&["std", "text", "str", "concat"])
 }
 
+pub(crate) fn core_fmt_value(name: &str) -> Vec<String> {
+    let mut path = path(&["std", "core", "fmt"]);
+    path.push(name.to_string());
+    path
+}
+
+pub(crate) fn core_fmt_format_kind_value(name: &str) -> Vec<String> {
+    let mut path = path(&["std", "core", "fmt", "format_kind"]);
+    path.push(name.to_string());
+    path
+}
+
+pub(crate) fn core_fmt_format_align_value(name: &str) -> Vec<String> {
+    let mut path = path(&["std", "core", "fmt", "format_align"]);
+    path.push(name.to_string());
+    path
+}
+
+pub(crate) fn core_fmt_format_sign_value(name: &str) -> Vec<String> {
+    let mut path = path(&["std", "core", "fmt", "format_sign"]);
+    path.push(name.to_string());
+    path
+}
+
+pub(crate) fn data_opt_value(name: &str) -> Vec<String> {
+    let mut path = path(&["std", "data", "opt", "opt"]);
+    path.push(name.to_string());
+    path
+}
+
 pub(crate) fn control_var_var_act() -> Vec<String> {
     path(&["std", "control", "var", "var"])
 }

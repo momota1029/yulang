@@ -1,5 +1,24 @@
 use std::core::ops::*
+use std::data::opt::*
+use std::num::*
 use std::num::frac::frac
+
+pub enum format_kind = display | debug | lower_hex | upper_hex
+
+pub enum format_align = left | right | center
+
+pub enum format_sign = plus | minus
+
+pub struct format_spec {
+    kind: format_kind,
+    align: opt format_align,
+    sign: opt format_sign,
+    fill: opt str,
+    width: opt int,
+    precision: opt int,
+    alternate: bool,
+    zero_pad: bool,
+}
 
 pub role Display 'a:
     pub a.show: str
@@ -9,6 +28,85 @@ pub role Display 'a:
 pub role Debug 'a:
     pub a.debug: str
     pub a.dd = std::io::err::write: a.debug + "\n"
+
+my repeat(text: str, count: int): str =
+    if count <= 0:
+        ""
+    else:
+        text + repeat(text, count - 1)
+
+my format_fill(spec: format_spec): str = case spec.fill:
+    opt::just fill -> fill
+    opt::nil -> if spec.zero_pad: "0" else: " "
+
+my format_body(spec: format_spec, body: str): str = case spec.precision:
+    opt::just limit ->
+        if body.len <= limit:
+            body
+        else:
+            std::text::str::index_range_raw body 0 limit
+    opt::nil -> body
+
+my starts_with_minus(body: str): bool =
+    if body.len <= 0:
+        false
+    else:
+        std::text::str::index_range_raw body 0 1 == "-"
+
+my format_sign_prefix(spec: format_spec, head: str, body: str): str = case spec.sign:
+    opt::just format_sign::plus ->
+        if starts_with_minus body:
+            head
+        else:
+            "+" + head
+    opt::just format_sign::minus -> head
+    opt::nil -> head
+
+my format_with_padding(spec: format_spec, head: str, body: str): str = case spec.width:
+    opt::nil ->
+        my clipped = format_body spec body
+        my body_prefix = format_sign_prefix spec head clipped
+        body_prefix + clipped
+    opt::just width ->
+        my clipped = format_body spec body
+        my body_prefix = format_sign_prefix spec head clipped
+        my text = body_prefix + clipped
+        my missing = width - text.len
+        if missing <= 0:
+            text
+        else:
+            my fill = format_fill spec
+            case spec.align:
+                opt::just format_align::left -> text + repeat(fill, missing)
+                opt::just format_align::center ->
+                    my left = missing div 2
+                    my right = missing - left
+                    repeat(fill, left) + text + repeat(fill, right)
+                _ ->
+                    if spec.zero_pad:
+                        my padding = repeat(fill, missing)
+                        my padded_prefix = body_prefix + padding
+                        padded_prefix + clipped
+                    else:
+                        repeat(fill, missing) + text
+
+pub format_display(spec: format_spec, value: 'a): str =
+    where 'a: Display
+    format_with_padding(spec, "", value.show)
+
+pub format_debug(spec: format_spec, value: 'a): str =
+    where 'a: Debug
+    format_with_padding(spec, "", value.debug)
+
+pub format_lower_hex(spec: format_spec, value: 'a): str =
+    where 'a: LowerHex
+    my head = if spec.alternate: "0x" else: ""
+    format_with_padding(spec, head, value.lower_hex)
+
+pub format_upper_hex(spec: format_spec, value: 'a): str =
+    where 'a: UpperHex
+    my head = if spec.alternate: "0X" else: ""
+    format_with_padding(spec, head, value.upper_hex)
 
 impl int: Display:
     our x.show = std::int::to_string x
