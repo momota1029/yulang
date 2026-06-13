@@ -30,6 +30,7 @@ enum EvalResult<'a> {
 #[derive(Clone)]
 struct Request<'a> {
     path: Vec<String>,
+    guard_ids: Vec<GuardId>,
     payload: Value,
     resume: Continuation<'a>,
 }
@@ -40,6 +41,9 @@ pub struct Runtime<'a> {
     evaluating_instances: HashSet<InstanceId>,
     continuations: HashMap<ContinuationId, Continuation<'a>>,
     next_continuation_id: u32,
+    guard_ids: Vec<GuardId>,
+    active_markers: Vec<ValueMarker>,
+    next_guard_id: u32,
 }
 
 impl<'a> Runtime<'a> {
@@ -50,6 +54,9 @@ impl<'a> Runtime<'a> {
             evaluating_instances: HashSet::new(),
             continuations: HashMap::new(),
             next_continuation_id: 0,
+            guard_ids: Vec::new(),
+            active_markers: Vec::new(),
+            next_guard_id: 0,
         }
     }
 
@@ -468,7 +475,9 @@ impl<'a> Runtime<'a> {
     ) -> RuntimeResult<'a> {
         if index < arms.len() {
             let arm = arms[index].clone();
-            if arm.operation_path.as_ref() != Some(&request.path) {
+            if arm.operation_path.as_ref() != Some(&request.path)
+                || self.request_intersects_guard_stack(&request)
+            {
                 return self.handle_catch_request_arm(request, arms, env, index + 1);
             }
 
@@ -504,6 +513,7 @@ impl<'a> Runtime<'a> {
         let resume = request.resume.clone();
         Ok(EvalResult::Request(Request {
             path: request.path,
+            guard_ids: request.guard_ids,
             payload: request.payload,
             resume: Rc::new(move |runtime, value| {
                 let resumed = resume(runtime, value)?;
@@ -588,13 +598,13 @@ impl<'a> Runtime<'a> {
 
     fn apply_value(&mut self, callee: Value, arg: Value) -> RuntimeResult<'a> {
         match callee {
+            Value::Marked { value, markers } => {
+                let markers = markers_for_function_call(markers);
+                self.with_marker_frame(markers, move |runtime| runtime.apply_value(*value, arg))
+            }
             Value::Closure(closure) => self.apply_closure(closure, arg),
             Value::FunctionAdapter(adapter) => self.apply_adapter(adapter, arg),
-            Value::EffectOp { path } => Ok(EvalResult::Request(Request {
-                path,
-                payload: arg,
-                resume: Rc::new(|_, value| value_result(value)),
-            })),
+            Value::EffectOp { path } => self.emit_effect_request(path, arg),
             Value::Continuation(id) => {
                 let resume = self
                     .continuations
@@ -616,11 +626,6 @@ impl<'a> Runtime<'a> {
     }
 
     fn apply_adapter(&mut self, adapter: FunctionAdapter, arg: Value) -> RuntimeResult<'a> {
-        if !adapter.hygiene.markers.is_empty() {
-            return Err(RuntimeError::UnsupportedBoundary {
-                feature: "function adapter hygiene".to_string(),
-            });
-        }
         let (source_arg, source_ret) =
             function_parts(&adapter.source).ok_or(RuntimeError::ExpectedFunctionType)?;
         let (target_arg, target_ret) =
@@ -630,15 +635,125 @@ impl<'a> Runtime<'a> {
         let target_arg = target_arg.clone();
         let target_ret = target_ret.clone();
         let function = *adapter.function;
-        let arg = self.adapt_value(arg, &target_arg, &source_arg)?;
-        self.continue_with(arg, move |runtime, arg| {
-            let result = runtime.apply_value(function.clone(), arg)?;
-            let source_ret = source_ret.clone();
-            let target_ret = target_ret.clone();
-            runtime.continue_with(result, move |runtime, result| {
-                runtime.adapt_value(result, &source_ret, &target_ret)
+        let markers = self.instantiate_hygiene(&adapter.hygiene);
+        self.with_marker_frame(markers.clone(), move |runtime| {
+            let arg = mark_value(arg.clone(), &markers);
+            let arg = runtime.adapt_value(arg, &target_arg, &source_arg)?;
+            runtime.continue_with(arg, move |runtime, arg| {
+                let arg = mark_value(arg, &markers);
+                let result = runtime.apply_value(function.clone(), arg)?;
+                let source_ret = source_ret.clone();
+                let target_ret = target_ret.clone();
+                let markers = markers.clone();
+                runtime.continue_with(result, move |runtime, result| {
+                    let result = mark_value(result, &markers);
+                    runtime.adapt_value(result, &source_ret, &target_ret)
+                })
             })
         })
+    }
+
+    fn emit_effect_request(&self, path: Vec<String>, payload: Value) -> RuntimeResult<'a> {
+        let mut request = Request {
+            path,
+            guard_ids: Vec::new(),
+            payload,
+            resume: Rc::new(|_, value| value_result(value)),
+        };
+        self.mark_request_with_active_markers(&mut request);
+        Ok(EvalResult::Request(request))
+    }
+
+    fn mark_request_with_active_markers(&self, request: &mut Request<'a>) {
+        for marker in &self.active_markers {
+            if marker.depth != 0
+                || request.path == marker.path
+                || self.request_intersects_guard_stack(request)
+            {
+                continue;
+            }
+            if !request.guard_ids.contains(&marker.id) {
+                request.guard_ids.push(marker.id);
+            }
+        }
+    }
+
+    fn request_intersects_guard_stack(&self, request: &Request<'_>) -> bool {
+        request
+            .guard_ids
+            .iter()
+            .any(|guard_id| self.guard_ids.contains(guard_id))
+    }
+
+    fn instantiate_hygiene(&mut self, hygiene: &FunctionAdapterHygiene) -> Vec<ValueMarker> {
+        hygiene
+            .markers
+            .iter()
+            .map(|marker| ValueMarker {
+                id: self.fresh_guard_id(),
+                path: marker.path.clone(),
+                depth: marker.depth,
+            })
+            .collect()
+    }
+
+    fn fresh_guard_id(&mut self) -> GuardId {
+        let id = GuardId(self.next_guard_id);
+        self.next_guard_id += 1;
+        id
+    }
+
+    fn with_marker_frame(
+        &mut self,
+        markers: Vec<ValueMarker>,
+        run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult<'a> + 'a,
+    ) -> RuntimeResult<'a> {
+        if markers.is_empty() {
+            return run(self);
+        }
+
+        let guard_len = self.guard_ids.len();
+        let active_len = self.active_markers.len();
+        self.push_marker_frame(&markers);
+        let result = run(self);
+        self.pop_marker_frame(guard_len, active_len);
+
+        self.close_marker_frame_result(result?, markers)
+    }
+
+    fn push_marker_frame(&mut self, markers: &[ValueMarker]) {
+        self.guard_ids
+            .extend(markers.iter().map(|marker| marker.id));
+        self.active_markers.extend(markers.iter().cloned());
+    }
+
+    fn pop_marker_frame(&mut self, guard_len: usize, active_len: usize) {
+        self.guard_ids.truncate(guard_len);
+        self.active_markers.truncate(active_len);
+    }
+
+    fn close_marker_frame_result(
+        &mut self,
+        result: EvalResult<'a>,
+        markers: Vec<ValueMarker>,
+    ) -> RuntimeResult<'a> {
+        match result {
+            EvalResult::Value(value) => value_result(mark_value(value, &markers)),
+            EvalResult::Request(request) => {
+                let resume = request.resume.clone();
+                Ok(EvalResult::Request(Request {
+                    path: request.path,
+                    guard_ids: request.guard_ids,
+                    payload: request.payload,
+                    resume: Rc::new(move |runtime, value| {
+                        let resume = resume.clone();
+                        runtime.with_marker_frame(markers.clone(), move |runtime| {
+                            resume(runtime, value)
+                        })
+                    }),
+                }))
+            }
+        }
     }
 
     fn bind_pat(
@@ -647,18 +762,20 @@ impl<'a> Runtime<'a> {
         value: &Value,
         env: &mut CapturedEnv,
     ) -> Result<bool, RuntimeError> {
+        let (view, markers) = value_view(value);
         match pat {
             Pat::Wild => Ok(true),
-            Pat::Lit(lit) => Ok(value == &Value::from(lit)),
+            Pat::Lit(lit) => Ok(value_equivalent(value, &Value::from(lit))),
             Pat::Tuple(items) => {
-                let Value::Tuple(values) = value else {
+                let Value::Tuple(values) = view else {
                     return Ok(false);
                 };
                 if items.len() != values.len() {
                     return Ok(false);
                 }
                 for (pat, value) in items.iter().zip(values) {
-                    if !self.bind_pat(pat, value, env)? {
+                    let value = mark_value(value.clone(), &markers);
+                    if !self.bind_pat(pat, &value, env)? {
                         return Ok(false);
                     }
                 }
@@ -668,7 +785,7 @@ impl<'a> Runtime<'a> {
                 feature: "list pattern".to_string(),
             }),
             Pat::Record { fields, spread } => {
-                let Value::Record(record_fields) = value else {
+                let Value::Record(record_fields) = view else {
                     return Ok(false);
                 };
                 let mut consumed = HashSet::new();
@@ -677,7 +794,8 @@ impl<'a> Runtime<'a> {
                         return Ok(false);
                     };
                     consumed.insert(index);
-                    if !self.bind_pat(pat, &field.value, env)? {
+                    let value = mark_value(field.value.clone(), &markers);
+                    if !self.bind_pat(pat, &value, env)? {
                         return Ok(false);
                     }
                 }
@@ -686,7 +804,10 @@ impl<'a> Runtime<'a> {
                         .iter()
                         .enumerate()
                         .filter(|(index, _)| !consumed.contains(index))
-                        .map(|(_, field)| field.clone())
+                        .map(|(_, field)| ValueField {
+                            name: field.name.clone(),
+                            value: mark_value(field.value.clone(), &markers),
+                        })
                         .collect();
                     env.locals.insert(def, Value::Record(captured));
                 }
@@ -696,7 +817,7 @@ impl<'a> Runtime<'a> {
                 let Value::PolyVariant {
                     tag: value_tag,
                     payloads,
-                } = value
+                } = view
                 else {
                     return Ok(false);
                 };
@@ -704,7 +825,8 @@ impl<'a> Runtime<'a> {
                     return Ok(false);
                 }
                 for (pat, value) in payload_pats.iter().zip(payloads) {
-                    if !self.bind_pat(pat, value, env)? {
+                    let value = mark_value(value.clone(), &markers);
+                    if !self.bind_pat(pat, &value, env)? {
                         return Ok(false);
                     }
                 }
@@ -715,7 +837,7 @@ impl<'a> Runtime<'a> {
             }),
             Pat::Ref(instance) => {
                 let expected = self.eval_instance(*instance)?;
-                Ok(value == &expected)
+                Ok(value_equivalent(value, &expected))
             }
             Pat::Var(def) => {
                 env.locals.insert(*def, value.clone());
@@ -772,6 +894,9 @@ impl<'a> Runtime<'a> {
 
     fn force_thunk(&mut self, thunk: Value) -> RuntimeResult<'a> {
         match thunk {
+            Value::Marked { value, markers } => {
+                self.with_marker_frame(markers, move |runtime| runtime.force_thunk(*value))
+            }
             Value::Thunk(Thunk::Expr { body, mut env }) => self.eval_expr(&body, &mut env),
             Value::Thunk(Thunk::Value(value)) => value_result(*value),
             value => Err(RuntimeError::NotThunk { value }),
@@ -797,6 +922,7 @@ impl<'a> Runtime<'a> {
                 let request_resume = request.resume.clone();
                 Ok(EvalResult::Request(Request {
                     path: request.path,
+                    guard_ids: request.guard_ids,
                     payload: request.payload,
                     resume: Rc::new(move |runtime, value| {
                         let resumed = request_resume(runtime, value)?;
@@ -815,25 +941,43 @@ impl<'a> Runtime<'a> {
     }
 
     fn expect_record(&self, value: Value) -> Result<Vec<ValueField>, RuntimeError> {
+        let (value, markers) = into_value_markers(value);
         match value {
-            Value::Record(fields) => Ok(fields),
+            Value::Record(fields) => Ok(fields
+                .into_iter()
+                .map(|field| ValueField {
+                    name: field.name,
+                    value: mark_value(field.value, &markers),
+                })
+                .collect()),
             value => Err(RuntimeError::ExpectedRecord { value }),
         }
     }
 
     fn project_record_field(&self, value: Value, name: &str) -> Result<Value, RuntimeError> {
+        let (value, markers) = into_value_markers(value);
         match value {
             Value::Record(fields) => fields
                 .iter()
                 .rev()
                 .find(|field| field.name == name)
-                .map(|field| field.value.clone())
+                .map(|field| mark_value(field.value.clone(), &markers))
                 .ok_or_else(|| RuntimeError::MissingRecordField {
                     name: name.to_string(),
                 }),
             value => Err(RuntimeError::ExpectedRecord { value }),
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GuardId(pub u32);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ValueMarker {
+    pub id: GuardId,
+    pub path: Vec<String>,
+    pub depth: u32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -846,12 +990,21 @@ pub enum Value {
     Unit,
     Tuple(Vec<Value>),
     Record(Vec<ValueField>),
-    PolyVariant { tag: String, payloads: Vec<Value> },
+    PolyVariant {
+        tag: String,
+        payloads: Vec<Value>,
+    },
     Closure(Closure),
     Thunk(Thunk),
     FunctionAdapter(FunctionAdapter),
-    EffectOp { path: Vec<String> },
+    EffectOp {
+        path: Vec<String>,
+    },
     Continuation(ContinuationId),
+    Marked {
+        value: Box<Value>,
+        markers: Vec<ValueMarker>,
+    },
 }
 
 impl From<&Lit> for Value {
@@ -1024,6 +1177,86 @@ fn record_field_with_index<'a>(
         .find(|(_, field)| field.name == name)
 }
 
+fn markers_for_function_call(markers: Vec<ValueMarker>) -> Vec<ValueMarker> {
+    markers
+        .into_iter()
+        .map(|marker| ValueMarker {
+            depth: marker.depth.saturating_sub(1),
+            ..marker
+        })
+        .collect()
+}
+
+fn mark_value(value: Value, markers: &[ValueMarker]) -> Value {
+    if markers.is_empty() {
+        return value;
+    }
+
+    let (value, mut value_markers) = into_value_markers(value);
+    extend_marker_list(&mut value_markers, markers);
+    if value_markers.is_empty() || is_scalar_value(&value) {
+        return value;
+    }
+    Value::Marked {
+        value: Box::new(value),
+        markers: value_markers,
+    }
+}
+
+fn value_view(value: &Value) -> (&Value, Vec<ValueMarker>) {
+    let mut value = value;
+    let mut markers = Vec::new();
+    while let Value::Marked {
+        value: inner,
+        markers: value_markers,
+    } = value
+    {
+        extend_marker_list(&mut markers, value_markers);
+        value = inner;
+    }
+    (value, markers)
+}
+
+fn into_value_markers(value: Value) -> (Value, Vec<ValueMarker>) {
+    let mut value = value;
+    let mut markers = Vec::new();
+    while let Value::Marked {
+        value: inner,
+        markers: value_markers,
+    } = value
+    {
+        extend_marker_list(&mut markers, &value_markers);
+        value = *inner;
+    }
+    (value, markers)
+}
+
+fn extend_marker_list(markers: &mut Vec<ValueMarker>, new_markers: &[ValueMarker]) {
+    for marker in new_markers {
+        if !markers.iter().any(|existing| existing == marker) {
+            markers.push(marker.clone());
+        }
+    }
+}
+
+fn is_scalar_value(value: &Value) -> bool {
+    matches!(
+        value,
+        Value::Int(_)
+            | Value::BigInt(_)
+            | Value::Float(_)
+            | Value::Str(_)
+            | Value::Bool(_)
+            | Value::Unit
+    )
+}
+
+fn value_equivalent(left: &Value, right: &Value) -> bool {
+    let (left, _) = value_view(left);
+    let (right, _) = value_view(right);
+    left == right
+}
+
 fn value_result<'a>(value: Value) -> RuntimeResult<'a> {
     Ok(EvalResult::Value(value))
 }
@@ -1038,8 +1271,8 @@ fn expect_eval_value(result: EvalResult<'_>) -> Result<Value, RuntimeError> {
 #[cfg(test)]
 mod tests {
     use mono::{
-        Block, CatchArm, Expr, ExprKind, Instance, InstanceId, InstanceSource, Lit, Pat, Program,
-        Root, Signature, Stmt, Type, Vis,
+        Block, CatchArm, Expr, ExprKind, FunctionAdapterHygiene, GuardMarker, Instance, InstanceId,
+        InstanceSource, Lit, Pat, Program, Root, SelectResolution, Signature, Stmt, Type, Vis,
     };
 
     use super::{Value, run_program};
@@ -1434,6 +1667,276 @@ mod tests {
     }
 
     #[test]
+    fn hygiene_blocks_inner_handler_for_foreign_thunk_argument() {
+        let thunk_arg = mono::DefId(10);
+        let outer_payload = mono::DefId(11);
+        let blocked = path(&["blocked", "fire"]);
+        let allowed = path(&["allowed", "run"]);
+        let thunk_effect = effect_row(&["blocked", "fire"]);
+        let thunk_arg_type = thunk_type(thunk_effect.clone(), int_type());
+        let source = pure_function_type(thunk_arg_type.clone(), int_type());
+        let target = pure_function_type(thunk_arg_type.clone(), int_type());
+        let function = Expr::new(ExprKind::Lambda(
+            Pat::Var(thunk_arg),
+            Box::new(Expr::new(ExprKind::Catch {
+                body: Box::new(force_thunk_expr(
+                    Expr::new(ExprKind::Local(thunk_arg)),
+                    thunk_effect.clone(),
+                    int_type(),
+                )),
+                arms: vec![CatchArm {
+                    operation_path: Some(blocked.clone()),
+                    pat: Pat::Wild,
+                    continuation: Some(Pat::Wild),
+                    guard: None,
+                    body: Expr::new(ExprKind::Lit(Lit::Int(99))),
+                }],
+            })),
+        ));
+        let adapter = function_adapter(function, source, target, allowed, 0);
+        let arg = make_thunk_expr(
+            thunk_effect,
+            int_type(),
+            effect_call(blocked.clone(), ExprKind::Lit(Lit::Int(7))),
+        );
+        let program = Program {
+            roots: vec![Root::Expr(Expr::new(ExprKind::Catch {
+                body: Box::new(Expr::new(ExprKind::Apply(Box::new(adapter), Box::new(arg)))),
+                arms: vec![CatchArm {
+                    operation_path: Some(blocked),
+                    pat: Pat::Var(outer_payload),
+                    continuation: Some(Pat::Wild),
+                    guard: None,
+                    body: Expr::new(ExprKind::Local(outer_payload)),
+                }],
+            }))],
+            instances: Vec::new(),
+        };
+
+        assert_eq!(run_program(&program), Ok(vec![Value::Int(7)]));
+    }
+
+    #[test]
+    fn hygiene_keeps_allowed_path_readable_inside_marker_frame() {
+        let thunk_arg = mono::DefId(20);
+        let allowed = path(&["allowed", "run"]);
+        let thunk_effect = effect_row(&["allowed", "run"]);
+        let thunk_arg_type = thunk_type(thunk_effect.clone(), int_type());
+        let source = pure_function_type(thunk_arg_type.clone(), int_type());
+        let target = pure_function_type(thunk_arg_type.clone(), int_type());
+        let function = Expr::new(ExprKind::Lambda(
+            Pat::Var(thunk_arg),
+            Box::new(Expr::new(ExprKind::Catch {
+                body: Box::new(force_thunk_expr(
+                    Expr::new(ExprKind::Local(thunk_arg)),
+                    thunk_effect.clone(),
+                    int_type(),
+                )),
+                arms: vec![CatchArm {
+                    operation_path: Some(allowed.clone()),
+                    pat: Pat::Wild,
+                    continuation: Some(Pat::Wild),
+                    guard: None,
+                    body: Expr::new(ExprKind::Lit(Lit::Int(99))),
+                }],
+            })),
+        ));
+        let adapter = function_adapter(function, source, target, allowed.clone(), 0);
+        let arg = make_thunk_expr(
+            thunk_effect,
+            int_type(),
+            effect_call(allowed, ExprKind::Lit(Lit::Int(7))),
+        );
+        let program = Program {
+            roots: vec![Root::Expr(Expr::new(ExprKind::Apply(
+                Box::new(adapter),
+                Box::new(arg),
+            )))],
+            instances: Vec::new(),
+        };
+
+        assert_eq!(run_program(&program), Ok(vec![Value::Int(99)]));
+    }
+
+    #[test]
+    fn hygiene_depth_one_blocks_inner_handler_when_marked_function_runs() {
+        let callback = mono::DefId(30);
+        let outer_payload = mono::DefId(31);
+        let blocked = path(&["blocked", "fire"]);
+        let allowed = path(&["allowed", "run"]);
+        let callback_type = pure_function_type(unit_type(), int_type());
+        let source = pure_function_type(callback_type.clone(), int_type());
+        let target = pure_function_type(callback_type.clone(), int_type());
+        let function = Expr::new(ExprKind::Lambda(
+            Pat::Var(callback),
+            Box::new(Expr::new(ExprKind::Catch {
+                body: Box::new(Expr::new(ExprKind::Apply(
+                    Box::new(Expr::new(ExprKind::Local(callback))),
+                    Box::new(Expr::new(ExprKind::Lit(Lit::Unit))),
+                ))),
+                arms: vec![CatchArm {
+                    operation_path: Some(blocked.clone()),
+                    pat: Pat::Wild,
+                    continuation: Some(Pat::Wild),
+                    guard: None,
+                    body: Expr::new(ExprKind::Lit(Lit::Int(99))),
+                }],
+            })),
+        ));
+        let callback_arg = Expr::new(ExprKind::Lambda(
+            Pat::Wild,
+            Box::new(effect_call(blocked.clone(), ExprKind::Lit(Lit::Int(7)))),
+        ));
+        let adapter = function_adapter(function, source, target, allowed, 1);
+        let program = Program {
+            roots: vec![Root::Expr(Expr::new(ExprKind::Catch {
+                body: Box::new(Expr::new(ExprKind::Apply(
+                    Box::new(adapter),
+                    Box::new(callback_arg),
+                ))),
+                arms: vec![CatchArm {
+                    operation_path: Some(blocked),
+                    pat: Pat::Var(outer_payload),
+                    continuation: Some(Pat::Wild),
+                    guard: None,
+                    body: Expr::new(ExprKind::Local(outer_payload)),
+                }],
+            }))],
+            instances: Vec::new(),
+        };
+
+        assert_eq!(run_program(&program), Ok(vec![Value::Int(7)]));
+    }
+
+    #[test]
+    fn hygiene_marker_propagates_through_record_projection_to_returned_thunk() {
+        let outer_payload = mono::DefId(41);
+        let blocked = path(&["blocked", "fire"]);
+        let allowed = path(&["allowed", "run"]);
+        let thunk_effect = effect_row(&["blocked", "fire"]);
+        let thunk_value = int_type();
+        let thunk = thunk_type(thunk_effect.clone(), thunk_value.clone());
+        let record = Type::Record(vec![mono::TypeField {
+            name: "run".to_string(),
+            value: thunk.clone(),
+            optional: false,
+        }]);
+        let source = pure_function_type(unit_type(), record.clone());
+        let target = pure_function_type(unit_type(), record);
+        let function = Expr::new(ExprKind::Lambda(
+            Pat::Wild,
+            Box::new(Expr::new(ExprKind::Record {
+                fields: vec![mono::RecordField {
+                    name: "run".to_string(),
+                    value: make_thunk_expr(
+                        thunk_effect.clone(),
+                        thunk_value.clone(),
+                        Expr::new(ExprKind::Catch {
+                            body: Box::new(effect_call(
+                                blocked.clone(),
+                                ExprKind::Lit(Lit::Int(7)),
+                            )),
+                            arms: vec![CatchArm {
+                                operation_path: Some(blocked.clone()),
+                                pat: Pat::Wild,
+                                continuation: Some(Pat::Wild),
+                                guard: None,
+                                body: Expr::new(ExprKind::Lit(Lit::Int(99))),
+                            }],
+                        }),
+                    ),
+                }],
+                spread: mono::RecordSpread::None,
+            })),
+        ));
+        let adapter = function_adapter(function, source, target, allowed, 0);
+        let selected = Expr::new(ExprKind::Select {
+            base: Box::new(Expr::new(ExprKind::Apply(
+                Box::new(adapter),
+                Box::new(Expr::new(ExprKind::Lit(Lit::Unit))),
+            ))),
+            name: "run".to_string(),
+            resolution: Some(SelectResolution::RecordField),
+        });
+        let program = Program {
+            roots: vec![Root::Expr(Expr::new(ExprKind::Catch {
+                body: Box::new(force_thunk_expr(selected, thunk_effect, thunk_value)),
+                arms: vec![CatchArm {
+                    operation_path: Some(blocked),
+                    pat: Pat::Var(outer_payload),
+                    continuation: Some(Pat::Wild),
+                    guard: None,
+                    body: Expr::new(ExprKind::Local(outer_payload)),
+                }],
+            }))],
+            instances: Vec::new(),
+        };
+
+        assert_eq!(run_program(&program), Ok(vec![Value::Int(7)]));
+    }
+
+    #[test]
+    fn hygiene_marker_frame_is_restored_when_outer_handler_resumes() {
+        let resume_continuation = mono::DefId(50);
+        let second_payload = mono::DefId(51);
+        let first = path(&["blocked", "first"]);
+        let second = path(&["blocked", "second"]);
+        let allowed = path(&["allowed", "run"]);
+        let source = pure_function_type(unit_type(), int_type());
+        let target = pure_function_type(unit_type(), int_type());
+        let function = Expr::new(ExprKind::Lambda(
+            Pat::Wild,
+            Box::new(Expr::new(ExprKind::Block(Block {
+                stmts: vec![Stmt::Expr(effect_call(
+                    first.clone(),
+                    ExprKind::Lit(Lit::Unit),
+                ))],
+                tail: Some(Box::new(Expr::new(ExprKind::Catch {
+                    body: Box::new(effect_call(second.clone(), ExprKind::Lit(Lit::Int(2)))),
+                    arms: vec![CatchArm {
+                        operation_path: Some(second.clone()),
+                        pat: Pat::Wild,
+                        continuation: Some(Pat::Wild),
+                        guard: None,
+                        body: Expr::new(ExprKind::Lit(Lit::Int(99))),
+                    }],
+                }))),
+            }))),
+        ));
+        let adapter = function_adapter(function, source, target, allowed, 0);
+        let program = Program {
+            roots: vec![Root::Expr(Expr::new(ExprKind::Catch {
+                body: Box::new(Expr::new(ExprKind::Catch {
+                    body: Box::new(Expr::new(ExprKind::Apply(
+                        Box::new(adapter),
+                        Box::new(Expr::new(ExprKind::Lit(Lit::Unit))),
+                    ))),
+                    arms: vec![CatchArm {
+                        operation_path: Some(first),
+                        pat: Pat::Wild,
+                        continuation: Some(Pat::Var(resume_continuation)),
+                        guard: None,
+                        body: Expr::new(ExprKind::Apply(
+                            Box::new(Expr::new(ExprKind::Local(resume_continuation))),
+                            Box::new(Expr::new(ExprKind::Lit(Lit::Unit))),
+                        )),
+                    }],
+                })),
+                arms: vec![CatchArm {
+                    operation_path: Some(second),
+                    pat: Pat::Var(second_payload),
+                    continuation: Some(Pat::Wild),
+                    guard: None,
+                    body: Expr::new(ExprKind::Local(second_payload)),
+                }],
+            }))],
+            instances: Vec::new(),
+        };
+
+        assert_eq!(run_program(&program), Ok(vec![Value::Int(2)]));
+    }
+
+    #[test]
     fn runs_specialized_string_input_generic_call() {
         let lowering = lower_source("my id x = x\nid(1)\n");
         let program = specialize::specialize(&lowering.session.poly)
@@ -1461,6 +1964,76 @@ mod tests {
             path: vec!["int".to_string()],
             args: Vec::new(),
         }
+    }
+
+    fn unit_type() -> Type {
+        Type::unit()
+    }
+
+    fn effect_row(parts: &[&str]) -> Type {
+        Type::EffectRow(vec![effect_type(parts)])
+    }
+
+    fn effect_type(parts: &[&str]) -> Type {
+        Type::Con {
+            path: path(parts),
+            args: Vec::new(),
+        }
+    }
+
+    fn thunk_type(effect: Type, value: Type) -> Type {
+        Type::Thunk {
+            effect: Box::new(effect),
+            value: Box::new(value),
+        }
+    }
+
+    fn pure_function_type(arg: Type, ret: Type) -> Type {
+        Type::Fun {
+            arg: Box::new(arg),
+            arg_effect: Box::new(Type::pure_effect()),
+            ret_effect: Box::new(Type::pure_effect()),
+            ret: Box::new(ret),
+        }
+    }
+
+    fn function_adapter(
+        function: Expr,
+        source: Type,
+        target: Type,
+        path: Vec<String>,
+        depth: u32,
+    ) -> Expr {
+        Expr::new(ExprKind::FunctionAdapter {
+            source,
+            target,
+            function: Box::new(function),
+            hygiene: FunctionAdapterHygiene {
+                markers: vec![GuardMarker { path, depth }],
+            },
+        })
+    }
+
+    fn make_thunk_expr(effect: Type, value: Type, body: Expr) -> Expr {
+        Expr::new(ExprKind::MakeThunk {
+            source: mono::ComputationType {
+                effect: effect.clone(),
+                value: value.clone(),
+            },
+            target: mono::EffectiveThunkType { effect, value },
+            body: Box::new(body),
+        })
+    }
+
+    fn force_thunk_expr(thunk: Expr, effect: Type, value: Type) -> Expr {
+        Expr::new(ExprKind::ForceThunk {
+            source: mono::EffectiveThunkType {
+                effect: effect.clone(),
+                value: value.clone(),
+            },
+            target: mono::ComputationType { effect, value },
+            thunk: Box::new(thunk),
+        })
     }
 
     fn path(parts: &[&str]) -> Vec<String> {

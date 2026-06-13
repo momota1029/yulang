@@ -184,6 +184,14 @@ VM は adapter value を作り、呼び出し時に次を行う。
 引数・戻り値に必要な `MakeThunk` / `ForceThunk` / nested adapter / `Coerce` は、この境界の実行として
 扱う。
 
+`hygiene` marker frame は、argument / result の boundary adaptation も含む。
+target argument は source argument へ変換される前後で marker を保持し、source result は
+target result へ変換される前に marker を持つ。
+frame の正常 exit で返る target result にも同じ marker を shape-directed に付ける。
+
+これは、boundary adaptation が thunk force / thunk wrap を含む場合に marker が落ちることを防ぐためである。
+同じ `(id, path, depth)` の marker が同じ値へ二重に付く場合、VM は一つにまとめてよい。
+
 ### FunctionAdapterHygiene
 
 ```text
