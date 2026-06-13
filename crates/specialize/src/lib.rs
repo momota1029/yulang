@@ -12,8 +12,9 @@ use std::collections::HashMap;
 use std::fmt;
 
 use mono::{
-    Block, CaseArm, CatchArm, DefId, Expr, ExprKind, Instance, InstanceId, InstanceSource, Lit,
-    Pat, Program, RecordField, RecordSpread, Root, SelectResolution, Stmt, Type, Vis,
+    Block, CaseArm, CatchArm, DefId, Expr, ExprKind, FunctionAdapterHygiene, Instance, InstanceId,
+    InstanceSource, Lit, Pat, Program, RecordField, RecordSpread, Root, SelectResolution, Stmt,
+    Type, Vis,
 };
 use poly::expr as poly_expr;
 
@@ -235,11 +236,7 @@ impl Specializer {
         if equivalent_boundary_types(boundary.actual, boundary.expected) {
             return Ok(expr);
         }
-        Ok(Expr::new(ExprKind::Coerce {
-            source: boundary.actual.clone(),
-            target: boundary.expected.clone(),
-            expr: Box::new(expr),
-        }))
+        Ok(boundary_expr(boundary.actual, boundary.expected, expr))
     }
 
     fn var(
@@ -602,6 +599,26 @@ fn lit_type(lit: &poly_expr::Lit) -> Type {
     }
 }
 
+fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr {
+    if function_boundary_types(actual, expected) {
+        return Expr::new(ExprKind::FunctionAdapter {
+            source: actual.clone(),
+            target: expected.clone(),
+            function: Box::new(expr),
+            hygiene: FunctionAdapterHygiene::default(),
+        });
+    }
+    Expr::new(ExprKind::Coerce {
+        source: actual.clone(),
+        target: expected.clone(),
+        expr: Box::new(expr),
+    })
+}
+
+fn function_boundary_types(actual: &Type, expected: &Type) -> bool {
+    matches!((actual, expected), (Type::Fun { .. }, Type::Fun { .. }))
+}
+
 fn equivalent_boundary_types(actual: &Type, expected: &Type) -> bool {
     if actual == expected || actual.is_pure_effect() && expected.is_pure_effect() {
         return true;
@@ -691,7 +708,7 @@ fn def_kind(def: &poly_expr::Def) -> DefKind {
 
 #[cfg(test)]
 mod tests {
-    use super::{specialize, specialize_roots};
+    use super::{boundary_expr, specialize, specialize_roots};
     use mono::{ExprKind, InstanceSource, Lit, Type};
 
     #[test]
@@ -722,6 +739,47 @@ mod tests {
 
         assert!(program.roots.is_empty());
         assert!(program.instances.is_empty());
+    }
+
+    #[test]
+    fn boundary_expr_uses_coerce_for_value_boundary() {
+        let actual = int_type();
+        let expected = float_type();
+        let expr = mono::Expr::new(ExprKind::Lit(Lit::Int(1)));
+
+        let wrapped = boundary_expr(&actual, &expected, expr.clone());
+
+        assert_eq!(
+            wrapped.kind,
+            ExprKind::Coerce {
+                source: actual,
+                target: expected,
+                expr: Box::new(expr),
+            }
+        );
+    }
+
+    #[test]
+    fn boundary_expr_uses_adapter_for_function_boundary() {
+        let actual = pure_function_type(int_type(), int_type());
+        let expected = pure_function_type(int_type(), float_type());
+        let function = mono::Expr::new(ExprKind::Local(mono::DefId(0)));
+
+        let wrapped = boundary_expr(&actual, &expected, function.clone());
+
+        let ExprKind::FunctionAdapter {
+            source,
+            target,
+            function: wrapped_function,
+            hygiene,
+        } = wrapped.kind
+        else {
+            panic!("function boundary should produce adapter");
+        };
+        assert_eq!(source, actual);
+        assert_eq!(target, expected);
+        assert_eq!(*wrapped_function, function);
+        assert!(hygiene.markers.is_empty());
     }
 
     #[test]
@@ -863,5 +921,28 @@ mod tests {
             output.lowering.errors
         );
         output.lowering
+    }
+
+    fn pure_function_type(arg: Type, ret: Type) -> Type {
+        Type::Fun {
+            arg: Box::new(arg),
+            arg_effect: Box::new(Type::pure_effect()),
+            ret_effect: Box::new(Type::pure_effect()),
+            ret: Box::new(ret),
+        }
+    }
+
+    fn int_type() -> Type {
+        Type::Con {
+            path: vec!["int".to_string()],
+            args: Vec::new(),
+        }
+    }
+
+    fn float_type() -> Type {
+        Type::Con {
+            path: vec!["float".to_string()],
+            args: Vec::new(),
+        }
     }
 }
