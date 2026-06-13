@@ -289,10 +289,21 @@ pub struct CaseArm {
 ///
 /// effect arm は `continuation` を持ち、value arm は持たない。guard はどちらにも付けられる。
 pub struct CatchArm {
+    pub operation: Option<CatchOperation>,
     pub pat: PatId,
     pub continuation: Option<PatId>,
     pub guard: Option<ExprId>,
     pub body: ExprId,
+}
+
+/// `catch` の effect arm が扱う operation。
+///
+/// `path` は runtime handler が effect request と照合する exact path である。
+/// `def` は operation 宣言が解決できた場合だけ入り、後段が payload / continuation の
+/// mono 型を通常の scheme 経由で読むために使う。
+pub struct CatchOperation {
+    pub path: Vec<String>,
+    pub def: Option<DefId>,
 }
 
 /// compiler builtin operation の値。

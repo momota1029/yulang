@@ -135,11 +135,11 @@ impl<'a> ExprTypeSolver<'a> {
         if let Some(expected) = expected {
             self.plan.set_expected(expr, expected.clone())?;
             if let Some(actual) = self.plan.actual(expr).cloned() {
-                self.graph.constrain_subtype(actual.clone(), expected)?;
+                self.constrain_expr_boundary(actual.clone(), expected)?;
                 return Ok(actual);
             }
             let actual = self.infer_expr(expr, Some(expected.clone()))?;
-            self.graph.constrain_subtype(actual.clone(), expected)?;
+            self.constrain_expr_boundary(actual.clone(), expected)?;
             self.plan.set_actual(expr, actual.clone())?;
             return Ok(actual);
         }
@@ -199,19 +199,29 @@ impl<'a> ExprTypeSolver<'a> {
                 }
                 Ok(result)
             }
-            PolyExpr::Catch(body, arms) => {
-                let result = expected.unwrap_or_else(|| self.fresh_value_slot());
-                self.expr(*body, Some(result.clone()))?;
-                for arm in arms {
-                    if let Some(guard) = arm.guard {
-                        self.expr(guard, Some(bool_type()))?;
-                    }
-                    self.expr(arm.body, Some(result.clone()))?;
-                }
-                Ok(result)
-            }
+            PolyExpr::Catch(body, arms) => self.catch_type(*body, arms, expected),
             PolyExpr::Block(stmts, tail) => self.block_type(stmts, *tail, expected),
         }
+    }
+
+    fn constrain_expr_boundary(
+        &mut self,
+        actual: Type,
+        expected: Type,
+    ) -> Result<(), SpecializeError> {
+        if let (
+            Type::Thunk {
+                value: actual_value,
+                ..
+            },
+            Type::OpenVar(slot),
+        ) = (&actual, &expected)
+        {
+            return self
+                .graph
+                .constrain_subtype(actual_value.as_ref().clone(), Type::OpenVar(*slot));
+        }
+        self.graph.constrain_subtype(actual, expected)
     }
 
     fn apply_type(
@@ -220,13 +230,105 @@ impl<'a> ExprTypeSolver<'a> {
         arg: poly_expr::ExprId,
         expected: Option<Type>,
     ) -> Result<Type, SpecializeError> {
+        let callee_ty = self.expr(callee, None)?;
+        if let Some((arg_ty, ret_ty)) = function_runtime_parts(&callee_ty) {
+            self.expr(arg, Some(arg_ty))?;
+            if let Some(expected) = expected {
+                self.constrain_expr_boundary(ret_ty.clone(), expected)?;
+            }
+            return Ok(ret_ty);
+        }
+
         let arg_ty = self.expr(arg, None)?;
         let ret_ty = expected.unwrap_or_else(|| self.fresh_value_slot());
         let callee_expected = types::pure_function_type(arg_ty.clone(), ret_ty.clone());
-        let callee_ty = self.expr(callee, Some(callee_expected.clone()))?;
         self.graph.constrain_subtype(callee_ty, callee_expected)?;
         self.expr(arg, Some(arg_ty))?;
         Ok(ret_ty)
+    }
+
+    fn catch_type(
+        &mut self,
+        body: poly_expr::ExprId,
+        arms: &[poly_expr::CatchArm],
+        expected: Option<Type>,
+    ) -> Result<Type, SpecializeError> {
+        let result = expected.unwrap_or_else(|| self.fresh_value_slot());
+        let body_actual = self.expr(body, None)?;
+        let (scrutinee_value, scrutinee_effect) = split_runtime_computation_shape(body_actual);
+        self.expr(body, Some(scrutinee_value.clone()))?;
+        for arm in arms {
+            self.bind_catch_arm(arm, scrutinee_value.clone(), scrutinee_effect.clone())?;
+            if let Some(guard) = arm.guard {
+                self.expr(guard, Some(bool_type()))?;
+            }
+            self.expr(arm.body, Some(result.clone()))?;
+        }
+        Ok(result)
+    }
+
+    fn bind_catch_arm(
+        &mut self,
+        arm: &poly_expr::CatchArm,
+        scrutinee_value: Type,
+        scrutinee_effect: Type,
+    ) -> Result<(), SpecializeError> {
+        let Some(continuation) = arm.continuation else {
+            self.bind_pat(arm.pat, scrutinee_value)?;
+            return Ok(());
+        };
+
+        let operation = self.catch_operation_types(arm.operation.as_ref())?;
+        self.bind_pat(arm.pat, operation.payload)?;
+        let continuation_ret = types::runtime_shape(scrutinee_effect, scrutinee_value);
+        self.bind_pat(
+            continuation,
+            types::pure_function_type(operation.continuation_input, continuation_ret),
+        )
+    }
+
+    fn catch_operation_types(
+        &mut self,
+        operation: Option<&poly_expr::CatchOperation>,
+    ) -> Result<CatchOperationTypes, SpecializeError> {
+        let Some(operation) = operation else {
+            let payload = self.fresh_value_slot();
+            return Ok(CatchOperationTypes {
+                payload: payload.clone(),
+                continuation_input: payload,
+            });
+        };
+        let Some(def) = operation.def else {
+            let payload = self.fresh_value_slot();
+            return Ok(CatchOperationTypes {
+                payload: payload.clone(),
+                continuation_input: payload,
+            });
+        };
+        let Some(poly_expr::Def::Let {
+            scheme: Some(scheme),
+            ..
+        }) = self.arena.defs.get(def)
+        else {
+            let payload = self.fresh_value_slot();
+            return Ok(CatchOperationTypes {
+                payload: payload.clone(),
+                continuation_input: payload,
+            });
+        };
+        let operation_ty = self.instantiate_scheme(def, scheme)?;
+        let Some((payload, ret)) = function_runtime_parts(&operation_ty) else {
+            let payload = self.fresh_value_slot();
+            return Ok(CatchOperationTypes {
+                payload: payload.clone(),
+                continuation_input: payload,
+            });
+        };
+        let (continuation_input, _) = split_runtime_computation_shape(ret);
+        Ok(CatchOperationTypes {
+            payload,
+            continuation_input,
+        })
     }
 
     fn lambda_type(
@@ -393,6 +495,11 @@ impl<'a> ExprTypeSolver<'a> {
 enum TypeSlotKind {
     Value,
     Effect,
+}
+
+struct CatchOperationTypes {
+    payload: Type,
+    continuation_input: Type,
 }
 
 impl TypeSlotKind {
@@ -1018,6 +1125,20 @@ fn con_path_without_args(ty: &Type) -> Option<&[String]> {
     Some(path)
 }
 
+fn function_runtime_parts(ty: &Type) -> Option<(Type, Type)> {
+    let Type::Fun { arg, ret, .. } = ty else {
+        return None;
+    };
+    Some((arg.as_ref().clone(), ret.as_ref().clone()))
+}
+
+fn split_runtime_computation_shape(shape: Type) -> (Type, Type) {
+    match shape {
+        Type::Thunk { effect, value } => (*value, *effect),
+        value => (value, Type::pure_effect()),
+    }
+}
+
 fn bool_type() -> Type {
     Type::Con {
         path: vec!["bool".to_string()],
@@ -1140,6 +1261,57 @@ mod tests {
         assert_conflicting_type_candidates(error, "int", "float");
     }
 
+    #[test]
+    fn catch_effect_arm_uses_operation_type_for_payload_and_continuation() {
+        let lowering = lower_source(
+            "act out:\n  our say: int -> unit\n\
+             catch out::say(1):\n\
+             \x20 out::say msg, k -> k(())\n\
+             \x20 value -> value\n",
+        );
+        let arena = &lowering.session.poly;
+        let root = arena.root_exprs[0];
+
+        let plan = solve_expr(arena, root, None).expect("handled effect should solve");
+
+        let poly::expr::Expr::Catch(body, arms) = arena.expr(root) else {
+            panic!("root should be a catch");
+        };
+        assert_eq!(
+            arms[0].operation.as_ref().map(|operation| &operation.path),
+            Some(&vec!["out".to_string(), "say".to_string()])
+        );
+        assert_eq!(
+            mono::dump::dump_type(plan.actual_type_of(root).unwrap()),
+            "unit"
+        );
+        assert_eq!(
+            mono::dump::dump_type(plan.boundary(*body).unwrap().actual),
+            "thunk[[out], unit]"
+        );
+        assert_eq!(
+            mono::dump::dump_type(plan.boundary(*body).unwrap().expected),
+            "unit"
+        );
+
+        let poly::expr::Expr::App(continuation, resume_value) = arena.expr(arms[0].body) else {
+            panic!("effect arm body should resume the continuation");
+        };
+        assert_eq!(
+            mono::dump::dump_type(plan.actual_type_of(*continuation).unwrap()),
+            "unit -> thunk[[out], unit]"
+        );
+        assert_eq!(plan.actual_type_of(*resume_value), Some(&unit_type()));
+        assert_eq!(
+            mono::dump::dump_type(plan.boundary(arms[0].body).unwrap().actual),
+            "thunk[[out], unit]"
+        );
+        assert_eq!(
+            mono::dump::dump_type(plan.boundary(arms[0].body).unwrap().expected),
+            "unit"
+        );
+    }
+
     fn assert_conflicting_type_candidates(error: crate::SpecializeError, left: &str, right: &str) {
         let crate::SpecializeError::ConflictingTypeCandidates {
             existing, incoming, ..
@@ -1163,6 +1335,10 @@ mod tests {
             path: vec!["float".to_string()],
             args: Vec::new(),
         }
+    }
+
+    fn unit_type() -> Type {
+        Type::unit()
     }
 
     fn lower_source(source: &str) -> infer::lowering::BodyLowering {

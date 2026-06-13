@@ -583,6 +583,16 @@ apply では、callee の runtime function boundary を見る。parameter shape 
 inner apply の結果を `ForceThunk` で開く。pure boundary では `MakeThunk` / `ForceThunk` を
 挿入しない。
 
+`catch` の effect arm は、lowering 後の erased IR でも handler 対象 operation の exact path を
+保持する。runtime handler はこの path を effect request の path と照合するため、operation path を
+型制約だけに閉じ込めて捨ててはならない。
+
+operation 宣言が解決済みであれば、effect arm はその operation def も保持する。
+specialize は operation def の scheme を通常の参照と同じ経路で materialize し、handler payload の
+mono 型と continuation が受け取る値型を得る。`op: A -> [E] B` の arm では、payload pattern は
+`A`、continuation は `B -> shape(scrutinee_effect, scrutinee_value)` として扱う。
+operation def が未解決の fallback arm では、payload 型と continuation 入力型を同じ fresh slot とする。
+
 effect id hygiene も同じく、runtime-lower 側の暗黙責務にしてはならない。guard marker の
 runtime 意味、`add_id[n, path, id]` の depth、関数起動時の push / pop、resumable effect を含む
 unwind 規則は

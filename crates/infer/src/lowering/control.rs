@@ -436,6 +436,7 @@ impl<'a> ExprLowerer<'a> {
             saw_value_arm |= lowered.value_covers_all;
             saw_effect_arm |= matches!(lowered.kind, LoweredCatchArmKind::Effect);
             arms.push(CatchArm {
+                operation: lowered.operation,
                 pat: lowered.pat,
                 continuation: lowered.continuation,
                 guard: lowered.guard,
@@ -516,6 +517,7 @@ impl<'a> ExprLowerer<'a> {
                 self.subtype_var_to_var(body.effect, result_effect);
                 Ok(LoweredCatchArm {
                     kind: LoweredCatchArmKind::Value,
+                    operation: None,
                     pat,
                     continuation: None,
                     guard,
@@ -557,9 +559,14 @@ impl<'a> ExprLowerer<'a> {
                 self.subtype_var_to_var(body.effect, result_effect);
                 let operation_covers_all =
                     pat_covers_all(&self.session.poly, payload.pat) && guard.is_none();
+                let operation = poly::expr::CatchOperation {
+                    path: handled_op.path.iter().map(|name| name.0.clone()).collect(),
+                    def: operation_decl.as_ref().and_then(|decl| decl.def),
+                };
                 handled.record(handled_op, operation_covers_all, row_item);
                 Ok(LoweredCatchArm {
                     kind: LoweredCatchArmKind::Effect,
+                    operation: Some(operation),
                     pat: payload.pat,
                     continuation: Some(continuation),
                     guard,
@@ -844,6 +851,7 @@ impl<'a> ExprLowerer<'a> {
 
 struct LoweredCatchArm {
     kind: LoweredCatchArmKind,
+    operation: Option<poly::expr::CatchOperation>,
     pat: PatId,
     continuation: Option<PatId>,
     guard: Option<poly::expr::ExprId>,

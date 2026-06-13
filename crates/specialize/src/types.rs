@@ -69,7 +69,7 @@ fn runtime_function_type(arg: Type, arg_effect: Type, ret_effect: Type, ret: Typ
     }
 }
 
-fn runtime_shape(effect: Type, value: Type) -> Type {
+pub(crate) fn runtime_shape(effect: Type, value: Type) -> Type {
     if effect.is_pure_effect() {
         return value;
     }

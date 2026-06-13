@@ -1068,6 +1068,35 @@ mod tests {
     }
 
     #[test]
+    fn dump_mono_without_std_lowers_direct_effect_handler() {
+        let root = temp_root("dump-mono-direct-effect-handler");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "act out:\n  our say: int -> unit\n\
+             catch out::say(1):\n\
+             \x20 out::say msg, k -> k(())\n\
+             \x20 value -> value\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(
+            &output,
+            "catch force-thunk[thunk[[out], unit] => unit ! [out]]",
+        );
+        assert_mono_dump_contains(&output, "out::say d");
+        assert_mono_dump_contains(
+            &output,
+            "force-thunk[thunk[[out], unit] => unit ! [out]]((d",
+        );
+        assert!(!output.text.contains("adapter["), "{}", output.text);
+    }
+
+    #[test]
     fn dump_poly_without_std_infers_local_constructor_application() {
         let root = temp_root("dump-poly-local-constructor");
         let _ = fs::remove_dir_all(&root);

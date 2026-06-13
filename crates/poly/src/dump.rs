@@ -484,6 +484,11 @@ impl<'a> RawDumper<'a> {
                 let arms = arms
                     .iter()
                     .map(|arm| {
+                        let operation = arm
+                            .operation
+                            .as_ref()
+                            .map(|operation| operation.path.join("::"))
+                            .unwrap_or_else(|| "value".to_string());
                         let continuation = arm
                             .continuation
                             .map(|continuation| self.pat_id(continuation))
@@ -493,7 +498,7 @@ impl<'a> RawDumper<'a> {
                             .map(|guard| self.expr_id(guard))
                             .unwrap_or_else(|| "none".to_string());
                         format!(
-                            "{{ pat: {}, k: {continuation}, guard: {guard}, body: {} }}",
+                            "{{ op: {operation}, pat: {}, k: {continuation}, guard: {guard}, body: {} }}",
                             self.pat_id(arm.pat),
                             self.expr_id(arm.body)
                         )
@@ -969,6 +974,12 @@ impl<'a> Dumper<'a> {
         let arms = arms
             .iter()
             .map(|arm| {
+                let head = match &arm.operation {
+                    Some(operation) => {
+                        format!("{} {}", operation.path.join("::"), self.pat(arm.pat))
+                    }
+                    None => self.pat(arm.pat),
+                };
                 let continuation = arm
                     .continuation
                     .map(|continuation| format!(", {}", self.pat(continuation)))
@@ -979,7 +990,7 @@ impl<'a> Dumper<'a> {
                     .unwrap_or_default();
                 format!(
                     "{}{}{} -> {}",
-                    self.pat(arm.pat),
+                    head,
                     continuation,
                     guard,
                     self.expr(arm.body)

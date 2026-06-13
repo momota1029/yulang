@@ -225,6 +225,10 @@ impl Dumper {
     }
 
     fn catch_arm(&self, arm: &CatchArm) -> String {
+        let head = match &arm.operation_path {
+            Some(path) => format!("{} {}", path.join("::"), self.pat(&arm.pat)),
+            None => self.pat(&arm.pat),
+        };
         let continuation = arm
             .continuation
             .as_ref()
@@ -237,7 +241,7 @@ impl Dumper {
             .unwrap_or_default();
         format!(
             "{}{}{} -> {}",
-            self.pat(&arm.pat),
+            head,
             continuation,
             guard,
             self.expr(&arm.body)

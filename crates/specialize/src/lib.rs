@@ -208,6 +208,10 @@ impl Specializer {
                     .iter()
                     .map(|arm| {
                         Ok(CatchArm {
+                            operation_path: arm
+                                .operation
+                                .as_ref()
+                                .map(|operation| operation.path.clone()),
                             pat: self.pat(arena, arm.pat)?,
                             continuation: self.optional_pat(arena, arm.continuation)?,
                             guard: self.optional_expr(arena, plan, arm.guard)?,

@@ -244,6 +244,7 @@ pub struct CaseArm {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CatchArm {
+    pub operation_path: Option<Vec<String>>,
     pub pat: Pat,
     pub continuation: Option<Pat>,
     pub guard: Option<Expr>,
