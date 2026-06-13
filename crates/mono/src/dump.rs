@@ -1,8 +1,9 @@
 use std::fmt::Write as _;
 
 use crate::{
-    Block, CatchArm, EffectFamilies, Expr, ExprKind, Instance, Lit, Pat, Program, RecordField,
-    RecordSpread, Root, SelectResolution, StackWeight, Stmt, Type, TypeField, TypeVariant, Vis,
+    Block, CatchArm, ComputationType, EffectFamilies, EffectiveThunkType, Expr, ExprKind,
+    FunctionAdapterHygiene, GuardMarker, Instance, Lit, Pat, Program, RecordField, RecordSpread,
+    Root, SelectResolution, StackWeight, Stmt, Type, TypeField, TypeVariant, Vis,
 };
 
 pub fn dump_program(program: &Program) -> String {
@@ -94,6 +95,48 @@ impl Dumper {
             ExprKind::PrimitiveOp(name) => format!("<prim {name}>"),
             ExprKind::Local(def) => format!("d{}", def.0),
             ExprKind::InstanceRef(instance) => format!("m{}", instance.0),
+            ExprKind::Coerce {
+                source,
+                target,
+                expr,
+            } => format!(
+                "coerce[{} => {}]({})",
+                dump_type(source),
+                dump_type(target),
+                self.expr(expr)
+            ),
+            ExprKind::MakeThunk {
+                source,
+                target,
+                body,
+            } => format!(
+                "make-thunk[{} => {}]({})",
+                self.computation_type(source),
+                self.effective_thunk_type(target),
+                self.expr(body)
+            ),
+            ExprKind::ForceThunk {
+                source,
+                target,
+                thunk,
+            } => format!(
+                "force-thunk[{} => {}]({})",
+                self.effective_thunk_type(source),
+                self.computation_type(target),
+                self.expr(thunk)
+            ),
+            ExprKind::FunctionAdapter {
+                source,
+                target,
+                function,
+                hygiene,
+            } => format!(
+                "adapter[{} => {}; {}]({})",
+                dump_type(source),
+                dump_type(target),
+                self.function_adapter_hygiene(hygiene),
+                self.expr(function)
+            ),
             ExprKind::Apply(callee, arg) => {
                 format!("({} {})", self.expr(callee), self.expr(arg))
             }
@@ -199,6 +242,31 @@ impl Dumper {
             guard,
             self.expr(&arm.body)
         )
+    }
+
+    fn computation_type(&self, ty: &ComputationType) -> String {
+        format!("{} ! {}", dump_type(&ty.value), dump_type(&ty.effect))
+    }
+
+    fn effective_thunk_type(&self, ty: &EffectiveThunkType) -> String {
+        format!("thunk[{}, {}]", dump_type(&ty.effect), dump_type(&ty.value))
+    }
+
+    fn function_adapter_hygiene(&self, hygiene: &FunctionAdapterHygiene) -> String {
+        if hygiene.markers.is_empty() {
+            return "hygiene[]".to_string();
+        }
+        let markers = hygiene
+            .markers
+            .iter()
+            .map(|marker| self.guard_marker(marker))
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("hygiene[{markers}]")
+    }
+
+    fn guard_marker(&self, marker: &GuardMarker) -> String {
+        format!("add_id[{}, {}]", marker.depth, marker.path.join("::"))
     }
 
     fn pat(&self, pat: &Pat) -> String {
@@ -442,6 +510,105 @@ impl TypeDumper {
         match arg {
             Type::Fun { .. } => format!("({})", self.ty(arg)),
             _ => self.ty(arg),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        ComputationType, EffectiveThunkType, Expr, ExprKind, FunctionAdapterHygiene, Lit, Program,
+        Root, Type,
+    };
+
+    use super::dump_program;
+
+    #[test]
+    fn dump_boundary_nodes() {
+        let program = Program {
+            roots: vec![
+                Root::Expr(Expr::new(ExprKind::Coerce {
+                    source: int_type(),
+                    target: Type::Any,
+                    expr: Box::new(Expr::new(ExprKind::Lit(Lit::Int(1)))),
+                })),
+                Root::Expr(Expr::new(ExprKind::MakeThunk {
+                    source: ComputationType {
+                        effect: parse_effect_type(),
+                        value: str_type(),
+                    },
+                    target: EffectiveThunkType {
+                        effect: parse_effect_type(),
+                        value: str_type(),
+                    },
+                    body: Box::new(Expr::new(ExprKind::Lit(Lit::Str("x".to_string())))),
+                })),
+                Root::Expr(Expr::new(ExprKind::ForceThunk {
+                    source: EffectiveThunkType {
+                        effect: parse_effect_type(),
+                        value: str_type(),
+                    },
+                    target: ComputationType {
+                        effect: parse_effect_type(),
+                        value: str_type(),
+                    },
+                    thunk: Box::new(Expr::new(ExprKind::Local(crate::DefId(0)))),
+                })),
+                Root::Expr(Expr::new(ExprKind::FunctionAdapter {
+                    source: pure_function_type(int_type(), int_type()),
+                    target: pure_function_type(Type::Any, Type::Any),
+                    function: Box::new(Expr::new(ExprKind::Local(crate::DefId(1)))),
+                    hygiene: FunctionAdapterHygiene::default(),
+                })),
+            ],
+            instances: Vec::new(),
+        };
+
+        assert_eq!(
+            dump_program(&program),
+            concat!(
+                "mono roots [",
+                "coerce[int => any](1), ",
+                "make-thunk[str ! [std::text::parse::parse] => thunk[[std::text::parse::parse], str]](\"x\"), ",
+                "force-thunk[thunk[[std::text::parse::parse], str] => str ! [std::text::parse::parse]](d0), ",
+                "adapter[int -> int => any -> any; hygiene[]](d1)",
+                "]\n",
+            )
+        );
+    }
+
+    fn int_type() -> Type {
+        Type::Con {
+            path: vec!["int".to_string()],
+            args: Vec::new(),
+        }
+    }
+
+    fn str_type() -> Type {
+        Type::Con {
+            path: vec!["str".to_string()],
+            args: Vec::new(),
+        }
+    }
+
+    fn parse_effect_type() -> Type {
+        Type::EffectRow(vec![Type::Con {
+            path: vec![
+                "std".to_string(),
+                "text".to_string(),
+                "parse".to_string(),
+                "parse".to_string(),
+            ],
+            args: Vec::new(),
+        }])
+    }
+
+    fn pure_function_type(arg: Type, ret: Type) -> Type {
+        Type::Fun {
+            arg: Box::new(arg),
+            arg_effect: Box::new(Type::pure_effect()),
+            ret_effect: Box::new(Type::pure_effect()),
+            ret: Box::new(ret),
         }
     }
 }

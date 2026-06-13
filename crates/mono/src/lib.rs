@@ -126,6 +126,29 @@ pub struct EffectFamily {
     pub args: Vec<Type>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ComputationType {
+    pub effect: Type,
+    pub value: Type,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EffectiveThunkType {
+    pub effect: Type,
+    pub value: Type,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub struct FunctionAdapterHygiene {
+    pub markers: Vec<GuardMarker>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct GuardMarker {
+    pub path: Vec<String>,
+    pub depth: u32,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Expr {
     pub kind: ExprKind,
@@ -143,6 +166,27 @@ pub enum ExprKind {
     PrimitiveOp(String),
     Local(DefId),
     InstanceRef(InstanceId),
+    Coerce {
+        source: Type,
+        target: Type,
+        expr: Box<Expr>,
+    },
+    MakeThunk {
+        source: ComputationType,
+        target: EffectiveThunkType,
+        body: Box<Expr>,
+    },
+    ForceThunk {
+        source: EffectiveThunkType,
+        target: ComputationType,
+        thunk: Box<Expr>,
+    },
+    FunctionAdapter {
+        source: Type,
+        target: Type,
+        function: Box<Expr>,
+        hygiene: FunctionAdapterHygiene,
+    },
     Apply(Box<Expr>, Box<Expr>),
     RefSet(Box<Expr>, Box<Expr>),
     Lambda(Pat, Box<Expr>),

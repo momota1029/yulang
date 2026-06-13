@@ -16,17 +16,18 @@ pub(crate) struct ExprTypePlan {
 }
 
 impl ExprTypePlan {
-    pub(crate) fn type_of(&self, expr: poly_expr::ExprId) -> Option<&Type> {
-        self.types
-            .get(&expr)
-            .and_then(|types| types.expected.as_ref().or(types.actual.as_ref()))
-    }
-
-    #[cfg(test)]
-    fn actual_type_of(&self, expr: poly_expr::ExprId) -> Option<&Type> {
+    pub(crate) fn actual_type_of(&self, expr: poly_expr::ExprId) -> Option<&Type> {
         self.types
             .get(&expr)
             .and_then(|types| types.actual.as_ref())
+    }
+
+    pub(crate) fn boundary(&self, expr: poly_expr::ExprId) -> Option<ExprTypeBoundary<'_>> {
+        let types = self.types.get(&expr)?;
+        Some(ExprTypeBoundary {
+            actual: types.actual.as_ref()?,
+            expected: types.expected.as_ref()?,
+        })
     }
 
     fn set_actual(&mut self, expr: poly_expr::ExprId, ty: Type) -> Result<(), SpecializeError> {
@@ -62,6 +63,12 @@ impl ExprTypePlan {
         }
         Ok(out)
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ExprTypeBoundary<'a> {
+    pub actual: &'a Type,
+    pub expected: &'a Type,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -736,9 +743,12 @@ mod tests {
         let poly::expr::Expr::App(callee, arg) = arena.expr(root) else {
             panic!("root should be an apply");
         };
-        assert_eq!(mono::dump::dump_type(plan.type_of(root).unwrap()), "int");
         assert_eq!(
-            mono::dump::dump_type(plan.type_of(*callee).unwrap()),
+            mono::dump::dump_type(plan.actual_type_of(root).unwrap()),
+            "int"
+        );
+        assert_eq!(
+            mono::dump::dump_type(plan.actual_type_of(*callee).unwrap()),
             "int -> int"
         );
         assert_eq!(plan.actual_type_of(*arg), Some(&int_type()));
@@ -758,18 +768,21 @@ mod tests {
         let poly::expr::Expr::App(apply, id) = arena.expr(*inner) else {
             panic!("callee should be an apply");
         };
-        assert_eq!(mono::dump::dump_type(plan.type_of(root).unwrap()), "int");
+        assert_eq!(
+            mono::dump::dump_type(plan.actual_type_of(root).unwrap()),
+            "int"
+        );
         assert_eq!(plan.actual_type_of(*arg), Some(&int_type()));
         assert_eq!(
-            mono::dump::dump_type(plan.type_of(*inner).unwrap()),
+            mono::dump::dump_type(plan.actual_type_of(*inner).unwrap()),
             "int -> int"
         );
         assert_eq!(
-            mono::dump::dump_type(plan.type_of(*apply).unwrap()),
+            mono::dump::dump_type(plan.actual_type_of(*apply).unwrap()),
             "(int -> int) -> int -> int"
         );
         assert_eq!(
-            mono::dump::dump_type(plan.type_of(*id).unwrap()),
+            mono::dump::dump_type(plan.actual_type_of(*id).unwrap()),
             "int -> int"
         );
     }

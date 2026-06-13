@@ -485,6 +485,41 @@ ForceThunk {
 関数 cast を呼び出し先に押し付けないのと同様に、thunk を開く責務も、producer-consumer の
 型差が確定した場所で elaborated IR に明示する。
 
+実装上の `mono` IR は、producer-consumer 境界を次の node として保持する。
+
+```text
+Coerce {
+  source: Type,
+  target: Type,
+  expr: Expr,
+}
+
+MakeThunk {
+  source: ComputationType,
+  target: EffectiveThunkType,
+  body: Expr,
+}
+
+ForceThunk {
+  source: EffectiveThunkType,
+  target: ComputationType,
+  thunk: Expr,
+}
+
+FunctionAdapter {
+  source: Type,
+  target: Type,
+  function: Expr,
+  hygiene: FunctionAdapterHygiene,
+}
+```
+
+`source` は式が実際に持つ concrete 境界、`target` は文脈が要求する concrete 境界である。
+`Coerce` は型を決めるための node ではなく、解決済みの actual / expected 差を runtime lower へ渡す
+ための node である。`MakeThunk` / `ForceThunk` も同じく、effectful computation と first-class
+thunk value の境界を明示する。`FunctionAdapterHygiene` は guard marker spec の
+`add_id[n, path, id]` / `push` / `pop` へ落ちる plan を持ち、空 plan は「追加 hygiene なし」を表す。
+
 関数値の concrete 型は、runtime shape へ読む段階で、effectful な parameter / return 境界を
 effective-thunk に畳む。
 

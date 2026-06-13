@@ -150,7 +150,7 @@ impl Specializer {
         let kind = match arena.expr(expr) {
             PolyExpr::Lit(lit) => ExprKind::Lit(convert_lit(lit)),
             PolyExpr::PrimitiveOp(op) => ExprKind::PrimitiveOp(format!("{op:?}")),
-            PolyExpr::Var(ref_id) => self.var(arena, *ref_id, plan.type_of(expr))?,
+            PolyExpr::Var(ref_id) => self.var(arena, *ref_id, plan.actual_type_of(expr))?,
             PolyExpr::App(callee, arg) => ExprKind::Apply(
                 Box::new(self.expr(arena, plan, *callee)?),
                 Box::new(self.expr(arena, plan, *arg)?),
@@ -220,7 +220,26 @@ impl Specializer {
                 tail: self.optional_expr(arena, plan, *tail)?.map(Box::new),
             }),
         };
-        Ok(Expr::new(kind))
+        self.wrap_boundary(expr, Expr::new(kind), plan)
+    }
+
+    fn wrap_boundary(
+        &mut self,
+        expr_id: poly_expr::ExprId,
+        expr: Expr,
+        plan: &solve::ExprTypePlan,
+    ) -> Result<Expr, SpecializeError> {
+        let Some(boundary) = plan.boundary(expr_id) else {
+            return Ok(expr);
+        };
+        if equivalent_boundary_types(boundary.actual, boundary.expected) {
+            return Ok(expr);
+        }
+        Ok(Expr::new(ExprKind::Coerce {
+            source: boundary.actual.clone(),
+            target: boundary.expected.clone(),
+            expr: Box::new(expr),
+        }))
     }
 
     fn var(
@@ -574,6 +593,65 @@ fn lit_type(lit: &poly_expr::Lit) -> Type {
     Type::Con {
         path: vec![name.to_string()],
         args: Vec::new(),
+    }
+}
+
+fn equivalent_boundary_types(actual: &Type, expected: &Type) -> bool {
+    if actual == expected || actual.is_pure_effect() && expected.is_pure_effect() {
+        return true;
+    }
+    match (actual, expected) {
+        (
+            Type::Con {
+                path: actual_path,
+                args: actual_args,
+            },
+            Type::Con {
+                path: expected_path,
+                args: expected_args,
+            },
+        ) => {
+            actual_path == expected_path
+                && actual_args.len() == expected_args.len()
+                && actual_args
+                    .iter()
+                    .zip(expected_args)
+                    .all(|(actual, expected)| equivalent_boundary_types(actual, expected))
+        }
+        (
+            Type::Fun {
+                arg: actual_arg,
+                arg_effect: actual_arg_effect,
+                ret_effect: actual_ret_effect,
+                ret: actual_ret,
+            },
+            Type::Fun {
+                arg: expected_arg,
+                arg_effect: expected_arg_effect,
+                ret_effect: expected_ret_effect,
+                ret: expected_ret,
+            },
+        ) => {
+            equivalent_boundary_types(actual_arg, expected_arg)
+                && equivalent_boundary_types(actual_arg_effect, expected_arg_effect)
+                && equivalent_boundary_types(actual_ret_effect, expected_ret_effect)
+                && equivalent_boundary_types(actual_ret, expected_ret)
+        }
+        (Type::Tuple(actual_items), Type::Tuple(expected_items)) => {
+            actual_items.len() == expected_items.len()
+                && actual_items
+                    .iter()
+                    .zip(expected_items)
+                    .all(|(actual, expected)| equivalent_boundary_types(actual, expected))
+        }
+        (Type::EffectRow(actual_items), Type::EffectRow(expected_items)) => {
+            actual_items.len() == expected_items.len()
+                && actual_items
+                    .iter()
+                    .zip(expected_items)
+                    .all(|(actual, expected)| equivalent_boundary_types(actual, expected))
+        }
+        _ => false,
     }
 }
 
