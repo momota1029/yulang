@@ -1147,6 +1147,29 @@ mod tests {
     }
 
     #[test]
+    fn dump_mono_without_std_lowers_constructor_payload_effect_handler() {
+        let root = temp_root("dump-mono-constructor-payload-effect-handler");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "enum opt 'a:\n  none\n  some 'a\n\
+             act eff:\n  our send: opt int -> int\n\
+             catch eff::send(opt::some 1):\n\
+             \x20 eff::send(opt::some x), k -> k(x)\n\
+             \x20 value -> value\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(&output, "<effect-op eff::send>");
+        assert_mono_dump_contains(&output, "eff::send d2 d");
+        assert_mono_dump_contains(&output, "force-thunk[thunk[[eff], int] => int ! [eff]]");
+    }
+
+    #[test]
     fn dump_mono_without_std_computed_effect_binding_escapes_later_handler() {
         let root = temp_root("dump-mono-computed-effect-escapes-handler");
         let _ = fs::remove_dir_all(&root);
