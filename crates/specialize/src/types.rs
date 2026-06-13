@@ -70,32 +70,6 @@ pub(crate) fn function_signature_for_scheme(
     }))
 }
 
-pub(crate) fn function_return_hint_for_scheme(
-    arena: &poly_expr::Arena,
-    def: poly_expr::DefId,
-    scheme: &Scheme,
-    arg: Option<&Type>,
-) -> Result<Option<Type>, SpecializeError> {
-    reject_unsupported_scheme_features(def, scheme)?;
-    let Pos::Fun {
-        arg: scheme_arg,
-        ret: scheme_ret,
-        ..
-    } = arena.typ.pos(scheme.predicate)
-    else {
-        return Ok(None);
-    };
-    let mut materializer = SchemeMaterializer::new(&arena.typ, def, scheme);
-    materializer.collect_scheme_kinds(scheme);
-    if let Some(arg) = arg {
-        materializer.match_neg(*scheme_arg, arg, TypeContext::Value)?;
-    }
-    materializer.default_unbound_quantifiers();
-    Ok(Some(
-        materializer.materialize_pos(*scheme_ret, TypeContext::Value)?,
-    ))
-}
-
 pub(crate) fn has_type_quantifiers(scheme: &Scheme) -> bool {
     !scheme.quantifiers.is_empty()
         || !scheme.role_predicates.is_empty()

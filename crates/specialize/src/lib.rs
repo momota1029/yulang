@@ -5,6 +5,7 @@
 
 #![forbid(unsafe_code)]
 
+mod solve;
 mod types;
 
 use std::collections::HashMap;
@@ -78,7 +79,10 @@ impl Specializer {
         root: poly_expr::RuntimeRoot,
     ) -> Result<Root, SpecializeError> {
         match root {
-            poly_expr::RuntimeRoot::Expr(expr) => Ok(Root::Expr(self.expr(arena, expr, None)?)),
+            poly_expr::RuntimeRoot::Expr(expr) => {
+                let plan = solve::solve_expr(arena, expr, None)?;
+                Ok(Root::Expr(self.expr(arena, &plan, expr)?))
+            }
             poly_expr::RuntimeRoot::ComputedDef(def) => {
                 Ok(Root::Instance(self.ensure_def_instance(arena, def, None)?))
             }
@@ -125,7 +129,8 @@ impl Specializer {
         self.instance_by_key.insert(key, id);
         self.instances.push(None);
 
-        let body = self.expr(arena, body, Some(&signature.ty))?;
+        let plan = solve::solve_expr(arena, body, Some(&signature.ty))?;
+        let body = self.expr(arena, &plan, body)?;
         self.instances[id.0 as usize] = Some(Instance {
             id,
             source: InstanceSource::Def(convert_def(def)),
@@ -138,111 +143,84 @@ impl Specializer {
     fn expr(
         &mut self,
         arena: &poly_expr::Arena,
+        plan: &solve::ExprTypePlan,
         expr: poly_expr::ExprId,
-        expected: Option<&Type>,
     ) -> Result<Expr, SpecializeError> {
         use poly_expr::Expr as PolyExpr;
         let kind = match arena.expr(expr) {
             PolyExpr::Lit(lit) => ExprKind::Lit(convert_lit(lit)),
             PolyExpr::PrimitiveOp(op) => ExprKind::PrimitiveOp(format!("{op:?}")),
-            PolyExpr::Var(ref_id) => self.var(arena, *ref_id, expected)?,
-            PolyExpr::App(callee, arg) => self.apply(arena, *callee, *arg, expected)?,
-            PolyExpr::RefSet(reference, value) => ExprKind::RefSet(
-                Box::new(self.expr(arena, *reference, None)?),
-                Box::new(self.expr(arena, *value, None)?),
+            PolyExpr::Var(ref_id) => self.var(arena, *ref_id, plan.type_of(expr))?,
+            PolyExpr::App(callee, arg) => ExprKind::Apply(
+                Box::new(self.expr(arena, plan, *callee)?),
+                Box::new(self.expr(arena, plan, *arg)?),
             ),
-            PolyExpr::Lambda(param, body) => {
-                let body_expected = match expected {
-                    Some(Type::Fun { ret, .. }) => Some(ret.as_ref()),
-                    _ => None,
-                };
-                ExprKind::Lambda(
-                    self.pat(arena, *param)?,
-                    Box::new(self.expr(arena, *body, body_expected)?),
-                )
-            }
-            PolyExpr::Tuple(items) => ExprKind::Tuple(self.exprs(arena, items, None)?),
+            PolyExpr::RefSet(reference, value) => ExprKind::RefSet(
+                Box::new(self.expr(arena, plan, *reference)?),
+                Box::new(self.expr(arena, plan, *value)?),
+            ),
+            PolyExpr::Lambda(param, body) => ExprKind::Lambda(
+                self.pat(arena, *param)?,
+                Box::new(self.expr(arena, plan, *body)?),
+            ),
+            PolyExpr::Tuple(items) => ExprKind::Tuple(self.exprs(arena, plan, items)?),
             PolyExpr::Record { fields, spread } => ExprKind::Record {
                 fields: fields
                     .iter()
                     .map(|(name, value)| {
                         Ok(RecordField {
                             name: name.clone(),
-                            value: self.expr(arena, *value, None)?,
+                            value: self.expr(arena, plan, *value)?,
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?,
-                spread: self.expr_spread(arena, spread)?,
+                spread: self.expr_spread(arena, plan, spread)?,
             },
             PolyExpr::PolyVariant(tag, payloads) => ExprKind::PolyVariant {
                 tag: tag.clone(),
-                payloads: self.exprs(arena, payloads, None)?,
+                payloads: self.exprs(arena, plan, payloads)?,
             },
             PolyExpr::Select(base, select) => {
                 let select = arena.select(*select);
                 ExprKind::Select {
-                    base: Box::new(self.expr(arena, *base, None)?),
+                    base: Box::new(self.expr(arena, plan, *base)?),
                     name: select.name.clone(),
                     resolution: self.select_resolution(arena, select.resolution)?,
                 }
             }
             PolyExpr::Case(scrutinee, arms) => ExprKind::Case {
-                scrutinee: Box::new(self.expr(arena, *scrutinee, None)?),
+                scrutinee: Box::new(self.expr(arena, plan, *scrutinee)?),
                 arms: arms
                     .iter()
                     .map(|arm| {
                         Ok(CaseArm {
                             pat: self.pat(arena, arm.pat)?,
-                            guard: self.optional_expr(arena, arm.guard)?,
-                            body: self.expr(arena, arm.body, expected)?,
+                            guard: self.optional_expr(arena, plan, arm.guard)?,
+                            body: self.expr(arena, plan, arm.body)?,
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?,
             },
             PolyExpr::Catch(body, arms) => ExprKind::Catch {
-                body: Box::new(self.expr(arena, *body, expected)?),
+                body: Box::new(self.expr(arena, plan, *body)?),
                 arms: arms
                     .iter()
                     .map(|arm| {
                         Ok(CatchArm {
                             pat: self.pat(arena, arm.pat)?,
                             continuation: self.optional_pat(arena, arm.continuation)?,
-                            guard: self.optional_expr(arena, arm.guard)?,
-                            body: self.expr(arena, arm.body, expected)?,
+                            guard: self.optional_expr(arena, plan, arm.guard)?,
+                            body: self.expr(arena, plan, arm.body)?,
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?,
             },
             PolyExpr::Block(stmts, tail) => ExprKind::Block(Block {
-                stmts: self.stmts(arena, stmts)?,
-                tail: self
-                    .optional_expr_with_expected(arena, *tail, expected)?
-                    .map(Box::new),
+                stmts: self.stmts(arena, plan, stmts)?,
+                tail: self.optional_expr(arena, plan, *tail)?.map(Box::new),
             }),
         };
         Ok(Expr::new(kind))
-    }
-
-    fn apply(
-        &mut self,
-        arena: &poly_expr::Arena,
-        callee: poly_expr::ExprId,
-        arg: poly_expr::ExprId,
-        expected: Option<&Type>,
-    ) -> Result<ExprKind, SpecializeError> {
-        let arg_hint = self.expr_type_hint(arena, arg)?;
-        let callee_expected =
-            self.callee_function_type_hint(arena, callee, arg_hint.as_ref(), expected)?;
-        let callee_expected = callee_expected.or_else(|| {
-            arg_hint
-                .clone()
-                .zip(expected.cloned())
-                .map(|(arg, ret)| types::pure_function_type(arg, ret))
-        });
-        Ok(ExprKind::Apply(
-            Box::new(self.expr(arena, callee, callee_expected.as_ref())?),
-            Box::new(self.expr(arena, arg, arg_hint.as_ref())?),
-        ))
     }
 
     fn var(
@@ -352,12 +330,12 @@ impl Specializer {
     fn exprs(
         &mut self,
         arena: &poly_expr::Arena,
+        plan: &solve::ExprTypePlan,
         exprs: &[poly_expr::ExprId],
-        expected: Option<&Type>,
     ) -> Result<Vec<Expr>, SpecializeError> {
         exprs
             .iter()
-            .map(|expr| self.expr(arena, *expr, expected))
+            .map(|expr| self.expr(arena, plan, *expr))
             .collect()
     }
 
@@ -372,19 +350,10 @@ impl Specializer {
     fn optional_expr(
         &mut self,
         arena: &poly_expr::Arena,
+        plan: &solve::ExprTypePlan,
         expr: Option<poly_expr::ExprId>,
     ) -> Result<Option<Expr>, SpecializeError> {
-        self.optional_expr_with_expected(arena, expr, None)
-    }
-
-    fn optional_expr_with_expected(
-        &mut self,
-        arena: &poly_expr::Arena,
-        expr: Option<poly_expr::ExprId>,
-        expected: Option<&Type>,
-    ) -> Result<Option<Expr>, SpecializeError> {
-        expr.map(|expr| self.expr(arena, expr, expected))
-            .transpose()
+        expr.map(|expr| self.expr(arena, plan, expr)).transpose()
     }
 
     fn optional_pat(
@@ -398,6 +367,7 @@ impl Specializer {
     fn stmts(
         &mut self,
         arena: &poly_expr::Arena,
+        plan: &solve::ExprTypePlan,
         stmts: &[poly_expr::Stmt],
     ) -> Result<Vec<Stmt>, SpecializeError> {
         stmts
@@ -406,12 +376,13 @@ impl Specializer {
                 poly_expr::Stmt::Let(vis, pat, value) => Ok(Stmt::Let(
                     convert_vis(*vis),
                     self.pat(arena, *pat)?,
-                    self.expr(arena, *value, None)?,
+                    self.expr(arena, plan, *value)?,
                 )),
-                poly_expr::Stmt::Expr(expr) => Ok(Stmt::Expr(self.expr(arena, *expr, None)?)),
-                poly_expr::Stmt::Module(def, body) => {
-                    Ok(Stmt::Module(convert_def(*def), self.stmts(arena, body)?))
-                }
+                poly_expr::Stmt::Expr(expr) => Ok(Stmt::Expr(self.expr(arena, plan, *expr)?)),
+                poly_expr::Stmt::Module(def, body) => Ok(Stmt::Module(
+                    convert_def(*def),
+                    self.stmts(arena, plan, body)?,
+                )),
             })
             .collect()
     }
@@ -419,118 +390,17 @@ impl Specializer {
     fn expr_spread(
         &mut self,
         arena: &poly_expr::Arena,
+        plan: &solve::ExprTypePlan,
         spread: &poly_expr::RecordSpread<poly_expr::ExprId>,
     ) -> Result<RecordSpread<Box<Expr>>, SpecializeError> {
         match spread {
             poly_expr::RecordSpread::Head(expr) => {
-                Ok(RecordSpread::Head(Box::new(self.expr(arena, *expr, None)?)))
+                Ok(RecordSpread::Head(Box::new(self.expr(arena, plan, *expr)?)))
             }
             poly_expr::RecordSpread::Tail(expr) => {
-                Ok(RecordSpread::Tail(Box::new(self.expr(arena, *expr, None)?)))
+                Ok(RecordSpread::Tail(Box::new(self.expr(arena, plan, *expr)?)))
             }
             poly_expr::RecordSpread::None => Ok(RecordSpread::None),
-        }
-    }
-
-    fn expr_type_hint(
-        &mut self,
-        arena: &poly_expr::Arena,
-        expr: poly_expr::ExprId,
-    ) -> Result<Option<Type>, SpecializeError> {
-        use poly_expr::Expr as PolyExpr;
-        match arena.expr(expr) {
-            PolyExpr::Lit(lit) => Ok(Some(lit_type(lit))),
-            PolyExpr::Var(ref_id) => {
-                let Some(def) = arena.ref_target(*ref_id) else {
-                    return Err(SpecializeError::UnresolvedRef { ref_id: ref_id.0 });
-                };
-                match arena.defs.get(def) {
-                    Some(poly_expr::Def::Let {
-                        scheme: Some(scheme),
-                        ..
-                    }) => types::type_hint_for_scheme(arena, def, scheme),
-                    Some(poly_expr::Def::Arg) | Some(poly_expr::Def::Let { body: None, .. }) => {
-                        Ok(None)
-                    }
-                    Some(poly_expr::Def::Let { scheme: None, .. }) => {
-                        Err(SpecializeError::MissingScheme {
-                            def: convert_def(def),
-                        })
-                    }
-                    Some(other) => Err(SpecializeError::UnsupportedDefKind {
-                        def: convert_def(def),
-                        kind: def_kind(other),
-                    }),
-                    None => Err(SpecializeError::MissingDef {
-                        def: convert_def(def),
-                    }),
-                }
-            }
-            PolyExpr::Tuple(items) => items
-                .iter()
-                .map(|item| self.expr_type_hint(arena, *item))
-                .collect::<Result<Option<Vec<_>>, _>>()
-                .map(|items| items.map(Type::Tuple)),
-            PolyExpr::App(callee, arg) => {
-                let arg_hint = self.expr_type_hint(arena, *arg)?;
-                self.callee_return_type_hint(arena, *callee, arg_hint.as_ref())
-            }
-            _ => Ok(None),
-        }
-    }
-
-    fn callee_function_type_hint(
-        &mut self,
-        arena: &poly_expr::Arena,
-        callee: poly_expr::ExprId,
-        arg: Option<&Type>,
-        ret: Option<&Type>,
-    ) -> Result<Option<Type>, SpecializeError> {
-        let Some((def, scheme)) = self.callee_scheme(arena, callee)? else {
-            return Ok(None);
-        };
-        Ok(types::function_signature_for_scheme(arena, def, scheme, arg, ret)?.map(|sig| sig.ty))
-    }
-
-    fn callee_return_type_hint(
-        &mut self,
-        arena: &poly_expr::Arena,
-        callee: poly_expr::ExprId,
-        arg: Option<&Type>,
-    ) -> Result<Option<Type>, SpecializeError> {
-        let Some((def, scheme)) = self.callee_scheme(arena, callee)? else {
-            return Ok(None);
-        };
-        types::function_return_hint_for_scheme(arena, def, scheme, arg)
-    }
-
-    fn callee_scheme<'a>(
-        &mut self,
-        arena: &'a poly_expr::Arena,
-        callee: poly_expr::ExprId,
-    ) -> Result<Option<(poly_expr::DefId, &'a poly::types::Scheme)>, SpecializeError> {
-        let poly_expr::Expr::Var(ref_id) = arena.expr(callee) else {
-            return Ok(None);
-        };
-        let Some(def) = arena.ref_target(*ref_id) else {
-            return Err(SpecializeError::UnresolvedRef { ref_id: ref_id.0 });
-        };
-        match arena.defs.get(def) {
-            Some(poly_expr::Def::Let {
-                scheme: Some(scheme),
-                ..
-            }) => Ok(Some((def, scheme))),
-            Some(poly_expr::Def::Let { scheme: None, .. }) => Err(SpecializeError::MissingScheme {
-                def: convert_def(def),
-            }),
-            Some(poly_expr::Def::Arg) => Ok(None),
-            Some(other) => Err(SpecializeError::UnsupportedDefKind {
-                def: convert_def(def),
-                kind: def_kind(other),
-            }),
-            None => Err(SpecializeError::MissingDef {
-                def: convert_def(def),
-            }),
         }
     }
 }
@@ -574,6 +444,11 @@ pub enum SpecializeError {
     ConflictingTypeSubstitution {
         def: DefId,
         var: u32,
+        existing: Type,
+        incoming: Type,
+    },
+    ConflictingExprType {
+        expr: u32,
         existing: Type,
         incoming: Type,
     },
@@ -622,6 +497,18 @@ impl fmt::Display for SpecializeError {
                     "conflicting type substitution for d{} 't{}: {} vs {}",
                     def.0,
                     var,
+                    mono::dump::dump_type(existing),
+                    mono::dump::dump_type(incoming),
+                )
+            }
+            Self::ConflictingExprType {
+                expr,
+                existing,
+                incoming,
+            } => {
+                write!(
+                    f,
+                    "conflicting expression type for e{expr}: {} vs {}",
                     mono::dump::dump_type(existing),
                     mono::dump::dump_type(incoming),
                 )
