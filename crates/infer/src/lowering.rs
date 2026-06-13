@@ -3838,6 +3838,23 @@ impl<'a> ExprLowerer<'a> {
         stop_at_with: bool,
         pipe_arg: Option<PipeArg>,
     ) -> Result<Computation, LoweringError> {
+        self.lower_expr_chain_prefix_with_pipe_arg_until(
+            node,
+            head_lambda_scope,
+            stop_at_with,
+            pipe_arg,
+            None,
+        )
+    }
+
+    fn lower_expr_chain_prefix_with_pipe_arg_until(
+        &mut self,
+        node: &Cst,
+        head_lambda_scope: LambdaScope,
+        stop_at_with: bool,
+        pipe_arg: Option<PipeArg>,
+        stop_kind: Option<SyntaxKind>,
+    ) -> Result<Computation, LoweringError> {
         let items = node
             .children_with_tokens()
             .filter(|item| !item_is_trivia(item))
@@ -3847,7 +3864,14 @@ impl<'a> ExprLowerer<'a> {
         };
 
         if let Some(name) = expr_symbol_head_name(head) {
-            return self.lower_poly_variant_expr_chain(name, &items, 1, stop_at_with, pipe_arg);
+            return self.lower_poly_variant_expr_chain(
+                name,
+                &items,
+                1,
+                stop_at_with,
+                pipe_arg,
+                stop_kind,
+            );
         }
 
         let (mut acc, tail_start) = match expr_path_prefix(&items) {
@@ -3860,7 +3884,7 @@ impl<'a> ExprLowerer<'a> {
         for item in items.into_iter().skip(tail_start) {
             match item {
                 NodeOrToken::Node(child)
-                    if stop_at_with && child.kind() == SyntaxKind::WithBlock =>
+                    if should_stop_expr_tail(child.kind(), stop_at_with, stop_kind) =>
                 {
                     break;
                 }
@@ -3880,6 +3904,7 @@ impl<'a> ExprLowerer<'a> {
         mut tail_start: usize,
         stop_at_with: bool,
         pipe_arg: Option<PipeArg>,
+        stop_kind: Option<SyntaxKind>,
     ) -> Result<Computation, LoweringError> {
         let mut payloads = Vec::new();
         while let Some(NodeOrToken::Node(node)) = items.get(tail_start) {
@@ -3945,7 +3970,7 @@ impl<'a> ExprLowerer<'a> {
         for item in items.iter().skip(tail_start) {
             match item {
                 NodeOrToken::Node(child)
-                    if stop_at_with && child.kind() == SyntaxKind::WithBlock =>
+                    if should_stop_expr_tail(child.kind(), stop_at_with, stop_kind) =>
                 {
                     break;
                 }
@@ -5427,46 +5452,16 @@ impl<'a> ExprLowerer<'a> {
                 semantic: body.semantic,
             });
         }
-        if let Some(parser) = self.rule_parser_ref_expr(node)? {
-            return Ok(RuleParserItem {
-                parser,
-                semantic: RuleSemantic::Value,
-            });
-        }
-        Err(LoweringError::UnsupportedSyntax {
-            kind: SyntaxKind::RuleQuant,
+        Ok(RuleParserItem {
+            parser: self.lower_expr_chain_prefix_with_pipe_arg_until(
+                node,
+                LambdaScope::Anonymous,
+                false,
+                None,
+                Some(SyntaxKind::RuleQuant),
+            )?,
+            semantic: RuleSemantic::Value,
         })
-    }
-
-    fn rule_parser_ref_expr(&mut self, node: &Cst) -> Result<Option<Computation>, LoweringError> {
-        let mut path = Vec::new();
-        for item in node
-            .children_with_tokens()
-            .filter(|item| !item_is_trivia(item))
-        {
-            match item {
-                NodeOrToken::Token(token)
-                    if token.kind() == SyntaxKind::Ident && path.is_empty() =>
-                {
-                    path.push(Name(token.text().to_string()));
-                }
-                NodeOrToken::Node(child) if child.kind() == SyntaxKind::PathSep => {
-                    let Some(name) = path_sep_name(&child) else {
-                        return Ok(None);
-                    };
-                    path.push(name);
-                }
-                NodeOrToken::Node(child) if child.kind() == SyntaxKind::RuleQuant => {}
-                _ => return Ok(None),
-            }
-        }
-        if path.is_empty() {
-            Ok(None)
-        } else if path.len() == 1 {
-            self.lower_name(path.remove(0)).map(Some)
-        } else {
-            self.lower_path_name(&path).map(Some)
-        }
     }
 
     fn rule_token_parser(&mut self, text: String) -> Result<Computation, LoweringError> {
@@ -7627,6 +7622,14 @@ pub enum LoweringError {
 fn item_is_trivia(item: &NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>) -> bool {
     item.as_token()
         .is_some_and(|token| matches!(token.kind(), SyntaxKind::Space | SyntaxKind::LineComment))
+}
+
+fn should_stop_expr_tail(
+    kind: SyntaxKind,
+    stop_at_with: bool,
+    stop_kind: Option<SyntaxKind>,
+) -> bool {
+    (stop_at_with && kind == SyntaxKind::WithBlock) || stop_kind == Some(kind)
 }
 
 fn expr_path_prefix(items: &[CstItem]) -> Option<(Vec<Name>, usize)> {
@@ -11077,6 +11080,21 @@ mod tests {
                 .ref_target(expr_ref(&output.session, choice_ref)),
             Some(choice)
         );
+    }
+
+    #[test]
+    fn rule_quantifier_lowers_tail_base_exprs() {
+        let root = parse_with_text_parse_std(concat!(
+            "my parsers = {word: std::text::parse::word}\n",
+            "my id x = x\n",
+            "pub field_base = rule { parsers.word* }\n",
+            "pub call_base = rule { id(std::text::parse::word)+ }\n",
+        ));
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
     }
 
     #[test]
