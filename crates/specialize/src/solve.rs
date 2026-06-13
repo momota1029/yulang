@@ -3,35 +3,96 @@
 //! `poly` は式 node ごとの型を保持しない。ここでは instance/root ごとに主型と erased IR から
 //! use-site の concrete 型を再構成し、mono IR へ写す段階が参照する plan だけを残す。
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use mono::Type;
 use poly::expr as poly_expr;
 
-use crate::{SpecializeError, convert_def, def_kind, lit_type, types};
+use crate::{ExprTypeRole, SpecializeError, convert_def, def_kind, lit_type, types};
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ExprTypePlan {
-    types: HashMap<poly_expr::ExprId, Type>,
+    types: HashMap<poly_expr::ExprId, ExprTypes>,
 }
 
 impl ExprTypePlan {
     pub(crate) fn type_of(&self, expr: poly_expr::ExprId) -> Option<&Type> {
-        self.types.get(&expr)
+        self.types
+            .get(&expr)
+            .and_then(|types| types.expected.as_ref().or(types.actual.as_ref()))
     }
 
-    fn set_type(&mut self, expr: poly_expr::ExprId, ty: Type) -> Result<(), SpecializeError> {
-        if let Some(existing) = self.types.get(&expr) {
+    #[cfg(test)]
+    fn actual_type_of(&self, expr: poly_expr::ExprId) -> Option<&Type> {
+        self.types
+            .get(&expr)
+            .and_then(|types| types.actual.as_ref())
+    }
+
+    fn set_actual(&mut self, expr: poly_expr::ExprId, ty: Type) -> Result<(), SpecializeError> {
+        self.types
+            .entry(expr)
+            .or_default()
+            .set(expr, ExprTypeRole::Actual, ty)
+    }
+
+    fn set_expected(&mut self, expr: poly_expr::ExprId, ty: Type) -> Result<(), SpecializeError> {
+        self.types
+            .entry(expr)
+            .or_default()
+            .set(expr, ExprTypeRole::Expected, ty)
+    }
+
+    fn actual(&self, expr: poly_expr::ExprId) -> Option<&Type> {
+        self.types
+            .get(&expr)
+            .and_then(|types| types.actual.as_ref())
+    }
+
+    fn finalize(&self, graph: &ConstraintGraph) -> Result<Self, SpecializeError> {
+        let mut resolver = TypeResolver::new(graph);
+        let mut out = Self::default();
+        for (expr, types) in &self.types {
+            if let Some(actual) = &types.actual {
+                out.set_actual(*expr, resolver.resolve(actual)?)?;
+            }
+            if let Some(expected) = &types.expected {
+                out.set_expected(*expr, resolver.resolve(expected)?)?;
+            }
+        }
+        Ok(out)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct ExprTypes {
+    actual: Option<Type>,
+    expected: Option<Type>,
+}
+
+impl ExprTypes {
+    fn set(
+        &mut self,
+        expr: poly_expr::ExprId,
+        role: ExprTypeRole,
+        ty: Type,
+    ) -> Result<(), SpecializeError> {
+        let slot = match role {
+            ExprTypeRole::Actual => &mut self.actual,
+            ExprTypeRole::Expected => &mut self.expected,
+        };
+        if let Some(existing) = slot {
             if existing == &ty {
                 return Ok(());
             }
             return Err(SpecializeError::ConflictingExprType {
                 expr: expr.0,
+                role,
                 existing: existing.clone(),
                 incoming: ty,
             });
         }
-        self.types.insert(expr, ty);
+        *slot = Some(ty);
         Ok(())
     }
 }
@@ -43,15 +104,19 @@ pub(crate) fn solve_expr(
 ) -> Result<ExprTypePlan, SpecializeError> {
     let mut solver = ExprTypeSolver {
         arena,
+        graph: ConstraintGraph::default(),
         plan: ExprTypePlan::default(),
+        local_types: HashMap::new(),
     };
     solver.expr(expr, expected.cloned())?;
-    Ok(solver.plan)
+    solver.plan.finalize(&solver.graph)
 }
 
 struct ExprTypeSolver<'a> {
     arena: &'a poly_expr::Arena,
+    graph: ConstraintGraph,
     plan: ExprTypePlan,
+    local_types: HashMap<poly_expr::DefId, Type>,
 }
 
 impl<'a> ExprTypeSolver<'a> {
@@ -59,125 +124,131 @@ impl<'a> ExprTypeSolver<'a> {
         &mut self,
         expr: poly_expr::ExprId,
         expected: Option<Type>,
-    ) -> Result<Option<Type>, SpecializeError> {
+    ) -> Result<Type, SpecializeError> {
+        if let Some(expected) = expected {
+            self.plan.set_expected(expr, expected.clone())?;
+            if let Some(actual) = self.plan.actual(expr).cloned() {
+                self.graph.constrain_subtype(actual.clone(), expected)?;
+                return Ok(actual);
+            }
+            let actual = self.infer_expr(expr, Some(expected.clone()))?;
+            self.graph.constrain_subtype(actual.clone(), expected)?;
+            self.plan.set_actual(expr, actual.clone())?;
+            return Ok(actual);
+        }
+
+        if let Some(actual) = self.plan.actual(expr) {
+            return Ok(actual.clone());
+        }
+
+        let actual = self.infer_expr(expr, None)?;
+        self.plan.set_actual(expr, actual.clone())?;
+        Ok(actual)
+    }
+
+    fn infer_expr(
+        &mut self,
+        expr: poly_expr::ExprId,
+        expected: Option<Type>,
+    ) -> Result<Type, SpecializeError> {
         use poly_expr::Expr as PolyExpr;
-        let inferred = match self.arena.expr(expr) {
-            PolyExpr::Lit(lit) => Some(lit_type(lit)),
-            PolyExpr::PrimitiveOp(_) => expected.clone(),
-            PolyExpr::Var(ref_id) => self.var_type(*ref_id, expected.as_ref())?,
-            PolyExpr::App(callee, arg) => self.apply_type(*callee, *arg, expected.as_ref())?,
+        match self.arena.expr(expr) {
+            PolyExpr::Lit(lit) => Ok(lit_type(lit)),
+            PolyExpr::PrimitiveOp(_) => Ok(expected.unwrap_or_else(|| self.fresh_value_slot())),
+            PolyExpr::Var(ref_id) => self.var_type(*ref_id),
+            PolyExpr::App(callee, arg) => self.apply_type(*callee, *arg, expected),
             PolyExpr::RefSet(reference, value) => {
                 self.expr(*reference, None)?;
                 self.expr(*value, None)?;
-                Some(Type::unit())
+                Ok(Type::unit())
             }
-            PolyExpr::Lambda(_, body) => self.lambda_type(*body, expected.as_ref())?,
-            PolyExpr::Tuple(items) => self.tuple_type(items, expected.as_ref())?,
+            PolyExpr::Lambda(param, body) => self.lambda_type(*param, *body, expected),
+            PolyExpr::Tuple(items) => self.tuple_type(items, expected.as_ref()),
             PolyExpr::Record { fields, spread } => {
                 for (_, value) in fields {
                     self.expr(*value, None)?;
                 }
                 self.record_spread(spread)?;
-                expected.clone()
+                Ok(expected.unwrap_or_else(|| self.fresh_value_slot()))
             }
             PolyExpr::PolyVariant(_, payloads) => {
                 for payload in payloads {
                     self.expr(*payload, None)?;
                 }
-                expected.clone()
+                Ok(expected.unwrap_or_else(|| self.fresh_value_slot()))
             }
             PolyExpr::Select(base, _) => {
                 self.expr(*base, None)?;
-                expected.clone()
+                Ok(expected.unwrap_or_else(|| self.fresh_value_slot()))
             }
             PolyExpr::Case(scrutinee, arms) => {
                 self.expr(*scrutinee, None)?;
+                let result = expected.unwrap_or_else(|| self.fresh_value_slot());
                 for arm in arms {
                     if let Some(guard) = arm.guard {
                         self.expr(guard, Some(bool_type()))?;
                     }
-                    self.expr(arm.body, expected.clone())?;
+                    self.expr(arm.body, Some(result.clone()))?;
                 }
-                expected.clone()
+                Ok(result)
             }
             PolyExpr::Catch(body, arms) => {
-                self.expr(*body, expected.clone())?;
+                let result = expected.unwrap_or_else(|| self.fresh_value_slot());
+                self.expr(*body, Some(result.clone()))?;
                 for arm in arms {
                     if let Some(guard) = arm.guard {
                         self.expr(guard, Some(bool_type()))?;
                     }
-                    self.expr(arm.body, expected.clone())?;
+                    self.expr(arm.body, Some(result.clone()))?;
                 }
-                expected.clone()
+                Ok(result)
             }
-            PolyExpr::Block(stmts, tail) => self.block_type(stmts, *tail, expected.as_ref())?,
-        };
-        let chosen = match (expected, inferred) {
-            (Some(expected), Some(inferred)) if expected == inferred => Some(expected),
-            (Some(expected), Some(inferred)) => {
-                self.plan.set_type(expr, inferred.clone())?;
-                Some(expected)
-            }
-            (Some(expected), None) => Some(expected),
-            (None, inferred) => inferred,
-        };
-        if let Some(ty) = &chosen {
-            self.plan.set_type(expr, ty.clone())?;
+            PolyExpr::Block(stmts, tail) => self.block_type(stmts, *tail, expected),
         }
-        Ok(chosen)
     }
 
     fn apply_type(
         &mut self,
         callee: poly_expr::ExprId,
         arg: poly_expr::ExprId,
-        expected: Option<&Type>,
-    ) -> Result<Option<Type>, SpecializeError> {
-        let arg_hint = self.expr(arg, None)?;
-        let callee_expected = self.callee_function_type(callee, arg_hint.as_ref(), expected)?;
-        let callee_expected = callee_expected.or_else(|| {
-            arg_hint
-                .clone()
-                .zip(expected.cloned())
-                .map(|(arg, ret)| types::pure_function_type(arg, ret))
-        });
-        let (arg_expected, ret_hint) = match &callee_expected {
-            Some(Type::Fun { arg, ret, .. }) => (Some(arg.as_ref()), Some(ret.as_ref())),
-            _ => (None, None),
-        };
-        self.expr(callee, callee_expected.clone())?;
-        if let Some(arg_expected) = arg_expected {
-            self.expr(arg, Some(arg_expected.clone()))?;
-        }
-        Ok(expected.cloned().or_else(|| ret_hint.cloned()))
+        expected: Option<Type>,
+    ) -> Result<Type, SpecializeError> {
+        let arg_ty = self.expr(arg, None)?;
+        let ret_ty = expected.unwrap_or_else(|| self.fresh_value_slot());
+        let callee_expected = types::pure_function_type(arg_ty.clone(), ret_ty.clone());
+        let callee_ty = self.expr(callee, Some(callee_expected.clone()))?;
+        self.graph.constrain_subtype(callee_ty, callee_expected)?;
+        self.expr(arg, Some(arg_ty))?;
+        Ok(ret_ty)
     }
 
     fn lambda_type(
         &mut self,
+        param: poly_expr::PatId,
         body: poly_expr::ExprId,
-        expected: Option<&Type>,
-    ) -> Result<Option<Type>, SpecializeError> {
-        match expected {
-            Some(Type::Fun { ret, .. }) => {
-                self.expr(body, Some(ret.as_ref().clone()))?;
-                Ok(expected.cloned())
-            }
-            Some(expected) => {
+        expected: Option<Type>,
+    ) -> Result<Type, SpecializeError> {
+        let function = match expected {
+            Some(Type::Fun { .. }) => expected.expect("checked as function"),
+            Some(other) => {
                 self.expr(body, None)?;
-                Ok(Some(expected.clone()))
+                return Ok(other);
             }
-            None => {
-                self.expr(body, None)?;
-                Ok(None)
-            }
-        }
+            None => types::pure_function_type(self.fresh_value_slot(), self.fresh_value_slot()),
+        };
+        let Type::Fun { arg, ret, .. } = &function else {
+            unreachable!("function shape checked above");
+        };
+        self.bind_pat(param, arg.as_ref().clone())?;
+        self.expr(body, Some(ret.as_ref().clone()))?;
+        Ok(function)
     }
 
     fn tuple_type(
         &mut self,
         items: &[poly_expr::ExprId],
         expected: Option<&Type>,
-    ) -> Result<Option<Type>, SpecializeError> {
+    ) -> Result<Type, SpecializeError> {
         let expected_items = match expected {
             Some(Type::Tuple(expected_items)) if expected_items.len() == items.len() => {
                 Some(expected_items.as_slice())
@@ -189,24 +260,22 @@ impl<'a> ExprTypeSolver<'a> {
             let expected = expected_items.and_then(|items| items.get(index)).cloned();
             item_types.push(self.expr(*item, expected)?);
         }
-        if let Some(expected) = expected {
-            return Ok(Some(expected.clone()));
-        }
-        Ok(item_types
-            .into_iter()
-            .collect::<Option<Vec<_>>>()
-            .map(Type::Tuple))
+        Ok(expected.cloned().unwrap_or(Type::Tuple(item_types)))
     }
 
     fn block_type(
         &mut self,
         stmts: &[poly_expr::Stmt],
         tail: Option<poly_expr::ExprId>,
-        expected: Option<&Type>,
-    ) -> Result<Option<Type>, SpecializeError> {
+        expected: Option<Type>,
+    ) -> Result<Type, SpecializeError> {
         for stmt in stmts {
             match stmt {
-                poly_expr::Stmt::Let(_, _, value) | poly_expr::Stmt::Expr(value) => {
+                poly_expr::Stmt::Let(_, pat, value) => {
+                    let value_ty = self.expr(*value, None)?;
+                    self.bind_pat(*pat, value_ty)?;
+                }
+                poly_expr::Stmt::Expr(value) => {
                     self.expr(*value, None)?;
                 }
                 poly_expr::Stmt::Module(_, body) => {
@@ -215,8 +284,8 @@ impl<'a> ExprTypeSolver<'a> {
             }
         }
         match tail {
-            Some(tail) => self.expr(tail, expected.cloned()),
-            None => Ok(Some(Type::unit())),
+            Some(tail) => self.expr(tail, expected),
+            None => Ok(Type::unit()),
         }
     }
 
@@ -233,24 +302,42 @@ impl<'a> ExprTypeSolver<'a> {
         Ok(())
     }
 
-    fn var_type(
-        &mut self,
-        ref_id: poly_expr::RefId,
-        expected: Option<&Type>,
-    ) -> Result<Option<Type>, SpecializeError> {
+    fn bind_pat(&mut self, pat: poly_expr::PatId, ty: Type) -> Result<(), SpecializeError> {
+        use poly_expr::Pat as PolyPat;
+        match self.arena.pat(pat) {
+            PolyPat::Var(def) => {
+                self.local_types.insert(*def, ty);
+            }
+            PolyPat::As(inner, def) => {
+                self.local_types.insert(*def, ty.clone());
+                self.bind_pat(*inner, ty)?;
+            }
+            PolyPat::Tuple(items) => {
+                if let Type::Tuple(item_types) = ty {
+                    for (item, item_ty) in items.iter().zip(item_types) {
+                        self.bind_pat(*item, item_ty)?;
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn var_type(&mut self, ref_id: poly_expr::RefId) -> Result<Type, SpecializeError> {
         let Some(def) = self.arena.ref_target(ref_id) else {
             return Err(SpecializeError::UnresolvedRef { ref_id: ref_id.0 });
         };
-        if let Some(expected) = expected {
-            self.require_var_target(def)?;
-            return Ok(Some(expected.clone()));
-        }
         match self.arena.defs.get(def) {
             Some(poly_expr::Def::Let {
                 scheme: Some(scheme),
                 ..
-            }) => types::type_hint_for_scheme(self.arena, def, scheme),
-            Some(poly_expr::Def::Arg) | Some(poly_expr::Def::Let { body: None, .. }) => Ok(None),
+            }) => self.instantiate_scheme(def, scheme),
+            Some(poly_expr::Def::Arg) | Some(poly_expr::Def::Let { body: None, .. }) => Ok(self
+                .local_types
+                .get(&def)
+                .cloned()
+                .unwrap_or_else(|| self.fresh_value_slot())),
             Some(poly_expr::Def::Let { scheme: None, .. }) => Err(SpecializeError::MissingScheme {
                 def: convert_def(def),
             }),
@@ -264,68 +351,364 @@ impl<'a> ExprTypeSolver<'a> {
         }
     }
 
-    fn require_var_target(&self, def: poly_expr::DefId) -> Result<(), SpecializeError> {
-        match self.arena.defs.get(def) {
-            Some(poly_expr::Def::Let {
-                scheme: Some(_), ..
-            })
-            | Some(poly_expr::Def::Arg)
-            | Some(poly_expr::Def::Let { body: None, .. }) => Ok(()),
-            Some(poly_expr::Def::Let { scheme: None, .. }) => Err(SpecializeError::MissingScheme {
-                def: convert_def(def),
-            }),
-            Some(other) => Err(SpecializeError::UnsupportedDefKind {
-                def: convert_def(def),
-                kind: def_kind(other),
-            }),
-            None => Err(SpecializeError::MissingDef {
-                def: convert_def(def),
-            }),
-        }
-    }
-
-    fn callee_function_type(
+    fn instantiate_scheme(
         &mut self,
-        callee: poly_expr::ExprId,
-        arg: Option<&Type>,
-        ret: Option<&Type>,
+        def: poly_expr::DefId,
+        scheme: &poly::types::Scheme,
+    ) -> Result<Type, SpecializeError> {
+        let mut slots = Vec::new();
+        let ty = types::instantiate_scheme_with_fresh(self.arena, def, scheme, |kind| {
+            let slot = match kind {
+                types::SchemeQuantifierKind::Value => self.fresh_value_slot(),
+                types::SchemeQuantifierKind::Effect => self.fresh_effect_slot(),
+            };
+            slots.push(slot.clone());
+            slot
+        })?;
+        for slot in slots {
+            if let Type::OpenVar(slot) = slot {
+                self.graph.ensure_slot(slot)?;
+            }
+        }
+        Ok(ty)
+    }
+
+    fn fresh_value_slot(&mut self) -> Type {
+        self.graph.fresh_slot(TypeSlotKind::Value)
+    }
+
+    fn fresh_effect_slot(&mut self) -> Type {
+        self.graph.fresh_slot(TypeSlotKind::Effect)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TypeSlotKind {
+    Value,
+    Effect,
+}
+
+impl TypeSlotKind {
+    fn default_type(self) -> Type {
+        match self {
+            Self::Value => Type::unit(),
+            Self::Effect => Type::pure_effect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct ConstraintGraph {
+    slots: Vec<TypeSlot>,
+}
+
+impl ConstraintGraph {
+    fn fresh_slot(&mut self, kind: TypeSlotKind) -> Type {
+        let id = self.slots.len() as u32;
+        self.slots.push(TypeSlot::new(kind));
+        Type::OpenVar(id)
+    }
+
+    fn ensure_slot(&self, slot: u32) -> Result<(), SpecializeError> {
+        if (slot as usize) < self.slots.len() {
+            return Ok(());
+        }
+        Err(SpecializeError::InvalidTypeSlot { slot })
+    }
+
+    fn slot(&self, slot: u32) -> Result<&TypeSlot, SpecializeError> {
+        self.slots
+            .get(slot as usize)
+            .ok_or(SpecializeError::InvalidTypeSlot { slot })
+    }
+
+    fn constrain_subtype(&mut self, lower: Type, upper: Type) -> Result<(), SpecializeError> {
+        if lower == upper {
+            return Ok(());
+        }
+        match (lower, upper) {
+            (Type::Never, _) | (_, Type::Any) => Ok(()),
+            (Type::OpenVar(lower), Type::OpenVar(upper)) => self.add_edge(lower, upper),
+            (Type::OpenVar(slot), upper) => self.add_upper(slot, upper),
+            (lower, Type::OpenVar(slot)) => self.add_lower(slot, lower),
+            (
+                Type::Fun {
+                    arg: lower_arg,
+                    arg_effect: lower_arg_eff,
+                    ret_effect: lower_ret_eff,
+                    ret: lower_ret,
+                },
+                Type::Fun {
+                    arg: upper_arg,
+                    arg_effect: upper_arg_eff,
+                    ret_effect: upper_ret_eff,
+                    ret: upper_ret,
+                },
+            ) => {
+                self.constrain_subtype(*upper_arg, *lower_arg)?;
+                self.constrain_subtype(*upper_arg_eff, *lower_arg_eff)?;
+                self.constrain_subtype(*lower_ret_eff, *upper_ret_eff)?;
+                self.constrain_subtype(*lower_ret, *upper_ret)
+            }
+            (
+                Type::Con {
+                    path: lower_path,
+                    args: lower_args,
+                },
+                Type::Con {
+                    path: upper_path,
+                    args: upper_args,
+                },
+            ) if lower_path == upper_path && lower_args.len() == upper_args.len() => {
+                for (lower, upper) in lower_args.into_iter().zip(upper_args) {
+                    self.constrain_subtype(lower.clone(), upper.clone())?;
+                    self.constrain_subtype(upper, lower)?;
+                }
+                Ok(())
+            }
+            (Type::Tuple(lower_items), Type::Tuple(upper_items))
+                if lower_items.len() == upper_items.len() =>
+            {
+                for (lower, upper) in lower_items.into_iter().zip(upper_items) {
+                    self.constrain_subtype(lower, upper)?;
+                }
+                Ok(())
+            }
+            (Type::EffectRow(lower_items), Type::EffectRow(upper_items))
+                if lower_items.len() == upper_items.len() =>
+            {
+                for (lower, upper) in lower_items.into_iter().zip(upper_items) {
+                    self.constrain_subtype(lower, upper)?;
+                }
+                Ok(())
+            }
+            (Type::Stack { inner: lower, .. }, Type::Stack { inner: upper, .. }) => {
+                self.constrain_subtype(*lower, *upper)
+            }
+            (Type::Union(left, right), upper) => {
+                self.constrain_subtype(*left, upper.clone())?;
+                self.constrain_subtype(*right, upper)
+            }
+            (lower, Type::Intersection(left, right)) => {
+                self.constrain_subtype(lower.clone(), *left)?;
+                self.constrain_subtype(lower, *right)
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn add_edge(&mut self, lower: u32, upper: u32) -> Result<(), SpecializeError> {
+        self.ensure_slot(lower)?;
+        self.ensure_slot(upper)?;
+        if lower == upper {
+            return Ok(());
+        }
+        let lower_index = lower as usize;
+        let upper_index = upper as usize;
+        if !self.slots[lower_index].successors.contains(&upper) {
+            self.slots[lower_index].successors.push(upper);
+        }
+        if !self.slots[upper_index].predecessors.contains(&lower) {
+            self.slots[upper_index].predecessors.push(lower);
+        }
+        let lowers = self.slots[lower_index].lower.clone();
+        for bound in lowers {
+            self.add_lower(upper, bound)?;
+        }
+        let uppers = self.slots[upper_index].upper.clone();
+        for bound in uppers {
+            self.add_upper(lower, bound)?;
+        }
+        Ok(())
+    }
+
+    fn add_lower(&mut self, slot: u32, lower: Type) -> Result<(), SpecializeError> {
+        self.ensure_slot(slot)?;
+        let slot_index = slot as usize;
+        if self.slots[slot_index].lower.contains(&lower) {
+            return Ok(());
+        }
+        self.slots[slot_index].lower.push(lower.clone());
+        let uppers = self.slots[slot_index].upper.clone();
+        for upper in uppers {
+            self.constrain_subtype(lower.clone(), upper)?;
+        }
+        let successors = self.slots[slot_index].successors.clone();
+        for successor in successors {
+            self.add_lower(successor, lower.clone())?;
+        }
+        Ok(())
+    }
+
+    fn add_upper(&mut self, slot: u32, upper: Type) -> Result<(), SpecializeError> {
+        self.ensure_slot(slot)?;
+        let slot_index = slot as usize;
+        if self.slots[slot_index].upper.contains(&upper) {
+            return Ok(());
+        }
+        self.slots[slot_index].upper.push(upper.clone());
+        let lowers = self.slots[slot_index].lower.clone();
+        for lower in lowers {
+            self.constrain_subtype(lower, upper.clone())?;
+        }
+        let predecessors = self.slots[slot_index].predecessors.clone();
+        for predecessor in predecessors {
+            self.add_upper(predecessor, upper.clone())?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+struct TypeSlot {
+    kind: TypeSlotKind,
+    lower: Vec<Type>,
+    upper: Vec<Type>,
+    successors: Vec<u32>,
+    predecessors: Vec<u32>,
+}
+
+impl TypeSlot {
+    fn new(kind: TypeSlotKind) -> Self {
+        Self {
+            kind,
+            lower: Vec::new(),
+            upper: Vec::new(),
+            successors: Vec::new(),
+            predecessors: Vec::new(),
+        }
+    }
+}
+
+struct TypeResolver<'a> {
+    graph: &'a ConstraintGraph,
+    solutions: HashMap<u32, Type>,
+    resolving: HashSet<u32>,
+}
+
+impl<'a> TypeResolver<'a> {
+    fn new(graph: &'a ConstraintGraph) -> Self {
+        Self {
+            graph,
+            solutions: HashMap::new(),
+            resolving: HashSet::new(),
+        }
+    }
+
+    fn resolve(&mut self, ty: &Type) -> Result<Type, SpecializeError> {
+        match ty {
+            Type::Any => Ok(Type::Any),
+            Type::Never => Ok(Type::Never),
+            Type::Con { path, args } => Ok(Type::Con {
+                path: path.clone(),
+                args: self.resolve_all(args)?,
+            }),
+            Type::Fun {
+                arg,
+                arg_effect,
+                ret_effect,
+                ret,
+            } => Ok(Type::Fun {
+                arg: Box::new(self.resolve(arg)?),
+                arg_effect: Box::new(self.resolve(arg_effect)?),
+                ret_effect: Box::new(self.resolve(ret_effect)?),
+                ret: Box::new(self.resolve(ret)?),
+            }),
+            Type::Record(fields) => fields
+                .iter()
+                .map(|field| {
+                    Ok(mono::TypeField {
+                        name: field.name.clone(),
+                        value: self.resolve(&field.value)?,
+                        optional: field.optional,
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .map(Type::Record),
+            Type::PolyVariant(variants) => variants
+                .iter()
+                .map(|variant| {
+                    Ok(mono::TypeVariant {
+                        name: variant.name.clone(),
+                        payloads: self.resolve_all(&variant.payloads)?,
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .map(Type::PolyVariant),
+            Type::Tuple(items) => self.resolve_all(items).map(Type::Tuple),
+            Type::EffectRow(items) => self.resolve_all(items).map(Type::EffectRow),
+            Type::Stack { inner, weight } => Ok(Type::Stack {
+                inner: Box::new(self.resolve(inner)?),
+                weight: weight.clone(),
+            }),
+            Type::Union(left, right) => Ok(Type::Union(
+                Box::new(self.resolve(left)?),
+                Box::new(self.resolve(right)?),
+            )),
+            Type::Intersection(left, right) => Ok(Type::Intersection(
+                Box::new(self.resolve(left)?),
+                Box::new(self.resolve(right)?),
+            )),
+            Type::OpenVar(slot) => self.slot_solution(*slot),
+        }
+    }
+
+    fn resolve_all(&mut self, tys: &[Type]) -> Result<Vec<Type>, SpecializeError> {
+        tys.iter().map(|ty| self.resolve(ty)).collect()
+    }
+
+    fn slot_solution(&mut self, slot: u32) -> Result<Type, SpecializeError> {
+        if let Some(solution) = self.solutions.get(&slot) {
+            return Ok(solution.clone());
+        }
+        let slot_data = self.graph.slot(slot)?;
+        if !self.resolving.insert(slot) {
+            return Ok(slot_data.kind.default_type());
+        }
+        let lower = self.unique_candidate(slot, &slot_data.lower)?;
+        let upper = self.unique_candidate(slot, &slot_data.upper)?;
+        let solution = match (lower, upper) {
+            (Some(lower), Some(upper)) if lower == upper => lower,
+            (Some(lower), Some(upper)) if lower.is_pure_effect() && upper.is_pure_effect() => lower,
+            (Some(lower), Some(upper)) => {
+                return Err(SpecializeError::ConflictingTypeCandidates {
+                    slot,
+                    existing: lower,
+                    incoming: upper,
+                });
+            }
+            (Some(lower), None) => lower,
+            (None, Some(upper)) => upper,
+            (None, None) => slot_data.kind.default_type(),
+        };
+        self.resolving.remove(&slot);
+        self.solutions.insert(slot, solution.clone());
+        Ok(solution)
+    }
+
+    fn unique_candidate(
+        &mut self,
+        slot: u32,
+        bounds: &[Type],
     ) -> Result<Option<Type>, SpecializeError> {
-        let Some((def, scheme)) = self.callee_scheme(callee)? else {
-            return Ok(None);
-        };
-        Ok(
-            types::function_signature_for_scheme(self.arena, def, scheme, arg, ret)?
-                .map(|sig| sig.ty),
-        )
-    }
-
-    fn callee_scheme(
-        &mut self,
-        callee: poly_expr::ExprId,
-    ) -> Result<Option<(poly_expr::DefId, &'a poly::types::Scheme)>, SpecializeError> {
-        let poly_expr::Expr::Var(ref_id) = self.arena.expr(callee) else {
-            return Ok(None);
-        };
-        let Some(def) = self.arena.ref_target(*ref_id) else {
-            return Err(SpecializeError::UnresolvedRef { ref_id: ref_id.0 });
-        };
-        match self.arena.defs.get(def) {
-            Some(poly_expr::Def::Let {
-                scheme: Some(scheme),
-                ..
-            }) => Ok(Some((def, scheme))),
-            Some(poly_expr::Def::Let { scheme: None, .. }) => Err(SpecializeError::MissingScheme {
-                def: convert_def(def),
-            }),
-            Some(poly_expr::Def::Arg) => Ok(None),
-            Some(other) => Err(SpecializeError::UnsupportedDefKind {
-                def: convert_def(def),
-                kind: def_kind(other),
-            }),
-            None => Err(SpecializeError::MissingDef {
-                def: convert_def(def),
-            }),
+        let mut candidate: Option<Type> = None;
+        for bound in bounds {
+            let resolved = self.resolve(bound)?;
+            if let Some(existing) = &candidate {
+                if existing != &resolved
+                    && !(existing.is_pure_effect() && resolved.is_pure_effect())
+                {
+                    return Err(SpecializeError::ConflictingTypeCandidates {
+                        slot,
+                        existing: existing.clone(),
+                        incoming: resolved,
+                    });
+                }
+            } else {
+                candidate = Some(resolved);
+            }
         }
+        Ok(candidate)
     }
 }
 
@@ -358,7 +741,37 @@ mod tests {
             mono::dump::dump_type(plan.type_of(*callee).unwrap()),
             "int -> int"
         );
-        assert_eq!(plan.type_of(*arg), Some(&int_type()));
+        assert_eq!(plan.actual_type_of(*arg), Some(&int_type()));
+    }
+
+    #[test]
+    fn higher_order_direct_ref_argument_uses_outer_apply_type() {
+        let lowering = lower_source("my id x = x\nmy apply f x = f(x)\napply(id)(1)\n");
+        let arena = &lowering.session.poly;
+        let root = arena.root_exprs[0];
+
+        let plan = solve_expr(arena, root, None).expect("root expression should solve");
+
+        let poly::expr::Expr::App(inner, arg) = arena.expr(root) else {
+            panic!("root should be an apply");
+        };
+        let poly::expr::Expr::App(apply, id) = arena.expr(*inner) else {
+            panic!("callee should be an apply");
+        };
+        assert_eq!(mono::dump::dump_type(plan.type_of(root).unwrap()), "int");
+        assert_eq!(plan.actual_type_of(*arg), Some(&int_type()));
+        assert_eq!(
+            mono::dump::dump_type(plan.type_of(*inner).unwrap()),
+            "int -> int"
+        );
+        assert_eq!(
+            mono::dump::dump_type(plan.type_of(*apply).unwrap()),
+            "(int -> int) -> int -> int"
+        );
+        assert_eq!(
+            mono::dump::dump_type(plan.type_of(*id).unwrap()),
+            "int -> int"
+        );
     }
 
     fn int_type() -> Type {

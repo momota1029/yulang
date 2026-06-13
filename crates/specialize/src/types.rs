@@ -29,52 +29,26 @@ pub(crate) fn signature_for_scheme(
     })
 }
 
-pub(crate) fn type_hint_for_scheme(
+pub(crate) fn instantiate_scheme_with_fresh(
     arena: &poly_expr::Arena,
     def: poly_expr::DefId,
     scheme: &Scheme,
-) -> Result<Option<Type>, SpecializeError> {
-    if has_type_quantifiers(scheme) {
-        return Ok(None);
-    }
-    Ok(Some(signature_for_scheme(arena, def, scheme, None)?.ty))
-}
-
-pub(crate) fn function_signature_for_scheme(
-    arena: &poly_expr::Arena,
-    def: poly_expr::DefId,
-    scheme: &Scheme,
-    arg: Option<&Type>,
-    ret: Option<&Type>,
-) -> Result<Option<Signature>, SpecializeError> {
+    mut fresh: impl FnMut(SchemeQuantifierKind) -> Type,
+) -> Result<Type, SpecializeError> {
     reject_unsupported_scheme_features(def, scheme)?;
-    let Pos::Fun {
-        arg: scheme_arg,
-        ret: scheme_ret,
-        ..
-    } = arena.typ.pos(scheme.predicate)
-    else {
-        return Ok(None);
-    };
     let mut materializer = SchemeMaterializer::new(&arena.typ, def, scheme);
     materializer.collect_scheme_kinds(scheme);
-    if let Some(arg) = arg {
-        materializer.match_neg(*scheme_arg, arg, TypeContext::Value)?;
+    for quantifier in &scheme.quantifiers {
+        let kind = materializer
+            .kinds
+            .get(quantifier)
+            .copied()
+            .unwrap_or(QuantifierKind::Value);
+        materializer
+            .substitution
+            .insert(*quantifier, fresh(kind.into()));
     }
-    if let Some(ret) = ret {
-        materializer.match_pos(*scheme_ret, ret, TypeContext::Value)?;
-    }
-    materializer.default_unbound_quantifiers();
-    Ok(Some(Signature {
-        ty: materializer.materialize_pos(scheme.predicate, TypeContext::Value)?,
-    }))
-}
-
-pub(crate) fn has_type_quantifiers(scheme: &Scheme) -> bool {
-    !scheme.quantifiers.is_empty()
-        || !scheme.role_predicates.is_empty()
-        || !scheme.recursive_bounds.is_empty()
-        || !scheme.stack_quantifiers.is_empty()
+    materializer.materialize_pos(scheme.predicate, TypeContext::Value)
 }
 
 pub(crate) fn pure_function_type(arg: Type, ret: Type) -> Type {
@@ -112,6 +86,12 @@ fn reject_unsupported_scheme_features(
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SchemeQuantifierKind {
+    Value,
+    Effect,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TypeContext {
     Value,
     Effect,
@@ -121,6 +101,15 @@ enum TypeContext {
 enum QuantifierKind {
     Value,
     Effect,
+}
+
+impl From<QuantifierKind> for SchemeQuantifierKind {
+    fn from(kind: QuantifierKind) -> Self {
+        match kind {
+            QuantifierKind::Value => Self::Value,
+            QuantifierKind::Effect => Self::Effect,
+        }
+    }
 }
 
 impl QuantifierKind {
@@ -200,6 +189,9 @@ impl<'a> SchemeMaterializer<'a> {
         }
         if let Some(existing) = self.substitution.get(&var) {
             if existing == ty {
+                return Ok(());
+            }
+            if existing.is_pure_effect() && ty.is_pure_effect() {
                 return Ok(());
             }
             return Err(SpecializeError::ConflictingTypeSubstitution {

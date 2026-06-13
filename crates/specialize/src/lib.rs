@@ -449,8 +449,17 @@ pub enum SpecializeError {
     },
     ConflictingExprType {
         expr: u32,
+        role: ExprTypeRole,
         existing: Type,
         incoming: Type,
+    },
+    ConflictingTypeCandidates {
+        slot: u32,
+        existing: Type,
+        incoming: Type,
+    },
+    InvalidTypeSlot {
+        slot: u32,
     },
     UnresolvedRef {
         ref_id: u32,
@@ -472,6 +481,12 @@ pub enum SchemeFeature {
     RolePredicates,
     RecursiveBounds,
     StackQuantifiers,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExprTypeRole {
+    Actual,
+    Expected,
 }
 
 impl fmt::Display for SpecializeError {
@@ -503,16 +518,30 @@ impl fmt::Display for SpecializeError {
             }
             Self::ConflictingExprType {
                 expr,
+                role,
                 existing,
                 incoming,
             } => {
                 write!(
                     f,
-                    "conflicting expression type for e{expr}: {} vs {}",
+                    "conflicting {role:?} expression type for e{expr}: {} vs {}",
                     mono::dump::dump_type(existing),
                     mono::dump::dump_type(incoming),
                 )
             }
+            Self::ConflictingTypeCandidates {
+                slot,
+                existing,
+                incoming,
+            } => {
+                write!(
+                    f,
+                    "conflicting type candidates for slot {slot}: {} vs {}",
+                    mono::dump::dump_type(existing),
+                    mono::dump::dump_type(incoming),
+                )
+            }
+            Self::InvalidTypeSlot { slot } => write!(f, "invalid type slot {slot}"),
             Self::UnresolvedRef { ref_id } => write!(f, "unresolved ref r{ref_id}"),
             Self::InternalMissingInstance { instance } => {
                 write!(f, "internal missing mono instance m{}", instance.0)
