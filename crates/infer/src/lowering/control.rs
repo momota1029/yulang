@@ -118,10 +118,23 @@ impl<'a> ExprLowerer<'a> {
         tail
     }
 
-    pub(super) fn lower_case(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+    pub(super) fn lower_case(
+        &mut self,
+        node: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
         let scrutinee_node =
             case_like_scrutinee_expr(node).ok_or(LoweringError::MissingCaseScrutinee)?;
         let scrutinee = self.lower_expr(&scrutinee_node)?;
+        if let Some(label) = case_like_label(node) {
+            return self.lower_recursive_case_like(
+                node,
+                label,
+                Some(scrutinee),
+                lambda_scope,
+                RecursiveCaseLikeKind::Case,
+            );
+        }
         self.lower_case_with_scrutinee(node, scrutinee)
     }
 
@@ -130,12 +143,24 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
         lambda_scope: LambdaScope,
     ) -> Result<Computation, LoweringError> {
-        if case_like_label(node).is_some() {
-            return Err(LoweringError::UnsupportedSyntax {
-                kind: SyntaxKind::SigilIdent,
-            });
+        if let Some(label) = case_like_label(node) {
+            return self.lower_recursive_case_like(
+                node,
+                label,
+                None,
+                lambda_scope,
+                RecursiveCaseLikeKind::Case,
+            );
         }
 
+        self.lower_case_lambda_without_label(node, lambda_scope)
+    }
+
+    fn lower_case_lambda_without_label(
+        &mut self,
+        node: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
         let scrutinee_name = Name("#case-scrutinee".to_string());
         let scrutinee_value = self.fresh_type_var();
         let before_locals = self.locals.len();
@@ -237,10 +262,23 @@ impl<'a> ExprLowerer<'a> {
         })
     }
 
-    pub(super) fn lower_catch(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
+    pub(super) fn lower_catch(
+        &mut self,
+        node: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
         let scrutinee_node =
             case_like_scrutinee_expr(node).ok_or(LoweringError::MissingCatchScrutinee)?;
         let scrutinee = self.lower_expr(&scrutinee_node)?;
+        if let Some(label) = case_like_label(node) {
+            return self.lower_recursive_case_like(
+                node,
+                label,
+                Some(scrutinee),
+                lambda_scope,
+                RecursiveCaseLikeKind::Catch,
+            );
+        }
         self.lower_catch_with_scrutinee(node, scrutinee)
     }
 
@@ -249,12 +287,24 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
         lambda_scope: LambdaScope,
     ) -> Result<Computation, LoweringError> {
-        if case_like_label(node).is_some() {
-            return Err(LoweringError::UnsupportedSyntax {
-                kind: SyntaxKind::SigilIdent,
-            });
+        if let Some(label) = case_like_label(node) {
+            return self.lower_recursive_case_like(
+                node,
+                label,
+                None,
+                lambda_scope,
+                RecursiveCaseLikeKind::Catch,
+            );
         }
 
+        self.lower_catch_lambda_without_label(node, lambda_scope)
+    }
+
+    fn lower_catch_lambda_without_label(
+        &mut self,
+        node: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
         let scrutinee_name = Name("#catch-scrutinee".to_string());
         let scrutinee_value = self.fresh_type_var();
         let scrutinee_effect = self.fresh_type_var();
@@ -302,6 +352,55 @@ impl<'a> ExprLowerer<'a> {
 
         let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
         Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_recursive_case_like(
+        &mut self,
+        node: &Cst,
+        label: Name,
+        target: Option<Computation>,
+        lambda_scope: LambdaScope,
+        kind: RecursiveCaseLikeKind,
+    ) -> Result<Computation, LoweringError> {
+        let boundary = self.local_generalize_boundary;
+        let previous_level = self.session.infer.enter_child_level();
+        let before_locals = self.locals.len();
+        let result = (|| {
+            let value = self.fresh_type_var();
+            let (pat, def) = self.bind_let_local_with_def(
+                label.clone(),
+                value,
+                LocalCallReturnEffect::Annotated,
+                None,
+            );
+            let body = match kind {
+                RecursiveCaseLikeKind::Case => {
+                    self.lower_case_lambda_without_label(node, lambda_scope)?
+                }
+                RecursiveCaseLikeKind::Catch => {
+                    self.lower_catch_lambda_without_label(node, lambda_scope)?
+                }
+            };
+            self.subtype_var_to_var(body.value, value);
+            self.subtype_var_to_var(value, body.value);
+            self.set_local_let_body(def, body.expr);
+            self.generalize_local_binding(def, value, boundary);
+            let self_ref = self.lower_name(label)?;
+            let tail = match target {
+                Some(target) => self.make_app(self_ref, target),
+                None => self_ref,
+            };
+            Ok(self.prepend_block(
+                LoweredLocalStmt {
+                    stmt: Stmt::Let(Vis::My, pat, body.expr),
+                    effect: body.effect,
+                },
+                tail,
+            ))
+        })();
+        self.locals.truncate(before_locals);
+        self.session.infer.restore_level(previous_level);
+        result
     }
 
     fn lower_catch_with_scrutinee(
@@ -832,6 +931,12 @@ struct CatchEffectOp {
 enum LoweredCatchArmKind {
     Value,
     Effect,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RecursiveCaseLikeKind {
+    Case,
+    Catch,
 }
 
 fn case_like_scrutinee_expr(node: &Cst) -> Option<Cst> {

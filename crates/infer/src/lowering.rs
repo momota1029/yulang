@@ -4020,8 +4020,8 @@ impl<'a> ExprLowerer<'a> {
             SyntaxKind::CaseLambdaExpr => self.lower_case_lambda(node, lambda_scope),
             SyntaxKind::CatchLambdaExpr => self.lower_catch_lambda(node, lambda_scope),
             SyntaxKind::IfExpr => self.lower_if(node),
-            SyntaxKind::CaseExpr => self.lower_case(node),
-            SyntaxKind::CatchExpr => self.lower_catch(node),
+            SyntaxKind::CaseExpr => self.lower_case(node, lambda_scope),
+            SyntaxKind::CatchExpr => self.lower_catch(node, lambda_scope),
             SyntaxKind::Number => self.lower_number(&node.text().to_string()),
             SyntaxKind::YadaYada => Ok(self.lower_yada_yada_expr()),
             SyntaxKind::RuleLit => self.lower_rule_lit(node),
@@ -13335,6 +13335,156 @@ mod tests {
     }
 
     #[test]
+    fn labeled_case_expr_lowers_to_recursive_self_application() {
+        let root = parse("my f = case 'go 4: 0 -> 0, n -> 'go 0\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_binding_body_expr(&expr)
+            .unwrap();
+
+        let (self_def, lambda, tail) = recursive_self_block_parts(&session, computation.expr);
+        let (tail_callee, tail_arg) = match session.poly.expr(tail) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected case label tail application"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, tail_callee)),
+            Some(self_def)
+        );
+        assert!(matches!(
+            session.poly.expr(tail_arg),
+            Expr::Lit(Lit::Int(4))
+        ));
+
+        let case_expr = lambda_body(&session, lambda);
+        let arms = match session.poly.expr(case_expr) {
+            Expr::Case(_, arms) => arms,
+            _ => panic!("expected recursive case body"),
+        };
+        let recur_callee = match session.poly.expr(arms[1].body) {
+            Expr::App(callee, _) => *callee,
+            _ => panic!("expected recursive case arm application"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, recur_callee)),
+            Some(self_def)
+        );
+    }
+
+    #[test]
+    fn labeled_case_lambda_lowers_to_recursive_self_function() {
+        let root = parse("my f = \\case 'go: 0 -> 0, n -> 'go 0\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_binding_body_expr(&expr)
+            .unwrap();
+
+        let (self_def, lambda, tail) = recursive_self_block_parts(&session, computation.expr);
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, tail)),
+            Some(self_def)
+        );
+        let case_expr = lambda_body(&session, lambda);
+        let arms = match session.poly.expr(case_expr) {
+            Expr::Case(_, arms) => arms,
+            _ => panic!("expected recursive case lambda body"),
+        };
+        let recur_callee = match session.poly.expr(arms[1].body) {
+            Expr::App(callee, _) => *callee,
+            _ => panic!("expected recursive case lambda arm application"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, recur_callee)),
+            Some(self_def)
+        );
+    }
+
+    #[test]
+    fn labeled_catch_expr_lowers_to_recursive_self_application() {
+        let root = parse("my f = catch 'go 1: value -> 'go value\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_binding_body_expr(&expr)
+            .unwrap();
+
+        let (self_def, lambda, tail) = recursive_self_block_parts(&session, computation.expr);
+        let (tail_callee, tail_arg) = match session.poly.expr(tail) {
+            Expr::App(callee, arg) => (*callee, *arg),
+            _ => panic!("expected catch label tail application"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, tail_callee)),
+            Some(self_def)
+        );
+        assert!(matches!(
+            session.poly.expr(tail_arg),
+            Expr::Lit(Lit::Int(1))
+        ));
+
+        let catch_expr = lambda_body(&session, lambda);
+        let arms = match session.poly.expr(catch_expr) {
+            Expr::Catch(_, arms) => arms,
+            _ => panic!("expected recursive catch body"),
+        };
+        let recur_callee = match session.poly.expr(arms[0].body) {
+            Expr::App(callee, _) => *callee,
+            _ => panic!("expected recursive catch arm application"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, recur_callee)),
+            Some(self_def)
+        );
+    }
+
+    #[test]
+    fn labeled_catch_lambda_lowers_to_recursive_self_function() {
+        let root = parse("my f = \\catch 'go: value -> 'go value\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+        let expr = binding_expr(&root, "f");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_binding_body_expr(&expr)
+            .unwrap();
+
+        let (self_def, lambda, tail) = recursive_self_block_parts(&session, computation.expr);
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, tail)),
+            Some(self_def)
+        );
+        let catch_expr = lambda_body(&session, lambda);
+        let arms = match session.poly.expr(catch_expr) {
+            Expr::Catch(_, arms) => arms,
+            _ => panic!("expected recursive catch lambda body"),
+        };
+        let recur_callee = match session.poly.expr(arms[0].body) {
+            Expr::App(callee, _) => *callee,
+            _ => panic!("expected recursive catch lambda arm application"),
+        };
+        assert_eq!(
+            session.poly.ref_target(expr_ref(&session, recur_callee)),
+            Some(self_def)
+        );
+    }
+
+    #[test]
     fn case_lowering_binds_arm_pattern_local() {
         let root = parse("my f = case 1: n -> n\n");
         let lower = lower_module_map(&root);
@@ -13718,6 +13868,31 @@ mod tests {
         match session.poly.expr(expr) {
             Expr::Var(reference) => *reference,
             _ => panic!("expected var expr"),
+        }
+    }
+
+    fn recursive_self_block_parts(
+        session: &AnalysisSession,
+        expr: poly::expr::ExprId,
+    ) -> (DefId, poly::expr::ExprId, poly::expr::ExprId) {
+        let (stmts, tail) = match session.poly.expr(expr) {
+            Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+            _ => panic!("expected recursive self block"),
+        };
+        let [Stmt::Let(_, self_pat, body)] = stmts.as_slice() else {
+            panic!("expected recursive self let");
+        };
+        let self_def = match session.poly.pat(*self_pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected recursive self local"),
+        };
+        (self_def, *body, tail)
+    }
+
+    fn lambda_body(session: &AnalysisSession, expr: poly::expr::ExprId) -> poly::expr::ExprId {
+        match session.poly.expr(expr) {
+            Expr::Lambda(_, body) => *body,
+            _ => panic!("expected lambda expr"),
         }
     }
 
