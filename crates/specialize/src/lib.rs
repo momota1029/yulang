@@ -5,6 +5,7 @@
 
 #![forbid(unsafe_code)]
 
+mod hygiene;
 mod solve;
 mod types;
 
@@ -12,9 +13,9 @@ use std::collections::HashMap;
 use std::fmt;
 
 use mono::{
-    Block, CaseArm, CatchArm, ComputationType, DefId, EffectiveThunkType, Expr, ExprKind,
-    FunctionAdapterHygiene, Instance, InstanceId, InstanceSource, Lit, Pat, Program, RecordField,
-    RecordSpread, Root, SelectResolution, Stmt, Type, Vis,
+    Block, CaseArm, CatchArm, ComputationType, DefId, EffectiveThunkType, Expr, ExprKind, Instance,
+    InstanceId, InstanceSource, Lit, Pat, Program, RecordField, RecordSpread, Root,
+    SelectResolution, Stmt, Type, Vis,
 };
 use poly::expr as poly_expr;
 
@@ -657,7 +658,7 @@ fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr {
             source: actual.clone(),
             target: expected.clone(),
             function: Box::new(expr),
-            hygiene: FunctionAdapterHygiene::default(),
+            hygiene: hygiene::function_adapter_hygiene(actual, expected),
         });
     }
     Expr::new(ExprKind::Coerce {
@@ -804,7 +805,9 @@ fn def_kind(def: &poly_expr::Def) -> DefKind {
 #[cfg(test)]
 mod tests {
     use super::{boundary_expr, specialize, specialize_roots};
-    use mono::{ComputationType, EffectiveThunkType, ExprKind, InstanceSource, Lit, Type};
+    use mono::{
+        ComputationType, EffectiveThunkType, ExprKind, GuardMarker, InstanceSource, Lit, Type,
+    };
 
     #[test]
     fn empty_arena_specializes_to_empty_program() {
@@ -875,6 +878,75 @@ mod tests {
         assert_eq!(target, expected);
         assert_eq!(*wrapped_function, function);
         assert!(hygiene.markers.is_empty());
+    }
+
+    #[test]
+    fn boundary_expr_hygiene_marks_effectful_thunk_argument() {
+        let effect = io_effect_type();
+        let actual = pure_function_type(thunk_type(effect, int_type()), int_type());
+        let expected = pure_function_type(int_type(), int_type());
+        let function = mono::Expr::new(ExprKind::Local(mono::DefId(0)));
+
+        let wrapped = boundary_expr(&actual, &expected, function);
+
+        let ExprKind::FunctionAdapter { hygiene, .. } = wrapped.kind else {
+            panic!("function boundary should produce adapter");
+        };
+        assert_eq!(
+            hygiene.markers,
+            vec![GuardMarker {
+                path: vec!["io".to_string()],
+                depth: 0,
+            }]
+        );
+    }
+
+    #[test]
+    fn boundary_expr_hygiene_marks_nested_function_boundary() {
+        let effect = io_effect_type();
+        let actual = pure_function_type(
+            pure_function_type(int_type(), thunk_type(effect, int_type())),
+            int_type(),
+        );
+        let expected = pure_function_type(pure_function_type(int_type(), int_type()), int_type());
+        let function = mono::Expr::new(ExprKind::Local(mono::DefId(0)));
+
+        let wrapped = boundary_expr(&actual, &expected, function);
+
+        let ExprKind::FunctionAdapter { hygiene, .. } = wrapped.kind else {
+            panic!("function boundary should produce adapter");
+        };
+        assert_eq!(
+            hygiene.markers,
+            vec![GuardMarker {
+                path: vec!["io".to_string()],
+                depth: 1,
+            }]
+        );
+    }
+
+    #[test]
+    fn boundary_expr_hygiene_deduplicates_path_and_depth() {
+        let effect = io_effect_type();
+        let actual = pure_function_type(
+            thunk_type(effect.clone(), int_type()),
+            thunk_type(effect, int_type()),
+        );
+        let expected = pure_function_type(int_type(), int_type());
+        let function = mono::Expr::new(ExprKind::Local(mono::DefId(0)));
+
+        let wrapped = boundary_expr(&actual, &expected, function);
+
+        let ExprKind::FunctionAdapter { hygiene, .. } = wrapped.kind else {
+            panic!("function boundary should produce adapter");
+        };
+        assert_eq!(
+            hygiene.markers,
+            vec![GuardMarker {
+                path: vec!["io".to_string()],
+                depth: 0,
+            }]
+        );
     }
 
     #[test]

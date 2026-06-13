@@ -525,8 +525,8 @@ impl TypeDumper {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ComputationType, EffectiveThunkType, Expr, ExprKind, FunctionAdapterHygiene, Lit, Program,
-        Root, Type,
+        ComputationType, EffectiveThunkType, Expr, ExprKind, FunctionAdapterHygiene, GuardMarker,
+        Lit, Program, Root, Type,
     };
 
     use super::{dump_program, dump_type};
@@ -597,6 +597,38 @@ mod tests {
                 value: Box::new(str_type()),
             }),
             "thunk[[std::text::parse::parse], str]"
+        );
+    }
+
+    #[test]
+    fn dump_function_adapter_hygiene_markers() {
+        let program = Program {
+            roots: vec![Root::Expr(Expr::new(ExprKind::FunctionAdapter {
+                source: pure_function_type(int_type(), int_type()),
+                target: pure_function_type(Type::Any, Type::Any),
+                function: Box::new(Expr::new(ExprKind::Local(crate::DefId(1)))),
+                hygiene: FunctionAdapterHygiene {
+                    markers: vec![GuardMarker {
+                        path: vec![
+                            "std".to_string(),
+                            "text".to_string(),
+                            "parse".to_string(),
+                            "parse".to_string(),
+                        ],
+                        depth: 1,
+                    }],
+                },
+            }))],
+            instances: Vec::new(),
+        };
+
+        assert_eq!(
+            dump_program(&program),
+            concat!(
+                "mono roots [",
+                "adapter[int -> int => any -> any; hygiene[add_id[1, std::text::parse::parse]]](d1)",
+                "]\n",
+            )
         );
     }
 
