@@ -2198,8 +2198,7 @@ fn role_input_variances_from_requirements(
     let mut variances = vec![RoleInputVariance::Unused; role_inputs.len()];
     for method in methods {
         let Some(requirement) = requirements.get(&method.def) else {
-            variances.fill(RoleInputVariance::Invariant);
-            break;
+            continue;
         };
         record_role_input_variances_in_signature(
             &requirement.signature,
@@ -10885,6 +10884,21 @@ mod tests {
     }
 
     #[test]
+    fn unannotated_role_default_method_does_not_force_input_invariant() {
+        let root = parse("role Display 'a:\n  our x.display: unit\n  our x.id = x\n");
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let role = vec!["Display".to_string()];
+        assert_eq!(
+            output.session.role_input_variances.for_role(&role),
+            Some([RoleInputVariance::Contravariant].as_slice())
+        );
+    }
+
+    #[test]
     fn covariant_where_role_input_drops_supertype_scaffold_from_residual() {
         let root = parse(concat!(
             "pub enum mylist 'a = nil | cons('a, mylist 'a)\n",
@@ -10913,6 +10927,37 @@ mod tests {
         ));
         let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
         assert_eq!(rendered, "mylist('a & 'b) -> mylist('b | 'a) where 'a: Ord");
+    }
+
+    #[test]
+    fn unannotated_role_default_method_keeps_covariant_where_residual_clean() {
+        let root = parse(concat!(
+            "pub enum mylist 'a = nil | cons('a, mylist 'a)\n",
+            "role Display 'a:\n",
+            "  our x.display: unit\n",
+            "  our x.id = x\n",
+            "my display_items(xs: mylist 'a): unit =\n",
+            "  where 'a: Display\n",
+            "  case xs:\n",
+            "    mylist::nil -> ()\n",
+            "    mylist::cons(y, rest) ->\n",
+            "      y.display\n",
+            "      display_items rest\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (display_items, _) = binding_def_and_order(&lower.modules, module, "display_items");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let scheme = def_scheme(&output, display_items);
+        assert!(matches!(
+            scheme.role_predicates[0].inputs[0],
+            poly::types::RolePredicateArg::Covariant(_)
+        ));
+        let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
+        assert_eq!(rendered, "mylist 'a -> () where 'a: Display");
     }
 
     #[test]
