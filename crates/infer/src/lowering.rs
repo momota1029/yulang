@@ -10805,6 +10805,36 @@ mod tests {
     }
 
     #[test]
+    fn covariant_where_role_input_drops_supertype_scaffold_from_residual() {
+        let root = parse(concat!(
+            "pub enum mylist 'a = nil | cons('a, mylist 'a)\n",
+            "role Ord 'a:\n",
+            "  our x.le: 'a -> bool\n",
+            "my split_le xs x = case xs:\n",
+            "  mylist::nil -> mylist::nil\n",
+            "  mylist::cons(y, rest) -> case y.le x:\n",
+            "    true -> mylist::cons(y, split_le rest x)\n",
+            "    false -> split_le rest x\n",
+            "my sort_head xs = case xs:\n",
+            "  mylist::nil -> mylist::nil\n",
+            "  mylist::cons(x, rest) -> mylist::cons(x, split_le rest x)\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (sort_head, _) = binding_def_and_order(&lower.modules, module, "sort_head");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let rendered =
+            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, sort_head));
+        assert_eq!(
+            rendered,
+            "mylist('a & 'b) -> mylist('b | 'a) where ('a): Ord"
+        );
+    }
+
+    #[test]
     fn multi_input_role_method_selection_resolves_concrete_demand() {
         let root = parse(concat!(
             "role Index 'container 'key:\n",

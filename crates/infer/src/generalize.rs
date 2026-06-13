@@ -15,11 +15,13 @@ use crate::compact::{
     CompactSandwich, CompactSandwichKind, CompactSimplification, CompactTuple, CompactType,
     CompactVar, CompactVarSubstitution, compact_con_entries, compact_row_item_entries,
     compact_type_var, finalize_compact_bounds, finalize_compact_root, merge_compact_types,
+    simplify_compact_root_with_role_variance_table_and_non_generic,
     simplify_compact_root_with_roles_and_non_generic,
 };
 #[cfg(test)]
 use crate::constraints::ConstraintWeight;
 use crate::constraints::{ConstraintMachine, TypeLevel};
+use crate::roles::RoleInputVarianceTable;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct GeneralizedCompactRoot {
@@ -68,6 +70,33 @@ pub(crate) fn generalize_prepared_compact_root_with_roles(
         simplification_boundary,
         &mut compact,
         &mut role_predicates,
+        non_generic,
+    );
+    generalize_compact_root_with_simplification(
+        machine,
+        boundary,
+        compact,
+        role_predicates,
+        non_generic,
+        simplification,
+    )
+}
+
+pub(crate) fn generalize_prepared_compact_root_with_role_variances(
+    machine: &ConstraintMachine,
+    boundary: TypeLevel,
+    mut compact: CompactRoot,
+    mut role_predicates: Vec<CompactRoleConstraint>,
+    role_variances: &RoleInputVarianceTable,
+    non_generic: &FxHashSet<TypeVar>,
+) -> GeneralizedCompactRoot {
+    let simplification_boundary = boundary.child();
+    let simplification = simplify_compact_root_with_role_variance_table_and_non_generic(
+        machine,
+        simplification_boundary,
+        &mut compact,
+        &mut role_predicates,
+        role_variances,
         non_generic,
     );
     generalize_compact_root_with_simplification(

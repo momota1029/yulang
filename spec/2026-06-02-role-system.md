@@ -17,6 +17,12 @@ role宣言そのものは、通常引数ごとにvarianceを導出する。
 このvarianceは宣言signature内での現れ方なので、residualを`where`束縛としてsurfaceへ浮かせるときは向きを反転して読む。
 例えば `Ord` の `'a` は宣言signature内では反変にだけ現れるため、`where 'a: Ord` 側では共変の要求として扱える。
 
+role解決ループでimpl候補とdemandを照合する段階では、通常引数は従来どおり不変区間のまま扱う。
+一方、解決されずschemeの`where`節へ残るresidual roleを簡約するときは、反転後のvarianceでrole引数を読む。
+`Covariant` なwhere引数は区間のlower境界だけを共変位置として読み、`Contravariant` なwhere引数はupper境界だけを反変位置として読む。
+`Invariant` と `Unused` はこの段階では不変区間として読む。
+これにより、`list α -> list α where Ord α` のように「実際に要求される型」だけをsurfaceへ残し、supertype比較のために途中で生じた足場変数は共起分析・極性消去で落とせる。
+
 # 注意
 不変な変数とは共変部分と反変部分の2つ組のことである。`(int|α, α&float)`などと書くとタプルと被ってしまうため、表示では両側に共通して現れる型変数(ここでは`α`)を中心として`int|α&float`と書く。
 中心は表示上の略記であり、内部表現として別に保存しない。

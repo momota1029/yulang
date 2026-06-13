@@ -33,7 +33,8 @@ use crate::compact::{
 use crate::constraints::{ConstraintEvent, ConstraintWeights, TypeLevel};
 use crate::generalize::{
     GeneralizedCompactRoot, apply_compact_simplifications_to_root_and_roles,
-    finalize_generalized_compact_root_with_ancestors, generalize_prepared_compact_root_with_roles,
+    finalize_generalized_compact_root_with_ancestors,
+    generalize_prepared_compact_root_with_role_variances,
 };
 use crate::instantiate::{instantiate_scheme, instantiate_scheme_with_roles};
 use crate::methods::{
@@ -1441,11 +1442,12 @@ impl AnalysisSession {
                 .collect();
         }
 
-        let mut generalized = generalize_prepared_compact_root_with_roles(
+        let mut generalized = generalize_prepared_compact_root_with_role_variances(
             self.infer.constraints(),
             TypeLevel::root(),
             compact,
             role_predicates,
+            &self.role_input_variances,
             &FxHashSet::default(),
         );
         if !floor_substitutions.is_empty()
