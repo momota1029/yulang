@@ -4956,7 +4956,7 @@ mod tests {
     }
 
     #[test]
-    fn interval_dominance_generates_subtype_for_unobservable_witnesses() {
+    fn interval_dominance_generates_bounds_consistency_and_witness_constraint() {
         let anchor = TypeVar(1);
         let witness_left = TypeVar(2);
         let witness_both = TypeVar(3);
@@ -4991,21 +4991,43 @@ mod tests {
 
         let constraints = collect_interval_dominance_constraints(&root, &roles);
 
+        assert_eq!(constraints.len(), 2);
+        assert!(constraints.iter().any(|constraint| {
+            compact_type_contains_var(&constraint.lower, witness_left)
+                && compact_type_contains_var(&constraint.upper, witness_both)
+        }));
+        assert!(constraints.iter().any(|constraint| {
+            compact_type_contains_var(&constraint.lower, anchor)
+                && !compact_type_contains_var(&constraint.lower, witness_left)
+                && !compact_type_contains_var(&constraint.upper, witness_both)
+                && compact_type_contains_var(&constraint.upper, upper_left)
+                && compact_type_contains_var(&constraint.upper, upper_right)
+        }));
+    }
+
+    #[test]
+    fn interval_dominance_generates_subtype_for_single_lower_variable() {
+        let lower = TypeVar(1);
+        let upper = TypeVar(2);
+        let root = CompactRoot::default();
+        let roles = vec![CompactRoleConstraint {
+            role: vec!["Ord".into()],
+            inputs: vec![CompactRoleArg::invariant(CompactBounds::Interval {
+                lower: CompactType::from_var(CompactVar::plain(lower)),
+                upper: merge_compact_types(
+                    false,
+                    CompactType::from_var(CompactVar::plain(lower)),
+                    CompactType::from_var(CompactVar::plain(upper)),
+                ),
+            })],
+            associated: Vec::new(),
+        }];
+
+        let constraints = collect_interval_dominance_constraints(&root, &roles);
+
         assert_eq!(constraints.len(), 1);
-        assert!(compact_type_contains_var(&constraints[0].lower, anchor));
-        assert!(!compact_type_contains_var(
-            &constraints[0].lower,
-            witness_left
-        ));
-        assert!(!compact_type_contains_var(
-            &constraints[0].upper,
-            witness_both
-        ));
-        assert!(compact_type_contains_var(&constraints[0].upper, upper_left));
-        assert!(compact_type_contains_var(
-            &constraints[0].upper,
-            upper_right
-        ));
+        assert!(compact_type_contains_var(&constraints[0].lower, lower));
+        assert!(compact_type_contains_var(&constraints[0].upper, upper));
     }
 
     #[test]

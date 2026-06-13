@@ -222,9 +222,12 @@ pub(crate) fn coalesce_floor_interval_equalities(
     rewrite_root_and_role_vars(root, roles, |var| subst.rewrite(var))
 }
 
-/// 区間の片側にいる足場変数が、その区間を除く反対側で観測されないなら、
-/// その足場は実際に代入される型にはなれない。観測されている代表変数を実型として選び、
-/// 反対境界へ片方向制約を戻してから、通常の共起分析に渡す。
+/// 不変区間そのものが要求する `lower <: upper` を machine へ戻す。
+///
+/// Simple-sub の constraint propagation では、変数の lower/upper bounds は常に整合している
+/// 必要がある。compact の `Interval(lower, upper)` も同じく「実型を挟む bounds」なので、
+/// まず `lower <: upper` を戻す。そのうえで、片側の足場変数が反対極性で観測されない場合の
+/// 代表制約も追加し、再 collect 後の共起分析へ渡す。
 pub(crate) fn collect_interval_dominance_constraints(
     root: &CompactRoot,
     roles: &[CompactRoleConstraint],
@@ -251,6 +254,7 @@ fn visit_bounds_interval_dominance(
 ) {
     match bounds {
         CompactBounds::Interval { lower, upper } => {
+            push_subtype_constraint(out, lower.clone(), upper.clone());
             collect_interval_dominance_constraint(lower, upper, polarity, counts, out);
             visit_type_interval_dominance(lower, polarity, counts, out);
             visit_type_interval_dominance(upper, polarity.flipped(), counts, out);
