@@ -207,8 +207,9 @@ impl<'a> SchemeMaterializer<'a> {
         if !self.quantifiers.contains(&var) {
             return Ok(());
         }
+        let ty = simplify_type(ty.clone());
         if let Some(existing) = self.substitution.get(&var) {
-            if existing == ty {
+            if existing == &ty {
                 return Ok(());
             }
             if existing.is_pure_effect() && ty.is_pure_effect() {
@@ -218,10 +219,10 @@ impl<'a> SchemeMaterializer<'a> {
                 def: mono::DefId(self.def.0),
                 var: var.0,
                 existing: existing.clone(),
-                incoming: ty.clone(),
+                incoming: ty,
             });
         }
-        self.substitution.insert(var, ty.clone());
+        self.substitution.insert(var, ty);
         Ok(())
     }
 
@@ -604,7 +605,6 @@ impl<'a> SchemeMaterializer<'a> {
             Pos::Stack { inner, weight } => stack_type(
                 self.materialize_pos(*inner, context)?,
                 self.materialize_stack_weight(weight)?,
-                context,
             ),
             Pos::NonSubtract(inner, subtract) => stack_type(
                 self.materialize_pos(*inner, context)?,
@@ -616,11 +616,10 @@ impl<'a> SchemeMaterializer<'a> {
                         stack: Vec::new(),
                     }],
                 },
-                context,
             ),
-            Pos::Union(left, right) => Type::Union(
-                Box::new(self.materialize_pos(*left, context)?),
-                Box::new(self.materialize_pos(*right, context)?),
+            Pos::Union(left, right) => simplify_union_type(
+                self.materialize_pos(*left, context)?,
+                self.materialize_pos(*right, context)?,
             ),
         })
     }
@@ -668,11 +667,10 @@ impl<'a> SchemeMaterializer<'a> {
             Neg::Stack { inner, weight } => stack_type(
                 self.materialize_neg(*inner, context)?,
                 self.materialize_stack_weight(weight)?,
-                context,
             ),
-            Neg::Intersection(left, right) => Type::Intersection(
-                Box::new(self.materialize_neg(*left, context)?),
-                Box::new(self.materialize_neg(*right, context)?),
+            Neg::Intersection(left, right) => simplify_intersection_type(
+                self.materialize_neg(*left, context)?,
+                self.materialize_neg(*right, context)?,
             ),
         })
     }
@@ -680,15 +678,19 @@ impl<'a> SchemeMaterializer<'a> {
     fn materialize_neu(&self, id: NeuId, context: TypeContext) -> Result<Type, SpecializeError> {
         Ok(match self.arena.neu(id) {
             Neu::Bounds(lower, upper) => {
-                if !matches!(self.arena.pos(*lower), Pos::Bot) {
-                    self.materialize_pos(*lower, context)?
-                } else if !matches!(self.arena.neg(*upper), Neg::Top) {
-                    self.materialize_neg(*upper, context)?
-                } else {
-                    match context {
+                let has_lower = !matches!(self.arena.pos(*lower), Pos::Bot);
+                let has_upper = !matches!(self.arena.neg(*upper), Neg::Top);
+                match (has_lower, has_upper) {
+                    (true, true) => simplify_intersection_type(
+                        self.materialize_pos(*lower, context)?,
+                        self.materialize_neg(*upper, context)?,
+                    ),
+                    (true, false) => self.materialize_pos(*lower, context)?,
+                    (false, true) => self.materialize_neg(*upper, context)?,
+                    (false, false) => match context {
                         TypeContext::Value => Type::unit(),
                         TypeContext::Effect => Type::pure_effect(),
-                    }
+                    },
                 }
             }
             Neu::Con(path, args) => Type::Con {
@@ -1057,21 +1059,18 @@ impl<'a> SchemeMaterializer<'a> {
     }
 }
 
-fn stack_type(inner: Type, weight: mono::StackWeight, context: TypeContext) -> Type {
+fn stack_type(inner: Type, weight: mono::StackWeight) -> Type {
     if weight.entries.is_empty() {
         return inner;
     }
-    if context == TypeContext::Effect {
-        return simplify_stack_type(inner, weight);
-    }
-    Type::Stack {
-        inner: Box::new(inner),
-        weight,
-    }
+    simplify_stack_type(inner, weight)
 }
 
 pub(crate) fn simplify_stack_type(inner: Type, weight: mono::StackWeight) -> Type {
     if weight.entries.is_empty() {
+        return inner;
+    }
+    if !type_may_contain_effects(&inner) {
         return inner;
     }
     if let Some(effect) = apply_stack_to_effect(inner.clone(), &weight) {
@@ -1100,11 +1099,7 @@ fn apply_stack_to_effect(effect: Type, weight: &mono::StackWeight) -> Option<Typ
         Type::Stack {
             inner,
             weight: inner_weight,
-        } => Some(stack_type(
-            stack_type(*inner, inner_weight, TypeContext::Effect),
-            weight.clone(),
-            TypeContext::Effect,
-        )),
+        } => Some(stack_type(stack_type(*inner, inner_weight), weight.clone())),
         Type::Con { .. }
         | Type::Fun { .. }
         | Type::Thunk { .. }
@@ -1165,18 +1160,149 @@ fn effect_family_matches_item(family: &EffectFamily, item: &Type) -> bool {
 }
 
 fn simplify_effect_intersection(left: Type, right: Type) -> Type {
-    if left == right {
-        return left;
+    let simplified = simplify_intersection_type(left, right);
+    if matches!(simplified, Type::Intersection(_, _)) {
+        return simplified;
     }
-    if left.is_pure_effect() && right.is_pure_effect() {
+    if simplified.is_pure_effect() {
         return Type::pure_effect();
     }
-    Type::Intersection(Box::new(left), Box::new(right))
+    simplified
+}
+
+fn simplify_intersection_type(left: Type, right: Type) -> Type {
+    let mut parts = Vec::new();
+    collect_intersection_parts(left, &mut parts);
+    collect_intersection_parts(right, &mut parts);
+    if parts.iter().any(|part| matches!(part, Type::Never)) {
+        return Type::Never;
+    }
+    let mut unique = Vec::new();
+    for part in parts {
+        if matches!(part, Type::Any) || unique.contains(&part) {
+            continue;
+        }
+        unique.push(part);
+    }
+    match unique.as_slice() {
+        [] => Type::Any,
+        [single] => single.clone(),
+        _ if unique.iter().all(Type::is_pure_effect) => Type::pure_effect(),
+        _ => unique
+            .into_iter()
+            .reduce(|left, right| Type::Intersection(Box::new(left), Box::new(right)))
+            .expect("non-empty intersection parts"),
+    }
+}
+
+pub(crate) fn simplify_type(ty: Type) -> Type {
+    match ty {
+        Type::Fun {
+            arg,
+            arg_effect,
+            ret_effect,
+            ret,
+        } => Type::Fun {
+            arg: Box::new(simplify_type(*arg)),
+            arg_effect: Box::new(simplify_type(*arg_effect)),
+            ret_effect: Box::new(simplify_type(*ret_effect)),
+            ret: Box::new(simplify_type(*ret)),
+        },
+        Type::Thunk { effect, value } => Type::Thunk {
+            effect: Box::new(simplify_type(*effect)),
+            value: Box::new(simplify_type(*value)),
+        },
+        Type::Con { path, args } => Type::Con {
+            path,
+            args: args.into_iter().map(simplify_type).collect(),
+        },
+        Type::Record(fields) => Type::Record(
+            fields
+                .into_iter()
+                .map(|field| TypeField {
+                    name: field.name,
+                    value: simplify_type(field.value),
+                    optional: field.optional,
+                })
+                .collect(),
+        ),
+        Type::PolyVariant(variants) => Type::PolyVariant(
+            variants
+                .into_iter()
+                .map(|variant| TypeVariant {
+                    name: variant.name,
+                    payloads: variant.payloads.into_iter().map(simplify_type).collect(),
+                })
+                .collect(),
+        ),
+        Type::Tuple(items) => Type::Tuple(items.into_iter().map(simplify_type).collect()),
+        Type::EffectRow(items) => Type::EffectRow(items.into_iter().map(simplify_type).collect()),
+        Type::Stack { inner, weight } => simplify_stack_type(simplify_type(*inner), weight),
+        Type::Union(left, right) => {
+            simplify_union_type(simplify_type(*left), simplify_type(*right))
+        }
+        Type::Intersection(left, right) => {
+            simplify_intersection_type(simplify_type(*left), simplify_type(*right))
+        }
+        Type::Any | Type::Never | Type::OpenVar(_) => ty,
+    }
+}
+
+fn type_may_contain_effects(ty: &Type) -> bool {
+    match ty {
+        Type::Any
+        | Type::OpenVar(_)
+        | Type::EffectRow(_)
+        | Type::Thunk { .. }
+        | Type::Fun { .. } => true,
+        Type::Con { args, .. } | Type::Tuple(args) => args.iter().any(type_may_contain_effects),
+        Type::Record(fields) => fields
+            .iter()
+            .any(|field| type_may_contain_effects(&field.value)),
+        Type::PolyVariant(variants) => variants
+            .iter()
+            .any(|variant| variant.payloads.iter().any(type_may_contain_effects)),
+        Type::Stack { .. } => true,
+        Type::Union(left, right) | Type::Intersection(left, right) => {
+            type_may_contain_effects(left) || type_may_contain_effects(right)
+        }
+        Type::Never => false,
+    }
+}
+
+fn collect_intersection_parts(ty: Type, out: &mut Vec<Type>) {
+    match ty {
+        Type::Intersection(left, right) => {
+            collect_intersection_parts(*left, out);
+            collect_intersection_parts(*right, out);
+        }
+        ty => out.push(ty),
+    }
 }
 
 fn simplify_effect_union(left: Type, right: Type) -> Type {
+    let simplified = simplify_union_type(left, right);
+    if matches!(simplified, Type::Union(_, _)) {
+        return simplified;
+    }
+    if simplified.is_pure_effect() {
+        return Type::pure_effect();
+    }
+    simplified
+}
+
+fn simplify_union_type(left: Type, right: Type) -> Type {
     if left == right {
         return left;
+    }
+    if matches!(left, Type::Never) {
+        return right;
+    }
+    if matches!(right, Type::Never) {
+        return left;
+    }
+    if matches!(left, Type::Any) || matches!(right, Type::Any) {
+        return Type::Any;
     }
     if left.is_pure_effect() && right.is_pure_effect() {
         return Type::pure_effect();

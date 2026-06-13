@@ -1246,14 +1246,14 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
                 self.resolve(inner)?,
                 weight.clone(),
             )),
-            Type::Union(left, right) => Ok(Type::Union(
+            Type::Union(left, right) => Ok(types::simplify_type(Type::Union(
                 Box::new(self.resolve(left)?),
                 Box::new(self.resolve(right)?),
-            )),
-            Type::Intersection(left, right) => Ok(Type::Intersection(
+            ))),
+            Type::Intersection(left, right) => Ok(types::simplify_type(Type::Intersection(
                 Box::new(self.resolve(left)?),
                 Box::new(self.resolve(right)?),
-            )),
+            ))),
             Type::OpenVar(slot) => self.slot_solution(*slot),
         }
     }

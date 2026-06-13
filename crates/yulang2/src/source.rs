@@ -1187,15 +1187,15 @@ mod tests {
     }
 
     #[test]
-    fn dump_mono_without_std_lowers_apply_colon_stack_handler_call() {
+    fn dump_mono_without_std_lowers_apply_colon_polymorphic_stack_handler_call() {
         let root = temp_root("dump-mono-apply-colon-stack-handler");
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
         fs::write(
             root.join("main.yu"),
-            "pub act sub:\n\
-             \x20 pub return: int -> never\n\
-             \x20 pub sub(x: [_] int): int = catch x:\n\
+            "pub act sub 'a:\n\
+             \x20 pub return: 'a -> never\n\
+             \x20 pub sub(x: [_] 'a): 'a = catch x:\n\
              \x20 \x20 return a, _ -> a\n\
              \x20 \x20 a -> a\n\n\
              sub::sub:\n\
@@ -1207,7 +1207,7 @@ mod tests {
 
         assert_eq!(output.file_count, 1);
         assert_mono_dump_contains(&output, "mono roots [(m0 coerce");
-        assert_mono_dump_contains(&output, "m0 = d2 : thunk[[sub], int] -> int");
+        assert_mono_dump_contains(&output, "m0 = d2 : thunk[[sub(int)], int] -> int");
         assert_mono_dump_contains(&output, "sub::return d");
     }
 
