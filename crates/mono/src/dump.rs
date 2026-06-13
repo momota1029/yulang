@@ -1,14 +1,18 @@
 use std::fmt::Write as _;
 
 use crate::{
-    Block, CatchArm, Expr, ExprKind, Instance, Lit, Pat, Program, RecordField, RecordSpread,
-    SelectResolution, Stmt, Vis,
+    Block, CatchArm, EffectFamilies, Expr, ExprKind, Instance, Lit, Pat, Program, RecordField,
+    RecordSpread, Root, SelectResolution, StackWeight, Stmt, Type, TypeField, TypeVariant, Vis,
 };
 
 pub fn dump_program(program: &Program) -> String {
     let mut dumper = Dumper { out: String::new() };
     dumper.program(program);
     dumper.out
+}
+
+pub fn dump_type(ty: &Type) -> String {
+    TypeDumper.ty(ty)
 }
 
 struct Dumper {
@@ -20,12 +24,19 @@ impl Dumper {
         let roots = program
             .roots
             .iter()
-            .map(|root| format!("m{}", root.0))
+            .map(|root| self.root(root))
             .collect::<Vec<_>>()
             .join(", ");
         let _ = writeln!(self.out, "mono roots [{roots}]");
         for instance in &program.instances {
             self.instance(instance);
+        }
+    }
+
+    fn root(&self, root: &Root) -> String {
+        match root {
+            Root::Instance(instance) => format!("m{}", instance.0),
+            Root::Expr(expr) => self.expr(expr),
         }
     }
 
@@ -37,7 +48,7 @@ impl Dumper {
             match instance.source {
                 crate::InstanceSource::Def(def) => def.0,
             },
-            instance.signature.text
+            dump_type(&instance.signature.ty)
         );
         let body = self.expr(&instance.body);
         let _ = writeln!(self.out, "  {body}");
@@ -273,6 +284,164 @@ impl Dumper {
             Vis::Pub => "pub",
             Vis::Our => "our",
             Vis::My => "my",
+        }
+    }
+}
+
+struct TypeDumper;
+
+impl TypeDumper {
+    fn ty(&self, ty: &Type) -> String {
+        match ty {
+            Type::Any => "any".to_string(),
+            Type::Never => "never".to_string(),
+            Type::Con { path, args } => self.con(path, args),
+            Type::Fun {
+                arg,
+                arg_effect,
+                ret_effect,
+                ret,
+            } => self.fun(arg, arg_effect, ret_effect, ret),
+            Type::Record(fields) => self.record_type(fields),
+            Type::PolyVariant(variants) => self.variant_type(variants),
+            Type::Tuple(items) => self.tuple_type(items),
+            Type::EffectRow(items) => self.effect_row(items),
+            Type::Stack { inner, weight } => {
+                format!("stack({}, {})", self.ty(inner), self.stack_weight(weight))
+            }
+            Type::Union(left, right) => format!("{} | {}", self.ty(left), self.ty(right)),
+            Type::Intersection(left, right) => {
+                format!("{} & {}", self.ty(left), self.ty(right))
+            }
+            Type::OpenVar(id) => format!("'open{id}"),
+        }
+    }
+
+    fn con(&self, path: &[String], args: &[Type]) -> String {
+        let name = path.join("::");
+        if args.is_empty() {
+            return name;
+        }
+        let args = args.iter().map(|arg| self.ty(arg)).collect::<Vec<_>>();
+        format!("{name}({})", args.join(", "))
+    }
+
+    fn fun(&self, arg: &Type, arg_effect: &Type, ret_effect: &Type, ret: &Type) -> String {
+        let arg = self.parenthesize_function_arg(arg);
+        let ret = self.ty(ret);
+        if arg_effect.is_pure_effect() && ret_effect.is_pure_effect() {
+            return format!("{arg} -> {ret}");
+        }
+        format!(
+            "{arg} -[{}, {}]-> {ret}",
+            self.ty(arg_effect),
+            self.ty(ret_effect)
+        )
+    }
+
+    fn record_type(&self, fields: &[TypeField]) -> String {
+        let fields = fields
+            .iter()
+            .map(|field| {
+                let optional = if field.optional { "?" } else { "" };
+                format!("{}{}: {}", field.name, optional, self.ty(&field.value))
+            })
+            .collect::<Vec<_>>();
+        format!("{{{}}}", fields.join(", "))
+    }
+
+    fn variant_type(&self, variants: &[TypeVariant]) -> String {
+        variants
+            .iter()
+            .map(|variant| {
+                if variant.payloads.is_empty() {
+                    return format!("'{}", variant.name);
+                }
+                let payloads = variant
+                    .payloads
+                    .iter()
+                    .map(|payload| self.ty(payload))
+                    .collect::<Vec<_>>();
+                format!("'{}({})", variant.name, payloads.join(", "))
+            })
+            .collect::<Vec<_>>()
+            .join(" | ")
+    }
+
+    fn tuple_type(&self, items: &[Type]) -> String {
+        let items = items.iter().map(|item| self.ty(item)).collect::<Vec<_>>();
+        format!("({})", items.join(", "))
+    }
+
+    fn effect_row(&self, items: &[Type]) -> String {
+        if items.is_empty() {
+            return "[]".to_string();
+        }
+        let items = items.iter().map(|item| self.ty(item)).collect::<Vec<_>>();
+        format!("[{}]", items.join(", "))
+    }
+
+    fn stack_weight(&self, weight: &StackWeight) -> String {
+        let entries = weight
+            .entries
+            .iter()
+            .map(|entry| {
+                let mut parts = Vec::new();
+                if entry.pops > 0 {
+                    parts.push(format!("pop({})", entry.pops));
+                }
+                parts.extend(
+                    entry
+                        .floor
+                        .iter()
+                        .map(|families| format!("floor({})", self.effect_families(families))),
+                );
+                parts.extend(
+                    entry
+                        .stack
+                        .iter()
+                        .map(|families| format!("push({})", self.effect_families(families))),
+                );
+                format!("#{}:{}", entry.id, parts.join("+"))
+            })
+            .collect::<Vec<_>>();
+        format!("@[{}]", entries.join(", "))
+    }
+
+    fn effect_families(&self, families: &EffectFamilies) -> String {
+        match families {
+            EffectFamilies::Empty => "empty".to_string(),
+            EffectFamilies::All => "all".to_string(),
+            EffectFamilies::AllExcept(items) => {
+                format!("all_except({})", self.effect_family_list(items))
+            }
+            EffectFamilies::Set(items) => self.effect_family_list(items),
+        }
+    }
+
+    fn effect_family_list(&self, families: &[crate::EffectFamily]) -> String {
+        families
+            .iter()
+            .map(|family| {
+                let path = family.path.join("::");
+                if family.args.is_empty() {
+                    return path;
+                }
+                let args = family
+                    .args
+                    .iter()
+                    .map(|arg| self.ty(arg))
+                    .collect::<Vec<_>>();
+                format!("{path}({})", args.join(", "))
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    fn parenthesize_function_arg(&self, arg: &Type) -> String {
+        match arg {
+            Type::Fun { .. } => format!("({})", self.ty(arg)),
+            _ => self.ty(arg),
         }
     }
 }

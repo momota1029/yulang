@@ -711,6 +711,12 @@ fn format_body_lowering_error(error: &infer::lowering::BodyLoweringError) -> Str
             error: infer::lowering::LoweringError::UnresolvedName { name },
             ..
         } => format!("unresolved value name: {}", name.0),
+        infer::lowering::BodyLoweringError::RootExpr {
+            error: infer::lowering::LoweringError::UnresolvedName { name },
+        } => format!("unresolved value name in root expression: {}", name.0),
+        infer::lowering::BodyLoweringError::RootExpr { error } => {
+            format!("root expression lowering error: {error:?}")
+        }
         infer::lowering::BodyLoweringError::Analysis(
             infer::analysis::AnalysisDiagnostic::ComputedFetchCycle {
                 component,
@@ -970,6 +976,61 @@ mod tests {
         assert_eq!(output.file_count, 1);
         assert_mono_dump_contains(&output, "mono roots []");
         assert!(!output.text.contains("d0"));
+    }
+
+    #[test]
+    fn dump_poly_without_std_keeps_root_expression() {
+        let root = temp_root("dump-poly-root-expr");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "1\n").unwrap();
+
+        let output = dump_poly_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_eq!(output.text, "roots\nroot exprs e0:1\nruntime roots e0:1\n");
+    }
+
+    #[test]
+    fn dump_mono_without_std_keeps_root_expression() {
+        let root = temp_root("dump-mono-root-expr");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "1\n").unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(&output, "mono roots [1]");
+    }
+
+    #[test]
+    fn dump_mono_without_std_specializes_root_expression_call() {
+        let root = temp_root("dump-mono-root-call");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "my id x = x\nid(1)\n").unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(&output, "mono roots [(m0 1)]");
+        assert_mono_dump_contains(&output, "m0 = d0 : int -> int");
+    }
+
+    #[test]
+    fn dump_mono_without_std_runs_computed_top_level_binding() {
+        let root = temp_root("dump-mono-computed-binding");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "my id x = x\nmy a = id(1)\n").unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(&output, "mono roots [m0]");
+        assert_mono_dump_contains(&output, "m0 = d1 : int");
+        assert_mono_dump_contains(&output, "m1 = d0 : int -> int");
     }
 
     #[test]

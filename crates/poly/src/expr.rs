@@ -15,6 +15,16 @@ use crate::types::{Scheme, SubtractId, TypeArena, TypeIds, TypeVar};
 pub struct Arena {
     /// トップレベル定義の並び（旧 top を一本化）。
     pub roots: Vec<DefId>,
+    /// 実行対象になる top-level item の並び。
+    ///
+    /// 裸式だけでなく、RHS 評価で計算が発生する top-level binding もここへ入る。
+    /// 実行順を保つため、式 root と computed binding root を同じ列で保持する。
+    pub runtime_roots: Vec<RuntimeRoot>,
+    /// トップレベルに裸で現れた式の並び。主に dump / debug 用。
+    ///
+    /// `roots` は module 直下の定義一覧であり、runtime demand root ではない。
+    /// `1` だけの source も実行対象になるため、式 root は定義 root と分けて保持する。
+    pub root_exprs: Vec<ExprId>,
     /// 疎な定義（scheme/body を内包）。登録し直しで更新する。
     pub defs: DefArena,
     /// RefId → 解決先 DefId。名前解決前は None。
@@ -39,6 +49,8 @@ impl Arena {
     pub fn new() -> Self {
         Self {
             roots: Vec::new(),
+            runtime_roots: Vec::new(),
+            root_exprs: Vec::new(),
             defs: DefArena::new(),
             refs: Vec::new(),
             selects: Vec::new(),
@@ -109,6 +121,12 @@ impl Arena {
     pub fn fresh_subtract_id(&mut self) -> SubtractId {
         self.type_ids.fresh_subtract_id()
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RuntimeRoot {
+    Expr(ExprId),
+    ComputedDef(DefId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

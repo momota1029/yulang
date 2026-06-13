@@ -127,7 +127,8 @@ pub fn summarize_lowering(lowering: &BodyLowering) -> PolyCheckReport {
 pub fn body_error_def(error: &BodyLoweringError) -> Option<DefId> {
     match error {
         BodyLoweringError::MissingBindingDecl { .. }
-        | BodyLoweringError::MissingModuleDecl { .. } => None,
+        | BodyLoweringError::MissingModuleDecl { .. }
+        | BodyLoweringError::RootExpr { .. } => None,
         BodyLoweringError::MissingBody { def, .. }
         | BodyLoweringError::NonLetDef { def, .. }
         | BodyLoweringError::Expr { def, .. } => Some(*def),

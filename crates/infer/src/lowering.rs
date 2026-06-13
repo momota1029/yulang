@@ -136,6 +136,9 @@ pub enum BodyLoweringError {
         name: Name,
         error: LoweringError,
     },
+    RootExpr {
+        error: LoweringError,
+    },
     Analysis(AnalysisDiagnostic),
 }
 
@@ -204,6 +207,7 @@ impl BodyLowerer {
         for child in block.children() {
             match child.kind() {
                 SyntaxKind::Binding => self.lower_binding(&child, module),
+                SyntaxKind::Expr => self.lower_root_expr(&child, module),
                 SyntaxKind::OpDef => self.lower_op_def_body(&child, module),
                 SyntaxKind::ModDecl => self.lower_mod_decl(&child, module),
                 SyntaxKind::TypeDecl
@@ -216,6 +220,31 @@ impl BodyLowerer {
                 SyntaxKind::CastDecl => self.lower_cast_decl(&child, module),
                 _ => {}
             }
+        }
+    }
+
+    fn lower_root_expr(&mut self, node: &Cst, module: ModuleId) {
+        let parent = self.session.poly.defs.fresh();
+        let site = ModuleOrder::from_index(u32::MAX);
+        let lowered = ExprLowerer::with_labels(
+            &mut self.session,
+            &self.modules,
+            module,
+            site,
+            parent,
+            &mut self.labels,
+        )
+        .with_local_method_scope(self.local_method_scope)
+        .lower_expr(node);
+        match lowered {
+            Ok(computation) => {
+                self.session.poly.root_exprs.push(computation.expr);
+                self.session
+                    .poly
+                    .runtime_roots
+                    .push(poly::expr::RuntimeRoot::Expr(computation.expr));
+            }
+            Err(error) => self.errors.push(BodyLoweringError::RootExpr { error }),
         }
     }
 
@@ -2004,8 +2033,14 @@ impl BodyLowerer {
         if connect_body {
             self.constrain_def_body(root, computation.value);
         }
-        self.session
-            .record_binding_fetch(def, BindingFetch::from_evaluation(computation.evaluation));
+        let fetch = BindingFetch::from_evaluation(computation.evaluation);
+        self.session.record_binding_fetch(def, fetch);
+        if fetch.runs_computation() {
+            self.session
+                .poly
+                .runtime_roots
+                .push(poly::expr::RuntimeRoot::ComputedDef(def));
+        }
         self.session
             .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
     }

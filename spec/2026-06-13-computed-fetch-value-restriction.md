@@ -155,11 +155,28 @@ SCC machine は component を merge する時点、または ready component を
 値制限により量化されない binding として扱う。ただし self-recursive な computed value を
 別診断にする必要が出た場合は、multi-root SCC とは別の規則として切る。
 
+## top-level 実行需要
+
+top-level binding が `FetchComputation` の場合、その binding は未参照でも program の実行需要に入る。
+
+```yu
+my a = say "Hello"
+```
+
+この `a` は、値として参照された時に RHS 計算を走らせる binding である。top-level に現れている以上、
+program 実行時にもその計算を評価する必要がある。したがって、specialize / mono へ渡す runtime root には、
+裸の top-level expression だけでなく `FetchComputation` top-level binding も source order で含める。
+
+一方、`FetchValue` top-level binding は、それ自体では runtime root にならない。
+未使用の関数定義や literal binding は、明示 entrypoint、裸式、computed binding などから到達した場合にだけ
+specialize される。
+
 ## specialize / elaborate への前提
 
 specialize / elaborate は、infer output に次の情報があることを前提にする。
 
 - 各 exported binding の `BindingFetch`
+- top-level `FetchComputation` binding が runtime root として source order に残っていること
 - `FetchComputation` binding で量化してはならない変数が scheme quantifier に入っていないこと
 - `FetchComputation` edge を含む multi-root SCC が infer 段階で診断済みであること
 

@@ -9,7 +9,7 @@ use std::fmt::Write as _;
 
 use crate::expr::{
     Arena, CaseArm, CatchArm, Def, DefId, Expr, ExprId, Lit, Pat, PatId, RecordSpread, RefId,
-    SelectId, SelectResolution, Stmt, Vis,
+    RuntimeRoot, SelectId, SelectResolution, Stmt, Vis,
 };
 
 mod type_format;
@@ -84,6 +84,7 @@ struct Dumper<'a> {
     labels: &'a DumpLabels,
     out: String,
     roots: Vec<DefId>,
+    root_exprs: Vec<ExprId>,
     include_detached: bool,
     visited_defs: FxHashSet<DefId>,
 }
@@ -93,6 +94,7 @@ struct RawDumper<'a> {
     labels: &'a DumpLabels,
     out: String,
     roots: Vec<DefId>,
+    root_exprs: Vec<ExprId>,
     include_all_defs: bool,
     extra_defs: std::collections::BTreeSet<u32>,
     exprs: std::collections::BTreeSet<u32>,
@@ -101,7 +103,13 @@ struct RawDumper<'a> {
 
 impl<'a> RawDumper<'a> {
     fn new(arena: &'a Arena, labels: &'a DumpLabels) -> Self {
-        Self::new_with_roots(arena, labels, arena.roots.clone(), true)
+        Self::new_with_roots_and_exprs(
+            arena,
+            labels,
+            arena.roots.clone(),
+            arena.root_exprs.clone(),
+            true,
+        )
     }
 
     fn new_with_roots(
@@ -110,11 +118,22 @@ impl<'a> RawDumper<'a> {
         roots: Vec<DefId>,
         include_all_defs: bool,
     ) -> Self {
+        Self::new_with_roots_and_exprs(arena, labels, roots, Vec::new(), include_all_defs)
+    }
+
+    fn new_with_roots_and_exprs(
+        arena: &'a Arena,
+        labels: &'a DumpLabels,
+        roots: Vec<DefId>,
+        root_exprs: Vec<ExprId>,
+        include_all_defs: bool,
+    ) -> Self {
         Self {
             arena,
             labels,
             out: String::new(),
             roots,
+            root_exprs,
             include_all_defs,
             extra_defs: std::collections::BTreeSet::new(),
             exprs: std::collections::BTreeSet::new(),
@@ -130,6 +149,25 @@ impl<'a> RawDumper<'a> {
             .collect::<Vec<_>>()
             .join(", ");
         let _ = writeln!(self.out, "raw roots [{roots}]");
+        if !self.root_exprs.is_empty() {
+            let root_exprs = self
+                .root_exprs
+                .iter()
+                .map(|id| self.expr_id(*id))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let _ = writeln!(self.out, "raw root exprs [{root_exprs}]");
+        }
+        if !self.arena.runtime_roots.is_empty() {
+            let runtime_roots = self
+                .arena
+                .runtime_roots
+                .iter()
+                .map(|root| self.raw_runtime_root(*root))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let _ = writeln!(self.out, "raw runtime roots [{runtime_roots}]");
+        }
         let _ = writeln!(self.out, "defs {{");
         let mut defs = if self.include_all_defs {
             self.arena.defs.iter().map(|(id, _)| id).collect::<Vec<_>>()
@@ -149,10 +187,25 @@ impl<'a> RawDumper<'a> {
                 }
             }
         }
+        for expr in self.root_exprs.clone() {
+            self.mark_expr(expr);
+        }
+        for root in self.arena.runtime_roots.clone() {
+            if let RuntimeRoot::Expr(expr) = root {
+                self.mark_expr(expr);
+            }
+        }
         let _ = writeln!(self.out, "}}");
         self.write_raw_exprs();
         self.write_raw_pats();
         self.out
+    }
+
+    fn raw_runtime_root(&self, root: RuntimeRoot) -> String {
+        match root {
+            RuntimeRoot::Expr(expr) => self.expr_id(expr),
+            RuntimeRoot::ComputedDef(def) => self.def_id(def),
+        }
     }
 
     fn write_raw_def(&mut self, id: DefId) {
@@ -590,7 +643,13 @@ impl<'a> RawDumper<'a> {
 
 impl<'a> Dumper<'a> {
     fn new(arena: &'a Arena, labels: &'a DumpLabels) -> Self {
-        Self::new_with_roots(arena, labels, arena.roots.clone(), true)
+        Self::new_with_roots_and_exprs(
+            arena,
+            labels,
+            arena.roots.clone(),
+            arena.root_exprs.clone(),
+            true,
+        )
     }
 
     fn new_with_roots(
@@ -599,11 +658,22 @@ impl<'a> Dumper<'a> {
         roots: Vec<DefId>,
         include_detached: bool,
     ) -> Self {
+        Self::new_with_roots_and_exprs(arena, labels, roots, Vec::new(), include_detached)
+    }
+
+    fn new_with_roots_and_exprs(
+        arena: &'a Arena,
+        labels: &'a DumpLabels,
+        roots: Vec<DefId>,
+        root_exprs: Vec<ExprId>,
+        include_detached: bool,
+    ) -> Self {
         Self {
             arena,
             labels,
             out: String::new(),
             roots,
+            root_exprs,
             include_detached,
             visited_defs: FxHashSet::default(),
         }
@@ -626,6 +696,25 @@ impl<'a> Dumper<'a> {
         for root in roots_to_write {
             self.write_def(root, 0);
         }
+        if !self.root_exprs.is_empty() {
+            let root_exprs = self
+                .root_exprs
+                .iter()
+                .map(|expr| self.expr(*expr))
+                .collect::<Vec<_>>()
+                .join(" ");
+            let _ = writeln!(self.out, "root exprs {root_exprs}");
+        }
+        if !self.arena.runtime_roots.is_empty() {
+            let runtime_roots = self
+                .arena
+                .runtime_roots
+                .iter()
+                .map(|root| self.runtime_root(*root))
+                .collect::<Vec<_>>()
+                .join(" ");
+            let _ = writeln!(self.out, "runtime roots {runtime_roots}");
+        }
 
         if self.include_detached {
             let detached = self.detached_defs();
@@ -641,6 +730,13 @@ impl<'a> Dumper<'a> {
         }
 
         self.out
+    }
+
+    fn runtime_root(&self, root: RuntimeRoot) -> String {
+        match root {
+            RuntimeRoot::Expr(expr) => self.expr(expr),
+            RuntimeRoot::ComputedDef(def) => self.def_id(def),
+        }
     }
 
     fn detached_defs(&self) -> Vec<DefId> {

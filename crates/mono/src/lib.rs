@@ -11,8 +11,14 @@ use num_bigint::BigInt;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Program {
-    pub roots: Vec<InstanceId>,
+    pub roots: Vec<Root>,
     pub instances: Vec<Instance>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Root {
+    Instance(InstanceId),
+    Expr(Expr),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -33,7 +39,91 @@ pub enum InstanceSource {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Signature {
-    pub text: String,
+    pub ty: Type,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Type {
+    Any,
+    Never,
+    Con {
+        path: Vec<String>,
+        args: Vec<Type>,
+    },
+    Fun {
+        arg: Box<Type>,
+        arg_effect: Box<Type>,
+        ret_effect: Box<Type>,
+        ret: Box<Type>,
+    },
+    Record(Vec<TypeField>),
+    PolyVariant(Vec<TypeVariant>),
+    Tuple(Vec<Type>),
+    EffectRow(Vec<Type>),
+    Stack {
+        inner: Box<Type>,
+        weight: StackWeight,
+    },
+    Union(Box<Type>, Box<Type>),
+    Intersection(Box<Type>, Box<Type>),
+    OpenVar(u32),
+}
+
+impl Type {
+    pub fn unit() -> Self {
+        Self::Con {
+            path: vec!["unit".to_string()],
+            args: Vec::new(),
+        }
+    }
+
+    pub fn pure_effect() -> Self {
+        Self::EffectRow(Vec::new())
+    }
+
+    pub fn is_pure_effect(&self) -> bool {
+        matches!(self, Self::Never) || matches!(self, Self::EffectRow(items) if items.is_empty())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeField {
+    pub name: String,
+    pub value: Type,
+    pub optional: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeVariant {
+    pub name: String,
+    pub payloads: Vec<Type>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StackWeight {
+    pub entries: Vec<StackWeightEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StackWeightEntry {
+    pub id: u32,
+    pub pops: u32,
+    pub floor: Vec<EffectFamilies>,
+    pub stack: Vec<EffectFamilies>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum EffectFamilies {
+    Empty,
+    All,
+    AllExcept(Vec<EffectFamily>),
+    Set(Vec<EffectFamily>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EffectFamily {
+    pub path: Vec<String>,
+    pub args: Vec<Type>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
