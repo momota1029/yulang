@@ -608,6 +608,10 @@ operation def が未解決の fallback arm では、payload 型と continuation 
 scheme を fresh instantiate し、その return 型を scrutinee 型と両方向に結んで payload 型を取り出す。
 mono pattern の constructor identity は runtime constructor identity であり、関数 instance ではない。
 したがって constructor pattern は `InstanceId` ではなく constructor `DefId` を持つ。
+record pattern は scrutinee の `Record` 型から field 名で payload 型を取り出し、spread は未消費 field
+の `Record` 型として bind する。poly variant pattern は tag と payload arity が一致する variant から
+payload 型を読む。list pattern は lowering が list 型制約を張った後の unary `Con(_, [item])` から
+item 型を読み、spread pattern には list 全体の型を渡す。
 
 top-level `FetchComputation` binding は source order の runtime root として materialize される。
 `my run = out::say(1); my handled = catch run: ...` の `catch run` は `run` の RHS を handler の

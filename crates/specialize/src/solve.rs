@@ -5,7 +5,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use mono::Type;
+use mono::{Type, TypeField, TypeVariant};
 use poly::expr as poly_expr;
 
 use crate::{ExprTypeRole, SpecializeError, convert_def, def_kind, lit_type, types};
@@ -171,18 +171,9 @@ impl<'a> ExprTypeSolver<'a> {
             }
             PolyExpr::Lambda(param, body) => self.lambda_type(*param, *body, expected),
             PolyExpr::Tuple(items) => self.tuple_type(items, expected.as_ref()),
-            PolyExpr::Record { fields, spread } => {
-                for (_, value) in fields {
-                    self.expr(*value, None)?;
-                }
-                self.record_spread(spread)?;
-                Ok(expected.unwrap_or_else(|| self.fresh_value_slot()))
-            }
-            PolyExpr::PolyVariant(_, payloads) => {
-                for payload in payloads {
-                    self.expr(*payload, None)?;
-                }
-                Ok(expected.unwrap_or_else(|| self.fresh_value_slot()))
+            PolyExpr::Record { fields, spread } => self.record_type(fields, spread, expected),
+            PolyExpr::PolyVariant(tag, payloads) => {
+                self.poly_variant_type(tag, payloads, expected.as_ref())
             }
             PolyExpr::Select(base, _) => {
                 self.expr(*base, None)?;
@@ -433,22 +424,84 @@ impl<'a> ExprTypeSolver<'a> {
         }
     }
 
-    fn record_spread(
+    fn record_type(
         &mut self,
+        fields: &[(String, poly_expr::ExprId)],
         spread: &poly_expr::RecordSpread<poly_expr::ExprId>,
-    ) -> Result<(), SpecializeError> {
-        match spread {
-            poly_expr::RecordSpread::Head(expr) | poly_expr::RecordSpread::Tail(expr) => {
-                self.expr(*expr, None)?;
-            }
-            poly_expr::RecordSpread::None => {}
+        expected: Option<Type>,
+    ) -> Result<Type, SpecializeError> {
+        let expected_fields = match &expected {
+            Some(Type::Record(fields)) => Some(fields.as_slice()),
+            _ => None,
+        };
+        let mut typed_fields = Vec::with_capacity(fields.len());
+        for (name, value) in fields {
+            let field_expected = expected_fields
+                .and_then(|fields| record_field_type(fields, name))
+                .map(|field| field.value.clone());
+            typed_fields.push(TypeField {
+                name: name.clone(),
+                value: self.expr(*value, field_expected)?,
+                optional: false,
+            });
         }
-        Ok(())
+
+        match spread {
+            poly_expr::RecordSpread::None => Ok(Type::Record(typed_fields)),
+            poly_expr::RecordSpread::Head(expr) => {
+                let spread = self.expr(*expr, None)?;
+                Ok(match spread {
+                    Type::Record(spread_fields) => {
+                        Type::Record(join_record_fields(spread_fields, typed_fields))
+                    }
+                    _ => expected.unwrap_or_else(|| self.fresh_value_slot()),
+                })
+            }
+            poly_expr::RecordSpread::Tail(expr) => {
+                let spread = self.expr(*expr, None)?;
+                Ok(match spread {
+                    Type::Record(spread_fields) => {
+                        Type::Record(join_record_fields(typed_fields, spread_fields))
+                    }
+                    _ => expected.unwrap_or_else(|| self.fresh_value_slot()),
+                })
+            }
+        }
+    }
+
+    fn poly_variant_type(
+        &mut self,
+        tag: &str,
+        payloads: &[poly_expr::ExprId],
+        expected: Option<&Type>,
+    ) -> Result<Type, SpecializeError> {
+        let expected_variant = match expected {
+            Some(Type::PolyVariant(variants)) => variants
+                .iter()
+                .find(|variant| variant.name == tag && variant.payloads.len() == payloads.len()),
+            _ => None,
+        };
+        let mut typed_payloads = Vec::with_capacity(payloads.len());
+        for (index, payload) in payloads.iter().enumerate() {
+            let payload_expected =
+                expected_variant.and_then(|variant| variant.payloads.get(index).cloned());
+            typed_payloads.push(self.expr(*payload, payload_expected)?);
+        }
+        Ok(Type::PolyVariant(vec![TypeVariant {
+            name: tag.to_string(),
+            payloads: typed_payloads,
+        }]))
     }
 
     fn bind_pat(&mut self, pat: poly_expr::PatId, ty: Type) -> Result<(), SpecializeError> {
         use poly_expr::Pat as PolyPat;
         match self.arena.pat(pat) {
+            PolyPat::Wild => {}
+            PolyPat::Lit(lit) => {
+                let lit_ty = lit_type(lit);
+                self.graph.constrain_subtype(lit_ty.clone(), ty.clone())?;
+                self.graph.constrain_subtype(ty, lit_ty)?;
+            }
             PolyPat::Var(def) => {
                 self.local_types.insert(*def, ty);
             }
@@ -462,6 +515,16 @@ impl<'a> ExprTypeSolver<'a> {
                         self.bind_pat(*item, item_ty)?;
                     }
                 }
+            }
+            PolyPat::List {
+                prefix,
+                spread,
+                suffix,
+            } => {
+                self.bind_list_pat(prefix, *spread, suffix, ty)?;
+            }
+            PolyPat::Record { fields, spread } => {
+                self.bind_record_pat(fields, spread, ty)?;
             }
             PolyPat::Con(ref_id, payloads) => {
                 self.bind_constructor_pat(*ref_id, payloads, ty)?;
@@ -479,7 +542,60 @@ impl<'a> ExprTypeSolver<'a> {
                 self.bind_pat(*left, ty.clone())?;
                 self.bind_pat(*right, ty)?;
             }
-            _ => {}
+            PolyPat::Ref(ref_id) => {
+                self.bind_ref_pat(*ref_id, ty)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn bind_list_pat(
+        &mut self,
+        prefix: &[poly_expr::PatId],
+        spread: Option<poly_expr::PatId>,
+        suffix: &[poly_expr::PatId],
+        ty: Type,
+    ) -> Result<(), SpecializeError> {
+        let item_ty = list_item_type(&ty).unwrap_or_else(|| self.fresh_value_slot());
+        for item in prefix.iter().chain(suffix) {
+            self.bind_pat(*item, item_ty.clone())?;
+        }
+        if let Some(spread) = spread {
+            self.bind_pat(spread, ty)?;
+        }
+        Ok(())
+    }
+
+    fn bind_record_pat(
+        &mut self,
+        fields: &[(String, poly_expr::PatId)],
+        spread: &poly_expr::RecordSpread<poly_expr::DefId>,
+        ty: Type,
+    ) -> Result<(), SpecializeError> {
+        let Type::Record(record_fields) = ty else {
+            for (_, pat) in fields {
+                let field_ty = self.fresh_value_slot();
+                self.bind_pat(*pat, field_ty)?;
+            }
+            if let Some(def) = record_spread_def(spread) {
+                let spread_ty = self.fresh_value_slot();
+                self.local_types.insert(def, spread_ty);
+            }
+            return Ok(());
+        };
+
+        for (name, pat) in fields {
+            let field_ty = record_field_type(&record_fields, name)
+                .map(|field| field.value.clone())
+                .unwrap_or_else(|| self.fresh_value_slot());
+            self.bind_pat(*pat, field_ty)?;
+        }
+        if let Some(def) = record_spread_def(spread) {
+            let captured = record_fields
+                .into_iter()
+                .filter(|field| !fields.iter().any(|(name, _)| name == &field.name))
+                .collect::<Vec<_>>();
+            self.local_types.insert(def, Type::Record(captured));
         }
         Ok(())
     }
@@ -512,6 +628,36 @@ impl<'a> ExprTypeSolver<'a> {
             self.bind_pat(*payload, payload_ty)?;
         }
         Ok(())
+    }
+
+    fn bind_ref_pat(
+        &mut self,
+        ref_id: poly_expr::RefId,
+        scrutinee_ty: Type,
+    ) -> Result<(), SpecializeError> {
+        let Some(def) = self.arena.ref_target(ref_id) else {
+            return Err(SpecializeError::UnresolvedRef { ref_id: ref_id.0 });
+        };
+        match self.arena.defs.get(def) {
+            Some(poly_expr::Def::Let {
+                scheme: Some(scheme),
+                ..
+            }) => {
+                let ref_ty = self.instantiate_scheme(def, scheme)?;
+                self.graph
+                    .constrain_subtype(ref_ty.clone(), scrutinee_ty.clone())?;
+                self.graph.constrain_subtype(scrutinee_ty, ref_ty)
+            }
+            Some(poly_expr::Def::Arg) | Some(poly_expr::Def::Let { body: None, .. }) => {
+                if let Some(ref_ty) = self.local_types.get(&def).cloned() {
+                    self.graph
+                        .constrain_subtype(ref_ty.clone(), scrutinee_ty.clone())?;
+                    self.graph.constrain_subtype(scrutinee_ty, ref_ty)?;
+                }
+                Ok(())
+            }
+            _ => Ok(()),
+        }
     }
 
     fn var_type(&mut self, ref_id: poly_expr::RefId) -> Result<Type, SpecializeError> {
@@ -726,6 +872,34 @@ impl<'a> ConstraintGraph<'a> {
             {
                 for (lower, upper) in lower_items.into_iter().zip(upper_items) {
                     self.constrain_subtype(lower, upper)?;
+                }
+                Ok(())
+            }
+            (Type::Record(lower_fields), Type::Record(upper_fields)) => {
+                for upper_field in upper_fields {
+                    let Some(lower_field) = record_field_type(&lower_fields, &upper_field.name)
+                    else {
+                        continue;
+                    };
+                    self.constrain_subtype(lower_field.value.clone(), upper_field.value)?;
+                }
+                Ok(())
+            }
+            (Type::PolyVariant(lower_variants), Type::PolyVariant(upper_variants)) => {
+                for lower_variant in lower_variants {
+                    let Some(upper_variant) = upper_variants.iter().find(|variant| {
+                        variant.name == lower_variant.name
+                            && variant.payloads.len() == lower_variant.payloads.len()
+                    }) else {
+                        continue;
+                    };
+                    for (lower, upper) in lower_variant
+                        .payloads
+                        .into_iter()
+                        .zip(upper_variant.payloads.iter().cloned())
+                    {
+                        self.constrain_subtype(lower, upper)?;
+                    }
                 }
                 Ok(())
             }
@@ -1182,6 +1356,33 @@ fn type_candidate_subtype(graph: &ConstraintGraph<'_>, lower: &Type, upper: &Typ
                     .zip(upper_items)
                     .all(|(lower, upper)| type_candidate_subtype(graph, lower, upper))
         }
+        (Type::Record(lower_fields), Type::Record(upper_fields)) => {
+            upper_fields.iter().all(|upper_field| {
+                upper_field.optional
+                    || record_field_type(lower_fields, &upper_field.name).is_some_and(
+                        |lower_field| {
+                            type_candidate_subtype(graph, &lower_field.value, &upper_field.value)
+                        },
+                    )
+            })
+        }
+        (Type::PolyVariant(lower_variants), Type::PolyVariant(upper_variants)) => {
+            lower_variants.iter().all(|lower_variant| {
+                upper_variants
+                    .iter()
+                    .find(|upper_variant| {
+                        upper_variant.name == lower_variant.name
+                            && upper_variant.payloads.len() == lower_variant.payloads.len()
+                    })
+                    .is_some_and(|upper_variant| {
+                        lower_variant
+                            .payloads
+                            .iter()
+                            .zip(&upper_variant.payloads)
+                            .all(|(lower, upper)| type_candidate_subtype(graph, lower, upper))
+                    })
+            })
+        }
         (Type::EffectRow(lower_items), Type::EffectRow(upper_items)) => {
             lower_items.len() == upper_items.len()
                 && lower_items
@@ -1204,6 +1405,34 @@ fn con_path_without_args(ty: &Type) -> Option<&[String]> {
         return None;
     }
     Some(path)
+}
+
+fn record_field_type<'a>(fields: &'a [TypeField], name: &str) -> Option<&'a TypeField> {
+    fields.iter().find(|field| field.name == name)
+}
+
+fn join_record_fields(mut head: Vec<TypeField>, tail: Vec<TypeField>) -> Vec<TypeField> {
+    head.extend(tail);
+    head
+}
+
+fn record_spread_def(
+    spread: &poly_expr::RecordSpread<poly_expr::DefId>,
+) -> Option<poly_expr::DefId> {
+    match spread {
+        poly_expr::RecordSpread::Head(def) | poly_expr::RecordSpread::Tail(def) => Some(*def),
+        poly_expr::RecordSpread::None => None,
+    }
+}
+
+fn list_item_type(ty: &Type) -> Option<Type> {
+    let Type::Con { args, .. } = ty else {
+        return None;
+    };
+    let [item] = args.as_slice() else {
+        return None;
+    };
+    Some(item.clone())
 }
 
 fn function_runtime_parts(ty: &Type) -> Option<(Type, Type)> {
@@ -1482,6 +1711,32 @@ mod tests {
             "int"
         );
         assert_eq!(plan.actual_type_of(*payload_ref), Some(&int_type()));
+    }
+
+    #[test]
+    fn case_record_pattern_binds_field_from_scrutinee_type() {
+        let lowering = lower_source(
+            "my id x = x\n\
+             case { width: 1 }:\n\
+             \x20 { width } -> id(width)\n\
+             \x20 _ -> 0\n",
+        );
+        let arena = &lowering.session.poly;
+        let root = arena.root_exprs[0];
+
+        let plan = solve_expr(arena, root, None).expect("record case should solve");
+
+        let poly::expr::Expr::Case(_, arms) = arena.expr(root) else {
+            panic!("root should be a case");
+        };
+        let poly::expr::Expr::App(_, field_ref) = arena.expr(arms[0].body) else {
+            panic!("first arm body should call id");
+        };
+        assert_eq!(
+            mono::dump::dump_type(plan.actual_type_of(root).unwrap()),
+            "int"
+        );
+        assert_eq!(plan.actual_type_of(*field_ref), Some(&int_type()));
     }
 
     fn assert_conflicting_type_candidates(error: crate::SpecializeError, left: &str, right: &str) {

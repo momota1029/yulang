@@ -1203,6 +1203,30 @@ mod tests {
     }
 
     #[test]
+    fn dump_mono_without_std_binds_record_case_field_type() {
+        let root = temp_root("dump-mono-record-case-field");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "my id x = x\n\
+             case { width: 1 }:\n\
+             \x20 { width } -> id(width)\n\
+             \x20 _ -> 0\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(
+            &output,
+            "mono roots [case {width: 1}: {width: d3} -> (m0 d3), _ -> 0]",
+        );
+        assert_mono_dump_contains(&output, "m0 = d0 : int -> int");
+    }
+
+    #[test]
     fn dump_poly_without_std_infers_local_constructor_application() {
         let root = temp_root("dump-poly-local-constructor");
         let _ = fs::remove_dir_all(&root);
