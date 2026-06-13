@@ -1,3 +1,10 @@
+# role システム
+
+role の通常引数・関連型、入力 variance の導出、不変区間規則（中心を保存しない `(lower, upper)` 区間と、
+同じ実引数を満たすための交差条件 `loA <: upB` / `loB <: upA` の定義元）、level 管理、簡約、
+解決と再帰的 discharge。`2026-05-31-effect-variable-subtractable.md` と
+`2026-06-06-invariant-type-sandwich.md` はここの不変区間規則を参照する。
+
 roleには通常の引数と関連型が存在している。例えば`Mul<α,β,out=γ>`の場合、`α`, `β`が通常の引数であり、`γ`が関連型である。宣言時は次の様に書かれる:
 ```yu
 pub role Mul 'a 'b:

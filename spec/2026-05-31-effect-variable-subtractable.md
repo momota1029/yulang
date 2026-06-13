@@ -1,3 +1,40 @@
+# effect subtraction（stack 重み）
+
+effect subtraction の寿命境界を、型の外に浮く制約ではなく `stack(T, @S)` 型と不等式の重みで表す仕様。
+型推論コアの一部。不変区間まわりの規則は `2026-06-02-role-system.md`、compact 表現は
+`2026-06-06-invariant-type-sandwich.md` を参照。
+
+このファイルは前半が規則の定義、後半が手計算による検証（規則そのものではなく、規則が期待どおり
+動くことの確認）になっている。
+
+## 目次
+
+規則（定義）:
+
+- `stack(T, @S)` と stack 重みについて
+- floor について
+- 型の不等号の重みについて
+- `α @L <: @R [S; β]` が制約として要求されたときの正確な処理
+- `effect<α> @L <: @R [handled; β]`
+- 新規導入変数について
+- まとめ上げと自己型の下界
+- 型注釈の上下分解
+- stack id の量化とcleanup
+- `catch` の scrutinee / `k` / catch 全体 effect の制約
+- `AllExcept(ref_update _)` stack と変数表現（節の前半が定義）
+- 実際の表現について
+- 変数展開について
+
+手計算による検証（worked examples）:
+
+- 重み付き手計算の記法
+- shallow と recursive/deep の期待型が分岐する理由
+- `outer/local/repeat` の衛生性で何を残して何を消すべきか
+- 補足: `m`/`j` は巡回を生まない
+- `AllExcept(ref_update _)` 節後半「実際に推論されるもの」（`ref::update` の推論）
+
+---
+
 # `stack(T, @S)` と stack 重みについて
 `S-subtract(α,#a)`と`non-subtract(T,#A)`は、型の外側に浮いたrole-like constraintとしては扱わない。
 代わりに、effect subtractionの寿命境界を型そのものと不等式の重みで表す。
