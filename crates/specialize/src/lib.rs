@@ -477,6 +477,9 @@ pub enum SpecializeError {
         existing: Type,
         incoming: Type,
     },
+    UndeterminedTypeSlot {
+        slot: u32,
+    },
     InvalidTypeSlot {
         slot: u32,
     },
@@ -559,6 +562,9 @@ impl fmt::Display for SpecializeError {
                     mono::dump::dump_type(existing),
                     mono::dump::dump_type(incoming),
                 )
+            }
+            Self::UndeterminedTypeSlot { slot } => {
+                write!(f, "could not determine concrete type for slot {slot}")
             }
             Self::InvalidTypeSlot { slot } => write!(f, "invalid type slot {slot}"),
             Self::UnresolvedRef { ref_id } => write!(f, "unresolved ref r{ref_id}"),

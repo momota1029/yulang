@@ -1019,6 +1019,40 @@ mod tests {
     }
 
     #[test]
+    fn dump_mono_without_std_rejects_root_case_without_concrete_join() {
+        let root = temp_root("dump-mono-root-case-ambiguous");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "case true: true -> 1, false -> 2.0\n").unwrap();
+
+        let err = dump_mono_from_entry(root.join("main.yu")).unwrap_err();
+
+        assert!(matches!(
+            err,
+            RouteError::Specialize(specialize::SpecializeError::ConflictingTypeCandidates { .. })
+        ));
+    }
+
+    #[test]
+    fn dump_mono_without_std_specializes_root_case_with_direct_cast_join() {
+        let root = temp_root("dump-mono-root-case-cast-join");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "cast(x: int): float = 0.0\ncase true: true -> 1, false -> 2.0\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(&output, "mono roots [case true:");
+        assert_mono_dump_contains(&output, "coerce[int => float](1)");
+        assert!(!output.text.contains("int | float"), "{}", output.text);
+    }
+
+    #[test]
     fn dump_mono_without_std_runs_computed_top_level_binding() {
         let root = temp_root("dump-mono-computed-binding");
         let _ = fs::remove_dir_all(&root);

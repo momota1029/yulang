@@ -31,10 +31,23 @@ pub struct Arena {
     refs: Vec<Option<DefId>>,
     /// SelectId → selection site。解決前は field 名だけを持つ。
     selects: Vec<Select>,
+    /// source lowering で宣言された direct cast 規則。
+    ///
+    /// cast は単相化でも subtype 境界として効くため、infer 内部の一時 table だけでなく、
+    /// principal scheme と同じ poly 境界へ残す。
+    pub cast_rules: Vec<CastRule>,
     expr: Vec<Expr>,
     pat: Vec<Pat>,
     type_ids: TypeIds,
     pub typ: TypeArena,
+}
+
+#[derive(Clone)]
+pub struct CastRule {
+    pub def: DefId,
+    pub source: Vec<String>,
+    pub target: Vec<String>,
+    pub scheme: Scheme,
 }
 
 /// block 内に現れる文の構造。
@@ -54,6 +67,7 @@ impl Arena {
             defs: DefArena::new(),
             refs: Vec::new(),
             selects: Vec::new(),
+            cast_rules: Vec::new(),
             expr: Vec::new(),
             pat: Vec::new(),
             type_ids: TypeIds::new(),

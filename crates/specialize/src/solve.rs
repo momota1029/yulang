@@ -50,7 +50,7 @@ impl ExprTypePlan {
             .and_then(|types| types.actual.as_ref())
     }
 
-    fn finalize(&self, graph: &ConstraintGraph) -> Result<Self, SpecializeError> {
+    fn finalize(&self, graph: &ConstraintGraph<'_>) -> Result<Self, SpecializeError> {
         let mut resolver = TypeResolver::new(graph);
         let mut out = Self::default();
         for (expr, types) in &self.types {
@@ -111,7 +111,7 @@ pub(crate) fn solve_expr(
 ) -> Result<ExprTypePlan, SpecializeError> {
     let mut solver = ExprTypeSolver {
         arena,
-        graph: ConstraintGraph::default(),
+        graph: ConstraintGraph::new(arena),
         plan: ExprTypePlan::default(),
         local_types: HashMap::new(),
     };
@@ -121,7 +121,7 @@ pub(crate) fn solve_expr(
 
 struct ExprTypeSolver<'a> {
     arena: &'a poly_expr::Arena,
-    graph: ConstraintGraph,
+    graph: ConstraintGraph<'a>,
     plan: ExprTypePlan,
     local_types: HashMap<poly_expr::DefId, Type>,
 }
@@ -404,12 +404,19 @@ impl TypeSlotKind {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-struct ConstraintGraph {
+struct ConstraintGraph<'a> {
+    arena: &'a poly_expr::Arena,
     slots: Vec<TypeSlot>,
 }
 
-impl ConstraintGraph {
+impl<'a> ConstraintGraph<'a> {
+    fn new(arena: &'a poly_expr::Arena) -> Self {
+        Self {
+            arena,
+            slots: Vec::new(),
+        }
+    }
+
     fn fresh_slot(&mut self, kind: TypeSlotKind) -> Type {
         let id = self.slots.len() as u32;
         self.slots.push(TypeSlot::new(kind));
@@ -473,6 +480,26 @@ impl ConstraintGraph {
                 }
                 Ok(())
             }
+            (
+                Type::Con {
+                    path: lower_path,
+                    args: lower_args,
+                },
+                Type::Con {
+                    path: upper_path,
+                    args: upper_args,
+                },
+            ) => {
+                let lower = Type::Con {
+                    path: lower_path.clone(),
+                    args: lower_args,
+                };
+                let upper = Type::Con {
+                    path: upper_path.clone(),
+                    args: upper_args,
+                };
+                self.constrain_direct_cast(&lower_path, &upper_path, lower, upper)
+            }
             (Type::Tuple(lower_items), Type::Tuple(upper_items))
                 if lower_items.len() == upper_items.len() =>
             {
@@ -502,6 +529,59 @@ impl ConstraintGraph {
             }
             _ => Ok(()),
         }
+    }
+
+    fn constrain_direct_cast(
+        &mut self,
+        source: &[String],
+        target: &[String],
+        lower: Type,
+        upper: Type,
+    ) -> Result<(), SpecializeError> {
+        let candidates = self
+            .arena
+            .cast_rules
+            .iter()
+            .filter(|rule| rule.source == source && rule.target == target)
+            .cloned()
+            .collect::<Vec<_>>();
+        for candidate in candidates {
+            let predicate = self.instantiate_cast_scheme(candidate.def, &candidate.scheme)?;
+            self.constrain_subtype(
+                predicate,
+                types::pure_function_type(lower.clone(), upper.clone()),
+            )?;
+        }
+        Ok(())
+    }
+
+    fn instantiate_cast_scheme(
+        &mut self,
+        def: poly_expr::DefId,
+        scheme: &poly::types::Scheme,
+    ) -> Result<Type, SpecializeError> {
+        let arena = self.arena;
+        types::instantiate_scheme_with_fresh(arena, def, scheme, |kind| match kind {
+            types::SchemeQuantifierKind::Value => self.fresh_slot(TypeSlotKind::Value),
+            types::SchemeQuantifierKind::Effect => self.fresh_slot(TypeSlotKind::Effect),
+        })
+    }
+
+    fn direct_closed_cast_subtype(&self, lower: &Type, upper: &Type) -> bool {
+        let Some(source) = con_path_without_args(lower) else {
+            return false;
+        };
+        let Some(target) = con_path_without_args(upper) else {
+            return false;
+        };
+        self.arena.cast_rules.iter().any(|rule| {
+            rule.source == source
+                && rule.target == target
+                && rule.scheme.quantifiers.is_empty()
+                && rule.scheme.role_predicates.is_empty()
+                && rule.scheme.recursive_bounds.is_empty()
+                && rule.scheme.stack_quantifiers.is_empty()
+        })
     }
 
     fn add_edge(&mut self, lower: u32, upper: u32) -> Result<(), SpecializeError> {
@@ -587,14 +667,14 @@ impl TypeSlot {
     }
 }
 
-struct TypeResolver<'a> {
-    graph: &'a ConstraintGraph,
+struct TypeResolver<'graph, 'arena> {
+    graph: &'graph ConstraintGraph<'arena>,
     solutions: HashMap<u32, Type>,
     resolving: HashSet<u32>,
 }
 
-impl<'a> TypeResolver<'a> {
-    fn new(graph: &'a ConstraintGraph) -> Self {
+impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
+    fn new(graph: &'graph ConstraintGraph<'arena>) -> Self {
         Self {
             graph,
             solutions: HashMap::new(),
@@ -669,14 +749,19 @@ impl<'a> TypeResolver<'a> {
             return Ok(solution.clone());
         }
         let slot_data = self.graph.slot(slot)?;
+        let slot_kind = slot_data.kind;
+        let lower_bounds = slot_data.lower.clone();
+        let upper_bounds = slot_data.upper.clone();
         if !self.resolving.insert(slot) {
-            return Ok(slot_data.kind.default_type());
+            return Ok(slot_kind.default_type());
         }
-        let lower = self.unique_candidate(slot, &slot_data.lower)?;
-        let upper = self.unique_candidate(slot, &slot_data.upper)?;
+        let lower = self.join_candidates(slot, &lower_bounds)?;
+        let upper = self.meet_candidates(slot, &upper_bounds)?;
         let solution = match (lower, upper) {
-            (Some(lower), Some(upper)) if lower == upper => lower,
-            (Some(lower), Some(upper)) if lower.is_pure_effect() && upper.is_pure_effect() => lower,
+            (Some(lower), Some(upper)) if type_candidates_equivalent(&lower, &upper) => lower,
+            (Some(lower), Some(upper)) if type_candidate_subtype(self.graph, &lower, &upper) => {
+                lower
+            }
             (Some(lower), Some(upper)) => {
                 return Err(SpecializeError::ConflictingTypeCandidates {
                     slot,
@@ -686,14 +771,14 @@ impl<'a> TypeResolver<'a> {
             }
             (Some(lower), None) => lower,
             (None, Some(upper)) => upper,
-            (None, None) => slot_data.kind.default_type(),
+            (None, None) => return Err(SpecializeError::UndeterminedTypeSlot { slot }),
         };
         self.resolving.remove(&slot);
         self.solutions.insert(slot, solution.clone());
         Ok(solution)
     }
 
-    fn unique_candidate(
+    fn join_candidates(
         &mut self,
         slot: u32,
         bounds: &[Type],
@@ -701,22 +786,173 @@ impl<'a> TypeResolver<'a> {
         let mut candidate: Option<Type> = None;
         for bound in bounds {
             let resolved = self.resolve(bound)?;
-            if let Some(existing) = &candidate {
-                if existing != &resolved
-                    && !(existing.is_pure_effect() && resolved.is_pure_effect())
-                {
-                    return Err(SpecializeError::ConflictingTypeCandidates {
-                        slot,
-                        existing: existing.clone(),
-                        incoming: resolved,
-                    });
-                }
-            } else {
-                candidate = Some(resolved);
-            }
+            candidate = Some(match candidate {
+                Some(existing) => join_type_candidates(self.graph, slot, existing, resolved)?,
+                None => resolved,
+            });
         }
         Ok(candidate)
     }
+
+    fn meet_candidates(
+        &mut self,
+        slot: u32,
+        bounds: &[Type],
+    ) -> Result<Option<Type>, SpecializeError> {
+        let mut candidate: Option<Type> = None;
+        for bound in bounds {
+            let resolved = self.resolve(bound)?;
+            candidate = Some(match candidate {
+                Some(existing) => meet_type_candidates(self.graph, slot, existing, resolved)?,
+                None => resolved,
+            });
+        }
+        Ok(candidate)
+    }
+}
+
+fn join_type_candidates(
+    graph: &ConstraintGraph<'_>,
+    slot: u32,
+    left: Type,
+    right: Type,
+) -> Result<Type, SpecializeError> {
+    if type_candidates_equivalent(&left, &right) || type_candidate_subtype(graph, &right, &left) {
+        return Ok(left);
+    }
+    if type_candidate_subtype(graph, &left, &right) {
+        return Ok(right);
+    }
+    match (left, right) {
+        (Type::Never, right) => Ok(right),
+        (left, Type::Never) => Ok(left),
+        (Type::Any, _) | (_, Type::Any) => Ok(Type::Any),
+        (left, right) => Err(SpecializeError::ConflictingTypeCandidates {
+            slot,
+            existing: left,
+            incoming: right,
+        }),
+    }
+}
+
+fn meet_type_candidates(
+    graph: &ConstraintGraph<'_>,
+    slot: u32,
+    left: Type,
+    right: Type,
+) -> Result<Type, SpecializeError> {
+    if type_candidates_equivalent(&left, &right) || type_candidate_subtype(graph, &left, &right) {
+        return Ok(left);
+    }
+    if type_candidate_subtype(graph, &right, &left) {
+        return Ok(right);
+    }
+    match (left, right) {
+        (Type::Any, right) => Ok(right),
+        (left, Type::Any) => Ok(left),
+        (Type::Never, _) | (_, Type::Never) => Ok(Type::Never),
+        (left, right) => Err(SpecializeError::ConflictingTypeCandidates {
+            slot,
+            existing: left,
+            incoming: right,
+        }),
+    }
+}
+
+fn type_candidates_equivalent(left: &Type, right: &Type) -> bool {
+    left == right || left.is_pure_effect() && right.is_pure_effect()
+}
+
+fn type_candidate_subtype(graph: &ConstraintGraph<'_>, lower: &Type, upper: &Type) -> bool {
+    if type_candidates_equivalent(lower, upper)
+        || matches!(lower, Type::Never)
+        || matches!(upper, Type::Any)
+        || graph.direct_closed_cast_subtype(lower, upper)
+    {
+        return true;
+    }
+    match (lower, upper) {
+        (Type::Union(left, right), _) => {
+            type_candidate_subtype(graph, left, upper)
+                && type_candidate_subtype(graph, right, upper)
+        }
+        (_, Type::Union(left, right)) => {
+            type_candidate_subtype(graph, lower, left)
+                || type_candidate_subtype(graph, lower, right)
+        }
+        (Type::Intersection(left, right), _) => {
+            type_candidate_subtype(graph, left, upper)
+                || type_candidate_subtype(graph, right, upper)
+        }
+        (_, Type::Intersection(left, right)) => {
+            type_candidate_subtype(graph, lower, left)
+                && type_candidate_subtype(graph, lower, right)
+        }
+        (
+            Type::Con {
+                path: lower_path,
+                args: lower_args,
+            },
+            Type::Con {
+                path: upper_path,
+                args: upper_args,
+            },
+        ) => {
+            lower_path == upper_path
+                && lower_args.len() == upper_args.len()
+                && lower_args
+                    .iter()
+                    .zip(upper_args)
+                    .all(|(lower, upper)| type_candidates_equivalent(lower, upper))
+        }
+        (
+            Type::Fun {
+                arg: lower_arg,
+                arg_effect: lower_arg_effect,
+                ret_effect: lower_ret_effect,
+                ret: lower_ret,
+            },
+            Type::Fun {
+                arg: upper_arg,
+                arg_effect: upper_arg_effect,
+                ret_effect: upper_ret_effect,
+                ret: upper_ret,
+            },
+        ) => {
+            type_candidate_subtype(graph, upper_arg, lower_arg)
+                && type_candidate_subtype(graph, upper_arg_effect, lower_arg_effect)
+                && type_candidate_subtype(graph, lower_ret_effect, upper_ret_effect)
+                && type_candidate_subtype(graph, lower_ret, upper_ret)
+        }
+        (Type::Tuple(lower_items), Type::Tuple(upper_items)) => {
+            lower_items.len() == upper_items.len()
+                && lower_items
+                    .iter()
+                    .zip(upper_items)
+                    .all(|(lower, upper)| type_candidate_subtype(graph, lower, upper))
+        }
+        (Type::EffectRow(lower_items), Type::EffectRow(upper_items)) => {
+            lower_items.len() == upper_items.len()
+                && lower_items
+                    .iter()
+                    .zip(upper_items)
+                    .all(|(lower, upper)| type_candidate_subtype(graph, lower, upper))
+        }
+        (Type::Stack { inner: lower, .. }, Type::Stack { inner: upper, .. }) => {
+            type_candidate_subtype(graph, lower, upper)
+        }
+        _ => false,
+    }
+}
+
+fn con_path_without_args(ty: &Type) -> Option<&[String]> {
+    let Type::Con { path, args } = ty else {
+        return None;
+    };
+    if !args.is_empty() {
+        return None;
+    }
+    Some(path)
 }
 
 fn bool_type() -> Type {
@@ -787,9 +1023,81 @@ mod tests {
         );
     }
 
+    #[test]
+    fn root_case_without_expected_type_errors_when_arm_results_do_not_join() {
+        let lowering = lower_source("case true: true -> 1, false -> 2.0\n");
+        let arena = &lowering.session.poly;
+        let root = arena.root_exprs[0];
+
+        let error = solve_expr(arena, root, None).expect_err("root case should be ambiguous");
+
+        assert_conflicting_type_candidates(error, "int", "float");
+    }
+
+    #[test]
+    fn root_case_uses_direct_cast_as_join_candidate() {
+        let lowering =
+            lower_source("cast(x: int): float = 0.0\ncase true: true -> 1, false -> 2.0\n");
+        let arena = &lowering.session.poly;
+        let root = arena.root_exprs[0];
+
+        let plan = solve_expr(arena, root, None).expect("root case should solve");
+
+        let poly::expr::Expr::Case(_, arms) = arena.expr(root) else {
+            panic!("root should be a case");
+        };
+        assert_eq!(
+            mono::dump::dump_type(plan.actual_type_of(root).unwrap()),
+            "float"
+        );
+        assert_eq!(plan.actual_type_of(arms[0].body), Some(&int_type()));
+        assert_eq!(plan.actual_type_of(arms[1].body), Some(&float_type()));
+        assert_eq!(
+            mono::dump::dump_type(plan.boundary(arms[0].body).unwrap().expected),
+            "float"
+        );
+        assert_eq!(
+            mono::dump::dump_type(plan.boundary(arms[1].body).unwrap().expected),
+            "float"
+        );
+    }
+
+    #[test]
+    fn root_case_errors_instead_of_using_transitive_casts_as_join_candidate() {
+        let lowering = lower_source(
+            "cast(x: int): bool = true\n\
+             cast(x: bool): float = 0.0\n\
+             case true: true -> 1, false -> 2.0\n",
+        );
+        let arena = &lowering.session.poly;
+        let root = arena.root_exprs[0];
+
+        let error = solve_expr(arena, root, None).expect_err("root case should be ambiguous");
+
+        assert_conflicting_type_candidates(error, "int", "float");
+    }
+
+    fn assert_conflicting_type_candidates(error: crate::SpecializeError, left: &str, right: &str) {
+        let crate::SpecializeError::ConflictingTypeCandidates {
+            existing, incoming, ..
+        } = error
+        else {
+            panic!("expected conflicting type candidates, got {error:?}");
+        };
+        assert_eq!(mono::dump::dump_type(&existing), left);
+        assert_eq!(mono::dump::dump_type(&incoming), right);
+    }
+
     fn int_type() -> Type {
         Type::Con {
             path: vec!["int".to_string()],
+            args: Vec::new(),
+        }
+    }
+
+    fn float_type() -> Type {
+        Type::Con {
+            path: vec!["float".to_string()],
             args: Vec::new(),
         }
     }

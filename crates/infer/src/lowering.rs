@@ -631,10 +631,16 @@ impl BodyLowerer {
         let result = match lowered {
             Ok(computation) => {
                 self.session.casts.insert(
-                    cast_scheme.source,
-                    cast_scheme.target,
-                    cast_scheme.scheme,
+                    cast_scheme.source.clone(),
+                    cast_scheme.target.clone(),
+                    cast_scheme.scheme.clone(),
                 );
+                self.session.poly.cast_rules.push(poly::expr::CastRule {
+                    def: decl.def,
+                    source: cast_scheme.source,
+                    target: cast_scheme.target,
+                    scheme: cast_scheme.scheme,
+                });
                 self.finish_binding(decl.def, Name("#cast".into()), root, computation, false);
                 Ok(())
             }
