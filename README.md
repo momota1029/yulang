@@ -41,6 +41,9 @@ say "Hello, World"
 output produced by the program itself, such as `say` / `println`. To inspect
 root expression values while experimenting, add `--print-roots`. To run
 through the mono runtime instead of the control VM, pass `--interpreter`.
+The control VM route caches lowered artifacts under the user cache root; use
+`yulang cache path` / `yulang cache clear` to inspect or clear it, or pass
+`--no-cache` to bypass cache read/write for one command.
 
 Check a file:
 

@@ -1234,6 +1234,7 @@ dependencies = [
  "parser",
  "reborrow-generic",
  "rowan",
+ "serde",
  "serde_json",
  "sources",
  "specialize",

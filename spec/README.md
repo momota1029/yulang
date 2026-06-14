@@ -52,6 +52,9 @@
   — `mono::Program` を VM / runtime lower が読むための契約。root 評価順、Instance store、
   boundary node、`EffectOp`、`FunctionAdapterHygiene`、select / handler / pattern の VM-ready 条件、
   runtime lower が推測してはいけないこと。
+- [2026-06-14-control-artifact-cache.md](2026-06-14-control-artifact-cache.md)
+  — `run` / `build` の control-vm artifact cache。source collection の後、infer / specialize /
+  control lowering の前に置く境界、key / value、`--no-cache` と CLI 表示の扱い。
 
 ### 参考文献
 

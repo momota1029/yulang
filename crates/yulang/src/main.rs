@@ -153,11 +153,23 @@ fn main() {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct GlobalOptions {
     std_root: Option<PathBuf>,
     no_prelude: bool,
     show_cst: bool,
+    use_cache: bool,
+}
+
+impl Default for GlobalOptions {
+    fn default() -> Self {
+        Self {
+            std_root: None,
+            no_prelude: false,
+            show_cst: false,
+            use_cache: true,
+        }
+    }
 }
 
 impl GlobalOptions {
@@ -207,7 +219,9 @@ fn parse_global_options(
             Some("--cst") => {
                 options.show_cst = true;
             }
-            Some("--no-cache") => {}
+            Some("--no-cache") => {
+                options.use_cache = false;
+            }
             Some("--verbose-ir")
             | Some("--infer-phase-timings")
             | Some("--runtime-phase-timings")
@@ -229,10 +243,7 @@ fn run_compatible_check(program: &str, options: &GlobalOptions, args: VecDeque<O
     let path = require_one_path(program, args);
     print_cst_if_requested(options, &path);
     if options.no_prelude {
-        run_route(
-            yulang::check_poly_from_entry(path),
-            print_check_poly_output,
-        );
+        run_route(yulang::check_poly_from_entry(path), print_check_poly_output);
         return;
     }
 
@@ -246,15 +257,8 @@ fn run_compatible_check(program: &str, options: &GlobalOptions, args: VecDeque<O
 fn run_compatible_build(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
     let (path, out) = parse_build_args(program, args);
     print_cst_if_requested(options, &path);
-    let output = if options.no_prelude {
-        run_route_to_value(yulang::build_control_from_entry(&path))
-    } else {
-        let source_options = options.std_source_options();
-        run_route_to_value(yulang::build_control_from_entry_with_std_options(
-            &path,
-            &source_options,
-        ))
-    };
+    let files = collect_control_sources_or_exit(&path, options);
+    let output = build_control_with_optional_cache(files, options.use_cache);
     let artifact = match yulang::artifact::encode_control_program(&output.program) {
         Ok(artifact) => artifact,
         Err(error) => {
@@ -289,33 +293,79 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
     }
 
     print_cst_if_requested(options, &path);
-    if options.no_prelude {
-        if selection.interpreter {
+    if selection.interpreter {
+        if options.no_prelude {
             run_route(
                 yulang::run_mono_from_entry(path),
                 run_mono_printer(selection.print_roots),
             );
         } else {
+            let source_options = options.std_source_options();
             run_route(
-                yulang::run_control_from_entry(path),
-                run_control_printer(selection.print_roots),
+                yulang::run_mono_from_entry_with_std_options(path, &source_options),
+                run_mono_printer(selection.print_roots),
             );
         }
         return;
     }
 
-    let source_options = options.std_source_options();
-    if selection.interpreter {
-        run_route(
-            yulang::run_mono_from_entry_with_std_options(path, &source_options),
-            run_mono_printer(selection.print_roots),
-        );
-    } else {
-        run_route(
-            yulang::run_control_from_entry_with_std_options(path, &source_options),
-            run_control_printer(selection.print_roots),
-        );
+    let files = collect_control_sources_or_exit(&path, options);
+    let build = build_control_with_optional_cache(files, options.use_cache);
+    let output = run_route_to_value(yulang::run_built_control_program(
+        &build.program,
+        build.file_count,
+        build.errors,
+    ));
+    run_control_printer(selection.print_roots)(&output);
+}
+
+fn collect_control_sources_or_exit(
+    path: &PathBuf,
+    options: &GlobalOptions,
+) -> Vec<yulang::CollectedSource> {
+    if options.no_prelude {
+        return run_route_to_value(yulang::collect_local_sources(path));
     }
+
+    let source_options = options.std_source_options();
+    run_route_to_value(yulang::collect_local_sources_with_std_options(
+        path,
+        &source_options,
+    ))
+}
+
+fn build_control_with_optional_cache(
+    files: Vec<yulang::CollectedSource>,
+    use_cache: bool,
+) -> yulang::BuildControlOutput {
+    if !use_cache {
+        return run_route_to_value(yulang::build_control_from_collected_sources(files));
+    }
+
+    let key = yulang::cache::control_cache_key(&files);
+    let cache = yulang::cache::ControlArtifactCache::new(yulang::stdlib::default_user_cache_root());
+    match cache.read_control_artifact(key) {
+        Ok(Some(cached)) => {
+            return yulang::BuildControlOutput {
+                program: cached.program,
+                file_count: cached.file_count,
+                errors: cached.errors,
+            };
+        }
+        Ok(None) => {}
+        Err(error) => eprintln!("warning: {error}"),
+    }
+
+    let output = run_route_to_value(yulang::build_control_from_collected_sources(files));
+    let artifact = yulang::cache::CachedControlArtifact {
+        program: output.program.clone(),
+        file_count: output.file_count,
+        errors: output.errors.clone(),
+    };
+    if let Err(error) = cache.write_control_artifact(key, &artifact) {
+        eprintln!("warning: {error}");
+    }
+    output
 }
 
 fn run_compatible_dump(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
@@ -887,10 +937,14 @@ fn print_usage_error_and_exit(program: &str, error: &str) -> ! {
 }
 
 fn print_usage_and_exit(program: &str) -> ! {
-    eprintln!("usage: {program} [--std-root <path>] [--no-prelude] [--cst] check <path>");
-    eprintln!("       {program} [--std-root <path>] [--no-prelude] build [--out <path>] <path>");
     eprintln!(
-        "       {program} [--std-root <path>] [--no-prelude] run [--interpreter] [--print-roots] <path>"
+        "usage: {program} [--std-root <path>] [--no-prelude] [--cst] [--no-cache] check <path>"
+    );
+    eprintln!(
+        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] build [--out <path>] <path>"
+    );
+    eprintln!(
+        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--interpreter] [--print-roots] <path>"
     );
     eprintln!(
         "       {program} [--std-root <path>] [--no-prelude] dump <path> (--core-ir | --runtime-ir | --poly | --poly-raw | --mono)"

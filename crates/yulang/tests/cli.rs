@@ -243,6 +243,68 @@ fn cache_path_and_clear_use_yulang_cache_dir() {
 }
 
 #[test]
+fn compatible_build_populates_control_vm_cache_unless_disabled() {
+    let entry = write_entry("build-control-cache", "1\n");
+    let root = entry.parent().unwrap().to_path_buf();
+    let cache_root = root.join("cache-root");
+    let artifact = root.join("main.yuir");
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("build")
+        .arg("--out")
+        .arg(&artifact)
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), format!("build: {}\n", artifact.display()));
+    assert_eq!(control_cache_file_count(&cache_root), 1);
+
+    let disabled_cache_root = root.join("disabled-cache");
+    let disabled_artifact = root.join("disabled.yuir");
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &disabled_cache_root)
+        .arg("--no-cache")
+        .arg("--no-prelude")
+        .arg("build")
+        .arg("--out")
+        .arg(&disabled_artifact)
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(control_cache_file_count(&disabled_cache_root), 0);
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn compatible_run_populates_control_vm_cache() {
+    let entry = write_entry("run-control-cache", "1\n");
+    let root = entry.parent().unwrap().to_path_buf();
+    let cache_root = root.join("cache-root");
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [1]\n");
+    assert_eq!(control_cache_file_count(&cache_root), 1);
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn realm_freeze_writes_versioned_snapshot() {
     let root = temp_root("realm-freeze");
     let _ = fs::remove_dir_all(&root);
@@ -319,6 +381,18 @@ fn temp_root(name: &str) -> PathBuf {
             .unwrap()
             .as_nanos()
     ))
+}
+
+fn control_cache_file_count(root: &Path) -> usize {
+    let dir = root.join("artifacts").join("control-vm");
+    match fs::read_dir(dir) {
+        Ok(entries) => entries
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.is_file())
+            .count(),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => 0,
+        Err(error) => panic!("failed to read cache dir: {error}"),
+    }
 }
 
 fn assert_success(output: &Output) {

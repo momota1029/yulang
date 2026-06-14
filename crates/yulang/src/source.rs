@@ -57,6 +57,31 @@ pub fn build_control_from_entry(
     build_control_from_sources(collect_local_sources(entry)?)
 }
 
+/// 収集済み source set から control VM artifact 用 IR を作る。
+///
+/// CLI の artifact cache は source collection を cache の外に置くので、この入口から
+/// 推論・単相化・control lowering だけを再利用単位にする。
+pub fn build_control_from_collected_sources(
+    files: Vec<CollectedSource>,
+) -> Result<BuildControlOutput, RouteError> {
+    build_control_from_sources(files)
+}
+
+/// すでに lower 済みの control VM program を実行し、通常の route output に包む。
+pub fn run_built_control_program(
+    program: &control_vm::Program,
+    file_count: usize,
+    errors: Vec<String>,
+) -> Result<RunControlOutput, RouteError> {
+    let values = control_vm::run_program(program).map_err(RouteError::Control)?;
+    Ok(RunControlOutput {
+        text: format!("run roots {}\n", control_vm::format_values(&values)),
+        file_count,
+        errors,
+        values,
+    })
+}
+
 /// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで poly dump を返す。
 ///
 /// デバッグ用の暫定入口。install 済み std ではなく、entry の親から上へ辿って見つかる
@@ -850,14 +875,8 @@ fn run_mono_from_sources(files: Vec<CollectedSource>) -> Result<RunMonoOutput, R
 }
 
 fn run_control_from_sources(files: Vec<CollectedSource>) -> Result<RunControlOutput, RouteError> {
-    let output = specialize_mono_from_sources(files)?;
-    let values = control_vm::run_mono_program(&output.program).map_err(RouteError::Control)?;
-    Ok(RunControlOutput {
-        text: format!("run roots {}\n", control_vm::format_values(&values)),
-        file_count: output.file_count,
-        errors: output.errors,
-        values,
-    })
+    let output = build_control_from_sources(files)?;
+    run_built_control_program(&output.program, output.file_count, output.errors)
 }
 
 fn build_control_from_sources(
