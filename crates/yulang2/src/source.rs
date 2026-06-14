@@ -1113,6 +1113,34 @@ mod tests {
         std::os::unix::fs::symlink(repo_lib, root.join("lib")).unwrap();
     }
 
+    fn write_main(name: &str, source: &str) -> PathBuf {
+        let root = temp_root(name);
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let entry = root.join("main.yu");
+        fs::write(&entry, source).unwrap();
+        entry
+    }
+
+    #[cfg(unix)]
+    fn write_main_with_std(name: &str, source: &str) -> PathBuf {
+        let root = temp_root(name);
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        symlink_repo_lib(&root);
+        let entry = root.join("main.yu");
+        fs::write(&entry, source).unwrap();
+        entry
+    }
+
+    #[cfg(unix)]
+    fn run_with_std_main(name: &str, source: &str) -> (RunMonoOutput, RunControlOutput) {
+        let entry = write_main_with_std(name, source);
+        let mono = run_mono_from_entry_with_std(&entry).unwrap();
+        let control = run_control_from_entry_with_std(&entry).unwrap();
+        (mono, control)
+    }
+
     fn assert_dump_has_line_starting_with(output: &DumpPolyOutput, expected: &str) {
         assert!(
             output.text.lines().any(|line| line.starts_with(expected)),
@@ -1486,6 +1514,70 @@ mod tests {
         assert_eq!(output.file_count, 1);
         assert_eq!(output.values, vec![control_vm::Value::Int(1)]);
         assert_eq!(output.text, "run roots [1]\n");
+    }
+
+    #[test]
+    fn run_without_std_matches_control_on_record_case_and_handler_smoke() {
+        let entry = write_main(
+            "run-record-case-handler-smoke",
+            "case { width: 1, height: 2 }:\n\
+             \x20 { width, height } -> height\n\
+             \x20 _ -> 0\n\n\
+             enum opt 'a:\n\
+             \x20 none\n\
+             \x20 some 'a\n\
+             act eff:\n\
+             \x20 our send: opt int -> int\n\
+             catch eff::send(opt::some 1):\n\
+             \x20 eff::send(opt::some x), k -> k(x)\n\
+             \x20 value -> value\n",
+        );
+
+        let mono = run_mono_from_entry(&entry).unwrap();
+        let control = run_control_from_entry(&entry).unwrap();
+
+        assert_eq!(mono.text, "run roots [2, 1]\n");
+        assert_eq!(control.text, mono.text);
+    }
+
+    #[test]
+    fn run_without_std_matches_control_on_struct_field_projection() {
+        let entry = write_main(
+            "run-struct-field-projection",
+            "struct User { age: int }\nUser({ age: 1 }).age\n",
+        );
+
+        let mono = run_mono_from_entry(&entry).unwrap();
+        let control = run_control_from_entry(&entry).unwrap();
+
+        assert_eq!(mono.text, "run roots [1]\n");
+        assert_eq!(control.text, mono.text);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_with_std_matches_control_on_core_smoke_suite() {
+        let (mono, control) = run_with_std_main(
+            "run-std-core-smoke-suite",
+            "1 + 2 * 3\n\
+             [1, 2, 3].map(\\x -> x + 1).filter(\\x -> x > 2).rev\n\
+             \"sum=%{1 + 2}\"\n\
+             \"hex=%x{255}\"\n\
+             \"debug=%?{[1, 2]}\"\n\
+             \"pad=%04{7}\"\n\
+             for i in 0..3:\n\
+             \x20 if i == 1: std::control::flow::loop::last()\n\
+             1\n",
+        );
+
+        assert!(
+            mono.text.starts_with(
+                "run roots [7, [4, 3], \"sum=3\", \"hex=ff\", \"debug=[1, 2]\", \"pad=0007\", 1,"
+            ),
+            "{}",
+            mono.text
+        );
+        assert_eq!(control.text, mono.text);
     }
 
     #[cfg(unix)]

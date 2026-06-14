@@ -1,5 +1,5 @@
 use num_bigint::BigInt;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::roles::RoleImplTable;
 use crate::types::{Scheme, SubtractId, TypeArena, TypeIds, TypeVar};
@@ -53,6 +53,11 @@ pub struct Arena {
     /// constructor も body を持たない `Def::Let` だが、runtime では constructor 値として
     /// 評価する必要がある。単相化後段が `DefId` から arity と owner を読めるようにここへ残す。
     pub constructors: FxHashMap<DefId, Constructor>,
+    /// `struct` field projection として登録された value receiver method。
+    ///
+    /// field projection は selection 解決時には `Method` として見えるが、runtime では method
+    /// instance ではなく constructor payload への projection として読む。
+    pub field_projections: FxHashSet<DefId>,
     expr: Vec<Expr>,
     pat: Vec<Pat>,
     type_ids: TypeIds,
@@ -100,6 +105,7 @@ impl Arena {
             role_impls: RoleImplTable::new(),
             effect_operations: FxHashMap::default(),
             constructors: FxHashMap::default(),
+            field_projections: FxHashSet::default(),
             expr: Vec::new(),
             pat: Vec::new(),
             type_ids: TypeIds::new(),

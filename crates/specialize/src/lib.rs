@@ -384,6 +384,9 @@ impl Specializer {
                 Ok(Some(SelectResolution::RecordField))
             }
             Some(poly_expr::SelectResolution::Method { def }) => {
+                if is_field_projection_method(arena, def) {
+                    return Ok(Some(SelectResolution::RecordField));
+                }
                 let expected = method_instance_expected_type(plan, base, select);
                 Ok(Some(SelectResolution::Method {
                     instance: self.ensure_def_instance(arena, def, expected.as_ref())?,
@@ -1052,6 +1055,10 @@ fn effect_marker_path(effect: &Type) -> Option<Vec<String>> {
         }
         _ => None,
     }
+}
+
+fn is_field_projection_method(arena: &poly_expr::Arena, def: poly_expr::DefId) -> bool {
+    arena.field_projections.contains(&def)
 }
 
 fn method_instance_expected_type(

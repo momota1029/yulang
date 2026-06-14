@@ -37,6 +37,11 @@ fn runs_apply_colon_block_argument_like_oracle() {
 }
 
 #[test]
+fn runs_higher_order_application_like_oracle() {
+    assert_oracle_parity("my apply f = f(1)\nmy id x = x\napply id\n", "[1]");
+}
+
+#[test]
 fn runs_stack_handler_hygiene_to_outer_handler() {
     assert_oracle_parity(
         "pub act sub 'a:\n\
@@ -116,12 +121,42 @@ fn routes_foreign_thunk_effect_past_inner_handler_like_oracle() {
 }
 
 #[test]
+fn runs_record_case_payload_like_oracle() {
+    assert_oracle_parity(
+        "case { width: 1, height: 2 }:\n\
+         \x20 { width, height } -> height\n\
+         \x20 _ -> 0\n",
+        "[2]",
+    );
+}
+
+#[test]
+fn runs_struct_field_projection_like_oracle() {
+    assert_oracle_parity("struct User { age: int }\nUser({ age: 1 }).age\n", "[1]");
+}
+
+#[test]
 fn runs_constructor_case_pattern_like_oracle() {
     assert_oracle_parity(
         "enum opt 'a:\n  none\n  some 'a\n\
          case opt::some 1:\n\
          \x20 opt::some x -> x\n\
          \x20 _ -> 0\n",
+        "[1]",
+    );
+}
+
+#[test]
+fn runs_constructor_payload_effect_handler_like_oracle() {
+    assert_oracle_parity(
+        "enum opt 'a:\n\
+         \x20 none\n\
+         \x20 some 'a\n\
+         act eff:\n\
+         \x20 our send: opt int -> int\n\
+         catch eff::send(opt::some 1):\n\
+         \x20 eff::send(opt::some x), k -> k(x)\n\
+         \x20 value -> value\n",
         "[1]",
     );
 }

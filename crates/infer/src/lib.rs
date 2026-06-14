@@ -2023,6 +2023,9 @@ impl Lower {
             };
             for receiver_kind in [TypeMethodReceiver::Value, TypeMethodReceiver::Ref] {
                 let def = self.register_synthetic_let(vis);
+                if receiver_kind == TypeMethodReceiver::Value {
+                    self.arena.field_projections.insert(def);
+                }
                 self.modules.insert_type_field_method(TypeFieldMethodDecl {
                     owner,
                     name: name.clone(),

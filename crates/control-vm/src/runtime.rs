@@ -1400,6 +1400,9 @@ impl<'a> Runtime<'a> {
                 .ok_or_else(|| RuntimeError::MissingRecordField {
                     name: name.to_string(),
                 }),
+            Value::DataConstructor { payloads, .. } if payloads.len() == 1 => {
+                self.project_record_field(mark_value(payloads[0].clone(), &markers), name)
+            }
             value => Err(RuntimeError::ExpectedRecord { value }),
         }
     }
