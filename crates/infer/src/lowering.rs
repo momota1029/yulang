@@ -8497,7 +8497,9 @@ fn field_name(node: &Cst) -> Option<String> {
 
 fn brace_group_is_record_literal(node: &Cst) -> bool {
     let mut has_field = false;
+    let mut saw_child = false;
     for child in node.children() {
+        saw_child = true;
         match child.kind() {
             SyntaxKind::Expr => {
                 if !is_inline_record_field_expr(&child) {
@@ -8509,7 +8511,7 @@ fn brace_group_is_record_literal(node: &Cst) -> bool {
             _ => return false,
         }
     }
-    has_field
+    has_field || !saw_child
 }
 
 fn record_literal_fields(node: &Cst) -> Vec<Cst> {
@@ -12710,7 +12712,10 @@ mod tests {
             _ => panic!("expected function binding to lower to lambda"),
         };
         let field_pat = match output.session.poly.pat(pat) {
-            Pat::Record { fields, .. } => fields[0].1,
+            Pat::Record { fields, .. } => {
+                assert!(fields[0].default.is_some());
+                fields[0].pat
+            }
             _ => panic!("expected record pattern"),
         };
         let field = match output.session.poly.pat(field_pat) {

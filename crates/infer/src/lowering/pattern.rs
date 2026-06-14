@@ -342,7 +342,11 @@ impl<'a> ExprLowerer<'a> {
                         value: self.alloc_neg(Neg::Var(field.value)),
                         optional: field.optional,
                     });
-                    fields.push((field.name, field.pat));
+                    fields.push(poly::expr::RecordPatField {
+                        name: field.name,
+                        pat: field.pat,
+                        default: field.default,
+                    });
                 }
                 SyntaxKind::PatSpread => {
                     let (def, tail) = self.lower_record_pattern_spread(
@@ -443,6 +447,7 @@ impl<'a> ExprLowerer<'a> {
             name: name.0,
             value,
             pat,
+            default: default.map(|default| default.expr),
             optional,
         })
     }
@@ -707,6 +712,7 @@ struct LoweredRecordPatternField {
     name: String,
     value: TypeVar,
     pat: PatId,
+    default: Option<ExprId>,
     optional: bool,
 }
 

@@ -315,7 +315,14 @@ impl Dumper {
             Pat::Record { fields, spread } => {
                 let mut parts = fields
                     .iter()
-                    .map(|(name, pat)| format!("{name}: {}", self.pat(pat)))
+                    .map(|field| {
+                        let default = field
+                            .default
+                            .as_ref()
+                            .map(|default| format!(" = {}", self.expr(default)))
+                            .unwrap_or_default();
+                        format!("{}: {}{default}", field.name, self.pat(&field.pat))
+                    })
                     .collect::<Vec<_>>();
                 match spread {
                     RecordSpread::Head(def) => parts.insert(0, format!("..d{}", def.0)),

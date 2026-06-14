@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::ir::{
     Block, CaseArm, CatchArm, DefId, Expr, ExprId, Instance, InstanceId, Pat, Program, RecordField,
-    RecordSpread, Root, SelectResolution, Stmt,
+    RecordPatField, RecordSpread, Root, SelectResolution, Stmt,
 };
 
 pub fn lower(program: &mono::Program) -> Result<Program, LowerError> {
@@ -152,7 +152,7 @@ impl Lowerer {
                 value: self.lower_expr(value)?,
             },
             MonoExpr::Lambda(param, body) => Expr::Lambda {
-                param: lower_pat(param),
+                param: self.lower_pat(param)?,
                 body: self.lower_expr(body)?,
             },
             MonoExpr::Tuple(items) => Expr::Tuple(self.lower_exprs(items)?),
@@ -187,7 +187,7 @@ impl Lowerer {
                     .iter()
                     .map(|arm| {
                         Ok(CaseArm {
-                            pat: lower_pat(&arm.pat),
+                            pat: self.lower_pat(&arm.pat)?,
                             guard: self.lower_optional_expr(arm.guard.as_ref())?,
                             body: self.lower_expr(&arm.body)?,
                         })
@@ -201,8 +201,8 @@ impl Lowerer {
                     .map(|arm| {
                         Ok(CatchArm {
                             operation_path: arm.operation_path.clone(),
-                            pat: lower_pat(&arm.pat),
-                            continuation: arm.continuation.as_ref().map(lower_pat),
+                            pat: self.lower_pat(&arm.pat)?,
+                            continuation: self.lower_optional_pat(arm.continuation.as_ref())?,
                             guard: self.lower_optional_expr(arm.guard.as_ref())?,
                             body: self.lower_expr(&arm.body)?,
                         })
@@ -227,6 +227,10 @@ impl Lowerer {
         expr.map(|expr| self.lower_expr(expr)).transpose()
     }
 
+    fn lower_optional_pat(&mut self, pat: Option<&mono::Pat>) -> Result<Option<Pat>, LowerError> {
+        pat.map(|pat| self.lower_pat(pat)).transpose()
+    }
+
     fn lower_block(&mut self, block: &mono::Block) -> Result<Block, LowerError> {
         Ok(Block {
             stmts: block
@@ -240,9 +244,11 @@ impl Lowerer {
 
     fn lower_stmt(&mut self, stmt: &mono::Stmt) -> Result<Stmt, LowerError> {
         match stmt {
-            mono::Stmt::Let(vis, pat, value) => {
-                Ok(Stmt::Let(*vis, lower_pat(pat), self.lower_expr(value)?))
-            }
+            mono::Stmt::Let(vis, pat, value) => Ok(Stmt::Let(
+                *vis,
+                self.lower_pat(pat)?,
+                self.lower_expr(value)?,
+            )),
             mono::Stmt::Expr(expr) => Ok(Stmt::Expr(self.lower_expr(expr)?)),
             mono::Stmt::Module(def, stmts) => Ok(Stmt::Module(
                 convert_def(*def),
@@ -264,41 +270,52 @@ impl Lowerer {
             mono::RecordSpread::Tail(expr) => Ok(RecordSpread::Tail(self.lower_expr(expr)?)),
         }
     }
-}
 
-fn lower_pat(pat: &mono::Pat) -> Pat {
-    match pat {
-        mono::Pat::Wild => Pat::Wild,
-        mono::Pat::Lit(lit) => Pat::Lit(lit.clone()),
-        mono::Pat::Tuple(items) => Pat::Tuple(items.iter().map(lower_pat).collect()),
-        mono::Pat::List {
-            prefix,
-            spread,
-            suffix,
-        } => Pat::List {
-            prefix: prefix.iter().map(lower_pat).collect(),
-            spread: spread.as_deref().map(lower_pat).map(Box::new),
-            suffix: suffix.iter().map(lower_pat).collect(),
-        },
-        mono::Pat::Record { fields, spread } => Pat::Record {
-            fields: fields
-                .iter()
-                .map(|(name, pat)| (name.clone(), lower_pat(pat)))
-                .collect(),
-            spread: lower_def_spread(spread),
-        },
-        mono::Pat::PolyVariant(tag, payloads) => {
-            Pat::PolyVariant(tag.clone(), payloads.iter().map(lower_pat).collect())
-        }
-        mono::Pat::Con(def, payloads) => {
-            Pat::Con(convert_def(*def), payloads.iter().map(lower_pat).collect())
-        }
-        mono::Pat::Ref(instance) => Pat::Ref(convert_instance(*instance)),
-        mono::Pat::Var(def) => Pat::Var(convert_def(*def)),
-        mono::Pat::Or(left, right) => {
-            Pat::Or(Box::new(lower_pat(left)), Box::new(lower_pat(right)))
-        }
-        mono::Pat::As(pat, def) => Pat::As(Box::new(lower_pat(pat)), convert_def(*def)),
+    fn lower_pat(&mut self, pat: &mono::Pat) -> Result<Pat, LowerError> {
+        Ok(match pat {
+            mono::Pat::Wild => Pat::Wild,
+            mono::Pat::Lit(lit) => Pat::Lit(lit.clone()),
+            mono::Pat::Tuple(items) => Pat::Tuple(self.lower_pats(items)?),
+            mono::Pat::List {
+                prefix,
+                spread,
+                suffix,
+            } => Pat::List {
+                prefix: self.lower_pats(prefix)?,
+                spread: self.lower_optional_pat(spread.as_deref())?.map(Box::new),
+                suffix: self.lower_pats(suffix)?,
+            },
+            mono::Pat::Record { fields, spread } => Pat::Record {
+                fields: fields
+                    .iter()
+                    .map(|field| {
+                        Ok(RecordPatField {
+                            name: field.name.clone(),
+                            pat: self.lower_pat(&field.pat)?,
+                            default: self.lower_optional_expr(field.default.as_ref())?,
+                        })
+                    })
+                    .collect::<Result<Vec<_>, LowerError>>()?,
+                spread: lower_def_spread(spread),
+            },
+            mono::Pat::PolyVariant(tag, payloads) => {
+                Pat::PolyVariant(tag.clone(), self.lower_pats(payloads)?)
+            }
+            mono::Pat::Con(def, payloads) => {
+                Pat::Con(convert_def(*def), self.lower_pats(payloads)?)
+            }
+            mono::Pat::Ref(instance) => Pat::Ref(convert_instance(*instance)),
+            mono::Pat::Var(def) => Pat::Var(convert_def(*def)),
+            mono::Pat::Or(left, right) => Pat::Or(
+                Box::new(self.lower_pat(left)?),
+                Box::new(self.lower_pat(right)?),
+            ),
+            mono::Pat::As(pat, def) => Pat::As(Box::new(self.lower_pat(pat)?), convert_def(*def)),
+        })
+    }
+
+    fn lower_pats(&mut self, pats: &[mono::Pat]) -> Result<Vec<Pat>, LowerError> {
+        pats.iter().map(|pat| self.lower_pat(pat)).collect()
     }
 }
 

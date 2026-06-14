@@ -491,7 +491,7 @@ pub enum Pat {
         suffix: Vec<PatId>,
     },
     Record {
-        fields: Vec<(String, PatId)>,
+        fields: Vec<RecordPatField>,
         spread: RecordSpread<DefId>,
     },
     PolyVariant(String, Vec<PatId>),
@@ -500,6 +500,13 @@ pub enum Pat {
     Var(DefId),
     Or(PatId, PatId),
     As(PatId, DefId),
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RecordPatField {
+    pub name: String,
+    pub pat: PatId,
+    pub default: Option<ExprId>,
 }
 
 #[cfg(test)]

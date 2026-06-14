@@ -27,8 +27,47 @@ pub(crate) fn equivalent_runtime_types(source: &Type, target: &Type) -> bool {
         (Type::Thunk { effect, value }, target) if effect.is_pure_effect() => {
             equivalent_runtime_types(value, target)
         }
+        (Type::Record(source_fields), Type::Record(target_fields)) => {
+            target_fields.iter().all(|target| {
+                record_field_type(source_fields, &target.name).map_or(target.optional, |source| {
+                    equivalent_runtime_types(&source.value, &target.value)
+                })
+            })
+        }
+        (Type::PolyVariant(source_variants), Type::PolyVariant(target_variants)) => {
+            source_variants.iter().all(|source| {
+                target_variants
+                    .iter()
+                    .find(|target| {
+                        target.name == source.name && target.payloads.len() == source.payloads.len()
+                    })
+                    .is_some_and(|target| {
+                        source
+                            .payloads
+                            .iter()
+                            .zip(&target.payloads)
+                            .all(|(source, target)| equivalent_runtime_types(source, target))
+                    })
+            })
+        }
+        (source, Type::Union(left, right)) => {
+            equivalent_runtime_types(source, left) || equivalent_runtime_types(source, right)
+        }
+        (Type::Union(left, right), target) => {
+            equivalent_runtime_types(left, target) && equivalent_runtime_types(right, target)
+        }
+        (source, Type::Intersection(left, right)) => {
+            equivalent_runtime_types(source, left) && equivalent_runtime_types(source, right)
+        }
+        (Type::Intersection(left, right), target) => {
+            equivalent_runtime_types(left, target) || equivalent_runtime_types(right, target)
+        }
         _ => false,
     }
+}
+
+fn record_field_type<'a>(fields: &'a [mono::TypeField], name: &str) -> Option<&'a mono::TypeField> {
+    fields.iter().find(|field| field.name == name)
 }
 
 pub(crate) fn value_boundary_supported(source: &Type, target: &Type) -> bool {

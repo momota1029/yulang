@@ -232,7 +232,7 @@ impl<'a> ExprTypeSolver<'a> {
                 self.plan.set_expected(callee, callee_value)?;
             }
             let (ret_ty, has_evaluation_effect) =
-                self.apply_known_function_arg(arg, arg_ty, ret_ty, callee_effect)?;
+                self.apply_known_function_arg(callee, arg, arg_ty, ret_ty, callee_effect)?;
             if has_evaluation_effect && matches!(ret_ty, Type::Thunk { .. }) {
                 self.plan.mark_raw_thunk_computation(expr);
             }
@@ -252,12 +252,14 @@ impl<'a> ExprTypeSolver<'a> {
 
     fn apply_known_function_arg(
         &mut self,
+        callee: poly_expr::ExprId,
         arg: poly_expr::ExprId,
         arg_ty: Type,
         ret_ty: Type,
         callee_effect: Type,
     ) -> Result<(Type, bool), SpecializeError> {
         let (arg_value, arg_effect) = split_runtime_computation_shape(arg_ty.clone());
+        self.constrain_callee_pattern_defaults(callee, arg_value.clone())?;
         let call_arg_effect = if arg_effect.is_pure_effect() {
             self.expr_as_call_value(arg, arg_value)?
         } else {
@@ -268,6 +270,37 @@ impl<'a> ExprTypeSolver<'a> {
             !callee_effect.is_pure_effect() || !call_arg_effect.is_pure_effect();
         let result = self.call_result_shape(ret_ty, [callee_effect, call_arg_effect])?;
         Ok((result, has_evaluation_effect))
+    }
+
+    fn constrain_callee_pattern_defaults(
+        &mut self,
+        callee: poly_expr::ExprId,
+        arg_ty: Type,
+    ) -> Result<(), SpecializeError> {
+        let Some(param) = self.callee_lambda_param(callee) else {
+            return Ok(());
+        };
+        let local_types = self.local_types.clone();
+        let result = self.constrain_pat_defaults(param, arg_ty);
+        self.local_types = local_types;
+        result
+    }
+
+    fn callee_lambda_param(&self, callee: poly_expr::ExprId) -> Option<poly_expr::PatId> {
+        let poly_expr::Expr::Var(ref_id) = self.arena.expr(callee) else {
+            return None;
+        };
+        let def = self.arena.ref_target(*ref_id)?;
+        let poly_expr::Def::Let {
+            body: Some(body), ..
+        } = self.arena.defs.get(def)?
+        else {
+            return None;
+        };
+        let poly_expr::Expr::Lambda(param, _) = self.arena.expr(*body) else {
+            return None;
+        };
+        Some(*param)
     }
 
     fn expr_as_call_value(
@@ -852,14 +885,14 @@ impl<'a> ExprTypeSolver<'a> {
 
     fn bind_record_pat(
         &mut self,
-        fields: &[(String, poly_expr::PatId)],
+        fields: &[poly_expr::RecordPatField],
         spread: &poly_expr::RecordSpread<poly_expr::DefId>,
         ty: Type,
     ) -> Result<(), SpecializeError> {
         let Type::Record(record_fields) = ty else {
-            for (_, pat) in fields {
-                let field_ty = self.fresh_value_slot();
-                self.bind_pat(*pat, field_ty)?;
+            for field in fields {
+                let field_ty = self.record_pattern_default_type(field, None)?;
+                self.bind_pat(field.pat, field_ty)?;
             }
             if let Some(def) = record_spread_def(spread) {
                 let spread_ty = self.fresh_value_slot();
@@ -868,20 +901,145 @@ impl<'a> ExprTypeSolver<'a> {
             return Ok(());
         };
 
-        for (name, pat) in fields {
-            let field_ty = record_field_type(&record_fields, name)
-                .map(|field| field.value.clone())
-                .unwrap_or_else(|| self.fresh_value_slot());
-            self.bind_pat(*pat, field_ty)?;
+        for field in fields {
+            let expected =
+                record_field_type(&record_fields, &field.name).map(|field| field.value.clone());
+            let field_ty = self.record_pattern_default_type(field, expected)?;
+            self.bind_pat(field.pat, field_ty)?;
         }
         if let Some(def) = record_spread_def(spread) {
             let captured = record_fields
                 .into_iter()
-                .filter(|field| !fields.iter().any(|(name, _)| name == &field.name))
+                .filter(|field| !fields.iter().any(|pattern| pattern.name == field.name))
                 .collect::<Vec<_>>();
             self.local_types.insert(def, Type::Record(captured));
         }
         Ok(())
+    }
+
+    fn record_pattern_default_type(
+        &mut self,
+        field: &poly_expr::RecordPatField,
+        expected: Option<Type>,
+    ) -> Result<Type, SpecializeError> {
+        let Some(default) = field.default else {
+            return Ok(expected.unwrap_or_else(|| self.fresh_value_slot()));
+        };
+        let expected = expected.unwrap_or_else(|| self.fresh_value_slot());
+        let actual = self.expr(default, Some(expected.clone()))?;
+        self.graph.constrain_subtype(actual.clone(), expected)?;
+        Ok(actual)
+    }
+
+    fn constrain_pat_defaults(
+        &mut self,
+        pat: poly_expr::PatId,
+        ty: Type,
+    ) -> Result<(), SpecializeError> {
+        use poly_expr::Pat as PolyPat;
+        match self.arena.pat(pat) {
+            PolyPat::Wild | PolyPat::Lit(_) | PolyPat::Ref(_) => {}
+            PolyPat::Var(def) => {
+                self.local_types.insert(*def, ty);
+            }
+            PolyPat::As(inner, def) => {
+                self.local_types.insert(*def, ty.clone());
+                self.constrain_pat_defaults(*inner, ty)?;
+            }
+            PolyPat::Tuple(items) => {
+                if let Type::Tuple(item_types) = ty {
+                    for (item, item_ty) in items.iter().zip(item_types) {
+                        self.constrain_pat_defaults(*item, item_ty)?;
+                    }
+                }
+            }
+            PolyPat::List {
+                prefix,
+                spread,
+                suffix,
+            } => {
+                let item_ty = list_item_type(&ty).unwrap_or_else(|| self.fresh_value_slot());
+                for item in prefix.iter().chain(suffix) {
+                    self.constrain_pat_defaults(*item, item_ty.clone())?;
+                }
+                if let Some(spread) = spread {
+                    self.constrain_pat_defaults(*spread, ty)?;
+                }
+            }
+            PolyPat::Record { fields, spread } => {
+                self.constrain_record_pat_defaults(fields, spread, ty)?;
+            }
+            PolyPat::PolyVariant(tag, payloads) => {
+                if let Type::PolyVariant(variants) = ty
+                    && let Some(variant) = variants.iter().find(|variant| {
+                        variant.name == *tag && variant.payloads.len() == payloads.len()
+                    })
+                {
+                    for (payload, payload_ty) in payloads.iter().zip(&variant.payloads) {
+                        self.constrain_pat_defaults(*payload, payload_ty.clone())?;
+                    }
+                }
+            }
+            PolyPat::Con(_, payloads) => {
+                for payload in payloads {
+                    let payload_ty = self.fresh_value_slot();
+                    self.constrain_pat_defaults(*payload, payload_ty)?;
+                }
+            }
+            PolyPat::Or(left, right) => {
+                self.constrain_pat_defaults(*left, ty.clone())?;
+                self.constrain_pat_defaults(*right, ty)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn constrain_record_pat_defaults(
+        &mut self,
+        fields: &[poly_expr::RecordPatField],
+        spread: &poly_expr::RecordSpread<poly_expr::DefId>,
+        ty: Type,
+    ) -> Result<(), SpecializeError> {
+        let Type::Record(record_fields) = ty else {
+            for field in fields {
+                let field_ty = self.fresh_value_slot();
+                self.constrain_default_expr(field.default, field_ty.clone())?;
+                self.constrain_pat_defaults(field.pat, field_ty)?;
+            }
+            if let Some(def) = record_spread_def(spread) {
+                let spread_ty = self.fresh_value_slot();
+                self.local_types.insert(def, spread_ty);
+            }
+            return Ok(());
+        };
+
+        for field in fields {
+            let field_ty = record_field_type(&record_fields, &field.name)
+                .map(|field| field.value.clone())
+                .unwrap_or_else(|| self.fresh_value_slot());
+            self.constrain_default_expr(field.default, field_ty.clone())?;
+            self.constrain_pat_defaults(field.pat, field_ty)?;
+        }
+        if let Some(def) = record_spread_def(spread) {
+            let captured = record_fields
+                .into_iter()
+                .filter(|field| !fields.iter().any(|pattern| pattern.name == field.name))
+                .collect::<Vec<_>>();
+            self.local_types.insert(def, Type::Record(captured));
+        }
+        Ok(())
+    }
+
+    fn constrain_default_expr(
+        &mut self,
+        default: Option<poly_expr::ExprId>,
+        expected: Type,
+    ) -> Result<(), SpecializeError> {
+        let Some(default) = default else {
+            return Ok(());
+        };
+        let actual = self.infer_expr(default, Some(expected.clone()))?;
+        self.constrain_expr_boundary(actual, expected)
     }
 
     fn bind_constructor_pat(
@@ -1876,6 +2034,15 @@ fn join_type_candidates(
     left: Type,
     right: Type,
 ) -> Result<Type, SpecializeError> {
+    match (&left, &right) {
+        (Type::Record(_), Type::Record(_)) => {
+            return join_record_type_candidates(graph, slot, left, right);
+        }
+        (Type::PolyVariant(_), Type::PolyVariant(_)) => {
+            return join_poly_variant_type_candidates(graph, slot, left, right);
+        }
+        _ => {}
+    }
     if type_candidates_equivalent(&left, &right) || type_candidate_subtype(graph, &right, &left) {
         return Ok(left);
     }
@@ -1900,6 +2067,15 @@ fn meet_type_candidates(
     left: Type,
     right: Type,
 ) -> Result<Type, SpecializeError> {
+    match (&left, &right) {
+        (Type::Record(_), Type::Record(_)) => {
+            return meet_record_type_candidates(graph, slot, left, right);
+        }
+        (Type::PolyVariant(_), Type::PolyVariant(_)) => {
+            return meet_poly_variant_type_candidates(graph, slot, left, right);
+        }
+        _ => {}
+    }
     if type_candidates_equivalent(&left, &right) || type_candidate_subtype(graph, &left, &right) {
         return Ok(left);
     }
@@ -1916,6 +2092,185 @@ fn meet_type_candidates(
             incoming: right,
         }),
     }
+}
+
+fn join_record_type_candidates(
+    graph: &ConstraintGraph<'_>,
+    slot: u32,
+    left: Type,
+    right: Type,
+) -> Result<Type, SpecializeError> {
+    let (Type::Record(left_fields), Type::Record(right_fields)) = (left, right) else {
+        unreachable!("record candidates checked by caller");
+    };
+    merge_record_type_candidates(graph, slot, left_fields, right_fields, RecordMerge::Join)
+        .map(Type::Record)
+}
+
+fn meet_record_type_candidates(
+    graph: &ConstraintGraph<'_>,
+    slot: u32,
+    left: Type,
+    right: Type,
+) -> Result<Type, SpecializeError> {
+    let (Type::Record(left_fields), Type::Record(right_fields)) = (left, right) else {
+        unreachable!("record candidates checked by caller");
+    };
+    merge_record_type_candidates(graph, slot, left_fields, right_fields, RecordMerge::Meet)
+        .map(Type::Record)
+}
+
+fn merge_record_type_candidates(
+    graph: &ConstraintGraph<'_>,
+    slot: u32,
+    left_fields: Vec<TypeField>,
+    right_fields: Vec<TypeField>,
+    merge: RecordMerge,
+) -> Result<Vec<TypeField>, SpecializeError> {
+    let mut out = Vec::new();
+    for left in &left_fields {
+        match record_field_type(&right_fields, &left.name) {
+            Some(right) => {
+                let value = match merge {
+                    RecordMerge::Join => {
+                        join_type_candidates(graph, slot, left.value.clone(), right.value.clone())?
+                    }
+                    RecordMerge::Meet => {
+                        meet_type_candidates(graph, slot, left.value.clone(), right.value.clone())?
+                    }
+                };
+                out.push(TypeField {
+                    name: left.name.clone(),
+                    value,
+                    optional: match merge {
+                        RecordMerge::Join => left.optional || right.optional,
+                        RecordMerge::Meet => left.optional && right.optional,
+                    },
+                });
+            }
+            None => out.push(TypeField {
+                name: left.name.clone(),
+                value: left.value.clone(),
+                optional: match merge {
+                    RecordMerge::Join => true,
+                    RecordMerge::Meet => left.optional,
+                },
+            }),
+        }
+    }
+    for right in right_fields {
+        if left_fields.iter().any(|left| left.name == right.name) {
+            continue;
+        }
+        out.push(TypeField {
+            name: right.name,
+            value: right.value,
+            optional: match merge {
+                RecordMerge::Join => true,
+                RecordMerge::Meet => right.optional,
+            },
+        });
+    }
+    Ok(out)
+}
+
+fn join_poly_variant_type_candidates(
+    graph: &ConstraintGraph<'_>,
+    slot: u32,
+    left: Type,
+    right: Type,
+) -> Result<Type, SpecializeError> {
+    let (Type::PolyVariant(left_variants), Type::PolyVariant(right_variants)) = (left, right)
+    else {
+        unreachable!("poly variant candidates checked by caller");
+    };
+    let variants = merge_poly_variant_type_candidates(
+        graph,
+        slot,
+        left_variants,
+        right_variants,
+        VariantMerge::Join,
+    )?;
+    Ok(Type::PolyVariant(variants))
+}
+
+fn meet_poly_variant_type_candidates(
+    graph: &ConstraintGraph<'_>,
+    slot: u32,
+    left: Type,
+    right: Type,
+) -> Result<Type, SpecializeError> {
+    let (Type::PolyVariant(left_variants), Type::PolyVariant(right_variants)) = (left, right)
+    else {
+        unreachable!("poly variant candidates checked by caller");
+    };
+    let variants = merge_poly_variant_type_candidates(
+        graph,
+        slot,
+        left_variants,
+        right_variants,
+        VariantMerge::Meet,
+    )?;
+    if variants.is_empty() {
+        return Ok(Type::Never);
+    }
+    Ok(Type::PolyVariant(variants))
+}
+
+fn merge_poly_variant_type_candidates(
+    graph: &ConstraintGraph<'_>,
+    slot: u32,
+    left_variants: Vec<TypeVariant>,
+    right_variants: Vec<TypeVariant>,
+    merge: VariantMerge,
+) -> Result<Vec<TypeVariant>, SpecializeError> {
+    let mut out = Vec::new();
+    for left in &left_variants {
+        match matching_variant(&right_variants, left) {
+            Some(right) => {
+                let payloads = left
+                    .payloads
+                    .iter()
+                    .cloned()
+                    .zip(right.payloads.iter().cloned())
+                    .map(|(left, right)| match merge {
+                        VariantMerge::Join => join_type_candidates(graph, slot, left, right),
+                        VariantMerge::Meet => meet_type_candidates(graph, slot, left, right),
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                out.push(TypeVariant {
+                    name: left.name.clone(),
+                    payloads,
+                });
+            }
+            None if merge == VariantMerge::Join => out.push(left.clone()),
+            None => {}
+        }
+    }
+    if merge == VariantMerge::Join {
+        for right in right_variants {
+            if left_variants
+                .iter()
+                .any(|left| variants_match(left, &right))
+            {
+                continue;
+            }
+            out.push(right);
+        }
+    }
+    Ok(out)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RecordMerge {
+    Join,
+    Meet,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VariantMerge {
+    Join,
+    Meet,
 }
 
 fn type_candidates_equivalent(left: &Type, right: &Type) -> bool {
@@ -2154,6 +2509,19 @@ fn con_path_without_args(ty: &Type) -> Option<&[String]> {
 
 fn record_field_type<'a>(fields: &'a [TypeField], name: &str) -> Option<&'a TypeField> {
     fields.iter().find(|field| field.name == name)
+}
+
+fn matching_variant<'a>(
+    variants: &'a [TypeVariant],
+    target: &TypeVariant,
+) -> Option<&'a TypeVariant> {
+    variants
+        .iter()
+        .find(|variant| variants_match(variant, target))
+}
+
+fn variants_match(left: &TypeVariant, right: &TypeVariant) -> bool {
+    left.name == right.name && left.payloads.len() == right.payloads.len()
 }
 
 fn join_record_fields(mut head: Vec<TypeField>, tail: Vec<TypeField>) -> Vec<TypeField> {

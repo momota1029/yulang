@@ -205,7 +205,7 @@ impl Specializer {
                 Box::new(self.expr(arena, plan, *value)?),
             ),
             PolyExpr::Lambda(param, body) => ExprKind::Lambda(
-                self.pat(arena, *param)?,
+                self.pat(arena, plan, *param)?,
                 Box::new(self.expr(arena, plan, *body)?),
             ),
             PolyExpr::Tuple(items) => ExprKind::Tuple(self.exprs(arena, plan, items)?),
@@ -245,7 +245,7 @@ impl Specializer {
                     .iter()
                     .map(|arm| {
                         Ok(CaseArm {
-                            pat: self.pat(arena, arm.pat)?,
+                            pat: self.pat(arena, plan, arm.pat)?,
                             guard: self.optional_expr(arena, plan, arm.guard)?,
                             body: self.expr(arena, plan, arm.body)?,
                         })
@@ -262,8 +262,8 @@ impl Specializer {
                                 .operation
                                 .as_ref()
                                 .map(|operation| operation.path.clone()),
-                            pat: self.pat(arena, arm.pat)?,
-                            continuation: self.optional_pat(arena, arm.continuation)?,
+                            pat: self.pat(arena, plan, arm.pat)?,
+                            continuation: self.optional_pat(arena, plan, arm.continuation)?,
                             guard: self.optional_expr(arena, plan, arm.guard)?,
                             body: self.expr(arena, plan, arm.body)?,
                         })
@@ -338,47 +338,59 @@ impl Specializer {
     fn pat(
         &mut self,
         arena: &poly_expr::Arena,
+        plan: &solve::ExprTypePlan,
         pat: poly_expr::PatId,
     ) -> Result<Pat, SpecializeError> {
         use poly_expr::Pat as PolyPat;
         match arena.pat(pat) {
             PolyPat::Wild => Ok(Pat::Wild),
             PolyPat::Lit(lit) => Ok(Pat::Lit(convert_lit(lit))),
-            PolyPat::Tuple(items) => Ok(Pat::Tuple(self.pats(arena, items)?)),
+            PolyPat::Tuple(items) => Ok(Pat::Tuple(self.pats(arena, plan, items)?)),
             PolyPat::List {
                 prefix,
                 spread,
                 suffix,
             } => Ok(Pat::List {
-                prefix: self.pats(arena, prefix)?,
-                spread: self.optional_pat(arena, *spread)?.map(Box::new),
-                suffix: self.pats(arena, suffix)?,
+                prefix: self.pats(arena, plan, prefix)?,
+                spread: self.optional_pat(arena, plan, *spread)?.map(Box::new),
+                suffix: self.pats(arena, plan, suffix)?,
             }),
             PolyPat::Record { fields, spread } => Ok(Pat::Record {
                 fields: fields
                     .iter()
-                    .map(|(name, pat)| Ok((name.clone(), self.pat(arena, *pat)?)))
+                    .map(|field| {
+                        Ok(mono::RecordPatField {
+                            name: field.name.clone(),
+                            pat: self.pat(arena, plan, field.pat)?,
+                            default: self.optional_expr(arena, plan, field.default)?,
+                        })
+                    })
                     .collect::<Result<Vec<_>, _>>()?,
                 spread: convert_def_spread(spread),
             }),
-            PolyPat::PolyVariant(tag, payloads) => {
-                Ok(Pat::PolyVariant(tag.clone(), self.pats(arena, payloads)?))
-            }
+            PolyPat::PolyVariant(tag, payloads) => Ok(Pat::PolyVariant(
+                tag.clone(),
+                self.pats(arena, plan, payloads)?,
+            )),
             PolyPat::Con(ref_id, payloads) => {
                 let Some(def) = arena.ref_target(*ref_id) else {
                     return Err(SpecializeError::UnresolvedRef { ref_id: ref_id.0 });
                 };
-                Ok(Pat::Con(convert_def(def), self.pats(arena, payloads)?))
+                Ok(Pat::Con(
+                    convert_def(def),
+                    self.pats(arena, plan, payloads)?,
+                ))
             }
             PolyPat::Ref(ref_id) => Ok(Pat::Ref(self.ref_instance(arena, *ref_id)?)),
             PolyPat::Var(def) => Ok(Pat::Var(convert_def(*def))),
             PolyPat::Or(left, right) => Ok(Pat::Or(
-                Box::new(self.pat(arena, *left)?),
-                Box::new(self.pat(arena, *right)?),
+                Box::new(self.pat(arena, plan, *left)?),
+                Box::new(self.pat(arena, plan, *right)?),
             )),
-            PolyPat::As(pat, def) => {
-                Ok(Pat::As(Box::new(self.pat(arena, *pat)?), convert_def(*def)))
-            }
+            PolyPat::As(pat, def) => Ok(Pat::As(
+                Box::new(self.pat(arena, plan, *pat)?),
+                convert_def(*def),
+            )),
         }
     }
 
@@ -504,9 +516,10 @@ impl Specializer {
     fn pats(
         &mut self,
         arena: &poly_expr::Arena,
+        plan: &solve::ExprTypePlan,
         pats: &[poly_expr::PatId],
     ) -> Result<Vec<Pat>, SpecializeError> {
-        pats.iter().map(|pat| self.pat(arena, *pat)).collect()
+        pats.iter().map(|pat| self.pat(arena, plan, *pat)).collect()
     }
 
     fn optional_expr(
@@ -521,9 +534,10 @@ impl Specializer {
     fn optional_pat(
         &mut self,
         arena: &poly_expr::Arena,
+        plan: &solve::ExprTypePlan,
         pat: Option<poly_expr::PatId>,
     ) -> Result<Option<Pat>, SpecializeError> {
-        pat.map(|pat| self.pat(arena, pat)).transpose()
+        pat.map(|pat| self.pat(arena, plan, pat)).transpose()
     }
 
     fn block(
@@ -554,7 +568,7 @@ impl Specializer {
             out.push(match stmt {
                 poly_expr::Stmt::Let(vis, pat, value) => {
                     let value = self.expr(arena, plan, *value)?;
-                    let pat_out = self.pat(arena, *pat)?;
+                    let pat_out = self.pat(arena, plan, *pat)?;
                     let mut defs = Vec::new();
                     collect_pattern_defs(arena, *pat, &mut defs);
                     for def in defs {
@@ -1142,8 +1156,8 @@ fn collect_pattern_defs(
             }
         }
         poly_expr::Pat::Record { fields, spread } => {
-            for (_, field) in fields {
-                collect_pattern_defs(arena, *field, out);
+            for field in fields {
+                collect_pattern_defs(arena, field.pat, out);
             }
             match spread {
                 poly_expr::RecordSpread::Head(def) | poly_expr::RecordSpread::Tail(def) => {
@@ -1230,6 +1244,43 @@ fn equivalent_boundary_types(actual: &Type, expected: &Type) -> bool {
                     .zip(expected_items)
                     .all(|(actual, expected)| equivalent_boundary_types(actual, expected))
         }
+        (Type::Record(actual_fields), Type::Record(expected_fields)) => {
+            expected_fields.iter().all(|expected| {
+                record_field_type(actual_fields, &expected.name)
+                    .map_or(expected.optional, |actual| {
+                        equivalent_boundary_types(&actual.value, &expected.value)
+                    })
+            })
+        }
+        (Type::PolyVariant(actual_variants), Type::PolyVariant(expected_variants)) => {
+            actual_variants.iter().all(|actual| {
+                expected_variants
+                    .iter()
+                    .find(|expected| {
+                        expected.name == actual.name
+                            && expected.payloads.len() == actual.payloads.len()
+                    })
+                    .is_some_and(|expected| {
+                        actual
+                            .payloads
+                            .iter()
+                            .zip(&expected.payloads)
+                            .all(|(actual, expected)| equivalent_boundary_types(actual, expected))
+                    })
+            })
+        }
+        (actual, Type::Union(left, right)) => {
+            equivalent_boundary_types(actual, left) || equivalent_boundary_types(actual, right)
+        }
+        (Type::Union(left, right), expected) => {
+            equivalent_boundary_types(left, expected) && equivalent_boundary_types(right, expected)
+        }
+        (actual, Type::Intersection(left, right)) => {
+            equivalent_boundary_types(actual, left) && equivalent_boundary_types(actual, right)
+        }
+        (Type::Intersection(left, right), expected) => {
+            equivalent_boundary_types(left, expected) || equivalent_boundary_types(right, expected)
+        }
         (Type::EffectRow(actual_items), Type::EffectRow(expected_items)) => {
             actual_items.len() == expected_items.len()
                 && actual_items
@@ -1252,6 +1303,10 @@ fn equivalent_boundary_types(actual: &Type, expected: &Type) -> bool {
         }
         _ => false,
     }
+}
+
+fn record_field_type<'a>(fields: &'a [mono::TypeField], name: &str) -> Option<&'a mono::TypeField> {
+    fields.iter().find(|field| field.name == name)
 }
 
 fn convert_vis(vis: poly_expr::Vis) -> Vis {

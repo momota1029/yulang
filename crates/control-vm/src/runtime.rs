@@ -11,7 +11,7 @@ use num_bigint::BigInt;
 use crate::boundary::{equivalent_runtime_types, function_parts, thunk_value_type};
 use crate::ir::{
     Block, CaseArm, CatchArm, DefId, Expr, ExprId, InstanceId, Pat, Program, RecordField,
-    RecordSpread, Root, SelectResolution, Stmt,
+    RecordPatField, RecordSpread, Root, SelectResolution, Stmt,
 };
 use crate::lower::{LowerError, lower};
 use crate::validate::{ValidateError, validate};
@@ -297,6 +297,12 @@ impl std::error::Error for RuntimeError {}
 
 type RuntimeResult<'a> = Result<EvalResult<'a>, RuntimeError>;
 type Continuation<'a> = Rc<dyn Fn(&mut Runtime<'a>, Value) -> RuntimeResult<'a> + 'a>;
+type BindResult<'a> = Result<BindEvalResult<'a>, RuntimeError>;
+type BindContinuation<'a> =
+    Rc<dyn Fn(&mut Runtime<'a>, bool, CapturedEnv) -> RuntimeResult<'a> + 'a>;
+type BindStep<'a> = Rc<dyn Fn(&mut Runtime<'a>, bool, CapturedEnv) -> BindResult<'a> + 'a>;
+type BindValueStep<'a> = Rc<dyn Fn(&mut Runtime<'a>, Value, CapturedEnv) -> BindResult<'a> + 'a>;
+type BindResume<'a> = Rc<dyn Fn(&mut Runtime<'a>, Value) -> BindResult<'a> + 'a>;
 
 enum EvalResult<'a> {
     Value(Value),
@@ -309,6 +315,19 @@ struct Request<'a> {
     guard_ids: Vec<GuardId>,
     payload: Value,
     resume: Continuation<'a>,
+}
+
+enum BindEvalResult<'a> {
+    Done { matched: bool, env: CapturedEnv },
+    Request(BindRequest<'a>),
+}
+
+#[derive(Clone)]
+struct BindRequest<'a> {
+    path: Vec<String>,
+    guard_ids: Vec<GuardId>,
+    payload: Value,
+    resume: BindResume<'a>,
 }
 
 struct Runtime<'a> {
@@ -701,21 +720,34 @@ impl<'a> Runtime<'a> {
         }
 
         let arm = arms[index].clone();
-        let mut arm_env = env.clone();
-        if !self.bind_pat(&arm.pat, &scrutinee, &mut arm_env)? {
-            return self.eval_case_arm(scrutinee, arms, env, index + 1);
-        }
-        let Some(guard) = arm.guard else {
-            return self.eval_expr(arm.body, &mut arm_env);
-        };
-
-        let guard_result = self.eval_expr(guard, &mut arm_env)?;
-        self.continue_with(guard_result, move |runtime, guard| match guard {
-            Value::Bool(true) => runtime.eval_expr(arm.body, &mut arm_env.clone()),
-            Value::Bool(false) => {
-                runtime.eval_case_arm(scrutinee.clone(), arms.clone(), env.clone(), index + 1)
+        let bind = self.bind_pat(arm.pat.clone(), scrutinee.clone(), env.clone())?;
+        self.continue_bind(bind, move |runtime, matched, mut arm_env| {
+            if !matched {
+                return runtime.eval_case_arm(
+                    scrutinee.clone(),
+                    arms.clone(),
+                    env.clone(),
+                    index + 1,
+                );
             }
-            value => Err(RuntimeError::NonBoolGuard { value }),
+            let Some(guard) = arm.guard else {
+                return runtime.eval_expr(arm.body, &mut arm_env);
+            };
+
+            let guard_result = runtime.eval_expr(guard, &mut arm_env)?;
+            let scrutinee_for_guard = scrutinee.clone();
+            let arms_for_guard = arms.clone();
+            let env_for_guard = env.clone();
+            runtime.continue_with(guard_result, move |runtime, guard| match guard {
+                Value::Bool(true) => runtime.eval_expr(arm.body, &mut arm_env.clone()),
+                Value::Bool(false) => runtime.eval_case_arm(
+                    scrutinee_for_guard.clone(),
+                    arms_for_guard.clone(),
+                    env_for_guard.clone(),
+                    index + 1,
+                ),
+                value => Err(RuntimeError::NonBoolGuard { value }),
+            })
         })
     }
 
@@ -767,21 +799,34 @@ impl<'a> Runtime<'a> {
             return self.handle_catch_value_arm(value, arms, env, index + 1);
         }
 
-        let mut arm_env = env.clone();
-        if !self.bind_pat(&arm.pat, &value, &mut arm_env)? {
-            return self.handle_catch_value_arm(value, arms, env, index + 1);
-        }
-        let Some(guard) = arm.guard else {
-            return self.eval_expr(arm.body, &mut arm_env);
-        };
-
-        let guard_result = self.eval_expr(guard, &mut arm_env)?;
-        self.continue_with(guard_result, move |runtime, guard| match guard {
-            Value::Bool(true) => runtime.eval_expr(arm.body, &mut arm_env.clone()),
-            Value::Bool(false) => {
-                runtime.handle_catch_value_arm(value.clone(), arms.clone(), env.clone(), index + 1)
+        let bind = self.bind_pat(arm.pat.clone(), value.clone(), env.clone())?;
+        self.continue_bind(bind, move |runtime, matched, mut arm_env| {
+            if !matched {
+                return runtime.handle_catch_value_arm(
+                    value.clone(),
+                    arms.clone(),
+                    env.clone(),
+                    index + 1,
+                );
             }
-            value => Err(RuntimeError::NonBoolGuard { value }),
+            let Some(guard) = arm.guard else {
+                return runtime.eval_expr(arm.body, &mut arm_env);
+            };
+
+            let guard_result = runtime.eval_expr(guard, &mut arm_env)?;
+            let value_for_guard = value.clone();
+            let arms_for_guard = arms.clone();
+            let env_for_guard = env.clone();
+            runtime.continue_with(guard_result, move |runtime, guard| match guard {
+                Value::Bool(true) => runtime.eval_expr(arm.body, &mut arm_env.clone()),
+                Value::Bool(false) => runtime.handle_catch_value_arm(
+                    value_for_guard.clone(),
+                    arms_for_guard.clone(),
+                    env_for_guard.clone(),
+                    index + 1,
+                ),
+                value => Err(RuntimeError::NonBoolGuard { value }),
+            })
         })
     }
 
@@ -812,30 +857,74 @@ impl<'a> Runtime<'a> {
                 return self.handle_catch_request_arm(request, arms, env, index + 1);
             }
 
-            let mut arm_env = env.clone();
-            if !self.bind_pat(&arm.pat, &request.payload, &mut arm_env)? {
-                return self.handle_catch_request_arm(request, arms, env, index + 1);
-            }
-            if let Some(continuation) = &arm.continuation {
-                let id = self.store_continuation(request.resume.clone());
-                if !self.bind_pat(continuation, &Value::Continuation(id), &mut arm_env)? {
-                    return self.handle_catch_request_arm(request, arms, env, index + 1);
+            let bind = self.bind_pat(arm.pat.clone(), request.payload.clone(), env.clone())?;
+            return self.continue_bind(bind, move |runtime, matched, arm_env| {
+                if !matched {
+                    return runtime.handle_catch_request_arm(
+                        request.clone(),
+                        arms.clone(),
+                        env.clone(),
+                        index + 1,
+                    );
                 }
-            }
-            let Some(guard) = arm.guard else {
-                return self.eval_expr(arm.body, &mut arm_env);
-            };
+                let continuation = arm.continuation.clone();
+                let guard = arm.guard;
+                let body = arm.body;
+                if let Some(continuation) = continuation {
+                    let id = runtime.store_continuation(request.resume.clone());
+                    let bind = runtime.bind_pat(continuation, Value::Continuation(id), arm_env)?;
+                    let request_for_continuation = request.clone();
+                    let arms_for_continuation = arms.clone();
+                    let env_for_continuation = env.clone();
+                    return runtime.continue_bind(bind, move |runtime, matched, mut arm_env| {
+                        if !matched {
+                            return runtime.handle_catch_request_arm(
+                                request_for_continuation.clone(),
+                                arms_for_continuation.clone(),
+                                env_for_continuation.clone(),
+                                index + 1,
+                            );
+                        }
+                        let Some(guard) = guard else {
+                            return runtime.eval_expr(body, &mut arm_env);
+                        };
 
-            let guard_result = self.eval_expr(guard, &mut arm_env)?;
-            return self.continue_with(guard_result, move |runtime, guard| match guard {
-                Value::Bool(true) => runtime.eval_expr(arm.body, &mut arm_env.clone()),
-                Value::Bool(false) => runtime.handle_catch_request_arm(
-                    request.clone(),
-                    arms.clone(),
-                    env.clone(),
-                    index + 1,
-                ),
-                value => Err(RuntimeError::NonBoolGuard { value }),
+                        let guard_result = runtime.eval_expr(guard, &mut arm_env)?;
+                        let request_for_guard = request_for_continuation.clone();
+                        let arms_for_guard = arms_for_continuation.clone();
+                        let env_for_guard = env_for_continuation.clone();
+                        runtime.continue_with(guard_result, move |runtime, guard| match guard {
+                            Value::Bool(true) => runtime.eval_expr(body, &mut arm_env.clone()),
+                            Value::Bool(false) => runtime.handle_catch_request_arm(
+                                request_for_guard.clone(),
+                                arms_for_guard.clone(),
+                                env_for_guard.clone(),
+                                index + 1,
+                            ),
+                            value => Err(RuntimeError::NonBoolGuard { value }),
+                        })
+                    });
+                }
+
+                let mut arm_env = arm_env;
+                let Some(guard) = guard else {
+                    return runtime.eval_expr(body, &mut arm_env);
+                };
+
+                let guard_result = runtime.eval_expr(guard, &mut arm_env)?;
+                let request_for_guard = request.clone();
+                let arms_for_guard = arms.clone();
+                let env_for_guard = env.clone();
+                runtime.continue_with(guard_result, move |runtime, guard| match guard {
+                    Value::Bool(true) => runtime.eval_expr(body, &mut arm_env.clone()),
+                    Value::Bool(false) => runtime.handle_catch_request_arm(
+                        request_for_guard.clone(),
+                        arms_for_guard.clone(),
+                        env_for_guard.clone(),
+                        index + 1,
+                    ),
+                    value => Err(RuntimeError::NonBoolGuard { value }),
+                })
             });
         }
 
@@ -891,11 +980,21 @@ impl<'a> Runtime<'a> {
                 let mut value_env = env.clone();
                 let result = self.eval_expr(value, &mut value_env)?;
                 self.continue_with(result, move |runtime, value| {
-                    let mut next_env = env.clone();
-                    if !runtime.bind_pat(&pat, &value, &mut next_env)? {
-                        return Err(RuntimeError::PatternMismatch);
-                    }
-                    runtime.eval_block_step(stmts.clone(), tail, next_env, index + 1, value)
+                    let bind = runtime.bind_pat(pat.clone(), value.clone(), env.clone())?;
+                    let stmts_for_bind = stmts.clone();
+                    let value_for_bind = value.clone();
+                    runtime.continue_bind(bind, move |runtime, matched, next_env| {
+                        if !matched {
+                            return Err(RuntimeError::PatternMismatch);
+                        }
+                        runtime.eval_block_step(
+                            stmts_for_bind.clone(),
+                            tail,
+                            next_env,
+                            index + 1,
+                            value_for_bind.clone(),
+                        )
+                    })
                 })
             }
             Stmt::Expr(expr) => {
@@ -970,11 +1069,14 @@ impl<'a> Runtime<'a> {
     }
 
     fn apply_closure(&mut self, closure: Closure, arg: Value) -> RuntimeResult<'a> {
-        let mut env = closure.env;
-        if !self.bind_pat(&closure.param, &arg, &mut env)? {
-            return Err(RuntimeError::PatternMismatch);
-        }
-        self.eval_expr(closure.body, &mut env)
+        let body = closure.body;
+        let bind = self.bind_pat(closure.param, arg, closure.env)?;
+        self.continue_bind(bind, move |runtime, matched, mut env| {
+            if !matched {
+                return Err(RuntimeError::PatternMismatch);
+            }
+            runtime.eval_expr(body, &mut env)
+        })
     }
 
     fn apply_adapter(&mut self, adapter: FunctionAdapter, arg: Value) -> RuntimeResult<'a> {
@@ -1142,67 +1244,54 @@ impl<'a> Runtime<'a> {
         }
     }
 
-    fn bind_pat(
-        &mut self,
-        pat: &Pat,
-        value: &Value,
-        env: &mut CapturedEnv,
-    ) -> Result<bool, RuntimeError> {
-        let (view, markers) = value_view(value);
+    fn bind_pat(&mut self, pat: Pat, value: Value, env: CapturedEnv) -> BindResult<'a> {
+        let (view, markers) = value_view(&value);
         match pat {
-            Pat::Wild => Ok(true),
-            Pat::Lit(lit) => Ok(value_equivalent(value, &Value::from(lit))),
+            Pat::Wild => bind_done(true, env),
+            Pat::Lit(lit) => bind_done(value_equivalent(&value, &Value::from(&lit)), env),
             Pat::Tuple(pats) => {
                 let Value::Tuple(values) = view else {
-                    return Ok(false);
+                    return bind_done(false, env);
                 };
                 if pats.len() != values.len() {
-                    return Ok(false);
+                    return bind_done(false, env);
                 }
-                for (pat, value) in pats.iter().zip(values) {
-                    let value = mark_value(value.clone(), &markers);
-                    if !self.bind_pat(pat, &value, env)? {
-                        return Ok(false);
-                    }
-                }
-                Ok(true)
+                let entries = pats
+                    .into_iter()
+                    .zip(values)
+                    .map(|(pat, value)| (pat, mark_value(value.clone(), &markers)))
+                    .collect();
+                self.bind_pat_sequence(entries, env)
             }
             Pat::List {
                 prefix,
                 spread,
                 suffix,
-            } => self.bind_list_pat(prefix, spread.as_deref(), suffix, view, &markers, env),
+            } => {
+                let Value::List(items) = view else {
+                    return bind_done(false, env);
+                };
+                self.bind_list_pat(
+                    prefix,
+                    spread.map(|pat| *pat),
+                    suffix,
+                    items.clone(),
+                    markers,
+                    env,
+                )
+            }
             Pat::Record { fields, spread } => {
                 let Value::Record(record_fields) = view else {
-                    return Ok(false);
+                    return bind_done(false, env);
                 };
-                let mut used = HashSet::new();
-                for (name, pat) in fields {
-                    let Some((index, field)) = find_record_field(record_fields, name) else {
-                        return Ok(false);
-                    };
-                    used.insert(index);
-                    let value = mark_value(field.value.clone(), &markers);
-                    if !self.bind_pat(pat, &value, env)? {
-                        return Ok(false);
-                    }
-                }
-                match spread {
-                    RecordSpread::None => Ok(true),
-                    RecordSpread::Head(def) | RecordSpread::Tail(def) => {
-                        let captured = record_fields
-                            .iter()
-                            .enumerate()
-                            .filter(|(index, _)| !used.contains(index))
-                            .map(|(_, field)| ValueField {
-                                name: field.name.clone(),
-                                value: mark_value(field.value.clone(), &markers),
-                            })
-                            .collect();
-                        env.locals.insert(*def, Value::Record(captured));
-                        Ok(true)
-                    }
-                }
+                self.bind_record_pat(
+                    fields,
+                    spread,
+                    record_fields.clone(),
+                    markers,
+                    HashSet::new(),
+                    env,
+                )
             }
             Pat::PolyVariant(tag, payload_pats) => {
                 let Value::PolyVariant {
@@ -1210,18 +1299,17 @@ impl<'a> Runtime<'a> {
                     payloads,
                 } = view
                 else {
-                    return Ok(false);
+                    return bind_done(false, env);
                 };
-                if tag != value_tag || payload_pats.len() != payloads.len() {
-                    return Ok(false);
+                if tag != *value_tag || payload_pats.len() != payloads.len() {
+                    return bind_done(false, env);
                 }
-                for (pat, value) in payload_pats.iter().zip(payloads) {
-                    let value = mark_value(value.clone(), &markers);
-                    if !self.bind_pat(pat, &value, env)? {
-                        return Ok(false);
-                    }
-                }
-                Ok(true)
+                let entries = payload_pats
+                    .into_iter()
+                    .zip(payloads)
+                    .map(|(pat, value)| (pat, mark_value(value.clone(), &markers)))
+                    .collect();
+                self.bind_pat_sequence(entries, env)
             }
             Pat::Con(def, payload_pats) => {
                 let Value::DataConstructor {
@@ -1229,93 +1317,236 @@ impl<'a> Runtime<'a> {
                     payloads,
                 } = view
                 else {
-                    return Ok(false);
+                    return bind_done(false, env);
                 };
-                if def != value_def || payload_pats.len() != payloads.len() {
-                    return Ok(false);
+                if def != *value_def || payload_pats.len() != payloads.len() {
+                    return bind_done(false, env);
                 }
-                for (pat, value) in payload_pats.iter().zip(payloads) {
-                    let value = mark_value(value.clone(), &markers);
-                    if !self.bind_pat(pat, &value, env)? {
-                        return Ok(false);
-                    }
-                }
-                Ok(true)
+                let entries = payload_pats
+                    .into_iter()
+                    .zip(payloads)
+                    .map(|(pat, value)| (pat, mark_value(value.clone(), &markers)))
+                    .collect();
+                self.bind_pat_sequence(entries, env)
             }
             Pat::Ref(instance) => {
-                let expected = self.eval_instance(*instance)?;
-                Ok(value_equivalent(value, &expected))
+                let expected = self.eval_instance(instance)?;
+                bind_done(value_equivalent(&value, &expected), env)
             }
             Pat::Var(def) => {
-                env.locals.insert(*def, value.clone());
-                Ok(true)
+                let mut env = env;
+                env.locals.insert(def, value);
+                bind_done(true, env)
             }
             Pat::Or(left, right) => {
-                let mut left_env = env.clone();
-                if self.bind_pat(left, value, &mut left_env)? {
-                    *env = left_env;
-                    return Ok(true);
-                }
-                self.bind_pat(right, value, env)
+                let value_for_right = value.clone();
+                let env_for_right = env.clone();
+                let right = *right;
+                let left = self.bind_pat(*left, value, env)?;
+                self.continue_bind_result(
+                    left,
+                    Rc::new(move |runtime, matched, left_env| {
+                        if matched {
+                            return bind_done(true, left_env);
+                        }
+                        runtime.bind_pat(
+                            right.clone(),
+                            value_for_right.clone(),
+                            env_for_right.clone(),
+                        )
+                    }),
+                )
             }
             Pat::As(pat, def) => {
-                if !self.bind_pat(pat, value, env)? {
-                    return Ok(false);
-                }
-                env.locals.insert(*def, value.clone());
-                Ok(true)
+                let alias_value = value.clone();
+                let bound = self.bind_pat(*pat, value, env)?;
+                self.continue_bind_result(
+                    bound,
+                    Rc::new(move |_, matched, mut env| {
+                        if !matched {
+                            return bind_done(false, env);
+                        }
+                        env.locals.insert(def, alias_value.clone());
+                        bind_done(true, env)
+                    }),
+                )
             }
         }
     }
 
     fn bind_list_pat(
         &mut self,
-        prefix: &[Pat],
-        spread: Option<&Pat>,
-        suffix: &[Pat],
-        value: &Value,
-        markers: &[ValueMarker],
-        env: &mut CapturedEnv,
-    ) -> Result<bool, RuntimeError> {
-        let Value::List(items) = value else {
-            return Ok(false);
-        };
+        prefix: Vec<Pat>,
+        spread: Option<Pat>,
+        suffix: Vec<Pat>,
+        items: ListTree<Rc<Value>>,
+        markers: Vec<ValueMarker>,
+        env: CapturedEnv,
+    ) -> BindResult<'a> {
+        let prefix_len = prefix.len();
         let min_len = prefix.len() + suffix.len();
         if items.len() < min_len || spread.is_none() && items.len() != min_len {
-            return Ok(false);
+            return bind_done(false, env);
         }
 
-        for (index, pat) in prefix.iter().enumerate() {
+        let mut entries = Vec::new();
+        for (index, pat) in prefix.into_iter().enumerate() {
             let Some(item) = items.index(index) else {
-                return Ok(false);
+                return bind_done(false, env);
             };
-            let item = mark_value((*item).clone(), markers);
-            if !self.bind_pat(pat, &item, env)? {
-                return Ok(false);
-            }
+            let item = mark_value((*item).clone(), &markers);
+            entries.push((pat, item));
         }
 
         let suffix_start = items.len() - suffix.len();
-        for (offset, pat) in suffix.iter().enumerate() {
+        for (offset, pat) in suffix.into_iter().enumerate() {
             let Some(item) = items.index(suffix_start + offset) else {
-                return Ok(false);
+                return bind_done(false, env);
             };
-            let item = mark_value((*item).clone(), markers);
-            if !self.bind_pat(pat, &item, env)? {
-                return Ok(false);
-            }
+            let item = mark_value((*item).clone(), &markers);
+            entries.push((pat, item));
         }
 
         if let Some(spread) = spread {
-            let Some(slice) = items.index_range(prefix.len(), suffix_start) else {
-                return Ok(false);
+            let Some(slice) = items.index_range(prefix_len, suffix_start) else {
+                return bind_done(false, env);
             };
-            let slice = mark_value(Value::List(slice), markers);
-            if !self.bind_pat(spread, &slice, env)? {
-                return Ok(false);
-            }
+            let slice = mark_value(Value::List(slice), &markers);
+            entries.push((spread, slice));
         }
-        Ok(true)
+        self.bind_pat_sequence(entries, env)
+    }
+
+    fn bind_pat_sequence(
+        &mut self,
+        mut entries: Vec<(Pat, Value)>,
+        env: CapturedEnv,
+    ) -> BindResult<'a> {
+        if entries.is_empty() {
+            return bind_done(true, env);
+        }
+        let (pat, value) = entries.remove(0);
+        let bound = self.bind_pat(pat, value, env)?;
+        self.continue_bind_result(
+            bound,
+            Rc::new(move |runtime, matched, env| {
+                if !matched {
+                    return bind_done(false, env);
+                }
+                runtime.bind_pat_sequence(entries.clone(), env)
+            }),
+        )
+    }
+
+    fn bind_record_pat(
+        &mut self,
+        mut fields: Vec<RecordPatField>,
+        spread: RecordSpread<DefId>,
+        record_fields: Vec<ValueField>,
+        markers: Vec<ValueMarker>,
+        used: HashSet<usize>,
+        env: CapturedEnv,
+    ) -> BindResult<'a> {
+        if fields.is_empty() {
+            return self.bind_record_spread(spread, record_fields, markers, used, env);
+        }
+
+        let RecordPatField { name, pat, default } = fields.remove(0);
+        if let Some((index, value_field)) = find_record_field(&record_fields, &name) {
+            let mut used = used;
+            used.insert(index);
+            let value = mark_value(value_field.value.clone(), &markers);
+            return self.bind_record_field_value(
+                pat,
+                value,
+                fields,
+                spread,
+                record_fields,
+                markers,
+                used,
+                env,
+            );
+        }
+
+        let Some(default) = default else {
+            return bind_done(false, env);
+        };
+
+        let mut default_env = env.clone();
+        let default = self.eval_expr(default, &mut default_env)?;
+        self.continue_value_as_bind(
+            default,
+            env,
+            Rc::new(move |runtime, value, env| {
+                let value = mark_value(value, &markers);
+                runtime.bind_record_field_value(
+                    pat.clone(),
+                    value,
+                    fields.clone(),
+                    spread.clone(),
+                    record_fields.clone(),
+                    markers.clone(),
+                    used.clone(),
+                    env,
+                )
+            }),
+        )
+    }
+
+    fn bind_record_field_value(
+        &mut self,
+        pat: Pat,
+        value: Value,
+        fields: Vec<RecordPatField>,
+        spread: RecordSpread<DefId>,
+        record_fields: Vec<ValueField>,
+        markers: Vec<ValueMarker>,
+        used: HashSet<usize>,
+        env: CapturedEnv,
+    ) -> BindResult<'a> {
+        let bound = self.bind_pat(pat, value, env)?;
+        self.continue_bind_result(
+            bound,
+            Rc::new(move |runtime, matched, env| {
+                if !matched {
+                    return bind_done(false, env);
+                }
+                runtime.bind_record_pat(
+                    fields.clone(),
+                    spread.clone(),
+                    record_fields.clone(),
+                    markers.clone(),
+                    used.clone(),
+                    env,
+                )
+            }),
+        )
+    }
+
+    fn bind_record_spread(
+        &mut self,
+        spread: RecordSpread<DefId>,
+        record_fields: Vec<ValueField>,
+        markers: Vec<ValueMarker>,
+        used: HashSet<usize>,
+        env: CapturedEnv,
+    ) -> BindResult<'a> {
+        let def = match spread {
+            RecordSpread::None => return bind_done(true, env),
+            RecordSpread::Head(def) | RecordSpread::Tail(def) => def,
+        };
+        let captured = record_fields
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| !used.contains(index))
+            .map(|(_, field)| ValueField {
+                name: field.name.clone(),
+                value: mark_value(field.value.clone(), &markers),
+            })
+            .collect();
+        let mut env = env;
+        env.locals.insert(def, Value::Record(captured));
+        bind_done(true, env)
     }
 
     fn adapt_value(&mut self, value: Value, source: &Type, target: &Type) -> RuntimeResult<'a> {
@@ -1429,6 +1660,81 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    fn continue_bind(
+        &mut self,
+        result: BindEvalResult<'a>,
+        continuation: impl Fn(&mut Runtime<'a>, bool, CapturedEnv) -> RuntimeResult<'a> + 'a,
+    ) -> RuntimeResult<'a> {
+        self.continue_bind_rc(result, Rc::new(continuation))
+    }
+
+    fn continue_bind_rc(
+        &mut self,
+        result: BindEvalResult<'a>,
+        continuation: BindContinuation<'a>,
+    ) -> RuntimeResult<'a> {
+        match result {
+            BindEvalResult::Done { matched, env } => continuation(self, matched, env),
+            BindEvalResult::Request(request) => {
+                let request_resume = request.resume.clone();
+                Ok(EvalResult::Request(Request {
+                    path: request.path,
+                    guard_ids: request.guard_ids,
+                    payload: request.payload,
+                    resume: Rc::new(move |runtime, value| {
+                        let resumed = request_resume(runtime, value)?;
+                        runtime.continue_bind_rc(resumed, continuation.clone())
+                    }),
+                }))
+            }
+        }
+    }
+
+    fn continue_bind_result(
+        &mut self,
+        result: BindEvalResult<'a>,
+        continuation: BindStep<'a>,
+    ) -> BindResult<'a> {
+        match result {
+            BindEvalResult::Done { matched, env } => continuation(self, matched, env),
+            BindEvalResult::Request(request) => {
+                let request_resume = request.resume.clone();
+                Ok(BindEvalResult::Request(BindRequest {
+                    path: request.path,
+                    guard_ids: request.guard_ids,
+                    payload: request.payload,
+                    resume: Rc::new(move |runtime, value| {
+                        let resumed = request_resume(runtime, value)?;
+                        runtime.continue_bind_result(resumed, continuation.clone())
+                    }),
+                }))
+            }
+        }
+    }
+
+    fn continue_value_as_bind(
+        &mut self,
+        result: EvalResult<'a>,
+        env: CapturedEnv,
+        continuation: BindValueStep<'a>,
+    ) -> BindResult<'a> {
+        match result {
+            EvalResult::Value(value) => continuation(self, value, env),
+            EvalResult::Request(request) => {
+                let request_resume = request.resume.clone();
+                Ok(BindEvalResult::Request(BindRequest {
+                    path: request.path,
+                    guard_ids: request.guard_ids,
+                    payload: request.payload,
+                    resume: Rc::new(move |runtime, value| {
+                        let resumed = request_resume(runtime, value)?;
+                        runtime.continue_value_as_bind(resumed, env.clone(), continuation.clone())
+                    }),
+                }))
+            }
+        }
+    }
+
     fn force_value_if_thunk(&mut self, value: Value) -> RuntimeResult<'a> {
         if value_is_thunk_like(&value) {
             return self.force_thunk(value);
@@ -1478,6 +1784,10 @@ impl<'a> Runtime<'a> {
 
 fn value_result<'a>(value: Value) -> RuntimeResult<'a> {
     Ok(EvalResult::Value(value))
+}
+
+fn bind_done<'a>(matched: bool, env: CapturedEnv) -> BindResult<'a> {
+    Ok(BindEvalResult::Done { matched, env })
 }
 
 fn constructor_value(def: DefId, arity: usize, args: Vec<Value>) -> Value {

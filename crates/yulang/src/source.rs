@@ -2439,6 +2439,54 @@ mod tests {
     }
 
     #[test]
+    fn run_control_without_std_applies_record_pattern_default() {
+        let entry = write_main(
+            "run-control-record-pattern-default",
+            "my f({x = 1}) = x\nf {}\nf {x: 2}\n",
+        );
+
+        let output = run_control_from_entry(entry).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_eq!(output.text, "run roots [1, 2]\n");
+    }
+
+    #[test]
+    fn run_control_without_std_record_pattern_default_reads_earlier_field() {
+        let entry = write_main(
+            "run-control-record-pattern-default-previous-field",
+            "my f({x = 1, y = x}) = y\nf {x: 3}\nf {}\n",
+        );
+
+        let output = run_control_from_entry(entry).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_eq!(output.text, "run roots [3, 1]\n");
+    }
+
+    #[test]
+    fn run_control_without_std_record_pattern_default_handles_effect() {
+        let entry = write_main(
+            "run-control-record-pattern-default-effect",
+            "act signal:\n\
+             \x20 our ping: () -> int\n\n\
+             my f({x = signal::ping()}): int = x\n\n\
+             catch (f {}):\n\
+             \x20 signal::ping(), _ -> 7\n\
+             \x20 value -> value\n",
+        );
+
+        let mono = run_mono_from_entry(&entry).unwrap();
+        let control = run_control_from_entry(entry).unwrap();
+
+        assert_eq!(mono.file_count, 1);
+        assert_eq!(mono.values, vec![mono_runtime::Value::Int(7)]);
+        assert_eq!(mono.text, "run roots [7]\n");
+        assert_eq!(control.file_count, 1);
+        assert_eq!(control.text, mono.text);
+    }
+
+    #[test]
     fn dump_mono_without_std_specializes_method_select_result() {
         let root = temp_root("dump-mono-method-select-result");
         let _ = fs::remove_dir_all(&root);
@@ -2717,6 +2765,27 @@ mod tests {
 
         assert_eq!(output.file_count, embedded_std_files().len() + 1);
         assert_eq!(output.text, "run roots [[1, 2, 3]]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_runs_poly_variant_list() {
+        let output =
+            run_control_from_source_text_with_embedded_std("playground.yu", "[:a, :b]\n").unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [[a, b]]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_reuses_record_default_function() {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "my f({x = 1}) = x\n[f {}, f {x: 2}]\n",
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [[1, 2]]\n");
     }
 
     #[test]

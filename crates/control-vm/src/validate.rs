@@ -338,8 +338,11 @@ impl Validator<'_> {
                 feature: "list pattern".to_string(),
             }),
             Pat::Record { fields, spread } => {
-                for (_, pat) in fields {
-                    self.validate_pat(pat)?;
+                for field in fields {
+                    self.validate_pat(&field.pat)?;
+                    if let Some(default) = field.default {
+                        self.validate_expr_ref(default)?;
+                    }
                 }
                 if let RecordSpread::Head(_) | RecordSpread::Tail(_) = spread {
                     return Ok(());

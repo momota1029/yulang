@@ -396,6 +396,13 @@ pub struct RecordField {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RecordPatField {
+    pub name: String,
+    pub pat: Pat,
+    pub default: Option<Expr>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CaseArm {
     pub pat: Pat,
     pub guard: Option<Expr>,
@@ -435,7 +442,7 @@ pub enum Pat {
         suffix: Vec<Pat>,
     },
     Record {
-        fields: Vec<(String, Pat)>,
+        fields: Vec<RecordPatField>,
         spread: RecordSpread<DefId>,
     },
     PolyVariant(String, Vec<Pat>),

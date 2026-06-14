@@ -8,8 +8,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::fmt::Write as _;
 
 use crate::expr::{
-    Arena, CaseArm, CatchArm, Def, DefId, Expr, ExprId, Lit, Pat, PatId, RecordSpread, RefId,
-    RuntimeRoot, SelectId, SelectResolution, Stmt, Vis,
+    Arena, CaseArm, CatchArm, Def, DefId, Expr, ExprId, Lit, Pat, PatId, RecordPatField,
+    RecordSpread, RefId, RuntimeRoot, SelectId, SelectResolution, Stmt, Vis,
 };
 
 mod type_format;
@@ -398,8 +398,11 @@ impl<'a> RawDumper<'a> {
                 }
             }
             Pat::Record { fields, .. } => {
-                for (_, pat) in fields {
-                    self.mark_pat(*pat);
+                for field in fields {
+                    self.mark_pat(field.pat);
+                    if let Some(default) = field.default {
+                        self.mark_expr(default);
+                    }
                 }
             }
             Pat::PolyVariant(_, payloads) | Pat::Con(_, payloads) => {
@@ -563,7 +566,17 @@ impl<'a> RawDumper<'a> {
             Pat::Record { fields, spread } => {
                 let fields = fields
                     .iter()
-                    .map(|(name, pat)| format!("{}: {}", label_name(name), self.pat_id(*pat)))
+                    .map(|field| {
+                        let default = field
+                            .default
+                            .map(|default| format!(", default: {}", self.expr_id(default)))
+                            .unwrap_or_default();
+                        format!(
+                            "{}: {}{default}",
+                            label_name(&field.name),
+                            self.pat_id(field.pat)
+                        )
+                    })
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("Record({fields}; spread: {})", self.def_spread(spread))
@@ -926,16 +939,22 @@ impl<'a> Dumper<'a> {
         format!("{{{}}}", parts.join(", "))
     }
 
-    fn record_pat(&self, fields: &[(String, PatId)], spread: &RecordSpread<DefId>) -> String {
+    fn record_pat(&self, fields: &[RecordPatField], spread: &RecordSpread<DefId>) -> String {
         let mut parts = Vec::new();
         if let RecordSpread::Head(spread) = spread {
             parts.push(format!("..{}", self.def_id(*spread)));
         }
-        parts.extend(
-            fields
-                .iter()
-                .map(|(name, pat)| format!("{}: {}", field_name(name), self.pat(*pat))),
-        );
+        parts.extend(fields.iter().map(|field| {
+            let default = field
+                .default
+                .map(|default| format!(" = {}", self.expr(default)))
+                .unwrap_or_default();
+            format!(
+                "{}: {}{default}",
+                field_name(&field.name),
+                self.pat(field.pat)
+            )
+        }));
         if let RecordSpread::Tail(spread) = spread {
             parts.push(format!("..{}", self.def_id(*spread)));
         }

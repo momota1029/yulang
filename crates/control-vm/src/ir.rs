@@ -122,6 +122,13 @@ pub struct RecordField {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RecordPatField {
+    pub name: String,
+    pub pat: Pat,
+    pub default: Option<ExprId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RecordSpread<T> {
     None,
     Head(T),
@@ -175,7 +182,7 @@ pub enum Pat {
         suffix: Vec<Pat>,
     },
     Record {
-        fields: Vec<(String, Pat)>,
+        fields: Vec<RecordPatField>,
         spread: RecordSpread<DefId>,
     },
     PolyVariant(String, Vec<Pat>),
