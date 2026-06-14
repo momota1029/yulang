@@ -1267,6 +1267,27 @@ mod tests {
     }
 
     #[test]
+    fn dump_mono_without_std_passes_argument_effect_through_pure_function() {
+        let root = temp_root("dump-mono-pure-function-argument-effect");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.yu"),
+            "act out:\n  our read: unit -> int\nmy id x = x\nid(out::read(()))\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(output.file_count, 1);
+        assert_mono_dump_contains(
+            &output,
+            "mono roots [force-thunk[thunk[[out], int] => int ! [out]]",
+        );
+        assert_mono_dump_contains(&output, "m0 = d2 : int -> int");
+    }
+
+    #[test]
     fn dump_mono_without_std_rejects_root_case_without_concrete_join() {
         let root = temp_root("dump-mono-root-case-ambiguous");
         let _ = fs::remove_dir_all(&root);
