@@ -845,6 +845,12 @@ impl<'a> ExprTypeSolver<'a> {
         let Some(def) = self.arena.ref_target(ref_id) else {
             return Err(SpecializeError::UnresolvedRef { ref_id: ref_id.0 });
         };
+        if let Some(ref_ty) = self.local_types.get(&def).cloned() {
+            self.graph
+                .constrain_subtype(ref_ty.clone(), scrutinee_ty.clone())?;
+            self.graph.constrain_subtype(scrutinee_ty, ref_ty)?;
+            return Ok(());
+        }
         match self.arena.defs.get(def) {
             Some(poly_expr::Def::Let {
                 scheme: Some(scheme),
@@ -855,14 +861,7 @@ impl<'a> ExprTypeSolver<'a> {
                     .constrain_subtype(ref_ty.clone(), scrutinee_ty.clone())?;
                 self.graph.constrain_subtype(scrutinee_ty, ref_ty)
             }
-            Some(poly_expr::Def::Arg) | Some(poly_expr::Def::Let { body: None, .. }) => {
-                if let Some(ref_ty) = self.local_types.get(&def).cloned() {
-                    self.graph
-                        .constrain_subtype(ref_ty.clone(), scrutinee_ty.clone())?;
-                    self.graph.constrain_subtype(scrutinee_ty, ref_ty)?;
-                }
-                Ok(())
-            }
+            Some(poly_expr::Def::Arg) | Some(poly_expr::Def::Let { body: None, .. }) => Ok(()),
             _ => Ok(()),
         }
     }
@@ -871,16 +870,17 @@ impl<'a> ExprTypeSolver<'a> {
         let Some(def) = self.arena.ref_target(ref_id) else {
             return Err(SpecializeError::UnresolvedRef { ref_id: ref_id.0 });
         };
+        if let Some(local_ty) = self.local_types.get(&def).cloned() {
+            return Ok(local_ty);
+        }
         match self.arena.defs.get(def) {
             Some(poly_expr::Def::Let {
                 scheme: Some(scheme),
                 ..
             }) => self.instantiate_scheme(def, scheme),
-            Some(poly_expr::Def::Arg) | Some(poly_expr::Def::Let { body: None, .. }) => Ok(self
-                .local_types
-                .get(&def)
-                .cloned()
-                .unwrap_or_else(|| self.fresh_value_slot())),
+            Some(poly_expr::Def::Arg) | Some(poly_expr::Def::Let { body: None, .. }) => {
+                Ok(self.fresh_value_slot())
+            }
             Some(poly_expr::Def::Let { scheme: None, .. }) => Err(SpecializeError::MissingScheme {
                 def: convert_def(def),
             }),

@@ -248,9 +248,6 @@ impl<'a> SchemeMaterializer<'a> {
     }
 
     fn bind_var(&mut self, var: TypeVar, ty: &Type) -> Result<(), SpecializeError> {
-        if !self.quantifiers.contains(&var) {
-            return Ok(());
-        }
         let ty = simplify_type(ty.clone());
         if let Some(existing) = self.substitution.get(&var) {
             if existing == &ty {

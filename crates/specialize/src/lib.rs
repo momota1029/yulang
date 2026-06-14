@@ -11,7 +11,7 @@ mod solve;
 mod std_types;
 mod types;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use mono::{
@@ -27,6 +27,7 @@ pub use mono;
 pub struct Specializer {
     instances: Vec<Option<Instance>>,
     instance_by_key: HashMap<InstanceKey, InstanceId>,
+    local_defs: HashSet<poly_expr::DefId>,
 }
 
 impl Specializer {
@@ -171,7 +172,7 @@ impl Specializer {
                 op: convert_primitive_op(*op),
                 context: primitive_context(arena, *op, plan.actual_type_of(expr_id)),
             },
-            PolyExpr::Var(ref_id) => self.var(arena, *ref_id, plan.actual_type_of(expr_id))?,
+            PolyExpr::Var(ref_id) => self.var(arena, *ref_id, var_instance_type(plan, expr_id))?,
             PolyExpr::App(callee, arg) => ExprKind::Apply(
                 Box::new(self.expr(arena, plan, *callee)?),
                 Box::new(self.expr(arena, plan, *arg)?),
@@ -246,10 +247,7 @@ impl Specializer {
                     })
                     .collect::<Result<Vec<_>, _>>()?,
             },
-            PolyExpr::Block(stmts, tail) => ExprKind::Block(Block {
-                stmts: self.stmts(arena, plan, stmts)?,
-                tail: self.optional_expr(arena, plan, *tail)?.map(Box::new),
-            }),
+            PolyExpr::Block(stmts, tail) => ExprKind::Block(self.block(arena, plan, stmts, *tail)?),
         };
         let mono_expr = Expr::new(kind);
         let mono_expr = if is_raw_thunk_computation {
@@ -284,6 +282,9 @@ impl Specializer {
         let Some(def) = arena.ref_target(ref_id) else {
             return Err(SpecializeError::UnresolvedRef { ref_id: ref_id.0 });
         };
+        if self.local_defs.contains(&def) {
+            return Ok(ExprKind::Local(convert_def(def)));
+        }
         match arena.defs.get(def) {
             Some(poly_expr::Def::Arg) => Ok(ExprKind::Local(convert_def(def))),
             _ if let Some(constructor) = arena.constructors.get(&def) => {
@@ -499,31 +500,59 @@ impl Specializer {
         pat.map(|pat| self.pat(arena, pat)).transpose()
     }
 
+    fn block(
+        &mut self,
+        arena: &poly_expr::Arena,
+        plan: &solve::ExprTypePlan,
+        stmts: &[poly_expr::Stmt],
+        tail: Option<poly_expr::ExprId>,
+    ) -> Result<Block, SpecializeError> {
+        let mut scoped_defs = Vec::new();
+        let stmts = self.stmts(arena, plan, stmts, &mut scoped_defs)?;
+        let tail = self.optional_expr(arena, plan, tail)?.map(Box::new);
+        for def in scoped_defs {
+            self.local_defs.remove(&def);
+        }
+        Ok(Block { stmts, tail })
+    }
+
     fn stmts(
         &mut self,
         arena: &poly_expr::Arena,
         plan: &solve::ExprTypePlan,
         stmts: &[poly_expr::Stmt],
+        scoped_defs: &mut Vec<poly_expr::DefId>,
     ) -> Result<Vec<Stmt>, SpecializeError> {
-        stmts
-            .iter()
-            .map(|stmt| match stmt {
-                poly_expr::Stmt::Let(vis, pat, value) => Ok(Stmt::Let(
-                    convert_vis(*vis),
-                    self.pat(arena, *pat)?,
-                    self.expr(arena, plan, *value)?,
-                )),
+        let mut out = Vec::with_capacity(stmts.len());
+        for stmt in stmts {
+            out.push(match stmt {
+                poly_expr::Stmt::Let(vis, pat, value) => {
+                    let value = self.expr(arena, plan, *value)?;
+                    let pat_out = self.pat(arena, *pat)?;
+                    let mut defs = Vec::new();
+                    collect_pattern_defs(arena, *pat, &mut defs);
+                    for def in defs {
+                        self.local_defs.insert(def);
+                        scoped_defs.push(def);
+                    }
+                    Stmt::Let(convert_vis(*vis), pat_out, value)
+                }
                 poly_expr::Stmt::Expr(expr) => {
                     let actual = plan.actual_type_of(*expr).cloned();
                     let expr = self.expr(arena, plan, *expr)?;
-                    Ok(Stmt::Expr(force_expr_if_thunk(actual.as_ref(), expr)))
+                    Stmt::Expr(force_expr_if_thunk(actual.as_ref(), expr))
                 }
-                poly_expr::Stmt::Module(def, body) => Ok(Stmt::Module(
-                    convert_def(*def),
-                    self.stmts(arena, plan, body)?,
-                )),
-            })
-            .collect()
+                poly_expr::Stmt::Module(def, body) => {
+                    let mut module_defs = Vec::new();
+                    let body = self.stmts(arena, plan, body, &mut module_defs)?;
+                    for def in module_defs {
+                        self.local_defs.remove(&def);
+                    }
+                    Stmt::Module(convert_def(*def), body)
+                }
+            });
+        }
+        Ok(out)
     }
 
     fn expr_spread(
@@ -1041,6 +1070,61 @@ fn method_receiver_type(plan: &solve::ExprTypePlan, base: poly_expr::ExprId) -> 
         .or_else(|| plan.actual_type_of(base).cloned())
 }
 
+fn var_instance_type(plan: &solve::ExprTypePlan, expr: poly_expr::ExprId) -> Option<&Type> {
+    plan.boundary(expr)
+        .map(|boundary| boundary.expected)
+        .or_else(|| plan.actual_type_of(expr))
+}
+
+fn collect_pattern_defs(
+    arena: &poly_expr::Arena,
+    pat: poly_expr::PatId,
+    out: &mut Vec<poly_expr::DefId>,
+) {
+    match arena.pat(pat) {
+        poly_expr::Pat::Wild | poly_expr::Pat::Lit(_) | poly_expr::Pat::Ref(_) => {}
+        poly_expr::Pat::Var(def) => out.push(*def),
+        poly_expr::Pat::As(inner, def) => {
+            collect_pattern_defs(arena, *inner, out);
+            out.push(*def);
+        }
+        poly_expr::Pat::Tuple(items)
+        | poly_expr::Pat::PolyVariant(_, items)
+        | poly_expr::Pat::Con(_, items) => {
+            for item in items {
+                collect_pattern_defs(arena, *item, out);
+            }
+        }
+        poly_expr::Pat::Or(left, right) => {
+            collect_pattern_defs(arena, *left, out);
+            collect_pattern_defs(arena, *right, out);
+        }
+        poly_expr::Pat::List {
+            prefix,
+            spread,
+            suffix,
+        } => {
+            for item in prefix.iter().chain(suffix) {
+                collect_pattern_defs(arena, *item, out);
+            }
+            if let Some(spread) = spread {
+                collect_pattern_defs(arena, *spread, out);
+            }
+        }
+        poly_expr::Pat::Record { fields, spread } => {
+            for (_, field) in fields {
+                collect_pattern_defs(arena, *field, out);
+            }
+            match spread {
+                poly_expr::RecordSpread::Head(def) | poly_expr::RecordSpread::Tail(def) => {
+                    out.push(*def)
+                }
+                poly_expr::RecordSpread::None => {}
+            }
+        }
+    }
+}
+
 fn exact_role_input_types(predicate: &types::InstantiatedRolePredicate) -> Option<Vec<Type>> {
     predicate.inputs.iter().map(exact_role_input_type).collect()
 }
@@ -1485,6 +1569,25 @@ mod tests {
                 Box::new(mono::Expr::new(ExprKind::Lit(Lit::Int(1))))
             )))
         );
+        assert_eq!(program.instances.len(), 1);
+        assert_eq!(
+            mono::dump::dump_type(&program.instances[0].signature.ty),
+            "int -> int"
+        );
+    }
+
+    #[test]
+    fn string_input_keeps_block_local_let_as_local_value() {
+        let lowering = lower_source(
+            "my f x =\n\
+             \x20 my y = x\n\
+             \x20 y\n\
+             f(1)\n",
+        );
+        let arena = &lowering.session.poly;
+
+        let program = specialize(arena).expect("block local let should specialize in context");
+
         assert_eq!(program.instances.len(), 1);
         assert_eq!(
             mono::dump::dump_type(&program.instances[0].signature.ty),

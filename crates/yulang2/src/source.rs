@@ -1506,6 +1506,21 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn dump_mono_with_std_specializes_list_display() {
+        let root = temp_root("dump-mono-std-list-display");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        symlink_repo_lib(&root);
+        fs::write(root.join("main.yu"), "[1].show\n").unwrap();
+
+        let output = dump_mono_from_entry_with_std(root.join("main.yu")).unwrap();
+
+        assert_mono_dump_contains(&output, "std::data::list::list(int) -> std::text::str::str");
+        assert_mono_dump_contains(&output, "std::data::list::list_view(int)");
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn run_mono_with_std_collects_nondet_each_list() {
         let root = temp_root("run-mono-std-nondet-each-list");
         let _ = fs::remove_dir_all(&root);

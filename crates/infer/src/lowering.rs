@@ -34,8 +34,8 @@ use crate::annotation::{
 };
 use crate::builtin_ops::{BuiltinOp, BuiltinOpSig, SigTy, resolve_builtin_op};
 use crate::compact::{
-    CompactBounds, CompactFun, CompactSimplification, CompactType, compact_role_constraint,
-    compact_type_var,
+    CompactBounds, CompactFun, CompactRoot, CompactSimplification, CompactType,
+    compact_pos_surface, compact_role_constraint, compact_type_var,
 };
 use crate::constraints::TypeLevel;
 use crate::generalize::{
@@ -1549,10 +1549,12 @@ impl BodyLowerer {
             .all(|name| explicit_associated.contains_key(name));
         let (candidate_inputs, candidate_associated, ann_solver_vars) =
             if explicit_associated_complete {
-                let (candidate_inputs, candidate_associated, _) =
+                let (candidate_inputs, candidate_associated, ann_solver_vars) =
                     self.lower_role_impl_args(&spec.inputs, &candidate_associated_anns)?;
-                let (_, _, ann_solver_vars) =
-                    self.lower_role_impl_args(&spec.inputs, &requirement_associated_anns)?;
+                let ann_solver_vars = self.lower_role_impl_associated_vars(
+                    &requirement_associated_anns,
+                    ann_solver_vars,
+                )?;
                 (candidate_inputs, candidate_associated, ann_solver_vars)
             } else {
                 self.lower_role_impl_args(&spec.inputs, &candidate_associated_anns)?
@@ -1623,6 +1625,27 @@ impl BodyLowerer {
             });
         }
         Ok((lowered_inputs, lowered_associated, lowerer.into_vars()))
+    }
+
+    fn lower_role_impl_associated_vars(
+        &mut self,
+        associated_anns: &[(String, AnnType)],
+        ann_solver_vars: FxHashMap<AnnTypeVarId, TypeVar>,
+    ) -> Result<FxHashMap<AnnTypeVarId, TypeVar>, LoweringError> {
+        if associated_anns.is_empty() {
+            return Ok(ann_solver_vars);
+        }
+        let mut lowerer = AnnConstraintLowerer::with_vars(
+            &mut self.session.infer,
+            &self.modules,
+            ann_solver_vars,
+        );
+        for (_, ann) in associated_anns {
+            lowerer
+                .lower_role_arg(ann)
+                .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+        }
+        Ok(lowerer.into_vars())
     }
 
     fn role_impl_method_requirement(
@@ -3598,7 +3621,7 @@ impl<'a> ExprLowerer<'a> {
         self.check_impl_method_requirement_concrete_type(value, signature)?;
         let seed = signature_vars_from_ann_vars(type_var_bindings, ann_solver_vars);
         let level = self.session.infer.current_level();
-        let (upper, summary_root, summary_role) = {
+        let (upper, summary_lower, summary_root, summary_role) = {
             let mut lowerer = SignatureLowerer::with_vars_at_level(
                 &mut self.session.infer,
                 self.modules,
@@ -3615,10 +3638,16 @@ impl<'a> ExprLowerer<'a> {
             let summary_upper = lowerer.alloc_neg(Neg::Var(summary_root));
             lowerer.infer.subtype(summary_lower, summary_upper);
             let summary_role = lower_impl_requirement_role_constraint(&mut lowerer, requirement)?;
-            (upper, summary_root, summary_role)
+            (upper, summary_lower, summary_root, summary_role)
         };
         let lower = self.session.infer.alloc_pos(Pos::Var(value));
         self.session.infer.subtype(lower, upper);
+        let projection = CompactRoot {
+            root: compact_pos_surface(self.session.infer.constraints().types(), summary_lower),
+            rec_vars: Vec::new(),
+        };
+        self.session
+            .register_role_impl_member_projection(self.parent, projection);
         self.register_impl_requirement_simplification(summary_root, summary_role);
         Ok(())
     }
@@ -10692,6 +10721,13 @@ mod tests {
         path.iter().map(String::as_str).eq(expected.iter().copied())
     }
 
+    fn role_arg_vars(types: &TypeArena, arg: &RoleConstraintArg) -> FxHashSet<TypeVar> {
+        let mut vars = FxHashSet::default();
+        collect_pos_id_vars(types, arg.lower, &mut vars);
+        collect_neg_id_vars(types, arg.upper, &mut vars);
+        vars
+    }
+
     #[test]
     fn struct_constructor_lowers_to_scheme() {
         let root = parse("struct Box 'a { value: 'a }\n");
@@ -13609,6 +13645,44 @@ mod tests {
         ));
         let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
         assert_eq!(rendered, "mylist 'a -> () where 'a: Display");
+    }
+
+    #[test]
+    fn role_impl_prerequisite_reuses_impl_input_type_parameter() {
+        let root = parse(concat!(
+            "pub enum mylist 'a = nil | cons('a, mylist 'a)\n",
+            "role Display 'a:\n",
+            "  our x.display: unit\n",
+            "impl (mylist 'a): Display:\n",
+            "  our xs.display = case xs:\n",
+            "    mylist::nil -> ()\n",
+            "    mylist::cons(y, _) -> y.display\n",
+        ));
+        let lower = lower_module_map(&root);
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let types = output.session.infer.constraints().types();
+        let role = vec!["Display".to_string()];
+        let candidates = output.session.role_impls.candidates(&role);
+        let candidate = candidates
+            .iter()
+            .find(|candidate| {
+                candidate.inputs.iter().any(|input| {
+                    matches!(
+                        types.pos(input.lower),
+                        Pos::Con(path, _) if path == &vec!["mylist".to_string()]
+                    )
+                })
+            })
+            .expect("mylist Display impl candidate");
+        assert_eq!(candidate.prerequisites.len(), 1);
+        assert_eq!(candidate.prerequisites[0].role, role);
+
+        let input_vars = role_arg_vars(types, &candidate.inputs[0]);
+        let prerequisite_vars = candidate.prerequisites[0].raw_vars(types);
+        assert_eq!(prerequisite_vars, input_vars);
     }
 
     #[test]
