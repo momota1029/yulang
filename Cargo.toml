@@ -2,28 +2,11 @@
 resolver = "2"
 members = [
   "crates/yulang-parser",
-  "crates/yulang",
-  "crates/yulang-sources",
-  "crates/yulang-erased-ir",
-  "crates/yulang-elaborated-ir",
-  "crates/yulang-elaborate",
   "crates/mono",
   "crates/mono-runtime",
   "crates/specialize",
   "crates/control-vm",
-  "crates/yulang-typed-ir",
-  "crates/yulang-runtime-ir",
-  "crates/yulang-runtime-types",
-  "crates/yulang-runtime-refine",
-  "crates/yulang-runtime-lower",
-  "crates/yulang-runtime-pipeline",
-  "crates/yulang-monomorphize",
-  "crates/yulang-vm",
   "crates/yulang-list-tree",
-  "crates/yulang-pipeline",
-  "crates/yulang-editor",
-  "crates/yulang-wasm",
-  "crates/yulang-infer",
   "crates/yulang-lsp",
   "crates/yulang2",
   "crates/poly",
@@ -35,9 +18,3 @@ members = [
 inherits = "release"
 debug = true
 strip = false
-
-[profile.test.package.yulang-infer]
-opt-level = 1
-
-[profile.test.package.yulang-monomorphize]
-opt-level = 1

@@ -3,7 +3,7 @@ name = "yulang-ls"
 version = "0.1.3"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "Deprecated: use `yulang server` from the `yulang` crate instead."
+description = "Compatibility language-server launcher for the current yulang2 pipeline."
 repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
 

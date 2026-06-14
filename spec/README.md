@@ -63,7 +63,8 @@
 - **不変区間・交差条件の定義** … role-system が定義元 → effect-subtractable /
   invariant-sandwich が参照
 - **role 関連型の再帰解決ループ** … role-system が正 ← method-selection が参照
-- **sandwich** … invariant-sandwich → 実装 `crates/yulang-infer/src/simplify/{compact,sandwich}.rs`
+- **sandwich** … invariant-sandwich → 現行実装 `crates/infer/src/compact.rs` と
+  `crates/infer/src/compact/*`。旧実装は `archive/crates/yulang-infer/src/simplify/*` に退避済み。
 - **role 引数の中心表示** … role-system → 実装 `crates/poly/src/dump/type_format.rs`
 
 ## 注意：`notes/design/` の同名旧版

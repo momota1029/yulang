@@ -12,6 +12,11 @@ It complements two other documents:
 - [docs/native-experimental-release.md](native-experimental-release.md) —
   release-gate notes for the archived opt-in native subset.
 
+Archive split note: on 2026-06-14 the old `yulang` implementation was moved
+to `archive/crates/` and removed from the Cargo workspace. The active CLI is
+`yulang2`; archived playground/native columns are historical reference points,
+not build guarantees for the current workspace.
+
 ## Legend
 
 | Symbol | Meaning |
@@ -27,9 +32,10 @@ The columns trace a value through the pipeline:
 - **Parse** — accepted by `yulang-parser`.
 - **Infer** — accepted by the type inference engine and produces a principal
   type.
-- **Interpreter** — runs on the interpreter (the semantic oracle for everything
-  else).
-- **Playground** — exercised through the WebAssembly playground.
+- **Runtime** — runs through the current `yulang2` runtime path where checked
+  (`mono-runtime` oracle or `control-vm`).
+- **Archived playground** — historical WebAssembly playground coverage from
+  the old `yulang-wasm` path. It is outside the active workspace now.
 - **Archived native** — historical Cranelift/MMTk support from the old native
   backend. The implementation was moved out of the active workspace to the
   local archive described in [docs/native-backend.md](native-backend.md), and
@@ -40,7 +46,7 @@ The columns trace a value through the pipeline:
 
 ### Core expressions and bindings
 
-| Feature                              | Parse | Infer | Interpreter | Playground | Archived Native | Docs |
+| Feature                              | Parse | Infer | Runtime | Archived Playground | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `int` / `float` / `bool` / `unit` / `str` literals | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | String concatenation                 |  ✅   |  ✅   |   ✅   |     ✅     |   ✅   |  ✅  |
@@ -53,7 +59,7 @@ The columns trace a value through the pipeline:
 
 ### Types and dispatch
 
-| Feature                              | Parse | Infer | Interpreter | Playground | Archived Native | Docs |
+| Feature                              | Parse | Infer | Runtime | Archived Playground | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | Simple-Sub style inference + subtyping | ✅ | ✅  |   –    |     –      |   –    |  ✅  |
 | `let` polymorphism (SCC based)       |  ✅   |  ✅   |   –    |     –      |   –    |  ✅  |
@@ -66,7 +72,7 @@ The columns trace a value through the pipeline:
 
 ### Control flow
 
-| Feature                              | Parse | Infer | Interpreter | Playground | Archived Native | Docs |
+| Feature                              | Parse | Infer | Runtime | Archived Playground | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `sub:` / `return` early exit         |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 | `for` / `last` / `next` / `redo`     |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
@@ -75,7 +81,7 @@ The columns trace a value through the pipeline:
 
 ### Effects
 
-| Feature                              | Parse | Infer | Interpreter | Playground | Archived Native | Docs |
+| Feature                              | Parse | Infer | Runtime | Archived Playground | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | Effect declarations and operations   |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 | Algebraic handlers (`catch expr:`)   |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
@@ -86,7 +92,7 @@ The columns trace a value through the pipeline:
 
 ### Library and host
 
-| Feature                              | Parse | Infer | Interpreter | Playground | Archived Native | Docs |
+| Feature                              | Parse | Infer | Runtime | Archived Playground | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `lib/std` prelude (numeric, list, str) | ✅  |  ✅   |   ✅   |     ✅     |   △    |  △   |
 | `console::*` host effects            |  ✅   |  ✅   |   ✅   |     △      |   △    |  △   |
@@ -98,7 +104,7 @@ The columns trace a value through the pipeline:
 
 ### Research / preview surface
 
-| Feature                              | Parse | Infer | Interpreter | Playground | Archived Native | Docs |
+| Feature                              | Parse | Infer | Runtime | Archived Playground | Archived Native | Docs |
 | ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `rule { … }` parser DSL              |  ✅   |  ⚠️   |   ❌   |     ❌     |   ❌   |  ⚠️  |
 | `~"..."` mark / capture syntax       |  ✅   |  ⚠️   |   ❌   |     ❌     |   ❌   |  ⚠️  |
@@ -106,9 +112,9 @@ The columns trace a value through the pipeline:
 
 ## Known limitations
 
-- The old native backend implementation is archived outside the active
-  workspace. The active CLI does not expose native execution; the VM/control-VM
-  path is the execution surface.
+- The old native backend and WebAssembly playground implementation are
+  archived outside the active workspace. The active CLI does not expose native
+  execution; the mono-runtime/control-VM path is the execution surface.
 - The error vocabulary (`error E:`, `Throw` role with associated `throws`
   effect, `fail`, `wrap`, `up`, named catch) is settled at the design level
   and lands across the pipeline. The `from`-based aggregation path and the
@@ -134,8 +140,7 @@ The columns trace a value through the pipeline:
 
 If you hit a behavior that is not on this matrix, or one that is marked ✅
 but does not work in your case, that is useful to know. The intended path
-is to capture a small reproducible Yulang snippet (the playground is fine)
-and either:
+is to capture a small reproducible Yulang snippet and either:
 
 - Open a GitHub issue with the snippet and the inferred / runtime output.
 - Drop it under `notes/diagnostics/` as a dated bad-snippet note.
