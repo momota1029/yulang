@@ -8,6 +8,7 @@
 mod hygiene;
 mod roles;
 mod solve;
+mod std_types;
 mod types;
 
 use std::collections::HashMap;
@@ -404,14 +405,13 @@ impl Specializer {
         member: poly_expr::DefId,
     ) -> Result<InstanceId, SpecializeError> {
         let receiver =
-            plan.actual_type_of(base)
-                .cloned()
-                .ok_or(SpecializeError::MissingExprType {
-                    expr: base.0,
-                    role: ExprTypeRole::Actual,
-                })?;
+            method_receiver_type(plan, base).ok_or(SpecializeError::MissingExprType {
+                expr: base.0,
+                role: ExprTypeRole::Actual,
+            })?;
         let expected = method_instance_expected_type(plan, base, select);
         let Some(poly_expr::Def::Let {
+            body,
             scheme: Some(scheme),
             ..
         }) = arena.defs.get(member)
@@ -423,6 +423,7 @@ impl Specializer {
         let predicates =
             types::role_predicates_for_scheme_signature(arena, member, scheme, expected.as_ref())?;
         let mut implementations = Vec::new();
+        let mut matched_candidate_count = 0usize;
         for predicate in &predicates {
             let Some(input_types) = exact_role_input_types(predicate) else {
                 continue;
@@ -433,6 +434,7 @@ impl Specializer {
                 {
                     continue;
                 }
+                matched_candidate_count += 1;
                 for method in &candidate.methods {
                     if method.requirement == member
                         && !implementations.contains(&method.implementation)
@@ -445,6 +447,9 @@ impl Specializer {
 
         match implementations.as_slice() {
             [implementation] => self.ensure_def_instance(arena, *implementation, expected.as_ref()),
+            [] if body.is_some() && matched_candidate_count > 0 => {
+                self.ensure_def_instance(arena, member, expected.as_ref())
+            }
             [] => Err(SpecializeError::UnresolvedTypeclassMethod {
                 member: convert_def(member),
                 receiver,
@@ -853,7 +858,7 @@ fn lit_type(lit: &poly_expr::Lit) -> Type {
     let name = match lit {
         poly_expr::Lit::Int(_) | poly_expr::Lit::BigInt(_) => "int",
         poly_expr::Lit::Float(_) => "float",
-        poly_expr::Lit::Str(_) => "str",
+        poly_expr::Lit::Str(_) => return std_types::str_type(),
         poly_expr::Lit::Bool(_) => "bool",
         poly_expr::Lit::Unit => "unit",
     };
@@ -1025,9 +1030,15 @@ fn method_instance_expected_type(
     base: poly_expr::ExprId,
     select: poly_expr::ExprId,
 ) -> Option<Type> {
-    let receiver = plan.actual_type_of(base)?.clone();
+    let receiver = method_receiver_type(plan, base)?;
     let result = plan.actual_type_of(select)?.clone();
     Some(types::pure_function_type(receiver, result))
+}
+
+fn method_receiver_type(plan: &solve::ExprTypePlan, base: poly_expr::ExprId) -> Option<Type> {
+    plan.boundary(base)
+        .map(|boundary| boundary.expected.clone())
+        .or_else(|| plan.actual_type_of(base).cloned())
 }
 
 fn exact_role_input_types(predicate: &types::InstantiatedRolePredicate) -> Option<Vec<Type>> {

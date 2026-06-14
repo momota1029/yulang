@@ -8,7 +8,9 @@ use std::collections::{HashMap, HashSet};
 use mono::{Type, TypeField, TypeVariant};
 use poly::expr as poly_expr;
 
-use crate::{ExprTypeRole, SpecializeError, convert_def, def_kind, lit_type, roles, types};
+use crate::{
+    ExprTypeRole, SpecializeError, convert_def, def_kind, lit_type, roles, std_types, types,
+};
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ExprTypePlan {
@@ -960,12 +962,12 @@ impl<'a> ExprTypeSolver<'a> {
             PrimitiveOp::ListIndexRange => {
                 let item = self.fresh_value_slot();
                 let list = list_type(item);
-                function_type(vec![list.clone(), con_type("range")], list)
+                function_type(vec![list.clone(), range_type()], list)
             }
             PrimitiveOp::ListSplice => {
                 let item = self.fresh_value_slot();
                 let list = list_type(item);
-                function_type(vec![list.clone(), con_type("range"), list.clone()], list)
+                function_type(vec![list.clone(), range_type(), list.clone()], list)
             }
             PrimitiveOp::ListIndexRangeRaw => {
                 let item = self.fresh_value_slot();
@@ -989,10 +991,10 @@ impl<'a> ExprTypeSolver<'a> {
             }
             PrimitiveOp::StringIndex => function_type(vec![str_type(), int_type()], char_type()),
             PrimitiveOp::StringIndexRange => {
-                function_type(vec![str_type(), con_type("range")], str_type())
+                function_type(vec![str_type(), range_type()], str_type())
             }
             PrimitiveOp::StringSplice => {
-                function_type(vec![str_type(), con_type("range"), str_type()], str_type())
+                function_type(vec![str_type(), range_type(), str_type()], str_type())
             }
             PrimitiveOp::StringIndexRangeRaw => {
                 function_type(vec![str_type(), int_type(), int_type()], str_type())
@@ -1002,7 +1004,7 @@ impl<'a> ExprTypeSolver<'a> {
                 str_type(),
             ),
             PrimitiveOp::StringLineRange => {
-                function_type(vec![str_type(), int_type()], con_type("range"))
+                function_type(vec![str_type(), int_type()], range_type())
             }
             PrimitiveOp::IntAdd
             | PrimitiveOp::IntSub
@@ -1025,27 +1027,24 @@ impl<'a> ExprTypeSolver<'a> {
             | PrimitiveOp::FloatGe => binary_type(float_type(), bool_type()),
             PrimitiveOp::StringEq => binary_type(str_type(), bool_type()),
             PrimitiveOp::StringConcat => binary_type(str_type(), str_type()),
-            PrimitiveOp::StringToBytes => unary_type(str_type(), con_type("bytes")),
+            PrimitiveOp::StringToBytes => unary_type(str_type(), bytes_type()),
             PrimitiveOp::CharEq => binary_type(char_type(), bool_type()),
             PrimitiveOp::CharToString => unary_type(char_type(), str_type()),
             PrimitiveOp::CharIsWhitespace
             | PrimitiveOp::CharIsPunctuation
             | PrimitiveOp::CharIsWord => unary_type(char_type(), bool_type()),
-            PrimitiveOp::BytesLen => unary_type(con_type("bytes"), int_type()),
-            PrimitiveOp::BytesEq => binary_type(con_type("bytes"), bool_type()),
-            PrimitiveOp::BytesConcat => binary_type(con_type("bytes"), con_type("bytes")),
-            PrimitiveOp::BytesIndex => {
-                function_type(vec![con_type("bytes"), int_type()], int_type())
+            PrimitiveOp::BytesLen => unary_type(bytes_type(), int_type()),
+            PrimitiveOp::BytesEq => binary_type(bytes_type(), bool_type()),
+            PrimitiveOp::BytesConcat => binary_type(bytes_type(), bytes_type()),
+            PrimitiveOp::BytesIndex => function_type(vec![bytes_type(), int_type()], int_type()),
+            PrimitiveOp::BytesIndexRange => {
+                function_type(vec![bytes_type(), range_type()], bytes_type())
             }
-            PrimitiveOp::BytesIndexRange => function_type(
-                vec![con_type("bytes"), con_type("range")],
-                con_type("bytes"),
-            ),
             PrimitiveOp::BytesToUtf8Raw => {
-                unary_type(con_type("bytes"), Type::Tuple(vec![str_type(), int_type()]))
+                unary_type(bytes_type(), Type::Tuple(vec![str_type(), int_type()]))
             }
-            PrimitiveOp::BytesToPath => unary_type(con_type("bytes"), con_type("path")),
-            PrimitiveOp::PathToBytes => unary_type(con_type("path"), con_type("bytes")),
+            PrimitiveOp::BytesToPath => unary_type(bytes_type(), path_type()),
+            PrimitiveOp::PathToBytes => unary_type(path_type(), bytes_type()),
             PrimitiveOp::IntToString | PrimitiveOp::IntToHex | PrimitiveOp::IntToUpperHex => {
                 unary_type(int_type(), str_type())
             }
@@ -2088,7 +2087,7 @@ fn primitive_spine_arg_type(
         | (PrimitiveOp::ListSplice, 0 | 2)
         | (PrimitiveOp::ListIndexRangeRaw, 0)
         | (PrimitiveOp::ListSpliceRaw, 0 | 3) => list,
-        (PrimitiveOp::ListIndexRange, 1) | (PrimitiveOp::ListSplice, 1) => Some(con_type("range")),
+        (PrimitiveOp::ListIndexRange, 1) | (PrimitiveOp::ListSplice, 1) => Some(range_type()),
         (PrimitiveOp::ListIndexRangeRaw, 1 | 2) | (PrimitiveOp::ListSpliceRaw, 1 | 2) => {
             Some(int_type())
         }
@@ -2193,25 +2192,31 @@ fn bool_type() -> Type {
 }
 
 fn str_type() -> Type {
-    con_type("str")
+    std_types::str_type()
 }
 
 fn char_type() -> Type {
-    con_type("char")
+    std_types::char_type()
 }
 
 fn list_type(item: Type) -> Type {
-    Type::Con {
-        path: vec!["list".to_string()],
-        args: vec![item],
-    }
+    std_types::list_type(item)
 }
 
 fn list_view_type(item: Type) -> Type {
-    Type::Con {
-        path: vec!["list_view".to_string()],
-        args: vec![item],
-    }
+    std_types::list_view_type(item)
+}
+
+fn bytes_type() -> Type {
+    std_types::bytes_type()
+}
+
+fn path_type() -> Type {
+    std_types::path_type()
+}
+
+fn range_type() -> Type {
+    std_types::range_type()
 }
 
 #[cfg(test)]
