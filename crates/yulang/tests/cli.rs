@@ -262,6 +262,7 @@ fn compatible_build_populates_control_vm_cache_unless_disabled() {
     assert_success(&output);
     assert_eq!(stdout(&output), format!("build: {}\n", artifact.display()));
     assert_eq!(control_cache_file_count(&cache_root), 1);
+    assert_eq!(poly_cache_file_count(&cache_root), 1);
 
     let disabled_cache_root = root.join("disabled-cache");
     let disabled_artifact = root.join("disabled.yuir");
@@ -278,6 +279,7 @@ fn compatible_build_populates_control_vm_cache_unless_disabled() {
 
     assert_success(&output);
     assert_eq!(control_cache_file_count(&disabled_cache_root), 0);
+    assert_eq!(poly_cache_file_count(&disabled_cache_root), 0);
 
     let _ = fs::remove_dir_all(&root);
 }
@@ -300,6 +302,7 @@ fn compatible_run_populates_control_vm_cache() {
     assert_success(&output);
     assert_eq!(stdout(&output), "run roots [1]\n");
     assert_eq!(control_cache_file_count(&cache_root), 1);
+    assert_eq!(poly_cache_file_count(&cache_root), 1);
 
     let _ = fs::remove_dir_all(&root);
 }
@@ -384,7 +387,15 @@ fn temp_root(name: &str) -> PathBuf {
 }
 
 fn control_cache_file_count(root: &Path) -> usize {
-    let dir = root.join("artifacts").join("control-vm");
+    artifact_cache_file_count(root, "control-vm")
+}
+
+fn poly_cache_file_count(root: &Path) -> usize {
+    artifact_cache_file_count(root, "poly")
+}
+
+fn artifact_cache_file_count(root: &Path, stage: &str) -> usize {
+    let dir = root.join("artifacts").join(stage);
     match fs::read_dir(dir) {
         Ok(entries) => entries
             .map(|entry| entry.unwrap().path())

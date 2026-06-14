@@ -1,5 +1,6 @@
 use num_bigint::BigInt;
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 
 use crate::roles::RoleImplTable;
 use crate::types::{Scheme, SubtractId, TypeArena, TypeIds, TypeVar};
@@ -13,6 +14,7 @@ use crate::types::{Scheme, SubtractId, TypeArena, TypeIds, TypeVar};
 /// 型推論中に増える一時情報はここへ入れない。式の一時型、RefId の use-site 型、
 /// selection の receiver 型、SCC の open component は `infer` crate 側で管理する。
 /// `poly` に残すのは、最終的に IR として意味を持つ本体と解決結果だけ。
+#[derive(Serialize, Deserialize)]
 pub struct Arena {
     /// トップレベル定義の並び（旧 top を一本化）。
     pub roots: Vec<DefId>,
@@ -64,7 +66,7 @@ pub struct Arena {
     pub typ: TypeArena,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct CastRule {
     pub def: DefId,
     pub source: Vec<String>,
@@ -72,12 +74,12 @@ pub struct CastRule {
     pub scheme: Scheme,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct EffectOperation {
     pub path: Vec<String>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Constructor {
     pub owner_path: Vec<String>,
     pub name: String,
@@ -87,6 +89,7 @@ pub struct Constructor {
 /// block 内に現れる文の構造。
 ///
 /// ここには構文上の順序と子 node への ID だけを残す。名前解決の作業状態や型情報は持たせない。
+#[derive(Serialize, Deserialize)]
 pub enum Stmt {
     Let(Vis, PatId, ExprId),
     Expr(ExprId),
@@ -175,37 +178,37 @@ impl Arena {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RuntimeRoot {
     Expr(ExprId),
     ComputedDef(DefId),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// 定義を指す Arena-local ID。
 ///
 /// `DefId` は symbol の安定名ではなく、この Arena の中で採番された作業 ID。
 /// cache や外部表現では、最終的に scheme や path 側の情報へ写す。
 pub struct DefId(pub u32);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// 参照 use-site を指す Arena-local ID。
 ///
 /// `RefId -> DefId` の解決結果は `Arena::refs` に置く。use-site の parent や型は
 /// 推論中の情報なので `infer::uses::RefUseTable` に置く。
 pub struct RefId(pub u32);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// field / method selection の use-site を指す Arena-local ID。
 ///
 /// `Expr::Select` は文字列名を直接持たず `SelectId` を持つ。こうしておくと、
 /// 型制約から method が解けたあとに、同じ site へ解決結果を書き戻せる。
 pub struct SelectId(pub u32);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// 式 node を指す Arena-local ID。
 ///
 /// 式には永続的な型を持たせない。lowering 中の型は `infer::typing::Computation` で
 /// 引き回し、必要なところだけ DefId / RefId に残す。
 pub struct ExprId(pub u32);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// pattern node を指す Arena-local ID。
 ///
 /// pattern も式と同じく永続的な型 table を持たない。束縛が生まれる場所だけ
@@ -217,6 +220,7 @@ pub struct PatId(pub u32);
 /// `fresh` で DefId を採番し、`set` で登録し直す。in-place な mut borrow を避け、
 /// 親子・エイリアスを読みながら新しい `Def` を組み立てて登録できるようにするため。
 /// コストは clone だが、Def は疎なのでここでは許容する。
+#[derive(Serialize, Deserialize)]
 pub struct DefArena {
     map: FxHashMap<DefId, Def>,
     next: u32,
@@ -265,6 +269,7 @@ impl DefArena {
 /// 「型だけ別 table」「body だけ別 table」を探し回らないため。
 ///
 /// `scheme: None` は未推論を表す。型が曖昧だから `Any` に逃がすための場所ではない。
+#[derive(Serialize, Deserialize)]
 pub enum Def {
     Mod {
         vis: Vis,
@@ -278,7 +283,7 @@ pub enum Def {
     },
     Arg,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 /// Yulang の visibility。
 ///
 /// 省略時は `Our`。`poly` はこの区別を保持するだけで、公開範囲の閉包計算や import 解決は
@@ -294,6 +299,7 @@ pub enum Vis {
 /// ここに入るのは、構文を Arena ID で結んだ構造と、名前解決・selection 解決に必要な site ID。
 /// 式ごとの型や effect は保持しない。式型は lowering 中の `Computation` と制約から扱い、
 /// 最終的に DefId / RefId / scheme へ必要な分だけ残す。
+#[derive(Serialize, Deserialize)]
 pub enum Expr {
     Lit(Lit),
     PrimitiveOp(PrimitiveOp),
@@ -317,6 +323,7 @@ pub enum Expr {
 ///
 /// guard は pattern が match した後に、その pattern が束縛した local を見ながら評価される。
 /// body へ潰すと「guard が false なら次の arm を試す」という意味を失うため、IR に分けて残す。
+#[derive(Serialize, Deserialize)]
 pub struct CaseArm {
     pub pat: PatId,
     pub guard: Option<ExprId>,
@@ -326,6 +333,7 @@ pub struct CaseArm {
 /// `catch` の arm。
 ///
 /// effect arm は `continuation` を持ち、value arm は持たない。guard はどちらにも付けられる。
+#[derive(Serialize, Deserialize)]
 pub struct CatchArm {
     pub operation: Option<CatchOperation>,
     pub pat: PatId,
@@ -339,6 +347,7 @@ pub struct CatchArm {
 /// `path` は runtime handler が effect request と照合する exact path である。
 /// `def` は operation 宣言が解決できた場合だけ入り、後段が payload / continuation の
 /// mono 型を通常の scheme 経由で読むために使う。
+#[derive(Serialize, Deserialize)]
 pub struct CatchOperation {
     pub path: Vec<String>,
     pub def: Option<DefId>,
@@ -348,7 +357,7 @@ pub struct CatchOperation {
 ///
 /// std source の `builtin_op::...` はこの enum に解決される。`poly` は typed/runtime IR に
 /// 依存しないため、variant 名だけを同じにして後段で変換する。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PrimitiveOp {
     YadaYada,
     BoolNot,
@@ -413,7 +422,7 @@ pub enum PrimitiveOp {
     BoolToString,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 /// selection site の本体。
 ///
 /// `name` は surface に書かれた field / method 名。`resolution` は型制約や名前解決の進行で
@@ -424,7 +433,7 @@ pub struct Select {
     pub resolution: Option<SelectResolution>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 /// selection site の解決結果。
 ///
 /// record field は SCC 依存を作らない。method / typeclass method は hidden use として
@@ -436,6 +445,7 @@ pub enum SelectResolution {
 }
 
 /// literal。型推論は literal の形から制約を作るが、ここには推論結果を残さない。
+#[derive(Serialize, Deserialize)]
 pub enum Lit {
     Int(i64),
     BigInt(BigInt),
@@ -448,6 +458,7 @@ pub enum Lit {
 /// record spread の位置を明示するための共通 enum。
 ///
 /// head / tail spread は構文上の向きが意味を持つため、単なる `Option` ではなく形を分ける。
+#[derive(Serialize, Deserialize)]
 pub enum RecordSpread<Id> {
     Head(Id),
     Tail(Id),
@@ -458,6 +469,7 @@ pub enum RecordSpread<Id> {
 ///
 /// pattern 自体へ型は付けない。変数束縛や constructor 参照など、後段で意味を持つ点だけ
 /// `DefId` / `RefId` として残す。
+#[derive(Serialize, Deserialize)]
 pub enum Pat {
     Wild,
     Lit(Lit),

@@ -342,8 +342,8 @@ fn build_control_with_optional_cache(
         return run_route_to_value(yulang::build_control_from_collected_sources(files));
     }
 
-    let key = yulang::cache::control_cache_key(&files);
-    let cache = yulang::cache::ControlArtifactCache::new(yulang::stdlib::default_user_cache_root());
+    let key = yulang::cache::source_cache_key(&files);
+    let cache = yulang::cache::ArtifactCache::new(yulang::stdlib::default_user_cache_root());
     match cache.read_control_artifact(key) {
         Ok(Some(cached)) => {
             return yulang::BuildControlOutput {
@@ -356,7 +356,34 @@ fn build_control_with_optional_cache(
         Err(error) => eprintln!("warning: {error}"),
     }
 
-    let output = run_route_to_value(yulang::build_control_from_collected_sources(files));
+    let poly = match cache.read_poly_artifact(key) {
+        Ok(Some(cached)) => yulang::BuildPolyOutput {
+            arena: cached.arena,
+            file_count: cached.file_count,
+            errors: cached.errors,
+        },
+        Ok(None) => {
+            let output = run_route_to_value(yulang::build_poly_from_collected_sources(files));
+            let artifact = yulang::cache::CachedPolyArtifact {
+                arena: output.arena,
+                file_count: output.file_count,
+                errors: output.errors,
+            };
+            if let Err(error) = cache.write_poly_artifact(key, &artifact) {
+                eprintln!("warning: {error}");
+            }
+            yulang::BuildPolyOutput {
+                arena: artifact.arena,
+                file_count: artifact.file_count,
+                errors: artifact.errors,
+            }
+        }
+        Err(error) => {
+            eprintln!("warning: {error}");
+            run_route_to_value(yulang::build_poly_from_collected_sources(files))
+        }
+    };
+    let output = run_route_to_value(yulang::build_control_from_poly_output(&poly));
     let artifact = yulang::cache::CachedControlArtifact {
         program: output.program.clone(),
         file_count: output.file_count,

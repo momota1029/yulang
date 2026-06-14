@@ -9,21 +9,23 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::source::CollectedSource;
 
-const CONTROL_CACHE_FORMAT: u32 = 1;
-const CONTROL_CACHE_SALT: &[u8] = b"yulang/control-vm-cache/v1";
+const POLY_CACHE_FORMAT: u32 = 1;
+const CONTROL_CACHE_FORMAT: u32 = 2;
+const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v1";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ControlArtifactCache {
+pub struct ArtifactCache {
     root: PathBuf,
 }
 
-impl ControlArtifactCache {
+impl ArtifactCache {
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
     }
@@ -32,29 +34,58 @@ impl ControlArtifactCache {
         &self.root
     }
 
-    pub fn control_artifact_path(&self, key: ControlCacheKey) -> PathBuf {
-        self.control_artifact_dir()
-            .join(format!("{}.json", key.to_hex()))
+    pub fn poly_artifact_path(&self, key: SourceCacheKey) -> PathBuf {
+        self.artifact_dir("poly")
+            .join(format!("{}.yuir", key.to_hex()))
+    }
+
+    pub fn control_artifact_path(&self, key: SourceCacheKey) -> PathBuf {
+        self.artifact_dir("control-vm")
+            .join(format!("{}.yuvm", key.to_hex()))
+    }
+
+    pub fn read_poly_artifact(
+        &self,
+        key: SourceCacheKey,
+    ) -> Result<Option<CachedPolyArtifact>, CacheError> {
+        let path = self.poly_artifact_path(key);
+        let Some(envelope): Option<PolyCacheEnvelope> =
+            read_cache_envelope(&path, POLY_CACHE_FORMAT)?
+        else {
+            return Ok(None);
+        };
+        Ok(Some(CachedPolyArtifact {
+            arena: envelope.arena,
+            file_count: envelope.file_count,
+            errors: envelope.errors,
+        }))
+    }
+
+    pub fn write_poly_artifact(
+        &self,
+        key: SourceCacheKey,
+        artifact: &CachedPolyArtifact,
+    ) -> Result<(), CacheError> {
+        let path = self.poly_artifact_path(key);
+        let envelope = PolyCacheEnvelope {
+            format: POLY_CACHE_FORMAT,
+            arena: &artifact.arena,
+            file_count: artifact.file_count,
+            errors: &artifact.errors,
+        };
+        write_cache_envelope(&path, "yuir", &envelope)
     }
 
     pub fn read_control_artifact(
         &self,
-        key: ControlCacheKey,
+        key: SourceCacheKey,
     ) -> Result<Option<CachedControlArtifact>, CacheError> {
         let path = self.control_artifact_path(key);
-        let source = match fs::read_to_string(&path) {
-            Ok(source) => source,
-            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
-            Err(error) => return Err(CacheError::Read { path, error }),
-        };
-        let envelope: ControlCacheEnvelope =
-            serde_json::from_str(&source).map_err(|error| CacheError::Decode {
-                path: path.clone(),
-                error,
-            })?;
-        if envelope.format != CONTROL_CACHE_FORMAT {
+        let Some(envelope): Option<ControlCacheEnvelope> =
+            read_cache_envelope(&path, CONTROL_CACHE_FORMAT)?
+        else {
             return Ok(None);
-        }
+        };
         Ok(Some(CachedControlArtifact {
             program: envelope.program,
             file_count: envelope.file_count,
@@ -64,48 +95,21 @@ impl ControlArtifactCache {
 
     pub fn write_control_artifact(
         &self,
-        key: ControlCacheKey,
+        key: SourceCacheKey,
         artifact: &CachedControlArtifact,
     ) -> Result<(), CacheError> {
         let path = self.control_artifact_path(key);
         let envelope = ControlCacheEnvelope {
             format: CONTROL_CACHE_FORMAT,
-            program: artifact.program.clone(),
+            program: &artifact.program,
             file_count: artifact.file_count,
-            errors: artifact.errors.clone(),
+            errors: &artifact.errors,
         };
-        let mut source = serde_json::to_string(&envelope).map_err(|error| CacheError::Encode {
-            path: path.clone(),
-            error,
-        })?;
-        source.push('\n');
-
-        let Some(parent) = path.parent() else {
-            return Err(CacheError::NoParent { path });
-        };
-        fs::create_dir_all(parent).map_err(|error| CacheError::CreateDir {
-            path: parent.to_path_buf(),
-            error,
-        })?;
-
-        let tmp = path.with_extension(format!("json.tmp-{}", std::process::id()));
-        fs::write(&tmp, source).map_err(|error| CacheError::Write {
-            path: tmp.clone(),
-            error,
-        })?;
-        if let Err(error) = fs::rename(&tmp, &path) {
-            let _ = fs::remove_file(&tmp);
-            return Err(CacheError::Rename {
-                from: tmp,
-                to: path,
-                error,
-            });
-        }
-        Ok(())
+        write_cache_envelope(&path, "yuvm", &envelope)
     }
 
-    fn control_artifact_dir(&self) -> PathBuf {
-        self.root.join("artifacts").join("control-vm")
+    fn artifact_dir(&self, stage: &str) -> PathBuf {
+        self.root.join("artifacts").join(stage)
     }
 }
 
@@ -116,20 +120,26 @@ pub struct CachedControlArtifact {
     pub errors: Vec<String>,
 }
 
+pub struct CachedPolyArtifact {
+    pub arena: poly::expr::Arena,
+    pub file_count: usize,
+    pub errors: Vec<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ControlCacheKey {
+pub struct SourceCacheKey {
     hash: u64,
 }
 
-impl ControlCacheKey {
+impl SourceCacheKey {
     pub fn to_hex(self) -> String {
         format!("{:016x}", self.hash)
     }
 }
 
-pub fn control_cache_key(files: &[CollectedSource]) -> ControlCacheKey {
+pub fn source_cache_key(files: &[CollectedSource]) -> SourceCacheKey {
     let mut hasher = StableHasher::new();
-    hasher.bytes(CONTROL_CACHE_SALT);
+    hasher.bytes(SOURCE_CACHE_SALT);
     hasher.usize(files.len());
     for file in files {
         hasher.string(&file.path.as_os_str().to_string_lossy());
@@ -139,7 +149,7 @@ pub fn control_cache_key(files: &[CollectedSource]) -> ControlCacheKey {
         }
         hasher.string(&file.source);
     }
-    ControlCacheKey {
+    SourceCacheKey {
         hash: hasher.finish(),
     }
 }
@@ -152,11 +162,11 @@ pub enum CacheError {
     },
     Decode {
         path: PathBuf,
-        error: serde_json::Error,
+        error: bincode::Error,
     },
     Encode {
         path: PathBuf,
-        error: serde_json::Error,
+        error: bincode::Error,
     },
     NoParent {
         path: PathBuf,
@@ -228,11 +238,93 @@ impl fmt::Display for CacheError {
 impl std::error::Error for CacheError {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ControlCacheEnvelope {
+struct PolyCacheEnvelope<T = poly::expr::Arena, E = Vec<String>> {
     format: u32,
-    program: control_vm::Program,
+    arena: T,
     file_count: usize,
-    errors: Vec<String>,
+    errors: E,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ControlCacheEnvelope<T = control_vm::Program, E = Vec<String>> {
+    format: u32,
+    program: T,
+    file_count: usize,
+    errors: E,
+}
+
+fn read_cache_envelope<T>(path: &Path, format: u32) -> Result<Option<T>, CacheError>
+where
+    T: CacheEnvelope + DeserializeOwned,
+{
+    let bytes = match fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(CacheError::Read {
+                path: path.to_path_buf(),
+                error,
+            });
+        }
+    };
+    let envelope: T = bincode::deserialize(&bytes).map_err(|error| CacheError::Decode {
+        path: path.to_path_buf(),
+        error,
+    })?;
+    if envelope.format() != format {
+        return Ok(None);
+    }
+    Ok(Some(envelope))
+}
+
+fn write_cache_envelope<T>(path: &Path, extension: &str, envelope: &T) -> Result<(), CacheError>
+where
+    T: Serialize,
+{
+    let bytes = bincode::serialize(envelope).map_err(|error| CacheError::Encode {
+        path: path.to_path_buf(),
+        error,
+    })?;
+    let Some(parent) = path.parent() else {
+        return Err(CacheError::NoParent {
+            path: path.to_path_buf(),
+        });
+    };
+    fs::create_dir_all(parent).map_err(|error| CacheError::CreateDir {
+        path: parent.to_path_buf(),
+        error,
+    })?;
+
+    let tmp = path.with_extension(format!("{extension}.tmp-{}", std::process::id()));
+    fs::write(&tmp, bytes).map_err(|error| CacheError::Write {
+        path: tmp.clone(),
+        error,
+    })?;
+    if let Err(error) = fs::rename(&tmp, path) {
+        let _ = fs::remove_file(&tmp);
+        return Err(CacheError::Rename {
+            from: tmp,
+            to: path.to_path_buf(),
+            error,
+        });
+    }
+    Ok(())
+}
+
+trait CacheEnvelope {
+    fn format(&self) -> u32;
+}
+
+impl<T, E> CacheEnvelope for PolyCacheEnvelope<T, E> {
+    fn format(&self) -> u32 {
+        self.format
+    }
+}
+
+impl<T, E> CacheEnvelope for ControlCacheEnvelope<T, E> {
+    fn format(&self) -> u32 {
+        self.format
+    }
 }
 
 struct StableHasher {
@@ -279,36 +371,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn control_cache_key_tracks_source_path_and_module() {
+    fn source_cache_key_tracks_source_path_and_module() {
         let base = source("main.yu", &[], "1\n");
         let same = source("main.yu", &[], "1\n");
         let changed_source = source("main.yu", &[], "2\n");
         let changed_path = source("other.yu", &[], "1\n");
         let changed_module = source("main.yu", &["app"], "1\n");
 
-        assert_eq!(
-            control_cache_key(&[base.clone()]),
-            control_cache_key(&[same])
+        assert_eq!(source_cache_key(&[base.clone()]), source_cache_key(&[same]));
+        assert_ne!(
+            source_cache_key(&[base.clone()]),
+            source_cache_key(&[changed_source])
         );
         assert_ne!(
-            control_cache_key(&[base.clone()]),
-            control_cache_key(&[changed_source])
+            source_cache_key(&[base.clone()]),
+            source_cache_key(&[changed_path])
         );
         assert_ne!(
-            control_cache_key(&[base.clone()]),
-            control_cache_key(&[changed_path])
-        );
-        assert_ne!(
-            control_cache_key(&[base]),
-            control_cache_key(&[changed_module])
+            source_cache_key(&[base]),
+            source_cache_key(&[changed_module])
         );
     }
 
     #[test]
-    fn control_cache_round_trips_artifact_envelope() {
-        let root = temp_root("round-trip");
-        let cache = ControlArtifactCache::new(&root);
-        let key = control_cache_key(&[source("main.yu", &[], "1\n")]);
+    fn control_cache_round_trips_binary_artifact_envelope() {
+        let root = temp_root("control-round-trip");
+        let cache = ArtifactCache::new(&root);
+        let key = source_cache_key(&[source("main.yu", &[], "1\n")]);
         let artifact = CachedControlArtifact {
             program: control_vm::Program::default(),
             file_count: 1,
@@ -320,6 +409,32 @@ mod tests {
 
         assert_eq!(restored, artifact);
         assert!(cache.control_artifact_path(key).is_file());
+        assert_eq!(
+            cache.control_artifact_path(key).extension().unwrap(),
+            "yuvm"
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn poly_cache_round_trips_binary_artifact_envelope() {
+        let root = temp_root("poly-round-trip");
+        let cache = ArtifactCache::new(&root);
+        let key = source_cache_key(&[source("main.yu", &[], "1\n")]);
+        let artifact = CachedPolyArtifact {
+            arena: poly::expr::Arena::new(),
+            file_count: 1,
+            errors: vec!["lowering warning".to_string()],
+        };
+
+        cache.write_poly_artifact(key, &artifact).unwrap();
+        let restored = cache.read_poly_artifact(key).unwrap().unwrap();
+
+        assert_eq!(restored.file_count, artifact.file_count);
+        assert_eq!(restored.errors, artifact.errors);
+        assert!(cache.poly_artifact_path(key).is_file());
+        assert_eq!(cache.poly_artifact_path(key).extension().unwrap(), "yuir");
 
         let _ = fs::remove_dir_all(root);
     }

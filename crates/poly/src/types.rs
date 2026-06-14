@@ -5,6 +5,7 @@
 //! `TypeArena` は同じ型構造を ID で共有するための hash-cons arena。
 
 use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 
 /// generalize 済みの多相型。
 ///
@@ -12,7 +13,7 @@ use rustc_hash::FxHashMap;
 /// `role_predicates` は型クラス相当の未解決 role 制約を、通常の型本体から分けて残す。
 /// `recursive_bounds` は compact finalize で分離した再帰変数の side table。
 /// `stack_quantifiers` は `StackWeight` 内に残る `#id` の量化集合。
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Scheme {
     pub quantifiers: Vec<TypeVar>,
     pub role_predicates: Vec<RolePredicate>,
@@ -21,7 +22,7 @@ pub struct Scheme {
     pub predicate: PosId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 /// scheme に残る再帰変数の bounds。
 ///
 /// `predicate` 側へ無理に混ぜると compact の簡約情報を失うため、neutral bounds を side table として
@@ -31,7 +32,7 @@ pub struct SchemeRecursiveBound {
     pub bounds: NeuId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 /// scheme に残る role predicate。
 ///
 /// `inputs` は通常引数、`associated` は `out = ...` のような関連型を表す。
@@ -42,20 +43,20 @@ pub struct RolePredicate {
     pub associated: Vec<RoleAssociatedType>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RolePredicateArg {
     Covariant(PosId),
     Contravariant(NegId),
     Invariant(NeuId),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RoleAssociatedType {
     pub name: String,
     pub value: NeuId,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 /// 言語コアが直接知っている builtin 型。
 ///
 /// これは std module 内の `DefId` ではない。literal や unit argument のように std/prelude を
@@ -94,7 +95,7 @@ impl BuiltinType {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 /// 型変数と SubtractId の採番器。
 ///
 /// ID は Arena-local。グローバル counter にすると cache や差分推論の境界で意味が揺れるため、
@@ -126,18 +127,18 @@ impl TypeIds {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// 型変数。
 ///
 /// 未解決の placeholder を表す ID だが、`Any` のような top 型ではない。
 /// 上下界や量化の意味は `infer` 側の constraint / scheme が与える。
 pub struct TypeVar(pub u32);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// effect row の stack 寿命を追跡するための ID。
 pub struct SubtractId(pub u32);
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// stack entry の effect family 集合。
 ///
 /// 旧 `S-subtract` の名前を残しているが、現行仕様では `stack(T, @S)` の `H` として使う。
@@ -271,7 +272,7 @@ fn effect_family_path_index(families: &[EffectFamily]) -> FxHashMap<Vec<String>,
     out
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// `stack(T, @S)` の `@S`。
 ///
 /// `@S` は `SubtractId` ごとに `pop(p)[H1, ..., Hn]` の正規形で持つ。
@@ -280,7 +281,7 @@ pub struct StackWeight {
     entries: Vec<StackWeightEntry>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct StackWeightEntry {
     pub id: SubtractId,
     pub pops: u32,
@@ -475,13 +476,13 @@ impl StackWeight {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// 正側型を指す `TypeArena` 内 ID。
 pub struct PosId(pub u32);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// 負側型を指す `TypeArena` 内 ID。
 pub struct NegId(pub u32);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// 中立型を指す `TypeArena` 内 ID。
 pub struct NeuId(pub u32);
 
@@ -489,6 +490,7 @@ pub struct NeuId(pub u32);
 ///
 /// `PosId` / `NegId` / `NeuId` はこの Arena の中だけで意味を持つ。構造を直接 clone して
 /// 持ち回るのではなく ID 化することで、制約伝播や scheme freeze の途中で同じ型を共有する。
+#[derive(Serialize, Deserialize)]
 pub struct TypeArena {
     pos: Vec<Pos>,
     neg: Vec<Neg>,
@@ -547,7 +549,7 @@ impl TypeArena {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// 正側の型。
 ///
 /// lower bound として現れる型を表す。`Bot` は bottom 型であり、エラーや未解決 placeholder ではない。
@@ -585,7 +587,7 @@ pub enum Pos {
     Union(PosId, PosId),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// 負側の型。
 ///
 /// upper bound として現れる型を表す。`Top` は top 型であり、曖昧さの fallback ではない。
@@ -614,7 +616,7 @@ pub enum Neg {
     Intersection(NegId, NegId),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// 正負の上下界を挟んだ中立型。
 ///
 /// `Neu::Bounds(lower, upper)` は、下界と上界を sandwich として持つ形。
@@ -634,7 +636,7 @@ pub enum Neu {
     Tuple(Vec<NeuId>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// record field の共通表現。
 ///
 /// 値の polarity だけを型引数で差し替え、field 名と optional flag の扱いを揃える。

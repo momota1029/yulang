@@ -5,11 +5,12 @@
 //! schemes without depending on infer internals.
 
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 
 use crate::expr::DefId;
 use crate::types::{Neg, NegId, Neu, NeuId, Pos, PosId, TypeArena, TypeVar};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RoleConstraintTable {
     constraints: FxHashMap<DefId, Vec<RoleConstraint>>,
 }
@@ -31,7 +32,7 @@ impl RoleConstraintTable {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RoleImplTable {
     candidates: FxHashMap<Vec<String>, Vec<RoleImplCandidate>>,
 }
@@ -104,7 +105,7 @@ impl RoleImplTable {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RoleImplCandidate {
     pub impl_def: Option<DefId>,
     pub role: Vec<String>,
@@ -124,13 +125,13 @@ impl RoleImplCandidate {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RoleImplMethod {
     pub requirement: DefId,
     pub implementation: DefId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RoleConstraint {
     pub role: Vec<String>,
     pub inputs: Vec<RoleConstraintArg>,
@@ -150,7 +151,7 @@ impl RoleConstraint {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RoleConstraintArg {
     pub lower: PosId,
     pub upper: NegId,
@@ -163,7 +164,7 @@ impl RoleConstraintArg {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RoleAssociatedConstraint {
     pub name: String,
     pub value: RoleConstraintArg,

@@ -60,11 +60,34 @@ pub fn build_control_from_entry(
 /// 収集済み source set から control VM artifact 用 IR を作る。
 ///
 /// CLI の artifact cache は source collection を cache の外に置くので、この入口から
-/// 推論・単相化・control lowering だけを再利用単位にする。
+/// 推論・単相化・control lowering を再利用単位にする。
 pub fn build_control_from_collected_sources(
     files: Vec<CollectedSource>,
 ) -> Result<BuildControlOutput, RouteError> {
     build_control_from_sources(files)
+}
+
+/// 収集済み source set から principal poly artifact を作る。
+///
+/// `BuildPolyOutput` は infer の mutable graph ではなく、後段が読む `poly::Arena` と
+/// 表示用 lowering error だけを持つ。CLI の `.yuir` cache はこの出力を保存する。
+pub fn build_poly_from_collected_sources(
+    files: Vec<CollectedSource>,
+) -> Result<BuildPolyOutput, RouteError> {
+    build_poly_from_sources(files)
+}
+
+/// principal poly artifact から control VM artifact 用 IR を作る。
+pub fn build_control_from_poly_output(
+    output: &BuildPolyOutput,
+) -> Result<BuildControlOutput, RouteError> {
+    let mono = specialize::specialize(&output.arena).map_err(RouteError::Specialize)?;
+    let program = control_vm::lower(&mono).map_err(RouteError::ControlLower)?;
+    Ok(BuildControlOutput {
+        program,
+        file_count: output.file_count,
+        errors: output.errors.clone(),
+    })
 }
 
 /// すでに lower 済みの control VM program を実行し、通常の route output に包む。
@@ -421,6 +444,13 @@ pub struct SourceDiagnostic {
 #[derive(Debug, Clone, PartialEq)]
 pub struct BuildControlOutput {
     pub program: control_vm::Program,
+    pub file_count: usize,
+    /// body lowering が報告したエラーの表示用整形。artifact とは別に stderr へ流す。
+    pub errors: Vec<String>,
+}
+
+pub struct BuildPolyOutput {
+    pub arena: poly::expr::Arena,
     pub file_count: usize,
     /// body lowering が報告したエラーの表示用整形。artifact とは別に stderr へ流す。
     pub errors: Vec<String>,
@@ -882,13 +912,8 @@ fn run_control_from_sources(files: Vec<CollectedSource>) -> Result<RunControlOut
 fn build_control_from_sources(
     files: Vec<CollectedSource>,
 ) -> Result<BuildControlOutput, RouteError> {
-    let output = specialize_mono_from_sources(files)?;
-    let program = control_vm::lower(&output.program).map_err(RouteError::ControlLower)?;
-    Ok(BuildControlOutput {
-        program,
-        file_count: output.file_count,
-        errors: output.errors,
-    })
+    let output = build_poly_from_sources(files)?;
+    build_control_from_poly_output(&output)
 }
 
 struct SpecializedMonoOutput {
@@ -900,6 +925,16 @@ struct SpecializedMonoOutput {
 fn specialize_mono_from_sources(
     files: Vec<CollectedSource>,
 ) -> Result<SpecializedMonoOutput, RouteError> {
+    let output = build_poly_from_sources(files)?;
+    let program = specialize::specialize(&output.arena).map_err(RouteError::Specialize)?;
+    Ok(SpecializedMonoOutput {
+        program,
+        file_count: output.file_count,
+        errors: output.errors,
+    })
+}
+
+fn build_poly_from_sources(files: Vec<CollectedSource>) -> Result<BuildPolyOutput, RouteError> {
     let source_files = files
         .iter()
         .map(|file| SourceFile {
@@ -915,10 +950,8 @@ fn specialize_mono_from_sources(
         .iter()
         .map(format_body_lowering_error)
         .collect();
-    let program =
-        specialize::specialize(&dump.lowering.session.poly).map_err(RouteError::Specialize)?;
-    Ok(SpecializedMonoOutput {
-        program,
+    Ok(BuildPolyOutput {
+        arena: dump.lowering.session.poly,
         file_count: loaded.len(),
         errors,
     })
