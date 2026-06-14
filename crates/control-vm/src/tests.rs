@@ -55,6 +55,67 @@ fn runs_stack_handler_hygiene_to_outer_handler() {
 }
 
 #[test]
+fn runs_nested_handler_after_inner_resume_like_oracle() {
+    assert_oracle_parity(
+        "act inner:\n\
+         \x20 pub ping: () -> int\n\
+         act outer:\n\
+         \x20 pub ping: () -> int\n\
+         my body() =\n\
+         \x20 catch inner::ping():\n\
+         \x20 \x20 inner::ping(), k -> k(1)\n\
+         \x20 \x20 value -> value\n\
+         \x20 outer::ping()\n\
+         catch body():\n\
+         \x20 outer::ping(), k -> k(2)\n\
+         \x20 value -> value\n",
+        "[2]",
+    );
+}
+
+#[test]
+fn keeps_effectful_thunk_argument_suspended_like_oracle() {
+    assert_oracle_parity(
+        "act out:\n\
+         \x20 pub read: () -> int\n\
+         my keep(x: [_] int) = 1\n\
+         keep(out::read(()))\n",
+        "[1]",
+    );
+}
+
+#[test]
+fn forces_effectful_thunk_argument_under_handler_like_oracle() {
+    assert_oracle_parity(
+        "act out:\n\
+         \x20 pub read: () -> int\n\
+         my handle(x: [out] int) = catch x:\n\
+         \x20 out::read(), k -> k(1)\n\
+         \x20 value -> value\n\
+         handle(out::read(()))\n",
+        "[1]",
+    );
+}
+
+#[test]
+fn routes_foreign_thunk_effect_past_inner_handler_like_oracle() {
+    assert_oracle_parity(
+        "pub act sub 'a:\n\
+         \x20 pub return: 'a -> never\n\
+         \x20 pub sub(x: [_] 'a): 'a = catch x:\n\
+         \x20 \x20 return a, _ -> a\n\
+         \x20 \x20 a -> a\n\n\
+         my inner(x: [_] int): int = catch x:\n\
+         \x20 sub::return a, _ -> 99\n\
+         \x20 a -> a\n\n\
+         sub::sub:\n\
+         \x20 inner(sub::return 0)\n\
+         \x20 sub::return 2\n",
+        "[0]",
+    );
+}
+
+#[test]
 fn runs_constructor_case_pattern_like_oracle() {
     assert_oracle_parity(
         "enum opt 'a:\n  none\n  some 'a\n\

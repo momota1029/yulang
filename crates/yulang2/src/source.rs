@@ -1563,6 +1563,86 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn run_with_std_collects_nondet_sum_list_benchmark() {
+        let root = temp_root("run-std-nondet-sum-list-benchmark");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        symlink_repo_lib(&root);
+        fs::write(
+            root.join("main.yu"),
+            "(std::control::nondet::each(1..3) + std::control::nondet::each(1..2)).list\n",
+        )
+        .unwrap();
+
+        let mono = run_mono_from_entry_with_std(root.join("main.yu")).unwrap();
+        let control = run_control_from_entry_with_std(root.join("main.yu")).unwrap();
+
+        assert!(
+            mono.text.starts_with("run roots [[2, 3, 3, 4, 4, 5],"),
+            "{}",
+            mono.text
+        );
+        assert_eq!(control.text, mono.text);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn dump_mono_with_std_specializes_nondet_sum_list_say_benchmark() {
+        let root = temp_root("dump-mono-std-nondet-sum-list-say-benchmark");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        symlink_repo_lib(&root);
+        fs::write(
+            root.join("main.yu"),
+            "(std::control::nondet::each(1..3) + std::control::nondet::each(1..2)).list.say\n",
+        )
+        .unwrap();
+
+        let output = dump_mono_from_entry_with_std(root.join("main.yu")).unwrap();
+
+        assert_mono_dump_contains(
+            &output,
+            "mono roots [force-thunk[thunk[[std::io::console::out], unit]",
+        );
+        assert_mono_dump_contains(&output, ".list <method>).say <method>");
+        assert_mono_dump_contains(&output, "<effect-op std::io::console::out::write>");
+        assert_mono_dump_contains(&output, "std::control::nondet::nondet");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_with_std_nondet_sum_list_say_reports_unhandled_out() {
+        let root = temp_root("run-std-nondet-sum-list-say-unhandled-out");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        symlink_repo_lib(&root);
+        fs::write(
+            root.join("main.yu"),
+            "(std::control::nondet::each(1..3) + std::control::nondet::each(1..2)).list.say\n",
+        )
+        .unwrap();
+
+        let mono = run_mono_from_entry_with_std(root.join("main.yu"));
+        let control = run_control_from_entry_with_std(root.join("main.yu"));
+
+        match mono {
+            Err(RouteError::Runtime(mono_runtime::RuntimeError::UnhandledEffect { path })) => {
+                assert_eq!(path, vec!["std", "io", "console", "out", "write"]);
+            }
+            other => panic!("expected mono unhandled out effect, got {other:?}"),
+        }
+        match control {
+            Err(RouteError::Control(control_vm::RunError::Runtime(
+                control_vm::RuntimeError::UnhandledEffect { path },
+            ))) => {
+                assert_eq!(path, vec!["std", "io", "console", "out", "write"]);
+            }
+            other => panic!("expected control unhandled out effect, got {other:?}"),
+        }
+    }
+
     #[test]
     fn run_mono_without_std_runs_polymorphic_stack_handler_call() {
         let root = temp_root("run-mono-stack-handler");

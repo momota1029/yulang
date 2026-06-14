@@ -3116,6 +3116,40 @@ mod tests {
     }
 
     #[test]
+    fn pure_function_argument_effect_passes_to_return_effect() {
+        let mut machine = ConstraintMachine::new();
+        let lhs_arg = machine.alloc_neg(Neg::Con(vec!["lhs_arg".into()], vec![]));
+        let lhs_arg_eff = machine.alloc_neg(Neg::Bot);
+        let lhs_ret_eff = machine.alloc_pos(Pos::Con(vec!["lhs_ret_eff".into()], vec![]));
+        let lhs_ret = machine.alloc_pos(Pos::Con(vec!["lhs_ret".into()], vec![]));
+        let lower = machine.alloc_pos(Pos::Fun {
+            arg: lhs_arg,
+            arg_eff: lhs_arg_eff,
+            ret_eff: lhs_ret_eff,
+            ret: lhs_ret,
+        });
+
+        let rhs_arg = machine.alloc_pos(Pos::Con(vec!["rhs_arg".into()], vec![]));
+        let rhs_arg_eff = machine.alloc_pos(Pos::Con(vec!["rhs_arg_eff".into()], vec![]));
+        let rhs_ret_eff = machine.alloc_neg(Neg::Con(vec!["rhs_ret_eff".into()], vec![]));
+        let rhs_ret = machine.alloc_neg(Neg::Con(vec!["rhs_ret".into()], vec![]));
+        let upper = machine.alloc_neg(Neg::Fun {
+            arg: rhs_arg,
+            arg_eff: rhs_arg_eff,
+            ret_eff: rhs_ret_eff,
+            ret: rhs_ret,
+        });
+
+        machine.subtype(lower, upper);
+
+        assert!(machine.seen.contains(&SubtypeConstraint {
+            lower: rhs_arg_eff,
+            upper: rhs_ret_eff,
+            weights: ConstraintWeights::empty(),
+        }));
+    }
+
+    #[test]
     fn pure_function_argument_effect_passes_through_with_right_side_weights() {
         let mut machine = ConstraintMachine::new();
         let lhs_arg = machine.alloc_neg(Neg::Con(vec!["lhs_arg".into()], vec![]));
