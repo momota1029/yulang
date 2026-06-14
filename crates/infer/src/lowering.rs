@@ -18,8 +18,8 @@ use sources::{LoadedFile, Name};
 
 use poly::dump::DumpLabels;
 use poly::expr::{
-    CaseArm, CatchArm, Constructor, Def, DefId, Expr, Lit, Pat, PatId, PrimitiveOp, RecordSpread,
-    RefId, Stmt, Vis,
+    CaseArm, CatchArm, Constructor, Def, DefId, Expr, ExprId, Lit, Pat, PatId, PrimitiveOp,
+    RecordSpread, RefId, Stmt, Vis,
 };
 use poly::types::{
     BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, Scheme, StackWeight, SubtractId,
@@ -51,9 +51,9 @@ use crate::uses::{RefUse, SelectionUse};
 use crate::{
     ActMethodDecl, ActOperationDecl, CastDecl, ConstructorPayload, LoadedFileCsts,
     LoadedFilesError, Lower, ModuleChildDecl, ModuleId, ModuleOrder, ModuleTable, ModuleTypeDecl,
-    ModuleTypeKind, RoleImplDecl, RoleImplMethodDecl, RoleMethodDecl, SyntheticVarActUse,
-    TypeDeclId, TypeFieldMethodDecl, TypeMethodDecl, TypeMethodReceiver, binding_type_expr,
-    lower_loaded_file_csts_module_map,
+    ModuleTypeKind, RoleImplDecl, RoleImplMethodDecl, RoleMethodDecl, SyntheticSubLabelActUse,
+    SyntheticVarActUse, TypeDeclId, TypeFieldMethodDecl, TypeMethodDecl, TypeMethodReceiver,
+    binding_type_expr, lower_loaded_file_csts_module_map,
 };
 
 type Cst = SyntaxNode<YulangLanguage>;
@@ -151,10 +151,14 @@ struct BodyLowerer {
     value_cursors: FxHashMap<(ModuleId, Name), usize>,
     module_cursors: FxHashMap<(ModuleId, Name), usize>,
     type_cursors: FxHashMap<(ModuleId, Name), usize>,
+    root_expr_cursors: FxHashMap<ModuleId, usize>,
     impl_cursors: FxHashMap<ModuleId, usize>,
     cast_cursors: FxHashMap<ModuleId, usize>,
     role_requirements: FxHashMap<DefId, RoleMethodRequirement>,
     local_method_scope: Option<ModuleId>,
+    // Synthetic act copy bodies are implementation helpers. Their computed bindings keep
+    // BindingFetch for use-site semantics, but they are not source-level runtime roots.
+    suppress_runtime_roots: bool,
 }
 
 impl BodyLowerer {
@@ -175,10 +179,12 @@ impl BodyLowerer {
             value_cursors: FxHashMap::default(),
             module_cursors: FxHashMap::default(),
             type_cursors: FxHashMap::default(),
+            root_expr_cursors: FxHashMap::default(),
             impl_cursors: FxHashMap::default(),
             cast_cursors: FxHashMap::default(),
             role_requirements: FxHashMap::default(),
             local_method_scope: None,
+            suppress_runtime_roots: false,
         };
         lowerer.collect_declared_role_requirements();
         lowerer.collect_declared_role_input_variances();
@@ -225,7 +231,20 @@ impl BodyLowerer {
     }
 
     fn lower_root_expr(&mut self, node: &Cst, module: ModuleId) {
-        let parent = self.session.poly.defs.fresh();
+        let registered_owner = self.next_root_expr_owner(module);
+        let parent = registered_owner.unwrap_or_else(|| self.session.poly.defs.fresh());
+        if registered_owner.is_some() {
+            self.session.poly.defs.set(
+                parent,
+                Def::Let {
+                    vis: Vis::My,
+                    scheme: None,
+                    body: None,
+                    children: Vec::new(),
+                },
+            );
+        }
+        let previous_level = self.session.infer.enter_child_level();
         let root = self.session.infer.fresh_type_var();
         self.session
             .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
@@ -245,6 +264,16 @@ impl BodyLowerer {
         .lower_expr(node);
         match lowered {
             Ok(computation) => {
+                if registered_owner.is_some() {
+                    self.constrain_def_body(root, computation.value);
+                    if let Some(Def::Let { body, .. }) = self.session.poly.defs.get_mut(parent) {
+                        *body = Some(computation.expr);
+                    }
+                    self.session
+                        .poly
+                        .root_expr_defs
+                        .insert(computation.expr, parent);
+                }
                 self.session.poly.root_exprs.push(computation.expr);
                 self.session
                     .poly
@@ -255,6 +284,14 @@ impl BodyLowerer {
         }
         self.session
             .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def: parent }));
+        self.session.infer.restore_level(previous_level);
+    }
+
+    fn next_root_expr_owner(&mut self, module: ModuleId) -> Option<DefId> {
+        let cursor = self.root_expr_cursors.entry(module).or_default();
+        let index = *cursor;
+        *cursor += 1;
+        self.modules.root_expr_owner(module, index).flatten()
     }
 
     fn lower_mod_decl(&mut self, node: &Cst, module: ModuleId) {
@@ -1176,11 +1213,7 @@ impl BodyLowerer {
         signature: &Cst,
         type_var_aliases: &[(String, String)],
     ) -> Result<SignatureType, LoweringError> {
-        let effect_type_vars = self
-            .modules
-            .act_template(operation_decl.effect.id)
-            .map(crate::act_type_var_names)
-            .unwrap_or_default();
+        let effect_type_vars = self.act_effect_type_var_names(operation_decl.effect.id);
         let mut builder = ann_type_builder(
             &self.modules,
             operation_decl.effect.module,
@@ -1203,8 +1236,32 @@ impl BodyLowerer {
         )
     }
 
+    fn act_effect_type_var_names(&self, id: TypeDeclId) -> Vec<String> {
+        if let Some(type_vars) = self.modules.act_template(id).map(crate::act_type_var_names)
+            && !type_vars.is_empty()
+        {
+            return type_vars;
+        }
+        let Some(copy) = self.modules.resolved_act_copy(id) else {
+            return Vec::new();
+        };
+        let aliases = copy
+            .type_var_aliases
+            .iter()
+            .cloned()
+            .collect::<FxHashMap<_, _>>();
+        self.modules
+            .act_template(copy.source)
+            .map(crate::act_type_var_names)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|source| aliases.get(&source).cloned().unwrap_or(source))
+            .collect()
+    }
+
     fn lower_synthetic_act_copy_bodies(&mut self) {
-        let ids = self.modules.synthetic_var_act_copy_ids();
+        let mut ids = self.modules.synthetic_var_act_copy_ids();
+        ids.extend(self.modules.synthetic_sub_label_act_copy_ids());
         for id in ids {
             let Some(decl) = self.modules.type_decl_by_id(id) else {
                 continue;
@@ -1216,6 +1273,7 @@ impl BodyLowerer {
                 continue;
             };
             let previous_scope = self.local_method_scope.replace(companion);
+            let previous_suppression = std::mem::replace(&mut self.suppress_runtime_roots, true);
             let mut method_cursor = 0usize;
             self.lower_act_body_contents(
                 &copy.body,
@@ -1224,6 +1282,7 @@ impl BodyLowerer {
                 &mut method_cursor,
                 copy.type_var_aliases.as_slice(),
             );
+            self.suppress_runtime_roots = previous_suppression;
             self.local_method_scope = previous_scope;
         }
     }
@@ -2112,7 +2171,7 @@ impl BodyLowerer {
         }
         let fetch = BindingFetch::from_evaluation(computation.evaluation);
         self.session.record_binding_fetch(def, fetch);
-        if fetch.runs_computation() {
+        if fetch.runs_computation() && !self.suppress_runtime_roots {
             self.session
                 .poly
                 .runtime_roots
@@ -3053,8 +3112,11 @@ pub struct ExprLowerer<'a> {
     local_method_scope: Option<ModuleId>,
     synthetic_var_acts: Vec<SyntheticVarActUse>,
     synthetic_var_act_cursor: usize,
+    synthetic_sub_label_acts: Vec<SyntheticSubLabelActUse>,
+    synthetic_sub_label_act_cursor: usize,
     known_ref_targets: FxHashMap<RefId, DefId>,
     locals: Vec<LocalBinding>,
+    sub_syntax_scopes: Vec<SubSyntaxScope>,
     effect_views: Vec<LocalEffect>,
     function_frames: Vec<FunctionPredicateFrame>,
     local_generalize_boundary: TypeLevel,
@@ -3063,6 +3125,12 @@ pub struct ExprLowerer<'a> {
 enum BuiltinOpTypePath {
     Builtin(BuiltinType),
     Named(Vec<String>),
+}
+
+#[derive(Clone)]
+enum LambdaBodyMode {
+    Expr,
+    Sub { label: Option<Name> },
 }
 
 impl<'a> ExprLowerer<'a> {
@@ -3075,6 +3143,7 @@ impl<'a> ExprLowerer<'a> {
     ) -> Self {
         let local_generalize_boundary = session.infer.current_level();
         let synthetic_var_acts = modules.synthetic_var_act_uses(parent).to_vec();
+        let synthetic_sub_label_acts = modules.synthetic_sub_label_act_uses(parent).to_vec();
         Self {
             session,
             modules,
@@ -3087,8 +3156,11 @@ impl<'a> ExprLowerer<'a> {
             local_method_scope: None,
             synthetic_var_acts,
             synthetic_var_act_cursor: 0,
+            synthetic_sub_label_acts,
+            synthetic_sub_label_act_cursor: 0,
             known_ref_targets: FxHashMap::default(),
             locals: Vec::new(),
+            sub_syntax_scopes: Vec::new(),
             effect_views: Vec::new(),
             function_frames: Vec::new(),
             local_generalize_boundary,
@@ -3105,6 +3177,7 @@ impl<'a> ExprLowerer<'a> {
     ) -> Self {
         let local_generalize_boundary = session.infer.current_level();
         let synthetic_var_acts = modules.synthetic_var_act_uses(parent).to_vec();
+        let synthetic_sub_label_acts = modules.synthetic_sub_label_act_uses(parent).to_vec();
         Self {
             session,
             modules,
@@ -3117,8 +3190,11 @@ impl<'a> ExprLowerer<'a> {
             local_method_scope: None,
             synthetic_var_acts,
             synthetic_var_act_cursor: 0,
+            synthetic_sub_label_acts,
+            synthetic_sub_label_act_cursor: 0,
             known_ref_targets: FxHashMap::default(),
             locals: Vec::new(),
+            sub_syntax_scopes: Vec::new(),
             effect_views: Vec::new(),
             function_frames: Vec::new(),
             local_generalize_boundary,
@@ -3994,6 +4070,14 @@ impl<'a> ExprLowerer<'a> {
             return Ok(self.unit_expr());
         };
 
+        if let Some(parts) = crate::sub_syntax_parts(node) {
+            let mut lowered = self.lower_sub_syntax(parts)?;
+            if let Some(pipe_arg) = pipe_arg {
+                lowered = self.make_app(lowered, pipe_arg.expr);
+            }
+            return Ok(lowered);
+        }
+
         if let Some(name) = expr_symbol_head_name(head) {
             return self.lower_poly_variant_expr_chain(
                 name,
@@ -4145,6 +4229,159 @@ impl<'a> ExprLowerer<'a> {
         ))
     }
 
+    fn lower_sub_syntax(
+        &mut self,
+        parts: crate::SubSyntaxParts,
+    ) -> Result<Computation, LoweringError> {
+        match parts.label {
+            Some(label) => self.lower_labeled_sub_syntax(label, parts.body),
+            None => self.lower_unlabeled_sub_syntax(parts.body),
+        }
+    }
+
+    fn lower_unlabeled_sub_syntax(&mut self, body_node: Cst) -> Result<Computation, LoweringError> {
+        let sub = self.lower_std_value_ref(crate::std_paths::control_flow_sub_sub_value())?;
+        let return_def = self.std_value_def(crate::std_paths::control_flow_sub_return_value())?;
+        self.sub_syntax_scopes.push(SubSyntaxScope {
+            bare_return: SubReturnTarget {
+                label: "return".to_string(),
+                def: return_def,
+            },
+            labels: Vec::new(),
+        });
+        let body = self.lower_expr(&body_node);
+        self.sub_syntax_scopes.pop();
+        Ok(self.make_app(sub, body?))
+    }
+
+    fn lower_labeled_sub_syntax(
+        &mut self,
+        label: Name,
+        body_node: Cst,
+    ) -> Result<Computation, LoweringError> {
+        let act = self.next_synthetic_sub_label_act(&label)?;
+        let sub = self.lower_sub_label_act_member(&act, "sub")?;
+        let control_label = self.lower_sub_label_act_member(&act, "control_label")?;
+        let return_def = self.sub_label_act_member_def(&act, "return")?;
+
+        let label_value = self.fresh_type_var();
+        let before_locals = self.locals.len();
+        let pat =
+            self.bind_pattern_local(label, label_value, None, LocalCallReturnEffect::Annotated);
+        let label_def = self
+            .locals
+            .last()
+            .expect("sub label pattern should bind one local")
+            .def;
+
+        self.sub_syntax_scopes.push(SubSyntaxScope {
+            bare_return: SubReturnTarget {
+                label: "return".to_string(),
+                def: return_def,
+            },
+            labels: vec![SubLabelReturnTarget {
+                label_def,
+                target: SubReturnTarget {
+                    label: format!("{}::return", act.label.0),
+                    def: return_def,
+                },
+            }],
+        });
+        self.function_frames
+            .push(FunctionPredicateFrame::new(LambdaScope::Anonymous));
+        let previous_level = self.session.infer.enter_child_level();
+        let body_result = self.lower_expr(&body_node);
+        self.session.infer.restore_level(previous_level);
+        let frame = self
+            .function_frames
+            .pop()
+            .expect("labeled sub lambda predicate frame should be balanced");
+        self.sub_syntax_scopes.pop();
+        self.locals.truncate(before_locals);
+        let body = body_result?;
+
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(label_value));
+        let arg_eff = self.never_neg();
+        let predicate_subtracts =
+            self.lambda_predicate_subtracts(LambdaScope::Anonymous, Vec::new(), frame);
+        let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+
+        let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
+        let lambda = Computation::value(expr, value, effect);
+        let arg = self.make_app(lambda, control_label);
+        Ok(self.make_app(sub, arg))
+    }
+
+    fn next_synthetic_sub_label_act(
+        &mut self,
+        label: &Name,
+    ) -> Result<SyntheticSubLabelActUse, LoweringError> {
+        let Some(next) = self
+            .synthetic_sub_label_acts
+            .get(self.synthetic_sub_label_act_cursor)
+            .cloned()
+        else {
+            return Err(LoweringError::MissingSubLabelAct {
+                label: label.clone(),
+            });
+        };
+        if next.label != *label {
+            return Err(LoweringError::MissingSubLabelAct {
+                label: label.clone(),
+            });
+        }
+        self.synthetic_sub_label_act_cursor += 1;
+        Ok(next)
+    }
+
+    fn lower_sub_label_act_member(
+        &mut self,
+        act: &SyntheticSubLabelActUse,
+        member: &str,
+    ) -> Result<Computation, LoweringError> {
+        let target = self.sub_label_act_member_def(act, member)?;
+        Ok(self.lower_resolved_value_ref(format!("{}::{member}", act.label.0), target))
+    }
+
+    fn sub_label_act_member_def(
+        &self,
+        act: &SyntheticSubLabelActUse,
+        member: &str,
+    ) -> Result<DefId, LoweringError> {
+        let member_name = Name(member.to_string());
+        self.modules
+            .type_companion(act.act)
+            .and_then(|companion| {
+                self.modules
+                    .value_decls(companion, &member_name)
+                    .first()
+                    .map(|decl| decl.def)
+            })
+            .ok_or_else(|| LoweringError::UnresolvedName {
+                name: Name(format!("{}::{member}", act.label.0)),
+            })
+    }
+
+    fn std_value_def(&self, path: Vec<String>) -> Result<DefId, LoweringError> {
+        let path = path.into_iter().map(Name).collect::<Vec<_>>();
+        self.modules
+            .value_path_at(self.modules.root_id(), &path, module_path_lookup_site())
+            .ok_or_else(|| LoweringError::UnresolvedName {
+                name: Name(path_label(&path)),
+            })
+    }
+
     fn lower_head(
         &mut self,
         head: NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>,
@@ -4171,6 +4408,12 @@ impl<'a> ExprLowerer<'a> {
         match node.kind() {
             SyntaxKind::Expr => self.lower_expr_chain(node, lambda_scope),
             SyntaxKind::LambdaExpr => self.lower_lambda(node, lambda_scope),
+            SyntaxKind::SubExpr => {
+                let parts = crate::sub_syntax_parts(node)
+                    .ok_or(LoweringError::UnsupportedSyntax { kind: node.kind() })?;
+                self.lower_sub_syntax(parts)
+            }
+            SyntaxKind::SubLambdaExpr => self.lower_sub_lambda(node, lambda_scope),
             SyntaxKind::MethodLambdaExpr => self.lower_method_lambda(node, lambda_scope),
             SyntaxKind::RecursiveLambdaExpr => self.lower_recursive_lambda(node, lambda_scope),
             SyntaxKind::CaseLambdaExpr => self.lower_case_lambda(node, lambda_scope),
@@ -4231,6 +4474,34 @@ impl<'a> ExprLowerer<'a> {
             &mut ann_solver_vars,
             None,
             None,
+        )
+    }
+
+    fn lower_sub_lambda(
+        &mut self,
+        node: &Cst,
+        lambda_scope: LambdaScope,
+    ) -> Result<Computation, LoweringError> {
+        let Some(parts) = crate::sub_lambda_syntax_parts(node) else {
+            return Err(LoweringError::MissingLambdaBody);
+        };
+        let mut ann_builder = ann_type_builder_with_aliases(
+            self.modules,
+            self.module,
+            self.site,
+            self.self_alias.clone(),
+            &self.type_var_aliases,
+        );
+        let mut ann_solver_vars = FxHashMap::default();
+        self.lower_lambda_params_with_body_mode(
+            parts.patterns.as_slice(),
+            &parts.body,
+            lambda_scope,
+            &mut ann_builder,
+            &mut ann_solver_vars,
+            None,
+            None,
+            &LambdaBodyMode::Sub { label: parts.label },
         )
     }
 
@@ -4352,6 +4623,29 @@ impl<'a> ExprLowerer<'a> {
         body_type_expr: Option<&Cst>,
         self_value: Option<TypeVar>,
     ) -> Result<Computation, LoweringError> {
+        self.lower_lambda_params_with_body_mode(
+            patterns,
+            body,
+            lambda_scope,
+            ann_builder,
+            ann_solver_vars,
+            body_type_expr,
+            self_value,
+            &LambdaBodyMode::Expr,
+        )
+    }
+
+    fn lower_lambda_params_with_body_mode(
+        &mut self,
+        patterns: &[Cst],
+        body: &Cst,
+        lambda_scope: LambdaScope,
+        ann_builder: &mut AnnTypeBuilder,
+        ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        body_type_expr: Option<&Cst>,
+        self_value: Option<TypeVar>,
+        body_mode: &LambdaBodyMode,
+    ) -> Result<Computation, LoweringError> {
         if lambda_scope == LambdaScope::Defined && !patterns.is_empty() {
             return self.lower_defined_lambda_params(
                 patterns,
@@ -4361,11 +4655,12 @@ impl<'a> ExprLowerer<'a> {
                 body_type_expr,
                 self_value,
                 &[],
+                body_mode,
             );
         }
 
         let Some((pattern, rest)) = patterns.split_first() else {
-            let body = self.lower_expr(body)?;
+            let body = self.lower_lambda_body(body, body_mode)?;
             if let Some(type_expr) = body_type_expr {
                 self.connect_type_method_result_annotation(
                     body,
@@ -4396,7 +4691,7 @@ impl<'a> ExprLowerer<'a> {
         let previous_level = self.session.infer.enter_child_level();
         let previous_local_generalize_boundary = self.local_generalize_boundary;
         self.local_generalize_boundary = previous_level;
-        let body_result = self.lower_lambda_params(
+        let body_result = self.lower_lambda_params_with_body_mode(
             rest,
             body,
             lambda_scope,
@@ -4404,6 +4699,7 @@ impl<'a> ExprLowerer<'a> {
             ann_solver_vars,
             body_type_expr,
             None,
+            body_mode,
         );
         self.local_generalize_boundary = previous_local_generalize_boundary;
         self.session.infer.restore_level(previous_level);
@@ -4453,6 +4749,7 @@ impl<'a> ExprLowerer<'a> {
                 body_type_expr,
                 None,
                 param_uppers,
+                &LambdaBodyMode::Expr,
             );
         }
 
@@ -4460,7 +4757,7 @@ impl<'a> ExprLowerer<'a> {
         let previous_local_generalize_boundary = self.local_generalize_boundary;
         self.local_generalize_boundary = previous_level;
         let body_result = (|| {
-            let body = self.lower_expr(body)?;
+            let body = self.lower_lambda_body(body, &LambdaBodyMode::Expr)?;
             if let Some(type_expr) = body_type_expr {
                 self.connect_type_method_result_annotation(
                     body,
@@ -4485,6 +4782,7 @@ impl<'a> ExprLowerer<'a> {
         body_type_expr: Option<&Cst>,
         self_value: Option<TypeVar>,
         param_uppers: &[Option<NegId>],
+        body_mode: &LambdaBodyMode,
     ) -> Result<Computation, LoweringError> {
         let before_locals = self.locals.len();
         let before_frames = self.function_frames.len();
@@ -4538,7 +4836,7 @@ impl<'a> ExprLowerer<'a> {
         let previous_local_generalize_boundary = self.local_generalize_boundary;
         self.local_generalize_boundary = previous_level;
         let body_result = (|| {
-            let mut body = self.lower_expr(body)?;
+            let mut body = self.lower_lambda_body(body, body_mode)?;
             if let Some(skeleton) = &skeleton {
                 self.subtype_var_to_var(body.effect, skeleton.body_effect);
                 self.subtype_var_to_var(body.value, skeleton.body_value);
@@ -4580,6 +4878,20 @@ impl<'a> ExprLowerer<'a> {
         }
         self.locals.truncate(before_locals);
         Ok(body)
+    }
+
+    fn lower_lambda_body(
+        &mut self,
+        body: &Cst,
+        mode: &LambdaBodyMode,
+    ) -> Result<Computation, LoweringError> {
+        match mode {
+            LambdaBodyMode::Expr => self.lower_expr(body),
+            LambdaBodyMode::Sub { label } => match label {
+                Some(label) => self.lower_labeled_sub_syntax(label.clone(), body.clone()),
+                None => self.lower_unlabeled_sub_syntax(body.clone()),
+            },
+        }
     }
 
     fn wrap_lambda_param(
@@ -6253,6 +6565,12 @@ impl<'a> ExprLowerer<'a> {
     }
 
     fn lower_name(&mut self, name: Name) -> Result<Computation, LoweringError> {
+        if name.0 == "return"
+            && let Some(target) = self.current_sub_return_target().cloned()
+        {
+            return Ok(self.lower_sub_return_target(&target));
+        }
+
         if let Some(local) = self.local_binding(&name) {
             return Ok(self.lower_local_name(name, local));
         }
@@ -6369,6 +6687,33 @@ impl<'a> ExprLowerer<'a> {
             .rev()
             .find(|local| &local.name == name)
             .cloned()
+    }
+
+    fn current_sub_return_target(&self) -> Option<&SubReturnTarget> {
+        self.sub_syntax_scopes
+            .last()
+            .map(|scope| &scope.bare_return)
+    }
+
+    fn sub_label_return_target(&self, receiver: ExprId) -> Option<&SubReturnTarget> {
+        let label_def = self.expr_local_def(receiver)?;
+        self.sub_syntax_scopes
+            .iter()
+            .rev()
+            .flat_map(|scope| scope.labels.iter().rev())
+            .find(|label| label.label_def == label_def)
+            .map(|label| &label.target)
+    }
+
+    fn expr_local_def(&self, expr: ExprId) -> Option<DefId> {
+        let Expr::Var(reference) = self.session.poly.expr(expr) else {
+            return None;
+        };
+        self.session.poly.ref_target(*reference)
+    }
+
+    fn lower_sub_return_target(&mut self, target: &SubReturnTarget) -> Computation {
+        self.lower_resolved_value_ref(target.label.clone(), target.def)
     }
 
     fn lower_tail_node(
@@ -6489,6 +6834,11 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
     ) -> Result<Computation, LoweringError> {
         let name = field_name(node).ok_or(LoweringError::MissingFieldName)?;
+        if name == "return"
+            && let Some(target) = self.sub_label_return_target(receiver.expr).cloned()
+        {
+            return Ok(self.lower_sub_return_target(&target));
+        }
         Ok(self.lower_synthetic_selection(receiver, name))
     }
 
@@ -7203,6 +7553,24 @@ struct LocalBinding {
     effect: Option<LocalEffect>,
     call_return_effect: LocalCallReturnEffect,
     scheme: Option<Scheme>,
+}
+
+#[derive(Clone)]
+struct SubSyntaxScope {
+    bare_return: SubReturnTarget,
+    labels: Vec<SubLabelReturnTarget>,
+}
+
+#[derive(Clone)]
+struct SubReturnTarget {
+    label: String,
+    def: DefId,
+}
+
+#[derive(Clone)]
+struct SubLabelReturnTarget {
+    label_def: DefId,
+    target: SubReturnTarget,
 }
 
 #[derive(Clone)]
@@ -8049,6 +8417,7 @@ pub enum LoweringError {
     MissingLocalBindingName,
     MissingLocalBindingBody,
     MissingLocalVarAct { name: Name },
+    MissingSubLabelAct { label: Name },
     AnnotationBuild { error: AnnBuildError },
     AnnotationConstraint { error: AnnConstraintError },
     NegSignatureBuild { error: NegSignatureBuildError },

@@ -19,6 +19,7 @@ pub struct Program {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Root {
     Instance(InstanceId),
+    EvalInstance(InstanceId),
     Expr(Expr),
 }
 

@@ -85,7 +85,8 @@ impl Specializer {
     ) -> Result<Root, SpecializeError> {
         match root {
             poly_expr::RuntimeRoot::Expr(expr) => {
-                let plan = solve::solve_expr(arena, expr, None)?;
+                let expected = self.root_expr_expected_type(arena, expr)?;
+                let plan = solve::solve_expr(arena, expr, expected.as_ref())?;
                 let expr_id = expr;
                 let expr = self.expr(arena, &plan, expr_id)?;
                 Ok(Root::Expr(force_expr_if_thunk(
@@ -93,10 +94,32 @@ impl Specializer {
                     expr,
                 )))
             }
-            poly_expr::RuntimeRoot::ComputedDef(def) => {
-                Ok(Root::Instance(self.ensure_def_instance(arena, def, None)?))
-            }
+            poly_expr::RuntimeRoot::ComputedDef(def) => Ok(Root::EvalInstance(
+                self.ensure_def_instance(arena, def, None)?,
+            )),
         }
+    }
+
+    fn root_expr_expected_type(
+        &self,
+        arena: &poly_expr::Arena,
+        expr: poly_expr::ExprId,
+    ) -> Result<Option<Type>, SpecializeError> {
+        let Some(def) = arena.root_expr_def(expr) else {
+            return Ok(None);
+        };
+        let Some(poly_expr::Def::Let {
+            scheme: Some(scheme),
+            ..
+        }) = arena.defs.get(def)
+        else {
+            return Err(SpecializeError::MissingScheme {
+                def: convert_def(def),
+            });
+        };
+        Ok(Some(
+            types::signature_for_scheme(arena, def, scheme, None)?.ty,
+        ))
     }
 
     fn ensure_def_instance(

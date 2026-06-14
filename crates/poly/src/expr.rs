@@ -28,6 +28,12 @@ pub struct Arena {
     /// `roots` は module 直下の定義一覧であり、runtime demand root ではない。
     /// `1` だけの source も実行対象になるため、式 root は定義 root と分けて保持する。
     pub root_exprs: Vec<ExprId>,
+    /// root expression の境界型を持つ hidden definition。
+    ///
+    /// 通常の root expression は erased expression だけで specialize できるため、ここには入れない。
+    /// lowering helper を持つ root expression だけが、infer で得た全体境界を specialize の初期 demand
+    /// として渡すために hidden def を持つ。
+    pub root_expr_defs: FxHashMap<ExprId, DefId>,
     /// 疎な定義（scheme/body を内包）。登録し直しで更新する。
     pub defs: DefArena,
     /// RefId → 解決先 DefId。名前解決前は None。
@@ -101,6 +107,7 @@ impl Arena {
             roots: Vec::new(),
             runtime_roots: Vec::new(),
             root_exprs: Vec::new(),
+            root_expr_defs: FxHashMap::default(),
             defs: DefArena::new(),
             refs: Vec::new(),
             selects: Vec::new(),
@@ -120,6 +127,10 @@ impl Arena {
     }
     pub fn pat(&self, id: PatId) -> &Pat {
         &self.pat[id.0 as usize]
+    }
+
+    pub fn root_expr_def(&self, expr: ExprId) -> Option<DefId> {
+        self.root_expr_defs.get(&expr).copied()
     }
 
     pub fn add_expr(&mut self, expr: Expr) -> ExprId {

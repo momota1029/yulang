@@ -27,6 +27,32 @@ fn lowers_root_expression_to_expr_arena() {
 }
 
 #[test]
+fn eval_instance_root_runs_without_result_value() {
+    let program = mono::Program {
+        roots: vec![mono::Root::EvalInstance(mono::InstanceId(0))],
+        instances: vec![mono::Instance {
+            id: mono::InstanceId(0),
+            source: mono::InstanceSource::Def(mono::DefId(0)),
+            signature: mono::Signature {
+                ty: mono::Type::Con {
+                    path: vec!["int".to_string()],
+                    args: Vec::new(),
+                },
+            },
+            body: mono::Expr::new(mono::ExprKind::Lit(mono::Lit::Int(1))),
+        }],
+    };
+
+    let lowered = lower(&program).unwrap();
+
+    assert_eq!(
+        lowered.roots,
+        vec![Root::EvalInstance(super::InstanceId(0))]
+    );
+    assert_eq!(run_program(&lowered), Ok(Vec::new()));
+}
+
+#[test]
 fn runs_specialized_generic_call_like_oracle() {
     assert_oracle_parity("my id x = x\nid(1)\n", "[1]");
 }

@@ -23,9 +23,15 @@ pub fn scan_name<I: EventInput, S: EventSink>(mut i: In<I, S>) -> Option<(Syntax
 }
 
 pub fn scan_stmt_head_word<I: EventInput, S: EventSink>(
-    i: In<I, S>,
+    mut i: In<I, S>,
 ) -> Option<(SyntaxKind, Box<str>)> {
-    scan_ident_or_keyword(i)
+    let ((), text) = i.run(ident.with_seq())?;
+    let kind = if text.as_ref() == "sub" {
+        SyntaxKind::Sub
+    } else {
+        keyword_kind(text.as_ref()).unwrap_or(SyntaxKind::Ident)
+    };
+    Some((kind, text.as_ref().into()))
 }
 
 pub fn scan_visibility_word<I: EventInput, S: EventSink>(
@@ -41,7 +47,11 @@ pub fn scan_expr_nud_word<I: EventInput, S: EventSink>(
     stop: &HashSet<SyntaxKind>,
 ) -> Option<(SyntaxKind, Box<str>)> {
     let ((), text) = i.run(ident.with_seq())?;
-    let kind = contextual_word_kind(text.as_ref(), stop, is_expr_nud_keyword);
+    let kind = if text.as_ref() == "sub" {
+        SyntaxKind::Sub
+    } else {
+        contextual_word_kind(text.as_ref(), stop, is_expr_nud_keyword)
+    };
     Some((kind, text.as_ref().into()))
 }
 
@@ -315,6 +325,7 @@ fn is_expr_nud_keyword(kind: SyntaxKind) -> bool {
             | SyntaxKind::Elsif
             | SyntaxKind::Case
             | SyntaxKind::Catch
+            | SyntaxKind::Sub
             | SyntaxKind::Rule
     )
 }

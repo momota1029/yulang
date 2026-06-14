@@ -61,6 +61,9 @@ impl Lowerer {
     fn lower_root(&mut self, root: &mono::Root) -> Result<Root, LowerError> {
         match root {
             mono::Root::Instance(instance) => Ok(Root::Instance(convert_instance(*instance))),
+            mono::Root::EvalInstance(instance) => {
+                Ok(Root::EvalInstance(convert_instance(*instance)))
+            }
             mono::Root::Expr(expr) => Ok(Root::Expr(self.lower_expr(expr)?)),
         }
     }

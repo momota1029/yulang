@@ -166,6 +166,7 @@ fn read_expr_nud_word(
         | SyntaxKind::Case
         | SyntaxKind::If
         | SyntaxKind::Catch
+        | SyntaxKind::Sub
         | SyntaxKind::Rule => ExprNudTag::Atom,
         _ => ExprNudTag::Stop,
     };

@@ -1,3 +1,4 @@
+use chasa::Back as _;
 use either::Either;
 use reborrow_generic::Reborrow as _;
 
@@ -45,6 +46,10 @@ pub(super) fn parse_lambda_expr<I: EventInput, S: EventSink>(
         return parse_case_like_lambda_expr(i, backslash, kw, &config);
     }
 
+    if let Some(kw) = parse_sub_lambda_keyword(i.rb(), &backslash) {
+        return parse_sub_lambda_expr(i, backslash, kw);
+    }
+
     if i.lookahead(scan_dot_field).is_some() {
         let led = scan_expr_led(backslash.trailing_trivia_info(), i.rb())?;
         i.env.state.sink.start(SyntaxKind::MethodLambdaExpr);
@@ -66,6 +71,54 @@ pub(super) fn parse_lambda_expr<I: EventInput, S: EventSink>(
     parse_lambda_after_intro(i, backslash.trailing_trivia_info())
 }
 
+pub(super) fn parse_sub_expr<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    sub_lex: Lex,
+) -> Option<Result<Either<TriviaInfo, Lex>, Token<ExprLedTag>>> {
+    i.env.state.sink.start(SyntaxKind::SubExpr);
+    i.env.state.sink.lex(&sub_lex);
+
+    let leading = parse_sub_label(i.rb(), sub_lex.trailing_trivia_info());
+    let nud = scan_expr_nud(leading, i.rb())?;
+    let result = match nud.tag {
+        ExprNudTag::Stop if nud.lex.kind == SyntaxKind::Colon => {
+            i.env.state.sink.lex(&nud.lex);
+            i.env.state.line_indent = i.env.indent;
+            let body = parse_inline_or_indent(i.rb(), nud.lex.trailing_trivia_info())?;
+            i.env.state.sink.finish();
+            Ok(body)
+        }
+        _ => {
+            emit_invalid(i.rb(), nud.lex.clone());
+            i.env.state.sink.finish();
+            Ok(Either::Right(nud.lex))
+        }
+    };
+    Some(result)
+}
+
+pub(super) fn is_sub_expr_intro<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    leading: TriviaInfo,
+) -> bool {
+    let checkpoint = i.checkpoint();
+    let result = (|| {
+        let first = peek_stmt_lex(leading, i.rb())?;
+        if first.kind == SyntaxKind::Colon {
+            return Some(true);
+        }
+        if first.kind != SyntaxKind::SigilIdent || !first.text.starts_with('\'') {
+            return Some(false);
+        }
+        scan_stmt_lex(leading, i.rb())?;
+        let next = peek_stmt_lex(first.trailing_trivia_info(), i.rb())?;
+        Some(next.kind == SyntaxKind::Colon)
+    })()
+    .unwrap_or(false);
+    i.rollback(checkpoint);
+    result
+}
+
 fn parse_case_like_lambda_keyword<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
     backslash: &Lex,
@@ -80,6 +133,34 @@ fn parse_case_like_lambda_keyword<I: EventInput, S: EventSink>(
     scan_stmt_lex(TriviaInfo::None, i)
 }
 
+fn parse_sub_lambda_keyword<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    backslash: &Lex,
+) -> Option<Lex> {
+    if backslash.trailing_trivia_info() != TriviaInfo::None {
+        return None;
+    }
+    let kw = peek_stmt_lex(TriviaInfo::None, i.rb())?;
+    if kw.kind != SyntaxKind::Ident || kw.text.as_ref() != "sub" {
+        return None;
+    }
+    let mut kw = scan_stmt_lex(TriviaInfo::None, i)?;
+    kw.kind = SyntaxKind::Sub;
+    Some(kw)
+}
+
+fn parse_sub_lambda_expr<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    backslash: Lex,
+    sub_lex: Lex,
+) -> Option<Result<Either<TriviaInfo, Lex>, Token<ExprLedTag>>> {
+    i.env.state.sink.start(SyntaxKind::SubLambdaExpr);
+    i.env.state.sink.lex(&backslash);
+    i.env.state.sink.lex(&sub_lex);
+    let leading = parse_sub_label(i.rb(), sub_lex.trailing_trivia_info());
+    parse_lambda_after_intro(i, leading)
+}
+
 fn parse_recursive_lambda_label<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
     backslash: &Lex,
@@ -92,6 +173,25 @@ fn parse_recursive_lambda_label<I: EventInput, S: EventSink>(
         return None;
     }
     scan_stmt_lex(TriviaInfo::None, i)
+}
+
+fn parse_sub_label<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    leading: TriviaInfo,
+) -> TriviaInfo {
+    let Some(label) = peek_stmt_lex(leading, i.rb()) else {
+        return leading;
+    };
+    if label.kind != SyntaxKind::SigilIdent || !label.text.starts_with('\'') {
+        return leading;
+    }
+    let Some(label) = scan_stmt_lex(leading, i.rb()) else {
+        return leading;
+    };
+    i.env.state.sink.start(SyntaxKind::SubLabel);
+    i.env.state.sink.lex(&label);
+    i.env.state.sink.finish();
+    label.trailing_trivia_info()
 }
 
 fn parse_lambda_after_intro<I: EventInput, S: EventSink>(

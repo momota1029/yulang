@@ -62,15 +62,20 @@ impl<'a> Runtime<'a> {
     }
 
     pub fn run(&mut self) -> Result<Vec<Value>, RuntimeError> {
-        let mut results = Vec::with_capacity(self.program.roots.len());
+        let mut results = Vec::new();
         let mut env = CapturedEnv::default();
         for root in &self.program.roots {
             let result = match root {
                 Root::Instance(instance) => EvalResult::Value(self.eval_instance(*instance)?),
+                Root::EvalInstance(instance) => EvalResult::Value(self.eval_instance(*instance)?),
                 Root::Expr(expr) => self.eval_expr(expr, &mut env)?,
             };
             match result {
-                EvalResult::Value(value) => results.push(value),
+                EvalResult::Value(value) => {
+                    if !matches!(root, Root::EvalInstance(_)) {
+                        results.push(value);
+                    }
+                }
                 EvalResult::Request(request) => {
                     return Err(RuntimeError::UnhandledEffect { path: request.path });
                 }

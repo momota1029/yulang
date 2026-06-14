@@ -38,6 +38,7 @@ impl Dumper {
     fn root(&self, root: &Root) -> String {
         match root {
             Root::Instance(instance) => format!("m{}", instance.0),
+            Root::EvalInstance(instance) => format!("eval m{}", instance.0),
             Root::Expr(expr) => self.expr(expr),
         }
     }

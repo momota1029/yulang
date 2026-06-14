@@ -395,6 +395,9 @@ pub struct ModuleTable {
     resolved_act_copies: FxHashMap<TypeDeclId, ResolvedActCopyDecl>,
     synthetic_var_act_copies: FxHashSet<TypeDeclId>,
     synthetic_var_act_uses: FxHashMap<DefId, Vec<SyntheticVarActUse>>,
+    synthetic_sub_label_act_copies: FxHashSet<TypeDeclId>,
+    synthetic_sub_label_act_uses: FxHashMap<DefId, Vec<SyntheticSubLabelActUse>>,
+    root_expr_owners: FxHashMap<ModuleId, Vec<Option<DefId>>>,
     act_ops: FxHashMap<TypeDeclId, Vec<ActOperationSig>>,
     act_op_defs: FxHashMap<DefId, ActOperationDef>,
     lazy_ops: FxHashSet<DefId>,
@@ -428,6 +431,12 @@ pub(crate) struct SyntheticVarActUse {
     pub act: TypeDeclId,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SyntheticSubLabelActUse {
+    pub label: Name,
+    pub act: TypeDeclId,
+}
+
 impl ModuleTable {
     fn new() -> Self {
         Self {
@@ -448,6 +457,9 @@ impl ModuleTable {
             resolved_act_copies: FxHashMap::default(),
             synthetic_var_act_copies: FxHashSet::default(),
             synthetic_var_act_uses: FxHashMap::default(),
+            synthetic_sub_label_act_copies: FxHashSet::default(),
+            synthetic_sub_label_act_uses: FxHashMap::default(),
+            root_expr_owners: FxHashMap::default(),
             act_ops: FxHashMap::default(),
             act_op_defs: FxHashMap::default(),
             lazy_ops: FxHashSet::default(),
@@ -573,6 +585,36 @@ impl ModuleTable {
             .get(&owner)
             .map(Vec::as_slice)
             .unwrap_or(&[])
+    }
+    fn set_synthetic_sub_label_act_copy(&mut self, id: TypeDeclId) {
+        self.synthetic_sub_label_act_copies.insert(id);
+    }
+    pub(crate) fn synthetic_sub_label_act_copy_ids(&self) -> Vec<TypeDeclId> {
+        self.synthetic_sub_label_act_copies
+            .iter()
+            .copied()
+            .collect()
+    }
+    fn push_synthetic_sub_label_act_use(&mut self, owner: DefId, usage: SyntheticSubLabelActUse) {
+        self.synthetic_sub_label_act_uses
+            .entry(owner)
+            .or_default()
+            .push(usage);
+    }
+    pub(crate) fn synthetic_sub_label_act_uses(&self, owner: DefId) -> &[SyntheticSubLabelActUse] {
+        self.synthetic_sub_label_act_uses
+            .get(&owner)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+    fn push_root_expr_owner(&mut self, module: ModuleId, owner: Option<DefId>) {
+        self.root_expr_owners.entry(module).or_default().push(owner);
+    }
+    pub(crate) fn root_expr_owner(&self, module: ModuleId, index: usize) -> Option<Option<DefId>> {
+        self.root_expr_owners
+            .get(&module)
+            .and_then(|owners| owners.get(index))
+            .copied()
     }
     fn insert_act_method(&mut self, method: ActMethodDecl) {
         self.act_methods
@@ -1196,9 +1238,15 @@ impl ModuleTable {
 
         let target = self.raw_module_path_from(module, prefix, site)?;
         Some(ImportPathTarget {
-            value: self.value_at(target, last, module_path_site()),
-            ty: self.type_at(target, last, module_path_site()),
-            module: self.module_at(target, last, module_path_site()),
+            value: self
+                .value_at(target, last, module_path_site())
+                .or_else(|| self.exported_value_at(target, last)),
+            ty: self
+                .type_at(target, last, module_path_site())
+                .or_else(|| self.exported_type_at(target, last)),
+            module: self
+                .module_at(target, last, module_path_site())
+                .or_else(|| self.exported_module_at(target, last)),
         })
     }
     fn raw_module_path_from(
@@ -1637,6 +1685,9 @@ impl Lower {
                 SyntaxKind::Binding => {
                     self.register_binding_values(&child, module, &mut children);
                 }
+                SyntaxKind::Expr => {
+                    self.register_root_expr(&child, module);
+                }
                 SyntaxKind::ModDecl => {
                     if let Some(name) = mod_name(&child) {
                         let vis = vis_of(&child);
@@ -1724,6 +1775,16 @@ impl Lower {
             children.push(def);
             self.register_local_var_act_copies_in_binding(binding, module, def);
         }
+    }
+
+    fn register_root_expr(&mut self, expr: &Cst, module: ModuleId) {
+        if !expr_needs_synthetic_owner(expr) {
+            self.modules.push_root_expr_owner(module, None);
+            return;
+        }
+        let owner = self.arena.defs.fresh();
+        self.register_local_var_act_copies_in_expr(expr, module, owner);
+        self.modules.push_root_expr_owner(module, Some(owner));
     }
 
     fn register_cast_decl(&mut self, node: &Cst, module: ModuleId) -> DefId {
@@ -1923,6 +1984,14 @@ impl Lower {
             };
             self.register_synthetic_var_act_copy(module, owner, name, index);
         }
+        for (index, label) in body
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Expr)
+            .filter_map(|node| sub_syntax_label(&node))
+            .enumerate()
+        {
+            self.register_synthetic_sub_label_act_copy(module, owner, label, index);
+        }
     }
 
     fn register_synthetic_var_act_copy(
@@ -1939,6 +2008,22 @@ impl Lower {
         self.modules.set_synthetic_var_act_copy(id);
         self.modules
             .push_synthetic_var_act_use(owner, SyntheticVarActUse { source, act: id });
+    }
+
+    fn register_synthetic_sub_label_act_copy(
+        &mut self,
+        module: ModuleId,
+        owner: DefId,
+        label: Name,
+        index: usize,
+    ) {
+        let internal_name = synthetic_sub_label_act_internal_name(&label, owner, index);
+        let id = self
+            .modules
+            .insert_type(module, internal_name, ModuleTypeKind::Act, Vis::My);
+        self.modules.set_synthetic_sub_label_act_copy(id);
+        self.modules
+            .push_synthetic_sub_label_act_use(owner, SyntheticSubLabelActUse { label, act: id });
     }
 
     fn register_type_constructors(
@@ -2485,6 +2570,10 @@ impl Lower {
         for id in synthetic_ids {
             self.finalize_synthetic_var_act_copy(id);
         }
+        let synthetic_sub_label_ids = self.modules.synthetic_sub_label_act_copy_ids();
+        for id in synthetic_sub_label_ids {
+            self.finalize_synthetic_sub_label_act_copy(id);
+        }
     }
 
     fn finalize_act_copy(&mut self, id: TypeDeclId) {
@@ -2503,6 +2592,34 @@ impl Lower {
             return;
         };
         let Some(source) = self.std_var_act_decl() else {
+            return;
+        };
+        let source_type_vars = self
+            .modules
+            .act_template(source.id)
+            .map(act_type_var_names)
+            .unwrap_or_default();
+        let type_var_aliases = source_type_vars
+            .into_iter()
+            .map(|name| (name.clone(), name))
+            .collect();
+        self.materialize_act_copy(
+            id,
+            &dest,
+            ResolvedActCopyDecl {
+                source: source.id,
+                type_var_aliases,
+            },
+            None,
+            false,
+        );
+    }
+
+    fn finalize_synthetic_sub_label_act_copy(&mut self, id: TypeDeclId) {
+        let Some(dest) = self.modules.type_decl_by_id(id) else {
+            return;
+        };
+        let Some(source) = self.std_label_sub_act_decl() else {
             return;
         };
         let source_type_vars = self
@@ -2565,6 +2682,16 @@ impl Lower {
 
     fn std_var_act_decl(&self) -> Option<ModuleTypeDecl> {
         let path = crate::std_paths::control_var_var_act()
+            .into_iter()
+            .map(Name)
+            .collect::<Vec<_>>();
+        self.modules
+            .type_path_at(self.modules.root_id(), &path, module_path_site())
+            .filter(|decl| decl.kind == ModuleTypeKind::Act)
+    }
+
+    fn std_label_sub_act_decl(&self) -> Option<ModuleTypeDecl> {
+        let path = crate::std_paths::control_flow_label_sub_act()
             .into_iter()
             .map(Name)
             .collect::<Vec<_>>();
@@ -3021,6 +3148,149 @@ fn local_var_act_name(binding: &Cst) -> Option<Name> {
 
 fn synthetic_var_act_internal_name(source: &Name, owner: DefId, index: usize) -> Name {
     Name(format!("{}#{}:{index}", source.0, owner.0))
+}
+
+fn synthetic_sub_label_act_internal_name(label: &Name, owner: DefId, index: usize) -> Name {
+    let raw = label.0.trim_start_matches('\'');
+    Name(format!("#sub_label:{raw}#{}:{index}", owner.0))
+}
+
+fn expr_needs_synthetic_owner(expr: &Cst) -> bool {
+    expr.descendants().any(|node| {
+        (node.kind() == SyntaxKind::Binding && local_var_act_name(&node).is_some())
+            || sub_syntax_label(&node).is_some()
+    })
+}
+
+pub(crate) struct SubSyntaxParts {
+    pub label: Option<Name>,
+    pub body: Cst,
+}
+
+pub(crate) struct SubLambdaSyntaxParts {
+    pub label: Option<Name>,
+    pub patterns: Vec<Cst>,
+    pub body: Cst,
+}
+
+pub(crate) fn sub_syntax_parts(node: &Cst) -> Option<SubSyntaxParts> {
+    match node.kind() {
+        SyntaxKind::Expr => {
+            let sub = node
+                .children_with_tokens()
+                .filter(|item| !item_is_trivia(item))
+                .filter_map(|item| item.into_node())
+                .find(|child| child.kind() == SyntaxKind::SubExpr)?;
+            sub_expr_syntax_parts(&sub)
+        }
+        SyntaxKind::SubExpr => sub_expr_syntax_parts(node),
+        _ => legacy_sub_syntax_parts(node),
+    }
+}
+
+fn sub_expr_syntax_parts(node: &Cst) -> Option<SubSyntaxParts> {
+    let label = sub_label_name(node);
+    let body = sub_body_node(node)?;
+    Some(SubSyntaxParts { label, body })
+}
+
+pub(crate) fn sub_lambda_syntax_parts(node: &Cst) -> Option<SubLambdaSyntaxParts> {
+    let node = match node.kind() {
+        SyntaxKind::Expr => node
+            .children_with_tokens()
+            .filter(|item| !item_is_trivia(item))
+            .filter_map(|item| item.into_node())
+            .find(|child| child.kind() == SyntaxKind::SubLambdaExpr)?,
+        SyntaxKind::SubLambdaExpr => node.clone(),
+        _ => return None,
+    };
+    let label = sub_label_name(&node);
+    let patterns = node
+        .children()
+        .filter(|child| child.kind() == SyntaxKind::Pattern)
+        .collect();
+    let body = sub_body_node(&node)?;
+    Some(SubLambdaSyntaxParts {
+        label,
+        patterns,
+        body,
+    })
+}
+
+fn legacy_sub_syntax_parts(node: &Cst) -> Option<SubSyntaxParts> {
+    if node.kind() != SyntaxKind::Expr {
+        return None;
+    }
+    let items = node
+        .children_with_tokens()
+        .filter(|item| !item_is_trivia(item))
+        .collect::<Vec<_>>();
+    let Some(NodeOrToken::Token(head)) = items.first() else {
+        return None;
+    };
+    if head.kind() != SyntaxKind::Ident || head.text() != "sub" {
+        return None;
+    }
+
+    let mut index = 1usize;
+    let label = match items.get(index) {
+        Some(NodeOrToken::Node(apply)) if apply.kind() == SyntaxKind::ApplyML => {
+            let label = sub_syntax_label_arg_name(apply)?;
+            index += 1;
+            Some(label)
+        }
+        _ => None,
+    };
+    let Some(NodeOrToken::Node(colon)) = items.get(index) else {
+        return None;
+    };
+    if colon.kind() != SyntaxKind::ApplyColon {
+        return None;
+    }
+    let body = sub_syntax_body_from_apply_colon(colon)?;
+    Some(SubSyntaxParts { label, body })
+}
+
+pub(crate) fn sub_syntax_label(node: &Cst) -> Option<Name> {
+    sub_syntax_parts(node)
+        .and_then(|parts| parts.label)
+        .or_else(|| sub_lambda_syntax_parts(node).and_then(|parts| parts.label))
+}
+
+fn sub_label_name(node: &Cst) -> Option<Name> {
+    child_node(node, SyntaxKind::SubLabel)?
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::SigilIdent && token.text().starts_with('\''))
+        .map(|token| Name(token.text().to_string()))
+}
+
+fn sub_body_node(node: &Cst) -> Option<Cst> {
+    node.children().find(|child| {
+        matches!(
+            child.kind(),
+            SyntaxKind::Expr | SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+        )
+    })
+}
+
+fn sub_syntax_label_arg_name(node: &Cst) -> Option<Name> {
+    let expr = node
+        .children()
+        .find(|child| child.kind() == SyntaxKind::Expr)?;
+    expr.children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::SigilIdent && token.text().starts_with('\''))
+        .map(|token| Name(token.text().to_string()))
+}
+
+fn sub_syntax_body_from_apply_colon(node: &Cst) -> Option<Cst> {
+    node.children().find(|child| {
+        matches!(
+            child.kind(),
+            SyntaxKind::Expr | SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+        )
+    })
 }
 
 pub(crate) fn direct_pattern_type_expr(pattern: &Cst) -> Option<Cst> {
@@ -3636,6 +3906,25 @@ mod tests {
                 .modules
                 .lexical_module_at(root, &Name("imported_n".into()), site_order),
             Some(n)
+        );
+    }
+
+    #[test]
+    fn import_view_resolves_alias_to_reexported_value() {
+        let cst = parse(
+            "mod inner:\n  pub value = 1\nmod facade:\n  pub use inner::*\nuse facade::value as imported_value\nmy site = imported_value\n",
+        );
+        let lower = lower_module_map(&cst);
+        let root = lower.modules.root_id();
+        let inner = lower.modules.module_decls(root, &Name("inner".into()))[0].module;
+        let value = lower.modules.value_decls(inner, &Name("value".into()))[0].def;
+        let site_order = lower.modules.value_decls(root, &Name("site".into()))[0].order;
+
+        assert_eq!(
+            lower
+                .modules
+                .lexical_value_at(root, &Name("imported_value".into()), site_order),
+            Some(value)
         );
     }
 

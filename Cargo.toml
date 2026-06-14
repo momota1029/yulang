@@ -11,6 +11,7 @@ members = [
   "crates/poly",
   "crates/infer",
   "crates/sources",
+  "crates/wasm",
 ]
 
 [profile.profiling]

@@ -1048,6 +1048,7 @@ lambda =
     "\" pattern* "->" inline_or_indent_body
   | "\" "." field_tail
   | "\" sigil_ident_starting_with_apostrophe pattern* "->" body
+  | "\sub" sub_lambda
   | "\case" case_lambda
   | "\catch" catch_lambda
 ```
@@ -1060,14 +1061,68 @@ lambda =
 \.foo(1)
 \.method1(a, b).method2(c, d)
 \'self x -> 'self x
+\sub x -> return x
+\sub 'exit x -> 'exit.return x
 \case: 1 -> 41, _ -> 0
 \catch: value -> value
 ```
 
-`\case` / `\catch` は backslash と keyword の間に空白がない場合だけ専用 lambda になる。
+`\sub` / `\case` / `\catch` は backslash と keyword の間に空白がない場合だけ専用 lambda になる。
 recursive lambda label も backslash と sigil ident の間に空白がない場合だけ有効である。
 method lambda は backslash の trailing trivia に関係なく、次に `.field` が見えれば
 `MethodLambdaExpr` になる。そのため `\.foo` と `\ .foo` はどちらも method lambda である。
+`\ sub x -> ...` は通常の lambda で、`sub` という pattern を持つ。
+
+### sub
+
+`sub` is expression syntax when it appears at expression head and is followed by
+`:` or `sub_label ":"`. Otherwise it remains a normal identifier head. This keeps
+paths such as `sub::sub` and declarations such as `act sub` usable as ordinary names.
+
+```text
+sub_expr =
+  "sub" sub_label? ":" inline_or_indent_body
+
+sub_lambda =
+  sub_label? pattern* "->" inline_or_indent_body
+
+sub_label = sigil_ident_starting_with_apostrophe
+```
+
+The CST uses `SubExpr` for `sub_expr`, `SubLambdaExpr` for `\sub`, and `SubLabel`
+for the optional label. `sub` is contextual; the parser does not make it a global
+keyword in declaration names or path segments.
+
+`sub:` lowers to `std::control::flow::sub::sub` and opens a syntax scope where
+bare `return` in expression position resolves to `std::control::flow::sub::return`.
+
+`sub 'label:` creates a fresh copy of `std::control::flow::label_sub` for that
+syntax site. Inside the body, bare `return` resolves to that fresh act's `return`
+operation, and `'label.return` resolves to the same operation through the bound
+label value. The fresh act is per syntax site, so nested labelled `sub` blocks do
+not catch each other's labelled return effects.
+
+`\sub x -> body` lowers as if the lambda body were `sub: body`, while keeping the
+normal lambda parameter and annotation lowering. `\sub 'label x -> body` uses the
+same fresh labelled act rule as `sub 'label: body`.
+
+Examples:
+
+```yu
+sub:
+  return 1
+
+sub 'outer:
+  'outer.return 1
+
+sub 'outer:
+  sub:
+    'outer.return 1
+  return 2
+
+\sub x -> return x
+\sub 'outer x -> 'outer.return x
+```
 
 ### case / catch
 

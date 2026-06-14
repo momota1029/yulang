@@ -9,9 +9,9 @@ pub act label_sub 'a:
     pub struct label {
         marker: unit
     }
-    our control_label = label_sub::label {marker: ()}
+    our control_label = label {marker: ()}
     pub sub(x: [_] 'a): 'a = catch x:
-        label_sub::return a, _ -> a
+        return a, _ -> a
         sub::return a, _ -> a
         a -> a
 

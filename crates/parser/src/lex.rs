@@ -234,6 +234,7 @@ pub enum SyntaxKind {
     Error = 207,
     Lazy = 208,
     YadaYada = 209,
+    Sub = 210,
 
     // nodes
     InvalidToken = 500,
@@ -394,6 +395,9 @@ pub enum SyntaxKind {
     ExprSpread = 632,
     ErrorDecl = 634,
     ImplDescription = 639,
+    SubExpr = 640,
+    SubLambdaExpr = 641,
+    SubLabel = 642,
 }
 
 #[derive(Debug, Clone)]

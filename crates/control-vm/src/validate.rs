@@ -98,6 +98,7 @@ impl Validator<'_> {
         for root in &self.program.roots {
             match root {
                 Root::Instance(instance) => self.validate_instance_ref(*instance)?,
+                Root::EvalInstance(instance) => self.validate_instance_ref(*instance)?,
                 Root::Expr(expr) => self.validate_expr_ref(*expr)?,
             }
         }

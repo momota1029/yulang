@@ -11,7 +11,7 @@ pub const YULANG_CACHE_DIR_ENV: &str = "YULANG_CACHE_DIR";
 pub fn install_embedded_std(root: impl AsRef<Path>) -> io::Result<()> {
     let root = root.as_ref();
     fs::create_dir_all(root)?;
-    for file in EMBEDDED_STD_FILES {
+    for file in embedded_std_files() {
         let path = root.join(file.relative_path);
         if fs::read_to_string(&path).ok().as_deref() == Some(file.source) {
             continue;
@@ -22,6 +22,10 @@ pub fn install_embedded_std(root: impl AsRef<Path>) -> io::Result<()> {
         fs::write(path, file.source)?;
     }
     Ok(())
+}
+
+pub fn embedded_std_files() -> &'static [EmbeddedStdFile] {
+    EMBEDDED_STD_FILES
 }
 
 pub fn default_versioned_std_root() -> PathBuf {
@@ -67,9 +71,10 @@ pub fn env_path(key: &str) -> Option<PathBuf> {
     Some(PathBuf::from(value))
 }
 
-struct EmbeddedStdFile {
-    relative_path: &'static str,
-    source: &'static str,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EmbeddedStdFile {
+    pub relative_path: &'static str,
+    pub source: &'static str,
 }
 
 const EMBEDDED_STD_FILES: &[EmbeddedStdFile] = &[

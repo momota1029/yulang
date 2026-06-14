@@ -328,13 +328,17 @@ impl<'a> ExprTypeSolver<'a> {
     ) -> Result<Type, SpecializeError> {
         let scrutinee_actual = self.expr(scrutinee, None)?;
         let (scrutinee_value, scrutinee_effect) = split_runtime_computation_shape(scrutinee_actual);
-        self.expr(scrutinee, Some(scrutinee_value.clone()))?;
+        let pattern_value = match (&scrutinee_value, self.case_scrutinee_pattern_type(arms)) {
+            (Type::OpenVar(_), Some(pattern_type)) => pattern_type,
+            _ => scrutinee_value.clone(),
+        };
+        self.expr(scrutinee, Some(pattern_value.clone()))?;
 
         let expected_result = expected.unwrap_or_else(|| self.fresh_value_slot());
         let (result_value, _) = split_runtime_computation_shape(expected_result);
         let mut effects = vec![scrutinee_effect];
         for arm in arms {
-            self.bind_pat(arm.pat, scrutinee_value.clone())?;
+            self.bind_pat(arm.pat, pattern_value.clone())?;
             if let Some(guard) = arm.guard {
                 let guard_actual = self.expr(guard, Some(bool_type()))?;
                 effects.push(split_runtime_computation_shape(guard_actual).1);
@@ -349,6 +353,50 @@ impl<'a> ExprTypeSolver<'a> {
             self.plan.mark_raw_thunk_computation(expr);
         }
         Ok(result)
+    }
+
+    fn case_scrutinee_pattern_type(&mut self, arms: &[poly_expr::CaseArm]) -> Option<Type> {
+        let mut variants = Vec::new();
+        for arm in arms {
+            self.collect_pat_poly_variants(arm.pat, &mut variants);
+        }
+        (!variants.is_empty()).then_some(Type::PolyVariant(variants))
+    }
+
+    fn collect_pat_poly_variants(
+        &mut self,
+        pat: poly_expr::PatId,
+        variants: &mut Vec<TypeVariant>,
+    ) {
+        match self.arena.pat(pat) {
+            poly_expr::Pat::PolyVariant(tag, payloads) => {
+                if variants
+                    .iter()
+                    .any(|variant| variant.name == *tag && variant.payloads.len() == payloads.len())
+                {
+                    return;
+                }
+                variants.push(TypeVariant {
+                    name: tag.clone(),
+                    payloads: payloads.iter().map(|_| self.fresh_value_slot()).collect(),
+                });
+            }
+            poly_expr::Pat::Or(left, right) => {
+                self.collect_pat_poly_variants(*left, variants);
+                self.collect_pat_poly_variants(*right, variants);
+            }
+            poly_expr::Pat::As(inner, _) => {
+                self.collect_pat_poly_variants(*inner, variants);
+            }
+            poly_expr::Pat::Lit(_)
+            | poly_expr::Pat::Wild
+            | poly_expr::Pat::Var(_)
+            | poly_expr::Pat::Tuple(_)
+            | poly_expr::Pat::List { .. }
+            | poly_expr::Pat::Record { .. }
+            | poly_expr::Pat::Con(_, _)
+            | poly_expr::Pat::Ref(_) => {}
+        }
     }
 
     fn primitive_spine_callee_expected(
@@ -737,11 +785,18 @@ impl<'a> ExprTypeSolver<'a> {
                 self.bind_constructor_pat(*ref_id, payloads, ty)?;
             }
             PolyPat::PolyVariant(tag, payloads) => {
-                if let Type::PolyVariant(variants) = ty
-                    && let Some(variant) = variants.iter().find(|variant| variant.name == *tag)
-                {
-                    for (payload, payload_ty) in payloads.iter().zip(&variant.payloads) {
-                        self.bind_pat(*payload, payload_ty.clone())?;
+                if let Type::PolyVariant(variants) = ty {
+                    match variants.iter().find(|variant| variant.name == *tag) {
+                        Some(variant) => {
+                            for (payload, payload_ty) in payloads.iter().zip(&variant.payloads) {
+                                self.bind_pat(*payload, payload_ty.clone())?;
+                            }
+                        }
+                        None => {
+                            for payload in payloads {
+                                self.bind_pat(*payload, Type::Never)?;
+                            }
+                        }
                     }
                 }
             }
@@ -2316,6 +2371,20 @@ mod tests {
         assert_eq!(
             mono::dump::dump_type(plan.boundary(arms[1].body).unwrap().expected),
             "float"
+        );
+    }
+
+    #[test]
+    fn root_case_uses_variant_patterns_as_scrutinee_expectation() {
+        let lowering = lower_source("case :disabled: :label text -> text, :disabled -> \"\"\n");
+        let arena = &lowering.session.poly;
+        let root = arena.root_exprs[0];
+
+        let plan = solve_expr(arena, root, None).expect("variant case should solve");
+
+        assert_eq!(
+            mono::dump::dump_type(plan.actual_type_of(root).unwrap()),
+            "std::text::str::str"
         );
     }
 

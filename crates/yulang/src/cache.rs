@@ -14,9 +14,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::CollectedSource;
 
-const POLY_CACHE_FORMAT: u32 = 1;
+const POLY_CACHE_FORMAT: u32 = 2;
 const CONTROL_CACHE_FORMAT: u32 = 2;
-const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v1";
+const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 

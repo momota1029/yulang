@@ -8,7 +8,10 @@ use crate::lex::{Lex, SyntaxKind, Token, TriviaInfo};
 use crate::op::BpVec;
 use crate::sink::EventSink;
 
-use super::control::{parse_case_expr, parse_catch_expr, parse_if_expr, parse_lambda_expr};
+use super::control::{
+    is_sub_expr_intro, parse_case_expr, parse_catch_expr, parse_if_expr, parse_lambda_expr,
+    parse_sub_expr,
+};
 use super::group::{delimited, parse_list_group};
 use super::mark::parse_quoted_mark_expr;
 use super::rule::{parse_rule_expr, parse_rule_lit};
@@ -58,6 +61,17 @@ pub(crate) fn parse_expr_from_nud<I: EventInput, S: EventSink>(
                     let result = parse_catch_expr(i.rb(), nud.lex)?;
                     i.env.state.sink.finish();
                     return Some(result);
+                }
+                SyntaxKind::Sub => {
+                    if is_sub_expr_intro(i.rb(), nud.lex.trailing_trivia_info()) {
+                        let result = parse_sub_expr(i.rb(), nud.lex)?;
+                        i.env.state.sink.finish();
+                        return Some(result);
+                    }
+                    let mut ident = nud.lex;
+                    ident.kind = SyntaxKind::Ident;
+                    i.env.state.sink.lex(&ident);
+                    ident.trailing_trivia_info()
                 }
                 SyntaxKind::Rule => {
                     let after = parse_rule_expr(i.rb(), nud.lex)?;

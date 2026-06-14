@@ -14,7 +14,8 @@ use std::time::{Duration, Instant};
 use sources::{ModuleLoadRequest, Name, Path, SourceFile};
 
 use crate::stdlib::{
-    YULANG_STD_ENV, default_versioned_std_root, env_std_root, install_embedded_std,
+    YULANG_STD_ENV, default_versioned_std_root, embedded_std_files, env_std_root,
+    install_embedded_std,
 };
 
 pub const IMPLICIT_PRELUDE_IMPORT: &str = "use std::prelude::*\n";
@@ -378,6 +379,83 @@ pub fn collect_local_source_text_with_std_options(
     collector.collect_entry_source(entry, source, true)
 }
 
+/// Browser / playground 向けに、root source と埋め込み std だけで source set を作る。
+///
+/// この入口はファイルシステムを読まない。root source 側の local `mod foo;` を辿る必要が
+/// 出た場合は、呼び出し側で複数 source を渡す別 route を足す。
+pub fn collect_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: String,
+) -> Result<Vec<CollectedSource>, RouteError> {
+    Ok(embedded_std_sources_with_root(entry.as_ref(), source))
+}
+
+pub fn analyze_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<AnalyzeSourceOutput, RouteError> {
+    analyze_from_sources(collect_source_text_with_embedded_std(entry, source.into())?)
+}
+
+pub fn check_poly_from_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<CheckPolyOutput, RouteError> {
+    let total_start = Instant::now();
+    let collect_start = Instant::now();
+    let files = collect_source_text_with_embedded_std(entry, source.into())?;
+    let collect = collect_start.elapsed();
+    check_poly_from_sources(
+        files,
+        collect,
+        total_start,
+        CheckPolyKind::All {
+            title: "check-poly-embedded-std",
+        },
+    )
+}
+
+pub fn dump_poly_from_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(
+        collect_source_text_with_embedded_std(entry, source.into())?,
+        DumpPolyKind::Compact,
+    )
+}
+
+pub fn dump_poly_raw_from_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(
+        collect_source_text_with_embedded_std(entry, source.into())?,
+        DumpPolyKind::Raw,
+    )
+}
+
+pub fn dump_mono_from_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<DumpMonoOutput, RouteError> {
+    dump_mono_from_sources(collect_source_text_with_embedded_std(entry, source.into())?)
+}
+
+pub fn build_control_from_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<BuildControlOutput, RouteError> {
+    build_control_from_sources(collect_source_text_with_embedded_std(entry, source.into())?)
+}
+
+pub fn run_control_from_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<RunControlOutput, RouteError> {
+    run_control_from_sources(collect_source_text_with_embedded_std(entry, source.into())?)
+}
+
 /// `base` から上へ辿って、デバッグ用の近場 std package root を探す。
 pub fn find_nearby_std_root(base: &FsPath) -> Option<PathBuf> {
     for ancestor in base.ancestors() {
@@ -427,6 +505,7 @@ pub struct RunControlOutput {
 pub struct CheckPolyOutput {
     pub text: String,
     pub file_count: usize,
+    pub diagnostics: Vec<SourceDiagnostic>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -772,6 +851,24 @@ fn check_poly_from_sources(
         summarize: check.timing.summarize,
         total: total_start.elapsed(),
     };
+    let diagnostics = match &kind {
+        CheckPolyKind::All { .. } => {
+            source_diagnostics_from_check(&check, &check.report.diagnostics)
+        }
+        CheckPolyKind::Module { module, .. } => {
+            let Some(module_check) = check
+                .report
+                .modules
+                .iter()
+                .find(|item| item.path == *module)
+            else {
+                return Err(RouteError::CheckModuleNotFound {
+                    module: module.clone(),
+                });
+            };
+            source_diagnostics_from_check(&check, &module_check.diagnostics)
+        }
+    };
     let text = match kind {
         CheckPolyKind::All { title } => {
             format_check_poly_output(loaded.len(), &check, &timing, title)
@@ -787,6 +884,7 @@ fn check_poly_from_sources(
     Ok(CheckPolyOutput {
         text,
         file_count: loaded.len(),
+        diagnostics,
     })
 }
 
@@ -800,9 +898,18 @@ fn analyze_from_sources(files: Vec<CollectedSource>) -> Result<AnalyzeSourceOutp
         .collect::<Vec<_>>();
     let loaded = sources::load(source_files);
     let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
-    let diagnostics = check
-        .report
-        .diagnostics
+    let diagnostics = source_diagnostics_from_check(&check, &check.report.diagnostics);
+    Ok(AnalyzeSourceOutput {
+        file_count: loaded.len(),
+        diagnostics,
+    })
+}
+
+fn source_diagnostics_from_check(
+    check: &infer::check::PolyCheckOutput,
+    diagnostics: &[infer::check::CheckDiagnostic],
+) -> Vec<SourceDiagnostic> {
+    diagnostics
         .iter()
         .map(|diagnostic| {
             let error = &check.lowering.errors[diagnostic.error_index];
@@ -811,11 +918,7 @@ fn analyze_from_sources(files: Vec<CollectedSource>) -> Result<AnalyzeSourceOutp
                 message: format_body_lowering_error(error),
             }
         })
-        .collect();
-    Ok(AnalyzeSourceOutput {
-        file_count: loaded.len(),
-        diagnostics,
-    })
+        .collect()
 }
 
 fn dump_poly_from_sources(
@@ -1331,6 +1434,41 @@ fn resolve_auto_std_root(base: &FsPath) -> Result<PathBuf, RouteError> {
     })
 }
 
+fn embedded_std_sources_with_root(entry: &FsPath, source: String) -> Vec<CollectedSource> {
+    let mut files = embedded_std_sources();
+    files.push(CollectedSource {
+        path: entry.to_path_buf(),
+        module_path: Path::default(),
+        source: format!("{IMPLICIT_STD_MODULE_DECL}{IMPLICIT_PRELUDE_IMPORT}{source}"),
+    });
+    files
+}
+
+fn embedded_std_sources() -> Vec<CollectedSource> {
+    embedded_std_files()
+        .iter()
+        .map(|file| CollectedSource {
+            path: PathBuf::from("<embedded-std>").join(file.relative_path),
+            module_path: embedded_std_module_path(file.relative_path),
+            source: file.source.to_string(),
+        })
+        .collect()
+}
+
+fn embedded_std_module_path(relative_path: &str) -> Path {
+    let module = relative_path
+        .strip_suffix(".yu")
+        .unwrap_or(relative_path)
+        .trim_matches('/');
+    Path {
+        segments: module
+            .split('/')
+            .filter(|segment| !segment.is_empty())
+            .map(|segment| Name(segment.to_string()))
+            .collect(),
+    }
+}
+
 fn is_std_root(path: &FsPath) -> bool {
     crate::stdlib::is_std_root(path)
 }
@@ -1700,9 +1838,27 @@ mod tests {
         let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
 
         assert_eq!(output.file_count, 1);
-        assert_mono_dump_contains(&output, "mono roots [m0]");
+        assert_mono_dump_contains(&output, "mono roots [eval m0]");
         assert_mono_dump_contains(&output, "m0 = d1 : int");
         assert_mono_dump_contains(&output, "m1 = d0 : int -> int");
+    }
+
+    #[test]
+    fn run_control_without_std_evaluates_computed_top_level_binding_without_result() {
+        let root = temp_root("run-control-computed-binding-no-result");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "my id x = x\nmy a = id(1)\n").unwrap();
+
+        let mono = run_mono_from_entry(root.join("main.yu")).unwrap();
+        let control = run_control_from_entry(root.join("main.yu")).unwrap();
+
+        assert_eq!(mono.file_count, 1);
+        assert_eq!(mono.values, Vec::<mono_runtime::Value>::new());
+        assert_eq!(mono.text, "run roots []\n");
+        assert_eq!(control.file_count, 1);
+        assert_eq!(control.values, Vec::<control_vm::Value>::new());
+        assert_eq!(control.text, mono.text);
     }
 
     #[test]
@@ -1911,12 +2067,9 @@ mod tests {
              1\n",
         );
 
-        assert!(
-            mono.text.starts_with(
-                "run roots [7, [4, 3], \"sum=3\", \"hex=ff\", \"debug=[1, 2]\", \"pad=0007\", 1,"
-            ),
-            "{}",
-            mono.text
+        assert_eq!(
+            mono.text,
+            "run roots [7, [4, 3], \"sum=3\", \"hex=ff\", \"debug=[1, 2]\", \"pad=0007\", 1]\n"
         );
         assert_eq!(control.text, mono.text);
     }
@@ -1967,11 +2120,7 @@ mod tests {
 
         let output = run_mono_from_entry_with_std(root.join("main.yu")).unwrap();
 
-        assert!(
-            output.text.starts_with("run roots [[1, 2, 3],"),
-            "{}",
-            output.text
-        );
+        assert_eq!(output.text, "run roots [[1, 2, 3]]\n");
     }
 
     #[cfg(unix)]
@@ -1989,11 +2138,7 @@ mod tests {
 
         let output = run_control_from_entry_with_std(root.join("main.yu")).unwrap();
 
-        assert!(
-            output.text.starts_with("run roots [[1, 2, 3],"),
-            "{}",
-            output.text
-        );
+        assert_eq!(output.text, "run roots [[1, 2, 3]]\n");
     }
 
     #[cfg(unix)]
@@ -2012,11 +2157,7 @@ mod tests {
         let mono = run_mono_from_entry_with_std(root.join("main.yu")).unwrap();
         let control = run_control_from_entry_with_std(root.join("main.yu")).unwrap();
 
-        assert!(
-            mono.text.starts_with("run roots [[2, 3, 3, 4, 4, 5],"),
-            "{}",
-            mono.text
-        );
+        assert_eq!(mono.text, "run roots [[2, 3, 3, 4, 4, 5]]\n");
         assert_eq!(control.text, mono.text);
     }
 
@@ -2197,7 +2338,7 @@ mod tests {
         let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
 
         assert_eq!(output.file_count, 1);
-        assert_mono_dump_contains(&output, "mono roots [m0, m1]");
+        assert_mono_dump_contains(&output, "mono roots [eval m0, eval m1]");
         assert_mono_dump_contains(
             &output,
             "m0 = d2 : unit\n  force-thunk[thunk[[out], unit] => unit ! [out]]((<effect-op out::say> 1))",
@@ -2531,6 +2672,133 @@ mod tests {
             .unwrap();
         assert!(root_source.source.starts_with(IMPLICIT_STD_MODULE_DECL));
         assert!(root_source.source.contains(IMPLICIT_PRELUDE_IMPORT));
+    }
+
+    #[test]
+    fn collect_source_text_with_embedded_std_uses_embedded_package() {
+        let files =
+            collect_source_text_with_embedded_std("playground.yu", "my x = 1\n".to_string())
+                .unwrap();
+
+        assert_eq!(files.len(), embedded_std_files().len() + 1);
+        assert!(
+            files
+                .iter()
+                .any(|file| file.module_path.segments == vec![Name("std".into())])
+        );
+        assert!(files.iter().any(|file| file.module_path.segments
+            == vec![
+                Name("std".into()),
+                Name("control".into()),
+                Name("nondet".into())
+            ]));
+        let root_source = files
+            .iter()
+            .find(|file| file.module_path.segments.is_empty())
+            .unwrap();
+        assert!(root_source.source.starts_with(IMPLICIT_STD_MODULE_DECL));
+        assert!(root_source.source.contains(IMPLICIT_PRELUDE_IMPORT));
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_runs_root_expression() {
+        let output =
+            run_control_from_source_text_with_embedded_std("playground.yu", "1 + 2\n").unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [3]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_imports_prelude_reexports() {
+        let output =
+            run_control_from_source_text_with_embedded_std("playground.yu", "each(1..3).list\n")
+                .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [[1, 2, 3]]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_lowers_sub_syntax_return() {
+        let output =
+            run_control_from_source_text_with_embedded_std("playground.yu", "sub:\n  return 1\n")
+                .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [1]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_lowers_labeled_sub_syntax_return() {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "my x = sub 'outer:\n  'outer.return 1\nx\n",
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [1]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_lowers_root_labeled_sub_syntax_return() {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "sub 'outer:\n  'outer.return 1\n",
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [1]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_lowers_sub_lambda_return() {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "my f = \\sub x -> return x\nf 7\n",
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [7]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_lowers_labeled_sub_lambda_return() {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "my f = \\sub 'out x -> 'out.return x\nf 7\n",
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [7]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_keeps_sub_syntax_hygiene() {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "our g h = sub:\n  h 0\n  return 1\n\nsub:\n  g \\i -> return i\n  return 2\n",
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [0]\n");
+    }
+
+    #[test]
+    fn check_poly_source_text_with_embedded_std_reports_type_error() {
+        let output =
+            check_poly_from_source_text_with_embedded_std("playground.yu", "my x: int = true\n")
+                .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_check_contains(&output, "check-poly-embedded-std\n");
+        assert_check_contains(&output, "lowering errors:\n");
+        assert_check_contains(&output, "x: type mismatch: bool is not int\n");
     }
 
     #[test]

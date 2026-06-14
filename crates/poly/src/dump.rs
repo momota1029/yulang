@@ -745,12 +745,19 @@ impl<'a> Dumper<'a> {
     }
 
     fn detached_defs(&self) -> Vec<DefId> {
+        let root_expr_defs = self
+            .arena
+            .root_expr_defs
+            .values()
+            .map(|def| def.0)
+            .collect::<FxHashSet<_>>();
         let mut ids = self
             .arena
             .defs
             .iter()
             .map(|(id, _)| id)
             .filter(|id| !self.visited_defs.contains(id))
+            .filter(|id| !root_expr_defs.contains(&id.0))
             .collect::<Vec<_>>();
         ids.sort_by_key(|id| id.0);
         ids

@@ -26,6 +26,16 @@ pub fn run_program(program: &Program) -> Result<Vec<Value>, RunError> {
     Runtime::new(program).run().map_err(RunError::Runtime)
 }
 
+pub fn run_program_with_host<F>(program: &Program, mut host: F) -> Result<Vec<Value>, RunError>
+where
+    F: FnMut(&[String], &Value) -> Option<Value>,
+{
+    validate(program).map_err(RunError::Validate)?;
+    Runtime::new(program)
+        .run_with_host(&mut host)
+        .map_err(RunError::Runtime)
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum RunError {
     Lower(LowerError),
@@ -326,21 +336,53 @@ impl<'a> Runtime<'a> {
     }
 
     fn run(&mut self) -> Result<Vec<Value>, RuntimeError> {
-        let mut results = Vec::with_capacity(self.program.roots.len());
+        self.run_with_host(&mut |_, _| None)
+    }
+
+    fn run_with_host<F>(&mut self, host: &mut F) -> Result<Vec<Value>, RuntimeError>
+    where
+        F: FnMut(&[String], &Value) -> Option<Value>,
+    {
+        let mut results = Vec::new();
         let mut env = CapturedEnv::default();
         for root in &self.program.roots {
-            let result = match root {
-                Root::Instance(instance) => EvalResult::Value(self.eval_instance(*instance)?),
-                Root::Expr(expr) => self.eval_expr(*expr, &mut env)?,
+            match root {
+                Root::Instance(instance) => {
+                    let result = EvalResult::Value(self.eval_instance(*instance)?);
+                    results.push(self.resolve_host_requests(result, host)?);
+                }
+                Root::EvalInstance(instance) => {
+                    let result = EvalResult::Value(self.eval_instance(*instance)?);
+                    let _ = self.resolve_host_requests(result, host)?;
+                }
+                Root::Expr(expr) => {
+                    let result = self.eval_expr(*expr, &mut env)?;
+                    results.push(self.resolve_host_requests(result, host)?);
+                }
             };
+        }
+        Ok(results)
+    }
+
+    fn resolve_host_requests<F>(
+        &mut self,
+        mut result: EvalResult<'a>,
+        host: &mut F,
+    ) -> Result<Value, RuntimeError>
+    where
+        F: FnMut(&[String], &Value) -> Option<Value>,
+    {
+        loop {
             match result {
-                EvalResult::Value(value) => results.push(value),
+                EvalResult::Value(value) => return Ok(value),
                 EvalResult::Request(request) => {
-                    return Err(RuntimeError::UnhandledEffect { path: request.path });
+                    let Some(value) = host(&request.path, &request.payload) else {
+                        return Err(RuntimeError::UnhandledEffect { path: request.path });
+                    };
+                    result = (request.resume)(self, value)?;
                 }
             }
         }
-        Ok(results)
     }
 
     fn eval_instance(&mut self, instance: InstanceId) -> Result<Value, RuntimeError> {

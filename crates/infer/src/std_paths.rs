@@ -30,6 +30,18 @@ pub(crate) fn control_flow_label_loop_for_in_value() -> Vec<String> {
     path(&["std", "control", "flow", "label_loop", "for_in"])
 }
 
+pub(crate) fn control_flow_sub_sub_value() -> Vec<String> {
+    path(&["std", "control", "flow", "sub", "sub"])
+}
+
+pub(crate) fn control_flow_sub_return_value() -> Vec<String> {
+    path(&["std", "control", "flow", "sub", "return"])
+}
+
+pub(crate) fn control_flow_label_sub_act() -> Vec<String> {
+    path(&["std", "control", "flow", "label_sub"])
+}
+
 pub(crate) fn text_str_concat_value() -> Vec<String> {
     path(&["std", "text", "str", "concat"])
 }

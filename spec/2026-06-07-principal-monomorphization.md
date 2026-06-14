@@ -48,6 +48,13 @@ my a = say "Hello"
 top-level runtime root や明示 root から変数参照を辿って到達した定義だけを `mono` instance として
 materialize する。
 
+root expression が syntax helper 用の per-site 定義を必要とする場合は、`root_exprs` とは別に
+hidden root definition を持ってよい。この hidden def は source-level runtime root ではなく、
+root expression 全体の principal boundary scheme を specialize の初期 demand として渡すための
+補助である。通常の root expression は erased expression だけから単相化し、境界型を渡さない。
+これにより、`case true: true -> 1, false -> 2.0` のような具体型が一つに決まらない root を、
+infer 側の surface union で黙って受け入れない。
+
 monomorphize の入力として信用してよい型情報は、次の五つだけである。
 
 1. 各定義の主型
