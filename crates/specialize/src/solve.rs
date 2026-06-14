@@ -224,8 +224,12 @@ impl<'a> ExprTypeSolver<'a> {
             .as_ref()
             .and_then(|ret| self.primitive_spine_callee_expected(callee, ret.clone()));
         let callee_ty = self.expr(callee, callee_expected)?;
-        if let Some((arg_ty, ret_ty)) = function_runtime_parts(&callee_ty) {
-            self.expr(arg, Some(arg_ty))?;
+        let (callee_value, callee_effect) = split_runtime_computation_shape(callee_ty.clone());
+        if let Some((arg_ty, ret_ty)) = function_runtime_parts(&callee_value) {
+            if !callee_effect.is_pure_effect() {
+                self.plan.set_expected(callee, callee_value)?;
+            }
+            let ret_ty = self.apply_known_function_arg(arg, arg_ty, ret_ty, callee_effect)?;
             if let Some(expected) = expected {
                 self.constrain_expr_boundary(ret_ty.clone(), expected)?;
             }
@@ -238,6 +242,72 @@ impl<'a> ExprTypeSolver<'a> {
         self.graph.constrain_subtype(callee_ty, callee_expected)?;
         self.expr(arg, Some(arg_ty))?;
         Ok(ret_ty)
+    }
+
+    fn apply_known_function_arg(
+        &mut self,
+        arg: poly_expr::ExprId,
+        arg_ty: Type,
+        ret_ty: Type,
+        callee_effect: Type,
+    ) -> Result<Type, SpecializeError> {
+        let (arg_value, arg_effect) = split_runtime_computation_shape(arg_ty.clone());
+        let call_arg_effect = if arg_effect.is_pure_effect() {
+            self.expr_as_call_value(arg, arg_value)?
+        } else {
+            self.expr(arg, Some(arg_ty))?;
+            Type::pure_effect()
+        };
+        self.call_result_shape(ret_ty, [callee_effect, call_arg_effect])
+    }
+
+    fn expr_as_call_value(
+        &mut self,
+        expr: poly_expr::ExprId,
+        expected_value: Type,
+    ) -> Result<Type, SpecializeError> {
+        self.plan.set_expected(expr, expected_value.clone())?;
+        let actual = if let Some(actual) = self.plan.actual(expr).cloned() {
+            actual
+        } else {
+            let actual = self.infer_expr(expr, Some(expected_value.clone()))?;
+            self.plan.set_actual(expr, actual.clone())?;
+            actual
+        };
+        let (actual_value, actual_effect) = split_runtime_computation_shape(actual);
+        self.graph.constrain_subtype(actual_value, expected_value)?;
+        Ok(actual_effect)
+    }
+
+    fn call_result_shape(
+        &mut self,
+        ret_ty: Type,
+        effects: impl IntoIterator<Item = Type>,
+    ) -> Result<Type, SpecializeError> {
+        let (ret_value, ret_effect) = split_runtime_computation_shape(ret_ty);
+        let effect = self.join_call_effects(std::iter::once(ret_effect).chain(effects))?;
+        Ok(types::runtime_shape(effect, ret_value))
+    }
+
+    fn join_call_effects(
+        &mut self,
+        effects: impl IntoIterator<Item = Type>,
+    ) -> Result<Type, SpecializeError> {
+        let mut effects = effects
+            .into_iter()
+            .filter(|effect| !effect.is_pure_effect())
+            .collect::<Vec<_>>();
+        match effects.len() {
+            0 => Ok(Type::pure_effect()),
+            1 => Ok(effects.pop().expect("checked one effect")),
+            _ => {
+                let effect = self.fresh_effect_slot();
+                for lower in effects {
+                    self.graph.constrain_subtype(lower, effect.clone())?;
+                }
+                Ok(effect)
+            }
+        }
     }
 
     fn primitive_spine_callee_expected(
@@ -2250,6 +2320,35 @@ mod tests {
         assert_eq!(
             mono::dump::dump_type(plan.actual_type_of(each_expr).unwrap()),
             "range -> int"
+        );
+    }
+
+    #[test]
+    fn pure_function_argument_effect_passes_to_apply_result() {
+        let lowering = lower_source(
+            "act out:\n  our read: unit -> int\n\
+             my id x = x\n\
+             id(out::read(()))\n",
+        );
+        let arena = &lowering.session.poly;
+        let root = arena.root_exprs[0];
+
+        let plan = solve_expr(arena, root, None).expect("pure function call should solve");
+
+        let poly::expr::Expr::App(_, arg) = arena.expr(root) else {
+            panic!("root should be an apply");
+        };
+        assert_eq!(
+            mono::dump::dump_type(plan.actual_type_of(root).unwrap()),
+            "thunk[[out], int]"
+        );
+        assert_eq!(
+            mono::dump::dump_type(plan.boundary(*arg).unwrap().actual),
+            "thunk[[out], int]"
+        );
+        assert_eq!(
+            mono::dump::dump_type(plan.boundary(*arg).unwrap().expected),
+            "int"
         );
     }
 
