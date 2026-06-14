@@ -1613,7 +1613,9 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
                 .collect::<Result<Vec<_>, _>>()
                 .map(Type::PolyVariant),
             Type::Tuple(items) => self.resolve_all(items).map(Type::Tuple),
-            Type::EffectRow(items) => self.resolve_all(items).map(Type::EffectRow),
+            Type::EffectRow(items) => Ok(types::simplify_type(Type::EffectRow(
+                self.resolve_all(items)?,
+            ))),
             Type::Stack { inner, weight } => Ok(types::simplify_stack_type(
                 self.resolve(inner)?,
                 weight.clone(),
@@ -1735,11 +1737,11 @@ fn meet_effect_type_candidates(left: Type, right: Type) -> Type {
         return Type::pure_effect();
     }
     match (left, right) {
-        (Type::EffectRow(left), Type::EffectRow(right)) => Type::EffectRow(
+        (Type::EffectRow(left), Type::EffectRow(right)) => types::simplify_type(Type::EffectRow(
             left.into_iter()
                 .filter(|item| right.contains(item))
                 .collect(),
-        ),
+        )),
         (left, right) => types::simplify_type(Type::Intersection(Box::new(left), Box::new(right))),
     }
 }

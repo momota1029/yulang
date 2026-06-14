@@ -1354,6 +1354,9 @@ fn simplify_intersection_type(left: Type, right: Type) -> Type {
     match unique.as_slice() {
         [] => Type::Any,
         [single] => single.clone(),
+        _ if unique.iter().all(|part| matches!(part, Type::EffectRow(_))) => {
+            intersect_effect_rows(unique)
+        }
         _ if unique.iter().all(Type::is_pure_effect) => Type::pure_effect(),
         _ => unique
             .into_iter()
@@ -1403,7 +1406,7 @@ pub(crate) fn simplify_type(ty: Type) -> Type {
                 .collect(),
         ),
         Type::Tuple(items) => Type::Tuple(items.into_iter().map(simplify_type).collect()),
-        Type::EffectRow(items) => Type::EffectRow(items.into_iter().map(simplify_type).collect()),
+        Type::EffectRow(items) => simplify_effect_row(items),
         Type::Stack { inner, weight } => simplify_stack_type(simplify_type(*inner), weight),
         Type::Union(left, right) => {
             simplify_union_type(simplify_type(*left), simplify_type(*right))
@@ -1471,8 +1474,104 @@ fn simplify_union_type(left: Type, right: Type) -> Type {
     if matches!(left, Type::Any) || matches!(right, Type::Any) {
         return Type::Any;
     }
+    if let (Type::EffectRow(left), Type::EffectRow(right)) = (left.clone(), right.clone()) {
+        return union_effect_rows(left, right);
+    }
     if left.is_pure_effect() && right.is_pure_effect() {
         return Type::pure_effect();
     }
     Type::Union(Box::new(left), Box::new(right))
+}
+
+fn simplify_effect_row(items: Vec<Type>) -> Type {
+    let mut out = Vec::new();
+    push_effect_row_items(&mut out, items);
+    Type::EffectRow(out)
+}
+
+fn push_effect_row_items(out: &mut Vec<Type>, items: Vec<Type>) {
+    for item in items {
+        match simplify_type(item) {
+            item if item.is_pure_effect() => {}
+            Type::EffectRow(items) => push_effect_row_items(out, items),
+            item if out.contains(&item) => {}
+            item => out.push(item),
+        }
+    }
+}
+
+fn union_effect_rows(left: Vec<Type>, right: Vec<Type>) -> Type {
+    let mut out = Vec::new();
+    push_effect_row_items(&mut out, left);
+    push_effect_row_items(&mut out, right);
+    Type::EffectRow(out)
+}
+
+fn intersect_effect_rows(rows: Vec<Type>) -> Type {
+    let mut rows = rows.into_iter().map(effect_row_items);
+    let Some(first) = rows.next() else {
+        return Type::pure_effect();
+    };
+    let mut out = first;
+    for row in rows {
+        out.retain(|item| row.contains(item));
+    }
+    Type::EffectRow(out)
+}
+
+fn effect_row_items(row: Type) -> Vec<Type> {
+    let Type::EffectRow(items) = row else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    push_effect_row_items(&mut out, items);
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use mono::Type;
+
+    use super::simplify_type;
+
+    #[test]
+    fn effect_row_intersection_deduplicates_repeated_family() {
+        let nondet = effect("nondet");
+        let ty = simplify_type(Type::Intersection(
+            Box::new(Type::EffectRow(vec![nondet.clone()])),
+            Box::new(Type::EffectRow(vec![nondet.clone(), nondet.clone()])),
+        ));
+
+        assert_eq!(ty, Type::EffectRow(vec![nondet]));
+    }
+
+    #[test]
+    fn effect_row_flattens_simplified_tail() {
+        let nondet = effect("nondet");
+        let tail = Type::Intersection(
+            Box::new(Type::EffectRow(vec![nondet.clone()])),
+            Box::new(Type::EffectRow(vec![nondet.clone(), nondet.clone()])),
+        );
+        let ty = simplify_type(Type::EffectRow(vec![nondet.clone(), tail]));
+
+        assert_eq!(ty, Type::EffectRow(vec![nondet]));
+    }
+
+    #[test]
+    fn effect_row_union_deduplicates_repeated_family() {
+        let nondet = effect("nondet");
+        let ty = simplify_type(Type::Union(
+            Box::new(Type::EffectRow(vec![nondet.clone()])),
+            Box::new(Type::EffectRow(vec![nondet.clone(), nondet.clone()])),
+        ));
+
+        assert_eq!(ty, Type::EffectRow(vec![nondet]));
+    }
+
+    fn effect(name: &str) -> Type {
+        Type::Con {
+            path: vec![name.to_string()],
+            args: Vec::new(),
+        }
+    }
 }
