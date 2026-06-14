@@ -191,6 +191,25 @@ pub fn check_poly_from_entry_with_std_options(
     )
 }
 
+pub fn analyze_entry_source_with_std_options(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    options: &StdSourceOptions,
+) -> Result<AnalyzeSourceOutput, RouteError> {
+    analyze_from_sources(collect_local_source_text_with_std_options(
+        entry,
+        source.into(),
+        options,
+    )?)
+}
+
+pub fn analyze_entry_source(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<AnalyzeSourceOutput, RouteError> {
+    analyze_from_sources(collect_local_source_text(entry, source.into())?)
+}
+
 /// entry file と近場の `lib/std.yu` を読み、指定 module の型付け状況だけを集計する。
 pub fn check_poly_from_entry_with_std_in_module(
     entry: impl AsRef<FsPath>,
@@ -270,6 +289,13 @@ pub fn collect_local_sources(
     Collector::new().collect_entry(entry.as_ref(), false)
 }
 
+pub fn collect_local_source_text(
+    entry: impl AsRef<FsPath>,
+    source: String,
+) -> Result<Vec<CollectedSource>, RouteError> {
+    Collector::new().collect_entry_source(entry.as_ref(), source, false)
+}
+
 /// 近場の `lib/std.yu` と local module file を集め、root source に implicit prelude を足す。
 pub fn collect_local_sources_with_std(
     entry: impl AsRef<FsPath>,
@@ -288,6 +314,20 @@ pub fn collect_local_sources_with_std_options(
     let mut collector = Collector::new();
     collector.collect_std_root(&std_root)?;
     collector.collect_entry(entry, true)
+}
+
+pub fn collect_local_source_text_with_std_options(
+    entry: impl AsRef<FsPath>,
+    source: String,
+    options: &StdSourceOptions,
+) -> Result<Vec<CollectedSource>, RouteError> {
+    let entry = entry.as_ref();
+    let base = entry.parent().unwrap_or_else(|| FsPath::new("."));
+    let std_root = resolve_std_root(base, options)?;
+
+    let mut collector = Collector::new();
+    collector.collect_std_root(&std_root)?;
+    collector.collect_entry_source(entry, source, true)
 }
 
 /// `base` から上へ辿って、デバッグ用の近場 std package root を探す。
@@ -339,6 +379,18 @@ pub struct RunControlOutput {
 pub struct CheckPolyOutput {
     pub text: String,
     pub file_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnalyzeSourceOutput {
+    pub file_count: usize,
+    pub diagnostics: Vec<SourceDiagnostic>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceDiagnostic {
+    pub label: Option<String>,
+    pub message: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -525,18 +577,39 @@ impl Collector {
         entry: &FsPath,
         implicit_prelude: bool,
     ) -> Result<Vec<CollectedSource>, RouteError> {
-        let mut queue = VecDeque::from([(entry.to_path_buf(), Path::default())]);
-        while let Some((path, module_path)) = queue.pop_front() {
+        self.collect_entry_inner(entry, None, implicit_prelude)
+    }
+
+    fn collect_entry_source(
+        mut self,
+        entry: &FsPath,
+        source: String,
+        implicit_prelude: bool,
+    ) -> Result<Vec<CollectedSource>, RouteError> {
+        self.collect_entry_inner(entry, Some(source), implicit_prelude)
+    }
+
+    fn collect_entry_inner(
+        &mut self,
+        entry: &FsPath,
+        source: Option<String>,
+        implicit_prelude: bool,
+    ) -> Result<Vec<CollectedSource>, RouteError> {
+        let mut queue = VecDeque::from([(entry.to_path_buf(), Path::default(), source)]);
+        while let Some((path, module_path, source_override)) = queue.pop_front() {
             let canonical = canonicalize_for_dedupe(&path);
             self.record_module_file(&module_path, &canonical)?;
             if !self.seen_files.insert(canonical) {
                 continue;
             }
 
-            let mut source = fs::read_to_string(&path).map_err(|error| RouteError::Io {
-                path: path.clone(),
-                error,
-            })?;
+            let mut source = match source_override {
+                Some(source) => source,
+                None => fs::read_to_string(&path).map_err(|error| RouteError::Io {
+                    path: path.clone(),
+                    error,
+                })?,
+            };
             if implicit_prelude && module_path.segments.is_empty() {
                 source = format!("{IMPLICIT_STD_MODULE_DECL}{IMPLICIT_PRELUDE_IMPORT}{source}");
             }
@@ -554,10 +627,10 @@ impl Collector {
                     continue;
                 }
                 let child_path = resolve_module_file(&path, &module_path, &request)?;
-                queue.push_back((child_path, requested_module));
+                queue.push_back((child_path, requested_module, None));
             }
         }
-        Ok(self.files)
+        Ok(std::mem::take(&mut self.files))
     }
 
     fn collect_module_tree(
@@ -659,6 +732,34 @@ fn check_poly_from_sources(
     Ok(CheckPolyOutput {
         text,
         file_count: loaded.len(),
+    })
+}
+
+fn analyze_from_sources(files: Vec<CollectedSource>) -> Result<AnalyzeSourceOutput, RouteError> {
+    let source_files = files
+        .iter()
+        .map(|file| SourceFile {
+            module_path: file.module_path.clone(),
+            source: file.source.clone(),
+        })
+        .collect::<Vec<_>>();
+    let loaded = sources::load(source_files);
+    let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let diagnostics = check
+        .report
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            let error = &check.lowering.errors[diagnostic.error_index];
+            SourceDiagnostic {
+                label: diagnostic.label.clone(),
+                message: format_body_lowering_error(error),
+            }
+        })
+        .collect();
+    Ok(AnalyzeSourceOutput {
+        file_count: loaded.len(),
+        diagnostics,
     })
 }
 
@@ -2427,6 +2528,35 @@ mod tests {
         assert_check_contains(&output, "lowering errors:\n");
         assert_check_contains(&output, "std.foo.bad: type mismatch: int is not bool\n");
         assert!(!output.text.contains(" = Let {"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn analyze_entry_source_uses_in_memory_root_source() {
+        let root = temp_root("analyze-entry-source");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        fs::write(root.join("main.yu"), "my x: int = 1\n").unwrap();
+        fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let output = analyze_entry_source_with_std_options(
+            root.join("main.yu"),
+            "my x: int = true\n",
+            &StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, 3);
+        assert_eq!(
+            output.diagnostics,
+            vec![SourceDiagnostic {
+                label: Some("x".to_string()),
+                message: "type mismatch: bool is not int".to_string(),
+            }]
+        );
     }
 
     #[test]

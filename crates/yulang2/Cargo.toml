@@ -15,4 +15,6 @@ rowan = "0.15"
 serde_json = "1"
 specialize = { path = "../specialize" }
 sources = { path = "../sources" }
+tokio = { version = "1", features = ["full"] }
+tower-lsp = "0.20"
 yulang-parser = { path = "../yulang-parser" }

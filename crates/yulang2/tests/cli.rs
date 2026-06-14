@@ -242,6 +242,44 @@ fn cache_path_and_clear_use_yulang_cache_dir() {
     let _ = fs::remove_dir_all(&root);
 }
 
+#[test]
+fn realm_freeze_writes_versioned_snapshot() {
+    let root = temp_root("realm-freeze");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("realm.toml"),
+        r#"[realm]
+identity = "app"
+"#,
+    )
+    .unwrap();
+    fs::write(root.join("main.yu"), "my main = 1\n").unwrap();
+
+    let output = yulang2_command()
+        .arg("realm")
+        .arg("freeze")
+        .arg(&root)
+        .arg("--version")
+        .arg("1.0.0")
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("realm freeze: frozen "), "{stdout}");
+    assert!(stdout.contains(" files=2\n"), "{stdout}");
+    assert!(
+        root.join(".yulang")
+            .join("versions")
+            .join("1.0.0")
+            .join("snapshot.json")
+            .is_file()
+    );
+
+    let _ = fs::remove_dir_all(&root);
+}
+
 fn yulang2_command() -> Command {
     Command::new(env!("CARGO_BIN_EXE_yulang2"))
 }

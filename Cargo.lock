@@ -1513,6 +1513,9 @@ name = "sources"
 version = "0.1.0"
 dependencies = [
  "rowan",
+ "serde",
+ "serde_json",
+ "toml",
  "yulang-parser",
 ]
 
@@ -2282,7 +2285,7 @@ version = "0.1.0"
 name = "yulang-ls"
 version = "0.1.3"
 dependencies = [
- "yulang",
+ "yulang2",
 ]
 
 [[package]]
@@ -2456,6 +2459,8 @@ dependencies = [
  "serde_json",
  "sources",
  "specialize",
+ "tokio",
+ "tower-lsp",
  "yulang-parser",
 ]
 

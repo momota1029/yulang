@@ -2,17 +2,28 @@
 //! まずは先読み（`parse_header_to_green` → CST から use/op を抽出）から積む。
 
 use rowan::{GreenNode, NodeOrToken, SyntaxNode};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::op::{BpVec, OpDef, OpTable, standard_op_table};
 use yulang_parser::sink::YulangLanguage;
 
-// ── 基礎型（旧 typed-ir から写経。realm/band バージョンは後で足す）─────────────
+mod realm;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub use realm::{
+    FreezeRealmError, FreezeRealmOutput, FrozenRealmSnapshot, FrozenRealmSnapshotFile,
+    RealmIdentity, RealmManifestError, RealmVersion, ResolvedRealmId, SourceRealmDependency,
+    SourceRealmManifest, SourceRealmRoot, YULANG_LOCK_FILE, YULANG_MANIFEST_FILE,
+    YULANG_PROJECT_DIR, freeze_realm_version, load_realm_manifest, local_realm_id,
+    local_realm_root,
+};
+
+// ── 基礎型（source loader と parser input の共有語彙）──────────────────────
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Name(pub String);
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Path {
     pub segments: Vec<Name>,
 }

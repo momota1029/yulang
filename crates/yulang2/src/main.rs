@@ -36,6 +36,8 @@ fn main() {
         Some("install") => run_install(&program, &options, args),
         Some("install-std") => run_install_std(&program, &options, args),
         Some("cache") => run_cache(&program, args),
+        Some("realm") => run_realm(&program, args),
+        Some("server") => run_server(&program, &options, args),
         Some("debug") => run_debug(&program, &options, args),
         Some("dump-poly") => {
             let path = require_one_path(&program, args);
@@ -391,6 +393,45 @@ fn run_cache(program: &str, mut args: VecDeque<OsString>) {
     }
 }
 
+fn run_realm(program: &str, mut args: VecDeque<OsString>) {
+    let Some(op) = args.pop_front() else {
+        print_usage_and_exit(program);
+    };
+    match op.to_str() {
+        Some("freeze") => {
+            let (path, version) = parse_realm_freeze_args(program, args);
+            let root = path.unwrap_or_else(|| PathBuf::from("."));
+            match sources::freeze_realm_version(&root, version) {
+                Ok(output) => {
+                    let status = if output.already_exists {
+                        "already frozen"
+                    } else {
+                        "frozen"
+                    };
+                    println!(
+                        "realm freeze: {status} {} hash={:016x} files={}",
+                        output.root.display(),
+                        output.snapshot.source_hash,
+                        output.snapshot.files.len()
+                    );
+                }
+                Err(error) => {
+                    eprintln!("{error}");
+                    process::exit(1);
+                }
+            }
+        }
+        _ => print_usage_and_exit(program),
+    }
+}
+
+fn run_server(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString>) {
+    if args.pop_front().is_some() {
+        print_usage_and_exit(program);
+    }
+    yulang2::server::run_blocking(options.std_root.clone());
+}
+
 fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString>) {
     let Some(op) = args.pop_front() else {
         print_usage_and_exit(program);
@@ -414,6 +455,52 @@ fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString
         }
         _ => print_usage_and_exit(program),
     }
+}
+
+fn parse_realm_freeze_args(
+    program: &str,
+    mut args: VecDeque<OsString>,
+) -> (Option<PathBuf>, String) {
+    let mut path = None;
+    let mut version = None;
+    while let Some(arg) = args.pop_front() {
+        match arg.to_str() {
+            Some("--version") => {
+                let Some(value) = args.pop_front() else {
+                    print_usage_error_and_exit(program, "realm freeze --version requires a value");
+                };
+                set_realm_version(program, &mut version, value);
+            }
+            Some(value) if value.starts_with("--version=") => {
+                let value = value.strip_prefix("--version=").unwrap_or_default();
+                if value.is_empty() {
+                    print_usage_error_and_exit(program, "realm freeze --version requires a value");
+                }
+                set_realm_version(program, &mut version, OsString::from(value));
+            }
+            Some(flag) if flag.starts_with("--") => {
+                print_usage_error_and_exit(
+                    program,
+                    &format!("unsupported realm freeze option {flag}"),
+                );
+            }
+            _ => set_single_path(program, &mut path, arg),
+        }
+    }
+    let Some(version) = version else {
+        print_usage_error_and_exit(program, "realm freeze requires --version <version>");
+    };
+    (path, version)
+}
+
+fn set_realm_version(program: &str, version: &mut Option<String>, value: OsString) {
+    if version.is_some() {
+        print_usage_and_exit(program);
+    }
+    let Some(value) = value.to_str() else {
+        print_usage_error_and_exit(program, "realm version must be UTF-8");
+    };
+    *version = Some(value.to_string());
 }
 
 fn parse_build_args(program: &str, mut args: VecDeque<OsString>) -> (PathBuf, Option<PathBuf>) {
@@ -811,6 +898,8 @@ fn print_usage_and_exit(program: &str) -> ! {
     eprintln!("       {program} parse [path] --as <expr|pat|stmt|type|mark>");
     eprintln!("       {program} [--std-root <path>] install std");
     eprintln!("       {program} cache <clear|path>");
+    eprintln!("       {program} realm freeze [path] --version <version>");
+    eprintln!("       {program} [--std-root <path>] server");
     eprintln!("       {program} debug <control-vm|control-vm-emit|control-vm-load> ...");
     eprintln!("       {program} dump-poly <path>");
     eprintln!("       {program} dump-poly-raw <path>");
