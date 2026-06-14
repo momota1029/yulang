@@ -4,7 +4,6 @@
 //! 実験中の std 取り込みはここへ置く。
 
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::env;
 use std::fmt;
 use std::fmt::Write as _;
 use std::fs;
@@ -14,9 +13,12 @@ use std::time::{Duration, Instant};
 
 use sources::{ModuleLoadRequest, Name, Path, SourceFile};
 
+use crate::stdlib::{
+    YULANG_STD_ENV, default_versioned_std_root, env_std_root, install_embedded_std,
+};
+
 pub const IMPLICIT_PRELUDE_IMPORT: &str = "use std::prelude::*\n";
 const IMPLICIT_STD_MODULE_DECL: &str = "mod std;\n";
-const YULANG_STD_ENV: &str = "YULANG_STD";
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StdSourceOptions {
@@ -46,6 +48,13 @@ pub fn run_mono_from_entry(entry: impl AsRef<FsPath>) -> Result<RunMonoOutput, R
 /// entry file から local module file を読み、control VM で root を実行する。
 pub fn run_control_from_entry(entry: impl AsRef<FsPath>) -> Result<RunControlOutput, RouteError> {
     run_control_from_sources(collect_local_sources(entry)?)
+}
+
+/// entry file から local module file を読み、control VM artifact 用 IR を作る。
+pub fn build_control_from_entry(
+    entry: impl AsRef<FsPath>,
+) -> Result<BuildControlOutput, RouteError> {
+    build_control_from_sources(collect_local_sources(entry)?)
 }
 
 /// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで poly dump を返す。
@@ -125,6 +134,20 @@ pub fn run_control_from_entry_with_std_options(
     options: &StdSourceOptions,
 ) -> Result<RunControlOutput, RouteError> {
     run_control_from_sources(collect_local_sources_with_std_options(entry, options)?)
+}
+
+/// entry file と近場の `lib/std.yu` を読み、control VM artifact 用 IR を作る。
+pub fn build_control_from_entry_with_std(
+    entry: impl AsRef<FsPath>,
+) -> Result<BuildControlOutput, RouteError> {
+    build_control_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn build_control_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<BuildControlOutput, RouteError> {
+    build_control_from_sources(collect_local_sources_with_std_options(entry, options)?)
 }
 
 /// entry file から local module file を読み、dump なしで型付け状況を集計する。
@@ -318,6 +341,14 @@ pub struct CheckPolyOutput {
     pub file_count: usize,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct BuildControlOutput {
+    pub program: control_vm::Program,
+    pub file_count: usize,
+    /// body lowering が報告したエラーの表示用整形。artifact とは別に stderr へ流す。
+    pub errors: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CollectedSource {
     pub path: PathBuf,
@@ -346,6 +377,10 @@ pub enum RouteError {
     },
     StdRootNotFound {
         base: PathBuf,
+    },
+    StdRootInstall {
+        root: PathBuf,
+        error: io::Error,
     },
     InvalidStdRoot {
         root: PathBuf,
@@ -378,6 +413,7 @@ pub enum RouteError {
     Specialize(specialize::SpecializeError),
     Runtime(mono_runtime::RuntimeError),
     Control(control_vm::RunError),
+    ControlLower(control_vm::LowerError),
 }
 
 impl fmt::Display for RouteError {
@@ -392,6 +428,9 @@ impl fmt::Display for RouteError {
                     "std root was not found near {} or in {YULANG_STD_ENV}",
                     base.display()
                 )
+            }
+            RouteError::StdRootInstall { root, error } => {
+                write!(f, "failed to install std root {}: {error}", root.display())
             }
             RouteError::InvalidStdRoot { root } => {
                 write!(f, "std root {} does not contain std.yu", root.display())
@@ -450,6 +489,7 @@ impl fmt::Display for RouteError {
             RouteError::Specialize(error) => write!(f, "{error}"),
             RouteError::Runtime(error) => write!(f, "{error}"),
             RouteError::Control(error) => write!(f, "{error}"),
+            RouteError::ControlLower(error) => write!(f, "{error}"),
         }
     }
 }
@@ -716,6 +756,18 @@ fn run_control_from_sources(files: Vec<CollectedSource>) -> Result<RunControlOut
         file_count: output.file_count,
         errors: output.errors,
         values,
+    })
+}
+
+fn build_control_from_sources(
+    files: Vec<CollectedSource>,
+) -> Result<BuildControlOutput, RouteError> {
+    let output = specialize_mono_from_sources(files)?;
+    let program = control_vm::lower(&output.program).map_err(RouteError::ControlLower)?;
+    Ok(BuildControlOutput {
+        program,
+        file_count: output.file_count,
+        errors: output.errors,
     })
 }
 
@@ -1085,9 +1137,7 @@ fn resolve_std_root(base: &FsPath, options: &StdSourceOptions) -> Result<PathBuf
         });
     }
 
-    resolve_nearby_std_root(base).ok_or_else(|| RouteError::StdRootNotFound {
-        base: base.to_path_buf(),
-    })
+    resolve_auto_std_root(base)
 }
 
 fn resolve_nearby_std_root(base: &FsPath) -> Option<PathBuf> {
@@ -1109,16 +1159,27 @@ fn parse_dump_module_path(module: &str) -> Result<Path, RouteError> {
     Ok(Path { segments })
 }
 
-fn env_std_root() -> Option<PathBuf> {
-    let value = env::var_os(YULANG_STD_ENV)?;
-    if value.is_empty() {
-        return None;
+fn resolve_auto_std_root(base: &FsPath) -> Result<PathBuf, RouteError> {
+    if let Some(root) = resolve_nearby_std_root(base) {
+        return Ok(root);
     }
-    Some(PathBuf::from(value))
+
+    let root = default_versioned_std_root();
+    install_embedded_std(&root).map_err(|error| RouteError::StdRootInstall {
+        root: root.clone(),
+        error,
+    })?;
+    if is_std_root(&root) {
+        return Ok(root);
+    }
+
+    Err(RouteError::StdRootNotFound {
+        base: base.to_path_buf(),
+    })
 }
 
 fn is_std_root(path: &FsPath) -> bool {
-    path.join("std.yu").is_file()
+    crate::stdlib::is_std_root(path)
 }
 
 fn discover_module_loads(module_path: &Path, source: &str) -> Vec<ModuleLoadRequest> {

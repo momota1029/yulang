@@ -298,6 +298,7 @@ dependencies = [
  "mono",
  "mono-runtime",
  "num-bigint",
+ "serde",
  "sources",
  "specialize",
  "yulang-list-tree",
@@ -995,6 +996,7 @@ name = "mono"
 version = "0.1.0"
 dependencies = [
  "num-bigint",
+ "serde",
 ]
 
 [[package]]
@@ -1034,6 +1036,7 @@ checksum = "a5e44f723f1133c9deac646763579fdb3ac745e418f2a7af9cd0c431da1f20b9"
 dependencies = [
  "num-integer",
  "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -2442,11 +2445,18 @@ dependencies = [
 name = "yulang2"
 version = "0.1.0"
 dependencies = [
+ "chasa",
  "control-vm",
+ "either",
+ "im",
  "infer",
  "mono-runtime",
+ "reborrow-generic",
+ "rowan",
+ "serde_json",
  "sources",
  "specialize",
+ "yulang-parser",
 ]
 
 [[package]]

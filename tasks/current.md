@@ -9,7 +9,8 @@
   - `infer`: CST から poly IR と型情報を作る作業 crate（推論中に増える状態はここ）
   - `poly`: 最終的に読まれる構造と解決結果だけを持つ
   - `yulang2`: 新世代 pipeline の CLI。デバッグ用の `dump-poly` / `dump-mono` / `run-control`
-    系に加え、旧 `yulang` 置き換え準備として `check` / `run` / `dump` の互換入口を持つ。
+    系に加え、旧 `yulang` 置き換え準備として `check` / `build` / `run` / `dump` /
+    `parse` / `install std` / `cache` / `debug control-vm*` の互換入口を持つ。
 - 旧世代: `yulang` CLI にぶら下がる `yulang-*` 群。**動く oracle として保守**。
   infer は 2026-06-07 に全テスト解決済み。新世代の都合で改造・削除しない。
 

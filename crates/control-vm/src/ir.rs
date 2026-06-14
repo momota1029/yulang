@@ -4,21 +4,22 @@ use mono::{
     ComputationType, EffectiveThunkType, FunctionAdapterHygiene, Lit, PrimitiveContext,
     PrimitiveOp, Type,
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Program {
     pub roots: Vec<Root>,
     pub instances: Vec<Instance>,
     pub exprs: Vec<Expr>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Root {
     Instance(InstanceId),
     Expr(ExprId),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Instance {
     pub id: InstanceId,
     pub source: mono::InstanceSource,
@@ -26,16 +27,16 @@ pub struct Instance {
     pub entry: ExprId,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ExprId(pub u32);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DefId(pub u32);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct InstanceId(pub u32);
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Expr {
     Lit(Lit),
     PrimitiveOp {
@@ -113,34 +114,34 @@ pub enum Expr {
     Block(Block),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordField {
     pub name: String,
     pub value: ExprId,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RecordSpread<T> {
     None,
     Head(T),
     Tail(T),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SelectResolution {
     RecordField,
     Method { instance: InstanceId },
     TypeclassMethod { member: DefId },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CaseArm {
     pub pat: Pat,
     pub guard: Option<ExprId>,
     pub body: ExprId,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CatchArm {
     pub operation_path: Option<Vec<String>>,
     pub pat: Pat,
@@ -149,20 +150,20 @@ pub struct CatchArm {
     pub body: ExprId,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Block {
     pub stmts: Vec<Stmt>,
     pub tail: Option<ExprId>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Stmt {
     Let(mono::Vis, Pat, ExprId),
     Expr(ExprId),
     Module(DefId, Vec<Stmt>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Pat {
     Wild,
     Lit(Lit),

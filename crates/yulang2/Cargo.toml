@@ -4,8 +4,15 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+chasa = "0.5.0"
 control-vm = { path = "../control-vm" }
+either = "1.13.0"
+im = "15.1.0"
 infer = { path = "../infer" }
 mono-runtime = { path = "../mono-runtime" }
+reborrow-generic = "0.1.2"
+rowan = "0.15"
+serde_json = "1"
 specialize = { path = "../specialize" }
 sources = { path = "../sources" }
+yulang-parser = { path = "../yulang-parser" }

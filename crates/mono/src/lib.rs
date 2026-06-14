@@ -8,20 +8,21 @@
 pub mod dump;
 
 use num_bigint::BigInt;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Program {
     pub roots: Vec<Root>,
     pub instances: Vec<Instance>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Root {
     Instance(InstanceId),
     Expr(Expr),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Instance {
     pub id: InstanceId,
     pub source: InstanceSource,
@@ -29,20 +30,20 @@ pub struct Instance {
     pub body: Expr,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct InstanceId(pub u32);
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum InstanceSource {
     Def(DefId),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Signature {
     pub ty: Type,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Type {
     Any,
     Never,
@@ -90,25 +91,25 @@ impl Type {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TypeField {
     pub name: String,
     pub value: Type,
     pub optional: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TypeVariant {
     pub name: String,
     pub payloads: Vec<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct StackWeight {
     pub entries: Vec<StackWeightEntry>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct StackWeightEntry {
     pub id: u32,
     pub pops: u32,
@@ -116,7 +117,7 @@ pub struct StackWeightEntry {
     pub stack: Vec<EffectFamilies>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EffectFamilies {
     Empty,
     All,
@@ -124,36 +125,36 @@ pub enum EffectFamilies {
     Set(Vec<EffectFamily>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EffectFamily {
     pub path: Vec<String>,
     pub args: Vec<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ComputationType {
     pub effect: Type,
     pub value: Type,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EffectiveThunkType {
     pub effect: Type,
     pub value: Type,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct FunctionAdapterHygiene {
     pub markers: Vec<GuardMarker>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct GuardMarker {
     pub path: Vec<String>,
     pub depth: u32,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Expr {
     pub kind: ExprKind,
 }
@@ -164,7 +165,7 @@ impl Expr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ExprKind {
     Lit(Lit),
     PrimitiveOp {
@@ -233,7 +234,7 @@ pub enum ExprKind {
     Block(Block),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PrimitiveOp {
     YadaYada,
     BoolNot,
@@ -365,19 +366,19 @@ impl PrimitiveOp {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct PrimitiveContext {
     pub list_view: Option<ListViewConstructors>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ListViewConstructors {
     pub empty: DefId,
     pub leaf: DefId,
     pub node: DefId,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Lit {
     Int(i64),
     BigInt(BigInt),
@@ -387,20 +388,20 @@ pub enum Lit {
     Unit,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordField {
     pub name: String,
     pub value: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CaseArm {
     pub pat: Pat,
     pub guard: Option<Expr>,
     pub body: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CatchArm {
     pub operation_path: Option<Vec<String>>,
     pub pat: Pat,
@@ -409,20 +410,20 @@ pub struct CatchArm {
     pub body: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Block {
     pub stmts: Vec<Stmt>,
     pub tail: Option<Box<Expr>>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Stmt {
     Let(Vis, Pat, Expr),
     Expr(Expr),
     Module(DefId, Vec<Stmt>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Pat {
     Wild,
     Lit(Lit),
@@ -444,26 +445,26 @@ pub enum Pat {
     As(Box<Pat>, DefId),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RecordSpread<T> {
     Head(T),
     Tail(T),
     None,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SelectResolution {
     RecordField,
     Method { instance: InstanceId },
     TypeclassMethod { member: DefId },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Vis {
     Pub,
     Our,
     My,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct DefId(pub u32);

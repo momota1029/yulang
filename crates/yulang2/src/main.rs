@@ -1,8 +1,13 @@
 use std::collections::VecDeque;
 use std::env;
 use std::ffi::OsString;
+use std::fs;
+use std::io::{self, Read};
 use std::path::PathBuf;
 use std::process;
+
+mod cst_view;
+mod parse_view;
 
 fn main() {
     let mut raw_args = env::args_os();
@@ -24,8 +29,14 @@ fn main() {
 
     match command.to_str() {
         Some("check") => run_compatible_check(&program, &options, args),
+        Some("build") => run_compatible_build(&program, &options, args),
         Some("run") | Some("interpret") => run_compatible_run(&program, &options, args),
         Some("dump") => run_compatible_dump(&program, &options, args),
+        Some("parse") => run_compatible_parse(&program, args),
+        Some("install") => run_install(&program, &options, args),
+        Some("install-std") => run_install_std(&program, &options, args),
+        Some("cache") => run_cache(&program, args),
+        Some("debug") => run_debug(&program, &options, args),
         Some("dump-poly") => {
             let path = require_one_path(&program, args);
             run_route(yulang2::dump_poly_from_entry(path), print_dump_poly_output);
@@ -144,6 +155,7 @@ fn main() {
 struct GlobalOptions {
     std_root: Option<PathBuf>,
     no_prelude: bool,
+    show_cst: bool,
 }
 
 impl GlobalOptions {
@@ -190,7 +202,21 @@ fn parse_global_options(
             Some("--no-prelude") => {
                 options.no_prelude = true;
             }
+            Some("--cst") => {
+                options.show_cst = true;
+            }
             Some("--no-cache") => {}
+            Some("--verbose-ir")
+            | Some("--infer-phase-timings")
+            | Some("--runtime-phase-timings")
+            | Some("--startup-profile") => {}
+            Some("--profile-repeat") | Some("--profile-flamegraph") => {
+                if args.pop_front().is_none() {
+                    return Err(format!("{arg:?} requires a value"));
+                }
+            }
+            Some(value) if value.starts_with("--profile-repeat=") => {}
+            Some(value) if value.starts_with("--profile-flamegraph=") => {}
             _ => command_args.push_back(arg),
         }
     }
@@ -199,6 +225,7 @@ fn parse_global_options(
 
 fn run_compatible_check(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
     let path = require_one_path(program, args);
+    print_cst_if_requested(options, &path);
     if options.no_prelude {
         run_route(
             yulang2::check_poly_from_entry(path),
@@ -214,8 +241,52 @@ fn run_compatible_check(program: &str, options: &GlobalOptions, args: VecDeque<O
     );
 }
 
+fn run_compatible_build(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
+    let (path, out) = parse_build_args(program, args);
+    print_cst_if_requested(options, &path);
+    let output = if options.no_prelude {
+        run_route_to_value(yulang2::build_control_from_entry(&path))
+    } else {
+        let source_options = options.std_source_options();
+        run_route_to_value(yulang2::build_control_from_entry_with_std_options(
+            &path,
+            &source_options,
+        ))
+    };
+    let artifact = match yulang2::artifact::encode_control_program(&output.program) {
+        Ok(artifact) => artifact,
+        Err(error) => {
+            eprintln!("{error}");
+            process::exit(1);
+        }
+    };
+    let out = out.unwrap_or_else(|| default_artifact_path(&path));
+    ensure_parent_dir_or_exit(&out, "control-vm artifact");
+    if let Err(error) = fs::write(&out, artifact) {
+        eprintln!(
+            "failed to write control-vm artifact {}: {error}",
+            out.display()
+        );
+        process::exit(1);
+    }
+    for error in &output.errors {
+        eprintln!("error: {error}");
+    }
+    println!("build: {}", out.display());
+}
+
 fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
     let (path, selection) = parse_run_args(program, args);
+    if let Some(artifact) = read_control_artifact_or_exit(&path) {
+        if selection.interpreter {
+            eprintln!("control-vm artifact cannot be run with --interpreter");
+            process::exit(2);
+        }
+        run_control_artifact(artifact, selection.print_roots);
+        return;
+    }
+
+    print_cst_if_requested(options, &path);
     if options.no_prelude {
         if selection.interpreter {
             run_route(
@@ -247,6 +318,7 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
 
 fn run_compatible_dump(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
     let (path, selection) = parse_dump_args(program, args);
+    print_cst_if_requested(options, &path);
     if options.no_prelude {
         print_selected_dump_without_std(path, selection);
         return;
@@ -254,6 +326,124 @@ fn run_compatible_dump(program: &str, options: &GlobalOptions, args: VecDeque<Os
 
     let source_options = options.std_source_options();
     print_selected_dump_with_std(path, selection, &source_options);
+}
+
+fn run_compatible_parse(program: &str, args: VecDeque<OsString>) {
+    let (path, mode) = parse_parse_args(program, args);
+    let source = read_source_or_exit(path.as_ref());
+    let output = parse_view::run_parser_view(mode, &source);
+    print!("{}", output.text);
+    if !output.ok {
+        eprintln!("parse failed");
+        process::exit(1);
+    }
+}
+
+fn run_install(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString>) {
+    let Some(target) = args.pop_front() else {
+        print_usage_and_exit(program);
+    };
+    if args.pop_front().is_some() {
+        print_usage_and_exit(program);
+    }
+    match target.to_str() {
+        Some("std") => run_install_std(program, options, VecDeque::new()),
+        _ => print_usage_and_exit(program),
+    }
+}
+
+fn run_install_std(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString>) {
+    if args.pop_front().is_some() {
+        print_usage_and_exit(program);
+    }
+    let root = options
+        .std_root
+        .clone()
+        .unwrap_or_else(yulang2::stdlib::default_versioned_std_root);
+    if let Err(error) = yulang2::stdlib::install_embedded_std(&root) {
+        eprintln!("failed to install std to {}: {error}", root.display());
+        process::exit(1);
+    }
+    eprintln!("{}", root.display());
+}
+
+fn run_cache(program: &str, mut args: VecDeque<OsString>) {
+    let Some(op) = args.pop_front() else {
+        print_usage_and_exit(program);
+    };
+    if args.pop_front().is_some() {
+        print_usage_and_exit(program);
+    }
+    let root = yulang2::stdlib::default_user_cache_root();
+    match op.to_str() {
+        Some("path") => println!("{}", root.display()),
+        Some("clear") => match fs::remove_dir_all(&root) {
+            Ok(()) => println!("cleared {}", root.display()),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                println!("cache already empty {}", root.display());
+            }
+            Err(error) => {
+                eprintln!("failed to clear cache {}: {error}", root.display());
+                process::exit(1);
+            }
+        },
+        _ => print_usage_and_exit(program),
+    }
+}
+
+fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString>) {
+    let Some(op) = args.pop_front() else {
+        print_usage_and_exit(program);
+    };
+    match op.to_str() {
+        Some("control-vm") => run_compatible_run(program, options, args),
+        Some("control-vm-emit") => run_compatible_build(program, options, args),
+        Some("control-vm-load") => {
+            let (path, selection) = parse_run_args(program, args);
+            if selection.interpreter {
+                print_usage_error_and_exit(
+                    program,
+                    "debug control-vm-load does not take --interpreter",
+                );
+            }
+            let Some(artifact) = read_control_artifact_or_exit(&path) else {
+                eprintln!("{} is not a yulang2 control-vm artifact", path.display());
+                process::exit(1);
+            };
+            run_control_artifact(artifact, selection.print_roots);
+        }
+        _ => print_usage_and_exit(program),
+    }
+}
+
+fn parse_build_args(program: &str, mut args: VecDeque<OsString>) -> (PathBuf, Option<PathBuf>) {
+    let mut path = None;
+    let mut out = None;
+    while let Some(arg) = args.pop_front() {
+        match arg.to_str() {
+            Some("--out") => {
+                let Some(value) = args.pop_front() else {
+                    print_usage_error_and_exit(program, "build --out requires a path");
+                };
+                set_single_output_path(program, &mut out, value);
+            }
+            Some(value) if value.starts_with("--out=") => {
+                let value = value.strip_prefix("--out=").unwrap_or_default();
+                if value.is_empty() {
+                    print_usage_error_and_exit(program, "build --out requires a path");
+                }
+                set_single_output_path(program, &mut out, OsString::from(value));
+            }
+            Some(flag) if flag.starts_with("--") => {
+                print_usage_error_and_exit(program, &format!("unsupported build option {flag}"));
+            }
+            _ => set_single_path(program, &mut path, arg),
+        }
+    }
+    let Some(path) = path else {
+        print_usage_and_exit(program);
+    };
+    (path, out)
 }
 
 fn parse_run_args(program: &str, mut args: VecDeque<OsString>) -> (PathBuf, RunSelection) {
@@ -277,6 +467,49 @@ fn parse_run_args(program: &str, mut args: VecDeque<OsString>) -> (PathBuf, RunS
         print_usage_and_exit(program);
     };
     (path, selection)
+}
+
+fn parse_parse_args(
+    program: &str,
+    mut args: VecDeque<OsString>,
+) -> (Option<PathBuf>, parse_view::ParserMode) {
+    let mut path = None;
+    let mut mode = None;
+    while let Some(arg) = args.pop_front() {
+        match arg.to_str() {
+            Some("--as") => {
+                let Some(value) = args.pop_front() else {
+                    print_usage_error_and_exit(program, "parse --as requires a mode");
+                };
+                let Some(value) = value.to_str() else {
+                    print_usage_error_and_exit(program, "parse mode must be UTF-8");
+                };
+                mode = parse_parser_mode_or_exit(program, value);
+            }
+            Some(value) if value.starts_with("--as=") => {
+                let value = value.strip_prefix("--as=").unwrap_or_default();
+                mode = parse_parser_mode_or_exit(program, value);
+            }
+            Some(flag) if flag.starts_with("--") => {
+                print_usage_error_and_exit(program, &format!("unsupported parse option {flag}"));
+            }
+            _ => set_single_path(program, &mut path, arg),
+        }
+    }
+    let Some(mode) = mode else {
+        print_usage_error_and_exit(program, "parse requires --as <expr|pat|stmt|type|mark>");
+    };
+    (path, mode)
+}
+
+fn parse_parser_mode_or_exit(program: &str, value: &str) -> Option<parse_view::ParserMode> {
+    let Some(mode) = parse_view::parse_mode(value) else {
+        print_usage_error_and_exit(
+            program,
+            &format!("unknown parse mode {value:?}; expected expr, pat, stmt, type, or mark"),
+        );
+    };
+    Some(mode)
 }
 
 fn parse_dump_args(program: &str, mut args: VecDeque<OsString>) -> (PathBuf, DumpSelection) {
@@ -397,9 +630,109 @@ fn set_single_path(program: &str, path: &mut Option<PathBuf>, value: OsString) {
     *path = Some(PathBuf::from(value));
 }
 
+fn set_single_output_path(program: &str, out: &mut Option<PathBuf>, value: OsString) {
+    if out.is_some() {
+        print_usage_and_exit(program);
+    }
+    *out = Some(PathBuf::from(value));
+}
+
+fn read_source_or_exit(path: Option<&PathBuf>) -> String {
+    match path {
+        Some(path) => fs::read_to_string(path).unwrap_or_else(|error| {
+            eprintln!("failed to read {}: {error}", path.display());
+            process::exit(1);
+        }),
+        None => {
+            let mut source = String::new();
+            if let Err(error) = io::stdin().read_to_string(&mut source) {
+                eprintln!("failed to read stdin: {error}");
+                process::exit(1);
+            }
+            source
+        }
+    }
+}
+
+fn print_cst_if_requested(options: &GlobalOptions, path: &PathBuf) {
+    if !options.show_cst {
+        return;
+    }
+    let source = read_source_or_exit(Some(path));
+    print!("{}", cst_view::format_module_cst(&source));
+}
+
+fn read_control_artifact_or_exit(path: &PathBuf) -> Option<control_vm::Program> {
+    let source = match fs::read_to_string(path) {
+        Ok(source) => source,
+        Err(_) => return None,
+    };
+    match yulang2::artifact::decode_control_program(&source) {
+        Ok(program) => program,
+        Err(error) => {
+            eprintln!(
+                "failed to read control-vm artifact {}: {error}",
+                path.display()
+            );
+            process::exit(1);
+        }
+    }
+}
+
+fn run_control_artifact(program: control_vm::Program, print_roots: bool) {
+    let values = match control_vm::run_program(&program) {
+        Ok(values) => values,
+        Err(error) => {
+            eprintln!("{error}");
+            process::exit(1);
+        }
+    };
+    if print_roots {
+        println!("run roots {}", control_vm::format_values(&values));
+    }
+}
+
+fn default_artifact_path(entry: &PathBuf) -> PathBuf {
+    let stem = entry
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .filter(|stem| !stem.is_empty())
+        .unwrap_or("main");
+    PathBuf::from("target")
+        .join("yulang")
+        .join("yuir")
+        .join(format!("{stem}.yuir"))
+}
+
+fn ensure_parent_dir_or_exit(path: &PathBuf, label: &str) {
+    let Some(parent) = path.parent() else {
+        return;
+    };
+    if parent.as_os_str().is_empty() {
+        return;
+    }
+    if let Err(error) = fs::create_dir_all(parent) {
+        eprintln!(
+            "failed to create {label} parent {}: {error}",
+            parent.display()
+        );
+        process::exit(1);
+    }
+}
+
 fn run_route<T>(result: Result<T, yulang2::RouteError>, print: impl FnOnce(&T)) {
     match result {
         Ok(output) => print(&output),
+        Err(error) => {
+            eprintln!("{error}");
+            process::exit(1);
+        }
+    }
+}
+
+fn run_route_to_value<T>(result: Result<T, yulang2::RouteError>) -> T {
+    match result {
+        Ok(output) => output,
         Err(error) => {
             eprintln!("{error}");
             process::exit(1);
@@ -467,13 +800,18 @@ fn print_usage_error_and_exit(program: &str, error: &str) -> ! {
 }
 
 fn print_usage_and_exit(program: &str) -> ! {
-    eprintln!("usage: {program} [--std-root <path>] [--no-prelude] check <path>");
+    eprintln!("usage: {program} [--std-root <path>] [--no-prelude] [--cst] check <path>");
+    eprintln!("       {program} [--std-root <path>] [--no-prelude] build [--out <path>] <path>");
     eprintln!(
         "       {program} [--std-root <path>] [--no-prelude] run [--interpreter] [--print-roots] <path>"
     );
     eprintln!(
         "       {program} [--std-root <path>] [--no-prelude] dump <path> (--core-ir | --runtime-ir | --poly | --poly-raw | --mono)"
     );
+    eprintln!("       {program} parse [path] --as <expr|pat|stmt|type|mark>");
+    eprintln!("       {program} [--std-root <path>] install std");
+    eprintln!("       {program} cache <clear|path>");
+    eprintln!("       {program} debug <control-vm|control-vm-emit|control-vm-load> ...");
     eprintln!("       {program} dump-poly <path>");
     eprintln!("       {program} dump-poly-raw <path>");
     eprintln!("       {program} dump-mono <path>");
