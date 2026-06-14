@@ -144,11 +144,11 @@ impl Validator<'_> {
 
     fn validate_expr(&self, id: ExprId, expr: &Expr) -> Result<(), ValidateError> {
         match expr {
-            Expr::Lit(_) | Expr::EffectOp { .. } | Expr::Local(_) => Ok(()),
-            Expr::PrimitiveOp(name) => Err(ValidateError::UnsupportedExpr {
-                expr: id,
-                feature: format!("primitive op {name}"),
-            }),
+            Expr::Lit(_)
+            | Expr::PrimitiveOp { .. }
+            | Expr::Constructor { .. }
+            | Expr::EffectOp { .. }
+            | Expr::Local(_) => Ok(()),
             Expr::InstanceRef(instance) => self.validate_instance_ref(*instance),
             Expr::Coerce {
                 source,

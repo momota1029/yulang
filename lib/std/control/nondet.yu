@@ -10,8 +10,8 @@ pub act nondet:
         xs.fold (): \() x -> if branch() { sub::return x } else ()
         reject()
     }
-    pub list(x: [_] _) = catch x:
-        branch(), k -> std::data::list::merge list(k true) list(k false)
+    pub x.list = catch x:
+        branch(), k -> std::data::list::merge k(true).list k(false).list
         reject(), _ -> []
         v -> [v]
 
@@ -36,9 +36,8 @@ pub act nondet:
             v -> std::data::opt::opt::just v
 
 
-    pub (x: [_] _).list = list x
-    pub (x: [_] _).logic = logic x
-    pub (x: [_] _).once = once x
-    pub (x: [_] _).guard f = { guard: f x; x }
+    pub x.logic = logic x
+    pub x.once = once x
+    pub x.guard f = { guard: f x; x }
 
 pub use std::control::nondet::nondet::*

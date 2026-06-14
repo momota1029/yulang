@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use mono::{Type, TypeField, TypeVariant};
 use poly::expr as poly_expr;
 
-use crate::{ExprTypeRole, SpecializeError, convert_def, def_kind, lit_type, types};
+use crate::{ExprTypeRole, SpecializeError, convert_def, def_kind, lit_type, roles, types};
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ExprTypePlan {
@@ -116,6 +116,7 @@ pub(crate) fn solve_expr(
         local_types: HashMap::new(),
     };
     solver.expr(expr, expected.cloned())?;
+    solver.graph.resolve_role_demands()?;
     solver.plan.finalize(&solver.graph)
 }
 
@@ -161,7 +162,7 @@ impl<'a> ExprTypeSolver<'a> {
         use poly_expr::Expr as PolyExpr;
         match self.arena.expr(expr) {
             PolyExpr::Lit(lit) => Ok(lit_type(lit)),
-            PolyExpr::PrimitiveOp(_) => Ok(expected.unwrap_or_else(|| self.fresh_value_slot())),
+            PolyExpr::PrimitiveOp(op) => Ok(self.primitive_type(*op, expected.as_ref())),
             PolyExpr::Var(ref_id) => self.var_type(*ref_id),
             PolyExpr::App(callee, arg) => self.apply_type(*callee, *arg, expected),
             PolyExpr::RefSet(reference, value) => {
@@ -219,7 +220,10 @@ impl<'a> ExprTypeSolver<'a> {
         arg: poly_expr::ExprId,
         expected: Option<Type>,
     ) -> Result<Type, SpecializeError> {
-        let callee_ty = self.expr(callee, None)?;
+        let callee_expected = expected
+            .as_ref()
+            .and_then(|ret| self.primitive_spine_callee_expected(callee, ret.clone()));
+        let callee_ty = self.expr(callee, callee_expected)?;
         if let Some((arg_ty, ret_ty)) = function_runtime_parts(&callee_ty) {
             self.expr(arg, Some(arg_ty))?;
             if let Some(expected) = expected {
@@ -234,6 +238,27 @@ impl<'a> ExprTypeSolver<'a> {
         self.graph.constrain_subtype(callee_ty, callee_expected)?;
         self.expr(arg, Some(arg_ty))?;
         Ok(ret_ty)
+    }
+
+    fn primitive_spine_callee_expected(
+        &self,
+        callee: poly_expr::ExprId,
+        ret: Type,
+    ) -> Option<Type> {
+        let (op, applied) = self.primitive_spine(callee)?;
+        let arg = primitive_spine_arg_type(op, applied, &ret)?;
+        Some(types::pure_function_type(arg, ret))
+    }
+
+    fn primitive_spine(&self, expr: poly_expr::ExprId) -> Option<(poly_expr::PrimitiveOp, usize)> {
+        match self.arena.expr(expr) {
+            poly_expr::Expr::PrimitiveOp(op) => Some((*op, 0)),
+            poly_expr::Expr::App(callee, _) => {
+                let (op, applied) = self.primitive_spine(*callee)?;
+                Some((op, applied + 1))
+            }
+            _ => None,
+        }
     }
 
     fn catch_type(
@@ -759,20 +784,22 @@ impl<'a> ExprTypeSolver<'a> {
         scheme: &poly::types::Scheme,
     ) -> Result<Type, SpecializeError> {
         let mut slots = Vec::new();
-        let ty = types::instantiate_scheme_with_fresh(self.arena, def, scheme, |kind| {
-            let slot = match kind {
-                types::SchemeQuantifierKind::Value => self.fresh_value_slot(),
-                types::SchemeQuantifierKind::Effect => self.fresh_effect_slot(),
-            };
-            slots.push(slot.clone());
-            slot
-        })?;
+        let instantiated =
+            types::instantiate_scheme_with_fresh_and_roles(self.arena, def, scheme, |kind| {
+                let slot = match kind {
+                    types::SchemeQuantifierKind::Value => self.fresh_value_slot(),
+                    types::SchemeQuantifierKind::Effect => self.fresh_effect_slot(),
+                };
+                slots.push(slot.clone());
+                slot
+            })?;
         for slot in slots {
             if let Type::OpenVar(slot) = slot {
                 self.graph.ensure_slot(slot)?;
             }
         }
-        Ok(ty)
+        self.graph.add_role_demands(instantiated.role_predicates);
+        Ok(instantiated.ty)
     }
 
     fn fresh_value_slot(&mut self) -> Type {
@@ -781,6 +808,143 @@ impl<'a> ExprTypeSolver<'a> {
 
     fn fresh_effect_slot(&mut self) -> Type {
         self.graph.fresh_slot(TypeSlotKind::Effect)
+    }
+
+    fn primitive_type(&mut self, op: poly_expr::PrimitiveOp, expected: Option<&Type>) -> Type {
+        if let Some(expected) = expected {
+            return self.primitive_type_from_expected(op, expected);
+        }
+
+        use poly_expr::PrimitiveOp;
+        match op {
+            PrimitiveOp::YadaYada => Type::Never,
+            PrimitiveOp::BoolNot => unary_type(bool_type(), bool_type()),
+            PrimitiveOp::BoolEq => binary_type(bool_type(), bool_type()),
+            PrimitiveOp::ListEmpty => {
+                let item = self.fresh_value_slot();
+                unary_type(Type::unit(), list_type(item))
+            }
+            PrimitiveOp::ListSingleton => {
+                let item = self.fresh_value_slot();
+                unary_type(item.clone(), list_type(item))
+            }
+            PrimitiveOp::ListLen => {
+                let item = self.fresh_value_slot();
+                unary_type(list_type(item), int_type())
+            }
+            PrimitiveOp::ListMerge => {
+                let item = self.fresh_value_slot();
+                let list = list_type(item);
+                function_type(vec![list.clone(), list.clone()], list)
+            }
+            PrimitiveOp::ListIndex => {
+                let item = self.fresh_value_slot();
+                function_type(vec![list_type(item.clone()), int_type()], item)
+            }
+            PrimitiveOp::ListIndexRange => {
+                let item = self.fresh_value_slot();
+                let list = list_type(item);
+                function_type(vec![list.clone(), con_type("range")], list)
+            }
+            PrimitiveOp::ListSplice => {
+                let item = self.fresh_value_slot();
+                let list = list_type(item);
+                function_type(vec![list.clone(), con_type("range"), list.clone()], list)
+            }
+            PrimitiveOp::ListIndexRangeRaw => {
+                let item = self.fresh_value_slot();
+                let list = list_type(item);
+                function_type(vec![list.clone(), int_type(), int_type()], list)
+            }
+            PrimitiveOp::ListSpliceRaw => {
+                let item = self.fresh_value_slot();
+                let list = list_type(item);
+                function_type(
+                    vec![list.clone(), int_type(), int_type(), list.clone()],
+                    list,
+                )
+            }
+            PrimitiveOp::ListViewRaw => {
+                let item = self.fresh_value_slot();
+                unary_type(list_type(item.clone()), list_view_type(item))
+            }
+            PrimitiveOp::StringLen | PrimitiveOp::StringLineCount => {
+                unary_type(str_type(), int_type())
+            }
+            PrimitiveOp::StringIndex => function_type(vec![str_type(), int_type()], char_type()),
+            PrimitiveOp::StringIndexRange => {
+                function_type(vec![str_type(), con_type("range")], str_type())
+            }
+            PrimitiveOp::StringSplice => {
+                function_type(vec![str_type(), con_type("range"), str_type()], str_type())
+            }
+            PrimitiveOp::StringIndexRangeRaw => {
+                function_type(vec![str_type(), int_type(), int_type()], str_type())
+            }
+            PrimitiveOp::StringSpliceRaw => function_type(
+                vec![str_type(), int_type(), int_type(), str_type()],
+                str_type(),
+            ),
+            PrimitiveOp::StringLineRange => {
+                function_type(vec![str_type(), int_type()], con_type("range"))
+            }
+            PrimitiveOp::IntAdd
+            | PrimitiveOp::IntSub
+            | PrimitiveOp::IntMul
+            | PrimitiveOp::IntDiv
+            | PrimitiveOp::IntMod => binary_type(int_type(), int_type()),
+            PrimitiveOp::IntEq
+            | PrimitiveOp::IntLt
+            | PrimitiveOp::IntLe
+            | PrimitiveOp::IntGt
+            | PrimitiveOp::IntGe => binary_type(int_type(), bool_type()),
+            PrimitiveOp::FloatAdd
+            | PrimitiveOp::FloatSub
+            | PrimitiveOp::FloatMul
+            | PrimitiveOp::FloatDiv => binary_type(float_type(), float_type()),
+            PrimitiveOp::FloatEq
+            | PrimitiveOp::FloatLt
+            | PrimitiveOp::FloatLe
+            | PrimitiveOp::FloatGt
+            | PrimitiveOp::FloatGe => binary_type(float_type(), bool_type()),
+            PrimitiveOp::StringEq => binary_type(str_type(), bool_type()),
+            PrimitiveOp::StringConcat => binary_type(str_type(), str_type()),
+            PrimitiveOp::StringToBytes => unary_type(str_type(), con_type("bytes")),
+            PrimitiveOp::CharEq => binary_type(char_type(), bool_type()),
+            PrimitiveOp::CharToString => unary_type(char_type(), str_type()),
+            PrimitiveOp::CharIsWhitespace
+            | PrimitiveOp::CharIsPunctuation
+            | PrimitiveOp::CharIsWord => unary_type(char_type(), bool_type()),
+            PrimitiveOp::BytesLen => unary_type(con_type("bytes"), int_type()),
+            PrimitiveOp::BytesEq => binary_type(con_type("bytes"), bool_type()),
+            PrimitiveOp::BytesConcat => binary_type(con_type("bytes"), con_type("bytes")),
+            PrimitiveOp::BytesIndex => {
+                function_type(vec![con_type("bytes"), int_type()], int_type())
+            }
+            PrimitiveOp::BytesIndexRange => function_type(
+                vec![con_type("bytes"), con_type("range")],
+                con_type("bytes"),
+            ),
+            PrimitiveOp::BytesToUtf8Raw => {
+                unary_type(con_type("bytes"), Type::Tuple(vec![str_type(), int_type()]))
+            }
+            PrimitiveOp::BytesToPath => unary_type(con_type("bytes"), con_type("path")),
+            PrimitiveOp::PathToBytes => unary_type(con_type("path"), con_type("bytes")),
+            PrimitiveOp::IntToString | PrimitiveOp::IntToHex | PrimitiveOp::IntToUpperHex => {
+                unary_type(int_type(), str_type())
+            }
+            PrimitiveOp::FloatToString => unary_type(float_type(), str_type()),
+            PrimitiveOp::BoolToString => unary_type(bool_type(), str_type()),
+        }
+    }
+
+    fn primitive_type_from_expected(
+        &mut self,
+        op: poly_expr::PrimitiveOp,
+        expected: &Type,
+    ) -> Type {
+        let _ = op;
+        expected.clone()
     }
 }
 
@@ -807,6 +971,7 @@ impl TypeSlotKind {
 struct ConstraintGraph<'a> {
     arena: &'a poly_expr::Arena,
     slots: Vec<TypeSlot>,
+    role_demands: Vec<types::InstantiatedRolePredicate>,
 }
 
 impl<'a> ConstraintGraph<'a> {
@@ -814,6 +979,7 @@ impl<'a> ConstraintGraph<'a> {
         Self {
             arena,
             slots: Vec::new(),
+            role_demands: Vec::new(),
         }
     }
 
@@ -828,6 +994,76 @@ impl<'a> ConstraintGraph<'a> {
             return Ok(());
         }
         Err(SpecializeError::InvalidTypeSlot { slot })
+    }
+
+    fn add_role_demands(
+        &mut self,
+        demands: impl IntoIterator<Item = types::InstantiatedRolePredicate>,
+    ) {
+        self.role_demands.extend(demands);
+    }
+
+    fn resolve_role_demands(&mut self) -> Result<(), SpecializeError> {
+        let mut applied = HashSet::new();
+        loop {
+            let mut progressed = false;
+            let demands = self.role_demands.clone();
+            for demand in demands {
+                if applied.contains(&demand) {
+                    continue;
+                }
+                if self.try_apply_role_demand(&demand)? {
+                    applied.insert(demand);
+                    progressed = true;
+                }
+            }
+            if !progressed {
+                return Ok(());
+            }
+        }
+    }
+
+    fn try_apply_role_demand(
+        &mut self,
+        demand: &types::InstantiatedRolePredicate,
+    ) -> Result<bool, SpecializeError> {
+        let Some(input_types) = self.resolve_role_input_types(demand)? else {
+            return Ok(false);
+        };
+        let applications = self
+            .arena
+            .role_impls
+            .candidates(&demand.role)
+            .iter()
+            .filter_map(|candidate| {
+                roles::candidate_application(&self.arena.typ, demand, candidate, &input_types)
+            })
+            .collect::<Vec<_>>();
+        let [application] = applications.as_slice() else {
+            return Ok(false);
+        };
+
+        for (lower, candidate, upper) in &application.associated {
+            self.constrain_subtype(lower.clone(), candidate.clone())?;
+            self.constrain_subtype(candidate.clone(), upper.clone())?;
+        }
+        self.add_role_demands(application.prerequisites.clone());
+        Ok(true)
+    }
+
+    fn resolve_role_input_types(
+        &self,
+        demand: &types::InstantiatedRolePredicate,
+    ) -> Result<Option<Vec<Type>>, SpecializeError> {
+        let mut resolver = TypeResolver::new(self);
+        let mut inputs = Vec::with_capacity(demand.inputs.len());
+        for input in &demand.inputs {
+            let Some(ty) = resolve_role_arg_exact_type(self, &mut resolver, input)? else {
+                return Ok(None);
+            };
+            inputs.push(ty);
+        }
+        Ok(Some(inputs))
     }
 
     fn slot(&self, slot: u32) -> Result<&TypeSlot, SpecializeError> {
@@ -1017,10 +1253,17 @@ impl<'a> ConstraintGraph<'a> {
         scheme: &poly::types::Scheme,
     ) -> Result<Type, SpecializeError> {
         let arena = self.arena;
-        types::instantiate_scheme_with_fresh(arena, def, scheme, |kind| match kind {
-            types::SchemeQuantifierKind::Value => self.fresh_slot(TypeSlotKind::Value),
-            types::SchemeQuantifierKind::Effect => self.fresh_slot(TypeSlotKind::Effect),
-        })
+        let instantiated = types::instantiate_scheme_with_fresh_and_roles(
+            arena,
+            def,
+            scheme,
+            |kind| match kind {
+                types::SchemeQuantifierKind::Value => self.fresh_slot(TypeSlotKind::Value),
+                types::SchemeQuantifierKind::Effect => self.fresh_slot(TypeSlotKind::Effect),
+            },
+        )?;
+        self.add_role_demands(instantiated.role_predicates);
+        Ok(instantiated.ty)
     }
 
     fn direct_closed_cast_subtype(&self, lower: &Type, upper: &Type) -> bool {
@@ -1510,6 +1753,58 @@ fn type_candidate_subtype(graph: &ConstraintGraph<'_>, lower: &Type, upper: &Typ
     }
 }
 
+fn resolve_role_arg_exact_type(
+    graph: &ConstraintGraph<'_>,
+    resolver: &mut TypeResolver<'_, '_>,
+    arg: &types::InstantiatedRoleArg,
+) -> Result<Option<Type>, SpecializeError> {
+    let lower = resolve_role_arg_bound(resolver, &arg.lower, RoleArgBound::Lower)?;
+    let upper = resolve_role_arg_bound(resolver, &arg.upper, RoleArgBound::Upper)?;
+    Ok(choose_resolved_role_arg_exact_type(graph, lower, upper))
+}
+
+fn resolve_role_arg_bound(
+    resolver: &mut TypeResolver<'_, '_>,
+    bound: &Type,
+    side: RoleArgBound,
+) -> Result<Option<Type>, SpecializeError> {
+    match resolver.resolve(bound) {
+        Ok(ty) => Ok(side.non_trivial(ty)),
+        Err(SpecializeError::UndeterminedTypeSlot { .. }) => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum RoleArgBound {
+    Lower,
+    Upper,
+}
+
+impl RoleArgBound {
+    fn non_trivial(self, ty: Type) -> Option<Type> {
+        match (self, &ty) {
+            (Self::Lower, Type::Never) | (Self::Upper, Type::Any) => None,
+            _ => Some(ty),
+        }
+    }
+}
+
+fn choose_resolved_role_arg_exact_type(
+    graph: &ConstraintGraph<'_>,
+    lower: Option<Type>,
+    upper: Option<Type>,
+) -> Option<Type> {
+    match (lower, upper) {
+        (Some(lower), Some(upper)) if type_candidates_equivalent(&lower, &upper) => Some(lower),
+        (Some(lower), Some(upper)) if type_candidate_subtype(graph, &lower, &upper) => Some(lower),
+        (Some(lower), Some(upper)) if type_candidate_subtype(graph, &upper, &lower) => Some(upper),
+        (Some(lower), None) => Some(lower),
+        (None, Some(upper)) => Some(upper),
+        _ => None,
+    }
+}
+
 fn con_path_without_args(ty: &Type) -> Option<&[String]> {
     let Type::Con { path, args } = ty else {
         return None;
@@ -1546,6 +1841,39 @@ fn list_item_type(ty: &Type) -> Option<Type> {
         return None;
     };
     Some(item.clone())
+}
+
+fn primitive_spine_arg_type(
+    op: poly_expr::PrimitiveOp,
+    applied: usize,
+    ret: &Type,
+) -> Option<Type> {
+    use poly_expr::PrimitiveOp;
+
+    let final_ret = final_return_type(ret);
+    let list = list_item_type(final_ret).map(|_| final_ret.clone());
+    let item = list.as_ref().and_then(list_item_type);
+    match (op, applied) {
+        (PrimitiveOp::ListEmpty, 0) => Some(Type::unit()),
+        (PrimitiveOp::ListSingleton, 0) => item,
+        (PrimitiveOp::ListMerge, 0 | 1)
+        | (PrimitiveOp::ListIndexRange, 0)
+        | (PrimitiveOp::ListSplice, 0 | 2)
+        | (PrimitiveOp::ListIndexRangeRaw, 0)
+        | (PrimitiveOp::ListSpliceRaw, 0 | 3) => list,
+        (PrimitiveOp::ListIndexRange, 1) | (PrimitiveOp::ListSplice, 1) => Some(con_type("range")),
+        (PrimitiveOp::ListIndexRangeRaw, 1 | 2) | (PrimitiveOp::ListSpliceRaw, 1 | 2) => {
+            Some(int_type())
+        }
+        _ => None,
+    }
+}
+
+fn final_return_type(mut ty: &Type) -> &Type {
+    while let Type::Fun { ret, .. } = ty {
+        ty = ret;
+    }
+    ty
 }
 
 fn function_runtime_parts(ty: &Type) -> Option<(Type, Type)> {
@@ -1592,10 +1920,58 @@ fn matching_effect_row_item(item: &Type, candidates: &[Type]) -> Option<Type> {
         .cloned()
 }
 
-fn bool_type() -> Type {
+fn function_type(args: Vec<Type>, ret: Type) -> Type {
+    args.into_iter()
+        .rev()
+        .fold(ret, |ret, arg| types::pure_function_type(arg, ret))
+}
+
+fn unary_type(arg: Type, ret: Type) -> Type {
+    function_type(vec![arg], ret)
+}
+
+fn binary_type(arg: Type, ret: Type) -> Type {
+    function_type(vec![arg.clone(), arg], ret)
+}
+
+fn con_type(name: &str) -> Type {
     Type::Con {
-        path: vec!["bool".to_string()],
+        path: vec![name.to_string()],
         args: Vec::new(),
+    }
+}
+
+fn int_type() -> Type {
+    con_type("int")
+}
+
+fn float_type() -> Type {
+    con_type("float")
+}
+
+fn bool_type() -> Type {
+    con_type("bool")
+}
+
+fn str_type() -> Type {
+    con_type("str")
+}
+
+fn char_type() -> Type {
+    con_type("char")
+}
+
+fn list_type(item: Type) -> Type {
+    Type::Con {
+        path: vec!["list".to_string()],
+        args: vec![item],
+    }
+}
+
+fn list_view_type(item: Type) -> Type {
+    Type::Con {
+        path: vec!["list_view".to_string()],
+        args: vec![item],
     }
 }
 
@@ -1696,6 +2072,76 @@ mod tests {
         assert_eq!(
             mono::dump::dump_type(plan.boundary(arms[1].body).unwrap().expected),
             "float"
+        );
+    }
+
+    #[test]
+    fn root_role_associated_type_is_resolved_from_poly_impl_candidate() {
+        let mut arena = poly::expr::Arena::new();
+        let range = con_arg(&mut arena.typ, vec!["range".to_string()]);
+        let int = con_arg(&mut arena.typ, vec!["int".to_string()]);
+        arena.role_impls.insert(poly::roles::RoleImplCandidate {
+            impl_def: None,
+            role: vec!["Fold".to_string()],
+            inputs: vec![range],
+            associated: vec![poly::roles::RoleAssociatedConstraint {
+                name: "item".to_string(),
+                value: int,
+            }],
+            prerequisites: Vec::new(),
+        });
+
+        let container = arena.fresh_type_var();
+        let item = arena.fresh_type_var();
+        let container_arg = var_arg(&mut arena.typ, container);
+        let item_arg = var_arg(&mut arena.typ, item);
+        let predicate_arg = arena.typ.alloc_neg(poly::types::Neg::Var(container));
+        let predicate_arg_eff = arena.typ.alloc_neg(poly::types::Neg::Bot);
+        let predicate_ret_eff = arena.typ.alloc_pos(poly::types::Pos::Bot);
+        let predicate_ret = arena.typ.alloc_pos(poly::types::Pos::Var(item));
+        let predicate = arena.typ.alloc_pos(poly::types::Pos::Fun {
+            arg: predicate_arg,
+            arg_eff: predicate_arg_eff,
+            ret_eff: predicate_ret_eff,
+            ret: predicate_ret,
+        });
+        let each_scheme = poly::types::Scheme {
+            quantifiers: vec![container, item],
+            role_predicates: vec![poly::types::RolePredicate {
+                role: vec!["Fold".to_string()],
+                inputs: vec![poly::types::RolePredicateArg::Invariant(
+                    arena.typ.alloc_neu(poly::types::Neu::Bounds(
+                        container_arg.lower,
+                        container_arg.upper,
+                    )),
+                )],
+                associated: vec![poly::types::RoleAssociatedType {
+                    name: "item".to_string(),
+                    value: arena
+                        .typ
+                        .alloc_neu(poly::types::Neu::Bounds(item_arg.lower, item_arg.upper)),
+                }],
+            }],
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            predicate,
+        };
+        let each_def = let_def(&mut arena, Some(each_scheme));
+        let range_scheme = monomorphic_scheme(range);
+        let range_def = let_def(&mut arena, Some(range_scheme));
+        let each_expr = resolved_var_expr(&mut arena, each_def);
+        let range_expr = resolved_var_expr(&mut arena, range_def);
+        let root = arena.add_expr(poly::expr::Expr::App(each_expr, range_expr));
+
+        let plan = solve_expr(&arena, root, None).expect("role associated type should solve");
+
+        assert_eq!(
+            mono::dump::dump_type(plan.actual_type_of(root).unwrap()),
+            "int"
+        );
+        assert_eq!(
+            mono::dump::dump_type(plan.actual_type_of(each_expr).unwrap()),
+            "range -> int"
         );
     }
 
@@ -1897,6 +2343,62 @@ mod tests {
 
     fn unit_type() -> Type {
         Type::unit()
+    }
+
+    fn con_arg(
+        types: &mut poly::types::TypeArena,
+        path: Vec<String>,
+    ) -> poly::roles::RoleConstraintArg {
+        poly::roles::RoleConstraintArg {
+            lower: types.alloc_pos(poly::types::Pos::Con(path.clone(), Vec::new())),
+            upper: types.alloc_neg(poly::types::Neg::Con(path, Vec::new())),
+        }
+    }
+
+    fn var_arg(
+        types: &mut poly::types::TypeArena,
+        var: poly::types::TypeVar,
+    ) -> poly::roles::RoleConstraintArg {
+        poly::roles::RoleConstraintArg {
+            lower: types.alloc_pos(poly::types::Pos::Var(var)),
+            upper: types.alloc_neg(poly::types::Neg::Var(var)),
+        }
+    }
+
+    fn monomorphic_scheme(arg: poly::roles::RoleConstraintArg) -> poly::types::Scheme {
+        poly::types::Scheme {
+            quantifiers: Vec::new(),
+            role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            predicate: arg.lower,
+        }
+    }
+
+    fn let_def(
+        arena: &mut poly::expr::Arena,
+        scheme: Option<poly::types::Scheme>,
+    ) -> poly::expr::DefId {
+        let def = arena.defs.fresh();
+        arena.defs.set(
+            def,
+            poly::expr::Def::Let {
+                vis: poly::expr::Vis::My,
+                scheme,
+                body: None,
+                children: Vec::new(),
+            },
+        );
+        def
+    }
+
+    fn resolved_var_expr(
+        arena: &mut poly::expr::Arena,
+        def: poly::expr::DefId,
+    ) -> poly::expr::ExprId {
+        let reference = arena.add_ref();
+        arena.resolve_ref(reference, def);
+        arena.add_expr(poly::expr::Expr::Var(reference))
     }
 
     fn lower_source(source: &str) -> infer::lowering::BodyLowering {

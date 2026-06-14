@@ -19,6 +19,7 @@ members = [
   "crates/yulang-runtime-pipeline",
   "crates/yulang-monomorphize",
   "crates/yulang-vm",
+  "crates/yulang-list-tree",
   "crates/yulang-pipeline",
   "crates/yulang-editor",
   "crates/yulang-wasm",

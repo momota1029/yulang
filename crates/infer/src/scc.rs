@@ -109,6 +109,16 @@ impl SccMachine {
         self.graph.fetch_of(def)
     }
 
+    pub fn selection_fallback_ready(&self, parent: DefId) -> bool {
+        if self.quantified.contains_key(&parent) {
+            return true;
+        }
+        let Some(component) = self.graph.component_of(parent) else {
+            return true;
+        };
+        self.graph.is_blocked_only_by_method_dependencies(component)
+    }
+
     fn record_fetch(&mut self, def: DefId, fetch: BindingFetch) {
         self.graph.record_fetch(def, fetch);
         let Some(component) = self.graph.component_of(def) else {
@@ -761,6 +771,22 @@ impl ComponentGraph {
             .unwrap_or(false);
         !has_outgoing_edges
             && component_data.method_dependencies == 0
+            && component_data.members.iter().all(|def| {
+                component_data.finished.contains(def) && component_data.roots.contains_key(def)
+            })
+    }
+
+    fn is_blocked_only_by_method_dependencies(&self, component: ComponentId) -> bool {
+        let Some(component_data) = self.components.get(&component) else {
+            return true;
+        };
+        let has_outgoing_edges = self
+            .edges
+            .get(&component)
+            .map(|targets| !targets.is_empty())
+            .unwrap_or(false);
+        !has_outgoing_edges
+            && component_data.method_dependencies > 0
             && component_data.members.iter().all(|def| {
                 component_data.finished.contains(def) && component_data.roots.contains_key(def)
             })

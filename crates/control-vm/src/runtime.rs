@@ -4,8 +4,9 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::rc::Rc;
 
-use mono::{FunctionAdapterHygiene, Lit, Type};
+use mono::{FunctionAdapterHygiene, Lit, PrimitiveContext, PrimitiveOp, Type};
 use num_bigint::BigInt;
+use yulang_list_tree::{ListTree, ListView};
 
 use crate::boundary::{equivalent_runtime_types, function_parts, thunk_value_type};
 use crate::ir::{
@@ -53,11 +54,18 @@ pub enum Value {
     Bool(bool),
     Unit,
     Tuple(Vec<Value>),
+    List(ListTree<Rc<Value>>),
     Record(Vec<ValueField>),
     PolyVariant {
         tag: String,
         payloads: Vec<Value>,
     },
+    DataConstructor {
+        def: DefId,
+        payloads: Vec<Value>,
+    },
+    ConstructorFunction(ConstructorFunction),
+    PrimitiveOp(PrimitiveValue),
     Closure(Closure),
     Thunk(Thunk),
     FunctionAdapter(FunctionAdapter),
@@ -69,6 +77,20 @@ pub enum Value {
         value: Box<Value>,
         markers: Vec<ValueMarker>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ConstructorFunction {
+    pub def: DefId,
+    pub arity: usize,
+    pub args: Vec<Value>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PrimitiveValue {
+    pub op: PrimitiveOp,
+    pub context: PrimitiveContext,
+    pub args: Vec<Value>,
 }
 
 impl From<&Lit> for Value {
@@ -170,8 +192,26 @@ pub enum RuntimeError {
     NotThunk {
         value: Value,
     },
+    ExpectedInt {
+        value: Value,
+    },
+    ExpectedFloat {
+        value: Value,
+    },
+    ExpectedBool {
+        value: Value,
+    },
     ExpectedRecord {
         value: Value,
+    },
+    ExpectedList {
+        value: Value,
+    },
+    MissingPrimitiveContext {
+        op: PrimitiveOp,
+    },
+    UnsupportedPrimitive {
+        op: PrimitiveOp,
     },
     ExpectedFunctionType,
     PatternMismatch,
@@ -212,7 +252,15 @@ impl fmt::Display for RuntimeError {
             Self::MissingRecordField { name } => write!(f, "missing record field {name}"),
             Self::NotFunction { value } => write!(f, "value is not a function: {value:?}"),
             Self::NotThunk { value } => write!(f, "value is not a thunk: {value:?}"),
+            Self::ExpectedInt { value } => write!(f, "expected int, got {value:?}"),
+            Self::ExpectedFloat { value } => write!(f, "expected float, got {value:?}"),
+            Self::ExpectedBool { value } => write!(f, "expected bool, got {value:?}"),
             Self::ExpectedRecord { value } => write!(f, "expected record, got {value:?}"),
+            Self::ExpectedList { value } => write!(f, "expected list, got {value:?}"),
+            Self::MissingPrimitiveContext { op } => {
+                write!(f, "missing runtime context for primitive {op:?}")
+            }
+            Self::UnsupportedPrimitive { op } => write!(f, "unsupported primitive {op:?}"),
             Self::ExpectedFunctionType => write!(f, "expected function type"),
             Self::PatternMismatch => write!(f, "pattern mismatch"),
             Self::NoMatchingCase => write!(f, "no matching case arm"),
@@ -323,9 +371,10 @@ impl<'a> Runtime<'a> {
             .ok_or(RuntimeError::MissingExpr { expr })?;
         match expr {
             Expr::Lit(lit) => value_result(Value::from(&lit)),
-            Expr::PrimitiveOp(name) => Err(RuntimeError::UnsupportedExpr {
-                feature: format!("primitive op {name}"),
-            }),
+            Expr::PrimitiveOp { op, context } => self.eval_primitive_op(op, context),
+            Expr::Constructor { def, arity } => {
+                value_result(constructor_value(def, arity, Vec::new()))
+            }
             Expr::EffectOp { path } => value_result(Value::EffectOp { path }),
             Expr::Local(def) => value_result(
                 self.mark_active_value(
@@ -800,6 +849,10 @@ impl<'a> Runtime<'a> {
                 let markers = markers_for_function_call(markers);
                 self.with_marker_frame(markers, move |runtime| runtime.apply_value(*value, arg))
             }
+            Value::PrimitiveOp(primitive) => self.apply_primitive_op(primitive, arg),
+            Value::ConstructorFunction(constructor) => {
+                value_result(apply_constructor(constructor, arg))
+            }
             Value::Closure(closure) => self.apply_closure(closure, arg),
             Value::FunctionAdapter(adapter) => self.apply_adapter(adapter, arg),
             Value::EffectOp { path } => self.emit_effect_request(path, arg),
@@ -813,6 +866,37 @@ impl<'a> Runtime<'a> {
             }
             value => Err(RuntimeError::NotFunction { value }),
         }
+    }
+
+    fn eval_primitive_op(
+        &mut self,
+        op: PrimitiveOp,
+        context: PrimitiveContext,
+    ) -> RuntimeResult<'a> {
+        if op.arity() == 0 {
+            return value_result(apply_primitive(op, &context, &[])?);
+        }
+        value_result(Value::PrimitiveOp(PrimitiveValue {
+            op,
+            context,
+            args: Vec::new(),
+        }))
+    }
+
+    fn apply_primitive_op(
+        &mut self,
+        mut primitive: PrimitiveValue,
+        arg: Value,
+    ) -> RuntimeResult<'a> {
+        primitive.args.push(arg);
+        if primitive.args.len() < primitive.op.arity() {
+            return value_result(Value::PrimitiveOp(primitive));
+        }
+        value_result(apply_primitive(
+            primitive.op,
+            &primitive.context,
+            &primitive.args,
+        )?)
     }
 
     fn apply_closure(&mut self, closure: Closure, arg: Value) -> RuntimeResult<'a> {
@@ -988,9 +1072,11 @@ impl<'a> Runtime<'a> {
                 }
                 Ok(true)
             }
-            Pat::List { .. } => Err(RuntimeError::UnsupportedPattern {
-                feature: "list pattern".to_string(),
-            }),
+            Pat::List {
+                prefix,
+                spread,
+                suffix,
+            } => self.bind_list_pat(prefix, spread.as_deref(), suffix, view, &markers, env),
             Pat::Record { fields, spread } => {
                 let Value::Record(record_fields) = view else {
                     return Ok(false);
@@ -1042,9 +1128,25 @@ impl<'a> Runtime<'a> {
                 }
                 Ok(true)
             }
-            Pat::Con(_, _) => Err(RuntimeError::UnsupportedPattern {
-                feature: "constructor pattern".to_string(),
-            }),
+            Pat::Con(def, payload_pats) => {
+                let Value::DataConstructor {
+                    def: value_def,
+                    payloads,
+                } = view
+                else {
+                    return Ok(false);
+                };
+                if def != value_def || payload_pats.len() != payloads.len() {
+                    return Ok(false);
+                }
+                for (pat, value) in payload_pats.iter().zip(payloads) {
+                    let value = mark_value(value.clone(), &markers);
+                    if !self.bind_pat(pat, &value, env)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
             Pat::Ref(instance) => {
                 let expected = self.eval_instance(*instance)?;
                 Ok(value_equivalent(value, &expected))
@@ -1069,6 +1171,56 @@ impl<'a> Runtime<'a> {
                 Ok(true)
             }
         }
+    }
+
+    fn bind_list_pat(
+        &mut self,
+        prefix: &[Pat],
+        spread: Option<&Pat>,
+        suffix: &[Pat],
+        value: &Value,
+        markers: &[ValueMarker],
+        env: &mut CapturedEnv,
+    ) -> Result<bool, RuntimeError> {
+        let Value::List(items) = value else {
+            return Ok(false);
+        };
+        let min_len = prefix.len() + suffix.len();
+        if items.len() < min_len || spread.is_none() && items.len() != min_len {
+            return Ok(false);
+        }
+
+        for (index, pat) in prefix.iter().enumerate() {
+            let Some(item) = items.index(index) else {
+                return Ok(false);
+            };
+            let item = mark_value((*item).clone(), markers);
+            if !self.bind_pat(pat, &item, env)? {
+                return Ok(false);
+            }
+        }
+
+        let suffix_start = items.len() - suffix.len();
+        for (offset, pat) in suffix.iter().enumerate() {
+            let Some(item) = items.index(suffix_start + offset) else {
+                return Ok(false);
+            };
+            let item = mark_value((*item).clone(), markers);
+            if !self.bind_pat(pat, &item, env)? {
+                return Ok(false);
+            }
+        }
+
+        if let Some(spread) = spread {
+            let Some(slice) = items.index_range(prefix.len(), suffix_start) else {
+                return Ok(false);
+            };
+            let slice = mark_value(Value::List(slice), markers);
+            if !self.bind_pat(spread, &slice, env)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 
     fn adapt_value(&mut self, value: Value, source: &Type, target: &Type) -> RuntimeResult<'a> {
@@ -1209,6 +1361,295 @@ impl<'a> Runtime<'a> {
 
 fn value_result<'a>(value: Value) -> RuntimeResult<'a> {
     Ok(EvalResult::Value(value))
+}
+
+fn constructor_value(def: DefId, arity: usize, args: Vec<Value>) -> Value {
+    if args.len() >= arity {
+        return Value::DataConstructor {
+            def,
+            payloads: args,
+        };
+    }
+    Value::ConstructorFunction(ConstructorFunction { def, arity, args })
+}
+
+fn apply_constructor(mut constructor: ConstructorFunction, arg: Value) -> Value {
+    constructor.args.push(arg);
+    constructor_value(constructor.def, constructor.arity, constructor.args)
+}
+
+fn apply_primitive(
+    op: PrimitiveOp,
+    context: &PrimitiveContext,
+    args: &[Value],
+) -> Result<Value, RuntimeError> {
+    match op {
+        PrimitiveOp::YadaYada => Err(RuntimeError::UnsupportedPrimitive { op }),
+        PrimitiveOp::BoolNot => Ok(Value::Bool(!expect_bool(&args[0])?)),
+        PrimitiveOp::BoolEq => Ok(Value::Bool(
+            expect_bool(&args[0])? == expect_bool(&args[1])?,
+        )),
+        PrimitiveOp::IntAdd => Ok(Value::Int(expect_int(&args[0])? + expect_int(&args[1])?)),
+        PrimitiveOp::IntSub => Ok(Value::Int(expect_int(&args[0])? - expect_int(&args[1])?)),
+        PrimitiveOp::IntMul => Ok(Value::Int(expect_int(&args[0])? * expect_int(&args[1])?)),
+        PrimitiveOp::IntDiv => Ok(Value::Int(expect_int(&args[0])? / expect_int(&args[1])?)),
+        PrimitiveOp::IntMod => Ok(Value::Int(expect_int(&args[0])? % expect_int(&args[1])?)),
+        PrimitiveOp::IntEq => Ok(Value::Bool(expect_int(&args[0])? == expect_int(&args[1])?)),
+        PrimitiveOp::IntLt => Ok(Value::Bool(expect_int(&args[0])? < expect_int(&args[1])?)),
+        PrimitiveOp::IntLe => Ok(Value::Bool(expect_int(&args[0])? <= expect_int(&args[1])?)),
+        PrimitiveOp::IntGt => Ok(Value::Bool(expect_int(&args[0])? > expect_int(&args[1])?)),
+        PrimitiveOp::IntGe => Ok(Value::Bool(expect_int(&args[0])? >= expect_int(&args[1])?)),
+        PrimitiveOp::FloatAdd => Ok(Value::Float(
+            expect_float(&args[0])? + expect_float(&args[1])?,
+        )),
+        PrimitiveOp::FloatSub => Ok(Value::Float(
+            expect_float(&args[0])? - expect_float(&args[1])?,
+        )),
+        PrimitiveOp::FloatMul => Ok(Value::Float(
+            expect_float(&args[0])? * expect_float(&args[1])?,
+        )),
+        PrimitiveOp::FloatDiv => Ok(Value::Float(
+            expect_float(&args[0])? / expect_float(&args[1])?,
+        )),
+        PrimitiveOp::FloatEq => Ok(Value::Bool(
+            expect_float(&args[0])? == expect_float(&args[1])?,
+        )),
+        PrimitiveOp::FloatLt => Ok(Value::Bool(
+            expect_float(&args[0])? < expect_float(&args[1])?,
+        )),
+        PrimitiveOp::FloatLe => Ok(Value::Bool(
+            expect_float(&args[0])? <= expect_float(&args[1])?,
+        )),
+        PrimitiveOp::FloatGt => Ok(Value::Bool(
+            expect_float(&args[0])? > expect_float(&args[1])?,
+        )),
+        PrimitiveOp::FloatGe => Ok(Value::Bool(
+            expect_float(&args[0])? >= expect_float(&args[1])?,
+        )),
+        PrimitiveOp::StringEq => Ok(Value::Bool(expect_str(&args[0])? == expect_str(&args[1])?)),
+        PrimitiveOp::StringConcat => Ok(Value::Str(format!(
+            "{}{}",
+            expect_str(&args[0])?,
+            expect_str(&args[1])?
+        ))),
+        PrimitiveOp::StringLen => Ok(Value::Int(expect_str(&args[0])?.chars().count() as i64)),
+        PrimitiveOp::StringIndex => {
+            let text = expect_str(&args[0])?;
+            let index =
+                usize::try_from(expect_int(&args[1])?).map_err(|_| RuntimeError::ExpectedInt {
+                    value: args[1].clone(),
+                })?;
+            text.chars()
+                .nth(index)
+                .map(|ch| Value::Str(ch.to_string()))
+                .ok_or_else(|| RuntimeError::UnsupportedPrimitive { op })
+        }
+        PrimitiveOp::StringIndexRangeRaw => {
+            let text = expect_str(&args[0])?;
+            let start =
+                usize::try_from(expect_int(&args[1])?).map_err(|_| RuntimeError::ExpectedInt {
+                    value: args[1].clone(),
+                })?;
+            let end =
+                usize::try_from(expect_int(&args[2])?).map_err(|_| RuntimeError::ExpectedInt {
+                    value: args[2].clone(),
+                })?;
+            Ok(Value::Str(
+                text.chars().skip(start).take(end - start).collect(),
+            ))
+        }
+        PrimitiveOp::StringSpliceRaw => {
+            let text = expect_str(&args[0])?;
+            let start =
+                usize::try_from(expect_int(&args[1])?).map_err(|_| RuntimeError::ExpectedInt {
+                    value: args[1].clone(),
+                })?;
+            let end =
+                usize::try_from(expect_int(&args[2])?).map_err(|_| RuntimeError::ExpectedInt {
+                    value: args[2].clone(),
+                })?;
+            let insert = expect_str(&args[3])?;
+            let prefix = text.chars().take(start).collect::<String>();
+            let suffix = text.chars().skip(end).collect::<String>();
+            Ok(Value::Str(format!("{prefix}{insert}{suffix}")))
+        }
+        PrimitiveOp::IntToString => Ok(Value::Str(expect_int(&args[0])?.to_string())),
+        PrimitiveOp::IntToHex => Ok(Value::Str(format!("{:x}", expect_int(&args[0])?))),
+        PrimitiveOp::IntToUpperHex => Ok(Value::Str(format!("{:X}", expect_int(&args[0])?))),
+        PrimitiveOp::FloatToString => Ok(Value::Str(format_float(expect_float(&args[0])?))),
+        PrimitiveOp::BoolToString => Ok(Value::Str(expect_bool(&args[0])?.to_string())),
+        PrimitiveOp::ListEmpty => Ok(Value::List(ListTree::empty())),
+        PrimitiveOp::ListSingleton => {
+            Ok(Value::List(ListTree::singleton(Rc::new(args[0].clone()))))
+        }
+        PrimitiveOp::ListLen => Ok(Value::Int(expect_list(&args[0])?.len() as i64)),
+        PrimitiveOp::ListMerge => Ok(Value::List(ListTree::concat(
+            expect_list(&args[0])?.clone(),
+            expect_list(&args[1])?.clone(),
+        ))),
+        PrimitiveOp::ListIndex => {
+            let index =
+                usize::try_from(expect_int(&args[1])?).map_err(|_| RuntimeError::ExpectedInt {
+                    value: args[1].clone(),
+                })?;
+            expect_list(&args[0])?
+                .index(index)
+                .map(|value| (*value).clone())
+                .ok_or_else(|| RuntimeError::ExpectedList {
+                    value: args[0].clone(),
+                })
+        }
+        PrimitiveOp::ListIndexRangeRaw => {
+            let start =
+                usize::try_from(expect_int(&args[1])?).map_err(|_| RuntimeError::ExpectedInt {
+                    value: args[1].clone(),
+                })?;
+            let end =
+                usize::try_from(expect_int(&args[2])?).map_err(|_| RuntimeError::ExpectedInt {
+                    value: args[2].clone(),
+                })?;
+            expect_list(&args[0])?
+                .index_range(start, end)
+                .map(Value::List)
+                .ok_or_else(|| RuntimeError::ExpectedList {
+                    value: args[0].clone(),
+                })
+        }
+        PrimitiveOp::ListSpliceRaw => {
+            let start =
+                usize::try_from(expect_int(&args[1])?).map_err(|_| RuntimeError::ExpectedInt {
+                    value: args[1].clone(),
+                })?;
+            let end =
+                usize::try_from(expect_int(&args[2])?).map_err(|_| RuntimeError::ExpectedInt {
+                    value: args[2].clone(),
+                })?;
+            let insert = expect_list(&args[3])?;
+            expect_list(&args[0])?
+                .splice(start, end, insert.clone())
+                .map(Value::List)
+                .ok_or_else(|| RuntimeError::ExpectedList {
+                    value: args[0].clone(),
+                })
+        }
+        PrimitiveOp::ListViewRaw => apply_list_view_raw(context, &args[0]),
+        PrimitiveOp::CharEq => Ok(Value::Bool(expect_str(&args[0])? == expect_str(&args[1])?)),
+        PrimitiveOp::CharToString => Ok(Value::Str(expect_str(&args[0])?.to_string())),
+        PrimitiveOp::CharIsWhitespace => Ok(Value::Bool(expect_str(&args[0])?.trim().is_empty())),
+        PrimitiveOp::CharIsPunctuation => Ok(Value::Bool(
+            expect_str(&args[0])?
+                .chars()
+                .all(|ch| ch.is_ascii_punctuation()),
+        )),
+        PrimitiveOp::CharIsWord => Ok(Value::Bool(
+            expect_str(&args[0])?
+                .chars()
+                .all(|ch| ch == '_' || ch.is_alphanumeric()),
+        )),
+        PrimitiveOp::ListIndexRange
+        | PrimitiveOp::ListSplice
+        | PrimitiveOp::StringIndexRange
+        | PrimitiveOp::StringSplice
+        | PrimitiveOp::StringLineCount
+        | PrimitiveOp::StringLineRange
+        | PrimitiveOp::StringToBytes
+        | PrimitiveOp::BytesLen
+        | PrimitiveOp::BytesEq
+        | PrimitiveOp::BytesConcat
+        | PrimitiveOp::BytesIndex
+        | PrimitiveOp::BytesIndexRange
+        | PrimitiveOp::BytesToUtf8Raw
+        | PrimitiveOp::BytesToPath
+        | PrimitiveOp::PathToBytes => Err(RuntimeError::UnsupportedPrimitive { op }),
+    }
+}
+
+fn apply_list_view_raw(context: &PrimitiveContext, value: &Value) -> Result<Value, RuntimeError> {
+    let constructors = context
+        .list_view
+        .ok_or(RuntimeError::MissingPrimitiveContext {
+            op: PrimitiveOp::ListViewRaw,
+        })?;
+    match expect_list(value)?.view() {
+        ListView::Empty => Ok(Value::DataConstructor {
+            def: DefId(constructors.empty.0),
+            payloads: Vec::new(),
+        }),
+        ListView::Leaf(value) => Ok(Value::DataConstructor {
+            def: DefId(constructors.leaf.0),
+            payloads: vec![(*value).clone()],
+        }),
+        ListView::Node { left, right, .. } => Ok(Value::DataConstructor {
+            def: DefId(constructors.node.0),
+            payloads: vec![Value::List(left), Value::List(right)],
+        }),
+    }
+}
+
+fn expect_int(value: &Value) -> Result<i64, RuntimeError> {
+    let (value, _) = value_view(value);
+    match value {
+        Value::Int(value) => Ok(*value),
+        Value::BigInt(value) => value
+            .to_string()
+            .parse()
+            .map_err(|_| RuntimeError::ExpectedInt {
+                value: Value::BigInt(value.clone()),
+            }),
+        value => Err(RuntimeError::ExpectedInt {
+            value: value.clone(),
+        }),
+    }
+}
+
+fn expect_float(value: &Value) -> Result<f64, RuntimeError> {
+    let (value, _) = value_view(value);
+    match value {
+        Value::Float(value) => Ok(*value),
+        Value::Int(value) => Ok(*value as f64),
+        value => Err(RuntimeError::ExpectedFloat {
+            value: value.clone(),
+        }),
+    }
+}
+
+fn expect_bool(value: &Value) -> Result<bool, RuntimeError> {
+    let (value, _) = value_view(value);
+    match value {
+        Value::Bool(value) => Ok(*value),
+        value => Err(RuntimeError::ExpectedBool {
+            value: value.clone(),
+        }),
+    }
+}
+
+fn expect_str(value: &Value) -> Result<&str, RuntimeError> {
+    let (value, _) = value_view(value);
+    match value {
+        Value::Str(value) => Ok(value),
+        value => Err(RuntimeError::UnsupportedBoundary {
+            feature: format!("expected str, got {value:?}"),
+        }),
+    }
+}
+
+fn expect_list(value: &Value) -> Result<&ListTree<Rc<Value>>, RuntimeError> {
+    let (value, _) = value_view(value);
+    match value {
+        Value::List(value) => Ok(value),
+        value => Err(RuntimeError::ExpectedList {
+            value: value.clone(),
+        }),
+    }
+}
+
+fn format_float(value: f64) -> String {
+    let text = value.to_string();
+    if text.contains('.') || text.contains('e') || text.contains('E') {
+        text
+    } else {
+        format!("{text}.0")
+    }
 }
 
 fn expect_eval_value(result: EvalResult<'_>) -> Result<Value, RuntimeError> {

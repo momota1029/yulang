@@ -23,6 +23,9 @@ use crate::compact::{
 use crate::constraints::ConstraintWeight;
 use crate::constraints::{ConstraintMachine, TypeLevel};
 use crate::roles::RoleInputVarianceTable;
+use crate::roles::{
+    RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct GeneralizedCompactRoot {
@@ -283,6 +286,69 @@ fn finalize_compact_role_arg(types: &mut TypeArena, arg: &CompactRoleArg) -> Rol
 
 fn finalize_compact_role_arg_invariant(types: &mut TypeArena, arg: &CompactRoleArg) -> NeuId {
     finalize_compact_bounds(types, &arg.bounds)
+}
+
+pub(crate) fn clone_role_impl_candidate_between_arenas(
+    source: &TypeArena,
+    target: &mut TypeArena,
+    candidate: &RoleImplCandidate,
+) -> RoleImplCandidate {
+    RoleImplCandidate {
+        impl_def: candidate.impl_def,
+        role: candidate.role.clone(),
+        inputs: candidate
+            .inputs
+            .iter()
+            .map(|arg| clone_role_constraint_arg_between_arenas(source, target, arg))
+            .collect(),
+        associated: candidate
+            .associated
+            .iter()
+            .map(|associated| RoleAssociatedConstraint {
+                name: associated.name.clone(),
+                value: clone_role_constraint_arg_between_arenas(source, target, &associated.value),
+            })
+            .collect(),
+        prerequisites: candidate
+            .prerequisites
+            .iter()
+            .map(|constraint| clone_role_constraint_between_arenas(source, target, constraint))
+            .collect(),
+    }
+}
+
+fn clone_role_constraint_between_arenas(
+    source: &TypeArena,
+    target: &mut TypeArena,
+    constraint: &RoleConstraint,
+) -> RoleConstraint {
+    RoleConstraint {
+        role: constraint.role.clone(),
+        inputs: constraint
+            .inputs
+            .iter()
+            .map(|arg| clone_role_constraint_arg_between_arenas(source, target, arg))
+            .collect(),
+        associated: constraint
+            .associated
+            .iter()
+            .map(|associated| RoleAssociatedConstraint {
+                name: associated.name.clone(),
+                value: clone_role_constraint_arg_between_arenas(source, target, &associated.value),
+            })
+            .collect(),
+    }
+}
+
+fn clone_role_constraint_arg_between_arenas(
+    source: &TypeArena,
+    target: &mut TypeArena,
+    arg: &RoleConstraintArg,
+) -> RoleConstraintArg {
+    RoleConstraintArg {
+        lower: clone_pos_between_arenas(source, target, arg.lower),
+        upper: clone_neg_between_arenas(source, target, arg.upper),
+    }
 }
 
 fn clone_compact_stack_weights_for_scheme(

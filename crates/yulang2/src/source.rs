@@ -660,6 +660,14 @@ fn format_runtime_value(value: &mono_runtime::Value) -> String {
         mono_runtime::Value::Bool(value) => value.to_string(),
         mono_runtime::Value::Unit => "()".to_string(),
         mono_runtime::Value::Tuple(values) => format_delimited_values("(", ")", values),
+        mono_runtime::Value::List(values) => {
+            let values = values
+                .to_vec()
+                .into_iter()
+                .map(|value| (*value).clone())
+                .collect::<Vec<_>>();
+            format_delimited_values("[", "]", &values)
+        }
         mono_runtime::Value::Record(fields) => {
             let mut out = String::new();
             out.push('{');
@@ -682,6 +690,32 @@ fn format_runtime_value(value: &mono_runtime::Value) -> String {
                 return tag.clone();
             }
             format!("{tag}{}", format_delimited_values("(", ")", payloads))
+        }
+        mono_runtime::Value::DataConstructor { def, payloads } => {
+            if payloads.is_empty() {
+                return format!("<ctor d{}>", def.0);
+            }
+            format!(
+                "<ctor d{}>{}",
+                def.0,
+                format_delimited_values("(", ")", payloads)
+            )
+        }
+        mono_runtime::Value::ConstructorFunction(constructor) => {
+            format!(
+                "<ctor-fn d{} {}/{}>",
+                constructor.def.0,
+                constructor.args.len(),
+                constructor.arity
+            )
+        }
+        mono_runtime::Value::PrimitiveOp(primitive) => {
+            format!(
+                "<prim {:?} {}/{}>",
+                primitive.op,
+                primitive.args.len(),
+                primitive.op.arity()
+            )
         }
         mono_runtime::Value::Closure(_) => "<closure>".to_string(),
         mono_runtime::Value::Thunk(_) => "<thunk>".to_string(),
@@ -1073,6 +1107,12 @@ mod tests {
         ))
     }
 
+    #[cfg(unix)]
+    fn symlink_repo_lib(root: &FsPath) {
+        let repo_lib = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib");
+        std::os::unix::fs::symlink(repo_lib, root.join("lib")).unwrap();
+    }
+
     fn assert_dump_has_line_starting_with(output: &DumpPolyOutput, expected: &str) {
         assert!(
             output.text.lines().any(|line| line.starts_with(expected)),
@@ -1427,6 +1467,22 @@ mod tests {
         assert_eq!(output.text, "run roots [1]\n");
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn run_with_std_runs_list_view_raw_node() {
+        let root = temp_root("run-std-list-view-raw-node");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        symlink_repo_lib(&root);
+        fs::write(root.join("main.yu"), "std::data::list::view_raw [1, 2]\n").unwrap();
+
+        let mono = run_mono_from_entry_with_std(root.join("main.yu")).unwrap();
+        let control = run_control_from_entry_with_std(root.join("main.yu")).unwrap();
+
+        assert!(mono.text.contains("([1], [2])"), "{}", mono.text);
+        assert!(control.text.contains("([1], [2])"), "{}", control.text);
+    }
+
     #[test]
     fn run_mono_without_std_runs_polymorphic_stack_handler_call() {
         let root = temp_root("run-mono-stack-handler");
@@ -1581,7 +1637,7 @@ mod tests {
         assert_eq!(output.file_count, 1);
         assert_mono_dump_contains(
             &output,
-            "mono roots [case (d2 1): d2 d6 -> (m0 d6), _ -> 0]",
+            "mono roots [case (<ctor d2 / 1> 1): d2 d6 -> (m0 d6), _ -> 0]",
         );
         assert_mono_dump_contains(&output, "m0 = d3 : int -> int");
     }

@@ -167,7 +167,14 @@ impl Expr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExprKind {
     Lit(Lit),
-    PrimitiveOp(String),
+    PrimitiveOp {
+        op: PrimitiveOp,
+        context: PrimitiveContext,
+    },
+    Constructor {
+        def: DefId,
+        arity: usize,
+    },
     EffectOp {
         path: Vec<String>,
     },
@@ -224,6 +231,150 @@ pub enum ExprKind {
         arms: Vec<CatchArm>,
     },
     Block(Block),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PrimitiveOp {
+    YadaYada,
+    BoolNot,
+    BoolEq,
+    ListEmpty,
+    ListSingleton,
+    ListLen,
+    ListMerge,
+    ListIndex,
+    ListIndexRange,
+    ListSplice,
+    ListIndexRangeRaw,
+    ListSpliceRaw,
+    ListViewRaw,
+    StringLen,
+    StringIndex,
+    StringIndexRange,
+    StringSplice,
+    StringIndexRangeRaw,
+    StringSpliceRaw,
+    StringLineCount,
+    StringLineRange,
+    IntAdd,
+    IntSub,
+    IntMul,
+    IntDiv,
+    IntMod,
+    IntEq,
+    IntLt,
+    IntLe,
+    IntGt,
+    IntGe,
+    FloatAdd,
+    FloatSub,
+    FloatMul,
+    FloatDiv,
+    FloatEq,
+    FloatLt,
+    FloatLe,
+    FloatGt,
+    FloatGe,
+    StringEq,
+    StringConcat,
+    StringToBytes,
+    CharEq,
+    CharToString,
+    CharIsWhitespace,
+    CharIsPunctuation,
+    CharIsWord,
+    BytesLen,
+    BytesEq,
+    BytesConcat,
+    BytesIndex,
+    BytesIndexRange,
+    BytesToUtf8Raw,
+    BytesToPath,
+    PathToBytes,
+    IntToString,
+    IntToHex,
+    IntToUpperHex,
+    FloatToString,
+    BoolToString,
+}
+
+impl PrimitiveOp {
+    pub fn arity(self) -> usize {
+        match self {
+            Self::YadaYada => 0,
+            Self::BoolNot
+            | Self::ListEmpty
+            | Self::ListSingleton
+            | Self::ListLen
+            | Self::ListViewRaw
+            | Self::StringLen
+            | Self::StringLineCount
+            | Self::StringToBytes
+            | Self::BytesLen
+            | Self::BytesToUtf8Raw
+            | Self::BytesToPath
+            | Self::PathToBytes
+            | Self::IntToString
+            | Self::IntToHex
+            | Self::IntToUpperHex
+            | Self::FloatToString
+            | Self::BoolToString
+            | Self::CharToString
+            | Self::CharIsWhitespace
+            | Self::CharIsPunctuation
+            | Self::CharIsWord => 1,
+            Self::ListMerge
+            | Self::ListIndex
+            | Self::ListIndexRange
+            | Self::StringIndex
+            | Self::StringIndexRange
+            | Self::StringLineRange
+            | Self::BoolEq
+            | Self::IntAdd
+            | Self::IntSub
+            | Self::IntMul
+            | Self::IntDiv
+            | Self::IntMod
+            | Self::IntEq
+            | Self::IntLt
+            | Self::IntLe
+            | Self::IntGt
+            | Self::IntGe
+            | Self::FloatAdd
+            | Self::FloatSub
+            | Self::FloatMul
+            | Self::FloatDiv
+            | Self::FloatEq
+            | Self::FloatLt
+            | Self::FloatLe
+            | Self::FloatGt
+            | Self::FloatGe
+            | Self::StringEq
+            | Self::StringConcat
+            | Self::CharEq
+            | Self::BytesEq
+            | Self::BytesConcat
+            | Self::BytesIndex
+            | Self::BytesIndexRange => 2,
+            Self::ListSplice
+            | Self::ListIndexRangeRaw
+            | Self::StringSplice
+            | Self::StringIndexRangeRaw => 3,
+            Self::ListSpliceRaw | Self::StringSpliceRaw => 4,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub struct PrimitiveContext {
+    pub list_view: Option<ListViewConstructors>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ListViewConstructors {
+    pub empty: DefId,
+    pub leaf: DefId,
+    pub node: DefId,
 }
 
 #[derive(Debug, Clone, PartialEq)]

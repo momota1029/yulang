@@ -24,6 +24,14 @@ fn format_value(value: &Value) -> String {
         Value::Bool(value) => value.to_string(),
         Value::Unit => "()".to_string(),
         Value::Tuple(values) => format_delimited_values("(", ")", values),
+        Value::List(values) => {
+            let values = values
+                .to_vec()
+                .into_iter()
+                .map(|value| (*value).clone())
+                .collect::<Vec<_>>();
+            format_delimited_values("[", "]", &values)
+        }
         Value::Record(fields) => {
             let mut out = String::new();
             out.push('{');
@@ -43,6 +51,32 @@ fn format_value(value: &Value) -> String {
                 return tag.clone();
             }
             format!("{tag}{}", format_delimited_values("(", ")", payloads))
+        }
+        Value::DataConstructor { def, payloads } => {
+            if payloads.is_empty() {
+                return format!("<ctor d{}>", def.0);
+            }
+            format!(
+                "<ctor d{}>{}",
+                def.0,
+                format_delimited_values("(", ")", payloads)
+            )
+        }
+        Value::ConstructorFunction(constructor) => {
+            format!(
+                "<ctor-fn d{} {}/{}>",
+                constructor.def.0,
+                constructor.args.len(),
+                constructor.arity
+            )
+        }
+        Value::PrimitiveOp(primitive) => {
+            format!(
+                "<prim {:?} {}/{}>",
+                primitive.op,
+                primitive.args.len(),
+                primitive.op.arity()
+            )
         }
         Value::Closure(_) => "<closure>".to_string(),
         Value::Thunk(_) => "<thunk>".to_string(),

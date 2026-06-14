@@ -87,7 +87,14 @@ impl Lowerer {
         use mono::ExprKind as MonoExpr;
         let lowered = match &expr.kind {
             MonoExpr::Lit(lit) => Expr::Lit(lit.clone()),
-            MonoExpr::PrimitiveOp(op) => Expr::PrimitiveOp(op.clone()),
+            MonoExpr::PrimitiveOp { op, context } => Expr::PrimitiveOp {
+                op: *op,
+                context: context.clone(),
+            },
+            MonoExpr::Constructor { def, arity } => Expr::Constructor {
+                def: convert_def(*def),
+                arity: *arity,
+            },
             MonoExpr::EffectOp { path } => Expr::EffectOp { path: path.clone() },
             MonoExpr::Local(def) => Expr::Local(convert_def(*def)),
             MonoExpr::InstanceRef(instance) => Expr::InstanceRef(convert_instance(*instance)),

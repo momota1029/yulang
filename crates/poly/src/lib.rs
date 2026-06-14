@@ -9,4 +9,5 @@
 
 pub mod dump;
 pub mod expr;
+pub mod roles;
 pub mod types;

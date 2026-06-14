@@ -1,8 +1,8 @@
 use mono::Type;
 
 use super::{
-    DefId, Expr, ExprId, Program, Root, RunError, RuntimeError, SelectResolution, ValidateError,
-    Value, format_values, lower, run_mono_program, run_program, validate,
+    DefId, Expr, ExprId, Program, Root, RuntimeError, SelectResolution, ValidateError, Value,
+    format_values, lower, run_mono_program, run_program, validate,
 };
 
 #[test]
@@ -75,20 +75,25 @@ fn reports_unhandled_effect() {
 }
 
 #[test]
-fn validation_rejects_unsupported_primitive_before_runtime() {
+fn runs_list_singleton_primitive() {
     let program = Program {
-        roots: vec![Root::Expr(ExprId(0))],
+        roots: vec![Root::Expr(ExprId(2))],
         instances: Vec::new(),
-        exprs: vec![Expr::PrimitiveOp("add".to_string())],
+        exprs: vec![
+            Expr::PrimitiveOp {
+                op: mono::PrimitiveOp::ListSingleton,
+                context: mono::PrimitiveContext::default(),
+            },
+            Expr::Lit(mono::Lit::Int(1)),
+            Expr::Apply {
+                callee: ExprId(0),
+                arg: ExprId(1),
+            },
+        ],
     };
 
-    assert_eq!(
-        run_program(&program),
-        Err(RunError::Validate(ValidateError::UnsupportedExpr {
-            expr: ExprId(0),
-            feature: "primitive op add".to_string(),
-        }))
-    );
+    let values = run_program(&program).unwrap();
+    assert_eq!(format_values(&values), "[[1]]");
 }
 
 #[test]
@@ -188,6 +193,19 @@ fn format_oracle_value(value: &mono_runtime::Value) -> String {
         mono_runtime::Value::Bool(value) => value.to_string(),
         mono_runtime::Value::Unit => "()".to_string(),
         mono_runtime::Value::Tuple(values) => format_oracle_delimited_values("(", ")", values),
+        mono_runtime::Value::List(values) => {
+            let mut out = String::new();
+            out.push('[');
+            for index in 0..values.len() {
+                if index > 0 {
+                    out.push_str(", ");
+                }
+                let value = values.index(index).unwrap();
+                out.push_str(&format_oracle_value(value.as_ref()));
+            }
+            out.push(']');
+            out
+        }
         mono_runtime::Value::Record(fields) => {
             let mut out = String::new();
             out.push('{');
@@ -209,6 +227,32 @@ fn format_oracle_value(value: &mono_runtime::Value) -> String {
             format!(
                 "{tag}{}",
                 format_oracle_delimited_values("(", ")", payloads)
+            )
+        }
+        mono_runtime::Value::DataConstructor { def, payloads } => {
+            if payloads.is_empty() {
+                return format!("<ctor d{}>", def.0);
+            }
+            format!(
+                "<ctor d{}>{}",
+                def.0,
+                format_oracle_delimited_values("(", ")", payloads)
+            )
+        }
+        mono_runtime::Value::ConstructorFunction(constructor) => {
+            format!(
+                "<ctor-fn d{} {}/{}>",
+                constructor.def.0,
+                constructor.args.len(),
+                constructor.arity
+            )
+        }
+        mono_runtime::Value::PrimitiveOp(primitive) => {
+            format!(
+                "<prim {:?} {}/{}>",
+                primitive.op,
+                primitive.args.len(),
+                primitive.op.arity()
             )
         }
         mono_runtime::Value::Closure(_) => "<closure>".to_string(),

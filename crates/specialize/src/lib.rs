@@ -6,6 +6,7 @@
 #![forbid(unsafe_code)]
 
 mod hygiene;
+mod roles;
 mod solve;
 mod types;
 
@@ -14,8 +15,8 @@ use std::fmt;
 
 use mono::{
     Block, CaseArm, CatchArm, ComputationType, DefId, EffectiveThunkType, Expr, ExprKind, Instance,
-    InstanceId, InstanceSource, Lit, Pat, Program, RecordField, RecordSpread, Root,
-    SelectResolution, Stmt, Type, Vis,
+    InstanceId, InstanceSource, ListViewConstructors, Lit, Pat, PrimitiveContext, PrimitiveOp,
+    Program, RecordField, RecordSpread, Root, SelectResolution, Stmt, Type, Vis,
 };
 use poly::expr as poly_expr;
 
@@ -162,7 +163,10 @@ impl Specializer {
         use poly_expr::Expr as PolyExpr;
         let kind = match arena.expr(expr) {
             PolyExpr::Lit(lit) => ExprKind::Lit(convert_lit(lit)),
-            PolyExpr::PrimitiveOp(op) => ExprKind::PrimitiveOp(format!("{op:?}")),
+            PolyExpr::PrimitiveOp(op) => ExprKind::PrimitiveOp {
+                op: convert_primitive_op(*op),
+                context: primitive_context(arena, *op, plan.actual_type_of(expr)),
+            },
             PolyExpr::Var(ref_id) => self.var(arena, *ref_id, plan.actual_type_of(expr))?,
             PolyExpr::App(callee, arg) => ExprKind::Apply(
                 Box::new(self.expr(arena, plan, *callee)?),
@@ -272,6 +276,12 @@ impl Specializer {
         };
         match arena.defs.get(def) {
             Some(poly_expr::Def::Arg) => Ok(ExprKind::Local(convert_def(def))),
+            _ if let Some(constructor) = arena.constructors.get(&def) => {
+                Ok(ExprKind::Constructor {
+                    def: convert_def(def),
+                    arity: constructor.arity,
+                })
+            }
             _ if let Some(operation) = arena.effect_operations.get(&def) => {
                 Ok(ExprKind::EffectOp {
                     path: operation.path.clone(),
@@ -619,6 +629,111 @@ fn convert_lit(lit: &poly_expr::Lit) -> Lit {
         poly_expr::Lit::Bool(value) => Lit::Bool(*value),
         poly_expr::Lit::Unit => Lit::Unit,
     }
+}
+
+fn convert_primitive_op(op: poly_expr::PrimitiveOp) -> PrimitiveOp {
+    match op {
+        poly_expr::PrimitiveOp::YadaYada => PrimitiveOp::YadaYada,
+        poly_expr::PrimitiveOp::BoolNot => PrimitiveOp::BoolNot,
+        poly_expr::PrimitiveOp::BoolEq => PrimitiveOp::BoolEq,
+        poly_expr::PrimitiveOp::ListEmpty => PrimitiveOp::ListEmpty,
+        poly_expr::PrimitiveOp::ListSingleton => PrimitiveOp::ListSingleton,
+        poly_expr::PrimitiveOp::ListLen => PrimitiveOp::ListLen,
+        poly_expr::PrimitiveOp::ListMerge => PrimitiveOp::ListMerge,
+        poly_expr::PrimitiveOp::ListIndex => PrimitiveOp::ListIndex,
+        poly_expr::PrimitiveOp::ListIndexRange => PrimitiveOp::ListIndexRange,
+        poly_expr::PrimitiveOp::ListSplice => PrimitiveOp::ListSplice,
+        poly_expr::PrimitiveOp::ListIndexRangeRaw => PrimitiveOp::ListIndexRangeRaw,
+        poly_expr::PrimitiveOp::ListSpliceRaw => PrimitiveOp::ListSpliceRaw,
+        poly_expr::PrimitiveOp::ListViewRaw => PrimitiveOp::ListViewRaw,
+        poly_expr::PrimitiveOp::StringLen => PrimitiveOp::StringLen,
+        poly_expr::PrimitiveOp::StringIndex => PrimitiveOp::StringIndex,
+        poly_expr::PrimitiveOp::StringIndexRange => PrimitiveOp::StringIndexRange,
+        poly_expr::PrimitiveOp::StringSplice => PrimitiveOp::StringSplice,
+        poly_expr::PrimitiveOp::StringIndexRangeRaw => PrimitiveOp::StringIndexRangeRaw,
+        poly_expr::PrimitiveOp::StringSpliceRaw => PrimitiveOp::StringSpliceRaw,
+        poly_expr::PrimitiveOp::StringLineCount => PrimitiveOp::StringLineCount,
+        poly_expr::PrimitiveOp::StringLineRange => PrimitiveOp::StringLineRange,
+        poly_expr::PrimitiveOp::IntAdd => PrimitiveOp::IntAdd,
+        poly_expr::PrimitiveOp::IntSub => PrimitiveOp::IntSub,
+        poly_expr::PrimitiveOp::IntMul => PrimitiveOp::IntMul,
+        poly_expr::PrimitiveOp::IntDiv => PrimitiveOp::IntDiv,
+        poly_expr::PrimitiveOp::IntMod => PrimitiveOp::IntMod,
+        poly_expr::PrimitiveOp::IntEq => PrimitiveOp::IntEq,
+        poly_expr::PrimitiveOp::IntLt => PrimitiveOp::IntLt,
+        poly_expr::PrimitiveOp::IntLe => PrimitiveOp::IntLe,
+        poly_expr::PrimitiveOp::IntGt => PrimitiveOp::IntGt,
+        poly_expr::PrimitiveOp::IntGe => PrimitiveOp::IntGe,
+        poly_expr::PrimitiveOp::FloatAdd => PrimitiveOp::FloatAdd,
+        poly_expr::PrimitiveOp::FloatSub => PrimitiveOp::FloatSub,
+        poly_expr::PrimitiveOp::FloatMul => PrimitiveOp::FloatMul,
+        poly_expr::PrimitiveOp::FloatDiv => PrimitiveOp::FloatDiv,
+        poly_expr::PrimitiveOp::FloatEq => PrimitiveOp::FloatEq,
+        poly_expr::PrimitiveOp::FloatLt => PrimitiveOp::FloatLt,
+        poly_expr::PrimitiveOp::FloatLe => PrimitiveOp::FloatLe,
+        poly_expr::PrimitiveOp::FloatGt => PrimitiveOp::FloatGt,
+        poly_expr::PrimitiveOp::FloatGe => PrimitiveOp::FloatGe,
+        poly_expr::PrimitiveOp::StringEq => PrimitiveOp::StringEq,
+        poly_expr::PrimitiveOp::StringConcat => PrimitiveOp::StringConcat,
+        poly_expr::PrimitiveOp::StringToBytes => PrimitiveOp::StringToBytes,
+        poly_expr::PrimitiveOp::CharEq => PrimitiveOp::CharEq,
+        poly_expr::PrimitiveOp::CharToString => PrimitiveOp::CharToString,
+        poly_expr::PrimitiveOp::CharIsWhitespace => PrimitiveOp::CharIsWhitespace,
+        poly_expr::PrimitiveOp::CharIsPunctuation => PrimitiveOp::CharIsPunctuation,
+        poly_expr::PrimitiveOp::CharIsWord => PrimitiveOp::CharIsWord,
+        poly_expr::PrimitiveOp::BytesLen => PrimitiveOp::BytesLen,
+        poly_expr::PrimitiveOp::BytesEq => PrimitiveOp::BytesEq,
+        poly_expr::PrimitiveOp::BytesConcat => PrimitiveOp::BytesConcat,
+        poly_expr::PrimitiveOp::BytesIndex => PrimitiveOp::BytesIndex,
+        poly_expr::PrimitiveOp::BytesIndexRange => PrimitiveOp::BytesIndexRange,
+        poly_expr::PrimitiveOp::BytesToUtf8Raw => PrimitiveOp::BytesToUtf8Raw,
+        poly_expr::PrimitiveOp::BytesToPath => PrimitiveOp::BytesToPath,
+        poly_expr::PrimitiveOp::PathToBytes => PrimitiveOp::PathToBytes,
+        poly_expr::PrimitiveOp::IntToString => PrimitiveOp::IntToString,
+        poly_expr::PrimitiveOp::IntToHex => PrimitiveOp::IntToHex,
+        poly_expr::PrimitiveOp::IntToUpperHex => PrimitiveOp::IntToUpperHex,
+        poly_expr::PrimitiveOp::FloatToString => PrimitiveOp::FloatToString,
+        poly_expr::PrimitiveOp::BoolToString => PrimitiveOp::BoolToString,
+    }
+}
+
+fn primitive_context(
+    arena: &poly_expr::Arena,
+    op: poly_expr::PrimitiveOp,
+    ty: Option<&Type>,
+) -> PrimitiveContext {
+    match op {
+        poly_expr::PrimitiveOp::ListViewRaw => PrimitiveContext {
+            list_view: ty.and_then(|ty| list_view_constructors(arena, ty)),
+        },
+        _ => PrimitiveContext::default(),
+    }
+}
+
+fn list_view_constructors(
+    arena: &poly_expr::Arena,
+    primitive_ty: &Type,
+) -> Option<ListViewConstructors> {
+    let Type::Fun { ret, .. } = primitive_ty else {
+        return None;
+    };
+    let Type::Con { path, .. } = ret.as_ref() else {
+        return None;
+    };
+    let constructor = |name: &str| {
+        arena
+            .constructors
+            .iter()
+            .find(|(_, constructor)| {
+                constructor.owner_path.as_slice() == path.as_slice() && constructor.name == name
+            })
+            .map(|(def, _)| convert_def(*def))
+    };
+    Some(ListViewConstructors {
+        empty: constructor("empty")?,
+        leaf: constructor("leaf")?,
+        node: constructor("node")?,
+    })
 }
 
 fn lit_type(lit: &poly_expr::Lit) -> Type {

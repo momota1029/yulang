@@ -300,6 +300,7 @@ dependencies = [
  "num-bigint",
  "sources",
  "specialize",
+ "yulang-list-tree",
 ]
 
 [[package]]
@@ -1005,6 +1006,7 @@ dependencies = [
  "num-bigint",
  "sources",
  "specialize",
+ "yulang-list-tree",
 ]
 
 [[package]]
@@ -2268,6 +2270,10 @@ dependencies = [
  "yulang-sources",
  "yulang-typed-ir",
 ]
+
+[[package]]
+name = "yulang-list-tree"
+version = "0.1.0"
 
 [[package]]
 name = "yulang-ls"

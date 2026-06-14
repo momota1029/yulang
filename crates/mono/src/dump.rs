@@ -2,8 +2,9 @@ use std::fmt::Write as _;
 
 use crate::{
     Block, CatchArm, ComputationType, EffectFamilies, EffectiveThunkType, Expr, ExprKind,
-    FunctionAdapterHygiene, GuardMarker, Instance, Lit, Pat, Program, RecordField, RecordSpread,
-    Root, SelectResolution, StackWeight, Stmt, Type, TypeField, TypeVariant, Vis,
+    FunctionAdapterHygiene, GuardMarker, Instance, Lit, Pat, PrimitiveContext, PrimitiveOp,
+    Program, RecordField, RecordSpread, Root, SelectResolution, StackWeight, Stmt, Type, TypeField,
+    TypeVariant, Vis,
 };
 
 pub fn dump_program(program: &Program) -> String {
@@ -92,7 +93,16 @@ impl Dumper {
     fn expr(&self, expr: &Expr) -> String {
         match &expr.kind {
             ExprKind::Lit(lit) => self.lit(lit),
-            ExprKind::PrimitiveOp(name) => format!("<prim {name}>"),
+            ExprKind::PrimitiveOp { op, context } => {
+                format!(
+                    "<prim {}{}>",
+                    primitive_op_name(*op),
+                    primitive_context(context)
+                )
+            }
+            ExprKind::Constructor { def, arity } => {
+                format!("<ctor d{} / {}>", def.0, arity)
+            }
             ExprKind::EffectOp { path } => format!("<effect-op {}>", path.join("::")),
             ExprKind::Local(def) => format!("d{}", def.0),
             ExprKind::InstanceRef(instance) => format!("m{}", instance.0),
@@ -361,6 +371,82 @@ impl Dumper {
             Vis::Our => "our",
             Vis::My => "my",
         }
+    }
+}
+
+fn primitive_context(context: &PrimitiveContext) -> String {
+    let Some(list_view) = context.list_view else {
+        return String::new();
+    };
+    format!(
+        " list-view[d{},d{},d{}]",
+        list_view.empty.0, list_view.leaf.0, list_view.node.0
+    )
+}
+
+fn primitive_op_name(op: PrimitiveOp) -> &'static str {
+    match op {
+        PrimitiveOp::YadaYada => "yada_yada",
+        PrimitiveOp::BoolNot => "bool_not",
+        PrimitiveOp::BoolEq => "bool_eq",
+        PrimitiveOp::ListEmpty => "list_empty",
+        PrimitiveOp::ListSingleton => "list_singleton",
+        PrimitiveOp::ListLen => "list_len",
+        PrimitiveOp::ListMerge => "list_merge",
+        PrimitiveOp::ListIndex => "list_index",
+        PrimitiveOp::ListIndexRange => "list_index_range",
+        PrimitiveOp::ListSplice => "list_splice",
+        PrimitiveOp::ListIndexRangeRaw => "list_index_range_raw",
+        PrimitiveOp::ListSpliceRaw => "list_splice_raw",
+        PrimitiveOp::ListViewRaw => "list_view_raw",
+        PrimitiveOp::StringLen => "string_len",
+        PrimitiveOp::StringIndex => "string_index",
+        PrimitiveOp::StringIndexRange => "string_index_range",
+        PrimitiveOp::StringSplice => "string_splice",
+        PrimitiveOp::StringIndexRangeRaw => "string_index_range_raw",
+        PrimitiveOp::StringSpliceRaw => "string_splice_raw",
+        PrimitiveOp::StringLineCount => "string_line_count",
+        PrimitiveOp::StringLineRange => "string_line_range",
+        PrimitiveOp::IntAdd => "int_add",
+        PrimitiveOp::IntSub => "int_sub",
+        PrimitiveOp::IntMul => "int_mul",
+        PrimitiveOp::IntDiv => "int_div",
+        PrimitiveOp::IntMod => "int_mod",
+        PrimitiveOp::IntEq => "int_eq",
+        PrimitiveOp::IntLt => "int_lt",
+        PrimitiveOp::IntLe => "int_le",
+        PrimitiveOp::IntGt => "int_gt",
+        PrimitiveOp::IntGe => "int_ge",
+        PrimitiveOp::FloatAdd => "float_add",
+        PrimitiveOp::FloatSub => "float_sub",
+        PrimitiveOp::FloatMul => "float_mul",
+        PrimitiveOp::FloatDiv => "float_div",
+        PrimitiveOp::FloatEq => "float_eq",
+        PrimitiveOp::FloatLt => "float_lt",
+        PrimitiveOp::FloatLe => "float_le",
+        PrimitiveOp::FloatGt => "float_gt",
+        PrimitiveOp::FloatGe => "float_ge",
+        PrimitiveOp::StringEq => "string_eq",
+        PrimitiveOp::StringConcat => "string_concat",
+        PrimitiveOp::StringToBytes => "string_to_bytes",
+        PrimitiveOp::CharEq => "char_eq",
+        PrimitiveOp::CharToString => "char_to_string",
+        PrimitiveOp::CharIsWhitespace => "char_is_whitespace",
+        PrimitiveOp::CharIsPunctuation => "char_is_punctuation",
+        PrimitiveOp::CharIsWord => "char_is_word",
+        PrimitiveOp::BytesLen => "bytes_len",
+        PrimitiveOp::BytesEq => "bytes_eq",
+        PrimitiveOp::BytesConcat => "bytes_concat",
+        PrimitiveOp::BytesIndex => "bytes_index",
+        PrimitiveOp::BytesIndexRange => "bytes_index_range",
+        PrimitiveOp::BytesToUtf8Raw => "bytes_to_utf8_raw",
+        PrimitiveOp::BytesToPath => "bytes_to_path",
+        PrimitiveOp::PathToBytes => "path_to_bytes",
+        PrimitiveOp::IntToString => "int_to_string",
+        PrimitiveOp::IntToHex => "int_to_hex",
+        PrimitiveOp::IntToUpperHex => "int_to_upper_hex",
+        PrimitiveOp::FloatToString => "float_to_string",
+        PrimitiveOp::BoolToString => "bool_to_string",
     }
 }
 

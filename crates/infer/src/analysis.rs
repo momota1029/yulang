@@ -33,7 +33,7 @@ use crate::compact::{
 use crate::constraints::{ConstraintEvent, ConstraintWeights, TypeLevel};
 use crate::generalize::{
     GeneralizedCompactRoot, apply_compact_simplifications_to_root_and_roles,
-    finalize_generalized_compact_root_with_ancestors,
+    clone_role_impl_candidate_between_arenas, finalize_generalized_compact_root_with_ancestors,
     generalize_prepared_compact_root_with_role_variances_and_boundaries,
 };
 use crate::instantiate::{instantiate_scheme, instantiate_scheme_with_roles};
@@ -296,20 +296,28 @@ impl AnalysisSession {
     }
 
     pub fn resolve_unresolved_selections_as_record_fields(&mut self) {
-        self.drain_work();
-        let unresolved = self
-            .selections
-            .iter()
-            .map(|(select_id, _)| select_id)
-            .collect::<Vec<_>>();
-        for select_id in unresolved {
-            let name = self.poly.select(select_id).name.clone();
-            let target = self
-                .role_method_for_select(select_id, &name)
-                .unwrap_or(SelectionTarget::RecordField);
-            self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
+        loop {
+            self.drain_work();
+            let ready = self
+                .selections
+                .iter()
+                .filter_map(|(select_id, use_site)| {
+                    self.scc
+                        .selection_fallback_ready(use_site.parent)
+                        .then_some(select_id)
+                })
+                .collect::<Vec<_>>();
+            if ready.is_empty() {
+                break;
+            }
+            for select_id in ready {
+                let name = self.poly.select(select_id).name.clone();
+                let target = self
+                    .role_method_for_select(select_id, &name)
+                    .unwrap_or(SelectionTarget::RecordField);
+                self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
+            }
         }
-        self.drain_work();
     }
 
     fn enqueue_unresolved_selection_probes(&mut self) {
@@ -677,6 +685,17 @@ impl AnalysisSession {
         self.effect_method_for_paths(select_id, &paths, name)
     }
 
+    fn probe_effect_select_stack_weight(
+        &self,
+        select_id: SelectId,
+        weight: &crate::constraints::ConstraintWeight,
+        name: &str,
+    ) -> Option<SelectionTarget> {
+        let mut paths = Vec::new();
+        collect_stack_weight_effect_paths(weight, &mut paths);
+        self.effect_method_for_paths(select_id, &paths, name)
+    }
+
     fn collect_effect_paths_from_pos(
         &mut self,
         select_id: SelectId,
@@ -701,7 +720,8 @@ impl AnalysisSession {
             Pos::NonSubtract(pos, _) => {
                 self.collect_effect_paths_from_pos(select_id, pos, visited, out)
             }
-            Pos::Stack { inner, .. } => {
+            Pos::Stack { inner, weight } => {
+                collect_stack_weight_effect_paths(&weight, out);
                 self.collect_effect_paths_from_pos(select_id, inner, visited, out)
             }
             Pos::Bot
@@ -732,9 +752,16 @@ impl AnalysisSession {
             let lowers = bounds
                 .lowers()
                 .iter()
-                .map(|bound| bound.pos)
+                .map(|bound| {
+                    let mut weighted_paths = Vec::new();
+                    collect_constraint_weight_effect_paths(&bound.weights, &mut weighted_paths);
+                    (bound.pos, weighted_paths)
+                })
                 .collect::<Vec<_>>();
-            for lower in lowers {
+            for (lower, weighted_paths) in lowers {
+                for path in weighted_paths {
+                    push_unique_path(out, path);
+                }
                 self.collect_effect_paths_from_pos(select_id, lower, visited, out);
             }
         }
@@ -758,9 +785,16 @@ impl AnalysisSession {
             .of(var)?
             .lowers()
             .iter()
-            .map(|bound| bound.pos)
+            .map(|bound| {
+                let mut weighted_paths = Vec::new();
+                collect_constraint_weight_effect_paths(&bound.weights, &mut weighted_paths);
+                (bound.pos, weighted_paths)
+            })
             .collect::<Vec<_>>();
-        for lower in lowers {
+        for (lower, weighted_paths) in lowers {
+            if let Some(target) = self.effect_method_for_paths(select_id, &weighted_paths, name) {
+                return Some(target);
+            }
             if let Some(target) = self.probe_select_pos(select_id, lower, name, visited) {
                 return Some(target);
             }
@@ -797,7 +831,9 @@ impl AnalysisSession {
                 .probe_select_pos(select_id, left, name, visited)
                 .or_else(|| self.probe_select_pos(select_id, right, name, visited)),
             Pos::NonSubtract(pos, _) => self.probe_select_pos(select_id, pos, name, visited),
-            Pos::Stack { inner, .. } => self.probe_select_pos(select_id, inner, name, visited),
+            Pos::Stack { inner, weight } => self
+                .probe_effect_select_stack_weight(select_id, &weight, name)
+                .or_else(|| self.probe_select_pos(select_id, inner, name, visited)),
             Pos::Bot
             | Pos::Fun { .. }
             | Pos::Record(_)
@@ -1142,6 +1178,24 @@ impl AnalysisSession {
         }
         self.role_impls
             .extend_prerequisites_for_impl(impl_def, prerequisites);
+    }
+
+    pub fn finalize_poly_role_impls(&mut self) {
+        let candidates = self
+            .role_impls
+            .iter()
+            .map(|candidate| {
+                clone_role_impl_candidate_between_arenas(
+                    self.infer.constraints().types(),
+                    &mut self.poly.typ,
+                    candidate,
+                )
+            })
+            .collect::<Vec<_>>();
+        self.poly.role_impls = RoleImplTable::new();
+        for candidate in candidates {
+            self.poly.role_impls.insert(candidate);
+        }
     }
 
     fn instantiate_use(&mut self, parent: DefId, target: DefId, use_value: TypeVar) {
@@ -1835,6 +1889,19 @@ fn collect_subtractability_effect_paths(
         | Subtractability::All
         | Subtractability::AllExcept(_, _)
         | Subtractability::AllExceptMany(_) => {}
+    }
+}
+
+fn collect_constraint_weight_effect_paths(weights: &ConstraintWeights, out: &mut Vec<Vec<String>>) {
+    collect_stack_weight_effect_paths(&weights.left, out);
+}
+
+fn collect_stack_weight_effect_paths(
+    weight: &crate::constraints::ConstraintWeight,
+    out: &mut Vec<Vec<String>>,
+) {
+    for subtractability in weight.stack_items() {
+        collect_subtractability_effect_paths(subtractability, out);
     }
 }
 
@@ -2657,6 +2724,95 @@ mod tests {
     }
 
     #[test]
+    fn effect_method_selection_resolves_from_receiver_effect_weighted_lower_bound() {
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let select = session.poly.add_select("flip");
+        let parent = DefId(1);
+        let method = DefId(2);
+        let receiver = TypeVar(3);
+        let receiver_effect = TypeVar(4);
+        let tail_effect = TypeVar(5);
+        let result = TypeVar(6);
+        let result_effect = TypeVar(7);
+        let method_value = TypeVar(8);
+        register_test_selection_use(
+            &mut session,
+            select,
+            parent,
+            method_value,
+            receiver,
+            receiver_effect,
+            result,
+            result_effect,
+        );
+        session.register_effect_method(vec!["nondet".to_string()], "flip", method);
+        let tail = session.infer.alloc_pos(Pos::Var(tail_effect));
+        let upper = session.infer.alloc_neg(Neg::Var(receiver_effect));
+        session.infer.weighted_subtype(
+            tail,
+            ConstraintWeights {
+                left: ConstraintWeight::push(
+                    SubtractId(0),
+                    Subtractability::Set(vec!["nondet".into()], Vec::new()),
+                ),
+                right: ConstraintWeight::empty(),
+            },
+            upper,
+        );
+        session.drain_work();
+
+        assert_eq!(
+            session.poly.select(select).resolution,
+            Some(SelectResolution::Method { def: method })
+        );
+    }
+
+    #[test]
+    fn effect_method_selection_resolves_from_receiver_value_weighted_lower_bound() {
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let select = session.poly.add_select("flip");
+        let parent = DefId(1);
+        let method = DefId(2);
+        let receiver = TypeVar(3);
+        let receiver_effect = TypeVar(4);
+        let result = TypeVar(5);
+        let result_effect = TypeVar(6);
+        let method_value = TypeVar(7);
+        register_test_selection_use(
+            &mut session,
+            select,
+            parent,
+            method_value,
+            receiver,
+            receiver_effect,
+            result,
+            result_effect,
+        );
+        session.register_effect_method(vec!["nondet".to_string()], "flip", method);
+        let value = session
+            .infer
+            .alloc_pos(Pos::Con(vec!["bool".into()], Vec::new()));
+        let upper = session.infer.alloc_neg(Neg::Var(receiver));
+        session.infer.weighted_subtype(
+            value,
+            ConstraintWeights {
+                left: ConstraintWeight::push(
+                    SubtractId(0),
+                    Subtractability::Set(vec!["nondet".into()], Vec::new()),
+                ),
+                right: ConstraintWeight::empty(),
+            },
+            upper,
+        );
+        session.drain_work();
+
+        assert_eq!(
+            session.poly.select(select).resolution,
+            Some(SelectResolution::Method { def: method })
+        );
+    }
+
+    #[test]
     fn effect_method_selection_reprobes_when_transitive_effect_fact_is_added() {
         let mut session = AnalysisSession::new(PolyArena::new());
         let select = session.poly.add_select("flip");
@@ -2853,6 +3009,11 @@ mod tests {
             result,
             result_effect,
         );
+        session.enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+            def: parent,
+            root: method_value,
+        }));
+        session.enqueue(AnalysisWork::Scc(SccInput::DefFinished { def: parent }));
 
         session.resolve_unresolved_selections_as_record_fields();
 
@@ -2915,6 +3076,11 @@ mod tests {
             result_effect,
         );
         session.role_methods.insert(role.clone(), "le", method);
+        session.enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+            def: parent,
+            root: method_value,
+        }));
+        session.enqueue(AnalysisWork::Scc(SccInput::DefFinished { def: parent }));
 
         session.resolve_unresolved_selections_as_record_fields();
 

@@ -29,12 +29,12 @@ pub(crate) fn signature_for_scheme(
     })
 }
 
-pub(crate) fn instantiate_scheme_with_fresh(
+pub(crate) fn instantiate_scheme_with_fresh_and_roles(
     arena: &poly_expr::Arena,
     def: poly_expr::DefId,
     scheme: &Scheme,
     mut fresh: impl FnMut(SchemeQuantifierKind) -> Type,
-) -> Result<Type, SpecializeError> {
+) -> Result<InstantiatedScheme, SpecializeError> {
     reject_unsupported_scheme_features(def, scheme)?;
     let mut materializer = SchemeMaterializer::new(&arena.typ, def, scheme);
     materializer.collect_scheme_kinds(scheme);
@@ -48,7 +48,36 @@ pub(crate) fn instantiate_scheme_with_fresh(
             .substitution
             .insert(*quantifier, fresh(kind.into()));
     }
-    materializer.materialize_pos(scheme.predicate, TypeContext::Value)
+    Ok(InstantiatedScheme {
+        ty: materializer.materialize_pos(scheme.predicate, TypeContext::Value)?,
+        role_predicates: materializer.materialize_role_predicates(scheme)?,
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct InstantiatedScheme {
+    pub(crate) ty: Type,
+    pub(crate) role_predicates: Vec<InstantiatedRolePredicate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct InstantiatedRolePredicate {
+    pub(crate) role: Vec<String>,
+    pub(crate) inputs: Vec<InstantiatedRoleArg>,
+    pub(crate) associated: Vec<InstantiatedRoleAssociatedType>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct InstantiatedRoleArg {
+    pub(crate) lower: Type,
+    pub(crate) upper: Type,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct InstantiatedRoleAssociatedType {
+    pub(crate) name: String,
+    pub(crate) lower: Type,
+    pub(crate) upper: Type,
 }
 
 pub(crate) fn pure_function_type(arg: Type, ret: Type) -> Type {
@@ -90,12 +119,6 @@ fn reject_unsupported_scheme_features(
     def: poly_expr::DefId,
     scheme: &Scheme,
 ) -> Result<(), SpecializeError> {
-    if !scheme.role_predicates.is_empty() {
-        return Err(SpecializeError::UnsupportedSchemeFeature {
-            def: mono::DefId(def.0),
-            feature: SchemeFeature::RolePredicates,
-        });
-    }
     if !scheme.recursive_bounds.is_empty() {
         return Err(SpecializeError::UnsupportedSchemeFeature {
             def: mono::DefId(def.0),
@@ -896,6 +919,71 @@ impl<'a> SchemeMaterializer<'a> {
             path: path.to_vec(),
             args: self.materialize_neus(args, TypeContext::Value)?,
         })
+    }
+
+    fn materialize_role_predicates(
+        &self,
+        scheme: &Scheme,
+    ) -> Result<Vec<InstantiatedRolePredicate>, SpecializeError> {
+        scheme
+            .role_predicates
+            .iter()
+            .map(|predicate| {
+                Ok(InstantiatedRolePredicate {
+                    role: predicate.role.clone(),
+                    inputs: predicate
+                        .inputs
+                        .iter()
+                        .map(|arg| self.materialize_role_arg(*arg))
+                        .collect::<Result<Vec<_>, _>>()?,
+                    associated: predicate
+                        .associated
+                        .iter()
+                        .map(|associated| {
+                            let arg = self.materialize_role_neu_arg(associated.value)?;
+                            Ok(InstantiatedRoleAssociatedType {
+                                name: associated.name.clone(),
+                                lower: arg.lower,
+                                upper: arg.upper,
+                            })
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                })
+            })
+            .collect()
+    }
+
+    fn materialize_role_arg(
+        &self,
+        arg: RolePredicateArg,
+    ) -> Result<InstantiatedRoleArg, SpecializeError> {
+        match arg {
+            RolePredicateArg::Covariant(lower) => Ok(InstantiatedRoleArg {
+                lower: self.materialize_pos(lower, TypeContext::Value)?,
+                upper: Type::Any,
+            }),
+            RolePredicateArg::Contravariant(upper) => Ok(InstantiatedRoleArg {
+                lower: Type::Never,
+                upper: self.materialize_neg(upper, TypeContext::Value)?,
+            }),
+            RolePredicateArg::Invariant(value) => self.materialize_role_neu_arg(value),
+        }
+    }
+
+    fn materialize_role_neu_arg(&self, id: NeuId) -> Result<InstantiatedRoleArg, SpecializeError> {
+        match self.arena.neu(id) {
+            Neu::Bounds(lower, upper) => Ok(InstantiatedRoleArg {
+                lower: self.materialize_pos(*lower, TypeContext::Value)?,
+                upper: self.materialize_neg(*upper, TypeContext::Value)?,
+            }),
+            _ => {
+                let ty = self.materialize_neu(id, TypeContext::Value)?;
+                Ok(InstantiatedRoleArg {
+                    lower: ty.clone(),
+                    upper: ty,
+                })
+            }
+        }
     }
 
     fn collect_pos_kind(&mut self, id: PosId, context: TypeContext) {

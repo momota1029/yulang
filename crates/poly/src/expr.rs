@@ -1,6 +1,7 @@
 use num_bigint::BigInt;
 use rustc_hash::FxHashMap;
 
+use crate::roles::RoleImplTable;
 use crate::types::{Scheme, SubtractId, TypeArena, TypeIds, TypeVar};
 
 /// 多相 IR の本体を置く Arena。
@@ -36,12 +37,22 @@ pub struct Arena {
     /// cast は単相化でも subtype 境界として効くため、infer 内部の一時 table だけでなく、
     /// principal scheme と同じ poly 境界へ残す。
     pub cast_rules: Vec<CastRule>,
+    /// source lowering で解決された role impl candidate。
+    ///
+    /// downstream stages need role impls to materialize role-constrained schemes without
+    /// depending on infer's mutable solver tables.
+    pub role_impls: RoleImplTable,
     /// source lowering で解決された effect operation。
     ///
     /// effect operation は body を持たない `Def::Let` として型だけを持つが、runtime では
     /// effect request を送出する値である。後段が `DefId` から送出 path を読めるように
     /// 構造化された metadata として残す。
     pub effect_operations: FxHashMap<DefId, EffectOperation>,
+    /// source lowering で宣言された data constructor。
+    ///
+    /// constructor も body を持たない `Def::Let` だが、runtime では constructor 値として
+    /// 評価する必要がある。単相化後段が `DefId` から arity と owner を読めるようにここへ残す。
+    pub constructors: FxHashMap<DefId, Constructor>,
     expr: Vec<Expr>,
     pat: Vec<Pat>,
     type_ids: TypeIds,
@@ -59,6 +70,13 @@ pub struct CastRule {
 #[derive(Clone)]
 pub struct EffectOperation {
     pub path: Vec<String>,
+}
+
+#[derive(Clone)]
+pub struct Constructor {
+    pub owner_path: Vec<String>,
+    pub name: String,
+    pub arity: usize,
 }
 
 /// block 内に現れる文の構造。
@@ -79,7 +97,9 @@ impl Arena {
             refs: Vec::new(),
             selects: Vec::new(),
             cast_rules: Vec::new(),
+            role_impls: RoleImplTable::new(),
             effect_operations: FxHashMap::default(),
+            constructors: FxHashMap::default(),
             expr: Vec::new(),
             pat: Vec::new(),
             type_ids: TypeIds::new(),

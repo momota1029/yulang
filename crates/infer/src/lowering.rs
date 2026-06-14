@@ -18,8 +18,8 @@ use yulang_parser::sink::YulangLanguage;
 
 use poly::dump::DumpLabels;
 use poly::expr::{
-    CaseArm, CatchArm, Def, DefId, Expr, Lit, Pat, PatId, PrimitiveOp, RecordSpread, RefId, Stmt,
-    Vis,
+    CaseArm, CatchArm, Constructor, Def, DefId, Expr, Lit, Pat, PatId, PrimitiveOp, RecordSpread,
+    RefId, Stmt, Vis,
 };
 use poly::types::{
     BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, Scheme, StackWeight, SubtractId,
@@ -187,6 +187,7 @@ impl BodyLowerer {
 
     fn finish(self) -> BodyLowering {
         let mut session = self.session;
+        session.finalize_poly_role_impls();
         let mut errors = self.errors;
         errors.extend(
             session
@@ -225,6 +226,12 @@ impl BodyLowerer {
 
     fn lower_root_expr(&mut self, node: &Cst, module: ModuleId) {
         let parent = self.session.poly.defs.fresh();
+        let root = self.session.infer.fresh_type_var();
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+                def: parent,
+                root,
+            }));
         let site = ModuleOrder::from_index(u32::MAX);
         let lowered = ExprLowerer::with_labels(
             &mut self.session,
@@ -246,6 +253,8 @@ impl BodyLowerer {
             }
             Err(error) => self.errors.push(BodyLoweringError::RootExpr { error }),
         }
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def: parent }));
     }
 
     fn lower_mod_decl(&mut self, node: &Cst, module: ModuleId) {
@@ -933,6 +942,21 @@ impl BodyLowerer {
         let previous_level = self.session.infer.enter_child_level();
         let root = self.session.infer.fresh_type_var();
         self.typing.set_def(constructor.def, root);
+        let owner_path = self
+            .modules
+            .type_decl_path(owner)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect();
+        self.session.poly.constructors.insert(
+            constructor.def,
+            Constructor {
+                owner_path,
+                name: name.0.clone(),
+                arity: constructor_payload_arity(&payload),
+            },
+        );
         self.session
             .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
                 def: constructor.def,
@@ -1545,13 +1569,14 @@ impl BodyLowerer {
                     .collect::<Vec<_>>()
             })
             .ok_or(LoweringError::UnsupportedSyntax { kind: node.kind() })?;
-        self.session.role_impls.insert(RoleImplCandidate {
+        let candidate = RoleImplCandidate {
             impl_def: Some(impl_def),
             role,
             inputs: candidate_inputs,
             associated: candidate_associated,
             prerequisites: Vec::new(),
-        });
+        };
+        self.session.role_impls.insert(candidate);
         Ok(RoleImplLoweringContext {
             role: spec.role,
             target_ann: spec.target,
@@ -3269,7 +3294,7 @@ impl<'a> ExprLowerer<'a> {
         let pat = self.bind_pattern_local(
             receiver,
             receiver_value,
-            None,
+            Some(LocalEffect::Var(receiver_effect)),
             LocalCallReturnEffect::Annotated,
         );
         self.function_frames
@@ -11096,6 +11121,19 @@ mod tests {
         assert_eq!(candidates.len(), 1);
         assert_eq!(candidates[0].associated.len(), 1);
         assert_eq!(candidates[0].associated[0].name, "item");
+        let poly_candidates = output
+            .session
+            .poly
+            .role_impls
+            .candidates(&["Box".to_string()]);
+        assert_eq!(poly_candidates.len(), 1);
+        assert_eq!(poly_candidates[0].associated.len(), 1);
+        assert_eq!(poly_candidates[0].associated[0].name, "item");
+        output
+            .session
+            .poly
+            .typ
+            .pos(poly_candidates[0].associated[0].value.lower);
         let associated = candidates[0].associated[0].value;
         let associated_var = match output
             .session
@@ -13287,6 +13325,30 @@ mod tests {
         assert_eq!(
             output.session.effect_methods.candidates("flip")[0].def,
             method
+        );
+    }
+
+    #[test]
+    fn act_method_selection_waits_for_referenced_function_instantiation_before_field_fallback() {
+        let root = parse(
+            "act nondet:\n  pub branch: () -> bool\n  pub x.flip = catch x:\n    branch(), k -> k(true).flip\n    v -> v\n\nrole Box 'a:\n  our x.get: int\n\nimpl int: Box {\n  our x.get = 1\n}\n\nmy each x = { x.get; nondet::branch() }\nmy got = (each 0).flip\n",
+        );
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let nondet = lower.modules.type_decls(module, &Name("nondet".into()))[0].clone();
+        let method = lower.modules.act_methods(nondet.id)[0].def;
+        let (got, _) = binding_def_and_order(&lower.modules, module, "got");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let got_select = match output.session.poly.expr(binding_body_id(&output, got)) {
+            Expr::Select(_, select) => *select,
+            _ => panic!("expected select expr"),
+        };
+        assert_eq!(
+            output.session.poly.select(got_select).resolution,
+            Some(SelectResolution::Method { def: method })
         );
     }
 

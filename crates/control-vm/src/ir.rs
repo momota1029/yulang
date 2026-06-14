@@ -1,6 +1,9 @@
 //! Lightweight control IR lowered from `mono`.
 
-use mono::{ComputationType, EffectiveThunkType, FunctionAdapterHygiene, Lit, Type};
+use mono::{
+    ComputationType, EffectiveThunkType, FunctionAdapterHygiene, Lit, PrimitiveContext,
+    PrimitiveOp, Type,
+};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Program {
@@ -35,7 +38,14 @@ pub struct InstanceId(pub u32);
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Lit(Lit),
-    PrimitiveOp(String),
+    PrimitiveOp {
+        op: PrimitiveOp,
+        context: PrimitiveContext,
+    },
+    Constructor {
+        def: DefId,
+        arity: usize,
+    },
     EffectOp {
         path: Vec<String>,
     },
