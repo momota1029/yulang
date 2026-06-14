@@ -8127,8 +8127,20 @@ fn field_name(node: &Cst) -> Option<String> {
 }
 
 fn brace_group_is_record_literal(node: &Cst) -> bool {
-    let fields = record_literal_fields(node);
-    !fields.is_empty() && fields.iter().all(is_inline_record_field_expr)
+    let mut has_field = false;
+    for child in node.children() {
+        match child.kind() {
+            SyntaxKind::Expr => {
+                if !is_inline_record_field_expr(&child) {
+                    return false;
+                }
+                has_field = true;
+            }
+            SyntaxKind::Separator => {}
+            _ => return false,
+        }
+    }
+    has_field
 }
 
 fn record_literal_fields(node: &Cst) -> Vec<Cst> {
@@ -8138,8 +8150,11 @@ fn record_literal_fields(node: &Cst) -> Vec<Cst> {
 }
 
 fn is_inline_record_field_expr(node: &Cst) -> bool {
-    node.children()
-        .any(|child| child.kind() == SyntaxKind::ApplyColon)
+    record_field_name(node).is_some()
+        && record_field_value(node).is_some()
+        && node
+            .children()
+            .all(|child| child.kind() == SyntaxKind::ApplyColon)
 }
 
 fn record_field_name(node: &Cst) -> Option<Name> {
@@ -12390,6 +12405,32 @@ mod tests {
             }
             _ => panic!("expected record literal"),
         }
+    }
+
+    #[test]
+    fn brace_block_with_qualified_apply_colon_lowers_as_block_expr() {
+        let root = parse(concat!(
+            "mod std:\n",
+            "  pub mod control:\n",
+            "    pub mod flow:\n",
+            "      pub mod sub:\n",
+            "        pub return x = x\n",
+            "my value = {std::control::flow::sub::return: 1}\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (owner, site) = binding_def_and_order(&lower.modules, module, "value");
+        let expr = binding_expr(&root, "value");
+        let mut session = AnalysisSession::new(lower.arena);
+
+        let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+            .lower_expr(&expr)
+            .unwrap();
+
+        assert!(matches!(
+            session.poly.expr(computation.expr),
+            Expr::App(_, _)
+        ));
     }
 
     #[test]
