@@ -4,9 +4,9 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::rc::Rc;
 
+use list_tree::{ListTree, ListView};
 use mono::{FunctionAdapterHygiene, Lit, PrimitiveContext, PrimitiveOp, Type};
 use num_bigint::BigInt;
-use list_tree::{ListTree, ListView};
 
 use crate::boundary::{equivalent_runtime_types, function_parts, thunk_value_type};
 use crate::ir::{

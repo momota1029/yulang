@@ -4,6 +4,8 @@
 //! pass2 の `module` / `site` を使い、surface の型名を builtin / 型宣言 ID に解決する。
 //! 後続の制約生成は、この `AnnType` を必要な polarity に応じて `Pos` / `Neg` へ落とす。
 
+use parser::lex::SyntaxKind;
+use parser::sink::YulangLanguage;
 use poly::types::{
     BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, StackWeight, SubtractId, Subtractability,
     TypeVar,
@@ -11,8 +13,6 @@ use poly::types::{
 use rowan::{NodeOrToken, SyntaxNode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use sources::Name;
-use parser::lex::SyntaxKind;
-use parser::sink::YulangLanguage;
 
 use crate::{
     Arena as InferArena, ModuleId, ModuleOrder, ModuleTable, TypeDeclId, constraints::TypeLevel,

@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
+use parser::lex::SyntaxKind;
+use parser::sink::YulangLanguage;
 use rowan::{NodeOrToken, SyntaxNode};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
-use parser::lex::SyntaxKind;
-use parser::sink::YulangLanguage;
 
 const TOKEN_TYPES: &[&str] = &[
     "keyword",   // 0

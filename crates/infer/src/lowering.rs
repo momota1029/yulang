@@ -11,10 +11,10 @@
 mod control;
 mod pattern;
 
-use rowan::{NodeOrToken, SyntaxNode};
-use sources::{LoadedFile, Name};
 use parser::lex::SyntaxKind;
 use parser::sink::YulangLanguage;
+use rowan::{NodeOrToken, SyntaxNode};
+use sources::{LoadedFile, Name};
 
 use poly::dump::DumpLabels;
 use poly::expr::{

@@ -3,11 +3,11 @@
 //! これは型注釈ではない。`AnnType` は上下からの抑え込みや effect row の引き算を背負うが、
 //! act 解決では「どの act 型を参照しているか」と、その厳格な型引数だけを読む。
 
+use parser::lex::SyntaxKind;
+use parser::sink::YulangLanguage;
 use poly::types::BuiltinType;
 use rowan::{NodeOrToken, SyntaxNode};
 use sources::Name;
-use parser::lex::SyntaxKind;
-use parser::sink::YulangLanguage;
 
 use crate::{ModuleId, ModuleOrder, ModuleTable, ModuleTypeDecl, ModuleTypeKind, TypeDeclId};
 

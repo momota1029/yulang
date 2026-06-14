@@ -9,12 +9,12 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::rc::Rc;
 
+use list_tree::{ListTree, ListView};
 use mono::{
     Block, CaseArm, CatchArm, DefId, Expr, ExprKind, FunctionAdapterHygiene, InstanceId, Lit, Pat,
     PrimitiveContext, PrimitiveOp, RecordField, RecordSpread, Root, SelectResolution, Stmt, Type,
 };
 use num_bigint::BigInt;
-use list_tree::{ListTree, ListView};
 
 pub fn run_program(program: &mono::Program) -> Result<Vec<Value>, RuntimeError> {
     Runtime::new(program).run()

@@ -1,7 +1,7 @@
 use std::fmt::Write as _;
 
-use rowan::SyntaxNode;
 use parser::sink::YulangLanguage;
+use rowan::SyntaxNode;
 
 pub fn format_module_cst(source: &str) -> String {
     let green = parser::parse_module_to_green(source);

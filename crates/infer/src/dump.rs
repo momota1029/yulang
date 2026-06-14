@@ -6,10 +6,10 @@
 
 use std::fmt::Write as _;
 
+use parser::sink::YulangLanguage;
 use poly::expr::{Def, DefId};
 use rowan::SyntaxNode;
 use sources::{LoadedFile, Path, SourceFile};
-use parser::sink::YulangLanguage;
 
 use crate::LoadedFilesError;
 use crate::lower_module_map;

@@ -33,14 +33,14 @@ pub mod uses;
 pub use arena::Arena;
 
 use crate::act_resolve::{ActTypeExpr, ActTypeResolver};
+use parser::lex::SyntaxKind;
+use parser::sink::YulangLanguage;
 use poly::dump::DumpLabels;
 use poly::expr::{Arena as PolyArena, Def, DefId, Vis};
 use rowan::{NodeOrToken, SyntaxNode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use sources::{LoadedFile, Name, Path as ModulePath, UseImport};
 use std::fmt;
-use parser::lex::SyntaxKind;
-use parser::sink::YulangLanguage;
 
 type Cst = SyntaxNode<YulangLanguage>;
 

@@ -1,12 +1,12 @@
 //! 新ソース収集層。ファイル別 op テーブルを正しく組んでフルパースするのが目的。
 //! まずは先読み（`parse_header_to_green` → CST から use/op を抽出）から積む。
 
-use rowan::{GreenNode, NodeOrToken, SyntaxNode};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use parser::lex::SyntaxKind;
 use parser::op::{BpVec, OpDef, OpTable, standard_op_table};
 use parser::sink::YulangLanguage;
+use rowan::{GreenNode, NodeOrToken, SyntaxNode};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 mod realm;
 

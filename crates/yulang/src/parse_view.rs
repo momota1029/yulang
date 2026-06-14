@@ -4,7 +4,6 @@ use chasa::error::LatestSink;
 use chasa::input::{In, Input as _, IsCut};
 use either::Either;
 use im::HashSet;
-use reborrow_generic::Reborrow as _;
 use parser::context::{Env, State};
 use parser::expr::parse_expr;
 use parser::lex::{SyntaxKind, TriviaInfo};
@@ -15,6 +14,7 @@ use parser::scan::trivia::scan_trivia;
 use parser::sink::{Event, EventSink, VecSink};
 use parser::stmt::parse_statement;
 use parser::typ::parse::parse_type;
+use reborrow_generic::Reborrow as _;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ParserMode {
