@@ -1,14 +1,13 @@
 [workspace]
 resolver = "2"
 members = [
-  "crates/yulang-parser",
+  "crates/parser",
   "crates/mono",
   "crates/mono-runtime",
   "crates/specialize",
   "crates/control-vm",
-  "crates/yulang-list-tree",
-  "crates/yulang-lsp",
-  "crates/yulang2",
+  "crates/list-tree",
+  "crates/yulang",
   "crates/poly",
   "crates/infer",
   "crates/sources",

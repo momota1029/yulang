@@ -16,7 +16,7 @@ fn main() {
         .map(PathBuf::from)
         .and_then(|path| path.file_name().map(|name| name.to_owned()))
         .and_then(|name| name.into_string().ok())
-        .unwrap_or_else(|| "yulang2".to_string());
+        .unwrap_or_else(|| "yulang".to_string());
 
     let args = VecDeque::from(raw_args.collect::<Vec<_>>());
     let (options, mut args) = match parse_global_options(args) {
@@ -41,27 +41,27 @@ fn main() {
         Some("debug") => run_debug(&program, &options, args),
         Some("dump-poly") => {
             let path = require_one_path(&program, args);
-            run_route(yulang2::dump_poly_from_entry(path), print_dump_poly_output);
+            run_route(yulang::dump_poly_from_entry(path), print_dump_poly_output);
         }
         Some("dump-poly-raw") => {
             let path = require_one_path(&program, args);
             run_route(
-                yulang2::dump_poly_raw_from_entry(path),
+                yulang::dump_poly_raw_from_entry(path),
                 print_dump_poly_output,
             );
         }
         Some("dump-mono") => {
             let path = require_one_path(&program, args);
-            run_route(yulang2::dump_mono_from_entry(path), print_dump_mono_output);
+            run_route(yulang::dump_mono_from_entry(path), print_dump_mono_output);
         }
         Some("run-mono") => {
             let path = require_one_path(&program, args);
-            run_route(yulang2::run_mono_from_entry(path), print_run_mono_output);
+            run_route(yulang::run_mono_from_entry(path), print_run_mono_output);
         }
         Some("run-control") => {
             let path = require_one_path(&program, args);
             run_route(
-                yulang2::run_control_from_entry(path),
+                yulang::run_control_from_entry(path),
                 print_run_control_output,
             );
         }
@@ -69,7 +69,7 @@ fn main() {
             let path = require_one_path(&program, args);
             let source_options = options.std_source_options();
             run_route(
-                yulang2::dump_poly_from_entry_with_std_options(path, &source_options),
+                yulang::dump_poly_from_entry_with_std_options(path, &source_options),
                 print_dump_poly_output,
             );
         }
@@ -77,7 +77,7 @@ fn main() {
             let path = require_one_path(&program, args);
             let source_options = options.std_source_options();
             run_route(
-                yulang2::dump_mono_from_entry_with_std_options(path, &source_options),
+                yulang::dump_mono_from_entry_with_std_options(path, &source_options),
                 print_dump_mono_output,
             );
         }
@@ -85,7 +85,7 @@ fn main() {
             let path = require_one_path(&program, args);
             let source_options = options.std_source_options();
             run_route(
-                yulang2::run_mono_from_entry_with_std_options(path, &source_options),
+                yulang::run_mono_from_entry_with_std_options(path, &source_options),
                 print_run_mono_output,
             );
         }
@@ -93,7 +93,7 @@ fn main() {
             let path = require_one_path(&program, args);
             let source_options = options.std_source_options();
             run_route(
-                yulang2::run_control_from_entry_with_std_options(path, &source_options),
+                yulang::run_control_from_entry_with_std_options(path, &source_options),
                 print_run_control_output,
             );
         }
@@ -101,7 +101,7 @@ fn main() {
             let path = require_one_path(&program, args);
             let source_options = options.std_source_options();
             run_route(
-                yulang2::check_poly_from_entry_with_std_options(path, &source_options),
+                yulang::check_poly_from_entry_with_std_options(path, &source_options),
                 print_check_poly_output,
             );
         }
@@ -109,7 +109,7 @@ fn main() {
             let (path, module) = require_path_and_module(&program, args);
             let source_options = options.std_source_options();
             run_route(
-                yulang2::check_poly_from_entry_with_std_in_module_options(
+                yulang::check_poly_from_entry_with_std_in_module_options(
                     path,
                     &module,
                     &source_options,
@@ -121,7 +121,7 @@ fn main() {
             let (path, module) = require_path_and_module(&program, args);
             let source_options = options.std_source_options();
             run_route(
-                yulang2::dump_poly_from_entry_with_std_in_module_options(
+                yulang::dump_poly_from_entry_with_std_in_module_options(
                     path,
                     &module,
                     &source_options,
@@ -133,7 +133,7 @@ fn main() {
             let path = require_one_path(&program, args);
             let source_options = options.std_source_options();
             run_route(
-                yulang2::dump_poly_raw_from_entry_with_std_options(path, &source_options),
+                yulang::dump_poly_raw_from_entry_with_std_options(path, &source_options),
                 print_dump_poly_output,
             );
         }
@@ -141,7 +141,7 @@ fn main() {
             let (path, module) = require_path_and_module(&program, args);
             let source_options = options.std_source_options();
             run_route(
-                yulang2::dump_poly_raw_from_entry_with_std_in_module_options(
+                yulang::dump_poly_raw_from_entry_with_std_in_module_options(
                     path,
                     &module,
                     &source_options,
@@ -161,8 +161,8 @@ struct GlobalOptions {
 }
 
 impl GlobalOptions {
-    fn std_source_options(&self) -> yulang2::StdSourceOptions {
-        yulang2::StdSourceOptions {
+    fn std_source_options(&self) -> yulang::StdSourceOptions {
+        yulang::StdSourceOptions {
             std_root: self.std_root.clone(),
         }
     }
@@ -230,7 +230,7 @@ fn run_compatible_check(program: &str, options: &GlobalOptions, args: VecDeque<O
     print_cst_if_requested(options, &path);
     if options.no_prelude {
         run_route(
-            yulang2::check_poly_from_entry(path),
+            yulang::check_poly_from_entry(path),
             print_check_poly_output,
         );
         return;
@@ -238,7 +238,7 @@ fn run_compatible_check(program: &str, options: &GlobalOptions, args: VecDeque<O
 
     let source_options = options.std_source_options();
     run_route(
-        yulang2::check_poly_from_entry_with_std_options(path, &source_options),
+        yulang::check_poly_from_entry_with_std_options(path, &source_options),
         print_check_poly_output,
     );
 }
@@ -247,15 +247,15 @@ fn run_compatible_build(program: &str, options: &GlobalOptions, args: VecDeque<O
     let (path, out) = parse_build_args(program, args);
     print_cst_if_requested(options, &path);
     let output = if options.no_prelude {
-        run_route_to_value(yulang2::build_control_from_entry(&path))
+        run_route_to_value(yulang::build_control_from_entry(&path))
     } else {
         let source_options = options.std_source_options();
-        run_route_to_value(yulang2::build_control_from_entry_with_std_options(
+        run_route_to_value(yulang::build_control_from_entry_with_std_options(
             &path,
             &source_options,
         ))
     };
-    let artifact = match yulang2::artifact::encode_control_program(&output.program) {
+    let artifact = match yulang::artifact::encode_control_program(&output.program) {
         Ok(artifact) => artifact,
         Err(error) => {
             eprintln!("{error}");
@@ -292,12 +292,12 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
     if options.no_prelude {
         if selection.interpreter {
             run_route(
-                yulang2::run_mono_from_entry(path),
+                yulang::run_mono_from_entry(path),
                 run_mono_printer(selection.print_roots),
             );
         } else {
             run_route(
-                yulang2::run_control_from_entry(path),
+                yulang::run_control_from_entry(path),
                 run_control_printer(selection.print_roots),
             );
         }
@@ -307,12 +307,12 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
     let source_options = options.std_source_options();
     if selection.interpreter {
         run_route(
-            yulang2::run_mono_from_entry_with_std_options(path, &source_options),
+            yulang::run_mono_from_entry_with_std_options(path, &source_options),
             run_mono_printer(selection.print_roots),
         );
     } else {
         run_route(
-            yulang2::run_control_from_entry_with_std_options(path, &source_options),
+            yulang::run_control_from_entry_with_std_options(path, &source_options),
             run_control_printer(selection.print_roots),
         );
     }
@@ -361,8 +361,8 @@ fn run_install_std(program: &str, options: &GlobalOptions, mut args: VecDeque<Os
     let root = options
         .std_root
         .clone()
-        .unwrap_or_else(yulang2::stdlib::default_versioned_std_root);
-    if let Err(error) = yulang2::stdlib::install_embedded_std(&root) {
+        .unwrap_or_else(yulang::stdlib::default_versioned_std_root);
+    if let Err(error) = yulang::stdlib::install_embedded_std(&root) {
         eprintln!("failed to install std to {}: {error}", root.display());
         process::exit(1);
     }
@@ -376,7 +376,7 @@ fn run_cache(program: &str, mut args: VecDeque<OsString>) {
     if args.pop_front().is_some() {
         print_usage_and_exit(program);
     }
-    let root = yulang2::stdlib::default_user_cache_root();
+    let root = yulang::stdlib::default_user_cache_root();
     match op.to_str() {
         Some("path") => println!("{}", root.display()),
         Some("clear") => match fs::remove_dir_all(&root) {
@@ -429,7 +429,7 @@ fn run_server(program: &str, options: &GlobalOptions, mut args: VecDeque<OsStrin
     if args.pop_front().is_some() {
         print_usage_and_exit(program);
     }
-    yulang2::server::run_blocking(options.std_root.clone());
+    yulang::server::run_blocking(options.std_root.clone());
 }
 
 fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString>) {
@@ -448,7 +448,7 @@ fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString
                 );
             }
             let Some(artifact) = read_control_artifact_or_exit(&path) else {
-                eprintln!("{} is not a yulang2 control-vm artifact", path.display());
+                eprintln!("{} is not a yulang control-vm artifact", path.display());
                 process::exit(1);
             };
             run_control_artifact(artifact, selection.print_roots);
@@ -619,7 +619,7 @@ fn parse_dump_args(program: &str, mut args: VecDeque<OsString>) -> (PathBuf, Dum
             Some("--hygiene-ir") => {
                 print_usage_error_and_exit(
                     program,
-                    "dump --hygiene-ir is not supported by yulang2 yet",
+                    "dump --hygiene-ir is not supported by yulang yet",
                 );
             }
             Some("--verbose-ir") => {}
@@ -644,41 +644,41 @@ fn parse_dump_args(program: &str, mut args: VecDeque<OsString>) -> (PathBuf, Dum
 fn print_selected_dump_without_std(path: PathBuf, selection: DumpSelection) {
     if selection.poly {
         run_route(
-            yulang2::dump_poly_from_entry(path.clone()),
+            yulang::dump_poly_from_entry(path.clone()),
             print_dump_poly_output,
         );
     }
     if selection.poly_raw {
         run_route(
-            yulang2::dump_poly_raw_from_entry(path.clone()),
+            yulang::dump_poly_raw_from_entry(path.clone()),
             print_dump_poly_output,
         );
     }
     if selection.mono {
-        run_route(yulang2::dump_mono_from_entry(path), print_dump_mono_output);
+        run_route(yulang::dump_mono_from_entry(path), print_dump_mono_output);
     }
 }
 
 fn print_selected_dump_with_std(
     path: PathBuf,
     selection: DumpSelection,
-    options: &yulang2::StdSourceOptions,
+    options: &yulang::StdSourceOptions,
 ) {
     if selection.poly {
         run_route(
-            yulang2::dump_poly_from_entry_with_std_options(path.clone(), options),
+            yulang::dump_poly_from_entry_with_std_options(path.clone(), options),
             print_dump_poly_output,
         );
     }
     if selection.poly_raw {
         run_route(
-            yulang2::dump_poly_raw_from_entry_with_std_options(path.clone(), options),
+            yulang::dump_poly_raw_from_entry_with_std_options(path.clone(), options),
             print_dump_poly_output,
         );
     }
     if selection.mono {
         run_route(
-            yulang2::dump_mono_from_entry_with_std_options(path, options),
+            yulang::dump_mono_from_entry_with_std_options(path, options),
             print_dump_mono_output,
         );
     }
@@ -754,7 +754,7 @@ fn read_control_artifact_or_exit(path: &PathBuf) -> Option<control_vm::Program> 
         Ok(source) => source,
         Err(_) => return None,
     };
-    match yulang2::artifact::decode_control_program(&source) {
+    match yulang::artifact::decode_control_program(&source) {
         Ok(program) => program,
         Err(error) => {
             eprintln!(
@@ -807,7 +807,7 @@ fn ensure_parent_dir_or_exit(path: &PathBuf, label: &str) {
     }
 }
 
-fn run_route<T>(result: Result<T, yulang2::RouteError>, print: impl FnOnce(&T)) {
+fn run_route<T>(result: Result<T, yulang::RouteError>, print: impl FnOnce(&T)) {
     match result {
         Ok(output) => print(&output),
         Err(error) => {
@@ -817,7 +817,7 @@ fn run_route<T>(result: Result<T, yulang2::RouteError>, print: impl FnOnce(&T)) 
     }
 }
 
-fn run_route_to_value<T>(result: Result<T, yulang2::RouteError>) -> T {
+fn run_route_to_value<T>(result: Result<T, yulang::RouteError>) -> T {
     match result {
         Ok(output) => output,
         Err(error) => {
@@ -827,35 +827,35 @@ fn run_route_to_value<T>(result: Result<T, yulang2::RouteError>) -> T {
     }
 }
 
-fn print_dump_poly_output(output: &yulang2::DumpPolyOutput) {
+fn print_dump_poly_output(output: &yulang::DumpPolyOutput) {
     print!("{}", output.text);
     for error in &output.errors {
         eprintln!("error: {error}");
     }
 }
 
-fn print_dump_mono_output(output: &yulang2::DumpMonoOutput) {
+fn print_dump_mono_output(output: &yulang::DumpMonoOutput) {
     print!("{}", output.text);
     for error in &output.errors {
         eprintln!("error: {error}");
     }
 }
 
-fn print_run_mono_output(output: &yulang2::RunMonoOutput) {
+fn print_run_mono_output(output: &yulang::RunMonoOutput) {
     print!("{}", output.text);
     for error in &output.errors {
         eprintln!("error: {error}");
     }
 }
 
-fn print_run_control_output(output: &yulang2::RunControlOutput) {
+fn print_run_control_output(output: &yulang::RunControlOutput) {
     print!("{}", output.text);
     for error in &output.errors {
         eprintln!("error: {error}");
     }
 }
 
-fn run_mono_printer(print_roots: bool) -> impl FnOnce(&yulang2::RunMonoOutput) {
+fn run_mono_printer(print_roots: bool) -> impl FnOnce(&yulang::RunMonoOutput) {
     move |output| {
         if print_roots {
             print!("{}", output.text);
@@ -866,7 +866,7 @@ fn run_mono_printer(print_roots: bool) -> impl FnOnce(&yulang2::RunMonoOutput) {
     }
 }
 
-fn run_control_printer(print_roots: bool) -> impl FnOnce(&yulang2::RunControlOutput) {
+fn run_control_printer(print_roots: bool) -> impl FnOnce(&yulang::RunControlOutput) {
     move |output| {
         if print_roots {
             print!("{}", output.text);
@@ -877,7 +877,7 @@ fn run_control_printer(print_roots: bool) -> impl FnOnce(&yulang2::RunControlOut
     }
 }
 
-fn print_check_poly_output(output: &yulang2::CheckPolyOutput) {
+fn print_check_poly_output(output: &yulang::CheckPolyOutput) {
     print!("{}", output.text);
 }
 

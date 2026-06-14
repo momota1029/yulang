@@ -14,7 +14,7 @@ It complements two other documents:
 
 Archive split note: on 2026-06-14 the old `yulang` implementation was moved
 to `archive/crates/` and removed from the Cargo workspace. The active CLI is
-`yulang2`; archived playground/native columns are historical reference points,
+`yulang`; archived playground/native columns are historical reference points,
 not build guarantees for the current workspace.
 
 ## Legend
@@ -29,10 +29,10 @@ not build guarantees for the current workspace.
 
 The columns trace a value through the pipeline:
 
-- **Parse** — accepted by `yulang-parser`.
+- **Parse** — accepted by `parser`.
 - **Infer** — accepted by the type inference engine and produces a principal
   type.
-- **Runtime** — runs through the current `yulang2` runtime path where checked
+- **Runtime** — runs through the current `yulang` runtime path where checked
   (`mono-runtime` oracle or `control-vm`).
 - **Archived playground** — historical WebAssembly playground coverage from
   the old `yulang-wasm` path. It is outside the active workspace now.

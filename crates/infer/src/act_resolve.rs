@@ -6,8 +6,8 @@
 use poly::types::BuiltinType;
 use rowan::{NodeOrToken, SyntaxNode};
 use sources::Name;
-use yulang_parser::lex::SyntaxKind;
-use yulang_parser::sink::YulangLanguage;
+use parser::lex::SyntaxKind;
+use parser::sink::YulangLanguage;
 
 use crate::{ModuleId, ModuleOrder, ModuleTable, ModuleTypeDecl, ModuleTypeKind, TypeDeclId};
 

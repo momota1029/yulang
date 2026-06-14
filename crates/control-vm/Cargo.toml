@@ -7,7 +7,7 @@ edition = "2024"
 mono = { path = "../mono" }
 num-bigint = "0.4"
 serde = { version = "1", features = ["derive"] }
-yulang-list-tree = { path = "../yulang-list-tree" }
+list-tree = { path = "../list-tree" }
 
 [dev-dependencies]
 infer = { path = "../infer" }

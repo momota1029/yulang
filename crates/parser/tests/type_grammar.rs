@@ -3,12 +3,12 @@ use chasa::input::{In, Input as _, IsCut};
 use im::HashSet;
 use reborrow_generic::Reborrow as _;
 
-use yulang_parser::context::{Env, State};
-use yulang_parser::lex::SyntaxKind;
-use yulang_parser::op::standard_op_table;
-use yulang_parser::scan::trivia::scan_trivia;
-use yulang_parser::sink::{Event, EventSink, VecSink};
-use yulang_parser::typ::parse::parse_type;
+use parser::context::{Env, State};
+use parser::lex::SyntaxKind;
+use parser::op::standard_op_table;
+use parser::scan::trivia::scan_trivia;
+use parser::sink::{Event, EventSink, VecSink};
+use parser::typ::parse::parse_type;
 
 fn parse_typ(source: &str) -> Vec<String> {
     let mut state: State<VecSink> = State::default();
@@ -31,7 +31,7 @@ fn parse_typ(source: &str) -> Vec<String> {
     dump(&events, &lexs)
 }
 
-fn dump(events: &[Event], lexs: &[yulang_parser::lex::Lex]) -> Vec<String> {
+fn dump(events: &[Event], lexs: &[parser::lex::Lex]) -> Vec<String> {
     let mut result = Vec::new();
     let mut lex_iter = lexs.iter();
     let mut indent = 0usize;

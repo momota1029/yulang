@@ -5,8 +5,8 @@ use std::sync::Mutex;
 use rowan::{NodeOrToken, SyntaxNode};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
-use yulang_parser::lex::SyntaxKind;
-use yulang_parser::sink::YulangLanguage;
+use parser::lex::SyntaxKind;
+use parser::sink::YulangLanguage;
 
 const TOKEN_TYPES: &[&str] = &[
     "keyword",   // 0
@@ -111,7 +111,7 @@ fn diagnostics_for_source(
             .map(|diagnostic| Diagnostic {
                 range: Range::default(),
                 severity: Some(DiagnosticSeverity::ERROR),
-                source: Some("yulang2".to_string()),
+                source: Some("yulang".to_string()),
                 message: match diagnostic.label {
                     Some(label) => format!("{label}: {}", diagnostic.message),
                     None => diagnostic.message,
@@ -122,7 +122,7 @@ fn diagnostics_for_source(
         Err(error) => vec![Diagnostic {
             range: Range::default(),
             severity: Some(DiagnosticSeverity::ERROR),
-            source: Some("yulang2".to_string()),
+            source: Some("yulang".to_string()),
             message: error.to_string(),
             ..Default::default()
         }],
@@ -161,7 +161,7 @@ impl LanguageServer for Backend {
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
-                name: "yulang2 server".to_string(),
+                name: "yulang server".to_string(),
                 version: Some(env!("CARGO_PKG_VERSION").to_string()),
             }),
         })
@@ -169,7 +169,7 @@ impl LanguageServer for Backend {
 
     async fn initialized(&self, _: InitializedParams) {
         self.client
-            .log_message(MessageType::INFO, "yulang2 server initialized")
+            .log_message(MessageType::INFO, "yulang server initialized")
             .await;
     }
 
@@ -253,7 +253,7 @@ pub fn run_blocking(std_root: Option<PathBuf>) {
 }
 
 fn semantic_tokens_for_source(source: &str) -> Vec<SemanticToken> {
-    let root = SyntaxNode::<YulangLanguage>::new_root(yulang_parser::parse_module_to_green(source));
+    let root = SyntaxNode::<YulangLanguage>::new_root(parser::parse_module_to_green(source));
     let line_starts = line_starts(source);
     let mut raw = Vec::new();
 

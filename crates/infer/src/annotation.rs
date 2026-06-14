@@ -11,8 +11,8 @@ use poly::types::{
 use rowan::{NodeOrToken, SyntaxNode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use sources::Name;
-use yulang_parser::lex::SyntaxKind;
-use yulang_parser::sink::YulangLanguage;
+use parser::lex::SyntaxKind;
+use parser::sink::YulangLanguage;
 
 use crate::{
     Arena as InferArena, ModuleId, ModuleOrder, ModuleTable, TypeDeclId, constraints::TypeLevel,
@@ -1887,7 +1887,7 @@ mod tests {
     }
 
     fn parse(src: &str) -> Cst {
-        SyntaxNode::new_root(yulang_parser::parse_module_to_green(src))
+        SyntaxNode::new_root(parser::parse_module_to_green(src))
     }
 
     fn type_decl_path(modules: &ModuleTable, id: TypeDeclId) -> Vec<String> {

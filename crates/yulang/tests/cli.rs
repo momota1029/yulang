@@ -6,7 +6,7 @@ use std::process::{Command, Output};
 fn compatible_run_accepts_explicit_std_root() {
     let (entry, std_root) = write_fixture("run-explicit-std-root", "1\n");
 
-    let output = yulang2_command()
+    let output = yulang_command()
         .arg("--std-root")
         .arg(&std_root)
         .arg("run")
@@ -23,7 +23,7 @@ fn compatible_run_accepts_explicit_std_root() {
 fn compatible_run_suppresses_roots_without_print_roots() {
     let (entry, std_root) = write_fixture("run-suppress-roots", "1\n");
 
-    let output = yulang2_command()
+    let output = yulang_command()
         .arg("--std-root")
         .arg(&std_root)
         .arg("run")
@@ -39,7 +39,7 @@ fn compatible_run_suppresses_roots_without_print_roots() {
 fn compatible_check_accepts_explicit_std_root() {
     let (entry, std_root) = write_fixture("check-explicit-std-root", "1\n");
 
-    let output = yulang2_command()
+    let output = yulang_command()
         .arg("check")
         .arg("--std-root")
         .arg(&std_root)
@@ -58,7 +58,7 @@ fn compatible_check_accepts_explicit_std_root() {
 fn compatible_check_no_prelude_uses_local_source_only() {
     let entry = write_entry("check-no-prelude", "1\n");
 
-    let output = yulang2_command()
+    let output = yulang_command()
         .arg("--no-prelude")
         .arg("check")
         .arg(&entry)
@@ -75,7 +75,7 @@ fn compatible_check_no_prelude_uses_local_source_only() {
 fn compatible_global_cst_and_timing_flags_are_accepted() {
     let entry = write_entry("global-cst", "1\n");
 
-    let output = yulang2_command()
+    let output = yulang_command()
         .arg("check")
         .arg("--cst")
         .arg("--infer-phase-timings")
@@ -96,7 +96,7 @@ fn compatible_build_writes_control_vm_artifact_and_run_loads_it() {
     let entry = write_entry("build-artifact", "1\n");
     let artifact = entry.with_extension("yuir");
 
-    let build_output = yulang2_command()
+    let build_output = yulang_command()
         .arg("--no-prelude")
         .arg("build")
         .arg("--out")
@@ -111,11 +111,11 @@ fn compatible_build_writes_control_vm_artifact_and_run_loads_it() {
     );
     let artifact_source = fs::read_to_string(&artifact).unwrap();
     assert!(
-        artifact_source.starts_with("YULANG2-CONTROL-VM 1\n"),
+        artifact_source.starts_with("YULANG-CONTROL-VM 1\n"),
         "{artifact_source}"
     );
 
-    let run_output = yulang2_command()
+    let run_output = yulang_command()
         .arg("run")
         .arg("--print-roots")
         .arg(&artifact)
@@ -124,7 +124,7 @@ fn compatible_build_writes_control_vm_artifact_and_run_loads_it() {
     assert_success(&run_output);
     assert_eq!(stdout(&run_output), "run roots [1]\n");
 
-    let debug_output = yulang2_command()
+    let debug_output = yulang_command()
         .arg("debug")
         .arg("control-vm-load")
         .arg("--print-roots")
@@ -139,7 +139,7 @@ fn compatible_build_writes_control_vm_artifact_and_run_loads_it() {
 fn compatible_dump_core_ir_accepts_explicit_std_root() {
     let (entry, std_root) = write_fixture("dump-core-explicit-std-root", "1\n");
 
-    let output = yulang2_command()
+    let output = yulang_command()
         .arg("--std-root")
         .arg(&std_root)
         .arg("dump")
@@ -158,7 +158,7 @@ fn compatible_dump_core_ir_accepts_explicit_std_root() {
 fn compatible_dump_runtime_ir_maps_to_mono_dump() {
     let (entry, std_root) = write_fixture("dump-runtime-explicit-std-root", "1\n");
 
-    let output = yulang2_command()
+    let output = yulang_command()
         .arg("--std-root")
         .arg(&std_root)
         .arg("dump")
@@ -175,7 +175,7 @@ fn compatible_dump_runtime_ir_maps_to_mono_dump() {
 fn compatible_parse_expr_prints_event_tree() {
     let entry = write_entry("parse-expr", "1 + 2\n");
 
-    let output = yulang2_command()
+    let output = yulang_command()
         .arg("parse")
         .arg(&entry)
         .arg("--as")
@@ -195,7 +195,7 @@ fn install_std_writes_explicit_std_root() {
     let root = temp_root("install-std");
     let std_root = root.join("custom-std");
 
-    let output = yulang2_command()
+    let output = yulang_command()
         .arg("--std-root")
         .arg(&std_root)
         .arg("install")
@@ -218,7 +218,7 @@ fn cache_path_and_clear_use_yulang_cache_dir() {
     fs::create_dir_all(&cache_root).unwrap();
     fs::write(cache_root.join("entry"), "cached").unwrap();
 
-    let path_output = yulang2_command()
+    let path_output = yulang_command()
         .env("YULANG_CACHE_DIR", &cache_root)
         .arg("cache")
         .arg("path")
@@ -227,7 +227,7 @@ fn cache_path_and_clear_use_yulang_cache_dir() {
     assert_success(&path_output);
     assert_eq!(stdout(&path_output), format!("{}\n", cache_root.display()));
 
-    let clear_output = yulang2_command()
+    let clear_output = yulang_command()
         .env("YULANG_CACHE_DIR", &cache_root)
         .arg("cache")
         .arg("clear")
@@ -256,7 +256,7 @@ identity = "app"
     .unwrap();
     fs::write(root.join("main.yu"), "my main = 1\n").unwrap();
 
-    let output = yulang2_command()
+    let output = yulang_command()
         .arg("realm")
         .arg("freeze")
         .arg(&root)
@@ -280,8 +280,8 @@ identity = "app"
     let _ = fs::remove_dir_all(&root);
 }
 
-fn yulang2_command() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_yulang2"))
+fn yulang_command() -> Command {
+    Command::new(env!("CARGO_BIN_EXE_yulang"))
 }
 
 fn write_fixture(name: &str, source: &str) -> (PathBuf, PathBuf) {
@@ -313,7 +313,7 @@ fn write_minimal_std(root: &Path) -> PathBuf {
 
 fn temp_root(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
-        "yulang2-cli-{name}-{}",
+        "yulang-cli-{name}-{}",
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()

@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use mono::{FunctionAdapterHygiene, Lit, PrimitiveContext, PrimitiveOp, Type};
 use num_bigint::BigInt;
-use yulang_list_tree::{ListTree, ListView};
+use list_tree::{ListTree, ListView};
 
 use crate::boundary::{equivalent_runtime_types, function_parts, thunk_value_type};
 use crate::ir::{

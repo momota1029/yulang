@@ -1,6 +1,6 @@
 # Yulang 仕様（spec/）
 
-新世代パイプライン（`crates/sources → infer → poly`、入口 `crates/yulang2`）が
+新世代パイプライン（`crates/sources → infer → poly`、入口 `crates/yulang`）が
 実装の根拠とする確定仕様を置く場所。`tasks/current.md` の方針どおり、設計が固まったものを
 `notes/design/` からここへ昇格させる。旧 `yulang-*` 実装は動く oracle であって仕様ではない
 （挙動が食い違ったら spec と手計算が正）。

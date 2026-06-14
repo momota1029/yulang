@@ -9,7 +9,7 @@ use std::fmt::Write as _;
 use poly::expr::{Def, DefId};
 use rowan::SyntaxNode;
 use sources::{LoadedFile, Path, SourceFile};
-use yulang_parser::sink::YulangLanguage;
+use parser::sink::YulangLanguage;
 
 use crate::LoadedFilesError;
 use crate::lower_module_map;

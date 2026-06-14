@@ -3,7 +3,7 @@ name = "yulang-ls"
 version = "0.1.3"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "Compatibility language-server launcher for the current yulang2 pipeline."
+description = "Retired language-server launcher; use `yulang server` instead."
 repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
 
@@ -12,4 +12,3 @@ name = "yulang-ls"
 path = "src/main.rs"
 
 [dependencies]
-yulang2 = { path = "../yulang2" }

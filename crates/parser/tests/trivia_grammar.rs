@@ -2,11 +2,11 @@ use chasa::error::LatestSink;
 use chasa::input::{In, Input as _, IsCut};
 use im::HashSet;
 
-use yulang_parser::context::{Env, State};
-use yulang_parser::lex::{TriviaInfo, TriviaKind};
-use yulang_parser::op::standard_op_table;
-use yulang_parser::scan::trivia::scan_trivia;
-use yulang_parser::sink::VecSink;
+use parser::context::{Env, State};
+use parser::lex::{TriviaInfo, TriviaKind};
+use parser::op::standard_op_table;
+use parser::scan::trivia::scan_trivia;
+use parser::sink::VecSink;
 
 fn scan_parts(source: &str) -> Vec<(TriviaKind, String)> {
     let mut state: State<VecSink> = State::default();

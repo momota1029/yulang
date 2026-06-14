@@ -5,12 +5,12 @@ use im::HashSet;
 use reborrow_generic::Reborrow as _;
 use rowan::SyntaxNode;
 
-use yulang_parser::context::{Env, State};
-use yulang_parser::lex::{Lex, SyntaxKind, Trivia, TriviaInfo};
-use yulang_parser::op::standard_op_table;
-use yulang_parser::scan::trivia::scan_trivia;
-use yulang_parser::sink::{Event, EventSink, GreenSink, VecSink, YulangLanguage};
-use yulang_parser::stmt::parse_statement;
+use parser::context::{Env, State};
+use parser::lex::{Lex, SyntaxKind, Trivia, TriviaInfo};
+use parser::op::standard_op_table;
+use parser::scan::trivia::scan_trivia;
+use parser::sink::{Event, EventSink, GreenSink, VecSink, YulangLanguage};
+use parser::stmt::parse_statement;
 
 fn parse_stmt_once(source: &str) -> Vec<String> {
     let mut state: State<VecSink> = State::default();
@@ -50,7 +50,7 @@ fn parse_stmt_all(source: &str) -> Vec<String> {
             let leading = i.run(scan_trivia).unwrap_or_else(Trivia::empty);
             leading.info()
         };
-        if matches!(info, yulang_parser::lex::TriviaInfo::None) && i.lookahead(eoi).is_some() {
+        if matches!(info, parser::lex::TriviaInfo::None) && i.lookahead(eoi).is_some() {
             break;
         }
         let Some(parsed) = parse_statement(info, i.rb()) else {
@@ -89,7 +89,7 @@ fn parse_stmt_all_lexs(source: &str) -> Vec<Lex> {
             let leading = i.run(scan_trivia).unwrap_or_else(Trivia::empty);
             leading.info()
         };
-        if matches!(info, yulang_parser::lex::TriviaInfo::None) && i.lookahead(eoi).is_some() {
+        if matches!(info, parser::lex::TriviaInfo::None) && i.lookahead(eoi).is_some() {
             break;
         }
         let Some(parsed) = parse_statement(info, i.rb()) else {
@@ -111,7 +111,7 @@ fn parse_stmt_all_lexs(source: &str) -> Vec<Lex> {
     lexs
 }
 
-fn dump(events: &[Event], lexs: &[yulang_parser::lex::Lex]) -> Vec<String> {
+fn dump(events: &[Event], lexs: &[parser::lex::Lex]) -> Vec<String> {
     let mut result = Vec::new();
     let mut lex_iter = lexs.iter();
     let mut indent = 0usize;
@@ -195,7 +195,7 @@ fn parse_stmt_all_green(source: &str) -> SyntaxNode<YulangLanguage> {
 }
 
 fn parse_module_green(source: &str) -> SyntaxNode<YulangLanguage> {
-    SyntaxNode::<YulangLanguage>::new_root(yulang_parser::parse_module_to_green(source))
+    SyntaxNode::<YulangLanguage>::new_root(parser::parse_module_to_green(source))
 }
 
 #[test]

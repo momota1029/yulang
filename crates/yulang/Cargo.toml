@@ -1,5 +1,5 @@
 [package]
-name = "yulang2"
+name = "yulang"
 version = "0.1.0"
 edition = "2024"
 
@@ -17,4 +17,4 @@ specialize = { path = "../specialize" }
 sources = { path = "../sources" }
 tokio = { version = "1", features = ["full"] }
 tower-lsp = "0.20"
-yulang-parser = { path = "../yulang-parser" }
+parser = { path = "../parser" }

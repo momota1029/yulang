@@ -4,9 +4,9 @@
 use rowan::{GreenNode, NodeOrToken, SyntaxNode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use yulang_parser::lex::SyntaxKind;
-use yulang_parser::op::{BpVec, OpDef, OpTable, standard_op_table};
-use yulang_parser::sink::YulangLanguage;
+use parser::lex::SyntaxKind;
+use parser::op::{BpVec, OpDef, OpTable, standard_op_table};
+use parser::sink::YulangLanguage;
 
 mod realm;
 
@@ -109,9 +109,9 @@ pub struct Header {
 // ── 先読み ──────────────────────────────────────────────────────────────
 
 /// ソースの先頭から use / op 宣言だけを読み取る。body には踏み込まない
-/// （[`yulang_parser::parse_header_to_green`] が最初の定義文で停止する）。
+/// （[`parser::parse_header_to_green`] が最初の定義文で停止する）。
 pub fn read_header(source: &str) -> Header {
-    let green = yulang_parser::parse_header_to_green(source);
+    let green = parser::parse_header_to_green(source);
     let root = SyntaxNode::<YulangLanguage>::new_root(green);
     let mut header = Header::default();
     for node in root.children() {
@@ -453,7 +453,7 @@ pub fn load(files: Vec<SourceFile>) -> Vec<LoadedFile> {
                 }
             }
         }
-        let cst = yulang_parser::parse_module_to_green_with_ops(&file.source, table.clone());
+        let cst = parser::parse_module_to_green_with_ops(&file.source, table.clone());
         let root = SyntaxNode::<YulangLanguage>::new_root(cst.clone());
         let module_loads = module_load_requests(&file.module_path, &root);
         loaded.push(LoadedFile {
@@ -602,7 +602,7 @@ mod tests {
     }
 
     fn module_cst(source: &str) -> SyntaxNode<YulangLanguage> {
-        SyntaxNode::new_root(yulang_parser::parse_module_to_green(source))
+        SyntaxNode::new_root(parser::parse_module_to_green(source))
     }
 
     #[test]

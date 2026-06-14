@@ -3,12 +3,12 @@ use chasa::input::{In, Input as _, IsCut};
 use im::HashSet;
 use reborrow_generic::Reborrow as _;
 
-use yulang_parser::context::{Env, State};
-use yulang_parser::lex::Lex;
-use yulang_parser::mark::parse::{parse_doc_body_pub, parse_doc_line};
-use yulang_parser::mark::scan::scan_mark;
-use yulang_parser::op::standard_op_table;
-use yulang_parser::sink::{Event, VecSink};
+use parser::context::{Env, State};
+use parser::lex::Lex;
+use parser::mark::parse::{parse_doc_body_pub, parse_doc_line};
+use parser::mark::scan::scan_mark;
+use parser::op::standard_op_table;
+use parser::sink::{Event, VecSink};
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -21,7 +21,7 @@ typed IR / apply evidence 前提の処理を残したまま `InferExport` を受
 出力 IR の crate 名は `mono` とする。
 `specialize` は principal scheme、erased IR、ref table だけから単一化需要、参照解決、
 cast adapter 挿入、runtime hygiene 境界を作り、`mono` IR を返す責務を持つ。
-yulang2 系の first cut では、現行の `poly::Arena` をこの入力境界として扱う。
+yulang 系の first cut では、現行の `poly::Arena` をこの入力境界として扱う。
 旧 `yulang` / `yulang-elaborate` / `yulang-elaborated-ir` へは接続しない。
 
 `poly::Arena::roots` は module 直下の定義一覧であり、runtime demand root ではない。

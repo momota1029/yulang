@@ -5,16 +5,16 @@ use chasa::input::{In, Input as _, IsCut};
 use either::Either;
 use im::HashSet;
 use reborrow_generic::Reborrow as _;
-use yulang_parser::context::{Env, State};
-use yulang_parser::expr::parse_expr;
-use yulang_parser::lex::{SyntaxKind, TriviaInfo};
-use yulang_parser::mark::parse::parse_doc;
-use yulang_parser::op::standard_op_table;
-use yulang_parser::pat::parse::parse_pattern;
-use yulang_parser::scan::trivia::scan_trivia;
-use yulang_parser::sink::{Event, EventSink, VecSink};
-use yulang_parser::stmt::parse_statement;
-use yulang_parser::typ::parse::parse_type;
+use parser::context::{Env, State};
+use parser::expr::parse_expr;
+use parser::lex::{SyntaxKind, TriviaInfo};
+use parser::mark::parse::parse_doc;
+use parser::op::standard_op_table;
+use parser::pat::parse::parse_pattern;
+use parser::scan::trivia::scan_trivia;
+use parser::sink::{Event, EventSink, VecSink};
+use parser::stmt::parse_statement;
+use parser::typ::parse::parse_type;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ParserMode {
@@ -75,7 +75,7 @@ pub fn parse_mode(name: &str) -> Option<ParserMode> {
     }
 }
 
-fn format_parser_event_tree(events: &[Event], lexs: &[yulang_parser::lex::Lex]) -> String {
+fn format_parser_event_tree(events: &[Event], lexs: &[parser::lex::Lex]) -> String {
     let mut out = String::new();
     let mut indent = 0usize;
     let mut iter = lexs.iter();
@@ -113,32 +113,32 @@ fn format_parser_event_tree(events: &[Event], lexs: &[yulang_parser::lex::Lex]) 
     out
 }
 
-fn run_parse_expr<I: yulang_parser::EventInput>(
-    mut i: yulang_parser::context::In<I, VecSink>,
+fn run_parse_expr<I: parser::EventInput>(
+    mut i: parser::context::In<I, VecSink>,
     leading_info: TriviaInfo,
 ) -> bool {
     let parsed = parse_expr(leading_info, i.rb());
     emit_parse_stop_if_any(i.rb(), parsed)
 }
 
-fn run_parse_pat<I: yulang_parser::EventInput>(
-    mut i: yulang_parser::context::In<I, VecSink>,
+fn run_parse_pat<I: parser::EventInput>(
+    mut i: parser::context::In<I, VecSink>,
     leading_info: TriviaInfo,
 ) -> bool {
     let parsed = parse_pattern(leading_info, i.rb());
     emit_parse_stop_if_any(i.rb(), parsed)
 }
 
-fn run_parse_type<I: yulang_parser::EventInput>(
-    mut i: yulang_parser::context::In<I, VecSink>,
+fn run_parse_type<I: parser::EventInput>(
+    mut i: parser::context::In<I, VecSink>,
     leading_info: TriviaInfo,
 ) -> bool {
     let parsed = parse_type(leading_info, i.rb());
     emit_parse_stop_if_any(i.rb(), parsed)
 }
 
-fn run_parse_stmt<I: yulang_parser::EventInput>(
-    mut i: yulang_parser::context::In<I, VecSink>,
+fn run_parse_stmt<I: parser::EventInput>(
+    mut i: parser::context::In<I, VecSink>,
     mut leading_info: TriviaInfo,
 ) -> bool {
     i.env.state.sink.start(SyntaxKind::IndentBlock);
@@ -165,9 +165,9 @@ fn run_parse_stmt<I: yulang_parser::EventInput>(
     true
 }
 
-fn emit_parse_stop_if_any<I: yulang_parser::EventInput>(
-    i: yulang_parser::context::In<I, VecSink>,
-    parsed: Option<Either<TriviaInfo, yulang_parser::lex::Lex>>,
+fn emit_parse_stop_if_any<I: parser::EventInput>(
+    i: parser::context::In<I, VecSink>,
+    parsed: Option<Either<TriviaInfo, parser::lex::Lex>>,
 ) -> bool {
     let ok = parsed.is_some();
     if let Some(Either::Right(stop)) = parsed {

@@ -3,12 +3,12 @@ use chasa::input::{In, Input as _, IsCut};
 use im::HashSet;
 use reborrow_generic::Reborrow as _;
 
-use yulang_parser::context::{Env, State};
-use yulang_parser::expr::parse_expr;
-use yulang_parser::lex::SyntaxKind;
-use yulang_parser::op::{BpVec, OpDef, OpTable, standard_op_table};
-use yulang_parser::scan::trivia::scan_trivia;
-use yulang_parser::sink::{Event, EventSink, VecSink};
+use parser::context::{Env, State};
+use parser::expr::parse_expr;
+use parser::lex::SyntaxKind;
+use parser::op::{BpVec, OpDef, OpTable, standard_op_table};
+use parser::scan::trivia::scan_trivia;
+use parser::sink::{Event, EventSink, VecSink};
 
 fn parse_expression_result(source: &str) -> Option<Vec<String>> {
     parse_expression_result_with_ops(source, standard_op_table())
@@ -75,7 +75,7 @@ fn insert_prefix_nullfix(table: &mut OpTable, name: &str, bp: i8) {
     );
 }
 
-fn dump(events: &[Event], lexs: &[yulang_parser::lex::Lex]) -> Vec<String> {
+fn dump(events: &[Event], lexs: &[parser::lex::Lex]) -> Vec<String> {
     let mut result = Vec::new();
     let mut lex_iter = lexs.iter();
     let mut indent = 0usize;

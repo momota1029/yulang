@@ -1,6 +1,6 @@
 use std::fmt;
 
-const CONTROL_VM_MAGIC: &str = "YULANG2-CONTROL-VM 1\n";
+const CONTROL_VM_MAGIC: &str = "YULANG-CONTROL-VM 1\n";
 
 pub fn encode_control_program(program: &control_vm::Program) -> Result<String, ArtifactError> {
     let mut out = String::from(CONTROL_VM_MAGIC);

@@ -13,8 +13,8 @@ mod pattern;
 
 use rowan::{NodeOrToken, SyntaxNode};
 use sources::{LoadedFile, Name};
-use yulang_parser::lex::SyntaxKind;
-use yulang_parser::sink::YulangLanguage;
+use parser::lex::SyntaxKind;
+use parser::sink::YulangLanguage;
 
 use poly::dump::DumpLabels;
 use poly::expr::{
@@ -10206,7 +10206,7 @@ mod tests {
     };
 
     fn parse(src: &str) -> Cst {
-        SyntaxNode::new_root(yulang_parser::parse_module_to_green(src))
+        SyntaxNode::new_root(parser::parse_module_to_green(src))
     }
 
     fn parse_with_junction_std(src: &str) -> Cst {

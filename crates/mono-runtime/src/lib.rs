@@ -14,7 +14,7 @@ use mono::{
     PrimitiveContext, PrimitiveOp, RecordField, RecordSpread, Root, SelectResolution, Stmt, Type,
 };
 use num_bigint::BigInt;
-use yulang_list_tree::{ListTree, ListView};
+use list_tree::{ListTree, ListView};
 
 pub fn run_program(program: &mono::Program) -> Result<Vec<Value>, RuntimeError> {
     Runtime::new(program).run()

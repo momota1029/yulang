@@ -10,25 +10,25 @@ features usually fixed in the core language are expressed through effects,
 handlers, roles, and standard-library code.
 
 Yulang is alpha-stage research software. The current implementation lives in
-the `yulang2` pipeline; syntax, type display, effect semantics, runtime IR,
+the `yulang` pipeline; syntax, type display, effect semantics, runtime IR,
 and library APIs may still change.
 
 Japanese: [README.ja.md](README.ja.md)
 
 ## Try It
 
-To use the CLI locally, build `yulang2` and install the embedded standard
+To use the CLI locally, build `yulang` and install the embedded standard
 library when you want a user cache copy:
 
 ```bash
-cargo build -p yulang2
-./target/debug/yulang2 install std
+cargo build -p yulang
+./target/debug/yulang install std
 ```
 
 Run a file:
 
 ```bash
-./target/debug/yulang2 run examples/06_undet_once.yu
+./target/debug/yulang run examples/06_undet_once.yu
 ```
 
 The smallest complete program prints a user-facing string with `say`:
@@ -45,12 +45,12 @@ through the mono runtime instead of the control VM, pass `--interpreter`.
 Check a file:
 
 ```bash
-./target/debug/yulang2 check examples/08_types.yu
+./target/debug/yulang check examples/08_types.yu
 ```
 
 The standard library is normally installed to
-`~/.yulang/lib/yulang-0.1.3/std`. `yulang2 run`, `yulang2 check`, and
-`yulang2 server` can also install the embedded standard library automatically
+`~/.yulang/lib/yulang-0.1.3/std`. `yulang run`, `yulang check`, and
+`yulang server` can also install the embedded standard library automatically
 on first use when neither `YULANG_STD` nor a nearby `lib/std` is available.
 
 To use a different standard-library checkout:
@@ -130,7 +130,7 @@ Good first examples:
 Start the language server with:
 
 ```bash
-./target/debug/yulang2 server
+./target/debug/yulang server
 ```
 
 Current language-server support includes:
@@ -141,10 +141,8 @@ Current language-server support includes:
 
 Zed support lives in [yulang-zed/](yulang-zed). The extension is not published
 through the Zed extension registry yet; install it as a dev extension and
-select the `yulang-zed` directory. The extension may still refer to the old
-`yulang server` command and needs updating for `yulang2 server`.
-
-The `yulang-ls` binary now delegates to the `yulang2` language server.
+select the `yulang-zed` directory. The extension should start `yulang server`
+from the worktree environment or from the installed binary path.
 
 ## Execution Backend
 
@@ -167,19 +165,19 @@ it still live in:
 Run representative Rust test suites:
 
 ```bash
-cargo test -p sources -p infer -p poly -p specialize -p yulang2
+cargo test -p sources -p infer -p poly -p specialize -p yulang
 ```
 
 Run an inline Yulang program:
 
 ```bash
 printf '1\n' >/tmp/yulang-main.yu
-./target/debug/yulang2 run --print-roots /tmp/yulang-main.yu
+./target/debug/yulang run --print-roots /tmp/yulang-main.yu
 ```
 
 ## Repository Layout
 
-- `crates/yulang2`: current CLI and language-server entry point.
+- `crates/yulang`: current CLI and language-server entry point.
 - `crates/sources`: source collection, CST input, std install support, and realm freeze.
 - `crates/infer`: CST → `poly` lowering and type inference.
 - `crates/poly`: inferred polymorphic program representation.
@@ -187,9 +185,8 @@ printf '1\n' >/tmp/yulang-main.yu
 - `crates/mono`: monomorphic IR.
 - `crates/mono-runtime`: oracle-style mono interpreter.
 - `crates/control-vm`: lightweight control VM IR and runtime.
-- `crates/yulang-lsp`: `yulang-ls` binary delegating to the `yulang2` server.
-- `crates/yulang-parser`: parser and syntax tree support.
-- `crates/yulang-list-tree`: shared persistent list implementation.
+- `crates/parser`: parser and syntax tree support.
+- `crates/list-tree`: shared persistent list implementation.
 - `archive/crates`: old `yulang` implementation, retained as reference-only code outside the workspace.
 - `examples`: executable examples for the current language implementation.
 - `lib/std`: standard library written in Yulang.

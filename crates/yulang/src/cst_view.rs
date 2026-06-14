@@ -1,10 +1,10 @@
 use std::fmt::Write as _;
 
 use rowan::SyntaxNode;
-use yulang_parser::sink::YulangLanguage;
+use parser::sink::YulangLanguage;
 
 pub fn format_module_cst(source: &str) -> String {
-    let green = yulang_parser::parse_module_to_green(source);
+    let green = parser::parse_module_to_green(source);
     let root = SyntaxNode::<YulangLanguage>::new_root(green);
     let mut out = String::new();
     format_cst_node(&mut out, &root, 0);

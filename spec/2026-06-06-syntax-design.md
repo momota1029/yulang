@@ -2,28 +2,28 @@
 
 作成日: 2026-06-06
 
-この文書は、2026-06-06 時点の `crates/yulang-parser` 実装から抽出した
+この文書は、2026-06-06 時点の `crates/parser` 実装から抽出した
 Yulang の構文仕様である。型推論、lowering、runtime の意味論は扱わない。
 ここで「受理する」と書くものは、parser が CST として組み立てる表面構文を指す。
 
 確認元は次である。
 
 - parser 実装:
-  - `crates/yulang-parser/src/lib.rs`
-  - `crates/yulang-parser/src/scan/*`
-  - `crates/yulang-parser/src/stmt/*`
-  - `crates/yulang-parser/src/expr/*`
-  - `crates/yulang-parser/src/pat/*`
-  - `crates/yulang-parser/src/typ/*`
-  - `crates/yulang-parser/src/string/*`
-  - `crates/yulang-parser/src/mark/*`
+  - `crates/parser/src/lib.rs`
+  - `crates/parser/src/scan/*`
+  - `crates/parser/src/stmt/*`
+  - `crates/parser/src/expr/*`
+  - `crates/parser/src/pat/*`
+  - `crates/parser/src/typ/*`
+  - `crates/parser/src/string/*`
+  - `crates/parser/src/mark/*`
 - parser tests:
-  - `crates/yulang-parser/tests/stmt_grammar.rs`
-  - `crates/yulang-parser/tests/expr_grammar.rs`
-  - `crates/yulang-parser/tests/pat_grammar.rs`
-  - `crates/yulang-parser/tests/type_grammar.rs`
-  - `crates/yulang-parser/tests/mark_grammar.rs`
-  - `crates/yulang-parser/tests/trivia_grammar.rs`
+  - `crates/parser/tests/stmt_grammar.rs`
+  - `crates/parser/tests/expr_grammar.rs`
+  - `crates/parser/tests/pat_grammar.rs`
+  - `crates/parser/tests/type_grammar.rs`
+  - `crates/parser/tests/mark_grammar.rs`
+  - `crates/parser/tests/trivia_grammar.rs`
 - 抜き取り確認:
   - `yulang parse --as stmt`
   - `yulang parse --as expr`

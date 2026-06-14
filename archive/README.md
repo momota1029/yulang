@@ -1,7 +1,7 @@
-# Archived Yulang Implementation
+# Archived Yulang Crates
 
-This directory keeps the old `yulang` implementation as reference-only code.
-It is intentionally outside the Cargo workspace.
+This directory keeps retired Yulang crates as reference-only code. It is
+intentionally outside the Cargo workspace.
 
 The archived crates are not maintained as standalone build targets. In
 particular, path dependencies inside `archive/crates/*` may still reflect their
@@ -16,6 +16,5 @@ Current work lives under `crates/`:
 - `mono`
 - `mono-runtime`
 - `control-vm`
-- `yulang2`
-- `yulang-lsp`
-- shared crates: `yulang-parser`, `yulang-list-tree`
+- `yulang`
+- shared crates: `parser`, `list-tree`

@@ -1,6 +1,6 @@
 //! `poly::Arena` から `mono::Program` を作る単一化 crate。
 //!
-//! この crate は yulang2 系の後段入口であり、旧 typed IR や旧 monomorphize の evidence を読まない。
+//! この crate は現行 yulang 系の後段入口であり、旧 typed IR や旧 monomorphize の evidence を読まない。
 //! 主型と文脈型から monomorphize 用の signature を作り、到達した定義だけを `mono` instance 化する。
 
 #![forbid(unsafe_code)]
