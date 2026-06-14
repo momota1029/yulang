@@ -1,8 +1,8 @@
 import init, {
     colorize,
     embedded_std_compiled_unit_artifact_status,
-} from "./wasm/yulang_wasm.js";
-import wasmUrl from "./wasm/yulang_wasm_bg.wasm?url";
+} from "./wasm/wasm.js";
+import wasmUrl from "./wasm/wasm_bg.wasm?url";
 import "./style.css";
 
 const wasmModuleReady: Promise<WebAssembly.Module> = WebAssembly.compileStreaming(

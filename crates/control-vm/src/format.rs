@@ -83,22 +83,7 @@ fn format_value(value: &Value) -> String {
         Value::FunctionAdapter(_) => "<function-adapter>".to_string(),
         Value::EffectOp { path } => format!("<effect-op {}>", path.join("::")),
         Value::Continuation(id) => format!("<continuation {}>", id.0),
-        Value::Marked { value, markers } => {
-            let mut out = format_value(value);
-            out.push_str(" @ [");
-            for (index, marker) in markers.iter().enumerate() {
-                if index > 0 {
-                    out.push_str(", ");
-                }
-                out.push_str(&marker.path.join("::"));
-                out.push('#');
-                out.push_str(&marker.id.0.to_string());
-                out.push(':');
-                out.push_str(&marker.depth.to_string());
-            }
-            out.push(']');
-            out
-        }
+        Value::Marked { value, .. } => format_value(value),
     }
 }
 

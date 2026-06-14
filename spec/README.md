@@ -46,7 +46,7 @@
   computed fetch の値制限は 2026-06-13 の infer core 仕様を前提にする。
 - [2026-06-13-runtime-guard-markers.md](2026-06-13-runtime-guard-markers.md)
   — specialize 後の effect hygiene を値と一緒に運ぶ runtime marker 仕様。`get_id`、
-  dynamic `GuardIdList`、`add_id[n, path, id]`、関数起動時の push / pop、resumable effect を含む
+  dynamic `GuardIdList`、`frame_id[id]`、`marker[id]`、`add_id[n, path, id]`、resumable effect を含む
   unwind 規則、lazy propagation と cost model。
 - [2026-06-13-mono-vm-contract.md](2026-06-13-mono-vm-contract.md)
   — `mono::Program` を VM / runtime lower が読むための契約。root 評価順、Instance store、

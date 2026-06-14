@@ -3,7 +3,7 @@
 //! `poly` は式 node ごとの型を保持しない。ここでは instance/root ごとに主型と erased IR から
 //! use-site の concrete 型を再構成し、mono IR へ写す段階が参照する plan だけを残す。
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use mono::{Type, TypeField, TypeVariant};
 use poly::expr as poly_expr;
@@ -16,6 +16,7 @@ use crate::{
 pub(crate) struct ExprTypePlan {
     types: HashMap<poly_expr::ExprId, ExprTypes>,
     raw_thunk_computations: HashSet<poly_expr::ExprId>,
+    contextual_value_fetches: HashSet<poly_expr::ExprId>,
 }
 
 impl ExprTypePlan {
@@ -55,10 +56,20 @@ impl ExprTypePlan {
         self.raw_thunk_computations.insert(expr);
     }
 
+    fn mark_contextual_value_fetch(&mut self, expr: poly_expr::ExprId) {
+        self.contextual_value_fetches.insert(expr);
+    }
+
     fn actual(&self, expr: poly_expr::ExprId) -> Option<&Type> {
         self.types
             .get(&expr)
             .and_then(|types| types.actual.as_ref())
+    }
+
+    fn expected(&self, expr: poly_expr::ExprId) -> Option<&Type> {
+        self.types
+            .get(&expr)
+            .and_then(|types| types.expected.as_ref())
     }
 
     fn finalize(&self, graph: &ConstraintGraph<'_>) -> Result<Self, SpecializeError> {
@@ -66,16 +77,57 @@ impl ExprTypePlan {
         let mut out = Self {
             types: HashMap::new(),
             raw_thunk_computations: self.raw_thunk_computations.clone(),
+            contextual_value_fetches: self.contextual_value_fetches.clone(),
         };
         for (expr, types) in &self.types {
+            let mut resolved_actual = None;
             if let Some(actual) = &types.actual {
-                out.set_actual(*expr, resolver.resolve(actual)?)?;
+                let actual = match resolver.resolve(actual) {
+                    Ok(actual) => actual,
+                    Err(error @ SpecializeError::UndeterminedTypeSlot { .. })
+                        if self.contextual_value_fetches.contains(expr) =>
+                    {
+                        let Some(expected) = &types.expected else {
+                            return Err(error);
+                        };
+                        resolver.resolve(expected)?
+                    }
+                    Err(error) => return Err(error),
+                };
+                resolved_actual = Some(actual.clone());
+                out.set_actual(*expr, actual)?;
             }
             if let Some(expected) = &types.expected {
-                out.set_expected(*expr, resolver.resolve(expected)?)?;
+                match resolver.resolve(expected) {
+                    Ok(expected) => out.set_expected(*expr, expected)?,
+                    Err(SpecializeError::UndeterminedTypeSlot { .. })
+                        if resolved_actual.as_ref().is_some_and(|actual| {
+                            unresolved_expected_can_use_actual(expected, actual)
+                        }) =>
+                    {
+                        out.set_expected(
+                            *expr,
+                            resolved_actual
+                                .clone()
+                                .expect("checked resolved actual for fallback"),
+                        )?;
+                    }
+                    Err(error) => return Err(error),
+                }
             }
         }
         Ok(out)
+    }
+}
+
+fn unresolved_expected_can_use_actual(expected: &Type, actual: &Type) -> bool {
+    match (expected, actual) {
+        (Type::PolyVariant(expected), Type::PolyVariant(actual)) => actual.iter().all(|actual| {
+            expected.iter().any(|expected| {
+                expected.name == actual.name && expected.payloads.len() == actual.payloads.len()
+            })
+        }),
+        _ => false,
     }
 }
 
@@ -123,12 +175,34 @@ pub(crate) fn solve_expr(
     expr: poly_expr::ExprId,
     expected: Option<&Type>,
 ) -> Result<ExprTypePlan, SpecializeError> {
+    solve_expr_with_active_def(arena, expr, expected, None)
+}
+
+pub(crate) fn solve_def_expr(
+    arena: &poly_expr::Arena,
+    def: poly_expr::DefId,
+    expr: poly_expr::ExprId,
+    expected: &Type,
+) -> Result<ExprTypePlan, SpecializeError> {
+    solve_expr_with_active_def(arena, expr, Some(expected), Some(def))
+}
+
+fn solve_expr_with_active_def(
+    arena: &poly_expr::Arena,
+    expr: poly_expr::ExprId,
+    expected: Option<&Type>,
+    active_def: Option<poly_expr::DefId>,
+) -> Result<ExprTypePlan, SpecializeError> {
     let mut solver = ExprTypeSolver {
         arena,
         graph: ConstraintGraph::new(arena),
         plan: ExprTypePlan::default(),
         local_types: HashMap::new(),
+        constraining_defs: HashSet::new(),
     };
+    if let Some(active_def) = active_def {
+        solver.constraining_defs.insert(active_def);
+    }
     solver.expr(expr, expected.cloned())?;
     solver.graph.resolve_role_demands()?;
     solver.plan.finalize(&solver.graph)
@@ -139,6 +213,7 @@ struct ExprTypeSolver<'a> {
     graph: ConstraintGraph<'a>,
     plan: ExprTypePlan,
     local_types: HashMap<poly_expr::DefId, Type>,
+    constraining_defs: HashSet<poly_expr::DefId>,
 }
 
 impl<'a> ExprTypeSolver<'a> {
@@ -147,6 +222,10 @@ impl<'a> ExprTypeSolver<'a> {
         expr: poly_expr::ExprId,
         expected: Option<Type>,
     ) -> Result<Type, SpecializeError> {
+        if expected.is_some() && matches!(self.arena.expr(expr), poly_expr::Expr::Var(_)) {
+            self.plan.mark_contextual_value_fetch(expr);
+        }
+
         if let Some(expected) = expected {
             self.plan.set_expected(expr, expected.clone())?;
             if let Some(actual) = self.plan.actual(expr).cloned() {
@@ -177,7 +256,12 @@ impl<'a> ExprTypeSolver<'a> {
         match self.arena.expr(expr) {
             PolyExpr::Lit(lit) => Ok(lit_type(lit)),
             PolyExpr::PrimitiveOp(op) => Ok(self.primitive_type(*op, expected.as_ref())),
-            PolyExpr::Var(ref_id) => self.var_type(*ref_id),
+            PolyExpr::Var(ref_id) => {
+                if expected.is_some() {
+                    self.plan.mark_contextual_value_fetch(expr);
+                }
+                self.var_type(*ref_id)
+            }
             PolyExpr::App(callee, arg) => self.apply_type(expr, *callee, *arg, expected),
             PolyExpr::RefSet(reference, value) => {
                 self.expr(*reference, None)?;
@@ -193,7 +277,7 @@ impl<'a> ExprTypeSolver<'a> {
             PolyExpr::Select(base, select) => self.select_type(*base, *select, expected),
             PolyExpr::Case(scrutinee, arms) => self.case_type(expr, *scrutinee, arms, expected),
             PolyExpr::Catch(body, arms) => self.catch_type(*body, arms, expected),
-            PolyExpr::Block(stmts, tail) => self.block_type(stmts, *tail, expected),
+            PolyExpr::Block(stmts, tail) => self.block_type(Some(expr), stmts, *tail, expected),
         }
     }
 
@@ -228,11 +312,14 @@ impl<'a> ExprTypeSolver<'a> {
         let callee_ty = self.expr(callee, callee_expected)?;
         let (callee_value, callee_effect) = split_runtime_computation_shape(callee_ty.clone());
         if let Some((arg_ty, ret_ty)) = function_runtime_parts(&callee_value) {
-            if !callee_effect.is_pure_effect() {
-                self.plan.set_expected(callee, callee_value)?;
-            }
-            let (ret_ty, has_evaluation_effect) =
-                self.apply_known_function_arg(callee, arg, arg_ty, ret_ty, callee_effect)?;
+            let (ret_ty, has_evaluation_effect) = self.apply_known_function_arg(
+                callee,
+                arg,
+                arg_ty,
+                ret_ty,
+                callee_effect,
+                expected.as_ref(),
+            )?;
             if has_evaluation_effect && matches!(ret_ty, Type::Thunk { .. }) {
                 self.plan.mark_raw_thunk_computation(expr);
             }
@@ -250,6 +337,26 @@ impl<'a> ExprTypeSolver<'a> {
         Ok(ret_ty)
     }
 
+    fn call_callee_ret_expected(
+        &mut self,
+        ret_ty: &Type,
+        expected: Option<&Type>,
+        fresh_result: bool,
+    ) -> Type {
+        if runtime_value_is_never(ret_ty) {
+            return ret_ty.clone();
+        }
+        if expected.is_none() && (!fresh_result || !type_contains_open_var(ret_ty)) {
+            return ret_ty.clone();
+        }
+        let (_, ret_effect) = split_runtime_computation_shape(ret_ty.clone());
+        let expected_value = match expected {
+            Some(expected) => split_runtime_computation_shape(expected.clone()).0,
+            None => self.fresh_value_slot(),
+        };
+        types::runtime_shape(ret_effect, expected_value)
+    }
+
     fn apply_known_function_arg(
         &mut self,
         callee: poly_expr::ExprId,
@@ -257,19 +364,48 @@ impl<'a> ExprTypeSolver<'a> {
         arg_ty: Type,
         ret_ty: Type,
         callee_effect: Type,
+        expected: Option<&Type>,
     ) -> Result<(Type, bool), SpecializeError> {
+        let declared_arg_ty = arg_ty.clone();
         let (arg_value, arg_effect) = split_runtime_computation_shape(arg_ty.clone());
         self.constrain_callee_pattern_defaults(callee, arg_value.clone())?;
-        let call_arg_effect = if arg_effect.is_pure_effect() {
-            self.expr_as_call_value(arg, arg_value)?
+        let (callee_arg_expected, call_arg_effect) = if arg_effect.is_pure_effect() {
+            let call_arg = self.expr_as_call_value(arg, arg_value)?;
+            (call_arg.value, call_arg.effect)
         } else {
             self.expr(arg, Some(arg_ty))?;
-            Type::pure_effect()
+            (
+                types::runtime_shape(arg_effect, arg_value),
+                Type::pure_effect(),
+            )
         };
+        let narrows_arg =
+            value_argument_narrows_polyvariant(&declared_arg_ty, &callee_arg_expected);
+        let expected_ret = self.call_callee_ret_expected(&ret_ty, expected, narrows_arg);
+        if narrows_arg || !callee_effect.is_pure_effect() {
+            self.constrain_apply_callee(
+                callee,
+                types::pure_function_type(callee_arg_expected, expected_ret.clone()),
+            )?;
+        }
         let has_evaluation_effect =
             !callee_effect.is_pure_effect() || !call_arg_effect.is_pure_effect();
-        let result = self.call_result_shape(ret_ty, [callee_effect, call_arg_effect])?;
+        let result = self.call_result_shape(expected_ret, [callee_effect, call_arg_effect])?;
+        self.graph.constrain_subtype(ret_ty, result.clone())?;
         Ok((result, has_evaluation_effect))
+    }
+
+    fn constrain_apply_callee(
+        &mut self,
+        callee: poly_expr::ExprId,
+        expected: Type,
+    ) -> Result<(), SpecializeError> {
+        if self.plan.expected(callee).is_none() {
+            self.expr(callee, Some(expected))?;
+            return Ok(());
+        }
+        let actual = self.expr(callee, None)?;
+        self.constrain_expr_boundary(actual, expected)
     }
 
     fn constrain_callee_pattern_defaults(
@@ -307,7 +443,7 @@ impl<'a> ExprTypeSolver<'a> {
         &mut self,
         expr: poly_expr::ExprId,
         expected_value: Type,
-    ) -> Result<Type, SpecializeError> {
+    ) -> Result<CallArgument, SpecializeError> {
         self.plan.set_expected(expr, expected_value.clone())?;
         let actual = if let Some(actual) = self.plan.actual(expr).cloned() {
             actual
@@ -317,8 +453,12 @@ impl<'a> ExprTypeSolver<'a> {
             actual
         };
         let (actual_value, actual_effect) = split_runtime_computation_shape(actual);
-        self.graph.constrain_subtype(actual_value, expected_value)?;
-        Ok(actual_effect)
+        self.graph
+            .constrain_subtype(actual_value.clone(), expected_value)?;
+        Ok(CallArgument {
+            value: actual_value,
+            effect: actual_effect,
+        })
     }
 
     fn call_result_shape(
@@ -367,17 +507,35 @@ impl<'a> ExprTypeSolver<'a> {
         };
         self.expr(scrutinee, Some(pattern_value.clone()))?;
 
-        let expected_result = expected.unwrap_or_else(|| self.fresh_value_slot());
-        let (result_value, _) = split_runtime_computation_shape(expected_result);
+        let expected_value = expected
+            .map(split_runtime_computation_shape)
+            .map(|(value, _)| value);
+        let result_value = self.fresh_value_slot();
+        if let Some(expected_value) = &expected_value {
+            self.graph
+                .constrain_subtype(result_value.clone(), expected_value.clone())?;
+        }
         let mut effects = vec![scrutinee_effect];
         for arm in arms {
+            let reachable = self.case_arm_reachable(arm.pat, &pattern_value);
             self.bind_pat(arm.pat, pattern_value.clone())?;
             if let Some(guard) = arm.guard {
                 let guard_actual = self.expr(guard, Some(bool_type()))?;
-                effects.push(split_runtime_computation_shape(guard_actual).1);
+                if reachable {
+                    effects.push(split_runtime_computation_shape(guard_actual).1);
+                }
             }
-            let body_actual = self.expr(arm.body, Some(result_value.clone()))?;
-            effects.push(split_runtime_computation_shape(body_actual).1);
+            let body_expected = expected_value
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| result_value.clone());
+            let body_actual = self.expr(arm.body, Some(body_expected))?;
+            let (body_value, body_effect) = split_runtime_computation_shape(body_actual);
+            if reachable {
+                self.graph
+                    .constrain_subtype(body_value, result_value.clone())?;
+                effects.push(body_effect);
+            }
         }
 
         let effect = self.join_call_effects(effects)?;
@@ -386,6 +544,25 @@ impl<'a> ExprTypeSolver<'a> {
             self.plan.mark_raw_thunk_computation(expr);
         }
         Ok(result)
+    }
+
+    fn case_arm_reachable(&self, pat: poly_expr::PatId, scrutinee_ty: &Type) -> bool {
+        match self.arena.pat(pat) {
+            poly_expr::Pat::PolyVariant(tag, payloads) => {
+                let Type::PolyVariant(variants) = scrutinee_ty else {
+                    return true;
+                };
+                variants
+                    .iter()
+                    .any(|variant| variant.name == *tag && variant.payloads.len() == payloads.len())
+            }
+            poly_expr::Pat::Or(left, right) => {
+                self.case_arm_reachable(*left, scrutinee_ty)
+                    || self.case_arm_reachable(*right, scrutinee_ty)
+            }
+            poly_expr::Pat::As(inner, _) => self.case_arm_reachable(*inner, scrutinee_ty),
+            _ => true,
+        }
     }
 
     fn case_scrutinee_pattern_type(&mut self, arms: &[poly_expr::CaseArm]) -> Option<Type> {
@@ -611,34 +788,54 @@ impl<'a> ExprTypeSolver<'a> {
             let expected = expected_items.and_then(|items| items.get(index)).cloned();
             item_types.push(self.expr(*item, expected)?);
         }
-        Ok(expected.cloned().unwrap_or(Type::Tuple(item_types)))
+        Ok(Type::Tuple(item_types))
     }
 
     fn block_type(
         &mut self,
+        expr: Option<poly_expr::ExprId>,
         stmts: &[poly_expr::Stmt],
         tail: Option<poly_expr::ExprId>,
         expected: Option<Type>,
     ) -> Result<Type, SpecializeError> {
+        let expected_result = expected.unwrap_or_else(|| self.fresh_value_slot());
+        let (result_value, _) = split_runtime_computation_shape(expected_result);
+        let mut effects = Vec::new();
         for stmt in stmts {
             match stmt {
                 poly_expr::Stmt::Let(_, pat, value) => {
                     let expected = self.local_let_expected_type(*pat)?;
                     let value_ty = self.expr(*value, expected)?;
+                    let (value_ty, effect) = split_runtime_computation_shape(value_ty);
+                    if !effect.is_pure_effect() {
+                        self.expr(*value, Some(value_ty.clone()))?;
+                    }
+                    effects.push(effect);
                     self.bind_pat(*pat, value_ty)?;
                 }
                 poly_expr::Stmt::Expr(value) => {
-                    self.expr(*value, None)?;
+                    let value_ty = self.expr(*value, None)?;
+                    effects.push(split_runtime_computation_shape(value_ty).1);
                 }
                 poly_expr::Stmt::Module(_, body) => {
-                    self.block_type(body, None, None)?;
+                    let value_ty = self.block_type(None, body, None, None)?;
+                    effects.push(split_runtime_computation_shape(value_ty).1);
                 }
             }
         }
-        match tail {
-            Some(tail) => self.expr(tail, expected),
-            None => Ok(Type::unit()),
+        let tail_ty = match tail {
+            Some(tail) => self.expr(tail, Some(result_value.clone()))?,
+            None => Type::unit(),
+        };
+        effects.push(split_runtime_computation_shape(tail_ty).1);
+        let effect = self.join_call_effects(effects)?;
+        let result = types::runtime_shape(effect, result_value);
+        if let Some(expr) = expr
+            && matches!(result, Type::Thunk { .. })
+        {
+            self.plan.mark_raw_thunk_computation(expr);
         }
+        Ok(result)
     }
 
     fn local_let_expected_type(
@@ -1111,6 +1308,16 @@ impl<'a> ExprTypeSolver<'a> {
         match self.arena.defs.get(def) {
             Some(poly_expr::Def::Let {
                 scheme: Some(scheme),
+                body: Some(body),
+                ..
+            }) => {
+                let ty = self.instantiate_scheme(def, scheme)?;
+                self.constrain_instantiated_def_body(def, *body, ty.clone())?;
+                Ok(ty)
+            }
+            Some(poly_expr::Def::Let {
+                scheme: Some(scheme),
+                body: None,
                 ..
             }) => self.instantiate_scheme(def, scheme),
             Some(poly_expr::Def::Arg) | Some(poly_expr::Def::Let { body: None, .. }) => {
@@ -1127,6 +1334,25 @@ impl<'a> ExprTypeSolver<'a> {
                 def: convert_def(def),
             }),
         }
+    }
+
+    fn constrain_instantiated_def_body(
+        &mut self,
+        def: poly_expr::DefId,
+        body: poly_expr::ExprId,
+        ty: Type,
+    ) -> Result<(), SpecializeError> {
+        if !self.constraining_defs.insert(def) {
+            return Ok(());
+        }
+
+        let local_types = self.local_types.clone();
+        let plan = self.plan.clone();
+        let result = self.expr(body, Some(ty)).map(|_| ());
+        self.local_types = local_types;
+        self.plan = plan;
+        self.constraining_defs.remove(&def);
+        result
     }
 
     fn instantiate_scheme(
@@ -1309,19 +1535,16 @@ struct CatchOperationTypes {
     continuation_input: Type,
 }
 
-impl TypeSlotKind {
-    fn default_type(self) -> Type {
-        match self {
-            Self::Value => Type::unit(),
-            Self::Effect => Type::pure_effect(),
-        }
-    }
+struct CallArgument {
+    value: Type,
+    effect: Type,
 }
 
 struct ConstraintGraph<'a> {
     arena: &'a poly_expr::Arena,
     slots: Vec<TypeSlot>,
     role_demands: Vec<types::InstantiatedRolePredicate>,
+    pending: VecDeque<SubtypeConstraint>,
 }
 
 impl<'a> ConstraintGraph<'a> {
@@ -1330,6 +1553,7 @@ impl<'a> ConstraintGraph<'a> {
             arena,
             slots: Vec::new(),
             role_demands: Vec::new(),
+            pending: VecDeque::new(),
         }
     }
 
@@ -1367,6 +1591,7 @@ impl<'a> ConstraintGraph<'a> {
     fn resolve_role_demands(&mut self) -> Result<(), SpecializeError> {
         let mut applied = HashSet::new();
         loop {
+            self.solve_constraints()?;
             let mut progressed = false;
             let demands = self.role_demands.clone();
             for demand in demands {
@@ -1440,6 +1665,20 @@ impl<'a> ConstraintGraph<'a> {
     }
 
     fn constrain_subtype(&mut self, lower: Type, upper: Type) -> Result<(), SpecializeError> {
+        if lower != upper {
+            self.pending.push_back(SubtypeConstraint { lower, upper });
+        }
+        Ok(())
+    }
+
+    fn solve_constraints(&mut self) -> Result<(), SpecializeError> {
+        while let Some(constraint) = self.pending.pop_front() {
+            self.process_subtype(constraint.lower, constraint.upper)?;
+        }
+        Ok(())
+    }
+
+    fn process_subtype(&mut self, lower: Type, upper: Type) -> Result<(), SpecializeError> {
         if lower == upper {
             return Ok(());
         }
@@ -1448,6 +1687,16 @@ impl<'a> ConstraintGraph<'a> {
             (Type::OpenVar(lower), Type::OpenVar(upper)) => self.add_edge(lower, upper),
             (Type::Thunk { value, .. }, Type::OpenVar(slot)) if self.slot_is_value(slot) => {
                 self.constrain_subtype(*value, Type::OpenVar(slot))
+            }
+            (
+                Type::OpenVar(slot),
+                Type::Thunk {
+                    effect: upper_effect,
+                    value: upper_value,
+                },
+            ) if self.slot_is_value(slot) => {
+                self.constrain_subtype(Type::OpenVar(slot), *upper_value)?;
+                self.constrain_subtype(Type::pure_effect(), *upper_effect)
             }
             (Type::OpenVar(slot), upper) => self.add_upper(slot, upper),
             (lower, Type::OpenVar(slot)) => self.add_lower(slot, lower),
@@ -1807,6 +2056,12 @@ impl<'a> ConstraintGraph<'a> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SubtypeConstraint {
+    lower: Type,
+    upper: Type,
+}
+
 #[derive(Debug, Clone)]
 struct TypeSlot {
     kind: TypeSlotKind,
@@ -1927,30 +2182,39 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
         let lower_bounds = slot_data.lower.clone();
         let upper_bounds = slot_data.upper.clone();
         if !self.resolving.insert(slot) {
-            return Ok(slot_kind.default_type());
+            return Err(SpecializeError::UndeterminedTypeSlot { slot });
         }
-        let lower = self.join_candidates(slot, slot_kind, &lower_bounds)?;
-        let upper = self.meet_candidates(slot, slot_kind, &upper_bounds)?;
-        let solution = match (lower, upper) {
-            (Some(lower), Some(upper)) if type_candidates_equivalent(&lower, &upper) => lower,
-            (Some(lower), Some(upper)) if type_candidate_subtype(self.graph, &lower, &upper) => {
-                lower
-            }
-            (Some(lower), Some(upper)) => {
-                return Err(SpecializeError::ConflictingTypeCandidates {
-                    slot,
-                    existing: lower,
-                    incoming: upper,
-                });
-            }
-            (Some(lower), None) => lower,
-            (None, Some(upper)) => upper,
-            (None, None) if slot_kind == TypeSlotKind::Effect => Type::pure_effect(),
-            (None, None) => return Err(SpecializeError::UndeterminedTypeSlot { slot }),
-        };
+        let solution = self.compute_slot_solution(slot, slot_kind, &lower_bounds, &upper_bounds);
         self.resolving.remove(&slot);
+        let solution = solution?;
         self.solutions.insert(slot, solution.clone());
         Ok(solution)
+    }
+
+    fn compute_slot_solution(
+        &mut self,
+        slot: u32,
+        slot_kind: TypeSlotKind,
+        lower_bounds: &[Type],
+        upper_bounds: &[Type],
+    ) -> Result<Type, SpecializeError> {
+        let lower = self.join_candidates(slot, slot_kind, lower_bounds)?;
+        let upper = self.meet_candidates(slot, slot_kind, upper_bounds)?;
+        match (lower, upper) {
+            (Some(lower), Some(upper)) if type_candidates_equivalent(&lower, &upper) => Ok(lower),
+            (Some(lower), Some(upper)) if type_candidate_subtype(self.graph, &lower, &upper) => {
+                Ok(lower)
+            }
+            (Some(lower), Some(upper)) => Err(SpecializeError::ConflictingTypeCandidates {
+                slot,
+                existing: lower,
+                incoming: upper,
+            }),
+            (Some(lower), None) => Ok(lower),
+            (None, Some(upper)) => Ok(upper),
+            (None, None) if slot_kind == TypeSlotKind::Effect => Ok(Type::pure_effect()),
+            (None, None) => Err(SpecializeError::UndeterminedTypeSlot { slot }),
+        }
     }
 
     fn join_candidates(
@@ -1961,7 +2225,13 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
     ) -> Result<Option<Type>, SpecializeError> {
         let mut candidate: Option<Type> = None;
         for bound in bounds {
-            let resolved = self.resolve(bound)?;
+            if is_self_stack_bound(slot, bound) {
+                continue;
+            }
+            let Some(resolved) = self.resolve_candidate_bound(bound)? else {
+                continue;
+            };
+            let resolved = effect_slot_candidate(slot_kind, resolved);
             candidate = Some(match candidate {
                 Some(existing) if slot_kind == TypeSlotKind::Effect => {
                     join_effect_type_candidates(existing, resolved)
@@ -1981,7 +2251,13 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
     ) -> Result<Option<Type>, SpecializeError> {
         let mut candidate: Option<Type> = None;
         for bound in bounds {
-            let resolved = self.resolve(bound)?;
+            if is_self_stack_bound(slot, bound) {
+                continue;
+            }
+            let Some(resolved) = self.resolve_candidate_bound(bound)? else {
+                continue;
+            };
+            let resolved = effect_slot_candidate(slot_kind, resolved);
             candidate = Some(match candidate {
                 Some(existing) if slot_kind == TypeSlotKind::Effect => {
                     meet_effect_type_candidates(existing, resolved)
@@ -1992,6 +2268,21 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
         }
         Ok(candidate)
     }
+
+    fn resolve_candidate_bound(&mut self, bound: &Type) -> Result<Option<Type>, SpecializeError> {
+        match self.resolve(bound) {
+            Ok(ty) => Ok(Some(ty)),
+            Err(SpecializeError::UndeterminedTypeSlot { .. }) => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+}
+
+fn effect_slot_candidate(slot_kind: TypeSlotKind, ty: Type) -> Type {
+    if slot_kind != TypeSlotKind::Effect || matches!(ty, Type::EffectRow(_)) {
+        return ty;
+    }
+    Type::EffectRow(vec![ty])
 }
 
 fn join_effect_type_candidates(left: Type, right: Type) -> Type {
@@ -2274,7 +2565,13 @@ enum VariantMerge {
 }
 
 fn type_candidates_equivalent(left: &Type, right: &Type) -> bool {
-    left == right || left.is_pure_effect() && right.is_pure_effect()
+    if left == right || left.is_pure_effect() && right.is_pure_effect() {
+        return true;
+    }
+    let (Type::EffectRow(left_items), Type::EffectRow(right_items)) = (left, right) else {
+        return false;
+    };
+    effect_row_candidates_equivalent(left_items, right_items)
 }
 
 fn type_contains_open_var(ty: &Type) -> bool {
@@ -2426,11 +2723,7 @@ fn type_candidate_subtype(graph: &ConstraintGraph<'_>, lower: &Type, upper: &Typ
             })
         }
         (Type::EffectRow(lower_items), Type::EffectRow(upper_items)) => {
-            lower_items.len() == upper_items.len()
-                && lower_items
-                    .iter()
-                    .zip(upper_items)
-                    .all(|(lower, upper)| type_candidate_subtype(graph, lower, upper))
+            effect_row_candidate_subtype(graph, lower_items, upper_items)
         }
         (Type::Stack { inner: lower, .. }, Type::Stack { inner: upper, .. }) => {
             type_candidate_subtype(graph, lower, upper)
@@ -2443,6 +2736,51 @@ fn type_candidate_subtype(graph: &ConstraintGraph<'_>, lower: &Type, upper: &Typ
             .is_some_and(|upper| type_candidate_subtype(graph, lower, &upper)),
         _ => false,
     }
+}
+
+fn effect_row_candidates_equivalent(left_items: &[Type], right_items: &[Type]) -> bool {
+    if left_items.len() != right_items.len() {
+        return false;
+    }
+    let mut matched_right = vec![false; right_items.len()];
+    for left in left_items {
+        let Some(right_index) = right_items.iter().enumerate().find_map(|(index, right)| {
+            (!matched_right[index]
+                && same_effect_row_family(left, right)
+                && type_candidates_equivalent(left, right))
+            .then_some(index)
+        }) else {
+            return false;
+        };
+        matched_right[right_index] = true;
+    }
+    true
+}
+
+fn effect_row_candidate_subtype(
+    graph: &ConstraintGraph<'_>,
+    lower_items: &[Type],
+    upper_items: &[Type],
+) -> bool {
+    if lower_items.is_empty() {
+        return true;
+    }
+    if lower_items.len() != upper_items.len() {
+        return false;
+    }
+    let mut matched_upper = vec![false; upper_items.len()];
+    for lower in lower_items {
+        let Some(upper_index) = upper_items.iter().enumerate().find_map(|(index, upper)| {
+            (!matched_upper[index]
+                && same_effect_row_family(lower, upper)
+                && type_candidate_subtype(graph, lower, upper))
+            .then_some(index)
+        }) else {
+            return false;
+        };
+        matched_upper[upper_index] = true;
+    }
+    true
 }
 
 fn resolve_role_arg_exact_type(
@@ -2588,6 +2926,25 @@ fn runtime_value_shape(ty: &Type) -> &Type {
     }
 }
 
+fn runtime_value_is_never(ty: &Type) -> bool {
+    matches!(runtime_value_shape(ty), Type::Never)
+}
+
+fn value_argument_narrows_polyvariant(declared: &Type, actual: &Type) -> bool {
+    let Type::PolyVariant(declared_variants) = runtime_value_shape(declared) else {
+        return false;
+    };
+    let Type::PolyVariant(actual_variants) = runtime_value_shape(actual) else {
+        return false;
+    };
+    actual_variants.len() < declared_variants.len()
+        && actual_variants.iter().all(|actual| {
+            declared_variants.iter().any(|declared| {
+                declared.name == actual.name && declared.payloads.len() == actual.payloads.len()
+            })
+        })
+}
+
 fn function_runtime_parts(ty: &Type) -> Option<(Type, Type)> {
     let Type::Fun { arg, ret, .. } = ty else {
         return None;
@@ -2635,6 +2992,13 @@ fn same_effect_row_family(left: &Type, right: &Type) -> bool {
             },
         ) if left_path == right_path && left_args.len() == right_args.len()
     )
+}
+
+fn is_self_stack_bound(slot: u32, ty: &Type) -> bool {
+    let Type::Stack { inner, .. } = ty else {
+        return false;
+    };
+    matches!(inner.as_ref(), Type::OpenVar(candidate) if *candidate == slot)
 }
 
 fn function_type(args: Vec<Type>, ret: Type) -> Type {
@@ -2884,6 +3248,20 @@ mod tests {
     }
 
     #[test]
+    fn tuple_expression_constrains_open_expected_slot() {
+        let lowering = lower_source("my id x = x\nid((1, 2))\n");
+        let arena = &lowering.session.poly;
+        let root = arena.root_exprs[0];
+
+        let plan = solve_expr(arena, root, None).expect("tuple argument should solve");
+
+        assert_eq!(
+            mono::dump::dump_type(plan.actual_type_of(root).unwrap()),
+            "(int, int)"
+        );
+    }
+
+    #[test]
     fn pure_function_argument_effect_passes_to_apply_result() {
         let lowering = lower_source(
             "act out:\n  our read: unit -> int\n\
@@ -2924,11 +3302,130 @@ mod tests {
                 Type::EffectRow(vec![effect_item("junction"), tail.clone()]),
             )
             .expect("effect row subtype should solve");
+        graph
+            .solve_constraints()
+            .expect("worklist should saturate effect row residual");
 
         let mut resolver = TypeResolver::new(&graph);
         assert_eq!(
             mono::dump::dump_type(&resolver.resolve(&tail).unwrap()),
             "[nondet]"
+        );
+    }
+
+    #[test]
+    fn constraint_worklist_saturates_structural_constraints_before_resolution() {
+        let arena = poly::expr::Arena::new();
+        let mut graph = ConstraintGraph::new(&arena);
+        let slot = graph.fresh_slot(TypeSlotKind::Value);
+
+        graph
+            .constrain_subtype(
+                Type::Tuple(vec![int_type()]),
+                Type::Tuple(vec![slot.clone()]),
+            )
+            .expect("tuple constraint should enqueue");
+        graph
+            .solve_constraints()
+            .expect("worklist should saturate tuple children");
+
+        let mut resolver = TypeResolver::new(&graph);
+        assert_eq!(
+            mono::dump::dump_type(&resolver.resolve(&slot).unwrap()),
+            "int"
+        );
+    }
+
+    #[test]
+    fn recursive_slot_resolution_does_not_default_to_unit() {
+        let arena = poly::expr::Arena::new();
+        let mut graph = ConstraintGraph::new(&arena);
+        let slot = graph.fresh_slot(TypeSlotKind::Value);
+
+        graph
+            .constrain_subtype(slot.clone(), Type::Tuple(vec![slot.clone()]))
+            .expect("recursive constraint should enqueue");
+        graph
+            .solve_constraints()
+            .expect("worklist should store recursive upper bound");
+
+        let mut resolver = TypeResolver::new(&graph);
+        assert!(matches!(
+            resolver.resolve(&slot),
+            Err(crate::SpecializeError::UndeterminedTypeSlot { .. })
+        ));
+    }
+
+    #[test]
+    fn concrete_candidate_selection_ignores_recursive_non_concrete_bound() {
+        let arena = poly::expr::Arena::new();
+        let mut graph = ConstraintGraph::new(&arena);
+        let slot = graph.fresh_slot(TypeSlotKind::Value);
+        let weight = mono::StackWeight {
+            entries: vec![mono::StackWeightEntry {
+                id: 0,
+                pops: 1,
+                floor: Vec::new(),
+                stack: Vec::new(),
+            }],
+        };
+
+        graph
+            .constrain_subtype(int_type(), slot.clone())
+            .expect("lower concrete bound should enqueue");
+        graph
+            .constrain_subtype(
+                slot.clone(),
+                Type::Union(
+                    Box::new(Type::Stack {
+                        inner: Box::new(slot.clone()),
+                        weight,
+                    }),
+                    Box::new(int_type()),
+                ),
+            )
+            .expect("recursive upper bound should enqueue");
+        graph
+            .solve_constraints()
+            .expect("worklist should store candidate bounds");
+
+        let mut resolver = TypeResolver::new(&graph);
+        assert_eq!(
+            mono::dump::dump_type(&resolver.resolve(&slot).unwrap()),
+            "int"
+        );
+    }
+
+    #[test]
+    fn effect_row_candidate_comparison_ignores_item_order() {
+        let arena = poly::expr::Arena::new();
+        let mut graph = ConstraintGraph::new(&arena);
+        let slot = graph.fresh_slot(TypeSlotKind::Effect);
+        let sub_int = Type::Con {
+            path: vec!["sub".to_string()],
+            args: vec![int_type()],
+        };
+
+        graph
+            .constrain_subtype(
+                Type::EffectRow(vec![effect_item("nondet"), sub_int.clone()]),
+                slot.clone(),
+            )
+            .expect("lower effect row should constrain");
+        graph
+            .constrain_subtype(
+                slot.clone(),
+                Type::EffectRow(vec![sub_int, effect_item("nondet")]),
+            )
+            .expect("upper effect row should constrain");
+        graph
+            .solve_constraints()
+            .expect("worklist should saturate effect row bounds");
+
+        let mut resolver = TypeResolver::new(&graph);
+        assert_eq!(
+            mono::dump::dump_type(&resolver.resolve(&slot).unwrap()),
+            "[nondet, sub(int)]"
         );
     }
 

@@ -27,6 +27,7 @@ pub use mono;
 pub struct Specializer {
     instances: Vec<Option<Instance>>,
     instance_by_key: HashMap<InstanceKey, InstanceId>,
+    active_instance_signatures: HashMap<InstanceId, Type>,
     local_defs: HashSet<poly_expr::DefId>,
 }
 
@@ -90,7 +91,7 @@ impl Specializer {
                 let expr_id = expr;
                 let expr = self.expr(arena, &plan, expr_id)?;
                 Ok(Root::Expr(force_expr_if_thunk(
-                    plan.actual_type_of(expr_id),
+                    implicit_force_type(&plan, expr_id),
                     expr,
                 )))
             }
@@ -144,8 +145,8 @@ impl Specializer {
                 def: convert_def(def),
             });
         };
-        let wraps_stack_handler = !scheme.stack_quantifiers.is_empty();
         let signature = types::signature_for_scheme(arena, def, scheme, expected)?;
+        let wraps_stack_handler = !scheme.stack_quantifiers.is_empty();
         let key = InstanceKey {
             def,
             ty: signature.ty.clone(),
@@ -162,8 +163,10 @@ impl Specializer {
         let id = InstanceId(self.instances.len() as u32);
         self.instance_by_key.insert(key, id);
         self.instances.push(None);
+        self.active_instance_signatures
+            .insert(id, signature.ty.clone());
 
-        let plan = solve::solve_expr(arena, body, Some(&signature.ty))?;
+        let plan = solve::solve_def_expr(arena, def, body, &signature.ty)?;
         let body = self.expr(arena, &plan, body)?;
         let body = if wraps_stack_handler {
             wrap_stack_handler_marker(&signature.ty, body)
@@ -176,6 +179,7 @@ impl Specializer {
             signature,
             body,
         });
+        self.active_instance_signatures.remove(&id);
         Ok(id)
     }
 
@@ -184,6 +188,25 @@ impl Specializer {
         arena: &poly_expr::Arena,
         plan: &solve::ExprTypePlan,
         expr: poly_expr::ExprId,
+    ) -> Result<Expr, SpecializeError> {
+        self.expr_with_boundary(arena, plan, expr, true)
+    }
+
+    fn expr_without_boundary(
+        &mut self,
+        arena: &poly_expr::Arena,
+        plan: &solve::ExprTypePlan,
+        expr: poly_expr::ExprId,
+    ) -> Result<Expr, SpecializeError> {
+        self.expr_with_boundary(arena, plan, expr, false)
+    }
+
+    fn expr_with_boundary(
+        &mut self,
+        arena: &poly_expr::Arena,
+        plan: &solve::ExprTypePlan,
+        expr: poly_expr::ExprId,
+        wrap_boundary: bool,
     ) -> Result<Expr, SpecializeError> {
         use poly_expr::Expr as PolyExpr;
         let expr_id = expr;
@@ -278,7 +301,11 @@ impl Specializer {
         } else {
             mono_expr
         };
-        self.wrap_boundary(expr_id, mono_expr, plan)
+        if wrap_boundary {
+            self.wrap_boundary(expr_id, mono_expr, plan)
+        } else {
+            Ok(mono_expr)
+        }
     }
 
     fn wrap_boundary(
@@ -321,9 +348,9 @@ impl Specializer {
                     path: operation.path.clone(),
                 })
             }
-            Some(poly_expr::Def::Let { body: Some(_), .. }) => Ok(ExprKind::InstanceRef(
-                self.ensure_def_instance(arena, def, expected)?,
-            )),
+            Some(poly_expr::Def::Let { body: Some(_), .. }) => self
+                .instance_ref(arena, def, expected)
+                .map(|expr| expr.kind),
             Some(poly_expr::Def::Let { body: None, .. }) => Ok(ExprKind::Local(convert_def(def))),
             Some(other) => Err(SpecializeError::UnsupportedDefKind {
                 def: convert_def(def),
@@ -333,6 +360,34 @@ impl Specializer {
                 def: convert_def(def),
             }),
         }
+    }
+
+    fn instance_ref(
+        &mut self,
+        arena: &poly_expr::Arena,
+        def: poly_expr::DefId,
+        expected: Option<&Type>,
+    ) -> Result<Expr, SpecializeError> {
+        let instance = self.ensure_def_instance(arena, def, expected)?;
+        let expr = Expr::new(ExprKind::InstanceRef(instance));
+        let Some(expected) = expected else {
+            return Ok(expr);
+        };
+        let Some(actual) = self.instance_signature_type(instance) else {
+            return Ok(expr);
+        };
+        if equivalent_boundary_types(actual, expected) {
+            return Ok(expr);
+        }
+        Ok(boundary_expr(actual, expected, expr))
+    }
+
+    fn instance_signature_type(&self, instance: InstanceId) -> Option<&Type> {
+        self.instances
+            .get(instance.0 as usize)
+            .and_then(|instance| instance.as_ref())
+            .map(|instance| &instance.signature.ty)
+            .or_else(|| self.active_instance_signatures.get(&instance))
     }
 
     fn pat(
@@ -578,8 +633,17 @@ impl Specializer {
                     Stmt::Let(convert_vis(*vis), pat_out, value)
                 }
                 poly_expr::Stmt::Expr(expr) => {
-                    let actual = plan.actual_type_of(*expr).cloned();
-                    let expr = self.expr(arena, plan, *expr)?;
+                    let discard_boundary = discards_unit_boundary(plan, *expr);
+                    let actual = if discard_boundary {
+                        plan.actual_type_of(*expr).cloned()
+                    } else {
+                        implicit_force_type(plan, *expr).cloned()
+                    };
+                    let expr = if discard_boundary {
+                        self.expr_without_boundary(arena, plan, *expr)?
+                    } else {
+                        self.expr(arena, plan, *expr)?
+                    };
                     Stmt::Expr(force_expr_if_thunk(actual.as_ref(), expr))
                 }
                 poly_expr::Stmt::Module(def, body) => {
@@ -993,6 +1057,22 @@ fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr {
         });
     }
     if let Type::Thunk { effect, value } = actual
+        && matches!(value.as_ref(), Type::Never)
+    {
+        let forced = Expr::new(ExprKind::ForceThunk {
+            source: EffectiveThunkType {
+                effect: effect.as_ref().clone(),
+                value: value.as_ref().clone(),
+            },
+            target: ComputationType {
+                effect: effect.as_ref().clone(),
+                value: value.as_ref().clone(),
+            },
+            thunk: Box::new(expr),
+        });
+        return boundary_expr(value, expected, forced);
+    }
+    if let Type::Thunk { effect, value } = actual
         && equivalent_boundary_types(value, expected)
     {
         return Expr::new(ExprKind::ForceThunk {
@@ -1046,20 +1126,50 @@ fn force_expr_if_thunk(actual: Option<&Type>, expr: Expr) -> Expr {
     boundary_expr(actual, value, expr)
 }
 
+fn implicit_force_type(plan: &solve::ExprTypePlan, expr: poly_expr::ExprId) -> Option<&Type> {
+    let actual = plan.actual_type_of(expr)?;
+    if let Some(boundary) = plan.boundary(expr)
+        && matches!(boundary.actual, Type::Thunk { .. })
+        && !matches!(boundary.expected, Type::Thunk { .. })
+    {
+        return None;
+    }
+    Some(actual)
+}
+
+fn discards_unit_boundary(plan: &solve::ExprTypePlan, expr: poly_expr::ExprId) -> bool {
+    plan.boundary(expr)
+        .is_some_and(|boundary| equivalent_boundary_types(boundary.expected, &Type::unit()))
+}
+
 fn wrap_stack_handler_marker(signature: &Type, body: Expr) -> Expr {
     let Some(path) = stack_handler_marker_path(signature) else {
         return body;
     };
-    // The frame belongs to the handler invocation, not to the function value itself. Wrapping the
-    // lambda value would decrement the marker before direct handler effects get a chance to run.
+    // The frame belongs to the handler invocation, not to partially applied function values.
+    // Curried handlers therefore carry the marker around the innermost body.
+    wrap_stack_handler_marker_body(path, body)
+}
+
+fn wrap_stack_handler_marker_body(path: Vec<String>, body: Expr) -> Expr {
     match body.kind {
         ExprKind::Lambda(param, lambda_body) => Expr::new(ExprKind::Lambda(
             param,
-            Box::new(Expr::new(ExprKind::MarkerFrame {
-                path,
-                body: lambda_body,
-            })),
+            Box::new(wrap_stack_handler_marker_body(path, *lambda_body)),
         )),
+        ExprKind::Catch { body, arms } => Expr::new(ExprKind::Catch {
+            body: Box::new(Expr::new(ExprKind::MarkerFrame { path, body })),
+            arms,
+        }),
+        ExprKind::MakeThunk {
+            source,
+            target,
+            body,
+        } => Expr::new(ExprKind::MakeThunk {
+            source,
+            target,
+            body: Box::new(wrap_stack_handler_marker_body(path, *body)),
+        }),
         other => Expr::new(ExprKind::MarkerFrame {
             path,
             body: Box::new(Expr::new(other)),
@@ -1233,8 +1343,8 @@ fn equivalent_boundary_types(actual: &Type, expected: &Type) -> bool {
             },
         ) => {
             equivalent_boundary_types(actual_arg, expected_arg)
-                && equivalent_boundary_types(actual_arg_effect, expected_arg_effect)
-                && equivalent_boundary_types(actual_ret_effect, expected_ret_effect)
+                && equivalent_effect_boundary_types(actual_arg_effect, expected_arg_effect)
+                && equivalent_effect_boundary_types(actual_ret_effect, expected_ret_effect)
                 && equivalent_boundary_types(actual_ret, expected_ret)
         }
         (Type::Tuple(actual_items), Type::Tuple(expected_items)) => {
@@ -1298,8 +1408,23 @@ fn equivalent_boundary_types(actual: &Type, expected: &Type) -> bool {
                 value: expected_value,
             },
         ) => {
-            equivalent_boundary_types(actual_effect, expected_effect)
+            equivalent_effect_boundary_types(actual_effect, expected_effect)
                 && equivalent_boundary_types(actual_value, expected_value)
+        }
+        _ => false,
+    }
+}
+
+fn equivalent_effect_boundary_types(actual: &Type, expected: &Type) -> bool {
+    if equivalent_boundary_types(actual, expected) {
+        return true;
+    }
+    match (actual, expected) {
+        (Type::EffectRow(items), expected) if items.len() == 1 => {
+            equivalent_boundary_types(&items[0], expected)
+        }
+        (actual, Type::EffectRow(items)) if items.len() == 1 => {
+            equivalent_boundary_types(actual, &items[0])
         }
         _ => false,
     }

@@ -78,6 +78,7 @@ pub(crate) fn value_boundary_supported(source: &Type, target: &Type) -> bool {
         return true;
     }
     match (source, target) {
+        (Type::Fun { .. }, Type::Fun { .. }) => function_boundary_supported(source, target),
         (Type::Thunk { value: source, .. }, Type::Thunk { value: target, .. }) => {
             value_boundary_supported(source, target)
         }

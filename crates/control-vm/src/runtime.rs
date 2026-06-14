@@ -162,13 +162,40 @@ pub struct FunctionAdapter {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GuardId(pub u32);
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ActiveFrame {
+    id: GuardId,
+    handler_path: Option<Vec<String>>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ValueMarker {
+pub enum ValueMarker {
+    Frame { id: GuardId },
+    AddId(AddIdMarker),
+}
+
+impl ValueMarker {
+    fn frame_id(&self) -> Option<GuardId> {
+        match self {
+            Self::Frame { id } => Some(*id),
+            Self::AddId(_) => None,
+        }
+    }
+
+    fn add_id(&self) -> Option<&AddIdMarker> {
+        match self {
+            Self::Frame { .. } => None,
+            Self::AddId(marker) => Some(marker),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AddIdMarker {
     pub id: GuardId,
     pub path: Vec<String>,
     pub depth: u32,
-    pub skip_own_path: bool,
-    pub handler_frame: bool,
+    pub guard_own_path: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -337,7 +364,9 @@ struct Runtime<'a> {
     continuations: HashMap<ContinuationId, Continuation<'a>>,
     next_continuation_id: u32,
     guard_ids: Vec<GuardId>,
-    active_markers: Vec<ValueMarker>,
+    active_frames: Vec<ActiveFrame>,
+    active_add_ids: Vec<AddIdMarker>,
+    active_marker_plans: Vec<Vec<ValueMarker>>,
     next_guard_id: u32,
 }
 
@@ -350,7 +379,9 @@ impl<'a> Runtime<'a> {
             continuations: HashMap::new(),
             next_continuation_id: 0,
             guard_ids: Vec::new(),
-            active_markers: Vec::new(),
+            active_frames: Vec::new(),
+            active_add_ids: Vec::new(),
+            active_marker_plans: Vec::new(),
             next_guard_id: 0,
         }
     }
@@ -467,7 +498,7 @@ impl<'a> Runtime<'a> {
                 })
             }
             Expr::MakeThunk { body, .. } => {
-                value_result(self.mark_active_value(Value::Thunk(Thunk::Expr {
+                value_result(self.mark_active_created_value(Value::Thunk(Thunk::Expr {
                     body,
                     env: env.clone(),
                 })))
@@ -492,7 +523,7 @@ impl<'a> Runtime<'a> {
             } => {
                 let function = self.eval_expr(function, env)?;
                 self.continue_with(function, move |runtime, function| {
-                    value_result(runtime.mark_active_value(Value::FunctionAdapter(
+                    value_result(runtime.mark_active_created_value(Value::FunctionAdapter(
                         FunctionAdapter {
                             source: source.clone(),
                             target: target.clone(),
@@ -504,14 +535,9 @@ impl<'a> Runtime<'a> {
             }
             Expr::MarkerFrame { path, body } => {
                 let mut frame_env = env.clone();
-                let marker = ValueMarker {
-                    id: self.fresh_guard_id(),
-                    path,
-                    depth: 1,
-                    skip_own_path: false,
-                    handler_frame: true,
-                };
-                self.with_marker_frame(vec![marker], move |runtime| {
+                let id = self.fresh_guard_id();
+                let markers = stack_handler_markers(id, path.clone());
+                self.with_stack_handler_frame(markers, path, move |runtime| {
                     runtime.eval_expr(body, &mut frame_env)
                 })
             }
@@ -530,7 +556,7 @@ impl<'a> Runtime<'a> {
                 feature: "ref set".to_string(),
             }),
             Expr::Lambda { param, body } => {
-                value_result(self.mark_active_value(Value::Closure(Closure {
+                value_result(self.mark_active_created_value(Value::Closure(Closure {
                     param,
                     body,
                     env: env.clone(),
@@ -1016,7 +1042,11 @@ impl<'a> Runtime<'a> {
     fn apply_value(&mut self, callee: Value, arg: Value) -> RuntimeResult<'a> {
         match callee {
             Value::Marked { value, markers } => {
-                let markers = markers_for_function_call(markers);
+                let markers = if matches!(value.as_ref(), Value::Continuation(_)) {
+                    markers_for_continuation_call(markers)
+                } else {
+                    markers_for_function_call(markers)
+                };
                 self.with_marker_frame(markers, move |runtime| runtime.apply_value(*value, arg))
             }
             Value::PrimitiveOp(primitive) => self.apply_primitive_op(primitive, arg),
@@ -1119,8 +1149,10 @@ impl<'a> Runtime<'a> {
     }
 
     fn mark_request_with_active_markers(&self, request: &mut Request<'a>) {
-        for marker in &self.active_markers {
-            if marker.depth != 0 || request_matches_marker_path(request, marker) {
+        for marker in &self.active_add_ids {
+            if marker.depth != 0
+                || (!marker.guard_own_path && path_has_prefix(&request.path, &marker.path))
+            {
                 continue;
             }
             if !request.guard_ids.contains(&marker.id) {
@@ -1132,17 +1164,18 @@ impl<'a> Runtime<'a> {
     fn mark_active_value(&mut self, value: Value) -> Value {
         // Handler marker propagation follows the innermost active handler. Carrying outer
         // markers into a nested handler would make the outer handler skip the same request.
-        let Some(marker) = self.active_markers.last().cloned() else {
+        let Some(markers) = self.active_marker_plans.last() else {
             return value;
         };
-        let marker = ValueMarker {
-            id: self.fresh_guard_id(),
-            path: marker.path,
-            depth: marker.depth,
-            skip_own_path: marker.skip_own_path,
-            handler_frame: false,
+        mark_value(value, markers)
+    }
+
+    fn mark_active_created_value(&mut self, value: Value) -> Value {
+        let Some(markers) = self.active_marker_plans.last() else {
+            return value;
         };
-        mark_value(value, std::slice::from_ref(&marker))
+        let markers = markers_for_created_value(markers, &value);
+        mark_value(value, &markers)
     }
 
     fn request_intersects_guard_stack_for_path(
@@ -1150,22 +1183,34 @@ impl<'a> Runtime<'a> {
         request: &Request<'_>,
         operation_path: &[String],
     ) -> bool {
-        let handler_index = self.active_markers.iter().position(|marker| {
-            marker.handler_frame
-                && !marker.skip_own_path
-                && path_has_prefix(operation_path, &marker.path)
+        let matching_handler = self.active_frames.iter().rposition(|frame| {
+            frame
+                .handler_path
+                .as_ref()
+                .is_some_and(|path| path_has_prefix(operation_path, path))
         });
-        self.active_markers
+        let Some(matching_handler) = matching_handler else {
+            if self
+                .active_frames
+                .iter()
+                .any(|frame| frame.handler_path.is_some())
+            {
+                return false;
+            }
+            return self
+                .active_frames
+                .iter()
+                .any(|frame| request.guard_ids.contains(&frame.id));
+        };
+        self.active_frames[matching_handler + 1..]
             .iter()
-            .enumerate()
-            .any(|(index, marker)| {
-                if !request.guard_ids.contains(&marker.id) {
-                    return false;
-                }
-                match handler_index {
-                    Some(handler_index) => index > handler_index,
-                    None => true,
-                }
+            .any(|frame| request.guard_ids.contains(&frame.id))
+            || self.active_frames[..=matching_handler].iter().any(|frame| {
+                frame
+                    .handler_path
+                    .as_ref()
+                    .is_some_and(|path| path_has_prefix(operation_path, path))
+                    && request.guard_ids.contains(&frame.id)
             })
     }
 
@@ -1173,12 +1218,17 @@ impl<'a> Runtime<'a> {
         hygiene
             .markers
             .iter()
-            .map(|marker| ValueMarker {
-                id: self.fresh_guard_id(),
-                path: marker.path.clone(),
-                depth: marker.depth,
-                skip_own_path: true,
-                handler_frame: false,
+            .flat_map(|marker| {
+                let id = self.fresh_guard_id();
+                [
+                    ValueMarker::Frame { id },
+                    ValueMarker::AddId(AddIdMarker {
+                        id,
+                        path: marker.path.clone(),
+                        depth: marker.depth,
+                        guard_own_path: false,
+                    }),
+                ]
             })
             .collect()
     }
@@ -1189,9 +1239,28 @@ impl<'a> Runtime<'a> {
         id
     }
 
+    fn with_stack_handler_frame(
+        &mut self,
+        markers: Vec<ValueMarker>,
+        handler_path: Vec<String>,
+        run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult<'a> + 'a,
+    ) -> RuntimeResult<'a> {
+        self.with_marker_plan(markers, false, Some(handler_path), run)
+    }
+
     fn with_marker_frame(
         &mut self,
         markers: Vec<ValueMarker>,
+        run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult<'a> + 'a,
+    ) -> RuntimeResult<'a> {
+        self.with_marker_plan(markers, true, None, run)
+    }
+
+    fn with_marker_plan(
+        &mut self,
+        markers: Vec<ValueMarker>,
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
         run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult<'a> + 'a,
     ) -> RuntimeResult<'a> {
         if markers.is_empty() {
@@ -1199,45 +1268,80 @@ impl<'a> Runtime<'a> {
         }
 
         let guard_len = self.guard_ids.len();
-        let active_len = self.active_markers.len();
-        self.push_marker_frame(&markers);
+        let frame_len = self.active_frames.len();
+        let add_id_len = self.active_add_ids.len();
+        let plan_len = self.active_marker_plans.len();
+        self.push_marker_frame(&markers, activate_add_ids, handler_path.clone());
         let result = run(self);
-        self.pop_marker_frame(guard_len, active_len);
+        self.pop_marker_frame(guard_len, frame_len, add_id_len, plan_len);
 
-        self.close_marker_frame_result(result?, markers)
+        self.close_marker_frame_result(result?, markers, activate_add_ids, handler_path)
     }
 
-    fn push_marker_frame(&mut self, markers: &[ValueMarker]) {
+    fn push_marker_frame(
+        &mut self,
+        markers: &[ValueMarker],
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
+    ) {
         self.guard_ids
-            .extend(markers.iter().map(|marker| marker.id));
-        self.active_markers.extend(markers.iter().cloned());
+            .extend(markers.iter().filter_map(ValueMarker::frame_id));
+        self.active_frames
+            .extend(
+                markers
+                    .iter()
+                    .filter_map(ValueMarker::frame_id)
+                    .map(|id| ActiveFrame {
+                        id,
+                        handler_path: handler_path.clone(),
+                    }),
+            );
+        if activate_add_ids {
+            self.active_add_ids
+                .extend(markers.iter().filter_map(ValueMarker::add_id).cloned());
+        }
+        self.active_marker_plans.push(markers_for_value(markers));
     }
 
-    fn pop_marker_frame(&mut self, guard_len: usize, active_len: usize) {
+    fn pop_marker_frame(
+        &mut self,
+        guard_len: usize,
+        frame_len: usize,
+        add_id_len: usize,
+        plan_len: usize,
+    ) {
         self.guard_ids.truncate(guard_len);
-        self.active_markers.truncate(active_len);
+        self.active_frames.truncate(frame_len);
+        self.active_add_ids.truncate(add_id_len);
+        self.active_marker_plans.truncate(plan_len);
     }
 
     fn close_marker_frame_result(
         &mut self,
         result: EvalResult<'a>,
         markers: Vec<ValueMarker>,
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
     ) -> RuntimeResult<'a> {
         match result {
             EvalResult::Value(value) => {
-                value_result(mark_value(value, &markers_for_value(markers)))
+                value_result(mark_value(value, &markers_for_value(&markers)))
             }
             EvalResult::Request(request) => {
                 let resume = request.resume.clone();
+                let resume_markers = markers_for_continuation_resume(&markers);
                 Ok(EvalResult::Request(Request {
                     path: request.path,
                     guard_ids: request.guard_ids,
                     payload: request.payload,
                     resume: Rc::new(move |runtime, value| {
                         let resume = resume.clone();
-                        runtime.with_marker_frame(markers.clone(), move |runtime| {
-                            resume(runtime, value)
-                        })
+                        runtime.with_marker_plan(
+                            resume_markers.clone(),
+                            activate_add_ids,
+                            handler_path.clone(),
+                            move |runtime| resume(runtime, value),
+                        )
                     }),
                 }))
             }
@@ -1586,6 +1690,16 @@ impl<'a> Runtime<'a> {
                 self.continue_with(value, |_, value| {
                     value_result(Value::Thunk(Thunk::Value(Box::new(value))))
                 })
+            }
+            (Type::Fun { .. }, Type::Fun { .. }) => {
+                value_result(Value::FunctionAdapter(FunctionAdapter {
+                    source: source.clone(),
+                    target: target.clone(),
+                    function: Box::new(value),
+                    hygiene: FunctionAdapterHygiene {
+                        markers: Vec::new(),
+                    },
+                }))
             }
             _ => Err(RuntimeError::UnsupportedBoundary {
                 feature: format!(
@@ -2139,24 +2253,93 @@ fn find_record_field<'a>(fields: &'a [ValueField], name: &str) -> Option<(usize,
 }
 
 fn markers_for_function_call(markers: Vec<ValueMarker>) -> Vec<ValueMarker> {
-    markers
-        .into_iter()
-        .map(|marker| ValueMarker {
-            depth: marker.depth.saturating_sub(1),
-            handler_frame: false,
-            ..marker
-        })
-        .collect()
+    dedupe_markers(
+        markers
+            .into_iter()
+            .map(|marker| match marker {
+                ValueMarker::Frame { id } => ValueMarker::Frame { id },
+                ValueMarker::AddId(marker) => ValueMarker::AddId(AddIdMarker {
+                    depth: marker.depth.saturating_sub(1),
+                    ..marker
+                }),
+            })
+            .collect(),
+    )
 }
 
-fn markers_for_value(markers: Vec<ValueMarker>) -> Vec<ValueMarker> {
-    markers
-        .into_iter()
-        .map(|marker| ValueMarker {
-            handler_frame: false,
-            ..marker
-        })
-        .collect()
+fn markers_for_continuation_call(markers: Vec<ValueMarker>) -> Vec<ValueMarker> {
+    dedupe_markers(
+        markers
+            .into_iter()
+            .map(|marker| match marker {
+                ValueMarker::Frame { id } => ValueMarker::Frame { id },
+                ValueMarker::AddId(marker) => ValueMarker::AddId(AddIdMarker {
+                    depth: marker.depth.saturating_sub(1),
+                    guard_own_path: false,
+                    ..marker
+                }),
+            })
+            .collect(),
+    )
+}
+
+fn markers_for_continuation_resume(markers: &[ValueMarker]) -> Vec<ValueMarker> {
+    dedupe_markers(
+        markers
+            .iter()
+            .cloned()
+            .map(|marker| match marker {
+                ValueMarker::AddId(marker) => ValueMarker::AddId(AddIdMarker {
+                    guard_own_path: false,
+                    ..marker
+                }),
+                marker => marker,
+            })
+            .collect(),
+    )
+}
+
+fn markers_for_value(markers: &[ValueMarker]) -> Vec<ValueMarker> {
+    dedupe_markers(markers.to_vec())
+}
+
+fn markers_for_created_value(markers: &[ValueMarker], value: &Value) -> Vec<ValueMarker> {
+    if !value_is_thunk_like(value) {
+        return markers_for_value(markers);
+    }
+    dedupe_markers(
+        markers
+            .iter()
+            .cloned()
+            .map(|marker| match marker {
+                ValueMarker::AddId(marker) if marker.depth == 0 => {
+                    ValueMarker::AddId(AddIdMarker {
+                        guard_own_path: true,
+                        ..marker
+                    })
+                }
+                marker => marker,
+            })
+            .collect(),
+    )
+}
+
+fn stack_handler_markers(id: GuardId, path: Vec<String>) -> Vec<ValueMarker> {
+    vec![
+        ValueMarker::Frame { id },
+        ValueMarker::AddId(AddIdMarker {
+            id,
+            path: path.clone(),
+            depth: 0,
+            guard_own_path: false,
+        }),
+        ValueMarker::AddId(AddIdMarker {
+            id,
+            path,
+            depth: 1,
+            guard_own_path: true,
+        }),
+    ]
 }
 
 fn mark_value(value: Value, markers: &[ValueMarker]) -> Value {
@@ -2197,10 +2380,6 @@ fn value_is_thunk_like(value: &Value) -> bool {
     }
 }
 
-fn request_matches_marker_path(request: &Request<'_>, marker: &ValueMarker) -> bool {
-    marker.skip_own_path && path_has_prefix(&request.path, &marker.path)
-}
-
 fn path_has_prefix(path: &[String], prefix: &[String]) -> bool {
     prefix.len() <= path.len()
         && path
@@ -2229,6 +2408,12 @@ fn extend_marker_list(markers: &mut Vec<ValueMarker>, new_markers: &[ValueMarker
             markers.push(marker.clone());
         }
     }
+}
+
+fn dedupe_markers(markers: Vec<ValueMarker>) -> Vec<ValueMarker> {
+    let mut deduped = Vec::new();
+    extend_marker_list(&mut deduped, &markers);
+    deduped
 }
 
 fn is_scalar_value(value: &Value) -> bool {

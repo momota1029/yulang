@@ -230,9 +230,9 @@ GuardMarker {
 runtime lower は marker を増減・再推測しない。
 
 adapter call 時、VM は marker ごとに runtime fresh `GuardId` を作る。
-複数 marker がある場合は、fresh id 群をまとめて `push([id...])` / `pop(n)` してよい。
-その dynamic frame の中で、adapter の引数と戻り値へ `add_id[depth, path, id]` を
-shape-directed に付ける。
+複数 marker がある場合は、fresh id 群をまとめて `frame_id[id...]` 相当の batch push / pop へ
+下げてよい。その dynamic frame の中で、adapter の引数と戻り値へ
+`marker[id]` と `add_id[depth, path, id]` を shape-directed に付ける。
 
 depth の意味は runtime guard marker spec に従う。
 
@@ -245,35 +245,43 @@ id を付けて外側 handler へ素通りさせるための marker である。
 詳細な request 判定、dynamic unwind、lazy propagation は
 [`2026-06-13-runtime-guard-markers.md`](2026-06-13-runtime-guard-markers.md) に従う。
 
-### MarkerFrame
+### StackHandlerFrame / frame_id lowering
 
 ```text
-MarkerFrame {
+StackHandlerFrame {
   path: EffectPath,
   body: Expr,
 }
 ```
 
-`MarkerFrame` は stack handler invocation の body を囲む runtime guard marker frame である。
-handler 関数値ではなく、handler が呼び出された後の body に付く。
+`StackHandlerFrame` は stack handler invocation の handled computation を囲む guard-id lowering plan である。
+handler 関数値ではなく、handler が呼び出された後の body に付く。旧実装名の
+`MarkerFrame { path }` が残る場合でも、それは `marker[path]` という runtime primitive ではなく、
+次の形へ下げるための plan として読む。
 
-VM は frame entry で runtime fresh `GuardId` を作り、`push([id])` した状態で `body` を評価する。
-この frame は `path` 自体の request を読めるままにし、frame 内で local function / thunk value を読むときに
-innermost active marker を shape-directed に付ける。
-stack handler frame から値へ染み込ませる marker は、frame entry の guard id をそのまま再利用せず、
-値 marker 用の fresh id を持つ。これにより、callback 経由の request は内側 handler を skip しつつ、
-外側の元 handler には読める。
+```text
+get_id(\id ->
+  frame_id[id](body))
+```
 
-- direct `path` request は marker depth が 1 の frame 内で発生するため、handler 自身が読める。
-- frame 内で読んだ function value を 1 回起動すると depth が 0 になり、その起動内の別 handler は
-  同じ request を読まずに外側へ送る。
-- `FunctionAdapterHygiene` 由来の marker は `path` 自身を guard しない。stack handler frame から値へ
-  染み込んだ marker は、depth が 0 になった時点で同じ act family の operation も guard する。
+VM は frame entry で runtime fresh `GuardId` を作り、`frame_id[id]` の中で `body` を評価する。
+この frame は `path` 自体の request を読めるままにし、frame 内で local function / thunk value を
+読むときに innermost active `marker[id]` を shape-directed に付ける。
+stack handler frame から値へ染み込ませる marker は frame entry の guard id を再利用する。
+値 marker 用に別の fresh id を作ってはならない。
+`StackHandlerFrame` が `Catch` と隣接する場合、frame は catch expression 全体ではなく
+catch scrutinee 側に掛ける。effect arm の body は request を捕まえた後に frame の外で評価する。
+
+- direct `path` request は `frame_id[id]` だけでは request.guard_ids が変わらないため、handler 自身が読める。
+- frame 内で読んだ function value を 1 回起動すると、対応する `add_id[1, path, id]` が depth 0 になり、
+  その起動内の対象外 request に id が付く。
+- `FunctionAdapterHygiene` 由来の marker も stack handler frame 由来の marker も、
+  request を書き換える責務は `add_id[depth, path, id]` だけに持たせる。
 - nested handler の中で読んだ local value には innermost marker だけを付ける。
   outer marker も同時に付けると、outer handler まで同じ request を読めなくなる。
 
-`MarkerFrame` は `FunctionAdapterHygiene` と同じ guard marker machinery を使うが、producer-consumer
-function boundary ではなく、stack handler の dynamic body boundary を表す。
+`StackHandlerFrame` は `FunctionAdapterHygiene` と同じ guard marker machinery を使うが、
+producer-consumer function boundary ではなく、stack handler の dynamic body boundary を表す。
 
 ### EffectOp
 
@@ -380,7 +388,7 @@ runtime lower は次を `mono::Program` の前提としてよい。
 - effect operation 参照は `EffectOp { path }` に変換済みである。
 - effect handler arm は可能な限り exact `operation_path` を持つ。
 - function boundary は `FunctionAdapter { source, target, hygiene }` として明示されている。
-- guard marker は `FunctionAdapterHygiene` にだけ現れ、runtime lower が後から推測しない。
+- guard-id plan は `FunctionAdapterHygiene` と stack handler frame に明示され、runtime lower が後から推測しない。
 - method selection は `Method { instance }` へ解決済みである。
 - unresolved select、unresolved typeclass method、`OpenVar` は runtime lower に渡さない。
 

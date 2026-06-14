@@ -4,7 +4,7 @@ import init, {
   clear_std_cache,
   run,
   warm_std_cache,
-} from "./wasm/yulang_wasm.js";
+} from "./wasm/wasm.js";
 
 type RunWorkerRequest =
   | {

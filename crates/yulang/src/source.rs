@@ -1144,24 +1144,7 @@ fn format_runtime_value(value: &mono_runtime::Value) -> String {
         mono_runtime::Value::FunctionAdapter(_) => "<function-adapter>".to_string(),
         mono_runtime::Value::EffectOp { path } => format!("<effect-op {}>", path.join("::")),
         mono_runtime::Value::Continuation(id) => format!("<continuation {}>", id.0),
-        mono_runtime::Value::Marked { value, markers } => {
-            let mut out = format_runtime_value(value);
-            out.push_str(" @ [");
-            for (index, marker) in markers.iter().enumerate() {
-                if index > 0 {
-                    out.push_str(", ");
-                }
-                let _ = write!(
-                    out,
-                    "{}#{}:{}",
-                    marker.path.join("::"),
-                    marker.id.0,
-                    marker.depth
-                );
-            }
-            out.push(']');
-            out
-        }
+        mono_runtime::Value::Marked { value, .. } => format_runtime_value(value),
     }
 }
 
@@ -2163,6 +2146,29 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn run_with_std_handles_effectful_thunk_returned_from_function() {
+        let (mono, control) = run_with_std_main(
+            "run-std-effectful-function-thunk-handler",
+            "pub act out:\n\
+             \x20 pub say: str -> ()\n\n\
+             our add_and_say() =\n\
+             \x20 my a = 1 + 2\n\
+             \x20 out::say a.show\n\
+             \x20 my b = a + 3\n\
+             \x20 out::say b.show\n\
+             \x20 a + b\n\n\
+             our listen(x: [_] _, log: str): (_, str) = catch x:\n\
+             \x20 out::say o, k -> listen(k (), log + o + \"\\n\")\n\
+             \x20 v -> (v, log)\n\n\
+             listen add_and_say() \"\"\n",
+        );
+
+        assert_eq!(mono.text, "run roots [(9, \"3\\n6\\n\")]\n");
+        assert_eq!(control.text, mono.text);
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn dump_mono_with_std_specializes_nondet_sum_list_say_benchmark() {
         let root = temp_root("dump-mono-std-nondet-sum-list-say-benchmark");
         let _ = fs::remove_dir_all(&root);
@@ -2765,6 +2771,41 @@ mod tests {
 
         assert_eq!(output.file_count, embedded_std_files().len() + 1);
         assert_eq!(output.text, "run roots [[1, 2, 3]]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_forces_effectful_block_let() {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "{\n  my a = each 1..3\n  (a, 1)\n}.list\n",
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [[(1, 1), (2, 1), (3, 1)]]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_runs_nondet_triples() {
+        let output = std::thread::Builder::new()
+            .stack_size(16 * 1024 * 1024)
+            .spawn(|| {
+                let output = run_control_from_source_text_with_embedded_std(
+                    "playground.yu",
+                    "{\n  my a = each 1..15\n  my b = each a..15\n  my c = each b..15\n  guard: a * a + b * b == c * c\n  (a, b, c)\n}.list\n",
+                )
+                .unwrap();
+                (output.file_count, output.text)
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+
+        assert_eq!(output.0, embedded_std_files().len() + 1);
+        assert_eq!(
+            output.1,
+            "run roots [[(3, 4, 5), (5, 12, 13), (6, 8, 10), (9, 12, 15)]]\n"
+        );
     }
 
     #[test]

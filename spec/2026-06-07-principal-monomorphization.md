@@ -292,22 +292,41 @@ Elaborate の制約解決は、`DraftComputationId -> MonoComputation` の代入
 - node ごとの lower bounds
 - node ごとの upper bounds
 - `lower_node <: upper_node` の subtype edge
+- 未処理の subtype 制約を持つ worklist
 
-下界 `L` を node `α` に追加したら、既存の各上界 `U` について `L <: U` を制約化し、
+制約生成は `L <: U` を worklist へ積むだけにする。
+solver は worklist が空になるまで subtype 制約を取り出し、構造を分解し、node の
+lower / upper / edge へ反映する。node へ bound や edge を追加した結果として生まれる
+派生制約も、同じ worklist へ積んで処理する。
+この worklist は monomorphize demand 内の制約を飽和させるためのものであり、
+SCC を解決単位にするものではない。
+
+下界 `L` を node `α` に追加したら、既存の各上界 `U` について `L <: U` を worklist へ積み、
 `α <: β` の edge がある各 `β` へ同じ下界を流す。
-上界 `U` を node `α` に追加したら、既存の各下界 `L` について `L <: U` を制約化し、
+上界 `U` を node `α` に追加したら、既存の各下界 `L` について `L <: U` を worklist へ積み、
 `β <: α` の edge がある各 `β` へ同じ上界を流す。
+edge `α <: β` を追加したら、`α` の既存 lower bounds を `β` へ流し、`β` の既存 upper bounds を
+`α` へ流す。これらの伝播でさらに生まれた bound / edge も同じ規則で処理する。
 
 `Type::Var(a) <: Type::Var(b)` は `a <: b` の edge、`T <: Type::Var(a)` は `a` の lower bound、
 `Type::Var(a) <: T` は `a` の upper bound として扱う。
 関数型では引数と引数 effect を反変、返り値と返り値 effect を共変に分解する。
 tuple や同一 constructor の type argument も、構造が一致する範囲で子制約へ分解する。
+record / poly variant / effect row / thunk / stack projection も、比較 helper で後から
+「同じっぽい」と判定するのではなく、subtype 制約として graph へ分解する。
+effect row は item 順序ではなく effect family で対応付け、対応した item 同士の subtype 制約と、
+tail residual への制約を worklist へ積む。
 
 generic direct ref の instantiate は、量化変数を use-site fresh node に置き換えてから制約を作る。
 例えば `id : α -> α` を `id 1 : int` として使う場合は、`int <: α` と `α <: int` を同じ
 fresh node `α` の上下界に入れ、concrete selection で `α = int` を読む。
 `Any` や `Unknown` による穴埋めは行わない。
 
+worklist が空になる前に node の concrete 解を読んではならない。
+`resolve(α)` のような局所的な読み出しが、未処理制約を残したまま lower / upper を畳んだり、
+循環に当たったことを理由に `unit` や empty effect row へ default したりする形は、
+制約グラフを解いたことにならない。
+solver の出力は、飽和した graph から作った fresh 単相変数ごとの substitution table である。
 この段階で読めるのは、まだ「fresh 単相変数 `α` の concrete 解」だけである。
 解いた直後の型を、その場で scheme body や elaborated IR に再帰的に混ぜてはならない。
 制約解決は fresh 単相変数ごとの解を集め、後続の型代入表を作るところまでを責務とする。
@@ -316,6 +335,9 @@ fresh node `α` の上下界に入れ、concrete selection で `α = int` を読
 
 制約を解いた後でも、需要内の単相変数 `α` には上下界だけが残ることがある。
 このとき `α` は、境界から一意に読める concrete 型へ落とす。
+concrete 型の選択は、worklist が空になった飽和済み graph に対してだけ行う。
+選択中に新しい subtype 制約が必要になった場合、その場で候補比較だけを直すのではなく、
+graph solver へ戻して制約を飽和させ直す。
 
 ここで concrete 型とは、型変数・効果変数・未解決 `RefId`・未解決型クラス制約を含まない型である。
 `Unknown` は concrete 型ではない。`Any` と `Never` は Top/Bottom であり、制約から明示的に
@@ -567,9 +589,10 @@ EffectOp {
 `Coerce` は型を決めるための node ではなく、解決済みの actual / expected 差を runtime lower へ渡す
 ための node である。`MakeThunk` / `ForceThunk` も同じく、plain computation と first-class
 `Type::Thunk` value の境界を明示する。`FunctionAdapterHygiene` は guard marker spec の
-`add_id[n, path, id]` / `push` / `pop` へ落ちる plan を持ち、空 plan は「追加 hygiene なし」を表す。
+`get_id` / `frame_id[id]` / `marker[id]` / `add_id[n, path, id]` へ落ちる plan を持ち、
+空 plan は「追加 hygiene なし」を表す。
 specialize は `FunctionAdapter` の `source` / `target` runtime shape を比較し、差分に現れた
-effectful thunk / nested function value から exact effect path と depth を持つ marker を作る。
+effectful thunk / nested function value から exact effect path と depth を持つ effect-id plan を作る。
 adapter の直接の引数・戻り値に付く thunk は depth 0、そこから関数値を 1 回またぐたびに depth を
 1 増やす。同じ `(depth, path)` は一つに畳む。runtime lower はこの plan を実行表現へ落とすだけで、
 関数型や呼び出し spine から marker を再推測してはならない。
@@ -642,7 +665,7 @@ root の出口で `ForceThunk` を挿入して実行対象にする。これは 
 関数引数など first-class value として運ばれる thunk を勝手に force しない。
 
 effect id hygiene も同じく、runtime-lower 側の暗黙責務にしてはならない。guard marker の
-runtime 意味、`add_id[n, path, id]` の depth、関数起動時の push / pop、resumable effect を含む
+runtime 意味、`get_id` / `frame_id[id]` / `marker[id]` / `add_id[n, path, id]`、resumable effect を含む
 unwind 規則は
 [`2026-06-13-runtime-guard-markers.md`](2026-06-13-runtime-guard-markers.md) が定義元である。
 `mono::Program` 全体を VM / runtime lower がどう読むか、root 評価順・Instance store・boundary node・
@@ -651,7 +674,7 @@ VM-ready 条件を含む契約は
 
 旧 runtime IR の `LocalPushId` / `AddId` は、型上の値 cast ではなく、effect request と
 effective thunk に付く runtime control boundary である。ただし、高階関数をさらに高階関数へ
-渡す場合、呼び出し箇所だけを見て後から `LocalPushId` / `AddId` を挿入する方式では、
+渡す場合、呼び出し箇所だけを見て後から guard id primitive を挿入する方式では、
 必要な境界が first-class function value と一緒に移動できない。
 
 そのため、関数値が producer-consumer の型境界を越える場所では、関数 cast と同じく
@@ -676,19 +699,24 @@ GuardMarker {
 }
 ```
 
-`GuardMarker` は adapter call body を guard marker frame で囲み、その adapter の引数・戻り値へ
-`add_id[depth, path, id]` を shape-directed に付けることを表す。depth 0 はその値を computation として
-入った時点、depth 1 はその値が関数で、その関数を 1 回起動した時点で発火する marker である。
+`GuardMarker` は runtime id そのものではなく、adapter call ごとに `get_id` で fresh id を得て、
+call body を `frame_id[id]` で囲み、adapter の引数・戻り値へ `marker[id]` と
+`add_id[depth, path, id]` を shape-directed に付けることを表す静的 plan である。
+depth 0 はその値を computation として入った時点、depth 1 はその値が関数で、その関数を 1 回起動した
+時点で `add_id` が発火する marker である。
 `source` / `target` の対応する runtime shape が同値なら marker を作らない。対応する shape がずれ、
 その差分の中に `Type::Thunk { effect, value }` が現れた場合、`effect` の concrete effect row に
-含まれる exact path を marker path とする。record / tuple / variant / type constructor の中にある
+含まれる effect family path を marker path とする。runtime request は operation exact path を持つため、
+marker path と request path の照合は runtime guard marker spec の family prefix 規則に従う。
+record / tuple / variant / type constructor の中にある
 thunk や function value は、値へ染みこむ marker として同じ depth で扱う。
 
 これにより、`(A -> [e] B)` の関数値をさらに別の高階関数へ渡しても、必要な hygiene boundary は
 adapter と一緒に値として運ばれる。runtime lower は adapter に書かれた plan を実行表現へ落とすだけで、
-関数型や呼び出し spine から `LocalPushId` / `AddId` を推測してはならない。
+関数型や呼び出し spine から guard id primitive を推測してはならない。
 この文書に残る `LocalPushId` / `AddId` は旧 runtime IR の呼び名であり、実装時には
-runtime guard marker spec の `push` / `pop` / `add_id[n, path, id]` として読む。
+runtime guard marker spec の `get_id` / `frame_id[id]` / `marker[id]` /
+`add_id[n, path, id]` として読む。
 
 ## 型クラス impl と impl member demand
 
