@@ -2895,6 +2895,7 @@ mod tests {
                 value: role_exact_arg(&mut session.infer, int.clone()),
             }],
             prerequisites: Vec::new(),
+            methods: Vec::new(),
         });
         register_test_selection_use(
             &mut session,
@@ -2969,6 +2970,7 @@ mod tests {
                 value: role_exact_arg(&mut session.infer, unit.clone()),
             }],
             prerequisites: Vec::new(),
+            methods: Vec::new(),
         });
         register_test_selection_use(
             &mut session,
@@ -3238,6 +3240,7 @@ mod tests {
             inputs: vec![role_unary_con_var_arg(&mut session.infer, list_path, item)],
             associated: Vec::new(),
             prerequisites: Vec::new(),
+            methods: Vec::new(),
         });
         session.register_role_impl_member(member, impl_def);
         session.roles.insert(
@@ -3553,6 +3556,7 @@ mod tests {
                 value: role_exact_arg(&mut session.infer, int_path.clone()),
             }],
             prerequisites: Vec::new(),
+            methods: Vec::new(),
         });
 
         let root_lower = session.infer.alloc_pos(Pos::Var(output));
@@ -3629,6 +3633,7 @@ mod tests {
                 value: role_exact_arg(&mut session.infer, int_path.clone()),
             }],
             prerequisites: Vec::new(),
+            methods: Vec::new(),
         });
 
         let shared_lower = session
@@ -3677,6 +3682,7 @@ mod tests {
             inputs: vec![role_unary_con_var_arg(&mut session.infer, list_path, item)],
             associated: Vec::new(),
             prerequisites: Vec::new(),
+            methods: Vec::new(),
         });
 
         let root_lower = session.infer.alloc_pos(Pos::Var(payload));
@@ -3726,6 +3732,7 @@ mod tests {
             inputs: vec![role_unary_con_var_arg(&mut session.infer, list_path, item)],
             associated: Vec::new(),
             prerequisites: Vec::new(),
+            methods: Vec::new(),
         });
 
         let root_lower = session.infer.alloc_pos(Pos::Var(extra));
@@ -3796,6 +3803,7 @@ mod tests {
             )],
             associated: Vec::new(),
             prerequisites: Vec::new(),
+            methods: Vec::new(),
         });
 
         let first_output_var = session.infer.alloc_pos(Pos::Var(first_extra));
@@ -3894,6 +3902,7 @@ mod tests {
                 value: role_var_arg(&mut session.infer, candidate_payload),
             }],
             prerequisites: Vec::new(),
+            methods: Vec::new(),
         });
 
         let receiver_payload_lower = session.infer.alloc_pos(Pos::Var(lower_payload));
@@ -3999,6 +4008,7 @@ mod tests {
                 value: role_exact_arg(&mut session.infer, int_path.clone()),
             }],
             prerequisites: Vec::new(),
+            methods: Vec::new(),
         });
 
         let fun_arg = session.infer.alloc_neg(Neg::Var(arg));
@@ -4068,6 +4078,7 @@ mod tests {
                     value: role_var_arg(&mut session.infer, ready_output),
                 }],
             }],
+            methods: Vec::new(),
         });
         session.role_impls.insert(RoleImplCandidate {
             impl_def: None,
@@ -4078,6 +4089,7 @@ mod tests {
                 value: role_exact_arg(&mut session.infer, unit_path.clone()),
             }],
             prerequisites: Vec::new(),
+            methods: Vec::new(),
         });
 
         let root_lower = session.infer.alloc_pos(Pos::Var(output));
@@ -4131,6 +4143,7 @@ mod tests {
                 inputs: vec![role_var_arg(&mut session.infer, item)],
                 associated: Vec::new(),
             }],
+            methods: Vec::new(),
         });
 
         let root_lower = session.infer.alloc_pos(Pos::Var(output));
@@ -4189,6 +4202,7 @@ mod tests {
                 inputs: vec![role_var_arg(&mut session.infer, item)],
                 associated: Vec::new(),
             }],
+            methods: Vec::new(),
         });
 
         let root_lower = session.infer.alloc_pos(Pos::Var(output));

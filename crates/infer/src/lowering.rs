@@ -1575,6 +1575,7 @@ impl BodyLowerer {
             inputs: candidate_inputs,
             associated: candidate_associated,
             prerequisites: Vec::new(),
+            methods: Vec::new(),
         };
         self.session.role_impls.insert(candidate);
         Ok(RoleImplLoweringContext {
@@ -1684,6 +1685,11 @@ impl BodyLowerer {
         if let Some(requirement) = &requirement {
             self.session
                 .register_role_impl_member_requirement(method.def, requirement.role_method);
+            self.session.role_impls.add_method_for_impl(
+                impl_def,
+                requirement.role_method,
+                method.def,
+            );
         }
 
         let lowered = ExprLowerer::with_labels(

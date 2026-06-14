@@ -379,10 +379,72 @@ impl Specializer {
                 }))
             }
             Some(poly_expr::SelectResolution::TypeclassMethod { member }) => {
-                Ok(Some(SelectResolution::TypeclassMethod {
-                    member: convert_def(member),
+                Ok(Some(SelectResolution::Method {
+                    instance: self.typeclass_method_instance(arena, plan, base, select, member)?,
                 }))
             }
+        }
+    }
+
+    fn typeclass_method_instance(
+        &mut self,
+        arena: &poly_expr::Arena,
+        plan: &solve::ExprTypePlan,
+        base: poly_expr::ExprId,
+        select: poly_expr::ExprId,
+        member: poly_expr::DefId,
+    ) -> Result<InstanceId, SpecializeError> {
+        let receiver =
+            plan.actual_type_of(base)
+                .cloned()
+                .ok_or(SpecializeError::MissingExprType {
+                    expr: base.0,
+                    role: ExprTypeRole::Actual,
+                })?;
+        let expected = method_instance_expected_type(plan, base, select);
+        let Some(poly_expr::Def::Let {
+            scheme: Some(scheme),
+            ..
+        }) = arena.defs.get(member)
+        else {
+            return Err(SpecializeError::MissingScheme {
+                def: convert_def(member),
+            });
+        };
+        let predicates =
+            types::role_predicates_for_scheme_signature(arena, member, scheme, expected.as_ref())?;
+        let mut implementations = Vec::new();
+        for predicate in &predicates {
+            let Some(input_types) = exact_role_input_types(predicate) else {
+                continue;
+            };
+            for candidate in arena.role_impls.candidates(&predicate.role) {
+                if roles::candidate_application(&arena.typ, predicate, candidate, &input_types)
+                    .is_none()
+                {
+                    continue;
+                }
+                for method in &candidate.methods {
+                    if method.requirement == member
+                        && !implementations.contains(&method.implementation)
+                    {
+                        implementations.push(method.implementation);
+                    }
+                }
+            }
+        }
+
+        match implementations.as_slice() {
+            [implementation] => self.ensure_def_instance(arena, *implementation, expected.as_ref()),
+            [] => Err(SpecializeError::UnresolvedTypeclassMethod {
+                member: convert_def(member),
+                receiver,
+            }),
+            _ => Err(SpecializeError::AmbiguousTypeclassMethod {
+                member: convert_def(member),
+                receiver,
+                candidates: implementations.into_iter().map(convert_def).collect(),
+            }),
         }
     }
 
@@ -516,6 +578,10 @@ pub enum SpecializeError {
         existing: Type,
         incoming: Type,
     },
+    MissingExprType {
+        expr: u32,
+        role: ExprTypeRole,
+    },
     ConflictingTypeCandidates {
         slot: u32,
         existing: Type,
@@ -529,6 +595,15 @@ pub enum SpecializeError {
     },
     UnresolvedRef {
         ref_id: u32,
+    },
+    UnresolvedTypeclassMethod {
+        member: DefId,
+        receiver: Type,
+    },
+    AmbiguousTypeclassMethod {
+        member: DefId,
+        receiver: Type,
+        candidates: Vec<DefId>,
     },
     InternalMissingInstance {
         instance: InstanceId,
@@ -594,6 +669,9 @@ impl fmt::Display for SpecializeError {
                     mono::dump::dump_type(incoming),
                 )
             }
+            Self::MissingExprType { expr, role } => {
+                write!(f, "missing {role:?} expression type for e{expr}")
+            }
             Self::ConflictingTypeCandidates {
                 slot,
                 existing,
@@ -611,6 +689,32 @@ impl fmt::Display for SpecializeError {
             }
             Self::InvalidTypeSlot { slot } => write!(f, "invalid type slot {slot}"),
             Self::UnresolvedRef { ref_id } => write!(f, "unresolved ref r{ref_id}"),
+            Self::UnresolvedTypeclassMethod { member, receiver } => {
+                write!(
+                    f,
+                    "unresolved typeclass method d{} for receiver {}",
+                    member.0,
+                    mono::dump::dump_type(receiver),
+                )
+            }
+            Self::AmbiguousTypeclassMethod {
+                member,
+                receiver,
+                candidates,
+            } => {
+                let candidates = candidates
+                    .iter()
+                    .map(|candidate| format!("d{}", candidate.0))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(
+                    f,
+                    "ambiguous typeclass method d{} for receiver {}: {}",
+                    member.0,
+                    mono::dump::dump_type(receiver),
+                    candidates,
+                )
+            }
             Self::InternalMissingInstance { instance } => {
                 write!(f, "internal missing mono instance m{}", instance.0)
             }
@@ -898,6 +1002,23 @@ fn method_instance_expected_type(
     let receiver = plan.actual_type_of(base)?.clone();
     let result = plan.actual_type_of(select)?.clone();
     Some(types::pure_function_type(receiver, result))
+}
+
+fn exact_role_input_types(predicate: &types::InstantiatedRolePredicate) -> Option<Vec<Type>> {
+    predicate.inputs.iter().map(exact_role_input_type).collect()
+}
+
+fn exact_role_input_type(input: &types::InstantiatedRoleArg) -> Option<Type> {
+    if equivalent_boundary_types(&input.lower, &input.upper) {
+        return Some(input.lower.clone());
+    }
+    if matches!(input.lower, Type::Never) && !matches!(input.upper, Type::Any) {
+        return Some(input.upper.clone());
+    }
+    if matches!(input.upper, Type::Any) && !matches!(input.lower, Type::Never) {
+        return Some(input.lower.clone());
+    }
+    None
 }
 
 fn function_boundary_types(actual: &Type, expected: &Type) -> bool {

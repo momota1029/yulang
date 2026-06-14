@@ -529,7 +529,10 @@ impl<'a> ExprTypeSolver<'a> {
             Some(poly_expr::SelectResolution::Method { def }) => {
                 self.method_select_type(base, def, expected)
             }
-            Some(poly_expr::SelectResolution::TypeclassMethod { .. }) | None => {
+            Some(poly_expr::SelectResolution::TypeclassMethod { member }) => {
+                self.method_select_type(base, member, expected)
+            }
+            None => {
                 self.expr(base, None)?;
                 Ok(expected.unwrap_or_else(|| self.fresh_value_slot()))
             }
@@ -799,6 +802,8 @@ impl<'a> ExprTypeSolver<'a> {
             }
         }
         self.graph.add_role_demands(instantiated.role_predicates);
+        self.graph
+            .constrain_recursive_bounds(instantiated.recursive_bounds)?;
         Ok(instantiated.ty)
     }
 
@@ -1003,6 +1008,17 @@ impl<'a> ConstraintGraph<'a> {
         self.role_demands.extend(demands);
     }
 
+    fn constrain_recursive_bounds(
+        &mut self,
+        bounds: impl IntoIterator<Item = types::InstantiatedRecursiveBound>,
+    ) -> Result<(), SpecializeError> {
+        for bound in bounds {
+            self.constrain_subtype(bound.lower, bound.value.clone())?;
+            self.constrain_subtype(bound.value, bound.upper)?;
+        }
+        Ok(())
+    }
+
     fn resolve_role_demands(&mut self) -> Result<(), SpecializeError> {
         let mut applied = HashSet::new();
         loop {
@@ -1072,6 +1088,12 @@ impl<'a> ConstraintGraph<'a> {
             .ok_or(SpecializeError::InvalidTypeSlot { slot })
     }
 
+    fn slot_is_value(&self, slot: u32) -> bool {
+        self.slots
+            .get(slot as usize)
+            .is_some_and(|slot| slot.kind == TypeSlotKind::Value)
+    }
+
     fn constrain_subtype(&mut self, lower: Type, upper: Type) -> Result<(), SpecializeError> {
         if lower == upper {
             return Ok(());
@@ -1079,6 +1101,9 @@ impl<'a> ConstraintGraph<'a> {
         match (lower, upper) {
             (Type::Never, _) | (_, Type::Any) => Ok(()),
             (Type::OpenVar(lower), Type::OpenVar(upper)) => self.add_edge(lower, upper),
+            (Type::Thunk { value, .. }, Type::OpenVar(slot)) if self.slot_is_value(slot) => {
+                self.constrain_subtype(*value, Type::OpenVar(slot))
+            }
             (Type::OpenVar(slot), upper) => self.add_upper(slot, upper),
             (lower, Type::OpenVar(slot)) => self.add_lower(slot, lower),
             (
@@ -1211,6 +1236,18 @@ impl<'a> ConstraintGraph<'a> {
             (Type::Stack { inner: lower, .. }, Type::Stack { inner: upper, .. }) => {
                 self.constrain_subtype(*lower, *upper)
             }
+            (Type::Stack { inner, weight }, upper) => {
+                let Some(lower) = self.stack_constraint_projection(*inner, weight) else {
+                    return Ok(());
+                };
+                self.constrain_subtype(lower, upper)
+            }
+            (lower, Type::Stack { inner, weight }) => {
+                let Some(upper) = self.stack_constraint_projection(*inner, weight) else {
+                    return Ok(());
+                };
+                self.constrain_subtype(lower, upper)
+            }
             (Type::Union(left, right), upper) => {
                 self.constrain_subtype(*left, upper.clone())?;
                 self.constrain_subtype(*right, upper)
@@ -1247,6 +1284,27 @@ impl<'a> ConstraintGraph<'a> {
         Ok(())
     }
 
+    fn stack_constraint_projection(&self, inner: Type, weight: mono::StackWeight) -> Option<Type> {
+        match types::simplify_stack_type(inner, weight) {
+            Type::Stack { inner, .. } if self.stack_constraint_can_use_inner(&inner) => {
+                Some(*inner)
+            }
+            Type::Stack { .. } => None,
+            ty => Some(ty),
+        }
+    }
+
+    fn stack_constraint_can_use_inner(&self, inner: &Type) -> bool {
+        !matches!(
+            inner,
+            Type::OpenVar(slot)
+                if self
+                    .slots
+                    .get(*slot as usize)
+                    .is_some_and(|slot| slot.kind == TypeSlotKind::Effect)
+        )
+    }
+
     fn instantiate_cast_scheme(
         &mut self,
         def: poly_expr::DefId,
@@ -1263,6 +1321,7 @@ impl<'a> ConstraintGraph<'a> {
             },
         )?;
         self.add_role_demands(instantiated.role_predicates);
+        self.constrain_recursive_bounds(instantiated.recursive_bounds)?;
         Ok(instantiated.ty)
     }
 
@@ -1516,8 +1575,8 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
         if !self.resolving.insert(slot) {
             return Ok(slot_kind.default_type());
         }
-        let lower = self.join_candidates(slot, &lower_bounds)?;
-        let upper = self.meet_candidates(slot, &upper_bounds)?;
+        let lower = self.join_candidates(slot, slot_kind, &lower_bounds)?;
+        let upper = self.meet_candidates(slot, slot_kind, &upper_bounds)?;
         let solution = match (lower, upper) {
             (Some(lower), Some(upper)) if type_candidates_equivalent(&lower, &upper) => lower,
             (Some(lower), Some(upper)) if type_candidate_subtype(self.graph, &lower, &upper) => {
@@ -1543,12 +1602,16 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
     fn join_candidates(
         &mut self,
         slot: u32,
+        slot_kind: TypeSlotKind,
         bounds: &[Type],
     ) -> Result<Option<Type>, SpecializeError> {
         let mut candidate: Option<Type> = None;
         for bound in bounds {
             let resolved = self.resolve(bound)?;
             candidate = Some(match candidate {
+                Some(existing) if slot_kind == TypeSlotKind::Effect => {
+                    join_effect_type_candidates(existing, resolved)
+                }
                 Some(existing) => join_type_candidates(self.graph, slot, existing, resolved)?,
                 None => resolved,
             });
@@ -1559,17 +1622,55 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
     fn meet_candidates(
         &mut self,
         slot: u32,
+        slot_kind: TypeSlotKind,
         bounds: &[Type],
     ) -> Result<Option<Type>, SpecializeError> {
         let mut candidate: Option<Type> = None;
         for bound in bounds {
             let resolved = self.resolve(bound)?;
             candidate = Some(match candidate {
+                Some(existing) if slot_kind == TypeSlotKind::Effect => {
+                    meet_effect_type_candidates(existing, resolved)
+                }
                 Some(existing) => meet_type_candidates(self.graph, slot, existing, resolved)?,
                 None => resolved,
             });
         }
         Ok(candidate)
+    }
+}
+
+fn join_effect_type_candidates(left: Type, right: Type) -> Type {
+    if left.is_pure_effect() {
+        return right;
+    }
+    if right.is_pure_effect() {
+        return left;
+    }
+    match (left, right) {
+        (Type::EffectRow(mut left), Type::EffectRow(right)) => {
+            for item in right {
+                if !left.contains(&item) {
+                    left.push(item);
+                }
+            }
+            Type::EffectRow(left)
+        }
+        (left, right) => types::simplify_type(Type::Union(Box::new(left), Box::new(right))),
+    }
+}
+
+fn meet_effect_type_candidates(left: Type, right: Type) -> Type {
+    if left.is_pure_effect() || right.is_pure_effect() {
+        return Type::pure_effect();
+    }
+    match (left, right) {
+        (Type::EffectRow(left), Type::EffectRow(right)) => Type::EffectRow(
+            left.into_iter()
+                .filter(|item| right.contains(item))
+                .collect(),
+        ),
+        (left, right) => types::simplify_type(Type::Intersection(Box::new(left), Box::new(right))),
     }
 }
 
@@ -1749,6 +1850,12 @@ fn type_candidate_subtype(graph: &ConstraintGraph<'_>, lower: &Type, upper: &Typ
         (Type::Stack { inner: lower, .. }, Type::Stack { inner: upper, .. }) => {
             type_candidate_subtype(graph, lower, upper)
         }
+        (Type::Stack { inner, weight }, upper) => graph
+            .stack_constraint_projection(inner.as_ref().clone(), weight.clone())
+            .is_some_and(|lower| type_candidate_subtype(graph, &lower, upper)),
+        (lower, Type::Stack { inner, weight }) => graph
+            .stack_constraint_projection(inner.as_ref().clone(), weight.clone())
+            .is_some_and(|upper| type_candidate_subtype(graph, lower, &upper)),
         _ => false,
     }
 }
@@ -2089,6 +2196,7 @@ mod tests {
                 value: int,
             }],
             prerequisites: Vec::new(),
+            methods: Vec::new(),
         });
 
         let container = arena.fresh_type_var();

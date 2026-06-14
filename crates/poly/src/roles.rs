@@ -80,6 +80,28 @@ impl RoleImplTable {
             }
         }
     }
+
+    pub fn add_method_for_impl(
+        &mut self,
+        impl_def: DefId,
+        requirement: DefId,
+        implementation: DefId,
+    ) {
+        for candidates in self.candidates.values_mut() {
+            for candidate in candidates {
+                if candidate.impl_def != Some(impl_def) {
+                    continue;
+                }
+                let method = RoleImplMethod {
+                    requirement,
+                    implementation,
+                };
+                if !candidate.methods.contains(&method) {
+                    candidate.methods.push(method);
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,6 +111,7 @@ pub struct RoleImplCandidate {
     pub inputs: Vec<RoleConstraintArg>,
     pub associated: Vec<RoleAssociatedConstraint>,
     pub prerequisites: Vec<RoleConstraint>,
+    pub methods: Vec<RoleImplMethod>,
 }
 
 impl RoleImplCandidate {
@@ -99,6 +122,12 @@ impl RoleImplCandidate {
             associated: self.associated.clone(),
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RoleImplMethod {
+    pub requirement: DefId,
+    pub implementation: DefId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

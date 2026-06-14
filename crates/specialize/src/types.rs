@@ -9,7 +9,7 @@ use poly::types::{
     Subtractability, TypeArena, TypeVar,
 };
 
-use crate::{SchemeFeature, SpecializeError};
+use crate::SpecializeError;
 
 pub(crate) fn signature_for_scheme(
     arena: &poly_expr::Arena,
@@ -27,6 +27,22 @@ pub(crate) fn signature_for_scheme(
     Ok(Signature {
         ty: materializer.materialize_pos(scheme.predicate, TypeContext::Value)?,
     })
+}
+
+pub(crate) fn role_predicates_for_scheme_signature(
+    arena: &poly_expr::Arena,
+    def: poly_expr::DefId,
+    scheme: &Scheme,
+    expected: Option<&Type>,
+) -> Result<Vec<InstantiatedRolePredicate>, SpecializeError> {
+    reject_unsupported_scheme_features(def, scheme)?;
+    let mut materializer = SchemeMaterializer::new(&arena.typ, def, scheme);
+    materializer.collect_scheme_kinds(scheme);
+    if let Some(expected) = expected {
+        materializer.match_pos(scheme.predicate, expected, TypeContext::Value)?;
+    }
+    materializer.default_unbound_quantifiers();
+    materializer.materialize_role_predicates(scheme)
 }
 
 pub(crate) fn instantiate_scheme_with_fresh_and_roles(
@@ -51,6 +67,7 @@ pub(crate) fn instantiate_scheme_with_fresh_and_roles(
     Ok(InstantiatedScheme {
         ty: materializer.materialize_pos(scheme.predicate, TypeContext::Value)?,
         role_predicates: materializer.materialize_role_predicates(scheme)?,
+        recursive_bounds: materializer.materialize_recursive_bounds(scheme)?,
     })
 }
 
@@ -58,6 +75,14 @@ pub(crate) fn instantiate_scheme_with_fresh_and_roles(
 pub(crate) struct InstantiatedScheme {
     pub(crate) ty: Type,
     pub(crate) role_predicates: Vec<InstantiatedRolePredicate>,
+    pub(crate) recursive_bounds: Vec<InstantiatedRecursiveBound>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct InstantiatedRecursiveBound {
+    pub(crate) value: Type,
+    pub(crate) lower: Type,
+    pub(crate) upper: Type,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -119,12 +144,8 @@ fn reject_unsupported_scheme_features(
     def: poly_expr::DefId,
     scheme: &Scheme,
 ) -> Result<(), SpecializeError> {
-    if !scheme.recursive_bounds.is_empty() {
-        return Err(SpecializeError::UnsupportedSchemeFeature {
-            def: mono::DefId(def.0),
-            feature: SchemeFeature::RecursiveBounds,
-        });
-    }
+    let _ = def;
+    let _ = scheme;
     Ok(())
 }
 
@@ -236,6 +257,15 @@ impl<'a> SchemeMaterializer<'a> {
                 return Ok(());
             }
             if existing.is_pure_effect() && ty.is_pure_effect() {
+                return Ok(());
+            }
+            if self
+                .kinds
+                .get(&var)
+                .is_some_and(|kind| *kind == QuantifierKind::Effect)
+            {
+                let merged = merge_effect_substitution(existing.clone(), ty);
+                self.substitution.insert(var, merged);
                 return Ok(());
             }
             return Err(SpecializeError::ConflictingTypeSubstitution {
@@ -953,6 +983,25 @@ impl<'a> SchemeMaterializer<'a> {
             .collect()
     }
 
+    fn materialize_recursive_bounds(
+        &self,
+        scheme: &Scheme,
+    ) -> Result<Vec<InstantiatedRecursiveBound>, SpecializeError> {
+        scheme
+            .recursive_bounds
+            .iter()
+            .map(|bound| {
+                let value = self.materialize_type_var(bound.var);
+                let bounds = self.materialize_role_neu_arg(bound.bounds)?;
+                Ok(InstantiatedRecursiveBound {
+                    value,
+                    lower: bounds.lower,
+                    upper: bounds.upper,
+                })
+            })
+            .collect()
+    }
+
     fn materialize_role_arg(
         &self,
         arg: RolePredicateArg,
@@ -984,6 +1033,16 @@ impl<'a> SchemeMaterializer<'a> {
                 })
             }
         }
+    }
+
+    fn materialize_type_var(&self, var: TypeVar) -> Type {
+        self.substitution.get(&var).cloned().unwrap_or_else(|| {
+            self.kinds
+                .get(&var)
+                .copied()
+                .unwrap_or(QuantifierKind::Value)
+                .default_type()
+        })
     }
 
     fn collect_pos_kind(&mut self, id: PosId, context: TypeContext) {
@@ -1144,6 +1203,26 @@ impl<'a> SchemeMaterializer<'a> {
                 }
             }
         }
+    }
+}
+
+fn merge_effect_substitution(existing: Type, incoming: Type) -> Type {
+    if existing.is_pure_effect() {
+        return incoming;
+    }
+    if incoming.is_pure_effect() {
+        return existing;
+    }
+    match (existing, incoming) {
+        (Type::EffectRow(mut existing), Type::EffectRow(incoming)) => {
+            for item in incoming {
+                if !existing.contains(&item) {
+                    existing.push(item);
+                }
+            }
+            Type::EffectRow(existing)
+        }
+        (existing, incoming) => simplify_type(Type::Union(Box::new(existing), Box::new(incoming))),
     }
 }
 

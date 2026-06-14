@@ -314,6 +314,7 @@ pub(crate) fn clone_role_impl_candidate_between_arenas(
             .iter()
             .map(|constraint| clone_role_constraint_between_arenas(source, target, constraint))
             .collect(),
+        methods: candidate.methods.clone(),
     }
 }
 
