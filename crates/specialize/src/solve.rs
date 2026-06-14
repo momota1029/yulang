@@ -189,18 +189,7 @@ impl<'a> ExprTypeSolver<'a> {
                 self.poly_variant_type(tag, payloads, expected.as_ref())
             }
             PolyExpr::Select(base, select) => self.select_type(*base, *select, expected),
-            PolyExpr::Case(scrutinee, arms) => {
-                let scrutinee_ty = self.expr(*scrutinee, None)?;
-                let result = expected.unwrap_or_else(|| self.fresh_value_slot());
-                for arm in arms {
-                    self.bind_pat(arm.pat, scrutinee_ty.clone())?;
-                    if let Some(guard) = arm.guard {
-                        self.expr(guard, Some(bool_type()))?;
-                    }
-                    self.expr(arm.body, Some(result.clone()))?;
-                }
-                Ok(result)
-            }
+            PolyExpr::Case(scrutinee, arms) => self.case_type(expr, *scrutinee, arms, expected),
             PolyExpr::Catch(body, arms) => self.catch_type(*body, arms, expected),
             PolyExpr::Block(stmts, tail) => self.block_type(stmts, *tail, expected),
         }
@@ -326,6 +315,38 @@ impl<'a> ExprTypeSolver<'a> {
                 Ok(effect)
             }
         }
+    }
+
+    fn case_type(
+        &mut self,
+        expr: poly_expr::ExprId,
+        scrutinee: poly_expr::ExprId,
+        arms: &[poly_expr::CaseArm],
+        expected: Option<Type>,
+    ) -> Result<Type, SpecializeError> {
+        let scrutinee_actual = self.expr(scrutinee, None)?;
+        let (scrutinee_value, scrutinee_effect) = split_runtime_computation_shape(scrutinee_actual);
+        self.expr(scrutinee, Some(scrutinee_value.clone()))?;
+
+        let expected_result = expected.unwrap_or_else(|| self.fresh_value_slot());
+        let (result_value, _) = split_runtime_computation_shape(expected_result);
+        let mut effects = vec![scrutinee_effect];
+        for arm in arms {
+            self.bind_pat(arm.pat, scrutinee_value.clone())?;
+            if let Some(guard) = arm.guard {
+                let guard_actual = self.expr(guard, Some(bool_type()))?;
+                effects.push(split_runtime_computation_shape(guard_actual).1);
+            }
+            let body_actual = self.expr(arm.body, Some(result_value.clone()))?;
+            effects.push(split_runtime_computation_shape(body_actual).1);
+        }
+
+        let effect = self.join_call_effects(effects)?;
+        let result = types::runtime_shape(effect, result_value);
+        if matches!(result, Type::Thunk { .. }) {
+            self.plan.mark_raw_thunk_computation(expr);
+        }
+        Ok(result)
     }
 
     fn primitive_spine_callee_expected(
@@ -1439,18 +1460,25 @@ impl<'a> ConstraintGraph<'a> {
     ) -> Result<(), SpecializeError> {
         let (lower_items, lower_tail) = self.split_effect_row_tail(lower_items);
         let (upper_items, upper_tail) = self.split_effect_row_tail(upper_items);
-        let shared_len = lower_items.len().min(upper_items.len());
-        for (lower, upper) in lower_items
-            .iter()
-            .take(shared_len)
-            .cloned()
-            .zip(upper_items.iter().take(shared_len).cloned())
-        {
-            self.constrain_subtype(lower, upper)?;
+        let mut matched_upper = vec![false; upper_items.len()];
+        let mut lower_extra = Vec::new();
+
+        for lower in lower_items {
+            let Some(upper_index) = upper_items.iter().enumerate().find_map(|(index, upper)| {
+                (!matched_upper[index] && same_effect_row_family(&lower, upper)).then_some(index)
+            }) else {
+                lower_extra.push(lower);
+                continue;
+            };
+            matched_upper[upper_index] = true;
+            self.constrain_subtype(lower, upper_items[upper_index].clone())?;
         }
 
-        let lower_extra = lower_items[shared_len..].to_vec();
-        let upper_extra = upper_items[shared_len..].to_vec();
+        let upper_extra = upper_items
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, upper)| (!matched_upper[index]).then_some(upper))
+            .collect::<Vec<_>>();
         if !lower_extra.is_empty() {
             if let Some(upper_tail) = upper_tail.clone() {
                 self.constrain_subtype(Type::EffectRow(lower_extra), upper_tail)?;
@@ -2109,21 +2137,26 @@ fn split_runtime_computation_shape(shape: Type) -> (Type, Type) {
 }
 
 fn matching_effect_row_item(item: &Type, candidates: &[Type]) -> Option<Type> {
-    let Type::Con { path, args } = item else {
-        return None;
-    };
     candidates
         .iter()
-        .find(|candidate| {
-            matches!(
-                candidate,
-                Type::Con {
-                    path: candidate_path,
-                    args: candidate_args,
-                } if candidate_path == path && candidate_args.len() == args.len()
-            )
-        })
+        .find(|candidate| same_effect_row_family(item, candidate))
         .cloned()
+}
+
+fn same_effect_row_family(left: &Type, right: &Type) -> bool {
+    matches!(
+        (left, right),
+        (
+            Type::Con {
+                path: left_path,
+                args: left_args,
+            },
+            Type::Con {
+                path: right_path,
+                args: right_args,
+            },
+        ) if left_path == right_path && left_args.len() == right_args.len()
+    )
 }
 
 fn function_type(args: Vec<Type>, ret: Type) -> Type {
@@ -2185,7 +2218,7 @@ fn list_view_type(item: Type) -> Type {
 mod tests {
     use mono::Type;
 
-    use super::solve_expr;
+    use super::{ConstraintGraph, TypeResolver, TypeSlotKind, solve_expr};
 
     #[test]
     fn root_generic_call_gets_types_for_apply_callee_and_arg() {
@@ -2377,6 +2410,56 @@ mod tests {
         );
         assert_eq!(
             mono::dump::dump_type(plan.boundary(*arg).unwrap().expected),
+            "int"
+        );
+    }
+
+    #[test]
+    fn effect_row_subtyping_matches_items_by_path_before_tail_residual() {
+        let arena = poly::expr::Arena::new();
+        let mut graph = ConstraintGraph::new(&arena);
+        let tail = graph.fresh_slot(TypeSlotKind::Effect);
+
+        graph
+            .constrain_subtype(
+                Type::EffectRow(vec![effect_item("nondet")]),
+                Type::EffectRow(vec![effect_item("junction"), tail.clone()]),
+            )
+            .expect("effect row subtype should solve");
+
+        let mut resolver = TypeResolver::new(&graph);
+        assert_eq!(
+            mono::dump::dump_type(&resolver.resolve(&tail).unwrap()),
+            "[nondet]"
+        );
+    }
+
+    #[test]
+    fn case_scrutinee_effect_passes_to_case_result() {
+        let lowering = lower_source(
+            "act out:\n  our read: unit -> int\n\
+             case out::read(()):\n\
+             \x20 1 -> 2\n\
+             \x20 _ -> 3\n",
+        );
+        let arena = &lowering.session.poly;
+        let root = arena.root_exprs[0];
+
+        let plan = solve_expr(arena, root, None).expect("effectful case should solve");
+
+        let poly::expr::Expr::Case(scrutinee, _) = arena.expr(root) else {
+            panic!("root should be a case");
+        };
+        assert_eq!(
+            mono::dump::dump_type(plan.actual_type_of(root).unwrap()),
+            "thunk[[out], int]"
+        );
+        assert_eq!(
+            mono::dump::dump_type(plan.boundary(*scrutinee).unwrap().actual),
+            "thunk[[out], int]"
+        );
+        assert_eq!(
+            mono::dump::dump_type(plan.boundary(*scrutinee).unwrap().expected),
             "int"
         );
     }
@@ -2579,6 +2662,13 @@ mod tests {
 
     fn unit_type() -> Type {
         Type::unit()
+    }
+
+    fn effect_item(name: &str) -> Type {
+        Type::Con {
+            path: vec![name.to_string()],
+            args: Vec::new(),
+        }
     }
 
     fn con_arg(

@@ -410,9 +410,17 @@ impl<'a> Runtime<'a> {
                     env: env.clone(),
                 })))
             }
-            Expr::ForceThunk { thunk, .. } => {
+            Expr::ForceThunk { target, thunk, .. } => {
+                let target_value = target.value.clone();
                 let result = self.eval_expr(thunk, env)?;
-                self.continue_with(result, |runtime, thunk| runtime.force_thunk(thunk))
+                self.continue_with(result, move |runtime, thunk| {
+                    let result = runtime.force_thunk(thunk)?;
+                    if matches!(target_value, Type::Thunk { .. }) {
+                        return Ok(result);
+                    }
+                    runtime
+                        .continue_with(result, |runtime, value| runtime.force_value_if_thunk(value))
+                })
             }
             Expr::FunctionAdapter {
                 source,

@@ -1483,6 +1483,28 @@ mod tests {
         assert!(control.text.contains("([1], [2])"), "{}", control.text);
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn run_mono_with_std_collects_nondet_each_list() {
+        let root = temp_root("run-mono-std-nondet-each-list");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        symlink_repo_lib(&root);
+        fs::write(
+            root.join("main.yu"),
+            "std::control::nondet::each(1..3).list\n",
+        )
+        .unwrap();
+
+        let output = run_mono_from_entry_with_std(root.join("main.yu")).unwrap();
+
+        assert!(
+            output.text.starts_with("run roots [[1, 2, 3],"),
+            "{}",
+            output.text
+        );
+    }
+
     #[test]
     fn run_mono_without_std_runs_polymorphic_stack_handler_call() {
         let root = temp_root("run-mono-stack-handler");

@@ -142,9 +142,17 @@ impl<'a> Runtime<'a> {
                     env: env.clone(),
                 })))
             }
-            ExprKind::ForceThunk { thunk, .. } => {
+            ExprKind::ForceThunk { target, thunk, .. } => {
+                let target_value = target.value.clone();
                 let result = self.eval_expr(thunk, env)?;
-                self.continue_with(result, |runtime, thunk| runtime.force_thunk(thunk))
+                self.continue_with(result, move |runtime, thunk| {
+                    let result = runtime.force_thunk(thunk)?;
+                    if matches!(target_value, Type::Thunk { .. }) {
+                        return Ok(result);
+                    }
+                    runtime
+                        .continue_with(result, |runtime, value| runtime.force_value_if_thunk(value))
+                })
             }
             ExprKind::FunctionAdapter {
                 source,
@@ -1927,6 +1935,28 @@ mod tests {
         };
 
         assert_eq!(run_program(&program), Ok(vec![Value::Int(9)]));
+    }
+
+    #[test]
+    fn force_thunk_reaches_nested_computation_when_target_value_is_plain() {
+        let inner = make_thunk_expr(
+            Type::pure_effect(),
+            unit_type(),
+            Expr::new(ExprKind::Lit(Lit::Unit)),
+        );
+        let outer_value = thunk_type(Type::pure_effect(), unit_type());
+        let outer = make_thunk_expr(Type::pure_effect(), outer_value, inner);
+
+        let program = Program {
+            roots: vec![Root::Expr(force_thunk_expr(
+                outer,
+                Type::pure_effect(),
+                unit_type(),
+            ))],
+            instances: Vec::new(),
+        };
+
+        assert_eq!(run_program(&program), Ok(vec![Value::Unit]));
     }
 
     #[test]
