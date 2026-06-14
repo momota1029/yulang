@@ -125,6 +125,14 @@ pub enum Thunk {
         body: ExprId,
         env: CapturedEnv,
     },
+    Effect {
+        path: Vec<String>,
+        payload: Box<Value>,
+    },
+    Continuation {
+        id: ContinuationId,
+        arg: Box<Value>,
+    },
     Value(Box<Value>),
     Adapter {
         source: Type,
@@ -149,6 +157,7 @@ pub struct ValueMarker {
     pub id: GuardId,
     pub path: Vec<String>,
     pub depth: u32,
+    pub skip_own_path: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -395,10 +404,12 @@ impl<'a> Runtime<'a> {
                     runtime.adapt_value(value, &source, &target)
                 })
             }
-            Expr::MakeThunk { body, .. } => value_result(Value::Thunk(Thunk::Expr {
-                body,
-                env: env.clone(),
-            })),
+            Expr::MakeThunk { body, .. } => {
+                value_result(self.mark_active_value(Value::Thunk(Thunk::Expr {
+                    body,
+                    env: env.clone(),
+                })))
+            }
             Expr::ForceThunk { thunk, .. } => {
                 let result = self.eval_expr(thunk, env)?;
                 self.continue_with(result, |runtime, thunk| runtime.force_thunk(thunk))
@@ -410,13 +421,15 @@ impl<'a> Runtime<'a> {
                 hygiene,
             } => {
                 let function = self.eval_expr(function, env)?;
-                self.continue_with(function, move |_, function| {
-                    value_result(Value::FunctionAdapter(FunctionAdapter {
-                        source: source.clone(),
-                        target: target.clone(),
-                        function: Box::new(function),
-                        hygiene: hygiene.clone(),
-                    }))
+                self.continue_with(function, move |runtime, function| {
+                    value_result(runtime.mark_active_value(Value::FunctionAdapter(
+                        FunctionAdapter {
+                            source: source.clone(),
+                            target: target.clone(),
+                            function: Box::new(function),
+                            hygiene: hygiene.clone(),
+                        },
+                    )))
                 })
             }
             Expr::MarkerFrame { path, body } => {
@@ -425,6 +438,7 @@ impl<'a> Runtime<'a> {
                     id: self.fresh_guard_id(),
                     path,
                     depth: 1,
+                    skip_own_path: false,
                 };
                 self.with_marker_frame(vec![marker], move |runtime| {
                     runtime.eval_expr(body, &mut frame_env)
@@ -444,11 +458,13 @@ impl<'a> Runtime<'a> {
             Expr::RefSet { .. } => Err(RuntimeError::UnsupportedExpr {
                 feature: "ref set".to_string(),
             }),
-            Expr::Lambda { param, body } => value_result(Value::Closure(Closure {
-                param,
-                body,
-                env: env.clone(),
-            })),
+            Expr::Lambda { param, body } => {
+                value_result(self.mark_active_value(Value::Closure(Closure {
+                    param,
+                    body,
+                    env: env.clone(),
+                })))
+            }
             Expr::Tuple(items) => self.eval_tuple(items, env.clone()),
             Expr::Record { fields, spread } => self.eval_record(fields, spread, env.clone()),
             Expr::PolyVariant { tag, payloads } => {
@@ -855,15 +871,14 @@ impl<'a> Runtime<'a> {
             }
             Value::Closure(closure) => self.apply_closure(closure, arg),
             Value::FunctionAdapter(adapter) => self.apply_adapter(adapter, arg),
-            Value::EffectOp { path } => self.emit_effect_request(path, arg),
-            Value::Continuation(id) => {
-                let resume = self
-                    .continuations
-                    .get(&id)
-                    .cloned()
-                    .ok_or(RuntimeError::MissingContinuation { id })?;
-                resume(self, arg)
-            }
+            Value::EffectOp { path } => value_result(Value::Thunk(Thunk::Effect {
+                path,
+                payload: Box::new(arg),
+            })),
+            Value::Continuation(id) => value_result(Value::Thunk(Thunk::Continuation {
+                id,
+                arg: Box::new(arg),
+            })),
             value => Err(RuntimeError::NotFunction { value }),
         }
     }
@@ -948,10 +963,7 @@ impl<'a> Runtime<'a> {
 
     fn mark_request_with_active_markers(&self, request: &mut Request<'a>) {
         for marker in &self.active_markers {
-            if marker.depth != 0
-                || request.path == marker.path
-                || self.request_intersects_guard_stack(request)
-            {
+            if marker.depth != 0 || request_matches_marker_path(request, marker) {
                 continue;
             }
             if !request.guard_ids.contains(&marker.id) {
@@ -960,13 +972,19 @@ impl<'a> Runtime<'a> {
         }
     }
 
-    fn mark_active_value(&self, value: Value) -> Value {
+    fn mark_active_value(&mut self, value: Value) -> Value {
         // Handler marker propagation follows the innermost active handler. Carrying outer
         // markers into a nested handler would make the outer handler skip the same request.
-        let Some(marker) = self.active_markers.last() else {
+        let Some(marker) = self.active_markers.last().cloned() else {
             return value;
         };
-        mark_value(value, std::slice::from_ref(marker))
+        let marker = ValueMarker {
+            id: self.fresh_guard_id(),
+            path: marker.path,
+            depth: marker.depth,
+            skip_own_path: marker.skip_own_path,
+        };
+        mark_value(value, std::slice::from_ref(&marker))
     }
 
     fn request_intersects_guard_stack(&self, request: &Request<'_>) -> bool {
@@ -984,6 +1002,7 @@ impl<'a> Runtime<'a> {
                 id: self.fresh_guard_id(),
                 path: marker.path.clone(),
                 depth: marker.depth,
+                skip_own_path: true,
             })
             .collect()
     }
@@ -1278,6 +1297,18 @@ impl<'a> Runtime<'a> {
             }
             Value::Thunk(Thunk::Expr { body, mut env }) => self.eval_expr(body, &mut env),
             Value::Thunk(Thunk::Value(value)) => value_result(*value),
+            Value::Thunk(Thunk::Effect { path, payload }) => {
+                self.emit_effect_request(path, *payload)
+            }
+            Value::Thunk(Thunk::Continuation { id, arg }) => {
+                let resume = self
+                    .continuations
+                    .get(&id)
+                    .cloned()
+                    .ok_or(RuntimeError::MissingContinuation { id })?;
+                let result = resume(self, *arg)?;
+                self.continue_with(result, |runtime, value| runtime.force_value_if_thunk(value))
+            }
             Value::Thunk(Thunk::Adapter {
                 source,
                 target,
@@ -1320,6 +1351,13 @@ impl<'a> Runtime<'a> {
                 }))
             }
         }
+    }
+
+    fn force_value_if_thunk(&mut self, value: Value) -> RuntimeResult<'a> {
+        if value_is_thunk_like(&value) {
+            return self.force_thunk(value);
+        }
+        value_result(value)
     }
 
     fn store_continuation(&mut self, continuation: Continuation<'a>) -> ContinuationId {
@@ -1749,6 +1787,26 @@ fn value_view(value: &Value) -> (&Value, Vec<ValueMarker>) {
         value = inner;
     }
     (value, markers)
+}
+
+fn value_is_thunk_like(value: &Value) -> bool {
+    match value {
+        Value::Thunk(_) => true,
+        Value::Marked { value, .. } => value_is_thunk_like(value),
+        _ => false,
+    }
+}
+
+fn request_matches_marker_path(request: &Request<'_>, marker: &ValueMarker) -> bool {
+    marker.skip_own_path && path_has_prefix(&request.path, &marker.path)
+}
+
+fn path_has_prefix(path: &[String], prefix: &[String]) -> bool {
+    prefix.len() <= path.len()
+        && path
+            .iter()
+            .zip(prefix)
+            .all(|(segment, prefix)| segment == prefix)
 }
 
 fn into_value_markers(value: Value) -> (Value, Vec<ValueMarker>) {

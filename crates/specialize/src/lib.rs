@@ -161,13 +161,16 @@ impl Specializer {
         expr: poly_expr::ExprId,
     ) -> Result<Expr, SpecializeError> {
         use poly_expr::Expr as PolyExpr;
-        let kind = match arena.expr(expr) {
+        let expr_id = expr;
+        let is_raw_thunk_computation = matches!(arena.expr(expr_id), PolyExpr::Catch(_, _))
+            || plan.is_raw_thunk_computation(expr_id);
+        let kind = match arena.expr(expr_id) {
             PolyExpr::Lit(lit) => ExprKind::Lit(convert_lit(lit)),
             PolyExpr::PrimitiveOp(op) => ExprKind::PrimitiveOp {
                 op: convert_primitive_op(*op),
-                context: primitive_context(arena, *op, plan.actual_type_of(expr)),
+                context: primitive_context(arena, *op, plan.actual_type_of(expr_id)),
             },
-            PolyExpr::Var(ref_id) => self.var(arena, *ref_id, plan.actual_type_of(expr))?,
+            PolyExpr::Var(ref_id) => self.var(arena, *ref_id, plan.actual_type_of(expr_id))?,
             PolyExpr::App(callee, arg) => ExprKind::Apply(
                 Box::new(self.expr(arena, plan, *callee)?),
                 Box::new(self.expr(arena, plan, *arg)?),
@@ -206,7 +209,7 @@ impl Specializer {
                         arena,
                         plan,
                         *base,
-                        expr,
+                        expr_id,
                         select.resolution,
                     )?,
                 }
@@ -247,7 +250,13 @@ impl Specializer {
                 tail: self.optional_expr(arena, plan, *tail)?.map(Box::new),
             }),
         };
-        self.wrap_boundary(expr, Expr::new(kind), plan)
+        let mono_expr = Expr::new(kind);
+        let mono_expr = if is_raw_thunk_computation {
+            wrap_raw_thunk_computation(plan.actual_type_of(expr_id), mono_expr)
+        } else {
+            mono_expr
+        };
+        self.wrap_boundary(expr_id, mono_expr, plan)
     }
 
     fn wrap_boundary(
@@ -936,6 +945,23 @@ fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr {
         source: actual.clone(),
         target: expected.clone(),
         expr: Box::new(expr),
+    })
+}
+
+fn wrap_raw_thunk_computation(actual: Option<&Type>, expr: Expr) -> Expr {
+    let Some(Type::Thunk { effect, value }) = actual else {
+        return expr;
+    };
+    Expr::new(ExprKind::MakeThunk {
+        source: ComputationType {
+            effect: effect.as_ref().clone(),
+            value: value.as_ref().clone(),
+        },
+        target: EffectiveThunkType {
+            effect: effect.as_ref().clone(),
+            value: value.as_ref().clone(),
+        },
+        body: Box::new(expr),
     })
 }
 

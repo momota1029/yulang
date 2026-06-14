@@ -57,12 +57,10 @@ fn runs_stack_handler_hygiene_to_outer_handler() {
 #[test]
 fn reports_unhandled_effect() {
     let program = mono::Program {
-        roots: vec![mono::Root::Expr(mono::Expr::new(mono::ExprKind::Apply(
-            Box::new(mono::Expr::new(mono::ExprKind::EffectOp {
-                path: vec!["out".to_string(), "say".to_string()],
-            })),
-            Box::new(mono::Expr::new(mono::ExprKind::Lit(mono::Lit::Unit))),
-        )))],
+        roots: vec![mono::Root::Expr(force_effect_call(
+            vec!["out".to_string(), "say".to_string()],
+            mono::Expr::new(mono::ExprKind::Lit(mono::Lit::Unit)),
+        ))],
         instances: Vec::new(),
     };
 
@@ -169,6 +167,27 @@ fn assert_oracle_parity(source: &str, expected: &str) {
     assert_eq!(oracle, expected, "{}", mono::dump::dump_program(&program));
     assert_eq!(control, expected, "{}", mono::dump::dump_program(&program));
     assert_eq!(control, oracle, "{}", mono::dump::dump_program(&program));
+}
+
+fn force_effect_call(path: Vec<String>, payload: mono::Expr) -> mono::Expr {
+    let effect = Type::EffectRow(vec![Type::Con {
+        path: path.clone(),
+        args: Vec::new(),
+    }]);
+    mono::Expr::new(mono::ExprKind::ForceThunk {
+        source: mono::EffectiveThunkType {
+            effect: effect.clone(),
+            value: Type::Any,
+        },
+        target: mono::ComputationType {
+            effect,
+            value: Type::Any,
+        },
+        thunk: Box::new(mono::Expr::new(mono::ExprKind::Apply(
+            Box::new(mono::Expr::new(mono::ExprKind::EffectOp { path })),
+            Box::new(payload),
+        ))),
+    })
 }
 
 fn format_oracle_values(values: &[mono_runtime::Value]) -> String {

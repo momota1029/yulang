@@ -13,6 +13,7 @@ use crate::{ExprTypeRole, SpecializeError, convert_def, def_kind, lit_type, role
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ExprTypePlan {
     types: HashMap<poly_expr::ExprId, ExprTypes>,
+    raw_thunk_computations: HashSet<poly_expr::ExprId>,
 }
 
 impl ExprTypePlan {
@@ -30,6 +31,10 @@ impl ExprTypePlan {
         })
     }
 
+    pub(crate) fn is_raw_thunk_computation(&self, expr: poly_expr::ExprId) -> bool {
+        self.raw_thunk_computations.contains(&expr)
+    }
+
     fn set_actual(&mut self, expr: poly_expr::ExprId, ty: Type) -> Result<(), SpecializeError> {
         self.types
             .entry(expr)
@@ -44,6 +49,10 @@ impl ExprTypePlan {
             .set(expr, ExprTypeRole::Expected, ty)
     }
 
+    fn mark_raw_thunk_computation(&mut self, expr: poly_expr::ExprId) {
+        self.raw_thunk_computations.insert(expr);
+    }
+
     fn actual(&self, expr: poly_expr::ExprId) -> Option<&Type> {
         self.types
             .get(&expr)
@@ -52,7 +61,10 @@ impl ExprTypePlan {
 
     fn finalize(&self, graph: &ConstraintGraph<'_>) -> Result<Self, SpecializeError> {
         let mut resolver = TypeResolver::new(graph);
-        let mut out = Self::default();
+        let mut out = Self {
+            types: HashMap::new(),
+            raw_thunk_computations: self.raw_thunk_computations.clone(),
+        };
         for (expr, types) in &self.types {
             if let Some(actual) = &types.actual {
                 out.set_actual(*expr, resolver.resolve(actual)?)?;
@@ -164,7 +176,7 @@ impl<'a> ExprTypeSolver<'a> {
             PolyExpr::Lit(lit) => Ok(lit_type(lit)),
             PolyExpr::PrimitiveOp(op) => Ok(self.primitive_type(*op, expected.as_ref())),
             PolyExpr::Var(ref_id) => self.var_type(*ref_id),
-            PolyExpr::App(callee, arg) => self.apply_type(*callee, *arg, expected),
+            PolyExpr::App(callee, arg) => self.apply_type(expr, *callee, *arg, expected),
             PolyExpr::RefSet(reference, value) => {
                 self.expr(*reference, None)?;
                 self.expr(*value, None)?;
@@ -199,23 +211,22 @@ impl<'a> ExprTypeSolver<'a> {
         actual: Type,
         expected: Type,
     ) -> Result<(), SpecializeError> {
-        if let (
-            Type::Thunk {
-                value: actual_value,
-                ..
-            },
-            Type::OpenVar(slot),
-        ) = (&actual, &expected)
+        if let Type::Thunk {
+            value: actual_value,
+            ..
+        } = &actual
+            && !matches!(expected, Type::Thunk { .. })
         {
             return self
                 .graph
-                .constrain_subtype(actual_value.as_ref().clone(), Type::OpenVar(*slot));
+                .constrain_subtype(actual_value.as_ref().clone(), expected);
         }
         self.graph.constrain_subtype(actual, expected)
     }
 
     fn apply_type(
         &mut self,
+        expr: poly_expr::ExprId,
         callee: poly_expr::ExprId,
         arg: poly_expr::ExprId,
         expected: Option<Type>,
@@ -229,7 +240,11 @@ impl<'a> ExprTypeSolver<'a> {
             if !callee_effect.is_pure_effect() {
                 self.plan.set_expected(callee, callee_value)?;
             }
-            let ret_ty = self.apply_known_function_arg(arg, arg_ty, ret_ty, callee_effect)?;
+            let (ret_ty, has_evaluation_effect) =
+                self.apply_known_function_arg(arg, arg_ty, ret_ty, callee_effect)?;
+            if has_evaluation_effect && matches!(ret_ty, Type::Thunk { .. }) {
+                self.plan.mark_raw_thunk_computation(expr);
+            }
             if let Some(expected) = expected {
                 self.constrain_expr_boundary(ret_ty.clone(), expected)?;
             }
@@ -250,7 +265,7 @@ impl<'a> ExprTypeSolver<'a> {
         arg_ty: Type,
         ret_ty: Type,
         callee_effect: Type,
-    ) -> Result<Type, SpecializeError> {
+    ) -> Result<(Type, bool), SpecializeError> {
         let (arg_value, arg_effect) = split_runtime_computation_shape(arg_ty.clone());
         let call_arg_effect = if arg_effect.is_pure_effect() {
             self.expr_as_call_value(arg, arg_value)?
@@ -258,7 +273,10 @@ impl<'a> ExprTypeSolver<'a> {
             self.expr(arg, Some(arg_ty))?;
             Type::pure_effect()
         };
-        self.call_result_shape(ret_ty, [callee_effect, call_arg_effect])
+        let has_evaluation_effect =
+            !callee_effect.is_pure_effect() || !call_arg_effect.is_pure_effect();
+        let result = self.call_result_shape(ret_ty, [callee_effect, call_arg_effect])?;
+        Ok((result, has_evaluation_effect))
     }
 
     fn expr_as_call_value(
@@ -316,6 +334,7 @@ impl<'a> ExprTypeSolver<'a> {
         ret: Type,
     ) -> Option<Type> {
         let (op, applied) = self.primitive_spine(callee)?;
+        let ret = runtime_value_shape(&ret).clone();
         let arg = primitive_spine_arg_type(op, applied, &ret)?;
         Some(types::pure_function_type(arg, ret))
     }
@@ -337,7 +356,8 @@ impl<'a> ExprTypeSolver<'a> {
         arms: &[poly_expr::CatchArm],
         expected: Option<Type>,
     ) -> Result<Type, SpecializeError> {
-        let result = expected.unwrap_or_else(|| self.fresh_value_slot());
+        let expected_result = expected.unwrap_or_else(|| self.fresh_value_slot());
+        let (result, _) = split_runtime_computation_shape(expected_result);
         let body_actual = self.expr(body, None)?;
         let (scrutinee_value, scrutinee_effect) = split_runtime_computation_shape(body_actual);
         self.expr(body, Some(scrutinee_value.clone()))?;
@@ -2029,7 +2049,7 @@ fn primitive_spine_arg_type(
 ) -> Option<Type> {
     use poly_expr::PrimitiveOp;
 
-    let final_ret = final_return_type(ret);
+    let final_ret = runtime_value_shape(final_return_type(ret));
     let list = list_item_type(final_ret).map(|_| final_ret.clone());
     let item = list.as_ref().and_then(list_item_type);
     match (op, applied) {
@@ -2053,6 +2073,13 @@ fn final_return_type(mut ty: &Type) -> &Type {
         ty = ret;
     }
     ty
+}
+
+fn runtime_value_shape(ty: &Type) -> &Type {
+    match ty {
+        Type::Thunk { value, .. } => value,
+        _ => ty,
+    }
 }
 
 fn function_runtime_parts(ty: &Type) -> Option<(Type, Type)> {

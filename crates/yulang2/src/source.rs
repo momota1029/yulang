@@ -1392,7 +1392,7 @@ mod tests {
         let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
 
         assert_eq!(output.file_count, 1);
-        assert_mono_dump_contains(&output, "mono roots [(m0 make-thunk");
+        assert_mono_dump_contains(&output, "mono roots [(m0 (<effect-op signal::ping> ()))");
         assert_mono_dump_contains(&output, "m0 = d2 : thunk[");
         assert_mono_dump_contains(&output, "marker[signal]");
         assert_mono_dump_contains(&output, " -> int");
