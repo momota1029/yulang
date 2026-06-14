@@ -590,7 +590,8 @@ impl<'a> ExprTypeSolver<'a> {
         for stmt in stmts {
             match stmt {
                 poly_expr::Stmt::Let(_, pat, value) => {
-                    let value_ty = self.expr(*value, None)?;
+                    let expected = self.local_let_expected_type(*pat)?;
+                    let value_ty = self.expr(*value, expected)?;
                     self.bind_pat(*pat, value_ty)?;
                 }
                 poly_expr::Stmt::Expr(value) => {
@@ -605,6 +606,27 @@ impl<'a> ExprTypeSolver<'a> {
             Some(tail) => self.expr(tail, expected),
             None => Ok(Type::unit()),
         }
+    }
+
+    fn local_let_expected_type(
+        &self,
+        pat: poly_expr::PatId,
+    ) -> Result<Option<Type>, SpecializeError> {
+        let poly_expr::Pat::Var(def) = self.arena.pat(pat) else {
+            return Ok(None);
+        };
+        let Some(poly_expr::Def::Let {
+            scheme: Some(scheme),
+            ..
+        }) = self.arena.defs.get(*def)
+        else {
+            return Ok(None);
+        };
+        let ty = types::signature_for_scheme(self.arena, *def, scheme, None)?.ty;
+        if !matches!(ty, Type::Fun { .. }) || type_contains_open_var(&ty) {
+            return Ok(None);
+        }
+        Ok(Some(ty))
     }
 
     fn record_type(
@@ -1898,6 +1920,40 @@ fn meet_type_candidates(
 
 fn type_candidates_equivalent(left: &Type, right: &Type) -> bool {
     left == right || left.is_pure_effect() && right.is_pure_effect()
+}
+
+fn type_contains_open_var(ty: &Type) -> bool {
+    match ty {
+        Type::OpenVar(_) => true,
+        Type::Fun {
+            arg,
+            arg_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_contains_open_var(arg)
+                || type_contains_open_var(arg_effect)
+                || type_contains_open_var(ret_effect)
+                || type_contains_open_var(ret)
+        }
+        Type::Thunk { effect, value } => {
+            type_contains_open_var(effect) || type_contains_open_var(value)
+        }
+        Type::Con { args, .. } | Type::Tuple(args) | Type::EffectRow(args) => {
+            args.iter().any(type_contains_open_var)
+        }
+        Type::Record(fields) => fields
+            .iter()
+            .any(|field| type_contains_open_var(&field.value)),
+        Type::PolyVariant(variants) => variants
+            .iter()
+            .any(|variant| variant.payloads.iter().any(type_contains_open_var)),
+        Type::Union(left, right) | Type::Intersection(left, right) => {
+            type_contains_open_var(left) || type_contains_open_var(right)
+        }
+        Type::Stack { inner, .. } => type_contains_open_var(inner),
+        Type::Any | Type::Never => false,
+    }
 }
 
 fn type_candidate_subtype(graph: &ConstraintGraph<'_>, lower: &Type, upper: &Type) -> bool {

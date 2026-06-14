@@ -168,6 +168,7 @@ pub struct ValueMarker {
     pub path: Vec<String>,
     pub depth: u32,
     pub skip_own_path: bool,
+    pub handler_frame: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -489,6 +490,7 @@ impl<'a> Runtime<'a> {
                     path,
                     depth: 1,
                     skip_own_path: false,
+                    handler_frame: true,
                 };
                 self.with_marker_frame(vec![marker], move |runtime| {
                     runtime.eval_expr(body, &mut frame_env)
@@ -801,8 +803,11 @@ impl<'a> Runtime<'a> {
     ) -> RuntimeResult<'a> {
         if index < arms.len() {
             let arm = arms[index].clone();
-            if arm.operation_path.as_ref() != Some(&request.path)
-                || self.request_intersects_guard_stack(&request)
+            let operation_path = arm.operation_path.as_ref();
+            if operation_path != Some(&request.path)
+                || operation_path.is_some_and(|path| {
+                    self.request_intersects_guard_stack_for_path(&request, path)
+                })
             {
                 return self.handle_catch_request_arm(request, arms, env, index + 1);
             }
@@ -1033,15 +1038,33 @@ impl<'a> Runtime<'a> {
             path: marker.path,
             depth: marker.depth,
             skip_own_path: marker.skip_own_path,
+            handler_frame: false,
         };
         mark_value(value, std::slice::from_ref(&marker))
     }
 
-    fn request_intersects_guard_stack(&self, request: &Request<'_>) -> bool {
-        request
-            .guard_ids
+    fn request_intersects_guard_stack_for_path(
+        &self,
+        request: &Request<'_>,
+        operation_path: &[String],
+    ) -> bool {
+        let handler_index = self.active_markers.iter().position(|marker| {
+            marker.handler_frame
+                && !marker.skip_own_path
+                && path_has_prefix(operation_path, &marker.path)
+        });
+        self.active_markers
             .iter()
-            .any(|guard_id| self.guard_ids.contains(guard_id))
+            .enumerate()
+            .any(|(index, marker)| {
+                if !request.guard_ids.contains(&marker.id) {
+                    return false;
+                }
+                match handler_index {
+                    Some(handler_index) => index > handler_index,
+                    None => true,
+                }
+            })
     }
 
     fn instantiate_hygiene(&mut self, hygiene: &FunctionAdapterHygiene) -> Vec<ValueMarker> {
@@ -1053,6 +1076,7 @@ impl<'a> Runtime<'a> {
                 path: marker.path.clone(),
                 depth: marker.depth,
                 skip_own_path: true,
+                handler_frame: false,
             })
             .collect()
     }
@@ -1098,7 +1122,9 @@ impl<'a> Runtime<'a> {
         markers: Vec<ValueMarker>,
     ) -> RuntimeResult<'a> {
         match result {
-            EvalResult::Value(value) => value_result(mark_value(value, &markers)),
+            EvalResult::Value(value) => {
+                value_result(mark_value(value, &markers_for_value(markers)))
+            }
             EvalResult::Request(request) => {
                 let resume = request.resume.clone();
                 Ok(EvalResult::Request(Request {
@@ -1807,6 +1833,17 @@ fn markers_for_function_call(markers: Vec<ValueMarker>) -> Vec<ValueMarker> {
         .into_iter()
         .map(|marker| ValueMarker {
             depth: marker.depth.saturating_sub(1),
+            handler_frame: false,
+            ..marker
+        })
+        .collect()
+}
+
+fn markers_for_value(markers: Vec<ValueMarker>) -> Vec<ValueMarker> {
+    markers
+        .into_iter()
+        .map(|marker| ValueMarker {
+            handler_frame: false,
             ..marker
         })
         .collect()

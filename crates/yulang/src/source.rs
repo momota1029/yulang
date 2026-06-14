@@ -2778,6 +2778,30 @@ mod tests {
     }
 
     #[test]
+    fn run_control_source_text_with_embedded_std_labeled_sub_lambda_handles_inner_return() {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "sub 'outer:\n  my f = \\sub 'inner x -> 'inner.return x\n  f 7\n",
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [7]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_labeled_sub_lambda_lets_outer_return_escape() {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "sub 'outer:\n  my f = \\sub 'inner x -> 'outer.return x\n  f 7\n  'outer.return 1\n",
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [7]\n");
+    }
+
+    #[test]
     fn run_control_source_text_with_embedded_std_keeps_sub_syntax_hygiene() {
         let output = run_control_from_source_text_with_embedded_std(
             "playground.yu",
