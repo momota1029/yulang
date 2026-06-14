@@ -18,6 +18,11 @@ pub const IMPLICIT_PRELUDE_IMPORT: &str = "use std::prelude::*\n";
 const IMPLICIT_STD_MODULE_DECL: &str = "mod std;\n";
 const YULANG_STD_ENV: &str = "YULANG_STD";
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StdSourceOptions {
+    pub std_root: Option<PathBuf>,
+}
+
 /// entry file から local module file を読み、1つの module tree として poly dump を返す。
 pub fn dump_poly_from_entry(entry: impl AsRef<FsPath>) -> Result<DumpPolyOutput, RouteError> {
     dump_poly_from_sources(collect_local_sources(entry)?, DumpPolyKind::Compact)
@@ -50,8 +55,15 @@ pub fn run_control_from_entry(entry: impl AsRef<FsPath>) -> Result<RunControlOut
 pub fn dump_poly_from_entry_with_std(
     entry: impl AsRef<FsPath>,
 ) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn dump_poly_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<DumpPolyOutput, RouteError> {
     dump_poly_from_sources(
-        collect_local_sources_with_std(entry)?,
+        collect_local_sources_with_std_options(entry, options)?,
         DumpPolyKind::Compact,
     )
 }
@@ -60,39 +72,100 @@ pub fn dump_poly_from_entry_with_std(
 pub fn dump_poly_raw_from_entry_with_std(
     entry: impl AsRef<FsPath>,
 ) -> Result<DumpPolyOutput, RouteError> {
-    dump_poly_from_sources(collect_local_sources_with_std(entry)?, DumpPolyKind::Raw)
+    dump_poly_raw_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn dump_poly_raw_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(
+        collect_local_sources_with_std_options(entry, options)?,
+        DumpPolyKind::Raw,
+    )
 }
 
 /// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで mono dump を返す。
 pub fn dump_mono_from_entry_with_std(
     entry: impl AsRef<FsPath>,
 ) -> Result<DumpMonoOutput, RouteError> {
-    dump_mono_from_sources(collect_local_sources_with_std(entry)?)
+    dump_mono_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn dump_mono_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<DumpMonoOutput, RouteError> {
+    dump_mono_from_sources(collect_local_sources_with_std_options(entry, options)?)
 }
 
 /// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで mono runtime を実行する。
 pub fn run_mono_from_entry_with_std(
     entry: impl AsRef<FsPath>,
 ) -> Result<RunMonoOutput, RouteError> {
-    run_mono_from_sources(collect_local_sources_with_std(entry)?)
+    run_mono_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn run_mono_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<RunMonoOutput, RouteError> {
+    run_mono_from_sources(collect_local_sources_with_std_options(entry, options)?)
 }
 
 /// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで control VM を実行する。
 pub fn run_control_from_entry_with_std(
     entry: impl AsRef<FsPath>,
 ) -> Result<RunControlOutput, RouteError> {
-    run_control_from_sources(collect_local_sources_with_std(entry)?)
+    run_control_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn run_control_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<RunControlOutput, RouteError> {
+    run_control_from_sources(collect_local_sources_with_std_options(entry, options)?)
+}
+
+/// entry file から local module file を読み、dump なしで型付け状況を集計する。
+pub fn check_poly_from_entry(entry: impl AsRef<FsPath>) -> Result<CheckPolyOutput, RouteError> {
+    let total_start = Instant::now();
+    let collect_start = Instant::now();
+    let files = collect_local_sources(entry)?;
+    let collect = collect_start.elapsed();
+    check_poly_from_sources(
+        files,
+        collect,
+        total_start,
+        CheckPolyKind::All {
+            title: "check-poly",
+        },
+    )
 }
 
 /// entry file と近場の `lib/std.yu` を読み、dump なしで型付け状況を集計する。
 pub fn check_poly_from_entry_with_std(
     entry: impl AsRef<FsPath>,
 ) -> Result<CheckPolyOutput, RouteError> {
+    check_poly_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn check_poly_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<CheckPolyOutput, RouteError> {
     let total_start = Instant::now();
     let collect_start = Instant::now();
-    let files = collect_local_sources_with_std(entry)?;
+    let files = collect_local_sources_with_std_options(entry, options)?;
     let collect = collect_start.elapsed();
-    check_poly_from_sources(files, collect, total_start, None)
+    check_poly_from_sources(
+        files,
+        collect,
+        total_start,
+        CheckPolyKind::All {
+            title: "check-poly-std",
+        },
+    )
 }
 
 /// entry file と近場の `lib/std.yu` を読み、指定 module の型付け状況だけを集計する。
@@ -100,15 +173,26 @@ pub fn check_poly_from_entry_with_std_in_module(
     entry: impl AsRef<FsPath>,
     module: &str,
 ) -> Result<CheckPolyOutput, RouteError> {
+    check_poly_from_entry_with_std_in_module_options(entry, module, &StdSourceOptions::default())
+}
+
+pub fn check_poly_from_entry_with_std_in_module_options(
+    entry: impl AsRef<FsPath>,
+    module: &str,
+    options: &StdSourceOptions,
+) -> Result<CheckPolyOutput, RouteError> {
     let total_start = Instant::now();
     let collect_start = Instant::now();
-    let files = collect_local_sources_with_std(entry)?;
+    let files = collect_local_sources_with_std_options(entry, options)?;
     let collect = collect_start.elapsed();
     check_poly_from_sources(
         files,
         collect,
         total_start,
-        Some(parse_dump_module_path(module)?),
+        CheckPolyKind::Module {
+            title: "check-poly-std-in",
+            module: parse_dump_module_path(module)?,
+        },
     )
 }
 
@@ -117,8 +201,16 @@ pub fn dump_poly_from_entry_with_std_in_module(
     entry: impl AsRef<FsPath>,
     module: &str,
 ) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_entry_with_std_in_module_options(entry, module, &StdSourceOptions::default())
+}
+
+pub fn dump_poly_from_entry_with_std_in_module_options(
+    entry: impl AsRef<FsPath>,
+    module: &str,
+    options: &StdSourceOptions,
+) -> Result<DumpPolyOutput, RouteError> {
     dump_poly_from_sources(
-        collect_local_sources_with_std(entry)?,
+        collect_local_sources_with_std_options(entry, options)?,
         DumpPolyKind::Module {
             module: parse_dump_module_path(module)?,
             raw: false,
@@ -131,8 +223,16 @@ pub fn dump_poly_raw_from_entry_with_std_in_module(
     entry: impl AsRef<FsPath>,
     module: &str,
 ) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_raw_from_entry_with_std_in_module_options(entry, module, &StdSourceOptions::default())
+}
+
+pub fn dump_poly_raw_from_entry_with_std_in_module_options(
+    entry: impl AsRef<FsPath>,
+    module: &str,
+    options: &StdSourceOptions,
+) -> Result<DumpPolyOutput, RouteError> {
     dump_poly_from_sources(
-        collect_local_sources_with_std(entry)?,
+        collect_local_sources_with_std_options(entry, options)?,
         DumpPolyKind::Module {
             module: parse_dump_module_path(module)?,
             raw: true,
@@ -151,11 +251,16 @@ pub fn collect_local_sources(
 pub fn collect_local_sources_with_std(
     entry: impl AsRef<FsPath>,
 ) -> Result<Vec<CollectedSource>, RouteError> {
+    collect_local_sources_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn collect_local_sources_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<Vec<CollectedSource>, RouteError> {
     let entry = entry.as_ref();
     let base = entry.parent().unwrap_or_else(|| FsPath::new("."));
-    let std_root = resolve_nearby_std_root(base).ok_or_else(|| RouteError::StdRootNotFound {
-        base: base.to_path_buf(),
-    })?;
+    let std_root = resolve_std_root(base, options)?;
 
     let mut collector = Collector::new();
     collector.collect_std_root(&std_root)?;
@@ -227,6 +332,12 @@ enum DumpPolyKind {
     Module { module: Path, raw: bool },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum CheckPolyKind {
+    All { title: &'static str },
+    Module { title: &'static str, module: Path },
+}
+
 #[derive(Debug)]
 pub enum RouteError {
     Io {
@@ -235,6 +346,9 @@ pub enum RouteError {
     },
     StdRootNotFound {
         base: PathBuf,
+    },
+    InvalidStdRoot {
+        root: PathBuf,
     },
     ModuleNotFound {
         current: PathBuf,
@@ -278,6 +392,9 @@ impl fmt::Display for RouteError {
                     "std root was not found near {} or in {YULANG_STD_ENV}",
                     base.display()
                 )
+            }
+            RouteError::InvalidStdRoot { root } => {
+                write!(f, "std root {} does not contain std.yu", root.display())
             }
             RouteError::ModuleNotFound {
                 current,
@@ -467,7 +584,7 @@ fn check_poly_from_sources(
     files: Vec<CollectedSource>,
     collect: Duration,
     total_start: Instant,
-    module: Option<Path>,
+    kind: CheckPolyKind,
 ) -> Result<CheckPolyOutput, RouteError> {
     let source_files = files
         .iter()
@@ -487,20 +604,17 @@ fn check_poly_from_sources(
         summarize: check.timing.summarize,
         total: total_start.elapsed(),
     };
-    let text = if let Some(module_path) = module {
-        let Some(module_check) = check
-            .report
-            .modules
-            .iter()
-            .find(|item| item.path == module_path)
-        else {
-            return Err(RouteError::CheckModuleNotFound {
-                module: module_path,
-            });
-        };
-        format_check_poly_module_output(loaded.len(), &check, module_check, &timing)
-    } else {
-        format_check_poly_output(loaded.len(), &check, &timing)
+    let text = match kind {
+        CheckPolyKind::All { title } => {
+            format_check_poly_output(loaded.len(), &check, &timing, title)
+        }
+        CheckPolyKind::Module { title, module } => {
+            let Some(module_check) = check.report.modules.iter().find(|item| item.path == module)
+            else {
+                return Err(RouteError::CheckModuleNotFound { module });
+            };
+            format_check_poly_module_output(loaded.len(), &check, module_check, &timing, title)
+        }
     };
     Ok(CheckPolyOutput {
         text,
@@ -763,11 +877,12 @@ fn format_check_poly_output(
     file_count: usize,
     check: &infer::check::PolyCheckOutput,
     timing: &CheckPolyTimings,
+    title: &str,
 ) -> String {
     let report = &check.report;
     let totals = &report.totals;
     let mut out = String::new();
-    let _ = writeln!(out, "check-poly-std");
+    let _ = writeln!(out, "{title}");
     let _ = writeln!(out, "files: {file_count}");
     write_check_timing(&mut out, timing);
     let _ = writeln!(out, "summary:");
@@ -826,13 +941,10 @@ fn format_check_poly_module_output(
     check: &infer::check::PolyCheckOutput,
     module: &infer::check::ModuleCheck,
     timing: &CheckPolyTimings,
+    title: &str,
 ) -> String {
     let mut out = String::new();
-    let _ = writeln!(
-        out,
-        "check-poly-std-in {}",
-        infer::check::format_path(&module.path)
-    );
+    let _ = writeln!(out, "{} {}", title, infer::check::format_path(&module.path));
     let _ = writeln!(out, "files: {file_count}");
     write_check_timing(&mut out, timing);
     let _ = writeln!(out, "summary:");
@@ -961,6 +1073,21 @@ fn format_duration(duration: Duration) -> String {
     }
     let micros = seconds * 1_000_000.0;
     format!("{micros:.0}us")
+}
+
+fn resolve_std_root(base: &FsPath, options: &StdSourceOptions) -> Result<PathBuf, RouteError> {
+    if let Some(std_root) = options.std_root.as_ref() {
+        if is_std_root(std_root) {
+            return Ok(std_root.clone());
+        }
+        return Err(RouteError::InvalidStdRoot {
+            root: std_root.clone(),
+        });
+    }
+
+    resolve_nearby_std_root(base).ok_or_else(|| RouteError::StdRootNotFound {
+        base: base.to_path_buf(),
+    })
 }
 
 fn resolve_nearby_std_root(base: &FsPath) -> Option<PathBuf> {

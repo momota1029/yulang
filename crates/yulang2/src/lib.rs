@@ -6,11 +6,17 @@ pub mod source;
 
 pub use source::{
     CheckPolyOutput, CollectedSource, DumpMonoOutput, DumpPolyOutput, IMPLICIT_PRELUDE_IMPORT,
-    RouteError, RunControlOutput, RunMonoOutput, check_poly_from_entry_with_std,
-    check_poly_from_entry_with_std_in_module, collect_local_sources,
-    collect_local_sources_with_std, dump_mono_from_entry, dump_mono_from_entry_with_std,
+    RouteError, RunControlOutput, RunMonoOutput, StdSourceOptions, check_poly_from_entry,
+    check_poly_from_entry_with_std, check_poly_from_entry_with_std_in_module,
+    check_poly_from_entry_with_std_in_module_options, check_poly_from_entry_with_std_options,
+    collect_local_sources, collect_local_sources_with_std, collect_local_sources_with_std_options,
+    dump_mono_from_entry, dump_mono_from_entry_with_std, dump_mono_from_entry_with_std_options,
     dump_poly_from_entry, dump_poly_from_entry_with_std, dump_poly_from_entry_with_std_in_module,
+    dump_poly_from_entry_with_std_in_module_options, dump_poly_from_entry_with_std_options,
     dump_poly_raw_from_entry, dump_poly_raw_from_entry_with_std,
-    dump_poly_raw_from_entry_with_std_in_module, find_nearby_std_root, run_control_from_entry,
-    run_control_from_entry_with_std, run_mono_from_entry, run_mono_from_entry_with_std,
+    dump_poly_raw_from_entry_with_std_in_module,
+    dump_poly_raw_from_entry_with_std_in_module_options, dump_poly_raw_from_entry_with_std_options,
+    find_nearby_std_root, run_control_from_entry, run_control_from_entry_with_std,
+    run_control_from_entry_with_std_options, run_mono_from_entry, run_mono_from_entry_with_std,
+    run_mono_from_entry_with_std_options,
 };
