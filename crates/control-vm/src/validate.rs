@@ -345,10 +345,7 @@ impl Validator<'_> {
                 }
                 Ok(())
             }
-            Pat::PolyVariant(_, payloads) => self.validate_pats(payloads),
-            Pat::Con(_, _) => Err(ValidateError::UnsupportedPattern {
-                feature: "constructor pattern".to_string(),
-            }),
+            Pat::PolyVariant(_, payloads) | Pat::Con(_, payloads) => self.validate_pats(payloads),
             Pat::Ref(instance) => self.validate_instance_ref(*instance),
             Pat::Or(left, right) => {
                 self.validate_pat(left)?;

@@ -55,6 +55,17 @@ fn runs_stack_handler_hygiene_to_outer_handler() {
 }
 
 #[test]
+fn runs_constructor_case_pattern_like_oracle() {
+    assert_oracle_parity(
+        "enum opt 'a:\n  none\n  some 'a\n\
+         case opt::some 1:\n\
+         \x20 opt::some x -> x\n\
+         \x20 _ -> 0\n",
+        "[1]",
+    );
+}
+
+#[test]
 fn reports_unhandled_effect() {
     let program = mono::Program {
         roots: vec![mono::Root::Expr(force_effect_call(
