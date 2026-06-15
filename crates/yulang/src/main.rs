@@ -68,32 +68,43 @@ fn main() {
         Some("dump-poly-std") => {
             let path = require_one_path(&program, args);
             let source_options = options.std_source_options();
-            run_route(
-                yulang::dump_poly_from_entry_with_std_options(path, &source_options),
-                print_dump_poly_output,
-            );
+            let files = run_route_to_value(yulang::collect_local_sources_with_std_options(
+                path,
+                &source_options,
+            ));
+            let output = dump_poly_with_optional_cache(files, false, options.use_cache);
+            print_dump_poly_output(&output);
         }
         Some("dump-mono-std") => {
             let path = require_one_path(&program, args);
             let source_options = options.std_source_options();
-            run_route(
-                yulang::dump_mono_from_entry_with_std_options(path, &source_options),
-                print_dump_mono_output,
-            );
+            let files = run_route_to_value(yulang::collect_local_sources_with_std_options(
+                path,
+                &source_options,
+            ));
+            let output = dump_mono_with_optional_cache(files, options.use_cache);
+            print_dump_mono_output(&output);
         }
         Some("run-mono-std") => {
             let path = require_one_path(&program, args);
             let source_options = options.std_source_options();
-            run_route(
-                yulang::run_mono_from_entry_with_std_options(path, &source_options),
-                print_run_mono_output,
-            );
+            let files = run_route_to_value(yulang::collect_local_sources_with_std_options(
+                path,
+                &source_options,
+            ));
+            let output = run_mono_with_optional_cache(files, options.use_cache);
+            print_run_mono_output(&output);
         }
         Some("run-control-std") => {
             let path = require_one_path(&program, args);
             let source_options = options.std_source_options();
+            let files = run_route_to_value(yulang::collect_local_sources_with_std_options(
+                path,
+                &source_options,
+            ));
+            let build = build_control_with_optional_cache(files, options.use_cache);
             run_route(
-                yulang::run_control_from_entry_with_std_options(path, &source_options),
+                yulang::run_built_control_program(&build.program, build.file_count, build.errors),
                 print_run_control_output,
             );
         }
@@ -132,10 +143,12 @@ fn main() {
         Some("dump-poly-std-raw") => {
             let path = require_one_path(&program, args);
             let source_options = options.std_source_options();
-            run_route(
-                yulang::dump_poly_raw_from_entry_with_std_options(path, &source_options),
-                print_dump_poly_output,
-            );
+            let files = run_route_to_value(yulang::collect_local_sources_with_std_options(
+                path,
+                &source_options,
+            ));
+            let output = dump_poly_with_optional_cache(files, true, options.use_cache);
+            print_dump_poly_output(&output);
         }
         Some("dump-poly-std-in-raw") => {
             let (path, module) = require_path_and_module(&program, args);
@@ -301,10 +314,12 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
             );
         } else {
             let source_options = options.std_source_options();
-            run_route(
-                yulang::run_mono_from_entry_with_std_options(path, &source_options),
-                run_mono_printer(selection.print_roots),
-            );
+            let files = run_route_to_value(yulang::collect_local_sources_with_std_options(
+                path,
+                &source_options,
+            ));
+            let output = run_mono_with_optional_cache(files, options.use_cache);
+            run_mono_printer(selection.print_roots)(&output);
         }
         return;
     }
@@ -356,33 +371,7 @@ fn build_control_with_optional_cache(
         Err(error) => eprintln!("warning: {error}"),
     }
 
-    let poly = match cache.read_poly_artifact(key) {
-        Ok(Some(cached)) => yulang::BuildPolyOutput {
-            arena: cached.arena,
-            file_count: cached.file_count,
-            errors: cached.errors,
-        },
-        Ok(None) => {
-            let output = run_route_to_value(yulang::build_poly_from_collected_sources(files));
-            let artifact = yulang::cache::CachedPolyArtifact {
-                arena: output.arena,
-                file_count: output.file_count,
-                errors: output.errors,
-            };
-            if let Err(error) = cache.write_poly_artifact(key, &artifact) {
-                eprintln!("warning: {error}");
-            }
-            yulang::BuildPolyOutput {
-                arena: artifact.arena,
-                file_count: artifact.file_count,
-                errors: artifact.errors,
-            }
-        }
-        Err(error) => {
-            eprintln!("warning: {error}");
-            run_route_to_value(yulang::build_poly_from_collected_sources(files))
-        }
-    };
+    let poly = build_poly_with_cache(files, key, &cache);
     let output = run_route_to_value(yulang::build_control_from_poly_output(&poly));
     let artifact = yulang::cache::CachedControlArtifact {
         program: output.program.clone(),
@@ -395,6 +384,120 @@ fn build_control_with_optional_cache(
     output
 }
 
+fn build_poly_with_optional_cache(
+    files: Vec<yulang::CollectedSource>,
+    use_cache: bool,
+) -> yulang::BuildPolyOutput {
+    if !use_cache {
+        return run_route_to_value(yulang::build_poly_from_collected_sources(files));
+    }
+
+    let key = yulang::cache::source_cache_key(&files);
+    let cache = yulang::cache::ArtifactCache::new(yulang::stdlib::default_user_cache_root());
+    build_poly_with_cache(files, key, &cache)
+}
+
+fn build_poly_with_cache(
+    files: Vec<yulang::CollectedSource>,
+    key: yulang::cache::SourceCacheKey,
+    cache: &yulang::cache::ArtifactCache,
+) -> yulang::BuildPolyOutput {
+    match cache.read_poly_artifact(key) {
+        Ok(Some(cached)) => yulang::BuildPolyOutput {
+            arena: cached.arena,
+            labels: cached.labels,
+            file_count: cached.file_count,
+            errors: cached.errors,
+        },
+        Ok(None) => {
+            let output = run_route_to_value(yulang::build_poly_from_collected_sources(files));
+            let artifact = yulang::cache::CachedPolyArtifact {
+                arena: output.arena,
+                labels: output.labels,
+                file_count: output.file_count,
+                errors: output.errors,
+            };
+            if let Err(error) = cache.write_poly_artifact(key, &artifact) {
+                eprintln!("warning: {error}");
+            }
+            yulang::BuildPolyOutput {
+                arena: artifact.arena,
+                labels: artifact.labels,
+                file_count: artifact.file_count,
+                errors: artifact.errors,
+            }
+        }
+        Err(error) => {
+            eprintln!("warning: {error}");
+            run_route_to_value(yulang::build_poly_from_collected_sources(files))
+        }
+    }
+}
+
+fn dump_poly_with_optional_cache(
+    files: Vec<yulang::CollectedSource>,
+    raw: bool,
+    use_cache: bool,
+) -> yulang::DumpPolyOutput {
+    let output = build_poly_with_optional_cache(files, use_cache);
+    let text = if raw {
+        poly::dump::dump_arena_raw_with_labels(&output.arena, &output.labels)
+    } else {
+        poly::dump::dump_arena_with_labels(&output.arena, &output.labels)
+    };
+    yulang::DumpPolyOutput {
+        text,
+        file_count: output.file_count,
+        errors: output.errors,
+    }
+}
+
+fn dump_mono_with_optional_cache(
+    files: Vec<yulang::CollectedSource>,
+    use_cache: bool,
+) -> yulang::DumpMonoOutput {
+    let output = build_poly_with_optional_cache(files, use_cache);
+    let program = match specialize::specialize(&output.arena) {
+        Ok(program) => program,
+        Err(error) => {
+            eprintln!("{error}");
+            process::exit(1);
+        }
+    };
+    yulang::DumpMonoOutput {
+        text: specialize::mono::dump::dump_program(&program),
+        file_count: output.file_count,
+        errors: output.errors,
+    }
+}
+
+fn run_mono_with_optional_cache(
+    files: Vec<yulang::CollectedSource>,
+    use_cache: bool,
+) -> yulang::RunMonoOutput {
+    let output = build_poly_with_optional_cache(files, use_cache);
+    let program = match specialize::specialize(&output.arena) {
+        Ok(program) => program,
+        Err(error) => {
+            eprintln!("{error}");
+            process::exit(1);
+        }
+    };
+    let values = match mono_runtime::run_program(&program) {
+        Ok(values) => values,
+        Err(error) => {
+            eprintln!("{error}");
+            process::exit(1);
+        }
+    };
+    yulang::RunMonoOutput {
+        text: yulang::format_run_mono_values(&values),
+        file_count: output.file_count,
+        errors: output.errors,
+        values,
+    }
+}
+
 fn run_compatible_dump(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
     let (path, selection) = parse_dump_args(program, args);
     print_cst_if_requested(options, &path);
@@ -404,7 +507,7 @@ fn run_compatible_dump(program: &str, options: &GlobalOptions, args: VecDeque<Os
     }
 
     let source_options = options.std_source_options();
-    print_selected_dump_with_std(path, selection, &source_options);
+    print_selected_dump_with_std(path, selection, &source_options, options.use_cache);
 }
 
 fn run_compatible_parse(program: &str, args: VecDeque<OsString>) {
@@ -740,24 +843,22 @@ fn print_selected_dump_with_std(
     path: PathBuf,
     selection: DumpSelection,
     options: &yulang::StdSourceOptions,
+    use_cache: bool,
 ) {
+    let files = run_route_to_value(yulang::collect_local_sources_with_std_options(
+        path, options,
+    ));
     if selection.poly {
-        run_route(
-            yulang::dump_poly_from_entry_with_std_options(path.clone(), options),
-            print_dump_poly_output,
-        );
+        let output = dump_poly_with_optional_cache(files.clone(), false, use_cache);
+        print_dump_poly_output(&output);
     }
     if selection.poly_raw {
-        run_route(
-            yulang::dump_poly_raw_from_entry_with_std_options(path.clone(), options),
-            print_dump_poly_output,
-        );
+        let output = dump_poly_with_optional_cache(files.clone(), true, use_cache);
+        print_dump_poly_output(&output);
     }
     if selection.mono {
-        run_route(
-            yulang::dump_mono_from_entry_with_std_options(path, options),
-            print_dump_mono_output,
-        );
+        let output = dump_mono_with_optional_cache(files, use_cache);
+        print_dump_mono_output(&output);
     }
 }
 

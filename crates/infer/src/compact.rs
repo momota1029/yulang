@@ -2586,6 +2586,7 @@ struct CompactCollector<'a> {
     record_merge_constraints: bool,
     merge_constraints: Vec<CompactMergeConstraint>,
     in_progress: FxHashSet<(TypeVar, Polarity)>,
+    row_tail_in_progress: FxHashSet<TypeVar>,
     recursive: FxHashSet<(TypeVar, Polarity)>,
     rec_vars: FxHashMap<TypeVar, CompactBounds>,
     cache: FxHashMap<CompactVarSideKey, CompactType>,
@@ -2605,6 +2606,7 @@ impl<'a> CompactCollector<'a> {
             record_merge_constraints: false,
             merge_constraints: Vec::new(),
             in_progress: FxHashSet::default(),
+            row_tail_in_progress: FxHashSet::default(),
             recursive: FxHashSet::default(),
             rec_vars: FxHashMap::default(),
             cache: FxHashMap::default(),
@@ -3717,7 +3719,11 @@ impl<'a> CompactCollector<'a> {
             Polarity::Negative,
             ConstraintWeight::empty(),
         ));
+        if !self.row_tail_in_progress.insert(var) {
+            return out;
+        }
         let Some(bounds) = self.machine.bounds().of(var).cloned() else {
+            self.row_tail_in_progress.remove(&var);
             return out;
         };
         for bound in bounds.uppers() {
@@ -3754,6 +3760,7 @@ impl<'a> CompactCollector<'a> {
             };
             out = self.merge_types(false, out, compact);
         }
+        self.row_tail_in_progress.remove(&var);
         out
     }
 
@@ -3941,14 +3948,11 @@ mod tests {
             inner: tail_var,
             weight: stack_weight,
         });
+        let popped_tail = machine.alloc_pos(Pos::NonSubtract(stacked_tail, subtract));
         let row_item = machine.alloc_pos(Pos::Con(effect_path, vec![row_arg]));
         let row = machine.alloc_pos(Pos::Row(vec![row_item]));
         let root_upper = machine.alloc_neg(Neg::Var(root));
-        machine.weighted_subtype(
-            stacked_tail,
-            ConstraintWeights::empty().with_left(subtract),
-            root_upper,
-        );
+        machine.subtype(popped_tail, root_upper);
         machine.subtype(row, root_upper);
 
         let (compact, constraints) = compact_type_var_recording_merge_constraints(&machine, root);
@@ -3957,6 +3961,23 @@ mod tests {
         assert_eq!(compact.root.rows.len(), 1);
         assert!(!constraints.is_empty());
         assert!(apply_merge_constraints_until_quiescent(&mut machine, root));
+    }
+
+    #[test]
+    fn compact_neg_row_tail_cycle_keeps_residual_tail_var() {
+        let mut machine = ConstraintMachine::new();
+        let tail = TypeVar(1);
+        let item = machine.alloc_neg(Neg::Con(vec!["io".into()], Vec::new()));
+        let tail_upper = machine.alloc_neg(Neg::Var(tail));
+        let row = machine.alloc_neg(Neg::Row(vec![item], tail_upper));
+        let tail_lower = machine.alloc_pos(Pos::Var(tail));
+        machine.subtype(tail_lower, row);
+
+        let mut collector = CompactCollector::new(&machine);
+        let compact = collector.compact_neg_row_tail_var(tail, ConstraintWeight::empty());
+
+        assert!(compact_type_contains_var(&compact, tail));
+        assert!(compact_row_contains_path(&compact, "io"));
     }
 
     #[test]

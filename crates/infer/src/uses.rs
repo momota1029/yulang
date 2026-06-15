@@ -156,10 +156,12 @@ impl SelectionUseTable {
 ///
 /// `method_value` は、selection lowering が作った method 関数 slot。
 /// `receiver_value` は dot selection の subject で、typeclass method 解決時の role demand に使う。
+/// `receiver_effect` は receiver 式の評価 effect で、effect method 探索に使う。
 pub struct SelectionUse {
     pub parent: DefId,
     pub method_value: TypeVar,
     pub receiver_value: TypeVar,
+    pub receiver_effect: TypeVar,
     pub local_method_scope: Option<ModuleId>,
 }
 
@@ -198,6 +200,7 @@ mod tests {
                 parent: DefId(1),
                 method_value: TypeVar(4),
                 receiver_value: TypeVar(2),
+                receiver_effect: TypeVar(3),
                 local_method_scope: None,
             },
         );

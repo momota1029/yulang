@@ -5,6 +5,7 @@
 //! `RefId` / `SelectId` がどこまで解けているかを読むための表現である。
 
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 use std::fmt::Write as _;
 
 use crate::expr::{
@@ -53,7 +54,7 @@ pub fn dump_defs_raw_with_labels(arena: &Arena, labels: &DumpLabels, roots: &[De
 ///
 /// `poly` 本体は source 名を必須にしない。resolver / lowering 側が名前を持っている場合だけ、
 /// debug 表示用に `d0:name` / `r0:name` のような補助 label を足せる。
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DumpLabels {
     defs: FxHashMap<DefId, String>,
     refs: FxHashMap<RefId, String>,

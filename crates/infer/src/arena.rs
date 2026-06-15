@@ -40,8 +40,11 @@ impl Arena {
         var
     }
 
+    #[track_caller]
     pub fn fresh_subtract_id(&mut self) -> SubtractId {
-        self.type_ids.fresh_subtract_id()
+        let id = self.type_ids.fresh_subtract_id();
+        trace_fresh_subtract_id(id, std::panic::Location::caller());
+        id
     }
 
     pub fn current_level(&self) -> TypeLevel {
@@ -101,6 +104,10 @@ impl Arena {
         self.sync_type_ids_with_constraints();
     }
 
+    pub fn register_effect_family_path(&mut self, path: Vec<String>) {
+        self.constraints.register_effect_family_path(path);
+    }
+
     fn sync_type_ids_with_constraints(&mut self) {
         self.type_ids
             .reserve_type_vars_until(self.constraints.next_type_var());
@@ -113,6 +120,35 @@ impl Arena {
     pub fn constraints_mut(&mut self) -> &mut ConstraintMachine {
         &mut self.constraints
     }
+}
+
+fn subtract_gen_trace_enabled() -> bool {
+    use std::sync::OnceLock;
+    static FLAG: OnceLock<bool> = OnceLock::new();
+    *FLAG.get_or_init(|| std::env::var("YULANG_TRACE_SUBTRACT_ALL").is_ok())
+}
+
+fn trace_fresh_subtract_id(id: SubtractId, location: &'static std::panic::Location<'static>) {
+    if subtract_gen_trace_enabled() {
+        eprintln!("[gen] #{} at {}:{}", id.0, location.file(), location.line());
+    }
+    let Ok(value) = std::env::var("YULANG_TRACE_SUBTRACT_IDS") else {
+        return;
+    };
+    if !value.split(',').any(|part| {
+        part.trim()
+            .parse::<u32>()
+            .is_ok_and(|expected| expected == id.0)
+    }) {
+        return;
+    }
+    eprintln!(
+        "[infer] fresh subtract #{:?} at {}:{}:{}",
+        id,
+        location.file(),
+        location.line(),
+        location.column()
+    );
 }
 
 impl Default for Arena {

@@ -554,6 +554,7 @@ pub struct BuildControlOutput {
 
 pub struct BuildPolyOutput {
     pub arena: poly::expr::Arena,
+    pub labels: poly::dump::DumpLabels,
     pub file_count: usize,
     /// body lowering が報告したエラーの表示用整形。artifact とは別に stderr へ流す。
     pub errors: Vec<String>,
@@ -1079,12 +1080,13 @@ fn build_poly_from_sources(files: Vec<CollectedSource>) -> Result<BuildPolyOutpu
         .collect();
     Ok(BuildPolyOutput {
         arena: dump.lowering.session.poly,
+        labels: dump.lowering.labels,
         file_count: loaded.len(),
         errors,
     })
 }
 
-fn format_run_mono_values(values: &[mono_runtime::Value]) -> String {
+pub fn format_run_mono_values(values: &[mono_runtime::Value]) -> String {
     let mut out = String::new();
     let _ = write!(out, "run roots [");
     for (index, value) in values.iter().enumerate() {

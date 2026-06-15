@@ -662,15 +662,17 @@ impl<'a> ExprLowerer<'a> {
             };
             row_args.push(self.invariant_var_arg(var));
         }
-        let row_item = self.alloc_neg(Neg::Con(
-            self.modules
-                .type_decl_path(&operation_decl.effect)
-                .segments
-                .into_iter()
-                .map(|name| name.0)
-                .collect(),
-            row_args,
-        ));
+        let family_path = self
+            .modules
+            .type_decl_path(&operation_decl.effect)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect::<Vec<_>>();
+        self.session
+            .infer
+            .register_effect_family_path(family_path.clone());
+        let row_item = self.alloc_neg(Neg::Con(family_path, row_args));
         Ok(Some(LoweredCatchOperationSignature {
             row_item,
             continuation_value,
@@ -722,14 +724,15 @@ impl<'a> ExprLowerer<'a> {
             .copied()
             .map(|arg| self.invariant_var_arg(arg))
             .collect();
-        self.alloc_neg(Neg::Con(
-            effect_op
-                .family_path
-                .iter()
-                .map(|name| name.0.clone())
-                .collect(),
-            row_args,
-        ))
+        let family_path = effect_op
+            .family_path
+            .iter()
+            .map(|name| name.0.clone())
+            .collect::<Vec<_>>();
+        self.session
+            .infer
+            .register_effect_family_path(family_path.clone());
+        self.alloc_neg(Neg::Con(family_path, row_args))
     }
 
     fn lower_catch_effect_payload_pattern(

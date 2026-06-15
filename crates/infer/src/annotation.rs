@@ -15,7 +15,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use sources::Name;
 
 use crate::{
-    Arena as InferArena, ModuleId, ModuleOrder, ModuleTable, TypeDeclId, constraints::TypeLevel,
+    Arena as InferArena, ModuleId, ModuleOrder, ModuleTable, ModuleTypeKind, TypeDeclId,
+    constraints::TypeLevel,
 };
 
 type Cst = SyntaxNode<YulangLanguage>;
@@ -658,18 +659,22 @@ impl<'a> AnnConstraintLowerer<'a> {
         }
     }
 
-    fn type_decl_path(&self, id: TypeDeclId) -> Result<Vec<String>, AnnConstraintError> {
+    fn type_decl_path(&mut self, id: TypeDeclId) -> Result<Vec<String>, AnnConstraintError> {
         let decl = self
             .modules
             .type_decl_by_id(id)
             .ok_or(AnnConstraintError::MissingTypeDecl { id })?;
-        Ok(self
+        let path = self
             .modules
             .type_decl_path(&decl)
             .segments
             .into_iter()
             .map(|name| name.0)
-            .collect())
+            .collect::<Vec<_>>();
+        if decl.kind == ModuleTypeKind::Act {
+            self.infer.register_effect_family_path(path.clone());
+        }
+        Ok(path)
     }
 
     fn annotation_var(&mut self, var: &AnnTypeVar) -> TypeVar {
@@ -686,12 +691,9 @@ impl<'a> AnnConstraintLowerer<'a> {
     }
 
     fn wrap_non_subtracts(&mut self, pos: PosId, subtracts: &[SubtractId]) -> PosId {
-        let weight = subtracts
-            .iter()
-            .fold(StackWeight::empty(), |weight, subtract| {
-                weight.compose(&StackWeight::pop(*subtract))
-            });
-        self.wrap_pos_with_stack(pos, &weight)
+        subtracts.iter().fold(pos, |inner, subtract| {
+            self.alloc_pos(Pos::NonSubtract(inner, *subtract))
+        })
     }
 
     fn wrap_pos_with_stack(&mut self, pos: PosId, weight: &StackWeight) -> PosId {
@@ -1741,13 +1743,7 @@ mod tests {
             }
             other => panic!("expected stacked return effect, got {other:?}"),
         };
-        match types.pos(fun.1) {
-            Pos::Stack { inner, weight } => {
-                assert!(matches!(types.pos(*inner), Pos::Var(_)));
-                assert_pop_only(weight, subtract, 1);
-            }
-            other => panic!("expected stacked return value, got {other:?}"),
-        }
+        assert_non_subtract_var(types, fun.1, subtract);
     }
 
     #[test]
@@ -1923,11 +1919,22 @@ mod tests {
         })
     }
 
-    fn assert_pop_only(weight: &StackWeight, subtract: SubtractId, pops: u32) {
-        let entry = single_stack_entry(weight);
-        assert_eq!(entry.id, subtract);
-        assert_eq!(entry.pops, pops);
-        assert!(entry.stack.is_empty());
+    fn assert_non_subtract_var(
+        types: &poly::types::TypeArena,
+        pos: PosId,
+        subtract: SubtractId,
+    ) -> TypeVar {
+        let Pos::NonSubtract(inner, actual) = types.pos(pos) else {
+            panic!(
+                "expected non-subtract return value, got {:?}",
+                types.pos(pos)
+            );
+        };
+        assert_eq!(*actual, subtract);
+        match types.pos(*inner) {
+            Pos::Var(var) => *var,
+            other => panic!("expected non-subtract inner var, got {other:?}"),
+        }
     }
 
     fn first_type_expr(root: &Cst) -> Cst {

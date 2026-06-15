@@ -5,6 +5,7 @@
 //! 確定したら `poly` へ解決結果を書き戻しつつ SCC machine へ dependency を渡す。
 
 use std::collections::VecDeque;
+use std::time::{Duration, Instant};
 
 use poly::expr::{Arena as PolyArena, Def, DefId, RefId, SelectId, SelectResolution};
 use poly::types::{
@@ -86,6 +87,305 @@ pub struct AnalysisSession {
     diagnostics: Vec<AnalysisDiagnostic>,
     scc_events: Vec<SccEvent>,
     work: VecDeque<AnalysisWork>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AnalysisTraceMode {
+    Off,
+    Summary,
+    Verbose,
+}
+
+struct AnalysisDrainTrace {
+    mode: AnalysisTraceMode,
+    start: Instant,
+    processed: usize,
+    max_queue: usize,
+    role_passes: usize,
+    resolve_ref: usize,
+    probe_select: usize,
+    apply_ref: usize,
+    apply_select: usize,
+    scc_register: usize,
+    scc_finish: usize,
+    scc_use: usize,
+    scc_dependency: usize,
+    scc_method_dependency: usize,
+    scc_fetch: usize,
+}
+
+impl AnalysisDrainTrace {
+    fn from_env(initial_queue: usize) -> Self {
+        let mode = analysis_trace_mode();
+        Self {
+            mode,
+            start: Instant::now(),
+            processed: 0,
+            max_queue: initial_queue,
+            role_passes: 0,
+            resolve_ref: 0,
+            probe_select: 0,
+            apply_ref: 0,
+            apply_select: 0,
+            scc_register: 0,
+            scc_finish: 0,
+            scc_use: 0,
+            scc_dependency: 0,
+            scc_method_dependency: 0,
+            scc_fetch: 0,
+        }
+    }
+
+    fn work(&mut self, work: &AnalysisWork, queue_len: usize) {
+        if self.mode == AnalysisTraceMode::Off {
+            return;
+        }
+        self.processed += 1;
+        self.max_queue = self.max_queue.max(queue_len);
+        let kind = analysis_work_kind(work);
+        match work {
+            AnalysisWork::ResolveRef(_) => self.resolve_ref += 1,
+            AnalysisWork::ProbeSelect(_) => self.probe_select += 1,
+            AnalysisWork::ApplyRefResolution { .. } => self.apply_ref += 1,
+            AnalysisWork::ApplySelectionResolution { .. } => self.apply_select += 1,
+            AnalysisWork::Scc(input) => match input {
+                SccInput::RegisterDef { .. } => self.scc_register += 1,
+                SccInput::DefFinished { .. } => self.scc_finish += 1,
+                SccInput::UseResolved { .. } => self.scc_use += 1,
+                SccInput::DependencyAdded { .. } => self.scc_dependency += 1,
+                SccInput::MethodDependencyAdded { .. }
+                | SccInput::MethodDependencyResolved { .. } => self.scc_method_dependency += 1,
+                SccInput::DefFetchRecorded { .. } => self.scc_fetch += 1,
+            },
+        }
+        if self.mode == AnalysisTraceMode::Verbose {
+            eprintln!(
+                "[analysis] work {}: {kind} {:?} queue={} elapsed={}",
+                self.processed,
+                work,
+                queue_len,
+                format_analysis_duration(self.start.elapsed())
+            );
+        }
+        if self.processed % 500 == 0 {
+            self.print("progress", queue_len);
+        }
+    }
+
+    fn route(&self, elapsed: Duration, queue_len: usize) {
+        if self.mode == AnalysisTraceMode::Off {
+            return;
+        }
+        if self.mode == AnalysisTraceMode::Verbose || elapsed >= Duration::from_millis(50) {
+            eprintln!(
+                "[analysis] route constraints: queue={} elapsed={} total={}",
+                queue_len,
+                format_analysis_duration(elapsed),
+                format_analysis_duration(self.start.elapsed())
+            );
+        }
+    }
+
+    fn work_done(&self, kind: &str, elapsed: Duration, queue_len: usize) {
+        if self.mode == AnalysisTraceMode::Off {
+            return;
+        }
+        if self.mode == AnalysisTraceMode::Verbose || elapsed >= Duration::from_millis(50) {
+            eprintln!(
+                "[analysis] work done: kind={kind} queue={} elapsed={} total={}",
+                queue_len,
+                format_analysis_duration(elapsed),
+                format_analysis_duration(self.start.elapsed())
+            );
+        }
+    }
+
+    fn before_role_pass(&mut self, unresolved_selections: usize, queue_len: usize) {
+        if self.mode == AnalysisTraceMode::Off || unresolved_selections == 0 {
+            return;
+        }
+        self.role_passes += 1;
+        eprintln!(
+            "[analysis] role pass {} start: unresolved_selects={} queue={} elapsed={}",
+            self.role_passes,
+            unresolved_selections,
+            queue_len,
+            format_analysis_duration(self.start.elapsed())
+        );
+    }
+
+    fn after_role_pass(
+        &mut self,
+        progressed: bool,
+        unresolved_selections: usize,
+        queue_len: usize,
+    ) {
+        if self.mode == AnalysisTraceMode::Off || self.role_passes == 0 {
+            return;
+        }
+        eprintln!(
+            "[analysis] role pass {} done: progressed={} unresolved_selects={} queue={}",
+            self.role_passes, progressed, unresolved_selections, queue_len
+        );
+    }
+
+    fn route_start(&self) {
+        if self.mode != AnalysisTraceMode::Off && self.processed == 0 {
+            eprintln!(
+                "[analysis] route constraint events start: elapsed={}",
+                format_analysis_duration(self.start.elapsed())
+            );
+        }
+    }
+
+    fn route_done(&self, queue_len: usize) {
+        if self.mode != AnalysisTraceMode::Off && self.processed == 0 {
+            eprintln!(
+                "[analysis] route constraint events done: queue={} elapsed={}",
+                queue_len,
+                format_analysis_duration(self.start.elapsed())
+            );
+        }
+    }
+
+    fn finish(&mut self, queue_len: usize) {
+        if self.mode != AnalysisTraceMode::Off {
+            self.print("finish", queue_len);
+        }
+    }
+
+    fn print(&self, label: &str, queue_len: usize) {
+        eprintln!(
+            "[analysis] {label}: processed={} queue={} max_queue={} roles={} elapsed={} \
+resolve_ref={} probe_select={} apply_ref={} apply_select={} \
+scc_register={} scc_finish={} scc_use={} scc_dep={} scc_method_dep={} scc_fetch={}",
+            self.processed,
+            queue_len,
+            self.max_queue,
+            self.role_passes,
+            format_analysis_duration(self.start.elapsed()),
+            self.resolve_ref,
+            self.probe_select,
+            self.apply_ref,
+            self.apply_select,
+            self.scc_register,
+            self.scc_finish,
+            self.scc_use,
+            self.scc_dependency,
+            self.scc_method_dependency,
+            self.scc_fetch
+        );
+    }
+}
+
+fn analysis_trace_mode() -> AnalysisTraceMode {
+    match std::env::var("YULANG_ANALYSIS_TIMING") {
+        Ok(value) if value == "verbose" => AnalysisTraceMode::Verbose,
+        Ok(value) if !value.is_empty() && value != "0" => AnalysisTraceMode::Summary,
+        _ => AnalysisTraceMode::Off,
+    }
+}
+
+fn analysis_work_kind(work: &AnalysisWork) -> &'static str {
+    match work {
+        AnalysisWork::ResolveRef(_) => "resolve-ref",
+        AnalysisWork::ProbeSelect(_) => "probe-select",
+        AnalysisWork::ApplyRefResolution { .. } => "apply-ref",
+        AnalysisWork::ApplySelectionResolution { .. } => "apply-select",
+        AnalysisWork::Scc(input) => match input {
+            SccInput::RegisterDef { .. } => "scc-register-def",
+            SccInput::DefFinished { .. } => "scc-def-finished",
+            SccInput::UseResolved { .. } => "scc-use-resolved",
+            SccInput::DependencyAdded { .. } => "scc-dependency-added",
+            SccInput::MethodDependencyAdded { .. } => "scc-method-dependency-added",
+            SccInput::MethodDependencyResolved { .. } => "scc-method-dependency-resolved",
+            SccInput::DefFetchRecorded { .. } => "scc-def-fetch-recorded",
+        },
+    }
+}
+
+fn trace_constraint_events(events: &[ConstraintEvent]) {
+    if events.is_empty()
+        || !std::env::var("YULANG_CONSTRAINT_EVENT_TIMING")
+            .is_ok_and(|value| !value.is_empty() && value != "0")
+    {
+        return;
+    }
+
+    let mut lower = 0usize;
+    let mut upper = 0usize;
+    let mut subtract = 0usize;
+    let mut cast = 0usize;
+    for event in events {
+        match event {
+            ConstraintEvent::LowerBoundAdded { .. } => lower += 1,
+            ConstraintEvent::UpperBoundAdded { .. } => upper += 1,
+            ConstraintEvent::SubtractFactAdded { .. } => subtract += 1,
+            ConstraintEvent::NominalCastNeeded { .. } => cast += 1,
+        }
+    }
+    eprintln!(
+        "[analysis] route constraint events: total={} lower={} upper={} subtract={} cast={}",
+        events.len(),
+        lower,
+        upper,
+        subtract,
+        cast
+    );
+}
+
+fn trace_select_requested(select_id: SelectId) -> bool {
+    let Ok(value) = std::env::var("YULANG_TRACE_SELECTS") else {
+        return false;
+    };
+    value
+        .split(',')
+        .any(|part| part.trim().parse::<u32>().is_ok_and(|id| id == select_id.0))
+}
+
+fn trace_select_bound_limit() -> usize {
+    std::env::var("YULANG_TRACE_SELECT_BOUND_LIMIT")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|limit| *limit > 0)
+        .unwrap_or(8)
+}
+
+fn trace_scheme_requested(def: DefId) -> bool {
+    let Ok(value) = std::env::var("YULANG_TRACE_SCHEME_DEFS") else {
+        return false;
+    };
+    value
+        .split(',')
+        .any(|part| part.trim().parse::<u32>().is_ok_and(|id| id == def.0))
+}
+
+fn format_analysis_duration(duration: Duration) -> String {
+    if duration.as_secs() > 0 {
+        format!("{:.3}s", duration.as_secs_f64())
+    } else {
+        format!("{:.3}ms", duration.as_secs_f64() * 1000.0)
+    }
+}
+
+fn trace_instantiate_phase(
+    mode: AnalysisTraceMode,
+    label: &str,
+    parent: DefId,
+    target: DefId,
+    elapsed: Duration,
+    total_start: Instant,
+) {
+    if mode == AnalysisTraceMode::Off {
+        return;
+    }
+    if mode == AnalysisTraceMode::Verbose || elapsed >= Duration::from_millis(50) {
+        eprintln!(
+            "[analysis] instantiate use {label}: parent={parent:?} target={target:?} elapsed={} total={}",
+            format_analysis_duration(elapsed),
+            format_analysis_duration(total_start.elapsed())
+        );
+    }
 }
 
 impl AnalysisSession {
@@ -271,7 +571,9 @@ impl AnalysisSession {
     }
 
     pub fn route_constraint_events(&mut self) {
-        for event in self.infer.constraints_mut().take_events() {
+        let events = self.infer.constraints_mut().take_events();
+        trace_constraint_events(&events);
+        for event in events {
             match event {
                 ConstraintEvent::LowerBoundAdded { var, .. } => {
                     for select in self.selections.pending_for_lower_bound(var) {
@@ -298,12 +600,21 @@ impl AnalysisSession {
     }
 
     pub fn drain_work(&mut self) {
+        let mut trace = AnalysisDrainTrace::from_env(self.work.len());
         loop {
-            while self.step() {}
-            if !self.resolve_roles_for_unresolved_methods() {
+            while self.step_traced(&mut trace) {}
+            trace.before_role_pass(self.selections.unresolved().count(), self.work.len());
+            let progressed = self.resolve_roles_for_unresolved_methods();
+            trace.after_role_pass(
+                progressed,
+                self.selections.unresolved().count(),
+                self.work.len(),
+            );
+            if !progressed {
                 break;
             }
         }
+        trace.finish(self.work.len());
     }
 
     pub fn resolve_unresolved_selections_as_record_fields(&mut self) {
@@ -351,6 +662,44 @@ impl AnalysisSession {
         true
     }
 
+    fn step_traced(&mut self, trace: &mut AnalysisDrainTrace) -> bool {
+        trace.route_start();
+        let route_start = Instant::now();
+        self.route_constraint_events();
+        trace.route(route_start.elapsed(), self.work.len());
+        trace.route_done(self.work.len());
+        let Some(work) = self.work.pop_front() else {
+            return false;
+        };
+        let kind = analysis_work_kind(&work);
+        trace.work(&work, self.work.len());
+        if trace.mode == AnalysisTraceMode::Verbose {
+            self.trace_work_detail(&work);
+        }
+        let work_start = Instant::now();
+        self.apply_work(work);
+        trace.work_done(kind, work_start.elapsed(), self.work.len());
+        true
+    }
+
+    fn trace_work_detail(&self, work: &AnalysisWork) {
+        match work {
+            AnalysisWork::ProbeSelect(select_id) => {
+                let name = self.poly.select(*select_id).name.as_str();
+                eprintln!("[analysis] work detail: select={select_id:?} name=.{name}");
+            }
+            AnalysisWork::ApplySelectionResolution { select_id, target } => {
+                let name = self.poly.select(*select_id).name.as_str();
+                eprintln!(
+                    "[analysis] work detail: select={select_id:?} name=.{name} target={target:?}"
+                );
+            }
+            AnalysisWork::ResolveRef(_)
+            | AnalysisWork::ApplyRefResolution { .. }
+            | AnalysisWork::Scc(_) => {}
+        }
+    }
+
     pub fn take_scc_events(&mut self) -> Vec<SccEvent> {
         self.route_scc_events();
         std::mem::take(&mut self.scc_events)
@@ -388,6 +737,7 @@ impl AnalysisSession {
                 let Some(use_site) = self.selections.remove(select_id) else {
                     return;
                 };
+                self.trace_selection_bounds(select_id, &name, use_site);
                 match target {
                     SelectionTarget::RecordField => {
                         self.constrain_record_field_selection(use_site.method_value, &name);
@@ -421,6 +771,106 @@ impl AnalysisSession {
             AnalysisWork::Scc(input) => self.apply_scc_input(input),
         }
         self.route_scc_events();
+    }
+
+    fn trace_selection_bounds(&self, select_id: SelectId, name: &str, use_site: SelectionUse) {
+        if !trace_select_requested(select_id) {
+            return;
+        }
+        let types = self.infer.constraints().types();
+        let Some(bounds) = self.infer.constraints().bounds().of(use_site.method_value) else {
+            eprintln!(
+                "[analysis] select {select_id:?} .{name}: method_value={:?} has no bounds",
+                use_site.method_value
+            );
+            return;
+        };
+        eprintln!(
+            "[analysis] select {select_id:?} .{name}: parent={:?} method_value={:?} receiver_value={:?} receiver_effect={:?} lowers={} uppers={}",
+            use_site.parent,
+            use_site.method_value,
+            use_site.receiver_value,
+            use_site.receiver_effect,
+            bounds.lowers().len(),
+            bounds.uppers().len()
+        );
+        let limit = trace_select_bound_limit();
+        for (index, lower) in bounds.lowers().iter().take(limit).enumerate() {
+            eprintln!(
+                "[analysis] select {select_id:?} lower[{index}]: pos={:?} {:?} weights={:?}",
+                lower.pos,
+                types.pos(lower.pos),
+                lower.weights
+            );
+            self.trace_pos_args(select_id, lower.pos);
+        }
+        for (index, upper) in bounds.uppers().iter().take(limit).enumerate() {
+            eprintln!(
+                "[analysis] select {select_id:?} upper[{index}]: neg={:?} {:?} weights={:?}",
+                upper.neg,
+                types.neg(upper.neg),
+                upper.weights
+            );
+        }
+        self.trace_var_bounds(
+            select_id,
+            "receiver",
+            use_site.receiver_value,
+            trace_select_bound_limit(),
+        );
+    }
+
+    fn trace_var_bounds(&self, select_id: SelectId, label: &str, var: TypeVar, limit: usize) {
+        let types = self.infer.constraints().types();
+        let Some(bounds) = self.infer.constraints().bounds().of(var) else {
+            eprintln!("[analysis] select {select_id:?} {label} {var:?}: no bounds");
+            return;
+        };
+        eprintln!(
+            "[analysis] select {select_id:?} {label} {var:?}: lowers={} uppers={}",
+            bounds.lowers().len(),
+            bounds.uppers().len()
+        );
+        for (index, lower) in bounds.lowers().iter().take(limit).enumerate() {
+            eprintln!(
+                "[analysis] select {select_id:?} {label} lower[{index}]: pos={:?} {:?} weights={:?}",
+                lower.pos,
+                types.pos(lower.pos),
+                lower.weights
+            );
+            self.trace_pos_args(select_id, lower.pos);
+        }
+        for (index, upper) in bounds.uppers().iter().take(limit).enumerate() {
+            eprintln!(
+                "[analysis] select {select_id:?} {label} upper[{index}]: neg={:?} {:?} weights={:?}",
+                upper.neg,
+                types.neg(upper.neg),
+                upper.weights
+            );
+        }
+    }
+
+    fn trace_pos_args(&self, select_id: SelectId, pos: PosId) {
+        let types = self.infer.constraints().types();
+        let Pos::Con(_, args) = types.pos(pos) else {
+            return;
+        };
+        for (index, arg) in args.iter().enumerate() {
+            match types.neu(*arg) {
+                Neu::Bounds(lower, upper) => {
+                    eprintln!(
+                        "[analysis] select {select_id:?} pos {pos:?} arg[{index}] {arg:?}: Bounds({lower:?} {:?}, {upper:?} {:?})",
+                        types.pos(*lower),
+                        types.neg(*upper)
+                    );
+                }
+                neu => {
+                    eprintln!(
+                        "[analysis] select {select_id:?} pos {pos:?} arg[{index}] {arg:?}: {neu:?}"
+                    );
+                }
+            }
+        }
     }
 
     fn apply_scc_input(&mut self, input: SccInput) {
@@ -484,12 +934,17 @@ impl AnalysisSession {
             return;
         };
         let name = self.poly.select(select_id).name.clone();
-        let target = self.probe_method_value(
-            select_id,
-            use_site.method_value,
-            &name,
-            &mut FxHashSet::default(),
-        );
+        let receiver_effect = self.infer.alloc_pos(Pos::Var(use_site.receiver_effect));
+        let target = self
+            .probe_effect_select_pos(select_id, receiver_effect, &name, &mut FxHashSet::default())
+            .or_else(|| {
+                self.probe_method_value(
+                    select_id,
+                    use_site.method_value,
+                    &name,
+                    &mut FxHashSet::default(),
+                )
+            });
         let Some(target) = target else { return };
         self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
     }
@@ -1166,6 +1621,7 @@ impl AnalysisSession {
                 &scheme,
                 &ancestors,
             );
+            self.trace_scheme(def, &finalized.scheme);
             self.set_def_scheme(def, finalized.scheme);
         }
     }
@@ -1234,15 +1690,67 @@ impl AnalysisSession {
         let Some(scheme) = self.def_scheme(target).cloned() else {
             return;
         };
+        self.trace_scheme(target, &scheme);
+        let trace = analysis_trace_mode();
+        let start = Instant::now();
+        if trace == AnalysisTraceMode::Verbose {
+            eprintln!(
+                "[analysis] instantiate use start: parent={parent:?} target={target:?} use={use_value:?} quantifiers={} roles={} recursive_bounds={} stack_quantifiers={}",
+                scheme.quantifiers.len(),
+                scheme.role_predicates.len(),
+                scheme.recursive_bounds.len(),
+                scheme.stack_quantifiers.len()
+            );
+        }
+        let phase = Instant::now();
         let instantiated = instantiate_scheme_with_roles(
             &self.poly.typ,
             &mut self.infer,
             TypeLevel::secondary(),
             &scheme,
         );
+        trace_instantiate_phase(
+            trace,
+            "clone scheme",
+            parent,
+            target,
+            phase.elapsed(),
+            start,
+        );
+        let phase = Instant::now();
         let use_upper = self.infer.alloc_neg(Neg::Var(use_value));
         self.infer.subtype(instantiated.predicate, use_upper);
+        trace_instantiate_phase(
+            trace,
+            "subtype predicate",
+            parent,
+            target,
+            phase.elapsed(),
+            start,
+        );
+        let phase = Instant::now();
         self.insert_instantiated_role_predicates(parent, &instantiated.role_predicates);
+        trace_instantiate_phase(
+            trace,
+            "insert roles",
+            parent,
+            target,
+            phase.elapsed(),
+            start,
+        );
+    }
+
+    fn trace_scheme(&self, target: DefId, scheme: &Scheme) {
+        if !trace_scheme_requested(target) {
+            return;
+        }
+        eprintln!(
+            "[analysis] scheme {target:?}: {}",
+            poly::dump::format_scheme(&self.poly.typ, scheme)
+        );
+        for line in poly::dump::dump_scheme_raw(&self.poly.typ, scheme).lines() {
+            eprintln!("[analysis] scheme {target:?} raw: {line}");
+        }
     }
 
     fn insert_instantiated_role_predicates(&mut self, owner: DefId, predicates: &[RolePredicate]) {
@@ -2689,7 +3197,7 @@ mod tests {
     ) {
         let method = session.infer.alloc_pos(Pos::Var(method_value));
         let arg = session.infer.alloc_pos(Pos::Var(receiver));
-        let arg_eff = session.infer.alloc_pos(Pos::Var(receiver_effect));
+        let arg_eff = session.infer.alloc_pos(Pos::Bot);
         let ret_eff = session.infer.alloc_neg(Neg::Var(result_effect));
         let ret = session.infer.alloc_neg(Neg::Var(result));
         let upper = session.infer.alloc_neg(Neg::Fun {
@@ -2699,15 +3207,18 @@ mod tests {
             ret,
         });
         session.infer.subtype(method, upper);
-        let receiver_effect = session.infer.alloc_pos(Pos::Var(receiver_effect));
-        let result_effect = session.infer.alloc_neg(Neg::Var(result_effect));
-        session.infer.subtype(receiver_effect, result_effect);
+        let receiver_effect_pos = session.infer.alloc_pos(Pos::Var(receiver_effect));
+        let result_effect_neg = session.infer.alloc_neg(Neg::Var(result_effect));
+        session
+            .infer
+            .subtype(receiver_effect_pos, result_effect_neg);
         session.register_selection_use(
             select,
             SelectionUse {
                 parent,
                 method_value,
                 receiver_value: receiver,
+                receiver_effect,
                 local_method_scope: None,
             },
         );
@@ -3082,7 +3593,7 @@ mod tests {
     }
 
     #[test]
-    fn effect_method_selection_resolves_from_receiver_value_weighted_lower_bound() {
+    fn effect_method_selection_ignores_non_effect_receiver_value_weighted_lower_bound() {
         let mut session = AnalysisSession::new(PolyArena::new());
         let select = session.poly.add_select("flip");
         let parent = DefId(1);
@@ -3120,10 +3631,7 @@ mod tests {
         );
         session.drain_work();
 
-        assert_eq!(
-            session.poly.select(select).resolution,
-            Some(SelectResolution::Method { def: method })
-        );
+        assert_eq!(session.poly.select(select).resolution, None);
     }
 
     #[test]

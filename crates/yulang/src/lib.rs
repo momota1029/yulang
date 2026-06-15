@@ -32,7 +32,7 @@ pub use source::{
     dump_poly_from_source_text_with_embedded_std, dump_poly_raw_from_entry,
     dump_poly_raw_from_entry_with_std, dump_poly_raw_from_entry_with_std_in_module,
     dump_poly_raw_from_entry_with_std_in_module_options, dump_poly_raw_from_entry_with_std_options,
-    dump_poly_raw_from_source_text_with_embedded_std, find_nearby_std_root,
+    dump_poly_raw_from_source_text_with_embedded_std, find_nearby_std_root, format_run_mono_values,
     run_built_control_program, run_control_from_entry, run_control_from_entry_with_std,
     run_control_from_entry_with_std_options, run_control_from_source_text_with_embedded_std,
     run_mono_from_entry, run_mono_from_entry_with_std, run_mono_from_entry_with_std_options,

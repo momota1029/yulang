@@ -582,7 +582,7 @@ pub enum Pos {
         inner: PosId,
         weight: StackWeight,
     },
-    /// 旧 `pop(T, #id)` 糖衣。新しい lowering では `Stack` を使う。
+    /// 出力 predicate が外へ出る位置で `#id` の境界を戻す。
     NonSubtract(PosId, SubtractId),
     Union(PosId, PosId),
 }
@@ -644,4 +644,50 @@ pub struct RecordField<T> {
     pub name: String,
     pub value: T,
     pub optional: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stack_weight_empty_floor_preserves_later_stack_until_pop() {
+        let id = SubtractId(0);
+        let io = Subtractability::Set(vec!["io".into()], Vec::new());
+        let pushed = StackWeight::floor(id, Subtractability::Empty)
+            .compose(&StackWeight::push(id, io.clone()));
+        let [entry] = pushed.entries() else {
+            panic!("expected one stack entry");
+        };
+        assert_eq!(entry.id, id);
+        assert_eq!(entry.pops, 0);
+        assert_eq!(entry.floor, vec![Subtractability::Empty]);
+        assert_eq!(entry.stack, vec![io]);
+
+        let popped = pushed.compose(&StackWeight::pop(id));
+
+        let [entry] = popped.entries() else {
+            panic!("expected one stack entry");
+        };
+        assert_eq!(entry.id, id);
+        assert_eq!(entry.pops, 0);
+        assert_eq!(entry.floor, vec![Subtractability::Empty]);
+        assert!(entry.stack.is_empty());
+    }
+
+    #[test]
+    fn stack_weight_empty_floor_does_not_absorb_existing_stack() {
+        let id = SubtractId(0);
+        let io = Subtractability::Set(vec!["io".into()], Vec::new());
+        let weight = StackWeight::push(id, io.clone())
+            .compose(&StackWeight::floor(id, Subtractability::Empty));
+
+        let [entry] = weight.entries() else {
+            panic!("expected one stack entry");
+        };
+        assert_eq!(entry.id, id);
+        assert_eq!(entry.pops, 0);
+        assert_eq!(entry.floor, vec![Subtractability::Empty]);
+        assert_eq!(entry.stack, vec![io]);
+    }
 }

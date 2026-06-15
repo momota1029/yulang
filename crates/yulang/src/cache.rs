@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::CollectedSource;
 
-const POLY_CACHE_FORMAT: u32 = 2;
+const POLY_CACHE_FORMAT: u32 = 3;
 const CONTROL_CACHE_FORMAT: u32 = 2;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
@@ -56,6 +56,7 @@ impl ArtifactCache {
         };
         Ok(Some(CachedPolyArtifact {
             arena: envelope.arena,
+            labels: envelope.labels,
             file_count: envelope.file_count,
             errors: envelope.errors,
         }))
@@ -70,6 +71,7 @@ impl ArtifactCache {
         let envelope = PolyCacheEnvelope {
             format: POLY_CACHE_FORMAT,
             arena: &artifact.arena,
+            labels: &artifact.labels,
             file_count: artifact.file_count,
             errors: &artifact.errors,
         };
@@ -122,6 +124,7 @@ pub struct CachedControlArtifact {
 
 pub struct CachedPolyArtifact {
     pub arena: poly::expr::Arena,
+    pub labels: poly::dump::DumpLabels,
     pub file_count: usize,
     pub errors: Vec<String>,
 }
@@ -238,9 +241,10 @@ impl fmt::Display for CacheError {
 impl std::error::Error for CacheError {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct PolyCacheEnvelope<T = poly::expr::Arena, E = Vec<String>> {
+struct PolyCacheEnvelope<T = poly::expr::Arena, L = poly::dump::DumpLabels, E = Vec<String>> {
     format: u32,
     arena: T,
+    labels: L,
     file_count: usize,
     errors: E,
 }
@@ -424,6 +428,7 @@ mod tests {
         let key = source_cache_key(&[source("main.yu", &[], "1\n")]);
         let artifact = CachedPolyArtifact {
             arena: poly::expr::Arena::new(),
+            labels: poly::dump::DumpLabels::new(),
             file_count: 1,
             errors: vec!["lowering warning".to_string()],
         };

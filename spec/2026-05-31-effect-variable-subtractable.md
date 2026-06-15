@@ -68,6 +68,27 @@ Weight(#id) = floor[F] pop(p)[H1, ..., Hn]
 ```
 
 空の重みでは、全ての`#id`が`floor[All] pop(0)[]`（略記で`pop(0)[]`）である。
+
+## 非 effect 具象型の terminal edge
+
+stack 重みが観測されるのは effect family の行分解・subtraction・残差生成に到達する経路である。
+したがって、effect family ではない具象型に対する terminal subtype edge では重みを消してよい。
+
+```text
+C @W <: α      ≡ C <: α      if C is a non-effect concrete terminal
+α @W <: C      ≡ α <: C      if C is a non-effect concrete terminal
+C @W <: C      ≡ C <: C      if C is a non-effect concrete terminal
+```
+
+ここで non-effect concrete terminal とは、解決先の型宣言が effect family ではなく、かつその edge から
+子制約へ重みを伝播しない具象型である。`int`、`bool`、0引数の通常struct/enumなどがこれに当たる。
+effect family として宣言された型は、同じ `Con(path, args)` 表現を持っていてもこの消去対象ではない。
+
+型引数を持つ通常コンストラクタでは、親の terminal edge で重みを捨ててから分解してはいけない。
+`box<α [e] -> β>` のような引数内部に effect row がある場合、その引数へ向かう不変制約には
+重みを伝播する必要がある。重みを消せるのは、具象型そのものの照合で計算が止まり、
+effect row subtraction に到達しない終端 edge に限る。
+
 stack entryの合成は、左の後ろに右を積む操作である。
 
 ```text

@@ -14,7 +14,8 @@ mod pattern;
 use parser::lex::SyntaxKind;
 use parser::sink::YulangLanguage;
 use rowan::{NodeOrToken, SyntaxNode};
-use sources::{LoadedFile, Name};
+use sources::{LoadedFile, Name, Path};
+use std::time::{Duration, Instant};
 
 use poly::dump::DumpLabels;
 use poly::expr::{
@@ -93,25 +94,128 @@ pub fn lower_binding_bodies(root: &Cst, lower: Lower) -> BodyLowering {
 /// top-level block を対応する module に差し込む。pass2 は全 file の binding を走査してから
 /// work queue を drain するため、file をまたぐ forward ref / cycle も同じ SCC machine に乗る。
 pub fn lower_loaded_files(files: &[LoadedFile]) -> Result<BodyLowering, LoadedFilesError> {
-    let loaded = LoadedFileCsts::new(files)?;
-    let lower = lower_loaded_file_csts_module_map(&loaded)?;
-    let mut lowerer = BodyLowerer::new(lower);
+    let timing = InferTiming::from_env();
+    let total_start = Instant::now();
 
+    let phase_start = Instant::now();
+    let loaded = LoadedFileCsts::new(files)?;
+    timing.phase("index loaded file CSTs", phase_start.elapsed());
+
+    let phase_start = Instant::now();
+    let lower = lower_loaded_file_csts_module_map(&loaded)?;
+    timing.phase("lower module map", phase_start.elapsed());
+
+    let phase_start = Instant::now();
+    let mut lowerer = BodyLowerer::new(lower);
+    timing.phase("initialize body lowerer", phase_start.elapsed());
+
+    let phase_start = Instant::now();
     for file in loaded.by_depth() {
         let Some(module) = lowerer.modules.module_by_path(&file.module_path) else {
             return Err(LoadedFilesError::MissingModulePath {
                 module_path: file.module_path.clone(),
             });
         };
+        let file_start = Instant::now();
+        timing.file_start(&file.module_path);
         lowerer.lower_block(&file.cst, module);
+        timing.file_done(&file.module_path, file_start.elapsed());
     }
+    timing.phase("lower binding bodies", phase_start.elapsed());
 
+    let phase_start = Instant::now();
     lowerer.lower_synthetic_act_copy_bodies();
+    timing.phase("lower synthetic act copy bodies", phase_start.elapsed());
+
+    trace_requested_def_labels(&lowerer.labels);
+
+    let phase_start = Instant::now();
     lowerer.session.drain_work();
+    timing.phase("drain analysis work", phase_start.elapsed());
+
+    let phase_start = Instant::now();
     lowerer
         .session
         .resolve_unresolved_selections_as_record_fields();
-    Ok(lowerer.finish())
+    timing.phase("resolve remaining selections", phase_start.elapsed());
+
+    let phase_start = Instant::now();
+    let output = lowerer.finish();
+    timing.phase("finish lowering", phase_start.elapsed());
+    timing.phase("total lower_loaded_files", total_start.elapsed());
+    Ok(output)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum InferTiming {
+    Off,
+    Phases,
+    Files,
+}
+
+impl InferTiming {
+    fn from_env() -> Self {
+        match std::env::var("YULANG_INFER_TIMING") {
+            Ok(value) if value == "files" => Self::Files,
+            Ok(value) if !value.is_empty() && value != "0" => Self::Phases,
+            _ => Self::Off,
+        }
+    }
+
+    fn phase(self, label: &str, elapsed: Duration) {
+        if matches!(self, Self::Phases | Self::Files) {
+            eprintln!("[infer] {label}: {}", format_timing_duration(elapsed));
+        }
+    }
+
+    fn file_start(self, module: &Path) {
+        if matches!(self, Self::Files) {
+            eprintln!("[infer] lower {} ...", format_module_path(module));
+        }
+    }
+
+    fn file_done(self, module: &Path, elapsed: Duration) {
+        if matches!(self, Self::Files) {
+            eprintln!(
+                "[infer] lower {}: {}",
+                format_module_path(module),
+                format_timing_duration(elapsed)
+            );
+        }
+    }
+}
+
+fn format_timing_duration(duration: Duration) -> String {
+    if duration.as_secs() > 0 {
+        format!("{:.3}s", duration.as_secs_f64())
+    } else {
+        format!("{:.3}ms", duration.as_secs_f64() * 1000.0)
+    }
+}
+
+fn format_module_path(path: &Path) -> String {
+    if path.segments.is_empty() {
+        return "<root>".to_string();
+    }
+    path.segments
+        .iter()
+        .map(|segment| segment.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::")
+}
+
+fn trace_requested_def_labels(labels: &DumpLabels) {
+    let Ok(value) = std::env::var("YULANG_TRACE_DEFS") else {
+        return;
+    };
+    for part in value.split(',') {
+        let Ok(id) = part.trim().parse::<u32>() else {
+            continue;
+        };
+        let def = DefId(id);
+        let label = labels.def_label(def).unwrap_or("<unlabeled>");
+        eprintln!("[infer] def {def:?}: {label}");
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3119,6 +3223,8 @@ pub struct ExprLowerer<'a> {
     sub_syntax_scopes: Vec<SubSyntaxScope>,
     effect_views: Vec<LocalEffect>,
     function_frames: Vec<FunctionPredicateFrame>,
+    active_defined_skeletons: Vec<ActiveDefinedLambdaSkeleton>,
+    connected_defined_skeleton_predicates: FxHashSet<DefinedSkeletonPredicateKey>,
     local_generalize_boundary: TypeLevel,
 }
 
@@ -3163,6 +3269,8 @@ impl<'a> ExprLowerer<'a> {
             sub_syntax_scopes: Vec::new(),
             effect_views: Vec::new(),
             function_frames: Vec::new(),
+            active_defined_skeletons: Vec::new(),
+            connected_defined_skeleton_predicates: FxHashSet::default(),
             local_generalize_boundary,
         }
     }
@@ -3197,6 +3305,8 @@ impl<'a> ExprLowerer<'a> {
             sub_syntax_scopes: Vec::new(),
             effect_views: Vec::new(),
             function_frames: Vec::new(),
+            active_defined_skeletons: Vec::new(),
+            connected_defined_skeleton_predicates: FxHashSet::default(),
             local_generalize_boundary,
         }
     }
@@ -4809,6 +4919,7 @@ impl<'a> ExprLowerer<'a> {
     ) -> Result<Computation, LoweringError> {
         let before_locals = self.locals.len();
         let before_frames = self.function_frames.len();
+        let before_active_skeletons = self.active_defined_skeletons.len();
         let mut params = Vec::with_capacity(patterns.len());
 
         for (param_index, pattern) in patterns.iter().enumerate() {
@@ -4827,6 +4938,8 @@ impl<'a> ExprLowerer<'a> {
                 Err(error) => {
                     self.locals.truncate(before_locals);
                     self.function_frames.truncate(before_frames);
+                    self.active_defined_skeletons
+                        .truncate(before_active_skeletons);
                     return Err(error);
                 }
             };
@@ -4840,6 +4953,8 @@ impl<'a> ExprLowerer<'a> {
                 Err(error) => {
                     self.locals.truncate(before_locals);
                     self.function_frames.truncate(before_frames);
+                    self.active_defined_skeletons
+                        .truncate(before_active_skeletons);
                     return Err(error);
                 }
             };
@@ -4852,15 +4967,47 @@ impl<'a> ExprLowerer<'a> {
             });
         }
 
-        let skeleton =
-            self_value.map(|target| self.constrain_defined_lambda_skeleton(&params, target));
+        let skeleton_slots = if self_value.is_some() {
+            Some(self.fresh_defined_lambda_skeleton(params.len()))
+        } else {
+            None
+        };
+        if let (Some(target), Some(skeleton)) = (self_value, skeleton_slots.as_ref()) {
+            let initial_frames = params
+                .iter()
+                .map(|_| FunctionPredicateFrame::new(LambdaScope::Defined))
+                .collect::<Vec<_>>();
+            self.constrain_defined_lambda_skeleton_shape(&params, target, skeleton);
+            self.connect_defined_lambda_skeleton_predicates(
+                &params,
+                &initial_frames,
+                skeleton,
+                SkeletonPredicateMode::KnownBeforeBody,
+            );
+            self.active_defined_skeletons
+                .push(ActiveDefinedLambdaSkeleton {
+                    before_frames,
+                    params: params.clone(),
+                    skeleton: skeleton.clone(),
+                });
+        }
 
         let previous_level = self.session.infer.enter_child_level();
         let previous_local_generalize_boundary = self.local_generalize_boundary;
         self.local_generalize_boundary = previous_level;
         let body_result = (|| {
             let mut body = self.lower_lambda_body(body, body_mode)?;
-            if let Some(skeleton) = &skeleton {
+            if let (Some(_target), Some(skeleton)) = (self_value, skeleton_slots.as_ref()) {
+                // body lowering 中に見つかった unannotated callee subtract は、発見時点で
+                // active skeleton の output slot へ反映する。shape は stable な slot を返す
+                // だけなので、最終段では body と skeleton slot の接続だけを張る。
+                let skeleton_frames = self.function_frames[before_frames..].to_vec();
+                self.connect_defined_lambda_skeleton_predicates(
+                    &params,
+                    &skeleton_frames,
+                    skeleton,
+                    SkeletonPredicateMode::All,
+                );
                 self.subtype_var_to_var(body.effect, skeleton.body_effect);
                 self.subtype_var_to_var(body.value, skeleton.body_value);
                 body = Computation::new(
@@ -4882,12 +5029,16 @@ impl<'a> ExprLowerer<'a> {
         })();
         self.local_generalize_boundary = previous_local_generalize_boundary;
         self.session.infer.restore_level(previous_level);
+        self.active_defined_skeletons
+            .truncate(before_active_skeletons);
 
         let mut body = match body_result {
             Ok(body) => body,
             Err(error) => {
                 self.locals.truncate(before_locals);
                 self.function_frames.truncate(before_frames);
+                self.active_defined_skeletons
+                    .truncate(before_active_skeletons);
                 return Err(error);
             }
         };
@@ -4947,32 +5098,37 @@ impl<'a> ExprLowerer<'a> {
         Computation::value(expr, value, effect)
     }
 
-    fn constrain_defined_lambda_skeleton(
+    fn fresh_defined_lambda_skeleton(&mut self, params_len: usize) -> DefinedLambdaSkeleton {
+        let layers = (0..params_len)
+            .map(|_| DefinedLambdaSkeletonLayer {
+                function_effect: self.fresh_exact_pure_effect(),
+                function_value: self.fresh_type_var(),
+                output_effect: self.fresh_type_var(),
+                output_value: self.fresh_type_var(),
+            })
+            .collect();
+        DefinedLambdaSkeleton {
+            body_effect: self.fresh_type_var(),
+            body_value: self.fresh_type_var(),
+            layers,
+        }
+    }
+
+    fn constrain_defined_lambda_skeleton_shape(
         &mut self,
         params: &[LoweredLambdaParam],
         target: TypeVar,
-    ) -> DefinedLambdaSkeleton {
-        let body_effect = self.fresh_type_var();
-        let body_value = self.fresh_type_var();
-        let mut current_effect = body_effect;
-        let mut current_value = body_value;
+        skeleton: &DefinedLambdaSkeleton,
+    ) {
+        debug_assert_eq!(params.len(), skeleton.layers.len());
+        let mut current_value = None;
 
-        for param in params.iter().rev() {
-            let value = self.fresh_type_var();
-            let effect = self.fresh_exact_pure_effect();
+        for (param, layer) in params.iter().zip(skeleton.layers.iter()).rev() {
             let arg = self.alloc_neg(Neg::Var(param.value));
-            let predicate_subtracts = self.lambda_predicate_subtracts(
-                LambdaScope::Defined,
-                param.annotation.subtracts.clone(),
-                FunctionPredicateFrame::new(LambdaScope::Defined),
-            );
-            let (ret_eff, ret) = self.lambda_output_predicate_vars(
-                current_effect,
-                current_value,
-                &predicate_subtracts,
-            );
+            let ret_eff = self.alloc_pos(Pos::Var(layer.output_effect));
+            let ret = self.alloc_pos(Pos::Var(layer.output_value));
             self.constrain_lower(
-                value,
+                layer.function_value,
                 Pos::Fun {
                     arg,
                     arg_eff: param.annotation.skeleton_arg_eff,
@@ -4980,14 +5136,70 @@ impl<'a> ExprLowerer<'a> {
                     ret,
                 },
             );
-            current_effect = effect;
-            current_value = value;
+            current_value = Some(layer.function_value);
         }
 
-        self.subtype_var_to_var(current_value, target);
-        DefinedLambdaSkeleton {
-            body_effect,
-            body_value,
+        if let Some(value) = current_value {
+            self.subtype_var_to_var(value, target);
+        }
+    }
+
+    fn connect_defined_lambda_skeleton_predicates(
+        &mut self,
+        params: &[LoweredLambdaParam],
+        frames: &[FunctionPredicateFrame],
+        skeleton: &DefinedLambdaSkeleton,
+        mode: SkeletonPredicateMode,
+    ) {
+        debug_assert_eq!(params.len(), frames.len());
+        debug_assert_eq!(params.len(), skeleton.layers.len());
+        let mut current_effect = skeleton.body_effect;
+        let mut current_value = skeleton.body_value;
+
+        for ((param, frame), layer) in params
+            .iter()
+            .zip(frames.iter())
+            .zip(skeleton.layers.iter())
+            .rev()
+        {
+            let predicate_subtracts = self.lambda_predicate_subtracts(
+                LambdaScope::Defined,
+                param.annotation.subtracts.clone(),
+                frame.clone(),
+            );
+            let key = DefinedSkeletonPredicateKey {
+                output_effect: layer.output_effect,
+                output_value: layer.output_value,
+                current_effect,
+                current_value,
+                subtracts: predicate_subtracts.clone(),
+            };
+            if predicate_subtracts.is_empty() {
+                if mode.connects_empty_predicate(param) {
+                    if !self.connected_defined_skeleton_predicates.insert(key) {
+                        current_effect = layer.function_effect;
+                        current_value = layer.function_value;
+                        continue;
+                    }
+                    self.subtype_var_to_var(current_effect, layer.output_effect);
+                    self.subtype_var_to_var(current_value, layer.output_value);
+                    self.subtype_var_to_var(layer.output_value, current_value);
+                }
+            } else {
+                if !self.connected_defined_skeleton_predicates.insert(key) {
+                    current_effect = layer.function_effect;
+                    current_value = layer.function_value;
+                    continue;
+                }
+                let ret_eff = self.alloc_pos(Pos::Var(current_effect));
+                let ret = self.alloc_pos(Pos::Var(current_value));
+                let ret_eff = self.wrap_pos_with_subtracts(ret_eff, &predicate_subtracts);
+                let ret = self.wrap_pos_with_subtracts(ret, &predicate_subtracts);
+                self.subtype_pos_to_var(ret_eff, layer.output_effect);
+                self.subtype_pos_to_var(ret, layer.output_value);
+            }
+            current_effect = layer.function_effect;
+            current_value = layer.function_value;
         }
     }
 
@@ -5575,7 +5787,7 @@ impl<'a> ExprLowerer<'a> {
         let lower_item = self.alloc_pos(Pos::Con(path.clone(), vec![payload_arg]));
         self.constrain_lower(effect, Pos::Row(vec![lower_item]));
         let upper_item = self.alloc_neg(Neg::Con(path, vec![payload_arg]));
-        let upper_tail = self.alloc_neg(Neg::Top);
+        let upper_tail = self.alloc_neg(Neg::Bot);
         self.constrain_upper(effect, Neg::Row(vec![upper_item], upper_tail));
         Ok(effect)
     }
@@ -6975,12 +7187,12 @@ impl<'a> ExprLowerer<'a> {
         let call_effect = self.fresh_type_var();
         let method = self.alloc_pos(Pos::Var(method_value));
         let receiver_value = self.alloc_pos(Pos::Var(receiver.value));
-        let receiver_effect = self.alloc_pos(Pos::Var(receiver.effect));
+        let receiver_arg_eff = self.alloc_pos(Pos::Bot);
         let ret_eff = self.alloc_neg(Neg::Var(call_effect));
         let ret = self.alloc_neg(Neg::Var(result_value));
         let method_upper = self.alloc_neg(Neg::Fun {
             arg: receiver_value,
-            arg_eff: receiver_effect,
+            arg_eff: receiver_arg_eff,
             ret_eff,
             ret,
         });
@@ -6995,6 +7207,7 @@ impl<'a> ExprLowerer<'a> {
                 parent: self.parent,
                 method_value,
                 receiver_value: receiver.value,
+                receiver_effect: receiver.effect,
                 local_method_scope: self.local_method_scope,
             },
         );
@@ -7402,12 +7615,25 @@ impl<'a> ExprLowerer<'a> {
             return ApplicationReturnEffect { upper: bare, lower };
         }
 
-        let subtract = self.session.infer.fresh_subtract_id();
-        let frame = self
+        let frame_index = self
             .function_frames
-            .last_mut()
+            .len()
+            .checked_sub(1)
             .expect("checked that function frame exists");
-        frame.subtracts.push(subtract);
+        let (subtract, inserted) = match self.function_frames[frame_index].unannotated_call_subtract
+        {
+            Some(subtract) => (subtract, false),
+            None => {
+                let subtract = self.session.infer.fresh_subtract_id();
+                let frame = &mut self.function_frames[frame_index];
+                frame.unannotated_call_subtract = Some(subtract);
+                frame.subtracts.push(subtract);
+                (subtract, true)
+            }
+        };
+        if inserted {
+            self.refresh_active_defined_skeletons_for_frame(frame_index);
+        }
         let weight = StackWeight::push(subtract, Subtractability::Empty);
         let effect_pos = self.alloc_pos(Pos::Var(call_effect));
         let lower = self.alloc_pos(Pos::Stack {
@@ -7419,6 +7645,28 @@ impl<'a> ExprLowerer<'a> {
             weight,
         });
         ApplicationReturnEffect { upper, lower }
+    }
+
+    fn refresh_active_defined_skeletons_for_frame(&mut self, frame_index: usize) {
+        let updates = self
+            .active_defined_skeletons
+            .iter()
+            .filter(|active| {
+                frame_index >= active.before_frames
+                    && frame_index < active.before_frames + active.params.len()
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        for active in updates {
+            let frame_end = active.before_frames + active.params.len();
+            let frames = self.function_frames[active.before_frames..frame_end].to_vec();
+            self.connect_defined_lambda_skeleton_predicates(
+                &active.params,
+                &frames,
+                &active.skeleton,
+                SkeletonPredicateMode::NonEmptyOnly,
+            );
+        }
     }
 
     fn local_callee_def(&self, callee: &Computation) -> Option<DefId> {
@@ -7601,10 +7849,7 @@ impl<'a> ExprLowerer<'a> {
 
     fn wrap_pos_with_subtracts(&mut self, pos: PosId, subtracts: &[SubtractId]) -> PosId {
         subtracts.iter().fold(pos, |inner, subtract| {
-            self.alloc_pos(Pos::Stack {
-                inner,
-                weight: StackWeight::pop(*subtract),
-            })
+            self.alloc_pos(Pos::NonSubtract(inner, *subtract))
         })
     }
 
@@ -7671,15 +7916,61 @@ struct ApplicationReturnEffect {
     lower: PosId,
 }
 
+#[derive(Clone)]
 struct LoweredLambdaParam {
     pat: PatId,
     value: TypeVar,
     annotation: LambdaPatternAnnotation,
 }
 
+#[derive(Clone)]
 struct DefinedLambdaSkeleton {
     body_effect: TypeVar,
     body_value: TypeVar,
+    layers: Vec<DefinedLambdaSkeletonLayer>,
+}
+
+#[derive(Clone)]
+struct DefinedLambdaSkeletonLayer {
+    function_effect: TypeVar,
+    function_value: TypeVar,
+    output_effect: TypeVar,
+    output_value: TypeVar,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SkeletonPredicateMode {
+    All,
+    KnownBeforeBody,
+    NonEmptyOnly,
+}
+
+impl SkeletonPredicateMode {
+    fn connects_empty_predicate(self, param: &LoweredLambdaParam) -> bool {
+        match self {
+            SkeletonPredicateMode::All => true,
+            SkeletonPredicateMode::KnownBeforeBody => {
+                param.annotation.call_return_effect == LocalCallReturnEffect::Annotated
+            }
+            SkeletonPredicateMode::NonEmptyOnly => false,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct ActiveDefinedLambdaSkeleton {
+    before_frames: usize,
+    params: Vec<LoweredLambdaParam>,
+    skeleton: DefinedLambdaSkeleton,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct DefinedSkeletonPredicateKey {
+    output_effect: TypeVar,
+    output_value: TypeVar,
+    current_effect: TypeVar,
+    current_value: TypeVar,
+    subtracts: Vec<SubtractId>,
 }
 
 #[derive(Clone)]
@@ -8440,9 +8731,11 @@ fn connect_constructor_pattern_value_signature(
     Ok(())
 }
 
+#[derive(Clone)]
 struct FunctionPredicateFrame {
     scope: LambdaScope,
     subtracts: Vec<SubtractId>,
+    unannotated_call_subtract: Option<SubtractId>,
 }
 
 impl FunctionPredicateFrame {
@@ -8450,10 +8743,12 @@ impl FunctionPredicateFrame {
         Self {
             scope,
             subtracts: Vec::new(),
+            unannotated_call_subtract: None,
         }
     }
 }
 
+#[derive(Clone)]
 struct LambdaPatternAnnotation {
     arg_eff: NegId,
     skeleton_arg_eff: NegId,
@@ -10352,18 +10647,22 @@ impl<'a> SignatureLowerer<'a> {
         }
     }
 
-    fn type_decl_path(&self, id: TypeDeclId) -> Result<Vec<String>, SignatureConstraintError> {
+    fn type_decl_path(&mut self, id: TypeDeclId) -> Result<Vec<String>, SignatureConstraintError> {
         let decl = self
             .modules
             .type_decl_by_id(id)
             .ok_or(SignatureConstraintError::MissingTypeDecl { id })?;
-        Ok(self
+        let path = self
             .modules
             .type_decl_path(&decl)
             .segments
             .into_iter()
             .map(|name| name.0)
-            .collect())
+            .collect::<Vec<_>>();
+        if decl.kind == ModuleTypeKind::Act {
+            self.infer.register_effect_family_path(path.clone());
+        }
+        Ok(path)
     }
 
     fn signature_var(&mut self, var: &SignatureVar) -> TypeVar {
@@ -11022,8 +11321,8 @@ mod tests {
                 weight_set_path_id(&bound.weights.left, &[effect_name])
             })
             .expect("receiver effect should record stacked act family");
-        assert_pos_stack_pop_var(&output.session, ret_eff, subtract);
-        assert_pos_stack_pop_var(&output.session, ret, subtract);
+        assert_pos_or_var_lower_stack_pop_var(&output.session, ret_eff, subtract);
+        assert_pos_or_var_lower_stack_pop_var(&output.session, ret, subtract);
     }
 
     fn function_lower_bound(
@@ -11128,19 +11427,86 @@ mod tests {
         pos: PosId,
         subtract: SubtractId,
     ) -> TypeVar {
-        let Pos::Stack { inner, weight } = session.infer.constraints().types().pos(pos) else {
-            panic!("expected stack pop #{:?}", subtract);
-        };
-        let [entry] = weight.entries() else {
-            panic!("expected one stack entry, got {:?}", weight.entries());
-        };
-        assert_eq!(entry.id, subtract);
-        assert_eq!(entry.pops, 1);
-        assert!(entry.stack.is_empty());
-        match session.infer.constraints().types().pos(*inner) {
-            Pos::Var(var) => *var,
-            other => panic!("expected stack pop inner var, got {other:?}"),
+        match session.infer.constraints().types().pos(pos) {
+            Pos::Stack { inner, weight } => {
+                let [entry] = weight.entries() else {
+                    panic!("expected one stack entry, got {:?}", weight.entries());
+                };
+                assert_eq!(entry.id, subtract);
+                assert_eq!(entry.pops, 1);
+                assert!(entry.stack.is_empty());
+                match session.infer.constraints().types().pos(*inner) {
+                    Pos::Var(var) => *var,
+                    other => panic!("expected stack pop inner var, got {other:?}"),
+                }
+            }
+            Pos::NonSubtract(inner, actual) => {
+                assert_eq!(*actual, subtract);
+                match session.infer.constraints().types().pos(*inner) {
+                    Pos::Var(var) => *var,
+                    other => panic!("expected non-subtract inner var, got {other:?}"),
+                }
+            }
+            other => panic!("expected stack pop #{:?}, got {other:?}", subtract),
         }
+    }
+
+    fn assert_pos_or_var_lower_stack_pop_var(
+        session: &AnalysisSession,
+        pos: PosId,
+        subtract: SubtractId,
+    ) -> TypeVar {
+        if matches!(
+            session.infer.constraints().types().pos(pos),
+            Pos::Stack { .. }
+        ) {
+            return assert_pos_stack_pop_var(session, pos, subtract);
+        }
+        if matches!(
+            session.infer.constraints().types().pos(pos),
+            Pos::NonSubtract(_, _)
+        ) {
+            return assert_pos_stack_pop_var(session, pos, subtract);
+        }
+        let Pos::Var(var) = session.infer.constraints().types().pos(pos) else {
+            panic!("expected stack pop or var with stack pop lower bound");
+        };
+        let mut stack = vec![*var];
+        let mut visited = Vec::new();
+        while let Some(var) = stack.pop() {
+            if visited.contains(&var) {
+                continue;
+            }
+            visited.push(var);
+            let Some(bounds) = session.infer.constraints().bounds().of(var) else {
+                continue;
+            };
+            for lower in bounds.lowers() {
+                match session.infer.constraints().types().pos(lower.pos) {
+                    Pos::Stack { .. } => {
+                        return assert_pos_stack_pop_var(session, lower.pos, subtract);
+                    }
+                    Pos::NonSubtract(_, _) => {
+                        return assert_pos_stack_pop_var(session, lower.pos, subtract);
+                    }
+                    Pos::Var(next)
+                        if stack_weight_has_single_pop(&lower.weights.left, subtract) =>
+                    {
+                        return *next;
+                    }
+                    Pos::Var(next) => stack.push(*next),
+                    _ => {}
+                }
+            }
+        }
+        panic!("expected var lower stack pop #{:?}", subtract);
+    }
+
+    fn stack_weight_has_single_pop(weight: &StackWeight, subtract: SubtractId) -> bool {
+        let [entry] = weight.entries() else {
+            return false;
+        };
+        entry.id == subtract && entry.pops == 1 && entry.stack.is_empty()
     }
 
     fn weight_set_path_id(weight: &StackWeight, expected: &[&str]) -> Option<SubtractId> {
@@ -14468,7 +14834,55 @@ mod tests {
 
         assert!(output.errors.is_empty(), "{:?}", output.errors);
         let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, h));
-        assert_eq!(rendered, "'a -> ('a -> ['b] 'c) -> ['b] 'c");
+        assert!(
+            rendered == "'a -> ('a -> ['b] 'c) -> ['b] 'c"
+                || rendered == "'a -> ('a -> ['c] 'b) -> ['c] 'b",
+            "{rendered}"
+        );
+    }
+
+    #[test]
+    fn recursive_header_skeleton_keeps_late_callback_subtracts() {
+        let root = parse("my h(f) =\n  f 1\n  h f\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (h, _) = binding_def_and_order(&lower.modules, module, "h");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let root = output.typing.def(h).expect("h def should have a root type");
+        let types = output.session.infer.constraints().types();
+        let (arg, _, ret_eff, ret) = function_lower_bound(&output.session, root);
+        let callback = match types.neg(arg) {
+            Neg::Var(var) => *var,
+            other => panic!("expected callback argument var, got {other:?}"),
+        };
+        let subtract = output
+            .session
+            .infer
+            .constraints()
+            .bounds()
+            .of(callback)
+            .expect("callback argument should receive function upper bound")
+            .uppers()
+            .iter()
+            .find_map(|bound| {
+                let Neg::Fun { ret_eff, .. } = types.neg(bound.neg) else {
+                    return None;
+                };
+                let Neg::Stack { weight, .. } = types.neg(*ret_eff) else {
+                    return None;
+                };
+                let [entry] = weight.entries() else {
+                    return None;
+                };
+                (entry.pops == 0 && entry.stack == vec![Subtractability::Empty]).then_some(entry.id)
+            })
+            .expect("callback return effect upper should carry empty push");
+
+        assert_pos_or_var_lower_stack_pop_var(&output.session, ret_eff, subtract);
+        assert_pos_or_var_lower_stack_pop_var(&output.session, ret, subtract);
     }
 
     #[test]
@@ -15435,6 +15849,10 @@ mod tests {
             Pos::Stack { inner, .. } => match session.infer.constraints().types().pos(*inner) {
                 Pos::Var(effect) => *effect,
                 other => panic!("expected stacked result effect var, got {other:?}"),
+            },
+            Pos::NonSubtract(inner, _) => match session.infer.constraints().types().pos(*inner) {
+                Pos::Var(effect) => *effect,
+                other => panic!("expected non-subtract result effect var, got {other:?}"),
             },
             Pos::Var(effect) => *effect,
             other => panic!("expected result effect var, got {other:?}"),

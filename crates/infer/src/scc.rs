@@ -710,12 +710,18 @@ impl ComponentGraph {
         let outgoing = self.edges.remove(&component).unwrap_or_default();
         let mut reverse_cleanup = outgoing.keys().copied().collect::<Vec<_>>();
         sort_components(&mut reverse_cleanup);
+        let mut empty_reverse_targets = Vec::new();
         for target in reverse_cleanup {
             if let Some(sources) = self.reverse_edges.get_mut(&target) {
                 sources.remove(&component);
+                if sources.is_empty() {
+                    empty_reverse_targets.push(target);
+                }
             }
         }
-        self.remove_empty_reverse_entries();
+        for target in empty_reverse_targets {
+            self.reverse_edges.remove(&target);
+        }
 
         let incoming_sources = self
             .reverse_edges
@@ -790,10 +796,6 @@ impl ComponentGraph {
             && component_data.members.iter().all(|def| {
                 component_data.finished.contains(def) && component_data.roots.contains_key(def)
             })
-    }
-
-    fn remove_empty_reverse_entries(&mut self) {
-        self.reverse_edges.retain(|_, sources| !sources.is_empty());
     }
 
     fn computed_fetch_cycle(&self, component: ComponentId) -> Option<ComputedFetchCycle> {
