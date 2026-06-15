@@ -82,6 +82,7 @@ pub(crate) fn instantiate_principal_scheme_for_inference_with_fresh_and_roles(
     reject_unsupported_scheme_features(def, scheme)?;
     let mut materializer = SchemeMaterializer::new_tracking_all_vars(&arena.typ, def, scheme);
     materializer.use_inference_functions();
+    materializer.use_inline_bounds();
     materializer.collect_scheme_kinds(scheme);
     for quantifier in &scheme.quantifiers {
         let kind = materializer
@@ -95,10 +96,13 @@ pub(crate) fn instantiate_principal_scheme_for_inference_with_fresh_and_roles(
     }
     materializer.substitute_unbound_tracked_vars(&mut fresh);
     materializer.substitute_empty_bounds(&mut fresh);
+    materializer.substitute_inline_bounds(&mut fresh);
+    let mut recursive_bounds = materializer.materialize_inline_bounds()?;
+    recursive_bounds.extend(materializer.materialize_recursive_bounds(scheme)?);
     Ok(InstantiatedScheme {
         ty: materializer.materialize_pos(scheme.predicate, TypeContext::Value)?,
         role_predicates: materializer.materialize_role_predicates(scheme)?,
-        recursive_bounds: materializer.materialize_recursive_bounds(scheme)?,
+        recursive_bounds,
     })
 }
 
@@ -111,6 +115,7 @@ pub(crate) fn instantiate_scheme_with_expected_fresh_and_roles(
 ) -> Result<InstantiatedScheme, SpecializeError> {
     reject_unsupported_scheme_features(def, scheme)?;
     let mut materializer = SchemeMaterializer::new_tracking_all_vars(&arena.typ, def, scheme);
+    materializer.use_inline_bounds();
     materializer.collect_scheme_kinds(scheme);
     materializer.match_pos(scheme.predicate, expected, TypeContext::Value)?;
     for quantifier in &scheme.quantifiers {
@@ -128,10 +133,13 @@ pub(crate) fn instantiate_scheme_with_expected_fresh_and_roles(
     }
     materializer.substitute_unbound_tracked_vars(&mut fresh);
     materializer.substitute_empty_bounds(&mut fresh);
+    materializer.substitute_inline_bounds(&mut fresh);
+    let mut recursive_bounds = materializer.materialize_inline_bounds()?;
+    recursive_bounds.extend(materializer.materialize_recursive_bounds(scheme)?);
     Ok(InstantiatedScheme {
         ty: materializer.materialize_pos(scheme.predicate, TypeContext::Value)?,
         role_predicates: materializer.materialize_role_predicates(scheme)?,
-        recursive_bounds: materializer.materialize_recursive_bounds(scheme)?,
+        recursive_bounds,
     })
 }
 
@@ -143,13 +151,17 @@ pub(crate) fn instantiate_monomorphic_scheme_with_fresh_and_roles(
 ) -> Result<InstantiatedScheme, SpecializeError> {
     reject_unsupported_scheme_features(def, scheme)?;
     let mut materializer = SchemeMaterializer::new_tracking_all_vars(&arena.typ, def, scheme);
+    materializer.use_inline_bounds();
     materializer.collect_scheme_kinds(scheme);
     materializer.substitute_unbound_tracked_vars(&mut fresh);
     materializer.substitute_empty_bounds(&mut fresh);
+    materializer.substitute_inline_bounds(&mut fresh);
+    let mut recursive_bounds = materializer.materialize_inline_bounds()?;
+    recursive_bounds.extend(materializer.materialize_recursive_bounds(scheme)?);
     Ok(InstantiatedScheme {
         ty: materializer.materialize_pos(scheme.predicate, TypeContext::Value)?,
         role_predicates: materializer.materialize_role_predicates(scheme)?,
-        recursive_bounds: materializer.materialize_recursive_bounds(scheme)?,
+        recursive_bounds,
     })
 }
 
@@ -259,12 +271,27 @@ enum FunctionMaterialization {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BoundMaterialization {
+    Structural,
+    Fresh,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum QuantifierKind {
     Value,
     Effect,
 }
 
 impl From<QuantifierKind> for SchemeQuantifierKind {
+    fn from(kind: QuantifierKind) -> Self {
+        match kind {
+            QuantifierKind::Value => Self::Value,
+            QuantifierKind::Effect => Self::Effect,
+        }
+    }
+}
+
+impl From<QuantifierKind> for TypeContext {
     fn from(kind: QuantifierKind) -> Self {
         match kind {
             QuantifierKind::Value => Self::Value,
@@ -308,6 +335,10 @@ struct SchemeMaterializer<'a> {
     empty_bound_kinds: Vec<TypeContext>,
     empty_bound_types: RefCell<VecDeque<Type>>,
     function_materialization: FunctionMaterialization,
+    bound_materialization: BoundMaterialization,
+    inline_bound_kinds: HashMap<NeuId, QuantifierKind>,
+    inline_bound_order: Vec<NeuId>,
+    inline_bound_substitution: HashMap<NeuId, Type>,
 }
 
 impl<'a> SchemeMaterializer<'a> {
@@ -323,6 +354,10 @@ impl<'a> SchemeMaterializer<'a> {
             empty_bound_kinds: Vec::new(),
             empty_bound_types: RefCell::new(VecDeque::new()),
             function_materialization: FunctionMaterialization::Runtime,
+            bound_materialization: BoundMaterialization::Structural,
+            inline_bound_kinds: HashMap::new(),
+            inline_bound_order: Vec::new(),
+            inline_bound_substitution: HashMap::new(),
         }
     }
 
@@ -338,6 +373,10 @@ impl<'a> SchemeMaterializer<'a> {
             empty_bound_kinds: Vec::new(),
             empty_bound_types: RefCell::new(VecDeque::new()),
             function_materialization: FunctionMaterialization::Runtime,
+            bound_materialization: BoundMaterialization::Structural,
+            inline_bound_kinds: HashMap::new(),
+            inline_bound_order: Vec::new(),
+            inline_bound_substitution: HashMap::new(),
         }
     }
 
@@ -357,11 +396,19 @@ impl<'a> SchemeMaterializer<'a> {
             empty_bound_kinds: Vec::new(),
             empty_bound_types: RefCell::new(VecDeque::new()),
             function_materialization: FunctionMaterialization::Runtime,
+            bound_materialization: BoundMaterialization::Structural,
+            inline_bound_kinds: HashMap::new(),
+            inline_bound_order: Vec::new(),
+            inline_bound_substitution: HashMap::new(),
         }
     }
 
     fn use_inference_functions(&mut self) {
         self.function_materialization = FunctionMaterialization::Inference;
+    }
+
+    fn use_inline_bounds(&mut self) {
+        self.bound_materialization = BoundMaterialization::Fresh;
     }
 
     fn collect_scheme_kinds(&mut self, scheme: &Scheme) {
@@ -455,6 +502,21 @@ impl<'a> SchemeMaterializer<'a> {
             .or_insert(incoming);
     }
 
+    fn record_inline_bound_kind(&mut self, id: NeuId, context: TypeContext) {
+        if !self.inline_bound_kinds.contains_key(&id) {
+            self.inline_bound_order.push(id);
+        }
+        let incoming = QuantifierKind::from_context(context);
+        self.inline_bound_kinds
+            .entry(id)
+            .and_modify(|kind| {
+                if incoming == QuantifierKind::Value {
+                    *kind = QuantifierKind::Value;
+                }
+            })
+            .or_insert(incoming);
+    }
+
     fn substitute_unbound_tracked_vars(
         &mut self,
         fresh: &mut impl FnMut(SchemeQuantifierKind) -> Type,
@@ -481,6 +543,21 @@ impl<'a> SchemeMaterializer<'a> {
                 .map(|context| fresh(QuantifierKind::from_context(context).into()))
                 .collect(),
         );
+    }
+
+    fn substitute_inline_bounds(&mut self, fresh: &mut impl FnMut(SchemeQuantifierKind) -> Type) {
+        for id in &self.inline_bound_order {
+            if self.inline_bound_substitution.contains_key(id) {
+                continue;
+            }
+            let kind = self
+                .inline_bound_kinds
+                .get(id)
+                .copied()
+                .unwrap_or(QuantifierKind::Value);
+            self.inline_bound_substitution
+                .insert(*id, fresh(kind.into()));
+        }
     }
 
     fn match_pos(
@@ -922,6 +999,11 @@ impl<'a> SchemeMaterializer<'a> {
     fn materialize_neu(&self, id: NeuId, context: TypeContext) -> Result<Type, SpecializeError> {
         Ok(match self.arena.neu(id) {
             Neu::Bounds(lower, upper) => {
+                if self.bound_materialization == BoundMaterialization::Fresh
+                    && let Some(ty) = self.inline_bound_substitution.get(&id)
+                {
+                    return Ok(ty.clone());
+                }
                 let has_lower = !matches!(self.arena.pos(*lower), Pos::Bot);
                 let has_upper = !matches!(self.arena.neg(*upper), Neg::Top);
                 match (has_lower, has_upper) {
@@ -1229,6 +1311,43 @@ impl<'a> SchemeMaterializer<'a> {
             .collect()
     }
 
+    fn materialize_inline_bounds(
+        &self,
+    ) -> Result<Vec<InstantiatedRecursiveBound>, SpecializeError> {
+        if self.bound_materialization != BoundMaterialization::Fresh {
+            return Ok(Vec::new());
+        }
+        let mut bounds = Vec::new();
+        for id in &self.inline_bound_order {
+            let Some(value) = self.inline_bound_substitution.get(id).cloned() else {
+                continue;
+            };
+            let Neu::Bounds(lower, upper) = self.arena.neu(*id) else {
+                continue;
+            };
+            let context = self
+                .inline_bound_kinds
+                .get(id)
+                .copied()
+                .map(TypeContext::from)
+                .unwrap_or(TypeContext::Value);
+            bounds.push(InstantiatedRecursiveBound {
+                value,
+                lower: if matches!(self.arena.pos(*lower), Pos::Bot) {
+                    Type::Never
+                } else {
+                    self.materialize_pos(*lower, context)?
+                },
+                upper: if matches!(self.arena.neg(*upper), Neg::Top) {
+                    Type::Any
+                } else {
+                    self.materialize_neg(*upper, context)?
+                },
+            });
+        }
+        Ok(bounds)
+    }
+
     fn materialize_role_arg(
         &self,
         arg: RolePredicateArg,
@@ -1372,8 +1491,21 @@ impl<'a> SchemeMaterializer<'a> {
     fn collect_neu_kind(&mut self, id: NeuId, context: TypeContext) {
         match self.arena.neu(id) {
             Neu::Bounds(lower, upper) => {
-                let empty = matches!(self.arena.pos(*lower), Pos::Bot)
-                    && matches!(self.arena.neg(*upper), Neg::Top);
+                let has_lower = !matches!(self.arena.pos(*lower), Pos::Bot);
+                let has_upper = !matches!(self.arena.neg(*upper), Neg::Top);
+                if self.bound_materialization == BoundMaterialization::Fresh
+                    && (has_lower || has_upper)
+                {
+                    self.record_inline_bound_kind(id, context);
+                    if has_lower {
+                        self.collect_pos_kind(*lower, context);
+                    }
+                    if has_upper {
+                        self.collect_neg_kind(*upper, context);
+                    }
+                    return;
+                }
+                let empty = !has_lower && !has_upper;
                 if self.track_empty_bounds && empty {
                     self.empty_bound_kinds.push(context);
                     return;

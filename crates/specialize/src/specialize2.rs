@@ -3391,11 +3391,6 @@ impl<'a> TypeGraph<'a> {
             }
             return Ok(());
         }
-        if matches!((&left, &right), (Type::Fun { .. }, Type::Fun { .. })) {
-            self.constrain_subtype(left.clone(), right.clone())?;
-            self.constrain_subtype(right, left)?;
-            return Ok(());
-        }
         if let (
             Type::Stack {
                 inner: left_inner,
@@ -3472,6 +3467,15 @@ fn effect_slot_candidate(slot_kind: TypeSlotKind, ty: Type) -> Type {
         return Type::pure_effect();
     }
     Type::EffectRow(vec![ty])
+}
+
+fn effect_candidate_items(ty: Type) -> Option<Vec<Type>> {
+    match ty {
+        Type::EffectRow(items) => Some(items),
+        ty if ty.is_pure_effect() => Some(Vec::new()),
+        ty @ Type::Con { .. } => Some(vec![ty]),
+        _ => None,
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -4328,6 +4332,13 @@ fn join_type_candidates(
             };
             return merge_effect_row_candidates(graph, left, right, CandidateMerge::Join);
         }
+        (Type::EffectRow(_), _) | (_, Type::EffectRow(_)) => {
+            let left_items = effect_candidate_items(left.clone());
+            let right_items = effect_candidate_items(right.clone());
+            if let (Some(left), Some(right)) = (left_items, right_items) {
+                return merge_effect_row_candidates(graph, left, right, CandidateMerge::Join);
+            }
+        }
         _ => {}
     }
     if left == right || type_candidate_subtype(graph, &right, &left) {
@@ -4436,6 +4447,13 @@ fn meet_type_candidates(
                 unreachable!("effect row candidates checked by caller");
             };
             return merge_effect_row_candidates(graph, left, right, CandidateMerge::Meet);
+        }
+        (Type::EffectRow(_), _) | (_, Type::EffectRow(_)) => {
+            let left_items = effect_candidate_items(left.clone());
+            let right_items = effect_candidate_items(right.clone());
+            if let (Some(left), Some(right)) = (left_items, right_items) {
+                return merge_effect_row_candidates(graph, left, right, CandidateMerge::Meet);
+            }
         }
         _ => {}
     }
@@ -4785,7 +4803,7 @@ fn merge_effect_row_item_candidate(
                 args: right_args,
             },
         ) if left_path == right_path && left_args.len() == right_args.len() => {
-            merge_same_head_con_candidate(graph, left_path, left_args, right_args, merge)
+            merge_same_family_effect_item_candidate(graph, left_path, left_args, right_args, merge)
         }
         (
             Type::Con {
@@ -4826,6 +4844,41 @@ fn merge_effect_row_item_candidate(
             },
         }),
         (left, right) => merge_candidate_component(graph, left, right, merge),
+    }
+}
+
+fn merge_same_family_effect_item_candidate(
+    graph: &TypeGraph<'_>,
+    path: Vec<String>,
+    left_args: Vec<Type>,
+    right_args: Vec<Type>,
+    merge: CandidateMerge,
+) -> Result<Type, SpecializeError> {
+    let args = left_args
+        .into_iter()
+        .zip(right_args)
+        .map(|(left, right)| merge_effect_payload_candidate(graph, left, right, merge))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(Type::Con { path, args })
+}
+
+fn merge_effect_payload_candidate(
+    graph: &TypeGraph<'_>,
+    left: Type,
+    right: Type,
+    merge: CandidateMerge,
+) -> Result<Type, SpecializeError> {
+    match merge_candidate_component(graph, left.clone(), right.clone(), merge) {
+        Ok(merged) => Ok(merged),
+        Err(SpecializeError::ConflictingTypeCandidates { .. }) => Ok(match merge {
+            CandidateMerge::Join => {
+                types::simplify_type(Type::Union(Box::new(left), Box::new(right)))
+            }
+            CandidateMerge::Meet => {
+                types::simplify_type(Type::Intersection(Box::new(left), Box::new(right)))
+            }
+        }),
+        Err(error) => Err(error),
     }
 }
 
@@ -7060,6 +7113,20 @@ fn wrap_stack_handler_marker_body(path: Vec<String>, body: Expr) -> Expr {
 mod tests {
     use super::*;
 
+    fn callback_type(first_ret_effect: Type, final_ret_effect: Type) -> Type {
+        Type::Fun {
+            arg: Box::new(Type::unit()),
+            arg_effect: Box::new(Type::pure_effect()),
+            ret_effect: Box::new(first_ret_effect),
+            ret: Box::new(Type::Fun {
+                arg: Box::new(int_type()),
+                arg_effect: Box::new(Type::pure_effect()),
+                ret_effect: Box::new(final_ret_effect),
+                ret: Box::new(Type::unit()),
+            }),
+        }
+    }
+
     #[test]
     fn same_path_lower_candidates_unify_invariant_arguments() {
         let arena = poly_expr::Arena::new();
@@ -7091,6 +7158,31 @@ mod tests {
     }
 
     #[test]
+    fn function_lower_candidates_do_not_unify_ret_effects_invariantly() {
+        let arena = poly_expr::Arena::new();
+        let mut graph = TypeGraph::new(&arena);
+        let callback = graph.fresh_value();
+        let effect = graph.fresh_effect();
+        let handled = Type::EffectRow(vec![con(&["handled"], Vec::new())]);
+        let pure_then_effectful = callback_type(Type::pure_effect(), handled.clone());
+        let shared_effect = callback_type(effect.clone(), effect.clone());
+
+        graph
+            .constrain_subtype(handled.clone(), effect.clone())
+            .unwrap();
+        graph
+            .constrain_subtype(pure_then_effectful, callback.clone())
+            .unwrap();
+        graph.constrain_subtype(shared_effect, callback).unwrap();
+        graph.solve_constraints().unwrap();
+
+        let solution = graph.solve_slots().unwrap();
+        let mut resolver = TypeResolver::new(&graph, &solution);
+
+        assert_eq!(resolver.resolve(&effect).unwrap(), handled);
+    }
+
+    #[test]
     fn effect_row_candidates_merge_same_family_arguments() {
         let arena = poly_expr::Arena::new();
         let mut graph = TypeGraph::new(&arena);
@@ -7108,6 +7200,66 @@ mod tests {
         assert_eq!(
             meet_type_candidates(&graph, open_row, int_row).unwrap(),
             Type::EffectRow(vec![int_sub, nondet])
+        );
+    }
+
+    #[test]
+    fn effect_row_candidate_merges_single_effect_item() {
+        let arena = poly_expr::Arena::new();
+        let graph = TypeGraph::new(&arena);
+        let item = con(&["effect", "item"], vec![int_type()]);
+        let row = Type::EffectRow(vec![item.clone()]);
+
+        assert_eq!(
+            join_type_candidates(&graph, row.clone(), item.clone()).unwrap(),
+            row
+        );
+        assert_eq!(
+            meet_type_candidates(&graph, item.clone(), Type::EffectRow(vec![item.clone()]))
+                .unwrap(),
+            Type::EffectRow(vec![item])
+        );
+    }
+
+    #[test]
+    fn effect_row_item_payload_candidates_keep_union_and_intersection() {
+        let arena = poly_expr::Arena::new();
+        let graph = TypeGraph::new(&arena);
+        let list_int = list_type(int_type());
+        let int_payload = con(&["state"], vec![int_type()]);
+        let list_payload = con(&["state"], vec![list_int.clone()]);
+
+        assert_eq!(
+            merge_effect_row_item_candidate(
+                &graph,
+                int_payload.clone(),
+                list_payload.clone(),
+                CandidateMerge::Join,
+            )
+            .unwrap(),
+            con(
+                &["state"],
+                vec![types::simplify_type(Type::Union(
+                    Box::new(int_type()),
+                    Box::new(list_int.clone()),
+                ))],
+            )
+        );
+        assert_eq!(
+            merge_effect_row_item_candidate(
+                &graph,
+                int_payload,
+                list_payload,
+                CandidateMerge::Meet,
+            )
+            .unwrap(),
+            con(
+                &["state"],
+                vec![types::simplify_type(Type::Intersection(
+                    Box::new(int_type()),
+                    Box::new(list_int),
+                ))],
+            )
         );
     }
 
