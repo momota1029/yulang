@@ -40,10 +40,15 @@
 
 ### 後段（単相化）
 
+- [2026-06-15-specialize2-graph-solver.md](2026-06-15-specialize2-graph-solver.md)
+  — `specialize2` の mono 用 simple-sub 型推論。expected type 伝播ではなく、
+  到達した task ごとに erased IR から制約を作り直し、解けた concrete signature から
+  次の mono task を再帰的に展開する。2026-06-07 版の後継仕様。
 - [2026-06-07-principal-monomorphization.md](2026-06-07-principal-monomorphization.md)
   — 主型からの単一化（crate `specialize`）と単一化後 IR（crate `mono`）。infer の内部状態を
   覗かず、主型・erased IR・ref table だけから制約を作り直す。cast 挿入、関数 adapter、mono IR まで。
-  computed fetch の値制限は 2026-06-13 の infer core 仕様を前提にする。
+  computed fetch の値制限は 2026-06-13 の infer core 仕様を前提にする。`specialize2` については
+  2026-06-15 版を優先する。
 - [2026-06-13-runtime-guard-markers.md](2026-06-13-runtime-guard-markers.md)
   — specialize 後の effect hygiene を値と一緒に運ぶ runtime marker 仕様。`get_id`、
   dynamic `GuardIdList`、`frame_id[id]`、`marker[id]`、`add_id[n, path, id]`、resumable effect を含む

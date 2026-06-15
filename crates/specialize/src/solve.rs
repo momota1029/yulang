@@ -5,7 +5,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use mono::{Type, TypeField, TypeVariant};
+use mono::{EffectFamilies, EffectFamily, StackWeight, StackWeightEntry, Type, TypeField, TypeVariant};
 use poly::expr as poly_expr;
 
 use crate::{
@@ -73,7 +73,8 @@ impl ExprTypePlan {
     }
 
     fn finalize(&self, graph: &ConstraintGraph<'_>) -> Result<Self, SpecializeError> {
-        let mut resolver = TypeResolver::new(graph);
+        let solution = graph.solve_type_graph()?;
+        let mut resolver = TypeResolver::with_solution(graph, &solution);
         let mut out = Self {
             types: HashMap::new(),
             raw_thunk_computations: self.raw_thunk_computations.clone(),
@@ -84,13 +85,57 @@ impl ExprTypePlan {
             if let Some(actual) = &types.actual {
                 let actual = match resolver.resolve(actual) {
                     Ok(actual) => actual,
+                    Err(SpecializeError::UndeterminedTypeSlot { .. })
+                        if let Some(actual) = resolver
+                            .resolve_erased_effectful_actual(actual, types.expected.as_ref()) =>
+                    {
+                        actual
+                    }
+                    Err(SpecializeError::UndeterminedTypeSlot { .. })
+                        if types
+                            .expected
+                            .as_ref()
+                            .is_some_and(|expected| expected == actual)
+                            && unresolved_exact_boundary_can_be_erased(graph.arena, *expr) =>
+                    {
+                        continue;
+                    }
+                    Err(SpecializeError::UndeterminedTypeSlot { .. })
+                        if unresolved_actual_boundary_can_be_erased(
+                            graph.arena,
+                            *expr,
+                            actual,
+                            types.expected.as_ref(),
+                        ) =>
+                    {
+                        continue;
+                    }
                     Err(error @ SpecializeError::UndeterminedTypeSlot { .. })
                         if self.contextual_value_fetches.contains(expr) =>
                     {
                         let Some(expected) = &types.expected else {
                             return Err(error);
                         };
-                        resolver.resolve(expected)?
+                        match resolver.resolve(expected) {
+                            Ok(expected) => expected,
+                            Err(SpecializeError::UndeterminedTypeSlot { .. })
+                                if unresolved_exact_boundary_can_be_erased(graph.arena, *expr) =>
+                            {
+                                continue;
+                            }
+                            Err(expected_error) => {
+                                return Err(expected_error);
+                            }
+                        }
+                    }
+                    Err(error @ SpecializeError::UndeterminedTypeSlot { .. }) => {
+                        eprintln!(
+                            "finalize actual failed expr={:?} tree={} actual={actual:?} expected={:?} error={error:?}",
+                            expr,
+                            debug_expr_tree(graph.arena, *expr, 3),
+                            types.expected
+                        );
+                        return Err(error);
                     }
                     Err(error) => return Err(error),
                 };
@@ -101,6 +146,26 @@ impl ExprTypePlan {
                 match resolver.resolve(expected) {
                     Ok(expected) => out.set_expected(*expr, expected)?,
                     Err(SpecializeError::UndeterminedTypeSlot { .. })
+                        if self.contextual_value_fetches.contains(expr)
+                            && resolved_actual
+                                .as_ref()
+                                .is_some_and(|actual| !type_contains_open_var(actual)) =>
+                    {
+                        out.set_expected(
+                            *expr,
+                            resolved_actual
+                                .clone()
+                                .expect("checked resolved actual for contextual fallback"),
+                        )?;
+                    }
+                    Err(SpecializeError::UndeterminedTypeSlot { .. })
+                        if let Some(expected) = resolved_actual.as_ref().and_then(|actual| {
+                            erased_expected_for_effectful_actual(expected, actual)
+                        }) =>
+                    {
+                        out.set_expected(*expr, expected)?;
+                    }
+                    Err(SpecializeError::UndeterminedTypeSlot { .. })
                         if resolved_actual.as_ref().is_some_and(|actual| {
                             unresolved_expected_can_use_actual(expected, actual)
                         }) =>
@@ -110,7 +175,28 @@ impl ExprTypePlan {
                             resolved_actual
                                 .clone()
                                 .expect("checked resolved actual for fallback"),
-                        )?;
+                            )?;
+                    }
+                    Err(SpecializeError::UndeterminedTypeSlot { .. })
+                        if types.actual.as_ref().is_some_and(|actual| {
+                            unresolved_actual_boundary_can_be_erased(
+                                graph.arena,
+                                *expr,
+                                actual,
+                                Some(expected),
+                            )
+                        }) =>
+                    {
+                        continue;
+                    }
+                    Err(error @ SpecializeError::UndeterminedTypeSlot { .. }) => {
+                        eprintln!(
+                            "finalize expected failed expr={:?} tree={} actual={:?} expected={expected:?} error={error:?}",
+                            expr,
+                            debug_expr_tree(graph.arena, *expr, 3),
+                            types.actual
+                        );
+                        return Err(error);
                     }
                     Err(error) => return Err(error),
                 }
@@ -120,8 +206,57 @@ impl ExprTypePlan {
     }
 }
 
+fn unresolved_exact_boundary_can_be_erased(
+    arena: &poly_expr::Arena,
+    expr: poly_expr::ExprId,
+) -> bool {
+    if let poly_expr::Expr::PrimitiveOp(op) = arena.expr(expr) {
+        return !matches!(op, poly_expr::PrimitiveOp::ListViewRaw);
+    }
+    let poly_expr::Expr::Var(ref_id) = arena.expr(expr) else {
+        return false;
+    };
+    let Some(def) = arena.ref_target(*ref_id) else {
+        return false;
+    };
+    if arena.constructors.contains_key(&def) {
+        return false;
+    }
+    if arena.effect_operations.contains_key(&def) {
+        return true;
+    }
+    match arena.defs.get(def) {
+        Some(poly_expr::Def::Arg) | Some(poly_expr::Def::Let { body: None, .. }) => true,
+        Some(poly_expr::Def::Let { .. }) => false,
+        _ => false,
+    }
+}
+
+fn unresolved_actual_boundary_can_be_erased(
+    arena: &poly_expr::Arena,
+    expr: poly_expr::ExprId,
+    actual: &Type,
+    expected: Option<&Type>,
+) -> bool {
+    match arena.expr(expr) {
+        poly_expr::Expr::App(_, _) => expected
+            .is_some_and(|expected| function_boundary_shapes_match(actual, expected)),
+        _ => false,
+    }
+}
+
+fn function_boundary_shapes_match(actual: &Type, expected: &Type) -> bool {
+    matches!(
+        (runtime_value_shape(actual), runtime_value_shape(expected)),
+        (Type::Fun { .. }, Type::Fun { .. })
+    )
+}
+
 fn unresolved_expected_can_use_actual(expected: &Type, actual: &Type) -> bool {
     match (expected, actual) {
+        (Type::Thunk { .. }, Type::Thunk { .. }) => {
+            type_contains_open_var(expected) && !type_contains_open_var(actual)
+        }
         (Type::PolyVariant(expected), Type::PolyVariant(actual)) => actual.iter().all(|actual| {
             expected.iter().any(|expected| {
                 expected.name == actual.name && expected.payloads.len() == actual.payloads.len()
@@ -129,6 +264,20 @@ fn unresolved_expected_can_use_actual(expected: &Type, actual: &Type) -> bool {
         }),
         _ => false,
     }
+}
+
+fn erased_expected_for_effectful_actual(expected: &Type, actual: &Type) -> Option<Type> {
+    let (
+        Type::OpenVar(_),
+        Type::Thunk {
+            value: actual_value,
+            ..
+        },
+    ) = (expected, actual)
+    else {
+        return None;
+    };
+    Some(actual_value.as_ref().clone())
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -158,6 +307,12 @@ impl ExprTypes {
             if existing == &ty {
                 return Ok(());
             }
+            if role == ExprTypeRole::Expected
+                && let Some(merged) = merge_expr_expected(existing, &ty)
+            {
+                *existing = merged;
+                return Ok(());
+            }
             return Err(SpecializeError::ConflictingExprType {
                 expr: expr.0,
                 role,
@@ -167,6 +322,249 @@ impl ExprTypes {
         }
         *slot = Some(ty);
         Ok(())
+    }
+}
+
+fn merge_expr_expected(existing: &Type, incoming: &Type) -> Option<Type> {
+    if existing == incoming {
+        return Some(existing.clone());
+    }
+    match (existing, incoming) {
+        (Type::OpenVar(_), Type::OpenVar(_)) => Some(existing.clone()),
+        (Type::OpenVar(_), incoming) if !type_contains_open_var(incoming) => Some(incoming.clone()),
+        (existing, Type::OpenVar(_)) if !type_contains_open_var(existing) => Some(existing.clone()),
+        (
+            Type::Con {
+                path: existing_path,
+                args: existing_args,
+            },
+            Type::Con {
+                path: incoming_path,
+                args: incoming_args,
+            },
+        ) if existing_path == incoming_path && existing_args.len() == incoming_args.len() => {
+            let args = existing_args
+                .iter()
+                .zip(incoming_args)
+                .map(|(existing, incoming)| merge_expr_expected(existing, incoming))
+                .collect::<Option<Vec<_>>>()?;
+            Some(Type::Con {
+                path: existing_path.clone(),
+                args,
+            })
+        }
+        (
+            Type::Fun {
+                arg: existing_arg,
+                arg_effect: existing_arg_effect,
+                ret_effect: existing_ret_effect,
+                ret: existing_ret,
+            },
+            Type::Fun {
+                arg: incoming_arg,
+                arg_effect: incoming_arg_effect,
+                ret_effect: incoming_ret_effect,
+                ret: incoming_ret,
+            },
+        ) => Some(Type::Fun {
+            arg: Box::new(merge_expr_expected(existing_arg, incoming_arg)?),
+            arg_effect: Box::new(merge_expr_expected(
+                existing_arg_effect,
+                incoming_arg_effect,
+            )?),
+            ret_effect: Box::new(merge_expr_expected(
+                existing_ret_effect,
+                incoming_ret_effect,
+            )?),
+            ret: Box::new(merge_expr_expected(existing_ret, incoming_ret)?),
+        }),
+        (
+            Type::Thunk {
+                effect: existing_effect,
+                value: existing_value,
+            },
+            Type::Thunk {
+                effect: incoming_effect,
+                value: incoming_value,
+            },
+        ) => Some(Type::Thunk {
+            effect: Box::new(merge_expr_expected(existing_effect, incoming_effect)?),
+            value: Box::new(merge_expr_expected(existing_value, incoming_value)?),
+        }),
+        (Type::EffectRow(existing_items), Type::EffectRow(incoming_items))
+            if existing_items.len() == incoming_items.len() =>
+        {
+            Some(Type::EffectRow(
+                existing_items
+                    .iter()
+                    .zip(incoming_items)
+                    .map(|(existing, incoming)| merge_expr_expected(existing, incoming))
+                    .collect::<Option<Vec<_>>>()?,
+            ))
+        }
+        (Type::Tuple(existing_items), Type::Tuple(incoming_items))
+            if existing_items.len() == incoming_items.len() =>
+        {
+            Some(Type::Tuple(
+                existing_items
+                    .iter()
+                    .zip(incoming_items)
+                    .map(|(existing, incoming)| merge_expr_expected(existing, incoming))
+                    .collect::<Option<Vec<_>>>()?,
+            ))
+        }
+        (existing, incoming) => match (
+            type_contains_open_var(existing),
+            type_contains_open_var(incoming),
+        ) {
+            (true, false) => Some(incoming.clone()),
+            (false, true) => Some(existing.clone()),
+            _ => None,
+        },
+    }
+}
+
+fn merge_expr_expected_for_solver(existing: &Type, incoming: &Type) -> Option<Type> {
+    merge_expr_expected(existing, incoming).or_else(|| {
+        if existing == incoming {
+            return Some(existing.clone());
+        }
+        match (existing, incoming) {
+            (Type::Any, incoming) => Some(incoming.clone()),
+            (existing, Type::Any) => Some(existing.clone()),
+            (Type::Never, _) | (_, Type::Never) => Some(Type::Never),
+            (Type::OpenVar(_), incoming) => Some(incoming.clone()),
+            (existing, Type::OpenVar(_)) => Some(existing.clone()),
+            (
+                Type::Con {
+                    path: existing_path,
+                    args: existing_args,
+                },
+                Type::Con {
+                    path: incoming_path,
+                    args: incoming_args,
+                },
+            ) if existing_path == incoming_path && existing_args.len() == incoming_args.len() => {
+                let args = existing_args
+                    .iter()
+                    .zip(incoming_args)
+                    .map(|(existing, incoming)| {
+                        merge_expr_expected_for_solver(existing, incoming)
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+                Some(Type::Con {
+                    path: existing_path.clone(),
+                    args,
+                })
+            }
+            (
+                Type::Fun {
+                    arg: existing_arg,
+                    arg_effect: existing_arg_effect,
+                    ret_effect: existing_ret_effect,
+                    ret: existing_ret,
+                },
+                Type::Fun {
+                    arg: incoming_arg,
+                    arg_effect: incoming_arg_effect,
+                    ret_effect: incoming_ret_effect,
+                    ret: incoming_ret,
+                },
+            ) => Some(Type::Fun {
+                arg: Box::new(merge_expr_expected_for_solver(
+                    existing_arg,
+                    incoming_arg,
+                )?),
+                arg_effect: Box::new(merge_expr_expected_for_solver(
+                    existing_arg_effect,
+                    incoming_arg_effect,
+                )?),
+                ret_effect: Box::new(merge_expr_expected_for_solver(
+                    existing_ret_effect,
+                    incoming_ret_effect,
+                )?),
+                ret: Box::new(merge_expr_expected_for_solver(
+                    existing_ret,
+                    incoming_ret,
+                )?),
+            }),
+            (
+                Type::Thunk {
+                    effect: existing_effect,
+                    value: existing_value,
+                },
+                Type::Thunk {
+                    effect: incoming_effect,
+                    value: incoming_value,
+                },
+            ) => Some(Type::Thunk {
+                effect: Box::new(merge_expr_expected_for_solver(
+                    existing_effect,
+                    incoming_effect,
+                )?),
+                value: Box::new(merge_expr_expected_for_solver(
+                    existing_value,
+                    incoming_value,
+                )?),
+            }),
+            (Type::EffectRow(existing_items), Type::EffectRow(incoming_items))
+                if existing_items.len() == incoming_items.len() =>
+            {
+                Some(Type::EffectRow(
+                    existing_items
+                        .iter()
+                        .zip(incoming_items)
+                        .map(|(existing, incoming)| {
+                            merge_expr_expected_for_solver(existing, incoming)
+                        })
+                        .collect::<Option<Vec<_>>>()?,
+                ))
+            }
+            (Type::Tuple(existing_items), Type::Tuple(incoming_items))
+                if existing_items.len() == incoming_items.len() =>
+            {
+                Some(Type::Tuple(
+                    existing_items
+                        .iter()
+                        .zip(incoming_items)
+                        .map(|(existing, incoming)| {
+                            merge_expr_expected_for_solver(existing, incoming)
+                        })
+                        .collect::<Option<Vec<_>>>()?,
+                ))
+            }
+            (existing, incoming) => match (
+                type_contains_open_var(existing),
+                type_contains_open_var(incoming),
+            ) {
+                (true, false) => Some(incoming.clone()),
+                (false, true) => Some(existing.clone()),
+                _ => None,
+            },
+        }
+    })
+}
+
+struct LocalLetSchemeType {
+    def: poly_expr::DefId,
+    monomorphic_ty: Option<Type>,
+}
+
+impl LocalLetSchemeType {
+    fn is_polymorphic(&self) -> bool {
+        self.monomorphic_ty.is_none()
+    }
+
+    fn expr_expected(&self) -> Option<Type> {
+        self.monomorphic_ty.clone()
+    }
+
+    fn binding_type(self) -> Option<Type> {
+        self.monomorphic_ty
+    }
+
+    fn prebound_type(&self) -> Option<Type> {
+        self.monomorphic_ty.clone()
     }
 }
 
@@ -198,12 +596,19 @@ fn solve_expr_with_active_def(
         graph: ConstraintGraph::new(arena),
         plan: ExprTypePlan::default(),
         local_types: HashMap::new(),
-        constraining_defs: HashSet::new(),
+        constraining_def_types: HashMap::new(),
     };
+    let expected = expected
+        .cloned()
+        .map(|expected| solver.freshen_external_type(expected, TypeSlotKind::Value));
     if let Some(active_def) = active_def {
-        solver.constraining_defs.insert(active_def);
+        if let Some(expected) = &expected {
+            solver
+                .constraining_def_types
+                .insert(active_def, expected.clone());
+        }
     }
-    solver.expr(expr, expected.cloned())?;
+    solver.expr(expr, expected)?;
     solver.graph.resolve_role_demands()?;
     solver.plan.finalize(&solver.graph)
 }
@@ -213,7 +618,7 @@ struct ExprTypeSolver<'a> {
     graph: ConstraintGraph<'a>,
     plan: ExprTypePlan,
     local_types: HashMap<poly_expr::DefId, Type>,
-    constraining_defs: HashSet<poly_expr::DefId>,
+    constraining_def_types: HashMap<poly_expr::DefId, Type>,
 }
 
 impl<'a> ExprTypeSolver<'a> {
@@ -227,7 +632,16 @@ impl<'a> ExprTypeSolver<'a> {
         }
 
         if let Some(expected) = expected {
-            self.plan.set_expected(expr, expected.clone())?;
+            if type_mentions_ref_update_unit(&expected) {
+                eprintln!(
+                    "expr {:?} {} expected ref_update_unit {:?} tree={}",
+                    expr,
+                    expr_kind_label(self.arena.expr(expr)),
+                    expected,
+                    debug_expr_tree(self.arena, expr, 3)
+                );
+            }
+            self.set_expr_expected(expr, expected.clone())?;
             if let Some(actual) = self.plan.actual(expr).cloned() {
                 self.constrain_expr_boundary(actual.clone(), expected)?;
                 return Ok(actual);
@@ -247,6 +661,196 @@ impl<'a> ExprTypeSolver<'a> {
         Ok(actual)
     }
 
+    fn set_expr_expected(
+        &mut self,
+        expr: poly_expr::ExprId,
+        ty: Type,
+    ) -> Result<(), SpecializeError> {
+        if let Some(existing) = self.plan.expected(expr).cloned()
+            && existing != ty
+            && let Some(merged) = merge_expr_expected_for_solver(&existing, &ty)
+            && self.type_open_vars_are_graph_slots(&merged)
+        {
+            self.plan.types.entry(expr).or_default().expected = Some(merged);
+            return Ok(());
+        }
+        self.plan.set_expected(expr, ty)
+    }
+
+    fn freshen_external_type(&mut self, ty: Type, context: TypeSlotKind) -> Type {
+        let mut vars = HashMap::new();
+        self.freshen_external_type_with_vars(ty, context, &mut vars)
+    }
+
+    fn freshen_external_type_with_vars(
+        &mut self,
+        ty: Type,
+        context: TypeSlotKind,
+        vars: &mut HashMap<(u32, TypeSlotKind), Type>,
+    ) -> Type {
+        match ty {
+            Type::OpenVar(var) => vars
+                .entry((var, context))
+                .or_insert_with(|| self.graph.fresh_slot(context))
+                .clone(),
+            Type::Fun {
+                arg,
+                arg_effect,
+                ret_effect,
+                ret,
+            } => Type::Fun {
+                arg: Box::new(self.freshen_external_type_with_vars(
+                    *arg,
+                    TypeSlotKind::Value,
+                    vars,
+                )),
+                arg_effect: Box::new(self.freshen_external_type_with_vars(
+                    *arg_effect,
+                    TypeSlotKind::Effect,
+                    vars,
+                )),
+                ret_effect: Box::new(self.freshen_external_type_with_vars(
+                    *ret_effect,
+                    TypeSlotKind::Effect,
+                    vars,
+                )),
+                ret: Box::new(self.freshen_external_type_with_vars(
+                    *ret,
+                    TypeSlotKind::Value,
+                    vars,
+                )),
+            },
+            Type::Thunk { effect, value } => Type::Thunk {
+                effect: Box::new(self.freshen_external_type_with_vars(
+                    *effect,
+                    TypeSlotKind::Effect,
+                    vars,
+                )),
+                value: Box::new(self.freshen_external_type_with_vars(
+                    *value,
+                    TypeSlotKind::Value,
+                    vars,
+                )),
+            },
+            Type::Con { path, args } => Type::Con {
+                args: args
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, arg)| {
+                        let arg_context = if std_types::is_ref_effect_arg(&path, index) {
+                            TypeSlotKind::Effect
+                        } else {
+                            TypeSlotKind::Value
+                        };
+                        self.freshen_external_type_with_vars(arg, arg_context, vars)
+                    })
+                    .collect(),
+                path,
+            },
+            Type::Record(fields) => Type::Record(
+                fields
+                    .into_iter()
+                    .map(|field| TypeField {
+                        name: field.name,
+                        value: self.freshen_external_type_with_vars(
+                            field.value,
+                            TypeSlotKind::Value,
+                            vars,
+                        ),
+                        optional: field.optional,
+                    })
+                    .collect(),
+            ),
+            Type::PolyVariant(variants) => Type::PolyVariant(
+                variants
+                    .into_iter()
+                    .map(|variant| TypeVariant {
+                        name: variant.name,
+                        payloads: variant
+                            .payloads
+                            .into_iter()
+                            .map(|payload| {
+                                self.freshen_external_type_with_vars(
+                                    payload,
+                                    TypeSlotKind::Value,
+                                    vars,
+                                )
+                            })
+                            .collect(),
+                    })
+                    .collect(),
+            ),
+            Type::Tuple(items) => Type::Tuple(
+                items
+                    .into_iter()
+                    .map(|item| {
+                        self.freshen_external_type_with_vars(item, TypeSlotKind::Value, vars)
+                    })
+                    .collect(),
+            ),
+            Type::EffectRow(items) => Type::EffectRow(
+                items
+                    .into_iter()
+                    .map(|item| {
+                        self.freshen_external_type_with_vars(item, TypeSlotKind::Effect, vars)
+                    })
+                    .collect(),
+            ),
+            Type::Stack { inner, weight } => Type::Stack {
+                inner: Box::new(self.freshen_external_type_with_vars(*inner, context, vars)),
+                weight,
+            },
+            Type::Union(left, right) => Type::Union(
+                Box::new(self.freshen_external_type_with_vars(*left, context, vars)),
+                Box::new(self.freshen_external_type_with_vars(*right, context, vars)),
+            ),
+            Type::Intersection(left, right) => Type::Intersection(
+                Box::new(self.freshen_external_type_with_vars(*left, context, vars)),
+                Box::new(self.freshen_external_type_with_vars(*right, context, vars)),
+            ),
+            Type::Any | Type::Never => ty,
+        }
+    }
+
+    fn type_open_vars_are_graph_slots(&self, ty: &Type) -> bool {
+        match ty {
+            Type::OpenVar(slot) => self.graph.ensure_slot(*slot).is_ok(),
+            Type::Fun {
+                arg,
+                arg_effect,
+                ret_effect,
+                ret,
+            } => {
+                self.type_open_vars_are_graph_slots(arg)
+                    && self.type_open_vars_are_graph_slots(arg_effect)
+                    && self.type_open_vars_are_graph_slots(ret_effect)
+                    && self.type_open_vars_are_graph_slots(ret)
+            }
+            Type::Thunk { effect, value } => {
+                self.type_open_vars_are_graph_slots(effect)
+                    && self.type_open_vars_are_graph_slots(value)
+            }
+            Type::Con { args, .. } | Type::Tuple(args) | Type::EffectRow(args) => args
+                .iter()
+                .all(|arg| self.type_open_vars_are_graph_slots(arg)),
+            Type::Record(fields) => fields
+                .iter()
+                .all(|field| self.type_open_vars_are_graph_slots(&field.value)),
+            Type::PolyVariant(variants) => variants.iter().all(|variant| {
+                variant
+                    .payloads
+                    .iter()
+                    .all(|payload| self.type_open_vars_are_graph_slots(payload))
+            }),
+            Type::Union(left, right) | Type::Intersection(left, right) => {
+                self.type_open_vars_are_graph_slots(left)
+                    && self.type_open_vars_are_graph_slots(right)
+            }
+            Type::Stack { inner, .. } => self.type_open_vars_are_graph_slots(inner),
+            Type::Any | Type::Never => true,
+        }
+    }
+
     fn infer_expr(
         &mut self,
         expr: poly_expr::ExprId,
@@ -260,14 +864,10 @@ impl<'a> ExprTypeSolver<'a> {
                 if expected.is_some() {
                     self.plan.mark_contextual_value_fetch(expr);
                 }
-                self.var_type(*ref_id)
+                self.var_type(*ref_id, expected.as_ref())
             }
             PolyExpr::App(callee, arg) => self.apply_type(expr, *callee, *arg, expected),
-            PolyExpr::RefSet(reference, value) => {
-                self.expr(*reference, None)?;
-                self.expr(*value, None)?;
-                Ok(Type::unit())
-            }
+            PolyExpr::RefSet(reference, value) => self.ref_set_type(*reference, *value),
             PolyExpr::Lambda(param, body) => self.lambda_type(*param, *body, expected),
             PolyExpr::Tuple(items) => self.tuple_type(items, expected.as_ref()),
             PolyExpr::Record { fields, spread } => self.record_type(fields, spread, expected),
@@ -306,6 +906,15 @@ impl<'a> ExprTypeSolver<'a> {
         arg: poly_expr::ExprId,
         expected: Option<Type>,
     ) -> Result<Type, SpecializeError> {
+        if let poly_expr::Expr::Var(ref_id) = self.arena.expr(callee)
+            && let Some(def) = self.arena.ref_target(*ref_id)
+            && let Some(operation) = self.arena.effect_operations.get(&def)
+        {
+            eprintln!(
+                "effect op call expr={:?} callee={:?} path={:?} expected={:?}",
+                expr, callee, operation.path, expected
+            );
+        }
         let callee_expected = expected
             .as_ref()
             .and_then(|ret| self.primitive_spine_callee_expected(callee, ret.clone()));
@@ -382,12 +991,10 @@ impl<'a> ExprTypeSolver<'a> {
         let narrows_arg =
             value_argument_narrows_polyvariant(&declared_arg_ty, &callee_arg_expected);
         let expected_ret = self.call_callee_ret_expected(&ret_ty, expected, narrows_arg);
-        if narrows_arg || !callee_effect.is_pure_effect() {
-            self.constrain_apply_callee(
-                callee,
-                types::pure_function_type(callee_arg_expected, expected_ret.clone()),
-            )?;
-        }
+        self.constrain_apply_callee(
+            callee,
+            types::pure_function_type(callee_arg_expected, expected_ret.clone()),
+        )?;
         let has_evaluation_effect =
             !callee_effect.is_pure_effect() || !call_arg_effect.is_pure_effect();
         let result = self.call_result_shape(expected_ret, [callee_effect, call_arg_effect])?;
@@ -401,11 +1008,28 @@ impl<'a> ExprTypeSolver<'a> {
         expected: Type,
     ) -> Result<(), SpecializeError> {
         if self.plan.expected(callee).is_none() {
+            if self.plan.actual(callee).is_some() && self.expr_can_refine_with_expected(callee) {
+                self.set_expr_expected(callee, expected.clone())?;
+                let refined = self.infer_expr(callee, Some(expected.clone()))?;
+                return self.constrain_expr_boundary(refined, expected);
+            }
             self.expr(callee, Some(expected))?;
             return Ok(());
         }
         let actual = self.expr(callee, None)?;
         self.constrain_expr_boundary(actual, expected)
+    }
+
+    fn expr_can_refine_with_expected(&self, expr: poly_expr::ExprId) -> bool {
+        match self.arena.expr(expr) {
+            poly_expr::Expr::Var(_) | poly_expr::Expr::App(_, _) => true,
+            poly_expr::Expr::Select(_, select) => matches!(
+                self.arena.select(*select).resolution,
+                Some(poly_expr::SelectResolution::Method { .. })
+                    | Some(poly_expr::SelectResolution::TypeclassMethod { .. })
+            ),
+            _ => false,
+        }
     }
 
     fn constrain_callee_pattern_defaults(
@@ -444,7 +1068,7 @@ impl<'a> ExprTypeSolver<'a> {
         expr: poly_expr::ExprId,
         expected_value: Type,
     ) -> Result<CallArgument, SpecializeError> {
-        self.plan.set_expected(expr, expected_value.clone())?;
+        self.set_expr_expected(expr, expected_value.clone())?;
         let actual = if let Some(actual) = self.plan.actual(expr).cloned() {
             actual
         } else {
@@ -490,6 +1114,25 @@ impl<'a> ExprTypeSolver<'a> {
                 Ok(effect)
             }
         }
+    }
+
+    fn ref_set_type(
+        &mut self,
+        reference: poly_expr::ExprId,
+        value: poly_expr::ExprId,
+    ) -> Result<Type, SpecializeError> {
+        let value_actual = self.expr(value, None)?;
+        let (value_ty, value_effect) = split_runtime_computation_shape(value_actual);
+        let update_effect = self.fresh_effect_slot();
+        let reference_actual = self.expr(
+            reference,
+            Some(std_types::ref_type(update_effect.clone(), value_ty)),
+        )?;
+        let (_, reference_effect) = split_runtime_computation_shape(reference_actual);
+        self.call_result_shape(
+            Type::unit(),
+            [value_effect, reference_effect, update_effect],
+        )
     }
 
     fn case_type(
@@ -642,12 +1285,26 @@ impl<'a> ExprTypeSolver<'a> {
         let body_actual = self.expr(body, None)?;
         let (scrutinee_value, scrutinee_effect) = split_runtime_computation_shape(body_actual);
         self.expr(body, Some(scrutinee_value.clone()))?;
+        let mut handled_effects = Vec::new();
+        let mut effects = Vec::new();
         for arm in arms {
-            self.bind_catch_arm(arm, scrutinee_value.clone(), scrutinee_effect.clone())?;
-            if let Some(guard) = arm.guard {
-                self.expr(guard, Some(bool_type()))?;
+            if let Some(handled) =
+                self.bind_catch_arm(arm, scrutinee_value.clone(), scrutinee_effect.clone())?
+            {
+                handled_effects.push(handled);
             }
-            self.expr(arm.body, Some(result.clone()))?;
+            if let Some(guard) = arm.guard {
+                let guard_actual = self.expr(guard, Some(bool_type()))?;
+                effects.push(split_runtime_computation_shape(guard_actual).1);
+            }
+            let arm_actual = self.expr(arm.body, Some(result.clone()))?;
+            effects.push(split_runtime_computation_shape(arm_actual).1);
+        }
+        effects.push(catch_residual_effect(scrutinee_effect, &handled_effects));
+        let effect = self.join_call_effects(effects)?;
+        let result = types::runtime_shape(effect, result);
+        if matches!(result, Type::Thunk { .. }) {
+            self.plan.mark_raw_thunk_computation(body);
         }
         Ok(result)
     }
@@ -657,20 +1314,21 @@ impl<'a> ExprTypeSolver<'a> {
         arm: &poly_expr::CatchArm,
         scrutinee_value: Type,
         scrutinee_effect: Type,
-    ) -> Result<(), SpecializeError> {
+    ) -> Result<Option<Type>, SpecializeError> {
         let Some(continuation) = arm.continuation else {
             self.bind_pat(arm.pat, scrutinee_value)?;
-            return Ok(());
+            return Ok(None);
         };
 
         let operation =
             self.catch_operation_types(arm.operation.as_ref(), scrutinee_effect.clone())?;
         self.bind_pat(arm.pat, operation.payload)?;
-        let continuation_ret = types::runtime_shape(scrutinee_effect, scrutinee_value);
+        let continuation_ret = types::runtime_shape(operation.residual_effect, scrutinee_value);
         self.bind_pat(
             continuation,
             types::pure_function_type(operation.continuation_input, continuation_ret),
-        )
+        )?;
+        Ok(Some(operation.effect))
     }
 
     fn catch_operation_types(
@@ -683,6 +1341,8 @@ impl<'a> ExprTypeSolver<'a> {
             return Ok(CatchOperationTypes {
                 payload: payload.clone(),
                 continuation_input: payload,
+                effect: Type::pure_effect(),
+                residual_effect: scrutinee_effect,
             });
         };
         let Some(def) = operation.def else {
@@ -690,6 +1350,8 @@ impl<'a> ExprTypeSolver<'a> {
             return Ok(CatchOperationTypes {
                 payload: payload.clone(),
                 continuation_input: payload,
+                effect: Type::pure_effect(),
+                residual_effect: scrutinee_effect,
             });
         };
         let Some(poly_expr::Def::Let {
@@ -701,6 +1363,8 @@ impl<'a> ExprTypeSolver<'a> {
             return Ok(CatchOperationTypes {
                 payload: payload.clone(),
                 continuation_input: payload,
+                effect: Type::pure_effect(),
+                residual_effect: scrutinee_effect,
             });
         };
         let operation_ty = self.instantiate_scheme(def, scheme)?;
@@ -709,13 +1373,20 @@ impl<'a> ExprTypeSolver<'a> {
             return Ok(CatchOperationTypes {
                 payload: payload.clone(),
                 continuation_input: payload,
+                effect: Type::pure_effect(),
+                residual_effect: scrutinee_effect,
             });
         };
         let (continuation_input, operation_effect) = split_runtime_computation_shape(ret);
-        self.constrain_operation_effect_to_scrutinee(operation_effect, scrutinee_effect)?;
+        let handled_effect =
+            self.constrain_operation_effect_to_scrutinee(operation_effect, scrutinee_effect.clone())?;
+        let residual_effect =
+            catch_residual_effect(scrutinee_effect, std::slice::from_ref(&handled_effect));
         Ok(CatchOperationTypes {
             payload,
             continuation_input,
+            effect: handled_effect,
+            residual_effect,
         })
     }
 
@@ -723,11 +1394,12 @@ impl<'a> ExprTypeSolver<'a> {
         &mut self,
         operation_effect: Type,
         scrutinee_effect: Type,
-    ) -> Result<(), SpecializeError> {
+    ) -> Result<Type, SpecializeError> {
         if let (Type::EffectRow(operation_items), Type::EffectRow(scrutinee_items)) =
             (&operation_effect, &scrutinee_effect)
         {
             let mut constrained = false;
+            let mut handled_items = Vec::new();
             for operation_item in operation_items {
                 let Some(scrutinee_item) =
                     matching_effect_row_item(operation_item, scrutinee_items)
@@ -739,15 +1411,17 @@ impl<'a> ExprTypeSolver<'a> {
                 self.graph
                     .constrain_subtype(scrutinee_item.clone(), operation_item.clone())?;
                 constrained = true;
+                handled_items.push(scrutinee_item);
             }
             if constrained {
-                return Ok(());
+                return Ok(Type::EffectRow(handled_items));
             }
         }
         self.graph
             .constrain_subtype(operation_effect.clone(), scrutinee_effect.clone())?;
         self.graph
-            .constrain_subtype(scrutinee_effect, operation_effect)
+            .constrain_subtype(scrutinee_effect, operation_effect.clone())?;
+        Ok(operation_effect)
     }
 
     fn lambda_type(
@@ -804,14 +1478,43 @@ impl<'a> ExprTypeSolver<'a> {
         for stmt in stmts {
             match stmt {
                 poly_expr::Stmt::Let(_, pat, value) => {
-                    let expected = self.local_let_expected_type(*pat)?;
-                    let value_ty = self.expr(*value, expected)?;
+                    let scheme_type = self.local_let_scheme_type(*pat)?;
+                    let previous_prebound_local =
+                        self.prebind_local_let_scheme(scheme_type.as_ref());
+                    if scheme_type
+                        .as_ref()
+                        .is_some_and(LocalLetSchemeType::is_polymorphic)
+                        && self.local_let_value_can_defer(*value)
+                    {
+                        effects.push(Type::pure_effect());
+                        continue;
+                    }
+                    let expected = scheme_type
+                        .as_ref()
+                        .and_then(|scheme| scheme.expr_expected());
+                    let value_ty = match self.expr(*value, expected) {
+                        Ok(value_ty) => value_ty,
+                        Err(error) => {
+                            self.restore_prebound_local(previous_prebound_local);
+                            return Err(error);
+                        }
+                    };
                     let (value_ty, effect) = split_runtime_computation_shape(value_ty);
                     if !effect.is_pure_effect() {
-                        self.expr(*value, Some(value_ty.clone()))?;
+                        if let Err(error) = self.expr(*value, Some(value_ty.clone())) {
+                            self.restore_prebound_local(previous_prebound_local);
+                            return Err(error);
+                        }
                     }
                     effects.push(effect);
-                    self.bind_pat(*pat, value_ty)?;
+                    let binding_ty = if let Some(scheme) = scheme_type {
+                        scheme.binding_type()
+                    } else {
+                        Some(value_ty)
+                    };
+                    if let Some(binding_ty) = binding_ty {
+                        self.bind_pat(*pat, binding_ty)?;
+                    }
                 }
                 poly_expr::Stmt::Expr(value) => {
                     let value_ty = self.expr(*value, None)?;
@@ -838,10 +1541,36 @@ impl<'a> ExprTypeSolver<'a> {
         Ok(result)
     }
 
-    fn local_let_expected_type(
-        &self,
+    fn prebind_local_let_scheme(
+        &mut self,
+        scheme_type: Option<&LocalLetSchemeType>,
+    ) -> Option<(poly_expr::DefId, Option<Type>)> {
+        let scheme_type = scheme_type?;
+        let ty = scheme_type.prebound_type()?;
+        Some((
+            scheme_type.def,
+            self.local_types.insert(scheme_type.def, ty),
+        ))
+    }
+
+    fn restore_prebound_local(&mut self, previous: Option<(poly_expr::DefId, Option<Type>)>) {
+        let Some((def, previous_ty)) = previous else {
+            return;
+        };
+        match previous_ty {
+            Some(previous_ty) => {
+                self.local_types.insert(def, previous_ty);
+            }
+            None => {
+                self.local_types.remove(&def);
+            }
+        }
+    }
+
+    fn local_let_scheme_type(
+        &mut self,
         pat: poly_expr::PatId,
-    ) -> Result<Option<Type>, SpecializeError> {
+    ) -> Result<Option<LocalLetSchemeType>, SpecializeError> {
         let poly_expr::Pat::Var(def) = self.arena.pat(pat) else {
             return Ok(None);
         };
@@ -852,11 +1581,21 @@ impl<'a> ExprTypeSolver<'a> {
         else {
             return Ok(None);
         };
-        let ty = types::signature_for_scheme(self.arena, *def, scheme, None)?.ty;
-        if !matches!(ty, Type::Fun { .. }) || type_contains_open_var(&ty) {
-            return Ok(None);
+        if !scheme.quantifiers.is_empty() || !scheme.stack_quantifiers.is_empty() {
+            return Ok(Some(LocalLetSchemeType {
+                def: *def,
+                monomorphic_ty: None,
+            }));
         }
-        Ok(Some(ty))
+        let ty = self.instantiate_monomorphic_scheme(*def, scheme)?;
+        Ok(Some(LocalLetSchemeType {
+            def: *def,
+            monomorphic_ty: Some(ty),
+        }))
+    }
+
+    fn local_let_value_can_defer(&self, value: poly_expr::ExprId) -> bool {
+        matches!(self.arena.expr(value), poly_expr::Expr::Lambda(_, _))
     }
 
     fn record_type(
@@ -940,11 +1679,15 @@ impl<'a> ExprTypeSolver<'a> {
                 self.record_select_type(base, &select.name, expected)
             }
             Some(poly_expr::SelectResolution::Method { def }) => {
-                self.method_select_type(base, def, expected)
+                self.method_select_type(base, def, expected, MethodDemandMode::Emit)
             }
-            Some(poly_expr::SelectResolution::TypeclassMethod { member }) => {
-                self.method_select_type(base, member, expected)
-            }
+            Some(poly_expr::SelectResolution::TypeclassMethod { member }) => self
+                .method_select_type(
+                    base,
+                    member,
+                    expected,
+                    MethodDemandMode::DeferWithoutExpected,
+                ),
             None => {
                 self.expr(base, None)?;
                 Ok(expected.unwrap_or_else(|| self.fresh_value_slot()))
@@ -981,7 +1724,8 @@ impl<'a> ExprTypeSolver<'a> {
         &mut self,
         base: poly_expr::ExprId,
         def: poly_expr::DefId,
-        _expected: Option<Type>,
+        expected: Option<Type>,
+        demand_mode: MethodDemandMode,
     ) -> Result<Type, SpecializeError> {
         let Some(poly_expr::Def::Let {
             scheme: Some(scheme),
@@ -991,13 +1735,26 @@ impl<'a> ExprTypeSolver<'a> {
             self.expr(base, None)?;
             return Ok(self.fresh_value_slot());
         };
-        let method_ty = self.instantiate_scheme(def, scheme)?;
+        let method_ty = match expected.as_ref() {
+            Some(expected) => {
+                let expected = self.selected_method_scheme_expected(expected.clone());
+                self.instantiate_scheme_with_expected(def, scheme, &expected)?
+            }
+            None if demand_mode == MethodDemandMode::DeferWithoutExpected => {
+                self.instantiate_scheme_type_only(def, scheme)?
+            }
+            None => self.instantiate_scheme(def, scheme)?,
+        };
         let Some((receiver_ty, result_ty)) = function_runtime_parts(&method_ty) else {
             self.expr(base, None)?;
             return Ok(self.fresh_value_slot());
         };
         self.expr(base, Some(receiver_ty))?;
         Ok(result_ty)
+    }
+
+    fn selected_method_scheme_expected(&mut self, selected: Type) -> Type {
+        types::pure_function_type(self.fresh_value_slot(), selected)
     }
 
     fn bind_pat(&mut self, pat: poly_expr::PatId, ty: Type) -> Result<(), SpecializeError> {
@@ -1010,9 +1767,15 @@ impl<'a> ExprTypeSolver<'a> {
                 self.graph.constrain_subtype(ty, lit_ty)?;
             }
             PolyPat::Var(def) => {
+                if def.0 == 711 {
+                    eprintln!("bind target def={def:?} ty={ty:?}");
+                }
                 self.local_types.insert(*def, ty);
             }
             PolyPat::As(inner, def) => {
+                if def.0 == 711 {
+                    eprintln!("bind target as def={def:?} ty={ty:?}");
+                }
                 self.local_types.insert(*def, ty.clone());
                 self.bind_pat(*inner, ty)?;
             }
@@ -1137,9 +1900,15 @@ impl<'a> ExprTypeSolver<'a> {
         match self.arena.pat(pat) {
             PolyPat::Wild | PolyPat::Lit(_) | PolyPat::Ref(_) => {}
             PolyPat::Var(def) => {
+                if def.0 == 711 {
+                    eprintln!("default-bind target def={def:?} ty={ty:?}");
+                }
                 self.local_types.insert(*def, ty);
             }
             PolyPat::As(inner, def) => {
+                if def.0 == 711 {
+                    eprintln!("default-bind target as def={def:?} ty={ty:?}");
+                }
                 self.local_types.insert(*def, ty.clone());
                 self.constrain_pat_defaults(*inner, ty)?;
             }
@@ -1298,28 +2067,43 @@ impl<'a> ExprTypeSolver<'a> {
         }
     }
 
-    fn var_type(&mut self, ref_id: poly_expr::RefId) -> Result<Type, SpecializeError> {
+    fn var_type(
+        &mut self,
+        ref_id: poly_expr::RefId,
+        expected: Option<&Type>,
+    ) -> Result<Type, SpecializeError> {
         let Some(def) = self.arena.ref_target(ref_id) else {
             return Err(SpecializeError::UnresolvedRef { ref_id: ref_id.0 });
         };
         if let Some(local_ty) = self.local_types.get(&def).cloned() {
+            if def.0 == 711 {
+                eprintln!("var target local def={def:?} ty={local_ty:?}");
+            }
             return Ok(local_ty);
+        }
+        if let Some(active_ty) = self.constraining_def_types.get(&def).cloned() {
+            if def.0 == 711 {
+                eprintln!("var target active def={def:?} ty={active_ty:?}");
+            }
+            return Ok(active_ty);
         }
         match self.arena.defs.get(def) {
             Some(poly_expr::Def::Let {
                 scheme: Some(scheme),
-                body: Some(body),
+                body,
                 ..
             }) => {
-                let ty = self.instantiate_scheme(def, scheme)?;
-                self.constrain_instantiated_def_body(def, *body, ty.clone())?;
+                let ty = match expected {
+                    Some(expected) => {
+                        self.instantiate_scheme_with_expected(def, scheme, expected)?
+                    }
+                    None => self.instantiate_scheme(def, scheme)?,
+                };
+                if let Some(body) = body {
+                    self.constrain_instantiated_def_body(def, *body, ty.clone())?;
+                }
                 Ok(ty)
             }
-            Some(poly_expr::Def::Let {
-                scheme: Some(scheme),
-                body: None,
-                ..
-            }) => self.instantiate_scheme(def, scheme),
             Some(poly_expr::Def::Arg) | Some(poly_expr::Def::Let { body: None, .. }) => {
                 Ok(self.fresh_value_slot())
             }
@@ -1342,16 +2126,17 @@ impl<'a> ExprTypeSolver<'a> {
         body: poly_expr::ExprId,
         ty: Type,
     ) -> Result<(), SpecializeError> {
-        if !self.constraining_defs.insert(def) {
+        if self.constraining_def_types.contains_key(&def) {
             return Ok(());
         }
 
         let local_types = self.local_types.clone();
-        let plan = self.plan.clone();
+        let plan = std::mem::take(&mut self.plan);
+        self.constraining_def_types.insert(def, ty.clone());
         let result = self.expr(body, Some(ty)).map(|_| ());
+        self.constraining_def_types.remove(&def);
         self.local_types = local_types;
         self.plan = plan;
-        self.constraining_defs.remove(&def);
         result
     }
 
@@ -1376,6 +2161,65 @@ impl<'a> ExprTypeSolver<'a> {
             }
         }
         self.graph.add_role_demands(instantiated.role_predicates);
+        self.graph
+            .constrain_recursive_bounds(instantiated.recursive_bounds)?;
+        Ok(instantiated.ty)
+    }
+
+    fn instantiate_monomorphic_scheme(
+        &mut self,
+        def: poly_expr::DefId,
+        scheme: &poly::types::Scheme,
+    ) -> Result<Type, SpecializeError> {
+        let instantiated = types::instantiate_monomorphic_scheme_with_fresh_and_roles(
+            self.arena,
+            def,
+            scheme,
+            |kind| match kind {
+                types::SchemeQuantifierKind::Value => self.fresh_value_slot(),
+                types::SchemeQuantifierKind::Effect => self.fresh_effect_slot(),
+            },
+        )?;
+        self.graph.add_role_demands(instantiated.role_predicates);
+        self.graph
+            .constrain_recursive_bounds(instantiated.recursive_bounds)?;
+        Ok(instantiated.ty)
+    }
+
+    fn instantiate_scheme_with_expected(
+        &mut self,
+        def: poly_expr::DefId,
+        scheme: &poly::types::Scheme,
+        expected: &Type,
+    ) -> Result<Type, SpecializeError> {
+        let instantiated = types::instantiate_scheme_with_expected_fresh_and_roles(
+            self.arena,
+            def,
+            scheme,
+            expected,
+            |kind| match kind {
+                types::SchemeQuantifierKind::Value => self.fresh_value_slot(),
+                types::SchemeQuantifierKind::Effect => self.fresh_effect_slot(),
+            },
+        )?;
+        self.graph.add_role_demands(instantiated.role_predicates);
+        self.graph
+            .constrain_recursive_bounds(instantiated.recursive_bounds)?;
+        Ok(instantiated.ty)
+    }
+
+    fn instantiate_scheme_type_only(
+        &mut self,
+        def: poly_expr::DefId,
+        scheme: &poly::types::Scheme,
+    ) -> Result<Type, SpecializeError> {
+        let instantiated =
+            types::instantiate_scheme_with_fresh_and_roles(self.arena, def, scheme, |kind| {
+                match kind {
+                    types::SchemeQuantifierKind::Value => self.fresh_value_slot(),
+                    types::SchemeQuantifierKind::Effect => self.fresh_effect_slot(),
+                }
+            })?;
         self.graph
             .constrain_recursive_bounds(instantiated.recursive_bounds)?;
         Ok(instantiated.ty)
@@ -1524,7 +2368,7 @@ impl<'a> ExprTypeSolver<'a> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum TypeSlotKind {
     Value,
     Effect,
@@ -1533,11 +2377,19 @@ enum TypeSlotKind {
 struct CatchOperationTypes {
     payload: Type,
     continuation_input: Type,
+    effect: Type,
+    residual_effect: Type,
 }
 
 struct CallArgument {
     value: Type,
     effect: Type,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MethodDemandMode {
+    Emit,
+    DeferWithoutExpected,
 }
 
 struct ConstraintGraph<'a> {
@@ -1664,7 +2516,16 @@ impl<'a> ConstraintGraph<'a> {
             .is_some_and(|slot| slot.kind == TypeSlotKind::Value)
     }
 
+    #[track_caller]
     fn constrain_subtype(&mut self, lower: Type, upper: Type) -> Result<(), SpecializeError> {
+        if type_mentions_ref_update_unit(&lower) || type_mentions_ref_update_unit(&upper) {
+            let location = std::panic::Location::caller();
+            eprintln!(
+                "ref_update_unit constraint at {}:{} lower={lower:?} upper={upper:?}",
+                location.file(),
+                location.line()
+            );
+        }
         if lower != upper {
             self.pending.push_back(SubtypeConstraint { lower, upper });
         }
@@ -1676,6 +2537,26 @@ impl<'a> ConstraintGraph<'a> {
             self.process_subtype(constraint.lower, constraint.upper)?;
         }
         Ok(())
+    }
+
+    fn solve_type_graph(&self) -> Result<GraphSolution, SpecializeError> {
+        let mut solution = GraphSolution::new(self.slots.len());
+        loop {
+            let mut progressed = false;
+            for slot in 0..self.slots.len() {
+                if solution.slots[slot].is_some() {
+                    continue;
+                }
+                let mut resolver = TypeResolver::with_solution(self, &solution);
+                if let Some(ty) = resolver.try_slot_solution(slot as u32)? {
+                    solution.slots[slot] = Some(ty);
+                    progressed = true;
+                }
+            }
+            if !progressed {
+                return Ok(solution);
+            }
+        }
     }
 
     fn process_subtype(&mut self, lower: Type, upper: Type) -> Result<(), SpecializeError> {
@@ -2083,17 +2964,51 @@ impl TypeSlot {
     }
 }
 
-struct TypeResolver<'graph, 'arena> {
+#[derive(Debug, Clone)]
+struct GraphSolution {
+    slots: Vec<Option<Type>>,
+}
+
+impl GraphSolution {
+    fn new(slot_count: usize) -> Self {
+        Self {
+            slots: vec![None; slot_count],
+        }
+    }
+
+    fn get(&self, slot: u32) -> Result<Option<&Type>, SpecializeError> {
+        self.slots
+            .get(slot as usize)
+            .map(Option::as_ref)
+            .ok_or(SpecializeError::InvalidTypeSlot { slot })
+    }
+}
+
+struct TypeResolver<'graph, 'arena, 'solution> {
     graph: &'graph ConstraintGraph<'arena>,
-    solutions: HashMap<u32, Type>,
+    solution: Option<&'solution GraphSolution>,
+    lazy_solutions: HashMap<u32, Type>,
     resolving: HashSet<u32>,
 }
 
-impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
+impl<'graph, 'arena, 'solution> TypeResolver<'graph, 'arena, 'solution> {
     fn new(graph: &'graph ConstraintGraph<'arena>) -> Self {
         Self {
             graph,
-            solutions: HashMap::new(),
+            solution: None,
+            lazy_solutions: HashMap::new(),
+            resolving: HashSet::new(),
+        }
+    }
+
+    fn with_solution(
+        graph: &'graph ConstraintGraph<'arena>,
+        solution: &'solution GraphSolution,
+    ) -> Self {
+        Self {
+            graph,
+            solution: Some(solution),
+            lazy_solutions: HashMap::new(),
             resolving: HashSet::new(),
         }
     }
@@ -2150,21 +3065,13 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
                 .collect::<Result<Vec<_>, _>>()
                 .map(Type::PolyVariant),
             Type::Tuple(items) => self.resolve_all(items).map(Type::Tuple),
-            Type::EffectRow(items) => Ok(types::simplify_type(Type::EffectRow(
-                self.resolve_all(items)?,
-            ))),
+            Type::EffectRow(items) => self.resolve_effect_row(items),
             Type::Stack { inner, weight } => Ok(types::simplify_stack_type(
                 self.resolve(inner)?,
                 weight.clone(),
             )),
-            Type::Union(left, right) => Ok(types::simplify_type(Type::Union(
-                Box::new(self.resolve(left)?),
-                Box::new(self.resolve(right)?),
-            ))),
-            Type::Intersection(left, right) => Ok(types::simplify_type(Type::Intersection(
-                Box::new(self.resolve(left)?),
-                Box::new(self.resolve(right)?),
-            ))),
+            Type::Union(left, right) => self.resolve_union(left, right),
+            Type::Intersection(left, right) => self.resolve_intersection(left, right),
             Type::OpenVar(slot) => self.slot_solution(*slot),
         }
     }
@@ -2173,21 +3080,120 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
         tys.iter().map(|ty| self.resolve(ty)).collect()
     }
 
+    fn resolve_effect_row(&mut self, items: &[Type]) -> Result<Type, SpecializeError> {
+        Ok(types::simplify_type(Type::EffectRow(
+            items
+                .iter()
+                .map(|item| self.resolve_effect_item(item))
+                .collect::<Result<Vec<_>, _>>()?,
+        )))
+    }
+
+    fn resolve_effect_item(&mut self, item: &Type) -> Result<Type, SpecializeError> {
+        let Type::Con { path, args } = item else {
+            return self.resolve(item);
+        };
+        Ok(Type::Con {
+            path: path.clone(),
+            args: args
+                .iter()
+                .map(|arg| match self.resolve(arg) {
+                    Ok(arg) => Ok(arg),
+                    Err(SpecializeError::UndeterminedTypeSlot { .. }) => Ok(Type::unit()),
+                    Err(error) => Err(error),
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+        })
+    }
+
+    fn resolve_erased_effectful_actual(
+        &mut self,
+        actual: &Type,
+        expected: Option<&Type>,
+    ) -> Option<Type> {
+        if let (
+            Type::OpenVar(_),
+            Some(Type::Thunk {
+                effect,
+                value: expected_value,
+            }),
+        ) = (actual, expected)
+            && actual == expected_value.as_ref()
+            && type_contains_open_var(expected_value)
+        {
+            let effect = self.resolve(effect).ok()?;
+            return Some(Type::Thunk {
+                effect: Box::new(effect),
+                value: Box::new(Type::unit()),
+            });
+        }
+        let Type::Thunk {
+            effect,
+            value: actual_value,
+        } = actual
+        else {
+            return None;
+        };
+        let expected_matches_value = match expected {
+            Some(Type::Thunk {
+                value: expected_value,
+                ..
+            }) => actual_value == expected_value,
+            Some(expected) => expected == actual_value.as_ref(),
+            None => false,
+        };
+        if !expected_matches_value || !type_contains_open_var(actual_value) {
+            return None;
+        }
+        let effect = self.resolve(effect).ok()?;
+        Some(Type::Thunk {
+            effect: Box::new(effect),
+            value: Box::new(Type::unit()),
+        })
+    }
+
     fn slot_solution(&mut self, slot: u32) -> Result<Type, SpecializeError> {
-        if let Some(solution) = self.solutions.get(&slot) {
+        if let Some(solution) = self.solution {
+            return match solution.get(slot)?.cloned() {
+                Some(solution) => Ok(solution),
+                None => {
+                    if slot != 106 {
+                        return Err(SpecializeError::UndeterminedTypeSlot { slot });
+                    }
+                    if let Ok(slot_data) = self.graph.slot(slot) {
+                        eprintln!(
+                            "undetermined slot {slot} kind={:?} lower={:?} upper={:?} succ={:?} pred={:?}",
+                            slot_data.kind,
+                            slot_data.lower,
+                            slot_data.upper,
+                            slot_data.successors,
+                            slot_data.predecessors
+                        );
+                    }
+                    Err(SpecializeError::UndeterminedTypeSlot { slot })
+                }
+            };
+        }
+        if let Some(solution) = self.lazy_solutions.get(&slot) {
             return Ok(solution.clone());
         }
+        let solution = self
+            .try_slot_solution(slot)?
+            .ok_or(SpecializeError::UndeterminedTypeSlot { slot })?;
+        self.lazy_solutions.insert(slot, solution.clone());
+        Ok(solution)
+    }
+
+    fn try_slot_solution(&mut self, slot: u32) -> Result<Option<Type>, SpecializeError> {
         let slot_data = self.graph.slot(slot)?;
         let slot_kind = slot_data.kind;
         let lower_bounds = slot_data.lower.clone();
         let upper_bounds = slot_data.upper.clone();
         if !self.resolving.insert(slot) {
-            return Err(SpecializeError::UndeterminedTypeSlot { slot });
+            return Ok(None);
         }
-        let solution = self.compute_slot_solution(slot, slot_kind, &lower_bounds, &upper_bounds);
+        let solution = self.compute_slot_solution(slot, slot_kind, &lower_bounds, &upper_bounds)?;
         self.resolving.remove(&slot);
-        let solution = solution?;
-        self.solutions.insert(slot, solution.clone());
         Ok(solution)
     }
 
@@ -2197,24 +3203,45 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
         slot_kind: TypeSlotKind,
         lower_bounds: &[Type],
         upper_bounds: &[Type],
-    ) -> Result<Type, SpecializeError> {
+    ) -> Result<Option<Type>, SpecializeError> {
         let lower = self.join_candidates(slot, slot_kind, lower_bounds)?;
         let upper = self.meet_candidates(slot, slot_kind, upper_bounds)?;
-        match (lower, upper) {
-            (Some(lower), Some(upper)) if type_candidates_equivalent(&lower, &upper) => Ok(lower),
+        let solution = match (lower, upper) {
+            (Some(lower), Some(upper)) if type_candidates_equivalent(&lower, &upper) => lower,
             (Some(lower), Some(upper)) if type_candidate_subtype(self.graph, &lower, &upper) => {
-                Ok(lower)
+                lower
             }
-            (Some(lower), Some(upper)) => Err(SpecializeError::ConflictingTypeCandidates {
-                slot,
-                existing: lower,
-                incoming: upper,
-            }),
-            (Some(lower), None) => Ok(lower),
-            (None, Some(upper)) => Ok(upper),
-            (None, None) if slot_kind == TypeSlotKind::Effect => Ok(Type::pure_effect()),
-            (None, None) => Err(SpecializeError::UndeterminedTypeSlot { slot }),
-        }
+            (Some(lower), Some(upper))
+                if slot_kind == TypeSlotKind::Effect
+                    && self.effect_lower_filtered_by_upper_bounds(&lower, upper_bounds, &upper)? =>
+            {
+                upper
+            }
+            (Some(lower), Some(upper)) => {
+                eprintln!(
+                    "slot {slot} conflict lower_bounds={lower_bounds:?} upper_bounds={upper_bounds:?} lower={lower:?} upper={upper:?}"
+                );
+                for (index, slot) in self.graph.slots.iter().enumerate() {
+                    if !slot.lower.is_empty() || !slot.upper.is_empty() {
+                        eprintln!(
+                            "slot {index} kind={:?} lower={:?} upper={:?} succ={:?} pred={:?}",
+                            slot.kind, slot.lower, slot.upper, slot.successors, slot.predecessors
+                        );
+                    }
+                }
+                return Err(SpecializeError::ConflictingTypeCandidates {
+                    slot,
+                    existing: lower,
+                    incoming: upper,
+                });
+            }
+            (Some(lower), None) => lower,
+            (None, Some(_)) if slot_kind == TypeSlotKind::Effect => Type::pure_effect(),
+            (None, Some(upper)) => upper,
+            (None, None) if slot_kind == TypeSlotKind::Effect => Type::pure_effect(),
+            (None, None) => return Ok(None),
+        };
+        Ok(Some(solution))
     }
 
     fn join_candidates(
@@ -2236,7 +3263,28 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
                 Some(existing) if slot_kind == TypeSlotKind::Effect => {
                     join_effect_type_candidates(existing, resolved)
                 }
-                Some(existing) => join_type_candidates(self.graph, slot, existing, resolved)?,
+                Some(existing) => match join_type_candidates(
+                    self.graph,
+                    slot,
+                    existing.clone(),
+                    resolved.clone(),
+                ) {
+                    Ok(joined) => joined,
+                    Err(error) => {
+                        eprintln!(
+                            "join slot {slot} conflict bounds={bounds:?} existing={existing:?} incoming={resolved:?}"
+                        );
+                        for (index, slot) in self.graph.slots.iter().enumerate() {
+                            if !slot.lower.is_empty() || !slot.upper.is_empty() {
+                                eprintln!(
+                                    "slot {index} kind={:?} lower={:?} upper={:?} succ={:?} pred={:?}",
+                                    slot.kind, slot.lower, slot.upper, slot.successors, slot.predecessors
+                                );
+                            }
+                        }
+                        return Err(error);
+                    }
+                },
                 None => resolved,
             });
         }
@@ -2276,6 +3324,115 @@ impl<'graph, 'arena> TypeResolver<'graph, 'arena> {
             Err(error) => Err(error),
         }
     }
+
+    fn effect_lower_filtered_by_upper_bounds(
+        &mut self,
+        lower: &Type,
+        upper_bounds: &[Type],
+        upper: &Type,
+    ) -> Result<bool, SpecializeError> {
+        for bound in upper_bounds {
+            if self.effect_lower_filtered_by_upper_bound(lower, bound, upper)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    fn effect_lower_filtered_by_upper_bound(
+        &mut self,
+        lower: &Type,
+        bound: &Type,
+        upper: &Type,
+    ) -> Result<bool, SpecializeError> {
+        match bound {
+            Type::Stack { weight, .. } => {
+                let filtered =
+                    types::simplify_stack_type(lower.clone(), weight.clone());
+                Ok(type_candidates_equivalent(&filtered, upper))
+            }
+            Type::EffectRow(items) => {
+                for item in items {
+                    if self.effect_lower_filtered_by_upper_bound(lower, item, upper)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+            Type::Union(left, right) | Type::Intersection(left, right) => Ok(self
+                .effect_lower_filtered_by_upper_bound(lower, left, upper)?
+                || self.effect_lower_filtered_by_upper_bound(lower, right, upper)?),
+            Type::OpenVar(slot) => {
+                let Some(solution) = self.try_slot_solution(*slot)? else {
+                    return Ok(false);
+                };
+                self.effect_lower_filtered_by_upper_bound(lower, &solution, upper)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn resolve_union(&mut self, left: &Type, right: &Type) -> Result<Type, SpecializeError> {
+        match (self.resolve_branch(left)?, self.resolve_branch(right)?) {
+            (ResolvedBranch::Type(left), ResolvedBranch::Type(right)) => {
+                Ok(simplify_resolved_union(self.graph, left, right))
+            }
+            (ResolvedBranch::Type(ty), ResolvedBranch::Undetermined(_))
+            | (ResolvedBranch::Undetermined(_), ResolvedBranch::Type(ty)) => Ok(ty),
+            (ResolvedBranch::Undetermined(slot), ResolvedBranch::Undetermined(_)) => {
+                Err(SpecializeError::UndeterminedTypeSlot { slot })
+            }
+        }
+    }
+
+    fn resolve_intersection(&mut self, left: &Type, right: &Type) -> Result<Type, SpecializeError> {
+        match (self.resolve_branch(left)?, self.resolve_branch(right)?) {
+            (ResolvedBranch::Type(left), ResolvedBranch::Type(right)) => {
+                Ok(simplify_resolved_intersection(self.graph, left, right))
+            }
+            (ResolvedBranch::Type(ty), ResolvedBranch::Undetermined(_))
+            | (ResolvedBranch::Undetermined(_), ResolvedBranch::Type(ty)) => Ok(ty),
+            (ResolvedBranch::Undetermined(slot), ResolvedBranch::Undetermined(_)) => {
+                Err(SpecializeError::UndeterminedTypeSlot { slot })
+            }
+        }
+    }
+
+    fn resolve_branch(&mut self, ty: &Type) -> Result<ResolvedBranch, SpecializeError> {
+        match self.resolve(ty) {
+            Ok(ty) => Ok(ResolvedBranch::Type(ty)),
+            Err(SpecializeError::UndeterminedTypeSlot { slot }) => {
+                Ok(ResolvedBranch::Undetermined(slot))
+            }
+            Err(error) => Err(error),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ResolvedBranch {
+    Type(Type),
+    Undetermined(u32),
+}
+
+fn simplify_resolved_union(graph: &ConstraintGraph<'_>, left: Type, right: Type) -> Type {
+    if type_candidates_equivalent(&left, &right) || type_candidate_subtype(graph, &right, &left) {
+        return left;
+    }
+    if type_candidate_subtype(graph, &left, &right) {
+        return right;
+    }
+    types::simplify_type(Type::Union(Box::new(left), Box::new(right)))
+}
+
+fn simplify_resolved_intersection(graph: &ConstraintGraph<'_>, left: Type, right: Type) -> Type {
+    if type_candidates_equivalent(&left, &right) || type_candidate_subtype(graph, &left, &right) {
+        return left;
+    }
+    if type_candidate_subtype(graph, &right, &left) {
+        return right;
+    }
+    types::simplify_type(Type::Intersection(Box::new(left), Box::new(right)))
 }
 
 fn effect_slot_candidate(slot_kind: TypeSlotKind, ty: Type) -> Type {
@@ -2299,7 +3456,7 @@ fn join_effect_type_candidates(left: Type, right: Type) -> Type {
                     left.push(item);
                 }
             }
-            Type::EffectRow(left)
+            types::simplify_type(Type::EffectRow(left))
         }
         (left, right) => types::simplify_type(Type::Union(Box::new(left), Box::new(right))),
     }
@@ -2608,6 +3765,172 @@ fn type_contains_open_var(ty: &Type) -> bool {
     }
 }
 
+fn type_mentions_ref_update_unit(ty: &Type) -> bool {
+    match ty {
+        Type::Con { path, args } => {
+            path.as_slice()
+                == ["std", "control", "var", "ref_update", "update"]
+                    .map(str::to_string)
+                    .as_slice()
+                || (path.as_slice()
+                    == ["std", "control", "var", "ref_update"]
+                        .map(str::to_string)
+                        .as_slice()
+                    && args.as_slice() == [Type::unit()])
+                || args.iter().any(type_mentions_ref_update_unit)
+        }
+        Type::Fun {
+            arg,
+            arg_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_mentions_ref_update_unit(arg)
+                || type_mentions_ref_update_unit(arg_effect)
+                || type_mentions_ref_update_unit(ret_effect)
+                || type_mentions_ref_update_unit(ret)
+        }
+        Type::Thunk { effect, value } => {
+            type_mentions_ref_update_unit(effect) || type_mentions_ref_update_unit(value)
+        }
+        Type::Record(fields) => fields
+            .iter()
+            .any(|field| type_mentions_ref_update_unit(&field.value)),
+        Type::PolyVariant(variants) => variants
+            .iter()
+            .any(|variant| variant.payloads.iter().any(type_mentions_ref_update_unit)),
+        Type::Tuple(items) | Type::EffectRow(items) => {
+            items.iter().any(type_mentions_ref_update_unit)
+        }
+        Type::Union(left, right) | Type::Intersection(left, right) => {
+            type_mentions_ref_update_unit(left) || type_mentions_ref_update_unit(right)
+        }
+        Type::Stack { inner, .. } => type_mentions_ref_update_unit(inner),
+        Type::OpenVar(_) | Type::Any | Type::Never => false,
+    }
+}
+
+fn expr_kind_label(expr: &poly_expr::Expr) -> &'static str {
+    match expr {
+        poly_expr::Expr::Lit(_) => "lit",
+        poly_expr::Expr::PrimitiveOp(_) => "primitive",
+        poly_expr::Expr::Var(_) => "var",
+        poly_expr::Expr::App(_, _) => "app",
+        poly_expr::Expr::RefSet(_, _) => "ref-set",
+        poly_expr::Expr::Lambda(_, _) => "lambda",
+        poly_expr::Expr::Tuple(_) => "tuple",
+        poly_expr::Expr::Record { .. } => "record",
+        poly_expr::Expr::PolyVariant(_, _) => "poly-variant",
+        poly_expr::Expr::Select(_, _) => "select",
+        poly_expr::Expr::Case(_, _) => "case",
+        poly_expr::Expr::Catch(_, _) => "catch",
+        poly_expr::Expr::Block(_, _) => "block",
+    }
+}
+
+fn debug_expr_tree(arena: &poly_expr::Arena, expr: poly_expr::ExprId, depth: usize) -> String {
+    if depth == 0 {
+        return format!("{expr:?}:...");
+    }
+    match arena.expr(expr) {
+        poly_expr::Expr::Lit(_) => format!("{expr:?}:lit"),
+        poly_expr::Expr::PrimitiveOp(op) => format!("{expr:?}:primitive({op:?})"),
+        poly_expr::Expr::Var(ref_id) => {
+            let target = arena.ref_target(*ref_id);
+            let operation = target.and_then(|def| arena.effect_operations.get(&def));
+            format!(
+                "{expr:?}:var(ref={ref_id:?}, target={target:?}, op={:?})",
+                operation.map(|operation| &operation.path)
+            )
+        }
+        poly_expr::Expr::App(callee, arg) => format!(
+            "{expr:?}:app({}, {})",
+            debug_expr_tree(arena, *callee, depth - 1),
+            debug_expr_tree(arena, *arg, depth - 1)
+        ),
+        poly_expr::Expr::RefSet(reference, value) => format!(
+            "{expr:?}:ref-set({}, {})",
+            debug_expr_tree(arena, *reference, depth - 1),
+            debug_expr_tree(arena, *value, depth - 1)
+        ),
+        poly_expr::Expr::Lambda(param, body) => {
+            format!(
+                "{expr:?}:lambda({param:?} -> {})",
+                debug_expr_tree(arena, *body, depth - 1)
+            )
+        }
+        poly_expr::Expr::Tuple(items) => format!(
+            "{expr:?}:tuple({})",
+            items
+                .iter()
+                .map(|item| debug_expr_tree(arena, *item, depth - 1))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        poly_expr::Expr::Record { fields, spread } => format!(
+            "{expr:?}:record({}; spread={})",
+            fields
+                .iter()
+                .map(|(name, value)| format!(
+                    "{name}:{}",
+                    debug_expr_tree(arena, *value, depth - 1)
+                ))
+                .collect::<Vec<_>>()
+                .join(", "),
+            debug_record_spread(arena, spread, depth - 1)
+        ),
+        poly_expr::Expr::PolyVariant(tag, payloads) => format!(
+            "{expr:?}:variant({tag}, {})",
+            payloads
+                .iter()
+                .map(|payload| debug_expr_tree(arena, *payload, depth - 1))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        poly_expr::Expr::Select(base, select) => {
+            let select = arena.select(*select);
+            format!(
+                "{expr:?}:select({}, name={}, resolution={:?})",
+                debug_expr_tree(arena, *base, depth - 1),
+                select.name,
+                select.resolution
+            )
+        }
+        poly_expr::Expr::Case(scrutinee, arms) => format!(
+            "{expr:?}:case({}, arms={})",
+            debug_expr_tree(arena, *scrutinee, depth - 1),
+            arms.len()
+        ),
+        poly_expr::Expr::Catch(body, arms) => format!(
+            "{expr:?}:catch({}, arms={})",
+            debug_expr_tree(arena, *body, depth - 1),
+            arms.len()
+        ),
+        poly_expr::Expr::Block(stmts, tail) => format!(
+            "{expr:?}:block(stmts={}, tail={})",
+            stmts.len(),
+            tail.map(|tail| debug_expr_tree(arena, tail, depth - 1))
+                .unwrap_or_else(|| "none".to_string())
+        ),
+    }
+}
+
+fn debug_record_spread(
+    arena: &poly_expr::Arena,
+    spread: &poly_expr::RecordSpread<poly_expr::ExprId>,
+    depth: usize,
+) -> String {
+    match spread {
+        poly_expr::RecordSpread::None => "none".to_string(),
+        poly_expr::RecordSpread::Head(expr) => {
+            format!("head({})", debug_expr_tree(arena, *expr, depth))
+        }
+        poly_expr::RecordSpread::Tail(expr) => {
+            format!("tail({})", debug_expr_tree(arena, *expr, depth))
+        }
+    }
+}
+
 fn type_candidate_subtype(graph: &ConstraintGraph<'_>, lower: &Type, upper: &Type) -> bool {
     if type_candidates_equivalent(lower, upper)
         || matches!(lower, Type::Never)
@@ -2785,7 +4108,7 @@ fn effect_row_candidate_subtype(
 
 fn resolve_role_arg_exact_type(
     graph: &ConstraintGraph<'_>,
-    resolver: &mut TypeResolver<'_, '_>,
+    resolver: &mut TypeResolver<'_, '_, '_>,
     arg: &types::InstantiatedRoleArg,
 ) -> Result<Option<Type>, SpecializeError> {
     let lower = resolve_role_arg_bound(resolver, &arg.lower, RoleArgBound::Lower)?;
@@ -2794,7 +4117,7 @@ fn resolve_role_arg_exact_type(
 }
 
 fn resolve_role_arg_bound(
-    resolver: &mut TypeResolver<'_, '_>,
+    resolver: &mut TypeResolver<'_, '_, '_>,
     bound: &Type,
     side: RoleArgBound,
 ) -> Result<Option<Type>, SpecializeError> {
@@ -2968,6 +4291,191 @@ fn split_runtime_computation_shape(shape: Type) -> (Type, Type) {
     match shape {
         Type::Thunk { effect, value } => (*value, *effect),
         value => (value, Type::pure_effect()),
+    }
+}
+
+fn catch_residual_effect(scrutinee_effect: Type, handled_effects: &[Type]) -> Type {
+    if handled_effects.is_empty() || scrutinee_effect.is_pure_effect() {
+        return scrutinee_effect;
+    }
+    let handled_items = handled_effects
+        .iter()
+        .flat_map(effect_row_items)
+        .cloned()
+        .collect::<Vec<_>>();
+    residual_effect_after_handling(scrutinee_effect, &handled_items)
+}
+
+fn effect_row_items(effect: &Type) -> &[Type] {
+    match effect {
+        Type::EffectRow(items) => items,
+        _ => std::slice::from_ref(effect),
+    }
+}
+
+fn residual_effect_after_handling(effect: Type, handled_items: &[Type]) -> Type {
+    if effect.is_pure_effect() {
+        return Type::pure_effect();
+    }
+    match effect {
+        Type::EffectRow(items) => residual_effect_row_after_handling(items, handled_items),
+        Type::Con { .. } if effect_item_is_handled(&effect, handled_items) => Type::pure_effect(),
+        Type::Con { .. } => Type::EffectRow(vec![effect]),
+        Type::Union(left, right) => types::simplify_type(Type::Union(
+            Box::new(residual_effect_after_handling(*left, handled_items)),
+            Box::new(residual_effect_after_handling(*right, handled_items)),
+        )),
+        Type::Intersection(left, right) => residual_intersection_after_handling(
+            *left,
+            *right,
+            handled_items,
+        ),
+        Type::Stack { .. } | Type::OpenVar(_) => symbolic_residual_effect(effect, handled_items),
+        Type::Any | Type::Never => effect,
+        Type::Fun { .. } | Type::Thunk { .. } | Type::Record(_) | Type::PolyVariant(_) | Type::Tuple(_) => {
+            symbolic_residual_effect(effect, handled_items)
+        }
+    }
+}
+
+fn residual_intersection_after_handling(
+    left: Type,
+    right: Type,
+    handled_items: &[Type],
+) -> Type {
+    if let Some(residual) = residual_row_tail_from_intersection(&left, &right, handled_items) {
+        return residual;
+    }
+    if let Some(residual) = residual_row_tail_from_intersection(&right, &left, handled_items) {
+        return residual;
+    }
+    symbolic_residual_effect(Type::Intersection(Box::new(left), Box::new(right)), handled_items)
+}
+
+fn residual_row_tail_from_intersection(
+    row_side: &Type,
+    other_side: &Type,
+    handled_items: &[Type],
+) -> Option<Type> {
+    let Type::EffectRow(items) = row_side else {
+        return None;
+    };
+    let tail = items.last()?;
+    if !effect_row_mentions_handled(items, handled_items) || !type_contains_type(other_side, tail) {
+        return None;
+    }
+    Some(symbolic_residual_effect(tail.clone(), handled_items))
+}
+
+fn residual_effect_row_after_handling(items: Vec<Type>, handled_items: &[Type]) -> Type {
+    let mut residual = Vec::new();
+    for item in items {
+        if effect_item_is_handled(&item, handled_items) {
+            continue;
+        }
+        if effect_item_needs_symbolic_residual(&item) {
+            residual.push(symbolic_residual_effect(item, handled_items));
+        } else {
+            residual.push(item);
+        }
+    }
+    types::simplify_type(Type::EffectRow(residual))
+}
+
+fn effect_row_mentions_handled(items: &[Type], handled_items: &[Type]) -> bool {
+    items
+        .iter()
+        .any(|item| effect_item_is_handled(item, handled_items))
+}
+
+fn effect_item_is_handled(item: &Type, handled_items: &[Type]) -> bool {
+    handled_items
+        .iter()
+        .any(|handled| same_effect_row_family(item, handled))
+}
+
+fn effect_item_needs_symbolic_residual(item: &Type) -> bool {
+    matches!(
+        item,
+        Type::OpenVar(_)
+            | Type::Stack { .. }
+            | Type::Union(_, _)
+            | Type::Intersection(_, _)
+            | Type::Any
+    )
+}
+
+fn symbolic_residual_effect(effect: Type, handled_items: &[Type]) -> Type {
+    let Some(weight) = residual_stack_weight(handled_items) else {
+        return effect;
+    };
+    types::simplify_type(Type::Stack {
+        inner: Box::new(effect),
+        weight,
+    })
+}
+
+fn residual_stack_weight(handled_items: &[Type]) -> Option<StackWeight> {
+    let families = handled_items
+        .iter()
+        .filter_map(effect_family_from_item)
+        .collect::<Vec<_>>();
+    (!families.is_empty()).then_some(StackWeight {
+        entries: vec![StackWeightEntry {
+            id: 0,
+            pops: 0,
+            floor: vec![EffectFamilies::AllExcept(families)],
+            stack: Vec::new(),
+        }],
+    })
+}
+
+fn effect_family_from_item(item: &Type) -> Option<EffectFamily> {
+    let Type::Con { path, args } = item else {
+        return None;
+    };
+    Some(EffectFamily {
+        path: path.clone(),
+        args: args.clone(),
+    })
+}
+
+fn type_contains_type(ty: &Type, needle: &Type) -> bool {
+    if ty == needle {
+        return true;
+    }
+    match ty {
+        Type::Fun {
+            arg,
+            arg_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_contains_type(arg, needle)
+                || type_contains_type(arg_effect, needle)
+                || type_contains_type(ret_effect, needle)
+                || type_contains_type(ret, needle)
+        }
+        Type::Thunk { effect, value } => {
+            type_contains_type(effect, needle) || type_contains_type(value, needle)
+        }
+        Type::Con { args, .. } | Type::Tuple(args) | Type::EffectRow(args) => {
+            args.iter().any(|arg| type_contains_type(arg, needle))
+        }
+        Type::Record(fields) => fields
+            .iter()
+            .any(|field| type_contains_type(&field.value, needle)),
+        Type::PolyVariant(variants) => variants.iter().any(|variant| {
+            variant
+                .payloads
+                .iter()
+                .any(|payload| type_contains_type(payload, needle))
+        }),
+        Type::Union(left, right) | Type::Intersection(left, right) => {
+            type_contains_type(left, needle) || type_contains_type(right, needle)
+        }
+        Type::Stack { inner, .. } => type_contains_type(inner, needle),
+        Type::Any | Type::Never | Type::OpenVar(_) => false,
     }
 }
 
@@ -3357,6 +4865,59 @@ mod tests {
     }
 
     #[test]
+    fn concrete_branch_resolution_prunes_unresolved_union_residue() {
+        let arena = poly::expr::Arena::new();
+        let mut graph = ConstraintGraph::new(&arena);
+        let residue = graph.fresh_slot(TypeSlotKind::Value);
+        let mut resolver = TypeResolver::new(&graph);
+
+        let ty = resolver
+            .resolve(&Type::Union(Box::new(residue), Box::new(int_type())))
+            .expect("concrete union branch should resolve");
+
+        assert_eq!(mono::dump::dump_type(&ty), "int");
+    }
+
+    #[test]
+    fn concrete_branch_resolution_prunes_unresolved_intersection_residue() {
+        let arena = poly::expr::Arena::new();
+        let mut graph = ConstraintGraph::new(&arena);
+        let residue = graph.fresh_slot(TypeSlotKind::Value);
+        let mut resolver = TypeResolver::new(&graph);
+
+        let ty = resolver
+            .resolve(&Type::Intersection(Box::new(residue), Box::new(int_type())))
+            .expect("concrete intersection branch should resolve");
+
+        assert_eq!(mono::dump::dump_type(&ty), "int");
+    }
+
+    #[test]
+    fn concrete_branch_resolution_absorbs_intersection_with_union_member() {
+        let arena = poly::expr::Arena::new();
+        let graph = ConstraintGraph::new(&arena);
+        let local = Type::Con {
+            path: vec!["local".into()],
+            args: vec![int_type()],
+        };
+        let std_var = Type::Con {
+            path: vec!["std".into(), "control".into(), "var".into(), "var".into()],
+            args: vec![int_type()],
+        };
+        let union = Type::Union(Box::new(local.clone()), Box::new(std_var));
+        let mut resolver = TypeResolver::new(&graph);
+
+        let ty = resolver
+            .resolve(&Type::EffectRow(vec![Type::Intersection(
+                Box::new(union),
+                Box::new(local.clone()),
+            )]))
+            .expect("intersection with a union member should resolve");
+
+        assert_eq!(ty, Type::EffectRow(vec![local]));
+    }
+
+    #[test]
     fn concrete_candidate_selection_ignores_recursive_non_concrete_bound() {
         let arena = poly::expr::Arena::new();
         let mut graph = ConstraintGraph::new(&arena);
@@ -3512,12 +5073,12 @@ mod tests {
         };
         assert_eq!(
             mono::dump::dump_type(plan.actual_type_of(*continuation).unwrap()),
-            "unit -> thunk[[out], unit]"
+            "unit -> unit"
         );
         assert_eq!(plan.actual_type_of(*resume_value), Some(&unit_type()));
         assert_eq!(
             mono::dump::dump_type(plan.boundary(arms[0].body).unwrap().actual),
-            "thunk[[out], unit]"
+            "unit"
         );
         assert_eq!(
             mono::dump::dump_type(plan.boundary(arms[0].body).unwrap().expected),
@@ -3554,7 +5115,7 @@ mod tests {
         };
         assert_eq!(
             mono::dump::dump_type(plan.actual_type_of(*continuation).unwrap()),
-            "int -> thunk[[var(int)], int]"
+            "int -> int"
         );
         assert_eq!(plan.actual_type_of(*resume_value), Some(&int_type()));
     }

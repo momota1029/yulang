@@ -390,6 +390,20 @@ pub fn collect_source_text_with_embedded_std(
     Ok(embedded_std_sources_with_root(entry.as_ref(), source))
 }
 
+/// Browser / playground 向けの小さい embedded std profile で source set を作る。
+///
+/// full std は意味上の fallback として残し、この入口は common playground examples が
+/// source を切り替えるたびに parser/file/text-path まで含む std 全体を推論し直すのを避ける。
+pub fn collect_source_text_with_embedded_playground_std(
+    entry: impl AsRef<FsPath>,
+    source: String,
+) -> Result<Vec<CollectedSource>, RouteError> {
+    Ok(embedded_playground_std_sources_with_root(
+        entry.as_ref(),
+        source,
+    ))
+}
+
 pub fn analyze_source_text_with_embedded_std(
     entry: impl AsRef<FsPath>,
     source: impl Into<String>,
@@ -447,6 +461,16 @@ pub fn build_control_from_source_text_with_embedded_std(
     source: impl Into<String>,
 ) -> Result<BuildControlOutput, RouteError> {
     build_control_from_sources(collect_source_text_with_embedded_std(entry, source.into())?)
+}
+
+pub fn build_control_from_source_text_with_embedded_playground_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<BuildControlOutput, RouteError> {
+    build_control_from_sources(collect_source_text_with_embedded_playground_std(
+        entry,
+        source.into(),
+    )?)
 }
 
 pub fn run_control_from_source_text_with_embedded_std(
@@ -1419,6 +1443,19 @@ fn resolve_auto_std_root(base: &FsPath) -> Result<PathBuf, RouteError> {
 
 fn embedded_std_sources_with_root(entry: &FsPath, source: String) -> Vec<CollectedSource> {
     let mut files = embedded_std_sources();
+    files.push(CollectedSource {
+        path: entry.to_path_buf(),
+        module_path: Path::default(),
+        source: format!("{IMPLICIT_STD_MODULE_DECL}{IMPLICIT_PRELUDE_IMPORT}{source}"),
+    });
+    files
+}
+
+fn embedded_playground_std_sources_with_root(
+    entry: &FsPath,
+    source: String,
+) -> Vec<CollectedSource> {
+    let mut files = crate::playground_std::embedded_playground_std_sources();
     files.push(CollectedSource {
         path: entry.to_path_buf(),
         module_path: Path::default(),
@@ -2755,6 +2792,128 @@ mod tests {
     }
 
     #[test]
+    fn collect_source_text_with_embedded_playground_std_uses_compact_package() {
+        let files = collect_source_text_with_embedded_playground_std(
+            "playground.yu",
+            "my x = 1\n".to_string(),
+        )
+        .unwrap();
+
+        assert!(files.len() < embedded_std_files().len() + 1);
+        assert!(
+            files
+                .iter()
+                .any(|file| file.module_path.segments == vec![Name("std".into())])
+        );
+        assert!(files.iter().any(|file| file.module_path.segments
+            == vec![
+                Name("std".into()),
+                Name("control".into()),
+                Name("nondet".into())
+            ]));
+        assert!(!files.iter().any(|file| file.module_path.segments
+            == vec![Name("std".into()), Name("io".into()), Name("file".into())]));
+        let root_source = files
+            .iter()
+            .find(|file| file.module_path.segments.is_empty())
+            .unwrap();
+        assert!(root_source.source.starts_with(IMPLICIT_STD_MODULE_DECL));
+        assert!(root_source.source.contains(IMPLICIT_PRELUDE_IMPORT));
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_playground_std_runs_arithmetic() {
+        let build =
+            build_control_from_source_text_with_embedded_playground_std("playground.yu", "1 + 2\n")
+                .unwrap();
+        assert!(build.errors.is_empty(), "{:?}", build.errors);
+        let output =
+            run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
+
+        assert_eq!(output.text, "run roots [3]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_playground_std_runs_struct_method_example() {
+        let source = "\
+struct point { x: int, y: int } with:
+    our p.norm2 = p.x * p.x + p.y * p.y
+
+point { x: 3, y: 4 } .norm2
+";
+        let build =
+            build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
+                .unwrap();
+        assert!(build.errors.is_empty(), "{:?}", build.errors);
+        let output =
+            run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
+
+        assert_eq!(output.text, "run roots [25]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_playground_std_runs_local_change_example() {
+        let source = "\
+{
+    my $total = 0
+    for x in 1..5:
+        &total = $total + x
+    $total
+}
+";
+        let build =
+            build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
+                .unwrap();
+        assert!(build.errors.is_empty(), "{:?}", build.errors);
+        let output =
+            run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
+
+        assert_eq!(output.text, "run roots [15]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_playground_std_runs_list_update_example() {
+        let source = "\
+{
+    my $xs = [
+        2
+        3
+        4
+    ]
+    &xs[1] = 6
+    $xs
+}
+";
+        let build =
+            build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
+                .unwrap();
+        assert!(build.errors.is_empty(), "{:?}", build.errors);
+        let output =
+            run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
+
+        assert_eq!(output.text, "run roots [[2, 6, 4]]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_playground_std_runs_sub_return_example() {
+        let source = "\
+my first_over limit = sub:
+    for x in 0..: if x * x > limit: return x
+    0
+
+first_over 40
+";
+        let build =
+            build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
+                .unwrap();
+        assert!(build.errors.is_empty(), "{:?}", build.errors);
+        let output =
+            run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
+
+        assert_eq!(output.text, "run roots [7]\n");
+    }
+
+    #[test]
     fn run_control_source_text_with_embedded_std_runs_root_expression() {
         let output =
             run_control_from_source_text_with_embedded_std("playground.yu", "1 + 2\n").unwrap();
@@ -2771,6 +2930,30 @@ mod tests {
 
         assert_eq!(output.file_count, embedded_std_files().len() + 1);
         assert_eq!(output.text, "run roots [[1, 2, 3]]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_runs_junction_tour_example() {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "if all [1, 2, 3] < any [2, 3, 4]:\n  1\nelse:\n  0\n",
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [1]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_keeps_std_instances_unmarked_between_roots() {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "{\n  my a = each 1..3\n  a\n}.list\nif all [1, 2, 3] < any [3, 4, 5]:\n  1\nelse:\n  0\n",
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [[1, 2, 3], 1]\n");
     }
 
     #[test]

@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use mono::{
     EffectFamilies, EffectFamily, Signature, StackWeightEntry, Type, TypeField, TypeVariant,
@@ -9,7 +10,7 @@ use poly::types::{
     Subtractability, TypeArena, TypeVar,
 };
 
-use crate::SpecializeError;
+use crate::{SpecializeError, std_types};
 
 pub(crate) fn signature_for_scheme(
     arena: &poly_expr::Arena,
@@ -52,7 +53,7 @@ pub(crate) fn instantiate_scheme_with_fresh_and_roles(
     mut fresh: impl FnMut(SchemeQuantifierKind) -> Type,
 ) -> Result<InstantiatedScheme, SpecializeError> {
     reject_unsupported_scheme_features(def, scheme)?;
-    let mut materializer = SchemeMaterializer::new(&arena.typ, def, scheme);
+    let mut materializer = SchemeMaterializer::new_tracking_all_vars(&arena.typ, def, scheme);
     materializer.collect_scheme_kinds(scheme);
     for quantifier in &scheme.quantifiers {
         let kind = materializer
@@ -64,6 +65,59 @@ pub(crate) fn instantiate_scheme_with_fresh_and_roles(
             .substitution
             .insert(*quantifier, fresh(kind.into()));
     }
+    materializer.substitute_unbound_tracked_vars(&mut fresh);
+    materializer.substitute_empty_bounds(&mut fresh);
+    Ok(InstantiatedScheme {
+        ty: materializer.materialize_pos(scheme.predicate, TypeContext::Value)?,
+        role_predicates: materializer.materialize_role_predicates(scheme)?,
+        recursive_bounds: materializer.materialize_recursive_bounds(scheme)?,
+    })
+}
+
+pub(crate) fn instantiate_scheme_with_expected_fresh_and_roles(
+    arena: &poly_expr::Arena,
+    def: poly_expr::DefId,
+    scheme: &Scheme,
+    expected: &Type,
+    mut fresh: impl FnMut(SchemeQuantifierKind) -> Type,
+) -> Result<InstantiatedScheme, SpecializeError> {
+    reject_unsupported_scheme_features(def, scheme)?;
+    let mut materializer = SchemeMaterializer::new_tracking_all_vars(&arena.typ, def, scheme);
+    materializer.collect_scheme_kinds(scheme);
+    materializer.match_pos(scheme.predicate, expected, TypeContext::Value)?;
+    for quantifier in &scheme.quantifiers {
+        if materializer.substitution.contains_key(quantifier) {
+            continue;
+        }
+        let kind = materializer
+            .kinds
+            .get(quantifier)
+            .copied()
+            .unwrap_or(QuantifierKind::Value);
+        materializer
+            .substitution
+            .insert(*quantifier, fresh(kind.into()));
+    }
+    materializer.substitute_unbound_tracked_vars(&mut fresh);
+    materializer.substitute_empty_bounds(&mut fresh);
+    Ok(InstantiatedScheme {
+        ty: materializer.materialize_pos(scheme.predicate, TypeContext::Value)?,
+        role_predicates: materializer.materialize_role_predicates(scheme)?,
+        recursive_bounds: materializer.materialize_recursive_bounds(scheme)?,
+    })
+}
+
+pub(crate) fn instantiate_monomorphic_scheme_with_fresh_and_roles(
+    arena: &poly_expr::Arena,
+    def: poly_expr::DefId,
+    scheme: &Scheme,
+    mut fresh: impl FnMut(SchemeQuantifierKind) -> Type,
+) -> Result<InstantiatedScheme, SpecializeError> {
+    reject_unsupported_scheme_features(def, scheme)?;
+    let mut materializer = SchemeMaterializer::new_tracking_all_vars(&arena.typ, def, scheme);
+    materializer.collect_scheme_kinds(scheme);
+    materializer.substitute_unbound_tracked_vars(&mut fresh);
+    materializer.substitute_empty_bounds(&mut fresh);
     Ok(InstantiatedScheme {
         ty: materializer.materialize_pos(scheme.predicate, TypeContext::Value)?,
         role_predicates: materializer.materialize_role_predicates(scheme)?,
@@ -192,12 +246,23 @@ impl QuantifierKind {
     }
 }
 
+fn con_arg_context(path: &[String], index: usize) -> TypeContext {
+    if std_types::is_ref_effect_arg(path, index) {
+        TypeContext::Effect
+    } else {
+        TypeContext::Value
+    }
+}
+
 struct SchemeMaterializer<'a> {
     arena: &'a TypeArena,
     def: poly_expr::DefId,
     quantifiers: HashSet<TypeVar>,
     substitution: HashMap<TypeVar, Type>,
     kinds: HashMap<TypeVar, QuantifierKind>,
+    track_unquantified: bool,
+    empty_bound_kinds: Vec<TypeContext>,
+    empty_bound_types: RefCell<VecDeque<Type>>,
 }
 
 impl<'a> SchemeMaterializer<'a> {
@@ -208,6 +273,22 @@ impl<'a> SchemeMaterializer<'a> {
             quantifiers: scheme.quantifiers.iter().copied().collect(),
             substitution: HashMap::new(),
             kinds: HashMap::new(),
+            track_unquantified: false,
+            empty_bound_kinds: Vec::new(),
+            empty_bound_types: RefCell::new(VecDeque::new()),
+        }
+    }
+
+    fn new_tracking_all_vars(arena: &'a TypeArena, def: poly_expr::DefId, scheme: &Scheme) -> Self {
+        Self {
+            arena,
+            def,
+            quantifiers: scheme.quantifiers.iter().copied().collect(),
+            substitution: HashMap::new(),
+            kinds: HashMap::new(),
+            track_unquantified: true,
+            empty_bound_kinds: Vec::new(),
+            empty_bound_types: RefCell::new(VecDeque::new()),
         }
     }
 
@@ -253,6 +334,17 @@ impl<'a> SchemeMaterializer<'a> {
             if existing == &ty {
                 return Ok(());
             }
+            if matches!(existing, Type::Any) {
+                self.substitution.insert(var, ty);
+                return Ok(());
+            }
+            if matches!(ty, Type::OpenVar(_) | Type::Any) {
+                return Ok(());
+            }
+            if matches!(existing, Type::OpenVar(_)) {
+                self.substitution.insert(var, ty);
+                return Ok(());
+            }
             if existing.is_pure_effect() && ty.is_pure_effect() {
                 return Ok(());
             }
@@ -277,7 +369,7 @@ impl<'a> SchemeMaterializer<'a> {
     }
 
     fn record_kind(&mut self, var: TypeVar, context: TypeContext) {
-        if !self.quantifiers.contains(&var) {
+        if !self.track_unquantified && !self.quantifiers.contains(&var) {
             return;
         }
         let incoming = QuantifierKind::from_context(context);
@@ -289,6 +381,34 @@ impl<'a> SchemeMaterializer<'a> {
                 }
             })
             .or_insert(incoming);
+    }
+
+    fn substitute_unbound_tracked_vars(
+        &mut self,
+        fresh: &mut impl FnMut(SchemeQuantifierKind) -> Type,
+    ) {
+        let vars = self.kinds.keys().copied().collect::<Vec<_>>();
+        for var in vars {
+            if self.substitution.contains_key(&var) {
+                continue;
+            }
+            let kind = self
+                .kinds
+                .get(&var)
+                .copied()
+                .unwrap_or(QuantifierKind::Value);
+            self.substitution.insert(var, fresh(kind.into()));
+        }
+    }
+
+    fn substitute_empty_bounds(&mut self, fresh: &mut impl FnMut(SchemeQuantifierKind) -> Type) {
+        self.empty_bound_types = RefCell::new(
+            self.empty_bound_kinds
+                .iter()
+                .copied()
+                .map(|context| fresh(QuantifierKind::from_context(context).into()))
+                .collect(),
+        );
     }
 
     fn match_pos(
@@ -310,8 +430,8 @@ impl<'a> SchemeMaterializer<'a> {
                 if path != expected_path || args.len() != expected_args.len() {
                     return Ok(());
                 }
-                for (arg, expected) in args.iter().zip(expected_args) {
-                    self.match_neu(*arg, expected, TypeContext::Value)?;
+                for (index, (arg, expected)) in args.iter().zip(expected_args).enumerate() {
+                    self.match_neu(*arg, expected, con_arg_context(path, index))?;
                 }
                 Ok(())
             }
@@ -425,8 +545,8 @@ impl<'a> SchemeMaterializer<'a> {
                 if path != expected_path || args.len() != expected_args.len() {
                     return Ok(());
                 }
-                for (arg, expected) in args.iter().zip(expected_args) {
-                    self.match_neu(*arg, expected, TypeContext::Value)?;
+                for (index, (arg, expected)) in args.iter().zip(expected_args).enumerate() {
+                    self.match_neu(*arg, expected, con_arg_context(path, index))?;
                 }
                 Ok(())
             }
@@ -534,8 +654,8 @@ impl<'a> SchemeMaterializer<'a> {
                 if path != expected_path || args.len() != expected_args.len() {
                     return Ok(());
                 }
-                for (arg, expected) in args.iter().zip(expected_args) {
-                    self.match_neu(*arg, expected, TypeContext::Value)?;
+                for (index, (arg, expected)) in args.iter().zip(expected_args).enumerate() {
+                    self.match_neu(*arg, expected, con_arg_context(path, index))?;
                 }
                 Ok(())
             }
@@ -605,11 +725,12 @@ impl<'a> SchemeMaterializer<'a> {
 
     fn materialize_pos(&self, id: PosId, context: TypeContext) -> Result<Type, SpecializeError> {
         Ok(match self.arena.pos(id) {
+            Pos::Bot if self.track_unquantified => self.materialize_empty_bound(context),
             Pos::Bot => Type::Never,
             Pos::Var(var) => self.materialize_var(*var, context),
             Pos::Con(path, args) => Type::Con {
                 path: path.clone(),
-                args: self.materialize_neus(args, TypeContext::Value)?,
+                args: self.materialize_con_args(path, args)?,
             },
             Pos::Fun {
                 arg,
@@ -676,12 +797,13 @@ impl<'a> SchemeMaterializer<'a> {
 
     fn materialize_neg(&self, id: NegId, context: TypeContext) -> Result<Type, SpecializeError> {
         Ok(match self.arena.neg(id) {
+            Neg::Top if self.track_unquantified => self.materialize_empty_bound(context),
             Neg::Top => Type::Any,
             Neg::Bot => Type::Never,
             Neg::Var(var) => self.materialize_var(*var, context),
             Neg::Con(path, args) => Type::Con {
                 path: path.clone(),
-                args: self.materialize_neus(args, TypeContext::Value)?,
+                args: self.materialize_con_args(path, args)?,
             },
             Neg::Fun {
                 arg,
@@ -738,6 +860,7 @@ impl<'a> SchemeMaterializer<'a> {
                     (true, false) => self.materialize_pos(*lower, context)?,
                     (false, true) => self.materialize_neg(*upper, context)?,
                     (false, false) => match context {
+                        _ if self.track_unquantified => self.materialize_empty_bound(context),
                         TypeContext::Value => Type::unit(),
                         TypeContext::Effect => Type::pure_effect(),
                     },
@@ -745,7 +868,7 @@ impl<'a> SchemeMaterializer<'a> {
             }
             Neu::Con(path, args) => Type::Con {
                 path: path.clone(),
-                args: self.materialize_neus(args, TypeContext::Value)?,
+                args: self.materialize_con_args(path, args)?,
             },
             Neu::Fun {
                 arg,
@@ -780,6 +903,13 @@ impl<'a> SchemeMaterializer<'a> {
         Type::OpenVar(var.0)
     }
 
+    fn materialize_empty_bound(&self, context: TypeContext) -> Type {
+        self.empty_bound_types
+            .borrow_mut()
+            .pop_front()
+            .unwrap_or_else(|| QuantifierKind::from_context(context).default_type())
+    }
+
     fn materialize_fields<T>(
         &self,
         fields: &[RecordField<T>],
@@ -798,6 +928,17 @@ impl<'a> SchemeMaterializer<'a> {
                     optional: field.optional,
                 })
             })
+            .collect()
+    }
+
+    fn materialize_con_args(
+        &self,
+        path: &[String],
+        args: &[NeuId],
+    ) -> Result<Vec<Type>, SpecializeError> {
+        args.iter()
+            .enumerate()
+            .map(|(index, arg)| self.materialize_neu(*arg, con_arg_context(path, index)))
             .collect()
     }
 
@@ -1045,7 +1186,7 @@ impl<'a> SchemeMaterializer<'a> {
     fn collect_pos_kind(&mut self, id: PosId, context: TypeContext) {
         match self.arena.pos(id) {
             Pos::Var(var) => self.record_kind(*var, context),
-            Pos::Con(_, args) => self.collect_neu_kinds(args, TypeContext::Value),
+            Pos::Con(path, args) => self.collect_con_arg_kinds(path, args),
             Pos::Fun {
                 arg,
                 arg_eff,
@@ -1084,14 +1225,18 @@ impl<'a> SchemeMaterializer<'a> {
                 self.collect_pos_kind(*left, context);
                 self.collect_pos_kind(*right, context);
             }
-            Pos::Bot => {}
+            Pos::Bot => {
+                if self.track_unquantified {
+                    self.empty_bound_kinds.push(context);
+                }
+            }
         }
     }
 
     fn collect_neg_kind(&mut self, id: NegId, context: TypeContext) {
         match self.arena.neg(id) {
             Neg::Var(var) => self.record_kind(*var, context),
-            Neg::Con(_, args) => self.collect_neu_kinds(args, TypeContext::Value),
+            Neg::Con(path, args) => self.collect_con_arg_kinds(path, args),
             Neg::Fun {
                 arg,
                 arg_eff,
@@ -1126,17 +1271,28 @@ impl<'a> SchemeMaterializer<'a> {
                 self.collect_neg_kind(*left, context);
                 self.collect_neg_kind(*right, context);
             }
-            Neg::Top | Neg::Bot => {}
+            Neg::Top => {
+                if self.track_unquantified {
+                    self.empty_bound_kinds.push(context);
+                }
+            }
+            Neg::Bot => {}
         }
     }
 
     fn collect_neu_kind(&mut self, id: NeuId, context: TypeContext) {
         match self.arena.neu(id) {
             Neu::Bounds(lower, upper) => {
+                let empty = matches!(self.arena.pos(*lower), Pos::Bot)
+                    && matches!(self.arena.neg(*upper), Neg::Top);
+                if self.track_unquantified && empty {
+                    self.empty_bound_kinds.push(context);
+                    return;
+                }
                 self.collect_pos_kind(*lower, context);
                 self.collect_neg_kind(*upper, context);
             }
-            Neu::Con(_, args) => self.collect_neu_kinds(args, TypeContext::Value),
+            Neu::Con(path, args) => self.collect_con_arg_kinds(path, args),
             Neu::Fun {
                 arg,
                 arg_eff,
@@ -1177,6 +1333,12 @@ impl<'a> SchemeMaterializer<'a> {
     fn collect_neu_kinds(&mut self, ids: &[NeuId], context: TypeContext) {
         for id in ids {
             self.collect_neu_kind(*id, context);
+        }
+    }
+
+    fn collect_con_arg_kinds(&mut self, path: &[String], args: &[NeuId]) {
+        for (index, arg) in args.iter().enumerate() {
+            self.collect_neu_kind(*arg, con_arg_context(path, index));
         }
     }
 
@@ -1320,7 +1482,7 @@ fn effect_family_matches_item(family: &EffectFamily, item: &Type) -> bool {
     let Type::Con { path, args } = item else {
         return false;
     };
-    path == &family.path && args == &family.args
+    path == &family.path && (family.args.is_empty() || args.len() == family.args.len())
 }
 
 fn simplify_effect_intersection(left: Type, right: Type) -> Type {
@@ -1351,6 +1513,7 @@ fn simplify_intersection_type(left: Type, right: Type) -> Type {
     match unique.as_slice() {
         [] => Type::Any,
         [single] => single.clone(),
+        _ if let Some(candidate) = single_intersection_concrete_candidate(&unique) => candidate,
         _ if unique.iter().all(|part| matches!(part, Type::EffectRow(_))) => {
             intersect_effect_rows(unique)
         }
@@ -1477,7 +1640,107 @@ fn simplify_union_type(left: Type, right: Type) -> Type {
     if left.is_pure_effect() && right.is_pure_effect() {
         return Type::pure_effect();
     }
-    Type::Union(Box::new(left), Box::new(right))
+    let mut parts = Vec::new();
+    collect_union_parts(left, &mut parts);
+    collect_union_parts(right, &mut parts);
+    if let Some(candidate) = single_union_concrete_candidate(&parts) {
+        return candidate;
+    }
+    parts
+        .into_iter()
+        .reduce(|left, right| Type::Union(Box::new(left), Box::new(right)))
+        .expect("union parts should be non-empty")
+}
+
+fn single_intersection_concrete_candidate(parts: &[Type]) -> Option<Type> {
+    let candidate = single_concrete_candidate(parts)?;
+    parts
+        .iter()
+        .all(|part| intersection_part_allows_candidate(part, &candidate))
+        .then_some(candidate)
+}
+
+fn single_union_concrete_candidate(parts: &[Type]) -> Option<Type> {
+    let candidate = single_concrete_candidate(parts)?;
+    parts
+        .iter()
+        .all(|part| matches!(part, Type::OpenVar(_)) || part == &candidate)
+        .then_some(candidate)
+}
+
+fn single_concrete_candidate(parts: &[Type]) -> Option<Type> {
+    let mut candidate = None;
+    for part in parts {
+        if matches!(part, Type::OpenVar(_)) || type_contains_open_var(part) {
+            continue;
+        }
+        if matches!(part, Type::Any | Type::Never | Type::EffectRow(_)) || part.is_pure_effect() {
+            continue;
+        }
+        match &candidate {
+            Some(existing) if existing != part => return None,
+            Some(_) => {}
+            None => candidate = Some(part.clone()),
+        }
+    }
+    candidate
+}
+
+fn intersection_part_allows_candidate(part: &Type, candidate: &Type) -> bool {
+    if part == candidate || matches!(part, Type::OpenVar(_)) {
+        return true;
+    }
+    let mut union_parts = Vec::new();
+    collect_union_parts(part.clone(), &mut union_parts);
+    union_parts.len() > 1
+        && union_parts
+            .iter()
+            .all(|part| matches!(part, Type::OpenVar(_)) || part == candidate)
+}
+
+fn collect_union_parts(ty: Type, out: &mut Vec<Type>) {
+    match ty {
+        Type::Union(left, right) => {
+            collect_union_parts(*left, out);
+            collect_union_parts(*right, out);
+        }
+        ty if out.contains(&ty) => {}
+        ty => out.push(ty),
+    }
+}
+
+fn type_contains_open_var(ty: &Type) -> bool {
+    match ty {
+        Type::OpenVar(_) => true,
+        Type::Fun {
+            arg,
+            arg_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_contains_open_var(arg)
+                || type_contains_open_var(arg_effect)
+                || type_contains_open_var(ret_effect)
+                || type_contains_open_var(ret)
+        }
+        Type::Thunk { effect, value } => {
+            type_contains_open_var(effect) || type_contains_open_var(value)
+        }
+        Type::Con { args, .. } | Type::Tuple(args) | Type::EffectRow(args) => {
+            args.iter().any(type_contains_open_var)
+        }
+        Type::Record(fields) => fields
+            .iter()
+            .any(|field| type_contains_open_var(&field.value)),
+        Type::PolyVariant(variants) => variants
+            .iter()
+            .any(|variant| variant.payloads.iter().any(type_contains_open_var)),
+        Type::Union(left, right) | Type::Intersection(left, right) => {
+            type_contains_open_var(left) || type_contains_open_var(right)
+        }
+        Type::Stack { inner, .. } => type_contains_open_var(inner),
+        Type::Any | Type::Never => false,
+    }
 }
 
 fn simplify_effect_row(items: Vec<Type>) -> Type {
@@ -1492,9 +1755,75 @@ fn push_effect_row_items(out: &mut Vec<Type>, items: Vec<Type>) {
             item if item.is_pure_effect() => {}
             Type::EffectRow(items) => push_effect_row_items(out, items),
             item if out.contains(&item) => {}
-            item => out.push(item),
+            item => {
+                if let Some(existing) = out
+                    .iter_mut()
+                    .find(|existing| same_effect_item_path(existing, &item))
+                {
+                    *existing = merge_effect_row_item(existing.clone(), item);
+                    continue;
+                }
+                out.push(item);
+            }
         }
     }
+}
+
+fn same_effect_item_path(left: &Type, right: &Type) -> bool {
+    matches!(
+        (left, right),
+        (
+            Type::Con {
+                path: left_path,
+                ..
+            },
+            Type::Con {
+                path: right_path,
+                ..
+            },
+        ) if left_path == right_path
+    )
+}
+
+fn merge_effect_row_item(existing: Type, incoming: Type) -> Type {
+    let Type::Con {
+        path,
+        args: existing_args,
+    } = existing
+    else {
+        return incoming;
+    };
+    let Type::Con {
+        args: incoming_args,
+        ..
+    } = incoming
+    else {
+        return Type::Con {
+            path,
+            args: existing_args,
+        };
+    };
+    if existing_args.len() != incoming_args.len() {
+        return Type::Con {
+            path,
+            args: existing_args,
+        };
+    }
+    let unit = Type::unit();
+    let args = existing_args
+        .into_iter()
+        .zip(incoming_args)
+        .map(|(existing, incoming)| {
+            if existing == incoming || incoming == unit {
+                existing
+            } else if existing == unit {
+                incoming
+            } else {
+                existing
+            }
+        })
+        .collect();
+    Type::Con { path, args }
 }
 
 fn union_effect_rows(left: Vec<Type>, right: Vec<Type>) -> Type {

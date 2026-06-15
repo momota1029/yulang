@@ -4,6 +4,7 @@
 
 pub mod artifact;
 pub mod cache;
+mod playground_std;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod server;
 pub mod source;
@@ -16,15 +17,17 @@ pub use source::{
     analyze_entry_source_with_std_options, analyze_source_text_with_embedded_std,
     build_control_from_collected_sources, build_control_from_entry,
     build_control_from_entry_with_std, build_control_from_entry_with_std_options,
-    build_control_from_poly_output, build_control_from_source_text_with_embedded_std,
-    build_poly_from_collected_sources, check_poly_from_entry, check_poly_from_entry_with_std,
+    build_control_from_poly_output, build_control_from_source_text_with_embedded_playground_std,
+    build_control_from_source_text_with_embedded_std, build_poly_from_collected_sources,
+    check_poly_from_entry, check_poly_from_entry_with_std,
     check_poly_from_entry_with_std_in_module, check_poly_from_entry_with_std_in_module_options,
     check_poly_from_entry_with_std_options, check_poly_from_source_text_with_embedded_std,
     collect_local_source_text, collect_local_source_text_with_std_options, collect_local_sources,
     collect_local_sources_with_std, collect_local_sources_with_std_options,
-    collect_source_text_with_embedded_std, dump_mono_from_entry, dump_mono_from_entry_with_std,
-    dump_mono_from_entry_with_std_options, dump_mono_from_source_text_with_embedded_std,
-    dump_poly_from_entry, dump_poly_from_entry_with_std, dump_poly_from_entry_with_std_in_module,
+    collect_source_text_with_embedded_playground_std, collect_source_text_with_embedded_std,
+    dump_mono_from_entry, dump_mono_from_entry_with_std, dump_mono_from_entry_with_std_options,
+    dump_mono_from_source_text_with_embedded_std, dump_poly_from_entry,
+    dump_poly_from_entry_with_std, dump_poly_from_entry_with_std_in_module,
     dump_poly_from_entry_with_std_in_module_options, dump_poly_from_entry_with_std_options,
     dump_poly_from_source_text_with_embedded_std, dump_poly_raw_from_entry,
     dump_poly_raw_from_entry_with_std, dump_poly_raw_from_entry_with_std_in_module,

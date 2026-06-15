@@ -64,8 +64,10 @@ impl<'a> ExprLowerer<'a> {
         let condition = self.lower_expr(node);
         self.locals.truncate(before_locals);
         let condition = condition?;
+        let raw_condition_effect = condition.effect;
         let condition = self.apply_junction(condition)?;
         self.constrain_exact_primitive(condition.value, "bool");
+        self.subtype_var_to_var(raw_condition_effect, result_effect);
         self.subtype_var_to_var(condition.effect, result_effect);
         Ok(condition)
     }
@@ -611,11 +613,7 @@ impl<'a> ExprLowerer<'a> {
             return Ok(None);
         };
 
-        let effect_type_vars = self
-            .modules
-            .act_template(operation_decl.effect.id)
-            .map(crate::act_type_var_names)
-            .unwrap_or_default();
+        let effect_type_vars = self.act_effect_type_var_names(operation_decl.effect.id);
         let mut builder = ann_type_builder(
             self.modules,
             operation_decl.effect.module,

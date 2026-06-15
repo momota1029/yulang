@@ -27,7 +27,7 @@ pub act loop:
     my act next = last
     my act redo = last
 
-    pub for_in(xs, f: _ -> [loop] _) =
+    pub for_in(xs, f: _ -> [loop; 'e] _): ['e] () =
         last::sub:xs.fold (): \() x -> next::sub:loop true with:
             our loop b = if b: loop:redo::judge:catch f x:
                 last(), _ -> last::break()
@@ -71,7 +71,7 @@ pub act label_loop:
         our x.next = label::next(x)
         our x.redo = label::redo(x)
 
-    pub for_in(xs: 'container, f: label -> 'item -> [label_loop, loop] _) =
+    pub for_in(xs: 'container, f: label -> 'item -> [label_loop, loop; 'e] _): ['e] () =
         where 'container: std::data::fold::Fold 'item
         last::sub:xs.fold (): \() x -> next::sub:loop true with:
             our loop b = if b: loop:redo::judge:catch f control_label x:

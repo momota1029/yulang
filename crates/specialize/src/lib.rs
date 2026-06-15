@@ -146,6 +146,18 @@ impl Specializer {
             });
         };
         let signature = types::signature_for_scheme(arena, def, scheme, expected)?;
+        if def.0 == 302 {
+            eprintln!(
+                "ensure target def={def:?} expected={expected:?} signature={:?}",
+                signature.ty
+            );
+        }
+        if expected.is_some() {
+            eprintln!(
+                "ensure instance def={def:?} expected={expected:?} signature={:?}",
+                signature.ty
+            );
+        }
         let wraps_stack_handler = !scheme.stack_quantifiers.is_empty();
         let key = InstanceKey {
             def,
@@ -218,7 +230,24 @@ impl Specializer {
                 op: convert_primitive_op(*op),
                 context: primitive_context(arena, *op, plan.actual_type_of(expr_id)),
             },
-            PolyExpr::Var(ref_id) => self.var(arena, *ref_id, var_instance_type(plan, expr_id))?,
+            PolyExpr::Var(ref_id) => {
+                if arena.ref_target(*ref_id).is_some_and(|def| def.0 == 302) {
+                    eprintln!(
+                        "expr var target def302 expr={expr_id:?} actual={:?} boundary={:?}",
+                        plan.actual_type_of(expr_id),
+                        plan.boundary(expr_id)
+                    );
+                    for (def, poly_def) in arena.defs.iter() {
+                        let Some(body) = def_body(poly_def) else {
+                            continue;
+                        };
+                        if expr_contains_expr(arena, body, expr_id) {
+                            eprintln!("def302 ref expr contained in def={def:?}");
+                        }
+                    }
+                }
+                self.var(arena, *ref_id, var_instance_type(plan, expr_id))?
+            }
             PolyExpr::App(callee, arg) => ExprKind::Apply(
                 Box::new(self.expr(arena, plan, *callee)?),
                 Box::new(self.expr(arena, plan, *arg)?),
@@ -368,6 +397,9 @@ impl Specializer {
         def: poly_expr::DefId,
         expected: Option<&Type>,
     ) -> Result<Expr, SpecializeError> {
+        if def.0 == 302 {
+            eprintln!("instance ref target def={def:?} expected={expected:?}");
+        }
         let instance = self.ensure_def_instance(arena, def, expected)?;
         let expr = Expr::new(ExprKind::InstanceRef(instance));
         let Some(expected) = expected else {
@@ -504,6 +536,11 @@ impl Specializer {
                 role: ExprTypeRole::Actual,
             })?;
         let expected = method_instance_expected_type(plan, base, select);
+        eprintln!(
+            "typeclass method request member={member:?} base={} select={} receiver={receiver:?} expected={expected:?}",
+            debug_expr_tree(arena, base, 2),
+            debug_expr_tree(arena, select, 2)
+        );
         let Some(poly_expr::Def::Let {
             body,
             scheme: Some(scheme),
@@ -544,15 +581,37 @@ impl Specializer {
             [] if body.is_some() && matched_candidate_count > 0 => {
                 self.ensure_def_instance(arena, member, expected.as_ref())
             }
-            [] => Err(SpecializeError::UnresolvedTypeclassMethod {
-                member: convert_def(member),
-                receiver,
-            }),
-            _ => Err(SpecializeError::AmbiguousTypeclassMethod {
-                member: convert_def(member),
-                receiver,
-                candidates: implementations.into_iter().map(convert_def).collect(),
-            }),
+            [] => {
+                eprintln!(
+                    "typeclass method unresolved member={member:?} base={} select={} receiver={receiver:?}",
+                    debug_expr_tree(arena, base, 3),
+                    debug_expr_tree(arena, select, 3)
+                );
+                for (def, poly_def) in arena.defs.iter() {
+                    let Some(body) = def_body(poly_def) else {
+                        continue;
+                    };
+                    if expr_contains_expr(arena, body, base) {
+                        eprintln!("unresolved base contained in def={def:?}");
+                    }
+                }
+                Err(SpecializeError::UnresolvedTypeclassMethod {
+                    member: convert_def(member),
+                    receiver,
+                })
+            }
+            _ => {
+                eprintln!(
+                    "typeclass method ambiguous member={member:?} base={} select={} receiver={receiver:?} candidates={implementations:?}",
+                    debug_expr_tree(arena, base, 3),
+                    debug_expr_tree(arena, select, 3)
+                );
+                Err(SpecializeError::AmbiguousTypeclassMethod {
+                    member: convert_def(member),
+                    receiver,
+                    candidates: implementations.into_iter().map(convert_def).collect(),
+                })
+            }
         }
     }
 
@@ -622,12 +681,14 @@ impl Specializer {
         for stmt in stmts {
             out.push(match stmt {
                 poly_expr::Stmt::Let(vis, pat, value) => {
-                    let value = self.expr(arena, plan, *value)?;
-                    let pat_out = self.pat(arena, plan, *pat)?;
                     let mut defs = Vec::new();
                     collect_pattern_defs(arena, *pat, &mut defs);
+                    for def in &defs {
+                        self.local_defs.insert(*def);
+                    }
+                    let value = self.expr(arena, plan, *value)?;
+                    let pat_out = self.pat(arena, plan, *pat)?;
                     for def in defs {
-                        self.local_defs.insert(def);
                         scoped_defs.push(def);
                     }
                     Stmt::Let(convert_vis(*vis), pat_out, value)
@@ -1214,7 +1275,10 @@ fn method_instance_expected_type(
     select: poly_expr::ExprId,
 ) -> Option<Type> {
     let receiver = method_receiver_type(plan, base)?;
-    let result = plan.actual_type_of(select)?.clone();
+    let result = plan
+        .boundary(select)
+        .map(|boundary| boundary.expected.clone())
+        .or_else(|| plan.actual_type_of(select).cloned())?;
     Some(types::pure_function_type(receiver, result))
 }
 
@@ -1294,6 +1358,160 @@ fn exact_role_input_type(input: &types::InstantiatedRoleArg) -> Option<Type> {
         return Some(input.lower.clone());
     }
     None
+}
+
+fn debug_expr_tree(arena: &poly_expr::Arena, expr: poly_expr::ExprId, depth: usize) -> String {
+    if depth == 0 {
+        return format!("{expr:?}:...");
+    }
+    match arena.expr(expr) {
+        poly_expr::Expr::Lit(_) => format!("{expr:?}:lit"),
+        poly_expr::Expr::PrimitiveOp(op) => format!("{expr:?}:primitive({op:?})"),
+        poly_expr::Expr::Var(ref_id) => {
+            let target = arena.ref_target(*ref_id);
+            format!("{expr:?}:var(ref={ref_id:?}, target={target:?})")
+        }
+        poly_expr::Expr::App(callee, arg) => format!(
+            "{expr:?}:app({}, {})",
+            debug_expr_tree(arena, *callee, depth - 1),
+            debug_expr_tree(arena, *arg, depth - 1)
+        ),
+        poly_expr::Expr::RefSet(reference, value) => format!(
+            "{expr:?}:ref-set({}, {})",
+            debug_expr_tree(arena, *reference, depth - 1),
+            debug_expr_tree(arena, *value, depth - 1)
+        ),
+        poly_expr::Expr::Lambda(param, body) => {
+            format!(
+                "{expr:?}:lambda({param:?} -> {})",
+                debug_expr_tree(arena, *body, depth - 1)
+            )
+        }
+        poly_expr::Expr::Tuple(items) => format!(
+            "{expr:?}:tuple({})",
+            items
+                .iter()
+                .map(|item| debug_expr_tree(arena, *item, depth - 1))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        poly_expr::Expr::Record { fields, .. } => format!(
+            "{expr:?}:record({})",
+            fields
+                .iter()
+                .map(|(name, value)| format!(
+                    "{name}:{}",
+                    debug_expr_tree(arena, *value, depth - 1)
+                ))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        poly_expr::Expr::PolyVariant(tag, payloads) => format!(
+            "{expr:?}:variant({tag}, {})",
+            payloads
+                .iter()
+                .map(|payload| debug_expr_tree(arena, *payload, depth - 1))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        poly_expr::Expr::Select(base, select) => {
+            let select = arena.select(*select);
+            format!(
+                "{expr:?}:select({}, name={}, resolution={:?})",
+                debug_expr_tree(arena, *base, depth - 1),
+                select.name,
+                select.resolution
+            )
+        }
+        poly_expr::Expr::Case(scrutinee, arms) => format!(
+            "{expr:?}:case({}, arms={})",
+            debug_expr_tree(arena, *scrutinee, depth - 1),
+            arms.len()
+        ),
+        poly_expr::Expr::Catch(body, arms) => format!(
+            "{expr:?}:catch({}, arms={})",
+            debug_expr_tree(arena, *body, depth - 1),
+            arms.len()
+        ),
+        poly_expr::Expr::Block(stmts, tail) => format!(
+            "{expr:?}:block(stmts={}, tail={})",
+            stmts.len(),
+            tail.map(|tail| debug_expr_tree(arena, tail, depth - 1))
+                .unwrap_or_else(|| "none".to_string())
+        ),
+    }
+}
+
+fn def_body(def: &poly_expr::Def) -> Option<poly_expr::ExprId> {
+    match def {
+        poly_expr::Def::Let { body, .. } => *body,
+        _ => None,
+    }
+}
+
+fn expr_contains_expr(
+    arena: &poly_expr::Arena,
+    root: poly_expr::ExprId,
+    needle: poly_expr::ExprId,
+) -> bool {
+    if root == needle {
+        return true;
+    }
+    match arena.expr(root) {
+        poly_expr::Expr::Lit(_) | poly_expr::Expr::PrimitiveOp(_) | poly_expr::Expr::Var(_) => false,
+        poly_expr::Expr::App(callee, arg) | poly_expr::Expr::RefSet(callee, arg) => {
+            expr_contains_expr(arena, *callee, needle) || expr_contains_expr(arena, *arg, needle)
+        }
+        poly_expr::Expr::Lambda(_, body) => expr_contains_expr(arena, *body, needle),
+        poly_expr::Expr::Tuple(items) => items
+            .iter()
+            .any(|item| expr_contains_expr(arena, *item, needle)),
+        poly_expr::Expr::Record { fields, spread } => {
+            fields
+                .iter()
+                .any(|(_, value)| expr_contains_expr(arena, *value, needle))
+                || match spread {
+                    poly_expr::RecordSpread::Head(expr)
+                    | poly_expr::RecordSpread::Tail(expr) => {
+                        expr_contains_expr(arena, *expr, needle)
+                    }
+                    poly_expr::RecordSpread::None => false,
+                }
+        }
+        poly_expr::Expr::PolyVariant(_, payloads) => payloads
+            .iter()
+            .any(|payload| expr_contains_expr(arena, *payload, needle)),
+        poly_expr::Expr::Select(base, _) => expr_contains_expr(arena, *base, needle),
+        poly_expr::Expr::Case(scrutinee, arms) => {
+            expr_contains_expr(arena, *scrutinee, needle)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .is_some_and(|guard| expr_contains_expr(arena, guard, needle))
+                        || expr_contains_expr(arena, arm.body, needle)
+                })
+        }
+        poly_expr::Expr::Catch(body, arms) => {
+            expr_contains_expr(arena, *body, needle)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .is_some_and(|guard| expr_contains_expr(arena, guard, needle))
+                        || expr_contains_expr(arena, arm.body, needle)
+                })
+        }
+        poly_expr::Expr::Block(stmts, tail) => {
+            stmts.iter().any(|stmt| match stmt {
+                poly_expr::Stmt::Let(_, _, value) | poly_expr::Stmt::Expr(value) => {
+                    expr_contains_expr(arena, *value, needle)
+                }
+                poly_expr::Stmt::Module(_, body) => body.iter().any(|stmt| match stmt {
+                    poly_expr::Stmt::Let(_, _, value) | poly_expr::Stmt::Expr(value) => {
+                        expr_contains_expr(arena, *value, needle)
+                    }
+                    poly_expr::Stmt::Module(_, _) => false,
+                }),
+            }) || tail.is_some_and(|tail| expr_contains_expr(arena, tail, needle))
+        }
+    }
 }
 
 fn function_boundary_types(actual: &Type, expected: &Type) -> bool {

@@ -352,23 +352,27 @@ button: :disabled
         label: { ja: "局所的な変更", en: "Local Change" },
         source: `// A mutable binding stays local to the surrounding block.
 
-my $total = 0
-for x in 1..5:
-    &total = $total + x
-$total
+{
+    my $total = 0
+    for x in 1..5:
+        &total = $total + x
+    $total
+}
 `,
     },
     {
         label: { ja: "リスト更新", en: "List Update" },
         source: `// Child references make nested updates direct.
 
-my $xs = [
-    2
-    3
-    4
-]
-&xs[1] = 6
-$xs
+{
+    my $xs = [
+        2
+        3
+        4
+    ]
+    &xs[1] = 6
+    $xs
+}
 `,
     },
     {
@@ -388,7 +392,7 @@ first_over 40
 // a callback's return is not captured by g's local sub.
 
 use std::*
-use std::flow::*
+use std::control::flow::*
 
 our g h = sub:
     for i in 0..3:
@@ -715,7 +719,11 @@ function updateExampleButtonState(): void {
 }
 
 async function runSource(): Promise<void> {
+    const shouldCancelCurrentRun = isRunning;
     const generation = ++runGeneration;
+    if (shouldCancelCurrentRun) {
+        resetRunWorker("Yulang run superseded");
+    }
     const source = sourceInput.value;
     renderColor();
     showRunLoading();

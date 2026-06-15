@@ -169,26 +169,41 @@ fn run_inner_uncached(source: &str) -> RunOutput {
         Ok(output) if output.errors.is_empty() => {
             return RunOutput::from_control_output(output, source, false);
         }
-        Ok(output) if should_retry_with_embedded_std(&output.errors) => {}
-        Ok(output) => return RunOutput::from_control_output(output, source, false),
-        Err(_) if source_likely_needs_embedded_std(source) => {}
-        Err(no_std_error) => {
-            let std_output = run_control_from_source_text_with_embedded_std(source);
-            return match std_output {
-                Ok(output) => RunOutput::from_control_output(output, source, true),
-                Err(std_error) => {
-                    let message = format!(
-                        "{std_error}\n\nwithout embedded std, the earlier error was: {no_std_error}"
-                    );
-                    RunOutput::from_error(message, source.len())
-                }
-            };
+        Ok(output) if should_retry_with_embedded_std(&output.errors) => {
+            return run_with_embedded_std_fallback(source, None);
         }
+        Ok(output) => return RunOutput::from_control_output(output, source, false),
+        Err(_) if source_likely_needs_embedded_std(source) => {
+            return run_with_embedded_std_fallback(source, None);
+        }
+        Err(no_std_error) => {
+            return run_with_embedded_std_fallback(source, Some(no_std_error));
+        }
+    }
+}
+
+fn run_with_embedded_std_fallback(
+    source: &str,
+    no_std_error: Option<yulang::RouteError>,
+) -> RunOutput {
+    match run_control_from_source_text_with_playground_std(source) {
+        Ok(output) if output.errors.is_empty() => {
+            return RunOutput::from_control_output(output, source, true);
+        }
+        Ok(_) | Err(_) => {}
     }
 
     match run_control_from_source_text_with_embedded_std(source) {
         Ok(output) => RunOutput::from_control_output(output, source, true),
-        Err(error) => RunOutput::from_error(error.to_string(), source.len()),
+        Err(std_error) => {
+            let message = match no_std_error {
+                Some(no_std_error) => format!(
+                    "{std_error}\n\nwithout embedded std, the earlier error was: {no_std_error}"
+                ),
+                None => std_error.to_string(),
+            };
+            RunOutput::from_error(message, source.len())
+        }
     }
 }
 
@@ -205,6 +220,16 @@ fn run_control_from_source_text_with_embedded_std(
 ) -> Result<WasmControlOutput, yulang::RouteError> {
     let output =
         yulang::build_control_from_source_text_with_embedded_std(PLAYGROUND_ENTRY, source)?;
+    run_built_control_program_with_host(output)
+}
+
+fn run_control_from_source_text_with_playground_std(
+    source: &str,
+) -> Result<WasmControlOutput, yulang::RouteError> {
+    let output = yulang::build_control_from_source_text_with_embedded_playground_std(
+        PLAYGROUND_ENTRY,
+        source,
+    )?;
     run_built_control_program_with_host(output)
 }
 
@@ -535,12 +560,20 @@ fn source_likely_needs_embedded_std(source: &str) -> bool {
         || source.contains(".rev")
         || source.contains("for ")
         || source.contains("..")
+        || source_has_identifier(source, "all")
+        || source_has_identifier(source, "any")
 }
 
 fn should_retry_with_embedded_std(errors: &[String]) -> bool {
     errors
         .iter()
         .any(|error| error.contains("unresolved value name"))
+}
+
+fn source_has_identifier(source: &str, name: &str) -> bool {
+    source
+        .split(|ch: char| ch != '_' && !ch.is_ascii_alphanumeric())
+        .any(|token| token == name)
 }
 
 fn highlight_kind_for_syntax(kind: SyntaxKind) -> Option<HighlightKind> {
@@ -716,6 +749,33 @@ mod tests {
     }
 
     #[test]
+    fn run_inner_uses_compact_playground_std_for_struct_method_example() {
+        clear_std_cache();
+        let output = run_inner(
+            "\
+struct point { x: int, y: int } with:
+    our p.norm2 = p.x * p.x + p.y * p.y
+
+point { x: 3, y: 4 } .norm2
+",
+        );
+
+        assert!(output.ok, "{output:?}");
+        assert_eq!(
+            output
+                .timings
+                .as_ref()
+                .map(|timing| timing.used_embedded_std),
+            Some(true)
+        );
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("25")
+        );
+        assert!(output.file_count < yulang::stdlib::embedded_std_files().len() + 1);
+    }
+
+    #[test]
     fn run_inner_uses_embedded_std_only_when_needed() {
         clear_std_cache();
         let output = run_inner("each(1..3).list\n");
@@ -729,6 +789,22 @@ mod tests {
             Some(true)
         );
         assert_eq!(output.text, "run roots [[1, 2, 3]]\n");
+    }
+
+    #[test]
+    fn run_inner_routes_junction_prelude_names_to_embedded_std() {
+        clear_std_cache();
+        let output = run_inner("if all [1, 2, 3] < any [2, 3, 4]:\n  1\nelse:\n  0\n");
+
+        assert!(output.ok, "{output:?}");
+        assert_eq!(
+            output
+                .timings
+                .as_ref()
+                .map(|timing| timing.used_embedded_std),
+            Some(true)
+        );
+        assert_eq!(output.text, "run roots [1]\n");
     }
 
     #[test]

@@ -459,7 +459,7 @@ impl<'a> Runtime<'a> {
         let mut env = CapturedEnv::default();
         let value = self.eval_expr(control_instance.entry, &mut env);
         self.evaluating_instances.remove(&instance);
-        let value = expect_eval_value(value?)?;
+        let value = strip_value_markers(expect_eval_value(value?)?);
         self.instances.insert(instance, value.clone());
         Ok(value)
     }
@@ -486,7 +486,10 @@ impl<'a> Runtime<'a> {
                         .ok_or(RuntimeError::UnboundLocal { def })?,
                 ),
             ),
-            Expr::InstanceRef(instance) => value_result(self.eval_instance(instance)?),
+            Expr::InstanceRef(instance) => {
+                let value = self.eval_instance(instance)?;
+                value_result(self.mark_active_value(value))
+            }
             Expr::Coerce {
                 source,
                 target,
@@ -1152,6 +1155,10 @@ impl<'a> Runtime<'a> {
         for marker in &self.active_add_ids {
             if marker.depth != 0
                 || (!marker.guard_own_path && path_has_prefix(&request.path, &marker.path))
+                || request
+                    .guard_ids
+                    .iter()
+                    .any(|id| self.guard_ids.contains(id))
             {
                 continue;
             }
@@ -2307,21 +2314,7 @@ fn markers_for_created_value(markers: &[ValueMarker], value: &Value) -> Vec<Valu
     if !value_is_thunk_like(value) {
         return markers_for_value(markers);
     }
-    dedupe_markers(
-        markers
-            .iter()
-            .cloned()
-            .map(|marker| match marker {
-                ValueMarker::AddId(marker) if marker.depth == 0 => {
-                    ValueMarker::AddId(AddIdMarker {
-                        guard_own_path: true,
-                        ..marker
-                    })
-                }
-                marker => marker,
-            })
-            .collect(),
-    )
+    markers_for_value(markers)
 }
 
 fn stack_handler_markers(id: GuardId, path: Vec<String>) -> Vec<ValueMarker> {
@@ -2356,6 +2349,10 @@ fn mark_value(value: Value, markers: &[ValueMarker]) -> Value {
         value: Box::new(value),
         markers: value_markers,
     }
+}
+
+fn strip_value_markers(value: Value) -> Value {
+    into_value_markers(value).0
 }
 
 fn value_view(value: &Value) -> (&Value, Vec<ValueMarker>) {

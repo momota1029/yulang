@@ -4004,6 +4004,29 @@ impl<'a> ExprLowerer<'a> {
         self.session.infer.alloc_neu(Neu::Bounds(lower, upper))
     }
 
+    fn act_effect_type_var_names(&self, id: TypeDeclId) -> Vec<String> {
+        if let Some(type_vars) = self.modules.act_template(id).map(crate::act_type_var_names)
+            && !type_vars.is_empty()
+        {
+            return type_vars;
+        }
+        let Some(copy) = self.modules.resolved_act_copy(id) else {
+            return Vec::new();
+        };
+        let aliases = copy
+            .type_var_aliases
+            .iter()
+            .cloned()
+            .collect::<FxHashMap<_, _>>();
+        self.modules
+            .act_template(copy.source)
+            .map(crate::act_type_var_names)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|source| aliases.get(&source).cloned().unwrap_or(source))
+            .collect()
+    }
+
     fn lower_expr_with_lambda_scope(
         &mut self,
         node: &Cst,
@@ -5318,6 +5341,7 @@ impl<'a> ExprLowerer<'a> {
         let init_value = self.fresh_type_var();
         let init = self.lower_local_binding_body(node, &body, None)?;
         self.subtype_var_to_var(init.value, init_value);
+        self.subtype_var_to_var(init_value, init.value);
 
         let (init_pat, init_def) = self.bind_let_local_with_def(
             init_name.clone(),
@@ -5339,7 +5363,8 @@ impl<'a> ExprLowerer<'a> {
         let reference = self.lower_var_ref_constructor(&local_act, init_value)?;
         let reference_value = self.fresh_type_var();
         self.subtype_var_to_var(reference.value, reference_value);
-        self.constrain_local_ref_value(reference_value, init_value);
+        self.subtype_var_to_var(reference_value, reference.value);
+        self.constrain_local_ref_value(&local_act, reference_value, init_value)?;
         let (reference_pat, reference_def) = self.bind_let_local_with_def(
             reference_name.clone(),
             reference_value,
@@ -5350,7 +5375,7 @@ impl<'a> ExprLowerer<'a> {
             reference_def,
             reference_value,
             boundary,
-            BindingFetch::from_evaluation(reference.evaluation),
+            BindingFetch::FetchComputation,
         );
         let reference_stmt = LoweredLocalStmt {
             stmt: Stmt::Let(Vis::My, reference_pat, reference.expr),
@@ -5454,7 +5479,7 @@ impl<'a> ExprLowerer<'a> {
         let var_ref = self.lower_var_act_member(act, "var_ref")?;
         let unit = self.unit_expr();
         let reference = self.make_app(var_ref, unit);
-        self.constrain_local_ref_value(reference.value, payload);
+        self.constrain_local_ref_value(act, reference.value, payload)?;
         Ok(reference)
     }
 
@@ -5468,6 +5493,7 @@ impl<'a> ExprLowerer<'a> {
         let run = self.lower_var_act_member(act, "run")?;
         let init = self.lower_name(init_name)?;
         self.subtype_var_to_var(init.value, init_value);
+        self.subtype_var_to_var(init_value, init.value);
         let run_with_init = self.make_app(run, init);
         Ok(self.make_app(run_with_init, body))
     }
@@ -5517,8 +5543,13 @@ impl<'a> ExprLowerer<'a> {
         Computation::value(expr, value, effect)
     }
 
-    fn constrain_local_ref_value(&mut self, reference: TypeVar, payload: TypeVar) {
-        let effect = self.fresh_type_var();
+    fn constrain_local_ref_value(
+        &mut self,
+        act: &SyntheticVarActUse,
+        reference: TypeVar,
+        payload: TypeVar,
+    ) -> Result<(), LoweringError> {
+        let effect = self.local_var_effect_value(act, payload)?;
         let effect_arg = self.invariant_var_arg(effect);
         let payload_arg = self.invariant_var_arg(payload);
         let args = vec![effect_arg, payload_arg];
@@ -5530,6 +5561,41 @@ impl<'a> ExprLowerer<'a> {
             reference,
             Neg::Con(crate::std_paths::control_var_ref_type(), args),
         );
+        Ok(())
+    }
+
+    fn local_var_effect_value(
+        &mut self,
+        act: &SyntheticVarActUse,
+        payload: TypeVar,
+    ) -> Result<TypeVar, LoweringError> {
+        let effect = self.fresh_type_var();
+        let path = self.local_var_act_effect_path(act)?;
+        let payload_arg = self.invariant_var_arg(payload);
+        let lower_item = self.alloc_pos(Pos::Con(path.clone(), vec![payload_arg]));
+        self.constrain_lower(effect, Pos::Row(vec![lower_item]));
+        let upper_item = self.alloc_neg(Neg::Con(path, vec![payload_arg]));
+        let upper_tail = self.alloc_neg(Neg::Top);
+        self.constrain_upper(effect, Neg::Row(vec![upper_item], upper_tail));
+        Ok(effect)
+    }
+
+    fn local_var_act_effect_path(
+        &self,
+        act: &SyntheticVarActUse,
+    ) -> Result<Vec<String>, LoweringError> {
+        let decl = self.modules.type_decl_by_id(act.act).ok_or_else(|| {
+            LoweringError::MissingLocalVarAct {
+                name: act.source.clone(),
+            }
+        })?;
+        Ok(self
+            .modules
+            .type_decl_path(&decl)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect())
     }
 
     fn bind_let_local_with_def(
@@ -5596,6 +5662,7 @@ impl<'a> ExprLowerer<'a> {
         let (lit, primitive) = parse_number_lit(text)?;
 
         self.constrain_lower(value, primitive_type(primitive));
+        self.constrain_upper(value, primitive_neg_type(primitive));
         let expr = self.session.poly.add_expr(Expr::Lit(lit));
         Ok(Computation::value(expr, value, effect))
     }
@@ -5789,6 +5856,10 @@ impl<'a> ExprLowerer<'a> {
             value,
             Pos::Con(crate::std_paths::text_str_type(), Vec::new()),
         );
+        self.constrain_upper(
+            value,
+            Neg::Con(crate::std_paths::text_str_type(), Vec::new()),
+        );
         let expr = self.session.poly.add_expr(Expr::Lit(Lit::Str(text)));
         Computation::value(expr, value, effect)
     }
@@ -5797,6 +5868,7 @@ impl<'a> ExprLowerer<'a> {
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
         self.constrain_lower(value, primitive_type("int"));
+        self.constrain_upper(value, primitive_neg_type("int"));
         let expr = self.session.poly.add_expr(Expr::Lit(Lit::Int(number)));
         Computation::value(expr, value, effect)
     }
@@ -10789,6 +10861,13 @@ mod tests {
         }
     }
 
+    fn local_effect_item_fragment<'a>(rendered: &'a str, family_prefix: &str) -> Option<&'a str> {
+        let start = rendered.find(family_prefix)?;
+        let rest = &rendered[start..];
+        let end = rest.find([';', ']']).unwrap_or(rest.len());
+        Some(&rest[..end])
+    }
+
     fn build_neg_signature_field_type(
         src: &str,
         type_name: &str,
@@ -13101,15 +13180,23 @@ mod tests {
     fn dollar_binding_lowers_to_var_ref_and_run_wrapper() {
         let root = parse(concat!(
             "mod std:\n",
+            "  mod data:\n",
+            "    mod list:\n",
+            "      type list 'a\n",
             "  mod control:\n",
             "    mod var:\n",
             "      type ref 'e 'a with:\n",
             "        our r.get = r\n",
             "      act var 't:\n",
+            "        pub get: () -> 't\n",
+            "        pub set: 't -> ()\n",
             "        my var_ref() = 0\n",
-            "        my run v x = x\n",
+            "        my run(v: 't, x: [_] 'r): 'r = catch x:\n",
+            "          get(), k -> run v: k v\n",
+            "          set v, k -> run v: k()\n",
+            "use std::data::list::*\n",
             "my f =\n",
-            "  my $x = 1\n",
+            "  my $x = [1]\n",
             "  $x\n",
         ));
         let lower = lower_module_map(&root);
@@ -13145,6 +13232,14 @@ mod tests {
         let output = lower_binding_bodies(&root, lower);
 
         assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let run_rendered =
+            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, run));
+        let local_effect = local_effect_item_fragment(&run_rendered, "&x#")
+            .unwrap_or_else(|| panic!("missing local var effect row item: {run_rendered}"));
+        assert!(
+            local_effect.contains(' '),
+            "local var handler row item lost its payload: {run_rendered}"
+        );
         let body = binding_body_id(&output, f);
         let (first_stmts, after_init) = match output.session.poly.expr(body) {
             Expr::Block(stmts, Some(tail)) => (stmts, *tail),
@@ -13157,10 +13252,7 @@ mod tests {
             Pat::Var(def) => *def,
             _ => panic!("expected init binding pattern"),
         };
-        assert!(matches!(
-            output.session.poly.expr(*init_expr),
-            Expr::Lit(Lit::Int(1))
-        ));
+        let _ = output.session.poly.expr(*init_expr);
         let _ = def_scheme(&output, init_def);
 
         let (second_stmts, wrapped) = match output.session.poly.expr(after_init) {
@@ -13178,7 +13270,14 @@ mod tests {
             Pat::Var(def) => *def,
             _ => panic!("expected reference binding pattern"),
         };
-        let _ = def_scheme(&output, reference_def);
+        let reference_rendered =
+            poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, reference_def));
+        assert!(
+            reference_rendered.contains("std::data::list::list")
+                && reference_rendered.contains("int"),
+            "reference scheme did not keep the initializer type: {reference_rendered}"
+        );
+        assert!(def_scheme(&output, reference_def).quantifiers.is_empty());
         let (var_ref_callee, _) = match output.session.poly.expr(*reference_expr) {
             Expr::App(callee, _unit) => (*callee, *_unit),
             _ => panic!("expected var_ref call"),
@@ -14370,6 +14469,32 @@ mod tests {
         assert!(output.errors.is_empty(), "{:?}", output.errors);
         let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, h));
         assert_eq!(rendered, "'a -> ('a -> ['b] 'c) -> ['b] 'c");
+    }
+
+    #[test]
+    fn application_result_effect_includes_argument_effect() {
+        let root = parse(concat!(
+            "mod std:\n",
+            "  mod control:\n",
+            "    mod junction:\n",
+            "      pub act junction:\n",
+            "        pub junction: () -> bool\n",
+            "act ping:\n",
+            "  pub go: () -> bool\n",
+            "my f x = if ping::go(): x else: x\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, f));
+        assert!(
+            rendered.contains("[ping") && rendered.contains("std::control::junction::junction"),
+            "{rendered}"
+        );
     }
 
     #[test]
