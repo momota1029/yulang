@@ -296,6 +296,7 @@ pub enum PrimitiveOp {
     IntToString,
     IntToHex,
     IntToUpperHex,
+    IntToFloat,
     FloatToString,
     BoolToString,
 }
@@ -319,6 +320,7 @@ impl PrimitiveOp {
             | Self::IntToString
             | Self::IntToHex
             | Self::IntToUpperHex
+            | Self::IntToFloat
             | Self::FloatToString
             | Self::BoolToString
             | Self::CharToString

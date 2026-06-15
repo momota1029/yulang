@@ -2288,6 +2288,7 @@ fn apply_primitive(
         PrimitiveOp::IntToString => Ok(Value::Str(expect_int(&args[0])?.to_string())),
         PrimitiveOp::IntToHex => Ok(Value::Str(format!("{:x}", expect_int(&args[0])?))),
         PrimitiveOp::IntToUpperHex => Ok(Value::Str(format!("{:X}", expect_int(&args[0])?))),
+        PrimitiveOp::IntToFloat => Ok(Value::Float(expect_int(&args[0])? as f64)),
         PrimitiveOp::FloatToString => Ok(Value::Str(format_float(expect_float(&args[0])?))),
         PrimitiveOp::BoolToString => Ok(Value::Str(expect_bool(&args[0])?.to_string())),
         PrimitiveOp::ListEmpty => Ok(Value::List(ListTree::empty())),

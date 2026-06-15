@@ -1195,6 +1195,7 @@ fn primitive_op_name(op: crate::expr::PrimitiveOp) -> &'static str {
         PrimitiveOp::IntToString => "int_to_string",
         PrimitiveOp::IntToHex => "int_to_hex",
         PrimitiveOp::IntToUpperHex => "int_to_upper_hex",
+        PrimitiveOp::IntToFloat => "int_to_float",
         PrimitiveOp::FloatToString => "float_to_string",
         PrimitiveOp::BoolToString => "bool_to_string",
     }

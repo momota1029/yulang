@@ -206,6 +206,13 @@ pub(crate) fn resolve_builtin_op(name: &str) -> Option<BuiltinOp> {
                 ret: "str",
             },
         },
+        "int_to_float" => BuiltinOp {
+            op: IntToFloat,
+            sig: Unary {
+                param: "int",
+                ret: "float",
+            },
+        },
         "float_add" => BuiltinOp {
             op: FloatAdd,
             sig: Binary {

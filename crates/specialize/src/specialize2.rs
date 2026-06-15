@@ -265,7 +265,7 @@ impl Specializer2 {
             expr_out = lift_raw_expr_to_computation(solved.actual_type_of(expr), expr_out);
         }
         if wrap_boundary {
-            solved.wrap_expr_boundary(expr, expr_out)
+            self.wrap_expr_boundary(arena, solved, expr, expr_out)
         } else {
             Ok(expr_out)
         }
@@ -607,7 +607,9 @@ impl Specializer2 {
         let Some(actual) = solved.actual_type_of(body) else {
             return Ok(expr.expr);
         };
-        Ok(boundary_emitted_expr(actual, &expected, expr).expr)
+        Ok(self
+            .boundary_emitted_expr(arena, actual, &expected, expr)?
+            .expr)
     }
 
     fn emit_catch_body(
@@ -621,6 +623,166 @@ impl Specializer2 {
             solved.actual_type_of(body),
             expr,
         ))
+    }
+
+    fn wrap_expr_boundary(
+        &mut self,
+        arena: &poly_expr::Arena,
+        solved: &SolvedTask,
+        expr: poly_expr::ExprId,
+        mono: EmittedExpr,
+    ) -> Result<EmittedExpr, SpecializeError> {
+        let Some(actual) = solved.actual_type_of(expr) else {
+            return Ok(mono);
+        };
+        let Some(consumer) = solved.consumer_type_of(expr) else {
+            return Ok(mono);
+        };
+        if matches!(consumer, Type::Any) {
+            return Ok(mono);
+        }
+        self.boundary_emitted_expr(arena, actual, consumer, mono)
+    }
+
+    fn boundary_emitted_expr(
+        &mut self,
+        arena: &poly_expr::Arena,
+        actual: &Type,
+        expected: &Type,
+        emitted: EmittedExpr,
+    ) -> Result<EmittedExpr, SpecializeError> {
+        if matches!(expected, Type::Any) {
+            return Ok(emitted);
+        }
+        let Some(shape) = emitted.computation.clone() else {
+            return Ok(EmittedExpr::pure(
+                self.boundary_expr(arena, actual, expected, emitted.expr)?,
+                Some(expected.clone()),
+            ));
+        };
+        if let Type::Thunk { effect, value } = expected {
+            if shape.effect.is_pure_effect() && equivalent_boundary_types(&shape.value, expected) {
+                return Ok(emitted);
+            }
+            let body = self.ensure_emitted_value(arena, emitted, actual, value)?;
+            return Ok(make_thunk_from_computation(
+                body,
+                effect.as_ref().clone(),
+                value.as_ref().clone(),
+            ));
+        }
+        self.ensure_emitted_value(arena, emitted, actual, expected)
+    }
+
+    fn ensure_emitted_value(
+        &mut self,
+        arena: &poly_expr::Arena,
+        emitted: EmittedExpr,
+        actual: &Type,
+        expected: &Type,
+    ) -> Result<EmittedExpr, SpecializeError> {
+        let Some(shape) = emitted.computation.clone() else {
+            return Ok(EmittedExpr::pure(
+                self.boundary_expr(arena, actual, expected, emitted.expr)?,
+                Some(expected.clone()),
+            ));
+        };
+        if equivalent_boundary_types(&shape.value, expected) {
+            return Ok(EmittedExpr {
+                computation: Some(ComputationShape {
+                    effect: shape.effect,
+                    value: expected.clone(),
+                }),
+                ..emitted
+            });
+        }
+        if same_record_boundary_shape(&shape.value, expected) {
+            return Ok(EmittedExpr {
+                computation: Some(ComputationShape {
+                    effect: shape.effect,
+                    value: expected.clone(),
+                }),
+                ..emitted
+            });
+        }
+        if matches!(shape.value, Type::Thunk { .. }) {
+            let target = forced_value_shape(actual, &shape, expected);
+            let forced = force_emitted_value_thunk(emitted, target);
+            let Some(forced_shape) = forced.computation.clone() else {
+                return Ok(forced);
+            };
+            if equivalent_boundary_types(&forced_shape.value, expected) {
+                return Ok(forced);
+            }
+            return self.coerce_emitted_value(arena, forced, expected, None);
+        }
+        self.coerce_emitted_value(arena, emitted, expected, None)
+    }
+
+    fn coerce_emitted_value(
+        &mut self,
+        arena: &poly_expr::Arena,
+        emitted: EmittedExpr,
+        expected: &Type,
+        effect: Option<Type>,
+    ) -> Result<EmittedExpr, SpecializeError> {
+        let Some(shape) = emitted.computation.clone() else {
+            return Ok(EmittedExpr::pure(emitted.expr, Some(expected.clone())));
+        };
+        if equivalent_boundary_types(&shape.value, expected) {
+            return Ok(EmittedExpr {
+                computation: Some(ComputationShape {
+                    effect: effect.unwrap_or(shape.effect),
+                    value: expected.clone(),
+                }),
+                ..emitted
+            });
+        }
+        let expr = self.boundary_expr(arena, &shape.value, expected, emitted.expr)?;
+        Ok(EmittedExpr {
+            expr,
+            computation: Some(ComputationShape {
+                effect: effect.unwrap_or(shape.effect),
+                value: expected.clone(),
+            }),
+        })
+    }
+
+    fn boundary_expr(
+        &mut self,
+        arena: &poly_expr::Arena,
+        actual: &Type,
+        expected: &Type,
+        expr: Expr,
+    ) -> Result<Expr, SpecializeError> {
+        let actual = close_runtime_type_surface(
+            erase_negative_only_open_vars(actual.clone()),
+            TypeSlotKind::Value,
+        );
+        let expected = close_runtime_type_surface(
+            erase_negative_only_open_vars(expected.clone()),
+            TypeSlotKind::Value,
+        );
+        if let Some(instance) = self.cast_boundary_instance(arena, &actual, &expected)? {
+            return Ok(Expr::new(ExprKind::Apply(
+                Box::new(Expr::new(ExprKind::InstanceRef(instance))),
+                Box::new(expr),
+            )));
+        }
+        Ok(boundary_expr(&actual, &expected, expr))
+    }
+
+    fn cast_boundary_instance(
+        &mut self,
+        arena: &poly_expr::Arena,
+        actual: &Type,
+        expected: &Type,
+    ) -> Result<Option<InstanceId>, SpecializeError> {
+        let Some(def) = direct_cast_rule(arena, actual, expected).map(|rule| rule.def) else {
+            return Ok(None);
+        };
+        let signature = types::pure_function_type(actual.clone(), expected.clone());
+        self.ensure_def_instance(arena, def, signature).map(Some)
     }
 }
 
@@ -711,23 +873,6 @@ impl SolvedTask {
 
     fn is_raw_thunk_computation(&self, expr: poly_expr::ExprId) -> bool {
         self.raw_thunk_computations.contains(&expr)
-    }
-
-    fn wrap_expr_boundary(
-        &self,
-        expr: poly_expr::ExprId,
-        mono: EmittedExpr,
-    ) -> Result<EmittedExpr, SpecializeError> {
-        let Some(actual) = self.actual_type_of(expr) else {
-            return Ok(mono);
-        };
-        let Some(consumer) = self.consumer_type_of(expr) else {
-            return Ok(mono);
-        };
-        if matches!(consumer, Type::Any) {
-            return Ok(mono);
-        }
-        Ok(boundary_emitted_expr(actual, consumer, mono))
     }
 }
 
@@ -2340,6 +2485,7 @@ impl<'a> TaskSolver<'a> {
             PrimitiveOp::IntToString | PrimitiveOp::IntToHex | PrimitiveOp::IntToUpperHex => {
                 unary_type(int_type(), str_type())
             }
+            PrimitiveOp::IntToFloat => unary_type(int_type(), float_type()),
             PrimitiveOp::FloatToString => unary_type(float_type(), str_type()),
             PrimitiveOp::BoolToString => unary_type(bool_type(), str_type()),
         }
@@ -5739,6 +5885,31 @@ fn close_runtime_type_surface(ty: Type, context: TypeSlotKind) -> Type {
     }
 }
 
+fn direct_cast_rule<'a>(
+    arena: &'a poly_expr::Arena,
+    actual: &Type,
+    expected: &Type,
+) -> Option<&'a poly_expr::CastRule> {
+    let (
+        Type::Con {
+            path: source_path, ..
+        },
+        Type::Con {
+            path: target_path, ..
+        },
+    ) = (actual, expected)
+    else {
+        return None;
+    };
+    if source_path == target_path {
+        return None;
+    }
+    arena
+        .cast_rules
+        .iter()
+        .find(|rule| rule.source == *source_path && rule.target == *target_path)
+}
+
 fn type_candidate_subtype(graph: &TypeGraph<'_>, lower: &Type, upper: &Type) -> bool {
     if lower == upper || matches!(lower, Type::Never) || matches!(upper, Type::Any) {
         return true;
@@ -7055,65 +7226,6 @@ fn force_expr_if_thunk(actual: &Type, expr: Expr) -> Expr {
         return expr;
     };
     boundary_expr(actual, value, expr)
-}
-
-fn boundary_emitted_expr(actual: &Type, expected: &Type, emitted: EmittedExpr) -> EmittedExpr {
-    if matches!(expected, Type::Any) {
-        return emitted;
-    }
-    let Some(shape) = emitted.computation.clone() else {
-        return EmittedExpr::pure(
-            boundary_expr(actual, expected, emitted.expr),
-            Some(expected.clone()),
-        );
-    };
-    if let Type::Thunk { effect, value } = expected {
-        if shape.effect.is_pure_effect() && equivalent_boundary_types(&shape.value, expected) {
-            return emitted;
-        }
-        let body = ensure_emitted_value(emitted, actual, value);
-        return make_thunk_from_computation(body, effect.as_ref().clone(), value.as_ref().clone());
-    }
-    ensure_emitted_value(emitted, actual, expected)
-}
-
-fn ensure_emitted_value(emitted: EmittedExpr, actual: &Type, expected: &Type) -> EmittedExpr {
-    let Some(shape) = emitted.computation.clone() else {
-        return EmittedExpr::pure(
-            boundary_expr(actual, expected, emitted.expr),
-            Some(expected.clone()),
-        );
-    };
-    if equivalent_boundary_types(&shape.value, expected) {
-        return EmittedExpr {
-            computation: Some(ComputationShape {
-                effect: shape.effect,
-                value: expected.clone(),
-            }),
-            ..emitted
-        };
-    }
-    if same_record_boundary_shape(&shape.value, expected) {
-        return EmittedExpr {
-            computation: Some(ComputationShape {
-                effect: shape.effect,
-                value: expected.clone(),
-            }),
-            ..emitted
-        };
-    }
-    if matches!(shape.value, Type::Thunk { .. }) {
-        let target = forced_value_shape(actual, &shape, expected);
-        let forced = force_emitted_value_thunk(emitted, target);
-        let Some(forced_shape) = forced.computation.clone() else {
-            return forced;
-        };
-        if equivalent_boundary_types(&forced_shape.value, expected) {
-            return forced;
-        }
-        return coerce_emitted_value(forced, expected, None);
-    }
-    coerce_emitted_value(emitted, expected, None)
 }
 
 fn same_record_boundary_shape(actual: &Type, expected: &Type) -> bool {

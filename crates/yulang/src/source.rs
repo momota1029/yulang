@@ -1848,7 +1848,13 @@ mod tests {
 
         assert_eq!(output.file_count, 1);
         assert_mono_dump_contains(&output, "mono roots [case true:");
-        assert_mono_dump_contains(&output, "coerce[int => float](1)");
+        assert_mono_dump_contains(&output, "-> (m0 1)");
+        assert_mono_dump_contains(&output, "m0 = d0 : int -> float");
+        assert!(
+            !output.text.contains("coerce[int => float]"),
+            "{}",
+            output.text
+        );
         assert!(!output.text.contains("int | float"), "{}", output.text);
     }
 
@@ -2835,6 +2841,20 @@ mod tests {
             run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
 
         assert_eq!(output.text, "run roots [3]\n");
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_playground_std_runs_mixed_numeric_add() {
+        let build = build_control_from_source_text_with_embedded_playground_std(
+            "playground.yu",
+            "1 + 1.2\n",
+        )
+        .unwrap();
+        assert!(build.errors.is_empty(), "{:?}", build.errors);
+        let output =
+            run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
+
+        assert_eq!(output.text, "run roots [2.2]\n");
     }
 
     #[test]

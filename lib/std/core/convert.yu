@@ -4,4 +4,5 @@ pub role Cast 'from:
 
 pub cast(p: path): bytes = std::text::path::to_bytes p
 pub cast(x: int): frac = std::num::frac::new x 1
+pub cast(x: int): float = builtin_op::int_to_float x
 pub cast(x: frac): float = std::num::frac::to_float x

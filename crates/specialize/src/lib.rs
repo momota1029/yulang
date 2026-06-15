@@ -1019,6 +1019,7 @@ fn convert_primitive_op(op: poly_expr::PrimitiveOp) -> PrimitiveOp {
         poly_expr::PrimitiveOp::IntToString => PrimitiveOp::IntToString,
         poly_expr::PrimitiveOp::IntToHex => PrimitiveOp::IntToHex,
         poly_expr::PrimitiveOp::IntToUpperHex => PrimitiveOp::IntToUpperHex,
+        poly_expr::PrimitiveOp::IntToFloat => PrimitiveOp::IntToFloat,
         poly_expr::PrimitiveOp::FloatToString => PrimitiveOp::FloatToString,
         poly_expr::PrimitiveOp::BoolToString => PrimitiveOp::BoolToString,
     }
@@ -2118,7 +2119,9 @@ mod tests {
         let text = mono::dump::dump_program(&program);
 
         assert!(text.contains("mono roots [case true:"), "{text}");
-        assert!(text.contains("coerce[int => float](1)"), "{text}");
+        assert!(text.contains("-> (m0 1)"), "{text}");
+        assert!(text.contains("m0 = d0 : int -> float"), "{text}");
+        assert!(!text.contains("coerce[int => float]"), "{text}");
         assert!(!text.contains("int | float"), "{text}");
     }
 

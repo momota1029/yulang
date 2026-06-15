@@ -211,6 +211,10 @@ impl (list int): Eq:
 pub role Cast 'from:
     type to
     pub from.cast: to
+
+pub cast(x: int): std::num::frac::frac = std::num::frac::new x 1
+pub cast(x: int): float = builtin_op::int_to_float x
+pub cast(x: std::num::frac::frac): float = std::num::frac::to_float x
 "#,
     },
     PlaygroundStdFile {
@@ -439,56 +443,11 @@ pub len x = x.len
     },
     PlaygroundStdFile {
         relative_path: "std/num.yu",
-        source: r#"
-pub role Add 'a:
-    pub a.add: 'a -> 'a
-
-pub role Sub 'a:
-    pub a.sub: 'a -> 'a
-
-pub role Mul 'a:
-    pub a.mul: 'a -> 'a
-
-pub role Div 'a:
-    type out
-    pub a.div: 'a -> out
-
-pub role LowerHex 'a:
-    pub a.lower_hex: str
-
-pub role UpperHex 'a:
-    pub a.upper_hex: str
-
-impl int: Add:
-    our x.add y = std::int::add x y
-
-impl int: Sub:
-    our x.sub y = std::int::sub x y
-
-impl int: Mul:
-    our x.mul y = std::int::mul x y
-
-impl int: LowerHex:
-    our x.lower_hex = std::int::to_hex x
-
-impl int: UpperHex:
-    our x.upper_hex = std::int::to_upper_hex x
-
-impl float: Add:
-    our x.add y = std::float::add x y
-
-impl float: Sub:
-    our x.sub y = std::float::sub x y
-
-impl float: Mul:
-    our x.mul y = std::float::mul x y
-
-impl str: Add:
-    our x.add y = std::text::str::concat x y
-
-impl (list 'a): Add:
-    our xs.add ys = std::data::list::merge xs ys
-"#,
+        source: include_str!("../../../lib/std/num.yu"),
+    },
+    PlaygroundStdFile {
+        relative_path: "std/num/frac.yu",
+        source: include_str!("../../../lib/std/num/frac.yu"),
     },
     PlaygroundStdFile {
         relative_path: "std/bool.yu",

@@ -749,6 +749,26 @@ mod tests {
     }
 
     #[test]
+    fn run_inner_uses_compact_playground_std_for_mixed_numeric_add() {
+        clear_std_cache();
+        let output = run_inner("1 + 1.2\n");
+
+        assert!(output.ok, "{output:?}");
+        assert_eq!(
+            output
+                .timings
+                .as_ref()
+                .map(|timing| timing.used_embedded_std),
+            Some(true)
+        );
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("2.2")
+        );
+        assert!(output.file_count < yulang::stdlib::embedded_std_files().len() + 1);
+    }
+
+    #[test]
     fn run_inner_uses_compact_playground_std_for_struct_method_example() {
         clear_std_cache();
         let output = run_inner(

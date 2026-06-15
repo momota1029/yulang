@@ -429,6 +429,7 @@ pub enum PrimitiveOp {
     IntToString,
     IntToHex,
     IntToUpperHex,
+    IntToFloat,
     FloatToString,
     BoolToString,
 }

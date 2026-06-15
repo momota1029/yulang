@@ -2348,6 +2348,7 @@ impl<'a> ExprTypeSolver<'a> {
             PrimitiveOp::IntToString | PrimitiveOp::IntToHex | PrimitiveOp::IntToUpperHex => {
                 unary_type(int_type(), str_type())
             }
+            PrimitiveOp::IntToFloat => unary_type(int_type(), float_type()),
             PrimitiveOp::FloatToString => unary_type(float_type(), str_type()),
             PrimitiveOp::BoolToString => unary_type(bool_type(), str_type()),
         }
