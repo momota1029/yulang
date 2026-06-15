@@ -599,7 +599,7 @@ impl Specializer2 {
     ) -> Result<Expr, SpecializeError> {
         let expr = self.emit_expr_typed(arena, solved, body)?;
         let Some(expected) = solved
-            .actual_type_of(lambda)
+            .emitted_type_of(lambda)
             .and_then(runtime_function_return_type)
         else {
             return Ok(expr.expr);
@@ -607,7 +607,7 @@ impl Specializer2 {
         let Some(actual) = solved.actual_type_of(body) else {
             return Ok(expr.expr);
         };
-        Ok(boundary_emitted_expr(actual, expected, expr).expr)
+        Ok(boundary_emitted_expr(actual, &expected, expr).expr)
     }
 
     fn emit_catch_body(
@@ -743,6 +743,22 @@ struct TypeclassResolution {
     signature: Type,
 }
 
+struct LocalLetBindingType {
+    ty: Type,
+    exact_value: bool,
+    use_as_lambda_signature: bool,
+}
+
+impl LocalLetBindingType {
+    fn fresh(graph: &mut TypeGraph<'_>) -> Self {
+        Self {
+            ty: graph.fresh_value(),
+            exact_value: true,
+            use_as_lambda_signature: false,
+        }
+    }
+}
+
 struct TaskSolver<'a> {
     arena: &'a poly_expr::Arena,
     graph: TypeGraph<'a>,
@@ -857,12 +873,50 @@ impl<'a> TaskSolver<'a> {
         expr: poly_expr::ExprId,
         consumer: Type,
     ) -> Result<(Type, Type), SpecializeError> {
-        let actual = self.expr(expr)?;
+        let actual = self.expr_with_value_consumer(expr, &consumer)?;
         self.add_expr_consumer(expr, actual.clone(), consumer.clone());
         let (actual_value, actual_effect) = split_runtime_computation_shape(actual);
         self.graph
             .constrain_subtype(actual_value.clone(), consumer)?;
         Ok((actual_value, actual_effect))
+    }
+
+    fn expr_with_value_consumer(
+        &mut self,
+        expr: poly_expr::ExprId,
+        consumer: &Type,
+    ) -> Result<Type, SpecializeError> {
+        if let Some(ty) = self.exprs.get(&expr) {
+            return Ok(ty.actual.clone());
+        }
+        if let poly_expr::Expr::Lambda(_, _) = self.arena.expr(expr) {
+            return self.lambda_expr_with_signature(expr, consumer.clone());
+        }
+        let Type::Record(expected_fields) = consumer else {
+            return self.expr(expr);
+        };
+        let Some((fields, spread)) = self.record_expr_parts(expr) else {
+            return self.expr(expr);
+        };
+        self.record_expr_with_expected_fields(expr, &fields, &spread, expected_fields)
+    }
+
+    fn record_expr_parts(
+        &self,
+        expr: poly_expr::ExprId,
+    ) -> Option<(
+        Vec<(String, poly_expr::ExprId)>,
+        poly_expr::RecordSpread<poly_expr::ExprId>,
+    )> {
+        let poly_expr::Expr::Record { fields, spread } = self.arena.expr(expr) else {
+            return None;
+        };
+        let spread = match spread {
+            poly_expr::RecordSpread::Head(expr) => poly_expr::RecordSpread::Head(*expr),
+            poly_expr::RecordSpread::Tail(expr) => poly_expr::RecordSpread::Tail(*expr),
+            poly_expr::RecordSpread::None => poly_expr::RecordSpread::None,
+        };
+        Some((fields.clone(), spread))
     }
 
     fn consume_expr_computation(
@@ -1045,19 +1099,12 @@ impl<'a> TaskSolver<'a> {
             self.consume_expr_value(arg, arg_ty)?;
             return self.runtime_shape(Type::pure_effect(), Type::Never);
         };
-        let call_arg_effect = if parts.arg_effect.is_pure_effect() {
-            self.consume_expr_value(arg, parts.arg.clone())?.1
-        } else {
-            self.consume_expr_computation(arg, parts.arg_effect.clone(), parts.arg.clone())?;
-            Type::pure_effect()
-        };
+        let call_arg_effect = self.consume_expr_value(arg, parts.arg.clone())?.1;
         let (ret_value, ret_runtime_effect) = split_runtime_computation_shape(parts.ret);
-        let returns_never =
-            matches!(ret_value, Type::Never) || operation_scheme_returns_never(self.arena, def);
         let operation_effect = self.join_effects([parts.ret_effect, ret_runtime_effect])?;
-        let effect = self.join_effects([parts.arg_effect, call_arg_effect, operation_effect])?;
+        let effect = self.join_effects([call_arg_effect, operation_effect])?;
         let result = self.runtime_shape(effect, ret_value)?;
-        if returns_never && matches!(result, Type::Thunk { .. }) {
+        if matches!(result, Type::Thunk { .. }) {
             self.mark_raw_thunk_computation(expr);
         }
         Ok(result)
@@ -1124,12 +1171,55 @@ impl<'a> TaskSolver<'a> {
         fields: &[(String, poly_expr::ExprId)],
         spread: &poly_expr::RecordSpread<poly_expr::ExprId>,
     ) -> Result<Type, SpecializeError> {
+        self.record_type_with_expected_fields(expr, fields, spread, None)
+    }
+
+    fn record_expr_with_expected_fields(
+        &mut self,
+        expr: poly_expr::ExprId,
+        fields: &[(String, poly_expr::ExprId)],
+        spread: &poly_expr::RecordSpread<poly_expr::ExprId>,
+        expected_fields: &[TypeField],
+    ) -> Result<Type, SpecializeError> {
+        if let Some(ty) = self.exprs.get(&expr) {
+            return Ok(ty.actual.clone());
+        }
+        let ty =
+            self.record_type_with_expected_fields(expr, fields, spread, Some(expected_fields))?;
+        self.exprs.entry(expr).or_insert_with(|| ExprType {
+            actual: ty.clone(),
+            consumer: None,
+        });
+        Ok(ty)
+    }
+
+    fn record_type_with_expected_fields(
+        &mut self,
+        expr: poly_expr::ExprId,
+        fields: &[(String, poly_expr::ExprId)],
+        spread: &poly_expr::RecordSpread<poly_expr::ExprId>,
+        expected_fields: Option<&[TypeField]>,
+    ) -> Result<Type, SpecializeError> {
         let mut effects = Vec::new();
         let mut typed = Vec::with_capacity(fields.len());
         for (name, value_expr) in fields {
-            let value_ty = self.expr(*value_expr)?;
-            let (value, effect) = split_runtime_computation_shape(value_ty);
-            self.consume_expr_value(*value_expr, value.clone())?;
+            let expected = expected_fields
+                .and_then(|fields| record_field_type(fields, name))
+                .map(|field| field.value.clone());
+            let (value, effect) = match expected {
+                Some(expected) => {
+                    let value_ty = self.expr_with_value_consumer(*value_expr, &expected)?;
+                    let (value, effect) = split_runtime_computation_shape(value_ty);
+                    self.graph.constrain_subtype(value.clone(), expected)?;
+                    (value, effect)
+                }
+                None => {
+                    let value_ty = self.expr(*value_expr)?;
+                    let (value, effect) = split_runtime_computation_shape(value_ty);
+                    self.consume_expr_value(*value_expr, value.clone())?;
+                    (value, effect)
+                }
+            };
             effects.push(effect);
             typed.push(TypeField {
                 name: name.clone(),
@@ -1487,12 +1577,23 @@ impl<'a> TaskSolver<'a> {
         for stmt in stmts {
             match stmt {
                 poly_expr::Stmt::Let(_, pat, value) => {
-                    let binding = self.graph.fresh_value();
-                    self.bind_pat(*pat, binding.clone())?;
-                    let value_ty = self.expr(*value)?;
+                    let binding = self.local_let_binding_type(*pat, *value)?;
+                    self.bind_pat(*pat, binding.ty.clone())?;
+                    let value_ty = if binding.use_as_lambda_signature {
+                        self.lambda_expr_with_signature(*value, binding.ty.clone())?
+                    } else {
+                        self.expr(*value)?
+                    };
                     let (value_value, value_effect) = split_runtime_computation_shape(value_ty);
-                    self.consume_expr_value(*value, binding.clone())?;
-                    self.graph.constrain_exact(value_value, binding)?;
+                    if binding.use_as_lambda_signature {
+                        self.graph
+                            .constrain_subtype(value_value.clone(), binding.ty.clone())?;
+                    } else {
+                        self.consume_expr_value(*value, binding.ty.clone())?;
+                    }
+                    if binding.exact_value {
+                        self.graph.constrain_exact(value_value, binding.ty)?;
+                    }
                     effects.push(value_effect);
                 }
                 poly_expr::Stmt::Expr(expr) => {
@@ -1523,6 +1624,85 @@ impl<'a> TaskSolver<'a> {
             self.mark_raw_thunk_computation(expr);
         }
         Ok(result)
+    }
+
+    fn lambda_expr_with_signature(
+        &mut self,
+        expr: poly_expr::ExprId,
+        signature: Type,
+    ) -> Result<Type, SpecializeError> {
+        let poly_expr::Expr::Lambda(param, body) = self.arena.expr(expr) else {
+            return self.expr(expr);
+        };
+        if let Some(ty) = self.exprs.get(&expr) {
+            return Ok(ty.actual.clone());
+        }
+        let ty = self.lambda_type_with_signature(*param, *body, signature)?;
+        self.exprs.entry(expr).or_insert_with(|| ExprType {
+            actual: ty.clone(),
+            consumer: None,
+        });
+        Ok(ty)
+    }
+
+    fn lambda_type_with_signature(
+        &mut self,
+        param: poly_expr::PatId,
+        body: poly_expr::ExprId,
+        signature: Type,
+    ) -> Result<Type, SpecializeError> {
+        let Some(parts) = function_computation_parts(&signature) else {
+            return self.lambda_type(param, body);
+        };
+        self.bind_pat(
+            param,
+            types::runtime_shape(parts.arg_effect.clone(), parts.arg.clone()),
+        )?;
+        let body_ty = self.expr(body)?;
+        let (ret, ret_effect) = split_runtime_computation_shape(body_ty);
+        self.graph.constrain_subtype(
+            types::runtime_shape(ret_effect.clone(), ret.clone()),
+            types::runtime_shape(parts.ret_effect.clone(), parts.ret.clone()),
+        )?;
+        Ok(Type::Fun {
+            arg: Box::new(parts.arg),
+            arg_effect: Box::new(parts.arg_effect),
+            ret_effect: Box::new(ret_effect),
+            ret: Box::new(ret),
+        })
+    }
+
+    fn local_let_binding_type(
+        &mut self,
+        pat: poly_expr::PatId,
+        value: poly_expr::ExprId,
+    ) -> Result<LocalLetBindingType, SpecializeError> {
+        if !matches!(self.arena.expr(value), poly_expr::Expr::Lambda(_, _)) {
+            return Ok(LocalLetBindingType::fresh(&mut self.graph));
+        }
+        let Some(def) = self.single_binding_pat_def(pat) else {
+            return Ok(LocalLetBindingType::fresh(&mut self.graph));
+        };
+        let Some(poly_expr::Def::Let {
+            scheme: Some(scheme),
+            ..
+        }) = self.arena.defs.get(def)
+        else {
+            return Ok(LocalLetBindingType::fresh(&mut self.graph));
+        };
+        Ok(LocalLetBindingType {
+            ty: self.instantiate_scheme(def, scheme)?,
+            exact_value: false,
+            use_as_lambda_signature: true,
+        })
+    }
+
+    fn single_binding_pat_def(&self, pat: poly_expr::PatId) -> Option<poly_expr::DefId> {
+        match self.arena.pat(pat) {
+            poly_expr::Pat::Var(def) => Some(*def),
+            poly_expr::Pat::As(_, def) => Some(*def),
+            _ => None,
+        }
     }
 
     fn mark_raw_thunk_computation(&mut self, expr: poly_expr::ExprId) {
@@ -2211,8 +2391,10 @@ struct CatchOperationTypes {
 
 struct TypeGraph<'a> {
     arena: &'a poly_expr::Arena,
+    effect_family_paths: HashSet<Vec<String>>,
     slots: Vec<TypeSlot>,
     pending: VecDeque<SubtypeConstraint>,
+    queued_constraints: HashSet<SubtypeConstraint>,
     row_residuals: HashMap<RowResidualKey, u32>,
     closed_effect_subtraction_consumers: HashSet<(u32, EffectSubtractionDemand)>,
     role_demands: Vec<types::InstantiatedRolePredicate>,
@@ -2222,12 +2404,20 @@ impl<'a> TypeGraph<'a> {
     fn new(arena: &'a poly_expr::Arena) -> Self {
         Self {
             arena,
+            effect_family_paths: effect_family_paths(arena),
             slots: Vec::new(),
             pending: VecDeque::new(),
+            queued_constraints: HashSet::new(),
             row_residuals: HashMap::new(),
             closed_effect_subtraction_consumers: HashSet::new(),
             role_demands: Vec::new(),
         }
+    }
+
+    fn is_effect_family_path(&self, path: &[String]) -> bool {
+        self.effect_family_paths
+            .iter()
+            .any(|family| effect_paths_same_family(family, path))
     }
 
     fn fresh_value(&mut self) -> Type {
@@ -2261,12 +2451,15 @@ impl<'a> TypeGraph<'a> {
         upper_weight: StackWeight,
     ) -> Result<(), SpecializeError> {
         if lower != upper {
-            self.pending.push_back(SubtypeConstraint {
+            let constraint = SubtypeConstraint {
                 lower,
                 lower_weight,
                 upper,
                 upper_weight,
-            });
+            };
+            if self.queued_constraints.insert(constraint.clone()) {
+                self.pending.push_back(constraint);
+            }
         }
         Ok(())
     }
@@ -2520,6 +2713,16 @@ impl<'a> TypeGraph<'a> {
                     args: upper_args,
                 },
             ) if lower_path == upper_path && lower_args.len() == upper_args.len() => {
+                if !unweighted
+                    && self.effect_family_item_blocked_by_weight(
+                        &lower_path,
+                        &lower_args,
+                        &lower_weight,
+                        &upper_weight,
+                    )
+                {
+                    return Ok(());
+                }
                 for (lower, upper) in lower_args.into_iter().zip(upper_args) {
                     self.constrain_weighted_subtype(
                         lower.clone(),
@@ -2915,18 +3118,43 @@ impl<'a> TypeGraph<'a> {
     }
 
     fn split_effect_row_tail(&self, mut items: Vec<Type>) -> (Vec<Type>, Option<Type>) {
-        let Some(Type::OpenVar(slot)) = items.last().cloned() else {
+        let Some(tail) = items.last().cloned() else {
             return (items, None);
         };
-        if self
-            .slots
-            .get(slot as usize)
-            .is_some_and(|slot| slot.kind == TypeSlotKind::Effect)
-        {
+        if self.type_is_effect_tail(&tail) {
             items.pop();
-            return (items, Some(Type::OpenVar(slot)));
+            return (items, Some(tail));
         }
         (items, None)
+    }
+
+    fn type_is_effect_tail(&self, ty: &Type) -> bool {
+        match ty {
+            Type::OpenVar(slot) => self
+                .slots
+                .get(*slot as usize)
+                .is_some_and(|slot| slot.kind == TypeSlotKind::Effect),
+            Type::Stack { inner, .. } => self.type_is_effect_tail(inner),
+            _ => false,
+        }
+    }
+
+    fn effect_family_item_blocked_by_weight(
+        &self,
+        path: &[String],
+        args: &[Type],
+        lower_weight: &StackWeight,
+        upper_weight: &StackWeight,
+    ) -> bool {
+        if !self.is_effect_family_path(path) {
+            return false;
+        }
+        let combined_weight = compose_stack_weights(lower_weight.clone(), upper_weight.clone());
+        let item = Type::Con {
+            path: path.to_vec(),
+            args: args.to_vec(),
+        };
+        !stack_weight_allows_effect_item(&combined_weight, &item)
     }
 
     fn add_weighted_edge(
@@ -3229,7 +3457,12 @@ impl<'a> TypeGraph<'a> {
             return Ok(());
         }
         if items.is_empty() && tail.is_none() {
-            return self.add_upper_unweighted(slot, Type::pure_effect());
+            return self.add_upper_bound_weighted(
+                slot,
+                lower_weight,
+                Type::pure_effect(),
+                upper_weight,
+            );
         }
         let combined_weight = compose_stack_weights(lower_weight, upper_weight);
         let retained = items
@@ -3460,7 +3693,7 @@ enum TypeSlotKind {
 }
 
 fn effect_slot_candidate(slot_kind: TypeSlotKind, ty: Type) -> Type {
-    if slot_kind != TypeSlotKind::Effect || matches!(ty, Type::EffectRow(_)) {
+    if slot_kind != TypeSlotKind::Effect || matches!(ty, Type::EffectRow(_) | Type::Stack { .. }) {
         return ty;
     }
     if ty.is_pure_effect() {
@@ -3509,7 +3742,7 @@ impl TypeSlot {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct SubtypeConstraint {
     lower: Type,
     lower_weight: StackWeight,
@@ -4119,7 +4352,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
         let Some(ty) = self.resolve_candidate(&bound.ty)? else {
             return Ok(None);
         };
-        if stack_weight_cannot_affect_type(&ty) {
+        if stack_weight_cannot_affect_type(self.graph, &ty) {
             Ok(Some(ty))
         } else {
             Ok(None)
@@ -4136,7 +4369,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             let Some(bound) = self.resolve_candidate(bound)? else {
                 continue;
             };
-            if type_contains_stack(&bound) {
+            if candidate_has_unresolved_stack(self.graph, slot_kind, &bound) {
                 continue;
             }
             let bound = effect_slot_candidate(slot_kind, bound);
@@ -4158,7 +4391,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             let Some(bound) = self.resolve_candidate(bound)? else {
                 continue;
             };
-            if type_contains_stack(&bound) {
+            if candidate_has_unresolved_stack(self.graph, slot_kind, &bound) {
                 continue;
             }
             let bound = effect_slot_candidate(slot_kind, bound);
@@ -4262,9 +4495,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                     .collect::<Result<Vec<_>, SpecializeError>>()?,
             ))),
             Type::Tuple(items) => Ok(Some(Type::Tuple(self.resolve_partial_candidates(items)?))),
-            Type::EffectRow(items) => Ok(Some(types::simplify_type(Type::EffectRow(
-                self.resolve_partial_candidates(items)?,
-            )))),
+            Type::EffectRow(items) => self.resolve_effect_row_candidate(items),
             Type::Stack { inner, weight } => {
                 let Some(inner) = self.resolve_partial_candidate(inner, allow_unresolved_leaf)?
                 else {
@@ -4311,6 +4542,23 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                     .map(|resolved| resolved.unwrap_or(fallback))
             })
             .collect()
+    }
+
+    fn resolve_effect_row_candidate(
+        &mut self,
+        items: &[Type],
+    ) -> Result<Option<Type>, SpecializeError> {
+        let (items, stack_tail) = match items.last() {
+            Some(tail @ Type::Stack { .. }) if type_is_effect_tail_candidate(self.graph, tail) => {
+                (&items[..items.len() - 1], Some(tail.clone()))
+            }
+            _ => (items, None),
+        };
+        let mut resolved = self.resolve_partial_candidates(items)?;
+        if let Some(tail) = stack_tail {
+            resolved.push(tail);
+        }
+        Ok(Some(types::simplify_type(Type::EffectRow(resolved))))
     }
 }
 
@@ -5000,20 +5248,16 @@ fn open_var_count(ty: &Type) -> usize {
     }
 }
 
-fn stack_weight_cannot_affect_type(ty: &Type) -> bool {
+fn stack_weight_cannot_affect_type(graph: &TypeGraph<'_>, ty: &Type) -> bool {
     match ty {
         Type::Never => true,
-        Type::Con { args, .. } | Type::Tuple(args) => {
-            args.iter().all(stack_weight_cannot_affect_type)
-        }
-        Type::Record(fields) => fields
-            .iter()
-            .all(|field| stack_weight_cannot_affect_type(&field.value)),
-        Type::PolyVariant(variants) => variants
-            .iter()
-            .all(|variant| variant.payloads.iter().all(stack_weight_cannot_affect_type)),
+        Type::Con { path, args } => args.is_empty() && !graph.is_effect_family_path(path),
+        Type::Tuple(args) => args.is_empty(),
+        Type::Record(fields) => fields.is_empty(),
+        Type::PolyVariant(variants) => variants.iter().all(|variant| variant.payloads.is_empty()),
         Type::Union(left, right) | Type::Intersection(left, right) => {
-            stack_weight_cannot_affect_type(left) && stack_weight_cannot_affect_type(right)
+            stack_weight_cannot_affect_type(graph, left)
+                && stack_weight_cannot_affect_type(graph, right)
         }
         Type::Any
         | Type::OpenVar(_)
@@ -5051,6 +5295,28 @@ fn type_contains_stack(ty: &Type) -> bool {
         }
         Type::Any | Type::Never | Type::OpenVar(_) => false,
     }
+}
+
+fn candidate_has_unresolved_stack(
+    graph: &TypeGraph<'_>,
+    slot_kind: TypeSlotKind,
+    candidate: &Type,
+) -> bool {
+    if !type_contains_stack(candidate) {
+        return false;
+    }
+    if slot_kind == TypeSlotKind::Effect && effect_candidate_stack_is_tail(graph, candidate) {
+        return false;
+    }
+    true
+}
+
+fn effect_candidate_stack_is_tail(graph: &TypeGraph<'_>, candidate: &Type) -> bool {
+    let Type::EffectRow(items) = candidate else {
+        return false;
+    };
+    let (items, has_tail) = split_effect_candidate_tail(graph, items);
+    has_tail && items.iter().all(|item| !type_contains_stack(item))
 }
 
 fn type_contains_open_var(ty: &Type) -> bool {
@@ -5685,12 +5951,7 @@ fn effect_payload_candidate_subtype(graph: &TypeGraph<'_>, lower: &Type, upper: 
 
 fn split_effect_candidate_tail<'a>(graph: &TypeGraph<'_>, items: &'a [Type]) -> (&'a [Type], bool) {
     match items.last() {
-        Some(Type::OpenVar(slot))
-            if graph
-                .slots
-                .get(*slot as usize)
-                .is_some_and(|slot| slot.kind == TypeSlotKind::Effect) =>
-        {
+        Some(tail) if type_is_effect_tail_candidate(graph, tail) => {
             (&items[..items.len() - 1], true)
         }
         _ => (items, false),
@@ -5701,18 +5962,25 @@ fn split_effect_candidate_tail_owned(
     graph: &TypeGraph<'_>,
     mut items: Vec<Type>,
 ) -> (Vec<Type>, Option<Type>) {
-    let Some(Type::OpenVar(slot)) = items.last().cloned() else {
+    let Some(tail) = items.last().cloned() else {
         return (items, None);
     };
-    if graph
-        .slots
-        .get(slot as usize)
-        .is_some_and(|slot| slot.kind == TypeSlotKind::Effect)
-    {
-        let tail = items.pop();
-        return (items, tail);
+    if type_is_effect_tail_candidate(graph, &tail) {
+        items.pop();
+        return (items, Some(tail));
     }
     (items, None)
+}
+
+fn type_is_effect_tail_candidate(graph: &TypeGraph<'_>, ty: &Type) -> bool {
+    match ty {
+        Type::OpenVar(slot) => graph
+            .slots
+            .get(*slot as usize)
+            .is_some_and(|slot| slot.kind == TypeSlotKind::Effect),
+        Type::Stack { inner, .. } => type_is_effect_tail_candidate(graph, inner),
+        _ => false,
+    }
 }
 
 fn effect_consumption_demand(expected: &Type) -> Option<EffectSubtractionDemand> {
@@ -6158,11 +6426,17 @@ fn split_runtime_computation_shape(ty: Type) -> (Type, Type) {
     }
 }
 
-fn runtime_function_return_type(ty: &Type) -> Option<&Type> {
-    let Type::Fun { ret, .. } = ty else {
+fn runtime_function_return_type(ty: &Type) -> Option<Type> {
+    let Type::Fun {
+        ret_effect, ret, ..
+    } = ty
+    else {
         return None;
     };
-    Some(ret)
+    Some(types::runtime_shape(
+        ret_effect.as_ref().clone(),
+        ret.as_ref().clone(),
+    ))
 }
 
 fn discarded_value_context(ty: &Type) -> Option<Type> {
@@ -6361,6 +6635,18 @@ fn con(path: &[&str], args: Vec<Type>) -> Type {
 
 fn record_field_type<'a>(fields: &'a [TypeField], name: &str) -> Option<&'a TypeField> {
     fields.iter().find(|field| field.name == name)
+}
+
+fn effect_family_paths(arena: &poly_expr::Arena) -> HashSet<Vec<String>> {
+    arena
+        .effect_operations
+        .values()
+        .filter_map(|operation| effect_operation_family_path(&operation.path))
+        .collect()
+}
+
+fn effect_operation_family_path(path: &[String]) -> Option<Vec<String>> {
+    (path.len() >= 2).then(|| path[..path.len() - 1].to_vec())
 }
 
 fn matching_variant<'a>(
@@ -6581,24 +6867,6 @@ fn let_body(
     }
 }
 
-fn operation_scheme_returns_never(arena: &poly_expr::Arena, def: poly_expr::DefId) -> bool {
-    let Some(poly_expr::Def::Let {
-        scheme: Some(scheme),
-        ..
-    }) = arena.defs.get(def)
-    else {
-        return false;
-    };
-    function_pos_return_is_never(&arena.typ, scheme.predicate)
-}
-
-fn function_pos_return_is_never(types: &poly::types::TypeArena, pos: poly::types::PosId) -> bool {
-    let poly::types::Pos::Fun { ret, .. } = types.pos(pos) else {
-        return false;
-    };
-    matches!(types.pos(*ret), poly::types::Pos::Bot)
-}
-
 fn collect_pattern_defs(
     arena: &poly_expr::Arena,
     pat: poly_expr::PatId,
@@ -6662,6 +6930,9 @@ fn raw_expr_value_type(
 ) -> Option<Type> {
     let actual = solved.actual_type_of(expr)?;
     match arena.expr(expr) {
+        poly_expr::Expr::App(callee, _) if callee_is_effect_operation_spine(arena, *callee) => {
+            Some(actual.clone())
+        }
         poly_expr::Expr::App(callee, _) if callee_is_constructor_spine(arena, *callee) => {
             Some(ComputationShape::from_runtime_type(actual).value)
         }
@@ -6682,6 +6953,16 @@ fn raw_expr_value_type(
         | poly_expr::Expr::PrimitiveOp(_)
         | poly_expr::Expr::Var(_)
         | poly_expr::Expr::Lambda(_, _) => Some(actual.clone()),
+    }
+}
+
+fn callee_is_effect_operation_spine(arena: &poly_expr::Arena, expr: poly_expr::ExprId) -> bool {
+    match arena.expr(expr) {
+        poly_expr::Expr::Var(ref_id) => arena
+            .ref_target(*ref_id)
+            .is_some_and(|def| arena.effect_operations.contains_key(&def)),
+        poly_expr::Expr::App(callee, _) => callee_is_effect_operation_spine(arena, *callee),
+        _ => false,
     }
 }
 
@@ -6812,6 +7093,15 @@ fn ensure_emitted_value(emitted: EmittedExpr, actual: &Type, expected: &Type) ->
             ..emitted
         };
     }
+    if same_record_boundary_shape(&shape.value, expected) {
+        return EmittedExpr {
+            computation: Some(ComputationShape {
+                effect: shape.effect,
+                value: expected.clone(),
+            }),
+            ..emitted
+        };
+    }
     if matches!(shape.value, Type::Thunk { .. }) {
         let target = forced_value_shape(actual, &shape, expected);
         let forced = force_emitted_value_thunk(emitted, target);
@@ -6824,6 +7114,16 @@ fn ensure_emitted_value(emitted: EmittedExpr, actual: &Type, expected: &Type) ->
         return coerce_emitted_value(forced, expected, None);
     }
     coerce_emitted_value(emitted, expected, None)
+}
+
+fn same_record_boundary_shape(actual: &Type, expected: &Type) -> bool {
+    let (Type::Record(actual_fields), Type::Record(expected_fields)) = (actual, expected) else {
+        return false;
+    };
+    actual_fields.len() == expected_fields.len()
+        && expected_fields
+            .iter()
+            .all(|expected| record_field_type(actual_fields, &expected.name).is_some())
 }
 
 fn forced_value_shape(
@@ -7218,6 +7518,115 @@ mod tests {
             meet_type_candidates(&graph, item.clone(), Type::EffectRow(vec![item.clone()]))
                 .unwrap(),
             Type::EffectRow(vec![item])
+        );
+    }
+
+    #[test]
+    fn consumed_effect_row_removes_handled_item_from_tail() {
+        let mut arena = poly_expr::Arena::new();
+        arena.effect_operations.insert(
+            poly_expr::DefId(0),
+            poly_expr::EffectOperation {
+                path: vec![
+                    "std".into(),
+                    "control".into(),
+                    "var".into(),
+                    "ref_update".into(),
+                    "update".into(),
+                ],
+            },
+        );
+        arena.effect_operations.insert(
+            poly_expr::DefId(1),
+            poly_expr::EffectOperation {
+                path: vec!["&xs#1:0".into(), "set".into()],
+            },
+        );
+        let mut graph = TypeGraph::new(&arena);
+        let tail = graph.fresh_effect();
+        let actual = Type::EffectRow(vec![
+            con(
+                &["std", "control", "var", "ref_update"],
+                vec![list_type(int_type())],
+            ),
+            con(&["&xs#1:0"], vec![list_type(int_type())]),
+        ]);
+        let expected = Type::EffectRow(vec![
+            con(&["&xs#1:0"], vec![list_type(int_type())]),
+            tail.clone(),
+        ]);
+
+        graph
+            .constrain_consumed_computation_effect(actual, expected)
+            .unwrap();
+        graph.solve_constraints().unwrap();
+        let solution = graph.solve_slots().unwrap();
+        let mut resolver = TypeResolver::new(&graph, &solution);
+
+        assert_eq!(
+            resolver.resolve(&tail).unwrap(),
+            Type::EffectRow(vec![con(
+                &["std", "control", "var", "ref_update"],
+                vec![list_type(int_type())],
+            )])
+        );
+    }
+
+    #[test]
+    fn consumed_open_effect_slot_removes_handled_item_from_tail() {
+        let mut arena = poly_expr::Arena::new();
+        arena.effect_operations.insert(
+            poly_expr::DefId(0),
+            poly_expr::EffectOperation {
+                path: vec![
+                    "std".into(),
+                    "control".into(),
+                    "var".into(),
+                    "ref_update".into(),
+                    "update".into(),
+                ],
+            },
+        );
+        arena.effect_operations.insert(
+            poly_expr::DefId(1),
+            poly_expr::EffectOperation {
+                path: vec!["&x#0:0".into(), "set".into()],
+            },
+        );
+        let mut graph = TypeGraph::new(&arena);
+        let actual = graph.fresh_effect();
+        let tail = graph.fresh_effect();
+        graph
+            .constrain_subtype(
+                Type::EffectRow(vec![con(
+                    &["std", "control", "var", "ref_update"],
+                    vec![int_type()],
+                )]),
+                actual.clone(),
+            )
+            .unwrap();
+        graph
+            .constrain_subtype(
+                Type::EffectRow(vec![con(&["&x#0:0"], vec![int_type()])]),
+                actual.clone(),
+            )
+            .unwrap();
+        graph
+            .constrain_consumed_computation_effect(
+                actual,
+                Type::EffectRow(vec![
+                    con(&["std", "control", "var", "ref_update"], vec![int_type()]),
+                    tail.clone(),
+                ]),
+            )
+            .unwrap();
+        graph.solve_constraints().unwrap();
+        let solution = graph.solve_slots().unwrap();
+        let mut resolver = TypeResolver::new(&graph, &solution);
+
+        assert_eq!(
+            resolver.resolve(&tail).unwrap(),
+            Type::EffectRow(vec![con(&["&x#0:0"], vec![int_type()])])
         );
     }
 
