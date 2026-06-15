@@ -407,7 +407,9 @@ fn format_oracle_value(value: &mono_runtime::Value) -> String {
                 primitive.op.arity()
             )
         }
-        mono_runtime::Value::Closure(_) => "<closure>".to_string(),
+        mono_runtime::Value::Closure(_) | mono_runtime::Value::RecursiveClosure { .. } => {
+            "<closure>".to_string()
+        }
         mono_runtime::Value::Thunk(_) => "<thunk>".to_string(),
         mono_runtime::Value::FunctionAdapter(_) => "<function-adapter>".to_string(),
         mono_runtime::Value::EffectOp { path } => format!("<effect-op {}>", path.join("::")),

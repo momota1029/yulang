@@ -19,7 +19,7 @@ pub(crate) fn signature_for_scheme(
     expected: Option<&Type>,
 ) -> Result<Signature, SpecializeError> {
     reject_unsupported_scheme_features(def, scheme)?;
-    let mut materializer = SchemeMaterializer::new(&arena.typ, def, scheme);
+    let mut materializer = SchemeMaterializer::new_tracking_open_vars(&arena.typ, def, scheme);
     materializer.collect_scheme_kinds(scheme);
     if let Some(expected) = expected {
         materializer.match_pos(scheme.predicate, expected, TypeContext::Value)?;
@@ -47,6 +47,33 @@ pub(crate) fn role_predicates_for_scheme_signature(
 }
 
 pub(crate) fn instantiate_scheme_with_fresh_and_roles(
+    arena: &poly_expr::Arena,
+    def: poly_expr::DefId,
+    scheme: &Scheme,
+    mut fresh: impl FnMut(SchemeQuantifierKind) -> Type,
+) -> Result<InstantiatedScheme, SpecializeError> {
+    reject_unsupported_scheme_features(def, scheme)?;
+    let mut materializer = SchemeMaterializer::new_tracking_open_vars(&arena.typ, def, scheme);
+    materializer.collect_scheme_kinds(scheme);
+    for quantifier in &scheme.quantifiers {
+        let kind = materializer
+            .kinds
+            .get(quantifier)
+            .copied()
+            .unwrap_or(QuantifierKind::Value);
+        materializer
+            .substitution
+            .insert(*quantifier, fresh(kind.into()));
+    }
+    materializer.substitute_unbound_tracked_vars(&mut fresh);
+    Ok(InstantiatedScheme {
+        ty: materializer.materialize_pos(scheme.predicate, TypeContext::Value)?,
+        role_predicates: materializer.materialize_role_predicates(scheme)?,
+        recursive_bounds: materializer.materialize_recursive_bounds(scheme)?,
+    })
+}
+
+pub(crate) fn instantiate_principal_scheme_with_fresh_and_roles(
     arena: &poly_expr::Arena,
     def: poly_expr::DefId,
     scheme: &Scheme,
@@ -261,6 +288,7 @@ struct SchemeMaterializer<'a> {
     substitution: HashMap<TypeVar, Type>,
     kinds: HashMap<TypeVar, QuantifierKind>,
     track_unquantified: bool,
+    track_empty_bounds: bool,
     empty_bound_kinds: Vec<TypeContext>,
     empty_bound_types: RefCell<VecDeque<Type>>,
 }
@@ -274,6 +302,7 @@ impl<'a> SchemeMaterializer<'a> {
             substitution: HashMap::new(),
             kinds: HashMap::new(),
             track_unquantified: false,
+            track_empty_bounds: false,
             empty_bound_kinds: Vec::new(),
             empty_bound_types: RefCell::new(VecDeque::new()),
         }
@@ -287,6 +316,25 @@ impl<'a> SchemeMaterializer<'a> {
             substitution: HashMap::new(),
             kinds: HashMap::new(),
             track_unquantified: true,
+            track_empty_bounds: true,
+            empty_bound_kinds: Vec::new(),
+            empty_bound_types: RefCell::new(VecDeque::new()),
+        }
+    }
+
+    fn new_tracking_open_vars(
+        arena: &'a TypeArena,
+        def: poly_expr::DefId,
+        scheme: &Scheme,
+    ) -> Self {
+        Self {
+            arena,
+            def,
+            quantifiers: scheme.quantifiers.iter().copied().collect(),
+            substitution: HashMap::new(),
+            kinds: HashMap::new(),
+            track_unquantified: true,
+            track_empty_bounds: false,
             empty_bound_kinds: Vec::new(),
             empty_bound_types: RefCell::new(VecDeque::new()),
         }
@@ -725,7 +773,7 @@ impl<'a> SchemeMaterializer<'a> {
 
     fn materialize_pos(&self, id: PosId, context: TypeContext) -> Result<Type, SpecializeError> {
         Ok(match self.arena.pos(id) {
-            Pos::Bot if self.track_unquantified => self.materialize_empty_bound(context),
+            Pos::Bot if self.track_empty_bounds => self.materialize_empty_bound(context),
             Pos::Bot => Type::Never,
             Pos::Var(var) => self.materialize_var(*var, context),
             Pos::Con(path, args) => Type::Con {
@@ -797,7 +845,7 @@ impl<'a> SchemeMaterializer<'a> {
 
     fn materialize_neg(&self, id: NegId, context: TypeContext) -> Result<Type, SpecializeError> {
         Ok(match self.arena.neg(id) {
-            Neg::Top if self.track_unquantified => self.materialize_empty_bound(context),
+            Neg::Top if self.track_empty_bounds => self.materialize_empty_bound(context),
             Neg::Top => Type::Any,
             Neg::Bot => Type::Never,
             Neg::Var(var) => self.materialize_var(*var, context),
@@ -860,7 +908,7 @@ impl<'a> SchemeMaterializer<'a> {
                     (true, false) => self.materialize_pos(*lower, context)?,
                     (false, true) => self.materialize_neg(*upper, context)?,
                     (false, false) => match context {
-                        _ if self.track_unquantified => self.materialize_empty_bound(context),
+                        _ if self.track_empty_bounds => self.materialize_empty_bound(context),
                         TypeContext::Value => Type::unit(),
                         TypeContext::Effect => Type::pure_effect(),
                     },
@@ -1226,7 +1274,7 @@ impl<'a> SchemeMaterializer<'a> {
                 self.collect_pos_kind(*right, context);
             }
             Pos::Bot => {
-                if self.track_unquantified {
+                if self.track_empty_bounds {
                     self.empty_bound_kinds.push(context);
                 }
             }
@@ -1272,7 +1320,7 @@ impl<'a> SchemeMaterializer<'a> {
                 self.collect_neg_kind(*right, context);
             }
             Neg::Top => {
-                if self.track_unquantified {
+                if self.track_empty_bounds {
                     self.empty_bound_kinds.push(context);
                 }
             }
@@ -1285,7 +1333,7 @@ impl<'a> SchemeMaterializer<'a> {
             Neu::Bounds(lower, upper) => {
                 let empty = matches!(self.arena.pos(*lower), Pos::Bot)
                     && matches!(self.arena.neg(*upper), Neg::Top);
-                if self.track_unquantified && empty {
+                if self.track_empty_bounds && empty {
                     self.empty_bound_kinds.push(context);
                     return;
                 }

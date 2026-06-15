@@ -8,6 +8,7 @@
 mod hygiene;
 mod roles;
 mod solve;
+mod specialize2;
 mod std_types;
 mod types;
 
@@ -745,7 +746,11 @@ struct InstanceKey {
 }
 
 pub fn specialize(arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
-    Specializer::new().specialize(arena)
+    specialize2::specialize(arena)
+}
+
+pub fn specialize2(arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
+    specialize2::specialize(arena)
 }
 
 pub fn specialize_roots(
@@ -797,6 +802,9 @@ pub enum SpecializeError {
     },
     UndeterminedTypeSlot {
         slot: u32,
+    },
+    UnresolvedStackWeight {
+        ty: Type,
     },
     InvalidTypeSlot {
         slot: u32,
@@ -894,6 +902,13 @@ impl fmt::Display for SpecializeError {
             }
             Self::UndeterminedTypeSlot { slot } => {
                 write!(f, "could not determine concrete type for slot {slot}")
+            }
+            Self::UnresolvedStackWeight { ty } => {
+                write!(
+                    f,
+                    "could not eliminate stack-weighted type {}",
+                    mono::dump::dump_type(ty),
+                )
             }
             Self::InvalidTypeSlot { slot } => write!(f, "invalid type slot {slot}"),
             Self::UnresolvedRef { ref_id } => write!(f, "unresolved ref r{ref_id}"),
@@ -1458,7 +1473,9 @@ fn expr_contains_expr(
         return true;
     }
     match arena.expr(root) {
-        poly_expr::Expr::Lit(_) | poly_expr::Expr::PrimitiveOp(_) | poly_expr::Expr::Var(_) => false,
+        poly_expr::Expr::Lit(_) | poly_expr::Expr::PrimitiveOp(_) | poly_expr::Expr::Var(_) => {
+            false
+        }
         poly_expr::Expr::App(callee, arg) | poly_expr::Expr::RefSet(callee, arg) => {
             expr_contains_expr(arena, *callee, needle) || expr_contains_expr(arena, *arg, needle)
         }
@@ -1471,8 +1488,7 @@ fn expr_contains_expr(
                 .iter()
                 .any(|(_, value)| expr_contains_expr(arena, *value, needle))
                 || match spread {
-                    poly_expr::RecordSpread::Head(expr)
-                    | poly_expr::RecordSpread::Tail(expr) => {
+                    poly_expr::RecordSpread::Head(expr) | poly_expr::RecordSpread::Tail(expr) => {
                         expr_contains_expr(arena, *expr, needle)
                     }
                     poly_expr::RecordSpread::None => false,
@@ -1682,7 +1698,7 @@ fn def_kind(def: &poly_expr::Def) -> DefKind {
 
 #[cfg(test)]
 mod tests {
-    use super::{boundary_expr, specialize, specialize_roots};
+    use super::{boundary_expr, specialize, specialize_roots, specialize2};
     use mono::{
         ComputationType, EffectiveThunkType, ExprKind, GuardMarker, InstanceSource, Lit, Type,
     };
@@ -1691,6 +1707,15 @@ mod tests {
     fn empty_arena_specializes_to_empty_program() {
         let arena = poly::expr::Arena::new();
         let program = specialize(&arena).expect("empty arena should specialize");
+
+        assert!(program.roots.is_empty());
+        assert!(program.instances.is_empty());
+    }
+
+    #[test]
+    fn specialize2_empty_arena_specializes_to_empty_program() {
+        let arena = poly::expr::Arena::new();
+        let program = specialize2(&arena).expect("empty arena should specialize");
 
         assert!(program.roots.is_empty());
         assert!(program.instances.is_empty());
@@ -2005,6 +2030,68 @@ mod tests {
     }
 
     #[test]
+    fn specialize2_string_input_specializes_root_expr_generic_call() {
+        let lowering = lower_source("my id x = x\nid(1)\n");
+        let arena = &lowering.session.poly;
+
+        let program = specialize2(arena).expect("root expr should specialize generic callee");
+
+        assert_eq!(program.roots.len(), 1);
+        assert_eq!(
+            program.roots[0],
+            mono::Root::Expr(mono::Expr::new(ExprKind::Apply(
+                Box::new(mono::Expr::new(ExprKind::InstanceRef(mono::InstanceId(0)))),
+                Box::new(mono::Expr::new(ExprKind::Lit(Lit::Int(1))))
+            )))
+        );
+        assert_eq!(program.instances.len(), 1);
+        assert_eq!(
+            mono::dump::dump_type(&program.instances[0].signature.ty),
+            "int -> int"
+        );
+    }
+
+    #[test]
+    fn specialize2_keeps_unreachable_type_slots_from_forcing_errors() {
+        let lowering = lower_source("my const x y = x\nconst(1)\n");
+        let arena = &lowering.session.poly;
+
+        let program = specialize2(arena)
+            .expect("unreachable unconstrained slots should not block specialization");
+        let text = mono::dump::dump_program(&program);
+
+        assert!(text.contains("unit -> int"), "{text}");
+        assert!(!text.contains("OpenVar"), "{text}");
+    }
+
+    #[test]
+    fn specialize2_string_input_specializes_root_case_with_direct_cast_join() {
+        let lowering =
+            lower_source("cast(x: int): float = 0.0\ncase true: true -> 1, false -> 2.0\n");
+        let arena = &lowering.session.poly;
+
+        let program = specialize2(arena).expect("root case should specialize through cast join");
+        let text = mono::dump::dump_program(&program);
+
+        assert!(text.contains("mono roots [case true:"), "{text}");
+        assert!(text.contains("coerce[int => float](1)"), "{text}");
+        assert!(!text.contains("int | float"), "{text}");
+    }
+
+    #[test]
+    fn specialize2_string_input_runs_computed_top_level_binding() {
+        let lowering = lower_source("my id x = x\nmy a = id(1)\n");
+        let arena = &lowering.session.poly;
+
+        let program = specialize2(arena).expect("computed top-level binding should specialize");
+        let text = mono::dump::dump_program(&program);
+
+        assert!(text.contains("mono roots [eval m0]"), "{text}");
+        assert!(text.contains("m0 = d1 : int"), "{text}");
+        assert!(text.contains("m1 = d0 : int -> int"), "{text}");
+    }
+
+    #[test]
     fn string_input_keeps_block_local_let_as_local_value() {
         let lowering = lower_source(
             "my f x =\n\
@@ -2056,6 +2143,31 @@ mod tests {
         let arena = &lowering.session.poly;
 
         let program = specialize(arena).expect("effect operation root should specialize");
+
+        let [mono::Root::Expr(root)] = program.roots.as_slice() else {
+            panic!("expected one root expression");
+        };
+        let ExprKind::ForceThunk { thunk, .. } = &root.kind else {
+            panic!("effect operation call should be forced at the root boundary");
+        };
+        let ExprKind::Apply(callee, arg) = &thunk.kind else {
+            panic!("forced thunk should come from an operation application");
+        };
+        assert_eq!(
+            callee.kind,
+            ExprKind::EffectOp {
+                path: vec!["out".to_string(), "say".to_string()]
+            }
+        );
+        assert_eq!(arg.kind, ExprKind::Lit(Lit::Int(1)));
+    }
+
+    #[test]
+    fn specialize2_string_input_materializes_effect_operation_ref_as_effect_op() {
+        let lowering = lower_source("act out:\n  our say: int -> unit\nout::say(1)\n");
+        let arena = &lowering.session.poly;
+
+        let program = specialize2(arena).expect("effect operation root should specialize");
 
         let [mono::Root::Expr(root)] = program.roots.as_slice() else {
             panic!("expected one root expression");

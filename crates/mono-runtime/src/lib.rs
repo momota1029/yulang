@@ -255,7 +255,14 @@ impl<'a> Runtime<'a> {
                 let arms = arms.clone();
                 let env = env.clone();
                 self.continue_with(scrutinee, move |runtime, scrutinee| {
-                    runtime.eval_case(scrutinee, arms.clone(), env.clone())
+                    let scrutinee = runtime.force_value_if_thunk(scrutinee)?;
+                    runtime.continue_with(scrutinee, {
+                        let arms = arms.clone();
+                        let env = env.clone();
+                        move |runtime, scrutinee| {
+                            runtime.eval_case(scrutinee, arms.clone(), env.clone())
+                        }
+                    })
                 })
             }
             ExprKind::Catch { body, arms } => self.eval_catch(body, arms, env),
@@ -601,7 +608,7 @@ impl<'a> Runtime<'a> {
                             );
                         }
                         let Some(guard) = continuation_guard.clone() else {
-                            return runtime.eval_expr(&continuation_body, &mut arm_env);
+                            return runtime.eval_handler_body(&continuation_body, &mut arm_env);
                         };
 
                         let guard_result = runtime.eval_expr(&guard, &mut arm_env)?;
@@ -610,8 +617,10 @@ impl<'a> Runtime<'a> {
                         let arms_for_guard = arms_for_continuation.clone();
                         let env_for_guard = env_for_continuation.clone();
                         runtime.continue_with(guard_result, move |runtime, guard| match guard {
-                            Value::Bool(true) => runtime
-                                .eval_expr(&continuation_body_for_guard, &mut arm_env.clone()),
+                            Value::Bool(true) => runtime.eval_handler_body(
+                                &continuation_body_for_guard,
+                                &mut arm_env.clone(),
+                            ),
                             Value::Bool(false) => runtime.handle_catch_request_arm(
                                 request_for_guard.clone(),
                                 arms_for_guard.clone(),
@@ -625,7 +634,7 @@ impl<'a> Runtime<'a> {
 
                 let mut arm_env = arm_env;
                 let Some(guard) = guard else {
-                    return runtime.eval_expr(&body, &mut arm_env);
+                    return runtime.eval_handler_body(&body, &mut arm_env);
                 };
 
                 let guard_result = runtime.eval_expr(&guard, &mut arm_env)?;
@@ -634,7 +643,9 @@ impl<'a> Runtime<'a> {
                 let arms_for_guard = arms.clone();
                 let env_for_guard = env.clone();
                 runtime.continue_with(guard_result, move |runtime, guard| match guard {
-                    Value::Bool(true) => runtime.eval_expr(&body_for_guard, &mut arm_env.clone()),
+                    Value::Bool(true) => {
+                        runtime.eval_handler_body(&body_for_guard, &mut arm_env.clone())
+                    }
                     Value::Bool(false) => runtime.handle_catch_request_arm(
                         request_for_guard.clone(),
                         arms_for_guard.clone(),
@@ -662,6 +673,11 @@ impl<'a> Runtime<'a> {
                 )
             }),
         }))
+    }
+
+    fn eval_handler_body(&mut self, body: &Expr, env: &mut CapturedEnv) -> RuntimeResult<'a> {
+        let result = self.eval_expr(body, env)?;
+        self.continue_with(result, |runtime, value| runtime.force_value_if_thunk(value))
     }
 
     fn eval_block(&mut self, block: &Block, env: &mut CapturedEnv) -> RuntimeResult<'a> {
@@ -700,6 +716,7 @@ impl<'a> Runtime<'a> {
             Stmt::Let(_, pat, expr) => {
                 let result = self.eval_expr(&expr, &mut env)?;
                 self.continue_with(result, move |runtime, value| {
+                    let value = recursive_let_value(&pat, value);
                     let bind = runtime.bind_pat(pat.clone(), value.clone(), env.clone())?;
                     let stmts_for_bind = stmts.clone();
                     let tail_for_bind = tail.clone();
@@ -760,7 +777,16 @@ impl<'a> Runtime<'a> {
                 value_result(apply_constructor(constructor, arg))
             }
             Value::Closure(closure) => self.apply_closure(closure, arg),
+            Value::RecursiveClosure { def, closure } => {
+                self.apply_recursive_closure(def, closure, arg)
+            }
             Value::FunctionAdapter(adapter) => self.apply_adapter(adapter, arg),
+            Value::Thunk(_) => {
+                let result = self.force_thunk(callee)?;
+                self.continue_with(result, move |runtime, callee| {
+                    runtime.apply_value(callee, arg.clone())
+                })
+            }
             Value::EffectOp { path } => value_result(Value::Thunk(Thunk::Effect {
                 path,
                 payload: Box::new(arg),
@@ -813,6 +839,22 @@ impl<'a> Runtime<'a> {
             }
             runtime.eval_expr(&body, &mut env)
         })
+    }
+
+    fn apply_recursive_closure(
+        &mut self,
+        def: DefId,
+        mut closure: Closure,
+        arg: Value,
+    ) -> RuntimeResult<'a> {
+        closure.env.locals.insert(
+            def,
+            Value::RecursiveClosure {
+                def,
+                closure: closure.clone(),
+            },
+        );
+        self.apply_closure(closure, arg)
     }
 
     fn apply_adapter(&mut self, adapter: FunctionAdapter, arg: Value) -> RuntimeResult<'a> {
@@ -1667,6 +1709,10 @@ pub enum Value {
     ConstructorFunction(ConstructorFunction),
     PrimitiveOp(PrimitiveValue),
     Closure(Closure),
+    RecursiveClosure {
+        def: DefId,
+        closure: Closure,
+    },
     Thunk(Thunk),
     FunctionAdapter(FunctionAdapter),
     EffectOp {
@@ -2042,6 +2088,15 @@ fn mark_value(value: Value, markers: &[ValueMarker]) -> Value {
         value: Box::new(value),
         markers: value_markers,
     }
+}
+
+fn recursive_let_value(pat: &Pat, value: Value) -> Value {
+    let (value, markers) = into_value_markers(value);
+    let value = match (pat, value) {
+        (Pat::Var(def), Value::Closure(closure)) => Value::RecursiveClosure { def: *def, closure },
+        (_, value) => value,
+    };
+    mark_value(value, &markers)
 }
 
 fn strip_value_markers(value: Value) -> Value {

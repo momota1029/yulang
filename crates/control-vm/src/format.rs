@@ -78,7 +78,7 @@ fn format_value(value: &Value) -> String {
                 primitive.op.arity()
             )
         }
-        Value::Closure(_) => "<closure>".to_string(),
+        Value::Closure(_) | Value::RecursiveClosure { .. } => "<closure>".to_string(),
         Value::Thunk(_) => "<thunk>".to_string(),
         Value::FunctionAdapter(_) => "<function-adapter>".to_string(),
         Value::EffectOp { path } => format!("<effect-op {}>", path.join("::")),

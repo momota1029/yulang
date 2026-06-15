@@ -5,7 +5,9 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use mono::{EffectFamilies, EffectFamily, StackWeight, StackWeightEntry, Type, TypeField, TypeVariant};
+use mono::{
+    EffectFamilies, EffectFamily, StackWeight, StackWeightEntry, Type, TypeField, TypeVariant,
+};
 use poly::expr as poly_expr;
 
 use crate::{
@@ -175,7 +177,7 @@ impl ExprTypePlan {
                             resolved_actual
                                 .clone()
                                 .expect("checked resolved actual for fallback"),
-                            )?;
+                        )?;
                     }
                     Err(SpecializeError::UndeterminedTypeSlot { .. })
                         if types.actual.as_ref().is_some_and(|actual| {
@@ -239,8 +241,9 @@ fn unresolved_actual_boundary_can_be_erased(
     expected: Option<&Type>,
 ) -> bool {
     match arena.expr(expr) {
-        poly_expr::Expr::App(_, _) => expected
-            .is_some_and(|expected| function_boundary_shapes_match(actual, expected)),
+        poly_expr::Expr::App(_, _) => {
+            expected.is_some_and(|expected| function_boundary_shapes_match(actual, expected))
+        }
         _ => false,
     }
 }
@@ -448,9 +451,7 @@ fn merge_expr_expected_for_solver(existing: &Type, incoming: &Type) -> Option<Ty
                 let args = existing_args
                     .iter()
                     .zip(incoming_args)
-                    .map(|(existing, incoming)| {
-                        merge_expr_expected_for_solver(existing, incoming)
-                    })
+                    .map(|(existing, incoming)| merge_expr_expected_for_solver(existing, incoming))
                     .collect::<Option<Vec<_>>>()?;
                 Some(Type::Con {
                     path: existing_path.clone(),
@@ -471,10 +472,7 @@ fn merge_expr_expected_for_solver(existing: &Type, incoming: &Type) -> Option<Ty
                     ret: incoming_ret,
                 },
             ) => Some(Type::Fun {
-                arg: Box::new(merge_expr_expected_for_solver(
-                    existing_arg,
-                    incoming_arg,
-                )?),
+                arg: Box::new(merge_expr_expected_for_solver(existing_arg, incoming_arg)?),
                 arg_effect: Box::new(merge_expr_expected_for_solver(
                     existing_arg_effect,
                     incoming_arg_effect,
@@ -483,10 +481,7 @@ fn merge_expr_expected_for_solver(existing: &Type, incoming: &Type) -> Option<Ty
                     existing_ret_effect,
                     incoming_ret_effect,
                 )?),
-                ret: Box::new(merge_expr_expected_for_solver(
-                    existing_ret,
-                    incoming_ret,
-                )?),
+                ret: Box::new(merge_expr_expected_for_solver(existing_ret, incoming_ret)?),
             }),
             (
                 Type::Thunk {
@@ -1378,8 +1373,8 @@ impl<'a> ExprTypeSolver<'a> {
             });
         };
         let (continuation_input, operation_effect) = split_runtime_computation_shape(ret);
-        let handled_effect =
-            self.constrain_operation_effect_to_scrutinee(operation_effect, scrutinee_effect.clone())?;
+        let handled_effect = self
+            .constrain_operation_effect_to_scrutinee(operation_effect, scrutinee_effect.clone())?;
         let residual_effect =
             catch_residual_effect(scrutinee_effect, std::slice::from_ref(&handled_effect));
         Ok(CatchOperationTypes {
@@ -3213,7 +3208,11 @@ impl<'graph, 'arena, 'solution> TypeResolver<'graph, 'arena, 'solution> {
             }
             (Some(lower), Some(upper))
                 if slot_kind == TypeSlotKind::Effect
-                    && self.effect_lower_filtered_by_upper_bounds(&lower, upper_bounds, &upper)? =>
+                    && self.effect_lower_filtered_by_upper_bounds(
+                        &lower,
+                        upper_bounds,
+                        &upper,
+                    )? =>
             {
                 upper
             }
@@ -3263,28 +3262,30 @@ impl<'graph, 'arena, 'solution> TypeResolver<'graph, 'arena, 'solution> {
                 Some(existing) if slot_kind == TypeSlotKind::Effect => {
                     join_effect_type_candidates(existing, resolved)
                 }
-                Some(existing) => match join_type_candidates(
-                    self.graph,
-                    slot,
-                    existing.clone(),
-                    resolved.clone(),
-                ) {
-                    Ok(joined) => joined,
-                    Err(error) => {
-                        eprintln!(
-                            "join slot {slot} conflict bounds={bounds:?} existing={existing:?} incoming={resolved:?}"
-                        );
-                        for (index, slot) in self.graph.slots.iter().enumerate() {
-                            if !slot.lower.is_empty() || !slot.upper.is_empty() {
-                                eprintln!(
-                                    "slot {index} kind={:?} lower={:?} upper={:?} succ={:?} pred={:?}",
-                                    slot.kind, slot.lower, slot.upper, slot.successors, slot.predecessors
-                                );
+                Some(existing) => {
+                    match join_type_candidates(self.graph, slot, existing.clone(), resolved.clone())
+                    {
+                        Ok(joined) => joined,
+                        Err(error) => {
+                            eprintln!(
+                                "join slot {slot} conflict bounds={bounds:?} existing={existing:?} incoming={resolved:?}"
+                            );
+                            for (index, slot) in self.graph.slots.iter().enumerate() {
+                                if !slot.lower.is_empty() || !slot.upper.is_empty() {
+                                    eprintln!(
+                                        "slot {index} kind={:?} lower={:?} upper={:?} succ={:?} pred={:?}",
+                                        slot.kind,
+                                        slot.lower,
+                                        slot.upper,
+                                        slot.successors,
+                                        slot.predecessors
+                                    );
+                                }
                             }
+                            return Err(error);
                         }
-                        return Err(error);
                     }
-                },
+                }
                 None => resolved,
             });
         }
@@ -3347,8 +3348,7 @@ impl<'graph, 'arena, 'solution> TypeResolver<'graph, 'arena, 'solution> {
     ) -> Result<bool, SpecializeError> {
         match bound {
             Type::Stack { weight, .. } => {
-                let filtered =
-                    types::simplify_stack_type(lower.clone(), weight.clone());
+                let filtered = types::simplify_stack_type(lower.clone(), weight.clone());
                 Ok(type_candidates_equivalent(&filtered, upper))
             }
             Type::EffectRow(items) => {
@@ -4325,31 +4325,30 @@ fn residual_effect_after_handling(effect: Type, handled_items: &[Type]) -> Type 
             Box::new(residual_effect_after_handling(*left, handled_items)),
             Box::new(residual_effect_after_handling(*right, handled_items)),
         )),
-        Type::Intersection(left, right) => residual_intersection_after_handling(
-            *left,
-            *right,
-            handled_items,
-        ),
+        Type::Intersection(left, right) => {
+            residual_intersection_after_handling(*left, *right, handled_items)
+        }
         Type::Stack { .. } | Type::OpenVar(_) => symbolic_residual_effect(effect, handled_items),
         Type::Any | Type::Never => effect,
-        Type::Fun { .. } | Type::Thunk { .. } | Type::Record(_) | Type::PolyVariant(_) | Type::Tuple(_) => {
-            symbolic_residual_effect(effect, handled_items)
-        }
+        Type::Fun { .. }
+        | Type::Thunk { .. }
+        | Type::Record(_)
+        | Type::PolyVariant(_)
+        | Type::Tuple(_) => symbolic_residual_effect(effect, handled_items),
     }
 }
 
-fn residual_intersection_after_handling(
-    left: Type,
-    right: Type,
-    handled_items: &[Type],
-) -> Type {
+fn residual_intersection_after_handling(left: Type, right: Type, handled_items: &[Type]) -> Type {
     if let Some(residual) = residual_row_tail_from_intersection(&left, &right, handled_items) {
         return residual;
     }
     if let Some(residual) = residual_row_tail_from_intersection(&right, &left, handled_items) {
         return residual;
     }
-    symbolic_residual_effect(Type::Intersection(Box::new(left), Box::new(right)), handled_items)
+    symbolic_residual_effect(
+        Type::Intersection(Box::new(left), Box::new(right)),
+        handled_items,
+    )
 }
 
 fn residual_row_tail_from_intersection(
