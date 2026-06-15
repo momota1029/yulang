@@ -109,7 +109,7 @@ impl Specializer2 {
                 kind: def_kind(poly_def),
             });
         };
-        let Some(scheme) = scheme else {
+        let Some(_scheme) = scheme else {
             return Err(SpecializeError::MissingScheme {
                 def: convert_def(def),
             });
@@ -128,9 +128,7 @@ impl Specializer2 {
 
         let solved = TaskSolver::solve_def_body(arena, def, body, inference_signature_ty)?;
         let mut body = self.emit_expr(arena, &solved, body)?;
-        if !scheme.stack_quantifiers.is_empty() {
-            body = wrap_stack_handler_marker(&runtime_signature_ty, body);
-        }
+        body = wrap_stack_handler_marker(&runtime_signature_ty, body);
         self.instances[id.0 as usize] = Some(Instance {
             id,
             source: InstanceSource::Def(convert_def(def)),
@@ -872,13 +870,16 @@ impl<'a> TaskSolver<'a> {
         expr: poly_expr::ExprId,
         effect: Type,
         value: Type,
-    ) -> Result<(), SpecializeError> {
+    ) -> Result<Type, SpecializeError> {
         let actual = self.expr(expr)?;
-        let consumer = types::runtime_shape(effect.clone(), value.clone());
+        let (actual_value, actual_effect) = split_runtime_computation_shape(actual.clone());
+        let consumer_effect = self
+            .graph
+            .constrain_consumed_computation_effect(actual_effect.clone(), effect)?;
+        let consumer = types::runtime_shape(consumer_effect.clone(), value.clone());
         self.add_expr_consumer(expr, actual.clone(), consumer);
-        let (actual_value, actual_effect) = split_runtime_computation_shape(actual);
         self.graph.constrain_subtype(actual_value, value)?;
-        self.graph.constrain_subtype(actual_effect, effect)
+        Ok(consumer_effect)
     }
 
     fn add_expr_consumer(&mut self, expr: poly_expr::ExprId, actual: Type, consumer: Type) {
@@ -976,37 +977,46 @@ impl<'a> TaskSolver<'a> {
         }
 
         let callee_ty = self.expr(callee)?;
-        let (callee_value, _) = split_runtime_computation_shape(callee_ty.clone());
-        let (_, callee_effect) = self.consume_expr_value(callee, callee_value.clone())?;
-        let (arg_consumer, call_arg_effect, ret_effect, ret_value) =
+        let (callee_value, callee_effect) = split_runtime_computation_shape(callee_ty.clone());
+        let (call_arg_effect, ret_effect, ret_value) =
             match function_computation_parts(&callee_value) {
                 Some(parts) => {
-                    let call_arg_effect = if parts.arg_effect.is_pure_effect() {
-                        self.consume_expr_value(arg, parts.arg.clone())?.1
+                    let (call_arg_effect, runtime_arg_effect) = if parts.arg_effect.is_pure_effect()
+                    {
+                        (
+                            self.consume_expr_value(arg, parts.arg.clone())?.1,
+                            Type::pure_effect(),
+                        )
                     } else {
-                        self.consume_expr_computation(
+                        let runtime_arg_effect = self.consume_expr_computation(
                             arg,
                             parts.arg_effect.clone(),
                             parts.arg.clone(),
                         )?;
-                        Type::pure_effect()
+                        (Type::pure_effect(), runtime_arg_effect)
                     };
-                    let arg_consumer =
-                        types::runtime_shape(parts.arg_effect.clone(), parts.arg.clone());
-                    (arg_consumer, call_arg_effect, parts.ret_effect, parts.ret)
+                    let callee_consumer = Type::Fun {
+                        arg: Box::new(parts.arg.clone()),
+                        arg_effect: Box::new(runtime_arg_effect),
+                        ret_effect: Box::new(parts.ret_effect.clone()),
+                        ret: Box::new(parts.ret.clone()),
+                    };
+                    self.add_expr_consumer(callee, callee_ty.clone(), callee_consumer.clone());
+                    self.graph
+                        .constrain_subtype(callee_value.clone(), callee_consumer)?;
+                    (call_arg_effect, parts.ret_effect, parts.ret)
                 }
                 None => {
                     let arg_ty = self.graph.fresh_value();
                     let ret_ty = self.graph.fresh_value();
-                    self.consume_expr_value(
-                        callee,
-                        types::pure_function_type(arg_ty.clone(), ret_ty.clone()),
-                    )?;
+                    let callee_consumer = types::pure_function_type(arg_ty.clone(), ret_ty.clone());
+                    self.add_expr_consumer(callee, callee_ty.clone(), callee_consumer.clone());
+                    self.graph
+                        .constrain_subtype(callee_value.clone(), callee_consumer)?;
                     let call_arg_effect = self.consume_expr_value(arg, arg_ty.clone())?.1;
-                    (arg_ty, call_arg_effect, Type::pure_effect(), ret_ty)
+                    (call_arg_effect, Type::pure_effect(), ret_ty)
                 }
             };
-        let _ = arg_consumer;
         let has_evaluation_effect =
             !callee_effect.is_pure_effect() || !call_arg_effect.is_pure_effect();
         let effect = self.join_effects([callee_effect, call_arg_effect, ret_effect])?;
@@ -1036,10 +1046,12 @@ impl<'a> TaskSolver<'a> {
             Type::pure_effect()
         };
         let (ret_value, ret_runtime_effect) = split_runtime_computation_shape(parts.ret);
+        let returns_never =
+            matches!(ret_value, Type::Never) || operation_scheme_returns_never(self.arena, def);
         let operation_effect = self.join_effects([parts.ret_effect, ret_runtime_effect])?;
         let effect = self.join_effects([parts.arg_effect, call_arg_effect, operation_effect])?;
         let result = self.runtime_shape(effect, ret_value)?;
-        if matches!(result, Type::Thunk { .. }) {
+        if returns_never && matches!(result, Type::Thunk { .. }) {
             self.mark_raw_thunk_computation(expr);
         }
         Ok(result)
@@ -1635,12 +1647,9 @@ impl<'a> TaskSolver<'a> {
                     .get(&use_.expr)
                     .and_then(|ty| ty.consumer.as_ref())
                 {
-                    Some(consumer) => self.resolve_signature_type_with_context(
-                        &mut resolver,
-                        &use_.ty,
-                        consumer,
-                        TypeSlotKind::Value,
-                    )?,
+                    Some(consumer) => {
+                        self.resolve_signature_type(&mut resolver, consumer, TypeSlotKind::Value)?
+                    }
                     None => {
                         self.resolve_signature_type(&mut resolver, &use_.ty, TypeSlotKind::Value)?
                     }
@@ -1708,6 +1717,20 @@ impl<'a> TaskSolver<'a> {
         expr: poly_expr::ExprId,
         ty: &ExprType,
     ) -> Result<Option<Type>, SpecializeError> {
+        if self.expr_is_defined_ref(expr)
+            && let Some(consumer) = &ty.consumer
+        {
+            return match resolver.resolve(consumer) {
+                Ok(actual) => Ok(Some(close_resolved_runtime_surface(
+                    actual,
+                    TypeSlotKind::Value,
+                ))),
+                Err(SpecializeError::UndeterminedTypeSlot { .. }) => self
+                    .resolve_partial_output_type(resolver, consumer, TypeSlotKind::Value)
+                    .map(Some),
+                Err(error) => Err(error),
+            };
+        }
         if self.required_exprs.contains(&expr) {
             return match resolver.resolve(&ty.actual) {
                 Ok(actual) => Ok(Some(close_resolved_runtime_surface(
@@ -1752,6 +1775,19 @@ impl<'a> TaskSolver<'a> {
             Err(SpecializeError::UndeterminedTypeSlot { .. }) => Ok(None),
             Err(error) => Err(error),
         }
+    }
+
+    fn expr_is_defined_ref(&self, expr: poly_expr::ExprId) -> bool {
+        let poly_expr::Expr::Var(ref_id) = self.arena.expr(expr) else {
+            return false;
+        };
+        let Some(def) = self.arena.ref_target(*ref_id) else {
+            return false;
+        };
+        matches!(
+            self.arena.defs.get(def),
+            Some(poly_expr::Def::Let { body: Some(_), .. })
+        )
     }
 
     fn resolve_expr_consumer(
@@ -2121,6 +2157,7 @@ struct TypeGraph<'a> {
     slots: Vec<TypeSlot>,
     pending: VecDeque<SubtypeConstraint>,
     row_residuals: HashMap<RowResidualKey, u32>,
+    closed_effect_subtraction_consumers: HashSet<(u32, EffectSubtractionDemand)>,
     role_demands: Vec<types::InstantiatedRolePredicate>,
 }
 
@@ -2131,6 +2168,7 @@ impl<'a> TypeGraph<'a> {
             slots: Vec::new(),
             pending: VecDeque::new(),
             row_residuals: HashMap::new(),
+            closed_effect_subtraction_consumers: HashSet::new(),
             role_demands: Vec::new(),
         }
     }
@@ -2247,13 +2285,18 @@ impl<'a> TypeGraph<'a> {
     }
 
     fn solve_constraints(&mut self) -> Result<(), SpecializeError> {
-        while let Some(constraint) = self.pending.pop_front() {
-            self.process_subtype(
-                constraint.lower,
-                constraint.lower_weight,
-                constraint.upper,
-                constraint.upper_weight,
-            )?;
+        loop {
+            while let Some(constraint) = self.pending.pop_front() {
+                self.process_subtype(
+                    constraint.lower,
+                    constraint.lower_weight,
+                    constraint.upper,
+                    constraint.upper_weight,
+                )?;
+            }
+            if !self.close_pure_effect_subtraction_tails()? {
+                break;
+            }
         }
         Ok(())
     }
@@ -2601,6 +2644,180 @@ impl<'a> TypeGraph<'a> {
         }
     }
 
+    fn constrain_consumed_computation_effect(
+        &mut self,
+        actual_effect: Type,
+        expected_effect: Type,
+    ) -> Result<Type, SpecializeError> {
+        if let Some(runtime_effect) =
+            self.constrain_subtractable_computation_effect(actual_effect.clone(), &expected_effect)?
+        {
+            return Ok(runtime_effect);
+        }
+        self.constrain_subtype(actual_effect, expected_effect.clone())?;
+        Ok(expected_effect)
+    }
+
+    fn constrain_subtractable_computation_effect(
+        &mut self,
+        actual_effect: Type,
+        expected_effect: &Type,
+    ) -> Result<Option<Type>, SpecializeError> {
+        let Some(demand) = effect_consumption_demand(expected_effect) else {
+            return Ok(None);
+        };
+        if let Type::OpenVar(slot) = actual_effect {
+            if self
+                .slots
+                .get(slot as usize)
+                .is_some_and(|slot| slot.kind == TypeSlotKind::Effect)
+            {
+                self.add_effect_subtraction_consumer(slot, demand.clone())?;
+                let runtime_effect = demand.runtime_effect;
+                self.constrain_subtype(Type::OpenVar(slot), runtime_effect.clone())?;
+                return Ok(Some(runtime_effect));
+            }
+            return Ok(None);
+        }
+        let Some((actual_items, actual_tail)) = self.effect_row_parts(actual_effect.clone()) else {
+            return Ok(None);
+        };
+        self.constrain_effect_lower_against_subtraction_demand(
+            actual_items,
+            actual_tail,
+            &demand,
+            true,
+        )?;
+        self.constrain_subtype(actual_effect, demand.runtime_effect.clone())?;
+        Ok(Some(demand.runtime_effect))
+    }
+
+    fn add_effect_subtraction_consumer(
+        &mut self,
+        slot: u32,
+        demand: EffectSubtractionDemand,
+    ) -> Result<(), SpecializeError> {
+        self.ensure_slot(slot)?;
+        let index = slot as usize;
+        if self.slots[index]
+            .effect_subtraction_consumers
+            .contains(&demand)
+        {
+            return Ok(());
+        }
+        self.slots[index]
+            .effect_subtraction_consumers
+            .push(demand.clone());
+        let lowers = self.slots[index].lower.clone();
+        for lower in lowers {
+            let Some((items, tail)) = self.effect_row_parts(lower) else {
+                continue;
+            };
+            self.constrain_effect_lower_against_subtraction_demand(items, tail, &demand, false)?;
+        }
+        Ok(())
+    }
+
+    fn constrain_effect_lower_against_subtraction_demand(
+        &mut self,
+        actual_items: Vec<Type>,
+        actual_tail: Option<Type>,
+        demand: &EffectSubtractionDemand,
+        close_pure_tail: bool,
+    ) -> Result<(), SpecializeError> {
+        let residual = self.residual_effect_after_consuming_handled(
+            actual_items,
+            actual_tail,
+            &demand.handled_items,
+        )?;
+        if close_pure_tail && residual.is_pure_effect() {
+            return self.constrain_exact(demand.tail.clone(), residual);
+        }
+        Ok(())
+    }
+
+    fn close_pure_effect_subtraction_tails(&mut self) -> Result<bool, SpecializeError> {
+        let mut closed = false;
+        for slot in 0..self.slots.len() {
+            let demands = self.slots[slot].effect_subtraction_consumers.clone();
+            for demand in demands {
+                let key = (slot as u32, demand.clone());
+                if self.closed_effect_subtraction_consumers.contains(&key) {
+                    continue;
+                }
+                if !self.effect_subtraction_tail_is_pure(slot as u32, &demand) {
+                    continue;
+                }
+                self.closed_effect_subtraction_consumers.insert(key);
+                self.constrain_exact(demand.tail.clone(), Type::pure_effect())?;
+                closed = true;
+            }
+        }
+        Ok(closed)
+    }
+
+    fn effect_subtraction_tail_is_pure(&self, slot: u32, demand: &EffectSubtractionDemand) -> bool {
+        let Some(slot) = self.slots.get(slot as usize) else {
+            return false;
+        };
+        let mut saw_concrete_lower = false;
+        for lower in &slot.lower {
+            let Some((items, tail)) = self.effect_row_parts(lower.clone()) else {
+                return false;
+            };
+            if items.is_empty() && matches!(tail, Some(Type::OpenVar(_))) {
+                continue;
+            }
+            saw_concrete_lower = true;
+            if !residual_effect_after_consuming_handled_candidate(
+                items,
+                tail,
+                &demand.handled_items,
+            )
+            .is_pure_effect()
+            {
+                return false;
+            }
+        }
+        saw_concrete_lower
+    }
+
+    fn residual_effect_after_consuming_handled(
+        &mut self,
+        actual_items: Vec<Type>,
+        actual_tail: Option<Type>,
+        handled_items: &[Type],
+    ) -> Result<Type, SpecializeError> {
+        let mut matched_handled = vec![false; handled_items.len()];
+        let mut residual_items = Vec::new();
+        for actual in actual_items {
+            let Some(index) = handled_items
+                .iter()
+                .enumerate()
+                .find_map(|(index, handled)| {
+                    (!matched_handled[index] && same_effect_row_family(&actual, handled))
+                        .then_some(index)
+                })
+            else {
+                residual_items.push(actual);
+                continue;
+            };
+            matched_handled[index] = true;
+            self.constrain_exact(actual, handled_items[index].clone())?;
+        }
+        Ok(effect_row_from_parts(residual_items, actual_tail))
+    }
+
+    fn effect_row_parts(&self, effect: Type) -> Option<(Vec<Type>, Option<Type>)> {
+        if effect.is_pure_effect() {
+            return Some((Vec::new(), None));
+        }
+        let Type::EffectRow(items) = effect else {
+            return None;
+        };
+        Some(self.split_effect_row_tail(items))
+    }
+
     fn split_effect_row_tail(&self, mut items: Vec<Type>) -> (Vec<Type>, Option<Type>) {
         let Some(Type::OpenVar(slot)) = items.last().cloned() else {
             return (items, None);
@@ -2773,6 +2990,13 @@ impl<'a> TypeGraph<'a> {
             self.constrain_same_path_invariant(existing, lower.clone())?;
         }
         self.slots[index].lower.push(lower.clone());
+        let effect_consumers = self.slots[index].effect_subtraction_consumers.clone();
+        for demand in effect_consumers {
+            let Some((items, tail)) = self.effect_row_parts(lower.clone()) else {
+                continue;
+            };
+            self.constrain_effect_lower_against_subtraction_demand(items, tail, &demand, false)?;
+        }
         let uppers = self.slots[index].upper.clone();
         for upper in uppers {
             self.constrain_subtype(lower.clone(), upper)?;
@@ -3151,6 +3375,7 @@ struct TypeSlot {
     predecessors: Vec<u32>,
     weighted_successors: Vec<WeightedSlotEdge>,
     weighted_predecessors: Vec<WeightedSlotEdge>,
+    effect_subtraction_consumers: Vec<EffectSubtractionDemand>,
 }
 
 impl TypeSlot {
@@ -3165,6 +3390,7 @@ impl TypeSlot {
             predecessors: Vec::new(),
             weighted_successors: Vec::new(),
             weighted_predecessors: Vec::new(),
+            effect_subtraction_consumers: Vec::new(),
         }
     }
 }
@@ -3196,6 +3422,13 @@ struct RowResidualKey {
     source: u32,
     retained_families: Vec<EffectFamily>,
     weight: StackWeight,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct EffectSubtractionDemand {
+    tail: Type,
+    runtime_effect: Type,
+    handled_items: Vec<Type>,
 }
 
 struct Solution {
@@ -4914,6 +5147,139 @@ fn split_effect_candidate_tail<'a>(graph: &TypeGraph<'_>, items: &'a [Type]) -> 
     }
 }
 
+fn effect_consumption_demand(expected: &Type) -> Option<EffectSubtractionDemand> {
+    effect_intersection_consumption_demand(expected)
+        .or_else(|| effect_row_consumption_demand(expected))
+}
+
+fn effect_intersection_consumption_demand(expected: &Type) -> Option<EffectSubtractionDemand> {
+    let Type::Intersection(left, right) = expected else {
+        return None;
+    };
+    effect_intersection_consumption_demand_pair(left, right)
+        .or_else(|| effect_intersection_consumption_demand_pair(right, left))
+}
+
+fn effect_intersection_consumption_demand_pair(
+    tail: &Type,
+    row: &Type,
+) -> Option<EffectSubtractionDemand> {
+    let Type::EffectRow(items) = row else {
+        return None;
+    };
+    let Some(last) = items.last() else {
+        return None;
+    };
+    if last != tail {
+        return None;
+    }
+    let handled_items = items[..items.len() - 1].to_vec();
+    if handled_items.is_empty() {
+        return None;
+    }
+    Some(EffectSubtractionDemand {
+        tail: tail.clone(),
+        runtime_effect: row.clone(),
+        handled_items,
+    })
+}
+
+fn effect_row_consumption_demand(expected: &Type) -> Option<EffectSubtractionDemand> {
+    let Type::EffectRow(items) = expected else {
+        return None;
+    };
+    let Some(Type::OpenVar(_)) = items.last() else {
+        return None;
+    };
+    let handled_items = items[..items.len() - 1].to_vec();
+    if handled_items.is_empty() {
+        return None;
+    }
+    if !handled_items.iter().any(type_contains_intersection) {
+        return None;
+    }
+    Some(EffectSubtractionDemand {
+        tail: items[items.len() - 1].clone(),
+        runtime_effect: expected.clone(),
+        handled_items,
+    })
+}
+
+fn type_contains_intersection(ty: &Type) -> bool {
+    match ty {
+        Type::Intersection(_, _) => true,
+        Type::Con { args, .. } | Type::Tuple(args) | Type::EffectRow(args) => {
+            args.iter().any(type_contains_intersection)
+        }
+        Type::Fun {
+            arg,
+            arg_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_contains_intersection(arg)
+                || type_contains_intersection(arg_effect)
+                || type_contains_intersection(ret_effect)
+                || type_contains_intersection(ret)
+        }
+        Type::Thunk { effect, value } => {
+            type_contains_intersection(effect) || type_contains_intersection(value)
+        }
+        Type::Record(fields) => fields
+            .iter()
+            .any(|field| type_contains_intersection(&field.value)),
+        Type::PolyVariant(variants) => variants
+            .iter()
+            .any(|variant| variant.payloads.iter().any(type_contains_intersection)),
+        Type::Stack { inner, .. } => type_contains_intersection(inner),
+        Type::Union(left, right) => {
+            type_contains_intersection(left) || type_contains_intersection(right)
+        }
+        Type::Any | Type::Never | Type::OpenVar(_) => false,
+    }
+}
+
+fn effect_row_from_parts(mut items: Vec<Type>, tail: Option<Type>) -> Type {
+    if items.is_empty() && tail.is_some() {
+        return tail.expect("tail is present");
+    }
+    match tail {
+        Some(Type::EffectRow(tail_items)) => items.extend(tail_items),
+        Some(tail) if tail.is_pure_effect() => {}
+        Some(tail) => items.push(tail),
+        None => {}
+    }
+    if items.is_empty() {
+        Type::pure_effect()
+    } else {
+        types::simplify_type(Type::EffectRow(items))
+    }
+}
+
+fn residual_effect_after_consuming_handled_candidate(
+    actual_items: Vec<Type>,
+    actual_tail: Option<Type>,
+    handled_items: &[Type],
+) -> Type {
+    let mut matched_handled = vec![false; handled_items.len()];
+    let mut residual_items = Vec::new();
+    for actual in actual_items {
+        let Some(index) = handled_items
+            .iter()
+            .enumerate()
+            .find_map(|(index, handled)| {
+                (!matched_handled[index] && same_effect_row_family(&actual, handled))
+                    .then_some(index)
+            })
+        else {
+            residual_items.push(actual);
+            continue;
+        };
+        matched_handled[index] = true;
+    }
+    effect_row_from_parts(residual_items, actual_tail)
+}
+
 fn empty_stack_weight() -> StackWeight {
     StackWeight {
         entries: Vec::new(),
@@ -5660,6 +6026,24 @@ fn let_body(
     }
 }
 
+fn operation_scheme_returns_never(arena: &poly_expr::Arena, def: poly_expr::DefId) -> bool {
+    let Some(poly_expr::Def::Let {
+        scheme: Some(scheme),
+        ..
+    }) = arena.defs.get(def)
+    else {
+        return false;
+    };
+    function_pos_return_is_never(&arena.typ, scheme.predicate)
+}
+
+fn function_pos_return_is_never(types: &poly::types::TypeArena, pos: poly::types::PosId) -> bool {
+    let poly::types::Pos::Fun { ret, .. } = types.pos(pos) else {
+        return false;
+    };
+    matches!(types.pos(*ret), poly::types::Pos::Bot)
+}
+
 fn collect_pattern_defs(
     arena: &poly_expr::Arena,
     pat: poly_expr::PatId,
@@ -6154,6 +6538,17 @@ fn wrap_stack_handler_marker_body(path: Vec<String>, body: Expr) -> Expr {
         ExprKind::Catch { body, arms } => Expr::new(ExprKind::Catch {
             body: Box::new(Expr::new(ExprKind::MarkerFrame { path, body })),
             arms,
+        }),
+        ExprKind::FunctionAdapter {
+            source,
+            target,
+            function,
+            hygiene,
+        } => Expr::new(ExprKind::FunctionAdapter {
+            source,
+            target,
+            function: Box::new(wrap_stack_handler_marker_body(path, *function)),
+            hygiene,
         }),
         other => Expr::new(other),
     }
