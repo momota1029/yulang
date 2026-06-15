@@ -21,6 +21,12 @@ pub(crate) fn equivalent_runtime_types(source: &Type, target: &Type) -> bool {
         return true;
     }
     match (source, target) {
+        (Type::EffectRow(items), target) if items.len() == 1 => {
+            equivalent_runtime_types(&items[0], target)
+        }
+        (source, Type::EffectRow(items)) if items.len() == 1 => {
+            equivalent_runtime_types(source, &items[0])
+        }
         (source, Type::Thunk { effect, value }) if effect.is_pure_effect() => {
             equivalent_runtime_types(source, value)
         }
@@ -33,6 +39,9 @@ pub(crate) fn equivalent_runtime_types(source: &Type, target: &Type) -> bool {
                     equivalent_runtime_types(&source.value, &target.value)
                 })
             })
+        }
+        (Type::EffectRow(source_items), Type::EffectRow(target_items)) => {
+            equivalent_effect_rows(source_items, target_items)
         }
         (Type::PolyVariant(source_variants), Type::PolyVariant(target_variants)) => {
             source_variants.iter().all(|source| {
@@ -63,6 +72,41 @@ pub(crate) fn equivalent_runtime_types(source: &Type, target: &Type) -> bool {
             equivalent_runtime_types(left, target) || equivalent_runtime_types(right, target)
         }
         _ => false,
+    }
+}
+
+fn equivalent_effect_rows(source_items: &[Type], target_items: &[Type]) -> bool {
+    if source_items.len() != target_items.len() {
+        return false;
+    }
+    let mut used = vec![false; target_items.len()];
+    source_items.iter().all(|source| {
+        let Some(index) = target_items.iter().enumerate().find_map(|(index, target)| {
+            (!used[index] && equivalent_effect_items(source, target)).then_some(index)
+        }) else {
+            return false;
+        };
+        used[index] = true;
+        true
+    })
+}
+
+fn equivalent_effect_items(source: &Type, target: &Type) -> bool {
+    match (source, target) {
+        (
+            Type::Con {
+                path: source_path,
+                args: source_args,
+            },
+            Type::Con {
+                path: target_path,
+                args: target_args,
+            },
+        ) if source_path == target_path && source_args.len() == target_args.len() => source_args
+            .iter()
+            .zip(target_args)
+            .all(|(source, target)| equivalent_runtime_types(source, target)),
+        _ => equivalent_runtime_types(source, target),
     }
 }
 

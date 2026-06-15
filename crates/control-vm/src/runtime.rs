@@ -559,9 +559,7 @@ impl<'a> Runtime<'a> {
                     })
                 })
             }
-            Expr::RefSet { .. } => Err(RuntimeError::UnsupportedExpr {
-                feature: "ref set".to_string(),
-            }),
+            Expr::RefSet { reference, value } => self.eval_ref_set(reference, value, env.clone()),
             Expr::Lambda { param, body } => {
                 value_result(self.mark_active_created_value(Value::Closure(Closure {
                     param,
@@ -626,6 +624,204 @@ impl<'a> Runtime<'a> {
                         combined.extend(runtime.expect_record(spread)?);
                         value_result(Value::Record(combined))
                     })
+                })
+            }
+        }
+    }
+
+    fn eval_ref_set(
+        &mut self,
+        reference: ExprId,
+        value: ExprId,
+        env: CapturedEnv,
+    ) -> RuntimeResult<'a> {
+        let mut reference_env = env.clone();
+        let reference_result = self.eval_expr(reference, &mut reference_env)?;
+        self.continue_with(reference_result, move |runtime, reference| {
+            let reference = runtime.force_value_if_thunk(reference)?;
+            let value_env = env.clone();
+            runtime.continue_with(reference, move |runtime, reference| {
+                let mut value_env = value_env.clone();
+                let value_result = runtime.eval_expr(value, &mut value_env)?;
+                runtime.continue_with(value_result, move |runtime, value| {
+                    let value = runtime.force_value_if_thunk(value)?;
+                    let reference = reference.clone();
+                    runtime.continue_with(value, move |runtime, assigned| {
+                        let update_effect =
+                            runtime.project_record_field(reference.clone(), "update_effect")?;
+                        let result = runtime.apply_value(update_effect, Value::Unit)?;
+                        runtime.handle_ref_set_result(result, assigned)
+                    })
+                })
+            })
+        })
+    }
+
+    fn handle_ref_set_result(
+        &mut self,
+        result: EvalResult<'a>,
+        assigned: Value,
+    ) -> RuntimeResult<'a> {
+        match result {
+            EvalResult::Value(value) => {
+                let resolved = self.resolve_ref_set_value(value, assigned)?;
+                self.continue_with(resolved, |_, _| value_result(Value::Unit))
+            }
+            EvalResult::Request(request) if is_ref_update_request(&request.path) => {
+                let resumed = (request.resume)(self, assigned.clone())?;
+                self.handle_ref_set_result(resumed, assigned)
+            }
+            EvalResult::Request(request) => {
+                let path = request.path;
+                let guard_ids = request.guard_ids;
+                let payload = request.payload;
+                let request_resume = request.resume.clone();
+                let resolved_payload = self.resolve_ref_set_value(payload, assigned.clone())?;
+                self.continue_with(resolved_payload, move |_, payload| {
+                    Ok(EvalResult::Request(Request {
+                        path: path.clone(),
+                        guard_ids: guard_ids.clone(),
+                        payload,
+                        resume: Rc::new({
+                            let assigned = assigned.clone();
+                            let request_resume = request_resume.clone();
+                            move |runtime, value| {
+                                let resumed = request_resume(runtime, value)?;
+                                runtime.handle_ref_set_result(resumed, assigned.clone())
+                            }
+                        }),
+                    }))
+                })
+            }
+        }
+    }
+
+    fn resolve_ref_set_value(&mut self, value: Value, assigned: Value) -> RuntimeResult<'a> {
+        match value {
+            Value::Marked { value, markers } => {
+                let resolved = self.resolve_ref_set_value(*value, assigned)?;
+                self.continue_with(resolved, move |_, value| {
+                    value_result(mark_value(value, &markers))
+                })
+            }
+            Value::Tuple(items) => {
+                self.resolve_ref_set_values(items, assigned, Vec::new(), 0, Rc::new(Value::Tuple))
+            }
+            Value::List(items) => self.resolve_ref_set_values(
+                items
+                    .to_vec()
+                    .into_iter()
+                    .map(|item| (*item).clone())
+                    .collect(),
+                assigned,
+                Vec::new(),
+                0,
+                Rc::new(|items| Value::List(ListTree::from_items(items.into_iter().map(Rc::new)))),
+            ),
+            Value::Record(fields) => self.resolve_ref_set_fields(fields, assigned, Vec::new(), 0),
+            Value::PolyVariant { tag, payloads } => self.resolve_ref_set_values(
+                payloads,
+                assigned,
+                Vec::new(),
+                0,
+                Rc::new(move |payloads| Value::PolyVariant {
+                    tag: tag.clone(),
+                    payloads,
+                }),
+            ),
+            Value::DataConstructor { def, payloads } => self.resolve_ref_set_values(
+                payloads,
+                assigned,
+                Vec::new(),
+                0,
+                Rc::new(move |payloads| Value::DataConstructor { def, payloads }),
+            ),
+            value if value_is_thunk_like(&value) => {
+                let result = self.force_thunk(value)?;
+                self.handle_ref_set_value_result(result, assigned)
+            }
+            value => value_result(value),
+        }
+    }
+
+    fn resolve_ref_set_values(
+        &mut self,
+        values: Vec<Value>,
+        assigned: Value,
+        out: Vec<Value>,
+        index: usize,
+        finish: Rc<dyn Fn(Vec<Value>) -> Value + 'a>,
+    ) -> RuntimeResult<'a> {
+        if index >= values.len() {
+            return value_result(finish(out));
+        }
+        let resolved = self.resolve_ref_set_value(values[index].clone(), assigned.clone())?;
+        self.continue_with(resolved, move |runtime, value| {
+            let mut out = out.clone();
+            out.push(value);
+            runtime.resolve_ref_set_values(
+                values.clone(),
+                assigned.clone(),
+                out,
+                index + 1,
+                finish.clone(),
+            )
+        })
+    }
+
+    fn resolve_ref_set_fields(
+        &mut self,
+        fields: Vec<ValueField>,
+        assigned: Value,
+        out: Vec<ValueField>,
+        index: usize,
+    ) -> RuntimeResult<'a> {
+        if index >= fields.len() {
+            return value_result(Value::Record(out));
+        }
+        let field = fields[index].clone();
+        let resolved = self.resolve_ref_set_value(field.value, assigned.clone())?;
+        self.continue_with(resolved, move |runtime, value| {
+            let mut out = out.clone();
+            out.push(ValueField {
+                name: field.name.clone(),
+                value,
+            });
+            runtime.resolve_ref_set_fields(fields.clone(), assigned.clone(), out, index + 1)
+        })
+    }
+
+    fn handle_ref_set_value_result(
+        &mut self,
+        result: EvalResult<'a>,
+        assigned: Value,
+    ) -> RuntimeResult<'a> {
+        match result {
+            EvalResult::Value(value) => self.resolve_ref_set_value(value, assigned),
+            EvalResult::Request(request) if is_ref_update_request(&request.path) => {
+                let resumed = (request.resume)(self, assigned.clone())?;
+                self.handle_ref_set_value_result(resumed, assigned)
+            }
+            EvalResult::Request(request) => {
+                let path = request.path;
+                let guard_ids = request.guard_ids;
+                let payload = request.payload;
+                let request_resume = request.resume.clone();
+                let resolved_payload = self.resolve_ref_set_value(payload, assigned.clone())?;
+                self.continue_with(resolved_payload, move |_, payload| {
+                    Ok(EvalResult::Request(Request {
+                        path: path.clone(),
+                        guard_ids: guard_ids.clone(),
+                        payload,
+                        resume: Rc::new({
+                            let assigned = assigned.clone();
+                            let request_resume = request_resume.clone();
+                            move |runtime, value| {
+                                let resumed = request_resume(runtime, value)?;
+                                runtime.handle_ref_set_value_result(resumed, assigned.clone())
+                            }
+                        }),
+                    }))
                 })
             }
         }
@@ -2273,6 +2469,10 @@ fn expect_eval_value(result: EvalResult<'_>) -> Result<Value, RuntimeError> {
         EvalResult::Value(value) => Ok(value),
         EvalResult::Request(request) => Err(RuntimeError::UnhandledEffect { path: request.path }),
     }
+}
+
+fn is_ref_update_request(path: &[String]) -> bool {
+    path == ["std", "control", "var", "ref_update", "update"]
 }
 
 fn value_equivalent(left: &Value, right: &Value) -> bool {

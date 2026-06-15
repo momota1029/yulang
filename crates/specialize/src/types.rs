@@ -1571,7 +1571,12 @@ fn effect_family_matches_item(family: &EffectFamily, item: &Type) -> bool {
     let Type::Con { path, args } = item else {
         return false;
     };
-    path == &family.path && (family.args.is_empty() || args.len() == family.args.len())
+    effect_path_contains_family(&family.path, path)
+        && (family.args.is_empty() || args.len() == family.args.len())
+}
+
+fn effect_path_contains_family(family: &[String], item: &[String]) -> bool {
+    !family.is_empty() && item.starts_with(family)
 }
 
 fn simplify_effect_intersection(left: Type, right: Type) -> Type {

@@ -1539,6 +1539,12 @@ fn equivalent_boundary_types(actual: &Type, expected: &Type) -> bool {
         return true;
     }
     match (actual, expected) {
+        (Type::EffectRow(items), expected) if items.len() == 1 => {
+            equivalent_boundary_types(&items[0], expected)
+        }
+        (actual, Type::EffectRow(items)) if items.len() == 1 => {
+            equivalent_boundary_types(actual, &items[0])
+        }
         (actual, Type::Thunk { effect, value }) if effect.is_pure_effect() => {
             equivalent_boundary_types(actual, value)
         }
@@ -1626,11 +1632,7 @@ fn equivalent_boundary_types(actual: &Type, expected: &Type) -> bool {
             equivalent_boundary_types(left, expected) || equivalent_boundary_types(right, expected)
         }
         (Type::EffectRow(actual_items), Type::EffectRow(expected_items)) => {
-            actual_items.len() == expected_items.len()
-                && actual_items
-                    .iter()
-                    .zip(expected_items)
-                    .all(|(actual, expected)| equivalent_boundary_types(actual, expected))
+            equivalent_effect_row_boundary_types(actual_items, expected_items)
         }
         (
             Type::Thunk {
@@ -1646,6 +1648,48 @@ fn equivalent_boundary_types(actual: &Type, expected: &Type) -> bool {
                 && equivalent_boundary_types(actual_value, expected_value)
         }
         _ => false,
+    }
+}
+
+fn equivalent_effect_row_boundary_types(actual_items: &[Type], expected_items: &[Type]) -> bool {
+    if actual_items.len() != expected_items.len() {
+        return false;
+    }
+    let mut used = vec![false; expected_items.len()];
+    actual_items.iter().all(|actual| {
+        let Some(index) = expected_items
+            .iter()
+            .enumerate()
+            .find_map(|(index, expected)| {
+                (!used[index] && equivalent_effect_item_boundary_types(actual, expected))
+                    .then_some(index)
+            })
+        else {
+            return false;
+        };
+        used[index] = true;
+        true
+    })
+}
+
+fn equivalent_effect_item_boundary_types(actual: &Type, expected: &Type) -> bool {
+    match (actual, expected) {
+        (
+            Type::Con {
+                path: actual_path,
+                args: actual_args,
+            },
+            Type::Con {
+                path: expected_path,
+                args: expected_args,
+            },
+        ) if actual_path == expected_path && actual_args.len() == expected_args.len() => {
+            actual_args
+                .iter()
+                .zip(expected_args)
+                .all(|(actual, expected)| equivalent_boundary_types(actual, expected))
+        }
+        _ => equivalent_boundary_types(actual, expected),
     }
 }
 

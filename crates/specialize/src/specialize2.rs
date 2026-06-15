@@ -1009,12 +1009,18 @@ impl<'a> TaskSolver<'a> {
                 None => {
                     let arg_ty = self.graph.fresh_value();
                     let ret_ty = self.graph.fresh_value();
-                    let callee_consumer = types::pure_function_type(arg_ty.clone(), ret_ty.clone());
+                    let ret_effect = self.graph.fresh_effect();
+                    let callee_consumer = Type::Fun {
+                        arg: Box::new(arg_ty.clone()),
+                        arg_effect: Box::new(Type::pure_effect()),
+                        ret_effect: Box::new(ret_effect.clone()),
+                        ret: Box::new(ret_ty.clone()),
+                    };
                     self.add_expr_consumer(callee, callee_ty.clone(), callee_consumer.clone());
                     self.graph
                         .constrain_subtype(callee_value.clone(), callee_consumer)?;
                     let call_arg_effect = self.consume_expr_value(arg, arg_ty.clone())?.1;
-                    (call_arg_effect, Type::pure_effect(), ret_ty)
+                    (call_arg_effect, ret_effect, ret_ty)
                 }
             };
         let has_evaluation_effect =
@@ -1338,7 +1344,7 @@ impl<'a> TaskSolver<'a> {
                     Type::Fun {
                         arg: Box::new(op.continuation_input),
                         arg_effect: Box::new(Type::pure_effect()),
-                        ret_effect: Box::new(body_effect.clone()),
+                        ret_effect: Box::new(op.residual_effect),
                         ret: Box::new(body_value.clone()),
                     },
                 )?;
@@ -1381,6 +1387,7 @@ impl<'a> TaskSolver<'a> {
                 payload: payload.clone(),
                 continuation_input: payload,
                 effect: Type::pure_effect(),
+                residual_effect: scrutinee_effect,
             });
         };
         let operation_ty = self.instantiate_def_scheme(def)?;
@@ -1390,6 +1397,7 @@ impl<'a> TaskSolver<'a> {
                 payload: payload.clone(),
                 continuation_input: payload,
                 effect: Type::pure_effect(),
+                residual_effect: scrutinee_effect,
             });
         };
         let payload = parts.arg;
@@ -1407,10 +1415,15 @@ impl<'a> TaskSolver<'a> {
             &operation_effect,
             &handled_effect,
         );
+        let residual_effect = self.residual_effect_after_handling(
+            scrutinee_effect,
+            std::slice::from_ref(&handled_effect),
+        )?;
         Ok(CatchOperationTypes {
             payload,
             continuation_input,
             effect: handled_effect.clone(),
+            residual_effect,
         })
     }
 
@@ -1658,9 +1671,12 @@ impl<'a> TaskSolver<'a> {
                     .get(&use_.expr)
                     .and_then(|ty| ty.consumer.as_ref())
                 {
-                    Some(consumer) => {
-                        self.resolve_signature_type(&mut resolver, consumer, TypeSlotKind::Value)?
-                    }
+                    Some(consumer) => self.resolve_signature_type_with_context(
+                        &mut resolver,
+                        &use_.ty,
+                        consumer,
+                        TypeSlotKind::Value,
+                    )?,
                     None => {
                         self.resolve_signature_type(&mut resolver, &use_.ty, TypeSlotKind::Value)?
                     }
@@ -1701,8 +1717,23 @@ impl<'a> TaskSolver<'a> {
             .collect::<Result<HashMap<_, _>, SpecializeError>>()?;
         let mut typeclass_resolutions = HashMap::new();
         for use_ in &self.typeclass_uses {
-            let signature =
-                self.resolve_signature_type(&mut resolver, &use_.method_ty, TypeSlotKind::Value)?;
+            let signature = match self
+                .exprs
+                .get(&use_.expr)
+                .and_then(|ty| ty.consumer.as_ref())
+            {
+                Some(consumer) => self.resolve_signature_type_with_context(
+                    &mut resolver,
+                    &use_.method_ty,
+                    consumer,
+                    TypeSlotKind::Value,
+                )?,
+                None => self.resolve_signature_type(
+                    &mut resolver,
+                    &use_.method_ty,
+                    TypeSlotKind::Value,
+                )?,
+            };
             let implementation = self.resolve_typeclass_use(use_.member, &signature)?;
             typeclass_resolutions.insert(
                 use_.expr,
@@ -1762,6 +1793,13 @@ impl<'a> TaskSolver<'a> {
                 actual,
                 TypeSlotKind::Value,
             ))),
+            Err(SpecializeError::UndeterminedTypeSlot { .. }) if ty.consumer.is_some() => self
+                .resolve_partial_output_type(
+                    resolver,
+                    ty.consumer.as_ref().expect("consumer checked above"),
+                    TypeSlotKind::Value,
+                )
+                .map(Some),
             Err(SpecializeError::UndeterminedTypeSlot { .. })
                 if self.discarded_exprs.contains(&expr) =>
             {
@@ -1814,7 +1852,9 @@ impl<'a> TaskSolver<'a> {
                 consumer,
                 TypeSlotKind::Value,
             ))),
-            Err(SpecializeError::UndeterminedTypeSlot { .. }) => Ok(None),
+            Err(SpecializeError::UndeterminedTypeSlot { .. }) => self
+                .resolve_partial_output_type(resolver, consumer, TypeSlotKind::Value)
+                .map(Some),
             Err(error) => Err(error),
         }
     }
@@ -2166,6 +2206,7 @@ struct CatchOperationTypes {
     payload: Type,
     continuation_input: Type,
     effect: Type,
+    residual_effect: Type,
 }
 
 struct TypeGraph<'a> {
@@ -2295,12 +2336,25 @@ impl<'a> TypeGraph<'a> {
             }
             if !progressed {
                 self.solve_constraints()?;
+                self.close_pure_effect_subtraction_tails_until_stable()?;
                 return Ok(());
             }
         }
     }
 
     fn solve_constraints(&mut self) -> Result<(), SpecializeError> {
+        while let Some(constraint) = self.pending.pop_front() {
+            self.process_subtype(
+                constraint.lower,
+                constraint.lower_weight,
+                constraint.upper,
+                constraint.upper_weight,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn close_pure_effect_subtraction_tails_until_stable(&mut self) -> Result<(), SpecializeError> {
         loop {
             while let Some(constraint) = self.pending.pop_front() {
                 self.process_subtype(
@@ -2311,10 +2365,9 @@ impl<'a> TypeGraph<'a> {
                 )?;
             }
             if !self.close_pure_effect_subtraction_tails()? {
-                break;
+                return Ok(());
             }
         }
-        Ok(())
     }
 
     fn process_subtype(
@@ -2329,6 +2382,9 @@ impl<'a> TypeGraph<'a> {
         let unweighted =
             stack_weight_is_empty(&lower_weight) && stack_weight_is_empty(&upper_weight);
         if lower == upper && unweighted {
+            return Ok(());
+        }
+        if unweighted && self.effect_row_lower_returns_to_same_tail(&lower, &upper) {
             return Ok(());
         }
         match (lower, upper) {
@@ -2377,25 +2433,33 @@ impl<'a> TypeGraph<'a> {
                     ret: upper_ret,
                 },
             ) => {
+                let (lower_arg, lower_arg_eff) =
+                    split_declared_runtime_shape(*lower_arg, *lower_arg_eff);
+                let (upper_arg, upper_arg_eff) =
+                    split_declared_runtime_shape(*upper_arg, *upper_arg_eff);
+                let (lower_ret, lower_ret_eff) =
+                    split_declared_runtime_shape(*lower_ret, *lower_ret_eff);
+                let (upper_ret, upper_ret_eff) =
+                    split_declared_runtime_shape(*upper_ret, *upper_ret_eff);
                 self.constrain_weighted_subtype(
-                    *upper_arg,
+                    upper_arg,
                     upper_weight.clone(),
-                    *lower_arg,
+                    lower_arg,
                     lower_weight.clone(),
                 )?;
                 self.constrain_weighted_subtype(
-                    *upper_arg_eff,
+                    upper_arg_eff,
                     upper_weight.clone(),
-                    *lower_arg_eff,
+                    lower_arg_eff,
                     lower_weight.clone(),
                 )?;
                 self.constrain_weighted_subtype(
-                    *lower_ret_eff,
+                    lower_ret_eff,
                     lower_weight.clone(),
-                    *upper_ret_eff,
+                    upper_ret_eff,
                     upper_weight.clone(),
                 )?;
-                self.constrain_weighted_subtype(*lower_ret, lower_weight, *upper_ret, upper_weight)
+                self.constrain_weighted_subtype(lower_ret, lower_weight, upper_ret, upper_weight)
             }
             (
                 Type::Thunk {
@@ -2555,6 +2619,20 @@ impl<'a> TypeGraph<'a> {
         }
     }
 
+    fn effect_row_lower_returns_to_same_tail(&self, lower: &Type, upper: &Type) -> bool {
+        let (Type::EffectRow(items), Type::OpenVar(upper)) = (lower, upper) else {
+            return false;
+        };
+        let Some(Type::OpenVar(tail)) = items.last() else {
+            return false;
+        };
+        tail == upper
+            && self
+                .slots
+                .get(*tail as usize)
+                .is_some_and(|slot| slot.kind == TypeSlotKind::Effect)
+    }
+
     fn constrain_direct_cast(
         &mut self,
         source: &[String],
@@ -2641,19 +2719,18 @@ impl<'a> TypeGraph<'a> {
                 )?;
             }
         }
-        if !upper_extra.is_empty() {
-            if let Some(lower_tail) = lower_tail.clone() {
-                self.constrain_weighted_subtype(
-                    lower_tail,
-                    lower_weight.clone(),
-                    Type::EffectRow(upper_extra),
-                    upper_weight.clone(),
-                )?;
-            }
+        let upper_extra_is_empty = upper_extra.is_empty();
+        if !upper_extra_is_empty && let Some(lower_tail) = lower_tail.clone() {
+            self.constrain_weighted_subtype(
+                lower_tail,
+                lower_weight.clone(),
+                effect_row_from_parts(upper_extra, upper_tail.clone()),
+                upper_weight.clone(),
+            )?;
         }
 
         match (lower_tail, upper_tail) {
-            (Some(lower_tail), Some(upper_tail)) => {
+            (Some(lower_tail), Some(upper_tail)) if upper_extra_is_empty => {
                 self.constrain_weighted_subtype(lower_tail, lower_weight, upper_tail, upper_weight)
             }
             _ => Ok(()),
@@ -2748,6 +2825,9 @@ impl<'a> TypeGraph<'a> {
         )?;
         if close_pure_tail && residual.is_pure_effect() {
             return self.constrain_exact(demand.tail.clone(), residual);
+        }
+        if !residual.is_pure_effect() {
+            self.constrain_subtype(residual, demand.tail.clone())?;
         }
         Ok(())
     }
@@ -2999,6 +3079,7 @@ impl<'a> TypeGraph<'a> {
     fn add_lower_unweighted(&mut self, slot: u32, lower: Type) -> Result<(), SpecializeError> {
         self.ensure_slot(slot)?;
         let index = slot as usize;
+        let lower = effect_slot_candidate(self.slots[index].kind, lower);
         if self.slots[index].lower.contains(&lower) {
             return Ok(());
         }
@@ -3051,6 +3132,7 @@ impl<'a> TypeGraph<'a> {
     ) -> Result<(), SpecializeError> {
         self.ensure_slot(slot)?;
         let index = slot as usize;
+        let lower = effect_slot_candidate(self.slots[index].kind, lower);
         let bound = WeightedTypeBound {
             ty: lower.clone(),
             lower_weight,
@@ -3196,6 +3278,7 @@ impl<'a> TypeGraph<'a> {
     ) -> Result<(), SpecializeError> {
         self.ensure_slot(slot)?;
         let index = slot as usize;
+        let upper = effect_slot_candidate(self.slots[index].kind, upper);
         let bound = WeightedTypeBound {
             ty: upper.clone(),
             lower_weight,
@@ -3248,6 +3331,7 @@ impl<'a> TypeGraph<'a> {
     fn add_upper_unweighted(&mut self, slot: u32, upper: Type) -> Result<(), SpecializeError> {
         self.ensure_slot(slot)?;
         let index = slot as usize;
+        let upper = effect_slot_candidate(self.slots[index].kind, upper);
         if self.slots[index].upper.contains(&upper) {
             return Ok(());
         }
@@ -3378,6 +3462,16 @@ impl<'a> TypeGraph<'a> {
 enum TypeSlotKind {
     Value,
     Effect,
+}
+
+fn effect_slot_candidate(slot_kind: TypeSlotKind, ty: Type) -> Type {
+    if slot_kind != TypeSlotKind::Effect || matches!(ty, Type::EffectRow(_)) {
+        return ty;
+    }
+    if ty.is_pure_effect() {
+        return Type::pure_effect();
+    }
+    Type::EffectRow(vec![ty])
 }
 
 #[derive(Debug, Clone)]
@@ -3774,11 +3868,12 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
         slot: u32,
         slot_data: &TypeSlot,
     ) -> Result<Option<Type>, SpecializeError> {
-        let mut lower = self.join_bounds(&slot_data.lower)?;
+        let mut lower = self.join_bounds(slot_data.kind, &slot_data.lower)?;
         for bound in &slot_data.weighted_lower {
             let Some(bound) = self.resolve_weight_inert_bound_candidate(bound)? else {
                 continue;
             };
+            let bound = effect_slot_candidate(slot_data.kind, bound);
             lower = Some(match lower {
                 Some(existing) => join_type_candidates(self.graph, existing, bound)?,
                 None => bound,
@@ -3788,16 +3883,18 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             let Some(predecessor) = self.try_slot_solution(*predecessor)? else {
                 continue;
             };
+            let predecessor = effect_slot_candidate(slot_data.kind, predecessor);
             lower = Some(match lower {
                 Some(existing) => join_type_candidates(self.graph, existing, predecessor)?,
                 None => predecessor,
             });
         }
-        let mut upper = self.meet_bounds(&slot_data.upper)?;
+        let mut upper = self.meet_bounds(slot_data.kind, &slot_data.upper)?;
         for bound in &slot_data.weighted_upper {
             let Some(bound) = self.resolve_weight_inert_bound_candidate(bound)? else {
                 continue;
             };
+            let bound = effect_slot_candidate(slot_data.kind, bound);
             upper = Some(match upper {
                 Some(existing) => meet_type_candidates(self.graph, existing, bound)?,
                 None => bound,
@@ -3807,6 +3904,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             let Some(successor) = self.try_slot_solution(*successor)? else {
                 continue;
             };
+            let successor = effect_slot_candidate(slot_data.kind, successor);
             upper = Some(match upper {
                 Some(existing) => meet_type_candidates(self.graph, existing, successor)?,
                 None => successor,
@@ -3823,17 +3921,22 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             {
                 Some(lower)
             }
-            (Some(lower), Some(upper))
-                if slot_data.kind == TypeSlotKind::Effect
-                    && type_candidate_subtype(self.graph, &lower, &upper) =>
-            {
-                Some(lower)
-            }
-            (Some(lower), Some(upper))
-                if slot_data.kind == TypeSlotKind::Effect
-                    && type_candidate_subtype(self.graph, &upper, &lower) =>
-            {
-                Some(upper)
+            (Some(lower), Some(upper)) if slot_data.kind == TypeSlotKind::Effect => {
+                if type_candidate_subtype(self.graph, &lower, &upper) {
+                    Some(lower)
+                } else if let Some(refined) =
+                    refine_effect_lower_with_upper(self.graph, &lower, &upper)?
+                {
+                    Some(refined)
+                } else if effect_rows_have_same_families(self.graph, &lower, &upper) {
+                    Some(meet_type_candidates(self.graph, lower, upper)?)
+                } else {
+                    Err(SpecializeError::ConflictingTypeCandidates {
+                        slot,
+                        existing: lower,
+                        incoming: upper,
+                    })?
+                }
             }
             (Some(Type::OpenVar(_)), Some(upper)) => Some(upper),
             (Some(lower), Some(Type::OpenVar(_))) => Some(lower),
@@ -3853,14 +3956,8 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                 incoming: upper,
             })?,
             (Some(lower), None) => Some(lower),
+            (None, Some(_)) if slot_data.kind == TypeSlotKind::Effect => Some(Type::pure_effect()),
             (None, Some(upper)) => Some(upper),
-            (None, None)
-                if slot_data.kind == TypeSlotKind::Effect
-                    && slot_data.lower.is_empty()
-                    && slot_data.upper.is_empty() =>
-            {
-                Some(Type::pure_effect())
-            }
             (None, None) => None,
         };
         self.erase_stack_solution_candidate(candidate)
@@ -4025,7 +4122,11 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
         }
     }
 
-    fn join_bounds(&mut self, bounds: &[Type]) -> Result<Option<Type>, SpecializeError> {
+    fn join_bounds(
+        &mut self,
+        slot_kind: TypeSlotKind,
+        bounds: &[Type],
+    ) -> Result<Option<Type>, SpecializeError> {
         let mut out = None;
         for bound in bounds {
             let Some(bound) = self.resolve_candidate(bound)? else {
@@ -4034,6 +4135,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             if type_contains_stack(&bound) {
                 continue;
             }
+            let bound = effect_slot_candidate(slot_kind, bound);
             out = Some(match out {
                 Some(existing) => join_type_candidates(self.graph, existing, bound)?,
                 None => bound,
@@ -4042,7 +4144,11 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
         Ok(out)
     }
 
-    fn meet_bounds(&mut self, bounds: &[Type]) -> Result<Option<Type>, SpecializeError> {
+    fn meet_bounds(
+        &mut self,
+        slot_kind: TypeSlotKind,
+        bounds: &[Type],
+    ) -> Result<Option<Type>, SpecializeError> {
         let mut out = None;
         for bound in bounds {
             let Some(bound) = self.resolve_candidate(bound)? else {
@@ -4051,6 +4157,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             if type_contains_stack(&bound) {
                 continue;
             }
+            let bound = effect_slot_candidate(slot_kind, bound);
             out = Some(match out {
                 Some(existing) => meet_type_candidates(self.graph, existing, bound)?,
                 None => bound,
@@ -4215,6 +4322,12 @@ fn join_type_candidates(
         (Type::PolyVariant(_), Type::PolyVariant(_)) => {
             return join_poly_variant_type_candidates(graph, left, right);
         }
+        (Type::EffectRow(_), Type::EffectRow(_)) => {
+            let (Type::EffectRow(left), Type::EffectRow(right)) = (left, right) else {
+                unreachable!("effect row candidates checked by caller");
+            };
+            return merge_effect_row_candidates(graph, left, right, CandidateMerge::Join);
+        }
         _ => {}
     }
     if left == right || type_candidate_subtype(graph, &right, &left) {
@@ -4317,6 +4430,12 @@ fn meet_type_candidates(
         }
         (Type::PolyVariant(_), Type::PolyVariant(_)) => {
             return meet_poly_variant_type_candidates(graph, left, right);
+        }
+        (Type::EffectRow(_), Type::EffectRow(_)) => {
+            let (Type::EffectRow(left), Type::EffectRow(right)) = (left, right) else {
+                unreachable!("effect row candidates checked by caller");
+            };
+            return merge_effect_row_candidates(graph, left, right, CandidateMerge::Meet);
         }
         _ => {}
     }
@@ -4596,31 +4715,52 @@ fn merge_effect_row_candidates(
     right: Vec<Type>,
     merge: CandidateMerge,
 ) -> Result<Type, SpecializeError> {
+    let (left_items, left_tail) = split_effect_candidate_tail_owned(graph, left);
+    let (right_items, right_tail) = split_effect_candidate_tail_owned(graph, right);
+    let left_has_tail = left_tail.is_some();
+    let right_has_tail = right_tail.is_some();
     let mut out = Vec::new();
-    let mut right_used = vec![false; right.len()];
-    for left_item in left {
-        match right.iter().enumerate().find_map(|(index, right_item)| {
-            (!right_used[index] && same_effect_row_family(&left_item, right_item)).then_some(index)
-        }) {
+    let mut right_used = vec![false; right_items.len()];
+    for left_item in left_items {
+        match right_items
+            .iter()
+            .enumerate()
+            .find_map(|(index, right_item)| {
+                (!right_used[index] && same_effect_row_family(&left_item, right_item))
+                    .then_some(index)
+            }) {
             Some(index) => {
                 right_used[index] = true;
                 out.push(merge_effect_row_item_candidate(
                     graph,
                     left_item,
-                    right[index].clone(),
+                    right_items[index].clone(),
                     merge,
                 )?);
             }
-            None if merge == CandidateMerge::Join => out.push(left_item),
+            None if merge == CandidateMerge::Join || right_has_tail => out.push(left_item),
             None => {}
         }
     }
-    if merge == CandidateMerge::Join {
-        for (index, right_item) in right.into_iter().enumerate() {
-            if !right_used[index] {
-                out.push(right_item);
-            }
+    for (index, right_item) in right_items.into_iter().enumerate() {
+        if right_used[index] {
+            continue;
         }
+        if merge == CandidateMerge::Join || left_has_tail {
+            out.push(right_item);
+        }
+    }
+    match (merge, left_tail, right_tail) {
+        (CandidateMerge::Join, Some(left), Some(right)) => {
+            out.push(join_type_candidates(graph, left, right)?);
+        }
+        (CandidateMerge::Meet, Some(left), Some(right)) => {
+            out.push(meet_type_candidates(graph, left, right)?);
+        }
+        (CandidateMerge::Join, Some(tail), None) | (CandidateMerge::Join, None, Some(tail)) => {
+            out.push(tail);
+        }
+        _ => {}
     }
     Ok(types::simplify_type(Type::EffectRow(out)))
 }
@@ -4647,6 +4787,44 @@ fn merge_effect_row_item_candidate(
         ) if left_path == right_path && left_args.len() == right_args.len() => {
             merge_same_head_con_candidate(graph, left_path, left_args, right_args, merge)
         }
+        (
+            Type::Con {
+                path: left_path,
+                args: left_args,
+            },
+            Type::Con {
+                path: right_path,
+                args: right_args,
+            },
+        ) if effect_path_contains_family(&left_path, &right_path) => Ok(match merge {
+            CandidateMerge::Join => Type::Con {
+                path: left_path,
+                args: left_args,
+            },
+            CandidateMerge::Meet => Type::Con {
+                path: right_path,
+                args: right_args,
+            },
+        }),
+        (
+            Type::Con {
+                path: left_path,
+                args: left_args,
+            },
+            Type::Con {
+                path: right_path,
+                args: right_args,
+            },
+        ) if effect_path_contains_family(&right_path, &left_path) => Ok(match merge {
+            CandidateMerge::Join => Type::Con {
+                path: right_path,
+                args: right_args,
+            },
+            CandidateMerge::Meet => Type::Con {
+                path: left_path,
+                args: left_args,
+            },
+        }),
         (left, right) => merge_candidate_component(graph, left, right, merge),
     }
 }
@@ -5328,10 +5506,8 @@ fn effect_row_candidate_subtype(
     let mut matched_upper = vec![false; upper_items.len()];
     for lower in lower_items {
         let Some(upper_index) = upper_items.iter().enumerate().find_map(|(index, upper)| {
-            (!matched_upper[index]
-                && same_effect_row_family(lower, upper)
-                && type_candidate_subtype(graph, lower, upper))
-            .then_some(index)
+            (!matched_upper[index] && effect_row_item_candidate_subtype(graph, lower, upper))
+                .then_some(index)
         }) else {
             if upper_has_top_tail {
                 continue;
@@ -5341,6 +5517,117 @@ fn effect_row_candidate_subtype(
         matched_upper[upper_index] = true;
     }
     !lower_has_top_tail || upper_has_top_tail
+}
+
+fn effect_rows_have_same_families(graph: &TypeGraph<'_>, left: &Type, right: &Type) -> bool {
+    let (Type::EffectRow(left), Type::EffectRow(right)) = (left, right) else {
+        return false;
+    };
+    let (left, left_has_tail) = split_effect_candidate_tail(graph, left);
+    let (right, right_has_tail) = split_effect_candidate_tail(graph, right);
+    !left_has_tail
+        && !right_has_tail
+        && left.len() == right.len()
+        && left.iter().all(|left| {
+            right
+                .iter()
+                .any(|right| same_effect_row_family(left, right))
+        })
+}
+
+fn refine_effect_lower_with_upper(
+    graph: &TypeGraph<'_>,
+    lower: &Type,
+    upper: &Type,
+) -> Result<Option<Type>, SpecializeError> {
+    let (Type::EffectRow(lower_items), Type::EffectRow(upper_items)) = (lower, upper) else {
+        return Ok(None);
+    };
+    let (lower_items, lower_has_tail) = split_effect_candidate_tail(graph, lower_items);
+    let (upper_items, upper_has_tail) = split_effect_candidate_tail(graph, upper_items);
+    if lower_has_tail {
+        if upper_has_tail
+            || !lower_items.iter().all(|lower_item| {
+                upper_items
+                    .iter()
+                    .any(|upper_item| same_effect_row_family(lower_item, upper_item))
+            })
+        {
+            return Ok(None);
+        }
+        return meet_type_candidates(graph, lower.clone(), upper.clone()).map(Some);
+    }
+    let mut refined = Vec::with_capacity(lower_items.len());
+    for lower_item in lower_items {
+        match upper_items
+            .iter()
+            .find(|upper_item| same_effect_row_family(lower_item, upper_item))
+        {
+            Some(upper_item) => refined.push(merge_effect_row_item_candidate(
+                graph,
+                lower_item.clone(),
+                upper_item.clone(),
+                CandidateMerge::Meet,
+            )?),
+            None if upper_has_tail => refined.push(lower_item.clone()),
+            None => return Ok(None),
+        }
+    }
+    Ok(Some(types::simplify_type(Type::EffectRow(refined))))
+}
+
+fn effect_row_item_candidate_subtype(graph: &TypeGraph<'_>, lower: &Type, upper: &Type) -> bool {
+    match (lower, upper) {
+        (
+            Type::Con {
+                path: lower_path,
+                args: lower_args,
+            },
+            Type::Con {
+                path: upper_path,
+                args: upper_args,
+            },
+        ) if lower_path == upper_path && lower_args.len() == upper_args.len() => lower_args
+            .iter()
+            .zip(upper_args)
+            .all(|(lower, upper)| effect_payload_candidate_subtype(graph, lower, upper)),
+        (
+            Type::Con {
+                path: lower_path,
+                args: lower_args,
+            },
+            Type::Con {
+                path: upper_path,
+                args: upper_args,
+            },
+        ) if effect_path_contains_family(upper_path, lower_path) => {
+            effect_payloads_candidate_subtype(graph, lower_args, upper_args)
+        }
+        _ => same_effect_row_family(lower, upper) && type_candidate_subtype(graph, lower, upper),
+    }
+}
+
+fn effect_payloads_candidate_subtype(
+    graph: &TypeGraph<'_>,
+    lower_args: &[Type],
+    upper_args: &[Type],
+) -> bool {
+    upper_args.is_empty()
+        || (lower_args.len() == upper_args.len()
+            && lower_args
+                .iter()
+                .zip(upper_args)
+                .all(|(lower, upper)| effect_payload_candidate_subtype(graph, lower, upper)))
+}
+
+fn effect_payload_candidate_subtype(graph: &TypeGraph<'_>, lower: &Type, upper: &Type) -> bool {
+    if lower == upper || matches!(upper, Type::OpenVar(_)) {
+        return true;
+    }
+    if matches!(lower, Type::OpenVar(_)) {
+        return false;
+    }
+    type_candidate_subtype(graph, lower, upper)
 }
 
 fn split_effect_candidate_tail<'a>(graph: &TypeGraph<'_>, items: &'a [Type]) -> (&'a [Type], bool) {
@@ -5355,6 +5642,24 @@ fn split_effect_candidate_tail<'a>(graph: &TypeGraph<'_>, items: &'a [Type]) -> 
         }
         _ => (items, false),
     }
+}
+
+fn split_effect_candidate_tail_owned(
+    graph: &TypeGraph<'_>,
+    mut items: Vec<Type>,
+) -> (Vec<Type>, Option<Type>) {
+    let Some(Type::OpenVar(slot)) = items.last().cloned() else {
+        return (items, None);
+    };
+    if graph
+        .slots
+        .get(slot as usize)
+        .is_some_and(|slot| slot.kind == TypeSlotKind::Effect)
+    {
+        let tail = items.pop();
+        return (items, tail);
+    }
+    (items, None)
 }
 
 fn effect_consumption_demand(expected: &Type) -> Option<EffectSubtractionDemand> {
@@ -5405,48 +5710,11 @@ fn effect_row_consumption_demand(expected: &Type) -> Option<EffectSubtractionDem
     if handled_items.is_empty() {
         return None;
     }
-    if !handled_items.iter().any(type_contains_intersection) {
-        return None;
-    }
     Some(EffectSubtractionDemand {
         tail: items[items.len() - 1].clone(),
         runtime_effect: expected.clone(),
         handled_items,
     })
-}
-
-fn type_contains_intersection(ty: &Type) -> bool {
-    match ty {
-        Type::Intersection(_, _) => true,
-        Type::Con { args, .. } | Type::Tuple(args) | Type::EffectRow(args) => {
-            args.iter().any(type_contains_intersection)
-        }
-        Type::Fun {
-            arg,
-            arg_effect,
-            ret_effect,
-            ret,
-        } => {
-            type_contains_intersection(arg)
-                || type_contains_intersection(arg_effect)
-                || type_contains_intersection(ret_effect)
-                || type_contains_intersection(ret)
-        }
-        Type::Thunk { effect, value } => {
-            type_contains_intersection(effect) || type_contains_intersection(value)
-        }
-        Type::Record(fields) => fields
-            .iter()
-            .any(|field| type_contains_intersection(&field.value)),
-        Type::PolyVariant(variants) => variants
-            .iter()
-            .any(|variant| variant.payloads.iter().any(type_contains_intersection)),
-        Type::Stack { inner, .. } => type_contains_intersection(inner),
-        Type::Union(left, right) => {
-            type_contains_intersection(left) || type_contains_intersection(right)
-        }
-        Type::Any | Type::Never | Type::OpenVar(_) => false,
-    }
 }
 
 fn effect_row_from_parts(mut items: Vec<Type>, tail: Option<Type>) -> Type {
@@ -5719,7 +5987,8 @@ fn effect_family_matches_item(family: &EffectFamily, item: &Type) -> bool {
     let Type::Con { path, args } = item else {
         return false;
     };
-    path == &family.path && (family.args.is_empty() || args.len() == family.args.len())
+    effect_path_contains_family(&family.path, path)
+        && (family.args.is_empty() || args.len() == family.args.len())
 }
 
 fn effect_families_from_items(items: &[Type]) -> Vec<EffectFamily> {
@@ -5772,7 +6041,9 @@ fn collect_effect_families(items: impl IntoIterator<Item = EffectFamily>) -> Vec
 }
 
 fn effect_family_path_is_in(family: &EffectFamily, items: &[EffectFamily]) -> bool {
-    items.iter().any(|item| item.path == family.path)
+    items
+        .iter()
+        .any(|item| effect_paths_same_family(&item.path, &family.path))
 }
 
 fn resolve_role_input_types(
@@ -6073,7 +6344,15 @@ fn same_effect_row_family(left: &Type, right: &Type) -> bool {
     else {
         return left == right;
     };
-    left_path == right_path
+    effect_paths_same_family(left_path, right_path)
+}
+
+fn effect_paths_same_family(left: &[String], right: &[String]) -> bool {
+    effect_path_contains_family(left, right) || effect_path_contains_family(right, left)
+}
+
+fn effect_path_contains_family(family: &[String], item: &[String]) -> bool {
+    !family.is_empty() && item.starts_with(family)
 }
 
 fn effect_row_items(effect: &Type) -> &[Type] {
@@ -6830,5 +7109,54 @@ mod tests {
             meet_type_candidates(&graph, open_row, int_row).unwrap(),
             Type::EffectRow(vec![int_sub, nondet])
         );
+    }
+
+    #[test]
+    fn effect_row_lower_with_tail_refines_to_closed_upper() {
+        let arena = poly_expr::Arena::new();
+        let mut graph = TypeGraph::new(&arena);
+        let tail = graph.fresh_effect();
+        let next = con(&["loop", "next"], Vec::new());
+        let redo = con(&["loop", "redo"], Vec::new());
+        let local = con(&["local"], Vec::new());
+        let lower = Type::EffectRow(vec![next.clone(), tail]);
+        let upper = Type::EffectRow(vec![redo.clone(), next.clone(), local.clone()]);
+
+        assert_eq!(
+            refine_effect_lower_with_upper(&graph, &lower, &upper).unwrap(),
+            Some(Type::EffectRow(vec![next, redo, local]))
+        );
+    }
+
+    #[test]
+    fn function_subtyping_compares_split_runtime_return_shapes() {
+        let arena = poly_expr::Arena::new();
+        let mut graph = TypeGraph::new(&arena);
+        let effect = graph.fresh_effect();
+        let effect_item = con(&["effect"], Vec::new());
+        let effect_row = Type::EffectRow(vec![effect_item.clone()]);
+        graph
+            .constrain_subtype(effect_row.clone(), effect.clone())
+            .unwrap();
+        let actual = Type::Fun {
+            arg: Box::new(Type::unit()),
+            arg_effect: Box::new(Type::pure_effect()),
+            ret_effect: Box::new(Type::pure_effect()),
+            ret: Box::new(types::runtime_shape(effect.clone(), Type::unit())),
+        };
+        let expected = Type::Fun {
+            arg: Box::new(Type::unit()),
+            arg_effect: Box::new(Type::pure_effect()),
+            ret_effect: Box::new(effect),
+            ret: Box::new(Type::unit()),
+        };
+
+        graph.constrain_exact(actual, expected).unwrap();
+        graph.solve_constraints().unwrap();
+
+        let solution = graph.solve_slots().unwrap();
+        assert!(solution.slots.iter().any(|slot| {
+            matches!(slot, Some(Type::EffectRow(items)) if items == &vec![effect_item.clone()])
+        }));
     }
 }

@@ -14922,6 +14922,20 @@ mod tests {
     }
 
     #[test]
+    fn result_effect_annotation_reuses_callback_tail() {
+        let root = parse("type loop\nmy h(xs, f: _ -> [loop; 'e] _): ['e] _ = f xs\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (h, _) = binding_def_and_order(&lower.modules, module, "h");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, h));
+        assert_eq!(rendered, "'a -> ('a -> ['b] 'c) -> ['b] 'c");
+    }
+
+    #[test]
     fn recursive_header_skeleton_keeps_late_callback_subtracts() {
         let root = parse("my h(f) =\n  f 1\n  h f\n");
         let lower = lower_module_map(&root);

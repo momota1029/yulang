@@ -217,10 +217,10 @@ impl Validator<'_> {
                 self.validate_expr_ref(*callee)?;
                 self.validate_expr_ref(*arg)
             }
-            Expr::RefSet { .. } => Err(ValidateError::UnsupportedExpr {
-                expr: id,
-                feature: "ref set".to_string(),
-            }),
+            Expr::RefSet { reference, value } => {
+                self.validate_expr_ref(*reference)?;
+                self.validate_expr_ref(*value)
+            }
             Expr::Lambda { param, body } => {
                 self.validate_pat(param)?;
                 self.validate_expr_ref(*body)

@@ -380,7 +380,7 @@ impl<'a> AnnConstraintLowerer<'a> {
         }
 
         let effect = self.infer.fresh_type_var();
-        self.connect_effect_tail_lower(effect, row)?;
+        self.connect_effect_tail_exact(effect, row)?;
         let stack = self.effect_row_stack(row)?;
         self.register_stack_facts(effect, &stack.weight);
         let effect_pos = self.alloc_pos(Pos::Var(effect));
@@ -406,11 +406,30 @@ impl<'a> AnnConstraintLowerer<'a> {
         effect: TypeVar,
         row: &AnnEffectRow,
     ) -> Result<AnnEffectStackConnection, AnnConstraintError> {
+        if row.items.is_empty()
+            && let Some(tail) = &row.tail
+        {
+            let tail = self.annotation_var(tail);
+            if tail != effect {
+                let tail_lower = self.alloc_pos(Pos::Var(tail));
+                let effect_upper = self.alloc_neg(Neg::Var(effect));
+                self.infer.subtype(tail_lower, effect_upper);
+                let effect_lower = self.alloc_pos(Pos::Var(effect));
+                let tail_upper = self.alloc_neg(Neg::Var(tail));
+                self.infer.subtype(effect_lower, tail_upper);
+            }
+            return Ok(AnnEffectStackConnection {
+                inner: tail,
+                weight: StackWeight::empty(),
+                subtracts: Vec::new(),
+            });
+        }
+
         // 注釈残差は fresh な内側変数に立て、stack で包んで下から effect を抑える。
         // `stack(effect, push) <: effect` の自己辺は bounds replay で重みが際限なく
         // 合成される（spec の「自分へ戻るだけの制約は無限ループの燃料」）ため作らない。
         let inner = self.infer.fresh_type_var();
-        self.connect_effect_tail_lower(inner, row)?;
+        self.connect_effect_tail_exact(inner, row)?;
         let stack = self.effect_row_stack(row)?;
         self.register_stack_facts(inner, &stack.weight);
         let inner_pos = self.alloc_pos(Pos::Var(inner));
@@ -447,17 +466,24 @@ impl<'a> AnnConstraintLowerer<'a> {
         Ok(())
     }
 
-    fn connect_effect_tail_lower(
+    fn connect_effect_tail_exact(
         &mut self,
         effect: TypeVar,
         row: &AnnEffectRow,
     ) -> Result<(), AnnConstraintError> {
-        if let Some(tail) = &row.tail {
-            let tail = self.annotation_var(tail);
-            let tail = self.alloc_pos(Pos::Var(tail));
-            let effect = self.alloc_neg(Neg::Var(effect));
-            self.infer.subtype(tail, effect);
+        let Some(tail) = &row.tail else {
+            return Ok(());
+        };
+        let tail = self.annotation_var(tail);
+        if tail == effect {
+            return Ok(());
         }
+        let tail_lower = self.alloc_pos(Pos::Var(tail));
+        let effect_upper = self.alloc_neg(Neg::Var(effect));
+        self.infer.subtype(tail_lower, effect_upper);
+        let effect_lower = self.alloc_pos(Pos::Var(effect));
+        let tail_upper = self.alloc_neg(Neg::Var(tail));
+        self.infer.subtype(effect_lower, tail_upper);
         Ok(())
     }
 
@@ -543,7 +569,7 @@ impl<'a> AnnConstraintLowerer<'a> {
         }
 
         let effect = self.infer.fresh_type_var();
-        self.connect_effect_tail_lower(effect, row)?;
+        self.connect_effect_tail_exact(effect, row)?;
         let stack = self.effect_row_stack(row)?;
         self.register_stack_facts(effect, &stack.weight);
         let effect = self.alloc_neg(Neg::Var(effect));
@@ -1709,6 +1735,58 @@ mod tests {
             }),
             "effect must not have weighted self edges: {:?}",
             bounds
+        );
+    }
+
+    #[test]
+    fn tail_only_effectful_annotation_is_current_effect() {
+        let root = parse("my site: ['e] 'a = 1\n");
+        let lower = crate::lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let site = lower.modules.value_decls(module, &Name("site".into()))[0].order;
+        let ann = build_ann_type_expr(&lower.modules, module, site, &first_type_expr(&root))
+            .expect("annotation should build");
+        let mut infer = crate::Arena::new();
+        let value = infer.fresh_type_var();
+        let effect = infer.fresh_type_var();
+
+        let connection = AnnConstraintLowerer::new(&mut infer, &lower.modules)
+            .connect_computation_detailed(AnnComputationTarget { value, effect }, &ann)
+            .expect("annotation constraints should lower");
+
+        assert_eq!(connection.subtracts, Vec::new());
+        let stack = connection
+            .effect_stack
+            .expect("effectful annotation should report an effect connection");
+        assert_eq!(stack.subtracts, Vec::new());
+        assert!(stack.weight.is_empty());
+        let tail = stack.inner;
+        let types = infer.constraints().types();
+        let effect_bounds = infer
+            .constraints()
+            .bounds()
+            .of(effect)
+            .expect("target effect should receive tail relation");
+        assert!(
+            effect_bounds
+                .lowers()
+                .iter()
+                .any(|bound| matches!(types.pos(bound.pos), Pos::Var(var) if *var == tail)),
+            "effect bounds: {:?}",
+            effect_bounds
+        );
+        let tail_bounds = infer
+            .constraints()
+            .bounds()
+            .of(tail)
+            .expect("tail should receive target effect relation");
+        assert!(
+            tail_bounds
+                .lowers()
+                .iter()
+                .any(|bound| matches!(types.pos(bound.pos), Pos::Var(var) if *var == effect)),
+            "tail bounds: {:?}",
+            tail_bounds
         );
     }
 
