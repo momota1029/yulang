@@ -14936,6 +14936,68 @@ mod tests {
     }
 
     #[test]
+    fn subtractable_helper_preserves_callback_residual_tail() {
+        let root = parse(
+            "type handled\nmy sub(x: [handled; 'e] _): ['e] () = x\nmy h(xs, f: _ -> [handled; 'e] _): ['e] () = sub(f xs)\n",
+        );
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (h, _) = binding_def_and_order(&lower.modules, module, "h");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, h));
+        assert_eq!(rendered, "'a -> ('a -> ['b] ()) -> ['b] ()");
+    }
+
+    #[test]
+    fn act_body_result_effect_annotation_reuses_callback_tail() {
+        let root = parse("act loop:\n  pub h(xs, f: _ -> [loop; 'e] _): ['e] _ = f xs\n");
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let h = lower
+            .modules
+            .value_path_at(
+                module,
+                &[Name("loop".into()), Name("h".into())],
+                ModuleOrder::from_index(u32::MAX),
+            )
+            .expect("loop.h value");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, h));
+        assert_eq!(rendered, "'a -> ('a -> ['b] 'c) -> ['b] 'c");
+    }
+
+    #[test]
+    fn role_method_selection_preserves_callback_residual_tail() {
+        let root = parse(concat!(
+            "type handled\n",
+            "struct Box;\n",
+            "role Fold 'container:\n",
+            "  type item\n",
+            "  pub container.fold: 'acc -> ('acc -> ['e] item -> ['e] 'acc) -> ['e] 'acc\n",
+            "impl Box: Fold:\n",
+            "  type item = int\n",
+            "  our b.fold z f = f z 0\n",
+            "my sub(x: [handled; 'e] _): ['e] () = x\n",
+            "my h(xs: Box, f: int -> [handled; 'e] _): ['e] () = sub(xs.fold () (\\() x -> f x))\n",
+        ));
+        let lower = lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let (h, _) = binding_def_and_order(&lower.modules, module, "h");
+
+        let output = lower_binding_bodies(&root, lower);
+
+        assert!(output.errors.is_empty(), "{:?}", output.errors);
+        let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, h));
+        assert_eq!(rendered, "Box -> (int -> ['a] ()) -> ['a] ()");
+    }
+
+    #[test]
     fn recursive_header_skeleton_keeps_late_callback_subtracts() {
         let root = parse("my h(f) =\n  f 1\n  h f\n");
         let lower = lower_module_map(&root);
