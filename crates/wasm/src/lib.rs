@@ -565,9 +565,12 @@ fn source_likely_needs_embedded_std(source: &str) -> bool {
 }
 
 fn should_retry_with_embedded_std(errors: &[String]) -> bool {
-    errors
-        .iter()
-        .any(|error| error.contains("unresolved value name"))
+    errors.iter().any(|error| {
+        error.contains("unresolved value name")
+            || error.contains("unresolved type name")
+            || error.contains("UnresolvedName")
+            || error.contains("UnresolvedTypeName")
+    })
 }
 
 fn source_has_identifier(source: &str, name: &str) -> bool {
@@ -791,6 +794,38 @@ point { x: 3, y: 4 } .norm2 + 1.12
         assert_eq!(
             output.results.first().map(|result| result.value.as_str()),
             Some("26.12")
+        );
+        assert!(output.file_count < yulang::stdlib::embedded_std_files().len() + 1);
+    }
+
+    #[test]
+    fn run_inner_uses_compact_playground_std_for_list_update_example() {
+        clear_std_cache();
+        let output = run_inner(
+            "\
+{
+    my $xs = [
+        2
+        3
+        4
+    ]
+    &xs[1] = 6
+    $xs
+}
+",
+        );
+
+        assert!(output.ok, "{output:?}");
+        assert_eq!(
+            output
+                .timings
+                .as_ref()
+                .map(|timing| timing.used_embedded_std),
+            Some(true)
+        );
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("[2, 6, 4]")
         );
         assert!(output.file_count < yulang::stdlib::embedded_std_files().len() + 1);
     }
