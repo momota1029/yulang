@@ -422,7 +422,7 @@ impl BodyLowerer {
         module: ModuleId,
         self_alias: Option<AnnSelfAlias>,
     ) {
-        self.lower_binding_with_context(node, module, self_alias, &[]);
+        self.lower_binding_with_context(node, module, self_alias, &[], &[]);
     }
 
     fn lower_binding_with_context(
@@ -431,6 +431,7 @@ impl BodyLowerer {
         module: ModuleId,
         self_alias: Option<AnnSelfAlias>,
         type_var_aliases: &[(String, String)],
+        type_name_aliases: &[(String, TypeDeclId)],
     ) {
         let names = crate::binding_value_names(node);
         if names.is_empty() {
@@ -443,6 +444,7 @@ impl BodyLowerer {
                 module,
                 self_alias,
                 type_var_aliases,
+                type_name_aliases,
                 names[0].clone(),
                 arg_patterns,
             );
@@ -452,6 +454,7 @@ impl BodyLowerer {
                 module,
                 self_alias,
                 type_var_aliases,
+                type_name_aliases,
                 names,
             );
         }
@@ -463,6 +466,7 @@ impl BodyLowerer {
         module: ModuleId,
         self_alias: Option<AnnSelfAlias>,
         type_var_aliases: &[(String, String)],
+        type_name_aliases: &[(String, TypeDeclId)],
         name: Name,
         arg_patterns: Vec<Cst>,
     ) {
@@ -500,6 +504,7 @@ impl BodyLowerer {
         .with_local_method_scope(self.local_method_scope)
         .with_self_alias(self_alias.clone())
         .with_type_var_aliases(type_var_aliases)
+        .with_type_name_aliases(type_name_aliases)
         .lower_binding_body_with_args_to_self(
             arg_patterns.as_slice(),
             &expr,
@@ -517,6 +522,7 @@ impl BodyLowerer {
                         decl.order,
                         self_alias,
                         type_var_aliases,
+                        type_name_aliases,
                         root,
                         computation,
                     )
@@ -547,6 +553,7 @@ impl BodyLowerer {
         module: ModuleId,
         self_alias: Option<AnnSelfAlias>,
         type_var_aliases: &[(String, String)],
+        type_name_aliases: &[(String, TypeDeclId)],
         names: Vec<Name>,
     ) {
         let Some(pattern) = crate::binding_pattern(node) else {
@@ -596,6 +603,7 @@ impl BodyLowerer {
         .with_local_method_scope(self.local_method_scope)
         .with_self_alias(self_alias.clone())
         .with_type_var_aliases(type_var_aliases)
+        .with_type_name_aliases(type_name_aliases)
         .lower_binding_body_expr(&expr);
         match hidden_lowered {
             Ok(computation) => {
@@ -605,6 +613,7 @@ impl BodyLowerer {
                     signature_module_path_site(),
                     self_alias.clone(),
                     type_var_aliases,
+                    type_name_aliases,
                     hidden_root,
                     computation,
                 );
@@ -1215,10 +1224,11 @@ impl BodyLowerer {
                 &decl,
                 &mut method_cursor,
                 copy.type_var_aliases.as_slice(),
+                copy.type_name_aliases.as_slice(),
             );
         }
         if let Some(body) = crate::act_decl_body(node) {
-            self.lower_act_body_contents(&body, companion, &decl, &mut method_cursor, &[]);
+            self.lower_act_body_contents(&body, companion, &decl, &mut method_cursor, &[], &[]);
         }
         self.local_method_scope = previous_scope;
     }
@@ -1229,6 +1239,7 @@ impl BodyLowerer {
         companion: ModuleId,
         decl: &ModuleTypeDecl,
         type_var_aliases: &[(String, String)],
+        type_name_aliases: &[(String, TypeDeclId)],
     ) {
         let Some(name) = crate::binding_name(node) else {
             return;
@@ -1269,7 +1280,12 @@ impl BodyLowerer {
         self.session
             .enqueue(AnalysisWork::Scc(SccInput::RegisterDef { def, root }));
 
-        let lowered = self.lower_act_operation_type(&operation_decl, &signature, type_var_aliases);
+        let lowered = self.lower_act_operation_type(
+            &operation_decl,
+            &signature,
+            type_var_aliases,
+            type_name_aliases,
+        );
         match lowered {
             Ok(predicate) => {
                 let root_upper = self.session.infer.alloc_neg(Neg::Var(root));
@@ -1302,9 +1318,14 @@ impl BodyLowerer {
         operation_decl: &ActOperationDecl,
         signature: &Cst,
         type_var_aliases: &[(String, String)],
+        type_name_aliases: &[(String, TypeDeclId)],
     ) -> Result<PosId, LoweringError> {
-        let signature =
-            self.act_operation_signature_type(operation_decl, signature, type_var_aliases)?;
+        let signature = self.act_operation_signature_type(
+            operation_decl,
+            signature,
+            type_var_aliases,
+            type_name_aliases,
+        )?;
         let mut lowerer = SignatureLowerer::new(&mut self.session.infer, &self.modules);
         lowerer
             .lower_pos(&signature)
@@ -1316,6 +1337,7 @@ impl BodyLowerer {
         operation_decl: &ActOperationDecl,
         signature: &Cst,
         type_var_aliases: &[(String, String)],
+        type_name_aliases: &[(String, TypeDeclId)],
     ) -> Result<SignatureType, LoweringError> {
         let effect_type_vars = self.act_effect_type_var_names(operation_decl.effect.id);
         let mut builder = ann_type_builder(
@@ -1328,6 +1350,7 @@ impl BodyLowerer {
             builder.add_bare_type_var(name.clone());
         }
         add_type_var_aliases(&mut builder, type_var_aliases);
+        add_type_name_aliases(&mut builder, type_name_aliases);
 
         let signature = build_signature_type_expr(&mut builder, signature)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
@@ -1385,6 +1408,7 @@ impl BodyLowerer {
                 &decl,
                 &mut method_cursor,
                 copy.type_var_aliases.as_slice(),
+                copy.type_name_aliases.as_slice(),
             );
             self.suppress_runtime_roots = previous_suppression;
             self.local_method_scope = previous_scope;
@@ -1398,11 +1422,18 @@ impl BodyLowerer {
         decl: &ModuleTypeDecl,
         method_cursor: &mut usize,
         type_var_aliases: &[(String, String)],
+        type_name_aliases: &[(String, TypeDeclId)],
     ) {
         for child in body.children() {
             match child.kind() {
                 SyntaxKind::Binding if crate::act_operation_binding(&child) => {
-                    self.lower_act_operation_binding(&child, companion, decl, type_var_aliases);
+                    self.lower_act_operation_binding(
+                        &child,
+                        companion,
+                        decl,
+                        type_var_aliases,
+                        type_name_aliases,
+                    );
                 }
                 SyntaxKind::Binding if crate::type_method_binding(&child).is_some() => {
                     let method = self
@@ -1417,12 +1448,17 @@ impl BodyLowerer {
                             companion,
                             &method,
                             type_var_aliases,
+                            type_name_aliases,
                         );
                     }
                 }
-                SyntaxKind::Binding => {
-                    self.lower_binding_with_context(&child, companion, None, type_var_aliases)
-                }
+                SyntaxKind::Binding => self.lower_binding_with_context(
+                    &child,
+                    companion,
+                    None,
+                    type_var_aliases,
+                    type_name_aliases,
+                ),
                 SyntaxKind::ModDecl => self.lower_mod_decl(&child, companion),
                 SyntaxKind::ActDecl => self.lower_act_decl_body(&child, companion),
                 SyntaxKind::TypeDecl
@@ -1448,7 +1484,19 @@ impl BodyLowerer {
         Some(ActCopyLoweringContext {
             body,
             type_var_aliases: copy.type_var_aliases.clone(),
+            type_name_aliases: self.act_copy_type_name_aliases(decl, copy.source),
         })
+    }
+
+    fn act_copy_type_name_aliases(
+        &self,
+        dest: &ModuleTypeDecl,
+        source: TypeDeclId,
+    ) -> Vec<(String, TypeDeclId)> {
+        self.modules
+            .type_decl_by_id(source)
+            .map(|source| vec![(source.name.0, dest.id)])
+            .unwrap_or_default()
     }
 
     fn lower_role_decl_body(&mut self, node: &Cst, module: ModuleId) {
@@ -2098,6 +2146,7 @@ impl BodyLowerer {
         module: ModuleId,
         method: &ActMethodDecl,
         type_var_aliases: &[(String, String)],
+        type_name_aliases: &[(String, TypeDeclId)],
     ) {
         let Some(expr) = binding_body_expr(node) else {
             self.errors.push(BodyLoweringError::MissingBody {
@@ -2125,6 +2174,7 @@ impl BodyLowerer {
         )
         .with_local_method_scope(self.local_method_scope)
         .with_type_var_aliases(type_var_aliases)
+        .with_type_name_aliases(type_name_aliases)
         .lower_act_method_body_expr(
             &expr,
             &binding_arg_patterns(node),
@@ -2212,6 +2262,7 @@ impl BodyLowerer {
         site: ModuleOrder,
         self_alias: Option<AnnSelfAlias>,
         type_var_aliases: &[(String, String)],
+        type_name_aliases: &[(String, TypeDeclId)],
         root: TypeVar,
         computation: Computation,
     ) -> Result<(), LoweringError> {
@@ -2220,6 +2271,7 @@ impl BodyLowerer {
         };
         let mut builder = ann_type_builder(&self.modules, module, site, self_alias);
         add_type_var_aliases(&mut builder, type_var_aliases);
+        add_type_name_aliases(&mut builder, type_name_aliases);
         let ann = builder
             .build_type_expr(&type_expr)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
@@ -2530,15 +2582,23 @@ fn add_type_var_aliases(builder: &mut AnnTypeBuilder<'_>, aliases: &[(String, St
     }
 }
 
+fn add_type_name_aliases(builder: &mut AnnTypeBuilder<'_>, aliases: &[(String, TypeDeclId)]) {
+    for (alias, target) in aliases {
+        builder.add_type_name_alias(alias.clone(), *target);
+    }
+}
+
 fn ann_type_builder_with_aliases<'a>(
     modules: &'a ModuleTable,
     module: ModuleId,
     site: ModuleOrder,
     self_alias: Option<AnnSelfAlias>,
     aliases: &[(String, String)],
+    type_name_aliases: &[(String, TypeDeclId)],
 ) -> AnnTypeBuilder<'a> {
     let mut builder = ann_type_builder(modules, module, site, self_alias);
     add_type_var_aliases(&mut builder, aliases);
+    add_type_name_aliases(&mut builder, type_name_aliases);
     builder
 }
 
@@ -3198,6 +3258,7 @@ fn module_path_lookup_site() -> ModuleOrder {
 struct ActCopyLoweringContext {
     body: Cst,
     type_var_aliases: Vec<(String, String)>,
+    type_name_aliases: Vec<(String, TypeDeclId)>,
 }
 
 /// expression lowering の入口。
@@ -3213,6 +3274,7 @@ pub struct ExprLowerer<'a> {
     labels: Option<&'a mut DumpLabels>,
     self_alias: Option<AnnSelfAlias>,
     type_var_aliases: Vec<(String, String)>,
+    type_name_aliases: Vec<(String, TypeDeclId)>,
     local_method_scope: Option<ModuleId>,
     synthetic_var_acts: Vec<SyntheticVarActUse>,
     synthetic_var_act_cursor: usize,
@@ -3259,6 +3321,7 @@ impl<'a> ExprLowerer<'a> {
             labels: None,
             self_alias: None,
             type_var_aliases: Vec::new(),
+            type_name_aliases: Vec::new(),
             local_method_scope: None,
             synthetic_var_acts,
             synthetic_var_act_cursor: 0,
@@ -3295,6 +3358,7 @@ impl<'a> ExprLowerer<'a> {
             labels: Some(labels),
             self_alias: None,
             type_var_aliases: Vec::new(),
+            type_name_aliases: Vec::new(),
             local_method_scope: None,
             synthetic_var_acts,
             synthetic_var_act_cursor: 0,
@@ -3318,6 +3382,11 @@ impl<'a> ExprLowerer<'a> {
 
     pub fn with_type_var_aliases(mut self, aliases: &[(String, String)]) -> Self {
         self.type_var_aliases = aliases.to_vec();
+        self
+    }
+
+    pub fn with_type_name_aliases(mut self, aliases: &[(String, TypeDeclId)]) -> Self {
+        self.type_name_aliases = aliases.to_vec();
         self
     }
 
@@ -3378,6 +3447,7 @@ impl<'a> ExprLowerer<'a> {
             self.site,
             self.self_alias.clone(),
             &self.type_var_aliases,
+            &self.type_name_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
         self.lower_lambda_params(
@@ -3428,6 +3498,7 @@ impl<'a> ExprLowerer<'a> {
             self.site,
             self.self_alias.clone(),
             &self.type_var_aliases,
+            &self.type_name_aliases,
         );
         let self_ann = ann_builder.type_decl_application(owner, type_vars);
         let mut ann_solver_vars = FxHashMap::default();
@@ -3499,6 +3570,7 @@ impl<'a> ExprLowerer<'a> {
             self.site,
             self.self_alias.clone(),
             &self.type_var_aliases,
+            &self.type_name_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
 
@@ -3566,6 +3638,7 @@ impl<'a> ExprLowerer<'a> {
             self.site,
             self.self_alias.clone(),
             &self.type_var_aliases,
+            &self.type_name_aliases,
         );
         for name in role_inputs.iter().chain(role_associated.iter()) {
             ann_builder.add_bare_type_var(name.clone());
@@ -3669,6 +3742,7 @@ impl<'a> ExprLowerer<'a> {
             self.site,
             self.self_alias.clone(),
             &self.type_var_aliases,
+            &self.type_name_aliases,
         );
         ann_builder.seed_type_var_bindings(type_var_bindings);
 
@@ -4597,6 +4671,7 @@ impl<'a> ExprLowerer<'a> {
             self.site,
             self.self_alias.clone(),
             &self.type_var_aliases,
+            &self.type_name_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
         self.lower_lambda_params(
@@ -4624,6 +4699,7 @@ impl<'a> ExprLowerer<'a> {
             self.site,
             self.self_alias.clone(),
             &self.type_var_aliases,
+            &self.type_name_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
         self.lower_lambda_params_with_body_mode(
@@ -5392,6 +5468,7 @@ impl<'a> ExprLowerer<'a> {
             self.site,
             self.self_alias.clone(),
             &self.type_var_aliases,
+            &self.type_name_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
         let body = match label {
@@ -5638,6 +5715,7 @@ impl<'a> ExprLowerer<'a> {
             self.site,
             self.self_alias.clone(),
             &self.type_var_aliases,
+            &self.type_name_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
         let result_type_expr = binding_type_expr(binding);
@@ -5667,6 +5745,7 @@ impl<'a> ExprLowerer<'a> {
             self.site,
             self.self_alias.clone(),
             &self.type_var_aliases,
+            &self.type_name_aliases,
         );
         let ann = builder
             .build_type_expr(&type_expr)
@@ -7058,6 +7137,7 @@ impl<'a> ExprLowerer<'a> {
             self.site,
             self.self_alias.clone(),
             &self.type_var_aliases,
+            &self.type_name_aliases,
         );
         let ann = builder
             .build_type_expr(&type_expr)

@@ -1211,24 +1211,16 @@ impl<'a> TaskSolver<'a> {
             }
             Some(poly_expr::SelectResolution::Method { def }) => {
                 let method = self.instantiate_def_scheme(def)?;
-                self.select_uses.push(SelectUse {
-                    expr,
-                    ty: method.clone(),
-                });
                 let Some(parts) = function_computation_parts(&method) else {
                     self.expr(base)?;
                     return Ok(self.graph.fresh_value());
                 };
-                let base_effect = if parts.arg_effect.is_pure_effect() {
-                    self.consume_expr_value(base, parts.arg.clone())?.1
-                } else {
-                    self.consume_expr_computation(
-                        base,
-                        parts.arg_effect.clone(),
-                        parts.arg.clone(),
-                    )?;
-                    Type::pure_effect()
-                };
+                let demand = self.consume_selected_method_receiver(base, &parts)?;
+                self.select_uses.push(SelectUse {
+                    expr,
+                    ty: demand.signature,
+                });
+                let base_effect = demand.evaluation_effect;
                 let has_evaluation_effect = !base_effect.is_pure_effect();
                 let effect = self.join_effects([base_effect, parts.ret_effect])?;
                 let result = self.runtime_shape(effect, parts.ret)?;
@@ -1239,25 +1231,17 @@ impl<'a> TaskSolver<'a> {
             }
             Some(poly_expr::SelectResolution::TypeclassMethod { member }) => {
                 let method = self.instantiate_def_scheme(member)?;
-                self.typeclass_uses.push(TypeclassUse {
-                    expr,
-                    member,
-                    method_ty: method.clone(),
-                });
                 let Some(parts) = function_computation_parts(&method) else {
                     self.expr(base)?;
                     return Ok(self.graph.fresh_value());
                 };
-                let base_effect = if parts.arg_effect.is_pure_effect() {
-                    self.consume_expr_value(base, parts.arg.clone())?.1
-                } else {
-                    self.consume_expr_computation(
-                        base,
-                        parts.arg_effect.clone(),
-                        parts.arg.clone(),
-                    )?;
-                    Type::pure_effect()
-                };
+                let demand = self.consume_selected_method_receiver(base, &parts)?;
+                self.typeclass_uses.push(TypeclassUse {
+                    expr,
+                    member,
+                    method_ty: demand.signature,
+                });
+                let base_effect = demand.evaluation_effect;
                 let has_evaluation_effect = !base_effect.is_pure_effect();
                 let effect = self.join_effects([base_effect, parts.ret_effect])?;
                 let result = self.runtime_shape(effect, parts.ret)?;
@@ -1271,6 +1255,33 @@ impl<'a> TaskSolver<'a> {
                 Ok(self.graph.fresh_value())
             }
         }
+    }
+
+    fn consume_selected_method_receiver(
+        &mut self,
+        base: poly_expr::ExprId,
+        parts: &FunctionComputationParts,
+    ) -> Result<SelectedMethodDemand, SpecializeError> {
+        let (evaluation_effect, receiver_effect) = if parts.arg_effect.is_pure_effect() {
+            (
+                self.consume_expr_value(base, parts.arg.clone())?.1,
+                Type::pure_effect(),
+            )
+        } else {
+            (
+                Type::pure_effect(),
+                self.consume_expr_computation(base, parts.arg_effect.clone(), parts.arg.clone())?,
+            )
+        };
+        Ok(SelectedMethodDemand {
+            evaluation_effect,
+            signature: Type::Fun {
+                arg: Box::new(parts.arg.clone()),
+                arg_effect: Box::new(receiver_effect),
+                ret_effect: Box::new(parts.ret_effect.clone()),
+                ret: Box::new(parts.ret.clone()),
+            },
+        })
     }
 
     fn case_type(
@@ -2138,6 +2149,11 @@ struct TypeclassUse {
     expr: poly_expr::ExprId,
     member: poly_expr::DefId,
     method_ty: Type,
+}
+
+struct SelectedMethodDemand {
+    evaluation_effect: Type,
+    signature: Type,
 }
 
 #[derive(Debug, Clone)]
@@ -4192,6 +4208,15 @@ fn join_type_candidates(
     left: Type,
     right: Type,
 ) -> Result<Type, SpecializeError> {
+    match (&left, &right) {
+        (Type::Record(_), Type::Record(_)) => {
+            return join_record_type_candidates(graph, left, right);
+        }
+        (Type::PolyVariant(_), Type::PolyVariant(_)) => {
+            return join_poly_variant_type_candidates(graph, left, right);
+        }
+        _ => {}
+    }
     if left == right || type_candidate_subtype(graph, &right, &left) {
         return Ok(left);
     }
@@ -4286,6 +4311,15 @@ fn meet_type_candidates(
     left: Type,
     right: Type,
 ) -> Result<Type, SpecializeError> {
+    match (&left, &right) {
+        (Type::Record(_), Type::Record(_)) => {
+            return meet_record_type_candidates(graph, left, right);
+        }
+        (Type::PolyVariant(_), Type::PolyVariant(_)) => {
+            return meet_poly_variant_type_candidates(graph, left, right);
+        }
+        _ => {}
+    }
     if left == right || type_candidate_subtype(graph, &left, &right) {
         return Ok(left);
     }
@@ -4367,6 +4401,172 @@ fn meet_type_candidates(
             incoming: right,
         }),
     }
+}
+
+fn join_record_type_candidates(
+    graph: &TypeGraph<'_>,
+    left: Type,
+    right: Type,
+) -> Result<Type, SpecializeError> {
+    let (Type::Record(left_fields), Type::Record(right_fields)) = (left, right) else {
+        unreachable!("record candidates checked by caller");
+    };
+    merge_record_type_candidates(graph, left_fields, right_fields, RecordMerge::Join)
+        .map(Type::Record)
+}
+
+fn meet_record_type_candidates(
+    graph: &TypeGraph<'_>,
+    left: Type,
+    right: Type,
+) -> Result<Type, SpecializeError> {
+    let (Type::Record(left_fields), Type::Record(right_fields)) = (left, right) else {
+        unreachable!("record candidates checked by caller");
+    };
+    merge_record_type_candidates(graph, left_fields, right_fields, RecordMerge::Meet)
+        .map(Type::Record)
+}
+
+fn merge_record_type_candidates(
+    graph: &TypeGraph<'_>,
+    left_fields: Vec<TypeField>,
+    right_fields: Vec<TypeField>,
+    merge: RecordMerge,
+) -> Result<Vec<TypeField>, SpecializeError> {
+    let mut out = Vec::new();
+    for left in &left_fields {
+        match record_field_type(&right_fields, &left.name) {
+            Some(right) => {
+                let value = match merge {
+                    RecordMerge::Join => {
+                        join_type_candidates(graph, left.value.clone(), right.value.clone())?
+                    }
+                    RecordMerge::Meet => {
+                        meet_type_candidates(graph, left.value.clone(), right.value.clone())?
+                    }
+                };
+                out.push(TypeField {
+                    name: left.name.clone(),
+                    value,
+                    optional: match merge {
+                        RecordMerge::Join => left.optional || right.optional,
+                        RecordMerge::Meet => left.optional && right.optional,
+                    },
+                });
+            }
+            None => out.push(TypeField {
+                name: left.name.clone(),
+                value: left.value.clone(),
+                optional: match merge {
+                    RecordMerge::Join => true,
+                    RecordMerge::Meet => left.optional,
+                },
+            }),
+        }
+    }
+    for right in right_fields {
+        if left_fields.iter().any(|left| left.name == right.name) {
+            continue;
+        }
+        out.push(TypeField {
+            name: right.name,
+            value: right.value,
+            optional: match merge {
+                RecordMerge::Join => true,
+                RecordMerge::Meet => right.optional,
+            },
+        });
+    }
+    Ok(out)
+}
+
+fn join_poly_variant_type_candidates(
+    graph: &TypeGraph<'_>,
+    left: Type,
+    right: Type,
+) -> Result<Type, SpecializeError> {
+    let (Type::PolyVariant(left_variants), Type::PolyVariant(right_variants)) = (left, right)
+    else {
+        unreachable!("poly variant candidates checked by caller");
+    };
+    merge_poly_variant_type_candidates(graph, left_variants, right_variants, VariantMerge::Join)
+        .map(Type::PolyVariant)
+}
+
+fn meet_poly_variant_type_candidates(
+    graph: &TypeGraph<'_>,
+    left: Type,
+    right: Type,
+) -> Result<Type, SpecializeError> {
+    let (Type::PolyVariant(left_variants), Type::PolyVariant(right_variants)) = (left, right)
+    else {
+        unreachable!("poly variant candidates checked by caller");
+    };
+    let variants = merge_poly_variant_type_candidates(
+        graph,
+        left_variants,
+        right_variants,
+        VariantMerge::Meet,
+    )?;
+    if variants.is_empty() {
+        return Ok(Type::Never);
+    }
+    Ok(Type::PolyVariant(variants))
+}
+
+fn merge_poly_variant_type_candidates(
+    graph: &TypeGraph<'_>,
+    left_variants: Vec<TypeVariant>,
+    right_variants: Vec<TypeVariant>,
+    merge: VariantMerge,
+) -> Result<Vec<TypeVariant>, SpecializeError> {
+    let mut out = Vec::new();
+    for left in &left_variants {
+        match matching_variant(&right_variants, left) {
+            Some(right) => {
+                let payloads = left
+                    .payloads
+                    .iter()
+                    .cloned()
+                    .zip(right.payloads.iter().cloned())
+                    .map(|(left, right)| match merge {
+                        VariantMerge::Join => join_type_candidates(graph, left, right),
+                        VariantMerge::Meet => meet_type_candidates(graph, left, right),
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                out.push(TypeVariant {
+                    name: left.name.clone(),
+                    payloads,
+                });
+            }
+            None if merge == VariantMerge::Join => out.push(left.clone()),
+            None => {}
+        }
+    }
+    if merge == VariantMerge::Join {
+        for right in right_variants {
+            if left_variants
+                .iter()
+                .any(|left| variants_match(left, &right))
+            {
+                continue;
+            }
+            out.push(right);
+        }
+    }
+    Ok(out)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RecordMerge {
+    Join,
+    Meet,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VariantMerge {
+    Join,
+    Meet,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -5087,8 +5287,18 @@ fn type_candidate_subtype(graph: &TypeGraph<'_>, lower: &Type, upper: &Type) -> 
             .zip(upper)
             .all(|(lower, upper)| type_candidate_subtype(graph, lower, upper)),
         (Type::Record(lower), Type::Record(upper)) => upper.iter().all(|upper| {
-            record_field_type(lower, &upper.name)
-                .is_some_and(|lower| type_candidate_subtype(graph, &lower.value, &upper.value))
+            upper.optional
+                || record_field_type(lower, &upper.name)
+                    .is_some_and(|lower| type_candidate_subtype(graph, &lower.value, &upper.value))
+        }),
+        (Type::PolyVariant(lower), Type::PolyVariant(upper)) => lower.iter().all(|lower| {
+            matching_variant(upper, lower).is_some_and(|upper| {
+                lower
+                    .payloads
+                    .iter()
+                    .zip(&upper.payloads)
+                    .all(|(lower, upper)| type_candidate_subtype(graph, lower, upper))
+            })
         }),
         (Type::EffectRow(lower), Type::EffectRow(upper)) => {
             effect_row_candidate_subtype(graph, lower, upper)
@@ -5827,6 +6037,19 @@ fn con(path: &[&str], args: Vec<Type>) -> Type {
 
 fn record_field_type<'a>(fields: &'a [TypeField], name: &str) -> Option<&'a TypeField> {
     fields.iter().find(|field| field.name == name)
+}
+
+fn matching_variant<'a>(
+    variants: &'a [TypeVariant],
+    target: &TypeVariant,
+) -> Option<&'a TypeVariant> {
+    variants
+        .iter()
+        .find(|variant| variants_match(variant, target))
+}
+
+fn variants_match(left: &TypeVariant, right: &TypeVariant) -> bool {
+    left.name == right.name && left.payloads.len() == right.payloads.len()
 }
 
 fn record_spread_def(
