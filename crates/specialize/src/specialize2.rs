@@ -44,8 +44,11 @@ impl Specializer2 {
                 poly_expr::RuntimeRoot::Expr(expr) => {
                     let expr_id = *expr;
                     let solved = TaskSolver::solve_root_expr(arena, expr_id)?;
-                    let expr = self.emit_expr(arena, &solved, expr_id)?;
-                    Root::Expr(force_expr_if_thunk(solved.actual_type_of(expr_id), expr))
+                    let expr = self.emit_expr_typed(arena, &solved, expr_id)?;
+                    Root::Expr(force_emitted_expr_if_thunk(
+                        solved.actual_type_of(expr_id),
+                        expr,
+                    ))
                 }
                 poly_expr::RuntimeRoot::ComputedDef(def) => {
                     Root::EvalInstance(self.ensure_computed_def_instance(arena, *def)?)
@@ -85,10 +88,12 @@ impl Specializer2 {
         def: poly_expr::DefId,
         signature_ty: Type,
     ) -> Result<InstanceId, SpecializeError> {
-        let signature_ty = close_resolved_runtime_surface(signature_ty, TypeSlotKind::Value);
+        let inference_signature_ty = signature_ty;
+        let runtime_signature_ty =
+            close_resolved_runtime_surface(inference_signature_ty.clone(), TypeSlotKind::Value);
         let key = InstanceKey {
             def,
-            ty: signature_ty.clone(),
+            ty: runtime_signature_ty.clone(),
         };
         if let Some(instance) = self.instance_by_key.get(&key).copied() {
             return Ok(instance);
@@ -119,17 +124,19 @@ impl Specializer2 {
         self.instance_by_key.insert(key, id);
         self.instances.push(None);
         self.active_instance_signatures
-            .insert(id, signature_ty.clone());
+            .insert(id, runtime_signature_ty.clone());
 
-        let solved = TaskSolver::solve_def_body(arena, def, body, signature_ty.clone())?;
+        let solved = TaskSolver::solve_def_body(arena, def, body, inference_signature_ty)?;
         let mut body = self.emit_expr(arena, &solved, body)?;
         if !scheme.stack_quantifiers.is_empty() {
-            body = wrap_stack_handler_marker(&signature_ty, body);
+            body = wrap_stack_handler_marker(&runtime_signature_ty, body);
         }
         self.instances[id.0 as usize] = Some(Instance {
             id,
             source: InstanceSource::Def(convert_def(def)),
-            signature: Signature { ty: signature_ty },
+            signature: Signature {
+                ty: runtime_signature_ty,
+            },
             body,
         });
         self.active_instance_signatures.remove(&id);
@@ -142,6 +149,15 @@ impl Specializer2 {
         solved: &SolvedTask,
         expr: poly_expr::ExprId,
     ) -> Result<Expr, SpecializeError> {
+        Ok(self.emit_expr_typed(arena, solved, expr)?.expr)
+    }
+
+    fn emit_expr_typed(
+        &mut self,
+        arena: &poly_expr::Arena,
+        solved: &SolvedTask,
+        expr: poly_expr::ExprId,
+    ) -> Result<EmittedExpr, SpecializeError> {
         self.emit_expr_with_boundary(arena, solved, expr, true)
     }
 
@@ -150,7 +166,7 @@ impl Specializer2 {
         arena: &poly_expr::Arena,
         solved: &SolvedTask,
         expr: poly_expr::ExprId,
-    ) -> Result<Expr, SpecializeError> {
+    ) -> Result<EmittedExpr, SpecializeError> {
         self.emit_expr_with_boundary(arena, solved, expr, false)
     }
 
@@ -160,7 +176,7 @@ impl Specializer2 {
         solved: &SolvedTask,
         expr: poly_expr::ExprId,
         wrap_boundary: bool,
-    ) -> Result<Expr, SpecializeError> {
+    ) -> Result<EmittedExpr, SpecializeError> {
         use poly_expr::Expr as PolyExpr;
         let kind = match arena.expr(expr) {
             PolyExpr::Lit(lit) => ExprKind::Lit(convert_lit(lit)),
@@ -179,7 +195,7 @@ impl Specializer2 {
             ),
             PolyExpr::Lambda(param, body) => ExprKind::Lambda(
                 self.emit_pat(arena, solved, *param)?,
-                Box::new(self.emit_expr(arena, solved, *body)?),
+                Box::new(self.emit_lambda_body(arena, solved, expr, *body)?),
             ),
             PolyExpr::Tuple(items) => ExprKind::Tuple(self.emit_exprs(arena, solved, items)?),
             PolyExpr::Record { fields, spread } => ExprKind::Record {
@@ -245,11 +261,10 @@ impl Specializer2 {
                 ExprKind::Block(self.emit_block(arena, solved, stmts, *tail)?)
             }
         };
-        let mut expr_out = Expr::new(kind);
-        if matches!(arena.expr(expr), PolyExpr::Catch(_, _))
-            || solved.is_raw_thunk_computation(expr)
-        {
-            expr_out = wrap_raw_thunk_computation(solved.actual_type_of(expr), expr_out);
+        let expr_out = Expr::new(kind);
+        let mut expr_out = EmittedExpr::pure(expr_out, raw_expr_value_type(arena, solved, expr));
+        if raw_expr_is_computation(arena, solved, expr) {
+            expr_out = lift_raw_expr_to_computation(solved.actual_type_of(expr), expr_out);
         }
         if wrap_boundary {
             solved.wrap_expr_boundary(expr, expr_out)
@@ -521,13 +536,16 @@ impl Specializer2 {
                         if let Some(tail) = tail {
                             let actual = solved.actual_type_of(*tail).cloned();
                             let tail = self.emit_expr_without_boundary(arena, solved, *tail)?;
-                            out.push(Stmt::Expr(force_expr_if_thunk(actual.as_ref(), tail)));
+                            out.push(Stmt::Expr(force_emitted_expr_if_thunk(
+                                actual.as_ref(),
+                                tail,
+                            )));
                         }
                         continue;
                     }
                     let actual = solved.actual_type_of(*expr).cloned();
                     let expr = self.emit_expr_without_boundary(arena, solved, *expr)?;
-                    Stmt::Expr(force_expr_if_thunk(actual.as_ref(), expr))
+                    Stmt::Expr(force_emitted_expr_if_thunk(actual.as_ref(), expr))
                 }
                 poly_expr::Stmt::Module(def, body) => {
                     let mut module_defs = Vec::new();
@@ -574,18 +592,37 @@ impl Specializer2 {
         }
     }
 
+    fn emit_lambda_body(
+        &mut self,
+        arena: &poly_expr::Arena,
+        solved: &SolvedTask,
+        lambda: poly_expr::ExprId,
+        body: poly_expr::ExprId,
+    ) -> Result<Expr, SpecializeError> {
+        let expr = self.emit_expr_typed(arena, solved, body)?;
+        let Some(expected) = solved
+            .actual_type_of(lambda)
+            .and_then(runtime_function_return_type)
+        else {
+            return Ok(expr.expr);
+        };
+        let Some(actual) = solved.actual_type_of(body) else {
+            return Ok(expr.expr);
+        };
+        Ok(boundary_emitted_expr(actual, expected, expr).expr)
+    }
+
     fn emit_catch_body(
         &mut self,
         arena: &poly_expr::Arena,
         solved: &SolvedTask,
         body: poly_expr::ExprId,
     ) -> Result<Expr, SpecializeError> {
-        let expr = self.emit_expr(arena, solved, body)?;
-        if catch_body_needs_force(arena, body) {
-            Ok(force_expr_if_thunk(solved.actual_type_of(body), expr))
-        } else {
-            Ok(expr)
-        }
+        let expr = self.emit_expr_typed(arena, solved, body)?;
+        Ok(force_emitted_expr_if_thunk(
+            solved.actual_type_of(body),
+            expr,
+        ))
     }
 }
 
@@ -593,6 +630,46 @@ impl Specializer2 {
 struct InstanceKey {
     def: poly_expr::DefId,
     ty: Type,
+}
+
+#[derive(Debug, Clone)]
+struct EmittedExpr {
+    expr: Expr,
+    computation: Option<ComputationShape>,
+}
+
+impl EmittedExpr {
+    fn pure(expr: Expr, value: Option<Type>) -> Self {
+        Self {
+            expr,
+            computation: value.map(ComputationShape::pure),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ComputationShape {
+    effect: Type,
+    value: Type,
+}
+
+impl ComputationShape {
+    fn pure(value: Type) -> Self {
+        Self {
+            effect: Type::pure_effect(),
+            value,
+        }
+    }
+
+    fn from_runtime_type(ty: &Type) -> Self {
+        match ty {
+            Type::Thunk { effect, value } => Self {
+                effect: effect.as_ref().clone(),
+                value: value.as_ref().clone(),
+            },
+            value => Self::pure(value.clone()),
+        }
+    }
 }
 
 struct SolvedTask {
@@ -611,6 +688,11 @@ impl SolvedTask {
 
     fn consumer_type_of(&self, expr: poly_expr::ExprId) -> Option<&Type> {
         self.exprs.get(&expr).and_then(|ty| ty.consumer.as_ref())
+    }
+
+    fn emitted_type_of(&self, expr: poly_expr::ExprId) -> Option<&Type> {
+        self.consumer_type_of(expr)
+            .or_else(|| self.actual_type_of(expr))
     }
 
     fn ref_signature(&self, expr: poly_expr::ExprId) -> Option<&Type> {
@@ -636,8 +718,8 @@ impl SolvedTask {
     fn wrap_expr_boundary(
         &self,
         expr: poly_expr::ExprId,
-        mono: Expr,
-    ) -> Result<Expr, SpecializeError> {
+        mono: EmittedExpr,
+    ) -> Result<EmittedExpr, SpecializeError> {
         let Some(actual) = self.actual_type_of(expr) else {
             return Ok(mono);
         };
@@ -647,10 +729,7 @@ impl SolvedTask {
         if matches!(consumer, Type::Any) {
             return Ok(mono);
         }
-        if equivalent_boundary_types(actual, consumer) {
-            return Ok(mono);
-        }
-        Ok(boundary_expr(actual, consumer, mono))
+        Ok(boundary_emitted_expr(actual, consumer, mono))
     }
 }
 
@@ -771,8 +850,40 @@ impl<'a> TaskSolver<'a> {
         consumer: Type,
     ) -> Result<(), SpecializeError> {
         let actual = self.expr(expr)?;
+        self.add_expr_consumer(expr, actual.clone(), consumer.clone());
+        self.graph.constrain_subtype(actual, consumer)
+    }
+
+    fn consume_expr_value(
+        &mut self,
+        expr: poly_expr::ExprId,
+        consumer: Type,
+    ) -> Result<(Type, Type), SpecializeError> {
+        let actual = self.expr(expr)?;
+        self.add_expr_consumer(expr, actual.clone(), consumer.clone());
+        let (actual_value, actual_effect) = split_runtime_computation_shape(actual);
+        self.graph
+            .constrain_subtype(actual_value.clone(), consumer)?;
+        Ok((actual_value, actual_effect))
+    }
+
+    fn consume_expr_computation(
+        &mut self,
+        expr: poly_expr::ExprId,
+        effect: Type,
+        value: Type,
+    ) -> Result<(), SpecializeError> {
+        let actual = self.expr(expr)?;
+        let consumer = types::runtime_shape(effect.clone(), value.clone());
+        self.add_expr_consumer(expr, actual.clone(), consumer);
+        let (actual_value, actual_effect) = split_runtime_computation_shape(actual);
+        self.graph.constrain_subtype(actual_value, value)?;
+        self.graph.constrain_subtype(actual_effect, effect)
+    }
+
+    fn add_expr_consumer(&mut self, expr: poly_expr::ExprId, actual: Type, consumer: Type) {
         let info = self.exprs.entry(expr).or_insert_with(|| ExprType {
-            actual: actual.clone(),
+            actual,
             consumer: None,
         });
         info.consumer = Some(match &info.consumer {
@@ -780,9 +891,8 @@ impl<'a> TaskSolver<'a> {
                 Box::new(existing.clone()),
                 Box::new(consumer.clone()),
             )),
-            None => consumer.clone(),
+            None => consumer,
         });
-        self.graph.constrain_subtype(actual, consumer)
     }
 
     fn infer_expr(&mut self, expr: poly_expr::ExprId) -> Result<Type, SpecializeError> {
@@ -794,9 +904,9 @@ impl<'a> TaskSolver<'a> {
             PolyExpr::App(callee, arg) => self.apply_type(expr, *callee, *arg),
             PolyExpr::RefSet(reference, value) => self.ref_set_type(*reference, *value),
             PolyExpr::Lambda(param, body) => self.lambda_type(*param, *body),
-            PolyExpr::Tuple(items) => self.tuple_type(items),
-            PolyExpr::Record { fields, spread } => self.record_type(fields, spread),
-            PolyExpr::PolyVariant(tag, payloads) => self.poly_variant_type(tag, payloads),
+            PolyExpr::Tuple(items) => self.tuple_type(expr, items),
+            PolyExpr::Record { fields, spread } => self.record_type(expr, fields, spread),
+            PolyExpr::PolyVariant(tag, payloads) => self.poly_variant_type(expr, tag, payloads),
             PolyExpr::Select(base, select) => self.select_type(expr, *base, *select),
             PolyExpr::Case(scrutinee, arms) => self.case_type(expr, *scrutinee, arms),
             PolyExpr::Catch(body, arms) => self.catch_type(*body, arms),
@@ -858,46 +968,78 @@ impl<'a> TaskSolver<'a> {
         callee: poly_expr::ExprId,
         arg: poly_expr::ExprId,
     ) -> Result<Type, SpecializeError> {
+        if let poly_expr::Expr::Var(ref_id) = self.arena.expr(callee)
+            && let Some(def) = self.arena.ref_target(*ref_id)
+            && self.arena.effect_operations.contains_key(&def)
+        {
+            return self.effect_operation_apply_type(expr, arg, def);
+        }
+
         let callee_ty = self.expr(callee)?;
-        let (callee_value, callee_effect) = split_runtime_computation_shape(callee_ty.clone());
-        let (arg_consumer, call_arg_effect, ret_value) =
+        let (callee_value, _) = split_runtime_computation_shape(callee_ty.clone());
+        let (_, callee_effect) = self.consume_expr_value(callee, callee_value.clone())?;
+        let (arg_consumer, call_arg_effect, ret_effect, ret_value) =
             match function_computation_parts(&callee_value) {
                 Some(parts) => {
-                    let arg_consumer =
-                        types::runtime_shape(parts.arg_effect.clone(), parts.arg.clone());
-                    self.consume_expr(arg, arg_consumer.clone())?;
                     let call_arg_effect = if parts.arg_effect.is_pure_effect() {
-                        self.exprs
-                            .get(&arg)
-                            .map(|ty| split_runtime_computation_shape(ty.actual.clone()).1)
-                            .unwrap_or_else(Type::pure_effect)
+                        self.consume_expr_value(arg, parts.arg.clone())?.1
                     } else {
+                        self.consume_expr_computation(
+                            arg,
+                            parts.arg_effect.clone(),
+                            parts.arg.clone(),
+                        )?;
                         Type::pure_effect()
                     };
-                    (arg_consumer, call_arg_effect, parts.ret)
+                    let arg_consumer =
+                        types::runtime_shape(parts.arg_effect.clone(), parts.arg.clone());
+                    (arg_consumer, call_arg_effect, parts.ret_effect, parts.ret)
                 }
                 None => {
                     let arg_ty = self.graph.fresh_value();
                     let ret_ty = self.graph.fresh_value();
-                    self.consume_expr(
+                    self.consume_expr_value(
                         callee,
                         types::pure_function_type(arg_ty.clone(), ret_ty.clone()),
                     )?;
-                    self.consume_expr(arg, arg_ty.clone())?;
-                    let call_arg_effect = self
-                        .exprs
-                        .get(&arg)
-                        .map(|ty| split_runtime_computation_shape(ty.actual.clone()).1)
-                        .unwrap_or_else(Type::pure_effect);
-                    (arg_ty, call_arg_effect, ret_ty)
+                    let call_arg_effect = self.consume_expr_value(arg, arg_ty.clone())?.1;
+                    (arg_ty, call_arg_effect, Type::pure_effect(), ret_ty)
                 }
             };
         let _ = arg_consumer;
         let has_evaluation_effect =
             !callee_effect.is_pure_effect() || !call_arg_effect.is_pure_effect();
-        let effect = self.join_effects([callee_effect, call_arg_effect])?;
+        let effect = self.join_effects([callee_effect, call_arg_effect, ret_effect])?;
         let result = self.runtime_shape(effect, ret_value)?;
         if has_evaluation_effect && matches!(result, Type::Thunk { .. }) {
+            self.mark_raw_thunk_computation(expr);
+        }
+        Ok(result)
+    }
+
+    fn effect_operation_apply_type(
+        &mut self,
+        expr: poly_expr::ExprId,
+        arg: poly_expr::ExprId,
+        def: poly_expr::DefId,
+    ) -> Result<Type, SpecializeError> {
+        let operation_ty = self.instantiate_def_scheme(def)?;
+        let Some(parts) = function_computation_parts(&operation_ty) else {
+            let arg_ty = self.graph.fresh_value();
+            self.consume_expr_value(arg, arg_ty)?;
+            return self.runtime_shape(Type::pure_effect(), Type::Never);
+        };
+        let call_arg_effect = if parts.arg_effect.is_pure_effect() {
+            self.consume_expr_value(arg, parts.arg.clone())?.1
+        } else {
+            self.consume_expr_computation(arg, parts.arg_effect.clone(), parts.arg.clone())?;
+            Type::pure_effect()
+        };
+        let (ret_value, ret_runtime_effect) = split_runtime_computation_shape(parts.ret);
+        let operation_effect = self.join_effects([parts.ret_effect, ret_runtime_effect])?;
+        let effect = self.join_effects([parts.arg_effect, call_arg_effect, operation_effect])?;
+        let result = self.runtime_shape(effect, ret_value)?;
+        if matches!(result, Type::Thunk { .. }) {
             self.mark_raw_thunk_computation(expr);
         }
         Ok(result)
@@ -912,8 +1054,8 @@ impl<'a> TaskSolver<'a> {
         let (value_value, value_effect) = split_runtime_computation_shape(value_ty);
         let update_effect = self.graph.fresh_effect();
         let reference_consumer = std_types::ref_type(update_effect.clone(), value_value.clone());
-        self.consume_expr(reference, reference_consumer)?;
-        let effect = self.join_effects([value_effect, update_effect])?;
+        let (_, reference_effect) = self.consume_expr_value(reference, reference_consumer)?;
+        let effect = self.join_effects([reference_effect, value_effect, update_effect])?;
         self.runtime_shape(effect, Type::unit())
     }
 
@@ -923,38 +1065,68 @@ impl<'a> TaskSolver<'a> {
         body: poly_expr::ExprId,
     ) -> Result<Type, SpecializeError> {
         let arg = self.graph.fresh_value();
-        self.bind_pat(param, arg.clone())?;
-        let ret = self.expr(body)?;
-        Ok(types::pure_function_type(arg, ret))
+        let arg_effect = self.graph.fresh_effect();
+        self.bind_pat(param, types::runtime_shape(arg_effect.clone(), arg.clone()))?;
+        let body_ty = self.expr(body)?;
+        let (ret, ret_effect) = split_runtime_computation_shape(body_ty);
+        self.consume_expr(body, types::runtime_shape(ret_effect.clone(), ret.clone()))?;
+        Ok(Type::Fun {
+            arg: Box::new(arg),
+            arg_effect: Box::new(arg_effect),
+            ret_effect: Box::new(ret_effect),
+            ret: Box::new(ret),
+        })
     }
 
-    fn tuple_type(&mut self, items: &[poly_expr::ExprId]) -> Result<Type, SpecializeError> {
-        items
-            .iter()
-            .map(|item| self.expr(*item))
-            .collect::<Result<Vec<_>, _>>()
-            .map(Type::Tuple)
+    fn tuple_type(
+        &mut self,
+        expr: poly_expr::ExprId,
+        items: &[poly_expr::ExprId],
+    ) -> Result<Type, SpecializeError> {
+        let mut values = Vec::with_capacity(items.len());
+        let mut effects = Vec::new();
+        for item in items {
+            let item_ty = self.expr(*item)?;
+            let (value, effect) = split_runtime_computation_shape(item_ty);
+            self.consume_expr_value(*item, value.clone())?;
+            values.push(value);
+            effects.push(effect);
+        }
+        let effect = self.join_effects(effects)?;
+        let result = self.runtime_shape(effect, Type::Tuple(values))?;
+        if matches!(result, Type::Thunk { .. }) {
+            self.mark_raw_thunk_computation(expr);
+        }
+        Ok(result)
     }
 
     fn record_type(
         &mut self,
+        expr: poly_expr::ExprId,
         fields: &[(String, poly_expr::ExprId)],
         spread: &poly_expr::RecordSpread<poly_expr::ExprId>,
     ) -> Result<Type, SpecializeError> {
-        let mut typed = fields
-            .iter()
-            .map(|(name, value)| {
-                Ok(TypeField {
-                    name: name.clone(),
-                    value: self.expr(*value)?,
-                    optional: false,
-                })
-            })
-            .collect::<Result<Vec<_>, SpecializeError>>()?;
+        let mut effects = Vec::new();
+        let mut typed = Vec::with_capacity(fields.len());
+        for (name, value_expr) in fields {
+            let value_ty = self.expr(*value_expr)?;
+            let (value, effect) = split_runtime_computation_shape(value_ty);
+            self.consume_expr_value(*value_expr, value.clone())?;
+            effects.push(effect);
+            typed.push(TypeField {
+                name: name.clone(),
+                value,
+                optional: false,
+            });
+        }
         match spread {
             poly_expr::RecordSpread::None => {}
             poly_expr::RecordSpread::Head(expr) | poly_expr::RecordSpread::Tail(expr) => {
-                if let Type::Record(mut spread_fields) = self.expr(*expr)? {
+                let spread_ty = self.expr(*expr)?;
+                let (spread_value, spread_effect) = split_runtime_computation_shape(spread_ty);
+                self.consume_expr_value(*expr, spread_value.clone())?;
+                effects.push(spread_effect);
+                if let Type::Record(mut spread_fields) = spread_value {
                     if matches!(spread, poly_expr::RecordSpread::Head(_)) {
                         spread_fields.extend(typed);
                         typed = spread_fields;
@@ -964,21 +1136,41 @@ impl<'a> TaskSolver<'a> {
                 }
             }
         }
-        Ok(Type::Record(typed))
+        let effect = self.join_effects(effects)?;
+        let result = self.runtime_shape(effect, Type::Record(typed))?;
+        if matches!(result, Type::Thunk { .. }) {
+            self.mark_raw_thunk_computation(expr);
+        }
+        Ok(result)
     }
 
     fn poly_variant_type(
         &mut self,
+        expr: poly_expr::ExprId,
         tag: &str,
         payloads: &[poly_expr::ExprId],
     ) -> Result<Type, SpecializeError> {
-        Ok(Type::PolyVariant(vec![TypeVariant {
-            name: tag.to_string(),
-            payloads: payloads
-                .iter()
-                .map(|payload| self.expr(*payload))
-                .collect::<Result<Vec<_>, _>>()?,
-        }]))
+        let mut values = Vec::with_capacity(payloads.len());
+        let mut effects = Vec::new();
+        for payload in payloads {
+            let payload_ty = self.expr(*payload)?;
+            let (value, effect) = split_runtime_computation_shape(payload_ty);
+            self.consume_expr_value(*payload, value.clone())?;
+            values.push(value);
+            effects.push(effect);
+        }
+        let effect = self.join_effects(effects)?;
+        let result = self.runtime_shape(
+            effect,
+            Type::PolyVariant(vec![TypeVariant {
+                name: tag.to_string(),
+                payloads: values,
+            }]),
+        )?;
+        if matches!(result, Type::Thunk { .. }) {
+            self.mark_raw_thunk_computation(expr);
+        }
+        Ok(result)
     }
 
     fn select_type(
@@ -991,7 +1183,7 @@ impl<'a> TaskSolver<'a> {
         match select_data.resolution {
             Some(poly_expr::SelectResolution::RecordField) => {
                 let field = self.graph.fresh_value();
-                self.consume_expr(
+                let (_, base_effect) = self.consume_expr_value(
                     base,
                     Type::Record(vec![TypeField {
                         name: select_data.name.clone(),
@@ -999,7 +1191,11 @@ impl<'a> TaskSolver<'a> {
                         optional: false,
                     }]),
                 )?;
-                Ok(field)
+                let result = self.runtime_shape(base_effect.clone(), field)?;
+                if !base_effect.is_pure_effect() && matches!(result, Type::Thunk { .. }) {
+                    self.mark_raw_thunk_computation(expr);
+                }
+                Ok(result)
             }
             Some(poly_expr::SelectResolution::Method { def }) => {
                 let method = self.instantiate_def_scheme(def)?;
@@ -1007,11 +1203,26 @@ impl<'a> TaskSolver<'a> {
                     expr,
                     ty: method.clone(),
                 });
-                let Some((receiver, result)) = function_runtime_parts(&method) else {
+                let Some(parts) = function_computation_parts(&method) else {
                     self.expr(base)?;
                     return Ok(self.graph.fresh_value());
                 };
-                self.consume_expr(base, receiver.clone())?;
+                let base_effect = if parts.arg_effect.is_pure_effect() {
+                    self.consume_expr_value(base, parts.arg.clone())?.1
+                } else {
+                    self.consume_expr_computation(
+                        base,
+                        parts.arg_effect.clone(),
+                        parts.arg.clone(),
+                    )?;
+                    Type::pure_effect()
+                };
+                let has_evaluation_effect = !base_effect.is_pure_effect();
+                let effect = self.join_effects([base_effect, parts.ret_effect])?;
+                let result = self.runtime_shape(effect, parts.ret)?;
+                if has_evaluation_effect && matches!(result, Type::Thunk { .. }) {
+                    self.mark_raw_thunk_computation(expr);
+                }
                 Ok(result)
             }
             Some(poly_expr::SelectResolution::TypeclassMethod { member }) => {
@@ -1021,11 +1232,26 @@ impl<'a> TaskSolver<'a> {
                     member,
                     method_ty: method.clone(),
                 });
-                let Some((receiver, result)) = function_runtime_parts(&method) else {
+                let Some(parts) = function_computation_parts(&method) else {
                     self.expr(base)?;
                     return Ok(self.graph.fresh_value());
                 };
-                self.consume_expr(base, receiver)?;
+                let base_effect = if parts.arg_effect.is_pure_effect() {
+                    self.consume_expr_value(base, parts.arg.clone())?.1
+                } else {
+                    self.consume_expr_computation(
+                        base,
+                        parts.arg_effect.clone(),
+                        parts.arg.clone(),
+                    )?;
+                    Type::pure_effect()
+                };
+                let has_evaluation_effect = !base_effect.is_pure_effect();
+                let effect = self.join_effects([base_effect, parts.ret_effect])?;
+                let result = self.runtime_shape(effect, parts.ret)?;
+                if has_evaluation_effect && matches!(result, Type::Thunk { .. }) {
+                    self.mark_raw_thunk_computation(expr);
+                }
                 Ok(result)
             }
             None => {
@@ -1048,15 +1274,9 @@ impl<'a> TaskSolver<'a> {
         for arm in arms {
             self.bind_pat(arm.pat, scrutinee_value.clone())?;
             if let Some(guard) = arm.guard {
-                self.consume_expr(guard, bool_type())?;
+                effects.push(self.consume_expr_value(guard, bool_type())?.1);
             }
-            let body = self.expr(arm.body)?;
-            let (body_value, body_effect) = split_runtime_computation_shape(body);
-            self.consume_expr(
-                arm.body,
-                types::runtime_shape(body_effect.clone(), result.clone()),
-            )?;
-            self.graph.constrain_subtype(body_value, result.clone())?;
+            let (_, body_effect) = self.consume_expr_value(arm.body, result.clone())?;
             effects.push(body_effect);
         }
         let effect = self.join_effects(effects)?;
@@ -1092,24 +1312,20 @@ impl<'a> TaskSolver<'a> {
                         expr: body.0,
                         role: ExprTypeRole::Actual,
                     })?,
-                    types::pure_function_type(
-                        op.continuation_input,
-                        types::runtime_shape(op.residual_effect, body_value.clone()),
-                    ),
+                    Type::Fun {
+                        arg: Box::new(op.continuation_input),
+                        arg_effect: Box::new(Type::pure_effect()),
+                        ret_effect: Box::new(body_effect.clone()),
+                        ret: Box::new(body_value.clone()),
+                    },
                 )?;
             } else {
                 self.bind_pat(arm.pat, body_value.clone())?;
             }
             if let Some(guard) = arm.guard {
-                self.consume_expr(guard, bool_type())?;
+                effects.push(self.consume_expr_value(guard, bool_type())?.1);
             }
-            let arm_body = self.expr(arm.body)?;
-            let (arm_value, arm_effect) = split_runtime_computation_shape(arm_body);
-            self.consume_expr(
-                arm.body,
-                types::runtime_shape(arm_effect.clone(), result.clone()),
-            )?;
-            self.graph.constrain_subtype(arm_value, result.clone())?;
+            let (_, arm_effect) = self.consume_expr_value(arm.body, result.clone())?;
             effects.push(arm_effect);
         }
         effects.push(self.residual_effect_after_handling(body_effect, &handled_effects)?);
@@ -1125,7 +1341,7 @@ impl<'a> TaskSolver<'a> {
         if let Type::OpenVar(_) = ty {
             let value = self.graph.fresh_value();
             let effect = self.graph.fresh_effect();
-            self.consume_expr(expr, types::runtime_shape(effect.clone(), value.clone()))?;
+            self.consume_expr_computation(expr, effect.clone(), value.clone())?;
             return Ok((value, effect));
         }
         Ok(split_runtime_computation_shape(ty))
@@ -1142,28 +1358,36 @@ impl<'a> TaskSolver<'a> {
                 payload: payload.clone(),
                 continuation_input: payload,
                 effect: Type::pure_effect(),
-                residual_effect: scrutinee_effect,
             });
         };
         let operation_ty = self.instantiate_def_scheme(def)?;
-        let Some((payload, ret)) = function_runtime_parts(&operation_ty) else {
+        let Some(parts) = function_computation_parts(&operation_ty) else {
             let payload = self.graph.fresh_value();
             return Ok(CatchOperationTypes {
                 payload: payload.clone(),
                 continuation_input: payload,
                 effect: Type::pure_effect(),
-                residual_effect: scrutinee_effect,
             });
         };
-        let (continuation_input, operation_effect) = split_runtime_computation_shape(ret);
-        let handled_effect = self
-            .constrain_operation_effect_to_scrutinee(operation_effect, scrutinee_effect.clone())?;
+        let payload = parts.arg;
+        let ret = parts.ret;
+        let (continuation_input, ret_runtime_effect) = split_runtime_computation_shape(ret);
+        let operation_effect = self.join_effects([parts.ret_effect, ret_runtime_effect])?;
+        let handled_effect = self.constrain_operation_effect_to_scrutinee(
+            operation_effect.clone(),
+            scrutinee_effect.clone(),
+        )?;
+        let payload =
+            refine_operation_type_from_handled_effect(payload, &operation_effect, &handled_effect);
+        let continuation_input = refine_operation_type_from_handled_effect(
+            continuation_input,
+            &operation_effect,
+            &handled_effect,
+        );
         Ok(CatchOperationTypes {
             payload,
             continuation_input,
             effect: handled_effect.clone(),
-            residual_effect: self
-                .residual_effect_after_handling(scrutinee_effect, &[handled_effect])?,
         })
     }
 
@@ -1231,6 +1455,7 @@ impl<'a> TaskSolver<'a> {
                     self.bind_pat(*pat, binding.clone())?;
                     let value_ty = self.expr(*value)?;
                     let (value_value, value_effect) = split_runtime_computation_shape(value_ty);
+                    self.consume_expr_value(*value, binding.clone())?;
                     self.graph.constrain_exact(value_value, binding)?;
                     effects.push(value_effect);
                 }
@@ -1410,14 +1635,14 @@ impl<'a> TaskSolver<'a> {
                     .get(&use_.expr)
                     .and_then(|ty| ty.consumer.as_ref())
                 {
-                    Some(consumer) => self.resolve_output_type_with_context(
+                    Some(consumer) => self.resolve_signature_type_with_context(
                         &mut resolver,
                         &use_.ty,
                         consumer,
                         TypeSlotKind::Value,
                     )?,
                     None => {
-                        self.resolve_output_type(&mut resolver, &use_.ty, TypeSlotKind::Value)?
+                        self.resolve_signature_type(&mut resolver, &use_.ty, TypeSlotKind::Value)?
                     }
                 };
                 Ok((use_.expr, ty))
@@ -1432,14 +1657,14 @@ impl<'a> TaskSolver<'a> {
                     .get(&use_.expr)
                     .and_then(|ty| ty.consumer.as_ref())
                 {
-                    Some(consumer) => self.resolve_output_type_with_context(
+                    Some(consumer) => self.resolve_signature_type_with_context(
                         &mut resolver,
                         &use_.ty,
                         consumer,
                         TypeSlotKind::Value,
                     )?,
                     None => {
-                        self.resolve_output_type(&mut resolver, &use_.ty, TypeSlotKind::Value)?
+                        self.resolve_signature_type(&mut resolver, &use_.ty, TypeSlotKind::Value)?
                     }
                 };
                 Ok((use_.expr, ty))
@@ -1449,14 +1674,15 @@ impl<'a> TaskSolver<'a> {
             .pat_ref_uses
             .iter()
             .map(|use_| {
-                let ty = self.resolve_output_type(&mut resolver, &use_.ty, TypeSlotKind::Value)?;
+                let ty =
+                    self.resolve_signature_type(&mut resolver, &use_.ty, TypeSlotKind::Value)?;
                 Ok((use_.pat, ty))
             })
             .collect::<Result<HashMap<_, _>, SpecializeError>>()?;
         let mut typeclass_resolutions = HashMap::new();
         for use_ in &self.typeclass_uses {
             let signature =
-                self.resolve_output_type(&mut resolver, &use_.method_ty, TypeSlotKind::Value)?;
+                self.resolve_signature_type(&mut resolver, &use_.method_ty, TypeSlotKind::Value)?;
             let implementation = self.resolve_typeclass_use(use_.member, &signature)?;
             typeclass_resolutions.insert(
                 use_.expr,
@@ -1498,7 +1724,10 @@ impl<'a> TaskSolver<'a> {
             Some(consumer) => resolver.resolve_with_context(&ty.actual, consumer),
             None => resolver.resolve(&ty.actual),
         } {
-            Ok(actual) => Ok(Some(actual)),
+            Ok(actual) => Ok(Some(close_resolved_runtime_surface(
+                actual,
+                TypeSlotKind::Value,
+            ))),
             Err(SpecializeError::UndeterminedTypeSlot { .. })
                 if self.discarded_exprs.contains(&expr) =>
             {
@@ -1510,7 +1739,10 @@ impl<'a> TaskSolver<'a> {
             {
                 match &ty.consumer {
                     Some(consumer) => match resolver.resolve(consumer) {
-                        Ok(consumer) => Ok(Some(consumer)),
+                        Ok(consumer) => Ok(Some(close_resolved_runtime_surface(
+                            consumer,
+                            TypeSlotKind::Value,
+                        ))),
                         Err(SpecializeError::UndeterminedTypeSlot { .. }) => Ok(None),
                         Err(error) => Err(error),
                     },
@@ -1531,28 +1763,31 @@ impl<'a> TaskSolver<'a> {
             return Ok(None);
         };
         match resolver.resolve(consumer) {
-            Ok(consumer) => Ok(Some(consumer)),
+            Ok(consumer) => Ok(Some(close_resolved_runtime_surface(
+                consumer,
+                TypeSlotKind::Value,
+            ))),
             Err(SpecializeError::UndeterminedTypeSlot { .. }) => Ok(None),
             Err(error) => Err(error),
         }
     }
 
-    fn resolve_output_type(
+    fn resolve_signature_type(
         &self,
         resolver: &mut TypeResolver<'_, '_>,
         ty: &Type,
         context: TypeSlotKind,
     ) -> Result<Type, SpecializeError> {
         match resolver.resolve(ty) {
-            Ok(ty) => Ok(close_resolved_runtime_surface(ty, context)),
+            Ok(ty) => Ok(close_resolved_inference_surface(ty, context)),
             Err(SpecializeError::UndeterminedTypeSlot { .. }) => {
-                self.resolve_partial_output_type(resolver, ty, context)
+                self.resolve_partial_signature_type(resolver, ty, context)
             }
             Err(error) => Err(error),
         }
     }
 
-    fn resolve_output_type_with_context(
+    fn resolve_signature_type_with_context(
         &self,
         resolver: &mut TypeResolver<'_, '_>,
         ty: &Type,
@@ -1560,9 +1795,9 @@ impl<'a> TaskSolver<'a> {
         context: TypeSlotKind,
     ) -> Result<Type, SpecializeError> {
         match resolver.resolve_with_context(ty, consumer) {
-            Ok(ty) => Ok(close_resolved_runtime_surface(ty, context)),
+            Ok(ty) => Ok(close_resolved_inference_surface(ty, context)),
             Err(SpecializeError::UndeterminedTypeSlot { .. }) => {
-                self.resolve_partial_output_type(resolver, ty, context)
+                self.resolve_partial_signature_type(resolver, ty, context)
             }
             Err(error) => Err(error),
         }
@@ -1578,6 +1813,18 @@ impl<'a> TaskSolver<'a> {
             .resolve_partial_candidate(ty, true)?
             .unwrap_or_else(|| ty.clone());
         Ok(close_resolved_runtime_surface(partial, context))
+    }
+
+    fn resolve_partial_signature_type(
+        &self,
+        resolver: &mut TypeResolver<'_, '_>,
+        ty: &Type,
+        context: TypeSlotKind,
+    ) -> Result<Type, SpecializeError> {
+        let partial = resolver
+            .resolve_partial_candidate(ty, true)?
+            .unwrap_or_else(|| ty.clone());
+        Ok(close_resolved_inference_surface(partial, context))
     }
 
     fn expr_can_omit_concrete_type(&self, expr: poly_expr::ExprId) -> bool {
@@ -1669,7 +1916,7 @@ impl<'a> TaskSolver<'a> {
         def: poly_expr::DefId,
         scheme: &poly::types::Scheme,
     ) -> Result<Type, SpecializeError> {
-        let instantiated = types::instantiate_principal_scheme_with_fresh_and_roles(
+        let instantiated = types::instantiate_principal_scheme_for_inference_with_fresh_and_roles(
             self.arena,
             def,
             scheme,
@@ -1867,7 +2114,6 @@ struct CatchOperationTypes {
     payload: Type,
     continuation_input: Type,
     effect: Type,
-    residual_effect: Type,
 }
 
 struct TypeGraph<'a> {
@@ -2137,24 +2383,10 @@ impl<'a> TypeGraph<'a> {
             }
             (
                 Type::Thunk {
-                    effect: lower_effect,
-                    value: lower_value,
+                    value: lower_value, ..
                 },
                 upper,
-            ) => {
-                self.constrain_weighted_subtype(
-                    *lower_value,
-                    lower_weight.clone(),
-                    upper,
-                    upper_weight.clone(),
-                )?;
-                self.constrain_weighted_subtype(
-                    *lower_effect,
-                    lower_weight,
-                    Type::pure_effect(),
-                    upper_weight,
-                )
-            }
+            ) => self.constrain_weighted_subtype(*lower_value, lower_weight, upper, upper_weight),
             (
                 Type::Con {
                     path: lower_path,
@@ -2293,7 +2525,7 @@ impl<'a> TypeGraph<'a> {
         def: poly_expr::DefId,
         scheme: &poly::types::Scheme,
     ) -> Result<Type, SpecializeError> {
-        let instantiated = types::instantiate_principal_scheme_with_fresh_and_roles(
+        let instantiated = types::instantiate_principal_scheme_for_inference_with_fresh_and_roles(
             self.arena,
             def,
             scheme,
@@ -3354,6 +3586,8 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             {
                 Some(upper)
             }
+            (Some(Type::OpenVar(_)), Some(upper)) => Some(upper),
+            (Some(lower), Some(Type::OpenVar(_))) => Some(lower),
             (Some(lower), Some(upper)) if type_candidate_subtype(self.graph, &lower, &upper) => {
                 Some(upper)
             }
@@ -3587,12 +3821,28 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
     ) -> Result<Option<Type>, SpecializeError> {
         match ty {
             Type::Any | Type::Never => Ok(Some(ty.clone())),
-            Type::OpenVar(slot) => match self.solution.slots.get(*slot as usize) {
-                Some(Some(ty)) => self.resolve_partial_candidate(ty, allow_unresolved_leaf),
-                Some(None) if allow_unresolved_leaf => Ok(Some(Type::OpenVar(*slot))),
-                Some(None) => Ok(None),
-                None => Err(SpecializeError::InvalidTypeSlot { slot: *slot }),
-            },
+            Type::OpenVar(slot) => {
+                let Some(solution) = self.solution.slots.get(*slot as usize) else {
+                    return Err(SpecializeError::InvalidTypeSlot { slot: *slot });
+                };
+                let Some(ty) = solution else {
+                    return if allow_unresolved_leaf {
+                        Ok(Some(Type::OpenVar(*slot)))
+                    } else {
+                        Ok(None)
+                    };
+                };
+                if !self.resolving.insert(*slot) {
+                    return if allow_unresolved_leaf {
+                        Ok(Some(Type::OpenVar(*slot)))
+                    } else {
+                        Ok(None)
+                    };
+                }
+                let resolved = self.resolve_partial_candidate(ty, allow_unresolved_leaf);
+                self.resolving.remove(slot);
+                resolved
+            }
             Type::Con { path, args } => Ok(Some(Type::Con {
                 path: path.clone(),
                 args: self.resolve_partial_candidates(args)?,
@@ -3751,10 +4001,15 @@ fn join_type_candidates(
                 path: right_path,
                 args: right_args,
             },
-        ) if left_path == right_path && left_args.len() == right_args.len() => Ok(Type::Con {
-            path: left_path,
-            args: left_args,
-        }),
+        ) if left_path == right_path && left_args.len() == right_args.len() => {
+            merge_same_head_con_candidate(
+                graph,
+                left_path,
+                left_args,
+                right_args,
+                CandidateMerge::Join,
+            )
+        }
         (
             Type::Fun {
                 arg: left_arg,
@@ -3769,9 +4024,9 @@ fn join_type_candidates(
             ret_effect: left_ret_effect,
             ret: left_ret,
         }),
-        (Type::EffectRow(left), Type::EffectRow(right)) => Ok(types::simplify_type(
-            Type::EffectRow(left.into_iter().chain(right).collect()),
-        )),
+        (Type::EffectRow(left), Type::EffectRow(right)) => {
+            merge_effect_row_candidates(graph, left, right, CandidateMerge::Join)
+        }
         (
             Type::Stack {
                 inner: left,
@@ -3834,10 +4089,15 @@ fn meet_type_candidates(
                 path: right_path,
                 args: right_args,
             },
-        ) if left_path == right_path && left_args.len() == right_args.len() => Ok(Type::Con {
-            path: left_path,
-            args: left_args,
-        }),
+        ) if left_path == right_path && left_args.len() == right_args.len() => {
+            merge_same_head_con_candidate(
+                graph,
+                left_path,
+                left_args,
+                right_args,
+                CandidateMerge::Meet,
+            )
+        }
         (
             Type::Fun {
                 arg: left_arg,
@@ -3852,11 +4112,9 @@ fn meet_type_candidates(
             ret_effect: left_ret_effect,
             ret: left_ret,
         }),
-        (Type::EffectRow(left), Type::EffectRow(right)) => Ok(Type::EffectRow(
-            left.into_iter()
-                .filter(|item| right.contains(item))
-                .collect(),
-        )),
+        (Type::EffectRow(left), Type::EffectRow(right)) => {
+            merge_effect_row_candidates(graph, left, right, CandidateMerge::Meet)
+        }
         (
             Type::Stack {
                 inner: left,
@@ -3875,6 +4133,100 @@ fn meet_type_candidates(
             existing: left,
             incoming: right,
         }),
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CandidateMerge {
+    Join,
+    Meet,
+}
+
+fn merge_same_head_con_candidate(
+    graph: &TypeGraph<'_>,
+    path: Vec<String>,
+    left_args: Vec<Type>,
+    right_args: Vec<Type>,
+    merge: CandidateMerge,
+) -> Result<Type, SpecializeError> {
+    let args = left_args
+        .into_iter()
+        .zip(right_args)
+        .map(|(left, right)| merge_candidate_component(graph, left, right, merge))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(Type::Con { path, args })
+}
+
+fn merge_effect_row_candidates(
+    graph: &TypeGraph<'_>,
+    left: Vec<Type>,
+    right: Vec<Type>,
+    merge: CandidateMerge,
+) -> Result<Type, SpecializeError> {
+    let mut out = Vec::new();
+    let mut right_used = vec![false; right.len()];
+    for left_item in left {
+        match right.iter().enumerate().find_map(|(index, right_item)| {
+            (!right_used[index] && same_effect_row_family(&left_item, right_item)).then_some(index)
+        }) {
+            Some(index) => {
+                right_used[index] = true;
+                out.push(merge_effect_row_item_candidate(
+                    graph,
+                    left_item,
+                    right[index].clone(),
+                    merge,
+                )?);
+            }
+            None if merge == CandidateMerge::Join => out.push(left_item),
+            None => {}
+        }
+    }
+    if merge == CandidateMerge::Join {
+        for (index, right_item) in right.into_iter().enumerate() {
+            if !right_used[index] {
+                out.push(right_item);
+            }
+        }
+    }
+    Ok(types::simplify_type(Type::EffectRow(out)))
+}
+
+fn merge_effect_row_item_candidate(
+    graph: &TypeGraph<'_>,
+    left: Type,
+    right: Type,
+    merge: CandidateMerge,
+) -> Result<Type, SpecializeError> {
+    if left == right {
+        return Ok(left);
+    }
+    match (left, right) {
+        (
+            Type::Con {
+                path: left_path,
+                args: left_args,
+            },
+            Type::Con {
+                path: right_path,
+                args: right_args,
+            },
+        ) if left_path == right_path && left_args.len() == right_args.len() => {
+            merge_same_head_con_candidate(graph, left_path, left_args, right_args, merge)
+        }
+        (left, right) => merge_candidate_component(graph, left, right, merge),
+    }
+}
+
+fn merge_candidate_component(
+    graph: &TypeGraph<'_>,
+    left: Type,
+    right: Type,
+    merge: CandidateMerge,
+) -> Result<Type, SpecializeError> {
+    match merge {
+        CandidateMerge::Join => join_type_candidates(graph, left, right),
+        CandidateMerge::Meet => meet_type_candidates(graph, left, right),
     }
 }
 
@@ -3916,7 +4268,8 @@ fn value_candidate_matches_thunk_value(
     value: &Type,
     thunk_value: &Type,
 ) -> bool {
-    matches!(thunk_value, Type::OpenVar(_))
+    matches!(value, Type::OpenVar(_))
+        || matches!(thunk_value, Type::OpenVar(_))
         || type_candidate_subtype(graph, value, thunk_value)
         || same_candidate_head(value, thunk_value)
         || match thunk_value {
@@ -3928,7 +4281,8 @@ fn value_candidate_matches_thunk_value(
 }
 
 fn thunk_value_matches_candidate(graph: &TypeGraph<'_>, thunk_value: &Type, value: &Type) -> bool {
-    matches!(thunk_value, Type::OpenVar(_))
+    matches!(value, Type::OpenVar(_))
+        || matches!(thunk_value, Type::OpenVar(_))
         || type_candidate_subtype(graph, thunk_value, value)
         || same_candidate_head(thunk_value, value)
         || match thunk_value {
@@ -4283,6 +4637,94 @@ fn close_resolved_runtime_surface(ty: Type, context: TypeSlotKind) -> Type {
     close_runtime_type_surface(erase_negative_only_open_vars(ty), context)
 }
 
+fn close_resolved_inference_surface(ty: Type, context: TypeSlotKind) -> Type {
+    close_inference_type_surface(erase_negative_only_open_vars(ty), context)
+}
+
+fn close_inference_type_surface(ty: Type, context: TypeSlotKind) -> Type {
+    match ty {
+        Type::OpenVar(_) => match context {
+            TypeSlotKind::Value => Type::unit(),
+            TypeSlotKind::Effect => Type::pure_effect(),
+        },
+        Type::Con { path, args } => Type::Con {
+            path,
+            args: args
+                .into_iter()
+                .map(|arg| close_inference_type_surface(arg, TypeSlotKind::Value))
+                .collect(),
+        },
+        Type::Fun {
+            arg,
+            arg_effect,
+            ret_effect,
+            ret,
+        } => Type::Fun {
+            arg: Box::new(close_inference_type_surface(*arg, TypeSlotKind::Value)),
+            arg_effect: Box::new(close_inference_type_surface(
+                *arg_effect,
+                TypeSlotKind::Effect,
+            )),
+            ret_effect: Box::new(close_inference_type_surface(
+                *ret_effect,
+                TypeSlotKind::Effect,
+            )),
+            ret: Box::new(close_inference_type_surface(*ret, TypeSlotKind::Value)),
+        },
+        Type::Thunk { effect, value } => types::runtime_shape(
+            close_inference_type_surface(*effect, TypeSlotKind::Effect),
+            close_inference_type_surface(*value, TypeSlotKind::Value),
+        ),
+        Type::Record(fields) => Type::Record(
+            fields
+                .into_iter()
+                .map(|field| TypeField {
+                    name: field.name,
+                    value: close_inference_type_surface(field.value, TypeSlotKind::Value),
+                    optional: field.optional,
+                })
+                .collect(),
+        ),
+        Type::PolyVariant(variants) => Type::PolyVariant(
+            variants
+                .into_iter()
+                .map(|variant| TypeVariant {
+                    name: variant.name,
+                    payloads: variant
+                        .payloads
+                        .into_iter()
+                        .map(|payload| close_inference_type_surface(payload, TypeSlotKind::Value))
+                        .collect(),
+                })
+                .collect(),
+        ),
+        Type::Tuple(items) => Type::Tuple(
+            items
+                .into_iter()
+                .map(|item| close_inference_type_surface(item, TypeSlotKind::Value))
+                .collect(),
+        ),
+        Type::EffectRow(items) => types::simplify_type(Type::EffectRow(
+            items
+                .into_iter()
+                .map(|item| close_inference_type_surface(item, TypeSlotKind::Effect))
+                .collect(),
+        )),
+        Type::Stack { inner, weight } => {
+            types::simplify_stack_type(close_inference_type_surface(*inner, context), weight)
+        }
+        Type::Union(left, right) => types::simplify_type(Type::Union(
+            Box::new(close_inference_type_surface(*left, context)),
+            Box::new(close_inference_type_surface(*right, context)),
+        )),
+        Type::Intersection(left, right) => types::simplify_type(Type::Intersection(
+            Box::new(close_inference_type_surface(*left, context)),
+            Box::new(close_inference_type_surface(*right, context)),
+        )),
+        Type::Any | Type::Never => ty,
+    }
+}
+
 fn close_runtime_type_surface(ty: Type, context: TypeSlotKind) -> Type {
     match ty {
         Type::OpenVar(_) => match context {
@@ -4301,18 +4743,18 @@ fn close_runtime_type_surface(ty: Type, context: TypeSlotKind) -> Type {
             arg_effect,
             ret_effect,
             ret,
-        } => Type::Fun {
-            arg: Box::new(close_runtime_type_surface(*arg, TypeSlotKind::Value)),
-            arg_effect: Box::new(close_runtime_type_surface(
-                *arg_effect,
-                TypeSlotKind::Effect,
-            )),
-            ret_effect: Box::new(close_runtime_type_surface(
-                *ret_effect,
-                TypeSlotKind::Effect,
-            )),
-            ret: Box::new(close_runtime_type_surface(*ret, TypeSlotKind::Value)),
-        },
+        } => {
+            let arg = close_runtime_type_surface(*arg, TypeSlotKind::Value);
+            let arg_effect = close_runtime_type_surface(*arg_effect, TypeSlotKind::Effect);
+            let ret_effect = close_runtime_type_surface(*ret_effect, TypeSlotKind::Effect);
+            let ret = close_runtime_type_surface(*ret, TypeSlotKind::Value);
+            Type::Fun {
+                arg: Box::new(types::runtime_shape(arg_effect, arg)),
+                arg_effect: Box::new(Type::pure_effect()),
+                ret_effect: Box::new(Type::pure_effect()),
+                ret: Box::new(types::runtime_shape(ret_effect, ret)),
+            }
+        }
         Type::Thunk { effect, value } => types::runtime_shape(
             close_runtime_type_surface(*effect, TypeSlotKind::Effect),
             close_runtime_type_surface(*value, TypeSlotKind::Value),
@@ -4816,6 +5258,13 @@ fn split_runtime_computation_shape(ty: Type) -> (Type, Type) {
     }
 }
 
+fn runtime_function_return_type(ty: &Type) -> Option<&Type> {
+    let Type::Fun { ret, .. } = ty else {
+        return None;
+    };
+    Some(ret)
+}
+
 fn discarded_value_context(ty: &Type) -> Option<Type> {
     match ty {
         Type::Thunk { effect, value } => Some(types::runtime_shape(
@@ -4901,16 +5350,10 @@ fn discarded_catch_has_open_result(expr: &poly_expr::Expr, ty: &Type) -> bool {
         && matches!(ty, Type::Thunk { value, .. } if matches!(value.as_ref(), Type::OpenVar(_)))
 }
 
-fn function_runtime_parts(ty: &Type) -> Option<(Type, Type)> {
-    let Type::Fun { arg, ret, .. } = ty else {
-        return None;
-    };
-    Some((arg.as_ref().clone(), ret.as_ref().clone()))
-}
-
 struct FunctionComputationParts {
     arg: Type,
     arg_effect: Type,
+    ret_effect: Type,
     ret: Type,
 }
 
@@ -4918,7 +5361,7 @@ fn function_computation_parts(ty: &Type) -> Option<FunctionComputationParts> {
     let Type::Fun {
         arg,
         arg_effect,
-        ret_effect: _,
+        ret_effect,
         ret,
     } = ty
     else {
@@ -4926,10 +5369,13 @@ fn function_computation_parts(ty: &Type) -> Option<FunctionComputationParts> {
     };
     let (arg, arg_effect) =
         split_declared_runtime_shape(arg.as_ref().clone(), arg_effect.as_ref().clone());
+    let (ret, ret_effect) =
+        split_declared_runtime_shape(ret.as_ref().clone(), ret_effect.as_ref().clone());
     Some(FunctionComputationParts {
         arg,
         arg_effect,
-        ret: ret.as_ref().clone(),
+        ret_effect,
+        ret,
     })
 }
 
@@ -5065,6 +5511,134 @@ fn matching_effect_row_item(item: &Type, candidates: &[Type]) -> Option<Type> {
         .cloned()
 }
 
+fn refine_operation_type_from_handled_effect(
+    ty: Type,
+    operation_effect: &Type,
+    handled_effect: &Type,
+) -> Type {
+    let mut replacements = Vec::new();
+    for operation_item in effect_row_items(operation_effect) {
+        for handled_item in effect_row_items(handled_effect) {
+            collect_effect_arg_replacements(operation_item, handled_item, &mut replacements);
+        }
+    }
+    replace_effect_arg_occurrences(ty, &replacements)
+}
+
+fn collect_effect_arg_replacements(
+    operation_item: &Type,
+    handled_item: &Type,
+    replacements: &mut Vec<(Type, Type)>,
+) {
+    let (
+        Type::Con {
+            path: operation_path,
+            args: operation_args,
+        },
+        Type::Con {
+            path: handled_path,
+            args: handled_args,
+        },
+    ) = (operation_item, handled_item)
+    else {
+        return;
+    };
+    if operation_path != handled_path || operation_args.len() != handled_args.len() {
+        return;
+    }
+    replacements.extend(
+        operation_args
+            .iter()
+            .cloned()
+            .zip(handled_args.iter().cloned()),
+    );
+}
+
+fn replace_effect_arg_occurrences(ty: Type, replacements: &[(Type, Type)]) -> Type {
+    if let Some((_, replacement)) = replacements
+        .iter()
+        .find(|(needle, _)| type_replacement_key_matches(&ty, needle))
+    {
+        return replacement.clone();
+    }
+    match ty {
+        Type::Fun {
+            arg,
+            arg_effect,
+            ret_effect,
+            ret,
+        } => Type::Fun {
+            arg: Box::new(replace_effect_arg_occurrences(*arg, replacements)),
+            arg_effect: Box::new(replace_effect_arg_occurrences(*arg_effect, replacements)),
+            ret_effect: Box::new(replace_effect_arg_occurrences(*ret_effect, replacements)),
+            ret: Box::new(replace_effect_arg_occurrences(*ret, replacements)),
+        },
+        Type::Thunk { effect, value } => Type::Thunk {
+            effect: Box::new(replace_effect_arg_occurrences(*effect, replacements)),
+            value: Box::new(replace_effect_arg_occurrences(*value, replacements)),
+        },
+        Type::Record(fields) => Type::Record(
+            fields
+                .into_iter()
+                .map(|field| TypeField {
+                    name: field.name,
+                    optional: field.optional,
+                    value: replace_effect_arg_occurrences(field.value, replacements),
+                })
+                .collect(),
+        ),
+        Type::PolyVariant(variants) => Type::PolyVariant(
+            variants
+                .into_iter()
+                .map(|variant| TypeVariant {
+                    name: variant.name,
+                    payloads: variant
+                        .payloads
+                        .into_iter()
+                        .map(|payload| replace_effect_arg_occurrences(payload, replacements))
+                        .collect(),
+                })
+                .collect(),
+        ),
+        Type::Tuple(items) => Type::Tuple(
+            items
+                .into_iter()
+                .map(|item| replace_effect_arg_occurrences(item, replacements))
+                .collect(),
+        ),
+        Type::EffectRow(items) => Type::EffectRow(
+            items
+                .into_iter()
+                .map(|item| replace_effect_arg_occurrences(item, replacements))
+                .collect(),
+        ),
+        Type::Con { path, args } => Type::Con {
+            path,
+            args: args
+                .into_iter()
+                .map(|arg| replace_effect_arg_occurrences(arg, replacements))
+                .collect(),
+        },
+        Type::Union(left, right) => Type::Union(
+            Box::new(replace_effect_arg_occurrences(*left, replacements)),
+            Box::new(replace_effect_arg_occurrences(*right, replacements)),
+        ),
+        Type::Intersection(left, right) => Type::Intersection(
+            Box::new(replace_effect_arg_occurrences(*left, replacements)),
+            Box::new(replace_effect_arg_occurrences(*right, replacements)),
+        ),
+        Type::Stack { inner, weight } => Type::Stack {
+            inner: Box::new(replace_effect_arg_occurrences(*inner, replacements)),
+            weight,
+        },
+        Type::OpenVar(_) | Type::Any | Type::Never => ty,
+    }
+}
+
+fn type_replacement_key_matches(ty: &Type, needle: &Type) -> bool {
+    matches!(needle, Type::OpenVar(_)) && ty == needle
+}
+
 fn let_body(
     arena: &poly_expr::Arena,
     def: poly_expr::DefId,
@@ -5135,13 +5709,6 @@ fn collect_pattern_defs(
     }
 }
 
-fn force_expr_if_thunk(actual: Option<&Type>, expr: Expr) -> Expr {
-    let Some(actual @ Type::Thunk { value, .. }) = actual else {
-        return expr;
-    };
-    boundary_expr(actual, value, expr)
-}
-
 fn forced_computation_value_type(ty: Type) -> Type {
     match ty {
         Type::Thunk { value, .. } => *value,
@@ -5149,41 +5716,300 @@ fn forced_computation_value_type(ty: Type) -> Type {
     }
 }
 
-fn wrap_raw_thunk_computation(actual: Option<&Type>, expr: Expr) -> Expr {
-    let Some(Type::Thunk { effect, value }) = actual else {
-        return expr;
-    };
-    Expr::new(ExprKind::MakeThunk {
-        source: ComputationType {
-            effect: effect.as_ref().clone(),
-            value: value.as_ref().clone(),
-        },
-        target: EffectiveThunkType {
-            effect: effect.as_ref().clone(),
-            value: value.as_ref().clone(),
-        },
-        body: Box::new(expr),
-    })
-}
-
-fn catch_body_needs_force(arena: &poly_expr::Arena, expr: poly_expr::ExprId) -> bool {
+fn raw_expr_value_type(
+    arena: &poly_expr::Arena,
+    solved: &SolvedTask,
+    expr: poly_expr::ExprId,
+) -> Option<Type> {
+    let actual = solved.actual_type_of(expr)?;
     match arena.expr(expr) {
-        poly_expr::Expr::App(_, _)
-        | poly_expr::Expr::RefSet(_, _)
-        | poly_expr::Expr::Case(_, _)
-        | poly_expr::Expr::Catch(_, _)
-        | poly_expr::Expr::Block(_, _) => true,
-        poly_expr::Expr::Var(ref_id) => arena
-            .ref_target(*ref_id)
-            .is_some_and(|def| matches!(arena.defs.get(def), Some(poly_expr::Def::Arg))),
-        poly_expr::Expr::Lit(_)
-        | poly_expr::Expr::PrimitiveOp(_)
-        | poly_expr::Expr::Lambda(_, _)
+        poly_expr::Expr::App(callee, _) if callee_is_constructor_spine(arena, *callee) => {
+            Some(ComputationShape::from_runtime_type(actual).value)
+        }
+        poly_expr::Expr::App(callee, _) => {
+            Some(raw_apply_value_type(solved, *callee).unwrap_or_else(|| actual.clone()))
+        }
+        poly_expr::Expr::Select(_, select) => Some(
+            raw_select_value_type(arena, solved, expr, *select).unwrap_or_else(|| actual.clone()),
+        ),
+        poly_expr::Expr::RefSet(_, _)
         | poly_expr::Expr::Tuple(_)
         | poly_expr::Expr::Record { .. }
         | poly_expr::Expr::PolyVariant(_, _)
-        | poly_expr::Expr::Select(_, _) => false,
+        | poly_expr::Expr::Case(_, _)
+        | poly_expr::Expr::Catch(_, _)
+        | poly_expr::Expr::Block(_, _) => Some(ComputationShape::from_runtime_type(actual).value),
+        poly_expr::Expr::Lit(_)
+        | poly_expr::Expr::PrimitiveOp(_)
+        | poly_expr::Expr::Var(_)
+        | poly_expr::Expr::Lambda(_, _) => Some(actual.clone()),
     }
+}
+
+fn callee_is_constructor_spine(arena: &poly_expr::Arena, expr: poly_expr::ExprId) -> bool {
+    match arena.expr(expr) {
+        poly_expr::Expr::Var(ref_id) => arena
+            .ref_target(*ref_id)
+            .is_some_and(|def| arena.constructors.contains_key(&def)),
+        poly_expr::Expr::App(callee, _) => callee_is_constructor_spine(arena, *callee),
+        _ => false,
+    }
+}
+
+fn raw_apply_value_type(solved: &SolvedTask, callee: poly_expr::ExprId) -> Option<Type> {
+    let callee_ty = solved
+        .emitted_type_of(callee)
+        .or_else(|| solved.actual_type_of(callee))?;
+    let parts = function_computation_parts(callee_ty)?;
+    Some(types::runtime_shape(parts.ret_effect, parts.ret))
+}
+
+fn raw_select_value_type(
+    arena: &poly_expr::Arena,
+    solved: &SolvedTask,
+    expr: poly_expr::ExprId,
+    select: poly_expr::SelectId,
+) -> Option<Type> {
+    match arena.select(select).resolution {
+        Some(poly_expr::SelectResolution::RecordField) => solved
+            .actual_type_of(expr)
+            .map(|actual| ComputationShape::from_runtime_type(actual).value),
+        Some(poly_expr::SelectResolution::Method { .. }) => solved
+            .select_signature(expr)
+            .and_then(function_computation_parts)
+            .map(|parts| types::runtime_shape(parts.ret_effect, parts.ret)),
+        Some(poly_expr::SelectResolution::TypeclassMethod { .. }) => solved
+            .typeclass_resolution(expr)
+            .map(|resolution| &resolution.signature)
+            .and_then(function_computation_parts)
+            .map(|parts| types::runtime_shape(parts.ret_effect, parts.ret)),
+        None => solved.actual_type_of(expr).cloned(),
+    }
+}
+
+fn raw_expr_is_computation(
+    arena: &poly_expr::Arena,
+    solved: &SolvedTask,
+    expr: poly_expr::ExprId,
+) -> bool {
+    solved.is_raw_thunk_computation(expr)
+        || matches!(arena.expr(expr), poly_expr::Expr::Catch(_, _))
+}
+
+fn lift_raw_expr_to_computation(actual: Option<&Type>, emitted: EmittedExpr) -> EmittedExpr {
+    let Some(actual) = actual else {
+        return emitted;
+    };
+    let target = ComputationShape::from_runtime_type(actual);
+    let Some(current) = emitted.computation.clone() else {
+        return emitted;
+    };
+    if equivalent_boundary_types(&current.value, &target.value) {
+        return EmittedExpr {
+            computation: Some(target),
+            ..emitted
+        };
+    }
+    if matches!(current.value, Type::Thunk { .. }) {
+        return force_emitted_value_thunk(emitted, target);
+    }
+    coerce_emitted_value(emitted, &target.value, Some(target.effect))
+}
+
+fn force_emitted_expr_if_thunk(actual: Option<&Type>, emitted: EmittedExpr) -> Expr {
+    let Some(actual @ Type::Thunk { .. }) = actual else {
+        return emitted.expr;
+    };
+    let target = ComputationShape::from_runtime_type(actual);
+    let Some(current) = emitted.computation.clone() else {
+        return force_expr_if_thunk(actual, emitted.expr);
+    };
+    if equivalent_boundary_types(&current.value, &target.value) {
+        return emitted.expr;
+    }
+    force_emitted_value_thunk(emitted, target).expr
+}
+
+fn force_expr_if_thunk(actual: &Type, expr: Expr) -> Expr {
+    let Type::Thunk { value, .. } = actual else {
+        return expr;
+    };
+    boundary_expr(actual, value, expr)
+}
+
+fn boundary_emitted_expr(actual: &Type, expected: &Type, emitted: EmittedExpr) -> EmittedExpr {
+    if matches!(expected, Type::Any) {
+        return emitted;
+    }
+    let Some(shape) = emitted.computation.clone() else {
+        return EmittedExpr::pure(
+            boundary_expr(actual, expected, emitted.expr),
+            Some(expected.clone()),
+        );
+    };
+    if let Type::Thunk { effect, value } = expected {
+        if shape.effect.is_pure_effect() && equivalent_boundary_types(&shape.value, expected) {
+            return emitted;
+        }
+        let body = ensure_emitted_value(emitted, actual, value);
+        return make_thunk_from_computation(body, effect.as_ref().clone(), value.as_ref().clone());
+    }
+    ensure_emitted_value(emitted, actual, expected)
+}
+
+fn ensure_emitted_value(emitted: EmittedExpr, actual: &Type, expected: &Type) -> EmittedExpr {
+    let Some(shape) = emitted.computation.clone() else {
+        return EmittedExpr::pure(
+            boundary_expr(actual, expected, emitted.expr),
+            Some(expected.clone()),
+        );
+    };
+    if equivalent_boundary_types(&shape.value, expected) {
+        return EmittedExpr {
+            computation: Some(ComputationShape {
+                effect: shape.effect,
+                value: expected.clone(),
+            }),
+            ..emitted
+        };
+    }
+    if matches!(shape.value, Type::Thunk { .. }) {
+        let target = forced_value_shape(actual, &shape, expected);
+        let forced = force_emitted_value_thunk(emitted, target);
+        let Some(forced_shape) = forced.computation.clone() else {
+            return forced;
+        };
+        if equivalent_boundary_types(&forced_shape.value, expected) {
+            return forced;
+        }
+        return coerce_emitted_value(forced, expected, None);
+    }
+    coerce_emitted_value(emitted, expected, None)
+}
+
+fn forced_value_shape(
+    actual: &Type,
+    current: &ComputationShape,
+    expected: &Type,
+) -> ComputationShape {
+    let actual_shape = ComputationShape::from_runtime_type(actual);
+    if equivalent_boundary_types(&actual_shape.value, expected) {
+        return ComputationShape {
+            value: expected.clone(),
+            ..actual_shape
+        };
+    }
+    let Type::Thunk { effect, .. } = &current.value else {
+        return ComputationShape {
+            effect: current.effect.clone(),
+            value: expected.clone(),
+        };
+    };
+    ComputationShape {
+        effect: join_emitted_effects(current.effect.clone(), effect.as_ref().clone()),
+        value: expected.clone(),
+    }
+}
+
+fn force_emitted_value_thunk(emitted: EmittedExpr, target: ComputationShape) -> EmittedExpr {
+    let Some(current) = emitted.computation.clone() else {
+        return emitted;
+    };
+    let Type::Thunk { effect, value } = current.value else {
+        return EmittedExpr {
+            computation: Some(target),
+            ..emitted
+        };
+    };
+    let source = runtime_effective_thunk_type(*effect, *value);
+    let target = runtime_computation_type(target);
+    let expr = Expr::new(ExprKind::ForceThunk {
+        source,
+        target: target.clone(),
+        thunk: Box::new(emitted.expr),
+    });
+    EmittedExpr {
+        expr,
+        computation: Some(ComputationShape {
+            effect: target.effect,
+            value: target.value,
+        }),
+    }
+}
+
+fn coerce_emitted_value(
+    emitted: EmittedExpr,
+    expected: &Type,
+    effect: Option<Type>,
+) -> EmittedExpr {
+    let Some(shape) = emitted.computation.clone() else {
+        return EmittedExpr::pure(emitted.expr, Some(expected.clone()));
+    };
+    if equivalent_boundary_types(&shape.value, expected) {
+        return EmittedExpr {
+            computation: Some(ComputationShape {
+                effect: effect.unwrap_or(shape.effect),
+                value: expected.clone(),
+            }),
+            ..emitted
+        };
+    }
+    let expr = boundary_expr(&shape.value, expected, emitted.expr);
+    EmittedExpr {
+        expr,
+        computation: Some(ComputationShape {
+            effect: effect.unwrap_or(shape.effect),
+            value: expected.clone(),
+        }),
+    }
+}
+
+fn make_thunk_from_computation(
+    emitted: EmittedExpr,
+    target_effect: Type,
+    target_value: Type,
+) -> EmittedExpr {
+    let Some(source) = emitted.computation.clone() else {
+        return emitted;
+    };
+    let source = runtime_computation_type(source);
+    let target = runtime_effective_thunk_type(target_effect, target_value);
+    let target_ty = Type::Thunk {
+        effect: Box::new(target.effect.clone()),
+        value: Box::new(target.value.clone()),
+    };
+    let expr = Expr::new(ExprKind::MakeThunk {
+        source,
+        target,
+        body: Box::new(emitted.expr),
+    });
+    EmittedExpr::pure(expr, Some(target_ty))
+}
+
+fn runtime_computation_type(shape: ComputationShape) -> ComputationType {
+    ComputationType {
+        effect: close_resolved_runtime_surface(shape.effect, TypeSlotKind::Effect),
+        value: close_resolved_runtime_surface(shape.value, TypeSlotKind::Value),
+    }
+}
+
+fn runtime_effective_thunk_type(effect: Type, value: Type) -> EffectiveThunkType {
+    EffectiveThunkType {
+        effect: close_resolved_runtime_surface(effect, TypeSlotKind::Effect),
+        value: close_resolved_runtime_surface(value, TypeSlotKind::Value),
+    }
+}
+
+fn join_emitted_effects(left: Type, right: Type) -> Type {
+    if left.is_pure_effect() {
+        return right;
+    }
+    if right.is_pure_effect() {
+        return left;
+    }
+    let mut items = effect_row_items(&left).to_vec();
+    items.extend(effect_row_items(&right).iter().cloned());
+    types::simplify_type(Type::EffectRow(items))
 }
 
 fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr {
@@ -5364,6 +6190,27 @@ mod tests {
         assert_eq!(
             resolver.resolve(&joined).unwrap(),
             con(&["box"], vec![int_type()])
+        );
+    }
+
+    #[test]
+    fn effect_row_candidates_merge_same_family_arguments() {
+        let arena = poly_expr::Arena::new();
+        let mut graph = TypeGraph::new(&arena);
+        let item = graph.fresh_value();
+        let open_sub = con(&["effect", "sub"], vec![item]);
+        let int_sub = con(&["effect", "sub"], vec![int_type()]);
+        let nondet = con(&["effect", "nondet"], Vec::new());
+        let open_row = Type::EffectRow(vec![open_sub, nondet.clone()]);
+        let int_row = Type::EffectRow(vec![int_sub.clone(), nondet.clone()]);
+
+        assert_eq!(
+            join_type_candidates(&graph, open_row.clone(), int_row.clone()).unwrap(),
+            Type::EffectRow(vec![int_sub.clone(), nondet.clone()])
+        );
+        assert_eq!(
+            meet_type_candidates(&graph, open_row, int_row).unwrap(),
+            Type::EffectRow(vec![int_sub, nondet])
         );
     }
 }

@@ -8,13 +8,14 @@
 
 use std::collections::VecDeque;
 use std::sync::OnceLock;
-use std::time::{Duration, Instant};
 
 use poly::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, StackWeight, SubtractId, Subtractability,
     TypeArena, TypeVar,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
+
+use crate::time::{Duration, Instant};
 
 /// subtype constraint の伝播 machine。
 ///

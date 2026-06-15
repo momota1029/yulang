@@ -3,8 +3,6 @@
 //! `dump` は巨大な文字列表現を作るため、推論そのものの時間や未型付け箇所を切り分けにくい。
 //! この module は既存の lowering / inference を一度だけ走らせ、その結果を構造化された summary にする。
 
-use std::time::{Duration, Instant};
-
 use poly::expr::{Def, DefId};
 use poly::types::{Neg, NegId, Neu, NeuId, Pos, PosId, RolePredicateArg, Scheme, TypeArena};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -13,6 +11,7 @@ use sources::{LoadedFile, Path};
 use crate::LoadedFilesError;
 use crate::ModuleId;
 use crate::lowering::{BodyLowering, BodyLoweringError, lower_loaded_files};
+use crate::time::{Duration, Instant};
 
 pub struct PolyCheckOutput {
     pub report: PolyCheckReport,

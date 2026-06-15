@@ -73,7 +73,7 @@ pub(crate) fn instantiate_scheme_with_fresh_and_roles(
     })
 }
 
-pub(crate) fn instantiate_principal_scheme_with_fresh_and_roles(
+pub(crate) fn instantiate_principal_scheme_for_inference_with_fresh_and_roles(
     arena: &poly_expr::Arena,
     def: poly_expr::DefId,
     scheme: &Scheme,
@@ -81,6 +81,7 @@ pub(crate) fn instantiate_principal_scheme_with_fresh_and_roles(
 ) -> Result<InstantiatedScheme, SpecializeError> {
     reject_unsupported_scheme_features(def, scheme)?;
     let mut materializer = SchemeMaterializer::new_tracking_all_vars(&arena.typ, def, scheme);
+    materializer.use_inference_functions();
     materializer.collect_scheme_kinds(scheme);
     for quantifier in &scheme.quantifiers {
         let kind = materializer
@@ -204,6 +205,15 @@ fn runtime_function_type(arg: Type, arg_effect: Type, ret_effect: Type, ret: Typ
     }
 }
 
+fn inference_function_type(arg: Type, arg_effect: Type, ret_effect: Type, ret: Type) -> Type {
+    Type::Fun {
+        arg: Box::new(arg),
+        arg_effect: Box::new(arg_effect),
+        ret_effect: Box::new(ret_effect),
+        ret: Box::new(ret),
+    }
+}
+
 pub(crate) fn runtime_shape(effect: Type, value: Type) -> Type {
     if effect.is_pure_effect() {
         return value;
@@ -240,6 +250,12 @@ pub(crate) enum SchemeQuantifierKind {
 enum TypeContext {
     Value,
     Effect,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FunctionMaterialization {
+    Runtime,
+    Inference,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -291,6 +307,7 @@ struct SchemeMaterializer<'a> {
     track_empty_bounds: bool,
     empty_bound_kinds: Vec<TypeContext>,
     empty_bound_types: RefCell<VecDeque<Type>>,
+    function_materialization: FunctionMaterialization,
 }
 
 impl<'a> SchemeMaterializer<'a> {
@@ -305,6 +322,7 @@ impl<'a> SchemeMaterializer<'a> {
             track_empty_bounds: false,
             empty_bound_kinds: Vec::new(),
             empty_bound_types: RefCell::new(VecDeque::new()),
+            function_materialization: FunctionMaterialization::Runtime,
         }
     }
 
@@ -319,6 +337,7 @@ impl<'a> SchemeMaterializer<'a> {
             track_empty_bounds: true,
             empty_bound_kinds: Vec::new(),
             empty_bound_types: RefCell::new(VecDeque::new()),
+            function_materialization: FunctionMaterialization::Runtime,
         }
     }
 
@@ -337,7 +356,12 @@ impl<'a> SchemeMaterializer<'a> {
             track_empty_bounds: false,
             empty_bound_kinds: Vec::new(),
             empty_bound_types: RefCell::new(VecDeque::new()),
+            function_materialization: FunctionMaterialization::Runtime,
         }
+    }
+
+    fn use_inference_functions(&mut self) {
+        self.function_materialization = FunctionMaterialization::Inference;
     }
 
     fn collect_scheme_kinds(&mut self, scheme: &Scheme) {
@@ -785,7 +809,7 @@ impl<'a> SchemeMaterializer<'a> {
                 arg_eff,
                 ret_eff,
                 ret,
-            } => runtime_function_type(
+            } => self.materialize_function_type(
                 self.materialize_neg(*arg, TypeContext::Value)?,
                 self.materialize_neg(*arg_eff, TypeContext::Effect)?,
                 self.materialize_pos(*ret_eff, TypeContext::Effect)?,
@@ -858,7 +882,7 @@ impl<'a> SchemeMaterializer<'a> {
                 arg_eff,
                 ret_eff,
                 ret,
-            } => runtime_function_type(
+            } => self.materialize_function_type(
                 self.materialize_pos(*arg, TypeContext::Value)?,
                 self.materialize_pos(*arg_eff, TypeContext::Effect)?,
                 self.materialize_neg(*ret_eff, TypeContext::Effect)?,
@@ -923,7 +947,7 @@ impl<'a> SchemeMaterializer<'a> {
                 arg_eff,
                 ret_eff,
                 ret,
-            } => runtime_function_type(
+            } => self.materialize_function_type(
                 self.materialize_neu(*arg, TypeContext::Value)?,
                 self.materialize_neu(*arg_eff, TypeContext::Effect)?,
                 self.materialize_neu(*ret_eff, TypeContext::Effect)?,
@@ -939,6 +963,23 @@ impl<'a> SchemeMaterializer<'a> {
             }
             Neu::Tuple(items) => Type::Tuple(self.materialize_neus(items, TypeContext::Value)?),
         })
+    }
+
+    fn materialize_function_type(
+        &self,
+        arg: Type,
+        arg_effect: Type,
+        ret_effect: Type,
+        ret: Type,
+    ) -> Type {
+        match self.function_materialization {
+            FunctionMaterialization::Runtime => {
+                runtime_function_type(arg, arg_effect, ret_effect, ret)
+            }
+            FunctionMaterialization::Inference => {
+                inference_function_type(arg, arg_effect, ret_effect, ret)
+            }
+        }
     }
 
     fn materialize_var(&self, var: TypeVar, context: TypeContext) -> Type {

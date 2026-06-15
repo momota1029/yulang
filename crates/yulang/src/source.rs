@@ -9,7 +9,6 @@ use std::fmt::Write as _;
 use std::fs;
 use std::io;
 use std::path::{Path as FsPath, PathBuf};
-use std::time::{Duration, Instant};
 
 use sources::{ModuleLoadRequest, Name, Path, SourceFile};
 
@@ -17,6 +16,7 @@ use crate::stdlib::{
     YULANG_STD_ENV, default_versioned_std_root, embedded_std_files, env_std_root,
     install_embedded_std,
 };
+use crate::time::{Duration, Instant};
 
 pub const IMPLICIT_PRELUDE_IMPORT: &str = "use std::prelude::*\n";
 const IMPLICIT_STD_MODULE_DECL: &str = "mod std;\n";

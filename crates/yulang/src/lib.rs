@@ -9,6 +9,7 @@ mod playground_std;
 pub mod server;
 pub mod source;
 pub mod stdlib;
+mod time;
 
 pub use source::{
     AnalyzeSourceOutput, BuildControlOutput, BuildPolyOutput, CheckPolyOutput, CollectedSource,

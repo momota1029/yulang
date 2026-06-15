@@ -1400,6 +1400,15 @@ impl<'a> Runtime<'a> {
     }
 
     fn bind_pat(&mut self, pat: Pat, value: Value, env: CapturedEnv) -> BindResult<'a> {
+        if pattern_observes_value(&pat) && value_is_thunk_like(&value) {
+            let forced = self.force_thunk(value)?;
+            return self.continue_value_as_bind(
+                forced,
+                env,
+                Rc::new(move |runtime, value, env| runtime.bind_pat(pat.clone(), value, env)),
+            );
+        }
+
         let (view, markers) = value_view(&value);
         match pat {
             Pat::Wild => bind_done(true, env),
@@ -1953,6 +1962,21 @@ fn value_result<'a>(value: Value) -> RuntimeResult<'a> {
 
 fn bind_done<'a>(matched: bool, env: CapturedEnv) -> BindResult<'a> {
     Ok(BindEvalResult::Done { matched, env })
+}
+
+fn pattern_observes_value(pat: &Pat) -> bool {
+    match pat {
+        Pat::Wild | Pat::Var(_) => false,
+        Pat::As(pat, _) => pattern_observes_value(pat),
+        Pat::Lit(_)
+        | Pat::Tuple(_)
+        | Pat::List { .. }
+        | Pat::Record { .. }
+        | Pat::PolyVariant(_, _)
+        | Pat::Con(_, _)
+        | Pat::Ref(_)
+        | Pat::Or(_, _) => true,
+    }
 }
 
 fn constructor_value(def: DefId, arity: usize, args: Vec<Value>) -> Value {

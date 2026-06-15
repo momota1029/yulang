@@ -5,7 +5,6 @@
 //! 確定したら `poly` へ解決結果を書き戻しつつ SCC machine へ dependency を渡す。
 
 use std::collections::VecDeque;
-use std::time::{Duration, Instant};
 
 use poly::expr::{Arena as PolyArena, Def, DefId, RefId, SelectId, SelectResolution};
 use poly::types::{
@@ -53,6 +52,7 @@ use crate::roles::{
     RoleImplTable, RoleInputVariance, RoleInputVarianceTable,
 };
 use crate::scc::{SccEvent, SccInput, SccMachine};
+use crate::time::{Duration, Instant};
 use crate::typing::BindingFetch;
 use crate::uses::{RefUseTable, SelectionUse, SelectionUseTable};
 

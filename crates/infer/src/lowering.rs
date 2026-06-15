@@ -15,7 +15,6 @@ use parser::lex::SyntaxKind;
 use parser::sink::YulangLanguage;
 use rowan::{NodeOrToken, SyntaxNode};
 use sources::{LoadedFile, Name, Path};
-use std::time::{Duration, Instant};
 
 use poly::dump::DumpLabels;
 use poly::expr::{
@@ -47,6 +46,7 @@ use crate::roles::{
     RoleInputOccurrence, RoleInputVariance,
 };
 use crate::scc::SccInput;
+use crate::time::{Duration, Instant};
 use crate::typing::{EffectViewId, Typing};
 use crate::uses::{RefUse, SelectionUse};
 use crate::{
