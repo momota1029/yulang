@@ -1107,6 +1107,22 @@ impl<'a> TaskSolver<'a> {
         Ok(consumer_effect)
     }
 
+    fn consume_discarded_expr(
+        &mut self,
+        expr: poly_expr::ExprId,
+        ty: &Type,
+    ) -> Result<(), SpecializeError> {
+        let Type::Thunk { effect, value } = ty else {
+            return Ok(());
+        };
+        self.consume_expr_computation(
+            expr,
+            effect.as_ref().clone(),
+            discarded_value_type(value.as_ref()),
+        )?;
+        Ok(())
+    }
+
     fn add_expr_consumer(&mut self, expr: poly_expr::ExprId, actual: Type, consumer: Type) {
         let info = self.exprs.entry(expr).or_insert_with(|| ExprType {
             actual,
@@ -1770,10 +1786,8 @@ impl<'a> TaskSolver<'a> {
                 poly_expr::Stmt::Expr(expr) => {
                     self.discarded_exprs.insert(*expr);
                     let expr_ty = self.expr(*expr)?;
-                    if !discarded_catch_has_open_result(self.arena.expr(*expr), &expr_ty)
-                        && let Some(context) = discarded_value_context(&expr_ty)
-                    {
-                        self.consume_expr(*expr, context)?;
+                    if !discarded_catch_has_open_result(self.arena.expr(*expr), &expr_ty) {
+                        self.consume_discarded_expr(*expr, &expr_ty)?;
                     }
                     effects.push(split_runtime_computation_shape(expr_ty).1);
                 }
@@ -3227,8 +3241,12 @@ impl<'a> TypeGraph<'a> {
         Ok(closed)
     }
 
-    fn effect_subtraction_tail_is_pure(&self, slot: u32, demand: &EffectSubtractionDemand) -> bool {
-        let Some(slot) = self.slots.get(slot as usize) else {
+    fn effect_subtraction_tail_is_pure(
+        &self,
+        slot_id: u32,
+        demand: &EffectSubtractionDemand,
+    ) -> bool {
+        let Some(slot) = self.slots.get(slot_id as usize) else {
             return false;
         };
         let mut saw_concrete_lower = false;
@@ -3236,8 +3254,13 @@ impl<'a> TypeGraph<'a> {
             let Some((items, tail)) = self.effect_row_parts(lower.clone()) else {
                 return false;
             };
-            if items.is_empty() && matches!(tail, Some(Type::OpenVar(_))) {
+            if items.is_empty() && matches!(tail, Some(Type::OpenVar(tail)) if tail == slot_id) {
                 continue;
+            }
+            // A lower already present on the residual tail is escaping evidence,
+            // not proof that the handled part consumed the whole source effect.
+            if self.effect_lower_may_come_from_tail(lower, &demand.tail) {
+                return false;
             }
             saw_concrete_lower = true;
             if !residual_effect_after_consuming_handled_candidate(
@@ -3251,6 +3274,18 @@ impl<'a> TypeGraph<'a> {
             }
         }
         saw_concrete_lower
+    }
+
+    fn effect_lower_may_come_from_tail(&self, lower: &Type, tail: &Type) -> bool {
+        let Type::OpenVar(tail) = tail else {
+            return false;
+        };
+        let Some(slot) = self.slots.get(*tail as usize) else {
+            return false;
+        };
+        slot.lower
+            .iter()
+            .any(|tail_lower| effect_lower_candidates_overlap(lower, tail_lower))
     }
 
     fn residual_effect_after_consuming_handled(
@@ -3306,6 +3341,12 @@ impl<'a> TypeGraph<'a> {
                 .slots
                 .get(*slot as usize)
                 .is_some_and(|slot| slot.kind == TypeSlotKind::Effect),
+            Type::EffectRow(items) => items
+                .last()
+                .is_some_and(|tail| self.type_is_effect_tail(tail)),
+            Type::Intersection(left, right) => {
+                self.type_is_effect_tail(left) && self.type_is_effect_tail(right)
+            }
             Type::Stack { inner, .. } => self.type_is_effect_tail(inner),
             _ => false,
         }
@@ -6175,6 +6216,13 @@ fn type_is_effect_tail_candidate(graph: &TypeGraph<'_>, ty: &Type) -> bool {
             .slots
             .get(*slot as usize)
             .is_some_and(|slot| slot.kind == TypeSlotKind::Effect),
+        Type::EffectRow(items) => items
+            .last()
+            .is_some_and(|tail| type_is_effect_tail_candidate(graph, tail)),
+        Type::Intersection(left, right) => {
+            type_is_effect_tail_candidate(graph, left)
+                && type_is_effect_tail_candidate(graph, right)
+        }
         Type::Stack { inner, .. } => type_is_effect_tail_candidate(graph, inner),
         _ => false,
     }
@@ -6274,6 +6322,20 @@ fn residual_effect_after_consuming_handled_candidate(
         matched_handled[index] = true;
     }
     effect_row_from_parts(residual_items, actual_tail)
+}
+
+fn effect_lower_candidates_overlap(left: &Type, right: &Type) -> bool {
+    let Some(left_items) = effect_candidate_items(left.clone()) else {
+        return left == right;
+    };
+    let Some(right_items) = effect_candidate_items(right.clone()) else {
+        return left == right;
+    };
+    left_items.iter().any(|left| {
+        right_items
+            .iter()
+            .any(|right| same_effect_row_family(left, right))
+    })
 }
 
 fn empty_stack_weight() -> StackWeight {
@@ -6634,16 +6696,6 @@ fn runtime_function_return_type(ty: &Type) -> Option<Type> {
         ret_effect.as_ref().clone(),
         ret.as_ref().clone(),
     ))
-}
-
-fn discarded_value_context(ty: &Type) -> Option<Type> {
-    match ty {
-        Type::Thunk { effect, value } => Some(types::runtime_shape(
-            effect.as_ref().clone(),
-            discarded_value_type(value),
-        )),
-        _ => None,
-    }
 }
 
 fn discarded_value_type(ty: &Type) -> Type {

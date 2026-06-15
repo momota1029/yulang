@@ -3131,6 +3131,31 @@ first_over 40
     }
 
     #[test]
+    fn run_control_source_text_with_embedded_std_keeps_sub_return_through_for_callback_if() {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "our g h = sub:\n  for i in 0..3:\n    h i\n  return 1\n\nsub:\n  my b = g \\i -> if i == 0: return i\n  b\n",
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [0]\n");
+    }
+
+    #[test]
+    fn dump_mono_source_text_with_embedded_std_specializes_for_callback_if_before_println() {
+        let output = dump_mono_from_source_text_with_embedded_std(
+            "playground.yu",
+            "our g h = sub:\n  for i in 0..3:\n    h i\n  return 1\n\nsub:\n  my b = g \\i -> if i == 0: return i\n  println b.show\n  2\n",
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_mono_dump_contains(&output, "std::control::flow::sub(int)");
+        assert_mono_dump_contains(&output, "std::io::console::out");
+    }
+
+    #[test]
     fn check_poly_source_text_with_embedded_std_reports_type_error() {
         let output =
             check_poly_from_source_text_with_embedded_std("playground.yu", "my x: int = true\n")
