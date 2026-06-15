@@ -2863,7 +2863,7 @@ mod tests {
 struct point { x: int, y: int } with:
     our p.norm2 = p.x * p.x + p.y * p.y
 
-point { x: 3, y: 4 } .norm2
+point { x: 3, y: 4 } .norm2 + 1.12
 ";
         let build =
             build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
@@ -2872,7 +2872,7 @@ point { x: 3, y: 4 } .norm2
         let output =
             run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
 
-        assert_eq!(output.text, "run roots [25]\n");
+        assert_eq!(output.text, "run roots [26.12]\n");
     }
 
     #[test]

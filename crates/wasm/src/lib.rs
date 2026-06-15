@@ -776,7 +776,7 @@ mod tests {
 struct point { x: int, y: int } with:
     our p.norm2 = p.x * p.x + p.y * p.y
 
-point { x: 3, y: 4 } .norm2
+point { x: 3, y: 4 } .norm2 + 1.12
 ",
         );
 
@@ -790,7 +790,7 @@ point { x: 3, y: 4 } .norm2
         );
         assert_eq!(
             output.results.first().map(|result| result.value.as_str()),
-            Some("25")
+            Some("26.12")
         );
         assert!(output.file_count < yulang::stdlib::embedded_std_files().len() + 1);
     }
