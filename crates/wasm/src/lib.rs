@@ -211,41 +211,73 @@ fn run_control_from_source_text_without_std(
     source: &str,
 ) -> Result<WasmControlOutput, yulang::RouteError> {
     let files = yulang::collect_local_source_text(PLAYGROUND_ENTRY, source.to_string())?;
-    let output = yulang::build_control_from_collected_sources(files)?;
+    let output = build_named_control_from_collected_sources(files)?;
     run_built_control_program_with_host(output)
 }
 
 fn run_control_from_source_text_with_embedded_std(
     source: &str,
 ) -> Result<WasmControlOutput, yulang::RouteError> {
-    let output =
-        yulang::build_control_from_source_text_with_embedded_std(PLAYGROUND_ENTRY, source)?;
+    let files =
+        yulang::collect_source_text_with_embedded_std(PLAYGROUND_ENTRY, source.to_string())?;
+    let output = build_named_control_from_collected_sources(files)?;
     run_built_control_program_with_host(output)
 }
 
 fn run_control_from_source_text_with_playground_std(
     source: &str,
 ) -> Result<WasmControlOutput, yulang::RouteError> {
-    let output = yulang::build_control_from_source_text_with_embedded_playground_std(
+    let files = yulang::collect_source_text_with_embedded_playground_std(
         PLAYGROUND_ENTRY,
-        source,
+        source.to_string(),
     )?;
+    let output = build_named_control_from_collected_sources(files)?;
     run_built_control_program_with_host(output)
 }
 
-fn run_built_control_program_with_host(
+#[derive(Debug, Clone, PartialEq)]
+struct NamedControlBuild {
     output: yulang::BuildControlOutput,
+    constructor_names: ConstructorNames,
+}
+
+type ConstructorNames = HashMap<control_vm::DefId, String>;
+
+fn build_named_control_from_collected_sources(
+    files: Vec<yulang::CollectedSource>,
+) -> Result<NamedControlBuild, yulang::RouteError> {
+    let poly = yulang::build_poly_from_collected_sources(files)?;
+    let constructor_names = constructor_display_names(&poly);
+    let output = yulang::build_control_from_poly_output(&poly)?;
+    Ok(NamedControlBuild {
+        output,
+        constructor_names,
+    })
+}
+
+fn constructor_display_names(poly: &yulang::BuildPolyOutput) -> ConstructorNames {
+    poly.arena
+        .constructors
+        .iter()
+        .map(|(def, constructor)| (control_vm::DefId(def.0), constructor.name.clone()))
+        .collect()
+}
+
+fn run_built_control_program_with_host(
+    build: NamedControlBuild,
 ) -> Result<WasmControlOutput, yulang::RouteError> {
     let mut stdout = String::new();
-    let values = control_vm::run_program_with_host(&output.program, |path, payload| {
+    let values = control_vm::run_program_with_host(&build.output.program, |path, payload| {
         handle_host_effect(path, payload, &mut stdout)
     })
     .map_err(yulang::RouteError::Control)?;
+    let text = format_control_values(&values, &build.constructor_names);
     Ok(WasmControlOutput {
-        file_count: output.file_count,
-        errors: output.errors,
-        text: format!("run roots {}\n", control_vm::format_values(&values)),
+        file_count: build.output.file_count,
+        errors: build.output.errors,
+        text: format!("run roots {text}\n"),
         values,
+        constructor_names: build.constructor_names,
         stdout,
     })
 }
@@ -277,6 +309,7 @@ struct WasmControlOutput {
     errors: Vec<String>,
     text: String,
     values: Vec<control_vm::Value>,
+    constructor_names: ConstructorNames,
     stdout: String,
 }
 
@@ -426,7 +459,7 @@ impl RunOutput {
             .enumerate()
             .map(|(index, value)| RunResult {
                 index,
-                value: format_control_value(value),
+                value: format_single_control_value(value, &output.constructor_names),
             })
             .collect::<Vec<_>>();
         Self {
@@ -535,12 +568,154 @@ fn diagnostics_from_messages(messages: &[String], source_len: usize) -> Vec<Diag
         .collect()
 }
 
-fn format_control_value(value: &control_vm::Value) -> String {
-    let text = control_vm::format_values(std::slice::from_ref(value));
-    text.strip_prefix('[')
-        .and_then(|text| text.strip_suffix(']'))
-        .unwrap_or(&text)
-        .to_string()
+fn format_control_values(
+    values: &[control_vm::Value],
+    constructor_names: &ConstructorNames,
+) -> String {
+    let mut out = String::new();
+    out.push('[');
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&format_single_control_value(value, constructor_names));
+    }
+    out.push(']');
+    out
+}
+
+fn format_single_control_value(
+    value: &control_vm::Value,
+    constructor_names: &ConstructorNames,
+) -> String {
+    match value {
+        control_vm::Value::Int(value) => value.to_string(),
+        control_vm::Value::BigInt(value) => value.to_string(),
+        control_vm::Value::Float(value) => value.to_string(),
+        control_vm::Value::Str(value) => format!("{value:?}"),
+        control_vm::Value::Bool(value) => value.to_string(),
+        control_vm::Value::Unit => "()".to_string(),
+        control_vm::Value::Tuple(values) => {
+            format_control_delimited_values("(", ")", values, constructor_names, true)
+        }
+        control_vm::Value::List(values) => {
+            let values = values
+                .to_vec()
+                .into_iter()
+                .map(|value| (*value).clone())
+                .collect::<Vec<_>>();
+            format_control_delimited_values("[", "]", &values, constructor_names, false)
+        }
+        control_vm::Value::Record(fields) => {
+            let mut out = String::new();
+            out.push('{');
+            for (index, field) in fields.iter().enumerate() {
+                if index > 0 {
+                    out.push_str(", ");
+                }
+                out.push_str(&field.name);
+                out.push_str(": ");
+                out.push_str(&format_single_control_value(
+                    &field.value,
+                    constructor_names,
+                ));
+            }
+            out.push('}');
+            out
+        }
+        control_vm::Value::PolyVariant { tag, payloads } => {
+            if payloads.is_empty() {
+                return tag.clone();
+            }
+            format!(
+                "{tag}{}",
+                format_control_delimited_values("(", ")", payloads, constructor_names, true)
+            )
+        }
+        control_vm::Value::DataConstructor { def, payloads } => {
+            if let Some(name) = constructor_names.get(def) {
+                return format_named_constructor(name, payloads, constructor_names);
+            }
+            if payloads.is_empty() {
+                return format!("<ctor d{}>", def.0);
+            }
+            format!(
+                "<ctor d{}>{}",
+                def.0,
+                format_control_delimited_values("(", ")", payloads, constructor_names, true)
+            )
+        }
+        control_vm::Value::ConstructorFunction(constructor) => {
+            let name = constructor_names
+                .get(&constructor.def)
+                .map(String::as_str)
+                .unwrap_or("<ctor>");
+            format!(
+                "<ctor-fn {name} d{} {}/{}>",
+                constructor.def.0,
+                constructor.args.len(),
+                constructor.arity
+            )
+        }
+        control_vm::Value::PrimitiveOp(primitive) => {
+            format!(
+                "<prim {:?} {}/{}>",
+                primitive.op,
+                primitive.args.len(),
+                primitive.op.arity()
+            )
+        }
+        control_vm::Value::Closure(_) | control_vm::Value::RecursiveClosure { .. } => {
+            "<closure>".to_string()
+        }
+        control_vm::Value::Thunk(_) => "<thunk>".to_string(),
+        control_vm::Value::FunctionAdapter(_) => "<function-adapter>".to_string(),
+        control_vm::Value::EffectOp { path } => format!("<effect-op {}>", path.join("::")),
+        control_vm::Value::Continuation(id) => format!("<continuation {}>", id.0),
+        control_vm::Value::Marked { value, .. } => {
+            format_single_control_value(value, constructor_names)
+        }
+    }
+}
+
+fn format_named_constructor(
+    name: &str,
+    payloads: &[control_vm::Value],
+    constructor_names: &ConstructorNames,
+) -> String {
+    match payloads {
+        [] => name.to_string(),
+        [payload] => format!(
+            "{name} {}",
+            format_single_control_value(payload, constructor_names)
+        ),
+        payloads => format!(
+            "{name}{}",
+            format_control_delimited_values("(", ")", payloads, constructor_names, false)
+        ),
+    }
+}
+
+fn format_control_delimited_values(
+    open: &str,
+    close: &str,
+    values: &[control_vm::Value],
+    constructor_names: &ConstructorNames,
+    tuple_singleton: bool,
+) -> String {
+    let mut out = String::new();
+    out.push_str(open);
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&format_single_control_value(value, constructor_names));
+    }
+    if tuple_singleton && values.len() == 1 && open == "(" {
+        out.push(',');
+    }
+    out.push_str(close);
+    out
 }
 
 fn embedded_std_source_bytes() -> usize {
@@ -912,7 +1087,7 @@ sub:
     fn run_inner_runs_nondet_once_triple() {
         clear_std_cache();
         let source = "\
-({
+{
     my a = each 1..
     my b = each a<..
     my c = each b<..
@@ -920,16 +1095,16 @@ sub:
     guard: a * a + b * b == c * c
 
     (a, b, c)
-} .once).show
+} .once
 ";
         let output = run_inner(source);
         let full_std_output = run_control_from_source_text_with_embedded_std(source).unwrap();
 
-        assert_eq!(full_std_output.text, "run roots [\"just (3, 4, 5)\"]\n");
+        assert_eq!(full_std_output.text, "run roots [just (3, 4, 5)]\n");
         assert!(output.ok, "{output:?}");
         assert_eq!(
             output.results.first().map(|result| result.value.as_str()),
-            Some("\"just (3, 4, 5)\"")
+            Some("just (3, 4, 5)")
         );
         assert_eq!(output.text, full_std_output.text);
     }
