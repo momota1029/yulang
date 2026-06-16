@@ -123,14 +123,6 @@ impl<'a> ConstraintGraph<'a> {
         lower: Type,
         upper: Type,
     ) -> Result<(), SpecializeError> {
-        if type_mentions_ref_update_unit(&lower) || type_mentions_ref_update_unit(&upper) {
-            let location = std::panic::Location::caller();
-            eprintln!(
-                "ref_update_unit constraint at {}:{} lower={lower:?} upper={upper:?}",
-                location.file(),
-                location.line()
-            );
-        }
         if lower != upper {
             self.pending.push_back(SubtypeConstraint { lower, upper });
         }

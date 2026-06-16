@@ -15,15 +15,6 @@ impl<'a> ExprTypeSolver<'a> {
         }
 
         if let Some(expected) = expected {
-            if type_mentions_ref_update_unit(&expected) {
-                eprintln!(
-                    "expr {:?} {} expected ref_update_unit {:?} tree={}",
-                    expr,
-                    expr_kind_label(self.arena.expr(expr)),
-                    expected,
-                    debug_expr_tree(self.arena, expr, 3)
-                );
-            }
             self.set_expr_expected(expr, expected.clone())?;
             if let Some(actual) = self.plan.actual(expr).cloned() {
                 self.constrain_expr_boundary(actual.clone(), expected)?;
@@ -289,15 +280,6 @@ impl<'a> ExprTypeSolver<'a> {
         arg: poly_expr::ExprId,
         expected: Option<Type>,
     ) -> Result<Type, SpecializeError> {
-        if let poly_expr::Expr::Var(ref_id) = self.arena.expr(callee)
-            && let Some(def) = self.arena.ref_target(*ref_id)
-            && let Some(operation) = self.arena.effect_operations.get(&def)
-        {
-            eprintln!(
-                "effect op call expr={:?} callee={:?} path={:?} expected={:?}",
-                expr, callee, operation.path, expected
-            );
-        }
         let callee_expected = expected
             .as_ref()
             .and_then(|ret| self.primitive_spine_callee_expected(callee, ret.clone()));
@@ -394,6 +376,7 @@ impl<'a> ExprTypeSolver<'a> {
             if self.plan.actual(callee).is_some() && self.expr_can_refine_with_expected(callee) {
                 self.set_expr_expected(callee, expected.clone())?;
                 let refined = self.infer_expr(callee, Some(expected.clone()))?;
+                self.plan.refine_actual(callee, refined.clone())?;
                 return self.constrain_expr_boundary(refined, expected);
             }
             self.expr(callee, Some(expected))?;
@@ -454,14 +437,16 @@ impl<'a> ExprTypeSolver<'a> {
         expr: poly_expr::ExprId,
         expected_value: Type,
     ) -> Result<CallArgument, SpecializeError> {
-        self.set_expr_expected(expr, expected_value.clone())?;
         let actual = if let Some(actual) = self.plan.actual(expr).cloned() {
             actual
+        } else if matches!(self.arena.expr(expr), poly_expr::Expr::Var(_)) {
+            self.expr(expr, None)?
         } else {
             let actual = self.infer_expr(expr, Some(expected_value.clone()))?;
             self.plan.set_actual(expr, actual.clone())?;
             actual
         };
+        self.set_expr_expected(expr, expected_value.clone())?;
         let (actual_value, actual_effect) = split_runtime_computation_shape(actual);
         self.graph
             .constrain_subtype(actual_value.clone(), expected_value)?;

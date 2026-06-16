@@ -165,22 +165,7 @@ impl<'graph, 'arena, 'solution> TypeResolver<'graph, 'arena, 'solution> {
         if let Some(solution) = self.solution {
             return match solution.get(slot)?.cloned() {
                 Some(solution) => Ok(solution),
-                None => {
-                    if slot != 106 {
-                        return Err(SpecializeError::UndeterminedTypeSlot { slot });
-                    }
-                    if let Ok(slot_data) = self.graph.slot(slot) {
-                        eprintln!(
-                            "undetermined slot {slot} kind={:?} lower={:?} upper={:?} succ={:?} pred={:?}",
-                            slot_data.kind,
-                            slot_data.lower,
-                            slot_data.upper,
-                            slot_data.successors,
-                            slot_data.predecessors
-                        );
-                    }
-                    Err(SpecializeError::UndeterminedTypeSlot { slot })
-                }
+                None => Err(SpecializeError::UndeterminedTypeSlot { slot }),
             };
         }
         if let Some(solution) = self.lazy_solutions.get(&slot) {

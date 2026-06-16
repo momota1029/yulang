@@ -61,6 +61,11 @@ impl ExprTypePlan {
             .set(expr, ExprTypeRole::Actual, ty)
     }
 
+    fn refine_actual(&mut self, expr: poly_expr::ExprId, ty: Type) -> Result<(), SpecializeError> {
+        self.types.entry(expr).or_default().actual = Some(ty);
+        Ok(())
+    }
+
     fn set_expected(&mut self, expr: poly_expr::ExprId, ty: Type) -> Result<(), SpecializeError> {
         self.types
             .entry(expr)

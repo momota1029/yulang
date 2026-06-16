@@ -10,15 +10,9 @@ impl<'a> ExprTypeSolver<'a> {
             return Err(SpecializeError::UnresolvedRef { ref_id: ref_id.0 });
         };
         if let Some(local_ty) = self.local_types.get(&def).cloned() {
-            if def.0 == 711 {
-                eprintln!("var target local def={def:?} ty={local_ty:?}");
-            }
             return Ok(local_ty);
         }
         if let Some(active_ty) = self.constraining_def_types.get(&def).cloned() {
-            if def.0 == 711 {
-                eprintln!("var target active def={def:?} ty={active_ty:?}");
-            }
             return Ok(active_ty);
         }
         match self.arena.defs.get(def) {

@@ -364,69 +364,6 @@ pub(super) fn type_contains_open_var(ty: &Type) -> bool {
     }
 }
 
-pub(super) fn type_mentions_ref_update_unit(ty: &Type) -> bool {
-    match ty {
-        Type::Con { path, args } => {
-            path.as_slice()
-                == ["std", "control", "var", "ref_update", "update"]
-                    .map(str::to_string)
-                    .as_slice()
-                || (path.as_slice()
-                    == ["std", "control", "var", "ref_update"]
-                        .map(str::to_string)
-                        .as_slice()
-                    && args.as_slice() == [Type::unit()])
-                || args.iter().any(type_mentions_ref_update_unit)
-        }
-        Type::Fun {
-            arg,
-            arg_effect,
-            ret_effect,
-            ret,
-        } => {
-            type_mentions_ref_update_unit(arg)
-                || type_mentions_ref_update_unit(arg_effect)
-                || type_mentions_ref_update_unit(ret_effect)
-                || type_mentions_ref_update_unit(ret)
-        }
-        Type::Thunk { effect, value } => {
-            type_mentions_ref_update_unit(effect) || type_mentions_ref_update_unit(value)
-        }
-        Type::Record(fields) => fields
-            .iter()
-            .any(|field| type_mentions_ref_update_unit(&field.value)),
-        Type::PolyVariant(variants) => variants
-            .iter()
-            .any(|variant| variant.payloads.iter().any(type_mentions_ref_update_unit)),
-        Type::Tuple(items) | Type::EffectRow(items) => {
-            items.iter().any(type_mentions_ref_update_unit)
-        }
-        Type::Union(left, right) | Type::Intersection(left, right) => {
-            type_mentions_ref_update_unit(left) || type_mentions_ref_update_unit(right)
-        }
-        Type::Stack { inner, .. } => type_mentions_ref_update_unit(inner),
-        Type::OpenVar(_) | Type::Any | Type::Never => false,
-    }
-}
-
-pub(super) fn expr_kind_label(expr: &poly_expr::Expr) -> &'static str {
-    match expr {
-        poly_expr::Expr::Lit(_) => "lit",
-        poly_expr::Expr::PrimitiveOp(_) => "primitive",
-        poly_expr::Expr::Var(_) => "var",
-        poly_expr::Expr::App(_, _) => "app",
-        poly_expr::Expr::RefSet(_, _) => "ref-set",
-        poly_expr::Expr::Lambda(_, _) => "lambda",
-        poly_expr::Expr::Tuple(_) => "tuple",
-        poly_expr::Expr::Record { .. } => "record",
-        poly_expr::Expr::PolyVariant(_, _) => "poly-variant",
-        poly_expr::Expr::Select(_, _) => "select",
-        poly_expr::Expr::Case(_, _) => "case",
-        poly_expr::Expr::Catch(_, _) => "catch",
-        poly_expr::Expr::Block(_, _) => "block",
-    }
-}
-
 pub(super) fn debug_expr_tree(
     arena: &poly_expr::Arena,
     expr: poly_expr::ExprId,

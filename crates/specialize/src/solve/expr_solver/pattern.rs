@@ -174,15 +174,9 @@ impl<'a> ExprTypeSolver<'a> {
                 self.graph.constrain_subtype(ty, lit_ty)?;
             }
             PolyPat::Var(def) => {
-                if def.0 == 711 {
-                    eprintln!("bind target def={def:?} ty={ty:?}");
-                }
                 self.local_types.insert(*def, ty);
             }
             PolyPat::As(inner, def) => {
-                if def.0 == 711 {
-                    eprintln!("bind target as def={def:?} ty={ty:?}");
-                }
                 self.local_types.insert(*def, ty.clone());
                 self.bind_pat(*inner, ty)?;
             }
@@ -307,15 +301,9 @@ impl<'a> ExprTypeSolver<'a> {
         match self.arena.pat(pat) {
             PolyPat::Wild | PolyPat::Lit(_) | PolyPat::Ref(_) => {}
             PolyPat::Var(def) => {
-                if def.0 == 711 {
-                    eprintln!("default-bind target def={def:?} ty={ty:?}");
-                }
                 self.local_types.insert(*def, ty);
             }
             PolyPat::As(inner, def) => {
-                if def.0 == 711 {
-                    eprintln!("default-bind target as def={def:?} ty={ty:?}");
-                }
                 self.local_types.insert(*def, ty.clone());
                 self.constrain_pat_defaults(*inner, ty)?;
             }
