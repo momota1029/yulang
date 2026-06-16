@@ -1232,6 +1232,7 @@ dependencies = [
  "rowan",
  "serde",
  "serde-wasm-bindgen",
+ "sources",
  "wasm-bindgen",
  "yulang",
 ]

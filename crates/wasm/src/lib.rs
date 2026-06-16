@@ -5,6 +5,7 @@ use parser::lex::SyntaxKind;
 use parser::sink::YulangLanguage;
 use rowan::{NodeOrToken, SyntaxNode};
 use serde::Serialize;
+use sources::SourceFile;
 use wasm_bindgen::prelude::*;
 
 const PLAYGROUND_ENTRY: &str = "playground.yu";
@@ -66,26 +67,71 @@ pub fn std_file_count() -> usize {
 }
 
 pub fn colorize_inner(source: &str) -> ColorizeOutput {
-    let root = SyntaxNode::<YulangLanguage>::new_root(parser::parse_module_to_green(source));
-    let spans = root
-        .descendants_with_tokens()
-        .filter_map(NodeOrToken::into_token)
-        .filter_map(|token| {
-            let kind = highlight_kind_for_syntax(token.kind())?;
-            let range = token.text_range();
-            Some(HighlightSpan {
-                start: utf16_offset(source, usize::from(range.start())),
-                end: utf16_offset(source, usize::from(range.end())),
-                kind,
-            })
-        })
-        .collect();
+    let spans = colorize_with_playground_op_table(source)
+        .unwrap_or_else(|| colorize_with_default_op_table(source));
     ColorizeOutput {
         ok: true,
         spans,
         diagnostics: Vec::new(),
         source_len: source.len(),
     }
+}
+
+fn colorize_with_playground_op_table(source: &str) -> Option<Vec<HighlightSpan>> {
+    let files = yulang::collect_source_text_with_embedded_playground_std(
+        PLAYGROUND_ENTRY,
+        source.to_owned(),
+    )
+    .ok()?
+    .into_iter()
+    .map(|file| SourceFile {
+        module_path: file.module_path,
+        source: file.source,
+    })
+    .collect::<Vec<_>>();
+    let root = sources::load(files)
+        .into_iter()
+        .find(|file| file.module_path.segments.is_empty())?;
+    if !root.source.ends_with(source) {
+        return None;
+    }
+    let prefix_len = root.source.len().checked_sub(source.len())?;
+    let root_node = SyntaxNode::<YulangLanguage>::new_root(root.cst);
+    Some(highlight_spans_from_root(source, prefix_len, root_node))
+}
+
+fn colorize_with_default_op_table(source: &str) -> Vec<HighlightSpan> {
+    let root = SyntaxNode::<YulangLanguage>::new_root(parser::parse_module_to_green(source));
+    highlight_spans_from_root(source, 0, root)
+}
+
+fn highlight_spans_from_root(
+    source: &str,
+    source_offset_bytes: usize,
+    root: SyntaxNode<YulangLanguage>,
+) -> Vec<HighlightSpan> {
+    root.descendants_with_tokens()
+        .filter_map(NodeOrToken::into_token)
+        .filter_map(|token| {
+            let kind = highlight_kind_for_syntax(token.kind())?;
+            let range = token.text_range();
+            let start = usize::from(range.start());
+            let end = usize::from(range.end());
+            if start < source_offset_bytes || end < source_offset_bytes {
+                return None;
+            }
+            let start = start - source_offset_bytes;
+            let end = end - source_offset_bytes;
+            if source.len() < start || source.len() < end {
+                return None;
+            }
+            Some(HighlightSpan {
+                start: utf16_offset(source, start),
+                end: utf16_offset(source, end),
+                kind,
+            })
+        })
+        .collect()
 }
 
 pub fn warm_std_cache_inner() -> WarmupOutput {
@@ -1125,6 +1171,26 @@ sub:
                 .spans
                 .iter()
                 .any(|span| { span.kind == HighlightKind::String && span.start >= 15 })
+        );
+    }
+
+    #[test]
+    fn colorize_inner_uses_playground_prelude_ops() {
+        let source = "my y = x<..\n";
+        let output = colorize_inner(source);
+
+        assert!(output.ok, "{output:?}");
+        assert!(output.spans.iter().any(|span| {
+            span.kind == HighlightKind::Keyword && &source[span.start..span.end] == "my"
+        }));
+        assert!(output.spans.iter().any(|span| {
+            span.kind == HighlightKind::Keyword && &source[span.start..span.end] == "<.."
+        }));
+        assert!(
+            !output
+                .spans
+                .iter()
+                .any(|span| &source[span.start..span.end] == "<")
         );
     }
 
