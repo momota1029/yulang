@@ -2,28 +2,9 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use parser::lex::SyntaxKind;
-use parser::sink::YulangLanguage;
-use rowan::{NodeOrToken, SyntaxNode};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
-
-const TOKEN_TYPES: &[&str] = &[
-    "keyword",   // 0
-    "string",    // 1
-    "number",    // 2
-    "comment",   // 3
-    "operator",  // 4
-    "delimiter", // 5
-    "type",      // 6
-];
-
-const KEYWORD: u32 = 0;
-const STRING: u32 = 1;
-const NUMBER: u32 = 2;
-const COMMENT: u32 = 3;
-const OPERATOR: u32 = 4;
-const DELIMITER: u32 = 5;
+use yulang_editor::semantic_tokens;
 
 struct Backend {
     client: Client,
@@ -136,7 +117,7 @@ impl LanguageServer for Backend {
         _params: InitializeParams,
     ) -> tower_lsp::jsonrpc::Result<InitializeResult> {
         let legend = SemanticTokensLegend {
-            token_types: TOKEN_TYPES
+            token_types: semantic_tokens::TOKEN_TYPES
                 .iter()
                 .map(|token| SemanticTokenType::new(*token))
                 .collect(),
@@ -253,136 +234,16 @@ pub fn run_blocking(std_root: Option<PathBuf>) {
 }
 
 fn semantic_tokens_for_source(source: &str) -> Vec<SemanticToken> {
-    let root = SyntaxNode::<YulangLanguage>::new_root(parser::parse_module_to_green(source));
-    let line_starts = line_starts(source);
-    let mut raw = Vec::new();
-
-    for item in root.descendants_with_tokens() {
-        let NodeOrToken::Token(token) = item else {
-            continue;
-        };
-        let Some(token_type) = token_type(token.kind()) else {
-            continue;
-        };
-        let start = usize::from(token.text_range().start());
-        let (line, col) = byte_to_pos(source, &line_starts, start);
-        let length = token.text().encode_utf16().count() as u32;
-        if length > 0 {
-            raw.push((line, col, length, token_type));
-        }
-    }
-
-    raw.sort_unstable();
-    raw.dedup();
-    encode_semantic_tokens(raw)
-}
-
-fn token_type(kind: SyntaxKind) -> Option<u32> {
-    match kind {
-        SyntaxKind::LineComment
-        | SyntaxKind::BlockComment
-        | SyntaxKind::BlockCommentStart
-        | SyntaxKind::BlockCommentText
-        | SyntaxKind::BlockCommentEnd => Some(COMMENT),
-        SyntaxKind::StringStart
-        | SyntaxKind::StringEnd
-        | SyntaxKind::StringText
-        | SyntaxKind::StringEscapeLead
-        | SyntaxKind::StringEscapeSimple
-        | SyntaxKind::StringEscapeUnicodeStart
-        | SyntaxKind::StringEscapeUnicodeHex
-        | SyntaxKind::StringEscapeUnicodeEnd
-        | SyntaxKind::StringInterpPercent
-        | SyntaxKind::StringInterpFormatText
-        | SyntaxKind::StringInterpOpenBrace
-        | SyntaxKind::StringInterpCloseBrace => Some(STRING),
-        SyntaxKind::Number => Some(NUMBER),
-        SyntaxKind::Do
-        | SyntaxKind::If
-        | SyntaxKind::Else
-        | SyntaxKind::Elsif
-        | SyntaxKind::Case
-        | SyntaxKind::Catch
-        | SyntaxKind::My
-        | SyntaxKind::Our
-        | SyntaxKind::Pub
-        | SyntaxKind::Use
-        | SyntaxKind::Type
-        | SyntaxKind::Struct
-        | SyntaxKind::Enum
-        | SyntaxKind::Role
-        | SyntaxKind::Impl
-        | SyntaxKind::Act
-        | SyntaxKind::Mod
-        | SyntaxKind::As
-        | SyntaxKind::For
-        | SyntaxKind::In
-        | SyntaxKind::With
-        | SyntaxKind::Where
-        | SyntaxKind::Via
-        | SyntaxKind::Mark
-        | SyntaxKind::Rule
-        | SyntaxKind::Lazy => Some(KEYWORD),
-        SyntaxKind::Prefix
-        | SyntaxKind::Infix
-        | SyntaxKind::Suffix
-        | SyntaxKind::Nullfix
-        | SyntaxKind::Arrow
-        | SyntaxKind::Pipe
-        | SyntaxKind::Backslash
-        | SyntaxKind::DotDot
-        | SyntaxKind::Tilde
-        | SyntaxKind::RuleQuantStar
-        | SyntaxKind::RuleQuantStarLazy
-        | SyntaxKind::RuleQuantPlus
-        | SyntaxKind::RuleQuantPlusLazy
-        | SyntaxKind::RuleQuantOpt => Some(OPERATOR),
-        SyntaxKind::Colon | SyntaxKind::ColonColon | SyntaxKind::Equal => Some(DELIMITER),
-        _ => None,
-    }
-}
-
-fn encode_semantic_tokens(raw: Vec<(u32, u32, u32, u32)>) -> Vec<SemanticToken> {
-    let mut encoded = Vec::with_capacity(raw.len());
-    let mut last_line = 0;
-    let mut last_col = 0;
-    for (line, col, length, token_type) in raw {
-        let delta_line = line - last_line;
-        let delta_start = if delta_line == 0 { col - last_col } else { col };
-        encoded.push(SemanticToken {
-            delta_line,
-            delta_start,
-            length,
-            token_type,
-            token_modifiers_bitset: 0,
-        });
-        last_line = line;
-        last_col = col;
-    }
-    encoded
-}
-
-fn line_starts(source: &str) -> Vec<usize> {
-    let mut starts = vec![0];
-    for (idx, ch) in source.char_indices() {
-        if ch == '\n' {
-            starts.push(idx + 1);
-        }
-    }
-    starts
-}
-
-fn byte_to_pos(source: &str, line_starts: &[usize], byte: usize) -> (u32, u32) {
-    let line = line_starts
-        .partition_point(|line_start| *line_start <= byte)
-        .saturating_sub(1);
-    let col = source_col_utf16(source, line_starts, line, byte);
-    (line as u32, col)
-}
-
-fn source_col_utf16(source: &str, line_starts: &[usize], line: usize, byte: usize) -> u32 {
-    let line_start = line_starts.get(line).copied().unwrap_or(0);
-    source[line_start..byte].encode_utf16().count() as u32
+    semantic_tokens::compute(source)
+        .chunks_exact(5)
+        .map(|chunk| SemanticToken {
+            delta_line: chunk[0],
+            delta_start: chunk[1],
+            length: chunk[2],
+            token_type: chunk[3],
+            token_modifiers_bitset: chunk[4],
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -392,18 +253,28 @@ mod tests {
     #[test]
     fn semantic_tokens_include_keyword_number_and_string() {
         let tokens = semantic_tokens_for_source("my x = \"hi\"\n1\n");
+        let keyword = token_type_index("keyword");
+        let string = token_type_index("string");
+        let number = token_type_index("number");
 
         assert!(
-            tokens.iter().any(|token| token.token_type == KEYWORD),
+            tokens.iter().any(|token| token.token_type == keyword),
             "{tokens:?}"
         );
         assert!(
-            tokens.iter().any(|token| token.token_type == STRING),
+            tokens.iter().any(|token| token.token_type == string),
             "{tokens:?}"
         );
         assert!(
-            tokens.iter().any(|token| token.token_type == NUMBER),
+            tokens.iter().any(|token| token.token_type == number),
             "{tokens:?}"
         );
+    }
+
+    fn token_type_index(name: &str) -> u32 {
+        semantic_tokens::TOKEN_TYPES
+            .iter()
+            .position(|token| *token == name)
+            .expect("semantic token type") as u32
     }
 }

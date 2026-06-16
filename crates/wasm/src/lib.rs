@@ -1,12 +1,12 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use parser::lex::SyntaxKind;
 use parser::sink::YulangLanguage;
-use rowan::{NodeOrToken, SyntaxNode};
+use rowan::SyntaxNode;
 use serde::Serialize;
 use sources::SourceFile;
 use wasm_bindgen::prelude::*;
+use yulang_editor::semantic_tokens;
 
 const PLAYGROUND_ENTRY: &str = "playground.yu";
 
@@ -97,41 +97,65 @@ fn colorize_with_playground_op_table(source: &str) -> Option<Vec<HighlightSpan>>
     }
     let prefix_len = root.source.len().checked_sub(source.len())?;
     let root_node = SyntaxNode::<YulangLanguage>::new_root(root.cst);
-    Some(highlight_spans_from_root(source, prefix_len, root_node))
+    let encoded = semantic_tokens::compute_with_root_and_highlights(&root.source, &root_node, None);
+    Some(semantic_highlight_spans(
+        source,
+        &root.source,
+        prefix_len,
+        &encoded,
+    ))
 }
 
 fn colorize_with_default_op_table(source: &str) -> Vec<HighlightSpan> {
-    let root = SyntaxNode::<YulangLanguage>::new_root(parser::parse_module_to_green(source));
-    highlight_spans_from_root(source, 0, root)
+    let encoded = semantic_tokens::compute(source);
+    semantic_highlight_spans(source, source, 0, &encoded)
 }
 
-fn highlight_spans_from_root(
+fn semantic_highlight_spans(
     source: &str,
+    parsed_source: &str,
     source_offset_bytes: usize,
-    root: SyntaxNode<YulangLanguage>,
+    encoded: &[u32],
 ) -> Vec<HighlightSpan> {
-    root.descendants_with_tokens()
-        .filter_map(NodeOrToken::into_token)
-        .filter_map(|token| {
-            let kind = highlight_kind_for_syntax(token.kind())?;
-            let range = token.text_range();
-            let start = usize::from(range.start());
-            let end = usize::from(range.end());
-            if start < source_offset_bytes || end < source_offset_bytes {
-                return None;
-            }
-            let start = start - source_offset_bytes;
-            let end = end - source_offset_bytes;
-            if source.len() < start || source.len() < end {
-                return None;
-            }
-            Some(HighlightSpan {
-                start: utf16_offset(source, start),
-                end: utf16_offset(source, end),
-                kind,
-            })
-        })
-        .collect()
+    let line_starts = line_utf16_starts(parsed_source);
+    let source_offset = parsed_source[..source_offset_bytes.min(parsed_source.len())]
+        .encode_utf16()
+        .count();
+    let source_len = source.encode_utf16().count();
+    let mut line = 0usize;
+    let mut col = 0usize;
+    let mut spans = Vec::new();
+
+    for chunk in encoded.chunks_exact(5) {
+        let delta_line = chunk[0] as usize;
+        let delta_col = chunk[1] as usize;
+        line += delta_line;
+        if delta_line == 0 {
+            col += delta_col;
+        } else {
+            col = delta_col;
+        }
+
+        let Some(line_start) = line_starts.get(line).copied() else {
+            continue;
+        };
+        let Some(kind) = highlight_kind_from_token_type(chunk[3]) else {
+            continue;
+        };
+        let start = line_start + col;
+        let end = start + chunk[2] as usize;
+        if start < source_offset || end <= source_offset {
+            continue;
+        }
+        let start = start - source_offset;
+        let end = end - source_offset;
+        if source_len < start || source_len < end {
+            continue;
+        }
+        spans.push(HighlightSpan { start, end, kind });
+    }
+
+    spans
 }
 
 pub fn warm_std_cache_inner() -> WarmupOutput {
@@ -800,119 +824,36 @@ fn source_has_identifier(source: &str, name: &str) -> bool {
         .any(|token| token == name)
 }
 
-fn highlight_kind_for_syntax(kind: SyntaxKind) -> Option<HighlightKind> {
-    match kind {
-        SyntaxKind::LineComment
-        | SyntaxKind::BlockComment
-        | SyntaxKind::BlockCommentStart
-        | SyntaxKind::BlockCommentText
-        | SyntaxKind::BlockCommentEnd
-        | SyntaxKind::DocComment => Some(HighlightKind::Comment),
-        SyntaxKind::Do
-        | SyntaxKind::If
-        | SyntaxKind::Else
-        | SyntaxKind::Elsif
-        | SyntaxKind::Case
-        | SyntaxKind::Catch
-        | SyntaxKind::My
-        | SyntaxKind::Our
-        | SyntaxKind::Pub
-        | SyntaxKind::Use
-        | SyntaxKind::Type
-        | SyntaxKind::Struct
-        | SyntaxKind::Enum
-        | SyntaxKind::Role
-        | SyntaxKind::Impl
-        | SyntaxKind::Act
-        | SyntaxKind::Mod
-        | SyntaxKind::As
-        | SyntaxKind::For
-        | SyntaxKind::In
-        | SyntaxKind::With
-        | SyntaxKind::Where
-        | SyntaxKind::Via
-        | SyntaxKind::Mark
-        | SyntaxKind::Cast
-        | SyntaxKind::Lazy
-        | SyntaxKind::Infix
-        | SyntaxKind::Prefix
-        | SyntaxKind::Suffix
-        | SyntaxKind::Nullfix => Some(HighlightKind::Keyword),
-        SyntaxKind::Number => Some(HighlightKind::Number),
-        SyntaxKind::StringStart
-        | SyntaxKind::StringEnd
-        | SyntaxKind::StringText
-        | SyntaxKind::StringEscapeLead
-        | SyntaxKind::StringEscapeSimple
-        | SyntaxKind::StringEscapeUnicodeStart
-        | SyntaxKind::StringEscapeUnicodeHex
-        | SyntaxKind::StringEscapeUnicodeEnd
-        | SyntaxKind::StringInterpPercent
-        | SyntaxKind::StringInterpFormatText
-        | SyntaxKind::StringInterpOpenBrace
-        | SyntaxKind::StringInterpCloseBrace
-        | SyntaxKind::RuleLitStart
-        | SyntaxKind::RuleLitEnd
-        | SyntaxKind::RuleLitText
-        | SyntaxKind::RuleLitOpenBrace
-        | SyntaxKind::RuleLitCloseBrace
-        | SyntaxKind::RuleLitColon
-        | SyntaxKind::MarkLitStart
-        | SyntaxKind::MarkLitEnd
-        | SyntaxKind::MarkLitText
-        | SyntaxKind::YmText => Some(HighlightKind::String),
-        SyntaxKind::Symbol => Some(HighlightKind::Pattern),
-        SyntaxKind::DotField => Some(HighlightKind::Property),
-        SyntaxKind::OpName
-        | SyntaxKind::Arrow
-        | SyntaxKind::Equal
-        | SyntaxKind::Pipe
-        | SyntaxKind::Slash
-        | SyntaxKind::DotDot
-        | SyntaxKind::RuleQuantStar
-        | SyntaxKind::RuleQuantStarLazy
-        | SyntaxKind::RuleQuantPlus
-        | SyntaxKind::RuleQuantPlusLazy
-        | SyntaxKind::RuleQuantOpt
-        | SyntaxKind::YadaYada => Some(HighlightKind::Operator),
-        SyntaxKind::Colon => Some(HighlightKind::Colon),
-        SyntaxKind::ParenL
-        | SyntaxKind::ParenR
-        | SyntaxKind::BracketL
-        | SyntaxKind::BracketR
-        | SyntaxKind::BraceL
-        | SyntaxKind::BraceR
-        | SyntaxKind::Backslash
-        | SyntaxKind::Apostrophe
-        | SyntaxKind::ColonColon
-        | SyntaxKind::Comma
-        | SyntaxKind::Semicolon
-        | SyntaxKind::Tilde
-        | SyntaxKind::Rule
-        | SyntaxKind::YmHashSigil
-        | SyntaxKind::YmHashDotSigil
-        | SyntaxKind::YmListDashSigil
-        | SyntaxKind::YmListNumSigil
-        | SyntaxKind::YmFenceSigil
-        | SyntaxKind::YmChevronBlockSigil
-        | SyntaxKind::YmChevronPrefixSigil
-        | SyntaxKind::YmLBracket
-        | SyntaxKind::YmRBracket
-        | SyntaxKind::YmBang
-        | SyntaxKind::YmColon
-        | SyntaxKind::YmBackslash
-        | SyntaxKind::YmSemi
-        | SyntaxKind::YmPrefix
-        | SyntaxKind::YmStarSigil
-        | SyntaxKind::YmStrongSigil
-        | SyntaxKind::YmDocBlockSigil => Some(HighlightKind::Delimiter),
+fn highlight_kind_from_token_type(token_type: u32) -> Option<HighlightKind> {
+    match token_type {
+        0 => Some(HighlightKind::Function),
+        1 => Some(HighlightKind::Type),
+        2 => Some(HighlightKind::TypeParameter),
+        3 => Some(HighlightKind::Namespace),
+        4 => Some(HighlightKind::Parameter),
+        5 => Some(HighlightKind::Keyword),
+        6 => Some(HighlightKind::String),
+        7 => Some(HighlightKind::Number),
+        8 => Some(HighlightKind::Comment),
+        9 => Some(HighlightKind::Operator),
+        10 => Some(HighlightKind::Delimiter),
+        11 => Some(HighlightKind::Colon),
+        12 => Some(HighlightKind::Property),
+        13 => Some(HighlightKind::Pattern),
         _ => None,
     }
 }
 
-fn utf16_offset(source: &str, byte_offset: usize) -> usize {
-    let byte_offset = byte_offset.min(source.len());
-    source[..byte_offset].encode_utf16().count()
+fn line_utf16_starts(source: &str) -> Vec<usize> {
+    let mut starts = vec![0];
+    let mut offset = 0;
+    for ch in source.chars() {
+        offset += ch.len_utf16();
+        if ch == '\n' {
+            starts.push(offset);
+        }
+    }
+    starts
 }
 
 fn to_js_value<T: Serialize>(value: &T) -> JsValue {
@@ -1184,7 +1125,7 @@ sub:
             span.kind == HighlightKind::Keyword && &source[span.start..span.end] == "my"
         }));
         assert!(output.spans.iter().any(|span| {
-            span.kind == HighlightKind::Keyword && &source[span.start..span.end] == "<.."
+            span.kind == HighlightKind::Operator && &source[span.start..span.end] == "<.."
         }));
         assert!(
             !output
@@ -1192,6 +1133,28 @@ sub:
                 .iter()
                 .any(|span| &source[span.start..span.end] == "<")
         );
+    }
+
+    #[test]
+    fn colorize_inner_uses_editor_semantic_token_kinds() {
+        let source = "\
+struct point { x: int, y: int } with:
+    our p.norm2 = p.x * p.x + p.y * p.y
+
+point { x: 3, y: 4 } .norm2
+";
+        let output = colorize_inner(source);
+
+        assert!(output.ok, "{output:?}");
+        assert!(output.spans.iter().any(|span| {
+            span.kind == HighlightKind::Type && &source[span.start..span.end] == "point"
+        }));
+        assert!(output.spans.iter().any(|span| {
+            span.kind == HighlightKind::Function && &source[span.start..span.end] == "norm2"
+        }));
+        assert!(!output.spans.iter().any(|span| {
+            span.kind == HighlightKind::Property && &source[span.start..span.end] == "norm2"
+        }));
     }
 
     #[test]

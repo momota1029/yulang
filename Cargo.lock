@@ -1235,6 +1235,7 @@ dependencies = [
  "sources",
  "wasm-bindgen",
  "yulang",
+ "yulang-editor",
 ]
 
 [[package]]
@@ -1356,6 +1357,15 @@ dependencies = [
  "specialize",
  "tokio",
  "tower-lsp",
+ "yulang-editor",
+]
+
+[[package]]
+name = "yulang-editor"
+version = "0.1.0"
+dependencies = [
+ "parser",
+ "rowan",
 ]
 
 [[package]]

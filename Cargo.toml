@@ -12,6 +12,7 @@ members = [
   "crates/infer",
   "crates/sources",
   "crates/wasm",
+  "crates/yulang-editor",
 ]
 
 [profile.profiling]

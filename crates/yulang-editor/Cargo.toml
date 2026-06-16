@@ -1,0 +1,8 @@
+[package]
+name = "yulang-editor"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+parser = { path = "../parser" }
+rowan = "0.15"
