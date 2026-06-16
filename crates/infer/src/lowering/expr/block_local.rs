@@ -516,9 +516,90 @@ impl<'a> ExprLowerer<'a> {
             ref_id: reference,
             target,
         });
+        if self.should_constrain_act_operation_ref(target) {
+            self.constrain_act_operation_ref(target, value);
+        }
 
         let expr = self.session.poly.add_expr(Expr::Var(reference));
         Computation::value(expr, value, effect)
+    }
+
+    fn should_constrain_act_operation_ref(&self, target: DefId) -> bool {
+        !self
+            .current_sub_return_target()
+            .is_some_and(|return_target| return_target.def == target)
+    }
+
+    fn constrain_act_operation_ref(&mut self, target: DefId, value: TypeVar) {
+        let Some(operation_decl) = self.modules.act_operation_decl_by_def(target) else {
+            return;
+        };
+        let Some(signature) = operation_decl.signature.as_ref() else {
+            return;
+        };
+        let Some(signature) = self.act_operation_signature_type(&operation_decl, signature) else {
+            return;
+        };
+        let mut lowerer = SignatureLowerer::new(&mut self.session.infer, self.modules);
+        let Ok(predicate) = lowerer.lower_pos(&signature) else {
+            return;
+        };
+        let upper = self.alloc_neg(Neg::Var(value));
+        self.session.infer.subtype(predicate, upper);
+
+        let operation_path = self
+            .modules
+            .type_decl_path(&operation_decl.effect)
+            .segments
+            .into_iter()
+            .chain(std::iter::once(operation_decl.name))
+            .map(|name| name.0)
+            .collect();
+        self.session.poly.effect_operations.insert(
+            target,
+            poly::expr::EffectOperation {
+                path: operation_path,
+            },
+        );
+    }
+
+    fn act_operation_signature_type(
+        &self,
+        operation_decl: &ActOperationDecl,
+        signature: &Cst,
+    ) -> Option<SignatureType> {
+        let effect_type_vars = self.act_effect_type_var_names(operation_decl.effect.id);
+        let mut builder = ann_type_builder(
+            self.modules,
+            operation_decl.effect.module,
+            operation_decl.effect.order,
+            None,
+        );
+        for name in &effect_type_vars {
+            builder.add_bare_type_var(name.clone());
+        }
+        if let Some(copy) = self.modules.resolved_act_copy(operation_decl.effect.id) {
+            add_type_var_aliases(&mut builder, &copy.type_var_aliases);
+            add_type_name_aliases(
+                &mut builder,
+                &self.act_copy_type_name_aliases(&operation_decl.effect, copy.source),
+            );
+        }
+        let signature = build_signature_type_expr(&mut builder, signature).ok()?;
+        let effect_ann = builder.type_decl_application(operation_decl.effect.id, &effect_type_vars);
+        let effect = signature_from_ann_type(&effect_ann);
+        operation_signature_with_effect(signature, effect)
+    }
+
+    fn act_copy_type_name_aliases(
+        &self,
+        dest: &ModuleTypeDecl,
+        source: TypeDeclId,
+    ) -> Vec<(String, TypeDeclId)> {
+        self.modules
+            .type_decl_by_id(source)
+            .map(|source| vec![(source.name.0, dest.id)])
+            .unwrap_or_default()
     }
 
     pub(in crate::lowering) fn constrain_local_ref_value(

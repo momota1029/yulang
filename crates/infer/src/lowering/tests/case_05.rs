@@ -268,6 +268,51 @@ fn local_recursive_binding_scheme_keeps_argument_effect_passthrough() {
     assert_ne!(loop_rendered, "any -> ()", "h inferred as {h_rendered}");
 }
 
+#[test]
+fn local_sub_lambda_scheme_keeps_escaping_labeled_return_effect() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod flow:\n",
+        "      pub act sub 'a:\n",
+        "        pub return: 'a -> never\n",
+        "        pub sub(x: [_] 'a): 'a = catch x:\n",
+        "          return a, _ -> a\n",
+        "          a -> a\n",
+        "      pub act label_sub 'a:\n",
+        "        pub return: 'a -> never\n",
+        "        pub struct label { marker: unit }\n",
+        "        our control_label = label { marker: () }\n",
+        "        pub sub(x: [_] 'a): 'a = catch x:\n",
+        "          return a, _ -> a\n",
+        "          sub::return a, _ -> a\n",
+        "          a -> a\n",
+        "sub 'outer:\n",
+        "  my f = \\sub 'inner x -> 'outer.return x\n",
+        "  f 7\n",
+        "  'outer.return 1\n",
+    ));
+    let lower = lower_module_map(&root);
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let outer_body = output
+        .session
+        .poly
+        .root_exprs
+        .first()
+        .copied()
+        .expect("root expr");
+    let f_def = first_let_def_in_expr(&output.session.poly, outer_body);
+    let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, f_def));
+
+    assert!(
+        rendered.contains("#sub_label:outer"),
+        "escaping labeled return effect should remain in f scheme, got {rendered}"
+    );
+}
+
 fn first_local_let_def(poly: &poly::expr::Arena, expr: ExprId) -> DefId {
     let body = match poly.expr(expr) {
         Expr::Lambda(_, body) => *body,
@@ -283,6 +328,71 @@ fn first_local_let_def(poly: &poly::expr::Arena, expr: ExprId) -> DefId {
         panic!("expected local let var pattern");
     };
     *def
+}
+
+fn first_let_def_in_expr(poly: &poly::expr::Arena, expr: ExprId) -> DefId {
+    maybe_first_let_def_in_expr(poly, expr).expect("expected local let")
+}
+
+fn maybe_first_let_def_in_expr(poly: &poly::expr::Arena, expr: ExprId) -> Option<DefId> {
+    match poly.expr(expr) {
+        Expr::Block(stmts, tail) => first_let_def_in_stmts(poly, stmts)
+            .or_else(|| tail.and_then(|tail| maybe_first_let_def_in_expr(poly, tail))),
+        Expr::App(callee, arg) | Expr::RefSet(callee, arg) => {
+            maybe_first_let_def_in_expr(poly, *callee)
+                .or_else(|| maybe_first_let_def_in_expr(poly, *arg))
+        }
+        Expr::Lambda(_, body) => maybe_first_let_def_in_expr(poly, *body),
+        Expr::Tuple(items) => first_let_def_in_exprs(poly, items),
+        Expr::Record { fields, spread } => fields
+            .iter()
+            .map(|(_, expr)| *expr)
+            .find_map(|expr| maybe_first_let_def_in_expr(poly, expr))
+            .or_else(|| match spread {
+                RecordSpread::Head(expr) | RecordSpread::Tail(expr) => {
+                    maybe_first_let_def_in_expr(poly, *expr)
+                }
+                RecordSpread::None => None,
+            }),
+        Expr::PolyVariant(_, payloads) => first_let_def_in_exprs(poly, payloads),
+        Expr::Select(receiver, _) => maybe_first_let_def_in_expr(poly, *receiver),
+        Expr::Case(scrutinee, arms) => {
+            maybe_first_let_def_in_expr(poly, *scrutinee).or_else(|| {
+                arms.iter().find_map(|arm| {
+                    arm.guard
+                        .and_then(|guard| maybe_first_let_def_in_expr(poly, guard))
+                        .or_else(|| maybe_first_let_def_in_expr(poly, arm.body))
+                })
+            })
+        }
+        Expr::Catch(scrutinee, arms) => {
+            maybe_first_let_def_in_expr(poly, *scrutinee).or_else(|| {
+                arms.iter().find_map(|arm| {
+                    arm.guard
+                        .and_then(|guard| maybe_first_let_def_in_expr(poly, guard))
+                        .or_else(|| maybe_first_let_def_in_expr(poly, arm.body))
+                })
+            })
+        }
+        Expr::Lit(_) | Expr::PrimitiveOp(_) | Expr::Var(_) => None,
+    }
+}
+
+fn first_let_def_in_stmts(poly: &poly::expr::Arena, stmts: &[Stmt]) -> Option<DefId> {
+    stmts.iter().find_map(|stmt| match stmt {
+        Stmt::Let(_, pat, _) => match poly.pat(*pat) {
+            Pat::Var(def) => Some(*def),
+            _ => None,
+        },
+        Stmt::Expr(expr) => maybe_first_let_def_in_expr(poly, *expr),
+        Stmt::Module(_, stmts) => first_let_def_in_stmts(poly, stmts),
+    })
+}
+
+fn first_let_def_in_exprs(poly: &poly::expr::Arena, exprs: &[ExprId]) -> Option<DefId> {
+    exprs
+        .iter()
+        .find_map(|expr| maybe_first_let_def_in_expr(poly, *expr))
 }
 
 #[test]

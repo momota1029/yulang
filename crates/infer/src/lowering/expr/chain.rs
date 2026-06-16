@@ -254,7 +254,10 @@ impl<'a> ExprLowerer<'a> {
         });
         let body = self.lower_expr(&body_node);
         self.sub_syntax_scopes.pop();
-        Ok(self.make_app(sub, body?))
+        let body = body?;
+        let result = self.make_app(sub, body);
+        self.constrain_unlabeled_sub_passthrough(body.effect, result.effect)?;
+        Ok(result)
     }
 
     pub(in crate::lowering) fn lower_labeled_sub_syntax(
@@ -323,7 +326,9 @@ impl<'a> ExprLowerer<'a> {
         let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
         let lambda = Computation::value(expr, value, effect);
         let arg = self.make_app(lambda, control_label);
-        Ok(self.make_app(sub, arg))
+        let result = self.make_app(sub, arg);
+        self.constrain_labeled_sub_passthrough(&act, body.effect, result.effect)?;
+        Ok(result)
     }
 
     pub(in crate::lowering) fn next_synthetic_sub_label_act(
@@ -386,6 +391,78 @@ impl<'a> ExprLowerer<'a> {
             .ok_or_else(|| LoweringError::UnresolvedName {
                 name: Name(path_label(&path)),
             })
+    }
+
+    fn std_type_decl(&self, path: Vec<String>) -> Result<ModuleTypeDecl, LoweringError> {
+        let path = path.into_iter().map(Name).collect::<Vec<_>>();
+        self.modules
+            .type_path_at(self.modules.root_id(), &path, module_path_lookup_site())
+            .ok_or_else(|| LoweringError::UnresolvedName {
+                name: Name(path_label(&path)),
+            })
+    }
+
+    fn constrain_labeled_sub_passthrough(
+        &mut self,
+        act: &SyntheticSubLabelActUse,
+        body_effect: TypeVar,
+        result_effect: TypeVar,
+    ) -> Result<(), LoweringError> {
+        let label_decl =
+            self.modules
+                .type_decl_by_id(act.act)
+                .ok_or_else(|| LoweringError::UnresolvedName {
+                    name: Name(act.label.0.clone()),
+                })?;
+        let label_path = self.type_decl_path_segments(&label_decl);
+        let sub_path = self.std_sub_effect_path()?;
+        self.constrain_sub_effect_passthrough(
+            body_effect,
+            result_effect,
+            vec![label_path, sub_path],
+        );
+        Ok(())
+    }
+
+    fn constrain_unlabeled_sub_passthrough(
+        &mut self,
+        body_effect: TypeVar,
+        result_effect: TypeVar,
+    ) -> Result<(), LoweringError> {
+        let sub_path = self.std_sub_effect_path()?;
+        self.constrain_sub_effect_passthrough(body_effect, result_effect, vec![sub_path]);
+        Ok(())
+    }
+
+    fn std_sub_effect_path(&self) -> Result<Vec<String>, LoweringError> {
+        let sub_decl = self.std_type_decl(crate::std_paths::control_flow_sub_act())?;
+        Ok(self.type_decl_path_segments(&sub_decl))
+    }
+
+    fn constrain_sub_effect_passthrough(
+        &mut self,
+        body_effect: TypeVar,
+        result_effect: TypeVar,
+        handled_paths: Vec<Vec<String>>,
+    ) {
+        let handled_payload = self.fresh_type_var();
+        let result_arg = self.invariant_var_arg(handled_payload);
+        let handled = handled_paths
+            .into_iter()
+            .map(|path| self.alloc_neg(Neg::Con(path, vec![result_arg])))
+            .collect();
+        let tail = self.alloc_neg(Neg::Var(result_effect));
+        let upper = self.alloc_neg(Neg::Row(handled, tail));
+        self.subtype(Pos::Var(body_effect), upper);
+    }
+
+    fn type_decl_path_segments(&self, decl: &ModuleTypeDecl) -> Vec<String> {
+        self.modules
+            .type_decl_path(decl)
+            .segments
+            .into_iter()
+            .map(|name| name.0)
+            .collect()
     }
 
     pub(in crate::lowering) fn lower_head(

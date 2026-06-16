@@ -34,6 +34,10 @@ pub(crate) fn control_flow_sub_sub_value() -> Vec<String> {
     path(&["std", "control", "flow", "sub", "sub"])
 }
 
+pub(crate) fn control_flow_sub_act() -> Vec<String> {
+    path(&["std", "control", "flow", "sub"])
+}
+
 pub(crate) fn control_flow_sub_return_value() -> Vec<String> {
     path(&["std", "control", "flow", "sub", "return"])
 }

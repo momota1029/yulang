@@ -553,6 +553,9 @@ impl<'a> ExprLowerer<'a> {
         boundary: TypeLevel,
         fetch: BindingFetch,
     ) {
+        // Local schemes are used immediately by later statements in the same block, so they must
+        // see the closure of subtype constraints emitted while lowering the RHS.
+        self.session.infer.constraints_mut().drain();
         let mut non_generic = self.local_non_generic_vars(def, value);
         if fetch.runs_computation() {
             non_generic.insert(value);
