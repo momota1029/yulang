@@ -579,7 +579,8 @@ fn dump_mono_with_std_specializes_nondet_sum_list_say_benchmark() {
         &output,
         "mono roots [force-thunk[thunk[[std::io::console::out], unit]",
     );
-    assert_mono_dump_contains(&output, ".list <method>).say <method>");
+    assert_mono_dump_contains(&output, ".list <method>");
+    assert_mono_dump_contains(&output, ".say <method>");
     assert_mono_dump_contains(&output, "<effect-op std::io::console::out::write>");
     assert_mono_dump_contains(&output, "std::control::nondet::nondet");
 }

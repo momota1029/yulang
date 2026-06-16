@@ -272,6 +272,41 @@ fn effect_row_item_payload_candidates_keep_union_and_intersection() {
 }
 
 #[test]
+fn effect_slot_lower_rows_do_not_force_same_family_payloads_exact() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let effect = graph.fresh_effect();
+    let list_int = list_type(int_type());
+    let int_update = Type::EffectRow(vec![con(
+        &["std", "control", "var", "ref_update"],
+        vec![int_type()],
+    )]);
+    let list_update = Type::EffectRow(vec![con(
+        &["std", "control", "var", "ref_update"],
+        vec![list_int.clone()],
+    )]);
+
+    graph.constrain_subtype(int_update, effect.clone()).unwrap();
+    graph
+        .constrain_subtype(list_update, effect.clone())
+        .unwrap();
+    graph.solve_constraints().unwrap();
+    let solution = graph.solve_slots().unwrap();
+    let mut resolver = TypeResolver::new(&graph, &solution);
+
+    assert_eq!(
+        resolver.resolve(&effect).unwrap(),
+        Type::EffectRow(vec![con(
+            &["std", "control", "var", "ref_update"],
+            vec![types::simplify_type(Type::Union(
+                Box::new(int_type()),
+                Box::new(list_int)
+            ))],
+        )])
+    );
+}
+
+#[test]
 fn effect_row_lower_with_tail_refines_to_closed_upper() {
     let arena = poly_expr::Arena::new();
     let mut graph = TypeGraph::new(&arena);

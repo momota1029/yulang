@@ -478,14 +478,7 @@ impl<'a> TypeGraph<'a> {
         left: Type,
         right: Type,
     ) -> Result<(), SpecializeError> {
-        if let (Type::EffectRow(left_items), Type::EffectRow(right_items)) = (&left, &right) {
-            for left in left_items {
-                for right in right_items {
-                    if same_effect_row_family(left, right) {
-                        self.constrain_same_path_invariant(left.clone(), right.clone())?;
-                    }
-                }
-            }
+        if matches!((&left, &right), (Type::EffectRow(_), Type::EffectRow(_))) {
             return Ok(());
         }
         if let (

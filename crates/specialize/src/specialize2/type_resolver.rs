@@ -83,10 +83,14 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                 Ok(resolved)
             }
             Type::Union(left, right) => {
-                join_type_candidates(self.graph, self.resolve(left)?, self.resolve(right)?)
+                let left = self.resolve(left)?;
+                let right = self.resolve(right)?;
+                self.join_explicit_union(left, right)
             }
             Type::Intersection(left, right) => {
-                meet_type_candidates(self.graph, self.resolve(left)?, self.resolve(right)?)
+                let left = self.resolve(left)?;
+                let right = self.resolve(right)?;
+                self.meet_explicit_intersection(left, right)
             }
         }
     }
@@ -275,16 +279,16 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                     weight.clone(),
                 ))
             }
-            (Type::Union(left, right), context) => join_type_candidates(
-                self.graph,
-                self.resolve_with_context_leaf(left, &context)?,
-                self.resolve_with_context_leaf(right, &context)?,
-            ),
-            (Type::Intersection(left, right), context) => meet_type_candidates(
-                self.graph,
-                self.resolve_with_context_leaf(left, &context)?,
-                self.resolve_with_context_leaf(right, &context)?,
-            ),
+            (Type::Union(left, right), context) => {
+                let left = self.resolve_with_context_leaf(left, context)?;
+                let right = self.resolve_with_context_leaf(right, context)?;
+                self.join_explicit_union(left, right)
+            }
+            (Type::Intersection(left, right), context) => {
+                let left = self.resolve_with_context_leaf(left, context)?;
+                let right = self.resolve_with_context_leaf(right, context)?;
+                self.meet_explicit_intersection(left, right)
+            }
             _ => self.resolve(ty),
         }
     }
@@ -539,9 +543,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                 let left = self.erase_stack_type_candidate(*left)?;
                 let right = self.erase_stack_type_candidate(*right)?;
                 match (left, right) {
-                    (Some(left), Some(right)) => {
-                        Ok(Some(join_type_candidates(self.graph, left, right)?))
-                    }
+                    (Some(left), Some(right)) => Ok(Some(self.join_explicit_union(left, right)?)),
                     (Some(ty), None) | (None, Some(ty)) => Ok(Some(ty)),
                     (None, None) => Ok(None),
                 }
@@ -551,7 +553,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                 let right = self.erase_stack_type_candidate(*right)?;
                 match (left, right) {
                     (Some(left), Some(right)) => {
-                        Ok(Some(meet_type_candidates(self.graph, left, right)?))
+                        Ok(Some(self.meet_explicit_intersection(left, right)?))
                     }
                     (Some(ty), None) | (None, Some(ty)) => Ok(Some(ty)),
                     (None, None) => Ok(None),
@@ -742,9 +744,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                 let left = self.resolve_partial_candidate(left, true)?;
                 let right = self.resolve_partial_candidate(right, true)?;
                 match (left, right) {
-                    (Some(left), Some(right)) => {
-                        Ok(Some(join_type_candidates(self.graph, left, right)?))
-                    }
+                    (Some(left), Some(right)) => Ok(Some(self.join_explicit_union(left, right)?)),
                     (Some(ty), None) | (None, Some(ty)) => Ok(Some(ty)),
                     (None, None) => Ok(None),
                 }
@@ -754,7 +754,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                 let right = self.resolve_partial_candidate(right, true)?;
                 match (left, right) {
                     (Some(left), Some(right)) => {
-                        Ok(Some(meet_type_candidates(self.graph, left, right)?))
+                        Ok(Some(self.meet_explicit_intersection(left, right)?))
                     }
                     (Some(ty), None) | (None, Some(ty)) => Ok(Some(ty)),
                     (None, None) => Ok(None),
@@ -792,5 +792,25 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             resolved.push(tail);
         }
         Ok(Some(types::simplify_type(Type::EffectRow(resolved))))
+    }
+
+    fn join_explicit_union(&self, left: Type, right: Type) -> Result<Type, SpecializeError> {
+        match join_type_candidates(self.graph, left.clone(), right.clone()) {
+            Ok(ty) => Ok(ty),
+            Err(SpecializeError::ConflictingTypeCandidates { .. }) => Ok(types::simplify_type(
+                Type::Union(Box::new(left), Box::new(right)),
+            )),
+            Err(error) => Err(error),
+        }
+    }
+
+    fn meet_explicit_intersection(&self, left: Type, right: Type) -> Result<Type, SpecializeError> {
+        match meet_type_candidates(self.graph, left.clone(), right.clone()) {
+            Ok(ty) => Ok(ty),
+            Err(SpecializeError::ConflictingTypeCandidates { .. }) => Ok(types::simplify_type(
+                Type::Intersection(Box::new(left), Box::new(right)),
+            )),
+            Err(error) => Err(error),
+        }
     }
 }
