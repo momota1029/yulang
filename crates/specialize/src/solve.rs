@@ -540,6 +540,61 @@ fn merge_expr_expected_for_solver(existing: &Type, incoming: &Type) -> Option<Ty
     })
 }
 
+fn merge_open_candidate_shape(left: &Type, right: &Type) -> Option<Type> {
+    if left == right {
+        return Some(left.clone());
+    }
+    match (left, right) {
+        (Type::OpenVar(_), right) => Some(right.clone()),
+        (left, Type::OpenVar(_)) => Some(left.clone()),
+        (
+            Type::Con {
+                path: left_path,
+                args: left_args,
+            },
+            Type::Con {
+                path: right_path,
+                args: right_args,
+            },
+        ) if left_path == right_path && left_args.len() == right_args.len() => {
+            let args = left_args
+                .iter()
+                .zip(right_args)
+                .map(|(left, right)| merge_open_candidate_shape(left, right))
+                .collect::<Option<Vec<_>>>()?;
+            Some(Type::Con {
+                path: left_path.clone(),
+                args,
+            })
+        }
+        (Type::Tuple(left_items), Type::Tuple(right_items))
+            if left_items.len() == right_items.len() =>
+        {
+            Some(Type::Tuple(
+                left_items
+                    .iter()
+                    .zip(right_items)
+                    .map(|(left, right)| merge_open_candidate_shape(left, right))
+                    .collect::<Option<Vec<_>>>()?,
+            ))
+        }
+        (
+            Type::Thunk {
+                effect: left_effect,
+                value: left_value,
+            },
+            Type::Thunk {
+                effect: right_effect,
+                value: right_value,
+            },
+        ) => Some(Type::Thunk {
+            effect: Box::new(merge_open_candidate_shape(left_effect, right_effect)?),
+            value: Box::new(merge_open_candidate_shape(left_value, right_value)?),
+        }),
+        _ => None,
+    }
+}
+
 struct LocalLetSchemeType {
     def: poly_expr::DefId,
     monomorphic_ty: Option<Type>,
@@ -3204,6 +3259,11 @@ impl<'graph, 'arena, 'solution> TypeResolver<'graph, 'arena, 'solution> {
         let upper = self.meet_candidates(slot, slot_kind, upper_bounds)?;
         let solution = match (lower, upper) {
             (Some(lower), Some(upper)) if type_candidates_equivalent(&lower, &upper) => lower,
+            (Some(lower), Some(upper))
+                if let Some(merged) = merge_open_candidate_shape(&lower, &upper) =>
+            {
+                merged
+            }
             (Some(lower), Some(upper)) if type_candidate_subtype(self.graph, &lower, &upper) => {
                 lower
             }
@@ -3483,6 +3543,9 @@ fn join_type_candidates(
     left: Type,
     right: Type,
 ) -> Result<Type, SpecializeError> {
+    if let Some(merged) = merge_open_candidate_shape(&left, &right) {
+        return Ok(merged);
+    }
     match (&left, &right) {
         (Type::Record(_), Type::Record(_)) => {
             return join_record_type_candidates(graph, slot, left, right);
@@ -3516,6 +3579,9 @@ fn meet_type_candidates(
     left: Type,
     right: Type,
 ) -> Result<Type, SpecializeError> {
+    if let Some(merged) = merge_open_candidate_shape(&left, &right) {
+        return Ok(merged);
+    }
     match (&left, &right) {
         (Type::Record(_), Type::Record(_)) => {
             return meet_record_type_candidates(graph, slot, left, right);
@@ -4574,7 +4640,10 @@ fn range_type() -> Type {
 mod tests {
     use mono::Type;
 
-    use super::{ConstraintGraph, TypeResolver, TypeSlotKind, solve_expr};
+    use super::{
+        ConstraintGraph, TypeResolver, TypeSlotKind, bool_type, join_type_candidates, list_type,
+        meet_type_candidates, solve_expr, unary_type,
+    };
 
     #[test]
     fn root_generic_call_gets_types_for_apply_callee_and_arg() {
@@ -4841,6 +4910,52 @@ mod tests {
         assert_eq!(
             mono::dump::dump_type(&resolver.resolve(&slot).unwrap()),
             "int"
+        );
+    }
+
+    #[test]
+    fn candidate_merge_refines_open_tuple_items_from_concrete_tuple() {
+        let arena = poly::expr::Arena::new();
+        let mut graph = ConstraintGraph::new(&arena);
+        let left = Type::Tuple(vec![
+            graph.fresh_slot(TypeSlotKind::Value),
+            graph.fresh_slot(TypeSlotKind::Value),
+        ]);
+        let callback = unary_type(bool_type(), int_type());
+        let right = Type::Tuple(vec![callback.clone(), list_type(callback)]);
+
+        assert_eq!(
+            mono::dump::dump_type(
+                &join_type_candidates(&graph, 0, left.clone(), right.clone()).unwrap()
+            ),
+            "(bool -> int, std::data::list::list(bool -> int))"
+        );
+        assert_eq!(
+            mono::dump::dump_type(&meet_type_candidates(&graph, 0, left, right).unwrap()),
+            "(bool -> int, std::data::list::list(bool -> int))"
+        );
+    }
+
+    #[test]
+    fn slot_solution_refines_open_tuple_lower_from_concrete_tuple_upper() {
+        let arena = poly::expr::Arena::new();
+        let mut graph = ConstraintGraph::new(&arena);
+        let slot = graph.fresh_slot(TypeSlotKind::Value);
+        let lower = Type::Tuple(vec![
+            graph.fresh_slot(TypeSlotKind::Value),
+            graph.fresh_slot(TypeSlotKind::Value),
+        ]);
+        let callback = unary_type(bool_type(), int_type());
+        let upper = Type::Tuple(vec![callback.clone(), list_type(callback)]);
+
+        graph.constrain_subtype(lower, slot.clone()).unwrap();
+        graph.constrain_subtype(slot.clone(), upper).unwrap();
+        graph.solve_constraints().unwrap();
+
+        let mut resolver = TypeResolver::new(&graph);
+        assert_eq!(
+            mono::dump::dump_type(&resolver.resolve(&slot).unwrap()),
+            "(bool -> int, std::data::list::list(bool -> int))"
         );
     }
 

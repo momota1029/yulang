@@ -880,6 +880,61 @@ point { x: 3, y: 4 } .norm2 + 1.12
     }
 
     #[test]
+    fn run_inner_keeps_sub_return_through_for_callback_before_println() {
+        clear_std_cache();
+        let source = "\
+our g h = sub:
+    for i in 0..3:
+        h i
+    return 1
+
+sub:
+    my b = g \\i -> if i == 0: return i
+    println b.show
+    2
+";
+        let output = run_inner(source);
+        let full_std_output = run_control_from_source_text_with_embedded_std(source).unwrap();
+
+        assert_eq!(full_std_output.stdout, "");
+        assert_eq!(full_std_output.text, "run roots [0]\n");
+
+        assert!(output.ok, "{output:?}");
+        assert_eq!(output.stdout, full_std_output.stdout);
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("0")
+        );
+        assert_eq!(output.text, full_std_output.text);
+    }
+
+    #[test]
+    fn run_inner_runs_nondet_once_triple() {
+        clear_std_cache();
+        let source = "\
+({
+    my a = each 1..
+    my b = each a<..
+    my c = each b<..
+
+    guard: a * a + b * b == c * c
+
+    (a, b, c)
+} .once).show
+";
+        let output = run_inner(source);
+        let full_std_output = run_control_from_source_text_with_embedded_std(source).unwrap();
+
+        assert_eq!(full_std_output.text, "run roots [\"just (3, 4, 5)\"]\n");
+        assert!(output.ok, "{output:?}");
+        assert_eq!(
+            output.results.first().map(|result| result.value.as_str()),
+            Some("\"just (3, 4, 5)\"")
+        );
+        assert_eq!(output.text, full_std_output.text);
+    }
+
+    #[test]
     fn colorize_inner_reports_token_spans() {
         let output = colorize_inner("// note\nmy x = \"日本語\"\n");
 

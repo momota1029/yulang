@@ -770,7 +770,7 @@ impl Collector {
                 })?,
             };
             if implicit_prelude && module_path.segments.is_empty() {
-                source = format!("{IMPLICIT_STD_MODULE_DECL}{IMPLICIT_PRELUDE_IMPORT}{source}");
+                source = source_with_implicit_std_prelude(source);
             }
 
             let requests = discover_module_loads(&module_path, &source);
@@ -1450,7 +1450,7 @@ fn embedded_std_sources_with_root(entry: &FsPath, source: String) -> Vec<Collect
     files.push(CollectedSource {
         path: entry.to_path_buf(),
         module_path: Path::default(),
-        source: format!("{IMPLICIT_STD_MODULE_DECL}{IMPLICIT_PRELUDE_IMPORT}{source}"),
+        source: source_with_implicit_std_prelude(source),
     });
     files
 }
@@ -1463,9 +1463,13 @@ fn embedded_playground_std_sources_with_root(
     files.push(CollectedSource {
         path: entry.to_path_buf(),
         module_path: Path::default(),
-        source: format!("{IMPLICIT_STD_MODULE_DECL}{IMPLICIT_PRELUDE_IMPORT}{source}"),
+        source: source_with_implicit_std_prelude(source),
     });
     files
+}
+
+fn source_with_implicit_std_prelude(source: String) -> String {
+    format!("{IMPLICIT_PRELUDE_IMPORT}{IMPLICIT_STD_MODULE_DECL}{source}")
 }
 
 fn embedded_std_sources() -> Vec<CollectedSource> {
@@ -2771,8 +2775,8 @@ mod tests {
             .iter()
             .find(|file| file.module_path.segments.is_empty())
             .unwrap();
-        assert!(root_source.source.starts_with(IMPLICIT_STD_MODULE_DECL));
-        assert!(root_source.source.contains(IMPLICIT_PRELUDE_IMPORT));
+        assert!(root_source.source.starts_with(IMPLICIT_PRELUDE_IMPORT));
+        assert!(root_source.source.contains(IMPLICIT_STD_MODULE_DECL));
     }
 
     #[test]
@@ -2797,8 +2801,8 @@ mod tests {
             .iter()
             .find(|file| file.module_path.segments.is_empty())
             .unwrap();
-        assert!(root_source.source.starts_with(IMPLICIT_STD_MODULE_DECL));
-        assert!(root_source.source.contains(IMPLICIT_PRELUDE_IMPORT));
+        assert!(root_source.source.starts_with(IMPLICIT_PRELUDE_IMPORT));
+        assert!(root_source.source.contains(IMPLICIT_STD_MODULE_DECL));
     }
 
     #[test]
@@ -2827,8 +2831,37 @@ mod tests {
             .iter()
             .find(|file| file.module_path.segments.is_empty())
             .unwrap();
-        assert!(root_source.source.starts_with(IMPLICIT_STD_MODULE_DECL));
-        assert!(root_source.source.contains(IMPLICIT_PRELUDE_IMPORT));
+        assert!(root_source.source.starts_with(IMPLICIT_PRELUDE_IMPORT));
+        assert!(root_source.source.contains(IMPLICIT_STD_MODULE_DECL));
+    }
+
+    #[test]
+    fn collect_source_text_with_embedded_std_imports_prelude_ops_before_root_parse() {
+        let files =
+            collect_source_text_with_embedded_std("playground.yu", "my y = x<..\n".to_string())
+                .unwrap()
+                .into_iter()
+                .map(|file| SourceFile {
+                    module_path: file.module_path,
+                    source: file.source,
+                })
+                .collect::<Vec<_>>();
+        let loaded = sources::load(files);
+        let root = loaded
+            .iter()
+            .find(|file| file.module_path.segments.is_empty())
+            .unwrap();
+        let root_cst =
+            rowan::SyntaxNode::<parser::sink::YulangLanguage>::new_root(root.cst.clone());
+
+        assert!(root.op_table.0.get("<..".as_bytes()).is_some());
+        assert!(
+            root_cst
+                .descendants_with_tokens()
+                .filter_map(rowan::NodeOrToken::into_token)
+                .any(|token| token.kind() == parser::lex::SyntaxKind::Suffix
+                    && token.text() == "<..")
+        );
     }
 
     #[test]
@@ -3013,6 +3046,18 @@ first_over 40
             output.1,
             "run roots [[(3, 4, 5), (5, 12, 13), (6, 8, 10), (9, 12, 15)]]\n"
         );
+    }
+
+    #[test]
+    fn run_control_source_text_with_embedded_std_runs_nondet_once_triple() {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "({\n  my a = each 1..\n  my b = each a<..\n  my c = each b<..\n  guard: a * a + b * b == c * c\n  (a, b, c)\n} .once).show\n",
+        )
+        .unwrap();
+
+        assert_eq!(output.file_count, embedded_std_files().len() + 1);
+        assert_eq!(output.text, "run roots [\"just (3, 4, 5)\"]\n");
     }
 
     #[test]

@@ -200,6 +200,8 @@ pub struct AddIdMarker {
     pub path: Vec<String>,
     pub depth: u32,
     pub guard_own_path: bool,
+    pub guard_foreign_path: bool,
+    pub carry_after_frame: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -344,8 +346,15 @@ enum EvalResult<'a> {
 struct Request<'a> {
     path: Vec<String>,
     guard_ids: Vec<GuardId>,
+    carried_guard_ids: Vec<GuardId>,
     payload: Value,
     resume: Continuation<'a>,
+}
+
+fn request_without_guard_id<'a>(mut request: Request<'a>, guard_id: GuardId) -> Request<'a> {
+    request.guard_ids.retain(|id| *id != guard_id);
+    request.carried_guard_ids.retain(|id| *id != guard_id);
+    request
 }
 
 enum BindEvalResult<'a> {
@@ -357,6 +366,7 @@ enum BindEvalResult<'a> {
 struct BindRequest<'a> {
     path: Vec<String>,
     guard_ids: Vec<GuardId>,
+    carried_guard_ids: Vec<GuardId>,
     payload: Value,
     resume: BindResume<'a>,
 }
@@ -674,6 +684,7 @@ impl<'a> Runtime<'a> {
             EvalResult::Request(request) => {
                 let path = request.path;
                 let guard_ids = request.guard_ids;
+                let carried_guard_ids = request.carried_guard_ids;
                 let payload = request.payload;
                 let request_resume = request.resume.clone();
                 let resolved_payload = self.resolve_ref_set_value(payload, assigned.clone())?;
@@ -681,6 +692,7 @@ impl<'a> Runtime<'a> {
                     Ok(EvalResult::Request(Request {
                         path: path.clone(),
                         guard_ids: guard_ids.clone(),
+                        carried_guard_ids: carried_guard_ids.clone(),
                         payload,
                         resume: Rc::new({
                             let assigned = assigned.clone();
@@ -805,6 +817,7 @@ impl<'a> Runtime<'a> {
             EvalResult::Request(request) => {
                 let path = request.path;
                 let guard_ids = request.guard_ids;
+                let carried_guard_ids = request.carried_guard_ids;
                 let payload = request.payload;
                 let request_resume = request.resume.clone();
                 let resolved_payload = self.resolve_ref_set_value(payload, assigned.clone())?;
@@ -812,6 +825,7 @@ impl<'a> Runtime<'a> {
                     Ok(EvalResult::Request(Request {
                         path: path.clone(),
                         guard_ids: guard_ids.clone(),
+                        carried_guard_ids: carried_guard_ids.clone(),
                         payload,
                         resume: Rc::new({
                             let assigned = assigned.clone();
@@ -1085,11 +1099,15 @@ impl<'a> Runtime<'a> {
         if index < arms.len() {
             let arm = arms[index].clone();
             let operation_path = arm.operation_path.as_ref();
-            if operation_path != Some(&request.path)
-                || operation_path.is_some_and(|path| {
-                    self.request_intersects_guard_stack_for_path(&request, path)
-                })
-            {
+            let skipped_guard = operation_path
+                .filter(|path| *path == &request.path)
+                .and_then(|path| self.request_guard_for_path(&request, path));
+            if operation_path != Some(&request.path) || skipped_guard.is_some() {
+                let request = if let Some(guard_id) = skipped_guard {
+                    request_without_guard_id(request, guard_id)
+                } else {
+                    request
+                };
                 return self.handle_catch_request_arm(request, arms, env, index + 1);
             }
 
@@ -1172,6 +1190,7 @@ impl<'a> Runtime<'a> {
         Ok(EvalResult::Request(Request {
             path: request.path,
             guard_ids: request.guard_ids,
+            carried_guard_ids: request.carried_guard_ids,
             payload: request.payload,
             resume: Rc::new(move |runtime, value| {
                 let resumed = resume(runtime, value)?;
@@ -1384,6 +1403,7 @@ impl<'a> Runtime<'a> {
         let mut request = Request {
             path,
             guard_ids: Vec::new(),
+            carried_guard_ids: Vec::new(),
             payload,
             resume: Rc::new(|_, value| value_result(value)),
         };
@@ -1393,8 +1413,10 @@ impl<'a> Runtime<'a> {
 
     fn mark_request_with_active_markers(&self, request: &mut Request<'a>) {
         for marker in &self.active_add_ids {
+            let path_matches_marker = path_has_prefix(&request.path, &marker.path);
             if marker.depth != 0
-                || (!marker.guard_own_path && path_has_prefix(&request.path, &marker.path))
+                || (path_matches_marker && !marker.guard_own_path)
+                || (!path_matches_marker && !marker.guard_foreign_path)
                 || request
                     .guard_ids
                     .iter()
@@ -1404,6 +1426,12 @@ impl<'a> Runtime<'a> {
             }
             if !request.guard_ids.contains(&marker.id) {
                 request.guard_ids.push(marker.id);
+            }
+            if marker.carry_after_frame
+                && request_path_carries_function_adapter_guard(&request.path)
+                && !request.carried_guard_ids.contains(&marker.id)
+            {
+                request.carried_guard_ids.push(marker.id);
             }
         }
     }
@@ -1425,11 +1453,11 @@ impl<'a> Runtime<'a> {
         mark_value(value, &markers)
     }
 
-    fn request_intersects_guard_stack_for_path(
+    fn request_guard_for_path(
         &self,
         request: &Request<'_>,
         operation_path: &[String],
-    ) -> bool {
+    ) -> Option<GuardId> {
         let matching_handler = self.active_frames.iter().rposition(|frame| {
             frame
                 .handler_path
@@ -1442,22 +1470,46 @@ impl<'a> Runtime<'a> {
                 .iter()
                 .any(|frame| frame.handler_path.is_some())
             {
-                return false;
+                return None;
             }
             return self
                 .active_frames
                 .iter()
-                .any(|frame| request.guard_ids.contains(&frame.id));
+                .find(|frame| request.guard_ids.contains(&frame.id))
+                .map(|frame| frame.id)
+                .or_else(|| {
+                    // Function adapter guards can leave their marker frame before the
+                    // surrounding catch observes the request. In that case, the carried
+                    // guard still skips the next matching handler once.
+                    if self.active_frames.is_empty() {
+                        request.carried_guard_ids.first().copied()
+                    } else {
+                        None
+                    }
+                });
         };
         self.active_frames[matching_handler + 1..]
             .iter()
-            .any(|frame| request.guard_ids.contains(&frame.id))
-            || self.active_frames[..=matching_handler].iter().any(|frame| {
-                frame
-                    .handler_path
-                    .as_ref()
-                    .is_some_and(|path| path_has_prefix(operation_path, path))
-                    && request.guard_ids.contains(&frame.id)
+            .find(|frame| request.guard_ids.contains(&frame.id))
+            .map(|frame| frame.id)
+            .or_else(|| {
+                self.active_frames[..=matching_handler]
+                    .iter()
+                    .find(|frame| {
+                        frame
+                            .handler_path
+                            .as_ref()
+                            .is_some_and(|path| path_has_prefix(operation_path, path))
+                            && request.guard_ids.contains(&frame.id)
+                    })
+                    .map(|frame| frame.id)
+            })
+            .or_else(|| {
+                if self.active_frames.is_empty() {
+                    request.carried_guard_ids.first().copied()
+                } else {
+                    None
+                }
             })
     }
 
@@ -1474,6 +1526,8 @@ impl<'a> Runtime<'a> {
                         path: marker.path.clone(),
                         depth: marker.depth,
                         guard_own_path: false,
+                        guard_foreign_path: true,
+                        carry_after_frame: true,
                     }),
                 ]
             })
@@ -1580,6 +1634,7 @@ impl<'a> Runtime<'a> {
                 Ok(EvalResult::Request(Request {
                     path: request.path,
                     guard_ids: request.guard_ids,
+                    carried_guard_ids: request.carried_guard_ids,
                     payload: request.payload,
                     resume: Rc::new(move |runtime, value| {
                         let resume = resume.clone();
@@ -2020,6 +2075,7 @@ impl<'a> Runtime<'a> {
                 Ok(EvalResult::Request(Request {
                     path: request.path,
                     guard_ids: request.guard_ids,
+                    carried_guard_ids: request.carried_guard_ids,
                     payload: request.payload,
                     resume: Rc::new(move |runtime, value| {
                         let resumed = request_resume(runtime, value)?;
@@ -2050,6 +2106,7 @@ impl<'a> Runtime<'a> {
                 Ok(EvalResult::Request(Request {
                     path: request.path,
                     guard_ids: request.guard_ids,
+                    carried_guard_ids: request.carried_guard_ids,
                     payload: request.payload,
                     resume: Rc::new(move |runtime, value| {
                         let resumed = request_resume(runtime, value)?;
@@ -2072,6 +2129,7 @@ impl<'a> Runtime<'a> {
                 Ok(BindEvalResult::Request(BindRequest {
                     path: request.path,
                     guard_ids: request.guard_ids,
+                    carried_guard_ids: request.carried_guard_ids,
                     payload: request.payload,
                     resume: Rc::new(move |runtime, value| {
                         let resumed = request_resume(runtime, value)?;
@@ -2095,6 +2153,7 @@ impl<'a> Runtime<'a> {
                 Ok(BindEvalResult::Request(BindRequest {
                     path: request.path,
                     guard_ids: request.guard_ids,
+                    carried_guard_ids: request.carried_guard_ids,
                     payload: request.payload,
                     resume: Rc::new(move |runtime, value| {
                         let resumed = request_resume(runtime, value)?;
@@ -2552,6 +2611,7 @@ fn markers_for_continuation_call(markers: Vec<ValueMarker>) -> Vec<ValueMarker> 
                 ValueMarker::AddId(marker) => ValueMarker::AddId(AddIdMarker {
                     depth: marker.depth.saturating_sub(1),
                     guard_own_path: false,
+                    guard_foreign_path: true,
                     ..marker
                 }),
             })
@@ -2567,6 +2627,7 @@ fn markers_for_continuation_resume(markers: &[ValueMarker]) -> Vec<ValueMarker> 
             .map(|marker| match marker {
                 ValueMarker::AddId(marker) => ValueMarker::AddId(AddIdMarker {
                     guard_own_path: false,
+                    guard_foreign_path: true,
                     ..marker
                 }),
                 marker => marker,
@@ -2594,14 +2655,23 @@ fn stack_handler_markers(id: GuardId, path: Vec<String>) -> Vec<ValueMarker> {
             path: path.clone(),
             depth: 0,
             guard_own_path: false,
+            guard_foreign_path: true,
+            carry_after_frame: false,
         }),
         ValueMarker::AddId(AddIdMarker {
             id,
             path,
             depth: 1,
             guard_own_path: true,
+            guard_foreign_path: true,
+            carry_after_frame: false,
         }),
     ]
+}
+
+fn request_path_carries_function_adapter_guard(path: &[String]) -> bool {
+    path_has_str_prefix(path, &["std", "control", "flow", "sub"])
+        || path_has_str_prefix(path, &["std", "control", "flow", "label_sub"])
 }
 
 fn mark_value(value: Value, markers: &[ValueMarker]) -> Value {
@@ -2656,6 +2726,14 @@ fn value_is_thunk_like(value: &Value) -> bool {
 }
 
 fn path_has_prefix(path: &[String], prefix: &[String]) -> bool {
+    prefix.len() <= path.len()
+        && path
+            .iter()
+            .zip(prefix)
+            .all(|(segment, prefix)| segment == prefix)
+}
+
+fn path_has_str_prefix(path: &[String], prefix: &[&str]) -> bool {
     prefix.len() <= path.len()
         && path
             .iter()

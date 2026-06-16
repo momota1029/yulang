@@ -27,7 +27,7 @@ pub act nondet:
 
 
     // 何個も解が要らないときにつかう
-    pub once(x: [_] _) = loop x [] with:
+    pub once(x: [std::control::nondet::nondet; 'e] 'a): ['e] std::data::opt::opt 'a = loop x [] with:
         our loop(x: [_] _, queue) = catch x:
             branch(), k -> loop(k true, std::data::list::append queue [k])
             reject(), _ -> case std::data::list::uncons queue:
