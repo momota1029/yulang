@@ -15,12 +15,11 @@ impl CompactMergeConstraintSink for NoopCompactMergeConstraintSink {
 
 impl CompactMergeConstraintSink for Vec<CompactMergeConstraint> {
     fn record_merge_constraint(&mut self, lhs: &CompactBounds, rhs: &CompactBounds) {
-        if lhs != rhs {
-            self.push(CompactMergeConstraint {
-                key: compact_merge_constraint_key(lhs, rhs),
-                lhs: lhs.clone(),
-                rhs: rhs.clone(),
-            });
+        if lhs == rhs {
+            return;
+        }
+        if let Some(constraint) = CompactMergeConstraint::new(lhs, rhs) {
+            self.push(constraint);
         }
     }
 }

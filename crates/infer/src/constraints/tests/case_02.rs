@@ -149,6 +149,161 @@ fn unweighted_row_upper_uses_concrete_lower_item_before_residual_tail() {
 }
 
 #[test]
+fn unweighted_row_upper_consumes_pop_only_weighted_lower_item() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let through = TypeVar(1);
+    let tail_var = TypeVar(2);
+    let subtract = SubtractId(0);
+    let sub_path = vec!["std".into(), "control".into(), "flow".into(), "sub".into()];
+    machine.register_effect_family_path(sub_path.clone());
+    let sub = machine.alloc_pos(Pos::Con(sub_path.clone(), Vec::new()));
+    let sub_upper = machine.alloc_neg(Neg::Con(sub_path, Vec::new()));
+    let through_pos = machine.alloc_pos(Pos::Var(through));
+    let source_neg = machine.alloc_neg(Neg::Var(source));
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(tail_var));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![sub_upper], tail));
+    let through_neg = machine.alloc_neg(Neg::Var(through));
+
+    machine.weighted_subtype(
+        sub,
+        ConstraintWeights {
+            left: StackWeight::pop(subtract),
+            right: StackWeight::empty(),
+        },
+        through_neg,
+    );
+    machine.subtype(through_pos, source_neg);
+    machine.subtype(source_pos, row_upper);
+
+    let bounds = machine.bounds().of(source).expect("source bounds");
+    assert!(
+        !bounds.uppers().iter().any(|upper| {
+            upper.weights.is_empty()
+                && matches!(machine.types().neg(upper.neg), Neg::Row(items, _) if items == &[sub_upper])
+        }),
+        "pop-only lower item should satisfy the row item before residual tail"
+    );
+    assert!(
+        bounds.uppers().iter().any(|upper| {
+            upper.weights.is_empty()
+                && matches!(machine.types().neg(upper.neg), Neg::Var(found) if *found == tail_var)
+        }),
+        "source should only keep the row tail after matching the item"
+    );
+    assert!(
+        !machine
+            .bounds()
+            .of(tail_var)
+            .into_iter()
+            .flat_map(|bounds| bounds.lowers())
+            .any(|lower| {
+                lower.weights.is_empty()
+                    && matches!(
+                        machine.types().pos(lower.pos),
+                        Pos::Row(items)
+                            if items.iter().any(|item| {
+                                matches!(
+                                    machine.types().pos(*item),
+                                    Pos::Con(path, _) if path.iter().map(String::as_str).eq([
+                                        "std", "control", "flow", "sub"
+                                    ])
+                                )
+                            })
+                    )
+            }),
+        "matched row item should not flow into the residual tail"
+    );
+}
+
+#[test]
+fn direct_tail_upper_prunes_stale_unweighted_row_upper_from_aliases() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let residual = TypeVar(1);
+    let tail_var = TypeVar(2);
+    let residual_pos = machine.alloc_pos(Pos::Var(residual));
+    let source_neg = machine.alloc_neg(Neg::Var(source));
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let sub = machine.alloc_neg(Neg::Con(
+        vec!["std".into(), "control".into(), "flow".into(), "sub".into()],
+        Vec::new(),
+    ));
+    let tail = machine.alloc_neg(Neg::Var(tail_var));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![sub], tail));
+
+    machine.subtype(residual_pos, source_neg);
+    machine.subtype(source_pos, row_upper);
+    machine.subtype(source_pos, tail);
+
+    for var in [source, residual] {
+        let bounds = machine.bounds().of(var).expect("bounds");
+        assert!(
+            !bounds.uppers().iter().any(|upper| {
+                upper.weights.is_empty()
+                    && matches!(machine.types().neg(upper.neg), Neg::Row(items, _) if items == &[sub])
+            }),
+            "tail upper should subsume stale row upper for {var:?}"
+        );
+        assert!(
+            bounds.uppers().iter().any(|upper| {
+                upper.weights.is_empty()
+                    && matches!(machine.types().neg(upper.neg), Neg::Var(found) if *found == tail_var)
+            }),
+            "tail upper should still reach {var:?}"
+        );
+    }
+}
+
+#[test]
+fn unweighted_row_upper_matches_each_lower_independently() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let alias = TypeVar(1);
+    let tail_var = TypeVar(2);
+    let sub_path = vec!["std".into(), "control".into(), "flow".into(), "sub".into()];
+    let sub_pos = machine.alloc_pos(Pos::Con(sub_path.clone(), Vec::new()));
+    let sub_row = machine.alloc_pos(Pos::Row(vec![sub_pos]));
+    let sub_neg = machine.alloc_neg(Neg::Con(sub_path, Vec::new()));
+    let alias_neg = machine.alloc_neg(Neg::Var(alias));
+    let alias_pos = machine.alloc_pos(Pos::Var(alias));
+    let source_neg = machine.alloc_neg(Neg::Var(source));
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(tail_var));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![sub_neg], tail));
+
+    machine.subtype(sub_row, alias_neg);
+    machine.subtype(alias_pos, source_neg);
+    machine.subtype(sub_row, source_neg);
+    machine.subtype(source_pos, row_upper);
+
+    assert!(
+        !machine
+            .bounds()
+            .of(tail_var)
+            .into_iter()
+            .flat_map(|bounds| bounds.lowers())
+            .any(|lower| {
+                lower.weights.is_empty()
+                    && matches!(
+                        machine.types().pos(lower.pos),
+                        Pos::Row(items) if items == &[sub_pos]
+                    )
+            }),
+        "a concrete row lower matched after an alias should not flow into the residual tail"
+    );
+    let bounds = machine.bounds().of(source).expect("source bounds");
+    assert!(
+        bounds.uppers().iter().any(|upper| {
+            upper.weights.is_empty()
+                && matches!(machine.types().neg(upper.neg), Neg::Var(found) if *found == tail_var)
+        }),
+        "source should keep only the residual tail after matching the row item"
+    );
+}
+
+#[test]
 fn var_to_effect_row_upper_reuses_weighted_residual_for_same_source_across_tails() {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);
@@ -627,7 +782,7 @@ fn var_to_effect_row_upper_collects_duplicate_effect_paths_with_payload_constrai
     );
 }
 
-fn single_upper_row_tail(
+pub(super) fn single_upper_row_tail(
     machine: &ConstraintMachine,
     var: TypeVar,
     expected_paths: &[&str],
@@ -649,7 +804,7 @@ fn single_upper_row_tail(
     }
 }
 
-fn assert_single_weighted_upper_var(
+pub(super) fn assert_single_weighted_upper_var(
     machine: &ConstraintMachine,
     var: TypeVar,
     expected: TypeVar,
@@ -665,7 +820,10 @@ fn assert_single_weighted_upper_var(
     }
 }
 
-fn residual_stack_weight(id: SubtractId, subtractability: Subtractability) -> StackWeight {
+pub(super) fn residual_stack_weight(
+    id: SubtractId,
+    subtractability: Subtractability,
+) -> StackWeight {
     StackWeight::floor(id, subtractability.clone()).compose(&StackWeight::push(id, subtractability))
 }
 
@@ -876,5 +1034,46 @@ fn pure_function_argument_effect_passes_outside_return_stack_marker() {
             left: StackWeight::empty(),
             right: StackWeight::push(subtract, Subtractability::Empty),
         },
+    }));
+}
+
+#[test]
+fn weighted_var_var_replay_cancels_push_pop_through_var_alias() {
+    let mut machine = ConstraintMachine::new();
+    let subtract = SubtractId(0);
+    let call = TypeVar(0);
+    let result = TypeVar(1);
+    let outer = TypeVar(2);
+    let call_pos = machine.alloc_pos(Pos::Var(call));
+    let result_neg = machine.alloc_neg(Neg::Var(result));
+    let result_pos = machine.alloc_pos(Pos::Var(result));
+    let outer_neg = machine.alloc_neg(Neg::Var(outer));
+
+    machine.weighted_subtype(
+        call_pos,
+        ConstraintWeights {
+            left: StackWeight::push(subtract, Subtractability::Empty),
+            right: StackWeight::empty(),
+        },
+        result_neg,
+    );
+    machine.weighted_subtype(
+        result_pos,
+        ConstraintWeights {
+            left: StackWeight::pop(subtract),
+            right: StackWeight::empty(),
+        },
+        outer_neg,
+    );
+
+    let outer_bounds = machine.bounds().of(outer).expect("outer bounds");
+    assert!(outer_bounds.lowers().iter().any(|bound| {
+        bound.weights == ConstraintWeights::empty()
+            && matches!(machine.types().pos(bound.pos), Pos::Var(var) if *var == call)
+    }));
+    let call_bounds = machine.bounds().of(call).expect("call bounds");
+    assert!(call_bounds.uppers().iter().any(|bound| {
+        bound.weights == ConstraintWeights::empty()
+            && matches!(machine.types().neg(bound.neg), Neg::Var(var) if *var == outer)
     }));
 }

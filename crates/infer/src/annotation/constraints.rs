@@ -116,7 +116,10 @@ impl<'a> AnnConstraintLowerer<'a> {
         })
     }
 
-    fn lower_value_bounds(&mut self, ann: &AnnType) -> Result<AnnValueBounds, AnnConstraintError> {
+    pub(in crate::annotation) fn lower_value_bounds(
+        &mut self,
+        ann: &AnnType,
+    ) -> Result<AnnValueBounds, AnnConstraintError> {
         match ann {
             AnnType::Builtin(builtin) => Ok(AnnValueBounds {
                 pos: self.lower_builtin_pos(*builtin),
@@ -640,10 +643,10 @@ impl<'a> AnnConstraintLowerer<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct AnnValueBounds {
-    pos: PosId,
-    neg: NegId,
-    output_subtracts: Vec<SubtractId>,
+pub(in crate::annotation) struct AnnValueBounds {
+    pub(in crate::annotation) pos: PosId,
+    pub(in crate::annotation) neg: NegId,
+    pub(in crate::annotation) output_subtracts: Vec<SubtractId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -6,6 +6,7 @@ use super::analysis::{
 use poly::types::{Neg, Pos, StackWeight, SubtractId};
 
 use super::*;
+use crate::compact::merge::{merge_compact_types_with_sink, singleton_row_item_map};
 use crate::constraints::{ConstraintMachine, ConstraintWeights, TypeLevel};
 use crate::roles::{RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg};
 
@@ -31,3 +32,5 @@ fn apply_merge_constraints_until_quiescent(machine: &mut ConstraintMachine, root
 
 mod case_01;
 mod case_02;
+
+use case_02::{compact_path_is, compact_row_contains_path, compact_type_contains_var, role_arg};

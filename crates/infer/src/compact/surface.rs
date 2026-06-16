@@ -1,8 +1,18 @@
 use super::collect::CompactCollector;
 use super::finalize::CompactFinalizer;
 use super::*;
+use crate::time::{Duration, Instant};
+
+const VAR_ONLY_INTERVAL_DIRECT_MERGE_THRESHOLD: usize = 32;
 
 pub(crate) fn compact_type_var(machine: &ConstraintMachine, root: TypeVar) -> CompactRoot {
+    CompactCollector::new(machine).compact_root(root)
+}
+
+pub(crate) fn compact_type_var_for_scheme(
+    machine: &ConstraintMachine,
+    root: TypeVar,
+) -> CompactRoot {
     CompactCollector::new(machine).compact_root(root)
 }
 
@@ -117,6 +127,13 @@ pub(crate) fn compact_pos_surface(types: &TypeArena, id: PosId) -> CompactType {
 }
 
 pub(crate) fn compact_type_var_recording_merge_constraints(
+    machine: &ConstraintMachine,
+    root: TypeVar,
+) -> (CompactRoot, Vec<CompactMergeConstraint>) {
+    CompactCollector::new_recording(machine).compact_root_with_merge_constraints(root)
+}
+
+pub(crate) fn compact_type_var_recording_merge_constraints_for_scheme(
     machine: &ConstraintMachine,
     root: TypeVar,
 ) -> (CompactRoot, Vec<CompactMergeConstraint>) {
@@ -273,6 +290,14 @@ pub(crate) fn apply_compact_merge_constraints(
         if constraint.lhs == constraint.rhs || !applied.insert(constraint.key.clone()) {
             continue;
         }
+        let phase = Instant::now();
+        if let Some(pairs) = var_only_interval_merge_pairs(&constraint.lhs, &constraint.rhs) {
+            if pairs.len() > VAR_ONLY_INTERVAL_DIRECT_MERGE_THRESHOLD {
+                changed |= machine.constrain_var_var_pairs_direct(pairs);
+                trace_slow_compact_merge_constraint(&constraint, phase.elapsed());
+                continue;
+            }
+        }
         let (lhs, rhs) = {
             let mut finalizer = CompactFinalizer::new(&mut *machine);
             (
@@ -281,8 +306,113 @@ pub(crate) fn apply_compact_merge_constraints(
             )
         };
         changed |= machine.constrain_invariant_neu(lhs, rhs);
+        trace_slow_compact_merge_constraint(&constraint, phase.elapsed());
     }
     changed
+}
+
+fn trace_slow_compact_merge_constraint(constraint: &CompactMergeConstraint, elapsed: Duration) {
+    if elapsed < Duration::from_millis(50) || !compact_merge_trace_enabled() {
+        return;
+    }
+    eprintln!(
+        "[compact] apply merge constraint: elapsed={:.3}ms key={:?} lhs={} rhs={}",
+        elapsed.as_secs_f64() * 1000.0,
+        constraint.key,
+        compact_bounds_trace_summary(&constraint.lhs),
+        compact_bounds_trace_summary(&constraint.rhs)
+    );
+}
+
+fn compact_merge_trace_enabled() -> bool {
+    std::env::var("YULANG_ANALYSIS_TIMING").is_ok_and(|value| !value.is_empty() && value != "0")
+}
+
+fn var_only_interval_merge_pairs(
+    lhs: &CompactBounds,
+    rhs: &CompactBounds,
+) -> Option<Vec<(TypeVar, TypeVar)>> {
+    let (
+        CompactBounds::Interval {
+            lower: lhs_lower,
+            upper: lhs_upper,
+        },
+        CompactBounds::Interval {
+            lower: rhs_lower,
+            upper: rhs_upper,
+        },
+    ) = (lhs, rhs)
+    else {
+        return None;
+    };
+    let lhs_lower = var_only_compact_type_vars(lhs_lower)?;
+    let lhs_upper = var_only_compact_type_vars(lhs_upper)?;
+    let rhs_lower = var_only_compact_type_vars(rhs_lower)?;
+    let rhs_upper = var_only_compact_type_vars(rhs_upper)?;
+    let mut pairs = Vec::new();
+    push_var_var_pairs(&mut pairs, &lhs_lower, &rhs_upper);
+    push_var_var_pairs(&mut pairs, &rhs_lower, &lhs_upper);
+    Some(pairs)
+}
+
+fn var_only_compact_type_vars(ty: &CompactType) -> Option<Vec<TypeVar>> {
+    if ty.never
+        || !ty.builtins.is_empty()
+        || !ty.cons.is_empty()
+        || !ty.funs.is_empty()
+        || !ty.records.is_empty()
+        || !ty.record_spreads.is_empty()
+        || !ty.poly_variants.is_empty()
+        || !ty.tuples.is_empty()
+        || !ty.rows.is_empty()
+    {
+        return None;
+    }
+    Some(ty.vars.iter().map(|var| var.var).collect())
+}
+
+fn push_var_var_pairs(pairs: &mut Vec<(TypeVar, TypeVar)>, lowers: &[TypeVar], uppers: &[TypeVar]) {
+    for lower in lowers {
+        for upper in uppers {
+            let pair = (*lower, *upper);
+            if lower != upper && !pairs.contains(&pair) {
+                pairs.push(pair);
+            }
+        }
+    }
+}
+
+fn compact_bounds_trace_summary(bounds: &CompactBounds) -> String {
+    match bounds {
+        CompactBounds::Interval { lower, upper } => {
+            format!(
+                "interval(lower={}, upper={})",
+                compact_type_trace_summary(lower),
+                compact_type_trace_summary(upper)
+            )
+        }
+        CompactBounds::Con { path, args } => format!("con({path:?}, args={})", args.len()),
+        CompactBounds::Tuple { items } => format!("tuple(items={})", items.len()),
+        CompactBounds::Fun { .. } => "fun".to_string(),
+        CompactBounds::Record { fields } => format!("record(fields={})", fields.len()),
+        CompactBounds::PolyVariant { items } => format!("variant(items={})", items.len()),
+    }
+}
+
+fn compact_type_trace_summary(ty: &CompactType) -> String {
+    format!(
+        "vars={} never={} builtins={} cons={} funs={} records={} spreads={} variants={} tuples={} rows={}",
+        ty.vars.len(),
+        ty.never,
+        ty.builtins.len(),
+        ty.cons.len(),
+        ty.funs.len(),
+        ty.records.len(),
+        ty.record_spreads.len(),
+        ty.poly_variants.len(),
+        ty.tuples.len(),
+        ty.rows.len()
+    )
 }
 
 pub(crate) fn apply_compact_subtype_constraints(

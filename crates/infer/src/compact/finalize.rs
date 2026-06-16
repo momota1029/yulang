@@ -554,6 +554,9 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
     }
 
     pub(super) fn finalize_neg_effect_type(&mut self, ty: &CompactType) -> NegId {
+        if self.is_negative_effect_closed_prefix_with_residual(ty) {
+            return self.finalize_neg_effect_closed_prefix_with_residual(ty);
+        }
         if !self.is_negative_effect_rowish(ty) {
             return self.finalize_neg_type(ty);
         }
@@ -593,6 +596,20 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
             .map(|item| self.finalize_neg_con(item))
             .collect();
         let tail = self.finalize_neg_row_tail(&row.tail);
+        self.alloc_neg(Neg::Row(items, tail))
+    }
+
+    pub(super) fn finalize_neg_row_with_extra_tail(
+        &mut self,
+        row: &CompactRow,
+        extra_tail: &CompactType,
+    ) -> NegId {
+        let items = compact_row_item_entries(&row.items)
+            .iter()
+            .map(|item| self.finalize_neg_con(item))
+            .collect();
+        let tail = merge_compact_types(false, (*row.tail).clone(), extra_tail.clone());
+        let tail = self.finalize_neg_row_tail(&tail);
         self.alloc_neg(Neg::Row(items, tail))
     }
 
@@ -713,6 +730,45 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
             && ty.record_spreads.is_empty()
             && ty.poly_variants.is_empty()
             && ty.tuples.is_empty()
+    }
+
+    pub(super) fn is_negative_effect_closed_prefix_with_residual(&self, ty: &CompactType) -> bool {
+        !ty.never
+            && !ty.vars.is_empty()
+            && (!ty.cons.is_empty() || !ty.rows.is_empty())
+            && ty.builtins.is_empty()
+            && ty.funs.is_empty()
+            && ty.records.is_empty()
+            && ty.record_spreads.is_empty()
+            && ty.poly_variants.is_empty()
+            && ty.tuples.is_empty()
+            && ty.rows.iter().all(|row| is_empty_compact_type(&row.tail))
+    }
+
+    pub(super) fn finalize_neg_effect_closed_prefix_with_residual(
+        &mut self,
+        ty: &CompactType,
+    ) -> NegId {
+        let residual_tail = CompactType {
+            cons: CompactConMap::default(),
+            rows: Vec::new(),
+            ..ty.clone()
+        };
+        let mut rows = Vec::new();
+        if !ty.cons.is_empty() {
+            let items = compact_con_entries(&ty.cons)
+                .iter()
+                .map(|con| self.finalize_neg_con(con))
+                .collect();
+            let tail = self.finalize_neg_row_tail(&residual_tail);
+            rows.push(self.alloc_neg(Neg::Row(items, tail)));
+        }
+        rows.extend(
+            ty.rows
+                .iter()
+                .map(|row| self.finalize_neg_row_with_extra_tail(row, &residual_tail)),
+        );
+        self.intersection_neg(rows)
     }
 
     pub(super) fn union_pos(&mut self, input: Vec<PosId>) -> PosId {

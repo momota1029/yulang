@@ -174,6 +174,7 @@ impl<'a> ExprLowerer<'a> {
             effect,
             call_return_effect,
             unannotated_call_frame: None,
+            recursive_effect_passthrough: false,
             scheme: None,
         });
         def
@@ -551,7 +552,8 @@ impl<'a> ExprLowerer<'a> {
             .collect::<FxHashMap<_, _>>();
         let payload =
             build_constructor_payload_signatures(constructor.payload.clone(), &signature_builder)?;
-        let args = prepare_constructor_args(&mut self.session.infer, payload);
+        let args =
+            prepare_constructor_pattern_args(&mut self.session.infer, payload, &signature_vars);
         let payloads = declared_constructor_pattern_payloads(payloads, args.len());
         if args.len() != payloads.len() {
             return Err(LoweringError::UnsupportedPatternSyntax {

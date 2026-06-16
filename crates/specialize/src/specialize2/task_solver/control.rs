@@ -382,6 +382,9 @@ impl<'a> TaskSolver<'a> {
                 self.graph
                     .constrain_subtype(ty.clone(), Type::Record(field_types.clone()))?;
                 for (field, field_ty) in fields.iter().zip(field_types) {
+                    if let Some(default) = field.default {
+                        self.consume_expr_value(default, field_ty.value.clone())?;
+                    }
                     self.bind_pat(field.pat, field_ty.value)?;
                 }
                 if let Some(def) = record_spread_def(spread) {

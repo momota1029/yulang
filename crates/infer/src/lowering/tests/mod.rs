@@ -268,3 +268,14 @@ mod case_03;
 mod case_04;
 mod case_05;
 mod case_06;
+
+use case_01::{
+    assert_act_method_receiver_has_self_subtract, assert_method_body_is_receiver_identity,
+    assert_pos_or_var_lower_stack_pop_var, assert_pos_stack_pop_var, function_lower_bound,
+    role_arg_vars, type_field_method, weight_has_empty_stack, weight_set_path_id,
+};
+use case_06::{
+    assert_neg_bottom, assert_role_arg_is_exact_con, assert_var_has_exact_con_bound,
+    assert_var_has_lower_con_bound, assert_var_has_lower_con_path, expr_ref, find_select_by_name,
+    function_result_effect, lambda_body, lambda_output, recursive_self_block_parts,
+};

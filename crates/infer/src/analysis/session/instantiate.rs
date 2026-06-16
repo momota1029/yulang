@@ -8,10 +8,22 @@ impl AnalysisSession {
     }
 
     pub(super) fn quantify_component(&mut self, component: &[DefId], roots: &[TypeVar]) {
+        let trace = analysis_trace_mode();
+        let component_start = Instant::now();
         let mut generalized = Vec::with_capacity(component.len());
         for (def, root) in component.iter().copied().zip(roots.iter().copied()) {
+            let phase = Instant::now();
             let scheme = self.generalize_root_with_prepasses(def, root);
+            trace_quantify_phase(trace, "generalize", def, phase.elapsed(), component_start);
+            let phase = Instant::now();
             self.collect_role_impl_member_prerequisites(def, &scheme);
+            trace_quantify_phase(
+                trace,
+                "collect role prerequisites",
+                def,
+                phase.elapsed(),
+                component_start,
+            );
             generalized.push((def, scheme));
         }
 
@@ -20,6 +32,7 @@ impl AnalysisSession {
         }
 
         for (def, scheme) in generalized {
+            let phase = Instant::now();
             let ancestors = self.scheme_ancestors(def);
             let ancestors = ancestors.iter().collect::<Vec<_>>();
             let finalized = finalize_generalized_compact_root_with_ancestors(
@@ -28,8 +41,19 @@ impl AnalysisSession {
                 &scheme,
                 &ancestors,
             );
+            trace_quantify_phase(trace, "finalize", def, phase.elapsed(), component_start);
             self.trace_scheme(def, &finalized.scheme);
             self.set_def_scheme(def, finalized.scheme);
+        }
+        let elapsed = component_start.elapsed();
+        if trace != AnalysisTraceMode::Off
+            && (trace == AnalysisTraceMode::Verbose || elapsed >= Duration::from_millis(50))
+        {
+            eprintln!(
+                "[analysis] quantify component done: defs={} elapsed={:.3}ms",
+                component.len(),
+                elapsed.as_secs_f64() * 1000.0
+            );
         }
     }
 
@@ -94,7 +118,12 @@ impl AnalysisSession {
         }
     }
 
-    pub(super) fn instantiate_use(&mut self, parent: DefId, target: DefId, use_value: TypeVar) {
+    pub(in crate::analysis) fn instantiate_use(
+        &mut self,
+        parent: DefId,
+        target: DefId,
+        use_value: TypeVar,
+    ) {
         let Some(scheme) = self.def_scheme(target).cloned() else {
             return;
         };
@@ -325,5 +354,24 @@ impl AnalysisSession {
 
     pub(super) fn neg_from_neu_id(&mut self, id: NeuId) -> NegId {
         self.neg_from_neu(self.infer.constraints().types().neu(id).clone())
+    }
+}
+
+fn trace_quantify_phase(
+    trace: AnalysisTraceMode,
+    phase: &str,
+    def: DefId,
+    elapsed: Duration,
+    start: Instant,
+) {
+    if trace == AnalysisTraceMode::Off {
+        return;
+    }
+    if trace == AnalysisTraceMode::Verbose || elapsed >= Duration::from_millis(50) {
+        eprintln!(
+            "[analysis] quantify {phase}: def={def:?} elapsed={:.3}ms total={:.3}ms",
+            elapsed.as_secs_f64() * 1000.0,
+            start.elapsed().as_secs_f64() * 1000.0
+        );
     }
 }

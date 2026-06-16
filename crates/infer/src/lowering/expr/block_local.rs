@@ -243,6 +243,12 @@ impl<'a> ExprLowerer<'a> {
             let value = self.fresh_type_var();
             let call_return_effect = local_binding_call_return_effect(node);
             let (pat, def) = self.bind_let_local_with_def(name, value, call_return_effect, None);
+            let recursive_effect_passthrough = arg_patterns
+                .iter()
+                .any(|pattern| pattern_type_expr(pattern).is_none());
+            if let Some(local) = self.locals.iter_mut().rev().find(|local| local.def == def) {
+                local.recursive_effect_passthrough = recursive_effect_passthrough;
+            }
             let body = self.lower_local_binding_body(node, &body, Some(value))?;
             self.subtype_var_to_var(body.value, value);
             self.connect_local_binding_annotation(node, value, body)?;
@@ -597,6 +603,7 @@ impl<'a> ExprLowerer<'a> {
             effect: None,
             call_return_effect,
             unannotated_call_frame: None,
+            recursive_effect_passthrough: false,
             scheme: None,
         });
         (self.session.poly.add_pat(Pat::Var(def)), def)

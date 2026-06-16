@@ -1,5 +1,5 @@
 mod tests {
-    use super::*;
+    use super::super::*;
 
     fn build_annotation(src: &str) -> AnnType {
         let root = parse(src);

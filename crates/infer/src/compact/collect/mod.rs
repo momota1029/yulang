@@ -3,7 +3,7 @@ use super::*;
 
 mod type_nodes;
 
-pub(super) struct CompactCollector<'a> {
+pub(in crate::compact) struct CompactCollector<'a> {
     machine: &'a ConstraintMachine,
     record_merge_constraints: bool,
     merge_constraints: Vec<CompactMergeConstraint>,
@@ -15,14 +15,14 @@ pub(super) struct CompactCollector<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(super) struct CompactVarSideKey {
+pub(in crate::compact) struct CompactVarSideKey {
     var: TypeVar,
     polarity: Polarity,
     weight: ConstraintWeight,
 }
 
 impl<'a> CompactCollector<'a> {
-    pub(super) fn new(machine: &'a ConstraintMachine) -> Self {
+    pub(in crate::compact) fn new(machine: &'a ConstraintMachine) -> Self {
         Self {
             machine,
             record_merge_constraints: false,
@@ -35,18 +35,18 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn new_recording(machine: &'a ConstraintMachine) -> Self {
+    pub(in crate::compact) fn new_recording(machine: &'a ConstraintMachine) -> Self {
         Self {
             record_merge_constraints: true,
             ..Self::new(machine)
         }
     }
 
-    pub(super) fn compact_root(self, root: TypeVar) -> CompactRoot {
+    pub(in crate::compact) fn compact_root(self, root: TypeVar) -> CompactRoot {
         self.compact_root_with_merge_constraints(root).0
     }
 
-    pub(super) fn compact_root_with_merge_constraints(
+    pub(in crate::compact) fn compact_root_with_merge_constraints(
         mut self,
         root: TypeVar,
     ) -> (CompactRoot, Vec<CompactMergeConstraint>) {
@@ -66,7 +66,7 @@ impl<'a> CompactCollector<'a> {
         )
     }
 
-    pub(super) fn merge_types(
+    pub(in crate::compact) fn merge_types(
         &mut self,
         positive: bool,
         lhs: CompactType,
@@ -80,7 +80,7 @@ impl<'a> CompactCollector<'a> {
         out
     }
 
-    pub(super) fn merge_row_items(
+    pub(in crate::compact) fn merge_row_items(
         &mut self,
         positive: bool,
         lhs: CompactRowItemMap,
@@ -92,7 +92,7 @@ impl<'a> CompactCollector<'a> {
         merge_row_items_with_sink(positive, lhs, rhs, &mut self.merge_constraints)
     }
 
-    pub(super) fn record_stack_row_coexistence(&mut self, ty: &CompactType) {
+    pub(in crate::compact) fn record_stack_row_coexistence(&mut self, ty: &CompactType) {
         if ty.vars.is_empty() || ty.rows.is_empty() {
             return;
         }
@@ -107,7 +107,7 @@ impl<'a> CompactCollector<'a> {
         self.record_stack_families_row_coexistence(&families, ty);
     }
 
-    pub(super) fn compact_weight_stack_families(
+    pub(in crate::compact) fn compact_weight_stack_families(
         &mut self,
         weight: &ConstraintWeight,
     ) -> Vec<CompactStackFamily> {
@@ -123,7 +123,7 @@ impl<'a> CompactCollector<'a> {
             .collect()
     }
 
-    pub(super) fn record_stack_families_row_coexistence(
+    pub(in crate::compact) fn record_stack_families_row_coexistence(
         &mut self,
         families: &[CompactStackFamily],
         ty: &CompactType,
@@ -148,7 +148,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn record_stack_families_row_item_coexistence(
+    pub(in crate::compact) fn record_stack_families_row_item_coexistence(
         &mut self,
         families: &[CompactStackFamily],
         path: &[String],
@@ -162,7 +162,10 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_pos_stack_families(&mut self, id: PosId) -> Vec<CompactStackFamily> {
+    pub(in crate::compact) fn compact_pos_stack_families(
+        &mut self,
+        id: PosId,
+    ) -> Vec<CompactStackFamily> {
         match self.machine.types().pos(id).clone() {
             Pos::Bot | Pos::Var(_) => Vec::new(),
             Pos::Con(_, args) => self.compact_neu_stack_families(args),
@@ -225,7 +228,10 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_neg_stack_families(&mut self, id: NegId) -> Vec<CompactStackFamily> {
+    pub(in crate::compact) fn compact_neg_stack_families(
+        &mut self,
+        id: NegId,
+    ) -> Vec<CompactStackFamily> {
         match self.machine.types().neg(id).clone() {
             Neg::Top | Neg::Bot | Neg::Var(_) => Vec::new(),
             Neg::Con(_, args) => self.compact_neu_stack_families(args),
@@ -278,7 +284,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_neu_stack_families(
+    pub(in crate::compact) fn compact_neu_stack_families(
         &mut self,
         ids: Vec<NeuId>,
     ) -> Vec<CompactStackFamily> {
@@ -287,7 +293,10 @@ impl<'a> CompactCollector<'a> {
             .collect()
     }
 
-    pub(super) fn compact_neu_id_stack_families(&mut self, id: NeuId) -> Vec<CompactStackFamily> {
+    pub(in crate::compact) fn compact_neu_id_stack_families(
+        &mut self,
+        id: NeuId,
+    ) -> Vec<CompactStackFamily> {
         match self.machine.types().neu(id).clone() {
             Neu::Bounds(lower, upper) => {
                 let mut out = self.compact_pos_stack_families(lower);
@@ -319,14 +328,18 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn record_merge_bound_args(&mut self, lhs: &[CompactBounds], rhs: &[CompactBounds]) {
+    pub(in crate::compact) fn record_merge_bound_args(
+        &mut self,
+        lhs: &[CompactBounds],
+        rhs: &[CompactBounds],
+    ) {
         if lhs.len() != rhs.len() {
             return;
         }
         record_merge_bound_args_with_sink(&mut self.merge_constraints, lhs, rhs);
     }
 
-    pub(super) fn compact_reachable_role_constraints(
+    pub(in crate::compact) fn compact_reachable_role_constraints(
         self,
         seed: &CompactRoot,
         constraints: &[RoleConstraint],
@@ -335,7 +348,7 @@ impl<'a> CompactCollector<'a> {
             .0
     }
 
-    pub(super) fn compact_reachable_role_constraints_with_merge_constraints(
+    pub(in crate::compact) fn compact_reachable_role_constraints_with_merge_constraints(
         mut self,
         seed: &CompactRoot,
         constraints: &[RoleConstraint],
@@ -369,7 +382,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_role_constraint(
+    pub(in crate::compact) fn compact_role_constraint(
         &mut self,
         constraint: &RoleConstraint,
     ) -> CompactRoleConstraint {
@@ -388,7 +401,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_role_constraint_with_merge_constraints(
+    pub(in crate::compact) fn compact_role_constraint_with_merge_constraints(
         mut self,
         constraint: &RoleConstraint,
     ) -> (CompactRoleConstraint, Vec<CompactMergeConstraint>) {
@@ -396,7 +409,7 @@ impl<'a> CompactCollector<'a> {
         (constraint, self.merge_constraints)
     }
 
-    pub(super) fn compact_role_associated(
+    pub(in crate::compact) fn compact_role_associated(
         &mut self,
         associated: &RoleAssociatedConstraint,
     ) -> CompactRoleAssociatedType {
@@ -406,7 +419,10 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_role_arg(&mut self, arg: &RoleConstraintArg) -> CompactRoleArg {
+    pub(in crate::compact) fn compact_role_arg(
+        &mut self,
+        arg: &RoleConstraintArg,
+    ) -> CompactRoleArg {
         let lower = self.compact_pos_id(arg.lower, ConstraintWeight::empty());
         let upper = self.compact_neg_id(arg.upper, ConstraintWeight::empty());
         let bounds = if self.record_merge_constraints {
@@ -417,7 +433,7 @@ impl<'a> CompactCollector<'a> {
         CompactRoleArg::invariant(bounds)
     }
 
-    pub(super) fn compact_var_side(
+    pub(in crate::compact) fn compact_var_side(
         &mut self,
         var: TypeVar,
         polarity: Polarity,
@@ -462,7 +478,7 @@ impl<'a> CompactCollector<'a> {
         with_self
     }
 
-    pub(super) fn compact_var_occurrence(
+    pub(in crate::compact) fn compact_var_occurrence(
         &self,
         var: TypeVar,
         polarity: Polarity,
@@ -475,7 +491,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_secondary_var_occurrence(
+    pub(in crate::compact) fn compact_secondary_var_occurrence(
         &self,
         var: TypeVar,
         polarity: Polarity,
@@ -485,7 +501,7 @@ impl<'a> CompactCollector<'a> {
             .with_origin(CompactVarOrigin::Secondary)
     }
 
-    pub(super) fn compact_var_bounds(
+    pub(in crate::compact) fn compact_var_bounds(
         &mut self,
         var: TypeVar,
         polarity: Polarity,
@@ -500,7 +516,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_lower_bounds(
+    pub(in crate::compact) fn compact_lower_bounds(
         &mut self,
         var: TypeVar,
         bounds: &VarBounds,
@@ -522,7 +538,7 @@ impl<'a> CompactCollector<'a> {
         acc
     }
 
-    pub(super) fn compact_pre_pop_stack_families(
+    pub(in crate::compact) fn compact_pre_pop_stack_families(
         &mut self,
         var: TypeVar,
     ) -> Vec<CompactStackFamily> {
@@ -541,7 +557,7 @@ impl<'a> CompactCollector<'a> {
             .collect()
     }
 
-    pub(super) fn compact_upper_bounds(
+    pub(in crate::compact) fn compact_upper_bounds(
         &mut self,
         var: TypeVar,
         bounds: &VarBounds,
@@ -555,7 +571,7 @@ impl<'a> CompactCollector<'a> {
         acc
     }
 
-    pub(super) fn compact_upper_bound(
+    pub(in crate::compact) fn compact_upper_bound(
         &mut self,
         source: TypeVar,
         bound: &crate::constraints::WeightedUpperBound,
@@ -578,17 +594,49 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn is_unweighted_neg_var_alias(
+    pub(in crate::compact) fn is_unweighted_neg_var_alias(
         bound_weights: &ConstraintWeights,
         outer_weight: &ConstraintWeight,
     ) -> bool {
-        // Compact only stores subtract weight on covariant variable occurrences. A weighted
-        // negative var-var edge is not a plain alias; replayed concrete bounds carry the
-        // representable consequences.
+        // Pop-only entries do not carry an effect-family budget. The stack spec permits dropping
+        // them when neither side has a corresponding non-empty entry, so they should not block a
+        // negative var-var alias in compact collection.
+        Self::is_alias_neutral_weight(outer_weight)
+            && Self::is_alias_neutral_weight(&bound_weights.left)
+            && Self::is_alias_neutral_weight(&bound_weights.right)
+    }
+
+    fn is_exact_unweighted_neg_var_alias(
+        bound_weights: &ConstraintWeights,
+        outer_weight: &ConstraintWeight,
+    ) -> bool {
         outer_weight.is_empty() && bound_weights.is_empty()
     }
 
-    pub(super) fn compact_neg_row_upper_bound(
+    fn is_weighted_row_tail_alias(
+        bound_weights: &ConstraintWeights,
+        outer_weight: &ConstraintWeight,
+    ) -> bool {
+        Self::is_alias_neutral_weight(outer_weight)
+            && Self::is_alias_neutral_weight(&bound_weights.right)
+            && Self::weight_has_row_tail_boundary(&bound_weights.left)
+    }
+
+    fn is_alias_neutral_weight(weight: &ConstraintWeight) -> bool {
+        weight
+            .entries()
+            .iter()
+            .all(|entry| entry.floor.is_empty() && entry.stack.is_empty())
+    }
+
+    fn weight_has_row_tail_boundary(weight: &ConstraintWeight) -> bool {
+        weight
+            .entries()
+            .iter()
+            .any(|entry| !entry.floor.is_empty() || !entry.stack.is_empty())
+    }
+
+    pub(in crate::compact) fn compact_neg_row_upper_bound(
         &mut self,
         source: TypeVar,
         items: Vec<NegId>,
@@ -612,7 +660,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn retain_neg_row_items_by_subtractability(
+    pub(in crate::compact) fn retain_neg_row_items_by_subtractability(
         &self,
         items: Vec<NegId>,
         subtractability: &Subtractability,
@@ -647,11 +695,15 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn neg_effect_family_matches(&self, item: NegId, path: &[String]) -> bool {
+    pub(in crate::compact) fn neg_effect_family_matches(
+        &self,
+        item: NegId,
+        path: &[String],
+    ) -> bool {
         matches!(self.machine.types().neg(item), Neg::Con(item_path, _) if item_path == path)
     }
 
-    pub(super) fn compact_pos_bound_id(
+    pub(in crate::compact) fn compact_pos_bound_id(
         &mut self,
         id: PosId,
         weight: ConstraintWeight,
@@ -684,7 +736,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_neg_bound_id(
+    pub(in crate::compact) fn compact_neg_bound_id(
         &mut self,
         id: NegId,
         weight: ConstraintWeight,

@@ -33,6 +33,7 @@ pub struct ConstraintMachine {
     types: TypeArena,
     queue: VecDeque<ConstraintWork>,
     bounds: TypeBounds,
+    var_adjacency: FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
     subtracts: SubtractTable,
     levels: TypeLevels,
     next_internal_type_var: u32,
@@ -109,6 +110,9 @@ impl TypeLevels {
 struct ExtrudeCtx {
     target: TypeLevel,
     visited: FxHashSet<TypeVar>,
+    visited_pos: FxHashSet<PosId>,
+    visited_neg: FxHashSet<NegId>,
+    visited_neu: FxHashSet<NeuId>,
 }
 
 impl ExtrudeCtx {
@@ -116,6 +120,9 @@ impl ExtrudeCtx {
         Self {
             target,
             visited: FxHashSet::default(),
+            visited_pos: FxHashSet::default(),
+            visited_neg: FxHashSet::default(),
+            visited_neu: FxHashSet::default(),
         }
     }
 }

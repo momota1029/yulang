@@ -1,7 +1,11 @@
 use super::*;
 
 impl<'a> CompactCollector<'a> {
-    pub(super) fn compact_pos_id(&mut self, id: PosId, weight: ConstraintWeight) -> CompactType {
+    pub(in crate::compact) fn compact_pos_id(
+        &mut self,
+        id: PosId,
+        weight: ConstraintWeight,
+    ) -> CompactType {
         match self.machine.types().pos(id).clone() {
             Pos::Bot => CompactType::default(),
             Pos::Var(var) => self.compact_var_side(var, Polarity::Positive, weight),
@@ -97,7 +101,11 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_neg_id(&mut self, id: NegId, weight: ConstraintWeight) -> CompactType {
+    pub(in crate::compact) fn compact_neg_id(
+        &mut self,
+        id: NegId,
+        weight: ConstraintWeight,
+    ) -> CompactType {
         match self.machine.types().neg(id).clone() {
             Neg::Top => CompactType::default(),
             Neg::Bot => CompactType::never(),
@@ -166,7 +174,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_con(
+    pub(in crate::compact) fn compact_con(
         &mut self,
         path: Vec<String>,
         args: Vec<NeuId>,
@@ -187,7 +195,7 @@ impl<'a> CompactCollector<'a> {
         })
     }
 
-    pub(super) fn compact_pos_effect_id(
+    pub(in crate::compact) fn compact_pos_effect_id(
         &mut self,
         id: PosId,
         weight: ConstraintWeight,
@@ -219,7 +227,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_neg_effect_id(
+    pub(in crate::compact) fn compact_neg_effect_id(
         &mut self,
         id: NegId,
         weight: ConstraintWeight,
@@ -230,7 +238,7 @@ impl<'a> CompactCollector<'a> {
             Neg::Var(var) => {
                 self.compact_var_side(var, Polarity::Negative, ConstraintWeight::empty())
             }
-            Neg::Con(_, _) | Neg::Stack { .. } => {
+            Neg::Con(_, _) => {
                 if let Some((path, args)) = self.compact_neg_row_item(id) {
                     CompactType::from_row(CompactRow {
                         items: singleton_row_item_map(path, args),
@@ -240,6 +248,10 @@ impl<'a> CompactCollector<'a> {
                     self.compact_neg_id(id, weight)
                 }
             }
+            Neg::Stack {
+                inner,
+                weight: stack_weight,
+            } => self.compact_neg_stack_effect(inner, stack_weight, weight),
             Neg::Row(items, tail) => self.compact_neg_row(items, tail, weight),
             Neg::Intersection(lhs, rhs) => {
                 let lhs = self.compact_neg_effect_id(lhs, weight.clone());
@@ -250,7 +262,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_pos_row_item(
+    pub(in crate::compact) fn compact_pos_row_item(
         &mut self,
         id: PosId,
         weight: ConstraintWeight,
@@ -281,7 +293,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_neg_row_item(
+    pub(in crate::compact) fn compact_neg_row_item(
         &mut self,
         id: NegId,
     ) -> Option<(Vec<String>, Vec<CompactBounds>)> {
@@ -307,7 +319,11 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_neu_id(&mut self, id: NeuId, weight: ConstraintWeight) -> CompactBounds {
+    pub(in crate::compact) fn compact_neu_id(
+        &mut self,
+        id: NeuId,
+        weight: ConstraintWeight,
+    ) -> CompactBounds {
         match self.machine.types().neu(id).clone() {
             Neu::Bounds(lower, upper) => CompactBounds::Interval {
                 lower: self.compact_pos_id(lower, weight),
@@ -364,7 +380,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_effect_neu_id(
+    pub(in crate::compact) fn compact_effect_neu_id(
         &mut self,
         id: NeuId,
         weight: ConstraintWeight,
@@ -389,7 +405,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_pos_row(
+    pub(in crate::compact) fn compact_pos_row(
         &mut self,
         items: Vec<PosId>,
         weight: ConstraintWeight,
@@ -434,7 +450,7 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_neg_row(
+    pub(in crate::compact) fn compact_neg_row(
         &mut self,
         items: Vec<NegId>,
         tail: NegId,
@@ -453,13 +469,55 @@ impl<'a> CompactCollector<'a> {
         }
         let compact_tail = self.compact_neg_row_tail_id(tail, weight);
         let tail = self.merge_types(false, item_tail, compact_tail);
+        let tail = self.pull_neg_tail_rows_into_outer_row(&mut concrete_items, tail);
         CompactType::from_row(CompactRow {
             items: concrete_items,
             tail: Box::new(tail),
         })
     }
 
-    pub(super) fn compact_neg_row_tail_id(
+    fn pull_neg_tail_rows_into_outer_row(
+        &mut self,
+        outer_items: &mut CompactRowItemMap,
+        tail: CompactType,
+    ) -> CompactType {
+        if tail.rows.is_empty() {
+            return tail;
+        }
+
+        let CompactType {
+            vars,
+            never,
+            builtins,
+            cons,
+            funs,
+            records,
+            record_spreads,
+            poly_variants,
+            tuples,
+            rows,
+        } = tail;
+        let mut remainder = CompactType {
+            vars,
+            never,
+            builtins,
+            cons,
+            funs,
+            records,
+            record_spreads,
+            poly_variants,
+            tuples,
+            rows: Vec::new(),
+        };
+        for row in rows {
+            *outer_items = self.merge_row_items(true, mem::take(outer_items), row.items);
+            let nested_tail = self.pull_neg_tail_rows_into_outer_row(outer_items, *row.tail);
+            remainder = self.merge_types(false, remainder, nested_tail);
+        }
+        remainder
+    }
+
+    pub(in crate::compact) fn compact_neg_row_tail_id(
         &mut self,
         id: NegId,
         weight: ConstraintWeight,
@@ -472,7 +530,7 @@ impl<'a> CompactCollector<'a> {
             Neg::Stack {
                 inner,
                 weight: stack_weight,
-            } => self.compact_neg_row_tail_id(inner, stack_weight.union(&weight)),
+            } => self.compact_neg_stack_effect(inner, stack_weight, weight),
             Neg::Intersection(lhs, rhs) => {
                 let lhs = self.compact_neg_row_tail_id(lhs, weight.clone());
                 let rhs = self.compact_neg_row_tail_id(rhs, weight);
@@ -486,7 +544,45 @@ impl<'a> CompactCollector<'a> {
         }
     }
 
-    pub(super) fn compact_neg_row_tail_var(
+    fn compact_neg_stack_effect(
+        &mut self,
+        inner: NegId,
+        stack_weight: ConstraintWeight,
+        outer_weight: ConstraintWeight,
+    ) -> CompactType {
+        let mut prefix_items = self.compact_stack_row_prefix_items(&stack_weight);
+        if prefix_items.is_empty() {
+            let families = self.compact_weight_stack_families(&stack_weight);
+            let compact = self.compact_neg_effect_id(inner, stack_weight.union(&outer_weight));
+            self.record_stack_families_row_coexistence(&families, &compact);
+            return compact;
+        }
+
+        let tail = self.compact_neg_effect_id(inner, outer_weight);
+        let tail = self.pull_neg_tail_rows_into_outer_row(&mut prefix_items, tail);
+        CompactType::from_row(CompactRow {
+            items: prefix_items,
+            tail: Box::new(tail),
+        })
+    }
+
+    fn compact_stack_row_prefix_items(&mut self, weight: &ConstraintWeight) -> CompactRowItemMap {
+        let mut items = CompactRowItemMap::default();
+        for entry in weight.entries() {
+            for subtractability in &entry.stack {
+                for (path, args) in concrete_stack_row_prefix_families(subtractability) {
+                    let args = args
+                        .into_iter()
+                        .map(|arg| self.compact_neu_id(arg, ConstraintWeight::empty()))
+                        .collect();
+                    items = self.merge_row_items(true, items, singleton_row_item_map(path, args));
+                }
+            }
+        }
+        items
+    }
+
+    pub(in crate::compact) fn compact_neg_row_tail_var(
         &mut self,
         var: TypeVar,
         weight: ConstraintWeight,
@@ -513,7 +609,16 @@ impl<'a> CompactCollector<'a> {
                     bound_weight,
                     &bound.weights.left,
                 ),
-                Neg::Var(other) if Self::is_unweighted_neg_var_alias(&bound.weights, &weight) => {
+                Neg::Var(other)
+                    if Self::is_exact_unweighted_neg_var_alias(&bound.weights, &weight) =>
+                {
+                    CompactType::from_var(self.compact_secondary_var_occurrence(
+                        other,
+                        Polarity::Negative,
+                        ConstraintWeight::empty(),
+                    ))
+                }
+                Neg::Var(other) if Self::is_weighted_row_tail_alias(&bound.weights, &weight) => {
                     CompactType::from_var(self.compact_secondary_var_occurrence(
                         other,
                         Polarity::Negative,
@@ -544,7 +649,7 @@ impl<'a> CompactCollector<'a> {
         out
     }
 
-    pub(super) fn record_recursive_side(
+    pub(in crate::compact) fn record_recursive_side(
         &mut self,
         var: TypeVar,
         polarity: Polarity,
@@ -564,5 +669,18 @@ impl<'a> CompactCollector<'a> {
             Polarity::Positive => *lower = side,
             Polarity::Negative => *upper = side,
         }
+    }
+}
+
+fn concrete_stack_row_prefix_families(
+    subtractability: &Subtractability,
+) -> Vec<(Vec<String>, Vec<NeuId>)> {
+    match subtractability {
+        Subtractability::Set(path, args) => vec![(path.clone(), args.clone())],
+        Subtractability::SetMany(families) => families.clone(),
+        Subtractability::Empty
+        | Subtractability::All
+        | Subtractability::AllExcept(_, _)
+        | Subtractability::AllExceptMany(_) => Vec::new(),
     }
 }

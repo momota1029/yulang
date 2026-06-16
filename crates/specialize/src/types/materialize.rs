@@ -216,6 +216,9 @@ impl<'a> SchemeMaterializer<'a> {
     }
 
     pub(super) fn materialize_empty_bound(&self, context: TypeContext) -> Type {
+        if context == TypeContext::Effect {
+            return Type::pure_effect();
+        }
         self.empty_bound_types
             .borrow_mut()
             .pop_front()

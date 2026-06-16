@@ -727,6 +727,40 @@ fn unresolved_selection_falls_back_to_record_field_constraint_in_final_phase() {
 }
 
 #[test]
+fn final_selection_fallback_drops_stale_resolved_selection_entry() {
+    let mut session = AnalysisSession::new(PolyArena::new());
+    let select = session.poly.add_select("size");
+    let parent = DefId(1);
+    let method = DefId(2);
+    register_test_selection_use(
+        &mut session,
+        select,
+        parent,
+        TypeVar(3),
+        TypeVar(4),
+        TypeVar(5),
+        TypeVar(6),
+        TypeVar(7),
+    );
+    session.enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+        def: parent,
+        root: TypeVar(3),
+    }));
+    session.enqueue(AnalysisWork::Scc(SccInput::DefFinished { def: parent }));
+    session
+        .poly
+        .resolve_select(select, SelectResolution::Method { def: method });
+
+    session.resolve_unresolved_selections_as_record_fields();
+
+    assert_eq!(
+        session.poly.select(select).resolution,
+        Some(SelectResolution::Method { def: method })
+    );
+    assert!(session.selections.get(select).is_none());
+}
+
+#[test]
 fn typeclass_selection_fallback_resolves_member_without_receiver_demand() {
     let mut session = AnalysisSession::new(PolyArena::new());
     let select = session.poly.add_select("le");

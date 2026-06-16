@@ -19,6 +19,48 @@ fn unannotated_callback_return_effect_surfaces_without_empty_stack() {
 }
 
 #[test]
+fn unannotated_callback_return_effect_raw_compact_keeps_shared_residual() {
+    let root = parse("my h(x, f) = f x\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (h, _) = binding_def_and_order(&lower.modules, module, "h");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let scheme = def_scheme(&output, h);
+    let Pos::Fun { ret, .. } = output.session.poly.typ.pos(scheme.predicate) else {
+        panic!("expected outer function");
+    };
+    let Pos::Fun {
+        arg: callback,
+        ret_eff,
+        ..
+    } = output.session.poly.typ.pos(*ret)
+    else {
+        panic!("expected inner function");
+    };
+    let Neg::Fun {
+        ret_eff: callback_ret_eff,
+        ..
+    } = output.session.poly.typ.neg(*callback)
+    else {
+        panic!("expected callback argument");
+    };
+
+    assert!(
+        matches!(output.session.poly.typ.pos(*ret_eff), Pos::Var(_)),
+        "outer result effect should keep a residual var, got {:?}",
+        output.session.poly.typ.pos(*ret_eff)
+    );
+    assert!(
+        matches!(output.session.poly.typ.neg(*callback_ret_eff), Neg::Var(_)),
+        "callback result effect should keep a residual var, got {:?}",
+        output.session.poly.typ.neg(*callback_ret_eff)
+    );
+}
+
+#[test]
 fn defined_arg_call_inside_anonymous_lambda_keeps_sub_residual() {
     let root = parse(concat!(
         "mod std:\n",
@@ -188,6 +230,59 @@ fn application_result_effect_includes_argument_effect() {
         rendered.contains("[ping") && rendered.contains("std::control::junction::junction"),
         "{rendered}"
     );
+}
+
+#[test]
+fn local_recursive_binding_scheme_keeps_argument_effect_passthrough() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod junction:\n",
+        "      pub mod junction:\n",
+        "        pub junction x = x\n",
+        "act signal:\n",
+        "  pub ping: () -> never\n",
+        "my judge(x: [signal; 'e] _): ['e] bool = catch x:\n",
+        "  ping(), _ -> true\n",
+        "  _ -> false\n",
+        "my h f =\n",
+        "  my loop b = if b:\n",
+        "    loop (judge (f ()))\n",
+        "    ()\n",
+        "  loop true\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (h, _) = binding_def_and_order(&lower.modules, module, "h");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let h_body = binding_body_id(&output, h);
+    let loop_def = first_local_let_def(&output.session.poly, h_body);
+    let loop_rendered =
+        poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, loop_def));
+    let h_rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, h));
+
+    assert_eq!(h_rendered, "(() -> ['a] any) -> ['a] ()");
+    assert_ne!(loop_rendered, "any -> ()", "h inferred as {h_rendered}");
+}
+
+fn first_local_let_def(poly: &poly::expr::Arena, expr: ExprId) -> DefId {
+    let body = match poly.expr(expr) {
+        Expr::Lambda(_, body) => *body,
+        _ => expr,
+    };
+    let Expr::Block(stmts, _) = poly.expr(body) else {
+        panic!("expected block body");
+    };
+    let Some(Stmt::Let(_, pat, _)) = stmts.first() else {
+        panic!("expected local let");
+    };
+    let Pat::Var(def) = poly.pat(*pat) else {
+        panic!("expected local let var pattern");
+    };
+    *def
 }
 
 #[test]

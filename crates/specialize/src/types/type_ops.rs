@@ -60,7 +60,10 @@ pub(super) fn apply_stack_to_effect(effect: Type, weight: &mono::StackWeight) ->
         Type::Stack {
             inner,
             weight: inner_weight,
-        } => Some(stack_type(stack_type(*inner, inner_weight), weight.clone())),
+        } => Some(stack_type(
+            *inner,
+            compose_runtime_stack_weights(inner_weight, weight.clone()),
+        )),
         Type::Con { .. }
         | Type::Fun { .. }
         | Type::Thunk { .. }
@@ -96,7 +99,17 @@ pub(super) fn effect_item_survives_stack(item: &Type, weight: &mono::StackWeight
     weight
         .entries
         .iter()
-        .flat_map(|entry| entry.floor.iter().chain(&entry.stack))
+        .all(|entry| stack_entry_allows_effect_item(entry, item))
+}
+
+pub(super) fn stack_entry_allows_effect_item(entry: &mono::StackWeightEntry, item: &Type) -> bool {
+    if entry.floor.is_empty() && entry.stack.is_empty() {
+        return entry.pops == 0;
+    }
+    entry
+        .floor
+        .iter()
+        .chain(&entry.stack)
         .all(|families| effect_families_allow_item(families, item))
 }
 
@@ -123,6 +136,168 @@ pub(super) fn effect_family_matches_item(family: &EffectFamily, item: &Type) -> 
 
 pub(super) fn effect_path_contains_family(family: &[String], item: &[String]) -> bool {
     !family.is_empty() && item.starts_with(family)
+}
+
+fn compose_runtime_stack_weights(
+    left: mono::StackWeight,
+    right: mono::StackWeight,
+) -> mono::StackWeight {
+    if left.entries.is_empty() {
+        return right;
+    }
+    if right.entries.is_empty() {
+        return left;
+    }
+    let mut out = left;
+    for entry in right.entries {
+        for families in entry.floor {
+            push_stack_floor(&mut out, entry.id, families);
+        }
+        push_stack_pops(&mut out, entry.id, entry.pops);
+        for families in entry.stack {
+            push_stack_item(&mut out, entry.id, families);
+        }
+    }
+    out
+}
+
+fn push_stack_floor(weight: &mut mono::StackWeight, id: u32, families: EffectFamilies) {
+    let entry = stack_weight_entry_mut(weight, id);
+    let combined = entry
+        .floor
+        .drain(..)
+        .fold(families, intersect_effect_families);
+    if !matches!(combined, EffectFamilies::All) {
+        entry.floor.push(normalize_effect_families(combined));
+    }
+    remove_empty_stack_weight_entry(weight, id);
+}
+
+fn push_stack_item(weight: &mut mono::StackWeight, id: u32, families: EffectFamilies) {
+    let entry = stack_weight_entry_mut(weight, id);
+    entry.stack.push(normalize_effect_families(families));
+}
+
+fn push_stack_pops(weight: &mut mono::StackWeight, id: u32, count: u32) {
+    if count == 0 {
+        return;
+    }
+    let entry = stack_weight_entry_mut(weight, id);
+    if count == u32::MAX {
+        entry.stack.clear();
+        entry.pops = u32::MAX;
+        return;
+    }
+    let removable = entry.stack.len().min(count as usize);
+    if removable > 0 {
+        entry.stack.truncate(entry.stack.len() - removable);
+    }
+    let remaining = count.saturating_sub(removable as u32);
+    if remaining > 0 {
+        entry.pops = entry.pops.saturating_add(remaining);
+        if entry.pops == u32::MAX {
+            entry.stack.clear();
+        }
+    }
+    remove_empty_stack_weight_entry(weight, id);
+}
+
+fn stack_weight_entry_mut(weight: &mut mono::StackWeight, id: u32) -> &mut mono::StackWeightEntry {
+    match weight.entries.binary_search_by_key(&id, |entry| entry.id) {
+        Ok(index) => &mut weight.entries[index],
+        Err(index) => {
+            weight.entries.insert(
+                index,
+                mono::StackWeightEntry {
+                    id,
+                    pops: 0,
+                    floor: Vec::new(),
+                    stack: Vec::new(),
+                },
+            );
+            &mut weight.entries[index]
+        }
+    }
+}
+
+fn remove_empty_stack_weight_entry(weight: &mut mono::StackWeight, id: u32) {
+    if let Ok(index) = weight.entries.binary_search_by_key(&id, |entry| entry.id)
+        && weight.entries[index].pops == 0
+        && weight.entries[index].floor.is_empty()
+        && weight.entries[index].stack.is_empty()
+    {
+        weight.entries.remove(index);
+    }
+}
+
+fn intersect_effect_families(left: EffectFamilies, right: EffectFamilies) -> EffectFamilies {
+    match (left, right) {
+        (EffectFamilies::Empty, _) | (_, EffectFamilies::Empty) => EffectFamilies::Empty,
+        (EffectFamilies::All, right) | (right, EffectFamilies::All) => {
+            normalize_effect_families(right)
+        }
+        (EffectFamilies::Set(left), EffectFamilies::Set(right)) => set_effect_families(
+            left.into_iter()
+                .filter(|family| effect_family_path_is_in(family, &right)),
+        ),
+        (EffectFamilies::Set(set), EffectFamilies::AllExcept(excluded))
+        | (EffectFamilies::AllExcept(excluded), EffectFamilies::Set(set)) => set_effect_families(
+            set.into_iter()
+                .filter(|family| !effect_family_path_is_in(family, &excluded)),
+        ),
+        (EffectFamilies::AllExcept(left), EffectFamilies::AllExcept(right)) => {
+            all_except_effect_families(left.into_iter().chain(right))
+        }
+    }
+}
+
+fn normalize_effect_families(families: EffectFamilies) -> EffectFamilies {
+    match families {
+        EffectFamilies::Empty => EffectFamilies::Empty,
+        EffectFamilies::All => EffectFamilies::All,
+        EffectFamilies::Set(items) => set_effect_families(items),
+        EffectFamilies::AllExcept(items) => all_except_effect_families(items),
+    }
+}
+
+fn set_effect_families(items: impl IntoIterator<Item = EffectFamily>) -> EffectFamilies {
+    let items = collect_effect_families(items);
+    match items.as_slice() {
+        [] => EffectFamilies::Empty,
+        _ => EffectFamilies::Set(items),
+    }
+}
+
+fn all_except_effect_families(items: impl IntoIterator<Item = EffectFamily>) -> EffectFamilies {
+    let items = collect_effect_families(items);
+    match items.as_slice() {
+        [] => EffectFamilies::All,
+        _ => EffectFamilies::AllExcept(items),
+    }
+}
+
+fn collect_effect_families(items: impl IntoIterator<Item = EffectFamily>) -> Vec<EffectFamily> {
+    let mut out = Vec::new();
+    for family in items {
+        if !out
+            .iter()
+            .any(|existing: &EffectFamily| effect_paths_same_family(&existing.path, &family.path))
+        {
+            out.push(family);
+        }
+    }
+    out.sort_by(|left, right| left.path.cmp(&right.path));
+    out
+}
+
+fn effect_family_path_is_in(family: &EffectFamily, items: &[EffectFamily]) -> bool {
+    items
+        .iter()
+        .any(|item| effect_paths_same_family(&item.path, &family.path))
+}
+
+fn effect_paths_same_family(left: &[String], right: &[String]) -> bool {
+    effect_path_contains_family(left, right) || effect_path_contains_family(right, left)
 }
 
 pub(super) fn simplify_effect_intersection(left: Type, right: Type) -> Type {
@@ -492,4 +667,85 @@ pub(super) fn effect_row_items(row: Type) -> Vec<Type> {
     let mut out = Vec::new();
     push_effect_row_items(&mut out, items);
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn con(path: &[&str]) -> Type {
+        Type::Con {
+            path: path.iter().map(|segment| (*segment).to_string()).collect(),
+            args: Vec::new(),
+        }
+    }
+
+    fn family(path: &[&str]) -> EffectFamily {
+        EffectFamily {
+            path: path.iter().map(|segment| (*segment).to_string()).collect(),
+            args: Vec::new(),
+        }
+    }
+
+    fn stack_weight_entry(
+        pops: u32,
+        floor: Vec<EffectFamilies>,
+        stack: Vec<EffectFamilies>,
+    ) -> mono::StackWeight {
+        mono::StackWeight {
+            entries: vec![mono::StackWeightEntry {
+                id: 0,
+                pops,
+                floor,
+                stack,
+            }],
+        }
+    }
+
+    #[test]
+    fn concrete_effect_row_does_not_survive_pop_only_stack_entry() {
+        let signal = con(&["signal"]);
+        let weight = stack_weight_entry(1, Vec::new(), Vec::new());
+
+        assert_eq!(
+            simplify_stack_type(Type::EffectRow(vec![signal]), weight),
+            Type::pure_effect()
+        );
+    }
+
+    #[test]
+    fn concrete_effect_row_respects_floor_below_unmatched_pop() {
+        let signal = con(&["signal"]);
+        let other = con(&["other"]);
+        let weight = stack_weight_entry(
+            u32::MAX,
+            vec![EffectFamilies::AllExcept(vec![family(&["signal"])])],
+            Vec::new(),
+        );
+
+        assert_eq!(
+            simplify_stack_type(Type::EffectRow(vec![signal, other.clone()]), weight),
+            Type::EffectRow(vec![other])
+        );
+    }
+
+    #[test]
+    fn nested_stack_weights_compose_before_filtering_effect_rows() {
+        let signal = con(&["signal"]);
+        let push_signal = stack_weight_entry(
+            0,
+            Vec::new(),
+            vec![EffectFamilies::Set(vec![family(&["signal"])])],
+        );
+        let pop = stack_weight_entry(1, Vec::new(), Vec::new());
+        let nested = Type::Stack {
+            inner: Box::new(Type::EffectRow(vec![signal.clone()])),
+            weight: push_signal,
+        };
+
+        assert_eq!(
+            simplify_stack_type(nested, pop),
+            Type::EffectRow(vec![signal])
+        );
+    }
 }

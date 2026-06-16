@@ -104,11 +104,15 @@ impl ConstraintMachine {
         let mut remaining = items.clone();
         let mut matched_lowers = vec![false; lowers.len()];
         for (index, lower) in lowers.iter().enumerate() {
-            if !lower.weights.is_empty() {
+            if !Self::constraint_weights_are_alias_neutral(&lower.weights) {
                 continue;
             }
             let mut seen = FxHashSet::default();
-            if self.consume_row_items_from_lower_bound(lower.pos, &mut remaining, &mut seen) {
+            let mut local_remaining = items.clone();
+            if self.consume_row_items_from_lower_bound(lower.pos, &mut local_remaining, &mut seen) {
+                for consumed in consumed_row_items(&items, &local_remaining) {
+                    remove_first_row_item(&mut remaining, consumed);
+                }
                 matched_lowers[index] = true;
             }
         }
@@ -157,7 +161,7 @@ impl ConstraintMachine {
                     .unwrap_or_default();
                 let mut consumed = false;
                 for lower in lowers {
-                    if !lower.weights.is_empty() {
+                    if !Self::constraint_weights_are_alias_neutral(&lower.weights) {
                         continue;
                     }
                     consumed |= self.consume_row_items_from_lower_bound(lower.pos, remaining, seen);
@@ -188,6 +192,18 @@ impl ConstraintMachine {
         }
     }
 
+    fn constraint_weights_are_alias_neutral(weights: &ConstraintWeights) -> bool {
+        Self::stack_weight_is_alias_neutral(&weights.left)
+            && Self::stack_weight_is_alias_neutral(&weights.right)
+    }
+
+    fn stack_weight_is_alias_neutral(weight: &StackWeight) -> bool {
+        weight
+            .entries()
+            .iter()
+            .all(|entry| entry.floor.is_empty() && entry.stack.is_empty())
+    }
+
     fn store_upper_bound_without_replay(
         &mut self,
         source: TypeVar,
@@ -195,9 +211,14 @@ impl ConstraintMachine {
         weights: ConstraintWeights,
     ) -> bool {
         let neg = self.extrude_neg(neg, self.level_of(source));
+        if self.upper_bound_subsumed_by_existing(source, neg, &weights) {
+            return false;
+        }
+        self.prune_upper_rows_subsumed_by(source, neg, &weights);
         if !self.bounds.add_upper(source, neg, weights.clone()) {
             return false;
         }
+        self.record_neg_bound_var_neighbors(source, neg);
         self.events.push(ConstraintEvent::UpperBoundAdded {
             var: source,
             bound: neg,
@@ -461,5 +482,27 @@ impl ConstraintMachine {
                     .chain(removed.iter().cloned()),
             ),
         }
+    }
+}
+
+fn consumed_row_items(original: &[NegId], remaining: &[NegId]) -> Vec<NegId> {
+    let mut unmatched_remaining = remaining.to_vec();
+    let mut consumed = Vec::new();
+    for item in original {
+        if let Some(index) = unmatched_remaining
+            .iter()
+            .position(|remaining| remaining == item)
+        {
+            unmatched_remaining.remove(index);
+        } else {
+            consumed.push(*item);
+        }
+    }
+    consumed
+}
+
+fn remove_first_row_item(items: &mut Vec<NegId>, item: NegId) {
+    if let Some(index) = items.iter().position(|existing| *existing == item) {
+        items.remove(index);
     }
 }

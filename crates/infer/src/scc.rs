@@ -122,6 +122,10 @@ impl SccMachine {
         self.graph.is_blocked_only_by_method_dependencies(component)
     }
 
+    pub fn is_quantified(&self, def: DefId) -> bool {
+        self.quantified.contains_key(&def)
+    }
+
     fn record_fetch(&mut self, def: DefId, fetch: BindingFetch) {
         self.graph.record_fetch(def, fetch);
         let Some(component) = self.graph.component_of(def) else {

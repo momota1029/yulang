@@ -17,6 +17,8 @@ pub(crate) use floor::{
 pub(crate) use occurrence::normalize_var_substitutions;
 use occurrence::*;
 use sandwich::*;
+#[cfg(test)]
+pub(crate) use sandwich::{sandwich_compact_root, sandwich_compact_root_with_roles};
 
 #[cfg(test)]
 pub(crate) fn eliminate_polar_variables(

@@ -1,6 +1,9 @@
 use super::*;
 
 pub(crate) fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr {
+    if equivalent_boundary_types(actual, expected) {
+        return expr;
+    }
     if let (
         Type::Thunk {
             effect: source_effect,

@@ -133,14 +133,14 @@ fn body_lowering_keeps_lambda_local_refs_out_of_scc_edges() {
     }));
 }
 
-fn expr_ref(session: &AnalysisSession, expr: poly::expr::ExprId) -> RefId {
+pub(super) fn expr_ref(session: &AnalysisSession, expr: poly::expr::ExprId) -> RefId {
     match session.poly.expr(expr) {
         Expr::Var(reference) => *reference,
         _ => panic!("expected var expr"),
     }
 }
 
-fn recursive_self_block_parts(
+pub(super) fn recursive_self_block_parts(
     session: &AnalysisSession,
     expr: poly::expr::ExprId,
 ) -> (DefId, poly::expr::ExprId, poly::expr::ExprId) {
@@ -158,14 +158,17 @@ fn recursive_self_block_parts(
     (self_def, *body, tail)
 }
 
-fn lambda_body(session: &AnalysisSession, expr: poly::expr::ExprId) -> poly::expr::ExprId {
+pub(super) fn lambda_body(
+    session: &AnalysisSession,
+    expr: poly::expr::ExprId,
+) -> poly::expr::ExprId {
     match session.poly.expr(expr) {
         Expr::Lambda(_, body) => *body,
         _ => panic!("expected lambda expr"),
     }
 }
 
-fn find_select_by_name(
+pub(super) fn find_select_by_name(
     session: &AnalysisSession,
     expr: poly::expr::ExprId,
     name: &str,
@@ -230,7 +233,7 @@ fn find_select_by_name(
         .find_map(|child| find_select_by_name(session, child, name))
 }
 
-fn lambda_output(session: &AnalysisSession, value: TypeVar) -> (PosId, PosId) {
+pub(super) fn lambda_output(session: &AnalysisSession, value: TypeVar) -> (PosId, PosId) {
     let bounds = session
         .infer
         .constraints()
@@ -248,7 +251,7 @@ fn lambda_output(session: &AnalysisSession, value: TypeVar) -> (PosId, PosId) {
         .expect("lambda lower bound should be a function")
 }
 
-fn function_result_effect(session: &AnalysisSession, value: TypeVar) -> TypeVar {
+pub(super) fn function_result_effect(session: &AnalysisSession, value: TypeVar) -> TypeVar {
     let (ret_eff, _) = lambda_output(session, value);
     match session.infer.constraints().types().pos(ret_eff) {
         Pos::Stack { inner, .. } => match session.infer.constraints().types().pos(*inner) {
@@ -264,14 +267,14 @@ fn function_result_effect(session: &AnalysisSession, value: TypeVar) -> TypeVar 
     }
 }
 
-fn assert_neg_bottom(types: &poly::types::TypeArena, row: NegId) {
+pub(super) fn assert_neg_bottom(types: &poly::types::TypeArena, row: NegId) {
     match types.neg(row) {
         Neg::Bot => {}
         other => panic!("expected negative bottom, got {other:?}"),
     }
 }
 
-fn assert_role_arg_is_exact_con(
+pub(super) fn assert_role_arg_is_exact_con(
     session: &AnalysisSession,
     arg: &crate::roles::RoleConstraintArg,
     name: &str,
@@ -287,7 +290,7 @@ fn assert_role_arg_is_exact_con(
     ));
 }
 
-fn assert_var_has_exact_con_bound(session: &AnalysisSession, var: TypeVar, name: &str) {
+pub(super) fn assert_var_has_exact_con_bound(session: &AnalysisSession, var: TypeVar, name: &str) {
     let types = session.infer.constraints().types();
     let bounds = session
         .infer
@@ -309,7 +312,7 @@ fn assert_var_has_exact_con_bound(session: &AnalysisSession, var: TypeVar, name:
     }));
 }
 
-fn assert_var_has_lower_con_bound(session: &AnalysisSession, var: TypeVar, name: &str) {
+pub(super) fn assert_var_has_lower_con_bound(session: &AnalysisSession, var: TypeVar, name: &str) {
     let types = session.infer.constraints().types();
     let bounds = session
         .infer
@@ -325,7 +328,11 @@ fn assert_var_has_lower_con_bound(session: &AnalysisSession, var: TypeVar, name:
     }));
 }
 
-fn assert_var_has_lower_con_path(session: &AnalysisSession, var: TypeVar, path: &[&str]) {
+pub(super) fn assert_var_has_lower_con_path(
+    session: &AnalysisSession,
+    var: TypeVar,
+    path: &[&str],
+) {
     let expected = path
         .iter()
         .map(|segment| (*segment).to_string())
@@ -345,7 +352,7 @@ fn assert_var_has_lower_con_path(session: &AnalysisSession, var: TypeVar, path: 
     }));
 }
 
-fn effect_has_lower_source_with_row_upper(
+pub(super) fn effect_has_lower_source_with_row_upper(
     session: &AnalysisSession,
     effect: TypeVar,
     path: &[&str],

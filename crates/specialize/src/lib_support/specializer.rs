@@ -115,18 +115,6 @@ impl Specializer {
             });
         };
         let signature = types::signature_for_scheme(arena, def, scheme, expected)?;
-        if def.0 == 302 {
-            eprintln!(
-                "ensure target def={def:?} expected={expected:?} signature={:?}",
-                signature.ty
-            );
-        }
-        if expected.is_some() {
-            eprintln!(
-                "ensure instance def={def:?} expected={expected:?} signature={:?}",
-                signature.ty
-            );
-        }
         let wraps_stack_handler = !scheme.stack_quantifiers.is_empty();
         let key = InstanceKey {
             def,
@@ -199,24 +187,7 @@ impl Specializer {
                 op: convert_primitive_op(*op),
                 context: primitive_context(arena, *op, plan.actual_type_of(expr_id)),
             },
-            PolyExpr::Var(ref_id) => {
-                if arena.ref_target(*ref_id).is_some_and(|def| def.0 == 302) {
-                    eprintln!(
-                        "expr var target def302 expr={expr_id:?} actual={:?} boundary={:?}",
-                        plan.actual_type_of(expr_id),
-                        plan.boundary(expr_id)
-                    );
-                    for (def, poly_def) in arena.defs.iter() {
-                        let Some(body) = def_body(poly_def) else {
-                            continue;
-                        };
-                        if expr_contains_expr(arena, body, expr_id) {
-                            eprintln!("def302 ref expr contained in def={def:?}");
-                        }
-                    }
-                }
-                self.var(arena, *ref_id, var_instance_type(plan, expr_id))?
-            }
+            PolyExpr::Var(ref_id) => self.var(arena, *ref_id, var_instance_type(plan, expr_id))?,
             PolyExpr::App(callee, arg) => ExprKind::Apply(
                 Box::new(self.expr(arena, plan, *callee)?),
                 Box::new(self.expr(arena, plan, *arg)?),
@@ -366,9 +337,6 @@ impl Specializer {
         def: poly_expr::DefId,
         expected: Option<&Type>,
     ) -> Result<Expr, SpecializeError> {
-        if def.0 == 302 {
-            eprintln!("instance ref target def={def:?} expected={expected:?}");
-        }
         let instance = self.ensure_def_instance(arena, def, expected)?;
         let expr = Expr::new(ExprKind::InstanceRef(instance));
         let Some(expected) = expected else {
@@ -556,14 +524,6 @@ impl Specializer {
                     debug_expr_tree(arena, base, 3),
                     debug_expr_tree(arena, select, 3)
                 );
-                for (def, poly_def) in arena.defs.iter() {
-                    let Some(body) = def_body(poly_def) else {
-                        continue;
-                    };
-                    if expr_contains_expr(arena, body, base) {
-                        eprintln!("unresolved base contained in def={def:?}");
-                    }
-                }
                 Err(SpecializeError::UnresolvedTypeclassMethod {
                     member: convert_def(member),
                     receiver,

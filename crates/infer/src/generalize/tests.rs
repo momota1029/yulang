@@ -378,6 +378,72 @@ fn empty_stack_entry_with_plain_negative_var_is_internal() {
 }
 
 #[test]
+fn spent_residual_stack_entry_with_plain_negative_var_is_internal() {
+    let mut machine = ConstraintMachine::new();
+    let effect = TypeVar(2);
+    let subtract = SubtractId(3);
+    let handled = Subtractability::AllExcept(vec!["handled".into()], Vec::new());
+    machine.register_type_var(effect, TypeLevel::root().child());
+    let root = CompactRoot {
+        root: bipolar_effect_fun(
+            effect,
+            CompactType::from_var(CompactVar::covariant(
+                effect,
+                StackWeight::floor(subtract, handled.clone())
+                    .compose(&StackWeight::push(subtract, handled)),
+            )),
+        ),
+        rec_vars: Vec::new(),
+    };
+
+    let generalized =
+        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+    let mut types = TypeArena::new();
+    let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
+
+    assert!(generalized.stack_quantifiers.is_empty());
+    assert!(
+        !generalized.compact.root.funs[0].ret_eff.vars[0]
+            .weight
+            .contains(subtract)
+    );
+    assert!(finalized.scheme.stack_quantifiers.is_empty());
+}
+
+#[test]
+fn instantiated_stack_entry_with_plain_negative_var_is_internal() {
+    let mut machine = ConstraintMachine::new();
+    let effect = TypeVar(2);
+    let subtract = SubtractId(3);
+    let handled = Subtractability::Set(vec!["handled".into()], Vec::new());
+    machine.register_type_var(effect, TypeLevel::root().child());
+    let root = CompactRoot {
+        root: bipolar_effect_fun(
+            effect,
+            CompactType::from_var(CompactVar::covariant(
+                effect,
+                StackWeight::pops(subtract, u32::MAX)
+                    .compose(&StackWeight::push(subtract, handled)),
+            )),
+        ),
+        rec_vars: Vec::new(),
+    };
+
+    let generalized =
+        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+    let mut types = TypeArena::new();
+    let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
+
+    assert!(generalized.stack_quantifiers.is_empty());
+    assert!(
+        !generalized.compact.root.funs[0].ret_eff.vars[0]
+            .weight
+            .contains(subtract)
+    );
+    assert!(finalized.scheme.stack_quantifiers.is_empty());
+}
+
+#[test]
 fn low_level_stack_entry_is_not_stack_quantified() {
     let mut machine = ConstraintMachine::new();
     let effect = TypeVar(2);

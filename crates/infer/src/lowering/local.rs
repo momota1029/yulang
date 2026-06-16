@@ -10,6 +10,7 @@ pub(super) struct LocalBinding {
     pub(super) effect: Option<LocalEffect>,
     pub(super) call_return_effect: LocalCallReturnEffect,
     pub(super) unannotated_call_frame: Option<usize>,
+    pub(super) recursive_effect_passthrough: bool,
     pub(super) scheme: Option<Scheme>,
 }
 

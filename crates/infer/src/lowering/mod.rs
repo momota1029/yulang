@@ -78,6 +78,7 @@ use constructor::{
     ConstructorArg, build_constructor_payload_signatures, connect_constructor_arg_signatures,
     connect_constructor_pattern_arg_signatures, constrain_constructor_arg_shapes,
     constructor_payload_arity, declared_constructor_expr_payloads, prepare_constructor_args,
+    prepare_constructor_pattern_args,
 };
 use expr::ExprLowerer;
 use expr_syntax::*;

@@ -25,12 +25,9 @@ impl<'a> TaskSolver<'a> {
                     .get(&use_.expr)
                     .and_then(|ty| ty.consumer.as_ref())
                 {
-                    Some(consumer) => self.resolve_signature_type_with_context(
-                        &mut resolver,
-                        &use_.ty,
-                        consumer,
-                        TypeSlotKind::Value,
-                    )?,
+                    Some(consumer) => {
+                        self.resolve_signature_type(&mut resolver, consumer, TypeSlotKind::Value)?
+                    }
                     None => {
                         self.resolve_signature_type(&mut resolver, &use_.ty, TypeSlotKind::Value)?
                     }

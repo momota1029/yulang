@@ -1,11 +1,13 @@
 use super::*;
 
 impl AnalysisSession {
-    pub(super) fn generalize_root_with_prepasses(
+    pub(in crate::analysis) fn generalize_root_with_prepasses(
         &mut self,
         def: DefId,
         root: TypeVar,
     ) -> GeneralizedCompactRoot {
+        let trace = analysis_trace_mode();
+        let start = Instant::now();
         let quantification_boundary = self.generalize_boundary(def);
         let simplification_boundary = TypeLevel::root().child();
         let mut applied_casts = FxHashSet::<CompactCastKey>::default();
@@ -19,8 +21,14 @@ impl AnalysisSession {
         let mut applied_subtype_constraints = FxHashSet::<CompactSubtypeConstraintKey>::default();
         let mut compact;
         loop {
+            let phase = Instant::now();
             let (next_compact, mut merge_constraints) =
-                compact_type_var_recording_merge_constraints(self.infer.constraints(), root);
+                compact_type_var_recording_merge_constraints_for_scheme(
+                    self.infer.constraints(),
+                    root,
+                );
+            trace_generalize_phase(trace, "compact", def, phase.elapsed(), start);
+            let phase = Instant::now();
             let (role_constraints, role_collect_constraints) =
                 compact_reachable_role_constraints_recording_merge_constraints(
                     self.infer.constraints(),
@@ -29,17 +37,41 @@ impl AnalysisSession {
                 );
             let (coalesced_role_constraints, role_coalesce_constraints) =
                 coalesce_role_constraints_recording_merge_constraints(role_constraints);
+            trace_generalize_phase(trace, "collect roles", def, phase.elapsed(), start);
             merge_constraints.extend(role_collect_constraints);
             merge_constraints.extend(role_coalesce_constraints);
             compact = next_compact;
+            let phase = Instant::now();
+            let merge_constraint_count = merge_constraints.len();
             if apply_compact_merge_constraints(
                 self.infer.constraints_mut(),
                 merge_constraints,
                 &mut applied_merge_constraints,
             ) {
+                let elapsed = phase.elapsed();
+                trace_generalize_phase(trace, "apply merge constraints", def, elapsed, start);
+                trace_generalize_count(
+                    trace,
+                    "merge constraints",
+                    def,
+                    merge_constraint_count,
+                    elapsed,
+                    start,
+                );
                 self.route_constraint_events();
                 continue;
             }
+            let elapsed = phase.elapsed();
+            trace_generalize_phase(trace, "apply merge constraints", def, elapsed, start);
+            trace_generalize_count(
+                trace,
+                "merge constraints",
+                def,
+                merge_constraint_count,
+                elapsed,
+                start,
+            );
+            let phase = Instant::now();
             let mut dominance_compact = compact.clone();
             let mut dominance_roles = coalesced_role_constraints.clone();
             simplify_compact_root_with_roles_and_non_generic(
@@ -57,14 +89,30 @@ impl AnalysisSession {
             );
             let subtype_constraints =
                 collect_interval_dominance_constraints(&dominance_compact, &dominance_roles);
+            trace_generalize_phase(trace, "collect dominance", def, phase.elapsed(), start);
+            let phase = Instant::now();
             if apply_compact_subtype_constraints(
                 self.infer.constraints_mut(),
                 subtype_constraints,
                 &mut applied_subtype_constraints,
             ) {
+                trace_generalize_phase(
+                    trace,
+                    "apply subtype constraints",
+                    def,
+                    phase.elapsed(),
+                    start,
+                );
                 self.route_constraint_events();
                 continue;
             }
+            trace_generalize_phase(
+                trace,
+                "apply subtype constraints",
+                def,
+                phase.elapsed(),
+                start,
+            );
             normalize_compact_casts(&mut compact, &applied_casts);
             if let Some(batch) = find_next_compact_cast(&compact, &self.casts, &applied_casts) {
                 for application in &batch.applications {
@@ -75,6 +123,7 @@ impl AnalysisSession {
                 continue;
             }
 
+            let phase = Instant::now();
             let (role_compact, roles) =
                 self.simplified_reachable_role_constraints(def, &compact, simplification_boundary);
             let resolutions = resolve_role_constraints(
@@ -84,6 +133,7 @@ impl AnalysisSession {
                 &self.role_impls,
                 &applied_roles,
             );
+            trace_generalize_phase(trace, "resolve roles", def, phase.elapsed(), start);
             if !resolutions.is_empty() {
                 for resolution in resolutions {
                     applied_roles.insert(resolution.key.clone());
@@ -129,6 +179,7 @@ impl AnalysisSession {
             })
             .collect();
 
+        let phase = Instant::now();
         let simplifications = self
             .role_impl_member_simplifications
             .get(&def)
@@ -159,9 +210,11 @@ impl AnalysisSession {
             &mut compact,
             &mut role_predicates,
         );
+        trace_generalize_phase(trace, "final compact cleanup", def, phase.elapsed(), start);
         if !role_predicates.is_empty()
             && (!applied_role_candidates.is_empty() || !applied_role_demands.is_empty())
         {
+            let phase = Instant::now();
             let applied_after_final_simplification = self
                 .simplified_role_predicates_already_applied(
                     &compact,
@@ -177,8 +230,10 @@ impl AnalysisSession {
                     (!applied && !applied_role_demands.contains(&role)).then_some(role)
                 })
                 .collect();
+            trace_generalize_phase(trace, "filter applied roles", def, phase.elapsed(), start);
         }
 
+        let phase = Instant::now();
         let mut generalized = generalize_prepared_compact_root_with_role_variances_and_boundaries(
             self.infer.constraints(),
             quantification_boundary,
@@ -188,6 +243,7 @@ impl AnalysisSession {
             &self.role_input_variances,
             &FxHashSet::default(),
         );
+        trace_generalize_phase(trace, "generalize prepared", def, phase.elapsed(), start);
         if !floor_substitutions.is_empty()
             || !floor_variable_substitutions.is_empty()
             || !floor_redundant_substitutions.is_empty()
@@ -201,7 +257,7 @@ impl AnalysisSession {
         generalized
     }
 
-    pub(super) fn simplified_reachable_role_constraints(
+    pub(in crate::analysis) fn simplified_reachable_role_constraints(
         &self,
         def: DefId,
         compact: &crate::compact::CompactRoot,
@@ -474,5 +530,45 @@ impl AnalysisSession {
             return;
         };
         *target = Some(scheme);
+    }
+}
+
+fn trace_generalize_phase(
+    trace: AnalysisTraceMode,
+    phase: &str,
+    def: DefId,
+    elapsed: Duration,
+    start: Instant,
+) {
+    if trace == AnalysisTraceMode::Off {
+        return;
+    }
+    if trace == AnalysisTraceMode::Verbose || elapsed >= Duration::from_millis(50) {
+        eprintln!(
+            "[analysis] generalize {phase}: def={def:?} elapsed={:.3}ms total={:.3}ms",
+            elapsed.as_secs_f64() * 1000.0,
+            start.elapsed().as_secs_f64() * 1000.0
+        );
+    }
+}
+
+fn trace_generalize_count(
+    trace: AnalysisTraceMode,
+    label: &str,
+    def: DefId,
+    count: usize,
+    elapsed: Duration,
+    start: Instant,
+) {
+    if trace == AnalysisTraceMode::Off {
+        return;
+    }
+    if trace == AnalysisTraceMode::Verbose || elapsed >= Duration::from_millis(50) {
+        eprintln!(
+            "[analysis] generalize {label}: def={def:?} count={} elapsed={:.3}ms total={:.3}ms",
+            count,
+            elapsed.as_secs_f64() * 1000.0,
+            start.elapsed().as_secs_f64() * 1000.0
+        );
     }
 }

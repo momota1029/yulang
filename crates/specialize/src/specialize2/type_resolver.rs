@@ -170,16 +170,30 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                     ret_effect: context_ret_effect,
                     ret: context_ret,
                 },
-            ) => Ok(Type::Fun {
-                arg: Box::new(self.resolve_with_context_leaf(arg, context_arg)?),
-                arg_effect: Box::new(
-                    self.resolve_with_context_leaf(arg_effect, context_arg_effect)?,
-                ),
-                ret_effect: Box::new(
-                    self.resolve_with_context_leaf(ret_effect, context_ret_effect)?,
-                ),
-                ret: Box::new(self.resolve_with_context_leaf(ret, context_ret)?),
-            }),
+            ) => {
+                let (arg, arg_effect) =
+                    split_declared_runtime_shape(arg.as_ref().clone(), arg_effect.as_ref().clone());
+                let (ret, ret_effect) =
+                    split_declared_runtime_shape(ret.as_ref().clone(), ret_effect.as_ref().clone());
+                let (context_arg, context_arg_effect) = split_declared_runtime_shape(
+                    context_arg.as_ref().clone(),
+                    context_arg_effect.as_ref().clone(),
+                );
+                let (context_ret, context_ret_effect) = split_declared_runtime_shape(
+                    context_ret.as_ref().clone(),
+                    context_ret_effect.as_ref().clone(),
+                );
+                Ok(Type::Fun {
+                    arg: Box::new(self.resolve_with_context_leaf(&arg, &context_arg)?),
+                    arg_effect: Box::new(
+                        self.resolve_with_context_leaf(&arg_effect, &context_arg_effect)?,
+                    ),
+                    ret_effect: Box::new(
+                        self.resolve_with_context_leaf(&ret_effect, &context_ret_effect)?,
+                    ),
+                    ret: Box::new(self.resolve_with_context_leaf(&ret, &context_ret)?),
+                })
+            }
             (
                 Type::Thunk { effect, value },
                 Type::Thunk {

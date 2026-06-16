@@ -806,7 +806,7 @@ fn row_and_con_same_path_records_payload_merge_constraints() {
     assert_eq!(constraints.len(), 1);
 }
 
-fn compact_row_contains_path(compact: &CompactType, path: &str) -> bool {
+pub(super) fn compact_row_contains_path(compact: &CompactType, path: &str) -> bool {
     compact.rows.iter().any(|row| {
         row.items
             .keys()
@@ -815,7 +815,7 @@ fn compact_row_contains_path(compact: &CompactType, path: &str) -> bool {
     }) || compact_type_contains_path_without_rows(compact, path)
 }
 
-fn compact_type_contains_path(compact: &CompactType, path: &str) -> bool {
+pub(super) fn compact_type_contains_path(compact: &CompactType, path: &str) -> bool {
     compact_type_contains_path_without_rows(compact, path)
         || compact.rows.iter().any(|row| {
             row.items
@@ -825,7 +825,7 @@ fn compact_type_contains_path(compact: &CompactType, path: &str) -> bool {
         })
 }
 
-fn compact_type_contains_path_without_rows(compact: &CompactType, path: &str) -> bool {
+pub(super) fn compact_type_contains_path_without_rows(compact: &CompactType, path: &str) -> bool {
     compact
         .cons
         .keys()
@@ -836,7 +836,7 @@ fn compact_type_contains_path_without_rows(compact: &CompactType, path: &str) ->
             .any(|builtin| builtin.surface_name() == path)
 }
 
-fn compact_type_contains_var(compact: &CompactType, expected: TypeVar) -> bool {
+pub(super) fn compact_type_contains_var(compact: &CompactType, expected: TypeVar) -> bool {
     compact.vars.iter().any(|var| var.var == expected)
 }
 
@@ -865,7 +865,7 @@ fn empty_interval(center: TypeVar) -> CompactBounds {
     }
 }
 
-fn compact_path_is(actual: &[String], expected: &str) -> bool {
+pub(super) fn compact_path_is(actual: &[String], expected: &str) -> bool {
     actual.len() == 1 && actual[0] == expected
 }
 
@@ -922,7 +922,7 @@ fn list_with_payload_bound(center: TypeVar, payload: CompactBounds) -> CompactTy
     )
 }
 
-fn role_arg(machine: &mut ConstraintMachine, var: TypeVar) -> RoleConstraintArg {
+pub(super) fn role_arg(machine: &mut ConstraintMachine, var: TypeVar) -> RoleConstraintArg {
     RoleConstraintArg {
         lower: machine.alloc_pos(Pos::Var(var)),
         upper: machine.alloc_neg(Neg::Var(var)),

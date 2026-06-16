@@ -31,7 +31,8 @@ use crate::compact::{
     collect_interval_dominance_constraints, compact_reachable_role_constraints,
     compact_reachable_role_constraints_recording_merge_constraints, compact_role_constraint,
     compact_role_constraint_recording_merge_constraints,
-    compact_type_var_recording_merge_constraints, eliminate_floor_redundant_variables,
+    compact_type_var_recording_merge_constraints,
+    compact_type_var_recording_merge_constraints_for_scheme, eliminate_floor_redundant_variables,
     finalize_compact_bounds_to_constraint, finalize_compact_type_to_neg_constraint,
     finalize_compact_type_to_pos_constraint, find_next_compact_cast, normalize_compact_casts,
     normalize_var_substitutions, simplify_compact_root_with_roles_and_non_generic,
@@ -57,7 +58,7 @@ use crate::roles::{
     RoleImplTable, RoleInputVariance, RoleInputVarianceTable,
 };
 use crate::scc::{SccEvent, SccInput, SccMachine};
-use crate::time::Instant;
+use crate::time::{Duration, Instant};
 use crate::typing::BindingFetch;
 use crate::uses::{RefUseTable, SelectionUse, SelectionUseTable};
 use method_taint::{

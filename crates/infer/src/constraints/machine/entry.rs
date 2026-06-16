@@ -6,6 +6,7 @@ impl ConstraintMachine {
             types: TypeArena::new(),
             queue: VecDeque::new(),
             bounds: TypeBounds::new(),
+            var_adjacency: FxHashMap::default(),
             subtracts: SubtractTable::new(),
             levels: TypeLevels::new(),
             next_internal_type_var: 0,
@@ -40,6 +41,13 @@ impl ConstraintMachine {
 
     pub fn bounds(&self) -> &TypeBounds {
         &self.bounds
+    }
+
+    pub(crate) fn var_neighbors(&self, var: TypeVar) -> impl Iterator<Item = TypeVar> + '_ {
+        self.var_adjacency
+            .get(&var)
+            .into_iter()
+            .flat_map(|neighbors| neighbors.keys().copied())
     }
 
     pub fn subtracts(&self) -> &SubtractTable {
@@ -92,6 +100,28 @@ impl ConstraintMachine {
         self.enqueue_invariant_neu(lower, upper, ConstraintWeights::empty());
         self.drain();
         self.seen.len() != seen_len
+    }
+
+    pub(crate) fn constrain_var_var_pairs_direct(
+        &mut self,
+        pairs: impl IntoIterator<Item = (TypeVar, TypeVar)>,
+    ) -> bool {
+        let seen_len = self.seen.len();
+        let var_var_seen_len = self.var_var_seen.len();
+        for (lower, upper) in pairs {
+            if lower == upper {
+                continue;
+            }
+            if !self.record_var_var_pair(lower, upper, &ConstraintWeights::empty()) {
+                continue;
+            }
+            let lower_pos = self.alloc_pos(Pos::Var(lower));
+            let upper_neg = self.alloc_neg(Neg::Var(upper));
+            self.add_lower_bound(upper, lower_pos, ConstraintWeights::empty());
+            self.add_upper_bound(lower, upper_neg, ConstraintWeights::empty());
+        }
+        self.drain();
+        self.seen.len() != seen_len || self.var_var_seen.len() != var_var_seen_len
     }
 
     pub fn subtract_fact(
@@ -191,11 +221,12 @@ impl ConstraintMachine {
         if lower == upper {
             return false;
         }
-        self.var_var_seen.insert(VarVarConstraint {
+        let inserted = self.var_var_seen.insert(VarVarConstraint {
             lower,
             upper,
             weights: weights.clone(),
-        })
+        });
+        inserted
     }
 
     pub(in crate::constraints) fn terminal_subtype_weights(

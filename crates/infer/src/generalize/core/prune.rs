@@ -647,7 +647,7 @@ pub(in crate::generalize) fn cleanup_empty_stack_entries_with_plain_negative_occ
 
 #[derive(Default)]
 pub(in crate::generalize) struct EmptyStackOccurrences {
-    positive_empty_entries: FxHashMap<TypeVar, FxHashSet<SubtractId>>,
+    positive_internal_entries: FxHashMap<TypeVar, FxHashSet<SubtractId>>,
     plain_negative_vars: FxHashSet<TypeVar>,
 }
 
@@ -655,8 +655,8 @@ impl EmptyStackOccurrences {
     fn record_type(&mut self, var: &CompactVar, covariant: bool) {
         if covariant {
             for entry in var.weight.entries() {
-                if empty_stack_entry_only(entry) {
-                    self.positive_empty_entries
+                if internal_stack_entry_with_plain_negative_counterpart(entry) {
+                    self.positive_internal_entries
                         .entry(var.var)
                         .or_default()
                         .insert(entry.id);
@@ -668,11 +668,19 @@ impl EmptyStackOccurrences {
     }
 
     fn redundant_positive_entries(self) -> FxHashMap<TypeVar, FxHashSet<SubtractId>> {
-        self.positive_empty_entries
+        self.positive_internal_entries
             .into_iter()
             .filter(|(var, _)| self.plain_negative_vars.contains(var))
             .collect()
     }
+}
+
+pub(in crate::generalize) fn internal_stack_entry_with_plain_negative_counterpart(
+    entry: &poly::types::StackWeightEntry,
+) -> bool {
+    empty_stack_entry_only(entry)
+        || spent_residual_stack_entry(entry)
+        || instantiated_stack_entry(entry)
 }
 
 pub(in crate::generalize) fn empty_stack_entry_only(entry: &poly::types::StackWeightEntry) -> bool {
@@ -683,6 +691,29 @@ pub(in crate::generalize) fn empty_stack_entry_only(entry: &poly::types::StackWe
             .stack
             .iter()
             .all(|item| matches!(item, Subtractability::Empty))
+}
+
+pub(in crate::generalize) fn spent_residual_stack_entry(
+    entry: &poly::types::StackWeightEntry,
+) -> bool {
+    let [floor] = entry.floor.as_slice() else {
+        return false;
+    };
+    if entry.stack.is_empty() {
+        return false;
+    }
+    let common = entry
+        .stack
+        .iter()
+        .cloned()
+        .fold(floor.clone(), Subtractability::intersect);
+    common == *floor
+}
+
+pub(in crate::generalize) fn instantiated_stack_entry(
+    entry: &poly::types::StackWeightEntry,
+) -> bool {
+    entry.pops == u32::MAX && !entry.stack.is_empty()
 }
 
 pub(in crate::generalize) fn collect_empty_stack_occurrences_in_role(

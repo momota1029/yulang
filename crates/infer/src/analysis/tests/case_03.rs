@@ -209,7 +209,7 @@ fn add_identity_function_lower_bound(session: &mut AnalysisSession, root: TypeVa
     session.infer.subtype(lower, upper);
 }
 
-fn monomorphic_cast_scheme(
+pub(super) fn monomorphic_cast_scheme(
     types: &mut poly::types::TypeArena,
     source: Vec<String>,
     target: Vec<String>,
@@ -233,7 +233,7 @@ fn monomorphic_cast_scheme(
     }
 }
 
-fn generic_unary_cast_scheme(
+pub(super) fn generic_unary_cast_scheme(
     types: &mut poly::types::TypeArena,
     source: Vec<String>,
     target: Vec<String>,
@@ -266,27 +266,30 @@ fn poly_bounds_neu(types: &mut poly::types::TypeArena, var: TypeVar) -> NeuId {
     types.alloc_neu(Neu::Bounds(lower, upper))
 }
 
-fn infer_bounds_neu(infer: &mut crate::arena::Arena, var: TypeVar) -> NeuId {
+pub(super) fn infer_bounds_neu(infer: &mut crate::arena::Arena, var: TypeVar) -> NeuId {
     let lower = infer.alloc_pos(Pos::Var(var));
     let upper = infer.alloc_neg(Neg::Var(var));
     infer.alloc_neu(Neu::Bounds(lower, upper))
 }
 
-fn role_var_arg(infer: &mut crate::arena::Arena, var: TypeVar) -> RoleConstraintArg {
+pub(super) fn role_var_arg(infer: &mut crate::arena::Arena, var: TypeVar) -> RoleConstraintArg {
     RoleConstraintArg {
         lower: infer.alloc_pos(Pos::Var(var)),
         upper: infer.alloc_neg(Neg::Var(var)),
     }
 }
 
-fn role_exact_arg(infer: &mut crate::arena::Arena, path: Vec<String>) -> RoleConstraintArg {
+pub(super) fn role_exact_arg(
+    infer: &mut crate::arena::Arena,
+    path: Vec<String>,
+) -> RoleConstraintArg {
     RoleConstraintArg {
         lower: infer.alloc_pos(Pos::Con(path.clone(), Vec::new())),
         upper: infer.alloc_neg(Neg::Con(path, Vec::new())),
     }
 }
 
-fn role_unary_con_var_arg(
+pub(super) fn role_unary_con_var_arg(
     infer: &mut crate::arena::Arena,
     path: Vec<String>,
     item: TypeVar,
@@ -300,7 +303,7 @@ fn role_unary_con_var_arg(
     }
 }
 
-fn role_unary_con_var_and_extra_arg(
+pub(super) fn role_unary_con_var_and_extra_arg(
     infer: &mut crate::arena::Arena,
     path: Vec<String>,
     item: TypeVar,
@@ -319,7 +322,7 @@ fn role_unary_con_var_and_extra_arg(
     }
 }
 
-fn role_unary_con_open_arg(
+pub(super) fn role_unary_con_open_arg(
     infer: &mut crate::arena::Arena,
     path: Vec<String>,
     _item: TypeVar,
@@ -335,7 +338,7 @@ fn role_unary_con_open_arg(
     }
 }
 
-fn role_unary_con_open_or_var_arg(
+pub(super) fn role_unary_con_open_or_var_arg(
     infer: &mut crate::arena::Arena,
     path: Vec<String>,
     _item: TypeVar,
@@ -354,7 +357,7 @@ fn role_unary_con_open_or_var_arg(
     }
 }
 
-fn role_unary_con_exact_arg(
+pub(super) fn role_unary_con_exact_arg(
     infer: &mut crate::arena::Arena,
     path: Vec<String>,
     item_path: Vec<String>,
@@ -368,7 +371,7 @@ fn role_unary_con_exact_arg(
     }
 }
 
-fn role_left_concrete_var_arg(
+pub(super) fn role_left_concrete_var_arg(
     infer: &mut crate::arena::Arena,
     path: Vec<String>,
     var: TypeVar,
@@ -381,7 +384,7 @@ fn role_left_concrete_var_arg(
     }
 }
 
-fn assert_var_has_exact_bound(session: &AnalysisSession, var: TypeVar, path: &[String]) {
+pub(super) fn assert_var_has_exact_bound(session: &AnalysisSession, var: TypeVar, path: &[String]) {
     let bounds = session
         .infer
         .constraints()
@@ -402,7 +405,11 @@ fn assert_var_has_exact_bound(session: &AnalysisSession, var: TypeVar, path: &[S
     }));
 }
 
-fn assert_var_lacks_exact_bound(session: &AnalysisSession, var: TypeVar, path: &[String]) {
+pub(super) fn assert_var_lacks_exact_bound(
+    session: &AnalysisSession,
+    var: TypeVar,
+    path: &[String],
+) {
     let Some(bounds) = session.infer.constraints().bounds().of(var) else {
         return;
     };
@@ -420,7 +427,7 @@ fn assert_var_lacks_exact_bound(session: &AnalysisSession, var: TypeVar, path: &
     }));
 }
 
-fn assert_concrete_role_residual_exists(
+pub(super) fn assert_concrete_role_residual_exists(
     session: &AnalysisSession,
     owner: DefId,
     role: &[String],
@@ -443,7 +450,7 @@ fn assert_concrete_role_residual_exists(
     );
 }
 
-fn assert_concrete_role_residual_missing(
+pub(super) fn assert_concrete_role_residual_missing(
     session: &AnalysisSession,
     owner: DefId,
     role: &[String],

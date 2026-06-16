@@ -56,6 +56,7 @@ impl AnalysisSession {
 
     pub(super) fn probe_select(&mut self, select_id: SelectId) {
         if self.poly.select(select_id).resolution.is_some() {
+            self.selections.remove(select_id);
             return;
         }
         let Some(use_site) = self.selections.get(select_id).copied() else {

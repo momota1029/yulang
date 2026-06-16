@@ -44,7 +44,7 @@ impl<'a> SchemeMaterializer<'a> {
                 self.collect_pos_kind(*right, context);
             }
             Pos::Bot => {
-                if self.track_empty_bounds {
+                if self.track_empty_bounds && context == TypeContext::Value {
                     self.empty_bound_kinds.push(context);
                 }
             }
@@ -90,7 +90,7 @@ impl<'a> SchemeMaterializer<'a> {
                 self.collect_neg_kind(*right, context);
             }
             Neg::Top => {
-                if self.track_empty_bounds {
+                if self.track_empty_bounds && context == TypeContext::Value {
                     self.empty_bound_kinds.push(context);
                 }
             }
@@ -116,7 +116,7 @@ impl<'a> SchemeMaterializer<'a> {
                     return;
                 }
                 let empty = !has_lower && !has_upper;
-                if self.track_empty_bounds && empty {
+                if self.track_empty_bounds && empty && context == TypeContext::Value {
                     self.empty_bound_kinds.push(context);
                     return;
                 }

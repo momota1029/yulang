@@ -137,7 +137,7 @@ fn dump_mono_without_std_passes_argument_effect_through_pure_function() {
     assert_eq!(output.file_count, 1);
     assert_mono_dump_contains(
         &output,
-        "mono roots [force-thunk[thunk[[out], int] => int ! [out]]",
+        "mono roots [(m0 force-thunk[thunk[[out], int] => int ! [out]]",
     );
     assert_mono_dump_contains(&output, "m0 = d2 : int -> int");
 }
@@ -319,7 +319,7 @@ fn dump_mono_without_std_lowers_apply_colon_polymorphic_stack_handler_call() {
     let output = dump_mono_from_entry(root.join("main.yu")).unwrap();
 
     assert_eq!(output.file_count, 1);
-    assert_mono_dump_contains(&output, "mono roots [(m0 make-thunk");
+    assert_mono_dump_contains(&output, "mono roots [(m0 (<effect-op sub::return> 0))]");
     assert_mono_dump_contains(&output, "m0 = d2 : thunk[[sub(int)], int] -> int");
     assert_mono_dump_contains(&output, "marker[sub]");
     assert_mono_dump_contains(&output, "sub::return d");
@@ -457,6 +457,28 @@ fn dump_mono_with_std_specializes_list_display() {
 
     assert_mono_dump_contains(&output, "std::data::list::list(int) -> std::text::str::str");
     assert_mono_dump_contains(&output, "std::data::list::list_view(int)");
+}
+
+#[cfg(unix)]
+#[test]
+fn dump_poly_with_std_keeps_computed_local_overloaded_result() {
+    let entry = write_main_with_std(
+        "dump-poly-std-computed-local-overloaded-result",
+        "our add() =\n\
+             \x20 my a = 1 + 2\n\
+             \x20 a.show\n\
+             \x20 a\n\n\
+             add()\n",
+    );
+
+    let output = dump_poly_from_entry_with_std(entry).unwrap();
+
+    assert_dump_contains(&output, "d1:add: () -> int");
+    assert!(
+        !output.text.contains("d1:add: () -> never"),
+        "{}",
+        output.text
+    );
 }
 
 #[cfg(unix)]

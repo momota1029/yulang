@@ -65,7 +65,7 @@ fn struct_constructor_field_signature_records_data_tail_stack() {
     assert!(weight_has_all_except_path(weight, &["ref_update"]));
 }
 
-fn assert_method_body_is_receiver_identity(output: &BodyLowering, method: DefId) {
+pub(super) fn assert_method_body_is_receiver_identity(output: &BodyLowering, method: DefId) {
     let body = binding_body_id(output, method);
     let (pat, body) = match output.session.poly.expr(body) {
         Expr::Lambda(pat, body) => (*pat, *body),
@@ -80,7 +80,7 @@ fn assert_method_body_is_receiver_identity(output: &BodyLowering, method: DefId)
     assert_eq!(output.session.poly.ref_target(reference), Some(receiver));
 }
 
-fn assert_act_method_receiver_has_self_subtract(
+pub(super) fn assert_act_method_receiver_has_self_subtract(
     output: &BodyLowering,
     method: DefId,
     effect_name: &str,
@@ -119,7 +119,10 @@ fn assert_act_method_receiver_has_self_subtract(
     assert_pos_or_var_lower_stack_pop_var(&output.session, ret, subtract);
 }
 
-fn function_lower_bound(session: &AnalysisSession, var: TypeVar) -> (NegId, NegId, PosId, PosId) {
+pub(super) fn function_lower_bound(
+    session: &AnalysisSession,
+    var: TypeVar,
+) -> (NegId, NegId, PosId, PosId) {
     let mut stack = vec![var];
     let mut visited = Vec::new();
     while let Some(var) = stack.pop() {
@@ -196,7 +199,7 @@ fn function_upper_bound_ret_effect_row(
     panic!("expected function upper bound");
 }
 
-fn type_field_method(
+pub(super) fn type_field_method(
     modules: &ModuleTable,
     owner: TypeDeclId,
     name: &str,
@@ -210,7 +213,7 @@ fn type_field_method(
         .expect("type field method should be registered")
 }
 
-fn assert_pos_stack_pop_var(
+pub(super) fn assert_pos_stack_pop_var(
     session: &AnalysisSession,
     pos: PosId,
     subtract: SubtractId,
@@ -239,7 +242,7 @@ fn assert_pos_stack_pop_var(
     }
 }
 
-fn assert_pos_or_var_lower_stack_pop_var(
+pub(super) fn assert_pos_or_var_lower_stack_pop_var(
     session: &AnalysisSession,
     pos: PosId,
     subtract: SubtractId,
@@ -295,7 +298,7 @@ fn stack_weight_has_single_pop(weight: &StackWeight, subtract: SubtractId) -> bo
     entry.id == subtract && entry.pops == 1 && entry.stack.is_empty()
 }
 
-fn weight_set_path_id(weight: &StackWeight, expected: &[&str]) -> Option<SubtractId> {
+pub(super) fn weight_set_path_id(weight: &StackWeight, expected: &[&str]) -> Option<SubtractId> {
     weight.entries().iter().find_map(|entry| {
         if entry.stack.iter().any(|subtractability| {
             matches!(
@@ -323,7 +326,7 @@ fn weight_has_all_except_path(weight: &StackWeight, expected: &[&str]) -> bool {
     })
 }
 
-fn weight_has_empty_stack(weight: &StackWeight, subtract: SubtractId) -> bool {
+pub(super) fn weight_has_empty_stack(weight: &StackWeight, subtract: SubtractId) -> bool {
     weight.entries().iter().any(|entry| {
         entry.id == subtract
             && entry.pops == 0
@@ -338,7 +341,7 @@ fn path_matches(path: &[String], expected: &[&str]) -> bool {
     path.iter().map(String::as_str).eq(expected.iter().copied())
 }
 
-fn role_arg_vars(types: &TypeArena, arg: &RoleConstraintArg) -> FxHashSet<TypeVar> {
+pub(super) fn role_arg_vars(types: &TypeArena, arg: &RoleConstraintArg) -> FxHashSet<TypeVar> {
     let mut vars = FxHashSet::default();
     collect_pos_id_vars(types, arg.lower, &mut vars);
     collect_neg_id_vars(types, arg.upper, &mut vars);

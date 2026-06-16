@@ -1,5 +1,5 @@
 mod tests {
-    use super::{boundary_expr, specialize, specialize_roots, specialize2};
+    use crate::{boundary_expr, specialize, specialize_roots, specialize2};
     use mono::{
         ComputationType, EffectiveThunkType, ExprKind, GuardMarker, InstanceSource, Lit, Type,
     };

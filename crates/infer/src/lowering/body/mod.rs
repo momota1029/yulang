@@ -439,6 +439,7 @@ impl BodyLowerer {
                 root,
             }));
         let has_header_args = !arg_patterns.is_empty();
+        let has_type_annotation = binding_type_expr(node).is_some();
         let result_type_expr = has_header_args.then(|| binding_type_expr(node)).flatten();
 
         let lowered = ExprLowerer::with_labels(
@@ -450,6 +451,7 @@ impl BodyLowerer {
             &mut self.labels,
         )
         .with_local_method_scope(self.local_method_scope)
+        .with_parent_type_annotation(has_type_annotation)
         .with_self_alias(self_alias.clone())
         .with_type_var_aliases(type_var_aliases)
         .with_type_name_aliases(type_name_aliases)

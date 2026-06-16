@@ -11,6 +11,7 @@ impl ConstraintMachine {
         if !self.bounds.add_lower(target, pos, weights.clone()) {
             return;
         }
+        self.record_pos_bound_var_neighbors(target, pos);
         self.events.push(ConstraintEvent::LowerBoundAdded {
             var: target,
             bound: pos,
@@ -27,7 +28,7 @@ impl ConstraintMachine {
         for (index, upper) in uppers.into_iter().enumerate() {
             trace_bound_replay_progress("lower", target, index);
             let replay_weights = weights.compose_for_replay(&upper.weights);
-            if self.is_var_var_replay(pos, upper.neg) && !replay_weights.is_empty() {
+            if self.is_var_var_replay(pos, upper.neg) {
                 self.add_var_var_bound_without_replay(pos, upper.neg, replay_weights);
                 continue;
             }
@@ -42,9 +43,14 @@ impl ConstraintMachine {
         weights: ConstraintWeights,
     ) {
         let neg = self.extrude_neg(neg, self.level_of(source));
+        if self.upper_bound_subsumed_by_existing(source, neg, &weights) {
+            return;
+        }
+        self.prune_upper_rows_subsumed_by(source, neg, &weights);
         if !self.bounds.add_upper(source, neg, weights.clone()) {
             return;
         }
+        self.record_neg_bound_var_neighbors(source, neg);
         self.events.push(ConstraintEvent::UpperBoundAdded {
             var: source,
             bound: neg,
@@ -61,7 +67,7 @@ impl ConstraintMachine {
         for (index, lower) in lowers.into_iter().enumerate() {
             trace_bound_replay_progress("upper", source, index);
             let replay_weights = lower.weights.compose_for_replay(&weights);
-            if self.is_var_var_replay(lower.pos, neg) && !replay_weights.is_empty() {
+            if self.is_var_var_replay(lower.pos, neg) {
                 self.add_var_var_bound_without_replay(lower.pos, neg, replay_weights);
                 continue;
             }
@@ -87,7 +93,9 @@ impl ConstraintMachine {
             return;
         }
         let upper = self.extrude_neg(upper, self.level_of(lower_var));
+        self.prune_upper_rows_subsumed_by(lower_var, upper, &weights);
         if self.bounds.add_upper(lower_var, upper, weights.clone()) {
+            self.record_neg_bound_var_neighbors(lower_var, upper);
             self.events.push(ConstraintEvent::UpperBoundAdded {
                 var: lower_var,
                 bound: upper,
@@ -105,16 +113,29 @@ impl ConstraintMachine {
                 .map(|bounds| bounds.lowers.clone())
                 .unwrap_or_default();
             for lower_bound in lowers {
-                if matches!(self.types.pos(lower_bound.pos), Pos::Var(_)) {
+                let replay_weights = lower_bound.weights.compose_for_replay(&weights);
+                if self.is_var_var_replay(lower_bound.pos, upper) {
+                    if Self::should_close_var_var_replay(
+                        &lower_bound.weights,
+                        &weights,
+                        &replay_weights,
+                    ) && Self::weights_are_pop_only(&replay_weights)
+                    {
+                        self.add_var_var_bound_without_replay(
+                            lower_bound.pos,
+                            upper,
+                            replay_weights,
+                        );
+                    }
                     continue;
                 }
-                let replay_weights = lower_bound.weights.compose_for_replay(&weights);
                 self.enqueue_subtype(lower_bound.pos, replay_weights, upper);
             }
         }
 
         let lower = self.extrude_pos(lower, self.level_of(upper_var));
         if self.bounds.add_lower(upper_var, lower, weights.clone()) {
+            self.record_pos_bound_var_neighbors(upper_var, lower);
             self.events.push(ConstraintEvent::LowerBoundAdded {
                 var: upper_var,
                 bound: lower,
@@ -132,10 +153,22 @@ impl ConstraintMachine {
                 .map(|bounds| bounds.uppers.clone())
                 .unwrap_or_default();
             for upper_bound in uppers {
-                if matches!(self.types.neg(upper_bound.neg), Neg::Var(_)) {
+                let replay_weights = weights.compose_for_replay(&upper_bound.weights);
+                if self.is_var_var_replay(lower, upper_bound.neg) {
+                    if Self::should_close_var_var_replay(
+                        &weights,
+                        &upper_bound.weights,
+                        &replay_weights,
+                    ) && Self::weights_are_pop_only(&replay_weights)
+                    {
+                        self.add_var_var_bound_without_replay(
+                            lower,
+                            upper_bound.neg,
+                            replay_weights,
+                        );
+                    }
                     continue;
                 }
-                let replay_weights = weights.compose_for_replay(&upper_bound.weights);
                 self.enqueue_subtype(lower, replay_weights, upper_bound.neg);
             }
         }
@@ -143,6 +176,150 @@ impl ConstraintMachine {
 
     pub(in crate::constraints) fn is_var_var_replay(&self, lower: PosId, upper: NegId) -> bool {
         matches!(self.types.pos(lower), Pos::Var(_)) && matches!(self.types.neg(upper), Neg::Var(_))
+    }
+
+    pub(in crate::constraints) fn upper_bound_subsumed_by_existing(
+        &self,
+        source: TypeVar,
+        neg: NegId,
+        weights: &ConstraintWeights,
+    ) -> bool {
+        if !weights.is_empty() {
+            return false;
+        }
+        let Neg::Row(_, tail) = self.types.neg(neg) else {
+            return false;
+        };
+        let Some(bounds) = self.bounds.of(source) else {
+            return false;
+        };
+        bounds.uppers().iter().any(|upper| {
+            upper.weights.is_empty() && self.neg_ids_match_for_row_tail(upper.neg, *tail)
+        })
+    }
+
+    pub(in crate::constraints) fn prune_upper_rows_subsumed_by(
+        &mut self,
+        source: TypeVar,
+        neg: NegId,
+        weights: &ConstraintWeights,
+    ) {
+        if !weights.is_empty() {
+            return;
+        }
+        let Some(bounds) = self.bounds.vars.get_mut(&source) else {
+            return;
+        };
+        let mut removed = Vec::new();
+        bounds.uppers.retain(|upper| {
+            let keep = !upper.weights.is_empty() || !row_tail_matches(&self.types, upper.neg, neg);
+            if !keep {
+                removed.push(upper.neg);
+            }
+            keep
+        });
+        for upper in removed {
+            self.unrecord_neg_bound_var_neighbors(source, upper);
+        }
+    }
+
+    pub(in crate::constraints) fn record_pos_bound_var_neighbors(
+        &mut self,
+        source: TypeVar,
+        pos: PosId,
+    ) {
+        let mut vars = FxHashSet::default();
+        collect_pos_id_vars(&self.types, pos, &mut vars);
+        self.record_bound_var_neighbors(source, vars);
+    }
+
+    pub(in crate::constraints) fn record_neg_bound_var_neighbors(
+        &mut self,
+        source: TypeVar,
+        neg: NegId,
+    ) {
+        let mut vars = FxHashSet::default();
+        collect_neg_id_vars(&self.types, neg, &mut vars);
+        self.record_bound_var_neighbors(source, vars);
+    }
+
+    pub(in crate::constraints) fn unrecord_neg_bound_var_neighbors(
+        &mut self,
+        source: TypeVar,
+        neg: NegId,
+    ) {
+        let mut vars = FxHashSet::default();
+        collect_neg_id_vars(&self.types, neg, &mut vars);
+        self.unrecord_bound_var_neighbors(source, vars);
+    }
+
+    fn record_bound_var_neighbors(
+        &mut self,
+        source: TypeVar,
+        vars: impl IntoIterator<Item = TypeVar>,
+    ) {
+        for var in vars {
+            self.record_var_neighbor(source, var);
+        }
+    }
+
+    fn unrecord_bound_var_neighbors(
+        &mut self,
+        source: TypeVar,
+        vars: impl IntoIterator<Item = TypeVar>,
+    ) {
+        for var in vars {
+            self.unrecord_var_neighbor(source, var);
+        }
+    }
+
+    fn record_var_neighbor(&mut self, left: TypeVar, right: TypeVar) {
+        if left == right {
+            return;
+        }
+        *self
+            .var_adjacency
+            .entry(left)
+            .or_default()
+            .entry(right)
+            .or_default() += 1;
+        *self
+            .var_adjacency
+            .entry(right)
+            .or_default()
+            .entry(left)
+            .or_default() += 1;
+    }
+
+    fn unrecord_var_neighbor(&mut self, left: TypeVar, right: TypeVar) {
+        if left == right {
+            return;
+        }
+        decrement_var_neighbor(&mut self.var_adjacency, left, right);
+        decrement_var_neighbor(&mut self.var_adjacency, right, left);
+    }
+
+    fn neg_ids_match_for_row_tail(&self, lhs: NegId, rhs: NegId) -> bool {
+        neg_ids_match_for_row_tail(&self.types, lhs, rhs)
+    }
+
+    fn should_close_var_var_replay(
+        left: &ConstraintWeights,
+        right: &ConstraintWeights,
+        replay: &ConstraintWeights,
+    ) -> bool {
+        !replay.is_empty() || !left.is_empty() || !right.is_empty()
+    }
+
+    fn weights_are_pop_only(weights: &ConstraintWeights) -> bool {
+        Self::weight_is_pop_only(&weights.left) && Self::weight_is_pop_only(&weights.right)
+    }
+
+    fn weight_is_pop_only(weight: &ConstraintWeight) -> bool {
+        weight
+            .entries()
+            .iter()
+            .all(|entry| entry.floor.is_empty() && entry.stack.is_empty())
     }
 
     pub(in crate::constraints) fn extrude_pos(&mut self, pos: PosId, target: TypeLevel) -> PosId {
@@ -158,6 +335,9 @@ impl ConstraintMachine {
     }
 
     pub(in crate::constraints) fn extrude_pos_id(&mut self, id: PosId, ctx: &mut ExtrudeCtx) {
+        if !ctx.visited_pos.insert(id) {
+            return;
+        }
         match self.types.pos(id).clone() {
             Pos::Bot => {}
             Pos::Var(var) => self.extrude_type_var(var, ctx),
@@ -212,6 +392,9 @@ impl ConstraintMachine {
     }
 
     pub(in crate::constraints) fn extrude_neg_id(&mut self, id: NegId, ctx: &mut ExtrudeCtx) {
+        if !ctx.visited_neg.insert(id) {
+            return;
+        }
         match self.types.neg(id).clone() {
             Neg::Top | Neg::Bot => {}
             Neg::Var(var) => self.extrude_type_var(var, ctx),
@@ -269,6 +452,9 @@ impl ConstraintMachine {
     }
 
     pub(in crate::constraints) fn extrude_neu_id(&mut self, id: NeuId, ctx: &mut ExtrudeCtx) {
+        if !ctx.visited_neu.insert(id) {
+            return;
+        }
         match self.types.neu(id).clone() {
             Neu::Bounds(lower, upper) => {
                 self.extrude_pos_id(lower, ctx);
@@ -322,5 +508,184 @@ impl ConstraintMachine {
                 self.extrude_neg_id(upper.neg, ctx);
             }
         }
+    }
+}
+
+fn decrement_var_neighbor(
+    adjacency: &mut FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
+    left: TypeVar,
+    right: TypeVar,
+) {
+    let Some(neighbors) = adjacency.get_mut(&left) else {
+        return;
+    };
+    let Some(count) = neighbors.get_mut(&right) else {
+        return;
+    };
+    *count = count.saturating_sub(1);
+    if *count == 0 {
+        neighbors.remove(&right);
+    }
+    if neighbors.is_empty() {
+        adjacency.remove(&left);
+    }
+}
+
+fn collect_pos_id_vars(types: &TypeArena, id: PosId, out: &mut FxHashSet<TypeVar>) {
+    match types.pos(id) {
+        Pos::Bot => {}
+        Pos::Var(var) => {
+            out.insert(*var);
+        }
+        Pos::Con(_, args) => collect_neu_id_vars(types, args.iter().copied(), out),
+        Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_neg_id_vars(types, *arg, out);
+            collect_neg_id_vars(types, *arg_eff, out);
+            collect_pos_id_vars(types, *ret_eff, out);
+            collect_pos_id_vars(types, *ret, out);
+        }
+        Pos::Record(fields) => {
+            for field in fields {
+                collect_pos_id_vars(types, field.value, out);
+            }
+        }
+        Pos::RecordTailSpread { fields, tail } => {
+            for field in fields {
+                collect_pos_id_vars(types, field.value, out);
+            }
+            collect_pos_id_vars(types, *tail, out);
+        }
+        Pos::RecordHeadSpread { tail, fields } => {
+            collect_pos_id_vars(types, *tail, out);
+            for field in fields {
+                collect_pos_id_vars(types, field.value, out);
+            }
+        }
+        Pos::PolyVariant(items) => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    collect_pos_id_vars(types, *payload, out);
+                }
+            }
+        }
+        Pos::Tuple(items) | Pos::Row(items) => {
+            for item in items {
+                collect_pos_id_vars(types, *item, out);
+            }
+        }
+        Pos::Stack { inner, .. } | Pos::NonSubtract(inner, _) => {
+            collect_pos_id_vars(types, *inner, out);
+        }
+        Pos::Union(left, right) => {
+            collect_pos_id_vars(types, *left, out);
+            collect_pos_id_vars(types, *right, out);
+        }
+    }
+}
+
+fn collect_neg_id_vars(types: &TypeArena, id: NegId, out: &mut FxHashSet<TypeVar>) {
+    match types.neg(id) {
+        Neg::Top | Neg::Bot => {}
+        Neg::Var(var) => {
+            out.insert(*var);
+        }
+        Neg::Con(_, args) => collect_neu_id_vars(types, args.iter().copied(), out),
+        Neg::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_pos_id_vars(types, *arg, out);
+            collect_pos_id_vars(types, *arg_eff, out);
+            collect_neg_id_vars(types, *ret_eff, out);
+            collect_neg_id_vars(types, *ret, out);
+        }
+        Neg::Record(fields) => {
+            for field in fields {
+                collect_neg_id_vars(types, field.value, out);
+            }
+        }
+        Neg::PolyVariant(items) => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    collect_neg_id_vars(types, *payload, out);
+                }
+            }
+        }
+        Neg::Tuple(items) => {
+            for item in items {
+                collect_neg_id_vars(types, *item, out);
+            }
+        }
+        Neg::Row(items, tail) => {
+            for item in items {
+                collect_neg_id_vars(types, *item, out);
+            }
+            collect_neg_id_vars(types, *tail, out);
+        }
+        Neg::Stack { inner, .. } => collect_neg_id_vars(types, *inner, out),
+        Neg::Intersection(left, right) => {
+            collect_neg_id_vars(types, *left, out);
+            collect_neg_id_vars(types, *right, out);
+        }
+    }
+}
+
+fn collect_neu_id_vars(
+    types: &TypeArena,
+    ids: impl IntoIterator<Item = NeuId>,
+    out: &mut FxHashSet<TypeVar>,
+) {
+    for id in ids {
+        match types.neu(id) {
+            Neu::Bounds(lower, upper) => {
+                collect_pos_id_vars(types, *lower, out);
+                collect_neg_id_vars(types, *upper, out);
+            }
+            Neu::Con(_, args) => collect_neu_id_vars(types, args.iter().copied(), out),
+            Neu::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                collect_neu_id_vars(types, [*arg, *arg_eff, *ret_eff, *ret], out);
+            }
+            Neu::Record(fields) => {
+                for field in fields {
+                    collect_neu_id_vars(types, [field.value], out);
+                }
+            }
+            Neu::PolyVariant(items) => {
+                for (_, payloads) in items {
+                    collect_neu_id_vars(types, payloads.iter().copied(), out);
+                }
+            }
+            Neu::Tuple(items) => collect_neu_id_vars(types, items.iter().copied(), out),
+        }
+    }
+}
+
+fn row_tail_matches(types: &TypeArena, row_upper: NegId, tail_upper: NegId) -> bool {
+    let Neg::Row(_, tail) = types.neg(row_upper) else {
+        return false;
+    };
+    neg_ids_match_for_row_tail(types, *tail, tail_upper)
+}
+
+fn neg_ids_match_for_row_tail(types: &TypeArena, lhs: NegId, rhs: NegId) -> bool {
+    if lhs == rhs {
+        return true;
+    }
+    match (types.neg(lhs), types.neg(rhs)) {
+        (Neg::Var(left), Neg::Var(right)) => left == right,
+        (Neg::Top, Neg::Top) | (Neg::Bot, Neg::Bot) => true,
+        _ => false,
     }
 }

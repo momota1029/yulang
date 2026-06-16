@@ -15,6 +15,7 @@ pub struct ExprLowerer<'a> {
     pub(super) module: ModuleId,
     pub(super) site: ModuleOrder,
     pub(super) parent: poly::expr::DefId,
+    pub(super) parent_has_type_annotation: bool,
     pub(super) labels: Option<&'a mut DumpLabels>,
     pub(super) self_alias: Option<AnnSelfAlias>,
     pub(super) type_var_aliases: Vec<(String, String)>,
@@ -58,6 +59,7 @@ impl<'a> ExprLowerer<'a> {
             module,
             site,
             parent,
+            parent_has_type_annotation: false,
             labels: None,
             self_alias: None,
             type_var_aliases: Vec::new(),
@@ -95,6 +97,7 @@ impl<'a> ExprLowerer<'a> {
             module,
             site,
             parent,
+            parent_has_type_annotation: false,
             labels: Some(labels),
             self_alias: None,
             type_var_aliases: Vec::new(),
@@ -132,6 +135,11 @@ impl<'a> ExprLowerer<'a> {
 
     pub fn with_local_method_scope(mut self, scope: Option<ModuleId>) -> Self {
         self.local_method_scope = scope;
+        self
+    }
+
+    pub fn with_parent_type_annotation(mut self, parent_has_type_annotation: bool) -> Self {
+        self.parent_has_type_annotation = parent_has_type_annotation;
         self
     }
 

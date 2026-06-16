@@ -30,6 +30,8 @@ pub(crate) use analysis::{
     normalize_var_substitutions, simplify_compact_root_with_role_variance_table_and_non_generic,
     simplify_compact_root_with_roles_and_non_generic,
 };
+#[cfg(test)]
+pub(in crate::compact) use collect::CompactCollector;
 mod casts;
 mod finalize;
 mod merge;
@@ -55,7 +57,8 @@ pub(crate) use surface::{
     compact_reachable_role_constraints,
     compact_reachable_role_constraints_recording_merge_constraints, compact_role_constraint,
     compact_role_constraint_recording_merge_constraints, compact_type_var,
-    compact_type_var_recording_merge_constraints,
+    compact_type_var_for_scheme, compact_type_var_recording_merge_constraints,
+    compact_type_var_recording_merge_constraints_for_scheme,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -69,6 +72,17 @@ pub(crate) struct CompactMergeConstraint {
     key: CompactMergeConstraintKey,
     lhs: CompactBounds,
     rhs: CompactBounds,
+}
+
+impl CompactMergeConstraint {
+    fn new(lhs: &CompactBounds, rhs: &CompactBounds) -> Option<Self> {
+        let key = merge::compact_merge_constraint_key(lhs, rhs);
+        Some(Self {
+            key,
+            lhs: lhs.clone(),
+            rhs: rhs.clone(),
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

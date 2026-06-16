@@ -553,7 +553,22 @@ impl<'a> ExprLowerer<'a> {
         boundary: TypeLevel,
         fetch: BindingFetch,
     ) {
-        let non_generic = self.local_non_generic_vars(def);
+        let mut non_generic = self.local_non_generic_vars(def, value);
+        if fetch.runs_computation() {
+            non_generic.insert(value);
+        }
+        let needs_recursive_effect_passthrough = self
+            .local_binding_needs_recursive_effect_passthrough(def)
+            && self.local_let_body_references(def);
+        let mut forced_quantifiers = Vec::new();
+        if needs_recursive_effect_passthrough {
+            forced_quantifiers = add_root_vars_connected_to_environment(
+                self.session.infer.constraints(),
+                value,
+                boundary,
+                &mut non_generic,
+            );
+        }
         let generalized = generalize_type_var_with_boundaries(
             self.session.infer.constraints(),
             value,
@@ -561,18 +576,25 @@ impl<'a> ExprLowerer<'a> {
             boundary.child(),
             &non_generic,
         );
-        let finalized = crate::generalize::finalize_generalized_compact_root(
+        let mut finalized = crate::generalize::finalize_generalized_compact_root(
             &mut self.session.poly.typ,
             self.session.infer.constraints(),
             &generalized,
         );
+        let use_monomorphic_local = !forced_quantifiers.is_empty();
+        add_forced_quantifiers(&mut finalized.scheme, forced_quantifiers);
         self.set_local_let_scheme(def, finalized.scheme.clone());
         if let Some(local) = self.locals.iter_mut().rev().find(|local| local.def == def) {
-            local.scheme = Some(finalized.scheme);
+            local.scheme = (!use_monomorphic_local || self.parent_has_type_annotation)
+                .then_some(finalized.scheme);
         }
     }
 
-    pub(in crate::lowering) fn local_non_generic_vars(&self, exclude: DefId) -> FxHashSet<TypeVar> {
+    pub(in crate::lowering) fn local_non_generic_vars(
+        &self,
+        exclude: DefId,
+        exclude_value: TypeVar,
+    ) -> FxHashSet<TypeVar> {
         let mut vars = FxHashSet::default();
         let machine = self.session.infer.constraints();
         for local in &self.locals {
@@ -593,7 +615,23 @@ impl<'a> ExprLowerer<'a> {
                 collect_neg_id_vars(machine.types(), upper.neg, &mut vars);
             }
         }
+        close_non_generic_vars(machine, &mut vars, exclude_value);
         vars
+    }
+
+    fn local_let_body_references(&self, def: DefId) -> bool {
+        let Some(Def::Let {
+            body: Some(body), ..
+        }) = self.session.poly.defs.get(def)
+        else {
+            return false;
+        };
+        expr_references_def(&self.session.poly, *body, def)
+    }
+
+    fn local_binding_needs_recursive_effect_passthrough(&self, def: DefId) -> bool {
+        self.local_binding_by_def(def)
+            .is_some_and(|local| local.recursive_effect_passthrough)
     }
 
     pub(in crate::lowering) fn lambda_predicate_subtracts(
@@ -638,4 +676,284 @@ impl<'a> ExprLowerer<'a> {
             self.wrap_pos_with_subtracts(ret, subtracts),
         )
     }
+}
+
+fn expr_references_def(poly: &poly::expr::Arena, expr: ExprId, def: DefId) -> bool {
+    match poly.expr(expr) {
+        Expr::Lit(_) | Expr::PrimitiveOp(_) => false,
+        Expr::Var(reference) => poly.ref_target(*reference) == Some(def),
+        Expr::App(callee, arg) | Expr::RefSet(callee, arg) => {
+            expr_references_def(poly, *callee, def) || expr_references_def(poly, *arg, def)
+        }
+        Expr::Lambda(_, body) => expr_references_def(poly, *body, def),
+        Expr::Tuple(items) => items
+            .iter()
+            .any(|item| expr_references_def(poly, *item, def)),
+        Expr::Record { fields, spread } => {
+            fields
+                .iter()
+                .any(|(_, field)| expr_references_def(poly, *field, def))
+                || record_spread_expr_references_def(poly, spread, def)
+        }
+        Expr::PolyVariant(_, payloads) => payloads
+            .iter()
+            .any(|payload| expr_references_def(poly, *payload, def)),
+        Expr::Select(receiver, _) => expr_references_def(poly, *receiver, def),
+        Expr::Case(scrutinee, arms) => {
+            expr_references_def(poly, *scrutinee, def)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .is_some_and(|guard| expr_references_def(poly, guard, def))
+                        || expr_references_def(poly, arm.body, def)
+                })
+        }
+        Expr::Catch(scrutinee, arms) => {
+            expr_references_def(poly, *scrutinee, def)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .is_some_and(|guard| expr_references_def(poly, guard, def))
+                        || expr_references_def(poly, arm.body, def)
+                })
+        }
+        Expr::Block(stmts, tail) => {
+            stmts
+                .iter()
+                .any(|stmt| stmt_references_def(poly, stmt, def))
+                || tail.is_some_and(|tail| expr_references_def(poly, tail, def))
+        }
+    }
+}
+
+fn stmt_references_def(poly: &poly::expr::Arena, stmt: &Stmt, def: DefId) -> bool {
+    match stmt {
+        Stmt::Let(_, _, body) | Stmt::Expr(body) => expr_references_def(poly, *body, def),
+        Stmt::Module(_, stmts) => stmts
+            .iter()
+            .any(|stmt| stmt_references_def(poly, stmt, def)),
+    }
+}
+
+fn record_spread_expr_references_def(
+    poly: &poly::expr::Arena,
+    spread: &RecordSpread<ExprId>,
+    def: DefId,
+) -> bool {
+    match spread {
+        RecordSpread::Head(expr) | RecordSpread::Tail(expr) => {
+            expr_references_def(poly, *expr, def)
+        }
+        RecordSpread::None => false,
+    }
+}
+
+fn close_non_generic_vars(
+    machine: &crate::constraints::ConstraintMachine,
+    vars: &mut FxHashSet<TypeVar>,
+    exclude: TypeVar,
+) {
+    vars.remove(&exclude);
+    let mut pending = vars.iter().copied().collect::<Vec<_>>();
+    let mut visited = FxHashSet::default();
+    while let Some(var) = pending.pop() {
+        if !visited.insert(var) {
+            continue;
+        }
+        let Some(bounds) = machine.bounds().of(var) else {
+            continue;
+        };
+        let mut found = FxHashSet::default();
+        for lower in bounds.lowers() {
+            collect_pos_id_vars(machine.types(), lower.pos, &mut found);
+        }
+        for upper in bounds.uppers() {
+            collect_neg_id_vars(machine.types(), upper.neg, &mut found);
+        }
+        for var in found {
+            if var == exclude || !vars.insert(var) {
+                continue;
+            }
+            pending.push(var);
+        }
+    }
+}
+
+fn add_root_vars_connected_to_environment(
+    machine: &crate::constraints::ConstraintMachine,
+    root: TypeVar,
+    boundary: TypeLevel,
+    non_generic: &mut FxHashSet<TypeVar>,
+) -> Vec<TypeVar> {
+    let compact = crate::compact::compact_type_var_for_scheme(machine, root);
+    let environment = non_generic.clone();
+    let mut effect_vars = compact_root_effect_vars(&compact)
+        .into_iter()
+        .filter(|var| *var != root)
+        .collect::<Vec<_>>();
+    effect_vars.sort_by_key(|var| var.0);
+
+    let representatives =
+        effect_representatives_reaching_environment(machine, effect_vars, &environment, boundary);
+    non_generic.extend(representatives.iter().copied());
+    representatives
+}
+
+fn add_forced_quantifiers(scheme: &mut Scheme, vars: Vec<TypeVar>) {
+    for var in vars {
+        if !scheme.quantifiers.contains(&var) {
+            scheme.quantifiers.push(var);
+        }
+    }
+    scheme.quantifiers.sort_by_key(|var| var.0);
+}
+
+fn compact_root_effect_vars(root: &CompactRoot) -> FxHashSet<TypeVar> {
+    let mut vars = FxHashSet::default();
+    collect_compact_type_effect_vars(&root.root, false, &mut vars);
+    for rec in &root.rec_vars {
+        collect_compact_bounds_effect_vars(&rec.bounds, false, &mut vars);
+    }
+    vars
+}
+
+fn collect_compact_type_effect_vars(
+    ty: &CompactType,
+    in_effect_position: bool,
+    out: &mut FxHashSet<TypeVar>,
+) {
+    if in_effect_position {
+        out.extend(ty.vars.iter().map(|var| var.var));
+    }
+    for args in ty.cons.values() {
+        for arg in args {
+            collect_compact_bounds_effect_vars(arg, false, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_compact_type_effect_vars(&fun.arg, false, out);
+        collect_compact_type_effect_vars(&fun.arg_eff, true, out);
+        collect_compact_type_effect_vars(&fun.ret_eff, true, out);
+        collect_compact_type_effect_vars(&fun.ret, false, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_compact_type_effect_vars(&field.value, false, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_compact_type_effect_vars(&field.value, false, out);
+        }
+        collect_compact_type_effect_vars(&spread.tail, false, out);
+    }
+    for variant in &ty.poly_variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_compact_type_effect_vars(payload, false, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in &tuple.items {
+            collect_compact_type_effect_vars(item, false, out);
+        }
+    }
+    for row in &ty.rows {
+        for args in row.items.values() {
+            for arg in args {
+                collect_compact_bounds_effect_vars(arg, false, out);
+            }
+        }
+        collect_compact_type_effect_vars(&row.tail, true, out);
+    }
+}
+
+fn collect_compact_bounds_effect_vars(
+    bounds: &CompactBounds,
+    in_effect_position: bool,
+    out: &mut FxHashSet<TypeVar>,
+) {
+    match bounds {
+        CompactBounds::Interval { lower, upper } => {
+            collect_compact_type_effect_vars(lower, in_effect_position, out);
+            collect_compact_type_effect_vars(upper, in_effect_position, out);
+        }
+        CompactBounds::Con { args, .. } => {
+            for arg in args {
+                collect_compact_bounds_effect_vars(arg, false, out);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_compact_bounds_effect_vars(arg, false, out);
+            collect_compact_bounds_effect_vars(arg_eff, true, out);
+            collect_compact_bounds_effect_vars(ret_eff, true, out);
+            collect_compact_bounds_effect_vars(ret, false, out);
+        }
+        CompactBounds::Record { fields } => {
+            for field in fields {
+                collect_compact_bounds_effect_vars(&field.value, false, out);
+            }
+        }
+        CompactBounds::PolyVariant { items } => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    collect_compact_bounds_effect_vars(payload, false, out);
+                }
+            }
+        }
+        CompactBounds::Tuple { items } => {
+            for item in items {
+                collect_compact_bounds_effect_vars(item, false, out);
+            }
+        }
+    }
+}
+
+fn effect_representatives_reaching_environment(
+    machine: &crate::constraints::ConstraintMachine,
+    effect_vars: Vec<TypeVar>,
+    environment: &FxHashSet<TypeVar>,
+    boundary: TypeLevel,
+) -> Vec<TypeVar> {
+    let effect_set = effect_vars.iter().copied().collect::<FxHashSet<_>>();
+    let mut representatives = Vec::new();
+    let mut visited = FxHashSet::default();
+    for seed in effect_vars {
+        if visited.contains(&seed) {
+            continue;
+        }
+        let mut pending = vec![seed];
+        let mut component_effects = Vec::new();
+        let mut reaches_environment = false;
+        while let Some(var) = pending.pop() {
+            if !visited.insert(var) {
+                continue;
+            }
+            if environment.contains(&var) {
+                reaches_environment = true;
+            }
+            if effect_set.contains(&var) {
+                component_effects.push(var);
+            }
+            for neighbor in machine.var_neighbors(var) {
+                if !environment.contains(&neighbor) && machine.birth_level_of(neighbor) <= boundary
+                {
+                    continue;
+                }
+                if !visited.contains(&neighbor) {
+                    pending.push(neighbor);
+                }
+            }
+        }
+        if reaches_environment
+            && let Some(representative) = component_effects.into_iter().min_by_key(|var| var.0)
+        {
+            representatives.push(representative);
+        }
+    }
+    representatives
 }

@@ -790,6 +790,9 @@ pub(super) fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr 
     );
     let actual = &actual;
     let expected = &expected;
+    if equivalent_boundary_types(actual, expected) {
+        return expr;
+    }
     if let (
         Type::Thunk {
             effect: source_effect,

@@ -252,25 +252,45 @@ impl AnalysisSession {
     pub fn resolve_unresolved_selections_as_record_fields(&mut self) {
         loop {
             self.drain_work();
-            let ready = self
+            let mut ready = self
                 .selections
                 .iter()
                 .filter_map(|(select_id, use_site)| {
-                    self.scc
-                        .selection_fallback_ready(use_site.parent)
-                        .then_some(select_id)
+                    if !self.scc.selection_fallback_ready(use_site.parent) {
+                        return None;
+                    }
+                    let name = self.poly.select(select_id).name.clone();
+                    let target = self
+                        .role_method_for_select(select_id, &name)
+                        .unwrap_or(SelectionTarget::RecordField);
+                    Some((select_id, target))
                 })
                 .collect::<Vec<_>>();
-            if ready.is_empty() {
+            ready.sort_by_key(|(select_id, _)| select_id.0);
+            let Some((select_id, target)) = ready.first().cloned() else {
                 break;
-            }
-            for select_id in ready {
-                let name = self.poly.select(select_id).name.clone();
-                let target = self
-                    .role_method_for_select(select_id, &name)
-                    .unwrap_or(SelectionTarget::RecordField);
+            };
+            if self.fallback_target_can_batch(&target) {
+                let batch = ready
+                    .into_iter()
+                    .filter(|(_, target)| self.fallback_target_can_batch(target))
+                    .collect::<Vec<_>>();
+                for (select_id, target) in batch {
+                    self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
+                }
+            } else {
+                // Unquantified role-method fallback can introduce an SCC edge. Keep those
+                // one-by-one so the next readiness decision sees the updated graph.
                 self.enqueue(AnalysisWork::ApplySelectionResolution { select_id, target });
             }
+        }
+    }
+
+    fn fallback_target_can_batch(&self, target: &SelectionTarget) -> bool {
+        match target {
+            SelectionTarget::RecordField => true,
+            SelectionTarget::TypeclassMethod { member } => self.scc.is_quantified(*member),
+            SelectionTarget::Method { .. } | SelectionTarget::EffectMethod { .. } => false,
         }
     }
 
@@ -366,6 +386,7 @@ impl AnalysisSession {
             }
             AnalysisWork::ApplySelectionResolution { select_id, target } => {
                 if self.poly.select(select_id).resolution.is_some() {
+                    self.selections.remove(select_id);
                     return;
                 }
                 let name = self.poly.select(select_id).name.clone();

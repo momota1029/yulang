@@ -340,7 +340,7 @@ impl<'a> TaskSolver<'a> {
 
     pub(super) fn effect_operation_apply_type(
         &mut self,
-        expr: poly_expr::ExprId,
+        _expr: poly_expr::ExprId,
         arg: poly_expr::ExprId,
         def: poly_expr::DefId,
     ) -> Result<Type, SpecializeError> {
@@ -354,11 +354,7 @@ impl<'a> TaskSolver<'a> {
         let (ret_value, ret_runtime_effect) = split_runtime_computation_shape(parts.ret);
         let operation_effect = self.join_effects([parts.ret_effect, ret_runtime_effect])?;
         let effect = self.join_effects([call_arg_effect, operation_effect])?;
-        let result = self.runtime_shape(effect, ret_value)?;
-        if matches!(result, Type::Thunk { .. }) {
-            self.mark_raw_thunk_computation(expr);
-        }
-        Ok(result)
+        self.runtime_shape(effect, ret_value)
     }
 
     pub(super) fn ref_set_type(

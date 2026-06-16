@@ -228,26 +228,32 @@ impl From<FamilyBound> for Subtractability {
     fn from(value: FamilyBound) -> Self {
         use Subtractability::*;
         match value {
-            FamilyBound::Include(families) => match families.as_slice() {
-                [] => Empty,
-                [family] => Set(family.path.clone(), family.args.clone()),
-                _ => SetMany(
-                    families
-                        .into_iter()
-                        .map(|family| (family.path, family.args))
-                        .collect(),
-                ),
-            },
-            FamilyBound::Exclude(families) => match families.as_slice() {
-                [] => All,
-                [family] => AllExcept(family.path.clone(), family.args.clone()),
-                _ => AllExceptMany(
-                    families
-                        .into_iter()
-                        .map(|family| (family.path, family.args))
-                        .collect(),
-                ),
-            },
+            FamilyBound::Include(mut families) => {
+                sort_families_by_path(&mut families);
+                match families.as_slice() {
+                    [] => Empty,
+                    [family] => Set(family.path.clone(), family.args.clone()),
+                    _ => SetMany(
+                        families
+                            .into_iter()
+                            .map(|family| (family.path, family.args))
+                            .collect(),
+                    ),
+                }
+            }
+            FamilyBound::Exclude(mut families) => {
+                sort_families_by_path(&mut families);
+                match families.as_slice() {
+                    [] => All,
+                    [family] => AllExcept(family.path.clone(), family.args.clone()),
+                    _ => AllExceptMany(
+                        families
+                            .into_iter()
+                            .map(|family| (family.path, family.args))
+                            .collect(),
+                    ),
+                }
+            }
         }
     }
 }
@@ -261,6 +267,7 @@ fn dedup_families_by_path(families: Vec<(Vec<String>, Vec<NeuId>)>) -> Vec<Effec
             out.push(EffectFamily { path, args });
         }
     }
+    sort_families_by_path(&mut out);
     out
 }
 
@@ -270,6 +277,10 @@ fn effect_family_path_index(families: &[EffectFamily]) -> FxHashMap<Vec<String>,
         out.entry(family.path.clone()).or_insert(index);
     }
     out
+}
+
+fn sort_families_by_path(families: &mut [EffectFamily]) {
+    families.sort_by(|left, right| left.path.cmp(&right.path));
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -689,5 +700,27 @@ mod tests {
         assert_eq!(entry.pops, 0);
         assert_eq!(entry.floor, vec![Subtractability::Empty]);
         assert_eq!(entry.stack, vec![io]);
+    }
+
+    #[test]
+    fn subtractability_many_families_are_order_canonical() {
+        let left = Subtractability::AllExcept(
+            vec!["std".into(), "control".into(), "junction".into()],
+            Vec::new(),
+        )
+        .intersect(Subtractability::AllExcept(
+            vec!["std".into(), "control".into(), "flow".into(), "sub".into()],
+            vec![NeuId(2)],
+        ));
+        let right = Subtractability::AllExcept(
+            vec!["std".into(), "control".into(), "flow".into(), "sub".into()],
+            vec![NeuId(2)],
+        )
+        .intersect(Subtractability::AllExcept(
+            vec!["std".into(), "control".into(), "junction".into()],
+            Vec::new(),
+        ));
+
+        assert_eq!(left, right);
     }
 }

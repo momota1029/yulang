@@ -168,7 +168,7 @@ fn compact_neg_row_tail_cycle_keeps_residual_tail_var() {
 }
 
 #[test]
-fn compact_neg_row_tail_does_not_alias_weighted_var_var_bound() {
+fn compact_neg_row_tail_aliases_weighted_var_without_expanding_it() {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);
     let through = TypeVar(1);
@@ -193,8 +193,124 @@ fn compact_neg_row_tail_does_not_alias_weighted_var_var_bound() {
     let compact = collector.compact_neg_row_tail_var(source, ConstraintWeight::empty());
 
     assert!(compact_type_contains_var(&compact, source));
-    assert!(!compact_type_contains_var(&compact, through));
+    assert!(compact_type_contains_var(&compact, through));
     assert!(!compact_row_contains_path(&compact, "redo"));
+}
+
+#[test]
+fn compact_negative_var_aliases_pop_only_var_var_bound() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let through = TypeVar(1);
+    let subtract = SubtractId(0);
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let through_neg = machine.alloc_neg(Neg::Var(through));
+    let weights = ConstraintWeights {
+        left: StackWeight::pop(subtract),
+        right: StackWeight::empty(),
+    };
+
+    machine.weighted_subtype(source_pos, weights, through_neg);
+
+    let mut collector = CompactCollector::new(&machine);
+    let compact = collector.compact_var_side(source, Polarity::Negative, ConstraintWeight::empty());
+
+    assert!(compact_type_contains_var(&compact, source));
+    assert!(compact_type_contains_var(&compact, through));
+}
+
+#[test]
+fn compact_neg_row_tail_reaches_pop_only_var_var_bound() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let through = TypeVar(1);
+    let tail = TypeVar(2);
+    let subtract = SubtractId(0);
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let through_neg = machine.alloc_neg(Neg::Var(through));
+    let weights = ConstraintWeights {
+        left: StackWeight::pop(subtract),
+        right: StackWeight::empty(),
+    };
+
+    machine.weighted_subtype(source_pos, weights, through_neg);
+
+    let item = machine.alloc_neg(Neg::Con(vec!["redo".into()], Vec::new()));
+    let row_tail = machine.alloc_neg(Neg::Var(tail));
+    let row = machine.alloc_neg(Neg::Row(vec![item], row_tail));
+    let through_pos = machine.alloc_pos(Pos::Var(through));
+    machine.subtype(through_pos, row);
+
+    let mut collector = CompactCollector::new(&machine);
+    let compact = collector.compact_neg_row_tail_var(source, ConstraintWeight::empty());
+
+    assert!(compact_type_contains_var(&compact, source));
+    assert!(compact_row_contains_path(&compact, "redo"));
+}
+
+#[test]
+fn compact_neg_row_pulls_expanded_tail_rows_into_outer_row() {
+    let mut machine = ConstraintMachine::new();
+    let residual = TypeVar(1);
+    let loop_item = machine.alloc_neg(Neg::Con(vec!["loop".into()], Vec::new()));
+    let redo_item = machine.alloc_neg(Neg::Con(vec!["redo".into()], Vec::new()));
+    let top = machine.alloc_neg(Neg::Top);
+    let redo_row = machine.alloc_neg(Neg::Row(vec![redo_item], top));
+    let residual_pos = machine.alloc_pos(Pos::Var(residual));
+    machine.subtype(residual_pos, redo_row);
+
+    let residual_tail = machine.alloc_neg(Neg::Var(residual));
+    let row = machine.alloc_neg(Neg::Row(vec![loop_item], residual_tail));
+
+    let mut collector = CompactCollector::new(&machine);
+    let compact = collector.compact_neg_id(row, ConstraintWeight::empty());
+
+    assert_eq!(compact.rows.len(), 1, "{compact:?}");
+    assert!(compact_row_contains_path(&compact, "loop"), "{compact:?}");
+    assert!(compact_row_contains_path(&compact, "redo"), "{compact:?}");
+    assert!(
+        compact_type_contains_var(&compact.rows[0].tail, residual),
+        "{compact:?}"
+    );
+    assert!(
+        compact.rows[0].tail.rows.is_empty(),
+        "tail row items should be pulled into the outer row: {compact:?}"
+    );
+}
+
+#[test]
+fn compact_neg_stack_effect_surfaces_concrete_push_as_row_prefix() {
+    let mut machine = ConstraintMachine::new();
+    let effect = TypeVar(1);
+    let residual = TypeVar(2);
+    let effect_pos = machine.alloc_pos(Pos::Var(effect));
+    let residual_neg = machine.alloc_neg(Neg::Var(residual));
+    machine.subtype(effect_pos, residual_neg);
+
+    let subtract = SubtractId(0);
+    let stack = StackWeight::push(
+        subtract,
+        Subtractability::Set(vec!["loop".into()], Vec::new()),
+    );
+    let effect_neg = machine.alloc_neg(Neg::Var(effect));
+    let stacked = machine.alloc_neg(Neg::Stack {
+        inner: effect_neg,
+        weight: stack,
+    });
+
+    let mut collector = CompactCollector::new(&machine);
+    let compact = collector.compact_neg_effect_id(stacked, ConstraintWeight::empty());
+
+    assert_eq!(compact.rows.len(), 1, "{compact:?}");
+    assert!(compact_row_contains_path(&compact, "loop"), "{compact:?}");
+    assert!(
+        compact_type_contains_var(&compact.rows[0].tail, residual),
+        "{compact:?}"
+    );
+    assert!(
+        compact.rows[0].tail.rows.is_empty(),
+        "stack row prefix should leave residual vars in the tail: {compact:?}"
+    );
 }
 
 #[test]

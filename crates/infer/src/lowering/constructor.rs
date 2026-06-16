@@ -77,6 +77,43 @@ pub(super) fn prepare_constructor_args(
     }
 }
 
+pub(super) fn prepare_constructor_pattern_args(
+    infer: &mut crate::Arena,
+    payload: ConstructorSignaturePayload,
+    vars: &FxHashMap<String, TypeVar>,
+) -> Vec<ConstructorArg> {
+    match payload {
+        ConstructorSignaturePayload::Unit => Vec::new(),
+        ConstructorSignaturePayload::Tuple(items) => items
+            .into_iter()
+            .map(|item| prepare_constructor_pattern_value_arg(infer, item, vars))
+            .collect(),
+        ConstructorSignaturePayload::Record(fields) => {
+            let record = infer.fresh_type_var();
+            let fields = fields
+                .into_iter()
+                .map(|field| {
+                    let value = field
+                        .signature
+                        .as_ref()
+                        .and_then(|signature| signature_direct_var(signature.as_type()))
+                        .and_then(|name| vars.get(name).copied())
+                        .unwrap_or_else(|| infer.fresh_type_var());
+                    ConstructorRecordField {
+                        name: field.name.0,
+                        value,
+                        signature: field.signature,
+                    }
+                })
+                .collect::<Vec<_>>();
+            vec![ConstructorArg::Record {
+                value: record,
+                fields,
+            }]
+        }
+    }
+}
+
 pub(super) fn constructor_payload_arity(payload: &ConstructorPayload) -> usize {
     match payload {
         ConstructorPayload::Unit => 0,
@@ -258,6 +295,30 @@ fn prepare_constructor_value_arg(
     ConstructorArg::Value {
         value,
         signature: item.signature,
+    }
+}
+
+fn prepare_constructor_pattern_value_arg(
+    infer: &mut crate::Arena,
+    item: ConstructorSignaturePayloadItem,
+    vars: &FxHashMap<String, TypeVar>,
+) -> ConstructorArg {
+    let value = item
+        .signature
+        .as_ref()
+        .and_then(|signature| signature_direct_var(signature.as_type()))
+        .and_then(|name| vars.get(name).copied())
+        .unwrap_or_else(|| infer.fresh_type_var());
+    ConstructorArg::Value {
+        value,
+        signature: item.signature,
+    }
+}
+
+fn signature_direct_var(signature: &SignatureType) -> Option<&str> {
+    match signature {
+        SignatureType::Var(var) => Some(var.name.as_str()),
+        _ => None,
     }
 }
 
