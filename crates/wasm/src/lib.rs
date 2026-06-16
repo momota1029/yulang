@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use parser::sink::YulangLanguage;
+use poly::expr::{Def, Vis};
 use rowan::SyntaxNode;
 use serde::Serialize;
 use sources::SourceFile;
@@ -309,6 +310,7 @@ fn run_control_from_source_text_with_playground_std(
 struct NamedControlBuild {
     output: yulang::BuildControlOutput,
     constructor_names: ConstructorNames,
+    types: Vec<TypeResult>,
 }
 
 type ConstructorNames = HashMap<control_vm::DefId, String>;
@@ -318,10 +320,12 @@ fn build_named_control_from_collected_sources(
 ) -> Result<NamedControlBuild, yulang::RouteError> {
     let poly = yulang::build_poly_from_collected_sources(files)?;
     let constructor_names = constructor_display_names(&poly);
+    let types = exported_type_results(&poly);
     let output = yulang::build_control_from_poly_output(&poly)?;
     Ok(NamedControlBuild {
         output,
         constructor_names,
+        types,
     })
 }
 
@@ -331,6 +335,38 @@ fn constructor_display_names(poly: &yulang::BuildPolyOutput) -> ConstructorNames
         .iter()
         .map(|(def, constructor)| (control_vm::DefId(def.0), constructor.name.clone()))
         .collect()
+}
+
+fn exported_type_results(poly: &yulang::BuildPolyOutput) -> Vec<TypeResult> {
+    poly.arena
+        .roots
+        .iter()
+        .filter_map(|def| exported_type_result(poly, *def))
+        .collect()
+}
+
+fn exported_type_result(
+    poly: &yulang::BuildPolyOutput,
+    def: poly::expr::DefId,
+) -> Option<TypeResult> {
+    let Def::Let {
+        vis,
+        scheme: Some(scheme),
+        ..
+    } = poly.arena.defs.get(def)?
+    else {
+        return None;
+    };
+    if !matches!(vis, Vis::Pub | Vis::Our) {
+        return None;
+    }
+    let name = poly
+        .labels
+        .def_label(def)
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("d{}", def.0));
+    let ty = poly::dump::format_scheme(&poly.arena.typ, scheme);
+    Some(TypeResult { name, ty })
 }
 
 fn run_built_control_program_with_host(
@@ -348,6 +384,7 @@ fn run_built_control_program_with_host(
         text: format!("run roots {text}\n"),
         values,
         constructor_names: build.constructor_names,
+        types: build.types,
         stdout,
     })
 }
@@ -380,6 +417,7 @@ struct WasmControlOutput {
     text: String,
     values: Vec<control_vm::Value>,
     constructor_names: ConstructorNames,
+    types: Vec<TypeResult>,
     stdout: String,
 }
 
@@ -538,7 +576,7 @@ impl RunOutput {
             text: output.text,
             results,
             stdout: output.stdout,
-            types: Vec::new(),
+            types: output.types,
             timings: Some(RunTimings {
                 vm_continuation_steps: 0,
                 source_cache_hits: 0,
@@ -1171,6 +1209,60 @@ point { x: 3, y: 4 } .norm2
                 .as_ref()
                 .map(|timing| timing.source_cache_hits),
             Some(1)
+        );
+    }
+
+    #[test]
+    fn run_inner_reports_exported_types() {
+        clear_std_cache();
+        let output = run_inner(
+            "\
+our id x = x
+my hidden x = x
+pub answer = id 42
+pub name = id \"Yulang\"
+pub pair = (answer, name)
+
+pair
+",
+        );
+
+        assert!(output.ok, "{output:?}");
+        let names = output
+            .types
+            .iter()
+            .map(|item| item.name.as_str())
+            .collect::<Vec<_>>();
+        assert!(names.contains(&"id"), "{:?}", output.types);
+        assert!(names.contains(&"answer"), "{:?}", output.types);
+        assert!(names.contains(&"name"), "{:?}", output.types);
+        assert!(names.contains(&"pair"), "{:?}", output.types);
+        assert!(!names.contains(&"hidden"), "{:?}", output.types);
+        assert!(
+            output
+                .types
+                .iter()
+                .any(|item| item.name == "id" && item.ty.contains("->"))
+        );
+        assert!(
+            output
+                .types
+                .iter()
+                .any(|item| item.name == "answer" && item.ty.contains("int"))
+        );
+    }
+
+    #[test]
+    fn run_inner_reports_exported_types_for_playground_std_source() {
+        clear_std_cache();
+        let output = run_inner("pub xs = [1, 2, 3]\nxs\n");
+
+        assert!(output.ok, "{output:?}");
+        assert!(
+            output
+                .types
+                .iter()
+                .any(|item| item.name == "xs" && item.ty.contains("list"))
         );
     }
 

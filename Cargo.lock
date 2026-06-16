@@ -1229,6 +1229,7 @@ dependencies = [
  "console_error_panic_hook",
  "control-vm",
  "parser",
+ "poly",
  "rowan",
  "serde",
  "serde-wasm-bindgen",
