@@ -1,0 +1,186 @@
+//! Name and local reference lowering.
+
+use super::*;
+
+impl<'a> ExprLowerer<'a> {
+    pub(super) fn lower_path_name(&mut self, path: &[Name]) -> Result<Computation, LoweringError> {
+        if let Some(builtin) = builtin_op_from_path(path) {
+            return self.lower_builtin_op(builtin);
+        }
+
+        let Some(target) = self.modules.value_path_at(self.module, path, self.site) else {
+            return Err(LoweringError::UnresolvedName {
+                name: Name(path_label(path)),
+            });
+        };
+        Ok(self.lower_resolved_value_ref(path_label(path), target))
+    }
+
+    pub(super) fn lower_std_value_ref(
+        &mut self,
+        path: Vec<String>,
+    ) -> Result<Computation, LoweringError> {
+        let path = path.into_iter().map(Name).collect::<Vec<_>>();
+        let Some(target) =
+            self.modules
+                .value_path_at(self.modules.root_id(), &path, module_path_lookup_site())
+        else {
+            return Err(LoweringError::UnresolvedName {
+                name: Name(path_label(&path)),
+            });
+        };
+        Ok(self.lower_resolved_value_ref(path_label(&path), target))
+    }
+
+    pub(super) fn lower_name(&mut self, name: Name) -> Result<Computation, LoweringError> {
+        if name.0 == "return"
+            && let Some(target) = self.current_sub_return_target().cloned()
+        {
+            return Ok(self.lower_sub_return_target(&target));
+        }
+
+        if let Some(local) = self.local_binding(&name) {
+            return Ok(self.lower_local_name(name, local));
+        }
+
+        match name.0.as_str() {
+            "true" => return Ok(self.lower_bool(true)),
+            "false" => return Ok(self.lower_bool(false)),
+            _ => {}
+        }
+
+        let Some(target) = self.modules.lexical_value_at(self.module, &name, self.site) else {
+            return Err(LoweringError::UnresolvedName { name });
+        };
+        let label = name.0.clone();
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let reference = self.session.poly.add_ref();
+        if let Some(labels) = self.labels.as_mut() {
+            labels.set_ref_label(reference, label);
+        }
+        self.session.refs.insert(
+            reference,
+            RefUse {
+                parent: self.parent,
+                value,
+            },
+        );
+        self.known_ref_targets.insert(reference, target);
+        self.session.enqueue(AnalysisWork::ApplyRefResolution {
+            ref_id: reference,
+            target,
+        });
+
+        let expr = self.session.poly.add_expr(Expr::Var(reference));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    pub(super) fn lower_sigil_name(&mut self, text: &str) -> Result<Computation, LoweringError> {
+        let Some(reference_name) = var_read_reference_name(text) else {
+            return self.lower_name(Name(text.to_string()));
+        };
+        let reference = self.lower_name(reference_name)?;
+        let get = self.lower_synthetic_selection(reference, "get".to_string());
+        let unit = self.unit_expr();
+        Ok(self.make_app(get, unit))
+    }
+
+    pub(super) fn lower_local_name(&mut self, name: Name, local: LocalBinding) -> Computation {
+        let (effect, effect_view) = self.local_effect_slot(local.effect.clone());
+        let value = self.instantiate_local_value(&local);
+        let reference = self.session.poly.add_ref();
+        self.session.poly.resolve_ref(reference, local.def);
+        if let Some(labels) = self.labels.as_mut() {
+            labels.set_ref_label(reference, name.0);
+        }
+        self.session.refs.insert(
+            reference,
+            RefUse {
+                parent: self.parent,
+                value,
+            },
+        );
+
+        let expr = self.session.poly.add_expr(Expr::Var(reference));
+        let computation = Computation::value(expr, value, effect);
+        match effect_view {
+            Some(view) => computation.with_effect_view(view),
+            None => computation,
+        }
+    }
+
+    fn local_effect_slot(
+        &mut self,
+        effect: Option<LocalEffect>,
+    ) -> (TypeVar, Option<EffectViewId>) {
+        match effect {
+            Some(LocalEffect::Var(effect)) => (effect, None),
+            Some(effect @ LocalEffect::Stack { inner, .. }) => {
+                let view = self.add_effect_view(effect);
+                (inner, Some(view))
+            }
+            None => (self.fresh_exact_pure_effect(), None),
+        }
+    }
+
+    fn add_effect_view(&mut self, effect: LocalEffect) -> EffectViewId {
+        let id = EffectViewId(self.effect_views.len() as u32);
+        self.effect_views.push(effect);
+        id
+    }
+
+    pub(super) fn effect_view(&self, id: EffectViewId) -> &LocalEffect {
+        &self.effect_views[id.0 as usize]
+    }
+
+    pub(super) fn subtype_var_to_local_effect(&mut self, source: TypeVar, target: &LocalEffect) {
+        match target {
+            LocalEffect::Var(target) => self.subtype_var_to_var(source, *target),
+            LocalEffect::Stack { inner, weight } => {
+                let lower = self.alloc_pos(Pos::Var(source));
+                let inner = self.alloc_neg(Neg::Var(*inner));
+                let upper = self.alloc_neg(Neg::Stack {
+                    inner,
+                    weight: weight.clone(),
+                });
+                self.session.infer.subtype(lower, upper);
+            }
+        }
+    }
+
+    pub(super) fn local_binding(&self, name: &Name) -> Option<LocalBinding> {
+        self.locals
+            .iter()
+            .rev()
+            .find(|local| &local.name == name)
+            .cloned()
+    }
+
+    pub(super) fn current_sub_return_target(&self) -> Option<&SubReturnTarget> {
+        self.sub_syntax_scopes
+            .last()
+            .map(|scope| &scope.bare_return)
+    }
+
+    pub(super) fn sub_label_return_target(&self, receiver: ExprId) -> Option<&SubReturnTarget> {
+        let label_def = self.expr_local_def(receiver)?;
+        self.sub_syntax_scopes
+            .iter()
+            .rev()
+            .flat_map(|scope| scope.labels.iter().rev())
+            .find(|label| label.label_def == label_def)
+            .map(|label| &label.target)
+    }
+
+    fn expr_local_def(&self, expr: ExprId) -> Option<DefId> {
+        let Expr::Var(reference) = self.session.poly.expr(expr) else {
+            return None;
+        };
+        self.session.poly.ref_target(*reference)
+    }
+
+    pub(super) fn lower_sub_return_target(&mut self, target: &SubReturnTarget) -> Computation {
+        self.lower_resolved_value_ref(target.label.clone(), target.def)
+    }
+}

@@ -1,7 +1,10 @@
 //! `case` / `catch` の lowering と、catch handler coverage 判定。
 
+mod syntax;
+
 use super::pattern::{PatternItem, pattern_path, pattern_payloads, single_pattern_item};
 use super::*;
+use syntax::*;
 
 impl<'a> ExprLowerer<'a> {
     pub(super) fn lower_if(&mut self, node: &Cst) -> Result<Computation, LoweringError> {
@@ -417,7 +420,6 @@ impl<'a> ExprLowerer<'a> {
     ) -> Result<Computation, LoweringError> {
         let value = self.fresh_type_var();
         let effect = self.fresh_type_var();
-        let rest_effect = self.fresh_type_var();
 
         let mut arms = Vec::new();
         let mut handled = CatchHandledEffects::new();
@@ -446,24 +448,30 @@ impl<'a> ExprLowerer<'a> {
             });
         }
 
-        if handled.is_empty() {
+        let final_effect = if handled.is_empty() {
             self.subtype_var_to_var(scrutinee.effect, effect);
+            effect
         } else {
+            let complete = handled.is_complete(self.modules, self.module, self.site);
+            let rest_effect = if complete {
+                effect
+            } else {
+                self.fresh_type_var()
+            };
             let tail = self.alloc_neg(Neg::Var(rest_effect));
             let row = self.alloc_neg(Neg::Row(handled.row_items(), tail));
             self.subtype_scrutinee_effect_to_row(scrutinee.effect, scrutinee.effect_view, row);
-            if handled.is_complete(self.modules, self.module, self.site) {
-                self.subtype_var_to_var(rest_effect, effect);
-            } else {
+            if !complete {
                 self.subtype_var_to_var(scrutinee.effect, effect);
             }
-        }
+            effect
+        };
         if !saw_value_arm {
             self.subtype_var_to_var(scrutinee.value, value);
             self.subtype_var_to_var(value, scrutinee.value);
         }
         if !saw_value_arm && !saw_effect_arm {
-            self.subtype_var_to_var(scrutinee.effect, effect);
+            self.subtype_var_to_var(scrutinee.effect, final_effect);
         }
 
         let expr = self
@@ -473,7 +481,7 @@ impl<'a> ExprLowerer<'a> {
         Ok(Computation::new(
             expr,
             value,
-            effect,
+            final_effect,
             Evaluation::Computation,
         ))
     }
@@ -951,148 +959,4 @@ enum LoweredCatchArmKind {
 enum RecursiveCaseLikeKind {
     Case,
     Catch,
-}
-
-fn case_like_scrutinee_expr(node: &Cst) -> Option<Cst> {
-    node.children()
-        .find(|child| child.kind() == SyntaxKind::Expr)
-}
-
-fn case_like_label(node: &Cst) -> Option<Name> {
-    node.children_with_tokens()
-        .filter_map(|item| item.into_token())
-        .find(|token| token.kind() == SyntaxKind::SigilIdent)
-        .map(|token| Name(token.text().to_string()))
-}
-
-fn case_arm_nodes(node: &Cst) -> Vec<Cst> {
-    node.children()
-        .filter(|child| child.kind() == SyntaxKind::CaseBlock)
-        .flat_map(|block| arm_nodes(&block, SyntaxKind::CaseArm))
-        .collect()
-}
-
-fn catch_arm_nodes(node: &Cst) -> Vec<Cst> {
-    node.children()
-        .filter(|child| child.kind() == SyntaxKind::CatchBlock)
-        .flat_map(|block| arm_nodes(&block, SyntaxKind::CatchArm))
-        .collect()
-}
-
-fn if_arm_nodes(node: &Cst) -> Vec<Cst> {
-    node.children()
-        .filter(|child| child.kind() == SyntaxKind::IfArm)
-        .collect()
-}
-
-fn else_arm_node(node: &Cst) -> Option<Cst> {
-    node.children()
-        .find(|child| child.kind() == SyntaxKind::ElseArm)
-}
-
-fn if_arm_condition_expr(arm: &Cst) -> Option<Cst> {
-    arm.children()
-        .find(|child| child.kind() == SyntaxKind::Cond)?
-        .children()
-        .find(|child| child.kind() == SyntaxKind::Expr)
-}
-
-fn if_arm_body_expr(arm: &Cst) -> Option<Cst> {
-    arm.children().find(|child| {
-        matches!(
-            child.kind(),
-            SyntaxKind::Expr | SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
-        )
-    })
-}
-
-fn arm_nodes(block: &Cst, kind: SyntaxKind) -> Vec<Cst> {
-    block
-        .children()
-        .filter(|child| child.kind() == kind)
-        .collect()
-}
-
-fn arm_pattern(arm: &Cst) -> Option<Cst> {
-    arm_patterns(arm).into_iter().next()
-}
-
-fn arm_guard_expr(arm: &Cst) -> Option<Cst> {
-    arm.children()
-        .find(|child| matches!(child.kind(), SyntaxKind::CaseGuard | SyntaxKind::CatchGuard))?
-        .children()
-        .find(|child| child.kind() == SyntaxKind::Expr)
-}
-
-fn arm_patterns(arm: &Cst) -> Vec<Cst> {
-    arm.children()
-        .filter(|child| {
-            matches!(
-                child.kind(),
-                SyntaxKind::Pattern
-                    | SyntaxKind::PatOr
-                    | SyntaxKind::PatAs
-                    | SyntaxKind::PatParenGroup
-                    | SyntaxKind::PatList
-            )
-        })
-        .collect()
-}
-
-fn arm_body_expr(arm: &Cst) -> Option<Cst> {
-    arm.children()
-        .filter(|child| {
-            matches!(
-                child.kind(),
-                SyntaxKind::Expr | SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
-            )
-        })
-        .last()
-}
-
-fn catch_effect_op(path: Vec<Name>) -> CatchEffectOp {
-    let Some((operation, family_path)) = path.split_last() else {
-        return CatchEffectOp {
-            path,
-            family_path: Vec::new(),
-            operation: None,
-        };
-    };
-    let operation = operation.clone();
-    let family_path = family_path.to_vec();
-    if family_path.is_empty() {
-        return CatchEffectOp {
-            path,
-            family_path: vec![operation],
-            operation: None,
-        };
-    }
-    CatchEffectOp {
-        path,
-        family_path,
-        operation: Some(operation),
-    }
-}
-
-fn pat_covers_all(poly: &poly::expr::Arena, pat: PatId) -> bool {
-    match poly.pat(pat) {
-        Pat::Wild | Pat::Var(_) => true,
-        Pat::Lit(Lit::Unit) => true,
-        Pat::Tuple(items) => items.iter().all(|item| pat_covers_all(poly, *item)),
-        Pat::Or(lhs, rhs) => pat_covers_all(poly, *lhs) || pat_covers_all(poly, *rhs),
-        Pat::As(inner, _) => pat_covers_all(poly, *inner),
-        Pat::Lit(_)
-        | Pat::List { .. }
-        | Pat::Record { .. }
-        | Pat::PolyVariant(_, _)
-        | Pat::Con(_, _)
-        | Pat::Ref(_) => false,
-    }
-}
-
-fn operation_signature_param_ret(ann: &AnnType) -> Option<(&AnnType, &AnnType)> {
-    match ann {
-        AnnType::Function { param, ret, .. } => Some((param, ret)),
-        _ => None,
-    }
 }

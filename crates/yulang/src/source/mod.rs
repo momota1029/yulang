@@ -1,0 +1,963 @@
+//! 実ファイルから新 `sources` / `infer` route へ渡す source set を作る入口。
+//!
+//! `sources` crate は in-memory source set の parse/load 層に留め、FS traversal と
+//! 実験中の std 取り込みはここへ置く。
+
+mod collector;
+mod format;
+mod std_sources;
+
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::fmt;
+use std::fmt::Write as _;
+use std::fs;
+use std::io;
+use std::path::{Path as FsPath, PathBuf};
+
+use sources::{ModuleLoadRequest, Name, Path, SourceFile};
+
+use crate::stdlib::{
+    YULANG_STD_ENV, default_versioned_std_root, embedded_std_files, env_std_root,
+    install_embedded_std,
+};
+use crate::time::{Duration, Instant};
+
+#[cfg(test)]
+mod tests;
+
+use collector::*;
+use format::*;
+use std_sources::*;
+
+pub use format::format_run_mono_values;
+
+pub const IMPLICIT_PRELUDE_IMPORT: &str = "use std::prelude::*\n";
+const IMPLICIT_STD_MODULE_DECL: &str = "mod std;\n";
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StdSourceOptions {
+    pub std_root: Option<PathBuf>,
+}
+
+/// entry file から local module file を読み、1つの module tree として poly dump を返す。
+pub fn dump_poly_from_entry(entry: impl AsRef<FsPath>) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(collect_local_sources(entry)?, DumpPolyKind::Compact)
+}
+
+/// entry file から local module file を読み、raw poly debug dump を返す。
+pub fn dump_poly_raw_from_entry(entry: impl AsRef<FsPath>) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(collect_local_sources(entry)?, DumpPolyKind::Raw)
+}
+
+/// entry file から local module file を読み、mono dump を返す。
+pub fn dump_mono_from_entry(entry: impl AsRef<FsPath>) -> Result<DumpMonoOutput, RouteError> {
+    dump_mono_from_sources(collect_local_sources(entry)?)
+}
+
+/// entry file から local module file を読み、mono runtime で root を実行する。
+pub fn run_mono_from_entry(entry: impl AsRef<FsPath>) -> Result<RunMonoOutput, RouteError> {
+    run_mono_from_sources(collect_local_sources(entry)?)
+}
+
+/// entry file から local module file を読み、control VM で root を実行する。
+pub fn run_control_from_entry(entry: impl AsRef<FsPath>) -> Result<RunControlOutput, RouteError> {
+    run_control_from_sources(collect_local_sources(entry)?)
+}
+
+/// entry file から local module file を読み、control VM artifact 用 IR を作る。
+pub fn build_control_from_entry(
+    entry: impl AsRef<FsPath>,
+) -> Result<BuildControlOutput, RouteError> {
+    build_control_from_sources(collect_local_sources(entry)?)
+}
+
+/// 収集済み source set から control VM artifact 用 IR を作る。
+///
+/// CLI の artifact cache は source collection を cache の外に置くので、この入口から
+/// 推論・単相化・control lowering を再利用単位にする。
+pub fn build_control_from_collected_sources(
+    files: Vec<CollectedSource>,
+) -> Result<BuildControlOutput, RouteError> {
+    build_control_from_sources(files)
+}
+
+/// 収集済み source set から principal poly artifact を作る。
+///
+/// `BuildPolyOutput` は infer の mutable graph ではなく、後段が読む `poly::Arena` と
+/// 表示用 lowering error だけを持つ。CLI の `.yuir` cache はこの出力を保存する。
+pub fn build_poly_from_collected_sources(
+    files: Vec<CollectedSource>,
+) -> Result<BuildPolyOutput, RouteError> {
+    build_poly_from_sources(files)
+}
+
+/// principal poly artifact から control VM artifact 用 IR を作る。
+pub fn build_control_from_poly_output(
+    output: &BuildPolyOutput,
+) -> Result<BuildControlOutput, RouteError> {
+    let mono = specialize::specialize(&output.arena).map_err(RouteError::Specialize)?;
+    let program = control_vm::lower(&mono).map_err(RouteError::ControlLower)?;
+    Ok(BuildControlOutput {
+        program,
+        file_count: output.file_count,
+        errors: output.errors.clone(),
+    })
+}
+
+/// すでに lower 済みの control VM program を実行し、通常の route output に包む。
+pub fn run_built_control_program(
+    program: &control_vm::Program,
+    file_count: usize,
+    errors: Vec<String>,
+) -> Result<RunControlOutput, RouteError> {
+    let values = control_vm::run_program(program).map_err(RouteError::Control)?;
+    Ok(RunControlOutput {
+        text: format!("run roots {}\n", control_vm::format_values(&values)),
+        file_count,
+        errors,
+        values,
+    })
+}
+
+/// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで poly dump を返す。
+///
+/// デバッグ用の暫定入口。install 済み std ではなく、entry の親から上へ辿って見つかる
+/// `lib/std.yu` を優先する。
+pub fn dump_poly_from_entry_with_std(
+    entry: impl AsRef<FsPath>,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn dump_poly_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(
+        collect_local_sources_with_std_options(entry, options)?,
+        DumpPolyKind::Compact,
+    )
+}
+
+/// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで raw poly debug dump を返す。
+pub fn dump_poly_raw_from_entry_with_std(
+    entry: impl AsRef<FsPath>,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_raw_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn dump_poly_raw_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(
+        collect_local_sources_with_std_options(entry, options)?,
+        DumpPolyKind::Raw,
+    )
+}
+
+/// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで mono dump を返す。
+pub fn dump_mono_from_entry_with_std(
+    entry: impl AsRef<FsPath>,
+) -> Result<DumpMonoOutput, RouteError> {
+    dump_mono_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn dump_mono_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<DumpMonoOutput, RouteError> {
+    dump_mono_from_sources(collect_local_sources_with_std_options(entry, options)?)
+}
+
+/// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで mono runtime を実行する。
+pub fn run_mono_from_entry_with_std(
+    entry: impl AsRef<FsPath>,
+) -> Result<RunMonoOutput, RouteError> {
+    run_mono_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn run_mono_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<RunMonoOutput, RouteError> {
+    run_mono_from_sources(collect_local_sources_with_std_options(entry, options)?)
+}
+
+/// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで control VM を実行する。
+pub fn run_control_from_entry_with_std(
+    entry: impl AsRef<FsPath>,
+) -> Result<RunControlOutput, RouteError> {
+    run_control_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn run_control_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<RunControlOutput, RouteError> {
+    run_control_from_sources(collect_local_sources_with_std_options(entry, options)?)
+}
+
+/// entry file と近場の `lib/std.yu` を読み、control VM artifact 用 IR を作る。
+pub fn build_control_from_entry_with_std(
+    entry: impl AsRef<FsPath>,
+) -> Result<BuildControlOutput, RouteError> {
+    build_control_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn build_control_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<BuildControlOutput, RouteError> {
+    build_control_from_sources(collect_local_sources_with_std_options(entry, options)?)
+}
+
+/// entry file から local module file を読み、dump なしで型付け状況を集計する。
+pub fn check_poly_from_entry(entry: impl AsRef<FsPath>) -> Result<CheckPolyOutput, RouteError> {
+    let total_start = Instant::now();
+    let collect_start = Instant::now();
+    let files = collect_local_sources(entry)?;
+    let collect = collect_start.elapsed();
+    check_poly_from_sources(
+        files,
+        collect,
+        total_start,
+        CheckPolyKind::All {
+            title: "check-poly",
+        },
+    )
+}
+
+/// entry file と近場の `lib/std.yu` を読み、dump なしで型付け状況を集計する。
+pub fn check_poly_from_entry_with_std(
+    entry: impl AsRef<FsPath>,
+) -> Result<CheckPolyOutput, RouteError> {
+    check_poly_from_entry_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn check_poly_from_entry_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<CheckPolyOutput, RouteError> {
+    let total_start = Instant::now();
+    let collect_start = Instant::now();
+    let files = collect_local_sources_with_std_options(entry, options)?;
+    let collect = collect_start.elapsed();
+    check_poly_from_sources(
+        files,
+        collect,
+        total_start,
+        CheckPolyKind::All {
+            title: "check-poly-std",
+        },
+    )
+}
+
+pub fn analyze_entry_source_with_std_options(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    options: &StdSourceOptions,
+) -> Result<AnalyzeSourceOutput, RouteError> {
+    analyze_from_sources(collect_local_source_text_with_std_options(
+        entry,
+        source.into(),
+        options,
+    )?)
+}
+
+pub fn analyze_entry_source(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<AnalyzeSourceOutput, RouteError> {
+    analyze_from_sources(collect_local_source_text(entry, source.into())?)
+}
+
+/// entry file と近場の `lib/std.yu` を読み、指定 module の型付け状況だけを集計する。
+pub fn check_poly_from_entry_with_std_in_module(
+    entry: impl AsRef<FsPath>,
+    module: &str,
+) -> Result<CheckPolyOutput, RouteError> {
+    check_poly_from_entry_with_std_in_module_options(entry, module, &StdSourceOptions::default())
+}
+
+pub fn check_poly_from_entry_with_std_in_module_options(
+    entry: impl AsRef<FsPath>,
+    module: &str,
+    options: &StdSourceOptions,
+) -> Result<CheckPolyOutput, RouteError> {
+    let total_start = Instant::now();
+    let collect_start = Instant::now();
+    let files = collect_local_sources_with_std_options(entry, options)?;
+    let collect = collect_start.elapsed();
+    check_poly_from_sources(
+        files,
+        collect,
+        total_start,
+        CheckPolyKind::Module {
+            title: "check-poly-std-in",
+            module: parse_dump_module_path(module)?,
+        },
+    )
+}
+
+/// entry file と近場の `lib/std.yu` を読み、指定 module 直下の値だけを poly dump する。
+pub fn dump_poly_from_entry_with_std_in_module(
+    entry: impl AsRef<FsPath>,
+    module: &str,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_entry_with_std_in_module_options(entry, module, &StdSourceOptions::default())
+}
+
+pub fn dump_poly_from_entry_with_std_in_module_options(
+    entry: impl AsRef<FsPath>,
+    module: &str,
+    options: &StdSourceOptions,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(
+        collect_local_sources_with_std_options(entry, options)?,
+        DumpPolyKind::Module {
+            module: parse_dump_module_path(module)?,
+            raw: false,
+        },
+    )
+}
+
+/// entry file と近場の `lib/std.yu` を読み、指定 module 直下の値だけを raw poly dump する。
+pub fn dump_poly_raw_from_entry_with_std_in_module(
+    entry: impl AsRef<FsPath>,
+    module: &str,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_raw_from_entry_with_std_in_module_options(entry, module, &StdSourceOptions::default())
+}
+
+pub fn dump_poly_raw_from_entry_with_std_in_module_options(
+    entry: impl AsRef<FsPath>,
+    module: &str,
+    options: &StdSourceOptions,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(
+        collect_local_sources_with_std_options(entry, options)?,
+        DumpPolyKind::Module {
+            module: parse_dump_module_path(module)?,
+            raw: true,
+        },
+    )
+}
+
+/// `mod foo;` / `use mod foo::*` だけを辿って raw source file を集める。
+pub fn collect_local_sources(
+    entry: impl AsRef<FsPath>,
+) -> Result<Vec<CollectedSource>, RouteError> {
+    Collector::new().collect_entry(entry.as_ref(), false)
+}
+
+pub fn collect_local_source_text(
+    entry: impl AsRef<FsPath>,
+    source: String,
+) -> Result<Vec<CollectedSource>, RouteError> {
+    Collector::new().collect_entry_source(entry.as_ref(), source, false)
+}
+
+/// 近場の `lib/std.yu` と local module file を集め、root source に implicit prelude を足す。
+pub fn collect_local_sources_with_std(
+    entry: impl AsRef<FsPath>,
+) -> Result<Vec<CollectedSource>, RouteError> {
+    collect_local_sources_with_std_options(entry, &StdSourceOptions::default())
+}
+
+pub fn collect_local_sources_with_std_options(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<Vec<CollectedSource>, RouteError> {
+    let entry = entry.as_ref();
+    let base = entry.parent().unwrap_or_else(|| FsPath::new("."));
+    let std_root = resolve_std_root(base, options)?;
+
+    let mut collector = Collector::new();
+    collector.collect_std_root(&std_root)?;
+    collector.collect_entry(entry, true)
+}
+
+pub fn collect_local_source_text_with_std_options(
+    entry: impl AsRef<FsPath>,
+    source: String,
+    options: &StdSourceOptions,
+) -> Result<Vec<CollectedSource>, RouteError> {
+    let entry = entry.as_ref();
+    let base = entry.parent().unwrap_or_else(|| FsPath::new("."));
+    let std_root = resolve_std_root(base, options)?;
+
+    let mut collector = Collector::new();
+    collector.collect_std_root(&std_root)?;
+    collector.collect_entry_source(entry, source, true)
+}
+
+/// Browser / playground 向けに、root source と埋め込み std だけで source set を作る。
+///
+/// この入口はファイルシステムを読まない。root source 側の local `mod foo;` を辿る必要が
+/// 出た場合は、呼び出し側で複数 source を渡す別 route を足す。
+pub fn collect_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: String,
+) -> Result<Vec<CollectedSource>, RouteError> {
+    Ok(embedded_std_sources_with_root(entry.as_ref(), source))
+}
+
+/// Browser / playground 向けの小さい embedded std profile で source set を作る。
+///
+/// full std は意味上の fallback として残し、この入口は common playground examples が
+/// source を切り替えるたびに parser/file/text-path まで含む std 全体を推論し直すのを避ける。
+pub fn collect_source_text_with_embedded_playground_std(
+    entry: impl AsRef<FsPath>,
+    source: String,
+) -> Result<Vec<CollectedSource>, RouteError> {
+    Ok(embedded_playground_std_sources_with_root(
+        entry.as_ref(),
+        source,
+    ))
+}
+
+pub fn analyze_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<AnalyzeSourceOutput, RouteError> {
+    analyze_from_sources(collect_source_text_with_embedded_std(entry, source.into())?)
+}
+
+pub fn check_poly_from_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<CheckPolyOutput, RouteError> {
+    let total_start = Instant::now();
+    let collect_start = Instant::now();
+    let files = collect_source_text_with_embedded_std(entry, source.into())?;
+    let collect = collect_start.elapsed();
+    check_poly_from_sources(
+        files,
+        collect,
+        total_start,
+        CheckPolyKind::All {
+            title: "check-poly-embedded-std",
+        },
+    )
+}
+
+pub fn dump_poly_from_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(
+        collect_source_text_with_embedded_std(entry, source.into())?,
+        DumpPolyKind::Compact,
+    )
+}
+
+pub fn dump_poly_raw_from_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<DumpPolyOutput, RouteError> {
+    dump_poly_from_sources(
+        collect_source_text_with_embedded_std(entry, source.into())?,
+        DumpPolyKind::Raw,
+    )
+}
+
+pub fn dump_mono_from_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<DumpMonoOutput, RouteError> {
+    dump_mono_from_sources(collect_source_text_with_embedded_std(entry, source.into())?)
+}
+
+pub fn build_control_from_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<BuildControlOutput, RouteError> {
+    build_control_from_sources(collect_source_text_with_embedded_std(entry, source.into())?)
+}
+
+pub fn build_control_from_source_text_with_embedded_playground_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<BuildControlOutput, RouteError> {
+    build_control_from_sources(collect_source_text_with_embedded_playground_std(
+        entry,
+        source.into(),
+    )?)
+}
+
+pub fn run_control_from_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<RunControlOutput, RouteError> {
+    run_control_from_sources(collect_source_text_with_embedded_std(entry, source.into())?)
+}
+
+/// `base` から上へ辿って、デバッグ用の近場 std package root を探す。
+pub fn find_nearby_std_root(base: &FsPath) -> Option<PathBuf> {
+    for ancestor in base.ancestors() {
+        let candidate = ancestor.join("lib");
+        if is_std_root(&candidate) {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DumpPolyOutput {
+    pub text: String,
+    pub file_count: usize,
+    /// body lowering が報告したエラーの表示用整形。dump 本文とは別に stderr へ流す。
+    pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DumpMonoOutput {
+    pub text: String,
+    pub file_count: usize,
+    /// body lowering が報告したエラーの表示用整形。dump 本文とは別に stderr へ流す。
+    pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RunMonoOutput {
+    pub text: String,
+    pub file_count: usize,
+    /// body lowering が報告したエラーの表示用整形。実行結果とは別に stderr へ流す。
+    pub errors: Vec<String>,
+    pub values: Vec<mono_runtime::Value>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RunControlOutput {
+    pub text: String,
+    pub file_count: usize,
+    /// body lowering が報告したエラーの表示用整形。実行結果とは別に stderr へ流す。
+    pub errors: Vec<String>,
+    pub values: Vec<control_vm::Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CheckPolyOutput {
+    pub text: String,
+    pub file_count: usize,
+    pub diagnostics: Vec<SourceDiagnostic>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnalyzeSourceOutput {
+    pub file_count: usize,
+    pub diagnostics: Vec<SourceDiagnostic>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceDiagnostic {
+    pub label: Option<String>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BuildControlOutput {
+    pub program: control_vm::Program,
+    pub file_count: usize,
+    /// body lowering が報告したエラーの表示用整形。artifact とは別に stderr へ流す。
+    pub errors: Vec<String>,
+}
+
+pub struct BuildPolyOutput {
+    pub arena: poly::expr::Arena,
+    pub labels: poly::dump::DumpLabels,
+    pub file_count: usize,
+    /// body lowering が報告したエラーの表示用整形。artifact とは別に stderr へ流す。
+    pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CollectedSource {
+    pub path: PathBuf,
+    pub module_path: Path,
+    pub source: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum DumpPolyKind {
+    Compact,
+    Raw,
+    Module { module: Path, raw: bool },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum CheckPolyKind {
+    All { title: &'static str },
+    Module { title: &'static str, module: Path },
+}
+
+#[derive(Debug)]
+pub enum RouteError {
+    Io {
+        path: PathBuf,
+        error: io::Error,
+    },
+    StdRootNotFound {
+        base: PathBuf,
+    },
+    StdRootInstall {
+        root: PathBuf,
+        error: io::Error,
+    },
+    InvalidStdRoot {
+        root: PathBuf,
+    },
+    ModuleNotFound {
+        current: PathBuf,
+        module: Path,
+        candidates: Vec<PathBuf>,
+    },
+    AmbiguousModuleFile {
+        current: PathBuf,
+        module: Path,
+        candidates: Vec<PathBuf>,
+    },
+    DuplicateModulePath {
+        module: Path,
+        first: PathBuf,
+        second: PathBuf,
+    },
+    InvalidDumpModulePath {
+        module: String,
+    },
+    DumpModuleNotFound {
+        module: Path,
+    },
+    CheckModuleNotFound {
+        module: Path,
+    },
+    Lower(infer::LoadedFilesError),
+    Specialize(specialize::SpecializeError),
+    Runtime(mono_runtime::RuntimeError),
+    Control(control_vm::RunError),
+    ControlLower(control_vm::LowerError),
+}
+
+impl fmt::Display for RouteError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RouteError::Io { path, error } => {
+                write!(f, "failed to read {}: {error}", path.display())
+            }
+            RouteError::StdRootNotFound { base } => {
+                write!(
+                    f,
+                    "std root was not found near {} or in {YULANG_STD_ENV}",
+                    base.display()
+                )
+            }
+            RouteError::StdRootInstall { root, error } => {
+                write!(f, "failed to install std root {}: {error}", root.display())
+            }
+            RouteError::InvalidStdRoot { root } => {
+                write!(f, "std root {} does not contain std.yu", root.display())
+            }
+            RouteError::ModuleNotFound {
+                current,
+                module,
+                candidates,
+            } => {
+                write!(
+                    f,
+                    "module {} requested from {} was not found",
+                    format_module_path(module),
+                    current.display()
+                )?;
+                write_candidates(f, candidates)
+            }
+            RouteError::AmbiguousModuleFile {
+                current,
+                module,
+                candidates,
+            } => {
+                write!(
+                    f,
+                    "module {} requested from {} is ambiguous",
+                    format_module_path(module),
+                    current.display()
+                )?;
+                write_candidates(f, candidates)
+            }
+            RouteError::DuplicateModulePath {
+                module,
+                first,
+                second,
+            } => write!(
+                f,
+                "module {} was loaded from both {} and {}",
+                format_module_path(module),
+                first.display(),
+                second.display()
+            ),
+            RouteError::InvalidDumpModulePath { module } => {
+                write!(f, "dump module path `{module}` is invalid")
+            }
+            RouteError::DumpModuleNotFound { module } => write!(
+                f,
+                "dump module {} was not found",
+                format_module_path(module)
+            ),
+            RouteError::CheckModuleNotFound { module } => write!(
+                f,
+                "check module {} was not found",
+                format_module_path(module)
+            ),
+            RouteError::Lower(error) => write!(f, "{error}"),
+            RouteError::Specialize(error) => write!(f, "{error}"),
+            RouteError::Runtime(error) => write!(f, "{error}"),
+            RouteError::Control(error) => write!(f, "{error}"),
+            RouteError::ControlLower(error) => write!(f, "{error}"),
+        }
+    }
+}
+
+impl std::error::Error for RouteError {}
+
+struct CheckPolyTimings {
+    collect: Duration,
+    load: Duration,
+    infer: Duration,
+    summarize: Duration,
+    total: Duration,
+}
+
+fn check_poly_from_sources(
+    files: Vec<CollectedSource>,
+    collect: Duration,
+    total_start: Instant,
+    kind: CheckPolyKind,
+) -> Result<CheckPolyOutput, RouteError> {
+    let source_files = files
+        .iter()
+        .map(|file| SourceFile {
+            module_path: file.module_path.clone(),
+            source: file.source.clone(),
+        })
+        .collect::<Vec<_>>();
+    let load_start = Instant::now();
+    let loaded = sources::load(source_files);
+    let load = load_start.elapsed();
+    let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let timing = CheckPolyTimings {
+        collect,
+        load,
+        infer: check.timing.infer,
+        summarize: check.timing.summarize,
+        total: total_start.elapsed(),
+    };
+    let diagnostics = match &kind {
+        CheckPolyKind::All { .. } => {
+            source_diagnostics_from_check(&check, &check.report.diagnostics)
+        }
+        CheckPolyKind::Module { module, .. } => {
+            let Some(module_check) = check
+                .report
+                .modules
+                .iter()
+                .find(|item| item.path == *module)
+            else {
+                return Err(RouteError::CheckModuleNotFound {
+                    module: module.clone(),
+                });
+            };
+            source_diagnostics_from_check(&check, &module_check.diagnostics)
+        }
+    };
+    let text = match kind {
+        CheckPolyKind::All { title } => {
+            format_check_poly_output(loaded.len(), &check, &timing, title)
+        }
+        CheckPolyKind::Module { title, module } => {
+            let Some(module_check) = check.report.modules.iter().find(|item| item.path == module)
+            else {
+                return Err(RouteError::CheckModuleNotFound { module });
+            };
+            format_check_poly_module_output(loaded.len(), &check, module_check, &timing, title)
+        }
+    };
+    Ok(CheckPolyOutput {
+        text,
+        file_count: loaded.len(),
+        diagnostics,
+    })
+}
+
+fn analyze_from_sources(files: Vec<CollectedSource>) -> Result<AnalyzeSourceOutput, RouteError> {
+    let source_files = files
+        .iter()
+        .map(|file| SourceFile {
+            module_path: file.module_path.clone(),
+            source: file.source.clone(),
+        })
+        .collect::<Vec<_>>();
+    let loaded = sources::load(source_files);
+    let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let diagnostics = source_diagnostics_from_check(&check, &check.report.diagnostics);
+    Ok(AnalyzeSourceOutput {
+        file_count: loaded.len(),
+        diagnostics,
+    })
+}
+
+fn source_diagnostics_from_check(
+    check: &infer::check::PolyCheckOutput,
+    diagnostics: &[infer::check::CheckDiagnostic],
+) -> Vec<SourceDiagnostic> {
+    diagnostics
+        .iter()
+        .map(|diagnostic| {
+            let error = &check.lowering.errors[diagnostic.error_index];
+            SourceDiagnostic {
+                label: diagnostic.label.clone(),
+                message: format_body_lowering_error(error),
+            }
+        })
+        .collect()
+}
+
+fn dump_poly_from_sources(
+    files: Vec<CollectedSource>,
+    kind: DumpPolyKind,
+) -> Result<DumpPolyOutput, RouteError> {
+    let source_files = files
+        .iter()
+        .map(|file| SourceFile {
+            module_path: file.module_path.clone(),
+            source: file.source.clone(),
+        })
+        .collect::<Vec<_>>();
+    let loaded = sources::load(source_files);
+    match kind {
+        DumpPolyKind::Compact => {
+            let dump = infer::dump::dump_loaded_files(&loaded).map_err(RouteError::Lower)?;
+            let errors = dump
+                .lowering
+                .errors
+                .iter()
+                .map(format_body_lowering_error)
+                .collect();
+            Ok(DumpPolyOutput {
+                text: dump.text,
+                file_count: loaded.len(),
+                errors,
+            })
+        }
+        DumpPolyKind::Raw => {
+            let dump = infer::dump::dump_loaded_files_raw(&loaded).map_err(RouteError::Lower)?;
+            let errors = dump
+                .lowering
+                .errors
+                .iter()
+                .map(format_body_lowering_error)
+                .collect();
+            Ok(DumpPolyOutput {
+                text: dump.text,
+                file_count: loaded.len(),
+                errors,
+            })
+        }
+        DumpPolyKind::Module { module, raw } => {
+            let Some(dump) = infer::dump::dump_loaded_files_in_module(&loaded, &module, raw)
+                .map_err(RouteError::Lower)?
+            else {
+                return Err(RouteError::DumpModuleNotFound { module });
+            };
+            let local_defs = dump.defs.iter().copied().collect::<HashSet<_>>();
+            let errors = dump
+                .lowering
+                .errors
+                .iter()
+                .filter(|error| {
+                    infer::dump::body_error_def(error).is_some_and(|def| local_defs.contains(&def))
+                })
+                .map(format_body_lowering_error)
+                .collect();
+            Ok(DumpPolyOutput {
+                text: dump.text,
+                file_count: loaded.len(),
+                errors,
+            })
+        }
+    }
+}
+
+fn dump_mono_from_sources(files: Vec<CollectedSource>) -> Result<DumpMonoOutput, RouteError> {
+    let output = specialize_mono_from_sources(files)?;
+    Ok(DumpMonoOutput {
+        text: specialize::mono::dump::dump_program(&output.program),
+        file_count: output.file_count,
+        errors: output.errors,
+    })
+}
+
+fn run_mono_from_sources(files: Vec<CollectedSource>) -> Result<RunMonoOutput, RouteError> {
+    let output = specialize_mono_from_sources(files)?;
+    let values = mono_runtime::run_program(&output.program).map_err(RouteError::Runtime)?;
+    Ok(RunMonoOutput {
+        text: format_run_mono_values(&values),
+        file_count: output.file_count,
+        errors: output.errors,
+        values,
+    })
+}
+
+fn run_control_from_sources(files: Vec<CollectedSource>) -> Result<RunControlOutput, RouteError> {
+    let output = build_control_from_sources(files)?;
+    run_built_control_program(&output.program, output.file_count, output.errors)
+}
+
+fn build_control_from_sources(
+    files: Vec<CollectedSource>,
+) -> Result<BuildControlOutput, RouteError> {
+    let output = build_poly_from_sources(files)?;
+    build_control_from_poly_output(&output)
+}
+
+struct SpecializedMonoOutput {
+    program: specialize::mono::Program,
+    file_count: usize,
+    errors: Vec<String>,
+}
+
+fn specialize_mono_from_sources(
+    files: Vec<CollectedSource>,
+) -> Result<SpecializedMonoOutput, RouteError> {
+    let output = build_poly_from_sources(files)?;
+    let program = specialize::specialize(&output.arena).map_err(RouteError::Specialize)?;
+    Ok(SpecializedMonoOutput {
+        program,
+        file_count: output.file_count,
+        errors: output.errors,
+    })
+}
+
+fn build_poly_from_sources(files: Vec<CollectedSource>) -> Result<BuildPolyOutput, RouteError> {
+    let source_files = files
+        .iter()
+        .map(|file| SourceFile {
+            module_path: file.module_path.clone(),
+            source: file.source.clone(),
+        })
+        .collect::<Vec<_>>();
+    let loaded = sources::load(source_files);
+    let dump = infer::dump::dump_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let errors = dump
+        .lowering
+        .errors
+        .iter()
+        .map(format_body_lowering_error)
+        .collect();
+    Ok(BuildPolyOutput {
+        arena: dump.lowering.session.poly,
+        labels: dump.lowering.labels,
+        file_count: loaded.len(),
+        errors,
+    })
+}

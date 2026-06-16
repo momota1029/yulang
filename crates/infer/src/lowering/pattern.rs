@@ -173,6 +173,7 @@ impl<'a> ExprLowerer<'a> {
             value,
             effect,
             call_return_effect,
+            unannotated_call_frame: None,
             scheme: None,
         });
         def
