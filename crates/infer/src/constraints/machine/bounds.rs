@@ -19,25 +19,10 @@ impl ConstraintMachine {
         });
         trace_var_bounds("after lower", target, self.bounds.of(target), &self.types);
 
-        let uppers = self
-            .bounds
-            .of(target)
-            .map(|bounds| bounds.uppers.clone())
-            .unwrap_or_default();
-        let replay_input_count = uppers.len();
-        let mut replay_enqueued = 0usize;
-        let mut replay_var_var = 0usize;
-        trace_bound_replay_start("lower", target, uppers.len());
-        for (index, upper) in uppers.into_iter().enumerate() {
-            trace_bound_replay_progress("lower", target, index);
-            let replay_weights = weights.compose_for_replay(&upper.weights);
-            if self.is_var_var_replay(pos, upper.neg) {
-                replay_var_var += 1;
-                self.add_var_var_bound_without_replay(pos, upper.neg, replay_weights);
-                continue;
-            }
-            replay_enqueued += 1;
-            self.enqueue_subtype(pos, replay_weights, upper.neg);
+        let (replay_input_count, replay_enqueued, replay_var_var, actions) =
+            self.lower_bound_replay_actions(target, pos, &weights);
+        for action in actions {
+            self.apply_bound_replay_action(action);
         }
         self.timing
             .record_lower_bound_added(replay_input_count, replay_enqueued, replay_var_var);
@@ -65,25 +50,10 @@ impl ConstraintMachine {
         });
         trace_var_bounds("after upper", source, self.bounds.of(source), &self.types);
 
-        let lowers = self
-            .bounds
-            .of(source)
-            .map(|bounds| bounds.lowers.clone())
-            .unwrap_or_default();
-        let replay_input_count = lowers.len();
-        let mut replay_enqueued = 0usize;
-        let mut replay_var_var = 0usize;
-        trace_bound_replay_start("upper", source, lowers.len());
-        for (index, lower) in lowers.into_iter().enumerate() {
-            trace_bound_replay_progress("upper", source, index);
-            let replay_weights = lower.weights.compose_for_replay(&weights);
-            if self.is_var_var_replay(lower.pos, neg) {
-                replay_var_var += 1;
-                self.add_var_var_bound_without_replay(lower.pos, neg, replay_weights);
-                continue;
-            }
-            replay_enqueued += 1;
-            self.enqueue_subtype(lower.pos, replay_weights, neg);
+        let (replay_input_count, replay_enqueued, replay_var_var, actions) =
+            self.upper_bound_replay_actions(source, neg, &weights);
+        for action in actions {
+            self.apply_bound_replay_action(action);
         }
         self.timing
             .record_upper_bound_added(replay_input_count, replay_enqueued, replay_var_var);
@@ -121,24 +91,10 @@ impl ConstraintMachine {
                 self.bounds.of(lower_var),
                 &self.types,
             );
-            let (replay_input_count, empty_replay_skipped, lowers) =
-                self.replayable_lowers_for_var_var_upper(lower_var, upper, &weights);
-            let mut replay_enqueued = 0usize;
-            for lower_bound in lowers {
-                if self.is_var_var_replay(lower_bound.pos, upper) {
-                    let replay_weights = lower_bound.weights.compose_for_replay(&weights);
-                    if Self::weights_are_pop_only(&replay_weights) {
-                        self.add_var_var_bound_without_replay(
-                            lower_bound.pos,
-                            upper,
-                            replay_weights,
-                        );
-                    }
-                    continue;
-                }
-                let replay_weights = lower_bound.weights.compose_for_replay(&weights);
-                replay_enqueued += 1;
-                self.enqueue_subtype(lower_bound.pos, replay_weights, upper);
+            let (replay_input_count, replay_enqueued, empty_replay_skipped, actions) =
+                self.var_var_upper_replay_actions(lower_var, upper, &weights);
+            for action in actions {
+                self.apply_bound_replay_action(action);
             }
             self.timing.record_var_var_direct_upper_bound(
                 replay_input_count,
@@ -161,24 +117,10 @@ impl ConstraintMachine {
                 self.bounds.of(upper_var),
                 &self.types,
             );
-            let (replay_input_count, empty_replay_skipped, uppers) =
-                self.replayable_uppers_for_var_var_lower(upper_var, lower, &weights);
-            let mut replay_enqueued = 0usize;
-            for upper_bound in uppers {
-                if self.is_var_var_replay(lower, upper_bound.neg) {
-                    let replay_weights = weights.compose_for_replay(&upper_bound.weights);
-                    if Self::weights_are_pop_only(&replay_weights) {
-                        self.add_var_var_bound_without_replay(
-                            lower,
-                            upper_bound.neg,
-                            replay_weights,
-                        );
-                    }
-                    continue;
-                }
-                let replay_weights = weights.compose_for_replay(&upper_bound.weights);
-                replay_enqueued += 1;
-                self.enqueue_subtype(lower, replay_weights, upper_bound.neg);
+            let (replay_input_count, replay_enqueued, empty_replay_skipped, actions) =
+                self.var_var_lower_replay_actions(upper_var, lower, &weights);
+            for action in actions {
+                self.apply_bound_replay_action(action);
             }
             self.timing.record_var_var_direct_lower_bound(
                 replay_input_count,
@@ -188,60 +130,175 @@ impl ConstraintMachine {
         }
     }
 
-    fn replayable_lowers_for_var_var_upper(
+    fn lower_bound_replay_actions(
+        &self,
+        target: TypeVar,
+        pos: PosId,
+        weights: &ConstraintWeights,
+    ) -> (usize, usize, usize, Vec<BoundReplayAction>) {
+        let Some(bounds) = self.bounds.of(target) else {
+            return (0, 0, 0, Vec::new());
+        };
+        let replay_input_count = bounds.uppers.len();
+        let mut replay_enqueued = 0usize;
+        let mut replay_var_var = 0usize;
+        let mut actions = Vec::with_capacity(replay_input_count);
+        trace_bound_replay_start("lower", target, replay_input_count);
+        for (index, upper) in bounds.uppers.iter().enumerate() {
+            trace_bound_replay_progress("lower", target, index);
+            let replay_weights = weights.compose_for_replay(&upper.weights);
+            if self.is_var_var_replay(pos, upper.neg) {
+                replay_var_var += 1;
+                actions.push(BoundReplayAction::VarVar {
+                    lower: pos,
+                    upper: upper.neg,
+                    weights: replay_weights,
+                });
+            } else {
+                replay_enqueued += 1;
+                actions.push(BoundReplayAction::Subtype {
+                    lower: pos,
+                    upper: upper.neg,
+                    weights: replay_weights,
+                });
+            }
+        }
+        (replay_input_count, replay_enqueued, replay_var_var, actions)
+    }
+
+    fn upper_bound_replay_actions(
+        &self,
+        source: TypeVar,
+        neg: NegId,
+        weights: &ConstraintWeights,
+    ) -> (usize, usize, usize, Vec<BoundReplayAction>) {
+        let Some(bounds) = self.bounds.of(source) else {
+            return (0, 0, 0, Vec::new());
+        };
+        let replay_input_count = bounds.lowers.len();
+        let mut replay_enqueued = 0usize;
+        let mut replay_var_var = 0usize;
+        let mut actions = Vec::with_capacity(replay_input_count);
+        trace_bound_replay_start("upper", source, replay_input_count);
+        for (index, lower) in bounds.lowers.iter().enumerate() {
+            trace_bound_replay_progress("upper", source, index);
+            let replay_weights = lower.weights.compose_for_replay(weights);
+            if self.is_var_var_replay(lower.pos, neg) {
+                replay_var_var += 1;
+                actions.push(BoundReplayAction::VarVar {
+                    lower: lower.pos,
+                    upper: neg,
+                    weights: replay_weights,
+                });
+            } else {
+                replay_enqueued += 1;
+                actions.push(BoundReplayAction::Subtype {
+                    lower: lower.pos,
+                    upper: neg,
+                    weights: replay_weights,
+                });
+            }
+        }
+        (replay_input_count, replay_enqueued, replay_var_var, actions)
+    }
+
+    fn var_var_upper_replay_actions(
         &self,
         lower_var: TypeVar,
         upper: NegId,
         weights: &ConstraintWeights,
-    ) -> (usize, usize, Vec<WeightedLowerBound>) {
+    ) -> (usize, usize, usize, Vec<BoundReplayAction>) {
         let Some(bounds) = self.bounds.of(lower_var) else {
-            return (0, 0, Vec::new());
+            return (0, 0, 0, Vec::new());
         };
-        if !weights.is_empty() {
-            return (bounds.lowers.len(), 0, bounds.lowers.clone());
-        }
         let mut skipped = 0usize;
-        let lowers = bounds
-            .lowers
-            .iter()
-            .filter_map(|lower| {
-                if lower.weights.is_empty() && self.is_var_var_replay(lower.pos, upper) {
-                    skipped += 1;
-                    None
-                } else {
-                    Some(lower.clone())
+        let mut replay_enqueued = 0usize;
+        let mut actions = Vec::with_capacity(bounds.lowers.len());
+        for lower in &bounds.lowers {
+            if weights.is_empty()
+                && lower.weights.is_empty()
+                && self.is_var_var_replay(lower.pos, upper)
+            {
+                skipped += 1;
+                continue;
+            }
+            let replay_weights = lower.weights.compose_for_replay(weights);
+            if self.is_var_var_replay(lower.pos, upper) {
+                if Self::weights_are_pop_only(&replay_weights) {
+                    actions.push(BoundReplayAction::VarVar {
+                        lower: lower.pos,
+                        upper,
+                        weights: replay_weights,
+                    });
                 }
-            })
-            .collect();
-        (bounds.lowers.len(), skipped, lowers)
+            } else {
+                replay_enqueued += 1;
+                actions.push(BoundReplayAction::Subtype {
+                    lower: lower.pos,
+                    upper,
+                    weights: replay_weights,
+                });
+            }
+        }
+        (bounds.lowers.len(), replay_enqueued, skipped, actions)
     }
 
-    fn replayable_uppers_for_var_var_lower(
+    fn var_var_lower_replay_actions(
         &self,
         upper_var: TypeVar,
         lower: PosId,
         weights: &ConstraintWeights,
-    ) -> (usize, usize, Vec<WeightedUpperBound>) {
+    ) -> (usize, usize, usize, Vec<BoundReplayAction>) {
         let Some(bounds) = self.bounds.of(upper_var) else {
-            return (0, 0, Vec::new());
+            return (0, 0, 0, Vec::new());
         };
-        if !weights.is_empty() {
-            return (bounds.uppers.len(), 0, bounds.uppers.clone());
-        }
         let mut skipped = 0usize;
-        let uppers = bounds
-            .uppers
-            .iter()
-            .filter_map(|upper| {
-                if upper.weights.is_empty() && self.is_var_var_replay(lower, upper.neg) {
-                    skipped += 1;
-                    None
-                } else {
-                    Some(upper.clone())
+        let mut replay_enqueued = 0usize;
+        let mut actions = Vec::with_capacity(bounds.uppers.len());
+        for upper in &bounds.uppers {
+            if weights.is_empty()
+                && upper.weights.is_empty()
+                && self.is_var_var_replay(lower, upper.neg)
+            {
+                skipped += 1;
+                continue;
+            }
+            let replay_weights = weights.compose_for_replay(&upper.weights);
+            if self.is_var_var_replay(lower, upper.neg) {
+                if Self::weights_are_pop_only(&replay_weights) {
+                    actions.push(BoundReplayAction::VarVar {
+                        lower,
+                        upper: upper.neg,
+                        weights: replay_weights,
+                    });
                 }
-            })
-            .collect();
-        (bounds.uppers.len(), skipped, uppers)
+            } else {
+                replay_enqueued += 1;
+                actions.push(BoundReplayAction::Subtype {
+                    lower,
+                    upper: upper.neg,
+                    weights: replay_weights,
+                });
+            }
+        }
+        (bounds.uppers.len(), replay_enqueued, skipped, actions)
+    }
+
+    fn apply_bound_replay_action(&mut self, action: BoundReplayAction) {
+        match action {
+            BoundReplayAction::Subtype {
+                lower,
+                upper,
+                weights,
+            } => {
+                self.enqueue_subtype(lower, weights, upper);
+            }
+            BoundReplayAction::VarVar {
+                lower,
+                upper,
+                weights,
+            } => self.add_var_var_bound_without_replay(lower, upper, weights),
+        }
     }
 
     pub(in crate::constraints) fn is_var_var_replay(&self, lower: PosId, upper: NegId) -> bool {
@@ -601,6 +658,21 @@ impl ConstraintMachine {
             }
         }
     }
+}
+
+/// Snapshot of replay work. Applying a replay action can mutate the same
+/// bounds table, so replay construction must not keep borrowed bound rows.
+enum BoundReplayAction {
+    Subtype {
+        lower: PosId,
+        upper: NegId,
+        weights: ConstraintWeights,
+    },
+    VarVar {
+        lower: PosId,
+        upper: NegId,
+        weights: ConstraintWeights,
+    },
 }
 
 fn decrement_var_neighbor(
