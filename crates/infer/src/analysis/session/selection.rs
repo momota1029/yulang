@@ -600,6 +600,26 @@ impl AnalysisSession {
     }
 
     pub(super) fn constrain_record_field_selection(&mut self, method_value: TypeVar, name: &str) {
+        let constraints = self.record_field_selection_constraints(method_value, name);
+        self.infer.subtypes(constraints);
+    }
+
+    pub(super) fn record_field_selection_constraints(
+        &mut self,
+        method_value: TypeVar,
+        name: &str,
+    ) -> Vec<(PosId, NegId)> {
+        let mut constraints = Vec::new();
+        self.collect_record_field_selection_constraints(method_value, name, &mut constraints);
+        constraints
+    }
+
+    fn collect_record_field_selection_constraints(
+        &mut self,
+        method_value: TypeVar,
+        name: &str,
+        out: &mut Vec<(PosId, NegId)>,
+    ) {
         let Some(bounds) = self.infer.constraints().bounds().of(method_value) else {
             return;
         };
@@ -609,29 +629,30 @@ impl AnalysisSession {
             .map(|bound| bound.neg)
             .collect::<Vec<_>>();
         for upper in uppers {
-            self.constrain_record_field_selection_from_method_upper(upper, name);
+            self.collect_record_field_selection_constraints_from_method_upper(upper, name, out);
         }
     }
 
-    pub(super) fn constrain_record_field_selection_from_method_upper(
+    fn collect_record_field_selection_constraints_from_method_upper(
         &mut self,
         upper: NegId,
         name: &str,
+        out: &mut Vec<(PosId, NegId)>,
     ) {
         match self.infer.constraints().types().neg(upper).clone() {
-            Neg::Var(var) => self.constrain_record_field_selection(var, name),
+            Neg::Var(var) => self.collect_record_field_selection_constraints(var, name, out),
             Neg::Fun {
                 arg,
                 arg_eff,
                 ret_eff,
                 ret,
-            } => self.constrain_record_field_call(arg, arg_eff, ret_eff, ret, name),
+            } => self.collect_record_field_call_constraints(arg, arg_eff, ret_eff, ret, name, out),
             Neg::Intersection(left, right) => {
-                self.constrain_record_field_selection_from_method_upper(left, name);
-                self.constrain_record_field_selection_from_method_upper(right, name);
+                self.collect_record_field_selection_constraints_from_method_upper(left, name, out);
+                self.collect_record_field_selection_constraints_from_method_upper(right, name, out);
             }
             Neg::Stack { inner, .. } => {
-                self.constrain_record_field_selection_from_method_upper(inner, name);
+                self.collect_record_field_selection_constraints_from_method_upper(inner, name, out);
             }
             Neg::Top
             | Neg::Bot
@@ -643,13 +664,14 @@ impl AnalysisSession {
         }
     }
 
-    pub(super) fn constrain_record_field_call(
+    fn collect_record_field_call_constraints(
         &mut self,
         receiver: PosId,
         receiver_effect: PosId,
         result_effect: NegId,
         result: NegId,
         name: &str,
+        out: &mut Vec<(PosId, NegId)>,
     ) {
         let field = RecordField {
             name: name.to_string(),
@@ -657,8 +679,8 @@ impl AnalysisSession {
             optional: false,
         };
         let record = self.infer.alloc_neg(Neg::Record(vec![field]));
-        self.infer.subtype(receiver, record);
-        self.infer.subtype(receiver_effect, result_effect);
+        out.push((receiver, record));
+        out.push((receiver_effect, result_effect));
     }
 
     pub(super) fn route_scc_events(&mut self) {

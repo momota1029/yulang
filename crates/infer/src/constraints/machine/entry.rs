@@ -83,6 +83,13 @@ impl ConstraintMachine {
         self.weighted_subtype(lower, ConstraintWeights::empty(), upper);
     }
 
+    pub(crate) fn subtype_many(&mut self, constraints: impl IntoIterator<Item = (PosId, NegId)>) {
+        for (lower, upper) in constraints {
+            self.enqueue_subtype(lower, ConstraintWeights::empty(), upper);
+        }
+        self.drain();
+    }
+
     pub fn weighted_subtype(&mut self, lower: PosId, weights: ConstraintWeights, upper: NegId) {
         self.enqueue_subtype(lower, weights, upper);
         self.drain();

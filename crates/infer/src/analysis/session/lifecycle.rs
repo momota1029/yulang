@@ -267,6 +267,16 @@ impl AnalysisSession {
                 })
                 .collect::<Vec<_>>();
             ready.sort_by_key(|(select_id, _)| select_id.0);
+            let record_fields = ready
+                .iter()
+                .filter_map(|(select_id, target)| {
+                    matches!(target, SelectionTarget::RecordField).then_some(*select_id)
+                })
+                .collect::<Vec<_>>();
+            if !record_fields.is_empty() {
+                self.apply_record_field_selection_batch(record_fields);
+                continue;
+            }
             let Some((select_id, target)) = ready.first().cloned() else {
                 break;
             };
@@ -292,6 +302,35 @@ impl AnalysisSession {
             SelectionTarget::TypeclassMethod { member } => self.scc.is_quantified(*member),
             SelectionTarget::Method { .. } | SelectionTarget::EffectMethod { .. } => false,
         }
+    }
+
+    fn apply_record_field_selection_batch(
+        &mut self,
+        selections: impl IntoIterator<Item = SelectId>,
+    ) {
+        let mut constraints = Vec::new();
+        let mut resolved_parents = Vec::new();
+        for select_id in selections {
+            if self.poly.select(select_id).resolution.is_some() {
+                self.selections.remove(select_id);
+                continue;
+            }
+            let name = self.poly.select(select_id).name.clone();
+            self.poly
+                .resolve_select(select_id, SelectionTarget::RecordField.resolution());
+            let Some(use_site) = self.selections.remove(select_id) else {
+                continue;
+            };
+            self.trace_selection_bounds(select_id, &name, use_site);
+            constraints
+                .extend(self.record_field_selection_constraints(use_site.method_value, &name));
+            resolved_parents.push(use_site.parent);
+        }
+        self.infer.subtypes(constraints);
+        for parent in resolved_parents {
+            self.apply_scc_input(SccInput::MethodDependencyResolved { parent });
+        }
+        self.route_scc_events();
     }
 
     pub(super) fn enqueue_unresolved_selection_probes(&mut self) {

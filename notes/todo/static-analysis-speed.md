@@ -74,6 +74,14 @@
   - control VM runtime 内部は effect path を `InternedPath` にし、request/marker/handler 比較を segment id 列にした。
   - VM eval は 0.40〜0.42s 付近で、COW env ほどの勝ちはない。次に runtime を触るなら、
     path intern より active marker scan / continuation resume / apply-force chain を見る。
+- 2026-06-17 record-field fallback batch:
+  - `YULANG_ANALYSIS_TIMING=1` では `std.control.var.ref.update` の compact merge と
+    unresolved selection fallback が太く、path lookup より analysis/merge 側が支配的に見える。
+  - record-field fallback は selection target が一括で決まるのに、各 selection ごとに
+    constraint drain していたため、fallback batch では record-field constraints をまとめて流すようにした。
+  - `showcase` infer-only latest sample は total 0.407〜0.421s、infer 0.325〜0.338s 付近。
+    効果は小さく、次は compact merge の var-only interval cross product と method-tainted role pass の
+    再走査を切る方がよさそう。
 - typed-surface import の role / impl / effect fidelity を広げる。
 - compiled-unit manifest validation を厳しくする。
 - persistent cache を user dependency SCCs に一般化する。

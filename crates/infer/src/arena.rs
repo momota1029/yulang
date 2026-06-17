@@ -78,6 +78,11 @@ impl Arena {
         self.sync_type_ids_with_constraints();
     }
 
+    pub fn subtypes(&mut self, constraints: impl IntoIterator<Item = (PosId, NegId)>) {
+        self.constraints.subtype_many(constraints);
+        self.sync_type_ids_with_constraints();
+    }
+
     pub fn weighted_subtype(&mut self, lower: PosId, weights: ConstraintWeights, upper: NegId) {
         self.constraints.weighted_subtype(lower, weights, upper);
         self.sync_type_ids_with_constraints();
