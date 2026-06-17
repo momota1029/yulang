@@ -135,15 +135,18 @@ impl AnalysisSession {
             self.timing.record_generalize_cast(phase.elapsed(), 0, 0);
 
             let phase = Instant::now();
-            let (role_compact, roles) =
-                self.simplified_reachable_role_constraints(def, &compact, simplification_boundary);
-            let resolutions = resolve_role_constraints(
-                self.infer.constraints(),
-                &role_compact,
-                &roles,
-                &self.role_impls,
-                &applied_roles,
-            );
+            let resolutions = self
+                .simplified_reachable_role_constraints(def, &compact, simplification_boundary)
+                .map(|(role_compact, roles)| {
+                    resolve_role_constraints(
+                        self.infer.constraints(),
+                        &role_compact,
+                        &roles,
+                        &self.role_impls,
+                        &applied_roles,
+                    )
+                })
+                .unwrap_or_default();
             let resolution_count = resolutions.len();
             let elapsed = phase.elapsed();
             self.timing
@@ -285,16 +288,16 @@ impl AnalysisSession {
         def: DefId,
         compact: &crate::compact::CompactRoot,
         simplification_boundary: TypeLevel,
-    ) -> (crate::compact::CompactRoot, Vec<CompactRoleConstraint>) {
-        let mut role_compact = compact.clone();
+    ) -> Option<(crate::compact::CompactRoot, Vec<CompactRoleConstraint>)> {
         let mut roles = coalesce_role_constraints(compact_reachable_role_constraints(
             self.infer.constraints(),
             compact,
             self.roles.for_owner(def),
         ));
         if roles.is_empty() {
-            return (compact.clone(), roles);
+            return None;
         }
+        let mut role_compact = compact.clone();
         simplify_compact_root_with_roles_and_non_generic(
             self.infer.constraints(),
             simplification_boundary,
@@ -314,7 +317,7 @@ impl AnalysisSession {
             &mut role_compact,
             &mut roles,
         );
-        (role_compact, roles)
+        Some((role_compact, roles))
     }
 
     /// 世代化の最終出力から落としてよい残置述語を、入力 role と同じ並びの bool 列で返す。
@@ -526,15 +529,11 @@ impl AnalysisSession {
         }
     }
 
-    pub(super) fn def_scheme(&self, def: DefId) -> Option<&Scheme> {
-        let Some(Def::Let { scheme, .. }) = self.poly.defs.get(def) else {
-            return None;
-        };
-        scheme.as_ref()
-    }
-
-    pub(super) fn scheme_ancestors(&self, def: DefId) -> Vec<GeneralizedCompactRoot> {
-        let parents = def_parent_map(&self.poly);
+    pub(super) fn scheme_ancestors(
+        &self,
+        def: DefId,
+        parents: &FxHashMap<DefId, DefId>,
+    ) -> Vec<GeneralizedCompactRoot> {
         let mut chain = Vec::new();
         let mut current = def;
         while let Some(parent) = parents.get(&current).copied() {

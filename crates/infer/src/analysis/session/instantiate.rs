@@ -35,9 +35,10 @@ impl AnalysisSession {
             self.schemes.insert(*def, scheme.clone());
         }
 
+        let def_parents = def_parent_map(&self.poly);
         for (def, scheme) in generalized {
             let phase = Instant::now();
-            let ancestors = self.scheme_ancestors(def);
+            let ancestors = self.scheme_ancestors(def, &def_parents);
             let ancestors = ancestors.iter().collect::<Vec<_>>();
             let finalized = finalize_generalized_compact_root_with_ancestors(
                 &mut self.poly.typ,
@@ -131,10 +132,14 @@ impl AnalysisSession {
         target: DefId,
         use_value: TypeVar,
     ) {
-        let Some(scheme) = self.def_scheme(target).cloned() else {
+        let Some(Def::Let {
+            scheme: Some(scheme),
+            ..
+        }) = self.poly.defs.get(target)
+        else {
             return;
         };
-        self.trace_scheme(target, &scheme);
+        self.trace_scheme(target, scheme);
         let trace = analysis_trace_mode();
         let start = Instant::now();
         if trace == AnalysisTraceMode::Verbose {
@@ -151,7 +156,7 @@ impl AnalysisSession {
             &self.poly.typ,
             &mut self.infer,
             TypeLevel::secondary(),
-            &scheme,
+            scheme,
         );
         let elapsed = phase.elapsed();
         self.timing.record_instantiate_clone_scheme(elapsed);

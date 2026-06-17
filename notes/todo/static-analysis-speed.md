@@ -102,6 +102,15 @@
     `constraint.drain` と infer が悪化した。
   - 次は単純な drain batching ではなく、instantiate predicate の生成/replay 削減と、
     generalize merge/role resolve loop の再 compact 削減を候補にする。
+- 2026-06-18 infer small optimization loop:
+  - `instantiate_use` は scheme を事前 clone せず、`poly.defs` 上の scheme を直接 instantiate する。
+  - `quantify_component` finalize は def parent map を component ごとに一回だけ作る。
+    `showcase` の `q_fin` は 13ms 前後から 5ms 前後へ低下。
+  - reachable role が空の prepass では compact clone と resolver call を避ける。効果は小さめ。
+  - `Pos::Bot <: _` / `_ <: Neg::Top` は constraint enqueue 前に捨てる。
+    `showcase` の `constraint.work_items` は 42159 から 37994 へ低下。
+  - 次は `instantiate_subtype_predicate` の replay がどこで増えるかを、trivial edge ではなく
+    bound replay / role predicate shape 側から見る。
 - typed-surface import の role / impl / effect fidelity を広げる。
 - compiled-unit manifest validation を厳しくする。
 - persistent cache を user dependency SCCs に一般化する。

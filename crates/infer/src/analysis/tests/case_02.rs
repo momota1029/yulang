@@ -738,8 +738,9 @@ fn role_prepass_resolves_receiver_first_concrete_with_negative_extra_inputs() {
     session.infer.restore_level(previous_level);
 
     let compact = compact_type_var(session.infer.constraints(), root);
-    let (role_compact, roles) =
-        session.simplified_reachable_role_constraints(owner, &compact, TypeLevel::root().child());
+    let (role_compact, roles) = session
+        .simplified_reachable_role_constraints(owner, &compact, TypeLevel::root().child())
+        .expect("role constraints should be reachable");
     let resolutions = resolve_role_constraints(
         session.infer.constraints(),
         &role_compact,

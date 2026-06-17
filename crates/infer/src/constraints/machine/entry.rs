@@ -227,6 +227,9 @@ impl ConstraintMachine {
         weights: ConstraintWeights,
         upper: NegId,
     ) {
+        if matches!(self.types.pos(lower), Pos::Bot) || matches!(self.types.neg(upper), Neg::Top) {
+            return;
+        }
         let weights = self.terminal_subtype_weights(lower, upper, weights);
         if !self.record_var_var_constraint(lower, upper, &weights) {
             return;
