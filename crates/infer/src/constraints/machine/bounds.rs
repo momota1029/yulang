@@ -375,6 +375,15 @@ impl ConstraintMachine {
         source: TypeVar,
         pos: PosId,
     ) {
+        match self.types.pos(pos) {
+            Pos::Bot => return,
+            Pos::Var(var) => {
+                self.record_var_neighbor(source, *var);
+                return;
+            }
+            Pos::Con(_, args) if args.is_empty() => return,
+            _ => {}
+        }
         let mut vars = FxHashSet::default();
         collect_pos_id_vars(&self.types, pos, &mut vars);
         self.record_bound_var_neighbors(source, vars);
@@ -385,6 +394,15 @@ impl ConstraintMachine {
         source: TypeVar,
         neg: NegId,
     ) {
+        match self.types.neg(neg) {
+            Neg::Top | Neg::Bot => return,
+            Neg::Var(var) => {
+                self.record_var_neighbor(source, *var);
+                return;
+            }
+            Neg::Con(_, args) if args.is_empty() => return,
+            _ => {}
+        }
         let mut vars = FxHashSet::default();
         collect_neg_id_vars(&self.types, neg, &mut vars);
         self.record_bound_var_neighbors(source, vars);
@@ -395,6 +413,15 @@ impl ConstraintMachine {
         source: TypeVar,
         neg: NegId,
     ) {
+        match self.types.neg(neg) {
+            Neg::Top | Neg::Bot => return,
+            Neg::Var(var) => {
+                self.unrecord_var_neighbor(source, *var);
+                return;
+            }
+            Neg::Con(_, args) if args.is_empty() => return,
+            _ => {}
+        }
         let mut vars = FxHashSet::default();
         collect_neg_id_vars(&self.types, neg, &mut vars);
         self.unrecord_bound_var_neighbors(source, vars);
@@ -472,12 +499,24 @@ impl ConstraintMachine {
     }
 
     pub(in crate::constraints) fn extrude_pos(&mut self, pos: PosId, target: TypeLevel) -> PosId {
+        match self.types.pos(pos) {
+            Pos::Bot => return pos,
+            Pos::Var(var) if self.level_of(*var) <= target => return pos,
+            Pos::Con(_, args) if args.is_empty() => return pos,
+            _ => {}
+        }
         let mut ctx = ExtrudeCtx::new(target);
         self.extrude_pos_id(pos, &mut ctx);
         pos
     }
 
     pub(in crate::constraints) fn extrude_neg(&mut self, neg: NegId, target: TypeLevel) -> NegId {
+        match self.types.neg(neg) {
+            Neg::Top | Neg::Bot => return neg,
+            Neg::Var(var) if self.level_of(*var) <= target => return neg,
+            Neg::Con(_, args) if args.is_empty() => return neg,
+            _ => {}
+        }
         let mut ctx = ExtrudeCtx::new(target);
         self.extrude_neg_id(neg, &mut ctx);
         neg

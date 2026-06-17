@@ -2,61 +2,87 @@ use super::*;
 
 impl ConstraintMachine {
     pub(in crate::constraints) fn step_subtype(&mut self, constraint: SubtypeConstraint) {
+        if matches!(self.types.pos(constraint.lower), Pos::Bot)
+            || matches!(self.types.neg(constraint.upper), Neg::Top)
+        {
+            return;
+        }
+        if let Pos::Stack { inner, weight } = self.types.pos(constraint.lower) {
+            let inner = *inner;
+            let weight = weight.clone();
+            if let Neg::Var(target) = self.types.neg(constraint.upper) {
+                self.record_pre_pop_effect_families(*target, &weight);
+            }
+            self.enqueue_subtype(
+                inner,
+                constraint.weights.with_left_prefix(weight),
+                constraint.upper,
+            );
+            return;
+        }
+        if let Pos::NonSubtract(pos, subtract) = self.types.pos(constraint.lower) {
+            let pos = *pos;
+            let subtract = *subtract;
+            self.enqueue_subtype(
+                pos,
+                constraint
+                    .weights
+                    .with_left_prefix(StackWeight::pop(subtract)),
+                constraint.upper,
+            );
+            return;
+        }
+        if let Neg::Stack { inner, weight } = self.types.neg(constraint.upper) {
+            let inner = *inner;
+            let weight = weight.clone();
+            self.enqueue_subtype(
+                constraint.lower,
+                constraint.weights.with_right_suffix(weight),
+                inner,
+            );
+            return;
+        }
+        if let Pos::Union(left, right) = self.types.pos(constraint.lower) {
+            let left = *left;
+            let right = *right;
+            self.enqueue_subtype(left, constraint.weights.clone(), constraint.upper);
+            self.enqueue_subtype(right, constraint.weights, constraint.upper);
+            return;
+        }
+        if let Neg::Intersection(left, right) = self.types.neg(constraint.upper) {
+            let left = *left;
+            let right = *right;
+            self.enqueue_subtype(constraint.lower, constraint.weights.clone(), left);
+            self.enqueue_subtype(constraint.lower, constraint.weights, right);
+            return;
+        }
+        if let Pos::Var(source) = self.types.pos(constraint.lower) {
+            let source = *source;
+            match self.types.neg(constraint.upper).clone() {
+                Neg::Var(target) => {
+                    if source == target {
+                        return;
+                    }
+                    self.add_lower_bound(target, constraint.lower, constraint.weights.clone());
+                    self.add_upper_bound(source, constraint.upper, constraint.weights);
+                }
+                Neg::Row(items, tail) => {
+                    self.add_effect_row_upper_bound(source, items, tail, constraint.weights);
+                }
+                _ => {
+                    self.add_upper_bound(source, constraint.upper, constraint.weights);
+                }
+            }
+            return;
+        }
+        if let Neg::Var(target) = self.types.neg(constraint.upper) {
+            self.add_lower_bound(*target, constraint.lower, constraint.weights);
+            return;
+        }
         match (
             self.types.pos(constraint.lower).clone(),
             self.types.neg(constraint.upper).clone(),
         ) {
-            (Pos::Bot, _) | (_, Neg::Top) => {}
-            (Pos::Stack { inner, weight }, _) => {
-                if let Neg::Var(target) = self.types.neg(constraint.upper) {
-                    self.record_pre_pop_effect_families(*target, &weight);
-                }
-                self.enqueue_subtype(
-                    inner,
-                    constraint.weights.with_left_prefix(weight),
-                    constraint.upper,
-                );
-            }
-            (Pos::NonSubtract(pos, subtract), _) => {
-                self.enqueue_subtype(
-                    pos,
-                    constraint
-                        .weights
-                        .with_left_prefix(StackWeight::pop(subtract)),
-                    constraint.upper,
-                );
-            }
-            (_, Neg::Stack { inner, weight }) => {
-                self.enqueue_subtype(
-                    constraint.lower,
-                    constraint.weights.with_right_suffix(weight),
-                    inner,
-                );
-            }
-            (Pos::Union(left, right), _) => {
-                self.enqueue_subtype(left, constraint.weights.clone(), constraint.upper);
-                self.enqueue_subtype(right, constraint.weights, constraint.upper);
-            }
-            (_, Neg::Intersection(left, right)) => {
-                self.enqueue_subtype(constraint.lower, constraint.weights.clone(), left);
-                self.enqueue_subtype(constraint.lower, constraint.weights, right);
-            }
-            (Pos::Var(source), Neg::Var(target)) => {
-                if source == target {
-                    return;
-                }
-                self.add_lower_bound(target, constraint.lower, constraint.weights.clone());
-                self.add_upper_bound(source, constraint.upper, constraint.weights);
-            }
-            (Pos::Var(source), Neg::Row(items, tail)) => {
-                self.add_effect_row_upper_bound(source, items, tail, constraint.weights);
-            }
-            (Pos::Var(source), _) => {
-                self.add_upper_bound(source, constraint.upper, constraint.weights);
-            }
-            (_, Neg::Var(target)) => {
-                self.add_lower_bound(target, constraint.lower, constraint.weights);
-            }
             (
                 Pos::Fun {
                     arg,
