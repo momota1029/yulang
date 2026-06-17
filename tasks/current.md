@@ -70,7 +70,8 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
    - 初期観測では `showcase` の VM eval で marker frame close/resume と request continuation wrapping が最も太い。
      次は marker frame と request resume の allocation / clone 境界を、意味論を変えずに削れるか見る。
    - scalar marker fast path は `showcase` VM eval を 371〜380ms 付近まで下げた。
-     次は request resume wrapper 数を減らす continuation 表現側の変更を、別実験として扱う。
+   - value continuation fast path は `showcase` VM eval を 354〜378ms 付近まで下げた。
+     次は request resume wrapper 数を減らす continuation 表現側の変更か、pattern bind recursion clone を別実験として扱う。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。

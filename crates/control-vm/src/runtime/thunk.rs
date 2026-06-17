@@ -117,7 +117,15 @@ impl<'a> Runtime<'a> {
         result: EvalResult<'a>,
         continuation: impl Fn(&mut Runtime<'a>, Value) -> RuntimeResult<'a> + 'a,
     ) -> RuntimeResult<'a> {
-        self.continue_with_rc(result, Rc::new(continuation))
+        match result {
+            EvalResult::Value(value) => {
+                self.stats.continue_with_values += 1;
+                continuation(self, value)
+            }
+            EvalResult::Request(request) => {
+                self.continue_with_request(request, Rc::new(continuation))
+            }
+        }
     }
 
     pub(super) fn continue_with_rc(
@@ -130,23 +138,29 @@ impl<'a> Runtime<'a> {
                 self.stats.continue_with_values += 1;
                 continuation(self, value)
             }
-            EvalResult::Request(request) => {
-                self.stats.continue_with_requests += 1;
-                let request_resume = request.resume.clone();
-                Ok(EvalResult::Request(Request {
-                    path: request.path,
-                    path_key: request.path_key,
-                    guard_ids: request.guard_ids,
-                    carried_guard_ids: request.carried_guard_ids,
-                    payload: request.payload,
-                    resume: Rc::new(move |runtime, value| {
-                        runtime.stats.request_resume_steps += 1;
-                        let resumed = request_resume(runtime, value)?;
-                        runtime.continue_with_rc(resumed, continuation.clone())
-                    }),
-                }))
-            }
+            EvalResult::Request(request) => self.continue_with_request(request, continuation),
         }
+    }
+
+    fn continue_with_request(
+        &mut self,
+        request: Request<'a>,
+        continuation: Continuation<'a>,
+    ) -> RuntimeResult<'a> {
+        self.stats.continue_with_requests += 1;
+        let request_resume = request.resume.clone();
+        Ok(EvalResult::Request(Request {
+            path: request.path,
+            path_key: request.path_key,
+            guard_ids: request.guard_ids,
+            carried_guard_ids: request.carried_guard_ids,
+            payload: request.payload,
+            resume: Rc::new(move |runtime, value| {
+                runtime.stats.request_resume_steps += 1;
+                let resumed = request_resume(runtime, value)?;
+                runtime.continue_with_rc(resumed, continuation.clone())
+            }),
+        }))
     }
 
     pub(super) fn continue_bind(
@@ -154,7 +168,15 @@ impl<'a> Runtime<'a> {
         result: BindEvalResult<'a>,
         continuation: impl Fn(&mut Runtime<'a>, bool, CapturedEnv) -> RuntimeResult<'a> + 'a,
     ) -> RuntimeResult<'a> {
-        self.continue_bind_rc(result, Rc::new(continuation))
+        match result {
+            BindEvalResult::Done { matched, env } => {
+                self.stats.continue_bind_values += 1;
+                continuation(self, matched, env)
+            }
+            BindEvalResult::Request(request) => {
+                self.continue_bind_request(request, Rc::new(continuation))
+            }
+        }
     }
 
     pub(super) fn continue_bind_rc(
@@ -167,23 +189,29 @@ impl<'a> Runtime<'a> {
                 self.stats.continue_bind_values += 1;
                 continuation(self, matched, env)
             }
-            BindEvalResult::Request(request) => {
-                self.stats.continue_bind_requests += 1;
-                let request_resume = request.resume.clone();
-                Ok(EvalResult::Request(Request {
-                    path: request.path,
-                    path_key: request.path_key,
-                    guard_ids: request.guard_ids,
-                    carried_guard_ids: request.carried_guard_ids,
-                    payload: request.payload,
-                    resume: Rc::new(move |runtime, value| {
-                        runtime.stats.request_resume_steps += 1;
-                        let resumed = request_resume(runtime, value)?;
-                        runtime.continue_bind_rc(resumed, continuation.clone())
-                    }),
-                }))
-            }
+            BindEvalResult::Request(request) => self.continue_bind_request(request, continuation),
         }
+    }
+
+    fn continue_bind_request(
+        &mut self,
+        request: BindRequest<'a>,
+        continuation: BindContinuation<'a>,
+    ) -> RuntimeResult<'a> {
+        self.stats.continue_bind_requests += 1;
+        let request_resume = request.resume.clone();
+        Ok(EvalResult::Request(Request {
+            path: request.path,
+            path_key: request.path_key,
+            guard_ids: request.guard_ids,
+            carried_guard_ids: request.carried_guard_ids,
+            payload: request.payload,
+            resume: Rc::new(move |runtime, value| {
+                runtime.stats.request_resume_steps += 1;
+                let resumed = request_resume(runtime, value)?;
+                runtime.continue_bind_rc(resumed, continuation.clone())
+            }),
+        }))
     }
 
     pub(super) fn continue_bind_result(

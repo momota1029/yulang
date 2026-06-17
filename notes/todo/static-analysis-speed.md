@@ -93,6 +93,12 @@
     `mark_value` 側の dedupe に一本化した。
   - `showcase` repeat 3 では VM eval が 380.4 / 371.5 / 379.1ms。次に見るなら、
     request resume wrapper 数を減らす continuation 表現側の設計変更。
+- 2026-06-18 value continuation fast path:
+  - `continue_with` / `continue_bind` は value / done 経路でも `Rc` continuation を作っていたため、
+    Request 経路だけ `Rc` 化するようにした。
+  - `showcase` repeat 5 では VM eval が 377.7 / 363.3 / 367.8 / 358.1 / 354.1ms。
+  - `continue_bind_result` へ同じ変更を広げる実験は悪化寄りだったため棄却した。
+    次は request resume wrapper 数を減らす表現変更か、pattern bind recursion の clone 側を見る。
 - 2026-06-17 record-field fallback batch:
   - `YULANG_ANALYSIS_TIMING=1` では `std.control.var.ref.update` の compact merge と
     unresolved selection fallback が太く、path lookup より analysis/merge 側が支配的に見える。
