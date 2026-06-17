@@ -8,6 +8,7 @@ use std::fmt;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -16,9 +17,25 @@ use crate::source::CollectedSource;
 
 const POLY_CACHE_FORMAT: u32 = 5;
 const CONTROL_CACHE_FORMAT: u32 = 5;
+// Bump when compiler/cache semantics change without a serialized envelope bump.
+const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
+static CACHE_TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CacheSchema {
+    version: u32,
+    poly_format: u32,
+    control_format: u32,
+}
+
+const CURRENT_CACHE_SCHEMA: CacheSchema = CacheSchema {
+    version: CACHE_SCHEMA_VERSION,
+    poly_format: POLY_CACHE_FORMAT,
+    control_format: CONTROL_CACHE_FORMAT,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArtifactCache {
@@ -141,8 +158,15 @@ impl SourceCacheKey {
 }
 
 pub fn source_cache_key(files: &[CollectedSource]) -> SourceCacheKey {
+    source_cache_key_with_schema(files, CURRENT_CACHE_SCHEMA)
+}
+
+fn source_cache_key_with_schema(files: &[CollectedSource], schema: CacheSchema) -> SourceCacheKey {
     let mut hasher = StableHasher::new();
     hasher.bytes(SOURCE_CACHE_SALT);
+    hasher.u32(schema.version);
+    hasher.u32(schema.poly_format);
+    hasher.u32(schema.control_format);
     hasher.usize(files.len());
     for file in files {
         hasher.string(&file.path.as_os_str().to_string_lossy());
@@ -299,7 +323,7 @@ where
         error,
     })?;
 
-    let tmp = path.with_extension(format!("{extension}.tmp-{}", std::process::id()));
+    let tmp = cache_tmp_path(path, extension);
     fs::write(&tmp, bytes).map_err(|error| CacheError::Write {
         path: tmp.clone(),
         error,
@@ -313,6 +337,11 @@ where
         });
     }
     Ok(())
+}
+
+fn cache_tmp_path(path: &Path, extension: &str) -> PathBuf {
+    let counter = CACHE_TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+    path.with_extension(format!("{extension}.tmp-{}-{counter}", std::process::id()))
 }
 
 trait CacheEnvelope {
@@ -346,6 +375,10 @@ impl StableHasher {
 
     fn usize(&mut self, value: usize) {
         self.bytes(&(value as u64).to_le_bytes());
+    }
+
+    fn u32(&mut self, value: u32) {
+        self.bytes(&value.to_le_bytes());
     }
 
     fn string(&mut self, value: &str) {
@@ -394,6 +427,47 @@ mod tests {
         assert_ne!(
             source_cache_key(&[base]),
             source_cache_key(&[changed_module])
+        );
+    }
+
+    #[test]
+    fn source_cache_key_tracks_cache_schema() {
+        let files = vec![source("main.yu", &[], "1\n")];
+        let current = source_cache_key_with_schema(&files, CURRENT_CACHE_SCHEMA);
+        let changed_version = source_cache_key_with_schema(
+            &files,
+            CacheSchema {
+                version: CURRENT_CACHE_SCHEMA.version + 1,
+                ..CURRENT_CACHE_SCHEMA
+            },
+        );
+        let changed_poly = source_cache_key_with_schema(
+            &files,
+            CacheSchema {
+                poly_format: CURRENT_CACHE_SCHEMA.poly_format + 1,
+                ..CURRENT_CACHE_SCHEMA
+            },
+        );
+        let changed_control = source_cache_key_with_schema(
+            &files,
+            CacheSchema {
+                control_format: CURRENT_CACHE_SCHEMA.control_format + 1,
+                ..CURRENT_CACHE_SCHEMA
+            },
+        );
+
+        assert_ne!(current, changed_version);
+        assert_ne!(current, changed_poly);
+        assert_ne!(current, changed_control);
+    }
+
+    #[test]
+    fn cache_tmp_path_is_unique_within_process() {
+        let artifact = PathBuf::from("artifact.yuvm");
+
+        assert_ne!(
+            cache_tmp_path(&artifact, "yuvm"),
+            cache_tmp_path(&artifact, "yuvm")
         );
     }
 
