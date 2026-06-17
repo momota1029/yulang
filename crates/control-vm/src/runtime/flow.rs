@@ -2,6 +2,7 @@ use super::*;
 
 impl<'a> Runtime<'a> {
     pub(super) fn apply_value(&mut self, callee: Value, arg: Value) -> RuntimeResult<'a> {
+        self.stats.apply_value_calls += 1;
         match callee {
             Value::Marked { value, markers } => {
                 let markers = if matches!(value.as_ref(), Value::Continuation(_)) {
@@ -86,7 +87,7 @@ impl<'a> Runtime<'a> {
         mut closure: Closure,
         arg: Value,
     ) -> RuntimeResult<'a> {
-        closure.env.locals.insert(
+        closure.env.insert(
             def,
             Value::RecursiveClosure {
                 def,
@@ -129,10 +130,11 @@ impl<'a> Runtime<'a> {
     }
 
     pub(super) fn emit_effect_request(
-        &self,
+        &mut self,
         path: Vec<String>,
         payload: Value,
     ) -> RuntimeResult<'a> {
+        self.stats.effect_requests += 1;
         let mut request = Request {
             path,
             guard_ids: Vec::new(),

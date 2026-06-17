@@ -40,10 +40,36 @@ pub fn run_program_with_host<F>(program: &Program, mut host: F) -> Result<Vec<Va
 where
     F: FnMut(&[String], &Value) -> Option<Value>,
 {
+    run_program_with_host_and_stats(program, &mut host).map(|(values, _)| values)
+}
+
+pub fn run_program_with_host_and_stats<F>(
+    program: &Program,
+    host: &mut F,
+) -> Result<(Vec<Value>, RuntimeStats), RunError>
+where
+    F: FnMut(&[String], &Value) -> Option<Value>,
+{
     validate(program).map_err(RunError::Validate)?;
-    Runtime::new(program)
-        .run_with_host(&mut host)
-        .map_err(RunError::Runtime)
+    let mut runtime = Runtime::new(program);
+    let values = runtime.run_with_host(host).map_err(RunError::Runtime)?;
+    Ok((values, runtime.stats))
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RuntimeStats {
+    pub expr_evals: u64,
+    /// Full `Expr` clones performed by eval. This should stay at zero on the dispatch path.
+    pub expr_clones: u64,
+    pub apply_value_calls: u64,
+    pub force_thunk_calls: u64,
+    pub effect_requests: u64,
+    pub host_requests: u64,
+    pub catch_request_matches: u64,
+    pub continuations_stored: u64,
+    pub instance_eval_calls: u64,
+    pub instance_cache_hits: u64,
+    pub instance_cache_misses: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -216,7 +242,17 @@ pub struct AddIdMarker {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CapturedEnv {
-    locals: HashMap<DefId, Value>,
+    locals: Rc<HashMap<DefId, Value>>,
+}
+
+impl CapturedEnv {
+    fn get(&self, def: DefId) -> Option<&Value> {
+        self.locals.get(&def)
+    }
+
+    fn insert(&mut self, def: DefId, value: Value) {
+        Rc::make_mut(&mut self.locals).insert(def, value);
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

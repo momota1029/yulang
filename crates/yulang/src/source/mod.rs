@@ -111,16 +111,18 @@ pub fn run_built_control_program(
     errors: Vec<String>,
 ) -> Result<RunControlOutput, RouteError> {
     let mut stdout = String::new();
-    let values = control_vm::run_program_with_host(program, |path, payload| {
-        handle_control_host_effect(path, payload, &mut stdout)
-    })
-    .map_err(RouteError::Control)?;
+    let (values, stats) =
+        control_vm::run_program_with_host_and_stats(program, &mut |path, payload| {
+            handle_control_host_effect(path, payload, &mut stdout)
+        })
+        .map_err(RouteError::Control)?;
     Ok(RunControlOutput {
         text: format!("run roots {}\n", control_vm::format_values(&values)),
         file_count,
         errors,
         values,
         stdout,
+        stats,
     })
 }
 
@@ -563,6 +565,7 @@ pub struct RunControlOutput {
     pub errors: Vec<String>,
     pub values: Vec<control_vm::Value>,
     pub stdout: String,
+    pub stats: control_vm::RuntimeStats,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -769,6 +772,7 @@ struct CheckPolyTimings {
     infer: Duration,
     summarize: Duration,
     total: Duration,
+    lowering: infer::lowering::BodyLoweringTiming,
 }
 
 fn check_poly_from_sources(
@@ -794,6 +798,7 @@ fn check_poly_from_sources(
         infer: check.timing.infer,
         summarize: check.timing.summarize,
         total: total_start.elapsed(),
+        lowering: check.timing.lowering,
     };
     let diagnostics = match &kind {
         CheckPolyKind::All { .. } => {

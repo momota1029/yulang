@@ -60,6 +60,14 @@
   - `infer` は 270〜350ms 程度で、今の public example baseline では最太。
   - `--no-cache run --print-roots` wall clock は `showcase` だけ 1.16〜1.25s、他は 0.43〜0.53s。
   - 次は infer 内訳と showcase run の build/specialize/control VM 内訳を切る。
+- 2026-06-17 timing refresh:
+  - `bench/static_analysis_bench.sh` は check timing、lowering 内訳、runtime phase timing、control VM stats を出す。
+  - public examples の static check では `lower.drain` と `lower.resolve` が 100ms 前後で太い。
+  - `showcase` run は `build_poly` 330〜420ms、`specialize` 20〜30ms、`control_lower` sub-ms、VM eval が最大。
+  - COW env 前の `showcase` VM eval は約 0.67〜0.70s。
+  - `eval_expr` の丸ごと `Expr` clone を外すと `expr_clones` は 0 になるが、VM eval の改善は小さめ。
+  - `CapturedEnv` を `Rc<HashMap>` + copy-on-write にすると、`showcase` VM eval は約 0.39〜0.48s まで落ちる。
+  - 残りの runtime 側は `apply_value` 90247 回、`force_thunk` 23126 回、handler continuation 2456 回が次の観測点。
 - typed-surface import の role / impl / effect fidelity を広げる。
 - compiled-unit manifest validation を厳しくする。
 - persistent cache を user dependency SCCs に一般化する。

@@ -11,6 +11,7 @@ pub(super) struct Runtime<'a> {
     pub(super) active_add_ids: Vec<AddIdMarker>,
     pub(super) active_marker_plans: Vec<Vec<ValueMarker>>,
     pub(super) next_guard_id: u32,
+    pub(super) stats: RuntimeStats,
 }
 
 impl<'a> Runtime<'a> {
@@ -26,6 +27,7 @@ impl<'a> Runtime<'a> {
             active_add_ids: Vec::new(),
             active_marker_plans: Vec::new(),
             next_guard_id: 0,
+            stats: RuntimeStats::default(),
         }
     }
 
@@ -70,6 +72,7 @@ impl<'a> Runtime<'a> {
             match result {
                 EvalResult::Value(value) => return Ok(value),
                 EvalResult::Request(request) => {
+                    self.stats.host_requests += 1;
                     let Some(value) = host(&request.path, &request.payload) else {
                         return Err(RuntimeError::UnhandledEffect { path: request.path });
                     };
@@ -80,9 +83,12 @@ impl<'a> Runtime<'a> {
     }
 
     pub(super) fn eval_instance(&mut self, instance: InstanceId) -> Result<Value, RuntimeError> {
+        self.stats.instance_eval_calls += 1;
         if let Some(value) = self.instances.get(&instance) {
+            self.stats.instance_cache_hits += 1;
             return Ok(value.clone());
         }
+        self.stats.instance_cache_misses += 1;
         if !self.evaluating_instances.insert(instance) {
             return Err(RuntimeError::RecursiveInstance { instance });
         }

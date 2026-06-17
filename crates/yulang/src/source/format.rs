@@ -276,6 +276,46 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
     let _ = writeln!(out, "  collect: {}", format_duration(timing.collect));
     let _ = writeln!(out, "  load: {}", format_duration(timing.load));
     let _ = writeln!(out, "  infer: {}", format_duration(timing.infer));
+    let _ = writeln!(
+        out,
+        "  lower.index_csts: {}",
+        format_duration(timing.lowering.index_csts)
+    );
+    let _ = writeln!(
+        out,
+        "  lower.module_map: {}",
+        format_duration(timing.lowering.module_map)
+    );
+    let _ = writeln!(
+        out,
+        "  lower.init: {}",
+        format_duration(timing.lowering.init_lowerer)
+    );
+    let _ = writeln!(
+        out,
+        "  lower.bodies: {}",
+        format_duration(timing.lowering.lower_bodies)
+    );
+    let _ = writeln!(
+        out,
+        "  lower.synthetic: {}",
+        format_duration(timing.lowering.synthetic_act_copy)
+    );
+    let _ = writeln!(
+        out,
+        "  lower.drain: {}",
+        format_duration(timing.lowering.drain_analysis)
+    );
+    let _ = writeln!(
+        out,
+        "  lower.resolve: {}",
+        format_duration(timing.lowering.resolve_selections)
+    );
+    let _ = writeln!(
+        out,
+        "  lower.finish: {}",
+        format_duration(timing.lowering.finish)
+    );
     let _ = writeln!(out, "  summarize: {}", format_duration(timing.summarize));
     let _ = writeln!(out, "  total: {}", format_duration(timing.total));
 }

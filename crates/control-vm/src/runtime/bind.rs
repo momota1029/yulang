@@ -101,7 +101,7 @@ impl<'a> Runtime<'a> {
             }
             Pat::Var(def) => {
                 let mut env = env;
-                env.locals.insert(def, value);
+                env.insert(def, value);
                 bind_done(true, env)
             }
             Pat::Or(left, right) => {
@@ -132,7 +132,7 @@ impl<'a> Runtime<'a> {
                         if !matched {
                             return bind_done(false, env);
                         }
-                        env.locals.insert(def, alias_value.clone());
+                        env.insert(def, alias_value.clone());
                         bind_done(true, env)
                     }),
                 )
@@ -311,7 +311,7 @@ impl<'a> Runtime<'a> {
             })
             .collect();
         let mut env = env;
-        env.locals.insert(def, Value::Record(captured));
+        env.insert(def, Value::Record(captured));
         bind_done(true, env)
     }
 }

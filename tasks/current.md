@@ -63,13 +63,15 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
 
 ## 今すぐやる slice
 
-1. infer の内訳 counter / phase timing を足す。
-   - body lowering / constraint solve / summarize のどこが太いか切る。
-   - specialize2 へ入る前の static check だけで見える指標を先に取る。
-2. `showcase` run の内訳を切る。
-   - build poly cache hit/miss、specialize、control lower、VM eval を分ける。
-   - `bench/static_analysis_bench.sh` の `run` 列は現状 wall clock だけなので、次に構造化する。
-3. 測定結果が出てから、source/lower/cache、specialize2、control VM clone の順に最小の最適化へ進む。
+1. control VM の残り runtime cost を切る。
+   - `showcase` では VM eval がまだ 0.39〜0.48s 程度で、`apply_value` / `force_thunk` / handler continuation が太い。
+   - 次は marker frame / continuation resume / primitive apply のどれが支配的かを見る。
+2. infer の `drain_analysis` / `resolve_selections` を切る。
+   - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
+   - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。
+3. source/load は今の public examples では最大ではない。
+   - `collect+load` は 70〜85ms 程度なので、realm/band や compiled-unit cache と合わせて設計する。
+   - 先に std 専用特例で隠さない。
 
 ## 守る不変条件
 

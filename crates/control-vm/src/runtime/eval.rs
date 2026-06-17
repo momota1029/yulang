@@ -2,32 +2,32 @@ use super::*;
 
 impl<'a> Runtime<'a> {
     pub(super) fn eval_expr(&mut self, expr: ExprId, env: &mut CapturedEnv) -> RuntimeResult<'a> {
-        let expr = self
-            .program
-            .exprs
-            .get(expr.0 as usize)
-            .cloned()
-            .ok_or(RuntimeError::MissingExpr { expr })?;
+        self.stats.expr_evals += 1;
+        let expr = EvalExpr::from_expr(
+            self.program
+                .exprs
+                .get(expr.0 as usize)
+                .ok_or(RuntimeError::MissingExpr { expr })?,
+        );
         match expr {
-            Expr::Lit(lit) => value_result(Value::from(&lit)),
-            Expr::PrimitiveOp { op, context } => self.eval_primitive_op(op, context),
-            Expr::Constructor { def, arity } => {
+            EvalExpr::Lit(lit) => value_result(Value::from(&lit)),
+            EvalExpr::PrimitiveOp { op, context } => self.eval_primitive_op(op, context),
+            EvalExpr::Constructor { def, arity } => {
                 value_result(constructor_value(def, arity, Vec::new()))
             }
-            Expr::EffectOp { path } => value_result(Value::EffectOp { path }),
-            Expr::Local(def) => value_result(
+            EvalExpr::EffectOp { path } => value_result(Value::EffectOp { path }),
+            EvalExpr::Local(def) => value_result(
                 self.mark_active_value(
-                    env.locals
-                        .get(&def)
+                    env.get(def)
                         .cloned()
                         .ok_or(RuntimeError::UnboundLocal { def })?,
                 ),
             ),
-            Expr::InstanceRef(instance) => {
+            EvalExpr::InstanceRef(instance) => {
                 let value = self.eval_instance(instance)?;
                 value_result(self.mark_active_value(value))
             }
-            Expr::Coerce {
+            EvalExpr::Coerce {
                 source,
                 target,
                 expr,
@@ -37,14 +37,16 @@ impl<'a> Runtime<'a> {
                     runtime.adapt_value(value, &source, &target)
                 })
             }
-            Expr::MakeThunk { body, .. } => {
+            EvalExpr::MakeThunk { body } => {
                 value_result(self.mark_active_created_value(Value::Thunk(Thunk::Expr {
                     body,
                     env: env.clone(),
                 })))
             }
-            Expr::ForceThunk { target, thunk, .. } => {
-                let target_value = target.value.clone();
+            EvalExpr::ForceThunk {
+                target_value,
+                thunk,
+            } => {
                 let result = self.eval_expr(thunk, env)?;
                 self.continue_with(result, move |runtime, thunk| {
                     let result = runtime.force_thunk(thunk)?;
@@ -55,7 +57,7 @@ impl<'a> Runtime<'a> {
                         .continue_with(result, |runtime, value| runtime.force_value_if_thunk(value))
                 })
             }
-            Expr::FunctionAdapter {
+            EvalExpr::FunctionAdapter {
                 source,
                 target,
                 function,
@@ -73,7 +75,7 @@ impl<'a> Runtime<'a> {
                     )))
                 })
             }
-            Expr::MarkerFrame { path, body } => {
+            EvalExpr::MarkerFrame { path, body } => {
                 let mut frame_env = env.clone();
                 let id = self.fresh_guard_id();
                 let markers = stack_handler_markers(id, path.clone());
@@ -81,7 +83,7 @@ impl<'a> Runtime<'a> {
                     runtime.eval_expr(body, &mut frame_env)
                 })
             }
-            Expr::Apply { callee, arg } => {
+            EvalExpr::Apply { callee, arg } => {
                 let env_for_arg = env.clone();
                 let callee = self.eval_expr(callee, env)?;
                 self.continue_with(callee, move |runtime, callee| {
@@ -92,25 +94,27 @@ impl<'a> Runtime<'a> {
                     })
                 })
             }
-            Expr::RefSet { reference, value } => self.eval_ref_set(reference, value, env.clone()),
-            Expr::Lambda { param, body } => {
+            EvalExpr::RefSet { reference, value } => {
+                self.eval_ref_set(reference, value, env.clone())
+            }
+            EvalExpr::Lambda { param, body } => {
                 value_result(self.mark_active_created_value(Value::Closure(Closure {
                     param,
                     body,
                     env: env.clone(),
                 })))
             }
-            Expr::Tuple(items) => self.eval_tuple(items, env.clone()),
-            Expr::Record { fields, spread } => self.eval_record(fields, spread, env.clone()),
-            Expr::PolyVariant { tag, payloads } => {
+            EvalExpr::Tuple(items) => self.eval_tuple(items, env.clone()),
+            EvalExpr::Record { fields, spread } => self.eval_record(fields, spread, env.clone()),
+            EvalExpr::PolyVariant { tag, payloads } => {
                 self.eval_poly_variant(tag, payloads, env.clone())
             }
-            Expr::Select {
+            EvalExpr::Select {
                 base,
                 name,
                 resolution,
             } => self.eval_select(base, name, resolution, env),
-            Expr::Case { scrutinee, arms } => {
+            EvalExpr::Case { scrutinee, arms } => {
                 let scrutinee = self.eval_expr(scrutinee, env)?;
                 let env = env.clone();
                 self.continue_with(scrutinee, move |runtime, scrutinee| {
@@ -124,8 +128,8 @@ impl<'a> Runtime<'a> {
                     })
                 })
             }
-            Expr::Catch { body, arms } => self.eval_catch(body, arms, env),
-            Expr::Block(block) => self.eval_block(block, env),
+            EvalExpr::Catch { body, arms } => self.eval_catch(body, arms, env),
+            EvalExpr::Block(block) => self.eval_block(block, env),
         }
     }
 
@@ -648,6 +652,7 @@ impl<'a> Runtime<'a> {
                         index + 1,
                     );
                 }
+                runtime.stats.catch_request_matches += 1;
                 let continuation = arm.continuation.clone();
                 let guard = arm.guard;
                 let body = arm.body;
@@ -804,6 +809,169 @@ impl<'a> Runtime<'a> {
                     runtime.eval_block_step(stmts.clone(), tail, env.clone(), index + 1, value)
                 })
             }
+        }
+    }
+}
+
+// This releases the immutable program borrow before evaluation calls back into
+// `&mut Runtime`, while avoiding a full `Expr` clone for copy-only nodes.
+enum EvalExpr {
+    Lit(Lit),
+    PrimitiveOp {
+        op: PrimitiveOp,
+        context: PrimitiveContext,
+    },
+    Constructor {
+        def: DefId,
+        arity: usize,
+    },
+    EffectOp {
+        path: Vec<String>,
+    },
+    Local(DefId),
+    InstanceRef(InstanceId),
+    Coerce {
+        source: Type,
+        target: Type,
+        expr: ExprId,
+    },
+    MakeThunk {
+        body: ExprId,
+    },
+    ForceThunk {
+        target_value: Type,
+        thunk: ExprId,
+    },
+    FunctionAdapter {
+        source: Type,
+        target: Type,
+        function: ExprId,
+        hygiene: FunctionAdapterHygiene,
+    },
+    MarkerFrame {
+        path: Vec<String>,
+        body: ExprId,
+    },
+    Apply {
+        callee: ExprId,
+        arg: ExprId,
+    },
+    RefSet {
+        reference: ExprId,
+        value: ExprId,
+    },
+    Lambda {
+        param: Pat,
+        body: ExprId,
+    },
+    Tuple(Vec<ExprId>),
+    Record {
+        fields: Vec<RecordField>,
+        spread: RecordSpread<ExprId>,
+    },
+    PolyVariant {
+        tag: String,
+        payloads: Vec<ExprId>,
+    },
+    Select {
+        base: ExprId,
+        name: String,
+        resolution: Option<SelectResolution>,
+    },
+    Case {
+        scrutinee: ExprId,
+        arms: Vec<CaseArm>,
+    },
+    Catch {
+        body: ExprId,
+        arms: Vec<CatchArm>,
+    },
+    Block(Block),
+}
+
+impl EvalExpr {
+    fn from_expr(expr: &Expr) -> Self {
+        match expr {
+            Expr::Lit(lit) => Self::Lit(lit.clone()),
+            Expr::PrimitiveOp { op, context } => Self::PrimitiveOp {
+                op: *op,
+                context: context.clone(),
+            },
+            Expr::Constructor { def, arity } => Self::Constructor {
+                def: *def,
+                arity: *arity,
+            },
+            Expr::EffectOp { path } => Self::EffectOp { path: path.clone() },
+            Expr::Local(def) => Self::Local(*def),
+            Expr::InstanceRef(instance) => Self::InstanceRef(*instance),
+            Expr::Coerce {
+                source,
+                target,
+                expr,
+            } => Self::Coerce {
+                source: source.clone(),
+                target: target.clone(),
+                expr: *expr,
+            },
+            Expr::MakeThunk { body, .. } => Self::MakeThunk { body: *body },
+            Expr::ForceThunk { target, thunk, .. } => Self::ForceThunk {
+                target_value: target.value.clone(),
+                thunk: *thunk,
+            },
+            Expr::FunctionAdapter {
+                source,
+                target,
+                function,
+                hygiene,
+            } => Self::FunctionAdapter {
+                source: source.clone(),
+                target: target.clone(),
+                function: *function,
+                hygiene: hygiene.clone(),
+            },
+            Expr::MarkerFrame { path, body } => Self::MarkerFrame {
+                path: path.clone(),
+                body: *body,
+            },
+            Expr::Apply { callee, arg } => Self::Apply {
+                callee: *callee,
+                arg: *arg,
+            },
+            Expr::RefSet { reference, value } => Self::RefSet {
+                reference: *reference,
+                value: *value,
+            },
+            Expr::Lambda { param, body } => Self::Lambda {
+                param: param.clone(),
+                body: *body,
+            },
+            Expr::Tuple(items) => Self::Tuple(items.clone()),
+            Expr::Record { fields, spread } => Self::Record {
+                fields: fields.clone(),
+                spread: spread.clone(),
+            },
+            Expr::PolyVariant { tag, payloads } => Self::PolyVariant {
+                tag: tag.clone(),
+                payloads: payloads.clone(),
+            },
+            Expr::Select {
+                base,
+                name,
+                resolution,
+            } => Self::Select {
+                base: *base,
+                name: name.clone(),
+                resolution: resolution.clone(),
+            },
+            Expr::Case { scrutinee, arms } => Self::Case {
+                scrutinee: *scrutinee,
+                arms: arms.clone(),
+            },
+            Expr::Catch { body, arms } => Self::Catch {
+                body: *body,
+                arms: arms.clone(),
+            },
+            Expr::Block(block) => Self::Block(block.clone()),
         }
     }
 }

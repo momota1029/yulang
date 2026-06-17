@@ -68,6 +68,7 @@ impl<'a> Runtime<'a> {
     }
 
     pub(super) fn force_thunk(&mut self, thunk: Value) -> RuntimeResult<'a> {
+        self.stats.force_thunk_calls += 1;
         match thunk {
             Value::Marked { value, markers } => {
                 self.with_marker_frame(markers, move |runtime| runtime.force_thunk(*value))
@@ -217,6 +218,7 @@ impl<'a> Runtime<'a> {
     }
 
     pub(super) fn store_continuation(&mut self, continuation: Continuation<'a>) -> ContinuationId {
+        self.stats.continuations_stored += 1;
         let id = ContinuationId(self.next_continuation_id);
         self.next_continuation_id += 1;
         self.continuations.insert(id, continuation);

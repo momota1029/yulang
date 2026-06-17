@@ -18,6 +18,20 @@ pub struct BodyLowering {
     pub typing: Typing,
     pub labels: DumpLabels,
     pub errors: Vec<BodyLoweringError>,
+    pub timing: BodyLoweringTiming,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct BodyLoweringTiming {
+    pub index_csts: Duration,
+    pub module_map: Duration,
+    pub init_lowerer: Duration,
+    pub lower_bodies: Duration,
+    pub synthetic_act_copy: Duration,
+    pub drain_analysis: Duration,
+    pub resolve_selections: Duration,
+    pub finish: Duration,
+    pub total: Duration,
 }
 
 /// pass1 の結果へ binding body を書き戻す。
@@ -43,19 +57,23 @@ pub fn lower_binding_bodies(root: &Cst, lower: Lower) -> BodyLowering {
 /// work queue を drain するため、file をまたぐ forward ref / cycle も同じ SCC machine に乗る。
 pub fn lower_loaded_files(files: &[LoadedFile]) -> Result<BodyLowering, LoadedFilesError> {
     let timing = InferTiming::from_env();
+    let mut measured = BodyLoweringTiming::default();
     let total_start = Instant::now();
 
     let phase_start = Instant::now();
     let loaded = LoadedFileCsts::new(files)?;
-    timing.phase("index loaded file CSTs", phase_start.elapsed());
+    measured.index_csts = phase_start.elapsed();
+    timing.phase("index loaded file CSTs", measured.index_csts);
 
     let phase_start = Instant::now();
     let lower = lower_loaded_file_csts_module_map(&loaded)?;
-    timing.phase("lower module map", phase_start.elapsed());
+    measured.module_map = phase_start.elapsed();
+    timing.phase("lower module map", measured.module_map);
 
     let phase_start = Instant::now();
     let mut lowerer = BodyLowerer::new(lower);
-    timing.phase("initialize body lowerer", phase_start.elapsed());
+    measured.init_lowerer = phase_start.elapsed();
+    timing.phase("initialize body lowerer", measured.init_lowerer);
 
     let phase_start = Instant::now();
     for file in loaded.by_depth() {
@@ -69,28 +87,38 @@ pub fn lower_loaded_files(files: &[LoadedFile]) -> Result<BodyLowering, LoadedFi
         lowerer.lower_block(&file.cst, module);
         timing.file_done(&file.module_path, file_start.elapsed());
     }
-    timing.phase("lower binding bodies", phase_start.elapsed());
+    measured.lower_bodies = phase_start.elapsed();
+    timing.phase("lower binding bodies", measured.lower_bodies);
 
     let phase_start = Instant::now();
     lowerer.lower_synthetic_act_copy_bodies();
-    timing.phase("lower synthetic act copy bodies", phase_start.elapsed());
+    measured.synthetic_act_copy = phase_start.elapsed();
+    timing.phase(
+        "lower synthetic act copy bodies",
+        measured.synthetic_act_copy,
+    );
 
     trace_requested_def_labels(&lowerer.labels);
 
     let phase_start = Instant::now();
     lowerer.session.drain_work();
-    timing.phase("drain analysis work", phase_start.elapsed());
+    measured.drain_analysis = phase_start.elapsed();
+    timing.phase("drain analysis work", measured.drain_analysis);
 
     let phase_start = Instant::now();
     lowerer
         .session
         .resolve_unresolved_selections_as_record_fields();
-    timing.phase("resolve remaining selections", phase_start.elapsed());
+    measured.resolve_selections = phase_start.elapsed();
+    timing.phase("resolve remaining selections", measured.resolve_selections);
 
     let phase_start = Instant::now();
-    let output = lowerer.finish();
-    timing.phase("finish lowering", phase_start.elapsed());
-    timing.phase("total lower_loaded_files", total_start.elapsed());
+    let mut output = lowerer.finish();
+    measured.finish = phase_start.elapsed();
+    measured.total = total_start.elapsed();
+    output.timing = measured;
+    timing.phase("finish lowering", measured.finish);
+    timing.phase("total lower_loaded_files", measured.total);
     Ok(output)
 }
 
@@ -259,6 +287,7 @@ impl BodyLowerer {
             typing: self.typing,
             labels: self.labels,
             errors,
+            timing: BodyLoweringTiming::default(),
         }
     }
 

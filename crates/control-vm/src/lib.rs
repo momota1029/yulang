@@ -19,8 +19,9 @@ pub use ir::{
 };
 pub use lower::{LowerError, lower};
 pub use runtime::{
-    CapturedEnv, Closure, ContinuationId, FunctionAdapter, GuardId, RunError, RuntimeError, Thunk,
-    Value, ValueField, ValueMarker, run_mono_program, run_program, run_program_with_host,
+    CapturedEnv, Closure, ContinuationId, FunctionAdapter, GuardId, RunError, RuntimeError,
+    RuntimeStats, Thunk, Value, ValueField, ValueMarker, run_mono_program, run_program,
+    run_program_with_host, run_program_with_host_and_stats,
 };
 pub use validate::{ValidateError, validate};
 

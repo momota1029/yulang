@@ -5,6 +5,7 @@ use std::fs;
 use std::io::{self, Read};
 use std::path::PathBuf;
 use std::process;
+use std::time::{Duration, Instant};
 
 mod cst_view;
 mod parse_view;
@@ -174,6 +175,7 @@ struct GlobalOptions {
     no_prelude: bool,
     show_cst: bool,
     use_cache: bool,
+    runtime_phase_timings: bool,
 }
 
 impl Default for GlobalOptions {
@@ -183,6 +185,7 @@ impl Default for GlobalOptions {
             no_prelude: false,
             show_cst: false,
             use_cache: true,
+            runtime_phase_timings: false,
         }
     }
 }
@@ -206,6 +209,16 @@ struct DumpSelection {
 struct RunSelection {
     interpreter: bool,
     print_roots: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct RuntimePhaseTimings {
+    collect: Duration,
+    build_poly: Duration,
+    specialize: Duration,
+    control_lower: Duration,
+    vm_eval: Duration,
+    total: Duration,
 }
 
 fn parse_global_options(
@@ -237,10 +250,10 @@ fn parse_global_options(
             Some("--no-cache") => {
                 options.use_cache = false;
             }
-            Some("--verbose-ir")
-            | Some("--infer-phase-timings")
-            | Some("--runtime-phase-timings")
-            | Some("--startup-profile") => {}
+            Some("--runtime-phase-timings") => {
+                options.runtime_phase_timings = true;
+            }
+            Some("--verbose-ir") | Some("--infer-phase-timings") | Some("--startup-profile") => {}
             Some("--profile-repeat") | Some("--profile-flamegraph") => {
                 if args.pop_front().is_none() {
                     return Err(format!("{arg:?} requires a value"));
@@ -326,14 +339,28 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
         return;
     }
 
+    let mut timings = RuntimePhaseTimings::default();
+    let total_start = Instant::now();
+    let collect_start = Instant::now();
     let files = collect_control_sources_or_exit(&path, options);
-    let build = build_control_with_optional_cache(files, options.use_cache);
+    timings.collect = collect_start.elapsed();
+    let build = build_control_with_optional_cache_timed(
+        files,
+        options.use_cache,
+        options.runtime_phase_timings.then_some(&mut timings),
+    );
+    let eval_start = Instant::now();
     let output = run_route_to_value(yulang::run_built_control_program(
         &build.program,
         build.file_count,
         build.errors,
     ));
+    timings.vm_eval = eval_start.elapsed();
+    timings.total = total_start.elapsed();
     run_control_printer(selection.print_roots)(&output);
+    if options.runtime_phase_timings {
+        print_runtime_phase_timings(&timings, &output.stats);
+    }
 }
 
 fn collect_control_sources_or_exit(
@@ -355,7 +382,18 @@ fn build_control_with_optional_cache(
     files: Vec<yulang::CollectedSource>,
     use_cache: bool,
 ) -> yulang::BuildControlOutput {
+    build_control_with_optional_cache_timed(files, use_cache, None)
+}
+
+fn build_control_with_optional_cache_timed(
+    files: Vec<yulang::CollectedSource>,
+    use_cache: bool,
+    timings: Option<&mut RuntimePhaseTimings>,
+) -> yulang::BuildControlOutput {
     if !use_cache {
+        if let Some(timings) = timings {
+            return build_control_without_cache_timed(files, timings);
+        }
         return run_route_to_value(yulang::build_control_from_collected_sources(files));
     }
 
@@ -384,6 +422,76 @@ fn build_control_with_optional_cache(
         eprintln!("warning: {error}");
     }
     output
+}
+
+fn build_control_without_cache_timed(
+    files: Vec<yulang::CollectedSource>,
+    timings: &mut RuntimePhaseTimings,
+) -> yulang::BuildControlOutput {
+    let poly_start = Instant::now();
+    let poly = run_route_to_value(yulang::build_poly_from_collected_sources(files));
+    timings.build_poly = poly_start.elapsed();
+
+    let specialize_start = Instant::now();
+    let mono = match specialize::specialize(&poly.arena) {
+        Ok(program) => program,
+        Err(error) => {
+            eprintln!("{error}");
+            process::exit(1);
+        }
+    };
+    timings.specialize = specialize_start.elapsed();
+
+    let control_lower_start = Instant::now();
+    let program = match control_vm::lower(&mono) {
+        Ok(program) => program,
+        Err(error) => {
+            eprintln!("{error}");
+            process::exit(1);
+        }
+    };
+    timings.control_lower = control_lower_start.elapsed();
+
+    yulang::BuildControlOutput {
+        program,
+        file_count: poly.file_count,
+        errors: poly.errors,
+    }
+}
+
+fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm::RuntimeStats) {
+    eprintln!("runtime timing:");
+    eprintln!("  run.collect: {}", format_duration(timing.collect));
+    eprintln!("  run.build_poly: {}", format_duration(timing.build_poly));
+    eprintln!("  run.specialize: {}", format_duration(timing.specialize));
+    eprintln!(
+        "  run.control_lower: {}",
+        format_duration(timing.control_lower)
+    );
+    eprintln!("  run.vm_eval: {}", format_duration(timing.vm_eval));
+    eprintln!("  run.total: {}", format_duration(timing.total));
+    eprintln!("runtime stats:");
+    eprintln!("  run.expr_evals: {}", stats.expr_evals);
+    eprintln!("  run.expr_clones: {}", stats.expr_clones);
+    eprintln!("  run.apply_value: {}", stats.apply_value_calls);
+    eprintln!("  run.force_thunk: {}", stats.force_thunk_calls);
+    eprintln!("  run.effect_requests: {}", stats.effect_requests);
+    eprintln!("  run.host_requests: {}", stats.host_requests);
+    eprintln!("  run.catch_matches: {}", stats.catch_request_matches);
+    eprintln!("  run.continuations: {}", stats.continuations_stored);
+    eprintln!("  run.instance_eval: {}", stats.instance_eval_calls);
+    eprintln!("  run.instance_hits: {}", stats.instance_cache_hits);
+    eprintln!("  run.instance_misses: {}", stats.instance_cache_misses);
+}
+
+fn format_duration(duration: Duration) -> String {
+    if duration.as_secs() > 0 {
+        format!("{:.3}s", duration.as_secs_f64())
+    } else if duration.as_millis() > 0 {
+        format!("{:.1}ms", duration.as_secs_f64() * 1000.0)
+    } else {
+        format!("{}us", duration.as_micros())
+    }
 }
 
 fn build_poly_with_optional_cache(

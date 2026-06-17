@@ -104,7 +104,11 @@ run_case_once() {
         return
     fi
 
-    local case_label check_real collect load infer summarize total files modules values bodyless errors run_real
+    local case_label check_real collect load infer summarize total files modules values bodyless errors
+    local run_real run_poly run_spec run_control vm_eval
+    local expr_evals expr_clones apply_value force_thunk effect_requests host_requests
+    local catch_matches continuations instance_eval instance_hits instance_misses
+    local lower_bodies lower_drain lower_resolve lower_finish
     case_label="$case_path"
     if ((repeat > 1)); then
         case_label="${case_path}#${iteration}"
@@ -113,6 +117,10 @@ run_case_once() {
     collect="$(phase_metric "collect" "$out_file")"
     load="$(phase_metric "load" "$out_file")"
     infer="$(phase_metric "infer" "$out_file")"
+    lower_bodies="$(phase_metric "lower.bodies" "$out_file")"
+    lower_drain="$(phase_metric "lower.drain" "$out_file")"
+    lower_resolve="$(phase_metric "lower.resolve" "$out_file")"
+    lower_finish="$(phase_metric "lower.finish" "$out_file")"
     summarize="$(phase_metric "summarize" "$out_file")"
     total="$(phase_metric "total" "$out_file")"
     files="$(top_metric "files" "$out_file")"
@@ -121,28 +129,49 @@ run_case_once() {
     bodyless="$(summary_metric "bodyless declarations" "$out_file")"
     errors="$(summary_metric "lowering errors" "$out_file")"
     run_real="-"
+    run_poly="-"
+    run_spec="-"
+    run_control="-"
+    vm_eval="-"
+    expr_evals="-"
+    expr_clones="-"
+    apply_value="-"
+    force_thunk="-"
+    effect_requests="-"
+    host_requests="-"
+    catch_matches="-"
+    continuations="-"
+    instance_eval="-"
+    instance_hits="-"
+    instance_misses="-"
     if [[ "$run_vm" == "1" ]]; then
-        run_real="$(measure_run_real "$release" "$case_path")"
+        read -r run_real run_poly run_spec run_control vm_eval expr_evals expr_clones apply_value force_thunk effect_requests host_requests catch_matches continuations instance_eval instance_hits instance_misses < <(measure_run_metrics "$release" "$case_path")
     fi
 
-    printf "%-34s %5s %9s %9s %9s %9s %9s %9s %9s %6s %7s %7s %8s %6s\n" \
+    printf "%-34s %5s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %6s %7s %7s %8s %6s\n" \
         "$case_label" "$iteration" "$check_real" "$collect" "$load" "$infer" \
-        "$summarize" "$total" "$run_real" "$files" "$modules" "$values" "$bodyless" "$errors"
+        "$lower_bodies" "$lower_drain" "$lower_resolve" "$lower_finish" \
+        "$summarize" "$total" "$run_real" "$run_poly" "$run_spec" "$run_control" "$vm_eval" \
+        "$expr_evals" "$expr_clones" "$apply_value" "$force_thunk" "$effect_requests" "$host_requests" \
+        "$catch_matches" "$continuations" "$instance_eval" "$instance_hits" "$instance_misses" \
+        "$files" "$modules" "$values" "$bodyless" "$errors"
 
     rm -f "$out_file" "$time_file"
 }
 
 print_header() {
-    printf "%-34s %5s %9s %9s %9s %9s %9s %9s %9s %6s %7s %7s %8s %6s\n" \
-        "case" "iter" "check" "collect" "load" "infer" "summary" "total" \
-        "run" "files" "modules" "values" "bodyless" "errors"
+    printf "%-34s %5s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %6s %7s %7s %8s %6s\n" \
+        "case" "iter" "check" "collect" "load" "infer" "bodies" "drain" \
+        "resolve" "finish" "summary" "total" "run" "poly" "spec" "ctl_low" "vm_eval" \
+        "expr" "clone" "apply" "force" "effect" "host" "catch" "cont" "inst" "hit" "miss" \
+        "files" "modules" "values" "bodyless" "errors"
 }
 
 print_failed_row() {
     local case_path="$1"
     local iteration="$2"
-    printf "%-34s %5s %9s %9s %9s %9s %9s %9s %9s %6s %7s %7s %8s %6s\n" \
-        "$case_path" "$iteration" "FAILED" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-"
+    printf "%-34s %5s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %6s %7s %7s %8s %6s\n" \
+        "$case_path" "$iteration" "FAILED" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-"
 }
 
 phase_metric() {
@@ -187,7 +216,7 @@ summary_metric() {
     echo "$line" | sed -E "s/^[[:space:]]+${name}:[[:space:]]+([^[:space:]]+).*/\1/"
 }
 
-measure_run_real() {
+measure_run_metrics() {
     local release="$1"
     local case_path="$2"
     local out_file time_file
@@ -199,15 +228,31 @@ measure_run_real() {
         cargo_args+=(--release)
     fi
     cargo_args+=(--)
-    cargo_args+=(--no-cache run --print-roots "$case_path")
+    cargo_args+=(--runtime-phase-timings --no-cache run --print-roots "$case_path")
 
     if ! env RUSTC_WRAPPER="${RUSTC_WRAPPER:-}" RUST_MIN_STACK="${RUST_MIN_STACK:-67108864}" \
         /usr/bin/time -p -o "$time_file" cargo "${cargo_args[@]}" >"$out_file" 2>&1
     then
-        echo "FAILED"
+        echo "FAILED - - - - - - - - - - - - - - -"
         tail -n 20 "$out_file" >&2
     else
-        metric_from_time real "$time_file"
+        printf "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n" \
+            "$(metric_from_time real "$time_file")" \
+            "$(phase_metric "run.build_poly" "$out_file")" \
+            "$(phase_metric "run.specialize" "$out_file")" \
+            "$(phase_metric "run.control_lower" "$out_file")" \
+            "$(phase_metric "run.vm_eval" "$out_file")" \
+            "$(phase_metric "run.expr_evals" "$out_file")" \
+            "$(phase_metric "run.expr_clones" "$out_file")" \
+            "$(phase_metric "run.apply_value" "$out_file")" \
+            "$(phase_metric "run.force_thunk" "$out_file")" \
+            "$(phase_metric "run.effect_requests" "$out_file")" \
+            "$(phase_metric "run.host_requests" "$out_file")" \
+            "$(phase_metric "run.catch_matches" "$out_file")" \
+            "$(phase_metric "run.continuations" "$out_file")" \
+            "$(phase_metric "run.instance_eval" "$out_file")" \
+            "$(phase_metric "run.instance_hits" "$out_file")" \
+            "$(phase_metric "run.instance_misses" "$out_file")"
     fi
     rm -f "$out_file" "$time_file"
 }

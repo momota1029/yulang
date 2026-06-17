@@ -10,7 +10,7 @@ use sources::{LoadedFile, Path};
 
 use crate::LoadedFilesError;
 use crate::ModuleId;
-use crate::lowering::{BodyLowering, BodyLoweringError, lower_loaded_files};
+use crate::lowering::{BodyLowering, BodyLoweringError, BodyLoweringTiming, lower_loaded_files};
 use crate::time::{Duration, Instant};
 
 pub struct PolyCheckOutput {
@@ -23,6 +23,7 @@ pub struct PolyCheckOutput {
 pub struct PolyCheckTiming {
     pub infer: Duration,
     pub summarize: Duration,
+    pub lowering: BodyLoweringTiming,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -82,6 +83,7 @@ pub fn check_loaded_files(files: &[LoadedFile]) -> Result<PolyCheckOutput, Loade
     let infer_start = Instant::now();
     let lowering = lower_loaded_files(files)?;
     let infer = infer_start.elapsed();
+    let lowering_timing = lowering.timing;
 
     let summarize_start = Instant::now();
     let report = summarize_lowering(&lowering);
@@ -90,7 +92,11 @@ pub fn check_loaded_files(files: &[LoadedFile]) -> Result<PolyCheckOutput, Loade
     Ok(PolyCheckOutput {
         report,
         lowering,
-        timing: PolyCheckTiming { infer, summarize },
+        timing: PolyCheckTiming {
+            infer,
+            summarize,
+            lowering: lowering_timing,
+        },
     })
 }
 
