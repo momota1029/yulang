@@ -271,10 +271,49 @@ mod tests {
         );
     }
 
+    #[test]
+    fn semantic_tokens_share_editor_type_function_property_classification() {
+        let source = "struct point { x: int } with:\n  our p.norm2 = p.x\n";
+        let tokens = decode_tokens(semantic_tokens_for_source(source));
+        let ty = token_type_index("type");
+        let function = token_type_index("function");
+        let property = token_type_index("property");
+
+        assert!(
+            tokens.contains(&(0, 7, 5, ty)),
+            "expected struct name 'point' to be semantic type; got: {tokens:?}"
+        );
+        assert!(
+            tokens.contains(&(1, 8, 5, function)),
+            "expected dot-field 'norm2' to be semantic function; got: {tokens:?}"
+        );
+        assert!(
+            !tokens.contains(&(1, 8, 5, property)),
+            "expected dot-field 'norm2' not to be semantic property; got: {tokens:?}"
+        );
+    }
+
     fn token_type_index(name: &str) -> u32 {
         semantic_tokens::TOKEN_TYPES
             .iter()
             .position(|token| *token == name)
             .expect("semantic token type") as u32
+    }
+
+    fn decode_tokens(tokens: Vec<SemanticToken>) -> Vec<(u32, u32, u32, u32)> {
+        let mut line = 0;
+        let mut col = 0;
+        tokens
+            .into_iter()
+            .map(|token| {
+                line += token.delta_line;
+                if token.delta_line == 0 {
+                    col += token.delta_start;
+                } else {
+                    col = token.delta_start;
+                }
+                (line, col, token.length, token.token_type)
+            })
+            .collect()
     }
 }

@@ -55,4 +55,4 @@ LSP は compiler の別実装ではなく、parser / infer / diagnostics の構�
 - diagnostics: `diagnostics-docs.md`
 - detailed type checker: `type-checker-diagnostics.md`, `../diagnostics/type-checker-plan.md`
 - public install flow: `../../README.md`
-- LSP implementation: `../../crates/yulang/src/server.rs`, `../../crates/yulang-lsp`
+- LSP implementation: `../../crates/yulang/src/server.rs`
