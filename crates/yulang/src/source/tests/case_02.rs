@@ -326,6 +326,41 @@ fn collect_local_sources_with_std_reads_nearby_lib_std() {
 }
 
 #[test]
+fn collect_local_sources_with_std_prefers_yulang_std_over_nearby_lib_std() {
+    let root = temp_root("env-std-priority");
+    let _ = fs::remove_dir_all(&root);
+    let nearby_root = root.join("lib");
+    let env_root = root.join("env-lib");
+    fs::create_dir_all(nearby_root.join("std")).unwrap();
+    fs::create_dir_all(env_root.join("std")).unwrap();
+    fs::write(root.join("main.yu"), "my x = 1\n").unwrap();
+    fs::write(nearby_root.join("std.yu"), "mod prelude;\nmod nearby;\n").unwrap();
+    fs::write(nearby_root.join("std").join("prelude.yu"), "").unwrap();
+    fs::write(
+        nearby_root.join("std").join("nearby.yu"),
+        "my nearby_value = 1\n",
+    )
+    .unwrap();
+    fs::write(env_root.join("std.yu"), "mod prelude;\nmod env;\n").unwrap();
+    fs::write(env_root.join("std").join("prelude.yu"), "").unwrap();
+    fs::write(env_root.join("std").join("env.yu"), "my env_value = 2\n").unwrap();
+
+    let _env = EnvVarGuard::set_path(crate::stdlib::YULANG_STD_ENV, &env_root);
+    let files = collect_local_sources_with_std(root.join("main.yu")).unwrap();
+
+    assert!(
+        files
+            .iter()
+            .any(|file| file.module_path.segments == vec![Name("std".into()), Name("env".into())])
+    );
+    assert!(
+        !files.iter().any(
+            |file| file.module_path.segments == vec![Name("std".into()), Name("nearby".into())]
+        )
+    );
+}
+
+#[test]
 fn collect_source_text_with_embedded_std_uses_embedded_package() {
     let files =
         collect_source_text_with_embedded_std("playground.yu", "my x = 1\n".to_string()).unwrap();

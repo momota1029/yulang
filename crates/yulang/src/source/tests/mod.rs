@@ -1,4 +1,5 @@
 use super::*;
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
 fn temp_root(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
@@ -62,6 +63,42 @@ fn run_with_std_main(name: &str, source: &str) -> (RunMonoOutput, RunControlOutp
     let mono = run_mono_from_entry_with_std(&entry).unwrap();
     let control = run_control_from_entry_with_std(&entry).unwrap();
     (mono, control)
+}
+
+struct EnvVarGuard {
+    key: &'static str,
+    previous: Option<std::ffi::OsString>,
+    _lock: MutexGuard<'static, ()>,
+}
+
+impl EnvVarGuard {
+    fn set_path(key: &'static str, value: &FsPath) -> Self {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        let lock = ENV_LOCK.get_or_init(|| Mutex::new(()));
+        let guard = lock.lock().expect("env var test lock");
+        let previous = std::env::var_os(key);
+        // Rust 2024 marks process environment mutation unsafe because it is
+        // global. Tests that use this helper serialize the mutation.
+        unsafe {
+            std::env::set_var(key, value);
+        }
+        Self {
+            key,
+            previous,
+            _lock: guard,
+        }
+    }
+}
+
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        unsafe {
+            match &self.previous {
+                Some(value) => std::env::set_var(self.key, value),
+                None => std::env::remove_var(self.key),
+            }
+        }
+    }
 }
 
 fn assert_dump_has_line_starting_with(output: &DumpPolyOutput, expected: &str) {

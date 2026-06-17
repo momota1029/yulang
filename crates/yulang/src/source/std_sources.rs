@@ -17,7 +17,9 @@ pub(super) fn resolve_std_root(
 }
 
 pub(super) fn resolve_nearby_std_root(base: &FsPath) -> Option<PathBuf> {
-    find_nearby_std_root(base).or_else(|| env_std_root().filter(|root| is_std_root(root)))
+    env_std_root()
+        .filter(|root| is_std_root(root))
+        .or_else(|| find_nearby_std_root(base))
 }
 
 pub(super) fn parse_dump_module_path(module: &str) -> Result<Path, RouteError> {
