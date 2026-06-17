@@ -7,7 +7,9 @@ HEADER_COLUMNS=(
     g_comp g_roles g_merge g_dom g_sub g_cast g_rrole g_froles g_clean g_filter g_prep
     g_mrst g_srst g_crst g_rrst g_rin g_rreach g_rcoal g_rdom g_rsolvein
     a_inst i_clone i_sub i_roles i_runs i_maxrun i_targets i_reuse i_pvar i_pstk i_pnsub i_pfun i_pcon i_poth i_pdir a_record c_drain c_drains c_work c_sub c_subcall c_many c_invar c_vv c_posv c_maxq c_maxw c_lb c_ub c_lrep c_urep c_lenq c_uenq c_lrvv c_urvv c_vvub c_vvlb c_vvuin c_vvlin c_vvuenq c_vvlenq c_vvuski c_vvlski w_ref_n w_probe_n w_aref_n w_asel_n w_asel_rec_n w_asel_m_n w_asel_eff_n w_asel_tc_n w_scc_n scc_batches scc_ev scc_open_n scc_quant_n scc_inst_n scc_oth_n udep_n udep_in udep_e summary total run poly spec ctl_low vm_eval
-    expr clone apply force effect host catch cont inst hit miss
+    expr clone apply ap_m ap_p ap_con ap_cl ap_rcl ap_ad ap_ft ap_eff ap_k prim0 prim prim_part prim_done
+    force f_m f_e f_v f_eff f_k f_ad effect host catch cont k_inv req_res c_val c_req cb_val cb_req cbr_val cbr_req cvb_val cvb_req
+    mf mf_emp mf_push mf_vclose mf_rclose mf_res inst hit miss
     pfx pfx_seg peq peq_seg addscan frscan files modules values bodyless errors
 )
 
@@ -116,8 +118,21 @@ run_case_once() {
 
     local case_label check_real collect load infer summarize total files modules values bodyless errors
     local run_real run_poly run_spec run_control vm_eval
-    local expr_evals expr_clones apply_value force_thunk effect_requests host_requests
-    local catch_matches continuations instance_eval instance_hits instance_misses
+    local expr_evals expr_clones apply_value
+    local apply_marked apply_primitive apply_constructor apply_closure
+    local apply_recursive_closure apply_adapter apply_forced_thunk
+    local apply_effect_op apply_continuation
+    local primitive_zero_arity primitive_apply primitive_partial primitive_complete
+    local force_thunk force_marked force_expr force_value force_effect
+    local force_continuation force_adapter
+    local effect_requests host_requests catch_matches continuations
+    local continuation_invocations request_resume_steps
+    local continue_value continue_request continue_bind_value continue_bind_request
+    local continue_bind_result_value continue_bind_result_request
+    local continue_value_bind_value continue_value_bind_request
+    local marker_frame_calls marker_frame_empty marker_frame_pushes
+    local marker_frame_value_closes marker_frame_request_closes marker_frame_resume_steps
+    local instance_eval instance_hits instance_misses
     local path_prefix path_prefix_seg path_eq path_eq_seg active_add active_frame
     local lower_bodies lower_drain lower_resolve lower_finish
     local analysis_route analysis_route_scc_events
@@ -302,11 +317,46 @@ run_case_once() {
     expr_evals="-"
     expr_clones="-"
     apply_value="-"
+    apply_marked="-"
+    apply_primitive="-"
+    apply_constructor="-"
+    apply_closure="-"
+    apply_recursive_closure="-"
+    apply_adapter="-"
+    apply_forced_thunk="-"
+    apply_effect_op="-"
+    apply_continuation="-"
+    primitive_zero_arity="-"
+    primitive_apply="-"
+    primitive_partial="-"
+    primitive_complete="-"
     force_thunk="-"
+    force_marked="-"
+    force_expr="-"
+    force_value="-"
+    force_effect="-"
+    force_continuation="-"
+    force_adapter="-"
     effect_requests="-"
     host_requests="-"
     catch_matches="-"
     continuations="-"
+    continuation_invocations="-"
+    request_resume_steps="-"
+    continue_value="-"
+    continue_request="-"
+    continue_bind_value="-"
+    continue_bind_request="-"
+    continue_bind_result_value="-"
+    continue_bind_result_request="-"
+    continue_value_bind_value="-"
+    continue_value_bind_request="-"
+    marker_frame_calls="-"
+    marker_frame_empty="-"
+    marker_frame_pushes="-"
+    marker_frame_value_closes="-"
+    marker_frame_request_closes="-"
+    marker_frame_resume_steps="-"
     instance_eval="-"
     instance_hits="-"
     instance_misses="-"
@@ -317,7 +367,7 @@ run_case_once() {
     active_add="-"
     active_frame="-"
     if [[ "$run_vm" == "1" ]]; then
-        read -r run_real run_poly run_spec run_control vm_eval expr_evals expr_clones apply_value force_thunk effect_requests host_requests catch_matches continuations instance_eval instance_hits instance_misses path_prefix path_prefix_seg path_eq path_eq_seg active_add active_frame < <(measure_run_metrics "$release" "$case_path")
+        read -r run_real run_poly run_spec run_control vm_eval expr_evals expr_clones apply_value apply_marked apply_primitive apply_constructor apply_closure apply_recursive_closure apply_adapter apply_forced_thunk apply_effect_op apply_continuation primitive_zero_arity primitive_apply primitive_partial primitive_complete force_thunk force_marked force_expr force_value force_effect force_continuation force_adapter effect_requests host_requests catch_matches continuations continuation_invocations request_resume_steps continue_value continue_request continue_bind_value continue_bind_request continue_bind_result_value continue_bind_result_request continue_value_bind_value continue_value_bind_request marker_frame_calls marker_frame_empty marker_frame_pushes marker_frame_value_closes marker_frame_request_closes marker_frame_resume_steps instance_eval instance_hits instance_misses path_prefix path_prefix_seg path_eq path_eq_seg active_add active_frame < <(measure_run_metrics "$release" "$case_path")
     fi
 
     print_columns \
@@ -370,8 +420,19 @@ run_case_once() {
         "$unready_role_dependency_scans" \
         "$unready_role_dependency_inputs" "$unready_role_dependency_edges" \
         "$summarize" "$total" "$run_real" "$run_poly" "$run_spec" "$run_control" "$vm_eval" \
-        "$expr_evals" "$expr_clones" "$apply_value" "$force_thunk" "$effect_requests" "$host_requests" \
-        "$catch_matches" "$continuations" "$instance_eval" "$instance_hits" "$instance_misses" \
+        "$expr_evals" "$expr_clones" "$apply_value" "$apply_marked" "$apply_primitive" \
+        "$apply_constructor" "$apply_closure" "$apply_recursive_closure" "$apply_adapter" \
+        "$apply_forced_thunk" "$apply_effect_op" "$apply_continuation" \
+        "$primitive_zero_arity" "$primitive_apply" "$primitive_partial" "$primitive_complete" \
+        "$force_thunk" "$force_marked" "$force_expr" "$force_value" "$force_effect" \
+        "$force_continuation" "$force_adapter" "$effect_requests" "$host_requests" \
+        "$catch_matches" "$continuations" "$continuation_invocations" "$request_resume_steps" \
+        "$continue_value" "$continue_request" "$continue_bind_value" "$continue_bind_request" \
+        "$continue_bind_result_value" "$continue_bind_result_request" \
+        "$continue_value_bind_value" "$continue_value_bind_request" \
+        "$marker_frame_calls" "$marker_frame_empty" "$marker_frame_pushes" \
+        "$marker_frame_value_closes" "$marker_frame_request_closes" "$marker_frame_resume_steps" \
+        "$instance_eval" "$instance_hits" "$instance_misses" \
         "$path_prefix" "$path_prefix_seg" "$path_eq" "$path_eq_seg" "$active_add" "$active_frame" \
         "$files" "$modules" "$values" "$bodyless" "$errors"
 
@@ -461,32 +522,73 @@ measure_run_metrics() {
     if ! env RUSTC_WRAPPER="${RUSTC_WRAPPER:-}" RUST_MIN_STACK="${RUST_MIN_STACK:-67108864}" \
         /usr/bin/time -p -o "$time_file" cargo "${cargo_args[@]}" >"$out_file" 2>&1
     then
-        echo "FAILED - - - - - - - - - - - - - - - - - - - - -"
+        local -a failed=(FAILED)
+        while ((${#failed[@]} < 57)); do
+            failed+=("-")
+        done
+        echo "${failed[*]}"
         tail -n 20 "$out_file" >&2
     else
-        printf "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n" \
-            "$(metric_from_time real "$time_file")" \
-            "$(phase_metric "run.build_poly" "$out_file")" \
-            "$(phase_metric "run.specialize" "$out_file")" \
-            "$(phase_metric "run.control_lower" "$out_file")" \
-            "$(phase_metric "run.vm_eval" "$out_file")" \
-            "$(phase_metric "run.expr_evals" "$out_file")" \
-            "$(phase_metric "run.expr_clones" "$out_file")" \
-            "$(phase_metric "run.apply_value" "$out_file")" \
-            "$(phase_metric "run.force_thunk" "$out_file")" \
-            "$(phase_metric "run.effect_requests" "$out_file")" \
-            "$(phase_metric "run.host_requests" "$out_file")" \
-            "$(phase_metric "run.catch_matches" "$out_file")" \
-            "$(phase_metric "run.continuations" "$out_file")" \
-            "$(phase_metric "run.instance_eval" "$out_file")" \
-            "$(phase_metric "run.instance_hits" "$out_file")" \
-            "$(phase_metric "run.instance_misses" "$out_file")" \
-            "$(phase_metric "run.path_prefix_checks" "$out_file")" \
-            "$(phase_metric "run.path_prefix_segments" "$out_file")" \
-            "$(phase_metric "run.path_eq_checks" "$out_file")" \
-            "$(phase_metric "run.path_eq_segments" "$out_file")" \
-            "$(phase_metric "run.active_add_scans" "$out_file")" \
+        local -a metrics=(
+            "$(metric_from_time real "$time_file")"
+            "$(phase_metric "run.build_poly" "$out_file")"
+            "$(phase_metric "run.specialize" "$out_file")"
+            "$(phase_metric "run.control_lower" "$out_file")"
+            "$(phase_metric "run.vm_eval" "$out_file")"
+            "$(phase_metric "run.expr_evals" "$out_file")"
+            "$(phase_metric "run.expr_clones" "$out_file")"
+            "$(phase_metric "run.apply_value" "$out_file")"
+            "$(phase_metric "run.apply_marked" "$out_file")"
+            "$(phase_metric "run.apply_primitive" "$out_file")"
+            "$(phase_metric "run.apply_constructor" "$out_file")"
+            "$(phase_metric "run.apply_closure" "$out_file")"
+            "$(phase_metric "run.apply_recursive_closure" "$out_file")"
+            "$(phase_metric "run.apply_adapter" "$out_file")"
+            "$(phase_metric "run.apply_forced_thunk" "$out_file")"
+            "$(phase_metric "run.apply_effect_op" "$out_file")"
+            "$(phase_metric "run.apply_continuation" "$out_file")"
+            "$(phase_metric "run.primitive_zero_arity" "$out_file")"
+            "$(phase_metric "run.primitive_apply" "$out_file")"
+            "$(phase_metric "run.primitive_partial" "$out_file")"
+            "$(phase_metric "run.primitive_complete" "$out_file")"
+            "$(phase_metric "run.force_thunk" "$out_file")"
+            "$(phase_metric "run.force_marked" "$out_file")"
+            "$(phase_metric "run.force_expr" "$out_file")"
+            "$(phase_metric "run.force_value" "$out_file")"
+            "$(phase_metric "run.force_effect" "$out_file")"
+            "$(phase_metric "run.force_continuation" "$out_file")"
+            "$(phase_metric "run.force_adapter" "$out_file")"
+            "$(phase_metric "run.effect_requests" "$out_file")"
+            "$(phase_metric "run.host_requests" "$out_file")"
+            "$(phase_metric "run.catch_matches" "$out_file")"
+            "$(phase_metric "run.continuations" "$out_file")"
+            "$(phase_metric "run.continuation_invocations" "$out_file")"
+            "$(phase_metric "run.request_resume_steps" "$out_file")"
+            "$(phase_metric "run.continue_value" "$out_file")"
+            "$(phase_metric "run.continue_request" "$out_file")"
+            "$(phase_metric "run.continue_bind_value" "$out_file")"
+            "$(phase_metric "run.continue_bind_request" "$out_file")"
+            "$(phase_metric "run.continue_bind_result_value" "$out_file")"
+            "$(phase_metric "run.continue_bind_result_request" "$out_file")"
+            "$(phase_metric "run.continue_value_bind_value" "$out_file")"
+            "$(phase_metric "run.continue_value_bind_request" "$out_file")"
+            "$(phase_metric "run.marker_frame_calls" "$out_file")"
+            "$(phase_metric "run.marker_frame_empty" "$out_file")"
+            "$(phase_metric "run.marker_frame_pushes" "$out_file")"
+            "$(phase_metric "run.marker_frame_value_closes" "$out_file")"
+            "$(phase_metric "run.marker_frame_request_closes" "$out_file")"
+            "$(phase_metric "run.marker_frame_resume_steps" "$out_file")"
+            "$(phase_metric "run.instance_eval" "$out_file")"
+            "$(phase_metric "run.instance_hits" "$out_file")"
+            "$(phase_metric "run.instance_misses" "$out_file")"
+            "$(phase_metric "run.path_prefix_checks" "$out_file")"
+            "$(phase_metric "run.path_prefix_segments" "$out_file")"
+            "$(phase_metric "run.path_eq_checks" "$out_file")"
+            "$(phase_metric "run.path_eq_segments" "$out_file")"
+            "$(phase_metric "run.active_add_scans" "$out_file")"
             "$(phase_metric "run.active_frame_scans" "$out_file")"
+        )
+        echo "${metrics[*]}"
     fi
     rm -f "$out_file" "$time_file"
 }

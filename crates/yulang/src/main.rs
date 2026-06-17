@@ -474,11 +474,91 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
     eprintln!("  run.expr_evals: {}", stats.expr_evals);
     eprintln!("  run.expr_clones: {}", stats.expr_clones);
     eprintln!("  run.apply_value: {}", stats.apply_value_calls);
+    eprintln!("  run.apply_marked: {}", stats.apply_marked_calls);
+    eprintln!("  run.apply_primitive: {}", stats.apply_primitive_calls);
+    eprintln!("  run.apply_constructor: {}", stats.apply_constructor_calls);
+    eprintln!("  run.apply_closure: {}", stats.apply_closure_calls);
+    eprintln!(
+        "  run.apply_recursive_closure: {}",
+        stats.apply_recursive_closure_calls
+    );
+    eprintln!("  run.apply_adapter: {}", stats.apply_adapter_calls);
+    eprintln!(
+        "  run.apply_forced_thunk: {}",
+        stats.apply_forced_thunk_calls
+    );
+    eprintln!("  run.apply_effect_op: {}", stats.apply_effect_op_calls);
+    eprintln!(
+        "  run.apply_continuation: {}",
+        stats.apply_continuation_calls
+    );
+    eprintln!(
+        "  run.primitive_zero_arity: {}",
+        stats.primitive_zero_arity_calls
+    );
+    eprintln!("  run.primitive_apply: {}", stats.primitive_apply_calls);
+    eprintln!("  run.primitive_partial: {}", stats.primitive_apply_partial);
+    eprintln!(
+        "  run.primitive_complete: {}",
+        stats.primitive_apply_complete
+    );
     eprintln!("  run.force_thunk: {}", stats.force_thunk_calls);
+    eprintln!("  run.force_marked: {}", stats.force_marked_calls);
+    eprintln!("  run.force_expr: {}", stats.force_expr_calls);
+    eprintln!("  run.force_value: {}", stats.force_value_calls);
+    eprintln!("  run.force_effect: {}", stats.force_effect_calls);
+    eprintln!(
+        "  run.force_continuation: {}",
+        stats.force_continuation_calls
+    );
+    eprintln!("  run.force_adapter: {}", stats.force_adapter_calls);
     eprintln!("  run.effect_requests: {}", stats.effect_requests);
     eprintln!("  run.host_requests: {}", stats.host_requests);
     eprintln!("  run.catch_matches: {}", stats.catch_request_matches);
     eprintln!("  run.continuations: {}", stats.continuations_stored);
+    eprintln!(
+        "  run.continuation_invocations: {}",
+        stats.continuation_invocations
+    );
+    eprintln!("  run.request_resume_steps: {}", stats.request_resume_steps);
+    eprintln!("  run.continue_value: {}", stats.continue_with_values);
+    eprintln!("  run.continue_request: {}", stats.continue_with_requests);
+    eprintln!("  run.continue_bind_value: {}", stats.continue_bind_values);
+    eprintln!(
+        "  run.continue_bind_request: {}",
+        stats.continue_bind_requests
+    );
+    eprintln!(
+        "  run.continue_bind_result_value: {}",
+        stats.continue_bind_result_values
+    );
+    eprintln!(
+        "  run.continue_bind_result_request: {}",
+        stats.continue_bind_result_requests
+    );
+    eprintln!(
+        "  run.continue_value_bind_value: {}",
+        stats.continue_value_bind_values
+    );
+    eprintln!(
+        "  run.continue_value_bind_request: {}",
+        stats.continue_value_bind_requests
+    );
+    eprintln!("  run.marker_frame_calls: {}", stats.marker_frame_calls);
+    eprintln!("  run.marker_frame_empty: {}", stats.marker_frame_empty);
+    eprintln!("  run.marker_frame_pushes: {}", stats.marker_frame_pushes);
+    eprintln!(
+        "  run.marker_frame_value_closes: {}",
+        stats.marker_frame_value_closes
+    );
+    eprintln!(
+        "  run.marker_frame_request_closes: {}",
+        stats.marker_frame_request_closes
+    );
+    eprintln!(
+        "  run.marker_frame_resume_steps: {}",
+        stats.marker_frame_resume_steps
+    );
     eprintln!("  run.instance_eval: {}", stats.instance_eval_calls);
     eprintln!("  run.instance_hits: {}", stats.instance_cache_hits);
     eprintln!("  run.instance_misses: {}", stats.instance_cache_misses);

@@ -5,6 +5,7 @@ impl<'a> Runtime<'a> {
         self.stats.apply_value_calls += 1;
         match callee {
             Value::Marked { value, markers } => {
+                self.stats.apply_marked_calls += 1;
                 let markers = if matches!(value.as_ref(), Value::Continuation(_)) {
                     markers_for_continuation_call(markers)
                 } else {
@@ -12,29 +13,47 @@ impl<'a> Runtime<'a> {
                 };
                 self.with_marker_frame(markers, move |runtime| runtime.apply_value(*value, arg))
             }
-            Value::PrimitiveOp(primitive) => self.apply_primitive_op(primitive, arg),
+            Value::PrimitiveOp(primitive) => {
+                self.stats.apply_primitive_calls += 1;
+                self.apply_primitive_op(primitive, arg)
+            }
             Value::ConstructorFunction(constructor) => {
+                self.stats.apply_constructor_calls += 1;
                 value_result(apply_constructor(constructor, arg))
             }
-            Value::Closure(closure) => self.apply_closure(closure, arg),
+            Value::Closure(closure) => {
+                self.stats.apply_closure_calls += 1;
+                self.apply_closure(closure, arg)
+            }
             Value::RecursiveClosure { def, closure } => {
+                self.stats.apply_recursive_closure_calls += 1;
                 self.apply_recursive_closure(def, closure, arg)
             }
-            Value::FunctionAdapter(adapter) => self.apply_adapter(adapter, arg),
+            Value::FunctionAdapter(adapter) => {
+                self.stats.apply_adapter_calls += 1;
+                self.apply_adapter(adapter, arg)
+            }
             Value::Thunk(_) => {
+                self.stats.apply_forced_thunk_calls += 1;
                 let result = self.force_thunk(callee)?;
                 self.continue_with(result, move |runtime, callee| {
                     runtime.apply_value(callee, arg.clone())
                 })
             }
-            Value::EffectOp { path } => value_result(Value::Thunk(Thunk::Effect {
-                path,
-                payload: Box::new(arg),
-            })),
-            Value::Continuation(id) => value_result(Value::Thunk(Thunk::Continuation {
-                id,
-                arg: Box::new(arg),
-            })),
+            Value::EffectOp { path } => {
+                self.stats.apply_effect_op_calls += 1;
+                value_result(Value::Thunk(Thunk::Effect {
+                    path,
+                    payload: Box::new(arg),
+                }))
+            }
+            Value::Continuation(id) => {
+                self.stats.apply_continuation_calls += 1;
+                value_result(Value::Thunk(Thunk::Continuation {
+                    id,
+                    arg: Box::new(arg),
+                }))
+            }
             value => Err(RuntimeError::NotFunction { value }),
         }
     }
@@ -45,6 +64,7 @@ impl<'a> Runtime<'a> {
         context: PrimitiveContext,
     ) -> RuntimeResult<'a> {
         if op.arity() == 0 {
+            self.stats.primitive_zero_arity_calls += 1;
             return value_result(apply_primitive(op, &context, &[])?);
         }
         value_result(Value::PrimitiveOp(PrimitiveValue {
@@ -59,10 +79,13 @@ impl<'a> Runtime<'a> {
         mut primitive: PrimitiveValue,
         arg: Value,
     ) -> RuntimeResult<'a> {
+        self.stats.primitive_apply_calls += 1;
         primitive.args.push(arg);
         if primitive.args.len() < primitive.op.arity() {
+            self.stats.primitive_apply_partial += 1;
             return value_result(Value::PrimitiveOp(primitive));
         }
+        self.stats.primitive_apply_complete += 1;
         value_result(apply_primitive(
             primitive.op,
             &primitive.context,
@@ -324,7 +347,9 @@ impl<'a> Runtime<'a> {
         handler_path: Option<(Vec<String>, InternedPath)>,
         run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult<'a> + 'a,
     ) -> RuntimeResult<'a> {
+        self.stats.marker_frame_calls += 1;
         if markers.is_empty() {
+            self.stats.marker_frame_empty += 1;
             return run(self);
         }
 
@@ -332,6 +357,7 @@ impl<'a> Runtime<'a> {
         let frame_len = self.active_frames.len();
         let add_id_len = self.active_add_ids.len();
         let plan_len = self.active_marker_plans.len();
+        self.stats.marker_frame_pushes += 1;
         self.push_marker_frame(&markers, activate_add_ids, handler_path.clone());
         let result = run(self);
         self.pop_marker_frame(guard_len, frame_len, add_id_len, plan_len);
@@ -387,9 +413,11 @@ impl<'a> Runtime<'a> {
     ) -> RuntimeResult<'a> {
         match result {
             EvalResult::Value(value) => {
+                self.stats.marker_frame_value_closes += 1;
                 value_result(mark_value(value, &markers_for_value(&markers)))
             }
             EvalResult::Request(request) => {
+                self.stats.marker_frame_request_closes += 1;
                 let resume = request.resume.clone();
                 let resume_markers = markers_for_continuation_resume(&markers);
                 Ok(EvalResult::Request(Request {
@@ -399,6 +427,7 @@ impl<'a> Runtime<'a> {
                     carried_guard_ids: request.carried_guard_ids,
                     payload: request.payload,
                     resume: Rc::new(move |runtime, value| {
+                        runtime.stats.marker_frame_resume_steps += 1;
                         let resume = resume.clone();
                         runtime.with_marker_plan(
                             resume_markers.clone(),

@@ -65,7 +65,10 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
 
 1. control VM の残り runtime cost を切る。
    - `showcase` では VM eval がまだ 0.39〜0.48s 程度で、`apply_value` / `force_thunk` / handler continuation が太い。
-   - 次は marker frame / continuation resume / primitive apply のどれが支配的かを見る。
+   - 2026-06-18 に `apply_value` / `force_thunk` / primitive apply / continuation wrapper /
+     marker frame の分岐別 counter を追加した。
+   - 初期観測では `showcase` の VM eval で marker frame close/resume と request continuation wrapping が最も太い。
+     次は marker frame と request resume の allocation / clone 境界を、意味論を変えずに削れるか見る。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。

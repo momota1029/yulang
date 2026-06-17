@@ -74,6 +74,18 @@
   - control VM runtime 内部は effect path を `InternedPath` にし、request/marker/handler 比較を segment id 列にした。
   - VM eval は 0.40〜0.42s 付近で、COW env ほどの勝ちはない。次に runtime を触るなら、
     path intern より active marker scan / continuation resume / apply-force chain を見る。
+- 2026-06-18 VM runtime counter split:
+  - `RuntimeStats` と `bench/static_analysis_bench.sh` に、`apply_value` / `force_thunk` / primitive apply /
+    continuation wrapper / marker frame の分岐別 counter を追加した。
+  - `showcase` repeat 1 の初期観測では、VM eval 440ms 前後、`apply_value` 90247 回、`force_thunk` 23126 回。
+  - 内訳では `apply_marked` 38784 回、`apply_closure` 32836 回、`force_marked` 10403 回、
+    `force_expr` 7801 回、`force_effect` / `force_continuation` が 2456 / 1648 回。
+  - continuation wrapper は `continue_with_request` 127268 回、marker frame は
+    `marker_frame_calls` 117802 回、`marker_frame_request_closes` 64493 回、
+    `marker_frame_resume_steps` 63554 回。次の runtime 本命は primitive apply ではなく
+    request resume / marker frame wrapper の allocation と clone。
+  - marker value view を frame 内で使い回す実験は、`showcase` repeat 3 で VM eval が 415〜462ms と揺れ、
+    明確な改善ではなかったため棄却した。まずは wrapper 数そのものを減らす設計を探る。
 - 2026-06-17 record-field fallback batch:
   - `YULANG_ANALYSIS_TIMING=1` では `std.control.var.ref.update` の compact merge と
     unresolved selection fallback が太く、path lookup より analysis/merge 側が支配的に見える。
