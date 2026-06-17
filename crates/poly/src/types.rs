@@ -509,7 +509,7 @@ pub struct NeuId(pub u32);
 ///
 /// `PosId` / `NegId` / `NeuId` はこの Arena の中だけで意味を持つ。構造を直接 clone して
 /// 持ち回るのではなく ID 化することで、制約伝播や scheme freeze の途中で同じ型を共有する。
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct TypeArena {
     pos: Vec<Pos>,
     neg: Vec<Neg>,

@@ -766,6 +766,71 @@ pub(crate) fn lower_loaded_file_csts_module_map(
     Ok(lower)
 }
 
+pub(crate) struct RootFileAppend {
+    pub lower: Lower,
+    pub root: Cst,
+    pub synthetic_var_act_copy_ids: Vec<TypeDeclId>,
+    pub synthetic_sub_label_act_copy_ids: Vec<TypeDeclId>,
+}
+
+pub(crate) fn append_root_loaded_file_to_lower(
+    mut lower: Lower,
+    file: &LoadedFile,
+) -> Result<RootFileAppend, LoadedFilesError> {
+    if !file.module_path.segments.is_empty() {
+        return Err(LoadedFilesError::MissingRoot);
+    }
+
+    let previous_act_copies = lower
+        .modules
+        .act_copies
+        .keys()
+        .copied()
+        .collect::<FxHashSet<_>>();
+    let previous_synthetic_var_act_copies = lower
+        .modules
+        .synthetic_var_act_copy_ids()
+        .into_iter()
+        .collect::<FxHashSet<_>>();
+    let previous_synthetic_sub_label_act_copies = lower
+        .modules
+        .synthetic_sub_label_act_copy_ids()
+        .into_iter()
+        .collect::<FxHashSet<_>>();
+
+    let loaded = LoadedFileCsts::new(std::slice::from_ref(file))?;
+    let root = loaded.root().ok_or(LoadedFilesError::MissingRoot)?;
+    let roots = lower.register_block(&root.cst, lower.modules.root_id());
+    lower.arena.roots.extend(roots);
+
+    lower.modules.build_import_views();
+    lower.finalize_act_copies_added_after(
+        &previous_act_copies,
+        &previous_synthetic_var_act_copies,
+        &previous_synthetic_sub_label_act_copies,
+    );
+
+    let synthetic_var_act_copy_ids = lower
+        .modules
+        .synthetic_var_act_copy_ids()
+        .into_iter()
+        .filter(|id| !previous_synthetic_var_act_copies.contains(id))
+        .collect();
+    let synthetic_sub_label_act_copy_ids = lower
+        .modules
+        .synthetic_sub_label_act_copy_ids()
+        .into_iter()
+        .filter(|id| !previous_synthetic_sub_label_act_copies.contains(id))
+        .collect();
+
+    Ok(RootFileAppend {
+        lower,
+        root: root.cst.clone(),
+        synthetic_var_act_copy_ids,
+        synthetic_sub_label_act_copy_ids,
+    })
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoadedFilesError {
     MissingRoot,

@@ -37,7 +37,9 @@ pub mod typing;
 pub mod uses;
 
 pub use arena::Arena;
-pub(crate) use module_map::{LoadedFileCsts, lower_loaded_file_csts_module_map};
+pub(crate) use module_map::{
+    LoadedFileCsts, append_root_loaded_file_to_lower, lower_loaded_file_csts_module_map,
+};
 pub use module_map::{LoadedFilesError, lower_loaded_files_module_map, lower_module_map};
 pub(crate) use syntax::*;
 
@@ -90,6 +92,7 @@ struct ModuleParent {
     order: ModuleOrder,
 }
 
+#[derive(Clone)]
 struct ModuleNode {
     /// 親モジュールと、親の宣言列におけるこの module 宣言の order。
     parent: Option<ModuleParent>,
@@ -390,6 +393,7 @@ struct ImportedModuleDecl {
     vis: Vis,
 }
 
+#[derive(Clone)]
 struct ImportPathTarget {
     value: Option<DefId>,
     ty: Option<ModuleTypeDecl>,
@@ -401,6 +405,7 @@ struct ImportPathTarget {
 /// 値名・子 module 名・use alias を module ごとに保持する。これは名前解決のための作業 table で、
 /// `poly::Arena` には残さない。名前解決が済んだら、必要な結果は `RefId -> DefId` や
 /// `SelectId -> SelectResolution` として `poly` に書き戻す。
+#[derive(Clone)]
 pub struct ModuleTable {
     nodes: Vec<ModuleNode>,
     act_templates: FxHashMap<TypeDeclId, Cst>,

@@ -198,6 +198,34 @@ impl Lower {
         }
     }
 
+    pub(super) fn finalize_act_copies_added_after(
+        &mut self,
+        previous_act_copies: &FxHashSet<TypeDeclId>,
+        previous_synthetic_var_act_copies: &FxHashSet<TypeDeclId>,
+        previous_synthetic_sub_label_act_copies: &FxHashSet<TypeDeclId>,
+    ) {
+        let ids = self.modules.act_copies.keys().copied().collect::<Vec<_>>();
+        for id in ids {
+            if !previous_act_copies.contains(&id) {
+                self.finalize_act_copy(id);
+            }
+        }
+
+        let synthetic_ids = self.modules.synthetic_var_act_copy_ids();
+        for id in synthetic_ids {
+            if !previous_synthetic_var_act_copies.contains(&id) {
+                self.finalize_synthetic_var_act_copy(id);
+            }
+        }
+
+        let synthetic_sub_label_ids = self.modules.synthetic_sub_label_act_copy_ids();
+        for id in synthetic_sub_label_ids {
+            if !previous_synthetic_sub_label_act_copies.contains(&id) {
+                self.finalize_synthetic_sub_label_act_copy(id);
+            }
+        }
+    }
+
     pub(super) fn finalize_act_copy(&mut self, id: TypeDeclId) {
         let Some(dest) = self.modules.type_decl_by_id(id) else {
             return;

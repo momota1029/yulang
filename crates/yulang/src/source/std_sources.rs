@@ -7,6 +7,8 @@ thread_local! {
         const { RefCell::new(None) };
     static EMBEDDED_PLAYGROUND_STD_LOADED_PREFIX: RefCell<Option<Vec<sources::LoadedFile>>> =
         const { RefCell::new(None) };
+    static EMBEDDED_PLAYGROUND_STD_LOWERING_PREFIX: RefCell<Option<infer::lowering::BodyLoweringPrefix>> =
+        const { RefCell::new(None) };
 }
 
 pub(super) fn resolve_std_root(
@@ -111,6 +113,26 @@ pub(super) fn source_with_implicit_std_prelude(source: String) -> String {
     format!("{IMPLICIT_PRELUDE_IMPORT}{IMPLICIT_STD_MODULE_DECL}{source}")
 }
 
+pub(super) fn source_with_implicit_prelude_only(source: String) -> String {
+    format!("{IMPLICIT_PRELUDE_IMPORT}{source}")
+}
+
+pub(super) fn embedded_playground_std_lowering_with_root(
+    source: String,
+) -> Result<(infer::lowering::BodyLowering, usize), RouteError> {
+    let prefix = cached_embedded_playground_std_lowering_prefix()?;
+    let loaded_prefix = cached_embedded_playground_std_loaded_prefix();
+    let loaded = load_with_embedded_prefix_prelude_only(loaded_prefix, source);
+    let file_count = loaded.len();
+    let root = loaded
+        .iter()
+        .find(|file| file.module_path.segments.is_empty())
+        .ok_or(RouteError::Lower(infer::LoadedFilesError::MissingRoot))?;
+    let lowering = infer::lowering::lower_root_loaded_file_with_prefix(&prefix, root)
+        .map_err(RouteError::Lower)?;
+    Ok((lowering, file_count))
+}
+
 pub(super) fn embedded_std_sources() -> Vec<CollectedSource> {
     embedded_std_files()
         .iter()
@@ -132,6 +154,28 @@ fn cached_embedded_playground_std_loaded_prefix() -> Vec<sources::LoadedFile> {
             cache,
             crate::playground_std::embedded_playground_std_sources,
         )
+    })
+}
+
+fn cached_embedded_playground_std_lowering_prefix()
+-> Result<infer::lowering::BodyLoweringPrefix, RouteError> {
+    EMBEDDED_PLAYGROUND_STD_LOWERING_PREFIX.with(|cache| {
+        if let Some(prefix) = cache.borrow().as_ref() {
+            return Ok(prefix.clone());
+        }
+
+        let loaded_prefix = cached_embedded_playground_std_loaded_prefix();
+        let loaded = sources::load_with_loaded_prefix(
+            &loaded_prefix,
+            vec![SourceFile {
+                module_path: Path::default(),
+                source: source_with_implicit_std_prelude(String::new()),
+            }],
+        );
+        let prefix =
+            infer::lowering::lower_loaded_files_prefix(&loaded).map_err(RouteError::Lower)?;
+        *cache.borrow_mut() = Some(prefix.clone());
+        Ok(prefix)
     })
 }
 
@@ -158,6 +202,19 @@ fn load_with_embedded_prefix(
         vec![SourceFile {
             module_path: Path::default(),
             source: source_with_implicit_std_prelude(source),
+        }],
+    )
+}
+
+fn load_with_embedded_prefix_prelude_only(
+    prefix: Vec<sources::LoadedFile>,
+    source: String,
+) -> Vec<sources::LoadedFile> {
+    sources::load_with_loaded_prefix(
+        &prefix,
+        vec![SourceFile {
+            module_path: Path::default(),
+            source: source_with_implicit_prelude_only(source),
         }],
     )
 }

@@ -44,7 +44,9 @@ use crate::generalize::{
     clone_role_impl_candidate_between_arenas, finalize_generalized_compact_root_with_ancestors,
     generalize_prepared_compact_root_with_role_variances_and_boundaries,
 };
-use crate::instantiate::{instantiate_scheme, instantiate_scheme_with_roles};
+use crate::instantiate::{
+    freshen_role_impl_candidate, instantiate_scheme, instantiate_scheme_with_roles,
+};
 use crate::methods::{
     CompanionMethodTable, EffectMethodCandidate, EffectMethodTable, RoleMethodTable,
     TypeMethodTable,

@@ -11,6 +11,9 @@ use rustc_hash::FxHashMap;
 
 use crate::arena::Arena as InferArena;
 use crate::constraints::TypeLevel;
+use crate::roles::{
+    RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate,
+};
 
 pub(crate) fn instantiate_scheme(
     source: &TypeArena,
@@ -32,6 +35,16 @@ pub(crate) fn instantiate_scheme_with_roles(
     instantiator.instantiate_scheme_with_roles(scheme)
 }
 
+pub(crate) fn freshen_role_impl_candidate(
+    source: &TypeArena,
+    target: &mut InferArena,
+    candidate: &RoleImplCandidate,
+) -> RoleImplCandidate {
+    let mut instantiator =
+        SchemeInstantiator::new_freshening_all(source, target, TypeLevel::root());
+    instantiator.clone_role_impl_candidate(candidate)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct InstantiatedScheme {
     pub(crate) predicate: PosId,
@@ -44,6 +57,7 @@ struct SchemeInstantiator<'a> {
     level: TypeLevel,
     vars: FxHashMap<TypeVar, TypeVar>,
     subtracts: FxHashMap<SubtractId, SubtractId>,
+    freshen_unmapped: bool,
 }
 
 impl<'a> SchemeInstantiator<'a> {
@@ -54,6 +68,22 @@ impl<'a> SchemeInstantiator<'a> {
             level,
             vars: FxHashMap::default(),
             subtracts: FxHashMap::default(),
+            freshen_unmapped: false,
+        }
+    }
+
+    fn new_freshening_all(
+        source: &'a TypeArena,
+        target: &'a mut InferArena,
+        level: TypeLevel,
+    ) -> Self {
+        Self {
+            source,
+            target,
+            level,
+            vars: FxHashMap::default(),
+            subtracts: FxHashMap::default(),
+            freshen_unmapped: true,
         }
     }
 
@@ -111,6 +141,58 @@ impl<'a> SchemeInstantiator<'a> {
         }
     }
 
+    fn clone_role_impl_candidate(&mut self, candidate: &RoleImplCandidate) -> RoleImplCandidate {
+        RoleImplCandidate {
+            impl_def: candidate.impl_def,
+            role: candidate.role.clone(),
+            inputs: candidate
+                .inputs
+                .iter()
+                .map(|arg| self.clone_role_constraint_arg(*arg))
+                .collect(),
+            associated: candidate
+                .associated
+                .iter()
+                .map(|associated| RoleAssociatedConstraint {
+                    name: associated.name.clone(),
+                    value: self.clone_role_constraint_arg(associated.value),
+                })
+                .collect(),
+            prerequisites: candidate
+                .prerequisites
+                .iter()
+                .map(|constraint| self.clone_role_constraint(constraint))
+                .collect(),
+            methods: candidate.methods.clone(),
+        }
+    }
+
+    fn clone_role_constraint(&mut self, constraint: &RoleConstraint) -> RoleConstraint {
+        RoleConstraint {
+            role: constraint.role.clone(),
+            inputs: constraint
+                .inputs
+                .iter()
+                .map(|arg| self.clone_role_constraint_arg(*arg))
+                .collect(),
+            associated: constraint
+                .associated
+                .iter()
+                .map(|associated| RoleAssociatedConstraint {
+                    name: associated.name.clone(),
+                    value: self.clone_role_constraint_arg(associated.value),
+                })
+                .collect(),
+        }
+    }
+
+    fn clone_role_constraint_arg(&mut self, arg: RoleConstraintArg) -> RoleConstraintArg {
+        RoleConstraintArg {
+            lower: self.clone_pos(arg.lower),
+            upper: self.clone_neg(arg.upper),
+        }
+    }
+
     fn fresh_var(&mut self, source: TypeVar) -> TypeVar {
         if let Some(target) = self.vars.get(&source).copied() {
             return target;
@@ -129,11 +211,17 @@ impl<'a> SchemeInstantiator<'a> {
         target
     }
 
-    fn clone_var(&self, source: TypeVar) -> TypeVar {
+    fn clone_var(&mut self, source: TypeVar) -> TypeVar {
+        if self.freshen_unmapped {
+            return self.fresh_var(source);
+        }
         self.vars.get(&source).copied().unwrap_or(source)
     }
 
-    fn clone_subtract(&self, source: SubtractId) -> SubtractId {
+    fn clone_subtract(&mut self, source: SubtractId) -> SubtractId {
+        if self.freshen_unmapped {
+            return self.fresh_subtract(source);
+        }
         self.subtracts.get(&source).copied().unwrap_or(source)
     }
 

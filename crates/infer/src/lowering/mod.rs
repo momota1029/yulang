@@ -70,7 +70,7 @@ use crate::{
     LoadedFilesError, Lower, ModuleChildDecl, ModuleId, ModuleOrder, ModuleTable, ModuleTypeDecl,
     ModuleTypeKind, RoleImplDecl, RoleImplMethodDecl, RoleMethodDecl, SyntheticSubLabelActUse,
     SyntheticVarActUse, TypeDeclId, TypeFieldMethodDecl, TypeMethodDecl, TypeMethodReceiver,
-    binding_type_expr, lower_loaded_file_csts_module_map,
+    append_root_loaded_file_to_lower, binding_type_expr, lower_loaded_file_csts_module_map,
 };
 use body::signature_helpers::*;
 use cast_scheme::{CastScheme, build_cast_scheme_from_ann};
@@ -90,7 +90,8 @@ use string_lit::{plain_string_expr_text, plain_string_lit_text};
 
 pub use crate::typing::{BindingFetch, Computation, Evaluation};
 pub use body::{
-    BodyLowering, BodyLoweringError, BodyLoweringTiming, lower_binding_bodies, lower_loaded_files,
+    BodyLowering, BodyLoweringError, BodyLoweringPrefix, BodyLoweringTiming, lower_binding_bodies,
+    lower_loaded_files, lower_loaded_files_prefix, lower_root_loaded_file_with_prefix,
 };
 pub use error::LoweringError;
 

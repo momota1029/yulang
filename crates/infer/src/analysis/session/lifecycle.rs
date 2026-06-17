@@ -2,7 +2,7 @@ use super::*;
 
 impl AnalysisSession {
     pub fn new(poly: PolyArena) -> Self {
-        Self {
+        let mut session = Self {
             poly,
             infer: InferArena::new(),
             refs: RefUseTable::new(),
@@ -28,6 +28,44 @@ impl AnalysisSession {
             work: VecDeque::new(),
             timing: AnalysisTiming::default(),
             instantiated_targets: FxHashSet::default(),
+        };
+        session.seed_existing_poly_surface();
+        session
+    }
+
+    /// Import already-finalized definitions and lookup surfaces from a cached `poly` prefix.
+    ///
+    /// A prefix is not part of the current SCC graph: its schemes are final, while root source
+    /// added later can still instantiate those definitions, casts, and role implementations.
+    fn seed_existing_poly_surface(&mut self) {
+        let quantified_defs = self
+            .poly
+            .defs
+            .iter()
+            .filter_map(|(def, item)| match item {
+                Def::Let {
+                    scheme: Some(_), ..
+                } => Some(def),
+                Def::Mod { .. } | Def::Let { .. } | Def::Arg => None,
+            })
+            .collect::<Vec<_>>();
+        for def in quantified_defs {
+            self.scc.seed_quantified_def(def);
+        }
+
+        for rule in &self.poly.cast_rules {
+            self.casts.insert(
+                rule.source.clone(),
+                rule.target.clone(),
+                rule.scheme.clone(),
+            );
+        }
+
+        let role_impls = self.poly.role_impls.iter().cloned().collect::<Vec<_>>();
+        for candidate in role_impls {
+            let candidate =
+                freshen_role_impl_candidate(&self.poly.typ, &mut self.infer, &candidate);
+            self.role_impls.insert(candidate);
         }
     }
 

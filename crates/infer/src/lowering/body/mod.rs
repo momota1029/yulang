@@ -23,6 +23,25 @@ pub struct BodyLowering {
     pub timing: BodyLoweringTiming,
 }
 
+#[derive(Clone)]
+pub struct BodyLoweringPrefix {
+    poly: poly::expr::Arena,
+    modules: ModuleTable,
+    labels: DumpLabels,
+    errors: Vec<BodyLoweringError>,
+}
+
+impl BodyLowering {
+    pub fn into_prefix(self) -> BodyLoweringPrefix {
+        BodyLoweringPrefix {
+            poly: self.session.poly,
+            modules: self.modules,
+            labels: self.labels,
+            errors: self.errors,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct BodyLoweringTiming {
     pub index_csts: Duration,
@@ -125,6 +144,88 @@ pub fn lower_loaded_files(files: &[LoadedFile]) -> Result<BodyLowering, LoadedFi
     output.timing = measured;
     timing.phase("finish lowering", measured.finish);
     timing.phase("total lower_loaded_files", measured.total);
+    Ok(output)
+}
+
+pub fn lower_loaded_files_prefix(
+    files: &[LoadedFile],
+) -> Result<BodyLoweringPrefix, LoadedFilesError> {
+    lower_loaded_files(files).map(BodyLowering::into_prefix)
+}
+
+pub fn lower_root_loaded_file_with_prefix(
+    prefix: &BodyLoweringPrefix,
+    root: &LoadedFile,
+) -> Result<BodyLowering, LoadedFilesError> {
+    let timing = InferTiming::from_env();
+    let mut measured = BodyLoweringTiming::default();
+    let total_start = Instant::now();
+
+    let phase_start = Instant::now();
+    let append = append_root_loaded_file_to_lower(
+        Lower {
+            arena: prefix.poly.clone(),
+            modules: prefix.modules.clone(),
+        },
+        root,
+    )?;
+    measured.module_map = phase_start.elapsed();
+    timing.phase(
+        "append root to cached lower module map",
+        measured.module_map,
+    );
+
+    let phase_start = Instant::now();
+    let mut lowerer = BodyLowerer::new(append.lower);
+    let root_labels = lowerer.labels.clone();
+    lowerer.labels = prefix.labels.clone();
+    lowerer.labels.extend(root_labels);
+    lowerer.errors.extend(prefix.errors.clone());
+    measured.init_lowerer = phase_start.elapsed();
+    timing.phase("initialize cached body lowerer", measured.init_lowerer);
+
+    let phase_start = Instant::now();
+    lowerer.lower_block(&append.root, lowerer.modules.root_id());
+    measured.lower_bodies = phase_start.elapsed();
+    timing.phase("lower cached root body", measured.lower_bodies);
+
+    let phase_start = Instant::now();
+    lowerer.lower_synthetic_act_copy_bodies_for(
+        append.synthetic_var_act_copy_ids,
+        append.synthetic_sub_label_act_copy_ids,
+    );
+    measured.synthetic_act_copy = phase_start.elapsed();
+    timing.phase(
+        "lower cached root synthetic act copy bodies",
+        measured.synthetic_act_copy,
+    );
+
+    trace_requested_def_labels(&lowerer.labels);
+
+    let phase_start = Instant::now();
+    lowerer.session.drain_work();
+    measured.drain_analysis = phase_start.elapsed();
+    timing.phase("drain cached analysis work", measured.drain_analysis);
+
+    let phase_start = Instant::now();
+    lowerer
+        .session
+        .resolve_unresolved_selections_as_record_fields();
+    measured.resolve_selections = phase_start.elapsed();
+    measured.analysis = lowerer.session.timing();
+    measured.constraint = lowerer.session.infer.constraint_timing();
+    timing.phase(
+        "resolve cached remaining selections",
+        measured.resolve_selections,
+    );
+
+    let phase_start = Instant::now();
+    let mut output = lowerer.finish();
+    measured.finish = phase_start.elapsed();
+    measured.total = total_start.elapsed();
+    output.timing = measured;
+    timing.phase("finish cached root lowering", measured.finish);
+    timing.phase("total lower_root_loaded_file_with_prefix", measured.total);
     Ok(output)
 }
 

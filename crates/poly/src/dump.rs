@@ -77,6 +77,11 @@ impl DumpLabels {
         self
     }
 
+    pub fn extend(&mut self, other: Self) {
+        self.defs.extend(other.defs);
+        self.refs.extend(other.refs);
+    }
+
     pub fn def_label(&self, id: DefId) -> Option<&str> {
         self.defs.get(&id).map(String::as_str)
     }

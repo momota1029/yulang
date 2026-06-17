@@ -185,8 +185,17 @@ impl BodyLowerer {
     }
 
     pub(super) fn lower_synthetic_act_copy_bodies(&mut self) {
-        let mut ids = self.modules.synthetic_var_act_copy_ids();
-        ids.extend(self.modules.synthetic_sub_label_act_copy_ids());
+        let ids = self.modules.synthetic_var_act_copy_ids();
+        let sub_label_ids = self.modules.synthetic_sub_label_act_copy_ids();
+        self.lower_synthetic_act_copy_bodies_for(ids, sub_label_ids);
+    }
+
+    pub(super) fn lower_synthetic_act_copy_bodies_for(
+        &mut self,
+        mut ids: Vec<TypeDeclId>,
+        sub_label_ids: Vec<TypeDeclId>,
+    ) {
+        ids.extend(sub_label_ids);
         for id in ids {
             let Some(decl) = self.modules.type_decl_by_id(id) else {
                 continue;

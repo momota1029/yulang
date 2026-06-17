@@ -73,6 +73,10 @@ impl SccMachine {
         self.settle_components([component]);
     }
 
+    pub fn seed_quantified_def(&mut self, def: DefId) {
+        self.quantified.entry(def).or_insert(TypeVar(u32::MAX));
+    }
+
     pub fn finish_def(&mut self, def: DefId) {
         if self.quantified.contains_key(&def) {
             return;
