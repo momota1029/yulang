@@ -20,6 +20,7 @@ pub struct AnnTypeBuilder<'a> {
     self_alias: Option<AnnSelfAlias>,
     bare_type_vars: FxHashSet<String>,
     bare_type_var_aliases: FxHashMap<String, String>,
+    type_aliases: FxHashMap<String, AnnType>,
     type_name_aliases: FxHashMap<String, TypeDeclId>,
     type_vars: FxHashMap<String, AnnTypeVarId>,
     next_type_var: u32,
@@ -34,6 +35,7 @@ impl<'a> AnnTypeBuilder<'a> {
             self_alias: None,
             bare_type_vars: FxHashSet::default(),
             bare_type_var_aliases: FxHashMap::default(),
+            type_aliases: FxHashMap::default(),
             type_name_aliases: FxHashMap::default(),
             type_vars: FxHashMap::default(),
             next_type_var: 0,
@@ -62,6 +64,10 @@ impl<'a> AnnTypeBuilder<'a> {
     pub fn add_bare_type_var_alias(&mut self, alias: impl Into<String>, target: impl Into<String>) {
         self.bare_type_var_aliases
             .insert(alias.into(), target.into());
+    }
+
+    pub fn add_type_alias(&mut self, alias: impl Into<String>, target: AnnType) {
+        self.type_aliases.insert(alias.into(), target);
     }
 
     pub fn add_type_name_alias(&mut self, alias: impl Into<String>, target: TypeDeclId) {
@@ -350,6 +356,9 @@ impl<'a> AnnTypeBuilder<'a> {
             }
             if self.bare_type_vars.contains(&name.0) {
                 return Ok(AnnType::Var(self.ann_type_var(&name.0)));
+            }
+            if let Some(target) = self.type_aliases.get(&name.0).cloned() {
+                return Ok(target);
             }
             if let Some(target) = self.type_name_aliases.get(&name.0).copied() {
                 return Ok(AnnType::Named(target));

@@ -65,7 +65,7 @@ expect_run_roots examples/07_junction.yu "run roots [1]"
 expect_run_roots examples/08_types.yu "run roots [42]"
 expect_run_roots examples/09_optional_record_args.yu "run roots [6, 2, 12, 12]"
 expect_run_roots examples/10_effect_handler.yu 'run roots [(9, "3\n6\n")]'
-run "$bin" --std-root "$std_root" check "$repo_root/examples/11_attached_impl.yu" >/dev/null
+expect_run_roots examples/11_attached_impl.yu "run roots [(10, false)]"
 expect_run_roots examples/12_cast.yu "run roots []"
 expect_run_stdout examples/13_console.yu $'Hello, World\n3'
 expect_run_roots examples/showcase.yu "run roots [25,"

@@ -265,7 +265,7 @@ impl BodyLowerer {
                 | SyntaxKind::EnumDecl
                 | SyntaxKind::ErrorDecl => self.lower_type_decl(&child, companion),
                 SyntaxKind::RoleDecl => self.lower_role_decl_body(&child, companion),
-                SyntaxKind::ImplDecl => self.lower_role_impl_decl(&child, companion),
+                SyntaxKind::ImplDecl => self.lower_role_impl_decl(&child, companion, None),
                 SyntaxKind::CastDecl => self.lower_cast_decl(&child, companion),
                 _ => {}
             }

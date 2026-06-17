@@ -317,6 +317,7 @@ impl<'a> ExprLowerer<'a> {
             &self.type_var_aliases,
             &self.type_name_aliases,
         );
+        ann_builder.add_type_alias("self", receiver_ann.clone());
         ann_builder.seed_type_var_bindings(type_var_bindings);
 
         let Some(receiver) = receiver else {

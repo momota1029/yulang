@@ -275,7 +275,7 @@ impl BodyLowerer {
                 | SyntaxKind::ErrorDecl => self.lower_type_decl(&child, module),
                 SyntaxKind::RoleDecl => self.lower_role_decl_body(&child, module),
                 SyntaxKind::ActDecl => self.lower_act_decl_body(&child, module),
-                SyntaxKind::ImplDecl => self.lower_role_impl_decl(&child, module),
+                SyntaxKind::ImplDecl => self.lower_role_impl_decl(&child, module, None),
                 SyntaxKind::CastDecl => self.lower_cast_decl(&child, module),
                 _ => {}
             }

@@ -72,7 +72,7 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   - `examples/*.yu` のうち README に載せる run example を sweep する。
   - 初期 smoke script は `scripts/public-example-smoke.sh`。
   - console output は `stdout`、root 表示は `--print-roots` の surface として分けて見る。
-  - attached impl example は role-method runtime specialization の TODO として分け、run sweep には混ぜない。
+  - attached impl example は type companion 内 role impl の regression として run sweep に含める。
 
 ## 最初の slice
 

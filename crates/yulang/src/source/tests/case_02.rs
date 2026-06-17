@@ -47,6 +47,94 @@ fn dump_mono_without_std_specializes_method_select_remaining_function() {
 }
 
 #[test]
+fn dump_mono_without_std_specializes_attached_role_impl_methods() {
+    let entry = write_main(
+        "dump-mono-attached-role-impl-methods",
+        "role Pick 'container 'key:\n\
+             \x20 type value\n\
+             \x20 our container.pick: 'key -> value\n\
+             \n\
+             struct pair 'left 'right { left: 'left, right: 'right } with:\n\
+             \x20 impl Pick int:\n\
+             \x20   type value = 'left\n\
+             \x20   our p.pick _ = p.left\n\
+             \n\
+             \x20 impl Pick bool:\n\
+             \x20   type value = 'right\n\
+             \x20   our p.pick _ = p.right\n\
+             \n\
+             my p = pair { left: 10, right: false }\n\
+             \n\
+             (p.pick 0, p.pick true)\n",
+    );
+
+    let output = dump_mono_from_entry(entry).unwrap();
+
+    assert_eq!(output.file_count, 1);
+    assert_mono_dump_contains(&output, ".pick <method>");
+    assert_mono_dump_contains(&output, "pair(int, bool) -> int -> int");
+    assert_mono_dump_contains(&output, "pair(int, bool) -> bool -> bool");
+}
+
+#[test]
+fn build_poly_without_std_records_attached_role_impl_method_mappings() {
+    let entry = write_main(
+        "poly-attached-role-impl-method-mappings",
+        "role Pick 'container 'key:\n\
+             \x20 type value\n\
+             \x20 our container.pick: 'key -> value\n\
+             \n\
+             struct pair 'left 'right { left: 'left, right: 'right } with:\n\
+             \x20 impl Pick int:\n\
+             \x20   type value = 'left\n\
+             \x20   our p.pick _ = p.left\n\
+             \n\
+             \x20 impl Pick bool:\n\
+             \x20   type value = 'right\n\
+             \x20   our p.pick _ = p.right\n",
+    );
+
+    let output = build_poly_from_sources(collect_local_sources(entry).unwrap()).unwrap();
+    let candidates = output.arena.role_impls.candidates(&["Pick".to_string()]);
+
+    assert_eq!(candidates.len(), 2);
+    assert!(
+        candidates
+            .iter()
+            .all(|candidate| candidate.methods.len() == 1)
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn run_control_with_std_specializes_attached_role_impl_methods() {
+    let entry = write_main_with_std(
+        "run-control-std-attached-role-impl-methods",
+        "role Pick 'container 'key:\n\
+             \x20 type value\n\
+             \x20 our container.pick: 'key -> value\n\
+             \n\
+             struct pair 'left 'right { left: 'left, right: 'right } with:\n\
+             \x20 impl Pick int:\n\
+             \x20   type value = 'left\n\
+             \x20   our p.pick _ = p.left\n\
+             \n\
+             \x20 impl Pick bool:\n\
+             \x20   type value = 'right\n\
+             \x20   our p.pick _ = p.right\n\
+             \n\
+             my p = pair { left: 10, right: false }\n\
+             \n\
+             (p.pick 0, p.pick true)\n",
+    );
+
+    let output = run_control_from_entry_with_std(entry).unwrap();
+
+    assert_eq!(output.text, "run roots [(10, false)]\n");
+    assert_eq!(output.errors, Vec::<String>::new());
+}
+
+#[test]
 fn dump_poly_without_std_infers_local_constructor_application() {
     let root = temp_root("dump-poly-local-constructor");
     let _ = fs::remove_dir_all(&root);

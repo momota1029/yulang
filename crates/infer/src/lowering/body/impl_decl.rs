@@ -4,22 +4,32 @@ use super::super::*;
 use super::*;
 
 impl BodyLowerer {
-    pub(super) fn lower_role_impl_decl(&mut self, node: &Cst, module: ModuleId) {
+    pub(super) fn lower_role_impl_decl(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        self_alias: Option<AnnSelfAlias>,
+    ) {
         let Some(impl_decl) = self.next_role_impl_decl(module) else {
             return;
         };
-        let mut context =
-            match self.register_role_impl_candidate(node, impl_decl.def, module, impl_decl.order) {
-                Ok(context) => context,
-                Err(error) => {
-                    self.errors.push(BodyLoweringError::Expr {
-                        def: impl_decl.def,
-                        name: Name("impl".into()),
-                        error,
-                    });
-                    return;
-                }
-            };
+        let mut context = match self.register_role_impl_candidate(
+            node,
+            impl_decl.def,
+            module,
+            impl_decl.order,
+            self_alias,
+        ) {
+            Ok(context) => context,
+            Err(error) => {
+                self.errors.push(BodyLoweringError::Expr {
+                    def: impl_decl.def,
+                    name: Name("impl".into()),
+                    error,
+                });
+                return;
+            }
+        };
 
         let Some(body) = crate::role_impl_body(node) else {
             return;
@@ -83,11 +93,13 @@ impl BodyLowerer {
         impl_def: DefId,
         module: ModuleId,
         site: ModuleOrder,
+        self_alias: Option<AnnSelfAlias>,
     ) -> Result<RoleImplLoweringContext, LoweringError> {
         let Some(head) = impl_head_type_expr(node) else {
             return Err(LoweringError::UnsupportedSyntax { kind: node.kind() });
         };
-        let mut ann_builder = ann_type_builder(&self.modules, module, site, None);
+        let mut ann_builder = ann_type_builder(&self.modules, module, site, self_alias);
+        let attached_target_ann = ann_builder.self_alias_type();
         let head_ann = ann_builder
             .build_type_expr(&head)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
@@ -95,8 +107,13 @@ impl BodyLowerer {
             .map(|type_expr| ann_builder.build_type_expr(&type_expr))
             .transpose()
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
-        let spec = role_impl_ann_spec(&self.modules, head_ann, description_ann)
-            .ok_or(LoweringError::UnsupportedSyntax { kind: node.kind() })?;
+        let spec = role_impl_ann_spec(
+            &self.modules,
+            head_ann,
+            description_ann,
+            attached_target_ann,
+        )
+        .ok_or(LoweringError::UnsupportedSyntax { kind: node.kind() })?;
         let role_input_names = self.modules.role_inputs(spec.role).to_vec();
         let role_associated_names = self.modules.role_associated(spec.role).to_vec();
         let explicit_associated = role_impl_associated_type_exprs(node);

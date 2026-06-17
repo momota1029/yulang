@@ -628,6 +628,7 @@ fn role_impl_ann_spec(
     modules: &ModuleTable,
     head: AnnType,
     description: Option<AnnType>,
+    attached_target: Option<AnnType>,
 ) -> Option<RoleImplAnnSpec> {
     if let Some(description) = description {
         let (role, mut inputs) = role_ann_application(modules, description)?;
@@ -641,7 +642,17 @@ fn role_impl_ann_spec(
         });
     }
 
-    let (role, inputs) = role_ann_application(modules, head.clone())?;
+    let (role, mut inputs) = role_ann_application(modules, head.clone())?;
+    if let Some(attached_target) = attached_target {
+        let mut all_inputs = Vec::with_capacity(inputs.len() + 1);
+        all_inputs.push(attached_target.clone());
+        all_inputs.append(&mut inputs);
+        return Some(RoleImplAnnSpec {
+            role,
+            target: attached_target,
+            inputs: all_inputs,
+        });
+    }
     let target = inputs.first().cloned().unwrap_or(head);
     Some(RoleImplAnnSpec {
         role,

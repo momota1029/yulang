@@ -110,6 +110,11 @@ impl Lower {
                 | SyntaxKind::ActDecl => {
                     self.register_type_namespace_decl(&child, module, &mut children);
                 }
+                SyntaxKind::ImplDecl => {
+                    if let Some(def) = self.register_role_impl_decl(&child, module) {
+                        children.push(def);
+                    }
+                }
                 _ => {}
             }
         }

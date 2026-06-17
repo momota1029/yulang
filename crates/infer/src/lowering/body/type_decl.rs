@@ -49,6 +49,9 @@ impl BodyLowerer {
                 }
                 SyntaxKind::ModDecl => self.lower_mod_decl(&child, companion),
                 SyntaxKind::CastDecl => self.lower_cast_decl(&child, companion),
+                SyntaxKind::ImplDecl => {
+                    self.lower_role_impl_decl(&child, companion, Some(self_alias.clone()))
+                }
                 _ => {}
             }
         }
