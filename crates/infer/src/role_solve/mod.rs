@@ -43,6 +43,7 @@ pub(crate) struct RoleResolution {
     pub(crate) residual_prerequisites: Vec<CompactRoleConstraint>,
 }
 
+#[cfg(test)]
 pub(crate) fn coalesce_role_constraints(
     constraints: Vec<CompactRoleConstraint>,
 ) -> Vec<CompactRoleConstraint> {

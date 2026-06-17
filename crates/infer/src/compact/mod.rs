@@ -52,9 +52,10 @@ pub(crate) use merge::{
     compact_con_entries, compact_row_item_entries,
     merge_compact_bounds_recording_merge_constraints, merge_compact_types, merge_cons,
 };
+#[cfg(test)]
+pub(crate) use surface::compact_reachable_role_constraints;
 pub(crate) use surface::{
     apply_compact_merge_constraints, apply_compact_subtype_constraints, compact_pos_surface,
-    compact_reachable_role_constraints,
     compact_reachable_role_constraints_recording_merge_constraints, compact_role_constraint,
     compact_role_constraint_recording_merge_constraints, compact_type_var,
     compact_type_var_for_scheme, compact_type_var_recording_merge_constraints,

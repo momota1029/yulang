@@ -339,6 +339,7 @@ impl<'a> CompactCollector<'a> {
         record_merge_bound_args_with_sink(&mut self.merge_constraints, lhs, rhs);
     }
 
+    #[cfg(test)]
     pub(in crate::compact) fn compact_reachable_role_constraints(
         self,
         seed: &CompactRoot,

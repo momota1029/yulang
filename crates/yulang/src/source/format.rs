@@ -324,6 +324,31 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
     );
     let _ = writeln!(
         out,
+        "  analysis.work_resolve_ref: {}",
+        format_duration(analysis.work_resolve_ref)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_probe_select: {}",
+        format_duration(analysis.work_probe_select)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_apply_ref: {}",
+        format_duration(analysis.work_apply_ref)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_apply_select: {}",
+        format_duration(analysis.work_apply_select)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_scc: {}",
+        format_duration(analysis.work_scc)
+    );
+    let _ = writeln!(
+        out,
         "  analysis.role: {}",
         format_duration(analysis.role_pass)
     );
@@ -336,6 +361,11 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         out,
         "  analysis.role_solve: {}",
         format_duration(analysis.method_role_solve)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.unready_role_dependency_scan: {}",
+        format_duration(analysis.unready_role_dependency_scan)
     );
     let _ = writeln!(
         out,
@@ -516,6 +546,31 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         constraint.subtract_fact_calls
     );
     let _ = writeln!(out, "  analysis.work_items: {}", analysis.work_items);
+    let _ = writeln!(
+        out,
+        "  analysis.work_resolve_ref_items: {}",
+        analysis.work_resolve_ref_items
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_probe_select_items: {}",
+        analysis.work_probe_select_items
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_apply_ref_items: {}",
+        analysis.work_apply_ref_items
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_apply_select_items: {}",
+        analysis.work_apply_select_items
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_scc_items: {}",
+        analysis.work_scc_items
+    );
     let _ = writeln!(out, "  analysis.role_passes: {}", analysis.role_passes);
     let _ = writeln!(
         out,
@@ -524,8 +579,68 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
     );
     let _ = writeln!(
         out,
+        "  analysis.unready_role_dependency_scans: {}",
+        analysis.unready_role_dependency_scans
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.unready_role_dependency_inputs: {}",
+        analysis.unready_role_dependency_inputs
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.unready_role_dependency_edges: {}",
+        analysis.unready_role_dependency_edges
+    );
+    let _ = writeln!(
+        out,
         "  analysis.generalize_iterations: {}",
         analysis.generalize_iterations
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_merge_restarts: {}",
+        analysis.generalize_merge_restarts
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_subtype_restarts: {}",
+        analysis.generalize_subtype_restarts
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_cast_restarts: {}",
+        analysis.generalize_cast_restarts
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_role_restarts: {}",
+        analysis.generalize_role_restarts
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_role_input_constraints: {}",
+        analysis.generalize_role_input_constraints
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_reachable_role_constraints: {}",
+        analysis.generalize_reachable_role_constraints
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_coalesced_role_constraints: {}",
+        analysis.generalize_coalesced_role_constraints
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_dominance_role_constraints: {}",
+        analysis.generalize_dominance_role_constraints
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_role_resolve_inputs: {}",
+        analysis.generalize_role_resolve_inputs
     );
     let _ = writeln!(
         out,

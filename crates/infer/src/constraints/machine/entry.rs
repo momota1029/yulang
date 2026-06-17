@@ -153,7 +153,9 @@ impl ConstraintMachine {
             self.add_upper_bound(lower, upper_neg, ConstraintWeights::empty());
         }
         self.timing.record_constrain_var_var_direct_call(pair_count);
-        self.drain();
+        if !self.queue.is_empty() {
+            self.drain();
+        }
         self.seen.len() != seen_len || self.var_var_seen.len() != var_var_seen_len
     }
 

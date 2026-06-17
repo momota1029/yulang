@@ -24,12 +24,14 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::arena::Arena as InferArena;
 use crate::casts::CastTable;
+#[cfg(test)]
+use crate::compact::compact_reachable_role_constraints;
 use crate::compact::{
     CompactCastApplication, CompactCastKey, CompactMergeConstraintKey, CompactRoleArg,
     CompactRoleConstraint, CompactRoot, CompactSimplification, CompactSubtypeConstraintKey,
     apply_compact_merge_constraints, apply_compact_subtype_constraints,
     coalesce_floor_interval_equalities, coalesce_floor_variable_sandwiches,
-    collect_interval_dominance_constraints, compact_reachable_role_constraints,
+    collect_interval_dominance_constraints,
     compact_reachable_role_constraints_recording_merge_constraints, compact_role_constraint,
     compact_role_constraint_recording_merge_constraints,
     compact_type_var_recording_merge_constraints,
@@ -51,10 +53,12 @@ use crate::methods::{
     CompanionMethodTable, EffectMethodCandidate, EffectMethodTable, RoleMethodTable,
     TypeMethodTable,
 };
+#[cfg(test)]
+use crate::role_solve::coalesce_role_constraints;
 use crate::role_solve::{
-    RoleResolution, RoleResolutionKey, coalesce_role_constraints,
-    coalesce_role_constraints_recording_merge_constraints, resolve_role_constraints,
-    resolve_role_constraints_with_method_taint, role_constraint_could_resolve,
+    RoleResolution, RoleResolutionKey, coalesce_role_constraints_recording_merge_constraints,
+    resolve_role_constraints, resolve_role_constraints_with_method_taint,
+    role_constraint_could_resolve,
 };
 use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleConstraintTable,

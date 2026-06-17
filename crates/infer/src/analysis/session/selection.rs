@@ -17,6 +17,9 @@ impl AnalysisSession {
     }
 
     pub(super) fn add_unready_role_impl_dependencies(&mut self, parent: DefId) {
+        let start = Instant::now();
+        let input_count = self.roles.for_owner(parent).len();
+        let mut edge_count = 0usize;
         let roles = self
             .roles
             .for_owner(parent)
@@ -36,6 +39,7 @@ impl AnalysisSession {
                     continue;
                 };
                 for member in self.unready_role_impl_members(impl_def) {
+                    edge_count += 1;
                     self.scc.apply(SccInput::DependencyAdded {
                         parent,
                         target: member,
@@ -43,6 +47,8 @@ impl AnalysisSession {
                 }
             }
         }
+        self.timing
+            .record_unready_role_dependency_scan(start.elapsed(), input_count, edge_count);
     }
 
     pub(super) fn unready_role_impl_members(&self, impl_def: DefId) -> Vec<DefId> {

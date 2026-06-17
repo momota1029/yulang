@@ -437,11 +437,15 @@ pub(crate) fn apply_compact_subtype_constraints(
     changed
 }
 
+#[cfg(test)]
 pub(crate) fn compact_reachable_role_constraints(
     machine: &ConstraintMachine,
     seed: &CompactRoot,
     constraints: &[RoleConstraint],
 ) -> Vec<CompactRoleConstraint> {
+    if constraints.is_empty() {
+        return Vec::new();
+    }
     CompactCollector::new(machine).compact_reachable_role_constraints(seed, constraints)
 }
 
@@ -450,6 +454,9 @@ pub(crate) fn compact_reachable_role_constraints_recording_merge_constraints(
     seed: &CompactRoot,
     constraints: &[RoleConstraint],
 ) -> (Vec<CompactRoleConstraint>, Vec<CompactMergeConstraint>) {
+    if constraints.is_empty() {
+        return (Vec::new(), Vec::new());
+    }
     CompactCollector::new_recording(machine)
         .compact_reachable_role_constraints_with_merge_constraints(seed, constraints)
 }

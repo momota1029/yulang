@@ -3,9 +3,10 @@ set -euo pipefail
 
 HEADER_COLUMNS=(
     case iter check collect load infer bodies drain resolve finish
-    a_route a_work a_role a_taint a_rsolve a_quant q_gen q_pre q_fin
+    a_route a_work w_ref w_probe w_aref w_asel w_scc a_role a_taint a_rsolve a_udep a_quant q_gen q_pre q_fin
     g_comp g_roles g_merge g_dom g_sub g_cast g_rrole g_froles g_clean g_filter g_prep
-    a_inst i_clone i_sub i_roles i_runs i_maxrun i_targets i_reuse a_record c_drain c_drains c_work c_sub c_subcall c_many c_invar c_vv c_maxq c_maxw summary total run poly spec ctl_low vm_eval
+    g_mrst g_srst g_crst g_rrst g_rin g_rreach g_rcoal g_rdom g_rsolvein
+    a_inst i_clone i_sub i_roles i_runs i_maxrun i_targets i_reuse a_record c_drain c_drains c_work c_sub c_subcall c_many c_invar c_vv c_maxq c_maxw w_ref_n w_probe_n w_aref_n w_asel_n w_scc_n udep_n udep_in udep_e summary total run poly spec ctl_low vm_eval
     expr clone apply force effect host catch cont inst hit miss
     pfx pfx_seg peq peq_seg addscan frscan files modules values bodyless errors
 )
@@ -119,16 +120,26 @@ run_case_once() {
     local catch_matches continuations instance_eval instance_hits instance_misses
     local path_prefix path_prefix_seg path_eq path_eq_seg active_add active_frame
     local lower_bodies lower_drain lower_resolve lower_finish
-    local analysis_route analysis_work analysis_role analysis_taint analysis_role_solve
+    local analysis_route analysis_work analysis_work_resolve_ref analysis_work_probe_select
+    local analysis_work_apply_ref analysis_work_apply_select analysis_work_scc
+    local analysis_role analysis_taint analysis_role_solve analysis_unready_dependency
     local analysis_quantify analysis_quantify_generalize analysis_quantify_prerequisites
     local analysis_quantify_finalize analysis_instantiate analysis_record_field
     local generalize_compact generalize_collect_roles generalize_apply_merge
     local generalize_collect_dominance generalize_apply_subtype generalize_cast
     local generalize_resolve_roles generalize_final_roles generalize_final_cleanup
     local generalize_filter_roles generalize_prepared
+    local generalize_merge_restarts generalize_subtype_restarts generalize_cast_restarts
+    local generalize_role_restarts generalize_role_input_constraints
+    local generalize_reachable_role_constraints generalize_coalesced_role_constraints
+    local generalize_dominance_role_constraints generalize_role_resolve_inputs
     local instantiate_clone_scheme instantiate_subtype_predicate instantiate_insert_roles
     local instantiate_event_runs instantiate_max_event_run instantiate_unique_targets
     local instantiate_reused_target_events
+    local work_resolve_ref_items work_probe_select_items work_apply_ref_items
+    local work_apply_select_items work_scc_items
+    local unready_role_dependency_scans unready_role_dependency_inputs
+    local unready_role_dependency_edges
     local constraint_drain constraint_drains constraint_work constraint_subtype
     local constraint_subtype_calls constraint_subtype_many_calls
     local constraint_constrain_invariant_neu_calls constraint_constrain_var_var_direct_calls
@@ -146,9 +157,15 @@ run_case_once() {
     lower_resolve="$(phase_metric "lower.resolve" "$out_file")"
     analysis_route="$(phase_metric "analysis.route" "$out_file")"
     analysis_work="$(phase_metric "analysis.work" "$out_file")"
+    analysis_work_resolve_ref="$(phase_metric "analysis.work_resolve_ref" "$out_file")"
+    analysis_work_probe_select="$(phase_metric "analysis.work_probe_select" "$out_file")"
+    analysis_work_apply_ref="$(phase_metric "analysis.work_apply_ref" "$out_file")"
+    analysis_work_apply_select="$(phase_metric "analysis.work_apply_select" "$out_file")"
+    analysis_work_scc="$(phase_metric "analysis.work_scc" "$out_file")"
     analysis_role="$(phase_metric "analysis.role" "$out_file")"
     analysis_taint="$(phase_metric "analysis.taint" "$out_file")"
     analysis_role_solve="$(phase_metric "analysis.role_solve" "$out_file")"
+    analysis_unready_dependency="$(phase_metric "analysis.unready_role_dependency_scan" "$out_file")"
     analysis_quantify="$(phase_metric "analysis.quantify" "$out_file")"
     analysis_quantify_generalize="$(phase_metric "analysis.quantify_generalize" "$out_file")"
     analysis_quantify_prerequisites="$(phase_metric "analysis.quantify_prerequisites" "$out_file")"
@@ -164,6 +181,15 @@ run_case_once() {
     generalize_final_cleanup="$(phase_metric "analysis.generalize_final_cleanup" "$out_file")"
     generalize_filter_roles="$(phase_metric "analysis.generalize_filter_roles" "$out_file")"
     generalize_prepared="$(phase_metric "analysis.generalize_prepared" "$out_file")"
+    generalize_merge_restarts="$(phase_metric "analysis.generalize_merge_restarts" "$out_file")"
+    generalize_subtype_restarts="$(phase_metric "analysis.generalize_subtype_restarts" "$out_file")"
+    generalize_cast_restarts="$(phase_metric "analysis.generalize_cast_restarts" "$out_file")"
+    generalize_role_restarts="$(phase_metric "analysis.generalize_role_restarts" "$out_file")"
+    generalize_role_input_constraints="$(phase_metric "analysis.generalize_role_input_constraints" "$out_file")"
+    generalize_reachable_role_constraints="$(phase_metric "analysis.generalize_reachable_role_constraints" "$out_file")"
+    generalize_coalesced_role_constraints="$(phase_metric "analysis.generalize_coalesced_role_constraints" "$out_file")"
+    generalize_dominance_role_constraints="$(phase_metric "analysis.generalize_dominance_role_constraints" "$out_file")"
+    generalize_role_resolve_inputs="$(phase_metric "analysis.generalize_role_resolve_inputs" "$out_file")"
     analysis_instantiate="$(phase_metric "analysis.instantiate" "$out_file")"
     instantiate_clone_scheme="$(phase_metric "analysis.instantiate_clone_scheme" "$out_file")"
     instantiate_subtype_predicate="$(phase_metric "analysis.instantiate_subtype_predicate" "$out_file")"
@@ -183,6 +209,14 @@ run_case_once() {
     constraint_constrain_var_var_direct_calls="$(phase_metric "constraint.constrain_var_var_direct_calls" "$out_file")"
     constraint_max_initial_queue="$(phase_metric "constraint.max_initial_queue" "$out_file")"
     constraint_max_work_items="$(phase_metric "constraint.max_work_items" "$out_file")"
+    work_resolve_ref_items="$(phase_metric "analysis.work_resolve_ref_items" "$out_file")"
+    work_probe_select_items="$(phase_metric "analysis.work_probe_select_items" "$out_file")"
+    work_apply_ref_items="$(phase_metric "analysis.work_apply_ref_items" "$out_file")"
+    work_apply_select_items="$(phase_metric "analysis.work_apply_select_items" "$out_file")"
+    work_scc_items="$(phase_metric "analysis.work_scc_items" "$out_file")"
+    unready_role_dependency_scans="$(phase_metric "analysis.unready_role_dependency_scans" "$out_file")"
+    unready_role_dependency_inputs="$(phase_metric "analysis.unready_role_dependency_inputs" "$out_file")"
+    unready_role_dependency_edges="$(phase_metric "analysis.unready_role_dependency_edges" "$out_file")"
     lower_finish="$(phase_metric "lower.finish" "$out_file")"
     summarize="$(phase_metric "summarize" "$out_file")"
     total="$(phase_metric "total" "$out_file")"
@@ -220,13 +254,20 @@ run_case_once() {
     print_columns \
         "$case_label" "$iteration" "$check_real" "$collect" "$load" "$infer" \
         "$lower_bodies" "$lower_drain" "$lower_resolve" "$lower_finish" \
-        "$analysis_route" "$analysis_work" "$analysis_role" "$analysis_taint" \
-        "$analysis_role_solve" "$analysis_quantify" "$analysis_quantify_generalize" \
+        "$analysis_route" "$analysis_work" "$analysis_work_resolve_ref" \
+        "$analysis_work_probe_select" "$analysis_work_apply_ref" \
+        "$analysis_work_apply_select" "$analysis_work_scc" "$analysis_role" "$analysis_taint" \
+        "$analysis_role_solve" "$analysis_unready_dependency" "$analysis_quantify" \
+        "$analysis_quantify_generalize" \
         "$analysis_quantify_prerequisites" "$analysis_quantify_finalize" \
         "$generalize_compact" "$generalize_collect_roles" "$generalize_apply_merge" \
         "$generalize_collect_dominance" "$generalize_apply_subtype" "$generalize_cast" \
         "$generalize_resolve_roles" "$generalize_final_roles" "$generalize_final_cleanup" \
         "$generalize_filter_roles" "$generalize_prepared" \
+        "$generalize_merge_restarts" "$generalize_subtype_restarts" "$generalize_cast_restarts" \
+        "$generalize_role_restarts" "$generalize_role_input_constraints" \
+        "$generalize_reachable_role_constraints" "$generalize_coalesced_role_constraints" \
+        "$generalize_dominance_role_constraints" "$generalize_role_resolve_inputs" \
         "$analysis_instantiate" "$instantiate_clone_scheme" "$instantiate_subtype_predicate" \
         "$instantiate_insert_roles" "$instantiate_event_runs" "$instantiate_max_event_run" \
         "$instantiate_unique_targets" "$instantiate_reused_target_events" "$analysis_record_field" \
@@ -234,6 +275,9 @@ run_case_once() {
         "$constraint_subtype_calls" "$constraint_subtype_many_calls" \
         "$constraint_constrain_invariant_neu_calls" "$constraint_constrain_var_var_direct_calls" \
         "$constraint_max_initial_queue" "$constraint_max_work_items" \
+        "$work_resolve_ref_items" "$work_probe_select_items" "$work_apply_ref_items" \
+        "$work_apply_select_items" "$work_scc_items" "$unready_role_dependency_scans" \
+        "$unready_role_dependency_inputs" "$unready_role_dependency_edges" \
         "$summarize" "$total" "$run_real" "$run_poly" "$run_spec" "$run_control" "$vm_eval" \
         "$expr_evals" "$expr_clones" "$apply_value" "$force_thunk" "$effect_requests" "$host_requests" \
         "$catch_matches" "$continuations" "$instance_eval" "$instance_hits" "$instance_misses" \
