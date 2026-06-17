@@ -23,11 +23,15 @@ release artifact
   - playground `dist`
   - Zed extension / LS metadata
 - cargo を介さない smoke を作る。
-  - `target/debug/yulang --version`
+  - executable path を引数で受け取る。
   - `target/debug/yulang install std`
   - `target/debug/yulang check/run` with bundled std
-  - `target/debug/yulang server` startup
+  - `target/debug/yulang server` startup（初期 script では opt-in）
   - cache clear / cache path / cache format mismatch
+- 初期 smoke script:
+  - `scripts/release-smoke.sh`
+  - `HOME` / `XDG_CACHE_HOME` / `YULANG_CACHE_DIR` を一時ディレクトリに向け、user cache を汚さない。
+  - `YULANG_SMOKE_SERVER=1` で server startup も見る。
 - release build で playground が使う wasm artifact と CLI が使う std/cache の対応を固定する。
 - README には「開発者向け cargo」と「利用者向け binary」を分けて書く。
 
