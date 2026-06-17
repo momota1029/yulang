@@ -109,6 +109,8 @@
   - reachable role が空の prepass では compact clone と resolver call を避ける。効果は小さめ。
   - `Pos::Bot <: _` / `_ <: Neg::Top` は constraint enqueue 前に捨てる。
     `showcase` の `constraint.work_items` は 42159 から 37994 へ低下。
+  - no-op / duplicate subtype constraint は public entry 側で empty drain しない。
+    `showcase` の `constraint.drains` は 18118 から 15020 へ低下。
   - 次は `instantiate_subtype_predicate` の replay がどこで増えるかを、trivial edge ではなく
     bound replay / role predicate shape 側から見る。
 - typed-surface import の role / impl / effect fidelity を広げる。

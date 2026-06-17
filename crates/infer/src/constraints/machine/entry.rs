@@ -88,30 +88,39 @@ impl ConstraintMachine {
 
     pub fn subtype(&mut self, lower: PosId, upper: NegId) {
         self.timing.record_subtype_call();
-        self.weighted_subtype(lower, ConstraintWeights::empty(), upper);
+        if self.enqueue_subtype(lower, ConstraintWeights::empty(), upper) || !self.queue.is_empty()
+        {
+            self.drain();
+        }
     }
 
     pub(crate) fn subtype_many(&mut self, constraints: impl IntoIterator<Item = (PosId, NegId)>) {
         let mut item_count = 0usize;
+        let mut queued = false;
         for (lower, upper) in constraints {
             item_count += 1;
-            self.enqueue_subtype(lower, ConstraintWeights::empty(), upper);
+            queued |= self.enqueue_subtype(lower, ConstraintWeights::empty(), upper);
         }
         self.timing.record_subtype_many_call(item_count);
-        self.drain();
+        if queued || !self.queue.is_empty() {
+            self.drain();
+        }
     }
 
     pub fn weighted_subtype(&mut self, lower: PosId, weights: ConstraintWeights, upper: NegId) {
         self.timing.record_weighted_subtype_call();
-        self.enqueue_subtype(lower, weights, upper);
-        self.drain();
+        if self.enqueue_subtype(lower, weights, upper) || !self.queue.is_empty() {
+            self.drain();
+        }
     }
 
     pub(crate) fn constrain_subtype(&mut self, lower: PosId, upper: NegId) -> bool {
         self.timing.record_constrain_subtype_call();
         let seen_len = self.seen.len();
-        self.enqueue_subtype(lower, ConstraintWeights::empty(), upper);
-        self.drain();
+        if self.enqueue_subtype(lower, ConstraintWeights::empty(), upper) || !self.queue.is_empty()
+        {
+            self.drain();
+        }
         self.seen.len() != seen_len
     }
 
@@ -226,13 +235,13 @@ impl ConstraintMachine {
         lower: PosId,
         weights: ConstraintWeights,
         upper: NegId,
-    ) {
+    ) -> bool {
         if matches!(self.types.pos(lower), Pos::Bot) || matches!(self.types.neg(upper), Neg::Top) {
-            return;
+            return false;
         }
         let weights = self.terminal_subtype_weights(lower, upper, weights);
         if !self.record_var_var_constraint(lower, upper, &weights) {
-            return;
+            return false;
         }
         let constraint = SubtypeConstraint {
             lower,
@@ -241,6 +250,9 @@ impl ConstraintMachine {
         };
         if self.seen.insert(constraint.clone()) {
             self.queue.push_back(ConstraintWork::Subtype(constraint));
+            true
+        } else {
+            false
         }
     }
 

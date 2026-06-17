@@ -433,7 +433,9 @@ impl ConstraintMachine {
                 self.enqueue_row_item_neu_args(lower_args, upper_args, weights);
             }
             (Pos::Var(lower), Neg::Var(upper)) if lower == upper => {}
-            _ => self.enqueue_subtype(lower, weights, upper),
+            _ => {
+                self.enqueue_subtype(lower, weights, upper);
+            }
         }
     }
 
