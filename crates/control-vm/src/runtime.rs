@@ -8,7 +8,9 @@ use list_tree::{ListTree, ListView};
 use mono::{FunctionAdapterHygiene, Lit, PrimitiveContext, PrimitiveOp, Type};
 use num_bigint::BigInt;
 
-use crate::boundary::{equivalent_runtime_types, function_parts, thunk_value_type};
+use crate::boundary::{
+    equivalent_runtime_types, function_parts, thunk_value_type, value_boundary_supported,
+};
 use crate::ir::{
     Block, CaseArm, CatchArm, DefId, Expr, ExprId, InstanceId, Pat, Program, RecordField,
     RecordPatField, RecordSpread, Root, SelectResolution, Stmt,

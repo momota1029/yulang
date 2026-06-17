@@ -30,175 +30,164 @@ fn collect_function_boundary_markers(source: &Type, target: &Type, markers: &mut
         return;
     };
 
-    collect_runtime_shape_pair(source_arg, target_arg, 0, markers);
-    collect_runtime_shape_pair(source_ret, target_ret, 0, markers);
+    collect_actual_runtime_shape_markers(target_arg, source_arg, 0, markers);
+    collect_actual_runtime_shape_markers(source_ret, target_ret, 0, markers);
 }
 
-fn collect_runtime_shape_pair(
-    source: &Type,
-    target: &Type,
+fn collect_actual_runtime_shape_markers(
+    actual: &Type,
+    expected: &Type,
     depth: u32,
     markers: &mut Vec<GuardMarker>,
 ) {
-    if equivalent_boundary_types(source, target) {
+    if equivalent_boundary_types(actual, expected) {
         return;
     }
 
-    match (source, target) {
+    match (actual, expected) {
         (
             Type::Thunk {
-                effect: source_effect,
-                value: source_value,
+                effect: actual_effect,
+                value: actual_value,
             },
             Type::Thunk {
-                effect: target_effect,
-                value: target_value,
+                effect: expected_effect,
+                value: expected_value,
             },
         ) => {
-            if !equivalent_boundary_types(source_effect, target_effect) {
-                collect_effect_markers(source_effect, depth, markers);
-                collect_effect_markers(target_effect, depth, markers);
+            if !equivalent_boundary_types(actual_effect, expected_effect) {
+                collect_effect_markers_not_in_expected(
+                    actual_effect,
+                    expected_effect,
+                    depth,
+                    markers,
+                );
             }
-            collect_runtime_shape_pair(source_value, target_value, depth, markers);
+            collect_actual_runtime_shape_markers(actual_value, expected_value, depth, markers);
         }
         (
             Type::Thunk {
                 effect,
-                value: source_value,
+                value: actual_value,
             },
-            target,
+            expected,
         ) => {
             collect_effect_markers(effect, depth, markers);
-            collect_runtime_shape_pair(source_value, target, depth, markers);
+            collect_actual_runtime_shape_markers(actual_value, expected, depth, markers);
         }
         (
-            source,
+            actual,
             Type::Thunk {
-                effect,
-                value: target_value,
+                value: expected_value,
+                ..
             },
         ) => {
-            collect_effect_markers(effect, depth, markers);
-            collect_runtime_shape_pair(source, target_value, depth, markers);
+            collect_actual_runtime_shape_markers(actual, expected_value, depth, markers);
         }
         (
             Type::Fun {
-                arg: source_arg,
-                ret: source_ret,
+                arg: actual_arg,
+                ret: actual_ret,
                 ..
             },
             Type::Fun {
-                arg: target_arg,
-                ret: target_ret,
+                arg: expected_arg,
+                ret: expected_ret,
                 ..
             },
         ) => {
             let nested_depth = depth.saturating_add(1);
-            collect_runtime_shape_pair(source_arg, target_arg, nested_depth, markers);
-            collect_runtime_shape_pair(source_ret, target_ret, nested_depth, markers);
+            collect_actual_runtime_shape_markers(expected_arg, actual_arg, nested_depth, markers);
+            collect_actual_runtime_shape_markers(actual_ret, expected_ret, nested_depth, markers);
         }
         (
             Type::Con {
-                path: source_path,
-                args: source_args,
+                path: actual_path,
+                args: actual_args,
             },
             Type::Con {
-                path: target_path,
-                args: target_args,
+                path: expected_path,
+                args: expected_args,
             },
-        ) if source_path == target_path => {
-            collect_runtime_shape_pairs(source_args, target_args, depth, markers);
+        ) if actual_path == expected_path => {
+            collect_actual_runtime_shape_marker_pairs(actual_args, expected_args, depth, markers);
         }
-        (Type::Tuple(source_items), Type::Tuple(target_items)) => {
-            collect_runtime_shape_pairs(source_items, target_items, depth, markers);
+        (Type::Tuple(actual_items), Type::Tuple(expected_items)) => {
+            collect_actual_runtime_shape_marker_pairs(actual_items, expected_items, depth, markers);
         }
-        (Type::Record(source_fields), Type::Record(target_fields)) => {
-            for source_field in source_fields {
-                if let Some(target_field) = target_fields
+        (Type::Record(actual_fields), Type::Record(expected_fields)) => {
+            for actual_field in actual_fields {
+                if let Some(expected_field) = expected_fields
                     .iter()
-                    .find(|target_field| target_field.name == source_field.name)
+                    .find(|expected_field| expected_field.name == actual_field.name)
                 {
-                    collect_runtime_shape_pair(
-                        &source_field.value,
-                        &target_field.value,
+                    collect_actual_runtime_shape_markers(
+                        &actual_field.value,
+                        &expected_field.value,
                         depth,
                         markers,
                     );
                 } else {
-                    collect_runtime_shape_markers(&source_field.value, depth, markers);
-                }
-            }
-            for target_field in target_fields {
-                if !source_fields
-                    .iter()
-                    .any(|source_field| source_field.name == target_field.name)
-                {
-                    collect_runtime_shape_markers(&target_field.value, depth, markers);
+                    collect_runtime_shape_markers(&actual_field.value, depth, markers);
                 }
             }
         }
-        (Type::PolyVariant(source_variants), Type::PolyVariant(target_variants)) => {
-            for source_variant in source_variants {
-                if let Some(target_variant) = target_variants
+        (Type::PolyVariant(actual_variants), Type::PolyVariant(expected_variants)) => {
+            for actual_variant in actual_variants {
+                if let Some(expected_variant) = expected_variants
                     .iter()
-                    .find(|target_variant| target_variant.name == source_variant.name)
+                    .find(|expected_variant| expected_variant.name == actual_variant.name)
                 {
-                    collect_runtime_shape_pairs(
-                        &source_variant.payloads,
-                        &target_variant.payloads,
+                    collect_actual_runtime_shape_marker_pairs(
+                        &actual_variant.payloads,
+                        &expected_variant.payloads,
                         depth,
                         markers,
                     );
                 } else {
-                    for payload in &source_variant.payloads {
-                        collect_runtime_shape_markers(payload, depth, markers);
-                    }
-                }
-            }
-            for target_variant in target_variants {
-                if !source_variants
-                    .iter()
-                    .any(|source_variant| source_variant.name == target_variant.name)
-                {
-                    for payload in &target_variant.payloads {
+                    for payload in &actual_variant.payloads {
                         collect_runtime_shape_markers(payload, depth, markers);
                     }
                 }
             }
         }
-        (Type::Union(source_left, source_right), Type::Union(target_left, target_right))
+        (Type::Union(actual_left, actual_right), Type::Union(expected_left, expected_right))
         | (
-            Type::Intersection(source_left, source_right),
-            Type::Intersection(target_left, target_right),
+            Type::Intersection(actual_left, actual_right),
+            Type::Intersection(expected_left, expected_right),
         ) => {
-            collect_runtime_shape_pair(source_left, target_left, depth, markers);
-            collect_runtime_shape_pair(source_right, target_right, depth, markers);
+            collect_actual_runtime_shape_markers(actual_left, expected_left, depth, markers);
+            collect_actual_runtime_shape_markers(actual_right, expected_right, depth, markers);
         }
-        (Type::Stack { inner: source, .. }, Type::Stack { inner: target, .. }) => {
-            collect_runtime_shape_pair(source, target, depth, markers);
+        (
+            Type::Stack { inner: actual, .. },
+            Type::Stack {
+                inner: expected, ..
+            },
+        ) => {
+            collect_actual_runtime_shape_markers(actual, expected, depth, markers);
         }
-        _ => {
-            collect_runtime_shape_markers(source, depth, markers);
-            collect_runtime_shape_markers(target, depth, markers);
-        }
+        _ => collect_runtime_shape_markers(actual, depth, markers),
     }
 }
 
-fn collect_runtime_shape_pairs(
-    source_items: &[Type],
-    target_items: &[Type],
+fn collect_actual_runtime_shape_marker_pairs(
+    actual_items: &[Type],
+    expected_items: &[Type],
     depth: u32,
     markers: &mut Vec<GuardMarker>,
 ) {
-    let shared_len = source_items.len().min(target_items.len());
+    let shared_len = actual_items.len().min(expected_items.len());
     for index in 0..shared_len {
-        collect_runtime_shape_pair(&source_items[index], &target_items[index], depth, markers);
+        collect_actual_runtime_shape_markers(
+            &actual_items[index],
+            &expected_items[index],
+            depth,
+            markers,
+        );
     }
-    for source_item in &source_items[shared_len..] {
-        collect_runtime_shape_markers(source_item, depth, markers);
-    }
-    for target_item in &target_items[shared_len..] {
-        collect_runtime_shape_markers(target_item, depth, markers);
+    for actual_item in &actual_items[shared_len..] {
+        collect_runtime_shape_markers(actual_item, depth, markers);
     }
 }
 
@@ -278,6 +267,81 @@ fn collect_effect_markers(effect: &Type, depth: u32, markers: &mut Vec<GuardMark
         | Type::Any
         | Type::Never
         | Type::OpenVar(_) => {}
+    }
+}
+
+fn collect_effect_markers_not_in_expected(
+    actual: &Type,
+    expected: &Type,
+    depth: u32,
+    markers: &mut Vec<GuardMarker>,
+) {
+    if actual.is_pure_effect() {
+        return;
+    }
+    match actual {
+        Type::EffectRow(items) => {
+            for item in items {
+                collect_effect_markers_not_in_expected(item, expected, depth, markers);
+            }
+        }
+        Type::Con { path, .. } => {
+            if !effect_contains_path(expected, path) {
+                push_guard_marker(markers, depth, path);
+            }
+        }
+        Type::Stack { inner, .. } => {
+            collect_effect_markers_not_in_expected(inner, expected, depth, markers);
+        }
+        Type::Union(left, right) | Type::Intersection(left, right) => {
+            collect_effect_markers_not_in_expected(left, expected, depth, markers);
+            collect_effect_markers_not_in_expected(right, expected, depth, markers);
+        }
+        Type::Thunk { value, .. } => {
+            collect_actual_runtime_shape_markers(value, expected, depth, markers);
+        }
+        Type::Fun { arg, ret, .. } => {
+            let nested_depth = depth.saturating_add(1);
+            collect_effect_markers_not_in_expected(arg, expected, nested_depth, markers);
+            collect_effect_markers_not_in_expected(ret, expected, nested_depth, markers);
+        }
+        Type::Record(_)
+        | Type::PolyVariant(_)
+        | Type::Tuple(_)
+        | Type::Any
+        | Type::Never
+        | Type::OpenVar(_) => {}
+    }
+}
+
+fn effect_contains_path(effect: &Type, path: &[String]) -> bool {
+    if effect.is_pure_effect() {
+        return false;
+    }
+    match effect {
+        Type::EffectRow(items) => items.iter().any(|item| effect_contains_path(item, path)),
+        Type::Con {
+            path: effect_path, ..
+        } => effect_path == path,
+        Type::Stack { inner, .. } => effect_contains_path(inner, path),
+        Type::Union(left, right) | Type::Intersection(left, right) => {
+            effect_contains_path(left, path) || effect_contains_path(right, path)
+        }
+        Type::Thunk { value, .. } => effect_contains_path(value, path),
+        Type::Fun { arg, ret, .. } => {
+            effect_contains_path(arg, path) || effect_contains_path(ret, path)
+        }
+        Type::Record(fields) => fields
+            .iter()
+            .any(|field| effect_contains_path(&field.value, path)),
+        Type::PolyVariant(variants) => variants.iter().any(|variant| {
+            variant
+                .payloads
+                .iter()
+                .any(|payload| effect_contains_path(payload, path))
+        }),
+        Type::Tuple(items) => items.iter().any(|item| effect_contains_path(item, path)),
+        Type::Any | Type::Never | Type::OpenVar(_) => false,
     }
 }
 

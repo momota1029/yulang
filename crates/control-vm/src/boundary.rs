@@ -128,6 +128,9 @@ pub(crate) fn value_boundary_supported(source: &Type, target: &Type) -> bool {
         }
         (Type::Thunk { value: source, .. }, target) => value_boundary_supported(source, target),
         (source, Type::Thunk { value: target, .. }) => value_boundary_supported(source, target),
+        (Type::Record(source_fields), Type::Record(target_fields)) => {
+            record_value_boundary_supported(source_fields, target_fields)
+        }
         _ => false,
     }
 }
@@ -141,4 +144,15 @@ pub(crate) fn function_boundary_supported(source: &Type, target: &Type) -> bool 
     };
     value_boundary_supported(target_arg, source_arg)
         && value_boundary_supported(source_ret, target_ret)
+}
+
+fn record_value_boundary_supported(
+    source_fields: &[mono::TypeField],
+    target_fields: &[mono::TypeField],
+) -> bool {
+    target_fields.iter().all(|target| {
+        record_field_type(source_fields, &target.name).map_or(target.optional, |source| {
+            value_boundary_supported(&source.value, &target.value)
+        })
+    })
 }

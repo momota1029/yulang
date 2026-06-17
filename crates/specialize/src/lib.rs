@@ -98,6 +98,10 @@ pub enum SpecializeError {
         existing: Type,
         incoming: Type,
     },
+    UnsatisfiedSubtype {
+        lower: Type,
+        upper: Type,
+    },
     UndeterminedTypeSlot {
         slot: u32,
     },
@@ -196,6 +200,14 @@ impl fmt::Display for SpecializeError {
                     "conflicting type candidates for slot {slot}: {} vs {}",
                     mono::dump::dump_type(existing),
                     mono::dump::dump_type(incoming),
+                )
+            }
+            Self::UnsatisfiedSubtype { lower, upper } => {
+                write!(
+                    f,
+                    "unsatisfied subtype constraint: {} <: {}",
+                    mono::dump::dump_type(lower),
+                    mono::dump::dump_type(upper),
                 )
             }
             Self::UndeterminedTypeSlot { slot } => {

@@ -86,20 +86,9 @@ pub(super) fn join_type_candidates(
         {
             merge_tuple_type_candidates(graph, left_items, right_items, CandidateMerge::Join)
         }
-        (
-            Type::Fun {
-                arg: left_arg,
-                arg_effect: left_arg_effect,
-                ret_effect: left_ret_effect,
-                ret: left_ret,
-            },
-            Type::Fun { .. },
-        ) => Ok(Type::Fun {
-            arg: left_arg,
-            arg_effect: left_arg_effect,
-            ret_effect: left_ret_effect,
-            ret: left_ret,
-        }),
+        (left @ Type::Fun { .. }, right @ Type::Fun { .. }) => {
+            merge_function_type_candidates(graph, left, right, CandidateMerge::Join)
+        }
         (Type::EffectRow(left), Type::EffectRow(right)) => {
             merge_effect_row_candidates(graph, left, right, CandidateMerge::Join)
         }
@@ -201,20 +190,9 @@ pub(super) fn meet_type_candidates(
         {
             merge_tuple_type_candidates(graph, left_items, right_items, CandidateMerge::Meet)
         }
-        (
-            Type::Fun {
-                arg: left_arg,
-                arg_effect: left_arg_effect,
-                ret_effect: left_ret_effect,
-                ret: left_ret,
-            },
-            Type::Fun { .. },
-        ) => Ok(Type::Fun {
-            arg: left_arg,
-            arg_effect: left_arg_effect,
-            ret_effect: left_ret_effect,
-            ret: left_ret,
-        }),
+        (left @ Type::Fun { .. }, right @ Type::Fun { .. }) => {
+            merge_function_type_candidates(graph, left, right, CandidateMerge::Meet)
+        }
         (Type::EffectRow(left), Type::EffectRow(right)) => {
             merge_effect_row_candidates(graph, left, right, CandidateMerge::Meet)
         }
@@ -438,6 +416,47 @@ pub(super) fn merge_tuple_type_candidates(
         .map(|(left, right)| merge_candidate_component(graph, left, right, merge))
         .collect::<Result<Vec<_>, _>>()?;
     Ok(Type::Tuple(items))
+}
+
+pub(super) fn merge_function_type_candidates(
+    graph: &TypeGraph<'_>,
+    left: Type,
+    right: Type,
+    merge: CandidateMerge,
+) -> Result<Type, SpecializeError> {
+    let Some(left) = function_computation_parts(&left) else {
+        unreachable!("function candidates checked by caller");
+    };
+    let Some(right) = function_computation_parts(&right) else {
+        unreachable!("function candidates checked by caller");
+    };
+    let contravariant = match merge {
+        CandidateMerge::Join => CandidateMerge::Meet,
+        CandidateMerge::Meet => CandidateMerge::Join,
+    };
+    Ok(Type::Fun {
+        arg: Box::new(merge_candidate_component(
+            graph,
+            left.arg,
+            right.arg,
+            contravariant,
+        )?),
+        arg_effect: Box::new(merge_candidate_component(
+            graph,
+            left.arg_effect,
+            right.arg_effect,
+            contravariant,
+        )?),
+        ret_effect: Box::new(merge_candidate_component(
+            graph,
+            left.ret_effect,
+            right.ret_effect,
+            merge,
+        )?),
+        ret: Box::new(merge_candidate_component(
+            graph, left.ret, right.ret, merge,
+        )?),
+    })
 }
 
 pub(super) fn merge_effect_row_candidates(

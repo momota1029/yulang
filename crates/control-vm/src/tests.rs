@@ -2,7 +2,8 @@ use mono::Type;
 
 use super::{
     DefId, Expr, ExprId, Program, Root, RuntimeError, SelectResolution, ValidateError, Value,
-    format_values, lower, run_mono_program, run_program, validate,
+    boundary::value_boundary_supported, format_values, lower, run_mono_program, run_program,
+    validate,
 };
 
 #[test]
@@ -275,6 +276,15 @@ fn validation_rejects_unresolved_type_variables_in_boundaries() {
     );
 }
 
+#[test]
+fn value_boundary_supports_record_field_functions_that_differ_only_by_effect_shape() {
+    let source = record_with_update_effect(effect_row(&["source", "effect"]));
+    let target = record_with_update_effect(effect_row(&["target", "effect"]));
+
+    assert!(value_boundary_supported(&source, &target));
+    assert!(value_boundary_supported(&target, &source));
+}
+
 fn lower_source(source: &str) -> infer::lowering::BodyLowering {
     let files = sources::load(vec![sources::SourceFile {
         module_path: sources::Path::default(),
@@ -287,6 +297,41 @@ fn lower_source(source: &str) -> infer::lowering::BodyLowering {
         output.lowering.errors
     );
     output.lowering
+}
+
+fn record_with_update_effect(effect: Type) -> Type {
+    Type::Record(vec![mono::TypeField {
+        name: "update_effect".to_string(),
+        value: pure_function_type(unit_type(), thunk_type(effect, unit_type())),
+        optional: false,
+    }])
+}
+
+fn pure_function_type(arg: Type, ret: Type) -> Type {
+    Type::Fun {
+        arg: Box::new(arg),
+        arg_effect: Box::new(Type::pure_effect()),
+        ret_effect: Box::new(Type::pure_effect()),
+        ret: Box::new(ret),
+    }
+}
+
+fn thunk_type(effect: Type, value: Type) -> Type {
+    Type::Thunk {
+        effect: Box::new(effect),
+        value: Box::new(value),
+    }
+}
+
+fn unit_type() -> Type {
+    Type::unit()
+}
+
+fn effect_row(parts: &[&str]) -> Type {
+    Type::EffectRow(vec![Type::Con {
+        path: parts.iter().map(|part| part.to_string()).collect(),
+        args: Vec::new(),
+    }])
 }
 
 fn assert_oracle_parity(source: &str, expected: &str) {

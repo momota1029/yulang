@@ -636,6 +636,15 @@ fn hygiene_marker_propagates_through_record_projection_to_returned_thunk() {
 }
 
 #[test]
+fn value_boundary_supports_record_field_functions_that_differ_only_by_effect_shape() {
+    let source = record_with_update_effect(effect_row(&["source", "effect"]));
+    let target = record_with_update_effect(effect_row(&["target", "effect"]));
+
+    assert!(super::value_boundary_supported(&source, &target));
+    assert!(super::value_boundary_supported(&target, &source));
+}
+
+#[test]
 fn hygiene_marker_frame_is_restored_when_outer_handler_resumes() {
     let resume_continuation = mono::DefId(50);
     let second_payload = mono::DefId(51);
@@ -743,6 +752,14 @@ fn thunk_type(effect: Type, value: Type) -> Type {
         effect: Box::new(effect),
         value: Box::new(value),
     }
+}
+
+fn record_with_update_effect(effect: Type) -> Type {
+    Type::Record(vec![mono::TypeField {
+        name: "update_effect".to_string(),
+        value: pure_function_type(unit_type(), thunk_type(effect, unit_type())),
+        optional: false,
+    }])
 }
 
 fn pure_function_type(arg: Type, ret: Type) -> Type {

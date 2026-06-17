@@ -85,10 +85,25 @@ mod tests {
     }
 
     #[test]
-    fn boundary_expr_hygiene_marks_effectful_thunk_argument() {
+    fn boundary_expr_hygiene_does_not_mark_expected_only_thunk_argument() {
         let effect = io_effect_type();
         let actual = pure_function_type(thunk_type(effect, int_type()), int_type());
         let expected = pure_function_type(int_type(), int_type());
+        let function = mono::Expr::new(ExprKind::Local(mono::DefId(0)));
+
+        let wrapped = boundary_expr(&actual, &expected, function);
+
+        let ExprKind::FunctionAdapter { hygiene, .. } = wrapped.kind else {
+            panic!("function boundary should produce adapter");
+        };
+        assert!(hygiene.markers.is_empty());
+    }
+
+    #[test]
+    fn boundary_expr_hygiene_marks_actual_thunk_argument() {
+        let effect = io_effect_type();
+        let actual = pure_function_type(int_type(), int_type());
+        let expected = pure_function_type(thunk_type(effect, int_type()), int_type());
         let function = mono::Expr::new(ExprKind::Local(mono::DefId(0)));
 
         let wrapped = boundary_expr(&actual, &expected, function);
@@ -106,13 +121,31 @@ mod tests {
     }
 
     #[test]
-    fn boundary_expr_hygiene_marks_nested_function_boundary() {
+    fn boundary_expr_hygiene_does_not_mark_expected_only_nested_function_boundary() {
         let effect = io_effect_type();
         let actual = pure_function_type(
             pure_function_type(int_type(), thunk_type(effect, int_type())),
             int_type(),
         );
         let expected = pure_function_type(pure_function_type(int_type(), int_type()), int_type());
+        let function = mono::Expr::new(ExprKind::Local(mono::DefId(0)));
+
+        let wrapped = boundary_expr(&actual, &expected, function);
+
+        let ExprKind::FunctionAdapter { hygiene, .. } = wrapped.kind else {
+            panic!("function boundary should produce adapter");
+        };
+        assert!(hygiene.markers.is_empty());
+    }
+
+    #[test]
+    fn boundary_expr_hygiene_marks_actual_nested_function_boundary() {
+        let effect = io_effect_type();
+        let actual = pure_function_type(pure_function_type(int_type(), int_type()), int_type());
+        let expected = pure_function_type(
+            pure_function_type(int_type(), thunk_type(effect, int_type())),
+            int_type(),
+        );
         let function = mono::Expr::new(ExprKind::Local(mono::DefId(0)));
 
         let wrapped = boundary_expr(&actual, &expected, function);

@@ -388,7 +388,20 @@ impl<'a> TypeGraph<'a> {
                 }
                 Ok(())
             }
+            (Type::Tuple(lower_items), Type::Tuple(upper_items)) => {
+                unsatisfied_subtype(Type::Tuple(lower_items), Type::Tuple(upper_items))
+            }
             (Type::Record(lower_fields), Type::Record(upper_fields)) => {
+                let missing_required_field = upper_fields.iter().any(|upper_field| {
+                    !upper_field.optional
+                        && record_field_type(&lower_fields, &upper_field.name).is_none()
+                });
+                if missing_required_field {
+                    return unsatisfied_subtype(
+                        Type::Record(lower_fields),
+                        Type::Record(upper_fields),
+                    );
+                }
                 for upper_field in upper_fields {
                     if let Some(lower_field) = record_field_type(&lower_fields, &upper_field.name) {
                         self.constrain_weighted_subtype(
@@ -402,13 +415,18 @@ impl<'a> TypeGraph<'a> {
                 Ok(())
             }
             (Type::PolyVariant(lower_variants), Type::PolyVariant(upper_variants)) => {
+                if lower_variants
+                    .iter()
+                    .any(|lower_variant| matching_variant(&upper_variants, lower_variant).is_none())
+                {
+                    return unsatisfied_subtype(
+                        Type::PolyVariant(lower_variants),
+                        Type::PolyVariant(upper_variants),
+                    );
+                }
                 for lower_variant in lower_variants {
-                    let Some(upper_variant) = upper_variants.iter().find(|variant| {
-                        variant.name == lower_variant.name
-                            && variant.payloads.len() == lower_variant.payloads.len()
-                    }) else {
-                        continue;
-                    };
+                    let upper_variant = matching_variant(&upper_variants, &lower_variant)
+                        .expect("poly variant mismatch checked above");
                     for (lower, upper) in lower_variant
                         .payloads
                         .into_iter()
@@ -491,4 +509,8 @@ impl<'a> TypeGraph<'a> {
         self.constrain_recursive_bounds(instantiated.recursive_bounds)?;
         Ok(instantiated.ty)
     }
+}
+
+fn unsatisfied_subtype(lower: Type, upper: Type) -> Result<(), SpecializeError> {
+    Err(SpecializeError::UnsatisfiedSubtype { lower, upper })
 }

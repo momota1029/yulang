@@ -25,20 +25,17 @@ pub(super) fn type_candidate_subtype(graph: &TypeGraph<'_>, lower: &Type, upper:
                     && type_candidate_subtype(graph, upper, lower)
             })
         }
-        (
-            Type::Fun {
-                arg: lower_arg,
-                ret: lower_ret,
-                ..
-            },
-            Type::Fun {
-                arg: upper_arg,
-                ret: upper_ret,
-                ..
-            },
-        ) => {
-            type_candidate_subtype(graph, upper_arg, lower_arg)
-                && type_candidate_subtype(graph, lower_ret, upper_ret)
+        (Type::Fun { .. }, Type::Fun { .. }) => {
+            let Some(lower) = function_computation_parts(lower) else {
+                return false;
+            };
+            let Some(upper) = function_computation_parts(upper) else {
+                return false;
+            };
+            type_candidate_subtype(graph, &upper.arg, &lower.arg)
+                && type_candidate_subtype(graph, &upper.arg_effect, &lower.arg_effect)
+                && type_candidate_subtype(graph, &lower.ret_effect, &upper.ret_effect)
+                && type_candidate_subtype(graph, &lower.ret, &upper.ret)
         }
         (Type::Tuple(lower), Type::Tuple(upper)) if lower.len() == upper.len() => lower
             .iter()

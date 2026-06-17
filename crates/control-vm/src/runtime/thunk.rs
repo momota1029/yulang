@@ -54,6 +54,9 @@ impl<'a> Runtime<'a> {
                     },
                 }))
             }
+            (Type::Record(_), Type::Record(_)) if value_boundary_supported(source, target) => {
+                value_result(value)
+            }
             _ => Err(RuntimeError::UnsupportedBoundary {
                 feature: format!(
                     "coerce {} => {}",

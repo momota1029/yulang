@@ -126,6 +126,62 @@ fn tuple_candidates_refine_open_items_from_concrete_tuple() {
 }
 
 #[test]
+fn concrete_subtype_rejects_tuple_length_mismatch() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let lower = Type::Tuple(vec![int_type(), int_type(), int_type()]);
+    let upper = Type::Tuple(vec![int_type(), int_type()]);
+
+    graph
+        .constrain_subtype(lower.clone(), upper.clone())
+        .unwrap();
+    assert_unsatisfied_subtype(graph.solve_constraints().unwrap_err(), lower, upper);
+}
+
+#[test]
+fn concrete_subtype_rejects_missing_required_record_field() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let lower = Type::Record(vec![field("a", int_type(), false)]);
+    let upper = Type::Record(vec![
+        field("a", int_type(), false),
+        field("b", int_type(), false),
+    ]);
+
+    graph
+        .constrain_subtype(lower.clone(), upper.clone())
+        .unwrap();
+    assert_unsatisfied_subtype(graph.solve_constraints().unwrap_err(), lower, upper);
+}
+
+#[test]
+fn concrete_subtype_allows_missing_optional_record_field() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let lower = Type::Record(vec![field("a", int_type(), false)]);
+    let upper = Type::Record(vec![
+        field("a", int_type(), false),
+        field("b", int_type(), true),
+    ]);
+
+    graph.constrain_subtype(lower, upper).unwrap();
+    graph.solve_constraints().unwrap();
+}
+
+#[test]
+fn concrete_subtype_rejects_missing_poly_variant_constructor() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let lower = Type::PolyVariant(vec![variant("some", vec![int_type()])]);
+    let upper = Type::PolyVariant(vec![variant("none", Vec::new())]);
+
+    graph
+        .constrain_subtype(lower.clone(), upper.clone())
+        .unwrap();
+    assert_unsatisfied_subtype(graph.solve_constraints().unwrap_err(), lower, upper);
+}
+
+#[test]
 fn consumed_effect_row_removes_handled_item_from_tail() {
     let mut arena = poly_expr::Arena::new();
     arena.effect_operations.insert(
@@ -324,6 +380,88 @@ fn effect_row_lower_with_tail_refines_to_closed_upper() {
 }
 
 #[test]
+fn function_candidate_subtype_checks_ret_effect() {
+    let arena = poly_expr::Arena::new();
+    let graph = TypeGraph::new(&arena);
+    let effect = Type::EffectRow(vec![con(&["effect"], Vec::new())]);
+    let pure = unary_effect_type(
+        Type::pure_effect(),
+        Type::unit(),
+        Type::pure_effect(),
+        int_type(),
+    );
+    let effectful = unary_effect_type(
+        Type::pure_effect(),
+        Type::unit(),
+        effect.clone(),
+        int_type(),
+    );
+
+    assert!(type_candidate_subtype(&graph, &pure, &effectful));
+    assert!(!type_candidate_subtype(&graph, &effectful, &pure));
+}
+
+#[test]
+fn function_candidate_subtype_checks_arg_effect_contravariantly() {
+    let arena = poly_expr::Arena::new();
+    let graph = TypeGraph::new(&arena);
+    let effect = Type::EffectRow(vec![con(&["effect"], Vec::new())]);
+    let pure_arg = unary_effect_type(
+        Type::pure_effect(),
+        Type::unit(),
+        Type::pure_effect(),
+        int_type(),
+    );
+    let effectful_arg = unary_effect_type(
+        effect.clone(),
+        Type::unit(),
+        Type::pure_effect(),
+        int_type(),
+    );
+
+    assert!(type_candidate_subtype(&graph, &effectful_arg, &pure_arg));
+    assert!(!type_candidate_subtype(&graph, &pure_arg, &effectful_arg));
+}
+
+#[test]
+fn function_candidates_merge_effects_by_variance() {
+    let arena = poly_expr::Arena::new();
+    let graph = TypeGraph::new(&arena);
+    let arg_effect = Type::EffectRow(vec![con(&["arg"], Vec::new())]);
+    let left_ret_effect = Type::EffectRow(vec![con(&["left"], Vec::new())]);
+    let right_ret_effect = Type::EffectRow(vec![con(&["right"], Vec::new())]);
+    let pure = unary_effect_type(
+        Type::pure_effect(),
+        Type::unit(),
+        left_ret_effect.clone(),
+        int_type(),
+    );
+    let effectful_arg = unary_effect_type(
+        arg_effect.clone(),
+        Type::unit(),
+        right_ret_effect.clone(),
+        int_type(),
+    );
+
+    assert_eq!(
+        join_type_candidates(&graph, pure.clone(), effectful_arg.clone()).unwrap(),
+        unary_effect_type(
+            Type::pure_effect(),
+            Type::unit(),
+            Type::EffectRow(vec![
+                con(&["left"], Vec::new()),
+                con(&["right"], Vec::new())
+            ]),
+            int_type()
+        )
+    );
+    assert_eq!(
+        meet_type_candidates(&graph, pure, effectful_arg).unwrap(),
+        unary_effect_type(arg_effect, Type::unit(), Type::pure_effect(), int_type())
+    );
+}
+
+#[test]
 fn function_subtyping_compares_split_runtime_return_shapes() {
     let arena = poly_expr::Arena::new();
     let mut graph = TypeGraph::new(&arena);
@@ -353,4 +491,40 @@ fn function_subtyping_compares_split_runtime_return_shapes() {
     assert!(solution.slots.iter().any(|slot| {
         matches!(slot, Some(Type::EffectRow(items)) if items == &vec![effect_item.clone()])
     }));
+}
+
+fn unary_effect_type(arg_effect: Type, arg: Type, ret_effect: Type, ret: Type) -> Type {
+    Type::Fun {
+        arg: Box::new(arg),
+        arg_effect: Box::new(arg_effect),
+        ret_effect: Box::new(ret_effect),
+        ret: Box::new(ret),
+    }
+}
+
+fn field(name: &str, value: Type, optional: bool) -> TypeField {
+    TypeField {
+        name: name.into(),
+        value,
+        optional,
+    }
+}
+
+fn variant(name: &str, payloads: Vec<Type>) -> TypeVariant {
+    TypeVariant {
+        name: name.into(),
+        payloads,
+    }
+}
+
+fn assert_unsatisfied_subtype(error: SpecializeError, lower: Type, upper: Type) {
+    let SpecializeError::UnsatisfiedSubtype {
+        lower: actual_lower,
+        upper: actual_upper,
+    } = error
+    else {
+        panic!("expected unsatisfied subtype, got {error:?}");
+    };
+    assert_eq!(actual_lower, lower);
+    assert_eq!(actual_upper, upper);
 }
