@@ -651,6 +651,11 @@ pub enum RouteError {
         first: PathBuf,
         second: PathBuf,
     },
+    DuplicateModuleFile {
+        file: PathBuf,
+        first_module: Path,
+        second_module: Path,
+    },
     InvalidDumpModulePath {
         module: String,
     },
@@ -722,6 +727,17 @@ impl fmt::Display for RouteError {
                 format_module_path(module),
                 first.display(),
                 second.display()
+            ),
+            RouteError::DuplicateModuleFile {
+                file,
+                first_module,
+                second_module,
+            } => write!(
+                f,
+                "file {} was loaded as both module {} and {}",
+                file.display(),
+                format_module_path(first_module),
+                format_module_path(second_module)
             ),
             RouteError::InvalidDumpModulePath { module } => {
                 write!(f, "dump module path `{module}` is invalid")

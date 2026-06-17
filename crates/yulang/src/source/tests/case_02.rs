@@ -1131,3 +1131,26 @@ fn reports_ambiguous_module_file() {
 
     assert!(matches!(err, RouteError::AmbiguousModuleFile { .. }));
 }
+
+#[cfg(unix)]
+#[test]
+fn reports_same_file_loaded_as_two_modules() {
+    let root = temp_root("duplicate-module-file");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(root.join("main.yu"), "mod a;\nmod b;\n").unwrap();
+    fs::write(root.join("a.yu"), "my x = 1\n").unwrap();
+    std::os::unix::fs::symlink(root.join("a.yu"), root.join("b.yu")).unwrap();
+
+    let err = collect_local_sources(root.join("main.yu")).unwrap_err();
+
+    assert!(matches!(
+        err,
+        RouteError::DuplicateModuleFile {
+            first_module,
+            second_module,
+            ..
+        } if first_module.segments == vec![Name("a".into())]
+            && second_module.segments == vec![Name("b".into())]
+    ));
+}

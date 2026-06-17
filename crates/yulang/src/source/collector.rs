@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) struct Collector {
-    seen_files: HashSet<PathBuf>,
+    seen_files: HashMap<PathBuf, Path>,
     module_files: HashMap<Path, PathBuf>,
     files: Vec<CollectedSource>,
 }
@@ -9,7 +9,7 @@ pub(super) struct Collector {
 impl Collector {
     pub(super) fn new() -> Self {
         Self {
-            seen_files: HashSet::new(),
+            seen_files: HashMap::new(),
             module_files: HashMap::new(),
             files: Vec::new(),
         }
@@ -51,7 +51,7 @@ impl Collector {
         while let Some((path, module_path, source_override)) = queue.pop_front() {
             let canonical = canonicalize_for_dedupe(&path);
             self.record_module_file(&module_path, &canonical)?;
-            if !self.seen_files.insert(canonical) {
+            if !self.record_seen_file(&module_path, &canonical)? {
                 continue;
             }
 
@@ -94,7 +94,7 @@ impl Collector {
         while let Some((path, module_path)) = queue.pop_front() {
             let canonical = canonicalize_for_dedupe(&path);
             self.record_module_file(&module_path, &canonical)?;
-            if !self.seen_files.insert(canonical) {
+            if !self.record_seen_file(&module_path, &canonical)? {
                 continue;
             }
 
@@ -133,6 +133,21 @@ impl Collector {
             module: module.clone(),
             first: first.clone(),
             second: file.to_path_buf(),
+        })
+    }
+
+    fn record_seen_file(&mut self, module: &Path, file: &FsPath) -> Result<bool, RouteError> {
+        let Some(first_module) = self.seen_files.get(file) else {
+            self.seen_files.insert(file.to_path_buf(), module.clone());
+            return Ok(true);
+        };
+        if first_module == module {
+            return Ok(false);
+        }
+        Err(RouteError::DuplicateModuleFile {
+            file: file.to_path_buf(),
+            first_module: first_module.clone(),
+            second_module: module.clone(),
         })
     }
 }
