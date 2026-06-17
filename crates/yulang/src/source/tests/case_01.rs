@@ -158,6 +158,42 @@ fn dump_mono_without_std_rejects_root_case_without_concrete_join() {
 }
 
 #[test]
+fn dump_mono_without_std_reports_tuple_length_unsatisfied_subtype() {
+    let entry = write_main(
+        "dump-mono-tuple-length-unsatisfied",
+        "my g(x: (int, int)) = x\ng (1, 2, 3)\n",
+    );
+
+    let err = dump_mono_from_entry(entry).unwrap_err();
+
+    assert_unsatisfied_subtype_contains(err, "(int, int, int)", "(int, int)");
+}
+
+#[test]
+fn dump_mono_without_std_reports_missing_record_field_unsatisfied_subtype() {
+    let entry = write_main(
+        "dump-mono-record-field-unsatisfied",
+        "my f {a, b} = a\nf {a: 1}\n",
+    );
+
+    let err = dump_mono_from_entry(entry).unwrap_err();
+
+    assert_unsatisfied_subtype_contains(err, "{a: int}", "b:");
+}
+
+#[test]
+fn dump_mono_without_std_reports_polyvariant_constructor_unsatisfied_subtype() {
+    let entry = write_main(
+        "dump-mono-polyvariant-constructor-unsatisfied",
+        "case :some 1:\n  :none -> 0\n",
+    );
+
+    let err = dump_mono_from_entry(entry).unwrap_err();
+
+    assert_unsatisfied_subtype_contains(err, "'none", "'some(int)");
+}
+
+#[test]
 fn dump_mono_without_std_specializes_root_case_with_direct_cast_join() {
     let root = temp_root("dump-mono-root-case-cast-join");
     let _ = fs::remove_dir_all(&root);

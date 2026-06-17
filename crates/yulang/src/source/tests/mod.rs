@@ -76,5 +76,28 @@ fn assert_check_contains(output: &CheckPolyOutput, expected: &str) {
     );
 }
 
+fn assert_unsatisfied_subtype_contains(err: RouteError, lower: &str, upper: &str) {
+    let text = err.to_string();
+    assert!(
+        matches!(
+            &err,
+            RouteError::Specialize(specialize::SpecializeError::UnsatisfiedSubtype { .. })
+        ),
+        "expected UnsatisfiedSubtype, got {err:?}"
+    );
+    assert!(
+        text.contains(lower),
+        "missing lower type fragment {lower:?} in:\n{text}"
+    );
+    assert!(
+        text.contains(upper),
+        "missing upper type fragment {upper:?} in:\n{text}"
+    );
+    assert!(
+        !text.contains("unsupported VM boundary"),
+        "subtype mismatch leaked to VM boundary:\n{text}"
+    );
+}
+
 mod case_01;
 mod case_02;
