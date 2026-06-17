@@ -118,7 +118,10 @@
     `sources::load` の full parse が重なっていたこと。
   - source text に `"mod"` が無いファイルでは module load discovery parse を skip する。
     `showcase` の `collect` は 39〜41ms から 8ms 前後へ低下。
-  - まだ残る `load` 40ms 前後は `read_header` + full parse + op export fixed point 側を見る。
+  - `sources::load` の一時 subphase timing では、36 files の `load` 42.9ms のうち
+    `full_parse` が 39.5ms。`header` 2.8ms、fixed point / table / module scan は sub-ms。
+  - `read_header` keyword skip と module-load scan skip は改善が見えず棄却。
+    まだ残る `load` 40ms 前後は parser / std source artifact cache 側を見る。
 - typed-surface import の role / impl / effect fidelity を広げる。
 - compiled-unit manifest validation を厳しくする。
 - persistent cache を user dependency SCCs に一般化する。
