@@ -116,15 +116,9 @@ pub(super) fn is_std_root(path: &FsPath) -> bool {
 }
 
 pub(super) fn discover_module_loads(module_path: &Path, source: &str) -> Vec<ModuleLoadRequest> {
-    let loaded = sources::load(vec![SourceFile {
-        module_path: module_path.clone(),
-        source: source.to_string(),
-    }]);
-    loaded
-        .into_iter()
-        .next()
-        .map(|file| file.module_loads)
-        .unwrap_or_default()
+    let cst = parser::parse_module_to_green(source);
+    let root = rowan::SyntaxNode::<parser::sink::YulangLanguage>::new_root(cst);
+    sources::module_load_requests(module_path, &root)
 }
 
 pub(super) fn resolve_module_file(

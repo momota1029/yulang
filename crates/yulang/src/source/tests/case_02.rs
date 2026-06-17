@@ -1095,6 +1095,30 @@ fn use_mod_loads_module_file_but_plain_use_does_not() {
 }
 
 #[test]
+fn discover_module_loads_uses_lightweight_module_parse() {
+    let requests = discover_module_loads(
+        &Path::default(),
+        "infix (<+>) 50 50 = add\nmy x = 1 <+> 2\nmod child;\nuse mod util::*\n",
+    );
+
+    assert_eq!(
+        requests,
+        vec![
+            ModuleLoadRequest {
+                parent: Path::default(),
+                name: Name("child".into()),
+                kind: sources::ModuleLoadKind::ModDecl,
+            },
+            ModuleLoadRequest {
+                parent: Path::default(),
+                name: Name("util".into()),
+                kind: sources::ModuleLoadKind::UseMod,
+            },
+        ]
+    );
+}
+
+#[test]
 fn reports_ambiguous_module_file() {
     let root = temp_root("ambiguous-module");
     let _ = fs::remove_dir_all(&root);
