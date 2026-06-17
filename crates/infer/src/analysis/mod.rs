@@ -73,7 +73,7 @@ use method_taint::{
 };
 use projection::role_impl_member_projection_substitutions;
 pub use timing::AnalysisTiming;
-use timing::{AnalysisWorkTimingKind, InstantiatePredicateShape};
+use timing::{AnalysisSccEventTimingKind, AnalysisWorkTimingKind, InstantiatePredicateShape};
 use trace::{
     AnalysisDrainTrace, AnalysisTraceMode, analysis_trace_mode, analysis_work_kind,
     trace_constraint_events, trace_instantiate_phase, trace_scheme_requested,
@@ -112,6 +112,13 @@ pub struct AnalysisSession {
     work: VecDeque<AnalysisWork>,
     timing: AnalysisTiming,
     instantiated_targets: FxHashSet<DefId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::analysis) struct SccInstantiateUse {
+    pub parent: DefId,
+    pub target: DefId,
+    pub use_value: TypeVar,
 }
 
 fn def_parent_map(poly: &PolyArena) -> FxHashMap<DefId, DefId> {

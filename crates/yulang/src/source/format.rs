@@ -319,6 +319,31 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
     );
     let _ = writeln!(
         out,
+        "  analysis.route_scc_events: {}",
+        format_duration(analysis.route_scc_events)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.route_scc_open_use: {}",
+        format_duration(analysis.route_scc_open_use)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.route_scc_quantify: {}",
+        format_duration(analysis.route_scc_quantify)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.route_scc_instantiate: {}",
+        format_duration(analysis.route_scc_instantiate)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.route_scc_other: {}",
+        format_duration(analysis.route_scc_other)
+    );
+    let _ = writeln!(
+        out,
         "  analysis.work: {}",
         format_duration(analysis.work_total)
     );
@@ -651,6 +676,32 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         constraint.var_var_direct_lower_empty_replay_skipped
     );
     let _ = writeln!(out, "  analysis.work_items: {}", analysis.work_items);
+    let _ = writeln!(
+        out,
+        "  analysis.scc_event_batches: {}",
+        analysis.scc_event_batches
+    );
+    let _ = writeln!(out, "  analysis.scc_events: {}", analysis.scc_events);
+    let _ = writeln!(
+        out,
+        "  analysis.scc_open_use_events: {}",
+        analysis.scc_open_use_events
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_quantify_events: {}",
+        analysis.scc_quantify_events
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_instantiate_events: {}",
+        analysis.scc_instantiate_events
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_other_events: {}",
+        analysis.scc_other_events
+    );
     let _ = writeln!(
         out,
         "  analysis.work_resolve_ref_items: {}",

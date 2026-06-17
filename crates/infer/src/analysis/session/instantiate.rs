@@ -126,18 +126,65 @@ impl AnalysisSession {
         }
     }
 
+    #[cfg(test)]
     pub(in crate::analysis) fn instantiate_use(
         &mut self,
         parent: DefId,
         target: DefId,
         use_value: TypeVar,
     ) {
+        self.instantiate_use_batch(&[SccInstantiateUse {
+            parent,
+            target,
+            use_value,
+        }]);
+    }
+
+    pub(in crate::analysis) fn instantiate_use_batch(&mut self, uses: &[SccInstantiateUse]) {
+        let batch_start = Instant::now();
+        let mut instantiated_count = 0usize;
+        let mut direct_lower_predicates = Vec::new();
+        let mut subtype_predicates = Vec::new();
+        for use_site in uses {
+            if self.prepare_instantiated_use(
+                *use_site,
+                &mut direct_lower_predicates,
+                &mut subtype_predicates,
+            ) {
+                instantiated_count += 1;
+            }
+        }
+        let phase = Instant::now();
+        if !direct_lower_predicates.is_empty() {
+            self.infer
+                .constrain_pos_to_var_direct_many(direct_lower_predicates);
+        }
+        if !subtype_predicates.is_empty() {
+            self.infer.subtypes(subtype_predicates);
+        }
+        self.timing
+            .record_instantiate_subtype_predicate(phase.elapsed());
+        self.timing
+            .record_instantiate_batch(batch_start.elapsed(), instantiated_count);
+    }
+
+    fn prepare_instantiated_use(
+        &mut self,
+        use_site: SccInstantiateUse,
+        direct_lower_predicates: &mut Vec<(PosId, TypeVar)>,
+        subtype_predicates: &mut Vec<(PosId, NegId)>,
+    ) -> bool {
+        let SccInstantiateUse {
+            parent,
+            target,
+            use_value,
+        } = use_site;
         let Some(Def::Let {
             scheme: Some(scheme),
             ..
         }) = self.poly.defs.get(target)
         else {
-            return;
+            return false;
         };
         self.trace_scheme(target, scheme);
         let trace = analysis_trace_mode();
@@ -161,7 +208,6 @@ impl AnalysisSession {
         let elapsed = phase.elapsed();
         self.timing.record_instantiate_clone_scheme(elapsed);
         trace_instantiate_phase(trace, "clone scheme", parent, target, elapsed, start);
-        let phase = Instant::now();
         let predicate_shape = match self.infer.constraints().types().pos(instantiated.predicate) {
             Pos::Var(_) => InstantiatePredicateShape::Var,
             Pos::Stack { .. } => InstantiatePredicateShape::Stack,
@@ -183,21 +229,25 @@ impl AnalysisSession {
             self.infer.constraints().types().pos(instantiated.predicate),
         ) {
             self.timing.record_instantiate_direct_lower_predicate();
-            self.infer
-                .constrain_pos_to_var_direct(instantiated.predicate, use_value);
+            direct_lower_predicates.push((instantiated.predicate, use_value));
         } else {
             let use_upper = self.infer.alloc_neg(Neg::Var(use_value));
-            self.infer.subtype(instantiated.predicate, use_upper);
+            subtype_predicates.push((instantiated.predicate, use_upper));
         }
-        let elapsed = phase.elapsed();
-        self.timing.record_instantiate_subtype_predicate(elapsed);
-        trace_instantiate_phase(trace, "subtype predicate", parent, target, elapsed, start);
         let phase = Instant::now();
         self.insert_instantiated_role_predicates(parent, &instantiated.role_predicates);
         let elapsed = phase.elapsed();
         self.timing.record_instantiate_insert_roles(elapsed);
         trace_instantiate_phase(trace, "insert roles", parent, target, elapsed, start);
-        self.timing.record_instantiate(start.elapsed());
+        trace_instantiate_phase(
+            trace,
+            "prepare instantiation",
+            parent,
+            target,
+            start.elapsed(),
+            start,
+        );
+        true
     }
 
     pub(super) fn trace_scheme(&self, target: DefId, scheme: &Scheme) {

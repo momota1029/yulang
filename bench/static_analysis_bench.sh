@@ -3,10 +3,10 @@ set -euo pipefail
 
 HEADER_COLUMNS=(
     case iter check collect load infer bodies drain resolve finish
-    a_route a_work w_ref w_probe w_aref w_asel w_asel_rec w_asel_m w_asel_eff w_asel_tc w_scc a_role a_taint a_rsolve a_udep a_quant q_gen q_pre q_fin
+    a_route a_sccrt scc_open scc_quant scc_inst scc_oth a_work w_ref w_probe w_aref w_asel w_asel_rec w_asel_m w_asel_eff w_asel_tc w_scc a_role a_taint a_rsolve a_udep a_quant q_gen q_pre q_fin
     g_comp g_roles g_merge g_dom g_sub g_cast g_rrole g_froles g_clean g_filter g_prep
     g_mrst g_srst g_crst g_rrst g_rin g_rreach g_rcoal g_rdom g_rsolvein
-    a_inst i_clone i_sub i_roles i_runs i_maxrun i_targets i_reuse i_pvar i_pstk i_pnsub i_pfun i_pcon i_poth i_pdir a_record c_drain c_drains c_work c_sub c_subcall c_many c_invar c_vv c_posv c_maxq c_maxw c_lb c_ub c_lrep c_urep c_lenq c_uenq c_lrvv c_urvv c_vvub c_vvlb c_vvuin c_vvlin c_vvuenq c_vvlenq c_vvuski c_vvlski w_ref_n w_probe_n w_aref_n w_asel_n w_asel_rec_n w_asel_m_n w_asel_eff_n w_asel_tc_n w_scc_n udep_n udep_in udep_e summary total run poly spec ctl_low vm_eval
+    a_inst i_clone i_sub i_roles i_runs i_maxrun i_targets i_reuse i_pvar i_pstk i_pnsub i_pfun i_pcon i_poth i_pdir a_record c_drain c_drains c_work c_sub c_subcall c_many c_invar c_vv c_posv c_maxq c_maxw c_lb c_ub c_lrep c_urep c_lenq c_uenq c_lrvv c_urvv c_vvub c_vvlb c_vvuin c_vvlin c_vvuenq c_vvlenq c_vvuski c_vvlski w_ref_n w_probe_n w_aref_n w_asel_n w_asel_rec_n w_asel_m_n w_asel_eff_n w_asel_tc_n w_scc_n scc_batches scc_ev scc_open_n scc_quant_n scc_inst_n scc_oth_n udep_n udep_in udep_e summary total run poly spec ctl_low vm_eval
     expr clone apply force effect host catch cont inst hit miss
     pfx pfx_seg peq peq_seg addscan frscan files modules values bodyless errors
 )
@@ -120,7 +120,10 @@ run_case_once() {
     local catch_matches continuations instance_eval instance_hits instance_misses
     local path_prefix path_prefix_seg path_eq path_eq_seg active_add active_frame
     local lower_bodies lower_drain lower_resolve lower_finish
-    local analysis_route analysis_work analysis_work_resolve_ref analysis_work_probe_select
+    local analysis_route analysis_route_scc_events
+    local analysis_route_scc_open_use analysis_route_scc_quantify
+    local analysis_route_scc_instantiate analysis_route_scc_other
+    local analysis_work analysis_work_resolve_ref analysis_work_probe_select
     local analysis_work_apply_ref analysis_work_apply_select
     local analysis_work_apply_select_record_field analysis_work_apply_select_method
     local analysis_work_apply_select_effect_method analysis_work_apply_select_typeclass_method
@@ -147,6 +150,8 @@ run_case_once() {
     local work_apply_select_items work_apply_select_record_field_items
     local work_apply_select_method_items work_apply_select_effect_method_items
     local work_apply_select_typeclass_method_items work_scc_items
+    local scc_event_batches scc_events scc_open_use_events
+    local scc_quantify_events scc_instantiate_events scc_other_events
     local unready_role_dependency_scans unready_role_dependency_inputs
     local unready_role_dependency_edges
     local constraint_drain constraint_drains constraint_work constraint_subtype
@@ -177,6 +182,11 @@ run_case_once() {
     lower_drain="$(phase_metric "lower.drain" "$out_file")"
     lower_resolve="$(phase_metric "lower.resolve" "$out_file")"
     analysis_route="$(phase_metric "analysis.route" "$out_file")"
+    analysis_route_scc_events="$(phase_metric "analysis.route_scc_events" "$out_file")"
+    analysis_route_scc_open_use="$(phase_metric "analysis.route_scc_open_use" "$out_file")"
+    analysis_route_scc_quantify="$(phase_metric "analysis.route_scc_quantify" "$out_file")"
+    analysis_route_scc_instantiate="$(phase_metric "analysis.route_scc_instantiate" "$out_file")"
+    analysis_route_scc_other="$(phase_metric "analysis.route_scc_other" "$out_file")"
     analysis_work="$(phase_metric "analysis.work" "$out_file")"
     analysis_work_resolve_ref="$(phase_metric "analysis.work_resolve_ref" "$out_file")"
     analysis_work_probe_select="$(phase_metric "analysis.work_probe_select" "$out_file")"
@@ -267,6 +277,12 @@ run_case_once() {
     work_apply_select_effect_method_items="$(phase_metric "analysis.work_apply_select_effect_method_items" "$out_file")"
     work_apply_select_typeclass_method_items="$(phase_metric "analysis.work_apply_select_typeclass_method_items" "$out_file")"
     work_scc_items="$(phase_metric "analysis.work_scc_items" "$out_file")"
+    scc_event_batches="$(phase_metric "analysis.scc_event_batches" "$out_file")"
+    scc_events="$(phase_metric "analysis.scc_events" "$out_file")"
+    scc_open_use_events="$(phase_metric "analysis.scc_open_use_events" "$out_file")"
+    scc_quantify_events="$(phase_metric "analysis.scc_quantify_events" "$out_file")"
+    scc_instantiate_events="$(phase_metric "analysis.scc_instantiate_events" "$out_file")"
+    scc_other_events="$(phase_metric "analysis.scc_other_events" "$out_file")"
     unready_role_dependency_scans="$(phase_metric "analysis.unready_role_dependency_scans" "$out_file")"
     unready_role_dependency_inputs="$(phase_metric "analysis.unready_role_dependency_inputs" "$out_file")"
     unready_role_dependency_edges="$(phase_metric "analysis.unready_role_dependency_edges" "$out_file")"
@@ -307,7 +323,9 @@ run_case_once() {
     print_columns \
         "$case_label" "$iteration" "$check_real" "$collect" "$load" "$infer" \
         "$lower_bodies" "$lower_drain" "$lower_resolve" "$lower_finish" \
-        "$analysis_route" "$analysis_work" "$analysis_work_resolve_ref" \
+        "$analysis_route" "$analysis_route_scc_events" "$analysis_route_scc_open_use" \
+        "$analysis_route_scc_quantify" "$analysis_route_scc_instantiate" \
+        "$analysis_route_scc_other" "$analysis_work" "$analysis_work_resolve_ref" \
         "$analysis_work_probe_select" "$analysis_work_apply_ref" \
         "$analysis_work_apply_select" "$analysis_work_apply_select_record_field" \
         "$analysis_work_apply_select_method" "$analysis_work_apply_select_effect_method" \
@@ -346,7 +364,10 @@ run_case_once() {
         "$work_resolve_ref_items" "$work_probe_select_items" "$work_apply_ref_items" \
         "$work_apply_select_items" "$work_apply_select_record_field_items" \
         "$work_apply_select_method_items" "$work_apply_select_effect_method_items" \
-        "$work_apply_select_typeclass_method_items" "$work_scc_items" "$unready_role_dependency_scans" \
+        "$work_apply_select_typeclass_method_items" "$work_scc_items" \
+        "$scc_event_batches" "$scc_events" "$scc_open_use_events" \
+        "$scc_quantify_events" "$scc_instantiate_events" "$scc_other_events" \
+        "$unready_role_dependency_scans" \
         "$unready_role_dependency_inputs" "$unready_role_dependency_edges" \
         "$summarize" "$total" "$run_real" "$run_poly" "$run_spec" "$run_control" "$vm_eval" \
         "$expr_evals" "$expr_clones" "$apply_value" "$force_thunk" "$effect_requests" "$host_requests" \

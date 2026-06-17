@@ -83,8 +83,11 @@ impl Arena {
         self.sync_type_ids_with_constraints();
     }
 
-    pub(crate) fn constrain_pos_to_var_direct(&mut self, lower: PosId, target: TypeVar) {
-        self.constraints.constrain_pos_to_var_direct(lower, target);
+    pub(crate) fn constrain_pos_to_var_direct_many(
+        &mut self,
+        bounds: impl IntoIterator<Item = (PosId, TypeVar)>,
+    ) {
+        self.constraints.constrain_pos_to_var_direct_many(bounds);
         self.sync_type_ids_with_constraints();
     }
 

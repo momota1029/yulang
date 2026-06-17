@@ -11,6 +11,11 @@ use super::{AnalysisWork, SelectionTarget};
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct AnalysisTiming {
     pub route_constraints: Duration,
+    pub route_scc_events: Duration,
+    pub route_scc_open_use: Duration,
+    pub route_scc_quantify: Duration,
+    pub route_scc_instantiate: Duration,
+    pub route_scc_other: Duration,
     pub work_total: Duration,
     pub work_resolve_ref: Duration,
     pub work_probe_select: Duration,
@@ -57,6 +62,12 @@ pub struct AnalysisTiming {
     pub record_field_fallback: Duration,
     pub constraint_event_batches: usize,
     pub constraint_events: usize,
+    pub scc_event_batches: usize,
+    pub scc_events: usize,
+    pub scc_open_use_events: usize,
+    pub scc_quantify_events: usize,
+    pub scc_instantiate_events: usize,
+    pub scc_other_events: usize,
     pub work_items: usize,
     pub max_queue: usize,
     pub role_passes: usize,
@@ -140,11 +151,59 @@ impl AnalysisSelectionTargetTimingKind {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum AnalysisSccEventTimingKind {
+    OpenUse,
+    Quantify,
+    Instantiate,
+    Other,
+}
+
 impl AnalysisTiming {
     pub(super) fn record_route_constraints(&mut self, elapsed: Duration, event_count: usize) {
         self.route_constraints += elapsed;
         self.constraint_event_batches += 1;
         self.constraint_events += event_count;
+    }
+
+    pub(super) fn record_route_scc_events(&mut self, elapsed: Duration, event_count: usize) {
+        self.route_scc_events += elapsed;
+        self.scc_event_batches += 1;
+        self.scc_events += event_count;
+    }
+
+    pub(super) fn record_route_scc_event(
+        &mut self,
+        kind: AnalysisSccEventTimingKind,
+        elapsed: Duration,
+    ) {
+        self.record_route_scc_event_batch(kind, elapsed, 1);
+    }
+
+    pub(super) fn record_route_scc_event_batch(
+        &mut self,
+        kind: AnalysisSccEventTimingKind,
+        elapsed: Duration,
+        event_count: usize,
+    ) {
+        match kind {
+            AnalysisSccEventTimingKind::OpenUse => {
+                self.route_scc_open_use += elapsed;
+                self.scc_open_use_events += event_count;
+            }
+            AnalysisSccEventTimingKind::Quantify => {
+                self.route_scc_quantify += elapsed;
+                self.scc_quantify_events += event_count;
+            }
+            AnalysisSccEventTimingKind::Instantiate => {
+                self.route_scc_instantiate += elapsed;
+                self.scc_instantiate_events += event_count;
+            }
+            AnalysisSccEventTimingKind::Other => {
+                self.route_scc_other += elapsed;
+                self.scc_other_events += event_count;
+            }
+        }
     }
 
     pub(super) fn record_work(
@@ -353,9 +412,9 @@ impl AnalysisTiming {
         self.generalize_prepared += elapsed;
     }
 
-    pub(super) fn record_instantiate(&mut self, elapsed: Duration) {
+    pub(super) fn record_instantiate_batch(&mut self, elapsed: Duration, use_count: usize) {
         self.instantiate += elapsed;
-        self.instantiated_uses += 1;
+        self.instantiated_uses += use_count;
     }
 
     pub(super) fn record_instantiate_predicate_shape(&mut self, shape: InstantiatePredicateShape) {

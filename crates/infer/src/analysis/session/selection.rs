@@ -699,10 +699,60 @@ impl AnalysisSession {
     }
 
     pub(super) fn route_scc_events(&mut self) {
+        let route_start = Instant::now();
         let events = self.scc.take_events();
+        let event_count = events.len();
         self.record_instantiate_event_runs(&events);
-        for event in events {
+        let mut events = events.into_iter().peekable();
+        while let Some(event) = events.next() {
+            let kind = scc_event_timing_kind(&event);
+            let event_start = Instant::now();
             match event {
+                SccEvent::InstantiateUse {
+                    parent,
+                    target,
+                    use_value,
+                } => {
+                    let mut batch = vec![SccInstantiateUse {
+                        parent,
+                        target,
+                        use_value,
+                    }];
+                    while matches!(events.peek(), Some(SccEvent::InstantiateUse { .. })) {
+                        let Some(SccEvent::InstantiateUse {
+                            parent,
+                            target,
+                            use_value,
+                        }) = events.next()
+                        else {
+                            unreachable!("peeked instantiate use event");
+                        };
+                        batch.push(SccInstantiateUse {
+                            parent,
+                            target,
+                            use_value,
+                        });
+                    }
+                    for use_site in &batch {
+                        let was_new = self.instantiated_targets.insert(use_site.target);
+                        self.timing.record_instantiate_target(was_new);
+                    }
+                    let batch_len = batch.len();
+                    self.instantiate_use_batch(&batch);
+                    for use_site in batch {
+                        self.scc_events.push(SccEvent::InstantiateUse {
+                            parent: use_site.parent,
+                            target: use_site.target,
+                            use_value: use_site.use_value,
+                        });
+                    }
+                    self.timing.record_route_scc_event_batch(
+                        kind,
+                        event_start.elapsed(),
+                        batch_len,
+                    );
+                    continue;
+                }
                 SccEvent::OpenUse {
                     target,
                     target_root,
@@ -719,20 +769,6 @@ impl AnalysisSession {
                     self.quantify_component(&component, &roots);
                     self.scc_events
                         .push(SccEvent::QuantifyComponent { component, roots });
-                }
-                SccEvent::InstantiateUse {
-                    parent,
-                    target,
-                    use_value,
-                } => {
-                    let was_new = self.instantiated_targets.insert(target);
-                    self.timing.record_instantiate_target(was_new);
-                    self.instantiate_use(parent, target, use_value);
-                    self.scc_events.push(SccEvent::InstantiateUse {
-                        parent,
-                        target,
-                        use_value,
-                    });
                 }
                 SccEvent::ComputedFetchCycle {
                     component,
@@ -753,7 +789,11 @@ impl AnalysisSession {
                 }
                 other => self.scc_events.push(other),
             }
+            self.timing
+                .record_route_scc_event(kind, event_start.elapsed());
         }
+        self.timing
+            .record_route_scc_events(route_start.elapsed(), event_count);
     }
 
     fn record_instantiate_event_runs(&mut self, events: &[SccEvent]) {
@@ -767,5 +807,16 @@ impl AnalysisSession {
             run_len = 0;
         }
         self.timing.record_instantiate_event_run(run_len);
+    }
+}
+
+fn scc_event_timing_kind(event: &SccEvent) -> AnalysisSccEventTimingKind {
+    match event {
+        SccEvent::OpenUse { .. } => AnalysisSccEventTimingKind::OpenUse,
+        SccEvent::QuantifyComponent { .. } => AnalysisSccEventTimingKind::Quantify,
+        SccEvent::InstantiateUse { .. } => AnalysisSccEventTimingKind::Instantiate,
+        SccEvent::ComponentEdgeAdded { .. }
+        | SccEvent::MergeComponents { .. }
+        | SccEvent::ComputedFetchCycle { .. } => AnalysisSccEventTimingKind::Other,
     }
 }
