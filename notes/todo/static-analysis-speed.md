@@ -86,6 +86,13 @@
     request resume / marker frame wrapper の allocation と clone。
   - marker value view を frame 内で使い回す実験は、`showcase` repeat 3 で VM eval が 415〜462ms と揺れ、
     明確な改善ではなかったため棄却した。まずは wrapper 数そのものを減らす設計を探る。
+- 2026-06-18 scalar marker fast path:
+  - scalar value は effect request を発火しないので、marker frame の value close で marker list を作っても
+    直後に捨てるだけだった。
+  - `mark_value` の入口で scalar を返し、`close_marker_frame_result` は事前 `markers_for_value` をやめて
+    `mark_value` 側の dedupe に一本化した。
+  - `showcase` repeat 3 では VM eval が 380.4 / 371.5 / 379.1ms。次に見るなら、
+    request resume wrapper 数を減らす continuation 表現側の設計変更。
 - 2026-06-17 record-field fallback batch:
   - `YULANG_ANALYSIS_TIMING=1` では `std.control.var.ref.update` の compact merge と
     unresolved selection fallback が太く、path lookup より analysis/merge 側が支配的に見える。

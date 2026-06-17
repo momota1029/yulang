@@ -414,7 +414,7 @@ impl<'a> Runtime<'a> {
         match result {
             EvalResult::Value(value) => {
                 self.stats.marker_frame_value_closes += 1;
-                value_result(mark_value(value, &markers_for_value(&markers)))
+                value_result(mark_value(value, &markers))
             }
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;

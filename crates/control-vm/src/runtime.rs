@@ -975,7 +975,7 @@ fn request_path_carries_function_adapter_guard(path: &[String]) -> bool {
 }
 
 fn mark_value(value: Value, markers: &[ValueMarker]) -> Value {
-    if markers.is_empty() {
+    if markers.is_empty() || is_scalar_value(&value) {
         return value;
     }
 
