@@ -14,6 +14,10 @@ pub fn format_run_mono_values(values: &[mono_runtime::Value]) -> String {
 }
 
 pub(super) fn format_runtime_value(value: &mono_runtime::Value) -> String {
+    if let Some(fraction) = format_runtime_fraction_value(value) {
+        return fraction;
+    }
+
     match value {
         mono_runtime::Value::Int(value) => value.to_string(),
         mono_runtime::Value::BigInt(value) => value.to_string(),
@@ -87,6 +91,56 @@ pub(super) fn format_runtime_value(value: &mono_runtime::Value) -> String {
         mono_runtime::Value::EffectOp { path } => format!("<effect-op {}>", path.join("::")),
         mono_runtime::Value::Continuation(id) => format!("<continuation {}>", id.0),
         mono_runtime::Value::Marked { value, .. } => format_runtime_value(value),
+    }
+}
+
+fn format_runtime_fraction_value(value: &mono_runtime::Value) -> Option<String> {
+    // Runtime values erase struct identity, so raw root formatting recognizes
+    // std::num::frac by its canonical lowered shape.
+    match value {
+        mono_runtime::Value::Record(fields) => format_runtime_fraction_record(fields),
+        mono_runtime::Value::DataConstructor { payloads, .. } if payloads.len() == 1 => {
+            format_runtime_fraction_payload(&payloads[0])
+        }
+        mono_runtime::Value::Marked { value, .. } => format_runtime_fraction_value(value),
+        _ => None,
+    }
+}
+
+fn format_runtime_fraction_payload(value: &mono_runtime::Value) -> Option<String> {
+    match value {
+        mono_runtime::Value::Record(fields) => format_runtime_fraction_record(fields),
+        mono_runtime::Value::Marked { value, .. } => format_runtime_fraction_payload(value),
+        _ => None,
+    }
+}
+
+fn format_runtime_fraction_record(fields: &[mono_runtime::ValueField]) -> Option<String> {
+    if fields.len() != 2 {
+        return None;
+    }
+
+    let num = runtime_int_field(fields, "num")?;
+    let den = runtime_int_field(fields, "den")?;
+    if den == 1 {
+        Some(num.to_string())
+    } else {
+        Some(format!("{num}/{den}"))
+    }
+}
+
+fn runtime_int_field(fields: &[mono_runtime::ValueField], name: &str) -> Option<i64> {
+    fields
+        .iter()
+        .find(|field| field.name.as_str() == name)
+        .and_then(|field| runtime_int_value(&field.value))
+}
+
+fn runtime_int_value(value: &mono_runtime::Value) -> Option<i64> {
+    match value {
+        mono_runtime::Value::Int(value) => Some(*value),
+        mono_runtime::Value::Marked { value, .. } => runtime_int_value(value),
+        _ => None,
     }
 }
 

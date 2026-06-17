@@ -1,6 +1,6 @@
 //! Text formatting for control VM runtime values.
 
-use crate::runtime::Value;
+use crate::runtime::{Value, ValueField};
 
 pub fn format_values(values: &[Value]) -> String {
     let mut out = String::new();
@@ -16,6 +16,10 @@ pub fn format_values(values: &[Value]) -> String {
 }
 
 fn format_value(value: &Value) -> String {
+    if let Some(fraction) = format_fraction_value(value) {
+        return fraction;
+    }
+
     match value {
         Value::Int(value) => value.to_string(),
         Value::BigInt(value) => value.to_string(),
@@ -84,6 +88,56 @@ fn format_value(value: &Value) -> String {
         Value::EffectOp { path } => format!("<effect-op {}>", path.join("::")),
         Value::Continuation(id) => format!("<continuation {}>", id.0),
         Value::Marked { value, .. } => format_value(value),
+    }
+}
+
+fn format_fraction_value(value: &Value) -> Option<String> {
+    // Runtime values erase struct identity, so raw root formatting recognizes
+    // std::num::frac by its canonical lowered shape.
+    match value {
+        Value::Record(fields) => format_fraction_record(fields),
+        Value::DataConstructor { payloads, .. } if payloads.len() == 1 => {
+            format_fraction_payload(&payloads[0])
+        }
+        Value::Marked { value, .. } => format_fraction_value(value),
+        _ => None,
+    }
+}
+
+fn format_fraction_payload(value: &Value) -> Option<String> {
+    match value {
+        Value::Record(fields) => format_fraction_record(fields),
+        Value::Marked { value, .. } => format_fraction_payload(value),
+        _ => None,
+    }
+}
+
+fn format_fraction_record(fields: &[ValueField]) -> Option<String> {
+    if fields.len() != 2 {
+        return None;
+    }
+
+    let num = int_field(fields, "num")?;
+    let den = int_field(fields, "den")?;
+    if den == 1 {
+        Some(num.to_string())
+    } else {
+        Some(format!("{num}/{den}"))
+    }
+}
+
+fn int_field(fields: &[ValueField], name: &str) -> Option<i64> {
+    fields
+        .iter()
+        .find(|field| field.name.as_str() == name)
+        .and_then(|field| int_value(&field.value))
+}
+
+fn int_value(value: &Value) -> Option<i64> {
+    match value {
+        Value::Int(value) => Some(*value),
+        Value::Marked { value, .. } => int_value(value),
+        _ => None,
     }
 }
 

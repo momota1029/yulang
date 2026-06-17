@@ -427,6 +427,21 @@ fn run_control_source_text_with_embedded_playground_std_runs_mixed_numeric_add()
 }
 
 #[test]
+fn run_control_source_text_with_embedded_playground_std_formats_frac_roots() {
+    let source = "\
+std::num::frac::new 3 2
+std::num::frac::new 4 2
+";
+    let build =
+        build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
+            .unwrap();
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
+
+    assert_eq!(output.text, "run roots [3/2, 2]\n");
+}
+
+#[test]
 fn run_control_source_text_with_embedded_playground_std_runs_struct_method_example() {
     let source = "\
 struct point { x: int, y: int } with:
@@ -509,6 +524,18 @@ fn run_control_source_text_with_embedded_std_runs_root_expression() {
 
     assert_eq!(output.file_count, embedded_std_files().len() + 1);
     assert_eq!(output.text, "run roots [3]\n");
+}
+
+#[cfg(unix)]
+#[test]
+fn run_with_std_formats_frac_roots() {
+    let (mono, control) = run_with_std_main(
+        "run-std-frac-roots",
+        "std::num::frac::new 3 2\nstd::num::frac::new 4 2\n",
+    );
+
+    assert_eq!(mono.text, "run roots [3/2, 2]\n");
+    assert_eq!(control.text, "run roots [3/2, 2]\n");
 }
 
 #[test]
