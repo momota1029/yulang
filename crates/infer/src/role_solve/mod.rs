@@ -113,6 +113,7 @@ pub(crate) fn resolve_role_constraints_with_method_taint(
 ) -> Vec<RoleResolution> {
     let mut out = Vec::new();
     let main_polarity = MainPolarity::collect(main);
+    let mut candidate_cache = CompactRoleImplCandidateCache::default();
     for constraint in constraints {
         let candidates = impls
             .candidates(&constraint.role)
@@ -125,6 +126,7 @@ pub(crate) fn resolve_role_constraints_with_method_taint(
                     &main_polarity,
                     method_taint,
                     impls,
+                    &mut candidate_cache,
                     &mut FxHashSet::default(),
                 )
             })
@@ -210,13 +212,14 @@ fn resolve_role_candidate(
     main_polarity: &MainPolarity,
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
     impls: &RoleImplTable,
+    candidate_cache: &mut CompactRoleImplCandidateCache,
     stack: &mut FxHashSet<RoleResolutionKey>,
 ) -> Option<ResolvedCandidate> {
     if constraint.inputs.len() != candidate.inputs.len() {
         return None;
     }
     let raw_candidate = candidate;
-    let candidate = compact_role_impl_candidate(machine, raw_candidate);
+    let candidate = candidate_cache.compact(machine, raw_candidate);
     let mut subst = TypeSubst::default();
     for (demand, candidate) in constraint.inputs.iter().zip(&candidate.inputs) {
         let demand = role_arg_concrete_type(demand, main_polarity, method_taint)?;
@@ -240,6 +243,7 @@ fn resolve_role_candidate(
         impls,
         main_polarity,
         method_taint,
+        candidate_cache,
         stack,
     );
     stack.remove(&key);
@@ -251,20 +255,36 @@ fn resolve_role_candidate(
     })
 }
 
-fn compact_role_impl_candidate(
-    machine: &ConstraintMachine,
-    candidate: &RoleImplCandidate,
-) -> CompactRoleConstraint {
-    let mut root = CompactRoot::default();
-    let mut roles = vec![compact_role_constraint(machine, &candidate.as_constraint())];
-    simplify_compact_root_with_roles_and_non_generic(
-        machine,
-        TypeLevel::root(),
-        &mut root,
-        &mut roles,
-        &FxHashSet::default(),
-    );
-    roles.pop().expect("candidate role should remain present")
+#[derive(Default)]
+struct CompactRoleImplCandidateCache {
+    entries: FxHashMap<usize, CompactRoleConstraint>,
+}
+
+impl CompactRoleImplCandidateCache {
+    fn compact(
+        &mut self,
+        machine: &ConstraintMachine,
+        candidate: &RoleImplCandidate,
+    ) -> CompactRoleConstraint {
+        // The cache lives only for one solve call while `impls` and `machine` are immutable.
+        // Pointer identity is enough inside that boundary and avoids cloning the candidate key.
+        let key = candidate as *const RoleImplCandidate as usize;
+        if let Some(compact) = self.entries.get(&key) {
+            return compact.clone();
+        }
+        let mut root = CompactRoot::default();
+        let mut roles = vec![compact_role_constraint(machine, &candidate.as_constraint())];
+        simplify_compact_root_with_roles_and_non_generic(
+            machine,
+            TypeLevel::root(),
+            &mut root,
+            &mut roles,
+            &FxHashSet::default(),
+        );
+        let compact = roles.pop().expect("candidate role should remain present");
+        self.entries.insert(key, compact.clone());
+        compact
+    }
 }
 
 fn resolve_candidate_prerequisites(
@@ -274,6 +294,7 @@ fn resolve_candidate_prerequisites(
     impls: &RoleImplTable,
     main_polarity: &MainPolarity,
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
+    candidate_cache: &mut CompactRoleImplCandidateCache,
     stack: &mut FxHashSet<RoleResolutionKey>,
 ) -> ResolvedPrerequisites {
     let mut solved_prerequisites = Vec::new();
@@ -292,6 +313,7 @@ fn resolve_candidate_prerequisites(
                     main_polarity,
                     method_taint,
                     impls,
+                    candidate_cache,
                     stack,
                 )
             })

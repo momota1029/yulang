@@ -26,8 +26,9 @@ mod collect;
 pub(crate) use analysis::simplify_compact_root;
 pub(crate) use analysis::{
     coalesce_floor_interval_equalities, coalesce_floor_variable_sandwiches,
-    collect_interval_dominance_constraints, eliminate_floor_redundant_variables,
-    normalize_var_substitutions, simplify_compact_root_with_role_variance_table_and_non_generic,
+    collect_interval_dominance_constraints, compact_root_has_interval_bounds,
+    eliminate_floor_redundant_variables, normalize_var_substitutions,
+    simplify_compact_root_with_role_variance_table_and_non_generic,
     simplify_compact_root_with_roles_and_non_generic,
 };
 #[cfg(test)]

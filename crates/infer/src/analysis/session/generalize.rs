@@ -92,25 +92,29 @@ impl AnalysisSession {
                 start,
             );
             let phase = Instant::now();
-            let mut dominance_compact = compact.clone();
-            let mut dominance_roles = coalesced_role_constraints.clone();
             self.timing
-                .record_generalize_dominance_roles(dominance_roles.len());
-            simplify_compact_root_with_roles_and_non_generic(
-                self.infer.constraints(),
-                simplification_boundary,
-                &mut dominance_compact,
-                &mut dominance_roles,
-                &FxHashSet::default(),
-            );
-            coalesce_floor_interval_equalities(
-                self.infer.constraints(),
-                TypeLevel::root(),
-                &mut dominance_compact,
-                &mut dominance_roles,
-            );
+                .record_generalize_dominance_roles(coalesced_role_constraints.len());
             let subtype_constraints =
-                collect_interval_dominance_constraints(&dominance_compact, &dominance_roles);
+                if compact_root_has_interval_bounds(&compact, &coalesced_role_constraints) {
+                    let mut dominance_compact = compact.clone();
+                    let mut dominance_roles = coalesced_role_constraints.clone();
+                    simplify_compact_root_with_roles_and_non_generic(
+                        self.infer.constraints(),
+                        simplification_boundary,
+                        &mut dominance_compact,
+                        &mut dominance_roles,
+                        &FxHashSet::default(),
+                    );
+                    coalesce_floor_interval_equalities(
+                        self.infer.constraints(),
+                        TypeLevel::root(),
+                        &mut dominance_compact,
+                        &mut dominance_roles,
+                    );
+                    collect_interval_dominance_constraints(&dominance_compact, &dominance_roles)
+                } else {
+                    Vec::new()
+                };
             let subtype_constraint_count = subtype_constraints.len();
             let elapsed = phase.elapsed();
             self.timing.record_generalize_collect_dominance(elapsed);

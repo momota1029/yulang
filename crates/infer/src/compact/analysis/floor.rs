@@ -53,6 +53,93 @@ pub(crate) fn collect_interval_dominance_constraints(
     out
 }
 
+pub(crate) fn compact_root_has_interval_bounds(
+    root: &CompactRoot,
+    roles: &[CompactRoleConstraint],
+) -> bool {
+    has_interval_bounds_in_type(&root.root)
+        || root
+            .rec_vars
+            .iter()
+            .any(|rec| has_interval_bounds_in_bounds(&rec.bounds))
+        || roles.iter().any(|role| {
+            role.inputs
+                .iter()
+                .any(|input| has_interval_bounds_in_bounds(&input.bounds))
+                || role
+                    .associated
+                    .iter()
+                    .any(|associated| has_interval_bounds_in_bounds(&associated.value.bounds))
+        })
+}
+
+fn has_interval_bounds_in_bounds(bounds: &CompactBounds) -> bool {
+    match bounds {
+        CompactBounds::Interval { .. } => true,
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
+            args.iter().any(has_interval_bounds_in_bounds)
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            has_interval_bounds_in_bounds(arg)
+                || has_interval_bounds_in_bounds(arg_eff)
+                || has_interval_bounds_in_bounds(ret_eff)
+                || has_interval_bounds_in_bounds(ret)
+        }
+        CompactBounds::Record { fields } => fields
+            .iter()
+            .any(|field| has_interval_bounds_in_bounds(&field.value)),
+        CompactBounds::PolyVariant { items } => items
+            .iter()
+            .any(|(_, payloads)| payloads.iter().any(has_interval_bounds_in_bounds)),
+    }
+}
+
+fn has_interval_bounds_in_type(ty: &CompactType) -> bool {
+    ty.cons
+        .values()
+        .any(|args| args.iter().any(has_interval_bounds_in_bounds))
+        || ty.funs.iter().any(|fun| {
+            has_interval_bounds_in_type(&fun.arg)
+                || has_interval_bounds_in_type(&fun.arg_eff)
+                || has_interval_bounds_in_type(&fun.ret_eff)
+                || has_interval_bounds_in_type(&fun.ret)
+        })
+        || ty.records.iter().any(|record| {
+            record
+                .fields
+                .iter()
+                .any(|field| has_interval_bounds_in_type(&field.value))
+        })
+        || ty.record_spreads.iter().any(|spread| {
+            spread
+                .fields
+                .iter()
+                .any(|field| has_interval_bounds_in_type(&field.value))
+                || has_interval_bounds_in_type(&spread.tail)
+        })
+        || ty.poly_variants.iter().any(|variant| {
+            variant
+                .items
+                .iter()
+                .any(|(_, payloads)| payloads.iter().any(has_interval_bounds_in_type))
+        })
+        || ty
+            .tuples
+            .iter()
+            .any(|tuple| tuple.items.iter().any(has_interval_bounds_in_type))
+        || ty.rows.iter().any(|row| {
+            row.items
+                .values()
+                .any(|args| args.iter().any(has_interval_bounds_in_bounds))
+                || has_interval_bounds_in_type(&row.tail)
+        })
+}
+
 pub(super) fn visit_bounds_interval_dominance(
     bounds: &CompactBounds,
     polarity: Polarity,
