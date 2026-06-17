@@ -120,6 +120,7 @@ impl<'a> Runtime<'a> {
                 let request_resume = request.resume.clone();
                 Ok(EvalResult::Request(Request {
                     path: request.path,
+                    path_key: request.path_key,
                     guard_ids: request.guard_ids,
                     carried_guard_ids: request.carried_guard_ids,
                     payload: request.payload,
@@ -151,6 +152,7 @@ impl<'a> Runtime<'a> {
                 let request_resume = request.resume.clone();
                 Ok(EvalResult::Request(Request {
                     path: request.path,
+                    path_key: request.path_key,
                     guard_ids: request.guard_ids,
                     carried_guard_ids: request.carried_guard_ids,
                     payload: request.payload,
@@ -174,6 +176,7 @@ impl<'a> Runtime<'a> {
                 let request_resume = request.resume.clone();
                 Ok(BindEvalResult::Request(BindRequest {
                     path: request.path,
+                    path_key: request.path_key,
                     guard_ids: request.guard_ids,
                     carried_guard_ids: request.carried_guard_ids,
                     payload: request.payload,
@@ -198,6 +201,7 @@ impl<'a> Runtime<'a> {
                 let request_resume = request.resume.clone();
                 Ok(BindEvalResult::Request(BindRequest {
                     path: request.path,
+                    path_key: request.path_key,
                     guard_ids: request.guard_ids,
                     carried_guard_ids: request.carried_guard_ids,
                     payload: request.payload,

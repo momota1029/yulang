@@ -482,6 +482,12 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
     eprintln!("  run.instance_eval: {}", stats.instance_eval_calls);
     eprintln!("  run.instance_hits: {}", stats.instance_cache_hits);
     eprintln!("  run.instance_misses: {}", stats.instance_cache_misses);
+    eprintln!("  run.path_prefix_checks: {}", stats.path_prefix_checks);
+    eprintln!("  run.path_prefix_segments: {}", stats.path_prefix_segments);
+    eprintln!("  run.path_eq_checks: {}", stats.path_eq_checks);
+    eprintln!("  run.path_eq_segments: {}", stats.path_eq_segments);
+    eprintln!("  run.active_add_scans: {}", stats.active_add_id_scans);
+    eprintln!("  run.active_frame_scans: {}", stats.active_frame_scans);
 }
 
 fn format_duration(duration: Duration) -> String {

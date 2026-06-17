@@ -12,6 +12,7 @@ pub(super) struct Runtime<'a> {
     pub(super) active_marker_plans: Vec<Vec<ValueMarker>>,
     pub(super) next_guard_id: u32,
     pub(super) stats: RuntimeStats,
+    pub(super) path_interner: PathInterner,
 }
 
 impl<'a> Runtime<'a> {
@@ -28,6 +29,7 @@ impl<'a> Runtime<'a> {
             active_marker_plans: Vec::new(),
             next_guard_id: 0,
             stats: RuntimeStats::default(),
+            path_interner: PathInterner::default(),
         }
     }
 
@@ -111,5 +113,9 @@ impl<'a> Runtime<'a> {
         let value = strip_value_markers(expect_eval_value(value?)?);
         self.instances.insert(instance, value.clone());
         Ok(value)
+    }
+
+    pub(super) fn intern_path(&mut self, path: &[String]) -> InternedPath {
+        self.path_interner.intern(path)
     }
 }

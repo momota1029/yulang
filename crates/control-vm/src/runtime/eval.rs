@@ -78,7 +78,8 @@ impl<'a> Runtime<'a> {
             EvalExpr::MarkerFrame { path, body } => {
                 let mut frame_env = env.clone();
                 let id = self.fresh_guard_id();
-                let markers = stack_handler_markers(id, path.clone());
+                let path_key = self.intern_path(&path);
+                let markers = stack_handler_markers(id, path.clone(), path_key);
                 self.with_stack_handler_frame(markers, path, move |runtime| {
                     runtime.eval_expr(body, &mut frame_env)
                 })
@@ -210,6 +211,7 @@ impl<'a> Runtime<'a> {
             }
             EvalResult::Request(request) => {
                 let path = request.path;
+                let path_key = request.path_key;
                 let guard_ids = request.guard_ids;
                 let carried_guard_ids = request.carried_guard_ids;
                 let payload = request.payload;
@@ -218,6 +220,7 @@ impl<'a> Runtime<'a> {
                 self.continue_with(resolved_payload, move |_, payload| {
                     Ok(EvalResult::Request(Request {
                         path: path.clone(),
+                        path_key: path_key.clone(),
                         guard_ids: guard_ids.clone(),
                         carried_guard_ids: carried_guard_ids.clone(),
                         payload,
@@ -347,6 +350,7 @@ impl<'a> Runtime<'a> {
             }
             EvalResult::Request(request) => {
                 let path = request.path;
+                let path_key = request.path_key;
                 let guard_ids = request.guard_ids;
                 let carried_guard_ids = request.carried_guard_ids;
                 let payload = request.payload;
@@ -355,6 +359,7 @@ impl<'a> Runtime<'a> {
                 self.continue_with(resolved_payload, move |_, payload| {
                     Ok(EvalResult::Request(Request {
                         path: path.clone(),
+                        path_key: path_key.clone(),
                         guard_ids: guard_ids.clone(),
                         carried_guard_ids: carried_guard_ids.clone(),
                         payload,
@@ -630,10 +635,15 @@ impl<'a> Runtime<'a> {
         if index < arms.len() {
             let arm = arms[index].clone();
             let operation_path = arm.operation_path.as_ref();
-            let skipped_guard = operation_path
-                .filter(|path| *path == &request.path)
-                .and_then(|path| self.request_guard_for_path(&request, path));
-            if operation_path != Some(&request.path) || skipped_guard.is_some() {
+            let operation_key = operation_path.map(|path| self.intern_path(path));
+            let operation_matches = operation_key
+                .as_ref()
+                .is_some_and(|key| counted_path_eq(&mut self.stats, key, &request.path_key));
+            let skipped_guard = operation_key
+                .as_ref()
+                .filter(|_| operation_matches)
+                .and_then(|key| self.request_guard_for_path(&request, key));
+            if !operation_matches || skipped_guard.is_some() {
                 let request = if let Some(guard_id) = skipped_guard {
                     request_without_guard_id(request, guard_id)
                 } else {
@@ -721,6 +731,7 @@ impl<'a> Runtime<'a> {
         let resume = request.resume.clone();
         Ok(EvalResult::Request(Request {
             path: request.path,
+            path_key: request.path_key,
             guard_ids: request.guard_ids,
             carried_guard_ids: request.carried_guard_ids,
             payload: request.payload,

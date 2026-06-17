@@ -135,8 +135,10 @@ impl<'a> Runtime<'a> {
         payload: Value,
     ) -> RuntimeResult<'a> {
         self.stats.effect_requests += 1;
+        let path_key = self.intern_path(&path);
         let mut request = Request {
             path,
+            path_key,
             guard_ids: Vec::new(),
             carried_guard_ids: Vec::new(),
             payload,
@@ -146,9 +148,11 @@ impl<'a> Runtime<'a> {
         Ok(EvalResult::Request(request))
     }
 
-    pub(super) fn mark_request_with_active_markers(&self, request: &mut Request<'a>) {
+    pub(super) fn mark_request_with_active_markers(&mut self, request: &mut Request<'a>) {
         for marker in &self.active_add_ids {
-            let path_matches_marker = path_has_prefix(&request.path, &marker.path);
+            self.stats.active_add_id_scans += 1;
+            let path_matches_marker =
+                counted_path_has_prefix(&mut self.stats, &request.path_key, &marker.path_key);
             if marker.depth != 0
                 || (path_matches_marker && !marker.guard_own_path)
                 || (!path_matches_marker && !marker.guard_foreign_path)
@@ -189,16 +193,11 @@ impl<'a> Runtime<'a> {
     }
 
     pub(super) fn request_guard_for_path(
-        &self,
+        &mut self,
         request: &Request<'_>,
-        operation_path: &[String],
+        operation_key: &InternedPath,
     ) -> Option<GuardId> {
-        let matching_handler = self.active_frames.iter().rposition(|frame| {
-            frame
-                .handler_path
-                .as_ref()
-                .is_some_and(|path| path_has_prefix(operation_path, path))
-        });
+        let matching_handler = self.find_matching_handler_frame(operation_key);
         let Some(matching_handler) = matching_handler else {
             if self
                 .active_frames
@@ -228,16 +227,7 @@ impl<'a> Runtime<'a> {
             .find(|frame| request.guard_ids.contains(&frame.id))
             .map(|frame| frame.id)
             .or_else(|| {
-                self.active_frames[..=matching_handler]
-                    .iter()
-                    .find(|frame| {
-                        frame
-                            .handler_path
-                            .as_ref()
-                            .is_some_and(|path| path_has_prefix(operation_path, path))
-                            && request.guard_ids.contains(&frame.id)
-                    })
-                    .map(|frame| frame.id)
+                self.find_guarded_matching_handler(operation_key, request, matching_handler)
             })
             .or_else(|| {
                 if self.active_frames.is_empty() {
@@ -248,28 +238,59 @@ impl<'a> Runtime<'a> {
             })
     }
 
+    fn find_matching_handler_frame(&mut self, operation_key: &InternedPath) -> Option<usize> {
+        for (index, frame) in self.active_frames.iter().enumerate().rev() {
+            self.stats.active_frame_scans += 1;
+            let Some(path_key) = frame.handler_key.as_ref() else {
+                continue;
+            };
+            if counted_path_has_prefix(&mut self.stats, operation_key, path_key) {
+                return Some(index);
+            }
+        }
+        None
+    }
+
+    fn find_guarded_matching_handler(
+        &mut self,
+        operation_key: &InternedPath,
+        request: &Request<'_>,
+        matching_handler: usize,
+    ) -> Option<GuardId> {
+        for frame in &self.active_frames[..=matching_handler] {
+            self.stats.active_frame_scans += 1;
+            let Some(path_key) = frame.handler_key.as_ref() else {
+                continue;
+            };
+            if counted_path_has_prefix(&mut self.stats, operation_key, path_key)
+                && request.guard_ids.contains(&frame.id)
+            {
+                return Some(frame.id);
+            }
+        }
+        None
+    }
+
     pub(super) fn instantiate_hygiene(
         &mut self,
         hygiene: &FunctionAdapterHygiene,
     ) -> Vec<ValueMarker> {
-        hygiene
-            .markers
-            .iter()
-            .flat_map(|marker| {
-                let id = self.fresh_guard_id();
-                [
-                    ValueMarker::Frame { id },
-                    ValueMarker::AddId(AddIdMarker {
-                        id,
-                        path: marker.path.clone(),
-                        depth: marker.depth,
-                        guard_own_path: false,
-                        guard_foreign_path: true,
-                        carry_after_frame: true,
-                    }),
-                ]
-            })
-            .collect()
+        let mut markers = Vec::with_capacity(hygiene.markers.len() * 2);
+        for marker in &hygiene.markers {
+            let id = self.fresh_guard_id();
+            let path_key = self.intern_path(&marker.path);
+            markers.push(ValueMarker::Frame { id });
+            markers.push(ValueMarker::AddId(AddIdMarker {
+                id,
+                path: marker.path.clone(),
+                path_key,
+                depth: marker.depth,
+                guard_own_path: false,
+                guard_foreign_path: true,
+                carry_after_frame: true,
+            }));
+        }
+        markers
     }
 
     pub(super) fn fresh_guard_id(&mut self) -> GuardId {
@@ -284,7 +305,8 @@ impl<'a> Runtime<'a> {
         handler_path: Vec<String>,
         run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult<'a> + 'a,
     ) -> RuntimeResult<'a> {
-        self.with_marker_plan(markers, false, Some(handler_path), run)
+        let handler_key = self.intern_path(&handler_path);
+        self.with_marker_plan(markers, false, Some((handler_path, handler_key)), run)
     }
 
     pub(super) fn with_marker_frame(
@@ -299,7 +321,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         markers: Vec<ValueMarker>,
         activate_add_ids: bool,
-        handler_path: Option<Vec<String>>,
+        handler_path: Option<(Vec<String>, InternedPath)>,
         run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult<'a> + 'a,
     ) -> RuntimeResult<'a> {
         if markers.is_empty() {
@@ -321,7 +343,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         markers: &[ValueMarker],
         activate_add_ids: bool,
-        handler_path: Option<Vec<String>>,
+        handler_path: Option<(Vec<String>, InternedPath)>,
     ) {
         self.guard_ids
             .extend(markers.iter().filter_map(ValueMarker::frame_id));
@@ -332,7 +354,8 @@ impl<'a> Runtime<'a> {
                     .filter_map(ValueMarker::frame_id)
                     .map(|id| ActiveFrame {
                         id,
-                        handler_path: handler_path.clone(),
+                        handler_path: handler_path.as_ref().map(|(path, _)| path.clone()),
+                        handler_key: handler_path.as_ref().map(|(_, key)| key.clone()),
                     }),
             );
         if activate_add_ids {
@@ -360,7 +383,7 @@ impl<'a> Runtime<'a> {
         result: EvalResult<'a>,
         markers: Vec<ValueMarker>,
         activate_add_ids: bool,
-        handler_path: Option<Vec<String>>,
+        handler_path: Option<(Vec<String>, InternedPath)>,
     ) -> RuntimeResult<'a> {
         match result {
             EvalResult::Value(value) => {
@@ -371,6 +394,7 @@ impl<'a> Runtime<'a> {
                 let resume_markers = markers_for_continuation_resume(&markers);
                 Ok(EvalResult::Request(Request {
                     path: request.path,
+                    path_key: request.path_key,
                     guard_ids: request.guard_ids,
                     carried_guard_ids: request.carried_guard_ids,
                     payload: request.payload,

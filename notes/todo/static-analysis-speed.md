@@ -68,6 +68,12 @@
   - `eval_expr` の丸ごと `Expr` clone を外すと `expr_clones` は 0 になるが、VM eval の改善は小さめ。
   - `CapturedEnv` を `Rc<HashMap>` + copy-on-write にすると、`showcase` VM eval は約 0.39〜0.48s まで落ちる。
   - 残りの runtime 側は `apply_value` 90247 回、`force_thunk` 23126 回、handler continuation 2456 回が次の観測点。
+- 2026-06-17 effect path intern experiment:
+  - `showcase` では path prefix check 118496 回、prefix segment 比較 418073 回、
+    path equality check 6689 回、equality segment 比較 26521 回。
+  - control VM runtime 内部は effect path を `InternedPath` にし、request/marker/handler 比較を segment id 列にした。
+  - VM eval は 0.40〜0.42s 付近で、COW env ほどの勝ちはない。次に runtime を触るなら、
+    path intern より active marker scan / continuation resume / apply-force chain を見る。
 - typed-surface import の role / impl / effect fidelity を広げる。
 - compiled-unit manifest validation を厳しくする。
 - persistent cache を user dependency SCCs に一般化する。

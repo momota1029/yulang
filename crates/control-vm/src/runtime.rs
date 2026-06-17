@@ -70,6 +70,12 @@ pub struct RuntimeStats {
     pub instance_eval_calls: u64,
     pub instance_cache_hits: u64,
     pub instance_cache_misses: u64,
+    pub path_prefix_checks: u64,
+    pub path_prefix_segments: u64,
+    pub path_eq_checks: u64,
+    pub path_eq_segments: u64,
+    pub active_add_id_scans: u64,
+    pub active_frame_scans: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -206,6 +212,7 @@ pub struct GuardId(pub u32);
 struct ActiveFrame {
     id: GuardId,
     handler_path: Option<Vec<String>>,
+    handler_key: Option<InternedPath>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -234,6 +241,7 @@ impl ValueMarker {
 pub struct AddIdMarker {
     pub id: GuardId,
     pub path: Vec<String>,
+    path_key: InternedPath,
     pub depth: u32,
     pub guard_own_path: bool,
     pub guard_foreign_path: bool,
@@ -252,6 +260,49 @@ impl CapturedEnv {
 
     fn insert(&mut self, def: DefId, value: Value) {
         Rc::make_mut(&mut self.locals).insert(def, value);
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+struct InternedPath {
+    segments: Rc<[u32]>,
+}
+
+impl InternedPath {
+    fn from_segments(segments: Vec<u32>) -> Self {
+        Self {
+            segments: Rc::from(segments),
+        }
+    }
+
+    fn segments(&self) -> &[u32] {
+        &self.segments
+    }
+}
+
+#[derive(Debug, Default)]
+struct PathInterner {
+    segments: HashMap<String, u32>,
+    next_segment: u32,
+}
+
+impl PathInterner {
+    fn intern(&mut self, path: &[String]) -> InternedPath {
+        let segments = path
+            .iter()
+            .map(|segment| self.intern_segment(segment))
+            .collect();
+        InternedPath::from_segments(segments)
+    }
+
+    fn intern_segment(&mut self, segment: &str) -> u32 {
+        if let Some(id) = self.segments.get(segment) {
+            return *id;
+        }
+        let id = self.next_segment;
+        self.next_segment += 1;
+        self.segments.insert(segment.to_string(), id);
+        id
     }
 }
 
@@ -391,6 +442,7 @@ enum EvalResult<'a> {
 #[derive(Clone)]
 struct Request<'a> {
     path: Vec<String>,
+    path_key: InternedPath,
     guard_ids: Vec<GuardId>,
     carried_guard_ids: Vec<GuardId>,
     payload: Value,
@@ -411,6 +463,7 @@ enum BindEvalResult<'a> {
 #[derive(Clone)]
 struct BindRequest<'a> {
     path: Vec<String>,
+    path_key: InternedPath,
     guard_ids: Vec<GuardId>,
     carried_guard_ids: Vec<GuardId>,
     payload: Value,
@@ -853,12 +906,17 @@ fn markers_for_created_value(markers: &[ValueMarker], value: &Value) -> Vec<Valu
     markers_for_value(markers)
 }
 
-fn stack_handler_markers(id: GuardId, path: Vec<String>) -> Vec<ValueMarker> {
+fn stack_handler_markers(
+    id: GuardId,
+    path: Vec<String>,
+    path_key: InternedPath,
+) -> Vec<ValueMarker> {
     vec![
         ValueMarker::Frame { id },
         ValueMarker::AddId(AddIdMarker {
             id,
             path: path.clone(),
+            path_key: path_key.clone(),
             depth: 0,
             guard_own_path: false,
             guard_foreign_path: true,
@@ -867,6 +925,7 @@ fn stack_handler_markers(id: GuardId, path: Vec<String>) -> Vec<ValueMarker> {
         ValueMarker::AddId(AddIdMarker {
             id,
             path,
+            path_key,
             depth: 1,
             guard_own_path: true,
             guard_foreign_path: true,
@@ -931,12 +990,36 @@ fn value_is_thunk_like(value: &Value) -> bool {
     }
 }
 
-fn path_has_prefix(path: &[String], prefix: &[String]) -> bool {
-    prefix.len() <= path.len()
-        && path
-            .iter()
-            .zip(prefix)
-            .all(|(segment, prefix)| segment == prefix)
+fn counted_path_has_prefix(
+    stats: &mut RuntimeStats,
+    path: &InternedPath,
+    prefix: &InternedPath,
+) -> bool {
+    stats.path_prefix_checks += 1;
+    if prefix.segments().len() > path.segments().len() {
+        return false;
+    }
+    for (segment, prefix) in path.segments().iter().zip(prefix.segments()) {
+        stats.path_prefix_segments += 1;
+        if segment != prefix {
+            return false;
+        }
+    }
+    true
+}
+
+fn counted_path_eq(stats: &mut RuntimeStats, left: &InternedPath, right: &InternedPath) -> bool {
+    stats.path_eq_checks += 1;
+    if left.segments().len() != right.segments().len() {
+        return false;
+    }
+    for (left, right) in left.segments().iter().zip(right.segments()) {
+        stats.path_eq_segments += 1;
+        if left != right {
+            return false;
+        }
+    }
+    true
 }
 
 fn path_has_str_prefix(path: &[String], prefix: &[&str]) -> bool {
