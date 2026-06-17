@@ -521,3 +521,64 @@ fn body_lowering_keeps_forward_cycle_in_one_scc() {
         matches!(event, SccEvent::QuantifyComponent { component, .. } if component == &vec![a, b] || component == &vec![b, a])
     }));
 }
+
+#[test]
+fn body_lowering_closes_binding_after_annotation_error() {
+    let root = parse("my bad: Missing = 1\nmy y = bad\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (bad, _) = binding_def_and_order(&lower.modules, module, "bad");
+    let (y, _) = binding_def_and_order(&lower.modules, module, "y");
+
+    let mut output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.iter().any(|error| {
+        matches!(
+            error,
+            BodyLoweringError::Expr {
+                def,
+                name,
+                error: LoweringError::AnnotationBuild { .. },
+            } if *def == bad && name == &Name("bad".into())
+        )
+    }));
+    let events = output.session.take_scc_events();
+    assert!(events.iter().any(|event| {
+        matches!(event, SccEvent::QuantifyComponent { component, .. } if component == &vec![bad])
+    }));
+    assert!(events.iter().any(|event| {
+        matches!(event, SccEvent::InstantiateUse { parent, target, .. } if *parent == y && *target == bad)
+    }));
+    assert!(events.iter().any(|event| {
+        matches!(event, SccEvent::QuantifyComponent { component, .. } if component == &vec![y])
+    }));
+}
+
+#[test]
+fn body_lowering_closes_binding_after_missing_body_error() {
+    let root = parse("my bad: int\nmy y = bad\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (bad, _) = binding_def_and_order(&lower.modules, module, "bad");
+    let (y, _) = binding_def_and_order(&lower.modules, module, "y");
+
+    let mut output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.iter().any(|error| {
+        matches!(
+            error,
+            BodyLoweringError::MissingBody { def, name }
+                if *def == bad && name == &Name("bad".into())
+        )
+    }));
+    let events = output.session.take_scc_events();
+    assert!(events.iter().any(|event| {
+        matches!(event, SccEvent::QuantifyComponent { component, .. } if component == &vec![bad])
+    }));
+    assert!(events.iter().any(|event| {
+        matches!(event, SccEvent::InstantiateUse { parent, target, .. } if *parent == y && *target == bad)
+    }));
+    assert!(events.iter().any(|event| {
+        matches!(event, SccEvent::QuantifyComponent { component, .. } if component == &vec![y])
+    }));
+}

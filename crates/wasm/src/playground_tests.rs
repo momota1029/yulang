@@ -305,6 +305,23 @@ point { x: 3, y: 4 } .norm2
     }
 
     #[test]
+    fn no_std_vm_boundary_on_ref_list_surface_retries_with_playground_std() {
+        let source = "\
+{
+    my $xs = [1]
+    &xs[0] = 2
+    $xs
+}
+";
+        let errors = vec![
+            "unsupported VM boundary: function adapter {get: unit -> thunk[[&xs], int]}"
+                .to_string(),
+        ];
+
+        assert!(super::should_retry_with_embedded_std(source, &errors));
+    }
+
+    #[test]
     fn run_inner_reports_exported_types() {
         clear_std_cache();
         let output = run_inner(

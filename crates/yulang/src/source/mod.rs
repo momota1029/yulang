@@ -974,16 +974,15 @@ fn build_poly_from_sources(files: Vec<CollectedSource>) -> Result<BuildPolyOutpu
         })
         .collect::<Vec<_>>();
     let loaded = sources::load(source_files);
-    let dump = infer::dump::dump_loaded_files(&loaded).map_err(RouteError::Lower)?;
-    let errors = dump
-        .lowering
+    let lowering = infer::lowering::lower_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let errors = lowering
         .errors
         .iter()
         .map(format_body_lowering_error)
         .collect();
     Ok(BuildPolyOutput {
-        arena: dump.lowering.session.poly,
-        labels: dump.lowering.labels,
+        arena: lowering.session.poly,
+        labels: lowering.labels,
         file_count: loaded.len(),
         errors,
     })

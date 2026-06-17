@@ -424,10 +424,7 @@ impl BodyLowerer {
             return;
         };
         let Some(expr) = binding_body_expr(node) else {
-            self.errors.push(BodyLoweringError::MissingBody {
-                def: decl.def,
-                name,
-            });
+            self.push_missing_body_for_decl(decl.def, name);
             return;
         };
         let previous_level = self.session.infer.enter_child_level();
@@ -481,18 +478,10 @@ impl BodyLowerer {
                     Ok(()) => {
                         self.finish_binding(decl.def, name, root, computation, !has_header_args)
                     }
-                    Err(error) => self.errors.push(BodyLoweringError::Expr {
-                        def: decl.def,
-                        name,
-                        error,
-                    }),
+                    Err(error) => self.push_registered_expr_error(decl.def, name, error),
                 }
             }
-            Err(error) => self.errors.push(BodyLoweringError::Expr {
-                def: decl.def,
-                name,
-                error,
-            }),
+            Err(error) => self.push_registered_expr_error(decl.def, name, error),
         }
         self.session.infer.restore_level(previous_level);
     }
@@ -512,10 +501,7 @@ impl BodyLowerer {
         let Some(expr) = binding_body_expr(node) else {
             for name in names {
                 if let Some(decl) = self.next_value_decl(module, &name) {
-                    self.errors.push(BodyLoweringError::MissingBody {
-                        def: decl.def,
-                        name,
-                    });
+                    self.push_missing_body_for_decl(decl.def, name);
                 }
             }
             return;
@@ -575,18 +561,18 @@ impl BodyLowerer {
                         computation,
                         true,
                     ),
-                    Err(error) => self.errors.push(BodyLoweringError::Expr {
-                        def: hidden_def,
-                        name: Name("#destructure".into()),
-                        error,
-                    }),
+                    Err(error) => {
+                        self.push_registered_expr_error(
+                            hidden_def,
+                            Name("#destructure".into()),
+                            error,
+                        );
+                    }
                 }
             }
-            Err(error) => self.errors.push(BodyLoweringError::Expr {
-                def: hidden_def,
-                name: Name("#destructure".into()),
-                error,
-            }),
+            Err(error) => {
+                self.push_registered_expr_error(hidden_def, Name("#destructure".into()), error);
+            }
         }
         self.session.infer.restore_level(previous_level);
 
@@ -615,11 +601,7 @@ impl BodyLowerer {
             .lower_destructured_binding_component(&pattern, hidden_def, name.clone());
             match lowered {
                 Ok(computation) => self.finish_binding(decl.def, name, root, computation, true),
-                Err(error) => self.errors.push(BodyLoweringError::Expr {
-                    def: decl.def,
-                    name,
-                    error,
-                }),
+                Err(error) => self.push_registered_expr_error(decl.def, name, error),
             }
         }
     }
@@ -635,10 +617,7 @@ impl BodyLowerer {
             return;
         };
         let Some(expr) = op_def_body_expr(node) else {
-            self.errors.push(BodyLoweringError::MissingBody {
-                def: decl.def,
-                name,
-            });
+            self.push_missing_body_for_decl(decl.def, name);
             return;
         };
         let previous_level = self.session.infer.enter_child_level();
@@ -668,11 +647,7 @@ impl BodyLowerer {
         });
         match lowered {
             Ok(computation) => self.finish_binding(decl.def, name, root, computation, true),
-            Err(error) => self.errors.push(BodyLoweringError::Expr {
-                def: decl.def,
-                name,
-                error,
-            }),
+            Err(error) => self.push_registered_expr_error(decl.def, name, error),
         }
         self.session.infer.restore_level(previous_level);
     }
@@ -696,6 +671,29 @@ impl BodyLowerer {
         node: &Cst,
         decl: &CastDecl,
     ) -> Result<(), LoweringError> {
+        let previous_level = self.session.infer.enter_child_level();
+        let root = self.session.infer.fresh_type_var();
+        self.typing.set_def(decl.def, root);
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
+                def: decl.def,
+                root,
+            }));
+
+        let result = self.lower_registered_cast_decl_body(node, decl, root);
+        if result.is_err() {
+            self.finish_failed_def(decl.def);
+        }
+        self.session.infer.restore_level(previous_level);
+        result
+    }
+
+    fn lower_registered_cast_decl_body(
+        &mut self,
+        node: &Cst,
+        decl: &CastDecl,
+        root: TypeVar,
+    ) -> Result<(), LoweringError> {
         let pattern = crate::cast_pattern(node).ok_or(LoweringError::UnsupportedSyntax {
             kind: SyntaxKind::CastDecl,
         })?;
@@ -718,16 +716,7 @@ impl BodyLowerer {
             &target_type_expr,
         )?;
 
-        let previous_level = self.session.infer.enter_child_level();
-        let root = self.session.infer.fresh_type_var();
-        self.typing.set_def(decl.def, root);
-        self.session
-            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef {
-                def: decl.def,
-                root,
-            }));
-
-        let lowered = ExprLowerer::with_labels(
+        let computation = ExprLowerer::with_labels(
             &mut self.session,
             &self.modules,
             decl.module,
@@ -740,27 +729,21 @@ impl BodyLowerer {
             &body,
             Some(&target_type_expr),
             root,
+        )?;
+
+        self.session.casts.insert(
+            cast_scheme.source.clone(),
+            cast_scheme.target.clone(),
+            cast_scheme.scheme.clone(),
         );
-        let result = match lowered {
-            Ok(computation) => {
-                self.session.casts.insert(
-                    cast_scheme.source.clone(),
-                    cast_scheme.target.clone(),
-                    cast_scheme.scheme.clone(),
-                );
-                self.session.poly.cast_rules.push(poly::expr::CastRule {
-                    def: decl.def,
-                    source: cast_scheme.source,
-                    target: cast_scheme.target,
-                    scheme: cast_scheme.scheme,
-                });
-                self.finish_binding(decl.def, Name("#cast".into()), root, computation, false);
-                Ok(())
-            }
-            Err(error) => Err(error),
-        };
-        self.session.infer.restore_level(previous_level);
-        result
+        self.session.poly.cast_rules.push(poly::expr::CastRule {
+            def: decl.def,
+            source: cast_scheme.source,
+            target: cast_scheme.target,
+            scheme: cast_scheme.scheme,
+        });
+        self.finish_binding(decl.def, Name("#cast".into()), root, computation, false);
+        Ok(())
     }
 
     pub(super) fn build_cast_scheme(

@@ -116,6 +116,7 @@ impl BodyLowerer {
                         name: method.name.clone(),
                         error: LoweringError::UnsupportedSyntax { kind: field.kind() },
                     });
+                    self.register_failed_def(method.def);
                 }
                 cursor += 2;
                 continue;
@@ -141,6 +142,7 @@ impl BodyLowerer {
                                 error: error.clone(),
                             },
                         });
+                        self.register_failed_def(method.def);
                     }
                     cursor += 2;
                     continue;
@@ -180,11 +182,7 @@ impl BodyLowerer {
                 self.session
                     .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def: method.def }));
             }
-            Err(error) => self.errors.push(BodyLoweringError::Expr {
-                def: method.def,
-                name: method.name.clone(),
-                error,
-            }),
+            Err(error) => self.push_registered_expr_error(method.def, method.name.clone(), error),
         }
 
         self.session.infer.restore_level(previous_level);
@@ -309,11 +307,7 @@ impl BodyLowerer {
                         def: constructor.def,
                     }));
             }
-            Err(error) => self.errors.push(BodyLoweringError::Expr {
-                def: constructor.def,
-                name,
-                error,
-            }),
+            Err(error) => self.push_registered_expr_error(constructor.def, name, error),
         }
 
         self.session.infer.restore_level(previous_level);

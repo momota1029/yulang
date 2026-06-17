@@ -283,10 +283,7 @@ impl BodyLowerer {
         requirement: Option<ResolvedRoleMethodRequirement>,
     ) {
         let Some(expr) = binding_body_expr(node) else {
-            self.errors.push(BodyLoweringError::MissingBody {
-                def: method.def,
-                name: method.name.clone(),
-            });
+            self.push_missing_body_for_decl(method.def, method.name.clone());
             return;
         };
         let previous_level = self.session.infer.enter_child_level();
@@ -333,11 +330,7 @@ impl BodyLowerer {
             Ok(computation) => {
                 self.finish_binding(method.def, method.name.clone(), root, computation, true)
             }
-            Err(error) => self.errors.push(BodyLoweringError::Expr {
-                def: method.def,
-                name: method.name.clone(),
-                error,
-            }),
+            Err(error) => self.push_registered_expr_error(method.def, method.name.clone(), error),
         }
         self.session.infer.restore_level(previous_level);
     }

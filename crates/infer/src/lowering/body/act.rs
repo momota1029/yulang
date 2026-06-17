@@ -59,6 +59,7 @@ impl BodyLowerer {
                     expected: SignatureShape::Function,
                 },
             });
+            self.register_failed_def(def);
             return;
         };
         let Some(operation_decl) = self.modules.act_operation_decl_by_def(def) else {
@@ -92,9 +93,7 @@ impl BodyLowerer {
                 self.session
                     .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
             }
-            Err(error) => self
-                .errors
-                .push(BodyLoweringError::Expr { def, name, error }),
+            Err(error) => self.push_registered_expr_error(def, name, error),
         }
 
         self.session.infer.restore_level(previous_level);

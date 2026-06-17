@@ -240,7 +240,7 @@ fn run_inner_uncached(source: &str) -> RunOutput {
         Ok(output) if output.errors.is_empty() => {
             return RunOutput::from_control_output(output, source, false);
         }
-        Ok(output) if should_retry_with_embedded_std(&output.errors) => {
+        Ok(output) if should_retry_with_embedded_std(source, &output.errors) => {
             return run_with_embedded_std_fallback(source, None);
         }
         Ok(output) => return RunOutput::from_control_output(output, source, false),
@@ -836,6 +836,7 @@ fn embedded_std_source_bytes() -> usize {
 fn source_likely_needs_embedded_std(source: &str) -> bool {
     source.contains("std::")
         || source.contains("use std")
+        || source.contains('$')
         || source.contains(".list")
         || source.contains(".show")
         || source.contains(".map")
@@ -847,12 +848,13 @@ fn source_likely_needs_embedded_std(source: &str) -> bool {
         || source_has_identifier(source, "any")
 }
 
-fn should_retry_with_embedded_std(errors: &[String]) -> bool {
+fn should_retry_with_embedded_std(source: &str, errors: &[String]) -> bool {
     errors.iter().any(|error| {
         error.contains("unresolved value name")
             || error.contains("unresolved type name")
             || error.contains("UnresolvedName")
             || error.contains("UnresolvedTypeName")
+            || error.contains("unsupported VM boundary") && source_likely_needs_embedded_std(source)
     })
 }
 

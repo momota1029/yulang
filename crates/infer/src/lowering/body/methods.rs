@@ -14,10 +14,7 @@ impl BodyLowerer {
         role_associated: &[String],
     ) {
         let Some(expr) = binding_body_expr(node) else {
-            self.errors.push(BodyLoweringError::MissingBody {
-                def: method.def,
-                name: method.name.clone(),
-            });
+            self.push_missing_body_for_decl(method.def, method.name.clone());
             return;
         };
         let previous_level = self.session.infer.enter_child_level();
@@ -58,11 +55,7 @@ impl BodyLowerer {
             Ok(computation) => {
                 self.finish_binding(method.def, method.name.clone(), root, computation, true);
             }
-            Err(error) => self.errors.push(BodyLoweringError::Expr {
-                def: method.def,
-                name: method.name.clone(),
-                error,
-            }),
+            Err(error) => self.push_registered_expr_error(method.def, method.name.clone(), error),
         }
         self.session.infer.restore_level(previous_level);
     }
@@ -76,10 +69,7 @@ impl BodyLowerer {
         type_name_aliases: &[(String, TypeDeclId)],
     ) {
         let Some(expr) = binding_body_expr(node) else {
-            self.errors.push(BodyLoweringError::MissingBody {
-                def: method.def,
-                name: method.name.clone(),
-            });
+            self.push_missing_body_for_decl(method.def, method.name.clone());
             return;
         };
         let previous_level = self.session.infer.enter_child_level();
@@ -113,11 +103,7 @@ impl BodyLowerer {
             Ok(computation) => {
                 self.finish_binding(method.def, method.name.clone(), root, computation, true);
             }
-            Err(error) => self.errors.push(BodyLoweringError::Expr {
-                def: method.def,
-                name: method.name.clone(),
-                error,
-            }),
+            Err(error) => self.push_registered_expr_error(method.def, method.name.clone(), error),
         }
         self.session.infer.restore_level(previous_level);
     }
@@ -131,10 +117,7 @@ impl BodyLowerer {
         type_vars: &[String],
     ) {
         let Some(expr) = binding_body_expr(node) else {
-            self.errors.push(BodyLoweringError::MissingBody {
-                def: method.def,
-                name: method.name.clone(),
-            });
+            self.push_missing_body_for_decl(method.def, method.name.clone());
             return;
         };
         let previous_level = self.session.infer.enter_child_level();
@@ -173,11 +156,7 @@ impl BodyLowerer {
             Ok(computation) => {
                 self.finish_binding(method.def, method.name.clone(), root, computation, true);
             }
-            Err(error) => self.errors.push(BodyLoweringError::Expr {
-                def: method.def,
-                name: method.name.clone(),
-                error,
-            }),
+            Err(error) => self.push_registered_expr_error(method.def, method.name.clone(), error),
         }
         self.session.infer.restore_level(previous_level);
     }
@@ -241,10 +220,12 @@ impl BodyLowerer {
     ) {
         let Some(current) = self.session.poly.defs.get_mut(def) else {
             self.errors.push(BodyLoweringError::NonLetDef { def, name });
+            self.finish_failed_def(def);
             return;
         };
         let Def::Let { body, .. } = current else {
             self.errors.push(BodyLoweringError::NonLetDef { def, name });
+            self.finish_failed_def(def);
             return;
         };
 
@@ -260,6 +241,38 @@ impl BodyLowerer {
                 .runtime_roots
                 .push(poly::expr::RuntimeRoot::ComputedDef(def));
         }
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
+    }
+
+    pub(super) fn register_failed_def(&mut self, def: poly::expr::DefId) {
+        let previous_level = self.session.infer.enter_child_level();
+        let root = self.session.infer.fresh_type_var();
+        self.typing.set_def(def, root);
+        self.session
+            .enqueue(AnalysisWork::Scc(SccInput::RegisterDef { def, root }));
+        self.finish_failed_def(def);
+        self.session.infer.restore_level(previous_level);
+    }
+
+    pub(super) fn push_registered_expr_error(
+        &mut self,
+        def: poly::expr::DefId,
+        name: Name,
+        error: LoweringError,
+    ) {
+        self.errors
+            .push(BodyLoweringError::Expr { def, name, error });
+        self.finish_failed_def(def);
+    }
+
+    pub(super) fn push_missing_body_for_decl(&mut self, def: poly::expr::DefId, name: Name) {
+        self.errors
+            .push(BodyLoweringError::MissingBody { def, name });
+        self.register_failed_def(def);
+    }
+
+    pub(super) fn finish_failed_def(&mut self, def: poly::expr::DefId) {
         self.session
             .enqueue(AnalysisWork::Scc(SccInput::DefFinished { def }));
     }

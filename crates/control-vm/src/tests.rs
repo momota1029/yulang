@@ -285,6 +285,43 @@ fn value_boundary_supports_record_field_functions_that_differ_only_by_effect_sha
     assert!(value_boundary_supported(&target, &source));
 }
 
+#[test]
+fn validator_accepts_ref_constructor_adapter_with_projected_update_effect() {
+    let outer = effect_row(&["outer", "list"]);
+    let update = ref_update_effect(int_type());
+    let source_record = record_with_ref_fields(
+        outer.clone(),
+        Type::EffectRow(vec![update.clone(), outer.clone()]),
+    );
+    let target_record = record_with_ref_fields(outer.clone(), Type::EffectRow(vec![update]));
+    let ref_type = Type::Con {
+        path: vec![
+            "std".to_string(),
+            "control".to_string(),
+            "var".to_string(),
+            "ref".to_string(),
+        ],
+        args: vec![outer, int_type()],
+    };
+    let source = pure_function_type(source_record, ref_type.clone());
+    let target = pure_function_type(target_record, ref_type);
+    let program = Program {
+        roots: vec![Root::Expr(ExprId(1))],
+        instances: Vec::new(),
+        exprs: vec![
+            Expr::Lit(mono::Lit::Unit),
+            Expr::FunctionAdapter {
+                source,
+                target,
+                function: ExprId(0),
+                hygiene: mono::FunctionAdapterHygiene::default(),
+            },
+        ],
+    };
+
+    assert_eq!(validate(&program), Ok(()));
+}
+
 fn lower_source(source: &str) -> infer::lowering::BodyLowering {
     let files = sources::load(vec![sources::SourceFile {
         module_path: sources::Path::default(),
@@ -307,6 +344,21 @@ fn record_with_update_effect(effect: Type) -> Type {
     }])
 }
 
+fn record_with_ref_fields(get_effect: Type, update_effect: Type) -> Type {
+    Type::Record(vec![
+        mono::TypeField {
+            name: "get".to_string(),
+            value: pure_function_type(unit_type(), thunk_type(get_effect, int_type())),
+            optional: false,
+        },
+        mono::TypeField {
+            name: "update_effect".to_string(),
+            value: pure_function_type(unit_type(), thunk_type(update_effect, unit_type())),
+            optional: false,
+        },
+    ])
+}
+
 fn pure_function_type(arg: Type, ret: Type) -> Type {
     Type::Fun {
         arg: Box::new(arg),
@@ -325,6 +377,25 @@ fn thunk_type(effect: Type, value: Type) -> Type {
 
 fn unit_type() -> Type {
     Type::unit()
+}
+
+fn int_type() -> Type {
+    Type::Con {
+        path: vec!["int".to_string()],
+        args: Vec::new(),
+    }
+}
+
+fn ref_update_effect(value: Type) -> Type {
+    Type::Con {
+        path: vec![
+            "std".to_string(),
+            "control".to_string(),
+            "var".to_string(),
+            "ref_update".to_string(),
+        ],
+        args: vec![value],
+    }
 }
 
 fn effect_row(parts: &[&str]) -> Type {

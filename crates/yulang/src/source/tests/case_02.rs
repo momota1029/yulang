@@ -902,9 +902,14 @@ fn check_poly_std_reports_summary_and_type_errors_without_dumping_defs() {
     assert_check_contains(&output, "  lowering errors: 1\n");
     assert_check_contains(
         &output,
-        "std::foo: values 2 typed 1 missing_schemes 1 bodyless 1",
+        "std::foo: values 2 typed 2 missing_schemes 0 bodyless 1",
     );
-    assert_check_contains(&output, "missing schemes:\n");
+    assert!(
+        !output.text.contains("missing schemes:\n"),
+        "failed lowering defs should be closed with poisoned schemes:\n{}",
+        output.text
+    );
+    assert_check_contains(&output, "bodyless declarations:\n");
     assert_check_contains(&output, "std.foo.bad\n");
     assert_check_contains(&output, "lowering errors:\n");
     assert_check_contains(&output, "std.foo.bad: type mismatch: int is not bool\n");
@@ -969,7 +974,8 @@ fn check_poly_std_in_filters_to_requested_module() {
     assert_eq!(output.file_count, 5);
     assert_check_contains(&output, "check-poly-std-in std::foo\n");
     assert_check_contains(&output, "  values: 2\n");
-    assert_check_contains(&output, "  missing schemes: 1\n");
+    assert_check_contains(&output, "  typed lets: 2\n");
+    assert_check_contains(&output, "  missing schemes: 0\n");
     assert_check_contains(&output, "  bodyless declarations: 1\n");
     assert_check_contains(&output, "  lowering errors: 1 local / 2 total\n");
     assert_check_contains(&output, "std.foo.bad: type mismatch: int is not bool\n");
