@@ -63,11 +63,13 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
 
 ## 今すぐやる slice
 
-1. performance baseline を timeout 付きで取る。
-   - `bench/static_analysis_bench.sh --repeat 5`
-   - `bench/static_analysis_bench.sh --repeat 5 --infer-only`
-2. baseline を見て、`source/lower/cache`、`specialize2`、control VM clone のどれが太いか切る。
-3. 太い箇所へ counter / phase timing を足し、先に測ってから最小の最適化へ進む。
+1. infer の内訳 counter / phase timing を足す。
+   - body lowering / constraint solve / summarize のどこが太いか切る。
+   - specialize2 へ入る前の static check だけで見える指標を先に取る。
+2. `showcase` run の内訳を切る。
+   - build poly cache hit/miss、specialize、control lower、VM eval を分ける。
+   - `bench/static_analysis_bench.sh` の `run` 列は現状 wall clock だけなので、次に構造化する。
+3. 測定結果が出てから、source/lower/cache、specialize2、control VM clone の順に最小の最適化へ進む。
 
 ## 守る不変条件
 

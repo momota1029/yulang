@@ -54,6 +54,12 @@
   - `bench/static_analysis_bench.sh --repeat 5`
   - `bench/static_analysis_bench.sh --repeat 5 --infer-only`
   - WSL2 では必ず外側に `timeout` を付ける。
+- 2026-06-17 baseline:
+  - public examples の `check` は total 342〜442ms 程度。
+  - `collect+load` は 70〜85ms 程度で、source collection/load は見えているが最大ではない。
+  - `infer` は 270〜350ms 程度で、今の public example baseline では最太。
+  - `--no-cache run --print-roots` wall clock は `showcase` だけ 1.16〜1.25s、他は 0.43〜0.53s。
+  - 次は infer 内訳と showcase run の build/specialize/control VM 内訳を切る。
 - typed-surface import の role / impl / effect fidelity を広げる。
 - compiled-unit manifest validation を厳しくする。
 - persistent cache を user dependency SCCs に一般化する。
