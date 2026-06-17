@@ -25,6 +25,35 @@
 
 ## TODO
 
+- 2026-06-17 performance review で挙がった候補を、まず計測仮説として扱う。
+  - P0:
+    - source/lower/cache: std/source lowering と file collection/cache 粒度。
+    - specialize2 solver: root / instance ごとの solver 初期化、slot / role demand 反復。
+    - control VM clone: `Expr` / `CapturedEnv` / continuation / marker frame。
+    - effect continuation: request guard、active marker、resume continuation allocation。
+  - P1:
+    - record / polyvariant candidate merge の wide shape。
+    - role impl / typeclass method resolution の candidate scan。
+    - cast lookup の全走査。
+    - pattern matching の recursive clone と `remove(0)` 系。
+    - record field projection の線形探索。
+    - ref update / composite value traversal の clone。
+    - source dependency SCC cache の coarse granularity。
+  - P2:
+    - Rowan / editor token traversal。
+    - path / symbol / type constructor / effect path / role key intern 化。
+- 計測を追加するなら、まず次の counter / timing を見る。
+  - source collection: file count、module load discovery time、`sources::load` time。
+  - infer/lower: lowering time、resolve time、body lowering count、diagnostic evidence count。
+  - specialize2: solver count、slot count、slot solve loop count、role demand iteration count、
+    cast lookup count、typeclass candidate scan count、instance key count。
+  - runtime/control: VM compile time、VM eval time、`Expr` clone 回数、captured env clone 回数、
+    continuation allocation count、marker frame scan count。
+  - surface/editor: parse tree construction time、semantic token traversal time、wasm warm/cold time。
+- 最初の benchmark slice は、既存 script を timeout 付きで動かして baseline を保存する。
+  - `bench/static_analysis_bench.sh --repeat 5`
+  - `bench/static_analysis_bench.sh --repeat 5 --infer-only`
+  - WSL2 では必ず外側に `timeout` を付ける。
 - typed-surface import の role / impl / effect fidelity を広げる。
 - compiled-unit manifest validation を厳しくする。
 - persistent cache を user dependency SCCs に一般化する。

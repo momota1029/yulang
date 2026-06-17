@@ -63,9 +63,11 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
 
 ## 今すぐやる slice
 
-1. `notes/todo/testing.md` の P0 fixture から、既存 Rust test に載せやすいものを順に追加する。
-2. `yulang-editor` が出す token kind と playground CSS class の対応を固定する regression を作る。
-3. release smoke として、cargo を介さない `target/debug/yulang` 実行の最小セットを script 化する。
+1. performance baseline を timeout 付きで取る。
+   - `bench/static_analysis_bench.sh --repeat 5`
+   - `bench/static_analysis_bench.sh --repeat 5 --infer-only`
+2. baseline を見て、`source/lower/cache`、`specialize2`、control VM clone のどれが太いか切る。
+3. 太い箇所へ counter / phase timing を足し、先に測ってから最小の最適化へ進む。
 
 ## 守る不変条件
 
