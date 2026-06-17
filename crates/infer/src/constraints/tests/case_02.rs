@@ -257,6 +257,65 @@ fn direct_tail_upper_prunes_stale_unweighted_row_upper_from_aliases() {
 }
 
 #[test]
+fn tail_alias_keeps_row_upper_across_stack_boundary() {
+    fn assert_order(row_first: bool) {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let inner = TypeVar(1);
+        let tail_var = TypeVar(2);
+        let subtract = SubtractId(0);
+        let nondet_path = vec!["nondet".into()];
+        let inner_pos = machine.alloc_pos(Pos::Var(inner));
+        let source_neg = machine.alloc_neg(Neg::Var(source));
+        let source_pos = machine.alloc_pos(Pos::Var(source));
+        let tail = machine.alloc_neg(Neg::Var(tail_var));
+        let nondet = machine.alloc_neg(Neg::Con(nondet_path.clone(), Vec::new()));
+        let row = machine.alloc_neg(Neg::Row(vec![nondet], tail));
+
+        machine.weighted_subtype(
+            inner_pos,
+            ConstraintWeights {
+                left: ConstraintWeight::push(
+                    subtract,
+                    Subtractability::Set(nondet_path, Vec::new()),
+                ),
+                right: ConstraintWeight::empty(),
+            },
+            source_neg,
+        );
+        if row_first {
+            machine.subtype(source_pos, row);
+            machine.subtype(source_pos, tail);
+        } else {
+            machine.subtype(source_pos, tail);
+            machine.subtype(source_pos, row);
+        }
+
+        let bounds = machine.bounds().of(source).expect("source bounds");
+        assert!(
+            bounds.uppers().iter().any(|upper| {
+                upper.weights.is_empty()
+                    && matches!(machine.types().neg(upper.neg), Neg::Var(found) if *found == tail_var)
+            }),
+            "tail alias should remain for row_first={row_first}"
+        );
+        assert!(
+            bounds.uppers().iter().any(|upper| {
+                upper.weights.is_empty()
+                    && matches!(
+                        machine.types().neg(upper.neg),
+                        Neg::Row(items, row_tail) if items == &[nondet] && *row_tail == tail
+                    )
+            }),
+            "row upper should survive the tail alias for row_first={row_first}"
+        );
+    }
+
+    assert_order(true);
+    assert_order(false);
+}
+
+#[test]
 fn unweighted_row_upper_matches_each_lower_independently() {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);

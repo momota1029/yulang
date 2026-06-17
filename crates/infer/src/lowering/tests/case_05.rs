@@ -567,7 +567,7 @@ fn binding_empty_call_header_lowers_to_unit_lambda_param() {
 }
 
 #[test]
-fn lambda_param_effect_annotation_adds_stacked_inner_lower() {
+fn lambda_param_effect_annotation_uses_inner_arg_effect_and_subtracts_output() {
     let root = parse("type handled\nmy f = \\x: [handled] 'a -> x\n");
     let lower = lower_module_map(&root);
     let module = lower.modules.root_id();
@@ -599,28 +599,22 @@ fn lambda_param_effect_annotation_adds_stacked_inner_lower() {
             _ => None,
         })
         .expect("lambda lower bound should be a function");
-    let param_effect = match types.neg(arg_eff) {
-        Neg::Var(var) => *var,
-        other => panic!("expected arg effect var, got {other:?}"),
+    assert!(
+        matches!(types.neg(arg_eff), Neg::Var(_)),
+        "function arg effect should expose the annotation inner effect, got {:?}",
+        types.neg(arg_eff)
+    );
+    let subtract = match types.pos(ret_eff) {
+        Pos::Stack { weight, .. } => {
+            let [entry] = weight.entries() else {
+                panic!("expected output effect stack pop");
+            };
+            entry.id
+        }
+        Pos::NonSubtract(_, subtract) => *subtract,
+        other => panic!("expected output effect stack pop, got {other:?}"),
     };
 
-    // 注釈残差は fresh な内側変数として param effect の下界に入る。self edge にはしない。
-    let param_bounds = session
-        .infer
-        .constraints()
-        .bounds()
-        .of(param_effect)
-        .expect("param effect should receive stacked inner lower bound");
-    let subtract = param_bounds
-        .lowers()
-        .iter()
-        .find_map(|bound| {
-            if !matches!(types.pos(bound.pos), Pos::Var(var) if *var != param_effect) {
-                return None;
-            }
-            weight_set_path_id(&bound.weights.left, &["handled"])
-        })
-        .expect("param effect should carry handled stack on a fresh inner var");
     assert_pos_stack_pop_var(&session, ret_eff, subtract);
     assert_pos_stack_pop_var(&session, ret, subtract);
 }

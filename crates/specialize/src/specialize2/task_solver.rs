@@ -22,7 +22,7 @@ impl<'a> TaskSolver<'a> {
     ) -> Result<SolvedTask, SpecializeError> {
         let mut solver = Self::new(arena);
         solver.required_exprs.insert(body);
-        let actual = solver.expr(body)?;
+        let actual = solver.expr_with_signature(body, signature.clone())?;
         solver.consume_expr(body, signature.clone())?;
         solver.graph.constrain_exact(actual, signature)?;
         solver.finish()
@@ -129,6 +129,19 @@ impl<'a> TaskSolver<'a> {
             return self.expr(expr);
         };
         self.record_expr_with_expected_fields(expr, &fields, &spread, expected_fields)
+    }
+
+    pub(super) fn expr_with_signature(
+        &mut self,
+        expr: poly_expr::ExprId,
+        signature: Type,
+    ) -> Result<Type, SpecializeError> {
+        if matches!(self.arena.expr(expr), poly_expr::Expr::Lambda(_, _))
+            && lambda_signature_has_concrete_arg_effect(&signature)
+        {
+            return self.lambda_expr_with_signature(expr, signature);
+        }
+        self.expr(expr)
     }
 
     pub(super) fn record_expr_parts(
@@ -626,4 +639,9 @@ impl<'a> TaskSolver<'a> {
             },
         })
     }
+}
+
+fn lambda_signature_has_concrete_arg_effect(signature: &Type) -> bool {
+    function_computation_parts(signature)
+        .is_some_and(|parts| !matches!(parts.arg_effect, Type::OpenVar(_)))
 }

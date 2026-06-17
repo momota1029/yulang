@@ -441,6 +441,29 @@ mod tests {
     }
 
     #[test]
+    fn string_input_keeps_unused_effectful_thunk_argument_suspended() {
+        let lowering = lower_source(
+            "act out:\n  our read: () -> int\n\n\
+             my keep(x: [_] int) = 1\n\
+             keep(out::read(()))\n",
+        );
+        let arena = &lowering.session.poly;
+
+        let program = specialize(arena).expect("effectful argument annotation should specialize");
+
+        assert_eq!(program.instances.len(), 1);
+        assert_eq!(
+            mono::dump::dump_type(&program.instances[0].signature.ty),
+            "thunk[any, int] -> int"
+        );
+        let dump = mono::dump::dump_program(&program);
+        assert!(
+            dump.contains("make-thunk[int ! [out] => thunk[any, int]]"),
+            "{dump}"
+        );
+    }
+
+    #[test]
     fn string_input_materializes_effect_operation_ref_as_effect_op() {
         let lowering = lower_source("act out:\n  our say: int -> unit\nout::say(1)\n");
         let arena = &lowering.session.poly;

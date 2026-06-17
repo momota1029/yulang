@@ -187,11 +187,20 @@ impl ConstraintMachine {
         if !weights.is_empty() {
             return false;
         }
-        let Neg::Row(_, tail) = self.types.neg(neg) else {
-            return false;
-        };
         let Some(bounds) = self.bounds.of(source) else {
             return false;
+        };
+        if self.source_has_row_tail_boundary(source) {
+            return bounds
+                .uppers()
+                .iter()
+                .any(|upper| upper.weights.is_empty() && upper.neg == neg);
+        }
+        let Neg::Row(_, tail) = self.types.neg(neg) else {
+            return bounds
+                .uppers()
+                .iter()
+                .any(|upper| upper.weights.is_empty() && upper.neg == neg);
         };
         bounds.uppers().iter().any(|upper| {
             upper.weights.is_empty() && self.neg_ids_match_for_row_tail(upper.neg, *tail)
@@ -207,6 +216,17 @@ impl ConstraintMachine {
         if !weights.is_empty() {
             return;
         }
+        if self.source_has_row_tail_boundary(source) {
+            return;
+        }
+        self.prune_upper_rows_subsumed_by_reduced_upper(source, neg);
+    }
+
+    pub(in crate::constraints) fn prune_upper_rows_subsumed_by_reduced_upper(
+        &mut self,
+        source: TypeVar,
+        neg: NegId,
+    ) {
         let Some(bounds) = self.bounds.vars.get_mut(&source) else {
             return;
         };
@@ -301,6 +321,16 @@ impl ConstraintMachine {
 
     fn neg_ids_match_for_row_tail(&self, lhs: NegId, rhs: NegId) -> bool {
         neg_ids_match_for_row_tail(&self.types, lhs, rhs)
+    }
+
+    fn source_has_row_tail_boundary(&self, source: TypeVar) -> bool {
+        !self.pre_pop_effect_families(source).is_empty()
+            || self.bounds.of(source).is_some_and(|bounds| {
+                bounds
+                    .lowers()
+                    .iter()
+                    .any(|lower| constraint_weights_have_row_tail_boundary(&lower.weights))
+            })
     }
 
     fn should_close_var_var_replay(
@@ -688,4 +718,16 @@ fn neg_ids_match_for_row_tail(types: &TypeArena, lhs: NegId, rhs: NegId) -> bool
         (Neg::Top, Neg::Top) | (Neg::Bot, Neg::Bot) => true,
         _ => false,
     }
+}
+
+fn constraint_weights_have_row_tail_boundary(weights: &ConstraintWeights) -> bool {
+    constraint_weight_has_row_tail_boundary(&weights.left)
+        || constraint_weight_has_row_tail_boundary(&weights.right)
+}
+
+fn constraint_weight_has_row_tail_boundary(weight: &ConstraintWeight) -> bool {
+    weight
+        .entries()
+        .iter()
+        .any(|entry| !entry.floor.is_empty() || !entry.stack.is_empty())
 }

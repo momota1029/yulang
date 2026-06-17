@@ -582,6 +582,54 @@ mod tests {
     }
 
     #[test]
+    fn function_arg_wildcard_effect_annotation_keeps_stack_boundary() {
+        let root = parse("my site: int [_] -> int = 1\n");
+        let lower = crate::lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let site = lower.modules.value_decls(module, &Name("site".into()))[0].order;
+        let ann = build_ann_type_expr(&lower.modules, module, site, &first_type_expr(&root))
+            .expect("annotation should build");
+        let mut infer = crate::Arena::new();
+        let target = infer.fresh_type_var();
+
+        AnnConstraintLowerer::new(&mut infer, &lower.modules)
+            .connect_value(target, &ann)
+            .expect("annotation constraints should lower");
+
+        let types = infer.constraints().types();
+        let fun = infer
+            .constraints()
+            .bounds()
+            .of(target)
+            .expect("target should receive function lower bound")
+            .lowers()
+            .iter()
+            .find_map(|bound| match types.pos(bound.pos) {
+                Pos::Fun { arg_eff, .. } => Some(*arg_eff),
+                _ => None,
+            })
+            .expect("function annotation should lower to function bound");
+
+        let Neg::Stack { inner, weight } = types.neg(fun) else {
+            panic!(
+                "expected wildcard arg effect stack, got {:?}",
+                types.neg(fun)
+            );
+        };
+        assert!(matches!(types.neg(*inner), Neg::Var(_)));
+        let entry = single_stack_entry(weight);
+        assert_eq!(entry.pops, 0);
+        assert!(
+            entry
+                .stack
+                .iter()
+                .any(|subtractability| matches!(subtractability, Subtractability::All)),
+            "expected All stack entry, got {:?}",
+            entry.stack
+        );
+    }
+
+    #[test]
     fn function_return_effect_with_tail_uses_fresh_stacked_proxy() {
         let root = parse("type handled\nmy site: 'a -> [handled; 'e] 'a = 1\n");
         let lower = crate::lower_module_map(&root);

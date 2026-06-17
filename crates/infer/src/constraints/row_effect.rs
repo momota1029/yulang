@@ -214,7 +214,11 @@ impl ConstraintMachine {
         if self.upper_bound_subsumed_by_existing(source, neg, &weights) {
             return false;
         }
-        self.prune_upper_rows_subsumed_by(source, neg, &weights);
+        if weights.is_empty() {
+            self.prune_upper_rows_subsumed_by_reduced_upper(source, neg);
+        } else {
+            self.prune_upper_rows_subsumed_by(source, neg, &weights);
+        }
         if !self.bounds.add_upper(source, neg, weights.clone()) {
             return false;
         }

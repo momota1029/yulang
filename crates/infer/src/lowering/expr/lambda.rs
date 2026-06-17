@@ -673,6 +673,10 @@ impl<'a> ExprLowerer<'a> {
             .map_err(|error| LoweringError::AnnotationConstraint { error });
         *ann_solver_vars = lowerer.into_vars();
         let connection = connection?;
+        let arg_eff = match connection.effect_stack {
+            Some(ref effect_stack) => self.alloc_neg(Neg::Var(effect_stack.inner)),
+            None => arg_eff,
+        };
         let skeleton_arg_eff = match connection.effect_stack {
             Some(ref effect_stack) => self.alloc_neg(Neg::Var(effect_stack.inner)),
             None => arg_eff,

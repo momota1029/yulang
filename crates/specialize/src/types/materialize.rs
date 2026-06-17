@@ -21,7 +21,7 @@ impl<'a> SchemeMaterializer<'a> {
                 ret,
             } => self.materialize_function_type(
                 self.materialize_neg(*arg, TypeContext::Value)?,
-                self.materialize_neg(*arg_eff, TypeContext::Effect)?,
+                self.materialize_neg_function_arg_effect(*arg_eff)?,
                 self.materialize_pos(*ret_eff, TypeContext::Effect)?,
                 self.materialize_pos(*ret, TypeContext::Value)?,
             ),
@@ -202,6 +202,13 @@ impl<'a> SchemeMaterializer<'a> {
             FunctionMaterialization::Inference => {
                 inference_function_type(arg, arg_effect, ret_effect, ret)
             }
+        }
+    }
+
+    fn materialize_neg_function_arg_effect(&self, id: NegId) -> Result<Type, SpecializeError> {
+        match self.arena.neg(id) {
+            Neg::Top => Ok(Type::Any),
+            _ => self.materialize_neg(id, TypeContext::Effect),
         }
     }
 

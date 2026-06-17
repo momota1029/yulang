@@ -220,6 +220,19 @@ impl<'a> AnnConstraintLowerer<'a> {
         let Some(row) = row else {
             return Ok(self.pure_effect_bounds());
         };
+        if effect_row_has_wildcard(row) {
+            let effect = self.infer.fresh_type_var();
+            self.connect_effect_tail_exact(effect, row)?;
+            let stack = self.effect_row_stack(row)?;
+            self.register_stack_facts(effect, &stack.weight);
+            let pos = self.alloc_pos(Pos::Var(effect));
+            let neg = self.alloc_neg(Neg::Var(effect));
+            return Ok(AnnEffectBounds {
+                pos: self.wrap_pos_with_stack(pos, &stack.weight),
+                neg: self.wrap_neg_with_stack(neg, &stack.weight),
+                subtracts: Vec::new(),
+            });
+        }
         let effect = self.infer.fresh_type_var();
         self.connect_effect_row_lower(effect, row)?;
         Ok(AnnEffectBounds {
