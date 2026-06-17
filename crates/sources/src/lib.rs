@@ -493,10 +493,8 @@ pub fn load(files: Vec<SourceFile>) -> Vec<LoadedFile> {
                 if i == j {
                     continue;
                 }
-                for (name, op) in effective[j].clone() {
-                    if merge_into(&mut effective[i], name, op) {
-                        changed = true;
-                    }
+                if merge_effective_exports(&mut effective, i, j) {
+                    changed = true;
                 }
             }
         }
@@ -551,6 +549,36 @@ fn resolve_use(import: &UseImport, index: &HashMap<Path, usize>) -> Option<usize
         if segments.pop().is_none() {
             return None;
         }
+    }
+}
+
+fn merge_effective_exports(
+    effective: &mut [HashMap<Name, OpDef>],
+    target: usize,
+    source: usize,
+) -> bool {
+    let (target_map, source_map) = split_target_source_maps(effective, target, source);
+    let mut changed = false;
+    for (name, op) in source_map.iter() {
+        if merge_into(target_map, name.clone(), op.clone()) {
+            changed = true;
+        }
+    }
+    changed
+}
+
+fn split_target_source_maps(
+    effective: &mut [HashMap<Name, OpDef>],
+    target: usize,
+    source: usize,
+) -> (&mut HashMap<Name, OpDef>, &HashMap<Name, OpDef>) {
+    debug_assert_ne!(target, source);
+    if target < source {
+        let (left, right) = effective.split_at_mut(source);
+        (&mut left[target], &right[0])
+    } else {
+        let (left, right) = effective.split_at_mut(target);
+        (&mut right[0], &left[source])
     }
 }
 
