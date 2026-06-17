@@ -1,4 +1,13 @@
+use std::cell::RefCell;
+
 use super::*;
+
+thread_local! {
+    static EMBEDDED_STD_LOADED_PREFIX: RefCell<Option<Vec<sources::LoadedFile>>> =
+        const { RefCell::new(None) };
+    static EMBEDDED_PLAYGROUND_STD_LOADED_PREFIX: RefCell<Option<Vec<sources::LoadedFile>>> =
+        const { RefCell::new(None) };
+}
 
 pub(super) fn resolve_std_root(
     base: &FsPath,
@@ -69,6 +78,14 @@ pub(super) fn embedded_std_sources_with_root(
     files
 }
 
+pub(super) fn embedded_std_loaded_with_root(
+    _entry: &FsPath,
+    source: String,
+) -> Vec<sources::LoadedFile> {
+    let prefix = cached_embedded_std_loaded_prefix();
+    load_with_embedded_prefix(prefix, source)
+}
+
 pub(super) fn embedded_playground_std_sources_with_root(
     entry: &FsPath,
     source: String,
@@ -80,6 +97,14 @@ pub(super) fn embedded_playground_std_sources_with_root(
         source: source_with_implicit_std_prelude(source),
     });
     files
+}
+
+pub(super) fn embedded_playground_std_loaded_with_root(
+    _entry: &FsPath,
+    source: String,
+) -> Vec<sources::LoadedFile> {
+    let prefix = cached_embedded_playground_std_loaded_prefix();
+    load_with_embedded_prefix(prefix, source)
 }
 
 pub(super) fn source_with_implicit_std_prelude(source: String) -> String {
@@ -95,6 +120,46 @@ pub(super) fn embedded_std_sources() -> Vec<CollectedSource> {
             source: file.source.to_string(),
         })
         .collect()
+}
+
+fn cached_embedded_std_loaded_prefix() -> Vec<sources::LoadedFile> {
+    EMBEDDED_STD_LOADED_PREFIX.with(|cache| cached_loaded_prefix(cache, || embedded_std_sources()))
+}
+
+fn cached_embedded_playground_std_loaded_prefix() -> Vec<sources::LoadedFile> {
+    EMBEDDED_PLAYGROUND_STD_LOADED_PREFIX.with(|cache| {
+        cached_loaded_prefix(
+            cache,
+            crate::playground_std::embedded_playground_std_sources,
+        )
+    })
+}
+
+fn cached_loaded_prefix(
+    cache: &RefCell<Option<Vec<sources::LoadedFile>>>,
+    sources: impl FnOnce() -> Vec<CollectedSource>,
+) -> Vec<sources::LoadedFile> {
+    let mut cached = cache.borrow_mut();
+    cached
+        .get_or_insert_with(|| load_collected_source_files(sources()))
+        .clone()
+}
+
+fn load_collected_source_files(files: Vec<CollectedSource>) -> Vec<sources::LoadedFile> {
+    sources::load(collected_source_files(files))
+}
+
+fn load_with_embedded_prefix(
+    prefix: Vec<sources::LoadedFile>,
+    source: String,
+) -> Vec<sources::LoadedFile> {
+    sources::load_with_loaded_prefix(
+        &prefix,
+        vec![SourceFile {
+            module_path: Path::default(),
+            source: source_with_implicit_std_prelude(source),
+        }],
+    )
 }
 
 pub(super) fn embedded_std_module_path(relative_path: &str) -> Path {

@@ -434,12 +434,14 @@ fn has_direct_token(node: &SyntaxNode<YulangLanguage>, kind: SyntaxKind) -> bool
 // 全段階が順序無関係（先読み独立／不動点収束／フルパース独立）＝SCC は不要。
 
 /// 入力ファイル。`module_path` は収集層（FS を辿る上位層）が付けてくる前提。
+#[derive(Debug, Clone)]
 pub struct SourceFile {
     pub module_path: Path,
     pub source: String,
 }
 
 /// 先読み・op テーブル確定・フルパースまで済んだファイル。
+#[derive(Debug, Clone)]
 pub struct LoadedFile {
     pub module_path: Path,
     pub source: String,
@@ -453,18 +455,39 @@ pub struct LoadedFile {
 
 /// 全ファイルを読み込む。op テーブルはファイル別に正しく組む（循環 use でも OK）。
 pub fn load(files: Vec<SourceFile>) -> Vec<LoadedFile> {
-    let n = files.len();
+    load_with_loaded_prefix(&[], files)
+}
 
-    // 1. 先読み（各ファイル独立）
-    let headers: Vec<Header> = files.iter().map(|f| read_header(&f.source)).collect();
+/// 既に load 済みの dependency prefix を再利用し、suffix だけをフルパースする。
+///
+/// `prefix` は `suffix` に依存しない dependency-closed な file set であることが前提。
+/// この入口は compiled-unit artifact import の手前に置く軽量な process-local cache 境界で、
+/// downstream file の op table は prefix の header / export surface から組み直す。
+pub fn load_with_loaded_prefix(prefix: &[LoadedFile], suffix: Vec<SourceFile>) -> Vec<LoadedFile> {
+    let n = prefix.len() + suffix.len();
 
-    // 2. module_path → ファイル index
+    let suffix_headers: Vec<Header> = suffix
+        .iter()
+        .map(|file| read_header(&file.source))
+        .collect();
+    let headers: Vec<Header> = prefix
+        .iter()
+        .map(|file| file.header.clone())
+        .chain(suffix_headers.iter().cloned())
+        .collect();
+    let module_paths: Vec<Path> = prefix
+        .iter()
+        .map(|file| file.module_path.clone())
+        .chain(suffix.iter().map(|file| file.module_path.clone()))
+        .collect();
+
+    // 1. module_path → ファイル index
     let mut index: HashMap<Path, usize> = HashMap::with_capacity(n);
-    for (i, f) in files.iter().enumerate() {
-        index.insert(f.module_path.clone(), i);
+    for (i, module_path) in module_paths.iter().enumerate() {
+        index.insert(module_path.clone(), i);
     }
 
-    // 3. 自前 export op（先頭の pub/our op。my はファイル内のみ）
+    // 2. 自前 export op（先頭の pub/our op。my はファイル内のみ）
     let mut effective: Vec<HashMap<Name, OpDef>> = headers
         .iter()
         .map(|header| {
@@ -478,7 +501,7 @@ pub fn load(files: Vec<SourceFile>) -> Vec<LoadedFile> {
         })
         .collect();
 
-    // 4. pub/our use の再エクスポート連鎖を不動点で閉包（循環でも単調収束）
+    // 3. pub/our use の再エクスポート連鎖を不動点で閉包（循環でも単調収束）
     loop {
         let mut changed = false;
         for i in 0..n {
@@ -503,21 +526,13 @@ pub fn load(files: Vec<SourceFile>) -> Vec<LoadedFile> {
         }
     }
 
-    // 5+6. 各ファイルの初期テーブル（standard + use 先の実効 export op）でフルパース。
-    //      自前 op はフルパース中に update_op_table が順次入れるので、ここでは入れない。
+    // 4. prefix は既に full parse 済みなので再利用する。suffix は全体の export surface から
+    //    初期テーブルを組んで full parse する。
     let mut loaded = Vec::with_capacity(n);
-    for (i, (file, header)) in files.into_iter().zip(headers).enumerate() {
-        let mut table = standard_op_table();
-        for use_decl in &header.uses {
-            if let Some(j) = resolve_use(&use_decl.import, &index) {
-                if j == i {
-                    continue;
-                }
-                for (name, op) in &effective[j] {
-                    insert_op(&mut table, name.clone(), op.clone());
-                }
-            }
-        }
+    loaded.extend(prefix.iter().cloned());
+    for (offset, (file, header)) in suffix.into_iter().zip(suffix_headers).enumerate() {
+        let i = prefix.len() + offset;
+        let table = initial_op_table(i, &header, &index, &effective);
         let cst = parser::parse_module_to_green_with_ops(&file.source, table.clone());
         let root = SyntaxNode::<YulangLanguage>::new_root(cst.clone());
         let module_loads = module_load_requests(&file.module_path, &root);
@@ -531,6 +546,28 @@ pub fn load(files: Vec<SourceFile>) -> Vec<LoadedFile> {
         });
     }
     loaded
+}
+
+/// 各ファイルの初期テーブル（standard + use 先の実効 export op）を作る。
+/// 自前 op はフルパース中に parser が update_op_table するため、ここでは入れない。
+fn initial_op_table(
+    file_index: usize,
+    header: &Header,
+    index: &HashMap<Path, usize>,
+    effective: &[HashMap<Name, OpDef>],
+) -> OpTable {
+    let mut table = standard_op_table();
+    for use_decl in &header.uses {
+        if let Some(import_index) = resolve_use(&use_decl.import, index) {
+            if import_index == file_index {
+                continue;
+            }
+            for (name, op) in &effective[import_index] {
+                insert_op(&mut table, name.clone(), op.clone());
+            }
+        }
+    }
+    table
 }
 
 /// use の指す module_path を、最長 prefix マッチでファイル index に解決する。
@@ -811,6 +848,35 @@ mod tests {
                 .map(ModuleLoadRequest::module_path)
                 .collect::<Vec<_>>(),
             vec![path(&["root", "foo"]), path(&["root", "bar"])]
+        );
+    }
+
+    #[test]
+    fn load_with_loaded_prefix_uses_prefix_exports_for_suffix_parse() {
+        let prefix = load(vec![SourceFile {
+            module_path: path(&["ops"]),
+            source: "pub infix (<+>) 50 50 = add\n".into(),
+        }]);
+        let loaded = load_with_loaded_prefix(
+            &prefix,
+            vec![SourceFile {
+                module_path: Path::default(),
+                source: "use ops::*\nmy y = 1 <+> 2\n".into(),
+            }],
+        );
+        let root = loaded
+            .iter()
+            .find(|file| file.module_path.segments.is_empty())
+            .unwrap();
+        let root_cst = SyntaxNode::<YulangLanguage>::new_root(root.cst.clone());
+
+        assert_eq!(loaded[0].module_path, path(&["ops"]));
+        assert!(root.op_table.0.get("<+>".as_bytes()).is_some());
+        assert!(
+            root_cst
+                .descendants_with_tokens()
+                .filter_map(NodeOrToken::into_token)
+                .any(|token| token.kind() == SyntaxKind::Infix && token.text() == "<+>")
         );
     }
 

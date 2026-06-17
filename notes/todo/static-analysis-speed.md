@@ -122,6 +122,19 @@
     `full_parse` が 39.5ms。`header` 2.8ms、fixed point / table / module scan は sub-ms。
   - `read_header` keyword skip と module-load scan skip は改善が見えず棄却。
     まだ残る `load` 40ms 前後は parser / std source artifact cache 側を見る。
+- 2026-06-18 embedded std loaded-prefix cache:
+  - `sources::load_with_loaded_prefix(prefix, suffix)` を追加し、dependency-closed な loaded prefix を
+    再利用して suffix だけ full parse できるようにした。
+  - embedded full std / embedded playground std は thread-local loaded prefix cache を持ち、
+    playground root source だけを suffix として parse する。
+  - wasm playground の colorize と compact playground std run path はこの route を使う。
+  - これは process-local の syntax/load cache であり、CLI の whole source-set artifact cache や
+    将来の persistent source-SCC compiled-unit cacheとは別層。
+  - 一時 benchmark（debug, same process）では embedded playground std の load-only が
+    168.410ms/iter から 3.169ms/iter、build poly まで含めると 1169.368ms/iter から
+    998.976ms/iter。parse/colorize warm path には大きく効き、build 全体では infer が残る。
+  - 次の段は `LoadedFile` 再利用だけでなく、typed / runtime surface を import して
+    unchanged dependency SCC の lowering / inference / runtime lowering を skip すること。
 - typed-surface import の role / impl / effect fidelity を広げる。
 - compiled-unit manifest validation を厳しくする。
 - persistent cache を user dependency SCCs に一般化する。

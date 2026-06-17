@@ -415,15 +415,8 @@ fn collect_source_text_with_embedded_playground_std_uses_compact_package() {
 
 #[test]
 fn collect_source_text_with_embedded_std_imports_prelude_ops_before_root_parse() {
-    let files = collect_source_text_with_embedded_std("playground.yu", "my y = x<..\n".to_string())
-        .unwrap()
-        .into_iter()
-        .map(|file| SourceFile {
-            module_path: file.module_path,
-            source: file.source,
-        })
-        .collect::<Vec<_>>();
-    let loaded = sources::load(files);
+    let loaded =
+        load_source_text_with_embedded_std("playground.yu", "my y = x<..\n".to_string()).unwrap();
     let root = loaded
         .iter()
         .find(|file| file.module_path.segments.is_empty())

@@ -5,7 +5,6 @@ use parser::sink::YulangLanguage;
 use poly::expr::{Def, Vis};
 use rowan::SyntaxNode;
 use serde::Serialize;
-use sources::SourceFile;
 use wasm_bindgen::prelude::*;
 use yulang_editor::semantic_tokens;
 
@@ -79,20 +78,11 @@ pub fn colorize_inner(source: &str) -> ColorizeOutput {
 }
 
 fn colorize_with_playground_op_table(source: &str) -> Option<Vec<HighlightSpan>> {
-    let files = yulang::collect_source_text_with_embedded_playground_std(
-        PLAYGROUND_ENTRY,
-        source.to_owned(),
-    )
-    .ok()?
-    .into_iter()
-    .map(|file| SourceFile {
-        module_path: file.module_path,
-        source: file.source,
-    })
-    .collect::<Vec<_>>();
-    let root = sources::load(files)
-        .into_iter()
-        .find(|file| file.module_path.segments.is_empty())?;
+    let root =
+        yulang::load_source_text_with_embedded_playground_std(PLAYGROUND_ENTRY, source.to_owned())
+            .ok()?
+            .into_iter()
+            .find(|file| file.module_path.segments.is_empty())?;
     if !root.source.ends_with(source) {
         return None;
     }
@@ -298,11 +288,11 @@ fn run_control_from_source_text_with_embedded_std(
 fn run_control_from_source_text_with_playground_std(
     source: &str,
 ) -> Result<WasmControlOutput, yulang::RouteError> {
-    let files = yulang::collect_source_text_with_embedded_playground_std(
+    let poly = yulang::build_poly_from_source_text_with_embedded_playground_std(
         PLAYGROUND_ENTRY,
         source.to_string(),
     )?;
-    let output = build_named_control_from_collected_sources(files)?;
+    let output = build_named_control_from_poly(poly)?;
     run_built_control_program_with_host(output)
 }
 
@@ -319,6 +309,12 @@ fn build_named_control_from_collected_sources(
     files: Vec<yulang::CollectedSource>,
 ) -> Result<NamedControlBuild, yulang::RouteError> {
     let poly = yulang::build_poly_from_collected_sources(files)?;
+    build_named_control_from_poly(poly)
+}
+
+fn build_named_control_from_poly(
+    poly: yulang::BuildPolyOutput,
+) -> Result<NamedControlBuild, yulang::RouteError> {
     let constructor_names = constructor_display_names(&poly);
     let types = exported_type_results(&poly);
     let output = yulang::build_control_from_poly_output(&poly)?;

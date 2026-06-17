@@ -445,11 +445,28 @@ pub fn collect_source_text_with_embedded_playground_std(
     ))
 }
 
+pub fn load_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: String,
+) -> Result<Vec<sources::LoadedFile>, RouteError> {
+    Ok(embedded_std_loaded_with_root(entry.as_ref(), source))
+}
+
+pub fn load_source_text_with_embedded_playground_std(
+    entry: impl AsRef<FsPath>,
+    source: String,
+) -> Result<Vec<sources::LoadedFile>, RouteError> {
+    Ok(embedded_playground_std_loaded_with_root(
+        entry.as_ref(),
+        source,
+    ))
+}
+
 pub fn analyze_source_text_with_embedded_std(
     entry: impl AsRef<FsPath>,
     source: impl Into<String>,
 ) -> Result<AnalyzeSourceOutput, RouteError> {
-    analyze_from_sources(collect_source_text_with_embedded_std(entry, source.into())?)
+    analyze_from_loaded_files(load_source_text_with_embedded_std(entry, source.into())?)
 }
 
 pub fn check_poly_from_source_text_with_embedded_std(
@@ -458,11 +475,15 @@ pub fn check_poly_from_source_text_with_embedded_std(
 ) -> Result<CheckPolyOutput, RouteError> {
     let total_start = Instant::now();
     let collect_start = Instant::now();
-    let files = collect_source_text_with_embedded_std(entry, source.into())?;
+    let source = source.into();
     let collect = collect_start.elapsed();
-    check_poly_from_sources(
-        files,
+    let load_start = Instant::now();
+    let loaded = load_source_text_with_embedded_std(entry, source)?;
+    let load = load_start.elapsed();
+    check_poly_from_loaded_files(
+        loaded,
         collect,
+        load,
         total_start,
         CheckPolyKind::All {
             title: "check-poly-embedded-std",
@@ -474,8 +495,8 @@ pub fn dump_poly_from_source_text_with_embedded_std(
     entry: impl AsRef<FsPath>,
     source: impl Into<String>,
 ) -> Result<DumpPolyOutput, RouteError> {
-    dump_poly_from_sources(
-        collect_source_text_with_embedded_std(entry, source.into())?,
+    dump_poly_from_loaded_files(
+        load_source_text_with_embedded_std(entry, source.into())?,
         DumpPolyKind::Compact,
     )
 }
@@ -484,8 +505,8 @@ pub fn dump_poly_raw_from_source_text_with_embedded_std(
     entry: impl AsRef<FsPath>,
     source: impl Into<String>,
 ) -> Result<DumpPolyOutput, RouteError> {
-    dump_poly_from_sources(
-        collect_source_text_with_embedded_std(entry, source.into())?,
+    dump_poly_from_loaded_files(
+        load_source_text_with_embedded_std(entry, source.into())?,
         DumpPolyKind::Raw,
     )
 }
@@ -494,31 +515,48 @@ pub fn dump_mono_from_source_text_with_embedded_std(
     entry: impl AsRef<FsPath>,
     source: impl Into<String>,
 ) -> Result<DumpMonoOutput, RouteError> {
-    dump_mono_from_sources(collect_source_text_with_embedded_std(entry, source.into())?)
+    dump_mono_from_loaded_files(load_source_text_with_embedded_std(entry, source.into())?)
+}
+
+pub fn build_poly_from_source_text_with_embedded_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<BuildPolyOutput, RouteError> {
+    build_poly_from_loaded_files(load_source_text_with_embedded_std(entry, source.into())?)
+}
+
+pub fn build_poly_from_source_text_with_embedded_playground_std(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<BuildPolyOutput, RouteError> {
+    build_poly_from_loaded_files(load_source_text_with_embedded_playground_std(
+        entry,
+        source.into(),
+    )?)
 }
 
 pub fn build_control_from_source_text_with_embedded_std(
     entry: impl AsRef<FsPath>,
     source: impl Into<String>,
 ) -> Result<BuildControlOutput, RouteError> {
-    build_control_from_sources(collect_source_text_with_embedded_std(entry, source.into())?)
+    let output = build_poly_from_source_text_with_embedded_std(entry, source)?;
+    build_control_from_poly_output(&output)
 }
 
 pub fn build_control_from_source_text_with_embedded_playground_std(
     entry: impl AsRef<FsPath>,
     source: impl Into<String>,
 ) -> Result<BuildControlOutput, RouteError> {
-    build_control_from_sources(collect_source_text_with_embedded_playground_std(
-        entry,
-        source.into(),
-    )?)
+    let output = build_poly_from_source_text_with_embedded_playground_std(entry, source)?;
+    build_control_from_poly_output(&output)
 }
 
 pub fn run_control_from_source_text_with_embedded_std(
     entry: impl AsRef<FsPath>,
     source: impl Into<String>,
 ) -> Result<RunControlOutput, RouteError> {
-    run_control_from_sources(collect_source_text_with_embedded_std(entry, source.into())?)
+    let output = build_control_from_source_text_with_embedded_std(entry, source)?;
+    run_built_control_program(&output.program, output.file_count, output.errors)
 }
 
 /// `base` から上へ辿って、デバッグ用の近場 std package root を探す。
@@ -781,16 +819,19 @@ fn check_poly_from_sources(
     total_start: Instant,
     kind: CheckPolyKind,
 ) -> Result<CheckPolyOutput, RouteError> {
-    let source_files = files
-        .iter()
-        .map(|file| SourceFile {
-            module_path: file.module_path.clone(),
-            source: file.source.clone(),
-        })
-        .collect::<Vec<_>>();
     let load_start = Instant::now();
-    let loaded = sources::load(source_files);
+    let loaded = sources::load(collected_source_files(files));
     let load = load_start.elapsed();
+    check_poly_from_loaded_files(loaded, collect, load, total_start, kind)
+}
+
+fn check_poly_from_loaded_files(
+    loaded: Vec<sources::LoadedFile>,
+    collect: Duration,
+    load: Duration,
+    total_start: Instant,
+    kind: CheckPolyKind,
+) -> Result<CheckPolyOutput, RouteError> {
     let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
     let timing = CheckPolyTimings {
         collect,
@@ -838,14 +879,12 @@ fn check_poly_from_sources(
 }
 
 fn analyze_from_sources(files: Vec<CollectedSource>) -> Result<AnalyzeSourceOutput, RouteError> {
-    let source_files = files
-        .iter()
-        .map(|file| SourceFile {
-            module_path: file.module_path.clone(),
-            source: file.source.clone(),
-        })
-        .collect::<Vec<_>>();
-    let loaded = sources::load(source_files);
+    analyze_from_loaded_files(sources::load(collected_source_files(files)))
+}
+
+fn analyze_from_loaded_files(
+    loaded: Vec<sources::LoadedFile>,
+) -> Result<AnalyzeSourceOutput, RouteError> {
     let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
     let diagnostics = source_diagnostics_from_check(&check, &check.report.diagnostics);
     Ok(AnalyzeSourceOutput {
@@ -874,14 +913,13 @@ fn dump_poly_from_sources(
     files: Vec<CollectedSource>,
     kind: DumpPolyKind,
 ) -> Result<DumpPolyOutput, RouteError> {
-    let source_files = files
-        .iter()
-        .map(|file| SourceFile {
-            module_path: file.module_path.clone(),
-            source: file.source.clone(),
-        })
-        .collect::<Vec<_>>();
-    let loaded = sources::load(source_files);
+    dump_poly_from_loaded_files(sources::load(collected_source_files(files)), kind)
+}
+
+fn dump_poly_from_loaded_files(
+    loaded: Vec<sources::LoadedFile>,
+    kind: DumpPolyKind,
+) -> Result<DumpPolyOutput, RouteError> {
     match kind {
         DumpPolyKind::Compact => {
             let dump = infer::dump::dump_loaded_files(&loaded).map_err(RouteError::Lower)?;
@@ -945,6 +983,17 @@ fn dump_mono_from_sources(files: Vec<CollectedSource>) -> Result<DumpMonoOutput,
     })
 }
 
+fn dump_mono_from_loaded_files(
+    loaded: Vec<sources::LoadedFile>,
+) -> Result<DumpMonoOutput, RouteError> {
+    let output = specialize_mono_from_loaded_files(loaded)?;
+    Ok(DumpMonoOutput {
+        text: specialize::mono::dump::dump_program(&output.program),
+        file_count: output.file_count,
+        errors: output.errors,
+    })
+}
+
 fn run_mono_from_sources(files: Vec<CollectedSource>) -> Result<RunMonoOutput, RouteError> {
     let output = specialize_mono_from_sources(files)?;
     let values = mono_runtime::run_program(&output.program).map_err(RouteError::Runtime)?;
@@ -978,6 +1027,19 @@ fn specialize_mono_from_sources(
     files: Vec<CollectedSource>,
 ) -> Result<SpecializedMonoOutput, RouteError> {
     let output = build_poly_from_sources(files)?;
+    specialize_mono_from_poly_output(output)
+}
+
+fn specialize_mono_from_loaded_files(
+    loaded: Vec<sources::LoadedFile>,
+) -> Result<SpecializedMonoOutput, RouteError> {
+    let output = build_poly_from_loaded_files(loaded)?;
+    specialize_mono_from_poly_output(output)
+}
+
+fn specialize_mono_from_poly_output(
+    output: BuildPolyOutput,
+) -> Result<SpecializedMonoOutput, RouteError> {
     let program = specialize::specialize(&output.arena).map_err(RouteError::Specialize)?;
     Ok(SpecializedMonoOutput {
         program,
@@ -987,14 +1049,12 @@ fn specialize_mono_from_sources(
 }
 
 fn build_poly_from_sources(files: Vec<CollectedSource>) -> Result<BuildPolyOutput, RouteError> {
-    let source_files = files
-        .iter()
-        .map(|file| SourceFile {
-            module_path: file.module_path.clone(),
-            source: file.source.clone(),
-        })
-        .collect::<Vec<_>>();
-    let loaded = sources::load(source_files);
+    build_poly_from_loaded_files(sources::load(collected_source_files(files)))
+}
+
+pub fn build_poly_from_loaded_files(
+    loaded: Vec<sources::LoadedFile>,
+) -> Result<BuildPolyOutput, RouteError> {
     let lowering = infer::lowering::lower_loaded_files(&loaded).map_err(RouteError::Lower)?;
     let errors = lowering
         .errors
@@ -1007,4 +1067,14 @@ fn build_poly_from_sources(files: Vec<CollectedSource>) -> Result<BuildPolyOutpu
         file_count: loaded.len(),
         errors,
     })
+}
+
+fn collected_source_files(files: Vec<CollectedSource>) -> Vec<SourceFile> {
+    files
+        .into_iter()
+        .map(|file| SourceFile {
+            module_path: file.module_path,
+            source: file.source,
+        })
+        .collect()
 }
