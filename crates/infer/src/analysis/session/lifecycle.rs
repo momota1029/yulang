@@ -26,6 +26,8 @@ impl AnalysisSession {
             diagnostics: Vec::new(),
             scc_events: Vec::new(),
             work: VecDeque::new(),
+            timing: AnalysisTiming::default(),
+            instantiated_targets: FxHashSet::default(),
         }
     }
 
@@ -200,8 +202,10 @@ impl AnalysisSession {
     }
 
     /// Convert constraint-machine events into analysis work and cast constraints.
-    pub fn route_constraint_events(&mut self) {
+    pub fn route_constraint_events(&mut self) -> Duration {
+        let start = Instant::now();
         let events = self.infer.constraints_mut().take_events();
+        let event_count = events.len();
         trace_constraint_events(&events);
         for event in events {
             match event {
@@ -227,6 +231,9 @@ impl AnalysisSession {
                 ConstraintEvent::UpperBoundAdded { .. } => {}
             }
         }
+        let elapsed = start.elapsed();
+        self.timing.record_route_constraints(elapsed, event_count);
+        elapsed
     }
 
     /// Drain queued analysis work until method-role solving reaches a fixed point.
@@ -235,7 +242,10 @@ impl AnalysisSession {
         loop {
             while self.step_traced(&mut trace) {}
             trace.before_role_pass(self.selections.unresolved().count(), self.work.len());
+            let role_start = Instant::now();
             let progressed = self.resolve_roles_for_unresolved_methods();
+            self.timing
+                .record_role_pass(role_start.elapsed(), progressed);
             trace.after_role_pass(
                 progressed,
                 self.selections.unresolved().count(),
@@ -308,9 +318,12 @@ impl AnalysisSession {
         &mut self,
         selections: impl IntoIterator<Item = SelectId>,
     ) {
+        let start = Instant::now();
         let mut constraints = Vec::new();
         let mut resolved_parents = Vec::new();
+        let mut selection_count = 0usize;
         for select_id in selections {
+            selection_count += 1;
             if self.poly.select(select_id).resolution.is_some() {
                 self.selections.remove(select_id);
                 continue;
@@ -326,11 +339,14 @@ impl AnalysisSession {
                 .extend(self.record_field_selection_constraints(use_site.method_value, &name));
             resolved_parents.push(use_site.parent);
         }
+        let constraint_count = constraints.len();
         self.infer.subtypes(constraints);
         for parent in resolved_parents {
             self.apply_scc_input(SccInput::MethodDependencyResolved { parent });
         }
         self.route_scc_events();
+        self.timing
+            .record_field_fallback(start.elapsed(), selection_count, constraint_count);
     }
 
     pub(super) fn enqueue_unresolved_selection_probes(&mut self) {
@@ -350,15 +366,18 @@ impl AnalysisSession {
         let Some(work) = self.work.pop_front() else {
             return false;
         };
+        let timing_kind = AnalysisWorkTimingKind::from_work(&work);
+        let start = Instant::now();
         self.apply_work(work);
+        self.timing
+            .record_work(timing_kind, start.elapsed(), self.work.len());
         true
     }
 
     pub(super) fn step_traced(&mut self, trace: &mut AnalysisDrainTrace) -> bool {
         trace.route_start();
-        let route_start = Instant::now();
-        self.route_constraint_events();
-        trace.route(route_start.elapsed(), self.work.len());
+        let route_elapsed = self.route_constraint_events();
+        trace.route(route_elapsed, self.work.len());
         trace.route_done(self.work.len());
         let Some(work) = self.work.pop_front() else {
             return false;
@@ -368,9 +387,13 @@ impl AnalysisSession {
         if trace.mode == AnalysisTraceMode::Verbose {
             self.trace_work_detail(&work);
         }
+        let timing_kind = AnalysisWorkTimingKind::from_work(&work);
         let work_start = Instant::now();
         self.apply_work(work);
-        trace.work_done(kind, work_start.elapsed(), self.work.len());
+        let work_elapsed = work_start.elapsed();
+        self.timing
+            .record_work(timing_kind, work_elapsed, self.work.len());
+        trace.work_done(kind, work_elapsed, self.work.len());
         true
     }
 
@@ -407,6 +430,10 @@ impl AnalysisSession {
     /// Take accumulated analysis diagnostics.
     pub fn take_diagnostics(&mut self) -> Vec<AnalysisDiagnostic> {
         std::mem::take(&mut self.diagnostics)
+    }
+
+    pub fn timing(&self) -> AnalysisTiming {
+        self.timing
     }
 
     pub(super) fn apply_work(&mut self, work: AnalysisWork) {

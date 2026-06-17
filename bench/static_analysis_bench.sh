@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+HEADER_COLUMNS=(
+    case iter check collect load infer bodies drain resolve finish
+    a_route a_work a_role a_taint a_rsolve a_quant q_gen q_pre q_fin
+    g_comp g_roles g_merge g_dom g_sub g_cast g_rrole g_froles g_clean g_filter g_prep
+    a_inst i_clone i_sub i_roles i_runs i_maxrun i_targets i_reuse a_record c_drain c_drains c_work c_sub c_subcall c_many c_invar c_vv c_maxq c_maxw summary total run poly spec ctl_low vm_eval
+    expr clone apply force effect host catch cont inst hit miss
+    pfx pfx_seg peq peq_seg addscan frscan files modules values bodyless errors
+)
+
 main() {
     local repeat=1
     local release=1
@@ -110,6 +119,20 @@ run_case_once() {
     local catch_matches continuations instance_eval instance_hits instance_misses
     local path_prefix path_prefix_seg path_eq path_eq_seg active_add active_frame
     local lower_bodies lower_drain lower_resolve lower_finish
+    local analysis_route analysis_work analysis_role analysis_taint analysis_role_solve
+    local analysis_quantify analysis_quantify_generalize analysis_quantify_prerequisites
+    local analysis_quantify_finalize analysis_instantiate analysis_record_field
+    local generalize_compact generalize_collect_roles generalize_apply_merge
+    local generalize_collect_dominance generalize_apply_subtype generalize_cast
+    local generalize_resolve_roles generalize_final_roles generalize_final_cleanup
+    local generalize_filter_roles generalize_prepared
+    local instantiate_clone_scheme instantiate_subtype_predicate instantiate_insert_roles
+    local instantiate_event_runs instantiate_max_event_run instantiate_unique_targets
+    local instantiate_reused_target_events
+    local constraint_drain constraint_drains constraint_work constraint_subtype
+    local constraint_subtype_calls constraint_subtype_many_calls
+    local constraint_constrain_invariant_neu_calls constraint_constrain_var_var_direct_calls
+    local constraint_max_initial_queue constraint_max_work_items
     case_label="$case_path"
     if ((repeat > 1)); then
         case_label="${case_path}#${iteration}"
@@ -121,6 +144,45 @@ run_case_once() {
     lower_bodies="$(phase_metric "lower.bodies" "$out_file")"
     lower_drain="$(phase_metric "lower.drain" "$out_file")"
     lower_resolve="$(phase_metric "lower.resolve" "$out_file")"
+    analysis_route="$(phase_metric "analysis.route" "$out_file")"
+    analysis_work="$(phase_metric "analysis.work" "$out_file")"
+    analysis_role="$(phase_metric "analysis.role" "$out_file")"
+    analysis_taint="$(phase_metric "analysis.taint" "$out_file")"
+    analysis_role_solve="$(phase_metric "analysis.role_solve" "$out_file")"
+    analysis_quantify="$(phase_metric "analysis.quantify" "$out_file")"
+    analysis_quantify_generalize="$(phase_metric "analysis.quantify_generalize" "$out_file")"
+    analysis_quantify_prerequisites="$(phase_metric "analysis.quantify_prerequisites" "$out_file")"
+    analysis_quantify_finalize="$(phase_metric "analysis.quantify_finalize" "$out_file")"
+    generalize_compact="$(phase_metric "analysis.generalize_compact" "$out_file")"
+    generalize_collect_roles="$(phase_metric "analysis.generalize_collect_roles" "$out_file")"
+    generalize_apply_merge="$(phase_metric "analysis.generalize_apply_merge" "$out_file")"
+    generalize_collect_dominance="$(phase_metric "analysis.generalize_collect_dominance" "$out_file")"
+    generalize_apply_subtype="$(phase_metric "analysis.generalize_apply_subtype" "$out_file")"
+    generalize_cast="$(phase_metric "analysis.generalize_cast" "$out_file")"
+    generalize_resolve_roles="$(phase_metric "analysis.generalize_resolve_roles" "$out_file")"
+    generalize_final_roles="$(phase_metric "analysis.generalize_final_roles" "$out_file")"
+    generalize_final_cleanup="$(phase_metric "analysis.generalize_final_cleanup" "$out_file")"
+    generalize_filter_roles="$(phase_metric "analysis.generalize_filter_roles" "$out_file")"
+    generalize_prepared="$(phase_metric "analysis.generalize_prepared" "$out_file")"
+    analysis_instantiate="$(phase_metric "analysis.instantiate" "$out_file")"
+    instantiate_clone_scheme="$(phase_metric "analysis.instantiate_clone_scheme" "$out_file")"
+    instantiate_subtype_predicate="$(phase_metric "analysis.instantiate_subtype_predicate" "$out_file")"
+    instantiate_insert_roles="$(phase_metric "analysis.instantiate_insert_roles" "$out_file")"
+    instantiate_event_runs="$(phase_metric "analysis.instantiate_event_runs" "$out_file")"
+    instantiate_max_event_run="$(phase_metric "analysis.instantiate_max_event_run" "$out_file")"
+    instantiate_unique_targets="$(phase_metric "analysis.instantiate_unique_targets" "$out_file")"
+    instantiate_reused_target_events="$(phase_metric "analysis.instantiate_reused_target_events" "$out_file")"
+    analysis_record_field="$(phase_metric "analysis.record_field" "$out_file")"
+    constraint_drain="$(phase_metric "constraint.drain" "$out_file")"
+    constraint_drains="$(phase_metric "constraint.drains" "$out_file")"
+    constraint_work="$(phase_metric "constraint.work_items" "$out_file")"
+    constraint_subtype="$(phase_metric "constraint.subtype_work_items" "$out_file")"
+    constraint_subtype_calls="$(phase_metric "constraint.subtype_calls" "$out_file")"
+    constraint_subtype_many_calls="$(phase_metric "constraint.subtype_many_calls" "$out_file")"
+    constraint_constrain_invariant_neu_calls="$(phase_metric "constraint.constrain_invariant_neu_calls" "$out_file")"
+    constraint_constrain_var_var_direct_calls="$(phase_metric "constraint.constrain_var_var_direct_calls" "$out_file")"
+    constraint_max_initial_queue="$(phase_metric "constraint.max_initial_queue" "$out_file")"
+    constraint_max_work_items="$(phase_metric "constraint.max_work_items" "$out_file")"
     lower_finish="$(phase_metric "lower.finish" "$out_file")"
     summarize="$(phase_metric "summarize" "$out_file")"
     total="$(phase_metric "total" "$out_file")"
@@ -155,9 +217,23 @@ run_case_once() {
         read -r run_real run_poly run_spec run_control vm_eval expr_evals expr_clones apply_value force_thunk effect_requests host_requests catch_matches continuations instance_eval instance_hits instance_misses path_prefix path_prefix_seg path_eq path_eq_seg active_add active_frame < <(measure_run_metrics "$release" "$case_path")
     fi
 
-    printf "%-34s %5s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %6s %7s %7s %8s %6s\n" \
+    print_columns \
         "$case_label" "$iteration" "$check_real" "$collect" "$load" "$infer" \
         "$lower_bodies" "$lower_drain" "$lower_resolve" "$lower_finish" \
+        "$analysis_route" "$analysis_work" "$analysis_role" "$analysis_taint" \
+        "$analysis_role_solve" "$analysis_quantify" "$analysis_quantify_generalize" \
+        "$analysis_quantify_prerequisites" "$analysis_quantify_finalize" \
+        "$generalize_compact" "$generalize_collect_roles" "$generalize_apply_merge" \
+        "$generalize_collect_dominance" "$generalize_apply_subtype" "$generalize_cast" \
+        "$generalize_resolve_roles" "$generalize_final_roles" "$generalize_final_cleanup" \
+        "$generalize_filter_roles" "$generalize_prepared" \
+        "$analysis_instantiate" "$instantiate_clone_scheme" "$instantiate_subtype_predicate" \
+        "$instantiate_insert_roles" "$instantiate_event_runs" "$instantiate_max_event_run" \
+        "$instantiate_unique_targets" "$instantiate_reused_target_events" "$analysis_record_field" \
+        "$constraint_drain" "$constraint_drains" "$constraint_work" "$constraint_subtype" \
+        "$constraint_subtype_calls" "$constraint_subtype_many_calls" \
+        "$constraint_constrain_invariant_neu_calls" "$constraint_constrain_var_var_direct_calls" \
+        "$constraint_max_initial_queue" "$constraint_max_work_items" \
         "$summarize" "$total" "$run_real" "$run_poly" "$run_spec" "$run_control" "$vm_eval" \
         "$expr_evals" "$expr_clones" "$apply_value" "$force_thunk" "$effect_requests" "$host_requests" \
         "$catch_matches" "$continuations" "$instance_eval" "$instance_hits" "$instance_misses" \
@@ -168,19 +244,27 @@ run_case_once() {
 }
 
 print_header() {
-    printf "%-34s %5s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %6s %7s %7s %8s %6s\n" \
-        "case" "iter" "check" "collect" "load" "infer" "bodies" "drain" \
-        "resolve" "finish" "summary" "total" "run" "poly" "spec" "ctl_low" "vm_eval" \
-        "expr" "clone" "apply" "force" "effect" "host" "catch" "cont" "inst" "hit" "miss" \
-        "pfx" "pfx_seg" "peq" "peq_seg" "addscan" "frscan" \
-        "files" "modules" "values" "bodyless" "errors"
+    print_columns "${HEADER_COLUMNS[@]}"
 }
 
 print_failed_row() {
     local case_path="$1"
     local iteration="$2"
-    printf "%-34s %5s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %6s %7s %7s %8s %6s\n" \
-        "$case_path" "$iteration" "FAILED" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-" "-"
+    local -a row=("$case_path" "$iteration" "FAILED")
+    while ((${#row[@]} < ${#HEADER_COLUMNS[@]})); do
+        row+=("-")
+    done
+    print_columns "${row[@]}"
+}
+
+print_columns() {
+    local first="$1"
+    shift
+    printf "%-34s" "$first"
+    for value in "$@"; do
+        printf " %9s" "$value"
+    done
+    printf "\n"
 }
 
 phase_metric() {

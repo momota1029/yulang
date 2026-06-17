@@ -9,6 +9,8 @@ pub(super) mod signature_helpers;
 pub(super) mod type_decl;
 
 use super::*;
+use crate::analysis::AnalysisTiming;
+use crate::constraints::ConstraintTiming;
 use register::*;
 use signature_helpers::*;
 
@@ -32,6 +34,8 @@ pub struct BodyLoweringTiming {
     pub resolve_selections: Duration,
     pub finish: Duration,
     pub total: Duration,
+    pub analysis: AnalysisTiming,
+    pub constraint: ConstraintTiming,
 }
 
 /// pass1 の結果へ binding body を書き戻す。
@@ -110,6 +114,8 @@ pub fn lower_loaded_files(files: &[LoadedFile]) -> Result<BodyLowering, LoadedFi
         .session
         .resolve_unresolved_selections_as_record_fields();
     measured.resolve_selections = phase_start.elapsed();
+    measured.analysis = lowerer.session.timing();
+    measured.constraint = lowerer.session.infer.constraint_timing();
     timing.phase("resolve remaining selections", measured.resolve_selections);
 
     let phase_start = Instant::now();
@@ -274,6 +280,8 @@ impl BodyLowerer {
     pub(super) fn finish(self) -> BodyLowering {
         let mut session = self.session;
         session.finalize_poly_role_impls();
+        let analysis_timing = session.timing();
+        let constraint_timing = session.infer.constraint_timing();
         let mut errors = self.errors;
         errors.extend(
             session
@@ -287,7 +295,11 @@ impl BodyLowerer {
             typing: self.typing,
             labels: self.labels,
             errors,
-            timing: BodyLoweringTiming::default(),
+            timing: BodyLoweringTiming {
+                analysis: analysis_timing,
+                constraint: constraint_timing,
+                ..BodyLoweringTiming::default()
+            },
         }
     }
 

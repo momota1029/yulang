@@ -7,7 +7,7 @@ use poly::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, SubtractId, Subtractability, TypeIds, TypeVar,
 };
 
-use crate::constraints::{ConstraintMachine, ConstraintWeights, TypeLevel};
+use crate::constraints::{ConstraintMachine, ConstraintTiming, ConstraintWeights, TypeLevel};
 
 /// lowering / inference run ごとの作業状態。
 ///
@@ -124,6 +124,10 @@ impl Arena {
 
     pub fn constraints_mut(&mut self) -> &mut ConstraintMachine {
         &mut self.constraints
+    }
+
+    pub fn constraint_timing(&self) -> ConstraintTiming {
+        self.constraints.timing()
     }
 }
 

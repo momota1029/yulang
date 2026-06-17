@@ -21,13 +21,16 @@ impl AnalysisSession {
         let mut applied_subtype_constraints = FxHashSet::<CompactSubtypeConstraintKey>::default();
         let mut compact;
         loop {
+            self.timing.record_generalize_iteration();
             let phase = Instant::now();
             let (next_compact, mut merge_constraints) =
                 compact_type_var_recording_merge_constraints_for_scheme(
                     self.infer.constraints(),
                     root,
                 );
-            trace_generalize_phase(trace, "compact", def, phase.elapsed(), start);
+            let elapsed = phase.elapsed();
+            self.timing.record_generalize_compact(elapsed);
+            trace_generalize_phase(trace, "compact", def, elapsed, start);
             let phase = Instant::now();
             let (role_constraints, role_collect_constraints) =
                 compact_reachable_role_constraints_recording_merge_constraints(
@@ -37,7 +40,9 @@ impl AnalysisSession {
                 );
             let (coalesced_role_constraints, role_coalesce_constraints) =
                 coalesce_role_constraints_recording_merge_constraints(role_constraints);
-            trace_generalize_phase(trace, "collect roles", def, phase.elapsed(), start);
+            let elapsed = phase.elapsed();
+            self.timing.record_generalize_collect_roles(elapsed);
+            trace_generalize_phase(trace, "collect roles", def, elapsed, start);
             merge_constraints.extend(role_collect_constraints);
             merge_constraints.extend(role_coalesce_constraints);
             compact = next_compact;
@@ -49,6 +54,8 @@ impl AnalysisSession {
                 &mut applied_merge_constraints,
             ) {
                 let elapsed = phase.elapsed();
+                self.timing
+                    .record_generalize_apply_merge(elapsed, merge_constraint_count);
                 trace_generalize_phase(trace, "apply merge constraints", def, elapsed, start);
                 trace_generalize_count(
                     trace,
@@ -62,6 +69,8 @@ impl AnalysisSession {
                 continue;
             }
             let elapsed = phase.elapsed();
+            self.timing
+                .record_generalize_apply_merge(elapsed, merge_constraint_count);
             trace_generalize_phase(trace, "apply merge constraints", def, elapsed, start);
             trace_generalize_count(
                 trace,
@@ -89,39 +98,41 @@ impl AnalysisSession {
             );
             let subtype_constraints =
                 collect_interval_dominance_constraints(&dominance_compact, &dominance_roles);
-            trace_generalize_phase(trace, "collect dominance", def, phase.elapsed(), start);
+            let subtype_constraint_count = subtype_constraints.len();
+            let elapsed = phase.elapsed();
+            self.timing.record_generalize_collect_dominance(elapsed);
+            trace_generalize_phase(trace, "collect dominance", def, elapsed, start);
             let phase = Instant::now();
             if apply_compact_subtype_constraints(
                 self.infer.constraints_mut(),
                 subtype_constraints,
                 &mut applied_subtype_constraints,
             ) {
-                trace_generalize_phase(
-                    trace,
-                    "apply subtype constraints",
-                    def,
-                    phase.elapsed(),
-                    start,
-                );
+                let elapsed = phase.elapsed();
+                self.timing
+                    .record_generalize_apply_subtype(elapsed, subtype_constraint_count);
+                trace_generalize_phase(trace, "apply subtype constraints", def, elapsed, start);
                 self.route_constraint_events();
                 continue;
             }
-            trace_generalize_phase(
-                trace,
-                "apply subtype constraints",
-                def,
-                phase.elapsed(),
-                start,
-            );
+            let elapsed = phase.elapsed();
+            self.timing
+                .record_generalize_apply_subtype(elapsed, subtype_constraint_count);
+            trace_generalize_phase(trace, "apply subtype constraints", def, elapsed, start);
+            let phase = Instant::now();
             normalize_compact_casts(&mut compact, &applied_casts);
             if let Some(batch) = find_next_compact_cast(&compact, &self.casts, &applied_casts) {
+                let application_count = batch.applications.len();
                 for application in &batch.applications {
                     self.constrain_compact_cast(application);
                 }
+                self.timing
+                    .record_generalize_cast(phase.elapsed(), 1, application_count);
                 applied_casts.insert(batch.key);
                 self.route_constraint_events();
                 continue;
             }
+            self.timing.record_generalize_cast(phase.elapsed(), 0, 0);
 
             let phase = Instant::now();
             let (role_compact, roles) =
@@ -133,7 +144,11 @@ impl AnalysisSession {
                 &self.role_impls,
                 &applied_roles,
             );
-            trace_generalize_phase(trace, "resolve roles", def, phase.elapsed(), start);
+            let resolution_count = resolutions.len();
+            let elapsed = phase.elapsed();
+            self.timing
+                .record_generalize_resolve_roles(elapsed, resolution_count);
+            trace_generalize_phase(trace, "resolve roles", def, elapsed, start);
             if !resolutions.is_empty() {
                 for resolution in resolutions {
                     applied_roles.insert(resolution.key.clone());
@@ -154,6 +169,7 @@ impl AnalysisSession {
         // ことがある。再判定はループ末尾と同じ「主型＋全 role」一括簡約ビューで行う。
         // role 単独で簡約すると共起が減って併合が強く効きすぎ、ループでは適用されなかった
         // 解決をここで初めて作ってしまう（制約を注入せずに述語だけ消える）恐れがある。
+        let phase = Instant::now();
         let coalesced_roles = coalesce_role_constraints(compact_reachable_role_constraints(
             self.infer.constraints(),
             &compact,
@@ -178,6 +194,7 @@ impl AnalysisSession {
                 (!applied && !applied_role_demands.contains(&role)).then_some(role)
             })
             .collect();
+        self.timing.record_generalize_final_roles(phase.elapsed());
 
         let phase = Instant::now();
         let simplifications = self
@@ -210,7 +227,9 @@ impl AnalysisSession {
             &mut compact,
             &mut role_predicates,
         );
-        trace_generalize_phase(trace, "final compact cleanup", def, phase.elapsed(), start);
+        let elapsed = phase.elapsed();
+        self.timing.record_generalize_final_cleanup(elapsed);
+        trace_generalize_phase(trace, "final compact cleanup", def, elapsed, start);
         if !role_predicates.is_empty()
             && (!applied_role_candidates.is_empty() || !applied_role_demands.is_empty())
         {
@@ -230,7 +249,9 @@ impl AnalysisSession {
                     (!applied && !applied_role_demands.contains(&role)).then_some(role)
                 })
                 .collect();
-            trace_generalize_phase(trace, "filter applied roles", def, phase.elapsed(), start);
+            let elapsed = phase.elapsed();
+            self.timing.record_generalize_filter_roles(elapsed);
+            trace_generalize_phase(trace, "filter applied roles", def, elapsed, start);
         }
 
         let phase = Instant::now();
@@ -243,7 +264,9 @@ impl AnalysisSession {
             &self.role_input_variances,
             &FxHashSet::default(),
         );
-        trace_generalize_phase(trace, "generalize prepared", def, phase.elapsed(), start);
+        let elapsed = phase.elapsed();
+        self.timing.record_generalize_prepared(elapsed);
+        trace_generalize_phase(trace, "generalize prepared", def, elapsed, start);
         if !floor_substitutions.is_empty()
             || !floor_variable_substitutions.is_empty()
             || !floor_redundant_substitutions.is_empty()

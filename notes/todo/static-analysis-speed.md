@@ -82,6 +82,26 @@
   - `showcase` infer-only latest sample は total 0.407〜0.421s、infer 0.325〜0.338s 付近。
     効果は小さく、次は compact merge の var-only interval cross product と method-tainted role pass の
     再走査を切る方がよさそう。
+- 2026-06-17 infer analysis timing split:
+  - `check` の `timing:` に `analysis.route/work/role/taint/role_solve/quantify/instantiate/record_field`
+    と quantification subphase を追加した。
+  - `showcase` latest repeat 3 sample では `analysis.quantify` が 0.131〜0.137s、うち
+    `analysis.quantify_generalize` が 0.117〜0.123s。`analysis.instantiate` は 0.046〜0.047s、
+    `analysis.role_solve` は 0.025〜0.028s。
+  - 次は `generalize_root_with_prepasses` の compact / merge / role prepass 内訳を切る。
+- 2026-06-17 infer generalize / constraint drain timing split:
+  - `generalize_root_with_prepasses` は `generalize_apply_merge` 0.025〜0.026s、
+    `generalize_resolve_roles` 0.025〜0.026s、`generalize_compact` 0.016〜0.017s、
+    `generalize_collect_dominance` 0.013s 前後。
+  - `instantiate_subtype_predicate` は 0.043〜0.046s で、instantiate の大半を占める。
+  - `constraint.drain` は 0.098〜0.103s、drain 18118 回、work 42159 件、subtype call 17584 回。
+    `constraint.max_initial_queue` は 2 なので、小さい即時 drain を大量に叩く形が見えている。
+  - ただし、単純な batching は今のところ外れ。contiguous `InstantiateUse` をまとめる実験は
+    drain 回数こそ少し減ったが、max queue / work が太って infer が悪化した。
+  - compact merge の invariant-neu constraints をまとめて流す実験も、queue が太って
+    `constraint.drain` と infer が悪化した。
+  - 次は単純な drain batching ではなく、instantiate predicate の生成/replay 削減と、
+    generalize merge/role resolve loop の再 compact 削減を候補にする。
 - typed-surface import の role / impl / effect fidelity を広げる。
 - compiled-unit manifest validation を厳しくする。
 - persistent cache を user dependency SCCs に一般化する。

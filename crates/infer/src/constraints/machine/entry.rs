@@ -1,5 +1,7 @@
 use super::*;
 
+use crate::time::Instant;
+
 impl ConstraintMachine {
     pub fn new() -> Self {
         Self {
@@ -17,6 +19,7 @@ impl ConstraintMachine {
             seen: FxHashSet::default(),
             var_var_seen: FxHashSet::default(),
             events: Vec::new(),
+            timing: ConstraintTiming::default(),
         }
     }
 
@@ -75,27 +78,37 @@ impl ConstraintMachine {
         &self.events
     }
 
+    pub fn timing(&self) -> ConstraintTiming {
+        self.timing
+    }
+
     pub fn take_events(&mut self) -> Vec<ConstraintEvent> {
         std::mem::take(&mut self.events)
     }
 
     pub fn subtype(&mut self, lower: PosId, upper: NegId) {
+        self.timing.record_subtype_call();
         self.weighted_subtype(lower, ConstraintWeights::empty(), upper);
     }
 
     pub(crate) fn subtype_many(&mut self, constraints: impl IntoIterator<Item = (PosId, NegId)>) {
+        let mut item_count = 0usize;
         for (lower, upper) in constraints {
+            item_count += 1;
             self.enqueue_subtype(lower, ConstraintWeights::empty(), upper);
         }
+        self.timing.record_subtype_many_call(item_count);
         self.drain();
     }
 
     pub fn weighted_subtype(&mut self, lower: PosId, weights: ConstraintWeights, upper: NegId) {
+        self.timing.record_weighted_subtype_call();
         self.enqueue_subtype(lower, weights, upper);
         self.drain();
     }
 
     pub(crate) fn constrain_subtype(&mut self, lower: PosId, upper: NegId) -> bool {
+        self.timing.record_constrain_subtype_call();
         let seen_len = self.seen.len();
         self.enqueue_subtype(lower, ConstraintWeights::empty(), upper);
         self.drain();
@@ -103,6 +116,7 @@ impl ConstraintMachine {
     }
 
     pub(crate) fn constrain_invariant_neu(&mut self, lower: NeuId, upper: NeuId) -> bool {
+        self.timing.record_constrain_invariant_neu_call();
         let seen_len = self.seen.len();
         self.enqueue_invariant_neu(lower, upper, ConstraintWeights::empty());
         self.drain();
@@ -113,9 +127,11 @@ impl ConstraintMachine {
         &mut self,
         pairs: impl IntoIterator<Item = (TypeVar, TypeVar)>,
     ) -> bool {
+        let mut pair_count = 0usize;
         let seen_len = self.seen.len();
         let var_var_seen_len = self.var_var_seen.len();
         for (lower, upper) in pairs {
+            pair_count += 1;
             if lower == upper {
                 continue;
             }
@@ -127,6 +143,7 @@ impl ConstraintMachine {
             self.add_lower_bound(upper, lower_pos, ConstraintWeights::empty());
             self.add_upper_bound(lower, upper_neg, ConstraintWeights::empty());
         }
+        self.timing.record_constrain_var_var_direct_call(pair_count);
         self.drain();
         self.seen.len() != seen_len || self.var_var_seen.len() != var_var_seen_len
     }
@@ -137,6 +154,7 @@ impl ConstraintMachine {
         id: SubtractId,
         subtractability: Subtractability,
     ) {
+        self.timing.record_subtract_fact_call();
         self.observe_type_var(effect);
         self.queue
             .push_back(ConstraintWork::SubtractFact(QueuedSubtractFact {
@@ -178,12 +196,29 @@ impl ConstraintMachine {
     }
 
     pub fn drain(&mut self) {
+        let start = Instant::now();
+        let initial_queue = self.queue.len();
+        let mut work_items = 0usize;
+        let mut subtype_work_items = 0usize;
+        let mut subtract_work_items = 0usize;
         let mut trace = ConstraintDrainTrace::from_env(self);
         while let Some(work) = self.queue.pop_front() {
             trace.work(&work, self);
+            work_items += 1;
+            match &work {
+                ConstraintWork::Subtype(_) => subtype_work_items += 1,
+                ConstraintWork::SubtractFact(_) => subtract_work_items += 1,
+            }
             self.step(work);
         }
         trace.finish(self);
+        self.timing.record_drain(
+            start.elapsed(),
+            initial_queue,
+            work_items,
+            subtype_work_items,
+            subtract_work_items,
+        );
     }
 
     pub(in crate::constraints) fn enqueue_subtype(

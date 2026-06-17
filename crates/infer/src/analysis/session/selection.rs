@@ -90,12 +90,16 @@ impl AnalysisSession {
             return false;
         }
 
+        let method_taint_start = Instant::now();
         let method_taint = build_method_taint_index(self);
+        self.timing
+            .record_method_taint(method_taint_start.elapsed());
         if method_taint.is_empty() {
             return false;
         }
 
         let mut progressed = false;
+        let role_solve_start = Instant::now();
         for def in parents {
             let Some(root) = self.scc.root_of(def) else {
                 continue;
@@ -104,10 +108,15 @@ impl AnalysisSession {
                 progressed = true;
             }
         }
+        self.timing
+            .record_method_role_solve(role_solve_start.elapsed());
 
         if progressed {
             self.route_constraint_events();
+            let enqueue_start = Instant::now();
             self.enqueue_unresolved_selection_probes();
+            self.timing
+                .record_enqueue_selection_probes(enqueue_start.elapsed());
         }
         progressed
     }
@@ -684,7 +693,9 @@ impl AnalysisSession {
     }
 
     pub(super) fn route_scc_events(&mut self) {
-        for event in self.scc.take_events() {
+        let events = self.scc.take_events();
+        self.record_instantiate_event_runs(&events);
+        for event in events {
             match event {
                 SccEvent::OpenUse {
                     target,
@@ -708,6 +719,8 @@ impl AnalysisSession {
                     target,
                     use_value,
                 } => {
+                    let was_new = self.instantiated_targets.insert(target);
+                    self.timing.record_instantiate_target(was_new);
                     self.instantiate_use(parent, target, use_value);
                     self.scc_events.push(SccEvent::InstantiateUse {
                         parent,
@@ -735,5 +748,18 @@ impl AnalysisSession {
                 other => self.scc_events.push(other),
             }
         }
+    }
+
+    fn record_instantiate_event_runs(&mut self, events: &[SccEvent]) {
+        let mut run_len = 0usize;
+        for event in events {
+            if matches!(event, SccEvent::InstantiateUse { .. }) {
+                run_len += 1;
+                continue;
+            }
+            self.timing.record_instantiate_event_run(run_len);
+            run_len = 0;
+        }
+        self.timing.record_instantiate_event_run(run_len);
     }
 }

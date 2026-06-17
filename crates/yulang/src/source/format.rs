@@ -311,6 +311,273 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         "  lower.resolve: {}",
         format_duration(timing.lowering.resolve_selections)
     );
+    let analysis = timing.lowering.analysis;
+    let _ = writeln!(
+        out,
+        "  analysis.route: {}",
+        format_duration(analysis.route_constraints)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work: {}",
+        format_duration(analysis.work_total)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.role: {}",
+        format_duration(analysis.role_pass)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.taint: {}",
+        format_duration(analysis.method_taint)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.role_solve: {}",
+        format_duration(analysis.method_role_solve)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.quantify: {}",
+        format_duration(analysis.quantify)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.quantify_generalize: {}",
+        format_duration(analysis.quantify_generalize)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.quantify_prerequisites: {}",
+        format_duration(analysis.quantify_prerequisites)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.quantify_finalize: {}",
+        format_duration(analysis.quantify_finalize)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_compact: {}",
+        format_duration(analysis.generalize_compact)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_collect_roles: {}",
+        format_duration(analysis.generalize_collect_roles)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_apply_merge: {}",
+        format_duration(analysis.generalize_apply_merge)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_collect_dominance: {}",
+        format_duration(analysis.generalize_collect_dominance)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_apply_subtype: {}",
+        format_duration(analysis.generalize_apply_subtype)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_cast: {}",
+        format_duration(analysis.generalize_cast)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_resolve_roles: {}",
+        format_duration(analysis.generalize_resolve_roles)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_final_roles: {}",
+        format_duration(analysis.generalize_final_roles)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_final_cleanup: {}",
+        format_duration(analysis.generalize_final_cleanup)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_filter_roles: {}",
+        format_duration(analysis.generalize_filter_roles)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_prepared: {}",
+        format_duration(analysis.generalize_prepared)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate: {}",
+        format_duration(analysis.instantiate)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate_clone_scheme: {}",
+        format_duration(analysis.instantiate_clone_scheme)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate_subtype_predicate: {}",
+        format_duration(analysis.instantiate_subtype_predicate)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate_insert_roles: {}",
+        format_duration(analysis.instantiate_insert_roles)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.record_field: {}",
+        format_duration(analysis.record_field_fallback)
+    );
+    let constraint = timing.lowering.constraint;
+    let _ = writeln!(
+        out,
+        "  constraint.drain: {}",
+        format_duration(constraint.drain)
+    );
+    let _ = writeln!(out, "  constraint.drains: {}", constraint.drains);
+    let _ = writeln!(
+        out,
+        "  constraint.empty_drains: {}",
+        constraint.empty_drains
+    );
+    let _ = writeln!(out, "  constraint.work_items: {}", constraint.work_items);
+    let _ = writeln!(
+        out,
+        "  constraint.subtype_work_items: {}",
+        constraint.subtype_work_items
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.subtract_work_items: {}",
+        constraint.subtract_work_items
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.max_initial_queue: {}",
+        constraint.max_initial_queue
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.max_work_items: {}",
+        constraint.max_work_items
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.subtype_calls: {}",
+        constraint.subtype_calls
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.subtype_many_calls: {}",
+        constraint.subtype_many_calls
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.subtype_many_items: {}",
+        constraint.subtype_many_items
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.weighted_subtype_calls: {}",
+        constraint.weighted_subtype_calls
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.constrain_subtype_calls: {}",
+        constraint.constrain_subtype_calls
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.constrain_invariant_neu_calls: {}",
+        constraint.constrain_invariant_neu_calls
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.constrain_var_var_direct_calls: {}",
+        constraint.constrain_var_var_direct_calls
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.constrain_var_var_direct_pairs: {}",
+        constraint.constrain_var_var_direct_pairs
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.subtract_fact_calls: {}",
+        constraint.subtract_fact_calls
+    );
+    let _ = writeln!(out, "  analysis.work_items: {}", analysis.work_items);
+    let _ = writeln!(out, "  analysis.role_passes: {}", analysis.role_passes);
+    let _ = writeln!(
+        out,
+        "  analysis.progressed_role_passes: {}",
+        analysis.progressed_role_passes
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_iterations: {}",
+        analysis.generalize_iterations
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_merge_constraints: {}",
+        analysis.generalize_merge_constraints
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_subtype_constraints: {}",
+        analysis.generalize_subtype_constraints
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_role_resolutions: {}",
+        analysis.generalize_role_resolutions
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_cast_applications: {}",
+        analysis.generalize_cast_applications
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate_event_runs: {}",
+        analysis.instantiate_event_runs
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate_max_event_run: {}",
+        analysis.instantiate_max_event_run
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate_unique_targets: {}",
+        analysis.instantiate_unique_targets
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate_reused_target_events: {}",
+        analysis.instantiate_reused_target_events
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.record_field_selections: {}",
+        analysis.record_field_selections
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.record_field_constraints: {}",
+        analysis.record_field_constraints
+    );
+    let _ = writeln!(out, "  analysis.max_queue: {}", analysis.max_queue);
     let _ = writeln!(
         out,
         "  lower.finish: {}",

@@ -9,6 +9,7 @@ mod projection;
 mod session;
 #[cfg(test)]
 mod tests;
+mod timing;
 mod trace;
 mod work;
 
@@ -65,6 +66,8 @@ use method_taint::{
     MethodTaintIndex, build_method_taint_index, compact_role_constraint_has_method_taint,
 };
 use projection::role_impl_member_projection_substitutions;
+pub use timing::AnalysisTiming;
+use timing::AnalysisWorkTimingKind;
 use trace::{
     AnalysisDrainTrace, AnalysisTraceMode, analysis_trace_mode, analysis_work_kind,
     trace_constraint_events, trace_instantiate_phase, trace_scheme_requested,
@@ -101,6 +104,8 @@ pub struct AnalysisSession {
     diagnostics: Vec<AnalysisDiagnostic>,
     scc_events: Vec<SccEvent>,
     work: VecDeque<AnalysisWork>,
+    timing: AnalysisTiming,
+    instantiated_targets: FxHashSet<DefId>,
 }
 
 fn def_parent_map(poly: &PolyArena) -> FxHashMap<DefId, DefId> {

@@ -10,6 +10,7 @@ mod machine;
 mod row_effect;
 #[cfg(test)]
 mod tests;
+mod timing;
 mod trace;
 
 use std::collections::VecDeque;
@@ -20,6 +21,7 @@ use poly::types::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
+pub use timing::ConstraintTiming;
 use trace::{
     ConstraintDrainTrace, trace_bound_replay_progress, trace_bound_replay_start, trace_var_bounds,
 };
@@ -44,6 +46,7 @@ pub struct ConstraintMachine {
     seen: FxHashSet<SubtypeConstraint>,
     var_var_seen: FxHashSet<VarVarConstraint>,
     events: Vec<ConstraintEvent>,
+    timing: ConstraintTiming,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

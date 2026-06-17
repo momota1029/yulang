@@ -14,14 +14,18 @@ impl AnalysisSession {
         for (def, root) in component.iter().copied().zip(roots.iter().copied()) {
             let phase = Instant::now();
             let scheme = self.generalize_root_with_prepasses(def, root);
-            trace_quantify_phase(trace, "generalize", def, phase.elapsed(), component_start);
+            let elapsed = phase.elapsed();
+            self.timing.record_quantify_generalize(elapsed);
+            trace_quantify_phase(trace, "generalize", def, elapsed, component_start);
             let phase = Instant::now();
             self.collect_role_impl_member_prerequisites(def, &scheme);
+            let elapsed = phase.elapsed();
+            self.timing.record_quantify_prerequisites(elapsed);
             trace_quantify_phase(
                 trace,
                 "collect role prerequisites",
                 def,
-                phase.elapsed(),
+                elapsed,
                 component_start,
             );
             generalized.push((def, scheme));
@@ -41,7 +45,9 @@ impl AnalysisSession {
                 &scheme,
                 &ancestors,
             );
-            trace_quantify_phase(trace, "finalize", def, phase.elapsed(), component_start);
+            let elapsed = phase.elapsed();
+            self.timing.record_quantify_finalize(elapsed);
+            trace_quantify_phase(trace, "finalize", def, elapsed, component_start);
             self.trace_scheme(def, &finalized.scheme);
             self.set_def_scheme(def, finalized.scheme);
         }
@@ -55,6 +61,7 @@ impl AnalysisSession {
                 elapsed.as_secs_f64() * 1000.0
             );
         }
+        self.timing.record_quantify(elapsed, component.len());
     }
 
     pub(super) fn collect_role_impl_member_prerequisites(
@@ -146,35 +153,21 @@ impl AnalysisSession {
             TypeLevel::secondary(),
             &scheme,
         );
-        trace_instantiate_phase(
-            trace,
-            "clone scheme",
-            parent,
-            target,
-            phase.elapsed(),
-            start,
-        );
+        let elapsed = phase.elapsed();
+        self.timing.record_instantiate_clone_scheme(elapsed);
+        trace_instantiate_phase(trace, "clone scheme", parent, target, elapsed, start);
         let phase = Instant::now();
         let use_upper = self.infer.alloc_neg(Neg::Var(use_value));
         self.infer.subtype(instantiated.predicate, use_upper);
-        trace_instantiate_phase(
-            trace,
-            "subtype predicate",
-            parent,
-            target,
-            phase.elapsed(),
-            start,
-        );
+        let elapsed = phase.elapsed();
+        self.timing.record_instantiate_subtype_predicate(elapsed);
+        trace_instantiate_phase(trace, "subtype predicate", parent, target, elapsed, start);
         let phase = Instant::now();
         self.insert_instantiated_role_predicates(parent, &instantiated.role_predicates);
-        trace_instantiate_phase(
-            trace,
-            "insert roles",
-            parent,
-            target,
-            phase.elapsed(),
-            start,
-        );
+        let elapsed = phase.elapsed();
+        self.timing.record_instantiate_insert_roles(elapsed);
+        trace_instantiate_phase(trace, "insert roles", parent, target, elapsed, start);
+        self.timing.record_instantiate(start.elapsed());
     }
 
     pub(super) fn trace_scheme(&self, target: DefId, scheme: &Scheme) {

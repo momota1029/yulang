@@ -1,0 +1,266 @@
+//! Aggregate timing counters for the analysis coordinator.
+//!
+//! These counters are intentionally separate from environment-gated tracing.
+//! They are cheap, always-collected phase metrics used by CLI timing output and
+//! benchmark scripts.
+
+use crate::time::Duration;
+
+use super::AnalysisWork;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct AnalysisTiming {
+    pub route_constraints: Duration,
+    pub work_total: Duration,
+    pub work_resolve_ref: Duration,
+    pub work_probe_select: Duration,
+    pub work_apply_ref: Duration,
+    pub work_apply_select: Duration,
+    pub work_scc: Duration,
+    pub role_pass: Duration,
+    pub method_taint: Duration,
+    pub method_role_solve: Duration,
+    pub enqueue_selection_probes: Duration,
+    pub quantify: Duration,
+    pub quantify_generalize: Duration,
+    pub quantify_prerequisites: Duration,
+    pub quantify_finalize: Duration,
+    pub generalize_compact: Duration,
+    pub generalize_collect_roles: Duration,
+    pub generalize_apply_merge: Duration,
+    pub generalize_collect_dominance: Duration,
+    pub generalize_apply_subtype: Duration,
+    pub generalize_cast: Duration,
+    pub generalize_resolve_roles: Duration,
+    pub generalize_final_roles: Duration,
+    pub generalize_final_cleanup: Duration,
+    pub generalize_filter_roles: Duration,
+    pub generalize_prepared: Duration,
+    pub instantiate: Duration,
+    pub instantiate_clone_scheme: Duration,
+    pub instantiate_subtype_predicate: Duration,
+    pub instantiate_insert_roles: Duration,
+    pub record_field_fallback: Duration,
+    pub constraint_event_batches: usize,
+    pub constraint_events: usize,
+    pub work_items: usize,
+    pub max_queue: usize,
+    pub role_passes: usize,
+    pub progressed_role_passes: usize,
+    pub quantified_components: usize,
+    pub quantified_defs: usize,
+    pub generalize_iterations: usize,
+    pub generalize_merge_constraints: usize,
+    pub generalize_subtype_constraints: usize,
+    pub generalize_cast_batches: usize,
+    pub generalize_cast_applications: usize,
+    pub generalize_role_resolutions: usize,
+    pub instantiated_uses: usize,
+    pub instantiate_event_runs: usize,
+    pub instantiate_max_event_run: usize,
+    pub instantiate_unique_targets: usize,
+    pub instantiate_reused_target_events: usize,
+    pub record_field_batches: usize,
+    pub record_field_selections: usize,
+    pub record_field_constraints: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum AnalysisWorkTimingKind {
+    ResolveRef,
+    ProbeSelect,
+    ApplyRef,
+    ApplySelect,
+    Scc,
+}
+
+impl AnalysisWorkTimingKind {
+    pub(super) fn from_work(work: &AnalysisWork) -> Self {
+        match work {
+            AnalysisWork::ResolveRef(_) => Self::ResolveRef,
+            AnalysisWork::ProbeSelect(_) => Self::ProbeSelect,
+            AnalysisWork::ApplyRefResolution { .. } => Self::ApplyRef,
+            AnalysisWork::ApplySelectionResolution { .. } => Self::ApplySelect,
+            AnalysisWork::Scc(_) => Self::Scc,
+        }
+    }
+}
+
+impl AnalysisTiming {
+    pub(super) fn record_route_constraints(&mut self, elapsed: Duration, event_count: usize) {
+        self.route_constraints += elapsed;
+        self.constraint_event_batches += 1;
+        self.constraint_events += event_count;
+    }
+
+    pub(super) fn record_work(
+        &mut self,
+        kind: AnalysisWorkTimingKind,
+        elapsed: Duration,
+        queue_len: usize,
+    ) {
+        self.work_total += elapsed;
+        self.work_items += 1;
+        self.max_queue = self.max_queue.max(queue_len);
+        match kind {
+            AnalysisWorkTimingKind::ResolveRef => self.work_resolve_ref += elapsed,
+            AnalysisWorkTimingKind::ProbeSelect => self.work_probe_select += elapsed,
+            AnalysisWorkTimingKind::ApplyRef => self.work_apply_ref += elapsed,
+            AnalysisWorkTimingKind::ApplySelect => self.work_apply_select += elapsed,
+            AnalysisWorkTimingKind::Scc => self.work_scc += elapsed,
+        }
+    }
+
+    pub(super) fn record_role_pass(&mut self, elapsed: Duration, progressed: bool) {
+        self.role_pass += elapsed;
+        self.role_passes += 1;
+        if progressed {
+            self.progressed_role_passes += 1;
+        }
+    }
+
+    pub(super) fn record_method_taint(&mut self, elapsed: Duration) {
+        self.method_taint += elapsed;
+    }
+
+    pub(super) fn record_method_role_solve(&mut self, elapsed: Duration) {
+        self.method_role_solve += elapsed;
+    }
+
+    pub(super) fn record_enqueue_selection_probes(&mut self, elapsed: Duration) {
+        self.enqueue_selection_probes += elapsed;
+    }
+
+    pub(super) fn record_quantify(&mut self, elapsed: Duration, def_count: usize) {
+        self.quantify += elapsed;
+        self.quantified_components += 1;
+        self.quantified_defs += def_count;
+    }
+
+    pub(super) fn record_quantify_generalize(&mut self, elapsed: Duration) {
+        self.quantify_generalize += elapsed;
+    }
+
+    pub(super) fn record_quantify_prerequisites(&mut self, elapsed: Duration) {
+        self.quantify_prerequisites += elapsed;
+    }
+
+    pub(super) fn record_quantify_finalize(&mut self, elapsed: Duration) {
+        self.quantify_finalize += elapsed;
+    }
+
+    pub(super) fn record_generalize_iteration(&mut self) {
+        self.generalize_iterations += 1;
+    }
+
+    pub(super) fn record_generalize_compact(&mut self, elapsed: Duration) {
+        self.generalize_compact += elapsed;
+    }
+
+    pub(super) fn record_generalize_collect_roles(&mut self, elapsed: Duration) {
+        self.generalize_collect_roles += elapsed;
+    }
+
+    pub(super) fn record_generalize_apply_merge(
+        &mut self,
+        elapsed: Duration,
+        constraint_count: usize,
+    ) {
+        self.generalize_apply_merge += elapsed;
+        self.generalize_merge_constraints += constraint_count;
+    }
+
+    pub(super) fn record_generalize_collect_dominance(&mut self, elapsed: Duration) {
+        self.generalize_collect_dominance += elapsed;
+    }
+
+    pub(super) fn record_generalize_apply_subtype(
+        &mut self,
+        elapsed: Duration,
+        constraint_count: usize,
+    ) {
+        self.generalize_apply_subtype += elapsed;
+        self.generalize_subtype_constraints += constraint_count;
+    }
+
+    pub(super) fn record_generalize_cast(
+        &mut self,
+        elapsed: Duration,
+        batch_count: usize,
+        application_count: usize,
+    ) {
+        self.generalize_cast += elapsed;
+        self.generalize_cast_batches += batch_count;
+        self.generalize_cast_applications += application_count;
+    }
+
+    pub(super) fn record_generalize_resolve_roles(
+        &mut self,
+        elapsed: Duration,
+        resolution_count: usize,
+    ) {
+        self.generalize_resolve_roles += elapsed;
+        self.generalize_role_resolutions += resolution_count;
+    }
+
+    pub(super) fn record_generalize_final_roles(&mut self, elapsed: Duration) {
+        self.generalize_final_roles += elapsed;
+    }
+
+    pub(super) fn record_generalize_final_cleanup(&mut self, elapsed: Duration) {
+        self.generalize_final_cleanup += elapsed;
+    }
+
+    pub(super) fn record_generalize_filter_roles(&mut self, elapsed: Duration) {
+        self.generalize_filter_roles += elapsed;
+    }
+
+    pub(super) fn record_generalize_prepared(&mut self, elapsed: Duration) {
+        self.generalize_prepared += elapsed;
+    }
+
+    pub(super) fn record_instantiate(&mut self, elapsed: Duration) {
+        self.instantiate += elapsed;
+        self.instantiated_uses += 1;
+    }
+
+    pub(super) fn record_instantiate_event_run(&mut self, run_len: usize) {
+        if run_len == 0 {
+            return;
+        }
+        self.instantiate_event_runs += 1;
+        self.instantiate_max_event_run = self.instantiate_max_event_run.max(run_len);
+    }
+
+    pub(super) fn record_instantiate_target(&mut self, was_new: bool) {
+        if was_new {
+            self.instantiate_unique_targets += 1;
+        } else {
+            self.instantiate_reused_target_events += 1;
+        }
+    }
+
+    pub(super) fn record_instantiate_clone_scheme(&mut self, elapsed: Duration) {
+        self.instantiate_clone_scheme += elapsed;
+    }
+
+    pub(super) fn record_instantiate_subtype_predicate(&mut self, elapsed: Duration) {
+        self.instantiate_subtype_predicate += elapsed;
+    }
+
+    pub(super) fn record_instantiate_insert_roles(&mut self, elapsed: Duration) {
+        self.instantiate_insert_roles += elapsed;
+    }
+
+    pub(super) fn record_field_fallback(
+        &mut self,
+        elapsed: Duration,
+        selections: usize,
+        constraints: usize,
+    ) {
+        self.record_field_fallback += elapsed;
+        self.record_field_batches += 1;
+        self.record_field_selections += selections;
+        self.record_field_constraints += constraints;
+    }
+}
