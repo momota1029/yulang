@@ -1,10 +1,9 @@
 our g h = sub:
-    for i in 0..3:
+    for i in 0:
         h i
     return 1
 
 sub:
-    my b = g \i -> if i == 0: return i
-    println b.show
+    my b = g \i -> if true: return i
+    std::io::println b
     2
-

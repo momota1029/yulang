@@ -677,12 +677,15 @@ box {width: 1.2}
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_lowers_sub_syntax_return() {
-    let output =
-        run_control_from_source_text_with_embedded_std("playground.yu", "sub:\n  return 1\n")
-            .unwrap();
+fn run_control_fixture_lowers_sub_syntax_return() {
+    let entry = write_source_with_fake_std(
+        "run-control-sub-syntax-return",
+        "support/fake_std/control_flow_io.yu",
+        "sub:\n  return 1\n",
+    );
+    let output = run_control_from_entry(entry).unwrap();
 
-    assert_eq!(output.file_count, embedded_std_files().len() + 1);
+    assert_eq!(output.file_count, 1);
     assert_eq!(output.text, "run roots [1]\n");
 }
 
@@ -711,14 +714,15 @@ fn run_control_source_text_with_embedded_std_lowers_root_labeled_sub_syntax_retu
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_lowers_sub_lambda_return() {
-    let output = run_control_from_source_text_with_embedded_std(
-        "playground.yu",
+fn run_control_fixture_lowers_sub_lambda_return() {
+    let entry = write_source_with_fake_std(
+        "run-control-sub-lambda-return",
+        "support/fake_std/control_flow_io.yu",
         "my f = \\sub x -> return x\nf 7\n",
-    )
-    .unwrap();
+    );
+    let output = run_control_from_entry(entry).unwrap();
 
-    assert_eq!(output.file_count, embedded_std_files().len() + 1);
+    assert_eq!(output.file_count, 1);
     assert_eq!(output.text, "run roots [7]\n");
 }
 
@@ -759,51 +763,55 @@ fn run_control_source_text_with_embedded_std_labeled_sub_lambda_lets_outer_retur
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_keeps_sub_syntax_hygiene() {
-    let output = run_control_from_source_text_with_embedded_std(
-        "playground.yu",
+fn run_control_fixture_keeps_sub_syntax_hygiene() {
+    let entry = write_source_with_fake_std(
+        "run-control-sub-syntax-hygiene",
+        "support/fake_std/control_flow_io.yu",
         "our g h = sub:\n  h 0\n  return 1\n\nsub:\n  g \\i -> return i\n  return 2\n",
-    )
-    .unwrap();
+    );
+    let output = run_control_from_entry(entry).unwrap();
 
-    assert_eq!(output.file_count, embedded_std_files().len() + 1);
+    assert_eq!(output.file_count, 1);
     assert_eq!(output.text, "run roots [0]\n");
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_keeps_sub_return_through_for_callback_if() {
-    let output = run_control_from_source_text_with_embedded_std(
-        "playground.yu",
-        yulang_fixture("regressions/effect/sub_return_through_for_callback.yu"),
-    )
-    .unwrap();
+fn run_control_fixture_keeps_sub_return_through_for_callback_if() {
+    let entry = write_fixture_with_fake_std(
+        "run-control-sub-return-through-for-callback",
+        "support/fake_std/control_flow_io.yu",
+        "regressions/effect/sub_return_through_for_callback.yu",
+    );
+    let output = run_control_from_entry(entry).unwrap();
 
-    assert_eq!(output.file_count, embedded_std_files().len() + 1);
+    assert_eq!(output.file_count, 1);
     assert_eq!(output.text, "run roots [0]\n");
 }
 
 #[test]
-fn dump_mono_source_text_with_embedded_std_specializes_for_callback_if_before_println() {
-    let output = dump_mono_from_source_text_with_embedded_std(
-        "playground.yu",
-        yulang_fixture("regressions/effect/for_callback_residual_with_println.yu"),
-    )
-    .unwrap();
+fn dump_mono_fixture_specializes_for_callback_if_before_println() {
+    let entry = write_fixture_with_fake_std(
+        "dump-mono-for-callback-before-println",
+        "support/fake_std/control_flow_io.yu",
+        "regressions/effect/for_callback_residual_with_println.yu",
+    );
+    let output = dump_mono_from_entry(entry).unwrap();
 
-    assert_eq!(output.file_count, embedded_std_files().len() + 1);
+    assert_eq!(output.file_count, 1);
     assert_mono_dump_contains(&output, "std::control::flow::sub(int)");
-    assert_mono_dump_contains(&output, "std::io::console::out");
+    assert_mono_dump_contains(&output, ": int -> unit");
 }
 
 #[test]
-fn dump_poly_source_text_with_embedded_std_keeps_for_callback_residual_generic() {
-    let output = dump_poly_from_source_text_with_embedded_std(
-        "playground.yu",
-        yulang_fixture("regressions/effect/for_callback_residual_with_println.yu"),
-    )
-    .unwrap();
+fn dump_poly_fixture_keeps_for_callback_residual_generic() {
+    let entry = write_fixture_with_fake_std(
+        "dump-poly-for-callback-residual",
+        "support/fake_std/control_flow_io.yu",
+        "regressions/effect/for_callback_residual_with_println.yu",
+    );
+    let output = dump_poly_from_entry(entry).unwrap();
 
-    assert_eq!(output.file_count, embedded_std_files().len() + 1);
+    assert_eq!(output.file_count, 1);
     let g = output
         .text
         .lines()

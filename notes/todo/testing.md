@@ -87,6 +87,7 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
 - `tests/yulang/` を共有 fixture 置き場にした。
 - `crates/yulang` の source route test から `tests/yulang/regressions/effect/*.yu` を読む helper を追加した。
 - まずは callback residual / sub return / effectful parameter forwarding の regression を fixture 化した。
+- `tests/yulang/support/fake_std/` を作り、処理系の surface path だけが必要な test は full std を読まない方針にした。
 - 次は list update、nondet once triple、optional record default、public examples を同じ置き場へ広げる。
 
 ## やらないこと

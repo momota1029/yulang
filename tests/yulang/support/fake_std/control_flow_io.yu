@@ -1,0 +1,19 @@
+mod std:
+    pub mod control:
+        pub mod junction:
+            pub mod junction:
+                pub junction x = x
+
+        pub mod flow:
+            pub act sub 'a:
+                pub return: 'a -> never
+                pub sub(x: [_] 'a): 'a = catch x:
+                    return a, _ -> a
+                    a -> a
+
+            pub act loop:
+                pub for_in xs f = f xs
+
+    pub mod io:
+        pub println value = ()
+

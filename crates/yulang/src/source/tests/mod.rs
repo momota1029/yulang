@@ -35,6 +35,16 @@ fn yulang_fixture(path: &str) -> String {
         .unwrap_or_else(|error| panic!("failed to read fixture {}: {error}", full_path.display()))
 }
 
+fn write_fixture_with_fake_std(name: &str, fake_std: &str, fixture: &str) -> PathBuf {
+    let source = format!("{}\n{}", yulang_fixture(fake_std), yulang_fixture(fixture));
+    write_main(name, &source)
+}
+
+fn write_source_with_fake_std(name: &str, fake_std: &str, source: &str) -> PathBuf {
+    let source = format!("{}\n{}", yulang_fixture(fake_std), source);
+    write_main(name, &source)
+}
+
 #[cfg(unix)]
 fn write_main_with_std(name: &str, source: &str) -> PathBuf {
     let root = temp_root(name);
