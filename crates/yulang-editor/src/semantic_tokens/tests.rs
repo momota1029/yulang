@@ -99,23 +99,23 @@ mod tests {
 
     #[test]
     fn struct_name_and_dot_field_keep_editor_token_kinds() {
-        let tokens = compute("struct point { x: int } with:\n  our p.norm2 = p.x\n");
-        let chunks: Vec<&[u32]> = tokens.chunks(5).collect();
+        let source = "struct point { x: int } with:\n  our p.norm2 = p.x\n";
+        let decoded = decode_tokens(&compute(source));
 
         assert!(
-            chunks.iter().any(|c| c[2] == 5 && c[3] == TYPE),
+            decoded.contains(&(0, 7, 5, TYPE)),
             "expected struct name 'point' to be colored TYPE; got: {:?}",
-            tokens
+            decoded
         );
         assert!(
-            chunks.iter().any(|c| c[2] == 5 && c[3] == FUNCTION),
+            decoded.contains(&(1, 8, 5, FUNCTION)),
             "expected dot-field 'norm2' to be colored FUNCTION; got: {:?}",
-            tokens
+            decoded
         );
         assert!(
-            !chunks.iter().any(|c| c[2] == 5 && c[3] == PROPERTY),
+            !decoded.contains(&(1, 8, 5, PROPERTY)),
             "expected dot-field 'norm2' not to be colored PROPERTY; got: {:?}",
-            tokens
+            decoded
         );
     }
 

@@ -1,19 +1,14 @@
-# 現在のタスク: yulang — spec 駆動の推論パイプライン再実装
+# 現在のタスク: yulang — playground 公開後の公開準備
 
-2026-06-08 ごろから、主戦場は新世代パイプラインの実装に移った。
-旧 `yulang-*` pipeline は行き当たりばったりに決まった実装が多く、納得のいく土台に
-なっていなかったため、仕様を `spec/` に先に固めてから書き直している。
+2026-06-17 時点では、新世代 pipeline は playground で主要 smoke が動くところまで来ている。
+ここからは、言語機能を無闇に広げるより、公開して触れる状態にするための足場を優先する。
 
-- 新世代: `crates/sources` → `crates/infer` → `crates/poly`、入口は `crates/yulang`
-  - `sources`: ファイル収集と CST 入力
-  - `infer`: CST から poly IR と型情報を作る作業 crate（推論中に増える状態はここ）
-  - `poly`: 最終的に読まれる構造と解決結果だけを持つ
-  - `yulang`: 新世代 pipeline の CLI。デバッグ用の `dump-poly` / `dump-mono` / `run-control`
-    系に加え、旧 `yulang` 置き換え準備として `check` / `build` / `run` / `dump` /
-    `parse` / `install std` / `cache` / `realm freeze` / `server` / `debug control-vm*`
-    の互換入口を持つ。
-- 旧世代: `archive/crates/` に移動済み。workspace member ではなく、参照用コードとして読む。
-  新世代の都合で旧 crate を build 可能に保つ前提は捨てた。
+入口と責務は引き続き次を基準に見る。
+
+- `crates/sources` → `crates/infer` → `crates/poly` → `crates/specialize`
+- runtime 側: `crates/mono` / `crates/control-vm` / `crates/mono-runtime`
+- 共有 UI/LS 側: `crates/yulang-editor` / `crates/yulang-lsp` / `web/playground`
+- CLI 入口: `crates/yulang`
 
 作業規約は `/.rules`（= `AGENTS.md`）と `crates/.rules` を見る。
 旧実装は仕様ではない。挙動が食い違ったら spec と手計算で正解を確かめる。
@@ -26,54 +21,65 @@
 - `spec/2026-06-06-invariant-type-sandwich.md` — 不変型と sandwich
 - `spec/2026-06-06-syntax-design.md` — 表面構文（parser 実装から抽出）
 - `spec/2026-06-07-principal-monomorphization.md`
+- `spec/2026-06-14-control-artifact-cache.md` — control artifact cache
 
 spec に無い判断をしたら、コードでなく spec か `notes/design/` に追記する。
 
-## 現在地（2026-06-12）
+## 現在地（2026-06-17）
 
-型推論が通るか通らないか、というところ。直近で入ったもの:
+- playground では list update、nondet once triple、method / property highlighting などの主要 smoke を通した。
+- `specialize2` の function candidate 比較は、arg/ret だけでなく arg_effect/ret_effect も見るようになった。
+- tuple length / record required field / polyvariant constructor mismatch は direct concrete subtype でも落ちる。
+- `std.control.nondet.nondet.#act-method:once` は deep handler 型として export される。
+- 直近の確認済み:
+  - `cargo fmt --check`
+  - `timeout 120s cargo test -q -p specialize -p control-vm -p mono-runtime -- --test-threads=1`
+  - `timeout 120s cargo test -q -p yulang -- --test-threads=1`
 
-- stack-weight effect subtraction（floor 正規化、`pop(u32::MAX)` 番兵、residual の
-  hash-cons、self skeleton、注釈付き local effect の `LocalEffect::Stack` view）
-- role 述語の compact simplification への取り込み、impl method の role demand 解決
-- std-free smoke tests（inference / handler / handled effect call）
-- yulang dump での act operation の型付け
+WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
 
-既知の残り（メモリ・daily note より）:
+## 直近の優先順位
 
-- role 偽サイクル修正の残差: simplify 側の変数マージ
-  （タプル impl の 3-var union、`list int` の Eq）
-- 旧世代側で「なんか重くなる」系の退行を並行追跡中
-  （monomorphize / runtime-lower。コンパイル時か実行時かは未切り分け）
+1. public regression suite を先に固める。
+   - playground で見つけた例、effect/thunk/specialize2 の境界、concrete subtype mismatch を小さい fixture にする。
+   - 今後の refactor と release 作業の足場になるため最優先。
+   - 詳細: `notes/todo/testing.md`
+2. `yulang-editor` を LS と playground の共有面に育てる。
+   - token classification、diagnostics range、hover/type display を共有する。
+   - playground だけ色や型表示がずれる状態をなくす。
+   - 詳細: `notes/todo/language-server.md`
+3. release / packaging を cargo 前提から外す。
+   - 配布 binary、std bundle、cache/bootstrap、playground artifact、Zed/LS binary discovery を決める。
+   - 詳細: `notes/todo/release.md`
+4. realm/band と compiled-unit cache を pipeline に統合する。
+   - source identity、artifact manifest、SCC cache、cross-realm dependency surface を整理する。
+   - 詳細: `notes/design/source-realm-band-plan.md`, `notes/todo/static-analysis-speed.md`
+5. 高速化は計測を先に置く。
+   - phase timing、intern 候補、cache hit/miss、Rowan cost を測ってから触る。
+   - 詳細: `notes/todo/static-analysis-speed.md`
+6. Yumark は value model から決める。
+   - syntax parse 済みの先、AST/IR/type/runtime/playground 表示を設計する。
+   - 詳細: `notes/todo/yumark.md`
 
-## 確認の回し方
+## 今すぐやる slice
 
-- `cargo test -q -p infer` / `-p poly` / `-p sources` / `-p yulang`
-- `cargo build -q -p yulang && timeout 60s ./target/debug/yulang dump-poly-std examples/showcase.yu`
-- 全 stash した素の base で workspace 全体の `cargo test` を回さない
-- 日々の作業ログは `notes/progress/daily/YYYY-MM-DD.md`
+1. `notes/todo/testing.md` の P0 fixture から、既存 Rust test に載せやすいものを順に追加する。
+2. `yulang-editor` が出す token kind と playground CSS class の対応を固定する regression を作る。
+3. release smoke として、cargo を介さない `target/debug/yulang` 実行の最小セットを script 化する。
 
-## 次にやること
-
-1. 型推論を最後まで通す（dump-poly-std が examples / lib/std で型エラー 0 になるまで）。
-2. ビルドスクリプトを作る（未着手）。
-3. archive の旧 infer テスト群から必要なケースを新世代へ移植する。
-4. 旧世代との接続ではなく、新 `mono` / `control-vm` を現行 runtime として育てる。
-5. `lock` と cross-realm/band source graph を新 `sources` に移し、LSP の span 付き diagnostics /
-   hover / definition / rename を新 pipeline で育てる。
-
-## 守る不変条件（旧 roadmap から引き継ぎ）
+## 守る不変条件
 
 - 型が決まらないから Top 相当へ逃がす処理は入れない。
 - path / module / fixture 名の文字列比較で型を決めない。
 - 再現ケースだけを通す局所分岐ではなく、一般規則として説明できる修正にする。
 - infer に不動点計算のような重たい反復を足さない。まず一回の線形パスで設計する。
 - テスト期待値を実装出力に合わせて書き換えない。
+- effect row subtraction の shallow/deep handler 境界を後段の整形で潰さない。
 
 ## 外側の予定
 
 - 相談先の先生への研究相談（effect row subtraction の切り出し）は、
-  **実装完了＋型エラー 0 になってから**送る。素材は `notes/effect-inference-overview.md`。
+  **実装完了＋公開用 regression が揃ってから**送る。素材は `notes/effect-inference-overview.md`。
 - 2026 年 7 月以降は忙しくなる予定。12 月のアドベントカレンダーが公開目標。
 
 ## 旧 roadmap

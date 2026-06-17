@@ -3,26 +3,37 @@
 このディレクトリは Yulang の作業バックログ。`tasks/current.md` より広い範囲を扱う。
 公開後しばらくは、言語機能を広げるよりも「触った人が詰まらない」ための作業を優先する。
 
-## 公開後の主戦場
+## 公開準備の主戦場
 
-今やるべきことは 3 本に絞る。
+今やるべきことは「公開して触れる状態」を作るための順番で見る。
 
-1. `diagnostics-docs.md`
+1. `testing.md`
+   - playground で見つけた regression と最近直した effect/thunk/specialize2 境界を fixture 化する。
+   - public examples を CLI / wasm / Rust test のどこで固定するか決める。
+   - 以後の refactor、release、realm/band 統合の前提にする。
+2. `diagnostics-docs.md`
    - parser / type / runtime error の位置と原因を分かるようにする。
    - expected / actual の出自を source range と related information で出す。
    - playground / CLI / LSP が同じ診断情報を共有する。
    - 詳細な型チェッカー計画は `type-checker-diagnostics.md` と
      `../diagnostics/type-checker-plan.md` に置く。
-2. `language-server.md`
+3. `language-server.md`
    - LSP の diagnostics、hover、related information、型表示を安定させる。
+   - `yulang-editor` を playground と LS の共有 editor surface にする。
    - `.list` などの巨大型や内部 evidence が hover に漏れないようにする。
    - Zed dev extension から `yulang server` を使う導線を保つ。
-3. `static-analysis-speed.md`
+4. `release.md`
+   - cargo 前提の起動・配布から離れ、binary/std/playground/LS artifact を release 単位にする。
+   - `yulang install std`、cache 互換、Zed/LS binary discovery を release smoke として固定する。
+5. `static-analysis-speed.md`
    - playground / CLI の初回 latency と warmed latency を見える形にする。
    - compiled-unit cache を std 専用特例ではなく source dependency surface として育てる。
+   - realm/band と source dependency SCC を cache unit として扱う。
    - type surface audit と cache validation が hot path を壊さないようにする。
+6. `yumark.md`
+   - syntax parse 済みの Yumark を value model、lowering、runtime、表示へ接続する。
 
-この 3 本に効く作業だけを直近の `tasks/current.md` に移す。
+この流れに効く作業だけを直近の `tasks/current.md` に移す。
 
 ## 保留中のトラック
 
@@ -47,12 +58,12 @@
 
 ## 近い優先順位
 
-1. LSP に出るエラーの range / related information / hover を実用水準にする。
-2. 型エラーの expected / actual それぞれに出自を持たせる。
-3. Simple-sub / `case` / `catch` / role impl の診断を `CheckReport` として共有する。
-4. hover の型表示を public projection として安定させる。
-5. compiled-unit cache / control VM artifact の現状を docs と internal notes で揃える。
-6. 上の作業を支える fixture と README / docs を足す。
+1. playground regression と recently-fixed bug を小さい fixture に落とす。
+2. `yulang-editor` の token classification / diagnostics / hover を playground と LS の共有面にする。
+3. cargo を介さない release smoke を作る。
+4. realm/band と compiled-unit cache の実装単位を `sources` / CLI / cache manifest に接続する。
+5. phase timing と counters を入れ、intern / cache / Rowan cost の順に測る。
+6. Yumark の value model を決め、syntax から runtime までの最初の thin path を作る。
 
 ## 運用ルール
 

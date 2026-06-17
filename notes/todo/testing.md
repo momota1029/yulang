@@ -37,10 +37,43 @@ Yulang test file
 - "infers but does not run" は expected limitation ではなく failure として追う。
 - host capability を使う test は native-only / wasm-unsupported の区別を明示する。
 
+## 2026-06-17 P0 regression set
+
+playground 公開前に、最近壊れた境界を小さい fixture として固定する。
+
+- list update:
+  - `my $xs = [2 3 4]; &xs[1] = 6; $xs`
+  - primitive `list` path の解決、ref_update payload union、VM boundary を同時に見る。
+- nondet once triple:
+  - `each 1..`, nested `each a<..`, `guard`, `.once`
+  - playground std と通常 std の差、constructor display、range/int conflict を見る。
+- labeled sub / callback residual:
+  - `g: (int -> ['a & std::control::flow::loop::redo] any) -> ['a] int` のような上から押さえた型を再発させない。
+  - `return` / `redo` / callback residual が shallow handler と同じ推論にならないことを見る。
+- deep handler act method:
+  - `std.control.nondet.nondet.#act-method:once` は `α [nondet; β] -> [β] opt α` 系で export される。
+  - `[handled; 'e] -> ['e]` を普通の関数として forward した時に shallow handler 型へ潰れない。
+- specialize2 function candidate effect variance:
+  - 同じ arg/ret で `arg_effect` だけ違う関数候補。
+  - 同じ arg/ret で `ret_effect` だけ違う関数候補。
+  - effectful callback を pure expected へ渡すケースと、その逆。
+- concrete subtype mismatch:
+  - tuple length mismatch。
+  - record required field missing。
+  - polyvariant / enum constructor mismatch。
+  - これらが coerce/runtime boundary ではなく subtype constraint として落ちること。
+- optional record default:
+  - `our box {width = 1, height = width} = width * height`
+  - default field 間の依存が `int` 固定にならず、必要な role constraint だけ残ること。
+- playground/editor surface:
+  - `tok-type` / `tok-function` / `tok-property` の class drift を固定する。
+  - CLI diagnostics と playground diagnostics が同じ原因を指すこと。
+
 ## 最初の slice
 
 - `tests/yulang/` のような小さい fixture 置き場を決める。
 - `1 + 2`、関数呼び出し、variant、role method、effect handler の smoke test を置く。
+- 上の P0 regression set から、既に Rust test helper で動かせるものを先に移す。
 - `std::console` と `std::fs` は host policy が固まるまで smoke test を分ける。
 - 既存 Rust test から同じ fixture を呼べるようにする。
 

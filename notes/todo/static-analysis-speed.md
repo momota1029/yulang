@@ -29,8 +29,20 @@
 - compiled-unit manifest validation を厳しくする。
 - persistent cache を user dependency SCCs に一般化する。
 - source dependency SCCs を長期的な cache unit として保つ。
+- realm/band を cache key と dependency identity に入れる。
+  - `notes/design/source-realm-band-plan.md` を実装単位へ分解する。
+  - realm/band が std 専用 cache 特例にならないよう、source graph の責務として扱う。
 - benchmark scripts と phase timings を最新に保つ。
 - first-run と warmed-run の playground timings を分けて見る。
+- intern 化は候補を測ってから入れる。
+  - module path / source path / symbol name / type constructor / effect path / role key を候補にする。
+  - full `Type` key の正規化差分で instance cache が割れていないか見る。
+- Rowan cost は疑いとして扱い、置き換え前に測る。
+  - parse tree construction
+  - token traversal
+  - editor colorize
+  - wasm warm path
+  - LSP incremental update
 - compile-time regression を次で追う。
   - infer / lower
   - core export
@@ -46,3 +58,4 @@
 - process-local cache は最終 architecture ではなく oracle として扱う。
 - 広い refactor の前に測る。
 - ownership と merge semantics が明確でない parallel static-analysis pass は入れない。
+- 「Rowan が重いはず」から始めず、phase timing と allocation/counter で原因を切る。

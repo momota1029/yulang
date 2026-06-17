@@ -681,6 +681,30 @@ fn dump_mono_source_text_with_embedded_std_specializes_for_callback_if_before_pr
 }
 
 #[test]
+fn dump_poly_source_text_with_embedded_std_keeps_for_callback_residual_generic() {
+    let output = dump_poly_from_source_text_with_embedded_std(
+            "playground.yu",
+            "our g h = sub:\n  for i in 0..3:\n    h i\n  return 1\n\nsub:\n  my b = g \\i -> if i == 0: return i\n  println b.show\n  2\n",
+        )
+        .unwrap();
+
+    assert_eq!(output.file_count, embedded_std_files().len() + 1);
+    let g = output
+        .text
+        .lines()
+        .find(|line| line.contains(":g: "))
+        .expect("g should be dumped");
+    assert!(
+        g.contains("g: (int -> ['") && g.contains("] any) -> ['") && g.contains("] int = "),
+        "g should keep the callback residual generic:\n{g}"
+    );
+    assert!(
+        !g.contains("std::control::flow::loop::redo"),
+        "for_in loop redo must not be baked into g's public callback type:\n{g}"
+    );
+}
+
+#[test]
 fn check_poly_source_text_with_embedded_std_reports_type_error() {
     let output =
         check_poly_from_source_text_with_embedded_std("playground.yu", "my x: int = true\n")
