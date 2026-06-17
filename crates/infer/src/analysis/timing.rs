@@ -6,7 +6,7 @@
 
 use crate::time::Duration;
 
-use super::AnalysisWork;
+use super::{AnalysisWork, SelectionTarget};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct AnalysisTiming {
@@ -16,11 +16,19 @@ pub struct AnalysisTiming {
     pub work_probe_select: Duration,
     pub work_apply_ref: Duration,
     pub work_apply_select: Duration,
+    pub work_apply_select_record_field: Duration,
+    pub work_apply_select_method: Duration,
+    pub work_apply_select_effect_method: Duration,
+    pub work_apply_select_typeclass_method: Duration,
     pub work_scc: Duration,
     pub work_resolve_ref_items: usize,
     pub work_probe_select_items: usize,
     pub work_apply_ref_items: usize,
     pub work_apply_select_items: usize,
+    pub work_apply_select_record_field_items: usize,
+    pub work_apply_select_method_items: usize,
+    pub work_apply_select_effect_method_items: usize,
+    pub work_apply_select_typeclass_method_items: usize,
     pub work_scc_items: usize,
     pub role_pass: Duration,
     pub method_taint: Duration,
@@ -95,7 +103,7 @@ pub(super) enum AnalysisWorkTimingKind {
     ResolveRef,
     ProbeSelect,
     ApplyRef,
-    ApplySelect,
+    ApplySelect(AnalysisSelectionTargetTimingKind),
     Scc,
 }
 
@@ -105,8 +113,29 @@ impl AnalysisWorkTimingKind {
             AnalysisWork::ResolveRef(_) => Self::ResolveRef,
             AnalysisWork::ProbeSelect(_) => Self::ProbeSelect,
             AnalysisWork::ApplyRefResolution { .. } => Self::ApplyRef,
-            AnalysisWork::ApplySelectionResolution { .. } => Self::ApplySelect,
+            AnalysisWork::ApplySelectionResolution { target, .. } => {
+                Self::ApplySelect(AnalysisSelectionTargetTimingKind::from_target(target))
+            }
             AnalysisWork::Scc(_) => Self::Scc,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum AnalysisSelectionTargetTimingKind {
+    RecordField,
+    Method,
+    EffectMethod,
+    TypeclassMethod,
+}
+
+impl AnalysisSelectionTargetTimingKind {
+    fn from_target(target: &SelectionTarget) -> Self {
+        match target {
+            SelectionTarget::RecordField => Self::RecordField,
+            SelectionTarget::Method { .. } => Self::Method,
+            SelectionTarget::EffectMethod { .. } => Self::EffectMethod,
+            SelectionTarget::TypeclassMethod { .. } => Self::TypeclassMethod,
         }
     }
 }
@@ -140,9 +169,27 @@ impl AnalysisTiming {
                 self.work_apply_ref += elapsed;
                 self.work_apply_ref_items += 1;
             }
-            AnalysisWorkTimingKind::ApplySelect => {
+            AnalysisWorkTimingKind::ApplySelect(target) => {
                 self.work_apply_select += elapsed;
                 self.work_apply_select_items += 1;
+                match target {
+                    AnalysisSelectionTargetTimingKind::RecordField => {
+                        self.work_apply_select_record_field += elapsed;
+                        self.work_apply_select_record_field_items += 1;
+                    }
+                    AnalysisSelectionTargetTimingKind::Method => {
+                        self.work_apply_select_method += elapsed;
+                        self.work_apply_select_method_items += 1;
+                    }
+                    AnalysisSelectionTargetTimingKind::EffectMethod => {
+                        self.work_apply_select_effect_method += elapsed;
+                        self.work_apply_select_effect_method_items += 1;
+                    }
+                    AnalysisSelectionTargetTimingKind::TypeclassMethod => {
+                        self.work_apply_select_typeclass_method += elapsed;
+                        self.work_apply_select_typeclass_method_items += 1;
+                    }
+                }
             }
             AnalysisWorkTimingKind::Scc => {
                 self.work_scc += elapsed;

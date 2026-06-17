@@ -3,10 +3,10 @@ set -euo pipefail
 
 HEADER_COLUMNS=(
     case iter check collect load infer bodies drain resolve finish
-    a_route a_work w_ref w_probe w_aref w_asel w_scc a_role a_taint a_rsolve a_udep a_quant q_gen q_pre q_fin
+    a_route a_work w_ref w_probe w_aref w_asel w_asel_rec w_asel_m w_asel_eff w_asel_tc w_scc a_role a_taint a_rsolve a_udep a_quant q_gen q_pre q_fin
     g_comp g_roles g_merge g_dom g_sub g_cast g_rrole g_froles g_clean g_filter g_prep
     g_mrst g_srst g_crst g_rrst g_rin g_rreach g_rcoal g_rdom g_rsolvein
-    a_inst i_clone i_sub i_roles i_runs i_maxrun i_targets i_reuse i_pvar i_pstk i_pnsub i_pfun i_pcon i_poth i_pdir a_record c_drain c_drains c_work c_sub c_subcall c_many c_invar c_vv c_posv c_maxq c_maxw c_lb c_ub c_lrep c_urep c_lenq c_uenq c_lrvv c_urvv c_vvub c_vvlb c_vvuin c_vvlin c_vvuenq c_vvlenq c_vvuski c_vvlski w_ref_n w_probe_n w_aref_n w_asel_n w_scc_n udep_n udep_in udep_e summary total run poly spec ctl_low vm_eval
+    a_inst i_clone i_sub i_roles i_runs i_maxrun i_targets i_reuse i_pvar i_pstk i_pnsub i_pfun i_pcon i_poth i_pdir a_record c_drain c_drains c_work c_sub c_subcall c_many c_invar c_vv c_posv c_maxq c_maxw c_lb c_ub c_lrep c_urep c_lenq c_uenq c_lrvv c_urvv c_vvub c_vvlb c_vvuin c_vvlin c_vvuenq c_vvlenq c_vvuski c_vvlski w_ref_n w_probe_n w_aref_n w_asel_n w_asel_rec_n w_asel_m_n w_asel_eff_n w_asel_tc_n w_scc_n udep_n udep_in udep_e summary total run poly spec ctl_low vm_eval
     expr clone apply force effect host catch cont inst hit miss
     pfx pfx_seg peq peq_seg addscan frscan files modules values bodyless errors
 )
@@ -121,7 +121,10 @@ run_case_once() {
     local path_prefix path_prefix_seg path_eq path_eq_seg active_add active_frame
     local lower_bodies lower_drain lower_resolve lower_finish
     local analysis_route analysis_work analysis_work_resolve_ref analysis_work_probe_select
-    local analysis_work_apply_ref analysis_work_apply_select analysis_work_scc
+    local analysis_work_apply_ref analysis_work_apply_select
+    local analysis_work_apply_select_record_field analysis_work_apply_select_method
+    local analysis_work_apply_select_effect_method analysis_work_apply_select_typeclass_method
+    local analysis_work_scc
     local analysis_role analysis_taint analysis_role_solve analysis_unready_dependency
     local analysis_quantify analysis_quantify_generalize analysis_quantify_prerequisites
     local analysis_quantify_finalize analysis_instantiate analysis_record_field
@@ -141,7 +144,9 @@ run_case_once() {
     local instantiate_predicate_con instantiate_predicate_other
     local instantiate_direct_lower_predicates
     local work_resolve_ref_items work_probe_select_items work_apply_ref_items
-    local work_apply_select_items work_scc_items
+    local work_apply_select_items work_apply_select_record_field_items
+    local work_apply_select_method_items work_apply_select_effect_method_items
+    local work_apply_select_typeclass_method_items work_scc_items
     local unready_role_dependency_scans unready_role_dependency_inputs
     local unready_role_dependency_edges
     local constraint_drain constraint_drains constraint_work constraint_subtype
@@ -177,6 +182,10 @@ run_case_once() {
     analysis_work_probe_select="$(phase_metric "analysis.work_probe_select" "$out_file")"
     analysis_work_apply_ref="$(phase_metric "analysis.work_apply_ref" "$out_file")"
     analysis_work_apply_select="$(phase_metric "analysis.work_apply_select" "$out_file")"
+    analysis_work_apply_select_record_field="$(phase_metric "analysis.work_apply_select_record_field" "$out_file")"
+    analysis_work_apply_select_method="$(phase_metric "analysis.work_apply_select_method" "$out_file")"
+    analysis_work_apply_select_effect_method="$(phase_metric "analysis.work_apply_select_effect_method" "$out_file")"
+    analysis_work_apply_select_typeclass_method="$(phase_metric "analysis.work_apply_select_typeclass_method" "$out_file")"
     analysis_work_scc="$(phase_metric "analysis.work_scc" "$out_file")"
     analysis_role="$(phase_metric "analysis.role" "$out_file")"
     analysis_taint="$(phase_metric "analysis.taint" "$out_file")"
@@ -253,6 +262,10 @@ run_case_once() {
     work_probe_select_items="$(phase_metric "analysis.work_probe_select_items" "$out_file")"
     work_apply_ref_items="$(phase_metric "analysis.work_apply_ref_items" "$out_file")"
     work_apply_select_items="$(phase_metric "analysis.work_apply_select_items" "$out_file")"
+    work_apply_select_record_field_items="$(phase_metric "analysis.work_apply_select_record_field_items" "$out_file")"
+    work_apply_select_method_items="$(phase_metric "analysis.work_apply_select_method_items" "$out_file")"
+    work_apply_select_effect_method_items="$(phase_metric "analysis.work_apply_select_effect_method_items" "$out_file")"
+    work_apply_select_typeclass_method_items="$(phase_metric "analysis.work_apply_select_typeclass_method_items" "$out_file")"
     work_scc_items="$(phase_metric "analysis.work_scc_items" "$out_file")"
     unready_role_dependency_scans="$(phase_metric "analysis.unready_role_dependency_scans" "$out_file")"
     unready_role_dependency_inputs="$(phase_metric "analysis.unready_role_dependency_inputs" "$out_file")"
@@ -296,7 +309,9 @@ run_case_once() {
         "$lower_bodies" "$lower_drain" "$lower_resolve" "$lower_finish" \
         "$analysis_route" "$analysis_work" "$analysis_work_resolve_ref" \
         "$analysis_work_probe_select" "$analysis_work_apply_ref" \
-        "$analysis_work_apply_select" "$analysis_work_scc" "$analysis_role" "$analysis_taint" \
+        "$analysis_work_apply_select" "$analysis_work_apply_select_record_field" \
+        "$analysis_work_apply_select_method" "$analysis_work_apply_select_effect_method" \
+        "$analysis_work_apply_select_typeclass_method" "$analysis_work_scc" "$analysis_role" "$analysis_taint" \
         "$analysis_role_solve" "$analysis_unready_dependency" "$analysis_quantify" \
         "$analysis_quantify_generalize" \
         "$analysis_quantify_prerequisites" "$analysis_quantify_finalize" \
@@ -329,7 +344,9 @@ run_case_once() {
         "$constraint_var_var_direct_upper_replay_enqueued" "$constraint_var_var_direct_lower_replay_enqueued" \
         "$constraint_var_var_direct_upper_empty_replay_skipped" "$constraint_var_var_direct_lower_empty_replay_skipped" \
         "$work_resolve_ref_items" "$work_probe_select_items" "$work_apply_ref_items" \
-        "$work_apply_select_items" "$work_scc_items" "$unready_role_dependency_scans" \
+        "$work_apply_select_items" "$work_apply_select_record_field_items" \
+        "$work_apply_select_method_items" "$work_apply_select_effect_method_items" \
+        "$work_apply_select_typeclass_method_items" "$work_scc_items" "$unready_role_dependency_scans" \
         "$unready_role_dependency_inputs" "$unready_role_dependency_edges" \
         "$summarize" "$total" "$run_real" "$run_poly" "$run_spec" "$run_control" "$vm_eval" \
         "$expr_evals" "$expr_clones" "$apply_value" "$force_thunk" "$effect_requests" "$host_requests" \

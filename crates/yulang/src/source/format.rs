@@ -344,6 +344,26 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
     );
     let _ = writeln!(
         out,
+        "  analysis.work_apply_select_record_field: {}",
+        format_duration(analysis.work_apply_select_record_field)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_apply_select_method: {}",
+        format_duration(analysis.work_apply_select_method)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_apply_select_effect_method: {}",
+        format_duration(analysis.work_apply_select_effect_method)
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_apply_select_typeclass_method: {}",
+        format_duration(analysis.work_apply_select_typeclass_method)
+    );
+    let _ = writeln!(
+        out,
         "  analysis.work_scc: {}",
         format_duration(analysis.work_scc)
     );
@@ -650,6 +670,26 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         out,
         "  analysis.work_apply_select_items: {}",
         analysis.work_apply_select_items
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_apply_select_record_field_items: {}",
+        analysis.work_apply_select_record_field_items
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_apply_select_method_items: {}",
+        analysis.work_apply_select_method_items
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_apply_select_effect_method_items: {}",
+        analysis.work_apply_select_effect_method_items
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.work_apply_select_typeclass_method_items: {}",
+        analysis.work_apply_select_typeclass_method_items
     );
     let _ = writeln!(
         out,
