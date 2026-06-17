@@ -1,0 +1,9 @@
+our g h = sub:
+    for i in 0..3:
+        h i
+    return 1
+
+sub:
+    my b = g \i -> if i == 0: return i
+    b
+

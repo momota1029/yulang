@@ -1,0 +1,3 @@
+type handled
+
+our h(x: [handled; 'e] 'a) = x

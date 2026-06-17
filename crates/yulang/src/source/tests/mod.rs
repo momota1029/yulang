@@ -25,6 +25,16 @@ fn write_main(name: &str, source: &str) -> PathBuf {
     entry
 }
 
+fn yulang_fixture(path: &str) -> String {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join("tests")
+        .join("yulang");
+    let full_path = root.join(path);
+    fs::read_to_string(&full_path)
+        .unwrap_or_else(|error| panic!("failed to read fixture {}: {error}", full_path.display()))
+}
+
 #[cfg(unix)]
 fn write_main_with_std(name: &str, source: &str) -> PathBuf {
     let root = temp_root(name);

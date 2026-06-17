@@ -773,10 +773,10 @@ fn run_control_source_text_with_embedded_std_keeps_sub_syntax_hygiene() {
 #[test]
 fn run_control_source_text_with_embedded_std_keeps_sub_return_through_for_callback_if() {
     let output = run_control_from_source_text_with_embedded_std(
-            "playground.yu",
-            "our g h = sub:\n  for i in 0..3:\n    h i\n  return 1\n\nsub:\n  my b = g \\i -> if i == 0: return i\n  b\n",
-        )
-        .unwrap();
+        "playground.yu",
+        yulang_fixture("regressions/effect/sub_return_through_for_callback.yu"),
+    )
+    .unwrap();
 
     assert_eq!(output.file_count, embedded_std_files().len() + 1);
     assert_eq!(output.text, "run roots [0]\n");
@@ -785,10 +785,10 @@ fn run_control_source_text_with_embedded_std_keeps_sub_return_through_for_callba
 #[test]
 fn dump_mono_source_text_with_embedded_std_specializes_for_callback_if_before_println() {
     let output = dump_mono_from_source_text_with_embedded_std(
-            "playground.yu",
-            "our g h = sub:\n  for i in 0..3:\n    h i\n  return 1\n\nsub:\n  my b = g \\i -> if i == 0: return i\n  println b.show\n  2\n",
-        )
-        .unwrap();
+        "playground.yu",
+        yulang_fixture("regressions/effect/for_callback_residual_with_println.yu"),
+    )
+    .unwrap();
 
     assert_eq!(output.file_count, embedded_std_files().len() + 1);
     assert_mono_dump_contains(&output, "std::control::flow::sub(int)");
@@ -798,10 +798,10 @@ fn dump_mono_source_text_with_embedded_std_specializes_for_callback_if_before_pr
 #[test]
 fn dump_poly_source_text_with_embedded_std_keeps_for_callback_residual_generic() {
     let output = dump_poly_from_source_text_with_embedded_std(
-            "playground.yu",
-            "our g h = sub:\n  for i in 0..3:\n    h i\n  return 1\n\nsub:\n  my b = g \\i -> if i == 0: return i\n  println b.show\n  2\n",
-        )
-        .unwrap();
+        "playground.yu",
+        yulang_fixture("regressions/effect/for_callback_residual_with_println.yu"),
+    )
+    .unwrap();
 
     assert_eq!(output.file_count, embedded_std_files().len() + 1);
     let g = output
@@ -816,6 +816,29 @@ fn dump_poly_source_text_with_embedded_std_keeps_for_callback_residual_generic()
     assert!(
         !g.contains("std::control::flow::loop::redo"),
         "for_in loop redo must not be baked into g's public callback type:\n{g}"
+    );
+}
+
+#[test]
+fn dump_poly_fixture_keeps_forwarded_effectful_parameter_deep() {
+    let entry = write_main(
+        "dump-poly-forwarded-effectful-parameter",
+        &yulang_fixture("regressions/effect/effectful_parameter_forwarding.yu"),
+    );
+    let output = dump_poly_from_entry(entry).unwrap();
+
+    let h = output
+        .text
+        .lines()
+        .find(|line| line.contains(":h: "))
+        .expect("h should be dumped");
+    assert!(
+        h.contains("[handled; '"),
+        "forwarding should keep handled in the result effect:\n{h}"
+    );
+    assert!(
+        !h.contains("& [handled;"),
+        "plain forwarding must not become a shallow handler type:\n{h}"
     );
 }
 

@@ -462,6 +462,79 @@ fn function_candidates_merge_effects_by_variance() {
 }
 
 #[test]
+fn function_slot_lower_candidates_join_ret_effects() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let slot = graph.fresh_value();
+    let left_ret_effect = Type::EffectRow(vec![con(&["left"], Vec::new())]);
+    let right_ret_effect = Type::EffectRow(vec![con(&["right"], Vec::new())]);
+    let left = unary_effect_type(
+        Type::pure_effect(),
+        Type::unit(),
+        left_ret_effect,
+        int_type(),
+    );
+    let right = unary_effect_type(
+        Type::pure_effect(),
+        Type::unit(),
+        right_ret_effect,
+        int_type(),
+    );
+
+    graph.constrain_subtype(left, slot.clone()).unwrap();
+    graph.constrain_subtype(right, slot.clone()).unwrap();
+    graph.solve_constraints().unwrap();
+    let solution = graph.solve_slots().unwrap();
+    let mut resolver = TypeResolver::new(&graph, &solution);
+
+    assert_eq!(
+        resolver.resolve(&slot).unwrap(),
+        unary_effect_type(
+            Type::pure_effect(),
+            Type::unit(),
+            Type::EffectRow(vec![
+                con(&["left"], Vec::new()),
+                con(&["right"], Vec::new())
+            ]),
+            int_type()
+        )
+    );
+}
+
+#[test]
+fn function_slot_upper_candidates_meet_arg_effects() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let slot = graph.fresh_value();
+    let arg_effect = Type::EffectRow(vec![con(&["arg"], Vec::new())]);
+    let pure_arg = unary_effect_type(
+        Type::pure_effect(),
+        Type::unit(),
+        Type::pure_effect(),
+        int_type(),
+    );
+    let effectful_arg = unary_effect_type(
+        arg_effect.clone(),
+        Type::unit(),
+        Type::pure_effect(),
+        int_type(),
+    );
+
+    graph.constrain_subtype(slot.clone(), pure_arg).unwrap();
+    graph
+        .constrain_subtype(slot.clone(), effectful_arg)
+        .unwrap();
+    graph.solve_constraints().unwrap();
+    let solution = graph.solve_slots().unwrap();
+    let mut resolver = TypeResolver::new(&graph, &solution);
+
+    assert_eq!(
+        resolver.resolve(&slot).unwrap(),
+        unary_effect_type(arg_effect, Type::unit(), Type::pure_effect(), int_type())
+    );
+}
+
+#[test]
 fn function_subtyping_compares_split_runtime_return_shapes() {
     let arena = poly_expr::Arena::new();
     let mut graph = TypeGraph::new(&arena);
