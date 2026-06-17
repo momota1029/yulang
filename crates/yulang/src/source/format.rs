@@ -542,8 +542,93 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
     );
     let _ = writeln!(
         out,
+        "  constraint.constrain_pos_var_direct_calls: {}",
+        constraint.constrain_pos_var_direct_calls
+    );
+    let _ = writeln!(
+        out,
         "  constraint.subtract_fact_calls: {}",
         constraint.subtract_fact_calls
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.lower_bounds_added: {}",
+        constraint.lower_bounds_added
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.upper_bounds_added: {}",
+        constraint.upper_bounds_added
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.lower_replay_inputs: {}",
+        constraint.lower_replay_inputs
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.upper_replay_inputs: {}",
+        constraint.upper_replay_inputs
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.lower_replay_enqueued: {}",
+        constraint.lower_replay_enqueued
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.upper_replay_enqueued: {}",
+        constraint.upper_replay_enqueued
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.lower_replay_var_var: {}",
+        constraint.lower_replay_var_var
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.upper_replay_var_var: {}",
+        constraint.upper_replay_var_var
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.var_var_direct_upper_bounds: {}",
+        constraint.var_var_direct_upper_bounds
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.var_var_direct_lower_bounds: {}",
+        constraint.var_var_direct_lower_bounds
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.var_var_direct_upper_replay_inputs: {}",
+        constraint.var_var_direct_upper_replay_inputs
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.var_var_direct_lower_replay_inputs: {}",
+        constraint.var_var_direct_lower_replay_inputs
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.var_var_direct_upper_replay_enqueued: {}",
+        constraint.var_var_direct_upper_replay_enqueued
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.var_var_direct_lower_replay_enqueued: {}",
+        constraint.var_var_direct_lower_replay_enqueued
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.var_var_direct_upper_empty_replay_skipped: {}",
+        constraint.var_var_direct_upper_empty_replay_skipped
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.var_var_direct_lower_empty_replay_skipped: {}",
+        constraint.var_var_direct_lower_empty_replay_skipped
     );
     let _ = writeln!(out, "  analysis.work_items: {}", analysis.work_items);
     let _ = writeln!(
@@ -681,6 +766,41 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         out,
         "  analysis.instantiate_reused_target_events: {}",
         analysis.instantiate_reused_target_events
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate_predicate_var: {}",
+        analysis.instantiate_predicate_var
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate_predicate_stack: {}",
+        analysis.instantiate_predicate_stack
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate_predicate_non_subtract: {}",
+        analysis.instantiate_predicate_non_subtract
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate_predicate_fun: {}",
+        analysis.instantiate_predicate_fun
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate_predicate_con: {}",
+        analysis.instantiate_predicate_con
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate_predicate_other: {}",
+        analysis.instantiate_predicate_other
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.instantiate_direct_lower_predicates: {}",
+        analysis.instantiate_direct_lower_predicates
     );
     let _ = writeln!(
         out,

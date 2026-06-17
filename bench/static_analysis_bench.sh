@@ -6,7 +6,7 @@ HEADER_COLUMNS=(
     a_route a_work w_ref w_probe w_aref w_asel w_scc a_role a_taint a_rsolve a_udep a_quant q_gen q_pre q_fin
     g_comp g_roles g_merge g_dom g_sub g_cast g_rrole g_froles g_clean g_filter g_prep
     g_mrst g_srst g_crst g_rrst g_rin g_rreach g_rcoal g_rdom g_rsolvein
-    a_inst i_clone i_sub i_roles i_runs i_maxrun i_targets i_reuse a_record c_drain c_drains c_work c_sub c_subcall c_many c_invar c_vv c_maxq c_maxw w_ref_n w_probe_n w_aref_n w_asel_n w_scc_n udep_n udep_in udep_e summary total run poly spec ctl_low vm_eval
+    a_inst i_clone i_sub i_roles i_runs i_maxrun i_targets i_reuse i_pvar i_pstk i_pnsub i_pfun i_pcon i_poth i_pdir a_record c_drain c_drains c_work c_sub c_subcall c_many c_invar c_vv c_posv c_maxq c_maxw c_lb c_ub c_lrep c_urep c_lenq c_uenq c_lrvv c_urvv c_vvub c_vvlb c_vvuin c_vvlin c_vvuenq c_vvlenq c_vvuski c_vvlski w_ref_n w_probe_n w_aref_n w_asel_n w_scc_n udep_n udep_in udep_e summary total run poly spec ctl_low vm_eval
     expr clone apply force effect host catch cont inst hit miss
     pfx pfx_seg peq peq_seg addscan frscan files modules values bodyless errors
 )
@@ -136,6 +136,10 @@ run_case_once() {
     local instantiate_clone_scheme instantiate_subtype_predicate instantiate_insert_roles
     local instantiate_event_runs instantiate_max_event_run instantiate_unique_targets
     local instantiate_reused_target_events
+    local instantiate_predicate_var instantiate_predicate_stack
+    local instantiate_predicate_non_subtract instantiate_predicate_fun
+    local instantiate_predicate_con instantiate_predicate_other
+    local instantiate_direct_lower_predicates
     local work_resolve_ref_items work_probe_select_items work_apply_ref_items
     local work_apply_select_items work_scc_items
     local unready_role_dependency_scans unready_role_dependency_inputs
@@ -143,7 +147,19 @@ run_case_once() {
     local constraint_drain constraint_drains constraint_work constraint_subtype
     local constraint_subtype_calls constraint_subtype_many_calls
     local constraint_constrain_invariant_neu_calls constraint_constrain_var_var_direct_calls
+    local constraint_constrain_pos_var_direct_calls
     local constraint_max_initial_queue constraint_max_work_items
+    local constraint_lower_bounds_added constraint_upper_bounds_added
+    local constraint_lower_replay_inputs constraint_upper_replay_inputs
+    local constraint_lower_replay_enqueued constraint_upper_replay_enqueued
+    local constraint_lower_replay_var_var constraint_upper_replay_var_var
+    local constraint_var_var_direct_upper_bounds constraint_var_var_direct_lower_bounds
+    local constraint_var_var_direct_upper_replay_inputs
+    local constraint_var_var_direct_lower_replay_inputs
+    local constraint_var_var_direct_upper_replay_enqueued
+    local constraint_var_var_direct_lower_replay_enqueued
+    local constraint_var_var_direct_upper_empty_replay_skipped
+    local constraint_var_var_direct_lower_empty_replay_skipped
     case_label="$case_path"
     if ((repeat > 1)); then
         case_label="${case_path}#${iteration}"
@@ -198,6 +214,13 @@ run_case_once() {
     instantiate_max_event_run="$(phase_metric "analysis.instantiate_max_event_run" "$out_file")"
     instantiate_unique_targets="$(phase_metric "analysis.instantiate_unique_targets" "$out_file")"
     instantiate_reused_target_events="$(phase_metric "analysis.instantiate_reused_target_events" "$out_file")"
+    instantiate_predicate_var="$(phase_metric "analysis.instantiate_predicate_var" "$out_file")"
+    instantiate_predicate_stack="$(phase_metric "analysis.instantiate_predicate_stack" "$out_file")"
+    instantiate_predicate_non_subtract="$(phase_metric "analysis.instantiate_predicate_non_subtract" "$out_file")"
+    instantiate_predicate_fun="$(phase_metric "analysis.instantiate_predicate_fun" "$out_file")"
+    instantiate_predicate_con="$(phase_metric "analysis.instantiate_predicate_con" "$out_file")"
+    instantiate_predicate_other="$(phase_metric "analysis.instantiate_predicate_other" "$out_file")"
+    instantiate_direct_lower_predicates="$(phase_metric "analysis.instantiate_direct_lower_predicates" "$out_file")"
     analysis_record_field="$(phase_metric "analysis.record_field" "$out_file")"
     constraint_drain="$(phase_metric "constraint.drain" "$out_file")"
     constraint_drains="$(phase_metric "constraint.drains" "$out_file")"
@@ -207,8 +230,25 @@ run_case_once() {
     constraint_subtype_many_calls="$(phase_metric "constraint.subtype_many_calls" "$out_file")"
     constraint_constrain_invariant_neu_calls="$(phase_metric "constraint.constrain_invariant_neu_calls" "$out_file")"
     constraint_constrain_var_var_direct_calls="$(phase_metric "constraint.constrain_var_var_direct_calls" "$out_file")"
+    constraint_constrain_pos_var_direct_calls="$(phase_metric "constraint.constrain_pos_var_direct_calls" "$out_file")"
     constraint_max_initial_queue="$(phase_metric "constraint.max_initial_queue" "$out_file")"
     constraint_max_work_items="$(phase_metric "constraint.max_work_items" "$out_file")"
+    constraint_lower_bounds_added="$(phase_metric "constraint.lower_bounds_added" "$out_file")"
+    constraint_upper_bounds_added="$(phase_metric "constraint.upper_bounds_added" "$out_file")"
+    constraint_lower_replay_inputs="$(phase_metric "constraint.lower_replay_inputs" "$out_file")"
+    constraint_upper_replay_inputs="$(phase_metric "constraint.upper_replay_inputs" "$out_file")"
+    constraint_lower_replay_enqueued="$(phase_metric "constraint.lower_replay_enqueued" "$out_file")"
+    constraint_upper_replay_enqueued="$(phase_metric "constraint.upper_replay_enqueued" "$out_file")"
+    constraint_lower_replay_var_var="$(phase_metric "constraint.lower_replay_var_var" "$out_file")"
+    constraint_upper_replay_var_var="$(phase_metric "constraint.upper_replay_var_var" "$out_file")"
+    constraint_var_var_direct_upper_bounds="$(phase_metric "constraint.var_var_direct_upper_bounds" "$out_file")"
+    constraint_var_var_direct_lower_bounds="$(phase_metric "constraint.var_var_direct_lower_bounds" "$out_file")"
+    constraint_var_var_direct_upper_replay_inputs="$(phase_metric "constraint.var_var_direct_upper_replay_inputs" "$out_file")"
+    constraint_var_var_direct_lower_replay_inputs="$(phase_metric "constraint.var_var_direct_lower_replay_inputs" "$out_file")"
+    constraint_var_var_direct_upper_replay_enqueued="$(phase_metric "constraint.var_var_direct_upper_replay_enqueued" "$out_file")"
+    constraint_var_var_direct_lower_replay_enqueued="$(phase_metric "constraint.var_var_direct_lower_replay_enqueued" "$out_file")"
+    constraint_var_var_direct_upper_empty_replay_skipped="$(phase_metric "constraint.var_var_direct_upper_empty_replay_skipped" "$out_file")"
+    constraint_var_var_direct_lower_empty_replay_skipped="$(phase_metric "constraint.var_var_direct_lower_empty_replay_skipped" "$out_file")"
     work_resolve_ref_items="$(phase_metric "analysis.work_resolve_ref_items" "$out_file")"
     work_probe_select_items="$(phase_metric "analysis.work_probe_select_items" "$out_file")"
     work_apply_ref_items="$(phase_metric "analysis.work_apply_ref_items" "$out_file")"
@@ -270,11 +310,24 @@ run_case_once() {
         "$generalize_dominance_role_constraints" "$generalize_role_resolve_inputs" \
         "$analysis_instantiate" "$instantiate_clone_scheme" "$instantiate_subtype_predicate" \
         "$instantiate_insert_roles" "$instantiate_event_runs" "$instantiate_max_event_run" \
-        "$instantiate_unique_targets" "$instantiate_reused_target_events" "$analysis_record_field" \
+        "$instantiate_unique_targets" "$instantiate_reused_target_events" \
+        "$instantiate_predicate_var" "$instantiate_predicate_stack" \
+        "$instantiate_predicate_non_subtract" "$instantiate_predicate_fun" \
+        "$instantiate_predicate_con" "$instantiate_predicate_other" \
+        "$instantiate_direct_lower_predicates" "$analysis_record_field" \
         "$constraint_drain" "$constraint_drains" "$constraint_work" "$constraint_subtype" \
         "$constraint_subtype_calls" "$constraint_subtype_many_calls" \
         "$constraint_constrain_invariant_neu_calls" "$constraint_constrain_var_var_direct_calls" \
+        "$constraint_constrain_pos_var_direct_calls" \
         "$constraint_max_initial_queue" "$constraint_max_work_items" \
+        "$constraint_lower_bounds_added" "$constraint_upper_bounds_added" \
+        "$constraint_lower_replay_inputs" "$constraint_upper_replay_inputs" \
+        "$constraint_lower_replay_enqueued" "$constraint_upper_replay_enqueued" \
+        "$constraint_lower_replay_var_var" "$constraint_upper_replay_var_var" \
+        "$constraint_var_var_direct_upper_bounds" "$constraint_var_var_direct_lower_bounds" \
+        "$constraint_var_var_direct_upper_replay_inputs" "$constraint_var_var_direct_lower_replay_inputs" \
+        "$constraint_var_var_direct_upper_replay_enqueued" "$constraint_var_var_direct_lower_replay_enqueued" \
+        "$constraint_var_var_direct_upper_empty_replay_skipped" "$constraint_var_var_direct_lower_empty_replay_skipped" \
         "$work_resolve_ref_items" "$work_probe_select_items" "$work_apply_ref_items" \
         "$work_apply_select_items" "$work_scc_items" "$unready_role_dependency_scans" \
         "$unready_role_dependency_inputs" "$unready_role_dependency_edges" \

@@ -74,6 +74,13 @@ pub struct AnalysisTiming {
     pub generalize_cast_applications: usize,
     pub generalize_role_resolutions: usize,
     pub instantiated_uses: usize,
+    pub instantiate_predicate_var: usize,
+    pub instantiate_predicate_stack: usize,
+    pub instantiate_predicate_non_subtract: usize,
+    pub instantiate_predicate_fun: usize,
+    pub instantiate_predicate_con: usize,
+    pub instantiate_predicate_other: usize,
+    pub instantiate_direct_lower_predicates: usize,
     pub instantiate_event_runs: usize,
     pub instantiate_max_event_run: usize,
     pub instantiate_unique_targets: usize,
@@ -304,6 +311,21 @@ impl AnalysisTiming {
         self.instantiated_uses += 1;
     }
 
+    pub(super) fn record_instantiate_predicate_shape(&mut self, shape: InstantiatePredicateShape) {
+        match shape {
+            InstantiatePredicateShape::Var => self.instantiate_predicate_var += 1,
+            InstantiatePredicateShape::Stack => self.instantiate_predicate_stack += 1,
+            InstantiatePredicateShape::NonSubtract => self.instantiate_predicate_non_subtract += 1,
+            InstantiatePredicateShape::Fun => self.instantiate_predicate_fun += 1,
+            InstantiatePredicateShape::Con => self.instantiate_predicate_con += 1,
+            InstantiatePredicateShape::Other => self.instantiate_predicate_other += 1,
+        }
+    }
+
+    pub(super) fn record_instantiate_direct_lower_predicate(&mut self) {
+        self.instantiate_direct_lower_predicates += 1;
+    }
+
     pub(super) fn record_instantiate_event_run(&mut self, run_len: usize) {
         if run_len == 0 {
             return;
@@ -343,4 +365,14 @@ impl AnalysisTiming {
         self.record_field_selections += selections;
         self.record_field_constraints += constraints;
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum InstantiatePredicateShape {
+    Var,
+    Stack,
+    NonSubtract,
+    Fun,
+    Con,
+    Other,
 }

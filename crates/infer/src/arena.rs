@@ -83,6 +83,11 @@ impl Arena {
         self.sync_type_ids_with_constraints();
     }
 
+    pub(crate) fn constrain_pos_to_var_direct(&mut self, lower: PosId, target: TypeVar) {
+        self.constraints.constrain_pos_to_var_direct(lower, target);
+        self.sync_type_ids_with_constraints();
+    }
+
     pub fn weighted_subtype(&mut self, lower: PosId, weights: ConstraintWeights, upper: NegId) {
         self.constraints.weighted_subtype(lower, weights, upper);
         self.sync_type_ids_with_constraints();

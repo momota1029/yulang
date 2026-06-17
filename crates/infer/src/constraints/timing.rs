@@ -25,7 +25,24 @@ pub struct ConstraintTiming {
     pub constrain_invariant_neu_calls: usize,
     pub constrain_var_var_direct_calls: usize,
     pub constrain_var_var_direct_pairs: usize,
+    pub constrain_pos_var_direct_calls: usize,
     pub subtract_fact_calls: usize,
+    pub lower_bounds_added: usize,
+    pub upper_bounds_added: usize,
+    pub lower_replay_inputs: usize,
+    pub upper_replay_inputs: usize,
+    pub lower_replay_enqueued: usize,
+    pub upper_replay_enqueued: usize,
+    pub lower_replay_var_var: usize,
+    pub upper_replay_var_var: usize,
+    pub var_var_direct_upper_bounds: usize,
+    pub var_var_direct_lower_bounds: usize,
+    pub var_var_direct_upper_replay_inputs: usize,
+    pub var_var_direct_lower_replay_inputs: usize,
+    pub var_var_direct_upper_replay_enqueued: usize,
+    pub var_var_direct_lower_replay_enqueued: usize,
+    pub var_var_direct_upper_empty_replay_skipped: usize,
+    pub var_var_direct_lower_empty_replay_skipped: usize,
 }
 
 impl ConstraintTiming {
@@ -55,8 +72,60 @@ impl ConstraintTiming {
         self.constrain_var_var_direct_pairs += pair_count;
     }
 
+    pub(super) fn record_constrain_pos_var_direct_call(&mut self) {
+        self.constrain_pos_var_direct_calls += 1;
+    }
+
     pub(super) fn record_subtract_fact_call(&mut self) {
         self.subtract_fact_calls += 1;
+    }
+
+    pub(super) fn record_lower_bound_added(
+        &mut self,
+        replay_inputs: usize,
+        replay_enqueued: usize,
+        replay_var_var: usize,
+    ) {
+        self.lower_bounds_added += 1;
+        self.lower_replay_inputs += replay_inputs;
+        self.lower_replay_enqueued += replay_enqueued;
+        self.lower_replay_var_var += replay_var_var;
+    }
+
+    pub(super) fn record_upper_bound_added(
+        &mut self,
+        replay_inputs: usize,
+        replay_enqueued: usize,
+        replay_var_var: usize,
+    ) {
+        self.upper_bounds_added += 1;
+        self.upper_replay_inputs += replay_inputs;
+        self.upper_replay_enqueued += replay_enqueued;
+        self.upper_replay_var_var += replay_var_var;
+    }
+
+    pub(super) fn record_var_var_direct_upper_bound(
+        &mut self,
+        replay_inputs: usize,
+        replay_enqueued: usize,
+        empty_replay_skipped: usize,
+    ) {
+        self.var_var_direct_upper_bounds += 1;
+        self.var_var_direct_upper_replay_inputs += replay_inputs;
+        self.var_var_direct_upper_replay_enqueued += replay_enqueued;
+        self.var_var_direct_upper_empty_replay_skipped += empty_replay_skipped;
+    }
+
+    pub(super) fn record_var_var_direct_lower_bound(
+        &mut self,
+        replay_inputs: usize,
+        replay_enqueued: usize,
+        empty_replay_skipped: usize,
+    ) {
+        self.var_var_direct_lower_bounds += 1;
+        self.var_var_direct_lower_replay_inputs += replay_inputs;
+        self.var_var_direct_lower_replay_enqueued += replay_enqueued;
+        self.var_var_direct_lower_empty_replay_skipped += empty_replay_skipped;
     }
 
     pub(super) fn record_drain(

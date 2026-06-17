@@ -162,8 +162,33 @@ impl AnalysisSession {
         self.timing.record_instantiate_clone_scheme(elapsed);
         trace_instantiate_phase(trace, "clone scheme", parent, target, elapsed, start);
         let phase = Instant::now();
-        let use_upper = self.infer.alloc_neg(Neg::Var(use_value));
-        self.infer.subtype(instantiated.predicate, use_upper);
+        let predicate_shape = match self.infer.constraints().types().pos(instantiated.predicate) {
+            Pos::Var(_) => InstantiatePredicateShape::Var,
+            Pos::Stack { .. } => InstantiatePredicateShape::Stack,
+            Pos::NonSubtract(_, _) => InstantiatePredicateShape::NonSubtract,
+            Pos::Fun { .. } => InstantiatePredicateShape::Fun,
+            Pos::Con(_, _) => InstantiatePredicateShape::Con,
+            Pos::Bot
+            | Pos::Record(_)
+            | Pos::RecordTailSpread { .. }
+            | Pos::RecordHeadSpread { .. }
+            | Pos::PolyVariant(_)
+            | Pos::Tuple(_)
+            | Pos::Row(_)
+            | Pos::Union(_, _) => InstantiatePredicateShape::Other,
+        };
+        self.timing
+            .record_instantiate_predicate_shape(predicate_shape);
+        if instantiate_predicate_can_add_lower_directly(
+            self.infer.constraints().types().pos(instantiated.predicate),
+        ) {
+            self.timing.record_instantiate_direct_lower_predicate();
+            self.infer
+                .constrain_pos_to_var_direct(instantiated.predicate, use_value);
+        } else {
+            let use_upper = self.infer.alloc_neg(Neg::Var(use_value));
+            self.infer.subtype(instantiated.predicate, use_upper);
+        }
         let elapsed = phase.elapsed();
         self.timing.record_instantiate_subtype_predicate(elapsed);
         trace_instantiate_phase(trace, "subtype predicate", parent, target, elapsed, start);
@@ -353,6 +378,20 @@ impl AnalysisSession {
     pub(super) fn neg_from_neu_id(&mut self, id: NeuId) -> NegId {
         self.neg_from_neu(self.infer.constraints().types().neu(id).clone())
     }
+}
+
+fn instantiate_predicate_can_add_lower_directly(pos: &Pos) -> bool {
+    matches!(
+        pos,
+        Pos::Con(_, _)
+            | Pos::Fun { .. }
+            | Pos::Record(_)
+            | Pos::RecordTailSpread { .. }
+            | Pos::RecordHeadSpread { .. }
+            | Pos::PolyVariant(_)
+            | Pos::Tuple(_)
+            | Pos::Row(_)
+    )
 }
 
 fn trace_quantify_phase(

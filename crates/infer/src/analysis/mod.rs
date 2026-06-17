@@ -73,7 +73,7 @@ use method_taint::{
 };
 use projection::role_impl_member_projection_substitutions;
 pub use timing::AnalysisTiming;
-use timing::AnalysisWorkTimingKind;
+use timing::{AnalysisWorkTimingKind, InstantiatePredicateShape};
 use trace::{
     AnalysisDrainTrace, AnalysisTraceMode, analysis_trace_mode, analysis_work_kind,
     trace_constraint_events, trace_instantiate_phase, trace_scheme_requested,

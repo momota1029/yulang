@@ -159,6 +159,14 @@ impl ConstraintMachine {
         self.seen.len() != seen_len || self.var_var_seen.len() != var_var_seen_len
     }
 
+    pub(crate) fn constrain_pos_to_var_direct(&mut self, lower: PosId, target: TypeVar) {
+        self.timing.record_constrain_pos_var_direct_call();
+        self.add_lower_bound(target, lower, ConstraintWeights::empty());
+        if !self.queue.is_empty() {
+            self.drain();
+        }
+    }
+
     pub fn subtract_fact(
         &mut self,
         effect: TypeVar,

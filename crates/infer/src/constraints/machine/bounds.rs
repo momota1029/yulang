@@ -24,16 +24,23 @@ impl ConstraintMachine {
             .of(target)
             .map(|bounds| bounds.uppers.clone())
             .unwrap_or_default();
+        let replay_input_count = uppers.len();
+        let mut replay_enqueued = 0usize;
+        let mut replay_var_var = 0usize;
         trace_bound_replay_start("lower", target, uppers.len());
         for (index, upper) in uppers.into_iter().enumerate() {
             trace_bound_replay_progress("lower", target, index);
             let replay_weights = weights.compose_for_replay(&upper.weights);
             if self.is_var_var_replay(pos, upper.neg) {
+                replay_var_var += 1;
                 self.add_var_var_bound_without_replay(pos, upper.neg, replay_weights);
                 continue;
             }
+            replay_enqueued += 1;
             self.enqueue_subtype(pos, replay_weights, upper.neg);
         }
+        self.timing
+            .record_lower_bound_added(replay_input_count, replay_enqueued, replay_var_var);
     }
 
     pub(in crate::constraints) fn add_upper_bound(
@@ -63,16 +70,23 @@ impl ConstraintMachine {
             .of(source)
             .map(|bounds| bounds.lowers.clone())
             .unwrap_or_default();
+        let replay_input_count = lowers.len();
+        let mut replay_enqueued = 0usize;
+        let mut replay_var_var = 0usize;
         trace_bound_replay_start("upper", source, lowers.len());
         for (index, lower) in lowers.into_iter().enumerate() {
             trace_bound_replay_progress("upper", source, index);
             let replay_weights = lower.weights.compose_for_replay(&weights);
             if self.is_var_var_replay(lower.pos, neg) {
+                replay_var_var += 1;
                 self.add_var_var_bound_without_replay(lower.pos, neg, replay_weights);
                 continue;
             }
+            replay_enqueued += 1;
             self.enqueue_subtype(lower.pos, replay_weights, neg);
         }
+        self.timing
+            .record_upper_bound_added(replay_input_count, replay_enqueued, replay_var_var);
     }
 
     pub(in crate::constraints) fn add_var_var_bound_without_replay(
@@ -107,20 +121,13 @@ impl ConstraintMachine {
                 self.bounds.of(lower_var),
                 &self.types,
             );
-            let lowers = self
-                .bounds
-                .of(lower_var)
-                .map(|bounds| bounds.lowers.clone())
-                .unwrap_or_default();
+            let (replay_input_count, empty_replay_skipped, lowers) =
+                self.replayable_lowers_for_var_var_upper(lower_var, upper, &weights);
+            let mut replay_enqueued = 0usize;
             for lower_bound in lowers {
-                let replay_weights = lower_bound.weights.compose_for_replay(&weights);
                 if self.is_var_var_replay(lower_bound.pos, upper) {
-                    if Self::should_close_var_var_replay(
-                        &lower_bound.weights,
-                        &weights,
-                        &replay_weights,
-                    ) && Self::weights_are_pop_only(&replay_weights)
-                    {
+                    let replay_weights = lower_bound.weights.compose_for_replay(&weights);
+                    if Self::weights_are_pop_only(&replay_weights) {
                         self.add_var_var_bound_without_replay(
                             lower_bound.pos,
                             upper,
@@ -129,8 +136,15 @@ impl ConstraintMachine {
                     }
                     continue;
                 }
+                let replay_weights = lower_bound.weights.compose_for_replay(&weights);
+                replay_enqueued += 1;
                 self.enqueue_subtype(lower_bound.pos, replay_weights, upper);
             }
+            self.timing.record_var_var_direct_upper_bound(
+                replay_input_count,
+                replay_enqueued,
+                empty_replay_skipped,
+            );
         }
 
         let lower = self.extrude_pos(lower, self.level_of(upper_var));
@@ -147,20 +161,13 @@ impl ConstraintMachine {
                 self.bounds.of(upper_var),
                 &self.types,
             );
-            let uppers = self
-                .bounds
-                .of(upper_var)
-                .map(|bounds| bounds.uppers.clone())
-                .unwrap_or_default();
+            let (replay_input_count, empty_replay_skipped, uppers) =
+                self.replayable_uppers_for_var_var_lower(upper_var, lower, &weights);
+            let mut replay_enqueued = 0usize;
             for upper_bound in uppers {
-                let replay_weights = weights.compose_for_replay(&upper_bound.weights);
                 if self.is_var_var_replay(lower, upper_bound.neg) {
-                    if Self::should_close_var_var_replay(
-                        &weights,
-                        &upper_bound.weights,
-                        &replay_weights,
-                    ) && Self::weights_are_pop_only(&replay_weights)
-                    {
+                    let replay_weights = weights.compose_for_replay(&upper_bound.weights);
+                    if Self::weights_are_pop_only(&replay_weights) {
                         self.add_var_var_bound_without_replay(
                             lower,
                             upper_bound.neg,
@@ -169,9 +176,72 @@ impl ConstraintMachine {
                     }
                     continue;
                 }
+                let replay_weights = weights.compose_for_replay(&upper_bound.weights);
+                replay_enqueued += 1;
                 self.enqueue_subtype(lower, replay_weights, upper_bound.neg);
             }
+            self.timing.record_var_var_direct_lower_bound(
+                replay_input_count,
+                replay_enqueued,
+                empty_replay_skipped,
+            );
         }
+    }
+
+    fn replayable_lowers_for_var_var_upper(
+        &self,
+        lower_var: TypeVar,
+        upper: NegId,
+        weights: &ConstraintWeights,
+    ) -> (usize, usize, Vec<WeightedLowerBound>) {
+        let Some(bounds) = self.bounds.of(lower_var) else {
+            return (0, 0, Vec::new());
+        };
+        if !weights.is_empty() {
+            return (bounds.lowers.len(), 0, bounds.lowers.clone());
+        }
+        let mut skipped = 0usize;
+        let lowers = bounds
+            .lowers
+            .iter()
+            .filter_map(|lower| {
+                if lower.weights.is_empty() && self.is_var_var_replay(lower.pos, upper) {
+                    skipped += 1;
+                    None
+                } else {
+                    Some(lower.clone())
+                }
+            })
+            .collect();
+        (bounds.lowers.len(), skipped, lowers)
+    }
+
+    fn replayable_uppers_for_var_var_lower(
+        &self,
+        upper_var: TypeVar,
+        lower: PosId,
+        weights: &ConstraintWeights,
+    ) -> (usize, usize, Vec<WeightedUpperBound>) {
+        let Some(bounds) = self.bounds.of(upper_var) else {
+            return (0, 0, Vec::new());
+        };
+        if !weights.is_empty() {
+            return (bounds.uppers.len(), 0, bounds.uppers.clone());
+        }
+        let mut skipped = 0usize;
+        let uppers = bounds
+            .uppers
+            .iter()
+            .filter_map(|upper| {
+                if upper.weights.is_empty() && self.is_var_var_replay(lower, upper.neg) {
+                    skipped += 1;
+                    None
+                } else {
+                    Some(upper.clone())
+                }
+            })
+            .collect();
+        (bounds.uppers.len(), skipped, uppers)
     }
 
     pub(in crate::constraints) fn is_var_var_replay(&self, lower: PosId, upper: NegId) -> bool {
@@ -331,14 +401,6 @@ impl ConstraintMachine {
                     .iter()
                     .any(|lower| constraint_weights_have_row_tail_boundary(&lower.weights))
             })
-    }
-
-    fn should_close_var_var_replay(
-        left: &ConstraintWeights,
-        right: &ConstraintWeights,
-        replay: &ConstraintWeights,
-    ) -> bool {
-        !replay.is_empty() || !left.is_empty() || !right.is_empty()
     }
 
     fn weights_are_pop_only(weights: &ConstraintWeights) -> bool {
