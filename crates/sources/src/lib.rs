@@ -156,42 +156,109 @@ pub fn module_load_requests(
     out
 }
 
-// ── use 抽出（旧 use_decl_imports の最小版。realm/anchor/without/group は後で）──
+// ── use 抽出（旧 use_decl_imports の最小版。realm/anchor/without は後で）──
 
 pub fn use_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
-    let mut path: Vec<Name> = Vec::new();
-    let mut alias: Option<Name> = None;
-    let mut after_as = false;
-    let mut imports = Vec::new();
-    for item in node.children_with_tokens() {
-        // TODO: BraceGroup（`use a::{b, c}`）は後で対応する。
-        let NodeOrToken::Token(tok) = item else {
-            continue;
-        };
-        match tok.kind() {
-            SyntaxKind::As => after_as = true,
-            SyntaxKind::OpName if tok.text() == "*" => {
-                imports.push(UseImport::Glob {
-                    prefix: Path {
-                        segments: std::mem::take(&mut path),
-                    },
-                });
-                alias = None;
-                after_as = false;
+    let mut collector = UseImportCollector::new(Vec::new());
+    collector.collect_node(node);
+    collector.finish()
+}
+
+struct UseImportCollector {
+    imports: Vec<UseImport>,
+    path: Vec<Name>,
+    base_len: usize,
+    alias: Option<Name>,
+    after_as: bool,
+    paren_depth: usize,
+}
+
+impl UseImportCollector {
+    fn new(prefix: Vec<Name>) -> Self {
+        let base_len = prefix.len();
+        Self {
+            imports: Vec::new(),
+            path: prefix,
+            base_len,
+            alias: None,
+            after_as: false,
+            paren_depth: 0,
+        }
+    }
+
+    fn collect_node(&mut self, node: &SyntaxNode<YulangLanguage>) {
+        for item in node.children_with_tokens() {
+            match item {
+                NodeOrToken::Node(child) => self.collect_child_node(&child),
+                NodeOrToken::Token(tok) => self.collect_token(tok.kind(), tok.text()),
             }
-            SyntaxKind::Ident if after_as => {
-                alias = Some(Name(tok.text().to_string()));
-                after_as = false;
-            }
-            SyntaxKind::Ident | SyntaxKind::OpName => {
-                path.push(Name(tok.text().to_string()));
-            }
-            // Pub/Our/My/Use/Mod/ColonColon/Slash/ParenL/ParenR 等は構造トークン
+        }
+    }
+
+    fn finish(mut self) -> Vec<UseImport> {
+        self.push_alias_item();
+        self.imports
+    }
+
+    fn collect_child_node(&mut self, child: &SyntaxNode<YulangLanguage>) {
+        match child.kind() {
+            SyntaxKind::BraceGroup => self.collect_group(child),
+            SyntaxKind::Separator => self.finish_item(),
             _ => {}
         }
     }
-    push_alias_import(&mut imports, path, alias);
-    imports
+
+    fn collect_group(&mut self, group: &SyntaxNode<YulangLanguage>) {
+        let mut group_collector = UseImportCollector::new(self.path.clone());
+        group_collector.collect_node(group);
+        self.imports.extend(group_collector.finish());
+        self.reset_item();
+    }
+
+    fn collect_token(&mut self, kind: SyntaxKind, text: &str) {
+        match kind {
+            SyntaxKind::As => self.after_as = true,
+            SyntaxKind::ParenL => self.paren_depth += 1,
+            SyntaxKind::ParenR => self.paren_depth = self.paren_depth.saturating_sub(1),
+            SyntaxKind::OpName if text == "*" && self.paren_depth == 0 => {
+                self.imports.push(UseImport::Glob {
+                    prefix: Path {
+                        segments: self.path.clone(),
+                    },
+                });
+                self.reset_item();
+            }
+            SyntaxKind::Ident if self.after_as => {
+                self.alias = Some(Name(text.to_string()));
+                self.after_as = false;
+            }
+            SyntaxKind::Ident | SyntaxKind::OpName => {
+                self.path.push(Name(text.to_string()));
+                self.after_as = false;
+            }
+            // Pub/Our/My/Use/Mod/ColonColon/Slash/Brace/Comma 等は構造トークン。
+            _ => {}
+        }
+    }
+
+    fn finish_item(&mut self) {
+        self.push_alias_item();
+        self.reset_item();
+    }
+
+    fn push_alias_item(&mut self) {
+        if self.path.len() <= self.base_len {
+            return;
+        }
+        push_alias_import(&mut self.imports, self.path.clone(), self.alias.clone());
+    }
+
+    fn reset_item(&mut self) {
+        self.path.truncate(self.base_len);
+        self.alias = None;
+        self.after_as = false;
+        self.paren_depth = 0;
+    }
 }
 
 fn collect_module_load_requests(
@@ -599,6 +666,65 @@ mod tests {
         Path {
             segments: segments.iter().map(|s| Name(s.to_string())).collect(),
         }
+    }
+
+    #[test]
+    fn read_header_expands_group_use_imports() {
+        let source = "use std::io::{Read, Write}\nmy main = 1\n";
+        let header = read_header(source);
+
+        assert_eq!(
+            header.uses,
+            vec![
+                UseDecl {
+                    visibility: Visibility::Our,
+                    import: UseImport::Alias {
+                        name: Name("Read".into()),
+                        path: path(&["std", "io", "Read"]),
+                    },
+                },
+                UseDecl {
+                    visibility: Visibility::Our,
+                    import: UseImport::Alias {
+                        name: Name("Write".into()),
+                        path: path(&["std", "io", "Write"]),
+                    },
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn read_header_expands_group_operator_and_alias_imports() {
+        let source = "use m::{(+), id, other as o}\nmy main = 1\n";
+        let header = read_header(source);
+
+        assert_eq!(
+            header.uses,
+            vec![
+                UseDecl {
+                    visibility: Visibility::Our,
+                    import: UseImport::Alias {
+                        name: Name("+".into()),
+                        path: path(&["m", "+"]),
+                    },
+                },
+                UseDecl {
+                    visibility: Visibility::Our,
+                    import: UseImport::Alias {
+                        name: Name("id".into()),
+                        path: path(&["m", "id"]),
+                    },
+                },
+                UseDecl {
+                    visibility: Visibility::Our,
+                    import: UseImport::Alias {
+                        name: Name("o".into()),
+                        path: path(&["m", "other"]),
+                    },
+                },
+            ]
+        );
     }
 
     fn module_cst(source: &str) -> SyntaxNode<YulangLanguage> {
