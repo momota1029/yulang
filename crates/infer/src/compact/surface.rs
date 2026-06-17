@@ -287,40 +287,44 @@ pub(crate) fn apply_compact_merge_constraints(
 ) -> bool {
     let mut changed = false;
     for constraint in constraints {
-        if constraint.lhs == constraint.rhs || !applied.insert(constraint.key.clone()) {
+        let CompactMergeConstraint { key, lhs, rhs } = constraint;
+        if lhs == rhs || !applied.insert(key) {
             continue;
         }
         let phase = Instant::now();
-        if let Some(pairs) = var_only_interval_merge_pairs(&constraint.lhs, &constraint.rhs) {
+        if let Some(pairs) = var_only_interval_merge_pairs(&lhs, &rhs) {
             if pairs.len() > VAR_ONLY_INTERVAL_DIRECT_MERGE_THRESHOLD {
                 changed |= machine.constrain_var_var_pairs_direct(pairs);
-                trace_slow_compact_merge_constraint(&constraint, phase.elapsed());
+                trace_slow_compact_merge_constraint(&lhs, &rhs, phase.elapsed());
                 continue;
             }
         }
-        let (lhs, rhs) = {
+        let (lhs_neu, rhs_neu) = {
             let mut finalizer = CompactFinalizer::new(&mut *machine);
             (
-                finalizer.finalize_bounds(&constraint.lhs),
-                finalizer.finalize_bounds(&constraint.rhs),
+                finalizer.finalize_bounds(&lhs),
+                finalizer.finalize_bounds(&rhs),
             )
         };
-        changed |= machine.constrain_invariant_neu(lhs, rhs);
-        trace_slow_compact_merge_constraint(&constraint, phase.elapsed());
+        changed |= machine.constrain_invariant_neu(lhs_neu, rhs_neu);
+        trace_slow_compact_merge_constraint(&lhs, &rhs, phase.elapsed());
     }
     changed
 }
 
-fn trace_slow_compact_merge_constraint(constraint: &CompactMergeConstraint, elapsed: Duration) {
+fn trace_slow_compact_merge_constraint(
+    lhs: &CompactBounds,
+    rhs: &CompactBounds,
+    elapsed: Duration,
+) {
     if elapsed < Duration::from_millis(50) || !compact_merge_trace_enabled() {
         return;
     }
     eprintln!(
-        "[compact] apply merge constraint: elapsed={:.3}ms key={:?} lhs={} rhs={}",
+        "[compact] apply merge constraint: elapsed={:.3}ms lhs={} rhs={}",
         elapsed.as_secs_f64() * 1000.0,
-        constraint.key,
-        compact_bounds_trace_summary(&constraint.lhs),
-        compact_bounds_trace_summary(&constraint.rhs)
+        compact_bounds_trace_summary(lhs),
+        compact_bounds_trace_summary(rhs)
     );
 }
 
@@ -422,14 +426,15 @@ pub(crate) fn apply_compact_subtype_constraints(
 ) -> bool {
     let mut changed = false;
     for constraint in constraints {
-        if constraint.lower == constraint.upper || !applied.insert(constraint.key.clone()) {
+        let CompactSubtypeConstraint { key, lower, upper } = constraint;
+        if lower == upper || !applied.insert(key) {
             continue;
         }
         let (lower, upper) = {
             let mut finalizer = CompactFinalizer::new(&mut *machine);
             (
-                finalizer.finalize_pos_type(&constraint.lower),
-                finalizer.finalize_neg_type(&constraint.upper),
+                finalizer.finalize_pos_type(&lower),
+                finalizer.finalize_neg_type(&upper),
             )
         };
         changed |= machine.constrain_subtype(lower, upper);
