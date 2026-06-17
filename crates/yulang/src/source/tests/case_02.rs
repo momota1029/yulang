@@ -504,6 +504,28 @@ fn run_control_source_text_with_embedded_std_runs_nondet_once_triple() {
     assert_eq!(output.text, "run roots [\"just (3, 4, 5)\"]\n");
 }
 
+#[cfg(unix)]
+#[test]
+fn dump_poly_std_nondet_once_act_method_uses_deep_handler_effect() {
+    let entry = write_main_with_std("dump-poly-std-nondet-once-type", "1\n");
+    let output =
+        dump_poly_from_entry_with_std_in_module(entry, "std.control.nondet.nondet").unwrap();
+
+    let once = output
+        .text
+        .lines()
+        .find(|line| line.starts_with("pub ") && line.contains("#act-method:once"))
+        .expect("once act method should be dumped");
+    assert!(
+        once.contains(" [std::control::nondet::nondet; '"),
+        "once act method should expose nondet with an independent residual:\n{once}"
+    );
+    assert!(
+        !once.contains("& [std::control::nondet::nondet;"),
+        "once act method is deep/recursive, not shallow:\n{once}"
+    );
+}
+
 #[test]
 fn run_control_source_text_with_embedded_std_runs_poly_variant_list() {
     let output =

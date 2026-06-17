@@ -35,14 +35,25 @@ pub(super) struct SubLabelReturnTarget {
 #[derive(Clone)]
 pub(super) enum LocalEffect {
     Var(TypeVar),
-    Stack { inner: TypeVar, weight: StackWeight },
+    /// The ordinary effect seen by `x` and the stack-protected view used by
+    /// `catch x:` are deliberately separate. Forwarding `x` must keep the full
+    /// effect, while handler lowering may inspect `inner` through `weight`.
+    Stack {
+        effect: TypeVar,
+        inner: TypeVar,
+        weight: StackWeight,
+    },
 }
 
 impl LocalEffect {
     pub(super) fn collect_vars(&self, vars: &mut FxHashSet<TypeVar>) {
         match self {
-            LocalEffect::Var(effect) | LocalEffect::Stack { inner: effect, .. } => {
+            LocalEffect::Var(effect) => {
                 vars.insert(*effect);
+            }
+            LocalEffect::Stack { effect, inner, .. } => {
+                vars.insert(*effect);
+                vars.insert(*inner);
             }
         }
     }

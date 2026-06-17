@@ -488,6 +488,55 @@ mod tests {
     }
 
     #[test]
+    fn parameter_effectful_annotation_with_tail_exposes_full_effect_and_row() {
+        let root = parse("type handled\nmy site: [handled; 'e] 'a = 1\n");
+        let lower = crate::lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let site = lower.modules.value_decls(module, &Name("site".into()))[0].order;
+        let ann = build_ann_type_expr(&lower.modules, module, site, &first_type_expr(&root))
+            .expect("annotation should build");
+        let mut infer = crate::Arena::new();
+        let value = infer.fresh_type_var();
+        let effect = infer.fresh_type_var();
+
+        let connection = AnnConstraintLowerer::new(&mut infer, &lower.modules)
+            .connect_parameter_computation_detailed(AnnComputationTarget { value, effect }, &ann)
+            .expect("annotation constraints should lower");
+
+        let stack = connection
+            .effect_stack
+            .expect("effectful annotation should report an effect connection");
+        let entry = single_stack_entry(&stack.weight);
+        assert_eq!(entry.pops, 0);
+        let types = infer.constraints().types();
+        let Neg::Intersection(full, row) = types.neg(stack.arg_eff) else {
+            panic!(
+                "expected full effect and row intersection, got {:?}",
+                types.neg(stack.arg_eff)
+            );
+        };
+        assert!(
+            matches!(types.neg(*full), Neg::Var(_)),
+            "expected full effect var, got {:?}",
+            types.neg(*full)
+        );
+        let Neg::Row(items, tail) = types.neg(*row) else {
+            panic!("expected annotated row, got {:?}", types.neg(*row));
+        };
+        assert!(
+            items.iter().any(
+                |item| matches!(types.neg(*item), Neg::Con(path, _) if path.as_slice() == ["handled"])
+            ),
+            "expected handled row item, got {:?}",
+            items
+        );
+        let Neg::Var(tail) = types.neg(*tail) else {
+            panic!("expected row tail var, got {:?}", types.neg(*tail));
+        };
+        assert_ne!(stack.inner, *tail);
+    }
+
+    #[test]
     fn function_return_effect_annotation_wraps_output_computation_with_stack() {
         let root = parse("type io\ntype handled\nmy site: 'a [io] -> [handled] 'a = 1\n");
         let lower = crate::lower_module_map(&root);

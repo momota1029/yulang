@@ -46,7 +46,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::analysis::{AnalysisDiagnostic, AnalysisSession, AnalysisWork};
 use crate::annotation::{
     AnnBuildError, AnnComputationTarget, AnnConstraintError, AnnConstraintLowerer, AnnSelfAlias,
-    AnnType, AnnTypeBuilder, AnnTypeVarId,
+    AnnType, AnnTypeBuilder, AnnTypeVarId, effect_row_has_wildcard,
 };
 use crate::builtin_ops::{BuiltinOp, BuiltinOpSig, SigTy, resolve_builtin_op};
 use crate::compact::{

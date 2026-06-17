@@ -20,11 +20,21 @@ impl<'a> SignatureLowerer<'a> {
         &mut self,
         row: Option<&SignatureEffectRow>,
     ) -> Result<NegId, SignatureConstraintError> {
-        row.map(|row| self.lower_subtractable_effect_row_neg(row))
-            .unwrap_or_else(|| {
-                let top = self.alloc_neg(Neg::Top);
-                Ok(self.alloc_neg(Neg::Row(Vec::new(), top)))
-            })
+        let Some(row) = row else {
+            let top = self.alloc_neg(Neg::Top);
+            return Ok(self.alloc_neg(Neg::Row(Vec::new(), top)));
+        };
+        if row
+            .items
+            .iter()
+            .any(|atom| matches!(atom, SignatureEffectAtom::Wildcard))
+        {
+            return self.lower_subtractable_effect_row_neg(row);
+        }
+
+        let effect = self.fresh_type_var();
+        self.connect_effect_row_lower(effect, row)?;
+        Ok(self.alloc_neg(Neg::Var(effect)))
     }
 
     pub(super) fn lower_ret_effect_pos(
@@ -256,6 +266,24 @@ impl<'a> SignatureLowerer<'a> {
         let effect_lower = self.alloc_pos(Pos::Var(effect));
         let tail_upper = self.alloc_neg(Neg::Var(tail));
         self.infer.subtype(effect_lower, tail_upper);
+    }
+
+    fn connect_effect_row_lower(
+        &mut self,
+        effect: TypeVar,
+        row: &SignatureEffectRow,
+    ) -> Result<(), SignatureConstraintError> {
+        if row
+            .items
+            .iter()
+            .any(|atom| matches!(atom, SignatureEffectAtom::Wildcard))
+        {
+            return Ok(());
+        }
+        let lower = self.lower_effect_row_pos(row)?;
+        let effect_upper = self.alloc_neg(Neg::Var(effect));
+        self.infer.subtype(lower, effect_upper);
+        Ok(())
     }
 
     fn effect_row_stack(

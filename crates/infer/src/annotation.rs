@@ -128,6 +128,7 @@ pub struct AnnComputationConnection {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AnnEffectStackConnection {
     pub inner: TypeVar,
+    pub arg_eff: NegId,
     pub weight: StackWeight,
     pub subtracts: Vec<SubtractId>,
 }

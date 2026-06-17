@@ -431,6 +431,14 @@ impl StackWeight {
 
     fn push_stack(&mut self, id: SubtractId, subtractability: Subtractability) {
         let entry = self.entry_mut(id);
+        if matches!(subtractability, Subtractability::Empty)
+            && entry
+                .floor
+                .iter()
+                .any(|floor| matches!(floor, Subtractability::Empty))
+        {
+            return;
+        }
         entry.stack.push(subtractability);
     }
 
@@ -700,6 +708,21 @@ mod tests {
         assert_eq!(entry.pops, 0);
         assert_eq!(entry.floor, vec![Subtractability::Empty]);
         assert_eq!(entry.stack, vec![io]);
+    }
+
+    #[test]
+    fn stack_weight_empty_floor_absorbs_later_empty_stack() {
+        let id = SubtractId(0);
+        let weight = StackWeight::floor(id, Subtractability::Empty)
+            .compose(&StackWeight::push(id, Subtractability::Empty));
+
+        let [entry] = weight.entries() else {
+            panic!("expected one stack entry");
+        };
+        assert_eq!(entry.id, id);
+        assert_eq!(entry.pops, 0);
+        assert_eq!(entry.floor, vec![Subtractability::Empty]);
+        assert!(entry.stack.is_empty());
     }
 
     #[test]

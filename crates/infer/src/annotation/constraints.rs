@@ -105,6 +105,31 @@ impl<'a> AnnConstraintLowerer<'a> {
         }
     }
 
+    pub fn connect_parameter_computation_detailed(
+        &mut self,
+        target: AnnComputationTarget,
+        ann: &AnnType,
+    ) -> Result<AnnComputationConnection, AnnConstraintError> {
+        match ann {
+            AnnType::Effectful { eff, ret } => {
+                let mut subtracts = self.connect_value(target.value, ret)?;
+                let effect_stack =
+                    self.connect_parameter_effectful_annotation_effect(target.effect, eff)?;
+                subtracts.extend(effect_stack.subtracts.iter().copied());
+                Ok(AnnComputationConnection {
+                    subtracts,
+                    effect_stack: Some(effect_stack),
+                })
+            }
+            _ => self
+                .connect_value(target.value, ann)
+                .map(|subtracts| AnnComputationConnection {
+                    subtracts,
+                    effect_stack: None,
+                }),
+        }
+    }
+
     pub fn lower_role_arg(
         &mut self,
         ann: &AnnType,
@@ -301,6 +326,7 @@ impl<'a> AnnConstraintLowerer<'a> {
             }
             return Ok(AnnEffectStackConnection {
                 inner: tail,
+                arg_eff: self.alloc_neg(Neg::Var(tail)),
                 weight: StackWeight::empty(),
                 subtracts: Vec::new(),
             });
@@ -317,8 +343,57 @@ impl<'a> AnnConstraintLowerer<'a> {
         let stacked = self.wrap_pos_with_stack(inner_pos, &stack.weight);
         let upper = self.alloc_neg(Neg::Var(effect));
         self.infer.subtype(stacked, upper);
+        let arg_eff = self.alloc_neg(Neg::Var(inner));
         Ok(AnnEffectStackConnection {
             inner,
+            arg_eff,
+            weight: stack.weight,
+            subtracts: stack.ids,
+        })
+    }
+
+    fn connect_parameter_effectful_annotation_effect(
+        &mut self,
+        effect: TypeVar,
+        row: &AnnEffectRow,
+    ) -> Result<AnnEffectStackConnection, AnnConstraintError> {
+        if row.items.is_empty()
+            && let Some(tail) = &row.tail
+        {
+            let tail = self.annotation_var(tail);
+            if tail != effect {
+                let tail_lower = self.alloc_pos(Pos::Var(tail));
+                let effect_upper = self.alloc_neg(Neg::Var(effect));
+                self.infer.subtype(tail_lower, effect_upper);
+                let effect_lower = self.alloc_pos(Pos::Var(effect));
+                let tail_upper = self.alloc_neg(Neg::Var(tail));
+                self.infer.subtype(effect_lower, tail_upper);
+            }
+            return Ok(AnnEffectStackConnection {
+                inner: tail,
+                arg_eff: self.alloc_neg(Neg::Var(tail)),
+                weight: StackWeight::empty(),
+                subtracts: Vec::new(),
+            });
+        }
+
+        let inner = self.infer.fresh_type_var();
+        let stack = self.effect_row_stack(row)?;
+        self.register_stack_facts(inner, &stack.weight);
+        let inner_pos = self.alloc_pos(Pos::Var(inner));
+        let stacked = self.wrap_pos_with_stack(inner_pos, &stack.weight);
+        let upper = self.alloc_neg(Neg::Var(effect));
+        self.infer.subtype(stacked, upper);
+        let full_eff = self.alloc_neg(Neg::Var(effect));
+        let arg_eff = if effect_row_has_wildcard(row) {
+            full_eff
+        } else {
+            let row_eff = self.lower_effect_row_neg(row)?;
+            self.alloc_neg(Neg::Intersection(full_eff, row_eff))
+        };
+        Ok(AnnEffectStackConnection {
+            inner,
+            arg_eff,
             weight: stack.weight,
             subtracts: stack.ids,
         })

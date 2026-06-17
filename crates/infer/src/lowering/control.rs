@@ -493,7 +493,12 @@ impl<'a> ExprLowerer<'a> {
         row: NegId,
     ) {
         let lower = match effect_view.map(|view| self.effect_view(view).clone()) {
-            Some(LocalEffect::Stack { inner, weight }) => {
+            Some(LocalEffect::Stack { inner, weight, .. }) => {
+                // Keep the public effect slot constrained by the handled row so
+                // shallow handlers can surface the resumed effect, while the
+                // stack view drives subtraction hygiene.
+                let full = self.alloc_pos(Pos::Var(effect));
+                self.session.infer.subtype(full, row);
                 let inner = self.alloc_pos(Pos::Var(inner));
                 self.alloc_pos(Pos::Stack { inner, weight })
             }

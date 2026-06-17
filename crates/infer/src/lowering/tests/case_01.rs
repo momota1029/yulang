@@ -847,7 +847,7 @@ fn role_impl_method_requirement_ret_effect_records_stack_weighted_upper() {
 }
 
 #[test]
-fn role_method_signature_arg_effect_lowers_to_neg_stack() {
+fn role_method_signature_arg_effect_adds_row_lower_to_fresh_arg_effect() {
     let root = parse("act nondet:\nrole Box 'a:\n  our x.run: unit [nondet; 'e] -> unit\n");
     let lower = lower_module_map(&root);
     let module = lower.modules.root_id();
@@ -863,16 +863,28 @@ fn role_method_signature_arg_effect_lowers_to_neg_stack() {
         Pos::Fun { arg_eff, .. } => *arg_eff,
         other => panic!("expected inner function lower bound, got {other:?}"),
     };
-    let Neg::Stack { inner, weight } = output.session.infer.constraints().types().neg(arg_eff)
-    else {
-        panic!(
-            "expected stacked arg effect var, got {:?}",
-            output.session.infer.constraints().types().neg(arg_eff)
-        );
+    let types = output.session.infer.constraints().types();
+    let Neg::Var(effect) = types.neg(arg_eff) else {
+        panic!("expected arg effect var, got {:?}", types.neg(arg_eff));
     };
-    assert!(matches!(
-        output.session.infer.constraints().types().neg(*inner),
-        Neg::Var(_)
-    ));
-    assert!(weight_set_path_id(weight, &["nondet"]).is_some());
+    let bounds = output
+        .session
+        .infer
+        .constraints()
+        .bounds()
+        .of(*effect)
+        .expect("arg effect should receive row lower bound");
+    assert!(
+        bounds.lowers().iter().any(|bound| {
+            matches!(
+                types.pos(bound.pos),
+                Pos::Row(items)
+                    if items
+                        .iter()
+                        .any(|item| matches!(types.pos(*item), Pos::Con(path, _) if path.as_slice() == ["nondet"]))
+            )
+        }),
+        "arg effect bounds: {:?}",
+        bounds
+    );
 }

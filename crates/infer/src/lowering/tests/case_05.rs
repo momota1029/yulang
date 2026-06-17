@@ -101,10 +101,8 @@ fn result_effect_annotation_reuses_callback_tail() {
 }
 
 #[test]
-fn subtractable_helper_preserves_callback_residual_tail() {
-    let root = parse(
-        "type handled\nmy sub(x: [handled; 'e] _): ['e] () = x\nmy h(xs, f: _ -> [handled; 'e] _): ['e] () = sub(f xs)\n",
-    );
+fn effectful_parameter_forwarding_keeps_unhandled_effect() {
+    let root = parse("type handled\nmy h(x: [handled; 'e] 'a) = x\n");
     let lower = lower_module_map(&root);
     let module = lower.modules.root_id();
     let (h, _) = binding_def_and_order(&lower.modules, module, "h");
@@ -113,7 +111,14 @@ fn subtractable_helper_preserves_callback_residual_tail() {
 
     assert!(output.errors.is_empty(), "{:?}", output.errors);
     let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, h));
-    assert_eq!(rendered, "'a -> ('a -> ['b] ()) -> ['b] ()");
+    assert!(
+        rendered.contains("[handled; '"),
+        "forwarding should keep handled in the result effect: {rendered}"
+    );
+    assert!(
+        !rendered.contains("& [handled;"),
+        "forwarding without catch must not become a shallow handler type: {rendered}"
+    );
 }
 
 #[test]
@@ -567,7 +572,7 @@ fn binding_empty_call_header_lowers_to_unit_lambda_param() {
 }
 
 #[test]
-fn lambda_param_effect_annotation_uses_inner_arg_effect_and_subtracts_output() {
+fn lambda_param_effect_annotation_exposes_row_arg_effect_without_subtracting_body() {
     let root = parse("type handled\nmy f = \\x: [handled] 'a -> x\n");
     let lower = lower_module_map(&root);
     let module = lower.modules.root_id();
@@ -599,24 +604,94 @@ fn lambda_param_effect_annotation_uses_inner_arg_effect_and_subtracts_output() {
             _ => None,
         })
         .expect("lambda lower bound should be a function");
-    assert!(
-        matches!(types.neg(arg_eff), Neg::Var(_)),
-        "function arg effect should expose the annotation inner effect, got {:?}",
-        types.neg(arg_eff)
-    );
-    let subtract = match types.pos(ret_eff) {
-        Pos::Stack { weight, .. } => {
-            let [entry] = weight.entries() else {
-                panic!("expected output effect stack pop");
-            };
-            entry.id
-        }
-        Pos::NonSubtract(_, subtract) => *subtract,
-        other => panic!("expected output effect stack pop, got {other:?}"),
+    let Neg::Intersection(full, row) = types.neg(arg_eff) else {
+        panic!(
+            "expected full effect and row intersection, got {:?}",
+            types.neg(arg_eff)
+        );
     };
+    assert!(
+        matches!(types.neg(*full), Neg::Var(_)),
+        "expected full effect var, got {:?}",
+        types.neg(*full)
+    );
+    let Neg::Row(items, _) = types.neg(*row) else {
+        panic!("expected row arg effect, got {:?}", types.neg(*row));
+    };
+    assert!(
+        items.iter().any(
+            |item| matches!(types.neg(*item), Neg::Con(path, _) if path.as_slice() == ["handled"])
+        ),
+        "expected handled row item, got {:?}",
+        items
+    );
+    assert!(
+        !matches!(
+            types.pos(ret_eff),
+            Pos::Stack { .. } | Pos::NonSubtract(_, _)
+        ),
+        "ordinary forwarding should not subtract the parameter effect, got {:?}",
+        types.pos(ret_eff)
+    );
+    assert!(
+        !matches!(types.pos(ret), Pos::Stack { .. } | Pos::NonSubtract(_, _)),
+        "ordinary forwarding should not wrap the result value in a subtract marker, got {:?}",
+        types.pos(ret)
+    );
+}
 
-    assert_pos_stack_pop_var(&session, ret_eff, subtract);
-    assert_pos_stack_pop_var(&session, ret, subtract);
+#[test]
+fn lambda_param_effect_annotation_with_tail_exposes_full_effect_and_row() {
+    let root = parse("type handled\nmy f = \\x: [handled; 'e] 'a -> x\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+    let expr = binding_expr(&root, "f");
+    let mut session = AnalysisSession::new(lower.arena);
+
+    let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+        .lower_binding_body_expr(&expr)
+        .unwrap();
+
+    let bounds = session
+        .infer
+        .constraints()
+        .bounds()
+        .of(computation.value)
+        .expect("lambda value should receive a function lower bound");
+    let types = session.infer.constraints().types();
+    let arg_eff = bounds
+        .lowers()
+        .iter()
+        .find_map(|bound| match types.pos(bound.pos) {
+            Pos::Fun { arg_eff, .. } => Some(*arg_eff),
+            _ => None,
+        })
+        .expect("lambda lower bound should be a function");
+    let Neg::Intersection(full, row) = types.neg(arg_eff) else {
+        panic!(
+            "expected full effect and row intersection, got {:?}",
+            types.neg(arg_eff)
+        );
+    };
+    assert!(
+        matches!(types.neg(*full), Neg::Var(_)),
+        "expected full effect var, got {:?}",
+        types.neg(*full)
+    );
+    let Neg::Row(items, tail) = types.neg(*row) else {
+        panic!("expected annotated row, got {:?}", types.neg(*row));
+    };
+    assert!(
+        items.iter().any(
+            |item| matches!(types.neg(*item), Neg::Con(path, _) if path.as_slice() == ["handled"])
+        ),
+        "expected handled row item, got {:?}",
+        items
+    );
+    let Neg::Var(_tail) = types.neg(*tail) else {
+        panic!("expected row tail var, got {:?}", types.neg(*tail));
+    };
 }
 
 #[test]

@@ -116,9 +116,9 @@ impl<'a> ExprLowerer<'a> {
     ) -> (TypeVar, Option<EffectViewId>) {
         match effect {
             Some(LocalEffect::Var(effect)) => (effect, None),
-            Some(effect @ LocalEffect::Stack { inner, .. }) => {
-                let view = self.add_effect_view(effect);
-                (inner, Some(view))
+            Some(stack @ LocalEffect::Stack { effect, .. }) => {
+                let view = self.add_effect_view(stack);
+                (effect, Some(view))
             }
             None => (self.fresh_exact_pure_effect(), None),
         }
@@ -137,13 +137,9 @@ impl<'a> ExprLowerer<'a> {
     pub(super) fn subtype_var_to_local_effect(&mut self, source: TypeVar, target: &LocalEffect) {
         match target {
             LocalEffect::Var(target) => self.subtype_var_to_var(source, *target),
-            LocalEffect::Stack { inner, weight } => {
+            LocalEffect::Stack { effect, .. } => {
                 let lower = self.alloc_pos(Pos::Var(source));
-                let inner = self.alloc_neg(Neg::Var(*inner));
-                let upper = self.alloc_neg(Neg::Stack {
-                    inner,
-                    weight: weight.clone(),
-                });
+                let upper = self.alloc_neg(Neg::Var(*effect));
                 self.session.infer.subtype(lower, upper);
             }
         }

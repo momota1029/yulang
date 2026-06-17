@@ -669,33 +669,40 @@ impl<'a> ExprLowerer<'a> {
         let mut lowerer =
             AnnConstraintLowerer::with_vars(&mut self.session.infer, self.modules, vars);
         let connection = lowerer
-            .connect_computation_detailed(AnnComputationTarget { value, effect }, &ann)
+            .connect_parameter_computation_detailed(AnnComputationTarget { value, effect }, &ann)
             .map_err(|error| LoweringError::AnnotationConstraint { error });
         *ann_solver_vars = lowerer.into_vars();
         let connection = connection?;
         let arg_eff = match connection.effect_stack {
-            Some(ref effect_stack) => self.alloc_neg(Neg::Var(effect_stack.inner)),
+            Some(ref effect_stack) => effect_stack.arg_eff,
             None => arg_eff,
         };
         let skeleton_arg_eff = match connection.effect_stack {
-            Some(ref effect_stack) => self.alloc_neg(Neg::Var(effect_stack.inner)),
+            Some(ref effect_stack) => effect_stack.arg_eff,
             None => arg_eff,
         };
         let local_effect = connection
             .effect_stack
             .clone()
             .map(|effect_stack| LocalEffect::Stack {
+                effect,
                 inner: effect_stack.inner,
                 weight: effect_stack.weight,
             })
             .or_else(|| {
                 matches!(ann, AnnType::Effectful { .. }).then_some(LocalEffect::Var(effect))
             });
+        let subtracts = if matches!(&ann, AnnType::Effectful { eff, .. } if effect_row_has_wildcard(eff))
+        {
+            connection.subtracts
+        } else {
+            Vec::new()
+        };
         Ok(LambdaPatternAnnotation {
             arg_eff,
             skeleton_arg_eff,
             local_effect,
-            subtracts: connection.subtracts,
+            subtracts,
             call_return_effect: LocalCallReturnEffect::Annotated,
         })
     }
