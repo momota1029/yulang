@@ -113,6 +113,12 @@
     `showcase` の `constraint.drains` は 18118 から 15020 へ低下。
   - 次は `instantiate_subtype_predicate` の replay がどこで増えるかを、trivial edge ではなく
     bound replay / role predicate shape 側から見る。
+- 2026-06-18 source collection module discovery skip:
+  - collect/load の時間が似ていた原因は、ファイル二重 read ではなく module discovery の full parse と
+    `sources::load` の full parse が重なっていたこと。
+  - source text に `"mod"` が無いファイルでは module load discovery parse を skip する。
+    `showcase` の `collect` は 39〜41ms から 8ms 前後へ低下。
+  - まだ残る `load` 40ms 前後は `read_header` + full parse + op export fixed point 側を見る。
 - typed-surface import の role / impl / effect fidelity を広げる。
 - compiled-unit manifest validation を厳しくする。
 - persistent cache を user dependency SCCs に一般化する。

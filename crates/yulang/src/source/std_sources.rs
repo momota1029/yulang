@@ -116,6 +116,9 @@ pub(super) fn is_std_root(path: &FsPath) -> bool {
 }
 
 pub(super) fn discover_module_loads(module_path: &Path, source: &str) -> Vec<ModuleLoadRequest> {
+    if !source.contains("mod") {
+        return Vec::new();
+    }
     let cst = parser::parse_module_to_green(source);
     let root = rowan::SyntaxNode::<parser::sink::YulangLanguage>::new_root(cst);
     sources::module_load_requests(module_path, &root)
