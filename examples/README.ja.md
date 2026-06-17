@@ -18,9 +18,11 @@ yulang run examples/01_struct_with.yu
 yulang run examples/04_sub_return.yu
 yulang run examples/06_undet_once.yu
 yulang run examples/10_effect_handler.yu
-yulang run examples/11_attached_impl.yu
 yulang run examples/12_cast.yu
 ```
+
+`examples/11_attached_impl.yu` は attached impl の意図を示す fixture として残しています。
+role method の runtime specialization を詰めている間は、実行 example の一覧からは外しています。
 
 型検査と public type の確認には `check` を使います。
 

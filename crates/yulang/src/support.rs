@@ -359,6 +359,7 @@ pub(super) fn print_run_mono_output(output: &yulang::RunMonoOutput) {
 }
 
 pub(super) fn print_run_control_output(output: &yulang::RunControlOutput) {
+    print!("{}", output.stdout);
     print!("{}", output.text);
     for error in &output.errors {
         eprintln!("error: {error}");
@@ -378,6 +379,7 @@ pub(super) fn run_mono_printer(print_roots: bool) -> impl FnOnce(&yulang::RunMon
 
 pub(super) fn run_control_printer(print_roots: bool) -> impl FnOnce(&yulang::RunControlOutput) {
     move |output| {
+        print!("{}", output.stdout);
         if print_roots {
             print!("{}", output.text);
         }

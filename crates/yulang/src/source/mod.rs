@@ -110,13 +110,39 @@ pub fn run_built_control_program(
     file_count: usize,
     errors: Vec<String>,
 ) -> Result<RunControlOutput, RouteError> {
-    let values = control_vm::run_program(program).map_err(RouteError::Control)?;
+    let mut stdout = String::new();
+    let values = control_vm::run_program_with_host(program, |path, payload| {
+        handle_control_host_effect(path, payload, &mut stdout)
+    })
+    .map_err(RouteError::Control)?;
     Ok(RunControlOutput {
         text: format!("run roots {}\n", control_vm::format_values(&values)),
         file_count,
         errors,
         values,
+        stdout,
     })
+}
+
+fn handle_control_host_effect(
+    path: &[String],
+    payload: &control_vm::Value,
+    stdout: &mut String,
+) -> Option<control_vm::Value> {
+    if path == ["std", "io", "console", "out", "write"] {
+        let text = control_host_string_payload(payload)?;
+        stdout.push_str(text);
+        return Some(control_vm::Value::Unit);
+    }
+    None
+}
+
+fn control_host_string_payload(value: &control_vm::Value) -> Option<&str> {
+    match value {
+        control_vm::Value::Str(value) => Some(value.as_str()),
+        control_vm::Value::Marked { value, .. } => control_host_string_payload(value),
+        _ => None,
+    }
 }
 
 /// entry file と近場の `lib/std.yu` を読み、implicit prelude 付きで poly dump を返す。
@@ -536,6 +562,7 @@ pub struct RunControlOutput {
     /// body lowering が報告したエラーの表示用整形。実行結果とは別に stderr へ流す。
     pub errors: Vec<String>,
     pub values: Vec<control_vm::Value>,
+    pub stdout: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

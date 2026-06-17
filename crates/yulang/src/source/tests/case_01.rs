@@ -623,8 +623,8 @@ fn dump_mono_with_std_specializes_nondet_sum_list_say_benchmark() {
 
 #[cfg(unix)]
 #[test]
-fn run_with_std_nondet_sum_list_say_reports_unhandled_out() {
-    let root = temp_root("run-std-nondet-sum-list-say-unhandled-out");
+fn run_with_std_nondet_sum_list_say_handles_control_stdout() {
+    let root = temp_root("run-std-nondet-sum-list-say-control-stdout");
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
     symlink_repo_lib(&root);
@@ -643,14 +643,9 @@ fn run_with_std_nondet_sum_list_say_reports_unhandled_out() {
         }
         other => panic!("expected mono unhandled out effect, got {other:?}"),
     }
-    match control {
-        Err(RouteError::Control(control_vm::RunError::Runtime(
-            control_vm::RuntimeError::UnhandledEffect { path },
-        ))) => {
-            assert_eq!(path, vec!["std", "io", "console", "out", "write"]);
-        }
-        other => panic!("expected control unhandled out effect, got {other:?}"),
-    }
+    let control = control.expect("control VM route should handle console out");
+    assert_eq!(control.stdout, "[2, 3, 3, 4, 4, 5]\n");
+    assert_eq!(control.text, "run roots [()]\n");
 }
 
 #[test]

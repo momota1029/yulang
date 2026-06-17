@@ -68,6 +68,11 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
 - playground/editor surface:
   - `tok-type` / `tok-function` / `tok-property` の class drift を固定する。
   - CLI diagnostics と playground diagnostics が同じ原因を指すこと。
+- public examples:
+  - `examples/*.yu` のうち README に載せる run example を sweep する。
+  - 初期 smoke script は `scripts/public-example-smoke.sh`。
+  - console output は `stdout`、root 表示は `--print-roots` の surface として分けて見る。
+  - attached impl example は role-method runtime specialization の TODO として分け、run sweep には混ぜない。
 
 ## 最初の slice
 

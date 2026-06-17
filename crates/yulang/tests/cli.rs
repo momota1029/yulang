@@ -36,6 +36,39 @@ fn compatible_run_suppresses_roots_without_print_roots() {
 }
 
 #[test]
+fn compatible_run_prints_console_stdout_without_roots() {
+    let entry = write_entry("run-console-stdout", "say \"Hello, World\"\nsay: 1 + 2\n");
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("run")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "Hello, World\n3\n");
+}
+
+#[test]
+fn compatible_run_print_roots_keeps_console_stdout_before_roots() {
+    let entry = write_entry("run-console-stdout-roots", "say \"Hello\"\n1 + 2\n");
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "Hello\nrun roots [(), 3]\n");
+}
+
+#[test]
 fn compatible_check_accepts_explicit_std_root() {
     let (entry, std_root) = write_fixture("check-explicit-std-root", "1\n");
 
@@ -374,6 +407,10 @@ fn write_minimal_std(root: &Path) -> PathBuf {
     fs::write(std_root.join("std.yu"), "mod prelude;\n").unwrap();
     fs::write(std_root.join("std").join("prelude.yu"), "").unwrap();
     std_root
+}
+
+fn repo_lib_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib")
 }
 
 fn temp_root(name: &str) -> PathBuf {
