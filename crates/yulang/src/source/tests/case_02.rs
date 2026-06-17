@@ -548,6 +548,20 @@ fn run_control_source_text_with_embedded_std_reuses_record_default_function() {
 }
 
 #[test]
+fn run_control_source_text_with_embedded_std_record_default_accepts_float_field() {
+    let source = "\
+our box {width = 1, height = width} =
+    width * height
+
+box {width: 1.2}
+";
+    let output = run_control_from_source_text_with_embedded_std("playground.yu", source).unwrap();
+
+    assert_eq!(output.file_count, embedded_std_files().len() + 1);
+    assert_eq!(output.text, "run roots [1.44]\n");
+}
+
+#[test]
 fn run_control_source_text_with_embedded_std_lowers_sub_syntax_return() {
     let output =
         run_control_from_source_text_with_embedded_std("playground.yu", "sub:\n  return 1\n")

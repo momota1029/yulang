@@ -148,6 +148,39 @@ fn record_pattern_with_default_binds_field_local() {
 }
 
 #[test]
+fn record_pattern_default_does_not_constrain_optional_input_field() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  pub mod num:\n",
+        "    pub role Mul 'a:\n",
+        "      pub a.mul: 'a -> 'a\n",
+        "use std::num::*\n",
+        "pub infix (*) 6.0.0 6.0.1 = \\x -> \\y -> x.mul y\n",
+        "our box {width = 1, height = width} =\n",
+        "  width * height\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (box_def, _) = binding_def_and_order(&lower.modules, module, "box");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let rendered =
+        poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, box_def));
+    assert!(rendered.contains("width?:"), "{rendered}");
+    assert!(rendered.contains("height?:"), "{rendered}");
+    for name in ["width", "height"] {
+        let field = rendered
+            .split_once(&format!("{name}?: "))
+            .and_then(|(_, tail)| tail.split([',', '}']).next())
+            .unwrap_or_else(|| panic!("missing {name} field in {rendered}"));
+        assert!(!field.contains("& int"), "{rendered}");
+        assert!(!field.contains("int &"), "{rendered}");
+    }
+}
+
+#[test]
 fn poly_variant_expr_and_pattern_lower_to_poly_variant_ir() {
     let root =
         parse("my f option = case option:\n  :ok msg -> :rendered msg\n  :pending -> :empty\n");

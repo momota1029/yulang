@@ -479,7 +479,7 @@ pub(super) fn single_union_concrete_candidate(parts: &[Type]) -> Option<Type> {
     let candidate = single_concrete_candidate(parts)?;
     parts
         .iter()
-        .all(|part| matches!(part, Type::OpenVar(_)) || part == &candidate)
+        .all(|part| part == &candidate)
         .then_some(candidate)
 }
 
@@ -502,15 +502,12 @@ pub(super) fn single_concrete_candidate(parts: &[Type]) -> Option<Type> {
 }
 
 pub(super) fn intersection_part_allows_candidate(part: &Type, candidate: &Type) -> bool {
-    if part == candidate || matches!(part, Type::OpenVar(_)) {
+    if part == candidate {
         return true;
     }
     let mut union_parts = Vec::new();
     collect_union_parts(part.clone(), &mut union_parts);
-    union_parts.len() > 1
-        && union_parts
-            .iter()
-            .all(|part| matches!(part, Type::OpenVar(_)) || part == candidate)
+    union_parts.len() > 1 && union_parts.iter().all(|part| part == candidate)
 }
 
 pub(super) fn collect_union_parts(ty: Type, out: &mut Vec<Type>) {

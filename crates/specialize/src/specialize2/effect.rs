@@ -65,6 +65,10 @@ pub(super) fn type_candidate_subtype(graph: &TypeGraph<'_>, lower: &Type, upper:
             type_candidate_subtype(graph, left, upper)
                 && type_candidate_subtype(graph, right, upper)
         }
+        (lower, Type::Union(left, right)) => {
+            type_candidate_subtype(graph, lower, left)
+                || type_candidate_subtype(graph, lower, right)
+        }
         (lower, Type::Intersection(left, right)) => {
             type_candidate_subtype(graph, lower, left)
                 && type_candidate_subtype(graph, lower, right)

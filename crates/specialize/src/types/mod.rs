@@ -389,6 +389,33 @@ mod tests {
         assert_eq!(ty, Type::EffectRow(vec![nondet]));
     }
 
+    #[test]
+    fn value_union_keeps_open_var_with_concrete_candidate() {
+        let ty = simplify_type(Type::Union(
+            Box::new(Type::OpenVar(0)),
+            Box::new(int_type()),
+        ));
+
+        assert!(matches!(ty, Type::Union(_, _)), "{ty:?}");
+    }
+
+    #[test]
+    fn value_intersection_keeps_open_var_with_concrete_candidate() {
+        let ty = simplify_type(Type::Intersection(
+            Box::new(Type::OpenVar(0)),
+            Box::new(int_type()),
+        ));
+
+        assert!(matches!(ty, Type::Intersection(_, _)), "{ty:?}");
+    }
+
+    fn int_type() -> Type {
+        Type::Con {
+            path: vec!["int".to_string()],
+            args: Vec::new(),
+        }
+    }
+
     fn effect(name: &str) -> Type {
         Type::Con {
             path: vec![name.to_string()],

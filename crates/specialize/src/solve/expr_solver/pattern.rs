@@ -252,8 +252,7 @@ impl<'a> ExprTypeSolver<'a> {
     ) -> Result<(), SpecializeError> {
         let Type::Record(record_fields) = ty else {
             for field in fields {
-                let field_ty = self.record_pattern_default_type(field, None)?;
-                self.bind_pat(field.pat, field_ty)?;
+                self.bind_record_pat_field(field, None)?;
             }
             if let Some(def) = record_spread_def(spread) {
                 let spread_ty = self.fresh_value_slot();
@@ -263,10 +262,7 @@ impl<'a> ExprTypeSolver<'a> {
         };
 
         for field in fields {
-            let expected =
-                record_field_type(&record_fields, &field.name).map(|field| field.value.clone());
-            let field_ty = self.record_pattern_default_type(field, expected)?;
-            self.bind_pat(field.pat, field_ty)?;
+            self.bind_record_pat_field(field, record_field_type(&record_fields, &field.name))?;
         }
         if let Some(def) = record_spread_def(spread) {
             let captured = record_fields
@@ -278,18 +274,40 @@ impl<'a> ExprTypeSolver<'a> {
         Ok(())
     }
 
-    pub(super) fn record_pattern_default_type(
+    pub(super) fn bind_record_pat_field(
         &mut self,
         field: &poly_expr::RecordPatField,
-        expected: Option<Type>,
+        provided: Option<&TypeField>,
+    ) -> Result<(), SpecializeError> {
+        let field_ty = self.record_pattern_local_type(field, provided)?;
+        self.bind_pat(field.pat, field_ty)
+    }
+
+    pub(super) fn record_pattern_local_type(
+        &mut self,
+        field: &poly_expr::RecordPatField,
+        provided: Option<&TypeField>,
     ) -> Result<Type, SpecializeError> {
-        let Some(default) = field.default else {
-            return Ok(expected.unwrap_or_else(|| self.fresh_value_slot()));
-        };
-        let expected = expected.unwrap_or_else(|| self.fresh_value_slot());
-        let actual = self.expr(default, Some(expected.clone()))?;
-        self.graph.constrain_subtype(actual.clone(), expected)?;
-        Ok(actual)
+        match (provided, field.default) {
+            (Some(provided), None) => Ok(provided.value.clone()),
+            (Some(provided), Some(default)) if !provided.optional => {
+                self.expr(default, None)?;
+                Ok(provided.value.clone())
+            }
+            (Some(provided), Some(default)) => {
+                let local = self.fresh_value_slot();
+                self.graph
+                    .constrain_subtype(provided.value.clone(), local.clone())?;
+                self.expr(default, Some(local.clone()))?;
+                Ok(local)
+            }
+            (None, Some(default)) => {
+                let local = self.fresh_value_slot();
+                self.expr(default, Some(local.clone()))?;
+                Ok(local)
+            }
+            (None, None) => Ok(self.fresh_value_slot()),
+        }
     }
 
     pub(super) fn constrain_pat_defaults(
@@ -363,9 +381,7 @@ impl<'a> ExprTypeSolver<'a> {
     ) -> Result<(), SpecializeError> {
         let Type::Record(record_fields) = ty else {
             for field in fields {
-                let field_ty = self.fresh_value_slot();
-                self.constrain_default_expr(field.default, field_ty.clone())?;
-                self.constrain_pat_defaults(field.pat, field_ty)?;
+                self.constrain_record_pat_field_defaults(field, None)?;
             }
             if let Some(def) = record_spread_def(spread) {
                 let spread_ty = self.fresh_value_slot();
@@ -375,11 +391,10 @@ impl<'a> ExprTypeSolver<'a> {
         };
 
         for field in fields {
-            let field_ty = record_field_type(&record_fields, &field.name)
-                .map(|field| field.value.clone())
-                .unwrap_or_else(|| self.fresh_value_slot());
-            self.constrain_default_expr(field.default, field_ty.clone())?;
-            self.constrain_pat_defaults(field.pat, field_ty)?;
+            self.constrain_record_pat_field_defaults(
+                field,
+                record_field_type(&record_fields, &field.name),
+            )?;
         }
         if let Some(def) = record_spread_def(spread) {
             let captured = record_fields
@@ -391,16 +406,13 @@ impl<'a> ExprTypeSolver<'a> {
         Ok(())
     }
 
-    pub(super) fn constrain_default_expr(
+    pub(super) fn constrain_record_pat_field_defaults(
         &mut self,
-        default: Option<poly_expr::ExprId>,
-        expected: Type,
+        field: &poly_expr::RecordPatField,
+        provided: Option<&TypeField>,
     ) -> Result<(), SpecializeError> {
-        let Some(default) = default else {
-            return Ok(());
-        };
-        let actual = self.infer_expr(default, Some(expected.clone()))?;
-        self.constrain_expr_boundary(actual, expected)
+        let field_ty = self.record_pattern_local_type(field, provided)?;
+        self.constrain_pat_defaults(field.pat, field_ty)
     }
 
     pub(super) fn bind_constructor_pat(

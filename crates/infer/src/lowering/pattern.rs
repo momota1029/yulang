@@ -336,12 +336,12 @@ impl<'a> ExprLowerer<'a> {
                     )?;
                     pos_fields.push(RecordField {
                         name: field.name.clone(),
-                        value: self.alloc_pos(Pos::Var(field.value)),
+                        value: self.alloc_pos(Pos::Var(field.record_value)),
                         optional: field.optional,
                     });
                     neg_fields.push(RecordField {
                         name: field.name.clone(),
-                        value: self.alloc_neg(Neg::Var(field.value)),
+                        value: self.alloc_neg(Neg::Var(field.record_value)),
                         optional: field.optional,
                     });
                     fields.push(poly::expr::RecordPatField {
@@ -428,6 +428,11 @@ impl<'a> ExprLowerer<'a> {
             .map(|expr| self.lower_expr(&expr))
             .transpose()?;
         let optional = default.is_some();
+        let record_value = if optional {
+            self.fresh_type_var()
+        } else {
+            value
+        };
         let pat = if let Some(pattern) = pat_field_pattern(node) {
             self.lower_pattern(&pattern, value, local_effect.clone(), call_return_effect)?
         } else {
@@ -439,15 +444,15 @@ impl<'a> ExprLowerer<'a> {
             )
         };
         if let Some(default) = default {
+            self.subtype_var_to_var(record_value, value);
             self.subtype_var_to_var(default.value, value);
-            self.subtype_var_to_var(value, default.value);
             if let Some(local_effect) = local_effect {
                 self.subtype_var_to_local_effect(default.effect, &local_effect);
             }
         }
         Ok(LoweredRecordPatternField {
             name: name.0,
-            value,
+            record_value,
             pat,
             default: default.map(|default| default.expr),
             optional,
@@ -713,7 +718,7 @@ pub(super) enum PatternItem {
 
 struct LoweredRecordPatternField {
     name: String,
-    value: TypeVar,
+    record_value: TypeVar,
     pat: PatId,
     default: Option<ExprId>,
     optional: bool,

@@ -18,21 +18,6 @@ pub(super) fn runtime_value_is_never(ty: &Type) -> bool {
     matches!(runtime_value_shape(ty), Type::Never)
 }
 
-pub(super) fn value_argument_narrows_polyvariant(declared: &Type, actual: &Type) -> bool {
-    let Type::PolyVariant(declared_variants) = runtime_value_shape(declared) else {
-        return false;
-    };
-    let Type::PolyVariant(actual_variants) = runtime_value_shape(actual) else {
-        return false;
-    };
-    actual_variants.len() < declared_variants.len()
-        && actual_variants.iter().all(|actual| {
-            declared_variants.iter().any(|declared| {
-                declared.name == actual.name && declared.payloads.len() == actual.payloads.len()
-            })
-        })
-}
-
 pub(super) fn function_runtime_parts(ty: &Type) -> Option<(Type, Type)> {
     let Type::Fun { arg, ret, .. } = ty else {
         return None;

@@ -28,9 +28,10 @@ impl<'a> ExprTypeSolver<'a> {
                     None => self.instantiate_scheme(def, scheme)?,
                 };
                 if let Some(body) = body {
-                    self.constrain_instantiated_def_body(def, *body, ty.clone())?;
+                    let body_ty = expected.cloned().unwrap_or_else(|| ty.clone());
+                    self.constrain_instantiated_def_body(def, *body, body_ty)?;
                 }
-                Ok(ty)
+                Ok(expected.cloned().unwrap_or(ty))
             }
             Some(poly_expr::Def::Arg) | Some(poly_expr::Def::Let { body: None, .. }) => {
                 Ok(self.fresh_value_slot())

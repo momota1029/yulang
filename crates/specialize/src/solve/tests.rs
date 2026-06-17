@@ -648,6 +648,23 @@ fn case_record_pattern_binds_field_from_scrutinee_type() {
 }
 
 #[test]
+fn record_pattern_default_uses_provided_field_type_for_later_default() {
+    let lowering = lower_source(
+        "my box { width = 1, height = width } = height\n\
+             box { width: 1.2 }\n",
+    );
+    let arena = &lowering.session.poly;
+    let root = arena.root_exprs[0];
+
+    let plan = solve_expr(arena, root, None).expect("record default call should solve");
+
+    assert_eq!(
+        mono::dump::dump_type(plan.actual_type_of(root).unwrap()),
+        "float"
+    );
+}
+
+#[test]
 fn record_select_reads_base_field_type() {
     let lowering = lower_source("my id x = x\nid(({ width: 1 }).width)\n");
     let arena = &lowering.session.poly;

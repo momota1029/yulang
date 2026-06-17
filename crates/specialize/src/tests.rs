@@ -366,6 +366,23 @@ mod tests {
     }
 
     #[test]
+    fn specialize2_record_pattern_default_uses_provided_field_type_for_later_default() {
+        let lowering = lower_source(
+            "my box { width = 1, height = width } = height\n\
+             box { width: 1.2 }\n",
+        );
+        let arena = &lowering.session.poly;
+
+        let program = specialize2(arena).expect("record default call should specialize");
+        let text = mono::dump::dump_program(&program);
+
+        assert!(text.contains("width: float"), "{text}");
+        assert!(text.contains("-> float"), "{text}");
+        assert!(!text.contains("width: int"), "{text}");
+        assert!(!text.contains("float => int"), "{text}");
+    }
+
+    #[test]
     fn specialize2_string_input_specializes_root_case_with_direct_cast_join() {
         let lowering =
             lower_source("cast(x: int): float = 0.0\ncase true: true -> 1, false -> 2.0\n");

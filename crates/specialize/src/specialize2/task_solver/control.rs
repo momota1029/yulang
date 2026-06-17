@@ -371,25 +371,7 @@ impl<'a> TaskSolver<'a> {
                 }
             }
             PolyPat::Record { fields, spread } => {
-                let field_types = fields
-                    .iter()
-                    .map(|field| TypeField {
-                        name: field.name.clone(),
-                        value: self.graph.fresh_value(),
-                        optional: false,
-                    })
-                    .collect::<Vec<_>>();
-                self.graph
-                    .constrain_subtype(ty.clone(), Type::Record(field_types.clone()))?;
-                for (field, field_ty) in fields.iter().zip(field_types) {
-                    if let Some(default) = field.default {
-                        self.consume_expr_value(default, field_ty.value.clone())?;
-                    }
-                    self.bind_pat(field.pat, field_ty.value)?;
-                }
-                if let Some(def) = record_spread_def(spread) {
-                    self.locals.insert(def, self.graph.fresh_value());
-                }
+                self.bind_record_pat(fields, spread, ty)?;
             }
             PolyPat::Con(ref_id, payloads) => self.bind_constructor_pat(*ref_id, payloads, ty)?,
             PolyPat::PolyVariant(tag, payloads) => {
@@ -415,6 +397,105 @@ impl<'a> TaskSolver<'a> {
             PolyPat::Ref(ref_id) => self.bind_ref_pat(pat, *ref_id, ty)?,
         }
         Ok(())
+    }
+
+    pub(super) fn bind_record_pat(
+        &mut self,
+        fields: &[poly_expr::RecordPatField],
+        spread: &poly_expr::RecordSpread<poly_expr::DefId>,
+        ty: Type,
+    ) -> Result<(), SpecializeError> {
+        let Type::Record(record_fields) = &ty else {
+            self.bind_record_pat_with_open_scrutinee(fields, spread, ty)?;
+            return Ok(());
+        };
+
+        for field in fields {
+            self.bind_record_pat_field(field, record_field_type(record_fields, &field.name))?;
+        }
+        if let Some(def) = record_spread_def(spread) {
+            let captured = record_fields
+                .iter()
+                .filter(|field| !fields.iter().any(|pattern| pattern.name == field.name))
+                .cloned()
+                .collect::<Vec<_>>();
+            self.locals.insert(def, Type::Record(captured));
+        }
+        Ok(())
+    }
+
+    pub(super) fn bind_record_pat_with_open_scrutinee(
+        &mut self,
+        fields: &[poly_expr::RecordPatField],
+        spread: &poly_expr::RecordSpread<poly_expr::DefId>,
+        ty: Type,
+    ) -> Result<(), SpecializeError> {
+        let mut record_fields = Vec::with_capacity(fields.len());
+        let mut local_fields = Vec::with_capacity(fields.len());
+        for field in fields {
+            let record_value = self.graph.fresh_value();
+            let local_value = match field.default {
+                Some(default) => {
+                    let local = self.graph.fresh_value();
+                    self.graph
+                        .constrain_subtype(record_value.clone(), local.clone())?;
+                    self.consume_expr_value(default, local.clone())?;
+                    local
+                }
+                None => record_value.clone(),
+            };
+            record_fields.push(TypeField {
+                name: field.name.clone(),
+                value: record_value,
+                optional: field.default.is_some(),
+            });
+            local_fields.push((field, local_value));
+        }
+        self.graph
+            .constrain_subtype(ty, Type::Record(record_fields))?;
+        for (field, local_value) in local_fields {
+            self.bind_pat(field.pat, local_value)?;
+        }
+        if let Some(def) = record_spread_def(spread) {
+            self.locals.insert(def, self.graph.fresh_value());
+        }
+        Ok(())
+    }
+
+    pub(super) fn bind_record_pat_field(
+        &mut self,
+        field: &poly_expr::RecordPatField,
+        provided: Option<&TypeField>,
+    ) -> Result<(), SpecializeError> {
+        let field_ty = self.record_pattern_local_type(field, provided)?;
+        self.bind_pat(field.pat, field_ty)
+    }
+
+    pub(super) fn record_pattern_local_type(
+        &mut self,
+        field: &poly_expr::RecordPatField,
+        provided: Option<&TypeField>,
+    ) -> Result<Type, SpecializeError> {
+        match (provided, field.default) {
+            (Some(provided), None) => Ok(provided.value.clone()),
+            (Some(provided), Some(default)) if !provided.optional => {
+                self.expr(default)?;
+                Ok(provided.value.clone())
+            }
+            (Some(provided), Some(default)) => {
+                let local = self.graph.fresh_value();
+                self.graph
+                    .constrain_subtype(provided.value.clone(), local.clone())?;
+                self.consume_expr_value(default, local.clone())?;
+                Ok(local)
+            }
+            (None, Some(default)) => {
+                let local = self.graph.fresh_value();
+                self.consume_expr_value(default, local.clone())?;
+                Ok(local)
+            }
+            (None, None) => Ok(self.graph.fresh_value()),
+        }
     }
 
     pub(super) fn bind_constructor_pat(

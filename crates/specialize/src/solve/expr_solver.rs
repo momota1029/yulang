@@ -283,7 +283,7 @@ impl<'a> ExprTypeSolver<'a> {
         let callee_expected = expected
             .as_ref()
             .and_then(|ret| self.primitive_spine_callee_expected(callee, ret.clone()));
-        let callee_ty = self.expr(callee, callee_expected)?;
+        let callee_ty = self.apply_callee_type(callee, callee_expected)?;
         let (callee_value, callee_effect) = split_runtime_computation_shape(callee_ty.clone());
         if let Some((arg_ty, ret_ty)) = function_runtime_parts(&callee_value) {
             let (ret_ty, has_evaluation_effect) = self.apply_known_function_arg(
@@ -315,12 +315,11 @@ impl<'a> ExprTypeSolver<'a> {
         &mut self,
         ret_ty: &Type,
         expected: Option<&Type>,
-        fresh_result: bool,
     ) -> Type {
         if runtime_value_is_never(ret_ty) {
             return ret_ty.clone();
         }
-        if expected.is_none() && (!fresh_result || !type_contains_open_var(ret_ty)) {
+        if expected.is_none() && !type_contains_open_var(ret_ty) {
             return ret_ty.clone();
         }
         let (_, ret_effect) = split_runtime_computation_shape(ret_ty.clone());
@@ -329,6 +328,27 @@ impl<'a> ExprTypeSolver<'a> {
             None => self.fresh_value_slot(),
         };
         types::runtime_shape(ret_effect, expected_value)
+    }
+
+    pub(super) fn apply_callee_type(
+        &mut self,
+        callee: poly_expr::ExprId,
+        expected: Option<Type>,
+    ) -> Result<Type, SpecializeError> {
+        if expected.is_none()
+            && let poly_expr::Expr::Var(ref_id) = self.arena.expr(callee)
+            && let Some(def) = self.arena.ref_target(*ref_id)
+            && !self.local_types.contains_key(&def)
+            && !self.constraining_def_types.contains_key(&def)
+            && let Some(poly_expr::Def::Let {
+                scheme: Some(scheme),
+                body: Some(_),
+                ..
+            }) = self.arena.defs.get(def)
+        {
+            return self.instantiate_scheme_type_only(def, scheme);
+        }
+        self.expr(callee, expected)
     }
 
     pub(super) fn apply_known_function_arg(
@@ -340,9 +360,7 @@ impl<'a> ExprTypeSolver<'a> {
         callee_effect: Type,
         expected: Option<&Type>,
     ) -> Result<(Type, bool), SpecializeError> {
-        let declared_arg_ty = arg_ty.clone();
         let (arg_value, arg_effect) = split_runtime_computation_shape(arg_ty.clone());
-        self.constrain_callee_pattern_defaults(callee, arg_value.clone())?;
         let (callee_arg_expected, call_arg_effect) = if arg_effect.is_pure_effect() {
             let call_arg = self.expr_as_call_value(arg, arg_value)?;
             (call_arg.value, call_arg.effect)
@@ -353,9 +371,13 @@ impl<'a> ExprTypeSolver<'a> {
                 Type::pure_effect(),
             )
         };
-        let narrows_arg =
-            value_argument_narrows_polyvariant(&declared_arg_ty, &callee_arg_expected);
-        let expected_ret = self.call_callee_ret_expected(&ret_ty, expected, narrows_arg);
+        let (callee_arg_value, _) = split_runtime_computation_shape(callee_arg_expected.clone());
+        self.constrain_callee_pattern_defaults(callee, callee_arg_value)?;
+        let expected_ret = self.call_callee_ret_expected(&ret_ty, expected);
+        if !matches!(ret_ty, Type::Union(_, _) | Type::Intersection(_, _)) {
+            self.graph
+                .constrain_subtype(ret_ty.clone(), expected_ret.clone())?;
+        }
         self.constrain_apply_callee(
             callee,
             types::pure_function_type(callee_arg_expected, expected_ret.clone()),
@@ -363,7 +385,6 @@ impl<'a> ExprTypeSolver<'a> {
         let has_evaluation_effect =
             !callee_effect.is_pure_effect() || !call_arg_effect.is_pure_effect();
         let result = self.call_result_shape(expected_ret, [callee_effect, call_arg_effect])?;
-        self.graph.constrain_subtype(ret_ty, result.clone())?;
         Ok((result, has_evaluation_effect))
     }
 

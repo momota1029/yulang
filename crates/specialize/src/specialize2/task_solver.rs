@@ -24,7 +24,7 @@ impl<'a> TaskSolver<'a> {
         solver.required_exprs.insert(body);
         let actual = solver.expr_with_signature(body, signature.clone())?;
         solver.consume_expr(body, signature.clone())?;
-        solver.graph.constrain_exact(actual, signature)?;
+        solver.graph.constrain_subtype(actual, signature)?;
         solver.finish()
     }
 
@@ -299,22 +299,25 @@ impl<'a> TaskSolver<'a> {
         let (call_arg_effect, ret_effect, ret_value) =
             match function_computation_parts(&callee_value) {
                 Some(parts) => {
-                    let (call_arg_effect, runtime_arg_effect) = if parts.arg_effect.is_pure_effect()
-                    {
-                        (
-                            self.consume_expr_value(arg, parts.arg.clone())?.1,
-                            Type::pure_effect(),
-                        )
-                    } else {
-                        let runtime_arg_effect = self.consume_expr_computation(
-                            arg,
-                            parts.arg_effect.clone(),
-                            parts.arg.clone(),
-                        )?;
-                        (Type::pure_effect(), runtime_arg_effect)
-                    };
+                    let (callee_arg, call_arg_effect, runtime_arg_effect) =
+                        if parts.arg_effect.is_pure_effect() {
+                            let (arg_value, arg_effect) =
+                                self.consume_expr_value(arg, parts.arg.clone())?;
+                            (
+                                callee_arg_shape_from_actual(parts.arg.clone(), arg_value),
+                                arg_effect,
+                                Type::pure_effect(),
+                            )
+                        } else {
+                            let runtime_arg_effect = self.consume_expr_computation(
+                                arg,
+                                parts.arg_effect.clone(),
+                                parts.arg.clone(),
+                            )?;
+                            (parts.arg.clone(), Type::pure_effect(), runtime_arg_effect)
+                        };
                     let callee_consumer = Type::Fun {
-                        arg: Box::new(parts.arg.clone()),
+                        arg: Box::new(callee_arg),
                         arg_effect: Box::new(runtime_arg_effect),
                         ret_effect: Box::new(parts.ret_effect.clone()),
                         ret: Box::new(parts.ret.clone()),
@@ -644,4 +647,11 @@ impl<'a> TaskSolver<'a> {
 fn lambda_signature_has_concrete_arg_effect(signature: &Type) -> bool {
     function_computation_parts(signature)
         .is_some_and(|parts| !matches!(parts.arg_effect, Type::OpenVar(_)))
+}
+
+fn callee_arg_shape_from_actual(expected: Type, actual: Type) -> Type {
+    match (&expected, &actual) {
+        (Type::Record(_), Type::Record(_)) => actual,
+        _ => expected,
+    }
 }

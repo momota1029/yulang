@@ -411,6 +411,11 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             }
             (Some(Type::OpenVar(_)), Some(upper)) => Some(upper),
             (Some(lower), Some(Type::OpenVar(_))) => Some(lower),
+            (Some(lower), Some(upper @ Type::Union(_, _)))
+                if type_candidate_subtype(self.graph, &lower, &upper) =>
+            {
+                Some(lower)
+            }
             (Some(lower), Some(upper)) if type_candidate_subtype(self.graph, &lower, &upper) => {
                 Some(upper)
             }

@@ -326,10 +326,49 @@ impl<'graph, 'arena, 'solution> TypeResolver<'graph, 'arena, 'solution> {
         &mut self,
         bound: &Type,
     ) -> Result<Option<Type>, SpecializeError> {
+        match bound {
+            Type::Union(left, right) => {
+                return self.resolve_candidate_union_bound(left, right);
+            }
+            Type::Intersection(left, right) => {
+                return self.resolve_candidate_intersection_bound(left, right);
+            }
+            _ => {}
+        }
         match self.resolve(bound) {
             Ok(ty) => Ok(Some(ty)),
             Err(SpecializeError::UndeterminedTypeSlot { .. }) => Ok(None),
             Err(error) => Err(error),
+        }
+    }
+
+    pub(super) fn resolve_candidate_union_bound(
+        &mut self,
+        left: &Type,
+        right: &Type,
+    ) -> Result<Option<Type>, SpecializeError> {
+        match (self.resolve_branch(left)?, self.resolve_branch(right)?) {
+            (ResolvedBranch::Type(left), ResolvedBranch::Type(right)) => {
+                Ok(Some(simplify_resolved_union(self.graph, left, right)))
+            }
+            (ResolvedBranch::Type(_), ResolvedBranch::Undetermined(_))
+            | (ResolvedBranch::Undetermined(_), ResolvedBranch::Type(_))
+            | (ResolvedBranch::Undetermined(_), ResolvedBranch::Undetermined(_)) => Ok(None),
+        }
+    }
+
+    pub(super) fn resolve_candidate_intersection_bound(
+        &mut self,
+        left: &Type,
+        right: &Type,
+    ) -> Result<Option<Type>, SpecializeError> {
+        match (self.resolve_branch(left)?, self.resolve_branch(right)?) {
+            (ResolvedBranch::Type(left), ResolvedBranch::Type(right)) => Ok(Some(
+                simplify_resolved_intersection(self.graph, left, right),
+            )),
+            (ResolvedBranch::Type(_), ResolvedBranch::Undetermined(_))
+            | (ResolvedBranch::Undetermined(_), ResolvedBranch::Type(_))
+            | (ResolvedBranch::Undetermined(_), ResolvedBranch::Undetermined(_)) => Ok(None),
         }
     }
 
@@ -388,8 +427,8 @@ impl<'graph, 'arena, 'solution> TypeResolver<'graph, 'arena, 'solution> {
             (ResolvedBranch::Type(left), ResolvedBranch::Type(right)) => {
                 Ok(simplify_resolved_union(self.graph, left, right))
             }
-            (ResolvedBranch::Type(ty), ResolvedBranch::Undetermined(_))
-            | (ResolvedBranch::Undetermined(_), ResolvedBranch::Type(ty)) => Ok(ty),
+            (ResolvedBranch::Type(left), ResolvedBranch::Undetermined(_))
+            | (ResolvedBranch::Undetermined(_), ResolvedBranch::Type(left)) => Ok(left),
             (ResolvedBranch::Undetermined(slot), ResolvedBranch::Undetermined(_)) => {
                 Err(SpecializeError::UndeterminedTypeSlot { slot })
             }
@@ -405,8 +444,8 @@ impl<'graph, 'arena, 'solution> TypeResolver<'graph, 'arena, 'solution> {
             (ResolvedBranch::Type(left), ResolvedBranch::Type(right)) => {
                 Ok(simplify_resolved_intersection(self.graph, left, right))
             }
-            (ResolvedBranch::Type(ty), ResolvedBranch::Undetermined(_))
-            | (ResolvedBranch::Undetermined(_), ResolvedBranch::Type(ty)) => Ok(ty),
+            (ResolvedBranch::Type(left), ResolvedBranch::Undetermined(_))
+            | (ResolvedBranch::Undetermined(_), ResolvedBranch::Type(left)) => Ok(left),
             (ResolvedBranch::Undetermined(slot), ResolvedBranch::Undetermined(_)) => {
                 Err(SpecializeError::UndeterminedTypeSlot { slot })
             }
