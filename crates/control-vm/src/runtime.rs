@@ -251,13 +251,20 @@ pub struct GuardId(pub u32);
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ActiveFrame {
     id: GuardId,
-    handler_key: Option<InternedPath>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ActiveHandlerFrame {
+    frame_index: usize,
+    id: GuardId,
+    handler_key: InternedPath,
 }
 
 #[derive(Debug, Clone, Copy)]
 struct MarkerCheckpoint {
     guard_len: usize,
     frame_len: usize,
+    handler_frame_len: usize,
     add_id_len: usize,
     plan_len: usize,
 }
@@ -934,10 +941,11 @@ fn find_record_field<'a>(fields: &'a [ValueField], name: &str) -> Option<(usize,
         .find(|(_, field)| field.name == name)
 }
 
-fn markers_for_function_call(markers: Vec<ValueMarker>) -> Vec<ValueMarker> {
+fn markers_for_function_call(markers: &[ValueMarker]) -> Vec<ValueMarker> {
     dedupe_markers(
         markers
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|marker| match marker {
                 ValueMarker::Frame { id } => ValueMarker::Frame { id },
                 ValueMarker::AddId(marker) => ValueMarker::AddId(AddIdMarker {
@@ -949,10 +957,11 @@ fn markers_for_function_call(markers: Vec<ValueMarker>) -> Vec<ValueMarker> {
     )
 }
 
-fn markers_for_continuation_call(markers: Vec<ValueMarker>) -> Vec<ValueMarker> {
+fn markers_for_continuation_call(markers: &[ValueMarker]) -> Vec<ValueMarker> {
     dedupe_markers(
         markers
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|marker| match marker {
                 ValueMarker::Frame { id } => ValueMarker::Frame { id },
                 ValueMarker::AddId(marker) => ValueMarker::AddId(AddIdMarker {

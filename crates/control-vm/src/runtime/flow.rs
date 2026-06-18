@@ -5,7 +5,7 @@ impl<'a> Runtime<'a> {
         // Active hygiene markers are carried by the runtime stack while an
         // expression is evaluated. Attach them only at source-level calls; pop
         // and request boundaries still close over escaping values.
-        let Some(markers) = self.active_marker_plans.last().cloned() else {
+        let Some(markers) = self.active_marker_plans.last() else {
             return self.apply_value(callee, arg);
         };
         let markers = markers_for_function_call(markers);
@@ -30,9 +30,9 @@ impl<'a> Runtime<'a> {
             Value::Marked { value, markers } => {
                 self.stats.apply_marked_calls += 1;
                 let markers = if matches!(value.as_ref(), Value::Continuation(_)) {
-                    markers_for_continuation_call(markers)
+                    markers_for_continuation_call(&markers)
                 } else {
-                    markers_for_function_call(markers)
+                    markers_for_function_call(&markers)
                 };
                 let value = *value;
                 if callee_apply_closes_without_frame(&value) {
@@ -242,11 +242,7 @@ impl<'a> Runtime<'a> {
     ) -> Option<GuardId> {
         let matching_handler = self.find_matching_handler_frame(operation_key);
         let Some(matching_handler) = matching_handler else {
-            if self
-                .active_frames
-                .iter()
-                .any(|frame| frame.handler_key.is_some())
-            {
+            if !self.active_handler_frames.is_empty() {
                 return None;
             }
             return self
@@ -282,13 +278,10 @@ impl<'a> Runtime<'a> {
     }
 
     fn find_matching_handler_frame(&mut self, operation_key: &InternedPath) -> Option<usize> {
-        for (index, frame) in self.active_frames.iter().enumerate().rev() {
+        for frame in self.active_handler_frames.iter().rev() {
             self.stats.active_frame_scans += 1;
-            let Some(path_key) = frame.handler_key.as_ref() else {
-                continue;
-            };
-            if counted_path_has_prefix(&mut self.stats, operation_key, path_key) {
-                return Some(index);
+            if counted_path_has_prefix(&mut self.stats, operation_key, &frame.handler_key) {
+                return Some(frame.frame_index);
             }
         }
         None
@@ -300,12 +293,13 @@ impl<'a> Runtime<'a> {
         request: &Request,
         matching_handler: usize,
     ) -> Option<GuardId> {
-        for frame in &self.active_frames[..=matching_handler] {
+        for frame in self
+            .active_handler_frames
+            .iter()
+            .take_while(|frame| frame.frame_index <= matching_handler)
+        {
             self.stats.active_frame_scans += 1;
-            let Some(path_key) = frame.handler_key.as_ref() else {
-                continue;
-            };
-            if counted_path_has_prefix(&mut self.stats, operation_key, path_key)
+            if counted_path_has_prefix(&mut self.stats, operation_key, &frame.handler_key)
                 && request.guard_ids.contains(&frame.id)
             {
                 return Some(frame.id);
@@ -375,12 +369,19 @@ impl<'a> Runtime<'a> {
 
         let guard_len = self.guard_ids.len();
         let frame_len = self.active_frames.len();
+        let handler_frame_len = self.active_handler_frames.len();
         let add_id_len = self.active_add_ids.len();
         let plan_len = self.active_marker_plans.len();
         self.stats.marker_frame_pushes += 1;
         self.push_marker_frame(&markers, activate_add_ids, handler_key.clone());
         let result = run(self);
-        self.pop_marker_frame(guard_len, frame_len, add_id_len, plan_len);
+        self.pop_marker_frame(
+            guard_len,
+            frame_len,
+            handler_frame_len,
+            add_id_len,
+            plan_len,
+        );
 
         self.close_marker_frame_result(result?, markers, activate_add_ids, handler_key)
     }
@@ -396,16 +397,17 @@ impl<'a> Runtime<'a> {
                 self.guard_ids.push(id);
             }
         }
-        self.active_frames
-            .extend(
-                markers
-                    .iter()
-                    .filter_map(ValueMarker::frame_id)
-                    .map(|id| ActiveFrame {
-                        id,
-                        handler_key: handler_key.clone(),
-                    }),
-            );
+        for id in markers.iter().filter_map(ValueMarker::frame_id) {
+            let frame_index = self.active_frames.len();
+            self.active_frames.push(ActiveFrame { id });
+            if let Some(handler_key) = handler_key.clone() {
+                self.active_handler_frames.push(ActiveHandlerFrame {
+                    frame_index,
+                    id,
+                    handler_key,
+                });
+            }
+        }
         if activate_add_ids {
             let add_ids = markers.iter().filter_map(ValueMarker::add_id);
             for marker in add_ids {
@@ -414,18 +416,21 @@ impl<'a> Runtime<'a> {
                 }
             }
         }
-        self.active_marker_plans.push(markers_for_value(markers));
+        self.active_marker_plans
+            .push(shared_markers(markers_for_value(markers)));
     }
 
     pub(super) fn pop_marker_frame(
         &mut self,
         guard_len: usize,
         frame_len: usize,
+        handler_frame_len: usize,
         add_id_len: usize,
         plan_len: usize,
     ) {
         self.guard_ids.truncate(guard_len);
         self.active_frames.truncate(frame_len);
+        self.active_handler_frames.truncate(handler_frame_len);
         self.active_add_ids.truncate(add_id_len);
         self.active_marker_plans.truncate(plan_len);
     }

@@ -320,6 +320,7 @@ impl<'a> Runtime<'a> {
         self.pop_marker_frame(
             checkpoint.guard_len,
             checkpoint.frame_len,
+            checkpoint.handler_frame_len,
             checkpoint.add_id_len,
             checkpoint.plan_len,
         );
@@ -463,6 +464,7 @@ impl<'a> Runtime<'a> {
         MarkerCheckpoint {
             guard_len: self.guard_ids.len(),
             frame_len: self.active_frames.len(),
+            handler_frame_len: self.active_handler_frames.len(),
             add_id_len: self.active_add_ids.len(),
             plan_len: self.active_marker_plans.len(),
         }
@@ -585,6 +587,7 @@ impl<'a> Runtime<'a> {
         self.pop_marker_frame(
             checkpoint.guard_len,
             checkpoint.frame_len,
+            checkpoint.handler_frame_len,
             checkpoint.add_id_len,
             checkpoint.plan_len,
         );

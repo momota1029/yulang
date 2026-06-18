@@ -279,7 +279,7 @@ impl<'a> Runtime<'a> {
         callee: DirectKnownCallee,
         arg: Value,
     ) -> RuntimeResult {
-        let Some(markers) = self.active_marker_plans.last().cloned() else {
+        let Some(markers) = self.active_marker_plans.last() else {
             return self.apply_direct_known_callee(callee, arg);
         };
         let markers = markers_for_function_call(markers);

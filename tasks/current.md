@@ -116,6 +116,13 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      単発測定の `vm_eval` は 196.8ms。`bench/nondet_20_discard.yu` の release / no-cache
      `vm_eval` は 95.4ms。
      次は active guard / add-id scan と marker push/pop 自体を減らすこと。
+   - active marker plan は call 境界で `Vec<ValueMarker>` を clone せず、
+     `Rc<[ValueMarker]>` として stack から借りて必要な変換だけ行う形にした。
+     handler lookup も全 active frame から探すのをやめ、handler を持つ frame だけを
+     `active_handler_frames` に分けた。`active_frame_scans` は `examples/showcase.yu` で
+     23004 から 11502、`bench/nondet_20_discard.yu` で 18060 から 9030 へ低下。
+     repeat 3 の `vm_eval` はそれぞれ 210〜232ms / 103〜109ms で、測定揺れはあるが
+     request 時の handler prefix scan は旧 VM の guard stack lookup に近づいた。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。
