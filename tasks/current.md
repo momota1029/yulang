@@ -166,6 +166,14 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      repeat 3 の `runtime_execute` は `bench/nondet_20_discard.yu` で
      53.0ms / 59.0ms / 57.8ms、`examples/showcase.yu` で
      127.4ms / 119.2ms / 119.4ms。
+   - 2026-06-19 時点の外部レビュー整理は
+     `notes/design/2026-06-19-control-vm-bottleneck-review.md`。
+     次の本命は、`Value` / `Thunk` / `Closure` / `FunctionAdapter` の cheap-clone handle 化と、
+     `CapturedEnv` の HashMap COW を避ける parent/scope-chain 化。
+     先に `env_cow_clones` / `env_cow_entries_copied` / `value_clones_by_variant` /
+     `frame_allocs` / `marker_scope_frame_touches` を測り、効く順に切る。
+     その後、inline current frame stack + captured snapshot 分離、ScopeId 風 marker state、
+     dense env と組み合わせた `PatPlanId` 化へ進む。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。
