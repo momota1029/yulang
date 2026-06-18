@@ -1,9 +1,9 @@
 use mono::Type;
 
 use super::{
-    DefId, Expr, ExprId, Program, Root, RuntimeError, SelectResolution, ValidateError, Value,
-    boundary::value_boundary_supported, format_values, lower, run_mono_program, run_program,
-    validate,
+    DefId, Expr, ExprId, Instance, InstanceId, Program, Root, RuntimeError, SelectResolution,
+    ValidateError, Value, boundary::value_boundary_supported, format_values, lower,
+    run_mono_program, run_program, run_program_with_host_and_stats, validate,
 };
 
 #[test]
@@ -226,6 +226,42 @@ fn runs_list_singleton_primitive() {
 
     let values = run_program(&program).unwrap();
     assert_eq!(format_values(&values), "[[1]]");
+}
+
+#[test]
+fn direct_binary_primitive_instance_ref_skips_partial_primitive_value() {
+    let program = Program {
+        roots: vec![Root::Expr(ExprId(5))],
+        instances: vec![Instance {
+            id: InstanceId(0),
+            source: mono::InstanceSource::Def(mono::DefId(0)),
+            signature: mono::Signature { ty: int_type() },
+            entry: ExprId(0),
+        }],
+        exprs: vec![
+            Expr::PrimitiveOp {
+                op: mono::PrimitiveOp::IntAdd,
+                context: mono::PrimitiveContext::default(),
+            },
+            Expr::InstanceRef(InstanceId(0)),
+            Expr::Lit(mono::Lit::Int(2)),
+            Expr::Apply {
+                callee: ExprId(1),
+                arg: ExprId(2),
+            },
+            Expr::Lit(mono::Lit::Int(3)),
+            Expr::Apply {
+                callee: ExprId(3),
+                arg: ExprId(4),
+            },
+        ],
+    };
+
+    let (values, stats) = run_program_with_host_and_stats(&program, &mut |_, _| None).unwrap();
+    assert_eq!(values, vec![Value::Int(5)]);
+    assert_eq!(stats.apply_primitive_calls, 0);
+    assert_eq!(stats.primitive_apply_partial, 0);
+    assert_eq!(stats.primitive_apply_complete, 1);
 }
 
 #[test]

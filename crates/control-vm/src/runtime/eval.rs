@@ -86,6 +86,15 @@ impl<'a> Runtime<'a> {
                 })
             }
             EvalExpr::Apply { callee, arg } => {
+                if let Some((op, context, first_arg)) = self.direct_binary_primitive_apply(callee) {
+                    return self.eval_direct_binary_primitive(
+                        op,
+                        context,
+                        first_arg,
+                        arg,
+                        env.clone(),
+                    );
+                }
                 let env_for_arg = env.clone();
                 let callee = self.eval_expr(callee, env)?;
                 self.continue_with(callee, move |runtime, callee| {
@@ -166,6 +175,62 @@ impl<'a> Runtime<'a> {
                 })
             }
         }
+    }
+
+    fn direct_binary_primitive_apply(
+        &self,
+        callee: ExprId,
+    ) -> Option<(PrimitiveOp, PrimitiveContext, ExprId)> {
+        let Expr::Apply {
+            callee: primitive,
+            arg: first_arg,
+        } = self.program.exprs.get(callee.0 as usize)?
+        else {
+            return None;
+        };
+        let (op, context) = self.direct_known_primitive_op(*primitive)?;
+        (op.arity() == 2).then(|| (*op, context.clone(), *first_arg))
+    }
+
+    fn direct_known_primitive_op(&self, expr: ExprId) -> Option<(&PrimitiveOp, &PrimitiveContext)> {
+        match self.program.exprs.get(expr.0 as usize)? {
+            Expr::PrimitiveOp { op, context } => Some((op, context)),
+            Expr::InstanceRef(instance) => {
+                let entry = self
+                    .program
+                    .instances
+                    .get(instance.0 as usize)
+                    .map(|instance| instance.entry)?;
+                match self.program.exprs.get(entry.0 as usize)? {
+                    Expr::PrimitiveOp { op, context } => Some((op, context)),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn eval_direct_binary_primitive(
+        &mut self,
+        op: PrimitiveOp,
+        context: PrimitiveContext,
+        first_arg: ExprId,
+        second_arg: ExprId,
+        env: CapturedEnv,
+    ) -> RuntimeResult<'a> {
+        let mut first_env = env.clone();
+        let first = self.eval_expr(first_arg, &mut first_env)?;
+        self.continue_with(first, move |runtime, first| {
+            let mut second_env = env.clone();
+            let second = runtime.eval_expr(second_arg, &mut second_env)?;
+            let context = context.clone();
+            runtime.continue_with(second, move |runtime, second| {
+                runtime.stats.primitive_apply_calls += 1;
+                runtime.stats.primitive_apply_complete += 1;
+                let args = [first.clone(), second];
+                value_result(apply_primitive(op, &context, &args)?)
+            })
+        })
     }
 
     pub(super) fn eval_ref_set(
