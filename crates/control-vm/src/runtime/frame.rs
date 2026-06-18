@@ -432,7 +432,7 @@ impl<'a> Runtime<'a> {
             let Some(frame) = continuation.frames.pop_back() else {
                 return value_result(value);
             };
-            consume_marker_frame(marker_scopes);
+            consume_marker_frame(&mut self.stats, marker_scopes);
             self.stats.request_resume_steps += 1;
             let result = if frame.handles_eval_result() {
                 self.apply_shared_result_frame(frame, EvalResult::Value(value))?
@@ -474,7 +474,11 @@ impl<'a> Runtime<'a> {
             }
             EvalResult::Request(request) => {
                 self.stats.continue_with_requests += 1;
-                Ok(EvalResult::Request(push_frame(request, frame)))
+                Ok(EvalResult::Request(push_frame(
+                    &mut self.stats,
+                    request,
+                    frame,
+                )))
             }
         }
     }
@@ -489,13 +493,19 @@ impl<'a> Runtime<'a> {
         match result {
             EvalResult::Value(value) => {
                 self.stats.continue_with_values += 1;
-                extend_active_marker_scopes(marker_scopes, 1);
-                continuation.frames.push_back(shared_frame(frame));
+                extend_active_marker_scopes(&mut self.stats, marker_scopes, 1);
+                continuation
+                    .frames
+                    .push_back(shared_frame(&mut self.stats, frame));
                 value_result(value)
             }
             EvalResult::Request(request) => {
                 self.stats.continue_with_requests += 1;
-                Ok(EvalResult::Request(push_frame(request, frame)))
+                Ok(EvalResult::Request(push_frame(
+                    &mut self.stats,
+                    request,
+                    frame,
+                )))
             }
         }
     }
@@ -837,7 +847,7 @@ impl<'a> Runtime<'a> {
                 .is_some_and(|frame| frame.handles_eval_result())
             {
                 let frame = continuation.frames.pop_back().expect("checked frame");
-                consume_marker_frame(marker_scopes);
+                consume_marker_frame(&mut self.stats, marker_scopes);
                 self.stats.request_resume_steps += 1;
                 result = self.apply_shared_result_frame(frame, result)?;
                 result = self.close_completed_marker_scopes(result, marker_scopes)?;
@@ -1086,6 +1096,7 @@ impl<'a> Runtime<'a> {
             } => {
                 request.payload = value;
                 request.continuation = push_continuation_frame(
+                    &mut self.stats,
                     request.continuation,
                     match mode {
                         RefSetResumeMode::Result => Frame::RefSetHandleResult { assigned },
@@ -1439,7 +1450,8 @@ impl<'a> Runtime<'a> {
                     return self.finish_bind(false, env, *then);
                 }
                 let mut env = env;
-                env.insert(def, value);
+                let stats = env.insert(def, value);
+                self.record_env_insert(stats);
                 self.finish_bind(true, env, *then)
             }
             BindThen::RecordField {
@@ -1486,20 +1498,28 @@ impl<'a> Runtime<'a> {
     }
 }
 
-pub(super) fn push_frame(mut request: Request, frame: Frame) -> Request {
-    request.continuation.frames.push_front(shared_frame(frame));
+pub(super) fn push_frame(stats: &mut RuntimeStats, mut request: Request, frame: Frame) -> Request {
+    request
+        .continuation
+        .frames
+        .push_front(shared_frame(stats, frame));
     request
 }
 
 pub(super) fn push_continuation_frame(
+    stats: &mut RuntimeStats,
     mut continuation: Continuation,
     frame: Frame,
 ) -> Continuation {
-    continuation.frames.push_front(shared_frame(frame));
+    continuation.frames.push_front(shared_frame(stats, frame));
     continuation
 }
 
-fn consume_marker_frame(marker_scopes: &mut [ActiveContinuationMarkerScope]) {
+fn consume_marker_frame(
+    stats: &mut RuntimeStats,
+    marker_scopes: &mut [ActiveContinuationMarkerScope],
+) {
+    stats.marker_scope_frame_touches += marker_scopes.len() as u64;
     for scope in marker_scopes {
         if scope.frames_remaining > 0 {
             scope.frames_remaining -= 1;
@@ -1507,7 +1527,12 @@ fn consume_marker_frame(marker_scopes: &mut [ActiveContinuationMarkerScope]) {
     }
 }
 
-fn extend_active_marker_scopes(marker_scopes: &mut [ActiveContinuationMarkerScope], count: usize) {
+fn extend_active_marker_scopes(
+    stats: &mut RuntimeStats,
+    marker_scopes: &mut [ActiveContinuationMarkerScope],
+    count: usize,
+) {
+    stats.marker_scope_frame_touches += marker_scopes.len() as u64;
     for scope in marker_scopes {
         scope.frames_remaining += count;
     }
@@ -1529,7 +1554,8 @@ fn prepend_frames(continuation: &mut Continuation, mut frames: VecDeque<SharedFr
     continuation.frames = frames;
 }
 
-fn shared_frame(frame: Frame) -> SharedFrame {
+fn shared_frame(stats: &mut RuntimeStats, frame: Frame) -> SharedFrame {
+    stats.frame_allocs += 1;
     Rc::new(frame)
 }
 

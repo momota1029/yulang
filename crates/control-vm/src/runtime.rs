@@ -94,6 +94,13 @@ pub struct RuntimeStats {
     pub expr_evals: u64,
     /// Full `Expr` clones performed by eval. This should stay at zero on the dispatch path.
     pub expr_clones: u64,
+    pub env_lookups: u64,
+    pub env_lookup_hits: u64,
+    pub env_lookup_misses: u64,
+    pub env_inserts: u64,
+    pub env_cow_clones: u64,
+    pub env_cow_entries_copied: u64,
+    pub env_max_size: u64,
     pub apply_value_calls: u64,
     pub apply_marked_calls: u64,
     pub apply_primitive_calls: u64,
@@ -133,6 +140,7 @@ pub struct RuntimeStats {
     pub shared_frame_unwrap_block_clones: u64,
     pub shared_frame_unwrap_bind_clones: u64,
     pub shared_frame_unwrap_refset_clones: u64,
+    pub frame_allocs: u64,
     pub max_continuation_frames: u64,
     pub request_resume_steps: u64,
     pub continue_with_values: u64,
@@ -149,6 +157,7 @@ pub struct RuntimeStats {
     pub marker_frame_value_closes: u64,
     pub marker_frame_request_closes: u64,
     pub marker_frame_resume_steps: u64,
+    pub marker_scope_frame_touches: u64,
     pub instance_eval_calls: u64,
     pub instance_cache_hits: u64,
     pub instance_cache_misses: u64,
@@ -340,13 +349,27 @@ pub struct CapturedEnv {
     locals: Rc<HashMap<DefId, Value>>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EnvInsertStats {
+    cow_cloned: bool,
+    entries_copied: usize,
+    new_size: usize,
+}
+
 impl CapturedEnv {
     fn get(&self, def: DefId) -> Option<&Value> {
         self.locals.get(&def)
     }
 
-    fn insert(&mut self, def: DefId, value: Value) {
+    fn insert(&mut self, def: DefId, value: Value) -> EnvInsertStats {
+        let cow_cloned = Rc::strong_count(&self.locals) > 1;
+        let entries_copied = cow_cloned.then_some(self.locals.len()).unwrap_or(0);
         Rc::make_mut(&mut self.locals).insert(def, value);
+        EnvInsertStats {
+            cow_cloned,
+            entries_copied,
+            new_size: self.locals.len(),
+        }
     }
 }
 

@@ -73,6 +73,24 @@ impl<'a> Runtime<'a> {
         Ok(results)
     }
 
+    pub(super) fn record_env_lookup(&mut self, hit: bool) {
+        self.stats.env_lookups += 1;
+        if hit {
+            self.stats.env_lookup_hits += 1;
+        } else {
+            self.stats.env_lookup_misses += 1;
+        }
+    }
+
+    pub(super) fn record_env_insert(&mut self, stats: EnvInsertStats) {
+        self.stats.env_inserts += 1;
+        if stats.cow_cloned {
+            self.stats.env_cow_clones += 1;
+            self.stats.env_cow_entries_copied += stats.entries_copied as u64;
+        }
+        self.stats.env_max_size = self.stats.env_max_size.max(stats.new_size as u64);
+    }
+
     pub(super) fn resolve_host_requests<F>(
         &mut self,
         mut result: EvalResult,

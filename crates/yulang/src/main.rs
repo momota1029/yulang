@@ -494,6 +494,16 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
     eprintln!("runtime stats:");
     eprintln!("  run.expr_evals: {}", stats.expr_evals);
     eprintln!("  run.expr_clones: {}", stats.expr_clones);
+    eprintln!("  run.env_lookups: {}", stats.env_lookups);
+    eprintln!("  run.env_lookup_hits: {}", stats.env_lookup_hits);
+    eprintln!("  run.env_lookup_misses: {}", stats.env_lookup_misses);
+    eprintln!("  run.env_inserts: {}", stats.env_inserts);
+    eprintln!("  run.env_cow_clones: {}", stats.env_cow_clones);
+    eprintln!(
+        "  run.env_cow_entries_copied: {}",
+        stats.env_cow_entries_copied
+    );
+    eprintln!("  run.env_max_size: {}", stats.env_max_size);
     eprintln!("  run.apply_value: {}", stats.apply_value_calls);
     eprintln!("  run.apply_marked: {}", stats.apply_marked_calls);
     eprintln!("  run.apply_primitive: {}", stats.apply_primitive_calls);
@@ -593,6 +603,7 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
         "  run.shared_frame_unwrap_refset_clones: {}",
         stats.shared_frame_unwrap_refset_clones
     );
+    eprintln!("  run.frame_allocs: {}", stats.frame_allocs);
     eprintln!(
         "  run.max_continuation_frames: {}",
         stats.max_continuation_frames
@@ -635,6 +646,10 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
     eprintln!(
         "  run.marker_frame_resume_steps: {}",
         stats.marker_frame_resume_steps
+    );
+    eprintln!(
+        "  run.marker_scope_frame_touches: {}",
+        stats.marker_scope_frame_touches
     );
     eprintln!("  run.instance_eval: {}", stats.instance_eval_calls);
     eprintln!("  run.instance_hits: {}", stats.instance_cache_hits);

@@ -17,11 +17,11 @@ impl<'a> Runtime<'a> {
                 value_result(constructor_value(def, arity, Vec::new()))
             }
             EvalExpr::EffectOp { path } => value_result(Value::EffectOp { path }),
-            EvalExpr::Local(def) => value_result(
-                env.get(def)
-                    .cloned()
-                    .ok_or(RuntimeError::UnboundLocal { def })?,
-            ),
+            EvalExpr::Local(def) => {
+                let value = env.get(def).cloned();
+                self.record_env_lookup(value.is_some());
+                value_result(value.ok_or(RuntimeError::UnboundLocal { def })?)
+            }
             EvalExpr::InstanceRef(instance) => {
                 let value = self.eval_instance(instance)?;
                 value_result(value)
@@ -240,6 +240,7 @@ impl<'a> Runtime<'a> {
         match result {
             EvalResult::Value(arg) => self.apply_direct_known_callee_scoped(callee, arg),
             EvalResult::Request(request) => Ok(EvalResult::Request(push_frame(
+                &mut self.stats,
                 request,
                 Frame::ApplyArg {
                     callee: match active_markers {
@@ -855,6 +856,7 @@ impl<'a> Runtime<'a> {
         }
 
         Ok(EvalResult::Request(push_frame(
+            &mut self.stats,
             request,
             Frame::CatchResult { arms, env },
         )))

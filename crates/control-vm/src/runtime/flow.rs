@@ -162,13 +162,14 @@ impl<'a> Runtime<'a> {
         mut closure: Closure,
         arg: Value,
     ) -> RuntimeResult {
-        closure.env.insert(
+        let stats = closure.env.insert(
             def,
             Value::RecursiveClosure {
                 def,
                 closure: closure.clone(),
             },
         );
+        self.record_env_insert(stats);
         self.apply_closure(closure, arg)
     }
 

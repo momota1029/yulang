@@ -110,7 +110,8 @@ impl<'a> Runtime<'a> {
             }
             Pat::Var(def) => {
                 let mut env = env;
-                env.insert(def, value);
+                let stats = env.insert(def, value);
+                self.record_env_insert(stats);
                 self.finish_bind(true, env, then)
             }
             Pat::Or(left, right) => {
@@ -313,7 +314,8 @@ impl<'a> Runtime<'a> {
             })
             .collect();
         let mut env = env;
-        env.insert(def, Value::Record(captured));
+        let stats = env.insert(def, Value::Record(captured));
+        self.record_env_insert(stats);
         self.finish_bind(true, env, then)
     }
 }
