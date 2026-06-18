@@ -1229,6 +1229,19 @@ fn mark_value(value: Value, markers: &[ValueMarker]) -> Value {
     }
 }
 
+fn mark_value_shared(value: Value, markers: &SharedMarkers) -> Value {
+    if markers.is_empty() || is_scalar_value(&value) {
+        return value;
+    }
+    match value {
+        Value::Marked { .. } => mark_value(value, markers),
+        value => Value::Marked {
+            value: Box::new(value),
+            markers: markers.clone(),
+        },
+    }
+}
+
 fn recursive_let_value(pat: &Pat, value: Value) -> Value {
     let (value, markers) = into_value_markers(value);
     let value = match (pat, value) {

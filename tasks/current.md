@@ -214,6 +214,10 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      `marker_scope_frame_touches` は `bench/nondet_20_discard.yu` で 1287567 から 571487、
      `examples/showcase.yu` で 1024079 から 452587 へ下がり、
      request-close 分の touch は 0 になった。
+     `SharedMarkers` を持つ value wrapping は `Rc<[ValueMarker]>` をそのまま
+     `Value::Marked` へ共有する fast path に寄せ、function adapter hygiene も生成直後に
+     shared marker frame へ載せた。
+     `examples/showcase.yu` は repeat 5 で 68〜71ms まで下がった。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。

@@ -245,7 +245,7 @@ impl<'a> Runtime<'a> {
                 request,
                 Frame::ApplyArg {
                     callee: match active_markers {
-                        Some(markers) => mark_value(callee.into_value(), &markers),
+                        Some(markers) => mark_value_shared(callee.into_value(), &markers),
                         None => callee.into_value(),
                     },
                 },

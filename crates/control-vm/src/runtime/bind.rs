@@ -167,7 +167,7 @@ impl<'a> Runtime<'a> {
             let Some(item) = items.index(index) else {
                 return self.finish_bind(false, env, then);
             };
-            let item = mark_value((*item).clone(), &markers);
+            let item = mark_value_shared((*item).clone(), &markers);
             entries.push((pat, item));
         }
 
@@ -176,7 +176,7 @@ impl<'a> Runtime<'a> {
             let Some(item) = items.index(suffix_start + offset) else {
                 return self.finish_bind(false, env, then);
             };
-            let item = mark_value((*item).clone(), &markers);
+            let item = mark_value_shared((*item).clone(), &markers);
             entries.push((pat, item));
         }
 
@@ -184,7 +184,7 @@ impl<'a> Runtime<'a> {
             let Some(slice) = items.index_range(prefix_len, suffix_start) else {
                 return self.finish_bind(false, env, then);
             };
-            let slice = mark_value(Value::List(slice), &markers);
+            let slice = mark_value_shared(Value::List(slice), &markers);
             entries.push((spread, slice));
         }
         self.bind_pat_sequence(entries, env, then)
@@ -239,7 +239,7 @@ impl<'a> Runtime<'a> {
         if let Some((index, value_field)) = find_record_field(&record_fields, &name) {
             let mut used = used;
             used.insert(index);
-            let value = mark_value(value_field.value.clone(), &markers);
+            let value = mark_value_shared(value_field.value.clone(), &markers);
             return self.bind_record_field_value(
                 pat,
                 value,
@@ -320,7 +320,7 @@ impl<'a> Runtime<'a> {
             .filter(|(index, _)| !used.contains(index))
             .map(|(_, field)| ValueField {
                 name: field.name.clone(),
-                value: mark_value(field.value.clone(), &markers),
+                value: mark_value_shared(field.value.clone(), &markers),
             })
             .collect();
         let mut env = env;

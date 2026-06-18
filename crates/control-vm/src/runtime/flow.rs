@@ -13,7 +13,7 @@ impl<'a> Runtime<'a> {
             return self.apply_value(callee, arg);
         }
         match callee {
-            Value::Marked { .. } => self.apply_value(mark_value(callee, &markers), arg),
+            Value::Marked { .. } => self.apply_value(mark_value_shared(callee, &markers), arg),
             callee if callee_apply_closes_without_frame(&callee) => {
                 let result = self.apply_value(callee, arg)?;
                 self.close_shared_scoped_result(result, markers)
@@ -91,7 +91,7 @@ impl<'a> Runtime<'a> {
         markers: SharedMarkers,
     ) -> RuntimeResult {
         match result {
-            EvalResult::Value(value) => value_result(mark_value(value, &markers)),
+            EvalResult::Value(value) => value_result(mark_value_shared(value, &markers)),
             EvalResult::Request(request) => {
                 let resume_markers = shared_markers_for_continuation_resume(&markers);
                 self.close_marker_request(request, resume_markers, true, None)
@@ -181,16 +181,15 @@ impl<'a> Runtime<'a> {
         let target_arg = target_arg.clone();
         let target_ret = target_ret.clone();
         let function = adapter.function.as_ref().clone();
-        let markers = self.instantiate_hygiene(&adapter.hygiene);
-        self.with_marker_frame(markers.clone(), move |runtime| {
-            let resume_markers = shared_markers(markers.clone());
-            let arg = mark_value(arg.clone(), &resume_markers);
+        let markers = shared_markers(self.instantiate_hygiene(&adapter.hygiene));
+        self.with_shared_marker_frame(markers.clone(), move |runtime| {
+            let arg = mark_value_shared(arg.clone(), &markers);
             let arg = runtime.adapt_value(arg, &target_arg, &source_arg)?;
             runtime.continue_with_frame(
                 arg,
                 Frame::ApplyAdapterArg {
                     function: function.clone(),
-                    markers: resume_markers,
+                    markers: markers.clone(),
                     source_ret: source_ret.clone(),
                     target_ret: target_ret.clone(),
                 },
@@ -359,14 +358,6 @@ impl<'a> Runtime<'a> {
     ) -> RuntimeResult {
         let handler_key = self.intern_path(&handler_path);
         self.with_marker_plan(markers, false, Some(handler_key), run)
-    }
-
-    pub(super) fn with_marker_frame(
-        &mut self,
-        markers: Vec<ValueMarker>,
-        run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult + 'a,
-    ) -> RuntimeResult {
-        self.with_marker_plan(markers, true, None, run)
     }
 
     pub(super) fn with_shared_marker_frame(
@@ -540,7 +531,7 @@ impl<'a> Runtime<'a> {
         match result {
             EvalResult::Value(value) => {
                 self.stats.marker_frame_value_closes += 1;
-                value_result(mark_value(value, &markers))
+                value_result(mark_value_shared(value, &markers))
             }
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;
@@ -560,7 +551,7 @@ impl<'a> Runtime<'a> {
         match result {
             EvalResult::Value(value) => {
                 self.stats.marker_frame_value_closes += 1;
-                value_result(mark_value(value, &markers))
+                value_result(mark_value_shared(value, &markers))
             }
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;
