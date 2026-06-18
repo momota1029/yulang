@@ -29,16 +29,18 @@ impl<'a> Runtime<'a> {
             Value::Marked { value, markers } => {
                 self.stats.apply_marked_calls += 1;
                 let markers = if matches!(value.as_ref(), Value::Continuation(_)) {
-                    markers_for_continuation_call(&markers)
+                    shared_markers_for_continuation_call(&markers)
                 } else {
-                    markers_for_function_call(&markers)
+                    shared_markers_for_function_call(&markers)
                 };
                 let value = *value;
                 if callee_apply_closes_without_frame(&value) {
                     let result = self.apply_value(value, arg)?;
-                    return self.close_scoped_result(result, markers);
+                    return self.close_shared_scoped_result(result, markers);
                 }
-                self.with_marker_frame(markers, move |runtime| runtime.apply_value(value, arg))
+                self.with_shared_marker_frame(markers, move |runtime| {
+                    runtime.apply_value(value, arg)
+                })
             }
             Value::PrimitiveOp(primitive) => {
                 self.stats.apply_primitive_calls += 1;
@@ -80,20 +82,6 @@ impl<'a> Runtime<'a> {
                 })))
             }
             value => Err(RuntimeError::NotFunction { value }),
-        }
-    }
-
-    pub(super) fn close_scoped_result(
-        &mut self,
-        result: EvalResult,
-        markers: Vec<ValueMarker>,
-    ) -> RuntimeResult {
-        match result {
-            EvalResult::Value(value) => value_result(mark_value(value, &markers)),
-            EvalResult::Request(request) => {
-                let resume_markers = shared_markers(markers_for_continuation_resume(&markers));
-                self.close_marker_request(request, resume_markers, true, None)
-            }
         }
     }
 
