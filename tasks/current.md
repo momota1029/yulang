@@ -231,6 +231,10 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      `InternedPathPrefix { id, len }` にし、request / operation 側だけ full key を保つようにした。
      `bench/nondet_20_discard.yu` は repeat 5 で 22〜23ms、
      `examples/showcase.yu` は repeat 5 で 45〜47ms まで下がった。
+     resume 中の `continue_with_current_frame` value path は、frame を continuation に積み直さず
+     その場で `apply_frame` するようにした。
+     `examples/showcase.yu` は repeat 5 で 41〜44ms まで下がった。
+     `active_marker_plans` に function-call marker を cache する案は悪化したため採用しない。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。

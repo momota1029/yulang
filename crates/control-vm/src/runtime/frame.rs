@@ -515,11 +515,7 @@ impl<'a> Runtime<'a> {
         match result {
             EvalResult::Value(value) => {
                 self.stats.continue_with_values += 1;
-                extend_active_marker_scopes(&mut self.stats, marker_scopes, 1);
-                continuation
-                    .frames
-                    .push_back(shared_frame(&mut self.stats, frame));
-                value_result(value)
+                self.apply_frame(frame, continuation, marker_scopes, value)
             }
             EvalResult::Request(request) => {
                 self.stats.continue_with_requests += 1;
@@ -1572,20 +1568,6 @@ fn consume_marker_frame(
         if scope.frames_remaining > 0 {
             scope.frames_remaining -= 1;
         }
-    }
-}
-
-fn extend_active_marker_scopes(
-    stats: &mut RuntimeStats,
-    marker_scopes: &mut [ActiveContinuationMarkerScope],
-    count: usize,
-) {
-    let depth = marker_scopes.len() as u64;
-    stats.marker_scope_frame_touches += depth;
-    stats.marker_scope_extend_touches += depth;
-    stats.marker_scope_max_depth = stats.marker_scope_max_depth.max(depth);
-    for scope in marker_scopes {
-        scope.frames_remaining += count;
     }
 }
 
