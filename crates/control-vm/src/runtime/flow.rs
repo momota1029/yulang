@@ -67,17 +67,17 @@ impl<'a> Runtime<'a> {
             }
             Value::EffectOp { path } => {
                 self.stats.apply_effect_op_calls += 1;
-                value_result(Value::Thunk(Thunk::Effect {
+                value_result(Value::Thunk(Rc::new(Thunk::Effect {
                     path,
                     payload: Box::new(arg),
-                }))
+                })))
             }
             Value::Continuation(id) => {
                 self.stats.apply_continuation_calls += 1;
-                value_result(Value::Thunk(Thunk::Continuation {
+                value_result(Value::Thunk(Rc::new(Thunk::Continuation {
                     id,
                     arg: Box::new(arg),
-                }))
+                })))
             }
             value => Err(RuntimeError::NotFunction { value }),
         }
@@ -146,12 +146,12 @@ impl<'a> Runtime<'a> {
         )?)
     }
 
-    pub(super) fn apply_closure(&mut self, closure: Closure, arg: Value) -> RuntimeResult {
+    pub(super) fn apply_closure(&mut self, closure: Rc<Closure>, arg: Value) -> RuntimeResult {
         let body = closure.body;
         self.bind_pat(
-            closure.param,
+            closure.param.clone(),
             arg,
-            closure.env,
+            closure.env.clone(),
             BindThen::ApplyClosure { body },
         )
     }
@@ -159,10 +159,11 @@ impl<'a> Runtime<'a> {
     pub(super) fn apply_recursive_closure(
         &mut self,
         def: DefId,
-        mut closure: Closure,
+        closure: Rc<Closure>,
         arg: Value,
     ) -> RuntimeResult {
-        let stats = closure.env.insert(
+        let mut env = closure.env.clone();
+        let stats = env.insert(
             def,
             Value::RecursiveClosure {
                 def,
@@ -170,10 +171,19 @@ impl<'a> Runtime<'a> {
             },
         );
         self.record_env_insert(stats);
-        self.apply_closure(closure, arg)
+        self.bind_pat(
+            closure.param.clone(),
+            arg,
+            env,
+            BindThen::ApplyClosure { body: closure.body },
+        )
     }
 
-    pub(super) fn apply_adapter(&mut self, adapter: FunctionAdapter, arg: Value) -> RuntimeResult {
+    pub(super) fn apply_adapter(
+        &mut self,
+        adapter: Rc<FunctionAdapter>,
+        arg: Value,
+    ) -> RuntimeResult {
         let (source_arg, source_ret) =
             function_parts(&adapter.source).ok_or(RuntimeError::ExpectedFunctionType)?;
         let (target_arg, target_ret) =
@@ -182,7 +192,7 @@ impl<'a> Runtime<'a> {
         let source_ret = source_ret.clone();
         let target_arg = target_arg.clone();
         let target_ret = target_ret.clone();
-        let function = *adapter.function;
+        let function = adapter.function.as_ref().clone();
         let markers = self.instantiate_hygiene(&adapter.hygiene);
         self.with_marker_frame(markers.clone(), move |runtime| {
             let resume_markers = shared_markers(markers.clone());

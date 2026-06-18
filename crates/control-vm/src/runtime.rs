@@ -217,13 +217,13 @@ pub enum Value {
     },
     ConstructorFunction(ConstructorFunction),
     PrimitiveOp(PrimitiveValue),
-    Closure(Closure),
+    Closure(Rc<Closure>),
     RecursiveClosure {
         def: DefId,
-        closure: Closure,
+        closure: Rc<Closure>,
     },
-    Thunk(Thunk),
-    FunctionAdapter(FunctionAdapter),
+    Thunk(Rc<Thunk>),
+    FunctionAdapter(Rc<FunctionAdapter>),
     EffectOp {
         path: Vec<String>,
     },

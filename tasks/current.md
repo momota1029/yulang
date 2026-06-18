@@ -181,6 +181,13 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      `bench/nondet_20_discard.yu` が 52〜55ms、`examples/showcase.yu` が 115〜125ms となり、
      親ポインタ版より悪化したため採用しない。
      現状は `env_max_size=5` なので、HashMap の O(1) lookup より浅い frame chain が勝つ。
+   - `Value` のうち control payload が大きい `Closure` / `RecursiveClosure` /
+     `Thunk` / `FunctionAdapter` は `Rc` handle 化した。
+     `bench/nondet_20_discard.yu` は repeat 5 で `runtime_execute` 42〜45ms、
+     `examples/showcase.yu` は 92〜98ms 台まで下がった。
+     次の本命は、まだ `frame_allocs` と `marker_scope_frame_touches` が大きいため、
+     通常実行 stack と captured snapshot を分けること、または marker scope touch を
+     pointer state 化すること。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。

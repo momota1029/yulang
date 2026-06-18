@@ -31,10 +31,10 @@ impl<'a> Runtime<'a> {
                 let result = self.eval_expr(expr, env)?;
                 self.continue_with_frame(result, Frame::Coerce { expr: expr_id })
             }
-            EvalExpr::MakeThunk { body } => value_result(Value::Thunk(Thunk::Expr {
+            EvalExpr::MakeThunk { body } => value_result(Value::Thunk(Rc::new(Thunk::Expr {
                 body,
                 env: env.clone(),
-            })),
+            }))),
             EvalExpr::ForceThunk { thunk } => {
                 let result = self.eval_expr(thunk, env)?;
                 self.continue_with_frame(result, Frame::ForceThunk { expr: expr_id })
@@ -81,11 +81,11 @@ impl<'a> Runtime<'a> {
             EvalExpr::RefSet { reference, value } => {
                 self.eval_ref_set(reference, value, env.clone())
             }
-            EvalExpr::Lambda { param, body } => value_result(Value::Closure(Closure {
+            EvalExpr::Lambda { param, body } => value_result(Value::Closure(Rc::new(Closure {
                 param,
                 body,
                 env: env.clone(),
-            })),
+            }))),
             EvalExpr::Tuple => self.eval_tuple(expr_id, env.clone()),
             EvalExpr::Record => self.eval_record(expr_id, env.clone()),
             EvalExpr::PolyVariant => self.eval_poly_variant(expr_id, env.clone()),
@@ -652,12 +652,12 @@ impl<'a> Runtime<'a> {
                 target,
                 hygiene,
                 ..
-            }) => Ok(Value::FunctionAdapter(FunctionAdapter {
+            }) => Ok(Value::FunctionAdapter(Rc::new(FunctionAdapter {
                 source: source.clone(),
                 target: target.clone(),
                 function: Box::new(function),
                 hygiene: hygiene.clone(),
-            })),
+            }))),
             Some(_) | None => Err(RuntimeError::MissingExpr { expr }),
         }
     }
@@ -986,11 +986,11 @@ impl DirectKnownCallee {
 
     fn into_value(self) -> Value {
         match self {
-            Self::Closure { param, body } => Value::Closure(Closure {
+            Self::Closure { param, body } => Value::Closure(Rc::new(Closure {
                 param,
                 body,
                 env: CapturedEnv::default(),
-            }),
+            })),
             Self::Primitive { op, context } => Value::PrimitiveOp(PrimitiveValue {
                 op,
                 context,

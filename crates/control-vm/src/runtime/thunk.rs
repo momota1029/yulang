@@ -23,11 +23,11 @@ impl<'a> Runtime<'a> {
                     value: target_value,
                     ..
                 },
-            ) => value_result(Value::Thunk(Thunk::Adapter {
+            ) => value_result(Value::Thunk(Rc::new(Thunk::Adapter {
                 source: source_value.as_ref().clone(),
                 target: target_value.as_ref().clone(),
                 thunk: Box::new(value),
-            })),
+            }))),
             (Type::Thunk { .. }, target) => {
                 let source_value = thunk_value_type(source).unwrap_or(source).clone();
                 let target = target.clone();
@@ -47,14 +47,14 @@ impl<'a> Runtime<'a> {
                 self.continue_with_frame(value, Frame::WrapThunkValue)
             }
             (Type::Fun { .. }, Type::Fun { .. }) => {
-                value_result(Value::FunctionAdapter(FunctionAdapter {
+                value_result(Value::FunctionAdapter(Rc::new(FunctionAdapter {
                     source: source.clone(),
                     target: target.clone(),
                     function: Box::new(value),
                     hygiene: FunctionAdapterHygiene {
                         markers: Vec::new(),
                     },
-                }))
+                })))
             }
             (Type::Record(_), Type::Record(_)) if value_boundary_supported(source, target) => {
                 value_result(value)
@@ -76,19 +76,33 @@ impl<'a> Runtime<'a> {
                 self.stats.force_marked_calls += 1;
                 self.with_marker_frame(markers, move |runtime| runtime.force_thunk(*value))
             }
-            Value::Thunk(Thunk::Expr { body, mut env }) => {
+            Value::Thunk(thunk) => self.force_thunk_handle(thunk),
+            value => Err(RuntimeError::NotThunk { value }),
+        }
+    }
+
+    fn force_thunk_handle(&mut self, thunk: Rc<Thunk>) -> RuntimeResult {
+        match Rc::try_unwrap(thunk) {
+            Ok(thunk) => self.force_owned_thunk(thunk),
+            Err(thunk) => self.force_shared_thunk(&thunk),
+        }
+    }
+
+    fn force_owned_thunk(&mut self, thunk: Thunk) -> RuntimeResult {
+        match thunk {
+            Thunk::Expr { body, mut env } => {
                 self.stats.force_expr_calls += 1;
                 self.eval_expr(body, &mut env)
             }
-            Value::Thunk(Thunk::Value(value)) => {
+            Thunk::Value(value) => {
                 self.stats.force_value_calls += 1;
                 value_result(*value)
             }
-            Value::Thunk(Thunk::Effect { path, payload }) => {
+            Thunk::Effect { path, payload } => {
                 self.stats.force_effect_calls += 1;
                 self.emit_effect_request(path, *payload)
             }
-            Value::Thunk(Thunk::Continuation { id, arg }) => {
+            Thunk::Continuation { id, arg } => {
                 self.stats.force_continuation_calls += 1;
                 let resume = {
                     let continuation = self
@@ -102,16 +116,62 @@ impl<'a> Runtime<'a> {
                 let result = self.resume(resume, *arg)?;
                 self.continue_with_frame(result, Frame::ForceValueIfThunk)
             }
-            Value::Thunk(Thunk::Adapter {
+            Thunk::Adapter {
                 source,
                 target,
                 thunk,
-            }) => {
+            } => {
                 self.stats.force_adapter_calls += 1;
                 let value = self.force_thunk(*thunk)?;
                 self.continue_with_frame(value, Frame::AdaptValue { source, target })
             }
-            value => Err(RuntimeError::NotThunk { value }),
+        }
+    }
+
+    fn force_shared_thunk(&mut self, thunk: &Thunk) -> RuntimeResult {
+        match thunk {
+            Thunk::Expr { body, env } => {
+                self.stats.force_expr_calls += 1;
+                let mut env = env.clone();
+                self.eval_expr(*body, &mut env)
+            }
+            Thunk::Value(value) => {
+                self.stats.force_value_calls += 1;
+                value_result(value.as_ref().clone())
+            }
+            Thunk::Effect { path, payload } => {
+                self.stats.force_effect_calls += 1;
+                self.emit_effect_request(path.clone(), payload.as_ref().clone())
+            }
+            Thunk::Continuation { id, arg } => {
+                self.stats.force_continuation_calls += 1;
+                let resume = {
+                    let continuation = self
+                        .continuations
+                        .get(id)
+                        .ok_or(RuntimeError::MissingContinuation { id: *id })?
+                        .clone();
+                    self.clone_continuation_for_invoke(continuation)
+                };
+                self.stats.continuation_invocations += 1;
+                let result = self.resume(resume, arg.as_ref().clone())?;
+                self.continue_with_frame(result, Frame::ForceValueIfThunk)
+            }
+            Thunk::Adapter {
+                source,
+                target,
+                thunk,
+            } => {
+                self.stats.force_adapter_calls += 1;
+                let value = self.force_thunk(thunk.as_ref().clone())?;
+                self.continue_with_frame(
+                    value,
+                    Frame::AdaptValue {
+                        source: source.clone(),
+                        target: target.clone(),
+                    },
+                )
+            }
         }
     }
 

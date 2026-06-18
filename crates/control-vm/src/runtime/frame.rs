@@ -672,7 +672,9 @@ impl<'a> Runtime<'a> {
                 unreachable!("result frames are handled before value frames")
             }
             Frame::AdaptValue { source, target } => self.adapt_value(value, source, target),
-            Frame::WrapThunkValue => value_result(Value::Thunk(Thunk::Value(Box::new(value)))),
+            Frame::WrapThunkValue => {
+                value_result(Value::Thunk(Rc::new(Thunk::Value(Box::new(value)))))
+            }
             Frame::ForceValueIfThunk => self.force_value_if_thunk(value),
             Frame::ApplyForcedThunk { arg } => self.apply_scoped_value(value, arg.clone()),
             Frame::ApplyArg { callee } => self.apply_scoped_value(callee.clone(), value),
@@ -963,7 +965,9 @@ impl<'a> Runtime<'a> {
                 unreachable!("result frames are handled before value frames")
             }
             Frame::AdaptValue { source, target } => self.adapt_value(value, &source, &target),
-            Frame::WrapThunkValue => value_result(Value::Thunk(Thunk::Value(Box::new(value)))),
+            Frame::WrapThunkValue => {
+                value_result(Value::Thunk(Rc::new(Thunk::Value(Box::new(value)))))
+            }
             Frame::ForceValueIfThunk => self.force_value_if_thunk(value),
             Frame::ApplyForcedThunk { arg } => self.apply_scoped_value(value, arg),
             Frame::ApplyArg { callee } => self.apply_scoped_value(callee, value),
