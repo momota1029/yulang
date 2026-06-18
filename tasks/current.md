@@ -188,6 +188,8 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      次の本命は、まだ `frame_allocs` と `marker_scope_frame_touches` が大きいため、
      通常実行 stack と captured snapshot を分けること、または marker scope touch を
      pointer state 化すること。
+     active marker scope の `frames_remaining` を `frame_delta` cursor へ寄せる案は試したが、
+     `runtime_execute` が改善せず、複雑性に見合わないため採用しない。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。
