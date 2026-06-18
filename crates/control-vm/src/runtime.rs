@@ -341,7 +341,6 @@ pub enum ValueMarker {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AddIdMarker {
     pub id: GuardId,
-    pub path: Vec<String>,
     path_key: InternedPath,
     pub depth: u32,
     pub guard_own_path: bool,
@@ -1180,16 +1179,11 @@ fn shared_case_arms(arms: &[CaseArm]) -> RuntimeCaseArms {
     Rc::from(arms.to_vec().into_boxed_slice())
 }
 
-fn stack_handler_markers(
-    id: GuardId,
-    path: Vec<String>,
-    path_key: InternedPath,
-) -> Vec<ValueMarker> {
+fn stack_handler_markers(id: GuardId, path_key: InternedPath) -> Vec<ValueMarker> {
     vec![
         ValueMarker::Frame { id },
         ValueMarker::AddId(AddIdMarker {
             id,
-            path: path.clone(),
             path_key: path_key.clone(),
             depth: 0,
             guard_own_path: false,
@@ -1198,7 +1192,6 @@ fn stack_handler_markers(
         }),
         ValueMarker::AddId(AddIdMarker {
             id,
-            path,
             path_key,
             depth: 1,
             guard_own_path: true,

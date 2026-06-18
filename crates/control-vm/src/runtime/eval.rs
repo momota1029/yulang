@@ -47,7 +47,7 @@ impl<'a> Runtime<'a> {
                 let mut frame_env = env.clone();
                 let id = self.fresh_guard_id();
                 let path_key = self.intern_path(&path);
-                let markers = stack_handler_markers(id, path.clone(), path_key);
+                let markers = stack_handler_markers(id, path_key);
                 self.with_stack_handler_frame(markers, path, move |runtime| {
                     runtime.eval_expr(body, &mut frame_env)
                 })

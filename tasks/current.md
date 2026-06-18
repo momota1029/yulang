@@ -223,6 +223,10 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      `examples/showcase.yu` は repeat 5 で 66〜71ms まで下がった。
      record pattern の reversed stack 化と `CapturedEnv` の unique multi-binding frame 化は
      悪化したため採用しない。
+     `AddIdMarker` から未使用の `path: Vec<String>` を外し、runtime hot path では
+     `InternedPath` だけを持ち回るようにした。
+     `bench/nondet_20_discard.yu` は repeat 5 で 24〜25ms、
+     `examples/showcase.yu` は repeat 5 で 49〜54ms まで下がった。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。

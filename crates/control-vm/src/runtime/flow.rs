@@ -333,7 +333,6 @@ impl<'a> Runtime<'a> {
             markers.push(ValueMarker::Frame { id });
             markers.push(ValueMarker::AddId(AddIdMarker {
                 id,
-                path: marker.path.clone(),
                 path_key,
                 depth: marker.depth,
                 guard_own_path: false,
