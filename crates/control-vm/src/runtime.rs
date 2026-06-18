@@ -26,7 +26,10 @@ mod frame;
 mod thunk;
 
 use engine::Runtime;
-use frame::{BindThen, Continuation, Frame, RefSetFinish, RefSetResumeMode, push_frame};
+use frame::{
+    BindThen, Continuation, ContinuationMarkerScope, Frame, RefSetFinish, RefSetResumeMode,
+    push_frame,
+};
 
 pub fn run_mono_program(program: &mono::Program) -> Result<Vec<Value>, RunError> {
     let program = lower(program).map_err(RunError::Lower)?;
@@ -251,9 +254,6 @@ struct ActiveFrame {
     handler_key: Option<InternedPath>,
 }
 
-// `MarkerEnter` records the dynamic stack lengths here; the paired
-// `MarkerExit` can then restore the previous marker state without rearranging
-// continuation frames on every request resume.
 #[derive(Debug, Clone, Copy)]
 struct MarkerCheckpoint {
     guard_len: usize,

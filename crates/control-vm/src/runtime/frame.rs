@@ -3,6 +3,23 @@ use super::*;
 #[derive(Clone, Default)]
 pub(super) struct Continuation {
     pub(super) frames: VecDeque<Frame>,
+    pub(super) marker_scopes: Vec<ContinuationMarkerScope>,
+}
+
+#[derive(Clone)]
+pub(super) struct ContinuationMarkerScope {
+    pub(super) frames_remaining: usize,
+    pub(super) resume_markers: SharedMarkers,
+    pub(super) activate_add_ids: bool,
+    pub(super) handler_key: Option<InternedPath>,
+}
+
+struct ActiveContinuationMarkerScope {
+    frames_remaining: usize,
+    resume_markers: SharedMarkers,
+    activate_add_ids: bool,
+    handler_key: Option<InternedPath>,
+    checkpoint: MarkerCheckpoint,
 }
 
 #[derive(Clone)]
@@ -60,16 +77,6 @@ pub(super) enum Frame {
         source: Type,
         target: Type,
         hygiene: FunctionAdapterHygiene,
-    },
-    MarkerEnter {
-        resume_markers: SharedMarkers,
-        activate_add_ids: bool,
-        handler_key: Option<InternedPath>,
-    },
-    MarkerExit {
-        resume_markers: SharedMarkers,
-        activate_add_ids: bool,
-        handler_key: Option<InternedPath>,
     },
     RefSetReference {
         value: ExprId,
@@ -300,60 +307,59 @@ impl Frame {
             Frame::CatchResult { .. }
                 | Frame::RefSetHandleResult { .. }
                 | Frame::RefSetHandleValueResult { .. }
-                | Frame::MarkerExit { .. }
         )
     }
 }
 
 impl<'a> Runtime<'a> {
-    pub(super) fn resume(
+    pub(super) fn resume(&mut self, mut continuation: Continuation, value: Value) -> RuntimeResult {
+        let checkpoint = self.marker_checkpoint();
+        let mut marker_scopes =
+            self.enter_continuation_marker_scopes(std::mem::take(&mut continuation.marker_scopes));
+        let result = self.resume_with_marker_scopes(&mut continuation, &mut marker_scopes, value);
+        self.pop_marker_frame(
+            checkpoint.guard_len,
+            checkpoint.frame_len,
+            checkpoint.add_id_len,
+            checkpoint.plan_len,
+        );
+        result
+    }
+
+    fn resume_with_marker_scopes(
         &mut self,
-        mut continuation: Continuation,
+        continuation: &mut Continuation,
+        marker_scopes: &mut Vec<ActiveContinuationMarkerScope>,
         mut value: Value,
     ) -> RuntimeResult {
+        value = match self.close_completed_marker_scopes(EvalResult::Value(value), marker_scopes)? {
+            EvalResult::Value(value) => value,
+            EvalResult::Request(request) => {
+                return self.finish_resume_request(request, continuation, marker_scopes);
+            }
+        };
+
         'resume: loop {
             let Some(frame) = continuation.frames.pop_back() else {
                 return value_result(value);
             };
+            consume_marker_frame(marker_scopes);
             self.stats.request_resume_steps += 1;
             let result = if frame.handles_eval_result() {
                 self.apply_result_frame(frame, EvalResult::Value(value))?
             } else {
-                self.apply_frame(frame, &mut continuation, value)?
+                self.apply_frame(frame, &mut *continuation, marker_scopes, value)?
             };
+            let result = self.close_completed_marker_scopes(result, marker_scopes)?;
             match result {
                 EvalResult::Value(next) => value = next,
                 EvalResult::Request(request) => {
-                    let mut result = EvalResult::Request(request);
-                    loop {
-                        while continuation
-                            .frames
-                            .back()
-                            .is_some_and(Frame::handles_eval_result)
-                        {
-                            let frame = continuation.frames.pop_back().expect("checked frame");
-                            self.stats.request_resume_steps += 1;
-                            result = self.apply_result_frame(frame, result)?;
-                            if let EvalResult::Value(next) = result {
-                                value = next;
-                                continue 'resume;
-                            }
+                    match self.finish_resume_request(request, continuation, marker_scopes)? {
+                        EvalResult::Value(next) => {
+                            value = next;
+                            continue 'resume;
                         }
-                        let EvalResult::Request(request) = result else {
-                            unreachable!("value result continues the resume loop");
-                        };
-                        if continuation
-                            .frames
-                            .iter()
-                            .any(|frame| matches!(frame, Frame::MarkerExit { .. }))
-                        {
-                            result =
-                                self.close_innermost_marker_request(&mut continuation, request)?;
-                            continue;
-                        }
-                        let mut request = request;
-                        prepend_frames(&mut request.continuation, continuation.frames);
-                        return Ok(EvalResult::Request(request));
+                        EvalResult::Request(request) => return Ok(EvalResult::Request(request)),
                     }
                 }
             }
@@ -369,10 +375,11 @@ impl<'a> Runtime<'a> {
             EvalResult::Value(value) => {
                 self.stats.continue_with_values += 1;
                 let mut continuation = Continuation::default();
+                let mut marker_scopes = Vec::new();
                 let result = if frame.handles_eval_result() {
                     self.apply_result_frame(frame, EvalResult::Value(value))?
                 } else {
-                    self.apply_frame(frame, &mut continuation, value)?
+                    self.apply_frame(frame, &mut continuation, &mut marker_scopes, value)?
                 };
                 self.finish_inline_result(result, continuation)
             }
@@ -388,10 +395,12 @@ impl<'a> Runtime<'a> {
         result: EvalResult,
         frame: Frame,
         continuation: &mut Continuation,
+        marker_scopes: &mut [ActiveContinuationMarkerScope],
     ) -> RuntimeResult {
         match result {
             EvalResult::Value(value) => {
                 self.stats.continue_with_values += 1;
+                extend_active_marker_scopes(marker_scopes, 1);
                 continuation.frames.push_back(frame);
                 value_result(value)
             }
@@ -408,7 +417,11 @@ impl<'a> Runtime<'a> {
         mut continuation: Continuation,
     ) -> RuntimeResult {
         match result {
-            EvalResult::Value(value) if continuation.frames.is_empty() => value_result(value),
+            EvalResult::Value(value)
+                if continuation.frames.is_empty() && continuation.marker_scopes.is_empty() =>
+            {
+                value_result(value)
+            }
             EvalResult::Value(value) => self.resume(continuation, value),
             EvalResult::Request(request) => self.finish_inline_request(request, &mut continuation),
         }
@@ -419,6 +432,7 @@ impl<'a> Runtime<'a> {
         request: Request,
         continuation: &mut Continuation,
     ) -> RuntimeResult {
+        debug_assert!(continuation.marker_scopes.is_empty());
         let mut result = EvalResult::Request(request);
         loop {
             while continuation
@@ -436,14 +450,6 @@ impl<'a> Runtime<'a> {
             let EvalResult::Request(request) = result else {
                 unreachable!("value result is handled above");
             };
-            if continuation
-                .frames
-                .iter()
-                .any(|frame| matches!(frame, Frame::MarkerExit { .. }))
-            {
-                result = self.close_innermost_marker_request(continuation, request)?;
-                continue;
-            }
             let mut request = request;
             prepend_frames(
                 &mut request.continuation,
@@ -453,6 +459,143 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    fn marker_checkpoint(&self) -> MarkerCheckpoint {
+        MarkerCheckpoint {
+            guard_len: self.guard_ids.len(),
+            frame_len: self.active_frames.len(),
+            add_id_len: self.active_add_ids.len(),
+            plan_len: self.active_marker_plans.len(),
+        }
+    }
+
+    fn enter_continuation_marker_scopes(
+        &mut self,
+        scopes: Vec<ContinuationMarkerScope>,
+    ) -> Vec<ActiveContinuationMarkerScope> {
+        let mut active = Vec::with_capacity(scopes.len());
+        for scope in scopes {
+            self.stats.marker_frame_resume_steps += 1;
+            self.stats.marker_frame_calls += 1;
+            let checkpoint = self.marker_checkpoint();
+            if scope.resume_markers.is_empty() {
+                self.stats.marker_frame_empty += 1;
+            } else {
+                self.stats.marker_frame_pushes += 1;
+                self.push_marker_frame(
+                    &scope.resume_markers,
+                    scope.activate_add_ids,
+                    scope.handler_key.clone(),
+                );
+            }
+            active.push(ActiveContinuationMarkerScope {
+                frames_remaining: scope.frames_remaining,
+                resume_markers: scope.resume_markers,
+                activate_add_ids: scope.activate_add_ids,
+                handler_key: scope.handler_key,
+                checkpoint,
+            });
+        }
+        active
+    }
+
+    fn finish_resume_request(
+        &mut self,
+        request: Request,
+        continuation: &mut Continuation,
+        marker_scopes: &mut Vec<ActiveContinuationMarkerScope>,
+    ) -> RuntimeResult {
+        let mut result = EvalResult::Request(request);
+        loop {
+            result = self.close_completed_marker_scopes(result, marker_scopes)?;
+            while continuation
+                .frames
+                .back()
+                .is_some_and(Frame::handles_eval_result)
+            {
+                let frame = continuation.frames.pop_back().expect("checked frame");
+                consume_marker_frame(marker_scopes);
+                self.stats.request_resume_steps += 1;
+                result = self.apply_result_frame(frame, result)?;
+                result = self.close_completed_marker_scopes(result, marker_scopes)?;
+                if matches!(result, EvalResult::Value(_)) {
+                    return Ok(result);
+                }
+            }
+
+            result = self.close_completed_marker_scopes(result, marker_scopes)?;
+            let EvalResult::Request(request) = result else {
+                return Ok(result);
+            };
+            if !marker_scopes.is_empty() {
+                result =
+                    self.close_innermost_marker_request(continuation, marker_scopes, request)?;
+                continue;
+            }
+
+            let mut request = request;
+            prepend_frames(
+                &mut request.continuation,
+                std::mem::take(&mut continuation.frames),
+            );
+            return Ok(EvalResult::Request(request));
+        }
+    }
+
+    fn close_completed_marker_scopes(
+        &mut self,
+        mut result: EvalResult,
+        marker_scopes: &mut Vec<ActiveContinuationMarkerScope>,
+    ) -> RuntimeResult {
+        while marker_scopes
+            .last()
+            .is_some_and(|scope| scope.frames_remaining == 0)
+        {
+            let scope = marker_scopes.pop().expect("checked marker scope");
+            result = self.close_active_marker_scope_result(result, scope)?;
+        }
+        Ok(result)
+    }
+
+    fn close_innermost_marker_request(
+        &mut self,
+        continuation: &mut Continuation,
+        marker_scopes: &mut Vec<ActiveContinuationMarkerScope>,
+        mut request: Request,
+    ) -> RuntimeResult {
+        let scope = marker_scopes
+            .pop()
+            .expect("request should be inside an active marker scope");
+        let inner_frames = split_back_frames(&mut continuation.frames, scope.frames_remaining);
+        for outer in marker_scopes.iter_mut() {
+            outer.frames_remaining = outer
+                .frames_remaining
+                .checked_sub(scope.frames_remaining)
+                .expect("nested marker scope frames should be inside outer scope");
+        }
+        prepend_frames(&mut request.continuation, inner_frames);
+        self.close_active_marker_scope_result(EvalResult::Request(request), scope)
+    }
+
+    fn close_active_marker_scope_result(
+        &mut self,
+        result: EvalResult,
+        scope: ActiveContinuationMarkerScope,
+    ) -> RuntimeResult {
+        let checkpoint = scope.checkpoint;
+        self.pop_marker_frame(
+            checkpoint.guard_len,
+            checkpoint.frame_len,
+            checkpoint.add_id_len,
+            checkpoint.plan_len,
+        );
+        self.close_shared_resume_marker_frame_result(
+            result,
+            scope.resume_markers,
+            scope.activate_add_ids,
+            scope.handler_key,
+        )
+    }
+
     fn apply_result_frame(&mut self, frame: Frame, result: EvalResult) -> RuntimeResult {
         match frame {
             Frame::CatchResult { arms, env } => self.handle_catch_result(result, arms, env),
@@ -460,34 +603,13 @@ impl<'a> Runtime<'a> {
             Frame::RefSetHandleValueResult { assigned } => {
                 self.handle_ref_set_value_result(result, assigned)
             }
-            Frame::MarkerExit {
-                resume_markers,
-                activate_add_ids,
-                handler_key,
-            } => {
-                let checkpoint = self
-                    .marker_checkpoints
-                    .pop()
-                    .expect("marker exit should have a matching marker enter checkpoint");
-                self.pop_marker_frame(
-                    checkpoint.guard_len,
-                    checkpoint.frame_len,
-                    checkpoint.add_id_len,
-                    checkpoint.plan_len,
-                );
-                self.close_shared_resume_marker_frame_result(
-                    result,
-                    resume_markers,
-                    activate_add_ids,
-                    handler_key,
-                )
-            }
             frame => {
                 let EvalResult::Value(value) = result else {
                     unreachable!("request result is only delivered to result frames");
                 };
                 let mut continuation = Continuation::default();
-                self.apply_frame(frame, &mut continuation, value)
+                let mut marker_scopes = Vec::new();
+                self.apply_frame(frame, &mut continuation, &mut marker_scopes, value)
             }
         }
     }
@@ -496,13 +618,13 @@ impl<'a> Runtime<'a> {
         &mut self,
         frame: Frame,
         continuation: &mut Continuation,
+        marker_scopes: &mut [ActiveContinuationMarkerScope],
         value: Value,
     ) -> RuntimeResult {
         match frame {
             Frame::CatchResult { .. }
             | Frame::RefSetHandleResult { .. }
-            | Frame::RefSetHandleValueResult { .. }
-            | Frame::MarkerExit { .. } => {
+            | Frame::RefSetHandleValueResult { .. } => {
                 unreachable!("result frames are handled before value frames")
             }
             Frame::AdaptValue { source, target } => self.adapt_value(value, &source, &target),
@@ -517,6 +639,7 @@ impl<'a> Runtime<'a> {
                     arg,
                     Frame::ApplyArg { callee: value },
                     continuation,
+                    marker_scopes,
                 )
             }
             Frame::ApplyAdapterArg {
@@ -535,6 +658,7 @@ impl<'a> Runtime<'a> {
                         target_ret,
                     },
                     continuation,
+                    marker_scopes,
                 )
             }
             Frame::ApplyAdapterResult {
@@ -561,6 +685,7 @@ impl<'a> Runtime<'a> {
                         first: value,
                     },
                     continuation,
+                    marker_scopes,
                 )
             }
             Frame::DirectBinaryApply { op, context, first } => {
@@ -581,7 +706,12 @@ impl<'a> Runtime<'a> {
                 if matches!(target_value, Type::Thunk { .. }) {
                     return Ok(result);
                 }
-                self.continue_with_current_frame(result, Frame::ForceValueIfThunk, continuation)
+                self.continue_with_current_frame(
+                    result,
+                    Frame::ForceValueIfThunk,
+                    continuation,
+                    marker_scopes,
+                )
             }
             Frame::MakeFunctionAdapter {
                 source,
@@ -593,33 +723,13 @@ impl<'a> Runtime<'a> {
                 function: Box::new(value),
                 hygiene,
             })),
-            Frame::MarkerEnter {
-                resume_markers,
-                activate_add_ids,
-                handler_key,
-            } => {
-                self.stats.marker_frame_resume_steps += 1;
-                self.stats.marker_frame_calls += 1;
-                self.marker_checkpoints.push(MarkerCheckpoint {
-                    guard_len: self.guard_ids.len(),
-                    frame_len: self.active_frames.len(),
-                    add_id_len: self.active_add_ids.len(),
-                    plan_len: self.active_marker_plans.len(),
-                });
-                if resume_markers.is_empty() {
-                    self.stats.marker_frame_empty += 1;
-                    return value_result(value);
-                }
-                self.stats.marker_frame_pushes += 1;
-                self.push_marker_frame(&resume_markers, activate_add_ids, handler_key.clone());
-                value_result(value)
-            }
             Frame::RefSetReference { value: expr, env } => {
                 let reference = self.force_value_if_thunk(value)?;
                 self.continue_with_current_frame(
                     reference,
                     Frame::RefSetForcedReference { value: expr, env },
                     continuation,
+                    marker_scopes,
                 )
             }
             Frame::RefSetForcedReference { value: expr, env } => {
@@ -629,6 +739,7 @@ impl<'a> Runtime<'a> {
                     value_result,
                     Frame::RefSetValue { reference: value },
                     continuation,
+                    marker_scopes,
                 )
             }
             Frame::RefSetValue { reference } => {
@@ -637,6 +748,7 @@ impl<'a> Runtime<'a> {
                     value,
                     Frame::RefSetForcedValue { reference },
                     continuation,
+                    marker_scopes,
                 )
             }
             Frame::RefSetForcedValue { reference } => {
@@ -697,6 +809,7 @@ impl<'a> Runtime<'a> {
                     spread,
                     Frame::RecordTailSpread { fields },
                     continuation,
+                    marker_scopes,
                 )
             }
             Frame::RecordTailSpread { mut fields } => {
@@ -755,6 +868,7 @@ impl<'a> Runtime<'a> {
                     scrutinee,
                     Frame::CaseScrutinee { arms, env },
                     continuation,
+                    marker_scopes,
                 )
             }
             Frame::CaseScrutinee { arms, env } => self.eval_case(value, arms, env),
@@ -855,42 +969,6 @@ impl<'a> Runtime<'a> {
                 )
             }
         }
-    }
-
-    fn close_innermost_marker_request(
-        &mut self,
-        continuation: &mut Continuation,
-        mut request: Request,
-    ) -> RuntimeResult {
-        let Some(marker_index) = continuation
-            .frames
-            .iter()
-            .rposition(|frame| matches!(frame, Frame::MarkerExit { .. }))
-        else {
-            unreachable!("caller checked for a marker exit");
-        };
-        let inner_frames = continuation.frames.split_off(marker_index + 1);
-        let Some(Frame::MarkerExit {
-            resume_markers,
-            activate_add_ids,
-            handler_key,
-        }) = continuation.frames.pop_back()
-        else {
-            unreachable!("rposition found a marker exit");
-        };
-        prepend_frames(&mut request.continuation, inner_frames);
-        let checkpoint = self
-            .marker_checkpoints
-            .pop()
-            .expect("marker request close should have a matching marker enter checkpoint");
-        self.pop_marker_frame(
-            checkpoint.guard_len,
-            checkpoint.frame_len,
-            checkpoint.add_id_len,
-            checkpoint.plan_len,
-        );
-        self.stats.marker_frame_request_closes += 1;
-        self.close_marker_request(request, resume_markers, activate_add_ids, handler_key)
     }
 
     pub(super) fn finish_bind(
@@ -1096,6 +1174,31 @@ pub(super) fn push_continuation_frame(
 ) -> Continuation {
     continuation.frames.push_front(frame);
     continuation
+}
+
+fn consume_marker_frame(marker_scopes: &mut [ActiveContinuationMarkerScope]) {
+    for scope in marker_scopes {
+        if scope.frames_remaining > 0 {
+            scope.frames_remaining -= 1;
+        }
+    }
+}
+
+fn extend_active_marker_scopes(marker_scopes: &mut [ActiveContinuationMarkerScope], count: usize) {
+    for scope in marker_scopes {
+        scope.frames_remaining += count;
+    }
+}
+
+fn split_back_frames(frames: &mut VecDeque<Frame>, count: usize) -> VecDeque<Frame> {
+    if count == 0 {
+        return VecDeque::new();
+    }
+    let split_at = frames
+        .len()
+        .checked_sub(count)
+        .expect("marker scope should not cover more frames than remain");
+    frames.split_off(split_at)
 }
 
 fn prepend_frames(continuation: &mut Continuation, mut frames: VecDeque<Frame>) {

@@ -480,16 +480,15 @@ impl<'a> Runtime<'a> {
         handler_key: Option<InternedPath>,
     ) -> RuntimeResult {
         let mut request = request;
-        request.continuation.frames.push_front(Frame::MarkerExit {
-            resume_markers: resume_markers.clone(),
-            activate_add_ids,
-            handler_key: handler_key.clone(),
-        });
-        request.continuation.frames.push_back(Frame::MarkerEnter {
-            resume_markers,
-            activate_add_ids,
-            handler_key,
-        });
+        request.continuation.marker_scopes.insert(
+            0,
+            ContinuationMarkerScope {
+                frames_remaining: request.continuation.frames.len(),
+                resume_markers: resume_markers.clone(),
+                activate_add_ids,
+                handler_key: handler_key.clone(),
+            },
+        );
         Ok(EvalResult::Request(request))
     }
 }

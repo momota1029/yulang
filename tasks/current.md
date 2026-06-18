@@ -107,9 +107,15 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      `examples/showcase.yu` は 246〜269ms 程度まで落ちた。
      まだ `MarkerEnter` 自体は continuation frame として残り、
      `request_resume_steps` は showcase で 133872 ある。
-     旧 VM 速度へ近づける次 slice は、`MarkerEnter` を continuation metadata へ落として
-     resume step から消し、guard / lookup stack を closure / thunk / continuation state へ
-     さらに寄せること。
+   - `MarkerEnter` / `MarkerExit` frame を廃止し、`Continuation` が marker scope metadata を
+     持つ形へ移した。scope は「内側に残っている frame 数」を持ち、resume 中に
+     `continue_with_current_frame` が frame を追加した場合も同じ scope の内側として数える。
+     request が scope を抜ける時は、scope 内に残った frame だけを request continuation へ移してから
+     marker を閉じる。
+     これで `examples/showcase.yu` の `request_resume_steps` は 133872 から 43681 へ低下し、
+     単発測定の `vm_eval` は 196.8ms。`bench/nondet_20_discard.yu` の release / no-cache
+     `vm_eval` は 95.4ms。
+     次は active guard / add-id scan と marker push/pop 自体を減らすこと。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。
