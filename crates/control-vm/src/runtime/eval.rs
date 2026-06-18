@@ -95,6 +95,9 @@ impl<'a> Runtime<'a> {
                         env.clone(),
                     );
                 }
+                if let Some((op, context)) = self.direct_unary_primitive_apply(callee) {
+                    return self.eval_direct_unary_primitive(op, context, arg, env.clone());
+                }
                 let env_for_arg = env.clone();
                 let callee = self.eval_expr(callee, env)?;
                 self.continue_with(callee, move |runtime, callee| {
@@ -192,6 +195,14 @@ impl<'a> Runtime<'a> {
         (op.arity() == 2).then(|| (*op, context.clone(), *first_arg))
     }
 
+    fn direct_unary_primitive_apply(
+        &self,
+        callee: ExprId,
+    ) -> Option<(PrimitiveOp, PrimitiveContext)> {
+        let (op, context) = self.direct_known_primitive_op(callee)?;
+        (op.arity() == 1).then(|| (*op, context.clone()))
+    }
+
     fn direct_known_primitive_op(&self, expr: ExprId) -> Option<(&PrimitiveOp, &PrimitiveContext)> {
         match self.program.exprs.get(expr.0 as usize)? {
             Expr::PrimitiveOp { op, context } => Some((op, context)),
@@ -230,6 +241,23 @@ impl<'a> Runtime<'a> {
                 let args = [first.clone(), second];
                 value_result(apply_primitive(op, &context, &args)?)
             })
+        })
+    }
+
+    fn eval_direct_unary_primitive(
+        &mut self,
+        op: PrimitiveOp,
+        context: PrimitiveContext,
+        arg: ExprId,
+        env: CapturedEnv,
+    ) -> RuntimeResult<'a> {
+        let mut arg_env = env;
+        let arg = self.eval_expr(arg, &mut arg_env)?;
+        self.continue_with(arg, move |runtime, arg| {
+            runtime.stats.primitive_apply_calls += 1;
+            runtime.stats.primitive_apply_complete += 1;
+            let args = [arg];
+            value_result(apply_primitive(op, &context, &args)?)
         })
     }
 

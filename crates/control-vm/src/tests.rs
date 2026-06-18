@@ -265,6 +265,42 @@ fn direct_binary_primitive_instance_ref_skips_partial_primitive_value() {
 }
 
 #[test]
+fn direct_unary_primitive_instance_ref_skips_primitive_function_value() {
+    let program = Program {
+        roots: vec![Root::Expr(ExprId(3))],
+        instances: vec![Instance {
+            id: InstanceId(0),
+            source: mono::InstanceSource::Def(mono::DefId(0)),
+            signature: mono::Signature {
+                ty: Type::Con {
+                    path: vec!["str".to_string()],
+                    args: Vec::new(),
+                },
+            },
+            entry: ExprId(0),
+        }],
+        exprs: vec![
+            Expr::PrimitiveOp {
+                op: mono::PrimitiveOp::IntToString,
+                context: mono::PrimitiveContext::default(),
+            },
+            Expr::InstanceRef(InstanceId(0)),
+            Expr::Lit(mono::Lit::Int(7)),
+            Expr::Apply {
+                callee: ExprId(1),
+                arg: ExprId(2),
+            },
+        ],
+    };
+
+    let (values, stats) = run_program_with_host_and_stats(&program, &mut |_, _| None).unwrap();
+    assert_eq!(values, vec![Value::Str("7".to_string())]);
+    assert_eq!(stats.apply_primitive_calls, 0);
+    assert_eq!(stats.primitive_apply_partial, 0);
+    assert_eq!(stats.primitive_apply_complete, 1);
+}
+
+#[test]
 fn validation_rejects_unresolved_typeclass_method() {
     let program = Program {
         roots: vec![Root::Expr(ExprId(1))],
