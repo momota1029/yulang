@@ -150,6 +150,15 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      `runtime_execute` 146.4ms。
      次は `shared_frame_unwrap_clones`、`continuation_marker_scopes_cloned`、
      per-request marker scope close を persistent cursor / canonical scope へ寄せてさらに削る。
+   - continuation marker scopes も `Rc<[ContinuationMarkerScope]>` として shallow clone にし、
+     resume 時の active marker plan は既存の `Rc<[ValueMarker]>` をそのまま
+     `active_marker_plans` へ積むようにした。
+     これで continuation resume ごとの `markers.to_vec() -> Rc<[ValueMarker]>` 再確保を避ける。
+     repeat 3 の `runtime_execute` は `bench/nondet_20_discard.yu` で
+     54.5ms / 58.2ms / 58.1ms、`examples/showcase.yu` で
+     119.4ms / 133.4ms / 129.6ms。
+     zero payload frame を inline enum にする案は `shared_frame_unwrap_clones` を減らしたが
+     実時間が悪化したため採用しない。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。

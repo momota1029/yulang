@@ -392,32 +392,52 @@ impl<'a> Runtime<'a> {
         activate_add_ids: bool,
         handler_key: Option<InternedPath>,
     ) {
-        for id in markers.iter().filter_map(ValueMarker::frame_id) {
-            if !self.guard_ids.contains(&id) {
-                self.guard_ids.push(id);
-            }
-        }
-        for id in markers.iter().filter_map(ValueMarker::frame_id) {
-            let frame_index = self.active_frames.len();
-            self.active_frames.push(ActiveFrame { id });
-            if let Some(handler_key) = handler_key.clone() {
-                self.active_handler_frames.push(ActiveHandlerFrame {
-                    frame_index,
-                    id,
-                    handler_key,
-                });
-            }
-        }
-        if activate_add_ids {
-            let add_ids = markers.iter().filter_map(ValueMarker::add_id);
-            for marker in add_ids {
-                if !self.active_add_ids.contains(marker) {
-                    self.active_add_ids.push(marker.clone());
+        let active_plan = shared_markers(markers.to_vec());
+        self.push_marker_frame_with_plan(markers, activate_add_ids, handler_key, active_plan);
+    }
+
+    pub(super) fn push_shared_marker_frame(
+        &mut self,
+        markers: SharedMarkers,
+        activate_add_ids: bool,
+        handler_key: Option<InternedPath>,
+    ) {
+        let active_plan = markers.clone();
+        self.push_marker_frame_with_plan(&markers, activate_add_ids, handler_key, active_plan);
+    }
+
+    fn push_marker_frame_with_plan(
+        &mut self,
+        markers: &[ValueMarker],
+        activate_add_ids: bool,
+        handler_key: Option<InternedPath>,
+        active_plan: SharedMarkers,
+    ) {
+        for marker in markers {
+            match marker {
+                ValueMarker::Frame { id } => {
+                    if !self.guard_ids.contains(id) {
+                        self.guard_ids.push(*id);
+                    }
+                    let frame_index = self.active_frames.len();
+                    self.active_frames.push(ActiveFrame { id: *id });
+                    if let Some(handler_key) = handler_key.clone() {
+                        self.active_handler_frames.push(ActiveHandlerFrame {
+                            frame_index,
+                            id: *id,
+                            handler_key,
+                        });
+                    }
                 }
+                ValueMarker::AddId(marker) if activate_add_ids => {
+                    if !self.active_add_ids.contains(marker) {
+                        self.active_add_ids.push(marker.clone());
+                    }
+                }
+                ValueMarker::AddId(_) => {}
             }
         }
-        self.active_marker_plans
-            .push(shared_markers(markers_for_value(markers)));
+        self.active_marker_plans.push(active_plan);
     }
 
     pub(super) fn pop_marker_frame(
@@ -485,10 +505,11 @@ impl<'a> Runtime<'a> {
         handler_key: Option<InternedPath>,
     ) -> RuntimeResult {
         let mut request = request;
-        request.continuation.marker_scopes.insert(
-            0,
+        let frames_remaining = request.continuation.frames.len();
+        prepend_marker_scope(
+            &mut request.continuation,
             ContinuationMarkerScope {
-                frames_remaining: request.continuation.frames.len(),
+                frames_remaining,
                 resume_markers: resume_markers.clone(),
                 activate_add_ids,
                 handler_key: handler_key.clone(),

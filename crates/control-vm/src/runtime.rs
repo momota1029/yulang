@@ -29,7 +29,7 @@ mod thunk;
 use engine::Runtime;
 use frame::{
     BindThen, Continuation, ContinuationMarkerScope, Frame, RefSetFinish, RefSetResumeMode,
-    push_frame,
+    prepend_marker_scope, push_frame,
 };
 
 pub fn run_mono_program(program: &mono::Program) -> Result<Vec<Value>, RunError> {
@@ -125,6 +125,14 @@ pub struct RuntimeStats {
     pub continuation_frames_cloned: u64,
     pub continuation_marker_scopes_cloned: u64,
     pub shared_frame_unwrap_clones: u64,
+    pub shared_frame_unwrap_apply_clones: u64,
+    pub shared_frame_unwrap_direct_clones: u64,
+    pub shared_frame_unwrap_data_clones: u64,
+    pub shared_frame_unwrap_case_clones: u64,
+    pub shared_frame_unwrap_catch_clones: u64,
+    pub shared_frame_unwrap_block_clones: u64,
+    pub shared_frame_unwrap_bind_clones: u64,
+    pub shared_frame_unwrap_refset_clones: u64,
     pub max_continuation_frames: u64,
     pub request_resume_steps: u64,
     pub continue_with_values: u64,
@@ -314,22 +322,6 @@ struct MarkerCheckpoint {
 pub enum ValueMarker {
     Frame { id: GuardId },
     AddId(AddIdMarker),
-}
-
-impl ValueMarker {
-    fn frame_id(&self) -> Option<GuardId> {
-        match self {
-            Self::Frame { id } => Some(*id),
-            Self::AddId(_) => None,
-        }
-    }
-
-    fn add_id(&self) -> Option<&AddIdMarker> {
-        match self {
-            Self::Frame { .. } => None,
-            Self::AddId(marker) => Some(marker),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -564,6 +556,7 @@ impl std::error::Error for RuntimeError {}
 type RuntimeResult = Result<EvalResult, RuntimeError>;
 type RuntimeCatchArms = Rc<[RuntimeCatchArm]>;
 type SharedFrame = Rc<Frame>;
+type SharedMarkerScopes = Rc<[ContinuationMarkerScope]>;
 type SharedMarkers = Rc<[ValueMarker]>;
 
 enum EvalResult {
@@ -1032,10 +1025,6 @@ fn markers_for_continuation_resume(markers: &[ValueMarker]) -> Vec<ValueMarker> 
             })
             .collect(),
     )
-}
-
-fn markers_for_value(markers: &[ValueMarker]) -> Vec<ValueMarker> {
-    dedupe_markers(markers.to_vec())
 }
 
 fn shared_markers(markers: Vec<ValueMarker>) -> SharedMarkers {

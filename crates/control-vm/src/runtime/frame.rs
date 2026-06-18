@@ -1,9 +1,18 @@
 use super::*;
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub(super) struct Continuation {
     pub(super) frames: VecDeque<SharedFrame>,
-    pub(super) marker_scopes: Vec<ContinuationMarkerScope>,
+    pub(super) marker_scopes: SharedMarkerScopes,
+}
+
+impl Default for Continuation {
+    fn default() -> Self {
+        Self {
+            frames: VecDeque::new(),
+            marker_scopes: empty_marker_scopes(),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -309,13 +318,73 @@ impl Frame {
                 | Frame::RefSetHandleValueResult { .. }
         )
     }
+
+    fn clone_bucket(&self) -> FrameCloneBucket {
+        match self {
+            Frame::ApplyForcedThunk { .. }
+            | Frame::ApplyArg { .. }
+            | Frame::ApplyCallee { .. }
+            | Frame::ApplyAdapterArg { .. }
+            | Frame::ApplyAdapterResult { .. } => FrameCloneBucket::Apply,
+            Frame::AdaptValue { .. }
+            | Frame::WrapThunkValue
+            | Frame::ForceValueIfThunk
+            | Frame::DirectBinarySecond { .. }
+            | Frame::DirectBinaryApply { .. }
+            | Frame::DirectUnaryApply { .. }
+            | Frame::Coerce { .. }
+            | Frame::ForceThunk { .. }
+            | Frame::MakeFunctionAdapter { .. }
+            | Frame::HandlerBodyForce => FrameCloneBucket::Direct,
+            Frame::MarkValue { .. }
+            | Frame::RecordHeadSpread { .. }
+            | Frame::RecordTailFields { .. }
+            | Frame::RecordTailSpread { .. }
+            | Frame::RecordField { .. }
+            | Frame::TupleItem { .. }
+            | Frame::PolyVariantPayload { .. }
+            | Frame::Select { .. } => FrameCloneBucket::Data,
+            Frame::CaseScrutineeForce { .. }
+            | Frame::CaseScrutinee { .. }
+            | Frame::CaseGuard { .. } => FrameCloneBucket::Case,
+            Frame::CatchResult { .. }
+            | Frame::CatchValueGuard { .. }
+            | Frame::CatchRequestGuard { .. } => FrameCloneBucket::Catch,
+            Frame::BlockLetValue { .. } | Frame::BlockExprValue { .. } => FrameCloneBucket::Block,
+            Frame::BindValue { .. } | Frame::BindRecordDefault { .. } => FrameCloneBucket::Bind,
+            Frame::RefSetReference { .. }
+            | Frame::RefSetForcedReference { .. }
+            | Frame::RefSetValue { .. }
+            | Frame::RefSetForcedValue { .. }
+            | Frame::RefSetResolvedUnit
+            | Frame::RefSetHandleResult { .. }
+            | Frame::RefSetHandleValueResult { .. }
+            | Frame::RefSetEmitResolvedRequest { .. }
+            | Frame::ResolveRefSetValues { .. }
+            | Frame::ResolveRefSetFields { .. } => FrameCloneBucket::RefSet,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum FrameCloneBucket {
+    Apply,
+    Direct,
+    Data,
+    Case,
+    Catch,
+    Block,
+    Bind,
+    RefSet,
 }
 
 impl<'a> Runtime<'a> {
     pub(super) fn resume(&mut self, mut continuation: Continuation, value: Value) -> RuntimeResult {
         let checkpoint = self.marker_checkpoint();
-        let mut marker_scopes =
-            self.enter_continuation_marker_scopes(std::mem::take(&mut continuation.marker_scopes));
+        let mut marker_scopes = self.enter_continuation_marker_scopes(std::mem::replace(
+            &mut continuation.marker_scopes,
+            empty_marker_scopes(),
+        ));
         let result = self.resume_with_marker_scopes(&mut continuation, &mut marker_scopes, value);
         self.pop_marker_frame(
             checkpoint.guard_len,
@@ -502,6 +571,16 @@ impl<'a> Runtime<'a> {
             Ok(frame) => frame,
             Err(frame) => {
                 self.stats.shared_frame_unwrap_clones += 1;
+                match frame.clone_bucket() {
+                    FrameCloneBucket::Apply => self.stats.shared_frame_unwrap_apply_clones += 1,
+                    FrameCloneBucket::Direct => self.stats.shared_frame_unwrap_direct_clones += 1,
+                    FrameCloneBucket::Data => self.stats.shared_frame_unwrap_data_clones += 1,
+                    FrameCloneBucket::Case => self.stats.shared_frame_unwrap_case_clones += 1,
+                    FrameCloneBucket::Catch => self.stats.shared_frame_unwrap_catch_clones += 1,
+                    FrameCloneBucket::Block => self.stats.shared_frame_unwrap_block_clones += 1,
+                    FrameCloneBucket::Bind => self.stats.shared_frame_unwrap_bind_clones += 1,
+                    FrameCloneBucket::RefSet => self.stats.shared_frame_unwrap_refset_clones += 1,
+                }
                 (*frame).clone()
             }
         }
@@ -509,10 +588,10 @@ impl<'a> Runtime<'a> {
 
     fn enter_continuation_marker_scopes(
         &mut self,
-        scopes: Vec<ContinuationMarkerScope>,
+        scopes: SharedMarkerScopes,
     ) -> Vec<ActiveContinuationMarkerScope> {
         let mut active = Vec::with_capacity(scopes.len());
-        for scope in scopes {
+        for scope in scopes.iter().cloned() {
             self.stats.marker_frame_resume_steps += 1;
             self.stats.marker_frame_calls += 1;
             let checkpoint = self.marker_checkpoint();
@@ -520,8 +599,8 @@ impl<'a> Runtime<'a> {
                 self.stats.marker_frame_empty += 1;
             } else {
                 self.stats.marker_frame_pushes += 1;
-                self.push_marker_frame(
-                    &scope.resume_markers,
+                self.push_shared_marker_frame(
+                    scope.resume_markers.clone(),
                     scope.activate_add_ids,
                     scope.handler_key.clone(),
                 );
@@ -1250,4 +1329,18 @@ fn prepend_frames(continuation: &mut Continuation, mut frames: VecDeque<SharedFr
 
 fn shared_frame(frame: Frame) -> SharedFrame {
     Rc::new(frame)
+}
+
+pub(super) fn prepend_marker_scope(
+    continuation: &mut Continuation,
+    scope: ContinuationMarkerScope,
+) {
+    let mut scopes = Vec::with_capacity(continuation.marker_scopes.len() + 1);
+    scopes.push(scope);
+    scopes.extend(continuation.marker_scopes.iter().cloned());
+    continuation.marker_scopes = Rc::from(scopes.into_boxed_slice());
+}
+
+fn empty_marker_scopes() -> SharedMarkerScopes {
+    Rc::from(Vec::new().into_boxed_slice())
 }

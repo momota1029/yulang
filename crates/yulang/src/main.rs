@@ -562,6 +562,38 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
         stats.shared_frame_unwrap_clones
     );
     eprintln!(
+        "  run.shared_frame_unwrap_apply_clones: {}",
+        stats.shared_frame_unwrap_apply_clones
+    );
+    eprintln!(
+        "  run.shared_frame_unwrap_direct_clones: {}",
+        stats.shared_frame_unwrap_direct_clones
+    );
+    eprintln!(
+        "  run.shared_frame_unwrap_data_clones: {}",
+        stats.shared_frame_unwrap_data_clones
+    );
+    eprintln!(
+        "  run.shared_frame_unwrap_case_clones: {}",
+        stats.shared_frame_unwrap_case_clones
+    );
+    eprintln!(
+        "  run.shared_frame_unwrap_catch_clones: {}",
+        stats.shared_frame_unwrap_catch_clones
+    );
+    eprintln!(
+        "  run.shared_frame_unwrap_block_clones: {}",
+        stats.shared_frame_unwrap_block_clones
+    );
+    eprintln!(
+        "  run.shared_frame_unwrap_bind_clones: {}",
+        stats.shared_frame_unwrap_bind_clones
+    );
+    eprintln!(
+        "  run.shared_frame_unwrap_refset_clones: {}",
+        stats.shared_frame_unwrap_refset_clones
+    );
+    eprintln!(
         "  run.max_continuation_frames: {}",
         stats.max_continuation_frames
     );
