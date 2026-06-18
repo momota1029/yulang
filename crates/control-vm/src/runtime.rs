@@ -1108,6 +1108,29 @@ fn markers_for_continuation_resume(markers: &[ValueMarker]) -> Vec<ValueMarker> 
     )
 }
 
+fn shared_markers_for_continuation_resume(markers: &SharedMarkers) -> SharedMarkers {
+    if markers_for_continuation_resume_is_identity(markers) {
+        return markers.clone();
+    }
+    shared_markers(markers_for_continuation_resume(markers))
+}
+
+fn markers_for_continuation_resume_is_identity(markers: &[ValueMarker]) -> bool {
+    for (index, marker) in markers.iter().enumerate() {
+        if matches!(
+            marker,
+            ValueMarker::AddId(marker)
+                if marker.guard_own_path || !marker.guard_foreign_path
+        ) {
+            return false;
+        }
+        if markers[..index].iter().any(|existing| existing == marker) {
+            return false;
+        }
+    }
+    true
+}
+
 fn shared_markers(markers: Vec<ValueMarker>) -> SharedMarkers {
     Rc::from(markers)
 }

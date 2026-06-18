@@ -193,6 +193,8 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      `FrameSlot::{Owned, Shared}` で通常 frame allocation を消す案も試したが、
      `frame_allocs` は落ちても `runtime_execute` が悪化したため採用しない。
      frame stack を触るなら先に frame payload をさらに小さくする。
+     `SharedMarkers` の continuation resume 変換には identity fast path を入れ、
+     `examples/showcase.yu` は repeat 5 で 90〜96ms へ下がった。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。

@@ -105,7 +105,7 @@ impl<'a> Runtime<'a> {
         match result {
             EvalResult::Value(value) => value_result(mark_value(value, &markers)),
             EvalResult::Request(request) => {
-                let resume_markers = shared_markers(markers_for_continuation_resume(&markers));
+                let resume_markers = shared_markers_for_continuation_resume(&markers);
                 self.close_marker_request(request, resume_markers, true, None)
             }
         }
@@ -556,7 +556,7 @@ impl<'a> Runtime<'a> {
             }
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;
-                let resume_markers = shared_markers(markers_for_continuation_resume(&markers));
+                let resume_markers = shared_markers_for_continuation_resume(&markers);
                 self.close_marker_request(request, resume_markers, activate_add_ids, handler_key)
             }
         }
