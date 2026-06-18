@@ -130,7 +130,7 @@ pub(super) enum Frame {
         index: usize,
     },
     RecordHeadSpread {
-        fields: Vec<RecordField>,
+        record: ExprId,
         env: CapturedEnv,
     },
     RecordTailFields {
@@ -141,20 +141,19 @@ pub(super) enum Frame {
         fields: Vec<ValueField>,
     },
     RecordField {
-        fields: Vec<RecordField>,
+        record: ExprId,
         env: CapturedEnv,
         values: Vec<ValueField>,
         index: usize,
     },
     TupleItem {
-        items: Vec<ExprId>,
+        tuple: ExprId,
         env: CapturedEnv,
         values: Vec<Value>,
         index: usize,
     },
     PolyVariantPayload {
-        tag: String,
-        payloads: Vec<ExprId>,
+        variant: ExprId,
         env: CapturedEnv,
         values: Vec<Value>,
         index: usize,
@@ -1122,9 +1121,9 @@ impl<'a> Runtime<'a> {
                 });
                 self.resolve_ref_set_fields(fields, assigned, out, index + 1)
             }
-            Frame::RecordHeadSpread { fields, env } => {
+            Frame::RecordHeadSpread { record, env } => {
                 let spread_fields = self.expect_record(value)?;
-                self.eval_record_fields(fields, env, spread_fields, 0)
+                self.eval_record_fields(record, env, spread_fields, 0)
             }
             Frame::RecordTailFields { spread, env } => {
                 let fields = self.expect_record(value)?;
@@ -1142,36 +1141,34 @@ impl<'a> Runtime<'a> {
                 value_result(Value::Record(fields))
             }
             Frame::RecordField {
-                fields,
+                record,
                 env,
                 mut values,
                 index,
             } => {
-                let field = fields[index].clone();
                 values.push(ValueField {
-                    name: field.name,
+                    name: self.record_field_name(record, index)?,
                     value,
                 });
-                self.eval_record_fields(fields, env, values, index + 1)
+                self.eval_record_fields(record, env, values, index + 1)
             }
             Frame::TupleItem {
-                items,
+                tuple,
                 env,
                 mut values,
                 index,
             } => {
                 values.push(value);
-                self.eval_tuple_items(items, env, values, index + 1)
+                self.eval_tuple_items(tuple, env, values, index + 1)
             }
             Frame::PolyVariantPayload {
-                tag,
-                payloads,
+                variant,
                 env,
                 mut values,
                 index,
             } => {
                 values.push(value);
-                self.eval_poly_variant_payloads(tag, payloads, env, values, index + 1)
+                self.eval_poly_variant_payloads(variant, env, values, index + 1)
             }
             Frame::Select { name, resolution } => match resolution {
                 Some(SelectResolution::RecordField) => {

@@ -104,11 +104,9 @@ impl<'a> Runtime<'a> {
                 body,
                 env: env.clone(),
             })),
-            EvalExpr::Tuple(items) => self.eval_tuple(items, env.clone()),
-            EvalExpr::Record { fields, spread } => self.eval_record(fields, spread, env.clone()),
-            EvalExpr::PolyVariant { tag, payloads } => {
-                self.eval_poly_variant(tag, payloads, env.clone())
-            }
+            EvalExpr::Tuple => self.eval_tuple(expr_id, env.clone()),
+            EvalExpr::Record => self.eval_record(expr_id, env.clone()),
+            EvalExpr::PolyVariant => self.eval_poly_variant(expr_id, env.clone()),
             EvalExpr::Select {
                 base,
                 name,
@@ -128,22 +126,16 @@ impl<'a> Runtime<'a> {
         }
     }
 
-    pub(super) fn eval_record(
-        &mut self,
-        fields: Vec<RecordField>,
-        spread: RecordSpread<ExprId>,
-        env: CapturedEnv,
-    ) -> RuntimeResult {
-        match spread {
-            RecordSpread::None => self.eval_record_fields(fields, env, Vec::new(), 0),
+    pub(super) fn eval_record(&mut self, record: ExprId, env: CapturedEnv) -> RuntimeResult {
+        match self.record_spread(record)? {
+            RecordSpread::None => self.eval_record_fields(record, env, Vec::new(), 0),
             RecordSpread::Head(expr) => {
                 let mut spread_env = env.clone();
                 let spread = self.eval_expr(expr, &mut spread_env)?;
-                self.continue_with_frame(spread, Frame::RecordHeadSpread { fields, env })
+                self.continue_with_frame(spread, Frame::RecordHeadSpread { record, env })
             }
             RecordSpread::Tail(expr) => {
-                let fields_result =
-                    self.eval_record_fields(fields.clone(), env.clone(), Vec::new(), 0)?;
+                let fields_result = self.eval_record_fields(record, env.clone(), Vec::new(), 0)?;
                 self.continue_with_frame(
                     fields_result,
                     Frame::RecordTailFields { spread: expr, env },
@@ -506,22 +498,21 @@ impl<'a> Runtime<'a> {
 
     pub(super) fn eval_record_fields(
         &mut self,
-        fields: Vec<RecordField>,
+        record: ExprId,
         env: CapturedEnv,
         values: Vec<ValueField>,
         index: usize,
     ) -> RuntimeResult {
-        if index >= fields.len() {
+        let Some(value) = self.record_field_value(record, index)? else {
             return value_result(Value::Record(values));
-        }
+        };
 
-        let field = fields[index].clone();
         let mut field_env = env.clone();
-        let result = self.eval_expr(field.value, &mut field_env)?;
+        let result = self.eval_expr(value, &mut field_env)?;
         self.continue_with_frame(
             result,
             Frame::RecordField {
-                fields,
+                record,
                 env,
                 values,
                 index,
@@ -529,26 +520,26 @@ impl<'a> Runtime<'a> {
         )
     }
 
-    pub(super) fn eval_tuple(&mut self, items: Vec<ExprId>, env: CapturedEnv) -> RuntimeResult {
-        self.eval_tuple_items(items, env, Vec::new(), 0)
+    pub(super) fn eval_tuple(&mut self, tuple: ExprId, env: CapturedEnv) -> RuntimeResult {
+        self.eval_tuple_items(tuple, env, Vec::new(), 0)
     }
 
     pub(super) fn eval_tuple_items(
         &mut self,
-        items: Vec<ExprId>,
+        tuple: ExprId,
         env: CapturedEnv,
         values: Vec<Value>,
         index: usize,
     ) -> RuntimeResult {
-        if index >= items.len() {
+        let Some(item) = self.tuple_item(tuple, index)? else {
             return value_result(Value::Tuple(values));
-        }
+        };
         let mut item_env = env.clone();
-        let result = self.eval_expr(items[index], &mut item_env)?;
+        let result = self.eval_expr(item, &mut item_env)?;
         self.continue_with_frame(
             result,
             Frame::TupleItem {
-                items,
+                tuple,
                 env,
                 values,
                 index,
@@ -556,41 +547,98 @@ impl<'a> Runtime<'a> {
         )
     }
 
-    pub(super) fn eval_poly_variant(
-        &mut self,
-        tag: String,
-        payloads: Vec<ExprId>,
-        env: CapturedEnv,
-    ) -> RuntimeResult {
-        self.eval_poly_variant_payloads(tag, payloads, env, Vec::new(), 0)
+    pub(super) fn eval_poly_variant(&mut self, variant: ExprId, env: CapturedEnv) -> RuntimeResult {
+        self.eval_poly_variant_payloads(variant, env, Vec::new(), 0)
     }
 
     pub(super) fn eval_poly_variant_payloads(
         &mut self,
-        tag: String,
-        payloads: Vec<ExprId>,
+        variant: ExprId,
         env: CapturedEnv,
         values: Vec<Value>,
         index: usize,
     ) -> RuntimeResult {
-        if index >= payloads.len() {
+        let Some(payload) = self.poly_variant_payload(variant, index)? else {
             return value_result(Value::PolyVariant {
-                tag,
+                tag: self.poly_variant_tag(variant)?.to_string(),
                 payloads: values,
             });
-        }
+        };
         let mut payload_env = env.clone();
-        let result = self.eval_expr(payloads[index], &mut payload_env)?;
+        let result = self.eval_expr(payload, &mut payload_env)?;
         self.continue_with_frame(
             result,
             Frame::PolyVariantPayload {
-                tag,
-                payloads,
+                variant,
                 env,
                 values,
                 index,
             },
         )
+    }
+
+    pub(super) fn record_spread(
+        &self,
+        record: ExprId,
+    ) -> Result<RecordSpread<ExprId>, RuntimeError> {
+        match self.program.exprs.get(record.0 as usize) {
+            Some(Expr::Record { spread, .. }) => Ok(spread.clone()),
+            Some(_) | None => Err(RuntimeError::MissingExpr { expr: record }),
+        }
+    }
+
+    pub(super) fn record_field_value(
+        &self,
+        record: ExprId,
+        index: usize,
+    ) -> Result<Option<ExprId>, RuntimeError> {
+        match self.program.exprs.get(record.0 as usize) {
+            Some(Expr::Record { fields, .. }) => Ok(fields.get(index).map(|field| field.value)),
+            Some(_) | None => Err(RuntimeError::MissingExpr { expr: record }),
+        }
+    }
+
+    pub(super) fn record_field_name(
+        &self,
+        record: ExprId,
+        index: usize,
+    ) -> Result<String, RuntimeError> {
+        match self.program.exprs.get(record.0 as usize) {
+            Some(Expr::Record { fields, .. }) => fields
+                .get(index)
+                .map(|field| field.name.clone())
+                .ok_or(RuntimeError::MissingExpr { expr: record }),
+            Some(_) | None => Err(RuntimeError::MissingExpr { expr: record }),
+        }
+    }
+
+    pub(super) fn tuple_item(
+        &self,
+        tuple: ExprId,
+        index: usize,
+    ) -> Result<Option<ExprId>, RuntimeError> {
+        match self.program.exprs.get(tuple.0 as usize) {
+            Some(Expr::Tuple(items)) => Ok(items.get(index).copied()),
+            Some(_) | None => Err(RuntimeError::MissingExpr { expr: tuple }),
+        }
+    }
+
+    pub(super) fn poly_variant_payload(
+        &self,
+        variant: ExprId,
+        index: usize,
+    ) -> Result<Option<ExprId>, RuntimeError> {
+        match self.program.exprs.get(variant.0 as usize) {
+            Some(Expr::PolyVariant { payloads, .. }) => Ok(payloads.get(index).copied()),
+            Some(_) | None => Err(RuntimeError::MissingExpr { expr: variant }),
+        }
+    }
+
+    pub(super) fn poly_variant_tag(&self, variant: ExprId) -> Result<&str, RuntimeError> {
+        match self.program.exprs.get(variant.0 as usize) {
+            Some(Expr::PolyVariant { tag, .. }) => Ok(tag),
+            Some(_) | None => Err(RuntimeError::MissingExpr { expr: variant }),
+        }
     }
 
     pub(super) fn eval_select(
@@ -933,7 +981,8 @@ impl DirectKnownCallee {
 }
 
 // This releases the immutable program borrow before evaluation calls back into
-// `&mut Runtime`, while avoiding a full `Expr` clone for copy-only nodes.
+// `&mut Runtime`. Structural payloads stay in `Program` and are revisited by
+// `ExprId` so frame snapshots do not clone static item/field vectors.
 enum EvalExpr {
     Lit(Lit),
     PrimitiveOp {
@@ -983,15 +1032,9 @@ enum EvalExpr {
         param: Pat,
         body: ExprId,
     },
-    Tuple(Vec<ExprId>),
-    Record {
-        fields: Vec<RecordField>,
-        spread: RecordSpread<ExprId>,
-    },
-    PolyVariant {
-        tag: String,
-        payloads: Vec<ExprId>,
-    },
+    Tuple,
+    Record,
+    PolyVariant,
     Select {
         base: ExprId,
         name: String,
@@ -1062,15 +1105,9 @@ impl EvalExpr {
                 param: param.clone(),
                 body: *body,
             },
-            Expr::Tuple(items) => Self::Tuple(items.clone()),
-            Expr::Record { fields, spread } => Self::Record {
-                fields: fields.clone(),
-                spread: spread.clone(),
-            },
-            Expr::PolyVariant { tag, payloads } => Self::PolyVariant {
-                tag: tag.clone(),
-                payloads: payloads.clone(),
-            },
+            Expr::Tuple(_) => Self::Tuple,
+            Expr::Record { .. } => Self::Record,
+            Expr::PolyVariant { .. } => Self::PolyVariant,
             Expr::Select {
                 base,
                 name,

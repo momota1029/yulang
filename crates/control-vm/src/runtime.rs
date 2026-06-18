@@ -13,8 +13,8 @@ use crate::boundary::{
     equivalent_runtime_types, function_parts, thunk_value_type, value_boundary_supported,
 };
 use crate::ir::{
-    CaseArm, DefId, Expr, ExprId, InstanceId, Pat, Program, RecordField, RecordPatField,
-    RecordSpread, Root, SelectResolution, Stmt,
+    CaseArm, DefId, Expr, ExprId, InstanceId, Pat, Program, RecordPatField, RecordSpread, Root,
+    SelectResolution, Stmt,
 };
 use crate::lower::{LowerError, lower};
 use crate::validate::{ValidateError, validate};
