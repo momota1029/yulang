@@ -404,7 +404,13 @@ impl<'a> Runtime<'a> {
             &mut continuation.marker_scopes,
             None,
         ));
-        let result = self.resume_with_marker_scopes(&mut continuation, &mut marker_scopes, value);
+        let mut request_close_offset = 0;
+        let result = self.resume_with_marker_scopes(
+            &mut continuation,
+            &mut marker_scopes,
+            &mut request_close_offset,
+            value,
+        );
         self.pop_marker_frame(
             checkpoint.guard_len,
             checkpoint.frame_len,
@@ -419,12 +425,22 @@ impl<'a> Runtime<'a> {
         &mut self,
         continuation: &mut Continuation,
         marker_scopes: &mut Vec<ActiveContinuationMarkerScope>,
+        request_close_offset: &mut usize,
         mut value: Value,
     ) -> RuntimeResult {
-        value = match self.close_completed_marker_scopes(EvalResult::Value(value), marker_scopes)? {
+        value = match self.close_completed_marker_scopes(
+            EvalResult::Value(value),
+            marker_scopes,
+            *request_close_offset,
+        )? {
             EvalResult::Value(value) => value,
             EvalResult::Request(request) => {
-                return self.finish_resume_request(request, continuation, marker_scopes);
+                return self.finish_resume_request(
+                    request,
+                    continuation,
+                    marker_scopes,
+                    request_close_offset,
+                );
             }
         };
 
@@ -439,11 +455,17 @@ impl<'a> Runtime<'a> {
             } else {
                 self.apply_shared_value_frame(frame, &mut *continuation, marker_scopes, value)?
             };
-            let result = self.close_completed_marker_scopes(result, marker_scopes)?;
+            let result =
+                self.close_completed_marker_scopes(result, marker_scopes, *request_close_offset)?;
             match result {
                 EvalResult::Value(next) => value = next,
                 EvalResult::Request(request) => {
-                    match self.finish_resume_request(request, continuation, marker_scopes)? {
+                    match self.finish_resume_request(
+                        request,
+                        continuation,
+                        marker_scopes,
+                        request_close_offset,
+                    )? {
                         EvalResult::Value(next) => {
                             value = next;
                             continue 'resume;
@@ -846,10 +868,12 @@ impl<'a> Runtime<'a> {
         request: Request,
         continuation: &mut Continuation,
         marker_scopes: &mut Vec<ActiveContinuationMarkerScope>,
+        request_close_offset: &mut usize,
     ) -> RuntimeResult {
         let mut result = EvalResult::Request(request);
         loop {
-            result = self.close_completed_marker_scopes(result, marker_scopes)?;
+            result =
+                self.close_completed_marker_scopes(result, marker_scopes, *request_close_offset)?;
             while continuation
                 .frames
                 .back()
@@ -859,19 +883,28 @@ impl<'a> Runtime<'a> {
                 consume_marker_frame(&mut self.stats, marker_scopes);
                 self.stats.request_resume_steps += 1;
                 result = self.apply_shared_result_frame(frame, result)?;
-                result = self.close_completed_marker_scopes(result, marker_scopes)?;
+                result = self.close_completed_marker_scopes(
+                    result,
+                    marker_scopes,
+                    *request_close_offset,
+                )?;
                 if matches!(result, EvalResult::Value(_)) {
                     return Ok(result);
                 }
             }
 
-            result = self.close_completed_marker_scopes(result, marker_scopes)?;
+            result =
+                self.close_completed_marker_scopes(result, marker_scopes, *request_close_offset)?;
             let EvalResult::Request(request) = result else {
                 return Ok(result);
             };
             if !marker_scopes.is_empty() {
-                result =
-                    self.close_innermost_marker_request(continuation, marker_scopes, request)?;
+                result = self.close_innermost_marker_request(
+                    continuation,
+                    marker_scopes,
+                    request,
+                    request_close_offset,
+                )?;
                 continue;
             }
 
@@ -888,10 +921,11 @@ impl<'a> Runtime<'a> {
         &mut self,
         mut result: EvalResult,
         marker_scopes: &mut Vec<ActiveContinuationMarkerScope>,
+        request_close_offset: usize,
     ) -> RuntimeResult {
         while marker_scopes
             .last()
-            .is_some_and(|scope| scope.frames_remaining == 0)
+            .is_some_and(|scope| marker_scope_remaining(scope, request_close_offset) == 0)
         {
             let scope = marker_scopes.pop().expect("checked marker scope");
             result = self.close_active_marker_scope_result(result, scope)?;
@@ -904,17 +938,14 @@ impl<'a> Runtime<'a> {
         continuation: &mut Continuation,
         marker_scopes: &mut Vec<ActiveContinuationMarkerScope>,
         mut request: Request,
+        request_close_offset: &mut usize,
     ) -> RuntimeResult {
         let scope = marker_scopes
             .pop()
             .expect("request should be inside an active marker scope");
-        let inner_frames = split_back_frames(&mut continuation.frames, scope.frames_remaining);
-        for outer in marker_scopes.iter_mut() {
-            outer.frames_remaining = outer
-                .frames_remaining
-                .checked_sub(scope.frames_remaining)
-                .expect("nested marker scope frames should be inside outer scope");
-        }
+        let frames_remaining = marker_scope_remaining(&scope, *request_close_offset);
+        let inner_frames = split_back_frames(&mut continuation.frames, frames_remaining);
+        *request_close_offset += frames_remaining;
         prepend_frames(&mut request.continuation, inner_frames);
         self.close_active_marker_scope_result(EvalResult::Request(request), scope)
     }
@@ -1533,7 +1564,10 @@ fn consume_marker_frame(
     stats: &mut RuntimeStats,
     marker_scopes: &mut [ActiveContinuationMarkerScope],
 ) {
-    stats.marker_scope_frame_touches += marker_scopes.len() as u64;
+    let depth = marker_scopes.len() as u64;
+    stats.marker_scope_frame_touches += depth;
+    stats.marker_scope_consume_touches += depth;
+    stats.marker_scope_max_depth = stats.marker_scope_max_depth.max(depth);
     for scope in marker_scopes {
         if scope.frames_remaining > 0 {
             scope.frames_remaining -= 1;
@@ -1546,10 +1580,23 @@ fn extend_active_marker_scopes(
     marker_scopes: &mut [ActiveContinuationMarkerScope],
     count: usize,
 ) {
-    stats.marker_scope_frame_touches += marker_scopes.len() as u64;
+    let depth = marker_scopes.len() as u64;
+    stats.marker_scope_frame_touches += depth;
+    stats.marker_scope_extend_touches += depth;
+    stats.marker_scope_max_depth = stats.marker_scope_max_depth.max(depth);
     for scope in marker_scopes {
         scope.frames_remaining += count;
     }
+}
+
+fn marker_scope_remaining(
+    scope: &ActiveContinuationMarkerScope,
+    request_close_offset: usize,
+) -> usize {
+    scope
+        .frames_remaining
+        .checked_sub(request_close_offset)
+        .expect("marker scope request-close offset should not exceed remaining frames")
 }
 
 fn split_back_frames(frames: &mut VecDeque<SharedFrame>, count: usize) -> VecDeque<SharedFrame> {

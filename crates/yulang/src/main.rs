@@ -652,6 +652,22 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
         "  run.marker_scope_frame_touches: {}",
         stats.marker_scope_frame_touches
     );
+    eprintln!(
+        "  run.marker_scope_consume_touches: {}",
+        stats.marker_scope_consume_touches
+    );
+    eprintln!(
+        "  run.marker_scope_extend_touches: {}",
+        stats.marker_scope_extend_touches
+    );
+    eprintln!(
+        "  run.marker_scope_request_close_touches: {}",
+        stats.marker_scope_request_close_touches
+    );
+    eprintln!(
+        "  run.marker_scope_max_depth: {}",
+        stats.marker_scope_max_depth
+    );
     eprintln!("  run.instance_eval: {}", stats.instance_eval_calls);
     eprintln!("  run.instance_hits: {}", stats.instance_cache_hits);
     eprintln!("  run.instance_misses: {}", stats.instance_cache_misses);
