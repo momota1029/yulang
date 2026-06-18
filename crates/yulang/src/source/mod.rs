@@ -111,18 +111,27 @@ pub fn run_built_control_program(
     errors: Vec<String>,
 ) -> Result<RunControlOutput, RouteError> {
     let mut stdout = String::new();
-    let (values, stats) =
-        control_vm::run_program_with_host_and_stats(program, &mut |path, payload| {
+    let (values, stats, runtime_timings) =
+        control_vm::run_program_with_host_stats_and_timings(program, &mut |path, payload| {
             handle_control_host_effect(path, payload, &mut stdout)
         })
         .map_err(RouteError::Control)?;
+    let format_start = Instant::now();
+    let text = format!("run roots {}\n", control_vm::format_values(&values));
+    let root_format = format_start.elapsed();
     Ok(RunControlOutput {
-        text: format!("run roots {}\n", control_vm::format_values(&values)),
+        text,
         file_count,
         errors,
         values,
         stdout,
         stats,
+        timings: ControlRunTimings {
+            validate: runtime_timings.validate,
+            init: runtime_timings.init,
+            execute: runtime_timings.execute,
+            root_format,
+        },
     })
 }
 
@@ -612,6 +621,15 @@ pub struct RunControlOutput {
     pub values: Vec<control_vm::Value>,
     pub stdout: String,
     pub stats: control_vm::RuntimeStats,
+    pub timings: ControlRunTimings,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ControlRunTimings {
+    pub validate: Duration,
+    pub init: Duration,
+    pub execute: Duration,
+    pub root_format: Duration,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

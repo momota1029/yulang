@@ -6,9 +6,9 @@ HEADER_COLUMNS=(
     a_route a_sccrt scc_open scc_quant scc_inst scc_oth a_work w_ref w_probe w_aref w_asel w_asel_rec w_asel_m w_asel_eff w_asel_tc w_scc a_role a_taint a_rsolve a_udep a_quant q_gen q_pre q_fin
     g_comp g_roles g_merge g_dom g_sub g_cast g_rrole g_froles g_clean g_filter g_prep
     g_mrst g_srst g_crst g_rrst g_rin g_rreach g_rcoal g_rdom g_rsolvein
-    a_inst i_clone i_sub i_roles i_runs i_maxrun i_targets i_reuse i_pvar i_pstk i_pnsub i_pfun i_pcon i_poth i_pdir a_record c_drain c_drains c_work c_sub c_subcall c_many c_invar c_vv c_posv c_maxq c_maxw c_lb c_ub c_lrep c_urep c_lenq c_uenq c_lrvv c_urvv c_vvub c_vvlb c_vvuin c_vvlin c_vvuenq c_vvlenq c_vvuski c_vvlski w_ref_n w_probe_n w_aref_n w_asel_n w_asel_rec_n w_asel_m_n w_asel_eff_n w_asel_tc_n w_scc_n scc_batches scc_ev scc_open_n scc_quant_n scc_inst_n scc_oth_n udep_n udep_in udep_e summary total run poly spec ctl_low vm_eval
+    a_inst i_clone i_sub i_roles i_runs i_maxrun i_targets i_reuse i_pvar i_pstk i_pnsub i_pfun i_pcon i_poth i_pdir a_record c_drain c_drains c_work c_sub c_subcall c_many c_invar c_vv c_posv c_maxq c_maxw c_lb c_ub c_lrep c_urep c_lenq c_uenq c_lrvv c_urvv c_vvub c_vvlb c_vvuin c_vvlin c_vvuenq c_vvlenq c_vvuski c_vvlski w_ref_n w_probe_n w_aref_n w_asel_n w_asel_rec_n w_asel_m_n w_asel_eff_n w_asel_tc_n w_scc_n scc_batches scc_ev scc_open_n scc_quant_n scc_inst_n scc_oth_n udep_n udep_in udep_e summary total run poly spec ctl_low vm_eval cval rinit rexec rfmt
     expr clone apply ap_m ap_p ap_con ap_cl ap_rcl ap_ad ap_ft ap_eff ap_k prim0 prim prim_part prim_done
-    force f_m f_e f_v f_eff f_k f_ad effect host catch cont k_inv req_res c_val c_req cb_val cb_req cbr_val cbr_req cvb_val cvb_req
+    force f_m f_e f_v f_eff f_k f_ad effect host catch cont k_inv k_capc k_invc k_fclone k_sclone fr_unwrap k_max req_res c_val c_req cb_val cb_req cbr_val cbr_req cvb_val cvb_req
     mf mf_emp mf_push mf_vclose mf_rclose mf_res inst hit miss
     pfx pfx_seg peq peq_seg addscan frscan files modules values bodyless errors
 )
@@ -117,7 +117,7 @@ run_case_once() {
     fi
 
     local case_label check_real collect load infer summarize total files modules values bodyless errors
-    local run_real run_poly run_spec run_control vm_eval
+    local run_real run_poly run_spec run_control vm_eval control_validate runtime_init runtime_execute root_format
     local expr_evals expr_clones apply_value
     local apply_marked apply_primitive apply_constructor apply_closure
     local apply_recursive_closure apply_adapter apply_forced_thunk
@@ -126,7 +126,9 @@ run_case_once() {
     local force_thunk force_marked force_expr force_value force_effect
     local force_continuation force_adapter
     local effect_requests host_requests catch_matches continuations
-    local continuation_invocations request_resume_steps
+    local continuation_invocations continuation_capture_clones continuation_invoke_clones
+    local continuation_frames_cloned continuation_marker_scopes_cloned
+    local shared_frame_unwrap_clones max_continuation_frames request_resume_steps
     local continue_value continue_request continue_bind_value continue_bind_request
     local continue_bind_result_value continue_bind_result_request
     local continue_value_bind_value continue_value_bind_request
@@ -314,6 +316,10 @@ run_case_once() {
     run_spec="-"
     run_control="-"
     vm_eval="-"
+    control_validate="-"
+    runtime_init="-"
+    runtime_execute="-"
+    root_format="-"
     expr_evals="-"
     expr_clones="-"
     apply_value="-"
@@ -342,6 +348,12 @@ run_case_once() {
     catch_matches="-"
     continuations="-"
     continuation_invocations="-"
+    continuation_capture_clones="-"
+    continuation_invoke_clones="-"
+    continuation_frames_cloned="-"
+    continuation_marker_scopes_cloned="-"
+    shared_frame_unwrap_clones="-"
+    max_continuation_frames="-"
     request_resume_steps="-"
     continue_value="-"
     continue_request="-"
@@ -367,7 +379,7 @@ run_case_once() {
     active_add="-"
     active_frame="-"
     if [[ "$run_vm" == "1" ]]; then
-        read -r run_real run_poly run_spec run_control vm_eval expr_evals expr_clones apply_value apply_marked apply_primitive apply_constructor apply_closure apply_recursive_closure apply_adapter apply_forced_thunk apply_effect_op apply_continuation primitive_zero_arity primitive_apply primitive_partial primitive_complete force_thunk force_marked force_expr force_value force_effect force_continuation force_adapter effect_requests host_requests catch_matches continuations continuation_invocations request_resume_steps continue_value continue_request continue_bind_value continue_bind_request continue_bind_result_value continue_bind_result_request continue_value_bind_value continue_value_bind_request marker_frame_calls marker_frame_empty marker_frame_pushes marker_frame_value_closes marker_frame_request_closes marker_frame_resume_steps instance_eval instance_hits instance_misses path_prefix path_prefix_seg path_eq path_eq_seg active_add active_frame < <(measure_run_metrics "$release" "$case_path")
+        read -r run_real run_poly run_spec run_control vm_eval control_validate runtime_init runtime_execute root_format expr_evals expr_clones apply_value apply_marked apply_primitive apply_constructor apply_closure apply_recursive_closure apply_adapter apply_forced_thunk apply_effect_op apply_continuation primitive_zero_arity primitive_apply primitive_partial primitive_complete force_thunk force_marked force_expr force_value force_effect force_continuation force_adapter effect_requests host_requests catch_matches continuations continuation_invocations continuation_capture_clones continuation_invoke_clones continuation_frames_cloned continuation_marker_scopes_cloned shared_frame_unwrap_clones max_continuation_frames request_resume_steps continue_value continue_request continue_bind_value continue_bind_request continue_bind_result_value continue_bind_result_request continue_value_bind_value continue_value_bind_request marker_frame_calls marker_frame_empty marker_frame_pushes marker_frame_value_closes marker_frame_request_closes marker_frame_resume_steps instance_eval instance_hits instance_misses path_prefix path_prefix_seg path_eq path_eq_seg active_add active_frame < <(measure_run_metrics "$release" "$case_path")
     fi
 
     print_columns \
@@ -420,13 +432,17 @@ run_case_once() {
         "$unready_role_dependency_scans" \
         "$unready_role_dependency_inputs" "$unready_role_dependency_edges" \
         "$summarize" "$total" "$run_real" "$run_poly" "$run_spec" "$run_control" "$vm_eval" \
+        "$control_validate" "$runtime_init" "$runtime_execute" "$root_format" \
         "$expr_evals" "$expr_clones" "$apply_value" "$apply_marked" "$apply_primitive" \
         "$apply_constructor" "$apply_closure" "$apply_recursive_closure" "$apply_adapter" \
         "$apply_forced_thunk" "$apply_effect_op" "$apply_continuation" \
         "$primitive_zero_arity" "$primitive_apply" "$primitive_partial" "$primitive_complete" \
         "$force_thunk" "$force_marked" "$force_expr" "$force_value" "$force_effect" \
         "$force_continuation" "$force_adapter" "$effect_requests" "$host_requests" \
-        "$catch_matches" "$continuations" "$continuation_invocations" "$request_resume_steps" \
+        "$catch_matches" "$continuations" "$continuation_invocations" \
+        "$continuation_capture_clones" "$continuation_invoke_clones" \
+        "$continuation_frames_cloned" "$continuation_marker_scopes_cloned" \
+        "$shared_frame_unwrap_clones" "$max_continuation_frames" "$request_resume_steps" \
         "$continue_value" "$continue_request" "$continue_bind_value" "$continue_bind_request" \
         "$continue_bind_result_value" "$continue_bind_result_request" \
         "$continue_value_bind_value" "$continue_value_bind_request" \
@@ -523,7 +539,7 @@ measure_run_metrics() {
         /usr/bin/time -p -o "$time_file" cargo "${cargo_args[@]}" >"$out_file" 2>&1
     then
         local -a failed=(FAILED)
-        while ((${#failed[@]} < 57)); do
+        while ((${#failed[@]} < 67)); do
             failed+=("-")
         done
         echo "${failed[*]}"
@@ -535,6 +551,10 @@ measure_run_metrics() {
             "$(phase_metric "run.specialize" "$out_file")"
             "$(phase_metric "run.control_lower" "$out_file")"
             "$(phase_metric "run.vm_eval" "$out_file")"
+            "$(phase_metric "run.control_validate" "$out_file")"
+            "$(phase_metric "run.runtime_init" "$out_file")"
+            "$(phase_metric "run.runtime_execute" "$out_file")"
+            "$(phase_metric "run.root_format" "$out_file")"
             "$(phase_metric "run.expr_evals" "$out_file")"
             "$(phase_metric "run.expr_clones" "$out_file")"
             "$(phase_metric "run.apply_value" "$out_file")"
@@ -563,6 +583,12 @@ measure_run_metrics() {
             "$(phase_metric "run.catch_matches" "$out_file")"
             "$(phase_metric "run.continuations" "$out_file")"
             "$(phase_metric "run.continuation_invocations" "$out_file")"
+            "$(phase_metric "run.continuation_capture_clones" "$out_file")"
+            "$(phase_metric "run.continuation_invoke_clones" "$out_file")"
+            "$(phase_metric "run.continuation_frames_cloned" "$out_file")"
+            "$(phase_metric "run.continuation_marker_scopes_cloned" "$out_file")"
+            "$(phase_metric "run.shared_frame_unwrap_clones" "$out_file")"
+            "$(phase_metric "run.max_continuation_frames" "$out_file")"
             "$(phase_metric "run.request_resume_steps" "$out_file")"
             "$(phase_metric "run.continue_value" "$out_file")"
             "$(phase_metric "run.continue_request" "$out_file")"

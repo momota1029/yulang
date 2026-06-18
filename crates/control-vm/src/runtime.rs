@@ -3,6 +3,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 
 use list_tree::{ListTree, ListView};
 use mono::{FunctionAdapterHygiene, Lit, PrimitiveContext, PrimitiveOp, Type};
@@ -55,10 +56,37 @@ pub fn run_program_with_host_and_stats<F>(
 where
     F: FnMut(&[String], &Value) -> Option<Value>,
 {
+    run_program_with_host_stats_and_timings(program, host).map(|(values, stats, _)| (values, stats))
+}
+
+pub fn run_program_with_host_stats_and_timings<F>(
+    program: &Program,
+    host: &mut F,
+) -> Result<(Vec<Value>, RuntimeStats, RuntimeTimings), RunError>
+where
+    F: FnMut(&[String], &Value) -> Option<Value>,
+{
+    let validate_start = Instant::now();
     validate(program).map_err(RunError::Validate)?;
+    let validate = validate_start.elapsed();
+
+    let init_start = Instant::now();
     let mut runtime = Runtime::new(program);
+    let init = init_start.elapsed();
+
+    let execute_start = Instant::now();
     let values = runtime.run_with_host(host).map_err(RunError::Runtime)?;
-    Ok((values, runtime.stats))
+    let execute = execute_start.elapsed();
+
+    Ok((
+        values,
+        runtime.stats,
+        RuntimeTimings {
+            validate,
+            init,
+            execute,
+        },
+    ))
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -92,6 +120,12 @@ pub struct RuntimeStats {
     pub catch_request_matches: u64,
     pub continuations_stored: u64,
     pub continuation_invocations: u64,
+    pub continuation_capture_clones: u64,
+    pub continuation_invoke_clones: u64,
+    pub continuation_frames_cloned: u64,
+    pub continuation_marker_scopes_cloned: u64,
+    pub shared_frame_unwrap_clones: u64,
+    pub max_continuation_frames: u64,
     pub request_resume_steps: u64,
     pub continue_with_values: u64,
     pub continue_with_requests: u64,
@@ -116,6 +150,13 @@ pub struct RuntimeStats {
     pub path_eq_segments: u64,
     pub active_add_id_scans: u64,
     pub active_frame_scans: u64,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RuntimeTimings {
+    pub validate: Duration,
+    pub init: Duration,
+    pub execute: Duration,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -522,6 +563,7 @@ impl std::error::Error for RuntimeError {}
 
 type RuntimeResult = Result<EvalResult, RuntimeError>;
 type RuntimeCatchArms = Rc<[RuntimeCatchArm]>;
+type SharedFrame = Rc<Frame>;
 type SharedMarkers = Rc<[ValueMarker]>;
 
 enum EvalResult {

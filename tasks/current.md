@@ -123,6 +123,33 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      23004 から 11502、`bench/nondet_20_discard.yu` で 18060 から 9030 へ低下。
      repeat 3 の `vm_eval` はそれぞれ 210〜232ms / 103〜109ms で、測定揺れはあるが
      request 時の handler prefix scan は旧 VM の guard stack lookup に近づいた。
+   - 次の高速化計画は、外部レビューの見立ても取り込み、次の順で進める。
+     1. `vm_eval` を `control_validate` / `runtime_init` / `runtime_execute` /
+        `root_format` に分け、旧 VM と同じ execute-only 区間を測る。
+     2. multi-shot continuation の deep clone を消す。
+        現状は catch で continuation を値化する時と `k(...)` invoke 時に
+        `VecDeque<Frame>` を物理 clone している。
+        まず clone counter を入れ、次に immutable / persistent snapshot へ寄せる。
+     3. `Vec<ValueMarker>` を hot path の基本表現から外す。
+        call / resume の marker plan 変換と dedupe を `ScopeId` 風の canonical state に寄せ、
+        handler prompt / guard state を continuation snapshot 側へ統合する。
+     4. eval / apply / bind / force を一つの machine loop へ寄せ、
+        libtest worker stack overflow を runtime 本体側で消す。
+     5. `EvalExpr::from_expr`、`CaseArm` / `Pat` / `Block` / `Type` などの static payload を
+        ID 化し、frame は動的 state だけを持つ。
+        `CapturedEnv` も最終的には dense slot / scope chain へ寄せる。
+     この順番では、`nondet::list` 専用 opcode、20x20 専用分岐、list merge native 化は入れない。
+   - 2026-06-18 に `run.vm_eval` の内訳として `run.control_validate` /
+     `run.runtime_init` / `run.runtime_execute` / `run.root_format` を追加した。
+     旧 VM との比較は `runtime_execute` を見る。
+   - continuation frame stack を `VecDeque<Frame>` から `VecDeque<Rc<Frame>>` へ移し、
+     continuation capture / invoke 時の Frame 本体 deep clone を避けた。
+     resume 時に共有 frame を実行する場合だけ `Rc::try_unwrap` 失敗から Frame clone へ落とす。
+     `bench/nondet_20_discard.yu` は release / no-cache で `vm_eval` 76.7ms、
+     `runtime_execute` 72.4ms。`examples/showcase.yu` は `vm_eval` 161.3ms、
+     `runtime_execute` 146.4ms。
+     次は `shared_frame_unwrap_clones`、`continuation_marker_scopes_cloned`、
+     per-request marker scope close を persistent cursor / canonical scope へ寄せてさらに削る。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。

@@ -218,6 +218,10 @@ struct RuntimePhaseTimings {
     specialize: Duration,
     control_lower: Duration,
     vm_eval: Duration,
+    control_validate: Duration,
+    runtime_init: Duration,
+    runtime_execute: Duration,
+    root_format: Duration,
     total: Duration,
 }
 
@@ -356,6 +360,10 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
         build.errors,
     ));
     timings.vm_eval = eval_start.elapsed();
+    timings.control_validate = output.timings.validate;
+    timings.runtime_init = output.timings.init;
+    timings.runtime_execute = output.timings.execute;
+    timings.root_format = output.timings.root_format;
     timings.total = total_start.elapsed();
     run_control_printer(selection.print_roots)(&output);
     if options.runtime_phase_timings {
@@ -469,6 +477,19 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
         format_duration(timing.control_lower)
     );
     eprintln!("  run.vm_eval: {}", format_duration(timing.vm_eval));
+    eprintln!(
+        "  run.control_validate: {}",
+        format_duration(timing.control_validate)
+    );
+    eprintln!(
+        "  run.runtime_init: {}",
+        format_duration(timing.runtime_init)
+    );
+    eprintln!(
+        "  run.runtime_execute: {}",
+        format_duration(timing.runtime_execute)
+    );
+    eprintln!("  run.root_format: {}", format_duration(timing.root_format));
     eprintln!("  run.total: {}", format_duration(timing.total));
     eprintln!("runtime stats:");
     eprintln!("  run.expr_evals: {}", stats.expr_evals);
@@ -519,6 +540,30 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
     eprintln!(
         "  run.continuation_invocations: {}",
         stats.continuation_invocations
+    );
+    eprintln!(
+        "  run.continuation_capture_clones: {}",
+        stats.continuation_capture_clones
+    );
+    eprintln!(
+        "  run.continuation_invoke_clones: {}",
+        stats.continuation_invoke_clones
+    );
+    eprintln!(
+        "  run.continuation_frames_cloned: {}",
+        stats.continuation_frames_cloned
+    );
+    eprintln!(
+        "  run.continuation_marker_scopes_cloned: {}",
+        stats.continuation_marker_scopes_cloned
+    );
+    eprintln!(
+        "  run.shared_frame_unwrap_clones: {}",
+        stats.shared_frame_unwrap_clones
+    );
+    eprintln!(
+        "  run.max_continuation_frames: {}",
+        stats.max_continuation_frames
     );
     eprintln!("  run.request_resume_steps: {}", stats.request_resume_steps);
     eprintln!("  run.continue_value: {}", stats.continue_with_values);

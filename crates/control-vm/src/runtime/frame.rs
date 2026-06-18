@@ -2,7 +2,7 @@ use super::*;
 
 #[derive(Clone, Default)]
 pub(super) struct Continuation {
-    pub(super) frames: VecDeque<Frame>,
+    pub(super) frames: VecDeque<SharedFrame>,
     pub(super) marker_scopes: Vec<ContinuationMarkerScope>,
 }
 
@@ -346,6 +346,7 @@ impl<'a> Runtime<'a> {
             };
             consume_marker_frame(marker_scopes);
             self.stats.request_resume_steps += 1;
+            let frame = self.unwrap_shared_frame(frame);
             let result = if frame.handles_eval_result() {
                 self.apply_result_frame(frame, EvalResult::Value(value))?
             } else {
@@ -402,7 +403,7 @@ impl<'a> Runtime<'a> {
             EvalResult::Value(value) => {
                 self.stats.continue_with_values += 1;
                 extend_active_marker_scopes(marker_scopes, 1);
-                continuation.frames.push_back(frame);
+                continuation.frames.push_back(shared_frame(frame));
                 value_result(value)
             }
             EvalResult::Request(request) => {
@@ -439,10 +440,11 @@ impl<'a> Runtime<'a> {
             while continuation
                 .frames
                 .back()
-                .is_some_and(Frame::handles_eval_result)
+                .is_some_and(|frame| frame.handles_eval_result())
             {
                 let frame = continuation.frames.pop_back().expect("checked frame");
                 self.stats.request_resume_steps += 1;
+                let frame = self.unwrap_shared_frame(frame);
                 result = self.apply_result_frame(frame, result)?;
                 if let EvalResult::Value(value) = result {
                     return self.resume(std::mem::take(continuation), value);
@@ -467,6 +469,41 @@ impl<'a> Runtime<'a> {
             handler_frame_len: self.active_handler_frames.len(),
             add_id_len: self.active_add_ids.len(),
             plan_len: self.active_marker_plans.len(),
+        }
+    }
+
+    pub(super) fn clone_continuation_for_capture(
+        &mut self,
+        continuation: &Continuation,
+    ) -> Continuation {
+        self.stats.continuation_capture_clones += 1;
+        self.record_continuation_clone_shape(continuation);
+        continuation.clone()
+    }
+
+    pub(super) fn clone_continuation_for_invoke(
+        &mut self,
+        continuation: Continuation,
+    ) -> Continuation {
+        self.stats.continuation_invoke_clones += 1;
+        self.record_continuation_clone_shape(&continuation);
+        continuation
+    }
+
+    fn record_continuation_clone_shape(&mut self, continuation: &Continuation) {
+        let frame_count = continuation.frames.len() as u64;
+        self.stats.continuation_frames_cloned += frame_count;
+        self.stats.continuation_marker_scopes_cloned += continuation.marker_scopes.len() as u64;
+        self.stats.max_continuation_frames = self.stats.max_continuation_frames.max(frame_count);
+    }
+
+    fn unwrap_shared_frame(&mut self, frame: SharedFrame) -> Frame {
+        match Rc::try_unwrap(frame) {
+            Ok(frame) => frame,
+            Err(frame) => {
+                self.stats.shared_frame_unwrap_clones += 1;
+                (*frame).clone()
+            }
         }
     }
 
@@ -512,11 +549,12 @@ impl<'a> Runtime<'a> {
             while continuation
                 .frames
                 .back()
-                .is_some_and(Frame::handles_eval_result)
+                .is_some_and(|frame| frame.handles_eval_result())
             {
                 let frame = continuation.frames.pop_back().expect("checked frame");
                 consume_marker_frame(marker_scopes);
                 self.stats.request_resume_steps += 1;
+                let frame = self.unwrap_shared_frame(frame);
                 result = self.apply_result_frame(frame, result)?;
                 result = self.close_completed_marker_scopes(result, marker_scopes)?;
                 if matches!(result, EvalResult::Value(_)) {
@@ -1065,7 +1103,8 @@ impl<'a> Runtime<'a> {
                 }
                 self.stats.catch_request_matches += 1;
                 if let Some(continuation) = arm.continuation.clone() {
-                    let id = self.store_continuation(request.continuation.clone());
+                    let captured = self.clone_continuation_for_capture(&request.continuation);
+                    let id = self.store_continuation(captured);
                     return self.bind_pat(
                         continuation,
                         Value::Continuation(id),
@@ -1167,7 +1206,7 @@ impl<'a> Runtime<'a> {
 }
 
 pub(super) fn push_frame(mut request: Request, frame: Frame) -> Request {
-    request.continuation.frames.push_front(frame);
+    request.continuation.frames.push_front(shared_frame(frame));
     request
 }
 
@@ -1175,7 +1214,7 @@ pub(super) fn push_continuation_frame(
     mut continuation: Continuation,
     frame: Frame,
 ) -> Continuation {
-    continuation.frames.push_front(frame);
+    continuation.frames.push_front(shared_frame(frame));
     continuation
 }
 
@@ -1193,7 +1232,7 @@ fn extend_active_marker_scopes(marker_scopes: &mut [ActiveContinuationMarkerScop
     }
 }
 
-fn split_back_frames(frames: &mut VecDeque<Frame>, count: usize) -> VecDeque<Frame> {
+fn split_back_frames(frames: &mut VecDeque<SharedFrame>, count: usize) -> VecDeque<SharedFrame> {
     if count == 0 {
         return VecDeque::new();
     }
@@ -1204,7 +1243,11 @@ fn split_back_frames(frames: &mut VecDeque<Frame>, count: usize) -> VecDeque<Fra
     frames.split_off(split_at)
 }
 
-fn prepend_frames(continuation: &mut Continuation, mut frames: VecDeque<Frame>) {
+fn prepend_frames(continuation: &mut Continuation, mut frames: VecDeque<SharedFrame>) {
     frames.append(&mut continuation.frames);
     continuation.frames = frames;
+}
+
+fn shared_frame(frame: Frame) -> SharedFrame {
+    Rc::new(frame)
 }

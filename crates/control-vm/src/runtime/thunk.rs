@@ -90,11 +90,14 @@ impl<'a> Runtime<'a> {
             }
             Value::Thunk(Thunk::Continuation { id, arg }) => {
                 self.stats.force_continuation_calls += 1;
-                let resume = self
-                    .continuations
-                    .get(&id)
-                    .cloned()
-                    .ok_or(RuntimeError::MissingContinuation { id })?;
+                let resume = {
+                    let continuation = self
+                        .continuations
+                        .get(&id)
+                        .ok_or(RuntimeError::MissingContinuation { id })?
+                        .clone();
+                    self.clone_continuation_for_invoke(continuation)
+                };
                 self.stats.continuation_invocations += 1;
                 let result = self.resume(resume, *arg)?;
                 self.continue_with_frame(result, Frame::ForceValueIfThunk)

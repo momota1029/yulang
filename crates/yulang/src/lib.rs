@@ -13,8 +13,8 @@ mod time;
 
 pub use source::{
     AnalyzeSourceOutput, BuildControlOutput, BuildPolyOutput, CheckPolyOutput, CollectedSource,
-    DumpMonoOutput, DumpPolyOutput, IMPLICIT_PRELUDE_IMPORT, RouteError, RunControlOutput,
-    RunMonoOutput, SourceDiagnostic, StdSourceOptions, analyze_entry_source,
+    ControlRunTimings, DumpMonoOutput, DumpPolyOutput, IMPLICIT_PRELUDE_IMPORT, RouteError,
+    RunControlOutput, RunMonoOutput, SourceDiagnostic, StdSourceOptions, analyze_entry_source,
     analyze_entry_source_with_std_options, analyze_source_text_with_embedded_std,
     build_control_from_collected_sources, build_control_from_entry,
     build_control_from_entry_with_std, build_control_from_entry_with_std_options,
