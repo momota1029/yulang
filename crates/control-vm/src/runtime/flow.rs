@@ -8,7 +8,7 @@ impl<'a> Runtime<'a> {
         let Some(markers) = self.active_marker_plans.last() else {
             return self.apply_value(callee, arg);
         };
-        let markers = markers_for_function_call(markers);
+        let markers = shared_markers_for_function_call(markers);
         if markers.is_empty() {
             return self.apply_value(callee, arg);
         }
@@ -16,11 +16,10 @@ impl<'a> Runtime<'a> {
             Value::Marked { .. } => self.apply_value(mark_value(callee, &markers), arg),
             callee if callee_apply_closes_without_frame(&callee) => {
                 let result = self.apply_value(callee, arg)?;
-                self.close_scoped_result(result, markers)
+                self.close_shared_scoped_result(result, markers)
             }
-            callee => {
-                self.with_marker_frame(markers, move |runtime| runtime.apply_value(callee, arg))
-            }
+            callee => self
+                .with_shared_marker_frame(markers, move |runtime| runtime.apply_value(callee, arg)),
         }
     }
 
@@ -88,6 +87,20 @@ impl<'a> Runtime<'a> {
         &mut self,
         result: EvalResult,
         markers: Vec<ValueMarker>,
+    ) -> RuntimeResult {
+        match result {
+            EvalResult::Value(value) => value_result(mark_value(value, &markers)),
+            EvalResult::Request(request) => {
+                let resume_markers = shared_markers(markers_for_continuation_resume(&markers));
+                self.close_marker_request(request, resume_markers, true, None)
+            }
+        }
+    }
+
+    pub(super) fn close_shared_scoped_result(
+        &mut self,
+        result: EvalResult,
+        markers: SharedMarkers,
     ) -> RuntimeResult {
         match result {
             EvalResult::Value(value) => value_result(mark_value(value, &markers)),
@@ -210,11 +223,11 @@ impl<'a> Runtime<'a> {
             .guard_ids
             .iter()
             .any(|id| self.guard_ids.contains(id));
+        if has_live_guard {
+            return;
+        }
         for marker in &self.active_add_ids {
             self.stats.active_add_id_scans += 1;
-            if marker.depth != 0 || has_live_guard {
-                continue;
-            }
             let path_matches_marker =
                 counted_path_has_prefix(&mut self.stats, &request.path_key, &marker.path_key);
             if (path_matches_marker && !marker.guard_own_path)
@@ -231,6 +244,9 @@ impl<'a> Runtime<'a> {
                 && !request.carried_guard_ids.contains(&marker.id)
             {
                 request.carried_guard_ids.push(marker.id);
+            }
+            if has_live_guard {
+                break;
             }
         }
     }
@@ -354,6 +370,14 @@ impl<'a> Runtime<'a> {
         self.with_marker_plan(markers, true, None, run)
     }
 
+    pub(super) fn with_shared_marker_frame(
+        &mut self,
+        markers: SharedMarkers,
+        run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult + 'a,
+    ) -> RuntimeResult {
+        self.with_shared_marker_plan(markers, true, None, run)
+    }
+
     pub(super) fn with_marker_plan(
         &mut self,
         markers: Vec<ValueMarker>,
@@ -384,6 +408,38 @@ impl<'a> Runtime<'a> {
         );
 
         self.close_marker_frame_result(result?, markers, activate_add_ids, handler_key)
+    }
+
+    fn with_shared_marker_plan(
+        &mut self,
+        markers: SharedMarkers,
+        activate_add_ids: bool,
+        handler_key: Option<InternedPath>,
+        run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult + 'a,
+    ) -> RuntimeResult {
+        self.stats.marker_frame_calls += 1;
+        if markers.is_empty() {
+            self.stats.marker_frame_empty += 1;
+            return run(self);
+        }
+
+        let guard_len = self.guard_ids.len();
+        let frame_len = self.active_frames.len();
+        let handler_frame_len = self.active_handler_frames.len();
+        let add_id_len = self.active_add_ids.len();
+        let plan_len = self.active_marker_plans.len();
+        self.stats.marker_frame_pushes += 1;
+        self.push_shared_marker_frame(markers.clone(), activate_add_ids, handler_key.clone());
+        let result = run(self);
+        self.pop_marker_frame(
+            guard_len,
+            frame_len,
+            handler_frame_len,
+            add_id_len,
+            plan_len,
+        );
+
+        self.close_shared_marker_frame_result(result?, markers, activate_add_ids, handler_key)
     }
 
     pub(super) fn push_marker_frame(
@@ -429,7 +485,7 @@ impl<'a> Runtime<'a> {
                         });
                     }
                 }
-                ValueMarker::AddId(marker) if activate_add_ids => {
+                ValueMarker::AddId(marker) if activate_add_ids && marker.depth == 0 => {
                     if !self.active_add_ids.contains(marker) {
                         self.active_add_ids.push(marker.clone());
                     }
@@ -459,6 +515,26 @@ impl<'a> Runtime<'a> {
         &mut self,
         result: EvalResult,
         markers: Vec<ValueMarker>,
+        activate_add_ids: bool,
+        handler_key: Option<InternedPath>,
+    ) -> RuntimeResult {
+        match result {
+            EvalResult::Value(value) => {
+                self.stats.marker_frame_value_closes += 1;
+                value_result(mark_value(value, &markers))
+            }
+            EvalResult::Request(request) => {
+                self.stats.marker_frame_request_closes += 1;
+                let resume_markers = shared_markers(markers_for_continuation_resume(&markers));
+                self.close_marker_request(request, resume_markers, activate_add_ids, handler_key)
+            }
+        }
+    }
+
+    pub(super) fn close_shared_marker_frame_result(
+        &mut self,
+        result: EvalResult,
+        markers: SharedMarkers,
         activate_add_ids: bool,
         handler_key: Option<InternedPath>,
     ) -> RuntimeResult {

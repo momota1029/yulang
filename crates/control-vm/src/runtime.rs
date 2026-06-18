@@ -1000,6 +1000,25 @@ fn markers_for_function_call(markers: &[ValueMarker]) -> Vec<ValueMarker> {
     )
 }
 
+fn shared_markers_for_function_call(markers: &SharedMarkers) -> SharedMarkers {
+    if markers_for_function_call_is_identity(markers) {
+        return markers.clone();
+    }
+    shared_markers(markers_for_function_call(markers))
+}
+
+fn markers_for_function_call_is_identity(markers: &[ValueMarker]) -> bool {
+    for (index, marker) in markers.iter().enumerate() {
+        if matches!(marker, ValueMarker::AddId(marker) if marker.depth != 0) {
+            return false;
+        }
+        if markers[..index].iter().any(|existing| existing == marker) {
+            return false;
+        }
+    }
+    true
+}
+
 fn markers_for_continuation_call(markers: &[ValueMarker]) -> Vec<ValueMarker> {
     dedupe_markers(
         markers

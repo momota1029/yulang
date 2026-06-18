@@ -286,15 +286,15 @@ impl<'a> Runtime<'a> {
         let Some(markers) = self.active_marker_plans.last() else {
             return self.apply_direct_known_callee(callee, arg);
         };
-        let markers = markers_for_function_call(markers);
+        let markers = shared_markers_for_function_call(markers);
         if markers.is_empty() {
             return self.apply_direct_known_callee(callee, arg);
         }
         if !callee.evaluates_body() {
             let result = self.apply_direct_known_callee(callee, arg)?;
-            return self.close_scoped_result(result, markers);
+            return self.close_shared_scoped_result(result, markers);
         }
-        self.with_marker_frame(markers, move |runtime| {
+        self.with_shared_marker_frame(markers, move |runtime| {
             runtime.apply_direct_known_callee(callee, arg)
         })
     }
