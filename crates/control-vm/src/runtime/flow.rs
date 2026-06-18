@@ -228,7 +228,7 @@ impl<'a> Runtime<'a> {
             if self
                 .active_frames
                 .iter()
-                .any(|frame| frame.handler_path.is_some())
+                .any(|frame| frame.handler_key.is_some())
             {
                 return None;
             }
@@ -332,7 +332,7 @@ impl<'a> Runtime<'a> {
         run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult<'a> + 'a,
     ) -> RuntimeResult<'a> {
         let handler_key = self.intern_path(&handler_path);
-        self.with_marker_plan(markers, false, Some((handler_path, handler_key)), run)
+        self.with_marker_plan(markers, false, Some(handler_key), run)
     }
 
     pub(super) fn with_marker_frame(
@@ -347,7 +347,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         markers: Vec<ValueMarker>,
         activate_add_ids: bool,
-        handler_path: Option<(Vec<String>, InternedPath)>,
+        handler_key: Option<InternedPath>,
         run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult<'a> + 'a,
     ) -> RuntimeResult<'a> {
         self.stats.marker_frame_calls += 1;
@@ -361,18 +361,43 @@ impl<'a> Runtime<'a> {
         let add_id_len = self.active_add_ids.len();
         let plan_len = self.active_marker_plans.len();
         self.stats.marker_frame_pushes += 1;
-        self.push_marker_frame(&markers, activate_add_ids, handler_path.clone());
+        self.push_marker_frame(&markers, activate_add_ids, handler_key.clone());
         let result = run(self);
         self.pop_marker_frame(guard_len, frame_len, add_id_len, plan_len);
 
-        self.close_marker_frame_result(result?, markers, activate_add_ids, handler_path)
+        self.close_marker_frame_result(result?, markers, activate_add_ids, handler_key)
+    }
+
+    pub(super) fn with_shared_marker_plan(
+        &mut self,
+        markers: SharedMarkers,
+        activate_add_ids: bool,
+        handler_key: Option<InternedPath>,
+        run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult<'a> + 'a,
+    ) -> RuntimeResult<'a> {
+        self.stats.marker_frame_calls += 1;
+        if markers.is_empty() {
+            self.stats.marker_frame_empty += 1;
+            return run(self);
+        }
+
+        let guard_len = self.guard_ids.len();
+        let frame_len = self.active_frames.len();
+        let add_id_len = self.active_add_ids.len();
+        let plan_len = self.active_marker_plans.len();
+        self.stats.marker_frame_pushes += 1;
+        self.push_marker_frame(&markers, activate_add_ids, handler_key.clone());
+        let result = run(self);
+        self.pop_marker_frame(guard_len, frame_len, add_id_len, plan_len);
+
+        self.close_shared_marker_frame_result(result?, markers, activate_add_ids, handler_key)
     }
 
     pub(super) fn push_marker_frame(
         &mut self,
         markers: &[ValueMarker],
         activate_add_ids: bool,
-        handler_path: Option<(Vec<String>, InternedPath)>,
+        handler_key: Option<InternedPath>,
     ) {
         self.guard_ids
             .extend(markers.iter().filter_map(ValueMarker::frame_id));
@@ -383,8 +408,7 @@ impl<'a> Runtime<'a> {
                     .filter_map(ValueMarker::frame_id)
                     .map(|id| ActiveFrame {
                         id,
-                        handler_path: handler_path.as_ref().map(|(path, _)| path.clone()),
-                        handler_key: handler_path.as_ref().map(|(_, key)| key.clone()),
+                        handler_key: handler_key.clone(),
                     }),
             );
         if activate_add_ids {
@@ -412,7 +436,7 @@ impl<'a> Runtime<'a> {
         result: EvalResult<'a>,
         markers: Vec<ValueMarker>,
         activate_add_ids: bool,
-        handler_path: Option<(Vec<String>, InternedPath)>,
+        handler_key: Option<InternedPath>,
     ) -> RuntimeResult<'a> {
         match result {
             EvalResult::Value(value) => {
@@ -421,26 +445,56 @@ impl<'a> Runtime<'a> {
             }
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;
-                let resume = request.resume.clone();
-                let resume_markers = markers_for_continuation_resume(&markers);
-                Ok(EvalResult::Request(Request {
-                    path: request.path,
-                    path_key: request.path_key,
-                    guard_ids: request.guard_ids,
-                    carried_guard_ids: request.carried_guard_ids,
-                    payload: request.payload,
-                    resume: Rc::new(move |runtime, value| {
-                        runtime.stats.marker_frame_resume_steps += 1;
-                        let resume = resume.clone();
-                        runtime.with_marker_plan(
-                            resume_markers.clone(),
-                            activate_add_ids,
-                            handler_path.clone(),
-                            move |runtime| resume(runtime, value),
-                        )
-                    }),
-                }))
+                let resume_markers = shared_markers(markers_for_continuation_resume(&markers));
+                self.close_marker_request(request, resume_markers, activate_add_ids, handler_key)
             }
         }
+    }
+
+    pub(super) fn close_shared_marker_frame_result(
+        &mut self,
+        result: EvalResult<'a>,
+        markers: SharedMarkers,
+        activate_add_ids: bool,
+        handler_key: Option<InternedPath>,
+    ) -> RuntimeResult<'a> {
+        match result {
+            EvalResult::Value(value) => {
+                self.stats.marker_frame_value_closes += 1;
+                value_result(mark_value(value, &markers))
+            }
+            EvalResult::Request(request) => {
+                self.stats.marker_frame_request_closes += 1;
+                let resume_markers = shared_markers(markers_for_continuation_resume(&markers));
+                self.close_marker_request(request, resume_markers, activate_add_ids, handler_key)
+            }
+        }
+    }
+
+    fn close_marker_request(
+        &mut self,
+        request: Request<'a>,
+        resume_markers: SharedMarkers,
+        activate_add_ids: bool,
+        handler_key: Option<InternedPath>,
+    ) -> RuntimeResult<'a> {
+        let resume = request.resume.clone();
+        Ok(EvalResult::Request(Request {
+            path: request.path,
+            path_key: request.path_key,
+            guard_ids: request.guard_ids,
+            carried_guard_ids: request.carried_guard_ids,
+            payload: request.payload,
+            resume: Rc::new(move |runtime, value| {
+                runtime.stats.marker_frame_resume_steps += 1;
+                let resume = resume.clone();
+                runtime.with_shared_marker_plan(
+                    resume_markers.clone(),
+                    activate_add_ids,
+                    handler_key.clone(),
+                    move |runtime| resume(runtime, value),
+                )
+            }),
+        }))
     }
 }

@@ -246,7 +246,6 @@ pub struct GuardId(pub u32);
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ActiveFrame {
     id: GuardId,
-    handler_path: Option<Vec<String>>,
     handler_key: Option<InternedPath>,
 }
 
@@ -510,6 +509,7 @@ type BindStep<'a> = Rc<dyn Fn(&mut Runtime<'a>, bool, CapturedEnv) -> BindResult
 type BindValueStep<'a> = Rc<dyn Fn(&mut Runtime<'a>, Value, CapturedEnv) -> BindResult<'a> + 'a>;
 type BindResume<'a> = Rc<dyn Fn(&mut Runtime<'a>, Value) -> BindResult<'a> + 'a>;
 type RuntimeCatchArms = Rc<[RuntimeCatchArm]>;
+type SharedMarkers = Rc<[ValueMarker]>;
 
 enum EvalResult<'a> {
     Value(Value),
@@ -983,6 +983,10 @@ fn markers_for_continuation_resume(markers: &[ValueMarker]) -> Vec<ValueMarker> 
 
 fn markers_for_value(markers: &[ValueMarker]) -> Vec<ValueMarker> {
     dedupe_markers(markers.to_vec())
+}
+
+fn shared_markers(markers: Vec<ValueMarker>) -> SharedMarkers {
+    Rc::from(markers)
 }
 
 fn markers_for_created_value(markers: &[ValueMarker], value: &Value) -> Vec<ValueMarker> {
