@@ -26,40 +26,21 @@ impl<'a> Runtime<'a> {
                 let value = self.eval_instance(instance)?;
                 value_result(value)
             }
-            EvalExpr::Coerce {
-                source,
-                target,
-                expr,
-            } => {
+            EvalExpr::Coerce { expr } => {
                 let result = self.eval_expr(expr, env)?;
-                self.continue_with_frame(result, Frame::Coerce { source, target })
+                self.continue_with_frame(result, Frame::Coerce { expr: expr_id })
             }
             EvalExpr::MakeThunk { body } => value_result(Value::Thunk(Thunk::Expr {
                 body,
                 env: env.clone(),
             })),
-            EvalExpr::ForceThunk {
-                target_value,
-                thunk,
-            } => {
+            EvalExpr::ForceThunk { thunk } => {
                 let result = self.eval_expr(thunk, env)?;
-                self.continue_with_frame(result, Frame::ForceThunk { target_value })
+                self.continue_with_frame(result, Frame::ForceThunk { expr: expr_id })
             }
-            EvalExpr::FunctionAdapter {
-                source,
-                target,
-                function,
-                hygiene,
-            } => {
+            EvalExpr::FunctionAdapter { function } => {
                 let function = self.eval_expr(function, env)?;
-                self.continue_with_frame(
-                    function,
-                    Frame::MakeFunctionAdapter {
-                        source,
-                        target,
-                        hygiene,
-                    },
-                )
+                self.continue_with_frame(function, Frame::MakeFunctionAdapter { expr: expr_id })
             }
             EvalExpr::MarkerFrame { path, body } => {
                 let mut frame_env = env.clone();
@@ -641,6 +622,44 @@ impl<'a> Runtime<'a> {
         }
     }
 
+    pub(super) fn coerce_types(&self, expr: ExprId) -> Result<(Type, Type), RuntimeError> {
+        match self.program.exprs.get(expr.0 as usize) {
+            Some(Expr::Coerce { source, target, .. }) => Ok((source.clone(), target.clone())),
+            Some(_) | None => Err(RuntimeError::MissingExpr { expr }),
+        }
+    }
+
+    pub(super) fn force_thunk_target_value_is_thunk(
+        &self,
+        expr: ExprId,
+    ) -> Result<bool, RuntimeError> {
+        match self.program.exprs.get(expr.0 as usize) {
+            Some(Expr::ForceThunk { target, .. }) => Ok(matches!(target.value, Type::Thunk { .. })),
+            Some(_) | None => Err(RuntimeError::MissingExpr { expr }),
+        }
+    }
+
+    pub(super) fn function_adapter_value(
+        &self,
+        expr: ExprId,
+        function: Value,
+    ) -> Result<Value, RuntimeError> {
+        match self.program.exprs.get(expr.0 as usize) {
+            Some(Expr::FunctionAdapter {
+                source,
+                target,
+                hygiene,
+                ..
+            }) => Ok(Value::FunctionAdapter(FunctionAdapter {
+                source: source.clone(),
+                target: target.clone(),
+                function: Box::new(function),
+                hygiene: hygiene.clone(),
+            })),
+            Some(_) | None => Err(RuntimeError::MissingExpr { expr }),
+        }
+    }
+
     pub(super) fn eval_select(
         &mut self,
         base: ExprId,
@@ -999,22 +1018,16 @@ enum EvalExpr {
     Local(DefId),
     InstanceRef(InstanceId),
     Coerce {
-        source: Type,
-        target: Type,
         expr: ExprId,
     },
     MakeThunk {
         body: ExprId,
     },
     ForceThunk {
-        target_value: Type,
         thunk: ExprId,
     },
     FunctionAdapter {
-        source: Type,
-        target: Type,
         function: ExprId,
-        hygiene: FunctionAdapterHygiene,
     },
     MarkerFrame {
         path: Vec<String>,
@@ -1064,30 +1077,11 @@ impl EvalExpr {
             Expr::EffectOp { path } => Self::EffectOp { path: path.clone() },
             Expr::Local(def) => Self::Local(*def),
             Expr::InstanceRef(instance) => Self::InstanceRef(*instance),
-            Expr::Coerce {
-                source,
-                target,
-                expr,
-            } => Self::Coerce {
-                source: source.clone(),
-                target: target.clone(),
-                expr: *expr,
-            },
+            Expr::Coerce { expr, .. } => Self::Coerce { expr: *expr },
             Expr::MakeThunk { body, .. } => Self::MakeThunk { body: *body },
-            Expr::ForceThunk { target, thunk, .. } => Self::ForceThunk {
-                target_value: target.value.clone(),
-                thunk: *thunk,
-            },
-            Expr::FunctionAdapter {
-                source,
-                target,
-                function,
-                hygiene,
-            } => Self::FunctionAdapter {
-                source: source.clone(),
-                target: target.clone(),
+            Expr::ForceThunk { thunk, .. } => Self::ForceThunk { thunk: *thunk },
+            Expr::FunctionAdapter { function, .. } => Self::FunctionAdapter {
                 function: *function,
-                hygiene: hygiene.clone(),
             },
             Expr::MarkerFrame { path, body } => Self::MarkerFrame {
                 path: path.clone(),

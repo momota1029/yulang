@@ -76,16 +76,13 @@ pub(super) enum Frame {
         context: PrimitiveContext,
     },
     Coerce {
-        source: Type,
-        target: Type,
+        expr: ExprId,
     },
     ForceThunk {
-        target_value: Type,
+        expr: ExprId,
     },
     MakeFunctionAdapter {
-        source: Type,
-        target: Type,
-        hygiene: FunctionAdapterHygiene,
+        expr: ExprId,
     },
     RefSetReference {
         value: ExprId,
@@ -718,10 +715,14 @@ impl<'a> Runtime<'a> {
                 let args = [value];
                 value_result(apply_primitive(*op, context, &args)?)
             }
-            Frame::Coerce { source, target } => self.adapt_value(value, source, target),
-            Frame::ForceThunk { target_value } => {
+            Frame::Coerce { expr } => {
+                let (source, target) = self.coerce_types(*expr)?;
+                self.adapt_value(value, &source, &target)
+            }
+            Frame::ForceThunk { expr } => {
+                let target_value_is_thunk = self.force_thunk_target_value_is_thunk(*expr)?;
                 let result = self.force_thunk(value)?;
-                if matches!(target_value, Type::Thunk { .. }) {
+                if target_value_is_thunk {
                     return Ok(result);
                 }
                 self.continue_with_current_frame(
@@ -1024,10 +1025,14 @@ impl<'a> Runtime<'a> {
                 let args = [value];
                 value_result(apply_primitive(op, &context, &args)?)
             }
-            Frame::Coerce { source, target } => self.adapt_value(value, &source, &target),
-            Frame::ForceThunk { target_value } => {
+            Frame::Coerce { expr } => {
+                let (source, target) = self.coerce_types(expr)?;
+                self.adapt_value(value, &source, &target)
+            }
+            Frame::ForceThunk { expr } => {
+                let target_value_is_thunk = self.force_thunk_target_value_is_thunk(expr)?;
                 let result = self.force_thunk(value)?;
-                if matches!(target_value, Type::Thunk { .. }) {
+                if target_value_is_thunk {
                     return Ok(result);
                 }
                 self.continue_with_current_frame(
@@ -1037,16 +1042,9 @@ impl<'a> Runtime<'a> {
                     marker_scopes,
                 )
             }
-            Frame::MakeFunctionAdapter {
-                source,
-                target,
-                hygiene,
-            } => value_result(Value::FunctionAdapter(FunctionAdapter {
-                source,
-                target,
-                function: Box::new(value),
-                hygiene,
-            })),
+            Frame::MakeFunctionAdapter { expr } => {
+                value_result(self.function_adapter_value(expr, value)?)
+            }
             Frame::RefSetReference { value: expr, env } => {
                 let reference = self.force_value_if_thunk(value)?;
                 self.continue_with_current_frame(
