@@ -1130,5 +1130,6 @@ fn is_scalar_value(value: &Value) -> bool {
             | Value::Str(_)
             | Value::Bool(_)
             | Value::Unit
+            | Value::PrimitiveOp(_)
     )
 }

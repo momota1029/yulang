@@ -301,6 +301,70 @@ fn direct_unary_primitive_instance_ref_skips_primitive_function_value() {
 }
 
 #[test]
+fn direct_lambda_instance_ref_skips_instance_function_value() {
+    let program = Program {
+        roots: vec![Root::Expr(ExprId(3))],
+        instances: vec![Instance {
+            id: InstanceId(0),
+            source: mono::InstanceSource::Def(mono::DefId(0)),
+            signature: mono::Signature { ty: int_type() },
+            entry: ExprId(0),
+        }],
+        exprs: vec![
+            Expr::Lambda {
+                param: super::Pat::Var(DefId(0)),
+                body: ExprId(1),
+            },
+            Expr::Local(DefId(0)),
+            Expr::Lit(mono::Lit::Int(7)),
+            Expr::Apply {
+                callee: ExprId(4),
+                arg: ExprId(2),
+            },
+            Expr::InstanceRef(InstanceId(0)),
+        ],
+    };
+
+    let (values, stats) = run_program_with_host_and_stats(&program, &mut |_, _| None).unwrap();
+    assert_eq!(values, vec![Value::Int(7)]);
+    assert_eq!(stats.instance_eval_calls, 0);
+    assert_eq!(stats.apply_closure_calls, 0);
+}
+
+#[test]
+fn direct_method_select_skips_instance_function_value() {
+    let program = Program {
+        roots: vec![Root::Expr(ExprId(3))],
+        instances: vec![Instance {
+            id: InstanceId(0),
+            source: mono::InstanceSource::Def(mono::DefId(0)),
+            signature: mono::Signature { ty: int_type() },
+            entry: ExprId(0),
+        }],
+        exprs: vec![
+            Expr::Lambda {
+                param: super::Pat::Var(DefId(0)),
+                body: ExprId(1),
+            },
+            Expr::Local(DefId(0)),
+            Expr::Lit(mono::Lit::Int(9)),
+            Expr::Select {
+                base: ExprId(2),
+                name: "id".to_string(),
+                resolution: Some(SelectResolution::Method {
+                    instance: InstanceId(0),
+                }),
+            },
+        ],
+    };
+
+    let (values, stats) = run_program_with_host_and_stats(&program, &mut |_, _| None).unwrap();
+    assert_eq!(values, vec![Value::Int(9)]);
+    assert_eq!(stats.instance_eval_calls, 0);
+    assert_eq!(stats.apply_closure_calls, 0);
+}
+
+#[test]
 fn validation_rejects_unresolved_typeclass_method() {
     let program = Program {
         roots: vec![Root::Expr(ExprId(1))],

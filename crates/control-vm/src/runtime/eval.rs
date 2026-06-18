@@ -87,6 +87,9 @@ impl<'a> Runtime<'a> {
                 if let Some((op, context)) = self.direct_unary_primitive_apply(callee) {
                     return self.eval_direct_unary_primitive(op, context, arg, env.clone());
                 }
+                if let Some(callee) = self.direct_known_callee(callee) {
+                    return self.eval_direct_known_apply(callee, arg, env.clone());
+                }
                 let env_for_arg = env.clone();
                 let callee = self.eval_expr(callee, env)?;
                 self.continue_with_frame(
@@ -189,6 +192,116 @@ impl<'a> Runtime<'a> {
                 }
             }
             _ => None,
+        }
+    }
+
+    fn direct_known_callee(&self, expr: ExprId) -> Option<DirectKnownCallee> {
+        match self.program.exprs.get(expr.0 as usize)? {
+            Expr::PrimitiveOp { op, context } => Some(DirectKnownCallee::Primitive {
+                op: *op,
+                context: context.clone(),
+            }),
+            Expr::Constructor { def, arity } => Some(DirectKnownCallee::Constructor {
+                def: *def,
+                arity: *arity,
+            }),
+            Expr::EffectOp { path } => Some(DirectKnownCallee::EffectOp { path: path.clone() }),
+            Expr::InstanceRef(instance) => {
+                let entry = self
+                    .program
+                    .instances
+                    .get(instance.0 as usize)
+                    .map(|instance| instance.entry)?;
+                self.direct_known_callee_entry(entry)
+            }
+            _ => None,
+        }
+    }
+
+    fn direct_known_callee_entry(&self, expr: ExprId) -> Option<DirectKnownCallee> {
+        match self.program.exprs.get(expr.0 as usize)? {
+            Expr::PrimitiveOp { op, context } => Some(DirectKnownCallee::Primitive {
+                op: *op,
+                context: context.clone(),
+            }),
+            Expr::Constructor { def, arity } => Some(DirectKnownCallee::Constructor {
+                def: *def,
+                arity: *arity,
+            }),
+            Expr::EffectOp { path } => Some(DirectKnownCallee::EffectOp { path: path.clone() }),
+            Expr::Lambda { param, body } => Some(DirectKnownCallee::Closure {
+                param: param.clone(),
+                body: *body,
+            }),
+            _ => None,
+        }
+    }
+
+    pub(super) fn apply_direct_instance_if_known(
+        &mut self,
+        instance: InstanceId,
+        arg: Value,
+    ) -> RuntimeResult {
+        let entry = self
+            .program
+            .instances
+            .get(instance.0 as usize)
+            .map(|instance| instance.entry)
+            .ok_or(RuntimeError::MissingInstance { instance })?;
+        match self.direct_known_callee_entry(entry) {
+            Some(callee) => self.apply_direct_known_callee(callee, arg),
+            None => {
+                let method = self.eval_instance(instance)?;
+                self.apply_value(method, arg)
+            }
+        }
+    }
+
+    fn eval_direct_known_apply(
+        &mut self,
+        callee: DirectKnownCallee,
+        arg: ExprId,
+        env: CapturedEnv,
+    ) -> RuntimeResult {
+        let active_markers = self.active_marker_plans.last().cloned();
+        let mut arg_env = env;
+        let result = self.eval_expr(arg, &mut arg_env)?;
+        match result {
+            EvalResult::Value(arg) => {
+                if let Some(markers) = active_markers {
+                    let call_markers = markers_for_function_call(markers);
+                    self.with_marker_frame(call_markers, move |runtime| {
+                        runtime.apply_direct_known_callee(callee, arg)
+                    })
+                } else {
+                    self.apply_direct_known_callee(callee, arg)
+                }
+            }
+            EvalResult::Request(request) => Ok(EvalResult::Request(push_frame(
+                request,
+                Frame::ApplyArg {
+                    callee: match active_markers {
+                        Some(markers) => mark_value(callee.into_value(), &markers),
+                        None => callee.into_value(),
+                    },
+                },
+            ))),
+        }
+    }
+
+    fn apply_direct_known_callee(
+        &mut self,
+        callee: DirectKnownCallee,
+        arg: Value,
+    ) -> RuntimeResult {
+        match callee {
+            DirectKnownCallee::Closure { param, body } => self.bind_pat(
+                param,
+                arg,
+                CapturedEnv::default(),
+                BindThen::ApplyClosure { body },
+            ),
+            callee => self.apply_value(callee.into_value(), arg),
         }
     }
 
@@ -733,6 +846,44 @@ impl<'a> Runtime<'a> {
                     },
                 )
             }
+        }
+    }
+}
+
+#[derive(Clone)]
+enum DirectKnownCallee {
+    Closure {
+        param: Pat,
+        body: ExprId,
+    },
+    Primitive {
+        op: PrimitiveOp,
+        context: PrimitiveContext,
+    },
+    Constructor {
+        def: DefId,
+        arity: usize,
+    },
+    EffectOp {
+        path: Vec<String>,
+    },
+}
+
+impl DirectKnownCallee {
+    fn into_value(self) -> Value {
+        match self {
+            Self::Closure { param, body } => Value::Closure(Closure {
+                param,
+                body,
+                env: CapturedEnv::default(),
+            }),
+            Self::Primitive { op, context } => Value::PrimitiveOp(PrimitiveValue {
+                op,
+                context,
+                args: Vec::new(),
+            }),
+            Self::Constructor { def, arity } => constructor_value(def, arity, Vec::new()),
+            Self::EffectOp { path } => Value::EffectOp { path },
         }
     }
 }

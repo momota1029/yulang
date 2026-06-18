@@ -85,6 +85,14 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      まだ溢れうるため、既存の nondet triples と同じく該当 tests は 16MiB stack helper に載せた。
      `cargo test -p yulang -- --test-threads=1` は通るが、runtime 本体として完全に潰すには
      eval/apply 全体を continuation loop へ寄せる次 slice が必要。
+   - 旧 VM の direct-known callee に合わせ、top-level lambda / primitive / constructor /
+     effect op instance は callee value 化を飛ばして直接 apply するようにした。
+     method select も既知 instance なら直接 apply する。
+     さらに active guard / add-id stack は同一 marker を重複して積まない。
+     これで `showcase` の `instance_eval_calls` は 17k 台から 139、
+     `apply_value_calls` は 66k 台から 39k 台へ落ちた。
+     ただし `marker_frame_*` と request resume がまだ太いため、旧 VM 速度へ近づけるには
+     guard / lookup stack を値 wrapper ではなく continuation / closure state へ寄せる次 slice が必要。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。

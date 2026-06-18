@@ -366,8 +366,11 @@ impl<'a> Runtime<'a> {
         activate_add_ids: bool,
         handler_key: Option<InternedPath>,
     ) {
-        self.guard_ids
-            .extend(markers.iter().filter_map(ValueMarker::frame_id));
+        for id in markers.iter().filter_map(ValueMarker::frame_id) {
+            if !self.guard_ids.contains(&id) {
+                self.guard_ids.push(id);
+            }
+        }
         self.active_frames
             .extend(
                 markers
@@ -379,8 +382,12 @@ impl<'a> Runtime<'a> {
                     }),
             );
         if activate_add_ids {
-            self.active_add_ids
-                .extend(markers.iter().filter_map(ValueMarker::add_id).cloned());
+            let add_ids = markers.iter().filter_map(ValueMarker::add_id);
+            for marker in add_ids {
+                if !self.active_add_ids.contains(marker) {
+                    self.active_add_ids.push(marker.clone());
+                }
+            }
         }
         self.active_marker_plans.push(markers_for_value(markers));
     }

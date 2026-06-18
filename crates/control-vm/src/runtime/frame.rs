@@ -754,8 +754,7 @@ impl<'a> Runtime<'a> {
                     value_result(self.project_record_field(value, &name)?)
                 }
                 Some(SelectResolution::Method { instance }) => {
-                    let method = self.eval_instance(instance)?;
-                    self.apply_value(method, value)
+                    self.apply_direct_instance_if_known(instance, value)
                 }
                 Some(SelectResolution::TypeclassMethod { .. }) => {
                     Err(RuntimeError::UnsupportedExpr {
