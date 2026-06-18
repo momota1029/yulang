@@ -13,8 +13,8 @@ use crate::boundary::{
     equivalent_runtime_types, function_parts, thunk_value_type, value_boundary_supported,
 };
 use crate::ir::{
-    Block, CaseArm, CatchArm, DefId, Expr, ExprId, InstanceId, Pat, Program, RecordField,
-    RecordPatField, RecordSpread, Root, SelectResolution, Stmt,
+    CaseArm, DefId, Expr, ExprId, InstanceId, Pat, Program, RecordField, RecordPatField,
+    RecordSpread, Root, SelectResolution, Stmt,
 };
 use crate::lower::{LowerError, lower};
 use crate::validate::{ValidateError, validate};
@@ -554,6 +554,7 @@ impl fmt::Display for RuntimeError {
 impl std::error::Error for RuntimeError {}
 
 type RuntimeResult = Result<EvalResult, RuntimeError>;
+type RuntimeBlockStmts = Rc<[Stmt]>;
 type RuntimeCaseArms = Rc<[CaseArm]>;
 type RuntimeCatchArms = Rc<[RuntimeCatchArm]>;
 type SharedFrame = Rc<Frame>;
@@ -588,6 +589,12 @@ struct RuntimeCatchArm {
     continuation: Option<Pat>,
     guard: Option<ExprId>,
     body: ExprId,
+}
+
+#[derive(Clone)]
+struct RuntimeBlock {
+    stmts: RuntimeBlockStmts,
+    tail: Option<ExprId>,
 }
 
 fn value_result(value: Value) -> RuntimeResult {
@@ -1030,6 +1037,10 @@ fn markers_for_continuation_resume(markers: &[ValueMarker]) -> Vec<ValueMarker> 
 
 fn shared_markers(markers: Vec<ValueMarker>) -> SharedMarkers {
     Rc::from(markers)
+}
+
+fn shared_block_stmts(stmts: &[Stmt]) -> RuntimeBlockStmts {
+    Rc::from(stmts.to_vec().into_boxed_slice())
 }
 
 fn shared_case_arms(arms: &[CaseArm]) -> RuntimeCaseArms {

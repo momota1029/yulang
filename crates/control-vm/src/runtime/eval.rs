@@ -120,8 +120,11 @@ impl<'a> Runtime<'a> {
                 let arms = self.prepare_case_arms(expr_id)?;
                 self.continue_with_frame(scrutinee, Frame::CaseScrutineeForce { arms, env })
             }
-            EvalExpr::Catch { body, arms } => self.eval_catch(expr_id, body, arms, env),
-            EvalExpr::Block(block) => self.eval_block(block, env),
+            EvalExpr::Catch { body } => self.eval_catch(expr_id, body, env),
+            EvalExpr::Block => {
+                let block = self.prepare_block(expr_id)?;
+                self.eval_block_parts(block.stmts, block.tail, env.clone())
+            }
         }
     }
 
@@ -652,32 +655,38 @@ impl<'a> Runtime<'a> {
         &mut self,
         expr: ExprId,
         body: ExprId,
-        arms: Vec<CatchArm>,
         env: &mut CapturedEnv,
     ) -> RuntimeResult {
         let catch_env = env.clone();
-        let arms = self.prepare_catch_arms(expr, arms);
+        let arms = self.prepare_catch_arms(expr)?;
         let result = self.eval_expr(body, env)?;
         self.handle_catch_result(result, arms, catch_env)
     }
 
-    fn prepare_catch_arms(&mut self, expr: ExprId, arms: Vec<CatchArm>) -> RuntimeCatchArms {
+    fn prepare_catch_arms(&mut self, expr: ExprId) -> Result<RuntimeCatchArms, RuntimeError> {
         if let Some(arms) = self.catch_arms.get(&expr) {
-            return arms.clone();
+            return Ok(arms.clone());
         }
+        let arms = match self.program.exprs.get(expr.0 as usize) {
+            Some(Expr::Catch { arms, .. }) => arms,
+            Some(_) | None => return Err(RuntimeError::MissingExpr { expr }),
+        };
         let arms: RuntimeCatchArms = arms
-            .into_iter()
+            .iter()
             .map(|arm| RuntimeCatchArm {
-                operation_key: arm.operation_path.map(|path| self.intern_path(&path)),
-                pat: arm.pat,
-                continuation: arm.continuation,
+                operation_key: arm
+                    .operation_path
+                    .as_ref()
+                    .map(|path| self.intern_path(path)),
+                pat: arm.pat.clone(),
+                continuation: arm.continuation.clone(),
                 guard: arm.guard,
                 body: arm.body,
             })
             .collect::<Vec<_>>()
             .into();
         self.catch_arms.insert(expr, arms.clone());
-        arms
+        Ok(arms)
     }
 
     pub(super) fn handle_catch_result(
@@ -796,13 +805,9 @@ impl<'a> Runtime<'a> {
         self.continue_with_frame(result, Frame::HandlerBodyForce)
     }
 
-    pub(super) fn eval_block(&mut self, block: Block, env: &mut CapturedEnv) -> RuntimeResult {
-        self.eval_block_parts(block.stmts, block.tail, env.clone())
-    }
-
     pub(super) fn eval_block_parts(
         &mut self,
-        stmts: Vec<Stmt>,
+        stmts: RuntimeBlockStmts,
         tail: Option<ExprId>,
         env: CapturedEnv,
     ) -> RuntimeResult {
@@ -811,7 +816,7 @@ impl<'a> Runtime<'a> {
 
     pub(super) fn eval_block_step(
         &mut self,
-        stmts: Vec<Stmt>,
+        stmts: RuntimeBlockStmts,
         tail: Option<ExprId>,
         env: CapturedEnv,
         index: usize,
@@ -825,8 +830,10 @@ impl<'a> Runtime<'a> {
             return value_result(last);
         }
 
-        match stmts[index].clone() {
+        match &stmts[index] {
             Stmt::Let(_, pat, value) => {
+                let pat = pat.clone();
+                let value = *value;
                 let mut value_env = env.clone();
                 let result = self.eval_expr(value, &mut value_env)?;
                 self.continue_with_frame(
@@ -841,6 +848,7 @@ impl<'a> Runtime<'a> {
                 )
             }
             Stmt::Expr(expr) => {
+                let expr = *expr;
                 let mut expr_env = env.clone();
                 let result = self.eval_expr(expr, &mut expr_env)?;
                 self.continue_with_frame(
@@ -854,6 +862,7 @@ impl<'a> Runtime<'a> {
                 )
             }
             Stmt::Module(_, module_stmts) => {
+                let module_stmts = shared_block_stmts(module_stmts);
                 let result = self.eval_block_parts(module_stmts, None, env.clone())?;
                 self.continue_with_frame(
                     result,
@@ -866,6 +875,21 @@ impl<'a> Runtime<'a> {
                 )
             }
         }
+    }
+
+    fn prepare_block(&mut self, expr: ExprId) -> Result<RuntimeBlock, RuntimeError> {
+        if let Some(block) = self.blocks.get(&expr) {
+            return Ok(block.clone());
+        }
+        let block = match self.program.exprs.get(expr.0 as usize) {
+            Some(Expr::Block(block)) => RuntimeBlock {
+                stmts: shared_block_stmts(&block.stmts),
+                tail: block.tail,
+            },
+            Some(_) | None => return Err(RuntimeError::MissingExpr { expr }),
+        };
+        self.blocks.insert(expr, block.clone());
+        Ok(block)
     }
 }
 
@@ -981,9 +1005,8 @@ enum EvalExpr {
     },
     Catch {
         body: ExprId,
-        arms: Vec<CatchArm>,
     },
-    Block(Block),
+    Block,
 }
 
 impl EvalExpr {
@@ -1063,11 +1086,8 @@ impl EvalExpr {
             Expr::Case { scrutinee, .. } => Self::Case {
                 scrutinee: *scrutinee,
             },
-            Expr::Catch { body, arms } => Self::Catch {
-                body: *body,
-                arms: arms.clone(),
-            },
-            Expr::Block(block) => Self::Block(block.clone()),
+            Expr::Catch { body, .. } => Self::Catch { body: *body },
+            Expr::Block(_) => Self::Block,
         }
     }
 }

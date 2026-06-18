@@ -202,13 +202,13 @@ pub(super) enum Frame {
     HandlerBodyForce,
     BlockLetValue {
         pat: Pat,
-        stmts: Vec<Stmt>,
+        stmts: RuntimeBlockStmts,
         tail: Option<ExprId>,
         env: CapturedEnv,
         index: usize,
     },
     BlockExprValue {
-        stmts: Vec<Stmt>,
+        stmts: RuntimeBlockStmts,
         tail: Option<ExprId>,
         env: CapturedEnv,
         index: usize,
@@ -236,7 +236,7 @@ pub(super) enum BindThen {
         body: ExprId,
     },
     BlockLet {
-        stmts: Vec<Stmt>,
+        stmts: RuntimeBlockStmts,
         tail: Option<ExprId>,
         index: usize,
         last: Value,
@@ -316,6 +316,24 @@ impl Frame {
             Frame::CatchResult { .. }
                 | Frame::RefSetHandleResult { .. }
                 | Frame::RefSetHandleValueResult { .. }
+        )
+    }
+
+    fn applies_borrowed_value(&self) -> bool {
+        matches!(
+            self,
+            Frame::AdaptValue { .. }
+                | Frame::WrapThunkValue
+                | Frame::ForceValueIfThunk
+                | Frame::ApplyAdapterResult { .. }
+                | Frame::DirectBinaryApply { .. }
+                | Frame::DirectUnaryApply { .. }
+                | Frame::Coerce { .. }
+                | Frame::ForceThunk { .. }
+                | Frame::MarkValue { .. }
+                | Frame::Select { .. }
+                | Frame::HandlerBodyForce
+                | Frame::RefSetResolvedUnit
         )
     }
 
@@ -415,11 +433,10 @@ impl<'a> Runtime<'a> {
             };
             consume_marker_frame(marker_scopes);
             self.stats.request_resume_steps += 1;
-            let frame = self.unwrap_shared_frame(frame);
             let result = if frame.handles_eval_result() {
-                self.apply_result_frame(frame, EvalResult::Value(value))?
+                self.apply_shared_result_frame(frame, EvalResult::Value(value))?
             } else {
-                self.apply_frame(frame, &mut *continuation, marker_scopes, value)?
+                self.apply_shared_value_frame(frame, &mut *continuation, marker_scopes, value)?
             };
             let result = self.close_completed_marker_scopes(result, marker_scopes)?;
             match result {
@@ -513,8 +530,7 @@ impl<'a> Runtime<'a> {
             {
                 let frame = continuation.frames.pop_back().expect("checked frame");
                 self.stats.request_resume_steps += 1;
-                let frame = self.unwrap_shared_frame(frame);
-                result = self.apply_result_frame(frame, result)?;
+                result = self.apply_shared_result_frame(frame, result)?;
                 if let EvalResult::Value(value) = result {
                     return self.resume(std::mem::take(continuation), value);
                 }
@@ -566,23 +582,126 @@ impl<'a> Runtime<'a> {
         self.stats.max_continuation_frames = self.stats.max_continuation_frames.max(frame_count);
     }
 
-    fn unwrap_shared_frame(&mut self, frame: SharedFrame) -> Frame {
+    fn apply_shared_result_frame(
+        &mut self,
+        frame: SharedFrame,
+        result: EvalResult,
+    ) -> RuntimeResult {
         match Rc::try_unwrap(frame) {
-            Ok(frame) => frame,
+            Ok(frame) => self.apply_result_frame(frame, result),
             Err(frame) => {
-                self.stats.shared_frame_unwrap_clones += 1;
-                match frame.clone_bucket() {
-                    FrameCloneBucket::Apply => self.stats.shared_frame_unwrap_apply_clones += 1,
-                    FrameCloneBucket::Direct => self.stats.shared_frame_unwrap_direct_clones += 1,
-                    FrameCloneBucket::Data => self.stats.shared_frame_unwrap_data_clones += 1,
-                    FrameCloneBucket::Case => self.stats.shared_frame_unwrap_case_clones += 1,
-                    FrameCloneBucket::Catch => self.stats.shared_frame_unwrap_catch_clones += 1,
-                    FrameCloneBucket::Block => self.stats.shared_frame_unwrap_block_clones += 1,
-                    FrameCloneBucket::Bind => self.stats.shared_frame_unwrap_bind_clones += 1,
-                    FrameCloneBucket::RefSet => self.stats.shared_frame_unwrap_refset_clones += 1,
-                }
-                (*frame).clone()
+                let frame = self.clone_shared_frame(&frame);
+                self.apply_result_frame(frame, result)
             }
+        }
+    }
+
+    fn apply_shared_value_frame(
+        &mut self,
+        frame: SharedFrame,
+        continuation: &mut Continuation,
+        marker_scopes: &mut [ActiveContinuationMarkerScope],
+        value: Value,
+    ) -> RuntimeResult {
+        match Rc::try_unwrap(frame) {
+            Ok(frame) => self.apply_frame(frame, continuation, marker_scopes, value),
+            Err(frame) => {
+                if frame.applies_borrowed_value() {
+                    return self.apply_borrowed_value_frame(
+                        &frame,
+                        continuation,
+                        marker_scopes,
+                        value,
+                    );
+                }
+                let frame = self.clone_shared_frame(&frame);
+                self.apply_frame(frame, continuation, marker_scopes, value)
+            }
+        }
+    }
+
+    fn clone_shared_frame(&mut self, frame: &Frame) -> Frame {
+        self.stats.shared_frame_unwrap_clones += 1;
+        match frame.clone_bucket() {
+            FrameCloneBucket::Apply => self.stats.shared_frame_unwrap_apply_clones += 1,
+            FrameCloneBucket::Direct => self.stats.shared_frame_unwrap_direct_clones += 1,
+            FrameCloneBucket::Data => self.stats.shared_frame_unwrap_data_clones += 1,
+            FrameCloneBucket::Case => self.stats.shared_frame_unwrap_case_clones += 1,
+            FrameCloneBucket::Catch => self.stats.shared_frame_unwrap_catch_clones += 1,
+            FrameCloneBucket::Block => self.stats.shared_frame_unwrap_block_clones += 1,
+            FrameCloneBucket::Bind => self.stats.shared_frame_unwrap_bind_clones += 1,
+            FrameCloneBucket::RefSet => self.stats.shared_frame_unwrap_refset_clones += 1,
+        }
+        frame.clone()
+    }
+
+    fn apply_borrowed_value_frame(
+        &mut self,
+        frame: &Frame,
+        continuation: &mut Continuation,
+        marker_scopes: &mut [ActiveContinuationMarkerScope],
+        value: Value,
+    ) -> RuntimeResult {
+        match frame {
+            Frame::CatchResult { .. }
+            | Frame::RefSetHandleResult { .. }
+            | Frame::RefSetHandleValueResult { .. } => {
+                unreachable!("result frames are handled before value frames")
+            }
+            Frame::AdaptValue { source, target } => self.adapt_value(value, source, target),
+            Frame::WrapThunkValue => value_result(Value::Thunk(Thunk::Value(Box::new(value)))),
+            Frame::ForceValueIfThunk => self.force_value_if_thunk(value),
+            Frame::ApplyAdapterResult {
+                markers,
+                source_ret,
+                target_ret,
+            } => {
+                let result = mark_value(value, markers);
+                self.adapt_value(result, source_ret, target_ret)
+            }
+            Frame::DirectBinaryApply { op, context, first } => {
+                self.stats.primitive_apply_calls += 1;
+                self.stats.primitive_apply_complete += 1;
+                let args = [first.clone(), value];
+                value_result(apply_primitive(*op, context, &args)?)
+            }
+            Frame::DirectUnaryApply { op, context } => {
+                self.stats.primitive_apply_calls += 1;
+                self.stats.primitive_apply_complete += 1;
+                let args = [value];
+                value_result(apply_primitive(*op, context, &args)?)
+            }
+            Frame::Coerce { source, target } => self.adapt_value(value, source, target),
+            Frame::ForceThunk { target_value } => {
+                let result = self.force_thunk(value)?;
+                if matches!(target_value, Type::Thunk { .. }) {
+                    return Ok(result);
+                }
+                self.continue_with_current_frame(
+                    result,
+                    Frame::ForceValueIfThunk,
+                    continuation,
+                    marker_scopes,
+                )
+            }
+            Frame::MarkValue { markers } => value_result(mark_value(value, markers)),
+            Frame::Select { name, resolution } => match resolution {
+                Some(SelectResolution::RecordField) => {
+                    value_result(self.project_record_field(value, name)?)
+                }
+                Some(SelectResolution::Method { instance }) => {
+                    self.apply_direct_instance_if_known(*instance, value)
+                }
+                Some(SelectResolution::TypeclassMethod { .. }) => {
+                    Err(RuntimeError::UnsupportedExpr {
+                        feature: format!("typeclass method select .{name}"),
+                    })
+                }
+                None => Err(RuntimeError::UnresolvedSelect { name: name.clone() }),
+            },
+            Frame::HandlerBodyForce => self.force_value_if_thunk(value),
+            Frame::RefSetResolvedUnit => value_result(Value::Unit),
+            _ => unreachable!("borrowed value frame should be checked before apply"),
         }
     }
 
@@ -633,8 +752,7 @@ impl<'a> Runtime<'a> {
                 let frame = continuation.frames.pop_back().expect("checked frame");
                 consume_marker_frame(marker_scopes);
                 self.stats.request_resume_steps += 1;
-                let frame = self.unwrap_shared_frame(frame);
-                result = self.apply_result_frame(frame, result)?;
+                result = self.apply_shared_result_frame(frame, result)?;
                 result = self.close_completed_marker_scopes(result, marker_scopes)?;
                 if matches!(result, EvalResult::Value(_)) {
                     return Ok(result);
