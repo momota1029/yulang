@@ -227,7 +227,7 @@ impl<'a> Runtime<'a> {
         for marker in &self.active_add_ids {
             self.stats.active_add_id_scans += 1;
             let path_matches_marker =
-                counted_path_has_prefix(&mut self.stats, &request.path_key, &marker.path_key);
+                counted_path_has_prefix(&mut self.stats, &request.path_key, marker.path_key);
             if (path_matches_marker && !marker.guard_own_path)
                 || (!path_matches_marker && !marker.guard_foreign_path)
             {
@@ -294,7 +294,7 @@ impl<'a> Runtime<'a> {
     fn find_matching_handler_frame(&mut self, operation_key: &InternedPath) -> Option<usize> {
         for frame in self.active_handler_frames.iter().rev() {
             self.stats.active_frame_scans += 1;
-            if counted_path_has_prefix(&mut self.stats, operation_key, &frame.handler_key) {
+            if counted_path_has_prefix(&mut self.stats, operation_key, frame.handler_key) {
                 return Some(frame.frame_index);
             }
         }
@@ -313,7 +313,7 @@ impl<'a> Runtime<'a> {
             .take_while(|frame| frame.frame_index <= matching_handler)
         {
             self.stats.active_frame_scans += 1;
-            if counted_path_has_prefix(&mut self.stats, operation_key, &frame.handler_key)
+            if counted_path_has_prefix(&mut self.stats, operation_key, frame.handler_key)
                 && request.guard_ids.contains(&frame.id)
             {
                 return Some(frame.id);
@@ -333,7 +333,7 @@ impl<'a> Runtime<'a> {
             markers.push(ValueMarker::Frame { id });
             markers.push(ValueMarker::AddId(AddIdMarker {
                 id,
-                path_key,
+                path_key: path_key.prefix(),
                 depth: marker.depth,
                 guard_own_path: false,
                 guard_foreign_path: true,
@@ -355,7 +355,7 @@ impl<'a> Runtime<'a> {
         handler_path: Vec<String>,
         run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult + 'a,
     ) -> RuntimeResult {
-        let handler_key = self.intern_path(&handler_path);
+        let handler_key = self.intern_path(&handler_path).prefix();
         self.with_marker_plan(markers, false, Some(handler_key), run)
     }
 
@@ -371,7 +371,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         markers: Vec<ValueMarker>,
         activate_add_ids: bool,
-        handler_key: Option<InternedPath>,
+        handler_key: Option<InternedPathPrefix>,
         run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult + 'a,
     ) -> RuntimeResult {
         self.stats.marker_frame_calls += 1;
@@ -403,7 +403,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         markers: SharedMarkers,
         activate_add_ids: bool,
-        handler_key: Option<InternedPath>,
+        handler_key: Option<InternedPathPrefix>,
         run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult + 'a,
     ) -> RuntimeResult {
         self.stats.marker_frame_calls += 1;
@@ -435,7 +435,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         markers: &[ValueMarker],
         activate_add_ids: bool,
-        handler_key: Option<InternedPath>,
+        handler_key: Option<InternedPathPrefix>,
     ) {
         let active_plan = shared_markers(markers.to_vec());
         self.push_marker_frame_with_plan(markers, activate_add_ids, handler_key, active_plan);
@@ -445,7 +445,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         markers: SharedMarkers,
         activate_add_ids: bool,
-        handler_key: Option<InternedPath>,
+        handler_key: Option<InternedPathPrefix>,
     ) {
         let active_plan = markers.clone();
         self.push_marker_frame_with_plan(&markers, activate_add_ids, handler_key, active_plan);
@@ -455,7 +455,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         markers: &[ValueMarker],
         activate_add_ids: bool,
-        handler_key: Option<InternedPath>,
+        handler_key: Option<InternedPathPrefix>,
         active_plan: SharedMarkers,
     ) {
         for marker in markers {
@@ -466,7 +466,7 @@ impl<'a> Runtime<'a> {
                     }
                     let frame_index = self.active_frames.len();
                     self.active_frames.push(ActiveFrame { id: *id });
-                    if let Some(handler_key) = handler_key.clone() {
+                    if let Some(handler_key) = handler_key {
                         self.active_handler_frames.push(ActiveHandlerFrame {
                             frame_index,
                             id: *id,
@@ -505,7 +505,7 @@ impl<'a> Runtime<'a> {
         result: EvalResult,
         markers: Vec<ValueMarker>,
         activate_add_ids: bool,
-        handler_key: Option<InternedPath>,
+        handler_key: Option<InternedPathPrefix>,
     ) -> RuntimeResult {
         match result {
             EvalResult::Value(value) => {
@@ -525,7 +525,7 @@ impl<'a> Runtime<'a> {
         result: EvalResult,
         markers: SharedMarkers,
         activate_add_ids: bool,
-        handler_key: Option<InternedPath>,
+        handler_key: Option<InternedPathPrefix>,
     ) -> RuntimeResult {
         match result {
             EvalResult::Value(value) => {
@@ -545,7 +545,7 @@ impl<'a> Runtime<'a> {
         result: EvalResult,
         markers: SharedMarkers,
         activate_add_ids: bool,
-        handler_key: Option<InternedPath>,
+        handler_key: Option<InternedPathPrefix>,
     ) -> RuntimeResult {
         match result {
             EvalResult::Value(value) => {
@@ -567,7 +567,7 @@ impl<'a> Runtime<'a> {
         request: Request,
         resume_markers: SharedMarkers,
         activate_add_ids: bool,
-        handler_key: Option<InternedPath>,
+        handler_key: Option<InternedPathPrefix>,
     ) -> RuntimeResult {
         let mut request = request;
         let frames_remaining = request.continuation.frames.len();

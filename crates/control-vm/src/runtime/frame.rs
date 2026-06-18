@@ -20,14 +20,14 @@ pub(super) struct ContinuationMarkerScope {
     pub(super) frames_remaining: usize,
     pub(super) resume_markers: SharedMarkers,
     pub(super) activate_add_ids: bool,
-    pub(super) handler_key: Option<InternedPath>,
+    pub(super) handler_key: Option<InternedPathPrefix>,
 }
 
 struct ActiveContinuationMarkerScope {
     frames_remaining: usize,
     resume_markers: SharedMarkers,
     activate_add_ids: bool,
-    handler_key: Option<InternedPath>,
+    handler_key: Option<InternedPathPrefix>,
     checkpoint: MarkerCheckpoint,
 }
 

@@ -320,7 +320,7 @@ struct ActiveFrame {
 struct ActiveHandlerFrame {
     frame_index: usize,
     id: GuardId,
-    handler_key: InternedPath,
+    handler_key: InternedPathPrefix,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -341,7 +341,7 @@ pub enum ValueMarker {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AddIdMarker {
     pub id: GuardId,
-    path_key: InternedPath,
+    path_key: InternedPathPrefix,
     pub depth: u32,
     pub guard_own_path: bool,
     pub guard_foreign_path: bool,
@@ -414,8 +414,21 @@ struct InternedPath {
     prefix_ids: Rc<[u32]>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct InternedPathPrefix {
+    id: u32,
+    len: usize,
+}
+
 impl InternedPath {
-    fn has_prefix(&self, prefix: &Self) -> bool {
+    fn prefix(&self) -> InternedPathPrefix {
+        InternedPathPrefix {
+            id: self.id,
+            len: self.len,
+        }
+    }
+
+    fn has_prefix(&self, prefix: InternedPathPrefix) -> bool {
         if prefix.len == 0 {
             return true;
         }
@@ -1180,11 +1193,12 @@ fn shared_case_arms(arms: &[CaseArm]) -> RuntimeCaseArms {
 }
 
 fn stack_handler_markers(id: GuardId, path_key: InternedPath) -> Vec<ValueMarker> {
+    let path_key = path_key.prefix();
     vec![
         ValueMarker::Frame { id },
         ValueMarker::AddId(AddIdMarker {
             id,
-            path_key: path_key.clone(),
+            path_key,
             depth: 0,
             guard_own_path: false,
             guard_foreign_path: true,
@@ -1296,7 +1310,7 @@ fn callee_apply_closes_without_frame(value: &Value) -> bool {
 fn counted_path_has_prefix(
     stats: &mut RuntimeStats,
     path: &InternedPath,
-    prefix: &InternedPath,
+    prefix: InternedPathPrefix,
 ) -> bool {
     stats.path_prefix_checks += 1;
     path.has_prefix(prefix)

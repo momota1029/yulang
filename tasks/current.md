@@ -227,6 +227,10 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      `InternedPath` だけを持ち回るようにした。
      `bench/nondet_20_discard.yu` は repeat 5 で 24〜25ms、
      `examples/showcase.yu` は repeat 5 で 49〜54ms まで下がった。
+     marker / handler 側の path key も full `InternedPath` ではなく copy な
+     `InternedPathPrefix { id, len }` にし、request / operation 側だけ full key を保つようにした。
+     `bench/nondet_20_discard.yu` は repeat 5 で 22〜23ms、
+     `examples/showcase.yu` は repeat 5 で 45〜47ms まで下がった。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。
