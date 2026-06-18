@@ -468,6 +468,7 @@ type BindContinuation<'a> =
 type BindStep<'a> = Rc<dyn Fn(&mut Runtime<'a>, bool, CapturedEnv) -> BindResult<'a> + 'a>;
 type BindValueStep<'a> = Rc<dyn Fn(&mut Runtime<'a>, Value, CapturedEnv) -> BindResult<'a> + 'a>;
 type BindResume<'a> = Rc<dyn Fn(&mut Runtime<'a>, Value) -> BindResult<'a> + 'a>;
+type RuntimeCatchArms = Rc<[RuntimeCatchArm]>;
 
 enum EvalResult<'a> {
     Value(Value),
@@ -503,6 +504,15 @@ struct BindRequest<'a> {
     carried_guard_ids: Vec<GuardId>,
     payload: Value,
     resume: BindResume<'a>,
+}
+
+#[derive(Clone)]
+struct RuntimeCatchArm {
+    operation_key: Option<InternedPath>,
+    pat: Pat,
+    continuation: Option<Pat>,
+    guard: Option<ExprId>,
+    body: ExprId,
 }
 
 fn value_result<'a>(value: Value) -> RuntimeResult<'a> {

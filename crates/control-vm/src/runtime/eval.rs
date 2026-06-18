@@ -3,6 +3,7 @@ use super::*;
 impl<'a> Runtime<'a> {
     pub(super) fn eval_expr(&mut self, expr: ExprId, env: &mut CapturedEnv) -> RuntimeResult<'a> {
         self.stats.expr_evals += 1;
+        let expr_id = expr;
         let expr = EvalExpr::from_expr(
             self.program
                 .exprs
@@ -129,7 +130,7 @@ impl<'a> Runtime<'a> {
                     })
                 })
             }
-            EvalExpr::Catch { body, arms } => self.eval_catch(body, arms, env),
+            EvalExpr::Catch { body, arms } => self.eval_catch(expr_id, body, arms, env),
             EvalExpr::Block(block) => self.eval_block(block, env),
         }
     }
@@ -539,23 +540,44 @@ impl<'a> Runtime<'a> {
 
     pub(super) fn eval_catch(
         &mut self,
+        expr: ExprId,
         body: ExprId,
         arms: Vec<CatchArm>,
         env: &mut CapturedEnv,
     ) -> RuntimeResult<'a> {
         let catch_env = env.clone();
+        let arms = self.prepare_catch_arms(expr, arms);
         let result = self.eval_expr(body, env)?;
         self.handle_catch_result(result, arms, catch_env)
+    }
+
+    fn prepare_catch_arms(&mut self, expr: ExprId, arms: Vec<CatchArm>) -> RuntimeCatchArms {
+        if let Some(arms) = self.catch_arms.get(&expr) {
+            return arms.clone();
+        }
+        let arms: RuntimeCatchArms = arms
+            .into_iter()
+            .map(|arm| RuntimeCatchArm {
+                operation_key: arm.operation_path.map(|path| self.intern_path(&path)),
+                pat: arm.pat,
+                continuation: arm.continuation,
+                guard: arm.guard,
+                body: arm.body,
+            })
+            .collect::<Vec<_>>()
+            .into();
+        self.catch_arms.insert(expr, arms.clone());
+        arms
     }
 
     pub(super) fn handle_catch_result(
         &mut self,
         result: EvalResult<'a>,
-        arms: Vec<CatchArm>,
+        arms: RuntimeCatchArms,
         env: CapturedEnv,
     ) -> RuntimeResult<'a> {
         match result {
-            EvalResult::Value(value) => self.handle_catch_value(value, &arms, &env),
+            EvalResult::Value(value) => self.handle_catch_value(value, arms, env),
             EvalResult::Request(request) => self.handle_catch_request(request, arms, env),
         }
     }
@@ -563,16 +585,16 @@ impl<'a> Runtime<'a> {
     pub(super) fn handle_catch_value(
         &mut self,
         value: Value,
-        arms: &[CatchArm],
-        env: &CapturedEnv,
+        arms: RuntimeCatchArms,
+        env: CapturedEnv,
     ) -> RuntimeResult<'a> {
-        self.handle_catch_value_arm(value, arms.to_vec(), env.clone(), 0)
+        self.handle_catch_value_arm(value, arms, env, 0)
     }
 
     pub(super) fn handle_catch_value_arm(
         &mut self,
         value: Value,
-        arms: Vec<CatchArm>,
+        arms: RuntimeCatchArms,
         env: CapturedEnv,
         index: usize,
     ) -> RuntimeResult<'a> {
@@ -581,7 +603,7 @@ impl<'a> Runtime<'a> {
         }
 
         let arm = arms[index].clone();
-        if arm.operation_path.is_some() {
+        if arm.operation_key.is_some() {
             return self.handle_catch_value_arm(value, arms, env, index + 1);
         }
 
@@ -619,7 +641,7 @@ impl<'a> Runtime<'a> {
     pub(super) fn handle_catch_request(
         &mut self,
         request: Request<'a>,
-        arms: Vec<CatchArm>,
+        arms: RuntimeCatchArms,
         env: CapturedEnv,
     ) -> RuntimeResult<'a> {
         self.handle_catch_request_arm(request, arms, env, 0)
@@ -628,18 +650,18 @@ impl<'a> Runtime<'a> {
     pub(super) fn handle_catch_request_arm(
         &mut self,
         request: Request<'a>,
-        arms: Vec<CatchArm>,
+        arms: RuntimeCatchArms,
         env: CapturedEnv,
         index: usize,
     ) -> RuntimeResult<'a> {
         if index < arms.len() {
             let arm = arms[index].clone();
-            let operation_path = arm.operation_path.as_ref();
-            let operation_key = operation_path.map(|path| self.intern_path(path));
-            let operation_matches = operation_key
+            let operation_matches = arm
+                .operation_key
                 .as_ref()
                 .is_some_and(|key| counted_path_eq(&mut self.stats, key, &request.path_key));
-            let skipped_guard = operation_key
+            let skipped_guard = arm
+                .operation_key
                 .as_ref()
                 .filter(|_| operation_matches)
                 .and_then(|key| self.request_guard_for_path(&request, key));
