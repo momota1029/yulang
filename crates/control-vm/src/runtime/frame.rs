@@ -264,7 +264,7 @@ pub(super) enum BindThen {
         body: ExprId,
     },
     Sequence {
-        entries: Vec<(Pat, Value)>,
+        remaining_reversed: Vec<(Pat, Value)>,
         then: Box<BindThen>,
     },
     Or {
@@ -1439,11 +1439,14 @@ impl<'a> Runtime<'a> {
                 }
                 self.finish_catch_request_match(request, arms, outer_env, index, env, guard, body)
             }
-            BindThen::Sequence { entries, then } => {
+            BindThen::Sequence {
+                remaining_reversed,
+                then,
+            } => {
                 if !matched {
                     return self.finish_bind(false, env, *then);
                 }
-                self.bind_pat_sequence(entries, env, *then)
+                self.bind_pat_sequence_reversed(remaining_reversed, env, *then)
             }
             BindThen::Or {
                 right,

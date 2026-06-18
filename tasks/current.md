@@ -207,6 +207,8 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      `examples/showcase.yu` は repeat 5 で 80〜84ms まで下がった。
      marked callee apply の call/resume marker 変換も shared fast path に載せ、
      `examples/showcase.yu` は repeat 5 で 73〜79ms まで下がった。
+     pattern bind sequence は reversed stack + `pop()` に変え、
+     `examples/showcase.yu` は repeat 5 で 73〜76ms に寄った。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。

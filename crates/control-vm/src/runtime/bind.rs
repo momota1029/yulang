@@ -196,16 +196,26 @@ impl<'a> Runtime<'a> {
         env: CapturedEnv,
         then: BindThen,
     ) -> RuntimeResult {
-        if entries.is_empty() {
+        entries.reverse();
+        self.bind_pat_sequence_reversed(entries, env, then)
+    }
+
+    pub(super) fn bind_pat_sequence_reversed(
+        &mut self,
+        mut remaining_reversed: Vec<(Pat, Value)>,
+        env: CapturedEnv,
+        then: BindThen,
+    ) -> RuntimeResult {
+        if remaining_reversed.is_empty() {
             return self.finish_bind(true, env, then);
         }
-        let (pat, value) = entries.remove(0);
+        let (pat, value) = remaining_reversed.pop().expect("checked sequence entry");
         self.bind_pat(
             pat,
             value,
             env,
             BindThen::Sequence {
-                entries,
+                remaining_reversed,
                 then: Box::new(then),
             },
         )
