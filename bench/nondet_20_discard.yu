@@ -1,0 +1,6 @@
+use std::control::nondet::*
+
+{
+    my xs = (each 1..20 + each 1..20).list
+    ()
+}

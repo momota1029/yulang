@@ -298,26 +298,29 @@ impl CapturedEnv {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct InternedPath {
-    segments: Rc<[u32]>,
+    id: u32,
+    len: usize,
+    prefix_ids: Rc<[u32]>,
 }
 
 impl InternedPath {
-    fn from_segments(segments: Vec<u32>) -> Self {
-        Self {
-            segments: Rc::from(segments),
+    fn has_prefix(&self, prefix: &Self) -> bool {
+        if prefix.len == 0 {
+            return true;
         }
-    }
-
-    fn segments(&self) -> &[u32] {
-        &self.segments
+        self.prefix_ids
+            .get(prefix.len - 1)
+            .is_some_and(|prefix_id| *prefix_id == prefix.id)
     }
 }
 
 #[derive(Debug, Default)]
 struct PathInterner {
     segments: HashMap<String, u32>,
+    paths: HashMap<Vec<u32>, u32>,
+    entries: Vec<InternedPathEntry>,
     next_segment: u32,
 }
 
@@ -326,8 +329,8 @@ impl PathInterner {
         let segments = path
             .iter()
             .map(|segment| self.intern_segment(segment))
-            .collect();
-        InternedPath::from_segments(segments)
+            .collect::<Vec<_>>();
+        self.intern_segments(&segments)
     }
 
     fn intern_segment(&mut self, segment: &str) -> u32 {
@@ -338,6 +341,44 @@ impl PathInterner {
         self.next_segment += 1;
         self.segments.insert(segment.to_string(), id);
         id
+    }
+
+    fn intern_segments(&mut self, segments: &[u32]) -> InternedPath {
+        if let Some(id) = self.paths.get(segments) {
+            return self.entries[*id as usize].to_path(*id);
+        }
+
+        let mut prefix_ids = Vec::with_capacity(segments.len());
+        for len in 1..segments.len() {
+            prefix_ids.push(self.intern_segments(&segments[..len]).id);
+        }
+
+        let id = self.entries.len() as u32;
+        prefix_ids.push(id);
+
+        let entry = InternedPathEntry {
+            len: segments.len(),
+            prefix_ids: Rc::from(prefix_ids),
+        };
+        self.paths.insert(segments.to_vec(), id);
+        self.entries.push(entry);
+        self.entries[id as usize].to_path(id)
+    }
+}
+
+#[derive(Debug)]
+struct InternedPathEntry {
+    len: usize,
+    prefix_ids: Rc<[u32]>,
+}
+
+impl InternedPathEntry {
+    fn to_path(&self, id: u32) -> InternedPath {
+        InternedPath {
+            id,
+            len: self.len,
+            prefix_ids: self.prefix_ids.clone(),
+        }
     }
 }
 
@@ -1041,30 +1082,12 @@ fn counted_path_has_prefix(
     prefix: &InternedPath,
 ) -> bool {
     stats.path_prefix_checks += 1;
-    if prefix.segments().len() > path.segments().len() {
-        return false;
-    }
-    for (segment, prefix) in path.segments().iter().zip(prefix.segments()) {
-        stats.path_prefix_segments += 1;
-        if segment != prefix {
-            return false;
-        }
-    }
-    true
+    path.has_prefix(prefix)
 }
 
 fn counted_path_eq(stats: &mut RuntimeStats, left: &InternedPath, right: &InternedPath) -> bool {
     stats.path_eq_checks += 1;
-    if left.segments().len() != right.segments().len() {
-        return false;
-    }
-    for (left, right) in left.segments().iter().zip(right.segments()) {
-        stats.path_eq_segments += 1;
-        if left != right {
-            return false;
-        }
-    }
-    true
+    left.id == right.id
 }
 
 fn path_has_str_prefix(path: &[String], prefix: &[&str]) -> bool {
