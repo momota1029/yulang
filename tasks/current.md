@@ -235,6 +235,10 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      その場で `apply_frame` するようにした。
      `examples/showcase.yu` は repeat 5 で 41〜44ms まで下がった。
      `active_marker_plans` に function-call marker を cache する案は悪化したため採用しない。
+     playground deploy 後に全 run が `unreachable` になった原因は、`control-vm` の timing が
+     wasm32-unknown-unknown で未実装の `std::time::Instant` を直接使っていたこと。
+     `control-vm::runtime::time` shim で wasm では zero-duration timing にし、
+     `wasm_bg-FqFJxbJK.wasm` を build / deploy 済み。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。

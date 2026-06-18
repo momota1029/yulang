@@ -3,7 +3,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::rc::Rc;
-use std::time::{Duration, Instant};
 
 use list_tree::{ListTree, ListView};
 use mono::{FunctionAdapterHygiene, Lit, PrimitiveContext, PrimitiveOp, Type};
@@ -25,12 +24,14 @@ mod eval;
 mod flow;
 mod frame;
 mod thunk;
+mod time;
 
 use engine::Runtime;
 use frame::{
     BindThen, Continuation, ContinuationMarkerScope, Frame, RefSetFinish, RefSetResumeMode,
     prepend_marker_scope, push_frame,
 };
+use time::{Duration, Instant};
 
 pub fn run_mono_program(program: &mono::Program) -> Result<Vec<Value>, RunError> {
     let program = lower(program).map_err(RunError::Lower)?;
