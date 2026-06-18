@@ -1,6 +1,25 @@
 use super::*;
 
 impl<'a> Runtime<'a> {
+    pub(super) fn apply_scoped_value(&mut self, callee: Value, arg: Value) -> RuntimeResult {
+        // Active hygiene markers are carried by the runtime stack while an
+        // expression is evaluated. Attach them only at source-level calls; pop
+        // and request boundaries still close over escaping values.
+        let Some(markers) = self.active_marker_plans.last().cloned() else {
+            return self.apply_value(callee, arg);
+        };
+        let markers = markers_for_function_call(markers);
+        if markers.is_empty() {
+            return self.apply_value(callee, arg);
+        }
+        match callee {
+            Value::Marked { .. } => self.apply_value(mark_value(callee, &markers), arg),
+            callee => {
+                self.with_marker_frame(markers, move |runtime| runtime.apply_value(callee, arg))
+            }
+        }
+    }
+
     pub(super) fn apply_value(&mut self, callee: Value, arg: Value) -> RuntimeResult {
         self.stats.apply_value_calls += 1;
         match callee {
@@ -191,23 +210,6 @@ impl<'a> Runtime<'a> {
                 request.carried_guard_ids.push(marker.id);
             }
         }
-    }
-
-    pub(super) fn mark_active_value(&mut self, value: Value) -> Value {
-        // Handler marker propagation follows the innermost active handler. Carrying outer
-        // markers into a nested handler would make the outer handler skip the same request.
-        let Some(markers) = self.active_marker_plans.last() else {
-            return value;
-        };
-        mark_value(value, markers)
-    }
-
-    pub(super) fn mark_active_created_value(&mut self, value: Value) -> Value {
-        let Some(markers) = self.active_marker_plans.last() else {
-            return value;
-        };
-        let markers = markers_for_created_value(markers, &value);
-        mark_value(value, &markers)
     }
 
     pub(super) fn request_guard_for_path(

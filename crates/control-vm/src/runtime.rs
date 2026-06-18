@@ -980,13 +980,6 @@ fn shared_markers(markers: Vec<ValueMarker>) -> SharedMarkers {
     Rc::from(markers)
 }
 
-fn markers_for_created_value(markers: &[ValueMarker], value: &Value) -> Vec<ValueMarker> {
-    if !value_is_thunk_like(value) {
-        return markers_for_value(markers);
-    }
-    markers_for_value(markers)
-}
-
 fn stack_handler_markers(
     id: GuardId,
     path: Vec<String>,

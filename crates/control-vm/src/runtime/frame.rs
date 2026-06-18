@@ -508,8 +508,8 @@ impl<'a> Runtime<'a> {
             Frame::AdaptValue { source, target } => self.adapt_value(value, &source, &target),
             Frame::WrapThunkValue => value_result(Value::Thunk(Thunk::Value(Box::new(value)))),
             Frame::ForceValueIfThunk => self.force_value_if_thunk(value),
-            Frame::ApplyForcedThunk { arg } => self.apply_value(value, arg),
-            Frame::ApplyArg { callee } => self.apply_value(callee, value),
+            Frame::ApplyForcedThunk { arg } => self.apply_scoped_value(value, arg),
+            Frame::ApplyArg { callee } => self.apply_scoped_value(callee, value),
             Frame::ApplyCallee { arg, env } => {
                 let mut env = env;
                 let arg = self.eval_expr(arg, &mut env)?;
@@ -587,14 +587,12 @@ impl<'a> Runtime<'a> {
                 source,
                 target,
                 hygiene,
-            } => value_result(self.mark_active_created_value(Value::FunctionAdapter(
-                FunctionAdapter {
-                    source,
-                    target,
-                    function: Box::new(value),
-                    hygiene,
-                },
-            ))),
+            } => value_result(Value::FunctionAdapter(FunctionAdapter {
+                source,
+                target,
+                function: Box::new(value),
+                hygiene,
+            })),
             Frame::MarkerScope {
                 resume_markers,
                 activate_add_ids,
@@ -655,7 +653,7 @@ impl<'a> Runtime<'a> {
             }
             Frame::RefSetForcedValue { reference } => {
                 let update_effect = self.project_record_field(reference, "update_effect")?;
-                let result = self.apply_value(update_effect, Value::Unit)?;
+                let result = self.apply_scoped_value(update_effect, Value::Unit)?;
                 self.handle_ref_set_result(result, value)
             }
             Frame::RefSetResolvedUnit => value_result(Value::Unit),

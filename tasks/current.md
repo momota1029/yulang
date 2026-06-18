@@ -91,8 +91,17 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      さらに active guard / add-id stack は同一 marker を重複して積まない。
      これで `showcase` の `instance_eval_calls` は 17k 台から 139、
      `apply_value_calls` は 66k 台から 39k 台へ落ちた。
-     ただし `marker_frame_*` と request resume がまだ太いため、旧 VM 速度へ近づけるには
-     guard / lookup stack を値 wrapper ではなく continuation / closure state へ寄せる次 slice が必要。
+   - hygiene marker は local / instance read や closure / thunk 作成時に毎回 value wrapper へ
+     包むのをやめ、runtime stack の active marker weight として持ち回す形へ寄せた。
+     source-level call 境界だけ `apply_scoped_value` で marker を適用し、
+     pop / request 境界は既存の close 処理で escaping value / continuation に閉じ込める。
+     これで `bench/nondet_20_discard.yu` の `vm_eval` は 198ms 前後、
+     `examples/showcase.yu` は 273〜293ms 程度まで落ちた。
+     ただし `marker_frame_calls` は showcase で 109784、
+     `request_resume_steps` は 133872 あり、まだ太い。
+     旧 VM 速度へ近づける次 slice は、guard / lookup stack を
+     closure / thunk / continuation state へさらに寄せ、per-call marker frame と
+     request resume の再導入を減らすこと。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。

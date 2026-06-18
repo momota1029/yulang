@@ -18,15 +18,13 @@ impl<'a> Runtime<'a> {
             }
             EvalExpr::EffectOp { path } => value_result(Value::EffectOp { path }),
             EvalExpr::Local(def) => value_result(
-                self.mark_active_value(
-                    env.get(def)
-                        .cloned()
-                        .ok_or(RuntimeError::UnboundLocal { def })?,
-                ),
+                env.get(def)
+                    .cloned()
+                    .ok_or(RuntimeError::UnboundLocal { def })?,
             ),
             EvalExpr::InstanceRef(instance) => {
                 let value = self.eval_instance(instance)?;
-                value_result(self.mark_active_value(value))
+                value_result(value)
             }
             EvalExpr::Coerce {
                 source,
@@ -36,12 +34,10 @@ impl<'a> Runtime<'a> {
                 let result = self.eval_expr(expr, env)?;
                 self.continue_with_frame(result, Frame::Coerce { source, target })
             }
-            EvalExpr::MakeThunk { body } => {
-                value_result(self.mark_active_created_value(Value::Thunk(Thunk::Expr {
-                    body,
-                    env: env.clone(),
-                })))
-            }
+            EvalExpr::MakeThunk { body } => value_result(Value::Thunk(Thunk::Expr {
+                body,
+                env: env.clone(),
+            })),
             EvalExpr::ForceThunk {
                 target_value,
                 thunk,
@@ -103,13 +99,11 @@ impl<'a> Runtime<'a> {
             EvalExpr::RefSet { reference, value } => {
                 self.eval_ref_set(reference, value, env.clone())
             }
-            EvalExpr::Lambda { param, body } => {
-                value_result(self.mark_active_created_value(Value::Closure(Closure {
-                    param,
-                    body,
-                    env: env.clone(),
-                })))
-            }
+            EvalExpr::Lambda { param, body } => value_result(Value::Closure(Closure {
+                param,
+                body,
+                env: env.clone(),
+            })),
             EvalExpr::Tuple(items) => self.eval_tuple(items, env.clone()),
             EvalExpr::Record { fields, spread } => self.eval_record(fields, spread, env.clone()),
             EvalExpr::PolyVariant { tag, payloads } => {
@@ -249,10 +243,10 @@ impl<'a> Runtime<'a> {
             .map(|instance| instance.entry)
             .ok_or(RuntimeError::MissingInstance { instance })?;
         match self.direct_known_callee_entry(entry) {
-            Some(callee) => self.apply_direct_known_callee(callee, arg),
+            Some(callee) => self.apply_direct_known_callee_scoped(callee, arg),
             None => {
                 let method = self.eval_instance(instance)?;
-                self.apply_value(method, arg)
+                self.apply_scoped_value(method, arg)
             }
         }
     }
@@ -267,16 +261,7 @@ impl<'a> Runtime<'a> {
         let mut arg_env = env;
         let result = self.eval_expr(arg, &mut arg_env)?;
         match result {
-            EvalResult::Value(arg) => {
-                if let Some(markers) = active_markers {
-                    let call_markers = markers_for_function_call(markers);
-                    self.with_marker_frame(call_markers, move |runtime| {
-                        runtime.apply_direct_known_callee(callee, arg)
-                    })
-                } else {
-                    self.apply_direct_known_callee(callee, arg)
-                }
-            }
+            EvalResult::Value(arg) => self.apply_direct_known_callee_scoped(callee, arg),
             EvalResult::Request(request) => Ok(EvalResult::Request(push_frame(
                 request,
                 Frame::ApplyArg {
@@ -287,6 +272,23 @@ impl<'a> Runtime<'a> {
                 },
             ))),
         }
+    }
+
+    fn apply_direct_known_callee_scoped(
+        &mut self,
+        callee: DirectKnownCallee,
+        arg: Value,
+    ) -> RuntimeResult {
+        let Some(markers) = self.active_marker_plans.last().cloned() else {
+            return self.apply_direct_known_callee(callee, arg);
+        };
+        let markers = markers_for_function_call(markers);
+        if markers.is_empty() {
+            return self.apply_direct_known_callee(callee, arg);
+        }
+        self.with_marker_frame(markers, move |runtime| {
+            runtime.apply_direct_known_callee(callee, arg)
+        })
     }
 
     fn apply_direct_known_callee(
