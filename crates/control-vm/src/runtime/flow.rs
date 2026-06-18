@@ -368,7 +368,7 @@ impl<'a> Runtime<'a> {
         self.close_marker_frame_result(result?, markers, activate_add_ids, handler_key)
     }
 
-    pub(super) fn with_shared_marker_plan(
+    pub(super) fn with_shared_resume_marker_plan(
         &mut self,
         markers: SharedMarkers,
         activate_add_ids: bool,
@@ -390,7 +390,12 @@ impl<'a> Runtime<'a> {
         let result = run(self);
         self.pop_marker_frame(guard_len, frame_len, add_id_len, plan_len);
 
-        self.close_shared_marker_frame_result(result?, markers, activate_add_ids, handler_key)
+        self.close_shared_resume_marker_frame_result(
+            result?,
+            markers,
+            activate_add_ids,
+            handler_key,
+        )
     }
 
     pub(super) fn push_marker_frame(
@@ -451,7 +456,7 @@ impl<'a> Runtime<'a> {
         }
     }
 
-    pub(super) fn close_shared_marker_frame_result(
+    pub(super) fn close_shared_resume_marker_frame_result(
         &mut self,
         result: EvalResult<'a>,
         markers: SharedMarkers,
@@ -465,8 +470,10 @@ impl<'a> Runtime<'a> {
             }
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;
-                let resume_markers = shared_markers(markers_for_continuation_resume(&markers));
-                self.close_marker_request(request, resume_markers, activate_add_ids, handler_key)
+                // Shared resume marker plans are created after
+                // `markers_for_continuation_resume`; reusing them avoids
+                // re-normalizing the same multi-shot continuation path.
+                self.close_marker_request(request, markers, activate_add_ids, handler_key)
             }
         }
     }
@@ -488,7 +495,7 @@ impl<'a> Runtime<'a> {
             resume: Rc::new(move |runtime, value| {
                 runtime.stats.marker_frame_resume_steps += 1;
                 let resume = resume.clone();
-                runtime.with_shared_marker_plan(
+                runtime.with_shared_resume_marker_plan(
                     resume_markers.clone(),
                     activate_add_ids,
                     handler_key.clone(),
