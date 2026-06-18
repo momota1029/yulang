@@ -194,10 +194,10 @@ impl<'a> Runtime<'a> {
         let (value, markers) = into_value_markers(value);
         match value {
             Value::Record(fields) => Ok(fields
-                .into_iter()
+                .iter()
                 .map(|field| ValueField {
-                    name: field.name,
-                    value: mark_value(field.value, &markers),
+                    name: field.name.clone(),
+                    value: mark_value(field.value.clone(), &markers),
                 })
                 .collect()),
             value => Err(RuntimeError::ExpectedRecord { value }),

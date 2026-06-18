@@ -218,7 +218,7 @@ pub(super) enum Frame {
         pat: Pat,
         fields: Vec<RecordPatField>,
         spread: RecordSpread<DefId>,
-        record_fields: Vec<ValueField>,
+        record_fields: SharedValueFields,
         markers: Vec<ValueMarker>,
         used: HashSet<usize>,
         env: CapturedEnv,
@@ -281,7 +281,7 @@ pub(super) enum BindThen {
     RecordField {
         fields: Vec<RecordPatField>,
         spread: RecordSpread<DefId>,
-        record_fields: Vec<ValueField>,
+        record_fields: SharedValueFields,
         markers: Vec<ValueMarker>,
         used: HashSet<usize>,
         then: Box<BindThen>,
@@ -1151,7 +1151,7 @@ impl<'a> Runtime<'a> {
             }
             Frame::RecordTailSpread { mut fields } => {
                 fields.extend(self.expect_record(value)?);
-                value_result(Value::Record(fields))
+                value_result(Value::Record(shared_value_fields(fields)))
             }
             Frame::RecordField {
                 record,

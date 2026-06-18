@@ -369,9 +369,13 @@ impl<'a> Runtime<'a> {
                 let resolved = self.resolve_ref_set_value(*value, assigned)?;
                 self.continue_with_frame(resolved, Frame::MarkValue { markers })
             }
-            Value::Tuple(items) => {
-                self.resolve_ref_set_values(items, assigned, Vec::new(), 0, RefSetFinish::Tuple)
-            }
+            Value::Tuple(items) => self.resolve_ref_set_values(
+                items.iter().cloned().collect(),
+                assigned,
+                Vec::new(),
+                0,
+                RefSetFinish::Tuple,
+            ),
             Value::List(items) => self.resolve_ref_set_values(
                 items
                     .to_vec()
@@ -383,16 +387,21 @@ impl<'a> Runtime<'a> {
                 0,
                 RefSetFinish::List,
             ),
-            Value::Record(fields) => self.resolve_ref_set_fields(fields, assigned, Vec::new(), 0),
+            Value::Record(fields) => self.resolve_ref_set_fields(
+                fields.iter().cloned().collect(),
+                assigned,
+                Vec::new(),
+                0,
+            ),
             Value::PolyVariant { tag, payloads } => self.resolve_ref_set_values(
-                payloads,
+                payloads.iter().cloned().collect(),
                 assigned,
                 Vec::new(),
                 0,
                 RefSetFinish::PolyVariant { tag },
             ),
             Value::DataConstructor { def, payloads } => self.resolve_ref_set_values(
-                payloads,
+                payloads.iter().cloned().collect(),
                 assigned,
                 Vec::new(),
                 0,
@@ -438,7 +447,7 @@ impl<'a> Runtime<'a> {
         index: usize,
     ) -> RuntimeResult {
         if index >= fields.len() {
-            return value_result(Value::Record(out));
+            return value_result(Value::Record(shared_value_fields(out)));
         }
         let field = fields[index].clone();
         let resolved = self.resolve_ref_set_value(field.value, assigned.clone())?;
@@ -487,7 +496,7 @@ impl<'a> Runtime<'a> {
         index: usize,
     ) -> RuntimeResult {
         let Some(value) = self.record_field_value(record, index)? else {
-            return value_result(Value::Record(values));
+            return value_result(Value::Record(shared_value_fields(values)));
         };
 
         let mut field_env = env.clone();
@@ -515,7 +524,7 @@ impl<'a> Runtime<'a> {
         index: usize,
     ) -> RuntimeResult {
         let Some(item) = self.tuple_item(tuple, index)? else {
-            return value_result(Value::Tuple(values));
+            return value_result(Value::Tuple(shared_values(values)));
         };
         let mut item_env = env.clone();
         let result = self.eval_expr(item, &mut item_env)?;
@@ -544,7 +553,7 @@ impl<'a> Runtime<'a> {
         let Some(payload) = self.poly_variant_payload(variant, index)? else {
             return value_result(Value::PolyVariant {
                 tag: self.poly_variant_tag(variant)?.to_string(),
-                payloads: values,
+                payloads: shared_values(values),
             });
         };
         let mut payload_env = env.clone();

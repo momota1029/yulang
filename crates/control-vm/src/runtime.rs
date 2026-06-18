@@ -204,16 +204,16 @@ pub enum Value {
     Str(String),
     Bool(bool),
     Unit,
-    Tuple(Vec<Value>),
+    Tuple(SharedValues),
     List(ListTree<Rc<Value>>),
-    Record(Vec<ValueField>),
+    Record(SharedValueFields),
     PolyVariant {
         tag: String,
-        payloads: Vec<Value>,
+        payloads: SharedValues,
     },
     DataConstructor {
         def: DefId,
-        payloads: Vec<Value>,
+        payloads: SharedValues,
     },
     ConstructorFunction(ConstructorFunction),
     PrimitiveOp(PrimitiveValue),
@@ -612,6 +612,8 @@ type RuntimeBlockStmts = Rc<[Stmt]>;
 type RuntimeCaseArms = Rc<[CaseArm]>;
 type RuntimeCatchArms = Rc<[RuntimeCatchArm]>;
 type SharedFrame = Rc<Frame>;
+type SharedValues = Rc<[Value]>;
+type SharedValueFields = Rc<[ValueField]>;
 type SharedMarkerScopes = Rc<[ContinuationMarkerScope]>;
 type SharedMarkers = Rc<[ValueMarker]>;
 
@@ -674,7 +676,7 @@ fn constructor_value(def: DefId, arity: usize, args: Vec<Value>) -> Value {
     if args.len() >= arity {
         return Value::DataConstructor {
             def,
-            payloads: args,
+            payloads: shared_values(args),
         };
     }
     Value::ConstructorFunction(ConstructorFunction { def, arity, args })
@@ -874,15 +876,15 @@ fn apply_primitive(
 
 fn finish_ref_set_values(finish: RefSetFinish, values: Vec<Value>) -> Value {
     match finish {
-        RefSetFinish::Tuple => Value::Tuple(values),
+        RefSetFinish::Tuple => Value::Tuple(shared_values(values)),
         RefSetFinish::List => Value::List(ListTree::from_items(values.into_iter().map(Rc::new))),
         RefSetFinish::PolyVariant { tag } => Value::PolyVariant {
             tag,
-            payloads: values,
+            payloads: shared_values(values),
         },
         RefSetFinish::DataConstructor { def } => Value::DataConstructor {
             def,
-            payloads: values,
+            payloads: shared_values(values),
         },
     }
 }
@@ -896,15 +898,15 @@ fn apply_list_view_raw(context: &PrimitiveContext, value: &Value) -> Result<Valu
     match expect_list(value)?.view() {
         ListView::Empty => Ok(Value::DataConstructor {
             def: DefId(constructors.empty.0),
-            payloads: Vec::new(),
+            payloads: shared_values(Vec::new()),
         }),
         ListView::Leaf(value) => Ok(Value::DataConstructor {
             def: DefId(constructors.leaf.0),
-            payloads: vec![(*value).clone()],
+            payloads: shared_values(vec![(*value).clone()]),
         }),
         ListView::Node { left, right, .. } => Ok(Value::DataConstructor {
             def: DefId(constructors.node.0),
-            payloads: vec![Value::List(left), Value::List(right)],
+            payloads: shared_values(vec![Value::List(left), Value::List(right)]),
         }),
     }
 }
@@ -1000,7 +1002,7 @@ fn value_equivalent(left: &Value, right: &Value) -> bool {
             left.len() == right.len()
                 && left
                     .iter()
-                    .zip(right)
+                    .zip(right.iter())
                     .all(|(left, right)| value_equivalent(left, right))
         }
         (
@@ -1017,12 +1019,12 @@ fn value_equivalent(left: &Value, right: &Value) -> bool {
                 && left_payloads.len() == right_payloads.len()
                 && left_payloads
                     .iter()
-                    .zip(right_payloads)
+                    .zip(right_payloads.iter())
                     .all(|(left, right)| value_equivalent(left, right))
         }
         (Value::Record(left), Value::Record(right)) => {
             left.len() == right.len()
-                && left.iter().zip(right).all(|(left, right)| {
+                && left.iter().zip(right.iter()).all(|(left, right)| {
                     left.name == right.name && value_equivalent(&left.value, &right.value)
                 })
         }
@@ -1133,6 +1135,14 @@ fn markers_for_continuation_resume_is_identity(markers: &[ValueMarker]) -> bool 
 
 fn shared_markers(markers: Vec<ValueMarker>) -> SharedMarkers {
     Rc::from(markers)
+}
+
+fn shared_values(values: Vec<Value>) -> SharedValues {
+    Rc::from(values.into_boxed_slice())
+}
+
+fn shared_value_fields(fields: Vec<ValueField>) -> SharedValueFields {
+    Rc::from(fields.into_boxed_slice())
 }
 
 fn shared_block_stmts(stmts: &[Stmt]) -> RuntimeBlockStmts {

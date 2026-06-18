@@ -31,7 +31,7 @@ impl<'a> Runtime<'a> {
                 }
                 let entries = pats
                     .into_iter()
-                    .zip(values)
+                    .zip(values.iter())
                     .map(|(pat, value)| (pat, mark_value(value.clone(), &markers)))
                     .collect();
                 self.bind_pat_sequence(entries, env, then)
@@ -81,7 +81,7 @@ impl<'a> Runtime<'a> {
                 }
                 let entries = payload_pats
                     .into_iter()
-                    .zip(payloads)
+                    .zip(payloads.iter())
                     .map(|(pat, value)| (pat, mark_value(value.clone(), &markers)))
                     .collect();
                 self.bind_pat_sequence(entries, env, then)
@@ -99,7 +99,7 @@ impl<'a> Runtime<'a> {
                 }
                 let entries = payload_pats
                     .into_iter()
-                    .zip(payloads)
+                    .zip(payloads.iter())
                     .map(|(pat, value)| (pat, mark_value(value.clone(), &markers)))
                     .collect();
                 self.bind_pat_sequence(entries, env, then)
@@ -215,7 +215,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         mut fields: Vec<RecordPatField>,
         spread: RecordSpread<DefId>,
-        record_fields: Vec<ValueField>,
+        record_fields: SharedValueFields,
         markers: Vec<ValueMarker>,
         used: HashSet<usize>,
         env: CapturedEnv,
@@ -270,7 +270,7 @@ impl<'a> Runtime<'a> {
         value: Value,
         fields: Vec<RecordPatField>,
         spread: RecordSpread<DefId>,
-        record_fields: Vec<ValueField>,
+        record_fields: SharedValueFields,
         markers: Vec<ValueMarker>,
         used: HashSet<usize>,
         env: CapturedEnv,
@@ -294,7 +294,7 @@ impl<'a> Runtime<'a> {
     pub(super) fn bind_record_spread(
         &mut self,
         spread: RecordSpread<DefId>,
-        record_fields: Vec<ValueField>,
+        record_fields: SharedValueFields,
         markers: Vec<ValueMarker>,
         used: HashSet<usize>,
         env: CapturedEnv,
@@ -314,7 +314,7 @@ impl<'a> Runtime<'a> {
             })
             .collect();
         let mut env = env;
-        let stats = env.insert(def, Value::Record(captured));
+        let stats = env.insert(def, Value::Record(shared_value_fields(captured)));
         self.record_env_insert(stats);
         self.finish_bind(true, env, then)
     }
