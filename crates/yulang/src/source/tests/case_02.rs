@@ -438,9 +438,9 @@ fn run_control_source_text_with_embedded_playground_std_runs_arithmetic() {
         build_control_from_source_text_with_embedded_playground_std("playground.yu", "1 + 2\n")
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
+    let output = run_built_control_on_vm_test_stack(build);
 
-    assert_eq!(output.text, "run roots [3]\n");
+    assert_eq!(output.0, "run roots [3]\n");
 }
 
 #[test]
@@ -449,9 +449,9 @@ fn run_control_source_text_with_embedded_playground_std_runs_mixed_numeric_add()
         build_control_from_source_text_with_embedded_playground_std("playground.yu", "1 + 1.2\n")
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
+    let output = run_built_control_on_vm_test_stack(build);
 
-    assert_eq!(output.text, "run roots [2.2]\n");
+    assert_eq!(output.0, "run roots [2.2]\n");
 }
 
 #[test]
@@ -464,9 +464,9 @@ std::num::frac::new 4 2
         build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
+    let output = run_built_control_on_vm_test_stack(build);
 
-    assert_eq!(output.text, "run roots [3/2, 2]\n");
+    assert_eq!(output.0, "run roots [3/2, 2]\n");
 }
 
 #[test]
@@ -481,9 +481,9 @@ point { x: 3, y: 4 } .norm2 + 1.12
         build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
+    let output = run_built_control_on_vm_test_stack(build);
 
-    assert_eq!(output.text, "run roots [26.12]\n");
+    assert_eq!(output.0, "run roots [26.12]\n");
 }
 
 #[test]
@@ -500,9 +500,9 @@ fn run_control_source_text_with_embedded_playground_std_runs_local_change_exampl
         build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
+    let output = run_built_control_on_vm_test_stack(build);
 
-    assert_eq!(output.text, "run roots [15]\n");
+    assert_eq!(output.0, "run roots [15]\n");
 }
 
 #[test]
@@ -522,9 +522,9 @@ fn run_control_source_text_with_embedded_playground_std_runs_list_update_example
         build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
+    let output = run_built_control_on_vm_test_stack(build);
 
-    assert_eq!(output.text, "run roots [[2, 6, 4]]\n");
+    assert_eq!(output.0, "run roots [[2, 6, 4]]\n");
 }
 
 #[test]
@@ -545,26 +545,16 @@ fn typed_playground_std_prefix_matches_loaded_route_for_list_update() {
     let loaded_poly = build_poly_from_loaded_files(loaded).unwrap();
     let loaded_build = build_control_from_poly_output(&loaded_poly).unwrap();
     assert!(loaded_build.errors.is_empty(), "{:?}", loaded_build.errors);
-    let loaded_output = run_built_control_program(
-        &loaded_build.program,
-        loaded_build.file_count,
-        loaded_build.errors,
-    )
-    .unwrap();
+    let loaded_output = run_built_control_on_vm_test_stack(loaded_build);
 
     let cached_build =
         build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
             .unwrap();
     assert!(cached_build.errors.is_empty(), "{:?}", cached_build.errors);
-    let cached_output = run_built_control_program(
-        &cached_build.program,
-        cached_build.file_count,
-        cached_build.errors,
-    )
-    .unwrap();
+    let cached_output = run_built_control_on_vm_test_stack(cached_build);
 
-    assert_eq!(cached_output.text, loaded_output.text);
-    assert_eq!(cached_output.stdout, loaded_output.stdout);
+    assert_eq!(cached_output.0, loaded_output.0);
+    assert_eq!(cached_output.1, loaded_output.1);
 }
 
 #[test]
@@ -580,9 +570,9 @@ first_over 40
         build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
-    let output = run_built_control_program(&build.program, build.file_count, build.errors).unwrap();
+    let output = run_built_control_on_vm_test_stack(build);
 
-    assert_eq!(output.text, "run roots [7]\n");
+    assert_eq!(output.0, "run roots [7]\n");
 }
 
 #[test]
@@ -618,26 +608,32 @@ fn run_control_source_text_with_embedded_std_imports_prelude_reexports() {
 
 #[test]
 fn run_control_source_text_with_embedded_std_runs_junction_tour_example() {
-    let output = run_control_from_source_text_with_embedded_std(
-        "playground.yu",
-        "if all [1, 2, 3] < any [2, 3, 4]:\n  1\nelse:\n  0\n",
-    )
-    .unwrap();
+    let output = run_with_vm_test_stack(|| {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "if all [1, 2, 3] < any [2, 3, 4]:\n  1\nelse:\n  0\n",
+        )
+        .unwrap();
+        (output.file_count, output.text)
+    });
 
-    assert_eq!(output.file_count, embedded_std_files().len() + 1);
-    assert_eq!(output.text, "run roots [1]\n");
+    assert_eq!(output.0, embedded_std_files().len() + 1);
+    assert_eq!(output.1, "run roots [1]\n");
 }
 
 #[test]
 fn run_control_source_text_with_embedded_std_keeps_std_instances_unmarked_between_roots() {
-    let output = run_control_from_source_text_with_embedded_std(
-        "playground.yu",
-        "{\n  my a = each 1..3\n  a\n}.list\nif all [1, 2, 3] < any [3, 4, 5]:\n  1\nelse:\n  0\n",
-    )
-    .unwrap();
+    let output = run_with_vm_test_stack(|| {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "{\n  my a = each 1..3\n  a\n}.list\nif all [1, 2, 3] < any [3, 4, 5]:\n  1\nelse:\n  0\n",
+        )
+        .unwrap();
+        (output.file_count, output.text)
+    });
 
-    assert_eq!(output.file_count, embedded_std_files().len() + 1);
-    assert_eq!(output.text, "run roots [[1, 2, 3], 1]\n");
+    assert_eq!(output.0, embedded_std_files().len() + 1);
+    assert_eq!(output.1, "run roots [[1, 2, 3], 1]\n");
 }
 
 #[test]
@@ -654,19 +650,14 @@ fn run_control_source_text_with_embedded_std_forces_effectful_block_let() {
 
 #[test]
 fn run_control_source_text_with_embedded_std_runs_nondet_triples() {
-    let output = std::thread::Builder::new()
-            .stack_size(16 * 1024 * 1024)
-            .spawn(|| {
-                let output = run_control_from_source_text_with_embedded_std(
-                    "playground.yu",
-                    "{\n  my a = each 1..15\n  my b = each a..15\n  my c = each b..15\n  guard: a * a + b * b == c * c\n  (a, b, c)\n}.list\n",
-                )
-                .unwrap();
-                (output.file_count, output.text)
-            })
-            .unwrap()
-            .join()
-            .unwrap();
+    let output = run_with_vm_test_stack(|| {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "{\n  my a = each 1..15\n  my b = each a..15\n  my c = each b..15\n  guard: a * a + b * b == c * c\n  (a, b, c)\n}.list\n",
+        )
+        .unwrap();
+        (output.file_count, output.text)
+    });
 
     assert_eq!(output.0, embedded_std_files().len() + 1);
     assert_eq!(
@@ -677,14 +668,17 @@ fn run_control_source_text_with_embedded_std_runs_nondet_triples() {
 
 #[test]
 fn run_control_source_text_with_embedded_std_runs_nondet_once_triple() {
-    let output = run_control_from_source_text_with_embedded_std(
+    let output = run_with_vm_test_stack(|| {
+        let output = run_control_from_source_text_with_embedded_std(
             "playground.yu",
             "({\n  my a = each 1..\n  my b = each a<..\n  my c = each b<..\n  guard: a * a + b * b == c * c\n  (a, b, c)\n} .once).show\n",
         )
         .unwrap();
+        (output.file_count, output.text)
+    });
 
-    assert_eq!(output.file_count, embedded_std_files().len() + 1);
-    assert_eq!(output.text, "run roots [\"just (3, 4, 5)\"]\n");
+    assert_eq!(output.0, embedded_std_files().len() + 1);
+    assert_eq!(output.1, "run roots [\"just (3, 4, 5)\"]\n");
 }
 
 #[cfg(unix)]

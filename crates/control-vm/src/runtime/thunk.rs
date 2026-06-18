@@ -6,7 +6,7 @@ impl<'a> Runtime<'a> {
         value: Value,
         source: &Type,
         target: &Type,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         if equivalent_runtime_types(source, target) || matches!(target, Type::Any) {
             return value_result(value);
         }
@@ -32,17 +32,19 @@ impl<'a> Runtime<'a> {
                 let source_value = thunk_value_type(source).unwrap_or(source).clone();
                 let target = target.clone();
                 let value = self.force_thunk(value)?;
-                self.continue_with(value, move |runtime, value| {
-                    runtime.adapt_value(value, &source_value, &target)
-                })
+                self.continue_with_frame(
+                    value,
+                    Frame::AdaptValue {
+                        source: source_value,
+                        target,
+                    },
+                )
             }
             (source, Type::Thunk { .. }) => {
                 let target_value = thunk_value_type(target).unwrap_or(target).clone();
                 let source = source.clone();
                 let value = self.adapt_value(value, &source, &target_value)?;
-                self.continue_with(value, |_, value| {
-                    value_result(Value::Thunk(Thunk::Value(Box::new(value))))
-                })
+                self.continue_with_frame(value, Frame::WrapThunkValue)
             }
             (Type::Fun { .. }, Type::Fun { .. }) => {
                 value_result(Value::FunctionAdapter(FunctionAdapter {
@@ -67,7 +69,7 @@ impl<'a> Runtime<'a> {
         }
     }
 
-    pub(super) fn force_thunk(&mut self, thunk: Value) -> RuntimeResult<'a> {
+    pub(super) fn force_thunk(&mut self, thunk: Value) -> RuntimeResult {
         self.stats.force_thunk_calls += 1;
         match thunk {
             Value::Marked { value, markers } => {
@@ -94,8 +96,8 @@ impl<'a> Runtime<'a> {
                     .cloned()
                     .ok_or(RuntimeError::MissingContinuation { id })?;
                 self.stats.continuation_invocations += 1;
-                let result = resume(self, *arg)?;
-                self.continue_with(result, |runtime, value| runtime.force_value_if_thunk(value))
+                let result = self.resume(resume, *arg)?;
+                self.continue_with_frame(result, Frame::ForceValueIfThunk)
             }
             Value::Thunk(Thunk::Adapter {
                 source,
@@ -104,183 +106,20 @@ impl<'a> Runtime<'a> {
             }) => {
                 self.stats.force_adapter_calls += 1;
                 let value = self.force_thunk(*thunk)?;
-                self.continue_with(value, move |runtime, value| {
-                    runtime.adapt_value(value, &source, &target)
-                })
+                self.continue_with_frame(value, Frame::AdaptValue { source, target })
             }
             value => Err(RuntimeError::NotThunk { value }),
         }
     }
 
-    pub(super) fn continue_with(
-        &mut self,
-        result: EvalResult<'a>,
-        continuation: impl Fn(&mut Runtime<'a>, Value) -> RuntimeResult<'a> + 'a,
-    ) -> RuntimeResult<'a> {
-        match result {
-            EvalResult::Value(value) => {
-                self.stats.continue_with_values += 1;
-                continuation(self, value)
-            }
-            EvalResult::Request(request) => {
-                self.continue_with_request(request, Rc::new(continuation))
-            }
-        }
-    }
-
-    pub(super) fn continue_with_rc(
-        &mut self,
-        result: EvalResult<'a>,
-        continuation: Continuation<'a>,
-    ) -> RuntimeResult<'a> {
-        match result {
-            EvalResult::Value(value) => {
-                self.stats.continue_with_values += 1;
-                continuation(self, value)
-            }
-            EvalResult::Request(request) => self.continue_with_request(request, continuation),
-        }
-    }
-
-    fn continue_with_request(
-        &mut self,
-        request: Request<'a>,
-        continuation: Continuation<'a>,
-    ) -> RuntimeResult<'a> {
-        self.stats.continue_with_requests += 1;
-        let request_resume = request.resume.clone();
-        Ok(EvalResult::Request(Request {
-            path: request.path,
-            path_key: request.path_key,
-            guard_ids: request.guard_ids,
-            carried_guard_ids: request.carried_guard_ids,
-            payload: request.payload,
-            resume: Rc::new(move |runtime, value| {
-                runtime.stats.request_resume_steps += 1;
-                let resumed = request_resume(runtime, value)?;
-                runtime.continue_with_rc(resumed, continuation.clone())
-            }),
-        }))
-    }
-
-    pub(super) fn continue_bind(
-        &mut self,
-        result: BindEvalResult<'a>,
-        continuation: impl Fn(&mut Runtime<'a>, bool, CapturedEnv) -> RuntimeResult<'a> + 'a,
-    ) -> RuntimeResult<'a> {
-        match result {
-            BindEvalResult::Done { matched, env } => {
-                self.stats.continue_bind_values += 1;
-                continuation(self, matched, env)
-            }
-            BindEvalResult::Request(request) => {
-                self.continue_bind_request(request, Rc::new(continuation))
-            }
-        }
-    }
-
-    pub(super) fn continue_bind_rc(
-        &mut self,
-        result: BindEvalResult<'a>,
-        continuation: BindContinuation<'a>,
-    ) -> RuntimeResult<'a> {
-        match result {
-            BindEvalResult::Done { matched, env } => {
-                self.stats.continue_bind_values += 1;
-                continuation(self, matched, env)
-            }
-            BindEvalResult::Request(request) => self.continue_bind_request(request, continuation),
-        }
-    }
-
-    fn continue_bind_request(
-        &mut self,
-        request: BindRequest<'a>,
-        continuation: BindContinuation<'a>,
-    ) -> RuntimeResult<'a> {
-        self.stats.continue_bind_requests += 1;
-        let request_resume = request.resume.clone();
-        Ok(EvalResult::Request(Request {
-            path: request.path,
-            path_key: request.path_key,
-            guard_ids: request.guard_ids,
-            carried_guard_ids: request.carried_guard_ids,
-            payload: request.payload,
-            resume: Rc::new(move |runtime, value| {
-                runtime.stats.request_resume_steps += 1;
-                let resumed = request_resume(runtime, value)?;
-                runtime.continue_bind_rc(resumed, continuation.clone())
-            }),
-        }))
-    }
-
-    pub(super) fn continue_bind_result(
-        &mut self,
-        result: BindEvalResult<'a>,
-        continuation: BindStep<'a>,
-    ) -> BindResult<'a> {
-        match result {
-            BindEvalResult::Done { matched, env } => {
-                self.stats.continue_bind_result_values += 1;
-                continuation(self, matched, env)
-            }
-            BindEvalResult::Request(request) => {
-                self.stats.continue_bind_result_requests += 1;
-                let request_resume = request.resume.clone();
-                Ok(BindEvalResult::Request(BindRequest {
-                    path: request.path,
-                    path_key: request.path_key,
-                    guard_ids: request.guard_ids,
-                    carried_guard_ids: request.carried_guard_ids,
-                    payload: request.payload,
-                    resume: Rc::new(move |runtime, value| {
-                        runtime.stats.request_resume_steps += 1;
-                        let resumed = request_resume(runtime, value)?;
-                        runtime.continue_bind_result(resumed, continuation.clone())
-                    }),
-                }))
-            }
-        }
-    }
-
-    pub(super) fn continue_value_as_bind(
-        &mut self,
-        result: EvalResult<'a>,
-        env: CapturedEnv,
-        continuation: BindValueStep<'a>,
-    ) -> BindResult<'a> {
-        match result {
-            EvalResult::Value(value) => {
-                self.stats.continue_value_bind_values += 1;
-                continuation(self, value, env)
-            }
-            EvalResult::Request(request) => {
-                self.stats.continue_value_bind_requests += 1;
-                let request_resume = request.resume.clone();
-                Ok(BindEvalResult::Request(BindRequest {
-                    path: request.path,
-                    path_key: request.path_key,
-                    guard_ids: request.guard_ids,
-                    carried_guard_ids: request.carried_guard_ids,
-                    payload: request.payload,
-                    resume: Rc::new(move |runtime, value| {
-                        runtime.stats.request_resume_steps += 1;
-                        let resumed = request_resume(runtime, value)?;
-                        runtime.continue_value_as_bind(resumed, env.clone(), continuation.clone())
-                    }),
-                }))
-            }
-        }
-    }
-
-    pub(super) fn force_value_if_thunk(&mut self, value: Value) -> RuntimeResult<'a> {
+    pub(super) fn force_value_if_thunk(&mut self, value: Value) -> RuntimeResult {
         if value_is_thunk_like(&value) {
             return self.force_thunk(value);
         }
         value_result(value)
     }
 
-    pub(super) fn store_continuation(&mut self, continuation: Continuation<'a>) -> ContinuationId {
+    pub(super) fn store_continuation(&mut self, continuation: Continuation) -> ContinuationId {
         self.stats.continuations_stored += 1;
         let id = ContinuationId(self.next_continuation_id);
         self.next_continuation_id += 1;

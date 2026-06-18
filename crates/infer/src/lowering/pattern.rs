@@ -1,7 +1,7 @@
 //! lambda / case / catch arm に共通する pattern lowering。
 
 use super::*;
-use crate::ConstructorDecl;
+use crate::{ConstructorDecl, ConstructorPayload};
 
 impl<'a> ExprLowerer<'a> {
     pub(super) fn lower_lambda_pattern(
@@ -163,7 +163,9 @@ impl<'a> ExprLowerer<'a> {
         let Some(target) = self.modules.lexical_value_at(self.module, name, self.site) else {
             return false;
         };
-        self.modules.constructor_by_def(target).is_some()
+        self.modules
+            .constructor_by_def(target)
+            .is_some_and(|constructor| matches!(constructor.payload, ConstructorPayload::Unit))
     }
 
     fn lower_bool_pattern(&mut self, value: bool, slot: TypeVar) -> PatId {

@@ -65,6 +65,23 @@ fn run_with_std_main(name: &str, source: &str) -> (RunMonoOutput, RunControlOutp
     (mono, control)
 }
 
+fn run_with_vm_test_stack<T: Send + 'static>(run: impl FnOnce() -> T + Send + 'static) -> T {
+    std::thread::Builder::new()
+        .stack_size(16 * 1024 * 1024)
+        .spawn(run)
+        .unwrap()
+        .join()
+        .unwrap()
+}
+
+fn run_built_control_on_vm_test_stack(build: BuildControlOutput) -> (String, String) {
+    run_with_vm_test_stack(move || {
+        let output = run_built_control_program(&build.program, build.file_count, build.errors)
+            .expect("control VM program should run");
+        (output.text, output.stdout)
+    })
+}
+
 struct EnvVarGuard {
     key: &'static str,
     previous: Option<std::ffi::OsString>,

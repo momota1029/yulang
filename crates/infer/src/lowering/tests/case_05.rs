@@ -1085,6 +1085,47 @@ fn constructor_pattern_payload_flows_from_scrutinee_without_annotation() {
 }
 
 #[test]
+fn constructor_payload_name_can_match_unary_constructor_name() {
+    let root = parse(concat!(
+        "pub enum result 'ok 'err:\n",
+        "  ok 'ok\n",
+        "  err 'err\n",
+        "my r = result::err 1\n",
+        "my recover = case r:\n",
+        "  result::ok value -> value\n",
+        "  result::err err -> err\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (recover, _) = binding_def_and_order(&lower.modules, module, "recover");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert_eq!(output.errors, Vec::new());
+    let case = binding_body_id(&output, recover);
+    let (_scrutinee, arms) = match output.session.poly.expr(case) {
+        Expr::Case(scrutinee, arms) => (*scrutinee, arms),
+        _ => panic!("expected case expr"),
+    };
+    let [_ok_arm, err_arm] = arms.as_slice() else {
+        panic!("expected two case arms");
+    };
+    let [err_payload] = (match output.session.poly.pat(err_arm.pat) {
+        Pat::Con(_, payloads) => payloads.as_slice(),
+        _ => panic!("expected constructor pattern"),
+    }) else {
+        panic!("expected one constructor payload");
+    };
+    let err_local = match output.session.poly.pat(*err_payload) {
+        Pat::Var(def) => *def,
+        _ => panic!("expected constructor payload local"),
+    };
+    let body_ref = expr_ref(&output.session, err_arm.body);
+
+    assert_eq!(output.session.poly.ref_target(body_ref), Some(err_local));
+}
+
+#[test]
 fn constructor_pattern_spaced_tuple_group_matches_tuple_payload_fields() {
     let root = parse(concat!(
         "pub enum bound = unbounded | included int\n",

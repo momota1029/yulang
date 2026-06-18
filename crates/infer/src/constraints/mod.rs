@@ -76,8 +76,8 @@ impl TypeLevel {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct TypeLevels {
-    vars: FxHashMap<TypeVar, TypeLevel>,
-    births: FxHashMap<TypeVar, TypeLevel>,
+    vars: Vec<Option<TypeLevel>>,
+    births: Vec<Option<TypeLevel>>,
 }
 
 impl TypeLevels {
@@ -86,23 +86,31 @@ impl TypeLevels {
     }
 
     fn register(&mut self, var: TypeVar, level: TypeLevel) {
-        self.vars.entry(var).or_insert(level);
-        self.births.entry(var).or_insert(level);
+        let index = var.0 as usize;
+        ensure_slot(&mut self.vars, index);
+        ensure_slot(&mut self.births, index);
+        self.vars[index].get_or_insert(level);
+        self.births[index].get_or_insert(level);
     }
 
     fn level_of(&self, var: TypeVar) -> TypeLevel {
-        self.vars.get(&var).copied().unwrap_or_else(TypeLevel::root)
+        self.vars
+            .get(var.0 as usize)
+            .and_then(|level| *level)
+            .unwrap_or_else(TypeLevel::root)
     }
 
     fn birth_level_of(&self, var: TypeVar) -> TypeLevel {
         self.births
-            .get(&var)
-            .copied()
+            .get(var.0 as usize)
+            .and_then(|level| *level)
             .unwrap_or_else(TypeLevel::root)
     }
 
     fn lower_to(&mut self, var: TypeVar, target: TypeLevel) {
-        let level = self.vars.entry(var).or_insert_with(TypeLevel::root);
+        let index = var.0 as usize;
+        ensure_slot(&mut self.vars, index);
+        let level = self.vars[index].get_or_insert_with(TypeLevel::root);
         if target < *level {
             *level = target;
         }
@@ -184,7 +192,7 @@ struct RowResidualKey {
 /// 新しい lower が入ると既存 upper へ、新しい upper が入ると既存 lower へ subtype を再投入する。
 /// 同じ型境界でも重みが違えば別の不等式なので、bounds 側では合成せず exact dedup だけを行う。
 pub struct TypeBounds {
-    vars: FxHashMap<TypeVar, VarBounds>,
+    vars: Vec<Option<VarBounds>>,
 }
 
 impl TypeBounds {
@@ -193,11 +201,13 @@ impl TypeBounds {
     }
 
     pub fn of(&self, var: TypeVar) -> Option<&VarBounds> {
-        self.vars.get(&var)
+        self.vars
+            .get(var.0 as usize)
+            .and_then(|bounds| bounds.as_ref())
     }
 
     fn add_lower(&mut self, var: TypeVar, pos: PosId, weights: ConstraintWeights) -> bool {
-        let bounds = self.vars.entry(var).or_default();
+        let bounds = self.bounds_mut(var);
         let bound = WeightedLowerBound { pos, weights };
         if !bounds.lower_seen.insert(bound.clone()) {
             return false;
@@ -207,13 +217,25 @@ impl TypeBounds {
     }
 
     fn add_upper(&mut self, var: TypeVar, neg: NegId, weights: ConstraintWeights) -> bool {
-        let bounds = self.vars.entry(var).or_default();
+        let bounds = self.bounds_mut(var);
         let bound = WeightedUpperBound { neg, weights };
         if !bounds.upper_seen.insert(bound.clone()) {
             return false;
         }
         bounds.uppers.push(bound);
         true
+    }
+
+    fn bounds_mut(&mut self, var: TypeVar) -> &mut VarBounds {
+        let index = var.0 as usize;
+        ensure_slot(&mut self.vars, index);
+        self.vars[index].get_or_insert_with(VarBounds::default)
+    }
+}
+
+fn ensure_slot<T>(items: &mut Vec<Option<T>>, index: usize) {
+    if items.len() <= index {
+        items.resize_with(index + 1, || None);
     }
 }
 

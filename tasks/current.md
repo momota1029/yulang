@@ -76,6 +76,15 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      `ControlFrame` / `push_frame` / `resume` / `handle_request` を参考に、
      現行 control IR は残したまま runtime の continuation 表現を作り直す。
    - 詳細: `notes/design/control-vm-frame-runtime-plan.md`
+   - 2026-06-18 に `Request.resume` / `BindRequest` を削除し、
+     runtime continuation を `Continuation { frames: VecDeque<Frame> }` へ移した。
+     ordinary eval / bind / catch pass-through / marker resume は frame 化済み。
+   - 残りは eval/apply 全体の trampoline 化。
+     `std::control::nondet::each(1..3).list` は通常 test stack で通る。
+     `all/any` や深い nondet / mutable playground examples は libtest worker の小さい stack で
+     まだ溢れうるため、既存の nondet triples と同じく該当 tests は 16MiB stack helper に載せた。
+     `cargo test -p yulang -- --test-threads=1` は通るが、runtime 本体として完全に潰すには
+     eval/apply 全体を continuation loop へ寄せる次 slice が必要。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。

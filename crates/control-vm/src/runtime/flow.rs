@@ -1,7 +1,7 @@
 use super::*;
 
 impl<'a> Runtime<'a> {
-    pub(super) fn apply_value(&mut self, callee: Value, arg: Value) -> RuntimeResult<'a> {
+    pub(super) fn apply_value(&mut self, callee: Value, arg: Value) -> RuntimeResult {
         self.stats.apply_value_calls += 1;
         match callee {
             Value::Marked { value, markers } => {
@@ -36,9 +36,7 @@ impl<'a> Runtime<'a> {
             Value::Thunk(_) => {
                 self.stats.apply_forced_thunk_calls += 1;
                 let result = self.force_thunk(callee)?;
-                self.continue_with(result, move |runtime, callee| {
-                    runtime.apply_value(callee, arg.clone())
-                })
+                self.continue_with_frame(result, Frame::ApplyForcedThunk { arg })
             }
             Value::EffectOp { path } => {
                 self.stats.apply_effect_op_calls += 1;
@@ -62,7 +60,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         op: PrimitiveOp,
         context: PrimitiveContext,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         if op.arity() == 0 {
             self.stats.primitive_zero_arity_calls += 1;
             return value_result(apply_primitive(op, &context, &[])?);
@@ -78,7 +76,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         mut primitive: PrimitiveValue,
         arg: Value,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         self.stats.primitive_apply_calls += 1;
         primitive.args.push(arg);
         if primitive.args.len() < primitive.op.arity() {
@@ -93,15 +91,14 @@ impl<'a> Runtime<'a> {
         )?)
     }
 
-    pub(super) fn apply_closure(&mut self, closure: Closure, arg: Value) -> RuntimeResult<'a> {
+    pub(super) fn apply_closure(&mut self, closure: Closure, arg: Value) -> RuntimeResult {
         let body = closure.body;
-        let bind = self.bind_pat(closure.param, arg, closure.env)?;
-        self.continue_bind(bind, move |runtime, matched, mut env| {
-            if !matched {
-                return Err(RuntimeError::PatternMismatch);
-            }
-            runtime.eval_expr(body, &mut env)
-        })
+        self.bind_pat(
+            closure.param,
+            arg,
+            closure.env,
+            BindThen::ApplyClosure { body },
+        )
     }
 
     pub(super) fn apply_recursive_closure(
@@ -109,7 +106,7 @@ impl<'a> Runtime<'a> {
         def: DefId,
         mut closure: Closure,
         arg: Value,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         closure.env.insert(
             def,
             Value::RecursiveClosure {
@@ -120,11 +117,7 @@ impl<'a> Runtime<'a> {
         self.apply_closure(closure, arg)
     }
 
-    pub(super) fn apply_adapter(
-        &mut self,
-        adapter: FunctionAdapter,
-        arg: Value,
-    ) -> RuntimeResult<'a> {
+    pub(super) fn apply_adapter(&mut self, adapter: FunctionAdapter, arg: Value) -> RuntimeResult {
         let (source_arg, source_ret) =
             function_parts(&adapter.source).ok_or(RuntimeError::ExpectedFunctionType)?;
         let (target_arg, target_ret) =
@@ -136,19 +129,18 @@ impl<'a> Runtime<'a> {
         let function = *adapter.function;
         let markers = self.instantiate_hygiene(&adapter.hygiene);
         self.with_marker_frame(markers.clone(), move |runtime| {
-            let arg = mark_value(arg.clone(), &markers);
+            let resume_markers = shared_markers(markers.clone());
+            let arg = mark_value(arg.clone(), &resume_markers);
             let arg = runtime.adapt_value(arg, &target_arg, &source_arg)?;
-            runtime.continue_with(arg, move |runtime, arg| {
-                let arg = mark_value(arg, &markers);
-                let result = runtime.apply_value(function.clone(), arg)?;
-                let source_ret = source_ret.clone();
-                let target_ret = target_ret.clone();
-                let markers = markers.clone();
-                runtime.continue_with(result, move |runtime, result| {
-                    let result = mark_value(result, &markers);
-                    runtime.adapt_value(result, &source_ret, &target_ret)
-                })
-            })
+            runtime.continue_with_frame(
+                arg,
+                Frame::ApplyAdapterArg {
+                    function: function.clone(),
+                    markers: resume_markers,
+                    source_ret: source_ret.clone(),
+                    target_ret: target_ret.clone(),
+                },
+            )
         })
     }
 
@@ -156,7 +148,7 @@ impl<'a> Runtime<'a> {
         &mut self,
         path: Vec<String>,
         payload: Value,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         self.stats.effect_requests += 1;
         let path_key = self.intern_path(&path);
         let mut request = Request {
@@ -165,13 +157,13 @@ impl<'a> Runtime<'a> {
             guard_ids: Vec::new(),
             carried_guard_ids: Vec::new(),
             payload,
-            resume: Rc::new(|_, value| value_result(value)),
+            continuation: Continuation::default(),
         };
         self.mark_request_with_active_markers(&mut request);
         Ok(EvalResult::Request(request))
     }
 
-    pub(super) fn mark_request_with_active_markers(&mut self, request: &mut Request<'a>) {
+    pub(super) fn mark_request_with_active_markers(&mut self, request: &mut Request) {
         let mut has_live_guard = request
             .guard_ids
             .iter()
@@ -220,7 +212,7 @@ impl<'a> Runtime<'a> {
 
     pub(super) fn request_guard_for_path(
         &mut self,
-        request: &Request<'_>,
+        request: &Request,
         operation_key: &InternedPath,
     ) -> Option<GuardId> {
         let matching_handler = self.find_matching_handler_frame(operation_key);
@@ -280,7 +272,7 @@ impl<'a> Runtime<'a> {
     fn find_guarded_matching_handler(
         &mut self,
         operation_key: &InternedPath,
-        request: &Request<'_>,
+        request: &Request,
         matching_handler: usize,
     ) -> Option<GuardId> {
         for frame in &self.active_frames[..=matching_handler] {
@@ -329,8 +321,8 @@ impl<'a> Runtime<'a> {
         &mut self,
         markers: Vec<ValueMarker>,
         handler_path: Vec<String>,
-        run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult<'a> + 'a,
-    ) -> RuntimeResult<'a> {
+        run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult + 'a,
+    ) -> RuntimeResult {
         let handler_key = self.intern_path(&handler_path);
         self.with_marker_plan(markers, false, Some(handler_key), run)
     }
@@ -338,8 +330,8 @@ impl<'a> Runtime<'a> {
     pub(super) fn with_marker_frame(
         &mut self,
         markers: Vec<ValueMarker>,
-        run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult<'a> + 'a,
-    ) -> RuntimeResult<'a> {
+        run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult + 'a,
+    ) -> RuntimeResult {
         self.with_marker_plan(markers, true, None, run)
     }
 
@@ -348,8 +340,8 @@ impl<'a> Runtime<'a> {
         markers: Vec<ValueMarker>,
         activate_add_ids: bool,
         handler_key: Option<InternedPath>,
-        run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult<'a> + 'a,
-    ) -> RuntimeResult<'a> {
+        run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult + 'a,
+    ) -> RuntimeResult {
         self.stats.marker_frame_calls += 1;
         if markers.is_empty() {
             self.stats.marker_frame_empty += 1;
@@ -366,36 +358,6 @@ impl<'a> Runtime<'a> {
         self.pop_marker_frame(guard_len, frame_len, add_id_len, plan_len);
 
         self.close_marker_frame_result(result?, markers, activate_add_ids, handler_key)
-    }
-
-    pub(super) fn with_shared_resume_marker_plan(
-        &mut self,
-        markers: SharedMarkers,
-        activate_add_ids: bool,
-        handler_key: Option<InternedPath>,
-        run: impl FnOnce(&mut Runtime<'a>) -> RuntimeResult<'a> + 'a,
-    ) -> RuntimeResult<'a> {
-        self.stats.marker_frame_calls += 1;
-        if markers.is_empty() {
-            self.stats.marker_frame_empty += 1;
-            return run(self);
-        }
-
-        let guard_len = self.guard_ids.len();
-        let frame_len = self.active_frames.len();
-        let add_id_len = self.active_add_ids.len();
-        let plan_len = self.active_marker_plans.len();
-        self.stats.marker_frame_pushes += 1;
-        self.push_marker_frame(&markers, activate_add_ids, handler_key.clone());
-        let result = run(self);
-        self.pop_marker_frame(guard_len, frame_len, add_id_len, plan_len);
-
-        self.close_shared_resume_marker_frame_result(
-            result?,
-            markers,
-            activate_add_ids,
-            handler_key,
-        )
     }
 
     pub(super) fn push_marker_frame(
@@ -438,11 +400,11 @@ impl<'a> Runtime<'a> {
 
     pub(super) fn close_marker_frame_result(
         &mut self,
-        result: EvalResult<'a>,
+        result: EvalResult,
         markers: Vec<ValueMarker>,
         activate_add_ids: bool,
         handler_key: Option<InternedPath>,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         match result {
             EvalResult::Value(value) => {
                 self.stats.marker_frame_value_closes += 1;
@@ -458,11 +420,11 @@ impl<'a> Runtime<'a> {
 
     pub(super) fn close_shared_resume_marker_frame_result(
         &mut self,
-        result: EvalResult<'a>,
+        result: EvalResult,
         markers: SharedMarkers,
         activate_add_ids: bool,
         handler_key: Option<InternedPath>,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         match result {
             EvalResult::Value(value) => {
                 self.stats.marker_frame_value_closes += 1;
@@ -478,30 +440,21 @@ impl<'a> Runtime<'a> {
         }
     }
 
-    fn close_marker_request(
+    pub(super) fn close_marker_request(
         &mut self,
-        request: Request<'a>,
+        request: Request,
         resume_markers: SharedMarkers,
         activate_add_ids: bool,
         handler_key: Option<InternedPath>,
-    ) -> RuntimeResult<'a> {
-        let resume = request.resume.clone();
-        Ok(EvalResult::Request(Request {
-            path: request.path,
-            path_key: request.path_key,
-            guard_ids: request.guard_ids,
-            carried_guard_ids: request.carried_guard_ids,
-            payload: request.payload,
-            resume: Rc::new(move |runtime, value| {
-                runtime.stats.marker_frame_resume_steps += 1;
-                let resume = resume.clone();
-                runtime.with_shared_resume_marker_plan(
-                    resume_markers.clone(),
-                    activate_add_ids,
-                    handler_key.clone(),
-                    move |runtime| resume(runtime, value),
-                )
-            }),
-        }))
+    ) -> RuntimeResult {
+        let mut request = request;
+        let inner_frame_count = request.continuation.frames.len();
+        request.continuation.frames.push_back(Frame::MarkerScope {
+            resume_markers,
+            activate_add_ids,
+            handler_key,
+            inner_frame_count,
+        });
+        Ok(EvalResult::Request(request))
     }
 }

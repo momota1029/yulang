@@ -5,7 +5,7 @@ pub(super) struct Runtime<'a> {
     pub(super) instances: HashMap<InstanceId, Value>,
     pub(super) evaluating_instances: HashSet<InstanceId>,
     pub(super) catch_arms: HashMap<ExprId, RuntimeCatchArms>,
-    pub(super) continuations: HashMap<ContinuationId, Continuation<'a>>,
+    pub(super) continuations: HashMap<ContinuationId, Continuation>,
     pub(super) next_continuation_id: u32,
     pub(super) guard_ids: Vec<GuardId>,
     pub(super) active_frames: Vec<ActiveFrame>,
@@ -66,7 +66,7 @@ impl<'a> Runtime<'a> {
 
     pub(super) fn resolve_host_requests<F>(
         &mut self,
-        mut result: EvalResult<'a>,
+        mut result: EvalResult,
         host: &mut F,
     ) -> Result<Value, RuntimeError>
     where
@@ -80,7 +80,7 @@ impl<'a> Runtime<'a> {
                     let Some(value) = host(&request.path, &request.payload) else {
                         return Err(RuntimeError::UnhandledEffect { path: request.path });
                     };
-                    result = (request.resume)(self, value)?;
+                    result = self.resume(request.continuation, value)?;
                 }
             }
         }

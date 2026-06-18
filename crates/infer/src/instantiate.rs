@@ -467,14 +467,18 @@ impl<'a> SchemeInstantiator<'a> {
     }
 
     fn clone_recursive_bounds(&mut self, scheme: &Scheme) {
+        let mut constraints = Vec::with_capacity(scheme.recursive_bounds.len() * 2);
         for bound in &scheme.recursive_bounds {
             let target_var = self.clone_var(bound.var);
             let target_bounds = self.clone_neu(bound.bounds);
             let (lower, upper) = self.project_recursive_neu_bounds(target_bounds);
             let target_neg = self.target.alloc_neg(Neg::Var(target_var));
-            self.target.subtype(lower, target_neg);
+            constraints.push((lower, target_neg));
             let target_pos = self.target.alloc_pos(Pos::Var(target_var));
-            self.target.subtype(target_pos, upper);
+            constraints.push((target_pos, upper));
+        }
+        if !constraints.is_empty() {
+            self.target.subtypes(constraints);
         }
     }
 

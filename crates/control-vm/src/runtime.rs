@@ -1,6 +1,6 @@
 //! Runtime for the lowered control IR.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::rc::Rc;
 
@@ -22,9 +22,11 @@ mod bind;
 mod engine;
 mod eval;
 mod flow;
+mod frame;
 mod thunk;
 
 use engine::Runtime;
+use frame::{BindThen, Continuation, Frame, RefSetFinish, RefSetResumeMode, push_frame};
 
 pub fn run_mono_program(program: &mono::Program) -> Result<Vec<Value>, RunError> {
     let program = lower(program).map_err(RunError::Lower)?;
@@ -500,51 +502,29 @@ impl fmt::Display for RuntimeError {
 
 impl std::error::Error for RuntimeError {}
 
-type RuntimeResult<'a> = Result<EvalResult<'a>, RuntimeError>;
-type Continuation<'a> = Rc<dyn Fn(&mut Runtime<'a>, Value) -> RuntimeResult<'a> + 'a>;
-type BindResult<'a> = Result<BindEvalResult<'a>, RuntimeError>;
-type BindContinuation<'a> =
-    Rc<dyn Fn(&mut Runtime<'a>, bool, CapturedEnv) -> RuntimeResult<'a> + 'a>;
-type BindStep<'a> = Rc<dyn Fn(&mut Runtime<'a>, bool, CapturedEnv) -> BindResult<'a> + 'a>;
-type BindValueStep<'a> = Rc<dyn Fn(&mut Runtime<'a>, Value, CapturedEnv) -> BindResult<'a> + 'a>;
-type BindResume<'a> = Rc<dyn Fn(&mut Runtime<'a>, Value) -> BindResult<'a> + 'a>;
+type RuntimeResult = Result<EvalResult, RuntimeError>;
 type RuntimeCatchArms = Rc<[RuntimeCatchArm]>;
 type SharedMarkers = Rc<[ValueMarker]>;
 
-enum EvalResult<'a> {
+enum EvalResult {
     Value(Value),
-    Request(Request<'a>),
+    Request(Request),
 }
 
 #[derive(Clone)]
-struct Request<'a> {
+struct Request {
     path: Vec<String>,
     path_key: InternedPath,
     guard_ids: Vec<GuardId>,
     carried_guard_ids: Vec<GuardId>,
     payload: Value,
-    resume: Continuation<'a>,
+    continuation: Continuation,
 }
 
-fn request_without_guard_id<'a>(mut request: Request<'a>, guard_id: GuardId) -> Request<'a> {
+fn request_without_guard_id(mut request: Request, guard_id: GuardId) -> Request {
     request.guard_ids.retain(|id| *id != guard_id);
     request.carried_guard_ids.retain(|id| *id != guard_id);
     request
-}
-
-enum BindEvalResult<'a> {
-    Done { matched: bool, env: CapturedEnv },
-    Request(BindRequest<'a>),
-}
-
-#[derive(Clone)]
-struct BindRequest<'a> {
-    path: Vec<String>,
-    path_key: InternedPath,
-    guard_ids: Vec<GuardId>,
-    carried_guard_ids: Vec<GuardId>,
-    payload: Value,
-    resume: BindResume<'a>,
 }
 
 #[derive(Clone)]
@@ -556,12 +536,8 @@ struct RuntimeCatchArm {
     body: ExprId,
 }
 
-fn value_result<'a>(value: Value) -> RuntimeResult<'a> {
+fn value_result(value: Value) -> RuntimeResult {
     Ok(EvalResult::Value(value))
-}
-
-fn bind_done<'a>(matched: bool, env: CapturedEnv) -> BindResult<'a> {
-    Ok(BindEvalResult::Done { matched, env })
 }
 
 fn pattern_observes_value(pat: &Pat) -> bool {
@@ -781,6 +757,21 @@ fn apply_primitive(
     }
 }
 
+fn finish_ref_set_values(finish: RefSetFinish, values: Vec<Value>) -> Value {
+    match finish {
+        RefSetFinish::Tuple => Value::Tuple(values),
+        RefSetFinish::List => Value::List(ListTree::from_items(values.into_iter().map(Rc::new))),
+        RefSetFinish::PolyVariant { tag } => Value::PolyVariant {
+            tag,
+            payloads: values,
+        },
+        RefSetFinish::DataConstructor { def } => Value::DataConstructor {
+            def,
+            payloads: values,
+        },
+    }
+}
+
 fn apply_list_view_raw(context: &PrimitiveContext, value: &Value) -> Result<Value, RuntimeError> {
     let constructors = context
         .list_view
@@ -869,7 +860,7 @@ fn format_float(value: f64) -> String {
     }
 }
 
-fn expect_eval_value(result: EvalResult<'_>) -> Result<Value, RuntimeError> {
+fn expect_eval_value(result: EvalResult) -> Result<Value, RuntimeError> {
     match result {
         EvalResult::Value(value) => Ok(value),
         EvalResult::Request(request) => Err(RuntimeError::UnhandledEffect { path: request.path }),

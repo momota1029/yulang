@@ -1,7 +1,7 @@
 use super::*;
 
 impl<'a> Runtime<'a> {
-    pub(super) fn eval_expr(&mut self, expr: ExprId, env: &mut CapturedEnv) -> RuntimeResult<'a> {
+    pub(super) fn eval_expr(&mut self, expr: ExprId, env: &mut CapturedEnv) -> RuntimeResult {
         self.stats.expr_evals += 1;
         let expr_id = expr;
         let expr = EvalExpr::from_expr(
@@ -34,9 +34,7 @@ impl<'a> Runtime<'a> {
                 expr,
             } => {
                 let result = self.eval_expr(expr, env)?;
-                self.continue_with(result, move |runtime, value| {
-                    runtime.adapt_value(value, &source, &target)
-                })
+                self.continue_with_frame(result, Frame::Coerce { source, target })
             }
             EvalExpr::MakeThunk { body } => {
                 value_result(self.mark_active_created_value(Value::Thunk(Thunk::Expr {
@@ -49,14 +47,7 @@ impl<'a> Runtime<'a> {
                 thunk,
             } => {
                 let result = self.eval_expr(thunk, env)?;
-                self.continue_with(result, move |runtime, thunk| {
-                    let result = runtime.force_thunk(thunk)?;
-                    if matches!(target_value, Type::Thunk { .. }) {
-                        return Ok(result);
-                    }
-                    runtime
-                        .continue_with(result, |runtime, value| runtime.force_value_if_thunk(value))
-                })
+                self.continue_with_frame(result, Frame::ForceThunk { target_value })
             }
             EvalExpr::FunctionAdapter {
                 source,
@@ -65,16 +56,14 @@ impl<'a> Runtime<'a> {
                 hygiene,
             } => {
                 let function = self.eval_expr(function, env)?;
-                self.continue_with(function, move |runtime, function| {
-                    value_result(runtime.mark_active_created_value(Value::FunctionAdapter(
-                        FunctionAdapter {
-                            source: source.clone(),
-                            target: target.clone(),
-                            function: Box::new(function),
-                            hygiene: hygiene.clone(),
-                        },
-                    )))
-                })
+                self.continue_with_frame(
+                    function,
+                    Frame::MakeFunctionAdapter {
+                        source,
+                        target,
+                        hygiene,
+                    },
+                )
             }
             EvalExpr::MarkerFrame { path, body } => {
                 let mut frame_env = env.clone();
@@ -100,13 +89,13 @@ impl<'a> Runtime<'a> {
                 }
                 let env_for_arg = env.clone();
                 let callee = self.eval_expr(callee, env)?;
-                self.continue_with(callee, move |runtime, callee| {
-                    let mut env = env_for_arg.clone();
-                    let arg_result = runtime.eval_expr(arg, &mut env)?;
-                    runtime.continue_with(arg_result, move |runtime, arg| {
-                        runtime.apply_value(callee.clone(), arg)
-                    })
-                })
+                self.continue_with_frame(
+                    callee,
+                    Frame::ApplyCallee {
+                        arg,
+                        env: env_for_arg,
+                    },
+                )
             }
             EvalExpr::RefSet { reference, value } => {
                 self.eval_ref_set(reference, value, env.clone())
@@ -131,16 +120,7 @@ impl<'a> Runtime<'a> {
             EvalExpr::Case { scrutinee, arms } => {
                 let scrutinee = self.eval_expr(scrutinee, env)?;
                 let env = env.clone();
-                self.continue_with(scrutinee, move |runtime, scrutinee| {
-                    let scrutinee = runtime.force_value_if_thunk(scrutinee)?;
-                    runtime.continue_with(scrutinee, {
-                        let arms = arms.clone();
-                        let env = env.clone();
-                        move |runtime, scrutinee| {
-                            runtime.eval_case(scrutinee, arms.clone(), env.clone())
-                        }
-                    })
-                })
+                self.continue_with_frame(scrutinee, Frame::CaseScrutineeForce { arms, env })
             }
             EvalExpr::Catch { body, arms } => self.eval_catch(expr_id, body, arms, env),
             EvalExpr::Block(block) => self.eval_block(block, env),
@@ -152,30 +132,21 @@ impl<'a> Runtime<'a> {
         fields: Vec<RecordField>,
         spread: RecordSpread<ExprId>,
         env: CapturedEnv,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         match spread {
             RecordSpread::None => self.eval_record_fields(fields, env, Vec::new(), 0),
             RecordSpread::Head(expr) => {
                 let mut spread_env = env.clone();
                 let spread = self.eval_expr(expr, &mut spread_env)?;
-                self.continue_with(spread, move |runtime, spread| {
-                    let spread_fields = runtime.expect_record(spread)?;
-                    runtime.eval_record_fields(fields.clone(), env.clone(), spread_fields, 0)
-                })
+                self.continue_with_frame(spread, Frame::RecordHeadSpread { fields, env })
             }
             RecordSpread::Tail(expr) => {
                 let fields_result =
                     self.eval_record_fields(fields.clone(), env.clone(), Vec::new(), 0)?;
-                self.continue_with(fields_result, move |runtime, fields| {
-                    let fields = runtime.expect_record(fields)?;
-                    let mut spread_env = env.clone();
-                    let spread = runtime.eval_expr(expr, &mut spread_env)?;
-                    runtime.continue_with(spread, move |runtime, spread| {
-                        let mut combined = fields.clone();
-                        combined.extend(runtime.expect_record(spread)?);
-                        value_result(Value::Record(combined))
-                    })
-                })
+                self.continue_with_frame(
+                    fields_result,
+                    Frame::RecordTailFields { spread: expr, env },
+                )
             }
         }
     }
@@ -228,20 +199,18 @@ impl<'a> Runtime<'a> {
         first_arg: ExprId,
         second_arg: ExprId,
         env: CapturedEnv,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         let mut first_env = env.clone();
         let first = self.eval_expr(first_arg, &mut first_env)?;
-        self.continue_with(first, move |runtime, first| {
-            let mut second_env = env.clone();
-            let second = runtime.eval_expr(second_arg, &mut second_env)?;
-            let context = context.clone();
-            runtime.continue_with(second, move |runtime, second| {
-                runtime.stats.primitive_apply_calls += 1;
-                runtime.stats.primitive_apply_complete += 1;
-                let args = [first.clone(), second];
-                value_result(apply_primitive(op, &context, &args)?)
-            })
-        })
+        self.continue_with_frame(
+            first,
+            Frame::DirectBinarySecond {
+                op,
+                context,
+                second_arg,
+                env,
+            },
+        )
     }
 
     fn eval_direct_unary_primitive(
@@ -250,15 +219,10 @@ impl<'a> Runtime<'a> {
         context: PrimitiveContext,
         arg: ExprId,
         env: CapturedEnv,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         let mut arg_env = env;
         let arg = self.eval_expr(arg, &mut arg_env)?;
-        self.continue_with(arg, move |runtime, arg| {
-            runtime.stats.primitive_apply_calls += 1;
-            runtime.stats.primitive_apply_complete += 1;
-            let args = [arg];
-            value_result(apply_primitive(op, &context, &args)?)
-        })
+        self.continue_with_frame(arg, Frame::DirectUnaryApply { op, context })
     }
 
     pub(super) fn eval_ref_set(
@@ -266,86 +230,49 @@ impl<'a> Runtime<'a> {
         reference: ExprId,
         value: ExprId,
         env: CapturedEnv,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         let mut reference_env = env.clone();
         let reference_result = self.eval_expr(reference, &mut reference_env)?;
-        self.continue_with(reference_result, move |runtime, reference| {
-            let reference = runtime.force_value_if_thunk(reference)?;
-            let value_env = env.clone();
-            runtime.continue_with(reference, move |runtime, reference| {
-                let mut value_env = value_env.clone();
-                let value_result = runtime.eval_expr(value, &mut value_env)?;
-                runtime.continue_with(value_result, move |runtime, value| {
-                    let value = runtime.force_value_if_thunk(value)?;
-                    let reference = reference.clone();
-                    runtime.continue_with(value, move |runtime, assigned| {
-                        let update_effect =
-                            runtime.project_record_field(reference.clone(), "update_effect")?;
-                        let result = runtime.apply_value(update_effect, Value::Unit)?;
-                        runtime.handle_ref_set_result(result, assigned)
-                    })
-                })
-            })
-        })
+        self.continue_with_frame(reference_result, Frame::RefSetReference { value, env })
     }
 
     pub(super) fn handle_ref_set_result(
         &mut self,
-        result: EvalResult<'a>,
+        result: EvalResult,
         assigned: Value,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         match result {
             EvalResult::Value(value) => {
                 let resolved = self.resolve_ref_set_value(value, assigned)?;
-                self.continue_with(resolved, |_, _| value_result(Value::Unit))
+                self.continue_with_frame(resolved, Frame::RefSetResolvedUnit)
             }
             EvalResult::Request(request) if is_ref_update_request(&request.path) => {
-                let resumed = (request.resume)(self, assigned.clone())?;
+                let resumed = self.resume(request.continuation, assigned.clone())?;
                 self.handle_ref_set_result(resumed, assigned)
             }
             EvalResult::Request(request) => {
-                let path = request.path;
-                let path_key = request.path_key;
-                let guard_ids = request.guard_ids;
-                let carried_guard_ids = request.carried_guard_ids;
-                let payload = request.payload;
-                let request_resume = request.resume.clone();
+                let payload = request.payload.clone();
                 let resolved_payload = self.resolve_ref_set_value(payload, assigned.clone())?;
-                self.continue_with(resolved_payload, move |_, payload| {
-                    Ok(EvalResult::Request(Request {
-                        path: path.clone(),
-                        path_key: path_key.clone(),
-                        guard_ids: guard_ids.clone(),
-                        carried_guard_ids: carried_guard_ids.clone(),
-                        payload,
-                        resume: Rc::new({
-                            let assigned = assigned.clone();
-                            let request_resume = request_resume.clone();
-                            move |runtime, value| {
-                                let resumed = request_resume(runtime, value)?;
-                                runtime.handle_ref_set_result(resumed, assigned.clone())
-                            }
-                        }),
-                    }))
-                })
+                self.continue_with_frame(
+                    resolved_payload,
+                    Frame::RefSetEmitResolvedRequest {
+                        request,
+                        assigned,
+                        mode: RefSetResumeMode::Result,
+                    },
+                )
             }
         }
     }
 
-    pub(super) fn resolve_ref_set_value(
-        &mut self,
-        value: Value,
-        assigned: Value,
-    ) -> RuntimeResult<'a> {
+    pub(super) fn resolve_ref_set_value(&mut self, value: Value, assigned: Value) -> RuntimeResult {
         match value {
             Value::Marked { value, markers } => {
                 let resolved = self.resolve_ref_set_value(*value, assigned)?;
-                self.continue_with(resolved, move |_, value| {
-                    value_result(mark_value(value, &markers))
-                })
+                self.continue_with_frame(resolved, Frame::MarkValue { markers })
             }
             Value::Tuple(items) => {
-                self.resolve_ref_set_values(items, assigned, Vec::new(), 0, Rc::new(Value::Tuple))
+                self.resolve_ref_set_values(items, assigned, Vec::new(), 0, RefSetFinish::Tuple)
             }
             Value::List(items) => self.resolve_ref_set_values(
                 items
@@ -356,7 +283,7 @@ impl<'a> Runtime<'a> {
                 assigned,
                 Vec::new(),
                 0,
-                Rc::new(|items| Value::List(ListTree::from_items(items.into_iter().map(Rc::new)))),
+                RefSetFinish::List,
             ),
             Value::Record(fields) => self.resolve_ref_set_fields(fields, assigned, Vec::new(), 0),
             Value::PolyVariant { tag, payloads } => self.resolve_ref_set_values(
@@ -364,17 +291,14 @@ impl<'a> Runtime<'a> {
                 assigned,
                 Vec::new(),
                 0,
-                Rc::new(move |payloads| Value::PolyVariant {
-                    tag: tag.clone(),
-                    payloads,
-                }),
+                RefSetFinish::PolyVariant { tag },
             ),
             Value::DataConstructor { def, payloads } => self.resolve_ref_set_values(
                 payloads,
                 assigned,
                 Vec::new(),
                 0,
-                Rc::new(move |payloads| Value::DataConstructor { def, payloads }),
+                RefSetFinish::DataConstructor { def },
             ),
             value if value_is_thunk_like(&value) => {
                 let result = self.force_thunk(value)?;
@@ -390,23 +314,22 @@ impl<'a> Runtime<'a> {
         assigned: Value,
         out: Vec<Value>,
         index: usize,
-        finish: Rc<dyn Fn(Vec<Value>) -> Value + 'a>,
-    ) -> RuntimeResult<'a> {
+        finish: RefSetFinish,
+    ) -> RuntimeResult {
         if index >= values.len() {
-            return value_result(finish(out));
+            return value_result(finish_ref_set_values(finish, out));
         }
         let resolved = self.resolve_ref_set_value(values[index].clone(), assigned.clone())?;
-        self.continue_with(resolved, move |runtime, value| {
-            let mut out = out.clone();
-            out.push(value);
-            runtime.resolve_ref_set_values(
-                values.clone(),
-                assigned.clone(),
+        self.continue_with_frame(
+            resolved,
+            Frame::ResolveRefSetValues {
+                values,
+                assigned,
                 out,
-                index + 1,
-                finish.clone(),
-            )
-        })
+                index,
+                finish,
+            },
+        )
     }
 
     pub(super) fn resolve_ref_set_fields(
@@ -415,58 +338,45 @@ impl<'a> Runtime<'a> {
         assigned: Value,
         out: Vec<ValueField>,
         index: usize,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         if index >= fields.len() {
             return value_result(Value::Record(out));
         }
         let field = fields[index].clone();
         let resolved = self.resolve_ref_set_value(field.value, assigned.clone())?;
-        self.continue_with(resolved, move |runtime, value| {
-            let mut out = out.clone();
-            out.push(ValueField {
-                name: field.name.clone(),
-                value,
-            });
-            runtime.resolve_ref_set_fields(fields.clone(), assigned.clone(), out, index + 1)
-        })
+        self.continue_with_frame(
+            resolved,
+            Frame::ResolveRefSetFields {
+                fields,
+                assigned,
+                out,
+                index,
+            },
+        )
     }
 
     pub(super) fn handle_ref_set_value_result(
         &mut self,
-        result: EvalResult<'a>,
+        result: EvalResult,
         assigned: Value,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         match result {
             EvalResult::Value(value) => self.resolve_ref_set_value(value, assigned),
             EvalResult::Request(request) if is_ref_update_request(&request.path) => {
-                let resumed = (request.resume)(self, assigned.clone())?;
+                let resumed = self.resume(request.continuation, assigned.clone())?;
                 self.handle_ref_set_value_result(resumed, assigned)
             }
             EvalResult::Request(request) => {
-                let path = request.path;
-                let path_key = request.path_key;
-                let guard_ids = request.guard_ids;
-                let carried_guard_ids = request.carried_guard_ids;
-                let payload = request.payload;
-                let request_resume = request.resume.clone();
+                let payload = request.payload.clone();
                 let resolved_payload = self.resolve_ref_set_value(payload, assigned.clone())?;
-                self.continue_with(resolved_payload, move |_, payload| {
-                    Ok(EvalResult::Request(Request {
-                        path: path.clone(),
-                        path_key: path_key.clone(),
-                        guard_ids: guard_ids.clone(),
-                        carried_guard_ids: carried_guard_ids.clone(),
-                        payload,
-                        resume: Rc::new({
-                            let assigned = assigned.clone();
-                            let request_resume = request_resume.clone();
-                            move |runtime, value| {
-                                let resumed = request_resume(runtime, value)?;
-                                runtime.handle_ref_set_value_result(resumed, assigned.clone())
-                            }
-                        }),
-                    }))
-                })
+                self.continue_with_frame(
+                    resolved_payload,
+                    Frame::RefSetEmitResolvedRequest {
+                        request,
+                        assigned,
+                        mode: RefSetResumeMode::ValueResult,
+                    },
+                )
             }
         }
     }
@@ -477,7 +387,7 @@ impl<'a> Runtime<'a> {
         env: CapturedEnv,
         values: Vec<ValueField>,
         index: usize,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         if index >= fields.len() {
             return value_result(Value::Record(values));
         }
@@ -485,17 +395,18 @@ impl<'a> Runtime<'a> {
         let field = fields[index].clone();
         let mut field_env = env.clone();
         let result = self.eval_expr(field.value, &mut field_env)?;
-        self.continue_with(result, move |runtime, value| {
-            let mut values = values.clone();
-            values.push(ValueField {
-                name: field.name.clone(),
-                value,
-            });
-            runtime.eval_record_fields(fields.clone(), env.clone(), values, index + 1)
-        })
+        self.continue_with_frame(
+            result,
+            Frame::RecordField {
+                fields,
+                env,
+                values,
+                index,
+            },
+        )
     }
 
-    pub(super) fn eval_tuple(&mut self, items: Vec<ExprId>, env: CapturedEnv) -> RuntimeResult<'a> {
+    pub(super) fn eval_tuple(&mut self, items: Vec<ExprId>, env: CapturedEnv) -> RuntimeResult {
         self.eval_tuple_items(items, env, Vec::new(), 0)
     }
 
@@ -505,17 +416,21 @@ impl<'a> Runtime<'a> {
         env: CapturedEnv,
         values: Vec<Value>,
         index: usize,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         if index >= items.len() {
             return value_result(Value::Tuple(values));
         }
         let mut item_env = env.clone();
         let result = self.eval_expr(items[index], &mut item_env)?;
-        self.continue_with(result, move |runtime, value| {
-            let mut values = values.clone();
-            values.push(value);
-            runtime.eval_tuple_items(items.clone(), env.clone(), values, index + 1)
-        })
+        self.continue_with_frame(
+            result,
+            Frame::TupleItem {
+                items,
+                env,
+                values,
+                index,
+            },
+        )
     }
 
     pub(super) fn eval_poly_variant(
@@ -523,7 +438,7 @@ impl<'a> Runtime<'a> {
         tag: String,
         payloads: Vec<ExprId>,
         env: CapturedEnv,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         self.eval_poly_variant_payloads(tag, payloads, env, Vec::new(), 0)
     }
 
@@ -534,7 +449,7 @@ impl<'a> Runtime<'a> {
         env: CapturedEnv,
         values: Vec<Value>,
         index: usize,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         if index >= payloads.len() {
             return value_result(Value::PolyVariant {
                 tag,
@@ -543,17 +458,16 @@ impl<'a> Runtime<'a> {
         }
         let mut payload_env = env.clone();
         let result = self.eval_expr(payloads[index], &mut payload_env)?;
-        self.continue_with(result, move |runtime, value| {
-            let mut values = values.clone();
-            values.push(value);
-            runtime.eval_poly_variant_payloads(
-                tag.clone(),
-                payloads.clone(),
-                env.clone(),
+        self.continue_with_frame(
+            result,
+            Frame::PolyVariantPayload {
+                tag,
+                payloads,
+                env,
                 values,
-                index + 1,
-            )
-        })
+                index,
+            },
+        )
     }
 
     pub(super) fn eval_select(
@@ -562,21 +476,9 @@ impl<'a> Runtime<'a> {
         name: String,
         resolution: Option<SelectResolution>,
         env: &mut CapturedEnv,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         let result = self.eval_expr(base, env)?;
-        self.continue_with(result, move |runtime, base| match resolution {
-            Some(SelectResolution::RecordField) => {
-                value_result(runtime.project_record_field(base, &name)?)
-            }
-            Some(SelectResolution::Method { instance }) => {
-                let method = runtime.eval_instance(instance)?;
-                runtime.apply_value(method, base)
-            }
-            Some(SelectResolution::TypeclassMethod { .. }) => Err(RuntimeError::UnsupportedExpr {
-                feature: format!("typeclass method select .{name}"),
-            }),
-            None => Err(RuntimeError::UnresolvedSelect { name: name.clone() }),
-        })
+        self.continue_with_frame(result, Frame::Select { name, resolution })
     }
 
     pub(super) fn eval_case(
@@ -584,7 +486,7 @@ impl<'a> Runtime<'a> {
         scrutinee: Value,
         arms: Vec<CaseArm>,
         env: CapturedEnv,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         self.eval_case_arm(scrutinee, arms, env, 0)
     }
 
@@ -594,41 +496,24 @@ impl<'a> Runtime<'a> {
         arms: Vec<CaseArm>,
         env: CapturedEnv,
         index: usize,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         if index >= arms.len() {
             return Err(RuntimeError::NoMatchingCase);
         }
 
         let arm = arms[index].clone();
-        let bind = self.bind_pat(arm.pat.clone(), scrutinee.clone(), env.clone())?;
-        self.continue_bind(bind, move |runtime, matched, mut arm_env| {
-            if !matched {
-                return runtime.eval_case_arm(
-                    scrutinee.clone(),
-                    arms.clone(),
-                    env.clone(),
-                    index + 1,
-                );
-            }
-            let Some(guard) = arm.guard else {
-                return runtime.eval_expr(arm.body, &mut arm_env);
-            };
-
-            let guard_result = runtime.eval_expr(guard, &mut arm_env)?;
-            let scrutinee_for_guard = scrutinee.clone();
-            let arms_for_guard = arms.clone();
-            let env_for_guard = env.clone();
-            runtime.continue_with(guard_result, move |runtime, guard| match guard {
-                Value::Bool(true) => runtime.eval_expr(arm.body, &mut arm_env.clone()),
-                Value::Bool(false) => runtime.eval_case_arm(
-                    scrutinee_for_guard.clone(),
-                    arms_for_guard.clone(),
-                    env_for_guard.clone(),
-                    index + 1,
-                ),
-                value => Err(RuntimeError::NonBoolGuard { value }),
-            })
-        })
+        self.bind_pat(
+            arm.pat.clone(),
+            scrutinee.clone(),
+            env.clone(),
+            BindThen::CaseArm {
+                scrutinee,
+                arms,
+                env,
+                index,
+                arm,
+            },
+        )
     }
 
     pub(super) fn eval_catch(
@@ -637,7 +522,7 @@ impl<'a> Runtime<'a> {
         body: ExprId,
         arms: Vec<CatchArm>,
         env: &mut CapturedEnv,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         let catch_env = env.clone();
         let arms = self.prepare_catch_arms(expr, arms);
         let result = self.eval_expr(body, env)?;
@@ -665,10 +550,10 @@ impl<'a> Runtime<'a> {
 
     pub(super) fn handle_catch_result(
         &mut self,
-        result: EvalResult<'a>,
+        result: EvalResult,
         arms: RuntimeCatchArms,
         env: CapturedEnv,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         match result {
             EvalResult::Value(value) => self.handle_catch_value(value, arms, env),
             EvalResult::Request(request) => self.handle_catch_request(request, arms, env),
@@ -680,7 +565,7 @@ impl<'a> Runtime<'a> {
         value: Value,
         arms: RuntimeCatchArms,
         env: CapturedEnv,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         self.handle_catch_value_arm(value, arms, env, 0)
     }
 
@@ -690,7 +575,7 @@ impl<'a> Runtime<'a> {
         arms: RuntimeCatchArms,
         env: CapturedEnv,
         index: usize,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         if index >= arms.len() {
             return value_result(value);
         }
@@ -700,53 +585,36 @@ impl<'a> Runtime<'a> {
             return self.handle_catch_value_arm(value, arms, env, index + 1);
         }
 
-        let bind = self.bind_pat(arm.pat.clone(), value.clone(), env.clone())?;
-        self.continue_bind(bind, move |runtime, matched, mut arm_env| {
-            if !matched {
-                return runtime.handle_catch_value_arm(
-                    value.clone(),
-                    arms.clone(),
-                    env.clone(),
-                    index + 1,
-                );
-            }
-            let Some(guard) = arm.guard else {
-                return runtime.eval_expr(arm.body, &mut arm_env);
-            };
-
-            let guard_result = runtime.eval_expr(guard, &mut arm_env)?;
-            let value_for_guard = value.clone();
-            let arms_for_guard = arms.clone();
-            let env_for_guard = env.clone();
-            runtime.continue_with(guard_result, move |runtime, guard| match guard {
-                Value::Bool(true) => runtime.eval_expr(arm.body, &mut arm_env.clone()),
-                Value::Bool(false) => runtime.handle_catch_value_arm(
-                    value_for_guard.clone(),
-                    arms_for_guard.clone(),
-                    env_for_guard.clone(),
-                    index + 1,
-                ),
-                value => Err(RuntimeError::NonBoolGuard { value }),
-            })
-        })
+        self.bind_pat(
+            arm.pat.clone(),
+            value.clone(),
+            env.clone(),
+            BindThen::CatchValue {
+                value,
+                arms,
+                env,
+                index,
+                arm,
+            },
+        )
     }
 
     pub(super) fn handle_catch_request(
         &mut self,
-        request: Request<'a>,
+        request: Request,
         arms: RuntimeCatchArms,
         env: CapturedEnv,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         self.handle_catch_request_arm(request, arms, env, 0)
     }
 
     pub(super) fn handle_catch_request_arm(
         &mut self,
-        request: Request<'a>,
+        request: Request,
         arms: RuntimeCatchArms,
         env: CapturedEnv,
         index: usize,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         if index < arms.len() {
             let arm = arms[index].clone();
             let operation_matches = arm
@@ -767,110 +635,36 @@ impl<'a> Runtime<'a> {
                 return self.handle_catch_request_arm(request, arms, env, index + 1);
             }
 
-            let bind = self.bind_pat(arm.pat.clone(), request.payload.clone(), env.clone())?;
-            return self.continue_bind(bind, move |runtime, matched, arm_env| {
-                if !matched {
-                    return runtime.handle_catch_request_arm(
-                        request.clone(),
-                        arms.clone(),
-                        env.clone(),
-                        index + 1,
-                    );
-                }
-                runtime.stats.catch_request_matches += 1;
-                let continuation = arm.continuation.clone();
-                let guard = arm.guard;
-                let body = arm.body;
-                if let Some(continuation) = continuation {
-                    let id = runtime.store_continuation(request.resume.clone());
-                    let bind = runtime.bind_pat(continuation, Value::Continuation(id), arm_env)?;
-                    let request_for_continuation = request.clone();
-                    let arms_for_continuation = arms.clone();
-                    let env_for_continuation = env.clone();
-                    return runtime.continue_bind(bind, move |runtime, matched, mut arm_env| {
-                        if !matched {
-                            return runtime.handle_catch_request_arm(
-                                request_for_continuation.clone(),
-                                arms_for_continuation.clone(),
-                                env_for_continuation.clone(),
-                                index + 1,
-                            );
-                        }
-                        let Some(guard) = guard else {
-                            return runtime.eval_handler_body(body, &mut arm_env);
-                        };
-
-                        let guard_result = runtime.eval_expr(guard, &mut arm_env)?;
-                        let request_for_guard = request_for_continuation.clone();
-                        let arms_for_guard = arms_for_continuation.clone();
-                        let env_for_guard = env_for_continuation.clone();
-                        runtime.continue_with(guard_result, move |runtime, guard| match guard {
-                            Value::Bool(true) => {
-                                runtime.eval_handler_body(body, &mut arm_env.clone())
-                            }
-                            Value::Bool(false) => runtime.handle_catch_request_arm(
-                                request_for_guard.clone(),
-                                arms_for_guard.clone(),
-                                env_for_guard.clone(),
-                                index + 1,
-                            ),
-                            value => Err(RuntimeError::NonBoolGuard { value }),
-                        })
-                    });
-                }
-
-                let mut arm_env = arm_env;
-                let Some(guard) = guard else {
-                    return runtime.eval_handler_body(body, &mut arm_env);
-                };
-
-                let guard_result = runtime.eval_expr(guard, &mut arm_env)?;
-                let request_for_guard = request.clone();
-                let arms_for_guard = arms.clone();
-                let env_for_guard = env.clone();
-                runtime.continue_with(guard_result, move |runtime, guard| match guard {
-                    Value::Bool(true) => runtime.eval_handler_body(body, &mut arm_env.clone()),
-                    Value::Bool(false) => runtime.handle_catch_request_arm(
-                        request_for_guard.clone(),
-                        arms_for_guard.clone(),
-                        env_for_guard.clone(),
-                        index + 1,
-                    ),
-                    value => Err(RuntimeError::NonBoolGuard { value }),
-                })
-            });
+            return self.bind_pat(
+                arm.pat.clone(),
+                request.payload.clone(),
+                env.clone(),
+                BindThen::CatchRequestPayload {
+                    request,
+                    arms,
+                    env,
+                    index,
+                    arm,
+                },
+            );
         }
 
-        let arms_for_resume = arms.clone();
-        let env_for_resume = env.clone();
-        let resume = request.resume.clone();
-        Ok(EvalResult::Request(Request {
-            path: request.path,
-            path_key: request.path_key,
-            guard_ids: request.guard_ids,
-            carried_guard_ids: request.carried_guard_ids,
-            payload: request.payload,
-            resume: Rc::new(move |runtime, value| {
-                let resumed = resume(runtime, value)?;
-                runtime.handle_catch_result(
-                    resumed,
-                    arms_for_resume.clone(),
-                    env_for_resume.clone(),
-                )
-            }),
-        }))
+        Ok(EvalResult::Request(push_frame(
+            request,
+            Frame::CatchResult { arms, env },
+        )))
     }
 
     pub(super) fn eval_handler_body(
         &mut self,
         body: ExprId,
         env: &mut CapturedEnv,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         let result = self.eval_expr(body, env)?;
-        self.continue_with(result, |runtime, value| runtime.force_value_if_thunk(value))
+        self.continue_with_frame(result, Frame::HandlerBodyForce)
     }
 
-    pub(super) fn eval_block(&mut self, block: Block, env: &mut CapturedEnv) -> RuntimeResult<'a> {
+    pub(super) fn eval_block(&mut self, block: Block, env: &mut CapturedEnv) -> RuntimeResult {
         self.eval_block_parts(block.stmts, block.tail, env.clone())
     }
 
@@ -879,7 +673,7 @@ impl<'a> Runtime<'a> {
         stmts: Vec<Stmt>,
         tail: Option<ExprId>,
         env: CapturedEnv,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         self.eval_block_step(stmts, tail, env, 0, Value::Unit)
     }
 
@@ -890,7 +684,7 @@ impl<'a> Runtime<'a> {
         env: CapturedEnv,
         index: usize,
         last: Value,
-    ) -> RuntimeResult<'a> {
+    ) -> RuntimeResult {
         if index >= stmts.len() {
             if let Some(tail) = tail {
                 let mut env = env;
@@ -903,37 +697,41 @@ impl<'a> Runtime<'a> {
             Stmt::Let(_, pat, value) => {
                 let mut value_env = env.clone();
                 let result = self.eval_expr(value, &mut value_env)?;
-                self.continue_with(result, move |runtime, value| {
-                    let value = recursive_let_value(&pat, value);
-                    let bind = runtime.bind_pat(pat.clone(), value.clone(), env.clone())?;
-                    let stmts_for_bind = stmts.clone();
-                    let value_for_bind = value.clone();
-                    runtime.continue_bind(bind, move |runtime, matched, next_env| {
-                        if !matched {
-                            return Err(RuntimeError::PatternMismatch);
-                        }
-                        runtime.eval_block_step(
-                            stmts_for_bind.clone(),
-                            tail,
-                            next_env,
-                            index + 1,
-                            value_for_bind.clone(),
-                        )
-                    })
-                })
+                self.continue_with_frame(
+                    result,
+                    Frame::BlockLetValue {
+                        pat,
+                        stmts,
+                        tail,
+                        env,
+                        index,
+                    },
+                )
             }
             Stmt::Expr(expr) => {
                 let mut expr_env = env.clone();
                 let result = self.eval_expr(expr, &mut expr_env)?;
-                self.continue_with(result, move |runtime, value| {
-                    runtime.eval_block_step(stmts.clone(), tail, env.clone(), index + 1, value)
-                })
+                self.continue_with_frame(
+                    result,
+                    Frame::BlockExprValue {
+                        stmts,
+                        tail,
+                        env,
+                        index,
+                    },
+                )
             }
             Stmt::Module(_, module_stmts) => {
                 let result = self.eval_block_parts(module_stmts, None, env.clone())?;
-                self.continue_with(result, move |runtime, value| {
-                    runtime.eval_block_step(stmts.clone(), tail, env.clone(), index + 1, value)
-                })
+                self.continue_with_frame(
+                    result,
+                    Frame::BlockExprValue {
+                        stmts,
+                        tail,
+                        env,
+                        index,
+                    },
+                )
             }
         }
     }

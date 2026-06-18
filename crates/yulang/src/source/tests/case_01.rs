@@ -444,7 +444,7 @@ fn run_without_std_matches_control_on_struct_field_projection() {
 #[cfg(unix)]
 #[test]
 fn run_with_std_matches_control_on_core_smoke_suite() {
-    let (mono, control) = run_with_std_main(
+    let entry = write_main_with_std(
         "run-std-core-smoke-suite",
         "1 + 2 * 3\n\
              [1, 2, 3].map(\\x -> x + 1).filter(\\x -> x > 2).rev\n\
@@ -456,12 +456,17 @@ fn run_with_std_matches_control_on_core_smoke_suite() {
              \x20 if i == 1: std::control::flow::loop::last()\n\
              1\n",
     );
+    let mono = run_mono_from_entry_with_std(&entry).unwrap();
+    let control_text = run_with_vm_test_stack({
+        let entry = entry.clone();
+        move || run_control_from_entry_with_std(entry).unwrap().text
+    });
 
     assert_eq!(
         mono.text,
         "run roots [7, [4, 3], \"sum=3\", \"hex=ff\", \"debug=[1, 2]\", \"pad=0007\", 1]\n"
     );
-    assert_eq!(control.text, mono.text);
+    assert_eq!(control_text, mono.text);
 }
 
 #[cfg(unix)]
@@ -567,10 +572,13 @@ fn run_with_std_collects_nondet_sum_list_benchmark() {
     .unwrap();
 
     let mono = run_mono_from_entry_with_std(root.join("main.yu")).unwrap();
-    let control = run_control_from_entry_with_std(root.join("main.yu")).unwrap();
+    let control_text = run_with_vm_test_stack({
+        let entry = root.join("main.yu");
+        move || run_control_from_entry_with_std(entry).unwrap().text
+    });
 
     assert_eq!(mono.text, "run roots [[2, 3, 3, 4, 4, 5]]\n");
-    assert_eq!(control.text, mono.text);
+    assert_eq!(control_text, mono.text);
 }
 
 #[cfg(unix)]
@@ -635,7 +643,14 @@ fn run_with_std_nondet_sum_list_say_handles_control_stdout() {
     .unwrap();
 
     let mono = run_mono_from_entry_with_std(root.join("main.yu"));
-    let control = run_control_from_entry_with_std(root.join("main.yu"));
+    let control = run_with_vm_test_stack({
+        let entry = root.join("main.yu");
+        move || {
+            let output = run_control_from_entry_with_std(entry)
+                .expect("control VM route should handle console out");
+            (output.stdout, output.text)
+        }
+    });
 
     match mono {
         Err(RouteError::Runtime(mono_runtime::RuntimeError::UnhandledEffect { path })) => {
@@ -643,9 +658,8 @@ fn run_with_std_nondet_sum_list_say_handles_control_stdout() {
         }
         other => panic!("expected mono unhandled out effect, got {other:?}"),
     }
-    let control = control.expect("control VM route should handle console out");
-    assert_eq!(control.stdout, "[2, 3, 3, 4, 4, 5]\n");
-    assert_eq!(control.text, "run roots [()]\n");
+    assert_eq!(control.0, "[2, 3, 3, 4, 4, 5]\n");
+    assert_eq!(control.1, "run roots [()]\n");
 }
 
 #[test]

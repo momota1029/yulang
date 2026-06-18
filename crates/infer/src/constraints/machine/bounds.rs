@@ -354,7 +354,12 @@ impl ConstraintMachine {
         source: TypeVar,
         neg: NegId,
     ) {
-        let Some(bounds) = self.bounds.vars.get_mut(&source) else {
+        let Some(bounds) = self
+            .bounds
+            .vars
+            .get_mut(source.0 as usize)
+            .and_then(|bounds| bounds.as_mut())
+        else {
             return;
         };
         let mut removed = Vec::new();
