@@ -172,22 +172,25 @@ impl<'a> Runtime<'a> {
     }
 
     pub(super) fn mark_request_with_active_markers(&mut self, request: &mut Request<'a>) {
+        let mut has_live_guard = request
+            .guard_ids
+            .iter()
+            .any(|id| self.guard_ids.contains(id));
         for marker in &self.active_add_ids {
             self.stats.active_add_id_scans += 1;
+            if marker.depth != 0 || has_live_guard {
+                continue;
+            }
             let path_matches_marker =
                 counted_path_has_prefix(&mut self.stats, &request.path_key, &marker.path_key);
-            if marker.depth != 0
-                || (path_matches_marker && !marker.guard_own_path)
+            if (path_matches_marker && !marker.guard_own_path)
                 || (!path_matches_marker && !marker.guard_foreign_path)
-                || request
-                    .guard_ids
-                    .iter()
-                    .any(|id| self.guard_ids.contains(id))
             {
                 continue;
             }
             if !request.guard_ids.contains(&marker.id) {
                 request.guard_ids.push(marker.id);
+                has_live_guard = self.guard_ids.contains(&marker.id);
             }
             if marker.carry_after_frame
                 && request_path_carries_function_adapter_guard(&request.path)
