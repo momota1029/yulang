@@ -1,13 +1,23 @@
 use super::*;
 
 impl AnalysisSession {
+    #[cfg(test)]
     pub(in crate::analysis) fn generalize_root_with_prepasses(
         &mut self,
         def: DefId,
         root: TypeVar,
     ) -> GeneralizedCompactRoot {
+        self.generalize_root_with_prepasses_and_metrics(def, root).0
+    }
+
+    pub(super) fn generalize_root_with_prepasses_and_metrics(
+        &mut self,
+        def: DefId,
+        root: TypeVar,
+    ) -> (GeneralizedCompactRoot, GeneralizeRootMetrics) {
         let trace = analysis_trace_mode();
         let start = Instant::now();
+        let mut metrics = GeneralizeRootMetrics::default();
         let quantification_boundary = self.generalize_boundary(def);
         let simplification_boundary = TypeLevel::root().child();
         let mut applied_casts = FxHashSet::<CompactCastKey>::default();
@@ -30,6 +40,7 @@ impl AnalysisSession {
                 );
             let elapsed = phase.elapsed();
             self.timing.record_generalize_compact(elapsed);
+            metrics.record_compact_iteration(&next_compact);
             trace_generalize_phase(trace, "compact", def, elapsed, start);
             let phase = Instant::now();
             let role_input_count = self.roles.for_owner(def).len();
@@ -307,7 +318,7 @@ impl AnalysisSession {
             combined.extend(generalized.substitutions);
             generalized.substitutions = normalize_var_substitutions(combined);
         }
-        generalized
+        (generalized, metrics)
     }
 
     #[cfg(test)]

@@ -895,6 +895,31 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
     );
     let _ = writeln!(
         out,
+        "  analysis.generalize_root_compact_nodes: {}",
+        analysis.generalize_root_compact_nodes
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_root_compact_vars: {}",
+        analysis.generalize_root_compact_vars
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_component_unique_compact_vars: {}",
+        analysis.generalize_component_unique_compact_vars
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_compact_iteration_nodes: {}",
+        analysis.generalize_compact_iteration_nodes
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_compact_iteration_vars: {}",
+        analysis.generalize_compact_iteration_vars
+    );
+    let _ = writeln!(
+        out,
         "  analysis.generalize_merge_constraints: {}",
         analysis.generalize_merge_constraints
     );

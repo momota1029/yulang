@@ -27,11 +27,11 @@ use crate::casts::CastTable;
 #[cfg(test)]
 use crate::compact::compact_reachable_role_constraints;
 use crate::compact::{
-    CompactCastApplication, CompactCastKey, CompactMergeConstraintKey, CompactRoleArg,
-    CompactRoleConstraint, CompactRoot, CompactSimplification, CompactSubtypeConstraintKey,
-    apply_compact_merge_constraints, apply_compact_subtype_constraints,
-    coalesce_floor_interval_equalities, coalesce_floor_variable_sandwiches,
-    collect_interval_dominance_constraints,
+    CompactBounds, CompactCastApplication, CompactCastKey, CompactMergeConstraintKey,
+    CompactRoleArg, CompactRoleConstraint, CompactRoot, CompactSimplification,
+    CompactSubtypeConstraintKey, CompactType, apply_compact_merge_constraints,
+    apply_compact_subtype_constraints, coalesce_floor_interval_equalities,
+    coalesce_floor_variable_sandwiches, collect_interval_dominance_constraints,
     compact_reachable_role_constraints_recording_merge_constraints, compact_role_constraint,
     compact_role_constraint_recording_merge_constraints, compact_root_has_interval_bounds,
     compact_type_var_recording_merge_constraints,
@@ -119,6 +119,161 @@ pub(in crate::analysis) struct SccInstantiateUse {
     pub parent: DefId,
     pub target: DefId,
     pub use_value: TypeVar,
+}
+
+#[derive(Debug, Default)]
+pub(super) struct GeneralizeRootMetrics {
+    pub first_compact_nodes: usize,
+    pub first_compact_vars: FxHashSet<TypeVar>,
+    pub compact_iteration_nodes: usize,
+    pub compact_iteration_vars: usize,
+    compact_iterations: usize,
+}
+
+impl GeneralizeRootMetrics {
+    pub(super) fn record_compact_iteration(&mut self, compact: &CompactRoot) {
+        let shape = compact_shape_metrics(compact);
+        if self.compact_iterations == 0 {
+            self.first_compact_nodes = shape.nodes;
+            self.first_compact_vars = shape.vars.clone();
+        }
+        self.compact_iterations += 1;
+        self.compact_iteration_nodes += shape.nodes;
+        self.compact_iteration_vars += shape.vars.len();
+    }
+}
+
+#[derive(Debug, Default)]
+pub(super) struct GeneralizeComponentMetrics {
+    pub root_compact_nodes: usize,
+    pub root_compact_vars: usize,
+    pub unique_compact_vars: FxHashSet<TypeVar>,
+    pub compact_iteration_nodes: usize,
+    pub compact_iteration_vars: usize,
+}
+
+impl GeneralizeComponentMetrics {
+    pub(super) fn add_root(&mut self, metrics: GeneralizeRootMetrics) {
+        self.root_compact_nodes += metrics.first_compact_nodes;
+        self.root_compact_vars += metrics.first_compact_vars.len();
+        self.unique_compact_vars
+            .extend(metrics.first_compact_vars.iter().copied());
+        self.compact_iteration_nodes += metrics.compact_iteration_nodes;
+        self.compact_iteration_vars += metrics.compact_iteration_vars;
+    }
+}
+
+#[derive(Debug, Default)]
+struct CompactShapeMetrics {
+    nodes: usize,
+    vars: FxHashSet<TypeVar>,
+}
+
+fn compact_shape_metrics(root: &CompactRoot) -> CompactShapeMetrics {
+    let mut metrics = CompactShapeMetrics::default();
+    record_compact_type_shape(&root.root, &mut metrics);
+    for rec in &root.rec_vars {
+        metrics.nodes += 1;
+        metrics.vars.insert(rec.var);
+        record_compact_bounds_shape(&rec.bounds, &mut metrics);
+    }
+    metrics
+}
+
+fn record_compact_type_shape(ty: &CompactType, metrics: &mut CompactShapeMetrics) {
+    metrics.nodes += 1;
+    metrics.nodes += ty.vars.len() + ty.builtins.len();
+    for var in &ty.vars {
+        metrics.vars.insert(var.var);
+    }
+    for args in ty.cons.values() {
+        metrics.nodes += 1;
+        for arg in args {
+            record_compact_bounds_shape(arg, metrics);
+        }
+    }
+    for fun in &ty.funs {
+        metrics.nodes += 1;
+        record_compact_type_shape(&fun.arg, metrics);
+        record_compact_type_shape(&fun.arg_eff, metrics);
+        record_compact_type_shape(&fun.ret_eff, metrics);
+        record_compact_type_shape(&fun.ret, metrics);
+    }
+    for record in &ty.records {
+        metrics.nodes += 1;
+        for field in &record.fields {
+            record_compact_type_shape(&field.value, metrics);
+        }
+    }
+    for spread in &ty.record_spreads {
+        metrics.nodes += 1;
+        for field in &spread.fields {
+            record_compact_type_shape(&field.value, metrics);
+        }
+        record_compact_type_shape(&spread.tail, metrics);
+    }
+    for variant in &ty.poly_variants {
+        metrics.nodes += 1;
+        for (_, payload) in &variant.items {
+            for item in payload {
+                record_compact_type_shape(item, metrics);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        metrics.nodes += 1;
+        for item in &tuple.items {
+            record_compact_type_shape(item, metrics);
+        }
+    }
+    for row in &ty.rows {
+        metrics.nodes += 1;
+        for args in row.items.values() {
+            metrics.nodes += 1;
+            for arg in args {
+                record_compact_bounds_shape(arg, metrics);
+            }
+        }
+        record_compact_type_shape(&row.tail, metrics);
+    }
+}
+
+fn record_compact_bounds_shape(bounds: &CompactBounds, metrics: &mut CompactShapeMetrics) {
+    metrics.nodes += 1;
+    match bounds {
+        CompactBounds::Interval { lower, upper } => {
+            record_compact_type_shape(lower, metrics);
+            record_compact_type_shape(upper, metrics);
+        }
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
+            for arg in args {
+                record_compact_bounds_shape(arg, metrics);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            record_compact_bounds_shape(arg, metrics);
+            record_compact_bounds_shape(arg_eff, metrics);
+            record_compact_bounds_shape(ret_eff, metrics);
+            record_compact_bounds_shape(ret, metrics);
+        }
+        CompactBounds::Record { fields } => {
+            for field in fields {
+                record_compact_bounds_shape(&field.value, metrics);
+            }
+        }
+        CompactBounds::PolyVariant { items } => {
+            for (_, payload) in items {
+                for item in payload {
+                    record_compact_bounds_shape(item, metrics);
+                }
+            }
+        }
+    }
 }
 
 fn def_parent_map(poly: &PolyArena) -> FxHashMap<DefId, DefId> {

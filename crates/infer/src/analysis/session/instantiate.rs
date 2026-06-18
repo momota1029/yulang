@@ -11,10 +11,12 @@ impl AnalysisSession {
         let trace = analysis_trace_mode();
         let component_start = Instant::now();
         let mut generalized = Vec::with_capacity(component.len());
+        let mut component_metrics = GeneralizeComponentMetrics::default();
         for (def, root) in component.iter().copied().zip(roots.iter().copied()) {
             let phase = Instant::now();
-            let scheme = self.generalize_root_with_prepasses(def, root);
+            let (scheme, metrics) = self.generalize_root_with_prepasses_and_metrics(def, root);
             let elapsed = phase.elapsed();
+            component_metrics.add_root(metrics);
             self.timing.record_quantify_generalize(elapsed);
             trace_quantify_phase(trace, "generalize", def, elapsed, component_start);
             let phase = Instant::now();
@@ -30,6 +32,13 @@ impl AnalysisSession {
             );
             generalized.push((def, scheme));
         }
+        self.timing.record_generalize_component_shape(
+            component_metrics.root_compact_nodes,
+            component_metrics.root_compact_vars,
+            component_metrics.unique_compact_vars.len(),
+            component_metrics.compact_iteration_nodes,
+            component_metrics.compact_iteration_vars,
+        );
 
         for (def, scheme) in &generalized {
             self.schemes.insert(*def, scheme.clone());

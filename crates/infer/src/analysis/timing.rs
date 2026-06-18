@@ -108,6 +108,11 @@ pub struct AnalysisTiming {
     pub generalize_cast_batches: usize,
     pub generalize_cast_applications: usize,
     pub generalize_role_resolutions: usize,
+    pub generalize_root_compact_nodes: usize,
+    pub generalize_root_compact_vars: usize,
+    pub generalize_component_unique_compact_vars: usize,
+    pub generalize_compact_iteration_nodes: usize,
+    pub generalize_compact_iteration_vars: usize,
     pub instantiated_uses: usize,
     pub instantiate_predicate_var: usize,
     pub instantiate_predicate_stack: usize,
@@ -381,6 +386,21 @@ impl AnalysisTiming {
 
     pub(super) fn record_generalize_role_resolve_inputs(&mut self, count: usize) {
         self.generalize_role_resolve_inputs += count;
+    }
+
+    pub(super) fn record_generalize_component_shape(
+        &mut self,
+        root_compact_nodes: usize,
+        root_compact_vars: usize,
+        component_unique_compact_vars: usize,
+        compact_iteration_nodes: usize,
+        compact_iteration_vars: usize,
+    ) {
+        self.generalize_root_compact_nodes += root_compact_nodes;
+        self.generalize_root_compact_vars += root_compact_vars;
+        self.generalize_component_unique_compact_vars += component_unique_compact_vars;
+        self.generalize_compact_iteration_nodes += compact_iteration_nodes;
+        self.generalize_compact_iteration_vars += compact_iteration_vars;
     }
 
     pub(super) fn record_generalize_compact(&mut self, elapsed: Duration) {

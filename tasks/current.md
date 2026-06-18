@@ -249,8 +249,14 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      `analysis.route_scc_events=162.1ms` に対して `analysis.scc_apply=895us`。
      SCC graph そのものより、`analysis.quantify_generalize=90.6ms`、
      `analysis.instantiate_subtype_predicate=42.6ms`、`constraint.drain=85.2ms` が本命。
-     次は component 内 roots の reachable type graph 重複と、
-     generalize restart ごとの compact / role view 再構築量を測る。
+   - 続けて generalize compact shape counter を追加し、
+     `examples/showcase.yu` では `generalize_root_compact_vars=5627` と
+     `generalize_component_unique_compact_vars=5627` が一致した。
+     この入力では component 内 root overlap は薄く、
+     `generalize_compact_iteration_nodes=26244` が `generalize_root_compact_nodes=15871` まで
+     膨らむ restart 側が濃い。
+     次は merge/subtype/role restart をどう減らすか、または restart 後の compact / role view を
+     constraint epoch で再利用できるかを見る。
 3. source/load は今の public examples では最大ではない。
    - `collect+load` は 70〜85ms 程度なので、realm/band や compiled-unit cache と合わせて設計する。
    - 先に std 専用特例で隠さない。
