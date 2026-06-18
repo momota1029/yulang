@@ -1234,12 +1234,25 @@ fn mark_value_shared(value: Value, markers: &SharedMarkers) -> Value {
         return value;
     }
     match value {
+        Value::Marked {
+            value,
+            markers: value_markers,
+        } if markers_contain_all(&value_markers, markers) => Value::Marked {
+            value,
+            markers: value_markers,
+        },
         Value::Marked { .. } => mark_value(value, markers),
         value => Value::Marked {
             value: Box::new(value),
             markers: markers.clone(),
         },
     }
+}
+
+fn markers_contain_all(existing: &[ValueMarker], required: &[ValueMarker]) -> bool {
+    required
+        .iter()
+        .all(|marker| existing.iter().any(|existing| existing == marker))
 }
 
 fn recursive_let_value(pat: &Pat, value: Value) -> Value {
