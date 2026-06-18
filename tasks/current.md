@@ -174,6 +174,13 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      `frame_allocs` / `marker_scope_frame_touches` を測り、効く順に切る。
      その後、inline current frame stack + captured snapshot 分離、ScopeId 風 marker state、
      dense env と組み合わせた `PatPlanId` 化へ進む。
+   - `CapturedEnv` は 2026-06-19 に one-binding persistent frame chain へ変更した。
+     `Rc<HashMap>` COW は消え、`bench/nondet_20_discard.yu` は repeat 5 で
+     `runtime_execute` 45ms 前後まで落ちた。
+     `im_rc::HashMap<_, _, FxBuildHasher>` 版も測ったが、同条件で
+     `bench/nondet_20_discard.yu` が 52〜55ms、`examples/showcase.yu` が 115〜125ms となり、
+     親ポインタ版より悪化したため採用しない。
+     現状は `env_max_size=5` なので、HashMap の O(1) lookup より浅い frame chain が勝つ。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。
