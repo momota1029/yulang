@@ -63,15 +63,19 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
 
 ## 今すぐやる slice
 
-1. control VM の残り runtime cost を切る。
-   - `showcase` では VM eval がまだ 0.39〜0.48s 程度で、`apply_value` / `force_thunk` / handler continuation が太い。
+1. control VM の runtime 構造を frame-based continuation へ寄せる。
+   - `showcase` では VM eval がまだ 350ms 前後に残り、旧作 bench の
+     `(each 1..20 + each 1..20).list.say` 10ms 前後から大きく離れている。
    - 2026-06-18 に `apply_value` / `force_thunk` / primitive apply / continuation wrapper /
      marker frame の分岐別 counter を追加した。
-   - 初期観測では `showcase` の VM eval で marker frame close/resume と request continuation wrapping が最も太い。
-     次は marker frame と request resume の allocation / clone 境界を、意味論を変えずに削れるか見る。
-   - scalar marker fast path は `showcase` VM eval を 371〜380ms 付近まで下げた。
-   - value continuation fast path は `showcase` VM eval を 354〜378ms 付近まで下げた。
-     次は request resume wrapper 数を減らす continuation 表現側の変更か、pattern bind recursion clone を別実験として扱う。
+   - `each 1..20 + each 1..20` 系の測定では、表示を外しても `vm_eval` は 160ms 台で、
+     主因は root formatting ではない。
+   - 現行 runtime は request resume を `Rc<dyn Fn>` chain として持つため、
+     request 通過ごとに resume wrapper と marker frame 再導入が積み上がる。
+   - 旧作 `archive/crates/yulang-vm/src/vm/control.rs` の `ControlContinuation` /
+     `ControlFrame` / `push_frame` / `resume` / `handle_request` を参考に、
+     現行 control IR は残したまま runtime の continuation 表現を作り直す。
+   - 詳細: `notes/design/control-vm-frame-runtime-plan.md`
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。
