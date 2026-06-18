@@ -97,6 +97,7 @@ pub struct RuntimeStats {
     pub env_lookups: u64,
     pub env_lookup_hits: u64,
     pub env_lookup_misses: u64,
+    pub env_lookup_steps: u64,
     pub env_inserts: u64,
     pub env_cow_clones: u64,
     pub env_cow_entries_copied: u64,
@@ -346,7 +347,20 @@ pub struct AddIdMarker {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CapturedEnv {
-    locals: Rc<HashMap<DefId, Value>>,
+    frame: Option<Rc<EnvFrame>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct EnvFrame {
+    parent: Option<Rc<EnvFrame>>,
+    def: DefId,
+    value: Value,
+    depth: usize,
+}
+
+struct EnvLookup<'a> {
+    value: Option<&'a Value>,
+    steps: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -357,18 +371,35 @@ struct EnvInsertStats {
 }
 
 impl CapturedEnv {
-    fn get(&self, def: DefId) -> Option<&Value> {
-        self.locals.get(&def)
+    fn get(&self, def: DefId) -> EnvLookup<'_> {
+        let mut steps = 0;
+        let mut frame = self.frame.as_deref();
+        while let Some(current) = frame {
+            steps += 1;
+            if current.def == def {
+                return EnvLookup {
+                    value: Some(&current.value),
+                    steps,
+                };
+            }
+            frame = current.parent.as_deref();
+        }
+        EnvLookup { value: None, steps }
     }
 
     fn insert(&mut self, def: DefId, value: Value) -> EnvInsertStats {
-        let cow_cloned = Rc::strong_count(&self.locals) > 1;
-        let entries_copied = cow_cloned.then_some(self.locals.len()).unwrap_or(0);
-        Rc::make_mut(&mut self.locals).insert(def, value);
+        let parent = self.frame.take();
+        let depth = parent.as_ref().map_or(1, |frame| frame.depth + 1);
+        self.frame = Some(Rc::new(EnvFrame {
+            parent,
+            def,
+            value,
+            depth,
+        }));
         EnvInsertStats {
-            cow_cloned,
-            entries_copied,
-            new_size: self.locals.len(),
+            cow_cloned: false,
+            entries_copied: 0,
+            new_size: depth,
         }
     }
 }

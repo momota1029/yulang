@@ -18,8 +18,9 @@ impl<'a> Runtime<'a> {
             }
             EvalExpr::EffectOp { path } => value_result(Value::EffectOp { path }),
             EvalExpr::Local(def) => {
-                let value = env.get(def).cloned();
-                self.record_env_lookup(value.is_some());
+                let lookup = env.get(def);
+                let value = lookup.value.cloned();
+                self.record_env_lookup(value.is_some(), lookup.steps);
                 value_result(value.ok_or(RuntimeError::UnboundLocal { def })?)
             }
             EvalExpr::InstanceRef(instance) => {

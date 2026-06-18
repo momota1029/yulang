@@ -73,8 +73,9 @@ impl<'a> Runtime<'a> {
         Ok(results)
     }
 
-    pub(super) fn record_env_lookup(&mut self, hit: bool) {
+    pub(super) fn record_env_lookup(&mut self, hit: bool, steps: usize) {
         self.stats.env_lookups += 1;
+        self.stats.env_lookup_steps += steps as u64;
         if hit {
             self.stats.env_lookup_hits += 1;
         } else {

@@ -497,6 +497,7 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
     eprintln!("  run.env_lookups: {}", stats.env_lookups);
     eprintln!("  run.env_lookup_hits: {}", stats.env_lookup_hits);
     eprintln!("  run.env_lookup_misses: {}", stats.env_lookup_misses);
+    eprintln!("  run.env_lookup_steps: {}", stats.env_lookup_steps);
     eprintln!("  run.env_inserts: {}", stats.env_inserts);
     eprintln!("  run.env_cow_clones: {}", stats.env_cow_clones);
     eprintln!(
