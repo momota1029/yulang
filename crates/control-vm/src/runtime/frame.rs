@@ -164,16 +164,16 @@ pub(super) enum Frame {
         resolution: Option<SelectResolution>,
     },
     CaseScrutineeForce {
-        arms: Vec<CaseArm>,
+        arms: RuntimeCaseArms,
         env: CapturedEnv,
     },
     CaseScrutinee {
-        arms: Vec<CaseArm>,
+        arms: RuntimeCaseArms,
         env: CapturedEnv,
     },
     CaseGuard {
         scrutinee: Value,
-        arms: Vec<CaseArm>,
+        arms: RuntimeCaseArms,
         env: CapturedEnv,
         index: usize,
         arm_env: CapturedEnv,
@@ -243,7 +243,7 @@ pub(super) enum BindThen {
     },
     CaseArm {
         scrutinee: Value,
-        arms: Vec<CaseArm>,
+        arms: RuntimeCaseArms,
         env: CapturedEnv,
         index: usize,
         arm: CaseArm,

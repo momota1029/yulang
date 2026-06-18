@@ -554,6 +554,7 @@ impl fmt::Display for RuntimeError {
 impl std::error::Error for RuntimeError {}
 
 type RuntimeResult = Result<EvalResult, RuntimeError>;
+type RuntimeCaseArms = Rc<[CaseArm]>;
 type RuntimeCatchArms = Rc<[RuntimeCatchArm]>;
 type SharedFrame = Rc<Frame>;
 type SharedMarkerScopes = Rc<[ContinuationMarkerScope]>;
@@ -1029,6 +1030,10 @@ fn markers_for_continuation_resume(markers: &[ValueMarker]) -> Vec<ValueMarker> 
 
 fn shared_markers(markers: Vec<ValueMarker>) -> SharedMarkers {
     Rc::from(markers)
+}
+
+fn shared_case_arms(arms: &[CaseArm]) -> RuntimeCaseArms {
+    Rc::from(arms.to_vec().into_boxed_slice())
 }
 
 fn stack_handler_markers(

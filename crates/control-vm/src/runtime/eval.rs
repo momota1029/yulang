@@ -114,9 +114,10 @@ impl<'a> Runtime<'a> {
                 name,
                 resolution,
             } => self.eval_select(base, name, resolution, env),
-            EvalExpr::Case { scrutinee, arms } => {
+            EvalExpr::Case { scrutinee } => {
                 let scrutinee = self.eval_expr(scrutinee, env)?;
                 let env = env.clone();
+                let arms = self.prepare_case_arms(expr_id)?;
                 self.continue_with_frame(scrutinee, Frame::CaseScrutineeForce { arms, env })
             }
             EvalExpr::Catch { body, arms } => self.eval_catch(expr_id, body, arms, env),
@@ -603,7 +604,7 @@ impl<'a> Runtime<'a> {
     pub(super) fn eval_case(
         &mut self,
         scrutinee: Value,
-        arms: Vec<CaseArm>,
+        arms: RuntimeCaseArms,
         env: CapturedEnv,
     ) -> RuntimeResult {
         self.eval_case_arm(scrutinee, arms, env, 0)
@@ -612,7 +613,7 @@ impl<'a> Runtime<'a> {
     pub(super) fn eval_case_arm(
         &mut self,
         scrutinee: Value,
-        arms: Vec<CaseArm>,
+        arms: RuntimeCaseArms,
         env: CapturedEnv,
         index: usize,
     ) -> RuntimeResult {
@@ -633,6 +634,18 @@ impl<'a> Runtime<'a> {
                 arm,
             },
         )
+    }
+
+    fn prepare_case_arms(&mut self, expr: ExprId) -> Result<RuntimeCaseArms, RuntimeError> {
+        if let Some(arms) = self.case_arms.get(&expr) {
+            return Ok(arms.clone());
+        }
+        let arms = match self.program.exprs.get(expr.0 as usize) {
+            Some(Expr::Case { arms, .. }) => shared_case_arms(arms),
+            Some(_) | None => return Err(RuntimeError::MissingExpr { expr }),
+        };
+        self.case_arms.insert(expr, arms.clone());
+        Ok(arms)
     }
 
     pub(super) fn eval_catch(
@@ -965,7 +978,6 @@ enum EvalExpr {
     },
     Case {
         scrutinee: ExprId,
-        arms: Vec<CaseArm>,
     },
     Catch {
         body: ExprId,
@@ -1048,9 +1060,8 @@ impl EvalExpr {
                 name: name.clone(),
                 resolution: resolution.clone(),
             },
-            Expr::Case { scrutinee, arms } => Self::Case {
+            Expr::Case { scrutinee, .. } => Self::Case {
                 scrutinee: *scrutinee,
-                arms: arms.clone(),
             },
             Expr::Catch { body, arms } => Self::Catch {
                 body: *body,

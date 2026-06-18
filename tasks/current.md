@@ -159,6 +159,13 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      119.4ms / 133.4ms / 129.6ms。
      zero payload frame を inline enum にする案は `shared_frame_unwrap_clones` を減らしたが
      実時間が悪化したため採用しない。
+   - static payload ID 化の前段として、case arms を `ExprId` 単位で
+     `Rc<[CaseArm]>` cache に載せた。`Frame::Case*` と `BindThen::CaseArm` は
+     `Vec<CaseArm>` ではなく共有 slice を持つ。
+     `EvalExpr::from_expr` も case arms 本体を clone せず、scrutinee だけを持つ。
+     repeat 3 の `runtime_execute` は `bench/nondet_20_discard.yu` で
+     53.0ms / 59.0ms / 57.8ms、`examples/showcase.yu` で
+     127.4ms / 119.2ms / 119.4ms。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。
