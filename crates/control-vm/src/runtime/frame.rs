@@ -3,14 +3,14 @@ use super::*;
 #[derive(Clone)]
 pub(super) struct Continuation {
     pub(super) frames: VecDeque<SharedFrame>,
-    pub(super) marker_scopes: SharedMarkerScopes,
+    pub(super) marker_scopes: Option<SharedMarkerScopes>,
 }
 
 impl Default for Continuation {
     fn default() -> Self {
         Self {
             frames: VecDeque::new(),
-            marker_scopes: empty_marker_scopes(),
+            marker_scopes: None,
         }
     }
 }
@@ -402,7 +402,7 @@ impl<'a> Runtime<'a> {
         let checkpoint = self.marker_checkpoint();
         let mut marker_scopes = self.enter_continuation_marker_scopes(std::mem::replace(
             &mut continuation.marker_scopes,
-            empty_marker_scopes(),
+            None,
         ));
         let result = self.resume_with_marker_scopes(&mut continuation, &mut marker_scopes, value);
         self.pop_marker_frame(
@@ -517,7 +517,7 @@ impl<'a> Runtime<'a> {
     ) -> RuntimeResult {
         match result {
             EvalResult::Value(value)
-                if continuation.frames.is_empty() && continuation.marker_scopes.is_empty() =>
+                if continuation.frames.is_empty() && continuation.marker_scopes.is_none() =>
             {
                 value_result(value)
             }
@@ -531,7 +531,7 @@ impl<'a> Runtime<'a> {
         request: Request,
         continuation: &mut Continuation,
     ) -> RuntimeResult {
-        debug_assert!(continuation.marker_scopes.is_empty());
+        debug_assert!(continuation.marker_scopes.is_none());
         let mut result = EvalResult::Request(request);
         loop {
             while continuation
@@ -588,8 +588,12 @@ impl<'a> Runtime<'a> {
 
     fn record_continuation_clone_shape(&mut self, continuation: &Continuation) {
         let frame_count = continuation.frames.len() as u64;
+        let marker_scope_count = continuation
+            .marker_scopes
+            .as_ref()
+            .map_or(0, |scopes| scopes.len() as u64);
         self.stats.continuation_frames_cloned += frame_count;
-        self.stats.continuation_marker_scopes_cloned += continuation.marker_scopes.len() as u64;
+        self.stats.continuation_marker_scopes_cloned += marker_scope_count;
         self.stats.max_continuation_frames = self.stats.max_continuation_frames.max(frame_count);
     }
 
@@ -806,8 +810,11 @@ impl<'a> Runtime<'a> {
 
     fn enter_continuation_marker_scopes(
         &mut self,
-        scopes: SharedMarkerScopes,
+        scopes: Option<SharedMarkerScopes>,
     ) -> Vec<ActiveContinuationMarkerScope> {
+        let Some(scopes) = scopes else {
+            return Vec::new();
+        };
         let mut active = Vec::with_capacity(scopes.len());
         for scope in scopes.iter().cloned() {
             self.stats.marker_frame_resume_steps += 1;
@@ -1567,12 +1574,11 @@ pub(super) fn prepend_marker_scope(
     continuation: &mut Continuation,
     scope: ContinuationMarkerScope,
 ) {
-    let mut scopes = Vec::with_capacity(continuation.marker_scopes.len() + 1);
+    let existing = continuation.marker_scopes.as_ref();
+    let mut scopes = Vec::with_capacity(existing.map_or(0, |scopes| scopes.len()) + 1);
     scopes.push(scope);
-    scopes.extend(continuation.marker_scopes.iter().cloned());
-    continuation.marker_scopes = Rc::from(scopes.into_boxed_slice());
-}
-
-fn empty_marker_scopes() -> SharedMarkerScopes {
-    Rc::from(Vec::new().into_boxed_slice())
+    if let Some(existing) = existing {
+        scopes.extend(existing.iter().cloned());
+    }
+    continuation.marker_scopes = Some(Rc::from(scopes.into_boxed_slice()));
 }
