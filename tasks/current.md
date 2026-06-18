@@ -190,6 +190,9 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      pointer state 化すること。
      active marker scope の `frames_remaining` を `frame_delta` cursor へ寄せる案は試したが、
      `runtime_execute` が改善せず、複雑性に見合わないため採用しない。
+     `FrameSlot::{Owned, Shared}` で通常 frame allocation を消す案も試したが、
+     `frame_allocs` は落ちても `runtime_execute` が悪化したため採用しない。
+     frame stack を触るなら先に frame payload をさらに小さくする。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。
