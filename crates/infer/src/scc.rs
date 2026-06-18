@@ -108,6 +108,10 @@ impl SccMachine {
         std::mem::take(&mut self.events)
     }
 
+    pub fn stats(&self) -> SccStats {
+        self.graph.stats()
+    }
+
     pub fn root_of(&self, def: DefId) -> Option<TypeVar> {
         self.graph.root_of(def)
     }
@@ -247,12 +251,7 @@ impl SccMachine {
             return;
         }
 
-        let edge = UseEdge {
-            parent,
-            target,
-            use_value: None,
-        };
-        let edge_was_new = self.graph.add_use_edge(from, to, edge);
+        let edge_was_new = self.graph.add_dependency_edge(from, to);
         if !edge_was_new {
             return;
         }
@@ -288,6 +287,24 @@ impl SccMachine {
             target: issue.target,
         });
     }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SccStats {
+    pub reachability_calls: usize,
+    pub reachability_nodes_visited: usize,
+    pub reachability_edges_visited: usize,
+    pub merge_count: usize,
+    pub merged_component_count: usize,
+    pub rebuilt_edges: usize,
+    pub rebuilt_edge_payloads: usize,
+    pub duplicate_dependency_payloads: usize,
+    pub payload_sorts: usize,
+    pub payload_sort_total_len: usize,
+    pub pending_use_scans: usize,
+    pub pending_use_scan_count: usize,
+    pub ready_component_checks: usize,
+    pub ready_member_checks: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -716,6 +733,34 @@ mod tests {
                     roots: vec![TypeVar(10)],
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn non_instantiating_dependency_does_not_create_payloads() {
+        let mut machine = SccMachine::new();
+        machine.register_def(DefId(1), TypeVar(10));
+        machine.register_def(DefId(2), TypeVar(20));
+        machine.take_events();
+
+        machine.apply(SccInput::DependencyAdded {
+            parent: DefId(1),
+            target: DefId(2),
+        });
+        machine.apply(SccInput::DependencyAdded {
+            parent: DefId(1),
+            target: DefId(2),
+        });
+
+        let stats = machine.stats();
+        assert_eq!(stats.duplicate_dependency_payloads, 1);
+        assert_eq!(stats.payload_sorts, 0);
+        assert_eq!(
+            machine.take_events(),
+            vec![SccEvent::ComponentEdgeAdded {
+                from: vec![DefId(1)],
+                to: vec![DefId(2)]
+            }]
         );
     }
 

@@ -242,6 +242,15 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。
+   - 2026-06-19 に SCC graph 自体の self-time を `analysis.scc_apply` として分離し、
+     reachability / merge / rebuild / payload sort / pending use scan / ready check の counter を追加した。
+     `DependencyAdded` は instantiation payload を作らず、component adjacency だけを張るようにした。
+     `examples/showcase.yu` の release / infer timing では
+     `analysis.route_scc_events=162.1ms` に対して `analysis.scc_apply=895us`。
+     SCC graph そのものより、`analysis.quantify_generalize=90.6ms`、
+     `analysis.instantiate_subtype_predicate=42.6ms`、`constraint.drain=85.2ms` が本命。
+     次は component 内 roots の reachable type graph 重複と、
+     generalize restart ごとの compact / role view 再構築量を測る。
 3. source/load は今の public examples では最大ではない。
    - `collect+load` は 70〜85ms 程度なので、realm/band や compiled-unit cache と合わせて設計する。
    - 先に std 専用特例で隠さない。

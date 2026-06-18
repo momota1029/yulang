@@ -6,6 +6,7 @@ pub(super) struct ComponentGraph {
     edges: FxHashMap<ComponentId, FxHashMap<ComponentId, Vec<UseEdge>>>,
     reverse_edges: FxHashMap<ComponentId, FxHashSet<ComponentId>>,
     fetches: FxHashMap<DefId, BindingFetch>,
+    stats: SccStats,
     next_component: u32,
 }
 
@@ -17,8 +18,13 @@ impl ComponentGraph {
             edges: FxHashMap::default(),
             reverse_edges: FxHashMap::default(),
             fetches: FxHashMap::default(),
+            stats: SccStats::default(),
             next_component: 0,
         }
+    }
+
+    pub(super) fn stats(&self) -> SccStats {
+        self.stats
     }
 
     pub(super) fn ensure_component(&mut self, def: DefId) -> ComponentId {
@@ -102,12 +108,27 @@ impl ComponentGraph {
         to: ComponentId,
         edge: UseEdge,
     ) -> bool {
-        let uses = self.edges.entry(from).or_default().entry(to).or_default();
-        let edge_was_new = uses.is_empty();
+        let targets = self.edges.entry(from).or_default();
+        let edge_was_new = !targets.contains_key(&to);
+        let uses = targets.entry(to).or_default();
         uses.push(edge);
+        self.stats.payload_sorts += 1;
+        self.stats.payload_sort_total_len += uses.len();
         sort_use_edges(uses);
         self.reverse_edges.entry(to).or_default().insert(from);
         edge_was_new
+    }
+
+    pub(super) fn add_dependency_edge(&mut self, from: ComponentId, to: ComponentId) -> bool {
+        let targets = self.edges.entry(from).or_default();
+        if targets.contains_key(&to) {
+            self.stats.duplicate_dependency_payloads += 1;
+            return false;
+        }
+
+        targets.insert(to, Vec::new());
+        self.reverse_edges.entry(to).or_default().insert(from);
+        true
     }
 
     pub(super) fn add_internal_use(
@@ -146,6 +167,8 @@ impl ComponentGraph {
             return Vec::new();
         };
 
+        self.stats.pending_use_scans += 1;
+        self.stats.pending_use_scan_count += component.pending_open_uses.len();
         let mut still_pending = Vec::new();
         let mut open_uses = Vec::new();
         for edge in component.pending_open_uses.drain(..) {
@@ -185,7 +208,8 @@ impl ComponentGraph {
         open_uses
     }
 
-    pub(super) fn can_reach(&self, start: ComponentId, target: ComponentId) -> bool {
+    pub(super) fn can_reach(&mut self, start: ComponentId, target: ComponentId) -> bool {
+        self.stats.reachability_calls += 1;
         if start == target {
             return true;
         }
@@ -196,7 +220,9 @@ impl ComponentGraph {
             if !seen.insert(current) {
                 continue;
             }
+            self.stats.reachability_nodes_visited += 1;
             if let Some(edges) = self.edges.get(&current) {
+                self.stats.reachability_edges_visited += edges.len();
                 for next in edges.keys() {
                     if *next == target {
                         return true;
@@ -208,7 +234,11 @@ impl ComponentGraph {
         false
     }
 
-    pub(super) fn cycle_closed_by(&self, from: ComponentId, to: ComponentId) -> Vec<ComponentId> {
+    pub(super) fn cycle_closed_by(
+        &mut self,
+        from: ComponentId,
+        to: ComponentId,
+    ) -> Vec<ComponentId> {
         let mut forward = self.reachable_from(to);
         forward.insert(to);
         let mut backward = self.reaching_to(from);
@@ -223,28 +253,34 @@ impl ComponentGraph {
         cycle
     }
 
-    pub(super) fn reachable_from(&self, start: ComponentId) -> FxHashSet<ComponentId> {
+    pub(super) fn reachable_from(&mut self, start: ComponentId) -> FxHashSet<ComponentId> {
+        self.stats.reachability_calls += 1;
         let mut seen = FxHashSet::default();
         let mut stack = vec![start];
         while let Some(current) = stack.pop() {
             if !seen.insert(current) {
                 continue;
             }
+            self.stats.reachability_nodes_visited += 1;
             if let Some(edges) = self.edges.get(&current) {
+                self.stats.reachability_edges_visited += edges.len();
                 stack.extend(edges.keys().copied());
             }
         }
         seen
     }
 
-    pub(super) fn reaching_to(&self, target: ComponentId) -> FxHashSet<ComponentId> {
+    pub(super) fn reaching_to(&mut self, target: ComponentId) -> FxHashSet<ComponentId> {
+        self.stats.reachability_calls += 1;
         let mut seen = FxHashSet::default();
         let mut stack = vec![target];
         while let Some(current) = stack.pop() {
             if !seen.insert(current) {
                 continue;
             }
+            self.stats.reachability_nodes_visited += 1;
             if let Some(sources) = self.reverse_edges.get(&current) {
+                self.stats.reachability_edges_visited += sources.len();
                 stack.extend(sources.iter().copied());
             }
         }
@@ -254,6 +290,8 @@ impl ComponentGraph {
     pub(super) fn merge_components(&mut self, components: Vec<ComponentId>) -> MergedComponent {
         let mut components = components;
         sort_components(&mut components);
+        self.stats.merge_count += 1;
+        self.stats.merged_component_count += components.len();
         let merged_id = components[0];
         let merge_set = components.iter().copied().collect::<FxHashSet<_>>();
         let event_components = components
@@ -309,6 +347,8 @@ impl ComponentGraph {
                 from
             };
             for (to, mut uses) in targets {
+                self.stats.rebuilt_edges += 1;
+                self.stats.rebuilt_edge_payloads += uses.len();
                 let new_to = if merge_set.contains(&to) {
                     merged_id
                 } else {
@@ -325,6 +365,8 @@ impl ComponentGraph {
                     .entry(new_to)
                     .or_default();
                 entry.append(&mut uses);
+                self.stats.payload_sorts += 1;
+                self.stats.payload_sort_total_len += entry.len();
                 sort_use_edges(entry);
                 self.reverse_edges
                     .entry(new_to)
@@ -332,6 +374,8 @@ impl ComponentGraph {
                     .insert(new_from);
             }
         }
+        self.stats.payload_sorts += 1;
+        self.stats.payload_sort_total_len += internal_uses.len();
         sort_use_edges(&mut internal_uses);
         internal_uses
     }
@@ -424,7 +468,8 @@ impl ComponentGraph {
         })
     }
 
-    pub(super) fn is_ready_to_quantify(&self, component: ComponentId) -> bool {
+    pub(super) fn is_ready_to_quantify(&mut self, component: ComponentId) -> bool {
+        self.stats.ready_component_checks += 1;
         let Some(component_data) = self.components.get(&component) else {
             return false;
         };
@@ -433,11 +478,13 @@ impl ComponentGraph {
             .get(&component)
             .map(|targets| !targets.is_empty())
             .unwrap_or(false);
-        !has_outgoing_edges
-            && component_data.method_dependencies == 0
-            && component_data.members.iter().all(|def| {
-                component_data.finished.contains(def) && component_data.roots.contains_key(def)
-            })
+        if has_outgoing_edges || component_data.method_dependencies != 0 {
+            return false;
+        }
+        self.stats.ready_member_checks += component_data.members.len();
+        component_data.members.iter().all(|def| {
+            component_data.finished.contains(def) && component_data.roots.contains_key(def)
+        })
     }
 
     pub(super) fn is_blocked_only_by_method_dependencies(&self, component: ComponentId) -> bool {

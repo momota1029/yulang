@@ -344,6 +344,11 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
     );
     let _ = writeln!(
         out,
+        "  analysis.scc_apply: {}",
+        format_duration(analysis.scc_apply)
+    );
+    let _ = writeln!(
+        out,
         "  analysis.work: {}",
         format_duration(analysis.work_total)
     );
@@ -701,6 +706,76 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         out,
         "  analysis.scc_other_events: {}",
         analysis.scc_other_events
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_reachability_calls: {}",
+        analysis.scc_reachability_calls
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_reachability_nodes_visited: {}",
+        analysis.scc_reachability_nodes_visited
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_reachability_edges_visited: {}",
+        analysis.scc_reachability_edges_visited
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_merge_count: {}",
+        analysis.scc_merge_count
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_merged_component_count: {}",
+        analysis.scc_merged_component_count
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_rebuilt_edges: {}",
+        analysis.scc_rebuilt_edges
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_rebuilt_edge_payloads: {}",
+        analysis.scc_rebuilt_edge_payloads
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_duplicate_dependency_payloads: {}",
+        analysis.scc_duplicate_dependency_payloads
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_payload_sorts: {}",
+        analysis.scc_payload_sorts
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_payload_sort_total_len: {}",
+        analysis.scc_payload_sort_total_len
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_pending_use_scans: {}",
+        analysis.scc_pending_use_scans
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_pending_use_scan_count: {}",
+        analysis.scc_pending_use_scan_count
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_ready_component_checks: {}",
+        analysis.scc_ready_component_checks
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.scc_ready_member_checks: {}",
+        analysis.scc_ready_member_checks
     );
     let _ = writeln!(
         out,

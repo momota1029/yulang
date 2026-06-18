@@ -7,6 +7,7 @@
 use crate::time::Duration;
 
 use super::{AnalysisWork, SelectionTarget};
+use crate::scc::SccStats;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct AnalysisTiming {
@@ -16,6 +17,7 @@ pub struct AnalysisTiming {
     pub route_scc_quantify: Duration,
     pub route_scc_instantiate: Duration,
     pub route_scc_other: Duration,
+    pub scc_apply: Duration,
     pub work_total: Duration,
     pub work_resolve_ref: Duration,
     pub work_probe_select: Duration,
@@ -68,6 +70,20 @@ pub struct AnalysisTiming {
     pub scc_quantify_events: usize,
     pub scc_instantiate_events: usize,
     pub scc_other_events: usize,
+    pub scc_reachability_calls: usize,
+    pub scc_reachability_nodes_visited: usize,
+    pub scc_reachability_edges_visited: usize,
+    pub scc_merge_count: usize,
+    pub scc_merged_component_count: usize,
+    pub scc_rebuilt_edges: usize,
+    pub scc_rebuilt_edge_payloads: usize,
+    pub scc_duplicate_dependency_payloads: usize,
+    pub scc_payload_sorts: usize,
+    pub scc_payload_sort_total_len: usize,
+    pub scc_pending_use_scans: usize,
+    pub scc_pending_use_scan_count: usize,
+    pub scc_ready_component_checks: usize,
+    pub scc_ready_member_checks: usize,
     pub work_items: usize,
     pub max_queue: usize,
     pub role_passes: usize,
@@ -170,6 +186,27 @@ impl AnalysisTiming {
         self.route_scc_events += elapsed;
         self.scc_event_batches += 1;
         self.scc_events += event_count;
+    }
+
+    pub(super) fn record_scc_apply(&mut self, elapsed: Duration) {
+        self.scc_apply += elapsed;
+    }
+
+    pub(super) fn record_scc_stats(&mut self, stats: SccStats) {
+        self.scc_reachability_calls = stats.reachability_calls;
+        self.scc_reachability_nodes_visited = stats.reachability_nodes_visited;
+        self.scc_reachability_edges_visited = stats.reachability_edges_visited;
+        self.scc_merge_count = stats.merge_count;
+        self.scc_merged_component_count = stats.merged_component_count;
+        self.scc_rebuilt_edges = stats.rebuilt_edges;
+        self.scc_rebuilt_edge_payloads = stats.rebuilt_edge_payloads;
+        self.scc_duplicate_dependency_payloads = stats.duplicate_dependency_payloads;
+        self.scc_payload_sorts = stats.payload_sorts;
+        self.scc_payload_sort_total_len = stats.payload_sort_total_len;
+        self.scc_pending_use_scans = stats.pending_use_scans;
+        self.scc_pending_use_scan_count = stats.pending_use_scan_count;
+        self.scc_ready_component_checks = stats.ready_component_checks;
+        self.scc_ready_member_checks = stats.ready_member_checks;
     }
 
     pub(super) fn record_route_scc_event(

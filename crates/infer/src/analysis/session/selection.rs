@@ -13,7 +13,13 @@ impl AnalysisSession {
             | SccInput::DefFetchRecorded { .. }
             | SccInput::MethodDependencyAdded { .. } => {}
         }
+        self.apply_scc_to_machine(input);
+    }
+
+    pub(super) fn apply_scc_to_machine(&mut self, input: SccInput) {
+        let start = Instant::now();
         self.scc.apply(input);
+        self.timing.record_scc_apply(start.elapsed());
     }
 
     pub(super) fn add_unready_role_impl_dependencies(&mut self, parent: DefId) {
@@ -40,7 +46,7 @@ impl AnalysisSession {
                 };
                 for member in self.unready_role_impl_members(impl_def) {
                     edge_count += 1;
-                    self.scc.apply(SccInput::DependencyAdded {
+                    self.apply_scc_to_machine(SccInput::DependencyAdded {
                         parent,
                         target: member,
                     });

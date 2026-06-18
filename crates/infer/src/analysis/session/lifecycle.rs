@@ -471,7 +471,9 @@ impl AnalysisSession {
     }
 
     pub fn timing(&self) -> AnalysisTiming {
-        self.timing
+        let mut timing = self.timing;
+        timing.record_scc_stats(self.scc.stats());
+        timing
     }
 
     pub(super) fn apply_work(&mut self, work: AnalysisWork) {
@@ -481,7 +483,7 @@ impl AnalysisSession {
             AnalysisWork::ApplyRefResolution { ref_id, target } => {
                 self.poly.resolve_ref(ref_id, target);
                 if let Some(use_site) = self.refs.get(ref_id).copied() {
-                    self.scc.use_resolved(SccInput::UseResolved {
+                    self.apply_scc_input(SccInput::UseResolved {
                         parent: use_site.parent,
                         target,
                         use_value: use_site.value,
@@ -504,21 +506,21 @@ impl AnalysisSession {
                         self.constrain_record_field_selection(use_site.method_value, &name);
                     }
                     SelectionTarget::Method { def } => {
-                        self.scc.use_resolved(SccInput::UseResolved {
+                        self.apply_scc_input(SccInput::UseResolved {
                             parent: use_site.parent,
                             target: def,
                             use_value: use_site.method_value,
                         });
                     }
                     SelectionTarget::EffectMethod { def } => {
-                        self.scc.use_resolved(SccInput::UseResolved {
+                        self.apply_scc_input(SccInput::UseResolved {
                             parent: use_site.parent,
                             target: def,
                             use_value: use_site.method_value,
                         });
                     }
                     SelectionTarget::TypeclassMethod { member } => {
-                        self.scc.use_resolved(SccInput::UseResolved {
+                        self.apply_scc_input(SccInput::UseResolved {
                             parent: use_site.parent,
                             target: member,
                             use_value: use_site.method_value,
