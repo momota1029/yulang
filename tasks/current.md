@@ -203,6 +203,8 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      空の continuation marker scopes は `Option<Rc<[ContinuationMarkerScope]>>` の `None`
      で表し、`Continuation::default()` で空 `Rc` を作らないようにした。
      `examples/showcase.yu` は repeat 5 で 82〜88ms へ下がった。
+     record/list pattern bind が保持する marker payload も `Rc<[ValueMarker]>` 化し、
+     `examples/showcase.yu` は repeat 5 で 80〜84ms まで下がった。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。
