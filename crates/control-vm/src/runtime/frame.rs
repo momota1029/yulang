@@ -322,6 +322,10 @@ impl Frame {
             Frame::AdaptValue { .. }
                 | Frame::WrapThunkValue
                 | Frame::ForceValueIfThunk
+                | Frame::ApplyForcedThunk { .. }
+                | Frame::ApplyArg { .. }
+                | Frame::ApplyCallee { .. }
+                | Frame::ApplyAdapterArg { .. }
                 | Frame::ApplyAdapterResult { .. }
                 | Frame::DirectBinaryApply { .. }
                 | Frame::DirectUnaryApply { .. }
@@ -329,7 +333,11 @@ impl Frame {
                 | Frame::ForceThunk { .. }
                 | Frame::MarkValue { .. }
                 | Frame::Select { .. }
+                | Frame::CaseScrutineeForce { .. }
+                | Frame::CaseScrutinee { .. }
                 | Frame::HandlerBodyForce
+                | Frame::BlockLetValue { .. }
+                | Frame::BlockExprValue { .. }
                 | Frame::RefSetResolvedUnit
         )
     }
@@ -586,10 +594,7 @@ impl<'a> Runtime<'a> {
     ) -> RuntimeResult {
         match Rc::try_unwrap(frame) {
             Ok(frame) => self.apply_result_frame(frame, result),
-            Err(frame) => {
-                let frame = self.clone_shared_frame(&frame);
-                self.apply_result_frame(frame, result)
-            }
+            Err(frame) => self.apply_borrowed_result_frame(&frame, result),
         }
     }
 
@@ -632,6 +637,21 @@ impl<'a> Runtime<'a> {
         frame.clone()
     }
 
+    fn apply_borrowed_result_frame(&mut self, frame: &Frame, result: EvalResult) -> RuntimeResult {
+        match frame {
+            Frame::CatchResult { arms, env } => {
+                self.handle_catch_result(result, arms.clone(), env.clone())
+            }
+            Frame::RefSetHandleResult { assigned } => {
+                self.handle_ref_set_result(result, assigned.clone())
+            }
+            Frame::RefSetHandleValueResult { assigned } => {
+                self.handle_ref_set_value_result(result, assigned.clone())
+            }
+            _ => unreachable!("only result frames use apply_shared_result_frame"),
+        }
+    }
+
     fn apply_borrowed_value_frame(
         &mut self,
         frame: &Frame,
@@ -648,6 +668,37 @@ impl<'a> Runtime<'a> {
             Frame::AdaptValue { source, target } => self.adapt_value(value, source, target),
             Frame::WrapThunkValue => value_result(Value::Thunk(Thunk::Value(Box::new(value)))),
             Frame::ForceValueIfThunk => self.force_value_if_thunk(value),
+            Frame::ApplyForcedThunk { arg } => self.apply_scoped_value(value, arg.clone()),
+            Frame::ApplyArg { callee } => self.apply_scoped_value(callee.clone(), value),
+            Frame::ApplyCallee { arg, env } => {
+                let mut env = env.clone();
+                let arg = self.eval_expr(*arg, &mut env)?;
+                self.continue_with_current_frame(
+                    arg,
+                    Frame::ApplyArg { callee: value },
+                    continuation,
+                    marker_scopes,
+                )
+            }
+            Frame::ApplyAdapterArg {
+                function,
+                markers,
+                source_ret,
+                target_ret,
+            } => {
+                let arg = mark_value(value, markers);
+                let result = self.apply_value(function.clone(), arg)?;
+                self.continue_with_current_frame(
+                    result,
+                    Frame::ApplyAdapterResult {
+                        markers: markers.clone(),
+                        source_ret: source_ret.clone(),
+                        target_ret: target_ret.clone(),
+                    },
+                    continuation,
+                    marker_scopes,
+                )
+            }
             Frame::ApplyAdapterResult {
                 markers,
                 source_ret,
@@ -696,7 +747,46 @@ impl<'a> Runtime<'a> {
                 }
                 None => Err(RuntimeError::UnresolvedSelect { name: name.clone() }),
             },
+            Frame::CaseScrutineeForce { arms, env } => {
+                let scrutinee = self.force_value_if_thunk(value)?;
+                self.continue_with_current_frame(
+                    scrutinee,
+                    Frame::CaseScrutinee {
+                        arms: arms.clone(),
+                        env: env.clone(),
+                    },
+                    continuation,
+                    marker_scopes,
+                )
+            }
+            Frame::CaseScrutinee { arms, env } => self.eval_case(value, arms.clone(), env.clone()),
             Frame::HandlerBodyForce => self.force_value_if_thunk(value),
+            Frame::BlockLetValue {
+                pat,
+                stmts,
+                tail,
+                env,
+                index,
+            } => {
+                let value = recursive_let_value(pat, value);
+                self.bind_pat(
+                    pat.clone(),
+                    value.clone(),
+                    env.clone(),
+                    BindThen::BlockLet {
+                        stmts: stmts.clone(),
+                        tail: *tail,
+                        index: *index,
+                        last: value,
+                    },
+                )
+            }
+            Frame::BlockExprValue {
+                stmts,
+                tail,
+                env,
+                index,
+            } => self.eval_block_step(stmts.clone(), *tail, env.clone(), index + 1, value),
             Frame::RefSetResolvedUnit => value_result(Value::Unit),
             _ => unreachable!("borrowed value frame should be checked before apply"),
         }
