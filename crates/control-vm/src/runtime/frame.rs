@@ -246,21 +246,18 @@ pub(super) enum BindThen {
         arms: RuntimeCaseArms,
         env: CapturedEnv,
         index: usize,
-        arm: CaseArm,
     },
     CatchValue {
         value: Value,
         arms: RuntimeCatchArms,
         env: CapturedEnv,
         index: usize,
-        arm: RuntimeCatchArm,
     },
     CatchRequestPayload {
         request: Request,
         arms: RuntimeCatchArms,
         env: CapturedEnv,
         index: usize,
-        arm: RuntimeCatchArm,
     },
     CatchRequestContinuation {
         request: Request,
@@ -1239,14 +1236,15 @@ impl<'a> Runtime<'a> {
                 arms,
                 env: outer_env,
                 index,
-                arm,
             } => {
                 if !matched {
                     return self.eval_case_arm(scrutinee, arms, outer_env, index + 1);
                 }
                 let mut arm_env = env;
-                let Some(guard) = arm.guard else {
-                    return self.eval_expr(arm.body, &mut arm_env);
+                let guard = arms[index].guard;
+                let body = arms[index].body;
+                let Some(guard) = guard else {
+                    return self.eval_expr(body, &mut arm_env);
                 };
                 let guard_result = self.eval_expr(guard, &mut arm_env)?;
                 self.continue_with_frame(
@@ -1257,7 +1255,7 @@ impl<'a> Runtime<'a> {
                         env: outer_env,
                         index,
                         arm_env,
-                        body: arm.body,
+                        body,
                     },
                 )
             }
@@ -1266,14 +1264,15 @@ impl<'a> Runtime<'a> {
                 arms,
                 env: outer_env,
                 index,
-                arm,
             } => {
                 if !matched {
                     return self.handle_catch_value_arm(value, arms, outer_env, index + 1);
                 }
                 let mut arm_env = env;
-                let Some(guard) = arm.guard else {
-                    return self.eval_expr(arm.body, &mut arm_env);
+                let guard = arms[index].guard;
+                let body = arms[index].body;
+                let Some(guard) = guard else {
+                    return self.eval_expr(body, &mut arm_env);
                 };
                 let guard_result = self.eval_expr(guard, &mut arm_env)?;
                 self.continue_with_frame(
@@ -1284,7 +1283,7 @@ impl<'a> Runtime<'a> {
                         env: outer_env,
                         index,
                         arm_env,
-                        body: arm.body,
+                        body,
                     },
                 )
             }
@@ -1293,13 +1292,15 @@ impl<'a> Runtime<'a> {
                 arms,
                 env: outer_env,
                 index,
-                arm,
             } => {
                 if !matched {
                     return self.handle_catch_request_arm(request, arms, outer_env, index + 1);
                 }
                 self.stats.catch_request_matches += 1;
-                if let Some(continuation) = arm.continuation.clone() {
+                let continuation = arms[index].continuation.clone();
+                let guard = arms[index].guard;
+                let body = arms[index].body;
+                if let Some(continuation) = continuation {
                     let captured = self.clone_continuation_for_capture(&request.continuation);
                     let id = self.store_continuation(captured);
                     return self.bind_pat(
@@ -1311,14 +1312,12 @@ impl<'a> Runtime<'a> {
                             arms,
                             env: outer_env,
                             index,
-                            guard: arm.guard,
-                            body: arm.body,
+                            guard,
+                            body,
                         },
                     );
                 }
-                self.finish_catch_request_match(
-                    request, arms, outer_env, index, env, arm.guard, arm.body,
-                )
+                self.finish_catch_request_match(request, arms, outer_env, index, env, guard, body)
             }
             BindThen::CatchRequestContinuation {
                 request,

@@ -624,7 +624,7 @@ impl<'a> Runtime<'a> {
             return Err(RuntimeError::NoMatchingCase);
         }
 
-        let arm = arms[index].clone();
+        let arm = &arms[index];
         self.bind_pat(
             arm.pat.clone(),
             scrutinee.clone(),
@@ -634,7 +634,6 @@ impl<'a> Runtime<'a> {
                 arms,
                 env,
                 index,
-                arm,
             },
         )
     }
@@ -721,7 +720,7 @@ impl<'a> Runtime<'a> {
             return value_result(value);
         }
 
-        let arm = arms[index].clone();
+        let arm = &arms[index];
         if arm.operation_key.is_some() {
             return self.handle_catch_value_arm(value, arms, env, index + 1);
         }
@@ -735,7 +734,6 @@ impl<'a> Runtime<'a> {
                 arms,
                 env,
                 index,
-                arm,
             },
         )
     }
@@ -757,7 +755,7 @@ impl<'a> Runtime<'a> {
         index: usize,
     ) -> RuntimeResult {
         if index < arms.len() {
-            let arm = arms[index].clone();
+            let arm = &arms[index];
             let operation_matches = arm
                 .operation_key
                 .as_ref()
@@ -785,7 +783,6 @@ impl<'a> Runtime<'a> {
                     arms,
                     env,
                     index,
-                    arm,
                 },
             );
         }
