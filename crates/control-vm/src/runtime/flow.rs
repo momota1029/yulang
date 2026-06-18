@@ -14,6 +14,10 @@ impl<'a> Runtime<'a> {
         }
         match callee {
             Value::Marked { .. } => self.apply_value(mark_value(callee, &markers), arg),
+            callee if callee_apply_closes_without_frame(&callee) => {
+                let result = self.apply_value(callee, arg)?;
+                self.close_scoped_result(result, markers)
+            }
             callee => {
                 self.with_marker_frame(markers, move |runtime| runtime.apply_value(callee, arg))
             }
@@ -30,7 +34,12 @@ impl<'a> Runtime<'a> {
                 } else {
                     markers_for_function_call(markers)
                 };
-                self.with_marker_frame(markers, move |runtime| runtime.apply_value(*value, arg))
+                let value = *value;
+                if callee_apply_closes_without_frame(&value) {
+                    let result = self.apply_value(value, arg)?;
+                    return self.close_scoped_result(result, markers);
+                }
+                self.with_marker_frame(markers, move |runtime| runtime.apply_value(value, arg))
             }
             Value::PrimitiveOp(primitive) => {
                 self.stats.apply_primitive_calls += 1;
@@ -72,6 +81,20 @@ impl<'a> Runtime<'a> {
                 }))
             }
             value => Err(RuntimeError::NotFunction { value }),
+        }
+    }
+
+    pub(super) fn close_scoped_result(
+        &mut self,
+        result: EvalResult,
+        markers: Vec<ValueMarker>,
+    ) -> RuntimeResult {
+        match result {
+            EvalResult::Value(value) => value_result(mark_value(value, &markers)),
+            EvalResult::Request(request) => {
+                let resume_markers = shared_markers(markers_for_continuation_resume(&markers));
+                self.close_marker_request(request, resume_markers, true, None)
+            }
         }
     }
 
@@ -457,12 +480,15 @@ impl<'a> Runtime<'a> {
         handler_key: Option<InternedPath>,
     ) -> RuntimeResult {
         let mut request = request;
-        let inner_frame_count = request.continuation.frames.len();
-        request.continuation.frames.push_back(Frame::MarkerScope {
+        request.continuation.frames.push_front(Frame::MarkerExit {
+            resume_markers: resume_markers.clone(),
+            activate_add_ids,
+            handler_key: handler_key.clone(),
+        });
+        request.continuation.frames.push_back(Frame::MarkerEnter {
             resume_markers,
             activate_add_ids,
             handler_key,
-            inner_frame_count,
         });
         Ok(EvalResult::Request(request))
     }

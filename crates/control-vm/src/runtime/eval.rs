@@ -286,6 +286,10 @@ impl<'a> Runtime<'a> {
         if markers.is_empty() {
             return self.apply_direct_known_callee(callee, arg);
         }
+        if !callee.evaluates_body() {
+            let result = self.apply_direct_known_callee(callee, arg)?;
+            return self.close_scoped_result(result, markers);
+        }
         self.with_marker_frame(markers, move |runtime| {
             runtime.apply_direct_known_callee(callee, arg)
         })
@@ -872,6 +876,10 @@ enum DirectKnownCallee {
 }
 
 impl DirectKnownCallee {
+    fn evaluates_body(&self) -> bool {
+        matches!(self, Self::Closure { .. })
+    }
+
     fn into_value(self) -> Value {
         match self {
             Self::Closure { param, body } => Value::Closure(Closure {

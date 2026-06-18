@@ -61,20 +61,15 @@ pub(super) enum Frame {
         target: Type,
         hygiene: FunctionAdapterHygiene,
     },
-    MarkerScope {
+    MarkerEnter {
         resume_markers: SharedMarkers,
         activate_add_ids: bool,
         handler_key: Option<InternedPath>,
-        inner_frame_count: usize,
     },
     MarkerExit {
         resume_markers: SharedMarkers,
         activate_add_ids: bool,
         handler_key: Option<InternedPath>,
-        guard_len: usize,
-        frame_len: usize,
-        add_id_len: usize,
-        plan_len: usize,
     },
     RefSetReference {
         value: ExprId,
@@ -469,12 +464,17 @@ impl<'a> Runtime<'a> {
                 resume_markers,
                 activate_add_ids,
                 handler_key,
-                guard_len,
-                frame_len,
-                add_id_len,
-                plan_len,
             } => {
-                self.pop_marker_frame(guard_len, frame_len, add_id_len, plan_len);
+                let checkpoint = self
+                    .marker_checkpoints
+                    .pop()
+                    .expect("marker exit should have a matching marker enter checkpoint");
+                self.pop_marker_frame(
+                    checkpoint.guard_len,
+                    checkpoint.frame_len,
+                    checkpoint.add_id_len,
+                    checkpoint.plan_len,
+                );
                 self.close_shared_resume_marker_frame_result(
                     result,
                     resume_markers,
@@ -593,37 +593,25 @@ impl<'a> Runtime<'a> {
                 function: Box::new(value),
                 hygiene,
             })),
-            Frame::MarkerScope {
+            Frame::MarkerEnter {
                 resume_markers,
                 activate_add_ids,
                 handler_key,
-                inner_frame_count,
             } => {
                 self.stats.marker_frame_resume_steps += 1;
-                let split_at = continuation.frames.len().saturating_sub(inner_frame_count);
-                let mut inner_frames = continuation.frames.split_off(split_at);
                 self.stats.marker_frame_calls += 1;
+                self.marker_checkpoints.push(MarkerCheckpoint {
+                    guard_len: self.guard_ids.len(),
+                    frame_len: self.active_frames.len(),
+                    add_id_len: self.active_add_ids.len(),
+                    plan_len: self.active_marker_plans.len(),
+                });
                 if resume_markers.is_empty() {
                     self.stats.marker_frame_empty += 1;
-                    continuation.frames.append(&mut inner_frames);
                     return value_result(value);
                 }
-                let guard_len = self.guard_ids.len();
-                let frame_len = self.active_frames.len();
-                let add_id_len = self.active_add_ids.len();
-                let plan_len = self.active_marker_plans.len();
                 self.stats.marker_frame_pushes += 1;
                 self.push_marker_frame(&resume_markers, activate_add_ids, handler_key.clone());
-                continuation.frames.push_back(Frame::MarkerExit {
-                    resume_markers,
-                    activate_add_ids,
-                    handler_key,
-                    guard_len,
-                    frame_len,
-                    add_id_len,
-                    plan_len,
-                });
-                continuation.frames.append(&mut inner_frames);
                 value_result(value)
             }
             Frame::RefSetReference { value: expr, env } => {
@@ -886,16 +874,21 @@ impl<'a> Runtime<'a> {
             resume_markers,
             activate_add_ids,
             handler_key,
-            guard_len,
-            frame_len,
-            add_id_len,
-            plan_len,
         }) = continuation.frames.pop_back()
         else {
             unreachable!("rposition found a marker exit");
         };
         prepend_frames(&mut request.continuation, inner_frames);
-        self.pop_marker_frame(guard_len, frame_len, add_id_len, plan_len);
+        let checkpoint = self
+            .marker_checkpoints
+            .pop()
+            .expect("marker request close should have a matching marker enter checkpoint");
+        self.pop_marker_frame(
+            checkpoint.guard_len,
+            checkpoint.frame_len,
+            checkpoint.add_id_len,
+            checkpoint.plan_len,
+        );
         self.stats.marker_frame_request_closes += 1;
         self.close_marker_request(request, resume_markers, activate_add_ids, handler_key)
     }

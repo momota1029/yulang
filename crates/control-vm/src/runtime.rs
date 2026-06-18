@@ -251,6 +251,17 @@ struct ActiveFrame {
     handler_key: Option<InternedPath>,
 }
 
+// `MarkerEnter` records the dynamic stack lengths here; the paired
+// `MarkerExit` can then restore the previous marker state without rearranging
+// continuation frames on every request resume.
+#[derive(Debug, Clone, Copy)]
+struct MarkerCheckpoint {
+    guard_len: usize,
+    frame_len: usize,
+    add_id_len: usize,
+    plan_len: usize,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ValueMarker {
     Frame { id: GuardId },
@@ -1062,6 +1073,16 @@ fn value_is_thunk_like(value: &Value) -> bool {
         Value::Marked { value, .. } => value_is_thunk_like(value),
         _ => false,
     }
+}
+
+fn callee_apply_closes_without_frame(value: &Value) -> bool {
+    matches!(
+        value,
+        Value::PrimitiveOp(_)
+            | Value::ConstructorFunction(_)
+            | Value::EffectOp { .. }
+            | Value::Continuation(_)
+    )
 }
 
 fn counted_path_has_prefix(
