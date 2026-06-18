@@ -57,6 +57,9 @@ struct SchemeInstantiator<'a> {
     level: TypeLevel,
     vars: FxHashMap<TypeVar, TypeVar>,
     subtracts: FxHashMap<SubtractId, SubtractId>,
+    pos_nodes: FxHashMap<PosId, PosId>,
+    neg_nodes: FxHashMap<NegId, NegId>,
+    neu_nodes: FxHashMap<NeuId, NeuId>,
     freshen_unmapped: bool,
 }
 
@@ -68,6 +71,9 @@ impl<'a> SchemeInstantiator<'a> {
             level,
             vars: FxHashMap::default(),
             subtracts: FxHashMap::default(),
+            pos_nodes: FxHashMap::default(),
+            neg_nodes: FxHashMap::default(),
+            neu_nodes: FxHashMap::default(),
             freshen_unmapped: false,
         }
     }
@@ -83,6 +89,9 @@ impl<'a> SchemeInstantiator<'a> {
             level,
             vars: FxHashMap::default(),
             subtracts: FxHashMap::default(),
+            pos_nodes: FxHashMap::default(),
+            neg_nodes: FxHashMap::default(),
+            neu_nodes: FxHashMap::default(),
             freshen_unmapped: true,
         }
     }
@@ -244,6 +253,9 @@ impl<'a> SchemeInstantiator<'a> {
     }
 
     fn clone_pos(&mut self, id: PosId) -> PosId {
+        if let Some(cloned) = self.pos_nodes.get(&id).copied() {
+            return cloned;
+        }
         let pos = match self.source.pos(id).clone() {
             Pos::Bot => Pos::Bot,
             Pos::Var(var) => Pos::Var(self.clone_var(var)),
@@ -296,10 +308,15 @@ impl<'a> SchemeInstantiator<'a> {
             },
             Pos::Union(left, right) => Pos::Union(self.clone_pos(left), self.clone_pos(right)),
         };
-        self.target.alloc_pos(pos)
+        let cloned = self.target.alloc_pos(pos);
+        self.pos_nodes.insert(id, cloned);
+        cloned
     }
 
     fn clone_neg(&mut self, id: NegId) -> NegId {
+        if let Some(cloned) = self.neg_nodes.get(&id).copied() {
+            return cloned;
+        }
         let neg = match self.source.neg(id).clone() {
             Neg::Top => Neg::Top,
             Neg::Bot => Neg::Bot,
@@ -346,10 +363,15 @@ impl<'a> SchemeInstantiator<'a> {
                 Neg::Intersection(self.clone_neg(left), self.clone_neg(right))
             }
         };
-        self.target.alloc_neg(neg)
+        let cloned = self.target.alloc_neg(neg);
+        self.neg_nodes.insert(id, cloned);
+        cloned
     }
 
     fn clone_neu(&mut self, id: NeuId) -> NeuId {
+        if let Some(cloned) = self.neu_nodes.get(&id).copied() {
+            return cloned;
+        }
         let neu = match self.source.neu(id).clone() {
             Neu::Bounds(lower, upper) => Neu::Bounds(self.clone_pos(lower), self.clone_neg(upper)),
             Neu::Con(path, args) => Neu::Con(
@@ -383,7 +405,9 @@ impl<'a> SchemeInstantiator<'a> {
                 Neu::Tuple(items.into_iter().map(|item| self.clone_neu(item)).collect())
             }
         };
-        self.target.alloc_neu(neu)
+        let cloned = self.target.alloc_neu(neu);
+        self.neu_nodes.insert(id, cloned);
+        cloned
     }
 
     fn clone_subtractability(&mut self, subtractability: Subtractability) -> Subtractability {

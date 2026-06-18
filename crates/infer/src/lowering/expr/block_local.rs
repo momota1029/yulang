@@ -61,7 +61,9 @@ impl<'a> ExprLowerer<'a> {
     ) -> Result<Computation, LoweringError> {
         let before_locals = self.locals.len();
         let items = block_lowering_items(node);
+        let saved_do = self.do_replacement.take();
         let result = self.lower_block_items(items.as_slice());
+        self.do_replacement = saved_do;
         self.locals.truncate(before_locals);
         result
     }
@@ -75,14 +77,19 @@ impl<'a> ExprLowerer<'a> {
         };
 
         match head.kind() {
+            SyntaxKind::Binding if binding_is_do_binding(head) => self.lower_do_binding(head, rest),
             SyntaxKind::Binding if local_var_binding_source(head).is_some() => {
                 self.lower_local_var_binding(head, rest)
+            }
+            SyntaxKind::Binding if !local_var_pattern_binding_sources(head).is_empty() => {
+                self.lower_local_var_pattern_binding(head, rest)
             }
             SyntaxKind::Binding => {
                 let lowered = self.lower_local_binding_stmt(head)?;
                 let tail = self.lower_block_items(rest)?;
                 Ok(self.prepend_block(lowered, tail))
             }
+            SyntaxKind::Expr if node_has_do_here(head) => self.lower_do_expr(head, rest),
             SyntaxKind::Expr => {
                 let head = self.lower_expr(head)?;
                 if rest.is_empty() {
@@ -111,6 +118,78 @@ impl<'a> ExprLowerer<'a> {
             }
             kind => Err(LoweringError::UnsupportedSyntax { kind }),
         }
+    }
+
+    fn lower_do_binding(
+        &mut self,
+        binding: &Cst,
+        rest: &[Cst],
+    ) -> Result<Computation, LoweringError> {
+        let name = do_binding_name(binding).ok_or(LoweringError::MissingLocalBindingName)?;
+        let rhs = do_binding_rhs_expr(binding).ok_or(LoweringError::MissingLocalBindingBody)?;
+        let replacement = self.lower_do_binding_continuation(name, rest)?;
+        let saved_do = self.do_replacement.replace(replacement);
+        let lowered = self.lower_expr(&rhs);
+        self.do_replacement = saved_do;
+        lowered
+    }
+
+    fn lower_do_expr(&mut self, expr: &Cst, rest: &[Cst]) -> Result<Computation, LoweringError> {
+        let replacement = self.lower_do_replacement_block(rest)?;
+        let saved_do = self.do_replacement.replace(replacement);
+        let lowered = self.lower_expr(expr);
+        self.do_replacement = saved_do;
+        lowered
+    }
+
+    fn lower_do_binding_continuation(
+        &mut self,
+        name: Name,
+        rest: &[Cst],
+    ) -> Result<Computation, LoweringError> {
+        let param_value = self.fresh_type_var();
+        let before_locals = self.locals.len();
+        let pat =
+            self.bind_pattern_local(name, param_value, None, LocalCallReturnEffect::Annotated);
+
+        self.function_frames
+            .push(FunctionPredicateFrame::new(LambdaScope::Anonymous));
+        let previous_level = self.session.infer.enter_child_level();
+        let body_result = self.lower_block_items(rest);
+        self.session.infer.restore_level(previous_level);
+        let frame = self
+            .function_frames
+            .pop()
+            .expect("do continuation lambda predicate frame should be balanced");
+        self.locals.truncate(before_locals);
+        let body = body_result?;
+
+        let value = self.fresh_type_var();
+        let effect = self.fresh_exact_pure_effect();
+        let arg = self.alloc_neg(Neg::Var(param_value));
+        let arg_eff = self.never_neg();
+        let predicate_subtracts =
+            self.lambda_predicate_subtracts(LambdaScope::Anonymous, Vec::new(), frame);
+        let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
+        self.constrain_lower(
+            value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+
+        let expr = self.session.poly.add_expr(Expr::Lambda(pat, body.expr));
+        Ok(Computation::value(expr, value, effect))
+    }
+
+    fn lower_do_replacement_block(&mut self, items: &[Cst]) -> Result<Computation, LoweringError> {
+        let before_locals = self.locals.len();
+        let lowered = self.lower_block_items(items);
+        self.locals.truncate(before_locals);
+        lowered
     }
 
     pub(in crate::lowering) fn lower_for_stmt(
@@ -292,6 +371,102 @@ impl<'a> ExprLowerer<'a> {
                 stmt: Stmt::Let(Vis::My, pat, body.expr),
                 effect: body.effect,
             })
+        })();
+        self.session.infer.restore_level(previous_level);
+        result
+    }
+
+    pub(in crate::lowering) fn lower_local_var_pattern_binding(
+        &mut self,
+        node: &Cst,
+        rest: &[Cst],
+    ) -> Result<Computation, LoweringError> {
+        let sources = local_var_pattern_binding_sources(node);
+        let init_names = sources
+            .iter()
+            .map(|source| var_init_name(source).ok_or(LoweringError::MissingLocalBindingName))
+            .collect::<Result<Vec<_>, _>>()?;
+        let reference_names = sources
+            .iter()
+            .map(|source| var_reference_name(source).ok_or(LoweringError::MissingLocalBindingName))
+            .collect::<Result<Vec<_>, _>>()?;
+        let local_acts = reference_names
+            .iter()
+            .map(|reference_name| self.next_synthetic_var_act(reference_name))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let pattern = crate::binding_pattern(node).ok_or(LoweringError::MissingLocalBindingName)?;
+        let body_node = binding_body_expr(node).ok_or(LoweringError::MissingLocalBindingBody)?;
+        let previous_level = self.session.infer.enter_child_level();
+        let result = (|| {
+            let body = self.lower_expr(&body_node)?;
+            let value = self.fresh_type_var();
+            let saved_rewrites = self.pattern_binding_rewrites.clone();
+            for (source, init_name) in sources.iter().zip(&init_names) {
+                self.pattern_binding_rewrites
+                    .insert(source.clone(), init_name.clone());
+            }
+            let pat = self.lower_lambda_pattern(
+                &pattern,
+                value,
+                None,
+                local_binding_call_return_effect(node),
+            );
+            self.pattern_binding_rewrites = saved_rewrites;
+            let pat = pat?;
+
+            self.subtype_var_to_var(body.value, value);
+            self.subtype_var_to_var(value, body.value);
+            self.connect_local_binding_annotation(node, value, body)?;
+            let destructure_stmt = LoweredLocalStmt {
+                stmt: Stmt::Let(Vis::My, pat, body.expr),
+                effect: body.effect,
+            };
+
+            let boundary = self.local_generalize_boundary;
+            let mut reference_stmts = Vec::new();
+            let mut run_inputs = Vec::new();
+            for ((init_name, reference_name), local_act) in init_names
+                .iter()
+                .zip(&reference_names)
+                .zip(local_acts.iter())
+            {
+                let init_value = self
+                    .local_binding(init_name)
+                    .ok_or(LoweringError::MissingLocalBindingName)?
+                    .value;
+                let reference = self.lower_var_ref_constructor(local_act, init_value)?;
+                let reference_value = self.fresh_type_var();
+                self.subtype_var_to_var(reference.value, reference_value);
+                self.subtype_var_to_var(reference_value, reference.value);
+                self.constrain_local_ref_value(local_act, reference_value, init_value)?;
+                let (reference_pat, reference_def) = self.bind_let_local_with_def(
+                    reference_name.clone(),
+                    reference_value,
+                    LocalCallReturnEffect::Annotated,
+                    Some(reference.expr),
+                );
+                self.generalize_local_binding(
+                    reference_def,
+                    reference_value,
+                    boundary,
+                    BindingFetch::FetchComputation,
+                );
+                reference_stmts.push(LoweredLocalStmt {
+                    stmt: Stmt::Let(Vis::My, reference_pat, reference.expr),
+                    effect: reference.effect,
+                });
+                run_inputs.push((local_act.clone(), init_name.clone(), init_value));
+            }
+
+            let mut tail = self.lower_block_items(rest)?;
+            for (local_act, init_name, init_value) in run_inputs.into_iter().rev() {
+                tail = self.wrap_var_binding_run(&local_act, init_name, init_value, tail)?;
+            }
+            for stmt in reference_stmts.into_iter().rev() {
+                tail = self.prepend_block(stmt, tail);
+            }
+            Ok(self.prepend_block(destructure_stmt, tail))
         })();
         self.session.infer.restore_level(previous_level);
         result
@@ -782,4 +957,57 @@ impl<'a> ExprLowerer<'a> {
         let expr = self.session.poly.add_expr(Expr::Lit(Lit::Int(number)));
         Computation::value(expr, value, effect)
     }
+}
+
+fn binding_is_do_binding(binding: &Cst) -> bool {
+    do_binding_name(binding).is_some()
+        && do_binding_rhs_expr(binding)
+            .as_ref()
+            .is_some_and(node_has_do_here)
+}
+
+fn do_binding_name(binding: &Cst) -> Option<Name> {
+    if !binding_arg_patterns(binding).is_empty() {
+        return None;
+    }
+    let names = crate::binding_value_names(binding);
+    let [name] = names.as_slice() else {
+        return None;
+    };
+    crate::binding_has_single_head_pattern(binding).then(|| name.clone())
+}
+
+fn do_binding_rhs_expr(binding: &Cst) -> Option<Cst> {
+    let body = crate::child_node(binding, SyntaxKind::BindingBody)?;
+    if body.children().any(|child| {
+        matches!(
+            child.kind(),
+            SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+        )
+    }) {
+        return None;
+    }
+    body.children()
+        .find(|child| child.kind() == SyntaxKind::Expr)
+}
+
+fn node_has_do_here(node: &Cst) -> bool {
+    for item in node.children_with_tokens() {
+        match item {
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::Do => return true,
+            NodeOrToken::Node(child) => {
+                if matches!(
+                    child.kind(),
+                    SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
+                ) {
+                    continue;
+                }
+                if node_has_do_here(&child) {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
 }

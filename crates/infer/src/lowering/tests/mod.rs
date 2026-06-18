@@ -19,7 +19,7 @@ fn parse_with_junction_std(src: &str) -> Cst {
 
 fn parse_with_text_parse_std(src: &str) -> Cst {
     parse(&format!(
-        "mod std:\n  pub mod text:\n    pub mod parse:\n      pub token expected = expected\n      pub word() = 0\n      pub choice p q = p\n      pub many p = p\n      pub some p = p\n      pub optional p = p\n{src}"
+        "mod std:\n  pub mod text:\n    pub mod parse:\n      pub token expected = expected\n      pub word() = 0\n      pub choice p q = p\n      pub many p = p\n      pub some p = p\n      pub many_lazy p = p\n      pub some_lazy p = p\n      pub optional p = p\n{src}"
     ))
 }
 

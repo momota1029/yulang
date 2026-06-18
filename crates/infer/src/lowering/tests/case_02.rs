@@ -481,23 +481,50 @@ fn rule_quantifier_lowers_tail_base_exprs() {
 }
 
 #[test]
-fn rule_lazy_quantifier_reports_quantifier_unsupported() {
-    let root = parse_with_text_parse_std("pub main = rule { a*? }\n");
+fn rule_lazy_quantifiers_lower_to_lazy_std_parse_combinators() {
+    let root = parse_with_text_parse_std(concat!(
+        "pub many_site = rule { std::text::parse::word*? }\n",
+        "pub some_site = rule { std::text::parse::word+? }\n",
+    ));
     let lower = lower_module_map(&root);
+    let many_lazy = text_parse_def(&lower.modules, "many_lazy");
+    let some_lazy = text_parse_def(&lower.modules, "some_lazy");
+    let module = lower.modules.root_id();
+    let many_site = lower.modules.value_decls(module, &Name("many_site".into()))[0].def;
+    let some_site = lower.modules.value_decls(module, &Name("some_site".into()))[0].def;
 
     let output = lower_binding_bodies(&root, lower);
 
-    assert!(output.errors.iter().any(|error| {
-        matches!(
-            error,
-            BodyLoweringError::Expr {
-                error: LoweringError::UnsupportedSyntax {
-                    kind: SyntaxKind::RuleQuantStarLazy
-                },
-                ..
-            }
-        )
-    }));
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    assert_eq!(
+        rule_single_item_combinator(&output, many_site),
+        Some(many_lazy)
+    );
+    assert_eq!(
+        rule_single_item_combinator(&output, some_site),
+        Some(some_lazy)
+    );
+}
+
+fn rule_single_item_combinator(output: &BodyLowering, def: DefId) -> Option<DefId> {
+    let (_, body) = match output.session.poly.expr(binding_body_id(output, def)) {
+        Expr::Lambda(pat, body) => (*pat, *body),
+        _ => return None,
+    };
+    let tail = match output.session.poly.expr(body) {
+        Expr::Block(_, Some(tail)) => *tail,
+        _ => return None,
+    };
+    let (parser, _unit) = match output.session.poly.expr(tail) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => return None,
+    };
+    let (combinator, _base) = match output.session.poly.expr(parser) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => return None,
+    };
+    let reference = expr_ref(&output.session, combinator);
+    output.session.poly.ref_target(reference)
 }
 
 #[test]
@@ -697,6 +724,25 @@ fn bool_names_lower_to_bool_literals() {
     assert!(matches!(
         session.poly.expr(computation.expr),
         Expr::Lit(Lit::Bool(true))
+    ));
+}
+
+#[test]
+fn integer_literal_over_i64_lowers_to_bigint() {
+    let root = parse("my huge = 9223372036854775808\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (owner, site) = binding_def_and_order(&lower.modules, module, "huge");
+    let expr = binding_expr(&root, "huge");
+    let mut session = AnalysisSession::new(lower.arena);
+
+    let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+        .lower_expr(&expr)
+        .unwrap();
+
+    assert!(matches!(
+        session.poly.expr(computation.expr),
+        Expr::Lit(Lit::BigInt(value)) if value.to_string() == "9223372036854775808"
     ));
 }
 

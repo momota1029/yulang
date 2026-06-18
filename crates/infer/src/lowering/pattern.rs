@@ -120,7 +120,7 @@ impl<'a> ExprLowerer<'a> {
         match single_pattern_item_with_ignored_tails(node, ignored_tails)? {
             PatternItem::Ident(name) if name.0 == "_" => Ok(self.session.poly.add_pat(Pat::Wild)),
             PatternItem::Ident(name) => {
-                Ok(self.bind_lambda_param(name, value, local_effect, call_return_effect))
+                self.lower_bare_name_pattern(name, value, local_effect, call_return_effect)
             }
             PatternItem::Number(text) => self.lower_number_pattern(&text, value),
             PatternItem::String(text) => {
@@ -132,6 +132,43 @@ impl<'a> ExprLowerer<'a> {
             }
             PatternItem::Unsupported(kind) => Err(LoweringError::UnsupportedPatternSyntax { kind }),
         }
+    }
+
+    fn lower_bare_name_pattern(
+        &mut self,
+        name: Name,
+        value: TypeVar,
+        local_effect: Option<LocalEffect>,
+        call_return_effect: LocalCallReturnEffect,
+    ) -> Result<PatId, LoweringError> {
+        match name.0.as_str() {
+            "true" => return Ok(self.lower_bool_pattern(true, value)),
+            "false" => return Ok(self.lower_bool_pattern(false, value)),
+            _ => {}
+        }
+
+        if self.bare_pattern_name_is_nullary_constructor(&name) {
+            return self.lower_constructor_pattern_path(
+                vec![name],
+                Vec::new(),
+                value,
+                call_return_effect,
+            );
+        }
+
+        Ok(self.bind_lambda_param(name, value, local_effect, call_return_effect))
+    }
+
+    fn bare_pattern_name_is_nullary_constructor(&self, name: &Name) -> bool {
+        let Some(target) = self.modules.lexical_value_at(self.module, name, self.site) else {
+            return false;
+        };
+        self.modules.constructor_by_def(target).is_some()
+    }
+
+    fn lower_bool_pattern(&mut self, value: bool, slot: TypeVar) -> PatId {
+        self.constrain_exact_primitive(slot, "bool");
+        self.session.poly.add_pat(Pat::Lit(Lit::Bool(value)))
     }
 
     fn bind_lambda_param(
@@ -162,6 +199,11 @@ impl<'a> ExprLowerer<'a> {
         effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> DefId {
+        let name = self
+            .pattern_binding_rewrites
+            .get(&name)
+            .cloned()
+            .unwrap_or(name);
         let def = self.session.poly.defs.fresh();
         self.session.poly.defs.set(def, Def::Arg);
         if let Some(labels) = self.labels.as_mut() {
@@ -486,6 +528,16 @@ impl<'a> ExprLowerer<'a> {
         let path = pattern_path(node)
             .ok_or(LoweringError::UnsupportedPatternSyntax { kind: node.kind() })?;
         let payloads = pattern_payloads(node);
+        self.lower_constructor_pattern_path(path, payloads, value, call_return_effect)
+    }
+
+    fn lower_constructor_pattern_path(
+        &mut self,
+        path: Vec<Name>,
+        payloads: Vec<Cst>,
+        value: TypeVar,
+        call_return_effect: LocalCallReturnEffect,
+    ) -> Result<PatId, LoweringError> {
         let constructor_value = self.fresh_type_var();
         let target = self.modules.value_path_at(self.module, &path, self.site);
         let reference = self.lower_pattern_constructor_reference(&path, constructor_value, target);

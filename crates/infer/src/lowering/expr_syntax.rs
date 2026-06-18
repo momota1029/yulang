@@ -1,6 +1,7 @@
 //! CST accessors and small token predicates used by expression lowering.
 
 use super::*;
+use num_bigint::BigInt;
 
 pub(super) fn item_is_trivia(item: &NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>) -> bool {
     item.as_token()
@@ -71,7 +72,7 @@ pub(super) fn field_name(node: &Cst) -> Option<String> {
 }
 
 pub(super) fn brace_group_is_record_literal(node: &Cst) -> bool {
-    let mut has_field = false;
+    let mut has_item = false;
     let mut saw_child = false;
     for child in node.children() {
         saw_child = true;
@@ -80,19 +81,22 @@ pub(super) fn brace_group_is_record_literal(node: &Cst) -> bool {
                 if !is_inline_record_field_expr(&child) {
                     return false;
                 }
-                has_field = true;
+                has_item = true;
+            }
+            SyntaxKind::ExprSpread => {
+                if child
+                    .children()
+                    .all(|child| child.kind() != SyntaxKind::Expr)
+                {
+                    return false;
+                }
+                has_item = true;
             }
             SyntaxKind::Separator => {}
             _ => return false,
         }
     }
-    has_field || !saw_child
-}
-
-pub(super) fn record_literal_fields(node: &Cst) -> Vec<Cst> {
-    node.children()
-        .filter(|child| child.kind() == SyntaxKind::Expr)
-        .collect()
+    has_item || !saw_child
 }
 
 fn is_inline_record_field_expr(node: &Cst) -> bool {
@@ -253,8 +257,20 @@ pub(super) fn var_read_reference_name(text: &str) -> Option<Name> {
 }
 
 pub(super) fn local_var_binding_source(node: &Cst) -> Option<Name> {
+    if !crate::binding_has_single_head_pattern(node) {
+        return None;
+    }
     let source = crate::binding_name(node)?;
     source.0.starts_with('$').then_some(source)
+}
+
+pub(super) fn local_var_pattern_binding_sources(node: &Cst) -> Vec<Name> {
+    let Some(pattern) = crate::binding_pattern(node) else {
+        return Vec::new();
+    };
+    let mut sources = Vec::new();
+    crate::collect_pattern_var_binding_sources(&pattern, &mut sources);
+    sources
 }
 
 pub(super) fn var_init_name(source: &Name) -> Option<Name> {
@@ -277,12 +293,16 @@ fn integer_number_token(text: &str) -> bool {
 
 pub(super) fn parse_number_lit(text: &str) -> Result<(Lit, &'static str), LoweringError> {
     if integer_number_token(text) {
+        if let Ok(parsed) = text.parse::<i64>() {
+            return Ok((Lit::Int(parsed), "int"));
+        }
+
         let parsed = text
-            .parse::<i64>()
+            .parse::<BigInt>()
             .map_err(|_| LoweringError::InvalidNumber {
                 text: text.to_string(),
             })?;
-        Ok((Lit::Int(parsed), "int"))
+        Ok((Lit::BigInt(parsed), "int"))
     } else {
         let parsed = text
             .parse::<f64>()

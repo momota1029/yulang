@@ -2,6 +2,11 @@
 
 use super::*;
 
+enum RecordLiteralItem {
+    Field(Cst),
+    Spread(Cst),
+}
+
 impl<'a> ExprLowerer<'a> {
     pub(super) fn synthetic_record_value(
         &mut self,
@@ -51,18 +56,36 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         node: &Cst,
     ) -> Result<Computation, LoweringError> {
-        let fields = record_literal_fields(node);
-        let mut lowered = Vec::with_capacity(fields.len());
-        for field in fields {
-            let name = record_field_name(&field).ok_or(LoweringError::MissingRecordFieldName)?;
-            let value_node =
-                record_field_value(&field).ok_or(LoweringError::MissingRecordFieldValue)?;
-            let value = self.lower_expr(&value_node)?;
-            lowered.push((name, value));
+        let items = record_literal_items(node)?;
+        let mut lowered = Vec::new();
+        let mut spread = None;
+        for item in items {
+            match item {
+                RecordLiteralItem::Field(field) => {
+                    let name =
+                        record_field_name(&field).ok_or(LoweringError::MissingRecordFieldName)?;
+                    let value_node =
+                        record_field_value(&field).ok_or(LoweringError::MissingRecordFieldValue)?;
+                    let value = self.lower_expr(&value_node)?;
+                    lowered.push((name, value));
+                }
+                RecordLiteralItem::Spread(expr) => {
+                    if spread.is_some() {
+                        return Err(LoweringError::UnsupportedSyntax {
+                            kind: SyntaxKind::ExprSpread,
+                        });
+                    }
+                    let is_head = lowered.is_empty();
+                    spread = Some((is_head, self.lower_expr(&expr)?));
+                }
+            }
         }
 
         let result_value = self.fresh_type_var();
-        let expansive = lowered.iter().any(|(_, value)| value.is_expansive());
+        let expansive = lowered.iter().any(|(_, value)| value.is_expansive())
+            || spread
+                .as_ref()
+                .is_some_and(|(_, value)| value.is_expansive());
         let result_effect = if expansive {
             self.fresh_type_var()
         } else {
@@ -79,15 +102,34 @@ impl<'a> ExprLowerer<'a> {
         for (_, value) in &lowered {
             self.subtype_var_to_var(value.effect, result_effect);
         }
-        self.constrain_lower(result_value, Pos::Record(record_fields));
+        if let Some((_, value)) = &spread {
+            self.subtype_var_to_var(value.effect, result_effect);
+        }
+        let lower = match &spread {
+            Some((true, value)) => Pos::RecordHeadSpread {
+                tail: self.alloc_pos(Pos::Var(value.value)),
+                fields: record_fields.clone(),
+            },
+            Some((false, value)) => Pos::RecordTailSpread {
+                fields: record_fields.clone(),
+                tail: self.alloc_pos(Pos::Var(value.value)),
+            },
+            None => Pos::Record(record_fields),
+        };
+        self.constrain_lower(result_value, lower);
 
         let expr_fields = lowered
             .into_iter()
             .map(|(name, value)| (name.0, value.expr))
             .collect();
+        let expr_spread = match spread {
+            Some((true, value)) => RecordSpread::Head(value.expr),
+            Some((false, value)) => RecordSpread::Tail(value.expr),
+            None => RecordSpread::None,
+        };
         let expr = self.session.poly.add_expr(Expr::Record {
             fields: expr_fields,
-            spread: RecordSpread::None,
+            spread: expr_spread,
         });
         Ok(Computation::new(
             expr,
@@ -100,4 +142,24 @@ impl<'a> ExprLowerer<'a> {
             },
         ))
     }
+}
+
+fn record_literal_items(node: &Cst) -> Result<Vec<RecordLiteralItem>, LoweringError> {
+    let mut items = Vec::new();
+    for child in node.children() {
+        match child.kind() {
+            SyntaxKind::Expr => items.push(RecordLiteralItem::Field(child)),
+            SyntaxKind::ExprSpread => {
+                let expr = child
+                    .children()
+                    .find(|child| child.kind() == SyntaxKind::Expr)
+                    .ok_or(LoweringError::UnsupportedSyntax {
+                        kind: SyntaxKind::ExprSpread,
+                    })?;
+                items.push(RecordLiteralItem::Spread(expr));
+            }
+            _ => {}
+        }
+    }
+    Ok(items)
 }

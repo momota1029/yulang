@@ -117,6 +117,59 @@ fn string_or_pattern_lowers_to_or_literal_pattern() {
 }
 
 #[test]
+fn case_bool_literal_patterns_lower_to_literals() {
+    let root = parse("my f = case true:\n  true -> 1\n  false -> 0\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+    let expr = binding_expr(&root, "f");
+    let mut session = AnalysisSession::new(lower.arena);
+
+    let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+        .lower_expr(&expr)
+        .unwrap();
+
+    let arms = match session.poly.expr(computation.expr) {
+        Expr::Case(_, arms) => arms,
+        _ => panic!("expected case expr"),
+    };
+    assert!(matches!(
+        session.poly.pat(arms[0].pat),
+        Pat::Lit(Lit::Bool(true))
+    ));
+    assert!(matches!(
+        session.poly.pat(arms[1].pat),
+        Pat::Lit(Lit::Bool(false))
+    ));
+}
+
+#[test]
+fn case_integer_pattern_over_i64_lowers_to_bigint() {
+    let root = parse(concat!(
+        "my f = case 9223372036854775808:\n",
+        "  9223372036854775808 -> 1\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (owner, site) = binding_def_and_order(&lower.modules, module, "f");
+    let expr = binding_expr(&root, "f");
+    let mut session = AnalysisSession::new(lower.arena);
+
+    let computation = ExprLowerer::new(&mut session, &lower.modules, module, site, owner)
+        .lower_expr(&expr)
+        .unwrap();
+
+    let arms = match session.poly.expr(computation.expr) {
+        Expr::Case(_, arms) => arms,
+        _ => panic!("expected case expr"),
+    };
+    assert!(matches!(
+        session.poly.pat(arms[0].pat),
+        Pat::Lit(Lit::BigInt(value)) if value.to_string() == "9223372036854775808"
+    ));
+}
+
+#[test]
 fn record_pattern_with_default_binds_field_local() {
     let root = parse("my f({width = 1}) = width\n");
     let lower = lower_module_map(&root);
@@ -231,6 +284,59 @@ fn record_literal_lowers_to_record_expr() {
             assert!(matches!(spread, RecordSpread::None));
         }
         _ => panic!("expected record literal"),
+    }
+}
+
+#[test]
+fn record_literal_spread_lowers_to_head_and_tail_spread() {
+    let root = parse("my base = {x: 1}\nmy head = {..base, y: 2}\nmy tail = {z: 3, ..base}\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (base, _) = binding_def_and_order(&lower.modules, module, "base");
+    let (head_owner, head_site) = binding_def_and_order(&lower.modules, module, "head");
+    let (tail_owner, tail_site) = binding_def_and_order(&lower.modules, module, "tail");
+    let head_expr = binding_expr(&root, "head");
+    let tail_expr = binding_expr(&root, "tail");
+    let mut session = AnalysisSession::new(lower.arena);
+
+    let head = ExprLowerer::new(&mut session, &lower.modules, module, head_site, head_owner)
+        .lower_expr(&head_expr)
+        .unwrap();
+    let tail = ExprLowerer::new(&mut session, &lower.modules, module, tail_site, tail_owner)
+        .lower_expr(&tail_expr)
+        .unwrap();
+    session.drain_work();
+
+    match session.poly.expr(head.expr) {
+        Expr::Record { fields, spread } => {
+            assert_eq!(fields.len(), 1);
+            assert_eq!(fields[0].0, "y");
+            let spread_expr = match spread {
+                RecordSpread::Head(expr) => *expr,
+                _ => panic!("expected head spread"),
+            };
+            assert_eq!(
+                session.poly.ref_target(expr_ref(&session, spread_expr)),
+                Some(base)
+            );
+        }
+        _ => panic!("expected head spread record literal"),
+    }
+
+    match session.poly.expr(tail.expr) {
+        Expr::Record { fields, spread } => {
+            assert_eq!(fields.len(), 1);
+            assert_eq!(fields[0].0, "z");
+            let spread_expr = match spread {
+                RecordSpread::Tail(expr) => *expr,
+                _ => panic!("expected tail spread"),
+            };
+            assert_eq!(
+                session.poly.ref_target(expr_ref(&session, spread_expr)),
+                Some(base)
+            );
+        }
+        _ => panic!("expected tail spread record literal"),
     }
 }
 
@@ -672,6 +778,91 @@ fn dollar_binding_lowers_to_var_ref_and_run_wrapper() {
 }
 
 #[test]
+fn dollar_binding_inside_tuple_pattern_lowers_to_var_ref_and_run_wrapper() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  mod control:\n",
+        "    mod var:\n",
+        "      type ref 'e 'a with:\n",
+        "        our r.get = r\n",
+        "      act var 't:\n",
+        "        my var_ref() = 0\n",
+        "        my run v x = x\n",
+        "my f =\n",
+        "  my (x, $y) = (1, 2)\n",
+        "  $y\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+    let local_var_act = lower.modules.synthetic_var_act_uses(f)[0].clone();
+    assert_eq!(local_var_act.source, Name("&y".into()));
+    let var_ref = act_member_def(&lower.modules, local_var_act.act, "var_ref");
+    let run = act_member_def(&lower.modules, local_var_act.act, "run");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let body = binding_body_id(&output, f);
+    let (destructure_stmts, after_destructure) = match output.session.poly.expr(body) {
+        Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+        _ => panic!("expected destructure block"),
+    };
+    let [Stmt::Let(_, pat, _)] = destructure_stmts.as_slice() else {
+        panic!("expected destructuring let");
+    };
+    let init_def = match output.session.poly.pat(*pat) {
+        Pat::Tuple(items) => match output.session.poly.pat(items[1]) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected mutable tuple item to bind init local"),
+        },
+        _ => panic!("expected tuple pattern"),
+    };
+
+    let (reference_stmts, wrapped) = match output.session.poly.expr(after_destructure) {
+        Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+        _ => panic!("expected reference block"),
+    };
+    let [Stmt::Let(_, _, reference_expr)] = reference_stmts.as_slice() else {
+        panic!("expected reference let");
+    };
+    let var_ref_callee = match output.session.poly.expr(*reference_expr) {
+        Expr::App(callee, _) => *callee,
+        _ => panic!("expected var_ref call"),
+    };
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, var_ref_callee)),
+        Some(var_ref)
+    );
+
+    let run_with_init = match output.session.poly.expr(wrapped) {
+        Expr::App(callee, _) => *callee,
+        _ => panic!("expected run application"),
+    };
+    let (run_expr, init_arg) = match output.session.poly.expr(run_with_init) {
+        Expr::App(callee, init) => (*callee, *init),
+        _ => panic!("expected run init application"),
+    };
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, run_expr)),
+        Some(run)
+    );
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, init_arg)),
+        Some(init_def)
+    );
+}
+
+#[test]
 fn dollar_binding_synthetic_act_is_scoped_by_owner_def() {
     let root = parse(concat!(
         "mod std:\n",
@@ -782,6 +973,28 @@ fn field_tail_lowers_to_deferred_selection_and_final_record_fallback() {
         output.session.poly.select(select).resolution,
         Some(SelectResolution::RecordField)
     );
+}
+
+#[test]
+fn field_tail_absorbs_qualified_method_path() {
+    let root = parse("my get = \\x -> x.foo::bar::baz\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (owner, _) = binding_def_and_order(&lower.modules, module, "get");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let body = binding_body_id(&output, owner);
+    let lambda_body = match output.session.poly.expr(body) {
+        Expr::Lambda(_, body) => *body,
+        _ => panic!("expected lambda body"),
+    };
+    let select = match output.session.poly.expr(lambda_body) {
+        Expr::Select(_, select) => *select,
+        _ => panic!("expected select expr"),
+    };
+    assert_eq!(output.session.poly.select(select).name, "foo::bar::baz");
 }
 
 #[test]

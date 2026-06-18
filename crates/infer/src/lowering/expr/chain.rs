@@ -96,18 +96,31 @@ impl<'a> ExprLowerer<'a> {
         if let Some(pipe_arg) = pipe_arg {
             acc = self.make_app(acc, pipe_arg.expr);
         }
-        for item in items.into_iter().skip(tail_start) {
-            match item {
+        let mut index = tail_start;
+        while index < items.len() {
+            match &items[index] {
                 NodeOrToken::Node(child)
                     if should_stop_expr_tail(child.kind(), stop_at_with, stop_kind) =>
                 {
                     break;
                 }
-                NodeOrToken::Node(child) => acc = self.lower_tail_node(acc, &child)?,
+                NodeOrToken::Node(child) if child.kind() == SyntaxKind::Field => {
+                    let (name, path_tail_len) =
+                        qualified_field_selection_name(child, &items[index + 1..])?;
+                    acc = if path_tail_len == 0 {
+                        self.lower_field_selection(acc, child)?
+                    } else {
+                        self.lower_synthetic_selection(acc, name)
+                    };
+                    index += 1 + path_tail_len;
+                    continue;
+                }
+                NodeOrToken::Node(child) => acc = self.lower_tail_node(acc, child)?,
                 NodeOrToken::Token(token) => {
                     return Err(LoweringError::UnsupportedSyntax { kind: token.kind() });
                 }
             }
+            index += 1;
         }
         Ok(acc)
     }
@@ -475,6 +488,7 @@ impl<'a> ExprLowerer<'a> {
                 SyntaxKind::Ident => self.lower_name(Name(token.text().to_string())),
                 SyntaxKind::SigilIdent => self.lower_sigil_name(token.text()),
                 SyntaxKind::Number => self.lower_number(token.text()),
+                SyntaxKind::Do => Ok(self.do_replacement.unwrap_or_else(|| self.unit_expr())),
                 SyntaxKind::YadaYada => Ok(self.lower_yada_yada_expr()),
                 SyntaxKind::Nullfix => self.lower_nullfix_op_use(token.text()),
                 _ => Err(LoweringError::UnsupportedSyntax { kind: token.kind() }),
@@ -519,4 +533,26 @@ impl<'a> ExprLowerer<'a> {
             _ => Err(LoweringError::UnsupportedSyntax { kind: node.kind() }),
         }
     }
+}
+
+fn qualified_field_selection_name(
+    field: &Cst,
+    tail: &[CstItem],
+) -> Result<(String, usize), LoweringError> {
+    let mut path = vec![field_name(field).ok_or(LoweringError::MissingFieldName)?];
+    let mut consumed = 0;
+    for item in tail {
+        let NodeOrToken::Node(path_sep) = item else {
+            break;
+        };
+        if path_sep.kind() != SyntaxKind::PathSep {
+            break;
+        }
+        let name = path_sep_name(path_sep).ok_or(LoweringError::UnsupportedSyntax {
+            kind: SyntaxKind::PathSep,
+        })?;
+        path.push(name.0);
+        consumed += 1;
+    }
+    Ok((path.join("::"), consumed))
 }

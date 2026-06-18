@@ -122,6 +122,23 @@ fn pat_record_newline_separator() {
 }
 
 #[test]
+fn pat_record_sigil_field() {
+    let got = parse_pat("{$x}");
+    let expected = vec![
+        "(Pattern",
+        "  (PatRecord",
+        "    BraceL \"{\"",
+        "    (PatField",
+        "      SigilIdent \"$x\"",
+        "    )",
+        "    BraceR \"}\"",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn pat_record_head_spread() {
     let got = parse_pat("{ ..rest, width = 1 }");
     let expected = vec![

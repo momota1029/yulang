@@ -434,7 +434,9 @@ impl<I: EventInput, S: EventSink> DelimitedListMachine<I, S> for PatRecordFieldM
         }
 
         i.env.state.sink.start(SyntaxKind::PatField);
-        if !matches!(head.tag, PatNudTag::Atom) || head.lex.kind != SyntaxKind::Ident {
+        if !matches!(head.tag, PatNudTag::Atom)
+            || !matches!(head.lex.kind, SyntaxKind::Ident | SyntaxKind::SigilIdent)
+        {
             emit_invalid(i.rb(), head.lex);
             i.env.state.sink.finish();
             return Some(Either::Left(leading_info));

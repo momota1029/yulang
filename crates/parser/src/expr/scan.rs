@@ -293,3 +293,18 @@ pub fn scan_expr_led<I: EventInput, S: EventSink>(
         prim_parser,
     ))
 }
+
+pub(crate) fn scan_expr_spread_dotdot<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
+    mut i: In<I, S>,
+) -> Option<Lex> {
+    let (_, text) = i.with_seq(tag(".."))?;
+    i.not(item('<'))?;
+    let trailing = i.run(scan_trivia)?;
+    Some(Lex::new(
+        leading_info,
+        SyntaxKind::DotDot,
+        text.as_ref(),
+        trailing,
+    ))
+}

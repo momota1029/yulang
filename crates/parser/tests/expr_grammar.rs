@@ -1045,6 +1045,47 @@ fn expr_record_fields_keep_outer_comma_separator() {
 }
 
 #[test]
+fn expr_record_fields_allow_head_and_tail_spread() {
+    let got = parse_expression("{..base, x: 1, ..tail}");
+    let expected = vec![
+        "(Expr",
+        "  (BraceGroup",
+        "    BraceL \"{\"",
+        "    (ExprSpread",
+        "      DotDot \"..\"",
+        "      (Expr",
+        "        Ident \"base\"",
+        "      )",
+        "    )",
+        "    (Separator",
+        "      Comma \",\"",
+        "    )",
+        "    (Expr",
+        "      Ident \"x\"",
+        "      (ApplyColon",
+        "        Colon \":\"",
+        "        (Expr",
+        "          Number \"1\"",
+        "        )",
+        "      )",
+        "    )",
+        "    (Separator",
+        "      Comma \",\"",
+        "    )",
+        "    (ExprSpread",
+        "      DotDot \"..\"",
+        "      (Expr",
+        "        Ident \"tail\"",
+        "      )",
+        "    )",
+        "    BraceR \"}\"",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_symbol_after_space_is_ml_argument() {
     let got = parse_expression("f :foo");
     let expected = vec![

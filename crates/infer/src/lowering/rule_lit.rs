@@ -234,10 +234,9 @@ impl<'a> ExprLowerer<'a> {
         let combinator = match quant {
             SyntaxKind::RuleQuantStar => "many",
             SyntaxKind::RuleQuantPlus => "some",
+            SyntaxKind::RuleQuantStarLazy => "many_lazy",
+            SyntaxKind::RuleQuantPlusLazy => "some_lazy",
             SyntaxKind::RuleQuantOpt => "optional",
-            SyntaxKind::RuleQuantStarLazy | SyntaxKind::RuleQuantPlusLazy => {
-                return Err(LoweringError::UnsupportedSyntax { kind: quant });
-            }
             _ => {
                 return Err(LoweringError::UnsupportedSyntax {
                     kind: SyntaxKind::RuleQuant,

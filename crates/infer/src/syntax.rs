@@ -257,9 +257,87 @@ pub(crate) fn cast_body_expr(cast: &Cst) -> Option<Cst> {
 }
 
 pub(crate) fn local_var_act_name(binding: &Cst) -> Option<Name> {
-    let source = binding_name(binding)?;
-    let base = source.0.strip_prefix('$')?;
-    (!base.is_empty()).then(|| Name(format!("&{base}")))
+    local_var_act_names(binding).into_iter().next()
+}
+
+pub(crate) fn local_var_act_names(binding: &Cst) -> Vec<Name> {
+    let Some(pattern) = binding_pattern(binding) else {
+        return Vec::new();
+    };
+    let mut sources = Vec::new();
+    collect_pattern_var_binding_sources(&pattern, &mut sources);
+    sources
+        .into_iter()
+        .filter_map(|source| var_reference_name_from_source(&source))
+        .collect()
+}
+
+pub(crate) fn collect_pattern_var_binding_sources(pattern: &Cst, out: &mut Vec<Name>) {
+    let items = pattern
+        .children_with_tokens()
+        .filter(|item| !item_is_trivia(item))
+        .collect::<Vec<_>>();
+    if items.len() == 1 {
+        collect_pattern_item_var_binding_sources(items[0].clone(), out);
+        return;
+    }
+    for item in items {
+        if let NodeOrToken::Node(group) = item {
+            collect_pattern_group_var_binding_sources(&group, out);
+        }
+    }
+}
+
+fn collect_pattern_item_var_binding_sources(
+    item: NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>,
+    out: &mut Vec<Name>,
+) {
+    match item {
+        NodeOrToken::Token(token) if token.kind() == SyntaxKind::SigilIdent => {
+            let name = Name(token.text().to_string());
+            if name.0.starts_with('$') {
+                out.push(name);
+            }
+        }
+        NodeOrToken::Node(group) if group.kind() == SyntaxKind::PatField => {
+            collect_pat_field_var_binding_sources(&group, out);
+        }
+        NodeOrToken::Node(group) => collect_pattern_group_var_binding_sources(&group, out),
+        _ => {}
+    }
+}
+
+fn collect_pattern_group_var_binding_sources(group: &Cst, out: &mut Vec<Name>) {
+    for child in group.children() {
+        match child.kind() {
+            SyntaxKind::Pattern => collect_pattern_var_binding_sources(&child, out),
+            SyntaxKind::PatField => collect_pat_field_var_binding_sources(&child, out),
+            _ => {}
+        }
+    }
+}
+
+fn collect_pat_field_var_binding_sources(field: &Cst, out: &mut Vec<Name>) {
+    if let Some(pattern) = field
+        .children()
+        .find(|child| child.kind() == SyntaxKind::Pattern)
+    {
+        collect_pattern_var_binding_sources(&pattern, out);
+        return;
+    }
+
+    if let Some(token) = field
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::SigilIdent && token.text().starts_with('$'))
+    {
+        out.push(Name(token.text().to_string()));
+    }
+}
+
+fn var_reference_name_from_source(source: &Name) -> Option<Name> {
+    let raw = source.0.strip_prefix('$')?;
+    (!raw.is_empty()).then(|| Name(format!("&{raw}")))
 }
 
 pub(crate) fn synthetic_var_act_internal_name(source: &Name, owner: DefId, index: usize) -> Name {

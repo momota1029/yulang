@@ -33,6 +33,8 @@ pub struct ExprLowerer<'a> {
     pub(super) active_defined_skeletons: Vec<ActiveDefinedLambdaSkeleton>,
     pub(super) connected_defined_skeleton_predicates: FxHashSet<DefinedSkeletonPredicateKey>,
     pub(super) local_generalize_boundary: TypeLevel,
+    pub(super) do_replacement: Option<Computation>,
+    pub(super) pattern_binding_rewrites: FxHashMap<Name, Name>,
 }
 
 #[derive(Clone)]
@@ -77,6 +79,8 @@ impl<'a> ExprLowerer<'a> {
             active_defined_skeletons: Vec::new(),
             connected_defined_skeleton_predicates: FxHashSet::default(),
             local_generalize_boundary,
+            do_replacement: None,
+            pattern_binding_rewrites: FxHashMap::default(),
         }
     }
 
@@ -115,6 +119,8 @@ impl<'a> ExprLowerer<'a> {
             active_defined_skeletons: Vec::new(),
             connected_defined_skeleton_predicates: FxHashSet::default(),
             local_generalize_boundary,
+            do_replacement: None,
+            pattern_binding_rewrites: FxHashMap::default(),
         }
     }
 

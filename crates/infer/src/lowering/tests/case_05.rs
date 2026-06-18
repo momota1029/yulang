@@ -1031,6 +1031,41 @@ fn case_constructor_pattern_resolves_path_reference() {
 }
 
 #[test]
+fn bare_nullary_constructor_pattern_resolves_scope_reference() {
+    let root = parse(concat!(
+        "pub enum opt 'a = none | some 'a\n",
+        "use opt::*\n",
+        "my f = case none:\n",
+        "  none -> 0\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let opt = lower.modules.type_decls(module, &Name("opt".into()))[0].id;
+    let companion = lower.modules.type_companion(opt).expect("opt companion");
+    let constructor = lower.modules.value_decls(companion, &Name("none".into()))[0].def;
+    let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert_eq!(output.errors, Vec::new());
+    let case = binding_body_id(&output, f);
+    let (_scrutinee, arms) = match output.session.poly.expr(case) {
+        Expr::Case(scrutinee, arms) => (*scrutinee, arms),
+        _ => panic!("expected case expr"),
+    };
+    let [arm] = arms.as_slice() else {
+        panic!("expected one case arm");
+    };
+    let (reference, payloads) = match output.session.poly.pat(arm.pat) {
+        Pat::Con(reference, payloads) => (*reference, payloads),
+        _ => panic!("expected constructor pattern"),
+    };
+
+    assert!(payloads.is_empty());
+    assert_eq!(output.session.poly.ref_target(reference), Some(constructor));
+}
+
+#[test]
 fn constructor_pattern_payload_flows_from_scrutinee_without_annotation() {
     let root = parse(concat!(
         "pub enum opt 'a = none | some 'a\n",
@@ -1091,6 +1126,52 @@ fn constructor_pattern_payload_participates_in_guard_role_method() {
     ));
     let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
     assert_eq!(rendered, "view('b & 'a) -> 'a -> 'b where Ord('a | 'b)");
+}
+
+#[test]
+fn do_binding_lowers_suffix_to_continuation_lambda() {
+    let root = parse(concat!(
+        "my f k = k 1\n",
+        "my g =\n",
+        "  my x = f(do)\n",
+        "  x\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let f = lower.modules.value_decls(module, &Name("f".into()))[0].def;
+    let (g, _) = binding_def_and_order(&lower.modules, module, "g");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert_eq!(output.errors, Vec::new());
+    let body = binding_body_id(&output, g);
+    let (callee, continuation) = match output.session.poly.expr(body) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => panic!("expected do binding to lower to application"),
+    };
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, callee)),
+        Some(f)
+    );
+
+    let (param_pat, continuation_body) = match output.session.poly.expr(continuation) {
+        Expr::Lambda(pat, body) => (*pat, *body),
+        _ => panic!("expected do replacement to be a lambda"),
+    };
+    let param = match output.session.poly.pat(param_pat) {
+        Pat::Var(def) => *def,
+        _ => panic!("expected do binding name to become lambda parameter"),
+    };
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, continuation_body)),
+        Some(param)
+    );
 }
 
 #[test]

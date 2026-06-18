@@ -9,3 +9,4 @@ sources = { path = "../sources" }
 parser = { path = "../parser" }
 rowan = "0.15"
 rustc-hash = "2"
+num-bigint = "0.4"

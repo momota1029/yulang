@@ -1,4 +1,3 @@
-use chasa::prelude::{item, tag};
 use either::Either;
 use reborrow_generic::Reborrow as _;
 
@@ -6,10 +5,10 @@ use crate::EventInput;
 use crate::context::In;
 use crate::lex::{Lex, SyntaxKind, TriviaInfo};
 use crate::parse::DelimitedListMachine;
-use crate::scan::trivia::scan_trivia;
 use crate::sink::EventSink;
 
 use super::parse_expr;
+use super::scan::scan_expr_spread_dotdot;
 
 pub(super) fn delimited<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
@@ -18,7 +17,12 @@ pub(super) fn delimited<I: EventInput, S: EventSink>(
     open_lex: Lex,
 ) -> Option<TriviaInfo> {
     i.env.state.sink.start(node_kind);
-    let result = parse_group_body(i.rb(), end_kind, open_lex)?;
+    let result = parse_group_body(
+        i.rb(),
+        end_kind,
+        open_lex,
+        node_kind == SyntaxKind::BraceGroup,
+    )?;
     i.env.state.sink.finish();
     Some(result)
 }
@@ -27,7 +31,7 @@ pub(super) fn parse_call_group<I: EventInput, S: EventSink>(
     i: In<I, S>,
     open_lex: Lex,
 ) -> Option<TriviaInfo> {
-    parse_group_body(i, SyntaxKind::ParenR, open_lex)
+    parse_group_body(i, SyntaxKind::ParenR, open_lex, false)
 }
 
 pub(super) fn parse_list_group<I: EventInput, S: EventSink>(
@@ -45,18 +49,23 @@ fn parse_group_body<I: EventInput, S: EventSink>(
     i: In<I, S>,
     end_kind: SyntaxKind,
     open_lex: Lex,
+    allow_spread: bool,
 ) -> Option<TriviaInfo> {
-    let mut machine = ExprListMachine::new(end_kind);
+    let mut machine = ExprListMachine::new(end_kind, allow_spread);
     machine.parse_delimited_list(i, open_lex)
 }
 
 struct ExprListMachine {
     end_kind: SyntaxKind,
+    allow_spread: bool,
 }
 
 impl ExprListMachine {
-    fn new(end_kind: SyntaxKind) -> Self {
-        Self { end_kind }
+    fn new(end_kind: SyntaxKind, allow_spread: bool) -> Self {
+        Self {
+            end_kind,
+            allow_spread,
+        }
     }
 }
 
@@ -75,6 +84,25 @@ impl<I: EventInput, S: EventSink> DelimitedListMachine<I, S> for ExprListMachine
         leading_info: TriviaInfo,
         base_indent: usize,
     ) -> Option<Either<TriviaInfo, Lex>> {
+        if self.allow_spread {
+            if let Some(dotdot) = i.maybe_fn(|i| scan_expr_spread_dotdot(leading_info, i))? {
+                i.env.state.sink.start(SyntaxKind::ExprSpread);
+                i.env.state.sink.lex(&dotdot);
+                let old_indent = i.env.indent;
+                let old_stop = i.env.stop.clone();
+                i.env.indent = base_indent;
+                i.env.suspend_outer_block_stops_in_group();
+                i.env.stop.insert(self.end_kind);
+                i.env.stop.insert(SyntaxKind::Comma);
+                i.env.stop.insert(SyntaxKind::Semicolon);
+                let parsed = parse_expr(dotdot.trailing_trivia_info(), i.rb());
+                i.env.stop = old_stop;
+                i.env.indent = old_indent;
+                i.env.state.sink.finish();
+                return Some(parsed?);
+            }
+        }
+
         let old_indent = i.env.indent;
         let old_stop = i.env.stop.clone();
         i.env.indent = base_indent;
@@ -141,19 +169,4 @@ impl<I: EventInput, S: EventSink> DelimitedListMachine<I, S> for ListExprMachine
         i.env.indent = old_indent;
         parsed
     }
-}
-
-fn scan_expr_spread_dotdot<I: EventInput, S: EventSink>(
-    leading_info: TriviaInfo,
-    mut i: In<I, S>,
-) -> Option<Lex> {
-    let (_, text) = i.with_seq(tag(".."))?;
-    i.not(item('<'))?;
-    let trailing = i.run(scan_trivia)?;
-    Some(Lex::new(
-        leading_info,
-        SyntaxKind::DotDot,
-        text.as_ref(),
-        trailing,
-    ))
 }

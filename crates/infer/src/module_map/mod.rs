@@ -308,15 +308,15 @@ impl Lower {
         module: ModuleId,
         owner: DefId,
     ) {
-        for (index, local) in body
+        let mut local_var_index = 0;
+        for local in body
             .descendants()
             .filter(|node| node.kind() == SyntaxKind::Binding)
-            .enumerate()
         {
-            let Some(name) = local_var_act_name(&local) else {
-                continue;
-            };
-            self.register_synthetic_var_act_copy(module, owner, name, index);
+            for name in local_var_act_names(&local) {
+                self.register_synthetic_var_act_copy(module, owner, name, local_var_index);
+                local_var_index += 1;
+            }
         }
         for (index, label) in body
             .descendants()
