@@ -74,7 +74,7 @@ impl<'a> Runtime<'a> {
         match thunk {
             Value::Marked { value, markers } => {
                 self.stats.force_marked_calls += 1;
-                self.with_marker_frame(markers, move |runtime| runtime.force_thunk(*value))
+                self.with_shared_marker_frame(markers, move |runtime| runtime.force_thunk(*value))
             }
             Value::Thunk(thunk) => self.force_thunk_handle(thunk),
             value => Err(RuntimeError::NotThunk { value }),

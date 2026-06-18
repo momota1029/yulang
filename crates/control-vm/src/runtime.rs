@@ -230,7 +230,7 @@ pub enum Value {
     Continuation(ContinuationId),
     Marked {
         value: Box<Value>,
-        markers: Vec<ValueMarker>,
+        markers: SharedMarkers,
     },
 }
 
@@ -1198,7 +1198,7 @@ fn mark_value(value: Value, markers: &[ValueMarker]) -> Value {
     }
     Value::Marked {
         value: Box::new(value),
-        markers: value_markers,
+        markers: shared_markers(value_markers),
     }
 }
 

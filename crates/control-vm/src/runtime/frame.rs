@@ -111,7 +111,7 @@ pub(super) enum Frame {
         mode: RefSetResumeMode,
     },
     MarkValue {
-        markers: Vec<ValueMarker>,
+        markers: SharedMarkers,
     },
     ResolveRefSetValues {
         values: Vec<Value>,

@@ -197,6 +197,9 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      `examples/showcase.yu` は repeat 5 で 90〜96ms へ下がった。
      structural values (`Tuple` / `Record` / variant payload) も `Rc<[...]>` 化し、
      `examples/showcase.yu` は repeat 5 で 86〜94ms まで下がった。
+     `Value::Marked` / `Frame::MarkValue` の marker payload も `Rc<[ValueMarker]>` 化し、
+     escaping marked value / frame clone で marker list を複製しないようにした。
+     `examples/showcase.yu` は repeat 5 で 83〜89ms へ下がった。
 2. infer の `drain_analysis` / `resolve_selections` を切る。
    - public examples の static check では `lower.drain` と `lower.resolve` がそれぞれ 100ms 前後。
    - body lowering より analysis/finalize 側に寄っているため、counter を足すならここから。
