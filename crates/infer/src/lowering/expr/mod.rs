@@ -17,6 +17,7 @@ pub struct ExprLowerer<'a> {
     pub(super) site: ModuleOrder,
     pub(super) parent: poly::expr::DefId,
     pub(super) parent_has_type_annotation: bool,
+    pub(super) record_source_spans: bool,
     pub(super) labels: Option<&'a mut DumpLabels>,
     pub(super) self_alias: Option<AnnSelfAlias>,
     pub(super) type_var_aliases: Vec<(String, String)>,
@@ -64,6 +65,7 @@ impl<'a> ExprLowerer<'a> {
             site,
             parent,
             parent_has_type_annotation: false,
+            record_source_spans: true,
             labels: None,
             self_alias: None,
             type_var_aliases: Vec::new(),
@@ -105,6 +107,7 @@ impl<'a> ExprLowerer<'a> {
             site,
             parent,
             parent_has_type_annotation: false,
+            record_source_spans: true,
             labels: Some(labels),
             self_alias: None,
             type_var_aliases: Vec::new(),
@@ -157,7 +160,15 @@ impl<'a> ExprLowerer<'a> {
         self
     }
 
+    pub fn with_source_spans(mut self, record_source_spans: bool) -> Self {
+        self.record_source_spans = record_source_spans;
+        self
+    }
+
     pub(super) fn source_span(&self, range: Option<SourceRange>) -> Option<SourceSpan> {
+        if !self.record_source_spans {
+            return None;
+        }
         range.map(|range| SourceSpan {
             file: self.source_file.clone(),
             range,

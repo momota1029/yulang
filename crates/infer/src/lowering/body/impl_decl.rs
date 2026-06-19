@@ -316,6 +316,7 @@ impl BodyLowerer {
             &mut self.labels,
         )
         .with_source_file(self.source_file.clone())
+        .with_source_spans(self.record_source_spans)
         .with_local_method_scope(self.local_method_scope)
         .lower_impl_method_body_expr(
             &expr,

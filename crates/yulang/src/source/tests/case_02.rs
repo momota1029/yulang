@@ -1239,6 +1239,79 @@ fn hover_entry_source_shortens_selected_method_type_paths() {
 }
 
 #[test]
+fn hover_entry_source_does_not_show_synthetic_var_act_copy_locals() {
+    let std_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib");
+    let source = "role Pick 'container 'key:\n\
+                  \x20 type value\n\
+                  \x20 our container.pick: 'key -> value\n\
+                  \n\
+                  struct pair 'left 'right { left: 'left, right: 'right } with:\n\
+                  \x20 impl Pick int:\n\
+                  \x20   type value = 'left\n\
+                  \x20   our p.pick _ = p.left\n\
+                  \n\
+                  \x20 impl Pick bool:\n\
+                  \x20   type value = 'right\n\
+                  \x20   our p.pick _ = p.right\n\
+                  \n\
+                  my p = pair { left: 10, right: false }\n\
+                  \n\
+                  (p.pick 0, p.pick true)\n";
+    let type_var_offset = source.find("type value = 'right").unwrap() + "type value = '".len();
+    let hover = hover_entry_source_with_std_options(
+        "main.yu",
+        source,
+        type_var_offset,
+        &StdSourceOptions {
+            std_root: Some(std_root),
+        },
+    )
+    .unwrap();
+
+    if let Some(hover) = hover {
+        assert!(
+            !hover.contents.contains("var_ref") && !hover.contents.contains("std.text.parse"),
+            "expected hover not to show synthetic var-act copy local, got {:?}",
+            hover.contents
+        );
+    }
+}
+
+#[test]
+fn hover_entry_source_reports_attached_role_method_selection_type() {
+    let source = "role Pick 'container 'key:\n\
+                  \x20 type value\n\
+                  \x20 our container.pick: 'key -> value\n\
+                  \n\
+                  struct pair 'left 'right { left: 'left, right: 'right } with:\n\
+                  \x20 impl Pick int:\n\
+                  \x20   type value = 'left\n\
+                  \x20   our p.pick _ = p.left\n\
+                  \n\
+                  \x20 impl Pick bool:\n\
+                  \x20   type value = 'right\n\
+                  \x20   our p.pick _ = p.right\n\
+                  \n\
+                  my p = pair { left: 10, right: false }\n\
+                  \n\
+                  (p.pick 0, p.pick true)\n";
+    let hover = hover_entry_source("main.yu", source, source.rfind("pick true").unwrap())
+        .unwrap()
+        .unwrap();
+
+    assert!(
+        hover.contents.contains("pick: "),
+        "expected hover to show selected pick method type, got {:?}",
+        hover.contents
+    );
+    assert!(
+        !hover.contents.contains('#'),
+        "expected hover not to expose hidden method labels, got {:?}",
+        hover.contents
+    );
+}
+
+#[test]
 fn hover_entry_source_reports_shorthand_record_pattern_type() {
     let source = "my f({x = 1}) = x\n";
     let pattern_offset = source.find('x').unwrap();

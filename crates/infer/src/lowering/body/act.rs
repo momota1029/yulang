@@ -208,6 +208,7 @@ impl BodyLowerer {
             };
             let previous_scope = self.local_method_scope.replace(companion);
             let previous_suppression = std::mem::replace(&mut self.suppress_runtime_roots, true);
+            let previous_source_spans = std::mem::replace(&mut self.record_source_spans, false);
             let mut method_cursor = 0usize;
             self.lower_act_body_contents(
                 &copy.body,
@@ -217,6 +218,7 @@ impl BodyLowerer {
                 copy.type_var_aliases.as_slice(),
                 copy.type_name_aliases.as_slice(),
             );
+            self.record_source_spans = previous_source_spans;
             self.suppress_runtime_roots = previous_suppression;
             self.local_method_scope = previous_scope;
         }

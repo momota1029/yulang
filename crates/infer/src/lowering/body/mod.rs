@@ -348,6 +348,7 @@ pub(super) struct BodyLowerer {
     pub(super) cast_cursors: FxHashMap<ModuleId, usize>,
     pub(super) role_requirements: FxHashMap<DefId, RoleMethodRequirement>,
     pub(super) local_method_scope: Option<ModuleId>,
+    pub(super) record_source_spans: bool,
     // Synthetic act copy bodies are implementation helpers. Their computed bindings keep
     // BindingFetch for use-site semantics, but they are not source-level runtime roots.
     pub(super) suppress_runtime_roots: bool,
@@ -377,6 +378,7 @@ impl BodyLowerer {
             cast_cursors: FxHashMap::default(),
             role_requirements: FxHashMap::default(),
             local_method_scope: None,
+            record_source_spans: true,
             suppress_runtime_roots: false,
         };
         lowerer.collect_declared_role_requirements();
@@ -461,6 +463,7 @@ impl BodyLowerer {
             &mut self.labels,
         )
         .with_source_file(self.source_file.clone())
+        .with_source_spans(self.record_source_spans)
         .with_local_method_scope(self.local_method_scope)
         .lower_expr(node);
         match lowered {
@@ -597,6 +600,7 @@ impl BodyLowerer {
             &mut self.labels,
         )
         .with_source_file(self.source_file.clone())
+        .with_source_spans(self.record_source_spans)
         .with_local_method_scope(self.local_method_scope)
         .with_parent_type_annotation(has_type_annotation)
         .with_self_alias(self_alias.clone())
@@ -687,6 +691,7 @@ impl BodyLowerer {
             &mut self.labels,
         )
         .with_source_file(self.source_file.clone())
+        .with_source_spans(self.record_source_spans)
         .with_local_method_scope(self.local_method_scope)
         .with_self_alias(self_alias.clone())
         .with_type_var_aliases(type_var_aliases)
@@ -749,6 +754,7 @@ impl BodyLowerer {
                 &mut self.labels,
             )
             .with_source_file(self.source_file.clone())
+            .with_source_spans(self.record_source_spans)
             .with_local_method_scope(self.local_method_scope)
             .lower_destructured_binding_component(&pattern, hidden_def, name.clone());
             match lowered {
@@ -788,7 +794,8 @@ impl BodyLowerer {
             decl.def,
             &mut self.labels,
         )
-        .with_source_file(self.source_file.clone());
+        .with_source_file(self.source_file.clone())
+        .with_source_spans(self.record_source_spans);
         let body_result = lowerer.lower_binding_body_expr(&expr);
         // nullfix の本体は thunk に包み、評価を use site の unit 適用まで遅らせる。
         let lowered = body_result.map(|body| {
@@ -878,6 +885,7 @@ impl BodyLowerer {
             &mut self.labels,
         )
         .with_source_file(self.source_file.clone())
+        .with_source_spans(self.record_source_spans)
         .lower_binding_body_with_args_to_self(
             std::slice::from_ref(&pattern),
             &body,
