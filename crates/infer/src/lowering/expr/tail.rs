@@ -276,6 +276,7 @@ impl<'a> ExprLowerer<'a> {
             RefUse {
                 parent: self.parent,
                 value,
+                source_span: self.source_span(source_range),
             },
         );
         self.known_ref_targets.insert(reference, target);

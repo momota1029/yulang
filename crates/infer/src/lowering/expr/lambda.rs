@@ -175,7 +175,7 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
         receiver: LocalBinding,
     ) -> Result<Computation, LoweringError> {
-        let mut acc = self.lower_local_name(receiver.name.clone(), receiver);
+        let mut acc = self.lower_local_name(receiver.name.clone(), receiver, None);
         for child in node.children() {
             acc = self.lower_tail_node(acc, &child)?;
         }

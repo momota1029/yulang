@@ -41,6 +41,7 @@ impl BodyLowerer {
             method.def,
             &mut self.labels,
         )
+        .with_source_file(self.source_file.clone())
         .with_local_method_scope(self.local_method_scope)
         .lower_role_method_body_expr(
             &expr,
@@ -89,6 +90,7 @@ impl BodyLowerer {
             method.def,
             &mut self.labels,
         )
+        .with_source_file(self.source_file.clone())
         .with_local_method_scope(self.local_method_scope)
         .with_type_var_aliases(type_var_aliases)
         .with_type_name_aliases(type_name_aliases)
@@ -141,6 +143,7 @@ impl BodyLowerer {
             method.def,
             &mut self.labels,
         )
+        .with_source_file(self.source_file.clone())
         .with_local_method_scope(self.local_method_scope)
         .with_self_alias(Some(self_alias.clone()))
         .lower_type_method_body_expr(

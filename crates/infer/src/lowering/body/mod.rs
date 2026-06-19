@@ -107,7 +107,10 @@ pub fn lower_loaded_files(files: &[LoadedFile]) -> Result<BodyLowering, LoadedFi
         };
         let file_start = Instant::now();
         timing.file_start(&file.module_path);
+        let previous_source_file =
+            std::mem::replace(&mut lowerer.source_file, file.module_path.clone());
         lowerer.lower_block(&file.cst, module);
+        lowerer.source_file = previous_source_file;
         timing.file_done(&file.module_path, file_start.elapsed());
     }
     measured.lower_bodies = phase_start.elapsed();
@@ -166,6 +169,7 @@ pub fn lower_root_loaded_file_with_prefix(
         Lower {
             arena: prefix.poly.clone(),
             modules: prefix.modules.clone(),
+            source_file: Path::default(),
         },
         root,
     )?;
@@ -332,6 +336,7 @@ pub enum BodyLoweringError {
 pub(super) struct BodyLowerer {
     pub(super) session: AnalysisSession,
     pub(super) modules: ModuleTable,
+    pub(super) source_file: Path,
     pub(super) typing: Typing,
     pub(super) labels: DumpLabels,
     pub(super) errors: Vec<BodyLoweringError>,
@@ -360,6 +365,7 @@ impl BodyLowerer {
         let mut lowerer = Self {
             session,
             modules: lower.modules,
+            source_file: lower.source_file,
             typing: Typing::new(),
             labels,
             errors: Vec::new(),
@@ -454,6 +460,7 @@ impl BodyLowerer {
             parent,
             &mut self.labels,
         )
+        .with_source_file(self.source_file.clone())
         .with_local_method_scope(self.local_method_scope)
         .lower_expr(node);
         match lowered {
@@ -589,6 +596,7 @@ impl BodyLowerer {
             decl.def,
             &mut self.labels,
         )
+        .with_source_file(self.source_file.clone())
         .with_local_method_scope(self.local_method_scope)
         .with_parent_type_annotation(has_type_annotation)
         .with_self_alias(self_alias.clone())
@@ -678,6 +686,7 @@ impl BodyLowerer {
             hidden_def,
             &mut self.labels,
         )
+        .with_source_file(self.source_file.clone())
         .with_local_method_scope(self.local_method_scope)
         .with_self_alias(self_alias.clone())
         .with_type_var_aliases(type_var_aliases)
@@ -739,6 +748,7 @@ impl BodyLowerer {
                 decl.def,
                 &mut self.labels,
             )
+            .with_source_file(self.source_file.clone())
             .with_local_method_scope(self.local_method_scope)
             .lower_destructured_binding_component(&pattern, hidden_def, name.clone());
             match lowered {
@@ -777,7 +787,8 @@ impl BodyLowerer {
             decl.order,
             decl.def,
             &mut self.labels,
-        );
+        )
+        .with_source_file(self.source_file.clone());
         let body_result = lowerer.lower_binding_body_expr(&expr);
         // nullfix の本体は thunk に包み、評価を use site の unit 適用まで遅らせる。
         let lowered = body_result.map(|body| {
@@ -866,6 +877,7 @@ impl BodyLowerer {
             decl.def,
             &mut self.labels,
         )
+        .with_source_file(self.source_file.clone())
         .lower_binding_body_with_args_to_self(
             std::slice::from_ref(&pattern),
             &body,

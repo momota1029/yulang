@@ -13,6 +13,7 @@ pub struct ExprLowerer<'a> {
     pub(super) session: &'a mut AnalysisSession,
     pub(super) modules: &'a ModuleTable,
     pub(super) module: ModuleId,
+    pub(super) source_file: Path,
     pub(super) site: ModuleOrder,
     pub(super) parent: poly::expr::DefId,
     pub(super) parent_has_type_annotation: bool,
@@ -59,6 +60,7 @@ impl<'a> ExprLowerer<'a> {
             session,
             modules,
             module,
+            source_file: Path::default(),
             site,
             parent,
             parent_has_type_annotation: false,
@@ -99,6 +101,7 @@ impl<'a> ExprLowerer<'a> {
             session,
             modules,
             module,
+            source_file: Path::default(),
             site,
             parent,
             parent_has_type_annotation: false,
@@ -144,9 +147,21 @@ impl<'a> ExprLowerer<'a> {
         self
     }
 
+    pub fn with_source_file(mut self, source_file: Path) -> Self {
+        self.source_file = source_file;
+        self
+    }
+
     pub fn with_parent_type_annotation(mut self, parent_has_type_annotation: bool) -> Self {
         self.parent_has_type_annotation = parent_has_type_annotation;
         self
+    }
+
+    pub(super) fn source_span(&self, range: Option<SourceRange>) -> Option<SourceSpan> {
+        range.map(|range| SourceSpan {
+            file: self.source_file.clone(),
+            range,
+        })
     }
 
     /// CST expression を `poly::Expr` と `Computation` に lower する。

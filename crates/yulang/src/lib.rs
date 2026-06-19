@@ -14,7 +14,7 @@ mod time;
 pub use source::{
     AnalyzeSourceOutput, BuildControlOutput, BuildPolyOutput, CheckPolyOutput, CollectedSource,
     ControlRunTimings, DumpMonoOutput, DumpPolyOutput, IMPLICIT_PRELUDE_IMPORT, RouteError,
-    RunControlOutput, RunMonoOutput, SourceDiagnostic, SourceRange, StdSourceOptions,
+    RunControlOutput, RunMonoOutput, SourceDiagnostic, SourceHover, SourceRange, StdSourceOptions,
     analyze_entry_source, analyze_entry_source_with_std_options,
     analyze_source_text_with_embedded_std, build_control_from_collected_sources,
     build_control_from_entry, build_control_from_entry_with_std,
@@ -37,6 +37,7 @@ pub use source::{
     dump_poly_raw_from_entry_with_std, dump_poly_raw_from_entry_with_std_in_module,
     dump_poly_raw_from_entry_with_std_in_module_options, dump_poly_raw_from_entry_with_std_options,
     dump_poly_raw_from_source_text_with_embedded_std, find_nearby_std_root, format_run_mono_values,
+    hover_entry_source, hover_entry_source_with_std_options,
     load_source_text_with_embedded_playground_std, load_source_text_with_embedded_std,
     run_built_control_program, run_control_from_entry, run_control_from_entry_with_std,
     run_control_from_entry_with_std_options, run_control_from_source_text_with_embedded_std,

@@ -134,6 +134,7 @@ fn ref_resolution_routes_parent_and_use_value_to_scc_machine() {
         RefUse {
             parent,
             value: TypeVar(3),
+            source_span: None,
         },
     );
 
@@ -817,6 +818,7 @@ fn open_scc_use_adds_target_to_use_constraint() {
         RefUse {
             parent: a,
             value: a_to_b_use,
+            source_span: None,
         },
     );
     session.refs.insert(
@@ -824,6 +826,7 @@ fn open_scc_use_adds_target_to_use_constraint() {
         RefUse {
             parent: b,
             value: b_to_a_use,
+            source_span: None,
         },
     );
 

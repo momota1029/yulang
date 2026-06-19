@@ -68,9 +68,10 @@ use crate::uses::{RefUse, SelectionUse};
 use crate::{
     ActMethodDecl, ActOperationDecl, CastDecl, ConstructorPayload, LoadedFileCsts,
     LoadedFilesError, Lower, ModuleChildDecl, ModuleId, ModuleOrder, ModuleTable, ModuleTypeDecl,
-    ModuleTypeKind, RoleImplDecl, RoleImplMethodDecl, RoleMethodDecl, SyntheticSubLabelActUse,
-    SyntheticVarActUse, TypeDeclId, TypeFieldMethodDecl, TypeMethodDecl, TypeMethodReceiver,
-    append_root_loaded_file_to_lower, binding_type_expr, lower_loaded_file_csts_module_map,
+    ModuleTypeKind, RoleImplDecl, RoleImplMethodDecl, RoleMethodDecl, SourceSpan,
+    SyntheticSubLabelActUse, SyntheticVarActUse, TypeDeclId, TypeFieldMethodDecl, TypeMethodDecl,
+    TypeMethodReceiver, append_root_loaded_file_to_lower, binding_type_expr,
+    lower_loaded_file_csts_module_map,
 };
 use body::signature_helpers::*;
 use cast_scheme::{CastScheme, build_cast_scheme_from_ann};

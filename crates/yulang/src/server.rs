@@ -6,7 +6,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use yulang_editor::semantic_tokens;
 
-use crate::SourceRange;
+use crate::{SourceHover, SourceRange};
 
 struct Backend {
     client: Client,
@@ -116,6 +116,30 @@ fn diagnostics_for_source(
     }
 }
 
+fn hover_for_source(
+    path: &Path,
+    source: String,
+    position: Position,
+    options: &crate::StdSourceOptions,
+) -> Option<Hover> {
+    let byte_offset = position_to_byte_offset(&source, position)?;
+    let hover =
+        crate::hover_entry_source_with_std_options(path, source.clone(), byte_offset, options)
+            .ok()
+            .flatten()?;
+    Some(lsp_hover_for_source_hover(&source, hover))
+}
+
+fn lsp_hover_for_source_hover(source: &str, hover: SourceHover) -> Hover {
+    Hover {
+        contents: HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value: format!("```yulang\n{}\n```", hover.contents),
+        }),
+        range: Some(lsp_range_for_loaded_root_range(source, hover.range)),
+    }
+}
+
 fn lsp_range_for_loaded_root_range(source: &str, range: SourceRange) -> Range {
     source_range_to_lsp_range(source, subtract_implicit_prelude_range(range))
 }
@@ -163,6 +187,27 @@ fn byte_offset_to_position(source: &str, line_starts: &[usize], offset: usize) -
     }
 }
 
+fn position_to_byte_offset(source: &str, position: Position) -> Option<usize> {
+    let line_starts = compute_line_starts(source);
+    let line_start = *line_starts.get(position.line as usize)?;
+    let line_end = line_starts
+        .get(position.line as usize + 1)
+        .map(|next| next.saturating_sub(1))
+        .unwrap_or(source.len());
+    let mut utf16_column = 0u32;
+    for (relative, ch) in source[line_start..line_end].char_indices() {
+        if utf16_column == position.character {
+            return Some(line_start + relative);
+        }
+        let next_column = utf16_column + ch.len_utf16() as u32;
+        if position.character < next_column {
+            return None;
+        }
+        utf16_column = next_column;
+    }
+    (utf16_column == position.character).then_some(line_end)
+}
+
 fn clamp_to_char_boundary(source: &str, mut offset: usize) -> usize {
     while offset > 0 && !source.is_char_boundary(offset) {
         offset -= 1;
@@ -199,6 +244,7 @@ impl LanguageServer for Backend {
                         },
                     ),
                 ),
+                hover_provider: Some(HoverProviderCapability::Simple(true)),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -270,6 +316,27 @@ impl LanguageServer for Backend {
             result_id: None,
             data,
         })))
+    }
+
+    async fn hover(&self, params: HoverParams) -> tower_lsp::jsonrpc::Result<Option<Hover>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+        let path = match uri.to_file_path() {
+            Ok(path) => path,
+            Err(_) => return Ok(None),
+        };
+        let Some(source) = self.document_source(&uri) else {
+            return Ok(None);
+        };
+        let options = crate::StdSourceOptions {
+            std_root: self.std_root.clone(),
+        };
+        let hover = tokio::task::spawn_blocking(move || {
+            hover_for_source(&path, source, position, &options)
+        })
+        .await
+        .unwrap_or(None);
+        Ok(hover)
     }
 }
 
@@ -449,6 +516,75 @@ mod tests {
                     character: 4
                 },
             }
+        );
+    }
+
+    #[test]
+    fn position_to_byte_offset_rejects_split_utf16_surrogate() {
+        let source = "💡x\n";
+
+        assert_eq!(
+            position_to_byte_offset(
+                source,
+                Position {
+                    line: 0,
+                    character: 2,
+                },
+            ),
+            Some("💡".len())
+        );
+        assert_eq!(
+            position_to_byte_offset(
+                source,
+                Position {
+                    line: 0,
+                    character: 1,
+                },
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn hover_for_source_reports_type_at_reference() {
+        let root = temp_root("hover-type-reference");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "my x: int = 1\nmy y = x\n";
+        let hover = hover_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 7,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            hover.range,
+            Some(Range {
+                start: Position {
+                    line: 1,
+                    character: 7
+                },
+                end: Position {
+                    line: 1,
+                    character: 8
+                },
+            })
+        );
+        assert_eq!(
+            hover.contents,
+            HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: "```yulang\nx: int\n```".to_string(),
+            })
         );
     }
 

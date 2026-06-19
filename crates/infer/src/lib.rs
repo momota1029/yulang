@@ -111,6 +111,12 @@ struct ModuleNode {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 struct ModuleDeclId(usize);
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceSpan {
+    pub file: ModulePath,
+    pub range: SourceRange,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 /// 型名前空間の宣言 identity。
 ///
@@ -429,7 +435,7 @@ pub struct ModuleTable {
     type_companions: FxHashMap<TypeDeclId, ModuleId>,
     type_methods: FxHashMap<TypeDeclId, Vec<TypeMethodDecl>>,
     type_field_methods: FxHashMap<TypeDeclId, Vec<TypeFieldMethodDecl>>,
-    def_source_ranges: FxHashMap<DefId, SourceRange>,
+    def_source_spans: FxHashMap<DefId, SourceSpan>,
     next_type_id: u32,
 }
 
@@ -465,4 +471,5 @@ pub struct Lower {
     pub arena: PolyArena,
     /// pass2 の名前解決で使う infer-local module map。
     pub modules: ModuleTable,
+    source_file: ModulePath,
 }

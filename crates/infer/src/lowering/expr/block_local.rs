@@ -674,6 +674,15 @@ impl<'a> ExprLowerer<'a> {
         label: String,
         target: DefId,
     ) -> Computation {
+        self.lower_resolved_value_ref_at(label, target, None)
+    }
+
+    pub(in crate::lowering) fn lower_resolved_value_ref_at(
+        &mut self,
+        label: String,
+        target: DefId,
+        source_range: Option<SourceRange>,
+    ) -> Computation {
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
         let reference = self.session.poly.add_ref();
@@ -685,6 +694,7 @@ impl<'a> ExprLowerer<'a> {
             RefUse {
                 parent: self.parent,
                 value,
+                source_span: self.source_span(source_range),
             },
         );
         self.known_ref_targets.insert(reference, target);

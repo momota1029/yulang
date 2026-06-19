@@ -310,6 +310,33 @@ pub fn analyze_entry_source(
     analyze_from_sources(collect_local_source_text(entry, source.into())?)
 }
 
+pub fn hover_entry_source_with_std_options(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    byte_offset: usize,
+    options: &StdSourceOptions,
+) -> Result<Option<SourceHover>, RouteError> {
+    let loaded_offset =
+        byte_offset + IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len();
+    hover_from_sources(
+        collect_local_source_text_with_std_options(entry, source.into(), options)?,
+        loaded_offset,
+        &Path::default(),
+    )
+}
+
+pub fn hover_entry_source(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    byte_offset: usize,
+) -> Result<Option<SourceHover>, RouteError> {
+    hover_from_sources(
+        collect_local_source_text(entry, source.into())?,
+        byte_offset,
+        &Path::default(),
+    )
+}
+
 /// entry file と近場の `lib/std.yu` を読み、指定 module の型付け状況だけを集計する。
 pub fn check_poly_from_entry_with_std_in_module(
     entry: impl AsRef<FsPath>,
@@ -647,6 +674,12 @@ pub struct AnalyzeSourceOutput {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceHover {
+    pub range: SourceRange,
+    pub contents: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceDiagnostic {
     pub label: Option<String>,
     pub range: Option<SourceRange>,
@@ -919,6 +952,107 @@ fn analyze_from_loaded_files(
         file_count: loaded.len(),
         diagnostics,
     })
+}
+
+fn hover_from_sources(
+    files: Vec<CollectedSource>,
+    byte_offset: usize,
+    file: &Path,
+) -> Result<Option<SourceHover>, RouteError> {
+    hover_from_loaded_files(
+        sources::load(collected_source_files(files)),
+        byte_offset,
+        file,
+    )
+}
+
+fn hover_from_loaded_files(
+    loaded: Vec<sources::LoadedFile>,
+    byte_offset: usize,
+    file: &Path,
+) -> Result<Option<SourceHover>, RouteError> {
+    let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    Ok(source_hover_from_check(&check, byte_offset, file))
+}
+
+fn source_hover_from_check(
+    check: &infer::check::PolyCheckOutput,
+    byte_offset: usize,
+    file: &Path,
+) -> Option<SourceHover> {
+    let mut best = None;
+    for (def, span) in check.lowering.modules.def_source_spans() {
+        if &span.file != file || !source_range_contains(span.range, byte_offset) {
+            continue;
+        }
+        push_best_hover(&mut best, hover_for_def(check, def, span.range), span.range);
+    }
+    for (reference, use_site) in check.lowering.session.refs.iter() {
+        let Some(span) = &use_site.source_span else {
+            continue;
+        };
+        if &span.file != file || !source_range_contains(span.range, byte_offset) {
+            continue;
+        }
+        let Some(target) = check.lowering.session.poly.ref_target(reference) else {
+            continue;
+        };
+        push_best_hover(
+            &mut best,
+            hover_for_def(check, target, span.range),
+            span.range,
+        );
+    }
+    best
+}
+
+fn push_best_hover(
+    best: &mut Option<SourceHover>,
+    candidate: Option<SourceHover>,
+    range: SourceRange,
+) {
+    let Some(candidate) = candidate else {
+        return;
+    };
+    let candidate_len = range.end.saturating_sub(range.start);
+    let best_len = best
+        .as_ref()
+        .map(|hover| hover.range.end.saturating_sub(hover.range.start))
+        .unwrap_or(usize::MAX);
+    if candidate_len < best_len {
+        *best = Some(candidate);
+    }
+}
+
+fn hover_for_def(
+    check: &infer::check::PolyCheckOutput,
+    def: poly::expr::DefId,
+    range: SourceRange,
+) -> Option<SourceHover> {
+    let Some(poly::expr::Def::Let {
+        scheme: Some(scheme),
+        ..
+    }) = check.lowering.session.poly.defs.get(def)
+    else {
+        return None;
+    };
+    let label = check.lowering.labels.def_label(def)?;
+    if label.starts_with('#') {
+        return None;
+    }
+    let ty = poly::dump::format_scheme(&check.lowering.session.poly.typ, scheme);
+    Some(SourceHover {
+        range,
+        contents: format!("{label}: {ty}"),
+    })
+}
+
+fn source_range_contains(range: SourceRange, byte_offset: usize) -> bool {
+    if range.start == range.end {
+        byte_offset == range.start
+    } else {
+        range.start <= byte_offset && byte_offset < range.end
+    }
 }
 
 fn source_diagnostics_from_check(

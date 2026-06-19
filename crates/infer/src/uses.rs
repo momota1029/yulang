@@ -8,7 +8,7 @@ use poly::expr::{DefId, RefId, SelectId};
 use poly::types::TypeVar;
 use rustc_hash::FxHashMap;
 
-use crate::ModuleId;
+use crate::{ModuleId, SourceSpan};
 
 #[derive(Debug, Clone, Default)]
 /// `DefId` に対応する型 slot。
@@ -63,13 +63,18 @@ impl RefUseTable {
     pub fn value(&self, id: RefId) -> Option<TypeVar> {
         self.get(id).map(|use_site| use_site.value)
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (RefId, &RefUse)> {
+        self.uses.iter().map(|(id, use_site)| (*id, use_site))
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// 1つの `RefId` use-site に対応する推論メタデータ。
 pub struct RefUse {
     pub parent: DefId,
     pub value: TypeVar,
+    pub source_span: Option<SourceSpan>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -182,6 +187,7 @@ mod tests {
         let use_site = RefUse {
             parent: DefId(1),
             value: TypeVar(2),
+            source_span: None,
         };
 
         table.insert(reference, use_site);

@@ -38,7 +38,7 @@ impl ModuleTable {
             type_companions: FxHashMap::default(),
             type_methods: FxHashMap::default(),
             type_field_methods: FxHashMap::default(),
-            def_source_ranges: FxHashMap::default(),
+            def_source_spans: FxHashMap::default(),
             next_type_id: 0,
         }
     }
@@ -73,16 +73,16 @@ impl ModuleTable {
         });
         module
     }
-    pub(super) fn insert_value_with_range(
+    pub(super) fn insert_value_with_span(
         &mut self,
         module: ModuleId,
         name: Name,
         def: DefId,
         vis: Vis,
-        source_range: Option<SourceRange>,
+        source_span: Option<SourceSpan>,
     ) -> ModuleOrder {
-        if let Some(source_range) = source_range {
-            self.def_source_ranges.insert(def, source_range);
+        if let Some(source_span) = source_span {
+            self.def_source_spans.insert(def, source_span);
         }
         let decl = self.push_decl(module, name.clone(), vis, ModuleDeclKind::Value { def });
         let order = self.nodes[module.0].decls[decl.0].order;
@@ -130,11 +130,17 @@ impl ModuleTable {
     pub(crate) fn is_lazy_op(&self, def: DefId) -> bool {
         self.lazy_ops.contains(&def)
     }
-    pub(super) fn set_def_source_range(&mut self, def: DefId, source_range: SourceRange) {
-        self.def_source_ranges.insert(def, source_range);
+    pub(super) fn set_def_source_span(&mut self, def: DefId, source_span: SourceSpan) {
+        self.def_source_spans.insert(def, source_span);
     }
     pub fn def_source_range(&self, def: DefId) -> Option<SourceRange> {
-        self.def_source_ranges.get(&def).copied()
+        self.def_source_spans.get(&def).map(|span| span.range)
+    }
+    pub fn def_source_span(&self, def: DefId) -> Option<&SourceSpan> {
+        self.def_source_spans.get(&def)
+    }
+    pub fn def_source_spans(&self) -> impl Iterator<Item = (DefId, &SourceSpan)> {
+        self.def_source_spans.iter().map(|(def, span)| (*def, span))
     }
     pub(super) fn set_act_template(&mut self, id: TypeDeclId, node: Cst) {
         self.act_templates.insert(id, node);

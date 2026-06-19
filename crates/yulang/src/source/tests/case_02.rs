@@ -1042,6 +1042,73 @@ fn analyze_entry_source_reports_unresolved_name_source_range() {
 }
 
 #[test]
+fn hover_entry_source_reports_decl_type() {
+    let root = temp_root("hover-entry-source-decl");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("lib").join("std")).unwrap();
+    fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+    fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+    let hover = hover_entry_source_with_std_options(
+        root.join("main.yu"),
+        "my x: int = 1\n",
+        3,
+        &StdSourceOptions {
+            std_root: Some(root.join("lib")),
+        },
+    )
+    .unwrap()
+    .unwrap();
+
+    assert_eq!(
+        hover,
+        SourceHover {
+            range: SourceRange {
+                start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 3,
+                end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 4,
+            },
+            contents: "x: int".to_string(),
+        }
+    );
+}
+
+#[test]
+fn hover_entry_source_reports_ref_target_type() {
+    let root = temp_root("hover-entry-source-ref");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("lib").join("std")).unwrap();
+    fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+    fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+    let source = "my x: int = 1\nmy y = x\n";
+    let ref_offset = source.rfind('x').unwrap();
+    let hover = hover_entry_source_with_std_options(
+        root.join("main.yu"),
+        source,
+        ref_offset,
+        &StdSourceOptions {
+            std_root: Some(root.join("lib")),
+        },
+    )
+    .unwrap()
+    .unwrap();
+
+    assert_eq!(
+        hover,
+        SourceHover {
+            range: SourceRange {
+                start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + ref_offset,
+                end: IMPLICIT_PRELUDE_IMPORT.len()
+                    + IMPLICIT_STD_MODULE_DECL.len()
+                    + ref_offset
+                    + 1,
+            },
+            contents: "x: int".to_string(),
+        }
+    );
+}
+
+#[test]
 fn check_poly_std_in_filters_to_requested_module() {
     let root = temp_root("check-poly-std-in");
     let _ = fs::remove_dir_all(&root);

@@ -316,7 +316,7 @@ impl<'a> ExprLowerer<'a> {
             .last()
             .cloned()
             .expect("rule capture should be the last local");
-        let captured = self.lower_local_name(name, local);
+        let captured = self.lower_local_name(name, local, None);
         (
             LoweredLocalStmt {
                 stmt: Stmt::Let(Vis::My, pat, value.expr),

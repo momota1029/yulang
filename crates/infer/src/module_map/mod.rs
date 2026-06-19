@@ -7,7 +7,25 @@ impl Lower {
         Self {
             arena: PolyArena::new(),
             modules: ModuleTable::new(),
+            source_file: ModulePath::default(),
         }
+    }
+
+    fn source_span(&self, range: Option<SourceRange>) -> Option<SourceSpan> {
+        range.map(|range| SourceSpan {
+            file: self.source_file.clone(),
+            range,
+        })
+    }
+
+    fn set_def_source_range(&mut self, def: DefId, range: SourceRange) {
+        self.modules.set_def_source_span(
+            def,
+            SourceSpan {
+                file: self.source_file.clone(),
+                range,
+            },
+        );
     }
 
     /// ブロック（root / IndentBlock / BraceGroup）の直下を走査して定義を採番する。
@@ -57,12 +75,13 @@ impl Lower {
                                 children: Vec::new(),
                             },
                         );
-                        self.modules.insert_value_with_range(
+                        let source_span = self.source_span(Some(info.source_range));
+                        self.modules.insert_value_with_span(
                             module,
                             info.name,
                             def,
                             info.vis,
-                            Some(info.source_range),
+                            source_span,
                         );
                         if info.lazy {
                             self.modules.mark_lazy_op(def);
@@ -111,9 +130,9 @@ impl Lower {
                     children: Vec::new(),
                 },
             );
-            let source_range = source_range_for_name(binding, &name);
+            let source_span = self.source_span(source_range_for_name(binding, &name));
             self.modules
-                .insert_value_with_range(module, name, def, vis, source_range);
+                .insert_value_with_span(module, name, def, vis, source_span);
             children.push(def);
             self.register_local_var_act_copies_in_binding(binding, module, def);
         }
@@ -125,16 +144,14 @@ impl Lower {
             return;
         }
         let owner = self.arena.defs.fresh();
-        self.modules
-            .set_def_source_range(owner, node_source_range(expr));
+        self.set_def_source_range(owner, node_source_range(expr));
         self.register_local_var_act_copies_in_expr(expr, module, owner);
         self.modules.push_root_expr_owner(module, Some(owner));
     }
 
     fn register_cast_decl(&mut self, node: &Cst, module: ModuleId) -> DefId {
         let def = self.register_synthetic_let(Vis::My);
-        self.modules
-            .set_def_source_range(def, node_source_range(node));
+        self.set_def_source_range(def, node_source_range(node));
         let order = self.modules.next_order(module);
         self.modules
             .insert_cast_decl(CastDecl { def, module, order });
@@ -191,13 +208,14 @@ impl Lower {
                                 children: Vec::new(),
                             },
                         );
-                        let source_range = source_range_for_name(&child, &method.name);
-                        let order = self.modules.insert_value_with_range(
+                        let source_span =
+                            self.source_span(source_range_for_name(&child, &method.name));
+                        let order = self.modules.insert_value_with_span(
                             module,
                             method.name.clone(),
                             def,
                             vis,
-                            source_range,
+                            source_span,
                         );
                         children.push(def);
                         if vis != Vis::My {
@@ -222,9 +240,9 @@ impl Lower {
                                 children: Vec::new(),
                             },
                         );
-                        let source_range = source_range_for_name(&child, &name);
+                        let source_span = self.source_span(source_range_for_name(&child, &name));
                         self.modules
-                            .insert_value_with_range(module, name, def, vis, source_range);
+                            .insert_value_with_span(module, name, def, vis, source_span);
                         children.push(def);
                         self.register_local_var_act_copies_in_binding(&child, module, def);
                     }
@@ -433,12 +451,13 @@ impl Lower {
                     let Some(variant_name) = enum_variant_name(&variant) else {
                         continue;
                     };
-                    let source_range = source_range_for_name(&variant, &variant_name);
-                    let variant_def = self.register_synthetic_value_with_range(
+                    let source_span =
+                        self.source_span(source_range_for_name(&variant, &variant_name));
+                    let variant_def = self.register_synthetic_value_with_span(
                         companion,
                         variant_name,
                         vis,
-                        source_range,
+                        source_span,
                     );
                     self.modules.insert_constructor(
                         variant_def,
@@ -468,7 +487,7 @@ impl Lower {
             for receiver_kind in [TypeMethodReceiver::Value, TypeMethodReceiver::Ref] {
                 let def = self.register_synthetic_let(vis);
                 if let Some(source_range) = source_range_for_name(&field, &name) {
-                    self.modules.set_def_source_range(def, source_range);
+                    self.set_def_source_range(def, source_range);
                 }
                 if receiver_kind == TypeMethodReceiver::Value {
                     self.arena.field_projections.insert(def);
@@ -485,19 +504,19 @@ impl Lower {
     }
 
     fn register_synthetic_value(&mut self, module: ModuleId, name: Name, vis: Vis) -> DefId {
-        self.register_synthetic_value_with_range(module, name, vis, None)
+        self.register_synthetic_value_with_span(module, name, vis, None)
     }
 
-    fn register_synthetic_value_with_range(
+    fn register_synthetic_value_with_span(
         &mut self,
         module: ModuleId,
         name: Name,
         vis: Vis,
-        source_range: Option<SourceRange>,
+        source_span: Option<SourceSpan>,
     ) -> DefId {
         let def = self.register_synthetic_let(vis);
         self.modules
-            .insert_value_with_range(module, name, def, vis, source_range);
+            .insert_value_with_span(module, name, def, vis, source_span);
         def
     }
 
@@ -558,13 +577,14 @@ impl Lower {
                                 children: Vec::new(),
                             },
                         );
-                        let source_range = source_range_for_name(&child, &method.name);
-                        let order = self.modules.insert_value_with_range(
+                        let source_span =
+                            self.source_span(source_range_for_name(&child, &method.name));
+                        let order = self.modules.insert_value_with_span(
                             module,
                             method.name.clone(),
                             def,
                             vis,
-                            source_range,
+                            source_span,
                         );
                         self.modules.insert_role_method(RoleMethodDecl {
                             owner,
@@ -589,9 +609,9 @@ impl Lower {
                                 children: Vec::new(),
                             },
                         );
-                        let source_range = source_range_for_name(&child, &name);
+                        let source_span = self.source_span(source_range_for_name(&child, &name));
                         self.modules
-                            .insert_value_with_range(module, name, def, vis, source_range);
+                            .insert_value_with_span(module, name, def, vis, source_span);
                         children.push(def);
                         self.register_local_var_act_copies_in_binding(&child, module, def);
                     }
@@ -674,13 +694,13 @@ impl Lower {
                             children: Vec::new(),
                         },
                     );
-                    let source_range = source_range_for_name(&child, &name);
-                    self.modules.insert_value_with_range(
+                    let source_span = self.source_span(source_range_for_name(&child, &name));
+                    self.modules.insert_value_with_span(
                         module,
                         name.clone(),
                         def,
                         vis,
-                        source_range,
+                        source_span,
                     );
                     self.modules.insert_act_operation_def(owner, name, def);
                 }
@@ -700,13 +720,13 @@ impl Lower {
                         },
                     );
                     let value_name = act_method_value_name(&method.name, def);
-                    let source_range = source_range_for_name(&child, &method.name);
-                    let order = self.modules.insert_value_with_range(
+                    let source_span = self.source_span(source_range_for_name(&child, &method.name));
+                    let order = self.modules.insert_value_with_span(
                         module,
                         value_name,
                         def,
                         vis,
-                        source_range,
+                        source_span,
                     );
                     self.modules.insert_act_method(ActMethodDecl {
                         owner,
@@ -734,9 +754,9 @@ impl Lower {
                             children: Vec::new(),
                         },
                     );
-                    let source_range = source_range_for_name(&child, &name);
+                    let source_span = self.source_span(source_range_for_name(&child, &name));
                     self.modules
-                        .insert_value_with_range(module, name, def, vis, source_range);
+                        .insert_value_with_span(module, name, def, vis, source_span);
                     children.push(def);
                     self.register_local_var_act_copies_in_binding(&child, module, def);
                 }
@@ -819,7 +839,10 @@ pub(crate) fn lower_loaded_file_csts_module_map(
         let Some(def) = target.def else {
             continue;
         };
+        let previous_source_file =
+            std::mem::replace(&mut lower.source_file, file.module_path.clone());
         let children = lower.register_block(&file.cst, target.module);
+        lower.source_file = previous_source_file;
         lower.set_module_children(def, children);
     }
 

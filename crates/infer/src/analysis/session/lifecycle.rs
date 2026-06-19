@@ -483,7 +483,7 @@ impl AnalysisSession {
             AnalysisWork::ProbeSelect(select_id) => self.probe_select(select_id),
             AnalysisWork::ApplyRefResolution { ref_id, target } => {
                 self.poly.resolve_ref(ref_id, target);
-                if let Some(use_site) = self.refs.get(ref_id).copied() {
+                if let Some(use_site) = self.refs.get(ref_id).cloned() {
                     self.apply_scc_input(SccInput::UseResolved {
                         parent: use_site.parent,
                         target,

@@ -180,7 +180,7 @@ impl<'a> ExprLowerer<'a> {
             .last()
             .cloned()
             .expect("case lambda scrutinee should be the last local");
-        let scrutinee = self.lower_local_name(scrutinee_name, scrutinee_local);
+        let scrutinee = self.lower_local_name(scrutinee_name, scrutinee_local, None);
 
         self.function_frames
             .push(FunctionPredicateFrame::new(lambda_scope));
@@ -325,7 +325,7 @@ impl<'a> ExprLowerer<'a> {
             .last()
             .cloned()
             .expect("catch lambda scrutinee should be the last local");
-        let scrutinee = self.lower_local_name(scrutinee_name, scrutinee_local);
+        let scrutinee = self.lower_local_name(scrutinee_name, scrutinee_local, None);
 
         self.function_frames
             .push(FunctionPredicateFrame::new(lambda_scope));

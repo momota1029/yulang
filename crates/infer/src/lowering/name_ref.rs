@@ -18,7 +18,7 @@ impl<'a> ExprLowerer<'a> {
                 source_range,
             });
         };
-        Ok(self.lower_resolved_value_ref(path_label(path), target))
+        Ok(self.lower_resolved_value_ref_at(path_label(path), target, source_range))
     }
 
     pub(super) fn lower_std_value_ref(
@@ -54,7 +54,7 @@ impl<'a> ExprLowerer<'a> {
         }
 
         if let Some(local) = self.local_binding(&name) {
-            return Ok(self.lower_local_name(name, local));
+            return Ok(self.lower_local_name(name, local, source_range));
         }
 
         match name.0.as_str() {
@@ -78,6 +78,7 @@ impl<'a> ExprLowerer<'a> {
             RefUse {
                 parent: self.parent,
                 value,
+                source_span: self.source_span(source_range),
             },
         );
         self.known_ref_targets.insert(reference, target);
@@ -104,7 +105,12 @@ impl<'a> ExprLowerer<'a> {
         Ok(self.make_app(get, unit))
     }
 
-    pub(super) fn lower_local_name(&mut self, name: Name, local: LocalBinding) -> Computation {
+    pub(super) fn lower_local_name(
+        &mut self,
+        name: Name,
+        local: LocalBinding,
+        source_range: Option<SourceRange>,
+    ) -> Computation {
         let (effect, effect_view) = self.local_effect_slot(local.effect.clone());
         let value = self.instantiate_local_value(&local);
         let reference = self.session.poly.add_ref();
@@ -117,6 +123,7 @@ impl<'a> ExprLowerer<'a> {
             RefUse {
                 parent: self.parent,
                 value,
+                source_span: self.source_span(source_range),
             },
         );
 

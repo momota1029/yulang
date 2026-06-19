@@ -676,6 +676,7 @@ impl<'a> ExprLowerer<'a> {
             RefUse {
                 parent: self.parent,
                 value,
+                source_span: None,
             },
         );
         if let Some(target) = target {

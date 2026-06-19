@@ -45,13 +45,14 @@ impl Lower {
                             },
                         );
                         let value_name = type_method_value_name(&method.name, method.receiver_kind);
-                        let source_range = source_range_for_name(&child, &method.name);
-                        let order = self.modules.insert_value_with_range(
+                        let source_span =
+                            self.source_span(source_range_for_name(&child, &method.name));
+                        let order = self.modules.insert_value_with_span(
                             module,
                             value_name,
                             def,
                             vis,
-                            source_range,
+                            source_span,
                         );
                         self.modules.insert_type_method(TypeMethodDecl {
                             owner,
@@ -76,9 +77,9 @@ impl Lower {
                                 children: Vec::new(),
                             },
                         );
-                        let source_range = source_range_for_name(&child, &name);
+                        let source_span = self.source_span(source_range_for_name(&child, &name));
                         self.modules
-                            .insert_value_with_range(module, name, def, vis, source_range);
+                            .insert_value_with_span(module, name, def, vis, source_span);
                         children.push(def);
                         self.register_local_var_act_copies_in_binding(&child, module, def);
                     }
