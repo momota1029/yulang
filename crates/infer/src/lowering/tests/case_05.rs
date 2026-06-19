@@ -19,6 +19,20 @@ fn unannotated_callback_return_effect_surfaces_without_empty_stack() {
 }
 
 #[test]
+fn earlier_unannotated_callback_return_effect_surfaces_in_later_param_body() {
+    let root = parse("my k(g, y) = g y\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (k, _) = binding_def_and_order(&lower.modules, module, "k");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, k));
+    assert_eq!(rendered, "('a -> ['c] 'b) -> 'a -> ['c] 'b");
+}
+
+#[test]
 fn unannotated_callback_return_effect_raw_compact_keeps_shared_residual() {
     let root = parse("my h(x, f) = f x\n");
     let lower = lower_module_map(&root);
@@ -114,7 +128,7 @@ fn nested_callback_wildcard_return_keeps_push_and_pop_one() {
         poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, full_compose));
     assert_eq!(
         rendered,
-        "('b -> ['a] 'd) -> ('d ['a#0[All]] -> 'c) -> 'b -> 'c#0"
+        "('b -> ['a] 'd) -> ('d ['a#0[All]] -> ['e] 'c) -> 'b -> ['e#0] 'c#0"
     );
     assert!(
         !rendered.contains("4294967295"),

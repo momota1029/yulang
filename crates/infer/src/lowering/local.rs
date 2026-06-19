@@ -165,7 +165,7 @@ pub(super) struct PipeArg {
 pub(super) struct FunctionPredicateFrame {
     pub(super) scope: LambdaScope,
     pub(super) subtracts: Vec<StackWeight>,
-    pub(super) unannotated_call_subtract: Option<SubtractId>,
+    pub(super) unannotated_call_subtracts: FxHashMap<DefId, SubtractId>,
 }
 
 impl FunctionPredicateFrame {
@@ -173,7 +173,7 @@ impl FunctionPredicateFrame {
         Self {
             scope,
             subtracts: Vec::new(),
-            unannotated_call_subtract: None,
+            unannotated_call_subtracts: FxHashMap::default(),
         }
     }
 }

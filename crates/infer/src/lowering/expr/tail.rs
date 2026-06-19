@@ -458,13 +458,16 @@ impl<'a> ExprLowerer<'a> {
         {
             return ApplicationReturnEffect { upper: bare, lower };
         }
-        let (subtract, inserted) = match self.function_frames[frame_index].unannotated_call_subtract
+        let (subtract, inserted) = match self.function_frames[frame_index]
+            .unannotated_call_subtracts
+            .get(&def)
+            .copied()
         {
             Some(subtract) => (subtract, false),
             None => {
                 let subtract = self.session.infer.fresh_subtract_id();
                 let frame = &mut self.function_frames[frame_index];
-                frame.unannotated_call_subtract = Some(subtract);
+                frame.unannotated_call_subtracts.insert(def, subtract);
                 frame.subtracts.push(StackWeight::pop(subtract));
                 (subtract, true)
             }
@@ -489,13 +492,19 @@ impl<'a> ExprLowerer<'a> {
         &self,
         local: &LocalBinding,
     ) -> Option<usize> {
-        let frame_index = local.unannotated_call_frame?;
+        let introduced_frame_index = local.unannotated_call_frame?;
         let direct_defined_call = self
             .function_frames
             .last()
             .is_some_and(|frame| frame.scope == LambdaScope::Defined);
-        if direct_defined_call || !self.sub_syntax_scopes.is_empty() {
-            return Some(frame_index);
+        if direct_defined_call {
+            return self
+                .function_frames
+                .iter()
+                .rposition(|frame| frame.scope == LambdaScope::Defined);
+        }
+        if !self.sub_syntax_scopes.is_empty() {
+            return Some(introduced_frame_index);
         }
         None
     }
