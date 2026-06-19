@@ -6,6 +6,8 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use yulang_editor::semantic_tokens;
 
+use crate::SourceRange;
+
 struct Backend {
     client: Client,
     std_root: Option<PathBuf>,
@@ -85,12 +87,16 @@ fn diagnostics_for_source(
     source: String,
     options: &crate::StdSourceOptions,
 ) -> Vec<Diagnostic> {
+    let document_source = source.clone();
     match crate::analyze_entry_source_with_std_options(path, source, options) {
         Ok(output) => output
             .diagnostics
             .into_iter()
             .map(|diagnostic| Diagnostic {
-                range: Range::default(),
+                range: diagnostic
+                    .range
+                    .map(|range| lsp_range_for_loaded_root_range(&document_source, range))
+                    .unwrap_or_default(),
                 severity: Some(DiagnosticSeverity::ERROR),
                 source: Some("yulang".to_string()),
                 message: match diagnostic.label {
@@ -108,6 +114,60 @@ fn diagnostics_for_source(
             ..Default::default()
         }],
     }
+}
+
+fn lsp_range_for_loaded_root_range(source: &str, range: SourceRange) -> Range {
+    source_range_to_lsp_range(source, subtract_implicit_prelude_range(range))
+}
+
+fn subtract_implicit_prelude_range(range: SourceRange) -> SourceRange {
+    let offset = crate::source::IMPLICIT_PRELUDE_IMPORT.len()
+        + crate::source::IMPLICIT_STD_MODULE_DECL.len();
+    if range.start < offset {
+        return range;
+    }
+    SourceRange {
+        start: range.start - offset,
+        end: range.end.saturating_sub(offset),
+    }
+}
+
+fn source_range_to_lsp_range(source: &str, range: SourceRange) -> Range {
+    let start = clamp_to_char_boundary(source, range.start.min(source.len()));
+    let end = clamp_to_char_boundary(source, range.end.min(source.len())).max(start);
+    let line_starts = compute_line_starts(source);
+    Range {
+        start: byte_offset_to_position(source, &line_starts, start),
+        end: byte_offset_to_position(source, &line_starts, end),
+    }
+}
+
+fn compute_line_starts(source: &str) -> Vec<usize> {
+    let mut starts = vec![0];
+    for (index, byte) in source.bytes().enumerate() {
+        if byte == b'\n' {
+            starts.push(index + 1);
+        }
+    }
+    starts
+}
+
+fn byte_offset_to_position(source: &str, line_starts: &[usize], offset: usize) -> Position {
+    let line = line_starts
+        .partition_point(|start| *start <= offset)
+        .saturating_sub(1);
+    let line_start = line_starts.get(line).copied().unwrap_or(0);
+    Position {
+        line: line as u32,
+        character: source[line_start..offset].encode_utf16().count() as u32,
+    }
+}
+
+fn clamp_to_char_boundary(source: &str, mut offset: usize) -> usize {
+    while offset > 0 && !source.is_char_boundary(offset) {
+        offset -= 1;
+    }
+    offset
 }
 
 #[tower_lsp::async_trait]
@@ -291,6 +351,81 @@ mod tests {
             !tokens.contains(&(1, 8, 5, property)),
             "expected dot-field 'norm2' not to be semantic property; got: {tokens:?}"
         );
+    }
+
+    #[test]
+    fn diagnostics_use_decl_range_after_implicit_prelude() {
+        let root = temp_root("diagnostic-range");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "my x: bool = 1\n";
+        let diagnostics = diagnostics_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        assert_eq!(
+            diagnostics[0].range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 3
+                },
+                end: Position {
+                    line: 0,
+                    character: 4
+                },
+            }
+        );
+        assert!(
+            diagnostics[0].message.contains("type mismatch"),
+            "{diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn lsp_range_uses_utf16_columns() {
+        let source = "my x = \"💡\"\nmy y: bool = 1\n";
+        let start = source.find("y:").unwrap();
+        let range = source_range_to_lsp_range(
+            source,
+            SourceRange {
+                start,
+                end: start + 1,
+            },
+        );
+
+        assert_eq!(
+            range,
+            Range {
+                start: Position {
+                    line: 1,
+                    character: 3
+                },
+                end: Position {
+                    line: 1,
+                    character: 4
+                },
+            }
+        );
+    }
+
+    fn temp_root(name: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "yulang-server-{name}-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        root
     }
 
     fn token_type_index(name: &str) -> u32 {

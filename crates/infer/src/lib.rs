@@ -50,7 +50,7 @@ use poly::dump::DumpLabels;
 use poly::expr::{Arena as PolyArena, Def, DefId, Vis};
 use rowan::{NodeOrToken, SyntaxNode};
 use rustc_hash::{FxHashMap, FxHashSet};
-use sources::{LoadedFile, Name, Path as ModulePath, UseImport};
+use sources::{LoadedFile, Name, Path as ModulePath, SourceRange, UseImport};
 use std::fmt;
 
 type Cst = SyntaxNode<YulangLanguage>;
@@ -429,6 +429,7 @@ pub struct ModuleTable {
     type_companions: FxHashMap<TypeDeclId, ModuleId>,
     type_methods: FxHashMap<TypeDeclId, Vec<TypeMethodDecl>>,
     type_field_methods: FxHashMap<TypeDeclId, Vec<TypeFieldMethodDecl>>,
+    def_source_ranges: FxHashMap<DefId, SourceRange>,
     next_type_id: u32,
 }
 

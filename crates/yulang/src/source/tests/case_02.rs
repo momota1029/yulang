@@ -1002,6 +1002,10 @@ fn analyze_entry_source_uses_in_memory_root_source() {
         output.diagnostics,
         vec![SourceDiagnostic {
             label: Some("x".to_string()),
+            range: Some(SourceRange {
+                start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 3,
+                end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 4,
+            }),
             message: "type mismatch: bool is not int".to_string(),
         }]
     );

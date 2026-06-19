@@ -23,6 +23,12 @@ pub use realm::{
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Name(pub String);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SourceRange {
+    pub start: usize,
+    pub end: usize,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Path {
     pub segments: Vec<Name>,

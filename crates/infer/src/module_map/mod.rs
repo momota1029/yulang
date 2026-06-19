@@ -57,7 +57,13 @@ impl Lower {
                                 children: Vec::new(),
                             },
                         );
-                        self.modules.insert_value(module, info.name, def, info.vis);
+                        self.modules.insert_value_with_range(
+                            module,
+                            info.name,
+                            def,
+                            info.vis,
+                            Some(info.source_range),
+                        );
                         if info.lazy {
                             self.modules.mark_lazy_op(def);
                         }
@@ -105,7 +111,9 @@ impl Lower {
                     children: Vec::new(),
                 },
             );
-            self.modules.insert_value(module, name, def, vis);
+            let source_range = source_range_for_name(binding, &name);
+            self.modules
+                .insert_value_with_range(module, name, def, vis, source_range);
             children.push(def);
             self.register_local_var_act_copies_in_binding(binding, module, def);
         }
@@ -117,12 +125,16 @@ impl Lower {
             return;
         }
         let owner = self.arena.defs.fresh();
+        self.modules
+            .set_def_source_range(owner, node_source_range(expr));
         self.register_local_var_act_copies_in_expr(expr, module, owner);
         self.modules.push_root_expr_owner(module, Some(owner));
     }
 
     fn register_cast_decl(&mut self, node: &Cst, module: ModuleId) -> DefId {
         let def = self.register_synthetic_let(Vis::My);
+        self.modules
+            .set_def_source_range(def, node_source_range(node));
         let order = self.modules.next_order(module);
         self.modules
             .insert_cast_decl(CastDecl { def, module, order });
@@ -179,9 +191,14 @@ impl Lower {
                                 children: Vec::new(),
                             },
                         );
-                        let order =
-                            self.modules
-                                .insert_value(module, method.name.clone(), def, vis);
+                        let source_range = source_range_for_name(&child, &method.name);
+                        let order = self.modules.insert_value_with_range(
+                            module,
+                            method.name.clone(),
+                            def,
+                            vis,
+                            source_range,
+                        );
                         children.push(def);
                         if vis != Vis::My {
                             methods.push(RoleImplMethodDecl {
@@ -205,7 +222,9 @@ impl Lower {
                                 children: Vec::new(),
                             },
                         );
-                        self.modules.insert_value(module, name, def, vis);
+                        let source_range = source_range_for_name(&child, &name);
+                        self.modules
+                            .insert_value_with_range(module, name, def, vis, source_range);
                         children.push(def);
                         self.register_local_var_act_copies_in_binding(&child, module, def);
                     }
@@ -414,7 +433,13 @@ impl Lower {
                     let Some(variant_name) = enum_variant_name(&variant) else {
                         continue;
                     };
-                    let variant_def = self.register_synthetic_value(companion, variant_name, vis);
+                    let source_range = source_range_for_name(&variant, &variant_name);
+                    let variant_def = self.register_synthetic_value_with_range(
+                        companion,
+                        variant_name,
+                        vis,
+                        source_range,
+                    );
                     self.modules.insert_constructor(
                         variant_def,
                         ConstructorDecl {
@@ -442,6 +467,9 @@ impl Lower {
             };
             for receiver_kind in [TypeMethodReceiver::Value, TypeMethodReceiver::Ref] {
                 let def = self.register_synthetic_let(vis);
+                if let Some(source_range) = source_range_for_name(&field, &name) {
+                    self.modules.set_def_source_range(def, source_range);
+                }
                 if receiver_kind == TypeMethodReceiver::Value {
                     self.arena.field_projections.insert(def);
                 }
@@ -457,8 +485,19 @@ impl Lower {
     }
 
     fn register_synthetic_value(&mut self, module: ModuleId, name: Name, vis: Vis) -> DefId {
+        self.register_synthetic_value_with_range(module, name, vis, None)
+    }
+
+    fn register_synthetic_value_with_range(
+        &mut self,
+        module: ModuleId,
+        name: Name,
+        vis: Vis,
+        source_range: Option<SourceRange>,
+    ) -> DefId {
         let def = self.register_synthetic_let(vis);
-        self.modules.insert_value(module, name, def, vis);
+        self.modules
+            .insert_value_with_range(module, name, def, vis, source_range);
         def
     }
 
@@ -519,9 +558,14 @@ impl Lower {
                                 children: Vec::new(),
                             },
                         );
-                        let order =
-                            self.modules
-                                .insert_value(module, method.name.clone(), def, vis);
+                        let source_range = source_range_for_name(&child, &method.name);
+                        let order = self.modules.insert_value_with_range(
+                            module,
+                            method.name.clone(),
+                            def,
+                            vis,
+                            source_range,
+                        );
                         self.modules.insert_role_method(RoleMethodDecl {
                             owner,
                             name: method.name,
@@ -545,7 +589,9 @@ impl Lower {
                                 children: Vec::new(),
                             },
                         );
-                        self.modules.insert_value(module, name, def, vis);
+                        let source_range = source_range_for_name(&child, &name);
+                        self.modules
+                            .insert_value_with_range(module, name, def, vis, source_range);
                         children.push(def);
                         self.register_local_var_act_copies_in_binding(&child, module, def);
                     }
@@ -628,7 +674,14 @@ impl Lower {
                             children: Vec::new(),
                         },
                     );
-                    self.modules.insert_value(module, name.clone(), def, vis);
+                    let source_range = source_range_for_name(&child, &name);
+                    self.modules.insert_value_with_range(
+                        module,
+                        name.clone(),
+                        def,
+                        vis,
+                        source_range,
+                    );
                     self.modules.insert_act_operation_def(owner, name, def);
                 }
                 SyntaxKind::Binding if type_method_binding(&child).is_some() => {
@@ -647,7 +700,14 @@ impl Lower {
                         },
                     );
                     let value_name = act_method_value_name(&method.name, def);
-                    let order = self.modules.insert_value(module, value_name, def, vis);
+                    let source_range = source_range_for_name(&child, &method.name);
+                    let order = self.modules.insert_value_with_range(
+                        module,
+                        value_name,
+                        def,
+                        vis,
+                        source_range,
+                    );
                     self.modules.insert_act_method(ActMethodDecl {
                         owner,
                         name: method.name,
@@ -674,7 +734,9 @@ impl Lower {
                             children: Vec::new(),
                         },
                     );
-                    self.modules.insert_value(module, name, def, vis);
+                    let source_range = source_range_for_name(&child, &name);
+                    self.modules
+                        .insert_value_with_range(module, name, def, vis, source_range);
                     children.push(def);
                     self.register_local_var_act_copies_in_binding(&child, module, def);
                 }

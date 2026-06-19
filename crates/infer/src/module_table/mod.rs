@@ -38,6 +38,7 @@ impl ModuleTable {
             type_companions: FxHashMap::default(),
             type_methods: FxHashMap::default(),
             type_field_methods: FxHashMap::default(),
+            def_source_ranges: FxHashMap::default(),
             next_type_id: 0,
         }
     }
@@ -72,13 +73,17 @@ impl ModuleTable {
         });
         module
     }
-    pub(super) fn insert_value(
+    pub(super) fn insert_value_with_range(
         &mut self,
         module: ModuleId,
         name: Name,
         def: DefId,
         vis: Vis,
+        source_range: Option<SourceRange>,
     ) -> ModuleOrder {
+        if let Some(source_range) = source_range {
+            self.def_source_ranges.insert(def, source_range);
+        }
         let decl = self.push_decl(module, name.clone(), vis, ModuleDeclKind::Value { def });
         let order = self.nodes[module.0].decls[decl.0].order;
         self.nodes[module.0]
@@ -124,6 +129,12 @@ impl ModuleTable {
     }
     pub(crate) fn is_lazy_op(&self, def: DefId) -> bool {
         self.lazy_ops.contains(&def)
+    }
+    pub(super) fn set_def_source_range(&mut self, def: DefId, source_range: SourceRange) {
+        self.def_source_ranges.insert(def, source_range);
+    }
+    pub fn def_source_range(&self, def: DefId) -> Option<SourceRange> {
+        self.def_source_ranges.get(&def).copied()
     }
     pub(super) fn set_act_template(&mut self, id: TypeDeclId, node: Cst) {
         self.act_templates.insert(id, node);

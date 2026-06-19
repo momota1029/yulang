@@ -30,9 +30,10 @@ use format::*;
 use std_sources::*;
 
 pub use format::format_run_mono_values;
+pub use sources::SourceRange;
 
 pub const IMPLICIT_PRELUDE_IMPORT: &str = "use std::prelude::*\n";
-const IMPLICIT_STD_MODULE_DECL: &str = "mod std;\n";
+pub(crate) const IMPLICIT_STD_MODULE_DECL: &str = "mod std;\n";
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StdSourceOptions {
@@ -648,6 +649,7 @@ pub struct AnalyzeSourceOutput {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceDiagnostic {
     pub label: Option<String>,
+    pub range: Option<SourceRange>,
     pub message: String,
 }
 
@@ -929,6 +931,9 @@ fn source_diagnostics_from_check(
             let error = &check.lowering.errors[diagnostic.error_index];
             SourceDiagnostic {
                 label: diagnostic.label.clone(),
+                range: diagnostic
+                    .def
+                    .and_then(|def| check.lowering.modules.def_source_range(def)),
                 message: format_body_lowering_error(error),
             }
         })

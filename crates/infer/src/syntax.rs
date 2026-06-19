@@ -36,6 +36,47 @@ pub(crate) fn first_ident_or_sigil(node: &Cst) -> Option<Name> {
         .map(|t| Name(t.text().to_string()))
 }
 
+pub(crate) fn node_source_range(node: &Cst) -> SourceRange {
+    let range = node.text_range();
+    SourceRange {
+        start: usize::from(range.start()),
+        end: usize::from(range.end()),
+    }
+}
+
+pub(crate) fn source_range_for_name(node: &Cst, name: &Name) -> Option<SourceRange> {
+    node.descendants_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find_map(|token| token_source_range_for_name(&token, name))
+}
+
+fn token_source_range_for_name(
+    token: &rowan::SyntaxToken<YulangLanguage>,
+    name: &Name,
+) -> Option<SourceRange> {
+    match token.kind() {
+        SyntaxKind::Ident | SyntaxKind::SigilIdent if token.text() == name.0 => {
+            Some(token_source_range(token))
+        }
+        SyntaxKind::DotField if token.text().strip_prefix('.') == Some(name.0.as_str()) => {
+            let range = token.text_range();
+            Some(SourceRange {
+                start: usize::from(range.start()) + 1,
+                end: usize::from(range.end()),
+            })
+        }
+        _ => None,
+    }
+}
+
+fn token_source_range(token: &rowan::SyntaxToken<YulangLanguage>) -> SourceRange {
+    let range = token.text_range();
+    SourceRange {
+        start: usize::from(range.start()),
+        end: usize::from(range.end()),
+    }
+}
+
 /// `Binding → BindingHeader → Pattern` から module value として登録する名前を読む。
 pub(crate) fn binding_name(node: &Cst) -> Option<Name> {
     binding_value_names(node).into_iter().next()
@@ -907,6 +948,7 @@ pub(crate) struct OpDefInfo {
     pub(crate) vis: Vis,
     pub(crate) lazy: bool,
     pub(crate) nullfix: bool,
+    pub(crate) source_range: SourceRange,
 }
 
 /// OpDef ノードのヘッダから登録に要る情報を読む。bps は infer では使わない。
@@ -915,8 +957,9 @@ pub(crate) fn op_def_info(node: &Cst) -> Option<OpDefInfo> {
     let symbol = header
         .children_with_tokens()
         .filter_map(|item| item.into_token())
-        .find(|tok| tok.kind() == SyntaxKind::OpName)
-        .map(|tok| tok.text().to_string())?;
+        .find(|tok| tok.kind() == SyntaxKind::OpName)?;
+    let source_range = token_source_range(&symbol);
+    let symbol = symbol.text().to_string();
     let fixity = header
         .children_with_tokens()
         .filter_map(|item| item.into_token())
@@ -936,6 +979,7 @@ pub(crate) fn op_def_info(node: &Cst) -> Option<OpDefInfo> {
         vis: vis_of(&header),
         lazy,
         nullfix: fixity == "nullfix",
+        source_range,
     })
 }
 
