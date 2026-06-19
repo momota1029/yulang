@@ -20,8 +20,9 @@
   — role の通常引数・関連型、入力 variance の導出、**不変区間規則（交差条件の定義元）**、
   level 管理、簡約、解決と再帰的 discharge。
 - [2026-05-31-effect-variable-subtractable.md](2026-05-31-effect-variable-subtractable.md)
-  — effect subtraction を `stack(T, @S)` 型と不等式の重みで表す。floor / pop / weight、
-  row 分解、注釈の上下分解、catch の制約、量化・cleanup。前半が規則、後半が手計算による検証。
+  — effect subtraction と共変位置の効果注釈filterを `stack(T, @S)` 型と不等式の重みで表す。
+  floor / pop / filter / weight、row 分解、注釈の上下分解、catch の制約、量化・cleanup。
+  前半が規則、後半が手計算による検証。
 - [2026-06-06-invariant-type-sandwich.md](2026-06-06-invariant-type-sandwich.md)
   — compact 表現（`CompactBounds` の enum 化）と sandwich による中心変数の消去。
   role-system の不変区間規則の上に立つ。
