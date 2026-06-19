@@ -593,10 +593,7 @@ mod tests {
             ),
         });
 
-        assert_eq!(
-            format_pos(&arena, stacked),
-            "stack('a, { #2 -> pop(0)[[&var 'a]] })"
-        );
+        assert_eq!(format_pos(&arena, stacked), "'a#2[[&var 'a]]");
     }
 
     #[test]
@@ -742,7 +739,40 @@ mod tests {
         let pos_a = arena.alloc_pos(Pos::Var(a));
         let weighted = arena.alloc_pos(Pos::NonSubtract(pos_a, StackWeight::pop(SubtractId(1))));
 
-        assert_eq!(format_pos(&arena, weighted), "'a{ #1 -> pop(1)[] }");
+        assert_eq!(format_pos(&arena, weighted), "'a#1");
+    }
+
+    #[test]
+    fn formats_stack_pop_count_suffix() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let pos_a = arena.alloc_pos(Pos::Var(a));
+        let weighted =
+            arena.alloc_pos(Pos::NonSubtract(pos_a, StackWeight::pops(SubtractId(1), 2)));
+
+        assert_eq!(format_pos(&arena, weighted), "'a#1(2)");
+    }
+
+    #[test]
+    fn formats_stack_with_postfix_parentheses_on_function() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let arg = arena.alloc_neg(Neg::Var(a));
+        let arg_eff = arena.alloc_neg(Neg::Bot);
+        let ret_eff = arena.alloc_pos(Pos::Bot);
+        let ret = arena.alloc_pos(Pos::Var(a));
+        let fun = arena.alloc_pos(Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        });
+        let stacked = arena.alloc_pos(Pos::Stack {
+            inner: fun,
+            weight: StackWeight::push(SubtractId(1), Subtractability::All),
+        });
+
+        assert_eq!(format_pos(&arena, stacked), "('a -> 'a)#1[All]");
     }
 
     fn plain_neu(arena: &mut TypeArena, var: TypeVar) -> NeuId {

@@ -180,17 +180,22 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
                 if is_hidden_quantifier_stack(weight) {
                     return self.render_pos(*inner);
                 }
-                let inner = self.pos(*inner, Context::Free);
-                Rendered::apply_c(format!("stack({inner}, {})", self.stack_weight(weight)))
+                let inner = self.render_pos(*inner);
+                if let Some(rendered) = self.render_stack_postfix(inner.clone(), weight) {
+                    rendered
+                } else {
+                    let inner = inner.in_context(Context::Free);
+                    Rendered::apply_c(format!("stack({inner}, {})", self.stack_weight(weight)))
+                }
             }
             Pos::NonSubtract(pos, weight) => {
                 let inner = self.render_pos(*pos);
-                let inner = if inner.prec == Prec::Atom && !inner.has_bare_space {
-                    inner.text
+                if let Some(rendered) = self.render_stack_postfix(inner.clone(), weight) {
+                    rendered
                 } else {
-                    format!("({})", inner.text)
-                };
-                Rendered::atom(format!("{inner}{}", self.stack_weight(weight)))
+                    let inner = self.postfix_inner(inner);
+                    Rendered::atom(format!("{inner}{}", self.stack_weight(weight)))
+                }
             }
             Pos::Union(left, right) => {
                 let parts = self.flatten_pos_union(*left, *right);
@@ -225,8 +230,13 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
                 if is_hidden_quantifier_stack(weight) {
                     return self.render_neg(*inner);
                 }
-                let inner = self.neg(*inner, Context::Free);
-                Rendered::apply_c(format!("stack({inner}, {})", self.stack_weight(weight)))
+                let inner = self.render_neg(*inner);
+                if let Some(rendered) = self.render_stack_postfix(inner.clone(), weight) {
+                    rendered
+                } else {
+                    let inner = inner.in_context(Context::Free);
+                    Rendered::apply_c(format!("stack({inner}, {})", self.stack_weight(weight)))
+                }
             }
             Neg::Intersection(left, right) => {
                 let parts = self.flatten_neg_intersection(*left, *right);
@@ -937,6 +947,54 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             (None, _) => entries,
         };
         format!("{{ {entries} }}")
+    }
+
+    pub(super) fn render_stack_postfix(
+        &mut self,
+        inner: Rendered,
+        weight: &StackWeight,
+    ) -> Option<Rendered> {
+        let suffix = self.stack_weight_suffix(weight)?;
+        let inner = self.postfix_inner(inner);
+        Some(Rendered::atom(format!("{inner}{suffix}")))
+    }
+
+    fn postfix_inner(&self, inner: Rendered) -> String {
+        if inner.prec == Prec::Atom && !inner.has_bare_space {
+            inner.text
+        } else {
+            format!("({})", inner.text)
+        }
+    }
+
+    fn stack_weight_suffix(&mut self, weight: &StackWeight) -> Option<String> {
+        if weight.has_filter() {
+            return None;
+        }
+        let [entry] = weight.entries() else {
+            return None;
+        };
+        if !entry.floor.is_empty() || entry.pops == u32::MAX {
+            return None;
+        }
+        if entry.pops == 0 && entry.stack.is_empty() {
+            return None;
+        }
+
+        let mut suffix = format!("#{}", entry.id.0);
+        if entry.pops > 0 && !(entry.pops == 1 && entry.stack.is_empty()) {
+            suffix.push_str(&format!("({})", entry.pops));
+        }
+        if !entry.stack.is_empty() {
+            let stack = entry
+                .stack
+                .iter()
+                .map(|subtractability| self.stack_subtractability(subtractability))
+                .collect::<Vec<_>>()
+                .join(", ");
+            suffix.push_str(&format!("[{stack}]"));
+        }
+        Some(suffix)
     }
 
     pub(super) fn stack_subtractability(&mut self, subtractability: &Subtractability) -> String {

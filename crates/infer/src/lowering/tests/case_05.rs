@@ -112,13 +112,9 @@ fn nested_callback_wildcard_return_keeps_push_and_pop_one() {
     assert!(output.errors.is_empty(), "{:?}", output.errors);
     let rendered =
         poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, full_compose));
-    assert!(
-        rendered.contains("pop(0)[All]"),
-        "wildcard return annotation should push an All stack entry: {rendered}"
-    );
-    assert!(
-        rendered.contains("pop(1)[]"),
-        "outer predicate should keep the matching pop(1): {rendered}"
+    assert_eq!(
+        rendered,
+        "('b -> ['a] 'd) -> ('d ['a#0[All]] -> 'c) -> 'b -> 'c#0"
     );
     assert!(
         !rendered.contains("4294967295"),
