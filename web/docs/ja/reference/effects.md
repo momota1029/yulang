@@ -113,4 +113,4 @@ error fs_err:
 ## 関連
 
 - [値と型](./types) — function type と effect row の表示。
-- [型推論の理論](./type-theory) — handler が effect を消す規則と hidden evidence。
+- [型推論の理論](./type-theory) — stack 重み付き row と handler hygiene。

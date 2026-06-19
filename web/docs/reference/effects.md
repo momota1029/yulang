@@ -135,4 +135,4 @@ Ordinary `enum` variants may also use `from`; see [Casts](./casts).
 ## See also
 
 - [Values & Types](./types) — function types and effect row notation.
-- [Type Inference Theory](./type-theory) — how handlers remove effects and why some evidence is hidden.
+- [Type Inference Theory](./type-theory) — stack-weighted rows and handler hygiene.
