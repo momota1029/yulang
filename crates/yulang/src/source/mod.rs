@@ -337,6 +337,33 @@ pub fn hover_entry_source(
     )
 }
 
+pub fn definition_entry_source_with_std_options(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    byte_offset: usize,
+    options: &StdSourceOptions,
+) -> Result<Option<SourceDefinition>, RouteError> {
+    let loaded_offset =
+        byte_offset + IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len();
+    definition_from_sources(
+        collect_local_source_text_with_std_options(entry, source.into(), options)?,
+        loaded_offset,
+        &Path::default(),
+    )
+}
+
+pub fn definition_entry_source(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    byte_offset: usize,
+) -> Result<Option<SourceDefinition>, RouteError> {
+    definition_from_sources(
+        collect_local_source_text(entry, source.into())?,
+        byte_offset,
+        &Path::default(),
+    )
+}
+
 /// entry file と近場の `lib/std.yu` を読み、指定 module の型付け状況だけを集計する。
 pub fn check_poly_from_entry_with_std_in_module(
     entry: impl AsRef<FsPath>,
@@ -680,6 +707,18 @@ pub struct SourceHover {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceDefinition {
+    pub origin: SourceRange,
+    pub target: SourceLocation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceLocation {
+    pub path: PathBuf,
+    pub range: SourceRange,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceDiagnostic {
     pub label: Option<String>,
     pub range: Option<SourceRange>,
@@ -975,6 +1014,35 @@ fn hover_from_loaded_files(
     Ok(source_hover_from_check(&check, byte_offset, file))
 }
 
+fn definition_from_sources(
+    files: Vec<CollectedSource>,
+    byte_offset: usize,
+    file: &Path,
+) -> Result<Option<SourceDefinition>, RouteError> {
+    let source_index = SourceFileIndex::from_collected_sources(&files);
+    definition_from_loaded_files(
+        sources::load(collected_source_files(files)),
+        &source_index,
+        byte_offset,
+        file,
+    )
+}
+
+fn definition_from_loaded_files(
+    loaded: Vec<sources::LoadedFile>,
+    source_index: &SourceFileIndex,
+    byte_offset: usize,
+    file: &Path,
+) -> Result<Option<SourceDefinition>, RouteError> {
+    let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    Ok(source_definition_from_check(
+        &check,
+        source_index,
+        byte_offset,
+        file,
+    ))
+}
+
 fn source_hover_from_check(
     check: &infer::check::PolyCheckOutput,
     byte_offset: usize,
@@ -1029,6 +1097,131 @@ fn source_hover_from_check(
         );
     }
     best
+}
+
+fn source_definition_from_check(
+    check: &infer::check::PolyCheckOutput,
+    source_index: &SourceFileIndex,
+    byte_offset: usize,
+    file: &Path,
+) -> Option<SourceDefinition> {
+    let mut best = None;
+    for (reference, use_site) in check.lowering.session.refs.iter() {
+        let Some(origin) = &use_site.source_span else {
+            continue;
+        };
+        if &origin.file != file || !source_range_contains(origin.range, byte_offset) {
+            continue;
+        }
+        let Some(target) = check.lowering.session.poly.ref_target(reference) else {
+            continue;
+        };
+        push_best_definition(
+            &mut best,
+            definition_for_def(check, source_index, target, origin.range),
+            origin.range,
+        );
+    }
+    for (select, origin) in check.lowering.session.selections.source_spans() {
+        if &origin.file != file || !source_range_contains(origin.range, byte_offset) {
+            continue;
+        }
+        push_best_definition(
+            &mut best,
+            definition_for_select(check, source_index, select, origin.range),
+            origin.range,
+        );
+    }
+    for (def, origin) in check.lowering.modules.def_source_spans() {
+        if &origin.file != file || !source_range_contains(origin.range, byte_offset) {
+            continue;
+        }
+        push_best_definition(
+            &mut best,
+            definition_for_def(check, source_index, def, origin.range),
+            origin.range,
+        );
+    }
+    for (def, origin) in check.lowering.session.local_defs.source_spans() {
+        if &origin.file != file || !source_range_contains(origin.range, byte_offset) {
+            continue;
+        }
+        push_best_definition(
+            &mut best,
+            definition_for_def(check, source_index, def, origin.range),
+            origin.range,
+        );
+    }
+    best
+}
+
+fn push_best_definition(
+    best: &mut Option<SourceDefinition>,
+    candidate: Option<SourceDefinition>,
+    range: SourceRange,
+) {
+    let Some(candidate) = candidate else {
+        return;
+    };
+    let candidate_len = range.end.saturating_sub(range.start);
+    let best_len = best
+        .as_ref()
+        .map(|definition| {
+            definition
+                .origin
+                .end
+                .saturating_sub(definition.origin.start)
+        })
+        .unwrap_or(usize::MAX);
+    if candidate_len < best_len {
+        *best = Some(candidate);
+    }
+}
+
+fn definition_for_select(
+    check: &infer::check::PolyCheckOutput,
+    source_index: &SourceFileIndex,
+    select: poly::expr::SelectId,
+    origin: SourceRange,
+) -> Option<SourceDefinition> {
+    let target = match check.lowering.session.poly.select(select).resolution? {
+        poly::expr::SelectResolution::Method { def } => def,
+        poly::expr::SelectResolution::TypeclassMethod { member } => member,
+        poly::expr::SelectResolution::RecordField => return None,
+    };
+    definition_for_def(check, source_index, target, origin)
+}
+
+fn definition_for_def(
+    check: &infer::check::PolyCheckOutput,
+    source_index: &SourceFileIndex,
+    def: poly::expr::DefId,
+    origin: SourceRange,
+) -> Option<SourceDefinition> {
+    Some(SourceDefinition {
+        origin,
+        target: source_location_for_def(check, source_index, def)?,
+    })
+}
+
+fn source_location_for_def(
+    check: &infer::check::PolyCheckOutput,
+    source_index: &SourceFileIndex,
+    def: poly::expr::DefId,
+) -> Option<SourceLocation> {
+    check
+        .lowering
+        .modules
+        .def_source_span(def)
+        .or_else(|| {
+            check
+                .lowering
+                .session
+                .local_defs
+                .get(def)
+                .and_then(|use_site| use_site.source_span.as_ref())
+        })
+        .and_then(|span| source_index.location_for_span(span))
 }
 
 fn push_best_hover(
@@ -1255,6 +1448,28 @@ fn source_range_contains(range: SourceRange, byte_offset: usize) -> bool {
         byte_offset == range.start
     } else {
         range.start <= byte_offset && byte_offset < range.end
+    }
+}
+
+struct SourceFileIndex {
+    paths_by_module: HashMap<Path, PathBuf>,
+}
+
+impl SourceFileIndex {
+    fn from_collected_sources(files: &[CollectedSource]) -> Self {
+        Self {
+            paths_by_module: files
+                .iter()
+                .map(|file| (file.module_path.clone(), file.path.clone()))
+                .collect(),
+        }
+    }
+
+    fn location_for_span(&self, span: &infer::SourceSpan) -> Option<SourceLocation> {
+        Some(SourceLocation {
+            path: self.paths_by_module.get(&span.file)?.clone(),
+            range: span.range,
+        })
     }
 }
 

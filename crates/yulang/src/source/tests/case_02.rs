@@ -1132,6 +1132,55 @@ fn hover_entry_source_reports_ref_target_type() {
 }
 
 #[test]
+fn definition_entry_source_reports_ref_target() {
+    let root = temp_root("definition-entry-source-ref");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("lib").join("std")).unwrap();
+    fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+    fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+    let entry = root.join("main.yu");
+    let source = "my x: int = 1\nmy y = x\n";
+    let decl_offset = source.find('x').unwrap();
+    let ref_offset = source.rfind('x').unwrap();
+    let definition = definition_entry_source_with_std_options(
+        &entry,
+        source,
+        ref_offset,
+        &StdSourceOptions {
+            std_root: Some(root.join("lib")),
+        },
+    )
+    .unwrap()
+    .unwrap();
+
+    assert_eq!(
+        definition,
+        SourceDefinition {
+            origin: SourceRange {
+                start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + ref_offset,
+                end: IMPLICIT_PRELUDE_IMPORT.len()
+                    + IMPLICIT_STD_MODULE_DECL.len()
+                    + ref_offset
+                    + 1,
+            },
+            target: SourceLocation {
+                path: entry,
+                range: SourceRange {
+                    start: IMPLICIT_PRELUDE_IMPORT.len()
+                        + IMPLICIT_STD_MODULE_DECL.len()
+                        + decl_offset,
+                    end: IMPLICIT_PRELUDE_IMPORT.len()
+                        + IMPLICIT_STD_MODULE_DECL.len()
+                        + decl_offset
+                        + 1,
+                },
+            },
+        }
+    );
+}
+
+#[test]
 fn hover_entry_source_reports_lambda_arg_type() {
     let source = "my id x = x\n";
     let arg_offset = source.find('x').unwrap();
@@ -1172,6 +1221,33 @@ fn hover_entry_source_reports_lambda_arg_ref_type() {
         hover.contents.starts_with("x: "),
         "expected hover to show lambda arg ref type, got {:?}",
         hover.contents
+    );
+}
+
+#[test]
+fn definition_entry_source_reports_lambda_arg_target() {
+    let source = "my id x = x\n";
+    let arg_offset = source.find('x').unwrap();
+    let ref_offset = source.rfind('x').unwrap();
+    let definition = definition_entry_source("main.yu", source, ref_offset)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        definition,
+        SourceDefinition {
+            origin: SourceRange {
+                start: ref_offset,
+                end: ref_offset + 1,
+            },
+            target: SourceLocation {
+                path: PathBuf::from("main.yu"),
+                range: SourceRange {
+                    start: arg_offset,
+                    end: arg_offset + 1,
+                },
+            },
+        }
     );
 }
 
@@ -1501,6 +1577,33 @@ fn hover_entry_source_reports_selected_method_type() {
         hover.contents.starts_with("User.id: "),
         "expected hover to show selected method, got {:?}",
         hover.contents
+    );
+}
+
+#[test]
+fn definition_entry_source_reports_selected_method_target() {
+    let source = "type User with:\n  our x.id = x\nmy u: User = 1\nmy got = u.id\n";
+    let decl_offset = source.find("id").unwrap();
+    let method_offset = source.rfind("id").unwrap();
+    let definition = definition_entry_source("main.yu", source, method_offset)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        definition,
+        SourceDefinition {
+            origin: SourceRange {
+                start: method_offset,
+                end: method_offset + 2,
+            },
+            target: SourceLocation {
+                path: PathBuf::from("main.yu"),
+                range: SourceRange {
+                    start: decl_offset,
+                    end: decl_offset + 2,
+                },
+            },
+        }
     );
 }
 

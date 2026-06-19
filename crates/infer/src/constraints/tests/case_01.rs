@@ -63,6 +63,28 @@ fn constraint_weights_replay_preserves_pop_only_count() {
 }
 
 #[test]
+fn constraint_weights_replay_caps_repeated_pop_only_count() {
+    let id = SubtractId(0);
+    let earlier = ConstraintWeights {
+        left: StackWeight::pop(id),
+        right: StackWeight::empty(),
+    };
+    let later = ConstraintWeights {
+        left: StackWeight::pop(id),
+        right: StackWeight::empty(),
+    };
+
+    let weights = earlier.compose_for_replay(&later);
+
+    let [entry] = weights.left.entries() else {
+        panic!("expected one stack entry");
+    };
+    assert_eq!(entry.pops, 1);
+    assert!(entry.floor.is_empty());
+    assert!(entry.stack.is_empty());
+}
+
+#[test]
 fn constraint_weights_replay_prepends_later_right_weights() {
     let id = SubtractId(0);
     let earlier = ConstraintWeights {

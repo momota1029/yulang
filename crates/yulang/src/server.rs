@@ -1,22 +1,29 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
+use tokio::sync::Semaphore;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use yulang_editor::semantic_tokens;
 
-use crate::{SourceHover, SourceRange};
+use crate::{SourceDefinition, SourceHover, SourceLocation, SourceRange};
+
+const LSP_ANALYSIS_TIMEOUT: Duration = Duration::from_secs(3);
+const LSP_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 struct Backend {
     client: Client,
     std_root: Option<PathBuf>,
-    documents: Mutex<HashMap<Url, String>>,
-    analysis_versions: Mutex<HashMap<Url, u64>>,
+    documents: Arc<Mutex<HashMap<Url, String>>>,
+    analysis_versions: Arc<Mutex<HashMap<Url, u64>>>,
+    analysis_slots: Arc<Semaphore>,
+    request_slots: Arc<Semaphore>,
 }
 
 impl Backend {
-    async fn analyze(&self, uri: Url) {
+    fn schedule_analysis(&self, uri: Url) {
         let version = self.bump_analysis_version(&uri);
         let path = match uri.to_file_path() {
             Ok(path) => path,
@@ -35,16 +42,37 @@ impl Backend {
         let options = crate::StdSourceOptions {
             std_root: self.std_root.clone(),
         };
-        let diagnostics =
-            tokio::task::spawn_blocking(move || diagnostics_for_source(&path, source, &options))
-                .await
-                .unwrap_or_default();
-        if !self.is_current_analysis_version(&uri, version) {
-            return;
-        }
-        self.client
-            .publish_diagnostics(uri, diagnostics, None)
-            .await;
+        let client = self.client.clone();
+        let versions = Arc::clone(&self.analysis_versions);
+        let slots = Arc::clone(&self.analysis_slots);
+        tokio::spawn(async move {
+            let result = run_diagnostics_with_timeout(slots, path, source, options).await;
+            if !is_current_analysis_version(&versions, &uri, version) {
+                return;
+            }
+            match result {
+                DiagnosticsRunResult::Completed(diagnostics) => {
+                    client.publish_diagnostics(uri, diagnostics, None).await;
+                }
+                DiagnosticsRunResult::Busy => {}
+                DiagnosticsRunResult::TimedOut => {
+                    client
+                        .log_message(
+                            MessageType::WARNING,
+                            "Yulang diagnostics timed out; editor features remain available",
+                        )
+                        .await;
+                }
+                DiagnosticsRunResult::WorkerFailed(error) => {
+                    client
+                        .log_message(
+                            MessageType::ERROR,
+                            format!("Yulang diagnostics worker failed: {error}"),
+                        )
+                        .await;
+                }
+            }
+        });
     }
 
     fn bump_analysis_version(&self, uri: &Url) -> u64 {
@@ -56,16 +84,6 @@ impl Backend {
 
     fn cancel_analysis(&self, uri: &Url) {
         self.bump_analysis_version(uri);
-    }
-
-    fn is_current_analysis_version(&self, uri: &Url, version: u64) -> bool {
-        self.analysis_versions
-            .lock()
-            .unwrap()
-            .get(uri)
-            .copied()
-            .unwrap_or(0)
-            == version
     }
 
     fn document_source(&self, uri: &Url) -> Option<String> {
@@ -80,6 +98,42 @@ impl Backend {
                     .and_then(|path| std::fs::read_to_string(path).ok())
             })
     }
+}
+
+async fn run_diagnostics_with_timeout(
+    slots: Arc<Semaphore>,
+    path: PathBuf,
+    source: String,
+    options: crate::StdSourceOptions,
+) -> DiagnosticsRunResult {
+    let Ok(permit) = slots.try_acquire_owned() else {
+        return DiagnosticsRunResult::Busy;
+    };
+    let handle = tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        diagnostics_for_source(&path, source, &options)
+    });
+    match tokio::time::timeout(LSP_ANALYSIS_TIMEOUT, handle).await {
+        Ok(Ok(diagnostics)) => DiagnosticsRunResult::Completed(diagnostics),
+        Ok(Err(error)) => DiagnosticsRunResult::WorkerFailed(error.to_string()),
+        Err(_) => DiagnosticsRunResult::TimedOut,
+    }
+}
+
+#[derive(Debug)]
+enum DiagnosticsRunResult {
+    Completed(Vec<Diagnostic>),
+    Busy,
+    TimedOut,
+    WorkerFailed(String),
+}
+
+fn is_current_analysis_version(
+    versions: &Arc<Mutex<HashMap<Url, u64>>>,
+    uri: &Url,
+    version: u64,
+) -> bool {
+    versions.lock().unwrap().get(uri).copied().unwrap_or(0) == version
 }
 
 fn diagnostics_for_source(
@@ -123,11 +177,39 @@ fn hover_for_source(
     options: &crate::StdSourceOptions,
 ) -> Option<Hover> {
     let byte_offset = position_to_byte_offset(&source, position)?;
-    let hover =
-        crate::hover_entry_source_with_std_options(path, source.clone(), byte_offset, options)
+    let hover = match crate::hover_entry_source_with_std_options(
+        path,
+        source.clone(),
+        byte_offset,
+        options,
+    ) {
+        Ok(hover) => hover,
+        Err(_) => crate::hover_entry_source(path, source.clone(), byte_offset)
             .ok()
-            .flatten()?;
+            .flatten(),
+    }?;
     Some(lsp_hover_for_source_hover(&source, hover))
+}
+
+fn definition_for_source(
+    path: &Path,
+    source: String,
+    position: Position,
+    options: &crate::StdSourceOptions,
+) -> Option<Location> {
+    let byte_offset = position_to_byte_offset(&source, position)?;
+    let definition = match crate::definition_entry_source_with_std_options(
+        path,
+        source.clone(),
+        byte_offset,
+        options,
+    ) {
+        Ok(definition) => definition,
+        Err(_) => crate::definition_entry_source(path, source.clone(), byte_offset)
+            .ok()
+            .flatten(),
+    }?;
+    lsp_location_for_source_definition(path, &source, definition)
 }
 
 fn lsp_hover_for_source_hover(source: &str, hover: SourceHover) -> Hover {
@@ -138,6 +220,29 @@ fn lsp_hover_for_source_hover(source: &str, hover: SourceHover) -> Hover {
         }),
         range: Some(lsp_range_for_loaded_root_range(source, hover.range)),
     }
+}
+
+fn lsp_location_for_source_definition(
+    root_path: &Path,
+    root_source: &str,
+    definition: SourceDefinition,
+) -> Option<Location> {
+    lsp_location_for_source_location(root_path, root_source, definition.target)
+}
+
+fn lsp_location_for_source_location(
+    root_path: &Path,
+    root_source: &str,
+    location: SourceLocation,
+) -> Option<Location> {
+    let uri = Url::from_file_path(&location.path).ok()?;
+    let range = if location.path == root_path {
+        lsp_range_for_loaded_root_range(root_source, location.range)
+    } else {
+        let source = std::fs::read_to_string(&location.path).ok()?;
+        source_range_to_lsp_range(&source, location.range)
+    };
+    Some(Location { uri, range })
 }
 
 fn lsp_range_for_loaded_root_range(source: &str, range: SourceRange) -> Range {
@@ -245,6 +350,7 @@ impl LanguageServer for Backend {
                     ),
                 ),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
+                definition_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -269,7 +375,7 @@ impl LanguageServer for Backend {
             .lock()
             .unwrap()
             .insert(params.text_document.uri.clone(), params.text_document.text);
-        self.analyze(params.text_document.uri).await;
+        self.schedule_analysis(params.text_document.uri);
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -279,7 +385,7 @@ impl LanguageServer for Backend {
                 .unwrap()
                 .insert(params.text_document.uri.clone(), change.text);
         }
-        self.analyze(params.text_document.uri).await;
+        self.schedule_analysis(params.text_document.uri);
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
@@ -289,7 +395,7 @@ impl LanguageServer for Backend {
                 .unwrap()
                 .insert(params.text_document.uri.clone(), text);
         }
-        self.analyze(params.text_document.uri).await;
+        self.schedule_analysis(params.text_document.uri);
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
@@ -331,12 +437,48 @@ impl LanguageServer for Backend {
         let options = crate::StdSourceOptions {
             std_root: self.std_root.clone(),
         };
-        let hover = tokio::task::spawn_blocking(move || {
+        let Ok(permit) = self.request_slots.clone().try_acquire_owned() else {
+            return Ok(None);
+        };
+        let handle = tokio::task::spawn_blocking(move || {
+            let _permit = permit;
             hover_for_source(&path, source, position, &options)
-        })
-        .await
-        .unwrap_or(None);
+        });
+        let hover = match tokio::time::timeout(LSP_REQUEST_TIMEOUT, handle).await {
+            Ok(Ok(hover)) => hover,
+            Ok(Err(_)) | Err(_) => None,
+        };
         Ok(hover)
+    }
+
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<GotoDefinitionResponse>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+        let path = match uri.to_file_path() {
+            Ok(path) => path,
+            Err(_) => return Ok(None),
+        };
+        let Some(source) = self.document_source(&uri) else {
+            return Ok(None);
+        };
+        let options = crate::StdSourceOptions {
+            std_root: self.std_root.clone(),
+        };
+        let Ok(permit) = self.request_slots.clone().try_acquire_owned() else {
+            return Ok(None);
+        };
+        let handle = tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            definition_for_source(&path, source, position, &options)
+        });
+        let location = match tokio::time::timeout(LSP_REQUEST_TIMEOUT, handle).await {
+            Ok(Ok(location)) => location,
+            Ok(Err(_)) | Err(_) => None,
+        };
+        Ok(location.map(GotoDefinitionResponse::Scalar))
     }
 }
 
@@ -346,8 +488,10 @@ pub async fn serve(std_root: Option<PathBuf>) {
     let (service, socket) = LspService::new(|client| Backend {
         client,
         std_root,
-        documents: Mutex::new(HashMap::new()),
-        analysis_versions: Mutex::new(HashMap::new()),
+        documents: Arc::new(Mutex::new(HashMap::new())),
+        analysis_versions: Arc::new(Mutex::new(HashMap::new())),
+        analysis_slots: Arc::new(Semaphore::new(1)),
+        request_slots: Arc::new(Semaphore::new(2)),
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }
@@ -588,6 +732,164 @@ mod tests {
         );
     }
 
+    #[test]
+    fn definition_for_source_reports_reference_target_location() {
+        let root = temp_root("definition-reference-target-location");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let entry = root.join("main.yu");
+        let source = "my x: int = 1\nmy y = x\n";
+        let location = definition_for_source(
+            &entry,
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 7,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(location.uri, Url::from_file_path(&entry).unwrap());
+        assert_eq!(
+            location.range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 3
+                },
+                end: Position {
+                    line: 0,
+                    character: 4
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn hover_for_source_uses_std_route_before_local_fallback() {
+        let source = concat!(
+            "// Optional record fields make compact named arguments.\n",
+            "\n",
+            "my area({width = 1, height = 2}) = width * height\n",
+            "\n",
+            "area { width: 3 }\n",
+            "area {}\n",
+            "area { width: 3, height: 4 }\n",
+            "\n",
+            "my next_area({width = 2, height = width + 1}) = width * height\n",
+            "\n",
+            "next_area { width: 3 }\n",
+        );
+        let hover = hover_for_source(
+            Path::new("main.yu"),
+            source.to_string(),
+            Position {
+                line: 8,
+                character: 4,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(workspace_std_root()),
+            },
+        )
+        .unwrap();
+
+        let HoverContents::Markup(contents) = hover.contents else {
+            panic!("expected markdown hover");
+        };
+        assert!(
+            contents.value.contains("next_area: "),
+            "expected next_area hover, got {:?}",
+            contents.value
+        );
+        assert!(
+            !contents.value.contains("next_area: never"),
+            "std route must not be replaced by local-only fallback: {:?}",
+            contents.value
+        );
+    }
+
+    #[test]
+    fn hover_for_source_falls_back_to_local_route_when_std_fails() {
+        let root = temp_root("hover-local-fallback");
+        let entry = root.join("main.yu");
+        let source = "my x: int = 1\nmy y = x\n";
+        let hover = hover_for_source(
+            &entry,
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 7,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("missing-lib")),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            hover.contents,
+            HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: "```yulang\nx: int\n```".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn definition_for_source_falls_back_to_local_route_when_std_fails() {
+        let root = temp_root("definition-local-fallback");
+        let entry = root.join("main.yu");
+        let source = "my x: int = 1\nmy y = x\n";
+        let location = definition_for_source(
+            &entry,
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 7,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("missing-lib")),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(location.uri, Url::from_file_path(&entry).unwrap());
+        assert_eq!(
+            location.range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 3
+                },
+                end: Position {
+                    line: 0,
+                    character: 4
+                },
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn diagnostics_timeout_guard_skips_busy_source_diagnostics() {
+        let slots = Arc::new(Semaphore::new(1));
+        let _occupied = slots.clone().try_acquire_owned().unwrap();
+
+        let result = run_diagnostics_with_timeout(
+            slots,
+            PathBuf::from("main.yu"),
+            "my x = 1\n".to_string(),
+            crate::StdSourceOptions::default(),
+        )
+        .await;
+
+        assert!(matches!(result, DiagnosticsRunResult::Busy), "{result:?}");
+    }
+
     fn temp_root(name: &str) -> PathBuf {
         let root = std::env::temp_dir().join(format!(
             "yulang-server-{name}-{}",
@@ -598,6 +900,13 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(&root);
         root
+    }
+
+    fn workspace_std_root() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("lib")
     }
 
     fn token_type_index(name: &str) -> u32 {

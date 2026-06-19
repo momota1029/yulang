@@ -449,8 +449,10 @@ impl StackWeight {
         }
     }
 
-    /// Bounds replay の循環で増え続ける、stack/floor を伴う未対応 pop を飽和させる。
-    /// 裸の `pop(1)[]` は注釈由来の述部境界として surface に残る意味を持つので保つ。
+    /// Bounds replay の循環で増え続ける未対応 pop を正規化する。
+    /// 裸の `pop(1)[]` は注釈由来の述部境界として surface に残る意味を持つので保つが、
+    /// 同じ `SubtractId` の `pop(n)` は同じ境界を replay cycle で再消費した痕跡であり、
+    /// 実際の nested annotation は別 `SubtractId` を使う。
     /// stack 列は `common_stack` の入力なので、重複や順序をここでは変えない。
     pub fn saturate_unmatched_pops(&self) -> Self {
         let entries = self
@@ -458,8 +460,12 @@ impl StackWeight {
             .iter()
             .cloned()
             .map(|mut entry| {
-                if entry.pops > 0 && (!entry.floor.is_empty() || !entry.stack.is_empty()) {
-                    entry.pops = u32::MAX;
+                if entry.pops > 0 {
+                    if entry.floor.is_empty() && entry.stack.is_empty() && entry.pops != u32::MAX {
+                        entry.pops = entry.pops.min(1);
+                    } else {
+                        entry.pops = u32::MAX;
+                    }
                 }
                 entry
             })
