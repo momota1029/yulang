@@ -67,10 +67,17 @@ release artifact
   - Windows x86_64 用。
   - public entrypoint は `https://yulang.momota.pw/install.ps1`。
   - `~/.yulang/bin/yulang.exe` へ入れたあと `yulang install std` を実行する。
+- `scripts/uninstall.sh` / `scripts/uninstall.ps1`:
+  - public entrypoint は `https://yulang.momota.pw/uninstall.sh` /
+    `https://yulang.momota.pw/uninstall.ps1`。
+  - default は `~/.yulang/bin/yulang*` と `~/.yulang/lib/yulang-*` だけを削除し、
+    将来の realm / band 用データは巻き込まない。
+  - `--all` / `-All` で install prefix 全体を削除し、`--purge-cache` / `-PurgeCache`
+    で artifact cache も削除する。
 - site deploy:
-  - `scripts/install.sh` / `scripts/install.ps1` は repository root を source of truth にする。
+  - installer / uninstaller は repository root を source of truth にする。
   - `npm --prefix web run build` の最後に `web/scripts/copy-installers.mjs` が
-    `web/dist/install.sh` / `web/dist/install.ps1` へコピーする。
+    `web/dist/install.sh` / `web/dist/install.ps1` と uninstallers へコピーする。
 
 ## Cache / std contract
 

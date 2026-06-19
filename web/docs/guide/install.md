@@ -32,6 +32,19 @@ standard library and writes it to the user library directory on first use:
 curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.1
 ```
 
+To remove a release install:
+
+```sh
+curl -fsSL https://yulang.momota.pw/uninstall.sh | sh
+```
+
+On Windows:
+
+```powershell
+Invoke-WebRequest https://yulang.momota.pw/uninstall.ps1 -OutFile uninstall.ps1
+powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
+```
+
 After that, run or check programs directly:
 
 ```sh

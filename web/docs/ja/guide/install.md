@@ -29,6 +29,19 @@ OS ごとの release archive を入れます。binary には embedded standard l
 curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.1
 ```
 
+release install を消す場合は uninstaller を使います。
+
+```sh
+curl -fsSL https://yulang.momota.pw/uninstall.sh | sh
+```
+
+Windows では次の形です。
+
+```powershell
+Invoke-WebRequest https://yulang.momota.pw/uninstall.ps1 -OutFile uninstall.ps1
+powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
+```
+
 その後は、そのまま program を実行したり、型を表示したりできます。
 
 ```sh

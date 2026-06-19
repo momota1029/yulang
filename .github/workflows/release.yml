@@ -93,7 +93,9 @@ jobs:
         run: |
           cp scripts/install.sh dist/install.sh
           cp scripts/install.ps1 dist/install.ps1
-          (cd dist && sha256sum yulang-* install.sh install.ps1 > SHA256SUMS)
+          cp scripts/uninstall.sh dist/uninstall.sh
+          cp scripts/uninstall.ps1 dist/uninstall.ps1
+          (cd dist && sha256sum yulang-* install.sh install.ps1 uninstall.sh uninstall.ps1 > SHA256SUMS)
           ls -la dist
 
       - name: Publish release

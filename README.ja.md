@@ -30,6 +30,19 @@ Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.1
 ```
 
+release install を消す場合は uninstaller を使います。
+
+```bash
+curl -fsSL https://yulang.momota.pw/uninstall.sh | sh
+```
+
+Windows では次の形です。
+
+```powershell
+Invoke-WebRequest https://yulang.momota.pw/uninstall.ps1 -OutFile uninstall.ps1
+powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
+```
+
 開発 checkout で CLI を使う場合は、`yulang` を build します。ユーザー cache に標準ライブラリを
 置きたい場合は `install std` も使えます。
 
