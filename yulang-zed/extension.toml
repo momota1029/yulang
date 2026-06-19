@@ -1,7 +1,7 @@
 id = "yulang"
 name = "Yulang"
 description = "Yulang language support"
-version = "0.0.8"
+version = "0.0.9"
 schema_version = 1
 authors = ["momota"]
 repository = "https://github.com/momota1029/yulang-zed"
@@ -10,6 +10,6 @@ repository = "https://github.com/momota1029/yulang-zed"
 repository = "https://github.com/momota1029/tree-sitter-yulang"
 commit = "bd05e120a9cbe268fff6549e7708639c9a3ff2d2"
 
-[language_servers.yulang-lsp]
+[language_servers.yulang]
 name = "Yulang LS"
 languages = ["Yulang"]

@@ -4,8 +4,8 @@ use zed_extension_api::{
     LanguageServerId, Os, Result, Worktree,
 };
 
-const LANGUAGE_SERVER_ID: &str = "yulang-lsp";
-const LANGUAGE_SERVER_BINARY: &str = "yulang-lsp";
+const LANGUAGE_SERVER_ID: &str = "yulang";
+const STANDALONE_LANGUAGE_SERVER_BINARY: &str = "yulang-lsp";
 const YULANG_BINARY: &str = "yulang";
 const LANGUAGE_SERVER_SUBCOMMAND: &str = "server";
 
@@ -59,13 +59,7 @@ fn resolve_configured_command(worktree: &Worktree, path: &str, os: Os) -> Result
 }
 
 fn default_language_server(worktree: &Worktree, os: Os) -> Option<String> {
-    if os == Os::Windows {
-        find_binary(worktree, YULANG_BINARY, os)
-            .or_else(|| find_binary(worktree, LANGUAGE_SERVER_BINARY, os))
-    } else {
-        find_binary(worktree, LANGUAGE_SERVER_BINARY, os)
-            .or_else(|| find_binary(worktree, YULANG_BINARY, os))
-    }
+    find_binary(worktree, YULANG_BINARY, os)
 }
 
 fn find_binary(worktree: &Worktree, binary: &str, os: Os) -> Option<String> {
@@ -77,7 +71,7 @@ fn find_binary(worktree: &Worktree, binary: &str, os: Os) -> Option<String> {
 }
 
 fn default_arguments_for_command(command: &str) -> Vec<String> {
-    if command_basename(command) == LANGUAGE_SERVER_BINARY {
+    if command_basename(command) == STANDALONE_LANGUAGE_SERVER_BINARY {
         Vec::new()
     } else {
         vec![LANGUAGE_SERVER_SUBCOMMAND.into()]
@@ -126,7 +120,7 @@ fn upsert_env(env: &mut Vec<(String, String)>, key: String, value: String) {
 
 fn missing_language_server_message() -> String {
     format!(
-        "`{LANGUAGE_SERVER_BINARY}` or `{YULANG_BINARY}` was not found. Install Yulang in the current environment or set lsp.{LANGUAGE_SERVER_ID}.binary.path."
+        "`{YULANG_BINARY}` was not found. Install Yulang in the current environment or set lsp.{LANGUAGE_SERVER_ID}.binary.path."
     )
 }
 

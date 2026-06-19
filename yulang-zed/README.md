@@ -23,18 +23,16 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.1
 ```
 
 The extension searches the active worktree environment, `~/.yulang/bin`, and
-`~/.cargo/bin`. On Linux and macOS it first searches for `yulang-lsp`, then
-falls back to `yulang` and invokes it as `yulang server`. On Windows it prefers
-the release-installed `yulang.exe` and rejects Unix-style fallback paths such as
-`/home/me/.cargo/bin/yulang-lsp`. It does not bundle a language server binary
-yet.
+`~/.cargo/bin`, then invokes `yulang server`. It rejects Unix-style fallback
+paths such as `/home/me/.cargo/bin/yulang` when running in Windows-local Zed.
+It does not bundle a language server binary yet.
 
 You can override the command from Zed settings:
 
 ```json
 {
   "lsp": {
-    "yulang-lsp": {
+    "yulang": {
       "binary": {
         "path": "/home/me/.yulang/bin/yulang",
         "arguments": ["server"]
