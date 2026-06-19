@@ -13,6 +13,9 @@ impl BodyLowerer {
         };
         self.lower_type_constructors(node, module, &decl);
         self.lower_type_decl_with_body(node, &decl);
+        if decl.kind == ModuleTypeKind::Error {
+            self.lower_error_synthetic_decls(node, &decl);
+        }
     }
 
     pub(super) fn lower_type_decl_with_body(&mut self, node: &Cst, decl: &ModuleTypeDecl) {

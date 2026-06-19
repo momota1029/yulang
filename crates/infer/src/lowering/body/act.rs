@@ -162,6 +162,9 @@ impl BodyLowerer {
     }
 
     pub(super) fn act_effect_type_var_names(&self, id: TypeDeclId) -> Vec<String> {
+        if let Some(error) = self.modules.error_decl(id) {
+            return error.type_vars.clone();
+        }
         if let Some(type_vars) = self.modules.act_template(id).map(crate::act_type_var_names)
             && !type_vars.is_empty()
         {

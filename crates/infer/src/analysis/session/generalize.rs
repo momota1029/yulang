@@ -55,9 +55,10 @@ impl AnalysisSession {
             let (role_constraints, role_collect_constraints) = if role_input_count == 0 {
                 (Vec::new(), Vec::new())
             } else {
-                compact_reachable_role_constraints_recording_merge_constraints(
+                compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints(
                     self.infer.constraints(),
                     &next_compact,
+                    &[root],
                     self.roles.for_owner(def),
                 )
             };

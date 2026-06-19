@@ -623,7 +623,7 @@ impl<'a> ExprLowerer<'a> {
             return Ok(None);
         };
         let Some(signature) = operation_decl.signature.as_ref() else {
-            return Ok(None);
+            return self.lower_error_catch_operation_signature(operation_decl, payload_value);
         };
 
         let effect_type_vars = self.act_effect_type_var_names(operation_decl.effect.id);
@@ -692,13 +692,122 @@ impl<'a> ExprLowerer<'a> {
         }))
     }
 
+    fn lower_error_catch_operation_signature(
+        &mut self,
+        operation_decl: &ActOperationDecl,
+        payload_value: TypeVar,
+    ) -> Result<Option<LoweredCatchOperationSignature>, LoweringError> {
+        if operation_decl.effect.kind != ModuleTypeKind::Error {
+            return Ok(None);
+        }
+        let Some(def) = operation_decl.def else {
+            return Ok(None);
+        };
+        let Some((error, variant)) = self.modules.error_variant_for_operation(def) else {
+            return Ok(None);
+        };
+        let error = error.clone();
+        let variant = variant.clone();
+        let Some(payload) =
+            self.error_variant_payload_signature(&operation_decl.effect, &error, &variant)?
+        else {
+            return Ok(None);
+        };
+        let ret = SignatureType::Builtin(BuiltinType::Never);
+        let effect = owner_signature_type(error.owner, &error.type_vars);
+        let mut vars = error_type_var_slots(&mut self.session.infer, &error.type_vars);
+
+        vars = self.connect_value_to_signature(payload_value, &payload, vars)?;
+        let continuation_value = self.fresh_type_var();
+        vars = self.connect_value_to_signature(continuation_value, &ret, vars)?;
+
+        let mut lowerer = SignatureLowerer::with_vars(&mut self.session.infer, self.modules, vars);
+        let row_item = lowerer
+            .lower_neg(&effect)
+            .map_err(|error| LoweringError::SignatureConstraint { error })?;
+
+        Ok(Some(LoweredCatchOperationSignature {
+            row_item,
+            continuation_value,
+        }))
+    }
+
+    fn connect_value_to_signature(
+        &mut self,
+        value: TypeVar,
+        signature: &SignatureType,
+        vars: FxHashMap<String, TypeVar>,
+    ) -> Result<FxHashMap<String, TypeVar>, LoweringError> {
+        let mut lowerer = SignatureLowerer::with_vars(&mut self.session.infer, self.modules, vars);
+        let lower = lowerer
+            .lower_pos(signature)
+            .map_err(|error| LoweringError::SignatureConstraint { error })?;
+        let upper = lowerer
+            .lower_neg(signature)
+            .map_err(|error| LoweringError::SignatureConstraint { error })?;
+        let target_upper = lowerer.infer.alloc_neg(Neg::Var(value));
+        let target_lower = lowerer.infer.alloc_pos(Pos::Var(value));
+        lowerer.infer.subtype(lower, target_upper);
+        lowerer.infer.subtype(target_lower, upper);
+        Ok(lowerer.vars)
+    }
+
+    fn error_variant_payload_signature(
+        &self,
+        decl: &ModuleTypeDecl,
+        error: &crate::ErrorDecl,
+        variant: &crate::ErrorVariantDecl,
+    ) -> Result<Option<SignatureType>, LoweringError> {
+        let builder = NegSignatureBuilder::with_self_alias(
+            self.modules,
+            error.module,
+            decl.order,
+            SignatureSelfAlias {
+                owner: error.owner,
+                type_vars: error.type_vars.clone(),
+            },
+        );
+        match &variant.payload {
+            ConstructorPayload::Unit => Ok(Some(SignatureType::Builtin(BuiltinType::Unit))),
+            ConstructorPayload::Tuple(items) => {
+                let items = items
+                    .iter()
+                    .map(|item| {
+                        item.ty
+                            .as_ref()
+                            .map(|ty| builder.build_type_expr(ty))
+                            .transpose()
+                            .map_err(|error| LoweringError::NegSignatureBuild { error })
+                            .map(|signature| {
+                                signature
+                                    .map(|signature| signature.as_type().clone())
+                                    .unwrap_or(SignatureType::Builtin(BuiltinType::Unit))
+                            })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                match items.as_slice() {
+                    [] => Ok(Some(SignatureType::Builtin(BuiltinType::Unit))),
+                    [item] => Ok(Some(item.clone())),
+                    _ => Ok(Some(SignatureType::Tuple(items))),
+                }
+            }
+            ConstructorPayload::Record(_) => Ok(None),
+        }
+    }
+
     fn resolve_catch_operation_decl(&self, effect_op: &CatchEffectOp) -> Option<ActOperationDecl> {
         if let Some(target) = self
             .modules
             .value_path_at(self.module, &effect_op.path, self.site)
-            && let Some(decl) = self.modules.act_operation_decl_by_def(target)
         {
-            return Some(decl);
+            if let Some(decl) = self.modules.act_operation_decl_by_def(target) {
+                return Some(decl);
+            }
+            if let Some(operation) = self.modules.error_operation_for_constructor(target)
+                && let Some(decl) = self.modules.act_operation_decl_by_def(operation)
+            {
+                return Some(decl);
+            }
         }
         let operation = effect_op.operation.as_ref()?;
         self.modules
@@ -889,6 +998,14 @@ struct LoweredCatchPayloadPattern {
 struct LoweredCatchOperationSignature {
     row_item: NegId,
     continuation_value: TypeVar,
+}
+
+fn error_type_var_slots(infer: &mut crate::Arena, names: &[String]) -> FxHashMap<String, TypeVar> {
+    names
+        .iter()
+        .cloned()
+        .map(|name| (name, infer.fresh_type_var()))
+        .collect()
 }
 
 struct CatchHandledEffects {

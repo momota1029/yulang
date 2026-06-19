@@ -586,7 +586,7 @@ impl<'a> SignatureLowerer<'a> {
             .into_iter()
             .map(|name| name.0)
             .collect::<Vec<_>>();
-        if decl.kind == ModuleTypeKind::Act {
+        if matches!(decl.kind, ModuleTypeKind::Act | ModuleTypeKind::Error) {
             self.infer.register_effect_family_path(path.clone());
         }
         Ok(path)

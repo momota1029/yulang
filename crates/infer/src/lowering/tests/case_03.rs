@@ -1209,3 +1209,57 @@ fn type_with_value_method_lowers_in_companion_and_resolves_selection() {
         Some(SelectResolution::Method { def: method })
     );
 }
+
+#[test]
+fn user_error_throw_method_preserves_declared_error_effect() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod throw:\n",
+        "      pub role Throw 'e:\n",
+        "        type throws\n",
+        "        pub e.throw: [throws] never\n",
+        "error my_err:\n",
+        "  boom int\n",
+        "my f(p: int): [my_err] int = (my_err::boom p).throw\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, f));
+    assert!(
+        rendered.contains("int -> [my_err] int"),
+        "error throw should keep the declared effect, got {rendered}"
+    );
+}
+
+#[test]
+fn user_error_throw_method_infers_error_effect_without_annotation() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  pub mod control:\n",
+        "    pub mod throw:\n",
+        "      pub role Throw 'e:\n",
+        "        type throws\n",
+        "        pub e.throw: [throws] never\n",
+        "error my_err:\n",
+        "  boom int\n",
+        "my f(p: int) = (my_err::boom p).throw\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, f));
+    assert!(
+        rendered.contains("int -> [my_err]"),
+        "error throw should infer the thrown effect, got {rendered}"
+    );
+}

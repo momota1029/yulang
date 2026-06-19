@@ -544,6 +544,47 @@ fn reachable_role_collect_pulls_roles_from_main_type_frontier() {
 }
 
 #[test]
+fn reachable_role_collect_uses_raw_root_constraint_frontier() {
+    let mut machine = ConstraintMachine::new();
+    let root_var = TypeVar(0);
+    let bridge_var = TypeVar(1);
+    let role_var = TypeVar(2);
+    let unrelated_var = TypeVar(3);
+    let bridge_pos = machine.alloc_pos(Pos::Var(bridge_var));
+    let root_neg = machine.alloc_neg(Neg::Var(root_var));
+    let role_pos = machine.alloc_pos(Pos::Var(role_var));
+    let bridge_neg = machine.alloc_neg(Neg::Var(bridge_var));
+    machine.subtype(bridge_pos, root_neg);
+    machine.subtype(role_pos, bridge_neg);
+    let seed = CompactRoot {
+        root: CompactType::from_con(CompactCon {
+            path: vec!["int".into()],
+            args: Vec::new(),
+        }),
+        rec_vars: Vec::new(),
+    };
+    let constraints = vec![
+        RoleConstraint {
+            role: vec!["Reachable".into()],
+            inputs: vec![role_arg(&mut machine, role_var)],
+            associated: Vec::new(),
+        },
+        RoleConstraint {
+            role: vec!["Unrelated".into()],
+            inputs: vec![role_arg(&mut machine, unrelated_var)],
+            associated: Vec::new(),
+        },
+    ];
+
+    let roles = CompactCollector::new(&machine)
+        .compact_reachable_role_constraints_with_merge_constraints(&seed, &[root_var], &constraints)
+        .0;
+
+    assert_eq!(roles.len(), 1);
+    assert_eq!(roles[0].role, vec!["Reachable".to_string()]);
+}
+
+#[test]
 fn polar_elimination_removes_one_sided_vars() {
     let machine = ConstraintMachine::new();
     let mut root = CompactRoot {

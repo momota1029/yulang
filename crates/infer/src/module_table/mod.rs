@@ -30,6 +30,9 @@ impl ModuleTable {
             lazy_ops: FxHashSet::default(),
             act_methods: FxHashMap::default(),
             constructors: FxHashMap::default(),
+            error_decls: FxHashMap::default(),
+            error_constructor_ops: FxHashMap::default(),
+            error_op_constructors: FxHashMap::default(),
             casts: FxHashMap::default(),
             role_inputs: FxHashMap::default(),
             role_associated: FxHashMap::default(),
@@ -229,6 +232,45 @@ impl ModuleTable {
     }
     pub(crate) fn constructor_by_def(&self, def: DefId) -> Option<&ConstructorDecl> {
         self.constructors.get(&def)
+    }
+    pub(super) fn insert_error_decl(&mut self, decl: ErrorDecl) {
+        for variant in &decl.variants {
+            self.error_constructor_ops
+                .insert(variant.constructor_def, variant.operation_def);
+            self.error_op_constructors
+                .insert(variant.operation_def, variant.constructor_def);
+        }
+        self.error_decls.insert(decl.owner, decl);
+    }
+    pub(super) fn set_error_helpers(
+        &mut self,
+        owner: TypeDeclId,
+        wrap_def: Option<DefId>,
+        up_def: Option<DefId>,
+    ) {
+        if let Some(decl) = self.error_decls.get_mut(&owner) {
+            decl.wrap_def = wrap_def;
+            decl.up_def = up_def;
+        }
+    }
+    pub(crate) fn error_decl(&self, owner: TypeDeclId) -> Option<&ErrorDecl> {
+        self.error_decls.get(&owner)
+    }
+    pub(crate) fn error_operation_for_constructor(&self, def: DefId) -> Option<DefId> {
+        self.error_constructor_ops.get(&def).copied()
+    }
+    pub(crate) fn error_variant_for_operation(
+        &self,
+        def: DefId,
+    ) -> Option<(&ErrorDecl, &ErrorVariantDecl)> {
+        let constructor = self.error_op_constructors.get(&def)?;
+        let owner = self.constructor_by_def(*constructor)?.owner;
+        let decl = self.error_decls.get(&owner)?;
+        let variant = decl
+            .variants
+            .iter()
+            .find(|variant| variant.operation_def == def)?;
+        Some((decl, variant))
     }
     pub(super) fn insert_cast_decl(&mut self, decl: CastDecl) {
         self.casts.entry(decl.module).or_default().push(decl);
@@ -465,7 +507,7 @@ impl ModuleTable {
     ) -> Vec<ActOperationDecl> {
         let Some(effect) = self
             .type_path_at(module, effect_path, site)
-            .filter(|decl| decl.kind == ModuleTypeKind::Act)
+            .filter(|decl| matches!(decl.kind, ModuleTypeKind::Act | ModuleTypeKind::Error))
         else {
             return Vec::new();
         };

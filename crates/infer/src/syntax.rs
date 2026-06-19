@@ -711,6 +711,24 @@ pub(crate) fn enum_variant_direct_type_exprs(node: &Cst) -> Vec<Cst> {
         .collect()
 }
 
+pub(crate) fn enum_variant_has_from_marker(node: &Cst) -> bool {
+    let mut seen_variant_name = false;
+    for token in node
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+    {
+        if token.kind() != SyntaxKind::Ident {
+            continue;
+        }
+        if !seen_variant_name {
+            seen_variant_name = true;
+            continue;
+        }
+        return token.text() == "from";
+    }
+    false
+}
+
 pub(crate) fn collect_pre_with_descendants(node: &Cst, kind: SyntaxKind, out: &mut Vec<Cst>) {
     for item in node.children_with_tokens() {
         match item {

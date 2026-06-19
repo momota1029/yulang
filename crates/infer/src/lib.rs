@@ -153,6 +153,27 @@ pub(crate) struct ConstructorDecl {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ErrorDecl {
+    pub owner: TypeDeclId,
+    pub module: ModuleId,
+    pub companion: ModuleId,
+    pub type_vars: Vec<String>,
+    pub vis: Vis,
+    pub variants: Vec<ErrorVariantDecl>,
+    pub wrap_def: Option<DefId>,
+    pub up_def: Option<DefId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ErrorVariantDecl {
+    pub name: Name,
+    pub constructor_def: DefId,
+    pub operation_def: DefId,
+    pub payload: ConstructorPayload,
+    pub from: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ConstructorPayload {
     Unit,
     Tuple(Vec<ConstructorPayloadItem>),
@@ -427,6 +448,9 @@ pub struct ModuleTable {
     lazy_ops: FxHashSet<DefId>,
     act_methods: FxHashMap<TypeDeclId, Vec<ActMethodDecl>>,
     constructors: FxHashMap<DefId, ConstructorDecl>,
+    error_decls: FxHashMap<TypeDeclId, ErrorDecl>,
+    error_constructor_ops: FxHashMap<DefId, DefId>,
+    error_op_constructors: FxHashMap<DefId, DefId>,
     casts: FxHashMap<ModuleId, Vec<CastDecl>>,
     role_inputs: FxHashMap<TypeDeclId, Vec<String>>,
     role_associated: FxHashMap<TypeDeclId, Vec<String>>,

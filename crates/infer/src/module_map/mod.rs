@@ -324,6 +324,9 @@ impl Lower {
         ) {
             self.register_type_constructors(node, module, kind, id, name.clone(), vis, children);
             self.register_type_companion(node, module, name, id, vis, children);
+            if kind == ModuleTypeKind::Error {
+                self.register_error_companion_helpers(id);
+            }
         }
     }
 
@@ -447,15 +450,17 @@ impl Lower {
                 let (def, companion, created) = self.ensure_child_module(module, name, vis);
                 self.modules.set_type_companion(owner, companion);
                 let mut companion_children = Vec::new();
+                let mut error_variants = Vec::new();
                 for variant in enum_variant_nodes(node) {
                     let Some(variant_name) = enum_variant_name(&variant) else {
                         continue;
                     };
                     let source_span =
                         self.source_span(source_range_for_name(&variant, &variant_name));
+                    let payload = ConstructorPayload::from_enum_variant(&variant);
                     let variant_def = self.register_synthetic_value_with_span(
                         companion,
-                        variant_name,
+                        variant_name.clone(),
                         vis,
                         source_span,
                     );
@@ -465,12 +470,49 @@ impl Lower {
                             owner,
                             module: companion,
                             type_vars: type_vars.clone(),
-                            payload: ConstructorPayload::from_enum_variant(&variant),
+                            payload: payload.clone(),
                         },
                     );
+                    if kind == ModuleTypeKind::Error {
+                        let operation_def = self.register_synthetic_let(Vis::My);
+                        self.modules.insert_act_operation_def(
+                            owner,
+                            variant_name.clone(),
+                            operation_def,
+                        );
+                        error_variants.push(ErrorVariantDecl {
+                            name: variant_name,
+                            constructor_def: variant_def,
+                            operation_def,
+                            payload,
+                            from: enum_variant_has_from_marker(&variant),
+                        });
+                    }
                     companion_children.push(variant_def);
                 }
                 self.append_module_children(def, companion_children);
+                if kind == ModuleTypeKind::Error {
+                    self.modules.set_act_ops(
+                        owner,
+                        error_variants
+                            .iter()
+                            .map(|variant| ActOperationSig {
+                                name: variant.name.clone(),
+                                signature: None,
+                            })
+                            .collect(),
+                    );
+                    self.modules.insert_error_decl(ErrorDecl {
+                        owner,
+                        module,
+                        companion,
+                        type_vars: type_vars.clone(),
+                        vis,
+                        variants: error_variants,
+                        wrap_def: None,
+                        up_def: None,
+                    });
+                }
                 if created {
                     children.push(def);
                 }
@@ -501,6 +543,33 @@ impl Lower {
                 });
             }
         }
+    }
+
+    fn register_error_companion_helpers(&mut self, owner: TypeDeclId) {
+        let Some(error) = self.modules.error_decl(owner).cloned() else {
+            return;
+        };
+        let wrap = self.register_error_companion_helper(&error, "wrap");
+        let up = error
+            .variants
+            .iter()
+            .any(|variant| variant.from)
+            .then(|| self.register_error_companion_helper(&error, "up"))
+            .flatten();
+        self.modules.set_error_helpers(owner, wrap, up);
+    }
+
+    fn register_error_companion_helper(&mut self, error: &ErrorDecl, name: &str) -> Option<DefId> {
+        let name = Name(name.to_string());
+        if self
+            .modules
+            .value_at(error.companion, &name, module_path_site())
+            .is_some()
+        {
+            return None;
+        }
+        let def = self.register_synthetic_value(error.companion, name, error.vis);
+        Some(def)
     }
 
     fn register_synthetic_value(&mut self, module: ModuleId, name: Name, vis: Vis) -> DefId {

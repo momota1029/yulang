@@ -363,16 +363,19 @@ impl<'a> CompactCollector<'a> {
         seed: &CompactRoot,
         constraints: &[RoleConstraint],
     ) -> Vec<CompactRoleConstraint> {
-        self.compact_reachable_role_constraints_with_merge_constraints(seed, constraints)
+        self.compact_reachable_role_constraints_with_merge_constraints(seed, &[], constraints)
             .0
     }
 
     pub(in crate::compact) fn compact_reachable_role_constraints_with_merge_constraints(
         mut self,
         seed: &CompactRoot,
+        raw_seed_vars: &[TypeVar],
         constraints: &[RoleConstraint],
     ) -> (Vec<CompactRoleConstraint>, Vec<CompactMergeConstraint>) {
         let mut reachable = free_vars_in_root(seed);
+        reachable.extend(raw_seed_vars.iter().copied());
+        self.expand_reachable_role_vars(&mut reachable);
         let mut selected = vec![false; constraints.len()];
         let mut out = Vec::new();
 
@@ -389,14 +392,29 @@ impl<'a> CompactCollector<'a> {
 
                 selected[index] = true;
                 let compact = self.compact_role_constraint(constraint);
+                let mut reachable_grew = false;
                 for var in free_vars_in_role_constraint(&compact) {
-                    reachable.insert(var);
+                    reachable_grew |= reachable.insert(var);
+                }
+                if reachable_grew {
+                    self.expand_reachable_role_vars(&mut reachable);
                 }
                 out.push(compact);
                 changed = true;
             }
             if !changed {
                 return (out, self.merge_constraints);
+            }
+        }
+    }
+
+    fn expand_reachable_role_vars(&self, reachable: &mut FxHashSet<TypeVar>) {
+        let mut stack = reachable.iter().copied().collect::<Vec<_>>();
+        while let Some(var) = stack.pop() {
+            for neighbor in self.machine.var_neighbors(var) {
+                if reachable.insert(neighbor) {
+                    stack.push(neighbor);
+                }
             }
         }
     }
