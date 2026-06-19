@@ -18,22 +18,53 @@ release artifact
 ## First slice
 
 - release artifact の単位を決める。
-  - `yulang` binary
-  - std source bundle or embedded std artifact
-  - playground `dist`
-  - Zed extension / LS metadata
+  - `yulang-<target>.tar.gz` / `yulang-<target>.zip`
+  - archive root: `bin/yulang[.exe]`, `lib/std`, README, licenses,
+    `release-manifest.txt`
+  - `lib/std` は binary の embedded std を `install std` と同じ経路で展開したもの。
+    runtime/LS は archive 同梱 std に固定せず、通常どおり `YULANG_STD`、近傍 `lib/std`、
+    versioned user std root の順で解決する。
+  - playground `dist` は初回 release workflow には含めない。CLI/LS release が安定してから
+    Pages/deploy job と接続する。
+  - Zed extension はこの repo の `yulang-zed/` を source copy とし、別 repository
+    `momota1029/yulang-zed` へ同期する運用を別 slice にする。
 - cargo を介さない smoke を作る。
   - executable path を引数で受け取る。
-  - `target/debug/yulang install std`
-  - `target/debug/yulang check/run` with bundled std
-  - `target/debug/yulang server` startup（初期 script では opt-in）
+  - `yulang install std`
+  - `yulang check/run` with bundled std
+  - `yulang server` startup（`YULANG_SMOKE_SERVER=1` で opt-in）
   - cache clear / cache path / cache format mismatch
 - 初期 smoke script:
   - `scripts/release-smoke.sh`
   - `HOME` / `XDG_CACHE_HOME` / `YULANG_CACHE_DIR` を一時ディレクトリに向け、user cache を汚さない。
   - `YULANG_SMOKE_SERVER=1` で server startup も見る。
+- archive smoke script:
+  - `scripts/release-archive-smoke.sh`
+  - archive を展開し、`bin/yulang[.exe]` と同梱 `lib/std/std.yu` を確認してから
+    `release-smoke.sh` を呼ぶ。
+- packaging script:
+  - `scripts/package-release.sh`
+  - host native build 済み binary を受け取り、embedded std を archive root の `lib/` へ展開する。
+- GitHub Actions:
+  - tag `v*` push で Linux x86_64、macOS x86_64 (`macos-26-intel`)、macOS arm64
+    (`macos-26`)、Windows x86_64 を build。
+  - 各 OS 上で package と archive smoke を実行。
+  - `SHA256SUMS`, `install.sh`, `install.ps1` と各 archive を GitHub Release へ upload。
+  - `*-alpha.*` など hyphen 付き tag は prerelease とし、GitHub latest にはしない。
 - release build で playground が使う wasm artifact と CLI が使う std/cache の対応を固定する。
 - README には「開発者向け cargo」と「利用者向け binary」を分けて書く。
+
+## Installer contract
+
+- `scripts/install.sh`:
+  - Linux / macOS 用。
+  - default は GitHub latest full release。
+  - alpha / beta / rc は GitHub prerelease なので `--version v0.1.0-alpha.1` のように tag を指定する。
+  - archive checksum を `SHA256SUMS` で検証し、`~/.yulang/bin/yulang` へ入れたあと
+    `yulang install std` を実行する。
+- `scripts/install.ps1`:
+  - Windows x86_64 用。
+  - `~/.yulang/bin/yulang.exe` へ入れたあと `yulang install std` を実行する。
 
 ## Cache / std contract
 

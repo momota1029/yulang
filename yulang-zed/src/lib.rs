@@ -17,6 +17,7 @@ impl zed::Extension for YulangExtension {
     ) -> Result<zed::Command> {
         let binary = worktree
             .which(LANGUAGE_SERVER_BINARY)
+            .or_else(default_user_language_server)
             .or_else(default_cargo_language_server)
             .unwrap_or_else(|| LANGUAGE_SERVER_BINARY.into());
 
@@ -37,10 +38,26 @@ impl zed::Extension for YulangExtension {
     }
 }
 
+fn default_user_language_server() -> Option<String> {
+    let home = home_dir()?;
+    [
+        format!("{home}/.yulang/bin/{LANGUAGE_SERVER_BINARY}"),
+        format!("{home}/.yulang/bin/{LANGUAGE_SERVER_BINARY}.exe"),
+    ]
+    .into_iter()
+    .find(|path| std::path::Path::new(path).is_file())
+}
+
 fn default_cargo_language_server() -> Option<String> {
-    let home = std::env::var("HOME").ok()?;
+    let home = home_dir()?;
     let path = format!("{home}/.cargo/bin/{LANGUAGE_SERVER_BINARY}");
     std::path::Path::new(&path).is_file().then_some(path)
+}
+
+fn home_dir() -> Option<String> {
+    std::env::var("HOME")
+        .ok()
+        .or_else(|| std::env::var("USERPROFILE").ok())
 }
 
 zed::register_extension!(YulangExtension);

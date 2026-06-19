@@ -17,8 +17,24 @@ Japanese: [README.ja.md](README.ja.md)
 
 ## Try It
 
-To use the CLI locally, build `yulang` and install the embedded standard
-library when you want a user cache copy:
+To use the CLI from a release build, install the binary archive for your OS
+and let the binary place the embedded standard library in the user library
+directory:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/momota1029/yulang/main/scripts/install.sh | sh -s -- --version v0.1.0-alpha.1
+yulang run examples/06_undet_once.yu
+```
+
+On Windows, download and run the PowerShell installer:
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/momota1029/yulang/main/scripts/install.ps1 -OutFile install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.1
+```
+
+For development, build `yulang` and install the embedded standard library when
+you want a user cache copy:
 
 ```bash
 cargo build -p yulang
@@ -53,7 +69,7 @@ Check a file:
 ```
 
 The standard library is normally installed to
-`~/.yulang/lib/yulang-0.1.3/std`. `yulang run`, `yulang check`, and
+`~/.yulang/lib/yulang-0.1.4/std`. `yulang run`, `yulang check`, and
 `yulang server` can also install the embedded standard library automatically
 on first use when neither `YULANG_STD` nor a nearby `lib/std` is available.
 
@@ -143,10 +159,11 @@ Current language-server support includes:
 - full-document sync;
 - current lowering diagnostics.
 
-Zed support lives in [yulang-zed/](yulang-zed). The extension is not published
-through the Zed extension registry yet; install it as a dev extension and
-select the `yulang-zed` directory. The extension should start `yulang server`
-from the worktree environment or from the installed binary path.
+Zed support lives in [yulang-zed/](yulang-zed). The extension starts the
+language server through the installed `yulang` binary as `yulang server`, so
+the release archive and the editor integration use the same executable. The
+source copy in this repository is the version to keep in sync with the
+separate `momota1029/yulang-zed` extension repository.
 
 ## Execution Backend
 

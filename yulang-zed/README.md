@@ -8,12 +8,13 @@ locally.
 
 ## Language Server
 
-The language server ships inside the main `yulang` binary. Install it with:
+The language server ships inside the main `yulang` binary. Install a release
+binary first:
 
 ```sh
-cargo install yulang
+curl -fsSL https://raw.githubusercontent.com/momota1029/yulang/main/scripts/install.sh | sh -s -- --version v0.1.0-alpha.1
 ```
 
 The extension searches for the `yulang` binary in the current worktree
-environment and then in `~/.cargo/bin`, and invokes it as `yulang server`. It
-does not bundle a language server binary yet.
+environment, `~/.yulang/bin`, and `~/.cargo/bin`, then invokes it as
+`yulang server`. It does not bundle a language server binary yet.

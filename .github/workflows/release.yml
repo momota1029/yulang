@@ -1,0 +1,114 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            exe: ""
+            archive: tar.gz
+          - os: macos-26-intel
+            target: x86_64-apple-darwin
+            exe: ""
+            archive: tar.gz
+          - os: macos-26
+            target: aarch64-apple-darwin
+            exe: ""
+            archive: tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            exe: ".exe"
+            archive: zip
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add "${{ matrix.target }}"
+
+      - name: Build yulang
+        shell: bash
+        run: cargo build --release -p yulang --target "${{ matrix.target }}"
+
+      - name: Package release archive
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [[ "$version" == "$GITHUB_REF_NAME" ]]; then
+            version="dev-${GITHUB_SHA::12}"
+          fi
+          scripts/package-release.sh \
+            --version "$version" \
+            --target "${{ matrix.target }}" \
+            --binary "target/${{ matrix.target }}/release/yulang${{ matrix.exe }}" \
+            --out dist
+
+      - name: Smoke release archive
+        shell: bash
+        env:
+          YULANG_SMOKE_SERVER: "1"
+        run: scripts/release-archive-smoke.sh "dist/yulang-${{ matrix.target }}.${{ matrix.archive }}"
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: yulang-${{ matrix.target }}
+          path: dist/yulang-${{ matrix.target }}.${{ matrix.archive }}
+          if-no-files-found: error
+
+  publish:
+    name: publish GitHub release
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download release archives
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          pattern: yulang-*
+          merge-multiple: true
+
+      - name: Add installer assets and checksums
+        shell: bash
+        run: |
+          cp scripts/install.sh dist/install.sh
+          cp scripts/install.ps1 dist/install.ps1
+          (cd dist && sha256sum yulang-* install.sh install.ps1 > SHA256SUMS)
+          ls -la dist
+
+      - name: Publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          flags=(--verify-tag --title "$tag" --generate-notes)
+          case "$tag" in
+            *-*) flags+=(--prerelease --latest=false) ;;
+          esac
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber
+          else
+            gh release create "$tag" dist/* "${flags[@]}"
+          fi

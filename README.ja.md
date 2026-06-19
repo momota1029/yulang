@@ -15,7 +15,22 @@ English: [README.md](README.md)
 
 ## すぐ試す
 
-手元で CLI を使う場合は、`yulang` を build します。ユーザー cache に標準ライブラリを
+release build の CLI を使う場合は、OS ごとの binary archive を入れます。binary には
+embedded standard library が入っていて、初回にユーザー library directory へ配置されます。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/momota1029/yulang/main/scripts/install.sh | sh -s -- --version v0.1.0-alpha.1
+yulang run examples/06_undet_once.yu
+```
+
+Windows では PowerShell installer を使います。
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/momota1029/yulang/main/scripts/install.ps1 -OutFile install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.1
+```
+
+開発 checkout で CLI を使う場合は、`yulang` を build します。ユーザー cache に標準ライブラリを
 置きたい場合は `install std` も使えます。
 
 ```bash
@@ -46,7 +61,7 @@ say "Hello, World"
 ./target/debug/yulang check examples/08_types.yu
 ```
 
-標準ライブラリは通常 `~/.yulang/lib/yulang-0.1.3/std` に入ります。
+標準ライブラリは通常 `~/.yulang/lib/yulang-0.1.4/std` に入ります。
 `yulang run`、`yulang check`、`yulang server` は、`YULANG_STD` や近くの
 `lib/std` が見つからない場合、同梱標準ライブラリを初回に自動で配置します。
 
@@ -130,10 +145,9 @@ language server は `yulang server` で起動します。
 - full-document sync
 - 現行 lowering diagnostic
 
-Zed 用 extension は [yulang-zed/](yulang-zed) にあります。まだ Zed extension
-registry には公開していないため、Zed の dev extension として `yulang-zed`
-directory を指定します。extension は worktree の環境か install 済み binary から
-`yulang server` を起動する想定です。
+Zed 用 extension は [yulang-zed/](yulang-zed) にあります。extension は install 済み
+`yulang` binary から `yulang server` を起動します。この repository 内の source copy は、
+別 repository の `momota1029/yulang-zed` と同期して管理する対象です。
 
 ## 実行 backend
 

@@ -20,13 +20,13 @@ cargo run -p yulang -- run path/to/file.yu
 ローカルで試す場合に重要なのは `cargo run -p yulang -- run path/to/file.yu` です（`run` の代わりに `check` を渡すと推論型を表示します）。
 下の web deploy は、hosted playground / docs を更新する場合だけ必要です。
 
-## 公開 CLI
+## Binary release
 
-Cargo で main CLI を入れ、embedded standard library を配置します。
+OS ごとの release archive を入れます。binary には embedded standard library が入り、
+初回にユーザー library directory へ配置されます。
 
 ```sh
-cargo install yulang
-yulang install std
+curl -fsSL https://raw.githubusercontent.com/momota1029/yulang/main/scripts/install.sh | sh -s -- --version v0.1.0-alpha.1
 ```
 
 その後は、そのまま program を実行したり、型を表示したりできます。
@@ -44,9 +44,9 @@ language server も同じ binary に入っています。
 yulang server
 ```
 
-Zed extension はまだ public registry には出していません。現時点では、この repository の
-`yulang-zed/` を Zed dev extension として読み込むと使えます。worktree environment か
-`~/.cargo/bin` に `yulang` binary があれば、extension が `yulang server` を起動します。
+Zed extension は install 済み `yulang` binary から `yulang server` を起動します。
+探索先は worktree environment、`~/.yulang/bin`、`~/.cargo/bin` です。source copy は
+`yulang-zed/` に置き、別 repository の extension と同期して管理します。
 
 主な crate は次の通りです。
 
