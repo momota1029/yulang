@@ -58,13 +58,19 @@ release artifact
 
 - `scripts/install.sh`:
   - Linux / macOS 用。
+  - public entrypoint は `https://yulang.momota.pw/install.sh`。
   - default は GitHub latest full release。
   - alpha / beta / rc は GitHub prerelease なので `--version v0.1.0-alpha.1` のように tag を指定する。
   - archive checksum を `SHA256SUMS` で検証し、`~/.yulang/bin/yulang` へ入れたあと
     `yulang install std` を実行する。
 - `scripts/install.ps1`:
   - Windows x86_64 用。
+  - public entrypoint は `https://yulang.momota.pw/install.ps1`。
   - `~/.yulang/bin/yulang.exe` へ入れたあと `yulang install std` を実行する。
+- site deploy:
+  - `scripts/install.sh` / `scripts/install.ps1` は repository root を source of truth にする。
+  - `npm --prefix web run build` の最後に `web/scripts/copy-installers.mjs` が
+    `web/dist/install.sh` / `web/dist/install.ps1` へコピーする。
 
 ## Cache / std contract
 

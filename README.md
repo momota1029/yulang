@@ -22,14 +22,14 @@ and let the binary place the embedded standard library in the user library
 directory:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/momota1029/yulang/main/scripts/install.sh | sh -s -- --version v0.1.0-alpha.1
+curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.1
 yulang run examples/06_undet_once.yu
 ```
 
 On Windows, download and run the PowerShell installer:
 
 ```powershell
-Invoke-WebRequest https://raw.githubusercontent.com/momota1029/yulang/main/scripts/install.ps1 -OutFile install.ps1
+Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.1
 ```
 

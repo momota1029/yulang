@@ -29,7 +29,7 @@ Install the release archive for your OS. The binary contains the embedded
 standard library and writes it to the user library directory on first use:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/momota1029/yulang/main/scripts/install.sh | sh -s -- --version v0.1.0-alpha.1
+curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.1
 ```
 
 After that, run or check programs directly:

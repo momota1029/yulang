@@ -19,14 +19,14 @@ release build の CLI を使う場合は、OS ごとの binary archive を入れ
 embedded standard library が入っていて、初回にユーザー library directory へ配置されます。
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/momota1029/yulang/main/scripts/install.sh | sh -s -- --version v0.1.0-alpha.1
+curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.1
 yulang run examples/06_undet_once.yu
 ```
 
 Windows では PowerShell installer を使います。
 
 ```powershell
-Invoke-WebRequest https://raw.githubusercontent.com/momota1029/yulang/main/scripts/install.ps1 -OutFile install.ps1
+Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.1
 ```
 

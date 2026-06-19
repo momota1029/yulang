@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "build": "npm --prefix playground run build && npm --prefix docs run build",
+    "build": "npm --prefix playground run build && npm --prefix docs run build && node scripts/copy-installers.mjs",
     "deploy:dir": "npm run build && node scripts/deploy-dir.mjs"
   }
 }

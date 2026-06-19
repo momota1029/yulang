@@ -26,7 +26,7 @@ OS ごとの release archive を入れます。binary には embedded standard l
 初回にユーザー library directory へ配置されます。
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/momota1029/yulang/main/scripts/install.sh | sh -s -- --version v0.1.0-alpha.1
+curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.1
 ```
 
 その後は、そのまま program を実行したり、型を表示したりできます。

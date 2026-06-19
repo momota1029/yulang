@@ -12,7 +12,7 @@ The language server ships inside the main `yulang` binary. Install a release
 binary first:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/momota1029/yulang/main/scripts/install.sh | sh -s -- --version v0.1.0-alpha.1
+curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.1
 ```
 
 The extension searches for the `yulang` binary in the current worktree
