@@ -453,6 +453,41 @@ fn var_var_replay_materializes_transitive_edges() {
 }
 
 #[test]
+fn var_var_replay_keeps_pop_only_alias_cycle_finite() {
+    let mut machine = ConstraintMachine::new();
+    let subtract = SubtractId(0);
+    let a = TypeVar(0);
+    let b = TypeVar(1);
+
+    let a_pos = machine.alloc_pos(Pos::Var(a));
+    let b_neg = machine.alloc_neg(Neg::Var(b));
+    machine.weighted_subtype(
+        a_pos,
+        ConstraintWeights {
+            left: StackWeight::pop(subtract),
+            right: StackWeight::empty(),
+        },
+        b_neg,
+    );
+
+    let b_pos = machine.alloc_pos(Pos::Var(b));
+    let a_neg = machine.alloc_neg(Neg::Var(a));
+    machine.subtype(b_pos, a_neg);
+
+    for var in [a, b] {
+        let Some(bounds) = machine.bounds().of(var) else {
+            continue;
+        };
+        for lower in bounds.lowers() {
+            assert_pop_only_weights_do_not_grow(&lower.weights, subtract);
+        }
+        for upper in bounds.uppers() {
+            assert_pop_only_weights_do_not_grow(&upper.weights, subtract);
+        }
+    }
+}
+
+#[test]
 fn zero_arg_nominal_subtype_deduplicates_weight_insensitive_edges() {
     let mut machine = ConstraintMachine::new();
     let lower = machine.alloc_pos(Pos::Con(vec!["bool".into()], Vec::new()));
@@ -866,4 +901,20 @@ fn var_to_effect_row_upper_without_stack_weight_stores_raw_row() {
         }]
     );
     assert!(machine.bounds().of(tail_var).is_none());
+}
+
+fn assert_pop_only_weights_do_not_grow(weights: &ConstraintWeights, subtract: SubtractId) {
+    assert_pop_only_weight_does_not_grow(&weights.left, subtract);
+    assert_pop_only_weight_does_not_grow(&weights.right, subtract);
+}
+
+fn assert_pop_only_weight_does_not_grow(weight: &StackWeight, subtract: SubtractId) {
+    for entry in weight.entries() {
+        if entry.id == subtract && entry.floor.is_empty() && entry.stack.is_empty() {
+            assert!(
+                entry.pops <= 1,
+                "alias replay should not grow naked pop-only weights: {weight:?}"
+            );
+        }
+    }
 }

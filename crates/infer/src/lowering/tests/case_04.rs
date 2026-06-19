@@ -69,7 +69,7 @@ fn std_ref_update_method_body_lowers() {
     let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
     assert_eq!(
         rendered,
-        "std::control::var::ref('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] ()"
+        "std::control::var::ref('a & 'c, 'b) -> ('b -> ['c#4[Empty]] 'b) -> ['c#4(1)[Empty], 'a#4] ()"
     );
     let update_effect =
         find_select_by_name(&output.session, body, "update_effect").expect("update_effect");

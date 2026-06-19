@@ -420,6 +420,22 @@ impl StackWeight {
         out
     }
 
+    /// Var-to-var replay treats aliases as the same boundary, so cycling through
+    /// the same `SubtractId` must not turn `pop(1)` into `pop(n)`.
+    pub fn compose_for_alias_replay(&self, other: &Self) -> Self {
+        let mut out = self.compose(other);
+        out.cap_alias_pop_only_counts();
+        out
+    }
+
+    /// Normalize an already-built var-to-var alias edge. Real nested annotations
+    /// use distinct subtract ids; repeated naked pops for one id are alias cycles.
+    pub fn normalize_for_alias_replay(&self) -> Self {
+        let mut out = self.clone();
+        out.cap_alias_pop_only_counts();
+        out
+    }
+
     pub fn without_ids(&self, dead: impl Fn(SubtractId) -> bool) -> Self {
         let entries = self
             .entries
@@ -568,6 +584,17 @@ impl StackWeight {
             }
         }
         self.remove_empty_entry(incoming.id);
+    }
+
+    fn cap_alias_pop_only_counts(&mut self) {
+        for entry in &mut self.entries {
+            if !entry.floor.is_empty() || !entry.stack.is_empty() {
+                continue;
+            }
+            entry.pops = entry.pops.min(1);
+        }
+        self.entries
+            .retain(|entry| entry.pops > 0 || !entry.floor.is_empty() || !entry.stack.is_empty());
     }
 
     fn entry_mut(&mut self, id: SubtractId) -> &mut StackWeightEntry {
@@ -843,6 +870,41 @@ mod tests {
         assert_eq!(entry.pops, 2);
         assert!(entry.floor.is_empty());
         assert!(entry.stack.is_empty());
+    }
+
+    #[test]
+    fn stack_weight_alias_replay_keeps_pop_only_count_idempotent() {
+        let id = SubtractId(0);
+        let combined = StackWeight::pop(id).compose_for_alias_replay(&StackWeight::pop(id));
+
+        let [entry] = combined.entries() else {
+            panic!("expected one stack entry");
+        };
+        assert_eq!(entry.pops, 1);
+        assert!(entry.floor.is_empty());
+        assert!(entry.stack.is_empty());
+    }
+
+    #[test]
+    fn stack_weight_alias_replay_caps_pop_only_alias_cycle_count() {
+        let id = SubtractId(0);
+        let combined = StackWeight::pops(id, 2).compose_for_alias_replay(&StackWeight::pop(id));
+
+        let [entry] = combined.entries() else {
+            panic!("expected one stack entry");
+        };
+        assert_eq!(entry.pops, 1);
+        assert!(entry.floor.is_empty());
+        assert!(entry.stack.is_empty());
+    }
+
+    #[test]
+    fn stack_weight_alias_replay_still_cancels_push_pop() {
+        let id = SubtractId(0);
+        let combined = StackWeight::push(id, Subtractability::Empty)
+            .compose_for_alias_replay(&StackWeight::pop(id));
+
+        assert!(combined.is_empty());
     }
 
     #[test]

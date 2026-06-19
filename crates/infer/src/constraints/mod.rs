@@ -382,6 +382,26 @@ impl ConstraintWeights {
             right: other.right.compose(&self.right).saturate_unmatched_pops(),
         }
     }
+
+    pub fn compose_for_var_var_replay(&self, other: &Self) -> Self {
+        Self {
+            left: self
+                .left
+                .compose_for_alias_replay(&other.left)
+                .saturate_unmatched_pops(),
+            right: other
+                .right
+                .compose_for_alias_replay(&self.right)
+                .saturate_unmatched_pops(),
+        }
+    }
+
+    pub fn normalize_for_var_var_replay(&self) -> Self {
+        Self {
+            left: self.left.normalize_for_alias_replay(),
+            right: self.right.normalize_for_alias_replay(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

@@ -257,6 +257,7 @@ impl ConstraintMachine {
             return false;
         }
         let weights = self.terminal_subtype_weights(lower, upper, weights);
+        let weights = self.var_var_subtype_weights(lower, upper, weights);
         if !self.record_var_var_constraint(lower, upper, &weights) {
             return false;
         }
@@ -321,6 +322,19 @@ impl ConstraintMachine {
                 ConstraintWeights::empty()
             }
             _ => weights,
+        }
+    }
+
+    fn var_var_subtype_weights(
+        &self,
+        lower: PosId,
+        upper: NegId,
+        weights: ConstraintWeights,
+    ) -> ConstraintWeights {
+        if self.is_var_var_replay(lower, upper) {
+            weights.normalize_for_var_var_replay()
+        } else {
+            weights
         }
     }
 
