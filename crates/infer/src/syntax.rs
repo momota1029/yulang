@@ -69,7 +69,7 @@ fn token_source_range_for_name(
     }
 }
 
-fn token_source_range(token: &rowan::SyntaxToken<YulangLanguage>) -> SourceRange {
+pub(crate) fn token_source_range(token: &rowan::SyntaxToken<YulangLanguage>) -> SourceRange {
     let range = token.text_range();
     SourceRange {
         start: usize::from(range.start()),

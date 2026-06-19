@@ -931,13 +931,38 @@ fn source_diagnostics_from_check(
             let error = &check.lowering.errors[diagnostic.error_index];
             SourceDiagnostic {
                 label: diagnostic.label.clone(),
-                range: diagnostic
-                    .def
-                    .and_then(|def| check.lowering.modules.def_source_range(def)),
+                range: body_lowering_error_source_range(error).or_else(|| {
+                    diagnostic
+                        .def
+                        .and_then(|def| check.lowering.modules.def_source_range(def))
+                }),
                 message: format_body_lowering_error(error),
             }
         })
         .collect()
+}
+
+fn body_lowering_error_source_range(
+    error: &infer::lowering::BodyLoweringError,
+) -> Option<SourceRange> {
+    match error {
+        infer::lowering::BodyLoweringError::Expr { error, .. }
+        | infer::lowering::BodyLoweringError::RootExpr { error } => {
+            lowering_error_source_range(error)
+        }
+        infer::lowering::BodyLoweringError::MissingBindingDecl { .. }
+        | infer::lowering::BodyLoweringError::MissingModuleDecl { .. }
+        | infer::lowering::BodyLoweringError::MissingBody { .. }
+        | infer::lowering::BodyLoweringError::NonLetDef { .. }
+        | infer::lowering::BodyLoweringError::Analysis(_) => None,
+    }
+}
+
+fn lowering_error_source_range(error: &infer::lowering::LoweringError) -> Option<SourceRange> {
+    match error {
+        infer::lowering::LoweringError::UnresolvedName { source_range, .. } => *source_range,
+        _ => None,
+    }
 }
 
 fn dump_poly_from_sources(

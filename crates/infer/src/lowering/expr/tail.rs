@@ -2,6 +2,7 @@
 
 use super::super::*;
 use super::*;
+use crate::token_source_range;
 
 impl<'a> ExprLowerer<'a> {
     pub(in crate::lowering) fn lower_tail_node(
@@ -248,19 +249,20 @@ impl<'a> ExprLowerer<'a> {
             .children_with_tokens()
             .filter(|item| !item_is_trivia(item))
             .find_map(|item| item.into_token())
-            .map(|tok| tok.text().to_string())
+            .map(|tok| (tok.text().to_string(), token_source_range(&tok)))
             .ok_or(LoweringError::MissingOpName)?;
-        self.resolve_op_symbol(fixity, &symbol)
+        self.resolve_op_symbol_at(fixity, &symbol.0, Some(symbol.1))
     }
 
-    pub(in crate::lowering) fn resolve_op_symbol(
+    pub(in crate::lowering) fn resolve_op_symbol_at(
         &mut self,
         fixity: &'static str,
         symbol: &str,
+        source_range: Option<SourceRange>,
     ) -> Result<(Computation, bool), LoweringError> {
         let name = crate::op_value_name(fixity, symbol);
         let Some(target) = self.modules.lexical_value_at(self.module, &name, self.site) else {
-            return Err(LoweringError::UnresolvedName { name });
+            return Err(LoweringError::UnresolvedName { name, source_range });
         };
         let lazy = self.modules.is_lazy_op(target);
         let value = self.fresh_type_var();
@@ -337,11 +339,12 @@ impl<'a> ExprLowerer<'a> {
         Ok(self.make_app(op, arg))
     }
 
-    pub(in crate::lowering) fn lower_nullfix_op_use(
+    pub(in crate::lowering) fn lower_nullfix_op_use_at(
         &mut self,
         symbol: &str,
+        source_range: Option<SourceRange>,
     ) -> Result<Computation, LoweringError> {
-        let (op, _lazy) = self.resolve_op_symbol("nullfix", symbol)?;
+        let (op, _lazy) = self.resolve_op_symbol_at("nullfix", symbol, source_range)?;
         let unit = self.unit_expr();
         Ok(self.make_app(op, unit))
     }

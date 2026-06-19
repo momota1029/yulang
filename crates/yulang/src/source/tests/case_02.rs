@@ -1012,6 +1012,36 @@ fn analyze_entry_source_uses_in_memory_root_source() {
 }
 
 #[test]
+fn analyze_entry_source_reports_unresolved_name_source_range() {
+    let root = temp_root("analyze-entry-source-unresolved-range");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("lib").join("std")).unwrap();
+    fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+    fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+    let output = analyze_entry_source_with_std_options(
+        root.join("main.yu"),
+        "my result = missing\n",
+        &StdSourceOptions {
+            std_root: Some(root.join("lib")),
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        output.diagnostics,
+        vec![SourceDiagnostic {
+            label: Some("result".to_string()),
+            range: Some(SourceRange {
+                start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 12,
+                end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 19,
+            }),
+            message: "unresolved value name: missing".to_string(),
+        }]
+    );
+}
+
+#[test]
 fn check_poly_std_in_filters_to_requested_module() {
     let root = temp_root("check-poly-std-in");
     let _ = fs::remove_dir_all(&root);

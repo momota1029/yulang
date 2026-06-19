@@ -1050,11 +1050,11 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
             ..
         } => format!("unresolved type name: {}", format_name_path(path)),
         infer::lowering::BodyLoweringError::Expr {
-            error: infer::lowering::LoweringError::UnresolvedName { name },
+            error: infer::lowering::LoweringError::UnresolvedName { name, .. },
             ..
         } => format!("unresolved value name: {}", name.0),
         infer::lowering::BodyLoweringError::RootExpr {
-            error: infer::lowering::LoweringError::UnresolvedName { name },
+            error: infer::lowering::LoweringError::UnresolvedName { name, .. },
         } => format!("unresolved value name in root expression: {}", name.0),
         infer::lowering::BodyLoweringError::RootExpr { error } => {
             format!("root expression lowering error: {error:?}")

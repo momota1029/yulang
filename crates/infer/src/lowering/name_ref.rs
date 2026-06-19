@@ -3,7 +3,11 @@
 use super::*;
 
 impl<'a> ExprLowerer<'a> {
-    pub(super) fn lower_path_name(&mut self, path: &[Name]) -> Result<Computation, LoweringError> {
+    pub(super) fn lower_path_name_at(
+        &mut self,
+        path: &[Name],
+        source_range: Option<SourceRange>,
+    ) -> Result<Computation, LoweringError> {
         if let Some(builtin) = builtin_op_from_path(path) {
             return self.lower_builtin_op(builtin);
         }
@@ -11,6 +15,7 @@ impl<'a> ExprLowerer<'a> {
         let Some(target) = self.modules.value_path_at(self.module, path, self.site) else {
             return Err(LoweringError::UnresolvedName {
                 name: Name(path_label(path)),
+                source_range,
             });
         };
         Ok(self.lower_resolved_value_ref(path_label(path), target))
@@ -27,12 +32,21 @@ impl<'a> ExprLowerer<'a> {
         else {
             return Err(LoweringError::UnresolvedName {
                 name: Name(path_label(&path)),
+                source_range: None,
             });
         };
         Ok(self.lower_resolved_value_ref(path_label(&path), target))
     }
 
     pub(super) fn lower_name(&mut self, name: Name) -> Result<Computation, LoweringError> {
+        self.lower_name_at(name, None)
+    }
+
+    pub(super) fn lower_name_at(
+        &mut self,
+        name: Name,
+        source_range: Option<SourceRange>,
+    ) -> Result<Computation, LoweringError> {
         if name.0 == "return"
             && let Some(target) = self.current_sub_return_target().cloned()
         {
@@ -50,7 +64,7 @@ impl<'a> ExprLowerer<'a> {
         }
 
         let Some(target) = self.modules.lexical_value_at(self.module, &name, self.site) else {
-            return Err(LoweringError::UnresolvedName { name });
+            return Err(LoweringError::UnresolvedName { name, source_range });
         };
         let label = name.0.clone();
         let value = self.fresh_type_var();
@@ -76,11 +90,15 @@ impl<'a> ExprLowerer<'a> {
         Ok(Computation::value(expr, value, effect))
     }
 
-    pub(super) fn lower_sigil_name(&mut self, text: &str) -> Result<Computation, LoweringError> {
+    pub(super) fn lower_sigil_name_at(
+        &mut self,
+        text: &str,
+        source_range: Option<SourceRange>,
+    ) -> Result<Computation, LoweringError> {
         let Some(reference_name) = var_read_reference_name(text) else {
-            return self.lower_name(Name(text.to_string()));
+            return self.lower_name_at(Name(text.to_string()), source_range);
         };
-        let reference = self.lower_name(reference_name)?;
+        let reference = self.lower_name_at(reference_name, source_range)?;
         let get = self.lower_synthetic_selection(reference, "get".to_string());
         let unit = self.unit_expr();
         Ok(self.make_app(get, unit))

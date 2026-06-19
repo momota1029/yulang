@@ -390,6 +390,42 @@ mod tests {
     }
 
     #[test]
+    fn diagnostics_use_unresolved_name_range() {
+        let root = temp_root("unresolved-name-range");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "my result = missing\n";
+        let diagnostics = diagnostics_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        assert_eq!(
+            diagnostics[0].range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 12
+                },
+                end: Position {
+                    line: 0,
+                    character: 19
+                },
+            }
+        );
+        assert!(
+            diagnostics[0].message.contains("unresolved value name"),
+            "{diagnostics:?}"
+        );
+    }
+
+    #[test]
     fn lsp_range_uses_utf16_columns() {
         let source = "my x = \"💡\"\nmy y: bool = 1\n";
         let start = source.find("y:").unwrap();

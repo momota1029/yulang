@@ -664,6 +664,7 @@ impl<'a> ExprLowerer<'a> {
             })
             .ok_or_else(|| LoweringError::UnresolvedName {
                 name: Name(format!("{}::{member}", act.source.0)),
+                source_range: None,
             })?;
         Ok(self.lower_resolved_value_ref(format!("{}::{member}", act.source.0), target))
     }

@@ -1,11 +1,28 @@
 //! CST accessors and small token predicates used by expression lowering.
 
 use super::*;
+use crate::{node_source_range, token_source_range};
 use num_bigint::BigInt;
 
 pub(super) fn item_is_trivia(item: &NodeOrToken<Cst, rowan::SyntaxToken<YulangLanguage>>) -> bool {
     item.as_token()
         .is_some_and(|token| matches!(token.kind(), SyntaxKind::Space | SyntaxKind::LineComment))
+}
+
+pub(super) fn item_source_range(item: &CstItem) -> SourceRange {
+    match item {
+        NodeOrToken::Node(node) => node_source_range(node),
+        NodeOrToken::Token(token) => token_source_range(token),
+    }
+}
+
+pub(super) fn item_slice_source_range(items: &[CstItem]) -> Option<SourceRange> {
+    let first = item_source_range(items.first()?);
+    let last = item_source_range(items.last()?);
+    Some(SourceRange {
+        start: first.start,
+        end: last.end,
+    })
 }
 
 pub(super) fn should_stop_expr_tail(

@@ -7,10 +7,19 @@ use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoweringError {
-    UnsupportedSyntax { kind: SyntaxKind },
-    UnsupportedPatternSyntax { kind: SyntaxKind },
-    UnresolvedName { name: Name },
-    InvalidNumber { text: String },
+    UnsupportedSyntax {
+        kind: SyntaxKind,
+    },
+    UnsupportedPatternSyntax {
+        kind: SyntaxKind,
+    },
+    UnresolvedName {
+        name: Name,
+        source_range: Option<SourceRange>,
+    },
+    InvalidNumber {
+        text: String,
+    },
     MissingLambdaBody,
     MissingIfCondition,
     MissingIfBody,
@@ -28,13 +37,32 @@ pub enum LoweringError {
     MissingIndexArgument,
     MissingLocalBindingName,
     MissingLocalBindingBody,
-    MissingLocalVarAct { name: Name },
-    MissingSubLabelAct { label: Name },
-    AnnotationBuild { error: AnnBuildError },
-    AnnotationConstraint { error: AnnConstraintError },
-    NegSignatureBuild { error: NegSignatureBuildError },
-    SignatureConstraint { error: SignatureConstraintError },
-    SignatureShapeMismatch { expected: SignatureShape },
-    SignatureTypeMismatch { expected: SignatureShape },
-    TypeMismatch { actual: String, expected: String },
+    MissingLocalVarAct {
+        name: Name,
+    },
+    MissingSubLabelAct {
+        label: Name,
+    },
+    AnnotationBuild {
+        error: AnnBuildError,
+    },
+    AnnotationConstraint {
+        error: AnnConstraintError,
+    },
+    NegSignatureBuild {
+        error: NegSignatureBuildError,
+    },
+    SignatureConstraint {
+        error: SignatureConstraintError,
+    },
+    SignatureShapeMismatch {
+        expected: SignatureShape,
+    },
+    SignatureTypeMismatch {
+        expected: SignatureShape,
+    },
+    TypeMismatch {
+        actual: String,
+        expected: String,
+    },
 }

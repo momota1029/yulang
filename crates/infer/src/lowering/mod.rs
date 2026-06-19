@@ -30,7 +30,7 @@ mod string_lit;
 use parser::lex::SyntaxKind;
 use parser::sink::YulangLanguage;
 use rowan::{NodeOrToken, SyntaxNode};
-use sources::{LoadedFile, Name, Path};
+use sources::{LoadedFile, Name, Path, SourceRange};
 
 use poly::dump::DumpLabels;
 use poly::expr::{

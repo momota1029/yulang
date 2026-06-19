@@ -2,6 +2,7 @@
 
 use super::super::*;
 use super::*;
+use crate::token_source_range;
 
 impl<'a> ExprLowerer<'a> {
     pub(in crate::lowering) fn lower_expr_with_lambda_scope(
@@ -90,7 +91,10 @@ impl<'a> ExprLowerer<'a> {
         }
 
         let (mut acc, tail_start) = match expr_path_prefix(&items) {
-            Some((path, consumed)) if path.len() > 1 => (self.lower_path_name(&path)?, consumed),
+            Some((path, consumed)) if path.len() > 1 => (
+                self.lower_path_name_at(&path, item_slice_source_range(&items[..consumed]))?,
+                consumed,
+            ),
             _ => (self.lower_head(head.clone(), head_lambda_scope)?, 1),
         };
         if let Some(pipe_arg) = pipe_arg {
@@ -391,6 +395,7 @@ impl<'a> ExprLowerer<'a> {
             })
             .ok_or_else(|| LoweringError::UnresolvedName {
                 name: Name(format!("{}::{member}", act.label.0)),
+                source_range: None,
             })
     }
 
@@ -403,6 +408,7 @@ impl<'a> ExprLowerer<'a> {
             .value_path_at(self.modules.root_id(), &path, module_path_lookup_site())
             .ok_or_else(|| LoweringError::UnresolvedName {
                 name: Name(path_label(&path)),
+                source_range: None,
             })
     }
 
@@ -412,6 +418,7 @@ impl<'a> ExprLowerer<'a> {
             .type_path_at(self.modules.root_id(), &path, module_path_lookup_site())
             .ok_or_else(|| LoweringError::UnresolvedName {
                 name: Name(path_label(&path)),
+                source_range: None,
             })
     }
 
@@ -426,6 +433,7 @@ impl<'a> ExprLowerer<'a> {
                 .type_decl_by_id(act.act)
                 .ok_or_else(|| LoweringError::UnresolvedName {
                     name: Name(act.label.0.clone()),
+                    source_range: None,
                 })?;
         let label_path = self.type_decl_path_segments(&label_decl);
         let sub_path = self.std_sub_effect_path()?;
@@ -485,12 +493,19 @@ impl<'a> ExprLowerer<'a> {
     ) -> Result<Computation, LoweringError> {
         match head {
             NodeOrToken::Token(token) => match token.kind() {
-                SyntaxKind::Ident => self.lower_name(Name(token.text().to_string())),
-                SyntaxKind::SigilIdent => self.lower_sigil_name(token.text()),
+                SyntaxKind::Ident => self.lower_name_at(
+                    Name(token.text().to_string()),
+                    Some(token_source_range(&token)),
+                ),
+                SyntaxKind::SigilIdent => {
+                    self.lower_sigil_name_at(token.text(), Some(token_source_range(&token)))
+                }
                 SyntaxKind::Number => self.lower_number(token.text()),
                 SyntaxKind::Do => Ok(self.do_replacement.unwrap_or_else(|| self.unit_expr())),
                 SyntaxKind::YadaYada => Ok(self.lower_yada_yada_expr()),
-                SyntaxKind::Nullfix => self.lower_nullfix_op_use(token.text()),
+                SyntaxKind::Nullfix => {
+                    self.lower_nullfix_op_use_at(token.text(), Some(token_source_range(&token)))
+                }
                 _ => Err(LoweringError::UnsupportedSyntax { kind: token.kind() }),
             },
             NodeOrToken::Node(node) => self.lower_atom_with_lambda_scope(&node, lambda_scope),
