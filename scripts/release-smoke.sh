@@ -33,6 +33,14 @@ run() {
   fi
 }
 
+path_for_compare() {
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -m "$1"
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
 cat >"$main" <<'YULANG'
 {
     my a = each 1..
@@ -60,12 +68,14 @@ case "$run_output" in
 esac
 
 cache_path="$(run "$bin" cache path)"
-case "$cache_path" in
-  "$YULANG_CACHE_DIR") ;;
+expected_cache_path="$(path_for_compare "$YULANG_CACHE_DIR")"
+actual_cache_path="$(path_for_compare "$cache_path")"
+case "$actual_cache_path" in
+  "$expected_cache_path") ;;
   *)
     echo "release smoke: cache path escaped isolated env" >&2
-    echo "expected: $YULANG_CACHE_DIR" >&2
-    echo "actual:   $cache_path" >&2
+    echo "expected: $expected_cache_path" >&2
+    echo "actual:   $actual_cache_path" >&2
     exit 1
     ;;
 esac
