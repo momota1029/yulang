@@ -29,6 +29,20 @@ OS ごとの release archive を入れます。binary には embedded standard l
 curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.1
 ```
 
+installer は `~/.yulang/bin` が `PATH` に無い場合、shell profile へ追加します。
+反映には terminal の再起動が必要です。自分で `PATH` を管理したい場合は
+`--no-modify-path` を渡します。
+
+Windows では次の形です。
+
+```powershell
+Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.1
+```
+
+PowerShell installer は install 先の `bin` directory を user `PATH` に追加します。
+この処理を省く場合は `-NoModifyPath` を渡します。
+
 release install を消す場合は uninstaller を使います。
 
 ```sh

@@ -32,6 +32,20 @@ standard library and writes it to the user library directory on first use:
 curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.1
 ```
 
+The shell installer adds `~/.yulang/bin` to the relevant shell profile if it is
+not already on `PATH`; restart the terminal before running `yulang`. Pass
+`--no-modify-path` if you want to manage `PATH` yourself.
+
+On Windows:
+
+```powershell
+Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.1
+```
+
+The PowerShell installer adds the install `bin` directory to the user `PATH`.
+Use `-NoModifyPath` to skip that step.
+
 To remove a release install:
 
 ```sh

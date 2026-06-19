@@ -23,7 +23,16 @@ directory:
 
 ```bash
 curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.1
-yulang run examples/06_undet_once.yu
+```
+
+The installer adds `~/.yulang/bin` to your shell profile when it is not already
+on `PATH`; restart the terminal before running `yulang`. Pass
+`--no-modify-path` if you want to manage `PATH` yourself.
+
+In the current terminal, use the installed binary path directly:
+
+```bash
+~/.yulang/bin/yulang run examples/06_undet_once.yu
 ```
 
 On Windows, download and run the PowerShell installer:
@@ -32,6 +41,9 @@ On Windows, download and run the PowerShell installer:
 Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.1
 ```
+
+The PowerShell installer adds the install `bin` directory to the user `PATH`.
+Pass `-NoModifyPath` to skip that update.
 
 To uninstall a release install:
 

@@ -1,7 +1,8 @@
 param(
     [string]$Version = $env:YULANG_VERSION,
     [string]$Prefix = $env:YULANG_INSTALL_DIR,
-    [string]$Repo = $env:YULANG_INSTALL_REPO
+    [string]$Repo = $env:YULANG_INSTALL_REPO,
+    [switch]$NoModifyPath
 )
 
 if ([string]::IsNullOrWhiteSpace($Version)) {
@@ -12,6 +13,65 @@ if ([string]::IsNullOrWhiteSpace($Prefix)) {
 }
 if ([string]::IsNullOrWhiteSpace($Repo)) {
     $Repo = "momota1029/yulang"
+}
+$Prefix = [System.IO.Path]::GetFullPath($Prefix)
+
+function ConvertTo-YulangPathEntry {
+    param([string]$Path)
+    return [System.IO.Path]::GetFullPath($Path).TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    )
+}
+
+function Test-YulangPathContains {
+    param([string]$PathValue, [string]$Entry)
+    if ([string]::IsNullOrWhiteSpace($PathValue)) {
+        return $false
+    }
+
+    $entryFullName = ConvertTo-YulangPathEntry $Entry
+    foreach ($part in ($PathValue -split [System.IO.Path]::PathSeparator)) {
+        if ([string]::IsNullOrWhiteSpace($part)) {
+            continue
+        }
+        $partFullName = ConvertTo-YulangPathEntry $part
+        if ([string]::Equals($partFullName, $entryFullName, [System.StringComparison]::OrdinalIgnoreCase)) {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Add-YulangUserPath {
+    param([string]$Entry)
+    if ($NoModifyPath -or $env:YULANG_NO_MODIFY_PATH -eq "1") {
+        Write-Output "Skipped PATH update for $Entry"
+        Write-Output "Add $Entry to PATH manually."
+        return
+    }
+
+    $entryFullName = ConvertTo-YulangPathEntry $Entry
+    $userPath = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User)
+    if (Test-YulangPathContains $userPath $entryFullName) {
+        if (-not (Test-YulangPathContains $env:Path $entryFullName)) {
+            $env:Path = "$entryFullName$([System.IO.Path]::PathSeparator)$env:Path"
+        }
+        Write-Output "$entryFullName is already on the user PATH"
+        return
+    }
+
+    if ([string]::IsNullOrWhiteSpace($userPath)) {
+        $newUserPath = $entryFullName
+    } else {
+        $newUserPath = "$userPath$([System.IO.Path]::PathSeparator)$entryFullName"
+    }
+    [Environment]::SetEnvironmentVariable("Path", $newUserPath, [EnvironmentVariableTarget]::User)
+    if (-not (Test-YulangPathContains $env:Path $entryFullName)) {
+        $env:Path = "$entryFullName$([System.IO.Path]::PathSeparator)$env:Path"
+    }
+    Write-Output "Added $entryFullName to the user PATH"
+    Write-Output "Restart your terminal to use yulang from PATH."
 }
 
 $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
@@ -94,7 +154,7 @@ try {
     }
 
     Write-Output "Installed yulang to $installed"
-    Write-Output "Add $binDir to PATH if it is not already there."
+    Add-YulangUserPath $binDir
 } finally {
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }

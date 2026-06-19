@@ -4,10 +4,11 @@ set -eu
 repo="${YULANG_INSTALL_REPO:-momota1029/yulang}"
 version="${YULANG_VERSION:-latest}"
 prefix="${YULANG_INSTALL_DIR:-$HOME/.yulang}"
+modify_path=1
 
 usage() {
   cat >&2 <<'EOF'
-usage: scripts/install.sh [--version <tag|latest>] [--prefix <dir>] [--repo <owner/repo>]
+usage: scripts/install.sh [--version <tag|latest>] [--prefix <dir>] [--repo <owner/repo>] [--no-modify-path]
 
 Environment:
   YULANG_VERSION       Release tag to install. Defaults to latest full release.
@@ -15,6 +16,8 @@ Environment:
   YULANG_INSTALL_REPO  GitHub repository. Defaults to momota1029/yulang.
   YULANG_RELEASE_BASE_URL
                        Override release download base URL, mainly for CI smoke.
+  YULANG_NO_MODIFY_PATH
+                       Set to 1 to skip shell profile PATH edits.
 
 Alpha releases are GitHub prereleases, so install them with:
   scripts/install.sh --version v0.1.0-alpha.1
@@ -47,6 +50,10 @@ while [ "$#" -gt 0 ]; do
       repo="${1#--repo=}"
       shift
       ;;
+    --no-modify-path)
+      modify_path=0
+      shift
+      ;;
     -h | --help)
       usage
       exit 0
@@ -64,11 +71,109 @@ if [ -z "$version" ] || [ -z "$prefix" ] || [ -z "$repo" ]; then
   exit 1
 fi
 
+canonical_install_prefix() {
+  path="$1"
+  if [ -d "$path" ]; then
+    (cd "$path" && pwd -P)
+    return
+  fi
+
+  parent="$(dirname "$path")"
+  base="$(basename "$path")"
+  mkdir -p "$parent"
+  parent_canon="$(cd "$parent" && pwd -P)"
+  if [ "$parent_canon" = "/" ]; then
+    printf '/%s\n' "$base"
+  else
+    printf '%s/%s\n' "$parent_canon" "$base"
+  fi
+}
+
+prefix="$(canonical_install_prefix "$prefix")"
+
 need() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "install.sh: required command not found: $1" >&2
     exit 1
   fi
+}
+
+path_contains() {
+  case ":${PATH:-}:" in
+    *":$1:"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+escape_double_quoted_path() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\$/\\$/g; s/`/\\`/g'
+}
+
+remove_yulang_path_block() {
+  profile="$1"
+  [ -f "$profile" ] || return 0
+  tmp_profile="$tmp/profile"
+  awk '
+    /^# >>> yulang path >>>$/ { skip = 1; next }
+    /^# <<< yulang path <<<$/{ skip = 0; next }
+    skip != 1 { print }
+  ' "$profile" >"$tmp_profile"
+  cat "$tmp_profile" >"$profile"
+}
+
+shell_profile_path() {
+  shell_name="$(basename "${SHELL:-}")"
+  case "$shell_name" in
+    zsh) printf '%s\n' "$HOME/.zshrc" ;;
+    bash) printf '%s\n' "$HOME/.bashrc" ;;
+    *) printf '%s\n' "$HOME/.profile" ;;
+  esac
+}
+
+install_path_entry() {
+  if [ "${YULANG_NO_MODIFY_PATH:-0}" = "1" ] || [ "$modify_path" -eq 0 ]; then
+    echo "Skipped PATH update for $bin_dir"
+    echo "Add $bin_dir to PATH manually."
+    return
+  fi
+
+  if path_contains "$bin_dir"; then
+    echo "$bin_dir is already on PATH"
+    return
+  fi
+
+  shell_name="$(basename "${SHELL:-}")"
+  escaped_bin_dir="$(escape_double_quoted_path "$bin_dir")"
+  if [ "$shell_name" = "fish" ]; then
+    fish_dir="$HOME/.config/fish/conf.d"
+    fish_profile="$fish_dir/yulang.fish"
+    mkdir -p "$fish_dir"
+    cat >"$fish_profile" <<EOF
+# Added by yulang installer.
+if not contains -- "$escaped_bin_dir" \$PATH
+    set -gx PATH "$escaped_bin_dir" \$PATH
+end
+EOF
+    echo "Added $bin_dir to PATH in $fish_profile"
+    echo "Restart your shell to use yulang from PATH."
+    return
+  fi
+
+  profile="$(shell_profile_path)"
+  mkdir -p "$(dirname "$profile")"
+  touch "$profile"
+  remove_yulang_path_block "$profile"
+  cat >>"$profile" <<EOF
+# >>> yulang path >>>
+# Added by yulang installer.
+case ":\$PATH:" in
+  *:"$escaped_bin_dir":*) ;;
+  *) export PATH="$escaped_bin_dir:\$PATH" ;;
+esac
+# <<< yulang path <<<
+EOF
+  echo "Added $bin_dir to PATH in $profile"
+  echo "Restart your shell to use yulang from PATH."
 }
 
 detect_target() {
@@ -168,4 +273,4 @@ mkdir -p "$lib_dir"
 YULANG_LIB_DIR="$lib_dir" "$bin_dir/yulang" install std >/dev/null
 
 echo "Installed yulang to $bin_dir/yulang"
-echo "Add $bin_dir to PATH if it is not already there."
+install_path_entry

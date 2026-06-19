@@ -1,7 +1,8 @@
 param(
     [string]$Prefix = $env:YULANG_INSTALL_DIR,
     [switch]$All,
-    [switch]$PurgeCache
+    [switch]$PurgeCache,
+    [switch]$NoModifyPath
 )
 
 if ([string]::IsNullOrWhiteSpace($Prefix)) {
@@ -27,6 +28,46 @@ function Test-YulangSamePath {
         $Right.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar),
         [System.StringComparison]::OrdinalIgnoreCase
     )
+}
+
+function ConvertTo-YulangPathEntry {
+    param([string]$Path)
+    return [System.IO.Path]::GetFullPath($Path).TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    )
+}
+
+function Remove-YulangUserPath {
+    param([string]$Entry)
+    if ($NoModifyPath -or $env:YULANG_NO_MODIFY_PATH -eq "1") {
+        return
+    }
+
+    $entryFullName = ConvertTo-YulangPathEntry $Entry
+    $userPath = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User)
+    if ([string]::IsNullOrWhiteSpace($userPath)) {
+        return
+    }
+
+    $kept = @()
+    $removed = $false
+    foreach ($part in ($userPath -split [System.IO.Path]::PathSeparator)) {
+        if ([string]::IsNullOrWhiteSpace($part)) {
+            continue
+        }
+        $partFullName = ConvertTo-YulangPathEntry $part
+        if ([string]::Equals($partFullName, $entryFullName, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $removed = $true
+            continue
+        }
+        $kept += $part
+    }
+
+    if ($removed) {
+        [Environment]::SetEnvironmentVariable("Path", ($kept -join [System.IO.Path]::PathSeparator), [EnvironmentVariableTarget]::User)
+        Write-Output "Removed $entryFullName from the user PATH"
+    }
 }
 
 $homeFullName = Get-YulangCanonicalPath $HOME
@@ -87,4 +128,4 @@ if ($PurgeCache) {
 
 Write-Output "Uninstalled yulang from $Prefix"
 $pathEntry = Join-Path $Prefix "bin"
-Write-Output "Remove $pathEntry from PATH if it was added there."
+Remove-YulangUserPath $pathEntry

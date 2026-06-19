@@ -4,10 +4,11 @@ set -eu
 prefix="${YULANG_INSTALL_DIR:-$HOME/.yulang}"
 remove_all=0
 purge_cache=0
+modify_path=1
 
 usage() {
   cat >&2 <<'EOF'
-usage: scripts/uninstall.sh [--prefix <dir>] [--all] [--purge-cache]
+usage: scripts/uninstall.sh [--prefix <dir>] [--all] [--purge-cache] [--no-modify-path]
 
 Environment:
   YULANG_INSTALL_DIR   Install prefix. Defaults to ~/.yulang.
@@ -19,6 +20,8 @@ By default this removes the release-managed binary and versioned std roots:
 Options:
   --all          Remove the whole install prefix.
   --purge-cache  Also remove the user artifact cache.
+  --no-modify-path
+                 Leave shell profile PATH entries untouched.
 EOF
 }
 
@@ -38,6 +41,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --purge-cache)
       purge_cache=1
+      shift
+      ;;
+    --no-modify-path)
+      modify_path=0
       shift
       ;;
     -h | --help)
@@ -104,6 +111,35 @@ cache_root() {
   fi
 }
 
+remove_yulang_path_block() {
+  profile="$1"
+  [ -f "$profile" ] || return 0
+  tmp_profile="${TMPDIR:-/tmp}/yulang-uninstall-profile.$$"
+  awk '
+    /^# >>> yulang path >>>$/ { skip = 1; next }
+    /^# <<< yulang path <<<$/{ skip = 0; next }
+    skip != 1 { print }
+  ' "$profile" >"$tmp_profile"
+  cat "$tmp_profile" >"$profile"
+  rm -f "$tmp_profile"
+}
+
+remove_path_entries() {
+  if [ "${YULANG_NO_MODIFY_PATH:-0}" = "1" ] || [ "$modify_path" -eq 0 ]; then
+    return
+  fi
+
+  for profile in "$HOME/.profile" "$HOME/.bashrc" "$HOME/.zshrc"; do
+    remove_yulang_path_block "$profile"
+  done
+
+  fish_profile="$HOME/.config/fish/conf.d/yulang.fish"
+  if [ -f "$fish_profile" ]; then
+    rm -f "$fish_profile"
+    echo "Removed $fish_profile"
+  fi
+}
+
 if [ "$remove_all" -eq 1 ]; then
   remove_path "$prefix"
 else
@@ -124,5 +160,5 @@ if [ "$purge_cache" -eq 1 ]; then
   remove_path "$(cache_root)"
 fi
 
+remove_path_entries
 echo "Uninstalled yulang from $prefix"
-echo "Remove $prefix/bin from PATH if it was added there."

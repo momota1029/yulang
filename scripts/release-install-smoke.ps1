@@ -45,6 +45,7 @@ $previousCache = $env:YULANG_CACHE_DIR
 $previousStd = $env:YULANG_STD
 $previousLib = $env:YULANG_LIB_DIR
 $previousBase = $env:YULANG_RELEASE_BASE_URL
+$previousUserPath = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User)
 
 $pythonCommand = Get-Command python3 -ErrorAction SilentlyContinue
 if ($null -eq $pythonCommand) {
@@ -54,6 +55,7 @@ if ($null -eq $pythonCommand) {
     Write-Error "release install smoke: python3 or python is required"
     exit 1
 }
+$powerShellCommand = (Get-Process -Id $PID).Path
 
 function Start-ReleaseServer {
     param([string]$Root)
@@ -114,12 +116,55 @@ function Install-Yulang {
     if (-not (Get-ChildItem -LiteralPath (Join-Path $prefix "lib") -Directory -Filter "yulang-*" | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName "std.yu") } | Select-Object -First 1)) {
         throw "release install smoke: versioned std root not installed under prefix"
     }
+    Assert-PathRegistered
 }
 
 function Assert-NoHomeStd {
     $homeLib = Join-Path $home ".yulang/lib"
     if ((Test-Path -LiteralPath $homeLib) -and (Get-ChildItem -LiteralPath $homeLib -Directory -Filter "yulang-*" | Select-Object -First 1)) {
         throw "release install smoke: runtime created std under HOME instead of install prefix"
+    }
+}
+
+function ConvertTo-SmokePathEntry {
+    param([string]$Path)
+    return [System.IO.Path]::GetFullPath($Path).TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    )
+}
+
+function Test-SmokeUserPathContains {
+    param([string]$Entry)
+    $entryFullName = ConvertTo-SmokePathEntry $Entry
+    $userPath = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User)
+    if ([string]::IsNullOrWhiteSpace($userPath)) {
+        return $false
+    }
+
+    foreach ($part in ($userPath -split [System.IO.Path]::PathSeparator)) {
+        if ([string]::IsNullOrWhiteSpace($part)) {
+            continue
+        }
+        $partFullName = ConvertTo-SmokePathEntry $part
+        if ([string]::Equals($partFullName, $entryFullName, [System.StringComparison]::OrdinalIgnoreCase)) {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Assert-PathRegistered {
+    $entry = Join-Path $prefix "bin"
+    if (-not (Test-SmokeUserPathContains $entry)) {
+        throw "release install smoke: installer did not add $entry to the user PATH"
+    }
+}
+
+function Assert-PathRemoved {
+    $entry = Join-Path $prefix "bin"
+    if (Test-SmokeUserPathContains $entry) {
+        throw "release install smoke: uninstaller left $entry in the user PATH"
     }
 }
 
@@ -177,6 +222,7 @@ try {
     if (-not (Test-Path -LiteralPath (Join-Path $cache "sentinel"))) {
         throw "release install smoke: default uninstall removed cache sentinel"
     }
+    Assert-PathRemoved
 
     Install-Yulang
     New-Item -ItemType Directory -Path $cache -Force | Out-Null
@@ -185,6 +231,7 @@ try {
     if (Test-Path -LiteralPath $cache) {
         throw "release install smoke: purge-cache left cache root"
     }
+    Assert-PathRemoved
 
     Install-Yulang
     New-Item -ItemType File -Path (Join-Path $prefix "sentinel") -Force | Out-Null
@@ -192,9 +239,10 @@ try {
     if (Test-Path -LiteralPath $prefix) {
         throw "release install smoke: all uninstall left prefix"
     }
+    Assert-PathRemoved
 
     New-Item -ItemType File -Path (Join-Path $home "sentinel") -Force | Out-Null
-    $unsafe = Start-Process -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", (Join-Path $PSScriptRoot "uninstall.ps1"), "-Prefix", (Join-Path $home "."), "-All") -PassThru -Wait -NoNewWindow -RedirectStandardOutput (Join-Path $tmp "unsafe.out") -RedirectStandardError (Join-Path $tmp "unsafe.err")
+    $unsafe = Start-Process -FilePath $powerShellCommand -ArgumentList @("-NoProfile", "-File", (Join-Path $PSScriptRoot "uninstall.ps1"), "-Prefix", (Join-Path $home "."), "-All") -PassThru -Wait -NoNewWindow -RedirectStandardOutput (Join-Path $tmp "unsafe.out") -RedirectStandardError (Join-Path $tmp "unsafe.err")
     if ($unsafe.ExitCode -eq 0 -or -not (Test-Path -LiteralPath (Join-Path $home "sentinel"))) {
         throw "release install smoke: unsafe prefix was not rejected"
     }
@@ -211,5 +259,6 @@ try {
     if ($null -eq $previousStd) { Remove-Item Env:YULANG_STD -ErrorAction SilentlyContinue } else { $env:YULANG_STD = $previousStd }
     if ($null -eq $previousLib) { Remove-Item Env:YULANG_LIB_DIR -ErrorAction SilentlyContinue } else { $env:YULANG_LIB_DIR = $previousLib }
     if ($null -eq $previousBase) { Remove-Item Env:YULANG_RELEASE_BASE_URL -ErrorAction SilentlyContinue } else { $env:YULANG_RELEASE_BASE_URL = $previousBase }
+    [Environment]::SetEnvironmentVariable("Path", $previousUserPath, [EnvironmentVariableTarget]::User)
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }

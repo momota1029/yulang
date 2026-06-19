@@ -126,12 +126,14 @@ install_yulang() {
   if ! run env \
     YULANG_RELEASE_BASE_URL="$base_url" \
     HOME="$HOME" \
+    SHELL="$SHELL" \
     "$repo_root/scripts/install.sh" --version smoke --prefix "$prefix" >"$install_log" 2>&1; then
     cat "$install_log" >&2
     exit 1
   fi
   test -x "$prefix/bin/yulang"
   test -f "$prefix/lib/yulang-"*/std.yu
+  assert_path_registered
 }
 
 assert_no_home_std() {
@@ -142,7 +144,28 @@ assert_no_home_std() {
   fi
 }
 
+assert_path_registered() {
+  if ! grep -F "$prefix/bin" "$HOME/.profile" >/dev/null 2>&1; then
+    echo "release install smoke: installer did not register $prefix/bin in PATH profile" >&2
+    test -f "$HOME/.profile" && cat "$HOME/.profile" >&2
+    exit 1
+  fi
+  if ! run env -i HOME="$HOME" PATH="/usr/bin:/bin" sh -lc ". \"\$HOME/.profile\"; command -v yulang" >/dev/null; then
+    echo "release install smoke: yulang is not visible after loading installed PATH profile" >&2
+    exit 1
+  fi
+}
+
+assert_path_removed() {
+  if grep -F "$prefix/bin" "$HOME/.profile" >/dev/null 2>&1; then
+    echo "release install smoke: uninstaller left $prefix/bin in PATH profile" >&2
+    cat "$HOME/.profile" >&2
+    exit 1
+  fi
+}
+
 export HOME="$tmp/home"
+export SHELL="/bin/sh"
 export XDG_CACHE_HOME="$tmp/xdg-cache"
 export YULANG_CACHE_DIR="$tmp/yulang-cache"
 unset YULANG_STD
@@ -202,6 +225,7 @@ run "$repo_root/scripts/uninstall.sh" --prefix "$prefix" >/dev/null
 test ! -e "$prefix/bin/yulang"
 test -e "$prefix/sentinel"
 test -e "$YULANG_CACHE_DIR/sentinel"
+assert_path_removed
 if find "$prefix/lib" -mindepth 1 -maxdepth 1 -name 'yulang-*' 2>/dev/null | grep -q .; then
   echo "release install smoke: default uninstall left versioned std roots" >&2
   exit 1
@@ -212,11 +236,13 @@ mkdir -p "$YULANG_CACHE_DIR"
 touch "$YULANG_CACHE_DIR/sentinel"
 run "$repo_root/scripts/uninstall.sh" --prefix "$prefix" --purge-cache >/dev/null
 test ! -e "$YULANG_CACHE_DIR"
+assert_path_removed
 
 install_yulang
 touch "$prefix/sentinel"
 run "$repo_root/scripts/uninstall.sh" --prefix "$prefix" --all >/dev/null
 test ! -e "$prefix"
+assert_path_removed
 
 mkdir -p "$HOME"
 touch "$HOME/sentinel"
