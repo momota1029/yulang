@@ -143,6 +143,41 @@ fn act_body_result_effect_annotation_reuses_callback_tail() {
 }
 
 #[test]
+fn recursive_act_method_selection_passes_receiver_effect_as_argument_effect() {
+    let root = parse(concat!(
+        "act nondet:\n",
+        "  pub branch: () -> bool\n",
+        "  pub x.run = catch x:\n",
+        "    branch(), k -> k(true).run\n",
+        "    v -> v\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let nondet = lower
+        .modules
+        .type_path_at(
+            module,
+            &[Name("nondet".into())],
+            ModuleOrder::from_index(u32::MAX),
+        )
+        .expect("nondet type");
+    let run = lower.modules.act_methods(nondet.id)[0].def;
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, run));
+    assert!(
+        rendered.contains(" [nondet; '"),
+        "recursive act method should expose handled effect with an independent residual: {rendered}"
+    );
+    assert!(
+        !rendered.contains("& [nondet;"),
+        "recursive act method must not leak the receiver effect as a shallow handler: {rendered}"
+    );
+}
+
+#[test]
 fn role_method_selection_preserves_callback_residual_tail() {
     let root = parse(concat!(
         "type handled\n",

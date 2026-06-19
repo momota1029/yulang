@@ -1298,6 +1298,9 @@ fn body_lowering_error_source_range(
 fn lowering_error_source_range(error: &infer::lowering::LoweringError) -> Option<SourceRange> {
     match error {
         infer::lowering::LoweringError::UnresolvedName { source_range, .. } => *source_range,
+        infer::lowering::LoweringError::UnsupportedTopLevelVarBinding { source_range, .. } => {
+            *source_range
+        }
         _ => None,
     }
 }

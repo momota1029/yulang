@@ -647,6 +647,36 @@ fn dollar_sigil_read_lowers_to_ref_get_call() {
 }
 
 #[test]
+fn top_level_dollar_binding_reports_scope_error() {
+    let root = parse("my $x = 1\nmy got = $x\n");
+    let lower = lower_module_map(&root);
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(
+        output.errors.iter().any(|error| matches!(
+            error,
+            BodyLoweringError::Expr {
+                error: LoweringError::UnsupportedTopLevelVarBinding { name, .. },
+                ..
+            } if name == &Name("$x".into())
+        )),
+        "expected top-level dollar binding diagnostic, got {:?}",
+        output.errors
+    );
+    assert!(
+        !output.errors.iter().any(|error| matches!(
+            error,
+            BodyLoweringError::Expr {
+                error: LoweringError::UnresolvedName { name, .. },
+                ..
+            } if name == &Name("&x".into())
+        )),
+        "top-level dollar binding should not cascade to unresolved &x: {:?}",
+        output.errors
+    );
+}
+
+#[test]
 fn assign_tail_lowers_to_ref_set() {
     let root = parse("my &x = 1\nmy set = &x = 2\n");
     let lower = lower_module_map(&root);
@@ -972,6 +1002,132 @@ fn dollar_binding_inside_tuple_pattern_lowers_to_var_ref_and_run_wrapper() {
 }
 
 #[test]
+fn dollar_binding_inside_lambda_pattern_lowers_to_var_ref_and_run_wrapper() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  mod control:\n",
+        "    mod var:\n",
+        "      type ref 'e 'a with:\n",
+        "        our r.get = r\n",
+        "      act var 't:\n",
+        "        my var_ref() = 0\n",
+        "        my run v x = x\n",
+        "my f($x) = $x\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+    let local_var_act = lower.modules.synthetic_var_act_uses(f)[0].clone();
+    assert_eq!(local_var_act.source, Name("&x".into()));
+    let var_ref = act_member_def(&lower.modules, local_var_act.act, "var_ref");
+    let run = act_member_def(&lower.modules, local_var_act.act, "run");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let body = binding_body_id(&output, f);
+    let (init_def, lambda_body) = match output.session.poly.expr(body) {
+        Expr::Lambda(pat, body) => {
+            let init_def = match output.session.poly.pat(*pat) {
+                Pat::Var(def) => *def,
+                _ => panic!("expected mutable lambda parameter to bind init local"),
+            };
+            (init_def, *body)
+        }
+        _ => panic!("expected lambda body"),
+    };
+    assert_var_pattern_body_wrapper(&output, lambda_body, init_def, var_ref, run);
+}
+
+#[test]
+fn dollar_binding_inside_case_pattern_lowers_to_var_ref_and_run_wrapper() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  mod control:\n",
+        "    mod var:\n",
+        "      type ref 'e 'a with:\n",
+        "        our r.get = r\n",
+        "      act var 't:\n",
+        "        my var_ref() = 0\n",
+        "        my run v x = x\n",
+        "my f x = case x:\n",
+        "  $y -> $y\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+    let local_var_act = lower.modules.synthetic_var_act_uses(f)[0].clone();
+    assert_eq!(local_var_act.source, Name("&y".into()));
+    let var_ref = act_member_def(&lower.modules, local_var_act.act, "var_ref");
+    let run = act_member_def(&lower.modules, local_var_act.act, "run");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let body = binding_body_id(&output, f);
+    let case_body = match output.session.poly.expr(body) {
+        Expr::Lambda(_, body) => *body,
+        _ => panic!("expected function lambda"),
+    };
+    let arms = match output.session.poly.expr(case_body) {
+        Expr::Case(_, arms) => arms,
+        _ => panic!("expected case body"),
+    };
+    let [arm] = arms.as_slice() else {
+        panic!("expected one case arm");
+    };
+    let init_def = match output.session.poly.pat(arm.pat) {
+        Pat::Var(def) => *def,
+        _ => panic!("expected mutable case pattern to bind init local"),
+    };
+    assert_var_pattern_body_wrapper(&output, arm.body, init_def, var_ref, run);
+}
+
+#[test]
+fn dollar_binding_inside_catch_value_pattern_lowers_to_var_ref_and_run_wrapper() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  mod control:\n",
+        "    mod var:\n",
+        "      type ref 'e 'a with:\n",
+        "        our r.get = r\n",
+        "      act var 't:\n",
+        "        my var_ref() = 0\n",
+        "        my run v x = x\n",
+        "my f x = catch x:\n",
+        "  $y -> $y\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+    let local_var_act = lower.modules.synthetic_var_act_uses(f)[0].clone();
+    assert_eq!(local_var_act.source, Name("&y".into()));
+    let var_ref = act_member_def(&lower.modules, local_var_act.act, "var_ref");
+    let run = act_member_def(&lower.modules, local_var_act.act, "run");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let body = binding_body_id(&output, f);
+    let catch_body = match output.session.poly.expr(body) {
+        Expr::Lambda(_, body) => *body,
+        _ => panic!("expected function lambda"),
+    };
+    let arms = match output.session.poly.expr(catch_body) {
+        Expr::Catch(_, arms) => arms,
+        _ => panic!("expected catch body"),
+    };
+    let [arm] = arms.as_slice() else {
+        panic!("expected one catch arm");
+    };
+    let init_def = match output.session.poly.pat(arm.pat) {
+        Pat::Var(def) => *def,
+        _ => panic!("expected mutable catch pattern to bind init local"),
+    };
+    assert_var_pattern_body_wrapper(&output, arm.body, init_def, var_ref, run);
+}
+
+#[test]
 fn dollar_binding_synthetic_act_is_scoped_by_owner_def() {
     let root = parse(concat!(
         "mod std:\n",
@@ -1057,6 +1213,56 @@ fn dollar_binding_method_targets(output: &BodyLowering, owner: DefId) -> (DefId,
         .ref_target(expr_ref(&output.session, run_expr))
         .expect("run target");
     (var_ref, run)
+}
+
+fn assert_var_pattern_body_wrapper(
+    output: &BodyLowering,
+    body: poly::expr::ExprId,
+    init_def: DefId,
+    var_ref: DefId,
+    run: DefId,
+) {
+    let (reference_stmts, wrapped) = match output.session.poly.expr(body) {
+        Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+        _ => panic!("expected reference block"),
+    };
+    let [Stmt::Let(_, _, reference_expr)] = reference_stmts.as_slice() else {
+        panic!("expected reference let");
+    };
+    let var_ref_callee = match output.session.poly.expr(*reference_expr) {
+        Expr::App(callee, _) => *callee,
+        _ => panic!("expected var_ref call"),
+    };
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, var_ref_callee)),
+        Some(var_ref)
+    );
+
+    let run_with_init = match output.session.poly.expr(wrapped) {
+        Expr::App(callee, _) => *callee,
+        _ => panic!("expected run application"),
+    };
+    let (run_expr, init_arg) = match output.session.poly.expr(run_with_init) {
+        Expr::App(callee, init) => (*callee, *init),
+        _ => panic!("expected run init application"),
+    };
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, run_expr)),
+        Some(run)
+    );
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, init_arg)),
+        Some(init_def)
+    );
 }
 
 #[test]

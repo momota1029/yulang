@@ -704,6 +704,28 @@ fn dump_poly_std_nondet_once_act_method_uses_deep_handler_effect() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn dump_poly_std_nondet_list_act_method_uses_deep_handler_effect() {
+    let entry = write_main_with_std("dump-poly-std-nondet-list-type", "1\n");
+    let output =
+        dump_poly_from_entry_with_std_in_module(entry, "std.control.nondet.nondet").unwrap();
+
+    let list = output
+        .text
+        .lines()
+        .find(|line| line.starts_with("pub ") && line.contains("#act-method:list"))
+        .expect("list act method should be dumped");
+    assert!(
+        list.contains(" [std::control::nondet::nondet; '"),
+        "list act method should expose nondet with an independent residual:\n{list}"
+    );
+    assert!(
+        !list.contains("& [std::control::nondet::nondet;"),
+        "list act method is deep/recursive, not shallow:\n{list}"
+    );
+}
+
 #[test]
 fn run_control_source_text_with_embedded_std_runs_poly_variant_list() {
     let output =
@@ -1208,9 +1230,68 @@ fn hover_entry_source_shortens_import_visible_effect_paths() {
 }
 
 #[test]
+fn hover_entry_source_shortens_prelude_visible_effect_paths() {
+    let std_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib");
+    let source = "my run(x: [nondet] int): int = x\n";
+    let hover = hover_entry_source_with_std_options(
+        "main.yu",
+        source,
+        source.find("run").unwrap(),
+        &StdSourceOptions {
+            std_root: Some(std_root),
+        },
+    )
+    .unwrap()
+    .unwrap();
+
+    assert!(
+        hover.contents.contains("[nondet; "),
+        "expected prelude-visible nondet effect path to be shortened, got {:?}",
+        hover.contents
+    );
+    assert!(
+        !hover.contents.contains("std::control::nondet::nondet"),
+        "expected hover type to omit absolute nondet path, got {:?}",
+        hover.contents
+    );
+}
+
+#[test]
 fn hover_entry_source_shortens_selected_method_type_paths() {
     let std_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib");
     let source = "use std::control::nondet::*\nmy got = (each [1]).once\n";
+    let hover = hover_entry_source_with_std_options(
+        "main.yu",
+        source,
+        source.rfind("once").unwrap(),
+        &StdSourceOptions {
+            std_root: Some(std_root),
+        },
+    )
+    .unwrap()
+    .unwrap();
+
+    assert!(
+        hover.contents.contains("once: "),
+        "expected hover to show selected once method, got {:?}",
+        hover.contents
+    );
+    assert!(
+        !hover.contents.contains("std::control::nondet::nondet"),
+        "expected hover type to omit absolute nondet path, got {:?}",
+        hover.contents
+    );
+    assert!(
+        !hover.contents.contains("std::data::opt::opt"),
+        "expected hover type to omit absolute opt path, got {:?}",
+        hover.contents
+    );
+}
+
+#[test]
+fn hover_entry_source_shortens_prelude_visible_selected_method_type_paths() {
+    let std_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib");
+    let source = "my got = (each [1]).once\n";
     let hover = hover_entry_source_with_std_options(
         "main.yu",
         source,

@@ -20,6 +20,7 @@ pub use std::text::path::*
 pub use std::text::parse::parse
 pub use std::data::range::*
 pub use std::num::frac::{frac, new}
+pub use std::control::nondet::nondet
 pub use std::control::nondet::each
 pub use std::control::nondet::guard
 pub use std::data::index::Index

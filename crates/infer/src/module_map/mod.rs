@@ -145,7 +145,8 @@ impl Lower {
         }
         let owner = self.arena.defs.fresh();
         self.set_def_source_range(owner, node_source_range(expr));
-        self.register_local_var_act_copies_in_expr(expr, module, owner);
+        self.register_local_var_act_copies_in_patterns(expr, module, owner);
+        self.register_sub_label_act_copies_in_expr(expr, module, owner);
         self.modules.push_root_expr_owner(module, Some(owner));
     }
 
@@ -156,7 +157,8 @@ impl Lower {
         self.modules
             .insert_cast_decl(CastDecl { def, module, order });
         if let Some(body) = cast_body_expr(node) {
-            self.register_local_var_act_copies_in_expr(&body, module, def);
+            self.register_local_var_act_copies_in_patterns(&body, module, def);
+            self.register_sub_label_act_copies_in_expr(&body, module, def);
         }
         def
     }
@@ -336,28 +338,33 @@ impl Lower {
         module: ModuleId,
         owner: DefId,
     ) {
-        let Some(body) = binding_body_expr(binding) else {
-            return;
-        };
-        self.register_local_var_act_copies_in_expr(&body, module, owner);
+        self.register_local_var_act_copies_in_patterns(binding, module, owner);
+        if let Some(body) = binding_body_expr(binding) {
+            self.register_sub_label_act_copies_in_expr(&body, module, owner);
+        }
     }
 
-    fn register_local_var_act_copies_in_expr(
+    fn register_local_var_act_copies_in_patterns(
+        &mut self,
+        scope: &Cst,
+        module: ModuleId,
+        owner: DefId,
+    ) {
+        let mut local_var_index = 0;
+        for pattern in scope.descendants().filter(is_local_var_act_pattern_root) {
+            for name in pattern_var_act_names(&pattern) {
+                self.register_synthetic_var_act_copy(module, owner, name, local_var_index);
+                local_var_index += 1;
+            }
+        }
+    }
+
+    fn register_sub_label_act_copies_in_expr(
         &mut self,
         body: &Cst,
         module: ModuleId,
         owner: DefId,
     ) {
-        let mut local_var_index = 0;
-        for local in body
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Binding)
-        {
-            for name in local_var_act_names(&local) {
-                self.register_synthetic_var_act_copy(module, owner, name, local_var_index);
-                local_var_index += 1;
-            }
-        }
         for (index, label) in body
             .descendants()
             .filter(|node| node.kind() == SyntaxKind::Expr)
@@ -890,6 +897,33 @@ impl Lower {
             None
         }
     }
+}
+
+fn is_local_var_act_pattern_root(node: &Cst) -> bool {
+    if !matches!(
+        node.kind(),
+        SyntaxKind::Pattern
+            | SyntaxKind::PatOr
+            | SyntaxKind::PatAs
+            | SyntaxKind::PatParenGroup
+            | SyntaxKind::PatList
+            | SyntaxKind::PatRecord
+    ) {
+        return false;
+    }
+    let Some(parent) = node.parent() else {
+        return false;
+    };
+    matches!(
+        parent.kind(),
+        SyntaxKind::BindingHeader
+            | SyntaxKind::LambdaExpr
+            | SyntaxKind::SubLambdaExpr
+            | SyntaxKind::RecursiveLambdaExpr
+            | SyntaxKind::CaseArm
+            | SyntaxKind::CatchArm
+            | SyntaxKind::ForHeader
+    )
 }
 
 /// pass1 の入口。フルパース済み CST のモジュールマップを作る。

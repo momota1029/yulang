@@ -37,6 +37,10 @@ pub enum LoweringError {
     MissingIndexArgument,
     MissingLocalBindingName,
     MissingLocalBindingBody,
+    UnsupportedTopLevelVarBinding {
+        name: Name,
+        source_range: Option<SourceRange>,
+    },
     MissingLocalVarAct {
         name: Name,
     },

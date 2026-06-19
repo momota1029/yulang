@@ -305,6 +305,10 @@ pub(crate) fn local_var_act_names(binding: &Cst) -> Vec<Name> {
     let Some(pattern) = binding_pattern(binding) else {
         return Vec::new();
     };
+    pattern_var_act_names(&pattern)
+}
+
+pub(crate) fn pattern_var_act_names(pattern: &Cst) -> Vec<Name> {
     let mut sources = Vec::new();
     collect_pattern_var_binding_sources(&pattern, &mut sources);
     sources
@@ -397,6 +401,7 @@ pub(crate) fn synthetic_sub_label_act_internal_name(
 pub(crate) fn expr_needs_synthetic_owner(expr: &Cst) -> bool {
     expr.descendants().any(|node| {
         (node.kind() == SyntaxKind::Binding && local_var_act_name(&node).is_some())
+            || (node.kind() == SyntaxKind::Pattern && !pattern_var_act_names(&node).is_empty())
             || sub_syntax_label(&node).is_some()
     })
 }

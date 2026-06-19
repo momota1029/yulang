@@ -99,7 +99,21 @@ impl<'a> ExprLowerer<'a> {
         let Some(reference_name) = var_read_reference_name(text) else {
             return self.lower_name_at(Name(text.to_string()), source_range);
         };
-        let reference = self.lower_name_at(reference_name, source_range)?;
+        let reference = match self.lower_name_at(reference_name, source_range) {
+            Ok(reference) => reference,
+            Err(LoweringError::UnresolvedName { .. })
+                if self
+                    .modules
+                    .lexical_value_at(self.module, &Name(text.to_string()), self.site)
+                    .is_some() =>
+            {
+                return Err(LoweringError::UnsupportedTopLevelVarBinding {
+                    name: Name(text.to_string()),
+                    source_range,
+                });
+            }
+            Err(error) => return Err(error),
+        };
         let get = self.lower_synthetic_selection(reference, "get".to_string());
         let unit = self.unit_expr();
         Ok(self.make_app(get, unit))

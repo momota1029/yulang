@@ -64,6 +64,25 @@ pub(super) struct LoweredLocalStmt {
     pub(super) effect: TypeVar,
 }
 
+#[derive(Clone)]
+pub(super) struct PreparedVarPatternBinding {
+    pub(super) source: Name,
+    pub(super) init_name: Name,
+    pub(super) reference_name: Name,
+    pub(super) local_act: SyntheticVarActUse,
+}
+
+pub(super) struct ActiveVarPatternBindings {
+    pub(super) reference_stmts: Vec<LoweredLocalStmt>,
+    pub(super) run_inputs: Vec<ActiveVarPatternRunInput>,
+}
+
+pub(super) struct ActiveVarPatternRunInput {
+    pub(super) local_act: SyntheticVarActUse,
+    pub(super) init_name: Name,
+    pub(super) init_value: TypeVar,
+}
+
 pub(super) struct ApplicationReturnEffect {
     pub(super) upper: NegId,
     pub(super) lower: PosId,

@@ -249,15 +249,23 @@ impl<'a> ExprLowerer<'a> {
     ) -> Result<CaseArm, LoweringError> {
         let pattern = arm_pattern(arm).ok_or(LoweringError::MissingCaseArmPattern)?;
         let pattern_value = self.fresh_type_var();
-        let pat = self.lower_match_pattern(&pattern, pattern_value)?;
+        let var_bindings = self.prepare_var_pattern_bindings(&pattern)?;
+        let pat =
+            self.lower_match_pattern_with_var_bindings(&pattern, pattern_value, &var_bindings)?;
         self.subtype_var_to_var(scrutinee_value, pattern_value);
         self.subtype_var_to_var(pattern_value, scrutinee_value);
 
-        let guard = arm_guard_expr(arm)
+        let guard_node = arm_guard_expr(arm);
+        if guard_node.is_some() && !var_bindings.is_empty() {
+            return Err(LoweringError::UnsupportedPatternSyntax { kind: arm.kind() });
+        }
+        let guard = guard_node
             .map(|guard| self.lower_arm_guard(&guard, result_effect))
             .transpose()?;
+        let active_var_bindings = self.install_var_pattern_bindings(&var_bindings)?;
         let body_node = arm_body_expr(arm).ok_or(LoweringError::MissingCaseArmBody)?;
-        let body = self.lower_expr(&body_node)?;
+        let mut body = self.lower_expr(&body_node)?;
+        body = self.wrap_var_pattern_bindings(active_var_bindings, body)?;
         self.subtype_var_to_var(body.value, result_value);
         self.subtype_var_to_var(body.effect, result_effect);
         Ok(CaseArm {
@@ -522,12 +530,23 @@ impl<'a> ExprLowerer<'a> {
         match patterns.as_slice() {
             [value_pattern] => {
                 let pattern_value = self.fresh_type_var();
-                let pat = self.lower_match_pattern(value_pattern, pattern_value)?;
+                let var_bindings = self.prepare_var_pattern_bindings(value_pattern)?;
+                let pat = self.lower_match_pattern_with_var_bindings(
+                    value_pattern,
+                    pattern_value,
+                    &var_bindings,
+                )?;
                 self.subtype_var_to_var(scrutinee_value, pattern_value);
-                let guard = arm_guard_expr(arm)
+                let guard_node = arm_guard_expr(arm);
+                if guard_node.is_some() && !var_bindings.is_empty() {
+                    return Err(LoweringError::UnsupportedPatternSyntax { kind: arm.kind() });
+                }
+                let guard = guard_node
                     .map(|guard| self.lower_arm_guard(&guard, result_effect))
                     .transpose()?;
-                let body = self.lower_expr(&body_node)?;
+                let active_var_bindings = self.install_var_pattern_bindings(&var_bindings)?;
+                let mut body = self.lower_expr(&body_node)?;
+                body = self.wrap_var_pattern_bindings(active_var_bindings, body)?;
                 self.subtype_var_to_var(body.value, result_value);
                 self.subtype_var_to_var(body.effect, result_effect);
                 Ok(LoweredCatchArm {
@@ -549,27 +568,57 @@ impl<'a> ExprLowerer<'a> {
                     .as_ref()
                     .map(|decl| self.catch_effect_op_from_decl(decl))
                     .unwrap_or_else(|| effect_op.clone());
-                let payload = self.lower_catch_effect_payload_pattern(effect_pattern)?;
-                let signature =
-                    self.lower_catch_operation_signature(operation_decl.as_ref(), payload.value)?;
-                let row_item = signature
-                    .as_ref()
-                    .map(|signature| signature.row_item)
-                    .unwrap_or_else(|| self.fallback_catch_effect_row_item(&handled_op, &payload));
-                let continuation_value = signature
-                    .as_ref()
-                    .map(|signature| signature.continuation_value)
-                    .unwrap_or(payload.value);
-                let continuation = self.lower_catch_continuation_pattern(
-                    continuation_pattern,
-                    continuation_value,
-                    scrutinee_value,
-                    scrutinee_effect,
-                )?;
-                let guard = arm_guard_expr(arm)
+                let effect_var_bindings = self.prepare_var_pattern_bindings(effect_pattern)?;
+                let continuation_var_bindings =
+                    self.prepare_var_pattern_bindings(continuation_pattern)?;
+                let guard_node = arm_guard_expr(arm);
+                if guard_node.is_some()
+                    && (!effect_var_bindings.is_empty() || !continuation_var_bindings.is_empty())
+                {
+                    return Err(LoweringError::UnsupportedPatternSyntax { kind: arm.kind() });
+                }
+                let saved_rewrites = self.pattern_binding_rewrites.clone();
+                for binding in effect_var_bindings
+                    .iter()
+                    .chain(continuation_var_bindings.iter())
+                {
+                    self.pattern_binding_rewrites
+                        .insert(binding.source.clone(), binding.init_name.clone());
+                }
+                let lowered_patterns = (|| {
+                    let payload = self.lower_catch_effect_payload_pattern(effect_pattern)?;
+                    let signature = self
+                        .lower_catch_operation_signature(operation_decl.as_ref(), payload.value)?;
+                    let row_item = signature
+                        .as_ref()
+                        .map(|signature| signature.row_item)
+                        .unwrap_or_else(|| {
+                            self.fallback_catch_effect_row_item(&handled_op, &payload)
+                        });
+                    let continuation_value = signature
+                        .as_ref()
+                        .map(|signature| signature.continuation_value)
+                        .unwrap_or(payload.value);
+                    let continuation = self.lower_catch_continuation_pattern(
+                        continuation_pattern,
+                        continuation_value,
+                        scrutinee_value,
+                        scrutinee_effect,
+                    )?;
+                    Ok((payload, row_item, continuation))
+                })();
+                self.pattern_binding_rewrites = saved_rewrites;
+                let (payload, row_item, continuation) = lowered_patterns?;
+                let guard = guard_node
                     .map(|guard| self.lower_arm_guard(&guard, result_effect))
                     .transpose()?;
-                let body = self.lower_expr(&body_node)?;
+                let active_effect_var_bindings =
+                    self.install_var_pattern_bindings(&effect_var_bindings)?;
+                let active_continuation_var_bindings =
+                    self.install_var_pattern_bindings(&continuation_var_bindings)?;
+                let mut body = self.lower_expr(&body_node)?;
+                body = self.wrap_var_pattern_bindings(active_continuation_var_bindings, body)?;
+                body = self.wrap_var_pattern_bindings(active_effect_var_bindings, body)?;
                 self.subtype_var_to_var(body.value, result_value);
                 self.subtype_var_to_var(body.effect, result_effect);
                 let operation_covers_all =

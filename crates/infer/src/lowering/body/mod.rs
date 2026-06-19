@@ -12,6 +12,7 @@ pub(super) mod type_decl;
 use super::*;
 use crate::analysis::AnalysisTiming;
 use crate::constraints::ConstraintTiming;
+use crate::source_range_for_name;
 use register::*;
 use signature_helpers::*;
 
@@ -539,6 +540,12 @@ impl BodyLowerer {
             return;
         }
         let arg_patterns = binding_arg_patterns(node);
+        if arg_patterns.is_empty()
+            && let Some(source) = top_level_var_binding_source(node)
+        {
+            self.lower_top_level_var_binding_error(node, module, names, source);
+            return;
+        }
         if !arg_patterns.is_empty() || crate::binding_has_single_head_pattern(node) {
             self.lower_single_binding_with_context(
                 node,
@@ -558,6 +565,31 @@ impl BodyLowerer {
                 type_name_aliases,
                 names,
             );
+        }
+    }
+
+    fn lower_top_level_var_binding_error(
+        &mut self,
+        node: &Cst,
+        module: ModuleId,
+        names: Vec<Name>,
+        source: Name,
+    ) {
+        let source_range = source_range_for_name(node, &source);
+        for name in names {
+            let Some(decl) = self.next_value_decl(module, &name) else {
+                self.errors
+                    .push(BodyLoweringError::MissingBindingDecl { name });
+                continue;
+            };
+            self.errors.push(BodyLoweringError::Expr {
+                def: decl.def,
+                name,
+                error: LoweringError::UnsupportedTopLevelVarBinding {
+                    name: source.clone(),
+                    source_range,
+                },
+            });
         }
     }
 
@@ -925,4 +957,11 @@ impl BodyLowerer {
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
         build_cast_scheme_from_ann(&mut self.session.poly, &self.modules, &source, &target)
     }
+}
+
+fn top_level_var_binding_source(node: &Cst) -> Option<Name> {
+    let pattern = crate::binding_pattern(node)?;
+    let mut sources = Vec::new();
+    crate::collect_pattern_var_binding_sources(&pattern, &mut sources);
+    sources.into_iter().next()
 }

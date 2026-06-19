@@ -248,14 +248,17 @@ impl<'a> ExprLowerer<'a> {
             ann_builder,
             ann_solver_vars,
         )?;
+        let var_bindings = self.prepare_var_pattern_bindings(pattern)?;
         let before_locals = self.locals.len();
-        let pat = self.lower_lambda_pattern(
+        let pat = self.lower_lambda_pattern_with_var_bindings(
             pattern,
             param_value,
             annotation.local_effect.clone(),
             annotation.call_return_effect,
+            &var_bindings,
         )?;
         self.mark_lambda_param_as_input(pat);
+        let active_var_bindings = self.install_var_pattern_bindings(&var_bindings)?;
         self.function_frames
             .push(FunctionPredicateFrame::new(lambda_scope));
         let previous_level = self.session.infer.enter_child_level();
@@ -277,8 +280,21 @@ impl<'a> ExprLowerer<'a> {
             .function_frames
             .pop()
             .expect("lambda predicate frame should be balanced");
+        let mut body = match body_result {
+            Ok(body) => body,
+            Err(error) => {
+                self.locals.truncate(before_locals);
+                return Err(error);
+            }
+        };
+        body = match self.wrap_var_pattern_bindings(active_var_bindings, body) {
+            Ok(body) => body,
+            Err(error) => {
+                self.locals.truncate(before_locals);
+                return Err(error);
+            }
+        };
         self.locals.truncate(before_locals);
-        let body = body_result?;
 
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
@@ -358,6 +374,7 @@ impl<'a> ExprLowerer<'a> {
         let before_frames = self.function_frames.len();
         let before_active_skeletons = self.active_defined_skeletons.len();
         let mut params = Vec::with_capacity(patterns.len());
+        let mut var_bindings = Vec::new();
 
         for (param_index, pattern) in patterns.iter().enumerate() {
             let param_value = self.fresh_type_var();
@@ -380,12 +397,23 @@ impl<'a> ExprLowerer<'a> {
                     return Err(error);
                 }
             };
+            let prepared_var_bindings = match self.prepare_var_pattern_bindings(pattern) {
+                Ok(bindings) => bindings,
+                Err(error) => {
+                    self.locals.truncate(before_locals);
+                    self.function_frames.truncate(before_frames);
+                    self.active_defined_skeletons
+                        .truncate(before_active_skeletons);
+                    return Err(error);
+                }
+            };
             let param_local_start = self.locals.len();
-            let pat = match self.lower_lambda_pattern(
+            let pat = match self.lower_lambda_pattern_with_var_bindings(
                 pattern,
                 param_value,
                 annotation.local_effect.clone(),
                 annotation.call_return_effect,
+                &prepared_var_bindings,
             ) {
                 Ok(pat) => pat,
                 Err(error) => {
@@ -406,6 +434,7 @@ impl<'a> ExprLowerer<'a> {
                 value: param_value,
                 annotation,
             });
+            var_bindings.push(prepared_var_bindings);
         }
 
         let skeleton_slots = if self_value.is_some() {
@@ -437,7 +466,14 @@ impl<'a> ExprLowerer<'a> {
         let previous_local_generalize_boundary = self.local_generalize_boundary;
         self.local_generalize_boundary = previous_level;
         let body_result = (|| {
+            let active_var_bindings = var_bindings
+                .iter()
+                .map(|bindings| self.install_var_pattern_bindings(bindings))
+                .collect::<Result<Vec<_>, _>>()?;
             let mut body = self.lower_lambda_body(body, body_mode)?;
+            for active in active_var_bindings.into_iter().rev() {
+                body = self.wrap_var_pattern_bindings(active, body)?;
+            }
             if let (Some(_target), Some(skeleton)) = (self_value, skeleton_slots.as_ref()) {
                 // body lowering 中に見つかった unannotated callee subtract は、発見時点で
                 // active skeleton の output slot へ反映する。shape は stable な slot を返す

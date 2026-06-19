@@ -218,7 +218,7 @@ impl<'a> ExprLowerer<'a> {
         let call_effect = self.fresh_type_var();
         let method = self.alloc_pos(Pos::Var(method_value));
         let receiver_value = self.alloc_pos(Pos::Var(receiver.value));
-        let receiver_arg_eff = self.alloc_pos(Pos::Bot);
+        let receiver_arg_eff = self.alloc_pos(Pos::Var(receiver.effect));
         let ret_eff = self.alloc_neg(Neg::Var(call_effect));
         let ret = self.alloc_neg(Neg::Var(result_value));
         let method_upper = self.alloc_neg(Neg::Fun {
@@ -228,7 +228,6 @@ impl<'a> ExprLowerer<'a> {
             ret,
         });
         self.session.infer.subtype(method, method_upper);
-        self.subtype_var_to_var(receiver.effect, result_effect);
         self.subtype_var_to_var(call_effect, result_effect);
 
         let select = self.session.poly.add_select(name);

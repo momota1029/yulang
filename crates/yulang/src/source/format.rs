@@ -1053,6 +1053,16 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
             error: infer::lowering::LoweringError::UnresolvedName { name, .. },
             ..
         } => format!("unresolved value name: {}", name.0),
+        infer::lowering::BodyLoweringError::Expr {
+            error: infer::lowering::LoweringError::UnsupportedTopLevelVarBinding { name, .. },
+            ..
+        }
+        | infer::lowering::BodyLoweringError::RootExpr {
+            error: infer::lowering::LoweringError::UnsupportedTopLevelVarBinding { name, .. },
+        } => format!(
+            "top-level mutable binding {} is not supported; move it into a block or function body",
+            name.0
+        ),
         infer::lowering::BodyLoweringError::RootExpr {
             error: infer::lowering::LoweringError::UnresolvedName { name, .. },
         } => format!("unresolved value name in root expression: {}", name.0),
