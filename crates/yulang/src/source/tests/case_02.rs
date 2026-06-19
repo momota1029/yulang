@@ -1335,6 +1335,50 @@ fn hover_entry_source_reports_attached_role_method_selection_type() {
 }
 
 #[test]
+fn hover_entry_source_preserves_poly_variant_case_payloads() {
+    let std_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib");
+    let source = "my render option = case option:\n\
+                  \x20 :ok msg -> \"[ok] \" + msg\n\
+                  \x20 :err code -> \"[err \" + code.show + \"]\"\n\
+                  \x20 :pending -> \"...\"\n";
+    let hover = hover_entry_source_with_std_options(
+        "main.yu",
+        source,
+        source.find("option").unwrap(),
+        &StdSourceOptions {
+            std_root: Some(std_root),
+        },
+    )
+    .unwrap()
+    .unwrap();
+
+    assert!(
+        !hover.contents.contains("ok never") && !hover.contents.contains("err never"),
+        "case scrutinee payloads collapsed to never in hover: {:?}",
+        hover.contents
+    );
+}
+
+#[test]
+fn dump_poly_with_std_preserves_poly_variant_case_payloads() {
+    let entry = write_main_with_std(
+        "dump-poly-std-poly-variant-case-payloads",
+        "my render option = case option:\n\
+         \x20 :ok msg -> \"[ok] \" + msg\n\
+         \x20 :err code -> \"[err \" + code.show + \"]\"\n\
+         \x20 :pending -> \"...\"\n",
+    );
+
+    let output = dump_poly_from_entry_with_std(&entry).unwrap();
+
+    assert!(
+        !output.text.contains("ok never") && !output.text.contains("err never"),
+        "case scrutinee payloads collapsed to never in dump:\n{}",
+        output.text
+    );
+}
+
+#[test]
 fn hover_entry_source_reports_shorthand_record_pattern_type() {
     let source = "my f({x = 1}) = x\n";
     let pattern_offset = source.find('x').unwrap();

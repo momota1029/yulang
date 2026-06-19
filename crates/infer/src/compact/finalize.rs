@@ -13,6 +13,10 @@ pub(crate) fn finalize_compact_type(types: &mut TypeArena, ty: &CompactType) -> 
     CompactFinalizer::new(types).finalize_pos_type(ty)
 }
 
+pub(crate) fn finalize_compact_type_to_neg(types: &mut TypeArena, ty: &CompactType) -> NegId {
+    CompactFinalizer::new(types).finalize_neg_type(ty)
+}
+
 pub(crate) fn finalize_compact_type_to_pos_constraint(
     machine: &mut ConstraintMachine,
     ty: &CompactType,

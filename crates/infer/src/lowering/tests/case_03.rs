@@ -264,6 +264,89 @@ fn poly_variant_expr_and_pattern_lower_to_poly_variant_ir() {
 }
 
 #[test]
+fn poly_variant_case_preserves_payloads_in_scrutinee_type() {
+    let root = parse(concat!(
+        "my render option = case option:\n",
+        "  :ok msg -> :rendered_ok msg\n",
+        "  :err code -> :rendered_err code\n",
+        "  :pending -> :rendered_pending\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (render, _) = binding_def_and_order(&lower.modules, module, "render");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert_eq!(output.errors, Vec::new());
+    let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, render));
+    assert!(
+        !rendered.contains("ok never") && !rendered.contains("err never"),
+        "case scrutinee payloads collapsed to never: {rendered}"
+    );
+}
+
+#[test]
+fn defined_lambda_parameter_local_defs_are_marked_as_inputs() {
+    let root = parse("my render option = case option:\n  :pending -> :rendered_pending\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (render, _) = binding_def_and_order(&lower.modules, module, "render");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert_eq!(output.errors, Vec::new());
+    let lambda = binding_body_id(&output, render);
+    let param = match output.session.poly.expr(lambda) {
+        Expr::Lambda(pat, _) => match output.session.poly.pat(*pat) {
+            Pat::Var(def) => *def,
+            _ => panic!("expected parameter var pattern"),
+        },
+        _ => panic!("expected function binding to lower to lambda"),
+    };
+    let local = output
+        .session
+        .local_defs
+        .get(param)
+        .expect("parameter local def should be tracked");
+
+    assert_eq!(local.role, LocalDefRole::Input);
+}
+
+#[test]
+fn defined_lambda_pattern_member_local_defs_remain_values() {
+    let root = parse("my f({x = 1}) = x\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert_eq!(output.errors, Vec::new());
+    let lambda = binding_body_id(&output, f);
+    let x = match output.session.poly.expr(lambda) {
+        Expr::Lambda(pat, _) => match output.session.poly.pat(*pat) {
+            Pat::Record { fields, .. } => fields
+                .iter()
+                .find(|field| field.name == "x")
+                .and_then(|field| match output.session.poly.pat(field.pat) {
+                    Pat::Var(def) => Some(*def),
+                    _ => None,
+                })
+                .expect("expected shorthand record field to bind x"),
+            _ => panic!("expected parameter record pattern"),
+        },
+        _ => panic!("expected function binding to lower to lambda"),
+    };
+    let local = output
+        .session
+        .local_defs
+        .get(x)
+        .expect("pattern member local def should be tracked");
+
+    assert_eq!(local.role, LocalDefRole::Value);
+}
+
+#[test]
 fn record_literal_lowers_to_record_expr() {
     let root = parse("my r = {x: 1, y: true}\n");
     let lower = lower_module_map(&root);

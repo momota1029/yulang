@@ -44,6 +44,16 @@ pub fn format_neg(arena: &TypeArena, id: NegId) -> String {
     TypeFormatter::new(arena, TypeVarNamer::new()).neg(id, Context::Free)
 }
 
+/// 型 path を短縮しながら負側型を短い構文風表記で返す。
+pub fn format_neg_with_path_rewriter(
+    arena: &TypeArena,
+    id: NegId,
+    path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
+) -> String {
+    TypeFormatter::new_with_path_rewriter(arena, TypeVarNamer::new(), path_rewriter)
+        .neg(id, Context::Free)
+}
+
 /// 中立型を短い構文風表記で返す。
 pub fn format_neu(arena: &TypeArena, id: NeuId) -> String {
     TypeFormatter::new(arena, TypeVarNamer::new()).neu(id, Context::Free)

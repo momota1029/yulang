@@ -16,6 +16,13 @@ pub(crate) fn compact_type_var_for_scheme(
     CompactCollector::new(machine).compact_root(root)
 }
 
+pub(crate) fn compact_negative_type_var_for_scheme(
+    machine: &ConstraintMachine,
+    root: TypeVar,
+) -> CompactRoot {
+    CompactCollector::new(machine).compact_root_with_polarity(root, Polarity::Negative)
+}
+
 pub(crate) fn compact_pos_surface(types: &TypeArena, id: PosId) -> CompactType {
     match types.pos(id) {
         Pos::Bot => CompactType::never(),

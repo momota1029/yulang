@@ -255,6 +255,7 @@ impl<'a> ExprLowerer<'a> {
             annotation.local_effect.clone(),
             annotation.call_return_effect,
         )?;
+        self.mark_lambda_param_as_input(pat);
         self.function_frames
             .push(FunctionPredicateFrame::new(lambda_scope));
         let previous_level = self.session.infer.enter_child_level();
@@ -395,6 +396,7 @@ impl<'a> ExprLowerer<'a> {
                     return Err(error);
                 }
             };
+            self.mark_lambda_param_as_input(pat);
             let frame_index = self.function_frames.len();
             self.function_frames
                 .push(FunctionPredicateFrame::new(LambdaScope::Defined));
@@ -504,6 +506,18 @@ impl<'a> ExprLowerer<'a> {
                 Some(label) => self.lower_labeled_sub_syntax(label.clone(), body.clone()),
                 None => self.lower_unlabeled_sub_syntax(body.clone()),
             },
+        }
+    }
+
+    fn mark_lambda_param_as_input(&mut self, pat: PatId) {
+        let def = match self.session.poly.pat(pat) {
+            Pat::Var(def) | Pat::As(_, def) => Some(*def),
+            _ => None,
+        };
+        if let Some(def) = def
+            && let Some(use_site) = self.session.local_defs.get_mut(def)
+        {
+            use_site.role = LocalDefRole::Input;
         }
     }
 

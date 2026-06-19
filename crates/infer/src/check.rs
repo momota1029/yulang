@@ -155,6 +155,18 @@ pub fn format_inferred_value_type_with_path_rewriter(
     poly::dump::format_scheme_with_path_rewriter(&types, &finalized.scheme, path_rewriter)
 }
 
+pub fn format_inferred_input_type_with_path_rewriter(
+    lowering: &BodyLowering,
+    value: TypeVar,
+    path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
+) -> String {
+    let machine = lowering.session.infer.constraints();
+    let compact = crate::compact::compact_negative_type_var_for_scheme(machine, value);
+    let mut types = lowering.session.poly.typ.clone();
+    let ty = crate::compact::finalize_compact_type_to_neg(&mut types, &compact.root);
+    poly::dump::format_neg_with_path_rewriter(&types, ty, path_rewriter)
+}
+
 pub fn body_error_def(error: &BodyLoweringError) -> Option<DefId> {
     match error {
         BodyLoweringError::MissingBindingDecl { .. }

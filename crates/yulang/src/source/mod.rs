@@ -1089,11 +1089,22 @@ fn hover_for_local_def(
     }
     let local = check.lowering.session.local_defs.get(def)?;
     let label = format_context.format_value_label(label, def);
-    let ty = infer::check::format_inferred_value_type_with_path_rewriter(
-        &check.lowering,
-        local.value,
-        &|path| format_context.rewrite_type_path(path),
-    );
+    let ty = match local.role {
+        infer::uses::LocalDefRole::Input => {
+            infer::check::format_inferred_input_type_with_path_rewriter(
+                &check.lowering,
+                local.value,
+                &|path| format_context.rewrite_type_path(path),
+            )
+        }
+        infer::uses::LocalDefRole::Value => {
+            infer::check::format_inferred_value_type_with_path_rewriter(
+                &check.lowering,
+                local.value,
+                &|path| format_context.rewrite_type_path(path),
+            )
+        }
+    };
     Some(SourceHover {
         range,
         contents: format!("{label}: {ty}"),

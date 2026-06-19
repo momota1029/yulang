@@ -55,6 +55,10 @@ impl LocalDefUseTable {
         self.defs.get(&def)
     }
 
+    pub fn get_mut(&mut self, def: DefId) -> Option<&mut LocalDefUse> {
+        self.defs.get_mut(&def)
+    }
+
     pub fn source_spans(&self) -> impl Iterator<Item = (DefId, &SourceSpan)> {
         self.defs
             .iter()
@@ -67,6 +71,13 @@ impl LocalDefUseTable {
 pub struct LocalDefUse {
     pub value: TypeVar,
     pub source_span: Option<SourceSpan>,
+    pub role: LocalDefRole,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LocalDefRole {
+    Value,
+    Input,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -261,10 +272,12 @@ mod tests {
             LocalDefUse {
                 value: TypeVar(8),
                 source_span: Some(source_span.clone()),
+                role: LocalDefRole::Value,
             },
         );
 
         assert_eq!(table.get(def).unwrap().value, TypeVar(8));
+        assert_eq!(table.get(def).unwrap().role, LocalDefRole::Value);
         assert_eq!(
             table.source_spans().collect::<Vec<_>>(),
             vec![(def, &source_span)]

@@ -234,6 +234,7 @@ impl<'a> ExprLowerer<'a> {
             LocalDefUse {
                 value,
                 source_span: self.source_span(source_range),
+                role: LocalDefRole::Value,
             },
         );
         if let Some(labels) = self.labels.as_mut() {
