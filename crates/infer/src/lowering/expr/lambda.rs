@@ -742,12 +742,7 @@ impl<'a> ExprLowerer<'a> {
             .or_else(|| {
                 matches!(ann, AnnType::Effectful { .. }).then_some(LocalEffect::Var(effect))
             });
-        let subtracts = if matches!(&ann, AnnType::Effectful { eff, .. } if effect_row_has_wildcard(eff))
-        {
-            connection.subtracts
-        } else {
-            Vec::new()
-        };
+        let subtracts = lambda_annotation_predicate_subtracts(&ann, connection);
         Ok(LambdaPatternAnnotation {
             arg_eff,
             skeleton_arg_eff,
@@ -768,4 +763,40 @@ impl<'a> ExprLowerer<'a> {
 
         (self.fresh_exact_pure_effect(), self.never_neg())
     }
+}
+
+fn lambda_annotation_predicate_subtracts(
+    ann: &AnnType,
+    connection: AnnComputationConnection,
+) -> Vec<StackWeight> {
+    let AnnType::Effectful { eff, .. } = ann else {
+        return connection.subtracts;
+    };
+    if effect_row_has_wildcard(eff) {
+        return connection.subtracts;
+    }
+
+    let Some(effect_stack) = connection.effect_stack else {
+        return connection.subtracts;
+    };
+    if effect_stack.subtracts.is_empty() {
+        return connection.subtracts;
+    }
+
+    let effect_stack_ids = effect_stack
+        .subtracts
+        .into_iter()
+        .collect::<FxHashSet<SubtractId>>();
+    connection
+        .subtracts
+        .into_iter()
+        .filter(|weight| {
+            let mut has_effect_stack_id = false;
+            let all_effect_stack_ids = weight.subtract_ids().all(|id| {
+                has_effect_stack_id = true;
+                effect_stack_ids.contains(&id)
+            });
+            !has_effect_stack_id || !all_effect_stack_ids
+        })
+        .collect()
 }

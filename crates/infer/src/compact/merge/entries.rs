@@ -130,7 +130,7 @@ pub(in crate::compact) fn merge_compact_vars(
             // 同一変数の合流は並列文脈の合流であり、逐次合成ではない。
             // 同じ weight を compose すると push が二重に積まれるため、冪等に保つ。
             if existing.weight != var.weight {
-                existing.weight = existing.weight.union(&var.weight);
+                existing.weight = existing.weight.parallel_union(&var.weight);
             }
             existing.origin = existing.origin.merged(var.origin);
         } else {

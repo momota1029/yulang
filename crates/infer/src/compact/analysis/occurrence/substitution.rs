@@ -173,7 +173,7 @@ pub(in crate::compact::analysis) fn push_compact_var_with_unioned_weight(
     var: CompactVar,
 ) {
     if let Some(existing) = vars.iter_mut().find(|existing| existing.var == var.var) {
-        existing.weight = existing.weight.union(&var.weight);
+        existing.weight = existing.weight.parallel_union(&var.weight);
         existing.origin = existing.origin.merged(var.origin);
     } else {
         vars.push(var);

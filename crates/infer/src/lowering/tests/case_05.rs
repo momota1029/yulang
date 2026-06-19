@@ -101,6 +101,32 @@ fn result_effect_annotation_reuses_callback_tail() {
 }
 
 #[test]
+fn nested_callback_wildcard_return_keeps_push_and_pop_one() {
+    let root = parse("pub full_compose(f: _ -> [_] _, g, x) = g f(x)\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (full_compose, _) = binding_def_and_order(&lower.modules, module, "full_compose");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let rendered =
+        poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, full_compose));
+    assert!(
+        rendered.contains("pop(0)[All]"),
+        "wildcard return annotation should push an All stack entry: {rendered}"
+    );
+    assert!(
+        rendered.contains("pop(1)[]"),
+        "outer predicate should keep the matching pop(1): {rendered}"
+    );
+    assert!(
+        !rendered.contains("4294967295"),
+        "annotation pop must not be rendered as the instantiate sentinel: {rendered}"
+    );
+}
+
+#[test]
 fn callback_empty_return_annotation_records_filter_upper() {
     let root = parse("my run(g: () -> [] int): [] int = g ()\n");
     let lower = lower_module_map(&root);

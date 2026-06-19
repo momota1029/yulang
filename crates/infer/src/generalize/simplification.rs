@@ -154,7 +154,7 @@ fn rewrite_type_vars(ty: &mut CompactType, substitutions: &FxHashMap<TypeVar, Op
 
 fn push_compact_var_with_unioned_weight(vars: &mut Vec<CompactVar>, var: CompactVar) {
     if let Some(existing) = vars.iter_mut().find(|existing| existing.var == var.var) {
-        existing.weight = existing.weight.union(&var.weight);
+        existing.weight = existing.weight.parallel_union(&var.weight);
         existing.origin = existing.origin.merged(var.origin);
     } else {
         vars.push(var);

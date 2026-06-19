@@ -409,6 +409,17 @@ impl StackWeight {
         self.compose(other)
     }
 
+    pub fn parallel_union(&self, other: &Self) -> Self {
+        let mut out = Self::filter(self.filter.clone().intersect(other.filter.clone()));
+        for entry in &self.entries {
+            out.push_parallel_entry(entry);
+        }
+        for entry in &other.entries {
+            out.push_parallel_entry(entry);
+        }
+        out
+    }
+
     pub fn without_ids(&self, dead: impl Fn(SubtractId) -> bool) -> Self {
         let entries = self
             .entries
@@ -422,7 +433,8 @@ impl StackWeight {
         }
     }
 
-    /// Bounds replay の循環で増え続ける未対応 pop だけを飽和させる。
+    /// Bounds replay の循環で増え続ける、stack/floor を伴う未対応 pop を飽和させる。
+    /// 裸の `pop(1)[]` は注釈由来の述部境界として surface に残る意味を持つので保つ。
     /// stack 列は `common_stack` の入力なので、重複や順序をここでは変えない。
     pub fn saturate_unmatched_pops(&self) -> Self {
         let entries = self
@@ -430,7 +442,7 @@ impl StackWeight {
             .iter()
             .cloned()
             .map(|mut entry| {
-                if entry.pops > 0 {
+                if entry.pops > 0 && (!entry.floor.is_empty() || !entry.stack.is_empty()) {
                     entry.pops = u32::MAX;
                 }
                 entry
@@ -520,6 +532,42 @@ impl StackWeight {
             }
         }
         self.remove_empty_entry(id);
+    }
+
+    fn push_parallel_entry(&mut self, incoming: &StackWeightEntry) {
+        let entry = self.entry_mut(incoming.id);
+        entry.pops = entry.pops.max(incoming.pops);
+
+        let floor = entry
+            .floor
+            .iter()
+            .chain(&incoming.floor)
+            .cloned()
+            .reduce(Subtractability::intersect)
+            .unwrap_or(Subtractability::All);
+        entry.floor.clear();
+        if floor != Subtractability::All {
+            entry.floor.push(floor.clone());
+        }
+
+        let existing_stack = std::mem::take(&mut entry.stack);
+        for stack in existing_stack
+            .into_iter()
+            .chain(incoming.stack.iter().cloned())
+        {
+            let stack = if floor == Subtractability::All {
+                stack
+            } else {
+                stack.intersect(floor.clone())
+            };
+            if matches!(floor, Subtractability::Empty) && matches!(stack, Subtractability::Empty) {
+                continue;
+            }
+            if !entry.stack.contains(&stack) {
+                entry.stack.push(stack);
+            }
+        }
+        self.remove_empty_entry(incoming.id);
     }
 
     fn entry_mut(&mut self, id: SubtractId) -> &mut StackWeightEntry {
@@ -769,6 +817,32 @@ mod tests {
             combined.filter_set(),
             &Subtractability::Set(vec!["io".into()], Vec::new())
         );
+    }
+
+    #[test]
+    fn stack_weight_parallel_union_keeps_pop_only_count_idempotent() {
+        let id = SubtractId(0);
+        let combined = StackWeight::pop(id).parallel_union(&StackWeight::pop(id));
+
+        let [entry] = combined.entries() else {
+            panic!("expected one stack entry");
+        };
+        assert_eq!(entry.pops, 1);
+        assert!(entry.floor.is_empty());
+        assert!(entry.stack.is_empty());
+    }
+
+    #[test]
+    fn stack_weight_parallel_union_keeps_max_pop_only_count() {
+        let id = SubtractId(0);
+        let combined = StackWeight::pop(id).parallel_union(&StackWeight::pops(id, 2));
+
+        let [entry] = combined.entries() else {
+            panic!("expected one stack entry");
+        };
+        assert_eq!(entry.pops, 2);
+        assert!(entry.floor.is_empty());
+        assert!(entry.stack.is_empty());
     }
 
     #[test]
