@@ -21,12 +21,20 @@ impl AnalysisSession {
         let quantification_boundary = self.generalize_boundary(def);
         let simplification_boundary = TypeLevel::root().child();
         let mut applied_casts = FxHashSet::<CompactCastKey>::default();
-        let mut applied_roles = self.applied_method_role_resolutions.clone();
-        let mut applied_role_demands = self
-            .applied_method_role_resolutions
-            .iter()
-            .map(|key| key.demand.clone())
-            .collect::<FxHashSet<_>>();
+        let has_initial_role_inputs = !self.roles.for_owner(def).is_empty();
+        let mut applied_roles = if has_initial_role_inputs {
+            self.applied_method_role_resolutions.clone()
+        } else {
+            FxHashSet::default()
+        };
+        let mut applied_role_demands = if has_initial_role_inputs {
+            self.applied_method_role_resolutions
+                .iter()
+                .map(|key| key.demand.clone())
+                .collect::<FxHashSet<_>>()
+        } else {
+            FxHashSet::default()
+        };
         let mut applied_merge_constraints = FxHashSet::<CompactMergeConstraintKey>::default();
         let mut applied_subtype_constraints = FxHashSet::<CompactSubtypeConstraintKey>::default();
         let mut compact;
@@ -595,14 +603,14 @@ impl AnalysisSession {
         }
     }
 
-    pub(super) fn scheme_ancestors(
-        &self,
+    pub(super) fn scheme_ancestors_for_current_poly(
+        &mut self,
         def: DefId,
-        parents: &FxHashMap<DefId, DefId>,
     ) -> Vec<GeneralizedCompactRoot> {
+        self.def_parent_map.refresh(&self.poly);
         let mut chain = Vec::new();
         let mut current = def;
-        while let Some(parent) = parents.get(&current).copied() {
+        while let Some(parent) = self.def_parent_map.parents.get(&current).copied() {
             chain.push(parent);
             current = parent;
         }

@@ -1,5 +1,9 @@
 use super::*;
 
+use smallvec::SmallVec;
+
+type BoundReplayActions = SmallVec<[BoundReplayAction; 4]>;
+
 impl ConstraintMachine {
     pub(in crate::constraints) fn add_lower_bound(
         &mut self,
@@ -135,14 +139,14 @@ impl ConstraintMachine {
         target: TypeVar,
         pos: PosId,
         weights: &ConstraintWeights,
-    ) -> (usize, usize, usize, Vec<BoundReplayAction>) {
+    ) -> (usize, usize, usize, BoundReplayActions) {
         let Some(bounds) = self.bounds.of(target) else {
-            return (0, 0, 0, Vec::new());
+            return (0, 0, 0, SmallVec::new());
         };
         let replay_input_count = bounds.uppers.len();
         let mut replay_enqueued = 0usize;
         let mut replay_var_var = 0usize;
-        let mut actions = Vec::with_capacity(replay_input_count);
+        let mut actions = SmallVec::with_capacity(replay_input_count);
         trace_bound_replay_start("lower", target, replay_input_count);
         for (index, upper) in bounds.uppers.iter().enumerate() {
             trace_bound_replay_progress("lower", target, index);
@@ -171,14 +175,14 @@ impl ConstraintMachine {
         source: TypeVar,
         neg: NegId,
         weights: &ConstraintWeights,
-    ) -> (usize, usize, usize, Vec<BoundReplayAction>) {
+    ) -> (usize, usize, usize, BoundReplayActions) {
         let Some(bounds) = self.bounds.of(source) else {
-            return (0, 0, 0, Vec::new());
+            return (0, 0, 0, SmallVec::new());
         };
         let replay_input_count = bounds.lowers.len();
         let mut replay_enqueued = 0usize;
         let mut replay_var_var = 0usize;
-        let mut actions = Vec::with_capacity(replay_input_count);
+        let mut actions = SmallVec::with_capacity(replay_input_count);
         trace_bound_replay_start("upper", source, replay_input_count);
         for (index, lower) in bounds.lowers.iter().enumerate() {
             trace_bound_replay_progress("upper", source, index);
@@ -207,13 +211,13 @@ impl ConstraintMachine {
         lower_var: TypeVar,
         upper: NegId,
         weights: &ConstraintWeights,
-    ) -> (usize, usize, usize, Vec<BoundReplayAction>) {
+    ) -> (usize, usize, usize, BoundReplayActions) {
         let Some(bounds) = self.bounds.of(lower_var) else {
-            return (0, 0, 0, Vec::new());
+            return (0, 0, 0, SmallVec::new());
         };
         let mut skipped = 0usize;
         let mut replay_enqueued = 0usize;
-        let mut actions = Vec::with_capacity(bounds.lowers.len());
+        let mut actions = SmallVec::with_capacity(bounds.lowers.len());
         for lower in &bounds.lowers {
             if weights.is_empty()
                 && lower.weights.is_empty()
@@ -248,13 +252,13 @@ impl ConstraintMachine {
         upper_var: TypeVar,
         lower: PosId,
         weights: &ConstraintWeights,
-    ) -> (usize, usize, usize, Vec<BoundReplayAction>) {
+    ) -> (usize, usize, usize, BoundReplayActions) {
         let Some(bounds) = self.bounds.of(upper_var) else {
-            return (0, 0, 0, Vec::new());
+            return (0, 0, 0, SmallVec::new());
         };
         let mut skipped = 0usize;
         let mut replay_enqueued = 0usize;
-        let mut actions = Vec::with_capacity(bounds.uppers.len());
+        let mut actions = SmallVec::with_capacity(bounds.uppers.len());
         for upper in &bounds.uppers {
             if weights.is_empty()
                 && upper.weights.is_empty()

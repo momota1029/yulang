@@ -44,10 +44,9 @@ impl AnalysisSession {
             self.schemes.insert(*def, scheme.clone());
         }
 
-        let def_parents = def_parent_map(&self.poly);
         for (def, scheme) in generalized {
             let phase = Instant::now();
-            let ancestors = self.scheme_ancestors(def, &def_parents);
+            let ancestors = self.scheme_ancestors_for_current_poly(def);
             let ancestors = ancestors.iter().collect::<Vec<_>>();
             let finalized = finalize_generalized_compact_root_with_ancestors(
                 &mut self.poly.typ,

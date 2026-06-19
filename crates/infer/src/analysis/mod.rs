@@ -13,7 +13,7 @@ mod timing;
 mod trace;
 mod work;
 
-use std::collections::VecDeque;
+use std::{collections::VecDeque, sync::OnceLock};
 
 use poly::expr::{Arena as PolyArena, Def, DefId, SelectId};
 use poly::types::{
@@ -112,6 +112,7 @@ pub struct AnalysisSession {
     work: VecDeque<AnalysisWork>,
     timing: AnalysisTiming,
     instantiated_targets: FxHashSet<DefId>,
+    def_parent_map: DefParentMapCache,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -119,6 +120,23 @@ pub(in crate::analysis) struct SccInstantiateUse {
     pub parent: DefId,
     pub target: DefId,
     pub use_value: TypeVar,
+}
+
+#[derive(Debug, Default)]
+struct DefParentMapCache {
+    def_count: Option<usize>,
+    parents: FxHashMap<DefId, DefId>,
+}
+
+impl DefParentMapCache {
+    fn refresh(&mut self, poly: &PolyArena) {
+        let def_count = poly.defs.len();
+        if self.def_count == Some(def_count) {
+            return;
+        }
+        self.parents = def_parent_map(poly);
+        self.def_count = Some(def_count);
+    }
 }
 
 #[derive(Debug, Default)]
@@ -132,6 +150,9 @@ pub(super) struct GeneralizeRootMetrics {
 
 impl GeneralizeRootMetrics {
     pub(super) fn record_compact_iteration(&mut self, compact: &CompactRoot) {
+        if !generalize_shape_metrics_enabled() {
+            return;
+        }
         let shape = compact_shape_metrics(compact);
         if self.compact_iterations == 0 {
             self.first_compact_nodes = shape.nodes;
@@ -141,6 +162,14 @@ impl GeneralizeRootMetrics {
         self.compact_iteration_nodes += shape.nodes;
         self.compact_iteration_vars += shape.vars.len();
     }
+}
+
+fn generalize_shape_metrics_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        std::env::var("YULANG_GENERALIZE_SHAPE_TIMING")
+            .is_ok_and(|value| !value.is_empty() && value != "0")
+    })
 }
 
 #[derive(Debug, Default)]

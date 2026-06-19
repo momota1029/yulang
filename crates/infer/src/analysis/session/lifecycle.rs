@@ -28,6 +28,7 @@ impl AnalysisSession {
             work: VecDeque::new(),
             timing: AnalysisTiming::default(),
             instantiated_targets: FxHashSet::default(),
+            def_parent_map: DefParentMapCache::default(),
         };
         session.seed_existing_poly_surface();
         session

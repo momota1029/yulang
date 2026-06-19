@@ -10,3 +10,4 @@ parser = { path = "../parser" }
 rowan = "0.15"
 rustc-hash = "2"
 num-bigint = "0.4"
+smallvec = "1.13.2"

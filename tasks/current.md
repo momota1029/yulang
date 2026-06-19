@@ -257,6 +257,13 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
      膨らむ restart 側が濃い。
      次は merge/subtype/role restart をどう減らすか、または restart 後の compact / role view を
      constraint epoch で再利用できるかを見る。
+   - var-only interval merge を小さい場合も direct var-var path にする案は、
+     `generalize_merge_restarts` を減らしたが role prepass の正しさを壊したため採用しない。
+     採用した軽量化は、bound replay snapshot の `SmallVec` 化、
+     role 入力なし def での applied role set clone 回避、
+     finalize 用 `def_parent_map` の def 数 cache。
+     compact shape counter は `YULANG_GENERALIZE_SHAPE_TIMING=1` の時だけ tree walk する。
+     `examples/showcase.yu` の release / infer-only repeat 5 では `infer` が概ね `230〜238ms`。
 3. source/load は今の public examples では最大ではない。
    - `collect+load` は 70〜85ms 程度なので、realm/band や compiled-unit cache と合わせて設計する。
    - 先に std 専用特例で隠さない。

@@ -456,6 +456,7 @@ dependencies = [
  "poly",
  "rowan",
  "rustc-hash 2.1.2",
+ "smallvec",
  "sources",
 ]
 
