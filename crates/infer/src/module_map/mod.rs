@@ -663,7 +663,7 @@ impl Lower {
         };
         let (def, companion, created) = self.ensure_child_module(module, name, vis);
         self.modules.set_type_companion(owner, companion);
-        let companion_children = self.register_act_companion_block(&body, companion, owner);
+        let companion_children = self.register_act_companion_block(&body, companion, owner, true);
         self.append_module_children(def, companion_children);
         if created {
             children.push(def);
@@ -675,6 +675,7 @@ impl Lower {
         block: &Cst,
         module: ModuleId,
         owner: TypeDeclId,
+        record_source_spans: bool,
     ) -> Vec<DefId> {
         let mut children = Vec::new();
         for child in block.children() {
@@ -694,7 +695,10 @@ impl Lower {
                             children: Vec::new(),
                         },
                     );
-                    let source_span = self.source_span(source_range_for_name(&child, &name));
+                    let source_span = self.act_companion_source_span(
+                        record_source_spans,
+                        source_range_for_name(&child, &name),
+                    );
                     self.modules.insert_value_with_span(
                         module,
                         name.clone(),
@@ -720,7 +724,10 @@ impl Lower {
                         },
                     );
                     let value_name = act_method_value_name(&method.name, def);
-                    let source_span = self.source_span(source_range_for_name(&child, &method.name));
+                    let source_span = self.act_companion_source_span(
+                        record_source_spans,
+                        source_range_for_name(&child, &method.name),
+                    );
                     let order = self.modules.insert_value_with_span(
                         module,
                         value_name,
@@ -754,7 +761,10 @@ impl Lower {
                             children: Vec::new(),
                         },
                     );
-                    let source_span = self.source_span(source_range_for_name(&child, &name));
+                    let source_span = self.act_companion_source_span(
+                        record_source_spans,
+                        source_range_for_name(&child, &name),
+                    );
                     self.modules
                         .insert_value_with_span(module, name, def, vis, source_span);
                     children.push(def);
@@ -798,6 +808,18 @@ impl Lower {
             }
         }
         children
+    }
+
+    fn act_companion_source_span(
+        &self,
+        record_source_spans: bool,
+        range: Option<SourceRange>,
+    ) -> Option<SourceSpan> {
+        if record_source_spans {
+            self.source_span(range)
+        } else {
+            None
+        }
     }
 }
 

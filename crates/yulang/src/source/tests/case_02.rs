@@ -1278,6 +1278,29 @@ fn hover_entry_source_does_not_show_synthetic_var_act_copy_locals() {
 }
 
 #[test]
+fn hover_entry_source_does_not_expose_synthetic_var_act_paths() {
+    let std_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib");
+    let source = "my f =\n  my $x = 1\n  $x\n";
+    let hover = hover_entry_source_with_std_options(
+        "main.yu",
+        source,
+        source.rfind("$x").unwrap(),
+        &StdSourceOptions {
+            std_root: Some(std_root),
+        },
+    )
+    .unwrap();
+
+    if let Some(hover) = hover {
+        assert!(
+            !hover.contents.contains('#'),
+            "expected hover not to expose synthetic var-act paths, got {:?}",
+            hover.contents
+        );
+    }
+}
+
+#[test]
 fn hover_entry_source_reports_attached_role_method_selection_type() {
     let source = "role Pick 'container 'key:\n\
                   \x20 type value\n\

@@ -330,9 +330,13 @@ impl Lower {
         let (def, companion, created) =
             self.ensure_child_module(dest.module, dest.name.clone(), dest.vis);
         self.modules.set_type_companion(id, companion);
-        let mut companion_children = self.register_act_companion_block(&source_body, companion, id);
+        // Copied members are generated in the destination companion; their
+        // template ranges must not become hover locations for that destination.
+        let mut companion_children =
+            self.register_act_companion_block(&source_body, companion, id, false);
         if let Some(own_body) = own_body {
-            companion_children.extend(self.register_act_companion_block(&own_body, companion, id));
+            companion_children
+                .extend(self.register_act_companion_block(&own_body, companion, id, true));
         }
         self.append_module_children(def, companion_children);
         if created && attach_to_parent {

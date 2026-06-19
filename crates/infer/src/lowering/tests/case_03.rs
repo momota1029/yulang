@@ -778,6 +778,32 @@ fn dollar_binding_lowers_to_var_ref_and_run_wrapper() {
 }
 
 #[test]
+fn synthetic_var_act_copy_methods_do_not_get_source_spans() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  mod control:\n",
+        "    mod var:\n",
+        "      type ref 'e 'a with:\n",
+        "        our r.get = r\n",
+        "      act var 't:\n",
+        "        my var_ref() = 0\n",
+        "        my run v x = x\n",
+        "my f =\n",
+        "  my $x = 1\n",
+        "  $x\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (f, _) = binding_def_and_order(&lower.modules, module, "f");
+    let local_var_act = lower.modules.synthetic_var_act_uses(f)[0].clone();
+    let var_ref = act_member_def(&lower.modules, local_var_act.act, "var_ref");
+    let run = act_member_def(&lower.modules, local_var_act.act, "run");
+
+    assert_eq!(lower.modules.def_source_span(var_ref), None);
+    assert_eq!(lower.modules.def_source_span(run), None);
+}
+
+#[test]
 fn dollar_binding_inside_tuple_pattern_lowers_to_var_ref_and_run_wrapper() {
     let root = parse(concat!(
         "mod std:\n",
