@@ -118,10 +118,16 @@ impl<'a> ExprLowerer<'a> {
         }
 
         match single_pattern_item_with_ignored_tails(node, ignored_tails)? {
-            PatternItem::Ident(name) if name.0 == "_" => Ok(self.session.poly.add_pat(Pat::Wild)),
-            PatternItem::Ident(name) => {
-                self.lower_bare_name_pattern(name, value, local_effect, call_return_effect)
+            PatternItem::Ident { name, .. } if name.0 == "_" => {
+                Ok(self.session.poly.add_pat(Pat::Wild))
             }
+            PatternItem::Ident { name, source_range } => self.lower_bare_name_pattern(
+                name,
+                source_range,
+                value,
+                local_effect,
+                call_return_effect,
+            ),
             PatternItem::Number(text) => self.lower_number_pattern(&text, value),
             PatternItem::String(text) => {
                 self.constrain_exact_text_str(value);
@@ -137,6 +143,7 @@ impl<'a> ExprLowerer<'a> {
     fn lower_bare_name_pattern(
         &mut self,
         name: Name,
+        source_range: Option<SourceRange>,
         value: TypeVar,
         local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
@@ -156,7 +163,7 @@ impl<'a> ExprLowerer<'a> {
             );
         }
 
-        Ok(self.bind_lambda_param(name, value, local_effect, call_return_effect))
+        Ok(self.bind_lambda_param(name, source_range, value, local_effect, call_return_effect))
     }
 
     fn bare_pattern_name_is_nullary_constructor(&self, name: &Name) -> bool {
@@ -176,11 +183,12 @@ impl<'a> ExprLowerer<'a> {
     fn bind_lambda_param(
         &mut self,
         name: Name,
+        source_range: Option<SourceRange>,
         value: TypeVar,
         local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> PatId {
-        self.bind_pattern_local(name, value, local_effect, call_return_effect)
+        self.bind_pattern_local_at(name, value, local_effect, call_return_effect, source_range)
     }
 
     pub(super) fn bind_pattern_local(
@@ -190,7 +198,19 @@ impl<'a> ExprLowerer<'a> {
         effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> PatId {
-        let def = self.bind_pattern_local_def(name, value, effect, call_return_effect);
+        self.bind_pattern_local_at(name, value, effect, call_return_effect, None)
+    }
+
+    pub(super) fn bind_pattern_local_at(
+        &mut self,
+        name: Name,
+        value: TypeVar,
+        effect: Option<LocalEffect>,
+        call_return_effect: LocalCallReturnEffect,
+        source_range: Option<SourceRange>,
+    ) -> PatId {
+        let def =
+            self.bind_pattern_local_def(name, value, effect, call_return_effect, source_range);
         self.session.poly.add_pat(Pat::Var(def))
     }
 
@@ -200,6 +220,7 @@ impl<'a> ExprLowerer<'a> {
         value: TypeVar,
         effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
+        source_range: Option<SourceRange>,
     ) -> DefId {
         let name = self
             .pattern_binding_rewrites
@@ -208,6 +229,13 @@ impl<'a> ExprLowerer<'a> {
             .unwrap_or(name);
         let def = self.session.poly.defs.fresh();
         self.session.poly.defs.set(def, Def::Arg);
+        self.session.local_defs.insert(
+            def,
+            LocalDefUse {
+                value,
+                source_span: self.source_span(source_range),
+            },
+        );
         if let Some(labels) = self.labels.as_mut() {
             labels.set_def_label(def, name.0.clone());
         }
@@ -279,7 +307,7 @@ impl<'a> ExprLowerer<'a> {
             .ok_or(LoweringError::UnsupportedPatternSyntax { kind: node.kind() })?;
         let inner =
             self.lower_pattern(&inner_node, value, local_effect.clone(), call_return_effect)?;
-        let def = self.bind_pattern_local_def(alias, value, local_effect, call_return_effect);
+        let def = self.bind_pattern_local_def(alias, value, local_effect, call_return_effect, None);
         Ok(self.session.poly.add_pat(Pat::As(inner, def)))
     }
 
@@ -301,7 +329,7 @@ impl<'a> ExprLowerer<'a> {
             call_return_effect,
             ignored_tails.with_as(),
         )?;
-        let def = self.bind_pattern_local_def(alias, value, local_effect, call_return_effect);
+        let def = self.bind_pattern_local_def(alias, value, local_effect, call_return_effect, None);
         Ok(self.session.poly.add_pat(Pat::As(inner, def)))
     }
 
@@ -764,7 +792,10 @@ impl<'a> ExprLowerer<'a> {
 }
 
 pub(super) enum PatternItem {
-    Ident(Name),
+    Ident {
+        name: Name,
+        source_range: Option<SourceRange>,
+    },
     Number(String),
     String(String),
     Paren(Cst),
@@ -803,7 +834,10 @@ fn single_pattern_item_with_ignored_tails(
         NodeOrToken::Token(token)
             if matches!(token.kind(), SyntaxKind::Ident | SyntaxKind::SigilIdent) =>
         {
-            Ok(PatternItem::Ident(Name(token.text().to_string())))
+            Ok(PatternItem::Ident {
+                name: Name(token.text().to_string()),
+                source_range: Some(crate::token_source_range(token)),
+            })
         }
         NodeOrToken::Token(token) if token.kind() == SyntaxKind::Number => {
             Ok(PatternItem::Number(token.text().to_string()))

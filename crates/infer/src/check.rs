@@ -4,12 +4,15 @@
 //! この module は既存の lowering / inference を一度だけ走らせ、その結果を構造化された summary にする。
 
 use poly::expr::{Def, DefId};
-use poly::types::{Neg, NegId, Neu, NeuId, Pos, PosId, RolePredicateArg, Scheme, TypeArena};
+use poly::types::{
+    Neg, NegId, Neu, NeuId, Pos, PosId, RolePredicateArg, Scheme, TypeArena, TypeVar,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 use sources::{LoadedFile, Path};
 
 use crate::LoadedFilesError;
 use crate::ModuleId;
+use crate::constraints::TypeLevel;
 use crate::lowering::{BodyLowering, BodyLoweringError, BodyLoweringTiming, lower_loaded_files};
 use crate::time::{Duration, Instant};
 
@@ -127,6 +130,21 @@ pub fn summarize_lowering(lowering: &BodyLowering) -> PolyCheckReport {
     report.totals.modules = report.modules.len();
 
     report
+}
+
+pub fn format_inferred_value_type(lowering: &BodyLowering, value: TypeVar) -> String {
+    let machine = lowering.session.infer.constraints();
+    let generalized = crate::generalize::generalize_type_var_with_boundaries(
+        machine,
+        value,
+        TypeLevel::root(),
+        TypeLevel::root().child(),
+        &FxHashSet::default(),
+    );
+    let mut types = lowering.session.poly.typ.clone();
+    let finalized =
+        crate::generalize::finalize_generalized_compact_root(&mut types, machine, &generalized);
+    poly::dump::format_scheme(&types, &finalized.scheme)
 }
 
 pub fn body_error_def(error: &BodyLoweringError) -> Option<DefId> {

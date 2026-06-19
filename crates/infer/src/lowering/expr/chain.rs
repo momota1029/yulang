@@ -114,7 +114,11 @@ impl<'a> ExprLowerer<'a> {
                     acc = if path_tail_len == 0 {
                         self.lower_field_selection(acc, child)?
                     } else {
-                        self.lower_synthetic_selection(acc, name)
+                        self.lower_synthetic_selection_at(
+                            acc,
+                            name,
+                            super::tail::field_source_range(child),
+                        )
                     };
                     index += 1 + path_tail_len;
                     continue;

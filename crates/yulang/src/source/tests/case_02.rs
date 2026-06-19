@@ -1109,6 +1109,80 @@ fn hover_entry_source_reports_ref_target_type() {
 }
 
 #[test]
+fn hover_entry_source_reports_lambda_arg_type() {
+    let source = "my id x = x\n";
+    let arg_offset = source.find('x').unwrap();
+    let hover = hover_entry_source("main.yu", source, arg_offset)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        hover.range,
+        SourceRange {
+            start: arg_offset,
+            end: arg_offset + 1,
+        }
+    );
+    assert!(
+        hover.contents.starts_with("x: "),
+        "expected hover to show lambda arg type, got {:?}",
+        hover.contents
+    );
+}
+
+#[test]
+fn hover_entry_source_reports_lambda_arg_ref_type() {
+    let source = "my id x = x\n";
+    let ref_offset = source.rfind('x').unwrap();
+    let hover = hover_entry_source("main.yu", source, ref_offset)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        hover.range,
+        SourceRange {
+            start: ref_offset,
+            end: ref_offset + 1,
+        }
+    );
+    assert!(
+        hover.contents.starts_with("x: "),
+        "expected hover to show lambda arg ref type, got {:?}",
+        hover.contents
+    );
+}
+
+#[test]
+fn hover_entry_source_reports_selected_method_type() {
+    let source = "type User with:\n  our x.id = x\nmy u: User = 1\nmy got = u.id\n";
+    let method_offset = source.rfind("id").unwrap();
+    let hover = hover_entry_source("main.yu", source, method_offset)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        hover.range,
+        SourceRange {
+            start: method_offset,
+            end: method_offset + 2,
+        }
+    );
+    assert!(
+        hover.contents.starts_with("User.id: "),
+        "expected hover to show selected method, got {:?}",
+        hover.contents
+    );
+}
+
+#[test]
+fn hover_type_paths_shorten_prelude_prefix() {
+    assert_eq!(
+        shorten_hover_type_paths("std::prelude::thing -> std::prelude::box int"),
+        "thing -> box int"
+    );
+}
+
+#[test]
 fn check_poly_std_in_filters_to_requested_module() {
     let root = temp_root("check-poly-std-in");
     let _ = fs::remove_dir_all(&root);

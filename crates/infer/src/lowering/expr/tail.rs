@@ -131,12 +131,13 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
     ) -> Result<Computation, LoweringError> {
         let name = field_name(node).ok_or(LoweringError::MissingFieldName)?;
+        let source_range = field_source_range(node);
         if name == "return"
             && let Some(target) = self.sub_label_return_target(receiver.expr).cloned()
         {
             return Ok(self.lower_sub_return_target(&target));
         }
-        Ok(self.lower_synthetic_selection(receiver, name))
+        Ok(self.lower_synthetic_selection_at(receiver, name, source_range))
     }
 
     pub(in crate::lowering) fn lower_index_selection(
@@ -202,6 +203,15 @@ impl<'a> ExprLowerer<'a> {
         receiver: Computation,
         name: String,
     ) -> Computation {
+        self.lower_synthetic_selection_at(receiver, name, None)
+    }
+
+    pub(in crate::lowering) fn lower_synthetic_selection_at(
+        &mut self,
+        receiver: Computation,
+        name: String,
+        source_range: Option<SourceRange>,
+    ) -> Computation {
         let method_value = self.fresh_type_var();
         let result_value = self.fresh_type_var();
         let result_effect = self.fresh_type_var();
@@ -232,6 +242,11 @@ impl<'a> ExprLowerer<'a> {
                 local_method_scope: self.local_method_scope,
             },
         );
+        if let Some(source_span) = self.source_span(source_range) {
+            self.session
+                .selections
+                .insert_source_span(select, source_span);
+        }
         let expr = self
             .session
             .poly
@@ -683,6 +698,18 @@ impl<'a> ExprLowerer<'a> {
             self.wrap_pos_with_subtracts(ret, subtracts),
         )
     }
+}
+
+pub(in crate::lowering) fn field_source_range(node: &Cst) -> Option<SourceRange> {
+    let token = node
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == SyntaxKind::DotField)?;
+    let mut range = token_source_range(&token);
+    if token.text().starts_with('.') {
+        range.start = range.start.saturating_add(1);
+    }
+    Some(range)
 }
 
 fn expr_references_def(poly: &poly::expr::Arena, expr: ExprId, def: DefId) -> bool {

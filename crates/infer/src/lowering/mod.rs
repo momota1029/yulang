@@ -64,7 +64,7 @@ use crate::roles::{
 use crate::scc::SccInput;
 use crate::time::{Duration, Instant};
 use crate::typing::{EffectViewId, Typing};
-use crate::uses::{RefUse, SelectionUse};
+use crate::uses::{LocalDefUse, RefUse, SelectionUse};
 use crate::{
     ActMethodDecl, ActOperationDecl, CastDecl, ConstructorPayload, LoadedFileCsts,
     LoadedFilesError, Lower, ModuleChildDecl, ModuleId, ModuleOrder, ModuleTable, ModuleTypeDecl,

@@ -987,6 +987,12 @@ fn source_hover_from_check(
         }
         push_best_hover(&mut best, hover_for_def(check, def, span.range), span.range);
     }
+    for (def, span) in check.lowering.session.local_defs.source_spans() {
+        if &span.file != file || !source_range_contains(span.range, byte_offset) {
+            continue;
+        }
+        push_best_hover(&mut best, hover_for_def(check, def, span.range), span.range);
+    }
     for (reference, use_site) in check.lowering.session.refs.iter() {
         let Some(span) = &use_site.source_span else {
             continue;
@@ -1000,6 +1006,16 @@ fn source_hover_from_check(
         push_best_hover(
             &mut best,
             hover_for_def(check, target, span.range),
+            span.range,
+        );
+    }
+    for (select, span) in check.lowering.session.selections.source_spans() {
+        if &span.file != file || !source_range_contains(span.range, byte_offset) {
+            continue;
+        }
+        push_best_hover(
+            &mut best,
+            hover_for_select(check, select, span.range),
             span.range,
         );
     }
@@ -1034,17 +1050,74 @@ fn hover_for_def(
         ..
     }) = check.lowering.session.poly.defs.get(def)
     else {
+        return hover_for_local_def(check, def, range);
+    };
+    let label = check.lowering.labels.def_label(def)?;
+    if label.starts_with('#') {
+        return None;
+    }
+    let label = shorten_hover_label(label);
+    let ty = format_hover_scheme(check, scheme);
+    Some(SourceHover {
+        range,
+        contents: format!("{label}: {ty}"),
+    })
+}
+
+fn hover_for_local_def(
+    check: &infer::check::PolyCheckOutput,
+    def: poly::expr::DefId,
+    range: SourceRange,
+) -> Option<SourceHover> {
+    let poly::expr::Def::Arg = check.lowering.session.poly.defs.get(def)? else {
         return None;
     };
     let label = check.lowering.labels.def_label(def)?;
     if label.starts_with('#') {
         return None;
     }
-    let ty = poly::dump::format_scheme(&check.lowering.session.poly.typ, scheme);
+    let local = check.lowering.session.local_defs.get(def)?;
+    let label = shorten_hover_label(label);
+    let ty = shorten_hover_type_paths(&infer::check::format_inferred_value_type(
+        &check.lowering,
+        local.value,
+    ));
     Some(SourceHover {
         range,
         contents: format!("{label}: {ty}"),
     })
+}
+
+fn hover_for_select(
+    check: &infer::check::PolyCheckOutput,
+    select: poly::expr::SelectId,
+    range: SourceRange,
+) -> Option<SourceHover> {
+    match check.lowering.session.poly.select(select).resolution? {
+        poly::expr::SelectResolution::Method { def } => hover_for_def(check, def, range),
+        poly::expr::SelectResolution::TypeclassMethod { member } => {
+            hover_for_def(check, member, range)
+        }
+        poly::expr::SelectResolution::RecordField => None,
+    }
+}
+
+fn format_hover_scheme(
+    check: &infer::check::PolyCheckOutput,
+    scheme: &poly::types::Scheme,
+) -> String {
+    shorten_hover_type_paths(&poly::dump::format_scheme(
+        &check.lowering.session.poly.typ,
+        scheme,
+    ))
+}
+
+fn shorten_hover_label(label: &str) -> String {
+    shorten_hover_type_paths(label)
+}
+
+fn shorten_hover_type_paths(text: &str) -> String {
+    text.replace("std::prelude::", "")
 }
 
 fn source_range_contains(range: SourceRange, byte_offset: usize) -> bool {

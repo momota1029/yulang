@@ -34,6 +34,42 @@ impl DefTypes {
 }
 
 #[derive(Debug, Clone, Default)]
+/// source 上の局所 def に対応する推論メタデータ。
+///
+/// `Def::Arg` は scheme を持たないため、hover などの source tool は lowering 中の
+/// value slot をここから読む。`poly` の定義種別には混ぜず、use-site metadata と同じ層に置く。
+pub struct LocalDefUseTable {
+    defs: FxHashMap<DefId, LocalDefUse>,
+}
+
+impl LocalDefUseTable {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn insert(&mut self, def: DefId, use_site: LocalDefUse) -> Option<LocalDefUse> {
+        self.defs.insert(def, use_site)
+    }
+
+    pub fn get(&self, def: DefId) -> Option<&LocalDefUse> {
+        self.defs.get(&def)
+    }
+
+    pub fn source_spans(&self) -> impl Iterator<Item = (DefId, &SourceSpan)> {
+        self.defs
+            .iter()
+            .filter_map(|(def, use_site)| use_site.source_span.as_ref().map(|span| (*def, span)))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// 1つの局所 def に対応する推論メタデータ。
+pub struct LocalDefUse {
+    pub value: TypeVar,
+    pub source_span: Option<SourceSpan>,
+}
+
+#[derive(Debug, Clone, Default)]
 /// 参照 use-site の table。
 ///
 /// `RefId` の解決先は `poly::Arena` に書き戻す。一方で、SCC edge を張るには
@@ -88,6 +124,7 @@ pub struct RefUse {
 /// 解ける場合がある。
 pub struct SelectionUseTable {
     uses: FxHashMap<SelectId, SelectionUse>,
+    source_spans: FxHashMap<SelectId, SourceSpan>,
     pending_by_receiver: FxHashMap<TypeVar, Vec<SelectId>>,
     pending_by_ref_payload: FxHashMap<TypeVar, Vec<SelectId>>,
     pending_by_effect: FxHashMap<TypeVar, Vec<SelectId>>,
@@ -102,8 +139,22 @@ impl SelectionUseTable {
         self.uses.insert(id, use_site)
     }
 
+    pub fn insert_source_span(&mut self, id: SelectId, source_span: SourceSpan) {
+        self.source_spans.insert(id, source_span);
+    }
+
     pub fn get(&self, id: SelectId) -> Option<&SelectionUse> {
         self.uses.get(&id)
+    }
+
+    pub fn source_span(&self, id: SelectId) -> Option<&SourceSpan> {
+        self.source_spans.get(&id)
+    }
+
+    pub fn source_spans(&self) -> impl Iterator<Item = (SelectId, &SourceSpan)> {
+        self.source_spans
+            .iter()
+            .map(|(select, span)| (*select, span))
     }
 
     pub fn remove(&mut self, id: SelectId) -> Option<SelectionUse> {
@@ -197,6 +248,30 @@ mod tests {
     }
 
     #[test]
+    fn local_def_use_records_type_slot_and_source_span() {
+        let mut table = LocalDefUseTable::new();
+        let def = DefId(3);
+        let source_span = SourceSpan {
+            file: sources::Path::default(),
+            range: sources::SourceRange { start: 1, end: 4 },
+        };
+
+        table.insert(
+            def,
+            LocalDefUse {
+                value: TypeVar(8),
+                source_span: Some(source_span.clone()),
+            },
+        );
+
+        assert_eq!(table.get(def).unwrap().value, TypeVar(8));
+        assert_eq!(
+            table.source_spans().collect::<Vec<_>>(),
+            vec![(def, &source_span)]
+        );
+    }
+
+    #[test]
     fn selection_use_keeps_unresolved_slots_and_watch_sets() {
         let mut table = SelectionUseTable::new();
         let select = SelectId(0);
@@ -224,5 +299,31 @@ mod tests {
         assert_eq!(table.get(select).unwrap().receiver_value, TypeVar(2));
         assert_eq!(table.remove(select).unwrap().parent, DefId(1));
         assert!(table.get(select).is_none());
+    }
+
+    #[test]
+    fn selection_source_span_survives_resolution_removal() {
+        let mut table = SelectionUseTable::new();
+        let select = SelectId(0);
+        let source_span = SourceSpan {
+            file: sources::Path::default(),
+            range: sources::SourceRange { start: 2, end: 5 },
+        };
+        table.insert(
+            select,
+            SelectionUse {
+                parent: DefId(1),
+                method_value: TypeVar(4),
+                receiver_value: TypeVar(2),
+                receiver_effect: TypeVar(3),
+                local_method_scope: None,
+            },
+        );
+        table.insert_source_span(select, source_span.clone());
+
+        table.remove(select);
+
+        assert!(table.get(select).is_none());
+        assert_eq!(table.source_span(select), Some(&source_span));
     }
 }

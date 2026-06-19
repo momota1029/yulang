@@ -67,7 +67,7 @@ use crate::roles::{
 use crate::scc::{SccEvent, SccInput, SccMachine};
 use crate::time::{Duration, Instant};
 use crate::typing::BindingFetch;
-use crate::uses::{RefUseTable, SelectionUse, SelectionUseTable};
+use crate::uses::{LocalDefUseTable, RefUseTable, SelectionUse, SelectionUseTable};
 use method_taint::{
     MethodTaintIndex, build_method_taint_index, compact_role_constraint_has_method_taint,
 };
@@ -89,6 +89,7 @@ pub use work::{AnalysisDiagnostic, AnalysisWork, SelectionTarget};
 pub struct AnalysisSession {
     pub poly: PolyArena,
     pub infer: InferArena,
+    pub local_defs: LocalDefUseTable,
     pub refs: RefUseTable,
     pub selections: SelectionUseTable,
     pub roles: RoleConstraintTable,

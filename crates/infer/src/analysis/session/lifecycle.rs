@@ -5,6 +5,7 @@ impl AnalysisSession {
         let mut session = Self {
             poly,
             infer: InferArena::new(),
+            local_defs: LocalDefUseTable::new(),
             refs: RefUseTable::new(),
             selections: SelectionUseTable::new(),
             roles: RoleConstraintTable::new(),

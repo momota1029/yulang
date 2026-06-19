@@ -802,8 +802,10 @@ impl<'a> ExprLowerer<'a> {
         scrutinee_effect: TypeVar,
     ) -> Result<PatId, LoweringError> {
         match single_pattern_item(node)? {
-            PatternItem::Ident(name) if name.0 == "_" => Ok(self.session.poly.add_pat(Pat::Wild)),
-            PatternItem::Ident(name) => {
+            PatternItem::Ident { name, .. } if name.0 == "_" => {
+                Ok(self.session.poly.add_pat(Pat::Wild))
+            }
+            PatternItem::Ident { name, .. } => {
                 let continuation_value = self.fresh_type_var();
                 let pat = self.bind_pattern_local(
                     name,
