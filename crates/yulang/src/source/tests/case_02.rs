@@ -1153,6 +1153,114 @@ fn hover_entry_source_reports_lambda_arg_ref_type() {
 }
 
 #[test]
+fn hover_entry_source_shortens_import_visible_type_paths() {
+    let std_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib");
+    let source = "my keep(x: opt int): opt int = x\n";
+    let hover = hover_entry_source_with_std_options(
+        "main.yu",
+        source,
+        source.find("keep").unwrap(),
+        &StdSourceOptions {
+            std_root: Some(std_root),
+        },
+    )
+    .unwrap()
+    .unwrap();
+
+    assert!(
+        hover.contents.contains("keep: opt int -> opt int"),
+        "expected imported opt path to be shortened, got {:?}",
+        hover.contents
+    );
+    assert!(
+        !hover.contents.contains("std::data::opt::opt"),
+        "expected hover type to omit absolute opt path, got {:?}",
+        hover.contents
+    );
+}
+
+#[test]
+fn hover_entry_source_shortens_import_visible_effect_paths() {
+    let std_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib");
+    let source = "use std::control::nondet::*\nmy run(x: [nondet] int): int = x\n";
+    let hover = hover_entry_source_with_std_options(
+        "main.yu",
+        source,
+        source.find("run").unwrap(),
+        &StdSourceOptions {
+            std_root: Some(std_root),
+        },
+    )
+    .unwrap()
+    .unwrap();
+
+    assert!(
+        hover.contents.contains("[nondet; "),
+        "expected imported nondet effect path to be shortened, got {:?}",
+        hover.contents
+    );
+    assert!(
+        !hover.contents.contains("std::control::nondet::nondet"),
+        "expected hover type to omit absolute nondet path, got {:?}",
+        hover.contents
+    );
+}
+
+#[test]
+fn hover_entry_source_shortens_selected_method_type_paths() {
+    let std_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib");
+    let source = "use std::control::nondet::*\nmy got = (each [1]).once\n";
+    let hover = hover_entry_source_with_std_options(
+        "main.yu",
+        source,
+        source.rfind("once").unwrap(),
+        &StdSourceOptions {
+            std_root: Some(std_root),
+        },
+    )
+    .unwrap()
+    .unwrap();
+
+    assert!(
+        hover.contents.contains("once: "),
+        "expected hover to show selected once method, got {:?}",
+        hover.contents
+    );
+    assert!(
+        !hover.contents.contains("std::control::nondet::nondet"),
+        "expected hover type to omit absolute nondet path, got {:?}",
+        hover.contents
+    );
+    assert!(
+        !hover.contents.contains("std::data::opt::opt"),
+        "expected hover type to omit absolute opt path, got {:?}",
+        hover.contents
+    );
+}
+
+#[test]
+fn hover_entry_source_reports_shorthand_record_pattern_type() {
+    let source = "my f({x = 1}) = x\n";
+    let pattern_offset = source.find('x').unwrap();
+    let hover = hover_entry_source("main.yu", source, pattern_offset)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        hover.range,
+        SourceRange {
+            start: pattern_offset,
+            end: pattern_offset + 1,
+        }
+    );
+    assert!(
+        hover.contents.starts_with("x: int"),
+        "expected hover to show shorthand record pattern type, got {:?}",
+        hover.contents
+    );
+}
+
+#[test]
 fn hover_entry_source_reports_selected_method_type() {
     let source = "type User with:\n  our x.id = x\nmy u: User = 1\nmy got = u.id\n";
     let method_offset = source.rfind("id").unwrap();
@@ -1171,14 +1279,6 @@ fn hover_entry_source_reports_selected_method_type() {
         hover.contents.starts_with("User.id: "),
         "expected hover to show selected method, got {:?}",
         hover.contents
-    );
-}
-
-#[test]
-fn hover_type_paths_shorten_prelude_prefix() {
-    assert_eq!(
-        shorten_hover_type_paths("std::prelude::thing -> std::prelude::box int"),
-        "thing -> box int"
     );
 }
 

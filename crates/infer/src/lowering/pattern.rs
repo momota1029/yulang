@@ -494,7 +494,7 @@ impl<'a> ExprLowerer<'a> {
         local_effect: Option<LocalEffect>,
         call_return_effect: LocalCallReturnEffect,
     ) -> Result<LoweredRecordPatternField, LoweringError> {
-        let name = pat_field_name(node).ok_or(LoweringError::MissingRecordFieldName)?;
+        let field_name = pat_field_name(node).ok_or(LoweringError::MissingRecordFieldName)?;
         let value = self.fresh_type_var();
         let default = pat_field_default_expr(node)
             .map(|expr| self.lower_expr(&expr))
@@ -508,11 +508,12 @@ impl<'a> ExprLowerer<'a> {
         let pat = if let Some(pattern) = pat_field_pattern(node) {
             self.lower_pattern(&pattern, value, local_effect.clone(), call_return_effect)?
         } else {
-            self.bind_pattern_local(
-                name.clone(),
+            self.bind_pattern_local_at(
+                field_name.name.clone(),
                 value,
                 local_effect.clone(),
                 call_return_effect,
+                field_name.source_range,
             )
         };
         if let Some(default) = default {
@@ -523,7 +524,7 @@ impl<'a> ExprLowerer<'a> {
             }
         }
         Ok(LoweredRecordPatternField {
-            name: name.0,
+            name: field_name.name.0,
             record_value,
             pat,
             default: default.map(|default| default.expr),
@@ -1051,11 +1052,19 @@ fn is_pattern_node(node: &Cst) -> bool {
     )
 }
 
-fn pat_field_name(node: &Cst) -> Option<Name> {
+struct PatFieldName {
+    name: Name,
+    source_range: Option<SourceRange>,
+}
+
+fn pat_field_name(node: &Cst) -> Option<PatFieldName> {
     node.children_with_tokens()
         .filter_map(|item| item.into_token())
         .find(|token| token.kind() == SyntaxKind::Ident)
-        .map(|token| Name(token.text().to_string()))
+        .map(|token| PatFieldName {
+            name: Name(token.text().to_string()),
+            source_range: Some(crate::token_source_range(&token)),
+        })
 }
 
 fn pat_field_pattern(node: &Cst) -> Option<Cst> {

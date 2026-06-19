@@ -1,8 +1,24 @@
 use super::*;
 
-impl<'a> TypeFormatter<'a> {
+impl<'a, 'paths> TypeFormatter<'a, 'paths> {
     pub(super) fn new(arena: &'a TypeArena, namer: TypeVarNamer) -> Self {
-        Self { arena, namer }
+        Self {
+            arena,
+            namer,
+            path_rewriter: None,
+        }
+    }
+
+    pub(super) fn new_with_path_rewriter(
+        arena: &'a TypeArena,
+        namer: TypeVarNamer,
+        path_rewriter: PathRewriter<'paths>,
+    ) -> Self {
+        Self {
+            arena,
+            namer,
+            path_rewriter: Some(path_rewriter),
+        }
     }
 
     pub(super) fn format_scheme(mut self, scheme: &Scheme) -> String {
@@ -23,7 +39,7 @@ impl<'a> TypeFormatter<'a> {
     }
 
     pub(super) fn role_predicate(&mut self, predicate: &RolePredicate) -> String {
-        let role = path_name(&predicate.role);
+        let role = self.path_name(&predicate.role);
         let mut inputs = predicate
             .inputs
             .iter()
@@ -97,7 +113,7 @@ impl<'a> TypeFormatter<'a> {
         path: &[String],
         args: &[NeuId],
     ) -> Rendered {
-        let name = subtractability_path_name(path);
+        let name = self.subtractability_path_name(path);
         if args.is_empty() {
             return Rendered::atom(name);
         }
@@ -304,7 +320,7 @@ impl<'a> TypeFormatter<'a> {
         if args.is_empty() && matches!(path, [name] if name == "unit") {
             return Rendered::atom("()");
         }
-        let name = path_name(path);
+        let name = self.path_name(path);
         if args.is_empty() {
             return Rendered::atom(name);
         }
@@ -464,6 +480,28 @@ impl<'a> TypeFormatter<'a> {
                 format!("({items})")
             }
         }
+    }
+
+    fn rewritten_path(&self, path: &[String]) -> Vec<String> {
+        self.path_rewriter
+            .map(|rewrite| rewrite(path))
+            .unwrap_or_else(|| path.to_vec())
+    }
+
+    fn path_name(&self, path: &[String]) -> String {
+        self.rewritten_path(path)
+            .iter()
+            .map(|segment| surface_name(segment))
+            .collect::<Vec<_>>()
+            .join("::")
+    }
+
+    fn subtractability_path_name(&self, path: &[String]) -> String {
+        self.rewritten_path(path)
+            .iter()
+            .map(|segment| subtractability_surface_name(segment))
+            .collect::<Vec<_>>()
+            .join("::")
     }
 
     pub(super) fn neg_row_inline(&mut self, id: NegId) -> Option<String> {

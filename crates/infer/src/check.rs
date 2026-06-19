@@ -133,6 +133,14 @@ pub fn summarize_lowering(lowering: &BodyLowering) -> PolyCheckReport {
 }
 
 pub fn format_inferred_value_type(lowering: &BodyLowering, value: TypeVar) -> String {
+    format_inferred_value_type_with_path_rewriter(lowering, value, &|path| path.to_vec())
+}
+
+pub fn format_inferred_value_type_with_path_rewriter(
+    lowering: &BodyLowering,
+    value: TypeVar,
+    path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
+) -> String {
     let machine = lowering.session.infer.constraints();
     let generalized = crate::generalize::generalize_type_var_with_boundaries(
         machine,
@@ -144,7 +152,7 @@ pub fn format_inferred_value_type(lowering: &BodyLowering, value: TypeVar) -> St
     let mut types = lowering.session.poly.typ.clone();
     let finalized =
         crate::generalize::finalize_generalized_compact_root(&mut types, machine, &generalized);
-    poly::dump::format_scheme(&types, &finalized.scheme)
+    poly::dump::format_scheme_with_path_rewriter(&types, &finalized.scheme, path_rewriter)
 }
 
 pub fn body_error_def(error: &BodyLoweringError) -> Option<DefId> {

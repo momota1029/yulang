@@ -20,6 +20,20 @@ pub fn format_scheme(arena: &TypeArena, scheme: &Scheme) -> String {
     TypeFormatter::new(arena, namer).format_scheme(scheme)
 }
 
+/// 型 path を呼び出し側の表示 context で短縮しながら scheme を返す。
+///
+/// `format_scheme` は dump / golden test 用に canonical な full path を保つ。
+/// language server など source context を持つ caller だけ、この入口で import 済み path を短くする。
+pub fn format_scheme_with_path_rewriter(
+    arena: &TypeArena,
+    scheme: &Scheme,
+    path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
+) -> String {
+    let mut namer = TypeVarNamer::new();
+    namer.seed(&scheme.quantifiers);
+    TypeFormatter::new_with_path_rewriter(arena, namer, path_rewriter).format_scheme(scheme)
+}
+
 /// 正側型を短い構文風表記で返す。
 pub fn format_pos(arena: &TypeArena, id: PosId) -> String {
     TypeFormatter::new(arena, TypeVarNamer::new()).pos(id, Context::Free)
@@ -139,12 +153,15 @@ impl Rendered {
     }
 }
 
-struct TypeFormatter<'a> {
+type PathRewriter<'a> = &'a dyn Fn(&[String]) -> Vec<String>;
+
+struct TypeFormatter<'a, 'paths> {
     arena: &'a TypeArena,
     namer: TypeVarNamer,
+    path_rewriter: Option<PathRewriter<'paths>>,
 }
 
-impl<'a> TypeFormatter<'a> {}
+impl<'a, 'paths> TypeFormatter<'a, 'paths> {}
 
 fn pos_contains_var(arena: &TypeArena, id: PosId, expected: TypeVar) -> bool {
     match arena.pos(id) {
@@ -266,20 +283,6 @@ fn is_hidden_quantifier_stack(weight: &StackWeight) -> bool {
             .entries()
             .iter()
             .all(|entry| entry.stack.is_empty() && entry.pops == u32::MAX)
-}
-
-fn path_name(path: &[String]) -> String {
-    path.iter()
-        .map(|segment| surface_name(segment))
-        .collect::<Vec<_>>()
-        .join("::")
-}
-
-fn subtractability_path_name(path: &[String]) -> String {
-    path.iter()
-        .map(|segment| subtractability_surface_name(segment))
-        .collect::<Vec<_>>()
-        .join("::")
 }
 
 fn surface_name(name: &str) -> String {

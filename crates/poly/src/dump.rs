@@ -17,7 +17,9 @@ mod raw;
 mod surface;
 mod type_format;
 mod type_raw;
-pub use self::type_format::{format_neg, format_neu, format_pos, format_scheme};
+pub use self::type_format::{
+    format_neg, format_neu, format_pos, format_scheme, format_scheme_with_path_rewriter,
+};
 pub use self::type_raw::{dump_neg_raw, dump_neu_raw, dump_pos_raw, dump_scheme_raw};
 
 /// `poly::Arena` を compact dump として返す。
