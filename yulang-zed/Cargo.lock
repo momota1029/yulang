@@ -740,7 +740,7 @@ dependencies = [
 
 [[package]]
 name = "yulang-zed"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "zed_extension_api",
 ]

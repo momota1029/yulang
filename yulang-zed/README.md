@@ -22,10 +22,12 @@ irm https://yulang.momota.pw/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.1
 ```
 
-The extension first searches for `yulang-lsp`, then falls back to `yulang`
-and invokes it as `yulang server`. It searches the active worktree environment,
-`~/.yulang/bin`, and `~/.cargo/bin`. It does not bundle a language server
-binary yet.
+The extension searches the active worktree environment, `~/.yulang/bin`, and
+`~/.cargo/bin`. On Linux and macOS it first searches for `yulang-lsp`, then
+falls back to `yulang` and invokes it as `yulang server`. On Windows it prefers
+the release-installed `yulang.exe` and rejects Unix-style fallback paths such as
+`/home/me/.cargo/bin/yulang-lsp`. It does not bundle a language server binary
+yet.
 
 You can override the command from Zed settings:
 

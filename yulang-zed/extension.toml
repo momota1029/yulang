@@ -1,7 +1,7 @@
 id = "yulang"
 name = "Yulang"
 description = "Yulang language support"
-version = "0.0.7"
+version = "0.0.8"
 schema_version = 1
 authors = ["momota"]
 repository = "https://github.com/momota1029/yulang-zed"
