@@ -5,6 +5,7 @@ use zed_extension_api::{
 };
 
 const LANGUAGE_SERVER_ID: &str = "yulang";
+const LEGACY_LANGUAGE_SERVER_ID: &str = "yulang-lsp";
 const STANDALONE_LANGUAGE_SERVER_BINARY: &str = "yulang-lsp";
 const YULANG_BINARY: &str = "yulang";
 const LANGUAGE_SERVER_SUBCOMMAND: &str = "server";
@@ -21,7 +22,7 @@ impl zed::Extension for YulangExtension {
         language_server_id: &LanguageServerId,
         worktree: &Worktree,
     ) -> Result<zed::Command> {
-        if language_server_id.as_ref() != LANGUAGE_SERVER_ID {
+        if !is_supported_language_server(language_server_id) {
             return Err(format!("unknown language server: {language_server_id}"));
         }
 
@@ -42,6 +43,13 @@ impl zed::Extension for YulangExtension {
 
         Ok(zed::Command { command, args, env })
     }
+}
+
+fn is_supported_language_server(language_server_id: &LanguageServerId) -> bool {
+    matches!(
+        language_server_id.as_ref(),
+        LANGUAGE_SERVER_ID | LEGACY_LANGUAGE_SERVER_ID
+    )
 }
 
 fn resolve_configured_command(worktree: &Worktree, path: &str, os: Os) -> Result<String> {

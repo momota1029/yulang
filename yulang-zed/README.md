@@ -42,6 +42,9 @@ You can override the command from Zed settings:
 }
 ```
 
+Remove older `lsp.yulang-lsp` overrides when upgrading from extension versions
+`0.0.8` or earlier. Current settings should use `lsp.yulang`.
+
 For WSL, open the project through Zed Remote instead of launching `wsl.exe`
 from the extension. The language server will then run inside the WSL worktree
 and use the WSL-side `PATH`. Put binary path overrides in the remote server

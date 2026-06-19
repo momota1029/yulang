@@ -2,7 +2,7 @@
 
 [package]
 name = "yulang-zed"
-version = "0.0.9"
+version = "0.0.10"
 edition = "2021"
 
 [lib]
