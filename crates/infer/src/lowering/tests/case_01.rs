@@ -232,7 +232,7 @@ pub(super) fn assert_pos_stack_pop_var(
             }
         }
         Pos::NonSubtract(inner, actual) => {
-            assert_eq!(*actual, subtract);
+            assert!(actual.contains(subtract), "non-subtract weight: {actual:?}");
             match session.infer.constraints().types().pos(*inner) {
                 Pos::Var(var) => *var,
                 other => panic!("expected non-subtract inner var, got {other:?}"),

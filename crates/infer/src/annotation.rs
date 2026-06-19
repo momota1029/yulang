@@ -121,7 +121,7 @@ pub struct AnnComputationTarget {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AnnComputationConnection {
-    pub subtracts: Vec<SubtractId>,
+    pub subtracts: Vec<StackWeight>,
     pub effect_stack: Option<AnnEffectStackConnection>,
 }
 

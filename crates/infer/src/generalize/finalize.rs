@@ -315,7 +315,7 @@ fn clone_stack_weight_between_arenas(
     target: &mut TypeArena,
     weight: StackWeight,
 ) -> StackWeight {
-    let mut out = StackWeight::empty();
+    let mut out = StackWeight::filter(clone_subtractability(source, target, weight.filter_set()));
     for entry in weight.entries() {
         for subtractability in &entry.floor {
             out = out.compose(&StackWeight::floor(
@@ -395,9 +395,10 @@ fn clone_pos_between_arenas(source: &TypeArena, target: &mut TypeArena, id: PosI
                 .map(|item| clone_pos_between_arenas(source, target, item))
                 .collect(),
         ),
-        Pos::NonSubtract(pos, subtract) => {
-            Pos::NonSubtract(clone_pos_between_arenas(source, target, pos), subtract)
-        }
+        Pos::NonSubtract(pos, weight) => Pos::NonSubtract(
+            clone_pos_between_arenas(source, target, pos),
+            clone_stack_weight_between_arenas(source, target, weight),
+        ),
         Pos::Stack { inner, weight } => Pos::Stack {
             inner: clone_pos_between_arenas(source, target, inner),
             weight: clone_stack_weight_between_arenas(source, target, weight),

@@ -328,8 +328,12 @@ impl<'a> RawTypeDumper<'a> {
                     self.stack_weight(weight)
                 )
             }
-            Pos::NonSubtract(inner, id) => {
-                format!("NonSubtract({}, #{})", pos_ref(*inner), id.0)
+            Pos::NonSubtract(inner, weight) => {
+                format!(
+                    "NonSubtract({}, {})",
+                    pos_ref(*inner),
+                    self.stack_weight(weight)
+                )
             }
             Pos::Union(left, right) => format!("Union({}, {})", pos_ref(*left), pos_ref(*right)),
         }
@@ -410,9 +414,14 @@ impl<'a> RawTypeDumper<'a> {
     }
 
     fn stack_weight(&self, weight: &StackWeight) -> String {
-        if weight.entries().is_empty() {
+        if weight.is_empty() {
             return "{}".to_string();
         }
+        let filter = if weight.has_filter() {
+            format!("filter: [{}]; ", self.subtractability(weight.filter_set()))
+        } else {
+            String::new()
+        };
         let entries = weight
             .entries()
             .iter()
@@ -436,7 +445,7 @@ impl<'a> RawTypeDumper<'a> {
             })
             .collect::<Vec<_>>()
             .join("; ");
-        format!("{{ {entries} }}")
+        format!("{{ {filter}{entries} }}")
     }
 
     fn subtractability(&self, subtractability: &Subtractability) -> String {
@@ -501,6 +510,7 @@ impl<'a> RawTypeDumper<'a> {
     }
 
     fn mark_stack_weight(&mut self, weight: &StackWeight) {
+        self.mark_subtractability(weight.filter_set());
         for entry in weight.entries() {
             for subtractability in entry.floor.iter().chain(entry.stack.iter()) {
                 self.mark_subtractability(subtractability);

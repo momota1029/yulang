@@ -238,21 +238,24 @@ pub(super) fn trace_constraint_events(events: &[ConstraintEvent]) {
     let mut upper = 0usize;
     let mut subtract = 0usize;
     let mut cast = 0usize;
+    let mut filter = 0usize;
     for event in events {
         match event {
             ConstraintEvent::LowerBoundAdded { .. } => lower += 1,
             ConstraintEvent::UpperBoundAdded { .. } => upper += 1,
             ConstraintEvent::SubtractFactAdded { .. } => subtract += 1,
             ConstraintEvent::NominalCastNeeded { .. } => cast += 1,
+            ConstraintEvent::EffectFilterViolation { .. } => filter += 1,
         }
     }
     eprintln!(
-        "[analysis] route constraint events: total={} lower={} upper={} subtract={} cast={}",
+        "[analysis] route constraint events: total={} lower={} upper={} subtract={} cast={} filter={}",
         events.len(),
         lower,
         upper,
         subtract,
-        cast
+        cast,
+        filter
     );
 }
 

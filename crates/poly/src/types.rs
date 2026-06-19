@@ -153,6 +153,12 @@ pub enum Subtractability {
     SetMany(Vec<(Vec<String>, Vec<NeuId>)>),
 }
 
+impl Default for Subtractability {
+    fn default() -> Self {
+        Self::All
+    }
+}
+
 impl Subtractability {
     /// stack 集合の共通部分。
     ///
@@ -286,9 +292,11 @@ fn sort_families_by_path(families: &mut [EffectFamily]) {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// `stack(T, @S)` の `@S`。
 ///
-/// `@S` は `SubtractId` ごとに `pop(p)[H1, ..., Hn]` の正規形で持つ。
+/// `@S` は weight 全体の `filter[A]` と、`SubtractId` ごとの
+/// `pop(p)[H1, ..., Hn]` の正規形で持つ。
 /// 合成は可換ではなく、左の後ろに右を積む。
 pub struct StackWeight {
+    filter: Subtractability,
     entries: Vec<StackWeightEntry>,
 }
 
@@ -303,8 +311,22 @@ pub struct StackWeightEntry {
 impl StackWeight {
     pub fn empty() -> Self {
         Self {
+            filter: Subtractability::All,
             entries: Vec::new(),
         }
+    }
+
+    pub fn filter(subtractability: Subtractability) -> Self {
+        Self {
+            filter: subtractability,
+            entries: Vec::new(),
+        }
+    }
+
+    pub fn with_filter(&self, subtractability: Subtractability) -> Self {
+        let mut out = self.clone();
+        out.filter = subtractability;
+        out
     }
 
     pub fn pop(id: SubtractId) -> Self {
@@ -338,11 +360,23 @@ impl StackWeight {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
+        self.filter == Subtractability::All && self.entries.is_empty()
     }
 
     pub fn entries(&self) -> &[StackWeightEntry] {
         &self.entries
+    }
+
+    pub fn subtract_ids(&self) -> impl Iterator<Item = SubtractId> + '_ {
+        self.entries.iter().map(|entry| entry.id)
+    }
+
+    pub fn filter_set(&self) -> &Subtractability {
+        &self.filter
+    }
+
+    pub fn has_filter(&self) -> bool {
+        self.filter != Subtractability::All
     }
 
     pub fn contains(&self, id: SubtractId) -> bool {
@@ -382,7 +416,10 @@ impl StackWeight {
             .filter(|entry| !dead(entry.id))
             .cloned()
             .collect();
-        Self { entries }
+        Self {
+            filter: self.filter.clone(),
+            entries,
+        }
     }
 
     /// Bounds replay の循環で増え続ける未対応 pop だけを飽和させる。
@@ -399,10 +436,16 @@ impl StackWeight {
                 entry
             })
             .collect();
-        Self { entries }
+        Self {
+            filter: self.filter.clone(),
+            entries,
+        }
     }
 
     fn append(&mut self, other: &Self) {
+        // The right-hand filter is a boundary check performed before the right
+        // stack entry is composed. It is discharged by the boundary and does not
+        // become part of the composed weight.
         for entry in &other.entries {
             for subtractability in &entry.floor {
                 self.push_floor(entry.id, subtractability.clone());
@@ -424,6 +467,16 @@ impl StackWeight {
             .drain(..)
             .fold(subtractability, Subtractability::intersect);
         if combined != Subtractability::All {
+            for stack in &mut entry.stack {
+                *stack = stack.clone().intersect(combined.clone());
+            }
+            if matches!(combined, Subtractability::Empty) {
+                entry
+                    .stack
+                    .retain(|stack| !matches!(stack, Subtractability::Empty));
+            }
+        }
+        if combined != Subtractability::All {
             entry.floor.push(combined);
         }
         self.remove_empty_entry(id);
@@ -431,6 +484,11 @@ impl StackWeight {
 
     fn push_stack(&mut self, id: SubtractId, subtractability: Subtractability) {
         let entry = self.entry_mut(id);
+        let subtractability = entry
+            .floor
+            .iter()
+            .cloned()
+            .fold(subtractability, Subtractability::intersect);
         if matches!(subtractability, Subtractability::Empty)
             && entry
                 .floor
@@ -601,8 +659,11 @@ pub enum Pos {
         inner: PosId,
         weight: StackWeight,
     },
-    /// 出力 predicate が外へ出る位置で `#id` の境界を戻す。
-    NonSubtract(PosId, SubtractId),
+    /// 出力 predicate が外へ出る位置で stack weight の境界を戻す。
+    ///
+    /// 以前の `#id` だけの境界は `StackWeight::pop(id)` として表す。
+    /// 共変位置の注釈は `filter[A] pop(id)` として同じ weight に乗せる。
+    NonSubtract(PosId, StackWeight),
     Union(PosId, PosId),
 }
 
@@ -670,22 +731,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn stack_weight_empty_floor_preserves_later_stack_until_pop() {
+    fn stack_weight_empty_floor_absorbs_later_stack() {
         let id = SubtractId(0);
         let io = Subtractability::Set(vec!["io".into()], Vec::new());
-        let pushed = StackWeight::floor(id, Subtractability::Empty)
+        let weight = StackWeight::floor(id, Subtractability::Empty)
             .compose(&StackWeight::push(id, io.clone()));
-        let [entry] = pushed.entries() else {
-            panic!("expected one stack entry");
-        };
-        assert_eq!(entry.id, id);
-        assert_eq!(entry.pops, 0);
-        assert_eq!(entry.floor, vec![Subtractability::Empty]);
-        assert_eq!(entry.stack, vec![io]);
-
-        let popped = pushed.compose(&StackWeight::pop(id));
-
-        let [entry] = popped.entries() else {
+        let [entry] = weight.entries() else {
             panic!("expected one stack entry");
         };
         assert_eq!(entry.id, id);
@@ -695,7 +746,7 @@ mod tests {
     }
 
     #[test]
-    fn stack_weight_empty_floor_does_not_absorb_existing_stack() {
+    fn stack_weight_empty_floor_absorbs_existing_stack() {
         let id = SubtractId(0);
         let io = Subtractability::Set(vec!["io".into()], Vec::new());
         let weight = StackWeight::push(id, io.clone())
@@ -707,7 +758,19 @@ mod tests {
         assert_eq!(entry.id, id);
         assert_eq!(entry.pops, 0);
         assert_eq!(entry.floor, vec![Subtractability::Empty]);
-        assert_eq!(entry.stack, vec![io]);
+        assert!(entry.stack.is_empty());
+    }
+
+    #[test]
+    fn stack_weight_filter_is_left_biased_in_composition() {
+        let left = StackWeight::filter(Subtractability::Set(vec!["io".into()], Vec::new()));
+        let right = StackWeight::filter(Subtractability::Set(vec!["write".into()], Vec::new()));
+        let combined = left.compose(&right);
+
+        assert_eq!(
+            combined.filter_set(),
+            &Subtractability::Set(vec!["io".into()], Vec::new())
+        );
     }
 
     #[test]

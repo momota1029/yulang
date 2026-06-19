@@ -178,8 +178,11 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(receiver_value));
         let arg_eff = self.alloc_neg(Neg::Var(receiver_effect));
-        let predicate_subtracts =
-            self.lambda_predicate_subtracts(LambdaScope::Defined, vec![receiver_subtract], frame);
+        let predicate_subtracts = self.lambda_predicate_subtracts(
+            LambdaScope::Defined,
+            vec![StackWeight::pop(receiver_subtract)],
+            frame,
+        );
         let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
@@ -747,17 +750,18 @@ impl<'a> ExprLowerer<'a> {
         let mut lowerer =
             AnnConstraintLowerer::with_vars(&mut self.session.infer, self.modules, vars);
         let result = lowerer
-            .connect_computation(
+            .connect_computation_detailed(
                 AnnComputationTarget {
                     value: body.value,
                     effect: body.effect,
                 },
                 &ann,
             )
-            .map(|_| ())
             .map_err(|error| LoweringError::AnnotationConstraint { error });
         *ann_solver_vars = lowerer.into_vars();
-        result
+        let connection = result?;
+        self.extend_current_predicate_subtracts(connection.subtracts);
+        Ok(())
     }
 
     pub(in crate::lowering) fn invariant_var_arg(&mut self, var: TypeVar) -> poly::types::NeuId {

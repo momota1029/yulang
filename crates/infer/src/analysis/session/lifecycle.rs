@@ -268,6 +268,10 @@ impl AnalysisSession {
                         self.enqueue(AnalysisWork::ProbeSelect(select));
                     }
                 }
+                ConstraintEvent::EffectFilterViolation { effect, filter } => {
+                    self.diagnostics
+                        .push(AnalysisDiagnostic::EffectFilterViolation { effect, filter });
+                }
                 ConstraintEvent::UpperBoundAdded { .. } => {}
             }
         }

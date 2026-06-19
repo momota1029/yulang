@@ -410,6 +410,11 @@ mod tests {
 
         assert_eq!(subtracts.len(), 1);
         let expected = type_decl_path(&lower.modules, handled);
+        let subtract = single_predicate_subtract_id(&subtracts[0]);
+        assert_eq!(
+            subtracts[0].filter_set(),
+            &Subtractability::Set(expected.clone(), Vec::new())
+        );
         let bounds = infer
             .constraints()
             .bounds()
@@ -420,7 +425,7 @@ mod tests {
         assert!(
             bounds.lowers().iter().any(|bound| {
                 matches!(infer.constraints().types().pos(bound.pos), Pos::Var(var) if *var != effect)
-                    && weight_has_set_path(&bound.weights.left, subtracts[0], &expected)
+                    && weight_has_set_path(&bound.weights.left, subtract, &expected)
             }),
             "effect bounds: {:?}",
             bounds
@@ -693,9 +698,10 @@ mod tests {
             .connect_value(target, &ann)
             .expect("annotation constraints should lower");
 
-        let [subtract] = subtracts.as_slice() else {
-            panic!("expected one subtract id, got {subtracts:?}");
+        let [subtract_weight] = subtracts.as_slice() else {
+            panic!("expected one subtract weight, got {subtracts:?}");
         };
+        let subtract = single_predicate_subtract_id(subtract_weight);
         let types = infer.constraints().types();
         let ret_eff = infer
             .constraints()
@@ -710,7 +716,7 @@ mod tests {
             })
             .expect("function annotation should lower to function bound");
         let proxy = match types.pos(ret_eff) {
-            Pos::Stack { inner, weight } if weight.contains(*subtract) => match types.pos(*inner) {
+            Pos::Stack { inner, weight } if weight.contains(subtract) => match types.pos(*inner) {
                 Pos::Var(proxy) => *proxy,
                 other => panic!("expected proxy variable, got {other:?}"),
             },
@@ -728,6 +734,28 @@ mod tests {
                 .iter()
                 .any(|bound| { matches!(types.pos(bound.pos), Pos::Var(tail) if *tail != proxy) })
         );
+    }
+
+    #[test]
+    fn function_empty_return_effect_uses_empty_filter_predicate() {
+        let root = parse("my site: 'a -> [] 'a = 1\n");
+        let lower = crate::lower_module_map(&root);
+        let module = lower.modules.root_id();
+        let site = lower.modules.value_decls(module, &Name("site".into()))[0].order;
+        let ann = build_ann_type_expr(&lower.modules, module, site, &first_type_expr(&root))
+            .expect("annotation should build");
+        let mut infer = crate::Arena::new();
+        let target = infer.fresh_type_var();
+
+        let subtracts = AnnConstraintLowerer::new(&mut infer, &lower.modules)
+            .connect_value(target, &ann)
+            .expect("annotation constraints should lower");
+
+        let [subtract] = subtracts.as_slice() else {
+            panic!("expected one subtract weight, got {subtracts:?}");
+        };
+        assert_eq!(subtract.filter_set(), &Subtractability::Empty);
+        single_predicate_subtract_id(subtract);
     }
 
     #[test]
@@ -811,11 +839,24 @@ mod tests {
                 types.pos(pos)
             );
         };
-        assert_eq!(*actual, subtract);
+        assert!(actual.contains(subtract), "non-subtract weight: {actual:?}");
         match types.pos(*inner) {
             Pos::Var(var) => *var,
             other => panic!("expected non-subtract inner var, got {other:?}"),
         }
+    }
+
+    fn single_predicate_subtract_id(weight: &StackWeight) -> SubtractId {
+        let [entry] = weight.entries() else {
+            panic!(
+                "expected one predicate stack entry, got {:?}",
+                weight.entries()
+            );
+        };
+        assert_eq!(entry.pops, 1);
+        assert!(entry.floor.is_empty());
+        assert!(entry.stack.is_empty());
+        entry.id
     }
 
     fn first_type_expr(root: &Cst) -> Cst {

@@ -365,6 +365,7 @@ fn collect_stack_weight_effect_paths(
     weight: &crate::constraints::ConstraintWeight,
     out: &mut Vec<Vec<String>>,
 ) {
+    collect_subtractability_effect_paths(weight.filter_set(), out);
     for subtractability in weight.stack_items() {
         collect_subtractability_effect_paths(subtractability, out);
     }

@@ -142,7 +142,7 @@ pub(super) struct DefinedSkeletonPredicateKey {
     pub(super) output_value: TypeVar,
     pub(super) current_effect: TypeVar,
     pub(super) current_value: TypeVar,
-    pub(super) subtracts: Vec<SubtractId>,
+    pub(super) subtracts: Vec<StackWeight>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -164,7 +164,7 @@ pub(super) struct PipeArg {
 #[derive(Clone)]
 pub(super) struct FunctionPredicateFrame {
     pub(super) scope: LambdaScope,
-    pub(super) subtracts: Vec<SubtractId>,
+    pub(super) subtracts: Vec<StackWeight>,
     pub(super) unannotated_call_subtract: Option<SubtractId>,
 }
 
@@ -183,7 +183,7 @@ pub(super) struct LambdaPatternAnnotation {
     pub(super) arg_eff: NegId,
     pub(super) skeleton_arg_eff: NegId,
     pub(super) local_effect: Option<LocalEffect>,
-    pub(super) subtracts: Vec<SubtractId>,
+    pub(super) subtracts: Vec<StackWeight>,
     pub(super) call_return_effect: LocalCallReturnEffect,
 }
 

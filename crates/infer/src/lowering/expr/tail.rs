@@ -68,16 +68,17 @@ impl<'a> ExprLowerer<'a> {
         let ann = builder
             .build_type_expr(&type_expr)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
-        AnnConstraintLowerer::new(&mut self.session.infer, self.modules)
-            .connect_computation(
+        let connection = AnnConstraintLowerer::new(&mut self.session.infer, self.modules)
+            .connect_computation_detailed(
                 AnnComputationTarget {
                     value: acc.value,
                     effect: acc.effect,
                 },
                 &ann,
             )
-            .map(|_| acc)
-            .map_err(|error| LoweringError::AnnotationConstraint { error })
+            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+        self.extend_current_predicate_subtracts(connection.subtracts);
+        Ok(acc)
     }
 
     pub(in crate::lowering) fn apply_arguments(
@@ -464,7 +465,7 @@ impl<'a> ExprLowerer<'a> {
                 let subtract = self.session.infer.fresh_subtract_id();
                 let frame = &mut self.function_frames[frame_index];
                 frame.unannotated_call_subtract = Some(subtract);
-                frame.subtracts.push(subtract);
+                frame.subtracts.push(StackWeight::pop(subtract));
                 (subtract, true)
             }
         };
@@ -658,22 +659,29 @@ impl<'a> ExprLowerer<'a> {
     pub(in crate::lowering) fn lambda_predicate_subtracts(
         &mut self,
         lambda_scope: LambdaScope,
-        mut annotation_subtracts: Vec<SubtractId>,
+        mut annotation_subtracts: Vec<StackWeight>,
         mut frame: FunctionPredicateFrame,
-    ) -> Vec<SubtractId> {
+    ) -> Vec<StackWeight> {
         if lambda_scope != LambdaScope::Defined {
             return Vec::new();
         }
         annotation_subtracts.append(&mut frame.subtracts);
-        annotation_subtracts.sort_by_key(|id| id.0);
-        annotation_subtracts.dedup();
-        annotation_subtracts
+        dedupe_predicate_weights(annotation_subtracts)
+    }
+
+    pub(in crate::lowering) fn extend_current_predicate_subtracts(
+        &mut self,
+        subtracts: Vec<StackWeight>,
+    ) {
+        if let Some(frame) = self.function_frames.last_mut() {
+            frame.subtracts.extend(subtracts);
+        }
     }
 
     pub(in crate::lowering) fn lambda_output_predicate(
         &mut self,
         body: &Computation,
-        subtracts: &[SubtractId],
+        subtracts: &[StackWeight],
     ) -> (PosId, PosId) {
         self.lambda_output_predicate_vars(body.effect, body.value, subtracts)
     }
@@ -682,7 +690,7 @@ impl<'a> ExprLowerer<'a> {
         &mut self,
         body_effect: TypeVar,
         body_value: TypeVar,
-        subtracts: &[SubtractId],
+        subtracts: &[StackWeight],
     ) -> (PosId, PosId) {
         if subtracts.is_empty() {
             let ret_eff = self.alloc_pos(Pos::Var(body_effect));
@@ -755,6 +763,16 @@ fn expr_references_def(poly: &poly::expr::Arena, expr: ExprId, def: DefId) -> bo
                 || tail.is_some_and(|tail| expr_references_def(poly, tail, def))
         }
     }
+}
+
+fn dedupe_predicate_weights(weights: Vec<StackWeight>) -> Vec<StackWeight> {
+    let mut out = Vec::new();
+    for weight in weights {
+        if !out.contains(&weight) {
+            out.push(weight);
+        }
+    }
+    out
 }
 
 fn stmt_references_def(poly: &poly::expr::Arena, stmt: &Stmt, def: DefId) -> bool {

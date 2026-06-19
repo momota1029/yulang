@@ -299,8 +299,8 @@ impl<'a> SchemeInstantiator<'a> {
             Pos::Row(items) => {
                 Pos::Row(items.into_iter().map(|item| self.clone_pos(item)).collect())
             }
-            Pos::NonSubtract(pos, subtract) => {
-                Pos::NonSubtract(self.clone_pos(pos), self.clone_subtract(subtract))
+            Pos::NonSubtract(pos, weight) => {
+                Pos::NonSubtract(self.clone_pos(pos), self.clone_stack_weight(weight))
             }
             Pos::Stack { inner, weight } => Pos::Stack {
                 inner: self.clone_pos(inner),
@@ -448,7 +448,7 @@ impl<'a> SchemeInstantiator<'a> {
     }
 
     fn clone_stack_weight(&mut self, weight: StackWeight) -> StackWeight {
-        let mut out = StackWeight::empty();
+        let mut out = StackWeight::filter(self.clone_subtractability(weight.filter_set().clone()));
         for entry in weight.entries() {
             let id = self.clone_subtract(entry.id);
             for subtractability in &entry.floor {

@@ -183,14 +183,14 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
                 let inner = self.pos(*inner, Context::Free);
                 Rendered::apply_c(format!("stack({inner}, {})", self.stack_weight(weight)))
             }
-            Pos::NonSubtract(pos, subtract) => {
+            Pos::NonSubtract(pos, weight) => {
                 let inner = self.render_pos(*pos);
                 let inner = if inner.prec == Prec::Atom && !inner.has_bare_space {
                     inner.text
                 } else {
                     format!("({})", inner.text)
                 };
-                Rendered::atom(format!("{}{}", inner, self.subtract_id(*subtract)))
+                Rendered::atom(format!("{inner}{}", self.stack_weight(weight)))
             }
             Pos::Union(left, right) => {
                 let parts = self.flatten_pos_union(*left, *right);
@@ -892,14 +892,18 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
         }
     }
 
-    pub(super) fn subtract_id(&self, subtract: SubtractId) -> String {
-        format!("#{}", subtract.0)
-    }
-
     pub(super) fn stack_weight(&mut self, weight: &StackWeight) -> String {
         if weight.is_empty() {
             return "@0".to_string();
         }
+        let filter = if weight.has_filter() {
+            Some(format!(
+                "filter[{}]",
+                self.stack_subtractability(weight.filter_set())
+            ))
+        } else {
+            None
+        };
         let entries = weight
             .entries()
             .iter()
@@ -927,6 +931,11 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             })
             .collect::<Vec<_>>()
             .join(", ");
+        let entries = match (filter, entries.is_empty()) {
+            (Some(filter), true) => filter,
+            (Some(filter), false) => format!("{filter}, {entries}"),
+            (None, _) => entries,
+        };
         format!("{{ {entries} }}")
     }
 

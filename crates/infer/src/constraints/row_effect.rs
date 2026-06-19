@@ -27,7 +27,11 @@ impl ConstraintMachine {
             return;
         }
 
+        self.constrain_stack_by_filter(&weights.left, weights.right.filter_set());
+        self.constrain_neg_effect_items_by_filter(&items, weights.right.filter_set());
+
         let combined = weights.left.compose(&weights.right);
+        self.constrain_neg_effect_items_by_filter(&items, combined.filter_set());
         if combined.is_empty() {
             let row = self.alloc_neg(Neg::Row(items, tail));
             self.add_upper_bound(source, row, ConstraintWeights::empty());
@@ -198,10 +202,11 @@ impl ConstraintMachine {
     }
 
     fn stack_weight_is_alias_neutral(weight: &StackWeight) -> bool {
-        weight
-            .entries()
-            .iter()
-            .all(|entry| entry.floor.is_empty() && entry.stack.is_empty())
+        !weight.has_filter()
+            && weight
+                .entries()
+                .iter()
+                .all(|entry| entry.floor.is_empty() && entry.stack.is_empty())
     }
 
     fn store_upper_bound_without_replay(
@@ -245,6 +250,151 @@ impl ConstraintMachine {
         self.collect_stack_effect_families(weight);
         let subtractability = common_stack_subtractability(weight.stack_items());
         self.intersect_row_items_with_subtractability(items, &subtractability)
+    }
+
+    fn constrain_stack_by_filter(&mut self, weight: &StackWeight, filter: &Subtractability) {
+        if matches!(filter, Subtractability::All) {
+            return;
+        }
+        for entry in weight.entries() {
+            for subtractability in &entry.stack {
+                self.constrain_subtractability_by_filter(subtractability, filter);
+            }
+        }
+    }
+
+    fn constrain_neg_effect_items_by_filter(&mut self, items: &[NegId], filter: &Subtractability) {
+        if matches!(filter, Subtractability::All) {
+            return;
+        }
+        for item in items {
+            self.constrain_neg_effect_item_by_filter(*item, filter);
+        }
+    }
+
+    fn constrain_subtractability_by_filter(
+        &mut self,
+        subtractability: &Subtractability,
+        filter: &Subtractability,
+    ) {
+        match subtractability {
+            Subtractability::Empty => {}
+            Subtractability::All => {
+                self.record_effect_filter_violation(None, filter.clone());
+            }
+            Subtractability::AllExcept(_, _) | Subtractability::AllExceptMany(_) => {
+                if !matches!(filter, Subtractability::All) {
+                    self.record_effect_filter_violation(None, filter.clone());
+                }
+            }
+            Subtractability::Set(path, args) => {
+                self.constrain_effect_family_by_filter(path, args, filter);
+            }
+            Subtractability::SetMany(families) => {
+                for (path, args) in families {
+                    self.constrain_effect_family_by_filter(path, args, filter);
+                }
+            }
+        }
+    }
+
+    fn constrain_neg_effect_item_by_filter(&mut self, item: NegId, filter: &Subtractability) {
+        let Neg::Con(path, args) = self.types.neg(item).clone() else {
+            return;
+        };
+        self.constrain_effect_family_by_filter(&path, &args, filter);
+    }
+
+    fn constrain_effect_family_by_filter(
+        &mut self,
+        path: &[String],
+        args: &[NeuId],
+        filter: &Subtractability,
+    ) {
+        if !self.effect_family_passes_filter(path, args, filter) {
+            self.record_effect_filter_violation(Some(path.to_vec()), filter.clone());
+        }
+    }
+
+    fn effect_family_passes_filter(
+        &mut self,
+        path: &[String],
+        args: &[NeuId],
+        filter: &Subtractability,
+    ) -> bool {
+        match filter {
+            Subtractability::All => true,
+            Subtractability::Empty => false,
+            Subtractability::Set(filter_path, filter_args) => {
+                if filter_path == path {
+                    self.enqueue_invariant_neu_args(
+                        args.to_vec(),
+                        filter_args.clone(),
+                        ConstraintWeights::empty(),
+                    );
+                    true
+                } else {
+                    false
+                }
+            }
+            Subtractability::SetMany(families) => {
+                let mut matched = false;
+                for (filter_path, filter_args) in families {
+                    if filter_path == path {
+                        self.enqueue_invariant_neu_args(
+                            args.to_vec(),
+                            filter_args.clone(),
+                            ConstraintWeights::empty(),
+                        );
+                        matched = true;
+                    }
+                }
+                matched
+            }
+            Subtractability::AllExcept(filter_path, filter_args) => {
+                if filter_path == path {
+                    self.enqueue_invariant_neu_args(
+                        args.to_vec(),
+                        filter_args.clone(),
+                        ConstraintWeights::empty(),
+                    );
+                    false
+                } else {
+                    true
+                }
+            }
+            Subtractability::AllExceptMany(families) => {
+                let mut excluded = false;
+                for (filter_path, filter_args) in families {
+                    if filter_path == path {
+                        self.enqueue_invariant_neu_args(
+                            args.to_vec(),
+                            filter_args.clone(),
+                            ConstraintWeights::empty(),
+                        );
+                        excluded = true;
+                    }
+                }
+                !excluded
+            }
+        }
+    }
+
+    fn record_effect_filter_violation(
+        &mut self,
+        effect: Option<Vec<String>>,
+        filter: Subtractability,
+    ) {
+        if matches!(filter, Subtractability::All) {
+            return;
+        }
+        let key = EffectFilterViolationKey { effect, filter };
+        if self.effect_filter_violations.insert(key.clone()) {
+            self.events.push(ConstraintEvent::EffectFilterViolation {
+                effect: key.effect,
+                filter: key.filter,
+            });
+        }
     }
 
     fn intersect_row_items_with_subtractability(
@@ -409,7 +559,7 @@ impl ConstraintMachine {
             return weight.clone();
         }
 
-        let mut out = StackWeight::empty();
+        let mut out = StackWeight::filter(weight.filter_set().clone());
         for entry in weight.entries() {
             let mut residual_parts = Vec::new();
             if entry.floor.is_empty() && entry.stack.is_empty() {

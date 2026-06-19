@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 
 use crate::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, RolePredicateArg, Scheme,
-    StackWeight, SubtractId, Subtractability, TypeArena, TypeVar,
+    StackWeight, Subtractability, TypeArena, TypeVar,
 };
 
 mod formatter;
@@ -288,7 +288,8 @@ fn fun_text(arg: String, arg_eff: Option<String>, ret_eff: Option<String>, ret: 
 }
 
 fn is_hidden_quantifier_stack(weight: &StackWeight) -> bool {
-    !weight.entries().is_empty()
+    !weight.has_filter()
+        && !weight.entries().is_empty()
         && weight
             .entries()
             .iter()
@@ -344,6 +345,7 @@ fn letter_name(mut index: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::SubtractId;
 
     #[test]
     fn formats_surface_like_function_with_rows_and_ml_application() {
@@ -738,9 +740,9 @@ mod tests {
         let mut arena = TypeArena::new();
         let a = TypeVar(0);
         let pos_a = arena.alloc_pos(Pos::Var(a));
-        let weighted = arena.alloc_pos(Pos::NonSubtract(pos_a, SubtractId(1)));
+        let weighted = arena.alloc_pos(Pos::NonSubtract(pos_a, StackWeight::pop(SubtractId(1))));
 
-        assert_eq!(format_pos(&arena, weighted), "'a#1");
+        assert_eq!(format_pos(&arena, weighted), "'a{ #1 -> pop(1)[] }");
     }
 
     fn plain_neu(arena: &mut TypeArena, var: TypeVar) -> NeuId {

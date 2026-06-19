@@ -59,16 +59,9 @@ impl<'a> SchemeMaterializer<'a> {
                 self.materialize_pos(*inner, context)?,
                 self.materialize_stack_weight(weight)?,
             ),
-            Pos::NonSubtract(inner, subtract) => stack_type(
+            Pos::NonSubtract(inner, weight) => stack_type(
                 self.materialize_pos(*inner, context)?,
-                mono::StackWeight {
-                    entries: vec![StackWeightEntry {
-                        id: subtract.0,
-                        pops: 1,
-                        floor: Vec::new(),
-                        stack: Vec::new(),
-                    }],
-                },
+                self.materialize_stack_weight(weight)?,
             ),
             Pos::Union(left, right) => simplify_union_type(
                 self.materialize_pos(*left, context)?,

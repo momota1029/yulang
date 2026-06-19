@@ -43,6 +43,7 @@ pub struct ConstraintMachine {
     declared_subtracts: FxHashSet<SubtractId>,
     effect_family_paths: FxHashSet<Vec<String>>,
     pre_pop_effect_families: FxHashMap<TypeVar, Vec<ConstraintEffectFamily>>,
+    effect_filter_violations: FxHashSet<EffectFilterViolationKey>,
     seen: FxHashSet<SubtypeConstraint>,
     var_var_seen: FxHashSet<VarVarConstraint>,
     events: Vec<ConstraintEvent>,
@@ -164,6 +165,10 @@ pub enum ConstraintEvent {
         source: Vec<String>,
         target: Vec<String>,
         weights: ConstraintWeights,
+    },
+    EffectFilterViolation {
+        effect: Option<Vec<String>>,
+        filter: Subtractability,
     },
 }
 
@@ -414,6 +419,12 @@ pub(crate) struct ConstraintEffectFamily {
 struct EffectFamily {
     path: Vec<String>,
     args: Vec<NeuId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct EffectFilterViolationKey {
+    effect: Option<Vec<String>>,
+    filter: Subtractability,
 }
 
 fn common_stack_subtractability<'a>(

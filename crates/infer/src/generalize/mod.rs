@@ -448,10 +448,11 @@ fn alias_neutral_constraint(weights: &ConstraintWeights) -> bool {
 }
 
 fn alias_neutral_weight(weight: &StackWeight) -> bool {
-    weight
-        .entries()
-        .iter()
-        .all(|entry| entry.floor.is_empty() && entry.stack.is_empty())
+    !weight.has_filter()
+        && weight
+            .entries()
+            .iter()
+            .all(|entry| entry.floor.is_empty() && entry.stack.is_empty())
 }
 
 fn push_compact_var_alias(vars: &mut Vec<CompactVar>, var: CompactVar) {

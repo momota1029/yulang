@@ -671,16 +671,17 @@ impl<'a> ExprLowerer<'a> {
         let ann = builder
             .build_type_expr(&type_expr)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
-        AnnConstraintLowerer::new(&mut self.session.infer, self.modules)
-            .connect_computation(
+        let connection = AnnConstraintLowerer::new(&mut self.session.infer, self.modules)
+            .connect_computation_detailed(
                 AnnComputationTarget {
                     value,
                     effect: computation.effect,
                 },
                 &ann,
             )
-            .map(|_| ())
-            .map_err(|error| LoweringError::AnnotationConstraint { error })
+            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
+        self.extend_current_predicate_subtracts(connection.subtracts);
+        Ok(())
     }
 
     pub(in crate::lowering) fn lower_var_ref_constructor(

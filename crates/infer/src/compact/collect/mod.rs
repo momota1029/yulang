@@ -660,17 +660,19 @@ impl<'a> CompactCollector<'a> {
     }
 
     fn is_alias_neutral_weight(weight: &ConstraintWeight) -> bool {
-        weight
-            .entries()
-            .iter()
-            .all(|entry| entry.floor.is_empty() && entry.stack.is_empty())
+        !weight.has_filter()
+            && weight
+                .entries()
+                .iter()
+                .all(|entry| entry.floor.is_empty() && entry.stack.is_empty())
     }
 
     fn weight_has_row_tail_boundary(weight: &ConstraintWeight) -> bool {
-        weight
-            .entries()
-            .iter()
-            .any(|entry| !entry.floor.is_empty() || !entry.stack.is_empty())
+        weight.has_filter()
+            || weight
+                .entries()
+                .iter()
+                .any(|entry| !entry.floor.is_empty() || !entry.stack.is_empty())
     }
 
     pub(in crate::compact) fn compact_neg_row_upper_bound(
@@ -751,8 +753,8 @@ impl<'a> CompactCollector<'a> {
                 Polarity::Positive,
                 weight,
             )),
-            Pos::NonSubtract(pos, subtract) => {
-                let weight = weight.union(&ConstraintWeight::from_ids([subtract]));
+            Pos::NonSubtract(pos, stack_weight) => {
+                let weight = weight.union(&ConstraintWeight::from_ids(stack_weight.subtract_ids()));
                 self.compact_pos_bound_id(pos, weight)
             }
             Pos::Stack {

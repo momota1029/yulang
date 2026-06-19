@@ -20,14 +20,12 @@ impl ConstraintMachine {
             );
             return;
         }
-        if let Pos::NonSubtract(pos, subtract) = self.types.pos(constraint.lower) {
+        if let Pos::NonSubtract(pos, weight) = self.types.pos(constraint.lower) {
             let pos = *pos;
-            let subtract = *subtract;
+            let weight = weight.clone();
             self.enqueue_subtype(
                 pos,
-                constraint
-                    .weights
-                    .with_left_prefix(StackWeight::pop(subtract)),
+                constraint.weights.with_left_prefix(weight),
                 constraint.upper,
             );
             return;

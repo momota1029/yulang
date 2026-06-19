@@ -501,10 +501,11 @@ impl ConstraintMachine {
     }
 
     fn weight_is_pop_only(weight: &ConstraintWeight) -> bool {
-        weight
-            .entries()
-            .iter()
-            .all(|entry| entry.floor.is_empty() && entry.stack.is_empty())
+        !weight.has_filter()
+            && weight
+                .entries()
+                .iter()
+                .all(|entry| entry.floor.is_empty() && entry.stack.is_empty())
     }
 
     pub(in crate::constraints) fn extrude_pos(&mut self, pos: PosId, target: TypeLevel) -> PosId {
@@ -908,8 +909,9 @@ fn constraint_weights_have_row_tail_boundary(weights: &ConstraintWeights) -> boo
 }
 
 fn constraint_weight_has_row_tail_boundary(weight: &ConstraintWeight) -> bool {
-    weight
-        .entries()
-        .iter()
-        .any(|entry| !entry.floor.is_empty() || !entry.stack.is_empty())
+    weight.has_filter()
+        || weight
+            .entries()
+            .iter()
+            .any(|entry| !entry.floor.is_empty() || !entry.stack.is_empty())
 }

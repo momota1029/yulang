@@ -129,7 +129,9 @@ fn instantiate_use_freshens_non_subtract_stack_quantifier_id() {
     let quantified = TypeVar(42);
     let source_subtract = SubtractId(99);
     let inner = poly.typ.alloc_pos(Pos::Var(quantified));
-    let predicate = poly.typ.alloc_pos(Pos::NonSubtract(inner, source_subtract));
+    let predicate = poly
+        .typ
+        .alloc_pos(Pos::NonSubtract(inner, StackWeight::pop(source_subtract)));
     poly.defs.set(
         def,
         Def::Let {
@@ -174,6 +176,38 @@ fn instantiate_use_freshens_non_subtract_stack_quantifier_id() {
         .expect("non-subtract should add a fresh left weight to the instantiated bound");
     assert_ne!(fresh_var, quantified);
     assert_ne!(fresh_subtract, source_subtract);
+}
+
+#[test]
+fn routes_effect_filter_violation_to_analysis_diagnostic() {
+    let poly = PolyArena::new();
+    let mut session = AnalysisSession::new(poly);
+    let source = TypeVar(0);
+    let tail = session.infer.alloc_neg(Neg::Var(TypeVar(1)));
+    let item = session
+        .infer
+        .alloc_neg(Neg::Con(vec!["nondet".into()], Vec::new()));
+    let lower = session.infer.alloc_pos(Pos::Var(source));
+    let upper = session.infer.alloc_neg(Neg::Row(vec![item], tail));
+    let filter = Subtractability::Set(vec!["io".into()], Vec::new());
+    session.infer.constraints_mut().weighted_subtype(
+        lower,
+        ConstraintWeights {
+            left: StackWeight::filter(filter.clone()),
+            right: StackWeight::empty(),
+        },
+        upper,
+    );
+
+    session.route_constraint_events();
+
+    assert_eq!(
+        session.take_diagnostics(),
+        vec![AnalysisDiagnostic::EffectFilterViolation {
+            effect: Some(vec!["nondet".into()]),
+            filter,
+        }]
+    );
 }
 
 #[test]

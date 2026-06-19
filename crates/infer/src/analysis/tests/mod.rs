@@ -9,7 +9,8 @@ use crate::roles::{
 use crate::uses::{RefUse, SelectionUse};
 use poly::expr::{Arena as PolyArena, Expr, Lit, Vis};
 use poly::types::{
-    Neg, Neu, NeuId, Pos, Scheme, SchemeRecursiveBound, SubtractId, Subtractability, TypeVar,
+    Neg, Neu, NeuId, Pos, Scheme, SchemeRecursiveBound, StackWeight, SubtractId, Subtractability,
+    TypeVar,
 };
 
 mod case_01;

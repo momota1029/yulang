@@ -80,8 +80,8 @@ impl<'a> CompactCollector<'a> {
                     .collect(),
             }),
             Pos::Row(items) => self.compact_pos_row(items, weight),
-            Pos::NonSubtract(pos, subtract) => {
-                let weight = weight.union(&ConstraintWeight::from_ids([subtract]));
+            Pos::NonSubtract(pos, stack_weight) => {
+                let weight = weight.union(&ConstraintWeight::from_ids(stack_weight.subtract_ids()));
                 self.compact_pos_id(pos, weight)
             }
             Pos::Stack {
@@ -274,8 +274,8 @@ impl<'a> CompactCollector<'a> {
                     .map(|arg| self.compact_neu_id(arg, weight.clone()))
                     .collect(),
             )),
-            Pos::NonSubtract(pos, subtract) => {
-                let weight = weight.union(&ConstraintWeight::from_ids([subtract]));
+            Pos::NonSubtract(pos, stack_weight) => {
+                let weight = weight.union(&ConstraintWeight::from_ids(stack_weight.subtract_ids()));
                 self.compact_pos_row_item(pos, weight)
             }
             Pos::Stack {

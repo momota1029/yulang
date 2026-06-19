@@ -4,6 +4,7 @@
 //! used by lowering, resolution, and SCC routing.
 
 use poly::expr::{DefId, RefId, SelectId, SelectResolution};
+use poly::types::Subtractability;
 
 use crate::scc::SccInput;
 
@@ -14,13 +15,18 @@ pub enum AnalysisDiagnostic {
         parent: DefId,
         target: DefId,
     },
+    EffectFilterViolation {
+        effect: Option<Vec<String>>,
+        filter: Subtractability,
+    },
 }
 
 impl AnalysisDiagnostic {
     /// Return the definition that diagnostics should attach to first.
-    pub fn primary_def(&self) -> DefId {
+    pub fn primary_def(&self) -> Option<DefId> {
         match self {
-            Self::ComputedFetchCycle { parent, .. } => *parent,
+            Self::ComputedFetchCycle { parent, .. } => Some(*parent),
+            Self::EffectFilterViolation { .. } => None,
         }
     }
 }

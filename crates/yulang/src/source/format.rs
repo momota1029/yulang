@@ -1085,7 +1085,45 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
             parent.0,
             target.0
         ),
+        infer::lowering::BodyLoweringError::Analysis(
+            infer::analysis::AnalysisDiagnostic::EffectFilterViolation { effect, filter },
+        ) => {
+            let effect = effect
+                .as_ref()
+                .map(|path| path.join("::"))
+                .unwrap_or_else(|| "<unknown effect>".to_string());
+            format!(
+                "effect filter mismatch: {effect} is not allowed by {}",
+                format_subtractability(filter)
+            )
+        }
         _ => format!("{error:?}"),
+    }
+}
+
+fn format_subtractability(subtractability: &poly::types::Subtractability) -> String {
+    use poly::types::Subtractability;
+    match subtractability {
+        Subtractability::Empty => "[]".to_string(),
+        Subtractability::All => "[_]".to_string(),
+        Subtractability::Set(path, _) => format!("[{}]", path.join("::")),
+        Subtractability::SetMany(families) => format!(
+            "[{}]",
+            families
+                .iter()
+                .map(|(path, _)| path.join("::"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        Subtractability::AllExcept(path, _) => format!("[_; without {}]", path.join("::")),
+        Subtractability::AllExceptMany(families) => format!(
+            "[_; without {}]",
+            families
+                .iter()
+                .map(|(path, _)| path.join("::"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
     }
 }
 

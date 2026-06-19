@@ -135,7 +135,7 @@ fn compact_popped_stack_family_still_merges_with_coexisting_row_item() {
         inner: tail_var,
         weight: stack_weight,
     });
-    let popped_tail = machine.alloc_pos(Pos::NonSubtract(stacked_tail, subtract));
+    let popped_tail = machine.alloc_pos(Pos::NonSubtract(stacked_tail, StackWeight::pop(subtract)));
     let row_item = machine.alloc_pos(Pos::Con(effect_path, vec![row_arg]));
     let row = machine.alloc_pos(Pos::Row(vec![row_item]));
     let root_upper = machine.alloc_neg(Neg::Var(root));
@@ -376,7 +376,7 @@ fn collect_pushes_weight_into_expanded_covariant_var_bounds() {
     let payload = TypeVar(1);
     let subtract = SubtractId(4);
     let payload_pos = machine.alloc_pos(Pos::Var(payload));
-    let lower = machine.alloc_pos(Pos::NonSubtract(payload_pos, subtract));
+    let lower = machine.alloc_pos(Pos::NonSubtract(payload_pos, StackWeight::pop(subtract)));
     let root_upper = machine.alloc_neg(Neg::Var(root));
 
     machine.subtype(lower, root_upper);

@@ -52,7 +52,7 @@ impl<'a> AnnConstraintLowerer<'a> {
         &mut self,
         target: TypeVar,
         ann: &AnnType,
-    ) -> Result<Vec<SubtractId>, AnnConstraintError> {
+    ) -> Result<Vec<StackWeight>, AnnConstraintError> {
         let bounds = self.lower_value_bounds(ann)?;
         let target_upper = self.alloc_neg(Neg::Var(target));
         let target_lower = self.alloc_pos(Pos::Var(target));
@@ -65,7 +65,7 @@ impl<'a> AnnConstraintLowerer<'a> {
         &mut self,
         target: TypeVar,
         ann: &AnnType,
-    ) -> Result<Vec<SubtractId>, AnnConstraintError> {
+    ) -> Result<Vec<StackWeight>, AnnConstraintError> {
         let bounds = self.lower_value_bounds(ann)?;
         let target_lower = self.alloc_pos(Pos::Var(target));
         self.infer.subtype(target_lower, bounds.neg);
@@ -76,7 +76,7 @@ impl<'a> AnnConstraintLowerer<'a> {
         &mut self,
         target: AnnComputationTarget,
         ann: &AnnType,
-    ) -> Result<Vec<SubtractId>, AnnConstraintError> {
+    ) -> Result<Vec<StackWeight>, AnnConstraintError> {
         self.connect_computation_detailed(target, ann)
             .map(|connection| connection.subtracts)
     }
@@ -90,7 +90,10 @@ impl<'a> AnnConstraintLowerer<'a> {
             AnnType::Effectful { eff, ret } => {
                 let mut subtracts = self.connect_value(target.value, ret)?;
                 let effect_stack = self.connect_effectful_annotation_effect(target.effect, eff)?;
-                subtracts.extend(effect_stack.subtracts.iter().copied());
+                subtracts.extend(predicate_weights(
+                    &effect_stack.subtracts,
+                    effect_stack_filter(&effect_stack),
+                ));
                 Ok(AnnComputationConnection {
                     subtracts,
                     effect_stack: Some(effect_stack),
@@ -115,7 +118,10 @@ impl<'a> AnnConstraintLowerer<'a> {
                 let mut subtracts = self.connect_value(target.value, ret)?;
                 let effect_stack =
                     self.connect_parameter_effectful_annotation_effect(target.effect, eff)?;
-                subtracts.extend(effect_stack.subtracts.iter().copied());
+                subtracts.extend(predicate_weights(
+                    &effect_stack.subtracts,
+                    effect_stack_filter(&effect_stack),
+                ));
                 Ok(AnnComputationConnection {
                     subtracts,
                     effect_stack: Some(effect_stack),
@@ -291,10 +297,12 @@ impl<'a> AnnConstraintLowerer<'a> {
         self.register_stack_facts(effect, &stack.weight);
         let effect_pos = self.alloc_pos(Pos::Var(effect));
         let pos = self.wrap_pos_with_stack(effect_pos, &stack.weight);
+        let subtracts =
+            predicate_weights(&stack.ids, effect_stack_filter_from_weight(&stack.weight));
         Ok(AnnEffectBounds {
             pos,
             neg: self.alloc_neg(Neg::Var(effect)),
-            subtracts: stack.ids,
+            subtracts,
         })
     }
 
@@ -672,9 +680,9 @@ impl<'a> AnnConstraintLowerer<'a> {
         ty
     }
 
-    fn wrap_non_subtracts(&mut self, pos: PosId, subtracts: &[SubtractId]) -> PosId {
-        subtracts.iter().fold(pos, |inner, subtract| {
-            self.alloc_pos(Pos::NonSubtract(inner, *subtract))
+    fn wrap_non_subtracts(&mut self, pos: PosId, subtracts: &[StackWeight]) -> PosId {
+        subtracts.iter().fold(pos, |inner, weight| {
+            self.alloc_pos(Pos::NonSubtract(inner, weight.clone()))
         })
     }
 
@@ -734,14 +742,14 @@ impl<'a> AnnConstraintLowerer<'a> {
 pub(in crate::annotation) struct AnnValueBounds {
     pub(in crate::annotation) pos: PosId,
     pub(in crate::annotation) neg: NegId,
-    pub(in crate::annotation) output_subtracts: Vec<SubtractId>,
+    pub(in crate::annotation) output_subtracts: Vec<StackWeight>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct AnnEffectBounds {
     pos: PosId,
     neg: NegId,
-    subtracts: Vec<SubtractId>,
+    subtracts: Vec<StackWeight>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -757,6 +765,24 @@ impl EffectStack {
             ids: Vec::new(),
         }
     }
+}
+
+fn predicate_weights(ids: &[SubtractId], filter: Subtractability) -> Vec<StackWeight> {
+    ids.iter()
+        .map(|id| StackWeight::pop(*id).with_filter(filter.clone()))
+        .collect()
+}
+
+fn effect_stack_filter(stack: &AnnEffectStackConnection) -> Subtractability {
+    effect_stack_filter_from_weight(&stack.weight)
+}
+
+fn effect_stack_filter_from_weight(weight: &StackWeight) -> Subtractability {
+    weight
+        .stack_items()
+        .cloned()
+        .reduce(Subtractability::intersect)
+        .unwrap_or(Subtractability::All)
 }
 
 fn subtractability_from_atoms(atoms: Vec<(Vec<String>, Vec<NeuId>)>) -> Subtractability {

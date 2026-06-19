@@ -499,7 +499,7 @@ fn non_subtract_around_pos_stack_cancels_before_effect_row_upper() {
         inner: source_pos,
         weight: StackWeight::push(subtract, Subtractability::Empty),
     });
-    let lower = machine.alloc_pos(Pos::NonSubtract(stacked, subtract));
+    let lower = machine.alloc_pos(Pos::NonSubtract(stacked, StackWeight::pop(subtract)));
 
     machine.subtype(lower, upper);
 
@@ -838,6 +838,79 @@ fn var_to_effect_row_upper_collects_duplicate_effect_paths_with_payload_constrai
         TypeVar(11),
         TypeVar(10),
         ConstraintWeights::empty(),
+    );
+}
+
+#[test]
+fn effect_row_filter_rejects_disallowed_concrete_family() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let tail_var = TypeVar(1);
+    let nondet = machine.alloc_neg(Neg::Con(vec!["nondet".into()], Vec::new()));
+    let tail = machine.alloc_neg(Neg::Var(tail_var));
+    let lower = machine.alloc_pos(Pos::Var(source));
+    let upper = machine.alloc_neg(Neg::Row(vec![nondet], tail));
+    let filter = Subtractability::Set(vec!["io".into()], Vec::new());
+    let weights = ConstraintWeights {
+        left: StackWeight::filter(filter.clone()),
+        right: StackWeight::empty(),
+    };
+
+    machine.weighted_subtype(lower, weights, upper);
+
+    assert!(
+        machine.events().iter().any(|event| matches!(
+            event,
+            ConstraintEvent::EffectFilterViolation {
+                effect: Some(path),
+                filter: found_filter,
+            } if path == &vec!["nondet".to_string()] && found_filter == &filter
+        )),
+        "events: {:?}",
+        machine.events()
+    );
+}
+
+#[test]
+fn effect_row_filter_constrains_matching_payloads() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let tail_var = TypeVar(1);
+    let ref_update = crate::std_paths::control_var_ref_update_effect();
+    let lower_payload_lower = machine.alloc_pos(Pos::Var(TypeVar(10)));
+    let lower_payload_upper = machine.alloc_neg(Neg::Var(TypeVar(11)));
+    let lower_payload = machine.alloc_neu(Neu::Bounds(lower_payload_lower, lower_payload_upper));
+    let upper_payload_lower = machine.alloc_pos(Pos::Var(TypeVar(12)));
+    let upper_payload_upper = machine.alloc_neg(Neg::Var(TypeVar(13)));
+    let upper_payload = machine.alloc_neu(Neu::Bounds(upper_payload_lower, upper_payload_upper));
+    let item = machine.alloc_neg(Neg::Con(ref_update.clone(), vec![lower_payload]));
+    let tail = machine.alloc_neg(Neg::Var(tail_var));
+    let lower = machine.alloc_pos(Pos::Var(source));
+    let upper = machine.alloc_neg(Neg::Row(vec![item], tail));
+    let weights = ConstraintWeights {
+        left: StackWeight::filter(Subtractability::Set(ref_update, vec![upper_payload])),
+        right: StackWeight::empty(),
+    };
+
+    machine.weighted_subtype(lower, weights, upper);
+
+    assert!(machine.seen.contains(&SubtypeConstraint {
+        lower: lower_payload_lower,
+        upper: upper_payload_upper,
+        weights: ConstraintWeights::empty(),
+    }));
+    assert!(machine.seen.contains(&SubtypeConstraint {
+        lower: upper_payload_lower,
+        upper: lower_payload_upper,
+        weights: ConstraintWeights::empty(),
+    }));
+    assert!(
+        !machine
+            .events()
+            .iter()
+            .any(|event| matches!(event, ConstraintEvent::EffectFilterViolation { .. })),
+        "events: {:?}",
+        machine.events()
     );
 }
 

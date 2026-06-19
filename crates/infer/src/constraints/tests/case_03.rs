@@ -38,7 +38,7 @@ fn non_subtract_adds_left_weight_before_continuing() {
     let target = TypeVar(0);
     let inner = machine.alloc_pos(Pos::Con(vec!["io".into()], vec![]));
     let subtract = SubtractId(0);
-    let lower = machine.alloc_pos(Pos::NonSubtract(inner, subtract));
+    let lower = machine.alloc_pos(Pos::NonSubtract(inner, StackWeight::pop(subtract)));
     let upper = machine.alloc_neg(Neg::Var(target));
 
     machine.subtype(lower, upper);

@@ -59,10 +59,10 @@ impl<'a> ExprLowerer<'a> {
     pub(in crate::lowering) fn wrap_pos_with_subtracts(
         &mut self,
         pos: PosId,
-        subtracts: &[SubtractId],
+        subtracts: &[StackWeight],
     ) -> PosId {
-        subtracts.iter().fold(pos, |inner, subtract| {
-            self.alloc_pos(Pos::NonSubtract(inner, *subtract))
+        subtracts.iter().fold(pos, |inner, weight| {
+            self.alloc_pos(Pos::NonSubtract(inner, weight.clone()))
         })
     }
 
