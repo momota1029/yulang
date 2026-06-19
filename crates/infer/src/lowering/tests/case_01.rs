@@ -314,6 +314,23 @@ pub(super) fn weight_set_path_id(weight: &StackWeight, expected: &[&str]) -> Opt
     })
 }
 
+fn weight_filter_matches_path(weight: &StackWeight, expected: &[&str]) -> bool {
+    matches!(
+        weight.filter_set(),
+        Subtractability::Set(path, args) if path_matches(path, expected) && args.is_empty()
+    )
+}
+
+fn neg_is_var_or_filter_stack_var(types: &poly::types::TypeArena, neg: poly::types::NegId) -> bool {
+    match types.neg(neg) {
+        Neg::Var(_) => true,
+        Neg::Stack { inner, weight } if weight.entries().is_empty() => {
+            matches!(types.neg(*inner), Neg::Var(_))
+        }
+        _ => false,
+    }
+}
+
 fn weight_has_all_except_path(weight: &StackWeight, expected: &[&str]) -> bool {
     weight.entries().iter().any(|entry| {
         entry.stack.iter().any(|subtractability| {
@@ -838,8 +855,8 @@ fn role_impl_method_requirement_ret_effect_records_stack_weighted_upper() {
     let types = output.session.infer.constraints().types();
     assert!(
         bounds.uppers().iter().any(|bound| {
-            matches!(types.neg(bound.neg), Neg::Var(_))
-                && weight_set_path_id(&bound.weights.right, &["nondet"]).is_some()
+            neg_is_var_or_filter_stack_var(types, bound.neg)
+                && weight_filter_matches_path(&bound.weights.right, &["nondet"])
         }),
         "body effect bounds: {:?}",
         bounds

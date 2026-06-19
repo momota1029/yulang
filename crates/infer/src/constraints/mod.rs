@@ -43,6 +43,7 @@ pub struct ConstraintMachine {
     declared_subtracts: FxHashSet<SubtractId>,
     effect_family_paths: FxHashSet<Vec<String>>,
     pre_pop_effect_families: FxHashMap<TypeVar, Vec<ConstraintEffectFamily>>,
+    lower_filters: FxHashMap<TypeVar, FxHashSet<Subtractability>>,
     effect_filter_violations: FxHashSet<EffectFilterViolationKey>,
     seen: FxHashSet<SubtypeConstraint>,
     var_var_seen: FxHashSet<VarVarConstraint>,

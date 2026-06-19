@@ -582,6 +582,30 @@ mod tests {
             other => panic!("expected stacked return effect, got {other:?}"),
         };
         assert_non_subtract_var(types, fun.1, subtract);
+
+        let upper_ret_eff = bounds
+            .uppers()
+            .iter()
+            .find_map(|bound| match types.neg(bound.neg) {
+                Neg::Fun { ret_eff, .. } => Some(*ret_eff),
+                _ => None,
+            })
+            .expect("function annotation should also lower to function upper bound");
+        let Neg::Stack { inner, weight } = types.neg(upper_ret_eff) else {
+            panic!(
+                "expected filtered return effect upper, got {:?}",
+                types.neg(upper_ret_eff)
+            );
+        };
+        assert!(matches!(types.neg(*inner), Neg::Var(_)));
+        assert_eq!(
+            weight.filter_set(),
+            &Subtractability::Set(vec!["handled".into()], Vec::new())
+        );
+        assert!(
+            weight.entries().is_empty(),
+            "return effect upper should carry only filter, got {weight:?}"
+        );
     }
 
     #[test]
@@ -756,6 +780,28 @@ mod tests {
         };
         assert_eq!(subtract.filter_set(), &Subtractability::Empty);
         single_predicate_subtract_id(subtract);
+
+        let types = infer.constraints().types();
+        let upper_ret_eff = infer
+            .constraints()
+            .bounds()
+            .of(target)
+            .expect("target should receive function upper bound")
+            .uppers()
+            .iter()
+            .find_map(|bound| match types.neg(bound.neg) {
+                Neg::Fun { ret_eff, .. } => Some(*ret_eff),
+                _ => None,
+            })
+            .expect("function annotation should lower to function upper bound");
+        let Neg::Stack { weight, .. } = types.neg(upper_ret_eff) else {
+            panic!(
+                "expected filtered empty return effect upper, got {:?}",
+                types.neg(upper_ret_eff)
+            );
+        };
+        assert_eq!(weight.filter_set(), &Subtractability::Empty);
+        assert!(weight.entries().is_empty());
     }
 
     #[test]

@@ -443,9 +443,7 @@ impl StackWeight {
     }
 
     fn append(&mut self, other: &Self) {
-        // The right-hand filter is a boundary check performed before the right
-        // stack entry is composed. It is discharged by the boundary and does not
-        // become part of the composed weight.
+        self.filter = self.filter.clone().intersect(other.filter.clone());
         for entry in &other.entries {
             for subtractability in &entry.floor {
                 self.push_floor(entry.id, subtractability.clone());
@@ -762,15 +760,24 @@ mod tests {
     }
 
     #[test]
-    fn stack_weight_filter_is_left_biased_in_composition() {
+    fn stack_weight_filter_intersects_in_composition() {
         let left = StackWeight::filter(Subtractability::Set(vec!["io".into()], Vec::new()));
-        let right = StackWeight::filter(Subtractability::Set(vec!["write".into()], Vec::new()));
+        let right = StackWeight::filter(Subtractability::Set(vec!["io".into()], Vec::new()));
         let combined = left.compose(&right);
 
         assert_eq!(
             combined.filter_set(),
             &Subtractability::Set(vec!["io".into()], Vec::new())
         );
+    }
+
+    #[test]
+    fn stack_weight_disjoint_filters_compose_to_empty_filter() {
+        let left = StackWeight::filter(Subtractability::Set(vec!["io".into()], Vec::new()));
+        let right = StackWeight::filter(Subtractability::Set(vec!["write".into()], Vec::new()));
+        let combined = left.compose(&right);
+
+        assert_eq!(combined.filter_set(), &Subtractability::Empty);
     }
 
     #[test]

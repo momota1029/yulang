@@ -15,6 +15,8 @@ impl ConstraintMachine {
         if !self.bounds.add_lower(target, pos, weights.clone()) {
             return;
         }
+        self.constrain_pos_lower_by_filter(pos, weights.left.filter_set());
+        self.constrain_lower_bound_by_registered_filters(target, pos, &weights);
         self.record_pos_bound_var_neighbors(target, pos);
         self.events.push(ConstraintEvent::LowerBoundAdded {
             var: target,
@@ -109,6 +111,8 @@ impl ConstraintMachine {
 
         let lower = self.extrude_pos(lower, self.level_of(upper_var));
         if self.bounds.add_lower(upper_var, lower, weights.clone()) {
+            self.constrain_pos_lower_by_filter(lower, weights.left.filter_set());
+            self.constrain_lower_bound_by_registered_filters(upper_var, lower, &weights);
             self.record_pos_bound_var_neighbors(upper_var, lower);
             self.events.push(ConstraintEvent::LowerBoundAdded {
                 var: upper_var,
@@ -131,6 +135,100 @@ impl ConstraintMachine {
                 replay_enqueued,
                 empty_replay_skipped,
             );
+        }
+    }
+
+    pub(crate) fn constrain_type_var_lowers_by_filter(
+        &mut self,
+        var: TypeVar,
+        filter: Subtractability,
+    ) {
+        if matches!(filter, Subtractability::All) {
+            return;
+        }
+        if !self
+            .lower_filters
+            .entry(var)
+            .or_default()
+            .insert(filter.clone())
+        {
+            return;
+        }
+        let lowers = self
+            .bounds
+            .of(var)
+            .map(|bounds| bounds.lowers.clone())
+            .unwrap_or_default();
+        for lower in lowers {
+            self.constrain_weighted_pos_lower_by_filter(lower.pos, &lower.weights, &filter);
+        }
+    }
+
+    fn constrain_lower_bound_by_registered_filters(
+        &mut self,
+        target: TypeVar,
+        pos: PosId,
+        weights: &ConstraintWeights,
+    ) {
+        let filters = self.lower_filters.get(&target).cloned().unwrap_or_default();
+        for filter in filters {
+            self.constrain_weighted_pos_lower_by_filter(pos, weights, &filter);
+        }
+    }
+
+    fn constrain_weighted_pos_lower_by_filter(
+        &mut self,
+        pos: PosId,
+        weights: &ConstraintWeights,
+        filter: &Subtractability,
+    ) {
+        if matches!(filter, Subtractability::All) {
+            return;
+        }
+        self.constrain_stack_by_filter(&weights.left, filter);
+        let filter = weights.left.filter_set().clone().intersect(filter.clone());
+        self.constrain_pos_lower_by_filter(pos, &filter);
+    }
+
+    pub(in crate::constraints) fn constrain_pos_lower_by_filter(
+        &mut self,
+        pos: PosId,
+        filter: &Subtractability,
+    ) {
+        if matches!(filter, Subtractability::All) {
+            return;
+        }
+        match self.types.pos(pos).clone() {
+            Pos::Con(path, args) => {
+                if self.effect_family_paths.contains(&path) {
+                    self.constrain_effect_family_by_filter(&path, &args, filter);
+                }
+            }
+            Pos::Row(items) => {
+                for item in items {
+                    self.constrain_pos_lower_by_filter(item, filter);
+                }
+            }
+            Pos::Stack { inner, weight } => {
+                self.constrain_stack_by_filter(&weight, filter);
+                self.constrain_pos_lower_by_filter(inner, filter);
+            }
+            Pos::NonSubtract(inner, weight) => {
+                self.constrain_stack_by_filter(&weight, filter);
+                self.constrain_pos_lower_by_filter(inner, filter);
+            }
+            Pos::Union(left, right) => {
+                self.constrain_pos_lower_by_filter(left, filter);
+                self.constrain_pos_lower_by_filter(right, filter);
+            }
+            Pos::Var(var) => self.constrain_type_var_lowers_by_filter(var, filter.clone()),
+            Pos::Bot
+            | Pos::Fun { .. }
+            | Pos::Record(_)
+            | Pos::RecordTailSpread { .. }
+            | Pos::RecordHeadSpread { .. }
+            | Pos::PolyVariant(_)
+            | Pos::Tuple(_) => {}
         }
     }
 

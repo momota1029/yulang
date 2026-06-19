@@ -297,11 +297,13 @@ impl<'a> AnnConstraintLowerer<'a> {
         self.register_stack_facts(effect, &stack.weight);
         let effect_pos = self.alloc_pos(Pos::Var(effect));
         let pos = self.wrap_pos_with_stack(effect_pos, &stack.weight);
-        let subtracts =
-            predicate_weights(&stack.ids, effect_stack_filter_from_weight(&stack.weight));
+        let filter = effect_stack_filter_from_weight(&stack.weight);
+        let effect_neg = self.alloc_neg(Neg::Var(effect));
+        let neg = self.wrap_neg_with_stack(effect_neg, &StackWeight::filter(filter.clone()));
+        let subtracts = predicate_weights(&stack.ids, filter);
         Ok(AnnEffectBounds {
             pos,
-            neg: self.alloc_neg(Neg::Var(effect)),
+            neg,
             subtracts,
         })
     }

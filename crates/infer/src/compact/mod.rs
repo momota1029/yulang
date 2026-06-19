@@ -3,8 +3,10 @@
 //!
 //! `poly::Scheme` の主役は最終的な `PosId` であり、compact 表現は infer 内だけで
 //! 極性消去・共起分析・sandwich を走らせるための中間表現として扱う。
-//! Concrete shape には subtract weight を持たせず、展開時に covariant な変数 occurrence へ
-//! 押し込む。contravariant な変数 occurrence では weight を持たない。
+//! Concrete shape には subtract weight を持たせず、展開時に変数 occurrence へ押し込む。
+//! 通常の contravariant occurrence は空 weight だが、filter guard を持つ negative stack
+//! occurrence は、その guard を落とさないため weight 付きのまま保持する。
+//! principal 化では finalizer が filter 成分だけを剥がし、実際の pop/floor/push だけを出力へ戻す。
 
 use std::{
     hash::{Hash, Hasher},
@@ -13,7 +15,7 @@ use std::{
 
 use poly::types::{
     BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, SchemeRecursiveBound,
-    Subtractability, TypeArena, TypeVar,
+    StackWeight, Subtractability, TypeArena, TypeVar,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -365,6 +367,14 @@ impl CompactVar {
         Self {
             var,
             weight: ConstraintWeight::empty(),
+            origin: CompactVarOrigin::Primary,
+        }
+    }
+
+    pub(crate) fn contravariant_with_weight(var: TypeVar, weight: ConstraintWeight) -> Self {
+        Self {
+            var,
+            weight,
             origin: CompactVarOrigin::Primary,
         }
     }

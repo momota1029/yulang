@@ -760,8 +760,18 @@ impl<'a> ExprLowerer<'a> {
             .map_err(|error| LoweringError::AnnotationConstraint { error });
         *ann_solver_vars = lowerer.into_vars();
         let connection = result?;
+        self.constrain_effect_filters(body.effect, &connection.subtracts);
         self.extend_current_predicate_subtracts(connection.subtracts);
         Ok(())
+    }
+
+    fn constrain_effect_filters(&mut self, effect: TypeVar, weights: &[StackWeight]) {
+        for weight in weights {
+            self.session
+                .infer
+                .constraints_mut()
+                .constrain_type_var_lowers_by_filter(effect, weight.filter_set().clone());
+        }
     }
 
     pub(in crate::lowering) fn invariant_var_arg(&mut self, var: TypeVar) -> poly::types::NeuId {

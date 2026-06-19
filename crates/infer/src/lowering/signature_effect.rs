@@ -57,11 +57,11 @@ impl<'a> SignatureLowerer<'a> {
         &mut self,
         row: Option<&SignatureEffectRow>,
     ) -> Result<NegId, SignatureConstraintError> {
-        row.map(|row| self.lower_subtractable_effect_row_neg(row))
-            .unwrap_or_else(|| {
-                let top = self.alloc_neg(Neg::Top);
-                Ok(self.alloc_neg(Neg::Row(Vec::new(), top)))
-            })
+        let Some(row) = row else {
+            let top = self.alloc_neg(Neg::Top);
+            return Ok(self.alloc_neg(Neg::Row(Vec::new(), top)));
+        };
+        self.lower_ret_subtractable_effect_row_neg(row)
     }
 
     pub(super) fn lower_data_ret_effect_neg(
@@ -151,6 +151,26 @@ impl<'a> SignatureLowerer<'a> {
         self.register_stack_facts(effect, &stack.weight);
         let effect = self.alloc_neg(Neg::Var(effect));
         Ok(self.wrap_neg_with_stack(effect, &stack.weight))
+    }
+
+    fn lower_ret_subtractable_effect_row_neg(
+        &mut self,
+        row: &SignatureEffectRow,
+    ) -> Result<NegId, SignatureConstraintError> {
+        if row.items.is_empty()
+            && let Some(tail) = &row.tail
+        {
+            let tail = self.signature_var(tail);
+            return Ok(self.alloc_neg(Neg::Var(tail)));
+        }
+
+        let effect = self.fresh_type_var();
+        self.connect_effect_tail_exact(effect, row);
+        let stack = self.effect_row_stack(row)?;
+        self.register_stack_facts(effect, &stack.weight);
+        let filter = signature_effect_stack_filter_from_weight(&stack.weight);
+        let effect = self.alloc_neg(Neg::Var(effect));
+        Ok(self.wrap_neg_with_stack(effect, &StackWeight::filter(filter)))
     }
 
     fn lower_data_effect_row_neg(
@@ -367,4 +387,12 @@ impl<'a> SignatureLowerer<'a> {
             SignatureEffectAtom::Wildcard => Ok(None),
         }
     }
+}
+
+fn signature_effect_stack_filter_from_weight(weight: &StackWeight) -> Subtractability {
+    weight
+        .stack_items()
+        .cloned()
+        .reduce(Subtractability::intersect)
+        .unwrap_or(Subtractability::All)
 }

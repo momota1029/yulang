@@ -81,7 +81,7 @@ impl<'a> CompactCollector<'a> {
             }),
             Pos::Row(items) => self.compact_pos_row(items, weight),
             Pos::NonSubtract(pos, stack_weight) => {
-                let weight = weight.union(&ConstraintWeight::from_ids(stack_weight.subtract_ids()));
+                let weight = weight.union(&stack_weight);
                 self.compact_pos_id(pos, weight)
             }
             Pos::Stack {
@@ -109,9 +109,7 @@ impl<'a> CompactCollector<'a> {
         match self.machine.types().neg(id).clone() {
             Neg::Top => CompactType::default(),
             Neg::Bot => CompactType::never(),
-            Neg::Var(var) => {
-                self.compact_var_side(var, Polarity::Negative, ConstraintWeight::empty())
-            }
+            Neg::Var(var) => self.compact_var_side(var, Polarity::Negative, weight),
             Neg::Con(path, args) => self.compact_con(path, args, ConstraintWeight::empty()),
             Neg::Fun {
                 arg,
@@ -235,9 +233,7 @@ impl<'a> CompactCollector<'a> {
         match self.machine.types().neg(id).clone() {
             Neg::Top => CompactType::default(),
             Neg::Bot => CompactType::never(),
-            Neg::Var(var) => {
-                self.compact_var_side(var, Polarity::Negative, ConstraintWeight::empty())
-            }
+            Neg::Var(var) => self.compact_var_side(var, Polarity::Negative, weight),
             Neg::Con(_, _) => {
                 if let Some((path, args)) = self.compact_neg_row_item(id) {
                     CompactType::from_row(CompactRow {
@@ -275,7 +271,7 @@ impl<'a> CompactCollector<'a> {
                     .collect(),
             )),
             Pos::NonSubtract(pos, stack_weight) => {
-                let weight = weight.union(&ConstraintWeight::from_ids(stack_weight.subtract_ids()));
+                let weight = weight.union(&stack_weight);
                 self.compact_pos_row_item(pos, weight)
             }
             Pos::Stack {
@@ -590,7 +586,7 @@ impl<'a> CompactCollector<'a> {
         let mut out = CompactType::from_var(self.compact_var_occurrence(
             var,
             Polarity::Negative,
-            ConstraintWeight::empty(),
+            weight.clone(),
         ));
         if !self.row_tail_in_progress.insert(var) {
             return out;

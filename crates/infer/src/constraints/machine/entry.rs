@@ -16,6 +16,7 @@ impl ConstraintMachine {
             declared_subtracts: FxHashSet::default(),
             effect_family_paths: FxHashSet::default(),
             pre_pop_effect_families: FxHashMap::default(),
+            lower_filters: FxHashMap::default(),
             effect_filter_violations: FxHashSet::default(),
             seen: FxHashSet::default(),
             var_var_seen: FxHashSet::default(),

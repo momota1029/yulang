@@ -50,6 +50,37 @@ fn finalize_restores_stack_weights_on_row_vars() {
 }
 
 #[test]
+fn finalize_drops_filter_only_stack_weights_on_negative_vars() {
+    let filter = Subtractability::Set(vec!["io".into()], Vec::new());
+    let weight = StackWeight::filter(filter);
+    let mut types = TypeArena::new();
+    let compact = CompactType::from_var(CompactVar::contravariant_with_weight(TypeVar(12), weight));
+
+    let neg = finalize_compact_type_to_neg(&mut types, &compact);
+
+    assert!(matches!(types.neg(neg), Neg::Var(TypeVar(12))));
+}
+
+#[test]
+fn finalize_strips_filter_from_non_empty_stack_weights() {
+    let subtract = SubtractId(5);
+    let filter = Subtractability::Set(vec!["io".into()], Vec::new());
+    let weight = StackWeight::filter(filter).compose(&StackWeight::pop(subtract));
+    let expected = StackWeight::pop(subtract);
+    let mut types = TypeArena::new();
+    let compact = CompactType::from_var(CompactVar::contravariant_with_weight(TypeVar(13), weight));
+
+    let neg = finalize_compact_type_to_neg(&mut types, &compact);
+
+    match types.neg(neg) {
+        Neg::Stack { inner, weight } if weight == &expected => {
+            assert!(matches!(types.neg(*inner), Neg::Var(TypeVar(13))));
+        }
+        other => panic!("expected stack-weighted negative var without filter, got {other:?}"),
+    }
+}
+
+#[test]
 fn co_occurrence_keeps_ref_update_like_effect_vars_distinct() {
     let machine = ConstraintMachine::new();
     let residual = TypeVar(1);

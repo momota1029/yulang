@@ -252,7 +252,11 @@ impl ConstraintMachine {
         self.intersect_row_items_with_subtractability(items, &subtractability)
     }
 
-    fn constrain_stack_by_filter(&mut self, weight: &StackWeight, filter: &Subtractability) {
+    pub(in crate::constraints) fn constrain_stack_by_filter(
+        &mut self,
+        weight: &StackWeight,
+        filter: &Subtractability,
+    ) {
         if matches!(filter, Subtractability::All) {
             return;
         }
@@ -305,7 +309,7 @@ impl ConstraintMachine {
         self.constrain_effect_family_by_filter(&path, &args, filter);
     }
 
-    fn constrain_effect_family_by_filter(
+    pub(in crate::constraints) fn constrain_effect_family_by_filter(
         &mut self,
         path: &[String],
         args: &[NeuId],

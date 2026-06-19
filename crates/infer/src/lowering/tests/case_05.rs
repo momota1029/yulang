@@ -101,6 +101,51 @@ fn result_effect_annotation_reuses_callback_tail() {
 }
 
 #[test]
+fn callback_empty_return_annotation_records_filter_upper() {
+    let root = parse("my run(g: () -> [] int): [] int = g ()\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (run, _) = binding_def_and_order(&lower.modules, module, "run");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let root = output.typing.def(run).expect("run root type");
+    let (arg, _, _, _) = function_lower_bound(&output.session, root);
+    let types = output.session.infer.constraints().types();
+    let Neg::Var(callback) = types.neg(arg) else {
+        panic!("expected callback argument var, got {:?}", types.neg(arg));
+    };
+    let bounds = output
+        .session
+        .infer
+        .constraints()
+        .bounds()
+        .of(*callback)
+        .expect("callback should receive function upper");
+    let ret_eff = bounds
+        .uppers()
+        .iter()
+        .find_map(|bound| match types.neg(bound.neg) {
+            Neg::Fun { ret_eff, .. } => Some(*ret_eff),
+            _ => None,
+        })
+        .expect("callback upper should include function shape");
+    let Neg::Stack { inner, weight } = types.neg(ret_eff) else {
+        panic!(
+            "expected filtered callback return effect upper, got {:?}",
+            types.neg(ret_eff)
+        );
+    };
+    assert!(matches!(types.neg(*inner), Neg::Var(_)));
+    assert_eq!(weight.filter_set(), &Subtractability::Empty);
+    assert!(
+        weight.entries().is_empty(),
+        "callback return effect upper should carry only filter, got {weight:?}"
+    );
+}
+
+#[test]
 fn effectful_parameter_forwarding_keeps_unhandled_effect() {
     let root = parse("type handled\nmy h(x: [handled; 'e] 'a) = x\n");
     let lower = lower_module_map(&root);

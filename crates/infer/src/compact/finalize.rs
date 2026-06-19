@@ -179,7 +179,7 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
 
         let mut parts = Vec::new();
         for var in &ty.vars {
-            parts.push(self.alloc_neg(Neg::Var(var.var)));
+            parts.push(self.finalize_neg_var(var));
         }
         for builtin in &ty.builtins {
             parts.push(self.alloc_neg(Neg::Con(builtin_path(*builtin), Vec::new())));
@@ -585,13 +585,20 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
 
     pub(super) fn finalize_pos_var(&mut self, var: &CompactVar) -> PosId {
         let mut pos = self.alloc_pos(Pos::Var(var.var));
-        if !var.weight.is_empty() {
-            pos = self.alloc_pos(Pos::Stack {
-                inner: pos,
-                weight: var.weight.clone(),
-            });
+        let weight = principal_stack_weight(&var.weight);
+        if !weight.is_empty() {
+            pos = self.alloc_pos(Pos::Stack { inner: pos, weight });
         }
         pos
+    }
+
+    pub(super) fn finalize_neg_var(&mut self, var: &CompactVar) -> NegId {
+        let mut neg = self.alloc_neg(Neg::Var(var.var));
+        let weight = principal_stack_weight(&var.weight);
+        if !weight.is_empty() {
+            neg = self.alloc_neg(Neg::Stack { inner: neg, weight });
+        }
+        neg
     }
 
     pub(super) fn finalize_neg_row(&mut self, row: &CompactRow) -> NegId {
@@ -825,6 +832,10 @@ impl<'a, T: CompactTypeStore> CompactFinalizer<'a, T> {
     fn alloc_neu(&mut self, neu: Neu) -> NeuId {
         self.types.alloc_neu(neu)
     }
+}
+
+fn principal_stack_weight(weight: &StackWeight) -> StackWeight {
+    weight.with_filter(Subtractability::All)
 }
 
 pub(super) fn builtin_path(builtin: BuiltinType) -> Vec<String> {

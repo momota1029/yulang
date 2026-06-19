@@ -523,6 +523,8 @@ impl<'a> CompactCollector<'a> {
     ) -> CompactVar {
         if polarity.is_positive() {
             CompactVar::covariant(var, weight)
+        } else if !weight.is_empty() {
+            CompactVar::contravariant_with_weight(var, weight)
         } else {
             CompactVar::contravariant(var)
         }
@@ -754,7 +756,7 @@ impl<'a> CompactCollector<'a> {
                 weight,
             )),
             Pos::NonSubtract(pos, stack_weight) => {
-                let weight = weight.union(&ConstraintWeight::from_ids(stack_weight.subtract_ids()));
+                let weight = weight.union(&stack_weight);
                 self.compact_pos_bound_id(pos, weight)
             }
             Pos::Stack {
