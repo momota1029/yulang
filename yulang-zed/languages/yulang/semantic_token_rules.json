@@ -1,0 +1,14 @@
+[
+  {
+    "token_type": "colon",
+    "style": ["operator", "punctuation.delimiter"]
+  },
+  {
+    "token_type": "delimiter",
+    "style": ["punctuation.delimiter", "operator"]
+  },
+  {
+    "token_type": "pattern",
+    "style": ["variable.special", "variable"]
+  }
+]
