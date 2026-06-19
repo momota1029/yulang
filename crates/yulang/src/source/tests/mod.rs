@@ -89,6 +89,21 @@ struct EnvVarGuard {
 }
 
 impl EnvVarGuard {
+    fn unset(key: &'static str) -> Self {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        let lock = ENV_LOCK.get_or_init(|| Mutex::new(()));
+        let guard = lock.lock().expect("env var test lock");
+        let previous = std::env::var_os(key);
+        unsafe {
+            std::env::remove_var(key);
+        }
+        Self {
+            key,
+            previous,
+            _lock: guard,
+        }
+    }
+
     fn set_path(key: &'static str, value: &FsPath) -> Self {
         static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         let lock = ENV_LOCK.get_or_init(|| Mutex::new(()));

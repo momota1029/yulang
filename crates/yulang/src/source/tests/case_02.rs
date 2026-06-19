@@ -291,6 +291,7 @@ fn dump_poly_raw_without_std_includes_type_and_expr_graphs() {
 
 #[test]
 fn collect_local_sources_with_std_reads_nearby_lib_std() {
+    let _env = EnvVarGuard::unset(crate::stdlib::YULANG_STD_ENV);
     let root = temp_root("nearby-std");
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("lib").join("std")).unwrap();

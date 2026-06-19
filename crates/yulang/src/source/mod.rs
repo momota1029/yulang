@@ -18,7 +18,7 @@ use sources::{ModuleLoadRequest, Name, Path, SourceFile};
 
 use crate::stdlib::{
     YULANG_STD_ENV, default_versioned_std_root, embedded_std_files, env_std_root,
-    install_embedded_std,
+    install_embedded_std, installed_versioned_std_root,
 };
 use crate::time::{Duration, Instant};
 

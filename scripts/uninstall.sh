@@ -57,12 +57,35 @@ if [ -z "$prefix" ]; then
   exit 1
 fi
 
-case "$prefix" in
-  / | "$HOME")
+canonical_path() {
+  path="$1"
+  if [ -d "$path" ]; then
+    (cd "$path" && pwd -P)
+    return
+  fi
+
+  parent="$(dirname "$path")"
+  base="$(basename "$path")"
+  parent_canon="$(cd "$parent" 2>/dev/null && pwd -P)" || return 1
+  if [ "$parent_canon" = "/" ]; then
+    printf '/%s\n' "$base"
+  else
+    printf '%s/%s\n' "$parent_canon" "$base"
+  fi
+}
+
+prefix_canon="$(canonical_path "$prefix" || printf '%s\n' "$prefix")"
+home_canon="$(canonical_path "$HOME" || printf '%s\n' "$HOME")"
+case "$prefix_canon" in
+  / | "")
     echo "uninstall.sh: refusing to remove unsafe prefix: $prefix" >&2
     exit 1
     ;;
 esac
+if [ "$prefix_canon" = "$home_canon" ]; then
+  echo "uninstall.sh: refusing to remove unsafe prefix: $prefix" >&2
+  exit 1
+fi
 
 remove_path() {
   if [ -e "$1" ] || [ -L "$1" ]; then

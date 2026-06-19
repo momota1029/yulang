@@ -12,9 +12,26 @@ if ([string]::IsNullOrWhiteSpace($Prefix)) {
     exit 1
 }
 
-$homeFullName = [System.IO.Path]::GetFullPath($HOME)
-$prefixFullName = [System.IO.Path]::GetFullPath($Prefix)
-if ($prefixFullName -eq [System.IO.Path]::GetPathRoot($prefixFullName) -or $prefixFullName -eq $homeFullName) {
+function Get-YulangCanonicalPath {
+    param([string]$Path)
+    if (Test-Path -LiteralPath $Path) {
+        return [System.IO.Path]::GetFullPath((Resolve-Path -LiteralPath $Path).ProviderPath)
+    }
+    return [System.IO.Path]::GetFullPath($Path)
+}
+
+function Test-YulangSamePath {
+    param([string]$Left, [string]$Right)
+    return [string]::Equals(
+        $Left.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar),
+        $Right.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar),
+        [System.StringComparison]::OrdinalIgnoreCase
+    )
+}
+
+$homeFullName = Get-YulangCanonicalPath $HOME
+$prefixFullName = Get-YulangCanonicalPath $Prefix
+if ((Test-YulangSamePath $prefixFullName ([System.IO.Path]::GetPathRoot($prefixFullName))) -or (Test-YulangSamePath $prefixFullName $homeFullName)) {
     Write-Error "uninstall.ps1: refusing to remove unsafe prefix: $Prefix"
     exit 1
 }

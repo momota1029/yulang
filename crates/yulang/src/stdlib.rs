@@ -32,6 +32,10 @@ pub fn default_versioned_std_root() -> PathBuf {
     default_user_lib_root().join(format!("yulang-{YULANG_STDLIB_VERSION}"))
 }
 
+pub fn installed_versioned_std_root() -> Option<PathBuf> {
+    versioned_std_root_for_exe_path(&env::current_exe().ok()?)
+}
+
 pub fn default_user_lib_root() -> PathBuf {
     if let Some(path) = env_path(YULANG_LIB_DIR_ENV) {
         return path;
@@ -69,6 +73,19 @@ pub fn env_path(key: &str) -> Option<PathBuf> {
         return None;
     }
     Some(PathBuf::from(value))
+}
+
+fn versioned_std_root_for_exe_path(exe: &Path) -> Option<PathBuf> {
+    let bin_dir = exe.parent()?;
+    if bin_dir.file_name()?.to_str()? != "bin" {
+        return None;
+    }
+    Some(
+        bin_dir
+            .parent()?
+            .join("lib")
+            .join(format!("yulang-{YULANG_STDLIB_VERSION}")),
+    )
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -42,6 +42,11 @@ release artifact
   - `scripts/release-archive-smoke.sh`
   - archive を展開し、`bin/yulang[.exe]` と同梱 `lib/std/std.yu` を確認してから
     `release-smoke.sh` を呼ぶ。
+- installer smoke scripts:
+  - `scripts/release-install-smoke.sh` / `scripts/release-install-smoke.ps1`
+  - ローカル HTTP release directory から installer を実行し、custom prefix install、
+    prefix 直下の versioned std root、`check` / `run` / `server`、default uninstall、
+    `--purge-cache` / `-PurgeCache`、`--all` / `-All`、unsafe prefix rejection を通す。
 - packaging script:
   - `scripts/package-release.sh`
   - host native build 済み binary を受け取り、embedded std を archive root の `lib/` へ展開する。
@@ -62,11 +67,12 @@ release artifact
   - default は GitHub latest full release。
   - alpha / beta / rc は GitHub prerelease なので `--version v0.1.0-alpha.1` のように tag を指定する。
   - archive checksum を `SHA256SUMS` で検証し、`~/.yulang/bin/yulang` へ入れたあと
-    `yulang install std` を実行する。
+    `YULANG_LIB_DIR=<prefix>/lib yulang install std` を実行する。
 - `scripts/install.ps1`:
   - Windows x86_64 用。
   - public entrypoint は `https://yulang.momota.pw/install.ps1`。
-  - `~/.yulang/bin/yulang.exe` へ入れたあと `yulang install std` を実行する。
+  - `~/.yulang/bin/yulang.exe` へ入れたあと `YULANG_LIB_DIR=<prefix>/lib yulang install std`
+    を実行する。
 - `scripts/uninstall.sh` / `scripts/uninstall.ps1`:
   - public entrypoint は `https://yulang.momota.pw/uninstall.sh` /
     `https://yulang.momota.pw/uninstall.ps1`。
@@ -83,6 +89,8 @@ release artifact
 
 - `POLY_CACHE_FORMAT` / `CONTROL_CACHE_FORMAT` の bump 漏れが release artifact に混ざらないようにする。
 - std bundle の version、source hash、artifact format を manifest に入れる。
+- installer で入れた binary は、同じ prefix の `lib/yulang-<stdlib-version>` を
+  `YULANG_STD` / 近場 `lib/std` の次、user default std の前に発見する。
 - cache miss の理由を diagnostics ではなく build/cache status として出す。
 - old cache を読む場合は、意味論 mismatch を source hash だけに頼らない。
 

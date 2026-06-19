@@ -66,6 +66,25 @@ jobs:
           YULANG_SMOKE_SERVER: "1"
         run: scripts/release-archive-smoke.sh "dist/yulang-${{ matrix.target }}.${{ matrix.archive }}"
 
+      - name: Add installer smoke assets and checksums
+        shell: bash
+        run: |
+          cp scripts/install.sh dist/install.sh
+          cp scripts/install.ps1 dist/install.ps1
+          cp scripts/uninstall.sh dist/uninstall.sh
+          cp scripts/uninstall.ps1 dist/uninstall.ps1
+          (cd dist && sha256sum "yulang-${{ matrix.target }}.${{ matrix.archive }}" install.sh install.ps1 uninstall.sh uninstall.ps1 > SHA256SUMS)
+
+      - name: Smoke shell installer
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        run: scripts/release-install-smoke.sh "dist/yulang-${{ matrix.target }}.${{ matrix.archive }}"
+
+      - name: Smoke PowerShell installer
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: ./scripts/release-install-smoke.ps1 -Archive "dist/yulang-${{ matrix.target }}.${{ matrix.archive }}"
+
       - name: Upload release archive
         uses: actions/upload-artifact@v7
         with:

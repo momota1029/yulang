@@ -87,6 +87,53 @@ if [[ -z "$std_version" ]]; then
   exit 1
 fi
 
+python_bin=""
+if command -v python3 >/dev/null 2>&1; then
+  python_bin="python3"
+elif command -v python >/dev/null 2>&1; then
+  python_bin="python"
+else
+  echo "package-release: python3 or python is required to hash std sources" >&2
+  exit 1
+fi
+
+stdlib_source_hash="$(
+  "$python_bin" - "$repo_root/lib" <<'PY'
+import hashlib
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1])
+paths = [root / "std.yu"]
+paths.extend(sorted((root / "std").rglob("*.yu")))
+digest = hashlib.sha256()
+for path in sorted(paths, key=lambda item: item.as_posix()):
+    rel = path.relative_to(root).as_posix()
+    digest.update(rel.encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(path.read_bytes())
+    digest.update(b"\0")
+print(digest.hexdigest())
+PY
+)"
+
+cache_schema="$(
+  sed -n 's/^const CACHE_SCHEMA_VERSION: u32 = \([0-9][0-9]*\);$/\1/p' \
+    "$repo_root/crates/yulang/src/cache.rs"
+)"
+poly_cache_format="$(
+  sed -n 's/^const POLY_CACHE_FORMAT: u32 = \([0-9][0-9]*\);$/\1/p' \
+    "$repo_root/crates/yulang/src/cache.rs"
+)"
+control_cache_format="$(
+  sed -n 's/^const CONTROL_CACHE_FORMAT: u32 = \([0-9][0-9]*\);$/\1/p' \
+    "$repo_root/crates/yulang/src/cache.rs"
+)"
+if [[ -z "$cache_schema" || -z "$poly_cache_format" || -z "$control_cache_format" ]]; then
+  echo "package-release: failed to read cache format constants" >&2
+  exit 1
+fi
+
 package="yulang-${version}-${target}"
 stage="$out_dir/$package"
 archive_base="$out_dir/yulang-${target}"
@@ -117,6 +164,10 @@ name=yulang
 version=$version
 target=$target
 stdlib=$std_version
+stdlib_source_hash=$stdlib_source_hash
+cache_schema=$cache_schema
+poly_cache_format=$poly_cache_format
+control_cache_format=$control_cache_format
 EOF
 
 rm -f "$archive"

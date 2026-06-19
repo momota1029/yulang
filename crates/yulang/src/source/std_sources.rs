@@ -53,6 +53,10 @@ pub(super) fn resolve_auto_std_root(base: &FsPath) -> Result<PathBuf, RouteError
         return Ok(root);
     }
 
+    if let Some(root) = installed_versioned_std_root().filter(|root| is_std_root(root)) {
+        return Ok(root);
+    }
+
     let root = default_versioned_std_root();
     install_embedded_std(&root).map_err(|error| RouteError::StdRootInstall {
         root: root.clone(),

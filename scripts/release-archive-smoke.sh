@@ -66,6 +66,18 @@ if [[ ! -f "$package_root/lib/std.yu" ]]; then
   exit 1
 fi
 
+manifest="$package_root/release-manifest.txt"
+if [[ ! -f "$manifest" ]]; then
+  echo "release archive smoke: release-manifest.txt not found" >&2
+  exit 1
+fi
+for key in name version target stdlib stdlib_source_hash cache_schema poly_cache_format control_cache_format; do
+  if ! grep -q "^$key=" "$manifest"; then
+    echo "release archive smoke: manifest key missing: $key" >&2
+    exit 1
+  fi
+done
+
 if [[ "$bin" != *.exe ]]; then
   chmod 755 "$bin"
 fi

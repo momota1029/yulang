@@ -24,7 +24,10 @@ switch ($arch) {
 }
 
 $archive = "yulang-$target.zip"
-if ($Version -eq "latest") {
+$releaseBaseUrl = $env:YULANG_RELEASE_BASE_URL
+if (-not [string]::IsNullOrWhiteSpace($releaseBaseUrl)) {
+    $baseUrl = $releaseBaseUrl.TrimEnd("/")
+} elseif ($Version -eq "latest") {
     $baseUrl = "https://github.com/$Repo/releases/latest/download"
 } else {
     $baseUrl = "https://github.com/$Repo/releases/download/$Version"
@@ -76,7 +79,19 @@ try {
     $installed = Join-Path $binDir "yulang.exe"
     Copy-Item -Path (Join-Path $packageRoot.FullName "bin/yulang.exe") -Destination $installed -Force
 
-    & $installed install std | Out-Null
+    $libDir = Join-Path $Prefix "lib"
+    New-Item -ItemType Directory -Path $libDir -Force | Out-Null
+    $previousLibDir = $env:YULANG_LIB_DIR
+    try {
+        $env:YULANG_LIB_DIR = $libDir
+        & $installed install std | Out-Null
+    } finally {
+        if ($null -eq $previousLibDir) {
+            Remove-Item Env:YULANG_LIB_DIR -ErrorAction SilentlyContinue
+        } else {
+            $env:YULANG_LIB_DIR = $previousLibDir
+        }
+    }
 
     Write-Output "Installed yulang to $installed"
     Write-Output "Add $binDir to PATH if it is not already there."

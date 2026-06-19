@@ -13,6 +13,8 @@ Environment:
   YULANG_VERSION       Release tag to install. Defaults to latest full release.
   YULANG_INSTALL_DIR   Install prefix. Defaults to ~/.yulang.
   YULANG_INSTALL_REPO  GitHub repository. Defaults to momota1029/yulang.
+  YULANG_RELEASE_BASE_URL
+                       Override release download base URL, mainly for CI smoke.
 
 Alpha releases are GitHub prereleases, so install them with:
   scripts/install.sh --version v0.1.0-alpha.1
@@ -108,7 +110,9 @@ need awk
 
 target="$(detect_target)"
 archive="yulang-${target}.tar.gz"
-if [ "$version" = "latest" ]; then
+if [ -n "${YULANG_RELEASE_BASE_URL:-}" ]; then
+  base_url="${YULANG_RELEASE_BASE_URL%/}"
+elif [ "$version" = "latest" ]; then
   base_url="https://github.com/${repo}/releases/latest/download"
 else
   base_url="https://github.com/${repo}/releases/download/${version}"
@@ -155,11 +159,13 @@ if [ -z "$package_root" ]; then
 fi
 
 bin_dir="$prefix/bin"
+lib_dir="$prefix/lib"
 mkdir -p "$bin_dir"
 cp "$package_root/bin/yulang" "$bin_dir/yulang"
 chmod 755 "$bin_dir/yulang"
 
-"$bin_dir/yulang" install std >/dev/null
+mkdir -p "$lib_dir"
+YULANG_LIB_DIR="$lib_dir" "$bin_dir/yulang" install std >/dev/null
 
 echo "Installed yulang to $bin_dir/yulang"
 echo "Add $bin_dir to PATH if it is not already there."
