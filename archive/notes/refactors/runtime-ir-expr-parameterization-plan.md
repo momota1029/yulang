@@ -380,7 +380,7 @@ Plan:
    ```rust
    fn validate_monomorphized_output(_module: &FinalizedModule) -> Result<(), ()> {
        // Disabled pending runtime rewrite. See:
-       // notes/refactors/runtime-ir-expr-parameterization-plan.md
+       // archive/notes/refactors/runtime-ir-expr-parameterization-plan.md
        Ok(())
    }
    ```
@@ -559,7 +559,7 @@ Tests in `solver/mod.rs::mod tests` use both stages. Update them to construct `L
 - Remove dead helpers: `restore_*` (already deleted), any helper that became unused after Core was eliminated.
 - Audit `narrow_runtime_type_in_place`, `narrow_core_type_in_place`: do they still serve a purpose now that the materialization is correct from the start? If not, delete. If yes, rename for `FinalizedType`.
 - Audit `merge_partial_runtime_type`, `merge_partial_core_type`: same question.
-- Update `notes/refactors/yulang-runtime.md` to note that monomorphize/refine/validate are now disconnected.
+- Update `archive/notes/refactors/yulang-runtime.md` to note that monomorphize/refine/validate are now disconnected.
 
 ---
 

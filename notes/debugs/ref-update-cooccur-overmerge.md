@@ -42,7 +42,8 @@ cooccur の極性解析が「正極性でしか共起しない（負側に非対
 
 ## 見るべき場所（⚠️ 高リスク・2420 行・前科あり）
 - `crates/yulang-infer/src/simplify/cooccur/` 一式（`polarity.rs` / `analysis.rs` / `representative.rs`）
-- 関連: Task #2「cooccur を論文§4.3.1 の 3 つに掃除」。spec は `notes/design/2026-06-03-cooccur-cleanup.md`
+- 関連: Task #2「cooccur を論文§4.3.1 の 3 つに掃除」。当時の作業指示メモは
+  `archive/notes/design/2026-06-03-cooccur-cleanup.md`
 
 ## 修正方針
 **単独 commit・他テスト回帰を最優先で監視**。cooccur の極性判定で

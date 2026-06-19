@@ -79,8 +79,8 @@ Fun(redo_param, …) with LoopLabel<redo_param>   かつ redo_param == role arg 
 - 物差しは必ず名指し＋`env RUSTC_WRAPPER=`。
 
 ## 参照すべき設計ドキュメント / メモ
-- `notes/design/2026-06-02-role-system.md` — §簡約3（role 引数は不変＝中心変数は消えない）/ §決定1（簡約直後、通常引数の片側境界に具体型1つだけで解決）/ §決定3。
-- `notes/design/2026-06-04-method-selection.md` — method 選択と role 関連型ループ。
+- `archive/notes/design/2026-06-02-role-system.md` — §簡約3（role 引数は不変＝中心変数は消えない）/ §決定1（簡約直後、通常引数の片側境界に具体型1つだけで解決）/ §決定3。
+- `archive/notes/design/2026-06-04-method-selection.md` — method 選択と role 関連型ループ。
 - `~/.claude/projects/-home-momota1029-rust-yulang/memory/project-looplabel-role-discharge-bug.md` — 根因地図とプローブ履歴（同一バグ。本 handoff と合わせて読む）。
 - `~/.claude/projects/-home-momota1029-rust-yulang/memory/level-polarity-protection.md` — 再帰ハンドラの極性消去（level 保護）。
 - `~/.claude/projects/-home-momota1029-rust-yulang/memory/project-infer-residual-regression.md` — cooccur を論文準拠に保つ方針・Codex の悪癖。

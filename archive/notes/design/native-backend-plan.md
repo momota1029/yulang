@@ -218,7 +218,7 @@ of the native subset.
 
 ### Phase 0: Design Boundary
 
-- Keep this note and `notes/todo/native-backend.md` aligned.
+- Keep this note and `archive/notes/todo/native-backend.md` aligned.
 - Pick the runtime IR boundary.
 - Decide whether the first control IR lives in `yulang-runtime` or a new crate.
 

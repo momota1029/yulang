@@ -82,7 +82,7 @@ env RUSTC_WRAPPER= cargo test -p yulang-infer dbg_once_type -- --nocapture 2>&1 
 デバッグ出力の全リストは `grep -rn YL_DBG_FOLD crates/yulang-infer/src` で出る。
 
 ## 参照すべき設計ドキュメント
-- `notes/design/2026-05-31-effect-variable-subtractable.md` — subtractable effect 変数。特に「# 新規導入変数について」項2（注釈 `[handled] α` は `x: [β] α`、β に handled を subtractable 登録、**出力型には情報を付けない**）。`[_]` は All-subtractable。
+- `archive/notes/design/2026-05-31-effect-variable-subtractable.md` — subtractable effect 変数。特に「# 新規導入変数について」項2（注釈 `[handled] α` は `x: [β] α`、β に handled を subtractable 登録、**出力型には情報を付けない**）。`[_]` は All-subtractable。
 - `lib/std/var.yu` — state の実装（run 再帰ハンドラ / ref struct / ref_update）。
 - `lib/std/flow.yu` — for の実装（同型の再帰ハンドラ + Fold role）。
 - メモ（`~/.claude/projects/-home-momota1029-rust-yulang/memory/`）: `struct-method-pure-effect-leak`（pure selection に effect 変数を生やす類似病）、`level-polarity-protection`（再帰ハンドラの極性消去）、`project-infer-residual-regression`（cooccur を論文準拠に保つ方針・Codex の悪癖）。

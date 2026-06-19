@@ -64,7 +64,7 @@ callee inline now covers structural value helpers as well as scalar
 literal/primitive wrappers.
 
 The next larger optimization target is direct-style / SSA island extraction.
-`notes/design/native-direct-style-islands.md` records the intended boundary:
+`archive/notes/design/native-direct-style-islands.md` records the intended boundary:
 keep CPS as the semantic representation for handlers, resumptions, thunk
 hygiene, and local returns, but lower proven effect-free local continuation
 subgraphs as Cranelift blocks with block parameters. Partial applications and
@@ -232,7 +232,7 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 
 ## Near-Term Work Queue
 
-詳細な残穴は `notes/design/native-remaining-failure-matrix.md` で追う。
+詳細な残穴は `archive/notes/design/native-remaining-failure-matrix.md` で追う。
 
 1. N1/N2: closed for the current semantic pass. Add more cases only when a new
    source-shaped runtime IR form appears.

@@ -3,7 +3,7 @@
 This note fixed the next boundary after the old `i64` Cranelift scalar
 prototype. It remains useful as the history of the opaque runtime value pointer
 step. The adopted post-prototype runtime layout is now
-`notes/design/native-gc-runtime-plan.md`.
+`archive/notes/design/native-gc-runtime-plan.md`.
 
 The current prototype can compare:
 

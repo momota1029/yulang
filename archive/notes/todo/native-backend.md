@@ -16,7 +16,7 @@ yulang run --print-roots program.yu
 - `docs/native-backend.md` — public-facing archive summary。
 - `docs/native-experimental-release.md` — 2026-05-18 の archived release-gate note。
 - `tasks/done/2026-05-14-native-backend-history.md` — archived backend の節目。
-- `notes/refactors/finalized-vm-handoff-2026-05-25.md` — active workspace から外した整理。
+- `archive/notes/refactors/finalized-vm-handoff-2026-05-25.md` — active workspace から外した整理。
 
 ## Future Restart Conditions
 

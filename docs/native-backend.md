@@ -28,7 +28,7 @@ runtime/monomorphize cleanup:
   archived in the same cleanup.
 
 The detailed handoff for that cleanup is
-[`notes/refactors/finalized-vm-handoff-2026-05-25.md`](../notes/refactors/finalized-vm-handoff-2026-05-25.md).
+[`archive/notes/refactors/finalized-vm-handoff-2026-05-25.md`](../archive/notes/refactors/finalized-vm-handoff-2026-05-25.md).
 
 ## What The Experiment Covered
 
@@ -97,11 +97,11 @@ yulang run --print-roots path/to/file.yu
   archived release-gate note for the 2026-05-18 opt-in subset.
 - [`tasks/done/2026-05-14-native-backend-history.md`](../tasks/done/2026-05-14-native-backend-history.md):
   milestone history before the final archive cleanup.
-- [`notes/design/native-backend-plan.md`](../notes/design/native-backend-plan.md):
+- [`archive/notes/design/native-backend-plan.md`](../archive/notes/design/native-backend-plan.md):
   original native backend plan.
-- [`notes/design/cps-effect-lowering-plan.md`](../notes/design/cps-effect-lowering-plan.md):
+- [`archive/notes/design/cps-effect-lowering-plan.md`](../archive/notes/design/cps-effect-lowering-plan.md):
   CPS/effect lowering plan.
-- [`notes/design/native-gc-runtime-plan.md`](../notes/design/native-gc-runtime-plan.md):
+- [`archive/notes/design/native-gc-runtime-plan.md`](../archive/notes/design/native-gc-runtime-plan.md):
   native `YValue` / GC runtime plan.
-- [`notes/design/native-direct-style-islands.md`](../notes/design/native-direct-style-islands.md):
+- [`archive/notes/design/native-direct-style-islands.md`](../archive/notes/design/native-direct-style-islands.md):
   direct-style / SSA island optimization direction.

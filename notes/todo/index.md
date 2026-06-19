@@ -51,10 +51,12 @@
 - `parser-combinators.md`
   - parser combinator API。
   - error handling と parser diagnostics が安定するまで広げない。
-- `native-backend.md`
-  - 2026-05-25 に active workspace から外れた archived track。
-  - 将来の execution backend を再開する場合は、VM/runtime semantics と
-    type surface audit が落ち着いてから新しい track として切る。
+
+## 退避済み track
+
+- `archive/notes/todo/native-backend.md`
+  - 2026-05-25 に active workspace から外れた native backend track。
+  - 将来の execution backend を再開する場合は、この旧 TODO を戻さず、新しい track として切る。
 
 ## 近い優先順位
 

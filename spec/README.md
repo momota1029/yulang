@@ -75,8 +75,7 @@
   `crates/infer/src/compact/*`。旧実装は `archive/crates/yulang-infer/src/simplify/*` に退避済み。
 - **role 引数の中心表示** … role-system → 実装 `crates/poly/src/dump/type_format.rs`
 
-## 注意：`notes/design/` の同名旧版
+## 注意：archived design note
 
-`notes/design/` に同名の 4 ファイル（role-system / method-selection /
-effect-variable-subtractable / invariant-type-sandwich）があるが、これらは spec へ昇格する
-前の **旧・短縮版**。現役の仕様は常にこの `spec/` 側を見ること。
+`archive/notes/design/` に同名または近い名前の旧 design note があるが、これらは
+spec へ昇格する前の旧版や実装メモである。現役の仕様は常にこの `spec/` 側を見ること。

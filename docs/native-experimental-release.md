@@ -26,7 +26,7 @@ monomorphize/runtime crate split.
 
 The current archive summary is in
 [native-backend.md](native-backend.md). The cleanup handoff is in
-[`notes/refactors/finalized-vm-handoff-2026-05-25.md`](../notes/refactors/finalized-vm-handoff-2026-05-25.md).
+[`archive/notes/refactors/finalized-vm-handoff-2026-05-25.md`](../archive/notes/refactors/finalized-vm-handoff-2026-05-25.md).
 
 ## Covered Historical Subset
 

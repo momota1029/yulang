@@ -203,7 +203,7 @@ it still live in:
   release-gate notes for the retired opt-in native subset.
 - [docs/native-backend.md](docs/native-backend.md):
   archived native backend support notes and historical limits.
-- [notes/design/cps-optimization-pass-plan.md](notes/design/cps-optimization-pass-plan.md):
+- [archive/notes/design/cps-optimization-pass-plan.md](archive/notes/design/cps-optimization-pass-plan.md):
   CPS optimizer and algebraic-effect rewrite plan.
 
 ## Development

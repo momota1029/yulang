@@ -186,7 +186,7 @@ Yulang は現在、specialize 後の mono IR を読む mono runtime と、そこ
   封印した opt-in native subset の release-gate メモ。
 - [docs/native-backend.md](docs/native-backend.md):
   native backend の対応範囲と当時の制限のアーカイブ。
-- [notes/design/cps-optimization-pass-plan.md](notes/design/cps-optimization-pass-plan.md):
+- [archive/notes/design/cps-optimization-pass-plan.md](archive/notes/design/cps-optimization-pass-plan.md):
   CPS optimizer と代数的 effect の rewrite 計画。
 
 ## 開発

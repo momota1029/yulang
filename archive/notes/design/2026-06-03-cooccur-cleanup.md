@@ -6,7 +6,7 @@ co-occurrence simplification を、**論文 4.3.1 の3つだけ**に絞る。
 歴史的に積み上がった「論文外の影武者処理」を全部削除する。
 
 ## 根拠（必ず読むこと）
-- 論文: `papers/md/[v1.9] simple-essence-algebraic-subtyping_Marker.md` の §4.3.1
+- 論文: `archive/papers/md/[v1.9] simple-essence-algebraic-subtyping_Marker.md` の §4.3.1
   （simplification は本来 3 つ: polar variable removal / indistinguishable
   unification / variable sandwich flattening のみ。polar removal は
   sandwich の τ=⊥/⊤ 特殊形）
@@ -14,12 +14,12 @@ co-occurrence simplification を、**論文 4.3.1 の3つだけ**に絞る。
   `project_infer_residual_regression.md`
   （病名: Codex が共起分析＋極性消去を理解せず「守るべき変数集合」を後付けした。
   正しい cooccur に戻せば影武者が連鎖除去され、実装はむしろ減る）
-- 設計ノート: `notes/design/2026-05-31-effect-variable-subtractable.md`
+- 設計ノート: `archive/notes/design/2026-05-31-effect-variable-subtractable.md`
   （effect 変数の subtractable 登録・変数展開・shallow/deep の極性判定。
   `# 実際の表現について`＝compact の共変/反変表現、`# 変数展開について`＝簡約の正解手順。
   特に「展開して出てきた変数の上界は展開しない」は**推移律の非成立を保つ要点**で、ここを壊すと
   影武者が増える。`# outer/local/repeat の衛生性`は local 漏れの正解推論手順そのもの）
-- 設計ノート: `notes/design/2026-06-02-role-system.md`
+- 設計ノート: `archive/notes/design/2026-06-02-role-system.md`
   （role の引数(不変=共変+反変の2つ組)・level 共有・簡約・決定。`# 簡約について`で role 引数も
   極性消去/共起分析の対象になる（不変なので中心変数は消えない）。`# roleとlevelについて`で level の
   動きが規定。**掃除で role 関連の簡約を巻き込んで消さないこと**）

@@ -76,7 +76,7 @@ active な計画は `tasks/current.md` を参照。
 - CLI は `--native-compare-i64` で VM / native-control / ABI eval / Cranelift scalar result を比較できる。`bench/native_compare.sh` は同じ入口を quick bench/debug 用に呼ぶ。
 - source-level compare examples は bool primitive / source `if` / small function 内 `if` まで広げた。
 - source `if` の条件に primitive/operator call が入る形も追加した。`1 < 2` などで prelude の junction/handler wrapper が見えるため、native lower は effect-free な `Handle` / `Thunk` / `BindHere` / effect-id scope wrapper を中身へ進める。実際の `EffectOp` はまだ unsupported のままにする。
-- `str` / `list` / `record` は `notes/design/native-value-abi-plan.md` の opaque runtime value pointer lane で進める。scalar-only `compile_abi_module` は残し、value lane は別 entrypoint として追加する。
+- `str` / `list` / `record` は `archive/notes/design/native-value-abi-plan.md` の opaque runtime value pointer lane で進める。scalar-only `compile_abi_module` は残し、value lane は別 entrypoint として追加する。
 - `analyze_abi_reprs` は ABI function/value を `Int` / `Bool` / `Float` / `List(element)` / `RuntimeValuePtr` / `ClosurePtr` / `Unknown` に分類する。`List` は machine boundary では pointer lane のままだが、singleton/index/merge/range 系で分かる範囲の element repr は伝播する。tuple/record repr は後続の runtime type 連携で足す。
 - `compile_value_abi_module` は scalar-only `compile_abi_module` と別の Cranelift value-lane prototype entrypoint として追加した。現時点では string literal と `StringConcat` primitive/direct call を Rust helper 経由で `VmValue::String` に戻す。
 - `eval_source_value_lane_with_options` は source から value-lane Cranelift まで通す実験入口。`"hello"` / `"a" + "b"` の round-trip と、source からの string/list ABI repr analysis をテストで固定した。
@@ -135,7 +135,7 @@ active な計画は `tasks/current.md` を参照。
 
 ### Undet / finite nondet
 
-- `std::undet.once` は統合 target として重すぎるため、`notes/design/native-undet-plan.md` に分解計画を置いた。現在の native regression は local `choice` act で `branch` / `reject` / DFS once を scalar root に畳む段階まで通している。
+- `std::undet.once` は統合 target として重すぎるため、`archive/notes/design/native-undet-plan.md` に分解計画を置いた。現在の native regression は local `choice` act で `branch` / `reject` / DFS once を scalar root に畳む段階まで通している。
 - finite list nondet は `fold` / `sub` を使わず、`std::list::uncons` と local `choice::branch` / `choice::reject` だけで scalar root へ畳む regression が Cranelift CPS repr と VM で一致する。
 - `std::undet` の `.once` は finite list の例で CPS repr object/executable まで compile できる。ただし `each [1, 2, 3] .once` の native-run result はまだ VM と一致せず、現状は `:just 0` になる。handler id は module 内で global に renumber され、`Perform` codegen は effect に合う handler arm を module 全体から候補化するところまで入ったが、`each` / `fold_impl` / `sub::sub` をまたぐ thunk force と dynamic handler stack の意味論は未完了。
 
