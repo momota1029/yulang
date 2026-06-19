@@ -25,8 +25,19 @@ case "$archive" in
     tar -xzf "$archive" -C "$tmp"
     ;;
   *.zip)
-    if command -v unzip >/dev/null 2>&1; then
+    if command -v powershell.exe >/dev/null 2>&1 && command -v cygpath >/dev/null 2>&1; then
+      archive_win="$(cygpath -w "$archive")"
+      tmp_win="$(cygpath -w "$tmp")"
+      powershell.exe -NoProfile -Command \
+        "Expand-Archive -Path '$archive_win' -DestinationPath '$tmp_win' -Force"
+    elif command -v unzip >/dev/null 2>&1; then
+      set +e
       unzip -q "$archive" -d "$tmp"
+      status=$?
+      set -e
+      if [[ "$status" -gt 1 ]]; then
+        exit "$status"
+      fi
     else
       tar -xf "$archive" -C "$tmp"
     fi
