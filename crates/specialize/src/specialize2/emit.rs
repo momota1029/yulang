@@ -258,6 +258,13 @@ impl Specializer2 {
         if self.local_defs.contains_key(&def) {
             return Ok(ExprKind::Local(convert_def(def)));
         }
+        if let Some(resolution) = solved.typeclass_resolution(expr) {
+            return Ok(ExprKind::InstanceRef(self.ensure_def_instance(
+                arena,
+                resolution.implementation,
+                resolution.signature.clone(),
+            )?));
+        }
         match arena.defs.get(def) {
             Some(poly_expr::Def::Arg) => Ok(ExprKind::Local(convert_def(def))),
             _ if let Some(constructor) = arena.constructors.get(&def) => {

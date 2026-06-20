@@ -254,6 +254,18 @@ pub(crate) fn role_method_binding(node: &Cst) -> Option<RoleMethodBindingInfo> {
     }
 }
 
+pub(crate) fn role_impl_method_binding(node: &Cst) -> Option<RoleMethodBindingInfo> {
+    role_method_binding(node).or_else(|| {
+        if binding_vis(node) == Vis::My {
+            return None;
+        }
+        Some(RoleMethodBindingInfo {
+            name: binding_name(node)?,
+            receiver: None,
+        })
+    })
+}
+
 pub(crate) fn binding_type_expr(binding: &Cst) -> Option<Cst> {
     let header = child_node(binding, SyntaxKind::BindingHeader)?;
     let pattern = child_node(&header, SyntaxKind::Pattern)?;

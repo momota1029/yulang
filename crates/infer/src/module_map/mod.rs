@@ -198,7 +198,7 @@ impl Lower {
         for child in block.children() {
             match child.kind() {
                 SyntaxKind::Binding => {
-                    if let Some(method) = role_method_binding(&child) {
+                    if let Some(method) = role_impl_method_binding(&child) {
                         let vis = binding_vis(&child);
                         let def = self.arena.defs.fresh();
                         self.arena.defs.set(

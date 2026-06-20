@@ -441,6 +441,26 @@ fn run_without_std_matches_control_on_struct_field_projection() {
     assert_eq!(control.text, mono.text);
 }
 
+#[test]
+fn run_without_std_resolves_receiverless_role_method_path() {
+    let entry = write_main(
+        "run-receiverless-role-method-path",
+        "struct User { value: int }\n\
+         role Convert 'a:\n\
+         \x20 our convert: 'a -> int\n\
+         impl User: Convert {\n\
+         \x20 our convert u = u.value\n\
+         }\n\
+         Convert::convert(User { value: 4 })\n",
+    );
+
+    let mono = run_mono_from_entry(&entry).unwrap();
+    let control = run_control_from_entry(entry).unwrap();
+
+    assert_eq!(mono.text, "run roots [4]\n");
+    assert_eq!(control.text, mono.text);
+}
+
 #[cfg(unix)]
 #[test]
 fn run_with_std_matches_control_on_core_smoke_suite() {

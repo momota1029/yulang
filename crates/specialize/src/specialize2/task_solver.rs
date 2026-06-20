@@ -262,6 +262,12 @@ impl<'a> TaskSolver<'a> {
                         expr,
                         ty: ty.clone(),
                     });
+                } else if !scheme.role_predicates.is_empty() {
+                    self.typeclass_uses.push(TypeclassUse {
+                        expr,
+                        member: def,
+                        method_ty: ty.clone(),
+                    });
                 }
                 Ok(ty)
             }

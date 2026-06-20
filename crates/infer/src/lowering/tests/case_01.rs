@@ -765,6 +765,30 @@ fn role_impl_method_receiver_is_constrained_to_impl_target() {
 }
 
 #[test]
+fn receiverless_role_impl_method_is_registered_as_impl_member() {
+    let root = parse(
+        "struct User { value: int }\nrole Convert 'a:\n  our convert: 'a -> int\nimpl User: Convert {\n  our convert u = u.value\n}\n",
+    );
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let role = lower.modules.type_decls(module, &Name("Convert".into()))[0].clone();
+    let requirement = lower.modules.role_methods(role.id)[0].def;
+    let implementation = lower.modules.role_impls(module)[0].methods[0].def;
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let candidates = output
+        .session
+        .role_impls
+        .candidates(&["Convert".to_string()]);
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(candidates[0].methods.len(), 1);
+    assert_eq!(candidates[0].methods[0].requirement, requirement);
+    assert_eq!(candidates[0].methods[0].implementation, implementation);
+}
+
+#[test]
 fn role_impl_method_requirement_rejects_concrete_return_mismatch() {
     let root = parse(
         "struct User;\nrole Box 'a:\n  our x.get: int\nimpl User: Box {\n  our x.get = x\n}\n",

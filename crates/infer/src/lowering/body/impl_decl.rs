@@ -38,9 +38,9 @@ impl BodyLowerer {
         let mut method_cursor = 0usize;
         for child in body.children() {
             match child.kind() {
-                SyntaxKind::Binding if crate::role_method_binding(&child).is_some() => {
-                    let method_info =
-                        crate::role_method_binding(&child).expect("checked role method binding");
+                SyntaxKind::Binding if crate::role_impl_method_binding(&child).is_some() => {
+                    let method_info = crate::role_impl_method_binding(&child)
+                        .expect("checked role method binding");
                     let decl = self.next_value_decl(impl_decl.body_module, &method_info.name);
                     if let Some(decl) = decl {
                         let impl_method = impl_decl.methods.get(method_cursor).cloned();
