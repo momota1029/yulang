@@ -2,6 +2,7 @@ use chasa::prelude::*;
 
 use crate::EventInput;
 use crate::context::In;
+use crate::expr::scan::rule::scan_rule_lit_start;
 use crate::lex::{Lex, SyntaxKind, Token, TriviaInfo};
 use crate::scan::trivia::scan_trivia;
 use crate::scan::{
@@ -16,6 +17,7 @@ pub enum PatNudTag {
     Atom,
     PolyVariantStart,
     StringStart,
+    RuleLitStart,
     Rule,
     OpenParen,
     OpenBracket,
@@ -63,6 +65,9 @@ fn scan_pat_nud_with_words<I: EventInput, S: EventSink>(
 ) -> Option<Token<PatNudTag>> {
     if let Some(lex) = i.maybe_fn(|i| scan_string_start(leading_info, i))? {
         return Some(lex.tag(PatNudTag::StringStart));
+    }
+    if let Some(lex) = i.maybe_fn(|i| scan_rule_lit_start(leading_info, i))? {
+        return Some(lex.tag(PatNudTag::RuleLitStart));
     }
 
     let stop = i.env.stop.clone();
@@ -146,6 +151,7 @@ fn read_pat_nud_punct(kind: SyntaxKind, stop: &im::HashSet<SyntaxKind>) -> PatNu
         SyntaxKind::BracketL => PatNudTag::OpenBracket,
         SyntaxKind::BraceL => PatNudTag::OpenBrace,
         SyntaxKind::StringStart => PatNudTag::StringStart,
+        SyntaxKind::RuleLitStart => PatNudTag::RuleLitStart,
         _ => PatNudTag::Stop,
     }
 }

@@ -671,6 +671,47 @@ use std::text::parse::*
     );
 }
 
+#[test]
+fn run_control_source_text_with_embedded_std_matches_rule_literals_in_case() {
+    let build = build_control_from_source_text_with_embedded_std(
+        "playground.yu",
+        "\
+use std::text::parse::*
+
+my route = case \"users/alice/posts\":
+  ~\"users/:id/posts\" -> id
+  _ -> \"miss\"
+
+my leftover = case \"users/alice/posts!\":
+  ~\"users/:id/posts\" -> id
+  _ -> \"miss\"
+
+my interp = case \"abc\":
+  ~\"{name = word}\" -> name
+  _ -> \"miss\"
+
+my literal = case \"hello\":
+  ~\"hello\" -> \"hit\"
+  _ -> \"miss\"
+
+my literal_leftover = case \"hello!\":
+  ~\"hello\" -> \"hit\"
+  _ -> \"miss\"
+
+(route, leftover, interp, literal, literal_leftover)
+",
+    )
+    .unwrap();
+    assert_eq!(build.file_count, embedded_std_files().len() + 1);
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(
+        output.0,
+        "run roots [(\"alice\", \"miss\", \"abc\", \"hit\", \"miss\")]\n"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn run_with_std_formats_frac_roots() {

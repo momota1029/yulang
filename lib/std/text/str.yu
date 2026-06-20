@@ -82,6 +82,18 @@ pub type str with:
 
 pub is_empty(s: str): bool = std::int::eq(std::text::str::len s, 0)
 
+pub word_prefix_at(source: str, start: int): str =
+    my loop(i: int): str =
+        if i < std::text::str::len source:
+            my item = std::text::str::index_raw source i
+            if std::text::char::is_word item:
+                loop(i + 1)
+            else:
+                std::text::str::index_range_raw source start i
+        else:
+            std::text::str::index_range_raw source start i
+    loop start
+
 impl str: Index int:
     type value = char
     our s.index i = std::text::str::index_raw s i

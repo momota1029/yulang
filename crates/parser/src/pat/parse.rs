@@ -76,6 +76,10 @@ fn parse_pattern_from_nud_bp<I: EventInput, S: EventSink>(
                 parse_string_lit(i.rb(), nud.lex)?
             }
         }
+        PatNudTag::RuleLitStart => {
+            i.env.state.sink.start(SyntaxKind::Pattern);
+            parse_rule_lit(i.rb(), nud.lex)?
+        }
         PatNudTag::Rule => {
             i.env.state.sink.start(SyntaxKind::Pattern);
             let after = parse_rule_expr(i.rb(), nud.lex)?;

@@ -500,6 +500,21 @@ fn pat_string_lit_simple() {
 }
 
 #[test]
+fn pat_rule_lit_simple() {
+    let got = parse_pat("~\"hello\"");
+    let expected = vec![
+        "(Pattern",
+        "  (RuleLit",
+        "    RuleLitStart \"~\\\"\"",
+        "    RuleLitText \"hello\"",
+        "    RuleLitEnd \"\\\"\"",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn pat_string_lit_lazy_capture() {
     // "hello, :world" — :world は lazy capture として認識される
     let got = parse_pat("\"hello, :world\"");

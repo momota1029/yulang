@@ -13,6 +13,11 @@ enum RuleLitPart {
     CaptureParser { name: Name, parser: Cst },
 }
 
+pub(in crate::lowering) enum RuleCasePart {
+    Token(String),
+    CaptureWord(Name),
+}
+
 struct RuleParserItem {
     parser: Computation,
     semantic: RuleSemantic,
@@ -96,7 +101,7 @@ impl<'a> ExprLowerer<'a> {
                     fields.push((name, captured));
                 }
                 RuleLitPart::CaptureParser { name, parser } => {
-                    let parser = self.lower_expr(&parser)?;
+                    let parser = self.lower_rule_item(&parser)?.parser;
                     let run = self.run_rule_parser(parser);
                     let (stmt, captured) = self.bind_rule_capture(name.clone(), run);
                     stmts.push(stmt);
@@ -158,9 +163,8 @@ impl<'a> ExprLowerer<'a> {
 
         for item in items {
             if let Some((name, parser)) = rule_expr_capture(&item) {
-                let parser = self.lower_expr(&parser)?;
-                let unit = self.unit_expr();
-                let run = self.make_app(parser, unit);
+                let parser = self.lower_rule_item(&parser)?.parser;
+                let run = self.run_rule_parser(parser);
                 let (stmt, captured) = self.bind_rule_capture(name.clone(), run);
                 stmts.push(stmt);
                 fields.push((name, captured));
@@ -380,6 +384,26 @@ impl<'a> ExprLowerer<'a> {
     }
 }
 
+pub(in crate::lowering) fn rule_lit_case_parts(
+    node: &Cst,
+) -> Result<Vec<RuleCasePart>, LoweringError> {
+    rule_lit_parts(node)?
+        .into_iter()
+        .map(|part| match part {
+            RuleLitPart::Token(text) => Ok(RuleCasePart::Token(text)),
+            RuleLitPart::CaptureWord(name) => Ok(RuleCasePart::CaptureWord(name)),
+            RuleLitPart::CaptureParser { name, parser } if rule_case_parser_is_word(&parser) => {
+                Ok(RuleCasePart::CaptureWord(name))
+            }
+            RuleLitPart::Parser(_) | RuleLitPart::CaptureParser { .. } => {
+                Err(LoweringError::UnsupportedSyntax {
+                    kind: SyntaxKind::RuleLitInterp,
+                })
+            }
+        })
+        .collect()
+}
+
 fn plain_rule_lit_text(node: &Cst) -> Option<String> {
     if node.children().any(|child| {
         matches!(
@@ -441,6 +465,19 @@ fn rule_lit_parts(node: &Cst) -> Result<Vec<RuleLitPart>, LoweringError> {
         }
     }
     Ok(parts)
+}
+
+fn rule_case_parser_is_word(node: &Cst) -> bool {
+    // Case rule patterns direct-match only the rule DSL's word capture spelling.
+    // Arbitrary parser interpolation stays on the parser-combinator path.
+    let items = node
+        .children_with_tokens()
+        .filter(|item| !item_is_trivia(item))
+        .collect::<Vec<_>>();
+    let [NodeOrToken::Token(token)] = items.as_slice() else {
+        return false;
+    };
+    token.kind() == SyntaxKind::Ident && token.text() == "word"
 }
 
 fn single_rule_lit_interp_expr(node: &Cst) -> Option<Cst> {

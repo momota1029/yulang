@@ -3,6 +3,7 @@
 mod syntax;
 
 use super::pattern::{PatternItem, pattern_path, pattern_payloads, single_pattern_item};
+use super::rule_lit::{RuleCasePart, rule_lit_case_parts};
 use super::*;
 use syntax::*;
 
@@ -219,12 +220,20 @@ impl<'a> ExprLowerer<'a> {
         node: &Cst,
         scrutinee: Computation,
     ) -> Result<Computation, LoweringError> {
+        let arm_nodes = case_arm_nodes(node);
+        if arm_nodes
+            .iter()
+            .any(|arm| case_arm_rule_lit_pattern(arm).is_some())
+        {
+            return self.lower_rule_case_with_scrutinee(scrutinee, &arm_nodes);
+        }
+
         let value = self.fresh_type_var();
         let effect = self.fresh_type_var();
         self.subtype_var_to_var(scrutinee.effect, effect);
 
         let mut arms = Vec::new();
-        for arm in case_arm_nodes(node) {
+        for arm in arm_nodes {
             let before_locals = self.locals.len();
             let lowered = self.lower_case_arm(&arm, scrutinee.value, value, effect);
             self.locals.truncate(before_locals);
@@ -273,6 +282,409 @@ impl<'a> ExprLowerer<'a> {
             guard,
             body: body.expr,
         })
+    }
+
+    fn lower_rule_case_with_scrutinee(
+        &mut self,
+        scrutinee: Computation,
+        arm_nodes: &[Cst],
+    ) -> Result<Computation, LoweringError> {
+        let result_value = self.fresh_type_var();
+        let result_effect = self.fresh_type_var();
+        let input_value = self.fresh_type_var();
+        self.subtype_var_to_var(scrutinee.value, input_value);
+        self.subtype_var_to_var(input_value, scrutinee.value);
+        self.constrain_lower(
+            input_value,
+            Pos::Con(crate::std_paths::text_str_type(), Vec::new()),
+        );
+        self.constrain_upper(
+            input_value,
+            Neg::Con(crate::std_paths::text_str_type(), Vec::new()),
+        );
+
+        let before_locals = self.locals.len();
+        let input_name = Name("#case-rule-input".to_string());
+        let (input_pat, _) = self.bind_let_local_with_def(
+            input_name.clone(),
+            input_value,
+            LocalCallReturnEffect::Annotated,
+            Some(scrutinee.expr),
+        );
+        let input_local = self
+            .locals
+            .last()
+            .cloned()
+            .expect("rule case scrutinee should be the last local");
+        let input = self.lower_local_name(input_name, input_local, None);
+        let body = self.lower_case_arm_chain(arm_nodes, input, result_value, result_effect);
+        self.locals.truncate(before_locals);
+        let body = body?;
+
+        self.subtype_var_to_var(scrutinee.effect, result_effect);
+        let expr = self.session.poly.add_expr(Expr::Block(
+            vec![Stmt::Let(Vis::My, input_pat, scrutinee.expr)],
+            Some(body.expr),
+        ));
+        Ok(Computation::computation(expr, result_value, result_effect))
+    }
+
+    fn lower_case_arm_chain(
+        &mut self,
+        arm_nodes: &[Cst],
+        input: Computation,
+        result_value: TypeVar,
+        result_effect: TypeVar,
+    ) -> Result<Computation, LoweringError> {
+        let Some((arm, rest)) = arm_nodes.split_first() else {
+            return Ok(self.no_matching_case(input, result_value, result_effect));
+        };
+
+        if let Some(rule) = case_arm_rule_lit_pattern(arm) {
+            return self.lower_rule_case_arm(arm, &rule, rest, input, result_value, result_effect);
+        }
+
+        let before_locals = self.locals.len();
+        let case_arm = self.lower_case_arm(arm, input.value, result_value, result_effect)?;
+        self.locals.truncate(before_locals);
+
+        let mut arms = vec![case_arm];
+        if !rest.is_empty() {
+            let fallback = self.lower_case_arm_chain(rest, input, result_value, result_effect)?;
+            arms.push(CaseArm {
+                pat: self.session.poly.add_pat(Pat::Wild),
+                guard: None,
+                body: fallback.expr,
+            });
+        }
+        let expr = self.session.poly.add_expr(Expr::Case(input.expr, arms));
+        Ok(Computation::computation(expr, result_value, result_effect))
+    }
+
+    fn lower_rule_case_arm(
+        &mut self,
+        arm: &Cst,
+        rule: &Cst,
+        rest: &[Cst],
+        input: Computation,
+        result_value: TypeVar,
+        result_effect: TypeVar,
+    ) -> Result<Computation, LoweringError> {
+        let parts = rule_lit_case_parts(rule)?;
+        let rule_locals_start = self.locals.len();
+        let fallback = self.lower_case_arm_chain(rest, input, result_value, result_effect)?;
+        let start = self.int_value(0);
+        let result = self.lower_rule_case_part_chain(
+            &parts,
+            input,
+            start,
+            fallback,
+            arm,
+            result_value,
+            result_effect,
+            rule_locals_start,
+        );
+        self.locals.truncate(rule_locals_start);
+        result
+    }
+
+    fn lower_rule_case_part_chain(
+        &mut self,
+        parts: &[RuleCasePart],
+        input: Computation,
+        pos: Computation,
+        fallback: Computation,
+        arm: &Cst,
+        result_value: TypeVar,
+        result_effect: TypeVar,
+        rule_locals_start: usize,
+    ) -> Result<Computation, LoweringError> {
+        let Some((part, rest)) = parts.split_first() else {
+            return self.lower_rule_case_complete(
+                input,
+                pos,
+                fallback,
+                arm,
+                result_value,
+                result_effect,
+                rule_locals_start,
+            );
+        };
+
+        match part {
+            RuleCasePart::Token(text) if text.is_empty() => self.lower_rule_case_part_chain(
+                rest,
+                input,
+                pos,
+                fallback,
+                arm,
+                result_value,
+                result_effect,
+                rule_locals_start,
+            ),
+            RuleCasePart::Token(text) => {
+                let (condition, next_pos) =
+                    self.lower_rule_case_token_condition(input, pos, text.clone())?;
+                let body = self.lower_rule_case_part_chain(
+                    rest,
+                    input,
+                    next_pos,
+                    fallback,
+                    arm,
+                    result_value,
+                    result_effect,
+                    rule_locals_start,
+                )?;
+                Ok(self.lower_bool_case(condition, body, fallback, result_value, result_effect))
+            }
+            RuleCasePart::CaptureWord(name) => self.lower_rule_case_word_capture(
+                name.clone(),
+                rest,
+                input,
+                pos,
+                fallback,
+                arm,
+                result_value,
+                result_effect,
+                rule_locals_start,
+            ),
+        }
+    }
+
+    fn lower_rule_case_token_condition(
+        &mut self,
+        input: Computation,
+        pos: Computation,
+        text: String,
+    ) -> Result<(Computation, Computation), LoweringError> {
+        let token = self.string_value(text);
+        let token_len = self.str_len(token)?;
+        let next_pos = self.int_add(pos, token_len)?;
+        let input_len = self.str_len(input)?;
+        let in_bounds = self.int_le(next_pos, input_len)?;
+        let slice = self.str_index_range_raw(input, pos, next_pos)?;
+        let eq = self.str_eq(slice, token)?;
+        let condition = self.bool_and(in_bounds, eq);
+        Ok((condition, next_pos))
+    }
+
+    fn lower_rule_case_word_capture(
+        &mut self,
+        name: Name,
+        rest: &[RuleCasePart],
+        input: Computation,
+        pos: Computation,
+        fallback: Computation,
+        arm: &Cst,
+        result_value: TypeVar,
+        result_effect: TypeVar,
+        rule_locals_start: usize,
+    ) -> Result<Computation, LoweringError> {
+        let captured = self.word_prefix_at(input, pos)?;
+        let pat = self.bind_pattern_local(
+            name.clone(),
+            captured.value,
+            None,
+            LocalCallReturnEffect::Annotated,
+        );
+        let local = self
+            .locals
+            .last()
+            .cloned()
+            .expect("rule capture should be the last local");
+        let captured_local = self.lower_local_name(name, local, None);
+        let captured_len = self.str_len(captured_local)?;
+        let zero = self.int_value(0);
+        let nonempty = self.int_lt(zero, captured_len)?;
+        let next_pos = self.int_add(pos, captured_len)?;
+        let body = self.lower_rule_case_part_chain(
+            rest,
+            input,
+            next_pos,
+            fallback,
+            arm,
+            result_value,
+            result_effect,
+            rule_locals_start,
+        )?;
+        let body = self.lower_bool_case(nonempty, body, fallback, result_value, result_effect);
+        Ok(self.prepend_block(
+            LoweredLocalStmt {
+                stmt: Stmt::Let(Vis::My, pat, captured.expr),
+                effect: captured.effect,
+            },
+            body,
+        ))
+    }
+
+    fn lower_rule_case_complete(
+        &mut self,
+        input: Computation,
+        pos: Computation,
+        fallback: Computation,
+        arm: &Cst,
+        result_value: TypeVar,
+        result_effect: TypeVar,
+        rule_locals_start: usize,
+    ) -> Result<Computation, LoweringError> {
+        let input_len = self.str_len(input)?;
+        let complete = self.int_eq(pos, input_len)?;
+        let body = self.lower_rule_case_success_body(
+            arm,
+            fallback,
+            result_value,
+            result_effect,
+            rule_locals_start,
+        )?;
+        Ok(self.lower_bool_case(complete, body, fallback, result_value, result_effect))
+    }
+
+    fn lower_rule_case_success_body(
+        &mut self,
+        arm: &Cst,
+        fallback: Computation,
+        result_value: TypeVar,
+        result_effect: TypeVar,
+        _rule_locals_start: usize,
+    ) -> Result<Computation, LoweringError> {
+        let body_node = arm_body_expr(arm).ok_or(LoweringError::MissingCaseArmBody)?;
+        let body = self.lower_expr(&body_node)?;
+        self.subtype_var_to_var(body.value, result_value);
+        self.subtype_var_to_var(body.effect, result_effect);
+
+        let Some(guard_node) = arm_guard_expr(arm) else {
+            return Ok(body);
+        };
+        let condition = self.lower_if_condition(&guard_node, result_effect)?;
+        Ok(self.lower_bool_case(condition, body, fallback, result_value, result_effect))
+    }
+
+    fn lower_bool_case(
+        &mut self,
+        condition: Computation,
+        body: Computation,
+        fallback: Computation,
+        result_value: TypeVar,
+        result_effect: TypeVar,
+    ) -> Computation {
+        self.constrain_exact_primitive(condition.value, "bool");
+        self.subtype_var_to_var(condition.effect, result_effect);
+        self.subtype_var_to_var(body.value, result_value);
+        self.subtype_var_to_var(body.effect, result_effect);
+        self.subtype_var_to_var(fallback.value, result_value);
+        self.subtype_var_to_var(fallback.effect, result_effect);
+        self.build_nested_if_cases(
+            vec![LoweredIfArm { condition, body }],
+            fallback,
+            result_value,
+            result_effect,
+        )
+    }
+
+    fn bool_and(&mut self, left: Computation, right: Computation) -> Computation {
+        let result_value = self.fresh_type_var();
+        let result_effect = self.fresh_type_var();
+        self.constrain_exact_primitive(result_value, "bool");
+        let fallback = self.lower_bool(false);
+        self.lower_bool_case(left, right, fallback, result_value, result_effect)
+    }
+
+    fn str_len(&mut self, value: Computation) -> Result<Computation, LoweringError> {
+        self.std_call1(crate::std_paths::text_str_value("len"), value)
+    }
+
+    fn str_eq(&mut self, lhs: Computation, rhs: Computation) -> Result<Computation, LoweringError> {
+        self.std_call2(crate::std_paths::text_str_value("eq"), lhs, rhs)
+    }
+
+    fn str_index_range_raw(
+        &mut self,
+        input: Computation,
+        start: Computation,
+        end: Computation,
+    ) -> Result<Computation, LoweringError> {
+        self.std_call3(
+            crate::std_paths::text_str_value("index_range_raw"),
+            input,
+            start,
+            end,
+        )
+    }
+
+    fn word_prefix_at(
+        &mut self,
+        input: Computation,
+        start: Computation,
+    ) -> Result<Computation, LoweringError> {
+        self.std_call2(
+            crate::std_paths::text_str_value("word_prefix_at"),
+            input,
+            start,
+        )
+    }
+
+    fn int_add(
+        &mut self,
+        lhs: Computation,
+        rhs: Computation,
+    ) -> Result<Computation, LoweringError> {
+        self.std_call2(crate::std_paths::int_value("add"), lhs, rhs)
+    }
+
+    fn int_eq(&mut self, lhs: Computation, rhs: Computation) -> Result<Computation, LoweringError> {
+        self.std_call2(crate::std_paths::int_value("eq"), lhs, rhs)
+    }
+
+    fn int_lt(&mut self, lhs: Computation, rhs: Computation) -> Result<Computation, LoweringError> {
+        self.std_call2(crate::std_paths::int_value("lt"), lhs, rhs)
+    }
+
+    fn int_le(&mut self, lhs: Computation, rhs: Computation) -> Result<Computation, LoweringError> {
+        self.std_call2(crate::std_paths::int_value("le"), lhs, rhs)
+    }
+
+    fn std_call1(
+        &mut self,
+        path: Vec<String>,
+        arg: Computation,
+    ) -> Result<Computation, LoweringError> {
+        let callee = self.lower_std_value_ref(path)?;
+        Ok(self.make_app(callee, arg))
+    }
+
+    fn std_call2(
+        &mut self,
+        path: Vec<String>,
+        first: Computation,
+        second: Computation,
+    ) -> Result<Computation, LoweringError> {
+        let call = self.std_call1(path, first)?;
+        Ok(self.make_app(call, second))
+    }
+
+    fn std_call3(
+        &mut self,
+        path: Vec<String>,
+        first: Computation,
+        second: Computation,
+        third: Computation,
+    ) -> Result<Computation, LoweringError> {
+        let call = self.std_call2(path, first, second)?;
+        Ok(self.make_app(call, third))
+    }
+
+    fn no_matching_case(
+        &mut self,
+        input: Computation,
+        result_value: TypeVar,
+        result_effect: TypeVar,
+    ) -> Computation {
+        self.subtype_var_to_var(input.effect, result_effect);
+        let expr = self
+            .session
+            .poly
+            .add_expr(Expr::Case(input.expr, Vec::new()));
+        Computation::computation(expr, result_value, result_effect)
     }
 
     pub(super) fn lower_catch(
@@ -1036,6 +1448,35 @@ struct LoweredCatchArm {
 struct LoweredIfArm {
     condition: Computation,
     body: Computation,
+}
+
+fn case_arm_rule_lit_pattern(arm: &Cst) -> Option<Cst> {
+    let pattern = arm_pattern(arm)?;
+    let rule = single_rule_lit_pattern(&pattern)?;
+    rule_lit_needs_case_parser(&rule).then_some(rule)
+}
+
+fn single_rule_lit_pattern(pattern: &Cst) -> Option<Cst> {
+    let items = pattern
+        .children_with_tokens()
+        .filter(|item| !item_is_trivia(item))
+        .collect::<Vec<_>>();
+    let [NodeOrToken::Node(rule)] = items.as_slice() else {
+        return None;
+    };
+    (rule.kind() == SyntaxKind::RuleLit).then(|| rule.clone())
+}
+
+fn rule_lit_needs_case_parser(rule: &Cst) -> bool {
+    rule.children().any(|child| {
+        matches!(
+            child.kind(),
+            SyntaxKind::RuleLazyCapture | SyntaxKind::RuleLitInterp
+        )
+    }) || rule
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+        .any(|token| token.kind() == SyntaxKind::RuleLitStart)
 }
 
 struct LoweredCatchPayloadPattern {

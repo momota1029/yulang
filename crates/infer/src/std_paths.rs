@@ -50,6 +50,18 @@ pub(crate) fn text_str_concat_value() -> Vec<String> {
     path(&["std", "text", "str", "concat"])
 }
 
+pub(crate) fn text_str_value(name: &str) -> Vec<String> {
+    let mut path = path(&["std", "text", "str"]);
+    path.push(name.to_string());
+    path
+}
+
+pub(crate) fn int_value(name: &str) -> Vec<String> {
+    let mut path = path(&["std", "int"]);
+    path.push(name.to_string());
+    path
+}
+
 pub(crate) fn core_fmt_value(name: &str) -> Vec<String> {
     let mut path = path(&["std", "core", "fmt"]);
     path.push(name.to_string());
