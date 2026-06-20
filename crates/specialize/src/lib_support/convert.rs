@@ -86,6 +86,16 @@ pub(crate) fn primitive_context(
     match op {
         poly_expr::PrimitiveOp::ListViewRaw => PrimitiveContext {
             list_view: ty.and_then(|ty| list_view_constructors(arena, ty)),
+            ..PrimitiveContext::default()
+        },
+        poly_expr::PrimitiveOp::ListIndexRange
+        | poly_expr::PrimitiveOp::ListSplice
+        | poly_expr::PrimitiveOp::StringIndexRange
+        | poly_expr::PrimitiveOp::StringSplice
+        | poly_expr::PrimitiveOp::StringLineRange
+        | poly_expr::PrimitiveOp::BytesIndexRange => PrimitiveContext {
+            range: range_constructors(arena),
+            ..PrimitiveContext::default()
         },
         _ => PrimitiveContext::default(),
     }
@@ -114,6 +124,29 @@ pub(crate) fn list_view_constructors(
         empty: constructor("empty")?,
         leaf: constructor("leaf")?,
         node: constructor("node")?,
+    })
+}
+
+pub(crate) fn range_constructors(arena: &poly_expr::Arena) -> Option<RangeConstructors> {
+    let constructor = |owner_path: &[&str], name: &str| {
+        arena
+            .constructors
+            .iter()
+            .find(|(_, constructor)| {
+                constructor
+                    .owner_path
+                    .iter()
+                    .map(String::as_str)
+                    .eq(owner_path.iter().copied())
+                    && constructor.name == name
+            })
+            .map(|(def, _)| convert_def(*def))
+    };
+    Some(RangeConstructors {
+        within: constructor(&["std", "data", "range", "range"], "within")?,
+        unbounded: constructor(&["std", "data", "range", "bound"], "unbounded")?,
+        included: constructor(&["std", "data", "range", "bound"], "included")?,
+        excluded: constructor(&["std", "data", "range", "bound"], "excluded")?,
     })
 }
 

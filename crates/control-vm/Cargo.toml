@@ -8,6 +8,7 @@ mono = { path = "../mono" }
 num-bigint = "0.4"
 serde = { version = "1", features = ["derive"] }
 list-tree = { path = "../list-tree" }
+text-tree = { path = "../text-tree" }
 
 [dev-dependencies]
 infer = { path = "../infer" }

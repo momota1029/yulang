@@ -372,6 +372,7 @@ impl PrimitiveOp {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct PrimitiveContext {
     pub list_view: Option<ListViewConstructors>,
+    pub range: Option<RangeConstructors>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -379,6 +380,14 @@ pub struct ListViewConstructors {
     pub empty: DefId,
     pub leaf: DefId,
     pub node: DefId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct RangeConstructors {
+    pub within: DefId,
+    pub unbounded: DefId,
+    pub included: DefId,
+    pub excluded: DefId,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

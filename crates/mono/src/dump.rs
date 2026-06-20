@@ -383,13 +383,20 @@ impl Dumper {
 }
 
 fn primitive_context(context: &PrimitiveContext) -> String {
-    let Some(list_view) = context.list_view else {
-        return String::new();
-    };
-    format!(
-        " list-view[d{},d{},d{}]",
-        list_view.empty.0, list_view.leaf.0, list_view.node.0
-    )
+    let mut out = String::new();
+    if let Some(list_view) = context.list_view {
+        out.push_str(&format!(
+            " list-view[d{},d{},d{}]",
+            list_view.empty.0, list_view.leaf.0, list_view.node.0
+        ));
+    }
+    if let Some(range) = context.range {
+        out.push_str(&format!(
+            " range[within=d{},unbounded=d{},included=d{},excluded=d{}]",
+            range.within.0, range.unbounded.0, range.included.0, range.excluded.0
+        ));
+    }
+    out
 }
 
 fn primitive_op_name(op: PrimitiveOp) -> &'static str {

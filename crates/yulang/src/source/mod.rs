@@ -142,17 +142,19 @@ fn handle_control_host_effect(
     stdout: &mut String,
 ) -> Option<control_vm::Value> {
     if path == ["std", "io", "console", "out", "write"] {
-        let text = control_host_string_payload(payload)?;
-        stdout.push_str(text);
+        push_control_host_string_payload(payload, stdout)?;
         return Some(control_vm::Value::Unit);
     }
     None
 }
 
-fn control_host_string_payload(value: &control_vm::Value) -> Option<&str> {
+fn push_control_host_string_payload(value: &control_vm::Value, out: &mut String) -> Option<()> {
     match value {
-        control_vm::Value::Str(value) => Some(value.as_str()),
-        control_vm::Value::Marked { value, .. } => control_host_string_payload(value),
+        control_vm::Value::Str(value) => {
+            value.push_to_string(out);
+            Some(())
+        }
+        control_vm::Value::Marked { value, .. } => push_control_host_string_payload(value, out),
         _ => None,
     }
 }

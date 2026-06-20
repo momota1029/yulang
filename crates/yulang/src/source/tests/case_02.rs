@@ -736,6 +736,61 @@ fn run_control_source_text_with_embedded_std_runs_poly_variant_list() {
 }
 
 #[test]
+fn run_control_source_text_with_embedded_std_indexes_strings_by_grapheme_cluster() {
+    let source = "\
+my s = \"e\u{301}🇯🇵👨‍👩‍👧‍👦!\"
+(
+    s.len,
+    std::text::str::index_raw s 0,
+    std::text::str::index_range_raw s 0 3,
+    std::text::str::splice_raw s 1 3 \"X\"
+)
+";
+    let output = run_control_from_source_text_with_embedded_std("playground.yu", source).unwrap();
+
+    assert_eq!(output.file_count, embedded_std_files().len() + 1);
+    assert_eq!(
+        output.text,
+        "run roots [(4, \"e\\u{301}\", \"e\\u{301}🇯🇵👨\\u{200d}👩\\u{200d}👧\\u{200d}👦\", \"e\\u{301}X!\")]\n"
+    );
+}
+
+#[test]
+fn run_control_source_text_with_embedded_std_indexes_string_lines_by_range() {
+    let source = "\
+my s = \"a👨‍👩‍👧‍👦\\nβ\\n\"
+(
+    std::text::str::line_count s,
+    std::text::str::index_range s (std::text::str::line_range s 1)
+)
+";
+    let output = run_control_from_source_text_with_embedded_std("playground.yu", source).unwrap();
+
+    assert_eq!(output.file_count, embedded_std_files().len() + 1);
+    assert_eq!(output.text, "run roots [(3, \"β\\n\")]\n");
+}
+
+#[test]
+fn run_control_source_text_with_embedded_std_roundtrips_string_bytes() {
+    let source = "\
+my b = std::text::str::to_bytes \"hé\"
+my e = std::text::str::to_bytes \"é\"
+my slice = std::text::bytes::index_range b (std::data::range::range 1 3)
+(
+    std::text::bytes::len b,
+    std::text::bytes::index_raw b 0,
+    std::text::bytes::to_utf8_lossy slice,
+    std::text::bytes::eq slice e,
+    std::text::bytes::to_utf8_lossy (std::text::bytes::concat (std::text::str::to_bytes \"h\") e)
+)
+";
+    let output = run_control_from_source_text_with_embedded_std("playground.yu", source).unwrap();
+
+    assert_eq!(output.file_count, embedded_std_files().len() + 1);
+    assert_eq!(output.text, "run roots [(3, 104, \"é\", true, \"hé\")]\n");
+}
+
+#[test]
 fn run_control_source_text_with_embedded_std_reuses_record_default_function() {
     let output = run_control_from_source_text_with_embedded_std(
         "playground.yu",

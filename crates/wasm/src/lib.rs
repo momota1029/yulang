@@ -391,17 +391,19 @@ fn handle_host_effect(
     stdout: &mut String,
 ) -> Option<control_vm::Value> {
     if path == ["std", "io", "console", "out", "write"] {
-        let text = host_string_payload(payload)?;
-        stdout.push_str(text);
+        push_host_string_payload(payload, stdout)?;
         return Some(control_vm::Value::Unit);
     }
     None
 }
 
-fn host_string_payload(value: &control_vm::Value) -> Option<&str> {
+fn push_host_string_payload(value: &control_vm::Value, out: &mut String) -> Option<()> {
     match value {
-        control_vm::Value::Str(value) => Some(value.as_str()),
-        control_vm::Value::Marked { value, .. } => host_string_payload(value),
+        control_vm::Value::Str(value) => {
+            value.push_to_string(out);
+            Some(())
+        }
+        control_vm::Value::Marked { value, .. } => push_host_string_payload(value, out),
         _ => None,
     }
 }
@@ -696,7 +698,8 @@ fn format_single_control_value(
         control_vm::Value::Int(value) => value.to_string(),
         control_vm::Value::BigInt(value) => value.to_string(),
         control_vm::Value::Float(value) => value.to_string(),
-        control_vm::Value::Str(value) => format!("{value:?}"),
+        control_vm::Value::Str(value) => format!("{:?}", value.to_flat_string()),
+        control_vm::Value::Bytes(value) => format!("<bytes len={}>", value.len()),
         control_vm::Value::Bool(value) => value.to_string(),
         control_vm::Value::Unit => "()".to_string(),
         control_vm::Value::Tuple(values) => {

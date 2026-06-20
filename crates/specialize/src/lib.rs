@@ -21,7 +21,7 @@ use std::fmt;
 use mono::{
     Block, CaseArm, CatchArm, ComputationType, DefId, EffectiveThunkType, Expr, ExprKind, Instance,
     InstanceId, InstanceSource, ListViewConstructors, Lit, Pat, PrimitiveContext, PrimitiveOp,
-    Program, RecordField, RecordSpread, Root, SelectResolution, Stmt, Type, Vis,
+    Program, RangeConstructors, RecordField, RecordSpread, Root, SelectResolution, Stmt, Type, Vis,
 };
 use poly::expr as poly_expr;
 

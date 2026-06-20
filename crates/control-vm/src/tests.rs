@@ -294,7 +294,10 @@ fn direct_unary_primitive_instance_ref_skips_primitive_function_value() {
     };
 
     let (values, stats) = run_program_with_host_and_stats(&program, &mut |_, _| None).unwrap();
-    assert_eq!(values, vec![Value::Str("7".to_string())]);
+    assert_eq!(
+        values,
+        vec![Value::Str(text_tree::StringTree::from_str("7"))]
+    );
     assert_eq!(stats.apply_primitive_calls, 0);
     assert_eq!(stats.primitive_apply_partial, 0);
     assert_eq!(stats.primitive_apply_complete, 1);
@@ -593,7 +596,8 @@ fn format_oracle_value(value: &mono_runtime::Value) -> String {
         mono_runtime::Value::Int(value) => value.to_string(),
         mono_runtime::Value::BigInt(value) => value.to_string(),
         mono_runtime::Value::Float(value) => value.to_string(),
-        mono_runtime::Value::Str(value) => format!("{value:?}"),
+        mono_runtime::Value::Str(value) => format!("{:?}", value.to_flat_string()),
+        mono_runtime::Value::Bytes(value) => format!("<bytes len={}>", value.len()),
         mono_runtime::Value::Bool(value) => value.to_string(),
         mono_runtime::Value::Unit => "()".to_string(),
         mono_runtime::Value::Tuple(values) => format_oracle_delimited_values("(", ")", values),
