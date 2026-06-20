@@ -8,7 +8,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use yulang_editor::semantic_tokens;
 
-use crate::{SourceDefinition, SourceHover, SourceLocation, SourceRange};
+use crate::{SourceDefinition, SourceHover, SourceLocation, SourceRange, SourceRename};
 
 const LSP_ANALYSIS_TIMEOUT: Duration = Duration::from_secs(3);
 const LSP_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -275,6 +275,69 @@ fn references_for_source(
         .collect()
 }
 
+fn prepare_rename_for_source(
+    path: &Path,
+    source: String,
+    position: Position,
+    options: &crate::StdSourceOptions,
+) -> Option<PrepareRenameResponse> {
+    let byte_offset = position_to_byte_offset(&source, position)?;
+    let (range, root_has_implicit_prelude) =
+        match crate::prepare_rename_entry_source_with_std_options(
+            path,
+            source.clone(),
+            byte_offset,
+            options,
+        ) {
+            Ok(range) => (
+                range,
+                crate::source::entry_source_with_std_has_implicit_prelude(path, options)
+                    .unwrap_or(true),
+            ),
+            Err(_) => (
+                crate::prepare_rename_entry_source(path, source.clone(), byte_offset)
+                    .ok()
+                    .flatten(),
+                false,
+            ),
+        };
+    Some(PrepareRenameResponse::Range(lsp_range_for_root_source(
+        &source,
+        range?,
+        root_has_implicit_prelude,
+    )))
+}
+
+fn rename_for_source(
+    path: &Path,
+    source: String,
+    position: Position,
+    new_name: &str,
+    options: &crate::StdSourceOptions,
+) -> Option<WorkspaceEdit> {
+    let byte_offset = position_to_byte_offset(&source, position)?;
+    let (rename, root_has_implicit_prelude) = match crate::rename_entry_source_with_std_options(
+        path,
+        source.clone(),
+        byte_offset,
+        new_name,
+        options,
+    ) {
+        Ok(rename) => (
+            rename,
+            crate::source::entry_source_with_std_has_implicit_prelude(path, options)
+                .unwrap_or(true),
+        ),
+        Err(_) => (
+            crate::rename_entry_source(path, source.clone(), byte_offset, new_name)
+                .ok()
+                .flatten(),
+            false,
+        ),
+    };
+    workspace_edit_for_source_rename(path, &source, rename?, root_has_implicit_prelude)
+}
+
 fn lsp_hover_for_source_hover(
     source: &str,
     hover: SourceHover,
@@ -321,6 +384,32 @@ fn lsp_location_for_source_location(
         source_range_to_lsp_range(&source, location.range)
     };
     Some(Location { uri, range })
+}
+
+fn workspace_edit_for_source_rename(
+    root_path: &Path,
+    root_source: &str,
+    rename: SourceRename,
+    root_has_implicit_prelude: bool,
+) -> Option<WorkspaceEdit> {
+    let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+    for edit in rename.edits {
+        let location = lsp_location_for_source_location(
+            root_path,
+            root_source,
+            edit.location,
+            root_has_implicit_prelude,
+        )?;
+        changes.entry(location.uri).or_default().push(TextEdit {
+            range: location.range,
+            new_text: edit.new_text,
+        });
+    }
+    (!changes.is_empty()).then_some(WorkspaceEdit {
+        changes: Some(changes),
+        document_changes: None,
+        change_annotations: None,
+    })
 }
 
 fn lsp_range_for_root_source(
@@ -442,6 +531,10 @@ impl LanguageServer for Backend {
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
+                rename_provider: Some(OneOf::Right(RenameOptions {
+                    prepare_provider: Some(true),
+                    work_done_progress_options: Default::default(),
+                })),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -601,6 +694,67 @@ impl LanguageServer for Backend {
             Ok(Err(_)) | Err(_) => Vec::new(),
         };
         Ok(Some(locations))
+    }
+
+    async fn prepare_rename(
+        &self,
+        params: TextDocumentPositionParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<PrepareRenameResponse>> {
+        let uri = params.text_document.uri;
+        let position = params.position;
+        let path = match uri.to_file_path() {
+            Ok(path) => path,
+            Err(_) => return Ok(None),
+        };
+        let Some(source) = self.document_source(&uri) else {
+            return Ok(None);
+        };
+        let options = crate::StdSourceOptions {
+            std_root: self.std_root.clone(),
+        };
+        let Ok(permit) = self.request_slots.clone().try_acquire_owned() else {
+            return Ok(None);
+        };
+        let handle = tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            prepare_rename_for_source(&path, source, position, &options)
+        });
+        let response = match tokio::time::timeout(LSP_REQUEST_TIMEOUT, handle).await {
+            Ok(Ok(response)) => response,
+            Ok(Err(_)) | Err(_) => None,
+        };
+        Ok(response)
+    }
+
+    async fn rename(
+        &self,
+        params: RenameParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<WorkspaceEdit>> {
+        let uri = params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+        let new_name = params.new_name;
+        let path = match uri.to_file_path() {
+            Ok(path) => path,
+            Err(_) => return Ok(None),
+        };
+        let Some(source) = self.document_source(&uri) else {
+            return Ok(None);
+        };
+        let options = crate::StdSourceOptions {
+            std_root: self.std_root.clone(),
+        };
+        let Ok(permit) = self.request_slots.clone().try_acquire_owned() else {
+            return Ok(None);
+        };
+        let handle = tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            rename_for_source(&path, source, position, &new_name, &options)
+        });
+        let edit = match tokio::time::timeout(LSP_REQUEST_TIMEOUT, handle).await {
+            Ok(Ok(edit)) => edit,
+            Ok(Err(_)) | Err(_) => None,
+        };
+        Ok(edit)
     }
 }
 
@@ -979,6 +1133,123 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn prepare_rename_for_source_reports_reference_range() {
+        let root = temp_root("prepare-rename-reference-range");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let entry = root.join("main.yu");
+        let source = "my x: int = 1\nmy y = x\n";
+        let response = prepare_rename_for_source(
+            &entry,
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 7,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            response,
+            PrepareRenameResponse::Range(Range {
+                start: Position {
+                    line: 1,
+                    character: 7
+                },
+                end: Position {
+                    line: 1,
+                    character: 8
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn rename_for_source_reports_workspace_edit() {
+        let root = temp_root("rename-workspace-edit");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let entry = root.join("main.yu");
+        let source = "my x: int = 1\nmy y = x\n";
+        let edit = rename_for_source(
+            &entry,
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 7,
+            },
+            "renamed",
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .unwrap();
+        let uri = Url::from_file_path(&entry).unwrap();
+        let changes = edit.changes.unwrap();
+
+        assert_eq!(
+            changes.get(&uri),
+            Some(&vec![
+                TextEdit {
+                    range: Range {
+                        start: Position {
+                            line: 0,
+                            character: 3
+                        },
+                        end: Position {
+                            line: 0,
+                            character: 4
+                        },
+                    },
+                    new_text: "renamed".to_string(),
+                },
+                TextEdit {
+                    range: Range {
+                        start: Position {
+                            line: 1,
+                            character: 7
+                        },
+                        end: Position {
+                            line: 1,
+                            character: 8
+                        },
+                    },
+                    new_text: "renamed".to_string(),
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn rename_for_source_refuses_invalid_identifier() {
+        let root = temp_root("rename-invalid-identifier");
+        let entry = root.join("main.yu");
+        let source = "my x: int = 1\nmy y = x\n";
+
+        let edit = rename_for_source(
+            &entry,
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 7,
+            },
+            "my",
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("missing-lib")),
+            },
+        );
+
+        assert_eq!(edit, None);
     }
 
     #[test]

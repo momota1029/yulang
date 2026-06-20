@@ -1360,6 +1360,7 @@ dependencies = [
  "specialize",
  "tokio",
  "tower-lsp",
+ "unicode-ident",
  "yulang-editor",
 ]
 

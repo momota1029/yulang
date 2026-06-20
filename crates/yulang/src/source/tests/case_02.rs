@@ -1241,6 +1241,88 @@ fn references_entry_source_reports_ref_targets() {
 }
 
 #[test]
+fn prepare_rename_entry_source_reports_target_range() {
+    let source = "my x = 1\nmy y = x\n";
+    let ref_offset = source.rfind('x').unwrap();
+
+    let range = prepare_rename_entry_source("main.yu", source, ref_offset)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        range,
+        SourceRange {
+            start: ref_offset,
+            end: ref_offset + 1,
+        }
+    );
+}
+
+#[test]
+fn rename_entry_source_reports_ref_target_edits() {
+    let source = "my x = 1\nmy y = x\nmy z = x\n";
+    let decl_offset = source.find('x').unwrap();
+    let first_ref_offset = source.find("= x").unwrap() + 2;
+    let second_ref_offset = source.rfind('x').unwrap();
+
+    let rename = rename_entry_source("main.yu", source, first_ref_offset, "renamed")
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        rename,
+        SourceRename {
+            range: SourceRange {
+                start: first_ref_offset,
+                end: first_ref_offset + 1,
+            },
+            edits: vec![
+                SourceTextEdit {
+                    location: SourceLocation {
+                        path: PathBuf::from("main.yu"),
+                        range: SourceRange {
+                            start: decl_offset,
+                            end: decl_offset + 1,
+                        },
+                    },
+                    new_text: "renamed".to_string(),
+                },
+                SourceTextEdit {
+                    location: SourceLocation {
+                        path: PathBuf::from("main.yu"),
+                        range: SourceRange {
+                            start: first_ref_offset,
+                            end: first_ref_offset + 1,
+                        },
+                    },
+                    new_text: "renamed".to_string(),
+                },
+                SourceTextEdit {
+                    location: SourceLocation {
+                        path: PathBuf::from("main.yu"),
+                        range: SourceRange {
+                            start: second_ref_offset,
+                            end: second_ref_offset + 1,
+                        },
+                    },
+                    new_text: "renamed".to_string(),
+                },
+            ],
+        }
+    );
+}
+
+#[test]
+fn rename_entry_source_refuses_invalid_identifier() {
+    let source = "my x = 1\nmy y = x\n";
+    let ref_offset = source.rfind('x').unwrap();
+
+    let rename = rename_entry_source("main.yu", source, ref_offset, "my").unwrap();
+
+    assert_eq!(rename, None);
+}
+
+#[test]
 fn hover_entry_source_reports_lambda_arg_type() {
     let source = "my id x = x\n";
     let arg_offset = source.find('x').unwrap();
@@ -1730,6 +1812,60 @@ fn references_entry_source_reports_selected_method_refs() {
                 },
             },
         ]
+    );
+}
+
+#[test]
+fn rename_entry_source_reports_selected_method_edits() {
+    let source = "type User with:\n  our x.id = x\nmy u: User = 1\nmy a = u.id\nmy b = u.id\n";
+    let decl_offset = source.find("id").unwrap();
+    let first_method_offset = source.find("u.id").unwrap() + 2;
+    let second_method_offset = source.rfind("id").unwrap();
+
+    let rename = rename_entry_source("main.yu", source, first_method_offset, "ident")
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        rename,
+        SourceRename {
+            range: SourceRange {
+                start: first_method_offset,
+                end: first_method_offset + 2,
+            },
+            edits: vec![
+                SourceTextEdit {
+                    location: SourceLocation {
+                        path: PathBuf::from("main.yu"),
+                        range: SourceRange {
+                            start: decl_offset,
+                            end: decl_offset + 2,
+                        },
+                    },
+                    new_text: "ident".to_string(),
+                },
+                SourceTextEdit {
+                    location: SourceLocation {
+                        path: PathBuf::from("main.yu"),
+                        range: SourceRange {
+                            start: first_method_offset,
+                            end: first_method_offset + 2,
+                        },
+                    },
+                    new_text: "ident".to_string(),
+                },
+                SourceTextEdit {
+                    location: SourceLocation {
+                        path: PathBuf::from("main.yu"),
+                        range: SourceRange {
+                            start: second_method_offset,
+                            end: second_method_offset + 2,
+                        },
+                    },
+                    new_text: "ident".to_string(),
+                },
+            ],
+        }
     );
 }
 

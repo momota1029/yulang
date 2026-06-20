@@ -393,6 +393,64 @@ pub fn references_entry_source(
     )
 }
 
+pub fn prepare_rename_entry_source_with_std_options(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    byte_offset: usize,
+    options: &StdSourceOptions,
+) -> Result<Option<SourceRange>, RouteError> {
+    let context =
+        collect_local_source_text_with_std_context(entry.as_ref(), source.into(), options)?;
+    prepare_rename_from_sources(
+        context.files,
+        byte_offset + context.byte_offset_adjust,
+        &context.focus_module,
+    )
+}
+
+pub fn prepare_rename_entry_source(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    byte_offset: usize,
+) -> Result<Option<SourceRange>, RouteError> {
+    prepare_rename_from_sources(
+        collect_local_source_text(entry, source.into())?,
+        byte_offset,
+        &Path::default(),
+    )
+}
+
+pub fn rename_entry_source_with_std_options(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    byte_offset: usize,
+    new_name: &str,
+    options: &StdSourceOptions,
+) -> Result<Option<SourceRename>, RouteError> {
+    let context =
+        collect_local_source_text_with_std_context(entry.as_ref(), source.into(), options)?;
+    rename_from_sources(
+        context.files,
+        byte_offset + context.byte_offset_adjust,
+        &context.focus_module,
+        new_name,
+    )
+}
+
+pub fn rename_entry_source(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    byte_offset: usize,
+    new_name: &str,
+) -> Result<Option<SourceRename>, RouteError> {
+    rename_from_sources(
+        collect_local_source_text(entry, source.into())?,
+        byte_offset,
+        &Path::default(),
+        new_name,
+    )
+}
+
 /// entry file と近場の `lib/std.yu` を読み、指定 module の型付け状況だけを集計する。
 pub fn check_poly_from_entry_with_std_in_module(
     entry: impl AsRef<FsPath>,
@@ -784,6 +842,18 @@ pub struct SourceLocation {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceRename {
+    pub range: SourceRange,
+    pub edits: Vec<SourceTextEdit>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceTextEdit {
+    pub location: SourceLocation,
+    pub new_text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceDiagnostic {
     pub label: Option<String>,
     pub range: Option<SourceRange>,
@@ -1147,6 +1217,60 @@ fn references_from_loaded_files(
     ))
 }
 
+fn prepare_rename_from_sources(
+    files: Vec<CollectedSource>,
+    byte_offset: usize,
+    file: &Path,
+) -> Result<Option<SourceRange>, RouteError> {
+    prepare_rename_from_loaded_files(
+        sources::load(collected_source_files(files)),
+        byte_offset,
+        file,
+    )
+}
+
+fn prepare_rename_from_loaded_files(
+    loaded: Vec<sources::LoadedFile>,
+    byte_offset: usize,
+    file: &Path,
+) -> Result<Option<SourceRange>, RouteError> {
+    let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    Ok(source_prepare_rename_from_check(&check, byte_offset, file))
+}
+
+fn rename_from_sources(
+    files: Vec<CollectedSource>,
+    byte_offset: usize,
+    file: &Path,
+    new_name: &str,
+) -> Result<Option<SourceRename>, RouteError> {
+    let source_index = SourceFileIndex::from_collected_sources(&files);
+    rename_from_loaded_files(
+        sources::load(collected_source_files(files)),
+        &source_index,
+        byte_offset,
+        file,
+        new_name,
+    )
+}
+
+fn rename_from_loaded_files(
+    loaded: Vec<sources::LoadedFile>,
+    source_index: &SourceFileIndex,
+    byte_offset: usize,
+    file: &Path,
+    new_name: &str,
+) -> Result<Option<SourceRename>, RouteError> {
+    let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    Ok(source_rename_from_check(
+        &check,
+        source_index,
+        byte_offset,
+        file,
+        new_name,
+    ))
+}
+
 fn source_hover_from_check(
     check: &infer::check::PolyCheckOutput,
     byte_offset: usize,
@@ -1214,6 +1338,51 @@ fn source_references_from_check(
         return Vec::new();
     };
 
+    source_locations_for_target(check, source_index, target, include_declaration)
+}
+
+fn source_prepare_rename_from_check(
+    check: &infer::check::PolyCheckOutput,
+    byte_offset: usize,
+    file: &Path,
+) -> Option<SourceRange> {
+    reference_target_candidate_from_check(check, byte_offset, file).map(|target| target.range)
+}
+
+fn source_rename_from_check(
+    check: &infer::check::PolyCheckOutput,
+    source_index: &SourceFileIndex,
+    byte_offset: usize,
+    file: &Path,
+    new_name: &str,
+) -> Option<SourceRename> {
+    if !is_valid_rename_identifier(new_name) {
+        return None;
+    }
+    let target = reference_target_candidate_from_check(check, byte_offset, file)?;
+    let edits = source_locations_for_target(check, source_index, target.def, true)
+        .into_iter()
+        .filter_map(|location| {
+            let source = source_index.source_for_location(&location)?;
+            let span_text = source.get(location.range.start..location.range.end)?;
+            Some(SourceTextEdit {
+                location,
+                new_text: rename_new_text_for_span(span_text, new_name),
+            })
+        })
+        .collect::<Vec<_>>();
+    (!edits.is_empty()).then_some(SourceRename {
+        range: target.range,
+        edits,
+    })
+}
+
+fn source_locations_for_target(
+    check: &infer::check::PolyCheckOutput,
+    source_index: &SourceFileIndex,
+    target: poly::expr::DefId,
+    include_declaration: bool,
+) -> Vec<SourceLocation> {
     let mut locations = Vec::new();
     if include_declaration
         && let Some(location) = source_location_for_def(check, source_index, target)
@@ -1308,6 +1477,14 @@ fn reference_target_from_check(
     byte_offset: usize,
     file: &Path,
 ) -> Option<poly::expr::DefId> {
+    reference_target_candidate_from_check(check, byte_offset, file).map(|candidate| candidate.def)
+}
+
+fn reference_target_candidate_from_check(
+    check: &infer::check::PolyCheckOutput,
+    byte_offset: usize,
+    file: &Path,
+) -> Option<ReferenceTargetCandidate> {
     let mut best = None;
     for (reference, use_site) in check.lowering.session.refs.iter() {
         let Some(span) = &use_site.source_span else {
@@ -1342,7 +1519,7 @@ fn reference_target_from_check(
         }
         push_best_reference_target(&mut best, def, span.range);
     }
-    best.map(|candidate: ReferenceTargetCandidate| candidate.def)
+    best
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1449,6 +1626,78 @@ fn sort_source_locations(locations: &mut [SourceLocation]) {
             .then(left.range.start.cmp(&right.range.start))
             .then(left.range.end.cmp(&right.range.end))
     });
+}
+
+fn is_valid_rename_identifier(name: &str) -> bool {
+    let mut chars = name.chars().peekable();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !(unicode_ident::is_xid_start(first) || first == '_') {
+        return false;
+    }
+    let mut saw_suffix = false;
+    while let Some(ch) = chars.next() {
+        if saw_suffix {
+            return false;
+        }
+        if unicode_ident::is_xid_continue(ch) {
+            continue;
+        }
+        if (ch == '?' || ch == '!') && chars.peek().is_none() {
+            saw_suffix = true;
+            continue;
+        }
+        return false;
+    }
+    !is_rename_keyword(name)
+}
+
+fn is_rename_keyword(name: &str) -> bool {
+    matches!(
+        name,
+        "do" | "if"
+            | "else"
+            | "elsif"
+            | "case"
+            | "catch"
+            | "my"
+            | "our"
+            | "pub"
+            | "use"
+            | "type"
+            | "struct"
+            | "enum"
+            | "error"
+            | "role"
+            | "impl"
+            | "cast"
+            | "act"
+            | "mod"
+            | "as"
+            | "for"
+            | "in"
+            | "with"
+            | "where"
+            | "via"
+            | "rule"
+            | "prefix"
+            | "infix"
+            | "suffix"
+            | "nullfix"
+            | "lazy"
+    )
+}
+
+fn rename_new_text_for_span(span_text: &str, name: &str) -> String {
+    let prefix = span_text
+        .chars()
+        .next()
+        .filter(|ch| matches!(ch, '$' | '&' | '_' | '\''));
+    match prefix {
+        Some(prefix) => format!("{prefix}{name}"),
+        None => name.to_string(),
+    }
 }
 
 fn push_best_hover(
@@ -1680,15 +1929,23 @@ fn source_range_contains(range: SourceRange, byte_offset: usize) -> bool {
 
 struct SourceFileIndex {
     paths_by_module: HashMap<Path, PathBuf>,
+    sources_by_path: HashMap<PathBuf, String>,
 }
 
 impl SourceFileIndex {
     fn from_collected_sources(files: &[CollectedSource]) -> Self {
+        let mut sources_by_path = HashMap::new();
+        for file in files {
+            sources_by_path
+                .entry(file.path.clone())
+                .or_insert_with(|| file.source.clone());
+        }
         Self {
             paths_by_module: files
                 .iter()
                 .map(|file| (file.module_path.clone(), file.path.clone()))
                 .collect(),
+            sources_by_path,
         }
     }
 
@@ -1697,6 +1954,10 @@ impl SourceFileIndex {
             path: self.paths_by_module.get(&span.file)?.clone(),
             range: span.range,
         })
+    }
+
+    fn source_for_location(&self, location: &SourceLocation) -> Option<&str> {
+        self.sources_by_path.get(&location.path).map(String::as_str)
     }
 }
 
