@@ -97,19 +97,19 @@ pub some(p: () -> [parse 'item 'err 'pos 'snap] 'a)(): [parse 'item 'err 'pos 's
 pub label(p: () -> [parse 'item 'err 'pos 'snap] 'a, label_text: str)(): [parse 'item 'err 'pos 'snap] 'a = catch p():
     parse::fail e, _ -> parse::fail e.label(label_text)
 
-my word_tail(): [parse char 'err (int, int) (str, int, int)] list char =
+my word_tail(acc: str)(): [parse char 'err (int, int) (str, int, int)] str =
     my (input, _, _) = parse::snapshot()
     if input.len == 0:
-        []
+        acc
     else:
         my item = std::text::str::index_raw input 0
         if std::text::char::is_word item:
             my _ = parse::item()
-            [item, ..word_tail()]
+            word_tail(acc + item.to_string)()
         else:
-            []
+            acc
 
-pub word(): [parse char 'err (int, int) (str, int, int)] list char =
+pub word(): [parse char 'err (int, int) (str, int, int)] str =
     my (input, _, _) = parse::snapshot()
     if input.len == 0:
         parse::fail: ParseError::expected("word", parse::pos())
@@ -117,6 +117,6 @@ pub word(): [parse char 'err (int, int) (str, int, int)] list char =
         my item = std::text::str::index_raw input 0
         if std::text::char::is_word item:
             my _ = parse::item()
-            [item, ..word_tail()]
+            word_tail(item.to_string)()
         else:
             parse::fail: ParseError::expected("word", parse::pos())

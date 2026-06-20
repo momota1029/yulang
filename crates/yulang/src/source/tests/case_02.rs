@@ -589,14 +589,17 @@ fn run_control_source_text_with_embedded_std_runs_root_expression() {
 fn run_control_source_text_with_embedded_std_runs_parse_word_to_end() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
-        "use std::text::parse::*\nrun_str(\"abc\", 1, 1, word())\n",
+        "use std::text::parse::*\n(run_str(\"abc\", 1, 1, word()), run_str(\"abc!\", 1, 1, word()))\n",
     )
     .unwrap();
     assert_eq!(build.file_count, embedded_std_files().len() + 1);
     assert!(build.errors.is_empty(), "{:?}", build.errors);
     let output = run_built_control_on_vm_test_stack(build);
 
-    assert_eq!(output.0, "run roots [result::ok([\"a\", \"b\", \"c\"])]\n");
+    assert_eq!(
+        output.0,
+        "run roots [(result::ok(\"abc\"), result::ok(\"abc\"))]\n"
+    );
 }
 
 #[cfg(unix)]
