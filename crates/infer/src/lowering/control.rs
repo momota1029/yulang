@@ -3,7 +3,9 @@
 mod syntax;
 
 use super::pattern::{PatternItem, pattern_path, pattern_payloads, single_pattern_item};
-use super::rule_lit::{RuleCasePart, rule_expr_case_parts, rule_lit_case_parts};
+use super::rule_lit::{
+    RuleCaseBranch, RuleCasePart, rule_expr_case_branches, rule_lit_case_branches,
+};
 use super::*;
 use syntax::*;
 
@@ -370,15 +372,56 @@ impl<'a> ExprLowerer<'a> {
         result_value: TypeVar,
         result_effect: TypeVar,
     ) -> Result<Computation, LoweringError> {
-        let parts = rule_case_parts(rule)?;
+        let branches = rule_case_branches(rule)?;
         let rule_locals_start = self.locals.len();
         let fallback = self.lower_case_arm_chain(rest, input, result_value, result_effect)?;
         let start = self.int_value(0);
-        let result = self.lower_rule_case_part_chain(
-            &parts,
+        let result = self.lower_rule_case_branch_chain(
+            &branches,
             input,
             start,
             fallback,
+            arm,
+            result_value,
+            result_effect,
+            rule_locals_start,
+        );
+        self.locals.truncate(rule_locals_start);
+        result
+    }
+
+    fn lower_rule_case_branch_chain(
+        &mut self,
+        branches: &[RuleCaseBranch],
+        input: Computation,
+        pos: Computation,
+        fallback: Computation,
+        arm: &Cst,
+        result_value: TypeVar,
+        result_effect: TypeVar,
+        rule_locals_start: usize,
+    ) -> Result<Computation, LoweringError> {
+        let Some((branch, rest)) = branches.split_first() else {
+            return Ok(fallback);
+        };
+
+        let next = self.lower_rule_case_branch_chain(
+            rest,
+            input,
+            pos,
+            fallback,
+            arm,
+            result_value,
+            result_effect,
+            rule_locals_start,
+        )?;
+        self.locals.truncate(rule_locals_start);
+
+        let result = self.lower_rule_case_part_chain(
+            &branch.parts,
+            input,
+            pos,
+            next,
             arm,
             result_value,
             result_effect,
@@ -1485,10 +1528,10 @@ fn rule_pattern_needs_case_parser(rule: &Cst) -> bool {
     }
 }
 
-fn rule_case_parts(rule: &Cst) -> Result<Vec<RuleCasePart>, LoweringError> {
+fn rule_case_branches(rule: &Cst) -> Result<Vec<RuleCaseBranch>, LoweringError> {
     match rule.kind() {
-        SyntaxKind::RuleLit => rule_lit_case_parts(rule),
-        SyntaxKind::RuleExpr => rule_expr_case_parts(rule),
+        SyntaxKind::RuleLit => rule_lit_case_branches(rule),
+        SyntaxKind::RuleExpr => rule_expr_case_branches(rule),
         kind => Err(LoweringError::UnsupportedSyntax { kind }),
     }
 }

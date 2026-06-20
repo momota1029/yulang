@@ -18,6 +18,10 @@ pub(in crate::lowering) enum RuleCasePart {
     CaptureWord(Name),
 }
 
+pub(in crate::lowering) struct RuleCaseBranch {
+    pub(in crate::lowering) parts: Vec<RuleCasePart>,
+}
+
 struct RuleParserItem {
     parser: Computation,
     semantic: RuleSemantic,
@@ -384,10 +388,10 @@ impl<'a> ExprLowerer<'a> {
     }
 }
 
-pub(in crate::lowering) fn rule_lit_case_parts(
+pub(in crate::lowering) fn rule_lit_case_branches(
     node: &Cst,
-) -> Result<Vec<RuleCasePart>, LoweringError> {
-    rule_lit_parts(node)?
+) -> Result<Vec<RuleCaseBranch>, LoweringError> {
+    let parts = rule_lit_parts(node)?
         .into_iter()
         .map(|part| match part {
             RuleLitPart::Token(text) => Ok(RuleCasePart::Token(text)),
@@ -401,24 +405,26 @@ pub(in crate::lowering) fn rule_lit_case_parts(
                 })
             }
         })
-        .collect()
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(vec![RuleCaseBranch { parts }])
 }
 
-pub(in crate::lowering) fn rule_expr_case_parts(
+pub(in crate::lowering) fn rule_expr_case_branches(
     node: &Cst,
-) -> Result<Vec<RuleCasePart>, LoweringError> {
+) -> Result<Vec<RuleCaseBranch>, LoweringError> {
     let group = node
         .children()
         .find(|child| child.kind() == SyntaxKind::BraceGroup)
         .ok_or(LoweringError::UnsupportedSyntax {
             kind: SyntaxKind::RuleExpr,
         })?;
-    let branches = rule_branches(&group);
-    let [items] = branches.as_slice() else {
-        return Err(LoweringError::UnsupportedSyntax {
-            kind: SyntaxKind::RuleExpr,
-        });
-    };
+    rule_branches(&group)
+        .into_iter()
+        .map(|items| rule_expr_case_branch(items).map(|parts| RuleCaseBranch { parts }))
+        .collect()
+}
+
+fn rule_expr_case_branch(items: Vec<Cst>) -> Result<Vec<RuleCasePart>, LoweringError> {
     items
         .iter()
         .map(|item| {

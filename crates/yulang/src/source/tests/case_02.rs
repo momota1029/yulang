@@ -759,7 +759,23 @@ my literal_leftover = case \"hello!\":
   rule { \"hello\" } -> \"hit\"
   _ -> \"miss\"
 
-(route, leftover, literal, literal_leftover)
+my alt_left = case \"users/alice/posts\":
+  rule { \"users/\" id = word \"/posts\" | \"groups/\" id = word \"/posts\" } -> id
+  _ -> \"miss\"
+
+my alt_right = case \"groups/admin/posts\":
+  rule { \"users/\" id = word \"/posts\" | \"groups/\" id = word \"/posts\" } -> id
+  _ -> \"miss\"
+
+my alt_miss = case \"teams/admin/posts\":
+  rule { \"users/\" id = word \"/posts\" | \"groups/\" id = word \"/posts\" } -> id
+  _ -> \"miss\"
+
+my alt_after_partial = case \"users/bob/comments\":
+  rule { \"users/\" id = word \"/posts\" | \"users/\" id = word \"/comments\" } -> id
+  _ -> \"miss\"
+
+(route, leftover, literal, literal_leftover, alt_left, alt_right, alt_miss, alt_after_partial)
 ",
     )
     .unwrap();
@@ -769,7 +785,7 @@ my literal_leftover = case \"hello!\":
 
     assert_eq!(
         output.0,
-        "run roots [(\"alice\", \"miss\", \"hit\", \"miss\")]\n"
+        "run roots [(\"alice\", \"miss\", \"hit\", \"miss\", \"alice\", \"admin\", \"miss\", \"bob\")]\n"
     );
 }
 
