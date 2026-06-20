@@ -13,6 +13,41 @@ role、標準ライブラリの組み合わせとして扱う点です。
 
 English: [README.md](README.md)
 
+## 最初の例
+
+```yulang
+// 非決定性で探索: 15 未満のピタゴラス数の組
+{
+    my a = each 1..15
+    my b = each a..15
+    my c = each b..15
+    guard: a * a + b * b == c * c
+    (a, b, c)
+}.list  // => [(3, 4, 5), (5, 12, 13), (6, 8, 10), (9, 12, 15)]
+```
+
+`each` は非決定性の値を返し、`guard:` は条件を満たさない枝を切り、
+`.list` は探索結果を具体的なリストに畳みます。block 全体は `undet`
+effect を持つただの式で、構文として特別扱いされている部分はありません。
+
+同じ仕組みで、比較を「いくつもの選択肢」へ持ち上げることもできます。
+
+```yulang
+// junction は比較を選択肢の組すべてに広げる
+if all [1, 2, 3] < any [3, 4, 5]:
+    "every left dominated"
+else:
+    "no"
+```
+
+`all` と `any` は非決定性の値を作る標準ライブラリ関数です。lowering が
+`junction::junction` を挿入し、左右のすべての組を試したうえで周囲の
+`if` には `bool` が渡ります。
+
+可変状態、early return、loop、effectful な条件式も、同じ考え方で扱います。
+見た目はふつうの制御構文に寄せつつ、内部では型付き effect と小さなライブラリに
+分けて表現します。
+
 ## すぐ試す
 
 release build の CLI を使う場合は、OS ごとの binary archive を入れます。binary には
@@ -95,41 +130,6 @@ say "Hello, World"
 ```bash
 export YULANG_STD=/path/to/yulang/lib/std
 ```
-
-## 最初の例
-
-```yulang
-// 非決定性で探索: 15 未満のピタゴラス数の組
-{
-    my a = each 1..15
-    my b = each a..15
-    my c = each b..15
-    guard: a * a + b * b == c * c
-    (a, b, c)
-}.list  // => [(3, 4, 5), (5, 12, 13), (6, 8, 10), (9, 12, 15)]
-```
-
-`each` は非決定性の値を返し、`guard:` は条件を満たさない枝を切り、
-`.list` は探索結果を具体的なリストに畳みます。block 全体は `undet`
-effect を持つただの式で、構文として特別扱いされている部分はありません。
-
-同じ仕組みで、比較を「いくつもの選択肢」へ持ち上げることもできます。
-
-```yulang
-// junction は比較を選択肢の組すべてに広げる
-if all [1, 2, 3] < any [3, 4, 5]:
-    "every left dominated"
-else:
-    "no"
-```
-
-`all` と `any` は非決定性の値を作る標準ライブラリ関数です。lowering が
-`junction::junction` を挿入し、左右のすべての組を試したうえで周囲の
-`if` には `bool` が渡ります。
-
-可変状態、early return、loop、effectful な条件式も、同じ考え方で扱います。
-見た目はふつうの制御構文に寄せつつ、内部では型付き effect と小さなライブラリに
-分けて表現します。
 
 ## 次に読むもの
 
