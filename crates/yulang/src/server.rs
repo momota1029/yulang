@@ -177,18 +177,30 @@ fn hover_for_source(
     options: &crate::StdSourceOptions,
 ) -> Option<Hover> {
     let byte_offset = position_to_byte_offset(&source, position)?;
-    let hover = match crate::hover_entry_source_with_std_options(
+    let (hover, root_has_implicit_prelude) = match crate::hover_entry_source_with_std_options(
         path,
         source.clone(),
         byte_offset,
         options,
     ) {
-        Ok(hover) => hover,
-        Err(_) => crate::hover_entry_source(path, source.clone(), byte_offset)
-            .ok()
-            .flatten(),
-    }?;
-    Some(lsp_hover_for_source_hover(&source, hover))
+        Ok(hover) => (
+            hover,
+            crate::source::entry_source_with_std_has_implicit_prelude(path, options)
+                .unwrap_or(true),
+        ),
+        Err(_) => (
+            crate::hover_entry_source(path, source.clone(), byte_offset)
+                .ok()
+                .flatten(),
+            false,
+        ),
+    };
+    let hover = hover?;
+    Some(lsp_hover_for_source_hover(
+        &source,
+        hover,
+        root_has_implicit_prelude,
+    ))
 }
 
 fn definition_for_source(
@@ -198,27 +210,86 @@ fn definition_for_source(
     options: &crate::StdSourceOptions,
 ) -> Option<Location> {
     let byte_offset = position_to_byte_offset(&source, position)?;
-    let definition = match crate::definition_entry_source_with_std_options(
-        path,
-        source.clone(),
-        byte_offset,
-        options,
-    ) {
-        Ok(definition) => definition,
-        Err(_) => crate::definition_entry_source(path, source.clone(), byte_offset)
-            .ok()
-            .flatten(),
-    }?;
-    lsp_location_for_source_definition(path, &source, definition)
+    let (definition, root_has_implicit_prelude) =
+        match crate::definition_entry_source_with_std_options(
+            path,
+            source.clone(),
+            byte_offset,
+            options,
+        ) {
+            Ok(definition) => (
+                definition,
+                crate::source::entry_source_with_std_has_implicit_prelude(path, options)
+                    .unwrap_or(true),
+            ),
+            Err(_) => (
+                crate::definition_entry_source(path, source.clone(), byte_offset)
+                    .ok()
+                    .flatten(),
+                false,
+            ),
+        };
+    let definition = definition?;
+    lsp_location_for_source_definition(path, &source, definition, root_has_implicit_prelude)
 }
 
-fn lsp_hover_for_source_hover(source: &str, hover: SourceHover) -> Hover {
+fn references_for_source(
+    path: &Path,
+    source: String,
+    position: Position,
+    include_declaration: bool,
+    options: &crate::StdSourceOptions,
+) -> Vec<Location> {
+    let Some(byte_offset) = position_to_byte_offset(&source, position) else {
+        return Vec::new();
+    };
+    let (locations, root_has_implicit_prelude) =
+        match crate::references_entry_source_with_std_options(
+            path,
+            source.clone(),
+            byte_offset,
+            include_declaration,
+            options,
+        ) {
+            Ok(locations) => (
+                locations,
+                crate::source::entry_source_with_std_has_implicit_prelude(path, options)
+                    .unwrap_or(true),
+            ),
+            Err(_) => (
+                crate::references_entry_source(
+                    path,
+                    source.clone(),
+                    byte_offset,
+                    include_declaration,
+                )
+                .unwrap_or_default(),
+                false,
+            ),
+        };
+    locations
+        .into_iter()
+        .filter_map(|location| {
+            lsp_location_for_source_location(path, &source, location, root_has_implicit_prelude)
+        })
+        .collect()
+}
+
+fn lsp_hover_for_source_hover(
+    source: &str,
+    hover: SourceHover,
+    root_has_implicit_prelude: bool,
+) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
             value: format!("```yulang\n{}\n```", hover.contents),
         }),
-        range: Some(lsp_range_for_loaded_root_range(source, hover.range)),
+        range: Some(lsp_range_for_root_source(
+            source,
+            hover.range,
+            root_has_implicit_prelude,
+        )),
     }
 }
 
@@ -226,23 +297,42 @@ fn lsp_location_for_source_definition(
     root_path: &Path,
     root_source: &str,
     definition: SourceDefinition,
+    root_has_implicit_prelude: bool,
 ) -> Option<Location> {
-    lsp_location_for_source_location(root_path, root_source, definition.target)
+    lsp_location_for_source_location(
+        root_path,
+        root_source,
+        definition.target,
+        root_has_implicit_prelude,
+    )
 }
 
 fn lsp_location_for_source_location(
     root_path: &Path,
     root_source: &str,
     location: SourceLocation,
+    root_has_implicit_prelude: bool,
 ) -> Option<Location> {
     let uri = Url::from_file_path(&location.path).ok()?;
     let range = if location.path == root_path {
-        lsp_range_for_loaded_root_range(root_source, location.range)
+        lsp_range_for_root_source(root_source, location.range, root_has_implicit_prelude)
     } else {
         let source = std::fs::read_to_string(&location.path).ok()?;
         source_range_to_lsp_range(&source, location.range)
     };
     Some(Location { uri, range })
+}
+
+fn lsp_range_for_root_source(
+    source: &str,
+    range: SourceRange,
+    root_has_implicit_prelude: bool,
+) -> Range {
+    if root_has_implicit_prelude {
+        lsp_range_for_loaded_root_range(source, range)
+    } else {
+        source_range_to_lsp_range(source, range)
+    }
 }
 
 fn lsp_range_for_loaded_root_range(source: &str, range: SourceRange) -> Range {
@@ -351,6 +441,7 @@ impl LanguageServer for Backend {
                 ),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
+                references_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -479,6 +570,37 @@ impl LanguageServer for Backend {
             Ok(Err(_)) | Err(_) => None,
         };
         Ok(location.map(GotoDefinitionResponse::Scalar))
+    }
+
+    async fn references(
+        &self,
+        params: ReferenceParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<Vec<Location>>> {
+        let uri = params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+        let include_declaration = params.context.include_declaration;
+        let path = match uri.to_file_path() {
+            Ok(path) => path,
+            Err(_) => return Ok(None),
+        };
+        let Some(source) = self.document_source(&uri) else {
+            return Ok(None);
+        };
+        let options = crate::StdSourceOptions {
+            std_root: self.std_root.clone(),
+        };
+        let Ok(permit) = self.request_slots.clone().try_acquire_owned() else {
+            return Ok(None);
+        };
+        let handle = tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            references_for_source(&path, source, position, include_declaration, &options)
+        });
+        let locations = match tokio::time::timeout(LSP_REQUEST_TIMEOUT, handle).await {
+            Ok(Ok(locations)) => locations,
+            Ok(Err(_)) | Err(_) => Vec::new(),
+        };
+        Ok(Some(locations))
     }
 }
 
@@ -767,6 +889,95 @@ mod tests {
                     character: 4
                 },
             }
+        );
+    }
+
+    #[test]
+    fn definition_for_source_reports_std_file_method_target_location() {
+        let std_root = workspace_std_root();
+        let entry = std_root.join("std").join("core").join("ops.yu");
+        let source = std::fs::read_to_string(&entry).unwrap();
+        let offset = source.find("label.next").unwrap() + "label.".len();
+        let position = byte_offset_to_position(&source, &compute_line_starts(&source), offset);
+        let target = std_root.join("std").join("control").join("flow.yu");
+        let target_source = std::fs::read_to_string(&target).unwrap();
+        let target_offset = target_source.find("a.next").unwrap() + "a.".len();
+
+        let location = definition_for_source(
+            &entry,
+            source,
+            position,
+            &crate::StdSourceOptions {
+                std_root: Some(std_root),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(location.uri, Url::from_file_path(&target).unwrap());
+        assert_eq!(
+            location.range,
+            source_range_to_lsp_range(
+                &target_source,
+                SourceRange {
+                    start: target_offset,
+                    end: target_offset + "next".len(),
+                },
+            )
+        );
+    }
+
+    #[test]
+    fn references_for_source_reports_reference_locations() {
+        let root = temp_root("references-reference-locations");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let entry = root.join("main.yu");
+        let source = "my x: int = 1\nmy y = x\n";
+        let locations = references_for_source(
+            &entry,
+            source.to_string(),
+            Position {
+                line: 1,
+                character: 7,
+            },
+            true,
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert_eq!(
+            locations,
+            vec![
+                Location {
+                    uri: Url::from_file_path(&entry).unwrap(),
+                    range: Range {
+                        start: Position {
+                            line: 0,
+                            character: 3
+                        },
+                        end: Position {
+                            line: 0,
+                            character: 4
+                        },
+                    },
+                },
+                Location {
+                    uri: Url::from_file_path(&entry).unwrap(),
+                    range: Range {
+                        start: Position {
+                            line: 1,
+                            character: 7
+                        },
+                        end: Position {
+                            line: 1,
+                            character: 8
+                        },
+                    },
+                },
+            ]
         );
     }
 

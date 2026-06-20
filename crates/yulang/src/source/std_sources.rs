@@ -237,6 +237,30 @@ pub(super) fn embedded_std_module_path(relative_path: &str) -> Path {
     }
 }
 
+pub(super) fn std_module_path_for_file(std_root: &FsPath, file: &FsPath) -> Option<Path> {
+    let std_root = canonicalize_for_dedupe(std_root);
+    let file = canonicalize_for_dedupe(file);
+    let relative = file.strip_prefix(std_root).ok()?;
+    let mut relative_without_extension = relative.to_path_buf();
+    if relative_without_extension.extension()? != "yu" {
+        return None;
+    }
+    relative_without_extension.set_extension("");
+    let segments = relative_without_extension
+        .components()
+        .map(|component| match component {
+            std::path::Component::Normal(segment) => {
+                segment.to_str().map(|segment| Name(segment.to_string()))
+            }
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>()?;
+    if segments.first().map(|name| name.0.as_str()) != Some("std") {
+        return None;
+    }
+    Some(Path { segments })
+}
+
 pub(super) fn is_std_root(path: &FsPath) -> bool {
     crate::stdlib::is_std_root(path)
 }

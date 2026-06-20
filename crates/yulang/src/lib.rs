@@ -40,7 +40,8 @@ pub use source::{
     dump_poly_raw_from_source_text_with_embedded_std, find_nearby_std_root, format_run_mono_values,
     hover_entry_source, hover_entry_source_with_std_options,
     load_source_text_with_embedded_playground_std, load_source_text_with_embedded_std,
-    run_built_control_program, run_control_from_entry, run_control_from_entry_with_std,
+    references_entry_source, references_entry_source_with_std_options, run_built_control_program,
+    run_control_from_entry, run_control_from_entry_with_std,
     run_control_from_entry_with_std_options, run_control_from_source_text_with_embedded_std,
     run_mono_from_entry, run_mono_from_entry_with_std, run_mono_from_entry_with_std_options,
 };

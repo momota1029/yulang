@@ -296,11 +296,9 @@ pub fn analyze_entry_source_with_std_options(
     source: impl Into<String>,
     options: &StdSourceOptions,
 ) -> Result<AnalyzeSourceOutput, RouteError> {
-    analyze_from_sources(collect_local_source_text_with_std_options(
-        entry,
-        source.into(),
-        options,
-    )?)
+    analyze_from_sources(
+        collect_local_source_text_with_std_context(entry.as_ref(), source.into(), options)?.files,
+    )
 }
 
 pub fn analyze_entry_source(
@@ -316,12 +314,12 @@ pub fn hover_entry_source_with_std_options(
     byte_offset: usize,
     options: &StdSourceOptions,
 ) -> Result<Option<SourceHover>, RouteError> {
-    let loaded_offset =
-        byte_offset + IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len();
+    let context =
+        collect_local_source_text_with_std_context(entry.as_ref(), source.into(), options)?;
     hover_from_sources(
-        collect_local_source_text_with_std_options(entry, source.into(), options)?,
-        loaded_offset,
-        &Path::default(),
+        context.files,
+        byte_offset + context.byte_offset_adjust,
+        &context.focus_module,
     )
 }
 
@@ -343,12 +341,12 @@ pub fn definition_entry_source_with_std_options(
     byte_offset: usize,
     options: &StdSourceOptions,
 ) -> Result<Option<SourceDefinition>, RouteError> {
-    let loaded_offset =
-        byte_offset + IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len();
+    let context =
+        collect_local_source_text_with_std_context(entry.as_ref(), source.into(), options)?;
     definition_from_sources(
-        collect_local_source_text_with_std_options(entry, source.into(), options)?,
-        loaded_offset,
-        &Path::default(),
+        context.files,
+        byte_offset + context.byte_offset_adjust,
+        &context.focus_module,
     )
 }
 
@@ -361,6 +359,37 @@ pub fn definition_entry_source(
         collect_local_source_text(entry, source.into())?,
         byte_offset,
         &Path::default(),
+    )
+}
+
+pub fn references_entry_source_with_std_options(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    byte_offset: usize,
+    include_declaration: bool,
+    options: &StdSourceOptions,
+) -> Result<Vec<SourceLocation>, RouteError> {
+    let context =
+        collect_local_source_text_with_std_context(entry.as_ref(), source.into(), options)?;
+    references_from_sources(
+        context.files,
+        byte_offset + context.byte_offset_adjust,
+        &context.focus_module,
+        include_declaration,
+    )
+}
+
+pub fn references_entry_source(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    byte_offset: usize,
+    include_declaration: bool,
+) -> Result<Vec<SourceLocation>, RouteError> {
+    references_from_sources(
+        collect_local_source_text(entry, source.into())?,
+        byte_offset,
+        &Path::default(),
+        include_declaration,
     )
 }
 
@@ -475,13 +504,49 @@ pub fn collect_local_source_text_with_std_options(
     source: String,
     options: &StdSourceOptions,
 ) -> Result<Vec<CollectedSource>, RouteError> {
-    let entry = entry.as_ref();
+    Ok(collect_local_source_text_with_std_context(entry.as_ref(), source, options)?.files)
+}
+
+fn collect_local_source_text_with_std_context(
+    entry: &FsPath,
+    source: String,
+    options: &StdSourceOptions,
+) -> Result<SourceTextWithStdContext, RouteError> {
     let base = entry.parent().unwrap_or_else(|| FsPath::new("."));
     let std_root = resolve_std_root(base, options)?;
 
+    if let Some(module_path) = std_module_path_for_file(&std_root, entry) {
+        let mut collector = Collector::new();
+        collector.collect_std_root_with_source_override(&std_root, entry, source)?;
+        let mut files = collector.finish();
+        files.push(CollectedSource {
+            path: entry.to_path_buf(),
+            module_path: Path::default(),
+            source: source_with_implicit_std_prelude(String::new()),
+        });
+        return Ok(SourceTextWithStdContext {
+            files,
+            focus_module: module_path,
+            byte_offset_adjust: 0,
+        });
+    }
+
     let mut collector = Collector::new();
     collector.collect_std_root(&std_root)?;
-    collector.collect_entry_source(entry, source, true)
+    Ok(SourceTextWithStdContext {
+        files: collector.collect_entry_source(entry, source, true)?,
+        focus_module: Path::default(),
+        byte_offset_adjust: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len(),
+    })
+}
+
+pub(crate) fn entry_source_with_std_has_implicit_prelude(
+    entry: &FsPath,
+    options: &StdSourceOptions,
+) -> Result<bool, RouteError> {
+    let base = entry.parent().unwrap_or_else(|| FsPath::new("."));
+    let std_root = resolve_std_root(base, options)?;
+    Ok(std_module_path_for_file(&std_root, entry).is_none())
 }
 
 /// Browser / playground 向けに、root source と埋め込み std だけで source set を作る。
@@ -746,6 +811,12 @@ pub struct CollectedSource {
     pub path: PathBuf,
     pub module_path: Path,
     pub source: String,
+}
+
+struct SourceTextWithStdContext {
+    files: Vec<CollectedSource>,
+    focus_module: Path,
+    byte_offset_adjust: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1043,6 +1114,39 @@ fn definition_from_loaded_files(
     ))
 }
 
+fn references_from_sources(
+    files: Vec<CollectedSource>,
+    byte_offset: usize,
+    file: &Path,
+    include_declaration: bool,
+) -> Result<Vec<SourceLocation>, RouteError> {
+    let source_index = SourceFileIndex::from_collected_sources(&files);
+    references_from_loaded_files(
+        sources::load(collected_source_files(files)),
+        &source_index,
+        byte_offset,
+        file,
+        include_declaration,
+    )
+}
+
+fn references_from_loaded_files(
+    loaded: Vec<sources::LoadedFile>,
+    source_index: &SourceFileIndex,
+    byte_offset: usize,
+    file: &Path,
+    include_declaration: bool,
+) -> Result<Vec<SourceLocation>, RouteError> {
+    let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    Ok(source_references_from_check(
+        &check,
+        source_index,
+        byte_offset,
+        file,
+        include_declaration,
+    ))
+}
+
 fn source_hover_from_check(
     check: &infer::check::PolyCheckOutput,
     byte_offset: usize,
@@ -1097,6 +1201,50 @@ fn source_hover_from_check(
         );
     }
     best
+}
+
+fn source_references_from_check(
+    check: &infer::check::PolyCheckOutput,
+    source_index: &SourceFileIndex,
+    byte_offset: usize,
+    file: &Path,
+    include_declaration: bool,
+) -> Vec<SourceLocation> {
+    let Some(target) = reference_target_from_check(check, byte_offset, file) else {
+        return Vec::new();
+    };
+
+    let mut locations = Vec::new();
+    if include_declaration
+        && let Some(location) = source_location_for_def(check, source_index, target)
+    {
+        locations.push(location);
+    }
+    for (reference, use_site) in check.lowering.session.refs.iter() {
+        let Some(reference_target) = check.lowering.session.poly.ref_target(reference) else {
+            continue;
+        };
+        if reference_target != target {
+            continue;
+        }
+        if let Some(span) = &use_site.source_span
+            && let Some(location) = source_index.location_for_span(span)
+        {
+            locations.push(location);
+        }
+    }
+    for (select, span) in check.lowering.session.selections.source_spans() {
+        if select_target_def(check, select) != Some(target) {
+            continue;
+        }
+        if let Some(location) = source_index.location_for_span(span) {
+            locations.push(location);
+        }
+    }
+
+    sort_source_locations(&mut locations);
+    locations.dedup();
+    locations
 }
 
 fn source_definition_from_check(
@@ -1155,6 +1303,80 @@ fn source_definition_from_check(
     best
 }
 
+fn reference_target_from_check(
+    check: &infer::check::PolyCheckOutput,
+    byte_offset: usize,
+    file: &Path,
+) -> Option<poly::expr::DefId> {
+    let mut best = None;
+    for (reference, use_site) in check.lowering.session.refs.iter() {
+        let Some(span) = &use_site.source_span else {
+            continue;
+        };
+        if &span.file != file || !source_range_contains(span.range, byte_offset) {
+            continue;
+        }
+        let Some(target) = check.lowering.session.poly.ref_target(reference) else {
+            continue;
+        };
+        push_best_reference_target(&mut best, target, span.range);
+    }
+    for (select, span) in check.lowering.session.selections.source_spans() {
+        if &span.file != file || !source_range_contains(span.range, byte_offset) {
+            continue;
+        }
+        let Some(target) = select_target_def(check, select) else {
+            continue;
+        };
+        push_best_reference_target(&mut best, target, span.range);
+    }
+    for (def, span) in check.lowering.modules.def_source_spans() {
+        if &span.file != file || !source_range_contains(span.range, byte_offset) {
+            continue;
+        }
+        push_best_reference_target(&mut best, def, span.range);
+    }
+    for (def, span) in check.lowering.session.local_defs.source_spans() {
+        if &span.file != file || !source_range_contains(span.range, byte_offset) {
+            continue;
+        }
+        push_best_reference_target(&mut best, def, span.range);
+    }
+    best.map(|candidate: ReferenceTargetCandidate| candidate.def)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ReferenceTargetCandidate {
+    def: poly::expr::DefId,
+    range: SourceRange,
+}
+
+fn push_best_reference_target(
+    best: &mut Option<ReferenceTargetCandidate>,
+    def: poly::expr::DefId,
+    range: SourceRange,
+) {
+    let candidate_len = range.end.saturating_sub(range.start);
+    let best_len = best
+        .as_ref()
+        .map(|candidate| candidate.range.end.saturating_sub(candidate.range.start))
+        .unwrap_or(usize::MAX);
+    if candidate_len < best_len {
+        *best = Some(ReferenceTargetCandidate { def, range });
+    }
+}
+
+fn select_target_def(
+    check: &infer::check::PolyCheckOutput,
+    select: poly::expr::SelectId,
+) -> Option<poly::expr::DefId> {
+    match check.lowering.session.poly.select(select).resolution? {
+        poly::expr::SelectResolution::Method { def } => Some(def),
+        poly::expr::SelectResolution::TypeclassMethod { member } => Some(member),
+        poly::expr::SelectResolution::RecordField => None,
+    }
+}
+
 fn push_best_definition(
     best: &mut Option<SourceDefinition>,
     candidate: Option<SourceDefinition>,
@@ -1184,11 +1406,7 @@ fn definition_for_select(
     select: poly::expr::SelectId,
     origin: SourceRange,
 ) -> Option<SourceDefinition> {
-    let target = match check.lowering.session.poly.select(select).resolution? {
-        poly::expr::SelectResolution::Method { def } => def,
-        poly::expr::SelectResolution::TypeclassMethod { member } => member,
-        poly::expr::SelectResolution::RecordField => return None,
-    };
+    let target = select_target_def(check, select)?;
     definition_for_def(check, source_index, target, origin)
 }
 
@@ -1222,6 +1440,15 @@ fn source_location_for_def(
                 .and_then(|use_site| use_site.source_span.as_ref())
         })
         .and_then(|span| source_index.location_for_span(span))
+}
+
+fn sort_source_locations(locations: &mut [SourceLocation]) {
+    locations.sort_by(|left, right| {
+        left.path
+            .cmp(&right.path)
+            .then(left.range.start.cmp(&right.range.start))
+            .then(left.range.end.cmp(&right.range.end))
+    });
 }
 
 fn push_best_hover(

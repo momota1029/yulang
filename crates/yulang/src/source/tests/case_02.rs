@@ -1181,6 +1181,66 @@ fn definition_entry_source_reports_ref_target() {
 }
 
 #[test]
+fn references_entry_source_reports_ref_targets() {
+    let source = "my x = 1\nmy y = x\nmy z = x\n";
+    let decl_offset = source.find('x').unwrap();
+    let first_ref_offset = source.find("= x").unwrap() + 2;
+    let second_ref_offset = source.rfind('x').unwrap();
+
+    let references = references_entry_source("main.yu", source, first_ref_offset, true).unwrap();
+
+    assert_eq!(
+        references,
+        vec![
+            SourceLocation {
+                path: PathBuf::from("main.yu"),
+                range: SourceRange {
+                    start: decl_offset,
+                    end: decl_offset + 1,
+                },
+            },
+            SourceLocation {
+                path: PathBuf::from("main.yu"),
+                range: SourceRange {
+                    start: first_ref_offset,
+                    end: first_ref_offset + 1,
+                },
+            },
+            SourceLocation {
+                path: PathBuf::from("main.yu"),
+                range: SourceRange {
+                    start: second_ref_offset,
+                    end: second_ref_offset + 1,
+                },
+            },
+        ]
+    );
+
+    let references_without_decl =
+        references_entry_source("main.yu", source, first_ref_offset, false).unwrap();
+
+    assert_eq!(
+        references_without_decl,
+        vec![
+            SourceLocation {
+                path: PathBuf::from("main.yu"),
+                range: SourceRange {
+                    start: first_ref_offset,
+                    end: first_ref_offset + 1,
+                },
+            },
+            SourceLocation {
+                path: PathBuf::from("main.yu"),
+                range: SourceRange {
+                    start: second_ref_offset,
+                    end: second_ref_offset + 1,
+                },
+            },
+        ]
+    );
+}
+
+#[test]
 fn hover_entry_source_reports_lambda_arg_type() {
     let source = "my id x = x\n";
     let arg_offset = source.find('x').unwrap();
@@ -1248,6 +1308,35 @@ fn definition_entry_source_reports_lambda_arg_target() {
                 },
             },
         }
+    );
+}
+
+#[test]
+fn references_entry_source_reports_lambda_arg_refs() {
+    let source = "my id x = x\n";
+    let arg_offset = source.find('x').unwrap();
+    let ref_offset = source.rfind('x').unwrap();
+
+    let references = references_entry_source("main.yu", source, ref_offset, true).unwrap();
+
+    assert_eq!(
+        references,
+        vec![
+            SourceLocation {
+                path: PathBuf::from("main.yu"),
+                range: SourceRange {
+                    start: arg_offset,
+                    end: arg_offset + 1,
+                },
+            },
+            SourceLocation {
+                path: PathBuf::from("main.yu"),
+                range: SourceRange {
+                    start: ref_offset,
+                    end: ref_offset + 1,
+                },
+            },
+        ]
     );
 }
 
@@ -1602,6 +1691,75 @@ fn definition_entry_source_reports_selected_method_target() {
                     start: decl_offset,
                     end: decl_offset + 2,
                 },
+            },
+        }
+    );
+}
+
+#[test]
+fn references_entry_source_reports_selected_method_refs() {
+    let source = "type User with:\n  our x.id = x\nmy u: User = 1\nmy a = u.id\nmy b = u.id\n";
+    let decl_offset = source.find("id").unwrap();
+    let first_method_offset = source.find("u.id").unwrap() + 2;
+    let second_method_offset = source.rfind("id").unwrap();
+
+    let references = references_entry_source("main.yu", source, first_method_offset, true).unwrap();
+
+    assert_eq!(
+        references,
+        vec![
+            SourceLocation {
+                path: PathBuf::from("main.yu"),
+                range: SourceRange {
+                    start: decl_offset,
+                    end: decl_offset + 2,
+                },
+            },
+            SourceLocation {
+                path: PathBuf::from("main.yu"),
+                range: SourceRange {
+                    start: first_method_offset,
+                    end: first_method_offset + 2,
+                },
+            },
+            SourceLocation {
+                path: PathBuf::from("main.yu"),
+                range: SourceRange {
+                    start: second_method_offset,
+                    end: second_method_offset + 2,
+                },
+            },
+        ]
+    );
+}
+
+#[test]
+fn definition_entry_source_with_std_reports_std_method_target() {
+    let std_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib");
+    let entry = std_root.join("std").join("core").join("ops.yu");
+    let source = fs::read_to_string(&entry).unwrap();
+    let offset = source.find("label.next").unwrap() + "label.".len();
+    let definition = definition_entry_source_with_std_options(
+        &entry,
+        &source,
+        offset,
+        &StdSourceOptions {
+            std_root: Some(std_root.clone()),
+        },
+    )
+    .unwrap()
+    .unwrap();
+    let target = std_root.join("std").join("control").join("flow.yu");
+    let target_source = fs::read_to_string(&target).unwrap();
+    let target_offset = target_source.find("a.next").unwrap() + "a.".len();
+
+    assert_eq!(
+        definition.target,
+        SourceLocation {
+            path: target,
+            range: SourceRange {
+                start: target_offset,
+                end: target_offset + "next".len(),
             },
         }
     );

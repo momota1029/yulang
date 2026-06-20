@@ -16,12 +16,34 @@ impl Collector {
     }
 
     pub(super) fn collect_std_root(&mut self, std_root: &FsPath) -> Result<(), RouteError> {
-        self.collect_module_tree(
+        self.collect_module_tree_with_source_overrides(
             std_root.join("std.yu"),
             Path {
                 segments: vec![Name("std".to_string())],
             },
+            &mut HashMap::new(),
         )
+    }
+
+    pub(super) fn collect_std_root_with_source_override(
+        &mut self,
+        std_root: &FsPath,
+        override_path: &FsPath,
+        source: String,
+    ) -> Result<(), RouteError> {
+        let mut source_overrides =
+            HashMap::from([(canonicalize_for_dedupe(override_path), source)]);
+        self.collect_module_tree_with_source_overrides(
+            std_root.join("std.yu"),
+            Path {
+                segments: vec![Name("std".to_string())],
+            },
+            &mut source_overrides,
+        )
+    }
+
+    pub(super) fn finish(mut self) -> Vec<CollectedSource> {
+        std::mem::take(&mut self.files)
     }
 
     pub(super) fn collect_entry(
@@ -85,10 +107,11 @@ impl Collector {
         Ok(std::mem::take(&mut self.files))
     }
 
-    fn collect_module_tree(
+    fn collect_module_tree_with_source_overrides(
         &mut self,
         entry: PathBuf,
         entry_module_path: Path,
+        source_overrides: &mut HashMap<PathBuf, String>,
     ) -> Result<(), RouteError> {
         let mut queue = VecDeque::from([(entry, entry_module_path)]);
         while let Some((path, module_path)) = queue.pop_front() {
@@ -98,10 +121,13 @@ impl Collector {
                 continue;
             }
 
-            let source = fs::read_to_string(&path).map_err(|error| RouteError::Io {
-                path: path.clone(),
-                error,
-            })?;
+            let source = match source_overrides.remove(&canonical) {
+                Some(source) => source,
+                None => fs::read_to_string(&path).map_err(|error| RouteError::Io {
+                    path: path.clone(),
+                    error,
+                })?,
+            };
             let requests = discover_module_loads(&module_path, &source);
             self.files.push(CollectedSource {
                 path: path.clone(),
