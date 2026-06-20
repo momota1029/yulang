@@ -1064,6 +1064,22 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
             "top-level mutable binding {} is not supported; move it into a block or function body",
             name.0
         ),
+        infer::lowering::BodyLoweringError::Expr {
+            error: infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { kind, .. },
+            ..
+        }
+        | infer::lowering::BodyLoweringError::RootExpr {
+            error: infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { kind, .. },
+        } => {
+            let quantifier = match kind {
+                parser::lex::SyntaxKind::RuleQuantStarLazy => "*?",
+                parser::lex::SyntaxKind::RuleQuantPlusLazy => "+?",
+                _ => "lazy quantifier",
+            };
+            format!(
+                "rule lazy quantifier `{quantifier}` is not supported; rule uses PEG-style greedy repetition"
+            )
+        }
         infer::lowering::BodyLoweringError::RootExpr {
             error: infer::lowering::LoweringError::UnresolvedName { name, .. },
         } => format!("unresolved value name in root expression: {}", name.0),

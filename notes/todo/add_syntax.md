@@ -55,6 +55,7 @@
   左から順に `token` / `word` を実行して最後に record を返す。
 - `rule { ... }` の中では `token "/"` ではなく `"/"` を書く。`name = parser`
   は右辺 parser の戻り値をそのまま record field に入れる。
-- `|` と `+` / `*` / `+?` / `*?` / `?` の lowering 追加済み。
-  `|` は `std::parse::choice`、量化子は `some` / `many` / lazy variants /
-  `optional` に落とす。interpolation は未実装。
+- `|` と `+` / `*` / `?` の lowering 追加済み。
+  `|` は `std::parse::choice`、量化子は PEG-style greedy repetition として
+  `some` / `many` / `optional` に落とす。`+?` / `*?` は active lowering では
+  診断する。interpolation は未実装。

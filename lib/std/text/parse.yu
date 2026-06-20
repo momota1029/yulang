@@ -11,7 +11,6 @@ pub act parse 'item 'err 'pos 'snap:
     pub fail: 'err -> never
     pub pos: () -> 'pos
     pub cut: () -> ()
-    pub is_cut: () -> bool
     pub snapshot: () -> 'snap
     pub restore: 'snap -> ()
 
@@ -46,7 +45,6 @@ pub struct str_error {
         our e.label label = str_error { line: e.line, column: e.column, unexpected: e.unexpected, expected: [label], message: e.message }
 
 pub run_str(input: str, line: int, column: int, parser: [parse char str_error (int, int) (str, int, int)] 'a): result 'a str_error =
-    my $cut = false
     catch parser:
         parse::item, k if input.len == 0 -> result::err(ParseError::unexpected(nil, (line, column)))
         parse::item, k ->
@@ -57,18 +55,17 @@ pub run_str(input: str, line: int, column: int, parser: [parse char str_error (i
                 _ -> run_str rest line column+1 k(item)
         parse::fail e, _ -> result::err e
         parse::pos(), k -> run_str input line column k((line, column))
-        parse::cut(), k ->
-            &cut = true
-            run_str input line column k()
-        parse::is_cut(), k -> run_str input line column k($cut)
+        parse::cut(), k -> run_str input line column k()
         parse::snapshot(), k -> run_str input line column k((input, line, column))
         parse::restore (input, line, column), k -> run_str input line column k()
         v -> result::ok v
 
-pub choice(p: () -> [parse 'item 'err 'pos 'snap] 'a, q: () -> [parse 'item 'err 'pos 'snap] 'a): [parse 'item 'err 'pos 'snap] 'a =
+pub choice(p: () -> [parse 'item 'err 'pos 'snap] 'a, q: () -> [parse 'item 'err 'pos 'snap] 'a, ()): [parse 'item 'err 'pos 'snap] 'a =
     my snap = parse::snapshot()
     catch p():
-        parse::fail e, _ if parse::is_cut() -> parse::fail e
+        parse::cut(), k ->
+            parse::cut()
+            catch k(): parse::fail e, _ -> parse::fail e
         parse::fail e1, _ ->
             parse::restore snap
             catch q(): parse::fail e2, _ -> parse::fail: e1.merge e2
@@ -85,12 +82,13 @@ my token_from(expected: str, i: int)(): [parse char 'err 'pos 'snap] unit =
 pub token(expected: str)(): [parse char 'err 'pos 'snap] unit =
     token_from(expected, 0)()
 
-pub optional(p: () -> [parse 'item 'err 'pos 'snap] 'a): [parse 'item 'err 'pos 'snap] opt 'a = choice(\() -> just (p()), \() -> nil)
+pub optional(p: () -> [parse 'item 'err 'pos 'snap] 'a)(): [parse 'item 'err 'pos 'snap] opt 'a = choice(\() -> just (p()), \() -> nil)()
 
 pub many(p: () -> [parse 'item 'err 'pos 'snap] 'a)(): [parse 'item 'err 'pos 'snap] list 'a =
     choice
         (\() -> [p(), ..many(p)()])
         (\() -> [])
+        ()
 
 pub some(p: () -> [parse 'item 'err 'pos 'snap] 'a)(): [parse 'item 'err 'pos 'snap] list 'a =
     [p(), ..many(p)()]

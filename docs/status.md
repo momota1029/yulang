@@ -125,9 +125,10 @@ The columns trace a value through the pipeline:
   return typed filesystem errors. These should not be treated as stable.
 - `rule { … }` and `~"..."` lower to the `std::text::parse` combinator
   surface for the basic parser DSL. Plain tokens, lazy captures, single-item
-  interpolation, alternation, and eager `*` / `+` / `?` quantifiers are covered;
-  lazy quantifiers, multi-item interpolation, and runtime exposure are still
-  incomplete.
+  interpolation, alternation, and PEG-style greedy `*` / `+` / `?` quantifiers
+  are covered. Regex-style lazy quantifiers are intentionally rejected by the
+  active `rule` lowering; multi-item interpolation and runtime exposure are
+  still incomplete.
 - Quoted Yumark expressions (`'[...]` / `'{...}`) parse, but the active infer
   lowering does not assign them a value model yet.
 - The compiled-unit cache and the `realm.toml` / `yulang.lock` package

@@ -349,11 +349,19 @@ pub(super) struct BodyLowerer {
     pub(super) impl_cursors: FxHashMap<ModuleId, usize>,
     pub(super) cast_cursors: FxHashMap<ModuleId, usize>,
     pub(super) role_requirements: FxHashMap<DefId, RoleMethodRequirement>,
+    pub(super) deferred_result_annotation_checks: Vec<DeferredResultAnnotationCheck>,
     pub(super) local_method_scope: Option<ModuleId>,
     pub(super) record_source_spans: bool,
     // Synthetic act copy bodies are implementation helpers. Their computed bindings keep
     // BindingFetch for use-site semantics, but they are not source-level runtime roots.
     pub(super) suppress_runtime_roots: bool,
+}
+
+pub(super) struct DeferredResultAnnotationCheck {
+    def: poly::expr::DefId,
+    name: Name,
+    arity: usize,
+    expected: SignatureType,
 }
 
 impl BodyLowerer {
@@ -379,6 +387,7 @@ impl BodyLowerer {
             impl_cursors: FxHashMap::default(),
             cast_cursors: FxHashMap::default(),
             role_requirements: FxHashMap::default(),
+            deferred_result_annotation_checks: Vec::new(),
             local_method_scope: None,
             record_source_spans: true,
             suppress_runtime_roots: false,
@@ -394,6 +403,11 @@ impl BodyLowerer {
         let analysis_timing = session.timing();
         let constraint_timing = session.infer.constraint_timing();
         let mut errors = self.errors;
+        errors.extend(deferred_result_annotation_errors(
+            &session,
+            &self.modules,
+            &self.deferred_result_annotation_checks,
+        ));
         errors.extend(
             session
                 .take_diagnostics()
@@ -648,6 +662,19 @@ impl BodyLowerer {
         match lowered {
             Ok(computation) => {
                 let connected = if has_header_args {
+                    if let Some(type_expr) = result_type_expr.as_ref() {
+                        self.defer_result_annotation_check(
+                            decl.def,
+                            name.clone(),
+                            arg_patterns.len(),
+                            module,
+                            decl.order,
+                            self_alias.clone(),
+                            type_var_aliases,
+                            type_name_aliases,
+                            type_expr,
+                        );
+                    }
                     Ok(())
                 } else {
                     self.connect_binding_annotation(
@@ -956,6 +983,105 @@ impl BodyLowerer {
             .build_type_expr(target_type_expr)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
         build_cast_scheme_from_ann(&mut self.session.poly, &self.modules, &source, &target)
+    }
+}
+
+fn deferred_result_annotation_errors(
+    session: &AnalysisSession,
+    modules: &ModuleTable,
+    checks: &[DeferredResultAnnotationCheck],
+) -> Vec<BodyLoweringError> {
+    checks
+        .iter()
+        .filter_map(|check| {
+            let scheme = match session.poly.defs.get(check.def) {
+                Some(Def::Let {
+                    scheme: Some(scheme),
+                    ..
+                }) => scheme,
+                _ => return None,
+            };
+            let result = scheme_result_pos(&session.poly.typ, scheme, check.arity)?;
+            if poly_pos_matches_signature(&session.poly.typ, modules, result, &check.expected) {
+                return None;
+            }
+            Some(BodyLoweringError::Expr {
+                def: check.def,
+                name: check.name.clone(),
+                error: LoweringError::SignatureTypeMismatch {
+                    expected: SignatureShape::of(&check.expected),
+                },
+            })
+        })
+        .collect()
+}
+
+fn scheme_result_pos(
+    types: &poly::types::TypeArena,
+    scheme: &poly::types::Scheme,
+    arity: usize,
+) -> Option<PosId> {
+    let mut pos = scheme.predicate;
+    for _ in 0..arity {
+        pos = match types.pos(pos) {
+            Pos::Fun { ret, .. } => *ret,
+            Pos::NonSubtract(inner, _) | Pos::Stack { inner, .. } => *inner,
+            Pos::Bot | Pos::Var(_) => return None,
+            _ => return Some(pos),
+        };
+    }
+    Some(pos)
+}
+
+fn poly_pos_matches_signature(
+    types: &poly::types::TypeArena,
+    modules: &ModuleTable,
+    pos: PosId,
+    expected: &SignatureType,
+) -> bool {
+    match types.pos(pos) {
+        Pos::Bot | Pos::Var(_) => true,
+        Pos::NonSubtract(inner, _) | Pos::Stack { inner, .. } => {
+            poly_pos_matches_signature(types, modules, *inner, expected)
+        }
+        Pos::Union(left, right) => {
+            poly_pos_matches_signature(types, modules, *left, expected)
+                && poly_pos_matches_signature(types, modules, *right, expected)
+        }
+        actual => poly_pos_node_matches_signature(types, modules, actual, expected),
+    }
+}
+
+fn poly_pos_node_matches_signature(
+    types: &poly::types::TypeArena,
+    modules: &ModuleTable,
+    actual: &Pos,
+    expected: &SignatureType,
+) -> bool {
+    match expected {
+        SignatureType::Var(_) => true,
+        SignatureType::Effectful { ret, .. } => {
+            poly_pos_node_matches_signature(types, modules, actual, ret)
+        }
+        SignatureType::Function { ret, .. } => match actual {
+            Pos::Fun {
+                ret: actual_ret, ..
+            } => poly_pos_matches_signature(types, modules, *actual_ret, ret),
+            _ => false,
+        },
+        SignatureType::Tuple(items) => match actual {
+            Pos::Tuple(actual_items) => {
+                actual_items.len() == items.len()
+                    && actual_items.iter().zip(items).all(|(actual, expected)| {
+                        poly_pos_matches_signature(types, modules, *actual, expected)
+                    })
+            }
+            _ => false,
+        },
+        SignatureType::EffectRow(_) => matches!(actual, Pos::Row(_)),
+        SignatureType::Builtin(_) | SignatureType::Named(_) | SignatureType::Apply { .. } => {
+            matches!(actual, Pos::Con(_, _))
+        }
     }
 }
 

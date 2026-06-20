@@ -13,6 +13,10 @@ pub enum LoweringError {
     UnsupportedPatternSyntax {
         kind: SyntaxKind,
     },
+    UnsupportedRuleLazyQuantifier {
+        kind: SyntaxKind,
+        source_range: SourceRange,
+    },
     UnresolvedName {
         name: Name,
         source_range: Option<SourceRange>,

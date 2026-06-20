@@ -326,11 +326,25 @@ struct EffectSubtractionDemand {
 }
 
 struct Solution {
-    slots: Vec<Option<Type>>,
+    slots: Vec<SlotSolution>,
+}
+
+#[derive(Debug, Clone)]
+enum SlotSolution {
+    Unknown,
+    Resolved(Type),
+    Conflicting { existing: Type, incoming: Type },
+}
+
+impl SlotSolution {
+    fn is_settled(&self) -> bool {
+        !matches!(self, Self::Unknown)
+    }
 }
 
 struct TypeResolver<'a, 'solution> {
     graph: &'a TypeGraph<'a>,
     solution: &'solution Solution,
     resolving: HashSet<u32>,
+    candidate_cache: HashMap<u32, Type>,
 }

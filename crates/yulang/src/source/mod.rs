@@ -2006,6 +2006,9 @@ fn lowering_error_source_range(error: &infer::lowering::LoweringError) -> Option
         infer::lowering::LoweringError::UnsupportedTopLevelVarBinding { source_range, .. } => {
             *source_range
         }
+        infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { source_range, .. } => {
+            Some(*source_range)
+        }
         _ => None,
     }
 }

@@ -6,6 +6,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             graph,
             solution,
             resolving: HashSet::new(),
+            candidate_cache: HashMap::new(),
         }
     }
 
@@ -137,12 +138,21 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
     ) -> Result<Type, SpecializeError> {
         if let Type::OpenVar(slot) = ty {
             return match self.solution.slots.get(*slot as usize) {
-                Some(Some(solution)) => {
+                Some(SlotSolution::Resolved(solution)) => {
                     let solution = solution.clone();
                     self.resolve_from_context(&solution, context, allow_leaf)
                 }
-                Some(None) if allow_leaf => self.resolve(context),
-                Some(None) => Err(SpecializeError::UndeterminedTypeSlot { slot: *slot }),
+                Some(SlotSolution::Unknown) if allow_leaf => self.resolve(context),
+                Some(SlotSolution::Unknown) => {
+                    Err(SpecializeError::UndeterminedTypeSlot { slot: *slot })
+                }
+                Some(SlotSolution::Conflicting { existing, incoming }) => {
+                    Err(SpecializeError::ConflictingTypeCandidates {
+                        slot: *slot,
+                        existing: existing.clone(),
+                        incoming: incoming.clone(),
+                    })
+                }
                 None => Err(SpecializeError::InvalidTypeSlot { slot: *slot }),
             };
         }
@@ -308,8 +318,17 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
 
     pub(super) fn slot_solution(&mut self, slot: u32) -> Result<Type, SpecializeError> {
         let ty = match self.solution.slots.get(slot as usize) {
-            Some(Some(ty)) => ty.clone(),
-            Some(None) => return Err(SpecializeError::UndeterminedTypeSlot { slot }),
+            Some(SlotSolution::Resolved(ty)) => ty.clone(),
+            Some(SlotSolution::Unknown) => {
+                return Err(SpecializeError::UndeterminedTypeSlot { slot });
+            }
+            Some(SlotSolution::Conflicting { existing, incoming }) => {
+                return Err(SpecializeError::ConflictingTypeCandidates {
+                    slot,
+                    existing: existing.clone(),
+                    incoming: incoming.clone(),
+                });
+            }
             None => return Err(SpecializeError::InvalidTypeSlot { slot }),
         };
         if !self.resolving.insert(slot) {
@@ -321,6 +340,9 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
     }
 
     pub(super) fn try_slot_solution(&mut self, slot: u32) -> Result<Option<Type>, SpecializeError> {
+        if let Some(solution) = self.candidate_cache.get(&slot) {
+            return Ok(Some(solution.clone()));
+        }
         if !self.resolving.insert(slot) {
             return Ok(None);
         }
@@ -331,6 +353,9 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             .ok_or(SpecializeError::InvalidTypeSlot { slot })?;
         let solution = self.compute_slot_solution(slot, slot_data)?;
         self.resolving.remove(&slot);
+        if let Some(solution) = &solution {
+            self.candidate_cache.insert(slot, solution.clone());
+        }
         Ok(solution)
     }
 
@@ -350,16 +375,6 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                 None => bound,
             });
         }
-        for predecessor in &slot_data.predecessors {
-            let Some(predecessor) = self.try_slot_solution(*predecessor)? else {
-                continue;
-            };
-            let predecessor = effect_slot_candidate(slot_data.kind, predecessor);
-            lower = Some(match lower {
-                Some(existing) => join_type_candidates(self.graph, existing, predecessor)?,
-                None => predecessor,
-            });
-        }
         let mut upper = self.meet_bounds(slot_data.kind, &slot_data.upper)?;
         for bound in &slot_data.weighted_upper {
             let Some(bound) = self.resolve_weight_inert_bound_candidate(bound)? else {
@@ -369,6 +384,23 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
             upper = Some(match upper {
                 Some(existing) => meet_type_candidates(self.graph, existing, bound)?,
                 None => bound,
+            });
+        }
+        let local_exact = match (&lower, &upper) {
+            (Some(lower), Some(upper)) if lower == upper => Some(lower.clone()),
+            _ => None,
+        };
+        if let Some(candidate) = local_exact {
+            return self.erase_stack_solution_candidate(Some(candidate));
+        }
+        for predecessor in &slot_data.predecessors {
+            let Some(predecessor) = self.try_slot_solution(*predecessor)? else {
+                continue;
+            };
+            let predecessor = effect_slot_candidate(slot_data.kind, predecessor);
+            lower = Some(match lower {
+                Some(existing) => join_type_candidates(self.graph, existing, predecessor)?,
+                None => predecessor,
             });
         }
         for successor in &slot_data.successors {
@@ -655,12 +687,22 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                 let Some(solution) = self.solution.slots.get(*slot as usize) else {
                     return Err(SpecializeError::InvalidTypeSlot { slot: *slot });
                 };
-                let Some(ty) = solution else {
-                    return if allow_unresolved_leaf {
-                        Ok(Some(Type::OpenVar(*slot)))
-                    } else {
-                        Ok(None)
-                    };
+                let ty = match solution {
+                    SlotSolution::Resolved(ty) => ty,
+                    SlotSolution::Unknown => {
+                        return if allow_unresolved_leaf {
+                            Ok(Some(Type::OpenVar(*slot)))
+                        } else {
+                            Ok(None)
+                        };
+                    }
+                    SlotSolution::Conflicting { existing, incoming } => {
+                        return Err(SpecializeError::ConflictingTypeCandidates {
+                            slot: *slot,
+                            existing: existing.clone(),
+                            incoming: incoming.clone(),
+                        });
+                    }
                 };
                 if !self.resolving.insert(*slot) {
                     return if allow_unresolved_leaf {

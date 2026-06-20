@@ -70,6 +70,61 @@ fn function_lower_candidates_do_not_unify_ret_effects_invariantly() {
 }
 
 #[test]
+fn pinned_slot_solution_ignores_successor_fanout() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let pinned = graph.fresh_value();
+
+    graph
+        .constrain_subtype(Type::unit(), pinned.clone())
+        .unwrap();
+    graph
+        .constrain_subtype(pinned.clone(), Type::unit())
+        .unwrap();
+    for _ in 0..64 {
+        let successor = graph.fresh_value();
+        graph.constrain_subtype(pinned.clone(), successor).unwrap();
+    }
+
+    graph.solve_constraints().unwrap();
+    let solution = graph.solve_slots().unwrap();
+    let mut resolver = TypeResolver::new(&graph, &solution);
+
+    assert_eq!(resolver.resolve(&pinned).unwrap(), Type::unit());
+}
+
+#[test]
+fn solve_slots_records_unread_conflicts_without_aborting() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let conflicted = graph.fresh_value();
+    let resolved = graph.fresh_value();
+
+    graph
+        .constrain_subtype(int_type(), conflicted.clone())
+        .unwrap();
+    graph
+        .constrain_subtype(Type::unit(), conflicted.clone())
+        .unwrap();
+    graph
+        .constrain_subtype(Type::unit(), resolved.clone())
+        .unwrap();
+    graph
+        .constrain_subtype(resolved.clone(), Type::unit())
+        .unwrap();
+
+    graph.solve_constraints().unwrap();
+    let solution = graph.solve_slots().unwrap();
+    let mut resolver = TypeResolver::new(&graph, &solution);
+
+    assert_eq!(resolver.resolve(&resolved).unwrap(), Type::unit());
+    assert!(matches!(
+        resolver.resolve(&conflicted).unwrap_err(),
+        SpecializeError::ConflictingTypeCandidates { .. }
+    ));
+}
+
+#[test]
 fn effect_row_candidates_merge_same_family_arguments() {
     let arena = poly_expr::Arena::new();
     let mut graph = TypeGraph::new(&arena);
@@ -562,7 +617,10 @@ fn function_subtyping_compares_split_runtime_return_shapes() {
 
     let solution = graph.solve_slots().unwrap();
     assert!(solution.slots.iter().any(|slot| {
-        matches!(slot, Some(Type::EffectRow(items)) if items == &vec![effect_item.clone()])
+        matches!(
+            slot,
+            SlotSolution::Resolved(Type::EffectRow(items)) if items == &vec![effect_item.clone()]
+        )
     }));
 }
 

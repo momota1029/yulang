@@ -746,6 +746,7 @@ impl<'a> ExprLowerer<'a> {
         let ann = ann_builder
             .build_type_expr(type_expr)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        self.check_result_annotation_type(body.value, &ann)?;
         let vars = std::mem::take(ann_solver_vars);
         let mut lowerer =
             AnnConstraintLowerer::with_vars(&mut self.session.infer, self.modules, vars);
@@ -763,6 +764,21 @@ impl<'a> ExprLowerer<'a> {
         self.constrain_effect_filters(body.effect, &connection.subtracts);
         self.extend_current_predicate_subtracts(connection.subtracts);
         Ok(())
+    }
+
+    fn check_result_annotation_type(
+        &self,
+        value: TypeVar,
+        ann: &AnnType,
+    ) -> Result<(), LoweringError> {
+        let expected = signature_from_ann_type(ann);
+        let actual = compact_type_var(self.session.infer.constraints(), value);
+        if compact_type_matches_signature_shape(&actual.root, &expected, self.modules) {
+            return Ok(());
+        }
+        Err(LoweringError::SignatureTypeMismatch {
+            expected: SignatureShape::of(&expected),
+        })
     }
 
     fn constrain_effect_filters(&mut self, effect: TypeVar, weights: &[StackWeight]) {

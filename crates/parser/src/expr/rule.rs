@@ -243,7 +243,7 @@ fn parse_rule_body_tail<I: EventInput, S: EventSink>(
                 return Some(rhs_result);
             }
             RuleLedTag::Quant => {
-                // `expr*`, `expr+`, `expr?`, `expr*?`, `expr+?`
+                // `expr*`, `expr+`, `expr?`; lazy tokens are kept for diagnostics.
                 i.env.state.sink.start(SyntaxKind::RuleQuant);
                 i.env.state.sink.lex(&led.lex);
                 i.env.state.sink.finish();

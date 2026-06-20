@@ -32,6 +32,32 @@ pub(super) fn compact_type_matches_signature(
     }
 }
 
+pub(super) fn compact_type_matches_signature_shape(
+    actual: &CompactType,
+    expected: &SignatureType,
+    modules: &ModuleTable,
+) -> bool {
+    if actual.never {
+        return true;
+    }
+    match expected {
+        SignatureType::Var(_) => true,
+        SignatureType::Effectful { ret, .. } => {
+            compact_type_matches_signature_shape(actual, ret, modules)
+        }
+        SignatureType::Function { ret, .. } => {
+            compact_type_matches_function_signature_shape(actual, ret, modules)
+        }
+        SignatureType::Tuple(items) => {
+            compact_type_matches_tuple_signature_shape(actual, items, modules)
+        }
+        SignatureType::EffectRow(_) => compact_type_matches_effect_row_signature(actual),
+        SignatureType::Builtin(_) | SignatureType::Named(_) | SignatureType::Apply { .. } => {
+            !compact_type_has_concrete_non_constructor(actual)
+        }
+    }
+}
+
 pub(super) fn builtin_annotation_mismatch(
     actual: &CompactType,
     expected: &SignatureType,
@@ -56,6 +82,20 @@ fn compact_type_matches_function_signature(
         .all(|fun| compact_fun_matches_signature(fun, expected_ret, modules))
 }
 
+fn compact_type_matches_function_signature_shape(
+    actual: &CompactType,
+    expected_ret: &SignatureType,
+    modules: &ModuleTable,
+) -> bool {
+    if compact_type_has_concrete_non_function(actual) {
+        return false;
+    }
+    actual
+        .funs
+        .iter()
+        .all(|fun| compact_fun_matches_signature_shape(fun, expected_ret, modules))
+}
+
 fn compact_type_matches_tuple_signature(
     actual: &CompactType,
     expected_items: &[SignatureType],
@@ -74,12 +114,40 @@ fn compact_type_matches_tuple_signature(
     })
 }
 
+fn compact_type_matches_tuple_signature_shape(
+    actual: &CompactType,
+    expected_items: &[SignatureType],
+    modules: &ModuleTable,
+) -> bool {
+    if compact_type_has_concrete_non_tuple(actual) {
+        return false;
+    }
+    actual.tuples.iter().all(|tuple| {
+        tuple.items.len() == expected_items.len()
+            && tuple
+                .items
+                .iter()
+                .zip(expected_items)
+                .all(|(actual, expected)| {
+                    compact_type_matches_signature_shape(actual, expected, modules)
+                })
+    })
+}
+
 fn compact_fun_matches_signature(
     actual: &CompactFun,
     expected_ret: &SignatureType,
     modules: &ModuleTable,
 ) -> bool {
     compact_type_matches_signature(&actual.ret, expected_ret, modules)
+}
+
+fn compact_fun_matches_signature_shape(
+    actual: &CompactFun,
+    expected_ret: &SignatureType,
+    modules: &ModuleTable,
+) -> bool {
+    compact_type_matches_signature_shape(&actual.ret, expected_ret, modules)
 }
 
 fn compact_type_matches_effect_row_signature(actual: &CompactType) -> bool {

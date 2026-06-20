@@ -172,7 +172,7 @@ pub enum RuleNudTag {
 pub enum RuleLedTag {
     /// `=` — キャプチャバインディング
     Equal,
-    /// `*`, `+`, `?`, `*?`, `+?` — 量化子（接尾辞）
+    /// `*`, `+`, `?` — 量化子（接尾辞）。`*?` / `+?` は診断用 token として残す。
     Quant,
     /// `.field` — フィールドアクセス
     Field,
@@ -248,7 +248,7 @@ pub fn scan_rule_body_led<I: EventInput, S: EventSink>(
 
     // スペースなし → 全LED
     i.choice((
-        // 量化子（`*?`, `+?`, `*`, `+`, `?`）
+        // 量化子（active: `*`, `+`, `?`; reserved/diagnostic: `*?`, `+?`）
         from_fn(|i| scan_rule_quant(leading_info, i).map(|lex| lex.tag(RuleLedTag::Quant))),
         // `.field`
         from_fn(|mut i: In<I, S>| {

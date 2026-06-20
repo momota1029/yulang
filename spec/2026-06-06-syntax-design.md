@@ -1663,14 +1663,19 @@ rule item tail:
 ```text
 rule_tail =
     "=" rule_item
-  | "*" | "+" | "?" | "*?" | "+?"
+  | "*" | "+" | "?"
   | "." field
   | "::" ident
   | "(" expr_list? ")"
   | "[" expr_list? "]"
 ```
 
-実際の quantifier token は `*` / `+` / `?` / `*?` / `+?` である。
+実際の active quantifier token は `*` / `+` / `?` である。
+`rule` は PEG-like な ordered parser DSL とし、`*` / `+` は後続 parser のために
+戻らない greedy / possessive repetition として扱う。これは regex の backtracking
+`*` ではなく、regex で言えば `*+` / `++` に近い。
+`*?` / `+?` は scanner では互換・診断用に token 化されることがあるが、
+active lowering では対応しない。regex 的な lazy repetition は別機構として扱う。
 rule tail の空白条件は通常 expression と違う。leading trivia が `Space` の tail では
 `=` だけが読まれる。quantifier / `.field` / `::` / `(` / `[` は空白なしの場合だけ tail になる。
 newline は rule body / rule paren group の separator 側へ返る。
@@ -1681,7 +1686,7 @@ newline は rule body / rule paren group の separator 側へ返る。
 rule { "hello" }
 rule { a b = c(d) e }
 rule { a b* | c+ d }
-rule { a*? b+? c? }
+rule { a* b+ c? }
 rule { peg::digit.many }
 rule { a=b }
 rule { a = b }

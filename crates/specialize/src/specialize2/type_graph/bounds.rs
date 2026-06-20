@@ -522,18 +522,28 @@ impl<'a> TypeGraph<'a> {
 
     pub(in crate::specialize2) fn solve_slots(&self) -> Result<Solution, SpecializeError> {
         let mut solution = Solution {
-            slots: vec![None; self.slots.len()],
+            slots: vec![SlotSolution::Unknown; self.slots.len()],
         };
         loop {
             let mut progressed = false;
             for slot in 0..self.slots.len() {
-                if solution.slots[slot].is_some() {
+                if solution.slots[slot].is_settled() {
                     continue;
                 }
                 let mut resolver = TypeResolver::new(self, &solution);
-                if let Some(ty) = resolver.try_slot_solution(slot as u32)? {
-                    solution.slots[slot] = Some(ty);
-                    progressed = true;
+                match resolver.try_slot_solution(slot as u32) {
+                    Ok(Some(ty)) => {
+                        solution.slots[slot] = SlotSolution::Resolved(ty);
+                        progressed = true;
+                    }
+                    Ok(None) => {}
+                    Err(SpecializeError::ConflictingTypeCandidates {
+                        existing, incoming, ..
+                    }) => {
+                        solution.slots[slot] = SlotSolution::Conflicting { existing, incoming };
+                        progressed = true;
+                    }
+                    Err(error) => return Err(error),
                 }
             }
             if !progressed {

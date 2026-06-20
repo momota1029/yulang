@@ -18,6 +18,11 @@ struct RuleParserItem {
     semantic: RuleSemantic,
 }
 
+struct RuleQuantifier {
+    kind: SyntaxKind,
+    source_range: SourceRange,
+}
+
 struct RuleLowered {
     expr: Computation,
     semantic: RuleSemantic,
@@ -229,13 +234,17 @@ impl<'a> ExprLowerer<'a> {
     fn lower_rule_quant(
         &mut self,
         node: &Cst,
-        quant: SyntaxKind,
+        quant: RuleQuantifier,
     ) -> Result<RuleParserItem, LoweringError> {
-        let combinator = match quant {
+        let combinator = match quant.kind {
             SyntaxKind::RuleQuantStar => "many",
             SyntaxKind::RuleQuantPlus => "some",
-            SyntaxKind::RuleQuantStarLazy => "many_lazy",
-            SyntaxKind::RuleQuantPlusLazy => "some_lazy",
+            SyntaxKind::RuleQuantStarLazy | SyntaxKind::RuleQuantPlusLazy => {
+                return Err(LoweringError::UnsupportedRuleLazyQuantifier {
+                    kind: quant.kind,
+                    source_range: quant.source_range,
+                });
+            }
             SyntaxKind::RuleQuantOpt => "optional",
             _ => {
                 return Err(LoweringError::UnsupportedSyntax {
@@ -479,7 +488,7 @@ fn rule_expr_capture(node: &Cst) -> Option<(Name, Cst)> {
     Some((name, parser))
 }
 
-fn rule_quant(node: &Cst) -> Option<SyntaxKind> {
+fn rule_quant(node: &Cst) -> Option<RuleQuantifier> {
     node.children()
         .find(|child| child.kind() == SyntaxKind::RuleQuant)?
         .children_with_tokens()
@@ -489,7 +498,10 @@ fn rule_quant(node: &Cst) -> Option<SyntaxKind> {
             | SyntaxKind::RuleQuantPlus
             | SyntaxKind::RuleQuantStarLazy
             | SyntaxKind::RuleQuantPlusLazy
-            | SyntaxKind::RuleQuantOpt => Some(token.kind()),
+            | SyntaxKind::RuleQuantOpt => Some(RuleQuantifier {
+                kind: token.kind(),
+                source_range: crate::token_source_range(&token),
+            }),
             _ => None,
         })
 }

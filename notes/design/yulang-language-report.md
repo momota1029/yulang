@@ -1265,7 +1265,7 @@ case s:
 - `|` による alternation
 - 空白による sequence
 - `name = rhs` capture
-- `*` / `+` / `?` / `*?` / `+?` quantifier
+- PEG-style `*` / `+` / `?` quantifier
 - `.field`
 - `::path`
 - call `(...)`

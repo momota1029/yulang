@@ -2558,7 +2558,7 @@ fn expr_rule_lit_interp_capture() {
 
 #[test]
 fn expr_rule_body_quantifier_lazy() {
-    // rule { a*? b+? c? } — lazy 量化子
+    // rule { a*? b+? c? } — reserved lazy tokens are preserved for diagnostics.
     let got = parse_expression("rule { a*? b+? c? }");
     let expected = vec![
         "(Expr",

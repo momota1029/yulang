@@ -115,6 +115,61 @@ fn result_effect_annotation_reuses_callback_tail() {
 }
 
 #[test]
+fn result_annotation_rejects_function_value_body() {
+    let root = parse("my bad(): int = \\() -> 1\n");
+    let lower = lower_module_map(&root);
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(
+        output.errors.iter().any(|error| {
+            matches!(
+                error,
+                BodyLoweringError::Expr {
+                    name,
+                    error:
+                        LoweringError::SignatureTypeMismatch {
+                            expected: SignatureShape::Constructor,
+                        },
+                    ..
+                } if name == &Name("bad".into())
+            )
+        }),
+        "{:?}",
+        output.errors
+    );
+}
+
+#[test]
+fn result_annotation_rejects_deferred_partial_application_body() {
+    let root = parse(concat!(
+        "my choose(p, q, ()): int = p()\n",
+        "my bad(): int = choose(\\() -> 1, \\() -> 2)\n",
+    ));
+    let lower = lower_module_map(&root);
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(
+        output.errors.iter().any(|error| {
+            matches!(
+                error,
+                BodyLoweringError::Expr {
+                    name,
+                    error:
+                        LoweringError::SignatureTypeMismatch {
+                            expected: SignatureShape::Constructor,
+                        },
+                    ..
+                } if name == &Name("bad".into())
+            )
+        }),
+        "{:?}",
+        output.errors
+    );
+}
+
+#[test]
 fn nested_callback_wildcard_return_keeps_push_and_pop_one() {
     let root = parse("pub full_compose(f: _ -> [_] _, g, x) = g f(x)\n");
     let lower = lower_module_map(&root);

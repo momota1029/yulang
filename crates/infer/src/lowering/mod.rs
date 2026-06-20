@@ -87,7 +87,10 @@ use expr_syntax::*;
 use local::*;
 pub use neg_signature::NegSignatureBuildError;
 use neg_signature::*;
-use signature_match::{builtin_annotation_mismatch, compact_type_matches_signature};
+use signature_match::{
+    builtin_annotation_mismatch, compact_type_matches_signature,
+    compact_type_matches_signature_shape,
+};
 use string_lit::{plain_string_expr_text, plain_string_lit_text};
 
 pub use crate::typing::{BindingFetch, Computation, Evaluation};

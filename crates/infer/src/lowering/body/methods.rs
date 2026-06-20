@@ -200,6 +200,34 @@ impl BodyLowerer {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn defer_result_annotation_check(
+        &mut self,
+        def: poly::expr::DefId,
+        name: Name,
+        arity: usize,
+        module: ModuleId,
+        site: ModuleOrder,
+        self_alias: Option<AnnSelfAlias>,
+        type_var_aliases: &[(String, String)],
+        type_name_aliases: &[(String, TypeDeclId)],
+        type_expr: &Cst,
+    ) {
+        let mut builder = ann_type_builder(&self.modules, module, site, self_alias);
+        add_type_var_aliases(&mut builder, type_var_aliases);
+        add_type_name_aliases(&mut builder, type_name_aliases);
+        let Ok(expected) = build_signature_type_expr(&mut builder, type_expr) else {
+            return;
+        };
+        self.deferred_result_annotation_checks
+            .push(DeferredResultAnnotationCheck {
+                def,
+                name,
+                arity,
+                expected,
+            });
+    }
+
     pub(super) fn check_binding_annotation_type(
         &self,
         value: TypeVar,
