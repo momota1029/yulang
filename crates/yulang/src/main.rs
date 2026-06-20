@@ -107,7 +107,12 @@ fn main() {
             ));
             let build = build_control_with_optional_cache(files, options.use_cache);
             run_route(
-                yulang::run_built_control_program(&build.program, build.file_count, build.errors),
+                yulang::run_built_control_program_with_labels(
+                    &build.program,
+                    build.file_count,
+                    build.errors.clone(),
+                    Some(&build.labels),
+                ),
                 print_run_control_output,
             );
         }
@@ -354,10 +359,11 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
         options.runtime_phase_timings.then_some(&mut timings),
     );
     let eval_start = Instant::now();
-    let output = run_route_to_value(yulang::run_built_control_program(
+    let output = run_route_to_value(yulang::run_built_control_program_with_labels(
         &build.program,
         build.file_count,
-        build.errors,
+        build.errors.clone(),
+        Some(&build.labels),
     ));
     timings.vm_eval = eval_start.elapsed();
     timings.control_validate = output.timings.validate;
@@ -411,6 +417,7 @@ fn build_control_with_optional_cache_timed(
         Ok(Some(cached)) => {
             return yulang::BuildControlOutput {
                 program: cached.program,
+                labels: cached.labels,
                 file_count: cached.file_count,
                 errors: cached.errors,
             };
@@ -423,6 +430,7 @@ fn build_control_with_optional_cache_timed(
     let output = run_route_to_value(yulang::build_control_from_poly_output(&poly));
     let artifact = yulang::cache::CachedControlArtifact {
         program: output.program.clone(),
+        labels: output.labels.clone(),
         file_count: output.file_count,
         errors: output.errors.clone(),
     };
@@ -462,6 +470,7 @@ fn build_control_without_cache_timed(
 
     yulang::BuildControlOutput {
         program,
+        labels: poly.labels,
         file_count: poly.file_count,
         errors: poly.errors,
     }
@@ -796,7 +805,7 @@ fn run_mono_with_optional_cache(
         }
     };
     yulang::RunMonoOutput {
-        text: yulang::format_run_mono_values(&values),
+        text: yulang::format_run_mono_values_with_labels(&values, Some(&output.labels)),
         file_count: output.file_count,
         errors: output.errors,
         values,

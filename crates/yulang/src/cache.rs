@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use crate::source::CollectedSource;
 
 const POLY_CACHE_FORMAT: u32 = 6;
-const CONTROL_CACHE_FORMAT: u32 = 6;
+const CONTROL_CACHE_FORMAT: u32 = 7;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
@@ -107,6 +107,7 @@ impl ArtifactCache {
         };
         Ok(Some(CachedControlArtifact {
             program: envelope.program,
+            labels: envelope.labels,
             file_count: envelope.file_count,
             errors: envelope.errors,
         }))
@@ -121,6 +122,7 @@ impl ArtifactCache {
         let envelope = ControlCacheEnvelope {
             format: CONTROL_CACHE_FORMAT,
             program: &artifact.program,
+            labels: &artifact.labels,
             file_count: artifact.file_count,
             errors: &artifact.errors,
         };
@@ -135,6 +137,7 @@ impl ArtifactCache {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CachedControlArtifact {
     pub program: control_vm::Program,
+    pub labels: poly::dump::DumpLabels,
     pub file_count: usize,
     pub errors: Vec<String>,
 }
@@ -274,9 +277,10 @@ struct PolyCacheEnvelope<T = poly::expr::Arena, L = poly::dump::DumpLabels, E = 
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ControlCacheEnvelope<T = control_vm::Program, E = Vec<String>> {
+struct ControlCacheEnvelope<T = control_vm::Program, L = poly::dump::DumpLabels, E = Vec<String>> {
     format: u32,
     program: T,
+    labels: L,
     file_count: usize,
     errors: E,
 }
@@ -354,7 +358,7 @@ impl<T, E> CacheEnvelope for PolyCacheEnvelope<T, E> {
     }
 }
 
-impl<T, E> CacheEnvelope for ControlCacheEnvelope<T, E> {
+impl<T, L, E> CacheEnvelope for ControlCacheEnvelope<T, L, E> {
     fn format(&self) -> u32 {
         self.format
     }
@@ -478,6 +482,7 @@ mod tests {
         let key = source_cache_key(&[source("main.yu", &[], "1\n")]);
         let artifact = CachedControlArtifact {
             program: control_vm::Program::default(),
+            labels: poly::dump::DumpLabels::new(),
             file_count: 1,
             errors: vec!["lowering warning".to_string()],
         };

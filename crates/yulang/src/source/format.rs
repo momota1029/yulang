@@ -1,19 +1,29 @@
 use super::*;
 
 pub fn format_run_mono_values(values: &[mono_runtime::Value]) -> String {
+    format_run_mono_values_with_labels(values, None)
+}
+
+pub fn format_run_mono_values_with_labels(
+    values: &[mono_runtime::Value],
+    labels: Option<&poly::dump::DumpLabels>,
+) -> String {
     let mut out = String::new();
     let _ = write!(out, "run roots [");
     for (index, value) in values.iter().enumerate() {
         if index > 0 {
             let _ = write!(out, ", ");
         }
-        let _ = write!(out, "{}", format_runtime_value(value));
+        let _ = write!(out, "{}", format_runtime_value_with_labels(value, labels));
     }
     let _ = writeln!(out, "]");
     out
 }
 
-pub(super) fn format_runtime_value(value: &mono_runtime::Value) -> String {
+fn format_runtime_value_with_labels(
+    value: &mono_runtime::Value,
+    labels: Option<&poly::dump::DumpLabels>,
+) -> String {
     if let Some(fraction) = format_runtime_fraction_value(value) {
         return fraction;
     }
@@ -26,14 +36,16 @@ pub(super) fn format_runtime_value(value: &mono_runtime::Value) -> String {
         mono_runtime::Value::Bytes(value) => format!("<bytes len={}>", value.len()),
         mono_runtime::Value::Bool(value) => value.to_string(),
         mono_runtime::Value::Unit => "()".to_string(),
-        mono_runtime::Value::Tuple(values) => format_delimited_values("(", ")", values),
+        mono_runtime::Value::Tuple(values) => {
+            format_delimited_mono_values("(", ")", values, labels)
+        }
         mono_runtime::Value::List(values) => {
             let values = values
                 .to_vec()
                 .into_iter()
                 .map(|value| (*value).clone())
                 .collect::<Vec<_>>();
-            format_delimited_values("[", "]", &values)
+            format_delimited_mono_values("[", "]", &values, labels)
         }
         mono_runtime::Value::Record(fields) => {
             let mut out = String::new();
@@ -46,7 +58,7 @@ pub(super) fn format_runtime_value(value: &mono_runtime::Value) -> String {
                     out,
                     "{}: {}",
                     field.name,
-                    format_runtime_value(&field.value)
+                    format_runtime_value_with_labels(&field.value, labels)
                 );
             }
             out.push('}');
@@ -56,22 +68,24 @@ pub(super) fn format_runtime_value(value: &mono_runtime::Value) -> String {
             if payloads.is_empty() {
                 return tag.clone();
             }
-            format!("{tag}{}", format_delimited_values("(", ")", payloads))
+            format!("{tag}{}", format_mono_call_payloads(payloads, labels))
         }
         mono_runtime::Value::DataConstructor { def, payloads } => {
+            let constructor = format_constructor_name(labels, def.0);
             if payloads.is_empty() {
-                return format!("<ctor d{}>", def.0);
+                return constructor;
             }
             format!(
-                "<ctor d{}>{}",
-                def.0,
-                format_delimited_values("(", ")", payloads)
+                "{}{}",
+                constructor,
+                format_mono_call_payloads(payloads, labels)
             )
         }
         mono_runtime::Value::ConstructorFunction(constructor) => {
+            let name = format_constructor_name(labels, constructor.def.0);
             format!(
-                "<ctor-fn d{} {}/{}>",
-                constructor.def.0,
+                "<ctor-fn {} {}/{}>",
+                name,
                 constructor.args.len(),
                 constructor.arity
             )
@@ -91,7 +105,114 @@ pub(super) fn format_runtime_value(value: &mono_runtime::Value) -> String {
         mono_runtime::Value::FunctionAdapter(_) => "<function-adapter>".to_string(),
         mono_runtime::Value::EffectOp { path } => format!("<effect-op {}>", path.join("::")),
         mono_runtime::Value::Continuation(id) => format!("<continuation {}>", id.0),
-        mono_runtime::Value::Marked { value, .. } => format_runtime_value(value),
+        mono_runtime::Value::Marked { value, .. } => {
+            format_runtime_value_with_labels(value, labels)
+        }
+    }
+}
+
+pub(super) fn format_run_control_values_with_labels(
+    values: &[control_vm::Value],
+    labels: Option<&poly::dump::DumpLabels>,
+) -> String {
+    let mut out = String::new();
+    let _ = write!(out, "run roots [");
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            let _ = write!(out, ", ");
+        }
+        let _ = write!(out, "{}", format_control_value_with_labels(value, labels));
+    }
+    let _ = writeln!(out, "]");
+    out
+}
+
+fn format_control_value_with_labels(
+    value: &control_vm::Value,
+    labels: Option<&poly::dump::DumpLabels>,
+) -> String {
+    if let Some(fraction) = format_control_fraction_value(value) {
+        return fraction;
+    }
+
+    match value {
+        control_vm::Value::Int(value) => value.to_string(),
+        control_vm::Value::BigInt(value) => value.to_string(),
+        control_vm::Value::Float(value) => value.to_string(),
+        control_vm::Value::Str(value) => format!("{:?}", value.to_flat_string()),
+        control_vm::Value::Bytes(value) => format!("<bytes len={}>", value.len()),
+        control_vm::Value::Bool(value) => value.to_string(),
+        control_vm::Value::Unit => "()".to_string(),
+        control_vm::Value::Tuple(values) => {
+            format_delimited_control_values("(", ")", values, labels)
+        }
+        control_vm::Value::List(values) => {
+            let values = values
+                .to_vec()
+                .into_iter()
+                .map(|value| (*value).clone())
+                .collect::<Vec<_>>();
+            format_delimited_control_values("[", "]", &values, labels)
+        }
+        control_vm::Value::Record(fields) => {
+            let mut out = String::new();
+            out.push('{');
+            for (index, field) in fields.iter().enumerate() {
+                if index > 0 {
+                    out.push_str(", ");
+                }
+                let _ = write!(
+                    out,
+                    "{}: {}",
+                    field.name,
+                    format_control_value_with_labels(&field.value, labels)
+                );
+            }
+            out.push('}');
+            out
+        }
+        control_vm::Value::PolyVariant { tag, payloads } => {
+            if payloads.is_empty() {
+                return tag.clone();
+            }
+            format!("{tag}{}", format_control_call_payloads(payloads, labels))
+        }
+        control_vm::Value::DataConstructor { def, payloads } => {
+            let constructor = format_constructor_name(labels, def.0);
+            if payloads.is_empty() {
+                return constructor;
+            }
+            format!(
+                "{}{}",
+                constructor,
+                format_control_call_payloads(payloads, labels)
+            )
+        }
+        control_vm::Value::ConstructorFunction(constructor) => {
+            let name = format_constructor_name(labels, constructor.def.0);
+            format!(
+                "<ctor-fn {} {}/{}>",
+                name,
+                constructor.args.len(),
+                constructor.arity
+            )
+        }
+        control_vm::Value::PrimitiveOp(primitive) => {
+            format!(
+                "<prim {:?} {}/{}>",
+                primitive.op,
+                primitive.args.len(),
+                primitive.op.arity()
+            )
+        }
+        control_vm::Value::Closure(_) | control_vm::Value::RecursiveClosure { .. } => {
+            "<closure>".to_string()
+        }
+        control_vm::Value::Thunk(_) => "<thunk>".to_string(),
+        control_vm::Value::FunctionAdapter(_) => "<function-adapter>".to_string(),
+        control_vm::Value::EffectOp { path } => format!("<effect-op {}>", path.join("::")),
+        control_vm::Value::Continuation(id) => format!("<continuation {}>", id.0),
+        control_vm::Value::Marked { value, .. } => format_control_value_with_labels(value, labels),
     }
 }
 
@@ -145,10 +266,61 @@ fn runtime_int_value(value: &mono_runtime::Value) -> Option<i64> {
     }
 }
 
-pub(super) fn format_delimited_values(
+fn format_control_fraction_value(value: &control_vm::Value) -> Option<String> {
+    // Runtime values erase struct identity, so raw root formatting recognizes
+    // std::num::frac by its canonical lowered shape.
+    match value {
+        control_vm::Value::Record(fields) => format_control_fraction_record(fields),
+        control_vm::Value::DataConstructor { payloads, .. } if payloads.len() == 1 => {
+            format_control_fraction_payload(&payloads[0])
+        }
+        control_vm::Value::Marked { value, .. } => format_control_fraction_value(value),
+        _ => None,
+    }
+}
+
+fn format_control_fraction_payload(value: &control_vm::Value) -> Option<String> {
+    match value {
+        control_vm::Value::Record(fields) => format_control_fraction_record(fields),
+        control_vm::Value::Marked { value, .. } => format_control_fraction_payload(value),
+        _ => None,
+    }
+}
+
+fn format_control_fraction_record(fields: &[control_vm::ValueField]) -> Option<String> {
+    if fields.len() != 2 {
+        return None;
+    }
+
+    let num = control_int_field(fields, "num")?;
+    let den = control_int_field(fields, "den")?;
+    if den == 1 {
+        Some(num.to_string())
+    } else {
+        Some(format!("{num}/{den}"))
+    }
+}
+
+fn control_int_field(fields: &[control_vm::ValueField], name: &str) -> Option<i64> {
+    fields
+        .iter()
+        .find(|field| field.name.as_str() == name)
+        .and_then(|field| control_int_value(&field.value))
+}
+
+fn control_int_value(value: &control_vm::Value) -> Option<i64> {
+    match value {
+        control_vm::Value::Int(value) => Some(*value),
+        control_vm::Value::Marked { value, .. } => control_int_value(value),
+        _ => None,
+    }
+}
+
+fn format_delimited_mono_values(
     open: &str,
     close: &str,
     values: &[mono_runtime::Value],
+    labels: Option<&poly::dump::DumpLabels>,
 ) -> String {
     let mut out = String::new();
     out.push_str(open);
@@ -156,13 +328,102 @@ pub(super) fn format_delimited_values(
         if index > 0 {
             out.push_str(", ");
         }
-        out.push_str(&format_runtime_value(value));
+        out.push_str(&format_runtime_value_with_labels(value, labels));
     }
     if values.len() == 1 && open == "(" {
         out.push(',');
     }
     out.push_str(close);
     out
+}
+
+fn format_delimited_control_values(
+    open: &str,
+    close: &str,
+    values: &[control_vm::Value],
+    labels: Option<&poly::dump::DumpLabels>,
+) -> String {
+    let mut out = String::new();
+    out.push_str(open);
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&format_control_value_with_labels(value, labels));
+    }
+    if values.len() == 1 && open == "(" {
+        out.push(',');
+    }
+    out.push_str(close);
+    out
+}
+
+fn format_mono_call_payloads(
+    values: &[mono_runtime::Value],
+    labels: Option<&poly::dump::DumpLabels>,
+) -> String {
+    format_delimited_mono_values_without_single_tuple_marker("(", ")", values, labels)
+}
+
+fn format_control_call_payloads(
+    values: &[control_vm::Value],
+    labels: Option<&poly::dump::DumpLabels>,
+) -> String {
+    format_delimited_control_values_without_single_tuple_marker("(", ")", values, labels)
+}
+
+fn format_delimited_mono_values_without_single_tuple_marker(
+    open: &str,
+    close: &str,
+    values: &[mono_runtime::Value],
+    labels: Option<&poly::dump::DumpLabels>,
+) -> String {
+    let mut out = String::new();
+    out.push_str(open);
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&format_runtime_value_with_labels(value, labels));
+    }
+    out.push_str(close);
+    out
+}
+
+fn format_delimited_control_values_without_single_tuple_marker(
+    open: &str,
+    close: &str,
+    values: &[control_vm::Value],
+    labels: Option<&poly::dump::DumpLabels>,
+) -> String {
+    let mut out = String::new();
+    out.push_str(open);
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&format_control_value_with_labels(value, labels));
+    }
+    out.push_str(close);
+    out
+}
+
+fn format_constructor_name(labels: Option<&poly::dump::DumpLabels>, def: u32) -> String {
+    let Some(label) = labels.and_then(|labels| labels.def_label(poly::expr::DefId(def))) else {
+        return format!("<ctor d{def}>");
+    };
+    shorten_constructor_label(label)
+}
+
+fn shorten_constructor_label(label: &str) -> String {
+    let mut parts = label.rsplit('.').filter(|part| !part.is_empty());
+    let Some(last) = parts.next() else {
+        return label.to_string();
+    };
+    let Some(parent) = parts.next() else {
+        return last.to_string();
+    };
+    format!("{parent}::{last}")
 }
 
 pub(super) fn format_check_poly_output(

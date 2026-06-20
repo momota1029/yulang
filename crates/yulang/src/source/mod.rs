@@ -29,7 +29,7 @@ use collector::*;
 use format::*;
 use std_sources::*;
 
-pub use format::format_run_mono_values;
+pub use format::{format_run_mono_values, format_run_mono_values_with_labels};
 pub use sources::SourceRange;
 
 pub const IMPLICIT_PRELUDE_IMPORT: &str = "use std::prelude::*\n";
@@ -100,6 +100,7 @@ pub fn build_control_from_poly_output(
     let program = control_vm::lower(&mono).map_err(RouteError::ControlLower)?;
     Ok(BuildControlOutput {
         program,
+        labels: output.labels.clone(),
         file_count: output.file_count,
         errors: output.errors.clone(),
     })
@@ -111,6 +112,15 @@ pub fn run_built_control_program(
     file_count: usize,
     errors: Vec<String>,
 ) -> Result<RunControlOutput, RouteError> {
+    run_built_control_program_with_labels(program, file_count, errors, None)
+}
+
+pub fn run_built_control_program_with_labels(
+    program: &control_vm::Program,
+    file_count: usize,
+    errors: Vec<String>,
+    labels: Option<&poly::dump::DumpLabels>,
+) -> Result<RunControlOutput, RouteError> {
     let mut stdout = String::new();
     let (values, stats, runtime_timings) =
         control_vm::run_program_with_host_stats_and_timings(program, &mut |path, payload| {
@@ -118,7 +128,7 @@ pub fn run_built_control_program(
         })
         .map_err(RouteError::Control)?;
     let format_start = Instant::now();
-    let text = format!("run roots {}\n", control_vm::format_values(&values));
+    let text = format_run_control_values_with_labels(&values, labels);
     let root_format = format_start.elapsed();
     Ok(RunControlOutput {
         text,
@@ -753,7 +763,12 @@ pub fn run_control_from_source_text_with_embedded_std(
     source: impl Into<String>,
 ) -> Result<RunControlOutput, RouteError> {
     let output = build_control_from_source_text_with_embedded_std(entry, source)?;
-    run_built_control_program(&output.program, output.file_count, output.errors)
+    run_built_control_program_with_labels(
+        &output.program,
+        output.file_count,
+        output.errors.clone(),
+        Some(&output.labels),
+    )
 }
 
 /// `base` から上へ辿って、デバッグ用の近場 std package root を探す。
@@ -865,6 +880,7 @@ pub struct SourceDiagnostic {
 #[derive(Debug, Clone, PartialEq)]
 pub struct BuildControlOutput {
     pub program: control_vm::Program,
+    pub labels: poly::dump::DumpLabels,
     pub file_count: usize,
     /// body lowering が報告したエラーの表示用整形。artifact とは別に stderr へ流す。
     pub errors: Vec<String>,
@@ -2102,7 +2118,7 @@ fn run_mono_from_sources(files: Vec<CollectedSource>) -> Result<RunMonoOutput, R
     let output = specialize_mono_from_sources(files)?;
     let values = mono_runtime::run_program(&output.program).map_err(RouteError::Runtime)?;
     Ok(RunMonoOutput {
-        text: format_run_mono_values(&values),
+        text: format_run_mono_values_with_labels(&values, Some(&output.labels)),
         file_count: output.file_count,
         errors: output.errors,
         values,
@@ -2111,7 +2127,12 @@ fn run_mono_from_sources(files: Vec<CollectedSource>) -> Result<RunMonoOutput, R
 
 fn run_control_from_sources(files: Vec<CollectedSource>) -> Result<RunControlOutput, RouteError> {
     let output = build_control_from_sources(files)?;
-    run_built_control_program(&output.program, output.file_count, output.errors)
+    run_built_control_program_with_labels(
+        &output.program,
+        output.file_count,
+        output.errors.clone(),
+        Some(&output.labels),
+    )
 }
 
 fn build_control_from_sources(
@@ -2123,6 +2144,7 @@ fn build_control_from_sources(
 
 struct SpecializedMonoOutput {
     program: specialize::mono::Program,
+    labels: poly::dump::DumpLabels,
     file_count: usize,
     errors: Vec<String>,
 }
@@ -2147,6 +2169,7 @@ fn specialize_mono_from_poly_output(
     let program = specialize::specialize(&output.arena).map_err(RouteError::Specialize)?;
     Ok(SpecializedMonoOutput {
         program,
+        labels: output.labels,
         file_count: output.file_count,
         errors: output.errors,
     })

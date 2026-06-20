@@ -59,7 +59,7 @@ pub fn dump_defs_raw_with_labels(arena: &Arena, labels: &DumpLabels, roots: &[De
 ///
 /// `poly` 本体は source 名を必須にしない。resolver / lowering 側が名前を持っている場合だけ、
 /// debug 表示用に `d0:name` / `r0:name` のような補助 label を足せる。
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DumpLabels {
     defs: FxHashMap<DefId, String>,
     refs: FxHashMap<RefId, String>,

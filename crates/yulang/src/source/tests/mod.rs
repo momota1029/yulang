@@ -76,8 +76,13 @@ fn run_with_vm_test_stack<T: Send + 'static>(run: impl FnOnce() -> T + Send + 's
 
 fn run_built_control_on_vm_test_stack(build: BuildControlOutput) -> (String, String) {
     run_with_vm_test_stack(move || {
-        let output = run_built_control_program(&build.program, build.file_count, build.errors)
-            .expect("control VM program should run");
+        let output = run_built_control_program_with_labels(
+            &build.program,
+            build.file_count,
+            build.errors,
+            Some(&build.labels),
+        )
+        .expect("control VM program should run");
         (output.text, output.stdout)
     })
 }
