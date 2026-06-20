@@ -46,6 +46,8 @@ pub struct str_error {
             str_error { line: l, column: c, unexpected: nil, expected: [label], message: [] }
         our e.label label = str_error { line: e.line, column: e.column, unexpected: e.unexpected, expected: [label], message: e.message }
 
+pub struct prefix_result 'a { value: 'a, rest: str }
+
 my advance_position(input: str, count: int, line: int, column: int): (int, int) =
     my loop(i: int, line: int, column: int): (int, int) =
         if i < count:
@@ -79,6 +81,44 @@ pub run_str(input: str, line: int, column: int, parser: [parse char str_error (i
             my (line, column) = advance_position(input, end, line, column)
             run_str rest line column k()
         v -> result::ok v
+
+pub run_prefix_str(input: str, line: int, column: int, parser: [parse char str_error (int, int) (str, int, int)] 'a): result (prefix_result 'a) str_error =
+    catch parser:
+        parse::item, k if input.len == 0 ->
+            result::err(str_error { line: line, column: column, unexpected: nil, expected: [], message: [] })
+        parse::item, k ->
+            my item = std::text::str::index_raw input 0
+            my rest = std::text::str::index_range input (std::data::range::from_excluded 0)
+            case item.to_string:
+                "\r" | "\r\n" | "\n" -> run_prefix_str rest line+1 1 k(item)
+                _ -> run_prefix_str rest line column+1 k(item)
+        parse::fail e, _ -> result::err e
+        parse::eof(), k -> run_prefix_str input line column k(input.len == 0)
+        parse::pos(), k -> run_prefix_str input line column k((line, column))
+        parse::cut(), k -> run_prefix_str input line column k()
+        parse::snapshot(), k -> run_prefix_str input line column k((input, line, column))
+        parse::restore (input, line, column), k -> run_prefix_str input line column k()
+        parse::advance count, k ->
+            my end = if count < input.len: count else: input.len
+            my rest = std::text::str::index_range_raw input end input.len
+            my (line, column) = advance_position(input, end, line, column)
+            run_prefix_str rest line column k()
+        v -> result::ok(prefix_result { value: v, rest: input })
+
+pub translate(parser: () -> [parse char str_error (int, int) (str, int, int)] 'a, replacement: 'a -> ['e] str, source: str): ['e] str =
+    my loop(rest: str): ['e] str =
+        if rest.len == 0:
+            ""
+        else:
+            case run_prefix_str(rest, 1, 1, parser()):
+                result::ok found ->
+                    if found.rest.len == rest.len:
+                        std::text::char::to_string(std::text::str::index_raw rest 0) + loop(std::text::str::index_range_raw rest 1 rest.len)
+                    else:
+                        replacement(found.value) + loop(found.rest)
+                result::err _ ->
+                    std::text::char::to_string(std::text::str::index_raw rest 0) + loop(std::text::str::index_range_raw rest 1 rest.len)
+    loop source
 
 pub choice(p: () -> [parse 'item 'err 'pos 'snap] 'a, q: () -> [parse 'item 'err 'pos 'snap] 'a, ()): [parse 'item 'err 'pos 'snap] 'a =
     my snap = parse::snapshot()

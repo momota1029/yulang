@@ -577,6 +577,20 @@ first_over 40
 }
 
 #[test]
+fn run_control_source_text_with_embedded_playground_std_replaces_strings() {
+    let build = build_control_from_source_text_with_embedded_playground_std(
+        "playground.yu",
+        r#"("a-b-a".replace_once "a" "x", "a-b-a".replace_all "a" "x")"#,
+    )
+    .unwrap();
+    assert!(build.file_count < embedded_std_files().len() + 1);
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(output.0, "run roots [(\"x-b-a\", \"x-b-x\")]\n");
+}
+
+#[test]
 fn run_control_source_text_with_embedded_std_runs_root_expression() {
     let output =
         run_control_from_source_text_with_embedded_std("playground.yu", "1 + 2\n").unwrap();
@@ -600,6 +614,74 @@ fn run_control_source_text_with_embedded_std_runs_parse_word_to_end() {
         output.0,
         "run roots [(result::ok(\"abc\"), result::ok(\"abc\"))]\n"
     );
+}
+
+#[test]
+fn run_control_source_text_with_embedded_std_replaces_strings() {
+    let build = build_control_from_source_text_with_embedded_std(
+        "playground.yu",
+        "\
+(
+  std::text::str::replace_once(\"a-b-a\", \"a\", \"x\"),
+  std::text::str::replace_all(\"a-b-a\", \"a\", \"x\"),
+  std::text::str::replace_all(\"aaa\", \"aa\", \"x\"),
+  std::text::str::replace_all(\"abc\", \"\", \"x\")
+)
+",
+    )
+    .unwrap();
+    assert_eq!(build.file_count, embedded_std_files().len() + 1);
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(
+        output.0,
+        "run roots [(\"x-b-a\", \"x-b-x\", \"xa\", \"abc\")]\n"
+    );
+}
+
+#[test]
+fn run_control_source_text_with_embedded_std_translates_parse_matches() {
+    let build = build_control_from_source_text_with_embedded_std(
+        "playground.yu",
+        "\
+use std::text::parse::*
+
+my variable = rule { \"{{\" name = word \"}}\" }
+my render({name}) = case name:
+  \"name\" -> \"Yulang\"
+  \"place\" -> \"world\"
+  _ -> \"?\"
+
+my template = translate(variable, render, \"hello {{name}} from {{place}}!\")
+
+template
+",
+    )
+    .unwrap();
+    assert_eq!(build.file_count, embedded_std_files().len() + 1);
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(output.0, "run roots [\"hello Yulang from world!\"]\n");
+}
+
+#[test]
+fn run_control_source_text_with_embedded_std_translates_plain_rule_literals() {
+    let build = build_control_from_source_text_with_embedded_std(
+        "playground.yu",
+        "\
+use std::text::parse::*
+
+translate(~\"hello\", \\() -> \"hi\", \"hello hello\")
+",
+    )
+    .unwrap();
+    assert_eq!(build.file_count, embedded_std_files().len() + 1);
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(output.0, "run roots [\"hi hi\"]\n");
 }
 
 #[test]

@@ -1,4 +1,5 @@
 use std::core::ops::*
+use std::data::opt::*
 use std::data::index::*
 use std::data::fold::*
 use std::data::range::*
@@ -71,6 +72,8 @@ impl (ref_lines 'e): Fold:
 
 pub type str with:
     pub s.splice r insert = std::text::str::splice s r insert
+    pub s.replace_once from to = std::text::str::replace_once s from to
+    pub s.replace_all from to = std::text::str::replace_all s from to
     pub s.len = std::text::str::len s
     pub s.is_empty = std::text::str::is_empty s
     pub s.lines: lines = str_line_view s
@@ -81,6 +84,61 @@ pub type str with:
     pub s.eprintln = std::io::eprintln s
 
 pub is_empty(s: str): bool = std::int::eq(std::text::str::len s, 0)
+
+my starts_with_at(source: str, needle: str, start: int): bool =
+    my end = std::int::add start (std::text::str::len needle)
+    if std::int::le end (std::text::str::len source):
+        std::text::str::index_range_raw source start end == needle
+    else:
+        false
+
+my find_at(source: str, needle: str, start: int): opt int =
+    if std::int::eq (std::text::str::len needle) 0:
+        just start
+    else:
+        my limit = std::int::sub (std::text::str::len source) (std::text::str::len needle)
+        my loop(i: int): opt int =
+            if std::int::le i limit:
+                if starts_with_at(source, needle, i):
+                    just i
+                else:
+                    loop(std::int::add i 1)
+            else:
+                nil
+        loop start
+
+pub replace_once(source: str, from: str, to: str): str =
+    if std::int::eq (std::text::str::len from) 0:
+        source
+    else:
+        case find_at(source, from, 0):
+            just i ->
+                std::text::str::concat
+                    (std::text::str::concat
+                        (std::text::str::index_range_raw source 0 i)
+                        to)
+                    (std::text::str::index_range_raw
+                        source
+                        (std::int::add i (std::text::str::len from))
+                        (std::text::str::len source))
+            nil -> source
+
+pub replace_all(source: str, from: str, to: str): str =
+    if std::int::eq (std::text::str::len from) 0:
+        source
+    else:
+        my loop(start: int, out: str): str =
+            case find_at(source, from, start):
+                just i ->
+                    my prefix = std::text::str::index_range_raw source start i
+                    loop(
+                        std::int::add i (std::text::str::len from),
+                        std::text::str::concat (std::text::str::concat out prefix) to)
+                nil ->
+                    std::text::str::concat
+                        out
+                        (std::text::str::index_range_raw source start (std::text::str::len source))
+        loop(0, "")
 
 pub word_prefix_at(source: str, start: int): str =
     my loop(i: int): str =
