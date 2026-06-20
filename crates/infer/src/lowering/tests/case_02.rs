@@ -298,6 +298,112 @@ fn rule_expr_wraps_sequence_in_unit_lambda() {
 }
 
 #[test]
+fn rule_expr_capture_builds_record_value() {
+    let root = parse_with_text_parse_std("pub main = rule { id = std::text::parse::word }\n");
+    let lower = lower_module_map(&root);
+    let word = text_parse_def(&lower.modules, "word");
+    let module = lower.modules.root_id();
+    let main = lower.modules.value_decls(module, &Name("main".into()))[0].def;
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let (_, body) = match output.session.poly.expr(binding_body_id(&output, main)) {
+        Expr::Lambda(pat, body) => {
+            assert!(matches!(output.session.poly.pat(*pat), Pat::Lit(Lit::Unit)));
+            (*pat, *body)
+        }
+        _ => panic!("expected rule expr lambda"),
+    };
+    let (stmts, tail) = match output.session.poly.expr(body) {
+        Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+        _ => panic!("expected rule capture block"),
+    };
+    assert_eq!(stmts.len(), 1);
+    let captured_expr = match &stmts[0] {
+        Stmt::Let(_, _, expr) => *expr,
+        _ => panic!("expected capture let"),
+    };
+    let (callee, unit) = match output.session.poly.expr(captured_expr) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => panic!("expected capture parser application"),
+    };
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, callee)),
+        Some(word)
+    );
+    assert!(matches!(
+        output.session.poly.expr(unit),
+        Expr::Lit(Lit::Unit)
+    ));
+    match output.session.poly.expr(tail) {
+        Expr::Record {
+            fields,
+            spread: RecordSpread::None,
+        } => {
+            assert_eq!(fields.len(), 1);
+            assert_eq!(fields[0].0, "id");
+        }
+        _ => panic!("expected capture record"),
+    }
+}
+
+#[test]
+fn rule_expr_value_quantifier_runs_some_parser_as_tail_value() {
+    let root = parse_with_text_parse_std("pub main = rule { std::text::parse::word+ }\n");
+    let lower = lower_module_map(&root);
+    let some = text_parse_def(&lower.modules, "some");
+    let word = text_parse_def(&lower.modules, "word");
+    let module = lower.modules.root_id();
+    let main = lower.modules.value_decls(module, &Name("main".into()))[0].def;
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let (_, body) = match output.session.poly.expr(binding_body_id(&output, main)) {
+        Expr::Lambda(pat, body) => {
+            assert!(matches!(output.session.poly.pat(*pat), Pat::Lit(Lit::Unit)));
+            (*pat, *body)
+        }
+        _ => panic!("expected rule expr lambda"),
+    };
+    let (stmts, tail) = match output.session.poly.expr(body) {
+        Expr::Block(stmts, Some(tail)) => (stmts, *tail),
+        _ => panic!("expected rule quantifier block"),
+    };
+    assert!(stmts.is_empty());
+    let (parser, unit) = match output.session.poly.expr(tail) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => panic!("expected quantified parser to be run as tail value"),
+    };
+    assert!(matches!(
+        output.session.poly.expr(unit),
+        Expr::Lit(Lit::Unit)
+    ));
+    let (combinator, parser_arg) = match output.session.poly.expr(parser) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => panic!("expected some parser application"),
+    };
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, combinator)),
+        Some(some)
+    );
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, parser_arg)),
+        Some(word)
+    );
+}
+
+#[test]
 fn rule_lit_lazy_capture_builds_record_parser() {
     let root = parse_with_text_parse_std("pub main = ~\"users/:id\"\n");
     let lower = lower_module_map(&root);
