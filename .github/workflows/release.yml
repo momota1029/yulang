@@ -123,12 +123,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${GITHUB_REF_NAME}"
-          flags=(--verify-tag --title "$tag" --generate-notes)
+          body_file=".github/release-notes/${tag}.md"
+          flags=(--verify-tag --title "$tag")
+          if [[ -f "$body_file" ]]; then
+            flags+=(--notes-file "$body_file")
+          else
+            flags+=(--generate-notes)
+          fi
           case "$tag" in
             *-*) flags+=(--prerelease --latest=false) ;;
           esac
 
           if gh release view "$tag" >/dev/null 2>&1; then
+            if [[ -f "$body_file" ]]; then
+              gh release edit "$tag" --notes-file "$body_file"
+            fi
             gh release upload "$tag" dist/* --clobber
           else
             gh release create "$tag" dist/* "${flags[@]}"
