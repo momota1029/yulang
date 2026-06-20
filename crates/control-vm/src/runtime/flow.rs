@@ -279,9 +279,7 @@ impl<'a> Runtime<'a> {
             .iter()
             .find(|frame| request.guard_ids.contains(&frame.id))
             .map(|frame| frame.id)
-            .or_else(|| {
-                self.find_guarded_matching_handler(operation_key, request, matching_handler)
-            })
+            .or_else(|| self.current_handler_guard(request, matching_handler))
             .or_else(|| {
                 if self.active_frames.is_empty() {
                     request.carried_guard_ids.first().copied()
@@ -301,21 +299,14 @@ impl<'a> Runtime<'a> {
         None
     }
 
-    fn find_guarded_matching_handler(
+    fn current_handler_guard(
         &mut self,
-        operation_key: &InternedPath,
         request: &Request,
         matching_handler: usize,
     ) -> Option<GuardId> {
-        for frame in self
-            .active_handler_frames
-            .iter()
-            .take_while(|frame| frame.frame_index <= matching_handler)
-        {
+        for frame in &self.active_handler_frames {
             self.stats.active_frame_scans += 1;
-            if counted_path_has_prefix(&mut self.stats, operation_key, frame.handler_key)
-                && request.guard_ids.contains(&frame.id)
-            {
+            if frame.frame_index == matching_handler && request.guard_ids.contains(&frame.id) {
                 return Some(frame.id);
             }
         }

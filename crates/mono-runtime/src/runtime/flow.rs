@@ -221,22 +221,15 @@ impl<'a> Runtime<'a> {
                     }
                 });
         };
+        let current_handler_id = self
+            .active_frames
+            .get(matching_handler)
+            .map(|frame| frame.id);
         self.active_frames[matching_handler + 1..]
             .iter()
             .find(|frame| request.guard_ids.contains(&frame.id))
             .map(|frame| frame.id)
-            .or_else(|| {
-                self.active_frames[..=matching_handler]
-                    .iter()
-                    .find(|frame| {
-                        frame
-                            .handler_path
-                            .as_ref()
-                            .is_some_and(|path| path_has_prefix(operation_path, path))
-                            && request.guard_ids.contains(&frame.id)
-                    })
-                    .map(|frame| frame.id)
-            })
+            .or_else(|| current_handler_id.filter(|id| request.guard_ids.contains(id)))
             .or_else(|| {
                 if self.active_frames.is_empty() {
                     request.carried_guard_ids.first().copied()

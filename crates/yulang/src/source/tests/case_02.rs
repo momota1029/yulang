@@ -602,6 +602,51 @@ fn run_control_source_text_with_embedded_std_runs_parse_word_to_end() {
     );
 }
 
+#[test]
+fn run_control_source_text_with_embedded_std_choice_recovers_from_parse_fail() {
+    let build = build_control_from_source_text_with_embedded_std(
+        "playground.yu",
+        "\
+use std::text::parse::*
+
+my fail_now() = parse::fail: str_error { line: 1, column: 1, unexpected: nil, expected: [\"x\"], message: [] }
+
+run_str(\"abc\", 1, 1, choice(\\() -> fail_now(), \\() -> \"fallback\", ()))
+",
+    )
+    .unwrap();
+    assert_eq!(build.file_count, embedded_std_files().len() + 1);
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(output.0, "run roots [result::ok(\"fallback\")]\n");
+}
+
+#[test]
+fn run_control_source_text_with_embedded_std_repeats_parser_until_delimiter() {
+    let build = build_control_from_source_text_with_embedded_std(
+        "playground.yu",
+        "\
+use std::text::parse::*
+
+(
+  run_str(\"abc!\", 1, 1, some(satisfy(is_word))()),
+  run_str(\"!\", 1, 1, many(satisfy(is_word))()),
+  run_str(\"abc!\", 1, 1, many(satisfy(is_word))())
+)
+",
+    )
+    .unwrap();
+    assert_eq!(build.file_count, embedded_std_files().len() + 1);
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(
+        output.0,
+        "run roots [(result::ok([\"a\", \"b\", \"c\"]), result::ok([]), result::ok([\"a\", \"b\", \"c\"]))]\n"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn run_with_std_formats_frac_roots() {
