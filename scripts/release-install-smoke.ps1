@@ -33,10 +33,10 @@ Set-Content -LiteralPath $sumsPath -Value $lines -Encoding utf8
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) "yulang-release-install-smoke-$([System.Guid]::NewGuid())"
 New-Item -ItemType Directory -Path $tmp | Out-Null
 $prefix = Join-Path $tmp "prefix"
-$home = Join-Path $tmp "home"
+$testHome = Join-Path $tmp "home"
 $cache = Join-Path $tmp "cache"
 $main = Join-Path $tmp "main.yu"
-New-Item -ItemType Directory -Path $home, $cache | Out-Null
+New-Item -ItemType Directory -Path $testHome, $cache | Out-Null
 
 $releaseServerProcess = $null
 $previousHome = $env:HOME
@@ -120,7 +120,7 @@ function Install-Yulang {
 }
 
 function Assert-NoHomeStd {
-    $homeLib = Join-Path $home ".yulang/lib"
+    $homeLib = Join-Path $testHome ".yulang/lib"
     if ((Test-Path -LiteralPath $homeLib) -and (Get-ChildItem -LiteralPath $homeLib -Directory -Filter "yulang-*" | Select-Object -First 1)) {
         throw "release install smoke: runtime created std under HOME instead of install prefix"
     }
@@ -173,8 +173,8 @@ try {
     $env:YULANG_RELEASE_BASE_URL = $server[0]
     $releaseServerProcess = $server[1]
 
-    $env:HOME = $home
-    $env:USERPROFILE = $home
+    $env:HOME = $testHome
+    $env:USERPROFILE = $testHome
     $env:YULANG_CACHE_DIR = $cache
     Remove-Item Env:YULANG_STD -ErrorAction SilentlyContinue
     Remove-Item Env:YULANG_LIB_DIR -ErrorAction SilentlyContinue
@@ -241,9 +241,9 @@ try {
     }
     Assert-PathRemoved
 
-    New-Item -ItemType File -Path (Join-Path $home "sentinel") -Force | Out-Null
-    $unsafe = Start-Process -FilePath $powerShellCommand -ArgumentList @("-NoProfile", "-File", (Join-Path $PSScriptRoot "uninstall.ps1"), "-Prefix", (Join-Path $home "."), "-All") -PassThru -Wait -NoNewWindow -RedirectStandardOutput (Join-Path $tmp "unsafe.out") -RedirectStandardError (Join-Path $tmp "unsafe.err")
-    if ($unsafe.ExitCode -eq 0 -or -not (Test-Path -LiteralPath (Join-Path $home "sentinel"))) {
+    New-Item -ItemType File -Path (Join-Path $testHome "sentinel") -Force | Out-Null
+    $unsafe = Start-Process -FilePath $powerShellCommand -ArgumentList @("-NoProfile", "-File", (Join-Path $PSScriptRoot "uninstall.ps1"), "-Prefix", (Join-Path $testHome "."), "-All") -PassThru -Wait -NoNewWindow -RedirectStandardOutput (Join-Path $tmp "unsafe.out") -RedirectStandardError (Join-Path $tmp "unsafe.err")
+    if ($unsafe.ExitCode -eq 0 -or -not (Test-Path -LiteralPath (Join-Path $testHome "sentinel"))) {
         throw "release install smoke: unsafe prefix was not rejected"
     }
 
