@@ -9,6 +9,7 @@ use std::data::result::*
 pub act parse 'item 'err 'pos 'snap:
     pub item: () -> 'item
     pub fail: 'err -> never
+    pub eof: () -> bool
     pub pos: () -> 'pos
     pub cut: () -> ()
     pub snapshot: () -> 'snap
@@ -55,6 +56,7 @@ pub run_str(input: str, line: int, column: int, parser: [parse char str_error (i
                 "\r" | "\r\n" | "\n" -> run_str rest line+1 1 k(item)
                 _ -> run_str rest line column+1 k(item)
         parse::fail e, _ -> result::err e
+        parse::eof(), k -> run_str input line column k(input.len == 0)
         parse::pos(), k -> run_str input line column k((line, column))
         parse::cut(), k -> run_str input line column k()
         parse::snapshot(), k -> run_str input line column k((input, line, column))
@@ -72,8 +74,12 @@ pub choice(p: () -> [parse 'item 'err 'pos 'snap] 'a, q: () -> [parse 'item 'err
             catch q(): parse::fail e2, _ -> parse::fail: e1.merge e2
 
 pub satisfy(p: 'item -> bool)(): [parse 'item 'err 'pos 'snap] 'item =
-    my (pos, item) = (parse::pos(), parse::item())
-    if p item: item else parse::fail ParseError::unexpected(just item, pos)
+    my pos = parse::pos()
+    if parse::eof():
+        parse::fail ParseError::unexpected(nil, pos)
+    else:
+        my item = parse::item()
+        if p item: item else parse::fail ParseError::unexpected(just item, pos)
 
 my token_from(expected: str, i: int)(): [parse char 'err 'pos 'snap] unit =
     if i < expected.len:
