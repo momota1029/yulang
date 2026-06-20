@@ -95,7 +95,9 @@ impl<'a> TaskSolver<'a> {
     ) -> Result<(), SpecializeError> {
         let actual = self.expr(expr)?;
         self.add_expr_consumer(expr, actual.clone(), consumer.clone());
-        self.graph.constrain_subtype(actual, consumer)
+        self.graph.constrain_subtype(actual, consumer.clone())?;
+        let (consumer_value, _) = split_runtime_computation_shape(consumer);
+        self.consume_block_tail_value(expr, consumer_value)
     }
 
     pub(super) fn consume_expr_value(
@@ -104,10 +106,18 @@ impl<'a> TaskSolver<'a> {
         consumer: Type,
     ) -> Result<(Type, Type), SpecializeError> {
         let actual = self.expr_with_value_consumer(expr, &consumer)?;
+        if matches!(actual, Type::Thunk { .. }) && matches!(consumer, Type::Thunk { .. }) {
+            self.add_expr_consumer(expr, actual.clone(), consumer.clone());
+            self.graph
+                .constrain_subtype(actual.clone(), consumer.clone())?;
+            self.consume_block_tail_value(expr, consumer)?;
+            return Ok((actual, Type::pure_effect()));
+        }
         self.add_expr_consumer(expr, actual.clone(), consumer.clone());
         let (actual_value, actual_effect) = split_runtime_computation_shape(actual);
         self.graph
-            .constrain_subtype(actual_value.clone(), consumer)?;
+            .constrain_subtype(actual_value.clone(), consumer.clone())?;
+        self.consume_block_tail_value(expr, consumer)?;
         Ok((actual_value, actual_effect))
     }
 
@@ -175,7 +185,8 @@ impl<'a> TaskSolver<'a> {
             .constrain_consumed_computation_effect(actual_effect.clone(), effect)?;
         let consumer = types::runtime_shape(consumer_effect.clone(), value.clone());
         self.add_expr_consumer(expr, actual.clone(), consumer);
-        self.graph.constrain_subtype(actual_value, value)?;
+        self.graph.constrain_subtype(actual_value, value.clone())?;
+        self.consume_block_tail_value(expr, value)?;
         Ok(consumer_effect)
     }
 
@@ -212,6 +223,18 @@ impl<'a> TaskSolver<'a> {
             )),
             None => consumer,
         });
+    }
+
+    fn consume_block_tail_value(
+        &mut self,
+        expr: poly_expr::ExprId,
+        consumer: Type,
+    ) -> Result<(), SpecializeError> {
+        let poly_expr::Expr::Block(_, Some(tail)) = self.arena.expr(expr) else {
+            return Ok(());
+        };
+        self.consume_expr_value(*tail, consumer)?;
+        Ok(())
     }
 
     pub(super) fn infer_expr(&mut self, expr: poly_expr::ExprId) -> Result<Type, SpecializeError> {

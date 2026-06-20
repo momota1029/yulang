@@ -14,6 +14,7 @@ pub act parse 'item 'err 'pos 'snap:
     pub cut: () -> ()
     pub snapshot: () -> 'snap
     pub restore: 'snap -> ()
+    pub advance: int -> ()
 
 pub role ParseError 'err:
     pub type item
@@ -45,6 +46,17 @@ pub struct str_error {
             str_error { line: l, column: c, unexpected: nil, expected: [label], message: [] }
         our e.label label = str_error { line: e.line, column: e.column, unexpected: e.unexpected, expected: [label], message: e.message }
 
+my advance_position(input: str, count: int, line: int, column: int): (int, int) =
+    my loop(i: int, line: int, column: int): (int, int) =
+        if i < count:
+            my item = std::text::str::index_raw input i
+            case item.to_string:
+                "\r" | "\r\n" | "\n" -> loop(i + 1, line + 1, 1)
+                _ -> loop(i + 1, line, column + 1)
+        else:
+            (line, column)
+    loop(0, line, column)
+
 pub run_str(input: str, line: int, column: int, parser: [parse char str_error (int, int) (str, int, int)] 'a): result 'a str_error =
     catch parser:
         parse::item, k if input.len == 0 ->
@@ -61,6 +73,11 @@ pub run_str(input: str, line: int, column: int, parser: [parse char str_error (i
         parse::cut(), k -> run_str input line column k()
         parse::snapshot(), k -> run_str input line column k((input, line, column))
         parse::restore (input, line, column), k -> run_str input line column k()
+        parse::advance count, k ->
+            my end = if count < input.len: count else: input.len
+            my rest = std::text::str::index_range_raw input end input.len
+            my (line, column) = advance_position(input, end, line, column)
+            run_str rest line column k()
         v -> result::ok v
 
 pub choice(p: () -> [parse 'item 'err 'pos 'snap] 'a, q: () -> [parse 'item 'err 'pos 'snap] 'a, ()): [parse 'item 'err 'pos 'snap] 'a =
@@ -81,13 +98,15 @@ pub satisfy(p: 'item -> bool)(): [parse 'item 'err 'pos 'snap] 'item =
         my item = parse::item()
         if p item: item else parse::fail ParseError::unexpected(just item, pos)
 
-my token_from(expected: str, i: int)(): [parse char 'err 'pos 'snap] unit =
-    if i < expected.len:
-        my _ = satisfy(\p-> p == std::text::str::index_raw expected i)()
-        token_from(expected, i + 1)()
-
 pub token(expected: str)(): [parse char 'err 'pos 'snap] unit =
-    token_from(expected, 0)()
+    my (input, _, _) = parse::snapshot()
+    if expected.len <= input.len:
+        if std::text::str::index_range_raw input 0 expected.len == expected:
+            parse::advance expected.len
+        else:
+            parse::fail: ParseError::expected(expected, parse::pos())
+    else:
+        parse::fail: ParseError::expected(expected, parse::pos())
 
 pub optional(p: () -> [parse 'item 'err 'pos 'snap] 'a)(): [parse 'item 'err 'pos 'snap] opt 'a = choice(\() -> just (p()), \() -> nil)()
 
@@ -103,26 +122,11 @@ pub some(p: () -> [parse 'item 'err 'pos 'snap] 'a)(): [parse 'item 'err 'pos 's
 pub label(p: () -> [parse 'item 'err 'pos 'snap] 'a, label_text: str)(): [parse 'item 'err 'pos 'snap] 'a = catch p():
     parse::fail e, _ -> parse::fail e.label(label_text)
 
-my word_tail(acc: str)(): [parse char 'err (int, int) (str, int, int)] str =
-    my (input, _, _) = parse::snapshot()
-    if input.len == 0:
-        acc
-    else:
-        my item = std::text::str::index_raw input 0
-        if std::text::char::is_word item:
-            my _ = parse::item()
-            word_tail(acc + item.to_string)()
-        else:
-            acc
-
 pub word(): [parse char 'err (int, int) (str, int, int)] str =
     my (input, _, _) = parse::snapshot()
-    if input.len == 0:
+    my found = std::text::str::word_prefix_at input 0
+    if found.len == 0:
         parse::fail: ParseError::expected("word", parse::pos())
     else:
-        my item = std::text::str::index_raw input 0
-        if std::text::char::is_word item:
-            my _ = parse::item()
-            word_tail(item.to_string)()
-        else:
-            parse::fail: ParseError::expected("word", parse::pos())
+        parse::advance found.len
+        found
