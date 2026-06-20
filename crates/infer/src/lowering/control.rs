@@ -3,7 +3,7 @@
 mod syntax;
 
 use super::pattern::{PatternItem, pattern_path, pattern_payloads, single_pattern_item};
-use super::rule_lit::{RuleCasePart, rule_lit_case_parts};
+use super::rule_lit::{RuleCasePart, rule_expr_case_parts, rule_lit_case_parts};
 use super::*;
 use syntax::*;
 
@@ -223,7 +223,7 @@ impl<'a> ExprLowerer<'a> {
         let arm_nodes = case_arm_nodes(node);
         if arm_nodes
             .iter()
-            .any(|arm| case_arm_rule_lit_pattern(arm).is_some())
+            .any(|arm| case_arm_rule_pattern(arm).is_some())
         {
             return self.lower_rule_case_with_scrutinee(scrutinee, &arm_nodes);
         }
@@ -340,7 +340,7 @@ impl<'a> ExprLowerer<'a> {
             return Ok(self.no_matching_case(input, result_value, result_effect));
         };
 
-        if let Some(rule) = case_arm_rule_lit_pattern(arm) {
+        if let Some(rule) = case_arm_rule_pattern(arm) {
             return self.lower_rule_case_arm(arm, &rule, rest, input, result_value, result_effect);
         }
 
@@ -370,7 +370,7 @@ impl<'a> ExprLowerer<'a> {
         result_value: TypeVar,
         result_effect: TypeVar,
     ) -> Result<Computation, LoweringError> {
-        let parts = rule_lit_case_parts(rule)?;
+        let parts = rule_case_parts(rule)?;
         let rule_locals_start = self.locals.len();
         let fallback = self.lower_case_arm_chain(rest, input, result_value, result_effect)?;
         let start = self.int_value(0);
@@ -1450,13 +1450,13 @@ struct LoweredIfArm {
     body: Computation,
 }
 
-fn case_arm_rule_lit_pattern(arm: &Cst) -> Option<Cst> {
+fn case_arm_rule_pattern(arm: &Cst) -> Option<Cst> {
     let pattern = arm_pattern(arm)?;
-    let rule = single_rule_lit_pattern(&pattern)?;
-    rule_lit_needs_case_parser(&rule).then_some(rule)
+    let rule = single_rule_pattern(&pattern)?;
+    rule_pattern_needs_case_parser(&rule).then_some(rule)
 }
 
-fn single_rule_lit_pattern(pattern: &Cst) -> Option<Cst> {
+fn single_rule_pattern(pattern: &Cst) -> Option<Cst> {
     let items = pattern
         .children_with_tokens()
         .filter(|item| !item_is_trivia(item))
@@ -1464,19 +1464,33 @@ fn single_rule_lit_pattern(pattern: &Cst) -> Option<Cst> {
     let [NodeOrToken::Node(rule)] = items.as_slice() else {
         return None;
     };
-    (rule.kind() == SyntaxKind::RuleLit).then(|| rule.clone())
+    matches!(rule.kind(), SyntaxKind::RuleLit | SyntaxKind::RuleExpr).then(|| rule.clone())
 }
 
-fn rule_lit_needs_case_parser(rule: &Cst) -> bool {
-    rule.children().any(|child| {
-        matches!(
-            child.kind(),
-            SyntaxKind::RuleLazyCapture | SyntaxKind::RuleLitInterp
-        )
-    }) || rule
-        .children_with_tokens()
-        .filter_map(|item| item.into_token())
-        .any(|token| token.kind() == SyntaxKind::RuleLitStart)
+fn rule_pattern_needs_case_parser(rule: &Cst) -> bool {
+    match rule.kind() {
+        SyntaxKind::RuleExpr => true,
+        SyntaxKind::RuleLit => {
+            rule.children().any(|child| {
+                matches!(
+                    child.kind(),
+                    SyntaxKind::RuleLazyCapture | SyntaxKind::RuleLitInterp
+                )
+            }) || rule
+                .children_with_tokens()
+                .filter_map(|item| item.into_token())
+                .any(|token| token.kind() == SyntaxKind::RuleLitStart)
+        }
+        _ => false,
+    }
+}
+
+fn rule_case_parts(rule: &Cst) -> Result<Vec<RuleCasePart>, LoweringError> {
+    match rule.kind() {
+        SyntaxKind::RuleLit => rule_lit_case_parts(rule),
+        SyntaxKind::RuleExpr => rule_expr_case_parts(rule),
+        kind => Err(LoweringError::UnsupportedSyntax { kind }),
+    }
 }
 
 struct LoweredCatchPayloadPattern {

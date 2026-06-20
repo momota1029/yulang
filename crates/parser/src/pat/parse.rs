@@ -82,9 +82,7 @@ fn parse_pattern_from_nud_bp<I: EventInput, S: EventSink>(
         }
         PatNudTag::Rule => {
             i.env.state.sink.start(SyntaxKind::Pattern);
-            let after = parse_rule_expr(i.rb(), nud.lex)?;
-            i.env.state.sink.finish();
-            return Some(Ok(Either::Left(after)));
+            parse_rule_expr(i.rb(), nud.lex)?
         }
         PatNudTag::OpenParen => {
             i.env.state.sink.start(SyntaxKind::Pattern);

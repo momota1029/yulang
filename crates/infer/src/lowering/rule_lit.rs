@@ -404,6 +404,40 @@ pub(in crate::lowering) fn rule_lit_case_parts(
         .collect()
 }
 
+pub(in crate::lowering) fn rule_expr_case_parts(
+    node: &Cst,
+) -> Result<Vec<RuleCasePart>, LoweringError> {
+    let group = node
+        .children()
+        .find(|child| child.kind() == SyntaxKind::BraceGroup)
+        .ok_or(LoweringError::UnsupportedSyntax {
+            kind: SyntaxKind::RuleExpr,
+        })?;
+    let branches = rule_branches(&group);
+    let [items] = branches.as_slice() else {
+        return Err(LoweringError::UnsupportedSyntax {
+            kind: SyntaxKind::RuleExpr,
+        });
+    };
+    items
+        .iter()
+        .map(|item| {
+            if let Some((name, parser)) = rule_expr_capture(item) {
+                if rule_case_parser_is_word(&parser) {
+                    return Ok(RuleCasePart::CaptureWord(name));
+                }
+                return Err(LoweringError::UnsupportedSyntax {
+                    kind: SyntaxKind::RuleCapture,
+                });
+            }
+            if let Some(text) = plain_string_expr_text(item)? {
+                return Ok(RuleCasePart::Token(text));
+            }
+            Err(LoweringError::UnsupportedSyntax { kind: item.kind() })
+        })
+        .collect()
+}
+
 fn plain_rule_lit_text(node: &Cst) -> Option<String> {
     if node.children().any(|child| {
         matches!(

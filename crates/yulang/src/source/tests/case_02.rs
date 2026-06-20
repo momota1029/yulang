@@ -736,6 +736,43 @@ my literal_leftover = case \"hello!\":
     );
 }
 
+#[test]
+fn run_control_source_text_with_embedded_std_matches_rule_exprs_in_case() {
+    let build = build_control_from_source_text_with_embedded_std(
+        "playground.yu",
+        "\
+use std::text::parse::*
+
+my route = case \"users/alice/posts\":
+  rule { \"users/\" id = word \"/posts\" } -> id
+  _ -> \"miss\"
+
+my leftover = case \"users/alice/posts!\":
+  rule { \"users/\" id = word \"/posts\" } -> id
+  _ -> \"miss\"
+
+my literal = case \"hello\":
+  rule { \"hello\" } -> \"hit\"
+  _ -> \"miss\"
+
+my literal_leftover = case \"hello!\":
+  rule { \"hello\" } -> \"hit\"
+  _ -> \"miss\"
+
+(route, leftover, literal, literal_leftover)
+",
+    )
+    .unwrap();
+    assert_eq!(build.file_count, embedded_std_files().len() + 1);
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(
+        output.0,
+        "run roots [(\"alice\", \"miss\", \"hit\", \"miss\")]\n"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn run_with_std_formats_frac_roots() {
