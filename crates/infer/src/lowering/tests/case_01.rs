@@ -112,7 +112,7 @@ pub(super) fn assert_act_method_receiver_has_self_subtract(
             ) {
                 return None;
             }
-            weight_set_path_id(&bound.weights.left, &[effect_name])
+            weight_set_path_id(&bound.weights.left.to_stack_weight(), &[effect_name])
         })
         .expect("receiver effect should record stacked act family");
     assert_pos_or_var_lower_stack_pop_var(&output.session, ret_eff, subtract);
@@ -280,7 +280,12 @@ pub(super) fn assert_pos_or_var_lower_stack_pop_var(
                 Pos::NonSubtract(_, _) => {
                     return assert_pos_stack_pop_var(session, lower.pos, subtract);
                 }
-                Pos::Var(next) if stack_weight_has_single_pop(&lower.weights.left, subtract) => {
+                Pos::Var(next)
+                    if stack_weight_has_single_pop(
+                        &lower.weights.left.to_stack_weight(),
+                        subtract,
+                    ) =>
+                {
                     return *next;
                 }
                 Pos::Var(next) => stack.push(*next),

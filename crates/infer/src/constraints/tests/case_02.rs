@@ -31,7 +31,7 @@ fn var_to_effect_row_upper_with_stack_weight_skips_self_tail_residual() {
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Row(vec![io], tail));
     let weights = ConstraintWeights {
-        left: StackWeight::push(
+        left: LeftConstraintWeight::push(
             subtract,
             Subtractability::Set(vec!["io".into()], Vec::new()),
         ),
@@ -55,7 +55,7 @@ fn var_to_effect_row_upper_filters_items_by_stack_common_part() {
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Row(vec![io, nondet], tail));
     let weights = ConstraintWeights {
-        left: StackWeight::push(
+        left: LeftConstraintWeight::push(
             subtract,
             Subtractability::Set(vec!["io".into()], Vec::new()),
         ),
@@ -82,7 +82,7 @@ fn weighted_var_replay_does_not_retain_different_effect_family_row_item() {
     let source_pos = machine.alloc_pos(Pos::Var(source));
     let through_neg = machine.alloc_neg(Neg::Var(through));
     let weights = ConstraintWeights {
-        left: StackWeight::push(
+        left: LeftConstraintWeight::push(
             subtract,
             Subtractability::Set(vec!["loop".into()], Vec::new()),
         ),
@@ -169,7 +169,7 @@ fn unweighted_row_upper_consumes_pop_only_weighted_lower_item() {
     machine.weighted_subtype(
         sub,
         ConstraintWeights {
-            left: StackWeight::pop(subtract),
+            left: LeftConstraintWeight::pop(subtract),
             right: RightConstraintWeight::empty(),
         },
         through_neg,
@@ -275,7 +275,7 @@ fn tail_alias_keeps_row_upper_across_stack_boundary() {
         machine.weighted_subtype(
             inner_pos,
             ConstraintWeights {
-                left: ConstraintWeight::push(
+                left: LeftConstraintWeight::push(
                     subtract,
                     Subtractability::Set(nondet_path, Vec::new()),
                 ),
@@ -376,7 +376,7 @@ fn var_to_effect_row_upper_reuses_weighted_residual_for_same_source_across_tails
     let first_upper = machine.alloc_neg(Neg::Row(vec![io], first_tail));
     let second_upper = machine.alloc_neg(Neg::Row(vec![io], second_tail));
     let weights = ConstraintWeights {
-        left: StackWeight::push(
+        left: LeftConstraintWeight::push(
             subtract,
             Subtractability::Set(vec!["io".into()], Vec::new()),
         ),
@@ -416,7 +416,7 @@ fn var_to_effect_row_upper_keeps_weighted_residuals_distinct_per_source() {
     let first_upper = machine.alloc_neg(Neg::Row(vec![io], tail));
     let second_upper = machine.alloc_neg(Neg::Row(vec![io], tail));
     let weights = ConstraintWeights {
-        left: StackWeight::push(
+        left: LeftConstraintWeight::push(
             subtract,
             Subtractability::Set(vec!["io".into()], Vec::new()),
         ),
@@ -443,7 +443,7 @@ fn var_to_effect_row_upper_with_empty_stack_intersection_skips_gamma() {
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Row(vec![io], tail));
     let weights = ConstraintWeights {
-        left: StackWeight::push(subtract, Subtractability::Empty),
+        left: LeftConstraintWeight::push(subtract, Subtractability::Empty),
         right: RightConstraintWeight::empty(),
     };
 
@@ -468,7 +468,7 @@ fn var_to_effect_row_upper_distributes_right_pop_to_tail_after_empty_head() {
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Row(vec![io], tail));
     let weights = ConstraintWeights {
-        left: StackWeight::push(subtract, Subtractability::Empty),
+        left: LeftConstraintWeight::push(subtract, Subtractability::Empty),
         right: RightConstraintWeight::pop(subtract),
     };
 
@@ -526,7 +526,7 @@ fn var_to_effect_row_upper_removes_all_except_excluded_effect_family() {
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Row(vec![io, nondet], tail));
     let weights = ConstraintWeights {
-        left: StackWeight::push(
+        left: LeftConstraintWeight::push(
             subtract,
             Subtractability::AllExcept(vec!["io".into()], Vec::new()),
         ),
@@ -561,7 +561,7 @@ fn var_to_effect_row_upper_with_all_stack_retains_all_items() {
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Row(vec![io, nondet], tail));
     let weights = ConstraintWeights {
-        left: StackWeight::push(subtract, Subtractability::All),
+        left: LeftConstraintWeight::push(subtract, Subtractability::All),
         right: RightConstraintWeight::empty(),
     };
 
@@ -594,7 +594,7 @@ fn var_to_effect_row_upper_removes_retained_item_from_pop_only_stack() {
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Row(vec![io], tail));
     let weights = ConstraintWeights {
-        left: StackWeight::pops(subtract, u32::MAX),
+        left: LeftConstraintWeight::pops(subtract, u32::MAX),
         right: RightConstraintWeight::empty(),
     };
 
@@ -602,7 +602,7 @@ fn var_to_effect_row_upper_removes_retained_item_from_pop_only_stack() {
 
     let gamma = single_upper_row_tail(&machine, source, &["io"]);
     let residual_weights = ConstraintWeights {
-        left: StackWeight::pop(subtract),
+        left: LeftConstraintWeight::pop(subtract),
         right: RightConstraintWeight::empty(),
     };
     assert_single_weighted_upper_var(&machine, gamma, tail_var, residual_weights.clone());
@@ -631,7 +631,7 @@ fn pop_only_residual_keeps_later_distinct_handler_subtractable() {
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Row(vec![io], tail));
     let weights = ConstraintWeights {
-        left: StackWeight::pops(subtract, u32::MAX),
+        left: LeftConstraintWeight::pops(subtract, u32::MAX),
         right: RightConstraintWeight::empty(),
     };
 
@@ -675,7 +675,7 @@ fn pop_only_residual_keeps_later_distinct_handler_subtractable() {
     assert_ne!(gamma, gamma2);
     assert_eq!(machine.row_residuals.len(), 2);
     let residual_weights = ConstraintWeights {
-        left: StackWeight::pop(subtract),
+        left: LeftConstraintWeight::pop(subtract),
         right: RightConstraintWeight::empty(),
     };
     assert_weighted_upper_var(&machine, gamma2, next_tail_var, residual_weights);
@@ -702,7 +702,7 @@ fn var_to_effect_row_upper_keeps_residuals_distinct_by_effect_payload() {
     let first_upper = machine.alloc_neg(Neg::Row(vec![first_item], tail));
     let second_upper = machine.alloc_neg(Neg::Row(vec![second_item], tail));
     let weights = ConstraintWeights {
-        left: StackWeight::push(subtract, Subtractability::All),
+        left: LeftConstraintWeight::push(subtract, Subtractability::All),
         right: RightConstraintWeight::empty(),
     };
 
@@ -744,7 +744,7 @@ fn var_to_effect_row_upper_keeps_effect_payloads_in_residual_stack_weight() {
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Row(vec![io], tail));
     let weights = ConstraintWeights {
-        left: StackWeight::push(
+        left: LeftConstraintWeight::push(
             subtract,
             Subtractability::AllExcept(ref_update.clone(), vec![payload]),
         ),
@@ -786,7 +786,7 @@ fn var_to_effect_row_upper_collects_duplicate_effect_paths_with_payload_constrai
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Row(vec![first_item, second_item], tail));
     let weights = ConstraintWeights {
-        left: StackWeight::push(subtract, Subtractability::All),
+        left: LeftConstraintWeight::push(subtract, Subtractability::All),
         right: RightConstraintWeight::empty(),
     };
 
@@ -826,7 +826,7 @@ fn effect_row_filter_rejects_disallowed_concrete_family() {
     let upper = machine.alloc_neg(Neg::Row(vec![nondet], tail));
     let filter = Subtractability::Set(vec!["io".into()], Vec::new());
     let weights = ConstraintWeights {
-        left: StackWeight::filter(filter.clone()),
+        left: LeftConstraintWeight::filter(filter.clone()),
         right: RightConstraintWeight::empty(),
     };
 
@@ -862,7 +862,7 @@ fn effect_row_filter_constrains_matching_payloads() {
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Row(vec![item], tail));
     let weights = ConstraintWeights {
-        left: StackWeight::filter(Subtractability::Set(ref_update, vec![upper_payload])),
+        left: LeftConstraintWeight::filter(Subtractability::Set(ref_update, vec![upper_payload])),
         right: RightConstraintWeight::empty(),
     };
 
@@ -953,8 +953,8 @@ pub(super) fn assert_single_weighted_upper_var(
 pub(super) fn residual_stack_weight(
     id: SubtractId,
     subtractability: Subtractability,
-) -> StackWeight {
-    StackWeight::push(id, subtractability)
+) -> LeftConstraintWeight {
+    LeftConstraintWeight::push(id, subtractability)
 }
 
 fn assert_weighted_upper_var(
@@ -1093,15 +1093,15 @@ fn pure_function_argument_effect_passes_through_with_right_side_weights() {
         ret: rhs_ret,
     });
     let weights = ConstraintWeights {
-        left: ConstraintWeight::from_ids([SubtractId(0)]),
+        left: LeftConstraintWeight::from_ids([SubtractId(0)]),
         right: RightConstraintWeight::from_ids([SubtractId(1)]),
     };
     let expected_passthrough_weights = ConstraintWeights {
-        left: ConstraintWeight::empty(),
+        left: LeftConstraintWeight::empty(),
         right: RightConstraintWeight::from_ids([SubtractId(1)]),
     };
     let unnormalized_passthrough_weights = ConstraintWeights {
-        left: ConstraintWeight::from_ids([SubtractId(1)]),
+        left: LeftConstraintWeight::from_ids([SubtractId(1)]),
         right: RightConstraintWeight::from_ids([SubtractId(1)]),
     };
 
@@ -1186,7 +1186,7 @@ fn weighted_var_var_replay_cancels_push_pop_through_var_alias() {
     machine.weighted_subtype(
         call_pos,
         ConstraintWeights {
-            left: StackWeight::push(subtract, Subtractability::Empty),
+            left: LeftConstraintWeight::push(subtract, Subtractability::Empty),
             right: RightConstraintWeight::empty(),
         },
         result_neg,
@@ -1194,7 +1194,7 @@ fn weighted_var_var_replay_cancels_push_pop_through_var_alias() {
     machine.weighted_subtype(
         result_pos,
         ConstraintWeights {
-            left: StackWeight::pop(subtract),
+            left: LeftConstraintWeight::pop(subtract),
             right: RightConstraintWeight::empty(),
         },
         outer_neg,

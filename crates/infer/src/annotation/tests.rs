@@ -425,7 +425,11 @@ mod tests {
         assert!(
             bounds.lowers().iter().any(|bound| {
                 matches!(infer.constraints().types().pos(bound.pos), Pos::Var(var) if *var != effect)
-                    && weight_has_set_path(&bound.weights.left, subtract, &expected)
+                    && weight_has_set_path(
+                        &bound.weights.left.to_stack_weight(),
+                        subtract,
+                        &expected,
+                    )
             }),
             "effect bounds: {:?}",
             bounds

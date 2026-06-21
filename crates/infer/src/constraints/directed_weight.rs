@@ -100,6 +100,14 @@ impl LeftStackWeight {
         out
     }
 
+    pub(crate) fn from_right_weight(weight: &RightStackWeight) -> Self {
+        let mut out = Self::empty();
+        for entry in weight.entries() {
+            out = out.compose(&Self::pops(entry.id, entry.pops));
+        }
+        out
+    }
+
     pub(crate) fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
@@ -169,6 +177,146 @@ impl LeftStackWeight {
 
     fn entry_index(&self, id: SubtractId) -> Option<usize> {
         self.entries.iter().position(|entry| entry.id == id)
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct LeftConstraintWeight {
+    filter: Subtractability,
+    weight: LeftStackWeight,
+}
+
+impl LeftConstraintWeight {
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    pub fn filter(filter: Subtractability) -> Self {
+        Self {
+            filter,
+            weight: LeftStackWeight::empty(),
+        }
+    }
+
+    pub fn pop(id: SubtractId) -> Self {
+        Self::pops(id, 1)
+    }
+
+    pub fn pops(id: SubtractId, count: u32) -> Self {
+        Self {
+            filter: Subtractability::All,
+            weight: LeftStackWeight::pops(id, count),
+        }
+    }
+
+    pub fn push(id: SubtractId, family: Subtractability) -> Self {
+        Self {
+            filter: Subtractability::All,
+            weight: LeftStackWeight::take(id, family),
+        }
+    }
+
+    pub fn from_ids(ids: impl IntoIterator<Item = SubtractId>) -> Self {
+        let mut out = Self::empty();
+        for id in ids {
+            out = out.compose(&Self::pop(id));
+        }
+        out
+    }
+
+    pub(crate) fn from_stack_weight(weight: &StackWeight) -> Self {
+        Self {
+            filter: weight.filter_set().clone(),
+            weight: LeftStackWeight::from_stack_weight(weight),
+        }
+    }
+
+    pub(crate) fn from_right_weight(weight: &RightStackWeight) -> Self {
+        Self {
+            filter: Subtractability::All,
+            weight: LeftStackWeight::from_right_weight(weight),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.filter == Subtractability::All && self.weight.is_empty()
+    }
+
+    pub fn has_filter(&self) -> bool {
+        self.filter != Subtractability::All
+    }
+
+    pub fn filter_set(&self) -> &Subtractability {
+        &self.filter
+    }
+
+    pub fn with_filter(&self, filter: Subtractability) -> Self {
+        Self {
+            filter,
+            weight: self.weight.clone(),
+        }
+    }
+
+    pub(crate) fn without_filter(&self) -> Self {
+        self.with_filter(Subtractability::All)
+    }
+
+    pub(crate) fn entries(&self) -> &[LeftStackWeightEntry] {
+        self.weight.entries()
+    }
+
+    pub fn contains(&self, id: SubtractId) -> bool {
+        self.weight.entry(id).is_some()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = SubtractId> + '_ {
+        self.weight.entries().iter().map(|entry| entry.id)
+    }
+
+    pub(crate) fn active_stack_items(&self) -> impl Iterator<Item = &Subtractability> + '_ {
+        self.weight
+            .entries()
+            .iter()
+            .filter(|entry| entry.pushes > 0)
+            .filter_map(|entry| entry.family.as_ref())
+    }
+
+    pub(crate) fn to_stack_weight(&self) -> StackWeight {
+        self.weight
+            .to_stack_weight()
+            .with_filter(self.filter.clone())
+    }
+
+    pub(crate) fn compose(&self, other: &Self) -> Self {
+        Self {
+            filter: self.filter.clone().intersect(other.filter.clone()),
+            weight: self.weight.compose(&other.weight),
+        }
+    }
+
+    pub(crate) fn union(&self, other: &StackWeight) -> StackWeight {
+        self.to_stack_weight().union(other)
+    }
+
+    pub(crate) fn saturate_unmatched_pops(&self) -> Self {
+        Self::from_stack_weight(&self.to_stack_weight().saturate_unmatched_pops())
+            .with_filter(self.filter.clone())
+    }
+
+    pub(crate) fn normalize_for_alias_replay(&self) -> Self {
+        Self::from_stack_weight(&self.to_stack_weight().normalize_for_alias_replay())
+            .with_filter(self.filter.clone())
+    }
+
+    pub(crate) fn directed(&self) -> &LeftStackWeight {
+        &self.weight
+    }
+
+    pub(crate) fn with_directed_weight(&self, weight: LeftStackWeight) -> Self {
+        Self {
+            filter: self.filter.clone(),
+            weight,
+        }
     }
 }
 

@@ -358,7 +358,7 @@ fn collect_subtractability_effect_paths(
 }
 
 fn collect_constraint_weight_effect_paths(weights: &ConstraintWeights, out: &mut Vec<Vec<String>>) {
-    collect_stack_weight_effect_paths(&weights.left, out);
+    collect_stack_weight_effect_paths(&weights.left.to_stack_weight(), out);
 }
 
 fn collect_stack_weight_effect_paths(

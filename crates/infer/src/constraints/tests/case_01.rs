@@ -18,7 +18,7 @@ fn constraint_weights_swap_left_and_right() {
     let left = SubtractId(0);
     let right = SubtractId(1);
     let weights = ConstraintWeights {
-        left: ConstraintWeight::from_ids([left]),
+        left: LeftConstraintWeight::from_ids([left]),
         right: RightConstraintWeight::from_ids([right]),
     };
 
@@ -31,9 +31,9 @@ fn constraint_weights_swap_left_and_right() {
 fn constraint_weights_replay_saturates_pop_count_but_keeps_stack_sequence() {
     let id = SubtractId(0);
     let io = Subtractability::Set(vec!["io".into()], Vec::new());
-    let left = StackWeight::pop(id)
-        .compose(&StackWeight::push(id, io.clone()))
-        .compose(&StackWeight::push(id, io.clone()));
+    let left = LeftConstraintWeight::pop(id)
+        .compose(&LeftConstraintWeight::push(id, io.clone()))
+        .compose(&LeftConstraintWeight::push(id, io.clone()));
     let weights = ConstraintWeights {
         left,
         right: RightConstraintWeight::empty(),
@@ -41,15 +41,16 @@ fn constraint_weights_replay_saturates_pop_count_but_keeps_stack_sequence() {
     .compose_for_replay(&ConstraintWeights::empty());
 
     assert_eq!(weights.left.entries().len(), 1);
-    assert_eq!(weights.left.entries()[0].pops, u32::MAX);
-    assert_eq!(weights.left.entries()[0].stack, vec![io.clone(), io]);
+    assert_eq!(weights.left.entries()[0].leading_pops, u32::MAX);
+    assert_eq!(weights.left.entries()[0].family, Some(io));
+    assert_eq!(weights.left.entries()[0].pushes, 2);
 }
 
 #[test]
 fn constraint_weights_replay_preserves_pop_only_count() {
     let id = SubtractId(0);
     let weights = ConstraintWeights {
-        left: StackWeight::pop(id),
+        left: LeftConstraintWeight::pop(id),
         right: RightConstraintWeight::empty(),
     }
     .compose_for_replay(&ConstraintWeights::empty());
@@ -57,20 +58,20 @@ fn constraint_weights_replay_preserves_pop_only_count() {
     let [entry] = weights.left.entries() else {
         panic!("expected one stack entry");
     };
-    assert_eq!(entry.pops, 1);
-    assert!(entry.floor.is_empty());
-    assert!(entry.stack.is_empty());
+    assert_eq!(entry.leading_pops, 1);
+    assert_eq!(entry.pushes, 0);
+    assert!(entry.family.is_none());
 }
 
 #[test]
 fn constraint_weights_replay_caps_repeated_pop_only_count() {
     let id = SubtractId(0);
     let earlier = ConstraintWeights {
-        left: StackWeight::pop(id),
+        left: LeftConstraintWeight::pop(id),
         right: RightConstraintWeight::empty(),
     };
     let later = ConstraintWeights {
-        left: StackWeight::pop(id),
+        left: LeftConstraintWeight::pop(id),
         right: RightConstraintWeight::empty(),
     };
 
@@ -79,20 +80,20 @@ fn constraint_weights_replay_caps_repeated_pop_only_count() {
     let [entry] = weights.left.entries() else {
         panic!("expected one stack entry");
     };
-    assert_eq!(entry.pops, 1);
-    assert!(entry.floor.is_empty());
-    assert!(entry.stack.is_empty());
+    assert_eq!(entry.leading_pops, 1);
+    assert_eq!(entry.pushes, 0);
+    assert!(entry.family.is_none());
 }
 
 #[test]
 fn constraint_weights_replay_mixes_left_push_with_right_pop() {
     let id = SubtractId(0);
     let earlier = ConstraintWeights {
-        left: StackWeight::push(id, Subtractability::Empty),
+        left: LeftConstraintWeight::push(id, Subtractability::Empty),
         right: RightConstraintWeight::empty(),
     };
     let later = ConstraintWeights {
-        left: StackWeight::empty(),
+        left: LeftConstraintWeight::empty(),
         right: RightConstraintWeight::pop(id),
     };
 
@@ -106,11 +107,12 @@ fn constraint_weights_replay_keeps_remaining_left_push_after_mix() {
     let id = SubtractId(0);
     let io = Subtractability::Set(vec!["io".into()], Vec::new());
     let earlier = ConstraintWeights {
-        left: StackWeight::push(id, io.clone()).compose(&StackWeight::push(id, io.clone())),
+        left: LeftConstraintWeight::push(id, io.clone())
+            .compose(&LeftConstraintWeight::push(id, io.clone())),
         right: RightConstraintWeight::empty(),
     };
     let later = ConstraintWeights {
-        left: StackWeight::empty(),
+        left: LeftConstraintWeight::empty(),
         right: RightConstraintWeight::pop(id),
     };
 
@@ -120,20 +122,20 @@ fn constraint_weights_replay_keeps_remaining_left_push_after_mix() {
     let [entry] = weights.left.entries() else {
         panic!("expected one left stack entry");
     };
-    assert_eq!(entry.pops, 0);
-    assert!(entry.floor.is_empty());
-    assert_eq!(entry.stack, vec![io]);
+    assert_eq!(entry.leading_pops, 0);
+    assert_eq!(entry.family, Some(io));
+    assert_eq!(entry.pushes, 1);
 }
 
 #[test]
 fn constraint_weights_replay_projects_pure_pop_to_right_after_mix() {
     let id = SubtractId(0);
     let earlier = ConstraintWeights {
-        left: StackWeight::push(id, Subtractability::Empty),
+        left: LeftConstraintWeight::push(id, Subtractability::Empty),
         right: RightConstraintWeight::empty(),
     };
     let later = ConstraintWeights {
-        left: StackWeight::empty(),
+        left: LeftConstraintWeight::empty(),
         right: RightConstraintWeight::pops(id, 2),
     };
 
@@ -148,26 +150,23 @@ fn constraint_weights_replay_projects_pure_pop_to_right_after_mix() {
 }
 
 #[test]
-fn constraint_weights_replay_does_not_mix_right_pop_with_legacy_floor() {
+fn constraint_weights_replay_ignores_legacy_floor_in_left_weight() {
     let id = SubtractId(0);
     let earlier = ConstraintWeights {
-        left: StackWeight::floor(id, Subtractability::Empty),
+        left: LeftConstraintWeight::from_stack_weight(&StackWeight::floor(
+            id,
+            Subtractability::Empty,
+        )),
         right: RightConstraintWeight::empty(),
     };
     let later = ConstraintWeights {
-        left: StackWeight::empty(),
+        left: LeftConstraintWeight::empty(),
         right: RightConstraintWeight::pop(id),
     };
 
     let weights = earlier.compose_for_replay(&later);
 
-    let [left_entry] = weights.left.entries() else {
-        panic!("expected one legacy floor entry");
-    };
-    assert_eq!(left_entry.id, id);
-    assert_eq!(left_entry.pops, 0);
-    assert_eq!(left_entry.floor, vec![Subtractability::Empty]);
-    assert!(left_entry.stack.is_empty());
+    assert!(weights.left.is_empty());
     let [right_entry] = weights.right.entries() else {
         panic!("expected one right pop entry");
     };
@@ -179,11 +178,11 @@ fn constraint_weights_replay_does_not_mix_right_pop_with_legacy_floor() {
 fn constraint_weights_replay_composes_right_pops() {
     let id = SubtractId(0);
     let earlier = ConstraintWeights {
-        left: StackWeight::empty(),
+        left: LeftConstraintWeight::empty(),
         right: RightConstraintWeight::pop(id),
     };
     let later = ConstraintWeights {
-        left: StackWeight::empty(),
+        left: LeftConstraintWeight::empty(),
         right: RightConstraintWeight::pop(id),
     };
 
@@ -200,11 +199,11 @@ fn constraint_weights_replay_composes_right_pops() {
 fn constraint_weights_replay_keeps_right_pop_saturation() {
     let id = SubtractId(0);
     let earlier = ConstraintWeights {
-        left: StackWeight::empty(),
+        left: LeftConstraintWeight::empty(),
         right: RightConstraintWeight::pops(id, u32::MAX),
     };
     let later = ConstraintWeights {
-        left: StackWeight::empty(),
+        left: LeftConstraintWeight::empty(),
         right: RightConstraintWeight::pop(id),
     };
 
@@ -359,7 +358,7 @@ fn subtype_to_neg_var_drops_weighted_non_effect_terminal_lower_bound() {
     let upper = machine.alloc_neg(Neg::Var(target));
     let subtract = SubtractId(0);
     let weights = ConstraintWeights {
-        left: ConstraintWeight::from_ids([subtract]),
+        left: LeftConstraintWeight::from_ids([subtract]),
         right: RightConstraintWeight::empty(),
     };
 
@@ -393,7 +392,7 @@ fn subtype_to_neg_var_keeps_weighted_effect_terminal_lower_bound() {
     let upper = machine.alloc_neg(Neg::Var(target));
     let subtract = SubtractId(0);
     let weights = ConstraintWeights {
-        left: ConstraintWeight::from_ids([subtract]),
+        left: LeftConstraintWeight::from_ids([subtract]),
         right: RightConstraintWeight::empty(),
     };
 
@@ -426,7 +425,7 @@ fn pos_var_to_subtype_drops_weighted_non_effect_terminal_upper_bound() {
     let upper = machine.alloc_neg(Neg::Con(vec!["int".into()], vec![]));
     let subtract = SubtractId(0);
     let weights = ConstraintWeights {
-        left: ConstraintWeight::empty(),
+        left: LeftConstraintWeight::empty(),
         right: RightConstraintWeight::from_ids([subtract]),
     };
 
@@ -452,7 +451,7 @@ fn pos_var_to_subtype_keeps_weighted_effect_terminal_upper_bound() {
     let upper = machine.alloc_neg(Neg::Con(vec!["io".into()], vec![]));
     let subtract = SubtractId(0);
     let weights = ConstraintWeights {
-        left: ConstraintWeight::empty(),
+        left: LeftConstraintWeight::empty(),
         right: RightConstraintWeight::from_ids([subtract]),
     };
 
@@ -477,7 +476,7 @@ fn weighted_var_to_itself_constraint_is_noop() {
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Var(source));
     let weights = ConstraintWeights {
-        left: StackWeight::push(
+        left: LeftConstraintWeight::push(
             subtract,
             Subtractability::Set(vec!["io".into()], Vec::new()),
         ),
@@ -498,7 +497,7 @@ fn var_bound_addition_replays_against_opposite_bounds_with_union_weights() {
     let lower_arg = machine.alloc_neu(Neu::Bounds(lower_arg_pos, lower_arg_neg));
     let lower = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![lower_arg]));
     let lower_weight = ConstraintWeights {
-        left: ConstraintWeight::from_ids([SubtractId(0)]),
+        left: LeftConstraintWeight::from_ids([SubtractId(0)]),
         right: RightConstraintWeight::empty(),
     };
     let var_neg = machine.alloc_neg(Neg::Var(var));
@@ -510,7 +509,7 @@ fn var_bound_addition_replays_against_opposite_bounds_with_union_weights() {
     let upper_arg = machine.alloc_neu(Neu::Bounds(upper_arg_pos, upper_arg_neg));
     let upper = machine.alloc_neg(Neg::Con(vec!["box".into()], vec![upper_arg]));
     let upper_weight = ConstraintWeights {
-        left: ConstraintWeight::empty(),
+        left: LeftConstraintWeight::empty(),
         right: RightConstraintWeight::from_ids([SubtractId(1)]),
     };
     machine.weighted_subtype(var_pos, upper_weight.clone(), upper);
@@ -579,7 +578,7 @@ fn var_var_replay_keeps_pop_only_alias_cycle_finite() {
     machine.weighted_subtype(
         a_pos,
         ConstraintWeights {
-            left: StackWeight::pop(subtract),
+            left: LeftConstraintWeight::pop(subtract),
             right: RightConstraintWeight::empty(),
         },
         b_neg,
@@ -608,7 +607,7 @@ fn zero_arg_nominal_subtype_deduplicates_weight_insensitive_edges() {
     let lower = machine.alloc_pos(Pos::Con(vec!["bool".into()], Vec::new()));
     let upper = machine.alloc_neg(Neg::Con(vec!["bool".into()], Vec::new()));
     let weighted = ConstraintWeights {
-        left: StackWeight::push(SubtractId(0), Subtractability::Empty),
+        left: LeftConstraintWeight::push(SubtractId(0), Subtractability::Empty),
         right: RightConstraintWeight::empty(),
     };
 
@@ -630,7 +629,7 @@ fn terminal_non_effect_lower_bound_uses_empty_weight_without_matching_terminal_u
     let bool_lower = machine.alloc_pos(Pos::Con(vec!["bool".into()], Vec::new()));
     let var_upper = machine.alloc_neg(Neg::Var(var));
     let weighted = ConstraintWeights {
-        left: StackWeight::floor(SubtractId(0), Subtractability::Empty),
+        left: LeftConstraintWeight::push(SubtractId(0), Subtractability::Empty),
         right: RightConstraintWeight::empty(),
     };
 
@@ -653,7 +652,7 @@ fn terminal_effect_lower_bound_keeps_weight_without_matching_terminal_upper() {
     let io = machine.alloc_pos(Pos::Con(vec!["io".into()], Vec::new()));
     let var_upper = machine.alloc_neg(Neg::Var(var));
     let weighted = ConstraintWeights {
-        left: StackWeight::floor(SubtractId(0), Subtractability::Empty),
+        left: LeftConstraintWeight::push(SubtractId(0), Subtractability::Empty),
         right: RightConstraintWeight::empty(),
     };
 
@@ -694,7 +693,7 @@ fn function_arguments_propagate_with_swapped_weights() {
         ret: rhs_ret,
     });
     let weights = ConstraintWeights {
-        left: ConstraintWeight::from_ids([SubtractId(0)]),
+        left: LeftConstraintWeight::from_ids([SubtractId(0)]),
         right: RightConstraintWeight::from_ids([SubtractId(1)]),
     };
 
@@ -724,7 +723,7 @@ fn constructor_args_propagate_invariant_neutral_bounds() {
     let lower = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![lower_arg]));
     let upper = machine.alloc_neg(Neg::Con(vec!["box".into()], vec![upper_arg]));
     let weights = ConstraintWeights {
-        left: ConstraintWeight::from_ids([SubtractId(0)]),
+        left: LeftConstraintWeight::from_ids([SubtractId(0)]),
         right: RightConstraintWeight::from_ids([SubtractId(1)]),
     };
 
@@ -1023,11 +1022,11 @@ fn assert_pop_only_weights_do_not_grow(weights: &ConstraintWeights, subtract: Su
     assert_right_pop_only_weight_does_not_grow(&weights.right, subtract);
 }
 
-fn assert_pop_only_weight_does_not_grow(weight: &StackWeight, subtract: SubtractId) {
+fn assert_pop_only_weight_does_not_grow(weight: &LeftConstraintWeight, subtract: SubtractId) {
     for entry in weight.entries() {
-        if entry.id == subtract && entry.floor.is_empty() && entry.stack.is_empty() {
+        if entry.id == subtract && entry.pushes == 0 {
             assert!(
-                entry.pops <= 1,
+                entry.leading_pops <= 1,
                 "alias replay should not grow naked pop-only weights: {weight:?}"
             );
         }

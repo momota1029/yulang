@@ -197,12 +197,8 @@ impl ConstraintMachine {
         Self::stack_weight_is_alias_neutral(&weights.left)
     }
 
-    fn stack_weight_is_alias_neutral(weight: &StackWeight) -> bool {
-        !weight.has_filter()
-            && weight
-                .entries()
-                .iter()
-                .all(|entry| entry.floor.is_empty() && entry.stack.is_empty())
+    fn stack_weight_is_alias_neutral(weight: &LeftConstraintWeight) -> bool {
+        !weight.has_filter() && weight.entries().iter().all(|entry| entry.pushes == 0)
     }
 
     fn store_upper_bound_without_replay(
@@ -241,7 +237,7 @@ impl ConstraintMachine {
     fn intersect_row_items_with_left_stack(
         &mut self,
         items: Vec<NegId>,
-        weight: &StackWeight,
+        weight: &LeftConstraintWeight,
     ) -> Vec<NegId> {
         self.collect_left_stack_effect_families(weight);
         let subtractability = common_stack_subtractability(left_active_stack_items(weight));
@@ -448,7 +444,7 @@ impl ConstraintMachine {
         true
     }
 
-    fn collect_left_stack_effect_families(&mut self, weight: &StackWeight) {
+    fn collect_left_stack_effect_families(&mut self, weight: &LeftConstraintWeight) {
         let mut families = EffectFamilyMap::default();
         for family in left_active_stack_items(weight).flat_map(subtractability_families) {
             self.insert_effect_family(&mut families, family);
@@ -551,22 +547,23 @@ impl ConstraintMachine {
 
     fn subtract_row_items_from_left_stack_weight(
         &mut self,
-        weight: &StackWeight,
+        weight: &LeftConstraintWeight,
         removed: impl IntoIterator<Item = EffectFamily>,
-    ) -> StackWeight {
+    ) -> LeftConstraintWeight {
         let removed = self.collect_effect_families(removed);
         if removed.is_empty() {
             return weight.with_filter(Subtractability::All);
         }
 
-        let mut out = StackWeight::empty();
+        let mut out = LeftConstraintWeight::empty();
         for entry in weight.entries() {
-            out = out.compose(&StackWeight::pops(entry.id, entry.pops));
-            for subtractability in &entry.stack {
-                out = out.compose(&StackWeight::push(
-                    entry.id,
-                    self.subtract_effect_families(subtractability.clone(), &removed),
-                ));
+            out = out.compose(&LeftConstraintWeight::pops(entry.id, entry.leading_pops));
+            if entry.pushes > 0 {
+                let family = entry.family.clone().unwrap_or(Subtractability::All);
+                let family = self.subtract_effect_families(family, &removed);
+                for _ in 0..entry.pushes {
+                    out = out.compose(&LeftConstraintWeight::push(entry.id, family.clone()));
+                }
             }
         }
         out
@@ -645,6 +642,8 @@ fn remove_first_row_item(items: &mut Vec<NegId>, item: NegId) {
     }
 }
 
-fn left_active_stack_items(weight: &StackWeight) -> impl Iterator<Item = &Subtractability> + '_ {
+fn left_active_stack_items(
+    weight: &LeftConstraintWeight,
+) -> impl Iterator<Item = &Subtractability> + '_ {
     weight.active_stack_items()
 }

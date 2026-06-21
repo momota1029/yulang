@@ -564,10 +564,10 @@ impl<'a> CompactCollector<'a> {
         let mut acc = CompactType::default();
         let mut pending_stack_families = self.compact_pre_pop_stack_families(var);
         for bound in bounds.lowers() {
-            let mut bound_stack_families = self.compact_weight_stack_families(&bound.weights.left);
+            let left_weight = bound.weights.left.to_stack_weight();
+            let mut bound_stack_families = self.compact_weight_stack_families(&left_weight);
             bound_stack_families.extend(self.compact_pos_stack_families(bound.pos));
-            let compact =
-                self.compact_pos_bound_id(bound.pos, bound.weights.left.union(outer_weight));
+            let compact = self.compact_pos_bound_id(bound.pos, left_weight.union(outer_weight));
             self.record_stack_families_row_coexistence(&pending_stack_families, &compact);
             self.record_stack_families_row_coexistence(&bound_stack_families, &acc);
             self.record_stack_families_row_coexistence(&bound_stack_families, &compact);
@@ -619,7 +619,8 @@ impl<'a> CompactCollector<'a> {
         let weight = outer_weight.union(&bound.weights.right.to_stack_weight());
         match self.machine.types().neg(bound.neg).clone() {
             Neg::Row(items, tail) => {
-                self.compact_neg_row_upper_bound(source, items, tail, weight, &bound.weights.left)
+                let cancelled = bound.weights.left.to_stack_weight();
+                self.compact_neg_row_upper_bound(source, items, tail, weight, &cancelled)
             }
             Neg::Var(var) if Self::is_unweighted_neg_var_alias(&bound.weights, outer_weight) => {
                 CompactType::from_var(self.compact_secondary_var_occurrence(
@@ -640,8 +641,8 @@ impl<'a> CompactCollector<'a> {
         // Pop-only entries do not carry an effect-family budget. The stack spec permits dropping
         // them when neither side has a corresponding non-empty entry, so they should not block a
         // negative var-var alias in compact collection.
-        Self::is_alias_neutral_weight(outer_weight)
-            && Self::is_alias_neutral_weight(&bound_weights.left)
+        let left_weight = bound_weights.left.to_stack_weight();
+        Self::is_alias_neutral_weight(outer_weight) && Self::is_alias_neutral_weight(&left_weight)
     }
 
     fn is_exact_unweighted_neg_var_alias(
@@ -655,8 +656,9 @@ impl<'a> CompactCollector<'a> {
         bound_weights: &ConstraintWeights,
         outer_weight: &ConstraintWeight,
     ) -> bool {
+        let left_weight = bound_weights.left.to_stack_weight();
         Self::is_alias_neutral_weight(outer_weight)
-            && Self::weight_has_row_tail_boundary(&bound_weights.left)
+            && Self::weight_has_row_tail_boundary(&left_weight)
     }
 
     fn is_alias_neutral_weight(weight: &ConstraintWeight) -> bool {

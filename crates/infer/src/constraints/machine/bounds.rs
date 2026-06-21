@@ -152,7 +152,7 @@ impl ConstraintMachine {
     ) -> ConstraintWeights {
         let filter = weights.left_filter_set().clone();
         if !matches!(filter, Subtractability::All) {
-            self.constrain_stack_by_filter(&weights.left, &filter);
+            self.constrain_stack_by_filter(&weights.left.to_stack_weight(), &filter);
             self.constrain_type_var_lowers_by_filter(source, filter);
         }
         weights.without_left_filter()
@@ -165,7 +165,7 @@ impl ConstraintMachine {
     ) -> ConstraintWeights {
         let filter = weights.left_filter_set().clone();
         if !matches!(filter, Subtractability::All) {
-            self.constrain_stack_by_filter(&weights.left, &filter);
+            self.constrain_stack_by_filter(&weights.left.to_stack_weight(), &filter);
             self.constrain_type_var_lowers_by_filter(lower, filter);
         }
         weights.without_left_filter()
@@ -218,7 +218,7 @@ impl ConstraintMachine {
         if matches!(filter, Subtractability::All) {
             return;
         }
-        self.constrain_stack_by_filter(&weights.left, filter);
+        self.constrain_stack_by_filter(&weights.left.to_stack_weight(), filter);
         let filter = weights.left.filter_set().clone().intersect(filter.clone());
         self.constrain_pos_lower_by_filter(pos, &filter);
     }
@@ -648,15 +648,11 @@ impl ConstraintMachine {
     }
 
     fn weights_are_pop_only(weights: &ConstraintWeights) -> bool {
-        Self::weight_is_pop_only(&weights.left)
+        Self::left_weight_is_pop_only(&weights.left)
     }
 
-    fn weight_is_pop_only(weight: &ConstraintWeight) -> bool {
-        !weight.has_filter()
-            && weight
-                .entries()
-                .iter()
-                .all(|entry| entry.floor.is_empty() && entry.stack.is_empty())
+    fn left_weight_is_pop_only(weight: &LeftConstraintWeight) -> bool {
+        !weight.has_filter() && weight.entries().iter().all(|entry| entry.pushes == 0)
     }
 
     pub(in crate::constraints) fn extrude_pos(&mut self, pos: PosId, target: TypeLevel) -> PosId {
@@ -1059,13 +1055,9 @@ fn neg_ids_match_for_row_tail(types: &TypeArena, lhs: NegId, rhs: NegId) -> bool
 }
 
 fn constraint_weights_have_row_tail_boundary(weights: &ConstraintWeights) -> bool {
-    constraint_weight_has_row_tail_boundary(&weights.left)
+    left_constraint_weight_has_row_tail_boundary(&weights.left)
 }
 
-fn constraint_weight_has_row_tail_boundary(weight: &ConstraintWeight) -> bool {
-    weight.has_filter()
-        || weight
-            .entries()
-            .iter()
-            .any(|entry| !entry.floor.is_empty() || !entry.stack.is_empty())
+fn left_constraint_weight_has_row_tail_boundary(weight: &LeftConstraintWeight) -> bool {
+    weight.has_filter() || weight.entries().iter().any(|entry| entry.pushes > 0)
 }

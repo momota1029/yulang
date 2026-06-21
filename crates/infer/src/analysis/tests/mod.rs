@@ -2,7 +2,7 @@ use crate::compact::compact_type_var;
 use poly::expr::SelectResolution;
 
 use super::*;
-use crate::constraints::{ConstraintWeight, ConstraintWeights, RightConstraintWeight};
+use crate::constraints::{ConstraintWeights, LeftConstraintWeight, RightConstraintWeight};
 use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate,
 };

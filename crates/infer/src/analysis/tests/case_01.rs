@@ -18,7 +18,7 @@ fn lower_bound_events_route_receiver_and_ref_payload_select_watchers() {
     session.infer.weighted_subtype(
         lower,
         ConstraintWeights {
-            left: ConstraintWeight::from_ids([SubtractId(0)]),
+            left: LeftConstraintWeight::from_ids([SubtractId(0)]),
             right: RightConstraintWeight::empty(),
         },
         upper,
@@ -426,7 +426,7 @@ fn effect_method_selection_resolves_from_receiver_effect_weighted_lower_bound() 
     session.infer.weighted_subtype(
         tail,
         ConstraintWeights {
-            left: ConstraintWeight::push(
+            left: LeftConstraintWeight::push(
                 SubtractId(0),
                 Subtractability::Set(vec!["nondet".into()], Vec::new()),
             ),
@@ -471,7 +471,7 @@ fn effect_method_selection_ignores_non_effect_receiver_value_weighted_lower_boun
     session.infer.weighted_subtype(
         value,
         ConstraintWeights {
-            left: ConstraintWeight::push(
+            left: LeftConstraintWeight::push(
                 SubtractId(0),
                 Subtractability::Set(vec!["nondet".into()], Vec::new()),
             ),

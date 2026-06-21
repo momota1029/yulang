@@ -71,19 +71,20 @@ This is the preferred way to stop self-fueling row cycles, together with residua
   before row-head subtraction. Row split now computes `Common(L)` from left active stack entries only,
   and carries right-side pop to the residual tail.
 
-- `row_effect.rs` still uses the legacy `poly::types::StackWeight` storage while interpreting it as a directed pair.
-  The local bridge strips `filter` after static checks and ignores legacy `floor` for `Common(L)`.
+- `row_effect.rs` now receives the solver's directed left weight.
+  Legacy `poly::types::StackWeight` is only used for surface wrappers and compact materialization.
 
 - `ConstraintWeights::compose_for_replay()` and var-var replay now normalize by W-Mix before applying the
   implementation-side pop-growth caps. This keeps the semantic directed projection before the termination guard.
   The replay normalizer uses the directed `LeftStackWeight`/`RightStackWeight` mix implementation and then
-  materializes the left side back to legacy `StackWeight` for the remaining solver and compact paths.
+  keeps the solver state in directed left/right storage.
 
 - `ConstraintWeights.right` now uses a dedicated `RightStackWeight`.
   It can represent only pure right pops. Push/floor/filter cannot be stored on the right side structurally.
 
-- `ConstraintWeights.left` still uses legacy `poly::types::StackWeight` and can represent `filter`, `floor`,
-  `stack`, and `pops`. The remaining migration is to replace this with the directed left normal form.
+- `ConstraintWeights.left` uses `LeftConstraintWeight`, a directed left normal form plus a temporary filter carrier.
+  It cannot store legacy floor. Surface `StackWeight` wrappers are converted at absorption time, and compact/finalize
+  boundaries materialize directed left weights back to `StackWeight`.
 
 - Left-side filters are checked at bound insertion and erased before bounds are stored or replayed.
   Lower bounds check the incoming lower type immediately. Upper and var-var bounds register the filter on the
@@ -91,9 +92,8 @@ This is the preferred way to stop self-fueling row cycles, together with residua
 
 - `floor` is not part of the new formal core. The row split path no longer creates new floor residuals,
   and active-family readers now use `StackWeight::active_stack_items()`, which ignores legacy floor entries.
-  Replay W-Mix also ignores floor for cancellation/projection while preserving already-present floor entries on the
-  materialized left weight. Remaining floor code is limited to preserving or simplifying already-present legacy floor
-  weights in compact/finalize paths.
+  Replay W-Mix also ignores floor for cancellation/projection because bound left weights no longer contain floor.
+  Remaining floor code is limited to legacy surface wrappers and compact/finalize paths.
 
 - `filter` is currently embedded in `StackWeight`.
   Row split, `Neg::Stack` absorption, and bound insertion treat filter as a separate wrapper/check and erase it before
@@ -117,6 +117,7 @@ This is the preferred way to stop self-fueling row cycles, together with residua
    - `RightStackWeight`
    - `ConstraintWeights { left: LeftStackWeight, right: RightStackWeight }`
    - Unit tests for same-id composition, `take;pop` cancellation, `pop;take` preservation, and W-Mix projection.
+   - Status: done with `LeftConstraintWeight` as the solver-facing left wrapper.
 
 2. Port row upper handling to the directed contract.
    - Distribute right pop to the row tail.
@@ -136,8 +137,8 @@ This is the preferred way to stop self-fueling row cycles, together with residua
    - Compose by directed path composition.
    - Do not exchange unmatched right-pop with a new push.
    - Treat pop-growth caps as temporary termination guards only if they remain needed.
-   - Status: partial. Replay now runs W-Mix before caps and stores right weights as pure-pop `RightStackWeight`.
-     Left weights still use legacy `StackWeight`.
+   - Status: mostly done. Replay now stores directed left weights and pure-pop right weights, runs W-Mix before caps,
+     and materializes left weights only at compact/generalize/test helper boundaries.
 
 5. Rework compact extraction.
    - Positive projection keeps full left weight.

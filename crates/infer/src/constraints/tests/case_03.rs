@@ -15,7 +15,7 @@ fn neg_stack_peel_composes_stack_before_existing_right_weight() {
         ),
     });
     let weights = ConstraintWeights {
-        left: StackWeight::empty(),
+        left: LeftConstraintWeight::empty(),
         right: RightConstraintWeight::pop(subtract),
     };
 
@@ -49,7 +49,7 @@ fn non_subtract_adds_left_weight_before_continuing() {
         &[WeightedLowerBound {
             pos: inner,
             weights: ConstraintWeights {
-                left: ConstraintWeight::from_ids([subtract]),
+                left: LeftConstraintWeight::from_ids([subtract]),
                 right: RightConstraintWeight::empty()
             }
         }]

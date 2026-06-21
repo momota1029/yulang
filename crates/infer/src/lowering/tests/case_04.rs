@@ -930,7 +930,7 @@ fn local_arg_application_flows_empty_stack_to_callee_and_result() {
     assert!(
         result_effect_bounds.lowers().iter().any(|bound| {
             matches!(types.pos(bound.pos), Pos::Var(var) if *var == call_effect)
-                && weight_has_empty_stack(&bound.weights.left, subtract)
+                && weight_has_empty_stack(&bound.weights.left.to_stack_weight(), subtract)
         }),
         "application result effect should carry stacked call effect"
     );

@@ -177,7 +177,7 @@ fn compact_neg_row_tail_aliases_weighted_var_without_expanding_it() {
     let source_pos = machine.alloc_pos(Pos::Var(source));
     let through_neg = machine.alloc_neg(Neg::Var(through));
     let weights = ConstraintWeights {
-        left: StackWeight::push(subtract, Subtractability::Empty),
+        left: LeftConstraintWeight::push(subtract, Subtractability::Empty),
         right: RightConstraintWeight::empty(),
     };
 
@@ -206,7 +206,7 @@ fn compact_negative_var_aliases_pop_only_var_var_bound() {
     let source_pos = machine.alloc_pos(Pos::Var(source));
     let through_neg = machine.alloc_neg(Neg::Var(through));
     let weights = ConstraintWeights {
-        left: StackWeight::pop(subtract),
+        left: LeftConstraintWeight::pop(subtract),
         right: RightConstraintWeight::empty(),
     };
 
@@ -229,7 +229,7 @@ fn compact_neg_row_tail_reaches_pop_only_var_var_bound() {
     let source_pos = machine.alloc_pos(Pos::Var(source));
     let through_neg = machine.alloc_neg(Neg::Var(through));
     let weights = ConstraintWeights {
-        left: StackWeight::pop(subtract),
+        left: LeftConstraintWeight::pop(subtract),
         right: RightConstraintWeight::empty(),
     };
 

@@ -16,7 +16,9 @@ mod trace;
 
 use std::collections::VecDeque;
 
-use directed_weight::{DirectedWeights, LeftStackWeight, RightStackWeight};
+use directed_weight::{
+    DirectedWeights, LeftConstraintWeight as DirectedLeftConstraintWeight, RightStackWeight,
+};
 use poly::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, StackWeight, SubtractId, Subtractability,
     TypeArena, TypeVar,
@@ -191,7 +193,7 @@ struct QueuedSubtractFact {
 struct RowResidualKey {
     source: TypeVar,
     retained_families: Vec<EffectFamily>,
-    weight: StackWeight,
+    weight: LeftConstraintWeight,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -319,6 +321,7 @@ impl SubtractTable {
 
 /// subtype edge の片側に載る stack weight。
 pub type ConstraintWeight = StackWeight;
+pub type LeftConstraintWeight = DirectedLeftConstraintWeight;
 pub type RightConstraintWeight = RightStackWeight;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
@@ -327,7 +330,7 @@ pub type RightConstraintWeight = RightStackWeight;
 /// 関数引数のように polarity が反転する場所では `swapped()` で左右を入れ替える。
 /// bounds の再伝播では `compose_for_replay()` し、経路の情報をまとめる。
 pub struct ConstraintWeights {
-    pub left: ConstraintWeight,
+    pub left: LeftConstraintWeight,
     pub right: RightConstraintWeight,
 }
 
@@ -342,8 +345,8 @@ impl ConstraintWeights {
 
     pub fn swapped(&self) -> Self {
         Self {
-            left: self.right.to_stack_weight(),
-            right: RightConstraintWeight::from_stack_weight_pops(&self.left),
+            left: LeftConstraintWeight::from_right_weight(&self.right),
+            right: RightConstraintWeight::from_stack_weight_pops(&self.left.to_stack_weight()),
         }
     }
 
@@ -353,7 +356,7 @@ impl ConstraintWeights {
 
     pub fn with_left_prefix(&self, weight: StackWeight) -> Self {
         Self {
-            left: weight.compose(&self.left),
+            left: LeftConstraintWeight::from_stack_weight(&weight).compose(&self.left),
             right: self.right.clone(),
         }
     }
@@ -367,7 +370,7 @@ impl ConstraintWeights {
 
     pub fn both_from_right(&self) -> Self {
         Self {
-            left: self.right.to_stack_weight(),
+            left: LeftConstraintWeight::from_right_weight(&self.right),
             right: self.right.clone(),
         }
     }
@@ -409,7 +412,7 @@ impl ConstraintWeights {
 
     pub fn without_left_filter(&self) -> Self {
         Self {
-            left: self.left.with_filter(Subtractability::All),
+            left: self.left.without_filter(),
             right: self.right.clone(),
         }
     }
@@ -434,28 +437,15 @@ impl ConstraintWeights {
         }
 
         let mixed = DirectedWeights {
-            left: LeftStackWeight::from_stack_weight(&self.left),
+            left: self.left.directed().clone(),
             right: self.right,
         }
         .mix();
         Self {
-            left: left_stack_weight_after_directed_mix(&self.left, mixed.left),
+            left: self.left.with_directed_weight(mixed.left),
             right: mixed.right,
         }
     }
-}
-
-fn left_stack_weight_after_directed_mix(
-    original: &StackWeight,
-    mixed: LeftStackWeight,
-) -> StackWeight {
-    let mut out = StackWeight::filter(original.filter_set().clone());
-    for entry in original.entries() {
-        for floor in &entry.floor {
-            out = out.compose(&StackWeight::floor(entry.id, floor.clone()));
-        }
-    }
-    out.compose(&mixed.to_stack_weight())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

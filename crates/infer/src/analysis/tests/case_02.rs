@@ -193,7 +193,7 @@ fn routes_effect_filter_violation_to_analysis_diagnostic() {
     session.infer.constraints_mut().weighted_subtype(
         lower,
         ConstraintWeights {
-            left: StackWeight::filter(filter.clone()),
+            left: LeftConstraintWeight::filter(filter.clone()),
             right: RightConstraintWeight::empty(),
         },
         upper,

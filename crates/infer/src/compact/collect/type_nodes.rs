@@ -603,7 +603,7 @@ impl<'a> CompactCollector<'a> {
                     items,
                     tail,
                     bound_weight,
-                    &bound.weights.left,
+                    &bound.weights.left.to_stack_weight(),
                 ),
                 Neg::Var(other)
                     if Self::is_exact_unweighted_neg_var_alias(&bound.weights, &weight) =>
