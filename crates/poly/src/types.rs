@@ -387,10 +387,10 @@ impl StackWeight {
         self.entries.iter().map(|entry| entry.id)
     }
 
-    pub fn stack_items(&self) -> impl Iterator<Item = &Subtractability> {
-        self.entries
-            .iter()
-            .flat_map(|entry| entry.floor.iter().chain(entry.stack.iter()))
+    /// Active push families currently visible above unmatched pops.
+    /// Legacy floor entries are not active pushes.
+    pub fn active_stack_items(&self) -> impl Iterator<Item = &Subtractability> {
+        self.entries.iter().flat_map(|entry| entry.stack.iter())
     }
 
     pub fn has_stack_entry(&self) -> bool {

@@ -373,7 +373,10 @@ impl ConstraintMachine {
         weight: &StackWeight,
     ) {
         let families = self.pre_pop_effect_families.entry(target).or_default();
-        for family in weight.stack_items().flat_map(subtractability_families) {
+        for family in weight
+            .active_stack_items()
+            .flat_map(subtractability_families)
+        {
             let family = ConstraintEffectFamily {
                 path: family.path,
                 args: family.args,

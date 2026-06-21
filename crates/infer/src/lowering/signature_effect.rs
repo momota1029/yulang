@@ -391,7 +391,7 @@ impl<'a> SignatureLowerer<'a> {
 
 fn signature_effect_stack_filter_from_weight(weight: &StackWeight) -> Subtractability {
     weight
-        .stack_items()
+        .active_stack_items()
         .cloned()
         .reduce(Subtractability::intersect)
         .unwrap_or(Subtractability::All)

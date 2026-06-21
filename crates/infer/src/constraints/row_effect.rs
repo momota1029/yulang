@@ -646,5 +646,5 @@ fn remove_first_row_item(items: &mut Vec<NegId>, item: NegId) {
 }
 
 fn left_active_stack_items(weight: &StackWeight) -> impl Iterator<Item = &Subtractability> + '_ {
-    weight.entries().iter().flat_map(|entry| entry.stack.iter())
+    weight.active_stack_items()
 }

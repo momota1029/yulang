@@ -88,7 +88,8 @@ This is the preferred way to stop self-fueling row cycles, together with residua
   source/lower variable so later lower bounds are checked through the existing `lower_filters` path.
 
 - `floor` is not part of the new formal core. The row split path no longer creates new floor residuals,
-  but other formatting/extraction paths still need an audit.
+  and active-family readers now use `StackWeight::active_stack_items()`, which ignores legacy floor entries.
+  Remaining floor code is limited to preserving or simplifying already-present legacy floor weights in compact/finalize paths.
 
 - `filter` is currently embedded in `StackWeight`.
   Row split, `Neg::Stack` absorption, and bound insertion treat filter as a separate wrapper/check and erase it before
@@ -98,8 +99,8 @@ This is the preferred way to stop self-fueling row cycles, together with residua
   They must not be treated as semantic equalities. If retained temporarily, they need to be isolated as a termination guard
   and justified by a separate worklist termination argument.
 
-- Some callers of `common_stack_subtractability()` still read `weight.stack_items()`, which includes floor entries.
-  The row split path has been corrected, but propagation/formatting callers still need review.
+- Active-family extraction must use active stack pushes only. The old mixed `stack_items()` helper was removed to avoid
+  accidentally treating floor as a visible push family.
 
 - Any test expectation that removes a residual solely because the current implementation prints a simpler type is suspect.
   Principal residual surface is part of the theory.

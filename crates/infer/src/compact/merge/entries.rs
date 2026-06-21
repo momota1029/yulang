@@ -93,7 +93,7 @@ pub(in crate::compact) fn compact_weight_effect_families(
     weight: &ConstraintWeight,
 ) -> Vec<(Vec<String>, Vec<NeuId>)> {
     weight
-        .stack_items()
+        .active_stack_items()
         .flat_map(compact_subtractability_families)
         .collect()
 }

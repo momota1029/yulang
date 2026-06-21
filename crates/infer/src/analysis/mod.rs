@@ -366,7 +366,7 @@ fn collect_stack_weight_effect_paths(
     out: &mut Vec<Vec<String>>,
 ) {
     collect_subtractability_effect_paths(weight.filter_set(), out);
-    for subtractability in weight.stack_items() {
+    for subtractability in weight.active_stack_items() {
         collect_subtractability_effect_paths(subtractability, out);
     }
 }
