@@ -341,6 +341,32 @@ fn compatible_run_populates_control_vm_cache() {
 }
 
 #[test]
+fn public_regression_list_update_runs_through_cli_cache() {
+    let root = temp_root("public-regression-list-update");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let cache_root = root.join("cache-root");
+    let entry = repo_yulang_fixture("regressions/runtime/list_update.yu");
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [[2, 6, 4]]\n");
+    assert_eq!(control_cache_file_count(&cache_root), 1);
+    assert_eq!(poly_cache_file_count(&cache_root), 1);
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn realm_freeze_writes_versioned_snapshot() {
     let root = temp_root("realm-freeze");
     let _ = fs::remove_dir_all(&root);
@@ -411,6 +437,14 @@ fn write_minimal_std(root: &Path) -> PathBuf {
 
 fn repo_lib_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib")
+}
+
+fn repo_yulang_fixture(path: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join("tests")
+        .join("yulang")
+        .join(path)
 }
 
 fn temp_root(name: &str) -> PathBuf {

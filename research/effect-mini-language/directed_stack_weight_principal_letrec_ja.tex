@@ -1,0 +1,1102 @@
+% !TEX program = uplatex
+\documentclass[uplatex,dvipdfmx,a4paper,10.5pt]{jsarticle}
+
+\usepackage[margin=20mm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{mathpartir}
+\usepackage{booktabs,array,tabularx,longtable}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{hyperref}
+\usepackage{pxjahyper}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!45!black,
+  citecolor=blue!45!black,
+  urlcolor=blue!45!black,
+  pdftitle={Directed Stack Weights and Principal Inference through let rec},
+  pdfsubject={Formal draft for weighted effect subtraction},
+  pdfauthor={}
+}
+
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0.18em}
+\setlist[itemize]{topsep=0.35em,itemsep=0.12em,parsep=0pt}
+\setlist[enumerate]{topsep=0.35em,itemsep=0.12em,parsep=0pt}
+\allowdisplaybreaks
+
+\definecolor{deepblue}{RGB}{36,70,115}
+\definecolor{softblue}{RGB}{238,245,252}
+\definecolor{softgreen}{RGB}{239,248,241}
+\definecolor{softyellow}{RGB}{255,249,226}
+\definecolor{softred}{RGB}{253,239,239}
+\definecolor{softgray}{RGB}{246,247,249}
+
+\newtcolorbox{intuitionbox}[1][]{
+  breakable,colback=softgreen,colframe=green!45!black,boxrule=0.55pt,
+  arc=1.2mm,title={直感},fonttitle=\bfseries,#1}
+\newtcolorbox{formalbox}[1][]{
+  breakable,colback=softblue,colframe=deepblue!70,boxrule=0.55pt,
+  arc=1.2mm,title={形式化},fonttitle=\bfseries,#1}
+\newtcolorbox{notebox}[1][]{
+  breakable,colback=softyellow,colframe=orange!70!black,boxrule=0.55pt,
+  arc=1.2mm,title={注意},fonttitle=\bfseries,#1}
+\newtcolorbox{statusbox}[1][]{
+  breakable,colback=softred,colframe=red!55!black,boxrule=0.55pt,
+  arc=1.2mm,title={証明状況},fonttitle=\bfseries,#1}
+\newtcolorbox{plainbox}[1][]{
+  breakable,colback=softgray,colframe=black!45,boxrule=0.45pt,
+  arc=1.0mm,#1}
+
+\newtheoremstyle{jpplain}
+  {0.65em}{0.65em}{\normalfont}{}
+  {\bfseries}{。}{0.5em}{}
+\theoremstyle{jpplain}
+\newtheorem{definition}{定義}[section]
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{corollary}[definition]{系}
+\newtheorem{invariant}[definition]{不変条件}
+\newtheorem{conjecture}[definition]{予想}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+\renewcommand{\proofname}{証明}
+
+% symbols
+\newcommand{\Fam}{\mathsf{Fam}}
+\newcommand{\Id}{\mathsf{Id}}
+\newcommand{\Var}{\mathsf{Var}}
+\newcommand{\Nat}{\mathbb N}
+\newcommand{\All}{\mathsf{All}}
+\newcommand{\Empty}{\mathsf{Empty}}
+\newcommand{\Unit}{\mathbf 1}
+\newcommand{\Eff}{\mathsf{Eff}}
+\newcommand{\Val}{\mathsf{Val}}
+\newcommand{\Comp}{\mathsf{Comp}}
+\newcommand{\dom}{\mathsf{dom}}
+\newcommand{\lb}{\mathsf{lb}}
+\newcommand{\ub}{\mathsf{ub}}
+\newcommand{\fresh}{\mathsf{fresh}}
+\newcommand{\seq}{\mathsf{seq}}
+\newcommand{\inst}{\mathsf{inst}}
+\newcommand{\gen}{\mathsf{gen}}
+\newcommand{\coal}{\mathsf{coal}}
+\newcommand{\compact}{\mathsf{compact}}
+\newcommand{\sat}{\mathsf{sat}}
+\newcommand{\resid}{\mathsf{residual}}
+\newcommand{\Common}{\mathsf{Common}}
+\newcommand{\Obs}{\mathsf{Obs}}
+\newcommand{\mix}{\mathsf{mix}}
+\newcommand{\projp}{\pi_{+}}
+\newcommand{\projn}{\pi_{-}}
+\newcommand{\Filter}[2]{\mathsf{filter}_{#1}(#2)}
+\newcommand{\PWeight}[2]{\mathsf{W}^{+}_{#1}(#2)}
+\newcommand{\NWeight}[2]{\mathsf{W}^{-}_{#1}(#2)}
+\newcommand{\takeop}[2]{[#1]_{#2}}
+\newcommand{\popop}[1]{\mathsf{pop}_{#1}}
+\newcommand{\row}[2]{[#1;#2]}
+\newcommand{\comp}{\mathbin{!}}
+\newcommand{\wsub}[4]{#1\;@#2\mathrel{<:}@#3\;#4}
+\newcommand{\lsub}[3]{#1\;@#2\mathrel{<:}\;#3}
+\newcommand{\rsub}[3]{#1\mathrel{<:}@#2\;#3}
+\newcommand{\subty}[2]{#1\mathrel{<:}#2}
+\newcommand{\fsub}[2]{#1\mathrel{\sqsubseteq}#2}
+\newcommand{\idmap}[1]{\{#1\}}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\erase}{\mathsf{erase}}
+\newcommand{\live}{\mathsf{Live}}
+\newcommand{\opq}{\mathsf{opaque}}
+\newcommand{\sol}{\mathsf{Sol}}
+\newcommand{\fv}{\mathsf{fv}}
+\newcommand{\fid}{\mathsf{fid}}
+\newcommand{\kw}[1]{\mathsf{#1}}
+\newcommand{\sem}[1]{[\![#1]\!]}
+
+\title{方向付き stack 重みと \texttt{let rec} までの主型推論\\
+\large Pos/Neg 重み、effect-only 注釈、weighted Simple-sub の形式化（改訂議論稿）}
+\author{}
+\date{2026年6月22日}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本稿は、effect subtraction の寿命境界を Simple-sub の bounds graph に載せるための形式化を与える。
+中心となる判断は $\wsub{T}{L}{R}{U}$ であるが、左右の重みは同型ではない。
+左重みは $\Id\rightharpoonup\Nat\times\Fam\times\Nat$ であり、同一 id に対する標準形
+$\popop{u}^{m}\takeop{H}{u}^{n}$ を表す。
+右重みは $\Id\rightharpoonup\Nat$ であり、pop だけを表す。
+異なる id の作用は可換、同一 id では $\takeop{H}{u};\popop{u}=1$ だが
+$\popop{u};\takeop{H}{u}\neq 1$ とする。
+
+型変数の lower/upper bound は、遅延伝播を正しく行うため左右両方の重みを保存できる。
+一方、compact 表現では共変側に $\PWeight{L}{T}$、反変側に $\NWeight{R}{T}$ を置く。
+保護された effect 変数は特別な構文を増やさず、$\PWeight{\takeop{\Empty}{u}}{T}$ と表す。
+具体 effect 注釈は、反変位置では $\takeop{H}{u}$、共変位置では $\Filter{H}{T}$ へ翻訳する。
+
+row upper $\lsub{\alpha}{L}{\row{K}{\beta}}$ に到達したとき、実際に引けるのは
+$J=K\cap\Common(L)$ だけである。
+$J\neq\Empty$ なら fresh residual $\gamma$ を用いて
+$\subty{\alpha}{\row{J}{\gamma}}$ と
+$\lsub{\gamma}{L\ominus J}{\beta}$ を生成する。
+本稿はこの制約機械、effect-only annotation の翻訳、term inference、compact extraction を定義し、
+完全 handler、let 多相、effect-only skeleton を持つ単相再帰までについて、
+主 weighted scheme の定理を示す。
+実行 worklist の停止性は別問題として分離し、主型性は有限制約グラフの最小解として証明する。
+\end{abstract}
+
+\tableofcontents
+
+\section{範囲、仮定、証明の読み方}
+
+本稿では、次を固定する。
+
+\begin{itemize}
+  \item effect family の有限集合を $\Fam$ とし、$\All,\Empty$、交差、差がある。
+  \item family に型引数がある場合、その同一 path の照合は別途 ordinary invariant constraint を生成する。
+        本稿では family 集合演算そのものを記述するため、引数制約を略記する。
+  \item handler は一 family を完全に処理する shallow handler とする。
+  \item let は Damas--Milner 型の generalization を行う。再帰 RHS の中では再帰変数を単相に使い、
+        polymorphic recursion は許さない。
+  \item recursive constraint graph は regular tree として読み、表示時に必要なら $\mu$ を導入する。
+\end{itemize}
+
+\begin{statusbox}
+本稿で示す主型性には二つの層がある。
+有限な生成制約グラフが持つ最小解・最一般解については定理として示す。
+一方、mutable worklist が必ず有限回でその飽和点へ到達することは、再帰 cycle で pop count が増える可能性を含むため、
+別の停止性定理を必要とする。
+したがって「アルゴリズムが停止した場合に principal」という弱い主張だけではなく、
+停止性と独立な principal constraint graph の普遍性をまず示し、その後に停止する実装はそれを計算する、と分けて述べる。
+\end{statusbox}
+
+\section{表面言語、型、effect-only skeleton}
+
+\subsection{型と kind}
+
+値型 $A$、computation 型 $C$、effect row $R$ を次で置く。
+
+\[
+\begin{array}{rcl}
+A &::=& \alpha \mid \Unit \mid C\to C \mid \kw{D}(\overline{A}) \mid \mu\alpha.A,\\
+C &::=& A\comp R,\\
+R &::=& \rho \mid \Empty \mid \row{H}{R}.
+\end{array}
+\]
+
+$\kw{D}$ は宣言済みの ADT constructor で、各引数に分散 $+, -, 0$ を持つ。
+内部表現では、型出現に次の wrapper を許す。
+
+\[
+  \PWeight{L}{T},\qquad
+  \NWeight{R}{T},\qquad
+  \Filter{B}{T}.
+\]
+
+$\PWeight{L}{T}$ は共変表示に残る左作用、$\NWeight{R}{T}$ は反変表示に残る right-pop、
+$\Filter{B}{T}$ は共変 annotation の上限検査である。
+wrapper は任意 kind の型に付けられるが、push count が正の左重みは effect kind にだけ許す。
+非 effect kind に残れる左重みは pure pop だけである。
+
+\subsection{表面項}
+
+\[
+\begin{array}{rcl}
+e &::=& () \mid \kw{ref}\ x
+ \mid \lambda(x:K):q.e
+ \mid e\ e
+ \mid \kw{perform}_{h}(e)\\
+&& \mid \kw{handle}\ e\ \kw{with}\ h(y,k)\Rightarrow e_h
+       \mid \kw{return}\ x\Rightarrow e_r\\
+&& \mid \kw{let}\ x=e_1\ \kw{in}\ e_2
+ \mid \kw{let\ rec}\ f:K=e_1\ \kw{in}\ e_2.
+\end{array}
+\]
+
+束縛名の値参照は $\kw{ref}\ x$ と明示する。
+本稿では operational thunk/force は扱わず、型推論の principal constraint graph に集中する。
+
+\subsection{effect-only skeleton}
+
+\[
+  q ::= \Empty \mid \ast \mid H,
+  \qquad
+  K ::= q \mid K\to K.
+\]
+
+$q$ は computation slot の effect boundary だけを指定し、値型は指定しない。
+表面で注釈が省略された場合は $\ast$ の糖衣とする。
+
+\section{方向付き stack 重み}
+
+\subsection{同一 id の標準形}
+
+\begin{definition}[同一 id の作用語]
+固定した id $u$ と family $H$ に対し、生成子 $\takeop{H}{u}$ と $\popop{u}$ を考える。
+等式
+\[
+  \takeop{H}{u}\,\popop{u}=1
+\]
+だけで簡約し、逆順 $\popop{u}\takeop{H}{u}$ は簡約しない。
+任意の語は一意に
+\[
+  \popop{u}^{m}\takeop{H}{u}^{n}
+\]
+へ正規化される。
+\end{definition}
+
+\begin{lemma}[同一 id の合成]
+二つの標準形を左から順に作用させる合成を $\odot$ と書く。
+\[
+(m,H,n)\odot(p,H,q)=
+\begin{cases}
+(m,H,n-p+q) & p\le n,\\
+(m+p-n,H,q) & p>n.
+\end{cases}
+\]
+この演算は結合的である。
+\end{lemma}
+
+\begin{proof}
+標準形を語 $\popop{u}^{m}\takeop{H}{u}^{n}$ に戻し、語の連結後に
+$\takeop{H}{u}\popop{u}=1$ を可能な限り適用する。
+簡約は境界の一箇所、すなわち左語末尾の push と右語先頭の pop の間でしか起きないため、上の式になる。
+語の連結が結合的で、正規形が一意なので $\odot$ も結合的である。
+\end{proof}
+
+同じ id の push は常に同じ family $H$ を持つ。
+これは id が annotation/skeleton の一つの境界から fresh に生成されるためである。
+異なる $H$ を同じ id へ入れる状態は ill-formed とする。
+
+\subsection{左重みと右重み}
+
+\begin{definition}[左重み]
+左重みは有限台写像
+\[
+  L:\Id\rightharpoonup \Nat\times\Fam\times\Nat
+\]
+である。
+$L(u)=(m,H,n)$ を $\popop{u}^{m}\takeop{H}{u}^{n}$ と読む。
+異なる id の成分は可換に合成し、同じ id は前補題の $\odot$ で合成する。
+この pointwise 合成も $\odot$ と書き、単位元を $0_L$ とする。
+\end{definition}
+
+\begin{definition}[右重み]
+右重みは有限台写像
+\[
+  R:\Id\rightharpoonup\Nat
+\]
+である。
+$R(u)=m$ を $\popop{u}^{m}$ と読む。
+合成は pointwise 加算で、単位元を $0_R$ とする。
+\end{definition}
+
+右重みには push を置かない。
+一方、左重みは pure pop $n=0$ も保持できる。
+この非対称性は function domain の反変分解で right-pop が左へ現れる場合に必要である。
+
+\subsection{左右の相互作用と射影}
+
+左右が同時に存在するときだけ、同じ id の左作用の後ろへ右 pop を作用させる。
+
+\begin{definition}[mixed normalization]
+$L\neq0_L$ かつ $R\neq0_R$ とする。
+各 id $u$ について
+\[
+  L(u)=(m,H,n),\qquad R(u)=r
+\]
+を補って
+\[
+  (m,H,n)\odot(r,H,0)=(m',H,n')
+\]
+を計算する。
+$n'>0$ なら成分 $(m',H,n')$ を $L'$ へ、$n'=0$ なら pure pop $m'$ を $R'$ へ置く。
+この結果を
+\[
+  \mix(L,R)=(L',R')
+\]
+と書く。
+\end{definition}
+
+片側が空の場合はこの射影を行わず、その側にある pure pop も移動させない。
+これは side が構造分解による極性 provenance を持つためである。
+
+\begin{formalbox}
+一般の mixed constraint は次の二本へ分ける。
+\[
+\inferrule*[right=W-Mix]
+ {L\neq0_L\\R\neq0_R\\\mix(L,R)=(L',R')}
+ {\wsub{T}{L}{R}{U}\quad\Longrightarrow\quad
+  \{\lsub{T}{L'}{U},\ \rsub{T}{R'}{U}\}.}
+\]
+空重みを持つ枝は省略する。
+この分離は「共変表示では pure pop を観測せず、反変表示では residual push を観測しない」という
+Pos/Neg relevance quotient の algorithmic な形である。
+\end{formalbox}
+
+\begin{lemma}[mixed normalization の極性保存]
+任意の同一 id 成分について、元の語
+$\popop{u}^{m}\takeop{H}{u}^{n}\popop{u}^{r}$ と、
+$\mix$ 後に Pos 側へ置いた成分または Neg 側へ置いた成分は、対応する極性で同じ観測を持つ。
+\end{lemma}
+
+\begin{proof}
+同一 id の標準形を計算すると、結果は push を一つ以上含むか pure pop のどちらかである。
+前者を Neg 側で観測しても push は row head subtraction にしか寄与せず、反変表示では不要である。
+後者を Pos 側で観測しても引ける family を増やさないため不要である。
+したがって標準形を二つの relevance class に分けるだけで、対応極性の観測は変わらない。
+異なる id は可換なので pointwise に従う。
+\end{proof}
+
+\subsection{active family、共通部分、subtraction}
+
+\begin{definition}[active id と共通部分]
+\[
+  \mathsf{Act}(L)=\{u\mid L(u)=(m,H,n),\ n>0\}.
+\]
+\[
+  \Common(L)=
+  \begin{cases}
+    \displaystyle\bigcap_{u\in\mathsf{Act}(L)} H_u & \mathsf{Act}(L)\neq\varnothing,\\
+    \All & \mathsf{Act}(L)=\varnothing.
+  \end{cases}
+\]
+\end{definition}
+
+active id が無いとき $\All$ とするのは、無保護の unknown row が任意 family を含みうるという意味である。
+一方、保護された row は active push $\takeop{\Empty}{u}$ を持つため、共通部分は $\Empty$ になる。
+
+\begin{definition}[左重みから family を引く]
+$J\subseteq\Common(L)$ とする。
+$L\ominus J$ は、active 成分
+$(m,H,n)$ を $(m,H\setminus J,n)$ に置き換え、pure-pop 成分をそのまま保つ左重みである。
+$H\setminus J=H\cap\mathsf{Except}(J)$ と読んでもよい。
+\end{definition}
+
+\section{weighted subtype constraint machine}
+
+\subsection{制約と wrapper の吸収}
+
+型制約を
+\[
+  \wsub{T}{L}{R}{U}
+\]
+と書く。
+意味は、$T$ と $U$ に付いている未分配作用を左右へ蓄積した subtype comparison である。
+
+\[
+\inferrule*[right=W-Pos]
+ {\wsub{T}{W\odot L}{R}{U}}
+ {\wsub{\PWeight{W}{T}}{L}{R}{U}}
+\qquad
+\inferrule*[right=W-Neg]
+ {\wsub{T}{L}{P+R}{U}}
+ {\wsub{T}{L}{R}{\NWeight{P}{U}}}.
+\]
+
+同じ型 constructor は通常の分散で分解する。
+function では domain で左右が交換される。
+
+\[
+\inferrule*[right=W-Fun]
+ {\wsub{D_1}{R}{L}{C_1}\\
+  \wsub{C_2}{L}{R}{D_2}}
+ {\wsub{C_1\to C_2}{L}{R}{D_1\to D_2}}.
+\]
+
+push count が正の左重みは effect kind にしか付かないため、function/ADT constructor を横断する重みは pure pop である。
+したがって domain で左右を交換しても right side に push は現れない。
+computation と ADT は宣言分散に従う。
+
+\[
+\inferrule*[right=W-Comp]
+ {\wsub{A}{L}{R}{B}\\\wsub{S}{L}{R}{T}}
+ {\wsub{A\comp S}{L}{R}{B\comp T}}.
+\]
+
+ADT の不変引数では両方向の制約を生成する。
+
+\subsection{filter}
+
+\begin{definition}[filter が観測する family]
+左辺の outer constructor が具体 effect family 集合 $F$ なら
+$\Obs(F,L)=F$ とする。
+それ以外、特に変数なら
+$\Obs(T,L)=\Common(L)$ とする。
+\end{definition}
+
+\[
+\inferrule*[right=W-Filter]
+ {\fsub{\Obs(T,L)}{B}\\
+  \subty{T}{\NWeight{R}{U}}}
+ {\wsub{T}{L}{R}{\Filter{B}{U}}}.
+\]
+
+filter は family 上限を検査した後に消える。
+左重みも検査に消費され、右 pop は inner type の $\NWeight{R}{U}$ として残る。
+これにより $\Filter{B}{\popop{u}(V)}$ のような型を、filter を monoid に入れず扱える。
+
+\subsection{型変数境界と伝播}
+
+変数状態 $\sigma$ は左右両方の重みを持てる bound を保存する。
+
+\[
+\begin{array}{rcl}
+\lb_\sigma(\alpha)&\subseteq&\mathsf{Type}\times\mathsf{LWeight}\times\mathsf{RWeight},\\
+\ub_\sigma(\alpha)&\subseteq&\mathsf{Type}\times\mathsf{LWeight}\times\mathsf{RWeight}.
+\end{array}
+\]
+
+$\wsub{T}{L}{R}{\alpha}$ を lower bound $(T,L,R)$、
+$\wsub{\alpha}{L}{R}{U}$ を upper bound $(U,L,R)$ として保存する。
+表現が両重みを持つのは、将来追加される反対側 bound へ遅延重みを失わず伝えるためである。
+
+\begin{definition}[bound propagation]
+$(T,L_1,R_1)\in\lb(\alpha)$ と
+$(U,L_2,R_2)\in\ub(\alpha)$ から
+\[
+  \wsub{T}{L_1\odot L_2}{R_1+R_2}{U}
+\]
+を生成する。
+生成後は W-Mix を含む通常の正規化へ戻す。
+\end{definition}
+
+\begin{invariant}[directed-bound invariant]
+annotation translation と構造分解から直接生成される bound pair では、
+$R_1=0_R$ または $L_2=0_L$ の少なくとも一方が成り立つ。
+したがって propagation の中央で right-pop と新しい push を逆順に交換する必要はない。
+実装は安全のため両重みを保存するが、生成規則はこの directed invariant を保つ。
+\end{invariant}
+
+新しい bound は、反対側 bound へ伝播する前に状態へ挿入する。
+比較 cache は型対だけでなく、正規化した $(L,R)$ も key に含める。
+
+\begin{lemma}[variable-bound closure]
+worklist が空の飽和状態では、全ての
+$(T,L_1,R_1)\in\lb(\alpha)$ と
+$(U,L_2,R_2)\in\ub(\alpha)$ について、上の propagated constraint が生成済みである。
+\end{lemma}
+
+\begin{proof}
+新しい lower または upper を挿入した時点で、既存の反対側 bound 全てとの組を worklist へ追加する。
+挿入を先に行うため、再帰的に同じ変数へ戻る伝播も新 bound を見落とさない。
+飽和状態では未処理組がないため結論を得る。
+\end{proof}
+
+\subsection{weighted row split}\label{sec:row-split}
+
+右 pop は row constructor の head を変えず、tail へ分配する。
+したがって
+\[
+  \wsub{\alpha}{L}{R}{\row{K}{\beta}}
+\]
+は、まず
+\[
+  \lsub{\alpha}{L}{\row{K}{\NWeight{R}{\beta}}}
+\]
+へ直してよい。
+以下では $R=0_R$ の場合だけを書く。
+
+\begin{definition}[maximal subtractable head]
+\[
+  J=K\cap\Common(L).
+\]
+$J$ は現在の全 active id が同時に許す、最大の処理可能 head である。
+\end{definition}
+
+\begin{formalbox}
+\textbf{weighted row split}
+
+\begin{enumerate}
+  \item $\lsub{\beta}{L}{\row{K}{\beta}}$ のように base variable と tail が同じなら no-op とする。
+  \item $J=\Empty$ なら residual を作らず、$\lsub{\alpha}{L}{\beta}$ を生成する。
+  \item $J\neq\Empty$ なら
+  \[
+    \gamma=\resid(\alpha,J,L\ominus J)
+  \]
+  を取り、
+  \[
+    \subty{\alpha}{\row{J}{\gamma}},
+    \qquad
+    \lsub{\gamma}{L\ominus J}{\beta}
+  \]
+  を生成する。
+\end{enumerate}
+同じ $(\alpha,J,L\ominus J)$ には同じ $\gamma$ を返し、target tail $\beta$ は key に含めない。
+\end{formalbox}
+
+\begin{lemma}[row split の局所健全性]
+生成された制約が成り立つなら、元の
+$\lsub{\alpha}{L}{\row{K}{\beta}}$ は weighted row relation を満たす。
+\end{lemma}
+
+\begin{proof}
+$J=\Empty$ では、許可された head がないため target head を通過して tail comparison へ進む定義そのものである。
+$J\neq\Empty$ では、第一制約が $\alpha$ から実際に取り出せる head $J$ と residual $\gamma$ を与える。
+第二制約は、同じ元 row から $J$ を消費したため全 active family を $J$ だけ狭め、target tail へ進める。
+$J\subseteq K$ かつ $J\subseteq\Common(L)$ なので、許可されない family を引いていない。
+\end{proof}
+
+\begin{lemma}[row split の局所主性]
+同じ元 constraint を満たす任意の分解が head $J'\subseteq K$ を取り出すなら、$J'\subseteq J$ である。
+また、その分解は fresh residual $\gamma$ に追加制約を置くことで上の maximal split から得られる。
+\end{lemma}
+
+\begin{proof}
+全 active id の許可を同時に満たす必要があるため $J'\subseteq\Common(L)$、かつ target head から取るため
+$J'\subseteq K$ である。従って $J'\subseteq K\cap\Common(L)=J$。
+$J\setminus J'$ を residual 側へ残す制約を $\gamma$ に加えれば、より小さい split を maximal split の instance として表せる。
+$\gamma$ が fresh なので他の独立制約を失わない。
+\end{proof}
+
+self-tail no-op は、同じ residual slot を再び同じ tail に戻すだけの constraint を削る。
+regular row の coinductive 解釈では新しい有限観測を加えず、worklist の self-fueling を防ぐ。
+
+\section{Pos/Neg 表現と protect の消去}
+
+\subsection{polar type grammar}
+
+compact extraction の途中表現を次で置く。
+
+\[
+\begin{array}{rcl}
+P &::=& \alpha \mid P\sqcup P \mid \kw{Con}^{+}(\overline{P,N})
+       \mid \PWeight{L}{P} \mid \Filter{B}{P},\\
+N &::=& \alpha \mid N\sqcap N \mid \kw{Con}^{-}(\overline{P,N})
+       \mid \NWeight{R}{N}.
+\end{array}
+\]
+
+constructor 引数は宣言分散に従って $P/N$ を選ぶ。
+
+\begin{definition}[protected effect variable]
+新しい effect 変数 $\rho$ を id $u$ で保護するとは、その positive occurrence を
+\[
+  \PWeight{\{u\mapsto(0,\Empty,1)\}}{\rho}
+  =\PWeight{\takeop{\Empty}{u}}{\rho}
+\]
+とすることである。
+専用の $\mathsf{protect}$ constructor は導入しない。
+\end{definition}
+
+$\Common(\takeop{\Empty}{u})=\Empty$ なので、この occurrence から具体 head は一つも引けない。
+$\popop{u}$ が作用して push と相殺したときだけ裸の $\rho$ に戻る。
+
+\subsection{pair weight の polar projection}
+
+bound が持つ pair $(L,R)$ を compact type に入れるとき、必要なら mixed normalization を行う。
+
+\begin{definition}[polar projection]
+$\mix$ が必要なら $\mix(L,R)=(L',R')$ とする。
+\[
+\begin{array}{rcl}
+\projp(L,R,T)&=&\begin{cases}
+\PWeight{L'}{T}&L'\neq0_L,\\T&L'=0_L,
+\end{cases}\\[1ex]
+\projn(L,R,T)&=&\begin{cases}
+\NWeight{R'}{T}&R'\neq0_R,\\T&R'=0_R.
+\end{cases}
+\end{array}
+\]
+片側だけなら、その側の provenance を保ったまま対応 projection に入れる。
+\end{definition}
+
+この定義により、共変表示に full left weight、反変表示に right-pop だけが残る。
+
+\section{effect-only annotation の形式的翻訳}
+
+\subsection{slot translation}
+
+各 slot translation は fresh value variable $\alpha$、fresh row variable $\rho$、必要なら fresh id $u$ を作る。
+row 部分だけを次で定義する。
+
+\begin{definition}[反変 slot]
+\[
+\begin{array}{rcl}
+\sem{\Empty}^-_u(\rho)&=&\PWeight{\takeop{\Empty}{u}}{\rho},\\
+\sem{H}^-_u(\rho)&=&\PWeight{\takeop{H}{u}}{\rho},\\
+\sem{\ast}^-_u(\rho)&=&\PWeight{\takeop{\All}{u}}{\rho}.
+\end{array}
+\]
+\end{definition}
+
+\begin{definition}[共変 slot]
+\[
+\begin{array}{rcl}
+\sem{\Empty}^+(\rho)&=&\Filter{\Empty}{\rho},\\
+\sem{H}^+(\rho)&=&\Filter{H}{\rho},\\
+\sem{\ast}^+(\rho)&=&\rho.
+\end{array}
+\]
+\end{definition}
+
+これは次の三点を同時に表す。
+
+\begin{itemize}
+  \item 反変 concrete annotation は、その family だけを処理してよい push を与える。
+  \item 反変 wildcard は $\All$ を与える。
+  \item 共変 concrete annotation は、外へ出る family の上限検査であり、push ではない。
+\end{itemize}
+
+\subsection{skeleton translation}
+
+極性 $p\in\{+,-\}$ に対し、$\overline{p}$ を反対極性とする。
+$\mathcal A_p(K)$ を fresh monotype として次で作る。
+
+\[
+\begin{array}{rcl}
+\mathcal A_p(q)&=&\alpha\comp\sem{q}^p(\rho),\\
+\mathcal A_p(K_1\to K_2)&=&
+  \bigl(\mathcal A_{\overline p}(K_1)\to\mathcal A_p(K_2)\bigr)\comp\Empty.
+\end{array}
+\]
+
+function domain で極性を反転するため、高階 skeleton 内の各 slot annotation は独立に正しい向きへ翻訳される。
+
+\begin{lemma}[annotation translation の最一般性]
+$\mathcal A_p(K)$ は、skeleton $K$ が指定する effect boundary を満たす monotype のうち、値型と row tail について最一般である。
+任意の別の実現 $C$ は、fresh value/row 変数の substitution と fresh id の injective renaming により
+$\mathcal A_p(K)$ の instance になる。
+\end{lemma}
+
+\begin{proof}
+$K$ の構造に関する帰納法。
+leaf では値型と tail を fresh variable にしており、annotation が要求する情報は唯一、
+反変側の push family または共変側の filter family だけである。
+したがって任意の実現は fresh variable への代入で得られる。
+function case は domain で帰納仮定の極性を反転し、codomain で保持して組み合わせる。
+id は各 leaf で fresh なので、別実現の id へ injective renaming できる。
+\end{proof}
+
+\section{項の制約生成}
+
+判断を
+\[
+  \Gamma;\ell\vdash e\Rightarrow C\dashv G
+\]
+と書く。$\ell$ は level、$G$ は生成 constraint graph である。
+環境 entry は monotype または scheme
+$\forall\bar\alpha\,\bar\rho\,\bar u.C$ である。
+instantiate は型変数、row 変数、id を同時に freshen する。
+
+\subsection{unit と参照}
+
+\[
+\inferrule*[right=I-Unit]
+ { }
+ {\Gamma;\ell\vdash ()\Rightarrow \Unit\comp\Empty\dashv\varnothing}
+\]
+
+\[
+\inferrule*[right=I-Ref]
+ {\Gamma(x)=\Sigma\\\inst_\ell(\Sigma)=C}
+ {\Gamma;\ell\vdash \kw{ref}\ x\Rightarrow C\dashv\varnothing}.
+\]
+
+再帰 RHS 内の $f$ は monotype entry なので instantiate せず、同じ型変数と id を共有する。
+
+\subsection{lambda と annotation を受けた変数}
+
+\[
+\inferrule*[right=I-Lam]
+ {C_x=\mathcal A_-(K)\\
+  \Gamma,x:C_x;\ell\vdash e\Rightarrow A\comp R\dashv G\\
+  \rho\ \text{fresh}\\
+  G_q=\{\subty{R}{\sem{q}^+(\rho)}\}}
+ {\Gamma;\ell\vdash\lambda(x:K):q.e
+   \Rightarrow (C_x\to A\comp\rho)\comp\Empty
+   \dashv G\cup G_q}.
+\]
+
+従って annotation を受けた変数 $x$ は、値型を fresh に保ったまま、
+その skeleton 内の反変 slot では $\PWeight{\takeop{H}{u}}{\rho}$、
+共変 slot では $\Filter{H}{\rho}$ を持つ monotype として環境へ入る。
+専用の protect constraint や role-like constraint は存在しない。
+返り annotation は body row を fresh proxy $\rho$ の filter 付き上界へ接続し、filter 検査後も principal tail $\rho$ を残す。
+
+\subsection{application}
+
+\[
+\inferrule*[right=I-App]
+ {\Gamma;\ell\vdash e_1\Rightarrow A_1\comp E_1\dashv G_1\\
+  \Gamma;\ell\vdash e_2\Rightarrow A_2\comp E_2\dashv G_2\\
+  B,\rho_i,\rho_o\ \text{fresh}}
+ {\Gamma;\ell\vdash e_1\ e_2\Rightarrow
+  B\comp\seq(E_1,E_2,\rho_o)\dashv
+  G_1\cup G_2\cup
+  \{\subty{A_1}{(A_2\comp\rho_i)\to(B\comp\rho_o)}\}}.
+\]
+
+fresh internal effect variable の positive occurrence は既定で
+$\PWeight{\takeop{\Empty}{u}}{\rho}$ として保護する。
+明示 wildcard annotation を通るときだけ $\takeop{\All}{u}$ が与えられる。
+
+\subsection{operation と完全 handler}
+
+signature を $\Sigma(h)=P_h\rightsquigarrow Q_h$ とする。
+
+\[
+\inferrule*[right=I-Perform]
+ {\Gamma;\ell\vdash e\Rightarrow P_h\comp E\dashv G}
+ {\Gamma;\ell\vdash \kw{perform}_h(e)
+  \Rightarrow Q_h\comp\seq(E,\row{\{h\}}{\Empty})\dashv G}.
+\]
+
+\[
+\inferrule*[right=I-Handle]
+ {\Gamma;\ell\vdash e\Rightarrow B\comp S\dashv G_s\\
+  T\ \text{fresh}\\
+  \Gamma,y:P_h,k:(Q_h\comp\Empty\to B\comp S);\ell
+     \vdash e_h\Rightarrow C\comp E_h\dashv G_h\\
+  \Gamma,x:B;\ell\vdash e_r\Rightarrow C\comp E_r\dashv G_r}
+ {\Gamma;\ell\vdash
+  \kw{handle}\ e\ \kw{with}\ h(y,k)\Rightarrow e_h
+  \mid\kw{return}\ x\Rightarrow e_r
+  \Rightarrow C\comp\seq(T,E_h,E_r)\dashv
+  G_s\cup G_h\cup G_r\cup\{\subty{S}{\row{\{h\}}{T}}\}}.
+\]
+
+scrutinee row $S$ に含まれる $\PWeight{L}{\rho}$ は W-Pos により左重みへ吸収され、
+Section~\ref{sec:row-split} の row split が走る。
+continuation は shallow なので元の $S$ を持つ。
+
+\subsection{let 多相}
+
+\[
+\inferrule*[right=I-Let]
+ {\Gamma;\ell+1\vdash e_1\Rightarrow C_1\dashv G_1\\
+  \Sigma_1=\gen_\ell(\compact(\sat(G_1),C_1),\Gamma)\\
+  \Gamma,x:\Sigma_1;\ell\vdash e_2\Rightarrow C_2\dashv G_2}
+ {\Gamma;\ell\vdash\kw{let}\ x=e_1\ \kw{in}\ e_2
+  \Rightarrow C_2\dashv G_1\cup G_2}.
+\]
+
+$\gen_\ell$ は環境へ逃げていない level $>\ell$ の型変数、row 変数、id を量化する。
+値制限を採用する場合は generalize 対象を syntactic value に制限するが、以下の principal proof の factorization は同じである。
+
+\subsection{単相再帰と effect-only skeleton}
+
+\[
+\inferrule*[right=I-LetRec]
+ {C_s=\mathcal A_-(K)\\
+  \alpha_f\ \text{fresh at level }\ell+1\\
+  G_0=\{\subty{C_s}{\alpha_f}\}\\
+  \Gamma,f:\alpha_f;\ell+1\vdash e_1\Rightarrow C_1\dashv G_1\\
+  G_r=G_0\cup G_1\cup\{\subty{C_1}{\alpha_f}\}\\
+  \Sigma_f=\gen_\ell(\compact(\sat(G_r),\alpha_f),\Gamma)\\
+  \Gamma,f:\Sigma_f;\ell\vdash e_2\Rightarrow C_2\dashv G_2}
+ {\Gamma;\ell\vdash\kw{let\ rec}\ f:K=e_1\ \kw{in}\ e_2
+  \Rightarrow C_2\dashv G_r\cup G_2}.
+\]
+
+自己 skeleton の下界 $C_s<:\alpha_f$ を RHS 推論より前に置く。
+これにより recursive call も外部 call と同じ push/pop/filter 境界を通る。
+RHS 内では $f$ は同じ $\alpha_f$ を使うため単相である。
+RHS 完了後に初めて generalize する。
+
+\section{compact extraction と Pos/Neg 変換}
+
+\subsection{一段展開}
+
+positive occurrence の変数は lower bounds、negative occurrence は upper bounds から展開する。
+parent weight を $W$ とし、direct bound $(T,L,R)$ を開くとき、先に parent と bound の重みを合成し、polar projection をかける。
+概略は次である。
+
+\[
+\begin{array}{rcl}
+\coal^+_W(\alpha)
+ &=& \PWeight{W}{\alpha}
+ \sqcup
+ \displaystyle\bigsqcup_{(T,L,R)\in\lb(\alpha)}
+ \projp(L\odot W,R,\opq(T)),\\[1ex]
+\coal^-_P(\alpha)
+ &=& \NWeight{P}{\alpha}
+ \sqcap
+ \displaystyle\bigcap_{(T,L,R)\in\ub(\alpha)}
+ \projn(L,R+P,\opq(T)).
+\end{array}
+\]
+
+$\opq(T)$ は、今回の変数展開によってちょうど横に現れた変数を再展開しないことを表す。
+すなわち $\alpha$ の direct bounds は開くが、その結果中の $\beta$ の bounds は同じ pass では開かない。
+これは constraint propagation を表示処理でもう一度実行してしまうことを防ぐ。
+cycle は polar $\mu$ で閉じる。
+
+\begin{invariant}[one-layer expansion]
+compact pass が展開するのは、現在の root variable に直接保存された bounds だけである。
+展開結果に現れた variable occurrence は opaque leaf とする。
+\end{invariant}
+
+\subsection{filter 消去と pop cleanup}
+
+filter は constraint solving 時に family check を生成済みなので、Pos/Neg の最終表示前に消す。
+
+id $u$ について、positive type 内に active push $\takeop{H}{u}$ が共変位置で一つも無いなら、
+その id の $\popop{u}$ は外へはみ出す境界を閉じる相手を持たない。
+この場合、Pos/Neg 双方の pure pop marker を消してよい。
+
+\[
+  \live(P)=\{u\mid P\text{ の共変位置に }\takeop{H}{u}\text{ が現れる}\}.
+\]
+$u\notin\live(P)$ なら対応 pop を cleanup する。
+
+\subsection{最終 materialization}
+
+\[
+\PWeight{\{u\mapsto(m,H,n)\}}{T}
+\quad\mapsto\quad
+\popop{u}^{m}\takeop{H}{u}^{n}(T),
+\]
+\[
+\NWeight{\{u\mapsto r\}}{T}
+\quad\mapsto\quad
+\popop{u}^{r}(T).
+\]
+
+異なる id の順序は観測されないため、固定した id 順で表示してよい。
+
+\section{基本的な健全性}
+
+\subsection{solution と declarative typing}
+
+constraint graph $G$ の solution は、型変数・row 変数への regular type substitution、
+id への injective renaming、family inequality の充足からなる写像 $\theta$ で、
+$G$ の全 weighted comparison を満たすものとする。
+$\sol(G)$ を solution 集合と書く。
+
+宣言的 typing は通常の subsumption rule を持つ。
+weighted wrapper の意味は Section 3--4 の規則で定義した relation とする。
+
+\begin{theorem}[制約生成の健全性]
+$\Gamma;\ell\vdash e\Rightarrow C\dashv G$ とし、$\theta\in\sol(G)$ とする。
+$\theta$ が環境 scheme の instance を正しく解釈するなら、宣言的に
+\[
+  \theta(\Gamma)\vdash e:\theta(C)
+\]
+が成り立つ。
+\end{theorem}
+
+\begin{proof}
+項の構造に関する帰納法。
+I-Unit と I-Ref は直接。
+I-Lam では annotation translation lemma により $C_x$ が skeleton を満たし、帰納仮定で body を型付けできる。
+返り row constraint は W-Filter により annotation family check と inner row comparison を満たすため、lambda の result annotation が成立する。
+I-App は生成した function subtype constraint と subsumption から application rule を適用する。
+I-Perform は signature、I-Handle は row split の局所健全性と branch の帰納仮定を使う。
+I-Let は scheme instantiate の各 use が $G_1$ の solution の fresh instance なので通常の let rule。
+I-LetRec では $C_s<:\alpha_f$ により recursive variable が skeleton を満たし、RHS 内では同じ $\alpha_f$ を単相に仮定できる。
+帰納仮定で $e_1:C_1$、constraint $C_1<:\alpha_f$ で RHS は recursive assumption に収まる。
+その後の generalization と body $e_2$ は I-Let と同じである。
+\end{proof}
+
+\section{主型性}
+
+\subsection{principal constraint graph}
+
+scheme の一般性を次で比較する。
+$\Sigma_1\preceq\Sigma_2$ は、$\Sigma_2$ が $\Sigma_1$ の型/row substitution、id の injective renaming、
+および許された subtype widening により得られることを表す。
+
+\begin{definition}[principal weighted scheme]
+$e$ の scheme $\Sigma$ が principal であるとは、$e$ を型付けする任意の weighted scheme $\Sigma'$ に対し
+$\Sigma\preceq\Sigma'$ が成り立つことである。
+\end{definition}
+
+\begin{lemma}[fresh constraint の factorization]
+constraint generation が fresh に導入した型変数、row 変数、id に対し、
+任意の別 typing は、それらへの substitution と injective id renaming によって生成 graph の solution を与える。
+\end{lemma}
+
+\begin{proof}
+各 syntax rule は term constructor が要求する最小限の shape constraint だけを生成する。
+fresh variable は別 typing の対応する component へ写す。
+annotation leaf の id は fresh であり、同じ leaf 内だけで共有されるため injective renaming できる。
+row split は局所主性により任意の別 split が maximal residual の instance になる。
+variable-bound propagation は新しい選択を導入せず、既存 lower/upper の推移的帰結だけを追加する。
+\end{proof}
+
+\begin{lemma}[compact extraction の表現性]
+飽和 graph $G$ と root $C$ に対し、one-layer compact extraction から得る Pos/Neg pair は、
+$G$ の全 direct lower/upper bounds を表す。
+また、その任意の solution は compact pair の instance を与え、compact pair の instance は $G$ の solution を失わない。
+\end{lemma}
+
+\begin{proof}
+通常の Simple-sub coalescing proof と同じく、positive variable は lower bounds の join、negative variable は upper bounds の meet で表す。
+本体系で追加された情報は bound edge の $(L,R)$ だけである。
+parent weight と direct edge weight を合成した後、$\projp/\projn$ が各極性で観測可能な成分をちょうど残すことは mixed normalization の極性保存補題から従う。
+one-layer 制限は direct edge 以上の推移 closure を表示側で重複生成しないためのもので、飽和 graph 自体には必要な propagated edge が既にある。
+従って情報を落とさない。
+\end{proof}
+
+\subsection{let までの principal theorem}
+
+\begin{theorem}[非再帰項の主性]
+unit、ref、lambda、application、perform、complete handle、let からなる項について、
+生成した飽和 constraint graph の compact scheme は principal weighted scheme である。
+\end{theorem}
+
+\begin{proof}
+項の構造に関する帰納法。
+各 constructor rule が生成する fresh shape は fresh constraint factorization lemma により任意の別 typing へ写る。
+filter は family check だけを追加し principal tail を残す。
+handler の row split は maximal $J$ と fresh residual により局所 principal。
+let caseでは、帰納仮定により $e_1$ の compact scheme $\Sigma_1$ が principal である。
+環境に自由でない変数と id を全て量化する generalization lemma により、任意の別 typing における $e_1$ の型は $\Sigma_1$ の instance になる。
+$e_2$ の各 use は独立な fresh instance を得るため、$e_2$ の帰納仮定を適用できる。
+従って全体も principal。
+\end{proof}
+
+\subsection{\texttt{let rec} の主型性}
+
+\begin{lemma}[monomorphic recursive graph の普遍性]
+$C_s=\mathcal A_-(K)$、fresh $\alpha_f$ とし、RHS graph を
+\[
+  G_r=\{C_s<:\alpha_f\}\cup G_1\cup\{C_1<:\alpha_f\}
+\]
+で作る。
+任意の monomorphic recursive typing
+\[
+  \Gamma,f:D\vdash e_1:D_1,
+  \qquad C_s' <: D,
+  \qquad D_1<:D
+\]
+で skeleton $K$ を満たすものに対し、$G_r$ からその typing への solution morphism が存在する。
+\end{lemma}
+
+\begin{proof}
+annotation translation の最一般性により、別 typing の skeleton realization $C_s'$ は $C_s$ の instance である。
+fresh root $\alpha_f$ を $D$ へ写す。
+RHS 内の $f$ は monomorphic なので、生成側でも別 typing 側でも全 recursive occurrence が同じ root を参照する。
+$e_1$ に対する帰納仮定を環境 $\Gamma,f:\alpha_f$ と $\Gamma,f:D$ の間で適用し、$G_1$ から $D_1$ への factorization を得る。
+最後の constraint $C_1<:\alpha_f$ は仮定 $D_1<:D$ で満たされる。
+従って全 graph の solution morphism が存在する。
+cycle があっても、これは finite graph node の写像であり、unfolding 回数には依存しない。
+\end{proof}
+
+\begin{theorem}[\texttt{let rec} までの主 weighted scheme]
+本稿の全項構文について、再帰を単相とし、effect-only skeleton $K$ を満たす typing の中で、
+I-LetRec が生成する compact scheme $\Sigma_f$ と全体 result scheme は principal である。
+より正確には、任意の別の well-typed monomorphic recursive scheme は、生成 scheme の instance と subtype widening で得られる。
+\end{theorem}
+
+\begin{proof}
+I-LetRec 以外は前定理。
+I-LetRec では、前補題により RHS の任意の別 recursive typing が生成 graph $G_r$ の solution へ factorize する。
+従って $\alpha_f$ の saturated compact type は、skeleton と RHS constraints を同時に満たす最一般の regular type graph である。
+RHS 完了後、外側環境に自由でない変数・row 変数・id を全て量化する。
+標準 generalization lemma により、この scheme の任意の別利用型は instantiate で得られる。
+body $e_2$ には非再帰項の主性の帰納仮定を適用する。
+したがって let rec 全体の任意の typing は生成 result scheme の instance/subtype であり、principal である。
+\end{proof}
+
+\begin{notebox}
+この定理は polymorphic recursion を含まない。
+RHS 内で $f$ の scheme を毎回 instantiate すると principal inference は一般に失われる。
+また worklist の実際の停止性は定理の前提ではなく、finite graph の最小解として principal object を定めている。
+停止する実装については、その出力がこの graph の飽和表現と一致することから algorithmic principality が従う。
+\end{notebox}
+
+\section{小さい検算}
+
+\subsection{protected row}
+
+\[
+  \PWeight{\takeop{\Empty}{u}}{\alpha}<:\row{H}{\beta}.
+\]
+$\Common=\Empty$ なので $J=H\cap\Empty=\Empty$。
+従って head は引かれず、
+\[
+  \PWeight{\takeop{\Empty}{u}}{\alpha}<:\beta
+\]
+だけが残る。
+
+\subsection{許可された subtraction}
+
+\[
+  \PWeight{\takeop{G}{u}}{\alpha}<:\row{H}{\beta}.
+\]
+$J=G\cap H$ とし、$J\neq\Empty$ なら
+\[
+  \alpha<:\row{J}{\gamma},
+  \qquad
+  \PWeight{\takeop{G\setminus J}{u}}{\gamma}<:\beta.
+\]
+引けるのは $H$ 全体ではなく $G\cap H$ だけである。
+
+\subsection{異なる id}
+
+\[
+  L=\{u\mapsto(0,G,1),\ v\mapsto(0,H,1)\}.
+\]
+このとき
+\[
+  \Common(L)=G\cap H.
+\]
+$K$ を処理すると $J=K\cap G\cap H$ だけが引かれ、
+$L\ominus J$ は両 id の family から同じ $J$ を除く。
+これは push から個別に引くのではなく、元 row から一度だけ引くという意味に対応する。
+
+\subsection{pop の分配}
+
+\[
+  A\to B <: \popop{u}(C),
+  \qquad C<:D\to E.
+\]
+右 pop を constructor へ分配すると
+\[
+  A\to B <: \popop{u}(D)\to\popop{u}(E),
+\]
+従って
+\[
+  \popop{u}(D)<:A,
+  \qquad B<:\popop{u}(E).
+\]
+pop が勝手に辺を移るのではなく、function domain の反変分解で左右が交換された結果である。
+
+\subsection{再帰的 self-tail}
+
+\[
+  \popop{u}^{m}\takeop{H_1}{u}^{n}(\beta)<:\row{H_2}{\beta}
+\]
+は no-op とする。
+新しい residual を立てても同じ $\beta$ へ戻るだけで、有限な head 観測を増やさない。
+この規則と residual hash-cons が recursive worklist の self-fueling を止める。
+
+\section{残る証明義務と実装メモ}
+
+\begin{enumerate}
+  \item \textbf{worklist termination.}
+  principal graph は定義できたが、recursive cycle による leading pop count の無限増加が不可能であることは別途必要である。
+  SCC ごとの non-amplification、飽和 counter、または annotation translation 由来の balance invariant を証明候補とする。
+  \item \textbf{family type arguments.}
+  $H\cap K$、$H\setminus K$、filter comparison で同じ path が出会うたび、引数の invariant interval constraint を生成する必要がある。
+  \item \textbf{cleanup の完全性.}
+  「共変 push が無い id の pop は消せる」は十分条件である。
+  必要十分な contextual criterion は operational elaboration と合わせて示す必要がある。
+  \item \textbf{semantic preservation of self-tail no-op.}
+  regular/coinductive row model で、self-tail constraint が solution 集合を変えないことを独立補題として精密化する余地がある。
+\end{enumerate}
+
+\begin{statusbox}
+今回の改訂で、以前混ざっていた「upper は一般の左重みを主情報として持つ」「lower は一般の右重みを主情報として持つ」という説明を捨てた。
+bound entry は遅延伝播のため $(T,L,R)$ を保存できるが、compact 表示では
+positive 側へ $\PWeight{L}{T}$、negative 側へ $\NWeight{R}{T}$ を射影する。
+protect は $\PWeight{\takeop{\Empty}{u}}{T}$ に吸収され、annotation translation と constructor variance は最初から同じ重み体系で扱われる。
+\end{statusbox}
+
+\begin{thebibliography}{9}
+\bibitem{parreaux2020}
+Lionel Parreaux.
+\newblock The Simple Essence of Algebraic Subtyping: Principal Type Inference with Subtyping Made Easy.
+\newblock PACMPL 4(ICFP), 2020.
+
+\bibitem{damasmilner1982}
+Luis Damas and Robin Milner.
+\newblock Principal type-schemes for functional programs.
+\newblock POPL, 1982.
+\end{thebibliography}
+
+\end{document}

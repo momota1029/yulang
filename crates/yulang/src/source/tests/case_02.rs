@@ -508,19 +508,9 @@ fn run_control_source_text_with_embedded_playground_std_runs_local_change_exampl
 
 #[test]
 fn run_control_source_text_with_embedded_playground_std_runs_list_update_example() {
-    let source = "\
-{
-    my $xs = [
-        2
-        3
-        4
-    ]
-    &xs[1] = 6
-    $xs
-}
-";
+    let source = yulang_fixture("regressions/runtime/list_update.yu");
     let build =
-        build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
+        build_control_from_source_text_with_embedded_playground_std("playground.yu", &source)
             .unwrap();
     assert!(build.errors.is_empty(), "{:?}", build.errors);
     let output = run_built_control_on_vm_test_stack(build);
@@ -530,26 +520,16 @@ fn run_control_source_text_with_embedded_playground_std_runs_list_update_example
 
 #[test]
 fn typed_playground_std_prefix_matches_loaded_route_for_list_update() {
-    let source = "\
-{
-    my $xs = [
-        2
-        3
-        4
-    ]
-    &xs[1] = 6
-    $xs
-}
-";
+    let source = yulang_fixture("regressions/runtime/list_update.yu");
     let loaded =
-        load_source_text_with_embedded_playground_std("playground.yu", source.to_string()).unwrap();
+        load_source_text_with_embedded_playground_std("playground.yu", source.clone()).unwrap();
     let loaded_poly = build_poly_from_loaded_files(loaded).unwrap();
     let loaded_build = build_control_from_poly_output(&loaded_poly).unwrap();
     assert!(loaded_build.errors.is_empty(), "{:?}", loaded_build.errors);
     let loaded_output = run_built_control_on_vm_test_stack(loaded_build);
 
     let cached_build =
-        build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
+        build_control_from_source_text_with_embedded_playground_std("playground.yu", &source)
             .unwrap();
     assert!(cached_build.errors.is_empty(), "{:?}", cached_build.errors);
     let cached_output = run_built_control_on_vm_test_stack(cached_build);

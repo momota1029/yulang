@@ -31,7 +31,12 @@ Yulang test file
 
 ## Fixture と golden test
 
-- CLI から Yulang test file をまとめて実行する runner を用意する。
+- 完全実行系の public regression は、Rust の内部 helper ではなく `yulang` CLI 起動を第一経路にする。
+- CLI test は repo の `lib` を `--std-root` に渡し、isolated `YULANG_CACHE_DIR` で artifact cache の経路も見る。
+- Rust の内部 helper は parser / lowering / inference の局所検査、fake std を使う型・効果 regression、
+  embedded playground std route、LSP の range / hover / definition のような内部構造が必要な検査に絞る。
+- 現行 CLI cache は source collection の後段にあるため、process ごとの std file read はまだ残る。
+  これを消す本命は、CLI で複数 test file を一括実行する runner か、std realm / compiled-unit cache 側で扱う。
 - parser / type / runtime diagnostics は、必要なものだけ compact golden として固定する。
 - playground example のうち重要なものは CLI regression に写す。
 - "infers but does not run" は expected limitation ではなく failure として追う。
@@ -88,7 +93,12 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
 - `crates/yulang` の source route test から `tests/yulang/regressions/effect/*.yu` を読む helper を追加した。
 - まずは callback residual / sub return / effectful parameter forwarding の regression を fixture 化した。
 - `tests/yulang/support/fake_std/` を作り、処理系の surface path だけが必要な test は full std を読まない方針にした。
-- 次は list update、nondet once triple、optional record default、public examples を同じ置き場へ広げる。
+- 2026-06-21 に list update playground smoke を `tests/yulang/regressions/runtime/list_update.yu` へ移し、
+  既存の playground std run / prefix comparison test から読む形にした。
+- 同日、完全実行系の regression は `yulang` CLI 起動を第一経路にする方針へ切り替えた。
+  list update fixture は `crates/yulang/tests/cli.rs` から `--std-root lib run --print-roots` で実行し、
+  isolated cache に poly / control artifact が出ることも見る。
+- 次は nondet once triple、optional record default、public examples を同じ置き場へ広げる。
 
 ## やらないこと
 
