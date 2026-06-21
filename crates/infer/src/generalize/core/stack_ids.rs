@@ -177,10 +177,6 @@ pub(in crate::generalize) fn stack_entry_keeps_stack_id_live(
     entry: &poly::types::StackWeightEntry,
 ) -> bool {
     !entry.stack.is_empty()
-        || entry
-            .floor
-            .iter()
-            .any(|floor| !matches!(floor, Subtractability::Empty))
 }
 
 pub(in crate::generalize) fn collect_all_stack_ids_in_type(

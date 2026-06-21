@@ -93,7 +93,8 @@ This is the preferred way to stop self-fueling row cycles, together with residua
 - `floor` is not part of the new formal core. The row split path no longer creates new floor residuals,
   and active-family readers now use `StackWeight::active_stack_items()`, which ignores legacy floor entries.
   Replay W-Mix also ignores floor for cancellation/projection because bound left weights no longer contain floor.
-  Remaining floor code is limited to legacy surface wrappers and compact/finalize paths.
+  Cleanup liveness also treats only active pushes as live stack ids. Remaining floor code is limited to legacy surface
+  wrappers and compact/finalize paths.
 
 - `filter` is currently embedded in `StackWeight`.
   Row split, `Neg::Stack` absorption, and bound insertion treat filter as a separate wrapper/check and erase it before
@@ -145,6 +146,7 @@ This is the preferred way to stop self-fueling row cycles, together with residua
    - Negative projection keeps right pop only.
    - Filter is erased after checks.
    - Cleanup uses the colored sufficient condition: if a positive type has no active push for an id, pure pop for that id can be dropped.
+   - Status: partial. Bound projection follows left/right polarity, and cleanup liveness now ignores legacy floor.
 
 6. Audit runtime marker placement against the colored proof.
    - The proof assumes normalized marker materialization and well-bracketed color flow.

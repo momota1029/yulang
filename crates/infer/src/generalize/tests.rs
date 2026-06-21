@@ -347,6 +347,32 @@ fn cleanup_removes_empty_floor_weights_without_live_stack_entries() {
 }
 
 #[test]
+fn cleanup_removes_bare_floor_weights_without_live_stack_entries() {
+    let mut machine = ConstraintMachine::new();
+    let effect = TypeVar(2);
+    let subtract = SubtractId(3);
+    let handled = Subtractability::AllExcept(vec!["handled".into()], Vec::new());
+    machine.register_type_var(effect, TypeLevel::root().child());
+    let root = CompactRoot {
+        root: bipolar_effect_fun(
+            effect,
+            CompactType::from_var(CompactVar::covariant(
+                effect,
+                StackWeight::floor(subtract, handled).compose(&StackWeight::pops(subtract, 2)),
+            )),
+        ),
+        rec_vars: Vec::new(),
+    };
+
+    let generalized =
+        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+
+    let weight = &generalized.compact.root.funs[0].ret_eff.vars[0].weight;
+    assert!(generalized.stack_quantifiers.is_empty());
+    assert!(!weight.contains(subtract));
+}
+
+#[test]
 fn empty_stack_entry_with_plain_negative_var_is_internal() {
     let mut machine = ConstraintMachine::new();
     let effect = TypeVar(2);
