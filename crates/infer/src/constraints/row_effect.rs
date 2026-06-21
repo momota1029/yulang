@@ -239,9 +239,27 @@ impl ConstraintMachine {
         items: Vec<NegId>,
         weight: &LeftConstraintWeight,
     ) -> Vec<NegId> {
-        self.collect_left_stack_effect_families(weight);
-        let subtractability = common_stack_subtractability(left_active_stack_items(weight));
+        let subtractability = self.common_stack_subtractability(left_active_stack_items(weight));
         self.intersect_row_items_with_subtractability(items, &subtractability)
+    }
+
+    pub(in crate::constraints) fn common_stack_subtractability<'a>(
+        &mut self,
+        items: impl Iterator<Item = &'a Subtractability>,
+    ) -> Subtractability {
+        let items = items.cloned().collect::<Vec<_>>();
+        self.constrain_duplicate_subtractability_families(&items);
+        items
+            .into_iter()
+            .reduce(intersect_subtractability)
+            .unwrap_or(Subtractability::All)
+    }
+
+    fn constrain_duplicate_subtractability_families(&mut self, items: &[Subtractability]) {
+        let mut families = EffectFamilyMap::default();
+        for family in items.iter().flat_map(subtractability_families) {
+            self.insert_effect_family(&mut families, family);
+        }
     }
 
     pub(in crate::constraints) fn constrain_stack_by_filter(
@@ -442,13 +460,6 @@ impl ConstraintMachine {
         }
         self.enqueue_invariant_neu_args(item_args, args.to_vec(), ConstraintWeights::empty());
         true
-    }
-
-    fn collect_left_stack_effect_families(&mut self, weight: &LeftConstraintWeight) {
-        let mut families = EffectFamilyMap::default();
-        for family in left_active_stack_items(weight).flat_map(subtractability_families) {
-            self.insert_effect_family(&mut families, family);
-        }
     }
 
     fn collect_neg_effect_items(&mut self, items: Vec<NegId>) -> Vec<NegId> {

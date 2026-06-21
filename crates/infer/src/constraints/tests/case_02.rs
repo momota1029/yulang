@@ -889,6 +889,45 @@ fn effect_row_filter_constrains_matching_payloads() {
 }
 
 #[test]
+fn neg_stack_common_stack_constrains_matching_payloads_across_active_ids() {
+    let mut machine = ConstraintMachine::new();
+    let ref_update = crate::std_paths::control_var_ref_update_effect();
+    let first_payload_lower = machine.alloc_pos(Pos::Var(TypeVar(10)));
+    let first_payload_upper = machine.alloc_neg(Neg::Var(TypeVar(11)));
+    let first_payload = machine.alloc_neu(Neu::Bounds(first_payload_lower, first_payload_upper));
+    let second_payload_lower = machine.alloc_pos(Pos::Var(TypeVar(12)));
+    let second_payload_upper = machine.alloc_neg(Neg::Var(TypeVar(13)));
+    let second_payload = machine.alloc_neu(Neu::Bounds(second_payload_lower, second_payload_upper));
+    let value_payload_lower = machine.alloc_pos(Pos::Var(TypeVar(14)));
+    let value_payload_upper = machine.alloc_neg(Neg::Var(TypeVar(15)));
+    let value_payload = machine.alloc_neu(Neu::Bounds(value_payload_lower, value_payload_upper));
+    let lower = machine.alloc_pos(Pos::Con(ref_update.clone(), vec![value_payload]));
+    let inner = machine.alloc_neg(Neg::Top);
+    let weight = StackWeight::push(
+        SubtractId(0),
+        Subtractability::Set(ref_update.clone(), vec![first_payload]),
+    )
+    .compose(&StackWeight::push(
+        SubtractId(1),
+        Subtractability::Set(ref_update, vec![second_payload]),
+    ));
+    let upper = machine.alloc_neg(Neg::Stack { inner, weight });
+
+    machine.weighted_subtype(lower, ConstraintWeights::empty(), upper);
+
+    assert!(machine.seen.contains(&SubtypeConstraint {
+        lower: first_payload_lower,
+        upper: second_payload_upper,
+        weights: ConstraintWeights::empty(),
+    }));
+    assert!(machine.seen.contains(&SubtypeConstraint {
+        lower: second_payload_lower,
+        upper: first_payload_upper,
+        weights: ConstraintWeights::empty(),
+    }));
+}
+
+#[test]
 fn neg_stack_filter_is_checked_but_not_stored_as_right_weight() {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);

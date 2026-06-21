@@ -329,6 +329,8 @@ pub type RightConstraintWeight = RightStackWeight;
 ///
 /// 関数引数のように polarity が反転する場所では `swapped()` で左右を入れ替える。
 /// bounds の再伝播では `compose_for_replay()` し、経路の情報をまとめる。
+/// W-Mix は意味論側の directed projection だが、その後の pop cap は
+/// worklist 停止性のための実装ガードであり、型等式としては使わない。
 pub struct ConstraintWeights {
     pub left: LeftConstraintWeight,
     pub right: RightConstraintWeight,
@@ -376,10 +378,6 @@ impl ConstraintWeights {
     }
 
     pub fn compose_for_replay(&self, other: &Self) -> Self {
-        // Bounds replay can cycle through invariant positions. Unmatched pop counts carry no
-        // extra row-subtraction information after the first pop, but the stack sequence remains
-        // visible to row subtraction and future pops.
-        //
         // Left weights follow the lower-to-upper path order. Right weights describe upper-side
         // stack wrappers, so replaying through a later upper bound nests that bound outside the
         // earlier one; its weight must be prepended.
@@ -388,7 +386,7 @@ impl ConstraintWeights {
             right: other.right.compose(&self.right),
         }
         .normalize_directed_mix()
-        .saturate_unmatched_pops()
+        .apply_bounds_replay_termination_guard()
     }
 
     pub fn compose_for_var_var_replay(&self, other: &Self) -> Self {
@@ -397,13 +395,13 @@ impl ConstraintWeights {
             right: other.right.compose(&self.right),
         }
         .normalize_directed_mix()
-        .cap_alias_pop_only_counts()
+        .apply_alias_replay_termination_guard()
     }
 
     pub fn normalize_for_var_var_replay(&self) -> Self {
         self.clone()
             .normalize_directed_mix()
-            .cap_alias_pop_only_counts()
+            .apply_alias_replay_termination_guard()
     }
 
     pub fn left_filter_set(&self) -> &Subtractability {
@@ -417,17 +415,17 @@ impl ConstraintWeights {
         }
     }
 
-    fn cap_alias_pop_only_counts(self) -> Self {
+    fn apply_alias_replay_termination_guard(self) -> Self {
         Self {
-            left: self.left.normalize_for_alias_replay(),
-            right: self.right.normalize_for_alias_replay(),
+            left: self.left.apply_alias_replay_termination_guard(),
+            right: self.right.apply_alias_replay_termination_guard(),
         }
     }
 
-    fn saturate_unmatched_pops(self) -> Self {
+    fn apply_bounds_replay_termination_guard(self) -> Self {
         Self {
-            left: self.left.saturate_unmatched_pops(),
-            right: self.right.saturate_unmatched_pops(),
+            left: self.left.apply_bounds_replay_termination_guard(),
+            right: self.right.apply_bounds_replay_termination_guard(),
         }
     }
 
@@ -490,15 +488,6 @@ struct EffectFamily {
 struct EffectFilterViolationKey {
     effect: Option<Vec<String>>,
     filter: Subtractability,
-}
-
-fn common_stack_subtractability<'a>(
-    items: impl Iterator<Item = &'a Subtractability>,
-) -> Subtractability {
-    items
-        .cloned()
-        .reduce(intersect_subtractability)
-        .unwrap_or(Subtractability::All)
 }
 
 fn intersect_subtractability(lhs: Subtractability, rhs: Subtractability) -> Subtractability {

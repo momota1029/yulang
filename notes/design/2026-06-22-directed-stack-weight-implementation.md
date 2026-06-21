@@ -100,9 +100,13 @@ This is the preferred way to stop self-fueling row cycles, together with residua
   Row split, `Neg::Stack` absorption, and bound insertion treat filter as a separate wrapper/check and erase it before
   residual propagation or replay. Raw wrapper translation still uses `StackWeight::filter` as the temporary carrier.
 
-- `saturate_unmatched_pops()` and alias replay pop caps are implementation-side termination controls.
-  They must not be treated as semantic equalities. If retained temporarily, they need to be isolated as a termination guard
-  and justified by a separate worklist termination argument.
+- Family type arguments are constrained when effect family paths meet in machine-owned set operations.
+  Row split, residual subtraction, duplicate row head collection, filter checks, and `Neg::Stack` common-stack checks all
+  enqueue invariant argument constraints instead of comparing only the family path.
+
+- Bounds replay and alias replay pop caps are implementation-side termination controls.
+  They must not be treated as semantic equalities. In `ConstraintWeights`, they are named as termination guards and run only
+  after W-Mix; they still need a separate worklist termination argument.
 
 - Active-family extraction must use active stack pushes only. The old mixed `stack_items()` helper was removed to avoid
   accidentally treating floor as a visible push family.
@@ -138,8 +142,8 @@ This is the preferred way to stop self-fueling row cycles, together with residua
    - Compose by directed path composition.
    - Do not exchange unmatched right-pop with a new push.
    - Treat pop-growth caps as temporary termination guards only if they remain needed.
-   - Status: mostly done. Replay now stores directed left weights and pure-pop right weights, runs W-Mix before caps,
-     and materializes left weights only at compact/generalize/test helper boundaries.
+   - Status: mostly done. Replay now stores directed left weights and pure-pop right weights, runs W-Mix before
+     explicitly named termination guards, and materializes left weights only at compact/generalize/test helper boundaries.
 
 5. Rework compact extraction.
    - Positive projection keeps full left weight.
@@ -148,7 +152,13 @@ This is the preferred way to stop self-fueling row cycles, together with residua
    - Cleanup uses the colored sufficient condition: if a positive type has no active push for an id, pure pop for that id can be dropped.
    - Status: partial. Bound projection follows left/right polarity, and cleanup liveness now ignores legacy floor.
 
-6. Audit runtime marker placement against the colored proof.
+6. Audit family type arguments in effect-family set operations.
+   - Same-path family intersections, subtraction, duplicate row heads, and filter comparisons must enqueue invariant
+     argument constraints.
+   - Status: mostly done in the constraint machine. Remaining risk is legacy `StackWeight` set operations outside
+     machine-owned checks; these should not be treated as proof-carrying set operations without a machine context.
+
+7. Audit runtime marker placement against the colored proof.
    - The proof assumes normalized marker materialization and well-bracketed color flow.
    - Existing active marker/hygiene runtime work should be checked against that invariant after inference weight semantics are fixed.
 

@@ -420,16 +420,21 @@ impl StackWeight {
         out
     }
 
-    /// Var-to-var replay treats aliases as the same boundary, so cycling through
-    /// the same `SubtractId` must not turn `pop(1)` into `pop(n)`.
+    /// Replay dedup helper for var-to-var aliases.
+    ///
+    /// Alias replay treats repeated naked pops for one `SubtractId` as a worklist cycle through
+    /// the same boundary. This is a termination guard, not a semantic equality for arbitrary
+    /// stack weights.
     pub fn compose_for_alias_replay(&self, other: &Self) -> Self {
         let mut out = self.compose(other);
         out.cap_alias_pop_only_counts();
         out
     }
 
-    /// Normalize an already-built var-to-var alias edge. Real nested annotations
-    /// use distinct subtract ids; repeated naked pops for one id are alias cycles.
+    /// Apply the alias replay termination guard to an already-built edge.
+    ///
+    /// Real nested annotations use distinct subtract ids; repeated naked pops for one id are
+    /// considered replay-cycle fuel, not additional source annotation structure.
     pub fn normalize_for_alias_replay(&self) -> Self {
         let mut out = self.clone();
         out.cap_alias_pop_only_counts();
@@ -449,10 +454,11 @@ impl StackWeight {
         }
     }
 
-    /// Bounds replay の循環で増え続ける未対応 pop を正規化する。
+    /// Bounds replay の循環で増え続ける未対応 pop へ停止性ガードをかける。
     /// 裸の `pop(1)[]` は注釈由来の述部境界として surface に残る意味を持つので保つが、
     /// 同じ `SubtractId` の `pop(n)` は同じ境界を replay cycle で再消費した痕跡であり、
     /// 実際の nested annotation は別 `SubtractId` を使う。
+    /// これは worklist dedup のための実装制御であり、任意の型重みの等式ではない。
     /// stack 列は `common_stack` の入力なので、重複や順序をここでは変えない。
     pub fn saturate_unmatched_pops(&self) -> Self {
         let entries = self
@@ -490,8 +496,8 @@ impl StackWeight {
     }
 
     /// floor は「pop の下に生き残る集合」の交わりなので、常に1要素以下の
-    /// 正規形で持つ。`pops` の飽和と同じく、replay 循環で重みが太り続けて
-    /// `seen` の重複検出が外れるのを防ぐための正規化でもある。
+    /// 旧表現の正規形で持つ。`pops` の停止性ガードと同じく、replay 循環で重みが太り続けて
+    /// `seen` の重複検出が外れるのを防ぐ役割もある。
     fn push_floor(&mut self, id: SubtractId, subtractability: Subtractability) {
         let entry = self.entry_mut(id);
         let combined = entry
