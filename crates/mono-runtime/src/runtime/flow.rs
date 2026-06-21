@@ -145,15 +145,13 @@ impl<'a> Runtime<'a> {
     }
 
     pub(super) fn mark_request_with_active_markers(&self, request: &mut Request<'a>) {
-        for marker in &self.active_add_ids {
+        for active_marker in &self.active_add_ids {
+            let marker = &active_marker.marker;
             let path_matches_marker = path_has_prefix(&request.path, &marker.path);
             if marker.depth != 0
                 || (path_matches_marker && !marker.guard_own_path)
                 || (!path_matches_marker && !marker.guard_foreign_path)
-                || request
-                    .guard_ids
-                    .iter()
-                    .any(|id| self.guard_ids.contains(id))
+                || self.request_excepted_at_marker_entry(request, active_marker)
             {
                 continue;
             }
@@ -167,6 +165,17 @@ impl<'a> Runtime<'a> {
                 request.carried_guard_ids.push(marker.id);
             }
         }
+    }
+
+    fn request_excepted_at_marker_entry(
+        &self,
+        request: &Request<'a>,
+        marker: &ActiveAddIdMarker,
+    ) -> bool {
+        self.active_frames
+            .iter()
+            .take(marker.entry_frame_len)
+            .any(|frame| request.guard_ids.contains(&frame.id))
     }
 
     pub(super) fn mark_active_value(&mut self, value: Value) -> Value {
@@ -314,23 +323,37 @@ impl<'a> Runtime<'a> {
         activate_add_ids: bool,
         handler_path: Option<Vec<String>>,
     ) {
-        self.guard_ids
-            .extend(markers.iter().filter_map(ValueMarker::frame_id));
-        self.active_frames
-            .extend(
-                markers
-                    .iter()
-                    .filter_map(ValueMarker::frame_id)
-                    .map(|id| ActiveFrame {
-                        id,
+        let mut frame_entries = Vec::new();
+        for marker in markers {
+            match marker {
+                ValueMarker::Frame { id } => {
+                    let entry_frame_len = self.active_frames.len();
+                    self.guard_ids.push(*id);
+                    self.active_frames.push(ActiveFrame {
+                        id: *id,
                         handler_path: handler_path.clone(),
-                    }),
-            );
-        if activate_add_ids {
-            self.active_add_ids
-                .extend(markers.iter().filter_map(ValueMarker::add_id).cloned());
+                    });
+                    frame_entries.push((*id, entry_frame_len));
+                }
+                ValueMarker::AddId(marker) if activate_add_ids => {
+                    self.active_add_ids.push(ActiveAddIdMarker {
+                        marker: marker.clone(),
+                        entry_frame_len: self.entry_frame_len_for_marker(marker.id, &frame_entries),
+                    });
+                }
+                ValueMarker::AddId(_) => {}
+            }
         }
         self.active_marker_plans.push(markers_for_value(markers));
+    }
+
+    fn entry_frame_len_for_marker(&self, id: GuardId, frame_entries: &[(GuardId, usize)]) -> usize {
+        frame_entries
+            .iter()
+            .rev()
+            .find_map(|(frame_id, entry_frame_len)| (*frame_id == id).then_some(*entry_frame_len))
+            .or_else(|| self.active_frames.iter().position(|frame| frame.id == id))
+            .unwrap_or(self.active_frames.len())
     }
 
     pub(super) fn pop_marker_frame(
@@ -378,5 +401,79 @@ impl<'a> Runtime<'a> {
                 }))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn outer_marker_colors_request_hidden_by_later_inner_marker() {
+        let program = mono::Program::default();
+        let mut runtime = Runtime::new(&program);
+        let outer = GuardId(1);
+        let inner = GuardId(2);
+
+        let outer_markers = marker_frame(outer, &["outer"]);
+        runtime.push_marker_frame(&outer_markers, true, None);
+        let inner_markers = marker_frame(inner, &["inner"]);
+        runtime.push_marker_frame(&inner_markers, true, None);
+
+        let mut request = request(&["foreign", "op"], vec![inner]);
+        runtime.mark_request_with_active_markers(&mut request);
+
+        assert!(request.guard_ids.contains(&outer));
+        assert!(request.guard_ids.contains(&inner));
+    }
+
+    #[test]
+    fn inner_marker_does_not_repaint_request_excepted_at_entry() {
+        let program = mono::Program::default();
+        let mut runtime = Runtime::new(&program);
+        let outer = GuardId(1);
+        let inner = GuardId(2);
+
+        let outer_markers = marker_frame(outer, &["outer"]);
+        runtime.push_marker_frame(&outer_markers, true, None);
+        let inner_markers = marker_frame(inner, &["inner"]);
+        runtime.push_marker_frame(&inner_markers, true, None);
+
+        let mut request = request(&["foreign", "op"], vec![outer]);
+        runtime.mark_request_with_active_markers(&mut request);
+
+        assert!(request.guard_ids.contains(&outer));
+        assert!(!request.guard_ids.contains(&inner));
+    }
+
+    fn marker_frame(id: GuardId, prefix: &[&str]) -> Vec<ValueMarker> {
+        vec![
+            ValueMarker::Frame { id },
+            ValueMarker::AddId(AddIdMarker {
+                id,
+                path: path(prefix),
+                depth: 0,
+                guard_own_path: false,
+                guard_foreign_path: true,
+                carry_after_frame: false,
+            }),
+        ]
+    }
+
+    fn request<'a>(request_path: &[&str], guard_ids: Vec<GuardId>) -> Request<'a> {
+        Request {
+            path: path(request_path),
+            guard_ids,
+            carried_guard_ids: Vec::new(),
+            payload: Value::Unit,
+            resume: Rc::new(|_, value| value_result(value)),
+        }
+    }
+
+    fn path(segments: &[&str]) -> Vec<String> {
+        segments
+            .iter()
+            .map(|segment| (*segment).to_string())
+            .collect()
     }
 }

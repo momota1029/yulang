@@ -326,6 +326,12 @@ struct ActiveHandlerFrame {
     handler_key: InternedPathPrefix,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ActiveAddIdMarker {
+    marker: AddIdMarker,
+    entry_frame_len: usize,
+}
+
 #[derive(Debug, Clone, Copy)]
 struct MarkerCheckpoint {
     guard_len: usize,

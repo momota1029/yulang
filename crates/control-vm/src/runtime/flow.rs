@@ -217,25 +217,19 @@ impl<'a> Runtime<'a> {
     }
 
     pub(super) fn mark_request_with_active_markers(&mut self, request: &mut Request) {
-        let mut has_live_guard = request
-            .guard_ids
-            .iter()
-            .any(|id| self.guard_ids.contains(id));
-        if has_live_guard {
-            return;
-        }
-        for marker in &self.active_add_ids {
+        for active_marker in &self.active_add_ids {
+            let marker = &active_marker.marker;
             self.stats.active_add_id_scans += 1;
             let path_matches_marker =
                 counted_path_has_prefix(&mut self.stats, &request.path_key, marker.path_key);
             if (path_matches_marker && !marker.guard_own_path)
                 || (!path_matches_marker && !marker.guard_foreign_path)
+                || self.request_excepted_at_marker_entry(request, active_marker)
             {
                 continue;
             }
             if !request.guard_ids.contains(&marker.id) {
                 request.guard_ids.push(marker.id);
-                has_live_guard = self.guard_ids.contains(&marker.id);
             }
             if marker.carry_after_frame
                 && request_path_carries_function_adapter_guard(&request.path)
@@ -243,10 +237,18 @@ impl<'a> Runtime<'a> {
             {
                 request.carried_guard_ids.push(marker.id);
             }
-            if has_live_guard {
-                break;
-            }
         }
+    }
+
+    fn request_excepted_at_marker_entry(
+        &self,
+        request: &Request,
+        marker: &ActiveAddIdMarker,
+    ) -> bool {
+        self.active_frames
+            .iter()
+            .take(marker.entry_frame_len)
+            .any(|frame| request.guard_ids.contains(&frame.id))
     }
 
     pub(super) fn request_guard_for_path(
@@ -449,14 +451,17 @@ impl<'a> Runtime<'a> {
         handler_key: Option<InternedPathPrefix>,
         active_plan: SharedMarkers,
     ) {
+        let mut frame_entries = Vec::new();
         for marker in markers {
             match marker {
                 ValueMarker::Frame { id } => {
+                    let entry_frame_len = self.active_frames.len();
                     if !self.guard_ids.contains(id) {
                         self.guard_ids.push(*id);
                     }
-                    let frame_index = self.active_frames.len();
+                    let frame_index = entry_frame_len;
                     self.active_frames.push(ActiveFrame { id: *id });
+                    frame_entries.push((*id, entry_frame_len));
                     if let Some(handler_key) = handler_key {
                         self.active_handler_frames.push(ActiveHandlerFrame {
                             frame_index,
@@ -466,14 +471,27 @@ impl<'a> Runtime<'a> {
                     }
                 }
                 ValueMarker::AddId(marker) if activate_add_ids && marker.depth == 0 => {
-                    if !self.active_add_ids.contains(marker) {
-                        self.active_add_ids.push(marker.clone());
+                    let active_marker = ActiveAddIdMarker {
+                        marker: marker.clone(),
+                        entry_frame_len: self.entry_frame_len_for_marker(marker.id, &frame_entries),
+                    };
+                    if !self.active_add_ids.contains(&active_marker) {
+                        self.active_add_ids.push(active_marker);
                     }
                 }
                 ValueMarker::AddId(_) => {}
             }
         }
         self.active_marker_plans.push(active_plan);
+    }
+
+    fn entry_frame_len_for_marker(&self, id: GuardId, frame_entries: &[(GuardId, usize)]) -> usize {
+        frame_entries
+            .iter()
+            .rev()
+            .find_map(|(frame_id, entry_frame_len)| (*frame_id == id).then_some(*entry_frame_len))
+            .or_else(|| self.active_frames.iter().position(|frame| frame.id == id))
+            .unwrap_or(self.active_frames.len())
     }
 
     pub(super) fn pop_marker_frame(
@@ -578,5 +596,88 @@ impl<'a> Runtime<'a> {
             },
         );
         Ok(EvalResult::Request(request))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn outer_marker_colors_request_hidden_by_later_inner_marker() {
+        let program = Program::default();
+        let mut runtime = Runtime::new(&program);
+        let outer = GuardId(1);
+        let inner = GuardId(2);
+
+        let outer_markers = marker_frame(&mut runtime, outer, &["outer"]);
+        runtime.push_marker_frame(&outer_markers, true, None);
+        let inner_markers = marker_frame(&mut runtime, inner, &["inner"]);
+        runtime.push_marker_frame(&inner_markers, true, None);
+
+        let mut request = request(&mut runtime, &["foreign", "op"], vec![inner]);
+        runtime.mark_request_with_active_markers(&mut request);
+
+        assert!(request.guard_ids.contains(&outer));
+        assert!(request.guard_ids.contains(&inner));
+    }
+
+    #[test]
+    fn inner_marker_does_not_repaint_request_excepted_at_entry() {
+        let program = Program::default();
+        let mut runtime = Runtime::new(&program);
+        let outer = GuardId(1);
+        let inner = GuardId(2);
+
+        let outer_markers = marker_frame(&mut runtime, outer, &["outer"]);
+        runtime.push_marker_frame(&outer_markers, true, None);
+        let inner_markers = marker_frame(&mut runtime, inner, &["inner"]);
+        runtime.push_marker_frame(&inner_markers, true, None);
+
+        let mut request = request(&mut runtime, &["foreign", "op"], vec![outer]);
+        runtime.mark_request_with_active_markers(&mut request);
+
+        assert!(request.guard_ids.contains(&outer));
+        assert!(!request.guard_ids.contains(&inner));
+    }
+
+    fn marker_frame(runtime: &mut Runtime<'_>, id: GuardId, prefix: &[&str]) -> Vec<ValueMarker> {
+        let prefix = path(prefix);
+        let path_key = runtime.intern_path(&prefix).prefix();
+        vec![
+            ValueMarker::Frame { id },
+            ValueMarker::AddId(AddIdMarker {
+                id,
+                path_key,
+                depth: 0,
+                guard_own_path: false,
+                guard_foreign_path: true,
+                carry_after_frame: false,
+            }),
+        ]
+    }
+
+    fn request(
+        runtime: &mut Runtime<'_>,
+        request_path: &[&str],
+        guard_ids: Vec<GuardId>,
+    ) -> Request {
+        let request_path = path(request_path);
+        let path_key = runtime.intern_path(&request_path);
+        Request {
+            path: request_path,
+            path_key,
+            guard_ids,
+            carried_guard_ids: Vec::new(),
+            payload: Value::Unit,
+            continuation: Continuation::default(),
+        }
+    }
+
+    fn path(segments: &[&str]) -> Vec<String> {
+        segments
+            .iter()
+            .map(|segment| (*segment).to_string())
+            .collect()
     }
 }

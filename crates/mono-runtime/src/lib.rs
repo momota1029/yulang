@@ -77,7 +77,7 @@ pub struct Runtime<'a> {
     next_continuation_id: u32,
     guard_ids: Vec<GuardId>,
     active_frames: Vec<ActiveFrame>,
-    active_add_ids: Vec<AddIdMarker>,
+    active_add_ids: Vec<ActiveAddIdMarker>,
     active_marker_plans: Vec<Vec<ValueMarker>>,
     next_guard_id: u32,
 }
@@ -91,26 +91,16 @@ struct ActiveFrame {
     handler_path: Option<Vec<String>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ActiveAddIdMarker {
+    marker: AddIdMarker,
+    entry_frame_len: usize,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ValueMarker {
     Frame { id: GuardId },
     AddId(AddIdMarker),
-}
-
-impl ValueMarker {
-    fn frame_id(&self) -> Option<GuardId> {
-        match self {
-            Self::Frame { id } => Some(*id),
-            Self::AddId(_) => None,
-        }
-    }
-
-    fn add_id(&self) -> Option<&AddIdMarker> {
-        match self {
-            Self::Frame { .. } => None,
-            Self::AddId(marker) => Some(marker),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

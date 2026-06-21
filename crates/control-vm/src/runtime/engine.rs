@@ -15,7 +15,7 @@ pub(super) struct Runtime<'a> {
     // Only depth-zero add-id markers can attach a guard to a request in the
     // current scope. Deeper markers stay in active_marker_plans for call/resume
     // transitions and are pushed here after their depth is decremented.
-    pub(super) active_add_ids: Vec<AddIdMarker>,
+    pub(super) active_add_ids: Vec<ActiveAddIdMarker>,
     pub(super) active_marker_plans: Vec<SharedMarkers>,
     pub(super) next_guard_id: u32,
     pub(super) stats: RuntimeStats,

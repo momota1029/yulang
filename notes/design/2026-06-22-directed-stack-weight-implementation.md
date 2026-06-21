@@ -163,6 +163,11 @@ This is the preferred way to stop self-fueling row cycles, together with residua
    - Existing active marker/hygiene runtime work should be checked against that invariant after inference weight semantics are fixed.
    - Status: in progress. `control-vm` and `mono-runtime` now paint both escaping request payloads and request
      continuations when a marker frame closes over a request, matching the `poppaint` rule for operation outcomes.
+   - Guard coloring now uses a scope-entry except snapshot instead of the current visibility predicate.
+     Each active add-id marker records the active frame prefix from the point where its frame was entered.
+     A request is colored by that marker only when its existing guard ids do not intersect that prefix.
+     This keeps an outer marker responsible for requests that are only hidden by later inner scopes, while avoiding
+     repainting requests that were already excepted before an inner marker started.
 
 ## Regression Targets
 
