@@ -888,6 +888,37 @@ fn effect_row_filter_constrains_matching_payloads() {
     );
 }
 
+#[test]
+fn neg_stack_filter_is_checked_but_not_stored_as_right_weight() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let target = TypeVar(1);
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let target_neg = machine.alloc_neg(Neg::Var(target));
+    let filter = Subtractability::Set(vec!["io".into()], Vec::new());
+    let upper = machine.alloc_neg(Neg::Stack {
+        inner: target_neg,
+        weight: StackWeight::filter(filter.clone()),
+    });
+    let weighted = ConstraintWeights {
+        left: StackWeight::empty(),
+        right: StackWeight::filter(filter),
+    };
+
+    machine.subtype(source_pos, upper);
+
+    assert!(machine.seen.contains(&SubtypeConstraint {
+        lower: source_pos,
+        upper: target_neg,
+        weights: ConstraintWeights::empty(),
+    }));
+    assert!(!machine.seen.contains(&SubtypeConstraint {
+        lower: source_pos,
+        upper: target_neg,
+        weights: weighted,
+    }));
+}
+
 pub(super) fn single_upper_row_tail(
     machine: &ConstraintMachine,
     var: TypeVar,
@@ -1073,6 +1104,10 @@ fn pure_function_argument_effect_passes_through_with_right_side_weights() {
         right: ConstraintWeight::from_ids([SubtractId(1)]),
     };
     let expected_passthrough_weights = ConstraintWeights {
+        left: ConstraintWeight::empty(),
+        right: ConstraintWeight::from_ids([SubtractId(1)]),
+    };
+    let unnormalized_passthrough_weights = ConstraintWeights {
         left: ConstraintWeight::from_ids([SubtractId(1)]),
         right: ConstraintWeight::from_ids([SubtractId(1)]),
     };
@@ -1088,6 +1123,11 @@ fn pure_function_argument_effect_passes_through_with_right_side_weights() {
         lower: rhs_arg_eff,
         upper: rhs_ret_eff,
         weights: ConstraintWeights::empty(),
+    }));
+    assert!(!machine.seen.contains(&SubtypeConstraint {
+        lower: rhs_arg_eff,
+        upper: rhs_ret_eff,
+        weights: unnormalized_passthrough_weights,
     }));
     assert!(!machine.seen.contains(&SubtypeConstraint {
         lower: rhs_arg_eff,

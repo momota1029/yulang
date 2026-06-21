@@ -852,7 +852,7 @@ fn role_impl_method_requirement_clamps_associated_type_from_return() {
 }
 
 #[test]
-fn role_impl_method_requirement_ret_effect_records_stack_weighted_upper() {
+fn role_impl_method_requirement_ret_effect_checks_and_erases_filter_upper() {
     let root = parse(
         "act nondet:\nstruct User;\nrole Box 'a:\n  our x.run: [nondet; 'e] unit\nimpl User: Box {\n  our x.run = ()\n}\n",
     );
@@ -879,10 +879,17 @@ fn role_impl_method_requirement_ret_effect_records_stack_weighted_upper() {
     let types = output.session.infer.constraints().types();
     assert!(
         bounds.uppers().iter().any(|bound| {
-            neg_is_var_or_filter_stack_var(types, bound.neg)
-                && weight_filter_matches_path(&bound.weights.right, &["nondet"])
+            neg_is_var_or_filter_stack_var(types, bound.neg) && bound.weights.is_empty()
         }),
         "body effect bounds: {:?}",
+        bounds
+    );
+    assert!(
+        bounds
+            .uppers()
+            .iter()
+            .all(|bound| !weight_filter_matches_path(&bound.weights.right, &["nondet"])),
+        "filter should be checked before storage, not retained as a right weight: {:?}",
         bounds
     );
 }

@@ -47,7 +47,7 @@ impl ConstraintMachine {
         let retained_items = self.collect_neg_effect_items(retained_items);
         if retained_items.is_empty() {
             let source_pos = self.alloc_pos(Pos::Var(source));
-            self.enqueue_subtype(source_pos, normalize_directed_mix(weights), tail);
+            self.enqueue_subtype(source_pos, weights.normalize_directed_mix(), tail);
             return;
         }
 
@@ -77,10 +77,11 @@ impl ConstraintMachine {
         let gamma_pos = self.alloc_pos(Pos::Var(gamma));
         self.enqueue_subtype(
             gamma_pos,
-            normalize_directed_mix(ConstraintWeights {
+            ConstraintWeights {
                 left: residual_weight,
                 right: weights.right,
-            }),
+            }
+            .normalize_directed_mix(),
             tail,
         );
     }
@@ -649,41 +650,4 @@ fn remove_first_row_item(items: &mut Vec<NegId>, item: NegId) {
 
 fn left_active_stack_items(weight: &StackWeight) -> impl Iterator<Item = &Subtractability> + '_ {
     weight.entries().iter().flat_map(|entry| entry.stack.iter())
-}
-
-fn normalize_directed_mix(weights: ConstraintWeights) -> ConstraintWeights {
-    if weights.left.is_empty() || weights.right.is_empty() {
-        return weights;
-    }
-
-    let mut left = weights.left;
-    let mut right = StackWeight::empty();
-    for entry in weights.right.entries() {
-        if !entry.floor.is_empty() || !entry.stack.is_empty() {
-            for floor in &entry.floor {
-                right = right.compose(&StackWeight::floor(entry.id, floor.clone()));
-            }
-            right = right.compose(&StackWeight::pops(entry.id, entry.pops));
-            for stack in &entry.stack {
-                right = right.compose(&StackWeight::push(entry.id, stack.clone()));
-            }
-            continue;
-        }
-
-        if !left.contains(entry.id) {
-            right = right.compose(&StackWeight::pops(entry.id, entry.pops));
-            continue;
-        }
-
-        left = left.compose(&StackWeight::pops(entry.id, entry.pops));
-        let Some(left_entry) = left.entries().iter().find(|left| left.id == entry.id) else {
-            continue;
-        };
-        if left_entry.floor.is_empty() && left_entry.stack.is_empty() {
-            right = right.compose(&StackWeight::pops(entry.id, left_entry.pops));
-            left = left.without_ids(|id| id == entry.id);
-        }
-    }
-
-    ConstraintWeights { left, right }
 }

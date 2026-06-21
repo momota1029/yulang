@@ -85,6 +85,71 @@ fn constraint_weights_replay_caps_repeated_pop_only_count() {
 }
 
 #[test]
+fn constraint_weights_replay_mixes_left_push_with_right_pop() {
+    let id = SubtractId(0);
+    let earlier = ConstraintWeights {
+        left: StackWeight::push(id, Subtractability::Empty),
+        right: StackWeight::empty(),
+    };
+    let later = ConstraintWeights {
+        left: StackWeight::empty(),
+        right: StackWeight::pop(id),
+    };
+
+    let weights = earlier.compose_for_replay(&later);
+
+    assert!(weights.is_empty());
+}
+
+#[test]
+fn constraint_weights_replay_keeps_remaining_left_push_after_mix() {
+    let id = SubtractId(0);
+    let io = Subtractability::Set(vec!["io".into()], Vec::new());
+    let earlier = ConstraintWeights {
+        left: StackWeight::push(id, io.clone()).compose(&StackWeight::push(id, io.clone())),
+        right: StackWeight::empty(),
+    };
+    let later = ConstraintWeights {
+        left: StackWeight::empty(),
+        right: StackWeight::pop(id),
+    };
+
+    let weights = earlier.compose_for_replay(&later);
+
+    assert!(weights.right.is_empty());
+    let [entry] = weights.left.entries() else {
+        panic!("expected one left stack entry");
+    };
+    assert_eq!(entry.pops, 0);
+    assert!(entry.floor.is_empty());
+    assert_eq!(entry.stack, vec![io]);
+}
+
+#[test]
+fn constraint_weights_replay_projects_pure_pop_to_right_after_mix() {
+    let id = SubtractId(0);
+    let earlier = ConstraintWeights {
+        left: StackWeight::push(id, Subtractability::Empty),
+        right: StackWeight::empty(),
+    };
+    let later = ConstraintWeights {
+        left: StackWeight::empty(),
+        right: StackWeight::pops(id, 2),
+    };
+
+    let weights = earlier.compose_for_replay(&later);
+
+    assert!(weights.left.is_empty());
+    let [entry] = weights.right.entries() else {
+        panic!("expected one right pop entry");
+    };
+    assert_eq!(entry.id, id);
+    assert_eq!(entry.pops, 1);
+    assert!(entry.floor.is_empty());
+    assert!(entry.stack.is_empty());
+}
+
+#[test]
 fn constraint_weights_replay_prepends_later_right_weights() {
     let id = SubtractId(0);
     let earlier = ConstraintWeights {

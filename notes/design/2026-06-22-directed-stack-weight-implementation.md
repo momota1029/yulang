@@ -72,8 +72,10 @@ This is the preferred way to stop self-fueling row cycles, together with residua
   and carries right-side pop to the residual tail.
 
 - `row_effect.rs` still uses the legacy `poly::types::StackWeight` storage while interpreting it as a directed pair.
-  The local bridge strips `filter` after static checks, ignores legacy `floor` for `Common(L)`, and normalizes W-Mix
-  only when forwarding to the row tail.
+  The local bridge strips `filter` after static checks and ignores legacy `floor` for `Common(L)`.
+
+- `ConstraintWeights::compose_for_replay()` and var-var replay now normalize by W-Mix before applying the
+  implementation-side pop-growth caps. This keeps the semantic directed projection before the termination guard.
 
 - `poly::types::StackWeight` is used for both sides and can represent `filter`, `floor`, `stack`, and `pops`.
   The proof needs separate left/right representations. In particular, right weights must not carry pushes.
@@ -82,7 +84,8 @@ This is the preferred way to stop self-fueling row cycles, together with residua
   but other formatting/extraction paths still need an audit.
 
 - `filter` is currently embedded in `StackWeight`.
-  The row split path treats filter as a separate wrapper/check and erases it before residual propagation.
+  The row split path and `Neg::Stack` absorption treat filter as a separate wrapper/check and erase it before
+  residual propagation.
   Other paths still need an audit.
 
 - `saturate_unmatched_pops()` and alias replay pop caps are implementation-side termination controls.
@@ -122,6 +125,7 @@ This is the preferred way to stop self-fueling row cycles, together with residua
    - Compose by directed path composition.
    - Do not exchange unmatched right-pop with a new push.
    - Treat pop-growth caps as temporary termination guards only if they remain needed.
+   - Status: partial. Replay now runs W-Mix before caps while still using legacy `StackWeight` storage.
 
 5. Rework compact extraction.
    - Positive projection keeps full left weight.

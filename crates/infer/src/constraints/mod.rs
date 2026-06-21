@@ -17,8 +17,8 @@ mod trace;
 use std::collections::VecDeque;
 
 use poly::types::{
-    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, StackWeight, SubtractId, Subtractability,
-    TypeArena, TypeVar,
+    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, StackWeight, StackWeightEntry, SubtractId,
+    Subtractability, TypeArena, TypeVar,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -379,30 +379,84 @@ impl ConstraintWeights {
         // stack wrappers, so replaying through a later upper bound nests that bound outside the
         // earlier one; its weight must be prepended.
         Self {
-            left: self.left.compose(&other.left).saturate_unmatched_pops(),
-            right: other.right.compose(&self.right).saturate_unmatched_pops(),
+            left: self.left.compose(&other.left),
+            right: other.right.compose(&self.right),
         }
+        .normalize_directed_mix()
+        .saturate_unmatched_pops()
     }
 
     pub fn compose_for_var_var_replay(&self, other: &Self) -> Self {
         Self {
-            left: self
-                .left
-                .compose_for_alias_replay(&other.left)
-                .saturate_unmatched_pops(),
-            right: other
-                .right
-                .compose_for_alias_replay(&self.right)
-                .saturate_unmatched_pops(),
+            left: self.left.compose(&other.left),
+            right: other.right.compose(&self.right),
         }
+        .normalize_directed_mix()
+        .cap_alias_pop_only_counts()
     }
 
     pub fn normalize_for_var_var_replay(&self) -> Self {
+        self.clone()
+            .normalize_directed_mix()
+            .cap_alias_pop_only_counts()
+    }
+
+    fn cap_alias_pop_only_counts(self) -> Self {
         Self {
             left: self.left.normalize_for_alias_replay(),
             right: self.right.normalize_for_alias_replay(),
         }
     }
+
+    fn saturate_unmatched_pops(self) -> Self {
+        Self {
+            left: self.left.saturate_unmatched_pops(),
+            right: self.right.saturate_unmatched_pops(),
+        }
+    }
+
+    fn normalize_directed_mix(self) -> Self {
+        if self.left.is_empty() || self.right.is_empty() {
+            return self;
+        }
+
+        let mut left = self.left;
+        let mut right = StackWeight::empty();
+        for entry in self.right.entries() {
+            if !entry.floor.is_empty() || !entry.stack.is_empty() {
+                right = right.compose(&stack_weight_entry_as_weight(entry));
+                continue;
+            }
+
+            if !left.contains(entry.id) {
+                right = right.compose(&StackWeight::pops(entry.id, entry.pops));
+                continue;
+            }
+
+            left = left.compose(&StackWeight::pops(entry.id, entry.pops));
+            let Some(left_entry) = left.entries().iter().find(|left| left.id == entry.id) else {
+                continue;
+            };
+            if left_entry.floor.is_empty() && left_entry.stack.is_empty() {
+                right = right.compose(&StackWeight::pops(entry.id, left_entry.pops));
+                left = left.without_ids(|id| id == entry.id);
+            }
+        }
+
+        Self { left, right }
+    }
+}
+
+fn stack_weight_entry_as_weight(entry: &StackWeightEntry) -> StackWeight {
+    let mut out = StackWeight::empty();
+    for floor in &entry.floor {
+        out = out.compose(&StackWeight::floor(entry.id, floor.clone()));
+    }
+    out = out.compose(&StackWeight::pops(entry.id, entry.pops));
+    for stack in &entry.stack {
+        out = out.compose(&StackWeight::push(entry.id, stack.clone()));
+    }
+    out
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

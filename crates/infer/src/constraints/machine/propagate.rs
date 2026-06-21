@@ -34,6 +34,7 @@ impl ConstraintMachine {
             let inner = *inner;
             let weight = weight.clone();
             self.constrain_pos_lower_by_filter(constraint.lower, weight.filter_set());
+            let weight = weight.with_filter(Subtractability::All);
             let stack_filter = common_stack_subtractability(weight.stack_items());
             self.constrain_pos_lower_by_filter(constraint.lower, &stack_filter);
             self.enqueue_subtype(
