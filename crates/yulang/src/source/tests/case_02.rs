@@ -580,7 +580,7 @@ first_over 40
 fn run_control_source_text_with_embedded_playground_std_replaces_strings() {
     let build = build_control_from_source_text_with_embedded_playground_std(
         "playground.yu",
-        r#"("a-b-a".replace_once "a" "x", "a-b-a".replace_all "a" "x")"#,
+        r#"("a-b-a".replace_once "a" "x", "a-b-a".replace "a" "x")"#,
     )
     .unwrap();
     assert!(build.file_count < embedded_std_files().len() + 1);
@@ -623,9 +623,9 @@ fn run_control_source_text_with_embedded_std_replaces_strings() {
         "\
 (
   std::text::str::replace_once(\"a-b-a\", \"a\", \"x\"),
-  std::text::str::replace_all(\"a-b-a\", \"a\", \"x\"),
-  std::text::str::replace_all(\"aaa\", \"aa\", \"x\"),
-  std::text::str::replace_all(\"abc\", \"\", \"x\")
+  std::text::str::replace(\"a-b-a\", \"a\", \"x\"),
+  std::text::str::replace(\"aaa\", \"aa\", \"x\"),
+  std::text::str::replace(\"abc\", \"\", \"x\")
 )
 ",
     )
@@ -641,7 +641,7 @@ fn run_control_source_text_with_embedded_std_replaces_strings() {
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_translates_parse_matches() {
+fn run_control_source_text_with_embedded_std_edits_parse_matches() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "\
@@ -653,7 +653,7 @@ my render({name}) = case name:
   \"place\" -> \"world\"
   _ -> \"?\"
 
-my template = translate(variable, render, \"hello {{name}} from {{place}}!\")
+my template = edit(\"hello {{name}} from {{place}}!\", variable, render)
 
 template
 ",
@@ -667,13 +667,13 @@ template
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_translates_plain_rule_literals() {
+fn run_control_source_text_with_embedded_std_replaces_plain_rule_literals() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "\
 use std::text::parse::*
 
-translate(~\"hello\", \\() -> \"hi\", \"hello hello\")
+replace(\"hello hello\", ~\"hello\", \"hi\")
 ",
     )
     .unwrap();
@@ -685,13 +685,13 @@ translate(~\"hello\", \\() -> \"hi\", \"hello hello\")
 }
 
 #[test]
-fn run_control_source_text_with_embedded_std_translates_capture_rule_literals() {
+fn run_control_source_text_with_embedded_std_edits_capture_rule_literals() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
         "\
 use std::text::parse::*
 
-translate(~\"users/:name/posts\", \\{name} -> name, \"users/alice/posts users/bob/posts\")
+edit(\"users/alice/posts users/bob/posts\", ~\"users/:name/posts\", \\{name} -> name)
 ",
     )
     .unwrap();
@@ -703,13 +703,31 @@ translate(~\"users/:name/posts\", \\{name} -> name, \"users/alice/posts users/bo
 }
 
 #[test]
+fn run_control_source_text_with_embedded_std_edits_capture_rule_literal_once() {
+    let build = build_control_from_source_text_with_embedded_std(
+        "playground.yu",
+        "\
+use std::text::parse::*
+
+edit_once(\"port = 3000\\nport = 4000\", ~\"port = :value\", \\{value} -> \"port = 8080\")
+",
+    )
+    .unwrap();
+    assert_eq!(build.file_count, embedded_std_files().len() + 1);
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(output.0, "run roots [\"port = 8080\\nport = 4000\"]\n");
+}
+
+#[test]
 fn dump_mono_with_embedded_std_specializes_capture_rule_literal_result() {
     let output = dump_mono_from_source_text_with_embedded_std(
         "playground.yu",
         "\
 use std::text::parse::*
 
-translate(~\"users/:name/posts\", \\{name} -> name, \"users/alice/posts users/bob/posts\")
+edit(\"users/alice/posts users/bob/posts\", ~\"users/:name/posts\", \\{name} -> name)
 ",
     )
     .unwrap();

@@ -9,7 +9,13 @@ pub use std::core::seq::*
 pub use std::core::convert::*
 
 pub use std::int::*
-pub use std::text::str::*
+pub use std::text::str::{
+    str, lines, ref_lines, str_line_view, line_view,
+    concat, eq, len, line_count, line_range,
+    index_raw, index_range, index_range_raw,
+    splice, splice_raw, to_bytes,
+    is_empty, replace_all, word_prefix_at
+}
 pub use std::text::char::*
 pub use std::data::fold::Fold
 pub use std::data::list::*

@@ -73,7 +73,7 @@ impl (ref_lines 'e): Fold:
 pub type str with:
     pub s.splice r insert = std::text::str::splice s r insert
     pub s.replace_once from to = std::text::str::replace_once s from to
-    pub s.replace_all from to = std::text::str::replace_all s from to
+    pub s.replace from to = std::text::str::replace_all s from to
     pub s.len = std::text::str::len s
     pub s.is_empty = std::text::str::is_empty s
     pub s.lines: lines = str_line_view s
@@ -122,6 +122,9 @@ pub replace_once(source: str, from: str, to: str): str =
                         (std::int::add i (std::text::str::len from))
                         (std::text::str::len source))
             nil -> source
+
+pub replace(source: str, from: str, to: str): str =
+    replace_all(source, from, to)
 
 pub replace_all(source: str, from: str, to: str): str =
     if std::int::eq (std::text::str::len from) 0:

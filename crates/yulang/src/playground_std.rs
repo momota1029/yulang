@@ -73,7 +73,12 @@ pub use std::num::*
 pub use std::int::*
 pub use std::float::*
 pub use std::bool::*
-pub use std::text::str::*
+pub use std::text::str::{
+    str, concat, eq, len, line_count, line_range,
+    index_raw, index_range, index_range_raw,
+    splice, splice_raw,
+    is_empty, replace_all
+}
 pub use std::text::char::*
 pub use std::data::fold::Fold
 pub use std::data::index::Index
@@ -495,7 +500,7 @@ pub splice_raw: str -> int -> int -> str -> str = builtin_op::string_splice_raw
 pub type str with:
     pub s.splice r insert = std::text::str::splice s r insert
     pub s.replace_once from to = std::text::str::replace_once s from to
-    pub s.replace_all from to = std::text::str::replace_all s from to
+    pub s.replace from to = std::text::str::replace_all s from to
     pub s.len = std::text::str::len s
     pub s.is_empty = std::text::str::is_empty s
     pub s.print = std::io::print s
@@ -542,6 +547,9 @@ pub replace_once(source: str, from: str, to: str): str =
                         (std::int::add i (std::text::str::len from))
                         (std::text::str::len source))
             nil -> source
+
+pub replace(source: str, from: str, to: str): str =
+    replace_all(source, from, to)
 
 pub replace_all(source: str, from: str, to: str): str =
     if std::int::eq (std::text::str::len from) 0:

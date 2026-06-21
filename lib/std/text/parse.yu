@@ -2,7 +2,7 @@ use std::data::list::*
 use std::data::opt::*
 use std::core::ops::*
 use std::text::char::*
-use std::text::str::*
+use std::text::str::str
 use std::control::var::*
 use std::data::result::*
 
@@ -47,6 +47,7 @@ pub struct str_error {
         our e.label label = str_error { line: e.line, column: e.column, unexpected: e.unexpected, expected: [label], message: e.message }
 
 pub struct prefix_result 'a { value: 'a, rest: str }
+pub struct match_result 'a { value: 'a, start: int, end: int, text: str }
 
 my advance_position(input: str, count: int, line: int, column: int): (int, int) =
     my loop(i: int, line: int, column: int): (int, int) =
@@ -105,20 +106,83 @@ pub run_prefix_str(input: str, line: int, column: int, parser: [parse char str_e
             run_prefix_str rest line column k()
         v -> result::ok(prefix_result { value: v, rest: input })
 
+pub read_prefix(source: str, parser: () -> [parse char str_error (int, int) (str, int, int)] 'a): result (prefix_result 'a) str_error =
+    run_prefix_str(source, 1, 1, parser())
+
+my find_from(source: str, start: int, parser: () -> [parse char str_error (int, int) (str, int, int)] 'a): opt (match_result 'a) =
+    if start < source.len:
+        my rest = std::text::str::index_range_raw source start source.len
+        case run_prefix_str(rest, 1, start + 1, parser()):
+            result::ok found ->
+                my consumed = rest.len - found.rest.len
+                if consumed == 0:
+                    find_from(source, start + 1, parser)
+                else:
+                    just(match_result {
+                        value: found.value,
+                        start: start,
+                        end: start + consumed,
+                        text: std::text::str::index_range_raw source start (start + consumed)
+                    })
+            result::err _ -> find_from(source, start + 1, parser)
+    else:
+        nil
+
+pub find(source: str, parser: () -> [parse char str_error (int, int) (str, int, int)] 'a): opt (match_result 'a) =
+    find_from(source, 0, parser)
+
+pub edit_once(source: str, parser: () -> [parse char str_error (int, int) (str, int, int)] 'a, replacement: 'a -> ['e] str): ['e] str =
+    case find_from(source, 0, parser):
+        just found ->
+            std::text::str::concat
+                (std::text::str::concat
+                    (std::text::str::index_range_raw source 0 found.start)
+                    (replacement found.value))
+                (std::text::str::index_range_raw source found.end source.len)
+        nil -> source
+
+pub edit(source: str, parser: () -> [parse char str_error (int, int) (str, int, int)] 'a, replacement: 'a -> ['e] str): ['e] str =
+    my loop(start: int, out: str): ['e] str =
+        case find_from(source, start, parser):
+            just found ->
+                loop(
+                    found.end,
+                    std::text::str::concat
+                        (std::text::str::concat
+                            out
+                            (std::text::str::index_range_raw source start found.start))
+                        (replacement found.value))
+            nil ->
+                std::text::str::concat out (std::text::str::index_range_raw source start source.len)
+    loop(0, "")
+
+pub replace_once(source: str, parser: () -> [parse char str_error (int, int) (str, int, int)] 'a, replacement: str): str =
+    case find_from(source, 0, parser):
+        just found ->
+            std::text::str::concat
+                (std::text::str::concat
+                    (std::text::str::index_range_raw source 0 found.start)
+                    replacement)
+                (std::text::str::index_range_raw source found.end source.len)
+        nil -> source
+
+pub replace(source: str, parser: () -> [parse char str_error (int, int) (str, int, int)] 'a, replacement: str): str =
+    my loop(start: int, out: str): str =
+        case find_from(source, start, parser):
+            just found ->
+                loop(
+                    found.end,
+                    std::text::str::concat
+                        (std::text::str::concat
+                            out
+                            (std::text::str::index_range_raw source start found.start))
+                        replacement)
+            nil ->
+                std::text::str::concat out (std::text::str::index_range_raw source start source.len)
+    loop(0, "")
+
 pub translate(parser: () -> [parse char str_error (int, int) (str, int, int)] 'a, replacement: 'a -> ['e] str, source: str): ['e] str =
-    my loop(rest: str): ['e] str =
-        if rest.len == 0:
-            ""
-        else:
-            case run_prefix_str(rest, 1, 1, parser()):
-                result::ok found ->
-                    if found.rest.len == rest.len:
-                        std::text::char::to_string(std::text::str::index_raw rest 0) + loop(std::text::str::index_range_raw rest 1 rest.len)
-                    else:
-                        replacement(found.value) + loop(found.rest)
-                result::err _ ->
-                    std::text::char::to_string(std::text::str::index_raw rest 0) + loop(std::text::str::index_range_raw rest 1 rest.len)
-    loop source
+    edit(source, parser, replacement)
 
 pub choice(p: () -> [parse 'item 'err 'pos 'snap] 'a, q: () -> [parse 'item 'err 'pos 'snap] 'a, ()): [parse 'item 'err 'pos 'snap] 'a =
     my snap = parse::snapshot()
