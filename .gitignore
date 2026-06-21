@@ -26,6 +26,8 @@
 # Local scratch files
 *.log
 *.tmp
+**/.temp/
+research/**/*.pdf
 test.txt
 test.yu
 test.ym
