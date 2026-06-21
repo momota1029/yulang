@@ -20,7 +20,7 @@ Environment:
                        Set to 1 to skip shell profile PATH edits.
 
 Alpha releases are GitHub prereleases, so install them with:
-  scripts/install.sh --version v0.1.0-alpha.1
+  scripts/install.sh --version v0.1.0-alpha.3
 EOF
 }
 

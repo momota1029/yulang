@@ -54,7 +54,7 @@ release build の CLI を使う場合は、OS ごとの binary archive を入れ
 embedded standard library が入っていて、初回にユーザー library directory へ配置されます。
 
 ```bash
-curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.1
+curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.3
 ```
 
 installer は `~/.yulang/bin` が `PATH` に無い場合、shell profile へ追加します。
@@ -71,7 +71,7 @@ Windows では PowerShell installer を使います。
 
 ```powershell
 Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.1
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.3
 ```
 
 PowerShell installer は install 先の `bin` directory を user `PATH` に追加します。
