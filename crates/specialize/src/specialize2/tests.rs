@@ -181,6 +181,31 @@ fn tuple_candidates_refine_open_items_from_concrete_tuple() {
 }
 
 #[test]
+fn open_record_candidates_share_matching_shape() {
+    let arena = poly_expr::Arena::new();
+    let mut graph = TypeGraph::new(&arena);
+    let left = Type::Record(vec![field("name", graph.fresh_value(), false)]);
+    let right = Type::Record(vec![field("name", graph.fresh_value(), false)]);
+
+    assert!(matches!(
+        merge_open_candidate_shape(&left, &right),
+        Some(Type::Record(fields))
+            if fields.len() == 1
+                && fields[0].name == "name"
+                && !fields[0].optional
+                && matches!(fields[0].value, Type::OpenVar(_))
+    ));
+}
+
+#[test]
+fn open_candidate_shape_does_not_hide_record_field_conflicts() {
+    let left = Type::Record(vec![field("name", int_type(), false)]);
+    let right = Type::Record(vec![field("name", bool_type(), false)]);
+
+    assert!(merge_open_candidate_shape(&left, &right).is_none());
+}
+
+#[test]
 fn concrete_subtype_rejects_tuple_length_mismatch() {
     let arena = poly_expr::Arena::new();
     let mut graph = TypeGraph::new(&arena);

@@ -626,6 +626,143 @@ pub(super) fn merge_candidate_component(
     }
 }
 
+pub(super) fn merge_open_candidate_shape(left: &Type, right: &Type) -> Option<Type> {
+    if left == right {
+        return Some(left.clone());
+    }
+    match (left, right) {
+        (Type::OpenVar(_), right) => Some(right.clone()),
+        (left, Type::OpenVar(_)) => Some(left.clone()),
+        (
+            Type::Con {
+                path: left_path,
+                args: left_args,
+            },
+            Type::Con {
+                path: right_path,
+                args: right_args,
+            },
+        ) if left_path == right_path && left_args.len() == right_args.len() => Some(Type::Con {
+            path: left_path.clone(),
+            args: merge_open_candidate_items(left_args, right_args)?,
+        }),
+        (
+            Type::Fun {
+                arg: left_arg,
+                arg_effect: left_arg_effect,
+                ret_effect: left_ret_effect,
+                ret: left_ret,
+            },
+            Type::Fun {
+                arg: right_arg,
+                arg_effect: right_arg_effect,
+                ret_effect: right_ret_effect,
+                ret: right_ret,
+            },
+        ) => Some(Type::Fun {
+            arg: Box::new(merge_open_candidate_shape(left_arg, right_arg)?),
+            arg_effect: Box::new(merge_open_candidate_shape(
+                left_arg_effect,
+                right_arg_effect,
+            )?),
+            ret_effect: Box::new(merge_open_candidate_shape(
+                left_ret_effect,
+                right_ret_effect,
+            )?),
+            ret: Box::new(merge_open_candidate_shape(left_ret, right_ret)?),
+        }),
+        (
+            Type::Thunk {
+                effect: left_effect,
+                value: left_value,
+            },
+            Type::Thunk {
+                effect: right_effect,
+                value: right_value,
+            },
+        ) => Some(types::runtime_shape(
+            merge_open_candidate_shape(left_effect, right_effect)?,
+            merge_open_candidate_shape(left_value, right_value)?,
+        )),
+        (Type::Record(left_fields), Type::Record(right_fields)) => {
+            merge_open_record_candidate_shape(left_fields, right_fields).map(Type::Record)
+        }
+        (Type::PolyVariant(left_variants), Type::PolyVariant(right_variants)) => {
+            merge_open_poly_variant_candidate_shape(left_variants, right_variants)
+                .map(Type::PolyVariant)
+        }
+        (Type::Tuple(left_items), Type::Tuple(right_items))
+            if left_items.len() == right_items.len() =>
+        {
+            Some(Type::Tuple(merge_open_candidate_items(
+                left_items,
+                right_items,
+            )?))
+        }
+        (
+            Type::Stack {
+                inner: left_inner,
+                weight: left_weight,
+            },
+            Type::Stack {
+                inner: right_inner,
+                weight: right_weight,
+            },
+        ) if left_weight == right_weight => Some(types::simplify_stack_type(
+            merge_open_candidate_shape(left_inner, right_inner)?,
+            left_weight.clone(),
+        )),
+        _ => None,
+    }
+}
+
+fn merge_open_candidate_items(left: &[Type], right: &[Type]) -> Option<Vec<Type>> {
+    left.iter()
+        .zip(right)
+        .map(|(left, right)| merge_open_candidate_shape(left, right))
+        .collect()
+}
+
+fn merge_open_record_candidate_shape(
+    left_fields: &[TypeField],
+    right_fields: &[TypeField],
+) -> Option<Vec<TypeField>> {
+    if left_fields.len() != right_fields.len() {
+        return None;
+    }
+    let mut out = Vec::with_capacity(left_fields.len());
+    for left in left_fields {
+        let right = record_field_type(right_fields, &left.name)?;
+        if left.optional != right.optional {
+            return None;
+        }
+        out.push(TypeField {
+            name: left.name.clone(),
+            value: merge_open_candidate_shape(&left.value, &right.value)?,
+            optional: left.optional,
+        });
+    }
+    Some(out)
+}
+
+fn merge_open_poly_variant_candidate_shape(
+    left_variants: &[TypeVariant],
+    right_variants: &[TypeVariant],
+) -> Option<Vec<TypeVariant>> {
+    if left_variants.len() != right_variants.len() {
+        return None;
+    }
+    let mut out = Vec::with_capacity(left_variants.len());
+    for left in left_variants {
+        let right = matching_variant(right_variants, left)?;
+        out.push(TypeVariant {
+            name: left.name.clone(),
+            payloads: merge_open_candidate_items(&left.payloads, &right.payloads)?,
+        });
+    }
+    Some(out)
+}
+
 pub(super) fn same_candidate_head(left: &Type, right: &Type) -> bool {
     match (left, right) {
         (

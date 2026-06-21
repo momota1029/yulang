@@ -413,6 +413,10 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                 None => successor,
             });
         }
+        let open_shape_candidate = match (&lower, &upper) {
+            (Some(lower), Some(upper)) => merge_open_candidate_shape(lower, upper),
+            _ => None,
+        };
         let candidate = match (lower, upper) {
             (Some(lower), Some(upper))
                 if value_candidate_subtype_thunk(self.graph, &lower, &upper) =>
@@ -455,6 +459,7 @@ impl<'a, 'solution> TypeResolver<'a, 'solution> {
                 Some(lower)
             }
             (Some(lower), Some(upper)) if lower == upper => Some(lower),
+            (Some(_), Some(_)) if open_shape_candidate.is_some() => open_shape_candidate,
             (Some(lower), Some(upper)) if same_candidate_head(&lower, &upper) => {
                 Some(prefer_more_resolved_candidate(lower, upper))
             }

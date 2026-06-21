@@ -685,6 +685,45 @@ translate(~\"hello\", \\() -> \"hi\", \"hello hello\")
 }
 
 #[test]
+fn run_control_source_text_with_embedded_std_translates_capture_rule_literals() {
+    let build = build_control_from_source_text_with_embedded_std(
+        "playground.yu",
+        "\
+use std::text::parse::*
+
+translate(~\"users/:name/posts\", \\{name} -> name, \"users/alice/posts users/bob/posts\")
+",
+    )
+    .unwrap();
+    assert_eq!(build.file_count, embedded_std_files().len() + 1);
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(output.0, "run roots [\"alice bob\"]\n");
+}
+
+#[test]
+fn dump_mono_with_embedded_std_specializes_capture_rule_literal_result() {
+    let output = dump_mono_from_source_text_with_embedded_std(
+        "playground.yu",
+        "\
+use std::text::parse::*
+
+translate(~\"users/:name/posts\", \\{name} -> name, \"users/alice/posts users/bob/posts\")
+",
+    )
+    .unwrap();
+
+    assert_eq!(output.file_count, embedded_std_files().len() + 1);
+    assert_mono_dump_contains(&output, "{name: std::text::str::str}");
+    assert!(
+        !output.text.contains("'open"),
+        "mono dump kept unresolved open vars:\n{}",
+        output.text
+    );
+}
+
+#[test]
 fn run_control_source_text_with_embedded_std_sequences_word_with_suffix() {
     let build = build_control_from_source_text_with_embedded_std(
         "playground.yu",
