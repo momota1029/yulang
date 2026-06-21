@@ -505,6 +505,8 @@ impl<'a> Runtime<'a> {
             }
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;
+                let mut request = request;
+                request.payload = mark_value(request.payload, &markers);
                 let resume_markers = shared_markers(markers_for_continuation_resume(&markers));
                 self.close_marker_request(request, resume_markers, activate_add_ids, handler_key)
             }
@@ -525,6 +527,8 @@ impl<'a> Runtime<'a> {
             }
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;
+                let mut request = request;
+                request.payload = mark_value_shared(request.payload, &markers);
                 let resume_markers = shared_markers_for_continuation_resume(&markers);
                 self.close_marker_request(request, resume_markers, activate_add_ids, handler_key)
             }
@@ -545,6 +549,8 @@ impl<'a> Runtime<'a> {
             }
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;
+                let mut request = request;
+                request.payload = mark_value_shared(request.payload, &markers);
                 // Shared resume marker plans are created after
                 // `markers_for_continuation_resume`; reusing them avoids
                 // re-normalizing the same multi-shot continuation path.

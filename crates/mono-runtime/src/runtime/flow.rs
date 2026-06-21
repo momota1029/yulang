@@ -359,12 +359,13 @@ impl<'a> Runtime<'a> {
             }
             EvalResult::Request(request) => {
                 let resume = request.resume.clone();
+                let payload = mark_value(request.payload, &markers_for_value(&markers));
                 let resume_markers = markers_for_continuation_resume(&markers);
                 Ok(EvalResult::Request(Request {
                     path: request.path,
                     guard_ids: request.guard_ids,
                     carried_guard_ids: request.carried_guard_ids,
-                    payload: request.payload,
+                    payload,
                     resume: Rc::new(move |runtime, value| {
                         let resume = resume.clone();
                         runtime.with_marker_plan(

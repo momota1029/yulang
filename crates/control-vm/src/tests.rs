@@ -106,6 +106,56 @@ fn runs_nested_handler_after_inner_resume_like_oracle() {
 }
 
 #[test]
+fn marker_frame_paints_escaping_request_payload() {
+    let outer_send = effect_row(&["outer", "send"]);
+    let program = Program {
+        roots: vec![Root::Expr(ExprId(4))],
+        instances: Vec::new(),
+        exprs: vec![
+            Expr::EffectOp {
+                path: vec!["outer".into(), "send".into()],
+            },
+            Expr::Lambda {
+                param: super::Pat::Wild,
+                body: ExprId(5),
+            },
+            Expr::Apply {
+                callee: ExprId(0),
+                arg: ExprId(1),
+            },
+            Expr::ForceThunk {
+                source: mono::EffectiveThunkType {
+                    effect: outer_send.clone(),
+                    value: Type::Any,
+                },
+                target: mono::ComputationType {
+                    effect: outer_send,
+                    value: Type::Any,
+                },
+                thunk: ExprId(2),
+            },
+            Expr::MarkerFrame {
+                path: vec!["sub".into()],
+                body: ExprId(3),
+            },
+            Expr::Lit(mono::Lit::Unit),
+        ],
+    };
+    let mut saw_marked_payload = false;
+
+    let values = run_program_with_host_and_stats(&program, &mut |path, payload| {
+        saw_marked_payload = matches!(payload, Value::Marked { .. });
+        assert_eq!(path, &["outer".to_string(), "send".to_string()]);
+        Some(Value::Int(7))
+    })
+    .unwrap()
+    .0;
+
+    assert!(saw_marked_payload);
+    assert_eq!(values, vec![Value::Int(7)]);
+}
+
+#[test]
 fn keeps_effectful_thunk_argument_suspended_like_oracle() {
     assert_oracle_parity(
         "act out:\n\

@@ -161,6 +161,8 @@ This is the preferred way to stop self-fueling row cycles, together with residua
 7. Audit runtime marker placement against the colored proof.
    - The proof assumes normalized marker materialization and well-bracketed color flow.
    - Existing active marker/hygiene runtime work should be checked against that invariant after inference weight semantics are fixed.
+   - Status: in progress. `control-vm` and `mono-runtime` now paint both escaping request payloads and request
+     continuations when a marker frame closes over a request, matching the `poppaint` rule for operation outcomes.
 
 ## Regression Targets
 
