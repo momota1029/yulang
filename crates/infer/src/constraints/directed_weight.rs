@@ -108,6 +108,20 @@ impl LeftStackWeight {
         &self.entries
     }
 
+    pub(crate) fn to_stack_weight(&self) -> StackWeight {
+        let mut out = StackWeight::empty();
+        for entry in &self.entries {
+            out = out.compose(&StackWeight::pops(entry.id, entry.leading_pops));
+            if entry.pushes > 0 {
+                let family = entry.family.clone().unwrap_or(Subtractability::All);
+                for _ in 0..entry.pushes {
+                    out = out.compose(&StackWeight::push(entry.id, family.clone()));
+                }
+            }
+        }
+        out
+    }
+
     pub(crate) fn entry(&self, id: SubtractId) -> Option<&LeftStackWeightEntry> {
         self.entries.iter().find(|entry| entry.id == id)
     }

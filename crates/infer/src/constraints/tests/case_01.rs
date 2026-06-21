@@ -148,6 +148,34 @@ fn constraint_weights_replay_projects_pure_pop_to_right_after_mix() {
 }
 
 #[test]
+fn constraint_weights_replay_does_not_mix_right_pop_with_legacy_floor() {
+    let id = SubtractId(0);
+    let earlier = ConstraintWeights {
+        left: StackWeight::floor(id, Subtractability::Empty),
+        right: RightConstraintWeight::empty(),
+    };
+    let later = ConstraintWeights {
+        left: StackWeight::empty(),
+        right: RightConstraintWeight::pop(id),
+    };
+
+    let weights = earlier.compose_for_replay(&later);
+
+    let [left_entry] = weights.left.entries() else {
+        panic!("expected one legacy floor entry");
+    };
+    assert_eq!(left_entry.id, id);
+    assert_eq!(left_entry.pops, 0);
+    assert_eq!(left_entry.floor, vec![Subtractability::Empty]);
+    assert!(left_entry.stack.is_empty());
+    let [right_entry] = weights.right.entries() else {
+        panic!("expected one right pop entry");
+    };
+    assert_eq!(right_entry.id, id);
+    assert_eq!(right_entry.pops, 1);
+}
+
+#[test]
 fn constraint_weights_replay_composes_right_pops() {
     let id = SubtractId(0);
     let earlier = ConstraintWeights {

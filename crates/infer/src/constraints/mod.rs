@@ -16,7 +16,7 @@ mod trace;
 
 use std::collections::VecDeque;
 
-use directed_weight::RightStackWeight;
+use directed_weight::{DirectedWeights, LeftStackWeight, RightStackWeight};
 use poly::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, StackWeight, SubtractId, Subtractability,
     TypeArena, TypeVar,
@@ -429,30 +429,33 @@ impl ConstraintWeights {
     }
 
     fn normalize_directed_mix(self) -> Self {
-        if self.left.is_empty() || self.right.is_empty() {
+        if self.right.is_empty() {
             return self;
         }
 
-        let mut left = self.left;
-        let mut right = RightConstraintWeight::empty();
-        for entry in self.right.entries() {
-            if !left.contains(entry.id) {
-                right = right.compose(&RightConstraintWeight::pops(entry.id, entry.pops));
-                continue;
-            }
-
-            left = left.compose(&StackWeight::pops(entry.id, entry.pops));
-            let Some(left_entry) = left.entries().iter().find(|left| left.id == entry.id) else {
-                continue;
-            };
-            if left_entry.floor.is_empty() && left_entry.stack.is_empty() {
-                right = right.compose(&RightConstraintWeight::pops(entry.id, left_entry.pops));
-                left = left.without_ids(|id| id == entry.id);
-            }
+        let mixed = DirectedWeights {
+            left: LeftStackWeight::from_stack_weight(&self.left),
+            right: self.right,
         }
-
-        Self { left, right }
+        .mix();
+        Self {
+            left: left_stack_weight_after_directed_mix(&self.left, mixed.left),
+            right: mixed.right,
+        }
     }
+}
+
+fn left_stack_weight_after_directed_mix(
+    original: &StackWeight,
+    mixed: LeftStackWeight,
+) -> StackWeight {
+    let mut out = StackWeight::filter(original.filter_set().clone());
+    for entry in original.entries() {
+        for floor in &entry.floor {
+            out = out.compose(&StackWeight::floor(entry.id, floor.clone()));
+        }
+    }
+    out.compose(&mixed.to_stack_weight())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

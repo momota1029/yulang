@@ -76,6 +76,8 @@ This is the preferred way to stop self-fueling row cycles, together with residua
 
 - `ConstraintWeights::compose_for_replay()` and var-var replay now normalize by W-Mix before applying the
   implementation-side pop-growth caps. This keeps the semantic directed projection before the termination guard.
+  The replay normalizer uses the directed `LeftStackWeight`/`RightStackWeight` mix implementation and then
+  materializes the left side back to legacy `StackWeight` for the remaining solver and compact paths.
 
 - `ConstraintWeights.right` now uses a dedicated `RightStackWeight`.
   It can represent only pure right pops. Push/floor/filter cannot be stored on the right side structurally.
@@ -89,7 +91,9 @@ This is the preferred way to stop self-fueling row cycles, together with residua
 
 - `floor` is not part of the new formal core. The row split path no longer creates new floor residuals,
   and active-family readers now use `StackWeight::active_stack_items()`, which ignores legacy floor entries.
-  Remaining floor code is limited to preserving or simplifying already-present legacy floor weights in compact/finalize paths.
+  Replay W-Mix also ignores floor for cancellation/projection while preserving already-present floor entries on the
+  materialized left weight. Remaining floor code is limited to preserving or simplifying already-present legacy floor
+  weights in compact/finalize paths.
 
 - `filter` is currently embedded in `StackWeight`.
   Row split, `Neg::Stack` absorption, and bound insertion treat filter as a separate wrapper/check and erase it before
