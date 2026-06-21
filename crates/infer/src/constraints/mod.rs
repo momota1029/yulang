@@ -403,6 +403,17 @@ impl ConstraintWeights {
             .cap_alias_pop_only_counts()
     }
 
+    pub fn left_filter_set(&self) -> &Subtractability {
+        self.left.filter_set()
+    }
+
+    pub fn without_left_filter(&self) -> Self {
+        Self {
+            left: self.left.with_filter(Subtractability::All),
+            right: self.right.clone(),
+        }
+    }
+
     fn cap_alias_pop_only_counts(self) -> Self {
         Self {
             left: self.left.normalize_for_alias_replay(),

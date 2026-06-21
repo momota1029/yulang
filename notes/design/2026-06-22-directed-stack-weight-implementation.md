@@ -83,13 +83,16 @@ This is the preferred way to stop self-fueling row cycles, together with residua
 - `ConstraintWeights.left` still uses legacy `poly::types::StackWeight` and can represent `filter`, `floor`,
   `stack`, and `pops`. The remaining migration is to replace this with the directed left normal form.
 
+- Left-side filters are checked at bound insertion and erased before bounds are stored or replayed.
+  Lower bounds check the incoming lower type immediately. Upper and var-var bounds register the filter on the
+  source/lower variable so later lower bounds are checked through the existing `lower_filters` path.
+
 - `floor` is not part of the new formal core. The row split path no longer creates new floor residuals,
   but other formatting/extraction paths still need an audit.
 
 - `filter` is currently embedded in `StackWeight`.
-  The row split path and `Neg::Stack` absorption treat filter as a separate wrapper/check and erase it before
-  residual propagation.
-  Left-side filter representation still needs an audit.
+  Row split, `Neg::Stack` absorption, and bound insertion treat filter as a separate wrapper/check and erase it before
+  residual propagation or replay. Raw wrapper translation still uses `StackWeight::filter` as the temporary carrier.
 
 - `saturate_unmatched_pops()` and alias replay pop caps are implementation-side termination controls.
   They must not be treated as semantic equalities. If retained temporarily, they need to be isolated as a termination guard

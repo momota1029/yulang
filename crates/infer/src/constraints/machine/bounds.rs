@@ -12,10 +12,10 @@ impl ConstraintMachine {
         weights: ConstraintWeights,
     ) {
         let pos = self.extrude_pos(pos, self.level_of(target));
+        let weights = self.check_and_erase_lower_left_filter(pos, weights);
         if !self.bounds.add_lower(target, pos, weights.clone()) {
             return;
         }
-        self.constrain_pos_lower_by_filter(pos, weights.left.filter_set());
         self.constrain_lower_bound_by_registered_filters(target, pos, &weights);
         self.record_pos_bound_var_neighbors(target, pos);
         self.events.push(ConstraintEvent::LowerBoundAdded {
@@ -39,6 +39,7 @@ impl ConstraintMachine {
         weights: ConstraintWeights,
     ) {
         let neg = self.extrude_neg(neg, self.level_of(source));
+        let weights = self.check_and_erase_upper_left_filter(source, weights);
         if self.upper_bound_subsumed_by_existing(source, neg, &weights) {
             return;
         }
@@ -77,6 +78,7 @@ impl ConstraintMachine {
         if lower_var == upper_var {
             return;
         }
+        let weights = self.check_and_erase_var_var_left_filter(lower_var, weights);
         if !self.record_var_var_pair(lower_var, upper_var, &weights) {
             return;
         }
@@ -107,7 +109,6 @@ impl ConstraintMachine {
 
         let lower = self.extrude_pos(lower, self.level_of(upper_var));
         if self.bounds.add_lower(upper_var, lower, weights.clone()) {
-            self.constrain_pos_lower_by_filter(lower, weights.left.filter_set());
             self.constrain_lower_bound_by_registered_filters(upper_var, lower, &weights);
             self.record_pos_bound_var_neighbors(upper_var, lower);
             self.events.push(ConstraintEvent::LowerBoundAdded {
@@ -130,6 +131,44 @@ impl ConstraintMachine {
                 empty_replay_skipped,
             );
         }
+    }
+
+    fn check_and_erase_lower_left_filter(
+        &mut self,
+        pos: PosId,
+        weights: ConstraintWeights,
+    ) -> ConstraintWeights {
+        let filter = weights.left_filter_set().clone();
+        if !matches!(filter, Subtractability::All) {
+            self.constrain_weighted_pos_lower_by_filter(pos, &weights, &filter);
+        }
+        weights.without_left_filter()
+    }
+
+    fn check_and_erase_upper_left_filter(
+        &mut self,
+        source: TypeVar,
+        weights: ConstraintWeights,
+    ) -> ConstraintWeights {
+        let filter = weights.left_filter_set().clone();
+        if !matches!(filter, Subtractability::All) {
+            self.constrain_stack_by_filter(&weights.left, &filter);
+            self.constrain_type_var_lowers_by_filter(source, filter);
+        }
+        weights.without_left_filter()
+    }
+
+    fn check_and_erase_var_var_left_filter(
+        &mut self,
+        lower: TypeVar,
+        weights: ConstraintWeights,
+    ) -> ConstraintWeights {
+        let filter = weights.left_filter_set().clone();
+        if !matches!(filter, Subtractability::All) {
+            self.constrain_stack_by_filter(&weights.left, &filter);
+            self.constrain_type_var_lowers_by_filter(lower, filter);
+        }
+        weights.without_left_filter()
     }
 
     pub(crate) fn constrain_type_var_lowers_by_filter(
