@@ -23,13 +23,11 @@ impl ConstraintMachine {
             return;
         }
 
-        self.constrain_stack_by_filter(&weights.left, weights.right.filter_set());
         self.constrain_neg_effect_items_by_filter(&items, weights.left.filter_set());
-        self.constrain_neg_effect_items_by_filter(&items, weights.right.filter_set());
 
         let weights = ConstraintWeights {
             left: weights.left.with_filter(Subtractability::All),
-            right: weights.right.with_filter(Subtractability::All),
+            right: weights.right,
         };
         if weights.is_empty() {
             let row = self.alloc_neg(Neg::Row(items, tail));
@@ -197,7 +195,6 @@ impl ConstraintMachine {
 
     fn constraint_weights_are_alias_neutral(weights: &ConstraintWeights) -> bool {
         Self::stack_weight_is_alias_neutral(&weights.left)
-            && Self::stack_weight_is_alias_neutral(&weights.right)
     }
 
     fn stack_weight_is_alias_neutral(weight: &StackWeight) -> bool {

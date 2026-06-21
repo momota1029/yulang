@@ -616,7 +616,7 @@ impl<'a> CompactCollector<'a> {
         bound: &crate::constraints::WeightedUpperBound,
         outer_weight: &ConstraintWeight,
     ) -> CompactType {
-        let weight = outer_weight.union(&bound.weights.right);
+        let weight = outer_weight.union(&bound.weights.right.to_stack_weight());
         match self.machine.types().neg(bound.neg).clone() {
             Neg::Row(items, tail) => {
                 self.compact_neg_row_upper_bound(source, items, tail, weight, &bound.weights.left)
@@ -642,7 +642,6 @@ impl<'a> CompactCollector<'a> {
         // negative var-var alias in compact collection.
         Self::is_alias_neutral_weight(outer_weight)
             && Self::is_alias_neutral_weight(&bound_weights.left)
-            && Self::is_alias_neutral_weight(&bound_weights.right)
     }
 
     fn is_exact_unweighted_neg_var_alias(
@@ -657,7 +656,6 @@ impl<'a> CompactCollector<'a> {
         outer_weight: &ConstraintWeight,
     ) -> bool {
         Self::is_alias_neutral_weight(outer_weight)
-            && Self::is_alias_neutral_weight(&bound_weights.right)
             && Self::weight_has_row_tail_boundary(&bound_weights.left)
     }
 

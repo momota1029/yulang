@@ -609,7 +609,7 @@ impl ConstraintMachine {
     }
 
     fn weights_are_pop_only(weights: &ConstraintWeights) -> bool {
-        Self::weight_is_pop_only(&weights.left) && Self::weight_is_pop_only(&weights.right)
+        Self::weight_is_pop_only(&weights.left)
     }
 
     fn weight_is_pop_only(weight: &ConstraintWeight) -> bool {
@@ -1021,7 +1021,6 @@ fn neg_ids_match_for_row_tail(types: &TypeArena, lhs: NegId, rhs: NegId) -> bool
 
 fn constraint_weights_have_row_tail_boundary(weights: &ConstraintWeights) -> bool {
     constraint_weight_has_row_tail_boundary(&weights.left)
-        || constraint_weight_has_row_tail_boundary(&weights.right)
 }
 
 fn constraint_weight_has_row_tail_boundary(weight: &ConstraintWeight) -> bool {

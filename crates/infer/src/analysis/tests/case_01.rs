@@ -19,7 +19,7 @@ fn lower_bound_events_route_receiver_and_ref_payload_select_watchers() {
         lower,
         ConstraintWeights {
             left: ConstraintWeight::from_ids([SubtractId(0)]),
-            right: ConstraintWeight::empty(),
+            right: RightConstraintWeight::empty(),
         },
         upper,
     );
@@ -430,7 +430,7 @@ fn effect_method_selection_resolves_from_receiver_effect_weighted_lower_bound() 
                 SubtractId(0),
                 Subtractability::Set(vec!["nondet".into()], Vec::new()),
             ),
-            right: ConstraintWeight::empty(),
+            right: RightConstraintWeight::empty(),
         },
         upper,
     );
@@ -475,7 +475,7 @@ fn effect_method_selection_ignores_non_effect_receiver_value_weighted_lower_boun
                 SubtractId(0),
                 Subtractability::Set(vec!["nondet".into()], Vec::new()),
             ),
-            right: ConstraintWeight::empty(),
+            right: RightConstraintWeight::empty(),
         },
         upper,
     );

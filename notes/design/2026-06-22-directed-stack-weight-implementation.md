@@ -77,8 +77,11 @@ This is the preferred way to stop self-fueling row cycles, together with residua
 - `ConstraintWeights::compose_for_replay()` and var-var replay now normalize by W-Mix before applying the
   implementation-side pop-growth caps. This keeps the semantic directed projection before the termination guard.
 
-- `poly::types::StackWeight` is used for both sides and can represent `filter`, `floor`, `stack`, and `pops`.
-  The proof needs separate left/right representations. In particular, right weights must not carry pushes.
+- `ConstraintWeights.right` now uses a dedicated `RightStackWeight`.
+  It can represent only pure right pops. Push/floor/filter cannot be stored on the right side structurally.
+
+- `ConstraintWeights.left` still uses legacy `poly::types::StackWeight` and can represent `filter`, `floor`,
+  `stack`, and `pops`. The remaining migration is to replace this with the directed left normal form.
 
 - `floor` is not part of the new formal core. The row split path no longer creates new floor residuals,
   but other formatting/extraction paths still need an audit.
@@ -86,7 +89,7 @@ This is the preferred way to stop self-fueling row cycles, together with residua
 - `filter` is currently embedded in `StackWeight`.
   The row split path and `Neg::Stack` absorption treat filter as a separate wrapper/check and erase it before
   residual propagation.
-  Other paths still need an audit.
+  Left-side filter representation still needs an audit.
 
 - `saturate_unmatched_pops()` and alias replay pop caps are implementation-side termination controls.
   They must not be treated as semantic equalities. If retained temporarily, they need to be isolated as a termination guard
@@ -125,7 +128,8 @@ This is the preferred way to stop self-fueling row cycles, together with residua
    - Compose by directed path composition.
    - Do not exchange unmatched right-pop with a new push.
    - Treat pop-growth caps as temporary termination guards only if they remain needed.
-   - Status: partial. Replay now runs W-Mix before caps while still using legacy `StackWeight` storage.
+   - Status: partial. Replay now runs W-Mix before caps and stores right weights as pure-pop `RightStackWeight`.
+     Left weights still use legacy `StackWeight`.
 
 5. Rework compact extraction.
    - Positive projection keeps full left weight.

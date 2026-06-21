@@ -444,7 +444,7 @@ fn positive_aliases_within_scheme(
 }
 
 fn alias_neutral_constraint(weights: &ConstraintWeights) -> bool {
-    alias_neutral_weight(&weights.left) && alias_neutral_weight(&weights.right)
+    alias_neutral_weight(&weights.left)
 }
 
 fn alias_neutral_weight(weight: &StackWeight) -> bool {

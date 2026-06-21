@@ -16,9 +16,10 @@ mod trace;
 
 use std::collections::VecDeque;
 
+use directed_weight::RightStackWeight;
 use poly::types::{
-    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, StackWeight, StackWeightEntry, SubtractId,
-    Subtractability, TypeArena, TypeVar,
+    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, StackWeight, SubtractId, Subtractability,
+    TypeArena, TypeVar,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -318,6 +319,7 @@ impl SubtractTable {
 
 /// subtype edge の片側に載る stack weight。
 pub type ConstraintWeight = StackWeight;
+pub type RightConstraintWeight = RightStackWeight;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 /// subtype edge の左右に載る subtract weight。
@@ -326,7 +328,7 @@ pub type ConstraintWeight = StackWeight;
 /// bounds の再伝播では `compose_for_replay()` し、経路の情報をまとめる。
 pub struct ConstraintWeights {
     pub left: ConstraintWeight,
-    pub right: ConstraintWeight,
+    pub right: RightConstraintWeight,
 }
 
 impl ConstraintWeights {
@@ -340,8 +342,8 @@ impl ConstraintWeights {
 
     pub fn swapped(&self) -> Self {
         Self {
-            left: self.right.clone(),
-            right: self.left.clone(),
+            left: self.right.to_stack_weight(),
+            right: RightConstraintWeight::from_stack_weight_pops(&self.left),
         }
     }
 
@@ -359,13 +361,13 @@ impl ConstraintWeights {
     pub fn with_right_suffix(&self, weight: StackWeight) -> Self {
         Self {
             left: self.left.clone(),
-            right: weight.compose(&self.right),
+            right: RightConstraintWeight::from_stack_weight_pops(&weight).compose(&self.right),
         }
     }
 
     pub fn both_from_right(&self) -> Self {
         Self {
-            left: self.right.clone(),
+            left: self.right.to_stack_weight(),
             right: self.right.clone(),
         }
     }
@@ -421,15 +423,10 @@ impl ConstraintWeights {
         }
 
         let mut left = self.left;
-        let mut right = StackWeight::empty();
+        let mut right = RightConstraintWeight::empty();
         for entry in self.right.entries() {
-            if !entry.floor.is_empty() || !entry.stack.is_empty() {
-                right = right.compose(&stack_weight_entry_as_weight(entry));
-                continue;
-            }
-
             if !left.contains(entry.id) {
-                right = right.compose(&StackWeight::pops(entry.id, entry.pops));
+                right = right.compose(&RightConstraintWeight::pops(entry.id, entry.pops));
                 continue;
             }
 
@@ -438,25 +435,13 @@ impl ConstraintWeights {
                 continue;
             };
             if left_entry.floor.is_empty() && left_entry.stack.is_empty() {
-                right = right.compose(&StackWeight::pops(entry.id, left_entry.pops));
+                right = right.compose(&RightConstraintWeight::pops(entry.id, left_entry.pops));
                 left = left.without_ids(|id| id == entry.id);
             }
         }
 
         Self { left, right }
     }
-}
-
-fn stack_weight_entry_as_weight(entry: &StackWeightEntry) -> StackWeight {
-    let mut out = StackWeight::empty();
-    for floor in &entry.floor {
-        out = out.compose(&StackWeight::floor(entry.id, floor.clone()));
-    }
-    out = out.compose(&StackWeight::pops(entry.id, entry.pops));
-    for stack in &entry.stack {
-        out = out.compose(&StackWeight::push(entry.id, stack.clone()));
-    }
-    out
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

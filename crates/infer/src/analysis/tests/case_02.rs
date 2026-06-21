@@ -194,7 +194,7 @@ fn routes_effect_filter_violation_to_analysis_diagnostic() {
         lower,
         ConstraintWeights {
             left: StackWeight::filter(filter.clone()),
-            right: StackWeight::empty(),
+            right: RightConstraintWeight::empty(),
         },
         upper,
     );

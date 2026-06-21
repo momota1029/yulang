@@ -159,7 +159,7 @@ impl LeftStackWeight {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub(crate) struct RightStackWeight {
+pub struct RightStackWeight {
     entries: Vec<RightStackWeightEntry>,
 }
 
@@ -186,6 +186,22 @@ impl RightStackWeight {
         out
     }
 
+    pub(crate) fn from_ids(ids: impl IntoIterator<Item = SubtractId>) -> Self {
+        let mut out = Self::empty();
+        for id in ids {
+            out = out.compose(&Self::pop(id));
+        }
+        out
+    }
+
+    pub(crate) fn from_stack_weight_pops(weight: &StackWeight) -> Self {
+        let mut out = Self::empty();
+        for entry in weight.entries() {
+            out = out.compose(&Self::pops(entry.id, entry.pops));
+        }
+        out
+    }
+
     pub(crate) fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
@@ -194,12 +210,44 @@ impl RightStackWeight {
         &self.entries
     }
 
+    pub(crate) fn contains(&self, id: SubtractId) -> bool {
+        self.entries.iter().any(|entry| entry.id == id)
+    }
+
+    pub(crate) fn to_stack_weight(&self) -> StackWeight {
+        let mut out = StackWeight::empty();
+        for entry in &self.entries {
+            out = out.compose(&StackWeight::pops(entry.id, entry.pops));
+        }
+        out
+    }
+
     pub(crate) fn compose(&self, other: &Self) -> Self {
         let mut out = self.clone();
         for entry in &other.entries {
             out.push_entry(*entry);
         }
         out
+    }
+
+    pub(crate) fn saturate_unmatched_pops(&self) -> Self {
+        Self {
+            entries: self
+                .entries
+                .iter()
+                .copied()
+                .map(|mut entry| {
+                    if entry.pops != u32::MAX {
+                        entry.pops = entry.pops.min(1);
+                    }
+                    entry
+                })
+                .collect(),
+        }
+    }
+
+    pub(crate) fn normalize_for_alias_replay(&self) -> Self {
+        self.saturate_unmatched_pops()
     }
 
     fn push_entry(&mut self, incoming: RightStackWeightEntry) {

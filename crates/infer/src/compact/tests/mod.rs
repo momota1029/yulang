@@ -7,7 +7,7 @@ use poly::types::{Neg, Pos, StackWeight, SubtractId};
 
 use super::*;
 use crate::compact::merge::{merge_compact_types_with_sink, singleton_row_item_map};
-use crate::constraints::{ConstraintMachine, ConstraintWeights, TypeLevel};
+use crate::constraints::{ConstraintMachine, ConstraintWeights, RightConstraintWeight, TypeLevel};
 use crate::roles::{RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg};
 
 fn invariant_var(machine: &mut ConstraintMachine, var: TypeVar) -> NeuId {

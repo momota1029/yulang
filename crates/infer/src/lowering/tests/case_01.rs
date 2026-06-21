@@ -314,13 +314,6 @@ pub(super) fn weight_set_path_id(weight: &StackWeight, expected: &[&str]) -> Opt
     })
 }
 
-fn weight_filter_matches_path(weight: &StackWeight, expected: &[&str]) -> bool {
-    matches!(
-        weight.filter_set(),
-        Subtractability::Set(path, args) if path_matches(path, expected) && args.is_empty()
-    )
-}
-
 fn neg_is_var_or_filter_stack_var(types: &poly::types::TypeArena, neg: poly::types::NegId) -> bool {
     match types.neg(neg) {
         Neg::Var(_) => true,
@@ -888,7 +881,7 @@ fn role_impl_method_requirement_ret_effect_checks_and_erases_filter_upper() {
         bounds
             .uppers()
             .iter()
-            .all(|bound| !weight_filter_matches_path(&bound.weights.right, &["nondet"])),
+            .all(|bound| bound.weights.right.is_empty()),
         "filter should be checked before storage, not retained as a right weight: {:?}",
         bounds
     );
