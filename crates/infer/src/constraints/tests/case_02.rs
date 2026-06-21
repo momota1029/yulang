@@ -458,7 +458,7 @@ fn var_to_effect_row_upper_with_empty_stack_intersection_skips_gamma() {
 }
 
 #[test]
-fn var_to_effect_row_upper_uses_raw_row_when_combined_stack_cancels() {
+fn var_to_effect_row_upper_distributes_right_pop_to_tail_after_empty_head() {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);
     let tail_var = TypeVar(1);
@@ -478,7 +478,7 @@ fn var_to_effect_row_upper_uses_raw_row_when_combined_stack_cancels() {
     assert_eq!(
         bounds.uppers(),
         &[WeightedUpperBound {
-            neg: upper,
+            neg: tail,
             weights: ConstraintWeights::empty()
         }]
     );
@@ -601,13 +601,8 @@ fn var_to_effect_row_upper_removes_retained_item_from_pop_only_stack() {
     machine.weighted_subtype(lower, weights, upper);
 
     let gamma = single_upper_row_tail(&machine, source, &["io"]);
-    let residual_weight = StackWeight::floor(
-        subtract,
-        Subtractability::AllExcept(vec!["io".into()], Vec::new()),
-    )
-    .compose(&StackWeight::pops(subtract, u32::MAX));
     let residual_weights = ConstraintWeights {
-        left: residual_weight,
+        left: StackWeight::pop(subtract),
         right: StackWeight::empty(),
     };
     assert_single_weighted_upper_var(&machine, gamma, tail_var, residual_weights.clone());
@@ -616,26 +611,14 @@ fn var_to_effect_row_upper_removes_retained_item_from_pop_only_stack() {
     let tail_upper = machine.alloc_neg(Neg::Row(vec![io], next_tail));
     machine.subtype(tail_pos, tail_upper);
 
-    assert_eq!(machine.row_residuals.len(), 1);
-    assert!(
-        machine
-            .bounds()
-            .of(gamma)
-            .expect("gamma bounds")
-            .uppers()
-            .iter()
-            .any(|upper| {
-                upper.weights == residual_weights
-                    && matches!(
-                        machine.types().neg(upper.neg),
-                        Neg::Var(found) if *found == next_tail_var
-                    )
-            })
-    );
+    let gamma2 = find_empty_weight_row_tail(&machine, gamma, &["io"], next_tail_var);
+    assert_ne!(gamma, gamma2);
+    assert_eq!(machine.row_residuals.len(), 2);
+    assert_weighted_upper_var(&machine, gamma2, next_tail_var, residual_weights);
 }
 
 #[test]
-fn residual_floor_keeps_later_distinct_handler_subtractable() {
+fn pop_only_residual_keeps_later_distinct_handler_subtractable() {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);
     let tail_var = TypeVar(1);
@@ -656,13 +639,11 @@ fn residual_floor_keeps_later_distinct_handler_subtractable() {
 
     let gamma = single_upper_row_tail(&machine, source, &["io"]);
 
-    // 1つ目のハンドラで io を引いた残差が、別のハンドラ [nondet; ...] に掛かる。
+    // pure pop だけの L は active family を持たないので、次の row head でも Common(L)=All になる。
     let tail_pos = machine.alloc_pos(Pos::Var(tail_var));
     let tail_upper = machine.alloc_neg(Neg::Row(vec![nondet], next_tail));
     machine.subtype(tail_pos, tail_upper);
 
-    // floor は AllExcept(io) なので nondet はまだ引ける。γ の上界に [nondet; γ2] が立ち、
-    // γ2 の floor には両方の除外が蓄積される。
     let gamma2 = machine
         .bounds()
         .of(gamma)
@@ -694,14 +675,7 @@ fn residual_floor_keeps_later_distinct_handler_subtractable() {
     assert_ne!(gamma, gamma2);
     assert_eq!(machine.row_residuals.len(), 2);
     let residual_weights = ConstraintWeights {
-        left: StackWeight::floor(
-            subtract,
-            Subtractability::AllExceptMany(vec![
-                (vec!["io".into()], Vec::new()),
-                (vec!["nondet".into()], Vec::new()),
-            ]),
-        )
-        .compose(&StackWeight::pops(subtract, u32::MAX)),
+        left: StackWeight::pop(subtract),
         right: StackWeight::empty(),
     };
     assert_weighted_upper_var(&machine, gamma2, next_tail_var, residual_weights);
@@ -956,7 +930,7 @@ pub(super) fn residual_stack_weight(
     id: SubtractId,
     subtractability: Subtractability,
 ) -> StackWeight {
-    StackWeight::floor(id, subtractability.clone()).compose(&StackWeight::push(id, subtractability))
+    StackWeight::push(id, subtractability)
 }
 
 fn assert_weighted_upper_var(

@@ -23,39 +23,37 @@ impl ConstraintMachine {
             return;
         }
 
-        if matches!(self.types.neg(tail), Neg::Var(tail_var) if *tail_var == source) {
-            return;
-        }
-
         self.constrain_stack_by_filter(&weights.left, weights.right.filter_set());
+        self.constrain_neg_effect_items_by_filter(&items, weights.left.filter_set());
         self.constrain_neg_effect_items_by_filter(&items, weights.right.filter_set());
 
-        let combined = weights.left.compose(&weights.right);
-        self.constrain_neg_effect_items_by_filter(&items, combined.filter_set());
-        if combined.is_empty() {
+        let weights = ConstraintWeights {
+            left: weights.left.with_filter(Subtractability::All),
+            right: weights.right.with_filter(Subtractability::All),
+        };
+        if weights.is_empty() {
             let row = self.alloc_neg(Neg::Row(items, tail));
             self.add_upper_bound(source, row, ConstraintWeights::empty());
             return;
         }
 
-        let retained_items = self.intersect_row_items_with_stack(items, &combined);
+        if matches!(self.types.neg(tail), Neg::Var(tail_var) if *tail_var == source)
+            && weights.right.is_empty()
+        {
+            return;
+        }
+
+        let retained_items = self.intersect_row_items_with_left_stack(items, &weights.left);
         let retained_items = self.collect_neg_effect_items(retained_items);
         if retained_items.is_empty() {
             let source_pos = self.alloc_pos(Pos::Var(source));
-            self.enqueue_subtype(
-                source_pos,
-                ConstraintWeights {
-                    left: combined,
-                    right: StackWeight::empty(),
-                },
-                tail,
-            );
+            self.enqueue_subtype(source_pos, normalize_directed_mix(weights), tail);
             return;
         }
 
         let retained_families = self.neg_effect_families(&retained_items);
-        let residual_weight =
-            self.subtract_row_items_from_stack_weight(&combined, retained_families.clone());
+        let residual_weight = self
+            .subtract_row_items_from_left_stack_weight(&weights.left, retained_families.clone());
         let key = RowResidualKey {
             source,
             retained_families: sorted_effect_families(retained_families),
@@ -79,10 +77,10 @@ impl ConstraintMachine {
         let gamma_pos = self.alloc_pos(Pos::Var(gamma));
         self.enqueue_subtype(
             gamma_pos,
-            ConstraintWeights {
+            normalize_directed_mix(ConstraintWeights {
                 left: residual_weight,
-                right: StackWeight::empty(),
-            },
+                right: weights.right,
+            }),
             tail,
         );
     }
@@ -242,13 +240,13 @@ impl ConstraintMachine {
         true
     }
 
-    fn intersect_row_items_with_stack(
+    fn intersect_row_items_with_left_stack(
         &mut self,
         items: Vec<NegId>,
         weight: &StackWeight,
     ) -> Vec<NegId> {
-        self.collect_stack_effect_families(weight);
-        let subtractability = common_stack_subtractability(weight.stack_items());
+        self.collect_left_stack_effect_families(weight);
+        let subtractability = common_stack_subtractability(left_active_stack_items(weight));
         self.intersect_row_items_with_subtractability(items, &subtractability)
     }
 
@@ -452,9 +450,9 @@ impl ConstraintMachine {
         true
     }
 
-    fn collect_stack_effect_families(&mut self, weight: &StackWeight) {
+    fn collect_left_stack_effect_families(&mut self, weight: &StackWeight) {
         let mut families = EffectFamilyMap::default();
-        for family in weight.stack_items().flat_map(subtractability_families) {
+        for family in left_active_stack_items(weight).flat_map(subtractability_families) {
             self.insert_effect_family(&mut families, family);
         }
     }
@@ -553,34 +551,18 @@ impl ConstraintMachine {
         }
     }
 
-    fn subtract_row_items_from_stack_weight(
+    fn subtract_row_items_from_left_stack_weight(
         &mut self,
         weight: &StackWeight,
         removed: impl IntoIterator<Item = EffectFamily>,
     ) -> StackWeight {
         let removed = self.collect_effect_families(removed);
         if removed.is_empty() {
-            return weight.clone();
+            return weight.with_filter(Subtractability::All);
         }
 
-        let mut out = StackWeight::filter(weight.filter_set().clone());
+        let mut out = StackWeight::empty();
         for entry in weight.entries() {
-            let mut residual_parts = Vec::new();
-            if entry.floor.is_empty() && entry.stack.is_empty() {
-                residual_parts.push(self.subtract_effect_families(Subtractability::All, &removed));
-            } else {
-                for subtractability in &entry.floor {
-                    residual_parts
-                        .push(self.subtract_effect_families(subtractability.clone(), &removed));
-                }
-                for subtractability in &entry.stack {
-                    residual_parts
-                        .push(self.subtract_effect_families(subtractability.clone(), &removed));
-                }
-            }
-            if let Some(floor) = residual_parts.into_iter().reduce(intersect_subtractability) {
-                out = out.compose(&StackWeight::floor(entry.id, floor));
-            }
             out = out.compose(&StackWeight::pops(entry.id, entry.pops));
             for subtractability in &entry.stack {
                 out = out.compose(&StackWeight::push(
@@ -663,4 +645,45 @@ fn remove_first_row_item(items: &mut Vec<NegId>, item: NegId) {
     if let Some(index) = items.iter().position(|existing| *existing == item) {
         items.remove(index);
     }
+}
+
+fn left_active_stack_items(weight: &StackWeight) -> impl Iterator<Item = &Subtractability> + '_ {
+    weight.entries().iter().flat_map(|entry| entry.stack.iter())
+}
+
+fn normalize_directed_mix(weights: ConstraintWeights) -> ConstraintWeights {
+    if weights.left.is_empty() || weights.right.is_empty() {
+        return weights;
+    }
+
+    let mut left = weights.left;
+    let mut right = StackWeight::empty();
+    for entry in weights.right.entries() {
+        if !entry.floor.is_empty() || !entry.stack.is_empty() {
+            for floor in &entry.floor {
+                right = right.compose(&StackWeight::floor(entry.id, floor.clone()));
+            }
+            right = right.compose(&StackWeight::pops(entry.id, entry.pops));
+            for stack in &entry.stack {
+                right = right.compose(&StackWeight::push(entry.id, stack.clone()));
+            }
+            continue;
+        }
+
+        if !left.contains(entry.id) {
+            right = right.compose(&StackWeight::pops(entry.id, entry.pops));
+            continue;
+        }
+
+        left = left.compose(&StackWeight::pops(entry.id, entry.pops));
+        let Some(left_entry) = left.entries().iter().find(|left| left.id == entry.id) else {
+            continue;
+        };
+        if left_entry.floor.is_empty() && left_entry.stack.is_empty() {
+            right = right.compose(&StackWeight::pops(entry.id, left_entry.pops));
+            left = left.without_ids(|id| id == entry.id);
+        }
+    }
+
+    ConstraintWeights { left, right }
 }
