@@ -965,8 +965,10 @@ impl<'a> ExprLowerer<'a> {
     ) -> Computation {
         let value = self.fresh_type_var();
         let effect = self.fresh_type_var();
-        self.subtype_var_to_var(head.effect, effect);
-        self.subtype_var_to_var(tail.effect, effect);
+        let head_effect = self.effect_flow_var(head.effect);
+        let tail_effect = self.effect_flow_var(tail.effect);
+        let flow = self.seq_effect_flows([head_effect, tail_effect]);
+        self.connect_effect_flow_to_var(flow, effect);
         self.subtype_var_to_var(tail.value, value);
         let expr = self
             .session

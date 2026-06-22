@@ -3,6 +3,7 @@
 pub(super) mod block_local;
 pub(super) mod chain;
 pub(super) mod constraints;
+pub(super) mod effect_flow;
 pub(super) mod lambda;
 pub(super) mod method_body;
 pub(super) mod tail;
@@ -31,6 +32,7 @@ pub struct ExprLowerer<'a> {
     pub(super) locals: Vec<LocalBinding>,
     pub(super) sub_syntax_scopes: Vec<SubSyntaxScope>,
     pub(super) effect_views: Vec<LocalEffect>,
+    pub(super) effect_flows: effect_flow::EffectFlowTable,
     pub(super) function_frames: Vec<FunctionPredicateFrame>,
     pub(super) active_defined_skeletons: Vec<ActiveDefinedLambdaSkeleton>,
     pub(super) connected_defined_skeleton_predicates: FxHashSet<DefinedSkeletonPredicateKey>,
@@ -79,6 +81,7 @@ impl<'a> ExprLowerer<'a> {
             locals: Vec::new(),
             sub_syntax_scopes: Vec::new(),
             effect_views: Vec::new(),
+            effect_flows: effect_flow::EffectFlowTable::new(),
             function_frames: Vec::new(),
             active_defined_skeletons: Vec::new(),
             connected_defined_skeleton_predicates: FxHashSet::default(),
@@ -121,6 +124,7 @@ impl<'a> ExprLowerer<'a> {
             locals: Vec::new(),
             sub_syntax_scopes: Vec::new(),
             effect_views: Vec::new(),
+            effect_flows: effect_flow::EffectFlowTable::new(),
             function_frames: Vec::new(),
             active_defined_skeletons: Vec::new(),
             connected_defined_skeleton_predicates: FxHashSet::default(),

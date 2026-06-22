@@ -409,8 +409,10 @@ impl<'a> ExprLowerer<'a> {
             ret: return_value,
         });
         self.subtype(Pos::Var(callee.value), callee_upper);
-        self.subtype_var_to_var(callee.effect, result_effect);
-        self.subtype_pos_to_var(return_effect.lower, result_effect);
+        let callee_effect = self.effect_flow_var(callee.effect);
+        let return_effect = self.effect_flow_pos(return_effect.lower);
+        let result_flow = self.seq_effect_flows([callee_effect, return_effect]);
+        self.connect_effect_flow_to_var(result_flow, result_effect);
 
         let expr = self.session.poly.add_expr(Expr::App(callee.expr, arg.expr));
         Computation::computation(expr, result_value, result_effect)
