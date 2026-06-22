@@ -56,6 +56,12 @@ effect subtraction の主性と colored soundness の定式化が更新された
 - `filter` は static check で、runtime marker として扱わない。
 - replay は exact pop counter を保持し、`pop(n) -> pop(1)` clamp を停止性対策として戻さない。
   var-var alias replay の非空 left pop-only cycle だけは `(lower, upper, pop ids, right weight)` key で再走査を止める。
+- 同じ変数 pair という理由だけで replay を weight-insensitive no-op にする案は広すぎる。
+  `std_ref_update_method_body_lowers` で unannotated local callee の return-effect marker が落ち、
+  `('b -> ['c#4[Empty]] 'b) -> ['c#4(1)[Empty], 'a#4] ()` が具体 row へ崩れる。
+- 停止性論考は effect sequence を fan-out 正規形へ落とす抽象機械を仮定する。
+  現行 Rust lowering は application / catch / block / defined lambda skeleton の fresh effect join を経由するため、
+  marker が replay SCC に見える箇所が残る。根本修正は lowering/provenance 正規化で追う。
 
 ## 直近の優先順位
 

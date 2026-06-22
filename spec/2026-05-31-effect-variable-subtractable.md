@@ -110,6 +110,9 @@ replay 後の pop count は exact counter として保持する。
 ただし var-var replay は alias closure の内部処理なので、非空の left pop-only label だけは
 `(lower, upper, pop-id-list, right-weight)` を登録済み key とし、pop count だけが増える同じ alias pair を再走査しない。
 これは重みを `pop(1)` へ正規化する規則ではなく、direct var-var constraint や push を含む label は exact weight のまま登録する。
+同じ `(lower, upper)` という理由だけで重みを無視して no-op にしてはならない。
+unannotated local callee の return-effect marker のように、同じ変数 pair へ後から来る weighted edge が
+principal scheme に必要なことがある。
 論考上の W-Mix は、mixed comparison を active-left obligation と pure-right obligation の二本へ分ける規則である。
 実装がこれを pair の正規化として持つ場合も、意味はこの二つの obligation を同時に保つこととして読む。
 
@@ -339,6 +342,10 @@ unmatched right pop を新しい push と交換してはならない。
 exact seen key、self-tail no-op、residual memoization、有限 capability algebra の組み合わせで停止性を述べる。
 実装はこれに加えて、var-var alias closure の pop-only 再走査だけを count 抜き key で止める。
 これは arbitrary graph を意味論的に受け入れるための widening ではなく、alias closure の同じ pair を何度も辿らないための worklist key である。
+現行 lowering には application / catch / block / defined lambda skeleton の fresh effect join があり、
+annotation marker が filter / predicate boundary に直接 fan-out される前に replay SCC へ見える場合がある。
+この場合は lowering/provenance 正規化の未達であり、count 抜き key を direct constraint や
+weight-insensitive pair no-op へ広げて解決してはならない。
 
 この停止性論考に出る ambient residual budget / residual floor は、ordinary row の二重消費を測るための静的な残量である。
 colored soundness 側の `Common(L)` に参加する active push ではなく、runtime marker でもない。
@@ -944,6 +951,7 @@ alpha [undet; [flip; gamma]] -> [gamma] delta
 - `filter` を runtime marker として扱わない。
 - 停止性対策として `pop(n) -> pop(1)` clamp を再導入しない。
 - var-var replay の count 抜き key を direct constraint や push 付き label へ広げない。
+- 同じ変数 pair という理由だけで weighted var-var comparison を no-op にしない。
 - family path だけを比較して type argument を捨てない。
 - `Any` を曖昧な fallback、`Never` を placeholder として使わない。
 - 特定の path / module / fixture 名だけを見る inference 分岐を足さない。
