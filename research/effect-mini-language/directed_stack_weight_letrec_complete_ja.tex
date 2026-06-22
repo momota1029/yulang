@@ -1,0 +1,2188 @@
+% !TEX program = uplatex
+\documentclass[uplatex,dvipdfmx,a4paper,10.5pt]{jsarticle}
+
+\usepackage[margin=20mm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{mathpartir}
+\usepackage{booktabs,array,tabularx,longtable}
+\usepackage{enumitem}
+\usepackage[haranoaji]{pxchfon}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{hyperref}
+\usepackage{pxjahyper}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!45!black,
+  citecolor=blue!45!black,
+  urlcolor=blue!45!black,
+  pdftitle={Directed Stack Weights, Colored Soundness, and Principal Inference through let rec},
+  pdfsubject={Formal draft for weighted effect subtraction},
+  pdfauthor={}
+}
+
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0.18em}
+\setlist[itemize]{topsep=0.35em,itemsep=0.12em,parsep=0pt}
+\setlist[enumerate]{topsep=0.35em,itemsep=0.12em,parsep=0pt}
+\allowdisplaybreaks
+
+\definecolor{deepblue}{RGB}{36,70,115}
+\definecolor{softblue}{RGB}{238,245,252}
+\definecolor{softgreen}{RGB}{239,248,241}
+\definecolor{softyellow}{RGB}{255,249,226}
+\definecolor{softred}{RGB}{253,239,239}
+\definecolor{softgray}{RGB}{246,247,249}
+
+\newtcolorbox{intuitionbox}[1][]{
+  breakable,colback=softgreen,colframe=green!45!black,boxrule=0.55pt,
+  arc=1.2mm,title={直感},fonttitle=\bfseries,#1}
+\newtcolorbox{formalbox}[1][]{
+  breakable,colback=softblue,colframe=deepblue!70,boxrule=0.55pt,
+  arc=1.2mm,title={形式化},fonttitle=\bfseries,#1}
+\newtcolorbox{notebox}[1][]{
+  breakable,colback=softyellow,colframe=orange!70!black,boxrule=0.55pt,
+  arc=1.2mm,title={注意},fonttitle=\bfseries,#1}
+\newtcolorbox{statusbox}[1][]{
+  breakable,colback=softred,colframe=red!55!black,boxrule=0.55pt,
+  arc=1.2mm,title={証明状況},fonttitle=\bfseries,#1}
+\newtcolorbox{plainbox}[1][]{
+  breakable,colback=softgray,colframe=black!45,boxrule=0.45pt,
+  arc=1.0mm,#1}
+
+\newtheoremstyle{jpplain}
+  {0.65em}{0.65em}{\normalfont}{}
+  {\bfseries}{。}{0.5em}{}
+\theoremstyle{jpplain}
+\newtheorem{definition}{定義}[section]
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{corollary}[definition]{系}
+\newtheorem{invariant}[definition]{不変条件}
+\newtheorem{conjecture}[definition]{予想}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+\renewcommand{\proofname}{証明}
+
+% symbols
+\newcommand{\Fam}{\mathsf{Fam}}
+\newcommand{\Id}{\mathsf{Id}}
+\newcommand{\Var}{\mathsf{Var}}
+\newcommand{\Nat}{\mathbb N}
+\newcommand{\All}{\mathsf{All}}
+\newcommand{\Empty}{\mathsf{Empty}}
+\newcommand{\Unit}{\mathbf 1}
+\newcommand{\Eff}{\mathsf{Eff}}
+\newcommand{\Val}{\mathsf{Val}}
+\newcommand{\Comp}{\mathsf{Comp}}
+\newcommand{\dom}{\mathsf{dom}}
+\newcommand{\lb}{\mathsf{lb}}
+\newcommand{\ub}{\mathsf{ub}}
+\newcommand{\fresh}{\mathsf{fresh}}
+\newcommand{\seq}{\mathsf{seq}}
+\newcommand{\inst}{\mathsf{inst}}
+\newcommand{\gen}{\mathsf{gen}}
+\newcommand{\coal}{\mathsf{coal}}
+\newcommand{\compact}{\mathsf{compact}}
+\newcommand{\sat}{\mathsf{sat}}
+\newcommand{\resid}{\mathsf{residual}}
+\newcommand{\Common}{\mathsf{Common}}
+\newcommand{\Obs}{\mathsf{Obs}}
+\newcommand{\mix}{\mathsf{mix}}
+\newcommand{\projp}{\pi_{+}}
+\newcommand{\projn}{\pi_{-}}
+\newcommand{\Filter}[2]{\mathsf{filter}_{#1}(#2)}
+\newcommand{\PWeight}[2]{\mathsf{W}^{+}_{#1}(#2)}
+\newcommand{\NWeight}[2]{\mathsf{W}^{-}_{#1}(#2)}
+\newcommand{\takeop}[2]{[#1]_{#2}}
+\newcommand{\popop}[1]{\mathsf{pop}_{#1}}
+\newcommand{\row}[2]{[#1;#2]}
+\newcommand{\comp}{\mathbin{!}}
+\newcommand{\wsub}[4]{#1\;@#2\mathrel{<:}@#3\;#4}
+\newcommand{\lsub}[3]{#1\;@#2\mathrel{<:}\;#3}
+\newcommand{\rsub}[3]{#1\mathrel{<:}@#2\;#3}
+\newcommand{\subty}[2]{#1\mathrel{<:}#2}
+\newcommand{\fsub}[2]{#1\mathrel{\sqsubseteq}#2}
+\newcommand{\idmap}[1]{\{#1\}}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\erase}{\mathsf{erase}}
+\newcommand{\live}{\mathsf{Live}}
+\newcommand{\opq}{\mathsf{opaque}}
+\newcommand{\sol}{\mathsf{Sol}}
+\newcommand{\fv}{\mathsf{fv}}
+\newcommand{\fid}{\mathsf{fid}}
+\newcommand{\kw}[1]{\mathsf{#1}}
+\newcommand{\sem}[1]{[\![#1]\!]}
+\newcommand{\Color}{\mathsf{Color}}
+\newcommand{\supp}{\mathsf{supp}}
+\newcommand{\visible}{\mathsf{visible}}
+\newcommand{\guard}{\mathsf{guard}}
+\newcommand{\paint}{\mathsf{paint}}
+\newcommand{\getid}{\mathsf{get\_id}}
+\newcommand{\ret}{\mathsf{return}\,}
+\newcommand{\oper}{\mathsf{op}}
+\newcommand{\poppaint}{\mathsf{pop\text{-}paint}}
+\newcommand{\Guard}{\mathcal G}
+\newcommand{\Paint}{\mathcal P}
+\newcommand{\abs}{\mathsf{abs}}
+\newcommand{\nf}{\mathsf{nf}}
+\newcommand{\Elab}{\mathcal E}
+\newcommand{\modelsenv}{\models_{\mathsf{env}}}
+\newcommand{\Caps}{\mathcal B}
+\newcommand{\amb}{\mathsf{amb}}
+\newcommand{\seedcap}{\mathsf{seed}}
+\newcommand{\efam}{\mathsf{cap}}
+\newcommand{\ctr}{\mathsf{ctr}}
+\newcommand{\lat}{\mathsf{lat}}
+\newcommand{\disp}{\mathsf{disp}}
+\newcommand{\height}{\mathsf{ht}}
+\newcommand{\edge}[3]{#1\xrightarrow{#2}#3}
+\newcommand{\epedge}[4]{#1\xrightarrow{#2}[#3;#4]}
+\newcommand{\headfact}[3]{#1\mathrel{\blacktriangleright}[#2;#3]}
+\newcommand{\rid}{\mathsf{resid}}
+\newcommand{\addr}{\mathsf{addr}}
+\newcommand{\size}[1]{\lvert\!\lvert #1\rvert\!\rvert}
+
+\title{方向付き stack 重みによる effect subtraction と
+\texttt{let rec} までの主型推論\\
+\large effect-only 注釈、colored soundness、exact solver の停止性}
+\author{}
+\date{2026年6月22日}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本稿は、effect subtraction の寿命境界を Simple-sub 型の bounds graph に載せ、
+完全 handler、let 多相、effect-only skeleton を持つ単相 \texttt{let rec} までを
+一つの推論体系として形式化する。
+中心判断は $\wsub{T}{L}{R}{U}$ である。
+左重みは ordinary row の未消費 budget と、各 static id の
+未対応 pop 数、未対応 push 数、residual floor を持ち、右重みは pop だけを持つ。
+同一 id では $\takeop{H}{u}\popop{u}=1$ を簡約するが逆順は簡約しない。
+row upper $\lsub{\alpha}{L}{\row{K}{\beta}}$ で処理できる最大 head は
+$J=K\cap\Common(L)$ であり、非空なら fresh residual $\gamma$ に対し
+$\subty{\alpha}{\row{J}{\gamma}}$ と
+$\lsub{\gamma}{L\ominus J}{\beta}$ を生成する。
+
+停止性については、任意の labeled graph に仮定を置くのではなく、
+実際の項から生成される graph を扱う。
+コードの構造に関する帰納法により、非再帰構文は back edge を作らず、
+\texttt{let rec} の SCC は単一の monomorphic root を持ち、
+recursive reference は RHS を再推論せず同じ root を参照するだけであることを示す。
+その結果、recursive self-tail は replay 前に no-op となり、残る executable closed walk では各 id の push 数と pop 数が一致する。
+residual split は counter を変えず、有限 family algebra 上の ambient budget を真に減少させる。
+従って exact cache と residual hash-cons を備えた worklist が生成しうる key は有限であり、
+solver は必ず停止する。
+この結果と項の構造帰納法を組み合わせ、\texttt{let rec} を含む推論全体の停止性を得る。
+
+さらに static id を runtime color に具体化する colored semantics を与え、
+$\Common(L)$ が residual row に属し、かつ active boundary を越えて handler に捕捉可能な
+family の正確な共通部分であることを示す。
+filter 消去、weighted row split、単相再帰を含む colored fundamental theorem、
+宣言的健全性、および principal weighted scheme の存在を証明する。
+\end{abstract}
+
+\tableofcontents
+
+\section{範囲、仮定、証明の読み方}
+
+本稿では次を固定する。
+
+\begin{itemize}
+  \item effect family の有限集合を $\Fam$ とし、capability algebra は
+        $\Caps=\mathcal P(\Fam)$ とする。$\All,\Empty$、交差、差を用いる。
+  \item unit、function、computation、effect row だけを扱い、ADT などの追加型コンストラクタは扱わない。
+        従って停止性証明で constructor decomposition を別に数える必要はない。
+  \item handler は一 family を完全に処理する shallow handler とする。
+  \item let は Damas--Milner 型の generalization を行う。
+        再帰 RHS 内の再帰変数は単相であり、polymorphic recursion は許さない。
+  \item recursive constraint graph は有限 graph として保持し、意味は regular tree として読む。
+        表示時に必要なら $\mu$ を導入するが、solver は unfold しない。
+  \item static id は annotation leaf または protected row の生成箇所ごとに fresh である。
+        runtime では scheme instance ごとに fresh color へ写す。
+  \item operational semantics は本稿で定義する normalized marker core を対象とする。
+        thunk/force や追加の型コンストラクタは対象外である。
+\end{itemize}
+
+\begin{statusbox}[title={証明の構成}]
+推論の停止性は二段階で示す。
+第一に、項 $e$ の構造帰納法により、初期制約 graph は有限であり、
+閉路を作る唯一の構文は \texttt{let rec} であることを示す。
+recursive reference は環境 lookup であって推論関数の再帰呼出しではない。
+単相 root を共有するため、再帰 contour は同じ base tail へ戻る self-tail か、
+一 activation を一周する well-bracketed marker trace のどちらかになる。前者は replay 前に no-op、後者では各 id の signed displacement が 0 になる。
+第二に、row split のたびに ambient residual budget が真に減ることと、
+同じ residual key を hash-cons することから、worklist の状態空間が有限であることを示す。
+従って本稿では「停止したなら principal」ではなく、停止性、健全性、主型性を一つの定理として得る。
+\end{statusbox}
+
+\section{表面言語、型、effect-only skeleton}
+
+\subsection{型と kind}
+
+値型 $A$、computation 型 $C$、effect row $R$ を次で置く。
+
+\[
+\begin{array}{rcl}
+A &::=& \alpha \mid \Unit \mid C\to C \mid \mu\alpha.A,\\
+C &::=& A\comp R,\\
+R &::=& \rho \mid \Empty \mid \row{H}{R}.
+\end{array}
+\]
+
+内部表現では、型出現に次の wrapper を許す。
+
+\[
+  \PWeight{L}{T},\qquad
+  \NWeight{R}{T},\qquad
+  \Filter{B}{T}.
+\]
+
+$\PWeight{L}{T}$ は共変表示に残る左作用、$\NWeight{R}{T}$ は反変表示に残る right-pop、
+$\Filter{B}{T}$ は共変 annotation の上限検査である。
+wrapper は任意 kind の型に付けられるが、push count が正の左重みは effect kind にだけ許す。
+非 effect kind に残れる左重みは pure pop だけである。
+
+\subsection{表面項}
+
+\[
+\begin{array}{rcl}
+e &::=& () \mid \kw{ref}\ x
+ \mid \lambda(x:K):q.e
+ \mid e\ e
+ \mid \kw{perform}_{h}(e)\\
+&& \mid \kw{handle}\ e\ \kw{with}\ h(y,k)\Rightarrow e_h
+       \mid \kw{return}\ x\Rightarrow e_r\\
+&& \mid \kw{let}\ x=e_1\ \kw{in}\ e_2
+ \mid \kw{let\ rec}\ f:K=e_1\ \kw{in}\ e_2.
+\end{array}
+\]
+
+束縛名の値参照は $\kw{ref}\ x$ と明示する。
+本稿の operational semantics は、型解決後に normalized guard/push/pop-paint marker を直接持つ
+call-by-value core として定義する。従って別の thunk/force pass の正しさは定理の前提に含めない。
+
+\subsection{effect-only skeleton}
+
+\[
+  q ::= \Empty \mid \ast \mid H,
+  \qquad
+  K ::= q \mid K\to K.
+\]
+
+$q$ は computation slot の effect boundary だけを指定し、値型は指定しない。
+表面で注釈が省略された場合は $\ast$ の糖衣とする。
+
+\section{方向付き stack 重みと residual budget}
+
+\subsection{一 id の正規形}
+
+有限な入力項から生成される static id の集合を $\Id$ とする。
+各 id $u$ は生成箇所で一度だけ capability seed
+\[
+  \seedcap(u)\in\Caps
+\]
+を受け取る。具体注釈 $H$ なら $\seedcap(u)=H$、wildcard なら $\All$、
+保護境界なら $\Empty$ である。
+
+以下、fresh id $u$ に $\seedcap(u)=H$ を設定し、ambient $\All$、entry $(0,1,\All)$ を置く左重みを
+$\takeop{H}{u}$ と略記する。$\popop{u}$ は文脈に応じて左 entry の未対応 pop または右重みの一 pop を表す。
+
+\begin{definition}[一 id の entry]
+一 id の solver state を
+\[
+  e=(p,q,F)\in\Nat\times\Nat\times\Caps
+\]
+とする。$p$ は未対応 pop 数、$q$ は未対応 push 数、$F$ は residual floor である。
+実行時に materialize される作用語は
+\[
+  \popop{u}^{p}\takeop{\seedcap(u)\cap F}{u}^{q}
+\]
+である。$q=0$ のとき floor は実行 marker を持たないが、後で同じ id の push が現れたときに
+capability を狭める静的情報として残る。
+\end{definition}
+
+同一 id では
+\[
+  \takeop{H}{u}\popop{u}=1
+\]
+だけを簡約し、逆順 $\popop{u}\takeop{H}{u}$ は簡約しない。
+
+\begin{definition}[entry composition]
+$e=(p,q,F)$、$f=(r,s,G)$ とし、$c=\min(q,r)$ と置く。
+左から $e$、次に $f$ を作用させる積を
+\[
+  e\odot f=(p+r-c,\ q+s-c,\ F\cap G)
+\]
+と定める。単位 entry は $(0,0,\All)$ である。
+\end{definition}
+
+\begin{lemma}[entry monoid]
+entry は $\odot$ と $(0,0,\All)$ により monoid をなす。
+\end{lemma}
+
+\begin{proof}
+$(p,q)$ 部分は関係 $\mathsf{push}\,\mathsf{pop}=1$ を持つ bicyclic monoid の標準形である。
+$c=\min(q,r)$ は二語の境界で相殺される個数に一致する。
+floor は meet monoid なので、直積の結合律と単位律が従う。
+\end{proof}
+
+固定 seed と floor を分けることが重要である。
+同じ再帰 activation が残した narrowed floor の内側で同じ id の push が再び現れても、
+新しい frame の実効 capability は自動的に $\seedcap(u)\cap F$ になる。
+従って再帰の深さごとに異なる family 列を保持する必要はない。
+
+\subsection{左重み、右重み、ambient budget}
+
+\begin{definition}[左重み]
+左重みは
+\[
+  L=(A,(e_u)_{u\in\Id})
+\]
+である。$A\in\Caps$ を ambient residual budget と呼び、
+ordinary row がまだ消費していない family を表す。
+$e_u$ は前節の entry である。
+積は
+\[
+ (A,(e_u))\odot(B,(f_u))
+ = (A\cap B,(e_u\odot f_u)_u)
+\]
+であり、単位元を
+\[
+ 0_L=(\All,(0,0,\All)_u)
+\]
+とする。$\amb(L)=A$ と書く。
+\end{definition}
+
+\begin{definition}[右重み]
+右重みは有限台写像
+\[
+  R:\Id\rightharpoonup\Nat
+\]
+である。$R(u)=r$ は $\popop{u}^{r}$ を表す。
+積は pointwise 加算、単位元は $0_R$ である。
+\end{definition}
+
+右重みには push、floor、ambient budget を置かない。
+これは compact 表示で反変側に観測されるのが matching pop だけだからである。
+一方、constraint propagation の途中では左右両方を保存する。
+
+\subsection{左右の相互作用と射影}
+
+row endpoint で subtraction を計算するときは、右 pop を左作用の後ろへ実際に合成する。
+
+\begin{definition}[row flatten]
+各 id $u$ について $L(u)=(p,q,F)$、$R(u)=r$ とし、
+\[
+  (p,q,F)\odot(r,0,\All)=(p',q',F')
+\]
+を計算する。ambient budget を保ったままこの entry を全 id で集めた左重みを
+\[
+  \mathsf{flat}(L,R)
+\]
+と書く。
+\end{definition}
+
+compact の極性射影では、flatten 後の active entry は Pos 側へ、pure pop は Neg 側へ分ける。
+ただし floor-only entry $(0,0,F)$ と ambient budget は solver 専用であり、最終型には materialize しない。
+
+\begin{definition}[mixed normalization]
+$L\neq0_L$ かつ $R\neq0_R$ とする。
+flatten 後の entry $(p',q',F)$ について、$q'>0$ なら $(p',q',F)$ を $L'$ に置く。
+$q'=0$ なら pop 数 $p'$ を $R'$ に置き、$F\neq\All$ のときだけ floor-only entry $(0,0,F)$ を $L'$ に残す。
+この結果を $\mix(L,R)=(L',R')$ と書く。
+\end{definition}
+
+片側が空の場合は、その側の provenance を保つため mixed projection を行わない。
+
+\begin{formalbox}
+一般の mixed constraint は次の二本へ分ける。
+\[
+\inferrule*[right=W-Mix]
+ {L\neq0_L\\R\neq0_R\\\mix(L,R)=(L',R')}
+ {\wsub{T}{L}{R}{U}\quad\Longrightarrow\quad
+  \{\lsub{T}{L'}{U},\ \rsub{T}{R'}{U}\}.}
+\]
+空重みを持つ枝は省略する。
+\end{formalbox}
+
+\begin{lemma}[mixed normalization の極性保存]
+元の directed word と $\mix$ 後の Pos/Neg pair は、対応する極性で同じ観測を持つ。
+また floor と ambient budget は subtraction の可否だけに影響し、runtime marker の観測を増やさない。
+\end{lemma}
+
+\begin{proof}
+各 id の counter 部分を正規化すると、active push を含む標準形か pure pop のどちらかになる。
+前者だけが共変 row head subtraction に寄与し、後者だけが反変 pop 観測に寄与する。
+floor-only 成分は将来の同 id push を狭める静的状態、ambient は ordinary row の残量であり、
+どちらも単独では marker を生成しない。異なる id は可換なので pointwise に従う。
+\end{proof}
+
+\subsection{active family、共通部分、subtraction}
+
+\begin{definition}[active id と実効 capability]
+$L(u)=(p_u,q_u,F_u)$ とする。
+\[
+  \mathsf{Act}(L)=\{u\mid q_u>0\},
+  \qquad
+  H_L(u)=\seedcap(u)\cap F_u.
+\]
+\end{definition}
+
+\begin{definition}[common budget]
+\[
+  \Common(L)
+  =\amb(L)\cap
+   \bigcap_{u\in\mathsf{Act}(L)}H_L(u),
+\]
+空交差は $\All$ とする。
+\end{definition}
+
+active id が無い場合でも $\Common(L)=\amb(L)$ である。
+従って ordinary row で一度消費した family を、再帰的な別 endpoint で再び引くことはできない。
+保護された row は seed $\Empty$ の active push を持つため $\Common(L)=\Empty$ になる。
+
+\begin{definition}[residual subtraction]
+$J\subseteq\Common(L)$ とする。
+$L\ominus J$ は、ambient を $\amb(L)\setminus J$ にし、全 id の entry
+$(p,q,F)$ を $(p,q,F\setminus J)$ に置き換えた左重みである。
+count は変えない。
+\end{definition}
+
+全 id を更新するのは、現在 active でない同じ id が再帰の内側で再び push された場合にも、
+同じ family $J$ を再消費させないためである。入力項ごとの $\Id$ は有限なので、この操作は有限である。
+
+\begin{lemma}[budget conservation]\label{lem:budget-conservation}
+$J\subseteq\Common(L)$ なら
+\[
+  \amb(L\ominus J)=\amb(L)\setminus J,
+  \qquad
+  \Common(L\ominus J)=\Common(L)\setminus J.
+\]
+\end{lemma}
+
+\begin{proof}
+各 active id の実効 capability は
+$H_L(u)\setminus J$ になる。Boolean algebra の分配則から
+\[
+ (\amb(L)\setminus J)\cap
+ \bigcap_u(H_L(u)\setminus J)
+ =\left(\amb(L)\cap\bigcap_uH_L(u)\right)\setminus J
+\]
+を得る。
+\end{proof}
+
+\begin{corollary}[strict residual descent]\label{cor:strict-residual-descent}
+$\Empty\neq J\subseteq\Common(L)$ なら
+\[
+  \amb(L\ominus J)<\amb(L).
+\]
+従って一つの provenance path に現れる nonempty split の個数は
+$\height(\Caps)$ 以下である。
+\end{corollary}
+
+\begin{proof}
+$J\subseteq\Common(L)\subseteq\amb(L)$ かつ $J\neq\Empty$ なので、
+$\amb(L)\setminus J$ は真の下位元である。
+後続の重み合成は ambient に交差を取るだけなので増加させない。
+\end{proof}
+
+\section{weighted subtype constraint machine}
+
+\subsection{制約と wrapper の吸収}
+
+型制約を
+\[
+  \wsub{T}{L}{R}{U}
+\]
+と書く。
+意味は、$T$ と $U$ に付いている未分配作用を左右へ蓄積した subtype comparison である。
+
+\[
+\inferrule*[right=W-Pos]
+ {\wsub{T}{W\odot L}{R}{U}}
+ {\wsub{\PWeight{W}{T}}{L}{R}{U}}
+\qquad
+\inferrule*[right=W-Neg]
+ {\wsub{T}{L}{P+R}{U}}
+ {\wsub{T}{L}{R}{\NWeight{P}{U}}}.
+\]
+
+同じ outer type form は通常の分散で分解する。
+function では domain で左右が交換される。
+
+\[
+\inferrule*[right=W-Fun]
+ {\wsub{D_1}{R}{L}{C_1}\\
+  \wsub{C_2}{L}{R}{D_2}}
+ {\wsub{C_1\to C_2}{L}{R}{D_1\to D_2}}.
+\]
+
+push count が正の左重みは effect kind にしか付かない。
+従って function domain を横断して左右を交換される成分は pure pop だけであり、
+ambient と floor は row endpoint に到達するまで左側 provenance に保持する。
+computation は値成分と row 成分へ共変に分解する。
+
+\[
+\inferrule*[right=W-Comp]
+ {\wsub{A}{L}{R}{B}\\\wsub{S}{L}{R}{T}}
+ {\wsub{A\comp S}{L}{R}{B\comp T}}.
+\]
+
+
+\subsection{filter}
+
+\begin{definition}[filter が観測する family]
+左辺が具体 effect row head $F$ なら
+$\Obs(F,L)=F$ とする。
+それ以外、特に変数なら
+$\Obs(T,L)=\Common(L)$ とする。
+\end{definition}
+
+\[
+\inferrule*[right=W-Filter]
+ {\fsub{\Obs(T,L)}{B}\\
+  \subty{T}{\NWeight{R}{U}}}
+ {\wsub{T}{L}{R}{\Filter{B}{U}}}.
+\]
+
+filter は family 上限を検査した後に消える。
+左重みも検査に消費され、右 pop は inner type の $\NWeight{R}{U}$ として残る。
+これにより $\Filter{B}{\popop{u}(V)}$ のような型を、filter を monoid に入れず扱える。
+
+\subsection{型変数境界と伝播}
+
+変数状態 $\sigma$ は左右両方の重みを持てる bound を保存する。
+
+\[
+\begin{array}{rcl}
+\lb_\sigma(\alpha)&\subseteq&\mathsf{Type}\times\mathsf{LWeight}\times\mathsf{RWeight},\\
+\ub_\sigma(\alpha)&\subseteq&\mathsf{Type}\times\mathsf{LWeight}\times\mathsf{RWeight}.
+\end{array}
+\]
+
+$\wsub{T}{L}{R}{\alpha}$ を lower bound $(T,L,R)$、
+$\wsub{\alpha}{L}{R}{U}$ を upper bound $(U,L,R)$ として保存する。
+表現が両重みを持つのは、将来追加される反対側 bound へ遅延重みを失わず伝えるためである。
+
+\begin{definition}[bound propagation]
+$(T,L_1,R_1)\in\lb(\alpha)$ と
+$(U,L_2,R_2)\in\ub(\alpha)$ から
+\[
+  \wsub{T}{L_1\odot L_2}{R_1+R_2}{U}
+\]
+を生成する。
+生成後は W-Mix を含む通常の正規化へ戻す。
+\end{definition}
+
+\begin{invariant}[directed-bound invariant]
+annotation translation と構造分解から直接生成される bound pair では、
+$R_1=0_R$ または $L_2=0_L$ の少なくとも一方が成り立つ。
+したがって propagation の中央で right-pop と新しい push を逆順に交換する必要はない。
+実装は安全のため両重みを保存するが、生成規則はこの directed invariant を保つ。
+\end{invariant}
+
+新しい bound は、反対側 bound へ伝播する前に状態へ挿入する。
+比較 cache は型対だけでなく、正規化した $(L,R)$ も key に含める。
+
+\begin{lemma}[variable-bound closure]
+worklist が空の飽和状態では、全ての
+$(T,L_1,R_1)\in\lb(\alpha)$ と
+$(U,L_2,R_2)\in\ub(\alpha)$ について、上の propagated constraint が生成済みである。
+\end{lemma}
+
+\begin{proof}
+新しい lower または upper を挿入した時点で、既存の反対側 bound 全てとの組を worklist へ追加する。
+挿入を先に行うため、再帰的に同じ変数へ戻る伝播も新 bound を見落とさない。
+飽和状態では未処理組がないため結論を得る。
+\end{proof}
+
+\subsection{weighted row split}\label{sec:row-split}
+
+row endpoint では右 pop を左作用の後ろへ合成し、
+\[
+  \widehat L=\mathsf{flat}(L,R)
+\]
+と置く。row head の可否はこの flattened weight だけで決まる。
+以下では $\widehat L$ を再び $L$ と略記する。
+
+\begin{definition}[maximal subtractable head]
+\[
+  J=K\cap\Common(L).
+\]
+$J$ は ordinary residual budget と全 active id の capability を同時に満たす、最大の処理可能 head である。
+\end{definition}
+
+\begin{formalbox}
+\textbf{weighted row split}
+
+\begin{enumerate}
+  \item $\lsub{\beta}{L}{\row{K}{\beta}}$ のように base variable と tail が同じなら no-op とする。
+  \item $J=\Empty$ なら residual を作らず、$\lsub{\alpha}{L}{\beta}$ を生成する。
+  \item $J\neq\Empty$ なら
+  \[
+    \gamma=\resid(\alpha,J,L\ominus J)
+  \]
+  を取り、
+  \[
+    \subty{\alpha}{\row{J}{\gamma}},
+    \qquad
+    \lsub{\gamma}{L\ominus J}{\beta}
+  \]
+  を生成する。
+\end{enumerate}
+同じ $(\alpha,J,L\ominus J)$ には同じ $\gamma$ を返し、target tail $\beta$ は key に含めない。
+\end{formalbox}
+
+\begin{lemma}[row split の局所健全性]
+生成された制約が成り立つなら、元の
+$\lsub{\alpha}{L}{\row{K}{\beta}}$ は weighted row relation を満たす。
+\end{lemma}
+
+\begin{proof}
+$J=\Empty$ では、許可された head がないため target head を通過して tail comparison へ進む定義そのものである。
+$J\neq\Empty$ では、第一制約が $\alpha$ から実際に取り出せる head $J$ と residual $\gamma$ を与える。
+第二制約は、同じ元 row から $J$ を消費したため ambient budget と全 id の floor を $J$ だけ狭め、target tail へ進める。
+$J\subseteq K$ かつ $J\subseteq\Common(L)$ なので、許可されない family を引いていない。
+\end{proof}
+
+\begin{lemma}[row split の局所主性]
+同じ元 constraint を満たす任意の分解が head $J'\subseteq K$ を取り出すなら、$J'\subseteq J$ である。
+また、その分解は fresh residual $\gamma$ に追加制約を置くことで上の maximal split から得られる。
+\end{lemma}
+
+\begin{proof}
+全 active id の許可を同時に満たす必要があるため $J'\subseteq\Common(L)$、かつ target head から取るため
+$J'\subseteq K$ である。従って $J'\subseteq K\cap\Common(L)=J$。
+$J\setminus J'$ を residual 側へ残す制約を $\gamma$ に加えれば、より小さい split を maximal split の instance として表せる。
+$\gamma$ が fresh なので他の独立制約を失わない。
+\end{proof}
+
+self-tail no-op は、同じ residual slot を再び同じ tail に戻すだけの constraint を削る。
+regular row の coinductive 解釈では新しい有限観測を加えず、worklist の self-fueling を防ぐ。
+
+\section{Pos/Neg 表現と protect の消去}
+
+\subsection{polar type grammar}
+
+compact extraction の途中表現を次で置く。$\kw{Con}^{\pm}$ は本稿では function と computation の構造だけを略記する。
+
+\[
+\begin{array}{rcl}
+P &::=& \alpha \mid P\sqcup P \mid \kw{Con}^{+}(\overline{P,N})
+       \mid \PWeight{L}{P} \mid \Filter{B}{P},\\
+N &::=& \alpha \mid N\sqcap N \mid \kw{Con}^{-}(\overline{P,N})
+       \mid \NWeight{R}{N}.
+\end{array}
+\]
+
+function domain では極性を反転し、codomain と computation row では極性を保つ。
+
+\begin{definition}[protected effect variable]
+新しい effect 変数 $\rho$ を id $u$ で保護するとは、その positive occurrence を
+\[
+  \PWeight{(\All,\{u\mapsto(0,1,\All)\})}{\rho}
+  =\PWeight{\takeop{\Empty}{u}}{\rho}
+\]
+とすることである。
+専用の $\mathsf{protect}$ constructor は導入しない。
+\end{definition}
+
+$\Common(\takeop{\Empty}{u})=\Empty$ なので、この occurrence から具体 head は一つも引けない。
+$\popop{u}$ が作用して push と相殺したときだけ裸の $\rho$ に戻る。
+
+\subsection{pair weight の polar projection}
+
+bound が持つ pair $(L,R)$ を compact type に入れるとき、必要なら mixed normalization を行う。
+
+\begin{definition}[polar projection]
+$\mix$ が必要なら $\mix(L,R)=(L',R')$ とする。
+\[
+\begin{array}{rcl}
+\projp(L,R,T)&=&\begin{cases}
+\PWeight{L'}{T}&L'\neq0_L,\\T&L'=0_L,
+\end{cases}\\[1ex]
+\projn(L,R,T)&=&\begin{cases}
+\NWeight{R'}{T}&R'\neq0_R,\\T&R'=0_R.
+\end{cases}
+\end{array}
+\]
+片側だけなら、その側の provenance を保ったまま対応 projection に入れる。
+\end{definition}
+
+この定義により、共変表示に full left weight、反変表示に right-pop だけが残る。
+
+\section{effect-only annotation の形式的翻訳}
+
+\subsection{slot translation}
+
+各 slot translation は fresh value variable $\alpha$、fresh row variable $\rho$、必要なら fresh id $u$ を作る。
+反変 slot では同時に $\seedcap(u)$ を注釈 family、$\All$、または $\Empty$ に設定する。
+row 部分だけを次で定義する。
+
+\begin{definition}[反変 slot]
+\[
+\begin{array}{rcl}
+\sem{\Empty}^-_u(\rho)&=&\PWeight{\takeop{\Empty}{u}}{\rho},\\
+\sem{H}^-_u(\rho)&=&\PWeight{\takeop{H}{u}}{\rho},\\
+\sem{\ast}^-_u(\rho)&=&\PWeight{\takeop{\All}{u}}{\rho}.
+\end{array}
+\]
+\end{definition}
+
+\begin{definition}[共変 slot]
+\[
+\begin{array}{rcl}
+\sem{\Empty}^+(\rho)&=&\Filter{\Empty}{\rho},\\
+\sem{H}^+(\rho)&=&\Filter{H}{\rho},\\
+\sem{\ast}^+(\rho)&=&\rho.
+\end{array}
+\]
+\end{definition}
+
+これは次の三点を同時に表す。
+
+\begin{itemize}
+  \item 反変 concrete annotation は、その family だけを処理してよい push を与える。
+  \item 反変 wildcard は $\All$ を与える。
+  \item 共変 concrete annotation は、外へ出る family の上限検査であり、push ではない。
+\end{itemize}
+
+\subsection{skeleton translation}
+
+極性 $p\in\{+,-\}$ に対し、$\overline{p}$ を反対極性とする。
+$\mathcal A_p(K)$ を fresh monotype として次で作る。
+
+\[
+\begin{array}{rcl}
+\mathcal A_p(q)&=&\alpha\comp\sem{q}^p(\rho),\\
+\mathcal A_p(K_1\to K_2)&=&
+  \bigl(\mathcal A_{\overline p}(K_1)\to\mathcal A_p(K_2)\bigr)\comp\Empty.
+\end{array}
+\]
+
+function domain で極性を反転するため、高階 skeleton 内の各 slot annotation は独立に正しい向きへ翻訳される。
+
+\begin{lemma}[annotation translation の最一般性]
+$\mathcal A_p(K)$ は、skeleton $K$ が指定する effect boundary を満たす monotype のうち、値型と row tail について最一般である。
+任意の別の実現 $C$ は、fresh value/row 変数の substitution と fresh id の injective renaming により
+$\mathcal A_p(K)$ の instance になる。
+\end{lemma}
+
+\begin{proof}
+$K$ の構造に関する帰納法。
+leaf では値型と tail を fresh variable にしており、annotation が要求する情報は唯一、
+反変側の push family または共変側の filter family だけである。
+したがって任意の実現は fresh variable への代入で得られる。
+function case は domain で帰納仮定の極性を反転し、codomain で保持して組み合わせる。
+id は各 leaf で fresh なので、別実現の id へ injective renaming できる。
+\end{proof}
+
+\section{項の制約生成}
+
+判断を
+\[
+  \Gamma;\ell\vdash e\Rightarrow C\dashv G
+\]
+と書く。$\ell$ は level、$G$ は生成 constraint graph である。
+環境 entry は monotype または scheme
+$\forall\bar\alpha\,\bar\rho\,\bar u.C$ である。
+instantiate は型変数、row 変数、id を同時に freshen する。
+
+\subsection{unit と参照}
+
+\[
+\inferrule*[right=I-Unit]
+ { }
+ {\Gamma;\ell\vdash ()\Rightarrow \Unit\comp\Empty\dashv\varnothing}
+\]
+
+\[
+\inferrule*[right=I-Ref]
+ {\Gamma(x)=\Sigma\\\inst_\ell(\Sigma)=C}
+ {\Gamma;\ell\vdash \kw{ref}\ x\Rightarrow C\dashv\varnothing}.
+\]
+
+再帰 RHS 内の $f$ は monotype entry なので instantiate せず、同じ型変数と id を共有する。
+
+\subsection{lambda と annotation を受けた変数}
+
+\[
+\inferrule*[right=I-Lam]
+ {C_x=\mathcal A_-(K)\\
+  \Gamma,x:C_x;\ell\vdash e\Rightarrow A\comp R\dashv G\\
+  \rho\ \text{fresh}\\
+  G_q=\{\subty{R}{\sem{q}^+(\rho)}\}}
+ {\Gamma;\ell\vdash\lambda(x:K):q.e
+   \Rightarrow (C_x\to A\comp\rho)\comp\Empty
+   \dashv G\cup G_q}.
+\]
+
+従って annotation を受けた変数 $x$ は、値型を fresh に保ったまま、
+その skeleton 内の反変 slot では $\PWeight{\takeop{H}{u}}{\rho}$、
+共変 slot では $\Filter{H}{\rho}$ を持つ monotype として環境へ入る。
+専用の protect constraint や role-like constraint は存在しない。
+返り annotation は body row を fresh proxy $\rho$ の filter 付き上界へ接続し、filter 検査後も principal tail $\rho$ を残す。
+
+\subsection{application}
+
+\[
+\inferrule*[right=I-App]
+ {\Gamma;\ell\vdash e_1\Rightarrow A_1\comp E_1\dashv G_1\\
+  \Gamma;\ell\vdash e_2\Rightarrow A_2\comp E_2\dashv G_2\\
+  B,\rho_i,\rho_o\ \text{fresh}}
+ {\Gamma;\ell\vdash e_1\ e_2\Rightarrow
+  B\comp\seq(E_1,E_2,\rho_o)\dashv
+  G_1\cup G_2\cup
+  \{\subty{A_1}{(A_2\comp\rho_i)\to(B\comp\rho_o)}\}}.
+\]
+
+fresh internal effect variable の positive occurrence は既定で
+$\PWeight{\takeop{\Empty}{u}}{\rho}$ として保護する。
+明示 wildcard annotation を通るときだけ $\takeop{\All}{u}$ が与えられる。
+
+\subsection{operation と完全 handler}
+
+signature を $\Sigma(h)=P_h\rightsquigarrow Q_h$ とする。
+
+\[
+\inferrule*[right=I-Perform]
+ {\Gamma;\ell\vdash e\Rightarrow P_h\comp E\dashv G}
+ {\Gamma;\ell\vdash \kw{perform}_h(e)
+  \Rightarrow Q_h\comp\seq(E,\row{\{h\}}{\Empty})\dashv G}.
+\]
+
+\begingroup\small
+\[
+\inferrule*[right=I-Handle]
+ {\Gamma;\ell\vdash e\Rightarrow B\comp S\dashv G_s\\
+  T\ \text{fresh}\\
+  \Gamma,y:P_h,k:(Q_h\comp\Empty\to B\comp S);\ell
+     \vdash e_h\Rightarrow C\comp E_h\dashv G_h\\
+  \Gamma,x:B;\ell\vdash e_r\Rightarrow C\comp E_r\dashv G_r}
+ {\Gamma;\ell\vdash
+  \kw{handle}\ e\ \kw{with}\ h(y,k)\Rightarrow e_h
+  \mid\kw{return}\ x\Rightarrow e_r
+  \Rightarrow C\comp\seq(T,E_h,E_r)\dashv
+  G_s\cup G_h\cup G_r\cup\{\subty{S}{\row{\{h\}}{T}}\}}.
+\]
+\endgroup
+
+scrutinee row $S$ に含まれる $\PWeight{L}{\rho}$ は W-Pos により左重みへ吸収され、
+Section~\ref{sec:row-split} の row split が走る。
+continuation は shallow なので元の $S$ を持つ。
+
+\subsection{let 多相}
+
+\[
+\inferrule*[right=I-Let]
+ {\Gamma;\ell+1\vdash e_1\Rightarrow C_1\dashv G_1\\
+  \Sigma_1=\gen_\ell(\compact(\sat(G_1),C_1),\Gamma)\\
+  \Gamma,x:\Sigma_1;\ell\vdash e_2\Rightarrow C_2\dashv G_2}
+ {\Gamma;\ell\vdash\kw{let}\ x=e_1\ \kw{in}\ e_2
+  \Rightarrow C_2\dashv G_1\cup G_2}.
+\]
+
+$\gen_\ell$ は環境へ逃げていない level $>\ell$ の型変数、row 変数、id を量化する。
+値制限を採用する場合は generalize 対象を syntactic value に制限するが、以下の principal proof の factorization は同じである。
+
+\subsection{単相再帰と effect-only skeleton}
+
+\begingroup\small
+\[
+\inferrule*[right=I-LetRec]
+ {C_s=\mathcal A_-(K)\\
+  \alpha_f\ \text{fresh at level }\ell+1\\
+  G_0=\{\subty{C_s}{\alpha_f}\}\\
+  \Gamma,f:\alpha_f;\ell+1\vdash e_1\Rightarrow C_1\dashv G_1\\
+  G_r=G_0\cup G_1\cup\{\subty{C_1}{\alpha_f}\}\\
+  \Sigma_f=\gen_\ell(\compact(\sat(G_r),\alpha_f),\Gamma)\\
+  \Gamma,f:\Sigma_f;\ell\vdash e_2\Rightarrow C_2\dashv G_2}
+ {\Gamma;\ell\vdash\kw{let\ rec}\ f:K=e_1\ \kw{in}\ e_2
+  \Rightarrow C_2\dashv G_r\cup G_2}.
+\]
+\endgroup
+
+自己 skeleton の下界 $C_s<:\alpha_f$ を RHS 推論より前に置く。
+これにより recursive call も外部 call と同じ push/pop/filter 境界を通る。
+RHS 内では $f$ は同じ $\alpha_f$ を使うため単相である。
+RHS 完了後に初めて generalize する。
+
+
+\section{実際の項から生成される solver と停止性}\label{sec:termination}
+
+本節では、任意の labeled graph ではなく、Section~7 の推論規則が有限な項から実際に生成する graph を扱う。
+型 constructor を追加しない本稿の言語では、function と computation の外側を一段ずつ分解する処理は
+比較対象の構文サイズを真に減らすため、それ自体は有限である。
+停止性で問題になりうるのは、型変数 bound の replay と weighted row split だけである。
+
+\subsection{実装される推論関数}
+
+推論関数の制御構造を擬似コードで明示する。
+
+\begin{formalbox}[title={推論関数の制御構造}]
+\begingroup\small\ttfamily
+\begin{tabbing}
+xx\=xx\=xx\=xx\kill
+infer $\Gamma\ \ell\ e$ = match $e$ with\\
+\> () $\Rightarrow$ return a finite type and no constraints\\
+\> ref $x$ $\Rightarrow$ instantiate-or-return $\Gamma(x)$\\
+\> $\lambda(x:K):q.e_0$ $\Rightarrow$ infer $e_0$ once\\
+\> $e_1\ e_2$ $\Rightarrow$ infer $e_1$ once; infer $e_2$ once; add one shape constraint\\
+\> perform$_h(e_0)$ $\Rightarrow$ infer $e_0$ once\\
+\> handle $e_s$ with $e_h,e_r$ $\Rightarrow$ infer each of $e_s,e_h,e_r$ once\\
+\> let $x=e_1$ in $e_2$ $\Rightarrow$\\
+\>\> $(C_1,G_1):=$ infer $\Gamma\ (\ell+1)\ e_1$; $S_1:=$ solve $G_1$;\\
+\>\> infer $(\Gamma,x:\gen_\ell(\compact(S_1,C_1)))\ \ell\ e_2$\\
+\> let rec $f:K=e_1$ in $e_2$ $\Rightarrow$\\
+\>\> $\alpha_f:=$ fresh; $C_s:=\mathcal A_-(K)$;\\
+\>\> $(C_1,G_1):=$ infer $(\Gamma,f:\alpha_f)\ (\ell+1)\ e_1$;\\
+\>\> $S_r:=$ solve $(\{C_s<:\alpha_f\}\cup G_1\cup\{C_1<:\alpha_f\})$;\\
+\>\> $\Sigma_f:=\gen_\ell(\compact(S_r,\alpha_f),\Gamma)$;\\
+\>\> infer $(\Gamma,f:\Sigma_f)\ \ell\ e_2$
+\end{tabbing}
+\endgroup
+\end{formalbox}
+
+重要なのは、RHS 内の \texttt{ref f} が上の二行目、すなわち環境 lookup で処理される点である。
+\texttt{ref f} は $e_1$ に対して推論関数を再帰呼出ししない。
+同じ monotype root $\alpha_f$ を返すだけであり、RHS の構文木は一度しか走査されない。
+
+\subsection{row-only fact machine}
+
+function と computation の有限分解後、row solver が扱う primitive fact は次の二形である。
+\[
+  \edge{x}{b}{y},
+  \qquad
+  \epedge{x}{b}{H}{y},
+  \qquad b=(L,R).
+\]
+第一は variable fact、第二は row endpoint fact である。
+label の積を
+\[
+ (L,R)\diamond(L',R')=(L\odot L',R+R')
+\]
+と書く。実装では directed-bound invariant に従い、必要な箇所で W-Mix と row flatten を行ってから canonicalize する。
+
+ordinary head を記録する fact
+\[
+  \headfact{x}{J}{\gamma}
+\]
+は weighted endpoint と区別する。これは $x<:[J;\gamma]$ の row structure そのものであり、
+同じ head をもう一度 subtraction する work item にはしない。
+
+\paragraph{Replay.}
+\[
+  \edge{x}{b}{y},\ \edge{y}{c}{z}
+  \Longrightarrow
+  \edge{x}{b\diamond c}{z},
+\]
+\[
+  \edge{x}{b}{y},\ \epedge{y}{c}{H}{z}
+  \Longrightarrow
+  \epedge{x}{b\diamond c}{H}{z}.
+\]
+
+\paragraph{Weighted split.}
+$\epedge{x}{(L,R)}{H}{y}$ に対して $\widehat L=\mathsf{flat}(L,R)$、
+$J=H\cap\Common(\widehat L)$ と置く。
+
+\begin{enumerate}
+  \item source と tail が同じ fact $\epedge{x}{b}{H}{x}$ は self-tail no-op として捨てる。
+  \item $J=\Empty$ なら $\edge{x}{(\widehat L,0_R)}{y}$ を追加する。
+  \item $J\neq\Empty$ なら
+  \[
+    \gamma=\rid(x,J,\widehat L\ominus J)
+  \]
+  を hash-cons し、ordinary head $\headfact{x}{J}{\gamma}$ と continuation
+  \[
+    \edge{\gamma}{(\widehat L\ominus J,0_R)}{y}
+  \]
+  を追加する。
+\end{enumerate}
+
+residual key に target $y$ を入れないのは、同じ source row から同じ最大 head を引いた residual は一つだからである。
+一方、continuation fact は target ごとに高々一つ保存する。
+seen key は fact の kind、source、target、head、正規化済み label の全成分を含む。
+
+\subsection{counter 射影、signed displacement、有限 lattice 射影}
+
+label $b=(L,R)$ を row endpoint で flatten し、id $u$ の entry を
+$(p_u,q_u,F_u)$ とする。$(p_u,q_u)_u$ を label の
+\emph{counter 射影} $\ctr(b)$ と呼び、
+\[
+  \disp_u(b)=q_u-p_u\in\mathbb Z
+\]
+を $u$ の signed displacement と呼ぶ。
+ambient budget と各 floor を集めたものを $\lat(b)$ とする。
+
+\begin{lemma}[射影の基本性質]\label{lem:projection-properties}
+次が成り立つ。
+\begin{enumerate}
+  \item $\ctr(b\diamond c)=\ctr(b)\diamond\ctr(c)$ であり、counter 部分は各 id の bicyclic monoid の有限直積である。
+  \item $\disp_u(b\diamond c)=\disp_u(b)+\disp_u(c)$ である。
+  \item $\lat(b)$ の値域は有限であり、積では各成分に交差を取る。
+  \item $\ctr(L\ominus J,0_R)=\ctr(L,0_R)$ である。
+  \item $J\neq\Empty$ の residual continuation では $\amb(L)$ が真に減る。
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+1 は entry monoid と row flatten の定義から従う。
+標準形 $\popop{u}^{p}\takeop{H}{u}^{q}$ の displacement は $q-p$ であり、
+境界で同数の push/pop を相殺しても差は変わらないため 2 が従う。
+3 は $\Caps$ と $\Id$ の有限性による。
+residual subtraction は count を変えず floor と ambient だけを狭めるので 4 が従い、5 は Corollary~\ref{cor:strict-residual-descent} である。
+\end{proof}
+
+任意 graph の自己辺 $x\xrightarrow{\popop{u}}x$ を許せば
+$\disp_u=-1$ の cycle を反復して pop count が無限に増える。
+一方、$\popop{u}\takeop{H}{u}$ のように displacement が 0 の cycle は単位元でなくても冪等である。
+従って実際に必要なのは「全 cycle label が単位元」という強い条件ではなく、
+source program が作る cycle の signed displacement が 0 であることだと分かる。
+以下でこの性質をコードの構造帰納法から証明する。
+
+\subsection{syntax provenance と back edge の分類}
+
+各 fresh row variable と static id に、それを生成した構文木の address $\addr(-)$ を付ける。
+一つの推論規則が子の graph を親の interface に接続するとき、その connector を
+\emph{origin arc} と呼ぶ。Replay と residual split より前の有限 graph を $G_0(e)$ とする。
+各 origin arc は、annotation/protect boundary を横切る marker 列を provenance として持つ。
+
+\begin{definition}[source-admissible environment]\label{def:source-admissible}
+環境 $\Gamma$ が source-admissible であるとは、各 entry が次のいずれかであることをいう。
+\begin{enumerate}
+  \item weight を含まない有限な primitive signature。
+  \item source-admissible な環境の下で、有限項の let または let rec RHS を本稿の規則で推論・飽和・compact して得た scheme の fresh instance。
+\end{enumerate}
+operation signature だけを持つ閉プログラムの初期環境は source-admissible であり、I-Let と I-LetRec の generalization/instantiation はこの性質を保存する。
+\end{definition}
+
+\begin{lemma}[初期 graph の有限性]\label{lem:initial-finite}
+有限項 $e$ に対し、推論規則が生成する variable、row variable、id、origin arc、primitive endpoint は有限個である。
+\end{lemma}
+
+\begin{proof}
+$e$ の構造に関する帰納法。
+base term $()$ と $\kw{ref}\ x$ は定数個の object しか作らない。
+lambda、perform は一つの真部分項、application は二つ、handler は三つの真部分項の有限集合に定数個の fresh object を加える。
+let と let rec も二つの真部分項をそれぞれ一度だけ推論する。
+特に recursive reference は環境の $\alpha_f$ を返すだけで、RHS graph の copy を作らない。
+従って全 case で有限和となる。
+\end{proof}
+
+\begin{definition}[forward arc と recursive back edge]
+origin arc のうち、子 graph の fresh port から親 rule の fresh result port へ進むものを forward arc と呼ぶ。
+I-LetRec の closing constraint $C_1<:\alpha_f$ から、RHS result port を binder root $\alpha_f$ へ戻す arc だけを
+recursive back edge と呼ぶ。
+\end{definition}
+
+\begin{lemma}[SCC の単一 root 性]\label{lem:single-root-scc}
+$G_0(e)$ の任意の非自明 SCC は、ある \texttt{let rec} binder の root $\alpha_f$ をちょうど一つ含む。
+その SCC の任意の directed cycle は、その binder の recursive back edge を少なくとも一度通る。
+異なる binder の SCC は互いに素か、構文上の入れ子順に並ぶ。
+\end{lemma}
+
+\begin{proof}
+コードの構造帰納法。
+$()$、ref、lambda、application、perform、handler では、子 graph の disjoint union に forward arc だけを加える。
+従って新しい cycle は作られない。let では $e_1$ を generalize し、$e_2$ の各 use は fresh instance になるため、
+$e_1$ の内部 port へ戻る arc はない。
+let rec だけが祖先 port $\alpha_f$ を target とする closing arc を一つ加える。
+RHS 内の全 recursive occurrence は同じ monotype $\alpha_f$ を共有し、別 root を作らない。
+従って新しい SCC はこの root を一つだけ含む。nested let rec は fresh root を持ち、構文木の入れ子に従う。
+\end{proof}
+
+\subsection{コードの構造帰納法による activation balance}
+
+id $u$ の push を $g_u$、pop を $p_u$ と書き、関係 $g_up_u=1$ だけで簡約する。
+異なる id は可換とする。origin path の marker provenance をこの counter word へ射影する。
+
+\begin{lemma}[lexical bracket invariant]\label{inv:lexical-bracket}
+annotation または protected row が fresh id $u$ を導入した構文領域について、
+その領域へ入る origin path は $g_u$ を一つ追加し、その activation から外へ戻る origin path は matching $p_u$ を一つ追加する。
+同じ activation の内部で作られる connector は $u$ を変更しない。
+異なる境界は構文木に従って proper nesting する。
+\end{lemma}
+
+\begin{proof}
+annotation skeleton の構造に関する帰納法と、項の生成規則の構造帰納法を同時に行う。
+slot case では反変 translation が fresh $u$ の push を一つだけ生成し、共変 translation は filter だけなので新しい pop を生成しない。
+function skeleton case は domain で極性を反転するが、id を複製せず、entry/exit の物理順序も変えない。
+項 case では lambda、application、handler が子領域を fresh interface の内側に入れ、return または operation exit に matching pop を置く。
+let の instance は id を freshen するため境界が交差しない。
+let rec の recursive reference は同じ root と同じ id を共有するが、新しい境界を挿入せず、各動的 activation の entry/exit は通常の function call と同じ pair である。
+従って境界は複製も交差もせず、proper nesting を保つ。
+\end{proof}
+
+\begin{lemma}[origin label adequacy]\label{lem:origin-label-adequacy}
+各 origin arc $a$ に付く directed weight label $b_a$ と、その syntax provenance marker trace $\pi_a$ について、
+任意の id $u$ に対し
+\[
+  \disp_u(b_a)=\#_{g_u}(\pi_a)-\#_{p_u}(\pi_a)
+\]
+が成り立つ。origin path を連結すると右辺は加算され、label の $\diamond$ 積による displacement の加算と一致する。
+\end{lemma}
+
+\begin{proof}
+constraint generation、wrapper absorption、row-only atomization の有限導出に関する帰納法。
+W-Pos は trace に push segment を一つ加え、左 entry の $q$ を同じだけ増やす。
+W-Neg は pop segment を一つ加え、flatten 後の $p$ を同じだけ増やす。
+有限な function/computation 分解で極性が交換されても、同じ marker event が pair label の反対側へ移るだけで、
+その signed count は保存される。
+bound propagation は二本の trace を連結し、Lemma~\ref{lem:projection-properties}(2) の加法性と一致する。
+filter は counter を変えず、row split の residual は同補題 (4) により counter を変えない。
+従って全 origin arc とその有限連結で等式が成り立つ。
+\end{proof}
+
+\begin{lemma}[code bracketing と self-tail 分類]\label{lem:code-bracketing}
+source-admissible な環境の下で有限項 $e$ を推論するとき、導出に現れる任意の origin closed contour は次のいずれかである。
+\begin{enumerate}
+  \item 任意の id $u$ について push event と pop event の個数が等しい balanced contour。
+  \item row atomization 後に $\epedge{\beta}{b}{K}{\beta}$ の形を持つ recursive self-tail contour。
+\end{enumerate}
+従って self-tail no-op を適用した後の executable variable replay graph の任意の directed cycle $\pi$ は
+\[
+  \disp_u(\pi)=0\qquad(u\in\Id)
+\]
+を満たす。
+\end{lemma}
+
+\begin{proof}
+$e$ の構造に関する帰納法を行う。
+
+\emph{Unit と参照。}
+unit は arc を持たない。通常の ref は source-admissible scheme を一度 instantiate するだけである。fresh renaming は既存 instance の cycle balance を保存し、instance の内部から現在の graph へ戻る back edge を作らない。
+再帰 RHS の $\kw{ref}\ f$ は同じ $\alpha_f$ を返す identity port であり、RHS を再推論しない。
+従ってこの case 自身は marker も新しい cycle も追加しない。
+
+\emph{Lambda。}
+body graph の外側に domain/result interface を定数個追加する。
+annotation id の marker は lexical bracket invariant により entry の $g_u$ と exit の $p_u$ として対になる。
+新しい back edge はないので、closed walk は body 内の closed walk、または matched pair $g_u\,w\,p_u$ の有限な nesting に分解される。
+帰納仮定により内部 trace の signed count は 0 であり、外側の $g_u$ と $p_u$ が一つずつ加わるので全 id の signed count も 0 になる。
+
+\emph{Application。}
+二つの子 graph は fresh interface を介して一方向に接続される。
+call-shape constraint は新しい recursive back edge を作らない。
+closed walk が function activation を横切るなら、entry と return を同じ回数だけ通り、各 id について $g_u$ が $p_u$ より前に現れる。
+子 graph の部分は帰納仮定で push/pop 数が一致し、残る activation contour も entry と return を一度ずつ横切るため signed count は 0 になる。
+
+\emph{Perform と handler。}
+perform は一方向の operation endpoint を加えるだけである。
+handler の scrutinee、operation branch、return branch は fresh result port へ接続される。
+shallow continuation $k$ の参照は保存された monotype $S$ の lookup であり、scrutinee を再推論しない。
+従って新しい back edge はなく、各 branch 内は帰納仮定、handler boundary は push/pop event を同数だけ加える。
+
+\emph{Let。}
+$e_1$ の graph は saturation 後に scheme 化される。$e_2$ の各参照は型変数、row 変数、id を freshen した instance であり、
+別 instance 間または $e_1$ の内部へ戻る arc はない。よって closed walk は一つの子 graph 内にあり、帰納仮定を使える。
+
+\emph{Let rec。}
+Lemma~\ref{lem:single-root-scc} により、新しい closed contour は root $\alpha_f$ と closing edge $C_1<:\alpha_f$ を通る。
+closing edge で切ると、$\alpha_f$ から RHS の有限な code path を通って $C_1$ へ至る complete recursive contour になる。
+同じ skeleton shape を両端で分解すると、row component が具体 head を介して同じ base tail $\beta$ へ戻る場合は
+$\epedge{\beta}{b}{K}{\beta}$ が現れ、weighted split の第一判定で no-op になる。
+これは recursive call の result row を同じ recursive root の result row へ戻す場合である。
+それ以外の contour は一つの activation の entry と exit をともに横切る。
+recursive occurrence は同じ $\alpha_f$ と同じ static id を共有するため、entry の $g_u$ と return の $p_u$ は同じ id である。
+RHS 内の nested construct は上の各 caseと帰納仮定により balanced、closing edge 自身は marker を持たないので、
+contour では $g_u$ と $p_u$ が同数現れ、nested construct の trace も帰納仮定で signed count 0 なので、全 id の displacement は 0 になる。
+
+以上で全構文 case を覆う。
+\end{proof}
+
+\begin{theorem}[source replay cycle balance]\label{thm:source-cycle-balance}
+source-admissible な環境の下で本稿の推論規則が有限項から生成し、
+self-tail no-op 後に実際に Replay へ入る初期 variable graph では、
+任意の directed closed walk $\pi$ と id $u$ について
+\[
+  \disp_u(\pi)=0
+\]
+が成り立つ。
+従って displacement が非零の unmatched-pop cycle は executable fact として生成されない。
+\end{theorem}
+
+\begin{proof}
+Lemma~\ref{lem:origin-label-adequacy} により graph contour の displacement は対応する origin marker trace の
+push 数と pop 数の差に一致する。
+Lemma~\ref{lem:code-bracketing} の第二の場合は self-tail 判定で Replay 前に捨てられ、第一の場合だけが executable cycle として残る。
+第一の場合は各 id の push 数と pop 数が等しい。有限性は Lemma~\ref{lem:initial-finite}。
+\end{proof}
+
+この定理で monomorphic recursion は本質的である。
+RHS 内で $f$ を scheme として毎回 instantiate すると、entry と exit の id が一致せず、上の push/pop 個数の対応は失われる。
+
+\subsection{residual 展開が cycle balance を保存すること}
+
+\begin{lemma}[residual gadget contraction]\label{lem:residual-contraction}
+endpoint $\epedge{x}{b}{H}{y}$ の nonempty split が
+$\headfact{x}{J}{\gamma}$ と
+$\edge{\gamma}{\mathsf{res}_J(b)}{y}$ を生成したとする。
+ここで $\mathsf{res}_J(b)=(\mathsf{flat}(b)\ominus J,0_R)$ である。
+この gadget の counter 射影は元 endpoint の counter 射影と等しく、従って全 id の displacement も等しい。
+また、gadget 追加後の任意の closed walk は、各 residual gadget をその生成元 endpoint provenance へ縮約することで、
+追加前の closed walk と同じ displacement を持つ。
+\end{lemma}
+
+\begin{proof}
+ordinary head fact は counter を持たず、Lemma~\ref{lem:projection-properties}(3) により continuation は元 label と同じ counter を持つ。
+residual node は defining head と continuation によってのみ導入されるので、closed walk がその node を通る部分を生成元 endpoint の provenance に置換できる。
+self-tail no-op は、同じ residual slot をただちに自分の tail へ戻す空の展開を worklist に入れないため、この縮約で新しい観測を失わない。
+\end{proof}
+
+\begin{corollary}[全段階の cycle balance]\label{cor:all-stage-balance}
+solver の任意の中間状態で、任意の closed walk $\pi$ と id $u$ について $\disp_u(\pi)=0$ が成り立つ。
+\end{corollary}
+
+\begin{proof}
+residual node と Replay fact の追加順に関する帰納法。
+base は Theorem~\ref{thm:source-cycle-balance}。
+residual の帰納段階は Lemma~\ref{lem:residual-contraction} で追加後の closed walk を追加前へ縮約する。
+Replay edge は既存 path の略記なので、その edge を元 pathへ展開すれば追加前の closed walk になり、displacement は変わらない。
+\end{proof}
+
+cycle label は単位元とは限らない。例えば $\popop{u}\takeop{H}{u}$ は displacement 0 の非自明な冪等元である。
+それでも以下の potential argument により counter は一様に有界となる。
+floor-only または ambient-only 成分は有限 lattice 上の meet なので、同じ walk を反復しても有限回で安定する。
+
+\subsection{path label と residual depth の有限性}
+
+\begin{lemma}[SCC potential と counter の一様有界性]\label{lem:scc-potential}
+有限 graph $G$ の全 closed walk が cycle balance を満たすとする。
+固定した SCC $S$ と id $u$ に対し、整数 potential
+\[
+  h_u:S\to\mathbb Z
+\]
+が存在し、各 edge $a:x\xrightarrow{b}y$ について
+\[
+  \disp_u(b)=h_u(y)-h_u(x)
+\]
+が成り立つ。
+さらに、$S$ 内の任意の path label を id $u$ で正規化した entry $(p,q)$ の $p,q$ は、path の長さに依存しない有限上界を持つ。
+\end{lemma}
+
+\begin{proof}
+root $r\in S$ を固定し、$r$ から $v$ への任意の path $\pi$ に対して
+$h_u(v)=\disp_u(\pi)$ と置く。
+二つの path $\pi_1,\pi_2:r\leadsto v$ を取る。
+$S$ は strongly connected なので $v\leadsto r$ の path $\tau$ がある。
+$\pi_1\tau$ と $\pi_2\tau$ は closed walk であり displacement 0 だから
+$\disp_u(\pi_1)=\disp_u(\pi_2)$ で、$h_u$ は well-defined である。
+edge の式は定義と displacement の加法性から従う。
+
+各 edge $a$ の id $u$ counter word を標準形
+$\popop{u}^{m_a}\takeop{H}{u}^{n_a}$ とする。
+path が頂点 $x$ で edge $a:x\to y$ に入る直前までに持つ累積 displacement は
+$h_u(x)-h_u(s)$ であり、path の履歴に依存しない。
+edge 内で最も深く pop 側へ下がる量は $m_a$ 以下だから、path 全体の prefix displacement の下限は
+\[
+  \min_{a:x\to y\in S}\bigl(h_u(x)-h_u(s)-m_a\bigr)
+\]
+以上である。
+bicyclic word の正規形に現れる leading-pop 数 $p$ は prefix displacement の最小値の絶対値で決まるため、
+有限 graph の右辺から一様に有界である。
+終点 $t$ での total displacement は $h_u(t)-h_u(s)$ なので
+$q=p+h_u(t)-h_u(s)$ も一様に有界である。
+\end{proof}
+
+\begin{lemma}[固定 graph 上の path label 有限性]\label{lem:path-label-finite}
+有限 graph で全 closed walk が cycle balance を満たすなら、固定した二頂点間に現れる正規化済み full label は有限個である。
+\end{lemma}
+
+\begin{proof}
+graph を SCC condensation DAG に縮約する。
+一つの path は同じ SCC に戻れないので、通過する SCC 列と SCC 間 edge の列は有限個の候補しかない。
+各 SCC 内の counter は Lemma~\ref{lem:scc-potential} により全 id で一様に有界である。
+$\Id$ は有限なので、counter 射影の候補は有限個である。
+ambient と各 floor は有限集合 $\Caps$ の有限直積に値を取り、積では交差しか行わないため lattice 射影の候補も有限個である。
+従って full label の候補は有限である。
+\end{proof}
+
+control path だけを進む区間を path phase、nonempty split によって新 residual node を一つ生成する遷移を residual phase と呼ぶ。
+生成履歴は
+\[
+  \lambda_0;\mathsf{res}_{J_1};\lambda_1;\cdots;
+  \mathsf{res}_{J_k};\lambda_k
+\]
+と分解できる。
+
+\begin{lemma}[residual phase 数の上界]\label{lem:residual-depth}
+任意の生成履歴で $k\leq\height(\Caps)$ である。
+\end{lemma}
+
+\begin{proof}
+各 residual phase は $J_i\neq\Empty$ のときだけ生じ、Corollary~\ref{cor:strict-residual-descent} により ambient budget を真に減らす。
+path phase の重み合成は ambient に交差を取るだけで増加させない。
+有限 lattice の strict descending chain の長さは高さ以下である。
+\end{proof}
+
+\begin{lemma}[深さごとの有限生成]\label{lem:finite-generation-depth}
+residual phase を高々 $k$ 個含む node、primitive fact、derived fact、endpoint、seen key は有限個である。
+\end{lemma}
+
+\begin{proof}
+$k$ に関する帰納法。
+
+$k=0$ では node と primitive fact は Lemma~\ref{lem:initial-finite} により有限である。
+Corollary~\ref{cor:all-stage-balance} と Lemma~\ref{lem:path-label-finite} により、Replay が作る label も有限個である。
+従って derived variable fact と endpoint も有限である。
+
+$k$ 以下で有限と仮定する。その有限 graph 上の endpoint と label は前補題により有限個である。
+$J$ は有限集合 $\Caps$ の元なので、residual memo key
+$(x,J,L\ominus J)$ の候補は有限個である。
+同じ key は一 node に hash-cons され、各 node の ordinary head は一つ、continuation は既存 target ごとに高々一つである。
+従って深さ $k+1$ で追加される node と primitive fact は有限である。
+Corollary~\ref{cor:all-stage-balance} は residual 追加後も成り立つため、再び path label は有限である。
+seen key はこれら有限成分の直積なので有限である。
+\end{proof}
+
+\begin{theorem}[exact row solver の停止性]\label{thm:row-solver-termination}
+source-admissible な有限環境の下で有限項から生成された row graph に対し、次を満たす worklist solver は有限回で停止する。
+\begin{enumerate}
+  \item label を処理前に一意な正規形へ canonicalize する。
+  \item seen key に fact の全成分と full label を含め、同じ key を一度だけ処理する。
+  \item self-tail endpoint を no-op とする。
+  \item residual node を $(x,J,L\ominus J)$ で hash-cons する。
+\end{enumerate}
+任意の SCC に対する cycle-neutrality 検査や counter widening は必要ない。
+\end{theorem}
+
+\begin{proof}
+Lemma~\ref{lem:residual-depth} により residual depth は $\height(\Caps)$ 以下である。
+Lemma~\ref{lem:finite-generation-depth} をその深さまで適用すると、queue に入りうる exact key の全体が有限である。
+各 key は seen set により高々一度だけ本体処理され、一回の処理が列挙する既存 fact と生成候補も有限である。
+従って処理回数は有限で、queue は空になる。
+\end{proof}
+
+\begin{corollary}[飽和点の一意性]\label{cor:unique-saturation}
+処理順序に依存せず、停止状態は初期 fact を含み Replay、filter check、weighted split に閉じた state のうち最小である。
+\end{corollary}
+
+\begin{proof}
+各規則は既存 fact から一意に定まる fact だけを追加する単調な closure operator である。
+有限状態空間上の fair worklist はその最小 fixed point に到達する。
+\end{proof}
+
+\subsection{項全体の推論停止性}
+
+\begin{theorem}[\texttt{let rec} を含む推論の停止性]\label{thm:inference-termination}
+有限な source-admissible 環境 $\Gamma$ と有限項 $e$ に対し、Section~7 の推論、各 let/let rec 境界での saturation、compact extraction、generalization は必ず有限時間で終了する。
+\end{theorem}
+
+\begin{proof}
+次の強めた命題を $e$ の構造に関して同時帰納する。
+\begin{enumerate}
+  \item $\mathsf{infer}(\Gamma,e)$ は終了する。
+  \item 生成された初期 row graph は self-tail no-op 後に cycle balance を満たす。
+  \item その graph を飽和・compact・generalize して得た scheme は source-admissible である。
+\end{enumerate}
+2 は Lemma~\ref{lem:code-bracketing} と Theorem~\ref{thm:source-cycle-balance}、
+3 は Definition~\ref{def:source-admissible} の生成節であるため、以下では主に 1 の終了性を追う。
+
+unit と ref は直ちに終了する。ref の fresh instantiation は有限 graph の injective renaming であり、2 と 3 を保存する。
+lambda と perform は一つの真部分項、application は二つ、handler は三つの真部分項にだけ推論を再帰呼出しするので、帰納仮定を使える。
+各親 rule が追加する object と origin arc は定数個であり、Theorem~\ref{thm:source-cycle-balance} が親 graph の 2 を与える。
+
+let ではまず真部分項 $e_1$ の推論が終了し、Theorem~\ref{thm:row-solver-termination} によりその有限 graph の saturation が終了する。
+compact は finite saturated graph の direct bounds を各 node 一度だけ読むので終了し、generalization は有限な free-variable 集合を走査するだけである。
+得られた $\Sigma_1$ は 3 により source-admissible なので、環境 $\Gamma,x:\Sigma_1$ の下で真部分項 $e_2$ に帰納仮定を使える。
+
+let rec では fresh root $\alpha_f$ を一つ作り、真部分項 $e_1$ を環境 $f:\alpha_f$ の下で一度だけ推論する。
+RHS 内の $\kw{ref}\ f$ は環境 lookup であり、$e_1$ の推論を呼び直さない。
+従って帰納仮定で RHS 推論は終了する。生成 graph は Theorem~\ref{thm:source-cycle-balance} の条件を自動的に満たすため、
+Theorem~\ref{thm:row-solver-termination} で recursive saturation も終了する。
+compact と generalization の後に得る $\Sigma_f$ は 3 により source-admissible なので、真部分項 $e_2$ に帰納仮定を適用する。
+
+全 case で推論の再帰呼出しは構文木の真部分項へだけ進み、各 solver call も終了するため、推論全体は終了する。
+\end{proof}
+
+\begin{notebox}[title={任意 graph の反例との違い}]
+$x\xrightarrow{\popop{u}}x$ のような手作り graph は $\popop{u},\popop{u}^2,\ldots$ を生成しうる。
+本稿が無条件停止を主張する対象はそのような任意 graph ではなく、上のコード生成規則から得られる graph である。
+Lemma~\ref{lem:code-bracketing} が、この反例の自己辺を source program が作れないことを完全に分離して示している。
+\end{notebox}
+
+\section{compact extraction と Pos/Neg 変換}
+
+\subsection{一段展開}
+
+positive occurrence の変数は lower bounds、negative occurrence は upper bounds から展開する。
+parent weight を $W$ とし、direct bound $(T,L,R)$ を開くとき、先に parent と bound の重みを合成し、polar projection をかける。
+概略は次である。
+
+\[
+\begin{array}{rcl}
+\coal^+_W(\alpha)
+ &=& \PWeight{W}{\alpha}
+ \sqcup
+ \displaystyle\bigsqcup_{(T,L,R)\in\lb(\alpha)}
+ \projp(L\odot W,R,\opq(T)),\\[1ex]
+\coal^-_P(\alpha)
+ &=& \NWeight{P}{\alpha}
+ \sqcap
+ \displaystyle\bigcap_{(T,L,R)\in\ub(\alpha)}
+ \projn(L,R+P,\opq(T)).
+\end{array}
+\]
+
+$\opq(T)$ は、今回の変数展開によってちょうど横に現れた変数を再展開しないことを表す。
+すなわち $\alpha$ の direct bounds は開くが、その結果中の $\beta$ の bounds は同じ pass では開かない。
+これは constraint propagation を表示処理でもう一度実行してしまうことを防ぐ。
+cycle は polar $\mu$ で閉じる。
+
+\begin{invariant}[one-layer expansion]
+compact pass が展開するのは、現在の root variable に直接保存された bounds だけである。
+展開結果に現れた variable occurrence は opaque leaf とする。
+\end{invariant}
+
+\subsection{filter 消去と pop cleanup}
+
+filter は constraint solving 時に family check を生成済みなので、Pos/Neg の最終表示前に消す。
+
+id $u$ について、positive type 内に active push $\takeop{H}{u}$ が共変位置で一つも無いなら、
+その id の $\popop{u}$ は外へはみ出す境界を閉じる相手を持たない。
+この場合、Pos/Neg 双方の pure pop marker を消してよい。
+
+\[
+  \live(P)=\{u\mid P\text{ の共変位置に }\takeop{H}{u}\text{ が現れる}\}.
+\]
+$u\notin\live(P)$ なら対応 pop を cleanup する。
+
+\subsection{最終 materialization}
+
+$L=(A,(p_u,q_u,F_u)_u)$ とする。compact 表示では ambient $A$ と floor-only entry を消去し、
+active entry の実効 family $H_u=\seedcap(u)\cap F_u$ だけを用いる。
+\[
+\PWeight{L}{T}
+\quad\mapsto\quad
+\prod_{u\in\Id}\popop{u}^{p_u}\takeop{H_u}{u}^{q_u}(T),
+\]
+\[
+\NWeight{R}{T}
+\quad\mapsto\quad
+\prod_{u\in\Id}\popop{u}^{R(u)}(T).
+\]
+$q_u=0$ かつ $p_u=0$ の floor-only entry は runtime marker を生成しない。
+異なる id の順序は観測されないため、固定した id 順で表示してよい。
+
+\section{colored operational interpretation}\label{sec:colored}
+
+本節では、方向付き stack 重みを実行時の color 境界として解釈する。
+目的は、重みを単なる記号操作として正当化することではなく、
+\begin{quote}
+ある id の push が許した family だけが、その id の動的寿命の内側にある handler から可視になる
+\end{quote}
+ことを示す点にある。
+以下では Definition~\ref{def:marker-materialization} による normalized marker を直接持つ
+call-by-value operational core を対象とする。Section~\ref{sec:termination} の code bracketing が、この elaboration の well-bracketed 性を与える。
+
+\subsection{color、flow、colored outcome}
+
+runtime color の集合を $\Color$ とする。static id の instantiate ごとに injective な写像
+\[
+  \chi:\Id\hookrightarrow\Color
+\]
+を fresh に作る。同じ scheme instance 内の同じ id は同じ color を参照し、別 instance の id は異なる color を得る。
+
+実装は color の stack を持ってよいが、可視性証明で必要なのは各 color の active 個数だけである。
+そこで flow の count abstraction を
+\[
+  \Phi:\Color\rightharpoonup_{\mathrm{fin}}\Nat,
+  \qquad
+  \supp(\Phi)=\{c\mid\Phi(c)>0\}
+\]
+とする。$\Phi+c$ は $c$ の個数を一つ増やし、$\Phi-c$ は一つ減らす。
+$\Phi-c$ を使う規則には $\Phi(c)>0$ を前提とする。
+
+operation は有限 color 集合 $\kappa$ を持つ。outcome を
+\[
+  O ::= \ret V \mid \oper(h,\kappa,V,K)
+\]
+とする。$V$ は payload または return value、$K$ は continuation value である。
+
+\begin{definition}[visibility]
+\[
+  \visible(\kappa,\Phi)
+  \quad\Longleftrightarrow\quad
+  \kappa\cap\supp(\Phi)=\varnothing.
+\]
+handler は、family が一致し、かつ operation が visible のときにだけ捕捉する。
+\end{definition}
+
+\subsection{guard と paint}
+
+$\guard(c,H,-)$ は、値、closure、payload、continuation へ構造的に分配される wrapper である。
+各 guard activation は、scope に入る直前に active だった color 集合
+\[
+  \Xi_c\subseteq\supp(\Phi)
+\]
+を entry-except snapshot として保存する。
+これは「この guard より外側で既に except されていた operation」を記録するための静的でない動的成分である。
+guard が operation へ色を足すかどうかは、現在の visibility ではなく、この snapshot だけを見る。
+その computation が境界を越えて operation を返すとき、outcome transformer
+$\Guard^{\Xi}_{c,H}$ を次で定める。
+\[
+\begin{aligned}
+ \Guard^{\Xi}_{c,H}(\ret V)
+   &=\ret\guard(c,H,V),\\
+ \Guard^{\Xi}_{c,H}(\oper(h,\kappa,V,K))
+   &=\oper(h,\kappa',\guard(c,H,V),
+      \lambda x.\Guard^{\Xi}_{c,H}(Kx)),
+\end{aligned}
+\]
+ただし
+\[
+ \kappa'=
+ \begin{cases}
+   \kappa\cup\{c\},
+     & h\notin H\ \land\ \kappa\cap\Xi=\varnothing,\\
+   \kappa,&\text{otherwise}.
+ \end{cases}
+\]
+
+$h\in H$ の operation は無着色のまま通る。
+$h\notin H$ で、かつこの guard の entry 時点で既に except されていなかった operation は $c$ を得る。
+現在の $\visible(\kappa,\Phi)$ を使わない点が重要である。
+内側の guard により一時的に invisible になっていても、外側 guard の entry-except snapshot にその内側 color は含まれないので、外側 guard は必要なら $c$ を足す。
+逆に、外側 color によって entry 時点から except されている operation には、内側 guard は重ねて色を足さない。
+paint は $H=\Empty$ かつ空 snapshot の guard とする。
+\[
+  \Paint_c=\Guard_{c,\Empty}^{\Empty}.
+\]
+
+matching pop は flow から $c$ を一つ外し、境界から出る outcome 全体を paint する。
+\[
+\begin{aligned}
+ \poppaint(c,\ret V)
+   &=\ret\paint(c,V),\\
+ \poppaint(c,\oper(h,\kappa,V,K))
+   &=\oper(h,\kappa\cup\{c\},\paint(c,V),\paint(c,K)).
+\end{aligned}
+\]
+この定義は、通常 return と operation による非局所脱出の両方で同じ color を payload と continuation に残す。
+
+\begin{formalbox}[title={static marker と colored marker の対応}]
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.25\linewidth}p{0.32\linewidth}p{0.32\linewidth}}
+\toprule
+静的構造 & elaboration marker & 動的役割\\
+\midrule
+fresh id $u$ & $c_u=\getid()$ & fresh color を一つ割り当てる\\
+$\takeop{H}{u}$ & $\guard(c_u,H,-)$ と matching push & $H$ 外で entry-except されていない operation を隠す\\
+$\popop{u}$ & matching pop と $\poppaint(c_u,-)$ & 寿命を閉じ、escaping value に color を残す\\
+$L\ominus J$ & residual への $(\seedcap(u)\cap F_u)\setminus J$ guard & 同じ寿命で $J$ を再び引けなくする\\
+$\amb(L)$ と floor-only entry & runtime marker なし & ordinary residual と将来の同 id push を静的に制限\\
+$\Filter{B}{T}$ & runtime marker なし & static visibility check 後に消去\\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{formalbox}
+
+\begin{definition}[normalized marker materialization]\label{def:marker-materialization}
+operational marker は raw な push/pop 列から直接挿入せず、必ず同一 id の正規化後に挿入する。
+固定した id 順に、
+\[
+  L(u)=(m,n,F),\qquad H_u=\seedcap(u)\cap F
+\]
+を $m$ 個の leading pop-paint marker と $n$ 個の $H_u$ guard/push marker に materialize する。
+各 guard/push marker は、push 直前の $\supp(\Phi)$ を entry-except snapshot $\Xi_u$ として保存する。
+ambient と floor-only entry は materialize しない。
+右重み $R(u)=r$ は $r$ 個の leading pop-paint marker に materialize する。
+従って $\takeop{H}{u}\popop{u}$ のように正規化で消えた pair は runtime marker を一つも生成しない。
+一方、$\popop{u}\takeop{H}{u}$ は pop-paint の後に guard/push を置くため残る。
+\end{definition}
+
+この定義により、colored semantics が正当化する対象は raw marker 列ではなく、
+方向付き monoid で正規化された未対応 boundary だけになる。
+leading pop は path fragment の外側にある matching push から出る edge を表し、
+well-bracketed な全 program では実行時 underflow を起こさない。
+
+ここで $L\ominus J$ の marker は active stack frame を破壊的に書き換える操作ではない。
+handler から residual value/continuation が出る edge に、同じ $c_u$ を使う
+$\guard(c_u,(\seedcap(u)\cap F_u)\setminus J,-)$ を挿入する。
+ambient の $\amb(L)\setminus J$ は row membership だけを制限し、runtime marker は持たない。
+従って color identity は保存され、許可 family と ordinary residual の双方が単調に狭くなる。
+
+\subsection{well-bracketed elaboration と path abstraction}
+
+elaborated term の値または continuation の provenance path を $\pi$ とする。
+path 上の id $u$ の marker を
+\[
+  g_u(H)\quad\text{(guard/push)},
+  \qquad
+  p_u\quad\text{(pop-paint)}
+\]
+で表す。異なる id の marker は count abstraction 上で可換とする。
+同一 id については
+\[
+  g_u(H)p_u\longrightarrow\epsilon
+\]
+だけを簡約する。逆順 $p_ug_u(H)$ は簡約しない。
+
+\begin{definition}[directed path abstraction]
+$u$ に関する path projection を上の rewrite で正規化し、
+\[
+  \nf_u(\pi)=p_u^m g_u(H)^n
+\]
+とする。counter abstraction を
+\[
+  \abs(\pi)(u)=(m,n)
+\]
+とし、active guard の current family $H$ は別成分として保持する。
+同じ正規形に残る guard は lexical bracket invariant と floor の meet により同じ現在 familyを持つ。
+\end{definition}
+
+\begin{invariant}[well-bracketed color invariant]\label{inv:color-bracket}
+任意の実行 prefix と id $u$ について、動的 flow に残る $c_u=\chi(u)$ の個数は、
+その prefix の未対応 guard/push 数から未対応 pop 数を引いた非負部分と一致する。
+leading pop は path fragment の外側にある matching push と対応し、実行全体では underflow を起こさない。
+また active な各 copy は floor の meet により同じ current family $H_u=\seedcap(u)\cap F_u$ を持つ。
+各 copy は push 直前の active color 集合を entry-except snapshot $\Xi_u$ として保存し、
+その copy の寿命中に内側で追加された color は $\Xi_u$ に含めない。
+\end{invariant}
+
+\begin{lemma}[directed path composition]\label{lem:path-compose}
+\[
+  \abs(\pi_1\pi_2)=\abs(\pi_1)\odot\abs(\pi_2).
+\]
+右辺は Section~3 の entry composition の counter 射影を id ごとに使う。
+\end{lemma}
+
+\begin{proof}
+各 id へ射影すると、path 連結は語の連結になる。
+簡約可能なのは $\pi_1$ 末尾の unmatched $g_u(H)$ と $\pi_2$ 先頭の unmatched $p_u$ の間だけであり、
+その個数は Section 3 の式と一致する。
+異なる id は count abstraction 上で可換なので pointwise に結論を得る。
+\end{proof}
+
+この補題が variable-bound propagation で重みを合成してよい operational な理由になる。
+
+\subsection{active family と color visibility}
+
+\begin{lemma}[一つの id の guard hygiene]\label{lem:one-color-hygiene}
+$c_u\in\supp(\Phi)$ とし、その active guard の entry-except snapshot を $\Xi_u$ とする。
+current family が $H_u$ の active guard を越えた operation が family $h\notin H_u$ を持ち、
+かつ $\kappa\cap\Xi_u=\varnothing$ なら、その operation は $c_u$ を持ち、
+同じ flow の handler から visible でない。
+$\kappa\cap\Xi_u\neq\varnothing$ なら、その operation はこの guard の entry 時点で既に外側 color により except されている。
+$h\in H_u$ の場合、この guard は color 集合を変更しない。
+\end{lemma}
+
+\begin{proof}
+$h\notin H_u$ かつ $\kappa\cap\Xi_u=\varnothing$ なら、$\Guard_{c_u,H_u}^{\Xi_u}$ は $c_u$ を追加する。
+$c_u\in\supp(\Phi)$ なので visibility の交差は非空になる。
+$\kappa\cap\Xi_u\neq\varnothing$ なら、well-bracketed invariant により $\Xi_u$ の color はこの guard の寿命中 active であり、
+handler はもともと捕捉できない。
+$h\in H_u$ の場合、transformer は color 集合を変更しない。
+\end{proof}
+
+\begin{theorem}[Common capturability]\label{thm:common-visibility}
+left weight $L$ を実現する well-bracketed boundary の内側で、operation family $h$ が
+\begin{enumerate}
+  \item ordinary residual row にまだ属し、すなわち $h\in\amb(L)$ であり、
+  \item active boundary の entry-except snapshot によって既に隠されておらず、
+  \item 全 active id を越えた後にも visible である
+\end{enumerate}
+ことと
+\[
+  h\in\Common(L)
+\]
+は同値である。
+\end{theorem}
+
+\begin{proof}
+条件 1 は ambient membership $h\in\amb(L)$ そのものである。
+active guard を外側から内側へ順に見る。
+最初に $h\notin H_L(u)$ となる guard があれば、その時点で内側 color は snapshot に含まれず、
+条件 2 により外側 colorとも交わっていないので、Lemma~\ref{lem:one-color-hygiene}から $c_u$ が追加され operation は invisible になる。
+逆に全 active $u$ について $h\in H_L(u)$ なら、どの guard も新しい active color を追加しない。
+従って条件 2 と 3 は
+$h\in\bigcap_{u\in\mathsf{Act}(L)}H_L(u)$ と同値である。
+条件 1 と合わせると定義通り $h\in\Common(L)$ を得る。
+active id が無い場合は guard 条件が空になり、capturability は $h\in\amb(L)$ だけで決まる。
+\end{proof}
+
+\begin{corollary}[filter 消去の colored 健全性]\label{cor:filter-erasure}
+W-Filter が生成する family inequality が成り立つなら、$\Filter{B}{U}$ の runtime marker を消去しても、
+その境界で residual row に属し、handler に捕捉可能な operation family は全て $B$ に含まれる。
+\end{corollary}
+
+\begin{proof}
+左側が具体 family $F$ なら W-Filter は $F\sqsubseteq B$ を要求する。
+変数その他なら $\Common(L)\sqsubseteq B$ を要求し、Theorem~\ref{thm:common-visibility} により capturable residual family は
+$\Common(L)$ に含まれる。いずれも inner comparison はそのまま残るため、filter 自体に runtime 動作は要らない。
+\end{proof}
+
+\subsection{row split の colored 健全性}
+
+\begin{lemma}[最大捕捉 head]\label{lem:max-colored-head}
+left weight $L$ の境界内にある complete handler が target head $K$ を処理するとき、
+その handler が実際に捕捉できる family の最大集合は
+\[
+  J=K\cap\Common(L)
+\]
+である。
+\end{lemma}
+
+\begin{proof}
+handler の family 条件から捕捉対象は $K$ に含まれる。
+さらに operation は residual row に属し、handler 到達時に visible でなければならない。
+Theorem~\ref{thm:common-visibility} からその family は $\Common(L)$ に含まれる。
+従って捕捉可能集合は $K\cap\Common(L)$ 以下である。
+逆に $h\in K\cap\Common(L)$ で、active boundary の entry-except snapshot と交わらない operation は、
+全 active guard を無着色で通り、family も handler と一致するため捕捉できる。
+\end{proof}
+
+\begin{lemma}[residual narrowing]\label{lem:residual-narrowing}
+$J\subseteq\Common(L)$ を一度処理し、residual edge を $L\ominus J$ で elaborate したとする。
+residual computation では $h\in J$ は ordinary residual row に属さず、同じ handler に再び捕捉されない。
+一方、$h\in\Common(L)\setminus J$ は、この narrowing だけでは row membership も visibility も失わない。
+\end{lemma}
+
+\begin{proof}
+Lemma~\ref{lem:budget-conservation} により
+$\Common(L\ominus J)=\Common(L)\setminus J$ である。
+従って $h\in J$ はまず ambient residual から除かれ、active id が無い場合でも residual row に現れない。
+active id がある場合は各 effective family $H_L(u)$ も $H_L(u)\setminus J$ へ狭まり、
+operation が古い value/continuation を通って逃げる場合にも対応 color が付く。
+逆に $h\in\Common(L)\setminus J$ なら ambient に残り、全 active $u$ について
+$h\in H_L(u)\setminus J$ なので narrowing guard は color を追加しない。
+\end{proof}
+
+\begin{theorem}[weighted row split の colored 健全性]\label{thm:colored-row-split}
+Section~\ref{sec:row-split} の weighted row split が生成した二制約を colored interpretation が満たすなら、
+元の comparison $\lsub{\alpha}{L}{\row{K}{\beta}}$ で、許可されない family を handler が捕捉することはない。
+また residual computation の可視 effect は生成された tail constraint に従う。
+\end{theorem}
+
+\begin{proof}
+$J=\Empty$ なら補題~\ref{lem:max-colored-head}により target handler が捕捉できる family は無く、tail comparison へ進むだけでよい。
+$J\neq\Empty$ なら $\alpha<:\row{J}{\gamma}$ が最大捕捉 head を ordinary row として記録する。
+補題~\ref{lem:max-colored-head}によりそれ以外は捕捉されない。
+捕捉後の continuation と residual value は $L\ominus J$ で elaborate され、
+補題~\ref{lem:residual-narrowing}により $J$ の再消費を防ぎながら $\beta$ へ流れる。
+従って二制約は元 comparison の全 colored observation を覆う。
+\end{proof}
+
+\begin{lemma}[self-tail no-op の有限観測保存]\label{lem:self-tail-colored}
+row を greatest regular tree として解釈し、colored computation relation を step-indexed に観測する。
+$\lsub{\beta}{L}{\row{K}{\beta}}$ の split が同じ base variable $\beta$ へ戻るだけなら、
+その edge を worklist へ再投入しなくても任意の有限 step index で得られる colored observation は変わらない。
+\end{lemma}
+
+\begin{proof}
+index $k$ に関する帰納法。
+$k=0$ は自明。$k+1$ で head を一段観測した後に現れる tail は再び同じ $\beta$ であり、
+continuation の観測 index は $k$ 以下になる。
+帰納仮定により再投入の有無で tail の有限観測は変わらない。
+従って self-tail edge は新しい有限 head 情報を与えず、no-op は colored relation を保存する。
+\end{proof}
+
+\section{colored logical relation と健全性}\label{sec:colored-soundness}
+
+\subsection{step-indexed semantic typing}
+
+$\theta\in\sol(G)$ と injective color environment $\chi$ を固定する。
+通常の値型 logical relation を
+\[
+  \chi;\Phi\models_k V:A
+\]
+と書き、computation relation を
+\[
+  \chi;\Phi\models_k M:A\comp R
+\]
+と書く。必要な clause だけを示す。
+
+\begin{itemize}
+  \item $k=0$ では全ての well-formed value/computation を受理する。
+  \item $V:\Unit$ は unit value である。
+  \item $V:C_1\to C_2$ は、任意の $j<k$ と $W$ について
+        $\chi;\Phi\models_j W:C_1$ なら
+        $\chi;\Phi\models_j V\,W:C_2$ を満たす。
+  \item $M:A\comp R$ は、$k$ step 以内の評価で return するなら返り値が $A$ に属し、
+        visible operation を返すならその family が $\theta(R)$ の visible head/tail に属し、
+        payload と continuation が対応 signature と $j<k$ の relation を満たす。
+        invisible operation は現在の handler に捕捉されず外へ再送されるが、payload と continuation の relation は同様に保つ。
+  \item $\PWeight{L}{T}$ は $L$ の guard/push path を $\chi$ で elaborate した computation/valueが $T$ の relation を満たすことを表す。
+        $\NWeight{R}{T}$ は $R$ の matching pop-paint path の後で $T$ を満たすことを表す。
+  \item $\Filter{B}{T}$ は $T$ の relation に加え、その境界を visible に越える family が $B$ に含まれることを要求する。
+\end{itemize}
+
+recursive type と recursive closure は index を一つ減らして unfold する。
+このため単相再帰は通常の step-indexed fixed-point argument で扱える。
+
+\begin{lemma}[colored constraint preservation]\label{lem:colored-constraint-preservation}
+constraint machine の各 rewrite、bound insertion、bound propagation、mixed normalization、filter 消去、row split は、
+上の colored logical relation における semantic implication を保存する。
+すなわち生成後の制約を満たす環境は生成前の制約も満たす。
+\end{lemma}
+
+\begin{proof}
+規則ごとに示す。
+W-Pos/W-Neg は wrapper interpretation の定義。
+W-Fun と W-Comp は function/computation clause から従う。
+pop-paint が closure、payload、continuation へ構造的に分配されるため、function domain では relation の反変性により左右が交換される。
+
+bound propagation は二つの provenance path の連結であり、補題~\ref{lem:path-compose}が重み合成を正当化する。
+directed-bound invariant により中央で unmatched right-pop と新しい push を不正に交換しない。
+mixed normalization は同一 id の path 正規化後、active guard を持つ obligation と pure-pop obligation を別 comparison として同時に要求するだけなので、両方を満たせば元 path を満たす。
+
+W-Filter は系~\ref{cor:filter-erasure}。
+weighted row split は定理~\ref{thm:colored-row-split}。
+self-tail no-op は補題~\ref{lem:self-tail-colored}。
+従って全規則が semantic implication を保存する。
+\end{proof}
+
+\begin{lemma}[colored substitution]
+$\chi;\Phi\models_k\rho:\theta(\Gamma)$ とし、
+$\theta(\Gamma),x:A\vdash M:C$ の semantic derivation があるとする。
+$\chi;\Phi\models_k V:A$ なら
+$\chi;\Phi\models_k M[V/x]:C$ が成り立つ。
+型変数、row 変数の substitution と、scheme instantiate による injective id/color renaming についても同様である。
+\end{lemma}
+
+\begin{proof}
+term と logical relation index に関する標準的な同時帰納法。
+color renaming の場合、visibility は color の等号だけを見るため injective renaming で不変である。
+\end{proof}
+
+\begin{theorem}[colored fundamental theorem]\label{thm:colored-fundamental}
+\[
+  \Gamma;\ell\vdash e\Rightarrow C\dashv G,
+  \qquad \theta\in\sol(G)
+\]
+とする。$e$ の marker elaborationを Definition~\ref{def:marker-materialization} により
+$\Elab_{\chi}(e)=M$ と定める。
+Lemma~\ref{lem:code-bracketing} と normalized materialization により Invariant~\ref{inv:color-bracket} は自動的に成り立つ。
+任意の index $k$、flow $\Phi$、semantic environment $\rho$ について
+\[
+  \chi;\Phi\models_k\rho:\theta(\Gamma)
+  \quad\Longrightarrow\quad
+  \chi;\Phi\models_k M[\rho]:\theta(C)
+\]
+が成り立つ。
+この定理は I-LetRec を含む。
+\end{theorem}
+
+\begin{proof}
+型付け導出と index に関する帰納法。
+I-Unit と I-Ref は直接であり、I-Ref の instantiate では colored substitution lemma と fresh color renaming を使う。
+
+I-Lam では annotation translation に従い、domain の各 concrete slot に fresh color と guard/push marker を置く。
+body は帰納仮定で relation を満たす。
+result filter は系~\ref{cor:filter-erasure}により runtime marker を消してよく、function clause を得る。
+I-App は fresh function shape constraint、補題~\ref{lem:colored-constraint-preservation}、function clause を使う。
+I-Perform は signature clause から直接。
+
+I-Handle では scrutinee の帰納仮定を使う。
+visible operation を handler が捕捉する場合、補題~\ref{lem:max-colored-head}により family は
+$J=K\cap\Common(L)$ に限られる。
+operation branch と return branch はそれぞれ帰納仮定を満たし、residual continuation は
+$L\ominus J$ の marker を通るため補題~\ref{lem:residual-narrowing}を満たす。
+従って handler result は $\seq(T,E_h,E_r)$ の relation に属する。
+
+I-Let では $e_1$ の帰納仮定と generalization を使う。
+各 use は型/row 変数と id/color の fresh instance であり、colored substitution lemma により独立に relation を満たす。
+
+I-LetRec を示す。index $k$ に関する内側の帰納法を使う。
+$k=0$ は定義から自明。
+$k+1$ では recursive closure $v_f$ を root $\alpha_f$ に結び、
+recursive call の検査は function clause により必ず index $j<k+1$ で行われるため、内側の帰納仮定を使える。
+先行 constraint $C_s<:\alpha_f$ は recursive closure が skeleton の colored boundary を通ることを保証する。
+RHS の帰納仮定で $e_1:C_1$ を得て、$C_1<:\alpha_f$ と
+colored constraint preservation により knot を閉じる。
+RHS 完了後の generalization と body $e_2$ は I-Let と同じである。
+従って単相再帰を含む全導出で結論が成り立つ。
+\end{proof}
+
+\begin{theorem}[colored handler soundness]\label{thm:colored-handler-soundness}
+定理~\ref{thm:colored-fundamental}の前提の下で、elaborated program の評価中、
+static left weight $L$ が表す boundary の内側にある handler が operation family $h$ を捕捉したなら
+\[
+  h\in\Common(L)
+\]
+である。さらにその位置に共変 annotation $B$ があるなら $h\in B$ である。
+従って annotation または stack capability が許していない family を、その寿命内の handler が捕捉することはない。
+この性質は \texttt{let rec} の recursive activation と scheme の複数 instantiate の双方で保存される。
+\end{theorem}
+
+\begin{proof}
+捕捉には residual row membership と visibility の両方が必要である。
+Theorem~\ref{thm:common-visibility} から $h\in\Common(L)$。
+annotation があれば W-Filter の solution と系~\ref{cor:filter-erasure}から $\Common(L)\sqsubseteq B$ または具体 family $F\sqsubseteq B$ であり、$h\in B$ を得る。
+recursive activation でも同じ id は同じ activation 内で同じ color を使い、matching pop-paint まで active count が保存される。
+scheme instantiate は injective fresh color を使うので、別 instance の color は visibility に干渉しない。
+\end{proof}
+
+\begin{corollary}[制約生成の宣言的健全性]\label{cor:declarative-soundness}
+$\Gamma;\ell\vdash e\Rightarrow C\dashv G$、$\theta\in\sol(G)$ なら、marker を忘却した宣言的体系で
+\[
+  \theta(\Gamma)\vdash e:\theta(C)
+\]
+が成り立つ。
+\end{corollary}
+
+\begin{proof}
+定理~\ref{thm:colored-fundamental}から elaborated term は colored logical relation を満たす。
+color marker を忘却すると、filter check、row head、ordinary value type の全 obligation は solution $\theta$ により残る。
+logical relation の adequacy から宣言的 typing を得る。
+\end{proof}
+
+\begin{corollary}[cleanup の十分条件]
+compact positive type に id $u$ の active push が一つも無いなら、その scheme instance の evaluation で
+$c_u$ が handler visibility の判定に active に現れることはない。
+従って同じ $u$ の pure pop/paint marker を消しても colored handler soundness は変わらない。
+\end{corollary}
+
+\begin{proof}
+fresh color $c_u$ を flow に入れる marker は active push の elaboration だけである。
+それが scheme の全 positive occurrence に無ければ、同じ instance 内で $c_u\in\supp(\Phi)$ となる観測点は存在しない。
+paint が値へ $c_u$ を残しても visibility と交差する active $c_u$ がないため観測不能である。
+\end{proof}
+
+
+\section{主型性}
+
+\subsection{principal constraint graph}
+
+scheme の一般性を次で比較する。
+$\Sigma_1\preceq\Sigma_2$ は、$\Sigma_2$ が $\Sigma_1$ の型/row substitution、id の injective renaming、
+および許された subtype widening により得られることを表す。
+
+\begin{definition}[principal weighted scheme]
+$e$ の scheme $\Sigma$ が principal であるとは、$e$ を型付けする任意の weighted scheme $\Sigma'$ に対し
+$\Sigma\preceq\Sigma'$ が成り立つことである。
+\end{definition}
+
+\begin{lemma}[fresh constraint の factorization]
+constraint generation が fresh に導入した型変数、row 変数、id に対し、
+任意の別 typing は、それらへの substitution と injective id renaming によって生成 graph の solution を与える。
+\end{lemma}
+
+\begin{proof}
+各 syntax rule は項の外側構文が要求する最小限の shape constraint だけを生成する。
+fresh variable は別 typing の対応する component へ写す。
+annotation leaf の id は fresh であり、同じ leaf 内だけで共有されるため injective renaming できる。
+row split は局所主性により任意の別 split が maximal residual の instance になる。
+variable-bound propagation は新しい選択を導入せず、既存 lower/upper の推移的帰結だけを追加する。
+\end{proof}
+
+\begin{lemma}[compact extraction の表現性]
+飽和 graph $G$ と root $C$ に対し、one-layer compact extraction から得る Pos/Neg pair は、
+$G$ の全 direct lower/upper bounds を表す。
+また、その任意の solution は compact pair の instance を与え、compact pair の instance は $G$ の solution を失わない。
+\end{lemma}
+
+\begin{proof}
+通常の Simple-sub coalescing proof と同じく、positive variable は lower bounds の join、negative variable は upper bounds の meet で表す。
+本体系で追加された情報は bound edge の $(L,R)$ だけである。
+parent weight と direct edge weight を合成した後、$\projp/\projn$ が各極性で観測可能な成分をちょうど残すことは mixed normalization の極性保存補題から従う。
+one-layer 制限は direct edge 以上の推移 closure を表示側で重複生成しないためのもので、飽和 graph 自体には必要な propagated edge が既にある。
+従って情報を落とさない。
+\end{proof}
+
+\subsection{let までの principal theorem}
+
+\begin{theorem}[非再帰項の主性]\label{thm:nonrec-principal}
+unit、ref、lambda、application、perform、complete handle、let からなる項について、
+生成した飽和 constraint graph の compact scheme は principal weighted scheme である。
+\end{theorem}
+
+\begin{proof}
+項の構造に関する帰納法。
+各構文規則が生成する fresh shape は fresh constraint factorization lemma により任意の別 typing へ写る。
+filter は family check だけを追加し principal tail を残す。
+handler の row split は maximal $J$ と fresh residual により局所 principal。
+let caseでは、帰納仮定により $e_1$ の compact scheme $\Sigma_1$ が principal である。
+環境に自由でない変数と id を全て量化する generalization lemma により、任意の別 typing における $e_1$ の型は $\Sigma_1$ の instance になる。
+$e_2$ の各 use は独立な fresh instance を得るため、$e_2$ の帰納仮定を適用できる。
+従って全体も principal。
+\end{proof}
+
+\subsection{\texttt{let rec} の主型性}
+
+\begin{lemma}[monomorphic recursive graph の普遍性]
+$C_s=\mathcal A_-(K)$、fresh $\alpha_f$ とし、RHS graph を
+\[
+  G_r=\{C_s<:\alpha_f\}\cup G_1\cup\{C_1<:\alpha_f\}
+\]
+で作る。
+任意の monomorphic recursive typing
+\[
+  \Gamma,f:D\vdash e_1:D_1,
+  \qquad C_s' <: D,
+  \qquad D_1<:D
+\]
+で skeleton $K$ を満たすものに対し、$G_r$ からその typing への solution morphism が存在する。
+\end{lemma}
+
+\begin{proof}
+annotation translation の最一般性により、別 typing の skeleton realization $C_s'$ は $C_s$ の instance である。
+fresh root $\alpha_f$ を $D$ へ写す。
+RHS 内の $f$ は monomorphic なので、生成側でも別 typing 側でも全 recursive occurrence が同じ root を参照する。
+$e_1$ に対する帰納仮定を環境 $\Gamma,f:\alpha_f$ と $\Gamma,f:D$ の間で適用し、$G_1$ から $D_1$ への factorization を得る。
+最後の constraint $C_1<:\alpha_f$ は仮定 $D_1<:D$ で満たされる。
+従って全 graph の solution morphism が存在する。
+cycle があっても、これは finite graph node の写像であり、unfolding 回数には依存しない。
+\end{proof}
+
+\begin{theorem}[\texttt{let rec} までの主 weighted scheme]\label{thm:letrec-principal}
+本稿の全項構文について、再帰を単相とし、effect-only skeleton $K$ を満たす typing の中で、
+I-LetRec が生成する compact scheme $\Sigma_f$ と全体 result scheme は principal である。
+より正確には、任意の別の well-typed monomorphic recursive scheme は、生成 scheme の instance と subtype widening で得られる。
+\end{theorem}
+
+\begin{proof}
+I-LetRec 以外は前定理。
+I-LetRec では、前補題により RHS の任意の別 recursive typing が生成 graph $G_r$ の solution へ factorize する。
+従って $\alpha_f$ の saturated compact type は、skeleton と RHS constraints を同時に満たす最一般の regular type graph である。
+RHS 完了後、外側環境に自由でない変数・row 変数・id を全て量化する。
+標準 generalization lemma により、この scheme の任意の別利用型は instantiate で得られる。
+body $e_2$ には非再帰項の主性の帰納仮定を適用する。
+したがって let rec 全体の任意の typing は生成 result scheme の instance/subtype であり、principal である。
+\end{proof}
+
+\begin{notebox}
+この定理は polymorphic recursion を含まない。
+RHS 内で $f$ の scheme を毎回 instantiate すると principal inference は一般に失われ、
+Lemma~\ref{lem:code-bracketing} の id cancellation も壊れる。
+本稿の単相再帰では Theorem~\ref{thm:inference-termination} により saturation が必ず終了し、
+Corollary~\ref{cor:unique-saturation} により得られる compact scheme は algorithmic にも principal である。
+\end{notebox}
+
+\section{小さい検算}
+
+\subsection{protected row}
+
+\[
+  \PWeight{\takeop{\Empty}{u}}{\alpha}<:\row{H}{\beta}.
+\]
+$\Common=\Empty$ なので $J=H\cap\Empty=\Empty$。
+従って head は引かれず、
+\[
+  \PWeight{\takeop{\Empty}{u}}{\alpha}<:\beta
+\]
+だけが残る。
+
+\subsection{許可された subtraction}
+
+\[
+  \PWeight{\takeop{G}{u}}{\alpha}<:\row{H}{\beta}.
+\]
+$J=G\cap H$ とし、$J\neq\Empty$ なら
+\[
+  \alpha<:\row{J}{\gamma},
+  \qquad
+  \PWeight{L\ominus J}{\gamma}<:\beta,
+\]
+ここで $L$ は seed $G$ の一 push と ambient $\All$ を持つ。
+実効 family は $G\setminus J$、ambient は $\All\setminus J$ になる。
+引けるのは $H$ 全体ではなく $G\cap H$ だけである。
+
+\subsection{異なる id}
+
+\[
+  L=\bigl(\All,\{u\mapsto(0,1,\All),\ v\mapsto(0,1,\All)\}\bigr),
+  \quad \seedcap(u)=G,\ \seedcap(v)=H.
+\]
+このとき
+\[
+  \Common(L)=G\cap H.
+\]
+$K$ を処理すると $J=K\cap G\cap H$ だけが引かれ、
+$L\ominus J$ は両 id の family から同じ $J$ を除く。
+これは push から個別に引くのではなく、元 row から一度だけ引くという意味に対応する。
+
+\subsection{pop の分配}
+
+\[
+  A\to B <: \popop{u}(C),
+  \qquad C<:D\to E.
+\]
+右 pop を function の外側形へ分配すると
+\[
+  A\to B <: \popop{u}(D)\to\popop{u}(E),
+\]
+従って
+\[
+  \popop{u}(D)<:A,
+  \qquad B<:\popop{u}(E).
+\]
+pop が勝手に辺を移るのではなく、function domain の反変分解で左右が交換された結果である。
+
+\subsection{再帰的 self-tail}
+
+\[
+  \popop{u}^{m}\takeop{H_1}{u}^{n}(\beta)<:\row{H_2}{\beta}
+\]
+は no-op とする。
+新しい residual を立てても同じ $\beta$ へ戻るだけで、有限な head 観測を増やさない。
+この規則と residual hash-cons が recursive worklist の self-fueling を止める。
+
+\section{統合定理と実装条件}
+
+\begin{theorem}[停止・健全性・主型性の統合定理]\label{thm:main}
+$\Fam$ と入力項 $e$ は有限、入力環境は有限かつ source-admissible とし、再帰は I-LetRec の単相再帰に限る。
+Section~\ref{sec:termination} の canonicalization、exact seen key、self-tail no-op、residual hash-cons を実装する。
+このとき推論器は有限時間で終了し、次のいずれかを返す。
+\begin{enumerate}
+  \item 制約が充足不能であることを検出して failure を返す。
+  \item weighted scheme $\Sigma$ を返す。この $\Sigma$ は宣言的体系に対して健全で、
+        normalized colored semantics に対して handler sound であり、
+        effect-only skeleton と単相再帰を満たす全 typing の中で principal である。
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+推論器の停止は Theorem~\ref{thm:inference-termination}。
+worklist の結果が最小飽和点であることは Corollary~\ref{cor:unique-saturation}。
+各 rewrite の意味保存は Lemma~\ref{lem:colored-constraint-preservation}、
+項全体の colored soundness は Theorem~\ref{thm:colored-fundamental}、
+宣言的健全性は Corollary~\ref{cor:declarative-soundness} から従う。
+主型性は Theorem~\ref{thm:nonrec-principal} と Theorem~\ref{thm:letrec-principal} を項の構造帰納法で組み合わせる。
+\end{proof}
+
+\subsection*{実装が守る不変条件}
+
+\begin{enumerate}
+  \item static id は annotation/protect site ごとに fresh にし、seed を一度だけ設定する。
+  \item entry、left/right weight、mixed label は cache 前に一意な正規形へ canonicalize する。
+  \item bound を state へ挿入してから既存の反対側 bound と replay し、seen key には full label を含める。
+  \item nonempty split の residual key は $(\alpha,J,L\ominus J)$ とし、target tail を key に含めない。
+  \item $\lsub{\beta}{L}{\row{K}{\beta}}$ は self-tail no-op とし、ordinary head fact を weighted endpoint として再処理しない。
+  \item 再帰 RHS 内の $f$ は monotype root $\alpha_f$ を共有し、参照時に instantiate しない。
+\end{enumerate}
+
+これらは単なる最適化条件ではない。
+1 と 6 が code bracketing と cycle balance を、4 と 5 が residual の有限生成を、2 と 3 が exact closure の有限処理を保証する。
+
+\begin{statusbox}[title={本稿の到達点}]
+二つに分かれていた議論を一つの体系へ統合した。
+方向付き stack 重み、effect-only annotation、weighted row split、colored semantics、主型性に加え、
+実際の \texttt{let rec} の生成規則を用いた worklist 停止性を証明した。
+任意 graph に cycle-neutrality を仮定したり、nonzero-displacement SCC を実行時に拒否したりする必要はない。
+recursive reference が RHS を再推論せず同じ monomorphic root を共有すること、
+コードの lexical boundary が各 closed contour で push/pop の signed displacement を 0 にし、recursive self-tail を replay 前に切ること、
+residual が finite ambient budget を真に減らすことの三点で停止性が完結する。
+\end{statusbox}
+
+\paragraph{範囲外。}
+polymorphic recursion、family の型引数、ADT などの追加型コンストラクタは本稿の言語に含めない。
+これらは本定理の未証明仮定ではなく、明示的に別の言語拡張として切り分けたものである。
+
+\begin{thebibliography}{9}
+\bibitem{parreaux2020}
+Lionel Parreaux.
+\newblock The Simple Essence of Algebraic Subtyping: Principal Type Inference with Subtyping Made Easy.
+\newblock PACMPL 4(ICFP), 2020.
+
+\bibitem{damasmilner1982}
+Luis Damas and Robin Milner.
+\newblock Principal type-schemes for functional programs.
+\newblock POPL, 1982.
+\end{thebibliography}
+
+\end{document}
