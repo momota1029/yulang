@@ -1,670 +1,595 @@
-# effect subtraction（stack/filter 重み）
+# effect subtraction（directed stack weight）
 
-effect subtraction の寿命境界と、共変位置の効果注釈による上限検査を、
-型の外に浮く制約ではなく `stack(T, @S)` 型と不等式の重みで表す仕様。
-型推論コアの一部。不変区間まわりの規則は `2026-06-02-role-system.md`、compact 表現は
-`2026-06-06-invariant-type-sandwich.md` を参照。
+日付: 2026-05-31 初版、2026-06-22 全面改訂
+状態: infer / poly の effect subtraction 中核仕様
+対象: stack 重み付き subtype 制約、effect row subtraction、annotation lowering、cleanup
 
-このファイルは前半が規則の定義、後半が手計算による検証（規則そのものではなく、規則が期待どおり
-動くことの確認）になっている。
+この文書は、handler hygiene を subtype solver 内の **directed stack weight** として扱う規則を定める。
+2026-06-22 の directed stack weight proof 以降は、旧版の `protect` constructor 読みを正式な中核規則としては使わない。
 
-## 目次
+実装上、`poly::types::StackWeight` には互換用の `floor` / `filter` 表現が残る。
+ただし colored soundness 側の solver 意味論は、左重みと右重みを分けた directed 表現で説明する。
+`floor` は row split や liveness の active family ではない。
+停止性の論考では row-only core の ambient residual budget / residual floor が別に現れるが、
+それは runtime marker や active family ではなく、exact worklist 停止性を論じるための静的な測度である。
 
-規則（定義）:
+## 前提
 
-- `stack(T, @S)` と stack 重みについて
-- floor について
-- filter について
-- 型の不等号の重みについて
-- `α @L <: @R [S; β]` が制約として要求されたときの正確な処理
-- `effect<α> @L <: @R [handled; β]`
-- 新規導入変数について
-- まとめ上げと自己型の下界
-- 型注釈の上下分解
-- stack id の量化とcleanup
-- `catch` の scrutinee / `k` / catch 全体 effect の制約
-- `AllExcept(ref_update _)` stack と変数表現（節の前半が定義）
-- 実際の表現について
-- 変数展開について
+Yulang の型体系では次を混同しない。
 
-手計算による検証（worked examples）:
+- `Any` は Top 型である。
+- `Never` は Bottom 型である。
+- `Unknown` だけが未解決 placeholder である。
 
-- 重み付き手計算の記法
-- shallow と recursive/deep の期待型が分岐する理由
-- `outer/local/repeat` の衛生性で何を残して何を消すべきか
-- 補足: `m`/`j` は巡回を生まない
-- `AllExcept(ref_update _)` 節後半「実際に推論されるもの」（`ref::update` の推論）
+effect subtraction が失敗したり residual が残ったりしても、`Any` や `Never` を fallback として入れてはならない。
+未解決を表す必要がある場合は `Unknown`、または通常の type / effect row 変数を使う。
 
----
+## 目的
 
-# `stack(T, @S)` と stack 重みについて
-`S-subtract(α,#a)`と`non-subtract(T,#A)`は、型の外側に浮いたrole-like constraintとしては扱わない。
-代わりに、effect subtractionの寿命境界を型そのものと不等式の重みで表す。
+`catch` は、内側の computation が起こす effect row から handler が処理する family を取り除く。
+しかし高階値をまたぐ場合、単純に row から family を引くだけでは handler hygiene が壊れる。
 
-- `stack(T, @S)` は型であり、`T`にstack重み`@S`を付けた型である。
-- `@S` は filter と、`#id` からstack entryへの写像である。
-- filter は重み全体に対する effect family 集合の上限検査であり、既定値は `All` である。
-  `filter[All]` は省略する。
-- stack entryは常に `floor[F] pop(p)[H1, ..., Hn]` の形に正規化する。
-- `H` と `F` は effect family 集合である。effect family は `path(args...)` の形を持ち、
-  同じ `path` について高々1つの引数列を持つ map として正規化する。
-  引数列はその effect 宣言の型引数であり、stack 集合演算では path だけで捨てない。
-- `F` は高々1つであり、`F = All` のときは空のfloorと同一視して `pop(p)[H1, ..., Hn]` と略記する。floorの意味と合成規則は後述する。
+例として、ある関数が呼び出し元由来の computation を受け取り、その内部で別の handler を使う場合を考える。
+内側 handler は、自分の lexical body で発生した effect を処理してよいが、呼び出し元が持ち込んだ effect を勝手に捕まえてはならない。
+
+この「どの handler 境界がどの effect family を消費してよいか」を、型に貼り付く内部 wrapper と subtype edge の重みで表す。
 
 ```text
-@S = filter[A] { #id -> floor[F] pop(p)[H1, ..., Hn], ... }
+stack(T, @S)
+T @L <: @R U
 ```
 
-旧記法で書けば、次は糖衣として読める。
+`stack(T, @S)` は source language の型構文ではない。
+solver が annotation / handler / higher-order boundary の情報を運ぶための内部表現である。
+
+## Directed weight
+
+subtype 制約は、左重み `L` と右重み `R` の組を持つ。
 
 ```text
-push(T, H, #id) = stack(T, { #id -> pop(0)[H] })
-pop(T, #id)     = stack(T, { #id -> pop(1)[] })
+T @L <: @R U
 ```
 
-この糖衣の直感は、`stack(stack(T, { #id -> pop(0)[H] }), { #id -> pop(1)[] }) = T` である。
-この等式は、型の局所正規化の直感である。
-ただし、不等式の重みとして見た場合、過去の未対応`pop`は後ろから来たstack要素で消さない。
-順序を保存するために、重みは`#id`ごとの正規形として持つ。
+左重みと右重みは同じ構造ではない。
 
 ```text
-Weight(#id) = floor[F] pop(p)[H1, ..., Hn]
+Left  L : Id -> pop^m take(F)^n
+Right R : Id -> pop^m
 ```
 
-空の重み`@0`は`filter[All] {}`である。
-このとき全ての`#id`が`floor[All] pop(0)[]`（略記で`pop(0)[]`）である。
+- 左重みは、先行する unmatched pop と active push を持つ。
+- active push は `take(F)` と読む。`F` は effect family 集合である。
+- 右重みは pure pop だけを持つ。push / family / filter / floor を右側へ保存しない。
+- 1 つの id について、正規形は `pop^m take(F)^n` である。
+- `take(F); pop` は cancel するが、`pop; take(F)` は cancel しない。
+- 別 id は count abstraction 上で可換だが、同じ id の順序は正規形に残る。
 
-## 非 effect 具象型の terminal edge
+実装名との対応:
 
-stack 重みが観測されるのは effect family の行分解・subtraction・残差生成に到達する経路である。
-したがって、effect family ではない具象型に対する terminal subtype edge では重みを消してよい。
+- `LeftStackWeightEntry { id, leading_pops, family, pushes }`
+- `LeftStackWeight`
+- `RightStackWeight`
+- `ConstraintWeights { left: LeftConstraintWeight, right: RightStackWeight }`
+
+`LeftConstraintWeight` は、directed left weight に一時的な filter check を添える solver 境界の型である。
+filter は directed weight 本体ではない。
+
+## Weight composition
+
+同じ id の count は、次の順序付き列として合成する。
 
 ```text
-C @W <: α      ≡ C <: α      if C is a non-effect concrete terminal
-α @W <: C      ≡ α <: C      if C is a non-effect concrete terminal
-C @W <: C      ≡ C <: C      if C is a non-effect concrete terminal
+pop^m take^n ; pop^p take^q
 ```
 
-ここで non-effect concrete terminal とは、解決先の型宣言が effect family ではなく、かつその edge から
-子制約へ重みを伝播しない具象型である。`int`、`bool`、0引数の通常struct/enumなどがこれに当たる。
-effect family として宣言された型は、同じ `Con(path, args)` 表現を持っていてもこの消去対象ではない。
-
-型引数を持つ通常コンストラクタでは、親の terminal edge で重みを捨ててから分解してはいけない。
-`box<α [e] -> β>` のような引数内部に effect row がある場合、その引数へ向かう不変制約には
-重みを伝播する必要がある。重みを消せるのは、具象型そのものの照合で計算が止まり、
-effect row subtraction に到達しない終端 edge に限る。
-
-stack entryの合成は、左の後ろに右を積む操作である。
+右側の pop は、左側の末尾にある take だけを消せる。
 
 ```text
-pop(p)[H1, ..., Ha] + pop(q)[K1, ..., Kb]
-= pop(p)[H1, ..., H_{a - q}, K1, ..., Kb]  if q <= a
+if p <= n:
+  pop^m take^(n - p + q)
 
-pop(p)[H1, ..., Ha] + pop(q)[K1, ..., Kb]
-= pop(sat(p + q - a))[K1, ..., Kb]          if q > a
+if p > n:
+  pop^(m + p - n) take^q
 ```
 
-pop countは飽和カウンタとして扱う。
-pop countが`u32::MAX`のときにさらに`pop`を積んでも`pop(u32::MAX)`のままであり、オーバーフローさせない。
-`u32::MAX`は「十分大きい未対応pop」の番兵であり、多段の`pop`へ展開しない。
+`take; pop` が消えるのは、pop がその take より後に現れるからである。
+`pop; take` は「まだ対応する境界を越えていない pop」の後に push が現れる形なので消えない。
 
-したがって、`pop(1)[]`に後から`pop(0)[H]`を積むと
-`pop(1)[H]`になる。
-先頭の`pop(1)`は消えない。
-一方、`pop(0)[H1, H2]`に後から`pop(1)[]`を積むと`pop(0)[H1]`へ減る。
-
-重みの合成`@A + @B`は、各`#id`について`@A`の後ろに`@B`を順に積む操作である。
-すなわち、`@B`側の`pop(n)`を先に`@A`のstackへ作用させ、その後で`@B`側のstack要素を末尾へ追加する。
-`@B`側に非自明なfilterがある場合は、合成の前に`@A`側のactive stack要素へfilter検査を課す。
-合成結果のfilterは`@A`側と`@B`側の共通部分、すなわち`filter[A ∩ B]`である。
-filterは「外へ出てよいeffect familyの上限」なので、合成で片側を捨てない。
-この合成は順序を持ち、可換ではない。
-
-ただし、filterは注釈を検査するための途中経過の重みであり、principalな型として外へ出すときは
-stack weightのfilter成分を落とす。
-その結果、`stack(T, filter[A] {})`は`T`になる。
-filter以外の`pop` / `floor` / `push`が残っている場合は、それらだけを持つstackとして出す。
-
-入れ子のstack型は、重みを合成して正規化する。
+左右をまたぐ replay では、まず path の順序で左重みと右重みを合成し、その後に W-Mix を行う。
 
 ```text
-stack(stack(T, @A), @B) = stack(T, @A + @B)
+mix(L, R):
+  compose L followed by R per id
+  active take が残る成分は left へ戻す
+  pure pop だけが残る成分は right へ戻す
 ```
 
-## floor について
-floorは「全ての未対応popの下に残る、まだ引けるeffect集合」である。
-残差規則（後述）が`@W`から`U`を引いたという事実を、popで消えない位置に覚えるためのものである。
+W-Mix は directed projection であり、意味論側の正規化である。
+その後に実装が行う pop-growth cap は worklist 停止性のためのガードであり、型等式ではない。
+spec / docs / テスト期待値で `pop(n) = pop(1)` のように説明してはならない。
+論考上の W-Mix は、mixed comparison を active-left obligation と pure-right obligation の二本へ分ける規則である。
+実装がこれを pair の正規化として持つ場合も、意味はこの二つの obligation を同時に保つこととして読む。
 
-- floorはstack要素と違い、順序と多重度を持たない。順序付きの寿命はstack列だけが担う。
-- floorは`pop(n)`で消えない。`pop(n)`が後ろから消すのはstack要素だけである。
-- 同じ`#id`のfloorの合成は共通部分で正規化する。
-  ```text
-  floor[F1] + floor[F2] = floor[F1 ∩ F2]
-  ```
-- 合成の結果`F = All`になったfloorは、空のfloorと同一視して消す。
-- floor込みのentry合成は、floor同士を共通部分で畳む。
-  右側のfloorは「右側へ来るまでにすでに引かれたもの」の痕跡なので、
-  右側の`pop`で消えずに残る左側stack要素にも作用する。
-  右側自身のstack要素は、すでにそのfloorを反映したものとして追加される。
-  ```text
-  floor[F1] pop(p)[H1, ..., Ha] + floor[F2] pop(q)[K1, ..., Kb]
-  = floor[F1 ∩ F2] pop(p)[H1∩F2, ..., H_{a-q}∩F2, K1, ..., Kb]  if q <= a
+## Variance
 
-  floor[F1] pop(p)[H1, ..., Ha] + floor[F2] pop(q)[K1, ..., Kb]
-  = floor[F1 ∩ F2] pop(sat(p + q - a))[K1, ..., Kb]             if q > a
-  ```
-- `common_stack(W)`の計算では、floorはstackに残った`H`と同格の一要素として共通部分に参加する。
-
-共通部分での正規化は新しい型規則ではなく、pop countの飽和と対になる実装上の正規化である。
-bounds replayの循環で同じ重みが自分自身と合成されるとき、floorを列として連結すると
-`[F] + [F] = [F, F]`のように毎回異なる重みが生まれ、constraint machineの重複検出（hash-cons）が永遠に外れて停止しなくなる。
-共通部分で畳めば`F ∩ F = F`の不動点になる。
-floorの消費は常に共通部分（`common_stack`）と要素ごとの引き算であり、引き算は共通部分に分配する
-（`(A ∩ B) - U = (A - U) ∩ (B - U)`）ので、列表現と単一要素表現は観測上同値であり、情報は失われない。
-
-再帰呼び出しで同じ重みが合成されるだけなら`F ∩ F = F`で安定する。
-別のハンドラで新たに`U'`を引いたときは`AllExcept(U) ∩ AllExcept(U') = AllExcept(U ∪ U')`として単調に蓄積され、
-「すでに引いたものはもう引けない、それ以外はまだ引ける」が保たれる。
-別のcatch・別のinstantiate由来のハンドラは`#id`がfreshに分かれるため、そもそも同じentryのfloorとは合成されない。
-
-floorの値域は有限個のeffect familyから作られる`AllExcept`系に閉じ、合成で除外集合が単調にしか増えないため、
-floorを通る制約の列は必ず有限回で安定する。
-
-## filter について
-filterは、共変位置に書かれたeffect注釈を「そこから外へ出てよいeffect familyの上限」として読むための装置である。
-これはstack要素ではなく、`#id`にも属さない。`common_stack(W)`にも参加しない。
+関数引数や contravariant な型引数へ入ると、左右の重みは入れ替わる。
 
 ```text
-filter[A] { #m -> floor[B] pop(n)[C, D] }
+(A1 -> B1) <: (A2 -> B2)
+
+argument: A2 @swap(L,R) <: @swap(R,L) A1
+result:   B1 @L <: @R B2
 ```
 
-という重みは、内部で扱うstack subtractionとは別に、外へ出ようとする具体effect familyや
-左から右へ渡されるactive stack要素が`A`に収まることを要求する。
+実装では `ConstraintWeights::swapped()` がこの境界を表す。
+右重みは pure pop しか保存しないため、swap 後に右側から左側へ戻る成分も pure pop として materialize する。
 
-- `filter[All]` は検査しない。注釈がない効果行や、効果注釈を固定しない位置ではこれを使う。
-- `filter[Empty]` は何も外へ出さない。表面構文で明示的に `[]` と書いた共変位置はこれを使う。
-- `filter[A]` は残差を作らない。検査が成功しても失敗しても、`floor` や stack entry に変換しない。
-- `filter[A]` が具体effect family `L` に当たったら、`L <: A` を課す。
-  `A` は具体集合でもeffect family型変数でもよい。
-  `A` が `Set(...)` の場合は同じpathのfamilyが含まれる必要があり、引数列は通常の不変引数制約で照合する。
-  `A = Empty` であれば常に失敗し、`A = All` であれば常に成功する。
+## `stack(T, @S)` wrapper
 
-重みの合成では、右側のfilterは「右側の文脈へ入る直前」の検査として働く。
-そのため、`@L + @R`を作る前に、`@L`の各entryに残っているactive stack要素を`@R`のfilterへ通す。
-この検査は、後で`@R`の`pop`に消されるstack要素にも課される。
-さらに、合成結果のfilterは左側と右側の共通部分である。
-つまり`filter[G] + filter[A]`は`filter[G ∩ A]`になる。
-
-例えば、行`[F; 'a]`へ作用した後の右重みを次とする。
+`stack` wrapper は、型構造を降りるときに edge の重みへ移す。
 
 ```text
-@R = filter[A] { #m -> floor[B-F] pop(1)[C-F, D-F, E-F] }
+stack(T, S) @L <: @R U
+=> T @(S + L) <: @R U
+
+T @L <: @R stack(U, S)
+=> T @L <: @(S + R) U
 ```
 
-これを左重みへ右から足す。
+ただし directed solver に保存される形は次の制限を持つ。
+
+- 左側へ入る wrapper は `take(F)` / pop / filter check を表せる。
+- 右側へ保存される wrapper は pure pop だけである。
+- 右側で見つかった filter は check として処理し、保存しない。
+- legacy `floor` は active push ではないので、directed left weight へ入れない。
+
+`int` や `bool` のような terminal concrete 型では、重みは観測されない。
+関数、tuple、record、row、type argument では、深い effect row へ届く可能性があるため重みを流す。
+
+## Row upper bound
+
+weighted effect row upper bound の中核規則は次である。
 
 ```text
-@L = filter[G] { #m -> floor[H] pop(n)[I, J, K] }
+alpha @L <: @R [K; beta]
 ```
 
-まず、右側filterの検査として次を課す。
+ここで `K` は upper row の head family 集合、`beta` は tail である。
+`L` と `R` がどちらも空なら、これは普通の open row subtype 制約であり、subtraction budget を新しく作らない。
+
+右 pop は row constructor の head を変えず、tail へ分配する。
+したがって split は次の形へ直してから、左重みだけで考える。
 
 ```text
-I <: A
-J <: A
-K <: A
+alpha @L <: [K; NWeight(R, beta)]
 ```
 
-その後で、`floor[B-F]`を左側のfloorと、右側`pop(1)`で消えずに残る左側stack要素へ合成する。
+このとき row head から消費してよいのは左重みの active push だけで決まる。
+右重みは row head を広げない。
 
 ```text
-@L + @R
-= filter[G ∩ A] {
-    #m -> floor[H ∩ (B-F)] pop(n)[I ∩ (B-F), J ∩ (B-F), C-F, D-F, E-F]
-  }
+J = K ∩ Common(L)
 ```
 
-ここで`K`は`pop(1)`に消されるが、消される前に右側filterへ入るので`K <: A`の検査は残る。
-また、右側の`filter[A]`は合成結果のfilterにも`G ∩ A`として残る。
+`Common(L)` は、`L` に残る active push family の交差である。
+active push が空なら、空交差として `All` と読む。
+legacy `floor`、pure pop、right pop、filter は `Common(L)` に参加しない。
 
-# 型の不等号の重みについて
-型の不等号について`T <: U`ではなく、左右にstack重みを持つ
-`T @L <: @R U`として型の比較を行う。
-通常の意味で型の分解が行われ、例えば
-`T -> S @L <: @R U -> V`であれば、
-反変位置では左右が反転するので`U @R <: @L T`、
-共変位置ではそのまま`S @L <: @R V`が成立する。
-
-`stack(T, @S)`に当たったときは、型を剥がして重みへ移す。
+`J` が空でなければ、solver は次を作る。
 
 ```text
-stack(T, @S) @L <: @R U
-=> T @(@S + @L) <: @R U
-
-T @L <: @R stack(U, @S)
-=> T @L <: @(@S + @R) U
+alpha <: [J; gamma]
+gamma @(L - J) <: NWeight(R, beta)
 ```
 
-不変位置では、共変方向と反変方向の両方を生成する。
-ADT、レコード、タプル、行型、エフェクトatom引数も、それぞれの宣言された分散に従って同じ規則で分解する。
+`L - J` は active push family から `J` を引いた左重みである。
+right pop は head 消費には使わず、tail 側へそのまま運ぶ。
+tail 側の comparison が後で他の構造へ進むときは、通常の wrapper absorption / W-Mix 規則へ戻る。
 
-変数に到達したときは、これまで通り境界へ伝播する。
-ただし、旧仕様のように`non-subtract`境界を作るのではなく、重み付き境界として保存する。
-
-- `α @L <: @R T`であれば、`α`の上界に`T`を重み`@L/@R`つきで登録し、既存の下界`S`に対して`S @L <: @R T`を追加する。
-- `T @L <: @R β`であれば、`β`の下界に`T`を重み`@L/@R`つきで登録し、既存の上界`S`に対して`T @L <: @R S`を追加する。
-- `α @L <: @R β`であれば、`α`の既存下界`T`と`β`の既存上界`U`に対して`T @L <: @R U`を追加し、`α`の上界と`β`の下界にこの重み付き境界を保存する。
-
-# `α @L <: @R [S; β]`が制約として要求されたときの正確な処理
-0. `@L = @R = @0`であれば、新しい残差変数`γ`を立てない。
-   この場合は重み付きsubtractionの情報がないので、`α <: [S; β]`をそのまま通常の境界として登録して終わる。
-1. `@W = @L + @R`を作る。
-   このとき、右側のfilterが非自明であれば、合成前の`@L`に残るactive stack要素へfilter検査を課す。
-   合成結果に残るfilterは`@L`側と`@R`側のfilterの共通部分である。
-2. `@W`に現れる全ての`#id`について、stackに残っている全ての`H`とfloorを集める。
-3. `pop(m)`は`U`の計算には使わない。使うのはstackに残った`H`とfloorだけである。
-4. 集めた`H`もfloorも一つもなければ、共通部分は`All`として扱う。
-5. 集めた`H`とfloor全ての共通部分と`S`の共通部分を取り、これを`U`と置く。
-   この共通部分は effect family の引数列もすり合わせる。すり合わせで同じ `path` の
-   `effect<A...>` と `effect<B...>` が出会ったら、対応する引数を不変区間として併合する。
-   併合は `spec/2026-06-02-role-system.md` の不変区間規則に従い、両側の lower / upper を単に足す。
-   同時に、同じ実引数が両方の区間を満たすための交差条件として
-   `A.lower <: B.upper` と `B.lower <: A.upper` を生成する。
-   path が一致しない family 同士は交わらない。
-6. `U`が空でなければ、新しい残差変数`γ`を立てて`α`の上界に`[U; γ]`を登録する。さらに`@W`から`U`を引いた`@W' = @W - U`を作成し、`γ @W' <: @0 β`を登録する。
-7. `U`が空であれば、残差変数を立てずに`α @W <: @0 β`を登録する。
-8. **注意**: `@L`と`@R`の少なくとも一方が非空なら、`α @L <: @R [S; β]`をそのまま登録しては**いけない**。登録の前に必ず上の処理へ分解する。
-
-`@W - U`は各entryについて次のように定める。
-
-- filterは変更しない。`@W - U`はstack subtractionの痕跡を残す操作であり、
-  共変注釈由来の上限検査を広げたり狭めたりしない。
-- stack要素`H`それぞれを`H ∩ AllExcept(U)`に置き換える。このとき `H` と `U` に
-  同じ path の family があれば、共通部分の場合と同じ不変区間併合と交差条件を生成してから
-  その family を除外する。
-- floor `F`を`F ∩ AllExcept(U)`に置き換える。ここでも除外対象と同じ path の family は
-  引数列をすり合わせ、同じ不変区間併合と交差条件を生成する。
-- floorもstack要素も持たないpopだけのentryには、`All ∩ AllExcept(U) = AllExcept(U)`をfloorとして置く。
-- さらに、そのentryに残るfloorとstack要素の共通部分をfloorとしても保存する。
-  これはstack要素が後続の`pop`で消えても、「このentryではすでに`U`を引いた」という下限が失われないようにするためである。
-
-最後の規則が、述部由来の`pop(u32::MAX)[]`番兵を通った後でも「`U`はすでに引いた」を残す要である。
-これが無いと、同じ`S`への分解が`U = S ∩ All = S`として何度でも成立し、残差変数の連鎖が止まらない。
-
-同じconstraint machine内で、同じ`α`、同じ`U`のeffect family集合、同じ`@W' = @W - U`からこの分解を複数回行う場合は、同じ残差変数`γ`を再利用する。
-この key に含める `U` と `@W'` は path だけでなく effect family 引数列も含む。
-これは新しい型規則ではなく、`α`から`U`を引いた後に残るslotをhash-consするための実装上の正規化である。
-`β`はslotの行き先であり、slotの同一性には含めない。
-別の`β`へ流す必要がある場合は、同じ`γ`に対して`γ @W' <: @0 β`を追加する。
-`β`ごとに別の`γ`を立てると、bounds replayで`α`自身の`[U; γ]`上界が再び分解され、再帰的なeffect rowではfreshなtailと残差変数が増え続ける。
-
-`γ @L <: @R [S; γ]`のように、残差を作っても同じ変数へ戻るだけの制約はno-opにしてよい。
-自分から引いて自分がtailに戻るだけの制約は、境界情報を増やさず、無限ループの燃料になりやすい。
-
-# `effect<α> @L <: @R [handled; β]`
-- `effect`が`handled`に`effect<γ>`の形で含まれるなら`α+ @L <: @R γ-`かつ`γ+ @R <: @L α-`。
-- そうでなければ`effect<α> @L <: @R β`。
-
-# 新規導入変数について
-この節で「登場する関数の述部に`pop(1)`を置く」と言うとき、裸の`pop(1)`ではなく、
-その述部が外へ見せるeffect row slot `ω` に対して
-`stack(ω, filter[A] { #id -> pop(1)[] })`を置く。
-ここで大文字`A`は、その述部popが戻る共変位置のeffect上限集合である。
-共変位置に注釈`[A]`があればその具体集合を使い、注釈が無ければ`A = All`とする。
-さらに注釈`[A]`があれば、通常の注釈分解として`ω <: A`も課す。
-これにより、`pop(1)`でstack要素を消す前に、消されるeffect familyが`A`へ収まることを検査できる。
-このfilterがないと、述部側の`pop(1)`がcallback由来のeffectを先に消してしまい、
-外側の返りeffect注釈がそれを観測できなくなる。
-
-1. 返りエフェクトが注釈されていない引数の`f`に対して`f x`を推論したときに出てくる`f: α [β] → [γ] δ`について: `γ`は「何も引いてはならない型変数」であるので、新しく`#a`を立て、返りエフェクトを`stack(γ, { #a -> pop(0)[Empty] })`として扱う。これの登場する関数の述部には新しく変数を立て、その述部popが戻る共変位置の上限集合`A`と合わせて`stack([ε] ζ, filter[A] { #a -> pop(1)[] })`を置く。
-2. `my f(x: [handled] α)`など注釈された変数について: `x: [stack(β, { #b -> pop(0)[handled] })] α`と登録する。`handled`が`_`だった場合は`stack(β, { #b -> pop(0)[All] })`にする。これの登場する関数の述部には新しく変数を立て、その述部popが戻る共変位置の上限集合`A`と合わせて`stack([γ] δ, filter[A] { #b -> pop(1)[] })`を置く。
-3. `my f(g: α [β] -> [handled] γ)`と注釈された関数について: `f: α [β] -> [stack(δ, { #c -> pop(0)[handled] })] γ`として登録する。`β`に`io`などと書いてあった場合はそのまま登録してよく、`[io] <: β`とする。`α [β] -> [handled; δ] γ`と書いてあった場合は`η`を立て、`stack(η, { #c -> pop(0)[handled] })`を使い、`f`の述部には、その述部popが戻る共変位置の上限集合`A`と合わせて`stack([ζ] η, filter[A] { #c -> pop(1)[] })`を置く。
-4. `xs: list(α [A] → [B] β)`のように不変に注釈された変数について、変数`γ`と`δ`を定める。同時に`stack(γ, filter[A] { #a -> pop(0)[A] })`、`stack(δ, filter[B]{ #b -> pop(0)[B] })`を使う。不変位置に書けるのは具体effectのみであり、effect変数、wildcard、具体effectと変数の混合はここでは受け付けない。
-5. 実際に値は定まっていないが、量化されていない値`f`に対して`f x`を推論したときに出てくる`f: α [β] → [γ] δ`について: なんの情報も付けない。
-6. `\x -> y`について: どちらもなんの情報も付けない。
-
-## まとめ上げと自己型の下界
-上の規則で導入したstack付きの引数型と述部は、個別に境界へ置くだけでは足りない。
-これらをまとめ上げて関数自身の骨格型を作り、本体の型集めを始める**前に**、関数自身の型変数を**下から**抑える。
-
-例えば`my f(x: [handled] _)`であれば、local変数`x`は`stack(β, { #b -> pop(0)[handled] })`というeffect viewを持つ。
-一方、関数自身の骨格で外に見せる引数effect slotは、その内側の`β`である。
-規則2の導入物を組み上げた骨格は次になる。
+`J` が空なら、新しい residual は作らない。
+制約は tail へ進む。
 
 ```text
-α [β] -> [stack(ζ, filter[A] { #b -> pop(1)[] })] δ
+alpha @L <: NWeight(R, beta)
 ```
 
-を作り、`skeleton <: f`を本体の型集めより先に登録する。
-ここで`α`/`β`/`ζ`/`δ`は本体の推論が使うのと同じ変数である。
-規則1や規則3が置くfilter付き述部popも、同じ骨格の返り側に合流する。
-継続`k`などの扱い自体は自由であり、その整合性は骨格の述部popが取る。
-
-body内で`x`を`catch`のscrutineeとして使うときだけ、このeffect viewから
-`stack(β, { #b -> pop(0)[handled] }) <: [handled; ρ]`を張る。
-通常の関数適用など、scrutineeではない位置では内側の`β`だけが見える。
-local用のouter変数を共有して`stack(β, @b) <: outer`と`outer <: [handled; ρ]`を溜めると、
-catchのraw row upperが関数境界や再帰呼び出しへ漏れて、別のhandlerが同じ残差からeffectを引けてしまう。
-
-こうすると、本体内での`f`自身の使用（再帰呼び出し）も、外部の呼び出しと同じ境界横断として処理される。
-body内の`catch x`がscrutinee viewから`pop(0)[handled]`を供給し、関数の返り側述部には`filter[A] pop(1)`が合成される。
-`@W - U`で残ったfloorにより、catchで消費済みになった残差保護は述部popの後にも残る。
-そのため、内側のcatchが消費できるのは自分のscrutinee viewが積んだ予算だけになり、
-外側の残差の保護（`floor[Empty]`）が自関数の述部popで消えて`All`へ戻ることはない。
-`#id`は引数ごとに別なので、周回で釣り合わない経路が際限なく太ることもない。
-
-この登録とfloor保存が無い場合、消費済み予算`pop(0)[Empty]`がpopに食われて重みがpopだけになり、
-「stackに残った`H`もfloorも無ければ共通部分は`All`」の規則に落ちて、
-注釈が許していないeffectまで残差から引けてしまう。
-
-```yu
-act tick:
-    our out: int -> ()
-act flip:
-    our coin: () -> bool
-
-our pick(action: [flip] _) = catch action:
-    flip::coin(), k -> pick(k true)
-    v -> v
-
-our loop(x: [tick] _) = catch x:
-    tick::out _, k -> pick(loop(k ()))
-    v -> v
-```
-
-骨格の下界がある場合、`loop`の残差の重みは次のように釣り合う。
+同じ row split から無限に fresh tail を作らないため、residual 変数は hash-cons する。
+key は次である。
 
 ```text
-深さ0の予算:          β @ [tick]
-catchがtickを消費:     残差 @ floor[Empty] [Empty]
-再帰から出る(pop(1)):  残差 @ floor[Empty]
-pickがflipを要求:      U = flip ∩ Empty = Empty → 引けない
+(source, J, L - J)
 ```
 
-期待される型は`'a [tick; 'b] -> ['b] 'a`であり、`'b`の上界に`[flip; ...]`が現れてはならない。
-骨格の下界が無いと、この例は`'a [tick; 'b & [flip; 'b]] -> ...`となり、
-注釈`[tick]`の保護を破ってflipが引けてしまう。
+target tail は key に含めない。
+同じ source と同じ消費集合と同じ残差左重みなら、同じ `gamma` を再利用する。
 
-# 型注釈の上下分解
-型注釈は、注釈に書かれた型そのものをそのまま上下界へ置くものではない。
-注釈`T`は、型の極性に従って「下から抑える型」と「上から抑える型」に分解される。
-
-`x: T`を接続するときは、注釈としてはexactである。
-すなわち、`T`から作った下側制約と上側制約の両方を登録する。
-ただし`x`が値であり、Simple-subの簡約によって片側だけが観測可能になる場合がある。
-この場合でも、注釈自体が片側注釈になったわけではない。
-
-エフェクト行注釈は、通常の型注釈よりも位置の影響を強く受ける。
-ユーザが`[io]`と書いたからといって、全ての位置で「ちょうど`io`」を意味するわけではない。
-具体的なエフェクト行は、現在の極性に応じて次のように特殊な型へ展開する。
-
-- 共変位置では、書かれた具体エフェクトを`filter[A]`として重みへ置く。
-  これは「出力側へ出ていくeffect familyは`A`に収まらなければならない」という上限検査である。
-  旧仕様のように、書かれた具体rowを単に下から置くだけでは注釈にならないので採用しない。
-- 普通の反変位置では、書かれた具体エフェクトを直接境界に固定せず、新しいエフェクト変数を立て、その変数を`stack(ρ, { #id -> pop(0)[A] })`で包む。
-  この位置のfilterは通常`All`である。
-- 不変位置では、下からは具体rowで抑え、同時に同じ具体effect集合を持つstack tailを入れる。書けるのは具体effectのみであり、effect変数、wildcard、具体effectと変数の混合はここでは受け付けない。
-
-効果注釈が省略された共変位置は`filter[All]`であり、余計なエラーを出さない。
-明示的な空行注釈`[]`だけは`filter[Empty]`であり、その位置から具体effect familyが外へ出ると失敗する。
-
-例えば次の注釈を考える。
-```yu
-value: (a [b] -> [c] d) -> [e] list(f -> [g] h)
-```
-
-この注釈は、下からは次の型で抑えられる。
-```yu
-@e0 = filter[[e]] {}
-@g1 = { #1 -> pop(0)[[g]] }
-(a [b] -> ['eff0] d) -> [stack('eff_e, @e0)] list(f -> [g; stack('eff1, @g1)] h)
-```
-
-また、上からは次の型で抑えられる。
-```yu
-@c2 = filter[[c]] {}
-@g1 = { #1 -> pop(0)[[g]] }
-(a ['eff_in] -> [stack('eff2, @c2)] d) -> ['eff_out] list(f -> [g; stack('eff1, @g1)] h)
-```
-
-ここで`'eff0`や`'eff_out`には省略された`filter[All]`が付いている。
-これは「不明だから逃がす」型ではなく、注釈分解によってその位置では具体エフェクトを固定しないことを表す特殊な上限側の行である。
-未確定型を表す`Unknown`とは別物である。
-
-型コンストラクタの不変引数など、不変位置で関数型が現れる場合は、上下の両側から同時に抑えるため、具体effectは具体rowとstack tailのsandwichとして現れることがある。
-上の例の`list(f -> [g] h)`では、`g`そのものと`stack('eff1, @g1)`を組み合わせて、`list(f -> [g; stack('eff1, @g1)] h)`として上下の両側に現れる。
-ただし、不変位置に書けるeffectは具体effectだけであり、effect変数やwildcardをそのまま書くことはできない。
-
-`ref '[file] str` のように、effect row 型そのものが型コンストラクタの引数として現れる場合、
-その引数は `['e]` / `[ref_update a; 'e]` の tail に入る effect-kind 型として読む。
-したがって下側には `Pos::Row([file])` ではなく、row item / tail を ordinary effect 型として
-合流した `file`（tail があれば `file | tail`）を置く。上側は具体 effect 集合を引ける
-stack 付き proxy として置く。ここで `Pos::Row([file])` をそのまま型引数に入れると、
-body から来る裸の `file` と注釈由来の ` '[file]` が別成分として残り、
-`ref(file | '[file], str)` のような二重 row になる。
-
-また、同じ関数型
-```yu
-a [b] -> [c] d
-```
-を関数定義の引数注釈として書いた場合は、外側の関数型に含まれる引数型部分として書いたときとは、上下から見る側が逆に見える。
-下からは次のように抑えられる。
-```yu
-@c1 = filter[[c]] {}
-a ['eff_in] -> [stack('eff, @c1)] d
-```
-
-上からは次のように抑えられる。
-```yu
-a [b] -> ['eff_out] d
-```
-
-このため、エフェクト注釈について「反変位置ではstack wrapperを作らない」「共変位置ではstack wrapperを作る」といった単純な読み替えは誤りである。
-普通の反変位置ではstack wrapperを作り、共変位置ではfilterを作る。
-関数型の内部では、関数引数・引数effectが反変、返りeffect・返り値が共変であるため、外側の極性と合成してからこの規則を適用する。
-
-例えば、次のような返りeffect注釈を考える。
-
-```yu
-my write(f: () -> [write] ()): [io] () = f()
-```
-
-返りeffectの`[io]`は共変位置なので、外へ出るeffectに`filter[[io]]`を課す。
-同時に、引数`f`の返りeffect注釈`[write]`から述部側`pop(1)`が導入される。
-このpopが戻る共変位置の上限集合を`B = [io]`と置くと、述部側には`filter[B] pop(1)`が付く。
-`f()`が`write`を外へ出すだけなら、`pop(1)`で`write`を消す前に`write <: B`、
-つまり`write <: io`が要求される。
-`write`が`io`に含まれないなら失敗する。
-本体の中で`write`をhandleしてから返す場合は、外へ出る具体effectが`io`のfilterに当たらないので、この注釈には反しない。
-
-# stack id の量化とcleanup
-量化の際には、型変数と同じように`#id`もschemeに保存する。
-`instantiate`のときは、型変数と同じように`#id`もfreshにする。
-量化された値のschemeに`stack(T, @S)`が含まれていたら、
-同じscheme内の同じ古い`#id`は同じfresh idへ置き換え、別のinstantiateとは共有しない。
-
-さらに、各fresh idについて、instantiate後の共変側に非空stack entryが残るかを見る。
-ここで非空stack entryとは、stack要素を1つ以上持つ（`pop(p)[H1, ..., Hn]`で`n > 0`）か、floorを持つentryである。
-非空stack entryが一つでも残るなら、量化値の述部側には同じidの`pop(u32::MAX)[]`を一つ付与する。
-非空stack entryが一つも残らないなら述部へ`pop`を付与しない。
-これは、量化値の内部で導入された共変側のstack寿命を、呼び出し側の述部で対応する`pop`へ戻すための規則である。
-共変側のstack要素数を正確に数えてその回数だけ`pop`を作ると、型の共有や展開の仕方によって大きな型を意図せず生成できる。
-そのため、実装上は`u32::MAX`を飽和した番兵として扱い、`pop`を多段に展開しない。
-
-述部側の多重popは、同じ出力slotへ戻るなら
-`stack(T, filter[A] { #1 -> pop(1)[], #2 -> pop(1)[] })`のように保存してよい。
-異なる出力slotへ戻るfilter付きpopは、同じweightへ無理に畳まず、別の`stack` wrapperとして残してよい。
-同じ`#id`に対する多段の`pop`は、entry合成で`pop(n)[]`へまとめる。
-
-cleanupでは、共変側にある`#id`を基準にする。
-ある`#id`が共変側に一つも残っていない場合、その`#id`に対応する反変側のstack entryも消してよい。
-これは、旧仕様の「使い切られた寿命境界は表示から消える」という規則を、型構造側のcleanupとして言い換えたものである。
-
-`pop(0)[Empty]`だけを持つentryは、未注釈callback呼び出しの内部境界として導入される。
-同じscheme内で、そのentryが付いた型変数が反変側にstackなしで普通に現れているなら、
-callerが渡したcallbackの返りeffectをそのまま外へ返しているだけなので、その`Empty` entryはsurfaceへ残す根拠を持たない。
-この場合は、`#id`量化の前にその `(型変数, #id)` のentryを落としてよい。
-これは具体effectの引き算ではなく、同じ境界のpush/popが一般化前に相殺されなかったときの極性消去に近いcleanupである。
-
-また、Pos/Negへ置き換える時点で、対応する非空stack entryがどちらの極にも存在しない、popだけの（floorもstack要素も持たない）entryは消してよい。
-その`pop(n)[]`は境界を戻す相手を持たず、後から来る非空stack entryで相殺してはならない先頭`pop`として残す意味もない。
-floorを持つentryは「すでに引いた」という境界情報そのものなので、このcleanupでは消さない。
-
-stackに積まれたeffect集合の共通部分は次の代数で計算する。
-- `Empty ∩ X = Empty`
-- `All ∩ X = X`
-- `Set(A) ∩ Set(B) = Set(A ∩ B)`。同じ path の family は引数列を
-  不変区間として併合し、同じ実引数を持つための交差条件を生成する。
-- `Set(A) ∩ AllExcept(B) = Set(A - B)`。`A` と `B` に同じ path の family があれば、
-  除外される前に引数列を不変区間として併合し、交差条件を生成する。
-- `AllExcept(A) ∩ AllExcept(B) = AllExcept(A ∪ B)`。同じ path の family を union するときも
-  引数列を不変区間として併合し、交差条件を生成する。
-
-ここで `A` や `B` はeffect atom familyの集合である。
-`ref_update _` のような引数付きeffectは path だけで同じ family とみなすが、引数を捨ててはいけない。
-同じ path の family を共通部分・差分・除外集合の union で突き合わせるたびに、対応する引数から
-ordinary type constraint を生成する。stack 集合演算はどの family が残るかを決め、
-引数の同一性は通常の型制約で決める。
-この制約生成は、明示的な subtraction だけでなく、effect row の展開で同じ path の family が
-1つの stack 集合へ集まる場合にも発生する。
-同じ family map に重複 path を正規化して押し込む操作は、不変引数の併合と交差条件の生成を伴う。
-実装上は `FxHashMap<path, entry-index>` などで最初の entry を代表として残し、2回目以降の同じ
-path の代入時に代表 entry の引数列と新しい引数列の間へ制約を生成してから、最後に entries へ
-collect してよい。
-
-# `catch`のscrutinee/`k`/catch全体effectの制約
-1. scrutineeの型を`[α] β`と仮定する(これは新しい型を作るわけではなく、ただのassume)。
-2. まず、catchの中で引かれているエフェクトを`handled`とし、`α <: [handled; γ]`を要請する。このとき新しく立てた`γ`には別の保護情報を直接付けない。必要な情報は`α @L <: @R [handled; γ]`の処理で`@L + @R`から伝播する。
-3. `k`のeffectは`α`とする。
-4. 新しく型`δ`を立てる。次に、各枝のエフェクト型`ε_1,...,ε_n`に対して`ε_1 <: δ, ... ε_n <: δ`を要請する。
-5. catchの中で引かれているエフェクトが完全であれば`γ <: δ`を、1つでも欠けているものがあれば`α <: δ`を要請する。
-
-## 注意
-完全なエフェクトハンドルと不完全なエフェクトハンドルを混ぜたときに、完全なエフェクトハンドルまでαとして漏れ出すのは**仕様**である。これは、エフェクトを分離してハンドルしたときに意味が変わってしまうため。言語上の限界でもある。
-
-# 重み付き手計算の記法
-以下の手計算では、空重みを`@0`と書く。
-`#id`だけに`pop(0)[H]`を持つ重みを`@#id[H]`と書く。
-例えば`stack(α, @#run[[outer]]) @0 <: @0 T`を剥がした後の重みは
-`α @#run[[outer]] <: @0 T`である。
-以下では読みやすさのため、`@#run[[outer]]`を`@run`のように略記する。
-
-`α @W <: @0 [S; β]`を処理するときは、必ず次の形を一度書く。
+自己 tail split:
 
 ```text
-if W = @0:
-  α upper += [S; β]
-  stop
-
-W = @W
-U = S ∩ common_stack(W)
-if U is not Empty:
-  W' = W - U
-  α upper += [U; γ]
-  γ @W' <: @0 β
-if U is Empty:
-  α @W <: @0 β
+beta @L <: [K; beta]
 ```
 
-ここで`common_stack(W)`は、`W`に残ったstack要素とfloor全ての共通部分である。
-`pop(m)`は`U`の計算に使わない。
+この形は、right pop が空なら有限 colored observation では no-op とする。
+row cycle を止めるために新しい保護集合を足してはならない。
 
-# shallowとrecursive/deepの期待型が分岐する理由
-Shallowについて。
-`[_]`で導入されたscrutineeを`[stack(α, @h)] β`とし、`@h = @#h[All]`と置く。
+## Filter
 
-1. catchが`handled`を処理するので、まず次を要請する。
-   ```text
-   stack(α, @h) @0 <: @0 [handled; ρ]
-   ```
-2. `stack`を剥がして重みに移す。
-   ```text
-   α @h <: @0 [handled; ρ]
-   ```
-3. stackの共通部分は`All`なので、引ける具体effectは次になる。
-   ```text
-   U = handled ∩ All = handled
-   ```
-4. したがって、次の境界と残差制約を登録する。
-   ```text
-   α upper += [handled; γ]
-   γ @h <: @0 ρ
-   ```
-5. shallow handlerの枝はエフェクトをそのまま起動するので、枝effect`δ`には次が入る。
-   ```text
-   α @0 <: @0 δ
-   ρ @0 <: @0 δ
-   ```
-6. 関数全体は一旦次の形になる。
-   ```text
-   β [α] -> [δ] β
-   constraints:
-     α upper += [handled; γ]
-     γ @h <: @0 ρ
-     α @0 <: @0 δ
-     ρ @0 <: @0 δ
-   ```
-7. compact展開では次の形になる。
-   ```text
-   β [α & [handled; γ]] -> [γ | ρ | α | δ] β
-   ```
-8. 極性消去で`δ`は落ち、共起分析で共変位置に一緒に出る`α`と`γ`が結ばれる。
-   最終的に次を得る。
-   ```text
-   β [α & [handled; α]] -> [α] β
-   ```
-
-recursive/deepについて。
-同じくscrutineeを`[stack(α, @h)] β`とし、`@h = @#h[All]`と置く。
-
-1. catchの処理自体はshallowと同じである。
-   ```text
-   stack(α, @h) @0 <: @0 [handled; ρ]
-   => α @h <: @0 [handled; ρ]
-   U = handled ∩ All = handled
-   α upper += [handled; γ]
-   γ @h <: @0 ρ
-   ```
-2. recursive/deepでは、継続の値を自分自身に投射するだけなので、枝effect`δ`へ`α`は流れない。
-   生じるのは次だけである。
-   ```text
-   ρ @0 <: @0 δ
-   ```
-3. 関数全体は一旦次の形になる。
-   ```text
-   β [α] -> [δ] β
-   constraints:
-     α upper += [handled; γ]
-     γ @h <: @0 ρ
-     ρ @0 <: @0 δ
-   ```
-4. compact展開では次になる。
-   ```text
-   β [α & [handled; γ]] -> [γ | ρ | δ] β
-   ```
-5. `α`は反変位置にしか残らないので極性消去で落ちる。
-   `δ`も共変位置だけなので落ち、最終的に次を得る。
-   ```text
-   β [handled; γ] -> [γ] β
-   ```
-
-足りない枝がある場合。
-完全に処理できないeffectがあると、catch全体のeffectへscrutinee effectそのものを流す。
+filter は covariant concrete effect annotation の static check である。
+directed weight の active family ではなく、runtime marker でもない。
 
 ```text
-α @0 <: @0 δ
-ρ @0 <: @0 δ
+filter(A)
 ```
 
-このため展開はshallowと同じく次になる。
+- `filter(All)` は no-op である。
+- `filter(Empty)` は concrete effect が外へ出ることを許さない。
+- `filter(Set(...))` は concrete effect family が annotation に含まれることを検査する。
+- family path が一致した場合、type argument は捨てずに invariant 制約を作る。
+- check 後の filter は storage / replay / residual propagation から消える。
+
+bound insertion では、左 filter を次のように扱う。
+
+- lower bound 追加時は、incoming lower type をその場で検査し、filter を消してから保存する。
+- upper bound / var-var bound 追加時は、source または lower variable に filter を登録し、後から来る lower bound を同じ経路で検査する。
+- replay と compact は、すでに check 済みの filter を見ない。
+
+`Neg::Stack` 側で filter が現れた場合も、filter は check として処理してから消す。
+右重みに filter を保存してはならない。
+
+## Protect
+
+`protect` は独立した constructor ではない。
+fresh internal effect variable や、handler に消費されてはならない residual を守る場合は、左重みとして次を使う。
 
 ```text
-β [α & [handled; γ]] -> [α | γ | ρ | δ] β
+take(Empty)
 ```
 
-したがって、足りない枝があるrecursive/deepはshallowと同じ状態になる。
+`take(Empty)` は `Common(L)` を `Empty` へ絞るため、row head を何も消費できない。
+これで「この residual からは handler が引けない」という性質を表す。
 
-# `outer/local/repeat` の衛生性で何を残して何を消すべきか
+この目的で、rigid variable set、blocked pair set、through flag、exposed boundary vars のような別の保護機構を追加してはならない。
+保護したい変数集合を作って共起分析や極性消去を止める実装は、この仕様ではない。
+
+## Annotation lowering
+
+effect annotation は、公開型を読むための情報であると同時に、higher-order boundary で何を handler に見せてよいかを決める。
+
+基本方針:
+
+- covariant concrete row annotation は filter check になる。
+- contravariant concrete row annotation は `take(H)` になる。
+- contravariant wildcard `[_]` は `take(All)` になる。
+- effect-only skeleton の省略 slot は wildcard と同じであり、反変位置では `take(All)`、共変位置では裸の row variable になる。
+- fresh internal effect variable のうち、外側 handler に消費させてはいけないものは `take(Empty)` で protect する。
+- covariant wildcard / 省略 slot は filter wrapper を作らない。
+
+例:
+
+```text
+x : [io] A
+```
+
+`x` が contravariant な computation 引数なら、`io` は caller-supplied computation を内側 handler に見せてよい予算として `take(io)` になる。
+返り値や公開 result row のような covariant 位置なら、`io` は外へ出てよい family の filter になる。
+
+不変位置では、上下に同じ annotation を雑に複製しない。
+role-system の不変区間規則と同じく、実引数が同じ中心を満たすことを ordinary constraint で表す。
+
+## Family arguments
+
+effect family は path だけで突き合わせない。
+同じ path の family が set operation で出会った場合、type argument は invariant に制約する。
+
+対象:
+
+- row split の `K ∩ Common(L)`
+- residual subtraction の `L - J`
+- duplicate row head collection
+- filter check
+- `Neg::Stack` common-stack check
+
+例:
+
+```text
+ref_update int
+ref_update alpha
+```
+
+この 2 つが同じ family として扱われる場合、`int` と `alpha` の間にも invariant 制約を作る。
+path が同じだからといって payload を捨てない。
+
+## Bound replay
+
+type variable の bounds は、型と directed weight の組として保存する。
+
+```text
+lower: (Pos, L, R)
+upper: (Neg, L, R)
+```
+
+replay では経路に沿って左重みと右重みを合成し、W-Mix で directed projection してから enqueue する。
+
+```text
+compose_for_replay:
+  left  = earlier.left ; later.left
+  right = later.right ; earlier.right
+  normalize_directed_mix()
+  apply_termination_guard()
+```
+
+var-var replay も同じく W-Mix を先に行う。
+pop cap はその後であり、停止性のための実装ガードとして名前を持つ。
+この cap を semantic rule として docs や proof に持ち込まない。
+
+unmatched right pop を新しい push と交換してはならない。
+右重みは pure pop として tail / variance / replay を通る。
+
+## 停止性論考との関係
+
+`research/effect-mini-language/directed_weight_row_solver_termination_ja.tex` は、値型や constructor 分解を外した
+row-only core の停止性を扱う別論考である。
+そこでは exact natural-number counter を保つ solver の無条件停止性が偽であることを示し、
+cycle-neutrality、exact cache、residual memoization、有限 capability algebra の下で停止性を述べる。
+
+この停止性論考に出る ambient residual budget / residual floor は、ordinary row の二重消費を測るための静的な残量である。
+colored soundness 側の `Common(L)` に参加する active push ではなく、runtime marker でもない。
+実装上の pop-growth cap も同じく、停止性のための guard であって型等式ではない。
+したがって、停止性のための floor / cap を row head subtraction の visibility 規則へ混ぜてはならない。
+
+## Compact / finalize
+
+compact extraction では、directed weight を polarity に応じて投影する。
+
+- positive occurrence は left weight を `PWeight(L, T)` として見る。
+- negative occurrence は right pop を `NWeight(R, T)` として見る。
+- filter はすでに check 済みなので principal 型へ出さない。
+- legacy `floor` は active push ではない。
+
+cleanup の liveness は、covariant active push だけから stack id を集める。
+bare `floor` や pure pop だけでは id を live にしない。
+
+公開型に residual row variable が残ることは正常である。
+例えば次のような表示の `; beta` は、handler が消費しなかった effect tail を表す principal な残差であり、出力を短くする目的で消してはならない。
+
+```text
+alpha [undet; beta] -> [beta] alpha
+```
+
+## Runtime との関係
+
+inference の directed weight は、どの handler 境界がどの effect family を消費してよいかを決める。
+specialize 後は、runtime guard marker が同じ hygiene を保つ。
+
+ただし filter は runtime marker ではない。
+filter は annotation check を solver 内で済ませ、runtime へは運ばない。
+
+runtime marker の規則は `spec/2026-06-13-runtime-guard-markers.md` を見る。
+
+## 手計算
+
+この節は規則そのものではなく、規則がどう動くかを確認するための worked examples である。
+旧版の手計算は `floor` と `common_stack(W)` を前提にしていたが、ここでは directed left/right weight で書き直す。
+
+### 記法
+
+空の左重みを `0L`、空の右重みを `0R` と書く。
+id `u` の active push `take(H)` を次のように略記する。
+
+```text
+@u[H] = { u -> pop^0 take(H)^1 }
+```
+
+消費後に family が狭まったものは `@u[H - J]` と書く。
+たとえば `@h[All] - handled` は `@h[AllExcept(handled)]` である。
+`H - J = Empty` なら `@h[Empty]` と書き、これは active push ではあるが何も消費させない。
+
+右重みが tail に残る場合は、論考の記法に合わせて `NWeight(R, beta)` と書く。
+`R=0R` のときは `NWeight(0R, beta)` を単に `beta` と略す。
+
+row split は常に次の形で読む。
+
+```text
+alpha @L <: @R [K; beta]
+=> alpha @L <: [K; NWeight(R, beta)]
+
+J = K ∩ Common(L)
+
+if J = Empty:
+  alpha @L <: NWeight(R, beta)
+
+if J != Empty:
+  alpha <: [J; gamma]
+  gamma @(L - J) <: NWeight(R, beta)
+```
+
+residual `gamma` は `(source, J, L - J)` で hash-cons する。
+同じ source、同じ消費 head、同じ residual left weight なら同じ `gamma` を再利用する。
+
+### 基本例
+
+protected row:
+
+```text
+alpha @ @u[Empty] <: [io; beta]
+J = io ∩ Empty = Empty
+=> alpha @ @u[Empty] <: beta
+```
+
+`take(Empty)` は active push なので `Common` を `Empty` にする。
+したがって handler はこの row から何も消費できない。
+
+許可された subtraction:
+
+```text
+alpha @ @u[G] <: [H; beta]
+J = H ∩ G
+```
+
+`J` が空でなければ次になる。
+
+```text
+alpha <: [J; gamma]
+gamma @ @u[G - J] <: beta
+```
+
+複数 id:
+
+```text
+alpha @ @u[G] @ @v[H] <: [K; beta]
+Common = G ∩ H
+J = K ∩ G ∩ H
+```
+
+全 active id が同時に許す family だけを元 row から一度だけ引く。
+`L - J` では、各 active id の family から同じ `J` を引く。
+これは push ごとに別々の row head を引くという意味ではない。
+
+right pop:
+
+```text
+alpha @L <: @R [K; beta]
+=> alpha @L <: [K; NWeight(R, beta)]
+```
+
+right pop は row head を見せない。
+`K` から消費できるのは `K ∩ Common(L)` だけであり、`R` は residual tail の `NWeight` として残る。
+
+self-tail:
+
+```text
+beta @L <: [K; beta]
+```
+
+これは新しい residual を立てても同じ `beta` へ戻るだけなので no-op とする。
+step-indexed colored observation では有限な head 情報を増やさず、residual hash-cons と合わせて self-fueling を止める。
+
+pop の分配:
+
+```text
+A -> B <: pop_u(C)
+C <: D -> E
+```
+
+右 pop を constructor へ分配すると次の比較になる。
+
+```text
+A -> B <: pop_u(D) -> pop_u(E)
+```
+
+function domain は反変なので、分解後は次になる。
+
+```text
+pop_u(D) <: A
+B <: pop_u(E)
+```
+
+pop が勝手に辺を移るのではなく、function domain の反変分解で左右が交換された結果である。
+
+### annotation lowering の小例
+
+effect-only skeleton の slot は極性で意味が変わる。
+
+```text
+contravariant [_]       => PWeight(@u[All], rho)
+contravariant [io]      => PWeight(@u[io], rho)
+contravariant []        => PWeight(@u[Empty], rho)
+covariant omitted / [_] => rho
+covariant [io]          => Filter(io, rho)
+covariant []            => Filter(Empty, rho)
+```
+
+省略 slot は「予算なし」ではない。
+effect-only skeleton では wildcard と同じであり、反変なら `take(All)`、共変なら filter なしの open row になる。
+
+fresh internal effect variable のうち、外側 handler に消費させてはいけないものだけを
+`PWeight(@u[Empty], rho)` として protect する。
+
+### shallow と recursive/deep の期待型が分岐する理由
+
+ここでは、handler variant の枝 effect がどう catch 全体へ流れるかだけを比較する。
+scrutinee の effect row を次のように置く。
+
+```text
+x : [PWeight(@h[All], alpha)] value
+```
+
+handler が `handled` を処理するので、まず次を要求する。
+
+```text
+alpha @ @h[All] <: [handled; rho]
+J = handled ∩ All = handled
+```
+
+したがって split は次になる。
+
+```text
+alpha <: [handled; gamma]
+gamma @ @h[AllExcept(handled)] <: rho
+```
+
+`@h[AllExcept(handled)]` は、同じ handler 寿命の residual が `handled` をもう一度消費しないための
+colored evidence である。
+公開型にはこの weight 自体は出ず、residual row だけが残る。
+
+shallow variant では、operation branch が scrutinee effect をそのまま再び起こしうると見る。
+catch 全体の effect を `delta` とすると、枝と residual から次が流れる。
+
+```text
+alpha <: delta
+rho   <: delta
+```
+
+一旦の形は次である。
+
+```text
+value [alpha] -> [delta] value
+constraints:
+  alpha <: [handled; gamma]
+  gamma @ @h[AllExcept(handled)] <: rho
+  alpha <: delta
+  rho <: delta
+```
+
+compact では、`alpha` が引数側にも枝 effect 側にも出るため、residual と同じ成分へ畳まれる。
+hidden weight を除くと、期待する公開型は次の形になる。
+
+```text
+value [alpha & [handled; alpha]] -> [alpha] value
+```
+
+recursive/deep variant では、operation branch が continuation を handler 自身へ投げ返すだけで、
+scrutinee effect `alpha` を catch 全体の枝 effect へ直接流さない。
+生じるのは次だけである。
+
+```text
+rho <: delta
+```
+
+一旦の形は次である。
+
+```text
+value [alpha] -> [delta] value
+constraints:
+  alpha <: [handled; gamma]
+  gamma @ @h[AllExcept(handled)] <: rho
+  rho <: delta
+```
+
+`alpha` は反変側にしか残らず、`delta` は共変側だけなので、極性消去後に落ちる。
+公開型は次の形になる。
+
+```text
+value [handled; gamma] -> [gamma] value
+```
+
+枝が足りない incomplete handler では、未処理の scrutinee effect も catch 全体 effect へ流す。
+その場合は shallow と同じく `alpha <: delta` が残るため、recursive/deep でも shallow 側の形へ近づく。
+
+### `outer/local/repeat` の衛生性
+
+次のような形を考える。
+
 ```yu
 act outer:
     our redo: () -> never
@@ -676,7 +601,7 @@ act outer:
         our sub(x: [_] _) = catch x:
             break(), _ -> ()
             _ -> ()
-        my act repeat = local   // 内部のみ同じ別エフェクト
+        my act repeat = local
         our run(f: () -> [outer] _) = local::sub: loop true with:
             our loop b = if b:
                 loop:repeat::judge:catch f():
@@ -685,203 +610,173 @@ act outer:
 
 pub r = outer::run
 ```
-を仮定する。
-通常の推論手順により、単相化した状態で次を仮定する。
+
+単相化した状態で、次が既に分かっているとする。
 
 ```text
-repeat::judge : ⊤ [repeat; ε] -> [ε] bool
-local::sub    : ⊤ [local; ζ]  -> [ζ] ()
+repeat::judge : unit [repeat; eps] -> [eps] bool
+local::sub    : unit [local; zeta] -> [zeta] unit
 ```
 
-1. `run`の引数注釈`f: () -> [outer] _`から、`f`のeffect変数は次のように導入される。
-   ```text
-   f : () -> [stack(α, @run)] β
-   @run = @#run[[outer]]
-   ```
-2. `f()`をcatchするので、まずhandled `outer`を要求する。
-   ```text
-   stack(α, @run) @0 <: @0 [outer; ρ]
-   ```
-3. `stack`を剥がす。
-   ```text
-   α @run <: @0 [outer; ρ]
-   ```
-4. stackの共通部分は`[outer]`なので、次になる。
-   ```text
-   U = [outer] ∩ [outer] = [outer]
-   α upper += [outer; γ]
-   γ @run <: @0 ρ
-   ```
-5. catchの枝では`repeat::break`、`local::break`、未処理残差がcatch全体effect`δ`へ流れる。
-   ```text
-   repeat @0 <: @0 δ
-   local  @0 <: @0 δ
-   ρ      @0 <: @0 δ
-   ```
-6. `repeat::judge`へcatch結果を渡すので、`δ <: [repeat; ε]`が必要になる。
-   `δ`の下界を一つずつ流す。
-   ```text
-   repeat @0 <: @0 [repeat; ε]
-   => [] @0 <: @0 ε
+`run` の引数 annotation `f: () -> [outer] _` は、`run` から見ると反変 slot にある。
+したがって `f()` の effect は次の形で置かれる。
 
-   local @0 <: @0 [repeat; ε]
-   => local @0 <: @0 ε
+```text
+f : () -> [PWeight(@run[outer], alpha)] value
+```
 
-   ρ @0 <: @0 [repeat; ε]
-   ```
-7. `ρ`には`γ @run <: @0 ρ`があるので、推移で次も流れる。
-   ```text
-   γ @run <: @0 [repeat; ε]
-   ```
-8. この制約ではstackの共通部分が`[outer]`で、handledが`[repeat]`なので、引ける部分は空である。
-   ```text
-   U = [outer] ∩ [repeat] = Empty
-   γ upper += η
-   η @run <: @0 ε
-   ```
-9. したがって`repeat::judge`適用後の残差は次の形である。
-   ```text
-   local @0 <: @0 ε
-   η @run <: @0 ε
-   ```
-10. `loop`は純粋関数なので、ここまでのeffectをそのまま返りeffectへ持つ。
-    ```text
-    loop : bool -> [ε] ()
-    expanded as bool -> [local | η@run | ε] ()
-    ```
-11. これを`local::sub`へ渡すので、今度は`local, η, ε <: [local; ζ]`を一つずつ処理する。
-    ```text
-    local @0 <: @0 [local; ζ]
-    => [] @0 <: @0 ζ
+`catch f()` が `outer` を処理する。
 
-    η @run <: @0 [local; ζ]
-    U = [outer] ∩ [local] = Empty
-    η upper += θ
-    θ @run <: @0 ζ
+```text
+alpha @ @run[outer] <: [outer; rho]
+J = outer ∩ outer = outer
+```
 
-    ε @0 <: @0 [local; ζ]
-    ```
-12. `ε @0 <: @0 [local; ζ]`は空重みなので、`local`をそのまま引ける。
-    ```text
-    U = [local] ∩ All = [local]
-    ε upper += [local; κ]
-    κ @0 <: @0 ζ
-    ```
-13. `ε`には`η @run <: @0 ε`があるので、推移で次も得る。
-    ```text
-    η @run <: @0 [local; ζ]
-    => θ @run <: @0 ζ
-    ```
-14. 最終的な型は次から始まる。
-    ```text
-    (() -> [stack(α, @run)] β) -> [ζ] ()
-    ```
-15. compact展開では、`α`の上界と`ζ`へ流れた`@run`付き残差を合わせて次になる。
-    ```text
-    (() -> [α & [outer; γ & η & θ & κ & ζ]] β) -> [ζ | γ | η | θ | κ] ()
-    ```
-16. `α`と`β`は反変位置にしかないので落ちる。
-    共起分析で`γ, η, θ, κ, ζ`は同じ残差に畳まれる。
-    最終的に次を得る。
-    ```text
-    (() -> [outer; γ] ⊤) -> [γ] ()
-    ```
+split:
 
-# 補足: `m`/`j`は巡回を生まない
+```text
+alpha <: [outer; gamma]
+gamma @ @run[Empty] <: rho
+```
+
+`@run[Empty]` は「`f` 由来 residual からは、この内側 handler 群がもう何も引けない」という evidence である。
+
+catch の枝では `repeat::break`、`local::break`、未処理 residual が catch 全体 effect `delta` へ流れる。
+
+```text
+repeat <: delta
+local  <: delta
+rho    <: delta
+```
+
+`repeat::judge` へ渡すので、`delta <: [repeat; eps]` が必要になる。
+下界を一つずつ流す。
+
+```text
+repeat <: [repeat; eps]
+=> unit row tail eps
+
+local <: [repeat; eps]
+=> local <: eps
+
+rho <: [repeat; eps]
+```
+
+`rho` には `gamma @ @run[Empty] <: rho` があるので、推移で次も処理する。
+
+```text
+gamma @ @run[Empty] <: [repeat; eps]
+J = repeat ∩ Empty = Empty
+=> gamma @ @run[Empty] <: eps
+```
+
+`repeat` は消費されたが、`local` と `gamma@run[Empty]` は `eps` 側へ残る。
+
+次に `local::sub` へ渡すので、`eps <: [local; zeta]` を処理する。
+`eps` の下界から見ると次になる。
+
+```text
+local <: [local; zeta]
+=> unit row tail zeta
+
+gamma @ @run[Empty] <: [local; zeta]
+J = local ∩ Empty = Empty
+=> gamma @ @run[Empty] <: zeta
+```
+
+つまり、`outer` 由来の residual は `repeat` handler にも `local` handler にも捕まらない。
+最終的な型は hidden weight を消すと次へ畳まる。
+
+```text
+(() -> [outer; gamma] value) -> [gamma] unit
+```
+
+ここで `repeat` は `local` と同じ実体に見えても、`outer` の producer-consumer 境界で作った
+`@run[Empty]` が residual に残るため、内側 handler が呼び出し元由来の effect を奪わない。
+
+### `m` / `j` が巡回を生まない理由
+
+次を考える。
+
 ```yu
 act io:
     our read: () -> int
+
 my j(x: [_] _) = catch x:
     io::read(), k -> j(k 0)
+
 my m(x: [io; e] _) = catch x:
     io::read(), k -> j(k 0)
 ```
-を仮定する。
-`j`は通常の解析によって次の型を持つとする。
+
+`j` は次の型を持つとする。
 
 ```text
-j : α [io; β] -> [β] α
+j : a [io; b] -> [b] a
 ```
 
-`β`は`[_]`由来の残差だが、この例では1回しか使わないため、instantiate後のfreshなidを省略する。
+`m` の引数 `x: [io; e] _` は反変 concrete annotation なので、scrutinee effect を次の形で置く。
 
-`m`の内部を追う。
-
-1. `x: [io; e] _`の反変注釈から、scrutinee effectを次の形で置く。
-   ```text
-   x : [stack(γ, @m)] δ
-   @m = @#m[[io]]
-   ```
-2. catchが`io`を処理する。
-   ```text
-   stack(γ, @m) @0 <: @0 [io; ε0]
-   => γ @m <: @0 [io; ε0]
-   ```
-3. stackの共通部分は`[io]`なので、次になる。
-   ```text
-   U = [io] ∩ [io] = [io]
-   γ upper += [io; ε]
-   ε @m <: @0 ε0
-   ```
-4. 枝の中で`k 0`を作る。
-   ```text
-   δ @0 <: @0 α
-   γ @0 <: @0 effect(k 0)
-   ```
-5. その`k 0`を`j`へ渡すので、`j`の引数effectに合わせて次が必要になる。
-   ```text
-   γ @m <: @0 [io; β]
-   ```
-6. この制約も同じ重みで処理する。
-   ```text
-   U = [io] ∩ [io] = [io]
-   γ upper += [io; β1]
-   β1 @m <: @0 β
-   ```
-7. 枝のeffectは`β`である。
-   catch全体のeffect`ζ`には、枝effectとcatch残差が入る。
-   ```text
-   β  @0 <: @0 ζ
-   ε0 @0 <: @0 ζ
-   ```
-8. 全体の関数型は一旦次になる。
-   ```text
-   δ [stack(γ, @m)] -> [ζ] α
-   ```
-9. compact展開で上界を入れる。
-   ```text
-   δ & α [γ & [io; ε & ζ] & [io; β1 & β & ζ]] -> [ζ | β | ε0] α | δ
-   ```
-10. 同じ`[io; ...]`をまとめる。
-    ```text
-    δ & α [γ & [io; ε & ζ & β1 & β]] -> [ζ | β | ε0] α | δ
-    ```
-11. 極性消去と共起分析後、`j`と同じ形へ戻る。
-    ```text
-    α [io; β] -> [β] α
-    ```
-
-重みは常に`γ @m <: @0 [io; ...]`から前向きに残差へ渡る。
-右側のtailから`γ`へ戻る制約は作らないので、巡回が発生する余地はない。
-
-# `AllExcept(ref_update _)` stack と変数表現
-データ型を定義する際には、反変表現として保存する。これにより次の様なデータが作成できる:
-```yu
-struct ref 'e 'a {
-    get: () -> ['e] 'a
-    update_effect: () -> [ref_update 'a; 'e] ()
-}
+```text
+x : [PWeight(@m[io], gamma)] delta
 ```
-このとき、
-```yu
-ref: {
-    get: () -> ['e] 'a
-    update_effect: () -> [ref_update 'a; 'e] ()
-} -> ref 'e 'a
-```
-が定義されるが、また同じように`update_effect: ref 'e 'a → () -> [ref_update 'a, 'e] ()`も定義される必要がある。このとき、`'e`は何か？　`stack('e, @ref)`で保護された残差であるとするのが妥当であろう。ただし`@ref = { #ref -> pop(0)[AllExcept(ref_update _)] }`である。この後、`catch`で`[ref_update 'a; 'e]`を取り去るのであるから当然であり、分離とはそのように成される。
 
-## 実際に推論されるもの
+`m` の catch が `io` を処理する。
+
+```text
+gamma @ @m[io] <: [io; eps0]
+J = io ∩ io = io
+```
+
+split:
+
+```text
+gamma <: [io; eps]
+eps @ @m[Empty] <: eps0
+```
+
+枝の中で `k 0` を作り、それを `j` へ渡す。
+`j` の引数 effect に合わせるため、再び次が要求される。
+
+```text
+gamma @ @m[io] <: [io; b]
+```
+
+ここでも
+
+```text
+J = io
+L - J = @m[Empty]
+```
+
+であり、residual key は最初の split と同じ `(gamma, io, @m[Empty])` になる。
+したがって fresh residual をもう一つ作らず、同じ `eps` を再利用する。
+
+```text
+gamma <: [io; eps]
+eps @ @m[Empty] <: b
+```
+
+枝 effect は `b`、catch residual は `eps0` なので、catch 全体 effect `zeta` には次が入る。
+
+```text
+b    <: zeta
+eps0 <: zeta
+```
+
+公開型では、`eps @ @m[Empty]` の hidden evidence は表示されず、`j` と同じ主形へ戻る。
+
+```text
+a [io; b] -> [b] a
+```
+
+重要なのは、2 回目の `gamma @ @m[io] <: [io; ...]` が新しい residual tail を作らない点である。
+同じ split slot が同じ `eps` を返すため、`gamma -> eps -> gamma` のような row cycle は発生しない。
+
+### `AllExcept(ref_update _)` と `ref::update`
+
+次のような型を考える。
+
 ```yu
 pub act ref_update 'a:
     pub update: 'a -> 'a
@@ -895,227 +790,161 @@ pub type ref 'e 'a with:
             ref_update::update v, k -> loop:k:f v
         loop:r.update_effect()
 ```
-に対して`ref::update`を推論してみよう。最初は引数の型から。便宜上型変数名を数字、レベルも数字で置こう。`r: ref '1(1) '2(1)`と`f: '3(1)`だ。
 
-次にloopを見よう。
-1. `x: [_] _`から、scrutinee effectを次の形で置く。
-   ```text
-   x : [stack('4(2), @loop)] '5(2)
-   @loop = @#1[All]
-   ```
-2. catchが`ref_update`を処理する。
-   ```text
-   stack('4(2), @loop) @0 <: @0 [ref_update '6(2); '7tail(2)]
-   => '4(2) @loop <: @0 [ref_update '6(2); '7tail(2)]
-   ```
-3. stackの共通部分は`All`なので、引ける部分は`ref_update`そのものである。
-   ```text
-   U = ref_update ∩ All = ref_update
-   '4(2) upper += [ref_update '6(2); '7(2)]
-   '7(2) @loop <: @0 '7tail(2)
-   ```
-4. handler armのoperation patternから、operation引数と継続型を置く。
-   ```text
-   '6(2) @0 <: @0 '8(2)
-   '6(2) -> ['4(2)] '5(2) @0 <: @0 '9(2)
-   ```
-5. `f v`のために`f`を関数型へ下から押し込む。
-   返りeffectは注釈されていないので、`stack`を剥がした後に`@fv = @#fv[Empty]`として伝播する。
-   ```text
-   @fv = @#fv[Empty]
-   '3(1) @0 <: @0 '8(2) -> [stack('10(2), @fv)] '11(2)
-   ```
-6. level extrude後は次である。
-   ```text
-   '3(1) @0 <: @0 '8(1) -> [stack('10(1), @fv)] '11(1)
-   ```
-7. `k : '9(2)`へ`f v`を渡すので、次の比較を作る。
-   ```text
-   '9(2) @0 <: @0 '11(1) [stack('10(1), @fv)] -> ['12(2)] '13(2)
-   ```
-8. 既に`'6(2) -> ['4(2)] '5(2) @0 <: @0 '9(2)`があるので、推移で関数型同士を比較する。
-   ```text
-   '6(2) -> ['4(2)] '5(2)
-     @0 <: @0
-   '11(1) [stack('10(1), @fv)] -> ['12(2)] '13(2)
-   ```
-9. 関数型を分解する。
-   ```text
-   '11(1) @0 <: @0 '6(2)
-   '4(2)  @0 <: @0 '12(2)
-   stack('10(1), @fv) @0 <: @0 '12(2)
-   '5(2)  @0 <: @0 '13(2)
-   ```
-10. `stack`を剥がす。
-    ```text
-    '10(1) @fv <: @0 '12(2)
-    ```
-11. `loop`の型変数を`'14(2)`、catch本体の型を`['15(2)] '16(2)`と置く。
-    recursive bindingの下側から次を登録する。
-    ```text
-    '5(2) ['4(2)] -> ['15(2)] '16(2) @0 <: @0 '14(2)
-    ```
-12. recursive call `loop:k:f v`から、`loop`の上側に次を要求する。
-    ```text
-    '14(2) @0 <: @0 '13(2) ['12(2)] -> ['17(2)] '18(2)
-    ```
-13. catch全体のeffect/valueは、未処理残差とhandler armの式から下から抑えられる。
-    ```text
-    '7(2)  @loop <: @0 '15(2)
-    '17(2) @0 <: @0 '15(2)
-    '5(2)  @0 <: @0 '16(2)
-    '18(2) @0 <: @0 '16(2)
-    ```
-14. `loop`の下界と上界を推移でつなぐ。
-    ```text
-    '5(2) ['4(2)] -> ['15(2)] '16(2)
-      @0 <: @0
-    '13(2) ['12(2)] -> ['17(2)] '18(2)
-    ```
-15. 関数型を分解する。
-    ```text
-    '13(2) @0 <: @0 '5(2)
-    '12(2) @0 <: @0 '4(2)
-    '15(2) @0 <: @0 '17(2)
-    '16(2) @0 <: @0 '18(2)
-    ```
-16. `f v`由来の`@fv`重みは、次の推移で`'4(2)`の上界へ届く。
-    ```text
-    '10(1) @fv <: @0 '12(2)
-    '12(2) @0  <: @0 '4(2)
-    '4(2) upper includes [ref_update '6(2); '7(2)]
+`ref 'e 'a` の residual `'e` は、`ref_update _` 以外を通す residual として読む。
+内部 evidence は次の形で置く。
 
-    therefore:
-    '10(1) @fv <: @0 [ref_update '6(2); '7(2)]
-    ```
-17. この行をrow規則で処理する。
-    ```text
-    W = @fv
-    U = ref_update ∩ Empty = Empty
-    '10(1) upper += '10r(1)
-    '10r(1) @fv <: @0 '7(2)
-    ```
-    ここで`@fv`重みが`'10r(1) @fv <: @0 '7(2)`として`'7(2)`側へ伝播する。
-
-展開して見よう。
-```
-'14(2)
-= ('5(2) ['4(2)] -> ['15(2)] '16(2)) | '14(2)
-  constraints:
-    '4(2) upper += [ref_update '6(2); '7(2)]
-    '7(2) @loop <: @0 '7tail(2)
-= ('5(2) & '16(2) & '18(2) ['4(2) & [ref_update('11(1) | '6(2) & '8(1)); '7(2)@loop & '10r(1)@fv]] -> ['7(2)@loop | '10r(1)@fv | '17(2) | '15(2)] '13(2) | '5(2) | '18(2) | '16(2)) | '14(2)
-  constraints:
-    '7(2) @loop <: @0 '15(2)
-    '10r(1) @fv <: @0 '7(2)
-= '5(2) [ref_update('11(1) | '6(2) & '8(1)); '7(2)@loop & '10r(1)@fv] -> ['10r(1)@fv | '7(2)@loop] '5(2)
-  constraints:
-    '10r(1) @fv <: @0 '7(2)
-    '7(2) @loop <: @0 '15(2)
-= '5(2) [ref_update('11(1) | '6(2) & '8(1)); '7(2)] -> ['10(1) | '7(2)] '5(2)
-= forall '5, '6 '7. '5 [ref_update('11(1) | '6 & '8(1)); '7] -> ['10(1), '7] '5
+```text
+@ref = @ref_id[AllExcept(ref_update _)]
 ```
 
-とても分かりやすくなった。でもこれはまだloopの型。
-これに`r.update_effect()`、つまり`[ref_update '2(1), '1(1)] ()`を代入する。
-`'1(1)`は`stack('1(1), @ref)`で保護された残差である。
+`loop` の引数 `x: [_] _` は反変 wildcard なので、scrutinee effect は次になる。
 
-1. loopの型をlevel 1へinstantiateしたものを使う。
-   ```text
-   '5(1) [ref_update('11(1) | '6(1) & '8(1)); '7(1)]
-     -> ['10(1), '7(1)] '5(1)
-   ```
-2. `r.update_effect()`の型は次である。
-   ```text
-   () [ref_update '2(1); stack('1(1), @ref)] ()
-   @ref = @#ref[AllExcept(ref_update _)]
-   ```
-3. 関数適用で次を比較する。
-   ```text
-   '5(1) [ref_update('11(1) | '6(1) & '8(1)); '7(1)]
-     -> ['10(1), '7(1)] '5(1)
-       @0 <: @0
-   () [ref_update '2(1); stack('1(1), @ref)]
-     -> ['19(1)] '20(1)
-   ```
-4. 関数型を分解する。
-   ```text
-   () @0 <: @0 '5(1)
-
-   ref_update '2(1) @0
-     <: @0
-   ref_update('11(1) | '6(1) & '8(1))
-
-   stack('1(1), @ref) @0 <: @0 '7(1)
-
-   '10(1) @0 <: @0 '19(1)
-   '7(1)  @0 <: @0 '19(1)
-   '5(1)  @0 <: @0 '20(1)
-   ```
-5. `ref_update`の引数を分解する。
-   ```text
-   '11(1) | '6(1) @0 <: @0 '2(1)
-   '2(1) @0 <: @0 '6(1) & '8(1)
-   ```
-6. 残差側の`stack`を剥がす。
-   ```text
-   '1(1) @ref <: @0 '7(1)
-   ```
-7. これにより`'1(1) @ref <: @0 '7(1)`として、`@ref`重みが`'7(1)`側へ伝播する。
-   返りeffectは次で抑えられる。
-   ```text
-   '10(1) @0 <: @0 '19(1)
-   '7(1)  @0 <: @0 '19(1)
-   ```
-8. 全体の型を`'21(1)`と置く。
-   ```text
-   ref '1(1) '2(1) -> '3(1) -> ['19(1)] '20(1) @0 <: @0 '21(1)
-   ```
-
-展開して見よう:
-```
-21(1)
-= (ref('7(1) | '1(1)@ref & '7(1) & '19(1), '11(1) | '6(1) | '2(1) & '6(1) & '8(1)) -> '3(1) & ('11(1) | '5(1) | '2(1) | '8(1) -> ['10r(1)@fv & '19(1)] 11(1)) -> ['10r(1)@fv | '1(1)@ref | '7(1) | '19(1)] () | '5(1) | '20(1)) | 21(1)
-  constraints:
-    '1(1) @ref <: @0 '7(1)
-    '10r(1) @fv <: @0 '7(1)
-    '10(1) @0 <: @0 '19(1)
-    '7(1) @0 <: @0 '19(1)
-= ref('1(1)@ref & '19(1), '11(1)) -> ('11(1) -> ['19(1)] 11(1)) -> ['1(1)@ref | '19(1)] ()
-  constraints:
-    '10r(1) @fv <: @0 '19(1)
-    '1(1) @ref <: @0 '19(1)
-= ref('1(1) & '19(1), '11(1)) -> ('11(1) -> ['19(1)] 11(1)) -> ['1(1) | '19(1)] ()
-= forall 'a 'b 'c. ref('a&'b, 'c) -> ('c -> ['b] 'c) -> ['a, 'b] ()
+```text
+x : [PWeight(@loop[All], row4)] value5
 ```
 
-# 実際の表現について
-compact collect型については、通常の共変型が`変数 + record + ...`であるように、effect row側も共変部分は`変数 + 行`として持つ。
-反変部分は、具体rowを直接増やすのではなく、stack付きの境界として保存する。
+`loop` の catch が `ref_update` を処理する。
 
-CompactTypeからPos/Negへ移す段階では、`stack(T, @S)`を両極の型に入れるのが一番扱いやすい。
-`@S`は常に`{ #id -> pop(p)[H1, ..., Hn], ... }`の正規形で持つ。
-旧記法の`push(T, H, #id)`と`pop(T, #id)`は、この`stack(T, @S)`の特殊ケースとしてだけ扱う。
-この表現にしておくと、CompactTypeからPos/Negへ移すときに、片方の極だけに特別なproxy型を作らなくてよい。
+```text
+row4 @ @loop[All] <: [ref_update t6; tail7]
+J = ref_update t6 ∩ All = ref_update t6
+```
 
-cleanupでは、共変側に`#id`が一つも残っていないなら、反変側に残った同じ`#id`のstackも消し去る。
-また、Pos/Negへ置き換える時点で、対応する非空stack entryがどちらの極にも存在しない、popだけの（floorもstack要素も持たない）entryは消してよい。
-その`pop(n)[]`は境界を戻す相手を持たず、後から来る非空stack entryで相殺してはならない先頭`pop`として残す意味もない。
-通常のhandlerで使い切られるものはこのcleanupで消えるので、表示型は既存の表記から大きくは変わらない。
+split:
 
-# 変数展開について
-変数展開は、裸の変数ではなく重み付きの変数出現に対して行う。
-`'a@R`を展開するときは、展開結果に現れる全ての変数出現へ`@R`を後から足す。
-すでに変数出現が`ρ@Q`の重みを持っている場合は、`ρ@(@Q + @R)`にする。
-これは`@R`が「`'a`へ到達するまでに通ってきた文脈」であり、その文脈を展開結果の各変数へ引き継ぐためである。
+```text
+row4 <: [ref_update t6; row7]
+row7 @ @loop[AllExcept(ref_update t6)] <: tail7
+```
 
-1. `α [β] → [γ] δ`という型をcompact表現に展開するとする。ただし、`β`の上界は`ε, [undet; ζ]`、`ε`の上界は`[io; η]`、`ζ`の上界は`[flip; γ]`とする。`α`や`γ`、`δ`は今回上下界を持たないとする。
-2. `α [β & ε & [undet; ζ]] → [γ] δ`と展開する。
-3. 次に見るのは`ε`だが、このとき`β`から直接出てきた上界なので、さらに上は展開しない。代わりに次の`ζ`を見る。
-4. `α [β & ε & [undet; ζ & [flip; γ]]] → [γ] δ`と展開する。
-5. 極性消去によって`α [[undet; [flip; γ]]] → [γ] δ`と展開される。終わり
+operation pattern から、payload と continuation には通常の型制約が入る。
+ここでは effect の流れだけを見る。
 
-ここで注意すべきは**変数を展開して出てきた変数は、上界を展開しない**ことである。これによって、本来推移律の成立しない世界を上手くコンパクト化している。
+handler arm の `f v` では、`f` の返り effect annotation が無い。
+これは外側 handler に勝手に消費させてはいけない internal effect なので、fresh row `row10` を
+`@fv[Empty]` で protect する。
 
-`stack(ρ, @S)` はordinary row boundではない。
-compact表示ではordinary row boundを従来どおり展開し、残ったstack境界だけを型構造として扱う。
+```text
+f : t8 -> [PWeight(@fv[Empty], row10)] t11
+```
+
+`k (f v)` のために continuation の期待 effect と突き合わせると、`row10` は `row4` 側へ流れる。
+`row4` には既に `[ref_update t6; row7]` という upper があるので、推移で次が生じる。
+
+```text
+row10 @ @fv[Empty] <: [ref_update t6; row7]
+J = ref_update t6 ∩ Empty = Empty
+```
+
+したがって `ref_update` はここでは消費されない。
+新しい residual も作らず、tail 側へ進む。
+
+```text
+row10 @ @fv[Empty] <: row7
+```
+
+これが「`f v` が起こす effect は、`loop` の `ref_update` handler に奪われず、loop の residual へ残る」
+という部分である。
+
+`loop` の主な effect 形は、hidden evidence を消すと次になる。
+
+```text
+value [ref_update item; row7] -> [row10; row7] value
+```
+
+ここへ `r.update_effect()` を渡す。
+`r.update_effect()` の effect は次である。
+
+```text
+[ref_update a; PWeight(@ref[AllExcept(ref_update _)], e)] unit
+```
+
+関数適用で argument row を合わせると、具体 head `ref_update a` は `loop` が処理する head と一致し、
+payload `a` と `item` の間に invariant 制約が入る。
+残った ref residual は次のように `row7` へ流れる。
+
+```text
+e @ @ref[AllExcept(ref_update _)] <: row7
+```
+
+返り effect は `row10` と `row7` から来る。
+`row7` には `e@ref` が流れ、`row10` には `f v` の effect が流れる。
+hidden evidence を消し、共起する residual を `b` と置くと、最終的な公開型は次の形になる。
+
+```text
+ref (e & b) a -> (a -> [b] a) -> [e; b] unit
+```
+
+旧手計算の名前に合わせれば、これは次の形である。
+
+```text
+forall a b c. ref (a & b) c -> (c -> [b] c) -> [a; b] unit
+```
+
+ポイントは 2 つである。
+
+- `@loop[All]` は `ref_update` を一度だけ処理し、residual は `@loop[AllExcept(ref_update)]` へ狭まる。
+- `@fv[Empty]` と `@ref[AllExcept(ref_update _)]` は、内側の `ref_update` handler が別由来の residual を消費することを防ぐ。
+
+### 変数展開と one-layer compact
+
+変数展開は、裸の変数ではなく weighted occurrence に対して行う。
+positive occurrence なら parent left weight を direct lower bound へ合成し、negative occurrence なら parent right weight を direct upper bound へ合成する。
+そのあと polarity に応じて `PWeight` / `NWeight` へ投影する。
+
+重要なのは、展開して出てきた変数を同じ pass でさらに展開しないことである。
+これは subtype graph の推移閉包を表示処理でもう一度作らないための制限である。
+
+例として、compact 前に次の upper bounds があるとする。
+
+```text
+beta upper includes eps
+beta upper includes [undet; zeta]
+eps  upper includes [io; eta]
+zeta upper includes [flip; gamma]
+```
+
+`alpha [beta] -> [gamma] delta` の引数 row を one-layer に展開すると、まず direct upper だけを見る。
+
+```text
+alpha [beta & eps & [undet; zeta]] -> [gamma] delta
+```
+
+`eps` は `beta` の direct upper として出てきた変数なので、この pass では `[io; eta]` へさらに開かない。
+一方、row constructor `[undet; zeta]` の tail として構造上見えている `zeta` は、その row の中で必要な一段だけ見る。
+
+```text
+alpha [beta & eps & [undet; zeta & [flip; gamma]]] -> [gamma] delta
+```
+
+極性消去後、反変側だけに残る不要成分は落ち、次のような principal な surface に近づく。
+
+```text
+alpha [undet; [flip; gamma]] -> [gamma] delta
+```
+
+この制限により、compact 表示は飽和済み graph の direct bounds を読むだけになり、
+表示側で新しい伝播や無限展開を起こさない。
+
+## 実装上の禁止事項
+
+- 左右重みを row split 前に `left.compose(right)` のように単一 weight へ潰さない。
+- row head の消費判定に right pop、filter、legacy floor を参加させない。
+- `floor` を formal core の保護機構として復活させない。
+- `protect` 専用 constructor や protected variable set を足さない。
+- residual key に target tail を含めない。
+- `filter` を runtime marker として扱わない。
+- `pop(n) -> pop(1)` を型等式として説明しない。
+- family path だけを比較して type argument を捨てない。
+- `Any` を曖昧な fallback、`Never` を placeholder として使わない。
+- 特定の path / module / fixture 名だけを見る inference 分岐を足さない。
+
+## 実装対応表
+
+- directed weight: `crates/infer/src/constraints/directed_weight.rs`
+- weighted row split: `crates/infer/src/constraints/row_effect.rs`
+- bound storage / replay: `crates/infer/src/constraints/machine/*`
+- cleanup / stack id liveness: `crates/infer/src/generalize/*`
+- surface materialization: `crates/infer/src/generalize/finalize.rs`, `crates/poly/src/dump/*`
+- runtime marker: `crates/control-vm`, `crates/mono-runtime`, `spec/2026-06-13-runtime-guard-markers.md`

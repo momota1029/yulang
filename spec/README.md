@@ -20,9 +20,10 @@
   — role の通常引数・関連型、入力 variance の導出、**不変区間規則（交差条件の定義元）**、
   level 管理、簡約、解決と再帰的 discharge。
 - [2026-05-31-effect-variable-subtractable.md](2026-05-31-effect-variable-subtractable.md)
-  — effect subtraction と共変位置の効果注釈filterを `stack(T, @S)` 型と不等式の重みで表す。
-  floor / pop / filter / weight、row 分解、注釈の上下分解、catch の制約、量化・cleanup。
-  前半が規則、後半が手計算による検証。
+  — effect subtraction と handler hygiene を directed stack weight 付き subtype 制約で表す。
+  左重み / 右重みの分離、W-Mix、`J = K ∩ Common(L)` による row split、filter check、
+  `take(Empty)` による protect、bound replay、compact / cleanup。
+  `floor` は active family ではない。停止性論考の ambient / residual floor は別の静的測度として読む。
 - [2026-06-06-invariant-type-sandwich.md](2026-06-06-invariant-type-sandwich.md)
   — compact 表現（`CompactBounds` の enum 化）と sandwich による中心変数の消去。
   role-system の不変区間規則の上に立つ。
@@ -52,8 +53,8 @@
   2026-06-15 版を優先する。
 - [2026-06-13-runtime-guard-markers.md](2026-06-13-runtime-guard-markers.md)
   — specialize 後の effect hygiene を値と一緒に運ぶ runtime marker 仕様。`get_id`、
-  dynamic `GuardIdList`、`frame_id[id]`、`marker[id]`、`add_id[n, path, id]`、resumable effect を含む
-  unwind 規則、lazy propagation と cost model。
+  dynamic `GuardIdList`、`frame_id[id]`、`marker[id]`、entry-except snapshot 付き
+  `add_id[n, path, id]`、resumable effect を含む unwind 規則、lazy propagation と cost model。
 - [2026-06-13-mono-vm-contract.md](2026-06-13-mono-vm-contract.md)
   — `mono::Program` を VM / runtime lower が読むための契約。root 評価順、Instance store、
   boundary node、`EffectOp`、`FunctionAdapterHygiene`、select / handler / pattern の VM-ready 条件、

@@ -1,24 +1,23 @@
 # Type Inference Theory
 
-This page explains the current public model behind Yulang's type inference for
-effects and handlers. It is not a full solver specification; the goal is to make
-the types printed by the CLI, playground, and language server less mysterious.
+This page explains the public model behind Yulang's type inference for effects
+and handlers. It is not a full solver specification; the goal is to make the
+types printed by the CLI, playground, and language server easier to read.
 
-The important shift is that handler hygiene is no longer described as a
-separate hidden `handler_match` relation. The implementation represents the same
-idea inside the subtype solver by carrying **stack weights** through type
-inequalities.
+The current implementation represents handler hygiene inside the subtype solver
+with **directed stack weights**. A handler can subtract only the effect families
+that are visible through those weights.
 
 ## Expressions Have a Value Type and an Effect Row
 
 Every Yulang expression has a value type and an effect row.
 
 ```text
-e : A ! ρ
+e : A ! rho
 ```
 
 Read this as: expression `e` returns a value of type `A`, and may perform the
-effects in row `ρ` while computing that value.
+effects in row `rho` while computing that value.
 
 In surface type output, Yulang writes the two pieces together:
 
@@ -45,18 +44,14 @@ Yulang's inference engine solves subtyping constraints, not just equalities.
 actual <: expected
 ```
 
-If a position expects `int` and the actual expression is `int`, the constraint is
-straightforward. If multiple shapes remain possible, inferred output may show a
-union such as `α | int`.
-
-Effect rows are part of the same graph:
+Effect rows flow through the same graph:
 
 ```text
 [console] str <: [console; e] str
 ```
 
 The concrete `console` effect can flow into an open row. Residual effects left
-after a handler has consumed one effect also flow as ordinary rows.
+after a handler consumes one effect also flow as ordinary rows.
 
 ## Why Plain Row Subtraction Is Not Enough
 
@@ -85,92 +80,69 @@ If `g x` performs `last`, a `last` handler hidden inside `f` must not catch it
 accidentally. The effect was supplied by the caller of `compose`, not by `f`.
 Yulang calls this property **handler hygiene**.
 
-## Stack-Weighted Rows
+## Directed Stack Weights
 
-Internally, the solver can attach a stack weight to a type:
+Internally, the solver can attach a stack wrapper to a type:
 
 ```text
-stack(T, @S)
+stack(T, S)
 ```
 
 This does not mean the source language has a `stack` type constructor. It is an
 internal way to remember which handler boundary is allowed to subtract which
 effect family.
 
-You can read a stack entry as a small budget:
-
-```text
-pop(n)[H1, H2, ...]
-```
-
-- a pushed set such as `[console]` says "this boundary may expose `console` to
-  a handler";
-- `pop(n)` moves the budget across function or thunk boundaries;
-- a `floor` records effects that have already been consumed, so the solver does
-  not rediscover and subtract them again later.
-
-The order matters. A later `pop` can consume earlier pushed entries, but a push
-that happens after an unmatched `pop` does not cancel that older pop. This is
-why the solver keeps weights as ordered stack entries instead of treating them
-as a plain set.
-
-## Weighted Inequalities
-
-The subtype solver compares types with weights on both sides:
+Subtype constraints carry two directed weights:
 
 ```text
 T @L <: @R U
 ```
 
-When a `stack(T, @S)` wrapper is encountered, the wrapper is removed from the
-type and moved into the weight:
+- the left weight `L` can carry active `take(H)` entries;
+- the right weight `R` carries only pure pops;
+- `take(H); pop` cancels, but `pop; take(H)` does not;
+- function arguments swap the two directions because they are contravariant.
 
-```text
-stack(T, @S) @L <: @R U
-=> T @(@S + @L) <: @R U
-
-T @L <: @R stack(U, @S)
-=> T @L <: @(@S + @R) U
-```
-
-Ordinary variance still applies. Function arguments are contravariant, so the
-left and right weights are swapped when the solver enters an argument position.
-Function results are covariant, so the weights keep their direction.
-
-For concrete terminal types such as `int` or `bool`, the weight has no observable
-effect and can be dropped. For function types, records, tuples, effect rows, and
-type arguments, the weight must keep flowing because a nested row may still be
-subtracted later.
+This direction matters. The solver must not merge the left and right weights
+before deciding which row head a handler may consume.
 
 ## How `catch` Subtracts an Effect
 
-When `catch` handles a set of effects `H`, the solver asks whether the
-scrutinee's row can be seen as:
+When `catch` handles a set of effects `H`, the solver may see a row constraint
+like this:
 
 ```text
-α @L <: @R [H; β]
+alpha @L <: @R [H; beta]
 ```
 
-If both weights are empty, this is just an ordinary row constraint. The solver
-does not invent a subtraction budget.
-
-If a weight is present, the solver computes the part that is actually visible:
+The row head that can actually be consumed is:
 
 ```text
-W = L + R
-U = H ∩ common_stack(W)
+J = H ∩ Common(L)
 ```
 
-- If `U` is empty, the handler is not allowed to consume anything from this row,
-  so the residual row is left alone.
-- If `U` is non-empty, the solver records that `α` may have `[U; γ]`, subtracts
-  `U` from the weight, and sends the residual variable `γ` onward to `β`.
+`Common(L)` is the intersection of the active `take(...)` families in the left
+weight. Right-side pops do not make an effect visible to the handler. Filters
+and legacy compatibility markers do not count as active pushes either.
 
-That residual variable is reused for the same subtraction slot. This prevents a
-recursive handler from creating a fresh tail forever.
+If `J` is empty, the handler cannot consume anything from that row. The solver
+does not invent a residual just because a handler exists.
+
+If `J` is non-empty, the solver splits the row:
+
+```text
+alpha <: [J; gamma]
+gamma @(L - J) <: NWeight(R, beta)
+```
+
+`NWeight(R, beta)` is an internal wrapper saying that the right-side pop
+evidence stays on the residual tail. It is not used to expose the row head.
+
+The same subtraction slot reuses the same residual variable `gamma`, so
+recursive handlers do not create fresh tails forever.
 
 Effect families with type arguments are matched by family path, but their
-arguments are not discarded. When `ref_update int` meets `ref_update α`, the
+arguments are not discarded. When `ref_update int` meets `ref_update alpha`, the
 family match also generates ordinary type constraints that make the arguments
 compatible.
 
@@ -179,32 +151,38 @@ compatible.
 Effect annotations do two jobs: they describe the public row and they decide
 which effects are visible across higher-order boundaries.
 
-| Annotation | Internal visibility |
+| Annotation slot | Internal meaning |
 | --- | --- |
-| no effect annotation | Do not give inner handlers a budget to consume caller-supplied effects. |
-| `[_]` | Give a budget for the effects already visible on the surface row. |
-| `[console]` | Give a budget only for `console`. |
+| omitted or `[_]` in a contravariant slot | Expose the currently visible surface effects, as `take(All)`. |
+| `[console]` in a contravariant slot | Expose only `console` to an inner handler. |
+| omitted or `[_]` in a covariant slot | Leave the row open without adding a filter. |
+| `[console]` in a covariant slot | Check that only `console` escapes. |
 
 The wildcard row `[_]` is an annotation placeholder. It is not the canonical
-syntax of the row type itself, and it does not remove the boundary. It only says
-that the currently visible surface effects may be exposed.
+syntax of the row type itself, and it does not erase a boundary.
 
-This is why two higher-order functions can print very similar public types while
-still differing in what their inner handlers may catch.
+Covariant concrete annotations are **filters**. A filter is a static check, not
+a runtime marker and not a residual row. Once the check has been recorded, it is
+erased from the stored solver weight.
+
+Fresh internal residuals that must not be consumed are protected by an empty
+visibility budget, conceptually `take(Empty)`. There is no separate "protected
+variable set" in the inference core.
 
 ## Public Types Do Not Print Stack Weights
 
-Stack ids, floors, and pop counts are inference evidence, not source-level type
-syntax. Normal hovers and the Types pane print ordinary value types and ordinary
-effect rows.
+Stack ids and pop counts are inference evidence, not source-level type syntax.
+Normal hovers and the Types pane print ordinary value types and ordinary effect
+rows.
 
 ```text
-α [undet; β] -> [β] α
+alpha [undet; beta] -> [beta] alpha
 ```
 
 This means: the argument computation may perform `undet` plus some residual
-effects `β`; after the handler consumes the visible `undet`, only `β` remains.
-The residual `β` is a real part of the public type. It is not noise to erase.
+effects `beta`; after the handler consumes the visible `undet`, only `beta`
+remains. The residual `beta` is a real part of the public type. It is not noise
+to erase.
 
 What stays hidden is the weighted evidence explaining why the handler was
 allowed to consume `undet` at that boundary.
@@ -222,21 +200,20 @@ markers are the execution counterpart of the inference weights:
 - runtime markers make handler search respect the same boundary when the effect
   is eventually performed.
 
-This is why handler hygiene affects both type inference and VM lowering.
+Filters do not become runtime markers. They are checked statically by the
+solver.
 
 ## Summary
 
 Yulang's current effect inference works like this:
 
 - ordinary value types and effect rows are inferred through subtyping;
-- handler hygiene is represented by `stack(T, @S)` and weighted inequalities
-  `T @L <: @R U`;
-- `catch` subtracts only the effect families visible in the current stack
-  weight;
+- handler hygiene is represented by directed weighted inequalities `T @L <: @R U`;
+- `catch` subtracts only `H ∩ Common(L)` from a row head;
+- right-side pops are carried to the residual tail, not used to expose the head;
 - unknown rows are not opened just because a handler exists;
 - residual row variables are part of the public type and should not be silently
   erased;
-- stack weights themselves remain internal evidence;
 - runtime guard markers preserve the same hygiene after specialization.
 
 This keeps printed types relatively ordinary while still preventing inner
