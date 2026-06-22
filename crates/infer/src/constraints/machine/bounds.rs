@@ -79,6 +79,14 @@ impl ConstraintMachine {
             return;
         }
         let weights = self.check_and_erase_var_var_left_filter(lower_var, weights);
+        // Var-var replay is alias closure, not a new source edge. A left pop-only
+        // alias cycle can only grow counters by rewalking the same pair, so the
+        // replay key drops those counts while preserving the pop ids and right side.
+        if let Some((ids, right)) = Self::nonempty_left_pop_only_replay_key(&weights) {
+            if !self.record_var_var_pop_replay_pair(lower_var, upper_var, ids, right) {
+                return;
+            }
+        }
         if !self.record_var_var_pair(lower_var, upper_var, &weights) {
             return;
         }
@@ -649,6 +657,21 @@ impl ConstraintMachine {
 
     fn weights_are_pop_only(weights: &ConstraintWeights) -> bool {
         Self::left_weight_is_pop_only(&weights.left)
+    }
+
+    fn nonempty_left_pop_only_replay_key(
+        weights: &ConstraintWeights,
+    ) -> Option<(Vec<SubtractId>, RightConstraintWeight)> {
+        if !weights.left.is_empty() && Self::left_weight_is_pop_only(&weights.left) {
+            let ids = weights
+                .left
+                .entries()
+                .iter()
+                .map(|entry| entry.id)
+                .collect();
+            return Some((ids, weights.right.clone()));
+        }
+        None
     }
 
     fn left_weight_is_pop_only(weight: &LeftConstraintWeight) -> bool {

@@ -54,7 +54,8 @@ effect subtraction の主性と colored soundness の定式化が更新された
 - residual key は `(source, J, L minus J)` を基準にし、target tail を含めない。
 - `protect` は `PWeight(take(Empty), rho)` として扱い、専用保護集合を足さない。
 - `filter` は static check で、runtime marker として扱わない。
-- pop-growth cap は停止性側の暫定実装であり、型等式として扱わない。
+- replay は exact pop counter を保持し、`pop(n) -> pop(1)` clamp を停止性対策として戻さない。
+  var-var alias replay の非空 left pop-only cycle だけは `(lower, upper, pop ids, right weight)` key で再走査を止める。
 
 ## 直近の優先順位
 

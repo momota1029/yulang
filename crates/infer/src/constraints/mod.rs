@@ -51,6 +51,7 @@ pub struct ConstraintMachine {
     effect_filter_violations: FxHashSet<EffectFilterViolationKey>,
     seen: FxHashSet<SubtypeConstraint>,
     var_var_seen: FxHashSet<VarVarConstraint>,
+    var_var_pop_replay_seen: FxHashSet<VarVarReplayConstraint>,
     events: Vec<ConstraintEvent>,
     timing: ConstraintTiming,
 }
@@ -329,8 +330,8 @@ pub type RightConstraintWeight = RightStackWeight;
 ///
 /// 関数引数のように polarity が反転する場所では `swapped()` で左右を入れ替える。
 /// bounds の再伝播では `compose_for_replay()` し、経路の情報をまとめる。
-/// W-Mix は意味論側の directed projection だが、その後の pop cap は
-/// worklist 停止性のための実装ガードであり、型等式としては使わない。
+/// W-Mix は意味論側の directed projection であり、pop count は replay 後も
+/// exact counter として保持する。
 pub struct ConstraintWeights {
     pub left: LeftConstraintWeight,
     pub right: RightConstraintWeight,
@@ -386,7 +387,6 @@ impl ConstraintWeights {
             right: other.right.compose(&self.right),
         }
         .normalize_directed_mix()
-        .apply_bounds_replay_termination_guard()
     }
 
     pub fn compose_for_var_var_replay(&self, other: &Self) -> Self {
@@ -395,13 +395,10 @@ impl ConstraintWeights {
             right: other.right.compose(&self.right),
         }
         .normalize_directed_mix()
-        .apply_alias_replay_termination_guard()
     }
 
     pub fn normalize_for_var_var_replay(&self) -> Self {
-        self.clone()
-            .normalize_directed_mix()
-            .apply_alias_replay_termination_guard()
+        self.clone().normalize_directed_mix()
     }
 
     pub fn left_filter_set(&self) -> &Subtractability {
@@ -412,20 +409,6 @@ impl ConstraintWeights {
         Self {
             left: self.left.without_filter(),
             right: self.right.clone(),
-        }
-    }
-
-    fn apply_alias_replay_termination_guard(self) -> Self {
-        Self {
-            left: self.left.apply_alias_replay_termination_guard(),
-            right: self.right.apply_alias_replay_termination_guard(),
-        }
-    }
-
-    fn apply_bounds_replay_termination_guard(self) -> Self {
-        Self {
-            left: self.left.apply_bounds_replay_termination_guard(),
-            right: self.right.apply_bounds_replay_termination_guard(),
         }
     }
 
@@ -461,6 +444,14 @@ struct VarVarConstraint {
     lower: TypeVar,
     upper: TypeVar,
     weights: ConstraintWeights,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct VarVarReplayConstraint {
+    lower: TypeVar,
+    upper: TypeVar,
+    ids: Vec<SubtractId>,
+    right: RightConstraintWeight,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

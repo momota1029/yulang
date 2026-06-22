@@ -105,8 +105,11 @@ mix(L, R):
 ```
 
 W-Mix は directed projection であり、意味論側の正規化である。
-その後に実装が行う pop-growth cap は worklist 停止性のためのガードであり、型等式ではない。
-spec / docs / テスト期待値で `pop(n) = pop(1)` のように説明してはならない。
+replay 後の pop count は exact counter として保持する。
+`pop(n)` を `pop(1)` へ丸める停止性ガードは使わない。
+ただし var-var replay は alias closure の内部処理なので、非空の left pop-only label だけは
+`(lower, upper, pop-id-list, right-weight)` を登録済み key とし、pop count だけが増える同じ alias pair を再走査しない。
+これは重みを `pop(1)` へ正規化する規則ではなく、direct var-var constraint や push を含む label は exact weight のまま登録する。
 論考上の W-Mix は、mixed comparison を active-left obligation と pure-right obligation の二本へ分ける規則である。
 実装がこれを pair の正規化として持つ場合も、意味はこの二つの obligation を同時に保つこととして読む。
 
@@ -315,27 +318,31 @@ compose_for_replay:
   left  = earlier.left ; later.left
   right = later.right ; earlier.right
   normalize_directed_mix()
-  apply_termination_guard()
 ```
 
 var-var replay も同じく W-Mix を先に行う。
-pop cap はその後であり、停止性のための実装ガードとして名前を持つ。
-この cap を semantic rule として docs や proof に持ち込まない。
+通常の subtype / bound の seen key には replay 後の exact counter を含める。
+一方、var-var replay で生成される alias closure のうち、非空の left pop-only label は
+`(lower, upper, pop-id-list, right-weight)` を replay key として一度だけ登録する。
+この key は left pop count を含めないため、同じ alias pair を周回して `pop(1), pop(2), ...` を増やすだけの work を止める。
+空 label、direct weighted var-var constraint、push を含む label、right-weight が違う label はこの key では同一視しない。
+したがって `pop(n) -> pop(1)` の clamp は入れない。
 
 unmatched right pop を新しい push と交換してはならない。
 右重みは pure pop として tail / variance / replay を通る。
 
 ## 停止性論考との関係
 
-`research/effect-mini-language/directed_weight_row_solver_termination_ja.tex` は、値型や constructor 分解を外した
-row-only core の停止性を扱う別論考である。
-そこでは exact natural-number counter を保つ solver の無条件停止性が偽であることを示し、
-cycle-neutrality、exact cache、residual memoization、有限 capability algebra の下で停止性を述べる。
+`research/effect-mini-language/directed_stack_weight_letrec_complete_ja.tex` は、
+実際の項から生成される graph に限定して exact counter solver の停止性を扱う論考である。
+任意 graph に対する無条件停止ではなく、source-generated graph の cycle balance、
+exact seen key、self-tail no-op、residual memoization、有限 capability algebra の組み合わせで停止性を述べる。
+実装はこれに加えて、var-var alias closure の pop-only 再走査だけを count 抜き key で止める。
+これは arbitrary graph を意味論的に受け入れるための widening ではなく、alias closure の同じ pair を何度も辿らないための worklist key である。
 
 この停止性論考に出る ambient residual budget / residual floor は、ordinary row の二重消費を測るための静的な残量である。
 colored soundness 側の `Common(L)` に参加する active push ではなく、runtime marker でもない。
-実装上の pop-growth cap も同じく、停止性のための guard であって型等式ではない。
-したがって、停止性のための floor / cap を row head subtraction の visibility 規則へ混ぜてはならない。
+したがって、停止性のための residual budget を row head subtraction の visibility 規則へ混ぜてはならない。
 
 ## Compact / finalize
 
@@ -935,7 +942,8 @@ alpha [undet; [flip; gamma]] -> [gamma] delta
 - `protect` 専用 constructor や protected variable set を足さない。
 - residual key に target tail を含めない。
 - `filter` を runtime marker として扱わない。
-- `pop(n) -> pop(1)` を型等式として説明しない。
+- 停止性対策として `pop(n) -> pop(1)` clamp を再導入しない。
+- var-var replay の count 抜き key を direct constraint や push 付き label へ広げない。
 - family path だけを比較して type argument を捨てない。
 - `Any` を曖昧な fallback、`Never` を placeholder として使わない。
 - 特定の path / module / fixture 名だけを見る inference 分岐を足さない。

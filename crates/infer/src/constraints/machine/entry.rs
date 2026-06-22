@@ -20,6 +20,7 @@ impl ConstraintMachine {
             effect_filter_violations: FxHashSet::default(),
             seen: FxHashSet::default(),
             var_var_seen: FxHashSet::default(),
+            var_var_pop_replay_seen: FxHashSet::default(),
             events: Vec::new(),
             timing: ConstraintTiming::default(),
         }
@@ -302,6 +303,24 @@ impl ConstraintMachine {
             weights: weights.clone(),
         });
         inserted
+    }
+
+    pub(in crate::constraints) fn record_var_var_pop_replay_pair(
+        &mut self,
+        lower: TypeVar,
+        upper: TypeVar,
+        ids: Vec<SubtractId>,
+        right: RightConstraintWeight,
+    ) -> bool {
+        if lower == upper {
+            return false;
+        }
+        self.var_var_pop_replay_seen.insert(VarVarReplayConstraint {
+            lower,
+            upper,
+            ids,
+            right,
+        })
     }
 
     pub(in crate::constraints) fn terminal_subtype_weights(

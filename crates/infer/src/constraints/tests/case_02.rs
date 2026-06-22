@@ -602,7 +602,7 @@ fn var_to_effect_row_upper_removes_retained_item_from_pop_only_stack() {
 
     let gamma = single_upper_row_tail(&machine, source, &["io"]);
     let residual_weights = ConstraintWeights {
-        left: LeftConstraintWeight::pop(subtract),
+        left: LeftConstraintWeight::pops(subtract, u32::MAX),
         right: RightConstraintWeight::empty(),
     };
     assert_single_weighted_upper_var(&machine, gamma, tail_var, residual_weights.clone());
@@ -675,7 +675,7 @@ fn pop_only_residual_keeps_later_distinct_handler_subtractable() {
     assert_ne!(gamma, gamma2);
     assert_eq!(machine.row_residuals.len(), 2);
     let residual_weights = ConstraintWeights {
-        left: LeftConstraintWeight::pop(subtract),
+        left: LeftConstraintWeight::pops(subtract, u32::MAX),
         right: RightConstraintWeight::empty(),
     };
     assert_weighted_upper_var(&machine, gamma2, next_tail_var, residual_weights);
@@ -1137,7 +1137,7 @@ fn pure_function_argument_effect_passes_through_with_right_side_weights() {
     };
     let expected_passthrough_weights = ConstraintWeights {
         left: LeftConstraintWeight::empty(),
-        right: RightConstraintWeight::from_ids([SubtractId(1)]),
+        right: RightConstraintWeight::pops(SubtractId(1), 2),
     };
     let unnormalized_passthrough_weights = ConstraintWeights {
         left: LeftConstraintWeight::from_ids([SubtractId(1)]),

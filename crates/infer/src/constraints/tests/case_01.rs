@@ -28,7 +28,7 @@ fn constraint_weights_swap_left_and_right() {
 }
 
 #[test]
-fn constraint_weights_replay_saturates_pop_count_but_keeps_stack_sequence() {
+fn constraint_weights_replay_preserves_pop_count_and_stack_sequence() {
     let id = SubtractId(0);
     let io = Subtractability::Set(vec!["io".into()], Vec::new());
     let left = LeftConstraintWeight::pop(id)
@@ -41,7 +41,7 @@ fn constraint_weights_replay_saturates_pop_count_but_keeps_stack_sequence() {
     .compose_for_replay(&ConstraintWeights::empty());
 
     assert_eq!(weights.left.entries().len(), 1);
-    assert_eq!(weights.left.entries()[0].leading_pops, u32::MAX);
+    assert_eq!(weights.left.entries()[0].leading_pops, 1);
     assert_eq!(weights.left.entries()[0].family, Some(io));
     assert_eq!(weights.left.entries()[0].pushes, 2);
 }
@@ -64,7 +64,7 @@ fn constraint_weights_replay_preserves_pop_only_count() {
 }
 
 #[test]
-fn constraint_weights_replay_caps_repeated_pop_only_count() {
+fn constraint_weights_replay_preserves_repeated_pop_only_count() {
     let id = SubtractId(0);
     let earlier = ConstraintWeights {
         left: LeftConstraintWeight::pop(id),
@@ -80,7 +80,7 @@ fn constraint_weights_replay_caps_repeated_pop_only_count() {
     let [entry] = weights.left.entries() else {
         panic!("expected one stack entry");
     };
-    assert_eq!(entry.leading_pops, 1);
+    assert_eq!(entry.leading_pops, 2);
     assert_eq!(entry.pushes, 0);
     assert!(entry.family.is_none());
 }
@@ -192,7 +192,7 @@ fn constraint_weights_replay_composes_right_pops() {
         panic!("expected one right pop entry");
     };
     assert_eq!(entry.id, id);
-    assert_eq!(entry.pops, 1);
+    assert_eq!(entry.pops, 2);
 }
 
 #[test]
@@ -567,11 +567,95 @@ fn var_var_replay_materializes_transitive_edges() {
 }
 
 #[test]
-fn var_var_replay_keeps_pop_only_alias_cycle_finite() {
+fn var_var_replay_composition_keeps_exact_pop_count() {
+    let subtract = SubtractId(0);
+    let earlier = ConstraintWeights {
+        left: LeftConstraintWeight::pop(subtract),
+        right: RightConstraintWeight::empty(),
+    };
+    let later = ConstraintWeights {
+        left: LeftConstraintWeight::pop(subtract),
+        right: RightConstraintWeight::empty(),
+    };
+
+    let weights = earlier.compose_for_var_var_replay(&later);
+
+    let [entry] = weights.left.entries() else {
+        panic!("expected one left pop entry");
+    };
+    assert_eq!(entry.id, subtract);
+    assert_eq!(entry.leading_pops, 2);
+    assert_eq!(entry.pushes, 0);
+    assert!(weights.right.is_empty());
+}
+
+#[test]
+fn direct_var_var_constraints_keep_distinct_weights() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let target = TypeVar(1);
+    let subtract = SubtractId(0);
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let target_neg = machine.alloc_neg(Neg::Var(target));
+
+    machine.subtype(source_pos, target_neg);
+    machine.weighted_subtype(
+        source_pos,
+        ConstraintWeights {
+            left: LeftConstraintWeight::pop(subtract),
+            right: RightConstraintWeight::empty(),
+        },
+        target_neg,
+    );
+
+    let target_bounds = machine.bounds().of(target).expect("target bounds");
+    assert!(target_bounds.lowers().iter().any(|bound| {
+        bound.weights == ConstraintWeights::empty()
+            && matches!(machine.types().pos(bound.pos), Pos::Var(var) if *var == source)
+    }));
+    assert!(target_bounds.lowers().iter().any(|bound| {
+        bound.weights.left == LeftConstraintWeight::pop(subtract)
+            && matches!(machine.types().pos(bound.pos), Pos::Var(var) if *var == source)
+    }));
+}
+
+#[test]
+fn empty_var_var_replay_does_not_block_later_pop_replay() {
     let mut machine = ConstraintMachine::new();
     let subtract = SubtractId(0);
     let a = TypeVar(0);
     let b = TypeVar(1);
+    let c = TypeVar(2);
+    let a_pos = machine.alloc_pos(Pos::Var(a));
+    let b_neg = machine.alloc_neg(Neg::Var(b));
+    let b_pos = machine.alloc_pos(Pos::Var(b));
+    let c_neg = machine.alloc_neg(Neg::Var(c));
+
+    machine.subtype(a_pos, b_neg);
+    machine.subtype(b_pos, c_neg);
+    machine.weighted_subtype(
+        a_pos,
+        ConstraintWeights {
+            left: LeftConstraintWeight::pop(subtract),
+            right: RightConstraintWeight::empty(),
+        },
+        b_neg,
+    );
+
+    let c_bounds = machine.bounds().of(c).expect("c bounds");
+    assert!(c_bounds.lowers().iter().any(|bound| {
+        bound.weights.left == LeftConstraintWeight::pop(subtract)
+            && matches!(machine.types().pos(bound.pos), Pos::Var(var) if *var == a)
+    }));
+}
+
+#[test]
+fn var_var_replay_does_not_rewalk_registered_alias_pair() {
+    let mut machine = ConstraintMachine::new();
+    let subtract = SubtractId(0);
+    let a = TypeVar(0);
+    let b = TypeVar(1);
+    let c = TypeVar(2);
 
     let a_pos = machine.alloc_pos(Pos::Var(a));
     let b_neg = machine.alloc_neg(Neg::Var(b));
@@ -585,20 +669,37 @@ fn var_var_replay_keeps_pop_only_alias_cycle_finite() {
     );
 
     let b_pos = machine.alloc_pos(Pos::Var(b));
-    let a_neg = machine.alloc_neg(Neg::Var(a));
-    machine.subtype(b_pos, a_neg);
+    let c_neg = machine.alloc_neg(Neg::Var(c));
+    machine.subtype(b_pos, c_neg);
 
-    for var in [a, b] {
+    let c_pos = machine.alloc_pos(Pos::Var(c));
+    let a_neg = machine.alloc_neg(Neg::Var(a));
+    machine.subtype(c_pos, a_neg);
+
+    for var in [a, b, c] {
         let Some(bounds) = machine.bounds().of(var) else {
             continue;
         };
-        for lower in bounds.lowers() {
-            assert_pop_only_weights_do_not_grow(&lower.weights, subtract);
+        for bound in bounds.lowers() {
+            assert_pop_count_at_most(&bound.weights.left, subtract, 2);
         }
-        for upper in bounds.uppers() {
-            assert_pop_only_weights_do_not_grow(&upper.weights, subtract);
+        for bound in bounds.uppers() {
+            assert_pop_count_at_most(&bound.weights.left, subtract, 2);
         }
     }
+}
+
+fn assert_pop_count_at_most(weight: &LeftConstraintWeight, subtract: SubtractId, max: u32) {
+    let count = weight
+        .entries()
+        .iter()
+        .find(|entry| entry.id == subtract)
+        .map(|entry| entry.leading_pops)
+        .unwrap_or(0);
+    assert!(
+        count <= max,
+        "var-var replay should not keep rewalking the same alias pair: {weight:?}"
+    );
 }
 
 #[test]
@@ -1015,34 +1116,4 @@ fn var_to_effect_row_upper_without_stack_weight_stores_raw_row() {
         }]
     );
     assert!(machine.bounds().of(tail_var).is_none());
-}
-
-fn assert_pop_only_weights_do_not_grow(weights: &ConstraintWeights, subtract: SubtractId) {
-    assert_pop_only_weight_does_not_grow(&weights.left, subtract);
-    assert_right_pop_only_weight_does_not_grow(&weights.right, subtract);
-}
-
-fn assert_pop_only_weight_does_not_grow(weight: &LeftConstraintWeight, subtract: SubtractId) {
-    for entry in weight.entries() {
-        if entry.id == subtract && entry.pushes == 0 {
-            assert!(
-                entry.leading_pops <= 1,
-                "alias replay should not grow naked pop-only weights: {weight:?}"
-            );
-        }
-    }
-}
-
-fn assert_right_pop_only_weight_does_not_grow(
-    weight: &RightConstraintWeight,
-    subtract: SubtractId,
-) {
-    for entry in weight.entries() {
-        if entry.id == subtract {
-            assert!(
-                entry.pops <= 1,
-                "alias replay should not grow naked right-pop weights: {weight:?}"
-            );
-        }
-    }
 }
