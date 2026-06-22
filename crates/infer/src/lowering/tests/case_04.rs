@@ -69,13 +69,53 @@ fn std_ref_update_method_body_lowers() {
     let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
     assert_eq!(
         rendered,
-        "std::control::var::ref('a & 'c, 'b) -> ('b -> ['c#4[Empty]] 'b) -> ['c#4(1)[Empty], 'a#4] ()"
+        "std::control::var::ref('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] ()"
     );
     let update_effect =
         find_select_by_name(&output.session, body, "update_effect").expect("update_effect");
     assert_eq!(
         output.session.poly.select(update_effect).resolution,
         Some(SelectResolution::Method { def: field_method })
+    );
+}
+
+#[test]
+fn std_ref_update_full_signature_hides_private_stack_evidence() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  mod control:\n",
+        "    mod var:\n",
+        "      act ref_update 'a:\n",
+        "        pub update: 'a -> 'a\n",
+        "      type ref 'e 'a with:\n",
+        "        struct self:\n",
+        "          get: () -> ['e] 'a\n",
+        "          update_effect: () -> [ref_update 'a; 'e] ()\n",
+        "        pub r.update(f: 'a -> 'a): ['e] () =\n",
+        "          my loop(x: [_] _) = catch x:\n",
+        "            ref_update::update v, k -> loop:k:f v\n",
+        "          loop:r.update_effect()\n",
+        "my site = 1\n",
+    ));
+    let lower = lower_module_map(&root);
+    let root_module = lower.modules.root_id();
+    let std = lower.modules.module_decls(root_module, &Name("std".into()))[0].module;
+    let control = lower.modules.module_decls(std, &Name("control".into()))[0].module;
+    let var = lower.modules.module_decls(control, &Name("var".into()))[0].module;
+    let ref_type = lower.modules.type_decls(var, &Name("ref".into()))[0].clone();
+    let method = lower.modules.type_methods(ref_type.id)[0].def;
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, method));
+    assert_eq!(
+        rendered,
+        "std::control::var::ref('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] ()"
+    );
+    assert!(
+        !rendered.contains('#') && !rendered.contains("AllExcept"),
+        "private stack evidence escaped into ref.update: {rendered}"
     );
 }
 

@@ -645,6 +645,56 @@ pub(in crate::generalize) fn cleanup_empty_stack_entries_with_plain_negative_occ
     changed
 }
 
+pub(in crate::generalize) fn cleanup_empty_only_stack_ids_in_root_and_roles(
+    machine: &ConstraintMachine,
+    root: &mut CompactRoot,
+    role_predicates: &mut [CompactRoleConstraint],
+) -> bool {
+    let mut occurrences = StackIdSubtractabilityOccurrences::default();
+    collect_stack_id_subtractability_occurrences_in_type(&root.root, &mut occurrences);
+    for rec in &root.rec_vars {
+        collect_stack_id_subtractability_occurrences_in_bounds(&rec.bounds, &mut occurrences);
+    }
+    for role in role_predicates.iter() {
+        collect_stack_id_subtractability_occurrences_in_role(role, &mut occurrences);
+    }
+    let empty_ids = occurrences.empty_only_ids(machine);
+    if empty_ids.is_empty() {
+        return false;
+    }
+    prune_dead_subtract_weights_in_root_and_roles(root, role_predicates, &empty_ids)
+}
+
+#[derive(Default)]
+struct StackIdSubtractabilityOccurrences {
+    seen: FxHashSet<SubtractId>,
+    non_empty: FxHashSet<SubtractId>,
+}
+
+impl StackIdSubtractabilityOccurrences {
+    fn record_weight(&mut self, weight: &StackWeight) {
+        for entry in weight.entries() {
+            self.seen.insert(entry.id);
+            for subtractability in entry.floor.iter().chain(entry.stack.iter()) {
+                if !matches!(subtractability, Subtractability::Empty) {
+                    self.non_empty.insert(entry.id);
+                }
+            }
+        }
+    }
+
+    fn empty_only_ids(self, machine: &ConstraintMachine) -> FxHashSet<SubtractId> {
+        self.seen
+            .into_iter()
+            .filter(|id| !self.non_empty.contains(id))
+            .filter(|id| match machine.subtracts().fact_by_id(*id) {
+                Some(fact) => matches!(fact.subtractability, Subtractability::Empty),
+                None => true,
+            })
+            .collect()
+    }
+}
+
 #[derive(Default)]
 pub(in crate::generalize) struct EmptyStackOccurrences {
     positive_internal_entries: FxHashMap<TypeVar, FxHashSet<SubtractId>>,
@@ -714,6 +764,116 @@ pub(in crate::generalize) fn instantiated_stack_entry(
     entry: &poly::types::StackWeightEntry,
 ) -> bool {
     entry.pops == u32::MAX && !entry.stack.is_empty()
+}
+
+fn collect_stack_id_subtractability_occurrences_in_role(
+    role: &CompactRoleConstraint,
+    out: &mut StackIdSubtractabilityOccurrences,
+) {
+    for input in &role.inputs {
+        collect_stack_id_subtractability_occurrences_in_role_arg(input, out);
+    }
+    for associated in &role.associated {
+        collect_stack_id_subtractability_occurrences_in_role_arg(&associated.value, out);
+    }
+}
+
+fn collect_stack_id_subtractability_occurrences_in_role_arg(
+    arg: &CompactRoleArg,
+    out: &mut StackIdSubtractabilityOccurrences,
+) {
+    collect_stack_id_subtractability_occurrences_in_bounds(&arg.bounds, out);
+}
+
+fn collect_stack_id_subtractability_occurrences_in_type(
+    ty: &CompactType,
+    out: &mut StackIdSubtractabilityOccurrences,
+) {
+    for var in &ty.vars {
+        out.record_weight(&var.weight);
+    }
+    for args in ty.cons.values() {
+        for arg in args {
+            collect_stack_id_subtractability_occurrences_in_bounds(arg, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_stack_id_subtractability_occurrences_in_type(&fun.arg, out);
+        collect_stack_id_subtractability_occurrences_in_type(&fun.arg_eff, out);
+        collect_stack_id_subtractability_occurrences_in_type(&fun.ret_eff, out);
+        collect_stack_id_subtractability_occurrences_in_type(&fun.ret, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_stack_id_subtractability_occurrences_in_type(&field.value, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_stack_id_subtractability_occurrences_in_type(&field.value, out);
+        }
+        collect_stack_id_subtractability_occurrences_in_type(&spread.tail, out);
+    }
+    for variant in &ty.poly_variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_stack_id_subtractability_occurrences_in_type(payload, out);
+            }
+        }
+    }
+    for tuple in &ty.tuples {
+        for item in &tuple.items {
+            collect_stack_id_subtractability_occurrences_in_type(item, out);
+        }
+    }
+    for row in &ty.rows {
+        for args in row.items.values() {
+            for arg in args {
+                collect_stack_id_subtractability_occurrences_in_bounds(arg, out);
+            }
+        }
+        collect_stack_id_subtractability_occurrences_in_type(&row.tail, out);
+    }
+}
+
+fn collect_stack_id_subtractability_occurrences_in_bounds(
+    bounds: &CompactBounds,
+    out: &mut StackIdSubtractabilityOccurrences,
+) {
+    match bounds {
+        CompactBounds::Interval { lower, upper } => {
+            collect_stack_id_subtractability_occurrences_in_type(lower, out);
+            collect_stack_id_subtractability_occurrences_in_type(upper, out);
+        }
+        CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
+            for arg in args {
+                collect_stack_id_subtractability_occurrences_in_bounds(arg, out);
+            }
+        }
+        CompactBounds::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_stack_id_subtractability_occurrences_in_bounds(arg, out);
+            collect_stack_id_subtractability_occurrences_in_bounds(arg_eff, out);
+            collect_stack_id_subtractability_occurrences_in_bounds(ret_eff, out);
+            collect_stack_id_subtractability_occurrences_in_bounds(ret, out);
+        }
+        CompactBounds::Record { fields } => {
+            for field in fields {
+                collect_stack_id_subtractability_occurrences_in_bounds(&field.value, out);
+            }
+        }
+        CompactBounds::PolyVariant { items } => {
+            for (_, payloads) in items {
+                for payload in payloads {
+                    collect_stack_id_subtractability_occurrences_in_bounds(payload, out);
+                }
+            }
+        }
+    }
 }
 
 pub(in crate::generalize) fn collect_empty_stack_occurrences_in_role(

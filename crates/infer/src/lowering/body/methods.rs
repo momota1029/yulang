@@ -133,6 +133,8 @@ impl BodyLowerer {
                 root,
             }));
 
+        let arg_patterns = binding_arg_patterns(node);
+        let result_type_expr = binding_type_expr(node);
         let self_alias = AnnSelfAlias {
             owner: owner.id,
             type_vars: type_vars.to_vec(),
@@ -151,15 +153,28 @@ impl BodyLowerer {
         .with_self_alias(Some(self_alias.clone()))
         .lower_type_method_body_expr(
             &expr,
-            &binding_arg_patterns(node),
+            &arg_patterns,
             method.receiver.clone(),
             method.receiver_kind,
             owner.id,
             &self_alias.type_vars,
-            binding_type_expr(node),
+            None,
         );
         match lowered {
             Ok(computation) => {
+                if let Some(type_expr) = result_type_expr.as_ref() {
+                    self.defer_result_annotation_check(
+                        method.def,
+                        method.name.clone(),
+                        arg_patterns.len() + 1,
+                        module,
+                        method.order,
+                        Some(self_alias),
+                        &[],
+                        &[],
+                        type_expr,
+                    );
+                }
                 self.finish_binding(method.def, method.name.clone(), root, computation, true);
             }
             Err(error) => self.push_registered_expr_error(method.def, method.name.clone(), error),
