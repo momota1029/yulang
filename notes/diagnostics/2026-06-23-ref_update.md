@@ -1,3 +1,29 @@
+## 位置づけ
+
+このメモは、`ref_update/update_effect` の符号化を残す前提で、なぜ current safe commit でも
+`ref.update` の public scheme に private stack evidence が漏れているかを整理する診断メモである。
+
+まだ実装方針の確定ではない。特に、`3daadaaf` の termination guard は、private evidence の
+scope と replay key を直すまで外さない。`pop(n)` を丸める guard を消す作業は最後に回す。
+
+採用寄りに見える点は次の三つだねぇ。
+
+- 問題を `ref_update` という名前や std 固有 API へ押し込まず、data-position function の latent
+  return-effect boundary として一般化している。
+- `κ <: e` / `e <: κ` の普通の alias を張らず、scope-close 時の projection として扱う必要を
+  明示している。
+- `pop(n)` を無視する新しい seen key ではなく、source graph の nonzero-displacement cycle を
+  消して exact full-label key へ戻す、という順序になっている。
+
+実装時に注意する点もある。
+
+- `private tail/id` は単に `lower_data_effect_row_{pos,neg}` 内で fresh にするだけでは足りない。
+  field value が selection 後に利用されるところまで evidence を運ぶ必要がある。
+- `struct self` の synthetic getter 専用で済ませるか、constructor payload / public field /
+  stored function value まで含む existential package として扱うかは、最初の slice で境界を決める。
+- private evidence を close する前に public scheme へ stack id や private tail が残らないことを
+  assert する canary を先に置く。
+
 ## 結論
 
 根治は **std の `ref_update/update_effect` 符号化を捨てることではなく、data-position に埋め込まれた関数の返り effect tail を private / existential にすること**だと思う。
