@@ -274,6 +274,19 @@ struct SignatureLowerer<'a> {
     modules: &'a ModuleTable,
     vars: FxHashMap<String, TypeVar>,
     new_var_level: Option<TypeLevel>,
+    data_effect_private_tails: FxHashMap<DataEffectTailKey, DataEffectPrivateTail>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct DataEffectTailKey {
+    row: usize,
+    public_tail: TypeVar,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct DataEffectPrivateTail {
+    tail: TypeVar,
+    subtract: SubtractId,
 }
 
 impl<'a> SignatureLowerer<'a> {
@@ -283,6 +296,7 @@ impl<'a> SignatureLowerer<'a> {
             modules,
             vars: FxHashMap::default(),
             new_var_level: None,
+            data_effect_private_tails: FxHashMap::default(),
         }
     }
 
@@ -296,6 +310,7 @@ impl<'a> SignatureLowerer<'a> {
             modules,
             vars,
             new_var_level: None,
+            data_effect_private_tails: FxHashMap::default(),
         }
     }
 
@@ -310,6 +325,7 @@ impl<'a> SignatureLowerer<'a> {
             modules,
             vars,
             new_var_level: Some(new_var_level),
+            data_effect_private_tails: FxHashMap::default(),
         }
     }
 

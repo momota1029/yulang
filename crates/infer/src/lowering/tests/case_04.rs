@@ -120,6 +120,39 @@ fn std_ref_update_full_signature_hides_private_stack_evidence() {
 }
 
 #[test]
+fn data_position_effect_function_hides_private_stack_evidence() {
+    let root = parse(concat!(
+        "act tick 'a:\n",
+        "  pub ping: 'a -> 'a\n",
+        "type box 'e 'a with:\n",
+        "  struct self:\n",
+        "    run: () -> [tick 'a; 'e] ()\n",
+        "  pub b.handle(f: 'a -> 'a): ['e] () =\n",
+        "    my loop(x: [_] _) = catch x:\n",
+        "      tick::ping v, k -> loop:k:f v\n",
+        "    loop:b.run()\n",
+        "my site = 1\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let box_type = lower.modules.type_decls(module, &Name("box".into()))[0].clone();
+    let method = lower.modules.type_methods(box_type.id)[0].def;
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, method));
+    assert_eq!(
+        rendered,
+        "box('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] ()"
+    );
+    assert!(
+        !rendered.contains('#') && !rendered.contains("AllExcept"),
+        "private stack evidence escaped from data-position effect function: {rendered}"
+    );
+}
+
+#[test]
 fn annotated_recursive_handler_does_not_subtract_outer_effect() {
     let root = parse(concat!(
         "act tick:\n",

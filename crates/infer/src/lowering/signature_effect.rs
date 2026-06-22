@@ -126,8 +126,8 @@ impl<'a> SignatureLowerer<'a> {
             items.push(self.lower_data_pos(ty)?);
         }
         if let Some(tail) = &row.tail {
-            let tail = self.signature_var(tail);
-            let weight = self.data_effect_tail_stack(tail, row)?;
+            let public_tail = self.signature_var(tail);
+            let (tail, weight) = self.data_effect_tail_stack(public_tail, row)?;
             let tail = self.alloc_pos(Pos::Var(tail));
             items.push(self.wrap_pos_with_stack(tail, &weight));
         }
@@ -191,8 +191,8 @@ impl<'a> SignatureLowerer<'a> {
             .map(|atom| self.lower_effect_atom_neg(atom))
             .collect::<Result<Vec<_>, _>>()?;
         let tail = if let Some(tail) = &row.tail {
-            let tail = self.signature_var(tail);
-            let weight = self.data_effect_tail_stack(tail, row)?;
+            let public_tail = self.signature_var(tail);
+            let (tail, weight) = self.data_effect_tail_stack(public_tail, row)?;
             let tail = self.alloc_neg(Neg::Var(tail));
             self.wrap_neg_with_stack(tail, &weight)
         } else {
@@ -241,9 +241,9 @@ impl<'a> SignatureLowerer<'a> {
 
     fn data_effect_tail_stack(
         &mut self,
-        tail: TypeVar,
+        public_tail: TypeVar,
         row: &SignatureEffectRow,
-    ) -> Result<StackWeight, SignatureConstraintError> {
+    ) -> Result<(TypeVar, StackWeight), SignatureConstraintError> {
         let atoms = row
             .items
             .iter()
@@ -253,10 +253,10 @@ impl<'a> SignatureLowerer<'a> {
             .flatten()
             .collect::<Vec<_>>();
         if atoms.is_empty() {
-            return Ok(StackWeight::empty());
+            return Ok((public_tail, StackWeight::empty()));
         }
 
-        let id = self.infer.fresh_subtract_id();
+        let private = self.data_effect_private_tail(public_tail, row);
         let subtractability = match atoms.as_slice() {
             [(path, _)] => Subtractability::AllExcept(path.clone(), Vec::new()),
             _ => Subtractability::AllExceptMany(
@@ -266,10 +266,38 @@ impl<'a> SignatureLowerer<'a> {
                     .collect(),
             ),
         };
-        // scheme quantification keeps stack facts by starting from machine facts.
+        // The data-function tail carries private stack evidence internally. Only the erased
+        // ordinary row content flows to the public type parameter; do not add the public tail to
+        // the field row itself, or payload/function boundaries lose the marker-producing gap.
         self.infer
-            .declared_subtract_fact(tail, id, subtractability.clone());
-        Ok(StackWeight::push(id, subtractability))
+            .declared_subtract_fact(private.tail, private.subtract, subtractability.clone());
+        let private_lower = self.alloc_pos(Pos::Var(private.tail));
+        let public_upper = self.alloc_neg(Neg::Var(public_tail));
+        self.infer.subtype(private_lower, public_upper);
+        Ok((
+            private.tail,
+            StackWeight::push(private.subtract, subtractability),
+        ))
+    }
+
+    fn data_effect_private_tail(
+        &mut self,
+        public_tail: TypeVar,
+        row: &SignatureEffectRow,
+    ) -> DataEffectPrivateTail {
+        let key = DataEffectTailKey {
+            row: row as *const SignatureEffectRow as usize,
+            public_tail,
+        };
+        if let Some(private) = self.data_effect_private_tails.get(&key) {
+            return *private;
+        }
+        let private = DataEffectPrivateTail {
+            tail: self.fresh_type_var(),
+            subtract: self.infer.fresh_subtract_id(),
+        };
+        self.data_effect_private_tails.insert(key, private);
+        private
     }
 
     fn connect_effect_tail_exact(&mut self, effect: TypeVar, row: &SignatureEffectRow) {
