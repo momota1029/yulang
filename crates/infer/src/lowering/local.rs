@@ -132,6 +132,7 @@ impl SkeletonPredicateMode {
 #[derive(Clone)]
 pub(super) struct ActiveDefinedLambdaSkeleton {
     pub(super) before_frames: usize,
+    pub(super) target_value: TypeVar,
     pub(super) params: Vec<LoweredLambdaParam>,
     pub(super) skeleton: DefinedLambdaSkeleton,
 }

@@ -748,17 +748,28 @@ impl<'a> ExprLowerer<'a> {
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
         self.check_result_annotation_type(body.value, &ann)?;
         let vars = std::mem::take(ann_solver_vars);
+        let result_effect = self
+            .self_alias
+            .is_some()
+            .then(|| self.materialize_effect_var(body.effect));
         let mut lowerer =
             AnnConstraintLowerer::with_vars(&mut self.session.infer, self.modules, vars);
-        let result = lowerer
-            .connect_computation_detailed(
+        let target = AnnComputationTarget {
+            value: body.value,
+            effect: body.effect,
+        };
+        let result = if self.self_alias.is_some() {
+            lowerer.connect_result_computation_detailed(
                 AnnComputationTarget {
                     value: body.value,
-                    effect: body.effect,
+                    effect: result_effect.expect("method result effect should be materialized"),
                 },
                 &ann,
             )
-            .map_err(|error| LoweringError::AnnotationConstraint { error });
+        } else {
+            lowerer.connect_computation_detailed(target, &ann)
+        }
+        .map_err(|error| LoweringError::AnnotationConstraint { error });
         *ann_solver_vars = lowerer.into_vars();
         let connection = result?;
         self.constrain_effect_filters(body.effect, &connection.subtracts);

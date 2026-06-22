@@ -175,8 +175,8 @@ impl<'a> ExprLowerer<'a> {
         let expected_value = self.fresh_type_var();
 
         self.constrain_exact_primitive(result_value, "unit");
-        self.subtype_var_to_var(reference.effect, result_effect);
-        self.subtype_var_to_var(value.effect, result_effect);
+        self.connect_effect_var_to_var(reference.effect, result_effect);
+        self.connect_effect_var_to_var(value.effect, result_effect);
         self.subtype_var_to_var(ref_effect, result_effect);
         self.subtype_var_to_var(value.value, expected_value);
 
@@ -219,7 +219,7 @@ impl<'a> ExprLowerer<'a> {
         let call_effect = self.fresh_type_var();
         let method = self.alloc_pos(Pos::Var(method_value));
         let receiver_value = self.alloc_pos(Pos::Var(receiver.value));
-        let receiver_arg_eff = self.alloc_pos(Pos::Var(receiver.effect));
+        let receiver_arg_eff = self.effect_var_to_pos(receiver.effect);
         let ret_eff = self.alloc_neg(Neg::Var(call_effect));
         let ret = self.alloc_neg(Neg::Var(result_value));
         let method_upper = self.alloc_neg(Neg::Fun {
@@ -374,7 +374,7 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(param));
         let arg_eff = self.never_neg();
-        let ret_eff = self.alloc_pos(Pos::Var(body.effect));
+        let ret_eff = self.effect_var_to_pos(body.effect);
         let ret = self.alloc_pos(Pos::Var(body.value));
         self.constrain_lower(
             value,
@@ -397,9 +397,16 @@ impl<'a> ExprLowerer<'a> {
         let result_value = self.fresh_type_var();
         let result_effect = self.fresh_type_var();
         let call_effect = self.fresh_type_var();
+        if let Some(skipped_subtracts) = self.active_recursive_return_skipped_subtracts(&callee) {
+            self.mark_recursive_return_effect(call_effect, skipped_subtracts);
+        } else if let Some(skipped_subtracts) =
+            self.local_recursive_passthrough_skipped_subtracts(&callee)
+        {
+            self.mark_recursive_return_effect(call_effect, skipped_subtracts);
+        }
 
         let arg_value = self.alloc_pos(Pos::Var(arg.value));
-        let arg_effect = self.alloc_pos(Pos::Var(arg.effect));
+        let arg_effect = self.effect_var_to_pos(arg.effect);
         let return_effect = self.unannotated_local_callee_return_effect(&callee, call_effect);
         let return_value = self.alloc_neg(Neg::Var(result_value));
         let callee_upper = self.alloc_neg(Neg::Fun {
@@ -409,13 +416,96 @@ impl<'a> ExprLowerer<'a> {
             ret: return_value,
         });
         self.subtype(Pos::Var(callee.value), callee_upper);
-        let callee_effect = self.effect_flow_var(callee.effect);
+        let mut result_parts = Vec::new();
+        if callee.is_expansive() {
+            result_parts.push(self.effect_flow_var(callee.effect));
+        }
         let return_effect = self.effect_flow_pos(return_effect.lower);
-        let result_flow = self.seq_effect_flows([callee_effect, return_effect]);
-        self.connect_effect_flow_to_var(result_flow, result_effect);
+        result_parts.push(return_effect);
+        let result_flow = self.seq_effect_flows(result_parts);
+        self.bind_effect_var_to_flow(result_effect, result_flow);
 
         let expr = self.session.poly.add_expr(Expr::App(callee.expr, arg.expr));
         Computation::computation(expr, result_value, result_effect)
+    }
+
+    fn active_recursive_return_skipped_subtracts(
+        &self,
+        callee: &Computation,
+    ) -> Option<FxHashSet<SubtractId>> {
+        let active = self.active_recursive_callee_skeleton(callee)?;
+        let mut skipped = FxHashSet::default();
+        for param in &active.params {
+            for weight in &param.annotation.subtracts {
+                for entry in weight.entries() {
+                    skipped.insert(entry.id);
+                }
+            }
+        }
+        Some(skipped)
+    }
+
+    fn active_recursive_callee_skeleton(
+        &self,
+        callee: &Computation,
+    ) -> Option<&ActiveDefinedLambdaSkeleton> {
+        let Some(def) = self.local_callee_def(callee) else {
+            return None;
+        };
+        if let Some(local) = self.local_binding_by_def(def) {
+            return self
+                .active_defined_skeletons
+                .iter()
+                .rev()
+                .find(|active| active.target_value == local.value);
+        }
+        (def == self.parent)
+            .then(|| self.active_defined_skeletons.last())
+            .flatten()
+    }
+
+    fn local_recursive_passthrough_skipped_subtracts(
+        &self,
+        callee: &Computation,
+    ) -> Option<FxHashSet<SubtractId>> {
+        let def = self.local_callee_def(callee)?;
+        crate::lowering::expr::effect_flow::trace_effect_flow(|| {
+            format!("local passthrough candidate def={def:?}")
+        });
+        if !self.local_let_body_references(def) {
+            crate::lowering::expr::effect_flow::trace_effect_flow(|| {
+                format!("local passthrough rejected def={def:?}")
+            });
+            return None;
+        }
+        let scheme = self.local_binding_by_def(def)?.scheme.as_ref()?;
+        let current = self.current_defined_frame_subtract_ids();
+        crate::lowering::expr::effect_flow::trace_effect_flow(|| {
+            format!("local passthrough def={def:?} current={current:?}")
+        });
+        let skipped = current
+            .into_iter()
+            .filter(|id| scheme_contains_subtract_id(&self.session.poly.typ, scheme, *id))
+            .collect::<FxHashSet<_>>();
+        crate::lowering::expr::effect_flow::trace_effect_flow(|| {
+            format!("local passthrough def={def:?} skipped={skipped:?}")
+        });
+        (!skipped.is_empty()).then_some(skipped)
+    }
+
+    fn current_defined_frame_subtract_ids(&self) -> FxHashSet<SubtractId> {
+        let mut ids = FxHashSet::default();
+        for frame in &self.function_frames {
+            if frame.scope != LambdaScope::Defined {
+                continue;
+            }
+            for weight in &frame.subtracts {
+                for entry in weight.entries() {
+                    ids.insert(entry.id);
+                }
+            }
+        }
+        ids
     }
 
     pub(in crate::lowering) fn unit_expr(&mut self) -> Computation {
@@ -426,6 +516,7 @@ impl<'a> ExprLowerer<'a> {
         Computation::value(expr, value, effect)
     }
 
+    #[track_caller]
     pub(in crate::lowering) fn fresh_type_var(&mut self) -> TypeVar {
         self.session.infer.fresh_type_var()
     }
@@ -477,6 +568,7 @@ impl<'a> ExprLowerer<'a> {
         if inserted {
             self.refresh_active_defined_skeletons_for_frame(frame_index);
         }
+        self.mark_recursive_return_effect(call_effect, FxHashSet::default());
         let weight = StackWeight::push(subtract, Subtractability::Empty);
         let effect_pos = self.alloc_pos(Pos::Var(call_effect));
         let lower = self.alloc_pos(Pos::Stack {
@@ -704,11 +796,13 @@ impl<'a> ExprLowerer<'a> {
         subtracts: &[StackWeight],
     ) -> (PosId, PosId) {
         if subtracts.is_empty() {
+            let body_effect = self.materialize_effect_var(body_effect);
             let ret_eff = self.alloc_pos(Pos::Var(body_effect));
             let ret = self.alloc_pos(Pos::Var(body_value));
             return (ret_eff, ret);
         }
 
+        let body_effect = self.materialize_effect_var(body_effect);
         let ret_eff = self.alloc_pos(Pos::Var(body_effect));
         let ret = self.alloc_pos(Pos::Var(body_value));
         (
@@ -784,6 +878,128 @@ fn dedupe_predicate_weights(weights: Vec<StackWeight>) -> Vec<StackWeight> {
         }
     }
     out
+}
+
+fn scheme_contains_subtract_id(types: &TypeArena, scheme: &Scheme, id: SubtractId) -> bool {
+    let mut search = SchemeSubtractSearch::new(types, id);
+    if search.pos(scheme.predicate) {
+        return true;
+    }
+    if scheme.role_predicates.iter().any(|predicate| {
+        predicate.inputs.iter().any(|arg| match arg {
+            poly::types::RolePredicateArg::Covariant(pos) => search.pos(*pos),
+            poly::types::RolePredicateArg::Contravariant(neg) => search.neg(*neg),
+            poly::types::RolePredicateArg::Invariant(neu) => search.neu(*neu),
+        }) || predicate
+            .associated
+            .iter()
+            .any(|associated| search.neu(associated.value))
+    }) {
+        return true;
+    }
+    scheme
+        .recursive_bounds
+        .iter()
+        .any(|bound| search.neu(bound.bounds))
+}
+
+struct SchemeSubtractSearch<'a> {
+    types: &'a TypeArena,
+    id: SubtractId,
+    pos_seen: FxHashSet<PosId>,
+    neg_seen: FxHashSet<NegId>,
+    neu_seen: FxHashSet<NeuId>,
+}
+
+impl<'a> SchemeSubtractSearch<'a> {
+    fn new(types: &'a TypeArena, id: SubtractId) -> Self {
+        Self {
+            types,
+            id,
+            pos_seen: FxHashSet::default(),
+            neg_seen: FxHashSet::default(),
+            neu_seen: FxHashSet::default(),
+        }
+    }
+
+    fn pos(&mut self, id: PosId) -> bool {
+        if !self.pos_seen.insert(id) {
+            return false;
+        }
+        match self.types.pos(id) {
+            Pos::Bot | Pos::Var(_) => false,
+            Pos::Con(_, args) => args.iter().any(|arg| self.neu(*arg)),
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => self.neg(*arg) || self.neg(*arg_eff) || self.pos(*ret_eff) || self.pos(*ret),
+            Pos::Record(fields) => fields.iter().any(|field| self.pos(field.value)),
+            Pos::RecordTailSpread { fields, tail } | Pos::RecordHeadSpread { tail, fields } => {
+                self.pos(*tail) || fields.iter().any(|field| self.pos(field.value))
+            }
+            Pos::PolyVariant(items) => items
+                .iter()
+                .any(|(_, payloads)| payloads.iter().any(|payload| self.pos(*payload))),
+            Pos::Tuple(items) | Pos::Row(items) => items.iter().any(|item| self.pos(*item)),
+            Pos::Stack { inner, weight } | Pos::NonSubtract(inner, weight) => {
+                stack_weight_contains_id(weight, self.id) || self.pos(*inner)
+            }
+            Pos::Union(left, right) => self.pos(*left) || self.pos(*right),
+        }
+    }
+
+    fn neg(&mut self, id: NegId) -> bool {
+        if !self.neg_seen.insert(id) {
+            return false;
+        }
+        match self.types.neg(id) {
+            Neg::Top | Neg::Bot | Neg::Var(_) => false,
+            Neg::Con(_, args) => args.iter().any(|arg| self.neu(*arg)),
+            Neg::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => self.pos(*arg) || self.pos(*arg_eff) || self.neg(*ret_eff) || self.neg(*ret),
+            Neg::Record(fields) => fields.iter().any(|field| self.neg(field.value)),
+            Neg::PolyVariant(items) => items
+                .iter()
+                .any(|(_, payloads)| payloads.iter().any(|payload| self.neg(*payload))),
+            Neg::Tuple(items) => items.iter().any(|item| self.neg(*item)),
+            Neg::Row(items, tail) => self.neg(*tail) || items.iter().any(|item| self.neg(*item)),
+            Neg::Stack { inner, weight } => {
+                stack_weight_contains_id(weight, self.id) || self.neg(*inner)
+            }
+            Neg::Intersection(left, right) => self.neg(*left) || self.neg(*right),
+        }
+    }
+
+    fn neu(&mut self, id: NeuId) -> bool {
+        if !self.neu_seen.insert(id) {
+            return false;
+        }
+        match self.types.neu(id) {
+            Neu::Bounds(lower, upper) => self.pos(*lower) || self.neg(*upper),
+            Neu::Con(_, args) => args.iter().any(|arg| self.neu(*arg)),
+            Neu::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => self.neu(*arg) || self.neu(*arg_eff) || self.neu(*ret_eff) || self.neu(*ret),
+            Neu::Record(fields) => fields.iter().any(|field| self.neu(field.value)),
+            Neu::PolyVariant(items) => items
+                .iter()
+                .any(|(_, payloads)| payloads.iter().any(|payload| self.neu(*payload))),
+            Neu::Tuple(items) => items.iter().any(|item| self.neu(*item)),
+        }
+    }
+}
+
+fn stack_weight_contains_id(weight: &StackWeight, id: SubtractId) -> bool {
+    weight.entries().iter().any(|entry| entry.id == id)
 }
 
 fn stmt_references_def(poly: &poly::expr::Arena, stmt: &Stmt, def: DefId) -> bool {

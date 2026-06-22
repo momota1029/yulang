@@ -52,6 +52,7 @@ pub struct ConstraintMachine {
     seen: FxHashSet<SubtypeConstraint>,
     var_var_seen: FxHashSet<VarVarConstraint>,
     var_var_pop_replay_seen: FxHashSet<VarVarReplayConstraint>,
+    var_var_replay_pop_sentinels: FxHashMap<(TypeVar, TypeVar), FxHashSet<SubtractId>>,
     events: Vec<ConstraintEvent>,
     timing: ConstraintTiming,
 }
@@ -392,6 +393,24 @@ impl ConstraintWeights {
     pub fn compose_for_var_var_replay(&self, other: &Self) -> Self {
         Self {
             left: self.left.compose(&other.left),
+            right: other.right.compose(&self.right),
+        }
+        .normalize_directed_mix()
+    }
+
+    pub(crate) fn compose_for_var_var_replay_with_pop_sentinels(
+        &self,
+        other: &Self,
+        sentinels: Option<&FxHashSet<SubtractId>>,
+    ) -> Self {
+        let Some(sentinels) = sentinels else {
+            return self.compose_for_var_var_replay(other);
+        };
+        let other_left = other
+            .left
+            .without_leading_pops_by(|id| sentinels.contains(&id) && self.left.contains(id));
+        Self {
+            left: self.left.compose(&other_left),
             right: other.right.compose(&self.right),
         }
         .normalize_directed_mix()

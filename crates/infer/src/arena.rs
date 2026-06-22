@@ -28,15 +28,19 @@ impl Arena {
         }
     }
 
+    #[track_caller]
     pub fn fresh_type_var(&mut self) -> TypeVar {
         let var = self.type_ids.fresh_type_var();
         self.constraints.register_type_var(var, self.current_level);
+        trace_fresh_type_var(var, std::panic::Location::caller());
         var
     }
 
+    #[track_caller]
     pub fn fresh_type_var_at(&mut self, level: TypeLevel) -> TypeVar {
         let var = self.type_ids.fresh_type_var();
         self.constraints.register_type_var(var, level);
+        trace_fresh_type_var(var, std::panic::Location::caller());
         var
     }
 
@@ -143,6 +147,26 @@ fn subtract_gen_trace_enabled() -> bool {
     use std::sync::OnceLock;
     static FLAG: OnceLock<bool> = OnceLock::new();
     *FLAG.get_or_init(|| std::env::var("YULANG_TRACE_SUBTRACT_ALL").is_ok())
+}
+
+fn trace_fresh_type_var(var: TypeVar, location: &'static std::panic::Location<'static>) {
+    let Ok(value) = std::env::var("YULANG_TRACE_TYPE_VARS") else {
+        return;
+    };
+    if !value.split(',').any(|part| {
+        part.trim()
+            .parse::<u32>()
+            .is_ok_and(|expected| expected == var.0)
+    }) {
+        return;
+    }
+    eprintln!(
+        "[infer] fresh type {:?} at {}:{}:{}",
+        var,
+        location.file(),
+        location.line(),
+        location.column()
+    );
 }
 
 fn trace_fresh_subtract_id(id: SubtractId, location: &'static std::panic::Location<'static>) {

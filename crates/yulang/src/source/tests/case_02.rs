@@ -244,7 +244,7 @@ fn dump_poly_without_std_handles_local_effect_call() {
 
     assert_eq!(output.file_count, 1);
     assert_eq!(output.errors, Vec::<String>::new());
-    assert_dump_has_line_starting_with(&output, "my d2:handled: () -> [signal] int = ");
+    assert_dump_has_line_starting_with(&output, "my d2:handled: () -> int = ");
     assert_dump_contains(&output, "catch ");
     assert_dump_contains(&output, "\"signal::ping\"");
     assert_dump_contains(&output, "\"signal.ping\"");

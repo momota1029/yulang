@@ -404,6 +404,45 @@ fn empty_stack_entry_with_plain_negative_var_is_internal() {
 }
 
 #[test]
+fn paired_empty_stack_entries_are_internal() {
+    let mut machine = ConstraintMachine::new();
+    let effect = TypeVar(2);
+    let subtract = SubtractId(3);
+    machine.register_type_var(effect, TypeLevel::root().child());
+    let protected_callback_effect = CompactType::from_var(CompactVar::contravariant_with_weight(
+        effect,
+        StackWeight::push(subtract, Subtractability::Empty),
+    ));
+    let residual_effect = CompactType::from_var(CompactVar::covariant(
+        effect,
+        StackWeight::pop(subtract).compose(&StackWeight::push(subtract, Subtractability::Empty)),
+    ));
+    let root = CompactRoot {
+        root: CompactType::from_fun(CompactFun {
+            arg: CompactType::from_fun(CompactFun {
+                arg: CompactType::default(),
+                arg_eff: CompactType::default(),
+                ret_eff: protected_callback_effect,
+                ret: CompactType::default(),
+            }),
+            arg_eff: CompactType::default(),
+            ret_eff: residual_effect,
+            ret: CompactType::default(),
+        }),
+        rec_vars: Vec::new(),
+    };
+
+    let generalized =
+        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+    let callback_ret_eff = &generalized.compact.root.funs[0].arg.funs[0].ret_eff;
+    let ret_eff = &generalized.compact.root.funs[0].ret_eff;
+
+    assert!(generalized.stack_quantifiers.is_empty());
+    assert!(callback_ret_eff.vars[0].weight.is_empty());
+    assert!(ret_eff.vars[0].weight.is_empty());
+}
+
+#[test]
 fn spent_residual_stack_entry_with_plain_negative_var_is_internal() {
     let mut machine = ConstraintMachine::new();
     let effect = TypeVar(2);

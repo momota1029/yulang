@@ -38,7 +38,7 @@ impl<'a> ExprLowerer<'a> {
                 body = self.discard_if_branch_value(body);
             }
             self.subtype_var_to_var(body.value, result_value);
-            self.subtype_var_to_var(body.effect, result_effect);
+            self.connect_effect_var_to_var(body.effect, result_effect);
             arms.push(LoweredIfArm { condition, body });
         }
 
@@ -47,13 +47,13 @@ impl<'a> ExprLowerer<'a> {
                 let body_node = if_arm_body_expr(&else_node).ok_or(LoweringError::MissingIfBody)?;
                 let body = self.lower_if_arm_body(&body_node)?;
                 self.subtype_var_to_var(body.value, result_value);
-                self.subtype_var_to_var(body.effect, result_effect);
+                self.connect_effect_var_to_var(body.effect, result_effect);
                 body
             }
             None => {
                 let body = self.unit_expr();
                 self.subtype_var_to_var(body.value, result_value);
-                self.subtype_var_to_var(body.effect, result_effect);
+                self.connect_effect_var_to_var(body.effect, result_effect);
                 body
             }
         };
@@ -73,8 +73,8 @@ impl<'a> ExprLowerer<'a> {
         let raw_condition_effect = condition.effect;
         let condition = self.apply_junction(condition)?;
         self.constrain_exact_primitive(condition.value, "bool");
-        self.subtype_var_to_var(raw_condition_effect, result_effect);
-        self.subtype_var_to_var(condition.effect, result_effect);
+        self.connect_effect_var_to_var(raw_condition_effect, result_effect);
+        self.connect_effect_var_to_var(condition.effect, result_effect);
         Ok(condition)
     }
 
@@ -232,7 +232,7 @@ impl<'a> ExprLowerer<'a> {
 
         let value = self.fresh_type_var();
         let effect = self.fresh_type_var();
-        self.subtype_var_to_var(scrutinee.effect, effect);
+        self.connect_effect_var_to_var(scrutinee.effect, effect);
 
         let mut arms = Vec::new();
         for arm in arm_nodes {
@@ -278,7 +278,7 @@ impl<'a> ExprLowerer<'a> {
         let mut body = self.lower_expr(&body_node)?;
         body = self.wrap_var_pattern_bindings(active_var_bindings, body)?;
         self.subtype_var_to_var(body.value, result_value);
-        self.subtype_var_to_var(body.effect, result_effect);
+        self.connect_effect_var_to_var(body.effect, result_effect);
         Ok(CaseArm {
             pat,
             guard,
@@ -323,7 +323,7 @@ impl<'a> ExprLowerer<'a> {
         self.locals.truncate(before_locals);
         let body = body?;
 
-        self.subtype_var_to_var(scrutinee.effect, result_effect);
+        self.connect_effect_var_to_var(scrutinee.effect, result_effect);
         let expr = self.session.poly.add_expr(Expr::Block(
             vec![Stmt::Let(Vis::My, input_pat, scrutinee.expr)],
             Some(body.expr),
@@ -593,7 +593,7 @@ impl<'a> ExprLowerer<'a> {
         let body_node = arm_body_expr(arm).ok_or(LoweringError::MissingCaseArmBody)?;
         let body = self.lower_expr(&body_node)?;
         self.subtype_var_to_var(body.value, result_value);
-        self.subtype_var_to_var(body.effect, result_effect);
+        self.connect_effect_var_to_var(body.effect, result_effect);
 
         let Some(guard_node) = arm_guard_expr(arm) else {
             return Ok(body);
@@ -611,11 +611,11 @@ impl<'a> ExprLowerer<'a> {
         result_effect: TypeVar,
     ) -> Computation {
         self.constrain_exact_primitive(condition.value, "bool");
-        self.subtype_var_to_var(condition.effect, result_effect);
+        self.connect_effect_var_to_var(condition.effect, result_effect);
         self.subtype_var_to_var(body.value, result_value);
-        self.subtype_var_to_var(body.effect, result_effect);
+        self.connect_effect_var_to_var(body.effect, result_effect);
         self.subtype_var_to_var(fallback.value, result_value);
-        self.subtype_var_to_var(fallback.effect, result_effect);
+        self.connect_effect_var_to_var(fallback.effect, result_effect);
         self.build_nested_if_cases(
             vec![LoweredIfArm { condition, body }],
             fallback,
@@ -722,7 +722,7 @@ impl<'a> ExprLowerer<'a> {
         result_value: TypeVar,
         result_effect: TypeVar,
     ) -> Computation {
-        self.subtype_var_to_var(input.effect, result_effect);
+        self.connect_effect_var_to_var(input.effect, result_effect);
         let expr = self
             .session
             .poly
@@ -885,23 +885,19 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_type_var();
 
         let mut arms = Vec::new();
+        let mut effect_flows = Vec::new();
         let mut handled = CatchHandledEffects::new();
         let mut saw_value_arm = false;
         let mut saw_effect_arm = false;
         for arm in catch_arm_nodes(node) {
             let before_locals = self.locals.len();
-            let lowered = self.lower_catch_arm(
-                &arm,
-                scrutinee.value,
-                scrutinee.effect,
-                value,
-                effect,
-                &mut handled,
-            );
+            let lowered =
+                self.lower_catch_arm(&arm, scrutinee.value, scrutinee.effect, value, &mut handled);
             self.locals.truncate(before_locals);
             let lowered = lowered?;
             saw_value_arm |= lowered.value_covers_all;
             saw_effect_arm |= matches!(lowered.kind, LoweredCatchArmKind::Effect);
+            effect_flows.push(self.effect_flow_var(lowered.effect));
             arms.push(CatchArm {
                 operation: lowered.operation,
                 pat: lowered.pat,
@@ -912,20 +908,21 @@ impl<'a> ExprLowerer<'a> {
         }
 
         let final_effect = if handled.is_empty() {
-            self.subtype_var_to_var(scrutinee.effect, effect);
+            effect_flows.push(self.effect_flow_var(scrutinee.effect));
             effect
         } else {
             let complete = handled.is_complete(self.modules, self.module, self.site);
-            let rest_effect = if complete {
-                effect
+            let rest_effect = self.fresh_type_var();
+            self.subtype_scrutinee_effect_to_handled_row(
+                scrutinee.effect,
+                scrutinee.effect_view,
+                handled.row_items(),
+                rest_effect,
+            );
+            if complete {
+                effect_flows.push(self.effect_flow_var(rest_effect));
             } else {
-                self.fresh_type_var()
-            };
-            let tail = self.alloc_neg(Neg::Var(rest_effect));
-            let row = self.alloc_neg(Neg::Row(handled.row_items(), tail));
-            self.subtype_scrutinee_effect_to_row(scrutinee.effect, scrutinee.effect_view, row);
-            if !complete {
-                self.subtype_var_to_var(scrutinee.effect, effect);
+                effect_flows.push(self.effect_flow_var(scrutinee.effect));
             }
             effect
         };
@@ -934,8 +931,11 @@ impl<'a> ExprLowerer<'a> {
             self.subtype_var_to_var(value, scrutinee.value);
         }
         if !saw_value_arm && !saw_effect_arm {
-            self.subtype_var_to_var(scrutinee.effect, final_effect);
+            effect_flows.push(self.effect_flow_var(scrutinee.effect));
         }
+        let final_flow = self.seq_effect_flows(effect_flows);
+        self.bind_effect_var_to_flow(final_effect, final_flow);
+        self.materialize_effect_var(final_effect);
 
         let expr = self
             .session
@@ -949,26 +949,39 @@ impl<'a> ExprLowerer<'a> {
         ))
     }
 
-    fn subtype_scrutinee_effect_to_row(
+    fn subtype_scrutinee_effect_to_handled_row(
         &mut self,
         effect: TypeVar,
         effect_view: Option<EffectViewId>,
-        row: NegId,
+        row_items: Vec<NegId>,
+        rest_effect: TypeVar,
     ) {
-        let lower = match effect_view.map(|view| self.effect_view(view).clone()) {
+        let row = self.effect_row_with_tail(row_items, rest_effect);
+        match effect_view.map(|view| self.effect_view(view).clone()) {
             Some(LocalEffect::Stack { inner, weight, .. }) => {
                 // Keep the public effect slot constrained by the handled row so
                 // shallow handlers can surface the resumed effect, while the
                 // stack view drives subtraction hygiene.
-                let full = self.alloc_pos(Pos::Var(effect));
-                self.session.infer.subtype(full, row);
-                let inner = self.alloc_pos(Pos::Var(inner));
-                self.alloc_pos(Pos::Stack { inner, weight })
+                let full = self.effect_flow_var(effect);
+                self.connect_effect_flow_to_neg(full, row);
+
+                let inner = self.effect_flow_var(inner);
+                self.connect_effect_flow_with_stack_to_neg(inner, weight, row);
             }
-            Some(LocalEffect::Var(effect)) => self.alloc_pos(Pos::Var(effect)),
-            None => self.alloc_pos(Pos::Var(effect)),
-        };
-        self.session.infer.subtype(lower, row);
+            Some(LocalEffect::Var(effect)) => {
+                let flow = self.effect_flow_var(effect);
+                self.connect_effect_flow_to_neg(flow, row);
+            }
+            None => {
+                let flow = self.effect_flow_var(effect);
+                self.connect_effect_flow_to_neg(flow, row);
+            }
+        }
+    }
+
+    fn effect_row_with_tail(&mut self, row_items: Vec<NegId>, tail_effect: TypeVar) -> NegId {
+        let tail = self.alloc_neg(Neg::Var(tail_effect));
+        self.alloc_neg(Neg::Row(row_items, tail))
     }
 
     fn lower_catch_arm(
@@ -977,7 +990,6 @@ impl<'a> ExprLowerer<'a> {
         scrutinee_value: TypeVar,
         scrutinee_effect: TypeVar,
         result_value: TypeVar,
-        result_effect: TypeVar,
         handled: &mut CatchHandledEffects,
     ) -> Result<LoweredCatchArm, LoweringError> {
         let patterns = arm_patterns(arm);
@@ -997,21 +1009,24 @@ impl<'a> ExprLowerer<'a> {
                     return Err(LoweringError::UnsupportedPatternSyntax { kind: arm.kind() });
                 }
                 let guard = guard_node
-                    .map(|guard| self.lower_arm_guard(&guard, result_effect))
+                    .map(|guard| self.lower_catch_guard_effect(&guard))
                     .transpose()?;
                 let active_var_bindings = self.install_var_pattern_bindings(&var_bindings)?;
                 let mut body = self.lower_expr(&body_node)?;
                 body = self.wrap_var_pattern_bindings(active_var_bindings, body)?;
                 self.subtype_var_to_var(body.value, result_value);
-                self.subtype_var_to_var(body.effect, result_effect);
+                let guard_is_none = guard.is_none();
+                let effect =
+                    self.catch_arm_effect(guard.as_ref().map(|(_, effect)| *effect), body.effect);
                 Ok(LoweredCatchArm {
                     kind: LoweredCatchArmKind::Value,
                     operation: None,
                     pat,
                     continuation: None,
-                    guard,
+                    guard: guard.map(|(expr, _)| expr),
                     body: body.expr,
-                    value_covers_all: pat_covers_all(&self.session.poly, pat) && guard.is_none(),
+                    effect,
+                    value_covers_all: pat_covers_all(&self.session.poly, pat) && guard_is_none,
                 })
             }
             [effect_pattern, continuation_pattern] => {
@@ -1065,7 +1080,7 @@ impl<'a> ExprLowerer<'a> {
                 self.pattern_binding_rewrites = saved_rewrites;
                 let (payload, row_item, continuation) = lowered_patterns?;
                 let guard = guard_node
-                    .map(|guard| self.lower_arm_guard(&guard, result_effect))
+                    .map(|guard| self.lower_catch_guard_effect(&guard))
                     .transpose()?;
                 let active_effect_var_bindings =
                     self.install_var_pattern_bindings(&effect_var_bindings)?;
@@ -1075,9 +1090,11 @@ impl<'a> ExprLowerer<'a> {
                 body = self.wrap_var_pattern_bindings(active_continuation_var_bindings, body)?;
                 body = self.wrap_var_pattern_bindings(active_effect_var_bindings, body)?;
                 self.subtype_var_to_var(body.value, result_value);
-                self.subtype_var_to_var(body.effect, result_effect);
+                let guard_is_none = guard.is_none();
+                let effect =
+                    self.catch_arm_effect(guard.as_ref().map(|(_, effect)| *effect), body.effect);
                 let operation_covers_all =
-                    pat_covers_all(&self.session.poly, payload.pat) && guard.is_none();
+                    pat_covers_all(&self.session.poly, payload.pat) && guard_is_none;
                 let operation = poly::expr::CatchOperation {
                     path: handled_op.path.iter().map(|name| name.0.clone()).collect(),
                     def: operation_decl.as_ref().and_then(|decl| decl.def),
@@ -1088,8 +1105,9 @@ impl<'a> ExprLowerer<'a> {
                     operation: Some(operation),
                     pat: payload.pat,
                     continuation: Some(continuation),
-                    guard,
+                    guard: guard.map(|(expr, _)| expr),
                     body: body.expr,
+                    effect,
                     value_covers_all: false,
                 })
             }
@@ -1109,8 +1127,33 @@ impl<'a> ExprLowerer<'a> {
         let guard = guard?;
         let guard = self.apply_junction(guard)?;
         self.constrain_exact_primitive(guard.value, "bool");
-        self.subtype_var_to_var(guard.effect, result_effect);
+        self.connect_effect_var_to_var(guard.effect, result_effect);
         Ok(guard.expr)
+    }
+
+    fn lower_catch_guard_effect(
+        &mut self,
+        guard_node: &Cst,
+    ) -> Result<(poly::expr::ExprId, TypeVar), LoweringError> {
+        let before_locals = self.locals.len();
+        let guard = self.lower_expr(guard_node);
+        self.locals.truncate(before_locals);
+        let guard = guard?;
+        let guard = self.apply_junction(guard)?;
+        self.constrain_exact_primitive(guard.value, "bool");
+        Ok((guard.expr, guard.effect))
+    }
+
+    fn catch_arm_effect(&mut self, guard_effect: Option<TypeVar>, body_effect: TypeVar) -> TypeVar {
+        let effect = self.fresh_type_var();
+        let mut flows = Vec::new();
+        if let Some(guard_effect) = guard_effect {
+            flows.push(self.effect_flow_var(guard_effect));
+        }
+        flows.push(self.effect_flow_var(body_effect));
+        let flow = self.seq_effect_flows(flows);
+        self.bind_effect_var_to_flow(effect, flow);
+        effect
     }
 
     fn apply_junction(&mut self, condition: Computation) -> Result<Computation, LoweringError> {
@@ -1485,6 +1528,7 @@ struct LoweredCatchArm {
     continuation: Option<PatId>,
     guard: Option<poly::expr::ExprId>,
     body: poly::expr::ExprId,
+    effect: TypeVar,
     value_covers_all: bool,
 }
 

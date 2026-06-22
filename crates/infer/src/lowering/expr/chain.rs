@@ -172,7 +172,7 @@ impl<'a> ExprLowerer<'a> {
         let mut neg_payloads = Vec::with_capacity(payloads.len());
         let mut expr_payloads = Vec::with_capacity(payloads.len());
         for payload in payloads {
-            self.subtype_var_to_var(payload.effect, result_effect);
+            self.connect_effect_var_to_var(payload.effect, result_effect);
             pos_payloads.push(self.alloc_pos(Pos::Var(payload.value)));
             neg_payloads.push(self.alloc_neg(Neg::Var(payload.value)));
             expr_payloads.push(payload.expr);

@@ -630,7 +630,7 @@ pub(in crate::generalize) fn cleanup_empty_stack_entries_with_plain_negative_occ
         collect_empty_stack_occurrences_in_role(role, &mut occurrences);
     }
 
-    let redundant = occurrences.redundant_positive_entries();
+    let redundant = occurrences.redundant_entries();
     if redundant.is_empty() {
         return false;
     }
@@ -648,6 +648,7 @@ pub(in crate::generalize) fn cleanup_empty_stack_entries_with_plain_negative_occ
 #[derive(Default)]
 pub(in crate::generalize) struct EmptyStackOccurrences {
     positive_internal_entries: FxHashMap<TypeVar, FxHashSet<SubtractId>>,
+    negative_internal_entries: FxHashMap<TypeVar, FxHashSet<SubtractId>>,
     plain_negative_vars: FxHashSet<TypeVar>,
 }
 
@@ -655,37 +656,98 @@ impl EmptyStackOccurrences {
     fn record_type(&mut self, var: &CompactVar, covariant: bool) {
         if covariant {
             for entry in var.weight.entries() {
-                if internal_stack_entry_with_plain_negative_counterpart(entry) {
+                if internal_residual_stack_entry(entry) {
                     self.positive_internal_entries
                         .entry(var.var)
                         .or_default()
                         .insert(entry.id);
                 }
             }
-        } else if var.weight.is_empty() {
-            self.plain_negative_vars.insert(var.var);
+        } else {
+            if var.weight.is_empty() {
+                self.plain_negative_vars.insert(var.var);
+            }
+            for entry in var.weight.entries() {
+                if internal_residual_stack_entry(entry) {
+                    self.negative_internal_entries
+                        .entry(var.var)
+                        .or_default()
+                        .insert(entry.id);
+                }
+            }
         }
     }
 
-    fn redundant_positive_entries(self) -> FxHashMap<TypeVar, FxHashSet<SubtractId>> {
-        self.positive_internal_entries
-            .into_iter()
-            .filter(|(var, _)| self.plain_negative_vars.contains(var))
-            .collect()
+    fn redundant_entries(self) -> RedundantEmptyStackEntries {
+        let mut redundant = RedundantEmptyStackEntries::default();
+        for (var, positive_ids) in &self.positive_internal_entries {
+            if self.plain_negative_vars.contains(var) {
+                redundant.positive.insert(*var, positive_ids.clone());
+                continue;
+            }
+            let Some(negative_ids) = self.negative_internal_entries.get(var) else {
+                continue;
+            };
+            for id in positive_ids {
+                if negative_ids.contains(id) {
+                    redundant.insert_positive(*var, *id);
+                }
+            }
+        }
+        for (var, negative_ids) in &self.negative_internal_entries {
+            let Some(positive_ids) = self.positive_internal_entries.get(var) else {
+                continue;
+            };
+            for id in negative_ids {
+                if positive_ids.contains(id) {
+                    redundant.insert_negative(*var, *id);
+                }
+            }
+        }
+        redundant
     }
 }
 
-pub(in crate::generalize) fn internal_stack_entry_with_plain_negative_counterpart(
+#[derive(Default)]
+pub(in crate::generalize) struct RedundantEmptyStackEntries {
+    positive: FxHashMap<TypeVar, FxHashSet<SubtractId>>,
+    negative: FxHashMap<TypeVar, FxHashSet<SubtractId>>,
+}
+
+impl RedundantEmptyStackEntries {
+    fn is_empty(&self) -> bool {
+        self.positive.is_empty() && self.negative.is_empty()
+    }
+
+    fn ids_for(&self, var: TypeVar, covariant: bool) -> Option<&FxHashSet<SubtractId>> {
+        if covariant {
+            self.positive.get(&var)
+        } else {
+            self.negative.get(&var)
+        }
+    }
+
+    fn insert_positive(&mut self, var: TypeVar, id: SubtractId) {
+        self.positive.entry(var).or_default().insert(id);
+    }
+
+    fn insert_negative(&mut self, var: TypeVar, id: SubtractId) {
+        self.negative.entry(var).or_default().insert(id);
+    }
+}
+
+pub(in crate::generalize) fn internal_residual_stack_entry(
     entry: &poly::types::StackWeightEntry,
 ) -> bool {
-    empty_stack_entry_only(entry)
+    protected_empty_stack_entry(entry)
         || spent_residual_stack_entry(entry)
         || instantiated_stack_entry(entry)
 }
 
-pub(in crate::generalize) fn empty_stack_entry_only(entry: &poly::types::StackWeightEntry) -> bool {
-    entry.pops == 0
-        && entry.floor.is_empty()
+pub(in crate::generalize) fn protected_empty_stack_entry(
+    entry: &poly::types::StackWeightEntry,
+) -> bool {
+    entry.floor.is_empty()
         && !entry.stack.is_empty()
         && entry
             .stack
@@ -830,7 +892,7 @@ pub(in crate::generalize) fn collect_empty_stack_occurrences_in_bounds(
 
 pub(in crate::generalize) fn prune_redundant_empty_stack_entries_in_role(
     role: &mut CompactRoleConstraint,
-    redundant: &FxHashMap<TypeVar, FxHashSet<SubtractId>>,
+    redundant: &RedundantEmptyStackEntries,
 ) -> bool {
     let mut changed = false;
     for input in &mut role.inputs {
@@ -845,7 +907,7 @@ pub(in crate::generalize) fn prune_redundant_empty_stack_entries_in_role(
 
 pub(in crate::generalize) fn prune_redundant_empty_stack_entries_in_role_arg(
     arg: &mut CompactRoleArg,
-    redundant: &FxHashMap<TypeVar, FxHashSet<SubtractId>>,
+    redundant: &RedundantEmptyStackEntries,
 ) -> bool {
     prune_redundant_empty_stack_entries_in_bounds(&mut arg.bounds, true, redundant)
 }
@@ -853,18 +915,16 @@ pub(in crate::generalize) fn prune_redundant_empty_stack_entries_in_role_arg(
 pub(in crate::generalize) fn prune_redundant_empty_stack_entries_in_type(
     ty: &mut CompactType,
     covariant: bool,
-    redundant: &FxHashMap<TypeVar, FxHashSet<SubtractId>>,
+    redundant: &RedundantEmptyStackEntries,
 ) -> bool {
     let mut changed = false;
-    if covariant {
-        for var in &mut ty.vars {
-            let Some(ids) = redundant.get(&var.var) else {
-                continue;
-            };
-            let before = var.weight.clone();
-            var.weight = var.weight.without_ids(|id| ids.contains(&id));
-            changed |= var.weight != before;
-        }
+    for var in &mut ty.vars {
+        let Some(ids) = redundant.ids_for(var.var, covariant) else {
+            continue;
+        };
+        let before = var.weight.clone();
+        var.weight = var.weight.without_ids(|id| ids.contains(&id));
+        changed |= var.weight != before;
     }
     for args in ty.cons.values_mut() {
         for arg in args {
@@ -920,7 +980,7 @@ pub(in crate::generalize) fn prune_redundant_empty_stack_entries_in_type(
 pub(in crate::generalize) fn prune_redundant_empty_stack_entries_in_bounds(
     bounds: &mut CompactBounds,
     covariant: bool,
-    redundant: &FxHashMap<TypeVar, FxHashSet<SubtractId>>,
+    redundant: &RedundantEmptyStackEntries,
 ) -> bool {
     match bounds {
         CompactBounds::Interval { lower, upper, .. } => {

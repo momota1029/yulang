@@ -355,7 +355,7 @@ impl<'a> ExprLowerer<'a> {
             })
             .collect::<Vec<_>>();
         for (_, value) in &fields {
-            self.subtype_var_to_var(value.effect, result_effect);
+            self.connect_effect_var_to_var(value.effect, result_effect);
         }
         self.constrain_lower(result_value, Pos::Record(record_fields));
 
@@ -375,10 +375,10 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_type_var();
         let mut ir_stmts = Vec::with_capacity(stmts.len());
         for stmt in stmts {
-            self.subtype_var_to_var(stmt.effect, effect);
+            self.connect_effect_var_to_var(stmt.effect, effect);
             ir_stmts.push(stmt.stmt);
         }
-        self.subtype_var_to_var(tail.effect, effect);
+        self.connect_effect_var_to_var(tail.effect, effect);
         self.subtype_var_to_var(tail.value, value);
         let expr = self
             .session

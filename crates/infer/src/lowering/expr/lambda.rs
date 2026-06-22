@@ -457,6 +457,7 @@ impl<'a> ExprLowerer<'a> {
             self.active_defined_skeletons
                 .push(ActiveDefinedLambdaSkeleton {
                     before_frames,
+                    target_value: target,
                     params: params.clone(),
                     skeleton: skeleton.clone(),
                 });
@@ -485,14 +486,13 @@ impl<'a> ExprLowerer<'a> {
                     skeleton,
                     SkeletonPredicateMode::All,
                 );
-                self.subtype_var_to_var(body.effect, skeleton.body_effect);
+                let body_flow = self.effect_flow_var(body.effect);
+                let skeleton_flow = self.effect_flow_var(skeleton.body_effect);
+                self.fill_effect_flow_hole(skeleton_flow, body_flow);
                 self.subtype_var_to_var(body.value, skeleton.body_value);
-                body = Computation::new(
-                    body.expr,
-                    skeleton.body_value,
-                    skeleton.body_effect,
-                    body.evaluation,
-                );
+                let body_effect = body.effect;
+                body =
+                    Computation::new(body.expr, skeleton.body_value, body_effect, body.evaluation);
             }
             if let Some(type_expr) = body_type_expr {
                 self.connect_type_method_result_annotation(
@@ -520,12 +520,25 @@ impl<'a> ExprLowerer<'a> {
             }
         };
 
-        for param in params.into_iter().rev() {
-            let frame = self
-                .function_frames
-                .pop()
-                .expect("lambda predicate frame should be balanced");
-            body = self.wrap_lambda_param(LambdaScope::Defined, param, frame, body);
+        if let Some(target) = self_value {
+            for param in params.into_iter().rev() {
+                self.function_frames
+                    .pop()
+                    .expect("lambda predicate frame should be balanced");
+                let expr = self
+                    .session
+                    .poly
+                    .add_expr(Expr::Lambda(param.pat, body.expr));
+                body = Computation::value(expr, target, self.fresh_exact_pure_effect());
+            }
+        } else {
+            for param in params.into_iter().rev() {
+                let frame = self
+                    .function_frames
+                    .pop()
+                    .expect("lambda predicate frame should be balanced");
+                body = self.wrap_lambda_param(LambdaScope::Defined, param, frame, body);
+            }
         }
         self.locals.truncate(before_locals);
         Ok(body)
@@ -599,8 +612,11 @@ impl<'a> ExprLowerer<'a> {
                 output_value: self.fresh_type_var(),
             })
             .collect();
+        let body_effect = self.fresh_type_var();
+        let body_effect_flow = self.fresh_effect_flow_hole();
+        self.bind_effect_var_to_flow(body_effect, body_effect_flow);
         DefinedLambdaSkeleton {
-            body_effect: self.fresh_type_var(),
+            body_effect,
             body_value: self.fresh_type_var(),
             layers,
         }
@@ -673,7 +689,8 @@ impl<'a> ExprLowerer<'a> {
                         current_value = layer.function_value;
                         continue;
                     }
-                    self.subtype_var_to_var(current_effect, layer.output_effect);
+                    let current_flow = self.effect_flow_var(current_effect);
+                    self.connect_effect_flow_to_var(current_flow, layer.output_effect);
                     self.subtype_var_to_var(current_value, layer.output_value);
                     self.subtype_var_to_var(layer.output_value, current_value);
                 }
@@ -683,11 +700,14 @@ impl<'a> ExprLowerer<'a> {
                     current_value = layer.function_value;
                     continue;
                 }
-                let ret_eff = self.alloc_pos(Pos::Var(current_effect));
+                let current_flow = self.effect_flow_var(current_effect);
                 let ret = self.alloc_pos(Pos::Var(current_value));
-                let ret_eff = self.wrap_pos_with_subtracts(ret_eff, &predicate_subtracts);
+                self.refresh_effect_flow_subtracts_to_var(
+                    current_flow,
+                    &predicate_subtracts,
+                    layer.output_effect,
+                );
                 let ret = self.wrap_pos_with_subtracts(ret, &predicate_subtracts);
-                self.subtype_pos_to_var(ret_eff, layer.output_effect);
                 self.subtype_pos_to_var(ret, layer.output_value);
             }
             current_effect = layer.function_effect;

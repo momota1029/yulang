@@ -28,7 +28,7 @@ impl<'a> ExprLowerer<'a> {
             })
             .collect::<Vec<_>>();
         for (_, value) in &fields {
-            self.subtype_var_to_var(value.effect, result_effect);
+            self.connect_effect_var_to_var(value.effect, result_effect);
         }
         self.constrain_lower(result_value, Pos::Record(record_fields));
 
@@ -100,10 +100,10 @@ impl<'a> ExprLowerer<'a> {
             })
             .collect::<Vec<_>>();
         for (_, value) in &lowered {
-            self.subtype_var_to_var(value.effect, result_effect);
+            self.connect_effect_var_to_var(value.effect, result_effect);
         }
         if let Some((_, value)) = &spread {
-            self.subtype_var_to_var(value.effect, result_effect);
+            self.connect_effect_var_to_var(value.effect, result_effect);
         }
         let lower = match &spread {
             Some((true, value)) => Pos::RecordHeadSpread {

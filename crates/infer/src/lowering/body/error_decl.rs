@@ -643,7 +643,7 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(arg_value));
         let arg_eff = self.empty_neg_row();
-        let ret_eff = self.alloc_pos(Pos::Var(body.effect));
+        let ret_eff = self.effect_var_to_pos(body.effect);
         let ret = self.alloc_pos(Pos::Var(body.value));
         self.constrain_lower(
             value,
@@ -680,7 +680,7 @@ impl<'a> ExprLowerer<'a> {
             self.subtype_var_to_var(scrutinee.value, pattern_value);
             let body = self.lower_error_operation_call(decl, variant, index)?;
             self.subtype_var_to_var(body.value, result_value);
-            self.subtype_var_to_var(body.effect, result_effect);
+            self.connect_effect_var_to_var(body.effect, result_effect);
             arms.push(CaseArm {
                 pat,
                 guard: None,
@@ -745,7 +745,7 @@ impl<'a> ExprLowerer<'a> {
             .map(|item| self.alloc_pos(Pos::Var(item.value)))
             .collect::<Vec<_>>();
         for item in &items {
-            self.subtype_var_to_var(item.effect, effect);
+            self.connect_effect_var_to_var(item.effect, effect);
         }
         self.constrain_lower(value, Pos::Tuple(item_values));
         Computation::new(

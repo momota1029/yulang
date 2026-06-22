@@ -454,6 +454,43 @@ If key hits remain:
 - classify whether it is a missed administrative join or a real semantic cycle;
 - do not remove the key until the source is understood.
 
+## Implementation Findings
+
+Current lowering work has narrowed the `std_ref_update_method_body_lowers`
+regression to this contour:
+
+```text
+catch residual tail
+  -> active recursive call return effect
+  -> defined skeleton output
+
+catch residual tail
+  -> defined skeleton output
+```
+
+The second path is the direct body-to-output predicate connection. The first
+path is created because a continuation returns the scrutinee effect, and the
+recursive call result is then compared with the same skeleton output slot.
+
+Two attempted fixes are known not to be sufficient:
+
+- Removing the public `scrutinee.effect <: handled-row` constraint drops the
+  principal receiver/callback information.
+- Making the continuation return only the handler residual tail terminates
+  poorly in the current solver shape.
+
+The useful partial refinement is:
+
+- Active recursive call return effects should not reapply subtracts that were
+  already known before the recursive body was lowered.
+- Late unannotated callback subtracts still have to apply to active recursive
+  returns; otherwise the required `#4(1)[Empty]` output marker is lost.
+
+The remaining blocker is not the old `pop(1)` clamp. It is a missing
+provenance/fan-out boundary around the continuation/row-split contour above.
+The final fix should make that contour explicit rather than widening var-var
+replay equality.
+
 ## Regression Matrix
 
 Must pass after each phase:

@@ -16,6 +16,17 @@ impl ConstraintMachine {
         if !self.bounds.add_lower(target, pos, weights.clone()) {
             return;
         }
+        let empty_alias_source = if weights.is_empty() {
+            match self.types.pos(pos) {
+                Pos::Var(source) => Some(*source),
+                _ => None,
+            }
+        } else {
+            None
+        };
+        if let Some(source) = empty_alias_source {
+            self.propagate_var_var_replay_pop_sentinels_across_alias(source, target);
+        }
         self.constrain_lower_bound_by_registered_filters(target, pos, &weights);
         self.record_pos_bound_var_neighbors(target, pos);
         self.events.push(ConstraintEvent::LowerBoundAdded {
@@ -23,6 +34,8 @@ impl ConstraintMachine {
             bound: pos,
             weights: weights.clone(),
         });
+        trace_selected_bound("lower", target, &weights);
+        trace_pop_gt1_bound("lower", target, &weights);
         trace_var_bounds("after lower", target, self.bounds.of(target), &self.types);
 
         let (replay_input_count, replay_enqueued, replay_var_var, actions) =
@@ -47,12 +60,25 @@ impl ConstraintMachine {
         if !self.bounds.add_upper(source, neg, weights.clone()) {
             return;
         }
+        let empty_alias_target = if weights.is_empty() {
+            match self.types.neg(neg) {
+                Neg::Var(target) => Some(*target),
+                _ => None,
+            }
+        } else {
+            None
+        };
+        if let Some(target) = empty_alias_target {
+            self.propagate_var_var_replay_pop_sentinels_across_alias(source, target);
+        }
         self.record_neg_bound_var_neighbors(source, neg);
         self.events.push(ConstraintEvent::UpperBoundAdded {
             var: source,
             bound: neg,
             weights: weights.clone(),
         });
+        trace_selected_bound("upper", source, &weights);
+        trace_pop_gt1_bound("upper", source, &weights);
         trace_var_bounds("after upper", source, self.bounds.of(source), &self.types);
 
         let (replay_input_count, replay_enqueued, replay_var_var, actions) =
@@ -83,6 +109,14 @@ impl ConstraintMachine {
         // alias cycle can only grow counters by rewalking the same pair, so the
         // replay key drops those counts while preserving the pop ids and right side.
         if let Some((ids, right)) = Self::nonempty_left_pop_only_replay_key(&weights) {
+            if self.pop_only_var_var_replay_subsumed_by_upper(
+                lower_var,
+                upper_var,
+                &ids,
+                &right,
+            ) {
+                return;
+            }
             if !self.record_var_var_pop_replay_pair(lower_var, upper_var, ids, right) {
                 return;
             }
@@ -90,6 +124,10 @@ impl ConstraintMachine {
         if !self.record_var_var_pair(lower_var, upper_var, &weights) {
             return;
         }
+        if weights.is_empty() {
+            self.propagate_var_var_replay_pop_sentinels_across_alias(lower_var, upper_var);
+        }
+        trace_selected_var_var_bound(lower_var, upper_var, &weights);
         let upper = self.extrude_neg(upper, self.level_of(lower_var));
         self.prune_upper_rows_subsumed_by(lower_var, upper, &weights);
         if self.bounds.add_upper(lower_var, upper, weights.clone()) {
@@ -99,6 +137,8 @@ impl ConstraintMachine {
                 bound: upper,
                 weights: weights.clone(),
             });
+            trace_selected_bound("var-var upper", lower_var, &weights);
+            trace_pop_gt1_bound("var-var upper", lower_var, &weights);
             trace_var_bounds(
                 "after var-var upper",
                 lower_var,
@@ -124,6 +164,8 @@ impl ConstraintMachine {
                 bound: lower,
                 weights: weights.clone(),
             });
+            trace_selected_bound("var-var lower", upper_var, &weights);
+            trace_pop_gt1_bound("var-var lower", upper_var, &weights);
             trace_var_bounds(
                 "after var-var lower",
                 upper_var,
@@ -290,7 +332,20 @@ impl ConstraintMachine {
         for (index, upper) in bounds.uppers.iter().enumerate() {
             trace_bound_replay_progress("lower", target, index);
             if self.is_var_var_replay(pos, upper.neg) {
-                let replay_weights = weights.compose_for_var_var_replay(&upper.weights);
+                let replay_weights =
+                    self.compose_for_var_var_replay_through_upper(
+                        target,
+                        weights,
+                        upper.neg,
+                        &upper.weights,
+                    );
+                trace_pop_gt1_replay(
+                    "lower var-var",
+                    target,
+                    weights,
+                    &upper.weights,
+                    &replay_weights,
+                );
                 replay_var_var += 1;
                 actions.push(BoundReplayAction::VarVar {
                     lower: pos,
@@ -299,6 +354,7 @@ impl ConstraintMachine {
                 });
             } else {
                 let replay_weights = weights.compose_for_replay(&upper.weights);
+                trace_pop_gt1_replay("lower", target, weights, &upper.weights, &replay_weights);
                 replay_enqueued += 1;
                 actions.push(BoundReplayAction::Subtype {
                     lower: pos,
@@ -327,7 +383,15 @@ impl ConstraintMachine {
         for (index, lower) in bounds.lowers.iter().enumerate() {
             trace_bound_replay_progress("upper", source, index);
             if self.is_var_var_replay(lower.pos, neg) {
-                let replay_weights = lower.weights.compose_for_var_var_replay(weights);
+                let replay_weights =
+                    self.compose_for_var_var_replay_through_upper(source, &lower.weights, neg, weights);
+                trace_pop_gt1_replay(
+                    "upper var-var",
+                    source,
+                    &lower.weights,
+                    weights,
+                    &replay_weights,
+                );
                 replay_var_var += 1;
                 actions.push(BoundReplayAction::VarVar {
                     lower: lower.pos,
@@ -336,6 +400,7 @@ impl ConstraintMachine {
                 });
             } else {
                 let replay_weights = lower.weights.compose_for_replay(weights);
+                trace_pop_gt1_replay("upper", source, &lower.weights, weights, &replay_weights);
                 replay_enqueued += 1;
                 actions.push(BoundReplayAction::Subtype {
                     lower: lower.pos,
@@ -367,8 +432,9 @@ impl ConstraintMachine {
                 skipped += 1;
                 continue;
             }
-            let replay_weights = lower.weights.compose_for_replay(weights);
             if self.is_var_var_replay(lower.pos, upper) {
+                let replay_weights =
+                    self.compose_for_var_var_replay_through_upper(lower_var, &lower.weights, upper, weights);
                 if Self::weights_are_pop_only(&replay_weights) {
                     actions.push(BoundReplayAction::VarVar {
                         lower: lower.pos,
@@ -377,6 +443,7 @@ impl ConstraintMachine {
                     });
                 }
             } else {
+                let replay_weights = lower.weights.compose_for_replay(weights);
                 replay_enqueued += 1;
                 actions.push(BoundReplayAction::Subtype {
                     lower: lower.pos,
@@ -408,7 +475,8 @@ impl ConstraintMachine {
                 skipped += 1;
                 continue;
             }
-            let replay_weights = weights.compose_for_var_var_replay(&upper.weights);
+            let replay_weights =
+                self.compose_for_var_var_replay_through_upper(upper_var, weights, upper.neg, &upper.weights);
             if self.is_var_var_replay(lower, upper.neg) {
                 if Self::weights_are_pop_only(&replay_weights) {
                     actions.push(BoundReplayAction::VarVar {
@@ -427,6 +495,20 @@ impl ConstraintMachine {
             }
         }
         (bounds.uppers.len(), replay_enqueued, skipped, actions)
+    }
+
+    fn compose_for_var_var_replay_through_upper(
+        &self,
+        middle: TypeVar,
+        earlier: &ConstraintWeights,
+        later_neg: NegId,
+        later_weights: &ConstraintWeights,
+    ) -> ConstraintWeights {
+        let sentinels = match self.types.neg(later_neg) {
+            Neg::Var(upper) => self.var_var_replay_pop_sentinels.get(&(middle, *upper)),
+            _ => None,
+        };
+        earlier.compose_for_var_var_replay_with_pop_sentinels(later_weights, sentinels)
     }
 
     fn apply_bound_replay_actions(&mut self, actions: BoundReplayActions) {
@@ -672,6 +754,60 @@ impl ConstraintMachine {
             return Some((ids, weights.right.clone()));
         }
         None
+    }
+
+    fn pop_only_var_var_replay_subsumed_by_upper(
+        &self,
+        lower_var: TypeVar,
+        upper_var: TypeVar,
+        ids: &[SubtractId],
+        right: &RightConstraintWeight,
+    ) -> bool {
+        let upper_seen = self.bounds.of(lower_var).is_some_and(|bounds| {
+            bounds.uppers().iter().any(|bound| {
+                matches!(self.types.neg(bound.neg), Neg::Var(var) if *var == upper_var)
+                    && Self::nonempty_left_pop_only_replay_key(&bound.weights)
+                        .is_some_and(|(existing_ids, existing_right)| {
+                            existing_ids == ids && &existing_right == right
+                        })
+            })
+        });
+        let lower_seen = self.bounds.of(upper_var).is_some_and(|bounds| {
+            bounds.lowers().iter().any(|bound| {
+                matches!(self.types.pos(bound.pos), Pos::Var(var) if *var == lower_var)
+                    && Self::nonempty_left_pop_only_replay_key(&bound.weights)
+                        .is_some_and(|(existing_ids, existing_right)| {
+                            existing_ids == ids && &existing_right == right
+                        })
+            })
+        });
+        upper_seen || lower_seen
+    }
+
+    fn propagate_var_var_replay_pop_sentinels_across_alias(
+        &mut self,
+        lower_var: TypeVar,
+        upper_var: TypeVar,
+    ) {
+        let additions = self
+            .var_var_replay_pop_sentinels
+            .iter()
+            .filter_map(|(&(source, target), ids)| {
+                if target == lower_var {
+                    Some(((source, upper_var), ids.clone()))
+                } else if source == upper_var {
+                    Some(((lower_var, target), ids.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        for (key, ids) in additions {
+            self.var_var_replay_pop_sentinels
+                .entry(key)
+                .or_default()
+                .extend(ids);
+        }
     }
 
     fn left_weight_is_pop_only(weight: &LeftConstraintWeight) -> bool {
@@ -1083,4 +1219,81 @@ fn constraint_weights_have_row_tail_boundary(weights: &ConstraintWeights) -> boo
 
 fn left_constraint_weight_has_row_tail_boundary(weight: &LeftConstraintWeight) -> bool {
     weight.has_filter() || weight.entries().iter().any(|entry| entry.pushes > 0)
+}
+
+fn trace_pop_gt1_bound(kind: &str, var: TypeVar, weights: &ConstraintWeights) {
+    if std::env::var("YULANG_TRACE_POP_GT1_BOUNDS").is_err() {
+        return;
+    }
+    let left = weights.left.to_stack_weight();
+    let right = weights.right.to_stack_weight();
+    let has_large_pop = left
+        .entries()
+        .iter()
+        .chain(right.entries())
+        .any(|entry| entry.pops > 1);
+    if has_large_pop {
+        eprintln!("[constraints] {kind} var={var:?} weights={weights:?}");
+    }
+}
+
+fn trace_selected_bound(kind: &str, var: TypeVar, weights: &ConstraintWeights) {
+    let Ok(value) = std::env::var("YULANG_TRACE_BOUNDS_FOR") else {
+        return;
+    };
+    if !value.split(',').any(|part| {
+        part.trim()
+            .parse::<u32>()
+            .is_ok_and(|expected| expected == var.0)
+    }) {
+        return;
+    }
+    eprintln!("[constraints] selected {kind} var={var:?} weights={weights:?}");
+}
+
+fn trace_selected_var_var_bound(lower: TypeVar, upper: TypeVar, weights: &ConstraintWeights) {
+    let Ok(value) = std::env::var("YULANG_TRACE_VAR_VAR_FOR") else {
+        return;
+    };
+    if !value.split(',').any(|part| {
+        let mut sides = part.trim().split("->");
+        match (sides.next(), sides.next(), sides.next()) {
+            (Some(left), Some(right), None) => {
+                trace_type_var_side_matches(left, lower) && trace_type_var_side_matches(right, upper)
+            }
+            _ => false,
+        }
+    }) {
+        return;
+    }
+    eprintln!("[constraints] selected var-var lower={lower:?} upper={upper:?} weights={weights:?}");
+}
+
+fn trace_type_var_side_matches(pattern: &str, var: TypeVar) -> bool {
+    let pattern = pattern.trim();
+    pattern == "*" || pattern.parse::<u32>().is_ok_and(|expected| expected == var.0)
+}
+
+fn trace_pop_gt1_replay(
+    kind: &str,
+    var: TypeVar,
+    earlier: &ConstraintWeights,
+    later: &ConstraintWeights,
+    replay: &ConstraintWeights,
+) {
+    if std::env::var("YULANG_TRACE_POP_GT1_REPLAY").is_err() {
+        return;
+    }
+    let left = replay.left.to_stack_weight();
+    let right = replay.right.to_stack_weight();
+    let has_large_pop = left
+        .entries()
+        .iter()
+        .chain(right.entries())
+        .any(|entry| entry.pops > 1);
+    if has_large_pop {
+        eprintln!(
+            "[constraints] replay {kind} var={var:?} earlier={earlier:?} later={later:?} replay={replay:?}"
+        );
+    }
 }

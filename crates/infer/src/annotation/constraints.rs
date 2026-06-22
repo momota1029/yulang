@@ -136,6 +136,30 @@ impl<'a> AnnConstraintLowerer<'a> {
         }
     }
 
+    pub fn connect_result_computation_detailed(
+        &mut self,
+        target: AnnComputationTarget,
+        ann: &AnnType,
+    ) -> Result<AnnComputationConnection, AnnConstraintError> {
+        match ann {
+            AnnType::Effectful { eff, ret } => {
+                let mut subtracts = self.connect_value(target.value, ret)?;
+                subtracts
+                    .extend(self.connect_result_effectful_annotation_effect(target.effect, eff)?);
+                Ok(AnnComputationConnection {
+                    subtracts,
+                    effect_stack: None,
+                })
+            }
+            _ => self
+                .connect_value(target.value, ann)
+                .map(|subtracts| AnnComputationConnection {
+                    subtracts,
+                    effect_stack: None,
+                }),
+        }
+    }
+
     pub fn lower_role_arg(
         &mut self,
         ann: &AnnType,
@@ -407,6 +431,24 @@ impl<'a> AnnConstraintLowerer<'a> {
             weight: stack.weight,
             subtracts: stack.ids,
         })
+    }
+
+    fn connect_result_effectful_annotation_effect(
+        &mut self,
+        effect: TypeVar,
+        row: &AnnEffectRow,
+    ) -> Result<Vec<StackWeight>, AnnConstraintError> {
+        if row.items.is_empty()
+            && let Some(tail) = &row.tail
+        {
+            let _ = (effect, self.annotation_var(tail));
+            return Ok(Vec::new());
+        }
+
+        let bounds = self.lower_ret_effect_bounds(Some(row))?;
+        let effect_lower = self.alloc_pos(Pos::Var(effect));
+        self.infer.subtype(effect_lower, bounds.neg);
+        Ok(bounds.subtracts)
     }
 
     fn register_stack_facts(&mut self, var: TypeVar, weight: &StackWeight) {

@@ -40,7 +40,7 @@ fn std_ref_update_method_body_lowers() {
         "        struct self:\n",
         "          get: () -> ['e] 'a\n",
         "          update_effect: () -> [ref_update 'a; 'e] ()\n",
-        "        pub r.update f =\n",
+        "        pub r.update(f: 'a -> 'a): ['e] () =\n",
         "          my loop(x: [_] _) = catch x:\n",
         "            ref_update::update v, k -> loop:k:f v\n",
         "          loop:r.update_effect()\n",
@@ -69,7 +69,7 @@ fn std_ref_update_method_body_lowers() {
     let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
     assert_eq!(
         rendered,
-        "std::control::var::ref('a & 'c, 'b) -> ('b -> ['c#4[Empty]] 'b) -> ['c#4(1)[Empty], 'a#4] ()"
+        "std::control::var::ref('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] ()"
     );
     let update_effect =
         find_select_by_name(&output.session, body, "update_effect").expect("update_effect");

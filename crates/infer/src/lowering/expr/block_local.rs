@@ -38,7 +38,7 @@ impl<'a> ExprLowerer<'a> {
                     .map(|item| self.alloc_pos(Pos::Var(item.value)))
                     .collect::<Vec<_>>();
                 for item in &item_lowers {
-                    self.subtype_var_to_var(item.effect, effect);
+                    self.connect_effect_var_to_var(item.effect, effect);
                 }
                 self.constrain_lower(value, Pos::Tuple(item_values));
                 Ok(Computation::new(
@@ -968,7 +968,7 @@ impl<'a> ExprLowerer<'a> {
         let head_effect = self.effect_flow_var(head.effect);
         let tail_effect = self.effect_flow_var(tail.effect);
         let flow = self.seq_effect_flows([head_effect, tail_effect]);
-        self.connect_effect_flow_to_var(flow, effect);
+        self.bind_effect_var_to_flow(effect, flow);
         self.subtype_var_to_var(tail.value, value);
         let expr = self
             .session

@@ -21,6 +21,7 @@ impl ConstraintMachine {
             seen: FxHashSet::default(),
             var_var_seen: FxHashSet::default(),
             var_var_pop_replay_seen: FxHashSet::default(),
+            var_var_replay_pop_sentinels: FxHashMap::default(),
             events: Vec::new(),
             timing: ConstraintTiming::default(),
         }
@@ -115,6 +116,19 @@ impl ConstraintMachine {
         if self.enqueue_subtype(lower, weights, upper) || !self.queue.is_empty() {
             self.drain();
         }
+    }
+
+    pub fn mark_var_var_replay_pop_sentinels(
+        &mut self,
+        lower: TypeVar,
+        upper: TypeVar,
+        ids: impl IntoIterator<Item = SubtractId>,
+    ) {
+        let sentinels = self
+            .var_var_replay_pop_sentinels
+            .entry((lower, upper))
+            .or_default();
+        sentinels.extend(ids);
     }
 
     pub(crate) fn constrain_subtype(&mut self, lower: PosId, upper: NegId) -> bool {

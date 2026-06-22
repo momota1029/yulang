@@ -308,6 +308,33 @@ impl LeftConstraintWeight {
             weight,
         }
     }
+
+    pub(crate) fn without_leading_pops_by(
+        &self,
+        mut dead: impl FnMut(SubtractId) -> bool,
+    ) -> Self {
+        let mut weight = LeftStackWeight::empty();
+        for entry in self.weight.entries() {
+            let leading_pops = if dead(entry.id) {
+                0
+            } else {
+                entry.leading_pops
+            };
+            if leading_pops == 0 && entry.pushes == 0 {
+                continue;
+            }
+            weight.push_entry(LeftStackWeightEntry {
+                id: entry.id,
+                leading_pops,
+                family: entry.family.clone(),
+                pushes: entry.pushes,
+            });
+        }
+        Self {
+            filter: self.filter.clone(),
+            weight,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
