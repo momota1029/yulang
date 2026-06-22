@@ -44,7 +44,10 @@ WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
 effect subtraction の主性と colored soundness の定式化が更新された。
 公開準備・高速化より先に、現行 infer の stack weight / row split がこの定式化に合っているかを直す。
 
-実装メモ: `notes/design/2026-06-22-directed-stack-weight-implementation.md`
+実装メモ:
+
+- `notes/design/2026-06-22-directed-stack-weight-implementation.md`
+- `notes/design/2026-06-22-effect-flow-lowering-plan.md`
 
 特に優先して見るもの:
 
@@ -62,6 +65,7 @@ effect subtraction の主性と colored soundness の定式化が更新された
 - 停止性論考は effect sequence を fan-out 正規形へ落とす抽象機械を仮定する。
   現行 Rust lowering は application / catch / block / defined lambda skeleton の fresh effect join を経由するため、
   marker が replay SCC に見える箇所が残る。根本修正は lowering/provenance 正規化で追う。
+  詳細な移行計画は `notes/design/2026-06-22-effect-flow-lowering-plan.md`。
 
 ## 直近の優先順位
 
