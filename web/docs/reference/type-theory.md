@@ -187,6 +187,38 @@ to erase.
 What stays hidden is the weighted evidence explaining why the handler was
 allowed to consume `undet` at that boundary.
 
+### Private evidence in data-position functions
+
+Some library abstractions store effectful functions inside data values. Local
+references are the main example: the public `ref` value contains an internal
+function whose result effect mentions `ref_update`.
+
+The solver treats the latent return-effect tail of that stored function as
+private evidence and projects only the ordinary residual row back to the public
+type. Otherwise, internal stack ids such as `AllExcept(ref_update ...)` could
+escape through a synthetic field getter and become part of the public scheme.
+
+The public type should therefore expose ordinary rows, for example a reference
+update shape like:
+
+```text
+ref(e & b, a) -> (a -> [b] a) -> [e, b] unit
+```
+
+The exact variable names are not important. What matters is that the public
+scheme contains ordinary residual rows, not the private stack evidence that made
+the stored function hygienic.
+
+### Replay termination is not a type equality
+
+The solver replays bounds through the subtype graph with exact directed labels.
+It does not use a surface rule such as "one pop is the same as many pops".
+
+For termination, repeated visits to the same static boundary can be subsumed at
+the bounds-table level when they have the same endpoints, subtract id, and
+effect family. This is an implementation rule for avoiding the same replay
+cycle forever. It is not a simplification rule for user-visible types.
+
 ## Runtime View
 
 After specialization, the runtime cannot recover hygiene by guessing from a row
@@ -214,6 +246,10 @@ Yulang's current effect inference works like this:
 - unknown rows are not opened just because a handler exists;
 - residual row variables are part of the public type and should not be silently
   erased;
+- private stack evidence for stored effectful functions is projected back to
+  ordinary public rows;
+- replay-cycle subsumption is a solver termination rule, not a public type
+  equality;
 - runtime guard markers preserve the same hygiene after specialization.
 
 This keeps printed types relatively ordinary while still preventing inner

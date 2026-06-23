@@ -171,6 +171,33 @@ alpha [undet; beta] -> [beta] alpha
 
 隠れるのは、その境界で `undet` を消費してよい理由を説明する weighted evidence の方である。
 
+### data-position function の private evidence
+
+標準ライブラリには、data value の中に effectful function を保持する抽象化がある。local reference が
+代表例で、公開される `ref` value の内部には、返り effect に `ref_update` が関わる関数がある。
+
+solver は、この保存された関数の latent return-effect tail を private evidence として扱い、
+ordinary residual row だけを公開型へ projection する。そうしないと、synthetic field getter 経由で
+`AllExcept(ref_update ...)` のような内部 stack id が public scheme に漏れてしまう。
+
+公開型には、たとえば ref update なら次のような ordinary row だけが出るべきである。
+
+```text
+ref(e & b, a) -> (a -> [b] a) -> [e, b] unit
+```
+
+変数名そのものは重要ではない。重要なのは、保存された関数の hygiene を支える private stack evidence
+ではなく、普通の residual row が public scheme に出ることである。
+
+### replay の停止性は型等式ではない
+
+solver は subtype graph の bounds を、正確な directed label 付きで replay する。
+「pop が 1 個でも複数個でも同じ」という surface rule は使わない。
+
+停止性のため、同じ endpoint、同じ subtract id、同じ effect family で同じ static boundary を
+再訪する bound は、bounds table の保存時に subsume できる。これは同じ replay cycle を永遠に
+回さないための実装規則であり、ユーザーに見える型の簡約規則ではない。
+
 ## 実行時の見方
 
 specialize 後の runtime は、row 文字列から hygiene を推測して復元することはできない。関数値、thunk、
@@ -193,6 +220,9 @@ Yulang の現行 effect 推論は、次の分担で成り立つ。
 - 右側 pop は head を見せるために使わず、residual tail へ運ぶ。
 - handler があるからといって、未知 row を勝手に開かない。
 - residual row variable は公開型の一部であり、黙って消さない。
+- data value に保存された effectful function の private stack evidence は、ordinary public row へ
+  projection してから表示する。
+- replay-cycle subsumption は solver の停止性規則であり、公開型の等式ではない。
 - specialize 後は runtime guard marker が同じ hygiene を保つ。
 
 これにより、表示される型は普通の row 型に近く保ちながら、内側 handler が呼び出し元の effect を

@@ -31,7 +31,9 @@ our run_console(action: [console] 'a): 'a = catch action:
 
 `catch expr:` は handler である。operation arm は operation の引数と continuation `k` を受け取る。`k value` を呼ぶと、operation の場所へ値を返して計算を続ける。
 
-handler は effect row から処理済み effect を取り除く。たとえば `action` が `[console; e] 'a` のような computation type を持つなら、`run_console action` は残りの effect だけを持ち、`'a` を返す。
+直接的なコードでは、handler は row subtraction のように見える。たとえば `action` が `[console; e] 'a` のような computation type を持つなら、`run_console action` は見えている `console` operation を処理し、残りの effect だけを持つ。
+
+ただし「見えている」が重要である。高階関数では、呼び出し元が関数、thunk、data field 内の effectful function 経由で持ち込んだ effect を、内側 handler が勝手に捕まえてはいけない。Yulang はこの境界を内部的には directed stack weight として追跡する。公開型には普通の effect row だけを表示するが、solver は handler 境界から見えている effect だけを引く。
 
 ### handler は shallow
 
@@ -54,6 +56,19 @@ our run_console(action: [console] 'a): 'a = catch action:
 operation が 1 度しか起きない前提なら再帰を省ける。effect を繰り返し起こす
 任意の計算を扱うときは再帰が必須。
 
+### handler hygiene
+
+handler hygiene は、内側 handler が自分から見える effect は処理してよいが、
+外側の呼び出し元が持ち込んだ effect を奪ってはいけない、という規則である。
+
+```yulang
+my compose f g x = f(g x)
+```
+
+`g x` が effect を起こすとしても、`f` の内側に隠れた同じ family の handler がそれを捕まえてはいけない。その effect は `g` 経由で渡された computation のものであり、`f` の内側で発生したものではない。
+
+このため effect annotation は、row を説明するだけでなく、高階境界を越えてどの effect family を handler に見せるかも決める。
+
 ## Effect row
 
 ```yulang
@@ -61,7 +76,7 @@ operation が 1 度しか起きない前提なら再帰を省ける。effect を
 () -> [console; e] str
 ```
 
-`[...]` の中に effect を並べる。`; e` は残りの effect を表す row variable である。`[_]` は annotation 内で推論に任せるための placeholder として使えるが、effect row type そのものの標準形ではない。
+`[...]` の中に effect を並べる。`; e` は残りの effect を表す row variable である。`[_]` は annotation 内で推論に任せるための placeholder として使えるが、effect row type そのものの標準形ではない。handler 境界を消す指定でもない。
 
 effect は型引数を持つこともできる。
 
@@ -82,9 +97,22 @@ use std::undet::*
 
 同じ row 内の複数の effect が同名 method を持つ場合、row が絞られるまで selection は ambiguous になる。
 
+## effect 注釈と可視性
+
+effect row annotation には二つの役割がある。
+
+- 関数型に現れる公開 row を説明する。
+- 高階境界では、内側 handler が何を見てよいかを決める。
+
+引数位置の `[console] 'a` は、受け取った関数の内側 handler に `console` だけを見せる。wildcard annotation の `[_] 'a` は、推論に現在見えている表層 row を再利用させるもので、hygiene evidence を捨てる指定ではない。
+
+結果位置の具体 effect annotation は static filter である。外へ出てよい effect を検査するが、runtime marker にはならず、追加の公開 effect としても表示されない。
+
+local reference など標準ライブラリの一部は、data value の中に effectful function を保持する。その内部の handler evidence は private に扱われる。たとえば `ref.update` の内部では `ref_update` が関わるが、公開型には内部 stack id や `AllExcept(...)` evidence ではなく、普通の residual row が出るべきである。
+
 ## Propagation
 
-effectful な関数を呼ぶと、その effect は外側へ伝播する。handler を置いた場所でだけ取り除かれる。
+effectful な関数を呼ぶと、その effect は外側へ伝播する。handler がその effect を見て処理できる場所でだけ取り除かれる。
 
 ```yulang
 our ask() = console::read()
