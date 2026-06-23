@@ -1005,6 +1005,46 @@ fn run_control_source_text_with_embedded_std_runs_nondet_once_triple() {
     assert_eq!(output.1, "run roots [\"just (3, 4, 5)\"]\n");
 }
 
+#[test]
+fn dump_poly_fixture_data_position_effect_function_public_signature_hides_stack_evidence() {
+    let entry = write_main(
+        "dump-poly-data-position-effect-function-public-type",
+        &yulang_fixture("regressions/effect/data_position_effect_function_public_signature.yu"),
+    );
+    let output = dump_poly_from_entry(entry).unwrap();
+
+    let signature = assert_public_signature_hides_stack_evidence(&output, "box.handle");
+    assert!(
+        signature.contains("box('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] ()"),
+        "data-position effectful function should keep public residuals and hide private evidence:\n{signature}"
+    );
+    assert!(
+        !signature.contains("tick"),
+        "handled data-position effect should not appear in the public method signature:\n{signature}"
+    );
+}
+
+#[test]
+fn dump_poly_fixture_nested_data_position_effect_function_public_signature_hides_stack_evidence() {
+    let entry = write_main(
+        "dump-poly-nested-data-position-effect-function-public-type",
+        &yulang_fixture(
+            "regressions/effect/nested_data_position_effect_function_public_signature.yu",
+        ),
+    );
+    let output = dump_poly_from_entry(entry).unwrap();
+
+    let signature = assert_public_signature_hides_stack_evidence(&output, "demo.cell.apply");
+    assert!(
+        signature.contains("demo::cell('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] ()"),
+        "nested data-position effectful function should keep public residuals and hide private evidence:\n{signature}"
+    );
+    assert!(
+        !signature.contains("pulse"),
+        "handled nested data-position effect should not appear in the public method signature:\n{signature}"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn dump_poly_std_ref_update_public_signature_hides_stack_evidence() {

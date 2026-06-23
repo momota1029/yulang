@@ -159,7 +159,7 @@ fn dump_public_signature<'a>(output: &'a DumpPolyOutput, symbol: &str) -> &'a st
     let line = output
         .text
         .lines()
-        .find(|line| line.starts_with("pub ") && line.contains(&quoted))
+        .find(|line| line.trim_start().starts_with("pub ") && line.contains(&quoted))
         .unwrap_or_else(|| {
             panic!(
                 "public symbol {symbol:?} should be dumped:\n{}",

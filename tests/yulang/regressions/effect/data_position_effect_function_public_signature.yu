@@ -1,0 +1,12 @@
+act tick 'a:
+  pub ping: 'a -> 'a
+
+type box 'e 'a with:
+  struct self:
+    run: () -> [tick 'a; 'e] ()
+  pub b.handle(f: 'a -> 'a): ['e] () =
+    my loop(x: [_] _) = catch x:
+      tick::ping v, k -> loop:k:f v
+    loop:b.run()
+
+my site = 1

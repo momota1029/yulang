@@ -1,0 +1,13 @@
+mod demo:
+  act pulse 'a:
+    pub fire: 'a -> 'a
+
+  type cell 'e 'a with:
+    struct self:
+      exec: () -> [pulse 'a; 'e] ()
+    pub c.apply(f: 'a -> 'a): ['e] () =
+      my loop(x: [_] _) = catch x:
+        pulse::fire v, k -> loop:k:f v
+      loop:c.exec()
+
+my site = 1

@@ -111,6 +111,18 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
 - これらの public signature では、`#...` / `AllExcept(...)` が出ないことを固定する。
 - `ref.update` は、ref residual と callback residual が `['c, 'a]` として残ることも見る。
 
+## 2026-06-23 public signature golden second slice
+
+- std に依存しない data-position effectful function の canary を fixture 化した。
+- 対象:
+  - `tests/yulang/regressions/effect/data_position_effect_function_public_signature.yu`
+  - `tests/yulang/regressions/effect/nested_data_position_effect_function_public_signature.yu`
+- 見ている性質:
+  - `box.handle` / `demo.cell.apply` の public signature に `#...` / `AllExcept(...)` が出ない。
+  - handled effect family (`tick` / `pulse`) が public method signature に残らない。
+  - ref residual と callback residual は `['c, 'a]` として残る。
+  - nested module でも、名前や std path に依存せず同じ構造として通る。
+
 ## やらないこと
 
 - 最初から property testing や snapshot 大量生成に広げない。
