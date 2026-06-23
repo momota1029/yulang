@@ -321,8 +321,10 @@ effect subtraction の主性と colored soundness の定式化が更新された
 
 ## 外側の予定
 
-- 相談先の先生への研究相談（effect row subtraction の切り出し）は、
-  **実装完了＋公開用 regression が揃ってから**送る。素材は `notes/effect-inference-overview.md`。
+- 相談先の先生への研究相談（effect row subtraction / handler hygiene の切り出し）は、
+  2026-06-24 に送信済み。返信待ちの間は、新機能より hardening を続ける。
+  相談素材は `notes/research/consultation/technical-brief.md` と公開 docs の
+  `web/docs/reference/effects.md` / `web/docs/reference/type-theory.md` を正本として扱う。
 - 2026 年 7 月以降は忙しくなる予定。12 月のアドベントカレンダーが公開目標。
 
 ## 旧 roadmap
