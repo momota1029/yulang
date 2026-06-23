@@ -298,16 +298,6 @@ impl LeftConstraintWeight {
         self.to_stack_weight().union(other)
     }
 
-    pub(crate) fn apply_bounds_replay_termination_guard(&self) -> Self {
-        Self::from_stack_weight(&self.to_stack_weight().saturate_unmatched_pops())
-            .with_filter(self.filter.clone())
-    }
-
-    pub(crate) fn apply_alias_replay_termination_guard(&self) -> Self {
-        Self::from_stack_weight(&self.to_stack_weight().normalize_for_alias_replay())
-            .with_filter(self.filter.clone())
-    }
-
     pub(crate) fn directed(&self) -> &LeftStackWeight {
         &self.weight
     }
@@ -390,26 +380,6 @@ impl RightStackWeight {
             out.push_entry(*entry);
         }
         out
-    }
-
-    pub(crate) fn apply_bounds_replay_termination_guard(&self) -> Self {
-        Self {
-            entries: self
-                .entries
-                .iter()
-                .copied()
-                .map(|mut entry| {
-                    if entry.pops != u32::MAX {
-                        entry.pops = entry.pops.min(1);
-                    }
-                    entry
-                })
-                .collect(),
-        }
-    }
-
-    pub(crate) fn apply_alias_replay_termination_guard(&self) -> Self {
-        self.apply_bounds_replay_termination_guard()
     }
 
     fn push_entry(&mut self, incoming: RightStackWeightEntry) {

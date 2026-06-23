@@ -201,7 +201,11 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(scrutinee_value));
         let arg_eff = self.never_neg();
-        let predicate_subtracts = self.lambda_predicate_subtracts(lambda_scope, Vec::new(), frame);
+        let predicate_subtracts = self.lambda_predicate_subtracts(
+            lambda_scope,
+            PredicateOutputConstraints::default(),
+            frame,
+        );
         let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
@@ -806,7 +810,11 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(scrutinee_value));
         let arg_eff = self.alloc_neg(Neg::Var(scrutinee_effect));
-        let predicate_subtracts = self.lambda_predicate_subtracts(lambda_scope, Vec::new(), frame);
+        let predicate_subtracts = self.lambda_predicate_subtracts(
+            lambda_scope,
+            PredicateOutputConstraints::default(),
+            frame,
+        );
         let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,

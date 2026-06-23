@@ -5,6 +5,7 @@ pub struct AnnConstraintLowerer<'a> {
     modules: &'a ModuleTable,
     vars: FxHashMap<AnnTypeVarId, TypeVar>,
     new_var_level: Option<TypeLevel>,
+    parameter_function_boundary: bool,
 }
 
 impl<'a> AnnConstraintLowerer<'a> {
@@ -14,6 +15,7 @@ impl<'a> AnnConstraintLowerer<'a> {
             modules,
             vars: FxHashMap::default(),
             new_var_level: None,
+            parameter_function_boundary: false,
         }
     }
 
@@ -27,6 +29,7 @@ impl<'a> AnnConstraintLowerer<'a> {
             modules,
             vars,
             new_var_level: None,
+            parameter_function_boundary: false,
         }
     }
 
@@ -41,6 +44,7 @@ impl<'a> AnnConstraintLowerer<'a> {
             modules,
             vars,
             new_var_level: Some(new_var_level),
+            parameter_function_boundary: false,
         }
     }
 
@@ -70,6 +74,10 @@ impl<'a> AnnConstraintLowerer<'a> {
         let target_lower = self.alloc_pos(Pos::Var(target));
         self.infer.subtype(target_lower, bounds.neg);
         Ok(bounds.output_subtracts)
+    }
+
+    pub fn lower_value_upper(&mut self, ann: &AnnType) -> Result<NegId, AnnConstraintError> {
+        self.lower_value_bounds(ann).map(|bounds| bounds.neg)
     }
 
     pub fn connect_computation(
@@ -113,15 +121,23 @@ impl<'a> AnnConstraintLowerer<'a> {
         target: AnnComputationTarget,
         ann: &AnnType,
     ) -> Result<AnnComputationConnection, AnnConstraintError> {
+        let previous_boundary = self.parameter_function_boundary;
+        self.parameter_function_boundary = true;
+        let result = self.connect_parameter_computation_detailed_inner(target, ann);
+        self.parameter_function_boundary = previous_boundary;
+        result
+    }
+
+    fn connect_parameter_computation_detailed_inner(
+        &mut self,
+        target: AnnComputationTarget,
+        ann: &AnnType,
+    ) -> Result<AnnComputationConnection, AnnConstraintError> {
         match ann {
             AnnType::Effectful { eff, ret } => {
-                let mut subtracts = self.connect_value(target.value, ret)?;
                 let effect_stack =
                     self.connect_parameter_effectful_annotation_effect(target.effect, eff)?;
-                subtracts.extend(predicate_weights(
-                    &effect_stack.subtracts,
-                    effect_stack_filter(&effect_stack),
-                ));
+                let subtracts = self.connect_value(target.value, ret)?;
                 Ok(AnnComputationConnection {
                     subtracts,
                     effect_stack: Some(effect_stack),
@@ -291,8 +307,13 @@ impl<'a> AnnConstraintLowerer<'a> {
             });
         }
 
-        let effect = self.infer.fresh_type_var();
-        self.connect_effect_tail_exact(effect, row)?;
+        let effect = if self.parameter_function_boundary {
+            self.function_boundary_effect_stack_inner(row)?
+        } else {
+            let effect = self.infer.fresh_type_var();
+            self.connect_effect_tail_exact(effect, row)?;
+            effect
+        };
         let stack = self.effect_row_stack(row)?;
         self.register_stack_facts(effect, &stack.weight);
         let effect_pos = self.alloc_pos(Pos::Var(effect));
@@ -416,6 +437,16 @@ impl<'a> AnnConstraintLowerer<'a> {
                     .declared_subtract_fact(var, entry.id, subtractability.clone());
             }
         }
+    }
+
+    fn function_boundary_effect_stack_inner(
+        &mut self,
+        row: &AnnEffectRow,
+    ) -> Result<TypeVar, AnnConstraintError> {
+        if let Some(tail) = &row.tail {
+            return Ok(self.annotation_var(tail));
+        }
+        Ok(self.infer.fresh_type_var())
     }
 
     fn connect_effect_row_lower(

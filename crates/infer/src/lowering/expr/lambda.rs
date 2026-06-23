@@ -2,6 +2,7 @@
 
 use super::super::*;
 use super::*;
+use crate::annotation::{AnnEffectAtom, AnnEffectRow};
 
 impl<'a> ExprLowerer<'a> {
     pub(in crate::lowering) fn lower_lambda(
@@ -154,7 +155,11 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(receiver_value));
         let arg_eff = self.never_neg();
-        let predicate_subtracts = self.lambda_predicate_subtracts(lambda_scope, Vec::new(), frame);
+        let predicate_subtracts = self.lambda_predicate_subtracts(
+            lambda_scope,
+            PredicateOutputConstraints::default(),
+            frame,
+        );
         let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
@@ -224,6 +229,7 @@ impl<'a> ExprLowerer<'a> {
                 body_type_expr,
                 self_value,
                 &[],
+                None,
                 body_mode,
             );
         }
@@ -257,6 +263,7 @@ impl<'a> ExprLowerer<'a> {
             annotation.call_return_effect,
             &var_bindings,
         )?;
+        self.mark_lambda_param_call_predicate(before_locals, &annotation);
         self.mark_lambda_param_as_input(pat);
         let active_var_bindings = self.install_var_pattern_bindings(&var_bindings)?;
         self.function_frames
@@ -301,7 +308,7 @@ impl<'a> ExprLowerer<'a> {
         let arg = self.alloc_neg(Neg::Var(param_value));
         let arg_eff = annotation.arg_eff;
         let predicate_subtracts =
-            self.lambda_predicate_subtracts(lambda_scope, annotation.subtracts, frame);
+            self.lambda_predicate_subtracts(lambda_scope, annotation.predicate, frame);
         let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
@@ -324,7 +331,9 @@ impl<'a> ExprLowerer<'a> {
         ann_builder: &mut AnnTypeBuilder,
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
         body_type_expr: Option<&Cst>,
+        self_value: Option<TypeVar>,
         param_uppers: &[Option<NegId>],
+        requirement_body: Option<ImplRequirementBodyConnection>,
     ) -> Result<Computation, LoweringError> {
         if !patterns.is_empty() {
             return self.lower_defined_lambda_params(
@@ -333,8 +342,9 @@ impl<'a> ExprLowerer<'a> {
                 ann_builder,
                 ann_solver_vars,
                 body_type_expr,
-                None,
+                self_value,
                 param_uppers,
+                requirement_body,
                 &LambdaBodyMode::Expr,
             );
         }
@@ -352,6 +362,9 @@ impl<'a> ExprLowerer<'a> {
                     ann_solver_vars,
                 )?;
             }
+            if let Some(requirement_body) = requirement_body {
+                self.connect_impl_method_body_requirement(body, requirement_body);
+            }
             Ok(body)
         })();
         self.local_generalize_boundary = previous_local_generalize_boundary;
@@ -368,6 +381,7 @@ impl<'a> ExprLowerer<'a> {
         body_type_expr: Option<&Cst>,
         self_value: Option<TypeVar>,
         param_uppers: &[Option<NegId>],
+        requirement_body: Option<ImplRequirementBodyConnection>,
         body_mode: &LambdaBodyMode,
     ) -> Result<Computation, LoweringError> {
         let before_locals = self.locals.len();
@@ -382,7 +396,7 @@ impl<'a> ExprLowerer<'a> {
                 let lower = self.alloc_pos(Pos::Var(param_value));
                 self.session.infer.subtype(lower, *upper);
             }
-            let annotation = match self.connect_lambda_pattern_annotation(
+            let mut annotation = match self.connect_lambda_pattern_annotation(
                 pattern,
                 param_value,
                 ann_builder,
@@ -397,6 +411,13 @@ impl<'a> ExprLowerer<'a> {
                     return Err(error);
                 }
             };
+            if param_uppers
+                .get(param_index)
+                .and_then(|upper| *upper)
+                .is_some()
+            {
+                annotation.call_return_effect = LocalCallReturnEffect::Annotated;
+            }
             let prepared_var_bindings = match self.prepare_var_pattern_bindings(pattern) {
                 Ok(bindings) => bindings,
                 Err(error) => {
@@ -425,9 +446,11 @@ impl<'a> ExprLowerer<'a> {
                 }
             };
             self.mark_lambda_param_as_input(pat);
+            self.mark_lambda_param_call_predicate(param_local_start, &annotation);
             let frame_index = self.function_frames.len();
             self.function_frames
                 .push(FunctionPredicateFrame::new(LambdaScope::Defined));
+            self.mark_lambda_param_call_predicate_frame(param_local_start, frame_index);
             self.mark_defined_unannotated_arg_call_frame(param_local_start, frame_index);
             params.push(LoweredLambdaParam {
                 pat,
@@ -458,7 +481,6 @@ impl<'a> ExprLowerer<'a> {
                 .push(ActiveDefinedLambdaSkeleton {
                     before_frames,
                     params: params.clone(),
-                    skeleton: skeleton.clone(),
                 });
         }
 
@@ -475,16 +497,9 @@ impl<'a> ExprLowerer<'a> {
                 body = self.wrap_var_pattern_bindings(active, body)?;
             }
             if let (Some(_target), Some(skeleton)) = (self_value, skeleton_slots.as_ref()) {
-                // body lowering 中に見つかった unannotated callee subtract は、発見時点で
-                // active skeleton の output slot へ反映する。shape は stable な slot を返す
-                // だけなので、最終段では body と skeleton slot の接続だけを張る。
-                let skeleton_frames = self.function_frames[before_frames..].to_vec();
-                self.connect_defined_lambda_skeleton_predicates(
-                    &params,
-                    &skeleton_frames,
-                    skeleton,
-                    SkeletonPredicateMode::All,
-                );
+                // Recursive self calls use the internal skeleton shape. Output predicates are
+                // attached by the final wrapper below, so feeding them back into the skeleton would
+                // reapply the same boundary on every recursive self edge.
                 self.subtype_var_to_var(body.effect, skeleton.body_effect);
                 self.subtype_var_to_var(body.value, skeleton.body_value);
                 body = Computation::new(
@@ -501,6 +516,9 @@ impl<'a> ExprLowerer<'a> {
                     ann_builder,
                     ann_solver_vars,
                 )?;
+            }
+            if let Some(requirement_body) = requirement_body {
+                self.connect_impl_method_body_requirement(body, requirement_body);
             }
             Ok(body)
         })();
@@ -525,7 +543,13 @@ impl<'a> ExprLowerer<'a> {
                 .function_frames
                 .pop()
                 .expect("lambda predicate frame should be balanced");
-            body = self.wrap_lambda_param(LambdaScope::Defined, param, frame, body);
+            body = self.wrap_lambda_param(
+                LambdaScope::Defined,
+                param,
+                frame,
+                body,
+                body_type_expr.is_some(),
+            );
         }
         self.locals.truncate(before_locals);
         Ok(body)
@@ -557,18 +581,46 @@ impl<'a> ExprLowerer<'a> {
         }
     }
 
+    fn mark_lambda_param_call_predicate(
+        &mut self,
+        local_start: usize,
+        annotation: &LambdaPatternAnnotation,
+    ) {
+        let predicate = &annotation.call_predicate;
+        if predicate.is_empty() {
+            return;
+        }
+        for local in &mut self.locals[local_start..] {
+            local
+                .call_predicate_subtracts
+                .extend(predicate.subtracts.iter().cloned());
+            local.call_erased_upper = annotation.call_erased_upper;
+            local.call_projection_enabled = annotation.call_projection_enabled;
+        }
+    }
+
+    fn mark_lambda_param_call_predicate_frame(&mut self, local_start: usize, frame_index: usize) {
+        for local in &mut self.locals[local_start..] {
+            if !local.call_predicate_subtracts.is_empty() {
+                local.call_predicate_frame = Some(frame_index);
+            }
+        }
+    }
+
     pub(in crate::lowering) fn wrap_lambda_param(
         &mut self,
         lambda_scope: LambdaScope,
         param: LoweredLambdaParam,
         frame: FunctionPredicateFrame,
         body: Computation,
+        project_called_params_to_body_effect: bool,
     ) -> Computation {
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
-        let arg = self.alloc_neg(Neg::Var(param.value));
+        let arg =
+            self.lambda_param_public_arg(&param, body.effect, project_called_params_to_body_effect);
         let predicate_subtracts =
-            self.lambda_predicate_subtracts(lambda_scope, param.annotation.subtracts, frame);
+            self.lambda_predicate_subtracts(lambda_scope, param.annotation.predicate, frame);
         let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
@@ -585,6 +637,56 @@ impl<'a> ExprLowerer<'a> {
             .poly
             .add_expr(Expr::Lambda(param.pat, body.expr));
         Computation::value(expr, value, effect)
+    }
+
+    fn lambda_param_public_arg(
+        &mut self,
+        param: &LoweredLambdaParam,
+        body_effect: TypeVar,
+        project_to_body_effect: bool,
+    ) -> NegId {
+        let def = match self.session.poly.pat(param.pat) {
+            Pat::Var(def) | Pat::As(_, def) => Some(*def),
+            _ => None,
+        };
+        if let Some(def) = def
+            && let Some(local) = self.local_binding_by_def(def)
+            && local.call_erased_used
+        {
+            if project_to_body_effect && local.call_projection_enabled && local.call_nested {
+                let call_uppers = local.call_uppers.clone();
+                if !call_uppers.is_empty() {
+                    let projected = self.fresh_type_var();
+                    for upper in call_uppers {
+                        let upper = self.call_upper_with_body_effect(upper, body_effect);
+                        let lower = self.alloc_pos(Pos::Var(projected));
+                        self.session.infer.subtype(lower, upper);
+                    }
+                    return self.alloc_neg(Neg::Var(projected));
+                }
+            }
+            if let Some(erased_upper) = local.call_erased_upper {
+                let original = self.alloc_neg(Neg::Var(param.value));
+                return self.alloc_neg(Neg::Intersection(erased_upper, original));
+            }
+        }
+        self.alloc_neg(Neg::Var(param.value))
+    }
+
+    fn call_upper_with_body_effect(&mut self, upper: NegId, body_effect: TypeVar) -> NegId {
+        let (arg, arg_eff, ret) = match self.session.infer.constraints().types().neg(upper) {
+            Neg::Fun {
+                arg, arg_eff, ret, ..
+            } => (*arg, *arg_eff, *ret),
+            _ => return upper,
+        };
+        let ret_eff = self.alloc_neg(Neg::Var(body_effect));
+        self.alloc_neg(Neg::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        })
     }
 
     pub(in crate::lowering) fn fresh_defined_lambda_skeleton(
@@ -656,7 +758,7 @@ impl<'a> ExprLowerer<'a> {
         {
             let predicate_subtracts = self.lambda_predicate_subtracts(
                 LambdaScope::Defined,
-                param.annotation.subtracts.clone(),
+                param.annotation.predicate.clone(),
                 frame.clone(),
             );
             let key = DefinedSkeletonPredicateKey {
@@ -664,7 +766,7 @@ impl<'a> ExprLowerer<'a> {
                 output_value: layer.output_value,
                 current_effect,
                 current_value,
-                subtracts: predicate_subtracts.clone(),
+                subtracts: predicate_subtracts.subtracts.clone(),
             };
             if predicate_subtracts.is_empty() {
                 if mode.connects_empty_predicate(param) {
@@ -685,8 +787,8 @@ impl<'a> ExprLowerer<'a> {
                 }
                 let ret_eff = self.alloc_pos(Pos::Var(current_effect));
                 let ret = self.alloc_pos(Pos::Var(current_value));
-                let ret_eff = self.wrap_pos_with_subtracts(ret_eff, &predicate_subtracts);
-                let ret = self.wrap_pos_with_subtracts(ret, &predicate_subtracts);
+                let ret_eff = self.wrap_pos_with_subtracts(ret_eff, &predicate_subtracts.subtracts);
+                let ret = self.wrap_pos_with_subtracts(ret, &predicate_subtracts.subtracts);
                 self.subtype_pos_to_var(ret_eff, layer.output_effect);
                 self.subtype_pos_to_var(ret, layer.output_value);
             }
@@ -707,7 +809,10 @@ impl<'a> ExprLowerer<'a> {
                 arg_eff: self.never_neg(),
                 skeleton_arg_eff: self.never_neg(),
                 local_effect: None,
-                subtracts: Vec::new(),
+                predicate: PredicateOutputConstraints::default(),
+                call_predicate: PredicateOutputConstraints::default(),
+                call_erased_upper: None,
+                call_projection_enabled: false,
                 call_return_effect: LocalCallReturnEffect::Unannotated,
             });
         };
@@ -721,8 +826,21 @@ impl<'a> ExprLowerer<'a> {
         let connection = lowerer
             .connect_parameter_computation_detailed(AnnComputationTarget { value, effect }, &ann)
             .map_err(|error| LoweringError::AnnotationConstraint { error });
-        *ann_solver_vars = lowerer.into_vars();
         let connection = connection?;
+        let call_predicate = lambda_annotation_predicate_constraints(&ann, connection.clone());
+        let predicate = lambda_parameter_output_predicate_constraints(&ann, call_predicate.clone());
+        let call_erased_upper =
+            if call_predicate.is_empty() || !callable_annotation_has_effect_head(&ann) {
+                None
+            } else {
+                let erased = erase_callable_annotation_effect_heads(&ann);
+                Some(
+                    lowerer
+                        .lower_value_upper(&erased)
+                        .map_err(|error| LoweringError::AnnotationConstraint { error })?,
+                )
+            };
+        *ann_solver_vars = lowerer.into_vars();
         let arg_eff = match connection.effect_stack {
             Some(ref effect_stack) => effect_stack.arg_eff,
             None => arg_eff,
@@ -742,12 +860,14 @@ impl<'a> ExprLowerer<'a> {
             .or_else(|| {
                 matches!(ann, AnnType::Effectful { .. }).then_some(LocalEffect::Var(effect))
             });
-        let subtracts = lambda_annotation_predicate_subtracts(&ann, connection);
         Ok(LambdaPatternAnnotation {
             arg_eff,
             skeleton_arg_eff,
             local_effect,
-            subtracts,
+            predicate,
+            call_predicate,
+            call_erased_upper,
+            call_projection_enabled: !callable_annotation_has_wildcard(&ann),
             call_return_effect: LocalCallReturnEffect::Annotated,
         })
     }
@@ -765,29 +885,130 @@ impl<'a> ExprLowerer<'a> {
     }
 }
 
-fn lambda_annotation_predicate_subtracts(
+fn callable_annotation_has_effect_head(ann: &AnnType) -> bool {
+    match ann {
+        AnnType::Effectful { eff, ret } => {
+            !eff.items.is_empty() || callable_annotation_has_effect_head(ret)
+        }
+        AnnType::Function {
+            param,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            callable_annotation_has_effect_head(param)
+                || arg_eff.as_ref().is_some_and(|row| !row.items.is_empty())
+                || ret_eff.as_ref().is_some_and(|row| !row.items.is_empty())
+                || callable_annotation_has_effect_head(ret)
+        }
+        AnnType::Tuple(items) => items.iter().any(callable_annotation_has_effect_head),
+        _ => false,
+    }
+}
+
+fn callable_annotation_has_wildcard(ann: &AnnType) -> bool {
+    match ann {
+        AnnType::Effectful { eff, ret } => {
+            effect_row_has_wildcard(eff) || callable_annotation_has_wildcard(ret)
+        }
+        AnnType::Function {
+            param,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            callable_annotation_has_wildcard(param)
+                || arg_eff.as_ref().is_some_and(effect_row_has_wildcard)
+                || ret_eff.as_ref().is_some_and(effect_row_has_wildcard)
+                || callable_annotation_has_wildcard(ret)
+        }
+        AnnType::Tuple(items) => items.iter().any(callable_annotation_has_wildcard),
+        _ => false,
+    }
+}
+
+fn erase_callable_annotation_effect_heads(ann: &AnnType) -> AnnType {
+    match ann {
+        AnnType::Effectful { eff, ret } => AnnType::Effectful {
+            eff: erase_effect_row_heads(eff),
+            ret: Box::new(erase_callable_annotation_effect_heads(ret)),
+        },
+        AnnType::Function {
+            param,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => AnnType::Function {
+            param: param.clone(),
+            arg_eff: arg_eff.clone(),
+            ret_eff: ret_eff.as_ref().map(erase_effect_row_heads),
+            ret: Box::new(erase_callable_annotation_effect_heads(ret)),
+        },
+        AnnType::Tuple(items) => AnnType::Tuple(
+            items
+                .iter()
+                .map(erase_callable_annotation_effect_heads)
+                .collect(),
+        ),
+        other => other.clone(),
+    }
+}
+
+fn erase_effect_row_heads(row: &AnnEffectRow) -> AnnEffectRow {
+    if row
+        .items
+        .iter()
+        .any(|item| matches!(item, AnnEffectAtom::Wildcard))
+    {
+        return row.clone();
+    }
+    AnnEffectRow {
+        items: Vec::new(),
+        tail: row.tail.clone(),
+    }
+}
+
+fn lambda_parameter_output_predicate_constraints(
+    ann: &AnnType,
+    call_predicate: PredicateOutputConstraints,
+) -> PredicateOutputConstraints {
+    match ann {
+        AnnType::Function { .. } => PredicateOutputConstraints::default(),
+        _ => call_predicate,
+    }
+}
+
+fn lambda_annotation_predicate_constraints(
     ann: &AnnType,
     connection: AnnComputationConnection,
-) -> Vec<StackWeight> {
+) -> PredicateOutputConstraints {
     let AnnType::Effectful { eff, .. } = ann else {
-        return connection.subtracts;
+        return PredicateOutputConstraints {
+            subtracts: connection.subtracts,
+        };
     };
     if effect_row_has_wildcard(eff) {
-        return connection.subtracts;
+        return PredicateOutputConstraints {
+            subtracts: connection.subtracts,
+        };
     }
 
     let Some(effect_stack) = connection.effect_stack else {
-        return connection.subtracts;
+        return PredicateOutputConstraints {
+            subtracts: connection.subtracts,
+        };
     };
     if effect_stack.subtracts.is_empty() {
-        return connection.subtracts;
+        return PredicateOutputConstraints {
+            subtracts: connection.subtracts,
+        };
     }
 
     let effect_stack_ids = effect_stack
         .subtracts
         .into_iter()
         .collect::<FxHashSet<SubtractId>>();
-    connection
+    let subtracts = connection
         .subtracts
         .into_iter()
         .filter(|weight| {
@@ -798,5 +1019,6 @@ fn lambda_annotation_predicate_subtracts(
             });
             !has_effect_stack_id || !all_effect_stack_ids
         })
-        .collect()
+        .collect();
+    PredicateOutputConstraints { subtracts }
 }

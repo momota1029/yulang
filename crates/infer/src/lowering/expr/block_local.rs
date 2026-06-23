@@ -168,8 +168,11 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(param_value));
         let arg_eff = self.never_neg();
-        let predicate_subtracts =
-            self.lambda_predicate_subtracts(LambdaScope::Anonymous, Vec::new(), frame);
+        let predicate_subtracts = self.lambda_predicate_subtracts(
+            LambdaScope::Anonymous,
+            PredicateOutputConstraints::default(),
+            frame,
+        );
         let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
@@ -288,8 +291,11 @@ impl<'a> ExprLowerer<'a> {
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(label_value));
         let arg_eff = self.never_neg();
-        let predicate_subtracts =
-            self.lambda_predicate_subtracts(LambdaScope::Anonymous, Vec::new(), frame);
+        let predicate_subtracts = self.lambda_predicate_subtracts(
+            LambdaScope::Anonymous,
+            PredicateOutputConstraints::default(),
+            frame,
+        );
         let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
@@ -319,22 +325,26 @@ impl<'a> ExprLowerer<'a> {
         let boundary = self.local_generalize_boundary;
         let previous_level = self.session.infer.enter_child_level();
         let result = (|| {
-            let value = self.fresh_type_var();
+            let recursive_value = self.fresh_type_var();
             let call_return_effect = local_binding_call_return_effect(node);
-            let (pat, def) = self.bind_let_local_with_def(name, value, call_return_effect, None);
+            let (pat, def) =
+                self.bind_let_local_with_def(name, recursive_value, call_return_effect, None);
             let recursive_effect_passthrough = arg_patterns
                 .iter()
                 .any(|pattern| pattern_type_expr(pattern).is_none());
             if let Some(local) = self.locals.iter_mut().rev().find(|local| local.def == def) {
                 local.recursive_effect_passthrough = recursive_effect_passthrough;
             }
-            let body = self.lower_local_binding_body(node, &body, Some(value))?;
-            self.subtype_var_to_var(body.value, value);
-            self.connect_local_binding_annotation(node, value, body)?;
+            let body = self.lower_local_binding_body(node, &body, Some(recursive_value))?;
+            let public_value = body.value;
+            if let Some(local) = self.locals.iter_mut().rev().find(|local| local.def == def) {
+                local.value = public_value;
+            }
+            self.connect_local_binding_annotation(node, public_value, body)?;
             self.set_local_let_body(def, body.expr);
             self.generalize_local_binding(
                 def,
-                value,
+                public_value,
                 boundary,
                 BindingFetch::from_evaluation(body.evaluation),
             );
@@ -680,7 +690,7 @@ impl<'a> ExprLowerer<'a> {
                 &ann,
             )
             .map_err(|error| LoweringError::AnnotationConstraint { error })?;
-        self.extend_current_predicate_subtracts(connection.subtracts);
+        self.extend_current_predicate_connection(connection);
         Ok(())
     }
 
@@ -933,6 +943,13 @@ impl<'a> ExprLowerer<'a> {
             value,
             effect: None,
             call_return_effect,
+            call_predicate_subtracts: Vec::new(),
+            call_erased_upper: None,
+            call_projection_enabled: false,
+            call_uppers: Vec::new(),
+            call_erased_used: false,
+            call_predicate_frame: None,
+            call_nested: false,
             unannotated_call_frame: None,
             recursive_effect_passthrough: false,
             scheme: None,

@@ -526,13 +526,14 @@ fn generalize_compact_root_with_simplification(
         &mut role_predicates,
     );
     prune_unreachable_recursive_bounds(&mut root, &role_predicates);
-    cleanup_stack_weights_in_root_and_roles(&mut root, &mut role_predicates);
+    cleanup_stack_weights_in_root_and_roles(machine, &mut root, &mut role_predicates);
     cleanup_empty_stack_entries_with_plain_negative_occurrence(&mut root, &mut role_predicates);
     cleanup_empty_only_stack_ids_in_root_and_roles(machine, &mut root, &mut role_predicates);
     quantifiers =
         quantified_vars_in_root_and_roles(machine, boundary, &root, &role_predicates, non_generic);
     let quantifier_set = quantifiers.iter().copied().collect::<FxHashSet<_>>();
     let mut stack_quantifiers = sorted_stack_quantifiers(&root, &role_predicates, &quantifier_set);
+    extend_declared_all_stack_quantifiers(machine, &root, &role_predicates, &mut stack_quantifiers);
     // scheme は stack model に残った id だけを量化する。量化されない id の weight は
     // compact から剥がし、使い切られた寿命境界が surface に漏れないようにする。
     let scheme_ids = stack_quantifiers.iter().copied().collect::<FxHashSet<_>>();
@@ -551,6 +552,12 @@ fn generalize_compact_root_with_simplification(
         );
         let quantifier_set = quantifiers.iter().copied().collect::<FxHashSet<_>>();
         stack_quantifiers = sorted_stack_quantifiers(&root, &role_predicates, &quantifier_set);
+        extend_declared_all_stack_quantifiers(
+            machine,
+            &root,
+            &role_predicates,
+            &mut stack_quantifiers,
+        );
     }
     GeneralizedCompactRoot {
         compact: root,
@@ -572,7 +579,7 @@ pub(crate) fn finalize_generalized_compact_root_with_ancestors(
     apply_ancestor_simplifications(&mut root, ancestors);
     prune_unreachable_recursive_bounds(&mut root.compact, &root.role_predicates);
     prune_dead_quantifiers(&mut root);
-    cleanup_stack_weights_in_root_and_roles(&mut root.compact, &mut root.role_predicates);
+    cleanup_stack_weights_in_root_and_roles(machine, &mut root.compact, &mut root.role_predicates);
     cleanup_empty_stack_entries_with_plain_negative_occurrence(
         &mut root.compact,
         &mut root.role_predicates,
@@ -582,8 +589,37 @@ pub(crate) fn finalize_generalized_compact_root_with_ancestors(
     let quantifier_set = root.quantifiers.iter().copied().collect::<FxHashSet<_>>();
     root.stack_quantifiers =
         sorted_stack_quantifiers(&root.compact, &root.role_predicates, &quantifier_set);
+    extend_declared_all_stack_quantifiers(
+        machine,
+        &root.compact,
+        &root.role_predicates,
+        &mut root.stack_quantifiers,
+    );
     prune_unquantified_stack_weights(&mut root);
     finalize_generalized_compact_root(types, machine, &root)
+}
+
+fn extend_declared_all_stack_quantifiers(
+    machine: &ConstraintMachine,
+    root: &CompactRoot,
+    role_predicates: &[CompactRoleConstraint],
+    stack_quantifiers: &mut Vec<SubtractId>,
+) {
+    let mut ids = all_stack_ids_in_root_and_roles(root, role_predicates)
+        .into_iter()
+        .filter(|id| {
+            machine
+                .subtracts()
+                .fact_by_id(*id)
+                .is_some_and(|fact| matches!(fact.subtractability, Subtractability::All))
+        })
+        .collect::<Vec<_>>();
+    if ids.is_empty() {
+        return;
+    }
+    stack_quantifiers.append(&mut ids);
+    stack_quantifiers.sort_by_key(|id| id.0);
+    stack_quantifiers.dedup();
 }
 
 #[cfg(test)]

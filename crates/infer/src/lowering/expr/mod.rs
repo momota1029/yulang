@@ -23,6 +23,7 @@ pub struct ExprLowerer<'a> {
     pub(super) type_var_aliases: Vec<(String, String)>,
     pub(super) type_name_aliases: Vec<(String, TypeDeclId)>,
     pub(super) local_method_scope: Option<ModuleId>,
+    pub(super) recursive_self_value: Option<TypeVar>,
     pub(super) synthetic_var_acts: Vec<SyntheticVarActUse>,
     pub(super) synthetic_var_act_cursor: usize,
     pub(super) synthetic_sub_label_acts: Vec<SyntheticSubLabelActUse>,
@@ -71,6 +72,7 @@ impl<'a> ExprLowerer<'a> {
             type_var_aliases: Vec::new(),
             type_name_aliases: Vec::new(),
             local_method_scope: None,
+            recursive_self_value: None,
             synthetic_var_acts,
             synthetic_var_act_cursor: 0,
             synthetic_sub_label_acts,
@@ -113,6 +115,7 @@ impl<'a> ExprLowerer<'a> {
             type_var_aliases: Vec::new(),
             type_name_aliases: Vec::new(),
             local_method_scope: None,
+            recursive_self_value: None,
             synthetic_var_acts,
             synthetic_var_act_cursor: 0,
             synthetic_sub_label_acts,
@@ -210,5 +213,46 @@ impl<'a> ExprLowerer<'a> {
             result_type_expr,
             Some(self_value),
         )
+    }
+
+    pub fn lower_binding_body_with_args_to_named_self(
+        &mut self,
+        arg_patterns: &[Cst],
+        body: &Cst,
+        result_type_expr: Option<&Cst>,
+        public_self_value: TypeVar,
+        self_name: Name,
+        self_def: DefId,
+    ) -> Result<Computation, LoweringError> {
+        let internal_self_value = self.fresh_type_var();
+        let before_locals = self.locals.len();
+        self.locals.push(LocalBinding {
+            name: self_name,
+            def: self_def,
+            value: internal_self_value,
+            effect: None,
+            call_return_effect: LocalCallReturnEffect::Annotated,
+            call_predicate_subtracts: Vec::new(),
+            call_erased_upper: None,
+            call_projection_enabled: false,
+            call_uppers: Vec::new(),
+            call_erased_used: false,
+            call_predicate_frame: None,
+            call_nested: false,
+            unannotated_call_frame: None,
+            recursive_effect_passthrough: false,
+            scheme: None,
+        });
+        let lowered = self.lower_binding_body_with_args_with_self(
+            arg_patterns,
+            body,
+            result_type_expr,
+            Some(internal_self_value),
+        );
+        self.locals.truncate(before_locals);
+        if let Ok(computation) = &lowered {
+            self.subtype_var_to_var(computation.value, public_self_value);
+        }
+        lowered
     }
 }

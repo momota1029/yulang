@@ -902,46 +902,6 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         "  constraint.upper_replay_var_var: {}",
         constraint.upper_replay_var_var
     );
-    let _ = writeln!(
-        out,
-        "  constraint.var_var_direct_upper_bounds: {}",
-        constraint.var_var_direct_upper_bounds
-    );
-    let _ = writeln!(
-        out,
-        "  constraint.var_var_direct_lower_bounds: {}",
-        constraint.var_var_direct_lower_bounds
-    );
-    let _ = writeln!(
-        out,
-        "  constraint.var_var_direct_upper_replay_inputs: {}",
-        constraint.var_var_direct_upper_replay_inputs
-    );
-    let _ = writeln!(
-        out,
-        "  constraint.var_var_direct_lower_replay_inputs: {}",
-        constraint.var_var_direct_lower_replay_inputs
-    );
-    let _ = writeln!(
-        out,
-        "  constraint.var_var_direct_upper_replay_enqueued: {}",
-        constraint.var_var_direct_upper_replay_enqueued
-    );
-    let _ = writeln!(
-        out,
-        "  constraint.var_var_direct_lower_replay_enqueued: {}",
-        constraint.var_var_direct_lower_replay_enqueued
-    );
-    let _ = writeln!(
-        out,
-        "  constraint.var_var_direct_upper_empty_replay_skipped: {}",
-        constraint.var_var_direct_upper_empty_replay_skipped
-    );
-    let _ = writeln!(
-        out,
-        "  constraint.var_var_direct_lower_empty_replay_skipped: {}",
-        constraint.var_var_direct_lower_empty_replay_skipped
-    );
     let _ = writeln!(out, "  analysis.work_items: {}", analysis.work_items);
     let _ = writeln!(
         out,

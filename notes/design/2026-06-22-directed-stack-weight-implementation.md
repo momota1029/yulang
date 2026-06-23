@@ -74,10 +74,10 @@ This is the preferred way to stop self-fueling row cycles, together with residua
 - `row_effect.rs` now receives the solver's directed left weight.
   Legacy `poly::types::StackWeight` is only used for surface wrappers and compact materialization.
 
-- `ConstraintWeights::compose_for_replay()` and var-var replay now normalize by W-Mix before applying the
-  implementation-side pop-growth caps. This keeps the semantic directed projection before the termination guard.
-  The replay normalizer uses the directed `LeftStackWeight`/`RightStackWeight` mix implementation and then
-  keeps the solver state in directed left/right storage.
+- `ConstraintWeights::compose_for_replay()` now normalizes by W-Mix and keeps the exact label.
+  The old implementation-side pop-growth caps are gone from replay composition. Var-var bounds still apply
+  same-boundary cycle subsumption at storage time: if the endpoint pair and static subtract id/family match, repeated
+  replay visits do not add another bound with only a larger `pop^n` / `take^n` count.
 
 - `ConstraintWeights.right` now uses a dedicated `RightStackWeight`.
   It can represent only pure right pops. Push/floor/filter cannot be stored on the right side structurally.
@@ -104,9 +104,10 @@ This is the preferred way to stop self-fueling row cycles, together with residua
   Row split, residual subtraction, duplicate row head collection, filter checks, and `Neg::Stack` common-stack checks all
   enqueue invariant argument constraints instead of comparing only the family path.
 
-- Bounds replay and alias replay pop caps are implementation-side termination controls.
-  They must not be treated as semantic equalities. In `ConstraintWeights`, they are named as termination guards and run only
-  after W-Mix; they still need a separate worklist termination argument.
+- Bounds replay now uses canonical exact labels after W-Mix.
+  Var-var replay returns to the same `SubtypeConstraint { lower, upper, weights }` queue path as ordinary replay.
+  The old var-var direct replay path was removed. Termination for same-boundary alias cycles is handled when inserting
+  var-var bounds, not by changing `compose_for_replay()` or treating `pop(n) -> pop(1)` as a type equality.
 
 - Active-family extraction must use active stack pushes only. The old mixed `stack_items()` helper was removed to avoid
   accidentally treating floor as a visible push family.
@@ -141,9 +142,11 @@ This is the preferred way to stop self-fueling row cycles, together with residua
    - Store full `(L, R)` in lower/upper bounds.
    - Compose by directed path composition.
    - Do not exchange unmatched right-pop with a new push.
-   - Treat pop-growth caps as temporary termination guards only if they remain needed.
-   - Status: mostly done. Replay now stores directed left weights and pure-pop right weights, runs W-Mix before
-     explicitly named termination guards, and materializes left weights only at compact/generalize/test helper boundaries.
+   - Use the ordinary exact `SubtypeConstraint` key for var-var replay as well.
+   - Status: done for the current solver. Replay stores directed left weights and pure-pop right weights, runs W-Mix,
+     then enqueues the resulting exact label without a pop-growth cap in `compose_for_replay()`. Var-var bound insertion
+     subsumes repeated same-boundary alias-cycle counts. Left weights are materialized only at compact/generalize/test
+     helper boundaries.
 
 5. Rework compact extraction.
    - Positive projection keeps full left weight.
@@ -188,3 +191,5 @@ Small tests should directly mirror the paper examples:
 - Do not collapse `Any`, `Never`, and `Unknown`.
 - Do not justify `pop(n) -> pop(1)` as a type equality without a separate termination theorem.
 - Do not combine left and right weights before row split.
+- Do not explain the var-var same-boundary storage subsumption as a type equality; it is a worklist/bounds-table
+  termination rule for replaying the same static boundary.

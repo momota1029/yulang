@@ -9,6 +9,13 @@ pub(super) struct LocalBinding {
     pub(super) value: TypeVar,
     pub(super) effect: Option<LocalEffect>,
     pub(super) call_return_effect: LocalCallReturnEffect,
+    pub(super) call_predicate_subtracts: Vec<StackWeight>,
+    pub(super) call_erased_upper: Option<NegId>,
+    pub(super) call_projection_enabled: bool,
+    pub(super) call_uppers: Vec<NegId>,
+    pub(super) call_erased_used: bool,
+    pub(super) call_predicate_frame: Option<usize>,
+    pub(super) call_nested: bool,
     pub(super) unannotated_call_frame: Option<usize>,
     pub(super) recursive_effect_passthrough: bool,
     pub(super) scheme: Option<Scheme>,
@@ -88,6 +95,17 @@ pub(super) struct ApplicationReturnEffect {
     pub(super) lower: PosId,
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct ImplRequirementBodyConnection {
+    pub(super) effect_upper: NegId,
+    pub(super) value_upper: NegId,
+}
+
+pub(super) struct ImplRequirementMethodPlan {
+    pub(super) param_uppers: Vec<Option<NegId>>,
+    pub(super) body: Option<ImplRequirementBodyConnection>,
+}
+
 #[derive(Clone)]
 pub(super) struct LoweredLambdaParam {
     pub(super) pat: PatId,
@@ -112,19 +130,15 @@ pub(super) struct DefinedLambdaSkeletonLayer {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum SkeletonPredicateMode {
-    All,
     KnownBeforeBody,
-    NonEmptyOnly,
 }
 
 impl SkeletonPredicateMode {
     pub(super) fn connects_empty_predicate(self, param: &LoweredLambdaParam) -> bool {
         match self {
-            SkeletonPredicateMode::All => true,
             SkeletonPredicateMode::KnownBeforeBody => {
                 param.annotation.call_return_effect == LocalCallReturnEffect::Annotated
             }
-            SkeletonPredicateMode::NonEmptyOnly => false,
         }
     }
 }
@@ -133,7 +147,6 @@ impl SkeletonPredicateMode {
 pub(super) struct ActiveDefinedLambdaSkeleton {
     pub(super) before_frames: usize,
     pub(super) params: Vec<LoweredLambdaParam>,
-    pub(super) skeleton: DefinedLambdaSkeleton,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -165,6 +178,7 @@ pub(super) struct PipeArg {
 pub(super) struct FunctionPredicateFrame {
     pub(super) scope: LambdaScope,
     pub(super) subtracts: Vec<StackWeight>,
+    pub(super) latent_subtracts: Vec<StackWeight>,
     pub(super) unannotated_call_subtracts: FxHashMap<DefId, SubtractId>,
 }
 
@@ -173,8 +187,24 @@ impl FunctionPredicateFrame {
         Self {
             scope,
             subtracts: Vec::new(),
+            latent_subtracts: Vec::new(),
             unannotated_call_subtracts: FxHashMap::default(),
         }
+    }
+}
+
+#[derive(Clone, Default)]
+pub(super) struct PredicateOutputConstraints {
+    pub(super) subtracts: Vec<StackWeight>,
+}
+
+impl PredicateOutputConstraints {
+    pub(super) fn from_subtracts(subtracts: Vec<StackWeight>) -> Self {
+        Self { subtracts }
+    }
+
+    pub(super) fn is_empty(&self) -> bool {
+        self.subtracts.is_empty()
     }
 }
 
@@ -183,7 +213,10 @@ pub(super) struct LambdaPatternAnnotation {
     pub(super) arg_eff: NegId,
     pub(super) skeleton_arg_eff: NegId,
     pub(super) local_effect: Option<LocalEffect>,
-    pub(super) subtracts: Vec<StackWeight>,
+    pub(super) predicate: PredicateOutputConstraints,
+    pub(super) call_predicate: PredicateOutputConstraints,
+    pub(super) call_erased_upper: Option<NegId>,
+    pub(super) call_projection_enabled: bool,
     pub(super) call_return_effect: LocalCallReturnEffect,
 }
 

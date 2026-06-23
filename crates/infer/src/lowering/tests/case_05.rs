@@ -115,6 +115,74 @@ fn result_effect_annotation_reuses_callback_tail() {
 }
 
 #[test]
+fn recursive_loop_for_in_callback_annotation_terminates() {
+    let root = parse(concat!(
+        "mod std:\n",
+        "  mod control:\n",
+        "    mod junction:\n",
+        "      pub mod junction:\n",
+        "        pub junction x = x\n",
+        "  mod data:\n",
+        "    mod fold:\n",
+        "      pub role Fold 'container:\n",
+        "        type item\n",
+        "        pub container.fold: 'acc -> ('acc -> ['e] item -> ['e] 'acc) -> ['e] 'acc\n",
+        "act loop:\n",
+        "  pub last: () -> never\n",
+        "  pub next: () -> never\n",
+        "  pub redo: () -> never\n",
+        "  my act last:\n",
+        "    our break: () -> never\n",
+        "    our judge(x: [_] _) = catch x { break(), _ -> true, _ -> false }\n",
+        "    our sub(x: [_] _) = catch x { break(), _ -> (), _ -> () }\n",
+        "  my act next = last\n",
+        "  my act redo = last\n",
+        "  pub for_in(xs: 'container, f: _ -> [loop; 'e] _): ['e] () =\n",
+        "    where 'container: std::data::fold::Fold 'item\n",
+        "    last::sub:xs.fold (): \\() x -> next::sub:loop true with:\n",
+        "      our loop b = if b: loop:redo::judge:catch f x:\n",
+        "        last(), _ -> last::break()\n",
+        "        next(), _ -> next::break()\n",
+        "        redo(), _ -> redo::break()\n",
+        "        loop::last(), _ -> last::break()\n",
+        "        loop::next(), _ -> next::break()\n",
+        "        loop::redo(), _ -> redo::break()\n",
+    ));
+    let lower = lower_module_map(&root);
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+}
+
+#[test]
+fn parser_choice_callback_annotation_terminates() {
+    let root = parse(concat!(
+        "act parse 'item 'err 'pos 'snap:\n",
+        "  pub fail: 'err -> never\n",
+        "  pub cut: () -> ()\n",
+        "  pub snapshot: () -> 'snap\n",
+        "  pub restore: 'snap -> ()\n",
+        "role ParseError 'err:\n",
+        "  pub e.merge: 'err -> 'err\n",
+        "pub choice(p: () -> [parse 'item 'err 'pos 'snap] 'a, q: () -> [parse 'item 'err 'pos 'snap] 'a, ()): [parse 'item 'err 'pos 'snap] 'a =\n",
+        "  my snap = parse::snapshot()\n",
+        "  catch p():\n",
+        "    parse::cut(), k ->\n",
+        "      parse::cut()\n",
+        "      catch k(): parse::fail e, _ -> parse::fail e\n",
+        "    parse::fail e1, _ ->\n",
+        "      parse::restore snap\n",
+        "      catch q(): parse::fail e2, _ -> parse::fail: e1.merge e2\n",
+    ));
+    let lower = lower_module_map(&root);
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+}
+
+#[test]
 fn result_annotation_rejects_function_value_body() {
     let root = parse("my bad(): int = \\() -> 1\n");
     let lower = lower_module_map(&root);
@@ -350,7 +418,7 @@ fn recursive_header_skeleton_keeps_late_callback_subtracts() {
     assert!(output.errors.is_empty(), "{:?}", output.errors);
     let root = output.typing.def(h).expect("h def should have a root type");
     let types = output.session.infer.constraints().types();
-    let (arg, _, ret_eff, ret) = function_lower_bound(&output.session, root);
+    let (arg, _, _, _) = function_lower_bound(&output.session, root);
     let callback = match types.neg(arg) {
         Neg::Var(var) => *var,
         other => panic!("expected callback argument var, got {other:?}"),
@@ -378,8 +446,42 @@ fn recursive_header_skeleton_keeps_late_callback_subtracts() {
         })
         .expect("callback return effect upper should carry empty push");
 
-    assert_pos_or_var_lower_stack_pop_var(&output.session, ret_eff, subtract);
-    assert_pos_or_var_lower_stack_pop_var(&output.session, ret, subtract);
+    let has_public_predicate =
+        reachable_function_lower_returns(&output.session, root).any(|(ret_eff, ret)| {
+            find_pos_or_var_lower_stack_pop_var(&output.session, ret_eff, subtract).is_some()
+                && find_pos_or_var_lower_stack_pop_var(&output.session, ret, subtract).is_some()
+        });
+    let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, h));
+    assert!(
+        has_public_predicate,
+        "expected public function lower bound to carry late callback pop: {rendered}"
+    );
+}
+
+fn reachable_function_lower_returns(
+    session: &AnalysisSession,
+    root: TypeVar,
+) -> impl Iterator<Item = (PosId, PosId)> + '_ {
+    let mut stack = vec![root];
+    let mut visited = Vec::new();
+    let mut out = Vec::new();
+    while let Some(var) = stack.pop() {
+        if visited.contains(&var) {
+            continue;
+        }
+        visited.push(var);
+        let Some(bounds) = session.infer.constraints().bounds().of(var) else {
+            continue;
+        };
+        for lower in bounds.lowers() {
+            match session.infer.constraints().types().pos(lower.pos) {
+                Pos::Fun { ret_eff, ret, .. } => out.push((*ret_eff, *ret)),
+                Pos::Var(next) if lower.weights.is_empty() => stack.push(*next),
+                _ => {}
+            }
+        }
+    }
+    out.into_iter()
 }
 
 #[test]

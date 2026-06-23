@@ -271,7 +271,7 @@ mod case_06;
 
 use case_01::{
     assert_act_method_receiver_has_self_subtract, assert_method_body_is_receiver_identity,
-    assert_pos_or_var_lower_stack_pop_var, assert_pos_stack_pop_var, function_lower_bound,
+    assert_pos_stack_pop_var, find_pos_or_var_lower_stack_pop_var, function_lower_bound,
     role_arg_vars, type_field_method, weight_has_empty_stack,
 };
 use case_06::{

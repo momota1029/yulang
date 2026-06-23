@@ -230,6 +230,7 @@ pub struct SelectionUse {
     pub receiver_value: TypeVar,
     pub receiver_effect: TypeVar,
     pub local_method_scope: Option<ModuleId>,
+    pub recursive_self_value: Option<TypeVar>,
 }
 
 fn push_unique<T: Copy + PartialEq>(items: &mut Vec<T>, item: T) {
@@ -296,6 +297,7 @@ mod tests {
                 receiver_value: TypeVar(2),
                 receiver_effect: TypeVar(3),
                 local_method_scope: None,
+                recursive_self_value: None,
             },
         );
         table.watch_receiver(TypeVar(2), select);
@@ -330,6 +332,7 @@ mod tests {
                 receiver_value: TypeVar(2),
                 receiver_effect: TypeVar(3),
                 local_method_scope: None,
+                recursive_self_value: None,
             },
         );
         table.insert_source_span(select, source_span.clone());

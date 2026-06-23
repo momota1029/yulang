@@ -69,6 +69,7 @@ pub(in crate::generalize) fn prune_dead_quantified_subtract_weights(
         .difference(&live_ids)
         .copied()
         .filter(|id| !live_stack_ids.contains(id))
+        .filter(|id| !declared_all_stack_id(machine, *id))
         .filter(|id| !non_generic_subtract_ids.contains(id))
         .collect::<FxHashSet<_>>();
     if !dead_ids.is_empty() {
@@ -602,6 +603,7 @@ pub(in crate::generalize) fn prune_dead_subtract_weights_in_bounds(
 }
 
 pub(in crate::generalize) fn cleanup_stack_weights_in_root_and_roles(
+    machine: &ConstraintMachine,
     root: &mut CompactRoot,
     role_predicates: &mut [CompactRoleConstraint],
 ) -> bool {
@@ -610,11 +612,19 @@ pub(in crate::generalize) fn cleanup_stack_weights_in_root_and_roles(
     let dead_ids = all_ids
         .difference(&live_ids)
         .copied()
+        .filter(|id| !declared_all_stack_id(machine, *id))
         .collect::<FxHashSet<_>>();
     if dead_ids.is_empty() {
         return false;
     }
     prune_dead_subtract_weights_in_root_and_roles(root, role_predicates, &dead_ids)
+}
+
+fn declared_all_stack_id(machine: &ConstraintMachine, id: SubtractId) -> bool {
+    machine
+        .subtracts()
+        .fact_by_id(id)
+        .is_some_and(|fact| matches!(fact.subtractability, Subtractability::All))
 }
 
 pub(in crate::generalize) fn cleanup_empty_stack_entries_with_plain_negative_occurrence(

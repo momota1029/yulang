@@ -105,7 +105,7 @@ mix(L, R):
 ```
 
 W-Mix は directed projection であり、意味論側の正規化である。
-その後に実装が行う pop-growth cap は worklist 停止性のためのガードであり、型等式ではない。
+実装も W-Mix 後の exact label を replay queue に使い、`compose_for_replay` では pop/take count を丸めない。
 spec / docs / テスト期待値で `pop(n) = pop(1)` のように説明してはならない。
 論考上の W-Mix は、mixed comparison を active-left obligation と pure-right obligation の二本へ分ける規則である。
 実装がこれを pair の正規化として持つ場合も、意味はこの二つの obligation を同時に保つこととして読む。
@@ -315,12 +315,16 @@ compose_for_replay:
   left  = earlier.left ; later.left
   right = later.right ; earlier.right
   normalize_directed_mix()
-  apply_termination_guard()
 ```
 
-var-var replay も同じく W-Mix を先に行う。
-pop cap はその後であり、停止性のための実装ガードとして名前を持つ。
-この cap を semantic rule として docs や proof に持ち込まない。
+var-var replay も同じく W-Mix だけで canonical exact full label を作り、
+通常の `SubtypeConstraint { lower, upper, weights }` の queue path へ戻す。
+var-var 専用の direct replay 経路や、`compose_for_replay` で pop count を丸める規則は使わない。
+
+ただし var-var bound を保存するときは、同一 endpoint pair / 同一 static subtract id / 同一 family の
+alias replay cycle を既存 bound で subsume する。これは型等式ではない。同じ annotation / boundary
+site を表す `SubtractId` が worklist cycle で再訪されたことだけを止める保存規則であり、
+別 `SubtractId` や別 family は区別する。
 
 unmatched right pop を新しい push と交換してはならない。
 右重みは pure pop として tail / variance / replay を通る。
@@ -334,8 +338,10 @@ cycle-neutrality、exact cache、residual memoization、有限 capability algebr
 
 この停止性論考に出る ambient residual budget / residual floor は、ordinary row の二重消費を測るための静的な残量である。
 colored soundness 側の `Common(L)` に参加する active push ではなく、runtime marker でもない。
-実装上の pop-growth cap も同じく、停止性のための guard であって型等式ではない。
-したがって、停止性のための floor / cap を row head subtraction の visibility 規則へ混ぜてはならない。
+実装は `compose_for_replay` で pop count を丸めず、source-generated graph 側の cycle-neutrality と
+exact cache / residual memoization を停止性の前提として扱う。型/row の意味論から外れた実装上の
+same-boundary alias cycle は、var-var bounds 保存時の subsumption で止める。
+したがって、停止性のための floor や別 key を row head subtraction の visibility 規則へ混ぜてはならない。
 
 ## Compact / finalize
 
@@ -936,6 +942,7 @@ alpha [undet; [flip; gamma]] -> [gamma] delta
 - residual key に target tail を含めない。
 - `filter` を runtime marker として扱わない。
 - `pop(n) -> pop(1)` を型等式として説明しない。
+- same-boundary alias cycle の bounds subsumption を、surface type の簡約規則として説明しない。
 - family path だけを比較して type argument を捨てない。
 - `Any` を曖昧な fallback、`Never` を placeholder として使わない。
 - 特定の path / module / fixture 名だけを見る inference 分岐を足さない。

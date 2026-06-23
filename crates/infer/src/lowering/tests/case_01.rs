@@ -247,17 +247,26 @@ pub(super) fn assert_pos_or_var_lower_stack_pop_var(
     pos: PosId,
     subtract: SubtractId,
 ) -> TypeVar {
+    find_pos_or_var_lower_stack_pop_var(session, pos, subtract)
+        .unwrap_or_else(|| panic!("expected var lower stack pop #{:?}", subtract))
+}
+
+pub(super) fn find_pos_or_var_lower_stack_pop_var(
+    session: &AnalysisSession,
+    pos: PosId,
+    subtract: SubtractId,
+) -> Option<TypeVar> {
     if matches!(
         session.infer.constraints().types().pos(pos),
         Pos::Stack { .. }
     ) {
-        return assert_pos_stack_pop_var(session, pos, subtract);
+        return Some(assert_pos_stack_pop_var(session, pos, subtract));
     }
     if matches!(
         session.infer.constraints().types().pos(pos),
         Pos::NonSubtract(_, _)
     ) {
-        return assert_pos_stack_pop_var(session, pos, subtract);
+        return Some(assert_pos_stack_pop_var(session, pos, subtract));
     }
     let Pos::Var(var) = session.infer.constraints().types().pos(pos) else {
         panic!("expected stack pop or var with stack pop lower bound");
@@ -275,10 +284,10 @@ pub(super) fn assert_pos_or_var_lower_stack_pop_var(
         for lower in bounds.lowers() {
             match session.infer.constraints().types().pos(lower.pos) {
                 Pos::Stack { .. } => {
-                    return assert_pos_stack_pop_var(session, lower.pos, subtract);
+                    return Some(assert_pos_stack_pop_var(session, lower.pos, subtract));
                 }
                 Pos::NonSubtract(_, _) => {
-                    return assert_pos_stack_pop_var(session, lower.pos, subtract);
+                    return Some(assert_pos_stack_pop_var(session, lower.pos, subtract));
                 }
                 Pos::Var(next)
                     if stack_weight_has_single_pop(
@@ -286,14 +295,14 @@ pub(super) fn assert_pos_or_var_lower_stack_pop_var(
                         subtract,
                     ) =>
                 {
-                    return *next;
+                    return Some(*next);
                 }
                 Pos::Var(next) => stack.push(*next),
                 _ => {}
             }
         }
     }
-    panic!("expected var lower stack pop #{:?}", subtract);
+    None
 }
 
 fn stack_weight_has_single_pop(weight: &StackWeight, subtract: SubtractId) -> bool {

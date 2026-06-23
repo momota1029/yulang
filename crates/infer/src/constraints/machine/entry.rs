@@ -19,7 +19,6 @@ impl ConstraintMachine {
             lower_filters: FxHashMap::default(),
             effect_filter_violations: FxHashSet::default(),
             seen: FxHashSet::default(),
-            var_var_seen: FxHashSet::default(),
             events: Vec::new(),
             timing: ConstraintTiming::default(),
         }
@@ -140,25 +139,21 @@ impl ConstraintMachine {
     ) -> bool {
         let mut pair_count = 0usize;
         let seen_len = self.seen.len();
-        let var_var_seen_len = self.var_var_seen.len();
+        let mut queued = false;
         for (lower, upper) in pairs {
             pair_count += 1;
             if lower == upper {
                 continue;
             }
-            if !self.record_var_var_pair(lower, upper, &ConstraintWeights::empty()) {
-                continue;
-            }
             let lower_pos = self.alloc_pos(Pos::Var(lower));
             let upper_neg = self.alloc_neg(Neg::Var(upper));
-            self.add_lower_bound(upper, lower_pos, ConstraintWeights::empty());
-            self.add_upper_bound(lower, upper_neg, ConstraintWeights::empty());
+            queued |= self.enqueue_subtype(lower_pos, ConstraintWeights::empty(), upper_neg);
         }
         self.timing.record_constrain_var_var_direct_call(pair_count);
-        if !self.queue.is_empty() {
+        if queued || !self.queue.is_empty() {
             self.drain();
         }
-        self.seen.len() != seen_len || self.var_var_seen.len() != var_var_seen_len
+        self.seen.len() != seen_len
     }
 
     pub(crate) fn constrain_pos_to_var_direct_many(
@@ -256,11 +251,18 @@ impl ConstraintMachine {
         if matches!(self.types.pos(lower), Pos::Bot) || matches!(self.types.neg(upper), Neg::Top) {
             return false;
         }
-        let weights = self.terminal_subtype_weights(lower, upper, weights);
-        let weights = self.var_var_subtype_weights(lower, upper, weights);
-        if !self.record_var_var_constraint(lower, upper, &weights) {
+        if matches!(
+            (self.types.pos(lower), self.types.neg(upper)),
+            (Pos::Var(lower), Neg::Var(upper)) if lower == upper
+        ) {
             return false;
         }
+        let weights = self.terminal_subtype_weights(lower, upper, weights);
+        let weights = if self.is_var_var_replay(lower, upper) {
+            weights.normalize_for_var_var_replay_key()
+        } else {
+            weights
+        };
         let constraint = SubtypeConstraint {
             lower,
             upper,
@@ -272,36 +274,6 @@ impl ConstraintMachine {
         } else {
             false
         }
-    }
-
-    pub(in crate::constraints) fn record_var_var_constraint(
-        &mut self,
-        lower: PosId,
-        upper: NegId,
-        weights: &ConstraintWeights,
-    ) -> bool {
-        let (Pos::Var(lower), Neg::Var(upper)) = (self.types.pos(lower), self.types.neg(upper))
-        else {
-            return true;
-        };
-        self.record_var_var_pair(*lower, *upper, weights)
-    }
-
-    pub(in crate::constraints) fn record_var_var_pair(
-        &mut self,
-        lower: TypeVar,
-        upper: TypeVar,
-        weights: &ConstraintWeights,
-    ) -> bool {
-        if lower == upper {
-            return false;
-        }
-        let inserted = self.var_var_seen.insert(VarVarConstraint {
-            lower,
-            upper,
-            weights: weights.clone(),
-        });
-        inserted
     }
 
     pub(in crate::constraints) fn terminal_subtype_weights(
@@ -322,19 +294,6 @@ impl ConstraintMachine {
                 ConstraintWeights::empty()
             }
             _ => weights,
-        }
-    }
-
-    fn var_var_subtype_weights(
-        &self,
-        lower: PosId,
-        upper: NegId,
-        weights: ConstraintWeights,
-    ) -> ConstraintWeights {
-        if self.is_var_var_replay(lower, upper) {
-            weights.normalize_for_var_var_replay()
-        } else {
-            weights
         }
     }
 

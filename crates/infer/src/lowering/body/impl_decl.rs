@@ -307,6 +307,7 @@ impl BodyLowerer {
             );
         }
 
+        let recursive_self_possible = self.body_may_select_method(&expr, &method.name);
         let lowered = ExprLowerer::with_labels(
             &mut self.session,
             &self.modules,
@@ -327,6 +328,7 @@ impl BodyLowerer {
             type_var_bindings,
             ann_solver_vars,
             requirement.as_ref(),
+            recursive_self_possible,
         );
         match lowered {
             Ok(computation) => {

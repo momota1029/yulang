@@ -512,25 +512,13 @@ impl AnalysisSession {
                         self.constrain_record_field_selection(use_site.method_value, &name);
                     }
                     SelectionTarget::Method { def } => {
-                        self.apply_scc_input(SccInput::UseResolved {
-                            parent: use_site.parent,
-                            target: def,
-                            use_value: use_site.method_value,
-                        });
+                        self.apply_selection_method_use(use_site, def);
                     }
                     SelectionTarget::EffectMethod { def } => {
-                        self.apply_scc_input(SccInput::UseResolved {
-                            parent: use_site.parent,
-                            target: def,
-                            use_value: use_site.method_value,
-                        });
+                        self.apply_selection_method_use(use_site, def);
                     }
                     SelectionTarget::TypeclassMethod { member } => {
-                        self.apply_scc_input(SccInput::UseResolved {
-                            parent: use_site.parent,
-                            target: member,
-                            use_value: use_site.method_value,
-                        });
+                        self.apply_selection_method_use(use_site, member);
                     }
                 }
                 self.apply_scc_input(SccInput::MethodDependencyResolved {
@@ -540,6 +528,20 @@ impl AnalysisSession {
             AnalysisWork::Scc(input) => self.apply_scc_input(input),
         }
         self.route_scc_events();
+    }
+
+    fn apply_selection_method_use(&mut self, use_site: SelectionUse, target: DefId) {
+        if target == use_site.parent
+            && let Some(self_value) = use_site.recursive_self_value
+        {
+            self.constrain_open_use(self_value, use_site.method_value);
+            return;
+        }
+        self.apply_scc_input(SccInput::UseResolved {
+            parent: use_site.parent,
+            target,
+            use_value: use_site.method_value,
+        });
     }
 
     pub(super) fn trace_selection_bounds(

@@ -69,6 +69,7 @@ fn register_test_selection_use(
             receiver_value: receiver,
             receiver_effect,
             local_method_scope: None,
+            recursive_self_value: None,
         },
     );
 }

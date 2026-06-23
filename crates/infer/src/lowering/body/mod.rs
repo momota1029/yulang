@@ -638,7 +638,7 @@ impl BodyLowerer {
         let has_type_annotation = binding_type_expr(node).is_some();
         let result_type_expr = has_header_args.then(|| binding_type_expr(node)).flatten();
 
-        let lowered = ExprLowerer::with_labels(
+        let mut lowerer = ExprLowerer::with_labels(
             &mut self.session,
             &self.modules,
             module,
@@ -652,13 +652,24 @@ impl BodyLowerer {
         .with_parent_type_annotation(has_type_annotation)
         .with_self_alias(self_alias.clone())
         .with_type_var_aliases(type_var_aliases)
-        .with_type_name_aliases(type_name_aliases)
-        .lower_binding_body_with_args_to_self(
-            arg_patterns.as_slice(),
-            &expr,
-            result_type_expr.as_ref(),
-            root,
-        );
+        .with_type_name_aliases(type_name_aliases);
+        let lowered = if has_header_args {
+            lowerer.lower_binding_body_with_args_to_named_self(
+                arg_patterns.as_slice(),
+                &expr,
+                result_type_expr.as_ref(),
+                root,
+                name.clone(),
+                decl.def,
+            )
+        } else {
+            lowerer.lower_binding_body_with_args_to_self(
+                arg_patterns.as_slice(),
+                &expr,
+                result_type_expr.as_ref(),
+                root,
+            )
+        };
         match lowered {
             Ok(computation) => {
                 let connected = if has_header_args {

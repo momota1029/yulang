@@ -33,6 +33,7 @@ impl BodyLowerer {
             .into_iter()
             .map(|name| name.0)
             .collect::<Vec<_>>();
+        let recursive_self_possible = self.body_may_select_method(&expr, &method.name);
         let lowered = ExprLowerer::with_labels(
             &mut self.session,
             &self.modules,
@@ -52,6 +53,7 @@ impl BodyLowerer {
             role_inputs,
             role_associated,
             binding_type_expr(node),
+            recursive_self_possible,
         );
         match lowered {
             Ok(computation) => {
@@ -83,6 +85,7 @@ impl BodyLowerer {
                 root,
             }));
 
+        let recursive_self_possible = self.body_may_select_method(&expr, &method.name);
         let lowered = ExprLowerer::with_labels(
             &mut self.session,
             &self.modules,
@@ -102,6 +105,7 @@ impl BodyLowerer {
             method.receiver.clone(),
             method.owner,
             binding_type_expr(node),
+            recursive_self_possible,
         );
         match lowered {
             Ok(computation) => {
@@ -139,6 +143,7 @@ impl BodyLowerer {
             owner: owner.id,
             type_vars: type_vars.to_vec(),
         };
+        let recursive_self_possible = self.body_may_select_method(&expr, &method.name);
         let lowered = ExprLowerer::with_labels(
             &mut self.session,
             &self.modules,
@@ -159,6 +164,7 @@ impl BodyLowerer {
             owner.id,
             &self_alias.type_vars,
             None,
+            recursive_self_possible,
         );
         match lowered {
             Ok(computation) => {
@@ -213,6 +219,15 @@ impl BodyLowerer {
             )
             .map_err(|error| LoweringError::AnnotationConstraint { error })?;
         Ok(())
+    }
+
+    pub(super) fn body_may_select_method(&self, node: &Cst, name: &Name) -> bool {
+        if node.kind() == SyntaxKind::Field && field_name(node).as_deref() == Some(name.0.as_str())
+        {
+            return true;
+        }
+        node.children()
+            .any(|child| self.body_may_select_method(&child, name))
     }
 
     #[allow(clippy::too_many_arguments)]

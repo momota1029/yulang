@@ -13,6 +13,9 @@ impl ConstraintMachine {
     ) {
         let pos = self.extrude_pos(pos, self.level_of(target));
         let weights = self.check_and_erase_lower_left_filter(pos, weights);
+        if self.lower_var_alias_replay_cycle_subsumed(target, pos, &weights) {
+            return;
+        }
         if !self.bounds.add_lower(target, pos, weights.clone()) {
             return;
         }
@@ -40,6 +43,9 @@ impl ConstraintMachine {
     ) {
         let neg = self.extrude_neg(neg, self.level_of(source));
         let weights = self.check_and_erase_upper_left_filter(source, weights);
+        if self.upper_var_alias_replay_cycle_subsumed(source, neg, &weights) {
+            return;
+        }
         if self.upper_bound_subsumed_by_existing(source, neg, &weights) {
             return;
         }
@@ -60,77 +66,6 @@ impl ConstraintMachine {
         self.apply_bound_replay_actions(actions);
         self.timing
             .record_upper_bound_added(replay_input_count, replay_enqueued, replay_var_var);
-    }
-
-    fn add_var_var_bound_collecting(
-        &mut self,
-        lower: PosId,
-        upper: NegId,
-        weights: ConstraintWeights,
-        pending: &mut Vec<BoundReplayAction>,
-    ) {
-        let (Pos::Var(lower_var), Neg::Var(upper_var)) =
-            (self.types.pos(lower).clone(), self.types.neg(upper).clone())
-        else {
-            return;
-        };
-        let weights = weights.normalize_for_var_var_replay();
-        if lower_var == upper_var {
-            return;
-        }
-        let weights = self.check_and_erase_var_var_left_filter(lower_var, weights);
-        if !self.record_var_var_pair(lower_var, upper_var, &weights) {
-            return;
-        }
-        let upper = self.extrude_neg(upper, self.level_of(lower_var));
-        self.prune_upper_rows_subsumed_by(lower_var, upper, &weights);
-        if self.bounds.add_upper(lower_var, upper, weights.clone()) {
-            self.record_neg_bound_var_neighbors(lower_var, upper);
-            self.events.push(ConstraintEvent::UpperBoundAdded {
-                var: lower_var,
-                bound: upper,
-                weights: weights.clone(),
-            });
-            trace_var_bounds(
-                "after var-var upper",
-                lower_var,
-                self.bounds.of(lower_var),
-                &self.types,
-            );
-            let (replay_input_count, replay_enqueued, empty_replay_skipped, actions) =
-                self.var_var_upper_replay_actions(lower_var, upper, &weights);
-            push_bound_replay_actions(pending, actions);
-            self.timing.record_var_var_direct_upper_bound(
-                replay_input_count,
-                replay_enqueued,
-                empty_replay_skipped,
-            );
-        }
-
-        let lower = self.extrude_pos(lower, self.level_of(upper_var));
-        if self.bounds.add_lower(upper_var, lower, weights.clone()) {
-            self.constrain_lower_bound_by_registered_filters(upper_var, lower, &weights);
-            self.record_pos_bound_var_neighbors(upper_var, lower);
-            self.events.push(ConstraintEvent::LowerBoundAdded {
-                var: upper_var,
-                bound: lower,
-                weights: weights.clone(),
-            });
-            trace_var_bounds(
-                "after var-var lower",
-                upper_var,
-                self.bounds.of(upper_var),
-                &self.types,
-            );
-            let (replay_input_count, replay_enqueued, empty_replay_skipped, actions) =
-                self.var_var_lower_replay_actions(upper_var, lower, &weights);
-            push_bound_replay_actions(pending, actions);
-            self.timing.record_var_var_direct_lower_bound(
-                replay_input_count,
-                replay_enqueued,
-                empty_replay_skipped,
-            );
-        }
     }
 
     fn check_and_erase_lower_left_filter(
@@ -154,19 +89,6 @@ impl ConstraintMachine {
         if !matches!(filter, Subtractability::All) {
             self.constrain_stack_by_filter(&weights.left.to_stack_weight(), &filter);
             self.constrain_type_var_lowers_by_filter(source, filter);
-        }
-        weights.without_left_filter()
-    }
-
-    fn check_and_erase_var_var_left_filter(
-        &mut self,
-        lower: TypeVar,
-        weights: ConstraintWeights,
-    ) -> ConstraintWeights {
-        let filter = weights.left_filter_set().clone();
-        if !matches!(filter, Subtractability::All) {
-            self.constrain_stack_by_filter(&weights.left.to_stack_weight(), &filter);
-            self.constrain_type_var_lowers_by_filter(lower, filter);
         }
         weights.without_left_filter()
     }
@@ -281,23 +203,16 @@ impl ConstraintMachine {
         trace_bound_replay_start("lower", target, replay_input_count);
         for (index, upper) in bounds.uppers.iter().enumerate() {
             trace_bound_replay_progress("lower", target, index);
+            let replay_weights = weights.compose_for_replay(&upper.weights);
             if self.is_var_var_replay(pos, upper.neg) {
-                let replay_weights = weights.compose_for_var_var_replay(&upper.weights);
                 replay_var_var += 1;
-                actions.push(BoundReplayAction::VarVar {
-                    lower: pos,
-                    upper: upper.neg,
-                    weights: replay_weights,
-                });
-            } else {
-                let replay_weights = weights.compose_for_replay(&upper.weights);
-                replay_enqueued += 1;
-                actions.push(BoundReplayAction::Subtype {
-                    lower: pos,
-                    upper: upper.neg,
-                    weights: replay_weights,
-                });
             }
+            replay_enqueued += 1;
+            actions.push(BoundReplayAction::Subtype {
+                lower: pos,
+                upper: upper.neg,
+                weights: replay_weights,
+            });
         }
         (replay_input_count, replay_enqueued, replay_var_var, actions)
     }
@@ -318,141 +233,28 @@ impl ConstraintMachine {
         trace_bound_replay_start("upper", source, replay_input_count);
         for (index, lower) in bounds.lowers.iter().enumerate() {
             trace_bound_replay_progress("upper", source, index);
+            let replay_weights = lower.weights.compose_for_replay(weights);
             if self.is_var_var_replay(lower.pos, neg) {
-                let replay_weights = lower.weights.compose_for_var_var_replay(weights);
                 replay_var_var += 1;
-                actions.push(BoundReplayAction::VarVar {
-                    lower: lower.pos,
-                    upper: neg,
-                    weights: replay_weights,
-                });
-            } else {
-                let replay_weights = lower.weights.compose_for_replay(weights);
-                replay_enqueued += 1;
-                actions.push(BoundReplayAction::Subtype {
-                    lower: lower.pos,
-                    upper: neg,
-                    weights: replay_weights,
-                });
             }
+            replay_enqueued += 1;
+            actions.push(BoundReplayAction::Subtype {
+                lower: lower.pos,
+                upper: neg,
+                weights: replay_weights,
+            });
         }
         (replay_input_count, replay_enqueued, replay_var_var, actions)
     }
 
-    fn var_var_upper_replay_actions(
-        &self,
-        lower_var: TypeVar,
-        upper: NegId,
-        weights: &ConstraintWeights,
-    ) -> (usize, usize, usize, BoundReplayActions) {
-        let Some(bounds) = self.bounds.of(lower_var) else {
-            return (0, 0, 0, SmallVec::new());
-        };
-        let mut skipped = 0usize;
-        let mut replay_enqueued = 0usize;
-        let mut actions = SmallVec::with_capacity(bounds.lowers.len());
-        for lower in &bounds.lowers {
-            if weights.is_empty()
-                && lower.weights.is_empty()
-                && self.is_var_var_replay(lower.pos, upper)
-            {
-                skipped += 1;
-                continue;
-            }
-            let replay_weights = lower.weights.compose_for_replay(weights);
-            if self.is_var_var_replay(lower.pos, upper) {
-                if Self::weights_are_pop_only(&replay_weights) {
-                    actions.push(BoundReplayAction::VarVar {
-                        lower: lower.pos,
-                        upper,
-                        weights: replay_weights,
-                    });
-                }
-            } else {
-                replay_enqueued += 1;
-                actions.push(BoundReplayAction::Subtype {
-                    lower: lower.pos,
-                    upper,
-                    weights: replay_weights,
-                });
-            }
-        }
-        (bounds.lowers.len(), replay_enqueued, skipped, actions)
-    }
-
-    fn var_var_lower_replay_actions(
-        &self,
-        upper_var: TypeVar,
-        lower: PosId,
-        weights: &ConstraintWeights,
-    ) -> (usize, usize, usize, BoundReplayActions) {
-        let Some(bounds) = self.bounds.of(upper_var) else {
-            return (0, 0, 0, SmallVec::new());
-        };
-        let mut skipped = 0usize;
-        let mut replay_enqueued = 0usize;
-        let mut actions = SmallVec::with_capacity(bounds.uppers.len());
-        for upper in &bounds.uppers {
-            if weights.is_empty()
-                && upper.weights.is_empty()
-                && self.is_var_var_replay(lower, upper.neg)
-            {
-                skipped += 1;
-                continue;
-            }
-            let replay_weights = weights.compose_for_var_var_replay(&upper.weights);
-            if self.is_var_var_replay(lower, upper.neg) {
-                if Self::weights_are_pop_only(&replay_weights) {
-                    actions.push(BoundReplayAction::VarVar {
-                        lower,
-                        upper: upper.neg,
-                        weights: replay_weights,
-                    });
-                }
-            } else {
-                replay_enqueued += 1;
-                actions.push(BoundReplayAction::Subtype {
-                    lower,
-                    upper: upper.neg,
-                    weights: replay_weights,
-                });
-            }
-        }
-        (bounds.uppers.len(), replay_enqueued, skipped, actions)
-    }
-
     fn apply_bound_replay_actions(&mut self, actions: BoundReplayActions) {
-        let mut pending = Vec::new();
-        push_bound_replay_actions(&mut pending, actions);
-        self.apply_pending_bound_replay_actions(pending);
-    }
-
-    fn apply_pending_bound_replay_actions(&mut self, mut pending: Vec<BoundReplayAction>) {
-        // Var-to-var replay can discover more var-to-var replay. Keep that chain
-        // on an explicit stack so recursive definitions cannot overflow Rust's stack.
-        while let Some(action) = pending.pop() {
-            self.apply_bound_replay_action(action, &mut pending);
-        }
-    }
-
-    fn apply_bound_replay_action(
-        &mut self,
-        action: BoundReplayAction,
-        pending: &mut Vec<BoundReplayAction>,
-    ) {
-        match action {
-            BoundReplayAction::Subtype {
+        for action in actions {
+            let BoundReplayAction::Subtype {
                 lower,
                 upper,
                 weights,
-            } => {
-                self.enqueue_subtype(lower, weights, upper);
-            }
-            BoundReplayAction::VarVar {
-                lower,
-                upper,
-                weights,
-            } => self.add_var_var_bound_collecting(lower, upper, weights, pending),
+            } = action;
+            self.enqueue_subtype(lower, weights, upper);
         }
     }
 
@@ -486,6 +288,42 @@ impl ConstraintMachine {
         };
         bounds.uppers().iter().any(|upper| {
             upper.weights.is_empty() && self.neg_ids_match_for_row_tail(upper.neg, *tail)
+        })
+    }
+
+    fn lower_var_alias_replay_cycle_subsumed(
+        &self,
+        target: TypeVar,
+        pos: PosId,
+        weights: &ConstraintWeights,
+    ) -> bool {
+        if !matches!(self.types.pos(pos), Pos::Var(_))
+            || alias_replay_cycle_weight_key(weights).is_none()
+        {
+            return false;
+        }
+        self.bounds.of(target).is_some_and(|bounds| {
+            bounds.lowers().iter().any(|lower| {
+                lower.pos == pos && alias_replay_cycle_weights_match(&lower.weights, weights)
+            })
+        })
+    }
+
+    fn upper_var_alias_replay_cycle_subsumed(
+        &self,
+        source: TypeVar,
+        neg: NegId,
+        weights: &ConstraintWeights,
+    ) -> bool {
+        if !matches!(self.types.neg(neg), Neg::Var(_))
+            || alias_replay_cycle_weight_key(weights).is_none()
+        {
+            return false;
+        }
+        self.bounds.of(source).is_some_and(|bounds| {
+            bounds.uppers().iter().any(|upper| {
+                upper.neg == neg && alias_replay_cycle_weights_match(&upper.weights, weights)
+            })
         })
     }
 
@@ -645,14 +483,6 @@ impl ConstraintMachine {
                     .iter()
                     .any(|lower| constraint_weights_have_row_tail_boundary(&lower.weights))
             })
-    }
-
-    fn weights_are_pop_only(weights: &ConstraintWeights) -> bool {
-        Self::left_weight_is_pop_only(&weights.left)
-    }
-
-    fn left_weight_is_pop_only(weight: &LeftConstraintWeight) -> bool {
-        !weight.has_filter() && weight.entries().iter().all(|entry| entry.pushes == 0)
     }
 
     pub(in crate::constraints) fn extrude_pos(&mut self, pos: PosId, target: TypeLevel) -> PosId {
@@ -864,15 +694,6 @@ enum BoundReplayAction {
         upper: NegId,
         weights: ConstraintWeights,
     },
-    VarVar {
-        lower: PosId,
-        upper: NegId,
-        weights: ConstraintWeights,
-    },
-}
-
-fn push_bound_replay_actions(pending: &mut Vec<BoundReplayAction>, actions: BoundReplayActions) {
-    pending.extend(actions.into_iter().rev());
 }
 
 fn decrement_var_neighbor(
@@ -1060,4 +881,54 @@ fn constraint_weights_have_row_tail_boundary(weights: &ConstraintWeights) -> boo
 
 fn left_constraint_weight_has_row_tail_boundary(weight: &LeftConstraintWeight) -> bool {
     weight.has_filter() || weight.entries().iter().any(|entry| entry.pushes > 0)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AliasReplayCycleLeftEntry {
+    id: SubtractId,
+    leading_pop: bool,
+    family: Option<Subtractability>,
+    push: bool,
+}
+
+fn alias_replay_cycle_weights_match(lhs: &ConstraintWeights, rhs: &ConstraintWeights) -> bool {
+    let Some(lhs) = alias_replay_cycle_weight_key(lhs) else {
+        return false;
+    };
+    let Some(rhs) = alias_replay_cycle_weight_key(rhs) else {
+        return false;
+    };
+    lhs == rhs
+}
+
+fn alias_replay_cycle_weight_key(
+    weights: &ConstraintWeights,
+) -> Option<(Vec<AliasReplayCycleLeftEntry>, Vec<SubtractId>)> {
+    if weights.left.has_filter() {
+        return None;
+    }
+    let left = weights
+        .left
+        .entries()
+        .iter()
+        .filter(|entry| entry.leading_pops > 0 || entry.pushes > 0)
+        .map(|entry| AliasReplayCycleLeftEntry {
+            id: entry.id,
+            leading_pop: entry.leading_pops > 0,
+            family: entry.family.clone(),
+            push: entry.pushes > 0,
+        })
+        .collect::<Vec<_>>();
+    let right = weights
+        .right
+        .entries()
+        .iter()
+        .filter(|entry| entry.pops > 0)
+        .map(|entry| entry.id)
+        .collect::<Vec<_>>();
+    if left.is_empty() && right.is_empty() {
+        None
+    } else {
+        Some((left, right))
+    }
 }

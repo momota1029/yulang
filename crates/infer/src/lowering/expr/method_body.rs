@@ -64,6 +64,7 @@ impl<'a> ExprLowerer<'a> {
         owner: TypeDeclId,
         type_vars: &[String],
         result_type_expr: Option<Cst>,
+        recursive_self_possible: bool,
     ) -> Result<Computation, LoweringError> {
         let mut ann_builder = ann_type_builder_with_aliases(
             self.modules,
@@ -91,29 +92,51 @@ impl<'a> ExprLowerer<'a> {
             None,
             LocalCallReturnEffect::Annotated,
         );
+        let arg_eff = self.never_neg();
+        let has_tail_args = !arg_patterns.is_empty();
+        let recursive_self = recursive_self_possible
+            .then(|| self.receiver_recursive_self_skeleton(receiver_value, arg_eff, has_tail_args));
         self.function_frames
             .push(FunctionPredicateFrame::new(LambdaScope::Defined));
+        let previous_recursive_self = if let Some(recursive_self) = recursive_self {
+            self.recursive_self_value
+                .replace(recursive_self.function_value)
+        } else {
+            self.recursive_self_value
+        };
         let body_result = self.lower_defined_tail_after_receiver(
             arg_patterns,
             node,
             &mut ann_builder,
             &mut ann_solver_vars,
             result_type_expr.as_ref(),
+            recursive_self.map(|recursive_self| recursive_self.output_value),
             &[],
+            None,
         );
+        self.recursive_self_value = previous_recursive_self;
         let frame = self
             .function_frames
             .pop()
             .expect("method predicate frame should be balanced");
         self.locals.truncate(before_locals);
-        let body = body_result?;
+        let body = match recursive_self {
+            Some(recursive_self) => self.attach_receiver_recursive_self_body(
+                body_result?,
+                recursive_self,
+                has_tail_args,
+            ),
+            None => body_result?,
+        };
 
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(receiver_value));
-        let arg_eff = self.never_neg();
-        let predicate_subtracts =
-            self.lambda_predicate_subtracts(LambdaScope::Defined, Vec::new(), frame);
+        let predicate_subtracts = self.lambda_predicate_subtracts(
+            LambdaScope::Defined,
+            PredicateOutputConstraints::default(),
+            frame,
+        );
         let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
@@ -136,6 +159,7 @@ impl<'a> ExprLowerer<'a> {
         receiver: Name,
         owner: TypeDeclId,
         result_type_expr: Option<Cst>,
+        recursive_self_possible: bool,
     ) -> Result<Computation, LoweringError> {
         let mut ann_builder = ann_type_builder_with_aliases(
             self.modules,
@@ -150,6 +174,7 @@ impl<'a> ExprLowerer<'a> {
         let receiver_value = self.fresh_type_var();
         let receiver_effect = self.fresh_type_var();
         let receiver_subtract = self.connect_act_method_receiver_effect(receiver_effect, owner)?;
+        let arg_eff = self.alloc_neg(Neg::Var(receiver_effect));
         let before_locals = self.locals.len();
         let pat = self.bind_pattern_local(
             receiver,
@@ -157,30 +182,48 @@ impl<'a> ExprLowerer<'a> {
             Some(LocalEffect::Var(receiver_effect)),
             LocalCallReturnEffect::Annotated,
         );
+        let has_tail_args = !arg_patterns.is_empty();
+        let recursive_self = recursive_self_possible
+            .then(|| self.receiver_recursive_self_skeleton(receiver_value, arg_eff, has_tail_args));
         self.function_frames
             .push(FunctionPredicateFrame::new(LambdaScope::Defined));
+        let previous_recursive_self = if let Some(recursive_self) = recursive_self {
+            self.recursive_self_value
+                .replace(recursive_self.function_value)
+        } else {
+            self.recursive_self_value
+        };
         let body_result = self.lower_defined_tail_after_receiver(
             arg_patterns,
             node,
             &mut ann_builder,
             &mut ann_solver_vars,
             result_type_expr.as_ref(),
+            recursive_self.map(|recursive_self| recursive_self.output_value),
             &[],
+            None,
         );
+        self.recursive_self_value = previous_recursive_self;
         let frame = self
             .function_frames
             .pop()
             .expect("method predicate frame should be balanced");
         self.locals.truncate(before_locals);
-        let body = body_result?;
+        let body = match recursive_self {
+            Some(recursive_self) => self.attach_receiver_recursive_self_body(
+                body_result?,
+                recursive_self,
+                has_tail_args,
+            ),
+            None => body_result?,
+        };
 
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(receiver_value));
-        let arg_eff = self.alloc_neg(Neg::Var(receiver_effect));
         let predicate_subtracts = self.lambda_predicate_subtracts(
             LambdaScope::Defined,
-            vec![StackWeight::pop(receiver_subtract)],
+            PredicateOutputConstraints::from_subtracts(vec![StackWeight::pop(receiver_subtract)]),
             frame,
         );
         let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
@@ -207,6 +250,7 @@ impl<'a> ExprLowerer<'a> {
         role_inputs: &[String],
         role_associated: &[String],
         result_type_expr: Option<Cst>,
+        recursive_self_possible: bool,
     ) -> Result<Computation, LoweringError> {
         let mut ann_builder = ann_type_builder_with_aliases(
             self.modules,
@@ -263,29 +307,51 @@ impl<'a> ExprLowerer<'a> {
             None,
             LocalCallReturnEffect::Annotated,
         );
+        let arg_eff = self.never_neg();
+        let has_tail_args = !arg_patterns.is_empty();
+        let recursive_self = recursive_self_possible
+            .then(|| self.receiver_recursive_self_skeleton(receiver_value, arg_eff, has_tail_args));
         self.function_frames
             .push(FunctionPredicateFrame::new(LambdaScope::Defined));
+        let previous_recursive_self = if let Some(recursive_self) = recursive_self {
+            self.recursive_self_value
+                .replace(recursive_self.function_value)
+        } else {
+            self.recursive_self_value
+        };
         let body_result = self.lower_defined_tail_after_receiver(
             arg_patterns,
             node,
             &mut ann_builder,
             &mut ann_solver_vars,
             result_type_expr.as_ref(),
+            recursive_self.map(|recursive_self| recursive_self.output_value),
             &[],
+            None,
         );
+        self.recursive_self_value = previous_recursive_self;
         let frame = self
             .function_frames
             .pop()
             .expect("role method predicate frame should be balanced");
         self.locals.truncate(before_locals);
-        let body = body_result?;
+        let body = match recursive_self {
+            Some(recursive_self) => self.attach_receiver_recursive_self_body(
+                body_result?,
+                recursive_self,
+                has_tail_args,
+            ),
+            None => body_result?,
+        };
 
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(receiver_value));
-        let arg_eff = self.never_neg();
-        let predicate_subtracts =
-            self.lambda_predicate_subtracts(LambdaScope::Defined, Vec::new(), frame);
+        let predicate_subtracts = self.lambda_predicate_subtracts(
+            LambdaScope::Defined,
+            PredicateOutputConstraints::default(),
+            frame,
+        );
         let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
@@ -311,6 +377,7 @@ impl<'a> ExprLowerer<'a> {
         type_var_bindings: &[(String, AnnTypeVarId)],
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
         requirement: Option<&ResolvedRoleMethodRequirement>,
+        recursive_self_possible: bool,
     ) -> Result<Computation, LoweringError> {
         let mut ann_builder = ann_type_builder_with_aliases(
             self.modules,
@@ -339,6 +406,7 @@ impl<'a> ExprLowerer<'a> {
                     requirement,
                     type_var_bindings,
                     ann_solver_vars,
+                    true,
                 )?;
             }
             return Ok(body);
@@ -346,14 +414,18 @@ impl<'a> ExprLowerer<'a> {
 
         let receiver_value = self.fresh_type_var();
         self.connect_type_method_value_annotation(receiver_value, receiver_ann, ann_solver_vars)?;
-        let param_uppers = match requirement {
-            Some(requirement) => self.impl_method_param_uppers(
+        let requirement_plan = match requirement {
+            Some(requirement) => self.impl_method_requirement_plan(
                 &requirement.signature,
                 arg_patterns.len(),
+                true,
                 type_var_bindings,
                 ann_solver_vars,
             )?,
-            None => Vec::new(),
+            None => ImplRequirementMethodPlan {
+                param_uppers: Vec::new(),
+                body: None,
+            },
         };
         let before_locals = self.locals.len();
         let pat = self.bind_pattern_local(
@@ -362,29 +434,51 @@ impl<'a> ExprLowerer<'a> {
             None,
             LocalCallReturnEffect::Annotated,
         );
+        let arg_eff = self.never_neg();
+        let has_tail_args = !arg_patterns.is_empty();
+        let recursive_self = recursive_self_possible
+            .then(|| self.receiver_recursive_self_skeleton(receiver_value, arg_eff, has_tail_args));
         self.function_frames
             .push(FunctionPredicateFrame::new(LambdaScope::Defined));
+        let previous_recursive_self = if let Some(recursive_self) = recursive_self {
+            self.recursive_self_value
+                .replace(recursive_self.function_value)
+        } else {
+            self.recursive_self_value
+        };
         let body_result = self.lower_defined_tail_after_receiver(
             arg_patterns,
             node,
             &mut ann_builder,
             ann_solver_vars,
             result_type_expr.as_ref(),
-            &param_uppers,
+            recursive_self.map(|recursive_self| recursive_self.output_value),
+            &requirement_plan.param_uppers,
+            requirement_plan.body,
         );
+        self.recursive_self_value = previous_recursive_self;
         let frame = self
             .function_frames
             .pop()
             .expect("impl method predicate frame should be balanced");
         self.locals.truncate(before_locals);
-        let body = body_result?;
+        let body = match recursive_self {
+            Some(recursive_self) => self.attach_receiver_recursive_self_body(
+                body_result?,
+                recursive_self,
+                has_tail_args,
+            ),
+            None => body_result?,
+        };
 
         let value = self.fresh_type_var();
         let effect = self.fresh_exact_pure_effect();
         let arg = self.alloc_neg(Neg::Var(receiver_value));
-        let arg_eff = self.never_neg();
-        let predicate_subtracts =
-            self.lambda_predicate_subtracts(LambdaScope::Defined, Vec::new(), frame);
+        let predicate_subtracts = self.lambda_predicate_subtracts(
+            LambdaScope::Defined,
+            PredicateOutputConstraints::default(),
+            frame,
+        );
         let (ret_eff, ret) = self.lambda_output_predicate(&body, &predicate_subtracts);
         self.constrain_lower(
             value,
@@ -401,6 +495,7 @@ impl<'a> ExprLowerer<'a> {
                 requirement,
                 type_var_bindings,
                 ann_solver_vars,
+                false,
             )?;
         }
 
@@ -408,18 +503,69 @@ impl<'a> ExprLowerer<'a> {
         Ok(Computation::value(expr, value, effect))
     }
 
-    /// requirement（impl 入力を代入済みの role method シグネチャ）の引数列を、
-    /// member の各 param の上界として引き上げる。`value <: requirement` だけだと
-    /// 引数側には下界しか流れず、subject の釘付け（discharge / 共起併合の前提）が
-    /// 引数経由の demand に届かない。先頭の Function は receiver なので飛ばす。
-    pub(in crate::lowering) fn impl_method_param_uppers(
+    fn receiver_recursive_self_skeleton(
+        &mut self,
+        receiver_value: TypeVar,
+        arg_eff: NegId,
+        has_tail_args: bool,
+    ) -> ReceiverRecursiveSelf {
+        let function_value = self.fresh_type_var();
+        let output_effect = if has_tail_args {
+            self.fresh_exact_pure_effect()
+        } else {
+            self.fresh_type_var()
+        };
+        let output_value = self.fresh_type_var();
+        let arg = self.alloc_neg(Neg::Var(receiver_value));
+        let ret_eff = self.alloc_pos(Pos::Var(output_effect));
+        let ret = self.alloc_pos(Pos::Var(output_value));
+        self.constrain_lower(
+            function_value,
+            Pos::Fun {
+                arg,
+                arg_eff,
+                ret_eff,
+                ret,
+            },
+        );
+        ReceiverRecursiveSelf {
+            function_value,
+            output_effect,
+            output_value,
+        }
+    }
+
+    fn attach_receiver_recursive_self_body(
+        &mut self,
+        body: Computation,
+        recursive_self: ReceiverRecursiveSelf,
+        has_tail_args: bool,
+    ) -> Computation {
+        self.subtype_var_to_var(body.effect, recursive_self.output_effect);
+        if has_tail_args {
+            return body;
+        }
+        self.subtype_var_to_var(body.value, recursive_self.output_value);
+        Computation::new(
+            body.expr,
+            recursive_self.output_value,
+            recursive_self.output_effect,
+            body.evaluation,
+        )
+    }
+
+    /// Role requirement の関数 spine を一度だけ lower し、tail 引数の upper と
+    /// 最終 body の upper を同じ signature 変数で作る。impl 値全体へ raw
+    /// `value <: requirement` を張ると、body 内の stack evidence が receiver まで含む
+    /// 関数境界を回って戻るので、requirement 由来の alias だけを body 近くで接続する。
+    pub(in crate::lowering) fn impl_method_requirement_plan(
         &mut self,
         requirement: &SignatureType,
         param_count: usize,
+        skip_receiver: bool,
         type_var_bindings: &[(String, AnnTypeVarId)],
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
-    ) -> Result<Vec<Option<NegId>>, LoweringError> {
-        let mut spine = signature_function_step(requirement).map(|(_, ret)| ret);
+    ) -> Result<ImplRequirementMethodPlan, LoweringError> {
         let seed = signature_vars_from_ann_vars(type_var_bindings, ann_solver_vars);
         // 足場の区間変数（`Bounds(int|v, v&int)` の v）が root level で生まれると
         // simplify の level 保護で永久に残るので、def の現在 level で lower する。
@@ -430,20 +576,74 @@ impl<'a> ExprLowerer<'a> {
             seed,
             level,
         );
+        let mut spine = requirement;
+        let mut body_result = None;
+        let mut missing_layer = false;
+
+        if skip_receiver {
+            match signature_function_layer(spine) {
+                Some(layer) => {
+                    body_result = Some((layer.ret_eff, layer.ret));
+                    spine = layer.ret;
+                }
+                None => {
+                    missing_layer = true;
+                }
+            }
+        }
+
         let mut uppers = Vec::with_capacity(param_count);
         for _ in 0..param_count {
-            let Some((param, ret)) = spine.and_then(signature_function_step) else {
+            let Some(layer) = signature_function_layer(spine) else {
                 uppers.push(None);
+                missing_layer = true;
                 continue;
             };
             uppers.push(Some(
                 lowerer
-                    .lower_neg(param)
+                    .lower_neg(layer.param)
                     .map_err(|error| LoweringError::SignatureConstraint { error })?,
             ));
-            spine = Some(ret);
+            body_result = Some((layer.ret_eff, layer.ret));
+            spine = layer.ret;
         }
-        Ok(uppers)
+
+        let body = if missing_layer {
+            None
+        } else if let Some((ret_eff, ret)) = body_result {
+            Some(lower_impl_requirement_body_connection(
+                &mut lowerer,
+                ret_eff,
+                ret,
+            )?)
+        } else if !skip_receiver && param_count == 0 {
+            Some(lower_impl_requirement_value_connection(
+                &mut lowerer,
+                requirement,
+            )?)
+        } else {
+            None
+        };
+
+        Ok(ImplRequirementMethodPlan {
+            param_uppers: uppers,
+            body,
+        })
+    }
+
+    pub(in crate::lowering) fn connect_impl_method_body_requirement(
+        &mut self,
+        body: Computation,
+        requirement: ImplRequirementBodyConnection,
+    ) {
+        let effect_lower = self.alloc_pos(Pos::Var(body.effect));
+        self.session
+            .infer
+            .subtype(effect_lower, requirement.effect_upper);
+        let value_lower = self.alloc_pos(Pos::Var(body.value));
+        self.session
+            .infer
+            .subtype(value_lower, requirement.value_upper);
     }
 
     pub(in crate::lowering) fn connect_impl_method_requirement(
@@ -452,6 +652,7 @@ impl<'a> ExprLowerer<'a> {
         requirement: &ResolvedRoleMethodRequirement,
         type_var_bindings: &[(String, AnnTypeVarId)],
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        connect_value_upper: bool,
     ) -> Result<(), LoweringError> {
         let signature = &requirement.signature;
         self.check_impl_method_requirement_shape(value, signature)?;
@@ -465,9 +666,15 @@ impl<'a> ExprLowerer<'a> {
                 seed,
                 level,
             );
-            let upper = lowerer
-                .lower_neg(signature)
-                .map_err(|error| LoweringError::SignatureConstraint { error })?;
+            let upper = if connect_value_upper {
+                Some(
+                    lowerer
+                        .lower_neg(signature)
+                        .map_err(|error| LoweringError::SignatureConstraint { error })?,
+                )
+            } else {
+                None
+            };
             let summary_root = lowerer.fresh_type_var();
             let summary_lower = lowerer
                 .lower_pos(signature)
@@ -477,8 +684,10 @@ impl<'a> ExprLowerer<'a> {
             let summary_role = lower_impl_requirement_role_constraint(&mut lowerer, requirement)?;
             (upper, summary_lower, summary_root, summary_role)
         };
-        let lower = self.session.infer.alloc_pos(Pos::Var(value));
-        self.session.infer.subtype(lower, upper);
+        if let Some(upper) = upper {
+            let lower = self.session.infer.alloc_pos(Pos::Var(value));
+            self.session.infer.subtype(lower, upper);
+        }
         let projection = CompactRoot {
             root: compact_pos_surface(self.session.infer.constraints().types(), summary_lower),
             rec_vars: Vec::new(),
@@ -762,7 +971,7 @@ impl<'a> ExprLowerer<'a> {
         *ann_solver_vars = lowerer.into_vars();
         let connection = result?;
         self.constrain_effect_filters(body.effect, &connection.subtracts);
-        self.extend_current_predicate_subtracts(connection.subtracts);
+        self.extend_current_predicate_connection(connection);
         Ok(())
     }
 
@@ -820,5 +1029,68 @@ impl<'a> ExprLowerer<'a> {
             .into_iter()
             .map(|source| aliases.get(&source).cloned().unwrap_or(source))
             .collect()
+    }
+}
+
+#[derive(Clone, Copy)]
+struct ReceiverRecursiveSelf {
+    function_value: TypeVar,
+    output_effect: TypeVar,
+    output_value: TypeVar,
+}
+
+struct SignatureFunctionLayer<'a> {
+    param: &'a SignatureType,
+    ret_eff: Option<&'a SignatureEffectRow>,
+    ret: &'a SignatureType,
+}
+
+fn signature_function_layer(signature: &SignatureType) -> Option<SignatureFunctionLayer<'_>> {
+    match signature {
+        SignatureType::Effectful { ret, .. } => signature_function_layer(ret),
+        SignatureType::Function {
+            param,
+            ret_eff,
+            ret,
+            ..
+        } => Some(SignatureFunctionLayer {
+            param,
+            ret_eff: ret_eff.as_ref(),
+            ret,
+        }),
+        _ => None,
+    }
+}
+
+fn lower_impl_requirement_body_connection(
+    lowerer: &mut SignatureLowerer<'_>,
+    ret_eff: Option<&SignatureEffectRow>,
+    ret: &SignatureType,
+) -> Result<ImplRequirementBodyConnection, LoweringError> {
+    let (ret_eff, ret) = signature_result_effect(ret_eff, ret);
+    Ok(ImplRequirementBodyConnection {
+        effect_upper: lowerer
+            .lower_ret_effect_neg(ret_eff)
+            .map_err(|error| LoweringError::SignatureConstraint { error })?,
+        value_upper: lowerer
+            .lower_neg(ret)
+            .map_err(|error| LoweringError::SignatureConstraint { error })?,
+    })
+}
+
+fn lower_impl_requirement_value_connection(
+    lowerer: &mut SignatureLowerer<'_>,
+    signature: &SignatureType,
+) -> Result<ImplRequirementBodyConnection, LoweringError> {
+    lower_impl_requirement_body_connection(lowerer, None, signature)
+}
+
+fn signature_result_effect<'a>(
+    ret_eff: Option<&'a SignatureEffectRow>,
+    ret: &'a SignatureType,
+) -> (Option<&'a SignatureEffectRow>, &'a SignatureType) {
+    match (ret_eff, ret) {
+        (None, SignatureType::Effectful { eff, ret }) => (Some(eff), ret),
+        _ => (ret_eff, ret),
     }
 }

@@ -77,7 +77,7 @@ impl<'a> ExprLowerer<'a> {
                 &ann,
             )
             .map_err(|error| LoweringError::AnnotationConstraint { error })?;
-        self.extend_current_predicate_subtracts(connection.subtracts);
+        self.extend_current_predicate_connection(connection);
         Ok(acc)
     }
 
@@ -240,6 +240,7 @@ impl<'a> ExprLowerer<'a> {
                 receiver_value: receiver.value,
                 receiver_effect: receiver.effect,
                 local_method_scope: self.local_method_scope,
+                recursive_self_value: self.recursive_self_value,
             },
         );
         if let Some(source_span) = self.source_span(source_range) {
@@ -400,6 +401,9 @@ impl<'a> ExprLowerer<'a> {
 
         let arg_value = self.alloc_pos(Pos::Var(arg.value));
         let arg_effect = self.alloc_pos(Pos::Var(arg.effect));
+        let (local_callee_def, local_callee_predicate, local_callee_erased_upper) =
+            self.local_callee_call_projection(&callee);
+        self.extend_current_latent_predicate(&local_callee_predicate);
         let return_effect = self.unannotated_local_callee_return_effect(&callee, call_effect);
         let return_value = self.alloc_neg(Neg::Var(result_value));
         let callee_upper = self.alloc_neg(Neg::Fun {
@@ -409,11 +413,57 @@ impl<'a> ExprLowerer<'a> {
             ret: return_value,
         });
         self.subtype(Pos::Var(callee.value), callee_upper);
+        if let Some(erased_upper) = local_callee_erased_upper {
+            if let Some(def) = local_callee_def {
+                let frame_index = self.function_frames.len().checked_sub(1);
+                self.record_local_call_upper(def, callee_upper, frame_index);
+            }
+            let callee_lower = self.alloc_pos(Pos::Var(callee.value));
+            self.session.infer.subtype(callee_lower, erased_upper);
+        }
         self.subtype_var_to_var(callee.effect, result_effect);
         self.subtype_pos_to_var(return_effect.lower, result_effect);
 
         let expr = self.session.poly.add_expr(Expr::App(callee.expr, arg.expr));
         Computation::computation(expr, result_value, result_effect)
+    }
+
+    fn local_callee_call_projection(
+        &self,
+        callee: &Computation,
+    ) -> (Option<DefId>, Vec<StackWeight>, Option<NegId>) {
+        let Some(def) = self.local_callee_def(callee) else {
+            return (None, Vec::new(), None);
+        };
+        let Some(local) = self.local_binding_by_def(def) else {
+            return (Some(def), Vec::new(), None);
+        };
+        (
+            Some(def),
+            local.call_predicate_subtracts.clone(),
+            local.call_erased_upper,
+        )
+    }
+
+    fn record_local_call_upper(&mut self, def: DefId, upper: NegId, frame_index: Option<usize>) {
+        if let Some(local) = self.locals.iter_mut().rev().find(|local| local.def == def) {
+            local.call_erased_used = true;
+            if frame_index.is_some() && frame_index != local.call_predicate_frame {
+                local.call_nested = true;
+            }
+            if !local.call_uppers.contains(&upper) {
+                local.call_uppers.push(upper);
+            }
+        }
+    }
+
+    fn extend_current_latent_predicate(&mut self, subtracts: &[StackWeight]) {
+        if subtracts.is_empty() {
+            return;
+        }
+        if let Some(frame) = self.function_frames.last_mut() {
+            frame.latent_subtracts.extend(subtracts.iter().cloned());
+        }
     }
 
     pub(in crate::lowering) fn unit_expr(&mut self) -> Computation {
@@ -458,23 +508,20 @@ impl<'a> ExprLowerer<'a> {
         {
             return ApplicationReturnEffect { upper: bare, lower };
         }
-        let (subtract, inserted) = match self.function_frames[frame_index]
+        let subtract = match self.function_frames[frame_index]
             .unannotated_call_subtracts
             .get(&def)
             .copied()
         {
-            Some(subtract) => (subtract, false),
+            Some(subtract) => subtract,
             None => {
                 let subtract = self.session.infer.fresh_subtract_id();
                 let frame = &mut self.function_frames[frame_index];
                 frame.unannotated_call_subtracts.insert(def, subtract);
                 frame.subtracts.push(StackWeight::pop(subtract));
-                (subtract, true)
+                subtract
             }
         };
-        if inserted {
-            self.refresh_active_defined_skeletons_for_frame(frame_index);
-        }
         let weight = StackWeight::push(subtract, Subtractability::Empty);
         let effect_pos = self.alloc_pos(Pos::Var(call_effect));
         let lower = self.alloc_pos(Pos::Stack {
@@ -498,10 +545,20 @@ impl<'a> ExprLowerer<'a> {
             .last()
             .is_some_and(|frame| frame.scope == LambdaScope::Defined);
         if direct_defined_call {
-            return self
+            let current_frame_index = self
                 .function_frames
                 .iter()
-                .rposition(|frame| frame.scope == LambdaScope::Defined);
+                .rposition(|frame| frame.scope == LambdaScope::Defined)?;
+            let crosses_inner_active_skeleton =
+                self.active_defined_skeletons.iter().any(|active| {
+                    introduced_frame_index < active.before_frames
+                        && current_frame_index >= active.before_frames
+                        && current_frame_index < active.before_frames + active.params.len()
+                });
+            if crosses_inner_active_skeleton {
+                return Some(introduced_frame_index);
+            }
+            return Some(current_frame_index);
         }
         if !self.sub_syntax_scopes.is_empty() {
             return Some(introduced_frame_index);
@@ -518,31 +575,6 @@ impl<'a> ExprLowerer<'a> {
             if local.call_return_effect == LocalCallReturnEffect::Unannotated {
                 local.unannotated_call_frame = Some(frame_index);
             }
-        }
-    }
-
-    pub(in crate::lowering) fn refresh_active_defined_skeletons_for_frame(
-        &mut self,
-        frame_index: usize,
-    ) {
-        let updates = self
-            .active_defined_skeletons
-            .iter()
-            .filter(|active| {
-                frame_index >= active.before_frames
-                    && frame_index < active.before_frames + active.params.len()
-            })
-            .cloned()
-            .collect::<Vec<_>>();
-        for active in updates {
-            let frame_end = active.before_frames + active.params.len();
-            let frames = self.function_frames[active.before_frames..frame_end].to_vec();
-            self.connect_defined_lambda_skeleton_predicates(
-                &active.params,
-                &frames,
-                &active.skeleton,
-                SkeletonPredicateMode::NonEmptyOnly,
-            );
         }
     }
 
@@ -668,40 +700,44 @@ impl<'a> ExprLowerer<'a> {
     pub(in crate::lowering) fn lambda_predicate_subtracts(
         &mut self,
         lambda_scope: LambdaScope,
-        mut annotation_subtracts: Vec<StackWeight>,
+        mut annotation: PredicateOutputConstraints,
         mut frame: FunctionPredicateFrame,
-    ) -> Vec<StackWeight> {
+    ) -> PredicateOutputConstraints {
         if lambda_scope != LambdaScope::Defined {
-            return Vec::new();
+            return PredicateOutputConstraints {
+                subtracts: dedupe_predicate_weights(frame.latent_subtracts),
+            };
         }
-        annotation_subtracts.append(&mut frame.subtracts);
-        dedupe_predicate_weights(annotation_subtracts)
+        annotation.subtracts.append(&mut frame.subtracts);
+        annotation.subtracts.append(&mut frame.latent_subtracts);
+        annotation.subtracts = dedupe_predicate_weights(annotation.subtracts);
+        annotation
     }
 
-    pub(in crate::lowering) fn extend_current_predicate_subtracts(
+    pub(in crate::lowering) fn extend_current_predicate_connection(
         &mut self,
-        subtracts: Vec<StackWeight>,
+        connection: AnnComputationConnection,
     ) {
         if let Some(frame) = self.function_frames.last_mut() {
-            frame.subtracts.extend(subtracts);
+            frame.subtracts.extend(connection.subtracts);
         }
     }
 
     pub(in crate::lowering) fn lambda_output_predicate(
         &mut self,
         body: &Computation,
-        subtracts: &[StackWeight],
+        predicate: &PredicateOutputConstraints,
     ) -> (PosId, PosId) {
-        self.lambda_output_predicate_vars(body.effect, body.value, subtracts)
+        self.lambda_output_predicate_vars(body.effect, body.value, predicate)
     }
 
     pub(in crate::lowering) fn lambda_output_predicate_vars(
         &mut self,
         body_effect: TypeVar,
         body_value: TypeVar,
-        subtracts: &[StackWeight],
+        predicate: &PredicateOutputConstraints,
     ) -> (PosId, PosId) {
-        if subtracts.is_empty() {
+        if predicate.is_empty() {
             let ret_eff = self.alloc_pos(Pos::Var(body_effect));
             let ret = self.alloc_pos(Pos::Var(body_value));
             return (ret_eff, ret);
@@ -710,8 +746,8 @@ impl<'a> ExprLowerer<'a> {
         let ret_eff = self.alloc_pos(Pos::Var(body_effect));
         let ret = self.alloc_pos(Pos::Var(body_value));
         (
-            self.wrap_pos_with_subtracts(ret_eff, subtracts),
-            self.wrap_pos_with_subtracts(ret, subtracts),
+            self.wrap_pos_with_subtracts(ret_eff, &predicate.subtracts),
+            self.wrap_pos_with_subtracts(ret, &predicate.subtracts),
         )
     }
 }

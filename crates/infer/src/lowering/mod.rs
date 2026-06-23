@@ -189,15 +189,6 @@ pub enum SignatureType {
     },
 }
 
-/// Effectful ラッパを剥がして Function の (param, ret) を返す。
-fn signature_function_step(sig: &SignatureType) -> Option<(&SignatureType, &SignatureType)> {
-    match sig {
-        SignatureType::Effectful { ret, .. } => signature_function_step(ret),
-        SignatureType::Function { param, ret, .. } => Some((param.as_ref(), ret.as_ref())),
-        _ => None,
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignatureEffectRow {
     items: Vec<SignatureEffectAtom>,

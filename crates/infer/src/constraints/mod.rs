@@ -50,7 +50,6 @@ pub struct ConstraintMachine {
     lower_filters: FxHashMap<TypeVar, FxHashSet<Subtractability>>,
     effect_filter_violations: FxHashSet<EffectFilterViolationKey>,
     seen: FxHashSet<SubtypeConstraint>,
-    var_var_seen: FxHashSet<VarVarConstraint>,
     events: Vec<ConstraintEvent>,
     timing: ConstraintTiming,
 }
@@ -386,22 +385,10 @@ impl ConstraintWeights {
             right: other.right.compose(&self.right),
         }
         .normalize_directed_mix()
-        .apply_bounds_replay_termination_guard()
     }
 
-    pub fn compose_for_var_var_replay(&self, other: &Self) -> Self {
-        Self {
-            left: self.left.compose(&other.left),
-            right: other.right.compose(&self.right),
-        }
-        .normalize_directed_mix()
-        .apply_alias_replay_termination_guard()
-    }
-
-    pub fn normalize_for_var_var_replay(&self) -> Self {
-        self.clone()
-            .normalize_directed_mix()
-            .apply_alias_replay_termination_guard()
+    pub fn normalize_for_var_var_replay_key(&self) -> Self {
+        self.clone().normalize_directed_mix()
     }
 
     pub fn left_filter_set(&self) -> &Subtractability {
@@ -412,20 +399,6 @@ impl ConstraintWeights {
         Self {
             left: self.left.without_filter(),
             right: self.right.clone(),
-        }
-    }
-
-    fn apply_alias_replay_termination_guard(self) -> Self {
-        Self {
-            left: self.left.apply_alias_replay_termination_guard(),
-            right: self.right.apply_alias_replay_termination_guard(),
-        }
-    }
-
-    fn apply_bounds_replay_termination_guard(self) -> Self {
-        Self {
-            left: self.left.apply_bounds_replay_termination_guard(),
-            right: self.right.apply_bounds_replay_termination_guard(),
         }
     }
 
@@ -454,13 +427,6 @@ pub struct SubtypeConstraint {
     pub lower: PosId,
     pub upper: NegId,
     pub weights: ConstraintWeights,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct VarVarConstraint {
-    lower: TypeVar,
-    upper: TypeVar,
-    weights: ConstraintWeights,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
