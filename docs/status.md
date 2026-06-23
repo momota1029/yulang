@@ -5,9 +5,11 @@ speeds: some are stable enough to depend on day to day, some are still
 research surface. This page tracks where each feature sits across the
 pipeline so it is clear what to expect before you try it.
 
-It complements two other documents:
+It complements these documents:
 
 - [docs/language/overview.md](language/overview.md) — what each feature does.
+- [docs/effect-inference-brief.md](effect-inference-brief.md) — the short
+  outward-facing claim about hygienic effect inference.
 - [docs/native-backend.md](native-backend.md) — archived native backend status.
 - [docs/native-experimental-release.md](native-experimental-release.md) —
   release-gate notes for the archived opt-in native subset.

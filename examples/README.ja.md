@@ -22,6 +22,9 @@ yulang run examples/11_attached_impl.yu
 yulang run examples/12_cast.yu
 ```
 
+effect inference の説明用の小さい `dump-poly` 入力は
+`examples/effect-hygiene/` に置いています。
+
 型検査と public type の確認には `check` を使います。
 
 ```bash

@@ -111,6 +111,11 @@ timeout 240s cargo run -q -p yulang -- --std-root lib --runtime-phase-timings --
 
 理論は最初から前面に出さず、触ったあとに深掘りできる導線として出す。
 
+初期の外向け入口は `docs/effect-inference-brief.md`。
+ここでは `principal type` を単独で強く主張せず、
+`principal-style public signatures` と `handler hygiene` を前面に出す。
+説明用の小さい入力は `examples/effect-hygiene/` に置く。
+
 ### C. Release 運用の固定
 
 playground が `main` 直結だと、型推論改革のたびに公開物が揺れる。

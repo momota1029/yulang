@@ -4,7 +4,17 @@ pub act sub 'a:
     return a, _ -> a
     a -> a
 
+pub act note:
+  pub tell: () -> ()
+
 our use_int = sub::sub:
   sub::return 0
 
-use_int
+our use_str = sub::sub:
+  sub::return "done"
+
+our use_residual() = sub::sub:
+  note::tell()
+  1
+
+(use_int, use_str, use_residual)

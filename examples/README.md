@@ -22,6 +22,9 @@ yulang run examples/11_attached_impl.yu
 yulang run examples/12_cast.yu
 ```
 
+Effect-inference notes and small `dump-poly` inputs live under
+`examples/effect-hygiene/`.
+
 Use `check` to type-check a file and print inferred public types:
 
 ```bash

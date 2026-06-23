@@ -1,0 +1,18 @@
+// A small canary for data-position effectful functions.
+// The method needs hidden evidence internally, but its public type should not
+// expose stack ids or AllExcept(...) evidence.
+
+act tick 'a:
+    pub ping: 'a -> 'a
+
+type box 'e 'a with:
+    struct self:
+        run: () -> [tick 'a; 'e] ()
+    pub b.handle(f: 'a -> 'a): ['e] () =
+        my loop(x: [_] _) = catch x:
+            tick::ping v, k -> loop:k:f v
+        loop:b.run()
+
+my site = 1
+
+site
