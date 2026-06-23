@@ -13,6 +13,26 @@
 作業規約は `/.rules`（= `AGENTS.md`）と `crates/.rules` を見る。
 旧実装は仕様ではない。挙動が食い違ったら spec と手計算で正解を確かめる。
 
+## 現在地（2026-06-23）: hardening phase
+
+`ref.update` / directed stack weight の修正で、public type boundary、row-tail polarity、
+replay termination、handler hygiene が同じ問題として見えるようになった。
+ここからしばらくは新機能より hardening を優先する。
+
+入口:
+
+- `docs/infer-solver-invariants.md` — solver 不変量の作業契約
+- `notes/diagnostics/2026-06-23-ref_update.md` — 今回のハングと private evidence leak の原因整理
+- `notes/todo/yulang-hardening-phase.md` — 直近一週間と一ヶ月の作業順
+
+直近で守ること:
+
+- solver 大改造や高速化を始める前に、public signature golden test と opt-in metrics を置く。
+- `compose_for_replay()` に `pop(n) -> pop(1)` clamp を戻さない。
+- same-boundary alias-cycle subsumption を型等式として説明しない。
+- public scheme に `#...` / `AllExcept(...)` / private tail が漏れたら regression として扱う。
+- WSL2 が落ちやすいため、長い test は必ず `timeout` を付ける。
+
 ## 仕様（実装の根拠）
 
 - `spec/2026-05-31-effect-variable-subtractable.md` — stack 重みによる effect subtraction
@@ -58,10 +78,10 @@ effect subtraction の主性と colored soundness の定式化が更新された
 
 ## 直近の優先順位
 
-0. directed stack weight proof に合わせて infer の effect subtraction 中核を直す。
-   - まず `notes/design/2026-06-22-directed-stack-weight-implementation.md` の slice 1〜2。
-   - 左右重みの構造分離、W-Mix、row split を先に固める。
-   - 停止性対策は principal/soundness の意味論と混ぜない。
+0. hardening freeze を置き、`ref.update` 修正で得た不変量をテスト・文書・metrics へ固定する。
+   - `docs/infer-solver-invariants.md` を solver 変更前の入口にする。
+   - `std.control.var.ref.update` などの public signature golden test を先に足す。
+   - metrics は opt-in の観測だけにし、最適化や clamp と混ぜない。
 1. public regression suite を先に固める。
    - playground で見つけた例、effect/thunk/specialize2 の境界、concrete subtype mismatch を小さい fixture にする。
    - 今後の refactor と release 作業の足場になるため最優先。

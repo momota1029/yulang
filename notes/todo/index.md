@@ -7,6 +7,9 @@
 
 今やるべきことは「公開して触れる状態」を作るための順番で見る。
 
+0. `yulang-hardening-phase.md`
+   - 2026-06-23 の `ref.update` / directed stack weight 修正を境に、しばらくは新機能より solver hardening を優先する。
+   - invariant doc、public signature golden test、opt-in metrics、stable/nightly playground 運用を同じ流れで扱う。
 1. `testing.md`
    - playground で見つけた regression と最近直した effect/thunk/specialize2 境界を fixture 化する。
    - public examples を CLI / wasm / Rust test のどこで固定するか決める。
