@@ -277,11 +277,12 @@ impl<'a> TaskSolver<'a> {
             param,
             types::runtime_shape(parts.arg_effect.clone(), parts.arg.clone()),
         )?;
-        let body_ty = self.expr(body)?;
+        let expected_body = types::runtime_shape(parts.ret_effect.clone(), parts.ret.clone());
+        let body_ty = self.expr_with_signature(body, expected_body.clone())?;
         let (ret, ret_effect) = split_runtime_computation_shape(body_ty);
         self.graph.constrain_subtype(
             types::runtime_shape(ret_effect.clone(), ret.clone()),
-            types::runtime_shape(parts.ret_effect.clone(), parts.ret.clone()),
+            expected_body,
         )?;
         Ok(Type::Fun {
             arg: Box::new(parts.arg),

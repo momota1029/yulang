@@ -507,6 +507,42 @@ fn run_with_std_runs_list_view_raw_node() {
 
 #[cfg(unix)]
 #[test]
+fn run_with_std_handles_composed_nested_effect_contracts() {
+    let entry = write_main_with_std(
+        "run-std-composed-nested-effect-contracts",
+        "act flip:\n\
+             \x20 our coin: () -> bool\n\
+             act amount:\n\
+             \x20 our coin: () -> int\n\n\
+             our all_paths(action: [flip] _) = catch action:\n\
+             \x20 flip::coin(), k -> all_paths(k true) + all_paths(k false)\n\
+             \x20 v -> [v]\n\n\
+             our total_amount(action: [amount] _) =\n\
+             \x20 my loop(n, action: [amount] _) = catch action:\n\
+             \x20 \x20 amount::coin(), k -> loop(n, k n)\n\
+             \x20 \x20 v -> v\n\
+             \x20 [loop(1, action), loop(2, action)]\n\n\
+             our compose(f, g, x: [_] _) = f g(x)\n\n\
+             compose(total_amount, all_paths):\n\
+             \x20 my a = if flip::coin(): amount::coin() else: 0\n\
+             \x20 my b = if flip::coin(): amount::coin() * 10 else: 0\n\
+             \x20 my c = if flip::coin(): amount::coin() * 100 else: 0\n\
+             \x20 a + b + c\n",
+    );
+
+    let control_text = run_with_vm_test_stack({
+        let entry = entry.clone();
+        move || run_control_from_entry_with_std(entry).unwrap().text
+    });
+
+    assert_eq!(
+        control_text,
+        "run roots [[[111, 11, 101, 1, 110, 10, 100, 0], [222, 22, 202, 2, 220, 20, 200, 0]]]\n"
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn dump_mono_with_std_specializes_list_display() {
     let root = temp_root("dump-mono-std-list-display");
     let _ = fs::remove_dir_all(&root);
