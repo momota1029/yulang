@@ -94,6 +94,38 @@ analysis.instantiate_unique_targets: 292
 analysis.instantiate_reused_target_events: 804
 ```
 
+## Follow-up: Role Resolve Metrics Slice
+
+After adding role resolve counters and moving post-work SCC routing out of
+`analysis.work_*` timing, the same `check-poly-std examples/showcase.yu` smoke showed:
+
+```text
+infer: 2.615s
+constraint.drain: 891.1ms
+constraint.replay_enqueued: 659985
+analysis.route_scc_events: 1.527s
+analysis.route_scc_quantify: 1.167s
+analysis.route_scc_instantiate: 358.6ms
+analysis.work_apply_select_typeclass_method: 17.6ms
+analysis.role_solve: 242.9ms
+analysis.quantify_generalize: 1.125s
+analysis.generalize_resolve_roles: 141.4ms
+analysis.instantiate: 357.4ms
+analysis.role_demand_count: 2323
+analysis.role_resolve_demands: 481
+analysis.role_resolve_candidate_scans: 3286
+analysis.role_resolve_candidate_matches: 189
+analysis.role_resolve_already_applied: 93
+analysis.role_resolve_candidate_cache_hits: 717
+analysis.role_resolve_candidate_cache_misses: 2569
+```
+
+The earlier `analysis.work_apply_select_typeclass_method: 1.018s` number included
+post-work SCC routing and was also represented in `analysis.route_scc_events`.
+With that double attribution removed, the typeclass method apply item itself is small;
+the current static-analysis bottleneck is still `route_scc_quantify` /
+`quantify_generalize`, followed by constraint replay drain and role solve.
+
 ## Focused Check: `std.control.var.ref`
 
 This uses the same source set, but filters the report to `std.control.var.ref`.

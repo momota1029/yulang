@@ -415,6 +415,7 @@ impl AnalysisSession {
         self.apply_work(work);
         self.timing
             .record_work(timing_kind, start.elapsed(), self.work.len());
+        self.route_scc_events();
         true
     }
 
@@ -437,6 +438,7 @@ impl AnalysisSession {
         let work_elapsed = work_start.elapsed();
         self.timing
             .record_work(timing_kind, work_elapsed, self.work.len());
+        self.route_scc_events();
         trace.work_done(kind, work_elapsed, self.work.len());
         true
     }
@@ -527,7 +529,6 @@ impl AnalysisSession {
             }
             AnalysisWork::Scc(input) => self.apply_scc_input(input),
         }
-        self.route_scc_events();
     }
 
     fn apply_selection_method_use(&mut self, use_site: SelectionUse, target: DefId) {

@@ -165,7 +165,7 @@ impl AnalysisSession {
                 progressed = true;
                 continue;
             }
-            let resolutions = resolve_role_constraints_with_method_taint(
+            let output = resolve_role_constraints_with_method_taint_stats(
                 self.infer.constraints(),
                 &compact,
                 &roles,
@@ -173,11 +173,12 @@ impl AnalysisSession {
                 &self.applied_method_role_resolutions,
                 method_taint,
             );
-            if resolutions.is_empty() {
+            self.timing.record_role_resolve_stats(output.stats);
+            if output.resolutions.is_empty() {
                 break;
             }
 
-            for resolution in resolutions {
+            for resolution in output.resolutions {
                 self.applied_method_role_resolutions
                     .insert(resolution.key.clone());
                 self.constrain_role_resolution(def, &resolution);

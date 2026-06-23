@@ -107,8 +107,20 @@
     - `constraint.replay_enqueued`
     - `analysis.scc_component_count`
     - `analysis.role_demand_count`
+    - `analysis.role_resolve_candidate_scans`
+    - `analysis.role_resolve_prerequisite_candidate_scans`
+    - `analysis.role_resolve_candidate_cache_hits`
+    - `analysis.role_resolve_candidate_cache_misses`
   - これは既存 constraint machine / analysis counter の観測だけであり、solver 最適化や replay 停止条件は変えていない。
     named `max_replay_depth` と、tail 以外を含む完全な row variable kinding は次 slice に残す。
+  - 2026-06-23 の次 slice で、role / typeclass method solve の candidate scan と
+    compact candidate cache hit/miss を出すようにした。
+    `analysis.work_apply_select_typeclass_method` と合わせて、候補走査が本命か、
+    prerequisite / compact 再計算が本命かを切り分ける。
+    同時に post-work SCC routing を `analysis.work_*` timing から外したため、
+    showcase では `analysis.work_apply_select_typeclass_method` は 17.6ms 程度へ下がった。
+    現時点の太い順は `analysis.route_scc_quantify` / `analysis.quantify_generalize`、
+    `constraint.drain`、`analysis.role_solve`。
 - 2026-06-17 performance review で挙がった候補を、まず計測仮説として扱う。
   - P0:
     - source/lower/cache: std/source lowering と file collection/cache 粒度。

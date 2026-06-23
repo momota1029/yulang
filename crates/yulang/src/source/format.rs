@@ -1268,6 +1268,56 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         analysis.quantified_components
     );
     let _ = writeln!(out, "  analysis.role_demand_count: {role_demand_count}");
+    let _ = writeln!(
+        out,
+        "  analysis.role_resolve_demands: {}",
+        analysis.role_resolve_demands
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.role_resolve_candidate_scans: {}",
+        analysis.role_resolve_candidate_scans
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.role_resolve_candidate_matches: {}",
+        analysis.role_resolve_candidate_matches
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.role_resolve_ambiguous_demands: {}",
+        analysis.role_resolve_ambiguous_demands
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.role_resolve_already_applied: {}",
+        analysis.role_resolve_already_applied
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.role_resolve_prerequisite_demands: {}",
+        analysis.role_resolve_prerequisite_demands
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.role_resolve_prerequisite_candidate_scans: {}",
+        analysis.role_resolve_prerequisite_candidate_scans
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.role_resolve_prerequisite_candidate_matches: {}",
+        analysis.role_resolve_prerequisite_candidate_matches
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.role_resolve_candidate_cache_hits: {}",
+        analysis.role_resolve_candidate_cache_hits
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.role_resolve_candidate_cache_misses: {}",
+        analysis.role_resolve_candidate_cache_misses
+    );
 }
 
 pub(super) fn write_check_diagnostics(

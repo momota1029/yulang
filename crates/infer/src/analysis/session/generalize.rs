@@ -189,13 +189,15 @@ impl AnalysisSession {
                 } else {
                     self.timing
                         .record_generalize_role_resolve_inputs(roles.len());
-                    resolve_role_constraints(
+                    let output = resolve_role_constraints_with_stats(
                         self.infer.constraints(),
                         &role_compact,
                         &roles,
                         &self.role_impls,
                         &applied_roles,
-                    )
+                    );
+                    self.timing.record_role_resolve_stats(output.stats);
+                    output.resolutions
                 }
             };
             let resolution_count = resolutions.len();

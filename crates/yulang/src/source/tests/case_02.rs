@@ -1461,6 +1461,8 @@ fn check_poly_std_reports_summary_and_type_errors_without_dumping_defs() {
     assert_check_contains(&output, "  constraint.replay_enqueued: ");
     assert_check_contains(&output, "  analysis.scc_component_count: ");
     assert_check_contains(&output, "  analysis.role_demand_count: ");
+    assert_check_contains(&output, "  analysis.role_resolve_candidate_scans: ");
+    assert_check_contains(&output, "  analysis.role_resolve_candidate_cache_hits: ");
     assert_check_contains(&output, "summary:\n");
     assert_check_contains(&output, "  lowering errors: 1\n");
     assert_check_contains(

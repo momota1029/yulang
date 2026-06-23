@@ -185,6 +185,12 @@ solver 最適化や replay 停止条件は変更しない。
 - `constraint.replay_enqueued`
 - `analysis.scc_component_count`
 - `analysis.role_demand_count`
+- `analysis.role_resolve_demands`
+- `analysis.role_resolve_candidate_scans`
+- `analysis.role_resolve_candidate_matches`
+- `analysis.role_resolve_prerequisite_candidate_scans`
+- `analysis.role_resolve_candidate_cache_hits`
+- `analysis.role_resolve_candidate_cache_misses`
 
 `infer.row_tail_var_count` は row tail として観測された変数数であり、完全な row kinding ではない。
 `max_replay_depth` はまだ持たず、replay 量は `constraint.replay_enqueued` で見る。

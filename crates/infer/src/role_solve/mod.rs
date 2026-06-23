@@ -43,6 +43,26 @@ pub(crate) struct RoleResolution {
     pub(crate) residual_prerequisites: Vec<CompactRoleConstraint>,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct RoleResolveStats {
+    pub demands: usize,
+    pub candidate_scans: usize,
+    pub candidate_matches: usize,
+    pub ambiguous_demands: usize,
+    pub already_applied: usize,
+    pub prerequisite_demands: usize,
+    pub prerequisite_candidate_scans: usize,
+    pub prerequisite_candidate_matches: usize,
+    pub candidate_cache_hits: usize,
+    pub candidate_cache_misses: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RoleResolveOutput {
+    pub resolutions: Vec<RoleResolution>,
+    pub stats: RoleResolveStats,
+}
+
 #[cfg(test)]
 pub(crate) fn coalesce_role_constraints(
     constraints: Vec<CompactRoleConstraint>,
@@ -93,7 +113,17 @@ pub(crate) fn resolve_role_constraints(
     impls: &RoleImplTable,
     applied: &FxHashSet<RoleResolutionKey>,
 ) -> Vec<RoleResolution> {
-    resolve_role_constraints_with_method_taint(
+    resolve_role_constraints_with_stats(machine, main, constraints, impls, applied).resolutions
+}
+
+pub(crate) fn resolve_role_constraints_with_stats(
+    machine: &ConstraintMachine,
+    main: &CompactRoot,
+    constraints: &[CompactRoleConstraint],
+    impls: &RoleImplTable,
+    applied: &FxHashSet<RoleResolutionKey>,
+) -> RoleResolveOutput {
+    resolve_role_constraints_with_method_taint_stats(
         machine,
         main,
         constraints,
@@ -103,35 +133,43 @@ pub(crate) fn resolve_role_constraints(
     )
 }
 
-pub(crate) fn resolve_role_constraints_with_method_taint(
+pub(crate) fn resolve_role_constraints_with_method_taint_stats(
     machine: &ConstraintMachine,
     main: &CompactRoot,
     constraints: &[CompactRoleConstraint],
     impls: &RoleImplTable,
     applied: &FxHashSet<RoleResolutionKey>,
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
-) -> Vec<RoleResolution> {
+) -> RoleResolveOutput {
     let mut out = Vec::new();
+    let mut stats = RoleResolveStats::default();
     let main_polarity = MainPolarity::collect(main);
     let mut candidate_cache = CompactRoleImplCandidateCache::default();
     for constraint in constraints {
-        let candidates = impls
-            .candidates(&constraint.role)
-            .iter()
-            .filter_map(|candidate| {
-                resolve_role_candidate(
-                    machine,
-                    constraint,
-                    candidate,
-                    &main_polarity,
-                    method_taint,
-                    impls,
-                    &mut candidate_cache,
-                    &mut FxHashSet::default(),
-                )
-            })
-            .collect::<Vec<_>>();
+        stats.demands += 1;
+        let impl_candidates = impls.candidates(&constraint.role);
+        stats.candidate_scans += impl_candidates.len();
+        let mut candidates = Vec::new();
+        for candidate in impl_candidates {
+            if let Some(candidate) = resolve_role_candidate(
+                machine,
+                constraint,
+                candidate,
+                &main_polarity,
+                method_taint,
+                impls,
+                &mut candidate_cache,
+                &mut FxHashSet::default(),
+                &mut stats,
+            ) {
+                candidates.push(candidate);
+            }
+        }
+        stats.candidate_matches += candidates.len();
         if candidates.len() != 1 {
+            if candidates.len() > 1 {
+                stats.ambiguous_demands += 1;
+            }
             continue;
         }
         let resolved = candidates.into_iter().next().expect("candidate");
@@ -140,6 +178,7 @@ pub(crate) fn resolve_role_constraints_with_method_taint(
             candidate: resolved.candidate.clone(),
         };
         if applied.contains(&key) {
+            stats.already_applied += 1;
             continue;
         }
         out.push(RoleResolution {
@@ -150,7 +189,10 @@ pub(crate) fn resolve_role_constraints_with_method_taint(
             residual_prerequisites: resolved.residual_prerequisites,
         });
     }
-    out
+    RoleResolveOutput {
+        resolutions: out,
+        stats,
+    }
 }
 
 /// 入力がすべて concrete 成分を持つ時だけ true。
@@ -214,12 +256,13 @@ fn resolve_role_candidate(
     impls: &RoleImplTable,
     candidate_cache: &mut CompactRoleImplCandidateCache,
     stack: &mut FxHashSet<RoleResolutionKey>,
+    stats: &mut RoleResolveStats,
 ) -> Option<ResolvedCandidate> {
     if constraint.inputs.len() != candidate.inputs.len() {
         return None;
     }
     let raw_candidate = candidate;
-    let candidate = candidate_cache.compact(machine, raw_candidate);
+    let candidate = candidate_cache.compact(machine, raw_candidate, stats);
     let mut subst = TypeSubst::default();
     for (demand, candidate) in constraint.inputs.iter().zip(&candidate.inputs) {
         let demand = role_arg_concrete_type(demand, main_polarity, method_taint)?;
@@ -245,6 +288,7 @@ fn resolve_role_candidate(
         method_taint,
         candidate_cache,
         stack,
+        stats,
     );
     stack.remove(&key);
 
@@ -265,13 +309,16 @@ impl CompactRoleImplCandidateCache {
         &mut self,
         machine: &ConstraintMachine,
         candidate: &RoleImplCandidate,
+        stats: &mut RoleResolveStats,
     ) -> CompactRoleConstraint {
         // The cache lives only for one solve call while `impls` and `machine` are immutable.
         // Pointer identity is enough inside that boundary and avoids cloning the candidate key.
         let key = candidate as *const RoleImplCandidate as usize;
         if let Some(compact) = self.entries.get(&key) {
+            stats.candidate_cache_hits += 1;
             return compact.clone();
         }
+        stats.candidate_cache_misses += 1;
         let mut root = CompactRoot::default();
         let mut roles = vec![compact_role_constraint(machine, &candidate.as_constraint())];
         simplify_compact_root_with_roles_and_non_generic(
@@ -296,28 +343,33 @@ fn resolve_candidate_prerequisites(
     method_taint: &FxHashMap<TypeVar, Vec<SelectId>>,
     candidate_cache: &mut CompactRoleImplCandidateCache,
     stack: &mut FxHashSet<RoleResolutionKey>,
+    stats: &mut RoleResolveStats,
 ) -> ResolvedPrerequisites {
     let mut solved_prerequisites = Vec::new();
     let mut residual_prerequisites = Vec::new();
     for prerequisite in prerequisites {
+        stats.prerequisite_demands += 1;
         let prerequisite =
             rewrite_role_constraint(&compact_role_constraint(machine, prerequisite), subst);
-        let candidates = impls
-            .candidates(&prerequisite.role)
-            .iter()
-            .filter_map(|candidate| {
-                resolve_role_candidate(
-                    machine,
-                    &prerequisite,
-                    candidate,
-                    main_polarity,
-                    method_taint,
-                    impls,
-                    candidate_cache,
-                    stack,
-                )
-            })
-            .collect::<Vec<_>>();
+        let impl_candidates = impls.candidates(&prerequisite.role);
+        stats.prerequisite_candidate_scans += impl_candidates.len();
+        let mut candidates = Vec::new();
+        for candidate in impl_candidates {
+            if let Some(candidate) = resolve_role_candidate(
+                machine,
+                &prerequisite,
+                candidate,
+                main_polarity,
+                method_taint,
+                impls,
+                candidate_cache,
+                stack,
+                stats,
+            ) {
+                candidates.push(candidate);
+            }
+        }
+        stats.prerequisite_candidate_matches += candidates.len();
         if candidates.len() == 1 {
             let resolved = candidates.into_iter().next().expect("candidate");
             solved_prerequisites.push(RoleResolution {

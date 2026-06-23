@@ -7,6 +7,7 @@
 use crate::time::Duration;
 
 use super::{AnalysisWork, SelectionTarget};
+use crate::role_solve::RoleResolveStats;
 use crate::scc::SccStats;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -103,6 +104,16 @@ pub struct AnalysisTiming {
     pub generalize_coalesced_role_constraints: usize,
     pub generalize_dominance_role_constraints: usize,
     pub generalize_role_resolve_inputs: usize,
+    pub role_resolve_demands: usize,
+    pub role_resolve_candidate_scans: usize,
+    pub role_resolve_candidate_matches: usize,
+    pub role_resolve_ambiguous_demands: usize,
+    pub role_resolve_already_applied: usize,
+    pub role_resolve_prerequisite_demands: usize,
+    pub role_resolve_prerequisite_candidate_scans: usize,
+    pub role_resolve_prerequisite_candidate_matches: usize,
+    pub role_resolve_candidate_cache_hits: usize,
+    pub role_resolve_candidate_cache_misses: usize,
     pub generalize_merge_constraints: usize,
     pub generalize_subtype_constraints: usize,
     pub generalize_cast_batches: usize,
@@ -386,6 +397,19 @@ impl AnalysisTiming {
 
     pub(super) fn record_generalize_role_resolve_inputs(&mut self, count: usize) {
         self.generalize_role_resolve_inputs += count;
+    }
+
+    pub(super) fn record_role_resolve_stats(&mut self, stats: RoleResolveStats) {
+        self.role_resolve_demands += stats.demands;
+        self.role_resolve_candidate_scans += stats.candidate_scans;
+        self.role_resolve_candidate_matches += stats.candidate_matches;
+        self.role_resolve_ambiguous_demands += stats.ambiguous_demands;
+        self.role_resolve_already_applied += stats.already_applied;
+        self.role_resolve_prerequisite_demands += stats.prerequisite_demands;
+        self.role_resolve_prerequisite_candidate_scans += stats.prerequisite_candidate_scans;
+        self.role_resolve_prerequisite_candidate_matches += stats.prerequisite_candidate_matches;
+        self.role_resolve_candidate_cache_hits += stats.candidate_cache_hits;
+        self.role_resolve_candidate_cache_misses += stats.candidate_cache_misses;
     }
 
     pub(super) fn record_generalize_component_shape(
