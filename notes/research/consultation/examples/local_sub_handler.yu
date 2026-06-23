@@ -1,0 +1,10 @@
+pub act sub 'a:
+  pub return: 'a -> never
+  pub sub(x: [_] 'a): 'a = catch x:
+    return a, _ -> a
+    a -> a
+
+our use_int = sub::sub:
+  sub::return 0
+
+use_int

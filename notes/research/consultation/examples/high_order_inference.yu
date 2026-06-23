@@ -1,0 +1,5 @@
+our apply f x = f x
+our twice f x = f (f x)
+our use_int = twice (\x -> x + 1) 20
+
+use_int

@@ -35,6 +35,9 @@
    - type surface audit と cache validation が hot path を壊さないようにする。
 6. `yumark.md`
    - syntax parse 済みの Yumark を value model、lowering、runtime、表示へ接続する。
+7. `research-consultation.md`
+   - Yulang の型推論・effect system を研究相談へ持っていくための短い資料、メール、実例を整理する。
+   - 現在の入口は `notes/research/consultation/`。
 
 この流れに効く作業だけを直近の `tasks/current.md` に移す。
 
@@ -54,6 +57,9 @@
 - `parser-combinators.md`
   - parser combinator API。
   - error handling と parser diagnostics が安定するまで広げない。
+- `research-consultation.md`
+  - 研究相談向けのメール・短い技術資料・what-is-new を整える。
+  - 公開準備の外側だが、solver hardening の理論的位置づけを言語化するために近い。
 
 ## 退避済み track
 
