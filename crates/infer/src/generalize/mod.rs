@@ -528,7 +528,6 @@ fn generalize_compact_root_with_simplification(
     prune_unreachable_recursive_bounds(&mut root, &role_predicates);
     cleanup_stack_weights_in_root_and_roles(machine, &mut root, &mut role_predicates);
     cleanup_empty_stack_entries_with_plain_negative_occurrence(&mut root, &mut role_predicates);
-    cleanup_empty_only_stack_ids_in_root_and_roles(machine, &mut root, &mut role_predicates);
     quantifiers =
         quantified_vars_in_root_and_roles(machine, boundary, &root, &role_predicates, non_generic);
     let quantifier_set = quantifiers.iter().copied().collect::<FxHashSet<_>>();

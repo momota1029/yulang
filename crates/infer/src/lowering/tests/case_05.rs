@@ -238,7 +238,7 @@ fn result_annotation_rejects_deferred_partial_application_body() {
 }
 
 #[test]
-fn nested_callback_wildcard_return_keeps_push_and_pop_one() {
+fn nested_callback_wildcard_return_contract_stays_surface() {
     let root = parse("pub full_compose(f: _ -> [_] _, g, x) = g f(x)\n");
     let lower = lower_module_map(&root);
     let module = lower.modules.root_id();
@@ -251,11 +251,39 @@ fn nested_callback_wildcard_return_keeps_push_and_pop_one() {
         poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, full_compose));
     assert_eq!(
         rendered,
-        "('b -> ['a] 'd) -> ('d ['a#0[All]] -> ['e] 'c) -> 'b -> ['e#0] 'c#0"
+        "('b -> ['a] 'd) -> ('d ['a] -> ['e] 'c) -> 'b -> ['e] 'c"
     );
     assert!(
         !rendered.contains("4294967295"),
         "annotation pop must not be rendered as the instantiate sentinel: {rendered}"
+    );
+}
+
+#[test]
+fn unannotated_compose_protects_callback_return_from_outer_callee() {
+    let root = parse(concat!(
+        "pub compose1(f, g: _ -> [_] _, x) = f g(x)\n",
+        "pub compose2(f, g, x) = f g(x)\n",
+    ));
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (compose1, _) = binding_def_and_order(&lower.modules, module, "compose1");
+    let (compose2, _) = binding_def_and_order(&lower.modules, module, "compose2");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let compose1 =
+        poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, compose1));
+    let compose2 =
+        poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, compose2));
+    assert_eq!(
+        compose1,
+        "('d ['a] -> ['e] 'c) -> ('b -> ['a] 'd) -> 'b -> ['e] 'c"
+    );
+    assert_eq!(
+        compose2,
+        "('c ['d#1[Empty]] -> ['e] 'b) -> ('a -> ['d#1[Empty]] 'c) -> 'a -> ['e#1] 'b#1"
     );
 }
 

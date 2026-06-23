@@ -307,6 +307,15 @@ impl<'a> AnnConstraintLowerer<'a> {
             });
         }
 
+        if self.parameter_function_boundary && effect_row_has_wildcard(row) {
+            let effect = self.function_boundary_effect_stack_inner(row)?;
+            return Ok(AnnEffectBounds {
+                pos: self.alloc_pos(Pos::Var(effect)),
+                neg: self.alloc_neg(Neg::Var(effect)),
+                subtracts: Vec::new(),
+            });
+        }
+
         let effect = if self.parameter_function_boundary {
             self.function_boundary_effect_stack_inner(row)?
         } else {

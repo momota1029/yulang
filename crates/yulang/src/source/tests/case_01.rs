@@ -522,7 +522,7 @@ fn run_with_std_handles_composed_nested_effect_contracts() {
              \x20 \x20 amount::coin(), k -> loop(n, k n)\n\
              \x20 \x20 v -> v\n\
              \x20 [loop(1, action), loop(2, action)]\n\n\
-             our compose(f, g, x: [_] _) = f g(x)\n\n\
+             our compose(f, g: _ -> [_] _, x: [_] _) = f g(x)\n\n\
              compose(total_amount, all_paths):\n\
              \x20 my a = if flip::coin(): amount::coin() else: 0\n\
              \x20 my b = if flip::coin(): amount::coin() * 10 else: 0\n\

@@ -178,6 +178,11 @@ my compose f g x = f (g x)
 偶然捕捉してはならない。その effect は `f` の本体から発生したものではなく、`compose` の
 呼出し側から渡された computation に由来するからである。
 
+逆に、`f` に `g x` の residual effect を意図的に捕捉させたい場合は、`g` の戻り effect を
+surface contract として明示する。例えば、前節の `total_amount` と `all_paths` を `compose`
+で合成する canary では、第三引数を computation として渡す `x: [_] _` と、`g(x)` の residual
+effect を `f` へ見せる `g: _ -> [_] _` の両方が必要になる。
+
 しかし、ordinary effect row だけで公開型を書くと、次のような形になる。
 
 ```text
@@ -192,17 +197,17 @@ my compose f g x = f (g x)
 概略化すると、次のような情報が必要になる。
 
 ```text
-('a ['b#1[]] -> ['c] 'd) -> ('e -> ['b#1[]] 'a) -> 'e -> ['c#1] 'd
+('a ['b#1[Empty]] -> ['c] 'd) -> ('e -> ['b#1[Empty]] 'a) -> 'e -> ['c#1] 'd
 ```
 
-ここで `#1[]` は、ある handler boundary `#1` を通るときに、この occurrence からは何も
+ここで `#1[Empty]` は、ある handler boundary `#1` を通るときに、この occurrence からは何も
 subtract できないことを表す内部証拠である。`#1` が付いた return-side occurrence は、その
 boundary を抜けたあとで制約を対応づけるための証拠である。
 
-この `#...` 表記は user-facing な型に出したいものではない。外に見せたいのは ordinary
-effect row を持つ公開型であり、hidden weighted scheme は handler hygiene を保つための
-内部証拠である。研究相談として判断したいのは、この hidden weighted scheme と public
-projection のどちらに principalness を述べるべきか、またその関係をどう定式化すべきかである。
+現行 compiler dump では、`#... [Empty]` は hygiene を説明する証拠として public scheme 表示に
+残り得る。一方で、利用者に見せたい通常の API 型としては ordinary effect row への projection も
+考えられる。研究相談として判断したいのは、この weighted scheme と public projection のどちらに
+principalness を述べるべきか、またその関係をどう定式化すべきかである。
 
 ## 6. Weighted subtype constraints
 

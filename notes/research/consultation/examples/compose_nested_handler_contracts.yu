@@ -14,7 +14,7 @@ our total_amount(action: [amount] _) =
         v -> v
     [loop(1, action), loop(2, action)]
 
-our compose(f, g, x: [_] _) = f g(x)
+our compose(f, g: _ -> [_] _, x: [_] _) = f g(x)
 
 compose(total_amount, all_paths):
     my a = if flip::coin(): amount::coin() else: 0

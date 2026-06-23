@@ -867,7 +867,7 @@ impl<'a> ExprLowerer<'a> {
             predicate,
             call_predicate,
             call_erased_upper,
-            call_projection_enabled: !callable_annotation_has_wildcard(&ann),
+            call_projection_enabled: !callable_annotation_has_effect_wildcard(&ann),
             call_return_effect: LocalCallReturnEffect::Annotated,
         })
     }
@@ -906,10 +906,10 @@ fn callable_annotation_has_effect_head(ann: &AnnType) -> bool {
     }
 }
 
-fn callable_annotation_has_wildcard(ann: &AnnType) -> bool {
+fn callable_annotation_has_effect_wildcard(ann: &AnnType) -> bool {
     match ann {
         AnnType::Effectful { eff, ret } => {
-            effect_row_has_wildcard(eff) || callable_annotation_has_wildcard(ret)
+            effect_row_has_wildcard(eff) || callable_annotation_has_effect_wildcard(ret)
         }
         AnnType::Function {
             param,
@@ -917,12 +917,12 @@ fn callable_annotation_has_wildcard(ann: &AnnType) -> bool {
             ret_eff,
             ret,
         } => {
-            callable_annotation_has_wildcard(param)
+            callable_annotation_has_effect_wildcard(param)
                 || arg_eff.as_ref().is_some_and(effect_row_has_wildcard)
                 || ret_eff.as_ref().is_some_and(effect_row_has_wildcard)
-                || callable_annotation_has_wildcard(ret)
+                || callable_annotation_has_effect_wildcard(ret)
         }
-        AnnType::Tuple(items) => items.iter().any(callable_annotation_has_wildcard),
+        AnnType::Tuple(items) => items.iter().any(callable_annotation_has_effect_wildcard),
         _ => false,
     }
 }
@@ -982,6 +982,9 @@ fn lambda_annotation_predicate_constraints(
     ann: &AnnType,
     connection: AnnComputationConnection,
 ) -> PredicateOutputConstraints {
+    if matches!(ann, AnnType::Function { .. }) && callable_annotation_has_effect_wildcard(ann) {
+        return PredicateOutputConstraints::default();
+    }
     let AnnType::Effectful { eff, .. } = ann else {
         return PredicateOutputConstraints {
             subtracts: connection.subtracts,

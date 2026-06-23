@@ -497,7 +497,6 @@ impl<'a> ExprLowerer<'a> {
         if local.call_return_effect != LocalCallReturnEffect::Unannotated {
             return ApplicationReturnEffect { upper: bare, lower };
         }
-
         let Some(frame_index) = self.unannotated_call_frame_index(local) else {
             return ApplicationReturnEffect { upper: bare, lower };
         };
@@ -516,6 +515,11 @@ impl<'a> ExprLowerer<'a> {
             Some(subtract) => subtract,
             None => {
                 let subtract = self.session.infer.fresh_subtract_id();
+                self.session.infer.declared_subtract_fact(
+                    call_effect,
+                    subtract,
+                    Subtractability::Empty,
+                );
                 let frame = &mut self.function_frames[frame_index];
                 frame.unannotated_call_subtracts.insert(def, subtract);
                 frame.subtracts.push(StackWeight::pop(subtract));
