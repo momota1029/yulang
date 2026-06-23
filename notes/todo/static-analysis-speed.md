@@ -25,6 +25,85 @@
 
 ## TODO
 
+- 2026-06-23 hardening metrics inventory:
+  - 既に `check-poly-std` / `check-poly-std-in` の出力には、analysis / constraint の観測点が入っている。
+    これを hardening phase の solver baseline として使う。
+    - phase time:
+      - `analysis.route`
+      - `analysis.route_scc_events`
+      - `analysis.route_scc_quantify`
+      - `analysis.route_scc_instantiate`
+      - `analysis.work`
+      - `analysis.role`
+      - `analysis.role_solve`
+      - `analysis.quantify`
+      - `analysis.instantiate`
+      - `constraint.drain`
+    - solver work counters:
+      - `constraint.drains`
+      - `constraint.work_items`
+      - `constraint.subtype_work_items`
+      - `constraint.max_initial_queue`
+      - `constraint.max_work_items`
+      - `constraint.lower_bounds_added`
+      - `constraint.upper_bounds_added`
+      - `constraint.lower_replay_inputs`
+      - `constraint.upper_replay_inputs`
+      - `constraint.lower_replay_enqueued`
+      - `constraint.upper_replay_enqueued`
+      - `constraint.lower_replay_var_var`
+      - `constraint.upper_replay_var_var`
+    - SCC / role counters:
+      - `analysis.scc_events`
+      - `analysis.scc_merge_count`
+      - `analysis.scc_merged_component_count`
+      - `analysis.scc_reachability_*`
+      - `analysis.scc_ready_*`
+      - `analysis.role_passes`
+      - `analysis.progressed_role_passes`
+      - `analysis.generalize_*_constraints`
+      - `analysis.instantiate_event_runs`
+      - `analysis.instantiate_max_event_run`
+    - compact / slot proxy:
+      - `analysis.generalize_root_compact_nodes`
+      - `analysis.generalize_root_compact_vars`
+      - `analysis.generalize_component_unique_compact_vars`
+      - `analysis.generalize_compact_iteration_nodes`
+      - `analysis.generalize_compact_iteration_vars`
+  - runtime / playground smoke 側は `--runtime-phase-timings` を使う。
+    - `run.build_poly`
+    - `run.specialize`
+    - `run.control_lower`
+    - `run.vm_eval`
+    - `run.runtime_execute`
+    - `run.effect_requests`
+    - `run.request_resume_steps`
+    - `run.marker_*`
+    - `run.continuation_*`
+  - すぐ使う baseline command:
+
+    ```sh
+    timeout 180s cargo run -q -p yulang -- --std-root lib check-poly-std examples/showcase.yu
+    timeout 180s cargo run -q -p yulang -- --std-root lib check-poly-std-in examples/showcase.yu std.control.var.ref
+    timeout 240s cargo run -q -p yulang -- --std-root lib --runtime-phase-timings --no-cache run --print-roots examples/showcase.yu
+    timeout 300s bench/static_analysis_bench.sh --repeat 3 --infer-only examples/showcase.yu
+    ```
+
+  - 足りないもの:
+    - named `slot_count` はまだ無い。現状は compact var count と constraint var/bound/replay count を proxy にする。
+    - named `row_variable_count` はまだ無い。row variable だけを分けるなら `TypeArena` / constraint graph の structured count が必要。
+    - named `edge_count` はまだ無い。現状は `constraint.lower_bounds_added` / `upper_bounds_added` と SCC edge counters を proxy にする。
+    - max replay depth はまだ無い。現状は `lower_replay_enqueued` / `upper_replay_enqueued` と max queue を proxy にする。
+    - `solve_slots` という phase 名は現行 pipeline に直接対応しない。いまは `analysis.quantify_*` / `analysis.generalize_*` / `constraint.drain` に分けて読む。
+  - 次に code を足すなら、最初の slice は opt-in 出力名だけ増やす。
+    - `infer.slot_count`
+    - `infer.row_var_count`
+    - `constraint.edge_count`
+    - `constraint.max_replay_depth`
+    - `analysis.scc_component_count`
+    - `analysis.role_demand_count`
+    - デフォルト出力を増やさず、`YULANG_ANALYSIS_TIMING=1` か `check-poly` timing block へ限定する。
+    - 同じ commit で solver 最適化や replay 停止条件を変更しない。
 - 2026-06-17 performance review で挙がった候補を、まず計測仮説として扱う。
   - P0:
     - source/lower/cache: std/source lowering と file collection/cache 粒度。

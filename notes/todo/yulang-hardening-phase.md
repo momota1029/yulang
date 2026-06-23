@@ -51,6 +51,17 @@ handler hygiene のどれに関わるかを明示する。
 - infer / mono / run の phase time
 
 metrics は環境変数か feature flag で有効化し、デフォルト出力を汚さない。
+現行で拾える counter と不足している counter は `notes/todo/static-analysis-speed.md` の
+`2026-06-23 hardening metrics inventory` に置く。
+
+すぐ使うコマンド:
+
+```sh
+timeout 180s cargo run -q -p yulang -- --std-root lib check-poly-std examples/showcase.yu
+timeout 240s cargo run -q -p yulang -- --std-root lib --runtime-phase-timings --no-cache run --print-roots examples/showcase.yu
+```
+
+現時点では、新しい探索停止や高速化は入れない。
 
 ### 4. Public Signature Golden Tests
 

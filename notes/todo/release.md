@@ -28,6 +28,16 @@ release artifact
     Pages/deploy job と接続する。
   - Zed extension はこの repo の `yulang-zed/` を source copy とし、別 repository
     `momota1029/yulang-zed` へ同期する運用を別 slice にする。
+- playground deploy の stable / nightly 分離を決める。
+  - stable playground:
+    - README / 記事 / public docs から飛ばす先。
+    - release tag または明示した stable commit から deploy する。
+    - `main` の solver 改修を自動で直結しない。
+  - nightly playground:
+    - solver / std / docs の実験を触る先。
+    - 壊れてよい代わりに、deploy commit と build time を表示できるようにする。
+  - 初期は deploy script の出力先を分けるだけでよい。
+    stable URL / nightly URL / docs のリンク方針は別 commit で固定する。
 - cargo を介さない smoke を作る。
   - executable path を引数で受け取る。
   - `yulang install std`
