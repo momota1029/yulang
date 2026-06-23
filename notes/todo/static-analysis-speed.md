@@ -26,6 +26,7 @@
 ## TODO
 
 - 2026-06-23 hardening metrics inventory:
+  - First baseline: `../benchmarks/2026-06-23-hardening-baseline.md`.
   - 既に `check-poly-std` / `check-poly-std-in` の出力には、analysis / constraint の観測点が入っている。
     これを hardening phase の solver baseline として使う。
     - phase time:
