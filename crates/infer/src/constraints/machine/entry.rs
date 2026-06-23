@@ -134,10 +134,21 @@ impl ConstraintMachine {
     }
 
     pub(crate) fn constrain_invariant_neu(&mut self, lower: NeuId, upper: NeuId) -> bool {
-        self.timing.record_constrain_invariant_neu_call();
+        self.constrain_invariant_neus([(lower, upper)])
+    }
+
+    pub(crate) fn constrain_invariant_neus(
+        &mut self,
+        pairs: impl IntoIterator<Item = (NeuId, NeuId)>,
+    ) -> bool {
         let seen_len = self.seen.len();
-        self.enqueue_invariant_neu(lower, upper, ConstraintWeights::empty());
-        self.drain();
+        for (lower, upper) in pairs {
+            self.timing.record_constrain_invariant_neu_call();
+            self.enqueue_invariant_neu(lower, upper, ConstraintWeights::empty());
+        }
+        if !self.queue.is_empty() {
+            self.drain();
+        }
         self.seen.len() != seen_len
     }
 

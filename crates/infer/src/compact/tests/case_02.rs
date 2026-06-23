@@ -792,6 +792,28 @@ fn interval_dominance_generates_subtype_for_single_lower_variable() {
 }
 
 #[test]
+fn interval_dominance_does_not_emit_associated_constraints() {
+    let lower = TypeVar(1);
+    let upper = TypeVar(2);
+    let root = CompactRoot::default();
+    let roles = vec![CompactRoleConstraint {
+        role: vec!["Iterator".into()],
+        inputs: Vec::new(),
+        associated: vec![CompactRoleAssociatedType {
+            name: "Item".into(),
+            value: CompactRoleArg::invariant(CompactBounds::Interval {
+                lower: CompactType::from_var(CompactVar::plain(lower)),
+                upper: CompactType::from_var(CompactVar::plain(upper)),
+            }),
+        }],
+    }];
+
+    let constraints = collect_interval_dominance_constraints(&root, &roles);
+
+    assert!(constraints.is_empty());
+}
+
+#[test]
 fn merge_rows_coalesces_con_items_by_path() {
     let merged = merge_compact_types(
         true,

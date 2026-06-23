@@ -168,6 +168,31 @@ analysis.generalize_role_resolutions: 96
 Next optimization candidates are dominance/prepared recomputation and constraint
 drain batching, not SCC batching for large components.
 
+## Follow-up: Small Drain/Dominance Cut
+
+The next slice kept semantics the same and made two small mechanical cuts:
+
+- interval dominance collection records interval sites during the polarity-count
+  traversal, then processes only those interval sites;
+- role resolution batches invariant equality constraints for one resolved role.
+
+Showcase after this slice:
+
+```text
+constraint.drains: 17432
+constraint.empty_drains: 70
+constraint.work_items: 91664
+analysis.quantify_generalize_roots_with_restarts: 129
+analysis.quantify_generalize_max_iterations_per_root: 7
+analysis.quantify_generalize_max_restarts_per_root: 6
+```
+
+Before the slice, the same counters were `constraint.drains: 17623` and
+`constraint.empty_drains: 261`. The wall-clock impact was within local WSL2 noise:
+`constraint.drain` remained around 865-892ms and `quantify_generalize` around
+1.14-1.18s. The useful conclusion is that reducing drain count alone is not enough;
+the remaining work is replay volume and per-root generalize work.
+
 ## Focused Check: `std.control.var.ref`
 
 This uses the same source set, but filters the report to `std.control.var.ref`.

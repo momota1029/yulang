@@ -485,25 +485,20 @@ impl AnalysisSession {
         for prerequisite in &resolution.residual_prerequisites {
             self.insert_residual_role_constraint(def, prerequisite);
         }
-        for (demand, candidate) in resolution
+        let input_pairs = resolution
             .demand
             .inputs
             .iter()
-            .zip(&resolution.candidate.inputs)
-        {
-            self.constrain_role_arg_equal(demand, candidate);
-        }
-        for demand in &resolution.demand.associated {
-            let Some(candidate) = resolution
+            .zip(&resolution.candidate.inputs);
+        let associated_pairs = resolution.demand.associated.iter().filter_map(|demand| {
+            resolution
                 .candidate
                 .associated
                 .iter()
                 .find(|candidate| candidate.name == demand.name)
-            else {
-                continue;
-            };
-            self.constrain_role_arg_equal(&demand.value, &candidate.value);
-        }
+                .map(|candidate| (&demand.value, &candidate.value))
+        });
+        self.constrain_role_args_equal(input_pairs.chain(associated_pairs));
     }
 
     pub(super) fn insert_residual_role_constraint(
@@ -544,20 +539,23 @@ impl AnalysisSession {
         self.role_arg_from_neu(neu)
     }
 
-    pub(super) fn constrain_role_arg_equal(
+    pub(super) fn constrain_role_args_equal<'a>(
         &mut self,
-        demand: &CompactRoleArg,
-        candidate: &CompactRoleArg,
+        pairs: impl IntoIterator<Item = (&'a CompactRoleArg, &'a CompactRoleArg)>,
     ) {
-        let (candidate, demand) = {
+        let pairs = {
             let constraints = self.infer.constraints_mut();
-            let candidate = finalize_compact_bounds_to_constraint(constraints, &candidate.bounds);
-            let demand = finalize_compact_bounds_to_constraint(constraints, &demand.bounds);
-            (candidate, demand)
+            pairs
+                .into_iter()
+                .map(|(demand, candidate)| {
+                    let candidate =
+                        finalize_compact_bounds_to_constraint(constraints, &candidate.bounds);
+                    let demand = finalize_compact_bounds_to_constraint(constraints, &demand.bounds);
+                    (candidate, demand)
+                })
+                .collect::<Vec<_>>()
         };
-        self.infer
-            .constraints_mut()
-            .constrain_invariant_neu(candidate, demand);
+        self.infer.constraints_mut().constrain_invariant_neus(pairs);
     }
 
     pub(super) fn constrain_compact_cast(&mut self, application: &CompactCastApplication) {

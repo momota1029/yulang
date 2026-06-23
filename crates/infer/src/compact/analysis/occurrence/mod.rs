@@ -72,21 +72,6 @@ pub(super) fn collect_var_polarities(
     out
 }
 
-pub(super) fn collect_var_polarity_counts(
-    root: &CompactRoot,
-    roles: &[CompactRoleConstraint],
-) -> VarPolarityCounts {
-    let mut out = VarPolarityCounts::default();
-    visit_type_polarity_counts(&root.root, Polarity::Positive, &mut out);
-    for rec in &root.rec_vars {
-        visit_bounds_polarity_counts(&rec.bounds, Polarity::Positive, &mut out);
-    }
-    for role in roles {
-        visit_role_polarity_counts(role, &mut out);
-    }
-    out
-}
-
 pub(super) fn collect_main_var_polarities(root: &CompactRoot) -> VarPolarities {
     let mut out = VarPolarities::default();
     visit_type_polarity(&root.root, Polarity::Positive, &mut out);
@@ -121,18 +106,6 @@ pub(super) fn visit_role_arg_polarity(
         | (_, CompactRoleArgPolarity::Covariant | CompactRoleArgPolarity::Contravariant) => {
             visit_bounds_polarity(&arg.bounds, polarity, out);
         }
-    }
-}
-
-pub(super) fn visit_role_polarity_counts(
-    role: &CompactRoleConstraint,
-    out: &mut VarPolarityCounts,
-) {
-    for input in &role.inputs {
-        visit_bounds_polarity_counts(&input.bounds, Polarity::Positive, out);
-    }
-    for associated in &role.associated {
-        visit_bounds_polarity_counts(&associated.value.bounds, Polarity::Positive, out);
     }
 }
 
@@ -184,58 +157,6 @@ pub(super) fn visit_type_polarity(ty: &CompactType, polarity: Polarity, out: &mu
     }
 }
 
-pub(super) fn visit_type_polarity_counts(
-    ty: &CompactType,
-    polarity: Polarity,
-    out: &mut VarPolarityCounts,
-) {
-    for var in &ty.vars {
-        out.record(var.var, polarity);
-    }
-    for args in ty.cons.values() {
-        for arg in args {
-            visit_bounds_polarity_counts(arg, polarity, out);
-        }
-    }
-    for fun in &ty.funs {
-        visit_type_polarity_counts(&fun.arg, polarity.flipped(), out);
-        visit_type_polarity_counts(&fun.arg_eff, polarity.flipped(), out);
-        visit_type_polarity_counts(&fun.ret_eff, polarity, out);
-        visit_type_polarity_counts(&fun.ret, polarity, out);
-    }
-    for record in &ty.records {
-        for field in &record.fields {
-            visit_type_polarity_counts(&field.value, polarity, out);
-        }
-    }
-    for spread in &ty.record_spreads {
-        for field in &spread.fields {
-            visit_type_polarity_counts(&field.value, polarity, out);
-        }
-        visit_type_polarity_counts(&spread.tail, polarity, out);
-    }
-    for variant in &ty.poly_variants {
-        for (_, payloads) in &variant.items {
-            for payload in payloads {
-                visit_type_polarity_counts(payload, polarity, out);
-            }
-        }
-    }
-    for tuple in &ty.tuples {
-        for item in &tuple.items {
-            visit_type_polarity_counts(item, polarity, out);
-        }
-    }
-    for row in &ty.rows {
-        for args in row.items.values() {
-            for arg in args {
-                visit_bounds_polarity_counts(arg, polarity, out);
-            }
-        }
-        visit_type_polarity_counts(&row.tail, polarity, out);
-    }
-}
-
 pub(super) fn visit_bounds_polarity(
     bounds: &CompactBounds,
     polarity: Polarity,
@@ -282,51 +203,6 @@ pub(super) fn visit_bounds_polarity(
     }
 }
 
-pub(super) fn visit_bounds_polarity_counts(
-    bounds: &CompactBounds,
-    polarity: Polarity,
-    out: &mut VarPolarityCounts,
-) {
-    match bounds {
-        CompactBounds::Interval { lower, upper } => {
-            visit_type_polarity_counts(lower, polarity, out);
-            visit_type_polarity_counts(upper, polarity.flipped(), out);
-        }
-        CompactBounds::Con { args, .. } => {
-            for arg in args {
-                visit_bounds_polarity_counts(arg, polarity, out);
-            }
-        }
-        CompactBounds::Fun {
-            arg,
-            arg_eff,
-            ret_eff,
-            ret,
-        } => {
-            visit_bounds_polarity_counts(arg, polarity.flipped(), out);
-            visit_bounds_polarity_counts(arg_eff, polarity.flipped(), out);
-            visit_bounds_polarity_counts(ret_eff, polarity, out);
-            visit_bounds_polarity_counts(ret, polarity, out);
-        }
-        CompactBounds::Record { fields } => {
-            for field in fields {
-                visit_bounds_polarity_counts(&field.value, polarity, out);
-            }
-        }
-        CompactBounds::PolyVariant { items } => {
-            for (_, payloads) in items {
-                for payload in payloads {
-                    visit_bounds_polarity_counts(payload, polarity, out);
-                }
-            }
-        }
-        CompactBounds::Tuple { items } => {
-            for item in items {
-                visit_bounds_polarity_counts(item, polarity, out);
-            }
-        }
-    }
-}
 #[derive(Default)]
 pub(super) struct CoOccurrences {
     pub(super) positive: FxHashMap<TypeVar, FxHashSet<AlongItem>>,

@@ -39,15 +39,61 @@ pub(crate) fn collect_interval_dominance_constraints(
     root: &CompactRoot,
     roles: &[CompactRoleConstraint],
 ) -> Vec<CompactSubtypeConstraint> {
-    let counts = collect_var_polarity_counts(root, roles);
+    let scan = collect_interval_dominance_scan(root, roles);
+    if scan.intervals.is_empty() {
+        return Vec::new();
+    }
     let mut out = Vec::new();
-    visit_type_interval_dominance(&root.root, Polarity::Positive, &counts, &mut out);
+    for interval in &scan.intervals {
+        push_subtype_constraint(&mut out, interval.lower.clone(), interval.upper.clone());
+        collect_interval_dominance_constraint(
+            interval.lower,
+            interval.upper,
+            interval.polarity,
+            &scan.counts,
+            &mut out,
+        );
+    }
+    out
+}
+
+#[derive(Default)]
+struct IntervalDominanceScan<'a> {
+    counts: VarPolarityCounts,
+    intervals: Vec<IntervalDominanceInput<'a>>,
+}
+
+struct IntervalDominanceInput<'a> {
+    lower: &'a CompactType,
+    upper: &'a CompactType,
+    polarity: Polarity,
+}
+
+fn collect_interval_dominance_scan<'a>(
+    root: &'a CompactRoot,
+    roles: &'a [CompactRoleConstraint],
+) -> IntervalDominanceScan<'a> {
+    let mut out = IntervalDominanceScan::default();
+    visit_type_polarity_counts_and_intervals(&root.root, Polarity::Positive, true, &mut out);
     for rec in &root.rec_vars {
-        visit_bounds_interval_dominance(&rec.bounds, Polarity::Positive, &counts, &mut out);
+        visit_bounds_polarity_counts_and_intervals(&rec.bounds, Polarity::Positive, true, &mut out);
     }
     for role in roles {
         for input in &role.inputs {
-            visit_bounds_interval_dominance(&input.bounds, Polarity::Positive, &counts, &mut out);
+            visit_bounds_polarity_counts_and_intervals(
+                &input.bounds,
+                Polarity::Positive,
+                true,
+                &mut out,
+            );
+        }
+        for associated in &role.associated {
+            visit_bounds_polarity_counts_and_intervals(
+                &associated.value.bounds,
+                Polarity::Positive,
+                false,
+                &mut out,
+            );
         }
     }
     out
@@ -140,22 +186,32 @@ fn has_interval_bounds_in_type(ty: &CompactType) -> bool {
         })
 }
 
-pub(super) fn visit_bounds_interval_dominance(
-    bounds: &CompactBounds,
+fn visit_bounds_polarity_counts_and_intervals<'a>(
+    bounds: &'a CompactBounds,
     polarity: Polarity,
-    counts: &VarPolarityCounts,
-    out: &mut Vec<CompactSubtypeConstraint>,
+    record_intervals: bool,
+    out: &mut IntervalDominanceScan<'a>,
 ) {
     match bounds {
         CompactBounds::Interval { lower, upper } => {
-            push_subtype_constraint(out, lower.clone(), upper.clone());
-            collect_interval_dominance_constraint(lower, upper, polarity, counts, out);
-            visit_type_interval_dominance(lower, polarity, counts, out);
-            visit_type_interval_dominance(upper, polarity.flipped(), counts, out);
+            if record_intervals {
+                out.intervals.push(IntervalDominanceInput {
+                    lower,
+                    upper,
+                    polarity,
+                });
+            }
+            visit_type_polarity_counts_and_intervals(lower, polarity, record_intervals, out);
+            visit_type_polarity_counts_and_intervals(
+                upper,
+                polarity.flipped(),
+                record_intervals,
+                out,
+            );
         }
         CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
             for arg in args {
-                visit_bounds_interval_dominance(arg, polarity, counts, out);
+                visit_bounds_polarity_counts_and_intervals(arg, polarity, record_intervals, out);
             }
         }
         CompactBounds::Fun {
@@ -164,73 +220,106 @@ pub(super) fn visit_bounds_interval_dominance(
             ret_eff,
             ret,
         } => {
-            visit_bounds_interval_dominance(arg, polarity.flipped(), counts, out);
-            visit_bounds_interval_dominance(arg_eff, polarity.flipped(), counts, out);
-            visit_bounds_interval_dominance(ret_eff, polarity, counts, out);
-            visit_bounds_interval_dominance(ret, polarity, counts, out);
+            visit_bounds_polarity_counts_and_intervals(
+                arg,
+                polarity.flipped(),
+                record_intervals,
+                out,
+            );
+            visit_bounds_polarity_counts_and_intervals(
+                arg_eff,
+                polarity.flipped(),
+                record_intervals,
+                out,
+            );
+            visit_bounds_polarity_counts_and_intervals(ret_eff, polarity, record_intervals, out);
+            visit_bounds_polarity_counts_and_intervals(ret, polarity, record_intervals, out);
         }
         CompactBounds::Record { fields } => {
             for field in fields {
-                visit_bounds_interval_dominance(&field.value, polarity, counts, out);
+                visit_bounds_polarity_counts_and_intervals(
+                    &field.value,
+                    polarity,
+                    record_intervals,
+                    out,
+                );
             }
         }
         CompactBounds::PolyVariant { items } => {
             for (_, payloads) in items {
                 for payload in payloads {
-                    visit_bounds_interval_dominance(payload, polarity, counts, out);
+                    visit_bounds_polarity_counts_and_intervals(
+                        payload,
+                        polarity,
+                        record_intervals,
+                        out,
+                    );
                 }
             }
         }
     }
 }
 
-pub(super) fn visit_type_interval_dominance(
-    ty: &CompactType,
+fn visit_type_polarity_counts_and_intervals<'a>(
+    ty: &'a CompactType,
     polarity: Polarity,
-    counts: &VarPolarityCounts,
-    out: &mut Vec<CompactSubtypeConstraint>,
+    record_intervals: bool,
+    out: &mut IntervalDominanceScan<'a>,
 ) {
+    for var in &ty.vars {
+        out.counts.record(var.var, polarity);
+    }
     for args in ty.cons.values() {
         for arg in args {
-            visit_bounds_interval_dominance(arg, polarity, counts, out);
+            visit_bounds_polarity_counts_and_intervals(arg, polarity, record_intervals, out);
         }
     }
     for fun in &ty.funs {
-        visit_type_interval_dominance(&fun.arg, polarity.flipped(), counts, out);
-        visit_type_interval_dominance(&fun.arg_eff, polarity.flipped(), counts, out);
-        visit_type_interval_dominance(&fun.ret_eff, polarity, counts, out);
-        visit_type_interval_dominance(&fun.ret, polarity, counts, out);
+        visit_type_polarity_counts_and_intervals(
+            &fun.arg,
+            polarity.flipped(),
+            record_intervals,
+            out,
+        );
+        visit_type_polarity_counts_and_intervals(
+            &fun.arg_eff,
+            polarity.flipped(),
+            record_intervals,
+            out,
+        );
+        visit_type_polarity_counts_and_intervals(&fun.ret_eff, polarity, record_intervals, out);
+        visit_type_polarity_counts_and_intervals(&fun.ret, polarity, record_intervals, out);
     }
     for record in &ty.records {
         for field in &record.fields {
-            visit_type_interval_dominance(&field.value, polarity, counts, out);
+            visit_type_polarity_counts_and_intervals(&field.value, polarity, record_intervals, out);
         }
     }
     for spread in &ty.record_spreads {
         for field in &spread.fields {
-            visit_type_interval_dominance(&field.value, polarity, counts, out);
+            visit_type_polarity_counts_and_intervals(&field.value, polarity, record_intervals, out);
         }
-        visit_type_interval_dominance(&spread.tail, polarity, counts, out);
+        visit_type_polarity_counts_and_intervals(&spread.tail, polarity, record_intervals, out);
     }
     for variant in &ty.poly_variants {
         for (_, payloads) in &variant.items {
             for payload in payloads {
-                visit_type_interval_dominance(payload, polarity, counts, out);
+                visit_type_polarity_counts_and_intervals(payload, polarity, record_intervals, out);
             }
         }
     }
     for tuple in &ty.tuples {
         for item in &tuple.items {
-            visit_type_interval_dominance(item, polarity, counts, out);
+            visit_type_polarity_counts_and_intervals(item, polarity, record_intervals, out);
         }
     }
     for row in &ty.rows {
         for args in row.items.values() {
             for arg in args {
-                visit_bounds_interval_dominance(arg, polarity, counts, out);
+                visit_bounds_polarity_counts_and_intervals(arg, polarity, record_intervals, out);
             }
         }
-        visit_type_interval_dominance(&row.tail, polarity, counts, out);
+        visit_type_polarity_counts_and_intervals(&row.tail, polarity, record_intervals, out);
     }
 }
 
