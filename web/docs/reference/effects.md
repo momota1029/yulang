@@ -2,42 +2,60 @@
 
 Algebraic effects are the core of Yulang's approach to side effects.
 
-## Declaring an effect
+## A Minimal Effect
 
 ```yulang
-act console:
-    our read:    () -> str
-    our println: str -> ()
+act flip:
+    our coin: () -> bool
 ```
 
-`act` declares an effect interface. Each operation is listed with a type signature using `our` (visible in the companion) or `pub` (also exported).
+`act` declares an effect family. Each operation is listed with a type signature
+using `our` (visible in the companion) or `pub` (also exported).
 
-A companion module is generated with the same name, and operations are reachable as `console::read`, `console::println`, etc.
+A companion module is generated with the same name, and operations are
+reachable as `flip::coin`, `console::read`, and so on.
 
 ## Calling an effect
 
 Effect operations are called like ordinary functions:
 
 ```yulang
-say "hello"
-my line = console::read()
+my bit = flip::coin()
 ```
 
-Calling an operation acquires its effect on the enclosing function's type. A function that calls `console::read` has `console` in its effect row.
+Calling an operation acquires its effect on the enclosing computation. A
+function that calls `flip::coin` has `flip` in its effect row.
 
 ## Handling an effect
 
 ```yulang
-our run_console(action: [console] 'a): 'a = catch action:
-    console::read(),    k -> run_console(k 42)
-    console::println _, k -> run_console(k ())
+our all_paths(action: [flip] _) = catch action:
+    flip::coin(), k -> all_paths(k true) + all_paths(k false)
+    v -> [v]
+
+all_paths:
+    my a = if flip::coin(): 1 else: 0
+    my b = if flip::coin(): 10 else: 0
+    my c = if flip::coin(): 100 else: 0
+    a + b + c
 ```
 
 `catch expr:` introduces a handler. Each operation arm receives the operation's arguments and a continuation `k`; calling `k value` resumes the original computation with that value. A handler may also include a final value arm `v -> ...` that runs when the inner computation completes normally.
 
-For direct code, a handler behaves like row subtraction. If `action` has a
-computation type like `[console; e] 'a`, then `run_console action` consumes the
-visible `console` operations and keeps only the remaining effects.
+Here `flip::coin()` looks like a function call, but it performs an operation
+request. The handler receives the captured continuation `k` and resumes it once
+with `true` and once with `false`, so the example enumerates all eight paths.
+
+The important annotation is `action: [flip] _`. It is an **effect capture
+contract**: this handler boundary is allowed to consume `flip`, while the value
+type and any residual effects are still inferred. The inferred shape is:
+
+```text
+all_paths : 'a [flip; 'b] -> ['b] list 'a
+```
+
+Read this as: `all_paths` accepts a computation that may perform `flip` plus
+some residual row `'b`; after it handles `flip`, only `'b` remains outside.
 
 The word "visible" matters. In higher-order code, a handler must not catch an
 effect that was brought in by a caller through a function, thunk, or stored
@@ -80,8 +98,22 @@ If `g x` performs an effect, a handler hidden inside `f` is not allowed to catch
 that effect just because both use the same effect family. The effect belongs to
 the computation supplied through `g`.
 
-This is why effect annotations do more than document a row: they also describe
-which effect families are exposed across a higher-order boundary.
+This is why effect annotations do more than document a row: they are local
+contracts saying which effect families are exposed across a higher-order
+boundary.
+
+If you intentionally want `f` to handle the residual effects produced by
+`g(x)`, write that contract explicitly:
+
+```yulang
+our compose(f, g: _ -> [_] _, x: [_] _) = f g(x)
+```
+
+The `x: [_] _` part says that the third argument is a computation. The
+`g: _ -> [_] _` part says that the surface effects of `g(x)` may flow to `f`.
+Without the `g` contract, Yulang protects the callback-origin effects from
+accidental capture; compiler dumps may show that protection as evidence such as
+`#0[Empty]`.
 
 ## Effect rows
 
@@ -128,10 +160,17 @@ An effect row annotation has two roles:
 - it describes the public row that appears in the function type;
 - at higher-order boundaries, it determines what an inner handler may see.
 
-In an argument position, an annotation like `[console] 'a` exposes only
-`console` to handlers inside the receiving function. A wildcard annotation
-`[_] 'a` asks inference to reuse the currently visible surface row; it is not a
-request to drop hygiene evidence.
+In an argument position, an annotation like `[console] 'a` is an effect capture
+contract: handlers inside the receiving function may consume `console` from
+that argument computation. A wildcard annotation `[_] 'a` is a surface contract:
+the ordinary surface row remains visible, but it is not a request to discard
+handler-hygiene evidence elsewhere.
+
+When a callback parameter has no such contract, callback-origin effects are kept
+hygienic. If those effects are passed into another callee, the inferred scheme
+may carry an empty visibility budget, printed in compiler-oriented output as
+`#id[Empty]`. This means "this occurrence cannot be subtracted at that
+boundary"; it is evidence, not a new effect family.
 
 In a result position, a concrete annotation is a static filter. It checks which
 effects may escape, but it does not become a runtime marker and it is not

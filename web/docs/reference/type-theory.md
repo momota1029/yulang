@@ -148,18 +148,24 @@ compatible.
 
 ## What Effect Annotations Mean
 
-Effect annotations do two jobs: they describe the public row and they decide
-which effects are visible across higher-order boundaries.
+Effect annotations do two jobs: they describe the surface row and they decide
+which effects are visible across higher-order boundaries. The important
+distinction is that an omitted annotation is not the same contract as `[_]`.
 
 | Annotation slot | Internal meaning |
 | --- | --- |
-| omitted or `[_]` in a contravariant slot | Expose the currently visible surface effects, as `take(All)`. |
-| `[console]` in a contravariant slot | Expose only `console` to an inner handler. |
-| omitted or `[_]` in a covariant slot | Leave the row open without adding a filter. |
-| `[console]` in a covariant slot | Check that only `console` escapes. |
+| no annotation at a higher-order callback boundary | Do not grant a new capture contract; callback-origin effects may be protected with empty visibility evidence. |
+| `[_]` at a higher-order callback boundary | Surface contract: expose the inferred surface row at that boundary. |
+| `[console]` in a contravariant computation position | Capture contract: expose only `console` to an inner handler. |
+| omitted or `[_]` in a covariant result position | Leave the row open without adding an escape filter. |
+| `[console]` in a covariant result position | Check that only `console` escapes. |
 
 The wildcard row `[_]` is an annotation placeholder. It is not the canonical
-syntax of the row type itself, and it does not erase a boundary.
+syntax of the row type itself, and it does not erase a boundary. In a callback
+result such as `g: _ -> [_] _`, it intentionally exposes the ordinary surface
+effects of `g(x)` to the receiving computation. Without that contract, those
+callback-origin effects stay hygienic and may be printed with evidence such as
+`#id[Empty]`.
 
 Covariant concrete annotations are **filters**. A filter is a static check, not
 a runtime marker and not a residual row. Once the check has been recorded, it is
@@ -169,11 +175,12 @@ Fresh internal residuals that must not be consumed are protected by an empty
 visibility budget, conceptually `take(Empty)`. There is no separate "protected
 variable set" in the inference core.
 
-## Public Types Do Not Print Stack Weights
+## Stack Evidence in Printed Types
 
-Stack ids and pop counts are inference evidence, not source-level type syntax.
-Normal hovers and the Types pane print ordinary value types and ordinary effect
-rows.
+Stack ids and pop counts are inference evidence, not source-level type syntax,
+but compiler-oriented dumps may retain some of that evidence when it is needed
+to explain a higher-order scheme. Ordinary API documentation should still read
+the type through its value types and effect rows.
 
 ```text
 alpha [undet; beta] -> [beta] alpha
@@ -186,6 +193,38 @@ to erase.
 
 What stays hidden is the weighted evidence explaining why the handler was
 allowed to consume `undet` at that boundary.
+
+For higher-order functions, empty visibility evidence can be the important part
+of the inferred scheme. Schematically, an unannotated composition may need a
+protected occurrence:
+
+```text
+compose_plain :
+  (alpha [gamma#u[Empty]] -> [delta] beta)
+  -> (epsilon -> [gamma#u[Empty]] alpha)
+  -> epsilon
+  -> [delta#u] beta#u
+```
+
+The `#u[Empty]` fragment is not a new effect family. It says that this
+occurrence of `gamma` cannot be subtracted at boundary `u`. If the programmer
+intentionally wants the surface effects of `g(x)` to be visible to `f`, they
+write the contract:
+
+```yulang
+our compose(f, g: _ -> [_] _, x: [_] _) = f g(x)
+```
+
+and the corresponding public shape can be read as the ordinary row-polymorphic
+composition:
+
+```text
+compose_surface :
+  (alpha [gamma] -> [delta] beta)
+  -> (epsilon -> [gamma] alpha)
+  -> epsilon
+  -> [delta] beta
+```
 
 ### Private evidence in data-position functions
 
@@ -246,6 +285,8 @@ Yulang's current effect inference works like this:
 - unknown rows are not opened just because a handler exists;
 - residual row variables are part of the public type and should not be silently
   erased;
+- empty visibility evidence such as `#id[Empty]` is evidence that a row
+  occurrence is protected from subtraction at that boundary, not a new effect;
 - private stack evidence for stored effectful functions is projected back to
   ordinary public rows;
 - replay-cycle subsumption is a solver termination rule, not a public type

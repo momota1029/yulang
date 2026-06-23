@@ -1,37 +1,63 @@
 # エフェクト
 
-Yulang の副作用は algebraic effect として扱う。effect は宣言され、呼び出され、handler で処理され、型に追跡される。
+Yulang の副作用は algebraic effect として扱う。effect は宣言され、
+operation request として呼び出され、handler で処理され、型に追跡される。
 
-## 宣言
+## 最小例
 
 ```yulang
-act console:
-    our read: () -> str
-    our println: str -> ()
+act flip:
+    our coin: () -> bool
 ```
 
-`act` は effect interface を作る。operation は `our` または `pub` の signature として並べる。同名の companion module が作られ、`console::read` のように参照できる。
+`act` は effect family を作る。operation は `our` または `pub` の
+signature として並べる。同名の companion module が作られ、`flip::coin`
+や `console::read` のように参照できる。
 
 ## 呼び出し
 
 ```yulang
-say "hello"
-my line = console::read()
+my bit = flip::coin()
 ```
 
-effect operation は普通の関数のように呼べる。呼び出した関数の型には、その effect が残る。
+effect operation は普通の関数のように呼べる。operation を呼び出した
+computation の型には、その effect が残る。たとえば `flip::coin` を呼ぶ
+関数には、effect row に `flip` が入る。
 
 ## Handler
 
 ```yulang
-our run_console(action: [console] 'a): 'a = catch action:
-    console::read(), k -> run_console(k "42")
-    console::println _, k -> run_console(k ())
+our all_paths(action: [flip] _) = catch action:
+    flip::coin(), k -> all_paths(k true) + all_paths(k false)
+    v -> [v]
+
+all_paths:
+    my a = if flip::coin(): 1 else: 0
+    my b = if flip::coin(): 10 else: 0
+    my c = if flip::coin(): 100 else: 0
+    a + b + c
 ```
 
-`catch expr:` は handler である。operation arm は operation の引数と continuation `k` を受け取る。`k value` を呼ぶと、operation の場所へ値を返して計算を続ける。
+`catch expr:` は handler である。operation arm は operation の引数と
+continuation `k` を受け取る。`k value` を呼ぶと、operation の発生地点へ
+値を返し、元の計算を続ける。handler には、内側の計算が普通に値を返した
+ときに走る value arm `v -> ...` も書ける。
 
-直接的なコードでは、handler は row subtraction のように見える。たとえば `action` が `[console; e] 'a` のような computation type を持つなら、`run_console action` は見えている `console` operation を処理し、残りの effect だけを持つ。
+ここで `flip::coin()` は普通の関数呼び出しに見えるが、実際には operation
+request を発生させる。handler は限定継続 `k` を受け取り、`true` と
+`false` の両方で再開するので、この例は 3 回の `coin` による 8 通りの
+分岐を列挙する。
+
+重要なのは `action: [flip] _` という注釈である。これは **effect capture
+contract** であり、この handler boundary が `flip` を処理してよいことを
+表す。返り値型と残りの effect はまだ推論される。推論される型の形は次である。
+
+```text
+all_paths : 'a [flip; 'b] -> ['b] list 'a
+```
+
+つまり、`all_paths` は `flip` と residual row `'b` を持ちうる computation
+を受け取り、`flip` だけを処理し、外側には `'b` だけを残す。
 
 ただし「見えている」が重要である。高階関数では、呼び出し元が関数、thunk、data field 内の effectful function 経由で持ち込んだ effect を、内側 handler が勝手に捕まえてはいけない。Yulang はこの境界を内部的には directed stack weight として追跡する。公開型には普通の effect row だけを表示するが、solver は handler 境界から見えている effect だけを引く。
 
@@ -67,7 +93,20 @@ my compose f g x = f(g x)
 
 `g x` が effect を起こすとしても、`f` の内側に隠れた同じ family の handler がそれを捕まえてはいけない。その effect は `g` 経由で渡された computation のものであり、`f` の内側で発生したものではない。
 
-このため effect annotation は、row を説明するだけでなく、高階境界を越えてどの effect family を handler に見せるかも決める。
+このため effect annotation は、row を説明するだけでなく、高階境界を越えて
+どの effect family を handler に見せるかを決める局所 contract でもある。
+
+`f` に `g(x)` の residual effect を意図的に処理させたいときは、その
+contract を明示する。
+
+```yulang
+our compose(f, g: _ -> [_] _, x: [_] _) = f g(x)
+```
+
+`x: [_] _` は、第三引数が computation であることを表す。`g: _ -> [_] _`
+は、`g(x)` の表層 effect が `f` へ流れてよいことを表す。`g` 側の contract
+がない場合、Yulang は callback 由来の effect を偶然の捕捉から守る。
+compiler-oriented な型表示では、その証拠が `#0[Empty]` のように出ることがある。
 
 ## Effect row
 
@@ -104,7 +143,16 @@ effect row annotation には二つの役割がある。
 - 関数型に現れる公開 row を説明する。
 - 高階境界では、内側 handler が何を見てよいかを決める。
 
-引数位置の `[console] 'a` は、受け取った関数の内側 handler に `console` だけを見せる。wildcard annotation の `[_] 'a` は、推論に現在見えている表層 row を再利用させるもので、hygiene evidence を捨てる指定ではない。
+引数位置の `[console] 'a` は effect capture contract であり、受け取る側の
+handler がその computation から `console` を処理してよいことを表す。
+wildcard annotation の `[_] 'a` は surface contract である。普通の表層 row
+は見えるが、他の場所の hygiene evidence を捨てる指定ではない。
+
+callback 引数にそのような contract がない場合、callback 由来の effect は
+hygienic に保たれる。その effect を別の callee へ渡すと、推論された scheme
+に空の可視性 budget が残り、compiler-oriented な表示では `#id[Empty]` の
+ように出ることがある。これは「この occurrence からはその boundary で何も
+subtract できない」という証拠であり、新しい effect family ではない。
 
 結果位置の具体 effect annotation は static filter である。外へ出てよい effect を検査するが、runtime marker にはならず、追加の公開 effect としても表示されない。
 

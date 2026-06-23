@@ -138,17 +138,21 @@ fresh な tail を無限に作り続けることを避ける。
 
 ## effect 注釈の意味
 
-effect 注釈は、公開 row を説明すると同時に、高階境界を越えて何を handler へ見せるかを決める。
+effect 注釈は、表層 row を説明すると同時に、高階境界を越えて何を handler へ見せるかを決める。
+ここで重要なのは、注釈の省略と `[_]` が同じ contract ではないことである。
 
 | 注釈 slot | 内部的な意味 |
 | --- | --- |
-| 反変位置の省略または `[_]` | 表層で見えている effect を `take(All)` として見せる。 |
-| 反変位置の `[console]` | `console` だけを内側 handler に見せる。 |
-| 共変位置の省略または `[_]` | filter を足さず、row を open なままにする。 |
-| 共変位置の `[console]` | 外へ出る effect が `console` だけであることを検査する。 |
+| 高階 callback 境界で注釈なし | 新しい capture contract を与えない。callback 由来の effect は空の可視性 evidence で守られうる。 |
+| 高階 callback 境界の `[_]` | surface contract。その境界で推論された表層 row を見せる。 |
+| 反変な computation 位置の `[console]` | capture contract。`console` だけを内側 handler に見せる。 |
+| 共変な result 位置の省略または `[_]` | escape filter を足さず、row を open なままにする。 |
+| 共変な result 位置の `[console]` | 外へ出る effect が `console` だけであることを検査する。 |
 
 wildcard row `[_]` は annotation placeholder である。effect row 型そのものの標準構文ではなく、
-boundary を消すものでもない。
+boundary を消すものでもない。`g: _ -> [_] _` のような callback result では、`g(x)` の普通の
+表層 effect を受け取り側の計算へ意図的に見せる。これを書かない場合、callback 由来の effect は
+hygienic に保たれ、`#id[Empty]` のような evidence 付きで表示されることがある。
 
 共変位置の具体 effect 注釈は **filter** である。filter は static check であり、runtime marker でも
 residual row でもない。check が登録された後、保存される solver weight からは消える。
@@ -156,10 +160,11 @@ residual row でもない。check が登録された後、保存される solver
 handler に消費されてはいけない fresh internal residual は、概念的には `take(Empty)` で守る。
 推論コアには、別個の protected variable set はない。
 
-## 公開型には stack 重みを出さない
+## 表示される型の stack evidence
 
-stack id や pop count は推論 evidence であり、source-level の型構文ではない。通常の hover や
-Types pane には、普通の value type と普通の effect row だけを出す。
+stack id や pop count は推論 evidence であり、source-level の型構文ではない。ただし、
+compiler-oriented な表示では、高階 scheme を説明するためにその evidence が残ることがある。
+通常の API 文書として読むときは、値型と effect row の構造を中心に読む。
 
 ```text
 alpha [undet; beta] -> [beta] alpha
@@ -170,6 +175,35 @@ alpha [undet; beta] -> [beta] alpha
 表示ノイズとして消してよいものではない。
 
 隠れるのは、その境界で `undet` を消費してよい理由を説明する weighted evidence の方である。
+
+高階関数では、空の可視性 evidence 自体が推論 scheme の重要な一部になることがある。
+概略的には、注釈なしの compose には次のような protected occurrence が必要になる。
+
+```text
+compose_plain :
+  (alpha [gamma#u[Empty]] -> [delta] beta)
+  -> (epsilon -> [gamma#u[Empty]] alpha)
+  -> epsilon
+  -> [delta#u] beta#u
+```
+
+`#u[Empty]` は新しい effect family ではない。その occurrence の `gamma` は boundary `u` で
+subtract できない、という証拠である。`g(x)` の表層 effect を `f` に意図的に見せたい場合は、
+programmer が contract を書く。
+
+```yulang
+our compose(f, g: _ -> [_] _, x: [_] _) = f g(x)
+```
+
+その場合、公開型の形は普通の row-polymorphic compose として読める。
+
+```text
+compose_surface :
+  (alpha [gamma] -> [delta] beta)
+  -> (epsilon -> [gamma] alpha)
+  -> epsilon
+  -> [delta] beta
+```
 
 ### data-position function の private evidence
 
@@ -220,6 +254,8 @@ Yulang の現行 effect 推論は、次の分担で成り立つ。
 - 右側 pop は head を見せるために使わず、residual tail へ運ぶ。
 - handler があるからといって、未知 row を勝手に開かない。
 - residual row variable は公開型の一部であり、黙って消さない。
+- `#id[Empty]` のような空の可視性 evidence は、その row occurrence がその boundary で
+  subtraction から守られている証拠であり、新しい effect ではない。
 - data value に保存された effectful function の private stack evidence は、ordinary public row へ
   projection してから表示する。
 - replay-cycle subsumption は solver の停止性規則であり、公開型の等式ではない。
