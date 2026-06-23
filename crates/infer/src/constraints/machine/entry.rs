@@ -15,6 +15,7 @@ impl ConstraintMachine {
             row_residuals: FxHashMap::default(),
             declared_subtracts: FxHashSet::default(),
             effect_family_paths: FxHashSet::default(),
+            row_tail_vars: FxHashSet::default(),
             pre_pop_effect_families: FxHashMap::default(),
             lower_filters: FxHashMap::default(),
             effect_filter_violations: FxHashSet::default(),
@@ -80,7 +81,14 @@ impl ConstraintMachine {
     }
 
     pub fn timing(&self) -> ConstraintTiming {
-        self.timing
+        let mut timing = self.timing;
+        timing.type_var_count = self.next_internal_type_var as usize;
+        timing.row_tail_var_count = self.row_tail_vars.len();
+        timing.pos_node_count = self.types.pos_len();
+        timing.neg_node_count = self.types.neg_len();
+        timing.neu_node_count = self.types.neu_len();
+        timing.type_node_count = self.types.node_len();
+        timing
     }
 
     pub fn take_events(&mut self) -> Vec<ConstraintEvent> {
@@ -460,7 +468,7 @@ impl ConstraintMachine {
                 for item in items {
                     self.observe_neg_id(*item);
                 }
-                self.observe_neg_id(*tail);
+                self.observe_row_tail(*tail);
             }
             Neg::Stack { inner, .. } => self.observe_neg_id(*inner),
             Neg::Intersection(left, right) => {
@@ -525,5 +533,13 @@ impl ConstraintMachine {
     pub(in crate::constraints) fn observe_neu_id(&mut self, id: NeuId) {
         let neu = self.types.neu(id).clone();
         self.observe_neu(&neu);
+    }
+
+    fn observe_row_tail(&mut self, tail: NegId) {
+        let neg = self.types.neg(tail).clone();
+        if let Neg::Var(var) = &neg {
+            self.row_tail_vars.insert(*var);
+        }
+        self.observe_neg(&neg);
     }
 }

@@ -574,6 +574,7 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         format_duration(timing.lowering.resolve_selections)
     );
     let analysis = timing.lowering.analysis;
+    write_check_hardening_metrics(out, timing);
     let _ = writeln!(
         out,
         "  analysis.route: {}",
@@ -1233,6 +1234,40 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
     );
     let _ = writeln!(out, "  summarize: {}", format_duration(timing.summarize));
     let _ = writeln!(out, "  total: {}", format_duration(timing.total));
+}
+
+fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
+    let analysis = timing.lowering.analysis;
+    let constraint = timing.lowering.constraint;
+    let edge_count = constraint.lower_bounds_added + constraint.upper_bounds_added;
+    let replay_enqueued = constraint.lower_replay_enqueued + constraint.upper_replay_enqueued;
+    let role_demand_count = analysis.generalize_role_input_constraints
+        + analysis.generalize_reachable_role_constraints
+        + analysis.generalize_coalesced_role_constraints
+        + analysis.generalize_dominance_role_constraints;
+
+    let _ = writeln!(out, "  infer.type_var_count: {}", constraint.type_var_count);
+    let _ = writeln!(
+        out,
+        "  infer.row_tail_var_count: {}",
+        constraint.row_tail_var_count
+    );
+    let _ = writeln!(
+        out,
+        "  infer.type_node_count: {}",
+        constraint.type_node_count
+    );
+    let _ = writeln!(out, "  infer.pos_node_count: {}", constraint.pos_node_count);
+    let _ = writeln!(out, "  infer.neg_node_count: {}", constraint.neg_node_count);
+    let _ = writeln!(out, "  infer.neu_node_count: {}", constraint.neu_node_count);
+    let _ = writeln!(out, "  constraint.edge_count: {edge_count}");
+    let _ = writeln!(out, "  constraint.replay_enqueued: {replay_enqueued}");
+    let _ = writeln!(
+        out,
+        "  analysis.scc_component_count: {}",
+        analysis.quantified_components
+    );
+    let _ = writeln!(out, "  analysis.role_demand_count: {role_demand_count}");
 }
 
 pub(super) fn write_check_diagnostics(

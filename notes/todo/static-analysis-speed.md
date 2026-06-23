@@ -96,15 +96,19 @@
     - named `edge_count` はまだ無い。現状は `constraint.lower_bounds_added` / `upper_bounds_added` と SCC edge counters を proxy にする。
     - max replay depth はまだ無い。現状は `lower_replay_enqueued` / `upper_replay_enqueued` と max queue を proxy にする。
     - `solve_slots` という phase 名は現行 pipeline に直接対応しない。いまは `analysis.quantify_*` / `analysis.generalize_*` / `constraint.drain` に分けて読む。
-  - 次に code を足すなら、最初の slice は opt-in 出力名だけ増やす。
-    - `infer.slot_count`
-    - `infer.row_var_count`
+  - 2026-06-23 に最初の code slice として、`check-poly` timing block に hardening metrics を追加した。
+    - `infer.type_var_count`
+    - `infer.row_tail_var_count`
+    - `infer.type_node_count`
+    - `infer.pos_node_count`
+    - `infer.neg_node_count`
+    - `infer.neu_node_count`
     - `constraint.edge_count`
-    - `constraint.max_replay_depth`
+    - `constraint.replay_enqueued`
     - `analysis.scc_component_count`
     - `analysis.role_demand_count`
-    - デフォルト出力を増やさず、`YULANG_ANALYSIS_TIMING=1` か `check-poly` timing block へ限定する。
-    - 同じ commit で solver 最適化や replay 停止条件を変更しない。
+  - これは既存 constraint machine / analysis counter の観測だけであり、solver 最適化や replay 停止条件は変えていない。
+    named `max_replay_depth` と、tail 以外を含む完全な row variable kinding は次 slice に残す。
 - 2026-06-17 performance review で挙がった候補を、まず計測仮説として扱う。
   - P0:
     - source/lower/cache: std/source lowering と file collection/cache 粒度。

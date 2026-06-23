@@ -9,6 +9,12 @@ use crate::time::Duration;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ConstraintTiming {
     pub drain: Duration,
+    pub type_var_count: usize,
+    pub row_tail_var_count: usize,
+    pub pos_node_count: usize,
+    pub neg_node_count: usize,
+    pub neu_node_count: usize,
+    pub type_node_count: usize,
     pub drains: usize,
     pub empty_drains: usize,
     pub initial_queue_items: usize,

@@ -171,6 +171,24 @@ hardening phase の metrics は「観測」だけに使う。
 metrics で見えた重さは、別 commit で原因を説明してから直す。
 timeout や clamp を、型推論の意味論として混ぜてはいけない。
 
+2026-06-23 時点では、`check-poly` timing block に次の hardening metrics を出している。
+これらは constraint machine / analysis coordinator で既に保持している情報の観測であり、
+solver 最適化や replay 停止条件は変更しない。
+
+- `infer.type_var_count`
+- `infer.row_tail_var_count`
+- `infer.type_node_count`
+- `infer.pos_node_count`
+- `infer.neg_node_count`
+- `infer.neu_node_count`
+- `constraint.edge_count`
+- `constraint.replay_enqueued`
+- `analysis.scc_component_count`
+- `analysis.role_demand_count`
+
+`infer.row_tail_var_count` は row tail として観測された変数数であり、完全な row kinding ではない。
+`max_replay_depth` はまだ持たず、replay 量は `constraint.replay_enqueued` で見る。
+
 ## Test Obligations
 
 public signature golden test は、見た目だけではなく次を守る。

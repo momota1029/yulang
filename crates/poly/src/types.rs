@@ -709,6 +709,18 @@ impl TypeArena {
     pub fn neu(&self, id: NeuId) -> &Neu {
         &self.neu[id.0 as usize]
     }
+    pub fn pos_len(&self) -> usize {
+        self.pos.len()
+    }
+    pub fn neg_len(&self) -> usize {
+        self.neg.len()
+    }
+    pub fn neu_len(&self) -> usize {
+        self.neu.len()
+    }
+    pub fn node_len(&self) -> usize {
+        self.pos.len() + self.neg.len() + self.neu.len()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

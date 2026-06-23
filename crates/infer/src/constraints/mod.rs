@@ -46,6 +46,7 @@ pub struct ConstraintMachine {
     row_residuals: FxHashMap<RowResidualKey, TypeVar>,
     declared_subtracts: FxHashSet<SubtractId>,
     effect_family_paths: FxHashSet<Vec<String>>,
+    row_tail_vars: FxHashSet<TypeVar>,
     pre_pop_effect_families: FxHashMap<TypeVar, Vec<ConstraintEffectFamily>>,
     lower_filters: FxHashMap<TypeVar, FxHashSet<Subtractability>>,
     effect_filter_violations: FxHashSet<EffectFilterViolationKey>,
