@@ -27,7 +27,15 @@
 - 「注釈なし」は宣伝文句として使わず、技術資料では「具体的な値型・effect family 集合を省略し、内部で effect-only skeleton / wildcard slot を生成する」と説明する。
 - 「多相 handler」は曖昧なので、返り値型 `a` と residual effect row `b` に関する多相性として述べる。
 - annotation は effect だけでなく、関数の形と effect の可視性・流出を局所的に制約するものとして述べる。
+- 初回メールでは、通常の式・高階関数での effect introduction / propagation は infer され、
+  handler boundary での effect elimination だけが explicit contract として check される、という非対称性に絞る。
+- 上の contract は「通常の関数にも局所化注釈を付ける」という話ではなく、
+  handler が effect subtraction を許可される境界を示すものとして説明する。
 - public scheme と hidden weighted scheme を混同しない。外向けには public scheme、研究相談では hidden weighted scheme と public projection の関係を質問する。
+- 初回メールでは「主型性を達成した」という断定を避け、`principal-style な公開型` と
+  `hidden weighted scheme と public projection の関係` として相談する。
+- 共有リンクや相談文脈から実名・所属が抽出できても、このディレクトリには入れない。
+  送信時にローカル copy でだけ placeholder を埋める。
 - `ref.update` は便利なデモだが、標準ライブラリの特殊 hack ではなく handler hygiene の canary として説明する。
 - `pop(n) = pop(1)` のような等式は書かない。replay 停止性は exact label、residual hash-cons、same-boundary alias-cycle subsumption の実装規則として説明する。
 
