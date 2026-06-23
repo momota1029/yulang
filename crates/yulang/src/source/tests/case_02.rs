@@ -1007,6 +1007,59 @@ fn run_control_source_text_with_embedded_std_runs_nondet_once_triple() {
 
 #[cfg(unix)]
 #[test]
+fn dump_poly_std_ref_update_public_signature_hides_stack_evidence() {
+    let entry = write_main_with_std("dump-poly-std-ref-update-public-type", "1\n");
+    let output = dump_poly_from_entry_with_std_in_module(entry, "std.control.var.ref").unwrap();
+
+    let signature =
+        assert_public_signature_hides_stack_evidence(&output, "std.control.var.ref.update");
+    assert!(
+        signature.contains("std::control::var::ref('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] ()"),
+        "ref.update should keep ref residual and callback residual in the public signature:\n{signature}"
+    );
+    assert!(
+        !signature.contains("std::control::var::ref_update"),
+        "ref.update handler evidence should not appear in the public signature:\n{signature}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn dump_poly_std_parse_choice_public_signature_hides_stack_evidence() {
+    let entry = write_main_with_std("dump-poly-std-parse-choice-public-type", "1\n");
+    let output = dump_poly_from_entry_with_std_in_module(entry, "std.text.parse").unwrap();
+
+    let signature = assert_public_signature_hides_stack_evidence(&output, "std.text.parse.choice");
+    assert!(
+        signature.contains(
+            "(() -> ['g] 'a) -> ['g] (() -> ['f] 'a) -> ['f] () -> [std::text::parse::parse 'b 'c 'd 'e] 'a"
+        ),
+        "choice should keep parser effects public without hidden stack evidence:\n{signature}"
+    );
+    assert!(
+        signature.contains("where 'c: std::text::parse::ParseError"),
+        "choice should keep the parse error role constraint:\n{signature}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn dump_poly_std_flow_for_in_public_signature_hides_stack_evidence() {
+    let entry = write_main_with_std("dump-poly-std-flow-for-in-public-type", "1\n");
+    let output = dump_poly_from_entry_with_std_in_module(entry, "std.control.flow.loop").unwrap();
+
+    let signature =
+        assert_public_signature_hides_stack_evidence(&output, "std.control.flow.loop.for_in");
+    assert!(
+        signature.contains(
+            "'a -> ('c -> [std::control::flow::loop; 'b] any) -> ['b] () where 'a: std::data::fold::Fold(item = 'c)"
+        ),
+        "for_in should keep callback loop effect local and expose only the callback residual:\n{signature}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn dump_poly_std_nondet_once_act_method_uses_deep_handler_effect() {
     let entry = write_main_with_std("dump-poly-std-nondet-once-type", "1\n");
     let output =

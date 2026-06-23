@@ -100,6 +100,17 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   isolated cache に poly / control artifact が出ることも見る。
 - 次は nondet once triple、optional record default、public examples を同じ置き場へ広げる。
 
+## 2026-06-23 public signature golden first slice
+
+- `crates/yulang/src/source/tests/case_02.rs` に、std public signature の canary を追加した。
+- 対象:
+  - `std.control.var.ref.update`
+  - `std.text.parse.choice`
+  - `std.control.flow.loop.for_in`
+- public signature の ` = ` より左側だけを抜き出し、body 内の `#op:...` ではなく公開型そのものを検査する。
+- これらの public signature では、`#...` / `AllExcept(...)` が出ないことを固定する。
+- `ref.update` は、ref residual と callback residual が `['c, 'a]` として残ることも見る。
+
 ## やらないこと
 
 - 最初から property testing や snapshot 大量生成に広げない。

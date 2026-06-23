@@ -154,6 +154,35 @@ fn assert_dump_contains(output: &DumpPolyOutput, expected: &str) {
     );
 }
 
+fn dump_public_signature<'a>(output: &'a DumpPolyOutput, symbol: &str) -> &'a str {
+    let quoted = format!("\"{symbol}\"");
+    let line = output
+        .text
+        .lines()
+        .find(|line| line.starts_with("pub ") && line.contains(&quoted))
+        .unwrap_or_else(|| {
+            panic!(
+                "public symbol {symbol:?} should be dumped:\n{}",
+                output.text
+            )
+        });
+    line.rsplit_once(" = ")
+        .map(|(signature, _)| signature)
+        .unwrap_or(line)
+}
+
+fn assert_public_signature_hides_stack_evidence<'a>(
+    output: &'a DumpPolyOutput,
+    symbol: &str,
+) -> &'a str {
+    let signature = dump_public_signature(output, symbol);
+    assert!(
+        !signature.contains('#') && !signature.contains("AllExcept"),
+        "private stack evidence escaped into {symbol}:\n{signature}"
+    );
+    signature
+}
+
 fn assert_mono_dump_contains(output: &DumpMonoOutput, expected: &str) {
     assert!(
         output.text.contains(expected),
