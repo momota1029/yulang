@@ -11,16 +11,20 @@
   - 所属、連絡先、公開 URL は未記入の placeholder のままにしている。
 - `technical-brief.md`
   - 短い技術資料の本文草案。
-  - 本文は問題、二つの観察例、方向付き weight の要点、形式化の範囲、相談三問に絞る。
+  - 本文は `flip/all_paths` による AE/H の最小例、nested handler、`sub` による hygiene、
+    explicit capture contract、`compose` から生じる weighted scheme の順に説明する。
   - `twice`、standard-library canaries、`ref.update` は付録へ回している。
 - `../../../docs/effect-inference-brief.md`
-  - README / 記事 / 研究相談の冒頭に使うための 1 ページ版。
-  - `principal-style public signatures` という弱めた外向け主張にしている。
+  - 旧 1 ページ版。
+  - 現在の `technical-brief.md` の流れには未対応なので、研究相談で送る場合は
+    `flip/all_paths`、handler hygiene、explicit capture contract、`compose` の順に作り直す。
 - `examples/high_order_inference.yu`
   - 注釈なし高階関数の公開型を取るための小さい入力。
 - `examples/local_sub_handler.yu`
   - effect-only skeleton を持つ handler combinator の公開型を取るための小さい入力。
   - `int` / `str` / residual `note` の三ケースを同じ handler で確認する。
+- `examples/nested_handler_contracts.yu`
+  - `flip` と `amount` の handler を重ね、contract が対象 effect だけを処理して residual row を残すことを示す。
 
 ## Guardrails
 

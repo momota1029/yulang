@@ -1,0 +1,21 @@
+act flip:
+    our coin: () -> bool
+
+act amount:
+    our coin: () -> int
+
+our all_paths(action: [flip] _) = catch action:
+    flip::coin(), k -> all_paths(k true) + all_paths(k false)
+    v -> [v]
+
+our total_amount(action: [amount] _) =
+    my loop(n, action: [amount] _) = catch action:
+        amount::coin(), k -> loop(n, k n)
+        v -> v
+    [loop(1, action), loop(2, action)]
+
+total_amount: all_paths:
+    my a = if flip::coin(): amount::coin() else: 0
+    my b = if flip::coin(): amount::coin() * 10 else: 0
+    my c = if flip::coin(): amount::coin() * 100 else: 0
+    a + b + c
