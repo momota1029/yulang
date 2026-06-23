@@ -142,26 +142,52 @@ impl DefParentMapCache {
 
 #[derive(Debug, Default)]
 pub(super) struct GeneralizeRootMetrics {
+    pub iterations: usize,
+    pub merge_restarts: usize,
+    pub subtype_restarts: usize,
+    pub cast_restarts: usize,
+    pub role_restarts: usize,
     pub first_compact_nodes: usize,
     pub first_compact_vars: FxHashSet<TypeVar>,
     pub compact_iteration_nodes: usize,
     pub compact_iteration_vars: usize,
-    compact_iterations: usize,
+    compact_shape_iterations: usize,
 }
 
 impl GeneralizeRootMetrics {
     pub(super) fn record_compact_iteration(&mut self, compact: &CompactRoot) {
+        self.iterations += 1;
         if !generalize_shape_metrics_enabled() {
             return;
         }
         let shape = compact_shape_metrics(compact);
-        if self.compact_iterations == 0 {
+        if self.compact_shape_iterations == 0 {
             self.first_compact_nodes = shape.nodes;
             self.first_compact_vars = shape.vars.clone();
         }
-        self.compact_iterations += 1;
+        self.compact_shape_iterations += 1;
         self.compact_iteration_nodes += shape.nodes;
         self.compact_iteration_vars += shape.vars.len();
+    }
+
+    pub(super) fn record_merge_restart(&mut self) {
+        self.merge_restarts += 1;
+    }
+
+    pub(super) fn record_subtype_restart(&mut self) {
+        self.subtype_restarts += 1;
+    }
+
+    pub(super) fn record_cast_restart(&mut self) {
+        self.cast_restarts += 1;
+    }
+
+    pub(super) fn record_role_restart(&mut self) {
+        self.role_restarts += 1;
+    }
+
+    fn restart_count(&self) -> usize {
+        self.merge_restarts + self.subtype_restarts + self.cast_restarts + self.role_restarts
     }
 }
 
@@ -180,10 +206,19 @@ pub(super) struct GeneralizeComponentMetrics {
     pub unique_compact_vars: FxHashSet<TypeVar>,
     pub compact_iteration_nodes: usize,
     pub compact_iteration_vars: usize,
+    pub roots_with_restarts: usize,
+    pub max_iterations_per_root: usize,
+    pub max_restarts_per_root: usize,
 }
 
 impl GeneralizeComponentMetrics {
     pub(super) fn add_root(&mut self, metrics: GeneralizeRootMetrics) {
+        let restart_count = metrics.restart_count();
+        if restart_count > 0 {
+            self.roots_with_restarts += 1;
+        }
+        self.max_iterations_per_root = self.max_iterations_per_root.max(metrics.iterations);
+        self.max_restarts_per_root = self.max_restarts_per_root.max(restart_count);
         self.root_compact_nodes += metrics.first_compact_nodes;
         self.root_compact_vars += metrics.first_compact_vars.len();
         self.unique_compact_vars

@@ -126,6 +126,48 @@ With that double attribution removed, the typeclass method apply item itself is 
 the current static-analysis bottleneck is still `route_scc_quantify` /
 `quantify_generalize`, followed by constraint replay drain and role solve.
 
+## Follow-up: Quantify Shape Metrics Slice
+
+After adding quantify component and per-root restart counters, the same smoke showed:
+
+```text
+infer: 2.770s
+constraint.drain: 914.7ms
+constraint.replay_enqueued: 659985
+analysis.route_scc_quantify: 1.248s
+analysis.quantify_generalize: 1.203s
+analysis.quantify_single_def_components: 553
+analysis.quantify_multi_def_components: 0
+analysis.quantify_max_component_defs: 1
+analysis.quantify_generalize_roots_with_restarts: 129
+analysis.quantify_generalize_max_iterations_per_root: 7
+analysis.quantify_generalize_max_restarts_per_root: 6
+analysis.generalize_iterations: 747
+analysis.generalize_merge_restarts: 80
+analysis.generalize_subtype_restarts: 50
+analysis.generalize_role_restarts: 64
+```
+
+This rules out large SCCs as the main cause for the current showcase baseline.
+The cost is many single-definition quantifications plus restart-driven generalize
+iterations. A focused phase read showed:
+
+```text
+analysis.generalize_compact: 164.2ms
+analysis.generalize_collect_roles: 73.9ms
+analysis.generalize_collect_dominance: 234.6ms
+analysis.generalize_resolve_roles: 139.7ms
+analysis.generalize_final_roles: 87.3ms
+analysis.generalize_final_cleanup: 96.9ms
+analysis.generalize_prepared: 239.4ms
+analysis.generalize_merge_constraints: 2288
+analysis.generalize_subtype_constraints: 268
+analysis.generalize_role_resolutions: 96
+```
+
+Next optimization candidates are dominance/prepared recomputation and constraint
+drain batching, not SCC batching for large components.
+
 ## Focused Check: `std.control.var.ref`
 
 This uses the same source set, but filters the report to `std.control.var.ref`.

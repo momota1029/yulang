@@ -106,6 +106,10 @@
     - `constraint.edge_count`
     - `constraint.replay_enqueued`
     - `analysis.scc_component_count`
+    - `analysis.quantify_max_component_defs`
+    - `analysis.quantify_generalize_roots_with_restarts`
+    - `analysis.quantify_generalize_max_iterations_per_root`
+    - `analysis.quantify_generalize_max_restarts_per_root`
     - `analysis.role_demand_count`
     - `analysis.role_resolve_candidate_scans`
     - `analysis.role_resolve_prerequisite_candidate_scans`
@@ -121,6 +125,10 @@
     showcase では `analysis.work_apply_select_typeclass_method` は 17.6ms 程度へ下がった。
     現時点の太い順は `analysis.route_scc_quantify` / `analysis.quantify_generalize`、
     `constraint.drain`、`analysis.role_solve`。
+  - 2026-06-23 の quantify slice で、component サイズ分布と root ごとの
+    generalize iteration / restart 最大値を追加した。
+    これで `route_scc_quantify` が「大きい SCC」由来か、「小さい root の restart 反復」
+    由来かを切り分ける。
 - 2026-06-17 performance review で挙がった候補を、まず計測仮説として扱う。
   - P0:
     - source/lower/cache: std/source lowering と file collection/cache 粒度。

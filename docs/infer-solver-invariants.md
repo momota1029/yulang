@@ -184,6 +184,10 @@ solver 最適化や replay 停止条件は変更しない。
 - `constraint.edge_count`
 - `constraint.replay_enqueued`
 - `analysis.scc_component_count`
+- `analysis.quantify_max_component_defs`
+- `analysis.quantify_generalize_roots_with_restarts`
+- `analysis.quantify_generalize_max_iterations_per_root`
+- `analysis.quantify_generalize_max_restarts_per_root`
 - `analysis.role_demand_count`
 - `analysis.role_resolve_demands`
 - `analysis.role_resolve_candidate_scans`

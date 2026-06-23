@@ -94,11 +94,17 @@ pub struct AnalysisTiming {
     pub unready_role_dependency_edges: usize,
     pub quantified_components: usize,
     pub quantified_defs: usize,
+    pub quantify_single_def_components: usize,
+    pub quantify_multi_def_components: usize,
+    pub quantify_max_component_defs: usize,
     pub generalize_iterations: usize,
     pub generalize_merge_restarts: usize,
     pub generalize_subtype_restarts: usize,
     pub generalize_cast_restarts: usize,
     pub generalize_role_restarts: usize,
+    pub quantify_generalize_roots_with_restarts: usize,
+    pub quantify_generalize_max_iterations_per_root: usize,
+    pub quantify_generalize_max_restarts_per_root: usize,
     pub generalize_role_input_constraints: usize,
     pub generalize_reachable_role_constraints: usize,
     pub generalize_coalesced_role_constraints: usize,
@@ -346,6 +352,12 @@ impl AnalysisTiming {
         self.quantify += elapsed;
         self.quantified_components += 1;
         self.quantified_defs += def_count;
+        if def_count <= 1 {
+            self.quantify_single_def_components += 1;
+        } else {
+            self.quantify_multi_def_components += 1;
+        }
+        self.quantify_max_component_defs = self.quantify_max_component_defs.max(def_count);
     }
 
     pub(super) fn record_quantify_generalize(&mut self, elapsed: Duration) {
@@ -419,12 +431,22 @@ impl AnalysisTiming {
         component_unique_compact_vars: usize,
         compact_iteration_nodes: usize,
         compact_iteration_vars: usize,
+        roots_with_restarts: usize,
+        max_iterations_per_root: usize,
+        max_restarts_per_root: usize,
     ) {
         self.generalize_root_compact_nodes += root_compact_nodes;
         self.generalize_root_compact_vars += root_compact_vars;
         self.generalize_component_unique_compact_vars += component_unique_compact_vars;
         self.generalize_compact_iteration_nodes += compact_iteration_nodes;
         self.generalize_compact_iteration_vars += compact_iteration_vars;
+        self.quantify_generalize_roots_with_restarts += roots_with_restarts;
+        self.quantify_generalize_max_iterations_per_root = self
+            .quantify_generalize_max_iterations_per_root
+            .max(max_iterations_per_root);
+        self.quantify_generalize_max_restarts_per_root = self
+            .quantify_generalize_max_restarts_per_root
+            .max(max_restarts_per_root);
     }
 
     pub(super) fn record_generalize_compact(&mut self, elapsed: Duration) {

@@ -38,6 +38,9 @@ impl AnalysisSession {
             component_metrics.unique_compact_vars.len(),
             component_metrics.compact_iteration_nodes,
             component_metrics.compact_iteration_vars,
+            component_metrics.roots_with_restarts,
+            component_metrics.max_iterations_per_root,
+            component_metrics.max_restarts_per_root,
         );
 
         for (def, scheme) in &generalized {

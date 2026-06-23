@@ -1093,6 +1093,36 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
     );
     let _ = writeln!(
         out,
+        "  analysis.quantify_single_def_components: {}",
+        analysis.quantify_single_def_components
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.quantify_multi_def_components: {}",
+        analysis.quantify_multi_def_components
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.quantify_max_component_defs: {}",
+        analysis.quantify_max_component_defs
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.quantify_generalize_roots_with_restarts: {}",
+        analysis.quantify_generalize_roots_with_restarts
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.quantify_generalize_max_iterations_per_root: {}",
+        analysis.quantify_generalize_max_iterations_per_root
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.quantify_generalize_max_restarts_per_root: {}",
+        analysis.quantify_generalize_max_restarts_per_root
+    );
+    let _ = writeln!(
+        out,
         "  analysis.generalize_role_input_constraints: {}",
         analysis.generalize_role_input_constraints
     );
@@ -1266,6 +1296,26 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         out,
         "  analysis.scc_component_count: {}",
         analysis.quantified_components
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.quantify_max_component_defs: {}",
+        analysis.quantify_max_component_defs
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.quantify_generalize_roots_with_restarts: {}",
+        analysis.quantify_generalize_roots_with_restarts
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.quantify_generalize_max_iterations_per_root: {}",
+        analysis.quantify_generalize_max_iterations_per_root
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.quantify_generalize_max_restarts_per_root: {}",
+        analysis.quantify_generalize_max_restarts_per_root
     );
     let _ = writeln!(out, "  analysis.role_demand_count: {role_demand_count}");
     let _ = writeln!(

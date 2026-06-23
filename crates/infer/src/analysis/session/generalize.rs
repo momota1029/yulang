@@ -83,6 +83,7 @@ impl AnalysisSession {
                 merge_constraints,
                 &mut applied_merge_constraints,
             ) {
+                metrics.record_merge_restart();
                 self.timing.record_generalize_merge_restart();
                 let elapsed = phase.elapsed();
                 self.timing
@@ -138,6 +139,7 @@ impl AnalysisSession {
                 subtype_constraints,
                 &mut applied_subtype_constraints,
             ) {
+                metrics.record_subtype_restart();
                 self.timing.record_generalize_subtype_restart();
                 let elapsed = phase.elapsed();
                 self.timing
@@ -157,6 +159,7 @@ impl AnalysisSession {
                 for application in &batch.applications {
                     self.constrain_compact_cast(application);
                 }
+                metrics.record_cast_restart();
                 self.timing.record_generalize_cast_restart();
                 self.timing
                     .record_generalize_cast(phase.elapsed(), 1, application_count);
@@ -206,6 +209,7 @@ impl AnalysisSession {
                 .record_generalize_resolve_roles(elapsed, resolution_count);
             trace_generalize_phase(trace, "resolve roles", def, elapsed, start);
             if !resolutions.is_empty() {
+                metrics.record_role_restart();
                 self.timing.record_generalize_role_restart();
                 for resolution in resolutions {
                     applied_roles.insert(resolution.key.clone());
