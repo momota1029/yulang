@@ -6,10 +6,12 @@ bin="${YULANG:-"$repo_root/target/release/yulang"}"
 test_timeout="${YULANG_HARDENING_TEST_TIMEOUT:-240s}"
 smoke_timeout="${YULANG_HARDENING_SMOKE_TIMEOUT:-360s}"
 run_public_examples="${YULANG_HARDENING_PUBLIC_EXAMPLES:-1}"
+run_evidence_public_examples="${YULANG_HARDENING_EVIDENCE_PUBLIC_EXAMPLES:-1}"
 run_replay_compare="${YULANG_HARDENING_REPLAY_COMPARE:-1}"
 run_replay_public_diff="${YULANG_HARDENING_REPLAY_PUBLIC_DIFF:-1}"
 run_evidence_smoke="${YULANG_HARDENING_EVIDENCE_SMOKE:-1}"
 run_docs_build="${YULANG_HARDENING_DOCS_BUILD:-0}"
+evidence_skip_limit="${YULANG_REPLAY_EVIDENCE_ONLY_SKIP_LIMIT:-16}"
 
 run_timeout() {
   local duration="$1"
@@ -63,6 +65,13 @@ run_timeout "$test_timeout" \
 
 if [[ "$run_public_examples" != "0" ]]; then
   run_timeout "$smoke_timeout" "$repo_root/scripts/public-example-smoke.sh" "$bin"
+fi
+
+if [[ "$run_evidence_public_examples" != "0" ]]; then
+  run_timeout "$smoke_timeout" \
+    env YULANG_REPLAY_EVIDENCE_ONLY_SKIP=1 \
+      YULANG_REPLAY_EVIDENCE_ONLY_SKIP_LIMIT="$evidence_skip_limit" \
+      "$repo_root/scripts/public-example-smoke.sh" "$bin"
 fi
 
 if [[ "$run_replay_compare" != "0" ]]; then
