@@ -51,9 +51,7 @@ impl<'a> Runtime<'a> {
                     source: source.clone(),
                     target: target.clone(),
                     function: Box::new(value),
-                    hygiene: FunctionAdapterHygiene {
-                        markers: Vec::new(),
-                    },
+                    hygiene: FunctionAdapterHygiene::default(),
                 })))
             }
             (Type::Record(_), Type::Record(_)) if value_boundary_supported(source, target) => {

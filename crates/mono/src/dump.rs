@@ -272,16 +272,36 @@ impl Dumper {
     }
 
     fn function_adapter_hygiene(&self, hygiene: &FunctionAdapterHygiene) -> String {
-        if hygiene.markers.is_empty() {
+        if hygiene.markers.is_empty()
+            && hygiene.arg_markers.is_empty()
+            && hygiene.ret_markers.is_empty()
+        {
             return "hygiene[]".to_string();
         }
-        let markers = hygiene
-            .markers
+        if hygiene.arg_markers.is_empty() && hygiene.ret_markers.is_empty() {
+            let markers = self.guard_markers(&hygiene.markers);
+            return format!("hygiene[{markers}]");
+        }
+        let mut groups = Vec::new();
+        if !hygiene.markers.is_empty() {
+            groups.push(format!("body[{}]", self.guard_markers(&hygiene.markers)));
+        }
+        if !hygiene.arg_markers.is_empty() {
+            groups.push(format!("arg[{}]", self.guard_markers(&hygiene.arg_markers)));
+        }
+        if !hygiene.ret_markers.is_empty() {
+            groups.push(format!("ret[{}]", self.guard_markers(&hygiene.ret_markers)));
+        }
+        let markers = groups.join(", ");
+        format!("hygiene[{markers}]")
+    }
+
+    fn guard_markers(&self, markers: &[GuardMarker]) -> String {
+        markers
             .iter()
             .map(|marker| self.guard_marker(marker))
             .collect::<Vec<_>>()
-            .join(", ");
-        format!("hygiene[{markers}]")
+            .join(", ")
     }
 
     fn guard_marker(&self, marker: &GuardMarker) -> String {
@@ -291,11 +311,17 @@ impl Dumper {
             (true, true) => ", any",
             (false, false) => ", none",
         };
+        let resume = if marker.preserve_own_on_resume {
+            ", resume-own"
+        } else {
+            ""
+        };
         format!(
-            "add_id[{}, {}{}]",
+            "add_id[{}, {}{}{}]",
             marker.depth,
             marker.path.join("::"),
-            mode
+            mode,
+            resume
         )
     }
 
@@ -734,7 +760,10 @@ mod tests {
                         depth: 1,
                         guard_own_path: false,
                         guard_foreign_path: true,
+                        preserve_own_on_resume: false,
                     }],
+                    arg_markers: Vec::new(),
+                    ret_markers: Vec::new(),
                 },
             }))],
             instances: Vec::new(),

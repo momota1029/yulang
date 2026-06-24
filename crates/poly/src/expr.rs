@@ -61,6 +61,12 @@ pub struct Arena {
     /// constructor も body を持たない `Def::Let` だが、runtime では constructor 値として
     /// 評価する必要がある。単相化後段が `DefId` から arity と owner を読めるようにここへ残す。
     pub constructors: FxHashMap<DefId, Constructor>,
+    /// Source annotations that make a function argument an explicit effect contract.
+    ///
+    /// This is separate from `Def::Arg`: most inferred callback effects are not contracts, and
+    /// downstream adapter hygiene must not reconstruct that distinction from the mono type shape.
+    #[serde(default)]
+    pub arg_effect_contracts: FxHashSet<DefId>,
     /// `struct` field projection として登録された value receiver method。
     ///
     /// field projection は selection 解決時には `Method` として見えるが、runtime では method
@@ -115,6 +121,7 @@ impl Arena {
             role_impls: RoleImplTable::new(),
             effect_operations: FxHashMap::default(),
             constructors: FxHashMap::default(),
+            arg_effect_contracts: FxHashSet::default(),
             field_projections: FxHashSet::default(),
             expr: Vec::new(),
             pat: Vec::new(),

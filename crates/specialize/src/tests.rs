@@ -1,5 +1,8 @@
 mod tests {
-    use crate::{boundary_expr, specialize, specialize_roots, specialize2};
+    use crate::{
+        boundary_expr, boundary_expr_with_hygiene, hygiene, specialize, specialize_roots,
+        specialize2,
+    };
     use mono::{
         ComputationType, EffectiveThunkType, ExprKind, GuardMarker, InstanceSource, Lit, Type,
     };
@@ -118,6 +121,7 @@ mod tests {
                 depth: 0,
                 guard_own_path: true,
                 guard_foreign_path: false,
+                preserve_own_on_resume: false,
             }]
         );
     }
@@ -162,6 +166,40 @@ mod tests {
                 depth: 1,
                 guard_own_path: true,
                 guard_foreign_path: false,
+                preserve_own_on_resume: false,
+            }]
+        );
+    }
+
+    #[test]
+    fn boundary_expr_hygiene_marks_effectful_callback_contract_on_argument_only() {
+        let effect = io_effect_type();
+        let callback = pure_function_type(int_type(), thunk_type(effect.clone(), int_type()));
+        let actual =
+            pure_function_type(callback.clone(), pure_function_type(int_type(), int_type()));
+        let expected = pure_function_type(
+            callback,
+            thunk_type(effect, pure_function_type(int_type(), int_type())),
+        );
+        let function = mono::Expr::new(ExprKind::Local(mono::DefId(0)));
+        let hygiene =
+            hygiene::function_adapter_hygiene_with_argument_contract(&actual, &expected, true);
+
+        let wrapped = boundary_expr_with_hygiene(&actual, &expected, function, hygiene);
+
+        let ExprKind::FunctionAdapter { hygiene, .. } = wrapped.kind else {
+            panic!("function boundary should produce adapter");
+        };
+        assert!(hygiene.markers.is_empty());
+        assert!(hygiene.ret_markers.is_empty());
+        assert_eq!(
+            hygiene.arg_markers,
+            vec![GuardMarker {
+                path: vec!["io".to_string()],
+                depth: 1,
+                guard_own_path: true,
+                guard_foreign_path: false,
+                preserve_own_on_resume: true,
             }]
         );
     }
@@ -188,6 +226,7 @@ mod tests {
                 depth: 0,
                 guard_own_path: true,
                 guard_foreign_path: false,
+                preserve_own_on_resume: false,
             }]
         );
     }

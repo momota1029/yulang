@@ -51,12 +51,13 @@ pub(super) enum Frame {
     },
     ApplyAdapterArg {
         function: Value,
-        markers: SharedMarkers,
+        arg_markers: SharedMarkers,
+        ret_markers: SharedMarkers,
         source_ret: Type,
         target_ret: Type,
     },
     ApplyAdapterResult {
-        markers: SharedMarkers,
+        ret_markers: SharedMarkers,
         source_ret: Type,
         target_ret: Type,
     },
@@ -713,16 +714,17 @@ impl<'a> Runtime<'a> {
             }
             Frame::ApplyAdapterArg {
                 function,
-                markers,
+                arg_markers,
+                ret_markers,
                 source_ret,
                 target_ret,
             } => {
-                let arg = mark_value_shared(value, markers);
+                let arg = mark_value_shared(value, arg_markers);
                 let result = self.apply_value(function.clone(), arg)?;
                 self.continue_with_current_frame(
                     result,
                     Frame::ApplyAdapterResult {
-                        markers: markers.clone(),
+                        ret_markers: ret_markers.clone(),
                         source_ret: source_ret.clone(),
                         target_ret: target_ret.clone(),
                     },
@@ -731,11 +733,11 @@ impl<'a> Runtime<'a> {
                 )
             }
             Frame::ApplyAdapterResult {
-                markers,
+                ret_markers,
                 source_ret,
                 target_ret,
             } => {
-                let result = mark_value_shared(value, markers);
+                let result = mark_value_shared(value, ret_markers);
                 self.adapt_value(result, source_ret, target_ret)
             }
             Frame::DirectBinaryApply { op, context, first } => {
@@ -1025,16 +1027,17 @@ impl<'a> Runtime<'a> {
             }
             Frame::ApplyAdapterArg {
                 function,
-                markers,
+                arg_markers,
+                ret_markers,
                 source_ret,
                 target_ret,
             } => {
-                let arg = mark_value_shared(value, &markers);
+                let arg = mark_value_shared(value, &arg_markers);
                 let result = self.apply_value(function, arg)?;
                 self.continue_with_current_frame(
                     result,
                     Frame::ApplyAdapterResult {
-                        markers,
+                        ret_markers,
                         source_ret,
                         target_ret,
                     },
@@ -1043,11 +1046,11 @@ impl<'a> Runtime<'a> {
                 )
             }
             Frame::ApplyAdapterResult {
-                markers,
+                ret_markers,
                 source_ret,
                 target_ret,
             } => {
-                let result = mark_value_shared(value, &markers);
+                let result = mark_value_shared(value, &ret_markers);
                 self.adapt_value(result, &source_ret, &target_ret)
             }
             Frame::DirectBinarySecond {

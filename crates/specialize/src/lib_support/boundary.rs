@@ -1,6 +1,20 @@
 use super::*;
 
 pub(crate) fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr {
+    boundary_expr_with_hygiene(
+        actual,
+        expected,
+        expr,
+        hygiene::function_adapter_hygiene(actual, expected),
+    )
+}
+
+pub(crate) fn boundary_expr_with_hygiene(
+    actual: &Type,
+    expected: &Type,
+    expr: Expr,
+    function_hygiene: mono::FunctionAdapterHygiene,
+) -> Expr {
     if equivalent_boundary_types(actual, expected) {
         return expr;
     }
@@ -94,7 +108,7 @@ pub(crate) fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr 
             source: actual.clone(),
             target: expected.clone(),
             function: Box::new(expr),
-            hygiene: hygiene::function_adapter_hygiene(actual, expected),
+            hygiene: function_hygiene,
         });
     }
     Expr::new(ExprKind::Coerce {

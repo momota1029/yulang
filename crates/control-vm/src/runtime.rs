@@ -355,6 +355,7 @@ pub struct AddIdMarker {
     pub guard_own_path: bool,
     pub guard_foreign_path: bool,
     pub carry_after_frame: bool,
+    pub preserve_own_on_resume: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -1374,7 +1375,7 @@ fn markers_for_continuation_call(markers: &[ValueMarker]) -> Vec<ValueMarker> {
                 ValueMarker::Frame { id } => ValueMarker::Frame { id },
                 ValueMarker::AddId(marker) => ValueMarker::AddId(AddIdMarker {
                     depth: marker.depth.saturating_sub(1),
-                    guard_own_path: false,
+                    guard_own_path: marker.guard_own_path && marker.preserve_own_on_resume,
                     guard_foreign_path: true,
                     ..marker
                 }),
@@ -1392,11 +1393,11 @@ fn shared_markers_for_continuation_call(markers: &SharedMarkers) -> SharedMarker
 
 fn markers_for_continuation_call_is_identity(markers: &[ValueMarker]) -> bool {
     for (index, marker) in markers.iter().enumerate() {
-        if matches!(
-            marker,
-            ValueMarker::AddId(marker)
-                if marker.depth != 0 || marker.guard_own_path || !marker.guard_foreign_path
-        ) {
+        if let ValueMarker::AddId(marker) = marker
+            && (marker.depth != 0
+                || (marker.guard_own_path && !marker.preserve_own_on_resume)
+                || !marker.guard_foreign_path)
+        {
             return false;
         }
         if markers[..index].iter().any(|existing| existing == marker) {
@@ -1413,7 +1414,7 @@ fn markers_for_continuation_resume(markers: &[ValueMarker]) -> Vec<ValueMarker> 
             .cloned()
             .map(|marker| match marker {
                 ValueMarker::AddId(marker) => ValueMarker::AddId(AddIdMarker {
-                    guard_own_path: false,
+                    guard_own_path: marker.guard_own_path && marker.preserve_own_on_resume,
                     guard_foreign_path: true,
                     ..marker
                 }),
@@ -1432,11 +1433,10 @@ fn shared_markers_for_continuation_resume(markers: &SharedMarkers) -> SharedMark
 
 fn markers_for_continuation_resume_is_identity(markers: &[ValueMarker]) -> bool {
     for (index, marker) in markers.iter().enumerate() {
-        if matches!(
-            marker,
-            ValueMarker::AddId(marker)
-                if marker.guard_own_path || !marker.guard_foreign_path
-        ) {
+        if let ValueMarker::AddId(marker) = marker
+            && ((marker.guard_own_path && !marker.preserve_own_on_resume)
+                || !marker.guard_foreign_path)
+        {
             return false;
         }
         if markers[..index].iter().any(|existing| existing == marker) {
@@ -1448,6 +1448,18 @@ fn markers_for_continuation_resume_is_identity(markers: &[ValueMarker]) -> bool 
 
 fn shared_markers(markers: Vec<ValueMarker>) -> SharedMarkers {
     Rc::from(markers)
+}
+
+fn shared_combined_markers(left: &SharedMarkers, right: &SharedMarkers) -> SharedMarkers {
+    if left.is_empty() {
+        return right.clone();
+    }
+    if right.is_empty() || markers_contain_all(left, right) {
+        return left.clone();
+    }
+    let mut markers = left.to_vec();
+    extend_marker_list(&mut markers, right);
+    shared_markers(markers)
 }
 
 fn shared_values(values: Vec<Value>) -> SharedValues {
@@ -1477,6 +1489,7 @@ fn stack_handler_markers(id: GuardId, path_key: InternedPath) -> Vec<ValueMarker
             guard_own_path: false,
             guard_foreign_path: true,
             carry_after_frame: false,
+            preserve_own_on_resume: false,
         }),
         ValueMarker::AddId(AddIdMarker {
             id,
@@ -1485,6 +1498,7 @@ fn stack_handler_markers(id: GuardId, path_key: InternedPath) -> Vec<ValueMarker
             guard_own_path: true,
             guard_foreign_path: true,
             carry_after_frame: false,
+            preserve_own_on_resume: false,
         }),
     ]
 }

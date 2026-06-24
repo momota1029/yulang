@@ -271,7 +271,7 @@ impl Specializer {
             mono_expr
         };
         if wrap_boundary {
-            self.wrap_boundary(expr_id, mono_expr, plan)
+            self.wrap_boundary(arena, expr_id, mono_expr, plan)
         } else {
             Ok(mono_expr)
         }
@@ -279,6 +279,7 @@ impl Specializer {
 
     fn wrap_boundary(
         &mut self,
+        arena: &poly_expr::Arena,
         expr_id: poly_expr::ExprId,
         expr: Expr,
         plan: &solve::ExprTypePlan,
@@ -289,7 +290,35 @@ impl Specializer {
         if equivalent_boundary_types(boundary.actual, boundary.expected) {
             return Ok(expr);
         }
+        if function_boundary_types(boundary.actual, boundary.expected) {
+            let argument_effect_contract = self.expr_argument_effect_contract(arena, expr_id);
+            let hygiene = hygiene::function_adapter_hygiene_with_argument_contract(
+                boundary.actual,
+                boundary.expected,
+                argument_effect_contract,
+            );
+            return Ok(boundary_expr_with_hygiene(
+                boundary.actual,
+                boundary.expected,
+                expr,
+                hygiene,
+            ));
+        }
         Ok(boundary_expr(boundary.actual, boundary.expected, expr))
+    }
+
+    fn expr_argument_effect_contract(
+        &self,
+        arena: &poly_expr::Arena,
+        expr_id: poly_expr::ExprId,
+    ) -> bool {
+        let poly_expr::Expr::Lambda(param, _) = arena.expr(expr_id) else {
+            return false;
+        };
+        let Some(def) = lambda_param_def(arena, *param) else {
+            return false;
+        };
+        arena.arg_effect_contracts.contains(&def)
     }
 
     fn var(
@@ -347,6 +376,14 @@ impl Specializer {
         };
         if equivalent_boundary_types(actual, expected) {
             return Ok(expr);
+        }
+        if function_boundary_types(actual, expected) {
+            let hygiene = hygiene::function_adapter_hygiene_with_argument_contract(
+                actual,
+                expected,
+                def_argument_effect_contract(arena, def),
+            );
+            return Ok(boundary_expr_with_hygiene(actual, expected, expr, hygiene));
         }
         Ok(boundary_expr(actual, expected, expr))
     }
@@ -665,4 +702,27 @@ impl Specializer {
             poly_expr::RecordSpread::None => Ok(RecordSpread::None),
         }
     }
+}
+
+fn lambda_param_def(arena: &poly_expr::Arena, pat: poly_expr::PatId) -> Option<poly_expr::DefId> {
+    match arena.pat(pat) {
+        poly_expr::Pat::Var(def) | poly_expr::Pat::As(_, def) => Some(*def),
+        _ => None,
+    }
+}
+
+fn def_argument_effect_contract(arena: &poly_expr::Arena, def: poly_expr::DefId) -> bool {
+    let Some(poly_expr::Def::Let {
+        body: Some(body), ..
+    }) = arena.defs.get(def)
+    else {
+        return false;
+    };
+    let poly_expr::Expr::Lambda(param, _) = arena.expr(*body) else {
+        return false;
+    };
+    let Some(def) = lambda_param_def(arena, *param) else {
+        return false;
+    };
+    arena.arg_effect_contracts.contains(&def)
 }

@@ -110,16 +110,20 @@ impl<'a> Runtime<'a> {
         let target_arg = target_arg.clone();
         let target_ret = target_ret.clone();
         let function = *adapter.function;
-        let markers = self.instantiate_hygiene(&adapter.hygiene);
-        self.with_marker_frame(markers.clone(), move |runtime| {
-            let arg = mark_value(arg.clone(), &markers);
+        let body_markers = self.instantiate_hygiene_markers(&adapter.hygiene.markers);
+        let arg_markers = self.instantiate_hygiene_markers(&adapter.hygiene.arg_markers);
+        let ret_markers = self.instantiate_hygiene_markers(&adapter.hygiene.ret_markers);
+        let arg_boundary_markers = combined_markers(&body_markers, &arg_markers);
+        let ret_boundary_markers = combined_markers(&body_markers, &ret_markers);
+        self.with_marker_frame(body_markers, move |runtime| {
+            let arg = mark_value(arg.clone(), &arg_boundary_markers);
             let arg = runtime.adapt_value(arg, &target_arg, &source_arg)?;
             runtime.continue_with(arg, move |runtime, arg| {
-                let arg = mark_value(arg, &markers);
+                let arg = mark_value(arg, &arg_boundary_markers);
                 let result = runtime.apply_value(function.clone(), arg)?;
                 let source_ret = source_ret.clone();
                 let target_ret = target_ret.clone();
-                let markers = markers.clone();
+                let markers = ret_boundary_markers.clone();
                 runtime.continue_with(result, move |runtime, result| {
                     let result = mark_value(result, &markers);
                     runtime.adapt_value(result, &source_ret, &target_ret)
@@ -356,12 +360,11 @@ impl<'a> Runtime<'a> {
             })
     }
 
-    pub(super) fn instantiate_hygiene(
+    pub(super) fn instantiate_hygiene_markers(
         &mut self,
-        hygiene: &FunctionAdapterHygiene,
+        markers: &[mono::GuardMarker],
     ) -> Vec<ValueMarker> {
-        hygiene
-            .markers
+        markers
             .iter()
             .flat_map(|marker| {
                 let id = self.fresh_guard_id();
@@ -374,6 +377,7 @@ impl<'a> Runtime<'a> {
                         guard_own_path: marker.guard_own_path,
                         guard_foreign_path: marker.guard_foreign_path,
                         carry_after_frame: marker.guard_own_path,
+                        preserve_own_on_resume: marker.preserve_own_on_resume,
                     }),
                 ]
             })
@@ -624,6 +628,7 @@ mod tests {
                 guard_own_path: false,
                 guard_foreign_path: true,
                 carry_after_frame: false,
+                preserve_own_on_resume: false,
             }),
         ]
     }

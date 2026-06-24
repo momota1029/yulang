@@ -181,15 +181,23 @@ impl<'a> Runtime<'a> {
         let target_arg = target_arg.clone();
         let target_ret = target_ret.clone();
         let function = adapter.function.as_ref().clone();
-        let markers = shared_markers(self.instantiate_hygiene(&adapter.hygiene));
-        self.with_shared_marker_frame(markers.clone(), move |runtime| {
-            let arg = mark_value_shared(arg.clone(), &markers);
+        let body_markers =
+            shared_markers(self.instantiate_hygiene_markers(&adapter.hygiene.markers));
+        let arg_markers =
+            shared_markers(self.instantiate_hygiene_markers(&adapter.hygiene.arg_markers));
+        let ret_markers =
+            shared_markers(self.instantiate_hygiene_markers(&adapter.hygiene.ret_markers));
+        let arg_boundary_markers = shared_combined_markers(&body_markers, &arg_markers);
+        let ret_boundary_markers = shared_combined_markers(&body_markers, &ret_markers);
+        self.with_shared_marker_frame(body_markers, move |runtime| {
+            let arg = mark_value_shared(arg.clone(), &arg_boundary_markers);
             let arg = runtime.adapt_value(arg, &target_arg, &source_arg)?;
             runtime.continue_with_frame(
                 arg,
                 Frame::ApplyAdapterArg {
                     function: function.clone(),
-                    markers: markers.clone(),
+                    arg_markers: arg_boundary_markers.clone(),
+                    ret_markers: ret_boundary_markers.clone(),
                     source_ret: source_ret.clone(),
                     target_ret: target_ret.clone(),
                 },
@@ -237,7 +245,7 @@ impl<'a> Runtime<'a> {
                     .any(|guard| guard.id == marker.id)
             {
                 let exposed_guard_ids =
-                    self.request_guard_ids_at_marker_entry(request, active_marker);
+                    self.carried_exposed_guard_ids_at_marker_entry(request, active_marker);
                 if !request.guard_ids.contains(&marker.id) {
                     request.guard_ids.push(marker.id);
                 }
@@ -277,6 +285,24 @@ impl<'a> Runtime<'a> {
                 }
                 ids
             })
+    }
+
+    fn carried_exposed_guard_ids_at_marker_entry(
+        &self,
+        request: &Request,
+        marker: &ActiveAddIdMarker,
+    ) -> Vec<GuardId> {
+        let mut ids = self.request_guard_ids_at_marker_entry(request, marker);
+        for frame in self
+            .active_handler_frames
+            .iter()
+            .filter(|frame| frame.frame_index < marker.entry_frame_len)
+        {
+            if !ids.contains(&frame.id) {
+                ids.push(frame.id);
+            }
+        }
+        ids
     }
 
     pub(super) fn request_guard_for_path(
@@ -383,25 +409,26 @@ impl<'a> Runtime<'a> {
         None
     }
 
-    pub(super) fn instantiate_hygiene(
+    pub(super) fn instantiate_hygiene_markers(
         &mut self,
-        hygiene: &FunctionAdapterHygiene,
+        markers: &[mono::GuardMarker],
     ) -> Vec<ValueMarker> {
-        let mut markers = Vec::with_capacity(hygiene.markers.len() * 2);
-        for marker in &hygiene.markers {
+        let mut value_markers = Vec::with_capacity(markers.len() * 2);
+        for marker in markers {
             let id = self.fresh_guard_id();
             let path_key = self.intern_path(&marker.path);
-            markers.push(ValueMarker::Frame { id });
-            markers.push(ValueMarker::AddId(AddIdMarker {
+            value_markers.push(ValueMarker::Frame { id });
+            value_markers.push(ValueMarker::AddId(AddIdMarker {
                 id,
                 path_key: path_key.prefix(),
                 depth: marker.depth,
                 guard_own_path: marker.guard_own_path,
                 guard_foreign_path: marker.guard_foreign_path,
                 carry_after_frame: marker.guard_own_path,
+                preserve_own_on_resume: marker.preserve_own_on_resume,
             }));
         }
-        markers
+        value_markers
     }
 
     pub(super) fn fresh_guard_id(&mut self) -> GuardId {
@@ -803,6 +830,7 @@ mod tests {
                 guard_own_path: false,
                 guard_foreign_path: true,
                 carry_after_frame: false,
+                preserve_own_on_resume: false,
             }),
         ]
     }

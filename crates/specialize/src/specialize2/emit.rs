@@ -647,7 +647,13 @@ impl Specializer2 {
         if matches!(consumer, Type::Any) {
             return Ok(mono);
         }
-        self.boundary_emitted_expr(arena, actual, consumer, mono)
+        self.boundary_emitted_expr_with_argument_contract(
+            arena,
+            actual,
+            consumer,
+            mono,
+            expr_argument_effect_contract(arena, expr),
+        )
     }
 
     pub(super) fn boundary_emitted_expr(
@@ -657,12 +663,29 @@ impl Specializer2 {
         expected: &Type,
         emitted: EmittedExpr,
     ) -> Result<EmittedExpr, SpecializeError> {
+        self.boundary_emitted_expr_with_argument_contract(arena, actual, expected, emitted, false)
+    }
+
+    fn boundary_emitted_expr_with_argument_contract(
+        &mut self,
+        arena: &poly_expr::Arena,
+        actual: &Type,
+        expected: &Type,
+        emitted: EmittedExpr,
+        argument_effect_contract: bool,
+    ) -> Result<EmittedExpr, SpecializeError> {
         if matches!(expected, Type::Any) {
             return Ok(emitted);
         }
         let Some(shape) = emitted.computation.clone() else {
             return Ok(EmittedExpr::pure(
-                self.boundary_expr(arena, actual, expected, emitted.expr)?,
+                self.boundary_expr_with_argument_contract(
+                    arena,
+                    actual,
+                    expected,
+                    emitted.expr,
+                    argument_effect_contract,
+                )?,
                 Some(expected.clone()),
             ));
         };
@@ -670,26 +693,45 @@ impl Specializer2 {
             if shape.effect.is_pure_effect() && equivalent_boundary_types(&shape.value, expected) {
                 return Ok(emitted);
             }
-            let body = self.ensure_emitted_value(arena, emitted, actual, value)?;
+            let body = self.ensure_emitted_value_with_argument_contract(
+                arena,
+                emitted,
+                actual,
+                value,
+                argument_effect_contract,
+            )?;
             return Ok(make_thunk_from_computation(
                 body,
                 effect.as_ref().clone(),
                 value.as_ref().clone(),
             ));
         }
-        self.ensure_emitted_value(arena, emitted, actual, expected)
+        self.ensure_emitted_value_with_argument_contract(
+            arena,
+            emitted,
+            actual,
+            expected,
+            argument_effect_contract,
+        )
     }
 
-    pub(super) fn ensure_emitted_value(
+    fn ensure_emitted_value_with_argument_contract(
         &mut self,
         arena: &poly_expr::Arena,
         emitted: EmittedExpr,
         actual: &Type,
         expected: &Type,
+        argument_effect_contract: bool,
     ) -> Result<EmittedExpr, SpecializeError> {
         let Some(shape) = emitted.computation.clone() else {
             return Ok(EmittedExpr::pure(
-                self.boundary_expr(arena, actual, expected, emitted.expr)?,
+                self.boundary_expr_with_argument_contract(
+                    arena,
+                    actual,
+                    expected,
+                    emitted.expr,
+                    argument_effect_contract,
+                )?,
                 Some(expected.clone()),
             ));
         };
@@ -720,9 +762,21 @@ impl Specializer2 {
             if equivalent_boundary_types(&forced_shape.value, expected) {
                 return Ok(forced);
             }
-            return self.coerce_emitted_value(arena, forced, expected, None);
+            return self.coerce_emitted_value_with_argument_contract(
+                arena,
+                forced,
+                expected,
+                None,
+                argument_effect_contract,
+            );
         }
-        self.coerce_emitted_value(arena, emitted, expected, None)
+        self.coerce_emitted_value_with_argument_contract(
+            arena,
+            emitted,
+            expected,
+            None,
+            argument_effect_contract,
+        )
     }
 
     pub(super) fn coerce_emitted_value(
@@ -731,6 +785,17 @@ impl Specializer2 {
         emitted: EmittedExpr,
         expected: &Type,
         effect: Option<Type>,
+    ) -> Result<EmittedExpr, SpecializeError> {
+        self.coerce_emitted_value_with_argument_contract(arena, emitted, expected, effect, false)
+    }
+
+    fn coerce_emitted_value_with_argument_contract(
+        &mut self,
+        arena: &poly_expr::Arena,
+        emitted: EmittedExpr,
+        expected: &Type,
+        effect: Option<Type>,
+        argument_effect_contract: bool,
     ) -> Result<EmittedExpr, SpecializeError> {
         let Some(shape) = emitted.computation.clone() else {
             return Ok(EmittedExpr::pure(emitted.expr, Some(expected.clone())));
@@ -744,7 +809,13 @@ impl Specializer2 {
                 ..emitted
             });
         }
-        let expr = self.boundary_expr(arena, &shape.value, expected, emitted.expr)?;
+        let expr = self.boundary_expr_with_argument_contract(
+            arena,
+            &shape.value,
+            expected,
+            emitted.expr,
+            argument_effect_contract,
+        )?;
         Ok(EmittedExpr {
             expr,
             computation: Some(ComputationShape {
@@ -754,12 +825,13 @@ impl Specializer2 {
         })
     }
 
-    pub(super) fn boundary_expr(
+    fn boundary_expr_with_argument_contract(
         &mut self,
         arena: &poly_expr::Arena,
         actual: &Type,
         expected: &Type,
         expr: Expr,
+        argument_effect_contract: bool,
     ) -> Result<Expr, SpecializeError> {
         let actual = close_runtime_type_surface(
             erase_negative_only_open_vars(actual.clone()),
@@ -775,7 +847,12 @@ impl Specializer2 {
                 Box::new(expr),
             )));
         }
-        Ok(boundary_expr(&actual, &expected, expr))
+        Ok(boundary_expr_with_argument_contract(
+            &actual,
+            &expected,
+            expr,
+            argument_effect_contract,
+        ))
     }
 
     pub(super) fn cast_boundary_instance(
@@ -789,5 +866,42 @@ impl Specializer2 {
         };
         let signature = types::pure_function_type(actual.clone(), expected.clone());
         self.ensure_def_instance(arena, def, signature).map(Some)
+    }
+}
+
+fn expr_argument_effect_contract(arena: &poly_expr::Arena, expr: poly_expr::ExprId) -> bool {
+    match arena.expr(expr) {
+        poly_expr::Expr::Lambda(param, _) => lambda_param_effect_contract(arena, *param),
+        poly_expr::Expr::Var(ref_id) => arena
+            .ref_target(*ref_id)
+            .is_some_and(|def| def_argument_effect_contract(arena, def)),
+        _ => false,
+    }
+}
+
+fn def_argument_effect_contract(arena: &poly_expr::Arena, def: poly_expr::DefId) -> bool {
+    let Some(poly_expr::Def::Let {
+        body: Some(body), ..
+    }) = arena.defs.get(def)
+    else {
+        return false;
+    };
+    let poly_expr::Expr::Lambda(param, _) = arena.expr(*body) else {
+        return false;
+    };
+    lambda_param_effect_contract(arena, *param)
+}
+
+fn lambda_param_effect_contract(arena: &poly_expr::Arena, pat: poly_expr::PatId) -> bool {
+    let Some(def) = lambda_param_def(arena, pat) else {
+        return false;
+    };
+    arena.arg_effect_contracts.contains(&def)
+}
+
+fn lambda_param_def(arena: &poly_expr::Arena, pat: poly_expr::PatId) -> Option<poly_expr::DefId> {
+    match arena.pat(pat) {
+        poly_expr::Pat::Var(def) | poly_expr::Pat::As(_, def) => Some(*def),
+        _ => None,
     }
 }

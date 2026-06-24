@@ -146,7 +146,12 @@ pub struct EffectiveThunkType {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct FunctionAdapterHygiene {
+    #[serde(default)]
     pub markers: Vec<GuardMarker>,
+    #[serde(default)]
+    pub arg_markers: Vec<GuardMarker>,
+    #[serde(default)]
+    pub ret_markers: Vec<GuardMarker>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -157,6 +162,8 @@ pub struct GuardMarker {
     pub guard_own_path: bool,
     #[serde(default = "guard_marker_default_foreign_path")]
     pub guard_foreign_path: bool,
+    #[serde(default)]
+    pub preserve_own_on_resume: bool,
 }
 
 fn guard_marker_default_foreign_path() -> bool {

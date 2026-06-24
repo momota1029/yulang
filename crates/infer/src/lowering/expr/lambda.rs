@@ -265,6 +265,7 @@ impl<'a> ExprLowerer<'a> {
         )?;
         self.mark_lambda_param_call_predicate(before_locals, &annotation);
         self.mark_lambda_param_as_input(pat);
+        self.mark_lambda_param_effect_contract(pat, &annotation);
         let active_var_bindings = self.install_var_pattern_bindings(&var_bindings)?;
         self.function_frames
             .push(FunctionPredicateFrame::new(lambda_scope));
@@ -446,6 +447,7 @@ impl<'a> ExprLowerer<'a> {
                 }
             };
             self.mark_lambda_param_as_input(pat);
+            self.mark_lambda_param_effect_contract(pat, &annotation);
             self.mark_lambda_param_call_predicate(param_local_start, &annotation);
             let frame_index = self.function_frames.len();
             self.function_frames
@@ -570,14 +572,31 @@ impl<'a> ExprLowerer<'a> {
     }
 
     fn mark_lambda_param_as_input(&mut self, pat: PatId) {
-        let def = match self.session.poly.pat(pat) {
-            Pat::Var(def) | Pat::As(_, def) => Some(*def),
-            _ => None,
-        };
+        let def = self.lambda_param_def(pat);
         if let Some(def) = def
             && let Some(use_site) = self.session.local_defs.get_mut(def)
         {
             use_site.role = LocalDefRole::Input;
+        }
+    }
+
+    fn mark_lambda_param_effect_contract(
+        &mut self,
+        pat: PatId,
+        annotation: &LambdaPatternAnnotation,
+    ) {
+        if !annotation.argument_effect_contract {
+            return;
+        }
+        if let Some(def) = self.lambda_param_def(pat) {
+            self.session.poly.arg_effect_contracts.insert(def);
+        }
+    }
+
+    fn lambda_param_def(&self, pat: PatId) -> Option<DefId> {
+        match self.session.poly.pat(pat) {
+            Pat::Var(def) | Pat::As(_, def) => Some(*def),
+            _ => None,
         }
     }
 
@@ -809,6 +828,7 @@ impl<'a> ExprLowerer<'a> {
                 arg_eff: self.never_neg(),
                 skeleton_arg_eff: self.never_neg(),
                 local_effect: None,
+                argument_effect_contract: false,
                 predicate: PredicateOutputConstraints::default(),
                 call_predicate: PredicateOutputConstraints::default(),
                 call_erased_upper: None,
@@ -864,6 +884,7 @@ impl<'a> ExprLowerer<'a> {
             arg_eff,
             skeleton_arg_eff,
             local_effect,
+            argument_effect_contract: lambda_annotation_argument_effect_contract(&ann),
             predicate,
             call_predicate,
             call_erased_upper,
@@ -883,6 +904,10 @@ impl<'a> ExprLowerer<'a> {
 
         (self.fresh_exact_pure_effect(), self.never_neg())
     }
+}
+
+fn lambda_annotation_argument_effect_contract(ann: &AnnType) -> bool {
+    matches!(ann, AnnType::Function { .. }) && callable_annotation_has_effect_head(ann)
 }
 
 fn callable_annotation_has_effect_head(ann: &AnnType) -> bool {

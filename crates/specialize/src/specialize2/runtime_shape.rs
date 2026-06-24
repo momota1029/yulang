@@ -780,6 +780,15 @@ pub(super) fn join_emitted_effects(left: Type, right: Type) -> Type {
 }
 
 pub(super) fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr {
+    boundary_expr_with_argument_contract(actual, expected, expr, false)
+}
+
+pub(super) fn boundary_expr_with_argument_contract(
+    actual: &Type,
+    expected: &Type,
+    expr: Expr,
+    argument_effect_contract: bool,
+) -> Expr {
     let actual = close_runtime_type_surface(
         erase_negative_only_open_vars(actual.clone()),
         TypeSlotKind::Value,
@@ -818,7 +827,12 @@ pub(super) fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr 
         let body = if equivalent_boundary_types(source_value.as_ref(), target_value.as_ref()) {
             forced
         } else {
-            boundary_expr(source_value.as_ref(), target_value.as_ref(), forced)
+            boundary_expr_with_argument_contract(
+                source_value.as_ref(),
+                target_value.as_ref(),
+                forced,
+                argument_effect_contract,
+            )
         };
         return Expr::new(ExprKind::MakeThunk {
             source: ComputationType {
@@ -867,7 +881,11 @@ pub(super) fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr 
             source: actual.clone(),
             target: expected.clone(),
             function: Box::new(expr),
-            hygiene: hygiene::function_adapter_hygiene(actual, expected),
+            hygiene: hygiene::function_adapter_hygiene_with_argument_contract(
+                actual,
+                expected,
+                argument_effect_contract,
+            ),
         });
     }
     Expr::new(ExprKind::Coerce {

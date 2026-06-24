@@ -8,12 +8,40 @@ use mono::{FunctionAdapterHygiene, GuardMarker, Type};
 use crate::equivalent_boundary_types;
 
 pub(crate) fn function_adapter_hygiene(source: &Type, target: &Type) -> FunctionAdapterHygiene {
-    let mut markers = Vec::new();
-    collect_function_boundary_markers(source, target, &mut markers);
-    FunctionAdapterHygiene { markers }
+    function_adapter_hygiene_with_argument_contract(source, target, false)
 }
 
-fn collect_function_boundary_markers(source: &Type, target: &Type, markers: &mut Vec<GuardMarker>) {
+pub(crate) fn function_adapter_hygiene_with_argument_contract(
+    source: &Type,
+    target: &Type,
+    argument_effect_contract: bool,
+) -> FunctionAdapterHygiene {
+    let mut markers = Vec::new();
+    let mut arg_markers = Vec::new();
+    let mut ret_markers = Vec::new();
+    collect_function_boundary_markers(
+        source,
+        target,
+        argument_effect_contract,
+        &mut markers,
+        &mut arg_markers,
+        &mut ret_markers,
+    );
+    FunctionAdapterHygiene {
+        markers,
+        arg_markers,
+        ret_markers,
+    }
+}
+
+fn collect_function_boundary_markers(
+    source: &Type,
+    target: &Type,
+    argument_effect_contract: bool,
+    markers: &mut Vec<GuardMarker>,
+    arg_markers: &mut Vec<GuardMarker>,
+    ret_markers: &mut Vec<GuardMarker>,
+) {
     let (
         Type::Fun {
             arg: source_arg,
@@ -30,8 +58,63 @@ fn collect_function_boundary_markers(source: &Type, target: &Type, markers: &mut
         return;
     };
 
-    collect_actual_runtime_shape_markers(target_arg, source_arg, 0, markers);
-    collect_actual_runtime_shape_markers(source_ret, target_ret, 0, markers);
+    if argument_effect_contract {
+        collect_function_argument_contract_markers(target_arg, 0, arg_markers);
+    }
+    collect_actual_runtime_shape_markers(target_arg, source_arg, 0, markers, ret_markers);
+    collect_actual_runtime_shape_markers(source_ret, target_ret, 0, markers, ret_markers);
+}
+
+fn collect_function_argument_contract_markers(
+    ty: &Type,
+    depth: u32,
+    value_markers: &mut Vec<GuardMarker>,
+) {
+    if matches!(ty, Type::Fun { .. }) {
+        collect_runtime_contract_markers(ty, depth, value_markers);
+    }
+}
+
+fn collect_runtime_contract_markers(ty: &Type, depth: u32, markers: &mut Vec<GuardMarker>) {
+    match ty {
+        Type::Thunk { effect, value } => {
+            collect_contract_effect_markers(effect, depth, markers);
+            collect_runtime_contract_markers(value, depth, markers);
+        }
+        Type::Fun { arg, ret, .. } => {
+            let nested_depth = depth.saturating_add(1);
+            collect_runtime_contract_markers(arg, nested_depth, markers);
+            collect_runtime_contract_markers(ret, nested_depth, markers);
+        }
+        Type::Con { args, .. } | Type::Tuple(args) => {
+            for arg in args {
+                collect_runtime_contract_markers(arg, depth, markers);
+            }
+        }
+        Type::EffectRow(_) => {
+            collect_contract_effect_markers(ty, depth, markers);
+        }
+        Type::Record(fields) => {
+            for field in fields {
+                collect_runtime_contract_markers(&field.value, depth, markers);
+            }
+        }
+        Type::PolyVariant(variants) => {
+            for variant in variants {
+                for payload in &variant.payloads {
+                    collect_runtime_contract_markers(payload, depth, markers);
+                }
+            }
+        }
+        Type::Stack { inner, .. } => {
+            collect_runtime_contract_markers(inner, depth, markers);
+        }
+        Type::Union(left, right) | Type::Intersection(left, right) => {
+            collect_runtime_contract_markers(left, depth, markers);
+            collect_runtime_contract_markers(right, depth, markers);
+        }
+        Type::Any | Type::Never | Type::OpenVar(_) => {}
+    }
 }
 
 fn collect_actual_runtime_shape_markers(
@@ -39,6 +122,7 @@ fn collect_actual_runtime_shape_markers(
     expected: &Type,
     depth: u32,
     markers: &mut Vec<GuardMarker>,
+    value_markers: &mut Vec<GuardMarker>,
 ) {
     if equivalent_boundary_types(actual, expected) {
         return;
@@ -61,9 +145,16 @@ fn collect_actual_runtime_shape_markers(
                     expected_effect,
                     depth,
                     markers,
+                    value_markers,
                 );
             }
-            collect_actual_runtime_shape_markers(actual_value, expected_value, depth, markers);
+            collect_actual_runtime_shape_markers(
+                actual_value,
+                expected_value,
+                depth,
+                markers,
+                value_markers,
+            );
         }
         (
             Type::Thunk {
@@ -73,7 +164,13 @@ fn collect_actual_runtime_shape_markers(
             expected,
         ) => {
             collect_effect_markers(effect, depth, markers);
-            collect_actual_runtime_shape_markers(actual_value, expected, depth, markers);
+            collect_actual_runtime_shape_markers(
+                actual_value,
+                expected,
+                depth,
+                markers,
+                value_markers,
+            );
         }
         (
             actual,
@@ -82,7 +179,13 @@ fn collect_actual_runtime_shape_markers(
                 ..
             },
         ) => {
-            collect_actual_runtime_shape_markers(actual, expected_value, depth, markers);
+            collect_actual_runtime_shape_markers(
+                actual,
+                expected_value,
+                depth,
+                markers,
+                value_markers,
+            );
         }
         (
             Type::Fun {
@@ -97,8 +200,20 @@ fn collect_actual_runtime_shape_markers(
             },
         ) => {
             let nested_depth = depth.saturating_add(1);
-            collect_actual_runtime_shape_markers(expected_arg, actual_arg, nested_depth, markers);
-            collect_actual_runtime_shape_markers(actual_ret, expected_ret, nested_depth, markers);
+            collect_actual_runtime_shape_markers(
+                expected_arg,
+                actual_arg,
+                nested_depth,
+                markers,
+                value_markers,
+            );
+            collect_actual_runtime_shape_markers(
+                actual_ret,
+                expected_ret,
+                nested_depth,
+                markers,
+                value_markers,
+            );
         }
         (
             Type::Con {
@@ -110,10 +225,22 @@ fn collect_actual_runtime_shape_markers(
                 args: expected_args,
             },
         ) if actual_path == expected_path => {
-            collect_actual_runtime_shape_marker_pairs(actual_args, expected_args, depth, markers);
+            collect_actual_runtime_shape_marker_pairs(
+                actual_args,
+                expected_args,
+                depth,
+                markers,
+                value_markers,
+            );
         }
         (Type::Tuple(actual_items), Type::Tuple(expected_items)) => {
-            collect_actual_runtime_shape_marker_pairs(actual_items, expected_items, depth, markers);
+            collect_actual_runtime_shape_marker_pairs(
+                actual_items,
+                expected_items,
+                depth,
+                markers,
+                value_markers,
+            );
         }
         (Type::Record(actual_fields), Type::Record(expected_fields)) => {
             for actual_field in actual_fields {
@@ -126,6 +253,7 @@ fn collect_actual_runtime_shape_markers(
                         &expected_field.value,
                         depth,
                         markers,
+                        value_markers,
                     );
                 } else {
                     collect_runtime_shape_markers(&actual_field.value, depth, markers);
@@ -143,6 +271,7 @@ fn collect_actual_runtime_shape_markers(
                         &expected_variant.payloads,
                         depth,
                         markers,
+                        value_markers,
                     );
                 } else {
                     for payload in &actual_variant.payloads {
@@ -156,8 +285,20 @@ fn collect_actual_runtime_shape_markers(
             Type::Intersection(actual_left, actual_right),
             Type::Intersection(expected_left, expected_right),
         ) => {
-            collect_actual_runtime_shape_markers(actual_left, expected_left, depth, markers);
-            collect_actual_runtime_shape_markers(actual_right, expected_right, depth, markers);
+            collect_actual_runtime_shape_markers(
+                actual_left,
+                expected_left,
+                depth,
+                markers,
+                value_markers,
+            );
+            collect_actual_runtime_shape_markers(
+                actual_right,
+                expected_right,
+                depth,
+                markers,
+                value_markers,
+            );
         }
         (
             Type::Stack { inner: actual, .. },
@@ -165,7 +306,7 @@ fn collect_actual_runtime_shape_markers(
                 inner: expected, ..
             },
         ) => {
-            collect_actual_runtime_shape_markers(actual, expected, depth, markers);
+            collect_actual_runtime_shape_markers(actual, expected, depth, markers, value_markers);
         }
         _ => collect_runtime_shape_markers(actual, depth, markers),
     }
@@ -176,6 +317,7 @@ fn collect_actual_runtime_shape_marker_pairs(
     expected_items: &[Type],
     depth: u32,
     markers: &mut Vec<GuardMarker>,
+    value_markers: &mut Vec<GuardMarker>,
 ) {
     let shared_len = actual_items.len().min(expected_items.len());
     for index in 0..shared_len {
@@ -184,6 +326,7 @@ fn collect_actual_runtime_shape_marker_pairs(
             &expected_items[index],
             depth,
             markers,
+            value_markers,
         );
     }
     for actual_item in &actual_items[shared_len..] {
@@ -270,11 +413,49 @@ fn collect_effect_markers(effect: &Type, depth: u32, markers: &mut Vec<GuardMark
     }
 }
 
+fn collect_contract_effect_markers(effect: &Type, depth: u32, markers: &mut Vec<GuardMarker>) {
+    if effect.is_pure_effect() {
+        return;
+    }
+    match effect {
+        Type::EffectRow(items) => {
+            for item in items {
+                collect_contract_effect_markers(item, depth, markers);
+            }
+        }
+        Type::Con { path, .. } => {
+            push_guard_marker_with_resume(markers, depth, path, true, false, true);
+        }
+        Type::Stack { inner, .. } => {
+            collect_contract_effect_markers(inner, depth, markers);
+        }
+        Type::Union(left, right) | Type::Intersection(left, right) => {
+            collect_contract_effect_markers(left, depth, markers);
+            collect_contract_effect_markers(right, depth, markers);
+        }
+        Type::Thunk { value, .. } => {
+            collect_runtime_contract_markers(value, depth, markers);
+        }
+        Type::Fun { arg, ret, .. } => {
+            let nested_depth = depth.saturating_add(1);
+            collect_runtime_contract_markers(arg, nested_depth, markers);
+            collect_runtime_contract_markers(ret, nested_depth, markers);
+        }
+        Type::Record(_)
+        | Type::PolyVariant(_)
+        | Type::Tuple(_)
+        | Type::Any
+        | Type::Never
+        | Type::OpenVar(_) => {}
+    }
+}
+
 fn collect_effect_markers_not_in_expected(
     actual: &Type,
     expected: &Type,
     depth: u32,
     markers: &mut Vec<GuardMarker>,
+    value_markers: &mut Vec<GuardMarker>,
 ) {
     if actual.is_pure_effect() {
         return;
@@ -282,7 +463,13 @@ fn collect_effect_markers_not_in_expected(
     match actual {
         Type::EffectRow(items) => {
             for item in items {
-                collect_effect_markers_not_in_expected(item, expected, depth, markers);
+                collect_effect_markers_not_in_expected(
+                    item,
+                    expected,
+                    depth,
+                    markers,
+                    value_markers,
+                );
             }
         }
         Type::Con { path, .. } => {
@@ -291,19 +478,31 @@ fn collect_effect_markers_not_in_expected(
             }
         }
         Type::Stack { inner, .. } => {
-            collect_effect_markers_not_in_expected(inner, expected, depth, markers);
+            collect_effect_markers_not_in_expected(inner, expected, depth, markers, value_markers);
         }
         Type::Union(left, right) | Type::Intersection(left, right) => {
-            collect_effect_markers_not_in_expected(left, expected, depth, markers);
-            collect_effect_markers_not_in_expected(right, expected, depth, markers);
+            collect_effect_markers_not_in_expected(left, expected, depth, markers, value_markers);
+            collect_effect_markers_not_in_expected(right, expected, depth, markers, value_markers);
         }
         Type::Thunk { value, .. } => {
-            collect_actual_runtime_shape_markers(value, expected, depth, markers);
+            collect_actual_runtime_shape_markers(value, expected, depth, markers, value_markers);
         }
         Type::Fun { arg, ret, .. } => {
             let nested_depth = depth.saturating_add(1);
-            collect_effect_markers_not_in_expected(arg, expected, nested_depth, markers);
-            collect_effect_markers_not_in_expected(ret, expected, nested_depth, markers);
+            collect_effect_markers_not_in_expected(
+                arg,
+                expected,
+                nested_depth,
+                markers,
+                value_markers,
+            );
+            collect_effect_markers_not_in_expected(
+                ret,
+                expected,
+                nested_depth,
+                markers,
+                value_markers,
+            );
         }
         Type::Record(_)
         | Type::PolyVariant(_)
@@ -352,6 +551,24 @@ fn push_guard_marker(
     guard_own_path: bool,
     guard_foreign_path: bool,
 ) {
+    push_guard_marker_with_resume(
+        markers,
+        depth,
+        path,
+        guard_own_path,
+        guard_foreign_path,
+        false,
+    );
+}
+
+fn push_guard_marker_with_resume(
+    markers: &mut Vec<GuardMarker>,
+    depth: u32,
+    path: &[String],
+    guard_own_path: bool,
+    guard_foreign_path: bool,
+    preserve_own_on_resume: bool,
+) {
     if path.is_empty() {
         return;
     }
@@ -361,6 +578,7 @@ fn push_guard_marker(
     {
         marker.guard_own_path |= guard_own_path;
         marker.guard_foreign_path |= guard_foreign_path;
+        marker.preserve_own_on_resume |= preserve_own_on_resume;
         return;
     }
     markers.push(GuardMarker {
@@ -368,5 +586,6 @@ fn push_guard_marker(
         depth,
         guard_own_path,
         guard_foreign_path,
+        preserve_own_on_resume,
     });
 }

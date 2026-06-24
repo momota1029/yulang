@@ -788,7 +788,10 @@ fn function_adapter(
                 depth,
                 guard_own_path: false,
                 guard_foreign_path: true,
+                preserve_own_on_resume: false,
             }],
+            arg_markers: Vec::new(),
+            ret_markers: Vec::new(),
         },
     })
 }

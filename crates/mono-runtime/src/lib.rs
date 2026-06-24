@@ -134,6 +134,7 @@ pub struct AddIdMarker {
     pub guard_own_path: bool,
     pub guard_foreign_path: bool,
     pub carry_after_frame: bool,
+    pub preserve_own_on_resume: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -518,7 +519,7 @@ fn markers_for_continuation_call(markers: Vec<ValueMarker>) -> Vec<ValueMarker> 
                 ValueMarker::Frame { id } => ValueMarker::Frame { id },
                 ValueMarker::AddId(marker) => ValueMarker::AddId(AddIdMarker {
                     depth: marker.depth.saturating_sub(1),
-                    guard_own_path: false,
+                    guard_own_path: marker.guard_own_path && marker.preserve_own_on_resume,
                     guard_foreign_path: true,
                     ..marker
                 }),
@@ -534,7 +535,7 @@ fn markers_for_continuation_resume(markers: &[ValueMarker]) -> Vec<ValueMarker> 
             .cloned()
             .map(|marker| match marker {
                 ValueMarker::AddId(marker) => ValueMarker::AddId(AddIdMarker {
-                    guard_own_path: false,
+                    guard_own_path: marker.guard_own_path && marker.preserve_own_on_resume,
                     guard_foreign_path: true,
                     ..marker
                 }),
@@ -565,6 +566,7 @@ fn stack_handler_markers(id: GuardId, path: Vec<String>) -> Vec<ValueMarker> {
             guard_own_path: false,
             guard_foreign_path: true,
             carry_after_frame: false,
+            preserve_own_on_resume: false,
         }),
         ValueMarker::AddId(AddIdMarker {
             id,
@@ -573,8 +575,21 @@ fn stack_handler_markers(id: GuardId, path: Vec<String>) -> Vec<ValueMarker> {
             guard_own_path: true,
             guard_foreign_path: true,
             carry_after_frame: false,
+            preserve_own_on_resume: false,
         }),
     ]
+}
+
+fn combined_markers(left: &[ValueMarker], right: &[ValueMarker]) -> Vec<ValueMarker> {
+    if left.is_empty() {
+        return right.to_vec();
+    }
+    if right.is_empty() {
+        return left.to_vec();
+    }
+    let mut markers = left.to_vec();
+    extend_marker_list(&mut markers, right);
+    markers
 }
 
 fn mark_value(value: Value, markers: &[ValueMarker]) -> Value {
