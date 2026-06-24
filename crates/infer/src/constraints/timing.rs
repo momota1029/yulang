@@ -41,6 +41,12 @@ pub struct ConstraintTiming {
     pub upper_replay_enqueued: usize,
     pub lower_replay_var_var: usize,
     pub upper_replay_var_var: usize,
+    pub max_lower_replay_inputs: usize,
+    pub max_upper_replay_inputs: usize,
+    pub max_lower_replay_enqueued: usize,
+    pub max_upper_replay_enqueued: usize,
+    pub max_lower_replay_var_var: usize,
+    pub max_upper_replay_var_var: usize,
 }
 
 impl ConstraintTiming {
@@ -88,6 +94,9 @@ impl ConstraintTiming {
         self.lower_replay_inputs += replay_inputs;
         self.lower_replay_enqueued += replay_enqueued;
         self.lower_replay_var_var += replay_var_var;
+        self.max_lower_replay_inputs = self.max_lower_replay_inputs.max(replay_inputs);
+        self.max_lower_replay_enqueued = self.max_lower_replay_enqueued.max(replay_enqueued);
+        self.max_lower_replay_var_var = self.max_lower_replay_var_var.max(replay_var_var);
     }
 
     pub(super) fn record_upper_bound_added(
@@ -100,6 +109,9 @@ impl ConstraintTiming {
         self.upper_replay_inputs += replay_inputs;
         self.upper_replay_enqueued += replay_enqueued;
         self.upper_replay_var_var += replay_var_var;
+        self.max_upper_replay_inputs = self.max_upper_replay_inputs.max(replay_inputs);
+        self.max_upper_replay_enqueued = self.max_upper_replay_enqueued.max(replay_enqueued);
+        self.max_upper_replay_var_var = self.max_upper_replay_var_var.max(replay_var_var);
     }
 
     pub(super) fn record_drain(

@@ -903,6 +903,36 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         "  constraint.upper_replay_var_var: {}",
         constraint.upper_replay_var_var
     );
+    let _ = writeln!(
+        out,
+        "  constraint.max_lower_replay_inputs: {}",
+        constraint.max_lower_replay_inputs
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.max_upper_replay_inputs: {}",
+        constraint.max_upper_replay_inputs
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.max_lower_replay_enqueued: {}",
+        constraint.max_lower_replay_enqueued
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.max_upper_replay_enqueued: {}",
+        constraint.max_upper_replay_enqueued
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.max_lower_replay_var_var: {}",
+        constraint.max_lower_replay_var_var
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.max_upper_replay_var_var: {}",
+        constraint.max_upper_replay_var_var
+    );
     let _ = writeln!(out, "  analysis.work_items: {}", analysis.work_items);
     let _ = writeln!(
         out,
@@ -1271,6 +1301,15 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
     let constraint = timing.lowering.constraint;
     let edge_count = constraint.lower_bounds_added + constraint.upper_bounds_added;
     let replay_enqueued = constraint.lower_replay_enqueued + constraint.upper_replay_enqueued;
+    let max_replay_inputs = constraint
+        .max_lower_replay_inputs
+        .max(constraint.max_upper_replay_inputs);
+    let max_replay_enqueued = constraint
+        .max_lower_replay_enqueued
+        .max(constraint.max_upper_replay_enqueued);
+    let max_replay_var_var = constraint
+        .max_lower_replay_var_var
+        .max(constraint.max_upper_replay_var_var);
     let role_demand_count = analysis.generalize_role_input_constraints
         + analysis.generalize_reachable_role_constraints
         + analysis.generalize_coalesced_role_constraints
@@ -1292,6 +1331,12 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
     let _ = writeln!(out, "  infer.neu_node_count: {}", constraint.neu_node_count);
     let _ = writeln!(out, "  constraint.edge_count: {edge_count}");
     let _ = writeln!(out, "  constraint.replay_enqueued: {replay_enqueued}");
+    let _ = writeln!(out, "  constraint.max_replay_inputs: {max_replay_inputs}");
+    let _ = writeln!(
+        out,
+        "  constraint.max_replay_enqueued: {max_replay_enqueued}"
+    );
+    let _ = writeln!(out, "  constraint.max_replay_var_var: {max_replay_var_var}");
     let _ = writeln!(
         out,
         "  analysis.scc_component_count: {}",

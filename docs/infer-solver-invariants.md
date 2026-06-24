@@ -171,7 +171,7 @@ hardening phase の metrics は「観測」だけに使う。
 metrics で見えた重さは、別 commit で原因を説明してから直す。
 timeout や clamp を、型推論の意味論として混ぜてはいけない。
 
-2026-06-23 時点では、`check-poly` timing block に次の hardening metrics を出している。
+2026-06-24 時点では、`check-poly` timing block に次の hardening metrics を出している。
 これらは constraint machine / analysis coordinator で既に保持している情報の観測であり、
 solver 最適化や replay 停止条件は変更しない。
 
@@ -183,6 +183,9 @@ solver 最適化や replay 停止条件は変更しない。
 - `infer.neu_node_count`
 - `constraint.edge_count`
 - `constraint.replay_enqueued`
+- `constraint.max_replay_inputs`
+- `constraint.max_replay_enqueued`
+- `constraint.max_replay_var_var`
 - `analysis.scc_component_count`
 - `analysis.quantify_max_component_defs`
 - `analysis.quantify_generalize_roots_with_restarts`
@@ -197,7 +200,9 @@ solver 最適化や replay 停止条件は変更しない。
 - `analysis.role_resolve_candidate_cache_misses`
 
 `infer.row_tail_var_count` は row tail として観測された変数数であり、完全な row kinding ではない。
-`max_replay_depth` はまだ持たず、replay 量は `constraint.replay_enqueued` で見る。
+`constraint.max_replay_*` は 1 bound 追加あたりの replay fan-out であり、再帰的な replay depth
+そのものではない。depth 風の爆発を疑うときは、総量の `constraint.replay_enqueued` と
+fan-out の `constraint.max_replay_enqueued` を合わせて見る。
 
 ## Test Obligations
 

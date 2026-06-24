@@ -94,7 +94,8 @@
     - named `slot_count` はまだ無い。現状は compact var count と constraint var/bound/replay count を proxy にする。
     - named `row_variable_count` はまだ無い。row variable だけを分けるなら `TypeArena` / constraint graph の structured count が必要。
     - named `edge_count` はまだ無い。現状は `constraint.lower_bounds_added` / `upper_bounds_added` と SCC edge counters を proxy にする。
-    - max replay depth はまだ無い。現状は `lower_replay_enqueued` / `upper_replay_enqueued` と max queue を proxy にする。
+    - recursive な max replay depth はまだ無い。現状は `constraint.max_replay_inputs` /
+      `constraint.max_replay_enqueued` を 1 bound 追加あたりの fan-out proxy として見る。
     - `solve_slots` という phase 名は現行 pipeline に直接対応しない。いまは `analysis.quantify_*` / `analysis.generalize_*` / `constraint.drain` に分けて読む。
   - 2026-06-23 に最初の code slice として、`check-poly` timing block に hardening metrics を追加した。
     - `infer.type_var_count`
@@ -105,6 +106,9 @@
     - `infer.neu_node_count`
     - `constraint.edge_count`
     - `constraint.replay_enqueued`
+    - `constraint.max_replay_inputs`
+    - `constraint.max_replay_enqueued`
+    - `constraint.max_replay_var_var`
     - `analysis.scc_component_count`
     - `analysis.quantify_max_component_defs`
     - `analysis.quantify_generalize_roots_with_restarts`
@@ -116,7 +120,11 @@
     - `analysis.role_resolve_candidate_cache_hits`
     - `analysis.role_resolve_candidate_cache_misses`
   - これは既存 constraint machine / analysis counter の観測だけであり、solver 最適化や replay 停止条件は変えていない。
-    named `max_replay_depth` と、tail 以外を含む完全な row variable kinding は次 slice に残す。
+    recursive な `max_replay_depth` と、tail 以外を含む完全な row variable kinding は次 slice に残す。
+  - 2026-06-24 の replay fan-out slice で、1 bound 追加あたりの replay 最大値を追加した。
+    `constraint.max_replay_inputs` / `constraint.max_replay_enqueued` /
+    `constraint.max_replay_var_var` は、総 replay 数が太いときに局所 fan-out 由来かを切り分けるための
+    観測点である。solver 最適化や replay 停止条件は変えていない。
   - 2026-06-23 の次 slice で、role / typeclass method solve の candidate scan と
     compact candidate cache hit/miss を出すようにした。
     `analysis.work_apply_select_typeclass_method` と合わせて、候補走査が本命か、
