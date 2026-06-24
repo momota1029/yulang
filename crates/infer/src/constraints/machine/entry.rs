@@ -23,6 +23,7 @@ impl ConstraintMachine {
             events: Vec::new(),
             timing: ConstraintTiming::default(),
             replay_frontier_shadow: ReplayFrontierShadow::from_env(),
+            replay_routing_shadow: ReplayRoutingShadow::from_env(),
         }
     }
 
@@ -92,6 +93,9 @@ impl ConstraintMachine {
         if let Some(shadow) = &self.replay_frontier_shadow {
             timing.replay_frontier_shadow_lower_var_var = shadow.lower_var_var;
             timing.replay_frontier_shadow_upper_var_var = shadow.upper_var_var;
+        }
+        if let Some(shadow) = &self.replay_routing_shadow {
+            timing.replay_routing_shadow_var_var = shadow.metrics;
         }
         timing
     }
@@ -327,11 +331,25 @@ impl ConstraintMachine {
         constraint: SubtypeConstraint,
     ) -> bool {
         if self.seen.insert(constraint.clone()) {
+            self.observe_routing_shadow(&constraint);
             self.queue.push_back(ConstraintWork::Subtype(constraint));
             true
         } else {
             false
         }
+    }
+
+    fn observe_routing_shadow(&mut self, constraint: &SubtypeConstraint) {
+        let Some(shadow) = &mut self.replay_routing_shadow else {
+            return;
+        };
+        let (Pos::Var(source), Neg::Var(target)) = (
+            self.types.pos(constraint.lower),
+            self.types.neg(constraint.upper),
+        ) else {
+            return;
+        };
+        shadow.observe_var_var_edge(*source, *target);
     }
 
     pub(in crate::constraints) fn terminal_subtype_weights(

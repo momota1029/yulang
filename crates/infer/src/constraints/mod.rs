@@ -25,7 +25,10 @@ use poly::types::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
-pub use timing::{ConstraintTiming, ReplayDuplicateProfile, ReplayFrontierShadowMetrics};
+pub use timing::{
+    ConstraintTiming, ReplayDuplicateProfile, ReplayFrontierShadowMetrics,
+    ReplayRoutingShadowMetrics,
+};
 use trace::{
     ConstraintDrainTrace, trace_bound_replay_progress, trace_bound_replay_start, trace_var_bounds,
 };
@@ -54,6 +57,7 @@ pub struct ConstraintMachine {
     events: Vec<ConstraintEvent>,
     timing: ConstraintTiming,
     replay_frontier_shadow: Option<ReplayFrontierShadow>,
+    replay_routing_shadow: Option<ReplayRoutingShadow>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -575,6 +579,59 @@ fn record_var_var_frontier_result(
     } else {
         metrics.unsafe_hits += 1;
         metrics.unsafe_accepted += accepted;
+    }
+}
+
+#[derive(Debug, Default)]
+struct ReplayRoutingShadow {
+    graph: FxHashMap<TypeVar, FxHashSet<TypeVar>>,
+    nodes: FxHashSet<TypeVar>,
+    endpoint_seen: FxHashSet<(TypeVar, TypeVar)>,
+    metrics: ReplayRoutingShadowMetrics,
+}
+
+impl ReplayRoutingShadow {
+    fn from_env() -> Option<Self> {
+        std::env::var("YULANG_REPLAY_ROUTING_SHADOW")
+            .is_ok_and(|value| !value.is_empty() && value != "0")
+            .then(Self::default)
+    }
+
+    fn observe_var_var_edge(&mut self, source: TypeVar, target: TypeVar) {
+        if source == target {
+            return;
+        }
+        self.metrics.accepted_edges += 1;
+        if !self.endpoint_seen.insert((source, target)) {
+            self.metrics.repeated_endpoint_edges += 1;
+        }
+        if self.reaches(source, target) {
+            self.metrics.reachable_before_edges += 1;
+        }
+        self.nodes.insert(source);
+        self.nodes.insert(target);
+        if self.graph.entry(source).or_default().insert(target) {
+            self.metrics.graph_edges += 1;
+        }
+        self.metrics.graph_nodes = self.nodes.len();
+    }
+
+    fn reaches(&self, source: TypeVar, target: TypeVar) -> bool {
+        let mut stack = vec![source];
+        let mut visited = FxHashSet::default();
+        while let Some(var) = stack.pop() {
+            if !visited.insert(var) {
+                continue;
+            }
+            let Some(next) = self.graph.get(&var) else {
+                continue;
+            };
+            if next.contains(&target) {
+                return true;
+            }
+            stack.extend(next.iter().copied());
+        }
+        false
     }
 }
 

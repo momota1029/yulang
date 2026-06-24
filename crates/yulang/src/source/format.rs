@@ -1112,6 +1112,34 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
             upper_frontier.unsafe_accepted
         );
     }
+    let routing = constraint.replay_routing_shadow_var_var;
+    if routing.accepted_edges > 0 {
+        let _ = writeln!(
+            out,
+            "  constraint.replay_routing_shadow_var_var_accepted_edges: {}",
+            routing.accepted_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_routing_shadow_var_var_repeated_endpoint_edges: {}",
+            routing.repeated_endpoint_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_routing_shadow_var_var_reachable_before_edges: {}",
+            routing.reachable_before_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_routing_shadow_var_var_graph_nodes: {}",
+            routing.graph_nodes
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_routing_shadow_var_var_graph_edges: {}",
+            routing.graph_edges
+        );
+    }
     let _ = writeln!(out, "  analysis.work_items: {}", analysis.work_items);
     let _ = writeln!(
         out,
@@ -1531,6 +1559,7 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         lower_frontier.unsafe_hits + upper_frontier.unsafe_hits;
     let replay_frontier_shadow_var_var_unsafe_accepted =
         lower_frontier.unsafe_accepted + upper_frontier.unsafe_accepted;
+    let routing = constraint.replay_routing_shadow_var_var;
     let role_demand_count = analysis.generalize_role_input_constraints
         + analysis.generalize_reachable_role_constraints
         + analysis.generalize_coalesced_role_constraints
@@ -1616,6 +1645,33 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         let _ = writeln!(
             out,
             "  constraint.replay_frontier_shadow_var_var_unsafe_accepted: {replay_frontier_shadow_var_var_unsafe_accepted}"
+        );
+    }
+    if routing.accepted_edges > 0 {
+        let _ = writeln!(
+            out,
+            "  constraint.replay_routing_shadow_var_var_accepted_edges: {}",
+            routing.accepted_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_routing_shadow_var_var_repeated_endpoint_edges: {}",
+            routing.repeated_endpoint_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_routing_shadow_var_var_reachable_before_edges: {}",
+            routing.reachable_before_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_routing_shadow_var_var_graph_nodes: {}",
+            routing.graph_nodes
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_routing_shadow_var_var_graph_edges: {}",
+            routing.graph_edges
         );
     }
     let _ = writeln!(
