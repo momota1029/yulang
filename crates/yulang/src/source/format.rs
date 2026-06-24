@@ -1140,6 +1140,59 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
             routing.graph_edges
         );
     }
+    let weighted_routing = constraint.replay_weighted_routing_shadow_var_var;
+    if weighted_routing.accepted_edges > 0 {
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_accepted_edges: {}",
+            weighted_routing.accepted_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_reachable_before_edges: {}",
+            weighted_routing.reachable_before_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_capped_searches: {}",
+            weighted_routing.capped_searches
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_search_states: {}",
+            weighted_routing.search_states
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_max_search_states: {}",
+            weighted_routing.max_search_states
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_graph_nodes: {}",
+            weighted_routing.graph_nodes
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_graph_edges: {}",
+            weighted_routing.graph_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_weight_count: {}",
+            weighted_routing.weight_count
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_compose_cache_hits: {}",
+            weighted_routing.compose_cache_hits
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_compose_cache_misses: {}",
+            weighted_routing.compose_cache_misses
+        );
+    }
     let _ = writeln!(out, "  analysis.work_items: {}", analysis.work_items);
     let _ = writeln!(
         out,
@@ -1560,6 +1613,7 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
     let replay_frontier_shadow_var_var_unsafe_accepted =
         lower_frontier.unsafe_accepted + upper_frontier.unsafe_accepted;
     let routing = constraint.replay_routing_shadow_var_var;
+    let weighted_routing = constraint.replay_weighted_routing_shadow_var_var;
     let role_demand_count = analysis.generalize_role_input_constraints
         + analysis.generalize_reachable_role_constraints
         + analysis.generalize_coalesced_role_constraints
@@ -1672,6 +1726,58 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
             out,
             "  constraint.replay_routing_shadow_var_var_graph_edges: {}",
             routing.graph_edges
+        );
+    }
+    if weighted_routing.accepted_edges > 0 {
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_accepted_edges: {}",
+            weighted_routing.accepted_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_reachable_before_edges: {}",
+            weighted_routing.reachable_before_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_capped_searches: {}",
+            weighted_routing.capped_searches
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_search_states: {}",
+            weighted_routing.search_states
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_max_search_states: {}",
+            weighted_routing.max_search_states
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_graph_nodes: {}",
+            weighted_routing.graph_nodes
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_graph_edges: {}",
+            weighted_routing.graph_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_weight_count: {}",
+            weighted_routing.weight_count
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_compose_cache_hits: {}",
+            weighted_routing.compose_cache_hits
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_compose_cache_misses: {}",
+            weighted_routing.compose_cache_misses
         );
     }
     let _ = writeln!(

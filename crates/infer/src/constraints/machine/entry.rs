@@ -96,6 +96,9 @@ impl ConstraintMachine {
         }
         if let Some(shadow) = &self.replay_routing_shadow {
             timing.replay_routing_shadow_var_var = shadow.metrics;
+            if let Some(weighted) = &shadow.weighted {
+                timing.replay_weighted_routing_shadow_var_var = weighted.metrics;
+            }
         }
         timing
     }
@@ -349,7 +352,7 @@ impl ConstraintMachine {
         ) else {
             return;
         };
-        shadow.observe_var_var_edge(*source, *target);
+        shadow.observe_var_var_edge(*source, *target, &constraint.weights);
     }
 
     pub(in crate::constraints) fn terminal_subtype_weights(

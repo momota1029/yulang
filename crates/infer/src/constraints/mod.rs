@@ -27,7 +27,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 pub use timing::{
     ConstraintTiming, ReplayDuplicateProfile, ReplayFrontierShadowMetrics,
-    ReplayRoutingShadowMetrics,
+    ReplayRoutingShadowMetrics, ReplayWeightedRoutingShadowMetrics,
 };
 use trace::{
     ConstraintDrainTrace, trace_bound_replay_progress, trace_bound_replay_start, trace_var_bounds,
@@ -588,18 +588,31 @@ struct ReplayRoutingShadow {
     nodes: FxHashSet<TypeVar>,
     endpoint_seen: FxHashSet<(TypeVar, TypeVar)>,
     metrics: ReplayRoutingShadowMetrics,
+    weighted: Option<ReplayWeightedRoutingShadow>,
 }
 
 impl ReplayRoutingShadow {
     fn from_env() -> Option<Self> {
-        std::env::var("YULANG_REPLAY_ROUTING_SHADOW")
-            .is_ok_and(|value| !value.is_empty() && value != "0")
-            .then(Self::default)
+        let unweighted = std::env::var("YULANG_REPLAY_ROUTING_SHADOW")
+            .is_ok_and(|value| !value.is_empty() && value != "0");
+        let weighted = ReplayWeightedRoutingShadow::from_env();
+        (unweighted || weighted.is_some()).then(|| Self {
+            weighted,
+            ..Self::default()
+        })
     }
 
-    fn observe_var_var_edge(&mut self, source: TypeVar, target: TypeVar) {
+    fn observe_var_var_edge(
+        &mut self,
+        source: TypeVar,
+        target: TypeVar,
+        weights: &ConstraintWeights,
+    ) {
         if source == target {
             return;
+        }
+        if let Some(weighted) = &mut self.weighted {
+            weighted.observe_edge(source, target, weights);
         }
         self.metrics.accepted_edges += 1;
         if !self.endpoint_seen.insert((source, target)) {
@@ -633,6 +646,175 @@ impl ReplayRoutingShadow {
         }
         false
     }
+}
+
+#[derive(Debug)]
+struct ReplayWeightedRoutingShadow {
+    graph: FxHashMap<TypeVar, Vec<ReplayWeightedRouteEdge>>,
+    nodes: FxHashSet<TypeVar>,
+    weights: ReplayWeightInterner,
+    metrics: ReplayWeightedRoutingShadowMetrics,
+    search_limit: usize,
+}
+
+impl ReplayWeightedRoutingShadow {
+    fn from_env() -> Option<Self> {
+        std::env::var("YULANG_REPLAY_WEIGHTED_ROUTING_SHADOW")
+            .is_ok_and(|value| !value.is_empty() && value != "0")
+            .then(|| Self {
+                graph: FxHashMap::default(),
+                nodes: FxHashSet::default(),
+                weights: ReplayWeightInterner::default(),
+                metrics: ReplayWeightedRoutingShadowMetrics::default(),
+                search_limit: replay_weighted_routing_shadow_limit(),
+            })
+    }
+
+    fn observe_edge(&mut self, source: TypeVar, target: TypeVar, weights: &ConstraintWeights) {
+        if source == target {
+            return;
+        }
+        self.metrics.accepted_edges += 1;
+        let weight = self.weights.intern(weights.clone());
+        if self.reaches_exact(source, target, weight) {
+            self.metrics.reachable_before_edges += 1;
+        }
+        self.nodes.insert(source);
+        self.nodes.insert(target);
+        self.graph
+            .entry(source)
+            .or_default()
+            .push(ReplayWeightedRouteEdge { target, weight });
+        self.metrics.graph_nodes = self.nodes.len();
+        self.metrics.graph_edges += 1;
+        self.metrics.weight_count = self.weights.len();
+        self.metrics.compose_cache_hits = self.weights.compose_hits;
+        self.metrics.compose_cache_misses = self.weights.compose_misses;
+    }
+
+    fn reaches_exact(
+        &mut self,
+        source: TypeVar,
+        target: TypeVar,
+        target_weight: ReplayWeightId,
+    ) -> bool {
+        let empty = self.weights.empty();
+        let mut stack = vec![ReplayWeightedRouteState {
+            var: source,
+            weight: empty,
+        }];
+        let mut visited = FxHashSet::default();
+        let mut local_states = 0usize;
+        while let Some(state) = stack.pop() {
+            if !visited.insert(state) {
+                continue;
+            }
+            let edges = self.graph.get(&state.var).cloned().unwrap_or_default();
+            for edge in edges {
+                local_states += 1;
+                if local_states > self.search_limit {
+                    self.metrics.capped_searches += 1;
+                    self.metrics.search_states += local_states;
+                    self.metrics.max_search_states =
+                        self.metrics.max_search_states.max(local_states);
+                    return false;
+                }
+                let next_weight = self.weights.compose_for_replay(state.weight, edge.weight);
+                if edge.target == target && next_weight == target_weight {
+                    self.metrics.search_states += local_states;
+                    self.metrics.max_search_states =
+                        self.metrics.max_search_states.max(local_states);
+                    return true;
+                }
+                stack.push(ReplayWeightedRouteState {
+                    var: edge.target,
+                    weight: next_weight,
+                });
+            }
+        }
+        self.metrics.search_states += local_states;
+        self.metrics.max_search_states = self.metrics.max_search_states.max(local_states);
+        false
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ReplayWeightedRouteEdge {
+    target: TypeVar,
+    weight: ReplayWeightId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct ReplayWeightedRouteState {
+    var: TypeVar,
+    weight: ReplayWeightId,
+}
+
+#[derive(Debug, Default)]
+struct ReplayWeightInterner {
+    weights: Vec<ConstraintWeights>,
+    ids: FxHashMap<ConstraintWeights, ReplayWeightId>,
+    compose_cache: FxHashMap<(ReplayWeightId, ReplayWeightId), ReplayWeightId>,
+    empty: Option<ReplayWeightId>,
+    compose_hits: usize,
+    compose_misses: usize,
+}
+
+impl ReplayWeightInterner {
+    fn empty(&mut self) -> ReplayWeightId {
+        if let Some(id) = self.empty {
+            return id;
+        }
+        let id = self.intern(ConstraintWeights::empty());
+        self.empty = Some(id);
+        id
+    }
+
+    fn intern(&mut self, weights: ConstraintWeights) -> ReplayWeightId {
+        if let Some(id) = self.ids.get(&weights) {
+            return *id;
+        }
+        let id = ReplayWeightId(self.weights.len() as u32);
+        self.weights.push(weights.clone());
+        self.ids.insert(weights, id);
+        id
+    }
+
+    fn compose_for_replay(
+        &mut self,
+        left: ReplayWeightId,
+        right: ReplayWeightId,
+    ) -> ReplayWeightId {
+        let key = (left, right);
+        if let Some(id) = self.compose_cache.get(&key) {
+            self.compose_hits += 1;
+            return *id;
+        }
+        self.compose_misses += 1;
+        let left_weight = self.weights[left.0 as usize].clone();
+        let right_weight = self.weights[right.0 as usize].clone();
+        let composed = left_weight
+            .compose_for_replay(&right_weight)
+            .normalize_for_var_var_replay_key();
+        let id = self.intern(composed);
+        self.compose_cache.insert(key, id);
+        id
+    }
+
+    fn len(&self) -> usize {
+        self.weights.len()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct ReplayWeightId(u32);
+
+fn replay_weighted_routing_shadow_limit() -> usize {
+    std::env::var("YULANG_REPLAY_WEIGHTED_ROUTING_SHADOW_LIMIT")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|limit| *limit > 0)
+        .unwrap_or(4096)
 }
 
 fn intersect_subtractability(lhs: Subtractability, rhs: Subtractability) -> Subtractability {

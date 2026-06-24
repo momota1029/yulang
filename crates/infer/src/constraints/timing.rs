@@ -54,6 +54,7 @@ pub struct ConstraintTiming {
     pub replay_frontier_shadow_lower_var_var: ReplayFrontierShadowMetrics,
     pub replay_frontier_shadow_upper_var_var: ReplayFrontierShadowMetrics,
     pub replay_routing_shadow_var_var: ReplayRoutingShadowMetrics,
+    pub replay_weighted_routing_shadow_var_var: ReplayWeightedRoutingShadowMetrics,
     pub max_lower_replay_inputs: usize,
     pub max_upper_replay_inputs: usize,
     pub max_lower_replay_enqueued: usize,
@@ -68,6 +69,20 @@ pub struct ConstraintTiming {
     pub max_upper_replay_trivial: usize,
     pub max_lower_replay_prefiltered: usize,
     pub max_upper_replay_prefiltered: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ReplayWeightedRoutingShadowMetrics {
+    pub accepted_edges: usize,
+    pub reachable_before_edges: usize,
+    pub capped_searches: usize,
+    pub search_states: usize,
+    pub max_search_states: usize,
+    pub graph_nodes: usize,
+    pub graph_edges: usize,
+    pub weight_count: usize,
+    pub compose_cache_hits: usize,
+    pub compose_cache_misses: usize,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

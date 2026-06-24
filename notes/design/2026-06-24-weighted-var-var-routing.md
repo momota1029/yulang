@@ -93,6 +93,29 @@ This is only an unweighted shadow, so it is not a sound skip condition. It does
 show that the major remaining redundancy is transitive var-var consequence
 materialization rather than local bound-table duplication.
 
+`YULANG_REPLAY_WEIGHTED_ROUTING_SHADOW=1` records the same accepted var-var
+constraints in a directed weighted graph. The shadow interns exact
+`ConstraintWeights` values, composes path summaries with
+`compose_for_replay(...).normalize_for_var_var_replay_key()`, and checks whether
+the exact endpoint / canonical-weight path already existed before adding the
+new edge.
+
+With the default per-edge search limit of 4096 states:
+
+```text
+constraint.replay_weighted_routing_shadow_var_var_accepted_edges: 64971
+constraint.replay_weighted_routing_shadow_var_var_reachable_before_edges: 53409
+constraint.replay_weighted_routing_shadow_var_var_capped_searches: 580
+constraint.replay_weighted_routing_shadow_var_var_search_states: 3150858
+constraint.replay_weighted_routing_shadow_var_var_weight_count: 43803
+constraint.replay_weighted_routing_shadow_var_var_compose_cache_hits: 3043531
+constraint.replay_weighted_routing_shadow_var_var_compose_cache_misses: 106747
+```
+
+Raising `YULANG_REPLAY_WEIGHTED_ROUTING_SHADOW_LIMIT` to 65536 did not change
+the reachable count, but it increased search states to 38,786,058 and interned
+weights to 745,711. The default limit should stay conservative.
+
 ## Required invariant
 
 For every variable `v`, lower bound `L(v, p, wl)` and upper bound `U(v, n, wu)`
@@ -146,20 +169,15 @@ unweighted neighbor graph used by later reachability/compaction logic.
 
 ## Shadow-first implementation order
 
-1. Add exact `WeightId` interning for `ConstraintWeights` or a narrower
-   replay-weight normal form.
-2. Add a shadow weighted routing graph that records var-var edges but does not
-   change replay behavior.
-3. Compute path summaries with exact composition and the same
-   `normalize_for_var_var_replay_key` used by canonical var-var replay.
-4. For each currently generated var-var replay consequence, ask the shadow
+1. Keep the current weighted routing shadow as an opt-in measurement tool.
+2. For each currently generated var-var replay consequence, ask the shadow
    graph whether the same canonical consequence was already known.
-5. Record:
+3. Record:
    - generated var-var consequences,
    - shadow-known consequences,
    - shadow-missed consequences,
    - shadow false-skip candidates.
-6. Only after false-skip candidates stay at zero on the hardening fixtures,
+4. Only after false-skip candidates stay at zero on the hardening fixtures,
    switch var-var replay emission to the routing frontier.
 
 ## Non-goals
