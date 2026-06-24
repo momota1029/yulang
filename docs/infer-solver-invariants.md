@@ -182,9 +182,17 @@ solver 最適化や replay 停止条件は変更しない。
 - `infer.neg_node_count`
 - `infer.neu_node_count`
 - `constraint.edge_count`
+- `constraint.replay_generated`
 - `constraint.replay_enqueued`
+- `constraint.replay_accepted`
+- `constraint.replay_duplicate`
+- `constraint.replay_trivial`
 - `constraint.max_replay_inputs`
+- `constraint.max_replay_generated`
 - `constraint.max_replay_enqueued`
+- `constraint.max_replay_accepted`
+- `constraint.max_replay_duplicate`
+- `constraint.max_replay_trivial`
 - `constraint.max_replay_var_var`
 - `analysis.scc_component_count`
 - `analysis.quantify_max_component_defs`
@@ -200,9 +208,15 @@ solver 最適化や replay 停止条件は変更しない。
 - `analysis.role_resolve_candidate_cache_misses`
 
 `infer.row_tail_var_count` は row tail として観測された変数数であり、完全な row kinding ではない。
+`constraint.replay_enqueued` は古い名前を保っているが、現在は replay action の生成数として読む。
+実際に queue へ採用された数は `constraint.replay_accepted`、既に `seen` にあったものは
+`constraint.replay_duplicate`、top/bottom/self などで即時 no-op になったものは
+`constraint.replay_trivial` で見る。
+
 `constraint.max_replay_*` は 1 bound 追加あたりの replay fan-out であり、再帰的な replay depth
-そのものではない。depth 風の爆発を疑うときは、総量の `constraint.replay_enqueued` と
-fan-out の `constraint.max_replay_enqueued` を合わせて見る。
+そのものではない。depth 風の爆発を疑うときは、総量の `constraint.replay_generated` /
+`constraint.replay_accepted` と、fan-out の `constraint.max_replay_generated` /
+`constraint.max_replay_accepted` を合わせて見る。
 
 ## Test Obligations
 

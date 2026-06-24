@@ -1503,9 +1503,17 @@ fn check_poly_std_reports_summary_and_type_errors_without_dumping_defs() {
     assert_check_contains(&output, "  infer.row_tail_var_count: ");
     assert_check_contains(&output, "  infer.type_node_count: ");
     assert_check_contains(&output, "  constraint.edge_count: ");
+    assert_check_contains(&output, "  constraint.replay_generated: ");
     assert_check_contains(&output, "  constraint.replay_enqueued: ");
+    assert_check_contains(&output, "  constraint.replay_accepted: ");
+    assert_check_contains(&output, "  constraint.replay_duplicate: ");
+    assert_check_contains(&output, "  constraint.replay_trivial: ");
     assert_check_contains(&output, "  constraint.max_replay_inputs: ");
+    assert_check_contains(&output, "  constraint.max_replay_generated: ");
     assert_check_contains(&output, "  constraint.max_replay_enqueued: ");
+    assert_check_contains(&output, "  constraint.max_replay_accepted: ");
+    assert_check_contains(&output, "  constraint.max_replay_duplicate: ");
+    assert_check_contains(&output, "  constraint.max_replay_trivial: ");
     assert_check_contains(&output, "  analysis.scc_component_count: ");
     assert_check_contains(
         &output,

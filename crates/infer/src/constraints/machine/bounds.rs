@@ -4,6 +4,13 @@ use smallvec::SmallVec;
 
 type BoundReplayActions = SmallVec<[BoundReplayAction; 4]>;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct BoundReplayApplyStats {
+    accepted: usize,
+    duplicate: usize,
+    trivial: usize,
+}
+
 impl ConstraintMachine {
     pub(in crate::constraints) fn add_lower_bound(
         &mut self,
@@ -30,9 +37,15 @@ impl ConstraintMachine {
 
         let (replay_input_count, replay_enqueued, replay_var_var, actions) =
             self.lower_bound_replay_actions(target, pos, &weights);
-        self.apply_bound_replay_actions(actions);
-        self.timing
-            .record_lower_bound_added(replay_input_count, replay_enqueued, replay_var_var);
+        let apply = self.apply_bound_replay_actions(actions);
+        self.timing.record_lower_bound_added(
+            replay_input_count,
+            replay_enqueued,
+            replay_var_var,
+            apply.accepted,
+            apply.duplicate,
+            apply.trivial,
+        );
     }
 
     pub(in crate::constraints) fn add_upper_bound(
@@ -63,9 +76,15 @@ impl ConstraintMachine {
 
         let (replay_input_count, replay_enqueued, replay_var_var, actions) =
             self.upper_bound_replay_actions(source, neg, &weights);
-        self.apply_bound_replay_actions(actions);
-        self.timing
-            .record_upper_bound_added(replay_input_count, replay_enqueued, replay_var_var);
+        let apply = self.apply_bound_replay_actions(actions);
+        self.timing.record_upper_bound_added(
+            replay_input_count,
+            replay_enqueued,
+            replay_var_var,
+            apply.accepted,
+            apply.duplicate,
+            apply.trivial,
+        );
     }
 
     fn check_and_erase_lower_left_filter(
@@ -247,15 +266,21 @@ impl ConstraintMachine {
         (replay_input_count, replay_enqueued, replay_var_var, actions)
     }
 
-    fn apply_bound_replay_actions(&mut self, actions: BoundReplayActions) {
+    fn apply_bound_replay_actions(&mut self, actions: BoundReplayActions) -> BoundReplayApplyStats {
+        let mut stats = BoundReplayApplyStats::default();
         for action in actions {
             let BoundReplayAction::Subtype {
                 lower,
                 upper,
                 weights,
             } = action;
-            self.enqueue_subtype(lower, weights, upper);
+            match self.enqueue_subtype_classified(lower, weights, upper) {
+                EnqueueSubtypeResult::Enqueued => stats.accepted += 1,
+                EnqueueSubtypeResult::Duplicate => stats.duplicate += 1,
+                EnqueueSubtypeResult::Trivial => stats.trivial += 1,
+            }
         }
+        stats
     }
 
     pub(in crate::constraints) fn is_var_var_replay(&self, lower: PosId, upper: NegId) -> bool {

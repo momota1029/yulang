@@ -267,14 +267,26 @@ impl ConstraintMachine {
         weights: ConstraintWeights,
         upper: NegId,
     ) -> bool {
+        matches!(
+            self.enqueue_subtype_classified(lower, weights, upper),
+            EnqueueSubtypeResult::Enqueued
+        )
+    }
+
+    pub(in crate::constraints) fn enqueue_subtype_classified(
+        &mut self,
+        lower: PosId,
+        weights: ConstraintWeights,
+        upper: NegId,
+    ) -> EnqueueSubtypeResult {
         if matches!(self.types.pos(lower), Pos::Bot) || matches!(self.types.neg(upper), Neg::Top) {
-            return false;
+            return EnqueueSubtypeResult::Trivial;
         }
         if matches!(
             (self.types.pos(lower), self.types.neg(upper)),
             (Pos::Var(lower), Neg::Var(upper)) if lower == upper
         ) {
-            return false;
+            return EnqueueSubtypeResult::Trivial;
         }
         let weights = self.terminal_subtype_weights(lower, upper, weights);
         let weights = if self.is_var_var_replay(lower, upper) {
@@ -289,9 +301,9 @@ impl ConstraintMachine {
         };
         if self.seen.insert(constraint.clone()) {
             self.queue.push_back(ConstraintWork::Subtype(constraint));
-            true
+            EnqueueSubtypeResult::Enqueued
         } else {
-            false
+            EnqueueSubtypeResult::Duplicate
         }
     }
 

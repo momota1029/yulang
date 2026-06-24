@@ -895,6 +895,36 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
     );
     let _ = writeln!(
         out,
+        "  constraint.lower_replay_accepted: {}",
+        constraint.lower_replay_accepted
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.upper_replay_accepted: {}",
+        constraint.upper_replay_accepted
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.lower_replay_duplicate: {}",
+        constraint.lower_replay_duplicate
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.upper_replay_duplicate: {}",
+        constraint.upper_replay_duplicate
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.lower_replay_trivial: {}",
+        constraint.lower_replay_trivial
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.upper_replay_trivial: {}",
+        constraint.upper_replay_trivial
+    );
+    let _ = writeln!(
+        out,
         "  constraint.lower_replay_var_var: {}",
         constraint.lower_replay_var_var
     );
@@ -922,6 +952,36 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         out,
         "  constraint.max_upper_replay_enqueued: {}",
         constraint.max_upper_replay_enqueued
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.max_lower_replay_accepted: {}",
+        constraint.max_lower_replay_accepted
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.max_upper_replay_accepted: {}",
+        constraint.max_upper_replay_accepted
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.max_lower_replay_duplicate: {}",
+        constraint.max_lower_replay_duplicate
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.max_upper_replay_duplicate: {}",
+        constraint.max_upper_replay_duplicate
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.max_lower_replay_trivial: {}",
+        constraint.max_lower_replay_trivial
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.max_upper_replay_trivial: {}",
+        constraint.max_upper_replay_trivial
     );
     let _ = writeln!(
         out,
@@ -1301,12 +1361,24 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
     let constraint = timing.lowering.constraint;
     let edge_count = constraint.lower_bounds_added + constraint.upper_bounds_added;
     let replay_enqueued = constraint.lower_replay_enqueued + constraint.upper_replay_enqueued;
+    let replay_accepted = constraint.lower_replay_accepted + constraint.upper_replay_accepted;
+    let replay_duplicate = constraint.lower_replay_duplicate + constraint.upper_replay_duplicate;
+    let replay_trivial = constraint.lower_replay_trivial + constraint.upper_replay_trivial;
     let max_replay_inputs = constraint
         .max_lower_replay_inputs
         .max(constraint.max_upper_replay_inputs);
     let max_replay_enqueued = constraint
         .max_lower_replay_enqueued
         .max(constraint.max_upper_replay_enqueued);
+    let max_replay_accepted = constraint
+        .max_lower_replay_accepted
+        .max(constraint.max_upper_replay_accepted);
+    let max_replay_duplicate = constraint
+        .max_lower_replay_duplicate
+        .max(constraint.max_upper_replay_duplicate);
+    let max_replay_trivial = constraint
+        .max_lower_replay_trivial
+        .max(constraint.max_upper_replay_trivial);
     let max_replay_var_var = constraint
         .max_lower_replay_var_var
         .max(constraint.max_upper_replay_var_var);
@@ -1330,12 +1402,29 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
     let _ = writeln!(out, "  infer.neg_node_count: {}", constraint.neg_node_count);
     let _ = writeln!(out, "  infer.neu_node_count: {}", constraint.neu_node_count);
     let _ = writeln!(out, "  constraint.edge_count: {edge_count}");
+    let _ = writeln!(out, "  constraint.replay_generated: {replay_enqueued}");
     let _ = writeln!(out, "  constraint.replay_enqueued: {replay_enqueued}");
+    let _ = writeln!(out, "  constraint.replay_accepted: {replay_accepted}");
+    let _ = writeln!(out, "  constraint.replay_duplicate: {replay_duplicate}");
+    let _ = writeln!(out, "  constraint.replay_trivial: {replay_trivial}");
     let _ = writeln!(out, "  constraint.max_replay_inputs: {max_replay_inputs}");
+    let _ = writeln!(
+        out,
+        "  constraint.max_replay_generated: {max_replay_enqueued}"
+    );
     let _ = writeln!(
         out,
         "  constraint.max_replay_enqueued: {max_replay_enqueued}"
     );
+    let _ = writeln!(
+        out,
+        "  constraint.max_replay_accepted: {max_replay_accepted}"
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.max_replay_duplicate: {max_replay_duplicate}"
+    );
+    let _ = writeln!(out, "  constraint.max_replay_trivial: {max_replay_trivial}");
     let _ = writeln!(out, "  constraint.max_replay_var_var: {max_replay_var_var}");
     let _ = writeln!(
         out,

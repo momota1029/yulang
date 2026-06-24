@@ -183,6 +183,13 @@ enum ConstraintWork {
     SubtractFact(QueuedSubtractFact),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EnqueueSubtypeResult {
+    Enqueued,
+    Duplicate,
+    Trivial,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct QueuedSubtractFact {
     effect: TypeVar,
