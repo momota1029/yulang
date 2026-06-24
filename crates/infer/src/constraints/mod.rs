@@ -631,6 +631,7 @@ fn record_var_var_frontier_result(
 
 #[derive(Debug, Default)]
 struct ReplayRoutingShadow {
+    unweighted_enabled: bool,
     graph: FxHashMap<TypeVar, FxHashSet<TypeVar>>,
     nodes: FxHashSet<TypeVar>,
     endpoint_seen: FxHashSet<(TypeVar, TypeVar)>,
@@ -644,6 +645,7 @@ impl ReplayRoutingShadow {
             .is_ok_and(|value| !value.is_empty() && value != "0");
         let weighted = ReplayWeightedRoutingShadow::from_env();
         (unweighted || weighted.is_some()).then(|| Self {
+            unweighted_enabled: unweighted,
             weighted,
             ..Self::default()
         })
@@ -660,6 +662,9 @@ impl ReplayRoutingShadow {
         }
         if let Some(weighted) = &mut self.weighted {
             weighted.observe_edge(source, target, weights);
+        }
+        if !self.unweighted_enabled {
+            return;
         }
         self.metrics.accepted_edges += 1;
         if !self.endpoint_seen.insert((source, target)) {
@@ -733,7 +738,8 @@ struct ReplayWeightedRoutingShadow {
     weights: ReplayWeightInterner,
     metrics: ReplayWeightedRoutingShadowMetrics,
     search_limit: usize,
-    route_search_enabled: bool,
+    all_edge_search_enabled: bool,
+    frontier_search_enabled: bool,
 }
 
 impl ReplayWeightedRoutingShadow {
@@ -758,7 +764,8 @@ impl ReplayWeightedRoutingShadow {
             weights: ReplayWeightInterner::default(),
             metrics: ReplayWeightedRoutingShadowMetrics::default(),
             search_limit,
-            route_search_enabled: weighted || evidence_skip,
+            all_edge_search_enabled: weighted,
+            frontier_search_enabled: weighted || evidence_skip,
         })
     }
 
@@ -781,79 +788,86 @@ impl ReplayWeightedRoutingShadow {
             self.metrics.summary_outgoing_nodes = summary.outgoing.len();
             self.metrics.summary_incoming_nodes = summary.incoming.len();
         }
-        if !self.route_search_enabled {
+        if !self.all_edge_search_enabled && !self.frontier_search_enabled {
             self.metrics.weight_count = self.weights.len();
             self.metrics.compose_cache_hits = self.weights.compose_hits;
             self.metrics.compose_cache_misses = self.weights.compose_misses;
             return;
         }
-        let search = search_exact_weighted_route(
-            &self.graph,
-            &mut self.positive_paths,
-            &mut self.weights,
-            self.search_limit,
-            source,
-            target,
-            weight,
-        );
-        if search.cache_hit {
-            self.metrics.route_cache_hits += 1;
-        }
-        self.metrics.search_states += search.states;
-        self.metrics.max_search_states = self.metrics.max_search_states.max(search.states);
-        if search.capped {
-            self.metrics.capped_searches += 1;
-        }
-        if search.found {
-            self.metrics.reachable_before_edges += 1;
+
+        if self.all_edge_search_enabled {
+            let search = search_exact_weighted_route(
+                &self.graph,
+                &mut self.positive_paths,
+                &mut self.weights,
+                self.search_limit,
+                source,
+                target,
+                weight,
+            );
+            if search.cache_hit {
+                self.metrics.route_cache_hits += 1;
+            }
+            self.metrics.search_states += search.states;
+            self.metrics.max_search_states = self.metrics.max_search_states.max(search.states);
+            if search.capped {
+                self.metrics.capped_searches += 1;
+            }
+            if search.found {
+                self.metrics.reachable_before_edges += 1;
+            }
         }
 
-        let frontier_search = search_exact_weighted_route(
-            &self.frontier_graph,
-            &mut self.frontier_positive_paths,
-            &mut self.weights,
-            self.search_limit,
-            source,
-            target,
-            weight,
-        );
-        if frontier_search.cache_hit {
-            self.metrics.frontier_route_cache_hits += 1;
+        if self.frontier_search_enabled {
+            let frontier_search = search_exact_weighted_route(
+                &self.frontier_graph,
+                &mut self.frontier_positive_paths,
+                &mut self.weights,
+                self.search_limit,
+                source,
+                target,
+                weight,
+            );
+            if frontier_search.cache_hit {
+                self.metrics.frontier_route_cache_hits += 1;
+            }
+            self.metrics.frontier_search_states += frontier_search.states;
+            self.metrics.frontier_max_search_states = self
+                .metrics
+                .frontier_max_search_states
+                .max(frontier_search.states);
+            if frontier_search.capped {
+                self.metrics.frontier_capped_searches += 1;
+            }
+            if frontier_search.found {
+                self.metrics.frontier_skipped_edges += 1;
+            } else {
+                self.frontier_nodes.insert(source);
+                self.frontier_nodes.insert(target);
+                self.frontier_graph
+                    .entry(source)
+                    .or_default()
+                    .push(ReplayWeightedRouteEdge { target, weight });
+                self.frontier_positive_paths
+                    .insert(ReplayWeightedPathKey::new(source, target, weight));
+                self.metrics.frontier_inserted_edges += 1;
+                self.metrics.frontier_graph_nodes = self.frontier_nodes.len();
+                self.metrics.frontier_graph_edges += 1;
+            }
         }
-        self.metrics.frontier_search_states += frontier_search.states;
-        self.metrics.frontier_max_search_states = self
-            .metrics
-            .frontier_max_search_states
-            .max(frontier_search.states);
-        if frontier_search.capped {
-            self.metrics.frontier_capped_searches += 1;
-        }
-        if frontier_search.found {
-            self.metrics.frontier_skipped_edges += 1;
-        } else {
-            self.frontier_nodes.insert(source);
-            self.frontier_nodes.insert(target);
-            self.frontier_graph
+
+        if self.all_edge_search_enabled {
+            self.nodes.insert(source);
+            self.nodes.insert(target);
+            self.graph
                 .entry(source)
                 .or_default()
                 .push(ReplayWeightedRouteEdge { target, weight });
-            self.frontier_positive_paths
+            self.positive_paths
                 .insert(ReplayWeightedPathKey::new(source, target, weight));
-            self.metrics.frontier_inserted_edges += 1;
-            self.metrics.frontier_graph_nodes = self.frontier_nodes.len();
-            self.metrics.frontier_graph_edges += 1;
+            self.metrics.graph_nodes = self.nodes.len();
+            self.metrics.graph_edges += 1;
         }
-
-        self.nodes.insert(source);
-        self.nodes.insert(target);
-        self.graph
-            .entry(source)
-            .or_default()
-            .push(ReplayWeightedRouteEdge { target, weight });
-        self.positive_paths
-            .insert(ReplayWeightedPathKey::new(source, target, weight));
-        self.metrics.graph_nodes = self.nodes.len();
-        self.metrics.graph_edges += 1;
         self.metrics.route_cache_entries = self.positive_paths.len();
         self.metrics.frontier_route_cache_entries = self.frontier_positive_paths.len();
         self.metrics.weight_count = self.weights.len();
@@ -902,7 +916,7 @@ impl ReplayWeightedRoutingShadow {
         weights: &ConstraintWeights,
         seen_before: bool,
     ) {
-        if !self.route_search_enabled {
+        if !self.all_edge_search_enabled {
             return;
         }
         self.metrics.consequence_queries += 1;

@@ -278,10 +278,10 @@ constraint.replay_evidence_only: 30187
 constraint.replay_duplicate: 57458
 constraint.replay_prefiltered: 94020
 constraint.replay_weighted_routing_shadow_var_var_frontier_graph_edges: 13528
-constraint.replay_weighted_routing_shadow_var_var_compose_cache_hits: 715888
-constraint.replay_weighted_routing_shadow_var_var_compose_cache_misses: 2431
-constraint.drain: 599.3ms
-total: 2.860s
+constraint.replay_weighted_routing_shadow_var_var_compose_cache_hits: 305921
+constraint.replay_weighted_routing_shadow_var_var_compose_cache_misses: 2326
+constraint.drain: 478.4ms
+total: 2.821s
 ```
 
 This is a useful prototype, not yet a production optimization. It reduces
@@ -291,6 +291,12 @@ frontier search. Previous 4096-state and 256-state limits kept the public
 signatures correct, but spent too much time in capped frontier searches. The
 32-state limit keeps the tested public canaries and adversarial corpus passing
 while cutting the `showcase` replay search work substantially.
+
+When evidence-only skip is enabled without
+`YULANG_REPLAY_WEIGHTED_ROUTING_SHADOW=1`, the solver now maintains only the
+weighted frontier graph needed by the skip. Unweighted routing metrics and the
+all-edge weighted shadow remain opt-in measurement paths; they are not part of
+the prototype skip.
 
 Verified with evidence-only skip enabled:
 
