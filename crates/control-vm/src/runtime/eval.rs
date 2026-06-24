@@ -16,7 +16,10 @@ impl<'a> Runtime<'a> {
             EvalExpr::Constructor { def, arity } => {
                 value_result(constructor_value(def, arity, Vec::new()))
             }
-            EvalExpr::EffectOp { path } => value_result(Value::EffectOp { path }),
+            EvalExpr::EffectOp { path } => {
+                let path_key = self.intern_path(&path);
+                value_result(Value::EffectOp { path, path_key })
+            }
             EvalExpr::Local(def) => {
                 let lookup = env.get(def);
                 let value = lookup.value.cloned();
@@ -247,16 +250,17 @@ impl<'a> Runtime<'a> {
         let result = self.eval_expr(arg, &mut arg_env)?;
         match result {
             EvalResult::Value(arg) => self.apply_direct_known_callee_scoped(callee, arg),
-            EvalResult::Request(request) => Ok(EvalResult::Request(push_frame(
-                &mut self.stats,
-                request,
-                Frame::ApplyArg {
-                    callee: match active_markers {
-                        Some(markers) => mark_value_shared(callee.into_value(), &markers),
-                        None => callee.into_value(),
-                    },
-                },
-            ))),
+            EvalResult::Request(request) => {
+                let callee = match active_markers {
+                    Some(markers) => mark_value_shared(callee.into_value(self), &markers),
+                    None => callee.into_value(self),
+                };
+                Ok(EvalResult::Request(push_frame(
+                    &mut self.stats,
+                    request,
+                    Frame::ApplyArg { callee },
+                )))
+            }
         }
     }
 
@@ -293,7 +297,10 @@ impl<'a> Runtime<'a> {
                 CapturedEnv::default(),
                 BindThen::ApplyClosure { body },
             ),
-            callee => self.apply_value(callee.into_value(), arg),
+            callee => {
+                let callee = callee.into_value(self);
+                self.apply_value(callee, arg)
+            }
         }
     }
 
@@ -351,7 +358,7 @@ impl<'a> Runtime<'a> {
                 let resolved = self.resolve_ref_set_value(value, assigned)?;
                 self.continue_with_frame(resolved, Frame::RefSetResolvedUnit)
             }
-            EvalResult::Request(request) if is_ref_update_request(&request.path) => {
+            EvalResult::Request(request) if self.request_is_ref_update(&request) => {
                 let resumed = self.resume(request.continuation, assigned.clone())?;
                 self.handle_ref_set_result(resumed, assigned)
             }
@@ -476,7 +483,7 @@ impl<'a> Runtime<'a> {
     ) -> RuntimeResult {
         match result {
             EvalResult::Value(value) => self.resolve_ref_set_value(value, assigned),
-            EvalResult::Request(request) if is_ref_update_request(&request.path) => {
+            EvalResult::Request(request) if self.request_is_ref_update(&request) => {
                 let resumed = self.resume(request.continuation, assigned.clone())?;
                 self.handle_ref_set_value_result(resumed, assigned)
             }
@@ -1011,7 +1018,7 @@ impl DirectKnownCallee {
         matches!(self, Self::Closure { .. })
     }
 
-    fn into_value(self) -> Value {
+    fn into_value(self, runtime: &mut Runtime<'_>) -> Value {
         match self {
             Self::Closure { param, body } => Value::Closure(Rc::new(Closure {
                 param,
@@ -1024,7 +1031,10 @@ impl DirectKnownCallee {
                 args: Vec::new(),
             }),
             Self::Constructor { def, arity } => constructor_value(def, arity, Vec::new()),
-            Self::EffectOp { path } => Value::EffectOp { path },
+            Self::EffectOp { path } => {
+                let path_key = runtime.intern_path(&path);
+                Value::EffectOp { path, path_key }
+            }
         }
     }
 }

@@ -67,10 +67,11 @@ impl<'a> Runtime<'a> {
                 let result = self.force_thunk(callee)?;
                 self.continue_with_frame(result, Frame::ApplyForcedThunk { arg })
             }
-            Value::EffectOp { path } => {
+            Value::EffectOp { path, path_key } => {
                 self.stats.apply_effect_op_calls += 1;
                 value_result(Value::Thunk(Rc::new(Thunk::Effect {
                     path,
+                    path_key,
                     payload: Box::new(arg),
                 })))
             }
@@ -208,10 +209,10 @@ impl<'a> Runtime<'a> {
     pub(super) fn emit_effect_request(
         &mut self,
         path: Vec<String>,
+        path_key: InternedPath,
         payload: Value,
     ) -> RuntimeResult {
         self.stats.effect_requests += 1;
-        let path_key = self.intern_path(&path);
         let mut request = Request {
             path,
             path_key,

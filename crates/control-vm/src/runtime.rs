@@ -233,6 +233,7 @@ pub enum Value {
     FunctionAdapter(Rc<FunctionAdapter>),
     EffectOp {
         path: Vec<String>,
+        path_key: InternedPath,
     },
     Continuation(ContinuationId),
     Marked {
@@ -289,6 +290,7 @@ pub enum Thunk {
     },
     Effect {
         path: Vec<String>,
+        path_key: InternedPath,
         payload: Box<Value>,
     },
     Continuation {
@@ -418,7 +420,7 @@ impl CapturedEnv {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct InternedPath {
+pub struct InternedPath {
     id: u32,
     len: usize,
     prefix_ids: Rc<[u32]>,
@@ -1274,8 +1276,11 @@ fn expect_eval_value(result: EvalResult) -> Result<Value, RuntimeError> {
     }
 }
 
-fn is_ref_update_request(path: &[String]) -> bool {
-    path == ["std", "control", "var", "ref_update", "update"]
+fn ref_update_update_path() -> Vec<String> {
+    ["std", "control", "var", "ref_update", "update"]
+        .into_iter()
+        .map(str::to_string)
+        .collect()
 }
 
 fn value_equivalent(left: &Value, right: &Value) -> bool {

@@ -96,9 +96,13 @@ impl<'a> Runtime<'a> {
                 self.stats.force_value_calls += 1;
                 value_result(*value)
             }
-            Thunk::Effect { path, payload } => {
+            Thunk::Effect {
+                path,
+                path_key,
+                payload,
+            } => {
                 self.stats.force_effect_calls += 1;
-                self.emit_effect_request(path, *payload)
+                self.emit_effect_request(path, path_key, *payload)
             }
             Thunk::Continuation { id, arg } => {
                 self.stats.force_continuation_calls += 1;
@@ -137,9 +141,13 @@ impl<'a> Runtime<'a> {
                 self.stats.force_value_calls += 1;
                 value_result(value.as_ref().clone())
             }
-            Thunk::Effect { path, payload } => {
+            Thunk::Effect {
+                path,
+                path_key,
+                payload,
+            } => {
                 self.stats.force_effect_calls += 1;
-                self.emit_effect_request(path.clone(), payload.as_ref().clone())
+                self.emit_effect_request(path.clone(), path_key.clone(), payload.as_ref().clone())
             }
             Thunk::Continuation { id, arg } => {
                 self.stats.force_continuation_calls += 1;

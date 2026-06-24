@@ -19,11 +19,14 @@ pub(super) struct Runtime<'a> {
     pub(super) active_marker_plans: Vec<SharedMarkers>,
     pub(super) next_guard_id: u32,
     pub(super) stats: RuntimeStats,
+    pub(super) ref_update_update_key: InternedPath,
     pub(super) path_interner: PathInterner,
 }
 
 impl<'a> Runtime<'a> {
     pub(super) fn new(program: &'a Program) -> Self {
+        let mut path_interner = PathInterner::default();
+        let ref_update_update_key = path_interner.intern(&ref_update_update_path());
         Self {
             program,
             instances: HashMap::new(),
@@ -40,7 +43,8 @@ impl<'a> Runtime<'a> {
             active_marker_plans: Vec::new(),
             next_guard_id: 0,
             stats: RuntimeStats::default(),
-            path_interner: PathInterner::default(),
+            ref_update_update_key,
+            path_interner,
         }
     }
 
@@ -147,5 +151,9 @@ impl<'a> Runtime<'a> {
 
     pub(super) fn intern_path(&mut self, path: &[String]) -> InternedPath {
         self.path_interner.intern(path)
+    }
+
+    pub(super) fn request_is_ref_update(&self, request: &Request) -> bool {
+        request.path_key.id == self.ref_update_update_key.id
     }
 }

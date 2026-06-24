@@ -210,7 +210,7 @@ fn format_control_value_with_labels(
         }
         control_vm::Value::Thunk(_) => "<thunk>".to_string(),
         control_vm::Value::FunctionAdapter(_) => "<function-adapter>".to_string(),
-        control_vm::Value::EffectOp { path } => format!("<effect-op {}>", path.join("::")),
+        control_vm::Value::EffectOp { path, .. } => format!("<effect-op {}>", path.join("::")),
         control_vm::Value::Continuation(id) => format!("<continuation {}>", id.0),
         control_vm::Value::Marked { value, .. } => format_control_value_with_labels(value, labels),
     }
