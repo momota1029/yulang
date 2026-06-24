@@ -1,0 +1,8 @@
+pub g h = sub:
+    for i in 0:
+        h i
+    return 1
+
+pub run = sub:
+    my b = g \i -> if true: return i
+    b

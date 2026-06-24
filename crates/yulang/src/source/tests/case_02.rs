@@ -1144,6 +1144,23 @@ fn dump_poly_fixture_public_type_display_order_signatures() {
     );
 }
 
+#[test]
+fn dump_poly_fixture_sub_return_callback_public_signature_keeps_callback_effect() {
+    let entry = write_fixture_with_fake_std(
+        "dump-poly-sub-return-callback-public-signature",
+        "support/fake_std/control_flow_io.yu",
+        "regressions/effect/sub_return_callback_public_signature.yu",
+    );
+    let output = dump_poly_from_entry(entry).unwrap();
+
+    assert_eq!(
+        assert_public_signature_type_hides_stack_evidence(&output, "g"),
+        "(int -> ['a] any) -> ['a] int",
+        "sub-return helper should expose callback effects instead of swallowing them"
+    );
+    assert_public_signature_type_eq(&output, "run", "int");
+}
+
 #[cfg(unix)]
 #[test]
 fn dump_poly_std_ref_update_public_signature_hides_stack_evidence() {
