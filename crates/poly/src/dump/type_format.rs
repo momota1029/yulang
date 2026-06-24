@@ -8,16 +8,14 @@ use rustc_hash::FxHashMap;
 
 use crate::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RolePredicate, RolePredicateArg, Scheme,
-    StackWeight, Subtractability, TypeArena, TypeVar,
+    StackWeight, SubtractId, Subtractability, TypeArena, TypeVar,
 };
 
 mod formatter;
 
 /// scheme を `list 'a` や `'a [io; 'e] -> ['e] 'a` のような短い構文風表記で返す。
 pub fn format_scheme(arena: &TypeArena, scheme: &Scheme) -> String {
-    let mut namer = TypeVarNamer::new();
-    namer.seed(&scheme.quantifiers);
-    TypeFormatter::new(arena, namer).format_scheme(scheme)
+    TypeFormatter::new(arena, TypeVarNamer::new()).format_scheme(scheme)
 }
 
 /// 型 path を呼び出し側の表示 context で短縮しながら scheme を返す。
@@ -29,9 +27,8 @@ pub fn format_scheme_with_path_rewriter(
     scheme: &Scheme,
     path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
 ) -> String {
-    let mut namer = TypeVarNamer::new();
-    namer.seed(&scheme.quantifiers);
-    TypeFormatter::new_with_path_rewriter(arena, namer, path_rewriter).format_scheme(scheme)
+    TypeFormatter::new_with_path_rewriter(arena, TypeVarNamer::new(), path_rewriter)
+        .format_scheme(scheme)
 }
 
 /// 正側型を短い構文風表記で返す。
@@ -250,20 +247,18 @@ enum PosRowPart {
 #[derive(Debug, Clone)]
 struct TypeVarNamer {
     names: FxHashMap<TypeVar, String>,
+    subtract_ids: FxHashMap<SubtractId, usize>,
     next: usize,
+    next_subtract_id: usize,
 }
 
 impl TypeVarNamer {
     fn new() -> Self {
         Self {
             names: FxHashMap::default(),
+            subtract_ids: FxHashMap::default(),
             next: 0,
-        }
-    }
-
-    fn seed(&mut self, vars: &[TypeVar]) {
-        for var in vars {
-            self.name(*var);
+            next_subtract_id: 0,
         }
     }
 
@@ -274,6 +269,16 @@ impl TypeVarNamer {
         let name = format!("'{}", letter_name(self.next));
         self.next += 1;
         self.names.insert(var, name.clone());
+        name
+    }
+
+    fn subtract_id(&mut self, id: SubtractId) -> usize {
+        if let Some(name) = self.subtract_ids.get(&id) {
+            return *name;
+        }
+        let name = self.next_subtract_id;
+        self.next_subtract_id += 1;
+        self.subtract_ids.insert(id, name);
         name
     }
 }
@@ -380,6 +385,43 @@ mod tests {
             format_scheme(&arena, &scheme),
             "'a [nondet; 'b] -> ['b] list 'a"
         );
+    }
+
+    #[test]
+    fn format_scheme_names_type_vars_by_rendered_occurrence_order() {
+        let mut arena = TypeArena::new();
+        let arg_var = TypeVar(10);
+        let eff_var = TypeVar(20);
+        let ret_var = TypeVar(30);
+        let arg = arena.alloc_neg(Neg::Var(arg_var));
+        let arg_eff = arena.alloc_neg(Neg::Var(eff_var));
+        let ret_eff = arena.alloc_pos(Pos::Var(eff_var));
+        let ret = arena.alloc_pos(Pos::Var(ret_var));
+        let predicate = arena.alloc_pos(Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        });
+        let scheme = Scheme {
+            quantifiers: vec![ret_var, eff_var, arg_var],
+            role_predicates: Vec::new(),
+            recursive_bounds: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            predicate,
+        };
+
+        assert_eq!(format_scheme(&arena, &scheme), "'a ['b] -> ['b] 'c");
+    }
+
+    #[test]
+    fn formats_stack_ids_by_rendered_occurrence_order() {
+        let mut arena = TypeArena::new();
+        let a = TypeVar(0);
+        let pos_a = arena.alloc_pos(Pos::Var(a));
+        let weighted = arena.alloc_pos(Pos::NonSubtract(pos_a, StackWeight::pop(SubtractId(99))));
+
+        assert_eq!(format_pos(&arena, weighted), "'a#0");
     }
 
     #[test]
@@ -593,7 +635,7 @@ mod tests {
             ),
         });
 
-        assert_eq!(format_pos(&arena, stacked), "'a#2[[&var 'a]]");
+        assert_eq!(format_pos(&arena, stacked), "'a#0[[&var 'a]]");
     }
 
     #[test]
@@ -626,7 +668,7 @@ mod tests {
 
         assert_eq!(
             format_scheme(&arena, &scheme),
-            "'c where 'a: Mul('b, out = 'c)"
+            "'a where 'b: Mul('c, out = 'a)"
         );
     }
 
@@ -660,7 +702,7 @@ mod tests {
 
         assert_eq!(
             format_scheme(&arena, &scheme),
-            "'c where 'a: Index('b, value = 'c)"
+            "'a where 'b: Index('c, value = 'a)"
         );
     }
 
@@ -686,7 +728,7 @@ mod tests {
             predicate,
         };
 
-        assert_eq!(format_scheme(&arena, &scheme), "'c where Debug('a | 'b)");
+        assert_eq!(format_scheme(&arena, &scheme), "'a where Debug('b | 'c)");
     }
 
     #[test]
@@ -714,7 +756,7 @@ mod tests {
             predicate,
         };
 
-        assert_eq!(format_scheme(&arena, &scheme), "'c where Role(list 'a, 'b)");
+        assert_eq!(format_scheme(&arena, &scheme), "'a where Role(list 'b, 'c)");
     }
 
     #[test]
@@ -739,7 +781,7 @@ mod tests {
         let pos_a = arena.alloc_pos(Pos::Var(a));
         let weighted = arena.alloc_pos(Pos::NonSubtract(pos_a, StackWeight::pop(SubtractId(1))));
 
-        assert_eq!(format_pos(&arena, weighted), "'a#1");
+        assert_eq!(format_pos(&arena, weighted), "'a#0");
     }
 
     #[test]
@@ -750,7 +792,7 @@ mod tests {
         let weighted =
             arena.alloc_pos(Pos::NonSubtract(pos_a, StackWeight::pops(SubtractId(1), 2)));
 
-        assert_eq!(format_pos(&arena, weighted), "'a#1(2)");
+        assert_eq!(format_pos(&arena, weighted), "'a#0(2)");
     }
 
     #[test]
@@ -772,7 +814,7 @@ mod tests {
             weight: StackWeight::push(SubtractId(1), Subtractability::All),
         });
 
-        assert_eq!(format_pos(&arena, stacked), "('a -> 'a)#1[All]");
+        assert_eq!(format_pos(&arena, stacked), "('a -> 'a)#0[All]");
     }
 
     fn plain_neu(arena: &mut TypeArena, var: TypeVar) -> NeuId {

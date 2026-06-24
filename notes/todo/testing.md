@@ -109,7 +109,7 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   - `std.control.flow.loop.for_in`
 - public signature の ` = ` より左側だけを抜き出し、body 内の `#op:...` ではなく公開型そのものを検査する。
 - これらの public signature では、`#...` / `AllExcept(...)` が出ないことを固定する。
-- `ref.update` は、ref residual と callback residual が `['c, 'a]` として残ることも見る。
+- `ref.update` は、ref residual と callback residual が `['b, 'a]` として残ることも見る。
 
 ## 2026-06-23 public signature golden second slice
 
@@ -120,7 +120,7 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
 - 見ている性質:
   - `box.handle` / `demo.cell.apply` の public signature に `#...` / `AllExcept(...)` が出ない。
   - handled effect family (`tick` / `pulse`) が public method signature に残らない。
-  - ref residual と callback residual は `['c, 'a]` として残る。
+  - ref residual と callback residual は `['b, 'a]` として残る。
   - nested module でも、名前や std path に依存せず同じ構造として通る。
 
 ## 2026-06-24 nested handler contract public signature canary

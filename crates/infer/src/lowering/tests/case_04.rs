@@ -69,7 +69,7 @@ fn std_ref_update_method_body_lowers() {
     let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
     assert_eq!(
         rendered,
-        "std::control::var::ref('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] ()"
+        "std::control::var::ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"
     );
     let update_effect =
         find_select_by_name(&output.session, body, "update_effect").expect("update_effect");
@@ -111,7 +111,7 @@ fn std_ref_update_full_signature_hides_private_stack_evidence() {
     let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, method));
     assert_eq!(
         rendered,
-        "std::control::var::ref('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] ()"
+        "std::control::var::ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"
     );
     assert!(
         !rendered.contains('#') && !rendered.contains("AllExcept"),
@@ -144,7 +144,7 @@ fn data_position_effect_function_hides_private_stack_evidence() {
     let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, method));
     assert_eq!(
         rendered,
-        "box('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] ()"
+        "box('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"
     );
     assert!(
         !rendered.contains('#') && !rendered.contains("AllExcept"),

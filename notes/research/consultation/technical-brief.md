@@ -197,11 +197,11 @@ effect を `f` へ見せる `g: _ -> [_] _` の両方が必要になる。
 概略化すると、次のような情報が必要になる。
 
 ```text
-('a ['b#1[Empty]] -> ['c] 'd) -> ('e -> ['b#1[Empty]] 'a) -> 'e -> ['c#1] 'd
+('a ['b#0[Empty]] -> ['c] 'd) -> ('e -> ['b#0[Empty]] 'a) -> 'e -> ['c#0] 'd#0
 ```
 
-ここで `#1[Empty]` は、ある handler boundary `#1` を通るときに、この occurrence からは何も
-subtract できないことを表す内部証拠である。`#1` が付いた return-side occurrence は、その
+ここで `#0[Empty]` は、ある handler boundary `#0` を通るときに、この occurrence からは何も
+subtract できないことを表す内部証拠である。`#0` が付いた return-side occurrence は、その
 boundary を抜けたあとで制約を対応づけるための証拠である。
 
 現行 compiler dump では、`#... [Empty]` は hygiene を説明する証拠として public scheme 表示に
@@ -298,8 +298,8 @@ use_int
 Compiler output:
 
 ```text
-d1:apply: ('a -> ['c] 'b) -> 'a -> ['c] 'b
-d2:twice: (('a | 'c) ['d] -> ['d & 'e] 'c & 'b) -> 'a -> ['e] 'b
+d1:apply: ('a -> ['b] 'c) -> 'a -> ['b] 'c
+d2:twice: (('a | 'b) ['c#0[Empty]] -> ['c#0[Empty] & 'd#0[Empty]] 'b & 'e) -> 'a -> ['d] 'e#0
 d3:use_int: int
 ```
 
@@ -310,15 +310,15 @@ d3:use_int: int
 
 ```text
 std.control.var.ref.update:
-  std::control::var::ref('a & 'c, 'b) -> ('b -> ['c] 'b) -> ['c, 'a] ()
+  std::control::var::ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()
 
 std.text.parse.choice:
-  (() -> ['g] 'a) -> ['g] (() -> ['f] 'a) -> ['f] () -> [std::text::parse::parse 'b 'c 'd 'e] 'a
-  where 'c: std::text::parse::ParseError(item = 'h, pos = 'i)
+  (() -> ['a] 'b) -> ['a] (() -> ['c] 'b) -> ['c] () -> [std::text::parse::parse 'd 'e 'f 'g] 'b
+  where 'e: std::text::parse::ParseError(item = 'h, pos = 'i)
 
 std.control.flow.loop.for_in:
-  'a -> ('c -> [std::control::flow::loop; 'b] any) -> ['b] ()
-  where 'a: std::data::fold::Fold(item = 'c)
+  'a -> ('b -> [std::control::flow::loop; 'c] any) -> ['c] ()
+  where 'a: std::data::fold::Fold(item = 'b)
 ```
 
 これらは public scheme に `#...` や `AllExcept(...)` の hidden stack evidence を出さず、

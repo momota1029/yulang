@@ -11,11 +11,7 @@ fn unannotated_callback_return_effect_surfaces_without_empty_stack() {
 
     assert!(output.errors.is_empty(), "{:?}", output.errors);
     let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, h));
-    assert!(
-        rendered == "'a -> ('a -> ['b] 'c) -> ['b] 'c"
-            || rendered == "'a -> ('a -> ['c] 'b) -> ['c] 'b",
-        "{rendered}"
-    );
+    assert_eq!(rendered, "'a -> ('a -> ['b] 'c) -> ['b] 'c");
 }
 
 #[test]
@@ -29,7 +25,7 @@ fn earlier_unannotated_callback_return_effect_surfaces_in_later_param_body() {
 
     assert!(output.errors.is_empty(), "{:?}", output.errors);
     let rendered = poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, k));
-    assert_eq!(rendered, "('a -> ['c] 'b) -> 'a -> ['c] 'b");
+    assert_eq!(rendered, "('a -> ['b] 'c) -> 'a -> ['b] 'c");
 }
 
 #[test]
@@ -251,7 +247,7 @@ fn nested_callback_wildcard_return_contract_stays_surface() {
         poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, full_compose));
     assert_eq!(
         rendered,
-        "('b -> ['a] 'd) -> ('d ['a] -> ['e] 'c) -> 'b -> ['e] 'c"
+        "('a -> ['b] 'c) -> ('c ['b] -> ['d] 'e) -> 'a -> ['d] 'e"
     );
     assert!(
         !rendered.contains("4294967295"),
@@ -279,11 +275,11 @@ fn unannotated_compose_protects_callback_return_from_outer_callee() {
         poly::dump::format_scheme(&output.session.poly.typ, def_scheme(&output, compose2));
     assert_eq!(
         compose1,
-        "('d ['a] -> ['e] 'c) -> ('b -> ['a] 'd) -> 'b -> ['e] 'c"
+        "('a ['b] -> ['c] 'd) -> ('e -> ['b] 'a) -> 'e -> ['c] 'd"
     );
     assert_eq!(
         compose2,
-        "('c ['d#1[Empty]] -> ['e] 'b) -> ('a -> ['d#1[Empty]] 'c) -> 'a -> ['e#1] 'b#1"
+        "('a ['b#0[Empty]] -> ['c] 'd) -> ('e -> ['b#0[Empty]] 'a) -> 'e -> ['c#0] 'd#0"
     );
 }
 
@@ -1467,7 +1463,7 @@ fn constructor_pattern_payload_participates_in_guard_role_method() {
         poly::types::RolePredicateArg::Covariant(_)
     ));
     let rendered = poly::dump::format_scheme(&output.session.poly.typ, scheme);
-    assert_eq!(rendered, "view('b & 'a) -> 'a -> 'b where Ord('a | 'b)");
+    assert_eq!(rendered, "view('a & 'b) -> 'b -> 'a where Ord('b | 'a)");
 }
 
 #[test]

@@ -918,6 +918,7 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             .entries()
             .iter()
             .map(|entry| {
+                let id = self.namer.subtract_id(entry.id);
                 let floor = entry
                     .floor
                     .iter()
@@ -931,12 +932,9 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
                     .collect::<Vec<_>>()
                     .join(", ");
                 if entry.floor.is_empty() {
-                    format!("#{} -> pop({})[{}]", entry.id.0, entry.pops, stack)
+                    format!("#{id} -> pop({})[{}]", entry.pops, stack)
                 } else {
-                    format!(
-                        "#{} -> floor[{}] pop({})[{}]",
-                        entry.id.0, floor, entry.pops, stack
-                    )
+                    format!("#{id} -> floor[{floor}] pop({})[{stack}]", entry.pops)
                 }
             })
             .collect::<Vec<_>>()
@@ -981,7 +979,8 @@ impl<'a, 'paths> TypeFormatter<'a, 'paths> {
             return None;
         }
 
-        let mut suffix = format!("#{}", entry.id.0);
+        let id = self.namer.subtract_id(entry.id);
+        let mut suffix = format!("#{id}");
         if entry.pops > 0 && !(entry.pops == 1 && entry.stack.is_empty()) {
             suffix.push_str(&format!("({})", entry.pops));
         }
