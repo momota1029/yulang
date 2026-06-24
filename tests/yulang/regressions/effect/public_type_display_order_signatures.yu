@@ -1,0 +1,5 @@
+pub apply f x = f x
+pub twice f x = f (f x)
+
+pub compose1(f, g: _ -> [_] _, x) = f g(x)
+pub compose2(f, g, x) = f g(x)

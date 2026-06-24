@@ -1013,14 +1013,14 @@ fn dump_poly_fixture_data_position_effect_function_public_signature_hides_stack_
     );
     let output = dump_poly_from_entry(entry).unwrap();
 
-    let signature = assert_public_signature_hides_stack_evidence(&output, "box.handle");
-    assert!(
-        signature.contains("box('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"),
-        "data-position effectful function should keep public residuals and hide private evidence:\n{signature}"
+    let ty = assert_public_signature_type_hides_stack_evidence(&output, "box.handle");
+    assert_eq!(
+        ty, "box('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()",
+        "data-position effectful function should keep public residuals and hide private evidence"
     );
     assert!(
-        !signature.contains("tick"),
-        "handled data-position effect should not appear in the public method signature:\n{signature}"
+        !ty.contains("tick"),
+        "handled data-position effect should not appear in the public method signature:\n{ty}"
     );
 }
 
@@ -1034,14 +1034,14 @@ fn dump_poly_fixture_nested_data_position_effect_function_public_signature_hides
     );
     let output = dump_poly_from_entry(entry).unwrap();
 
-    let signature = assert_public_signature_hides_stack_evidence(&output, "demo.cell.apply");
-    assert!(
-        signature.contains("demo::cell('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"),
-        "nested data-position effectful function should keep public residuals and hide private evidence:\n{signature}"
+    let ty = assert_public_signature_type_hides_stack_evidence(&output, "demo.cell.apply");
+    assert_eq!(
+        ty, "demo::cell('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()",
+        "nested data-position effectful function should keep public residuals and hide private evidence"
     );
     assert!(
-        !signature.contains("pulse"),
-        "handled nested data-position effect should not appear in the public method signature:\n{signature}"
+        !ty.contains("pulse"),
+        "handled nested data-position effect should not appear in the public method signature:\n{ty}"
     );
 }
 
@@ -1054,22 +1054,48 @@ fn dump_poly_fixture_nested_handler_contract_public_signatures() {
     );
     let output = dump_poly_from_entry_with_std(entry).unwrap();
 
-    let all_paths = assert_public_signature_hides_stack_evidence(&output, "all_paths");
-    assert!(
-        all_paths.contains("'a [flip; 'b] -> ['b] std::data::list::list 'a"),
-        "all_paths should capture flip and keep the residual row public:\n{all_paths}"
+    assert_eq!(
+        assert_public_signature_type_hides_stack_evidence(&output, "all_paths"),
+        "'a [flip; 'b] -> ['b] std::data::list::list 'a",
+        "all_paths should capture flip and keep the residual row public"
     );
 
-    let total_amount = assert_public_signature_hides_stack_evidence(&output, "total_amount");
-    assert!(
-        total_amount.contains("'a [amount; 'b] -> ['b] std::data::list::list 'a"),
-        "total_amount should capture amount and keep the residual row public:\n{total_amount}"
+    assert_eq!(
+        assert_public_signature_type_hides_stack_evidence(&output, "total_amount"),
+        "'a [amount; 'b] -> ['b] std::data::list::list 'a",
+        "total_amount should capture amount and keep the residual row public"
     );
 
-    let compose = assert_public_signature_hides_stack_evidence(&output, "compose");
-    assert!(
-        compose.contains("('a ['b] -> ['c] 'd) -> ('e ['f] -> ['b] 'a) -> 'e ['f] -> ['c] 'd"),
-        "explicit compose contracts should expose g(x) surface effects to f without empty visibility evidence:\n{compose}"
+    assert_eq!(
+        assert_public_signature_type_hides_stack_evidence(&output, "compose"),
+        "('a ['b] -> ['c] 'd) -> ('e ['f] -> ['b] 'a) -> 'e ['f] -> ['c] 'd",
+        "explicit compose contracts should expose g(x) surface effects to f without empty visibility evidence"
+    );
+}
+
+#[test]
+fn dump_poly_fixture_public_type_display_order_signatures() {
+    let entry = write_main(
+        "dump-poly-public-type-display-order-signatures",
+        &yulang_fixture("regressions/effect/public_type_display_order_signatures.yu"),
+    );
+    let output = dump_poly_from_entry(entry).unwrap();
+
+    assert_public_signature_type_eq(&output, "apply", "('a -> ['b] 'c) -> 'a -> ['b] 'c");
+    assert_public_signature_type_eq(
+        &output,
+        "twice",
+        "(('a | 'b) ['c#0[Empty]] -> ['c#0[Empty] & 'd#0[Empty]] 'b & 'e) -> 'a -> ['d] 'e#0",
+    );
+    assert_public_signature_type_eq(
+        &output,
+        "compose1",
+        "('a ['b] -> ['c] 'd) -> ('e -> ['b] 'a) -> 'e -> ['c] 'd",
+    );
+    assert_public_signature_type_eq(
+        &output,
+        "compose2",
+        "('a ['b#0[Empty]] -> ['c] 'd) -> ('e -> ['b#0[Empty]] 'a) -> 'e -> ['c#0] 'd#0",
     );
 }
 
@@ -1079,15 +1105,15 @@ fn dump_poly_std_ref_update_public_signature_hides_stack_evidence() {
     let entry = write_main_with_std("dump-poly-std-ref-update-public-type", "1\n");
     let output = dump_poly_from_entry_with_std_in_module(entry, "std.control.var.ref").unwrap();
 
-    let signature =
-        assert_public_signature_hides_stack_evidence(&output, "std.control.var.ref.update");
-    assert!(
-        signature.contains("std::control::var::ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"),
-        "ref.update should keep ref residual and callback residual in the public signature:\n{signature}"
+    let ty =
+        assert_public_signature_type_hides_stack_evidence(&output, "std.control.var.ref.update");
+    assert_eq!(
+        ty, "std::control::var::ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()",
+        "ref.update should keep ref residual and callback residual in the public signature"
     );
     assert!(
-        !signature.contains("std::control::var::ref_update"),
-        "ref.update handler evidence should not appear in the public signature:\n{signature}"
+        !ty.contains("std::control::var::ref_update"),
+        "ref.update handler evidence should not appear in the public signature:\n{ty}"
     );
 }
 
@@ -1097,16 +1123,10 @@ fn dump_poly_std_parse_choice_public_signature_hides_stack_evidence() {
     let entry = write_main_with_std("dump-poly-std-parse-choice-public-type", "1\n");
     let output = dump_poly_from_entry_with_std_in_module(entry, "std.text.parse").unwrap();
 
-    let signature = assert_public_signature_hides_stack_evidence(&output, "std.text.parse.choice");
-    assert!(
-        signature.contains(
-            "(() -> ['a] 'b) -> ['a] (() -> ['c] 'b) -> ['c] () -> [std::text::parse::parse 'd 'e 'f 'g] 'b"
-        ),
-        "choice should keep parser effects public without hidden stack evidence:\n{signature}"
-    );
-    assert!(
-        signature.contains("where 'e: std::text::parse::ParseError"),
-        "choice should keep the parse error role constraint:\n{signature}"
+    assert_eq!(
+        assert_public_signature_type_hides_stack_evidence(&output, "std.text.parse.choice"),
+        "(() -> ['a] 'b) -> ['a] (() -> ['c] 'b) -> ['c] () -> [std::text::parse::parse 'd 'e 'f 'g] 'b where 'e: std::text::parse::ParseError(item = 'h, pos = 'i)",
+        "choice should keep parser effects public without hidden stack evidence"
     );
 }
 
@@ -1116,13 +1136,10 @@ fn dump_poly_std_flow_for_in_public_signature_hides_stack_evidence() {
     let entry = write_main_with_std("dump-poly-std-flow-for-in-public-type", "1\n");
     let output = dump_poly_from_entry_with_std_in_module(entry, "std.control.flow.loop").unwrap();
 
-    let signature =
-        assert_public_signature_hides_stack_evidence(&output, "std.control.flow.loop.for_in");
-    assert!(
-        signature.contains(
-            "'a -> ('b -> [std::control::flow::loop; 'c] any) -> ['c] () where 'a: std::data::fold::Fold(item = 'b)"
-        ),
-        "for_in should keep callback loop effect local and expose only the callback residual:\n{signature}"
+    assert_eq!(
+        assert_public_signature_type_hides_stack_evidence(&output, "std.control.flow.loop.for_in"),
+        "'a -> ('b -> [std::control::flow::loop; 'c] any) -> ['c] () where 'a: std::data::fold::Fold(item = 'b)",
+        "for_in should keep callback loop effect local and expose only the callback residual"
     );
 }
 

@@ -139,6 +139,23 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   - test helper は module-qualified `pub "std.foo"` だけでなく、top-level `pub dN:name`
     の public signature も同じ経路で抜き出せる。
 
+## 2026-06-24 public signature golden third slice
+
+- `dump_public_signature_type` を追加し、公開 dump line の body を除いた型部分だけを exact に見る。
+  role constraint 内の associated type equality (`item = ...`) を body delimiter と誤認しないよう、
+  body は ` = e...` / ` = <missing>` で切る。
+- `tests/yulang/regressions/effect/public_type_display_order_signatures.yu` を追加した。
+- 対象:
+  - `apply`
+  - `twice`
+  - `compose1(f, g: _ -> [_] _, x)`
+  - `compose2(f, g, x)`
+- 見ている性質:
+  - 型変数名は表示上の初出順で安定する。
+  - `SubtractId` は raw/global ID ではなく、その公開型内の初出順 `#0` で表示される。
+  - `twice` / `compose2` の `#0[Empty]` evidence は消さずに固定する。
+  - data-position / std public canary は `contains` ではなく exact public type として固定する。
+
 ## やらないこと
 
 - 最初から property testing や snapshot 大量生成に広げない。

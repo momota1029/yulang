@@ -172,21 +172,45 @@ fn dump_public_signature<'a>(output: &'a DumpPolyOutput, symbol: &str) -> &'a st
                 output.text
             )
         });
-    line.rsplit_once(" = ")
-        .map(|(signature, _)| signature)
+    line.find(" = e")
+        .or_else(|| line.find(" = <missing>"))
+        .map(|body_start| &line[..body_start])
         .unwrap_or(line)
 }
 
-fn assert_public_signature_hides_stack_evidence<'a>(
+fn dump_public_signature_type<'a>(output: &'a DumpPolyOutput, symbol: &str) -> &'a str {
+    let signature = dump_public_signature(output, symbol);
+    let quoted = format!("\"{symbol}\": ");
+    if let Some(start) = signature.find(&quoted) {
+        return &signature[start + quoted.len()..];
+    }
+    let simple = format!(":{symbol}: ");
+    if let Some(start) = signature.find(&simple) {
+        return &signature[start + simple.len()..];
+    }
+    panic!("public symbol {symbol:?} has an unexpected signature line:\n{signature}");
+}
+
+fn assert_public_signature_type_eq<'a>(
+    output: &'a DumpPolyOutput,
+    symbol: &str,
+    expected: &str,
+) -> &'a str {
+    let ty = dump_public_signature_type(output, symbol);
+    assert_eq!(ty, expected, "unexpected public type for {symbol}");
+    ty
+}
+
+fn assert_public_signature_type_hides_stack_evidence<'a>(
     output: &'a DumpPolyOutput,
     symbol: &str,
 ) -> &'a str {
-    let signature = dump_public_signature(output, symbol);
+    let ty = dump_public_signature_type(output, symbol);
     assert!(
-        !signature.contains('#') && !signature.contains("AllExcept"),
-        "private stack evidence escaped into {symbol}:\n{signature}"
+        !ty.contains('#') && !ty.contains("AllExcept"),
+        "private stack evidence escaped into {symbol}:\n{ty}"
     );
-    signature
+    ty
 }
 
 fn assert_mono_dump_contains(output: &DumpMonoOutput, expected: &str) {
