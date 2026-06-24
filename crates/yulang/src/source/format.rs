@@ -1289,6 +1289,26 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         );
         let _ = writeln!(
             out,
+            "  constraint.replay_weighted_routing_shadow_var_var_route_cache_hits: {}",
+            weighted_routing.route_cache_hits
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_route_cache_hits: {}",
+            weighted_routing.frontier_route_cache_hits
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_route_cache_entries: {}",
+            weighted_routing.route_cache_entries
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_route_cache_entries: {}",
+            weighted_routing.frontier_route_cache_entries
+        );
+        let _ = writeln!(
+            out,
             "  constraint.replay_weighted_routing_shadow_var_var_weight_count: {}",
             weighted_routing.weight_count
         );
@@ -1983,6 +2003,26 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
             out,
             "  constraint.replay_weighted_routing_shadow_var_var_frontier_graph_edges: {}",
             weighted_routing.frontier_graph_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_route_cache_hits: {}",
+            weighted_routing.route_cache_hits
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_route_cache_hits: {}",
+            weighted_routing.frontier_route_cache_hits
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_route_cache_entries: {}",
+            weighted_routing.route_cache_entries
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_route_cache_entries: {}",
+            weighted_routing.frontier_route_cache_entries
         );
         let _ = writeln!(
             out,

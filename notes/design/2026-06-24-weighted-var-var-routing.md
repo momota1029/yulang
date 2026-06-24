@@ -168,6 +168,28 @@ enabled, the shadow performs tens of millions of cached weight compositions.
 A production skip needs an incremental path-summary frontier or another cheap
 novelty index; it should not run this DFS for every replay candidate.
 
+The route graph is monotone, so positive exact-path results can be cached
+without invalidation. Negative results are not cached, because a later edge may
+make them true. Adding this positive cache changes only the shadow query cost:
+
+```text
+constraint.replay_weighted_routing_shadow_var_var_frontier_inserted_edges: 11658
+constraint.replay_weighted_routing_shadow_var_var_frontier_skipped_edges: 53313
+constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_known_unseen: 52809
+constraint.replay_weighted_routing_shadow_var_var_route_cache_hits: 606433
+constraint.replay_weighted_routing_shadow_var_var_frontier_route_cache_hits: 606307
+constraint.replay_weighted_routing_shadow_var_var_route_cache_entries: 64971
+constraint.replay_weighted_routing_shadow_var_var_frontier_route_cache_entries: 64971
+constraint.replay_weighted_routing_shadow_var_var_compose_cache_hits: 12263305
+constraint.replay_weighted_routing_shadow_var_var_compose_cache_misses: 212698
+```
+
+Compared with the uncached shadow, cached composition work drops from about
+50.6M hits to about 12.3M hits. The exact frontier counts shift slightly because
+the fixed search cap interacts with which paths have already been found and
+cached. The conclusion is unchanged: the frontier graph still identifies about
+52.8K consequences that the current `seen` table would not prefilter.
+
 ## Required invariant
 
 For every variable `v`, lower bound `L(v, p, wl)` and upper bound `U(v, n, wu)`

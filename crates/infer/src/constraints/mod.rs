@@ -670,6 +670,8 @@ struct ReplayWeightedRoutingShadow {
     frontier_graph: FxHashMap<TypeVar, Vec<ReplayWeightedRouteEdge>>,
     nodes: FxHashSet<TypeVar>,
     frontier_nodes: FxHashSet<TypeVar>,
+    positive_paths: FxHashSet<ReplayWeightedPathKey>,
+    frontier_positive_paths: FxHashSet<ReplayWeightedPathKey>,
     weights: ReplayWeightInterner,
     metrics: ReplayWeightedRoutingShadowMetrics,
     search_limit: usize,
@@ -684,6 +686,8 @@ impl ReplayWeightedRoutingShadow {
                 frontier_graph: FxHashMap::default(),
                 nodes: FxHashSet::default(),
                 frontier_nodes: FxHashSet::default(),
+                positive_paths: FxHashSet::default(),
+                frontier_positive_paths: FxHashSet::default(),
                 weights: ReplayWeightInterner::default(),
                 metrics: ReplayWeightedRoutingShadowMetrics::default(),
                 search_limit: replay_weighted_routing_shadow_limit(),
@@ -698,12 +702,16 @@ impl ReplayWeightedRoutingShadow {
         let weight = self.weights.intern(weights.clone());
         let search = search_exact_weighted_route(
             &self.graph,
+            &mut self.positive_paths,
             &mut self.weights,
             self.search_limit,
             source,
             target,
             weight,
         );
+        if search.cache_hit {
+            self.metrics.route_cache_hits += 1;
+        }
         self.metrics.search_states += search.states;
         self.metrics.max_search_states = self.metrics.max_search_states.max(search.states);
         if search.capped {
@@ -715,12 +723,16 @@ impl ReplayWeightedRoutingShadow {
 
         let frontier_search = search_exact_weighted_route(
             &self.frontier_graph,
+            &mut self.frontier_positive_paths,
             &mut self.weights,
             self.search_limit,
             source,
             target,
             weight,
         );
+        if frontier_search.cache_hit {
+            self.metrics.frontier_route_cache_hits += 1;
+        }
         self.metrics.frontier_search_states += frontier_search.states;
         self.metrics.frontier_max_search_states = self
             .metrics
@@ -738,6 +750,8 @@ impl ReplayWeightedRoutingShadow {
                 .entry(source)
                 .or_default()
                 .push(ReplayWeightedRouteEdge { target, weight });
+            self.frontier_positive_paths
+                .insert(ReplayWeightedPathKey::new(source, target, weight));
             self.metrics.frontier_inserted_edges += 1;
             self.metrics.frontier_graph_nodes = self.frontier_nodes.len();
             self.metrics.frontier_graph_edges += 1;
@@ -749,8 +763,12 @@ impl ReplayWeightedRoutingShadow {
             .entry(source)
             .or_default()
             .push(ReplayWeightedRouteEdge { target, weight });
+        self.positive_paths
+            .insert(ReplayWeightedPathKey::new(source, target, weight));
         self.metrics.graph_nodes = self.nodes.len();
         self.metrics.graph_edges += 1;
+        self.metrics.route_cache_entries = self.positive_paths.len();
+        self.metrics.frontier_route_cache_entries = self.frontier_positive_paths.len();
         self.metrics.weight_count = self.weights.len();
         self.metrics.compose_cache_hits = self.weights.compose_hits;
         self.metrics.compose_cache_misses = self.weights.compose_misses;
@@ -767,12 +785,16 @@ impl ReplayWeightedRoutingShadow {
         let weight = self.weights.intern(weights.clone());
         let search = search_exact_weighted_route(
             &self.graph,
+            &mut self.positive_paths,
             &mut self.weights,
             self.search_limit,
             source,
             target,
             weight,
         );
+        if search.cache_hit {
+            self.metrics.route_cache_hits += 1;
+        }
         self.metrics.consequence_search_states += search.states;
         self.metrics.consequence_max_search_states = self
             .metrics
@@ -795,12 +817,16 @@ impl ReplayWeightedRoutingShadow {
 
         let frontier_search = search_exact_weighted_route(
             &self.frontier_graph,
+            &mut self.frontier_positive_paths,
             &mut self.weights,
             self.search_limit,
             source,
             target,
             weight,
         );
+        if frontier_search.cache_hit {
+            self.metrics.frontier_route_cache_hits += 1;
+        }
         self.metrics.consequence_frontier_search_states += frontier_search.states;
         self.metrics.consequence_frontier_max_search_states = self
             .metrics
@@ -820,6 +846,8 @@ impl ReplayWeightedRoutingShadow {
                 self.metrics.consequence_frontier_unknown_seen += 1;
             }
         }
+        self.metrics.route_cache_entries = self.positive_paths.len();
+        self.metrics.frontier_route_cache_entries = self.frontier_positive_paths.len();
         self.metrics.weight_count = self.weights.len();
         self.metrics.compose_cache_hits = self.weights.compose_hits;
         self.metrics.compose_cache_misses = self.weights.compose_misses;
@@ -828,12 +856,22 @@ impl ReplayWeightedRoutingShadow {
 
 fn search_exact_weighted_route(
     graph: &FxHashMap<TypeVar, Vec<ReplayWeightedRouteEdge>>,
+    positive_paths: &mut FxHashSet<ReplayWeightedPathKey>,
     weights: &mut ReplayWeightInterner,
     search_limit: usize,
     source: TypeVar,
     target: TypeVar,
     target_weight: ReplayWeightId,
 ) -> ReplayWeightedRouteSearch {
+    let key = ReplayWeightedPathKey::new(source, target, target_weight);
+    if positive_paths.contains(&key) {
+        return ReplayWeightedRouteSearch {
+            found: true,
+            capped: false,
+            cache_hit: true,
+            states: 0,
+        };
+    }
     let empty = weights.empty();
     let mut stack = vec![ReplayWeightedRouteState {
         var: source,
@@ -852,14 +890,17 @@ fn search_exact_weighted_route(
                 return ReplayWeightedRouteSearch {
                     found: false,
                     capped: true,
+                    cache_hit: false,
                     states: local_states,
                 };
             }
             let next_weight = weights.compose_for_replay(state.weight, edge.weight);
             if edge.target == target && next_weight == target_weight {
+                positive_paths.insert(key);
                 return ReplayWeightedRouteSearch {
                     found: true,
                     capped: false,
+                    cache_hit: false,
                     states: local_states,
                 };
             }
@@ -872,6 +913,7 @@ fn search_exact_weighted_route(
     ReplayWeightedRouteSearch {
         found: false,
         capped: false,
+        cache_hit: false,
         states: local_states,
     }
 }
@@ -880,6 +922,7 @@ fn search_exact_weighted_route(
 struct ReplayWeightedRouteSearch {
     found: bool,
     capped: bool,
+    cache_hit: bool,
     states: usize,
 }
 
@@ -893,6 +936,23 @@ struct ReplayWeightedRouteEdge {
 struct ReplayWeightedRouteState {
     var: TypeVar,
     weight: ReplayWeightId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct ReplayWeightedPathKey {
+    source: TypeVar,
+    target: TypeVar,
+    weight: ReplayWeightId,
+}
+
+impl ReplayWeightedPathKey {
+    fn new(source: TypeVar, target: TypeVar, weight: ReplayWeightId) -> Self {
+        Self {
+            source,
+            target,
+            weight,
+        }
+    }
 }
 
 #[derive(Debug, Default)]
