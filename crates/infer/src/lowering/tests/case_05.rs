@@ -111,6 +111,54 @@ fn result_effect_annotation_reuses_callback_tail() {
 }
 
 #[test]
+fn callback_effect_annotation_records_explicit_contract_metadata() {
+    let root = parse("type loop\nmy h(f: _ -> [loop; 'e] _) = f 0\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (h, _) = binding_def_and_order(&lower.modules, module, "h");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let param = first_lambda_param_def(&output, h);
+    let contract = output
+        .session
+        .poly
+        .arg_effect_contracts
+        .get(&param)
+        .expect("callback annotation should record an explicit effect contract");
+    assert_eq!(
+        contract.markers,
+        vec![poly::expr::ArgEffectContractMarker {
+            path: vec!["loop".to_string()],
+            depth: 1,
+            resume: poly::expr::ContractResumePolicy::PreserveMatchingPath,
+        }]
+    );
+}
+
+#[test]
+fn computation_effect_annotation_does_not_record_callback_contract_metadata() {
+    let root = parse("type handled\nmy h(x: [handled; 'e] _) = x\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (h, _) = binding_def_and_order(&lower.modules, module, "h");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let param = first_lambda_param_def(&output, h);
+    assert!(
+        !output
+            .session
+            .poly
+            .arg_effect_contracts
+            .contains_key(&param),
+        "root computation annotations are handled by stack constraints, not callback contract metadata"
+    );
+}
+
+#[test]
 fn recursive_loop_for_in_callback_annotation_terminates() {
     let root = parse(concat!(
         "mod std:\n",
@@ -1584,4 +1632,15 @@ fn catch_lambda_lowers_to_lambda_with_catch_body() {
         session.poly.ref_target(expr_ref(&session, arm.body)),
         Some(param)
     );
+}
+
+fn first_lambda_param_def(output: &BodyLowering, def: DefId) -> DefId {
+    let body = binding_body_id(output, def);
+    let Expr::Lambda(param, _) = output.session.poly.expr(body) else {
+        panic!("expected lowered binding body to start with a lambda");
+    };
+    let Pat::Var(def) = output.session.poly.pat(*param) else {
+        panic!("expected lambda parameter var pattern");
+    };
+    *def
 }
