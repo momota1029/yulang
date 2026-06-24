@@ -367,6 +367,42 @@ fn public_regression_list_update_runs_through_cli_cache() {
 }
 
 #[test]
+fn public_regression_ref_update_loop_runs_on_cli_vm_stack() {
+    let root = temp_root("public-regression-ref-update-loop");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let cache_root = root.join("cache-root");
+    let entry = root.join("main.yu");
+    fs::write(
+        &entry,
+        r#"{
+    my $x = 0
+    for i in 0..:
+        if i == 100: last
+        &x = $x + 1
+    $x
+}
+"#,
+    )
+    .unwrap();
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [100]\n");
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn realm_freeze_writes_versioned_snapshot() {
     let root = temp_root("realm-freeze");
     let _ = fs::remove_dir_all(&root);

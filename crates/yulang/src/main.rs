@@ -63,10 +63,9 @@ fn main() {
         }
         Some("run-control") => {
             let path = require_one_path(&program, args);
-            run_route(
-                yulang::run_control_from_entry(path),
-                print_run_control_output,
-            );
+            let build = run_route_to_value(yulang::build_control_from_entry(path));
+            let output = run_built_control_for_cli(build);
+            print_cli_control_run_output(&output);
         }
         Some("dump-poly-std") => {
             let path = require_one_path(&program, args);
@@ -106,15 +105,8 @@ fn main() {
                 &source_options,
             ));
             let build = build_control_with_optional_cache(files, options.use_cache);
-            run_route(
-                yulang::run_built_control_program_with_labels(
-                    &build.program,
-                    build.file_count,
-                    build.errors.clone(),
-                    Some(&build.labels),
-                ),
-                print_run_control_output,
-            );
+            let output = run_built_control_for_cli(build);
+            print_cli_control_run_output(&output);
         }
         Some("check-poly-std") => {
             let path = require_one_path(&program, args);
@@ -359,19 +351,14 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
         options.runtime_phase_timings.then_some(&mut timings),
     );
     let eval_start = Instant::now();
-    let output = run_route_to_value(yulang::run_built_control_program_with_labels(
-        &build.program,
-        build.file_count,
-        build.errors.clone(),
-        Some(&build.labels),
-    ));
+    let output = run_built_control_for_cli(build);
     timings.vm_eval = eval_start.elapsed();
     timings.control_validate = output.timings.validate;
     timings.runtime_init = output.timings.init;
     timings.runtime_execute = output.timings.execute;
     timings.root_format = output.timings.root_format;
     timings.total = total_start.elapsed();
-    run_control_printer(selection.print_roots)(&output);
+    print_cli_control_run_output_with_roots(&output, selection.print_roots);
     if options.runtime_phase_timings {
         print_runtime_phase_timings(&timings, &output.stats);
     }

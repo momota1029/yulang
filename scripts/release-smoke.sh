@@ -24,6 +24,7 @@ mkdir -p "$HOME" "$XDG_CACHE_HOME" "$YULANG_CACHE_DIR"
 
 std_root="$tmp/lib/std"
 main="$tmp/main.yu"
+ref_loop="$tmp/ref-loop.yu"
 
 run() {
   if command -v timeout >/dev/null 2>&1; then
@@ -53,6 +54,16 @@ cat >"$main" <<'YULANG'
 } .once.show
 YULANG
 
+cat >"$ref_loop" <<'YULANG'
+{
+    my $x = 0
+    for i in 0..:
+        if i == 100: last
+        &x = $x + 1
+    $x
+}
+YULANG
+
 run "$bin" --std-root "$std_root" install std >/dev/null 2>&1
 test -f "$std_root/std.yu"
 
@@ -66,6 +77,13 @@ case "$run_output" in
     exit 1
     ;;
 esac
+
+ref_loop_output="$(run "$bin" --std-root "$std_root" --no-cache run --print-roots "$ref_loop")"
+if [[ "$ref_loop_output" != "run roots [100]" ]]; then
+  echo "release smoke: unexpected ref loop output" >&2
+  echo "$ref_loop_output" >&2
+  exit 1
+fi
 
 cache_path="$(run "$bin" cache path)"
 expected_cache_path="$(path_for_compare "$YULANG_CACHE_DIR")"

@@ -276,17 +276,92 @@ pub(super) fn read_control_artifact_or_exit(path: &PathBuf) -> Option<control_vm
     }
 }
 
-pub(super) fn run_control_artifact(program: control_vm::Program, print_roots: bool) {
-    let values = match control_vm::run_program(&program) {
-        Ok(values) => values,
-        Err(error) => {
-            eprintln!("{error}");
-            process::exit(1);
+pub(super) struct CliControlRunOutput {
+    pub text: String,
+    pub stdout: String,
+    pub errors: Vec<String>,
+    pub stats: control_vm::RuntimeStats,
+    pub timings: yulang::ControlRunTimings,
+}
+
+impl From<yulang::RunControlOutput> for CliControlRunOutput {
+    fn from(output: yulang::RunControlOutput) -> Self {
+        Self {
+            text: output.text,
+            stdout: output.stdout,
+            errors: output.errors,
+            stats: output.stats,
+            timings: output.timings,
         }
-    };
-    if print_roots {
-        println!("run roots {}", control_vm::format_values(&values));
     }
+}
+
+pub(super) fn run_built_control_for_cli(build: yulang::BuildControlOutput) -> CliControlRunOutput {
+    run_control_on_cli_vm_stack(move || {
+        let yulang::BuildControlOutput {
+            program,
+            labels,
+            file_count,
+            errors,
+        } = build;
+        run_route_to_value(yulang::run_built_control_program_with_labels(
+            &program,
+            file_count,
+            errors,
+            Some(&labels),
+        ))
+        .into()
+    })
+}
+
+pub(super) fn run_control_artifact(program: control_vm::Program, print_roots: bool) {
+    let text = run_control_on_cli_vm_stack(move || {
+        let values = match control_vm::run_program(&program) {
+            Ok(values) => values,
+            Err(error) => {
+                eprintln!("{error}");
+                process::exit(1);
+            }
+        };
+        if print_roots {
+            Some(format!(
+                "run roots {}\n",
+                control_vm::format_values(&values)
+            ))
+        } else {
+            None
+        }
+    });
+    if let Some(text) = text {
+        print!("{text}");
+    }
+}
+
+// The control VM still has recursive eval/apply paths. CLI execution isolates
+// those paths on a dedicated stack until the runtime is fully trampolined.
+const CONTROL_VM_CLI_STACK_SIZE: usize = 64 * 1024 * 1024;
+
+#[cfg(not(target_arch = "wasm32"))]
+fn run_control_on_cli_vm_stack<T: Send>(run: impl FnOnce() -> T + Send) -> T {
+    std::thread::scope(|scope| {
+        let handle = std::thread::Builder::new()
+            .name("yulang-control-vm".to_string())
+            .stack_size(CONTROL_VM_CLI_STACK_SIZE)
+            .spawn_scoped(scope, run)
+            .unwrap_or_else(|error| {
+                eprintln!("failed to start control-vm runner thread: {error}");
+                process::exit(1);
+            });
+        match handle.join() {
+            Ok(output) => output,
+            Err(payload) => std::panic::resume_unwind(payload),
+        }
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+fn run_control_on_cli_vm_stack<T: Send>(run: impl FnOnce() -> T + Send) -> T {
+    run()
 }
 
 pub(super) fn default_artifact_path(entry: &PathBuf) -> PathBuf {
@@ -358,7 +433,7 @@ pub(super) fn print_run_mono_output(output: &yulang::RunMonoOutput) {
     }
 }
 
-pub(super) fn print_run_control_output(output: &yulang::RunControlOutput) {
+pub(super) fn print_cli_control_run_output(output: &CliControlRunOutput) {
     print!("{}", output.stdout);
     print!("{}", output.text);
     for error in &output.errors {
@@ -366,20 +441,21 @@ pub(super) fn print_run_control_output(output: &yulang::RunControlOutput) {
     }
 }
 
-pub(super) fn run_mono_printer(print_roots: bool) -> impl FnOnce(&yulang::RunMonoOutput) {
-    move |output| {
-        if print_roots {
-            print!("{}", output.text);
-        }
-        for error in &output.errors {
-            eprintln!("error: {error}");
-        }
+pub(super) fn print_cli_control_run_output_with_roots(
+    output: &CliControlRunOutput,
+    print_roots: bool,
+) {
+    print!("{}", output.stdout);
+    if print_roots {
+        print!("{}", output.text);
+    }
+    for error in &output.errors {
+        eprintln!("error: {error}");
     }
 }
 
-pub(super) fn run_control_printer(print_roots: bool) -> impl FnOnce(&yulang::RunControlOutput) {
+pub(super) fn run_mono_printer(print_roots: bool) -> impl FnOnce(&yulang::RunMonoOutput) {
     move |output| {
-        print!("{}", output.stdout);
         if print_roots {
             print!("{}", output.text);
         }
