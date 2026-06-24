@@ -1,0 +1,15 @@
+pub act tick 'a:
+    pub ping: 'a -> 'a
+
+type box 'e 'a with:
+    struct self:
+        left: () -> [tick 'a; 'e] ()
+        right: () -> [tick 'a; 'e] ()
+
+    pub b.handle_both(f: 'a -> 'a): ['e] () =
+        my loop(x: [_] _) = catch x:
+            tick::ping v, k -> loop:k:f v
+        loop:b.left()
+        loop:b.right()
+
+my site = 1

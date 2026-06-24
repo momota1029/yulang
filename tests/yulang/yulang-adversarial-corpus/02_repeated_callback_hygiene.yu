@@ -1,0 +1,22 @@
+pub act tick:
+    pub ping: () -> ()
+
+pub strip_tick(action: [tick] _) = catch action:
+    tick::ping(), k -> strip_tick(k ())
+    v -> v
+
+pub count_tick(action: [tick] _) = catch action:
+    tick::ping(), k -> 1 + count_tick(k ())
+    _ -> 0
+
+pub bounce(n: int, f, x) =
+    if n == 0:
+        x
+    else:
+        strip_tick: f (f (bounce(n - 1, f, x)))
+
+count_tick:
+    bounce(3, \x -> {
+        tick::ping()
+        x + 1
+    }, 0)

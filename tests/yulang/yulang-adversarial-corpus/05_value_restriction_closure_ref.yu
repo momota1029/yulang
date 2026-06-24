@@ -1,0 +1,14 @@
+pub make_swapper() =
+    my $f = \x -> x
+    \g -> {
+        my old = $f
+        &f = g
+        old
+    }
+
+{
+    my swap = make_swapper()
+    my old_int = swap (\x -> x + 1)
+    my old_bool = swap (\x -> x)
+    old_bool true
+}

@@ -1,0 +1,12 @@
+pub act choose:
+    pub bit: () -> bool
+
+pub all(action: [choose] _) = catch action:
+    choose::bit(), k -> all(k false) + all(k true)
+    v -> [v]
+
+all:
+    my b = choose::bit()
+    my $n = 0
+    &n = $n + 1
+    (b, $n)

@@ -1,0 +1,20 @@
+pub act ask 'a:
+    pub get: () -> 'a
+
+pub answer_int(action: [ask int] _) = catch action:
+    ask::get(), k -> answer_int(k 1)
+    v -> v
+
+pub answer_str(action: [ask str] _) = catch action:
+    ask::get(), k -> answer_str(k "s")
+    v -> v
+
+pub pair() =
+    my i: int = ask::get()
+    my s: str = ask::get()
+    (i, s)
+
+(
+    answer_str: answer_int: pair(),
+    answer_int: answer_str: pair()
+)
