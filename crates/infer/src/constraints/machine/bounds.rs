@@ -256,7 +256,6 @@ impl ConstraintMachine {
         let replay_input_count = bounds.projection_uppers().count();
         let mut replay = BoundReplayPlan {
             input_count: replay_input_count,
-            actions: SmallVec::with_capacity(replay_input_count),
             ..BoundReplayPlan::default()
         };
         trace_bound_replay_start("lower", target, replay_input_count);
@@ -284,7 +283,6 @@ impl ConstraintMachine {
         let replay_input_count = bounds.projection_lowers().count();
         let mut replay = BoundReplayPlan {
             input_count: replay_input_count,
-            actions: SmallVec::with_capacity(replay_input_count),
             ..BoundReplayPlan::default()
         };
         trace_bound_replay_start("upper", source, replay_input_count);
