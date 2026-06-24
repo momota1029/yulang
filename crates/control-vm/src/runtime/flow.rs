@@ -294,6 +294,16 @@ impl<'a> Runtime<'a> {
         marker: &ActiveAddIdMarker,
     ) -> Vec<GuardId> {
         let mut ids = self.request_guard_ids_at_marker_entry(request, marker);
+        if marker.marker.preserve_own_on_resume {
+            // Explicit argument-effect contracts permit handlers that were
+            // already visible at the callback call site to handle the matching
+            // effect family. Ordinary own-path guards do not get this exposure.
+            self.push_contract_matching_handler_ids_at_marker_entry(
+                request,
+                marker.entry_frame_len,
+                &mut ids,
+            );
+        }
         if self.exposes_matching_handler_alias(request, marker.entry_frame_len, &ids)
             && let Some(handler_id) = self.outermost_matching_handler_id(&request.path_key)
             && !ids.contains(&handler_id)
@@ -301,6 +311,22 @@ impl<'a> Runtime<'a> {
             ids.push(handler_id);
         }
         ids
+    }
+
+    fn push_contract_matching_handler_ids_at_marker_entry(
+        &self,
+        request: &Request,
+        entry_frame_len: usize,
+        ids: &mut Vec<GuardId>,
+    ) {
+        for frame in &self.active_handler_frames {
+            if frame.frame_index < entry_frame_len
+                && request.path_key.has_prefix(frame.handler_key)
+                && !ids.contains(&frame.id)
+            {
+                ids.push(frame.id);
+            }
+        }
     }
 
     fn exposes_matching_handler_alias(

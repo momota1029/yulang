@@ -215,7 +215,35 @@ impl<'a> Runtime<'a> {
         {
             ids.push(handler_id);
         }
+        if marker.marker.preserve_own_on_resume {
+            // Explicit argument-effect contracts permit handlers that were
+            // already visible at the callback call site to handle the matching
+            // effect family. Ordinary own-path guards do not get this exposure.
+            self.push_contract_matching_handler_ids_at_marker_entry(
+                request,
+                marker.entry_frame_len,
+                &mut ids,
+            );
+        }
         ids
+    }
+
+    fn push_contract_matching_handler_ids_at_marker_entry(
+        &self,
+        request: &Request<'a>,
+        entry_frame_len: usize,
+        ids: &mut Vec<GuardId>,
+    ) {
+        for frame in self.active_frames.iter().take(entry_frame_len) {
+            if frame
+                .handler_path
+                .as_ref()
+                .is_some_and(|path| path_has_prefix(&request.path, path))
+                && !ids.contains(&frame.id)
+            {
+                ids.push(frame.id);
+            }
+        }
     }
 
     fn exposes_matching_handler_alias(
