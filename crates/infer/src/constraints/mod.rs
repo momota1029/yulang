@@ -1296,7 +1296,7 @@ fn replay_evidence_only_skip_limit() -> usize {
         .ok()
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|limit| *limit > 0)
-        .unwrap_or(256)
+        .unwrap_or(32)
 }
 
 fn intersect_subtractability(lhs: Subtractability, rhs: Subtractability) -> Subtractability {

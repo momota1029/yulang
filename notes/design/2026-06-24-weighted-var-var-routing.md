@@ -268,29 +268,29 @@ but lost residual rows in nested handler and `parse.choice` public canaries.
 Those residuals require later concrete row bounds to replay through the delayed
 var-var evidence.
 
-With the default evidence skip limit of 256 search states
+With the default evidence skip limit of 32 search states
 (`YULANG_REPLAY_EVIDENCE_ONLY_SKIP_LIMIT`), `examples/showcase.yu` gives:
 
 ```text
-constraint.replay_generated: 101915
-constraint.replay_accepted: 15012
-constraint.replay_evidence_only: 31294
-constraint.replay_duplicate: 49829
-constraint.replay_prefiltered: 86892
-constraint.max_replay_accepted: 114
-constraint.max_replay_evidence_only: 170
-constraint.replay_weighted_routing_shadow_var_var_frontier_graph_edges: 16411
-constraint.replay_weighted_routing_shadow_var_var_compose_cache_hits: 8044044
-constraint.replay_weighted_routing_shadow_var_var_compose_cache_misses: 33453
+infer: 2.529s
+constraint.replay_accepted: 11820
+constraint.replay_evidence_only: 30187
+constraint.replay_duplicate: 57458
+constraint.replay_prefiltered: 94020
+constraint.replay_weighted_routing_shadow_var_var_frontier_graph_edges: 13528
+constraint.replay_weighted_routing_shadow_var_var_compose_cache_hits: 715888
+constraint.replay_weighted_routing_shadow_var_var_compose_cache_misses: 2431
+constraint.drain: 599.3ms
+total: 2.860s
 ```
 
 This is a useful prototype, not yet a production optimization. It reduces
 accepted replay substantially compared with the hardening baseline
-(`62,818 -> 15,012` on `showcase`), but it still depends on online bounded
-frontier search. A previous 4096-state limit kept the public signatures correct
-but made `showcase` and the adversarial corpus too slow; the 256-state limit
-keeps the tested public canaries and adversarial corpus passing with reasonable
-time.
+(`62,818 -> 11,820` on `showcase`), but it still depends on online bounded
+frontier search. Previous 4096-state and 256-state limits kept the public
+signatures correct, but spent too much time in capped frontier searches. The
+32-state limit keeps the tested public canaries and adversarial corpus passing
+while cutting the `showcase` replay search work substantially.
 
 Verified with evidence-only skip enabled:
 
