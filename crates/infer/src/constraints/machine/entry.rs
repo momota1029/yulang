@@ -23,7 +23,7 @@ impl ConstraintMachine {
             events: Vec::new(),
             timing: ConstraintTiming::default(),
             replay_frontier_shadow: ReplayFrontierShadow::from_env(),
-            replay_routing_shadow: ReplayRoutingShadow::from_env(),
+            replay_routing_shadow: ReplayRoutingShadow::from_env().map(RefCell::new),
         }
     }
 
@@ -95,6 +95,7 @@ impl ConstraintMachine {
             timing.replay_frontier_shadow_upper_var_var = shadow.upper_var_var;
         }
         if let Some(shadow) = &self.replay_routing_shadow {
+            let shadow = shadow.borrow();
             timing.replay_routing_shadow_var_var = shadow.metrics;
             if let Some(weighted) = &shadow.weighted {
                 timing.replay_weighted_routing_shadow_var_var = weighted.metrics;
@@ -343,7 +344,7 @@ impl ConstraintMachine {
     }
 
     fn observe_routing_shadow(&mut self, constraint: &SubtypeConstraint) {
-        let Some(shadow) = &mut self.replay_routing_shadow else {
+        let Some(shadow) = &self.replay_routing_shadow else {
             return;
         };
         let (Pos::Var(source), Neg::Var(target)) = (
@@ -352,7 +353,9 @@ impl ConstraintMachine {
         ) else {
             return;
         };
-        shadow.observe_var_var_edge(*source, *target, &constraint.weights);
+        shadow
+            .borrow_mut()
+            .observe_var_var_edge(*source, *target, &constraint.weights);
     }
 
     pub(in crate::constraints) fn terminal_subtype_weights(

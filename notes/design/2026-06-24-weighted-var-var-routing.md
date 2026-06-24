@@ -116,6 +116,23 @@ Raising `YULANG_REPLAY_WEIGHTED_ROUTING_SHADOW_LIMIT` to 65536 did not change
 the reachable count, but it increased search states to 38,786,058 and interned
 weights to 745,711. The default limit should stay conservative.
 
+The same shadow also queries each canonical var-var replay consequence during
+generation, before consulting `seen`:
+
+```text
+constraint.replay_weighted_routing_shadow_var_var_consequence_queries: 607156
+constraint.replay_weighted_routing_shadow_var_var_consequence_known: 606433
+constraint.replay_weighted_routing_shadow_var_var_consequence_known_unseen: 52935
+constraint.replay_weighted_routing_shadow_var_var_consequence_unknown: 723
+constraint.replay_weighted_routing_shadow_var_var_consequence_unknown_seen: 0
+constraint.replay_weighted_routing_shadow_var_var_consequence_capped_searches: 670
+```
+
+`known_unseen` is the key number: the current solver would enqueue a new
+canonical var-var consequence, but the weighted routing graph already has an
+exact path for the same endpoint and canonical weight. On `showcase`, this
+accounts for 52,935 consequences.
+
 ## Required invariant
 
 For every variable `v`, lower bound `L(v, p, wl)` and upper bound `U(v, n, wu)`
@@ -170,15 +187,14 @@ unweighted neighbor graph used by later reachability/compaction logic.
 ## Shadow-first implementation order
 
 1. Keep the current weighted routing shadow as an opt-in measurement tool.
-2. For each currently generated var-var replay consequence, ask the shadow
-   graph whether the same canonical consequence was already known.
-3. Record:
-   - generated var-var consequences,
-   - shadow-known consequences,
-   - shadow-missed consequences,
-   - shadow false-skip candidates.
-4. Only after false-skip candidates stay at zero on the hardening fixtures,
-   switch var-var replay emission to the routing frontier.
+2. Add a real routing frontier for var-var replay consequences, still shadowed:
+   - consult the weighted graph before materializing a var-var replay action,
+   - record whether the skipped candidate would have been accepted by `seen`,
+   - keep emitting the action until the shadow has no false skips.
+3. Once stable, switch only var-var replay emission to the routing frontier.
+   Keep non-var bounds, row tails, terminal endpoints, and constructor bounds on
+   the current replay path.
+4. Keep `seen` as the final safety net after the routing frontier is enabled.
 
 ## Non-goals
 

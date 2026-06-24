@@ -14,6 +14,7 @@ mod tests;
 mod timing;
 mod trace;
 
+use std::cell::RefCell;
 use std::collections::VecDeque;
 
 use directed_weight::{
@@ -57,7 +58,7 @@ pub struct ConstraintMachine {
     events: Vec<ConstraintEvent>,
     timing: ConstraintTiming,
     replay_frontier_shadow: Option<ReplayFrontierShadow>,
-    replay_routing_shadow: Option<ReplayRoutingShadow>,
+    replay_routing_shadow: Option<RefCell<ReplayRoutingShadow>>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -629,6 +630,21 @@ impl ReplayRoutingShadow {
         self.metrics.graph_nodes = self.nodes.len();
     }
 
+    fn observe_var_var_consequence(
+        &mut self,
+        source: TypeVar,
+        target: TypeVar,
+        weights: &ConstraintWeights,
+        seen_before: bool,
+    ) {
+        if source == target {
+            return;
+        }
+        if let Some(weighted) = &mut self.weighted {
+            weighted.observe_consequence(source, target, weights, seen_before);
+        }
+    }
+
     fn reaches(&self, source: TypeVar, target: TypeVar) -> bool {
         let mut stack = vec![source];
         let mut visited = FxHashSet::default();
@@ -676,7 +692,13 @@ impl ReplayWeightedRoutingShadow {
         }
         self.metrics.accepted_edges += 1;
         let weight = self.weights.intern(weights.clone());
-        if self.reaches_exact(source, target, weight) {
+        let search = self.search_exact(source, target, weight);
+        self.metrics.search_states += search.states;
+        self.metrics.max_search_states = self.metrics.max_search_states.max(search.states);
+        if search.capped {
+            self.metrics.capped_searches += 1;
+        }
+        if search.found {
             self.metrics.reachable_before_edges += 1;
         }
         self.nodes.insert(source);
@@ -692,12 +714,46 @@ impl ReplayWeightedRoutingShadow {
         self.metrics.compose_cache_misses = self.weights.compose_misses;
     }
 
-    fn reaches_exact(
+    fn observe_consequence(
+        &mut self,
+        source: TypeVar,
+        target: TypeVar,
+        weights: &ConstraintWeights,
+        seen_before: bool,
+    ) {
+        self.metrics.consequence_queries += 1;
+        let weight = self.weights.intern(weights.clone());
+        let search = self.search_exact(source, target, weight);
+        self.metrics.consequence_search_states += search.states;
+        self.metrics.consequence_max_search_states = self
+            .metrics
+            .consequence_max_search_states
+            .max(search.states);
+        if search.capped {
+            self.metrics.consequence_capped_searches += 1;
+        }
+        if search.found {
+            self.metrics.consequence_known += 1;
+            if !seen_before {
+                self.metrics.consequence_known_unseen += 1;
+            }
+        } else {
+            self.metrics.consequence_unknown += 1;
+            if seen_before {
+                self.metrics.consequence_unknown_seen += 1;
+            }
+        }
+        self.metrics.weight_count = self.weights.len();
+        self.metrics.compose_cache_hits = self.weights.compose_hits;
+        self.metrics.compose_cache_misses = self.weights.compose_misses;
+    }
+
+    fn search_exact(
         &mut self,
         source: TypeVar,
         target: TypeVar,
         target_weight: ReplayWeightId,
-    ) -> bool {
+    ) -> ReplayWeightedRouteSearch {
         let empty = self.weights.empty();
         let mut stack = vec![ReplayWeightedRouteState {
             var: source,
@@ -713,18 +769,19 @@ impl ReplayWeightedRoutingShadow {
             for edge in edges {
                 local_states += 1;
                 if local_states > self.search_limit {
-                    self.metrics.capped_searches += 1;
-                    self.metrics.search_states += local_states;
-                    self.metrics.max_search_states =
-                        self.metrics.max_search_states.max(local_states);
-                    return false;
+                    return ReplayWeightedRouteSearch {
+                        found: false,
+                        capped: true,
+                        states: local_states,
+                    };
                 }
                 let next_weight = self.weights.compose_for_replay(state.weight, edge.weight);
                 if edge.target == target && next_weight == target_weight {
-                    self.metrics.search_states += local_states;
-                    self.metrics.max_search_states =
-                        self.metrics.max_search_states.max(local_states);
-                    return true;
+                    return ReplayWeightedRouteSearch {
+                        found: true,
+                        capped: false,
+                        states: local_states,
+                    };
                 }
                 stack.push(ReplayWeightedRouteState {
                     var: edge.target,
@@ -732,10 +789,19 @@ impl ReplayWeightedRoutingShadow {
                 });
             }
         }
-        self.metrics.search_states += local_states;
-        self.metrics.max_search_states = self.metrics.max_search_states.max(local_states);
-        false
+        ReplayWeightedRouteSearch {
+            found: false,
+            capped: false,
+            states: local_states,
+        }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ReplayWeightedRouteSearch {
+    found: bool,
+    capped: bool,
+    states: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

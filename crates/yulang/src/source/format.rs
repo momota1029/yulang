@@ -1169,6 +1169,46 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         );
         let _ = writeln!(
             out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_queries: {}",
+            weighted_routing.consequence_queries
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_known: {}",
+            weighted_routing.consequence_known
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_known_unseen: {}",
+            weighted_routing.consequence_known_unseen
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_unknown: {}",
+            weighted_routing.consequence_unknown
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_unknown_seen: {}",
+            weighted_routing.consequence_unknown_seen
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_capped_searches: {}",
+            weighted_routing.consequence_capped_searches
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_search_states: {}",
+            weighted_routing.consequence_search_states
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_max_search_states: {}",
+            weighted_routing.consequence_max_search_states
+        );
+        let _ = writeln!(
+            out,
             "  constraint.replay_weighted_routing_shadow_var_var_graph_nodes: {}",
             weighted_routing.graph_nodes
         );
@@ -1753,6 +1793,46 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
             out,
             "  constraint.replay_weighted_routing_shadow_var_var_max_search_states: {}",
             weighted_routing.max_search_states
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_queries: {}",
+            weighted_routing.consequence_queries
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_known: {}",
+            weighted_routing.consequence_known
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_known_unseen: {}",
+            weighted_routing.consequence_known_unseen
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_unknown: {}",
+            weighted_routing.consequence_unknown
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_unknown_seen: {}",
+            weighted_routing.consequence_unknown_seen
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_capped_searches: {}",
+            weighted_routing.consequence_capped_searches
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_search_states: {}",
+            weighted_routing.consequence_search_states
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_max_search_states: {}",
+            weighted_routing.consequence_max_search_states
         );
         let _ = writeln!(
             out,

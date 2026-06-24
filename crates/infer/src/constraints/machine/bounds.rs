@@ -306,7 +306,9 @@ impl ConstraintMachine {
             replay.stats.trivial += 1;
             return;
         };
-        if self.seen.contains(&constraint) {
+        let seen_before = self.seen.contains(&constraint);
+        self.observe_weighted_routing_consequence_shadow(&constraint, seen_before);
+        if seen_before {
             replay.prefiltered += 1;
             replay.stats.duplicate += 1;
             replay.prefilter_duplicate.absorb(duplicate_profile);
@@ -393,6 +395,28 @@ impl ConstraintMachine {
         if let Some(shadow) = &mut self.replay_frontier_shadow {
             shadow.record_upper_result(observation, accepted);
         }
+    }
+
+    fn observe_weighted_routing_consequence_shadow(
+        &self,
+        constraint: &SubtypeConstraint,
+        seen_before: bool,
+    ) {
+        let Some(shadow) = &self.replay_routing_shadow else {
+            return;
+        };
+        let (Pos::Var(source), Neg::Var(target)) = (
+            self.types.pos(constraint.lower),
+            self.types.neg(constraint.upper),
+        ) else {
+            return;
+        };
+        shadow.borrow_mut().observe_var_var_consequence(
+            *source,
+            *target,
+            &constraint.weights,
+            seen_before,
+        );
     }
 
     fn apply_bound_replay_actions(&mut self, actions: BoundReplayActions) -> BoundReplayApplyStats {
