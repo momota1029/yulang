@@ -15,7 +15,11 @@ else
     "examples/effect-hygiene/01_higher_order_inference.yu"
     "examples/effect-hygiene/02_local_sub_handler.yu"
     "examples/effect-hygiene/03_data_position_private_tail.yu"
+    "tests/yulang/regressions/effect/data_position_effect_function_public_signature.yu"
+    "tests/yulang/regressions/effect/nested_data_position_effect_function_public_signature.yu"
+    "tests/yulang/regressions/effect/nested_handler_contract_public_signatures.yu"
     "tests/yulang/regressions/effect/public_type_display_order_signatures.yu"
+    "tests/yulang/regressions/effect/sub_return_callback_public_signature.yu"
   )
 fi
 
