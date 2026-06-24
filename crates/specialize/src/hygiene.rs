@@ -4,17 +4,18 @@
 //! 関数値が producer-consumer 境界を越えた時点で必要な marker を mono IR に残す。
 
 use mono::{FunctionAdapterHygiene, GuardMarker, Type};
+use poly::expr as poly_expr;
 
 use crate::equivalent_boundary_types;
 
 pub(crate) fn function_adapter_hygiene(source: &Type, target: &Type) -> FunctionAdapterHygiene {
-    function_adapter_hygiene_with_argument_contract(source, target, false)
+    function_adapter_hygiene_with_argument_contract(source, target, None)
 }
 
 pub(crate) fn function_adapter_hygiene_with_argument_contract(
     source: &Type,
     target: &Type,
-    argument_effect_contract: bool,
+    argument_effect_contract: Option<&poly_expr::ArgEffectContract>,
 ) -> FunctionAdapterHygiene {
     let mut markers = Vec::new();
     let mut arg_markers = Vec::new();
@@ -37,7 +38,7 @@ pub(crate) fn function_adapter_hygiene_with_argument_contract(
 fn collect_function_boundary_markers(
     source: &Type,
     target: &Type,
-    argument_effect_contract: bool,
+    argument_effect_contract: Option<&poly_expr::ArgEffectContract>,
     markers: &mut Vec<GuardMarker>,
     arg_markers: &mut Vec<GuardMarker>,
     ret_markers: &mut Vec<GuardMarker>,
@@ -58,62 +59,33 @@ fn collect_function_boundary_markers(
         return;
     };
 
-    if argument_effect_contract {
-        collect_function_argument_contract_markers(target_arg, 0, arg_markers);
+    if let Some(contract) = argument_effect_contract {
+        collect_argument_contract_markers(contract, arg_markers);
     }
     collect_actual_runtime_shape_markers(target_arg, source_arg, 0, markers, ret_markers);
     collect_actual_runtime_shape_markers(source_ret, target_ret, 0, markers, ret_markers);
 }
 
-fn collect_function_argument_contract_markers(
-    ty: &Type,
-    depth: u32,
-    value_markers: &mut Vec<GuardMarker>,
+fn collect_argument_contract_markers(
+    contract: &poly_expr::ArgEffectContract,
+    markers: &mut Vec<GuardMarker>,
 ) {
-    if matches!(ty, Type::Fun { .. }) {
-        collect_runtime_contract_markers(ty, depth, value_markers);
-    }
-}
-
-fn collect_runtime_contract_markers(ty: &Type, depth: u32, markers: &mut Vec<GuardMarker>) {
-    match ty {
-        Type::Thunk { effect, value } => {
-            collect_contract_effect_markers(effect, depth, markers);
-            collect_runtime_contract_markers(value, depth, markers);
-        }
-        Type::Fun { arg, ret, .. } => {
-            let nested_depth = depth.saturating_add(1);
-            collect_runtime_contract_markers(arg, nested_depth, markers);
-            collect_runtime_contract_markers(ret, nested_depth, markers);
-        }
-        Type::Con { args, .. } | Type::Tuple(args) => {
-            for arg in args {
-                collect_runtime_contract_markers(arg, depth, markers);
+    for marker in &contract.markers {
+        match marker.resume {
+            poly_expr::ContractResumePolicy::PreserveMatchingPath => {
+                push_guard_marker_with_resume(
+                    markers,
+                    marker.depth,
+                    &marker.path,
+                    true,
+                    false,
+                    true,
+                );
+            }
+            poly_expr::ContractResumePolicy::ForeignOnly => {
+                push_guard_marker(markers, marker.depth, &marker.path, false, true);
             }
         }
-        Type::EffectRow(_) => {
-            collect_contract_effect_markers(ty, depth, markers);
-        }
-        Type::Record(fields) => {
-            for field in fields {
-                collect_runtime_contract_markers(&field.value, depth, markers);
-            }
-        }
-        Type::PolyVariant(variants) => {
-            for variant in variants {
-                for payload in &variant.payloads {
-                    collect_runtime_contract_markers(payload, depth, markers);
-                }
-            }
-        }
-        Type::Stack { inner, .. } => {
-            collect_runtime_contract_markers(inner, depth, markers);
-        }
-        Type::Union(left, right) | Type::Intersection(left, right) => {
-            collect_runtime_contract_markers(left, depth, markers);
-            collect_runtime_contract_markers(right, depth, markers);
-        }
-        Type::Any | Type::Never | Type::OpenVar(_) => {}
     }
 }
 
@@ -403,43 +375,6 @@ fn collect_effect_markers(effect: &Type, depth: u32, markers: &mut Vec<GuardMark
             let nested_depth = depth.saturating_add(1);
             collect_runtime_shape_markers(arg, nested_depth, markers);
             collect_runtime_shape_markers(ret, nested_depth, markers);
-        }
-        Type::Record(_)
-        | Type::PolyVariant(_)
-        | Type::Tuple(_)
-        | Type::Any
-        | Type::Never
-        | Type::OpenVar(_) => {}
-    }
-}
-
-fn collect_contract_effect_markers(effect: &Type, depth: u32, markers: &mut Vec<GuardMarker>) {
-    if effect.is_pure_effect() {
-        return;
-    }
-    match effect {
-        Type::EffectRow(items) => {
-            for item in items {
-                collect_contract_effect_markers(item, depth, markers);
-            }
-        }
-        Type::Con { path, .. } => {
-            push_guard_marker_with_resume(markers, depth, path, true, false, true);
-        }
-        Type::Stack { inner, .. } => {
-            collect_contract_effect_markers(inner, depth, markers);
-        }
-        Type::Union(left, right) | Type::Intersection(left, right) => {
-            collect_contract_effect_markers(left, depth, markers);
-            collect_contract_effect_markers(right, depth, markers);
-        }
-        Type::Thunk { value, .. } => {
-            collect_runtime_contract_markers(value, depth, markers);
-        }
-        Type::Fun { arg, ret, .. } => {
-            let nested_depth = depth.saturating_add(1);
-            collect_runtime_contract_markers(arg, nested_depth, markers);
-            collect_runtime_contract_markers(ret, nested_depth, markers);
         }
         Type::Record(_)
         | Type::PolyVariant(_)

@@ -66,7 +66,7 @@ pub struct Arena {
     /// This is separate from `Def::Arg`: most inferred callback effects are not contracts, and
     /// downstream adapter hygiene must not reconstruct that distinction from the mono type shape.
     #[serde(default)]
-    pub arg_effect_contracts: FxHashSet<DefId>,
+    pub arg_effect_contracts: FxHashMap<DefId, ArgEffectContract>,
     /// `struct` field projection として登録された value receiver method。
     ///
     /// field projection は selection 解決時には `Method` として見えるが、runtime では method
@@ -98,6 +98,24 @@ pub struct Constructor {
     pub arity: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ArgEffectContract {
+    pub markers: Vec<ArgEffectContractMarker>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ArgEffectContractMarker {
+    pub path: Vec<String>,
+    pub depth: u32,
+    pub resume: ContractResumePolicy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ContractResumePolicy {
+    PreserveMatchingPath,
+    ForeignOnly,
+}
+
 /// block 内に現れる文の構造。
 ///
 /// ここには構文上の順序と子 node への ID だけを残す。名前解決の作業状態や型情報は持たせない。
@@ -121,7 +139,7 @@ impl Arena {
             role_impls: RoleImplTable::new(),
             effect_operations: FxHashMap::default(),
             constructors: FxHashMap::default(),
-            arg_effect_contracts: FxHashSet::default(),
+            arg_effect_contracts: FxHashMap::default(),
             field_projections: FxHashSet::default(),
             expr: Vec::new(),
             pat: Vec::new(),

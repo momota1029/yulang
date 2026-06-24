@@ -663,7 +663,7 @@ impl Specializer2 {
         expected: &Type,
         emitted: EmittedExpr,
     ) -> Result<EmittedExpr, SpecializeError> {
-        self.boundary_emitted_expr_with_argument_contract(arena, actual, expected, emitted, false)
+        self.boundary_emitted_expr_with_argument_contract(arena, actual, expected, emitted, None)
     }
 
     fn boundary_emitted_expr_with_argument_contract(
@@ -672,7 +672,7 @@ impl Specializer2 {
         actual: &Type,
         expected: &Type,
         emitted: EmittedExpr,
-        argument_effect_contract: bool,
+        argument_effect_contract: Option<&poly_expr::ArgEffectContract>,
     ) -> Result<EmittedExpr, SpecializeError> {
         if matches!(expected, Type::Any) {
             return Ok(emitted);
@@ -721,7 +721,7 @@ impl Specializer2 {
         emitted: EmittedExpr,
         actual: &Type,
         expected: &Type,
-        argument_effect_contract: bool,
+        argument_effect_contract: Option<&poly_expr::ArgEffectContract>,
     ) -> Result<EmittedExpr, SpecializeError> {
         let Some(shape) = emitted.computation.clone() else {
             return Ok(EmittedExpr::pure(
@@ -786,7 +786,7 @@ impl Specializer2 {
         expected: &Type,
         effect: Option<Type>,
     ) -> Result<EmittedExpr, SpecializeError> {
-        self.coerce_emitted_value_with_argument_contract(arena, emitted, expected, effect, false)
+        self.coerce_emitted_value_with_argument_contract(arena, emitted, expected, effect, None)
     }
 
     fn coerce_emitted_value_with_argument_contract(
@@ -795,7 +795,7 @@ impl Specializer2 {
         emitted: EmittedExpr,
         expected: &Type,
         effect: Option<Type>,
-        argument_effect_contract: bool,
+        argument_effect_contract: Option<&poly_expr::ArgEffectContract>,
     ) -> Result<EmittedExpr, SpecializeError> {
         let Some(shape) = emitted.computation.clone() else {
             return Ok(EmittedExpr::pure(emitted.expr, Some(expected.clone())));
@@ -831,7 +831,7 @@ impl Specializer2 {
         actual: &Type,
         expected: &Type,
         expr: Expr,
-        argument_effect_contract: bool,
+        argument_effect_contract: Option<&poly_expr::ArgEffectContract>,
     ) -> Result<Expr, SpecializeError> {
         let actual = close_runtime_type_surface(
             erase_negative_only_open_vars(actual.clone()),
@@ -869,34 +869,43 @@ impl Specializer2 {
     }
 }
 
-fn expr_argument_effect_contract(arena: &poly_expr::Arena, expr: poly_expr::ExprId) -> bool {
+fn expr_argument_effect_contract(
+    arena: &poly_expr::Arena,
+    expr: poly_expr::ExprId,
+) -> Option<&poly_expr::ArgEffectContract> {
     match arena.expr(expr) {
         poly_expr::Expr::Lambda(param, _) => lambda_param_effect_contract(arena, *param),
         poly_expr::Expr::Var(ref_id) => arena
             .ref_target(*ref_id)
-            .is_some_and(|def| def_argument_effect_contract(arena, def)),
-        _ => false,
+            .and_then(|def| def_argument_effect_contract(arena, def)),
+        _ => None,
     }
 }
 
-fn def_argument_effect_contract(arena: &poly_expr::Arena, def: poly_expr::DefId) -> bool {
+fn def_argument_effect_contract(
+    arena: &poly_expr::Arena,
+    def: poly_expr::DefId,
+) -> Option<&poly_expr::ArgEffectContract> {
     let Some(poly_expr::Def::Let {
         body: Some(body), ..
     }) = arena.defs.get(def)
     else {
-        return false;
+        return None;
     };
     let poly_expr::Expr::Lambda(param, _) = arena.expr(*body) else {
-        return false;
+        return None;
     };
     lambda_param_effect_contract(arena, *param)
 }
 
-fn lambda_param_effect_contract(arena: &poly_expr::Arena, pat: poly_expr::PatId) -> bool {
+fn lambda_param_effect_contract(
+    arena: &poly_expr::Arena,
+    pat: poly_expr::PatId,
+) -> Option<&poly_expr::ArgEffectContract> {
     let Some(def) = lambda_param_def(arena, pat) else {
-        return false;
+        return None;
     };
-    arena.arg_effect_contracts.contains(&def)
+    arena.arg_effect_contracts.get(&def)
 }
 
 fn lambda_param_def(arena: &poly_expr::Arena, pat: poly_expr::PatId) -> Option<poly_expr::DefId> {

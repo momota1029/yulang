@@ -213,7 +213,7 @@ pub(super) struct LambdaPatternAnnotation {
     pub(super) arg_eff: NegId,
     pub(super) skeleton_arg_eff: NegId,
     pub(super) local_effect: Option<LocalEffect>,
-    pub(super) argument_effect_contract: bool,
+    pub(super) argument_effect_contract: Option<poly::expr::ArgEffectContract>,
     pub(super) predicate: PredicateOutputConstraints,
     pub(super) call_predicate: PredicateOutputConstraints,
     pub(super) call_erased_upper: Option<NegId>,

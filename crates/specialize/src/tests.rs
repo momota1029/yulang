@@ -182,8 +182,18 @@ mod tests {
             thunk_type(effect, pure_function_type(int_type(), int_type())),
         );
         let function = mono::Expr::new(ExprKind::Local(mono::DefId(0)));
-        let hygiene =
-            hygiene::function_adapter_hygiene_with_argument_contract(&actual, &expected, true);
+        let contract = poly::expr::ArgEffectContract {
+            markers: vec![poly::expr::ArgEffectContractMarker {
+                path: vec!["io".to_string()],
+                depth: 1,
+                resume: poly::expr::ContractResumePolicy::PreserveMatchingPath,
+            }],
+        };
+        let hygiene = hygiene::function_adapter_hygiene_with_argument_contract(
+            &actual,
+            &expected,
+            Some(&contract),
+        );
 
         let wrapped = boundary_expr_with_hygiene(&actual, &expected, function, hygiene);
 
@@ -202,6 +212,23 @@ mod tests {
                 preserve_own_on_resume: true,
             }]
         );
+    }
+
+    #[test]
+    fn boundary_expr_hygiene_does_not_reconstruct_argument_contract_from_type_shape() {
+        let effect = io_effect_type();
+        let callback = pure_function_type(int_type(), thunk_type(effect.clone(), int_type()));
+        let actual =
+            pure_function_type(callback.clone(), pure_function_type(int_type(), int_type()));
+        let expected = pure_function_type(
+            callback,
+            thunk_type(effect, pure_function_type(int_type(), int_type())),
+        );
+
+        let hygiene =
+            hygiene::function_adapter_hygiene_with_argument_contract(&actual, &expected, None);
+
+        assert!(hygiene.arg_markers.is_empty());
     }
 
     #[test]

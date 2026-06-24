@@ -780,14 +780,14 @@ pub(super) fn join_emitted_effects(left: Type, right: Type) -> Type {
 }
 
 pub(super) fn boundary_expr(actual: &Type, expected: &Type, expr: Expr) -> Expr {
-    boundary_expr_with_argument_contract(actual, expected, expr, false)
+    boundary_expr_with_argument_contract(actual, expected, expr, None)
 }
 
 pub(super) fn boundary_expr_with_argument_contract(
     actual: &Type,
     expected: &Type,
     expr: Expr,
-    argument_effect_contract: bool,
+    argument_effect_contract: Option<&poly_expr::ArgEffectContract>,
 ) -> Expr {
     let actual = close_runtime_type_surface(
         erase_negative_only_open_vars(actual.clone()),

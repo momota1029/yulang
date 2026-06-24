@@ -585,11 +585,14 @@ impl<'a> ExprLowerer<'a> {
         pat: PatId,
         annotation: &LambdaPatternAnnotation,
     ) {
-        if !annotation.argument_effect_contract {
+        let Some(contract) = annotation.argument_effect_contract.as_ref() else {
             return;
-        }
+        };
         if let Some(def) = self.lambda_param_def(pat) {
-            self.session.poly.arg_effect_contracts.insert(def);
+            self.session
+                .poly
+                .arg_effect_contracts
+                .insert(def, contract.clone());
         }
     }
 
@@ -828,7 +831,7 @@ impl<'a> ExprLowerer<'a> {
                 arg_eff: self.never_neg(),
                 skeleton_arg_eff: self.never_neg(),
                 local_effect: None,
-                argument_effect_contract: false,
+                argument_effect_contract: None,
                 predicate: PredicateOutputConstraints::default(),
                 call_predicate: PredicateOutputConstraints::default(),
                 call_erased_upper: None,
@@ -884,7 +887,10 @@ impl<'a> ExprLowerer<'a> {
             arg_eff,
             skeleton_arg_eff,
             local_effect,
-            argument_effect_contract: lambda_annotation_argument_effect_contract(&ann),
+            argument_effect_contract: lambda_annotation_argument_effect_contract(
+                self.modules,
+                &ann,
+            ),
             predicate,
             call_predicate,
             call_erased_upper,
@@ -906,8 +912,105 @@ impl<'a> ExprLowerer<'a> {
     }
 }
 
-fn lambda_annotation_argument_effect_contract(ann: &AnnType) -> bool {
-    matches!(ann, AnnType::Function { .. }) && callable_annotation_has_effect_head(ann)
+fn lambda_annotation_argument_effect_contract(
+    modules: &ModuleTable,
+    ann: &AnnType,
+) -> Option<poly::expr::ArgEffectContract> {
+    if !matches!(ann, AnnType::Function { .. }) {
+        return None;
+    }
+    let mut markers = Vec::new();
+    collect_argument_contract_markers(modules, ann, 0, &mut markers);
+    (!markers.is_empty()).then_some(poly::expr::ArgEffectContract { markers })
+}
+
+fn collect_argument_contract_markers(
+    modules: &ModuleTable,
+    ann: &AnnType,
+    depth: u32,
+    markers: &mut Vec<poly::expr::ArgEffectContractMarker>,
+) {
+    match ann {
+        AnnType::Effectful { eff, ret } => {
+            collect_effect_row_contract_markers(modules, eff, depth, markers);
+            collect_argument_contract_markers(modules, ret, depth, markers);
+        }
+        AnnType::Function {
+            param,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            let nested_depth = depth.saturating_add(1);
+            if let Some(row) = arg_eff {
+                collect_effect_row_contract_markers(modules, row, nested_depth, markers);
+            }
+            if let Some(row) = ret_eff {
+                collect_effect_row_contract_markers(modules, row, nested_depth, markers);
+            }
+            collect_argument_contract_markers(modules, param, nested_depth, markers);
+            collect_argument_contract_markers(modules, ret, nested_depth, markers);
+        }
+        AnnType::Tuple(items) => {
+            for item in items {
+                collect_argument_contract_markers(modules, item, depth, markers);
+            }
+        }
+        AnnType::Apply { args, .. } => {
+            for arg in args {
+                collect_argument_contract_markers(modules, arg, depth, markers);
+            }
+        }
+        AnnType::EffectRow(row) => {
+            collect_effect_row_contract_markers(modules, row, depth, markers)
+        }
+        AnnType::Builtin(_) | AnnType::Named(_) | AnnType::Var(_) | AnnType::Wildcard(_) => {}
+    }
+}
+
+fn collect_effect_row_contract_markers(
+    modules: &ModuleTable,
+    row: &AnnEffectRow,
+    depth: u32,
+    markers: &mut Vec<poly::expr::ArgEffectContractMarker>,
+) {
+    for item in &row.items {
+        let AnnEffectAtom::Type(ann) = item else {
+            continue;
+        };
+        let Some(path) = effect_contract_path(modules, ann) else {
+            continue;
+        };
+        let marker = poly::expr::ArgEffectContractMarker {
+            path,
+            depth,
+            resume: poly::expr::ContractResumePolicy::PreserveMatchingPath,
+        };
+        if !markers.contains(&marker) {
+            markers.push(marker);
+        }
+    }
+}
+
+fn effect_contract_path(modules: &ModuleTable, ann: &AnnType) -> Option<Vec<String>> {
+    match ann {
+        AnnType::Builtin(builtin) => Some(vec![builtin.surface_name().to_string()]),
+        AnnType::Named(id) => modules.type_decl_by_id(*id).map(|decl| {
+            modules
+                .type_decl_path(&decl)
+                .segments
+                .into_iter()
+                .map(|name| name.0)
+                .collect()
+        }),
+        AnnType::Apply { callee, .. } => effect_contract_path(modules, callee),
+        AnnType::Var(_)
+        | AnnType::Wildcard(_)
+        | AnnType::EffectRow(_)
+        | AnnType::Effectful { .. }
+        | AnnType::Tuple(_)
+        | AnnType::Function { .. } => None,
+    }
 }
 
 fn callable_annotation_has_effect_head(ann: &AnnType) -> bool {

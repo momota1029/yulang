@@ -307,18 +307,18 @@ impl Specializer {
         Ok(boundary_expr(boundary.actual, boundary.expected, expr))
     }
 
-    fn expr_argument_effect_contract(
+    fn expr_argument_effect_contract<'a>(
         &self,
-        arena: &poly_expr::Arena,
+        arena: &'a poly_expr::Arena,
         expr_id: poly_expr::ExprId,
-    ) -> bool {
+    ) -> Option<&'a poly_expr::ArgEffectContract> {
         let poly_expr::Expr::Lambda(param, _) = arena.expr(expr_id) else {
-            return false;
+            return None;
         };
         let Some(def) = lambda_param_def(arena, *param) else {
-            return false;
+            return None;
         };
-        arena.arg_effect_contracts.contains(&def)
+        arena.arg_effect_contracts.get(&def)
     }
 
     fn var(
@@ -711,18 +711,21 @@ fn lambda_param_def(arena: &poly_expr::Arena, pat: poly_expr::PatId) -> Option<p
     }
 }
 
-fn def_argument_effect_contract(arena: &poly_expr::Arena, def: poly_expr::DefId) -> bool {
+fn def_argument_effect_contract(
+    arena: &poly_expr::Arena,
+    def: poly_expr::DefId,
+) -> Option<&poly_expr::ArgEffectContract> {
     let Some(poly_expr::Def::Let {
         body: Some(body), ..
     }) = arena.defs.get(def)
     else {
-        return false;
+        return None;
     };
     let poly_expr::Expr::Lambda(param, _) = arena.expr(*body) else {
-        return false;
+        return None;
     };
     let Some(def) = lambda_param_def(arena, *param) else {
-        return false;
+        return None;
     };
-    arena.arg_effect_contracts.contains(&def)
+    arena.arg_effect_contracts.get(&def)
 }

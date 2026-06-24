@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::CollectedSource;
 
-const POLY_CACHE_FORMAT: u32 = 6;
+const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
