@@ -1307,6 +1307,58 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
             "  constraint.replay_weighted_routing_shadow_var_var_frontier_route_cache_entries: {}",
             weighted_routing.frontier_route_cache_entries
         );
+        if weighted_routing.summary_observed_edges > 0 {
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_observed_edges: {}",
+                weighted_routing.summary_observed_edges
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_known_edges: {}",
+                weighted_routing.summary_known_edges
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_new_edges: {}",
+                weighted_routing.summary_new_edges
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_inserted_paths: {}",
+                weighted_routing.summary_inserted_paths
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_duplicate_paths: {}",
+                weighted_routing.summary_duplicate_paths
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_capped_insertions: {}",
+                weighted_routing.summary_capped_insertions
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_max_queue: {}",
+                weighted_routing.summary_max_queue
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_paths: {}",
+                weighted_routing.summary_paths
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_outgoing_nodes: {}",
+                weighted_routing.summary_outgoing_nodes
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_incoming_nodes: {}",
+                weighted_routing.summary_incoming_nodes
+            );
+        }
         let _ = writeln!(
             out,
             "  constraint.replay_weighted_routing_shadow_var_var_weight_count: {}",
@@ -2024,6 +2076,58 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
             "  constraint.replay_weighted_routing_shadow_var_var_frontier_route_cache_entries: {}",
             weighted_routing.frontier_route_cache_entries
         );
+        if weighted_routing.summary_observed_edges > 0 {
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_observed_edges: {}",
+                weighted_routing.summary_observed_edges
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_known_edges: {}",
+                weighted_routing.summary_known_edges
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_new_edges: {}",
+                weighted_routing.summary_new_edges
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_inserted_paths: {}",
+                weighted_routing.summary_inserted_paths
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_duplicate_paths: {}",
+                weighted_routing.summary_duplicate_paths
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_capped_insertions: {}",
+                weighted_routing.summary_capped_insertions
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_max_queue: {}",
+                weighted_routing.summary_max_queue
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_paths: {}",
+                weighted_routing.summary_paths
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_outgoing_nodes: {}",
+                weighted_routing.summary_outgoing_nodes
+            );
+            let _ = writeln!(
+                out,
+                "  constraint.replay_weighted_routing_shadow_var_var_summary_incoming_nodes: {}",
+                weighted_routing.summary_incoming_nodes
+            );
+        }
         let _ = writeln!(
             out,
             "  constraint.replay_weighted_routing_shadow_var_var_weight_count: {}",

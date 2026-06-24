@@ -190,6 +190,35 @@ the fixed search cap interacts with which paths have already been found and
 cached. The conclusion is unchanged: the frontier graph still identifies about
 52.8K consequences that the current `seen` table would not prefilter.
 
+`YULANG_REPLAY_WEIGHTED_ROUTING_SUMMARY_SHADOW=1` tests a more eager
+path-summary table. It maintains outgoing/incoming exact weighted paths and
+closes a newly inserted path against existing prefixes and suffixes. The shadow
+has its own cap (`YULANG_REPLAY_WEIGHTED_ROUTING_SUMMARY_LIMIT`, default
+200,000 paths) because full all-pairs closure can be much larger than the
+frontier graph.
+
+With summary-only shadow on `examples/showcase.yu`:
+
+```text
+constraint.replay_weighted_routing_shadow_var_var_summary_observed_edges: 64971
+constraint.replay_weighted_routing_shadow_var_var_summary_known_edges: 22433
+constraint.replay_weighted_routing_shadow_var_var_summary_new_edges: 6773
+constraint.replay_weighted_routing_shadow_var_var_summary_inserted_paths: 200000
+constraint.replay_weighted_routing_shadow_var_var_summary_duplicate_paths: 20073452
+constraint.replay_weighted_routing_shadow_var_var_summary_capped_insertions: 35767
+constraint.replay_weighted_routing_shadow_var_var_summary_max_queue: 169586
+constraint.replay_weighted_routing_shadow_var_var_summary_outgoing_nodes: 6309
+constraint.replay_weighted_routing_shadow_var_var_summary_incoming_nodes: 4316
+```
+
+This is an important negative result. The summary table reaches the 200K path
+cap after only 6,773 new direct accepted edges, while generating about 20M
+duplicate path insertions. A full transitive path-summary frontier is therefore
+too broad as a production replacement. A viable routing optimization probably
+needs a narrower summary, such as per-pivot demand summaries, bounded positive
+path caches, or a routing table coupled to lower/upper bound propagation rather
+than all-pairs weighted closure.
+
 ## Required invariant
 
 For every variable `v`, lower bound `L(v, p, wl)` and upper bound `U(v, n, wu)`

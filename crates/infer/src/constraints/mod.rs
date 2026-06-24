@@ -672,26 +672,31 @@ struct ReplayWeightedRoutingShadow {
     frontier_nodes: FxHashSet<TypeVar>,
     positive_paths: FxHashSet<ReplayWeightedPathKey>,
     frontier_positive_paths: FxHashSet<ReplayWeightedPathKey>,
+    summary: Option<ReplayWeightedPathSummary>,
     weights: ReplayWeightInterner,
     metrics: ReplayWeightedRoutingShadowMetrics,
     search_limit: usize,
+    route_search_enabled: bool,
 }
 
 impl ReplayWeightedRoutingShadow {
     fn from_env() -> Option<Self> {
-        std::env::var("YULANG_REPLAY_WEIGHTED_ROUTING_SHADOW")
-            .is_ok_and(|value| !value.is_empty() && value != "0")
-            .then(|| Self {
-                graph: FxHashMap::default(),
-                frontier_graph: FxHashMap::default(),
-                nodes: FxHashSet::default(),
-                frontier_nodes: FxHashSet::default(),
-                positive_paths: FxHashSet::default(),
-                frontier_positive_paths: FxHashSet::default(),
-                weights: ReplayWeightInterner::default(),
-                metrics: ReplayWeightedRoutingShadowMetrics::default(),
-                search_limit: replay_weighted_routing_shadow_limit(),
-            })
+        let weighted = std::env::var("YULANG_REPLAY_WEIGHTED_ROUTING_SHADOW")
+            .is_ok_and(|value| !value.is_empty() && value != "0");
+        let summary = ReplayWeightedPathSummary::from_env();
+        (weighted || summary.is_some()).then(|| Self {
+            graph: FxHashMap::default(),
+            frontier_graph: FxHashMap::default(),
+            nodes: FxHashSet::default(),
+            frontier_nodes: FxHashSet::default(),
+            positive_paths: FxHashSet::default(),
+            frontier_positive_paths: FxHashSet::default(),
+            summary,
+            weights: ReplayWeightInterner::default(),
+            metrics: ReplayWeightedRoutingShadowMetrics::default(),
+            search_limit: replay_weighted_routing_shadow_limit(),
+            route_search_enabled: weighted,
+        })
     }
 
     fn observe_edge(&mut self, source: TypeVar, target: TypeVar, weights: &ConstraintWeights) {
@@ -700,6 +705,25 @@ impl ReplayWeightedRoutingShadow {
         }
         self.metrics.accepted_edges += 1;
         let weight = self.weights.intern(weights.clone());
+        if let Some(summary) = &mut self.summary {
+            summary.observe_edge(source, target, weight, &mut self.weights);
+            self.metrics.summary_observed_edges = summary.metrics.observed_edges;
+            self.metrics.summary_known_edges = summary.metrics.known_edges;
+            self.metrics.summary_new_edges = summary.metrics.new_edges;
+            self.metrics.summary_inserted_paths = summary.metrics.inserted_paths;
+            self.metrics.summary_duplicate_paths = summary.metrics.duplicate_paths;
+            self.metrics.summary_capped_insertions = summary.metrics.capped_insertions;
+            self.metrics.summary_max_queue = summary.metrics.max_queue;
+            self.metrics.summary_paths = summary.paths.len();
+            self.metrics.summary_outgoing_nodes = summary.outgoing.len();
+            self.metrics.summary_incoming_nodes = summary.incoming.len();
+        }
+        if !self.route_search_enabled {
+            self.metrics.weight_count = self.weights.len();
+            self.metrics.compose_cache_hits = self.weights.compose_hits;
+            self.metrics.compose_cache_misses = self.weights.compose_misses;
+            return;
+        }
         let search = search_exact_weighted_route(
             &self.graph,
             &mut self.positive_paths,
@@ -781,6 +805,9 @@ impl ReplayWeightedRoutingShadow {
         weights: &ConstraintWeights,
         seen_before: bool,
     ) {
+        if !self.route_search_enabled {
+            return;
+        }
         self.metrics.consequence_queries += 1;
         let weight = self.weights.intern(weights.clone());
         let search = search_exact_weighted_route(
@@ -955,6 +982,138 @@ impl ReplayWeightedPathKey {
     }
 }
 
+#[derive(Debug)]
+struct ReplayWeightedPathSummary {
+    paths: FxHashSet<ReplayWeightedPathKey>,
+    outgoing: FxHashMap<TypeVar, Vec<ReplayWeightedPathSummaryEdge>>,
+    incoming: FxHashMap<TypeVar, Vec<ReplayWeightedPathSummaryEdge>>,
+    queue: VecDeque<ReplayWeightedPathKey>,
+    metrics: ReplayWeightedPathSummaryMetrics,
+    limit: usize,
+    capped: bool,
+}
+
+impl ReplayWeightedPathSummary {
+    fn from_env() -> Option<Self> {
+        std::env::var("YULANG_REPLAY_WEIGHTED_ROUTING_SUMMARY_SHADOW")
+            .is_ok_and(|value| !value.is_empty() && value != "0")
+            .then(|| Self {
+                paths: FxHashSet::default(),
+                outgoing: FxHashMap::default(),
+                incoming: FxHashMap::default(),
+                queue: VecDeque::new(),
+                metrics: ReplayWeightedPathSummaryMetrics::default(),
+                limit: replay_weighted_routing_summary_shadow_limit(),
+                capped: false,
+            })
+    }
+
+    fn observe_edge(
+        &mut self,
+        source: TypeVar,
+        target: TypeVar,
+        weight: ReplayWeightId,
+        weights: &mut ReplayWeightInterner,
+    ) {
+        self.metrics.observed_edges += 1;
+        if self.capped {
+            self.metrics.capped_insertions += 1;
+            return;
+        }
+        if self
+            .paths
+            .contains(&ReplayWeightedPathKey::new(source, target, weight))
+        {
+            self.metrics.known_edges += 1;
+            return;
+        }
+        self.metrics.new_edges += 1;
+        self.insert_path(source, target, weight);
+        self.close_from_queue(weights);
+    }
+
+    fn close_from_queue(&mut self, weights: &mut ReplayWeightInterner) {
+        if self.capped {
+            return;
+        }
+        while let Some(path) = self.queue.pop_front() {
+            let mut prefixes = self.incoming.get(&path.source).cloned().unwrap_or_default();
+            prefixes.push(ReplayWeightedPathSummaryEdge {
+                var: path.source,
+                weight: weights.empty(),
+            });
+
+            let mut suffixes = self.outgoing.get(&path.target).cloned().unwrap_or_default();
+            suffixes.push(ReplayWeightedPathSummaryEdge {
+                var: path.target,
+                weight: weights.empty(),
+            });
+
+            for prefix in &prefixes {
+                let prefix_weight = weights.compose_for_replay(prefix.weight, path.weight);
+                for suffix in &suffixes {
+                    if self.capped {
+                        self.metrics.capped_insertions += 1;
+                        return;
+                    }
+                    let weight = weights.compose_for_replay(prefix_weight, suffix.weight);
+                    self.insert_path(prefix.var, suffix.var, weight);
+                }
+            }
+            self.metrics.max_queue = self.metrics.max_queue.max(self.queue.len());
+        }
+    }
+
+    fn insert_path(&mut self, source: TypeVar, target: TypeVar, weight: ReplayWeightId) {
+        let key = ReplayWeightedPathKey::new(source, target, weight);
+        if !self.paths.insert(key) {
+            self.metrics.duplicate_paths += 1;
+            return;
+        }
+        if self.paths.len() > self.limit {
+            self.capped = true;
+            self.metrics.capped_insertions += 1;
+            self.paths.remove(&key);
+            self.queue.clear();
+            return;
+        }
+        self.metrics.inserted_paths += 1;
+        self.outgoing
+            .entry(source)
+            .or_default()
+            .push(ReplayWeightedPathSummaryEdge {
+                var: target,
+                weight,
+            });
+        self.incoming
+            .entry(target)
+            .or_default()
+            .push(ReplayWeightedPathSummaryEdge {
+                var: source,
+                weight,
+            });
+        self.queue.push_back(key);
+        self.metrics.max_queue = self.metrics.max_queue.max(self.queue.len());
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct ReplayWeightedPathSummaryMetrics {
+    observed_edges: usize,
+    known_edges: usize,
+    new_edges: usize,
+    inserted_paths: usize,
+    duplicate_paths: usize,
+    capped_insertions: usize,
+    max_queue: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ReplayWeightedPathSummaryEdge {
+    var: TypeVar,
+    weight: ReplayWeightId,
+}
+
 #[derive(Debug, Default)]
 struct ReplayWeightInterner {
     weights: Vec<ConstraintWeights>,
@@ -1020,6 +1179,14 @@ fn replay_weighted_routing_shadow_limit() -> usize {
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|limit| *limit > 0)
         .unwrap_or(4096)
+}
+
+fn replay_weighted_routing_summary_shadow_limit() -> usize {
+    std::env::var("YULANG_REPLAY_WEIGHTED_ROUTING_SUMMARY_LIMIT")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|limit| *limit > 0)
+        .unwrap_or(200_000)
 }
 
 fn intersect_subtractability(lhs: Subtractability, rhs: Subtractability) -> Subtractability {
