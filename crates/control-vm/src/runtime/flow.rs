@@ -294,16 +294,35 @@ impl<'a> Runtime<'a> {
         marker: &ActiveAddIdMarker,
     ) -> Vec<GuardId> {
         let mut ids = self.request_guard_ids_at_marker_entry(request, marker);
-        for frame in self
-            .active_handler_frames
-            .iter()
-            .filter(|frame| frame.frame_index < marker.entry_frame_len)
+        if self.exposes_matching_handler_alias(request, marker.entry_frame_len, &ids)
+            && let Some(handler_id) = self.outermost_matching_handler_id(&request.path_key)
+            && !ids.contains(&handler_id)
         {
-            if !ids.contains(&frame.id) {
-                ids.push(frame.id);
-            }
+            ids.push(handler_id);
         }
         ids
+    }
+
+    fn exposes_matching_handler_alias(
+        &self,
+        request: &Request,
+        entry_frame_len: usize,
+        ids: &[GuardId],
+    ) -> bool {
+        ids.iter().any(|id| {
+            self.active_handler_frames.iter().any(|frame| {
+                frame.frame_index < entry_frame_len
+                    && frame.id == *id
+                    && request.path_key.has_prefix(frame.handler_key)
+            })
+        })
+    }
+
+    fn outermost_matching_handler_id(&self, request_key: &InternedPath) -> Option<GuardId> {
+        self.active_handler_frames
+            .iter()
+            .find(|frame| request_key.has_prefix(frame.handler_key))
+            .map(|frame| frame.id)
     }
 
     pub(super) fn request_guard_for_path(
@@ -313,7 +332,7 @@ impl<'a> Runtime<'a> {
     ) -> Option<GuardSkip> {
         let matching_handler = self.find_matching_handler_frame(operation_key);
         let Some(matching_handler) = matching_handler else {
-            if !self.active_frames.is_empty() {
+            if !self.active_handler_frames.is_empty() {
                 return None;
             }
             return self

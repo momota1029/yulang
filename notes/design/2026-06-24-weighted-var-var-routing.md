@@ -268,29 +268,32 @@ but lost residual rows in nested handler and `parse.choice` public canaries.
 Those residuals require later concrete row bounds to replay through the delayed
 var-var evidence.
 
-With the default evidence skip limit of 32 search states
+With the default evidence skip limit of 16 search states
 (`YULANG_REPLAY_EVIDENCE_ONLY_SKIP_LIMIT`), `examples/showcase.yu` gives:
 
 ```text
-infer: 2.529s
-constraint.replay_accepted: 11820
-constraint.replay_evidence_only: 30187
-constraint.replay_duplicate: 57458
-constraint.replay_prefiltered: 94020
-constraint.replay_weighted_routing_shadow_var_var_frontier_graph_edges: 13528
-constraint.replay_weighted_routing_shadow_var_var_compose_cache_hits: 305921
-constraint.replay_weighted_routing_shadow_var_var_compose_cache_misses: 2326
-constraint.drain: 478.4ms
-total: 2.821s
+infer: 425.3ms
+constraint.replay_accepted: 12609
+constraint.replay_evidence_only: 40669
+constraint.replay_duplicate: 61089
+constraint.replay_prefiltered: 108186
+constraint.replay_weighted_routing_shadow_var_var_frontier_graph_edges: 14155
+constraint.replay_weighted_routing_shadow_var_var_compose_cache_hits: 255401
+constraint.replay_weighted_routing_shadow_var_var_compose_cache_misses: 976
+constraint.drain: 111.8ms
+total: 490.0ms
 ```
 
 This is a useful prototype, not yet a production optimization. It reduces
 accepted replay substantially compared with the hardening baseline
-(`62,818 -> 11,820` on `showcase`), but it still depends on online bounded
+(`63,051 -> 12,609` on `showcase`), but it still depends on online bounded
 frontier search. Previous 4096-state and 256-state limits kept the public
 signatures correct, but spent too much time in capped frontier searches. The
-32-state limit keeps the tested public canaries and adversarial corpus passing
-while cutting the `showcase` replay search work substantially.
+16-state limit keeps the tested public canaries and adversarial corpus passing
+while cutting the `showcase` replay search work substantially. A 32-state limit
+also passed the same smoke on 2026-06-25, but was slightly slower on this
+fixture (`infer: 440.6ms`, `total: 506.0ms`) because the extra frontier search
+work outweighed the smaller materialized replay set.
 
 When evidence-only skip is enabled without
 `YULANG_REPLAY_WEIGHTED_ROUTING_SHADOW=1`, the solver now maintains only the

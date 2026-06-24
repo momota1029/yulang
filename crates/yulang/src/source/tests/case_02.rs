@@ -1452,6 +1452,42 @@ fn run_control_fixture_keeps_sub_return_through_for_callback_if() {
 }
 
 #[test]
+fn run_control_source_text_with_embedded_std_keeps_repeated_callback_hygiene() {
+    let output = run_with_vm_test_stack(|| {
+        let output = run_control_from_source_text_with_embedded_std(
+            "playground.yu",
+            "pub act tick:\n\
+             \x20 pub ping: () -> ()\n\
+             \n\
+             pub strip_tick(action: [tick] _) = catch action:\n\
+             \x20 tick::ping(), k -> strip_tick(k ())\n\
+             \x20 v -> v\n\
+             \n\
+             pub count_tick(action: [tick] _) = catch action:\n\
+             \x20 tick::ping(), k -> 1 + count_tick(k ())\n\
+             \x20 _ -> 0\n\
+             \n\
+             pub bounce(n: int, f, x) =\n\
+             \x20 if n == 0:\n\
+             \x20 \x20 x\n\
+             \x20 else:\n\
+             \x20 \x20 strip_tick: f (f (bounce(n - 1, f, x)))\n\
+             \n\
+             count_tick:\n\
+             \x20 bounce(3, \\x -> {\n\
+             \x20 \x20 tick::ping()\n\
+             \x20 \x20 x + 1\n\
+             \x20 }, 0)\n",
+        )
+        .unwrap();
+        (output.file_count, output.text)
+    });
+
+    assert_eq!(output.0, embedded_std_files().len() + 1);
+    assert_eq!(output.1, "run roots [6]\n");
+}
+
+#[test]
 fn dump_mono_fixture_specializes_for_callback_if_before_println() {
     let entry = write_fixture_with_fake_std(
         "dump-mono-for-callback-before-println",
