@@ -219,6 +219,37 @@ needs a narrower summary, such as per-pivot demand summaries, bounded positive
 path caches, or a routing table coupled to lower/upper bound propagation rather
 than all-pairs weighted closure.
 
+An env-gated prototype also tried to skip replay var-var consequences directly
+when the weighted frontier graph already had an exact path. This is not sound
+against the current solver representation. The adversarial corpus passed, but
+public-signature golden tests failed:
+
+```text
+unannotated compose:
+  got      ('a ['b] -> 'c) -> ('d -> ['b] 'a) -> 'd -> 'c
+  expected ('a ['b] -> ['c] 'd) -> ('e -> ['b] 'a) -> 'e -> ['c] 'd
+
+apply:
+  got      ('a -> 'b) -> 'a -> 'b
+  expected ('a -> ['b] 'c) -> 'a -> ['b] 'c
+```
+
+Adding guards for row-tail variables and then for empty weights did not fix the
+loss of public latent effects. The reason is structural: the routing graph can
+prove a consequence for propagation, but generalization and public projection
+currently read the materialized bounds/evidence. Dropping a direct var-var
+constraint without teaching those later phases to read an equivalent routing
+summary removes co-occurrence fuel and makes higher-order functions appear
+pure.
+
+Therefore, actual replay skipping should remain out of tree until one of these
+is true:
+
+- generalization consumes a routing summary as equivalent evidence,
+- skipped var-var consequences are represented as lightweight read-only bounds,
+- the skip condition is restricted to a class proven irrelevant to public
+  projection and handler hygiene.
+
 ## Required invariant
 
 For every variable `v`, lower bound `L(v, p, wl)` and upper bound `U(v, n, wu)`
