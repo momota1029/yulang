@@ -90,21 +90,24 @@ $xs
 
 これは「`[1,2,3]` から 1 つ、`[4,5,6]` から 1 つ選んで足す。可能な組み合わせ全部」を表します。Prolog や Haskell の list monad、SQL の cross join のような考え方を、ふつうの式に埋め込めるイメージです。
 
-無限範囲も扱えます。前の選択を使って後の範囲を絞れば、`.once` で最初に成功する組を返します。
+`guard` で枝を落とせます。`.once` は最初に残った成功を返します。
 
 ```yulang
 {
-    my a = each 1..
-    my b = each a<..
-    my c = each b<..
-
-    guard: a * a + b * b == c * c
-
-    (a, b, c)
+    my candidate = each [
+        (1, 2, 3)
+        (3, 4, 5)
+        (5, 12, 13)
+    ]
+    case candidate:
+        (a, b, c) -> {
+            guard: a * a + b * b == c * c
+            candidate
+        }
 } .once
 ```
 
-これは「ピタゴラス三角形を 1 個欲しい」と宣言したらそれを探してくる、というプログラムです。
+最初の tuple は `guard` で落ち、`.once` は `just (3, 4, 5)` で止まります。
 
 ## Junction
 

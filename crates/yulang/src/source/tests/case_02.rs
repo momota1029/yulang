@@ -557,6 +557,61 @@ first_over 40
 }
 
 #[test]
+fn run_control_source_text_with_embedded_playground_std_runs_nondet_guard_candidates() {
+    let source = "\
+{
+    my candidate = each [
+        (1, 2, 3)
+        (3, 4, 5)
+        (5, 12, 13)
+        (6, 8, 10)
+        (9, 12, 15)
+    ]
+    case candidate:
+        (a, b, c) -> {
+            guard: a * a + b * b == c * c
+            candidate
+        }
+}.list
+";
+    let build =
+        build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
+            .unwrap();
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(
+        output.0,
+        "run roots [[(3, 4, 5), (5, 12, 13), (6, 8, 10), (9, 12, 15)]]\n"
+    );
+}
+
+#[test]
+fn run_control_source_text_with_embedded_playground_std_runs_nondet_once_candidates() {
+    let source = "\
+{
+    my candidate = each [
+        (1, 2, 3)
+        (3, 4, 5)
+        (5, 12, 13)
+    ]
+    case candidate:
+        (a, b, c) -> {
+            guard: a * a + b * b == c * c
+            candidate
+        }
+} .once
+";
+    let build =
+        build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
+            .unwrap();
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(output.0, "run roots [opt::just((3, 4, 5))]\n");
+}
+
+#[test]
 fn run_control_source_text_with_embedded_playground_std_replaces_strings() {
     let build = build_control_from_source_text_with_embedded_playground_std(
         "playground.yu",

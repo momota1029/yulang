@@ -105,23 +105,24 @@ This says "pick one from `[1,2,3]`, pick one from `[4,5,6]`, add them; give
 me all combinations." Same idea as Prolog, Haskell's list monad, or a SQL
 cross join — embedded into ordinary expressions.
 
-Infinite ranges work too. Constrain later choices from earlier ones, and
-`.once` returns the first success:
+Use `guard` to prune branches. `.once` returns the first surviving success:
 
 ```yulang
 {
-    my a = each 1..
-    my b = each a<..
-    my c = each b<..
-
-    guard: a * a + b * b == c * c
-
-    (a, b, c)
+    my candidate = each [
+        (1, 2, 3)
+        (3, 4, 5)
+        (5, 12, 13)
+    ]
+    case candidate:
+        (a, b, c) -> {
+            guard: a * a + b * b == c * c
+            candidate
+        }
 } .once
 ```
 
-You declare "I want a Pythagorean triple" and the program goes and finds
-one.
+The first tuple is rejected by `guard`, and `.once` stops at `just (3, 4, 5)`.
 
 ## Junctions
 
