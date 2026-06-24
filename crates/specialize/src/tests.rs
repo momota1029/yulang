@@ -116,6 +116,8 @@ mod tests {
             vec![GuardMarker {
                 path: vec!["io".to_string()],
                 depth: 0,
+                guard_own_path: true,
+                guard_foreign_path: false,
             }]
         );
     }
@@ -158,6 +160,8 @@ mod tests {
             vec![GuardMarker {
                 path: vec!["io".to_string()],
                 depth: 1,
+                guard_own_path: true,
+                guard_foreign_path: false,
             }]
         );
     }
@@ -182,6 +186,8 @@ mod tests {
             vec![GuardMarker {
                 path: vec!["io".to_string()],
                 depth: 0,
+                guard_own_path: true,
+                guard_foreign_path: false,
             }]
         );
     }

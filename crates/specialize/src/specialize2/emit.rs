@@ -580,7 +580,7 @@ impl Specializer2 {
     ) -> Result<Expr, SpecializeError> {
         let expr = self.emit_expr_typed(arena, solved, body)?;
         let Some(expected) = solved
-            .emitted_type_of(lambda)
+            .actual_type_of(lambda)
             .and_then(runtime_function_return_type)
         else {
             return Ok(expr.expr);

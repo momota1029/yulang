@@ -285,7 +285,18 @@ impl Dumper {
     }
 
     fn guard_marker(&self, marker: &GuardMarker) -> String {
-        format!("add_id[{}, {}]", marker.depth, marker.path.join("::"))
+        let mode = match (marker.guard_own_path, marker.guard_foreign_path) {
+            (false, true) => "",
+            (true, false) => ", own",
+            (true, true) => ", any",
+            (false, false) => ", none",
+        };
+        format!(
+            "add_id[{}, {}{}]",
+            marker.depth,
+            marker.path.join("::"),
+            mode
+        )
     }
 
     fn pat(&self, pat: &Pat) -> String {
@@ -721,6 +732,8 @@ mod tests {
                             "parse".to_string(),
                         ],
                         depth: 1,
+                        guard_own_path: false,
+                        guard_foreign_path: true,
                     }],
                 },
             }))],

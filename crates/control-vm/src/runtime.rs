@@ -656,15 +656,37 @@ struct Request {
     path: Vec<String>,
     path_key: InternedPath,
     guard_ids: Vec<GuardId>,
-    carried_guard_ids: Vec<GuardId>,
+    carried_guards: Vec<CarriedGuard>,
+    handler_boundary: Option<HandlerBoundary>,
     payload: Value,
     continuation: Continuation,
 }
 
-fn request_without_guard_id(mut request: Request, guard_id: GuardId) -> Request {
-    request.guard_ids.retain(|id| *id != guard_id);
-    request.carried_guard_ids.retain(|id| *id != guard_id);
-    request
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GuardSkip {
+    Preserve(GuardId),
+}
+
+impl GuardSkip {
+    fn apply(self, request: Request) -> Request {
+        match self {
+            GuardSkip::Preserve(_) => request,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CarriedGuard {
+    id: GuardId,
+    entry_frame_len: usize,
+    exposed_guard_ids: Vec<GuardId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct HandlerBoundary {
+    id: GuardId,
+    handler_key: InternedPathPrefix,
+    blocked: bool,
 }
 
 #[derive(Clone)]
@@ -1467,11 +1489,6 @@ fn stack_handler_markers(id: GuardId, path_key: InternedPath) -> Vec<ValueMarker
     ]
 }
 
-fn request_path_carries_function_adapter_guard(path: &[String]) -> bool {
-    path_has_str_prefix(path, &["std", "control", "flow", "sub"])
-        || path_has_str_prefix(path, &["std", "control", "flow", "label_sub"])
-}
-
 fn mark_value(value: Value, markers: &[ValueMarker]) -> Value {
     if markers.is_empty() || is_scalar_value(&value) {
         return value;
@@ -1571,14 +1588,6 @@ fn counted_path_has_prefix(
 fn counted_path_eq(stats: &mut RuntimeStats, left: &InternedPath, right: &InternedPath) -> bool {
     stats.path_eq_checks += 1;
     left.id == right.id
-}
-
-fn path_has_str_prefix(path: &[String], prefix: &[&str]) -> bool {
-    prefix.len() <= path.len()
-        && path
-            .iter()
-            .zip(prefix)
-            .all(|(segment, prefix)| segment == prefix)
 }
 
 fn into_value_markers(value: Value) -> (Value, Vec<ValueMarker>) {

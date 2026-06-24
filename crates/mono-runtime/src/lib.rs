@@ -44,15 +44,23 @@ enum EvalResult<'a> {
 struct Request<'a> {
     path: Vec<String>,
     guard_ids: Vec<GuardId>,
-    carried_guard_ids: Vec<GuardId>,
+    carried_guards: Vec<CarriedGuard>,
+    handler_boundary: Option<HandlerBoundary>,
     payload: Value,
     resume: Continuation<'a>,
 }
 
-fn request_without_guard_id<'a>(mut request: Request<'a>, guard_id: GuardId) -> Request<'a> {
-    request.guard_ids.retain(|id| *id != guard_id);
-    request.carried_guard_ids.retain(|id| *id != guard_id);
-    request
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GuardSkip {
+    Preserve(GuardId),
+}
+
+impl GuardSkip {
+    fn apply<'a>(self, request: Request<'a>) -> Request<'a> {
+        match self {
+            GuardSkip::Preserve(_) => request,
+        }
+    }
 }
 
 enum BindEvalResult<'a> {
@@ -64,9 +72,24 @@ enum BindEvalResult<'a> {
 struct BindRequest<'a> {
     path: Vec<String>,
     guard_ids: Vec<GuardId>,
-    carried_guard_ids: Vec<GuardId>,
+    carried_guards: Vec<CarriedGuard>,
+    handler_boundary: Option<HandlerBoundary>,
     payload: Value,
     resume: BindResume<'a>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CarriedGuard {
+    id: GuardId,
+    entry_frame_len: usize,
+    exposed_guard_ids: Vec<GuardId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct HandlerBoundary {
+    id: GuardId,
+    handler_path: Vec<String>,
+    blocked: bool,
 }
 
 pub struct Runtime<'a> {
@@ -554,11 +577,6 @@ fn stack_handler_markers(id: GuardId, path: Vec<String>) -> Vec<ValueMarker> {
     ]
 }
 
-fn request_path_carries_function_adapter_guard(path: &[String]) -> bool {
-    path_has_str_prefix(path, &["std", "control", "flow", "sub"])
-        || path_has_str_prefix(path, &["std", "control", "flow", "label_sub"])
-}
-
 fn mark_value(value: Value, markers: &[ValueMarker]) -> Value {
     if markers.is_empty() {
         return value;
@@ -611,14 +629,6 @@ fn value_is_thunk_like(value: &Value) -> bool {
 }
 
 fn path_has_prefix(path: &[String], prefix: &[String]) -> bool {
-    prefix.len() <= path.len()
-        && path
-            .iter()
-            .zip(prefix)
-            .all(|(segment, prefix)| segment == prefix)
-}
-
-fn path_has_str_prefix(path: &[String], prefix: &[&str]) -> bool {
     prefix.len() <= path.len()
         && path
             .iter()

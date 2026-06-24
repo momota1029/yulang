@@ -136,7 +136,8 @@ impl<'a> Runtime<'a> {
         let mut request = Request {
             path,
             guard_ids: Vec::new(),
-            carried_guard_ids: Vec::new(),
+            carried_guards: Vec::new(),
+            handler_boundary: None,
             payload,
             resume: Rc::new(|_, value| value_result(value)),
         };
@@ -151,18 +152,29 @@ impl<'a> Runtime<'a> {
             if marker.depth != 0
                 || (path_matches_marker && !marker.guard_own_path)
                 || (!path_matches_marker && !marker.guard_foreign_path)
-                || self.request_excepted_at_marker_entry(request, active_marker)
+                || (!marker.carry_after_frame
+                    && self.request_excepted_at_marker_entry(request, active_marker))
             {
                 continue;
             }
-            if !request.guard_ids.contains(&marker.id) {
-                request.guard_ids.push(marker.id);
-            }
             if marker.carry_after_frame
-                && request_path_carries_function_adapter_guard(&request.path)
-                && !request.carried_guard_ids.contains(&marker.id)
+                && !request
+                    .carried_guards
+                    .iter()
+                    .any(|guard| guard.id == marker.id)
             {
-                request.carried_guard_ids.push(marker.id);
+                let exposed_guard_ids =
+                    self.request_guard_ids_at_marker_entry(request, active_marker);
+                if !request.guard_ids.contains(&marker.id) {
+                    request.guard_ids.push(marker.id);
+                }
+                request.carried_guards.push(CarriedGuard {
+                    id: marker.id,
+                    entry_frame_len: active_marker.entry_frame_len,
+                    exposed_guard_ids,
+                });
+            } else if !marker.carry_after_frame && !request.guard_ids.contains(&marker.id) {
+                request.guard_ids.push(marker.id);
             }
         }
     }
@@ -172,10 +184,64 @@ impl<'a> Runtime<'a> {
         request: &Request<'a>,
         marker: &ActiveAddIdMarker,
     ) -> bool {
-        self.active_frames
+        !self
+            .request_guard_ids_at_marker_entry(request, marker)
+            .is_empty()
+    }
+
+    fn request_guard_ids_at_marker_entry(
+        &self,
+        request: &Request<'a>,
+        marker: &ActiveAddIdMarker,
+    ) -> Vec<GuardId> {
+        let mut ids = self
+            .active_frames
             .iter()
             .take(marker.entry_frame_len)
-            .any(|frame| request.guard_ids.contains(&frame.id))
+            .filter_map(|frame| request.guard_ids.contains(&frame.id).then_some(frame.id))
+            .fold(Vec::new(), |mut ids, id| {
+                if !ids.contains(&id) {
+                    ids.push(id);
+                }
+                ids
+            });
+        if self.exposes_matching_handler_alias(request, marker.entry_frame_len, &ids)
+            && let Some(handler_id) = self.outermost_matching_handler_id(&request.path)
+            && !ids.contains(&handler_id)
+        {
+            ids.push(handler_id);
+        }
+        ids
+    }
+
+    fn exposes_matching_handler_alias(
+        &self,
+        request: &Request<'a>,
+        entry_frame_len: usize,
+        ids: &[GuardId],
+    ) -> bool {
+        ids.iter().any(|id| {
+            self.active_frames
+                .iter()
+                .take(entry_frame_len)
+                .any(|frame| {
+                    frame.id == *id
+                        && frame
+                            .handler_path
+                            .as_ref()
+                            .is_some_and(|path| path_has_prefix(&request.path, path))
+                })
+        })
+    }
+
+    fn outermost_matching_handler_id(&self, request_path: &[String]) -> Option<GuardId> {
+        self.active_frames.iter().find_map(|frame| {
+            frame
+                .handler_path
+                .as_ref()
+                .is_some_and(|path| path_has_prefix(request_path, path))
+                .then_some(frame.id)
+        })
     }
 
     pub(super) fn mark_active_value(&mut self, value: Value) -> Value {
@@ -199,7 +265,7 @@ impl<'a> Runtime<'a> {
         &self,
         request: &Request<'_>,
         operation_path: &[String],
-    ) -> Option<GuardId> {
+    ) -> Option<GuardSkip> {
         let matching_handler = self.active_frames.iter().rposition(|frame| {
             frame
                 .handler_path
@@ -218,33 +284,75 @@ impl<'a> Runtime<'a> {
                 .active_frames
                 .iter()
                 .find(|frame| request.guard_ids.contains(&frame.id))
-                .map(|frame| frame.id)
-                .or_else(|| {
-                    // Function adapter guards can leave their marker frame before the
-                    // surrounding catch observes the request. In that case, the carried
-                    // guard still skips the next matching handler once.
-                    if self.active_frames.is_empty() {
-                        request.carried_guard_ids.first().copied()
-                    } else {
-                        None
-                    }
-                });
+                .map(|frame| GuardSkip::Preserve(frame.id))
+                // Function adapter guards can leave their marker frame before the
+                // surrounding catch observes the request, so the request carries
+                // that active color until the relevant handler boundary sees it.
+                .or_else(|| self.carried_guard_for_missing_handler(request));
         };
-        let current_handler_id = self
-            .active_frames
-            .get(matching_handler)
-            .map(|frame| frame.id);
-        self.active_frames[matching_handler + 1..]
-            .iter()
-            .find(|frame| request.guard_ids.contains(&frame.id))
-            .map(|frame| frame.id)
-            .or_else(|| current_handler_id.filter(|id| request.guard_ids.contains(id)))
+        self.carried_guard_for_matching_handler(request, matching_handler)
+            .or_else(|| {
+                let handler_id = self.active_frames.get(matching_handler)?.id;
+                self.active_frames[matching_handler + 1..]
+                    .iter()
+                    .find(|frame| self.guard_blocks_handler(request, frame.id, handler_id))
+                    .map(|frame| GuardSkip::Preserve(frame.id))
+            })
+            .or_else(|| {
+                self.active_frames
+                    .get(matching_handler)
+                    .map(|frame| frame.id)
+                    .filter(|id| self.guard_blocks_handler(request, *id, *id))
+                    .map(GuardSkip::Preserve)
+            })
             .or_else(|| {
                 if self.active_frames.is_empty() {
-                    request.carried_guard_ids.first().copied()
+                    request
+                        .carried_guards
+                        .first()
+                        .map(|guard| GuardSkip::Preserve(guard.id))
                 } else {
                     None
                 }
+            })
+    }
+
+    fn carried_guard_for_missing_handler(&self, request: &Request<'_>) -> Option<GuardSkip> {
+        request
+            .carried_guards
+            .first()
+            .map(|guard| GuardSkip::Preserve(guard.id))
+    }
+
+    fn carried_guard_for_matching_handler(
+        &self,
+        request: &Request<'_>,
+        matching_handler: usize,
+    ) -> Option<GuardSkip> {
+        let handler_id = self
+            .active_frames
+            .get(matching_handler)
+            .map(|frame| frame.id)?;
+        request
+            .carried_guards
+            .iter()
+            .find(|guard| {
+                matching_handler < guard.entry_frame_len
+                    && !guard.exposed_guard_ids.contains(&handler_id)
+            })
+            .map(|guard| GuardSkip::Preserve(guard.id))
+    }
+
+    fn guard_blocks_handler(
+        &self,
+        request: &Request<'_>,
+        guard_id: GuardId,
+        handler_id: GuardId,
+    ) -> bool {
+        request.guard_ids.contains(&guard_id)
+            && !request.carried_guards.iter().any(|guard| {
+                guard.exposed_guard_ids.contains(&handler_id)
+                    && (guard.id == guard_id || guard.exposed_guard_ids.contains(&guard_id))
             })
     }
 
@@ -263,9 +371,9 @@ impl<'a> Runtime<'a> {
                         id,
                         path: marker.path.clone(),
                         depth: marker.depth,
-                        guard_own_path: false,
-                        guard_foreign_path: true,
-                        carry_after_frame: true,
+                        guard_own_path: marker.guard_own_path,
+                        guard_foreign_path: marker.guard_foreign_path,
+                        carry_after_frame: marker.guard_own_path,
                     }),
                 ]
             })
@@ -312,9 +420,21 @@ impl<'a> Runtime<'a> {
         let plan_len = self.active_marker_plans.len();
         self.push_marker_frame(&markers, activate_add_ids, handler_path.clone());
         let result = run(self);
+        let handler_boundary = match &result {
+            Ok(EvalResult::Request(request)) => {
+                self.handler_boundary_for_request(request, handler_path.as_deref(), frame_len)
+            }
+            Ok(EvalResult::Value(_)) | Err(_) => None,
+        };
         self.pop_marker_frame(guard_len, frame_len, add_id_len, plan_len);
 
-        self.close_marker_frame_result(result?, markers, activate_add_ids, handler_path)
+        self.close_marker_frame_result(
+            result?,
+            markers,
+            activate_add_ids,
+            handler_path,
+            handler_boundary,
+        )
     }
 
     pub(super) fn push_marker_frame(
@@ -375,6 +495,7 @@ impl<'a> Runtime<'a> {
         markers: Vec<ValueMarker>,
         activate_add_ids: bool,
         handler_path: Option<Vec<String>>,
+        handler_boundary: Option<HandlerBoundary>,
     ) -> RuntimeResult<'a> {
         match result {
             EvalResult::Value(value) => {
@@ -382,12 +503,14 @@ impl<'a> Runtime<'a> {
             }
             EvalResult::Request(request) => {
                 let resume = request.resume.clone();
+                let handler_boundary = handler_boundary.or(request.handler_boundary);
                 let payload = mark_value(request.payload, &markers_for_value(&markers));
                 let resume_markers = markers_for_continuation_resume(&markers);
                 Ok(EvalResult::Request(Request {
                     path: request.path,
                     guard_ids: request.guard_ids,
-                    carried_guard_ids: request.carried_guard_ids,
+                    carried_guards: request.carried_guards,
+                    handler_boundary,
                     payload,
                     resume: Rc::new(move |runtime, value| {
                         let resume = resume.clone();
@@ -401,6 +524,51 @@ impl<'a> Runtime<'a> {
                 }))
             }
         }
+    }
+
+    fn handler_boundary_for_request(
+        &self,
+        request: &Request<'_>,
+        handler_path: Option<&[String]>,
+        frame_len_before_marker: usize,
+    ) -> Option<HandlerBoundary> {
+        let handler_path = handler_path?;
+        let (frame_index, frame) = self
+            .active_frames
+            .iter()
+            .enumerate()
+            .skip(frame_len_before_marker)
+            .rev()
+            .find(|(_, frame)| frame.handler_path.as_deref() == Some(handler_path))?;
+        let blocked = self.handler_boundary_blocked(request, frame_index, frame.id, handler_path);
+        Some(HandlerBoundary {
+            id: frame.id,
+            handler_path: handler_path.to_vec(),
+            blocked,
+        })
+    }
+
+    fn handler_boundary_blocked(
+        &self,
+        request: &Request<'_>,
+        handler_frame_index: usize,
+        handler_id: GuardId,
+        handler_path: &[String],
+    ) -> bool {
+        self.carried_guard_for_matching_handler(request, handler_frame_index)
+            .is_some()
+            || self.active_frames.iter().enumerate().any(|(index, frame)| {
+                frame.id != handler_id
+                    && self.guard_blocks_handler(request, frame.id, handler_id)
+                    && (index > handler_frame_index
+                        || self.guard_frame_matches_handler(frame.id, handler_path))
+            })
+    }
+
+    fn guard_frame_matches_handler(&self, guard_id: GuardId, handler_path: &[String]) -> bool {
+        self.active_frames.iter().any(|frame| {
+            frame.id == guard_id && frame.handler_path.as_deref() == Some(handler_path)
+        })
     }
 }
 
@@ -464,7 +632,8 @@ mod tests {
         Request {
             path: path(request_path),
             guard_ids,
-            carried_guard_ids: Vec::new(),
+            carried_guards: Vec::new(),
+            handler_boundary: None,
             payload: Value::Unit,
             resume: Rc::new(|_, value| value_result(value)),
         }

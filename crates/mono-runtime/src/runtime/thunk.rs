@@ -120,7 +120,8 @@ impl<'a> Runtime<'a> {
                 Ok(EvalResult::Request(Request {
                     path: request.path,
                     guard_ids: request.guard_ids,
-                    carried_guard_ids: request.carried_guard_ids,
+                    carried_guards: request.carried_guards,
+                    handler_boundary: request.handler_boundary,
                     payload: request.payload,
                     resume: Rc::new(move |runtime, value| {
                         let resumed = request_resume(runtime, value)?;
@@ -151,7 +152,8 @@ impl<'a> Runtime<'a> {
                 Ok(EvalResult::Request(Request {
                     path: request.path,
                     guard_ids: request.guard_ids,
-                    carried_guard_ids: request.carried_guard_ids,
+                    carried_guards: request.carried_guards,
+                    handler_boundary: request.handler_boundary,
                     payload: request.payload,
                     resume: Rc::new(move |runtime, value| {
                         let resumed = request_resume(runtime, value)?;
@@ -174,7 +176,8 @@ impl<'a> Runtime<'a> {
                 Ok(BindEvalResult::Request(BindRequest {
                     path: request.path,
                     guard_ids: request.guard_ids,
-                    carried_guard_ids: request.carried_guard_ids,
+                    carried_guards: request.carried_guards,
+                    handler_boundary: request.handler_boundary,
                     payload: request.payload,
                     resume: Rc::new(move |runtime, value| {
                         let resumed = request_resume(runtime, value)?;
@@ -198,7 +201,8 @@ impl<'a> Runtime<'a> {
                 Ok(BindEvalResult::Request(BindRequest {
                     path: request.path,
                     guard_ids: request.guard_ids,
-                    carried_guard_ids: request.carried_guard_ids,
+                    carried_guards: request.carried_guards,
+                    handler_boundary: request.handler_boundary,
                     payload: request.payload,
                     resume: Rc::new(move |runtime, value| {
                         let resumed = request_resume(runtime, value)?;

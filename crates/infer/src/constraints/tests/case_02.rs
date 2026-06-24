@@ -928,6 +928,57 @@ fn neg_stack_common_stack_constrains_matching_payloads_across_active_ids() {
 }
 
 #[test]
+fn neg_stack_empty_filter_rejects_concrete_effect_lower() {
+    let mut machine = ConstraintMachine::new();
+    let tick_path = vec!["tick".into()];
+    machine.register_effect_family_path(tick_path.clone());
+    let lower = machine.alloc_pos(Pos::Con(tick_path.clone(), Vec::new()));
+    let inner = machine.alloc_neg(Neg::Top);
+    let upper = machine.alloc_neg(Neg::Stack {
+        inner,
+        weight: StackWeight::filter(Subtractability::Empty),
+    });
+
+    machine.subtype(lower, upper);
+
+    assert!(
+        machine.events().iter().any(|event| matches!(
+            event,
+            ConstraintEvent::EffectFilterViolation {
+                effect: Some(path),
+                filter: Subtractability::Empty,
+            } if path == &tick_path
+        )),
+        "events: {:?}",
+        machine.events()
+    );
+}
+
+#[test]
+fn neg_stack_empty_active_push_does_not_filter_concrete_effect_lower() {
+    let mut machine = ConstraintMachine::new();
+    let tick_path = vec!["tick".into()];
+    machine.register_effect_family_path(tick_path);
+    let lower = machine.alloc_pos(Pos::Con(vec!["tick".into()], Vec::new()));
+    let inner = machine.alloc_neg(Neg::Top);
+    let upper = machine.alloc_neg(Neg::Stack {
+        inner,
+        weight: StackWeight::push(SubtractId(0), Subtractability::Empty),
+    });
+
+    machine.subtype(lower, upper);
+
+    assert!(
+        !machine
+            .events()
+            .iter()
+            .any(|event| matches!(event, ConstraintEvent::EffectFilterViolation { .. })),
+        "events: {:?}",
+        machine.events()
+    );
+}
+
+#[test]
 fn neg_stack_filter_is_checked_but_not_stored_as_right_weight() {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);

@@ -83,6 +83,7 @@ pub(super) enum Frame {
     },
     MakeFunctionAdapter {
         expr: ExprId,
+        markers: Option<SharedMarkers>,
     },
     RefSetReference {
         value: ExprId,
@@ -952,6 +953,12 @@ impl<'a> Runtime<'a> {
         scope: ActiveContinuationMarkerScope,
     ) -> RuntimeResult {
         let checkpoint = scope.checkpoint;
+        let handler_boundary = match &result {
+            EvalResult::Request(request) => {
+                self.handler_boundary_for_request(request, scope.handler_key, checkpoint.frame_len)
+            }
+            EvalResult::Value(_) => None,
+        };
         self.pop_marker_frame(
             checkpoint.guard_len,
             checkpoint.frame_len,
@@ -964,6 +971,7 @@ impl<'a> Runtime<'a> {
             scope.resume_markers,
             scope.activate_add_ids,
             scope.handler_key,
+            handler_boundary,
         )
     }
 
@@ -1090,8 +1098,12 @@ impl<'a> Runtime<'a> {
                     marker_scopes,
                 )
             }
-            Frame::MakeFunctionAdapter { expr } => {
-                value_result(self.function_adapter_value(expr, value)?)
+            Frame::MakeFunctionAdapter { expr, markers } => {
+                let value = self.function_adapter_value(expr, value.clone())?;
+                value_result(match markers {
+                    Some(markers) => mark_value_shared(value, &markers),
+                    None => value,
+                })
             }
             Frame::RefSetReference { value: expr, env } => {
                 let reference = self.force_value_if_thunk(value)?;

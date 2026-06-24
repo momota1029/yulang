@@ -783,7 +783,12 @@ fn function_adapter(
         target,
         function: Box::new(function),
         hygiene: FunctionAdapterHygiene {
-            markers: vec![GuardMarker { path, depth }],
+            markers: vec![GuardMarker {
+                path,
+                depth,
+                guard_own_path: false,
+                guard_foreign_path: true,
+            }],
         },
     })
 }

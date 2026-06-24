@@ -145,11 +145,7 @@ impl<'a> TaskSolver<'a> {
                 TypeSlotKind::Value,
             ))),
             Err(SpecializeError::UndeterminedTypeSlot { .. }) if ty.consumer.is_some() => self
-                .resolve_partial_output_type(
-                    resolver,
-                    ty.consumer.as_ref().expect("consumer checked above"),
-                    TypeSlotKind::Value,
-                )
+                .resolve_partial_output_type(resolver, &ty.actual, TypeSlotKind::Value)
                 .map(Some),
             Err(SpecializeError::UndeterminedTypeSlot { .. })
                 if self.discarded_exprs.contains(&expr) =>

@@ -61,6 +61,11 @@ impl<'a> TypeGraph<'a> {
         upper: Type,
         upper_weight: StackWeight,
     ) -> Result<(), SpecializeError> {
+        let (lower_weight, upper_weight) = if lower_weight == upper_weight {
+            (empty_stack_weight(), empty_stack_weight())
+        } else {
+            (lower_weight, upper_weight)
+        };
         if lower != upper {
             let constraint = SubtypeConstraint {
                 lower,

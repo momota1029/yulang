@@ -244,7 +244,7 @@ fn collect_effect_markers(effect: &Type, depth: u32, markers: &mut Vec<GuardMark
             }
         }
         Type::Con { path, .. } => {
-            push_guard_marker(markers, depth, path);
+            push_guard_marker(markers, depth, path, true, false);
         }
         Type::Stack { inner, .. } => {
             collect_effect_markers(inner, depth, markers);
@@ -287,7 +287,7 @@ fn collect_effect_markers_not_in_expected(
         }
         Type::Con { path, .. } => {
             if !effect_contains_path(expected, path) {
-                push_guard_marker(markers, depth, path);
+                push_guard_marker(markers, depth, path, true, false);
             }
         }
         Type::Stack { inner, .. } => {
@@ -345,16 +345,28 @@ fn effect_contains_path(effect: &Type, path: &[String]) -> bool {
     }
 }
 
-fn push_guard_marker(markers: &mut Vec<GuardMarker>, depth: u32, path: &[String]) {
-    if path.is_empty()
-        || markers
-            .iter()
-            .any(|marker| marker.depth == depth && marker.path == path)
+fn push_guard_marker(
+    markers: &mut Vec<GuardMarker>,
+    depth: u32,
+    path: &[String],
+    guard_own_path: bool,
+    guard_foreign_path: bool,
+) {
+    if path.is_empty() {
+        return;
+    }
+    if let Some(marker) = markers
+        .iter_mut()
+        .find(|marker| marker.depth == depth && marker.path == path)
     {
+        marker.guard_own_path |= guard_own_path;
+        marker.guard_foreign_path |= guard_foreign_path;
         return;
     }
     markers.push(GuardMarker {
         path: path.to_vec(),
         depth,
+        guard_own_path,
+        guard_foreign_path,
     });
 }

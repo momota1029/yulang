@@ -40,8 +40,15 @@ impl<'a> Runtime<'a> {
                 self.continue_with_frame(result, Frame::ForceThunk { expr: expr_id })
             }
             EvalExpr::FunctionAdapter { function } => {
+                let markers = self.active_marker_plans.last().cloned();
                 let function = self.eval_expr(function, env)?;
-                self.continue_with_frame(function, Frame::MakeFunctionAdapter { expr: expr_id })
+                self.continue_with_frame(
+                    function,
+                    Frame::MakeFunctionAdapter {
+                        expr: expr_id,
+                        markers,
+                    },
+                )
             }
             EvalExpr::MarkerFrame { path, body } => {
                 let mut frame_env = env.clone();
@@ -661,12 +668,18 @@ impl<'a> Runtime<'a> {
                 target,
                 hygiene,
                 ..
-            }) => Ok(Value::FunctionAdapter(Rc::new(FunctionAdapter {
-                source: source.clone(),
-                target: target.clone(),
-                function: Box::new(function),
-                hygiene: hygiene.clone(),
-            }))),
+            }) => {
+                let value = Value::FunctionAdapter(Rc::new(FunctionAdapter {
+                    source: source.clone(),
+                    target: target.clone(),
+                    function: Box::new(function),
+                    hygiene: hygiene.clone(),
+                }));
+                Ok(match self.active_marker_plans.last() {
+                    Some(markers) => mark_value_shared(value, markers),
+                    None => value,
+                })
+            }
             Some(_) | None => Err(RuntimeError::MissingExpr { expr }),
         }
     }
@@ -842,16 +855,21 @@ impl<'a> Runtime<'a> {
                 .operation_key
                 .as_ref()
                 .filter(|_| operation_matches)
-                .and_then(|key| self.request_guard_for_path(&request, key));
+                .and_then(|key| match &request.handler_boundary {
+                    Some(boundary) if request.path_key.has_prefix(boundary.handler_key) => {
+                        boundary.blocked.then_some(GuardSkip::Preserve(boundary.id))
+                    }
+                    Some(boundary) => Some(GuardSkip::Preserve(boundary.id)),
+                    None => self.request_guard_for_path(&request, key),
+                });
             if !operation_matches || skipped_guard.is_some() {
                 let request = if let Some(guard_id) = skipped_guard {
-                    request_without_guard_id(request, guard_id)
+                    guard_id.apply(request)
                 } else {
                     request
                 };
                 return self.handle_catch_request_arm(request, arms, env, index + 1);
             }
-
             return self.bind_pat(
                 arm.pat.clone(),
                 request.payload.clone(),

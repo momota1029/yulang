@@ -153,6 +153,14 @@ pub struct FunctionAdapterHygiene {
 pub struct GuardMarker {
     pub path: Vec<String>,
     pub depth: u32,
+    #[serde(default)]
+    pub guard_own_path: bool,
+    #[serde(default = "guard_marker_default_foreign_path")]
+    pub guard_foreign_path: bool,
+}
+
+fn guard_marker_default_foreign_path() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

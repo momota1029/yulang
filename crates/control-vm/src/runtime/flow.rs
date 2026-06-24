@@ -208,7 +208,8 @@ impl<'a> Runtime<'a> {
             path,
             path_key,
             guard_ids: Vec::new(),
-            carried_guard_ids: Vec::new(),
+            carried_guards: Vec::new(),
+            handler_boundary: None,
             payload,
             continuation: Continuation::default(),
         };
@@ -224,18 +225,29 @@ impl<'a> Runtime<'a> {
                 counted_path_has_prefix(&mut self.stats, &request.path_key, marker.path_key);
             if (path_matches_marker && !marker.guard_own_path)
                 || (!path_matches_marker && !marker.guard_foreign_path)
-                || self.request_excepted_at_marker_entry(request, active_marker)
+                || (!marker.carry_after_frame
+                    && self.request_excepted_at_marker_entry(request, active_marker))
             {
                 continue;
             }
-            if !request.guard_ids.contains(&marker.id) {
-                request.guard_ids.push(marker.id);
-            }
             if marker.carry_after_frame
-                && request_path_carries_function_adapter_guard(&request.path)
-                && !request.carried_guard_ids.contains(&marker.id)
+                && !request
+                    .carried_guards
+                    .iter()
+                    .any(|guard| guard.id == marker.id)
             {
-                request.carried_guard_ids.push(marker.id);
+                let exposed_guard_ids =
+                    self.request_guard_ids_at_marker_entry(request, active_marker);
+                if !request.guard_ids.contains(&marker.id) {
+                    request.guard_ids.push(marker.id);
+                }
+                request.carried_guards.push(CarriedGuard {
+                    id: marker.id,
+                    entry_frame_len: active_marker.entry_frame_len,
+                    exposed_guard_ids,
+                });
+            } else if !marker.carry_after_frame && !request.guard_ids.contains(&marker.id) {
+                request.guard_ids.push(marker.id);
             }
         }
     }
@@ -245,50 +257,120 @@ impl<'a> Runtime<'a> {
         request: &Request,
         marker: &ActiveAddIdMarker,
     ) -> bool {
+        !self
+            .request_guard_ids_at_marker_entry(request, marker)
+            .is_empty()
+    }
+
+    fn request_guard_ids_at_marker_entry(
+        &self,
+        request: &Request,
+        marker: &ActiveAddIdMarker,
+    ) -> Vec<GuardId> {
         self.active_frames
             .iter()
             .take(marker.entry_frame_len)
-            .any(|frame| request.guard_ids.contains(&frame.id))
+            .filter_map(|frame| request.guard_ids.contains(&frame.id).then_some(frame.id))
+            .fold(Vec::new(), |mut ids, id| {
+                if !ids.contains(&id) {
+                    ids.push(id);
+                }
+                ids
+            })
     }
 
     pub(super) fn request_guard_for_path(
         &mut self,
         request: &Request,
         operation_key: &InternedPath,
-    ) -> Option<GuardId> {
+    ) -> Option<GuardSkip> {
         let matching_handler = self.find_matching_handler_frame(operation_key);
         let Some(matching_handler) = matching_handler else {
-            if !self.active_handler_frames.is_empty() {
+            if !self.active_frames.is_empty() {
                 return None;
             }
             return self
                 .active_frames
                 .iter()
                 .find(|frame| request.guard_ids.contains(&frame.id))
-                .map(|frame| frame.id)
+                .map(|frame| GuardSkip::Preserve(frame.id))
+                // Function adapter guards can leave their marker frame before the
+                // surrounding catch observes the request, so the request carries
+                // that active color until the relevant handler boundary sees it.
                 .or_else(|| {
-                    // Function adapter guards can leave their marker frame before the
-                    // surrounding catch observes the request. In that case, the carried
-                    // guard still skips the next matching handler once.
-                    if self.active_frames.is_empty() {
-                        request.carried_guard_ids.first().copied()
-                    } else {
-                        None
-                    }
+                    request
+                        .carried_guards
+                        .first()
+                        .map(|guard| GuardSkip::Preserve(guard.id))
                 });
         };
-        self.active_frames[matching_handler + 1..]
-            .iter()
-            .find(|frame| request.guard_ids.contains(&frame.id))
-            .map(|frame| frame.id)
+        self.carried_guard_for_matching_handler(request, matching_handler)
+            .or_else(|| {
+                let handler_id = self.active_frames.get(matching_handler)?.id;
+                self.active_frames[matching_handler + 1..]
+                    .iter()
+                    .find(|frame| self.guard_blocks_handler(request, frame.id, handler_id))
+                    .map(|frame| GuardSkip::Preserve(frame.id))
+            })
             .or_else(|| self.current_handler_guard(request, matching_handler))
             .or_else(|| {
                 if self.active_frames.is_empty() {
-                    request.carried_guard_ids.first().copied()
+                    request
+                        .carried_guards
+                        .first()
+                        .map(|guard| GuardSkip::Preserve(guard.id))
                 } else {
                     None
                 }
             })
+    }
+
+    fn carried_guard_for_matching_handler(
+        &self,
+        request: &Request,
+        matching_handler: usize,
+    ) -> Option<GuardSkip> {
+        let handler_id = self
+            .active_frames
+            .get(matching_handler)
+            .map(|frame| frame.id)?;
+        request
+            .carried_guards
+            .iter()
+            .find(|guard| {
+                matching_handler < guard.entry_frame_len
+                    && !guard.exposed_guard_ids.contains(&handler_id)
+            })
+            .map(|guard| GuardSkip::Preserve(guard.id))
+    }
+
+    fn guard_blocks_handler(
+        &self,
+        request: &Request,
+        guard_id: GuardId,
+        handler_id: GuardId,
+    ) -> bool {
+        request.guard_ids.contains(&guard_id)
+            && !request.carried_guards.iter().any(|guard| {
+                guard.exposed_guard_ids.contains(&handler_id)
+                    && (guard.id == guard_id || guard.exposed_guard_ids.contains(&guard_id))
+            })
+    }
+
+    fn current_handler_guard(
+        &mut self,
+        request: &Request,
+        matching_handler: usize,
+    ) -> Option<GuardSkip> {
+        for frame in &self.active_handler_frames {
+            self.stats.active_frame_scans += 1;
+            if frame.frame_index == matching_handler
+                && self.guard_blocks_handler(request, frame.id, frame.id)
+            {
+                return Some(GuardSkip::Preserve(frame.id));
+            }
+        }
+        None
     }
 
     fn find_matching_handler_frame(&mut self, operation_key: &InternedPath) -> Option<usize> {
@@ -296,20 +378,6 @@ impl<'a> Runtime<'a> {
             self.stats.active_frame_scans += 1;
             if counted_path_has_prefix(&mut self.stats, operation_key, frame.handler_key) {
                 return Some(frame.frame_index);
-            }
-        }
-        None
-    }
-
-    fn current_handler_guard(
-        &mut self,
-        request: &Request,
-        matching_handler: usize,
-    ) -> Option<GuardId> {
-        for frame in &self.active_handler_frames {
-            self.stats.active_frame_scans += 1;
-            if frame.frame_index == matching_handler && request.guard_ids.contains(&frame.id) {
-                return Some(frame.id);
             }
         }
         None
@@ -328,9 +396,9 @@ impl<'a> Runtime<'a> {
                 id,
                 path_key: path_key.prefix(),
                 depth: marker.depth,
-                guard_own_path: false,
-                guard_foreign_path: true,
-                carry_after_frame: true,
+                guard_own_path: marker.guard_own_path,
+                guard_foreign_path: marker.guard_foreign_path,
+                carry_after_frame: marker.guard_own_path,
             }));
         }
         markers
@@ -381,6 +449,12 @@ impl<'a> Runtime<'a> {
         self.stats.marker_frame_pushes += 1;
         self.push_marker_frame(&markers, activate_add_ids, handler_key.clone());
         let result = run(self);
+        let handler_boundary = match &result {
+            Ok(EvalResult::Request(request)) => {
+                self.handler_boundary_for_request(request, handler_key, frame_len)
+            }
+            Ok(EvalResult::Value(_)) | Err(_) => None,
+        };
         self.pop_marker_frame(
             guard_len,
             frame_len,
@@ -389,7 +463,13 @@ impl<'a> Runtime<'a> {
             plan_len,
         );
 
-        self.close_marker_frame_result(result?, markers, activate_add_ids, handler_key)
+        self.close_marker_frame_result(
+            result?,
+            markers,
+            activate_add_ids,
+            handler_key,
+            handler_boundary,
+        )
     }
 
     fn with_shared_marker_plan(
@@ -413,6 +493,12 @@ impl<'a> Runtime<'a> {
         self.stats.marker_frame_pushes += 1;
         self.push_shared_marker_frame(markers.clone(), activate_add_ids, handler_key.clone());
         let result = run(self);
+        let handler_boundary = match &result {
+            Ok(EvalResult::Request(request)) => {
+                self.handler_boundary_for_request(request, handler_key, frame_len)
+            }
+            Ok(EvalResult::Value(_)) | Err(_) => None,
+        };
         self.pop_marker_frame(
             guard_len,
             frame_len,
@@ -421,7 +507,13 @@ impl<'a> Runtime<'a> {
             plan_len,
         );
 
-        self.close_shared_marker_frame_result(result?, markers, activate_add_ids, handler_key)
+        self.close_shared_marker_frame_result(
+            result?,
+            markers,
+            activate_add_ids,
+            handler_key,
+            handler_boundary,
+        )
     }
 
     pub(super) fn push_marker_frame(
@@ -515,6 +607,7 @@ impl<'a> Runtime<'a> {
         markers: Vec<ValueMarker>,
         activate_add_ids: bool,
         handler_key: Option<InternedPathPrefix>,
+        handler_boundary: Option<HandlerBoundary>,
     ) -> RuntimeResult {
         match result {
             EvalResult::Value(value) => {
@@ -524,6 +617,9 @@ impl<'a> Runtime<'a> {
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;
                 let mut request = request;
+                if let Some(handler_boundary) = handler_boundary {
+                    request.handler_boundary = Some(handler_boundary);
+                }
                 request.payload = mark_value(request.payload, &markers);
                 let resume_markers = shared_markers(markers_for_continuation_resume(&markers));
                 self.close_marker_request(request, resume_markers, activate_add_ids, handler_key)
@@ -537,6 +633,7 @@ impl<'a> Runtime<'a> {
         markers: SharedMarkers,
         activate_add_ids: bool,
         handler_key: Option<InternedPathPrefix>,
+        handler_boundary: Option<HandlerBoundary>,
     ) -> RuntimeResult {
         match result {
             EvalResult::Value(value) => {
@@ -546,6 +643,9 @@ impl<'a> Runtime<'a> {
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;
                 let mut request = request;
+                if let Some(handler_boundary) = handler_boundary {
+                    request.handler_boundary = Some(handler_boundary);
+                }
                 request.payload = mark_value_shared(request.payload, &markers);
                 let resume_markers = shared_markers_for_continuation_resume(&markers);
                 self.close_marker_request(request, resume_markers, activate_add_ids, handler_key)
@@ -559,6 +659,7 @@ impl<'a> Runtime<'a> {
         markers: SharedMarkers,
         activate_add_ids: bool,
         handler_key: Option<InternedPathPrefix>,
+        handler_boundary: Option<HandlerBoundary>,
     ) -> RuntimeResult {
         match result {
             EvalResult::Value(value) => {
@@ -568,6 +669,9 @@ impl<'a> Runtime<'a> {
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;
                 let mut request = request;
+                if let Some(handler_boundary) = handler_boundary {
+                    request.handler_boundary = Some(handler_boundary);
+                }
                 request.payload = mark_value_shared(request.payload, &markers);
                 // Shared resume marker plans are created after
                 // `markers_for_continuation_resume`; reusing them avoids
@@ -575,6 +679,52 @@ impl<'a> Runtime<'a> {
                 self.close_marker_request(request, markers, activate_add_ids, handler_key)
             }
         }
+    }
+
+    pub(super) fn handler_boundary_for_request(
+        &self,
+        request: &Request,
+        handler_key: Option<InternedPathPrefix>,
+        frame_len_before_marker: usize,
+    ) -> Option<HandlerBoundary> {
+        let handler_key = handler_key?;
+        let handler = self.active_handler_frames.iter().rev().find(|frame| {
+            frame.frame_index >= frame_len_before_marker && frame.handler_key == handler_key
+        })?;
+        let blocked =
+            self.handler_boundary_blocked(request, handler.frame_index, handler.id, handler_key);
+        Some(HandlerBoundary {
+            id: handler.id,
+            handler_key,
+            blocked,
+        })
+    }
+
+    fn handler_boundary_blocked(
+        &self,
+        request: &Request,
+        handler_frame_index: usize,
+        handler_id: GuardId,
+        handler_key: InternedPathPrefix,
+    ) -> bool {
+        self.carried_guard_for_matching_handler(request, handler_frame_index)
+            .is_some()
+            || self.active_frames.iter().enumerate().any(|(index, frame)| {
+                frame.id != handler_id
+                    && self.guard_blocks_handler(request, frame.id, handler_id)
+                    && (index > handler_frame_index
+                        || self.guard_frame_matches_handler(frame.id, handler_key))
+            })
+    }
+
+    fn guard_frame_matches_handler(
+        &self,
+        guard_id: GuardId,
+        handler_key: InternedPathPrefix,
+    ) -> bool {
+        self.active_handler_frames
+            .iter()
+            .any(|frame| frame.id == guard_id && frame.handler_key == handler_key)
     }
 
     pub(super) fn close_marker_request(
@@ -668,7 +818,8 @@ mod tests {
             path: request_path,
             path_key,
             guard_ids,
-            carried_guard_ids: Vec::new(),
+            carried_guards: Vec::new(),
+            handler_boundary: None,
             payload: Value::Unit,
             continuation: Continuation::default(),
         }
