@@ -17,6 +17,7 @@ struct BoundReplayPlan {
     prefilter_duplicate: ReplayDuplicateProfile,
     stats: BoundReplayApplyStats,
     actions: BoundReplayActions,
+    evidence_actions: BoundReplayActions,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -62,12 +63,15 @@ impl ConstraintMachine {
         let mut replay = self.lower_bound_replay_actions(target, pos, &weights);
         let apply = self.apply_bound_replay_actions(replay.actions);
         replay.stats.absorb(apply);
+        let evidence_count = replay.evidence_actions.len();
+        self.apply_bound_replay_evidence_actions(replay.evidence_actions);
         self.record_lower_replay_frontier_shadow(frontier_shadow, replay.stats.accepted);
         self.timing.record_lower_bound_added(
             replay.input_count,
             replay.generated,
             replay.var_var,
             replay.stats.accepted,
+            evidence_count,
             replay.stats.duplicate,
             replay.stats.trivial,
             replay.prefiltered,
@@ -105,12 +109,15 @@ impl ConstraintMachine {
         let mut replay = self.upper_bound_replay_actions(source, neg, &weights);
         let apply = self.apply_bound_replay_actions(replay.actions);
         replay.stats.absorb(apply);
+        let evidence_count = replay.evidence_actions.len();
+        self.apply_bound_replay_evidence_actions(replay.evidence_actions);
         self.record_upper_replay_frontier_shadow(frontier_shadow, replay.stats.accepted);
         self.timing.record_upper_bound_added(
             replay.input_count,
             replay.generated,
             replay.var_var,
             replay.stats.accepted,
+            evidence_count,
             replay.stats.duplicate,
             replay.stats.trivial,
             replay.prefiltered,
@@ -246,14 +253,14 @@ impl ConstraintMachine {
         let Some(bounds) = self.bounds.of(target) else {
             return BoundReplayPlan::default();
         };
-        let replay_input_count = bounds.uppers.len();
+        let replay_input_count = bounds.projection_uppers().count();
         let mut replay = BoundReplayPlan {
             input_count: replay_input_count,
             actions: SmallVec::with_capacity(replay_input_count),
             ..BoundReplayPlan::default()
         };
         trace_bound_replay_start("lower", target, replay_input_count);
-        for (index, upper) in bounds.uppers.iter().enumerate() {
+        for (index, upper) in bounds.projection_uppers().enumerate() {
             trace_bound_replay_progress("lower", target, index);
             let replay_weights = weights.compose_for_replay(&upper.weights);
             if self.is_var_var_replay(pos, upper.neg) {
@@ -274,14 +281,14 @@ impl ConstraintMachine {
         let Some(bounds) = self.bounds.of(source) else {
             return BoundReplayPlan::default();
         };
-        let replay_input_count = bounds.lowers.len();
+        let replay_input_count = bounds.projection_lowers().count();
         let mut replay = BoundReplayPlan {
             input_count: replay_input_count,
             actions: SmallVec::with_capacity(replay_input_count),
             ..BoundReplayPlan::default()
         };
         trace_bound_replay_start("upper", source, replay_input_count);
-        for (index, lower) in bounds.lowers.iter().enumerate() {
+        for (index, lower) in bounds.projection_lowers().enumerate() {
             trace_bound_replay_progress("upper", source, index);
             let replay_weights = lower.weights.compose_for_replay(weights);
             if self.is_var_var_replay(lower.pos, neg) {
@@ -312,6 +319,11 @@ impl ConstraintMachine {
             replay.prefiltered += 1;
             replay.stats.duplicate += 1;
             replay.prefilter_duplicate.absorb(duplicate_profile);
+            return;
+        }
+        if self.should_store_replay_as_evidence_only(&constraint) {
+            replay.prefiltered += 1;
+            replay.evidence_actions.push(constraint);
             return;
         }
         replay.actions.push(constraint);
@@ -419,6 +431,24 @@ impl ConstraintMachine {
         );
     }
 
+    fn should_store_replay_as_evidence_only(&self, constraint: &SubtypeConstraint) -> bool {
+        if !evidence_only_replay_skip_enabled() {
+            return false;
+        }
+        let Some(shadow) = &self.replay_routing_shadow else {
+            return false;
+        };
+        let (Pos::Var(source), Neg::Var(target)) = (
+            self.types.pos(constraint.lower),
+            self.types.neg(constraint.upper),
+        ) else {
+            return false;
+        };
+        shadow
+            .borrow_mut()
+            .has_weighted_frontier_path(*source, *target, &constraint.weights)
+    }
+
     fn apply_bound_replay_actions(&mut self, actions: BoundReplayActions) -> BoundReplayApplyStats {
         let mut stats = BoundReplayApplyStats::default();
         for constraint in actions {
@@ -429,6 +459,21 @@ impl ConstraintMachine {
             }
         }
         stats
+    }
+
+    fn apply_bound_replay_evidence_actions(&mut self, actions: BoundReplayActions) {
+        for constraint in actions {
+            let (Pos::Var(source), Neg::Var(target)) = (
+                self.types.pos(constraint.lower),
+                self.types.neg(constraint.upper),
+            ) else {
+                continue;
+            };
+            self.bounds
+                .add_evidence_lower(*target, constraint.lower, constraint.weights.clone());
+            self.bounds
+                .add_evidence_upper(*source, constraint.upper, constraint.weights);
+        }
     }
 
     pub(in crate::constraints) fn is_var_var_replay(&self, lower: PosId, upper: NegId) -> bool {

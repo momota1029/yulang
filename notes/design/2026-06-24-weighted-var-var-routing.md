@@ -250,6 +250,60 @@ is true:
 - the skip condition is restricted to a class proven irrelevant to public
   projection and handler hygiene.
 
+`YULANG_REPLAY_EVIDENCE_ONLY_SKIP=1` prototypes the second option. When a
+canonical var-var replay consequence is already represented by an exact weighted
+frontier path, the solver does not enqueue it as normal propagation work.
+Instead, it stores the same lower/upper var-var bounds in an evidence-only
+bucket:
+
+- normal bounds still drive immediate replay, events, selection probing, and
+  ordinary `bounds().lowers()/uppers()` readers,
+- evidence-only bounds are read by compact/generalization and by future replay
+  scans from newly added normal bounds,
+- inserting evidence-only bounds does not itself trigger replay.
+
+The future replay scan is necessary. A version that exposed evidence-only bounds
+only to compact/generalization preserved simple `apply`/`compose` signatures,
+but lost residual rows in nested handler and `parse.choice` public canaries.
+Those residuals require later concrete row bounds to replay through the delayed
+var-var evidence.
+
+With the default evidence skip limit of 256 search states
+(`YULANG_REPLAY_EVIDENCE_ONLY_SKIP_LIMIT`), `examples/showcase.yu` gives:
+
+```text
+constraint.replay_generated: 101915
+constraint.replay_accepted: 15012
+constraint.replay_evidence_only: 31294
+constraint.replay_duplicate: 49829
+constraint.replay_prefiltered: 86892
+constraint.max_replay_accepted: 114
+constraint.max_replay_evidence_only: 170
+constraint.replay_weighted_routing_shadow_var_var_frontier_graph_edges: 16411
+constraint.replay_weighted_routing_shadow_var_var_compose_cache_hits: 8044044
+constraint.replay_weighted_routing_shadow_var_var_compose_cache_misses: 33453
+```
+
+This is a useful prototype, not yet a production optimization. It reduces
+accepted replay substantially compared with the hardening baseline
+(`62,818 -> 15,012` on `showcase`), but it still depends on online bounded
+frontier search. A previous 4096-state limit kept the public signatures correct
+but made `showcase` and the adversarial corpus too slow; the 256-state limit
+keeps the tested public canaries and adversarial corpus passing with reasonable
+time.
+
+Verified with evidence-only skip enabled:
+
+- `cargo test -q -p infer unannotated_compose_protects_callback_return_from_outer_callee -- --test-threads=1`
+- `cargo test -q -p yulang public -- --test-threads=1`
+- `tests/yulang/yulang-adversarial-corpus/probe.sh`
+
+Internal constraint unit tests that assert transitive var-var edges are
+materialized in `seen` or in normal bounds fail under this env flag. That is
+expected for this prototype and should not be papered over by changing those
+tests: the point of the experiment is precisely to keep some consequences as
+evidence-only rather than normal materialized bounds.
+
 ## Required invariant
 
 For every variable `v`, lower bound `L(v, p, wl)` and upper bound `U(v, n, wu)`

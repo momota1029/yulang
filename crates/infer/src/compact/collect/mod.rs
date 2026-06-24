@@ -563,7 +563,7 @@ impl<'a> CompactCollector<'a> {
     ) -> CompactType {
         let mut acc = CompactType::default();
         let mut pending_stack_families = self.compact_pre_pop_stack_families(var);
-        for bound in bounds.lowers() {
+        for bound in bounds.projection_lowers() {
             let left_weight = bound.weights.left.to_stack_weight();
             let mut bound_stack_families = self.compact_weight_stack_families(&left_weight);
             bound_stack_families.extend(self.compact_pos_stack_families(bound.pos));
@@ -603,7 +603,7 @@ impl<'a> CompactCollector<'a> {
         outer_weight: &ConstraintWeight,
     ) -> CompactType {
         let mut acc = CompactType::default();
-        for bound in bounds.uppers() {
+        for bound in bounds.projection_uppers() {
             let compact = self.compact_upper_bound(var, bound, outer_weight);
             acc = self.merge_types(false, acc, compact);
         }

@@ -595,7 +595,7 @@ impl<'a> CompactCollector<'a> {
             self.row_tail_in_progress.remove(&var);
             return out;
         };
-        for bound in bounds.uppers() {
+        for bound in bounds.projection_uppers() {
             let bound_weight = weight.union(&bound.weights.right.to_stack_weight());
             let compact = match self.machine.types().neg(bound.neg).clone() {
                 Neg::Row(items, tail) => self.compact_neg_row_upper_bound(

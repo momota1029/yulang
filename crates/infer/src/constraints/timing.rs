@@ -43,6 +43,8 @@ pub struct ConstraintTiming {
     pub upper_replay_var_var: usize,
     pub lower_replay_accepted: usize,
     pub upper_replay_accepted: usize,
+    pub lower_replay_evidence_only: usize,
+    pub upper_replay_evidence_only: usize,
     pub lower_replay_duplicate: usize,
     pub upper_replay_duplicate: usize,
     pub lower_replay_trivial: usize,
@@ -63,6 +65,8 @@ pub struct ConstraintTiming {
     pub max_upper_replay_var_var: usize,
     pub max_lower_replay_accepted: usize,
     pub max_upper_replay_accepted: usize,
+    pub max_lower_replay_evidence_only: usize,
+    pub max_upper_replay_evidence_only: usize,
     pub max_lower_replay_duplicate: usize,
     pub max_upper_replay_duplicate: usize,
     pub max_lower_replay_trivial: usize,
@@ -197,6 +201,7 @@ impl ConstraintTiming {
         replay_enqueued: usize,
         replay_var_var: usize,
         replay_accepted: usize,
+        replay_evidence_only: usize,
         replay_duplicate: usize,
         replay_trivial: usize,
         replay_prefiltered: usize,
@@ -207,6 +212,7 @@ impl ConstraintTiming {
         self.lower_replay_enqueued += replay_enqueued;
         self.lower_replay_var_var += replay_var_var;
         self.lower_replay_accepted += replay_accepted;
+        self.lower_replay_evidence_only += replay_evidence_only;
         self.lower_replay_duplicate += replay_duplicate;
         self.lower_replay_trivial += replay_trivial;
         self.lower_replay_prefiltered += replay_prefiltered;
@@ -216,6 +222,9 @@ impl ConstraintTiming {
         self.max_lower_replay_enqueued = self.max_lower_replay_enqueued.max(replay_enqueued);
         self.max_lower_replay_var_var = self.max_lower_replay_var_var.max(replay_var_var);
         self.max_lower_replay_accepted = self.max_lower_replay_accepted.max(replay_accepted);
+        self.max_lower_replay_evidence_only = self
+            .max_lower_replay_evidence_only
+            .max(replay_evidence_only);
         self.max_lower_replay_duplicate = self.max_lower_replay_duplicate.max(replay_duplicate);
         self.max_lower_replay_trivial = self.max_lower_replay_trivial.max(replay_trivial);
         self.max_lower_replay_prefiltered =
@@ -228,6 +237,7 @@ impl ConstraintTiming {
         replay_enqueued: usize,
         replay_var_var: usize,
         replay_accepted: usize,
+        replay_evidence_only: usize,
         replay_duplicate: usize,
         replay_trivial: usize,
         replay_prefiltered: usize,
@@ -238,6 +248,7 @@ impl ConstraintTiming {
         self.upper_replay_enqueued += replay_enqueued;
         self.upper_replay_var_var += replay_var_var;
         self.upper_replay_accepted += replay_accepted;
+        self.upper_replay_evidence_only += replay_evidence_only;
         self.upper_replay_duplicate += replay_duplicate;
         self.upper_replay_trivial += replay_trivial;
         self.upper_replay_prefiltered += replay_prefiltered;
@@ -247,6 +258,9 @@ impl ConstraintTiming {
         self.max_upper_replay_enqueued = self.max_upper_replay_enqueued.max(replay_enqueued);
         self.max_upper_replay_var_var = self.max_upper_replay_var_var.max(replay_var_var);
         self.max_upper_replay_accepted = self.max_upper_replay_accepted.max(replay_accepted);
+        self.max_upper_replay_evidence_only = self
+            .max_upper_replay_evidence_only
+            .max(replay_evidence_only);
         self.max_upper_replay_duplicate = self.max_upper_replay_duplicate.max(replay_duplicate);
         self.max_upper_replay_trivial = self.max_upper_replay_trivial.max(replay_trivial);
         self.max_upper_replay_prefiltered =

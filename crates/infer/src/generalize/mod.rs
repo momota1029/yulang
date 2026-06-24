@@ -421,7 +421,7 @@ fn positive_aliases_within_scheme(
 
     let mut out = Vec::new();
     if let Some(bounds) = machine.bounds().of(var) {
-        for bound in bounds.lowers() {
+        for bound in bounds.projection_lowers() {
             if !alias_neutral_constraint(&bound.weights) {
                 continue;
             }

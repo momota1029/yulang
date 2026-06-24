@@ -235,6 +235,9 @@ impl TypeBounds {
         if !bounds.lower_seen.insert(bound.clone()) {
             return false;
         }
+        if bounds.evidence_lower_seen.remove(&bound) {
+            bounds.evidence_lowers.retain(|evidence| evidence != &bound);
+        }
         bounds.lowers.push(bound);
         true
     }
@@ -245,7 +248,30 @@ impl TypeBounds {
         if !bounds.upper_seen.insert(bound.clone()) {
             return false;
         }
+        if bounds.evidence_upper_seen.remove(&bound) {
+            bounds.evidence_uppers.retain(|evidence| evidence != &bound);
+        }
         bounds.uppers.push(bound);
+        true
+    }
+
+    fn add_evidence_lower(&mut self, var: TypeVar, pos: PosId, weights: ConstraintWeights) -> bool {
+        let bounds = self.bounds_mut(var);
+        let bound = WeightedLowerBound { pos, weights };
+        if bounds.lower_seen.contains(&bound) || !bounds.evidence_lower_seen.insert(bound.clone()) {
+            return false;
+        }
+        bounds.evidence_lowers.push(bound);
+        true
+    }
+
+    fn add_evidence_upper(&mut self, var: TypeVar, neg: NegId, weights: ConstraintWeights) -> bool {
+        let bounds = self.bounds_mut(var);
+        let bound = WeightedUpperBound { neg, weights };
+        if bounds.upper_seen.contains(&bound) || !bounds.evidence_upper_seen.insert(bound.clone()) {
+            return false;
+        }
+        bounds.evidence_uppers.push(bound);
         true
     }
 
@@ -269,8 +295,12 @@ fn ensure_slot<T>(items: &mut Vec<Option<T>>, index: usize) {
 pub struct VarBounds {
     lowers: Vec<WeightedLowerBound>,
     uppers: Vec<WeightedUpperBound>,
+    evidence_lowers: Vec<WeightedLowerBound>,
+    evidence_uppers: Vec<WeightedUpperBound>,
     lower_seen: FxHashSet<WeightedLowerBound>,
     upper_seen: FxHashSet<WeightedUpperBound>,
+    evidence_lower_seen: FxHashSet<WeightedLowerBound>,
+    evidence_upper_seen: FxHashSet<WeightedUpperBound>,
 }
 
 impl VarBounds {
@@ -280,6 +310,22 @@ impl VarBounds {
 
     pub fn uppers(&self) -> &[WeightedUpperBound] {
         &self.uppers
+    }
+
+    pub fn projection_lowers(&self) -> impl Iterator<Item = &WeightedLowerBound> {
+        self.evidence_lowers.iter().chain(self.lowers.iter())
+    }
+
+    pub fn projection_uppers(&self) -> impl Iterator<Item = &WeightedUpperBound> {
+        self.evidence_uppers.iter().chain(self.uppers.iter())
+    }
+
+    pub fn evidence_lower_count(&self) -> usize {
+        self.evidence_lowers.len()
+    }
+
+    pub fn evidence_upper_count(&self) -> usize {
+        self.evidence_uppers.len()
     }
 }
 
@@ -645,6 +691,17 @@ impl ReplayRoutingShadow {
         }
     }
 
+    fn has_weighted_frontier_path(
+        &mut self,
+        source: TypeVar,
+        target: TypeVar,
+        weights: &ConstraintWeights,
+    ) -> bool {
+        self.weighted
+            .as_mut()
+            .is_some_and(|weighted| weighted.has_frontier_path(source, target, weights))
+    }
+
     fn reaches(&self, source: TypeVar, target: TypeVar) -> bool {
         let mut stack = vec![source];
         let mut visited = FxHashSet::default();
@@ -683,8 +740,14 @@ impl ReplayWeightedRoutingShadow {
     fn from_env() -> Option<Self> {
         let weighted = std::env::var("YULANG_REPLAY_WEIGHTED_ROUTING_SHADOW")
             .is_ok_and(|value| !value.is_empty() && value != "0");
+        let evidence_skip = evidence_only_replay_skip_enabled();
         let summary = ReplayWeightedPathSummary::from_env();
-        (weighted || summary.is_some()).then(|| Self {
+        let search_limit = if weighted {
+            replay_weighted_routing_shadow_limit()
+        } else {
+            replay_evidence_only_skip_limit()
+        };
+        (weighted || evidence_skip || summary.is_some()).then(|| Self {
             graph: FxHashMap::default(),
             frontier_graph: FxHashMap::default(),
             nodes: FxHashSet::default(),
@@ -694,8 +757,8 @@ impl ReplayWeightedRoutingShadow {
             summary,
             weights: ReplayWeightInterner::default(),
             metrics: ReplayWeightedRoutingShadowMetrics::default(),
-            search_limit: replay_weighted_routing_shadow_limit(),
-            route_search_enabled: weighted,
+            search_limit,
+            route_search_enabled: weighted || evidence_skip,
         })
     }
 
@@ -796,6 +859,40 @@ impl ReplayWeightedRoutingShadow {
         self.metrics.weight_count = self.weights.len();
         self.metrics.compose_cache_hits = self.weights.compose_hits;
         self.metrics.compose_cache_misses = self.weights.compose_misses;
+    }
+
+    fn has_frontier_path(
+        &mut self,
+        source: TypeVar,
+        target: TypeVar,
+        weights: &ConstraintWeights,
+    ) -> bool {
+        if source == target {
+            return false;
+        }
+        let weight = self.weights.intern(weights.clone());
+        let search = search_exact_weighted_route(
+            &self.frontier_graph,
+            &mut self.frontier_positive_paths,
+            &mut self.weights,
+            self.search_limit,
+            source,
+            target,
+            weight,
+        );
+        if search.cache_hit {
+            self.metrics.frontier_route_cache_hits += 1;
+        }
+        if search.capped {
+            self.metrics.frontier_capped_searches += 1;
+        }
+        self.metrics.frontier_search_states += search.states;
+        self.metrics.frontier_max_search_states =
+            self.metrics.frontier_max_search_states.max(search.states);
+        self.metrics.weight_count = self.weights.len();
+        self.metrics.compose_cache_hits = self.weights.compose_hits;
+        self.metrics.compose_cache_misses = self.weights.compose_misses;
+        search.found
     }
 
     fn observe_consequence(
@@ -1187,6 +1284,19 @@ fn replay_weighted_routing_summary_shadow_limit() -> usize {
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|limit| *limit > 0)
         .unwrap_or(200_000)
+}
+
+fn evidence_only_replay_skip_enabled() -> bool {
+    std::env::var("YULANG_REPLAY_EVIDENCE_ONLY_SKIP")
+        .is_ok_and(|value| !value.is_empty() && value != "0")
+}
+
+fn replay_evidence_only_skip_limit() -> usize {
+    std::env::var("YULANG_REPLAY_EVIDENCE_ONLY_SKIP_LIMIT")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|limit| *limit > 0)
+        .unwrap_or(256)
 }
 
 fn intersect_subtractability(lhs: Subtractability, rhs: Subtractability) -> Subtractability {
