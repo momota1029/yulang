@@ -187,12 +187,14 @@ solver 最適化や replay 停止条件は変更しない。
 - `constraint.replay_accepted`
 - `constraint.replay_duplicate`
 - `constraint.replay_trivial`
+- `constraint.replay_prefiltered`
 - `constraint.max_replay_inputs`
 - `constraint.max_replay_generated`
 - `constraint.max_replay_enqueued`
 - `constraint.max_replay_accepted`
 - `constraint.max_replay_duplicate`
 - `constraint.max_replay_trivial`
+- `constraint.max_replay_prefiltered`
 - `constraint.max_replay_var_var`
 - `analysis.scc_component_count`
 - `analysis.quantify_max_component_defs`
@@ -212,11 +214,14 @@ solver 最適化や replay 停止条件は変更しない。
 実際に queue へ採用された数は `constraint.replay_accepted`、既に `seen` にあったものは
 `constraint.replay_duplicate`、top/bottom/self などで即時 no-op になったものは
 `constraint.replay_trivial` で見る。
+`constraint.replay_prefiltered` は、bound replay の action snapshot に入る前に落とした
+duplicate/trivial の数である。これは solver の意味論ではなく、同じ canonical subtype 判定を
+action 生成前へ前倒しした観測兼最適化である。
 
 `constraint.max_replay_*` は 1 bound 追加あたりの replay fan-out であり、再帰的な replay depth
 そのものではない。depth 風の爆発を疑うときは、総量の `constraint.replay_generated` /
 `constraint.replay_accepted` と、fan-out の `constraint.max_replay_generated` /
-`constraint.max_replay_accepted` を合わせて見る。
+`constraint.max_replay_accepted`、前倒しで削った `constraint.max_replay_prefiltered` を合わせて見る。
 
 ## Test Obligations
 

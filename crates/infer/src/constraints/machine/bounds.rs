@@ -2,13 +2,35 @@ use super::*;
 
 use smallvec::SmallVec;
 
-type BoundReplayActions = SmallVec<[BoundReplayAction; 4]>;
+/// Snapshot of canonical replay work. Applying a replay constraint can mutate
+/// the same bounds table, so replay construction must not keep borrowed bound
+/// rows. Existing duplicate/trivial constraints are filtered before this
+/// snapshot to avoid materializing replay actions that `seen` would drop.
+type BoundReplayActions = SmallVec<[SubtypeConstraint; 4]>;
+
+#[derive(Debug, Default, PartialEq, Eq)]
+struct BoundReplayPlan {
+    input_count: usize,
+    generated: usize,
+    var_var: usize,
+    prefiltered: usize,
+    stats: BoundReplayApplyStats,
+    actions: BoundReplayActions,
+}
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 struct BoundReplayApplyStats {
     accepted: usize,
     duplicate: usize,
     trivial: usize,
+}
+
+impl BoundReplayApplyStats {
+    fn absorb(&mut self, other: Self) {
+        self.accepted += other.accepted;
+        self.duplicate += other.duplicate;
+        self.trivial += other.trivial;
+    }
 }
 
 impl ConstraintMachine {
@@ -35,16 +57,17 @@ impl ConstraintMachine {
         });
         trace_var_bounds("after lower", target, self.bounds.of(target), &self.types);
 
-        let (replay_input_count, replay_enqueued, replay_var_var, actions) =
-            self.lower_bound_replay_actions(target, pos, &weights);
-        let apply = self.apply_bound_replay_actions(actions);
+        let mut replay = self.lower_bound_replay_actions(target, pos, &weights);
+        let apply = self.apply_bound_replay_actions(replay.actions);
+        replay.stats.absorb(apply);
         self.timing.record_lower_bound_added(
-            replay_input_count,
-            replay_enqueued,
-            replay_var_var,
-            apply.accepted,
-            apply.duplicate,
-            apply.trivial,
+            replay.input_count,
+            replay.generated,
+            replay.var_var,
+            replay.stats.accepted,
+            replay.stats.duplicate,
+            replay.stats.trivial,
+            replay.prefiltered,
         );
     }
 
@@ -74,16 +97,17 @@ impl ConstraintMachine {
         });
         trace_var_bounds("after upper", source, self.bounds.of(source), &self.types);
 
-        let (replay_input_count, replay_enqueued, replay_var_var, actions) =
-            self.upper_bound_replay_actions(source, neg, &weights);
-        let apply = self.apply_bound_replay_actions(actions);
+        let mut replay = self.upper_bound_replay_actions(source, neg, &weights);
+        let apply = self.apply_bound_replay_actions(replay.actions);
+        replay.stats.absorb(apply);
         self.timing.record_upper_bound_added(
-            replay_input_count,
-            replay_enqueued,
-            replay_var_var,
-            apply.accepted,
-            apply.duplicate,
-            apply.trivial,
+            replay.input_count,
+            replay.generated,
+            replay.var_var,
+            replay.stats.accepted,
+            replay.stats.duplicate,
+            replay.stats.trivial,
+            replay.prefiltered,
         );
     }
 
@@ -211,29 +235,27 @@ impl ConstraintMachine {
         target: TypeVar,
         pos: PosId,
         weights: &ConstraintWeights,
-    ) -> (usize, usize, usize, BoundReplayActions) {
+    ) -> BoundReplayPlan {
         let Some(bounds) = self.bounds.of(target) else {
-            return (0, 0, 0, SmallVec::new());
+            return BoundReplayPlan::default();
         };
         let replay_input_count = bounds.uppers.len();
-        let mut replay_enqueued = 0usize;
-        let mut replay_var_var = 0usize;
-        let mut actions = SmallVec::with_capacity(replay_input_count);
+        let mut replay = BoundReplayPlan {
+            input_count: replay_input_count,
+            actions: SmallVec::with_capacity(replay_input_count),
+            ..BoundReplayPlan::default()
+        };
         trace_bound_replay_start("lower", target, replay_input_count);
         for (index, upper) in bounds.uppers.iter().enumerate() {
             trace_bound_replay_progress("lower", target, index);
             let replay_weights = weights.compose_for_replay(&upper.weights);
             if self.is_var_var_replay(pos, upper.neg) {
-                replay_var_var += 1;
+                replay.var_var += 1;
             }
-            replay_enqueued += 1;
-            actions.push(BoundReplayAction::Subtype {
-                lower: pos,
-                upper: upper.neg,
-                weights: replay_weights,
-            });
+            replay.generated += 1;
+            self.push_replay_constraint_or_prefilter(pos, replay_weights, upper.neg, &mut replay);
         }
-        (replay_input_count, replay_enqueued, replay_var_var, actions)
+        replay
     }
 
     fn upper_bound_replay_actions(
@@ -241,43 +263,56 @@ impl ConstraintMachine {
         source: TypeVar,
         neg: NegId,
         weights: &ConstraintWeights,
-    ) -> (usize, usize, usize, BoundReplayActions) {
+    ) -> BoundReplayPlan {
         let Some(bounds) = self.bounds.of(source) else {
-            return (0, 0, 0, SmallVec::new());
+            return BoundReplayPlan::default();
         };
         let replay_input_count = bounds.lowers.len();
-        let mut replay_enqueued = 0usize;
-        let mut replay_var_var = 0usize;
-        let mut actions = SmallVec::with_capacity(replay_input_count);
+        let mut replay = BoundReplayPlan {
+            input_count: replay_input_count,
+            actions: SmallVec::with_capacity(replay_input_count),
+            ..BoundReplayPlan::default()
+        };
         trace_bound_replay_start("upper", source, replay_input_count);
         for (index, lower) in bounds.lowers.iter().enumerate() {
             trace_bound_replay_progress("upper", source, index);
             let replay_weights = lower.weights.compose_for_replay(weights);
             if self.is_var_var_replay(lower.pos, neg) {
-                replay_var_var += 1;
+                replay.var_var += 1;
             }
-            replay_enqueued += 1;
-            actions.push(BoundReplayAction::Subtype {
-                lower: lower.pos,
-                upper: neg,
-                weights: replay_weights,
-            });
+            replay.generated += 1;
+            self.push_replay_constraint_or_prefilter(lower.pos, replay_weights, neg, &mut replay);
         }
-        (replay_input_count, replay_enqueued, replay_var_var, actions)
+        replay
+    }
+
+    fn push_replay_constraint_or_prefilter(
+        &self,
+        lower: PosId,
+        weights: ConstraintWeights,
+        upper: NegId,
+        replay: &mut BoundReplayPlan,
+    ) {
+        let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
+            replay.prefiltered += 1;
+            replay.stats.trivial += 1;
+            return;
+        };
+        if self.seen.contains(&constraint) {
+            replay.prefiltered += 1;
+            replay.stats.duplicate += 1;
+            return;
+        }
+        replay.actions.push(constraint);
     }
 
     fn apply_bound_replay_actions(&mut self, actions: BoundReplayActions) -> BoundReplayApplyStats {
         let mut stats = BoundReplayApplyStats::default();
-        for action in actions {
-            let BoundReplayAction::Subtype {
-                lower,
-                upper,
-                weights,
-            } = action;
-            match self.enqueue_subtype_classified(lower, weights, upper) {
-                EnqueueSubtypeResult::Enqueued => stats.accepted += 1,
-                EnqueueSubtypeResult::Duplicate => stats.duplicate += 1,
-                EnqueueSubtypeResult::Trivial => stats.trivial += 1,
+        for constraint in actions {
+            if self.enqueue_canonical_subtype(constraint) {
+                stats.accepted += 1;
+            } else {
+                stats.duplicate += 1;
             }
         }
         stats
@@ -709,16 +744,6 @@ impl ConstraintMachine {
             }
         }
     }
-}
-
-/// Snapshot of replay work. Applying a replay action can mutate the same
-/// bounds table, so replay construction must not keep borrowed bound rows.
-enum BoundReplayAction {
-    Subtype {
-        lower: PosId,
-        upper: NegId,
-        weights: ConstraintWeights,
-    },
 }
 
 fn decrement_var_neighbor(

@@ -58,6 +58,8 @@
       - `constraint.upper_replay_duplicate`
       - `constraint.lower_replay_trivial`
       - `constraint.upper_replay_trivial`
+      - `constraint.lower_replay_prefiltered`
+      - `constraint.upper_replay_prefiltered`
       - `constraint.lower_replay_var_var`
       - `constraint.upper_replay_var_var`
     - SCC / role counters:
@@ -117,12 +119,14 @@
     - `constraint.replay_accepted`
     - `constraint.replay_duplicate`
     - `constraint.replay_trivial`
+    - `constraint.replay_prefiltered`
     - `constraint.max_replay_inputs`
     - `constraint.max_replay_generated`
     - `constraint.max_replay_enqueued`
     - `constraint.max_replay_accepted`
     - `constraint.max_replay_duplicate`
     - `constraint.max_replay_trivial`
+    - `constraint.max_replay_prefiltered`
     - `constraint.max_replay_var_var`
     - `analysis.scc_component_count`
     - `analysis.quantify_max_component_defs`
@@ -144,6 +148,9 @@
     `constraint.replay_generated` は `constraint.replay_enqueued` と同じ値を出す互換 alias で、
     実際に新規 work になったものは `constraint.replay_accepted`、`seen` に落ちたものは
     `constraint.replay_duplicate`、即時 no-op は `constraint.replay_trivial` として見る。
+  - 2026-06-24 の replay prefilter slice で、canonical subtype 判定を replay action 生成前にも
+    使うようにした。`constraint.replay_prefiltered` は、snapshot に入る前に落とした
+    duplicate/trivial の数を表す。queue semantics は変えていない。
   - 2026-06-23 の次 slice で、role / typeclass method solve の candidate scan と
     compact candidate cache hit/miss を出すようにした。
     `analysis.work_apply_select_typeclass_method` と合わせて、候補走査が本命か、

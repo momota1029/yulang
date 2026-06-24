@@ -279,14 +279,30 @@ impl ConstraintMachine {
         weights: ConstraintWeights,
         upper: NegId,
     ) -> EnqueueSubtypeResult {
-        if matches!(self.types.pos(lower), Pos::Bot) || matches!(self.types.neg(upper), Neg::Top) {
+        let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
             return EnqueueSubtypeResult::Trivial;
+        };
+        if self.enqueue_canonical_subtype(constraint) {
+            EnqueueSubtypeResult::Enqueued
+        } else {
+            EnqueueSubtypeResult::Duplicate
+        }
+    }
+
+    pub(in crate::constraints) fn canonical_subtype_constraint(
+        &self,
+        lower: PosId,
+        weights: ConstraintWeights,
+        upper: NegId,
+    ) -> Option<SubtypeConstraint> {
+        if matches!(self.types.pos(lower), Pos::Bot) || matches!(self.types.neg(upper), Neg::Top) {
+            return None;
         }
         if matches!(
             (self.types.pos(lower), self.types.neg(upper)),
             (Pos::Var(lower), Neg::Var(upper)) if lower == upper
         ) {
-            return EnqueueSubtypeResult::Trivial;
+            return None;
         }
         let weights = self.terminal_subtype_weights(lower, upper, weights);
         let weights = if self.is_var_var_replay(lower, upper) {
@@ -294,16 +310,22 @@ impl ConstraintMachine {
         } else {
             weights
         };
-        let constraint = SubtypeConstraint {
+        Some(SubtypeConstraint {
             lower,
             upper,
             weights,
-        };
+        })
+    }
+
+    pub(in crate::constraints) fn enqueue_canonical_subtype(
+        &mut self,
+        constraint: SubtypeConstraint,
+    ) -> bool {
         if self.seen.insert(constraint.clone()) {
             self.queue.push_back(ConstraintWork::Subtype(constraint));
-            EnqueueSubtypeResult::Enqueued
+            true
         } else {
-            EnqueueSubtypeResult::Duplicate
+            false
         }
     }
 
