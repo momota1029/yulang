@@ -7,6 +7,7 @@ test_timeout="${YULANG_HARDENING_TEST_TIMEOUT:-240s}"
 smoke_timeout="${YULANG_HARDENING_SMOKE_TIMEOUT:-360s}"
 run_public_examples="${YULANG_HARDENING_PUBLIC_EXAMPLES:-1}"
 run_replay_compare="${YULANG_HARDENING_REPLAY_COMPARE:-1}"
+run_replay_public_diff="${YULANG_HARDENING_REPLAY_PUBLIC_DIFF:-1}"
 run_evidence_smoke="${YULANG_HARDENING_EVIDENCE_SMOKE:-1}"
 run_docs_build="${YULANG_HARDENING_DOCS_BUILD:-0}"
 
@@ -67,6 +68,11 @@ fi
 if [[ "$run_replay_compare" != "0" ]]; then
   run_timeout "$smoke_timeout" \
     env YULANG="$bin" "$repo_root/scripts/replay-skip-compare.sh"
+fi
+
+if [[ "$run_replay_public_diff" != "0" ]]; then
+  run_timeout "$smoke_timeout" \
+    env YULANG="$bin" "$repo_root/scripts/replay-skip-public-diff.sh"
 fi
 
 if [[ "$run_evidence_smoke" != "0" ]]; then
