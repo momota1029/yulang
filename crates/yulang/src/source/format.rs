@@ -1169,6 +1169,31 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         );
         let _ = writeln!(
             out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_inserted_edges: {}",
+            weighted_routing.frontier_inserted_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_skipped_edges: {}",
+            weighted_routing.frontier_skipped_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_capped_searches: {}",
+            weighted_routing.frontier_capped_searches
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_search_states: {}",
+            weighted_routing.frontier_search_states
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_max_search_states: {}",
+            weighted_routing.frontier_max_search_states
+        );
+        let _ = writeln!(
+            out,
             "  constraint.replay_weighted_routing_shadow_var_var_consequence_queries: {}",
             weighted_routing.consequence_queries
         );
@@ -1209,6 +1234,41 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         );
         let _ = writeln!(
             out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_known: {}",
+            weighted_routing.consequence_frontier_known
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_known_unseen: {}",
+            weighted_routing.consequence_frontier_known_unseen
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_unknown: {}",
+            weighted_routing.consequence_frontier_unknown
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_unknown_seen: {}",
+            weighted_routing.consequence_frontier_unknown_seen
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_capped_searches: {}",
+            weighted_routing.consequence_frontier_capped_searches
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_search_states: {}",
+            weighted_routing.consequence_frontier_search_states
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_max_search_states: {}",
+            weighted_routing.consequence_frontier_max_search_states
+        );
+        let _ = writeln!(
+            out,
             "  constraint.replay_weighted_routing_shadow_var_var_graph_nodes: {}",
             weighted_routing.graph_nodes
         );
@@ -1216,6 +1276,16 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
             out,
             "  constraint.replay_weighted_routing_shadow_var_var_graph_edges: {}",
             weighted_routing.graph_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_graph_nodes: {}",
+            weighted_routing.frontier_graph_nodes
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_graph_edges: {}",
+            weighted_routing.frontier_graph_edges
         );
         let _ = writeln!(
             out,
@@ -1796,6 +1866,31 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         );
         let _ = writeln!(
             out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_inserted_edges: {}",
+            weighted_routing.frontier_inserted_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_skipped_edges: {}",
+            weighted_routing.frontier_skipped_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_capped_searches: {}",
+            weighted_routing.frontier_capped_searches
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_search_states: {}",
+            weighted_routing.frontier_search_states
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_max_search_states: {}",
+            weighted_routing.frontier_max_search_states
+        );
+        let _ = writeln!(
+            out,
             "  constraint.replay_weighted_routing_shadow_var_var_consequence_queries: {}",
             weighted_routing.consequence_queries
         );
@@ -1836,6 +1931,41 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         );
         let _ = writeln!(
             out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_known: {}",
+            weighted_routing.consequence_frontier_known
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_known_unseen: {}",
+            weighted_routing.consequence_frontier_known_unseen
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_unknown: {}",
+            weighted_routing.consequence_frontier_unknown
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_unknown_seen: {}",
+            weighted_routing.consequence_frontier_unknown_seen
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_capped_searches: {}",
+            weighted_routing.consequence_frontier_capped_searches
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_search_states: {}",
+            weighted_routing.consequence_frontier_search_states
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_max_search_states: {}",
+            weighted_routing.consequence_frontier_max_search_states
+        );
+        let _ = writeln!(
+            out,
             "  constraint.replay_weighted_routing_shadow_var_var_graph_nodes: {}",
             weighted_routing.graph_nodes
         );
@@ -1843,6 +1973,16 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
             out,
             "  constraint.replay_weighted_routing_shadow_var_var_graph_edges: {}",
             weighted_routing.graph_edges
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_graph_nodes: {}",
+            weighted_routing.frontier_graph_nodes
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_weighted_routing_shadow_var_var_frontier_graph_edges: {}",
+            weighted_routing.frontier_graph_edges
         );
         let _ = writeln!(
             out,

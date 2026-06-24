@@ -667,7 +667,9 @@ impl ReplayRoutingShadow {
 #[derive(Debug)]
 struct ReplayWeightedRoutingShadow {
     graph: FxHashMap<TypeVar, Vec<ReplayWeightedRouteEdge>>,
+    frontier_graph: FxHashMap<TypeVar, Vec<ReplayWeightedRouteEdge>>,
     nodes: FxHashSet<TypeVar>,
+    frontier_nodes: FxHashSet<TypeVar>,
     weights: ReplayWeightInterner,
     metrics: ReplayWeightedRoutingShadowMetrics,
     search_limit: usize,
@@ -679,7 +681,9 @@ impl ReplayWeightedRoutingShadow {
             .is_ok_and(|value| !value.is_empty() && value != "0")
             .then(|| Self {
                 graph: FxHashMap::default(),
+                frontier_graph: FxHashMap::default(),
                 nodes: FxHashSet::default(),
+                frontier_nodes: FxHashSet::default(),
                 weights: ReplayWeightInterner::default(),
                 metrics: ReplayWeightedRoutingShadowMetrics::default(),
                 search_limit: replay_weighted_routing_shadow_limit(),
@@ -692,7 +696,14 @@ impl ReplayWeightedRoutingShadow {
         }
         self.metrics.accepted_edges += 1;
         let weight = self.weights.intern(weights.clone());
-        let search = self.search_exact(source, target, weight);
+        let search = search_exact_weighted_route(
+            &self.graph,
+            &mut self.weights,
+            self.search_limit,
+            source,
+            target,
+            weight,
+        );
         self.metrics.search_states += search.states;
         self.metrics.max_search_states = self.metrics.max_search_states.max(search.states);
         if search.capped {
@@ -701,6 +712,37 @@ impl ReplayWeightedRoutingShadow {
         if search.found {
             self.metrics.reachable_before_edges += 1;
         }
+
+        let frontier_search = search_exact_weighted_route(
+            &self.frontier_graph,
+            &mut self.weights,
+            self.search_limit,
+            source,
+            target,
+            weight,
+        );
+        self.metrics.frontier_search_states += frontier_search.states;
+        self.metrics.frontier_max_search_states = self
+            .metrics
+            .frontier_max_search_states
+            .max(frontier_search.states);
+        if frontier_search.capped {
+            self.metrics.frontier_capped_searches += 1;
+        }
+        if frontier_search.found {
+            self.metrics.frontier_skipped_edges += 1;
+        } else {
+            self.frontier_nodes.insert(source);
+            self.frontier_nodes.insert(target);
+            self.frontier_graph
+                .entry(source)
+                .or_default()
+                .push(ReplayWeightedRouteEdge { target, weight });
+            self.metrics.frontier_inserted_edges += 1;
+            self.metrics.frontier_graph_nodes = self.frontier_nodes.len();
+            self.metrics.frontier_graph_edges += 1;
+        }
+
         self.nodes.insert(source);
         self.nodes.insert(target);
         self.graph
@@ -723,7 +765,14 @@ impl ReplayWeightedRoutingShadow {
     ) {
         self.metrics.consequence_queries += 1;
         let weight = self.weights.intern(weights.clone());
-        let search = self.search_exact(source, target, weight);
+        let search = search_exact_weighted_route(
+            &self.graph,
+            &mut self.weights,
+            self.search_limit,
+            source,
+            target,
+            weight,
+        );
         self.metrics.consequence_search_states += search.states;
         self.metrics.consequence_max_search_states = self
             .metrics
@@ -743,57 +792,87 @@ impl ReplayWeightedRoutingShadow {
                 self.metrics.consequence_unknown_seen += 1;
             }
         }
+
+        let frontier_search = search_exact_weighted_route(
+            &self.frontier_graph,
+            &mut self.weights,
+            self.search_limit,
+            source,
+            target,
+            weight,
+        );
+        self.metrics.consequence_frontier_search_states += frontier_search.states;
+        self.metrics.consequence_frontier_max_search_states = self
+            .metrics
+            .consequence_frontier_max_search_states
+            .max(frontier_search.states);
+        if frontier_search.capped {
+            self.metrics.consequence_frontier_capped_searches += 1;
+        }
+        if frontier_search.found {
+            self.metrics.consequence_frontier_known += 1;
+            if !seen_before {
+                self.metrics.consequence_frontier_known_unseen += 1;
+            }
+        } else {
+            self.metrics.consequence_frontier_unknown += 1;
+            if seen_before {
+                self.metrics.consequence_frontier_unknown_seen += 1;
+            }
+        }
         self.metrics.weight_count = self.weights.len();
         self.metrics.compose_cache_hits = self.weights.compose_hits;
         self.metrics.compose_cache_misses = self.weights.compose_misses;
     }
+}
 
-    fn search_exact(
-        &mut self,
-        source: TypeVar,
-        target: TypeVar,
-        target_weight: ReplayWeightId,
-    ) -> ReplayWeightedRouteSearch {
-        let empty = self.weights.empty();
-        let mut stack = vec![ReplayWeightedRouteState {
-            var: source,
-            weight: empty,
-        }];
-        let mut visited = FxHashSet::default();
-        let mut local_states = 0usize;
-        while let Some(state) = stack.pop() {
-            if !visited.insert(state) {
-                continue;
-            }
-            let edges = self.graph.get(&state.var).cloned().unwrap_or_default();
-            for edge in edges {
-                local_states += 1;
-                if local_states > self.search_limit {
-                    return ReplayWeightedRouteSearch {
-                        found: false,
-                        capped: true,
-                        states: local_states,
-                    };
-                }
-                let next_weight = self.weights.compose_for_replay(state.weight, edge.weight);
-                if edge.target == target && next_weight == target_weight {
-                    return ReplayWeightedRouteSearch {
-                        found: true,
-                        capped: false,
-                        states: local_states,
-                    };
-                }
-                stack.push(ReplayWeightedRouteState {
-                    var: edge.target,
-                    weight: next_weight,
-                });
-            }
+fn search_exact_weighted_route(
+    graph: &FxHashMap<TypeVar, Vec<ReplayWeightedRouteEdge>>,
+    weights: &mut ReplayWeightInterner,
+    search_limit: usize,
+    source: TypeVar,
+    target: TypeVar,
+    target_weight: ReplayWeightId,
+) -> ReplayWeightedRouteSearch {
+    let empty = weights.empty();
+    let mut stack = vec![ReplayWeightedRouteState {
+        var: source,
+        weight: empty,
+    }];
+    let mut visited = FxHashSet::default();
+    let mut local_states = 0usize;
+    while let Some(state) = stack.pop() {
+        if !visited.insert(state) {
+            continue;
         }
-        ReplayWeightedRouteSearch {
-            found: false,
-            capped: false,
-            states: local_states,
+        let edges = graph.get(&state.var).cloned().unwrap_or_default();
+        for edge in edges {
+            local_states += 1;
+            if local_states > search_limit {
+                return ReplayWeightedRouteSearch {
+                    found: false,
+                    capped: true,
+                    states: local_states,
+                };
+            }
+            let next_weight = weights.compose_for_replay(state.weight, edge.weight);
+            if edge.target == target && next_weight == target_weight {
+                return ReplayWeightedRouteSearch {
+                    found: true,
+                    capped: false,
+                    states: local_states,
+                };
+            }
+            stack.push(ReplayWeightedRouteState {
+                var: edge.target,
+                weight: next_weight,
+            });
         }
+    }
+    ReplayWeightedRouteSearch {
+        found: false,
+        capped: false,
+        states: local_states,
     }
 }
 

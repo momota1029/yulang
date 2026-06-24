@@ -133,6 +133,41 @@ canonical var-var consequence, but the weighted routing graph already has an
 exact path for the same endpoint and canonical weight. On `showcase`, this
 accounts for 52,935 consequences.
 
+The first weighted shadow inserted every accepted edge into the graph. That can
+overstate a future optimization, because a real routing frontier would omit
+edges that are already represented by an exact path. The next shadow keeps a
+second frontier graph and does not insert an accepted edge when the frontier
+graph already reaches the same endpoint with the same canonical replay weight.
+The real solver still enqueues everything; this is only a skip simulation.
+
+On `examples/showcase.yu`, the frontier simulation gives:
+
+```text
+constraint.replay_weighted_routing_shadow_var_var_accepted_edges: 64971
+constraint.replay_weighted_routing_shadow_var_var_frontier_inserted_edges: 11480
+constraint.replay_weighted_routing_shadow_var_var_frontier_skipped_edges: 53491
+constraint.replay_weighted_routing_shadow_var_var_frontier_capped_searches: 498
+constraint.replay_weighted_routing_shadow_var_var_frontier_search_states: 2519049
+constraint.replay_weighted_routing_shadow_var_var_frontier_graph_edges: 11480
+```
+
+The consequence queries stay almost as strong on the frontier graph:
+
+```text
+constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_known: 600772
+constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_known_unseen: 52899
+constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_unknown: 6384
+constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_unknown_seen: 5625
+constraint.replay_weighted_routing_shadow_var_var_consequence_frontier_capped_searches: 6331
+```
+
+This means the transitive routing signal survives after omitting redundant
+edges: `known_unseen` drops only from 52,935 to 52,899. However, the naive
+search is not itself an optimization. With both all-edge and frontier queries
+enabled, the shadow performs tens of millions of cached weight compositions.
+A production skip needs an incremental path-summary frontier or another cheap
+novelty index; it should not run this DFS for every replay candidate.
+
 ## Required invariant
 
 For every variable `v`, lower bound `L(v, p, wl)` and upper bound `U(v, n, wu)`
