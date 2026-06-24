@@ -48,13 +48,13 @@ my last_exclusive_int(b: bound): int = case b:
     bound::included x -> x + 1
     bound::excluded x -> x
 
-my fold_ints(f, i: int, end: int, acc) =
+my fold_ints(f: _ -> [_] int -> [_] _, i: int, end: int, acc) =
     if i < end:
         fold_ints(f, i + 1, end, f acc i)
     else:
         acc
 
-my fold_from(f, i: int, acc) =
+my fold_from(f: _ -> [_] int -> [_] _, i: int, acc) =
     if true:
         fold_from(f, i + 1, f acc i)
     else:

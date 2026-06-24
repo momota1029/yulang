@@ -557,21 +557,14 @@ first_over 40
 }
 
 #[test]
-fn run_control_source_text_with_embedded_playground_std_runs_nondet_guard_candidates() {
+fn run_control_source_text_with_embedded_playground_std_runs_nondet_range_guard() {
     let source = "\
 {
-    my candidate = each [
-        (1, 2, 3)
-        (3, 4, 5)
-        (5, 12, 13)
-        (6, 8, 10)
-        (9, 12, 15)
-    ]
-    case candidate:
-        (a, b, c) -> {
-            guard: a * a + b * b == c * c
-            candidate
-        }
+    my a = each 1..15
+    my b = each a..15
+    my c = each b..15
+    guard: a * a + b * b == c * c
+    (a, b, c)
 }.list
 ";
     let build =
@@ -587,19 +580,16 @@ fn run_control_source_text_with_embedded_playground_std_runs_nondet_guard_candid
 }
 
 #[test]
-fn run_control_source_text_with_embedded_playground_std_runs_nondet_once_candidates() {
+fn run_control_source_text_with_embedded_playground_std_runs_nondet_once_range() {
     let source = "\
 {
-    my candidate = each [
-        (1, 2, 3)
-        (3, 4, 5)
-        (5, 12, 13)
-    ]
-    case candidate:
-        (a, b, c) -> {
-            guard: a * a + b * b == c * c
-            candidate
-        }
+    my a = each 1..
+    my b = each a<..
+    my c = each b<..
+
+    guard: a * a + b * b == c * c
+
+    (a, b, c)
 } .once
 ";
     let build =

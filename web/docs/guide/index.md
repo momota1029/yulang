@@ -14,18 +14,18 @@ nondeterministic search:
 
 ```yulang
 {
-    my candidate = each [(1, 2, 3), (3, 4, 5), (5, 12, 13)]
-    case candidate:
-        (a, b, c) -> {
-            guard: a * a + b * b == c * c
-            candidate
-        }
+    my a = each 1..
+    my b = each a<..
+    my c = each b<..
+    guard: a * a + b * b == c * c
+    (a, b, c)
 } .once
 ```
 
-`each` chooses a candidate; `guard` prunes invalid tuples; `.once` runs the
-search and returns the first Pythagorean triple. The code reads top to bottom
-like an imperative script, but underneath it is branching and backtracking.
+Three `each` bindings explore an infinite three-dimensional grid; `guard`
+prunes; `.once` runs the search and returns the first Pythagorean triple. The
+code reads top to bottom like an imperative script, but underneath it is
+branching and backtracking.
 
 Yulang is built on this principle: **control flow is library code.**
 Mutation, nondeterminism, lifted comparison, early return, typed errors,

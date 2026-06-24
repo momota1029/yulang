@@ -11,16 +11,15 @@ else:
 
 ```yulang
 {
-    my candidate = each [(1, 2, 3), (3, 4, 5), (5, 12, 13)]
-    case candidate:
-        (a, b, c) -> {
-            guard: a * a + b * b == c * c
-            candidate
-        }
+    my a = each 1..
+    my b = each a<..
+    my c = each b<..
+    guard: a * a + b * b == c * c
+    (a, b, c)
 }.once
 ```
 
-`each` が候補を選び、`guard` が不正な tuple を落とし、`.once` で「最初に見つかった 1 件」を取り出す。書かれているコードは上から下にまっすぐ流れているのに、裏側では分岐と backtrack が走っています。
+3 つの `each` が、無限に広がる 3 次元の格子を探索します。`guard` で枝刈り、`.once` で「最初に見つかった 1 件」を取り出す。書かれているコードは上から下にまっすぐ流れているのに、裏側では分岐と backtrack が走っています。
 
 Yulang の中心にあるのは、**「制御構文はライブラリで書く」** という方針です。可変参照も、非決定性も、`all` / `any` のような集合的な比較も、early return も、型付きエラーも、独自の backtrack も — どれも parser が抱える builtin ではなく、代数的エフェクトという 1 つの仕組みの上に乗った普通の関数です。表に出るコードは短くて直線的なまま、裏側の形だけを好きに広げられます。
 

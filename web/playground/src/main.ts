@@ -275,20 +275,13 @@ struct point { x: int, y: int } with:
 
 point { x: 3, y: 4 } .norm2
 
-// nondeterministic search: filter candidates with guard
+// nondeterministic search: every Pythagorean triple under 15
 {
-    my candidate = each [
-        (1, 2, 3)
-        (3, 4, 5)
-        (5, 12, 13)
-        (6, 8, 10)
-        (9, 12, 15)
-    ]
-    case candidate:
-        (a, b, c) -> {
-            guard: a * a + b * b == c * c
-            candidate
-        }
+    my a = each 1..15
+    my b = each a..15
+    my c = each b..15
+    guard: a * a + b * b == c * c
+    (a, b, c)
 }.list
 
 // junction lifts a comparison over many choices at once
@@ -421,19 +414,16 @@ sub:
     },
     {
         label: { ja: "非決定 once", en: "Nondet Once" },
-        source: `// .once returns the first surviving branch.
+        source: `// Narrow infinite choices as early as possible.
 
 {
-    my candidate = each [
-        (1, 2, 3)
-        (3, 4, 5)
-        (5, 12, 13)
-    ]
-    case candidate:
-        (a, b, c) -> {
-            guard: a * a + b * b == c * c
-            candidate
-        }
+    my a = each 1..
+    my b = each a<..
+    my c = each b<..
+
+    guard: a * a + b * b == c * c
+
+    (a, b, c)
 } .once
 `,
     },
