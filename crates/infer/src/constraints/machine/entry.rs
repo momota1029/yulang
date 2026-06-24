@@ -22,6 +22,7 @@ impl ConstraintMachine {
             seen: FxHashSet::default(),
             events: Vec::new(),
             timing: ConstraintTiming::default(),
+            replay_frontier_shadow: ReplayFrontierShadow::from_env(),
         }
     }
 
@@ -88,6 +89,10 @@ impl ConstraintMachine {
         timing.neg_node_count = self.types.neg_len();
         timing.neu_node_count = self.types.neu_len();
         timing.type_node_count = self.types.node_len();
+        if let Some(shadow) = &self.replay_frontier_shadow {
+            timing.replay_frontier_shadow_lower_var_var = shadow.lower_var_var;
+            timing.replay_frontier_shadow_upper_var_var = shadow.upper_var_var;
+        }
         timing
     }
 

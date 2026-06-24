@@ -51,6 +51,8 @@ pub struct ConstraintTiming {
     pub upper_replay_prefiltered: usize,
     pub lower_replay_prefilter_duplicate: ReplayDuplicateProfile,
     pub upper_replay_prefilter_duplicate: ReplayDuplicateProfile,
+    pub replay_frontier_shadow_lower_var_var: ReplayFrontierShadowMetrics,
+    pub replay_frontier_shadow_upper_var_var: ReplayFrontierShadowMetrics,
     pub max_lower_replay_inputs: usize,
     pub max_upper_replay_inputs: usize,
     pub max_lower_replay_enqueued: usize,
@@ -65,6 +67,15 @@ pub struct ConstraintTiming {
     pub max_upper_replay_trivial: usize,
     pub max_lower_replay_prefiltered: usize,
     pub max_upper_replay_prefiltered: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ReplayFrontierShadowMetrics {
+    pub candidates: usize,
+    pub hits: usize,
+    pub safe_hits: usize,
+    pub unsafe_hits: usize,
+    pub unsafe_accepted: usize,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

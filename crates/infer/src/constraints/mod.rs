@@ -25,7 +25,7 @@ use poly::types::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
-pub use timing::{ConstraintTiming, ReplayDuplicateProfile};
+pub use timing::{ConstraintTiming, ReplayDuplicateProfile, ReplayFrontierShadowMetrics};
 use trace::{
     ConstraintDrainTrace, trace_bound_replay_progress, trace_bound_replay_start, trace_var_bounds,
 };
@@ -53,6 +53,7 @@ pub struct ConstraintMachine {
     seen: FxHashSet<SubtypeConstraint>,
     events: Vec<ConstraintEvent>,
     timing: ConstraintTiming,
+    replay_frontier_shadow: Option<ReplayFrontierShadow>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -462,6 +463,119 @@ struct EffectFamily {
 struct EffectFilterViolationKey {
     effect: Option<Vec<String>>,
     filter: Subtractability,
+}
+
+#[derive(Debug, Default)]
+struct ReplayFrontierShadow {
+    lower_var_var_seen: FxHashSet<ReplayFrontierVarVarBoundKey>,
+    upper_var_var_seen: FxHashSet<ReplayFrontierVarVarBoundKey>,
+    lower_var_var: ReplayFrontierShadowMetrics,
+    upper_var_var: ReplayFrontierShadowMetrics,
+}
+
+impl ReplayFrontierShadow {
+    fn from_env() -> Option<Self> {
+        std::env::var("YULANG_REPLAY_FRONTIER_SHADOW")
+            .is_ok_and(|value| !value.is_empty() && value != "0")
+            .then(Self::default)
+    }
+
+    fn observe_lower_var_var(
+        &mut self,
+        pivot: TypeVar,
+        endpoint: TypeVar,
+        weights: &ConstraintWeights,
+    ) -> ReplayFrontierShadowObservation {
+        observe_var_var_frontier(
+            &mut self.lower_var_var_seen,
+            &mut self.lower_var_var,
+            pivot,
+            endpoint,
+            weights,
+        )
+    }
+
+    fn observe_upper_var_var(
+        &mut self,
+        pivot: TypeVar,
+        endpoint: TypeVar,
+        weights: &ConstraintWeights,
+    ) -> ReplayFrontierShadowObservation {
+        observe_var_var_frontier(
+            &mut self.upper_var_var_seen,
+            &mut self.upper_var_var,
+            pivot,
+            endpoint,
+            weights,
+        )
+    }
+
+    fn record_lower_result(
+        &mut self,
+        observation: ReplayFrontierShadowObservation,
+        accepted: usize,
+    ) {
+        record_var_var_frontier_result(&mut self.lower_var_var, observation, accepted);
+    }
+
+    fn record_upper_result(
+        &mut self,
+        observation: ReplayFrontierShadowObservation,
+        accepted: usize,
+    ) {
+        record_var_var_frontier_result(&mut self.upper_var_var, observation, accepted);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct ReplayFrontierVarVarBoundKey {
+    pivot: TypeVar,
+    endpoint: TypeVar,
+    weights: ConstraintWeights,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReplayFrontierShadowObservation {
+    NotCandidate,
+    New,
+    Hit,
+}
+
+fn observe_var_var_frontier(
+    seen: &mut FxHashSet<ReplayFrontierVarVarBoundKey>,
+    metrics: &mut ReplayFrontierShadowMetrics,
+    pivot: TypeVar,
+    endpoint: TypeVar,
+    weights: &ConstraintWeights,
+) -> ReplayFrontierShadowObservation {
+    metrics.candidates += 1;
+    let key = ReplayFrontierVarVarBoundKey {
+        pivot,
+        endpoint,
+        weights: weights.normalize_for_var_var_replay_key(),
+    };
+    if seen.insert(key) {
+        ReplayFrontierShadowObservation::New
+    } else {
+        metrics.hits += 1;
+        ReplayFrontierShadowObservation::Hit
+    }
+}
+
+fn record_var_var_frontier_result(
+    metrics: &mut ReplayFrontierShadowMetrics,
+    observation: ReplayFrontierShadowObservation,
+    accepted: usize,
+) {
+    if observation != ReplayFrontierShadowObservation::Hit {
+        return;
+    }
+    if accepted == 0 {
+        metrics.safe_hits += 1;
+    } else {
+        metrics.unsafe_hits += 1;
+        metrics.unsafe_accepted += accepted;
+    }
 }
 
 fn intersect_subtractability(lhs: Subtractability, rhs: Subtractability) -> Subtractability {

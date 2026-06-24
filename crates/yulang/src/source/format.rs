@@ -1057,6 +1057,61 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
         "  constraint.max_upper_replay_var_var: {}",
         constraint.max_upper_replay_var_var
     );
+    let lower_frontier = constraint.replay_frontier_shadow_lower_var_var;
+    let upper_frontier = constraint.replay_frontier_shadow_upper_var_var;
+    let frontier_candidates = lower_frontier.candidates + upper_frontier.candidates;
+    if frontier_candidates > 0 {
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_lower_var_var_candidates: {}",
+            lower_frontier.candidates
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_upper_var_var_candidates: {}",
+            upper_frontier.candidates
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_lower_var_var_hits: {}",
+            lower_frontier.hits
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_upper_var_var_hits: {}",
+            upper_frontier.hits
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_lower_var_var_safe_hits: {}",
+            lower_frontier.safe_hits
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_upper_var_var_safe_hits: {}",
+            upper_frontier.safe_hits
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_lower_var_var_unsafe_hits: {}",
+            lower_frontier.unsafe_hits
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_upper_var_var_unsafe_hits: {}",
+            upper_frontier.unsafe_hits
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_lower_var_var_unsafe_accepted: {}",
+            lower_frontier.unsafe_accepted
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_upper_var_var_unsafe_accepted: {}",
+            upper_frontier.unsafe_accepted
+        );
+    }
     let _ = writeln!(out, "  analysis.work_items: {}", analysis.work_items);
     let _ = writeln!(
         out,
@@ -1465,6 +1520,17 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
     let max_replay_var_var = constraint
         .max_lower_replay_var_var
         .max(constraint.max_upper_replay_var_var);
+    let lower_frontier = constraint.replay_frontier_shadow_lower_var_var;
+    let upper_frontier = constraint.replay_frontier_shadow_upper_var_var;
+    let replay_frontier_shadow_var_var_candidates =
+        lower_frontier.candidates + upper_frontier.candidates;
+    let replay_frontier_shadow_var_var_hits = lower_frontier.hits + upper_frontier.hits;
+    let replay_frontier_shadow_var_var_safe_hits =
+        lower_frontier.safe_hits + upper_frontier.safe_hits;
+    let replay_frontier_shadow_var_var_unsafe_hits =
+        lower_frontier.unsafe_hits + upper_frontier.unsafe_hits;
+    let replay_frontier_shadow_var_var_unsafe_accepted =
+        lower_frontier.unsafe_accepted + upper_frontier.unsafe_accepted;
     let role_demand_count = analysis.generalize_role_input_constraints
         + analysis.generalize_reachable_role_constraints
         + analysis.generalize_coalesced_role_constraints
@@ -1530,6 +1596,28 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         "  constraint.max_replay_prefiltered: {max_replay_prefiltered}"
     );
     let _ = writeln!(out, "  constraint.max_replay_var_var: {max_replay_var_var}");
+    if replay_frontier_shadow_var_var_candidates > 0 {
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_var_var_candidates: {replay_frontier_shadow_var_var_candidates}"
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_var_var_hits: {replay_frontier_shadow_var_var_hits}"
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_var_var_safe_hits: {replay_frontier_shadow_var_var_safe_hits}"
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_var_var_unsafe_hits: {replay_frontier_shadow_var_var_unsafe_hits}"
+        );
+        let _ = writeln!(
+            out,
+            "  constraint.replay_frontier_shadow_var_var_unsafe_accepted: {replay_frontier_shadow_var_var_unsafe_accepted}"
+        );
+    }
     let _ = writeln!(
         out,
         "  analysis.scc_component_count: {}",

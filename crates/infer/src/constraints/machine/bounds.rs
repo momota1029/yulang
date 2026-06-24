@@ -49,6 +49,7 @@ impl ConstraintMachine {
         if !self.bounds.add_lower(target, pos, weights.clone()) {
             return;
         }
+        let frontier_shadow = self.observe_lower_replay_frontier_shadow(target, pos, &weights);
         self.constrain_lower_bound_by_registered_filters(target, pos, &weights);
         self.record_pos_bound_var_neighbors(target, pos);
         self.events.push(ConstraintEvent::LowerBoundAdded {
@@ -61,6 +62,7 @@ impl ConstraintMachine {
         let mut replay = self.lower_bound_replay_actions(target, pos, &weights);
         let apply = self.apply_bound_replay_actions(replay.actions);
         replay.stats.absorb(apply);
+        self.record_lower_replay_frontier_shadow(frontier_shadow, replay.stats.accepted);
         self.timing.record_lower_bound_added(
             replay.input_count,
             replay.generated,
@@ -91,6 +93,7 @@ impl ConstraintMachine {
         if !self.bounds.add_upper(source, neg, weights.clone()) {
             return;
         }
+        let frontier_shadow = self.observe_upper_replay_frontier_shadow(source, neg, &weights);
         self.record_neg_bound_var_neighbors(source, neg);
         self.events.push(ConstraintEvent::UpperBoundAdded {
             var: source,
@@ -102,6 +105,7 @@ impl ConstraintMachine {
         let mut replay = self.upper_bound_replay_actions(source, neg, &weights);
         let apply = self.apply_bound_replay_actions(replay.actions);
         replay.stats.absorb(apply);
+        self.record_upper_replay_frontier_shadow(frontier_shadow, replay.stats.accepted);
         self.timing.record_upper_bound_added(
             replay.input_count,
             replay.generated,
@@ -333,6 +337,62 @@ impl ConstraintMachine {
             self.types.neg(upper),
             Neg::Row(_, tail) if matches!(self.types.neg(*tail), Neg::Var(_))
         )
+    }
+
+    fn observe_lower_replay_frontier_shadow(
+        &mut self,
+        pivot: TypeVar,
+        pos: PosId,
+        weights: &ConstraintWeights,
+    ) -> ReplayFrontierShadowObservation {
+        if self.replay_frontier_shadow.is_none() {
+            return ReplayFrontierShadowObservation::NotCandidate;
+        }
+        let Pos::Var(endpoint) = self.types.pos(pos) else {
+            return ReplayFrontierShadowObservation::NotCandidate;
+        };
+        let Some(shadow) = self.replay_frontier_shadow.as_mut() else {
+            return ReplayFrontierShadowObservation::NotCandidate;
+        };
+        shadow.observe_lower_var_var(pivot, *endpoint, weights)
+    }
+
+    fn observe_upper_replay_frontier_shadow(
+        &mut self,
+        pivot: TypeVar,
+        neg: NegId,
+        weights: &ConstraintWeights,
+    ) -> ReplayFrontierShadowObservation {
+        if self.replay_frontier_shadow.is_none() {
+            return ReplayFrontierShadowObservation::NotCandidate;
+        }
+        let Neg::Var(endpoint) = self.types.neg(neg) else {
+            return ReplayFrontierShadowObservation::NotCandidate;
+        };
+        let Some(shadow) = self.replay_frontier_shadow.as_mut() else {
+            return ReplayFrontierShadowObservation::NotCandidate;
+        };
+        shadow.observe_upper_var_var(pivot, *endpoint, weights)
+    }
+
+    fn record_lower_replay_frontier_shadow(
+        &mut self,
+        observation: ReplayFrontierShadowObservation,
+        accepted: usize,
+    ) {
+        if let Some(shadow) = &mut self.replay_frontier_shadow {
+            shadow.record_lower_result(observation, accepted);
+        }
+    }
+
+    fn record_upper_replay_frontier_shadow(
+        &mut self,
+        observation: ReplayFrontierShadowObservation,
+        accepted: usize,
+    ) {
+        if let Some(shadow) = &mut self.replay_frontier_shadow {
+            shadow.record_upper_result(observation, accepted);
+        }
     }
 
     fn apply_bound_replay_actions(&mut self, actions: BoundReplayActions) -> BoundReplayApplyStats {
