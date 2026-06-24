@@ -63,6 +63,40 @@ effectful field. Yulang tracks that boundary internally with directed stack
 weights. Public types still print ordinary effect rows, but the solver only
 subtracts an effect when that effect is visible to the handler boundary.
 
+### Stacking handlers
+
+Because `all_paths` leaves the residual row alone, it can be composed with
+another handler that consumes a different effect:
+
+```yulang
+act amount:
+    our coin: () -> int
+
+our total_amount(action: [amount] _) =
+    my loop(n, action: [amount] _) = catch action:
+        amount::coin(), k -> loop(n, k n)
+        v -> v
+    [loop(1, action), loop(2, action)]
+
+total_amount: all_paths:
+    my a = if flip::coin(): amount::coin() else: 0
+    my b = if flip::coin(): amount::coin() * 10 else: 0
+    my c = if flip::coin(): amount::coin() * 100 else: 0
+    a + b + c
+```
+
+`all_paths` handles only `flip` and leaves `amount`; `total_amount` handles
+only `amount`. The result is a list for each `amount` interpretation:
+
+```text
+[[111, 11, 101, 1, 110, 10, 100, 0],
+ [222, 22, 202, 2, 220, 20, 200, 0]]
+```
+
+This is the main reading rule for effect rows: a handler removes only the
+effects it is contracted to see, and the rest of the row remains available to
+outer code.
+
 ### Handlers are shallow
 
 Yulang handlers are **shallow**: a handler arm catches one operation, but the
@@ -89,6 +123,29 @@ recursion is required.
 
 Handler hygiene is the rule that an inner handler may handle its own visible
 effects, but must not steal effects supplied by an outer caller.
+
+One way to see this is a user-defined early-return operator:
+
+```yulang
+pub act sub 'a:
+    pub return: 'a -> never
+    pub sub(x: [_] 'a): 'a = catch x:
+        return a, _ -> a
+        a -> a
+
+our g h = sub::sub:
+    h 0
+    sub::return 1
+
+sub::sub:
+    g \i -> sub::return i
+    sub::return 2
+```
+
+The result is `0`. The `sub::return i` inside the callback belongs to the
+outer `sub::sub`, not to the handler hidden inside `g`. Without hygiene, the
+inner handler could capture it accidentally and turn this into a local return
+from `g`, which is usually not what higher-order code wants.
 
 ```yulang
 my compose f g x = f(g x)

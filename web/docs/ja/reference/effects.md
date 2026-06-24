@@ -61,6 +61,38 @@ all_paths : 'a [flip; 'b] -> ['b] list 'a
 
 ただし「見えている」が重要である。高階関数では、呼び出し元が関数、thunk、data field 内の effectful function 経由で持ち込んだ effect を、内側 handler が勝手に捕まえてはいけない。Yulang はこの境界を内部的には directed stack weight として追跡する。公開型には普通の effect row だけを表示するが、solver は handler 境界から見えている effect だけを引く。
 
+### handler を重ねる
+
+`all_paths` は residual row をそのまま残すので、別の effect を処理する handler と重ねられる。
+
+```yulang
+act amount:
+    our coin: () -> int
+
+our total_amount(action: [amount] _) =
+    my loop(n, action: [amount] _) = catch action:
+        amount::coin(), k -> loop(n, k n)
+        v -> v
+    [loop(1, action), loop(2, action)]
+
+total_amount: all_paths:
+    my a = if flip::coin(): amount::coin() else: 0
+    my b = if flip::coin(): amount::coin() * 10 else: 0
+    my c = if flip::coin(): amount::coin() * 100 else: 0
+    a + b + c
+```
+
+`all_paths` は `flip` だけを処理し、`amount` は残す。`total_amount` は
+`amount` だけを処理する。その結果、`amount` の解釈ごとに list が得られる。
+
+```text
+[[111, 11, 101, 1, 110, 10, 100, 0],
+ [222, 22, 202, 2, 220, 20, 200, 0]]
+```
+
+effect row の読み方はここにある。handler は contract された、つまりその境界から見える
+effect だけを取り除き、残りの row は外側へ残す。
+
 ### handler は shallow
 
 Yulang の handler は **shallow** である。arm は一度だけ operation を受け取り、
@@ -86,6 +118,29 @@ operation が 1 度しか起きない前提なら再帰を省ける。effect を
 
 handler hygiene は、内側 handler が自分から見える effect は処理してよいが、
 外側の呼び出し元が持ち込んだ effect を奪ってはいけない、という規則である。
+
+この性質は、user-defined な early return operator を見ると分かりやすい。
+
+```yulang
+pub act sub 'a:
+    pub return: 'a -> never
+    pub sub(x: [_] 'a): 'a = catch x:
+        return a, _ -> a
+        a -> a
+
+our g h = sub::sub:
+    h 0
+    sub::return 1
+
+sub::sub:
+    g \i -> sub::return i
+    sub::return 2
+```
+
+この結果は `0` になる。callback 内の `sub::return i` は外側の `sub::sub` に属する
+effect であり、`g` の内側に隠れた handler のものではない。
+hygiene がなければ、内側 handler がこれを偶然捕まえ、`g` からの局所 return に変えてしまう。
+高階関数では、通常それは望む挙動ではない。
 
 ```yulang
 my compose f g x = f(g x)
