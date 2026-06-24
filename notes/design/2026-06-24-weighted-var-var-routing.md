@@ -298,6 +298,16 @@ Verified with evidence-only skip enabled:
 - `cargo test -q -p yulang public -- --test-threads=1`
 - `tests/yulang/yulang-adversarial-corpus/probe.sh`
 
+The same checks are available as a smoke entrypoint:
+
+```text
+scripts/evidence-only-replay-smoke.sh
+```
+
+The script deliberately runs these checks outside Rust's ordinary parallel
+unit-test harness, because `YULANG_REPLAY_EVIDENCE_ONLY_SKIP=1` changes which
+transitive var-var bounds are materialized as normal propagation facts.
+
 Internal constraint unit tests that assert transitive var-var edges are
 materialized in `seen` or in normal bounds fail under this env flag. That is
 expected for this prototype and should not be papered over by changing those
