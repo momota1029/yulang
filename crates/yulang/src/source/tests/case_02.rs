@@ -1509,6 +1509,22 @@ fn check_poly_std_reports_summary_and_type_errors_without_dumping_defs() {
     assert_check_contains(&output, "  constraint.replay_duplicate: ");
     assert_check_contains(&output, "  constraint.replay_trivial: ");
     assert_check_contains(&output, "  constraint.replay_prefiltered: ");
+    assert_check_contains(
+        &output,
+        "  constraint.replay_prefilter_duplicate_exact_key: ",
+    );
+    assert_check_contains(
+        &output,
+        "  constraint.replay_prefilter_duplicate_var_var_key: ",
+    );
+    assert_check_contains(
+        &output,
+        "  constraint.replay_prefilter_duplicate_terminal_erased: ",
+    );
+    assert_check_contains(
+        &output,
+        "  constraint.replay_prefilter_duplicate_row_tail: ",
+    );
     assert_check_contains(&output, "  constraint.max_replay_inputs: ");
     assert_check_contains(&output, "  constraint.max_replay_generated: ");
     assert_check_contains(&output, "  constraint.max_replay_enqueued: ");

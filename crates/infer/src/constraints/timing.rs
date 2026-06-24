@@ -49,6 +49,8 @@ pub struct ConstraintTiming {
     pub upper_replay_trivial: usize,
     pub lower_replay_prefiltered: usize,
     pub upper_replay_prefiltered: usize,
+    pub lower_replay_prefilter_duplicate: ReplayDuplicateProfile,
+    pub upper_replay_prefilter_duplicate: ReplayDuplicateProfile,
     pub max_lower_replay_inputs: usize,
     pub max_upper_replay_inputs: usize,
     pub max_lower_replay_enqueued: usize,
@@ -63,6 +65,23 @@ pub struct ConstraintTiming {
     pub max_upper_replay_trivial: usize,
     pub max_lower_replay_prefiltered: usize,
     pub max_upper_replay_prefiltered: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ReplayDuplicateProfile {
+    pub exact_key: usize,
+    pub var_var_key: usize,
+    pub terminal_weight_erased: usize,
+    pub row_tail: usize,
+}
+
+impl ReplayDuplicateProfile {
+    pub(super) fn absorb(&mut self, other: Self) {
+        self.exact_key += other.exact_key;
+        self.var_var_key += other.var_var_key;
+        self.terminal_weight_erased += other.terminal_weight_erased;
+        self.row_tail += other.row_tail;
+    }
 }
 
 impl ConstraintTiming {
@@ -109,6 +128,7 @@ impl ConstraintTiming {
         replay_duplicate: usize,
         replay_trivial: usize,
         replay_prefiltered: usize,
+        replay_prefilter_duplicate: ReplayDuplicateProfile,
     ) {
         self.lower_bounds_added += 1;
         self.lower_replay_inputs += replay_inputs;
@@ -118,6 +138,8 @@ impl ConstraintTiming {
         self.lower_replay_duplicate += replay_duplicate;
         self.lower_replay_trivial += replay_trivial;
         self.lower_replay_prefiltered += replay_prefiltered;
+        self.lower_replay_prefilter_duplicate
+            .absorb(replay_prefilter_duplicate);
         self.max_lower_replay_inputs = self.max_lower_replay_inputs.max(replay_inputs);
         self.max_lower_replay_enqueued = self.max_lower_replay_enqueued.max(replay_enqueued);
         self.max_lower_replay_var_var = self.max_lower_replay_var_var.max(replay_var_var);
@@ -137,6 +159,7 @@ impl ConstraintTiming {
         replay_duplicate: usize,
         replay_trivial: usize,
         replay_prefiltered: usize,
+        replay_prefilter_duplicate: ReplayDuplicateProfile,
     ) {
         self.upper_bounds_added += 1;
         self.upper_replay_inputs += replay_inputs;
@@ -146,6 +169,8 @@ impl ConstraintTiming {
         self.upper_replay_duplicate += replay_duplicate;
         self.upper_replay_trivial += replay_trivial;
         self.upper_replay_prefiltered += replay_prefiltered;
+        self.upper_replay_prefilter_duplicate
+            .absorb(replay_prefilter_duplicate);
         self.max_upper_replay_inputs = self.max_upper_replay_inputs.max(replay_inputs);
         self.max_upper_replay_enqueued = self.max_upper_replay_enqueued.max(replay_enqueued);
         self.max_upper_replay_var_var = self.max_upper_replay_var_var.max(replay_var_var);

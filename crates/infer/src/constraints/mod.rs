@@ -25,7 +25,7 @@ use poly::types::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
-pub use timing::ConstraintTiming;
+pub use timing::{ConstraintTiming, ReplayDuplicateProfile};
 use trace::{
     ConstraintDrainTrace, trace_bound_replay_progress, trace_bound_replay_start, trace_var_bounds,
 };

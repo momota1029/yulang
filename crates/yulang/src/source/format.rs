@@ -935,6 +935,50 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
     );
     let _ = writeln!(
         out,
+        "  constraint.lower_replay_prefilter_duplicate_exact_key: {}",
+        constraint.lower_replay_prefilter_duplicate.exact_key
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.upper_replay_prefilter_duplicate_exact_key: {}",
+        constraint.upper_replay_prefilter_duplicate.exact_key
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.lower_replay_prefilter_duplicate_var_var_key: {}",
+        constraint.lower_replay_prefilter_duplicate.var_var_key
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.upper_replay_prefilter_duplicate_var_var_key: {}",
+        constraint.upper_replay_prefilter_duplicate.var_var_key
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.lower_replay_prefilter_duplicate_terminal_erased: {}",
+        constraint
+            .lower_replay_prefilter_duplicate
+            .terminal_weight_erased
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.upper_replay_prefilter_duplicate_terminal_erased: {}",
+        constraint
+            .upper_replay_prefilter_duplicate
+            .terminal_weight_erased
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.lower_replay_prefilter_duplicate_row_tail: {}",
+        constraint.lower_replay_prefilter_duplicate.row_tail
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.upper_replay_prefilter_duplicate_row_tail: {}",
+        constraint.upper_replay_prefilter_duplicate.row_tail
+    );
+    let _ = writeln!(
+        out,
         "  constraint.lower_replay_var_var: {}",
         constraint.lower_replay_var_var
     );
@@ -1386,6 +1430,20 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
     let replay_trivial = constraint.lower_replay_trivial + constraint.upper_replay_trivial;
     let replay_prefiltered =
         constraint.lower_replay_prefiltered + constraint.upper_replay_prefiltered;
+    let replay_prefilter_duplicate_exact_key =
+        constraint.lower_replay_prefilter_duplicate.exact_key
+            + constraint.upper_replay_prefilter_duplicate.exact_key;
+    let replay_prefilter_duplicate_var_var_key =
+        constraint.lower_replay_prefilter_duplicate.var_var_key
+            + constraint.upper_replay_prefilter_duplicate.var_var_key;
+    let replay_prefilter_duplicate_terminal_erased = constraint
+        .lower_replay_prefilter_duplicate
+        .terminal_weight_erased
+        + constraint
+            .upper_replay_prefilter_duplicate
+            .terminal_weight_erased;
+    let replay_prefilter_duplicate_row_tail = constraint.lower_replay_prefilter_duplicate.row_tail
+        + constraint.upper_replay_prefilter_duplicate.row_tail;
     let max_replay_inputs = constraint
         .max_lower_replay_inputs
         .max(constraint.max_upper_replay_inputs);
@@ -1433,6 +1491,22 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
     let _ = writeln!(out, "  constraint.replay_duplicate: {replay_duplicate}");
     let _ = writeln!(out, "  constraint.replay_trivial: {replay_trivial}");
     let _ = writeln!(out, "  constraint.replay_prefiltered: {replay_prefiltered}");
+    let _ = writeln!(
+        out,
+        "  constraint.replay_prefilter_duplicate_exact_key: {replay_prefilter_duplicate_exact_key}"
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.replay_prefilter_duplicate_var_var_key: {replay_prefilter_duplicate_var_var_key}"
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.replay_prefilter_duplicate_terminal_erased: {replay_prefilter_duplicate_terminal_erased}"
+    );
+    let _ = writeln!(
+        out,
+        "  constraint.replay_prefilter_duplicate_row_tail: {replay_prefilter_duplicate_row_tail}"
+    );
     let _ = writeln!(out, "  constraint.max_replay_inputs: {max_replay_inputs}");
     let _ = writeln!(
         out,

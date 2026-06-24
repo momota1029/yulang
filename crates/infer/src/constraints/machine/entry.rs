@@ -338,15 +338,23 @@ impl ConstraintMachine {
         // Terminal subtype checks do not forward weights into child constraints.
         // Canonicalizing them here keeps the queue/seen set finite without
         // changing bounds or row-subtraction state.
+        if self.has_terminal_subtype_endpoint(lower, upper) {
+            ConstraintWeights::empty()
+        } else {
+            weights
+        }
+    }
+
+    pub(in crate::constraints) fn has_terminal_subtype_endpoint(
+        &self,
+        lower: PosId,
+        upper: NegId,
+    ) -> bool {
         match (self.types.pos(lower), self.types.neg(upper)) {
-            (Pos::Bot, _) | (_, Neg::Top) => ConstraintWeights::empty(),
-            (Pos::Con(path, args), _) if self.is_non_effect_terminal_con(path, args) => {
-                ConstraintWeights::empty()
-            }
-            (_, Neg::Con(path, args)) if self.is_non_effect_terminal_con(path, args) => {
-                ConstraintWeights::empty()
-            }
-            _ => weights,
+            (Pos::Bot, _) | (_, Neg::Top) => true,
+            (Pos::Con(path, args), _) if self.is_non_effect_terminal_con(path, args) => true,
+            (_, Neg::Con(path, args)) if self.is_non_effect_terminal_con(path, args) => true,
+            _ => false,
         }
     }
 

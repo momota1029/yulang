@@ -14,6 +14,7 @@ struct BoundReplayPlan {
     generated: usize,
     var_var: usize,
     prefiltered: usize,
+    prefilter_duplicate: ReplayDuplicateProfile,
     stats: BoundReplayApplyStats,
     actions: BoundReplayActions,
 }
@@ -68,6 +69,7 @@ impl ConstraintMachine {
             replay.stats.duplicate,
             replay.stats.trivial,
             replay.prefiltered,
+            replay.prefilter_duplicate,
         );
     }
 
@@ -108,6 +110,7 @@ impl ConstraintMachine {
             replay.stats.duplicate,
             replay.stats.trivial,
             replay.prefiltered,
+            replay.prefilter_duplicate,
         );
     }
 
@@ -293,6 +296,7 @@ impl ConstraintMachine {
         upper: NegId,
         replay: &mut BoundReplayPlan,
     ) {
+        let duplicate_profile = self.replay_duplicate_profile(lower, &weights, upper);
         let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
             replay.prefiltered += 1;
             replay.stats.trivial += 1;
@@ -301,9 +305,34 @@ impl ConstraintMachine {
         if self.seen.contains(&constraint) {
             replay.prefiltered += 1;
             replay.stats.duplicate += 1;
+            replay.prefilter_duplicate.absorb(duplicate_profile);
             return;
         }
         replay.actions.push(constraint);
+    }
+
+    fn replay_duplicate_profile(
+        &self,
+        lower: PosId,
+        weights: &ConstraintWeights,
+        upper: NegId,
+    ) -> ReplayDuplicateProfile {
+        let var_var_key = self.is_var_var_replay(lower, upper);
+        let terminal_weight_erased =
+            !weights.is_empty() && self.has_terminal_subtype_endpoint(lower, upper);
+        ReplayDuplicateProfile {
+            exact_key: usize::from(!var_var_key && !terminal_weight_erased),
+            var_var_key: usize::from(var_var_key),
+            terminal_weight_erased: usize::from(terminal_weight_erased),
+            row_tail: usize::from(self.is_row_tail_replay_candidate(upper)),
+        }
+    }
+
+    fn is_row_tail_replay_candidate(&self, upper: NegId) -> bool {
+        matches!(
+            self.types.neg(upper),
+            Neg::Row(_, tail) if matches!(self.types.neg(*tail), Neg::Var(_))
+        )
     }
 
     fn apply_bound_replay_actions(&mut self, actions: BoundReplayActions) -> BoundReplayApplyStats {
