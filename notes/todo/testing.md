@@ -123,6 +123,22 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   - ref residual と callback residual は `['c, 'a]` として残る。
   - nested module でも、名前や std path に依存せず同じ構造として通る。
 
+## 2026-06-24 nested handler contract public signature canary
+
+- `tests/yulang/regressions/effect/nested_handler_contract_public_signatures.yu` を追加した。
+- 研究相談 brief / public docs の中心例を、runtime smoke だけでなく public signature として固定する。
+- 対象:
+  - `all_paths`
+  - `total_amount`
+  - explicit-contract `compose(f, g: _ -> [_] _, x: [_] _)`
+- 見ている性質:
+  - `all_paths` は `flip` だけを capture し、residual row を `['b] list 'a` として残す。
+  - `total_amount` は `amount` だけを capture し、residual row を同じ形で残す。
+  - explicit-contract `compose` は `g(x)` の surface effect を `f` に見せるため、
+    public signature に `#...` / `AllExcept(...)` / `Empty` evidence を出さない。
+  - test helper は module-qualified `pub "std.foo"` だけでなく、top-level `pub dN:name`
+    の public signature も同じ経路で抜き出せる。
+
 ## やらないこと
 
 - 最初から property testing や snapshot 大量生成に広げない。

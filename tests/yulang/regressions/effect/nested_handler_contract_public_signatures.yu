@@ -1,0 +1,17 @@
+pub act flip:
+    pub coin: () -> bool
+
+pub act amount:
+    pub coin: () -> int
+
+pub all_paths(action: [flip] _) = catch action:
+    flip::coin(), k -> all_paths(k true) + all_paths(k false)
+    v -> [v]
+
+pub total_amount(action: [amount] _) =
+    my loop(n, action: [amount] _) = catch action:
+        amount::coin(), k -> loop(n, k n)
+        v -> v
+    [loop(1, action), loop(2, action)]
+
+pub compose(f, g: _ -> [_] _, x: [_] _) = f g(x)

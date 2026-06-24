@@ -1047,6 +1047,34 @@ fn dump_poly_fixture_nested_data_position_effect_function_public_signature_hides
 
 #[cfg(unix)]
 #[test]
+fn dump_poly_fixture_nested_handler_contract_public_signatures() {
+    let entry = write_main_with_std(
+        "dump-poly-nested-handler-contract-public-types",
+        &yulang_fixture("regressions/effect/nested_handler_contract_public_signatures.yu"),
+    );
+    let output = dump_poly_from_entry_with_std(entry).unwrap();
+
+    let all_paths = assert_public_signature_hides_stack_evidence(&output, "all_paths");
+    assert!(
+        all_paths.contains("'a [flip; 'b] -> ['b] std::data::list::list 'a"),
+        "all_paths should capture flip and keep the residual row public:\n{all_paths}"
+    );
+
+    let total_amount = assert_public_signature_hides_stack_evidence(&output, "total_amount");
+    assert!(
+        total_amount.contains("'a [amount; 'b] -> ['b] std::data::list::list 'a"),
+        "total_amount should capture amount and keep the residual row public:\n{total_amount}"
+    );
+
+    let compose = assert_public_signature_hides_stack_evidence(&output, "compose");
+    assert!(
+        compose.contains("('e ['a] -> ['f] 'd) -> ('b ['c] -> ['a] 'e) -> 'b ['c] -> ['f] 'd"),
+        "explicit compose contracts should expose g(x) surface effects to f without empty visibility evidence:\n{compose}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn dump_poly_std_ref_update_public_signature_hides_stack_evidence() {
     let entry = write_main_with_std("dump-poly-std-ref-update-public-type", "1\n");
     let output = dump_poly_from_entry_with_std_in_module(entry, "std.control.var.ref").unwrap();

@@ -156,10 +156,16 @@ fn assert_dump_contains(output: &DumpPolyOutput, expected: &str) {
 
 fn dump_public_signature<'a>(output: &'a DumpPolyOutput, symbol: &str) -> &'a str {
     let quoted = format!("\"{symbol}\"");
+    let simple = (!symbol.contains('.')).then(|| format!(":{symbol}:"));
     let line = output
         .text
         .lines()
-        .find(|line| line.trim_start().starts_with("pub ") && line.contains(&quoted))
+        .find(|line| {
+            if !line.trim_start().starts_with("pub ") {
+                return false;
+            }
+            line.contains(&quoted) || simple.as_ref().is_some_and(|simple| line.contains(simple))
+        })
         .unwrap_or_else(|| {
             panic!(
                 "public symbol {symbol:?} should be dumped:\n{}",
