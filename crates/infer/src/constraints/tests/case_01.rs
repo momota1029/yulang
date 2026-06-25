@@ -28,6 +28,26 @@ fn constraint_weights_swap_left_and_right() {
 }
 
 #[test]
+fn constraint_epoch_advances_only_for_new_constraint_state() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let target = TypeVar(1);
+    let lower = machine.alloc_pos(Pos::Var(source));
+    let upper = machine.alloc_neg(Neg::Var(target));
+
+    assert_eq!(machine.epoch().as_u64(), 0);
+
+    machine.subtype(lower, upper);
+    let after_first = machine.epoch().as_u64();
+
+    assert!(after_first > 0);
+
+    machine.subtype(lower, upper);
+
+    assert_eq!(machine.epoch().as_u64(), after_first);
+}
+
+#[test]
 fn constraint_weights_replay_keeps_exact_pop_count_and_stack_sequence() {
     let id = SubtractId(0);
     let io = Subtractability::Set(vec!["io".into()], Vec::new());

@@ -57,8 +57,22 @@ pub struct ConstraintMachine {
     seen: FxHashSet<SubtypeConstraint>,
     events: Vec<ConstraintEvent>,
     timing: ConstraintTiming,
+    epoch: ConstraintEpoch,
     replay_frontier_shadow: Option<ReplayFrontierShadow>,
     replay_routing_shadow: Option<RefCell<ReplayRoutingShadow>>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ConstraintEpoch(u64);
+
+impl ConstraintEpoch {
+    pub fn as_u64(self) -> u64 {
+        self.0
+    }
+
+    fn bump(&mut self) {
+        self.0 = self.0.saturating_add(1);
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

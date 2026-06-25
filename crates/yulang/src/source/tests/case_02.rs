@@ -1889,6 +1889,7 @@ fn check_poly_std_reports_summary_and_type_errors_without_dumping_defs() {
     assert_check_contains(&output, "files: 4\n");
     assert_check_contains(&output, "timing:\n");
     assert_check_contains(&output, "  infer.type_var_count: ");
+    assert_check_contains(&output, "  constraint.epoch: ");
     assert_check_contains(&output, "  infer.row_tail_var_count: ");
     assert_check_contains(&output, "  infer.type_node_count: ");
     assert_check_contains(&output, "  constraint.edge_count: ");
@@ -1930,6 +1931,10 @@ fn check_poly_std_reports_summary_and_type_errors_without_dumping_defs() {
     assert_check_contains(
         &output,
         "  analysis.generalize_top_restart_total_restarts: ",
+    );
+    assert_check_contains(
+        &output,
+        "  analysis.generalize_top_restart_constraint_epoch_delta: ",
     );
     assert_check_contains(
         &output,

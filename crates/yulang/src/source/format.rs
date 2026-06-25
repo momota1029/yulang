@@ -1821,6 +1821,7 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         .unwrap_or_else(|| "none".to_string());
 
     let _ = writeln!(out, "  infer.type_var_count: {}", constraint.type_var_count);
+    let _ = writeln!(out, "  constraint.epoch: {}", constraint.epoch);
     let _ = writeln!(
         out,
         "  infer.row_tail_var_count: {}",
@@ -2204,6 +2205,21 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         out,
         "  analysis.generalize_top_restart_iterations: {}",
         analysis.generalize_top_restart_iterations
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_constraint_epoch_start: {}",
+        analysis.generalize_top_restart_constraint_epoch_start
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_constraint_epoch_end: {}",
+        analysis.generalize_top_restart_constraint_epoch_end
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_constraint_epoch_delta: {}",
+        analysis.generalize_top_restart_constraint_epoch_delta
     );
     let _ = writeln!(
         out,

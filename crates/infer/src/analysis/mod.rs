@@ -40,7 +40,7 @@ use crate::compact::{
     finalize_compact_type_to_pos_constraint, find_next_compact_cast, normalize_compact_casts,
     normalize_var_substitutions, simplify_compact_root_with_roles_and_non_generic,
 };
-use crate::constraints::{ConstraintEvent, ConstraintWeights, TypeLevel};
+use crate::constraints::{ConstraintEpoch, ConstraintEvent, ConstraintWeights, TypeLevel};
 use crate::generalize::{
     GeneralizedCompactRoot, apply_compact_simplifications_to_root_and_roles,
     clone_role_impl_candidate_between_arenas, finalize_generalized_compact_root_with_ancestors,
@@ -143,6 +143,8 @@ impl DefParentMapCache {
 #[derive(Debug, Default)]
 pub(super) struct GeneralizeRootMetrics {
     pub iterations: usize,
+    pub constraint_epoch_start: ConstraintEpoch,
+    pub constraint_epoch_end: ConstraintEpoch,
     pub merge_restarts: usize,
     pub subtype_restarts: usize,
     pub cast_restarts: usize,
@@ -175,6 +177,21 @@ impl GeneralizeRootMetrics {
         self.compact_shape_iterations += 1;
         self.compact_iteration_nodes += shape.nodes;
         self.compact_iteration_vars += shape.vars.len();
+    }
+
+    pub(super) fn record_constraint_epoch_start(&mut self, epoch: ConstraintEpoch) {
+        self.constraint_epoch_start = epoch;
+        self.constraint_epoch_end = epoch;
+    }
+
+    pub(super) fn record_constraint_epoch_end(&mut self, epoch: ConstraintEpoch) {
+        self.constraint_epoch_end = epoch;
+    }
+
+    pub(super) fn constraint_epoch_delta(&self) -> u64 {
+        self.constraint_epoch_end
+            .as_u64()
+            .saturating_sub(self.constraint_epoch_start.as_u64())
     }
 
     pub(super) fn record_merge_restart(&mut self) {

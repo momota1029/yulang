@@ -22,6 +22,7 @@ impl ConstraintMachine {
             seen: FxHashSet::default(),
             events: Vec::new(),
             timing: ConstraintTiming::default(),
+            epoch: ConstraintEpoch::default(),
             replay_frontier_shadow: ReplayFrontierShadow::from_env(),
             replay_routing_shadow: ReplayRoutingShadow::from_env().map(RefCell::new),
         }
@@ -84,6 +85,7 @@ impl ConstraintMachine {
 
     pub fn timing(&self) -> ConstraintTiming {
         let mut timing = self.timing;
+        timing.epoch = self.epoch.as_u64();
         timing.type_var_count = self.next_internal_type_var as usize;
         timing.row_tail_var_count = self.row_tail_vars.len();
         timing.pos_node_count = self.types.pos_len();
@@ -102,6 +104,10 @@ impl ConstraintMachine {
             }
         }
         timing
+    }
+
+    pub fn epoch(&self) -> ConstraintEpoch {
+        self.epoch
     }
 
     pub fn take_events(&mut self) -> Vec<ConstraintEvent> {
@@ -229,7 +235,9 @@ impl ConstraintMachine {
         id: SubtractId,
         subtractability: Subtractability,
     ) {
-        self.declared_subtracts.insert(id);
+        if self.declared_subtracts.insert(id) {
+            self.bump_epoch();
+        }
         self.subtract_fact(effect, id, subtractability);
     }
 
@@ -411,6 +419,7 @@ impl ConstraintMachine {
     ) {
         let id = fact.id;
         if self.subtracts.record(effect, fact) {
+            self.bump_epoch();
             self.events
                 .push(ConstraintEvent::SubtractFactAdded { effect, id });
         }
@@ -422,6 +431,7 @@ impl ConstraintMachine {
         weight: &StackWeight,
     ) {
         let families = self.pre_pop_effect_families.entry(target).or_default();
+        let mut changed = false;
         for family in weight
             .active_stack_items()
             .flat_map(subtractability_families)
@@ -432,8 +442,16 @@ impl ConstraintMachine {
             };
             if !families.contains(&family) {
                 families.push(family);
+                changed = true;
             }
         }
+        if changed {
+            self.bump_epoch();
+        }
+    }
+
+    pub(in crate::constraints) fn bump_epoch(&mut self) {
+        self.epoch.bump();
     }
 
     pub(in crate::constraints) fn fresh_internal_type_var_at(

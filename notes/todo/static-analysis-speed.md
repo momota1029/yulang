@@ -113,6 +113,7 @@
     - `infer.pos_node_count`
     - `infer.neg_node_count`
     - `infer.neu_node_count`
+    - `constraint.epoch`
     - `constraint.edge_count`
     - `constraint.replay_generated`
     - `constraint.replay_enqueued`
@@ -135,6 +136,7 @@
     - `analysis.quantify_generalize_max_restarts_per_root`
     - `analysis.generalize_top_restart_root`
     - `analysis.generalize_top_restart_iterations`
+    - `analysis.generalize_top_restart_constraint_epoch_{start,end,delta}`
     - `analysis.generalize_top_restart_total_restarts`
     - `analysis.generalize_top_restart_{merge,subtype,cast,role}_restarts`
     - `analysis.generalize_top_restart_{role_input,reachable_role,coalesced_role}_constraints`

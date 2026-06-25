@@ -108,6 +108,9 @@ pub struct AnalysisTiming {
     pub quantify_generalize_max_restarts_per_root: usize,
     pub generalize_top_restart_root: Option<DefId>,
     pub generalize_top_restart_iterations: usize,
+    pub generalize_top_restart_constraint_epoch_start: u64,
+    pub generalize_top_restart_constraint_epoch_end: u64,
+    pub generalize_top_restart_constraint_epoch_delta: u64,
     pub generalize_top_restart_total_restarts: usize,
     pub generalize_top_restart_merge_restarts: usize,
     pub generalize_top_restart_subtype_restarts: usize,
@@ -443,6 +446,10 @@ impl AnalysisTiming {
 
         self.generalize_top_restart_root = Some(def);
         self.generalize_top_restart_iterations = metrics.iterations;
+        self.generalize_top_restart_constraint_epoch_start =
+            metrics.constraint_epoch_start.as_u64();
+        self.generalize_top_restart_constraint_epoch_end = metrics.constraint_epoch_end.as_u64();
+        self.generalize_top_restart_constraint_epoch_delta = metrics.constraint_epoch_delta();
         self.generalize_top_restart_total_restarts = restart_count;
         self.generalize_top_restart_merge_restarts = metrics.merge_restarts;
         self.generalize_top_restart_subtype_restarts = metrics.subtype_restarts;

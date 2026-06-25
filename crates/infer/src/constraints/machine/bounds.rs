@@ -50,6 +50,7 @@ impl ConstraintMachine {
         if !self.bounds.add_lower(target, pos, weights.clone()) {
             return;
         }
+        self.bump_epoch();
         let frontier_shadow = self.observe_lower_replay_frontier_shadow(target, pos, &weights);
         self.constrain_lower_bound_by_registered_filters(target, pos, &weights);
         self.record_pos_bound_var_neighbors(target, pos);
@@ -97,6 +98,7 @@ impl ConstraintMachine {
         if !self.bounds.add_upper(source, neg, weights.clone()) {
             return;
         }
+        self.bump_epoch();
         let frontier_shadow = self.observe_upper_replay_frontier_shadow(source, neg, &weights);
         self.record_neg_bound_var_neighbors(source, neg);
         self.events.push(ConstraintEvent::UpperBoundAdded {
@@ -461,16 +463,25 @@ impl ConstraintMachine {
 
     fn apply_bound_replay_evidence_actions(&mut self, actions: BoundReplayActions) {
         for constraint in actions {
-            let (Pos::Var(source), Neg::Var(target)) = (
+            let (source, target) = match (
                 self.types.pos(constraint.lower),
                 self.types.neg(constraint.upper),
-            ) else {
-                continue;
+            ) {
+                (Pos::Var(source), Neg::Var(target)) => (*source, *target),
+                _ => continue,
             };
-            self.bounds
-                .add_evidence_lower(*target, constraint.lower, constraint.weights.clone());
-            self.bounds
-                .add_evidence_upper(*source, constraint.upper, constraint.weights);
+            if self
+                .bounds
+                .add_evidence_lower(target, constraint.lower, constraint.weights.clone())
+            {
+                self.bump_epoch();
+            }
+            if self
+                .bounds
+                .add_evidence_upper(source, constraint.upper, constraint.weights)
+            {
+                self.bump_epoch();
+            }
         }
     }
 
