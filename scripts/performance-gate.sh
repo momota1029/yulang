@@ -133,7 +133,7 @@ append_key_metrics_row() {
         runtime="$(metric_value "$label" "run.runtime_execute")"
     fi
 
-    printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n' \
+    printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n' \
         "$label" \
         "$(wall_value "$label")" \
         "$route" \
@@ -145,6 +145,7 @@ append_key_metrics_row() {
         "$(metric_value "$label" "analysis.generalize_top_restart_root")" \
         "$(metric_value "$label" "analysis.generalize_top_restart_total_restarts")" \
         "$(metric_value "$label" "analysis.generalize_top_restart_constraint_epoch_delta")" \
+        "$(metric_value "$label" "analysis.generalize_top_restart_role_epoch_delta")" \
         "$runtime" \
         "$(metric_value "$label" "run.marker_scope_frame_touches")" \
         "$(metric_value "$label" "run.active_add_scans")"
@@ -154,8 +155,8 @@ append_key_metrics() {
     local key_metrics="$out_dir/key-metrics.md"
     {
         printf '\n## Key metrics\n\n'
-        printf '| workload | wall(s) | cache route | infer | constraint.drain | constraint epoch | replay accepted | replay duplicate | top restart root | top restarts | top epoch delta | runtime execute | marker touches | active scans |\n'
-        printf '| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n'
+        printf '| workload | wall(s) | cache route | infer | constraint.drain | constraint epoch | replay accepted | replay duplicate | top restart root | top restarts | top epoch delta | top role delta | runtime execute | marker touches | active scans |\n'
+        printf '| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n'
         append_key_metrics_row showcase-check-poly-std
         append_key_metrics_row nondet-no-cache
         append_key_metrics_row showcase-no-cache

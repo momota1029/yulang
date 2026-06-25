@@ -265,7 +265,11 @@ compact / dominance / role projection をかなり再走査している。
    - 2026-06-26: `VarBounds` に var-local epoch を追加した。lower / upper / replay evidence
      が実際に増えた変数だけ更新する。root の involved vars を常時集めると hot path が太るので、
      root-local max epoch の表示は root cache 実装と一緒に行う。
-     次は role input 単位の epoch へ細分化する。
+   - 2026-06-26: `infer::roles::RoleConstraintTable` を `poly` table の wrapper にして、
+     owner ごとの `RoleEpoch` を追加した。`poly::roles::RoleConstraintTable` は下流 IR 用なので、
+     infer-local の cache invalidation state は混ぜない。
+     `analysis.generalize_top_restart_role_epoch_{start,end,delta}` は root-local に出る。
+     performance gate の key table では `top role delta` として見る。
 3. `root compact cache` を作り、involved-variable epoch が変わらない限り再利用する。
 4. `dominance cache` と `role projection cache` を同じ方式で足す。
 5. restart loop は view 全体を捨てず、dirty な view だけを再構築する。

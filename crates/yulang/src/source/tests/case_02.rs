@@ -1938,6 +1938,10 @@ fn check_poly_std_reports_summary_and_type_errors_without_dumping_defs() {
     );
     assert_check_contains(
         &output,
+        "  analysis.generalize_top_restart_role_epoch_delta: ",
+    );
+    assert_check_contains(
+        &output,
         "  analysis.generalize_top_restart_merge_restarts: ",
     );
     assert_check_contains(&output, "  analysis.generalize_top_restart_role_restarts: ");

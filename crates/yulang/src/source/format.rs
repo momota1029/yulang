@@ -2223,6 +2223,21 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
     );
     let _ = writeln!(
         out,
+        "  analysis.generalize_top_restart_role_epoch_start: {}",
+        analysis.generalize_top_restart_role_epoch_start
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_role_epoch_end: {}",
+        analysis.generalize_top_restart_role_epoch_end
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_role_epoch_delta: {}",
+        analysis.generalize_top_restart_role_epoch_delta
+    );
+    let _ = writeln!(
+        out,
         "  analysis.generalize_top_restart_total_restarts: {}",
         analysis.generalize_top_restart_total_restarts
     );

@@ -61,7 +61,7 @@ use crate::role_solve::{
     resolve_role_constraints_with_stats, role_constraint_could_resolve,
 };
 use crate::roles::{
-    RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleConstraintTable,
+    RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleConstraintTable, RoleEpoch,
     RoleImplTable, RoleInputVariance, RoleInputVarianceTable,
 };
 use crate::scc::{SccEvent, SccInput, SccMachine};
@@ -145,6 +145,8 @@ pub(super) struct GeneralizeRootMetrics {
     pub iterations: usize,
     pub constraint_epoch_start: ConstraintEpoch,
     pub constraint_epoch_end: ConstraintEpoch,
+    pub role_epoch_start: RoleEpoch,
+    pub role_epoch_end: RoleEpoch,
     pub merge_restarts: usize,
     pub subtype_restarts: usize,
     pub cast_restarts: usize,
@@ -192,6 +194,21 @@ impl GeneralizeRootMetrics {
         self.constraint_epoch_end
             .as_u64()
             .saturating_sub(self.constraint_epoch_start.as_u64())
+    }
+
+    pub(super) fn record_role_epoch_start(&mut self, epoch: RoleEpoch) {
+        self.role_epoch_start = epoch;
+        self.role_epoch_end = epoch;
+    }
+
+    pub(super) fn record_role_epoch_end(&mut self, epoch: RoleEpoch) {
+        self.role_epoch_end = epoch;
+    }
+
+    pub(super) fn role_epoch_delta(&self) -> u64 {
+        self.role_epoch_end
+            .as_u64()
+            .saturating_sub(self.role_epoch_start.as_u64())
     }
 
     pub(super) fn record_merge_restart(&mut self) {

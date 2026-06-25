@@ -19,6 +19,7 @@ impl AnalysisSession {
         let start = Instant::now();
         let mut metrics = GeneralizeRootMetrics::default();
         metrics.record_constraint_epoch_start(self.infer.constraints().epoch());
+        metrics.record_role_epoch_start(self.roles.epoch_for_owner(def));
         let quantification_boundary = self.generalize_boundary(def);
         let simplification_boundary = TypeLevel::root().child();
         let mut applied_casts = FxHashSet::<CompactCastKey>::default();
@@ -344,6 +345,7 @@ impl AnalysisSession {
             generalized.substitutions = normalize_var_substitutions(combined);
         }
         metrics.record_constraint_epoch_end(self.infer.constraints().epoch());
+        metrics.record_role_epoch_end(self.roles.epoch_for_owner(def));
         (generalized, metrics)
     }
 
