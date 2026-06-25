@@ -17,7 +17,7 @@ use crate::source::{CollectedSource, SourceCompilationUnits, SourceUnitCacheSele
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 11;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 12;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
@@ -509,6 +509,7 @@ fn compiled_syntax_hash(syntax: &sources::CompiledSyntaxSurface) -> u64 {
             hash_module_path(&mut hasher, &request.parent);
             hasher.string(&request.name.0);
             hash_module_load_kind(&mut hasher, request.kind);
+            hash_visibility(&mut hasher, request.visibility);
         }
     }
     hasher.finish()

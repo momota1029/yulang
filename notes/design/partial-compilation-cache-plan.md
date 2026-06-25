@@ -76,6 +76,10 @@ Implemented subset:
   files, and return both the raw hit map and the dependency-closed unit/source
   file selection. This is intentionally a read/selection layer only; it does
   not merge multiple compiled-unit surfaces or lower a suffix yet.
+- module-load requests now retain the visibility of the `mod` / `use mod`
+  declaration. This is needed before non-root unit artifacts can synthesize
+  parent module skeletons without widening non-`pub` modules across unit
+  boundaries.
 
 Not implemented yet:
 

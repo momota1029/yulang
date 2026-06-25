@@ -2875,11 +2875,13 @@ fn discover_module_loads_uses_lightweight_module_parse() {
                 parent: Path::default(),
                 name: Name("child".into()),
                 kind: sources::ModuleLoadKind::ModDecl,
+                visibility: sources::Visibility::Our,
             },
             ModuleLoadRequest {
                 parent: Path::default(),
                 name: Name("util".into()),
                 kind: sources::ModuleLoadKind::UseMod,
+                visibility: sources::Visibility::Our,
             },
         ]
     );

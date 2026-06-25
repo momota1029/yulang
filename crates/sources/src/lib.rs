@@ -74,6 +74,7 @@ pub enum ModuleLoadKind {
 pub struct ModuleLoadDirective {
     pub name: Name,
     pub kind: ModuleLoadKind,
+    pub visibility: Visibility,
 }
 
 /// 外部 module ファイルを読む要求。
@@ -86,6 +87,7 @@ pub struct ModuleLoadRequest {
     pub parent: Path,
     pub name: Name,
     pub kind: ModuleLoadKind,
+    pub visibility: Visibility,
 }
 
 impl ModuleLoadRequest {
@@ -266,6 +268,7 @@ pub fn read_header(source: &str) -> Header {
                     header.module_loads.push(ModuleLoadDirective {
                         name,
                         kind: ModuleLoadKind::UseMod,
+                        visibility,
                     });
                 }
             }
@@ -415,6 +418,7 @@ fn collect_module_load_requests(
                         parent: module_path.clone(),
                         name,
                         kind: ModuleLoadKind::UseMod,
+                        visibility: visibility_of(&node),
                     });
                 }
             }
@@ -437,6 +441,7 @@ fn collect_mod_load_request(
             parent: module_path.clone(),
             name,
             kind: ModuleLoadKind::ModDecl,
+            visibility: visibility_of(node),
         });
         return;
     }
@@ -893,6 +898,7 @@ mod tests {
             vec![ModuleLoadDirective {
                 name: Name("math".into()),
                 kind: ModuleLoadKind::UseMod,
+                visibility: Visibility::Our,
             }]
         );
         assert!(
@@ -988,11 +994,13 @@ mod tests {
                     parent: path(&["root"]),
                     name: Name("foo".into()),
                     kind: ModuleLoadKind::ModDecl,
+                    visibility: Visibility::Our,
                 },
                 ModuleLoadRequest {
                     parent: path(&["root"]),
                     name: Name("bar".into()),
                     kind: ModuleLoadKind::UseMod,
+                    visibility: Visibility::Our,
                 },
             ]
         );
@@ -1000,7 +1008,7 @@ mod tests {
 
     #[test]
     fn module_load_requests_recurse_into_inline_modules() {
-        let root = module_cst("mod outer:\n  mod inner;\nmod inline:\n  my x = 1\n");
+        let root = module_cst("mod outer:\n  pub mod inner;\nmod inline:\n  my x = 1\n");
         let requests = module_load_requests(&path(&["root"]), &root);
 
         assert_eq!(
@@ -1009,6 +1017,7 @@ mod tests {
                 parent: path(&["root", "outer"]),
                 name: Name("inner".into()),
                 kind: ModuleLoadKind::ModDecl,
+                visibility: Visibility::Pub,
             }]
         );
     }
