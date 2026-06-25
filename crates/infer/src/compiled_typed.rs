@@ -1,5 +1,6 @@
 use poly::expr::{Def, Vis};
 use poly::types::{Neg, Neu, Pos, Scheme, TypeArena};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use sources::{Name, Path};
 
@@ -23,6 +24,30 @@ pub struct CompiledTypeArena {
 pub struct CompiledTypedValueScheme {
     pub symbol: u32,
     pub scheme: Scheme,
+}
+
+pub struct CompiledTypedIndex<'a> {
+    surface: &'a CompiledTypedSurface,
+    values_by_symbol: FxHashMap<u32, usize>,
+}
+
+impl<'a> CompiledTypedIndex<'a> {
+    pub fn new(surface: &'a CompiledTypedSurface) -> Self {
+        Self {
+            surface,
+            values_by_symbol: surface
+                .values
+                .iter()
+                .enumerate()
+                .map(|(index, value)| (value.symbol, index))
+                .collect(),
+        }
+    }
+
+    pub fn value_scheme(&self, symbol: u32) -> Option<&'a Scheme> {
+        let index = *self.values_by_symbol.get(&symbol)?;
+        Some(&self.surface.values.get(index)?.scheme)
+    }
 }
 
 impl CompiledTypedSurface {
@@ -83,6 +108,23 @@ impl CompiledTypeArena {
             neu: types.neu_nodes().to_vec(),
         }
     }
+
+    pub fn to_type_arena(&self) -> TypeArena {
+        let mut types = TypeArena::new();
+        for (index, node) in self.pos.iter().enumerate() {
+            let id = types.alloc_pos(node.clone());
+            debug_assert_eq!(id.0 as usize, index);
+        }
+        for (index, node) in self.neg.iter().enumerate() {
+            let id = types.alloc_neg(node.clone());
+            debug_assert_eq!(id.0 as usize, index);
+        }
+        for (index, node) in self.neu.iter().enumerate() {
+            let id = types.alloc_neu(node.clone());
+            debug_assert_eq!(id.0 as usize, index);
+        }
+        types
+    }
 }
 
 fn path_from_strings(path: &[String]) -> Path {
@@ -126,6 +168,16 @@ mod tests {
                 .values
                 .iter()
                 .any(|value| value.symbol == hidden.symbol)
+        );
+
+        let index = CompiledTypedIndex::new(&typed);
+        assert!(index.value_scheme(x.symbol).is_some());
+        assert!(index.value_scheme(hidden.symbol).is_none());
+
+        let restored_types = typed.types.to_type_arena();
+        assert_eq!(
+            restored_types.node_len(),
+            lowering.session.infer.constraints().types().node_len()
         );
     }
 
