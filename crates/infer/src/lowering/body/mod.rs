@@ -38,8 +38,22 @@ pub struct BodyLoweringPrefix {
 #[derive(Clone, Debug, Default)]
 pub struct BodyLoweringPrefixRuntime {
     defs: FxHashSet<DefId>,
-    modules: FxHashMap<u32, DefId>,
-    values: FxHashMap<u32, DefId>,
+    modules: FxHashMap<u32, BodyLoweringPrefixRuntimeModuleDef>,
+    values: FxHashMap<u32, BodyLoweringPrefixRuntimeValueDef>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BodyLoweringPrefixRuntimeModuleDef {
+    pub module: u32,
+    pub module_path: Vec<String>,
+    pub def: DefId,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BodyLoweringPrefixRuntimeValueDef {
+    pub symbol: u32,
+    pub value_path: Vec<String>,
+    pub def: DefId,
 }
 
 impl BodyLowering {
@@ -94,7 +108,8 @@ impl BodyLoweringPrefix {
         let mut poly = poly::expr::Arena::new();
         let mut labels = DumpLabels::new();
         let import = runtime.import_into(&mut poly, &mut labels);
-        let runtime = BodyLoweringPrefixRuntime::from_runtime_import(&import);
+        let runtime =
+            BodyLoweringPrefixRuntime::from_runtime_import_with_namespace(&import, namespace);
         let modules = ModuleTable::from_compiled_surfaces(namespace, lowering, &import)?;
         Some(Self {
             poly,
@@ -144,12 +159,80 @@ impl BodyLoweringPrefixRuntime {
             modules: import
                 .modules
                 .iter()
-                .map(|module| (module.module, module.def))
+                .map(|module| {
+                    (
+                        module.module,
+                        BodyLoweringPrefixRuntimeModuleDef {
+                            module: module.module,
+                            module_path: Vec::new(),
+                            def: module.def,
+                        },
+                    )
+                })
                 .collect(),
             values: import
                 .values
                 .iter()
-                .map(|value| (value.symbol, value.def))
+                .map(|value| {
+                    (
+                        value.symbol,
+                        BodyLoweringPrefixRuntimeValueDef {
+                            symbol: value.symbol,
+                            value_path: Vec::new(),
+                            def: value.def,
+                        },
+                    )
+                })
+                .collect(),
+        }
+    }
+
+    fn from_runtime_import_with_namespace(
+        import: &crate::CompiledRuntimeImport,
+        namespace: &crate::CompiledNamespaceSurface,
+    ) -> Self {
+        let module_paths = namespace
+            .modules
+            .iter()
+            .map(|module| (module.id, module.path.clone()))
+            .collect::<FxHashMap<_, _>>();
+        let value_paths = namespace
+            .values
+            .iter()
+            .map(|value| (value.unit_id, value.path.clone()))
+            .collect::<FxHashMap<_, _>>();
+        Self {
+            defs: import.defs.values().copied().collect(),
+            modules: import
+                .modules
+                .iter()
+                .map(|module| {
+                    (
+                        module.module,
+                        BodyLoweringPrefixRuntimeModuleDef {
+                            module: module.module,
+                            module_path: module_paths
+                                .get(&module.module)
+                                .cloned()
+                                .unwrap_or_default(),
+                            def: module.def,
+                        },
+                    )
+                })
+                .collect(),
+            values: import
+                .values
+                .iter()
+                .map(|value| {
+                    (
+                        value.symbol,
+                        BodyLoweringPrefixRuntimeValueDef {
+                            symbol: value.symbol,
+                            value_path: value_paths.get(&value.symbol).cloned().unwrap_or_default(),
+                            def: value.def,
+                        },
+                    )
+                })
                 .collect(),
         }
     }
@@ -171,11 +254,19 @@ impl BodyLoweringPrefixRuntime {
     }
 
     pub fn module_def(&self, module: u32) -> Option<DefId> {
-        self.modules.get(&module).copied()
+        self.modules.get(&module).map(|entry| entry.def)
     }
 
     pub fn value_def(&self, symbol: u32) -> Option<DefId> {
-        self.values.get(&symbol).copied()
+        self.values.get(&symbol).map(|entry| entry.def)
+    }
+
+    pub fn module_defs(&self) -> impl Iterator<Item = &BodyLoweringPrefixRuntimeModuleDef> {
+        self.modules.values()
+    }
+
+    pub fn value_defs(&self) -> impl Iterator<Item = &BodyLoweringPrefixRuntimeValueDef> {
+        self.values.values()
     }
 }
 

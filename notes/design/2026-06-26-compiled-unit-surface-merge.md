@@ -261,15 +261,21 @@ The first external-reference preparation is also in place:
 
 - `BodyLoweringPrefix` records the imported runtime defs it brought into the
   prefix arena;
-- the record keeps both the imported `DefId` set and namespace-keyed
-  module/value mappings;
+- the record keeps both the imported `DefId` set and path-bearing
+  namespace-keyed module/value mappings;
 - `lower_loaded_files_with_prefix` and `lower_root_loaded_file_with_prefix`
   carry that prefix runtime provenance into the combined `BodyLowering`.
+- compiled-unit artifacts serialize that provenance as
+  `CompiledUnitExternalRuntimeRefs`, including an `external_runtime_hash` in
+  the manifest;
+- compiled-unit merge remaps these external runtime refs through the same
+  namespace/runtime remaps used by the merged surfaces.
 
 This does not serialize dependent units without their dependencies yet. It only
 gives the suffix lowering result a reliable way to distinguish prefix-owned
-defs from defs created by the suffix. That distinction is the prerequisite for
-turning dependency `DefId` references into explicit external refs.
+defs from defs created by the suffix, and persists that distinction in the
+artifact. That is the prerequisite for turning dependency `DefId` references
+into explicit external refs.
 
 The remaining item is the more incremental external-reference design. A
 dependent unit still cannot be serialized safely by lowering it against a
@@ -280,9 +286,10 @@ IDs, importing the artifact later will miswire or point at missing defs.
 
 Therefore finer-grained dependency-bearing source-unit artifacts still need:
 
-- an explicit external-reference table keyed by namespace symbol / module ID,
-  with runtime import resolving those externals against the already-imported
-  dependency prefix;
+- runtime surface trimming for prefix-owned defs;
+- import-time resolution that maps serialized external refs against the
+  already-imported dependency prefix;
+- a rejection path for prefix-owned refs that are not namespace-keyed yet.
 
 The closure artifact route is simpler and already implemented, but it can
 duplicate dependency surfaces across related cached artifacts. The

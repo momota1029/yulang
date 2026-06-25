@@ -21,7 +21,7 @@ use crate::source::{
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 12;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 13;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
@@ -33,6 +33,7 @@ const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/
 const COMPILED_LOWERING_HASH_SALT: &[u8] = b"yulang/compiled-lowering-surface/v4";
 const COMPILED_TYPED_HASH_SALT: &[u8] = b"yulang/compiled-typed-surface/v1";
 const COMPILED_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-runtime-surface/v3";
+const COMPILED_EXTERNAL_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-external-runtime-refs/v1";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 static CACHE_TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -199,6 +200,7 @@ impl ArtifactCache {
             lowering: &artifact.lowering,
             typed: &artifact.typed,
             runtime: &artifact.runtime,
+            external_runtime: &artifact.external_runtime,
             errors: &artifact.errors,
         };
         write_cache_envelope(&path, "yuunit", &envelope)
@@ -232,6 +234,7 @@ pub struct CachedCompiledUnitArtifact {
     pub lowering: infer::CompiledLoweringSurface,
     pub typed: infer::CompiledTypedSurface,
     pub runtime: infer::CompiledRuntimeSurface,
+    pub external_runtime: CompiledUnitExternalRuntimeRefs,
     pub errors: Vec<String>,
 }
 
@@ -254,6 +257,7 @@ pub fn encode_compiled_unit_artifact_bytes(
         lowering: &artifact.lowering,
         typed: &artifact.typed,
         runtime: &artifact.runtime,
+        external_runtime: &artifact.external_runtime,
         errors: &artifact.errors,
     };
     bincode::serialize(&envelope).map_err(|error| CacheError::Encode {
@@ -295,7 +299,29 @@ pub struct CompiledUnitManifest {
     pub lowering_hash: u64,
     pub typed_hash: u64,
     pub runtime_hash: u64,
+    pub external_runtime_hash: u64,
     pub files: Vec<CompiledUnitSourceFile>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitExternalRuntimeRefs {
+    pub imported_def_count: usize,
+    pub modules: Vec<CompiledUnitExternalRuntimeModuleRef>,
+    pub values: Vec<CompiledUnitExternalRuntimeValueRef>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitExternalRuntimeModuleRef {
+    pub module: u32,
+    pub module_path: Vec<String>,
+    pub def: poly::expr::DefId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitExternalRuntimeValueRef {
+    pub symbol: u32,
+    pub value_path: Vec<String>,
+    pub def: poly::expr::DefId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -466,6 +492,7 @@ pub fn compiled_unit_artifact_from_lowering_with_syntax_and_key(
         infer::CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
     let typed = infer::CompiledTypedSurface::from_lowering(lowering, &namespace);
     let runtime = infer::CompiledRuntimeSurface::from_lowering_with_namespace(lowering, &namespace);
+    let external_runtime = compiled_unit_external_runtime_refs(lowering, &namespace);
     let manifest = compiled_unit_manifest(
         files,
         &syntax,
@@ -473,6 +500,7 @@ pub fn compiled_unit_artifact_from_lowering_with_syntax_and_key(
         &lowering_surface,
         &typed,
         &runtime,
+        &external_runtime,
         key,
     );
     CachedCompiledUnitArtifact {
@@ -482,7 +510,70 @@ pub fn compiled_unit_artifact_from_lowering_with_syntax_and_key(
         lowering: lowering_surface,
         typed,
         runtime,
+        external_runtime,
         errors,
+    }
+}
+
+fn compiled_unit_external_runtime_refs(
+    lowering: &infer::lowering::BodyLowering,
+    namespace: &infer::CompiledNamespaceSurface,
+) -> CompiledUnitExternalRuntimeRefs {
+    let module_paths = namespace
+        .modules
+        .iter()
+        .map(|module| (module.id, module.path.clone()))
+        .collect::<std::collections::HashMap<_, _>>();
+    let value_paths = namespace
+        .values
+        .iter()
+        .map(|value| (value.unit_id, value.path.clone()))
+        .collect::<std::collections::HashMap<_, _>>();
+
+    let mut modules = lowering
+        .prefix_runtime()
+        .module_defs()
+        .map(|entry| CompiledUnitExternalRuntimeModuleRef {
+            module: entry.module,
+            module_path: if entry.module_path.is_empty() {
+                module_paths.get(&entry.module).cloned().unwrap_or_default()
+            } else {
+                entry.module_path.clone()
+            },
+            def: entry.def,
+        })
+        .collect::<Vec<_>>();
+    modules.sort_by(|left, right| {
+        left.module_path
+            .cmp(&right.module_path)
+            .then_with(|| left.module.cmp(&right.module))
+            .then_with(|| left.def.0.cmp(&right.def.0))
+    });
+
+    let mut values = lowering
+        .prefix_runtime()
+        .value_defs()
+        .map(|entry| CompiledUnitExternalRuntimeValueRef {
+            symbol: entry.symbol,
+            value_path: if entry.value_path.is_empty() {
+                value_paths.get(&entry.symbol).cloned().unwrap_or_default()
+            } else {
+                entry.value_path.clone()
+            },
+            def: entry.def,
+        })
+        .collect::<Vec<_>>();
+    values.sort_by(|left, right| {
+        left.value_path
+            .cmp(&right.value_path)
+            .then_with(|| left.symbol.cmp(&right.symbol))
+            .then_with(|| left.def.0.cmp(&right.def.0))
+    });
+
+    CompiledUnitExternalRuntimeRefs {
+        imported_def_count: lowering.prefix_runtime().def_count(),
+        modules,
+        values,
     }
 }
 
@@ -493,8 +584,25 @@ pub enum CompiledUnitMergeError {
     Syntax(sources::CompiledSyntaxMergeError),
     Namespace(infer::CompiledNamespaceMergeError),
     Runtime(infer::CompiledRuntimeMergeError),
+    ExternalRuntime(CompiledUnitExternalRuntimeMergeError),
     Typed(infer::CompiledTypedMergeError),
     Lowering(infer::CompiledLoweringMergeError),
+}
+
+#[derive(Debug)]
+pub enum CompiledUnitExternalRuntimeMergeError {
+    MissingModule {
+        prefix: usize,
+        module: u32,
+    },
+    MissingValue {
+        prefix: usize,
+        symbol: u32,
+    },
+    MissingDef {
+        prefix: usize,
+        def: poly::expr::DefId,
+    },
 }
 
 pub fn merge_compiled_unit_artifacts(
@@ -517,6 +625,9 @@ pub fn merge_compiled_unit_artifacts(
         &namespace,
     )
     .map_err(CompiledUnitMergeError::Runtime)?;
+    let external_runtime =
+        merge_compiled_unit_external_runtime_refs(&artifacts, &namespace, &runtime)
+            .map_err(CompiledUnitMergeError::ExternalRuntime)?;
     let typed = infer::CompiledTypedSurface::merge_prefixes(
         artifacts.iter().map(|unit| &unit.typed),
         &namespace,
@@ -539,6 +650,7 @@ pub fn merge_compiled_unit_artifacts(
         lowering_hash: compiled_lowering_hash(&lowering),
         typed_hash: compiled_typed_hash(&typed),
         runtime_hash: compiled_runtime_hash(&runtime),
+        external_runtime_hash: compiled_external_runtime_hash(&external_runtime),
         files,
     };
     Ok(CachedCompiledUnitArtifact {
@@ -548,10 +660,84 @@ pub fn merge_compiled_unit_artifacts(
         lowering,
         typed,
         runtime,
+        external_runtime,
         errors: artifacts
             .into_iter()
             .flat_map(|artifact| artifact.errors)
             .collect(),
+    })
+}
+
+fn merge_compiled_unit_external_runtime_refs(
+    artifacts: &[CachedCompiledUnitArtifact],
+    namespace: &infer::CompiledNamespaceMergeOutput,
+    runtime: &infer::CompiledRuntimeMergeOutput,
+) -> Result<CompiledUnitExternalRuntimeRefs, CompiledUnitExternalRuntimeMergeError> {
+    let mut imported_def_count = 0;
+    let mut modules = Vec::new();
+    let mut values = Vec::new();
+
+    for (prefix, artifact) in artifacts.iter().enumerate() {
+        imported_def_count += artifact.external_runtime.imported_def_count;
+        for module in &artifact.external_runtime.modules {
+            let module_id = namespace.map_module(prefix, module.module).ok_or(
+                CompiledUnitExternalRuntimeMergeError::MissingModule {
+                    prefix,
+                    module: module.module,
+                },
+            )?;
+            let def = runtime.map_def(prefix, module.def).ok_or(
+                CompiledUnitExternalRuntimeMergeError::MissingDef {
+                    prefix,
+                    def: module.def,
+                },
+            )?;
+            modules.push(CompiledUnitExternalRuntimeModuleRef {
+                module: module_id,
+                module_path: module.module_path.clone(),
+                def,
+            });
+        }
+        for value in &artifact.external_runtime.values {
+            let symbol = namespace.map_value(prefix, value.symbol).ok_or(
+                CompiledUnitExternalRuntimeMergeError::MissingValue {
+                    prefix,
+                    symbol: value.symbol,
+                },
+            )?;
+            let def = runtime.map_def(prefix, value.def).ok_or(
+                CompiledUnitExternalRuntimeMergeError::MissingDef {
+                    prefix,
+                    def: value.def,
+                },
+            )?;
+            values.push(CompiledUnitExternalRuntimeValueRef {
+                symbol,
+                value_path: value.value_path.clone(),
+                def,
+            });
+        }
+    }
+
+    modules.sort_by(|left, right| {
+        left.module_path
+            .cmp(&right.module_path)
+            .then_with(|| left.module.cmp(&right.module))
+            .then_with(|| left.def.0.cmp(&right.def.0))
+    });
+    modules.dedup();
+    values.sort_by(|left, right| {
+        left.value_path
+            .cmp(&right.value_path)
+            .then_with(|| left.symbol.cmp(&right.symbol))
+            .then_with(|| left.def.0.cmp(&right.def.0))
+    });
+    values.dedup();
+
+    Ok(CompiledUnitExternalRuntimeRefs {
+        imported_def_count,
+        modules,
+        values,
     })
 }
 
@@ -631,6 +817,8 @@ fn compiled_unit_envelope_matches_key(
         && manifest.lowering_hash == compiled_lowering_hash(&envelope.lowering)
         && manifest.typed_hash == compiled_typed_hash(&envelope.typed)
         && manifest.runtime_hash == compiled_runtime_hash(&envelope.runtime)
+        && manifest.external_runtime_hash
+            == compiled_external_runtime_hash(&envelope.external_runtime)
 }
 
 fn cached_compiled_unit_artifact_from_envelope(
@@ -643,6 +831,7 @@ fn cached_compiled_unit_artifact_from_envelope(
         lowering: envelope.lowering,
         typed: envelope.typed,
         runtime: envelope.runtime,
+        external_runtime: envelope.external_runtime,
         errors: envelope.errors,
     }
 }
@@ -716,6 +905,7 @@ fn compiled_unit_manifest(
     lowering: &infer::CompiledLoweringSurface,
     typed: &infer::CompiledTypedSurface,
     runtime: &infer::CompiledRuntimeSurface,
+    external_runtime: &CompiledUnitExternalRuntimeRefs,
     key: SourceCacheKey,
 ) -> CompiledUnitManifest {
     CompiledUnitManifest {
@@ -727,6 +917,7 @@ fn compiled_unit_manifest(
         lowering_hash: compiled_lowering_hash(lowering),
         typed_hash: compiled_typed_hash(typed),
         runtime_hash: compiled_runtime_hash(runtime),
+        external_runtime_hash: compiled_external_runtime_hash(external_runtime),
         files: files
             .iter()
             .map(|file| CompiledUnitSourceFile {
@@ -1164,6 +1355,25 @@ fn compiled_runtime_hash(runtime: &infer::CompiledRuntimeSurface) -> u64 {
     hasher.usize(runtime.values.len());
     for value in &runtime.values {
         hasher.u32(value.symbol);
+        hash_def_id(&mut hasher, value.def);
+    }
+    hasher.finish()
+}
+
+fn compiled_external_runtime_hash(external: &CompiledUnitExternalRuntimeRefs) -> u64 {
+    let mut hasher = StableHasher::new();
+    hasher.bytes(COMPILED_EXTERNAL_RUNTIME_HASH_SALT);
+    hasher.usize(external.imported_def_count);
+    hasher.usize(external.modules.len());
+    for module in &external.modules {
+        hasher.u32(module.module);
+        hash_string_path(&mut hasher, &module.module_path);
+        hash_def_id(&mut hasher, module.def);
+    }
+    hasher.usize(external.values.len());
+    for value in &external.values {
+        hasher.u32(value.symbol);
+        hash_string_path(&mut hasher, &value.value_path);
         hash_def_id(&mut hasher, value.def);
     }
     hasher.finish()
@@ -2318,6 +2528,7 @@ struct CompiledUnitCacheEnvelope<
     L = infer::CompiledLoweringSurface,
     T = infer::CompiledTypedSurface,
     R = infer::CompiledRuntimeSurface,
+    X = CompiledUnitExternalRuntimeRefs,
     E = Vec<String>,
 > {
     format: u32,
@@ -2327,6 +2538,7 @@ struct CompiledUnitCacheEnvelope<
     lowering: L,
     typed: T,
     runtime: R,
+    external_runtime: X,
     errors: E,
 }
 
@@ -2409,7 +2621,7 @@ impl<T, L, E> CacheEnvelope for ControlCacheEnvelope<T, L, E> {
     }
 }
 
-impl<M, S, N, L, T, R, E> CacheEnvelope for CompiledUnitCacheEnvelope<M, S, N, L, T, R, E> {
+impl<M, S, N, L, T, R, X, E> CacheEnvelope for CompiledUnitCacheEnvelope<M, S, N, L, T, R, X, E> {
     fn format(&self) -> u32 {
         self.format
     }
@@ -2662,9 +2874,12 @@ mod tests {
         assert_eq!(restored.manifest, artifact.manifest);
         assert_ne!(restored.manifest.lowering_hash, 0);
         assert_ne!(restored.manifest.runtime_hash, 0);
+        assert_ne!(restored.manifest.external_runtime_hash, 0);
         assert_eq!(restored.syntax, artifact.syntax);
         assert_eq!(restored.namespace, artifact.namespace);
         assert_eq!(restored.lowering, artifact.lowering);
+        assert_eq!(restored.external_runtime, artifact.external_runtime);
+        assert_eq!(restored.external_runtime.imported_def_count, 0);
         assert_eq!(restored.errors, artifact.errors);
         assert_eq!(restored.manifest.files.len(), 2);
         assert_eq!(restored.manifest.files[1].module_path, vec!["ops"]);
@@ -2847,6 +3062,13 @@ mod tests {
             .unwrap();
         assert!(cache.read_compiled_unit_artifact(key).unwrap().is_none());
 
+        let mut wrong_external_runtime_hash = artifact.clone();
+        wrong_external_runtime_hash.manifest.external_runtime_hash ^= 1;
+        cache
+            .write_compiled_unit_artifact(key, &wrong_external_runtime_hash)
+            .unwrap();
+        assert!(cache.read_compiled_unit_artifact(key).unwrap().is_none());
+
         cache.write_compiled_unit_artifact(key, &artifact).unwrap();
         assert!(cache.read_compiled_unit_artifact(key).unwrap().is_some());
 
@@ -3001,6 +3223,80 @@ mod tests {
     }
 
     #[test]
+    fn compiled_unit_artifact_records_prefix_external_runtime_refs() {
+        let prefix_files = vec![
+            source("prefix.yu", &[], "mod deps;\npub use deps::*\n"),
+            source("deps.yu", &["deps"], "pub id x = x\n"),
+        ];
+        let prefix_loaded = sources::load(collected_to_source_files(prefix_files));
+        let prefix_lowering = infer::lowering::lower_loaded_files(&prefix_loaded).unwrap();
+        let prefix_namespace =
+            infer::CompiledNamespaceSurface::from_module_table(&prefix_lowering.modules);
+        let prefix_lowering_surface = infer::CompiledLoweringSurface::from_module_table(
+            &prefix_lowering.modules,
+            &prefix_namespace,
+        );
+        let prefix_runtime = infer::CompiledRuntimeSurface::from_lowering_with_namespace(
+            &prefix_lowering,
+            &prefix_namespace,
+        );
+        let prefix = infer::lowering::BodyLoweringPrefix::from_compiled_unit_surfaces(
+            &prefix_namespace,
+            &prefix_lowering_surface,
+            &prefix_runtime,
+        )
+        .unwrap();
+        let suffix_files = vec![source("main.yu", &[], "pub y = id 1\n")];
+        let suffix_loaded = sources::load(collected_to_source_files(suffix_files.clone()));
+        let suffix_root = suffix_loaded.into_iter().next().unwrap();
+        let lowered =
+            infer::lowering::lower_root_loaded_file_with_prefix(&prefix, &suffix_root).unwrap();
+        let syntax =
+            sources::CompiledSyntaxSurface::from_loaded_files(std::slice::from_ref(&suffix_root));
+        let key = source_cache_key(&suffix_files);
+
+        let artifact = compiled_unit_artifact_from_lowering_with_syntax_and_key(
+            &suffix_files,
+            syntax,
+            &lowered,
+            lowered
+                .errors
+                .iter()
+                .map(|error| format!("{error:?}"))
+                .collect(),
+            key,
+        );
+
+        assert!(artifact.external_runtime.imported_def_count > 0);
+        assert!(
+            artifact
+                .external_runtime
+                .modules
+                .iter()
+                .any(|module| module.module_path == vec!["deps"])
+        );
+        assert!(
+            artifact
+                .external_runtime
+                .values
+                .iter()
+                .any(|value| value.value_path == vec!["deps", "id"]
+                    && artifact.runtime.arena.defs.get(value.def).is_some())
+        );
+        assert!(
+            !artifact
+                .external_runtime
+                .values
+                .iter()
+                .any(|value| value.value_path == vec!["y"])
+        );
+        assert_eq!(
+            artifact.manifest.external_runtime_hash,
+            compiled_external_runtime_hash(&artifact.external_runtime)
+        );
+    }
+
+    #[test]
     fn compiled_unit_artifact_merge_combines_independent_leaf_units() {
         let files = vec![
             source("main.yu", &[], "mod left;\nmod right;\n"),
@@ -3080,6 +3376,10 @@ mod tests {
         assert_eq!(
             merged.manifest.runtime_hash,
             compiled_runtime_hash(&merged.runtime)
+        );
+        assert_eq!(
+            merged.manifest.external_runtime_hash,
+            compiled_external_runtime_hash(&merged.external_runtime)
         );
     }
 
@@ -3224,8 +3524,17 @@ mod tests {
             modules: Vec::new(),
             values: Vec::new(),
         };
-        let manifest =
-            compiled_unit_manifest(&[], &syntax, &namespace, &lowering, &typed, &runtime, key);
+        let external_runtime = CompiledUnitExternalRuntimeRefs::default();
+        let manifest = compiled_unit_manifest(
+            &[],
+            &syntax,
+            &namespace,
+            &lowering,
+            &typed,
+            &runtime,
+            &external_runtime,
+            key,
+        );
         CachedCompiledUnitArtifact {
             manifest,
             syntax,
@@ -3233,6 +3542,7 @@ mod tests {
             lowering,
             typed,
             runtime,
+            external_runtime,
             errors: Vec::new(),
         }
     }

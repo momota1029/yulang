@@ -202,6 +202,7 @@ fn lower_compiled_unit_prefix_suffix(
         lowering,
         typed: _,
         runtime,
+        external_runtime: _,
         errors: prefix_errors,
     } = prefix;
     let suffix_file_count = suffix.len();
