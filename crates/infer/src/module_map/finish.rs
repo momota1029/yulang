@@ -244,7 +244,14 @@ impl Lower {
             return;
         };
         let own_body = self.modules.act_template(id).and_then(act_decl_body);
-        self.materialize_act_copy(id, &dest, resolved, own_body, true);
+        self.materialize_act_copy(
+            id,
+            &dest,
+            resolved,
+            own_body,
+            true,
+            ActCompanionBlockMode::CopiedSourceExport,
+        );
     }
 
     pub(super) fn finalize_synthetic_var_act_copy(&mut self, id: TypeDeclId) {
@@ -272,6 +279,7 @@ impl Lower {
             },
             None,
             false,
+            ActCompanionBlockMode::CopiedSourceInternal,
         );
     }
 
@@ -300,6 +308,7 @@ impl Lower {
             },
             None,
             false,
+            ActCompanionBlockMode::CopiedSourceInternal,
         );
     }
 
@@ -310,6 +319,7 @@ impl Lower {
         resolved: ResolvedActCopyDecl,
         own_body: Option<Cst>,
         attach_to_parent: bool,
+        source_mode: ActCompanionBlockMode,
     ) {
         let Some(source_body) = self
             .modules
@@ -320,7 +330,7 @@ impl Lower {
         };
         self.modules.set_resolved_act_copy(id, resolved);
 
-        let mut ops = act_operation_signatures_from_body(&source_body);
+        let mut ops = source_mode.operation_signatures_from(&source_body);
         push_unique_act_ops(
             &mut ops,
             self.modules.act_ops.get(&id).cloned().unwrap_or_default(),
@@ -333,10 +343,14 @@ impl Lower {
         // Copied members are generated in the destination companion; their
         // template ranges must not become hover locations for that destination.
         let mut companion_children =
-            self.register_act_companion_block(&source_body, companion, id, false);
+            self.register_act_companion_block(&source_body, companion, id, source_mode);
         if let Some(own_body) = own_body {
-            companion_children
-                .extend(self.register_act_companion_block(&own_body, companion, id, true));
+            companion_children.extend(self.register_act_companion_block(
+                &own_body,
+                companion,
+                id,
+                ActCompanionBlockMode::Direct,
+            ));
         }
         self.append_module_children(def, companion_children);
         if created && attach_to_parent {

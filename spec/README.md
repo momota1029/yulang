@@ -39,6 +39,9 @@
 - [2026-06-06-syntax-design.md](2026-06-06-syntax-design.md)
   — parser 実装から抽出した表面構文（字句・statement・expr・type・pattern・string・
   rule DSL・Yumark）。型推論・lowering・runtime の意味論は扱わない、独立した文書。
+- [2026-06-25-act-copy.md](2026-06-25-act-copy.md)
+  — `act copy = source with:` の意味論。copy は alias ではなく新しい effect family で、
+  source body からは `pub` / `our` だけを継承し、source `my` は destination companion へ出さない。
 
 ### 後段（単相化）
 

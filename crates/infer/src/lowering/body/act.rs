@@ -3,6 +3,22 @@
 use super::super::*;
 use super::*;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ActBodyLoweringMode {
+    Direct,
+    CopiedSourceExport,
+    CopiedSourceInternal,
+}
+
+impl ActBodyLoweringMode {
+    fn includes_child(self, child: &Cst) -> bool {
+        match self {
+            ActBodyLoweringMode::Direct | ActBodyLoweringMode::CopiedSourceInternal => true,
+            ActBodyLoweringMode::CopiedSourceExport => crate::act_copy_source_exports_child(child),
+        }
+    }
+}
+
 impl BodyLowerer {
     pub(super) fn lower_act_decl_body(&mut self, node: &Cst, module: ModuleId) {
         let Some(name) = crate::type_decl_name(node) else {
@@ -24,10 +40,19 @@ impl BodyLowerer {
                 &mut method_cursor,
                 copy.type_var_aliases.as_slice(),
                 copy.type_name_aliases.as_slice(),
+                ActBodyLoweringMode::CopiedSourceExport,
             );
         }
         if let Some(body) = crate::act_decl_body(node) {
-            self.lower_act_body_contents(&body, companion, &decl, &mut method_cursor, &[], &[]);
+            self.lower_act_body_contents(
+                &body,
+                companion,
+                &decl,
+                &mut method_cursor,
+                &[],
+                &[],
+                ActBodyLoweringMode::Direct,
+            );
         }
         self.local_method_scope = previous_scope;
     }
@@ -220,6 +245,7 @@ impl BodyLowerer {
                 &mut method_cursor,
                 copy.type_var_aliases.as_slice(),
                 copy.type_name_aliases.as_slice(),
+                ActBodyLoweringMode::CopiedSourceInternal,
             );
             self.record_source_spans = previous_source_spans;
             self.suppress_runtime_roots = previous_suppression;
@@ -235,8 +261,12 @@ impl BodyLowerer {
         method_cursor: &mut usize,
         type_var_aliases: &[(String, String)],
         type_name_aliases: &[(String, TypeDeclId)],
+        mode: ActBodyLoweringMode,
     ) {
         for child in body.children() {
+            if !mode.includes_child(&child) {
+                continue;
+            }
             match child.kind() {
                 SyntaxKind::Binding if crate::act_operation_binding(&child) => {
                     self.lower_act_operation_binding(

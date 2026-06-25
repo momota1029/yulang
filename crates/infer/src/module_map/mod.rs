@@ -2,6 +2,37 @@ use super::*;
 
 mod finish;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ActCompanionBlockMode {
+    Direct,
+    CopiedSourceExport,
+    CopiedSourceInternal,
+}
+
+impl ActCompanionBlockMode {
+    fn includes_child(self, child: &Cst) -> bool {
+        match self {
+            ActCompanionBlockMode::Direct | ActCompanionBlockMode::CopiedSourceInternal => true,
+            ActCompanionBlockMode::CopiedSourceExport => act_copy_source_exports_child(child),
+        }
+    }
+
+    fn record_source_spans(self) -> bool {
+        matches!(self, ActCompanionBlockMode::Direct)
+    }
+
+    fn operation_signatures_from(self, body: &Cst) -> Vec<ActOperationSig> {
+        match self {
+            ActCompanionBlockMode::CopiedSourceExport => {
+                act_copy_source_operation_signatures_from_body(body)
+            }
+            ActCompanionBlockMode::Direct | ActCompanionBlockMode::CopiedSourceInternal => {
+                act_operation_signatures_from_body(body)
+            }
+        }
+    }
+}
+
 impl Lower {
     fn new() -> Self {
         Self {
@@ -739,7 +770,12 @@ impl Lower {
         };
         let (def, companion, created) = self.ensure_child_module(module, name, vis);
         self.modules.set_type_companion(owner, companion);
-        let companion_children = self.register_act_companion_block(&body, companion, owner, true);
+        let companion_children = self.register_act_companion_block(
+            &body,
+            companion,
+            owner,
+            ActCompanionBlockMode::Direct,
+        );
         self.append_module_children(def, companion_children);
         if created {
             children.push(def);
@@ -751,10 +787,13 @@ impl Lower {
         block: &Cst,
         module: ModuleId,
         owner: TypeDeclId,
-        record_source_spans: bool,
+        mode: ActCompanionBlockMode,
     ) -> Vec<DefId> {
         let mut children = Vec::new();
         for child in block.children() {
+            if !mode.includes_child(&child) {
+                continue;
+            }
             match child.kind() {
                 SyntaxKind::Binding if act_operation_binding(&child) => {
                     let Some(name) = binding_name(&child) else {
@@ -772,7 +811,7 @@ impl Lower {
                         },
                     );
                     let source_span = self.act_companion_source_span(
-                        record_source_spans,
+                        mode.record_source_spans(),
                         source_range_for_name(&child, &name),
                     );
                     self.modules.insert_value_with_span(
@@ -801,7 +840,7 @@ impl Lower {
                     );
                     let value_name = act_method_value_name(&method.name, def);
                     let source_span = self.act_companion_source_span(
-                        record_source_spans,
+                        mode.record_source_spans(),
                         source_range_for_name(&child, &method.name),
                     );
                     let order = self.modules.insert_value_with_span(
@@ -838,7 +877,7 @@ impl Lower {
                         },
                     );
                     let source_span = self.act_companion_source_span(
-                        record_source_spans,
+                        mode.record_source_spans(),
                         source_range_for_name(&child, &name),
                     );
                     self.modules

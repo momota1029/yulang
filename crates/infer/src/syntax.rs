@@ -883,8 +883,20 @@ pub(crate) fn act_operation_signatures(node: &Cst) -> Vec<ActOperationSig> {
 }
 
 pub(crate) fn act_operation_signatures_from_body(body: &Cst) -> Vec<ActOperationSig> {
+    act_operation_signatures_from_body_filtered(body, |_| true)
+}
+
+pub(crate) fn act_copy_source_operation_signatures_from_body(body: &Cst) -> Vec<ActOperationSig> {
+    act_operation_signatures_from_body_filtered(body, act_copy_source_exports_child)
+}
+
+fn act_operation_signatures_from_body_filtered(
+    body: &Cst,
+    mut include_binding: impl FnMut(&Cst) -> bool,
+) -> Vec<ActOperationSig> {
     body.children()
         .filter(|child| child.kind() == SyntaxKind::Binding && act_operation_binding(child))
+        .filter(|binding| include_binding(binding))
         .filter_map(|binding| {
             Some(ActOperationSig {
                 name: binding_name(&binding)?,
@@ -892,6 +904,13 @@ pub(crate) fn act_operation_signatures_from_body(body: &Cst) -> Vec<ActOperation
             })
         })
         .collect()
+}
+
+pub(crate) fn act_copy_source_exports_child(node: &Cst) -> bool {
+    match node.kind() {
+        SyntaxKind::Binding => binding_vis(node) != Vis::My,
+        _ => vis_of(node) != Vis::My,
+    }
 }
 
 pub(crate) fn act_copy_decl(node: &Cst) -> Option<ActCopyDecl> {

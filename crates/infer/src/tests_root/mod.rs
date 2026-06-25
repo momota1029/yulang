@@ -459,6 +459,59 @@ fn registers_act_copy_body_in_destination_companion() {
 }
 
 #[test]
+fn act_copy_does_not_register_source_private_members_in_destination_companion() {
+    let cst = parse(
+        "act source:\n  my hidden = 1\n  our visible = 2\nact copy = source with:\n  our leak = 3\nmy site = 1\n",
+    );
+    let lower = lower_module_map(&cst);
+    let root = lower.modules.root_id();
+    let copy = lower.modules.type_decls(root, &Name("copy".into()))[0].clone();
+    let companion = lower
+        .modules
+        .type_companion(copy.id)
+        .expect("copied act should create companion");
+
+    assert!(
+        lower
+            .modules
+            .value_decls(companion, &Name("hidden".into()))
+            .is_empty()
+    );
+    assert_eq!(
+        lower
+            .modules
+            .value_decls(companion, &Name("visible".into()))
+            .len(),
+        1
+    );
+    assert_eq!(
+        lower
+            .modules
+            .value_decls(companion, &Name("leak".into()))
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn act_copy_does_not_inherit_source_private_operations() {
+    let cst = parse(
+        "act source:\n  my hidden: () -> never\n  our visible: () -> never\nact copy = source\nmy site = 1\n",
+    );
+    let lower = lower_module_map(&cst);
+    let root = lower.modules.root_id();
+    let site = lower.modules.value_decls(root, &Name("site".into()))[0].order;
+    let ops = lower
+        .modules
+        .act_operation_decls_at(root, &[Name("copy".into())], site)
+        .into_iter()
+        .map(|op| op.name)
+        .collect::<Vec<_>>();
+
+    assert_eq!(ops, vec![Name("visible".into())]);
+}
+
+#[test]
 fn registers_act_copy_from_qualified_source_path() {
     let cst = parse(
         "mod effects:\n  act base:\n    our tick: () -> never\nact local = effects::base\nmy site = 1\n",
