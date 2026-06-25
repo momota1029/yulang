@@ -56,11 +56,30 @@ impl BodyLoweringPrefix {
         runtime: &crate::CompiledRuntimeSurface,
         modules: &ModuleTable,
     ) -> Self {
+        Self::from_runtime_surface_inner(runtime, None, modules)
+    }
+
+    pub fn from_runtime_surface_with_lowering(
+        runtime: &crate::CompiledRuntimeSurface,
+        lowering: &crate::CompiledLoweringSurface,
+        modules: &ModuleTable,
+    ) -> Self {
+        Self::from_runtime_surface_inner(runtime, Some(lowering), modules)
+    }
+
+    fn from_runtime_surface_inner(
+        runtime: &crate::CompiledRuntimeSurface,
+        lowering: Option<&crate::CompiledLoweringSurface>,
+        modules: &ModuleTable,
+    ) -> Self {
         let mut poly = poly::expr::Arena::new();
         let mut labels = DumpLabels::new();
         let import = runtime.import_into(&mut poly, &mut labels);
         let mut modules = modules.clone();
         modules.remap_runtime_defs(&import);
+        if let Some(lowering) = lowering {
+            lowering.apply_to_module_table(&mut modules);
+        }
         Self {
             poly,
             modules,

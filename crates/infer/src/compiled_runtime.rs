@@ -660,14 +660,14 @@ fn sorted_def_ids(arena: &PolyArena) -> Vec<DefId> {
 
 #[cfg(test)]
 mod tests {
-    use poly::types::BuiltinType;
     use sources::{Name, Path, SourceFile};
 
-    use crate::lowering::SignatureType;
     use crate::lowering::{
         BodyLoweringPrefix, lower_loaded_files, lower_root_loaded_file_with_prefix,
     };
-    use crate::{ConstructorPayload, ModuleOrder, StoredSignature};
+    use crate::{
+        CompiledLoweringSurface, CompiledNamespaceSurface, ConstructorPayload, ModuleOrder,
+    };
 
     use super::*;
 
@@ -776,10 +776,17 @@ mod tests {
             ),
         ]);
         let lowering = lower_loaded_files(&loaded).unwrap();
+        let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
+        let lowering_surface =
+            CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
         let runtime = CompiledRuntimeSurface::from_lowering(&lowering);
         let mut modules = lowering.modules.clone();
-        replace_test_signatures_with_lowered(&mut modules);
-        let prefix = BodyLoweringPrefix::from_runtime_surface(&runtime, &modules);
+        clear_test_signatures(&mut modules);
+        let prefix = BodyLoweringPrefix::from_runtime_surface_with_lowering(
+            &runtime,
+            &lowering_surface,
+            &modules,
+        );
         let root = sources::load(vec![source(
             &[],
             "my boxed = Box { value: 1 }\nmy value = boxed.value\nmy handled = catch signal::ping():\n    signal::ping(), k -> k 1\n    v -> v\n",
@@ -800,10 +807,17 @@ mod tests {
             source(&["roles"], "pub role Display 'a:\n  pub x.display: unit\n"),
         ]);
         let lowering = lower_loaded_files(&loaded).unwrap();
+        let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
+        let lowering_surface =
+            CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
         let runtime = CompiledRuntimeSurface::from_lowering(&lowering);
         let mut modules = lowering.modules.clone();
-        replace_test_signatures_with_lowered(&mut modules);
-        let prefix = BodyLoweringPrefix::from_runtime_surface(&runtime, &modules);
+        clear_test_signatures(&mut modules);
+        let prefix = BodyLoweringPrefix::from_runtime_surface_with_lowering(
+            &runtime,
+            &lowering_surface,
+            &modules,
+        );
         let root = sources::load(vec![source(
             &[],
             "impl int: Display:\n  pub x.display = 1\n",
@@ -821,40 +835,32 @@ mod tests {
         );
     }
 
-    fn replace_test_signatures_with_lowered(modules: &mut crate::ModuleTable) {
-        let int_signature = StoredSignature::lowered(SignatureType::Builtin(BuiltinType::Int));
+    fn clear_test_signatures(modules: &mut crate::ModuleTable) {
         for constructor in modules.constructors.values_mut() {
             match &mut constructor.payload {
                 ConstructorPayload::Record(fields) => {
                     for field in fields {
-                        field.ty = Some(int_signature.clone());
+                        field.ty = None;
                     }
                 }
                 ConstructorPayload::Tuple(items) => {
                     for item in items {
-                        item.ty = Some(int_signature.clone());
+                        item.ty = None;
                     }
                 }
                 ConstructorPayload::Unit => {}
             }
         }
 
-        let operation_signature = StoredSignature::lowered(SignatureType::Function {
-            param: Box::new(SignatureType::Builtin(BuiltinType::Unit)),
-            arg_eff: None,
-            ret_eff: None,
-            ret: Box::new(SignatureType::Builtin(BuiltinType::Int)),
-        });
         for ops in modules.act_ops.values_mut() {
             for op in ops {
-                op.signature = Some(operation_signature.clone());
+                op.signature = None;
             }
         }
 
-        let unit_signature = StoredSignature::lowered(SignatureType::Builtin(BuiltinType::Unit));
         for methods in modules.role_methods.values_mut() {
             for method in methods {
-                method.signature = Some(unit_signature.clone());
+                method.signature = None;
             }
         }
     }
