@@ -67,10 +67,15 @@ Implemented subset:
 - source compilation units can select a dependency-closed subset from a
   per-unit cache-hit bitmap, so later cache policy never imports a unit whose
   dependency artifact is missing.
+- compiled-unit artifacts can be built with an explicit source-unit key instead
+  of always using the full source-set bundle key. This currently works for
+  root-containing units; non-root module units still need a module-root lowering
+  artifact mode.
 
 Not implemented yet:
 
 - individual dependency SCC artifacts;
+- non-root module-unit artifact emission;
 - realm/band-qualified cache keys;
 - dependency interface hashes;
 - normal CLI selection of a dependency-closed compiled prefix plus changed

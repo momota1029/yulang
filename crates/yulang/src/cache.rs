@@ -269,8 +269,16 @@ pub fn compiled_unit_artifact_from_loaded_files(
     files: &[CollectedSource],
     loaded: &[sources::LoadedFile],
 ) -> Result<CachedCompiledUnitArtifact, infer::LoadedFilesError> {
+    compiled_unit_artifact_from_loaded_files_with_key(files, loaded, source_cache_key(files))
+}
+
+pub fn compiled_unit_artifact_from_loaded_files_with_key(
+    files: &[CollectedSource],
+    loaded: &[sources::LoadedFile],
+    key: SourceCacheKey,
+) -> Result<CachedCompiledUnitArtifact, infer::LoadedFilesError> {
     let lowering = infer::lowering::lower_loaded_files(loaded)?;
-    Ok(compiled_unit_artifact_from_lowering(
+    Ok(compiled_unit_artifact_from_lowering_with_key(
         files,
         loaded,
         &lowering,
@@ -279,6 +287,7 @@ pub fn compiled_unit_artifact_from_loaded_files(
             .iter()
             .map(|error| format!("{error:?}"))
             .collect(),
+        key,
     ))
 }
 
@@ -287,6 +296,22 @@ pub fn compiled_unit_artifact_from_lowering(
     loaded: &[sources::LoadedFile],
     lowering: &infer::lowering::BodyLowering,
     errors: Vec<String>,
+) -> CachedCompiledUnitArtifact {
+    compiled_unit_artifact_from_lowering_with_key(
+        files,
+        loaded,
+        lowering,
+        errors,
+        source_cache_key(files),
+    )
+}
+
+pub fn compiled_unit_artifact_from_lowering_with_key(
+    files: &[CollectedSource],
+    loaded: &[sources::LoadedFile],
+    lowering: &infer::lowering::BodyLowering,
+    errors: Vec<String>,
+    key: SourceCacheKey,
 ) -> CachedCompiledUnitArtifact {
     let syntax = sources::CompiledSyntaxSurface::from_loaded_files(loaded);
     let namespace = infer::CompiledNamespaceSurface::from_module_table(&lowering.modules);
@@ -301,6 +326,7 @@ pub fn compiled_unit_artifact_from_lowering(
         &lowering_surface,
         &typed,
         &runtime,
+        key,
     );
     CachedCompiledUnitArtifact {
         manifest,
@@ -393,11 +419,12 @@ fn compiled_unit_manifest(
     lowering: &infer::CompiledLoweringSurface,
     typed: &infer::CompiledTypedSurface,
     runtime: &infer::CompiledRuntimeSurface,
+    key: SourceCacheKey,
 ) -> CompiledUnitManifest {
     CompiledUnitManifest {
         cache_schema_version: CACHE_SCHEMA_VERSION,
         compiled_unit_format: COMPILED_UNIT_CACHE_FORMAT,
-        source_hash: source_cache_key(files).hash,
+        source_hash: key.hash,
         syntax_hash: compiled_syntax_hash(syntax),
         namespace_hash: compiled_namespace_hash(namespace),
         lowering_hash: compiled_lowering_hash(lowering),
@@ -2524,6 +2551,43 @@ mod tests {
 
         cache.write_compiled_unit_artifact(key, &artifact).unwrap();
         assert!(cache.read_compiled_unit_artifact(key).unwrap().is_some());
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compiled_unit_cache_accepts_explicit_source_unit_key() {
+        let root = temp_root("compiled-unit-source-unit-key");
+        let cache = ArtifactCache::new(&root);
+        let files = vec![source("main.yu", &[], "pub x = 1\n")];
+        let units = crate::source::source_compilation_units(&files);
+        let keys = source_compilation_unit_cache_keys(&files, &units);
+        let unit_key = keys[units.unit_for_file(0).unwrap()];
+        let loaded = sources::load(collected_to_source_files(files.clone()));
+
+        let artifact =
+            compiled_unit_artifact_from_loaded_files_with_key(&files, &loaded, unit_key).unwrap();
+        cache
+            .write_compiled_unit_artifact(unit_key, &artifact)
+            .unwrap();
+        assert!(
+            cache
+                .read_compiled_unit_artifact(unit_key)
+                .unwrap()
+                .is_some()
+        );
+
+        let bundle_key_artifact =
+            compiled_unit_artifact_from_loaded_files(&files, &loaded).unwrap();
+        cache
+            .write_compiled_unit_artifact(unit_key, &bundle_key_artifact)
+            .unwrap();
+        assert!(
+            cache
+                .read_compiled_unit_artifact(unit_key)
+                .unwrap()
+                .is_none()
+        );
 
         let _ = fs::remove_dir_all(root);
     }

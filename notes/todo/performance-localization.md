@@ -188,6 +188,9 @@ source dependency SCC ごとの compiled-unit cache である。
   separate from the full source-set bundle key.
 - Done: `SourceCompilationUnits::dependency_closed_available_units` filters
   cache-hit units to the subset whose dependencies are also available.
+- Done: `.yuunit` constructors can take an explicit source-unit cache key, so
+  root-containing unit artifacts no longer have to use the full source-set
+  bundle key.
 - Realm/band note: the current source-set cache key is only a coarse placeholder
   for the future identity
   `(resolved realm, band path, source dependency SCC, dependency interface hashes)`.
@@ -200,6 +203,9 @@ source dependency SCC ごとの compiled-unit cache である。
   The active source route now has the first `SourceSet::compilation_units()`
   equivalent and unit keys, but normal CLI cache policy still needs artifact
   reads, dependency-closed prefix import, and suffix artifact emission.
+- Not done: non-root module-unit artifact emission. `lower_loaded_files` still
+  requires a root module, so units such as `a::b` need an explicit module-root
+  artifact mode before individual SCC artifacts can be emitted generally.
 - Next: implement the runtime remap/merge path. Only after that should the
   compiled-unit value import view be connected to the normal lowerer /
   name-resolution path.
