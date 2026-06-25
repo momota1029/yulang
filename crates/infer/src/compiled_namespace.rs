@@ -117,6 +117,12 @@ pub enum CompiledNamespaceTypeKind {
     Act,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompiledNamespaceValueVisibility {
+    Pub,
+    Our,
+}
+
 impl CompiledNamespaceSurface {
     pub fn from_loaded_files(loaded: &[sources::LoadedFile]) -> Result<Self, LoadedFilesError> {
         let lower = crate::lower_loaded_files_module_map(loaded)?;
@@ -128,6 +134,20 @@ impl CompiledNamespaceSurface {
         builder.visit_module(modules.root_id(), None);
         builder.fill_import_views();
         builder.finish()
+    }
+
+    pub fn value_visibility(&self, symbol: u32) -> Option<CompiledNamespaceValueVisibility> {
+        for module in &self.modules {
+            let Some(value) = module.values.iter().find(|value| value.symbol == symbol) else {
+                continue;
+            };
+            return match value.visibility {
+                CompiledNamespaceVisibility::Pub => Some(CompiledNamespaceValueVisibility::Pub),
+                CompiledNamespaceVisibility::Our => Some(CompiledNamespaceValueVisibility::Our),
+                CompiledNamespaceVisibility::My => None,
+            };
+        }
+        None
     }
 }
 

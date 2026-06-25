@@ -137,6 +137,10 @@ source dependency SCC ごとの compiled-unit cache である。
   node vectors rather than hash-cons maps.
 - Done: `infer::CompiledTypedIndex` resolves value schemes by namespace symbol,
   and `CompiledTypeArena` can rebuild a process-local `TypeArena`.
+- Done: `CompiledTypeImporter` remaps serialized type IDs, type variables, and
+  stack subtract IDs into a live `infer::Arena`.
+- Done: `CompiledTypedSurface::import_value_defs` can allocate fresh bodyless
+  `poly::Def::Let` entries with imported schemes for exported value symbols.
 - Done: `.yuunit` envelopes include typed surface data and `typed_hash`.
 - Not done: source dependency SCC selection and normal-path cache hit import.
 - Next: add namespace/typed-surface import routes so cached dependency units can
