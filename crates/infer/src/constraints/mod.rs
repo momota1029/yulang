@@ -294,6 +294,10 @@ impl TypeBounds {
         ensure_slot(&mut self.vars, index);
         self.vars[index].get_or_insert_with(VarBounds::default)
     }
+
+    fn record_var_epoch(&mut self, var: TypeVar, epoch: ConstraintEpoch) {
+        self.bounds_mut(var).epoch = epoch;
+    }
 }
 
 fn ensure_slot<T>(items: &mut Vec<Option<T>>, index: usize) {
@@ -307,6 +311,7 @@ fn ensure_slot<T>(items: &mut Vec<Option<T>>, index: usize) {
 ///
 /// bounds は追加順の Vec で持つ。現段階では探索や差分削除よりも、イベント順と単純な再伝播を優先する。
 pub struct VarBounds {
+    epoch: ConstraintEpoch,
     lowers: Vec<WeightedLowerBound>,
     uppers: Vec<WeightedUpperBound>,
     evidence_lowers: Vec<WeightedLowerBound>,
@@ -318,6 +323,10 @@ pub struct VarBounds {
 }
 
 impl VarBounds {
+    pub fn epoch(&self) -> ConstraintEpoch {
+        self.epoch
+    }
+
     pub fn lowers(&self) -> &[WeightedLowerBound] {
         &self.lowers
     }

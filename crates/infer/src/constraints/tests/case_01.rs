@@ -39,12 +39,24 @@ fn constraint_epoch_advances_only_for_new_constraint_state() {
 
     machine.subtype(lower, upper);
     let after_first = machine.epoch().as_u64();
+    let source_epoch = machine.bounds().of(source).unwrap().epoch().as_u64();
+    let target_epoch = machine.bounds().of(target).unwrap().epoch().as_u64();
 
     assert!(after_first > 0);
+    assert!(source_epoch > 0);
+    assert!(target_epoch > 0);
 
     machine.subtype(lower, upper);
 
     assert_eq!(machine.epoch().as_u64(), after_first);
+    assert_eq!(
+        machine.bounds().of(source).unwrap().epoch().as_u64(),
+        source_epoch
+    );
+    assert_eq!(
+        machine.bounds().of(target).unwrap().epoch().as_u64(),
+        target_epoch
+    );
 }
 
 #[test]

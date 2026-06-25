@@ -450,8 +450,9 @@ impl ConstraintMachine {
         }
     }
 
-    pub(in crate::constraints) fn bump_epoch(&mut self) {
+    pub(in crate::constraints) fn bump_epoch(&mut self) -> ConstraintEpoch {
         self.epoch.bump();
+        self.epoch
     }
 
     pub(in crate::constraints) fn fresh_internal_type_var_at(

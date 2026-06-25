@@ -50,7 +50,8 @@ impl ConstraintMachine {
         if !self.bounds.add_lower(target, pos, weights.clone()) {
             return;
         }
-        self.bump_epoch();
+        let epoch = self.bump_epoch();
+        self.bounds.record_var_epoch(target, epoch);
         let frontier_shadow = self.observe_lower_replay_frontier_shadow(target, pos, &weights);
         self.constrain_lower_bound_by_registered_filters(target, pos, &weights);
         self.record_pos_bound_var_neighbors(target, pos);
@@ -98,7 +99,8 @@ impl ConstraintMachine {
         if !self.bounds.add_upper(source, neg, weights.clone()) {
             return;
         }
-        self.bump_epoch();
+        let epoch = self.bump_epoch();
+        self.bounds.record_var_epoch(source, epoch);
         let frontier_shadow = self.observe_upper_replay_frontier_shadow(source, neg, &weights);
         self.record_neg_bound_var_neighbors(source, neg);
         self.events.push(ConstraintEvent::UpperBoundAdded {
@@ -474,13 +476,15 @@ impl ConstraintMachine {
                 .bounds
                 .add_evidence_lower(target, constraint.lower, constraint.weights.clone())
             {
-                self.bump_epoch();
+                let epoch = self.bump_epoch();
+                self.bounds.record_var_epoch(target, epoch);
             }
             if self
                 .bounds
                 .add_evidence_upper(source, constraint.upper, constraint.weights)
             {
-                self.bump_epoch();
+                let epoch = self.bump_epoch();
+                self.bounds.record_var_epoch(source, epoch);
             }
         }
     }
