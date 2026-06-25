@@ -81,7 +81,7 @@ static-analysis bench を通している。
 stdout/stderr は個別 log に残し、`summary.txt` へ wall time と主要 metrics を抜き出す。
 `key-metrics.md` には比較用の一枚表を出す。`summary.txt` の最後にも同じ表を追記する。
 新しい run では、clean-build 側の代表 root として `top restart root` / `top restarts`
-も見る。
+と、constraint cache の粗い変化量として `constraint epoch` / `top epoch delta` も見る。
 
 既定では hardening smoke / adversarial corpus / release smoke / source metrics /
 static-analysis bench を走らせる。個別に切りたい場合は次を使う。
