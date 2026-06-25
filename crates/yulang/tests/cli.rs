@@ -341,6 +341,51 @@ fn compatible_run_populates_control_vm_cache() {
 }
 
 #[test]
+fn compatible_run_uses_single_source_unit_prefix_cache() {
+    let root = temp_root("run-source-unit-prefix-cache");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("a")).unwrap();
+    let entry = root.join("main.yu");
+    fs::write(&entry, "mod a;\nuse a::*\nx\n").unwrap();
+    fs::write(root.join("a.yu"), "mod b;\npub x = b::y\n").unwrap();
+    fs::write(root.join("a").join("b.yu"), "pub y = 7\n").unwrap();
+    let cache_root = root.join("cache-root");
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [7]\n");
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 2);
+    assert_eq!(poly_cache_file_count(&cache_root), 1);
+    assert_eq!(control_cache_file_count(&cache_root), 1);
+
+    fs::write(&entry, "mod a;\nuse a::*\nmy keep v = v\nkeep x\n").unwrap();
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [7]\n");
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 2);
+    assert_eq!(poly_cache_file_count(&cache_root), 2);
+    assert_eq!(control_cache_file_count(&cache_root), 2);
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn public_regression_list_update_runs_through_cli_cache() {
     let root = temp_root("public-regression-list-update");
     let _ = fs::remove_dir_all(&root);
@@ -499,6 +544,10 @@ fn control_cache_file_count(root: &Path) -> usize {
 
 fn poly_cache_file_count(root: &Path) -> usize {
     artifact_cache_file_count(root, "poly")
+}
+
+fn compiled_unit_cache_file_count(root: &Path) -> usize {
+    artifact_cache_file_count(root, "compiled-unit")
 }
 
 fn artifact_cache_file_count(root: &Path, stage: &str) -> usize {

@@ -718,12 +718,18 @@ fn build_poly_with_cache(
                 Ok(None) => {}
                 Err(error) => eprintln!("warning: {error}"),
             }
+            if let Some(output) =
+                build_poly_from_single_source_unit_prefix_cache(&files, key, cache)
+            {
+                return output;
+            }
             let output = run_route_to_value(
-                yulang::build_poly_and_compiled_unit_from_collected_sources(files),
+                yulang::build_poly_and_compiled_unit_from_collected_sources(files.clone()),
             );
             if let Err(error) = cache.write_compiled_unit_artifact(key, &output.compiled_unit) {
                 eprintln!("warning: {error}");
             }
+            write_standalone_source_unit_artifacts(&files, cache);
             let poly = output.poly;
             let artifact = yulang::cache::CachedPolyArtifact {
                 arena: poly.arena,
@@ -748,12 +754,85 @@ fn build_poly_with_cache(
     }
 }
 
+fn build_poly_from_single_source_unit_prefix_cache(
+    files: &[yulang::CollectedSource],
+    key: yulang::cache::SourceCacheKey,
+    cache: &yulang::cache::ArtifactCache,
+) -> Option<yulang::BuildPolyOutput> {
+    if source_set_contains_std(files) {
+        return None;
+    }
+    let units = yulang::source_compilation_units(files);
+    let cached = match cache.read_source_unit_compiled_artifacts(files, &units) {
+        Ok(cached) => cached,
+        Err(error) => {
+            eprintln!("warning: {error}");
+            return None;
+        }
+    };
+    let [unit] = cached.selection.cached_units.as_slice() else {
+        return None;
+    };
+    let Some(prefix) = cached.artifacts.into_iter().nth(*unit).flatten() else {
+        return None;
+    };
+    let suffix = cached
+        .selection
+        .source_files
+        .iter()
+        .map(|file| files[*file].clone())
+        .collect::<Vec<_>>();
+    let poly =
+        match yulang::build_poly_from_compiled_unit_prefix_and_collected_sources(prefix, suffix) {
+            Ok(poly) => poly,
+            Err(error) => {
+                eprintln!("warning: {error}");
+                return None;
+            }
+        };
+    Some(write_poly_artifact_from_output(poly, key, cache))
+}
+
+fn write_standalone_source_unit_artifacts(
+    files: &[yulang::CollectedSource],
+    cache: &yulang::cache::ArtifactCache,
+) {
+    if source_set_contains_std(files) {
+        return;
+    }
+
+    let units = yulang::source_compilation_units(files);
+    let keys = yulang::cache::source_compilation_unit_cache_keys(files, &units);
+    for (unit, source_unit) in units.units.iter().enumerate() {
+        if !source_unit.dependencies.is_empty() {
+            continue;
+        }
+        match yulang::cache::compiled_unit_artifact_from_standalone_source_unit(files, &units, unit)
+        {
+            Ok(artifact) => {
+                if let Err(error) = cache.write_compiled_unit_artifact(keys[unit], &artifact) {
+                    eprintln!("warning: {error}");
+                }
+            }
+            Err(error) => eprintln!("warning: {error:?}"),
+        }
+    }
+}
+
 fn build_poly_from_compiled_unit_cache(
     cached: yulang::cache::CachedCompiledUnitArtifact,
     key: yulang::cache::SourceCacheKey,
     cache: &yulang::cache::ArtifactCache,
 ) -> yulang::BuildPolyOutput {
     let poly = yulang::build_poly_from_compiled_unit_artifact(cached);
+    write_poly_artifact_from_output(poly, key, cache)
+}
+
+fn write_poly_artifact_from_output(
+    poly: yulang::BuildPolyOutput,
+    key: yulang::cache::SourceCacheKey,
+    cache: &yulang::cache::ArtifactCache,
+) -> yulang::BuildPolyOutput {
     let artifact = yulang::cache::CachedPolyArtifact {
         arena: poly.arena,
         labels: poly.labels,
@@ -769,6 +848,15 @@ fn build_poly_from_compiled_unit_cache(
         file_count: artifact.file_count,
         errors: artifact.errors,
     }
+}
+
+fn source_set_contains_std(files: &[yulang::CollectedSource]) -> bool {
+    files.iter().any(|file| {
+        file.module_path
+            .segments
+            .first()
+            .is_some_and(|name| name.0 == "std")
+    })
 }
 
 fn dump_poly_with_optional_cache(
