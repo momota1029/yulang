@@ -378,6 +378,97 @@ impl ModuleTable {
             .push(decl);
         self.nodes[sub.0].parent = Some(ModuleParent { module, order });
     }
+    pub(crate) fn remap_runtime_defs(&mut self, import: &CompiledRuntimeImport) {
+        for node in &mut self.nodes {
+            for decl in &mut node.decls {
+                remap_module_decl_kind(&mut decl.kind, import);
+            }
+            for entries in node.import_values.values_mut() {
+                for entry in entries {
+                    entry.def = import.map_def(entry.def);
+                }
+            }
+        }
+
+        self.synthetic_var_act_uses =
+            remap_def_keyed_vec(std::mem::take(&mut self.synthetic_var_act_uses), import);
+        self.synthetic_sub_label_act_uses = remap_def_keyed_vec(
+            std::mem::take(&mut self.synthetic_sub_label_act_uses),
+            import,
+        );
+        for owners in self.root_expr_owners.values_mut() {
+            for owner in owners {
+                remap_optional_def(owner, import);
+            }
+        }
+
+        self.act_op_defs = std::mem::take(&mut self.act_op_defs)
+            .into_iter()
+            .map(|(def, op)| (import.map_def(def), op))
+            .collect();
+        self.lazy_ops = std::mem::take(&mut self.lazy_ops)
+            .into_iter()
+            .map(|def| import.map_def(def))
+            .collect();
+        for methods in self.act_methods.values_mut() {
+            for method in methods {
+                method.def = import.map_def(method.def);
+            }
+        }
+        self.constructors = std::mem::take(&mut self.constructors)
+            .into_iter()
+            .map(|(def, constructor)| (import.map_def(def), constructor))
+            .collect();
+        for error in self.error_decls.values_mut() {
+            remap_error_decl(error, import);
+        }
+        self.rebuild_error_operation_maps();
+        for casts in self.casts.values_mut() {
+            for cast in casts {
+                cast.def = import.map_def(cast.def);
+            }
+        }
+        for impls in self.role_impls.values_mut() {
+            for impl_decl in impls {
+                impl_decl.def = import.map_def(impl_decl.def);
+                for method in &mut impl_decl.methods {
+                    method.def = import.map_def(method.def);
+                }
+            }
+        }
+        for methods in self.role_methods.values_mut() {
+            for method in methods {
+                method.def = import.map_def(method.def);
+            }
+        }
+        for methods in self.type_methods.values_mut() {
+            for method in methods {
+                method.def = import.map_def(method.def);
+            }
+        }
+        for methods in self.type_field_methods.values_mut() {
+            for method in methods {
+                method.def = import.map_def(method.def);
+            }
+        }
+        self.def_source_spans = std::mem::take(&mut self.def_source_spans)
+            .into_iter()
+            .map(|(def, span)| (import.map_def(def), span))
+            .collect();
+    }
+
+    fn rebuild_error_operation_maps(&mut self) {
+        self.error_constructor_ops.clear();
+        self.error_op_constructors.clear();
+        for decl in self.error_decls.values() {
+            for variant in &decl.variants {
+                self.error_constructor_ops
+                    .insert(variant.constructor_def, variant.operation_def);
+                self.error_op_constructors
+                    .insert(variant.operation_def, variant.constructor_def);
+            }
+        }
+    }
     pub(super) fn add_alias(&mut self, module: ModuleId, import: UseImport, vis: Vis) {
         let order = self.next_order(module);
         self.nodes[module.0]
@@ -628,6 +719,40 @@ impl ModuleTable {
         path.segments.push(decl.name.clone());
         path
     }
+}
+
+fn remap_module_decl_kind(kind: &mut ModuleDeclKind, import: &CompiledRuntimeImport) {
+    match kind {
+        ModuleDeclKind::Value { def } | ModuleDeclKind::Module { def, .. } => {
+            *def = import.map_def(*def);
+        }
+        ModuleDeclKind::Type { .. } => {}
+    }
+}
+
+fn remap_optional_def(def: &mut Option<DefId>, import: &CompiledRuntimeImport) {
+    if let Some(source) = *def {
+        *def = Some(import.map_def(source));
+    }
+}
+
+fn remap_error_decl(error: &mut ErrorDecl, import: &CompiledRuntimeImport) {
+    for variant in &mut error.variants {
+        variant.constructor_def = import.map_def(variant.constructor_def);
+        variant.operation_def = import.map_def(variant.operation_def);
+    }
+    remap_optional_def(&mut error.wrap_def, import);
+    remap_optional_def(&mut error.up_def, import);
+}
+
+fn remap_def_keyed_vec<T>(
+    source: FxHashMap<DefId, Vec<T>>,
+    import: &CompiledRuntimeImport,
+) -> FxHashMap<DefId, Vec<T>> {
+    source
+        .into_iter()
+        .map(|(def, values)| (import.map_def(def), values))
+        .collect()
 }
 
 trait ImportOrder {

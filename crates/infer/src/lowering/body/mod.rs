@@ -44,6 +44,32 @@ impl BodyLowering {
     }
 }
 
+impl BodyLoweringPrefix {
+    /// Build a root-lowering prefix from a runtime surface and the matching
+    /// lowering environment from the same source unit.
+    ///
+    /// The runtime surface remaps every process-local `DefId` while importing
+    /// into a fresh arena, so the module table must be remapped with the same
+    /// import before later root files can resolve constructors, effect
+    /// operations, methods, casts, and ordinary values against it.
+    pub fn from_runtime_surface(
+        runtime: &crate::CompiledRuntimeSurface,
+        modules: &ModuleTable,
+    ) -> Self {
+        let mut poly = poly::expr::Arena::new();
+        let mut labels = DumpLabels::new();
+        let import = runtime.import_into(&mut poly, &mut labels);
+        let mut modules = modules.clone();
+        modules.remap_runtime_defs(&import);
+        Self {
+            poly,
+            modules,
+            labels,
+            errors: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct BodyLoweringTiming {
     pub index_csts: Duration,

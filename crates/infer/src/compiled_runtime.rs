@@ -127,7 +127,7 @@ impl CompiledRuntimeImport {
         }
     }
 
-    fn map_def(&self, id: DefId) -> DefId {
+    pub(crate) fn map_def(&self, id: DefId) -> DefId {
         *self
             .defs
             .get(&id)
@@ -662,7 +662,10 @@ fn sorted_def_ids(arena: &PolyArena) -> Vec<DefId> {
 mod tests {
     use sources::{Name, Path, SourceFile};
 
-    use crate::lowering::lower_loaded_files;
+    use crate::ModuleOrder;
+    use crate::lowering::{
+        BodyLoweringPrefix, lower_loaded_files, lower_root_loaded_file_with_prefix,
+    };
 
     use super::*;
 
@@ -719,6 +722,46 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn runtime_surface_prefix_remaps_module_defs_for_later_root_lowering() {
+        let loaded = sources::load(vec![
+            source(&[], "mod ops;\npub use ops::*\n"),
+            source(
+                &["ops"],
+                "pub act signal:\n  pub ping: () -> int\n\npub struct Box { value: int }\npub id x = x\n",
+            ),
+        ]);
+        let lowering = lower_loaded_files(&loaded).unwrap();
+        let runtime = CompiledRuntimeSurface::from_lowering(&lowering);
+        let prefix = BodyLoweringPrefix::from_runtime_surface(&runtime, &lowering.modules);
+        let root = sources::load(vec![source(
+            &[],
+            "my boxed = Box { value: 1 }\nmy value = boxed.value\nmy request = signal::ping()\nmy same = id value\n",
+        )])
+        .into_iter()
+        .next()
+        .unwrap();
+
+        let lowered = lower_root_loaded_file_with_prefix(&prefix, &root).unwrap();
+
+        assert_eq!(lowered.errors, Vec::new());
+        let root = lowered.modules.root_id();
+        let site = ModuleOrder::from_index(u32::MAX);
+        let box_ctor = lowered
+            .modules
+            .value_path_at(root, &[Name("Box".into())], site)
+            .expect("imported struct constructor should resolve");
+        assert!(lowered.session.poly.defs.get(box_ctor).is_some());
+        let operation = lowered
+            .modules
+            .act_operation_decls_at(root, &[Name("signal".into())], site)
+            .into_iter()
+            .find(|operation| operation.name == Name("ping".into()))
+            .and_then(|operation| operation.def)
+            .expect("imported act operation should resolve to a remapped def");
+        assert!(lowered.session.poly.defs.get(operation).is_some());
     }
 
     fn source(module: &[&str], text: &str) -> SourceFile {
