@@ -273,6 +273,12 @@ The first external-reference preparation is also in place:
 - `CompiledRuntimeSurface::import_into_with_external_defs` can map selected
   source `DefId`s to already-imported target `DefId`s instead of fresh-copying
   them, and skips external roots / metadata during import.
+- `compiled_unit_external_runtime_def_pairs` resolves serialized
+  namespace-keyed external module/value refs against an already-imported prefix
+  runtime by stable module/value path.
+- `BodyLoweringPrefix::extend_with_compiled_unit_surfaces_and_external_defs`
+  can import a suffix compiled-unit surface on top of an existing prefix arena,
+  preserving the dependency prefix's existing runtime defs.
 
 This does not serialize dependent units without their dependencies yet. It only
 gives the suffix lowering result a reliable way to distinguish prefix-owned
@@ -290,9 +296,10 @@ IDs, importing the artifact later will miswire or point at missing defs.
 Therefore finer-grained dependency-bearing source-unit artifacts still need:
 
 - runtime surface trimming for prefix-owned defs;
-- cache-layer wiring that builds external def maps from serialized refs and an
-  already-imported dependency prefix;
-- a rejection path for prefix-owned refs that are not namespace-keyed yet.
+- a rejection or copy policy for prefix-owned refs that are not namespace-keyed
+  yet;
+- cache selection that can import dependency artifacts first, then extend that
+  prefix with a dependent artifact using the serialized external refs.
 
 The closure artifact route is simpler and already implemented, but it can
 duplicate dependency surfaces across related cached artifacts. The

@@ -4,6 +4,7 @@
 //! collector or std lookup rules so a cache hit cannot change which files form
 //! the program.
 
+use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::io;
@@ -325,6 +326,21 @@ pub struct CompiledUnitExternalRuntimeValueRef {
     pub def: poly::expr::DefId,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompiledUnitExternalRuntimeDefMapError {
+    MissingModulePath {
+        module_path: Vec<String>,
+    },
+    MissingValuePath {
+        value_path: Vec<String>,
+    },
+    ConflictingDefMapping {
+        source: poly::expr::DefId,
+        first: poly::expr::DefId,
+        second: poly::expr::DefId,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompiledUnitSourceFile {
     pub path: String,
@@ -581,6 +597,67 @@ fn compiled_unit_external_runtime_refs(
         modules,
         values,
     }
+}
+
+pub fn compiled_unit_external_runtime_def_pairs(
+    artifact: &CachedCompiledUnitArtifact,
+    prefix_runtime: &infer::lowering::BodyLoweringPrefixRuntime,
+) -> Result<Vec<(poly::expr::DefId, poly::expr::DefId)>, CompiledUnitExternalRuntimeDefMapError> {
+    let prefix_modules = prefix_runtime
+        .module_defs()
+        .map(|entry| (entry.module_path.clone(), entry.def))
+        .collect::<HashMap<_, _>>();
+    let prefix_values = prefix_runtime
+        .value_defs()
+        .map(|entry| (entry.value_path.clone(), entry.def))
+        .collect::<HashMap<_, _>>();
+
+    let mut pairs = HashMap::new();
+    for module in &artifact.external_runtime.modules {
+        let target = prefix_modules
+            .get(&module.module_path)
+            .copied()
+            .ok_or_else(
+                || CompiledUnitExternalRuntimeDefMapError::MissingModulePath {
+                    module_path: module.module_path.clone(),
+                },
+            )?;
+        insert_external_runtime_def_pair(&mut pairs, module.def, target)?;
+    }
+    for value in &artifact.external_runtime.values {
+        let target = prefix_values
+            .get(&value.value_path)
+            .copied()
+            .ok_or_else(
+                || CompiledUnitExternalRuntimeDefMapError::MissingValuePath {
+                    value_path: value.value_path.clone(),
+                },
+            )?;
+        insert_external_runtime_def_pair(&mut pairs, value.def, target)?;
+    }
+
+    let mut pairs = pairs.into_iter().collect::<Vec<_>>();
+    pairs.sort_by_key(|(source, target)| (source.0, target.0));
+    Ok(pairs)
+}
+
+fn insert_external_runtime_def_pair(
+    pairs: &mut HashMap<poly::expr::DefId, poly::expr::DefId>,
+    source: poly::expr::DefId,
+    target: poly::expr::DefId,
+) -> Result<(), CompiledUnitExternalRuntimeDefMapError> {
+    if let Some(first) = pairs.insert(source, target) {
+        if first != target {
+            return Err(
+                CompiledUnitExternalRuntimeDefMapError::ConflictingDefMapping {
+                    source,
+                    first,
+                    second: target,
+                },
+            );
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -3317,6 +3394,99 @@ mod tests {
             artifact.manifest.external_runtime_hash,
             compiled_external_runtime_hash(&artifact.external_runtime)
         );
+    }
+
+    #[test]
+    fn compiled_unit_external_runtime_def_pairs_resolve_prefix_paths() {
+        let prefix_files = vec![
+            source("prefix.yu", &[], "mod deps;\npub use deps::*\n"),
+            source("deps.yu", &["deps"], "pub id x = x\n"),
+        ];
+        let prefix_loaded = sources::load(collected_to_source_files(prefix_files));
+        let prefix_lowering = infer::lowering::lower_loaded_files(&prefix_loaded).unwrap();
+        let prefix_namespace =
+            infer::CompiledNamespaceSurface::from_module_table(&prefix_lowering.modules);
+        let prefix_lowering_surface = infer::CompiledLoweringSurface::from_module_table(
+            &prefix_lowering.modules,
+            &prefix_namespace,
+        );
+        let prefix_runtime = infer::CompiledRuntimeSurface::from_lowering_with_namespace(
+            &prefix_lowering,
+            &prefix_namespace,
+        );
+        let prefix = infer::lowering::BodyLoweringPrefix::from_compiled_unit_surfaces(
+            &prefix_namespace,
+            &prefix_lowering_surface,
+            &prefix_runtime,
+        )
+        .unwrap();
+        let suffix_files = vec![source("main.yu", &[], "pub y = id 1\n")];
+        let suffix_loaded = sources::load(collected_to_source_files(suffix_files.clone()));
+        let suffix_root = suffix_loaded.into_iter().next().unwrap();
+        let lowered =
+            infer::lowering::lower_root_loaded_file_with_prefix(&prefix, &suffix_root).unwrap();
+        let syntax =
+            sources::CompiledSyntaxSurface::from_loaded_files(std::slice::from_ref(&suffix_root));
+        let key = source_cache_key(&suffix_files);
+        let artifact = compiled_unit_artifact_from_lowering_with_syntax_and_key(
+            &suffix_files,
+            syntax,
+            &lowered,
+            Vec::new(),
+            key,
+        );
+        let source_id = artifact
+            .external_runtime
+            .values
+            .iter()
+            .find(|value| value.value_path == vec!["deps".to_string(), "id".to_string()])
+            .expect("suffix artifact should record deps::id as an external value")
+            .def;
+        let target_id = prefix
+            .runtime()
+            .value_defs()
+            .find(|value| value.value_path == vec!["deps".to_string(), "id".to_string()])
+            .expect("prefix runtime should retain deps::id by path")
+            .def;
+
+        let external_defs =
+            compiled_unit_external_runtime_def_pairs(&artifact, prefix.runtime()).unwrap();
+        let extended = prefix
+            .extend_with_compiled_unit_surfaces_and_external_defs(
+                &artifact.namespace,
+                &artifact.lowering,
+                &artifact.runtime,
+                external_defs.clone(),
+            )
+            .expect("suffix artifact should extend the existing prefix");
+        let rebuilt_id = extended
+            .runtime()
+            .value_defs()
+            .find(|value| value.value_path == vec!["deps".to_string(), "id".to_string()])
+            .expect("extended prefix should keep deps::id visible")
+            .def;
+        let y = extended
+            .runtime()
+            .value_defs()
+            .find(|value| value.value_path == vec!["y".to_string()])
+            .expect("extended prefix should include the suffix value")
+            .def;
+
+        assert!(external_defs.contains(&(source_id, target_id)));
+        assert_eq!(rebuilt_id, target_id);
+        assert_ne!(y, target_id);
+        assert!(!prefix.runtime().contains_def(y));
+
+        let mut value_only_artifact = artifact.clone();
+        value_only_artifact.external_runtime.modules.clear();
+        let error =
+            compiled_unit_external_runtime_def_pairs(&value_only_artifact, &Default::default())
+                .unwrap_err();
+        assert!(matches!(
+            error,
+            CompiledUnitExternalRuntimeDefMapError::MissingValuePath { value_path }
+                if value_path == vec!["deps".to_string(), "id".to_string()]
+        ));
     }
 
     #[test]

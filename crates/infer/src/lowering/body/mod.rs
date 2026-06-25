@@ -105,17 +105,59 @@ impl BodyLoweringPrefix {
         lowering: &crate::CompiledLoweringSurface,
         runtime: &crate::CompiledRuntimeSurface,
     ) -> Option<Self> {
-        let mut poly = poly::expr::Arena::new();
-        let mut labels = DumpLabels::new();
-        let import = runtime.import_into(&mut poly, &mut labels);
-        let runtime =
+        Self::from_compiled_unit_surfaces_inner(
+            None,
+            namespace,
+            lowering,
+            runtime,
+            std::iter::empty::<(DefId, DefId)>(),
+        )
+    }
+
+    pub fn extend_with_compiled_unit_surfaces_and_external_defs(
+        &self,
+        namespace: &crate::CompiledNamespaceSurface,
+        lowering: &crate::CompiledLoweringSurface,
+        runtime: &crate::CompiledRuntimeSurface,
+        external_defs: impl IntoIterator<Item = (DefId, DefId)>,
+    ) -> Option<Self> {
+        Self::from_compiled_unit_surfaces_inner(
+            Some(self),
+            namespace,
+            lowering,
+            runtime,
+            external_defs,
+        )
+    }
+
+    fn from_compiled_unit_surfaces_inner(
+        base: Option<&Self>,
+        namespace: &crate::CompiledNamespaceSurface,
+        lowering: &crate::CompiledLoweringSurface,
+        runtime: &crate::CompiledRuntimeSurface,
+        external_defs: impl IntoIterator<Item = (DefId, DefId)>,
+    ) -> Option<Self> {
+        let mut poly = base
+            .map(|prefix| prefix.poly.clone())
+            .unwrap_or_else(poly::expr::Arena::new);
+        let mut labels = base
+            .map(|prefix| prefix.labels.clone())
+            .unwrap_or_else(DumpLabels::new);
+        let import = runtime.import_into_with_external_defs(&mut poly, &mut labels, external_defs);
+        let imported_runtime =
             BodyLoweringPrefixRuntime::from_runtime_import_with_namespace(&import, namespace);
+        let runtime = if let Some(prefix) = base {
+            prefix.runtime.extended_with(imported_runtime)
+        } else {
+            imported_runtime
+        };
         let modules = ModuleTable::from_compiled_surfaces(namespace, lowering, &import)?;
+        let errors = base.map(|prefix| prefix.errors.clone()).unwrap_or_default();
         Some(Self {
             poly,
             modules,
             labels,
-            errors: Vec::new(),
+            errors,
             runtime,
         })
     }
@@ -234,6 +276,20 @@ impl BodyLoweringPrefixRuntime {
                     )
                 })
                 .collect(),
+        }
+    }
+
+    fn extended_with(&self, imported: Self) -> Self {
+        let mut defs = self.defs.clone();
+        defs.extend(imported.defs);
+        let mut modules = self.modules.clone();
+        modules.extend(imported.modules);
+        let mut values = self.values.clone();
+        values.extend(imported.values);
+        Self {
+            defs,
+            modules,
+            values,
         }
     }
 
