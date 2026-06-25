@@ -29,6 +29,7 @@ impl AnalysisSession {
             work: VecDeque::new(),
             generalize_compact_shadow: GeneralizeCompactShadow::from_env(),
             generalize_compact_cache: GeneralizeCompactCache::from_env(),
+            generalize_role_view_shadow: GeneralizeRoleViewShadow::from_env(),
             timing: AnalysisTiming::default(),
             instantiated_targets: FxHashSet::default(),
             def_parent_map: DefParentMapCache::default(),

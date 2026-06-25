@@ -127,7 +127,9 @@ impl AnalysisSession {
             let mut simplified_role_view = None;
             let subtype_constraints =
                 if compact_root_has_interval_bounds(&compact, &coalesced_role_constraints) {
-                    let view = self.simplified_coalesced_role_view(
+                    let view = self.simplified_coalesced_role_view_for_generalize(
+                        def,
+                        root,
                         &compact,
                         &coalesced_role_constraints,
                         simplification_boundary,
@@ -185,7 +187,9 @@ impl AnalysisSession {
             } else {
                 let (mut role_compact, mut roles) =
                     simplified_role_view.take().unwrap_or_else(|| {
-                        self.simplified_coalesced_role_view(
+                        self.simplified_coalesced_role_view_for_generalize(
+                            def,
+                            root,
                             &compact,
                             &coalesced_role_constraints,
                             simplification_boundary,
@@ -372,6 +376,28 @@ impl AnalysisSession {
             self.timing.record_generalize_compact_cache_insert();
         }
         out
+    }
+
+    fn simplified_coalesced_role_view_for_generalize(
+        &mut self,
+        def: DefId,
+        root: TypeVar,
+        compact: &crate::compact::CompactRoot,
+        coalesced_roles: &[CompactRoleConstraint],
+        simplification_boundary: TypeLevel,
+    ) -> (crate::compact::CompactRoot, Vec<CompactRoleConstraint>) {
+        if let Some(shadow) = self.generalize_role_view_shadow.as_mut() {
+            let hit = shadow.observe(
+                def,
+                root,
+                self.infer.constraints().epoch(),
+                self.roles.epoch_for_owner(def),
+                coalesced_roles.len(),
+                simplification_boundary,
+            );
+            self.timing.record_generalize_role_view_shadow(hit);
+        }
+        self.simplified_coalesced_role_view(compact, coalesced_roles, simplification_boundary)
     }
 
     #[cfg(test)]

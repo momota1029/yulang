@@ -114,6 +114,7 @@ pub struct AnalysisSession {
     work: VecDeque<AnalysisWork>,
     generalize_compact_shadow: Option<GeneralizeCompactShadow>,
     generalize_compact_cache: Option<GeneralizeCompactCache>,
+    generalize_role_view_shadow: Option<GeneralizeRoleViewShadow>,
     timing: AnalysisTiming,
     instantiated_targets: FxHashSet<DefId>,
     def_parent_map: DefParentMapCache,
@@ -189,6 +190,46 @@ impl GeneralizeCompactCache {
                 merge_constraints: merge_constraints.to_vec(),
             },
         );
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct GeneralizeRoleViewShadowKey {
+    def: DefId,
+    root: TypeVar,
+    constraint_epoch: u64,
+    role_epoch: u64,
+    role_count: usize,
+    simplification_level: u32,
+}
+
+#[derive(Debug, Default)]
+struct GeneralizeRoleViewShadow {
+    seen: FxHashSet<GeneralizeRoleViewShadowKey>,
+}
+
+impl GeneralizeRoleViewShadow {
+    fn from_env() -> Option<Self> {
+        generalize_role_view_shadow_enabled().then(Self::default)
+    }
+
+    fn observe(
+        &mut self,
+        def: DefId,
+        root: TypeVar,
+        constraint_epoch: ConstraintEpoch,
+        role_epoch: RoleEpoch,
+        role_count: usize,
+        simplification_boundary: TypeLevel,
+    ) -> bool {
+        !self.seen.insert(GeneralizeRoleViewShadowKey {
+            def,
+            root,
+            constraint_epoch: constraint_epoch.as_u64(),
+            role_epoch: role_epoch.as_u64(),
+            role_count,
+            simplification_level: simplification_boundary.depth(),
+        })
     }
 }
 
@@ -355,6 +396,14 @@ fn generalize_compact_cache_enabled() -> bool {
     static ENABLED: OnceLock<bool> = OnceLock::new();
     *ENABLED.get_or_init(|| {
         std::env::var("YULANG_GENERALIZE_COMPACT_CACHE")
+            .is_ok_and(|value| !value.is_empty() && value != "0")
+    })
+}
+
+fn generalize_role_view_shadow_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        std::env::var("YULANG_GENERALIZE_ROLE_VIEW_SHADOW")
             .is_ok_and(|value| !value.is_empty() && value != "0")
     })
 }

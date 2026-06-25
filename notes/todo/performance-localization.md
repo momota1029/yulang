@@ -279,6 +279,10 @@ compact / dominance / role projection をかなり再走査している。
      同じ `(root, constraint_epoch)` の `CompactRoot + merge constraints` を clone して再利用する。
      既定では無効で、production path にはまだ切り替えない。
 4. `dominance cache` と `role projection cache` を同じ方式で足す。
+   - 2026-06-26: `YULANG_GENERALIZE_ROLE_VIEW_SHADOW=1` で opt-in の role view shadow を追加した。
+     key は `(def, root, constraint_epoch, role_epoch, role_count, simplification_level)`。
+     `analysis.generalize_role_view_shadow_*` は、dominance / role resolve で使う
+     simplified coalesced role view が再登場しているかを見る。
 5. restart loop は view 全体を捨てず、dirty な view だけを再構築する。
 
 やらないこと:
