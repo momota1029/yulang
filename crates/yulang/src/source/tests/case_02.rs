@@ -124,6 +124,11 @@ fn build_poly_and_compiled_unit_from_collected_sources_share_lowering_output() {
         output.poly.arena.defs.len()
     );
     assert_eq!(output.compiled_unit.runtime.labels, output.poly.labels);
+    let restored = build_poly_from_compiled_unit_artifact(output.compiled_unit.clone());
+    assert_eq!(restored.errors, output.poly.errors);
+    assert_eq!(restored.file_count, output.poly.file_count);
+    assert_eq!(restored.arena.defs.len(), output.poly.arena.defs.len());
+    assert_eq!(restored.labels, output.poly.labels);
     assert!(
         output
             .compiled_unit

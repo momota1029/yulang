@@ -753,11 +753,12 @@ fn build_poly_from_compiled_unit_cache(
     key: yulang::cache::SourceCacheKey,
     cache: &yulang::cache::ArtifactCache,
 ) -> yulang::BuildPolyOutput {
+    let poly = yulang::build_poly_from_compiled_unit_artifact(cached);
     let artifact = yulang::cache::CachedPolyArtifact {
-        arena: cached.runtime.arena,
-        labels: cached.runtime.labels,
-        file_count: cached.manifest.files.len(),
-        errors: cached.errors,
+        arena: poly.arena,
+        labels: poly.labels,
+        file_count: poly.file_count,
+        errors: poly.errors,
     };
     if let Err(error) = cache.write_poly_artifact(key, &artifact) {
         eprintln!("warning: {error}");

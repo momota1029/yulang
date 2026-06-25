@@ -168,6 +168,10 @@ source dependency SCC ごとの compiled-unit cache である。
   same way the compact playground std route does. Root parsing still uses the
   loaded embedded prefix, but std lowering is no longer repeated on that build
   path.
+- Done: `.yuunit` -> `BuildPolyOutput` hydration is now a library route
+  (`build_poly_from_compiled_unit_artifact`) rather than CLI code reading the
+  runtime surface directly. The CLI still owns cache policy and rewrite side
+  effects.
 - Realm/band note: the current source-set cache key is only a coarse placeholder
   for the future identity
   `(resolved realm, band path, source dependency SCC, dependency interface hashes)`.

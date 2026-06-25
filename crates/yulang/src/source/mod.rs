@@ -119,6 +119,17 @@ pub fn build_poly_and_compiled_unit_from_collected_sources(
     })
 }
 
+pub fn build_poly_from_compiled_unit_artifact(
+    artifact: crate::cache::CachedCompiledUnitArtifact,
+) -> BuildPolyOutput {
+    BuildPolyOutput {
+        arena: artifact.runtime.arena,
+        labels: artifact.runtime.labels,
+        file_count: artifact.manifest.files.len(),
+        errors: artifact.errors,
+    }
+}
+
 /// principal poly artifact から control VM artifact 用 IR を作る。
 pub fn build_control_from_poly_output(
     output: &BuildPolyOutput,
