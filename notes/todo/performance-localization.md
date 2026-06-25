@@ -225,6 +225,12 @@ source dependency SCC ごとの compiled-unit cache である。
   CLI still selects individual source-unit candidates, but repeated entry edits
   can reuse the already-merged prefix `.yuunit` instead of recomputing the
   surface merge each time.
+- Done: `BodyLoweringPrefix` now records prefix runtime provenance. Compiled
+  surface imports keep a set of imported runtime `DefId`s plus
+  namespace-keyed module/value mappings, and prefix + suffix lowering carries
+  that provenance into the combined `BodyLowering`. This is only the first
+  external-reference table preparation; it does not change artifact selection
+  or stop writing dependency-closure artifacts.
 - Realm/band note: the current source-set cache key is only a coarse placeholder
   for the future identity
   `(resolved realm, band path, source dependency SCC, dependency interface hashes)`.

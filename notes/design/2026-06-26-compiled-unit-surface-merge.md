@@ -257,6 +257,20 @@ closure candidate wins, and uncovered files remain in the source suffix. This
 keeps shared-dependency cases conservative while still allowing independent
 closure artifacts to merge.
 
+The first external-reference preparation is also in place:
+
+- `BodyLoweringPrefix` records the imported runtime defs it brought into the
+  prefix arena;
+- the record keeps both the imported `DefId` set and namespace-keyed
+  module/value mappings;
+- `lower_loaded_files_with_prefix` and `lower_root_loaded_file_with_prefix`
+  carry that prefix runtime provenance into the combined `BodyLowering`.
+
+This does not serialize dependent units without their dependencies yet. It only
+gives the suffix lowering result a reliable way to distinguish prefix-owned
+defs from defs created by the suffix. That distinction is the prerequisite for
+turning dependency `DefId` references into explicit external refs.
+
 The remaining item is the more incremental external-reference design. A
 dependent unit still cannot be serialized safely by lowering it against a
 compiled dependency prefix and then dropping the dependency surfaces. Its

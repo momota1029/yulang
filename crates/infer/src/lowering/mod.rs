@@ -96,9 +96,9 @@ use string_lit::{plain_string_expr_text, plain_string_lit_text};
 
 pub use crate::typing::{BindingFetch, Computation, Evaluation};
 pub use body::{
-    BodyLowering, BodyLoweringError, BodyLoweringPrefix, BodyLoweringTiming, lower_binding_bodies,
-    lower_loaded_files, lower_loaded_files_prefix, lower_loaded_files_with_prefix,
-    lower_root_loaded_file_with_prefix,
+    BodyLowering, BodyLoweringError, BodyLoweringPrefix, BodyLoweringPrefixRuntime,
+    BodyLoweringTiming, lower_binding_bodies, lower_loaded_files, lower_loaded_files_prefix,
+    lower_loaded_files_with_prefix, lower_root_loaded_file_with_prefix,
 };
 pub use error::LoweringError;
 

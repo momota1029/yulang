@@ -23,6 +23,7 @@ pub struct BodyLowering {
     pub labels: DumpLabels,
     pub errors: Vec<BodyLoweringError>,
     pub timing: BodyLoweringTiming,
+    prefix_runtime: BodyLoweringPrefixRuntime,
 }
 
 #[derive(Clone)]
@@ -31,20 +32,38 @@ pub struct BodyLoweringPrefix {
     modules: ModuleTable,
     labels: DumpLabels,
     errors: Vec<BodyLoweringError>,
+    runtime: BodyLoweringPrefixRuntime,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct BodyLoweringPrefixRuntime {
+    defs: FxHashSet<DefId>,
+    modules: FxHashMap<u32, DefId>,
+    values: FxHashMap<u32, DefId>,
 }
 
 impl BodyLowering {
+    pub fn prefix_runtime(&self) -> &BodyLoweringPrefixRuntime {
+        &self.prefix_runtime
+    }
+
     pub fn into_prefix(self) -> BodyLoweringPrefix {
+        let runtime = BodyLoweringPrefixRuntime::from_poly_arena(&self.session.poly);
         BodyLoweringPrefix {
             poly: self.session.poly,
             modules: self.modules,
             labels: self.labels,
             errors: self.errors,
+            runtime,
         }
     }
 }
 
 impl BodyLoweringPrefix {
+    pub fn runtime(&self) -> &BodyLoweringPrefixRuntime {
+        &self.runtime
+    }
+
     /// Build a root-lowering prefix from a runtime surface and the matching
     /// lowering environment from the same source unit.
     ///
@@ -75,12 +94,14 @@ impl BodyLoweringPrefix {
         let mut poly = poly::expr::Arena::new();
         let mut labels = DumpLabels::new();
         let import = runtime.import_into(&mut poly, &mut labels);
+        let runtime = BodyLoweringPrefixRuntime::from_runtime_import(&import);
         let modules = ModuleTable::from_compiled_surfaces(namespace, lowering, &import)?;
         Some(Self {
             poly,
             modules,
             labels,
             errors: Vec::new(),
+            runtime,
         })
     }
 
@@ -92,6 +113,7 @@ impl BodyLoweringPrefix {
         let mut poly = poly::expr::Arena::new();
         let mut labels = DumpLabels::new();
         let import = runtime.import_into(&mut poly, &mut labels);
+        let runtime = BodyLoweringPrefixRuntime::from_runtime_import(&import);
         let mut modules = modules.clone();
         modules.remap_runtime_defs(&import);
         if let Some(lowering) = lowering {
@@ -102,7 +124,58 @@ impl BodyLoweringPrefix {
             modules,
             labels,
             errors: Vec::new(),
+            runtime,
         }
+    }
+}
+
+impl BodyLoweringPrefixRuntime {
+    fn from_poly_arena(poly: &poly::expr::Arena) -> Self {
+        Self {
+            defs: poly.defs.iter().map(|(def, _)| def).collect(),
+            modules: FxHashMap::default(),
+            values: FxHashMap::default(),
+        }
+    }
+
+    fn from_runtime_import(import: &crate::CompiledRuntimeImport) -> Self {
+        Self {
+            defs: import.defs.values().copied().collect(),
+            modules: import
+                .modules
+                .iter()
+                .map(|module| (module.module, module.def))
+                .collect(),
+            values: import
+                .values
+                .iter()
+                .map(|value| (value.symbol, value.def))
+                .collect(),
+        }
+    }
+
+    pub fn def_count(&self) -> usize {
+        self.defs.len()
+    }
+
+    pub fn module_count(&self) -> usize {
+        self.modules.len()
+    }
+
+    pub fn value_count(&self) -> usize {
+        self.values.len()
+    }
+
+    pub fn contains_def(&self, def: DefId) -> bool {
+        self.defs.contains(&def)
+    }
+
+    pub fn module_def(&self, module: u32) -> Option<DefId> {
+        self.modules.get(&module).copied()
+    }
+
+    pub fn value_def(&self, symbol: u32) -> Option<DefId> {
+        self.values.get(&symbol).copied()
     }
 }
 
@@ -245,6 +318,7 @@ pub fn lower_loaded_files_with_prefix(
 
     let phase_start = Instant::now();
     let mut lowerer = BodyLowerer::new(append.lower);
+    lowerer.prefix_runtime = prefix.runtime.clone();
     let suffix_labels = lowerer.labels.clone();
     lowerer.labels = prefix.labels.clone();
     lowerer.labels.extend(suffix_labels);
@@ -338,6 +412,7 @@ pub fn lower_root_loaded_file_with_prefix(
 
     let phase_start = Instant::now();
     let mut lowerer = BodyLowerer::new(append.lower);
+    lowerer.prefix_runtime = prefix.runtime.clone();
     let root_labels = lowerer.labels.clone();
     lowerer.labels = prefix.labels.clone();
     lowerer.labels.extend(root_labels);
@@ -506,6 +581,7 @@ pub(super) struct BodyLowerer {
     pub(super) role_requirements: FxHashMap<DefId, RoleMethodRequirement>,
     pub(super) deferred_result_annotation_checks: Vec<DeferredResultAnnotationCheck>,
     pub(super) local_method_scope: Option<ModuleId>,
+    pub(super) prefix_runtime: BodyLoweringPrefixRuntime,
     pub(super) record_source_spans: bool,
     // Synthetic act copy bodies are implementation helpers. Their computed bindings keep
     // BindingFetch for use-site semantics, but they are not source-level runtime roots.
@@ -544,6 +620,7 @@ impl BodyLowerer {
             role_requirements: FxHashMap::default(),
             deferred_result_annotation_checks: Vec::new(),
             local_method_scope: None,
+            prefix_runtime: BodyLoweringPrefixRuntime::default(),
             record_source_spans: true,
             suppress_runtime_roots: false,
         };
@@ -580,6 +657,7 @@ impl BodyLowerer {
                 constraint: constraint_timing,
                 ..BodyLoweringTiming::default()
             },
+            prefix_runtime: self.prefix_runtime,
         }
     }
 

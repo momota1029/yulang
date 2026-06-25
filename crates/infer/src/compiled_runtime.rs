@@ -1260,6 +1260,63 @@ mod tests {
     }
 
     #[test]
+    fn compiled_unit_prefix_marks_imported_runtime_defs() {
+        let loaded = sources::load(vec![
+            source(&[], "mod deps;\npub use deps::*\n"),
+            source(&["deps"], "pub id x = x\n"),
+        ]);
+        let lowering = lower_loaded_files(&loaded).unwrap();
+        let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
+        let lowering_surface =
+            CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
+        let runtime = CompiledRuntimeSurface::from_lowering_with_namespace(&lowering, &namespace);
+        let prefix = BodyLoweringPrefix::from_compiled_unit_surfaces(
+            &namespace,
+            &lowering_surface,
+            &runtime,
+        )
+        .expect("compiled surfaces should rebuild a root prefix");
+        let namespace_index = crate::CompiledNamespaceIndex::new(&namespace);
+        let id_symbol = namespace_index
+            .exported_value_symbol(&["deps".to_string()], "id")
+            .expect("dependency value should be exported");
+        let imported_id = prefix
+            .runtime()
+            .value_def(id_symbol)
+            .expect("prefix should retain a symbol-keyed imported value");
+        let root = sources::load(vec![source(&[], "my y = id 1\n")])
+            .into_iter()
+            .next()
+            .unwrap();
+
+        let lowered = lower_root_loaded_file_with_prefix(&prefix, &root).unwrap();
+
+        assert_eq!(lowered.errors, Vec::new());
+        assert!(prefix.runtime().contains_def(imported_id));
+        assert!(lowered.prefix_runtime().contains_def(imported_id));
+        assert_eq!(
+            prefix.runtime().def_count(),
+            lowered.prefix_runtime().def_count()
+        );
+        assert_eq!(
+            prefix.runtime().value_count(),
+            lowered.prefix_runtime().value_count()
+        );
+        let site = ModuleOrder::from_index(u32::MAX);
+        let root = lowered.modules.root_id();
+        let id = lowered
+            .modules
+            .value_path_at(root, &[Name("id".into())], site)
+            .expect("imported id should resolve");
+        let y = lowered
+            .modules
+            .value_path_at(root, &[Name("y".into())], site)
+            .expect("suffix binding should resolve");
+        assert!(lowered.prefix_runtime().contains_def(id));
+        assert!(!lowered.prefix_runtime().contains_def(y));
+    }
+
+    #[test]
     fn runtime_surface_prefix_reads_lowered_constructor_and_operation_signatures() {
         let loaded = sources::load(vec![
             source(&[], "mod ops;\npub use ops::*\n"),
