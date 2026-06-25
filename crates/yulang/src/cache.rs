@@ -4,7 +4,7 @@
 //! collector or std lookup rules so a cache hit cannot change which files form
 //! the program.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs;
 use std::io;
@@ -339,6 +339,9 @@ pub enum CompiledUnitExternalRuntimeDefMapError {
         first: poly::expr::DefId,
         second: poly::expr::DefId,
     },
+    UnkeyedExternalDefs {
+        defs: Vec<poly::expr::DefId>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -638,6 +641,30 @@ pub fn compiled_unit_external_runtime_def_pairs(
 
     let mut pairs = pairs.into_iter().collect::<Vec<_>>();
     pairs.sort_by_key(|(source, target)| (source.0, target.0));
+    Ok(pairs)
+}
+
+pub fn compiled_unit_complete_external_runtime_def_pairs(
+    artifact: &CachedCompiledUnitArtifact,
+    prefix_runtime: &infer::lowering::BodyLoweringPrefixRuntime,
+) -> Result<Vec<(poly::expr::DefId, poly::expr::DefId)>, CompiledUnitExternalRuntimeDefMapError> {
+    let pairs = compiled_unit_external_runtime_def_pairs(artifact, prefix_runtime)?;
+    let keyed = pairs
+        .iter()
+        .map(|(source, _)| *source)
+        .collect::<HashSet<_>>();
+    let mut unkeyed = artifact
+        .external_runtime
+        .defs
+        .iter()
+        .copied()
+        .filter(|def| !keyed.contains(def))
+        .collect::<Vec<_>>();
+    unkeyed.sort_by_key(|def| def.0);
+    unkeyed.dedup();
+    if !unkeyed.is_empty() {
+        return Err(CompiledUnitExternalRuntimeDefMapError::UnkeyedExternalDefs { defs: unkeyed });
+    }
     Ok(pairs)
 }
 
@@ -3451,12 +3478,28 @@ mod tests {
 
         let external_defs =
             compiled_unit_external_runtime_def_pairs(&artifact, prefix.runtime()).unwrap();
+        let untrimmed_error =
+            compiled_unit_complete_external_runtime_def_pairs(&artifact, prefix.runtime())
+                .unwrap_err();
+        assert!(matches!(
+            untrimmed_error,
+            CompiledUnitExternalRuntimeDefMapError::UnkeyedExternalDefs { ref defs }
+                if !defs.is_empty()
+        ));
+        let mut keyed_artifact = artifact.clone();
+        keyed_artifact.external_runtime.defs = external_defs
+            .iter()
+            .map(|(source, _)| *source)
+            .collect::<Vec<_>>();
+        let complete_external_defs =
+            compiled_unit_complete_external_runtime_def_pairs(&keyed_artifact, prefix.runtime())
+                .unwrap();
         let extended = prefix
             .extend_with_compiled_unit_surfaces_and_external_defs(
                 &artifact.namespace,
                 &artifact.lowering,
                 &artifact.runtime,
-                external_defs.clone(),
+                complete_external_defs.clone(),
             )
             .expect("suffix artifact should extend the existing prefix");
         let rebuilt_id = extended
@@ -3473,6 +3516,7 @@ mod tests {
             .def;
 
         assert!(external_defs.contains(&(source_id, target_id)));
+        assert_eq!(complete_external_defs, external_defs);
         assert_eq!(rebuilt_id, target_id);
         assert_ne!(y, target_id);
         assert!(!prefix.runtime().contains_def(y));
@@ -3486,6 +3530,22 @@ mod tests {
             error,
             CompiledUnitExternalRuntimeDefMapError::MissingValuePath { value_path }
                 if value_path == vec!["deps".to_string(), "id".to_string()]
+        ));
+
+        let mut incomplete_artifact = keyed_artifact.clone();
+        incomplete_artifact
+            .external_runtime
+            .defs
+            .push(poly::expr::DefId(u32::MAX));
+        let error = compiled_unit_complete_external_runtime_def_pairs(
+            &incomplete_artifact,
+            prefix.runtime(),
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            CompiledUnitExternalRuntimeDefMapError::UnkeyedExternalDefs { defs }
+                if defs == vec![poly::expr::DefId(u32::MAX)]
         ));
     }
 

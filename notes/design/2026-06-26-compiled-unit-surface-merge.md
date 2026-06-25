@@ -276,6 +276,10 @@ The first external-reference preparation is also in place:
 - `compiled_unit_external_runtime_def_pairs` resolves serialized
   namespace-keyed external module/value refs against an already-imported prefix
   runtime by stable module/value path.
+- `compiled_unit_complete_external_runtime_def_pairs` rejects artifacts whose
+  serialized external `DefId` set is not fully explained by those path-keyed
+  refs. Current untrimmed dependent artifacts still hit this rejection even in
+  simple cases, which keeps the cache route conservative until trimming exists.
 - `BodyLoweringPrefix::extend_with_compiled_unit_surfaces_and_external_defs`
   can import a suffix compiled-unit surface on top of an existing prefix arena,
   preserving the dependency prefix's existing runtime defs.
