@@ -745,10 +745,21 @@ pub fn dump_mono_from_source_text_with_embedded_std(
 }
 
 pub fn build_poly_from_source_text_with_embedded_std(
-    entry: impl AsRef<FsPath>,
+    _entry: impl AsRef<FsPath>,
     source: impl Into<String>,
 ) -> Result<BuildPolyOutput, RouteError> {
-    build_poly_from_loaded_files(load_source_text_with_embedded_std(entry, source.into())?)
+    let (lowering, file_count) = embedded_std_lowering_with_root(source.into())?;
+    let errors = lowering
+        .errors
+        .iter()
+        .map(format_body_lowering_error)
+        .collect();
+    Ok(BuildPolyOutput {
+        arena: lowering.session.poly,
+        labels: lowering.labels,
+        file_count,
+        errors,
+    })
 }
 
 pub fn build_poly_from_source_text_with_embedded_playground_std(

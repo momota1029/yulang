@@ -163,6 +163,11 @@ source dependency SCC ごとの compiled-unit cache である。
   poly cache when `.yuir` is missing. This does not yet skip dependency source
   lowering, but it proves `.yuunit` is a normal readable cache artifact rather
   than a write-only side product.
+- Done: the root-only full embedded std build route now reconstructs its
+  `BodyLoweringPrefix` from `.yuunit` namespace/lowering/runtime surfaces, the
+  same way the compact playground std route does. Root parsing still uses the
+  loaded embedded prefix, but std lowering is no longer repeated on that build
+  path.
 - Realm/band note: the current source-set cache key is only a coarse placeholder
   for the future identity
   `(resolved realm, band path, source dependency SCC, dependency interface hashes)`.
