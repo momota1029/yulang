@@ -82,6 +82,26 @@ YULANG
     cat "$second_log" >&2
     exit 1
   fi
+
+  rm -rf "$cache_root/artifacts/control-vm" "$cache_root/artifacts/poly"
+  third_log="$tmp/independent-third.stderr"
+  third_output="$(
+    YULANG_CACHE_DIR="$cache_root" \
+      run "$bin" --no-prelude --runtime-phase-timings run --print-roots "$main" \
+        2>"$third_log"
+  )"
+  if [[ "$third_output" != "run roots [(10, 2)]" ]]; then
+    echo "source unit cache smoke: unexpected independent compiled-unit output" >&2
+    echo "$third_output" >&2
+    exit 1
+  fi
+
+  cat "$third_log"
+  if ! rg -q 'run\.cache: compiled-unit-hit' "$third_log"; then
+    echo "source unit cache smoke: expected compiled-unit hit after merged prefix materialization" >&2
+    cat "$third_log" >&2
+    exit 1
+  fi
 }
 
 run_dependency_closure_smoke() {
@@ -138,6 +158,26 @@ YULANG
   if ! rg -q 'run\.cache: source-unit-prefix-hit' "$second_log"; then
     echo "source unit cache smoke: expected source-unit prefix hit" >&2
     cat "$second_log" >&2
+    exit 1
+  fi
+
+  rm -rf "$cache_root/artifacts/control-vm" "$cache_root/artifacts/poly"
+  third_log="$tmp/dependency-third.stderr"
+  third_output="$(
+    YULANG_CACHE_DIR="$cache_root" \
+      run "$bin" --no-prelude --runtime-phase-timings run --print-roots "$main" \
+        2>"$third_log"
+  )"
+  if [[ "$third_output" != "run roots [7]" ]]; then
+    echo "source unit cache smoke: unexpected dependency compiled-unit output" >&2
+    echo "$third_output" >&2
+    exit 1
+  fi
+
+  cat "$third_log"
+  if ! rg -q 'run\.cache: compiled-unit-hit' "$third_log"; then
+    echo "source unit cache smoke: expected compiled-unit hit after source-unit prefix materialization" >&2
+    cat "$third_log" >&2
     exit 1
   fi
 }

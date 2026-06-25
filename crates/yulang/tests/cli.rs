@@ -223,7 +223,7 @@ fn compatible_dump_no_prelude_uses_cache() {
     assert!(stdout(&output).contains("roots"), "{}", stdout(&output));
     assert_eq!(control_cache_file_count(&cache_root), 0);
     assert_eq!(poly_cache_file_count(&cache_root), 1);
-    assert_eq!(compiled_unit_cache_file_count(&cache_root), 2);
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 1);
 
     let _ = fs::remove_dir_all(&root);
 }
@@ -504,9 +504,26 @@ fn compatible_run_uses_single_source_unit_prefix_cache() {
     assert_success(&output);
     assert_eq!(stdout(&output), "run roots [7]\n");
     assert!(stderr(&output).contains("run.cache: source-unit-prefix-hit"));
-    assert_eq!(compiled_unit_cache_file_count(&cache_root), 3);
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 4);
     assert_eq!(poly_cache_file_count(&cache_root), 2);
     assert_eq!(control_cache_file_count(&cache_root), 2);
+
+    remove_cache_stage(&cache_root, "control-vm");
+    remove_cache_stage(&cache_root, "poly");
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [7]\n");
+    assert_cache_route(&output, "compiled-unit-hit");
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 4);
 
     let _ = fs::remove_dir_all(&root);
 }
@@ -551,9 +568,26 @@ fn compatible_run_uses_merged_source_unit_prefix_when_many_are_cached() {
     assert_success(&output);
     assert_eq!(stdout(&output), "run roots [(10, 2)]\n");
     assert_cache_route(&output, "merged-source-unit-prefix-hit");
-    assert_eq!(compiled_unit_cache_file_count(&cache_root), 3);
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 4);
     assert_eq!(poly_cache_file_count(&cache_root), 2);
     assert_eq!(control_cache_file_count(&cache_root), 2);
+
+    remove_cache_stage(&cache_root, "control-vm");
+    remove_cache_stage(&cache_root, "poly");
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [(10, 2)]\n");
+    assert_cache_route(&output, "compiled-unit-hit");
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 4);
 
     let _ = fs::remove_dir_all(&root);
 }

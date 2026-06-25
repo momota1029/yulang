@@ -320,6 +320,10 @@
 - typed-surface import の role / impl / effect fidelity を広げる。
 - compiled-unit manifest validation を厳しくする。
 - persistent cache を user dependency SCCs に一般化する。
+  - 2026-06-26: source-unit prefix hit now materializes a full-source `.yuunit`
+    from the same prefix + suffix lowering result. This makes prefix reuse a
+    warmup path for the normal compiled-unit cache instead of a one-off
+    fallback.
 - source dependency SCCs を長期的な cache unit として保つ。
 - realm/band を cache key と dependency identity に入れる。
   - `notes/design/source-realm-band-plan.md` を実装単位へ分解する。

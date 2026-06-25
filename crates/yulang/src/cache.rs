@@ -415,6 +415,16 @@ pub fn compiled_unit_artifact_from_lowering_with_key(
     key: SourceCacheKey,
 ) -> CachedCompiledUnitArtifact {
     let syntax = sources::CompiledSyntaxSurface::from_loaded_files(loaded);
+    compiled_unit_artifact_from_lowering_with_syntax_and_key(files, syntax, lowering, errors, key)
+}
+
+pub fn compiled_unit_artifact_from_lowering_with_syntax_and_key(
+    files: &[CollectedSource],
+    syntax: sources::CompiledSyntaxSurface,
+    lowering: &infer::lowering::BodyLowering,
+    errors: Vec<String>,
+    key: SourceCacheKey,
+) -> CachedCompiledUnitArtifact {
     let namespace = infer::CompiledNamespaceSurface::from_module_table(&lowering.modules);
     let lowering_surface =
         infer::CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);

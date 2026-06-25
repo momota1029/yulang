@@ -200,9 +200,7 @@ source dependency SCC ごとの compiled-unit cache である。
   hashes before returning a cache hit.
 - Done: `infer::lowering::lower_loaded_files_with_prefix` and
   `build_poly_from_compiled_unit_prefix_and_collected_sources` can combine a
-  compiled-unit prefix with a freshly parsed root/local-module suffix. This is
-  not yet connected to normal CLI cache policy, but it establishes the lowerer
-  boundary needed for future dependency SCC cache hits.
+  compiled-unit prefix with a freshly parsed root/local-module suffix.
 - Done: `source_compilation_units` groups collected local-module files into
   SCCs and orders units dependency-first. This is a read-only source-layer
   boundary, not a cache selection policy yet.
@@ -214,24 +212,29 @@ source dependency SCC ごとの compiled-unit cache である。
 - Done: `.yuunit` constructors can take an explicit source-unit cache key, so
   root-containing unit artifacts no longer have to use the full source-set
   bundle key.
+- Done: the normal CLI cache path reads source-unit compiled artifacts, selects
+  non-overlapping dependency-closed prefix candidates, tries a merged prefix
+  first, and falls back to a single prefix before full source compile.
+- Done: dependency-bearing source units are emitted as dependency-closure
+  artifacts, so raw runtime/lowering references stay inside one artifact until
+  the external-reference table exists.
+- Done: source-unit prefix hits now materialize the full-source `.yuunit` from
+  the same prefix + suffix lowering result. A later run for the same source set
+  can hydrate from `compiled-unit-hit` when `.yuir` is missing.
 - Realm/band note: the current source-set cache key is only a coarse placeholder
   for the future identity
   `(resolved realm, band path, source dependency SCC, dependency interface hashes)`.
   The `.yuunit` surface layers should survive that split. The current full
-  source-set artifact becomes a bundle artifact; individual unchanged
-  dependency SCCs later get the same syntax / namespace / lowering / typed /
-  runtime surfaces under realm/band-qualified keys. A band path alone is never
-  enough to identify a cache hit.
-- Not done: source dependency SCC selection and normal-path cache hit import.
-  The active source route now has the first `SourceSet::compilation_units()`
-  equivalent and unit keys, but normal CLI cache policy still needs artifact
-  reads, dependency-closed prefix import, and suffix artifact emission.
-- Not done: non-root module-unit artifact emission. `lower_loaded_files` still
-  requires a root module, so units such as `a::b` need an explicit module-root
-  artifact mode before individual SCC artifacts can be emitted generally.
-- Next: implement the runtime remap/merge path. Only after that should the
-  compiled-unit value import view be connected to the normal lowerer /
-  name-resolution path.
+  source-set artifact becomes a bundle artifact; dependency-closure source-unit
+  artifacts are an intermediate cache unit. Finer-grained dependency SCCs later
+  get the same syntax / namespace / lowering / typed / runtime surfaces under
+  realm/band-qualified keys. A band path alone is never enough to identify a
+  cache hit.
+- Not done: the external-reference table for finer-grained dependency-bearing
+  artifacts. Closure artifacts are safe but can duplicate dependency surfaces.
+- Not done: std bundle import for wasm / playground first run.
+- Next: decide whether to push std compiled-unit bundle import first, or design
+  external references for true source-SCC artifacts.
 
 撤退条件:
 
@@ -243,6 +246,8 @@ source dependency SCC ごとの compiled-unit cache である。
 
 - cached dependency unit の operator export を使う downstream file が、dependency source を再 parse せず parse できる。
 - entry file だけを編集した run が、std / unchanged dependency infer を払わない。
+- source-unit prefix hit 後の same-source rerun can hydrate from the materialized
+  full-source `.yuunit` when `.yuir` is missing.
 
 ## Phase 2: Generalize Restart Locality
 

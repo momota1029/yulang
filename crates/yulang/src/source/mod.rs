@@ -140,25 +140,87 @@ pub fn build_poly_from_compiled_unit_prefix_and_collected_sources(
     prefix: crate::cache::CachedCompiledUnitArtifact,
     suffix: Vec<CollectedSource>,
 ) -> Result<BuildPolyOutput, RouteError> {
+    let output = lower_compiled_unit_prefix_suffix(prefix, suffix)?;
+    Ok(BuildPolyOutput {
+        arena: output.lowering.session.poly,
+        labels: output.lowering.labels,
+        file_count: output.file_count,
+        errors: output.errors,
+    })
+}
+
+/// Build the full poly output and materialize the matching full-source
+/// compiled-unit artifact after importing a cached dependency prefix.
+///
+/// `files` is the complete source set for the current run. `suffix` is the
+/// subset not covered by `prefix`.
+pub fn build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sources(
+    prefix: crate::cache::CachedCompiledUnitArtifact,
+    files: Vec<CollectedSource>,
+    suffix: Vec<CollectedSource>,
+) -> Result<BuildPolyAndCompiledUnitOutput, RouteError> {
+    let output = lower_compiled_unit_prefix_suffix(prefix, suffix)?;
+    debug_assert_eq!(output.file_count, files.len());
+    let suffix_syntax = sources::CompiledSyntaxSurface::from_loaded_files(&output.loaded);
+    let syntax =
+        sources::CompiledSyntaxSurface::merge_prefixes([&output.prefix_syntax, &suffix_syntax])
+            .map_err(RouteError::SyntaxMerge)?;
+    let compiled_unit = crate::cache::compiled_unit_artifact_from_lowering_with_syntax_and_key(
+        &files,
+        syntax,
+        &output.lowering,
+        output.errors.clone(),
+        crate::cache::source_cache_key(&files),
+    );
+    Ok(BuildPolyAndCompiledUnitOutput {
+        poly: BuildPolyOutput {
+            arena: output.lowering.session.poly,
+            labels: output.lowering.labels,
+            file_count: output.file_count,
+            errors: output.errors,
+        },
+        compiled_unit,
+    })
+}
+
+struct CompiledUnitPrefixLowering {
+    prefix_syntax: sources::CompiledSyntaxSurface,
+    loaded: Vec<sources::LoadedFile>,
+    lowering: infer::lowering::BodyLowering,
+    errors: Vec<String>,
+    file_count: usize,
+}
+
+fn lower_compiled_unit_prefix_suffix(
+    prefix: crate::cache::CachedCompiledUnitArtifact,
+    suffix: Vec<CollectedSource>,
+) -> Result<CompiledUnitPrefixLowering, RouteError> {
+    let crate::cache::CachedCompiledUnitArtifact {
+        manifest,
+        syntax,
+        namespace,
+        lowering,
+        typed: _,
+        runtime,
+        errors: prefix_errors,
+    } = prefix;
     let suffix_file_count = suffix.len();
-    let loaded =
-        sources::load_suffix_with_syntax_prefix(&prefix.syntax, collected_source_files(suffix));
+    let loaded = sources::load_suffix_with_syntax_prefix(&syntax, collected_source_files(suffix));
     let lowering_prefix = infer::lowering::BodyLoweringPrefix::from_compiled_unit_surfaces(
-        &prefix.namespace,
-        &prefix.lowering,
-        &prefix.runtime,
+        &namespace, &lowering, &runtime,
     )
     .ok_or(infer::LoadedFilesError::MissingRoot)
     .map_err(RouteError::Lower)?;
     let lowering = infer::lowering::lower_loaded_files_with_prefix(&lowering_prefix, &loaded)
         .map_err(RouteError::Lower)?;
-    let mut errors = prefix.errors;
+    let mut errors = prefix_errors;
     errors.extend(lowering.errors.iter().map(format_body_lowering_error));
-    Ok(BuildPolyOutput {
-        arena: lowering.session.poly,
-        labels: lowering.labels,
-        file_count: prefix.manifest.files.len() + suffix_file_count,
+    Ok(CompiledUnitPrefixLowering {
+        prefix_syntax: syntax,
+        loaded,
+        lowering,
         errors,
+        file_count: manifest.files.len() + suffix_file_count,
     })
 }
 
@@ -1051,6 +1113,7 @@ pub enum RouteError {
     CheckModuleNotFound {
         module: Path,
     },
+    SyntaxMerge(sources::CompiledSyntaxMergeError),
     Lower(infer::LoadedFilesError),
     Specialize(specialize::SpecializeError),
     Runtime(mono_runtime::RuntimeError),
@@ -1138,6 +1201,9 @@ impl fmt::Display for RouteError {
                 "check module {} was not found",
                 format_module_path(module)
             ),
+            RouteError::SyntaxMerge(error) => {
+                write!(f, "compiled syntax surface merge failed: {error:?}")
+            }
             RouteError::Lower(error) => write!(f, "{error}"),
             RouteError::Specialize(error) => write!(f, "{error}"),
             RouteError::Runtime(error) => write!(f, "{error}"),

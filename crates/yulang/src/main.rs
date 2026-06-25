@@ -969,15 +969,22 @@ fn build_poly_from_compiled_source_unit_prefix(
         .enumerate()
         .filter_map(|(file, source)| (!prefix_files[file]).then_some(source.clone()))
         .collect::<Vec<_>>();
-    let poly =
-        match yulang::build_poly_from_compiled_unit_prefix_and_collected_sources(prefix, suffix) {
-            Ok(poly) => poly,
+    let output =
+        match yulang::build_poly_and_compiled_unit_from_compiled_unit_prefix_and_collected_sources(
+            prefix,
+            files.to_vec(),
+            suffix,
+        ) {
+            Ok(output) => output,
             Err(error) => {
                 eprintln!("warning: {error}");
                 return None;
             }
         };
-    Some(write_poly_artifact_from_output(poly, key, cache))
+    if let Err(error) = cache.write_compiled_unit_artifact(key, &output.compiled_unit) {
+        eprintln!("warning: {error}");
+    }
+    Some(write_poly_artifact_from_output(output.poly, key, cache))
 }
 
 fn write_source_unit_closure_artifacts(
