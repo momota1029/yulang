@@ -66,6 +66,18 @@ pub enum CompiledRuntimeMergeError {
     },
 }
 
+#[derive(Clone)]
+pub struct CompiledRuntimeMergeOutput {
+    pub surface: CompiledRuntimeSurface,
+    def_remap: FxHashMap<(usize, DefId), DefId>,
+}
+
+impl CompiledRuntimeMergeOutput {
+    pub fn map_def(&self, prefix: usize, def: DefId) -> Option<DefId> {
+        self.def_remap.get(&(prefix, def)).copied()
+    }
+}
+
 pub struct CompiledRuntimeImport {
     pub defs: FxHashMap<DefId, DefId>,
     pub exprs: FxHashMap<ExprId, ExprId>,
@@ -198,14 +210,25 @@ impl CompiledRuntimeSurface {
         prefixes: impl IntoIterator<Item = &'a CompiledRuntimeSurface>,
         namespace: &CompiledNamespaceMergeOutput,
     ) -> Result<Self, CompiledRuntimeMergeError> {
+        Ok(Self::merge_prefixes_with_remap(prefixes, namespace)?.surface)
+    }
+
+    pub fn merge_prefixes_with_remap<'a>(
+        prefixes: impl IntoIterator<Item = &'a CompiledRuntimeSurface>,
+        namespace: &CompiledNamespaceMergeOutput,
+    ) -> Result<CompiledRuntimeMergeOutput, CompiledRuntimeMergeError> {
         let mut arena = PolyArena::new();
         let mut labels = DumpLabels::new();
         let mut modules = Vec::new();
         let mut values = Vec::new();
+        let mut def_remap = FxHashMap::default();
         let mut seen_modules = FxHashSet::default();
         let mut seen_values = FxHashSet::default();
         for (prefix, surface) in prefixes.into_iter().enumerate() {
             let import = surface.import_into(&mut arena, &mut labels);
+            for (source, target) in &import.defs {
+                def_remap.insert((prefix, *source), *target);
+            }
             for module in import.modules {
                 let Some(merged_module) = namespace.map_module(prefix, module.module) else {
                     return Err(CompiledRuntimeMergeError::MissingModule {
@@ -257,11 +280,14 @@ impl CompiledRuntimeSurface {
         }
         modules.sort_by_key(|module| module.module);
         values.sort_by_key(|value| value.symbol);
-        Ok(Self {
-            arena,
-            labels,
-            modules,
-            values,
+        Ok(CompiledRuntimeMergeOutput {
+            surface: Self {
+                arena,
+                labels,
+                modules,
+                values,
+            },
+            def_remap,
         })
     }
 }
@@ -969,9 +995,12 @@ mod tests {
             &right.namespace,
         ])
         .unwrap();
-        let runtime =
-            CompiledRuntimeSurface::merge_prefixes([&left.runtime, &right.runtime], &namespace)
-                .unwrap();
+        let output = CompiledRuntimeSurface::merge_prefixes_with_remap(
+            [&left.runtime, &right.runtime],
+            &namespace,
+        )
+        .unwrap();
+        let runtime = &output.surface;
         let namespace_index = crate::CompiledNamespaceIndex::new(&namespace.surface);
         let left_id = namespace_index
             .exported_value_symbol(&["left".to_string()], "id")
@@ -989,6 +1018,14 @@ mod tests {
         assert_eq!(
             namespace.map_value(1, right.value_symbol("value")),
             Some(right_value)
+        );
+        assert_eq!(
+            output.map_def(0, left.value_def("id")),
+            runtime
+                .values
+                .iter()
+                .find(|value| value.symbol == left_id)
+                .map(|value| value.def)
         );
         assert_eq!(runtime.values.len(), 2);
         assert!(runtime.values.iter().any(|value| value.symbol == left_id));
@@ -1218,6 +1255,16 @@ mod tests {
         fn value_symbol(&self, name: &str) -> u32 {
             crate::CompiledNamespaceIndex::new(&self.namespace)
                 .exported_value_symbol(&self.path, name)
+                .unwrap()
+        }
+
+        fn value_def(&self, name: &str) -> DefId {
+            let symbol = self.value_symbol(name);
+            self.runtime
+                .values
+                .iter()
+                .find(|value| value.symbol == symbol)
+                .map(|value| value.def)
                 .unwrap()
         }
     }
