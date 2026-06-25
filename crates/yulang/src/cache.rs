@@ -151,6 +151,9 @@ impl ArtifactCache {
         else {
             return Ok(None);
         };
+        if !compiled_unit_envelope_matches_key(key, &envelope) {
+            return Ok(None);
+        }
         Ok(Some(CachedCompiledUnitArtifact {
             manifest: envelope.manifest,
             syntax: envelope.syntax,
@@ -294,6 +297,21 @@ pub fn compiled_unit_artifact_from_lowering(
         runtime,
         errors,
     }
+}
+
+fn compiled_unit_envelope_matches_key(
+    key: SourceCacheKey,
+    envelope: &CompiledUnitCacheEnvelope,
+) -> bool {
+    let manifest = &envelope.manifest;
+    manifest.cache_schema_version == CACHE_SCHEMA_VERSION
+        && manifest.compiled_unit_format == COMPILED_UNIT_CACHE_FORMAT
+        && manifest.source_hash == key.hash
+        && manifest.syntax_hash == compiled_syntax_hash(&envelope.syntax)
+        && manifest.namespace_hash == compiled_namespace_hash(&envelope.namespace)
+        && manifest.lowering_hash == compiled_lowering_hash(&envelope.lowering)
+        && manifest.typed_hash == compiled_typed_hash(&envelope.typed)
+        && manifest.runtime_hash == compiled_runtime_hash(&envelope.runtime)
 }
 
 fn source_cache_key_with_schema(files: &[CollectedSource], schema: CacheSchema) -> SourceCacheKey {
@@ -2379,6 +2397,35 @@ mod tests {
             suffix[0].op_table.0.get("<+>".as_bytes()).is_some(),
             "cached syntax surface should rebuild downstream parser operators"
         );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compiled_unit_cache_rejects_mismatched_manifest() {
+        let root = temp_root("compiled-unit-manifest-mismatch");
+        let cache = ArtifactCache::new(&root);
+        let files = vec![source("main.yu", &[], "pub x = 1\n")];
+        let loaded = sources::load(collected_to_source_files(files.clone()));
+        let key = source_cache_key(&files);
+        let artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded).unwrap();
+
+        let mut wrong_source_hash = artifact.clone();
+        wrong_source_hash.manifest.source_hash ^= 1;
+        cache
+            .write_compiled_unit_artifact(key, &wrong_source_hash)
+            .unwrap();
+        assert!(cache.read_compiled_unit_artifact(key).unwrap().is_none());
+
+        let mut wrong_runtime_hash = artifact.clone();
+        wrong_runtime_hash.manifest.runtime_hash ^= 1;
+        cache
+            .write_compiled_unit_artifact(key, &wrong_runtime_hash)
+            .unwrap();
+        assert!(cache.read_compiled_unit_artifact(key).unwrap().is_none());
+
+        cache.write_compiled_unit_artifact(key, &artifact).unwrap();
+        assert!(cache.read_compiled_unit_artifact(key).unwrap().is_some());
 
         let _ = fs::remove_dir_all(root);
     }

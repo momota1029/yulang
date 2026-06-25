@@ -38,12 +38,39 @@ SourceSet
 prove stable snapshot-local ids, serde payloads, and core serialization. They
 are not the final architecture.
 
-## Current Incremental Cache
+## Current Progress Toward Incremental Cache
 
-Yulang now has an experimental incremental compilation cache for dependency
-SCCs.
+Yulang now has a persistent compiled-unit artifact format and a few read paths
+that prove the surface split, but it does not yet have dependency-SCC cache
+selection wired into the normal CLI route.
 
-The implemented cache is intentionally stronger than a std-only cache:
+Implemented subset:
+
+- full source-set `.yuunit` bundle artifacts keyed by the current conservative
+  source-set hash;
+- syntax / namespace / lowering / typed / runtime surfaces inside `.yuunit`;
+- manifest validation on read, including schema, source hash, and every surface
+  hash;
+- normal CLI cache miss path writes `.yuunit` next to `.yuir`;
+- normal CLI can hydrate `.yuir` from a matching full source-set `.yuunit` when
+  the legacy poly artifact is missing;
+- embedded full std and compact playground std root-only routes can rebuild a
+  `BodyLoweringPrefix` from compiled surfaces and lower only the root source;
+- library-level prefix/suffix lowering can combine one compiled-unit prefix
+  with freshly parsed root/local-module suffix files.
+
+Not implemented yet:
+
+- source dependency SCC construction in the active source route;
+- individual dependency SCC artifacts;
+- realm/band-qualified cache keys;
+- dependency interface hashes;
+- normal CLI selection of a dependency-closed compiled prefix plus changed
+  source suffix.
+
+Target shape:
+
+The final cache should be intentionally stronger than a std-only cache:
 
 - compiled-unit artifacts are keyed by compiler/artifact format, source hash,
   syntax hash, resolved realm identity, and resolved band identity;
@@ -71,14 +98,11 @@ changed entry SCC
   -> merge imported dependency runtime surfaces
 ```
 
-It is not yet full fine-grained incremental compilation. The current
-`interface_hash` is source-layer syntax/interface metadata; it is recorded in
-the manifest but still kept conservative by pairing it with source hashes during
-cache validation. The next precision step is to extend that hash with exported
-namespace and typed-surface data, then use it for downstream invalidation, so an
-implementation-only source change in one SCC does not force dependent SCC
-artifacts out of the selected cache set when their exported surfaces are
-unchanged.
+The next precision step is to introduce the source dependency graph/SCC layer
+and then extend the manifest with interface hashes derived from exported syntax,
+namespace, and typed-surface data. Until then, the full source-set `.yuunit`
+bundle remains a conservative artifact and should not be described as a
+dependency-SCC cache hit.
 
 ## Goals
 

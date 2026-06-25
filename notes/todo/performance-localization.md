@@ -172,6 +172,9 @@ source dependency SCC ごとの compiled-unit cache である。
   (`build_poly_from_compiled_unit_artifact`) rather than CLI code reading the
   runtime surface directly. The CLI still owns cache policy and rewrite side
   effects.
+- Done: `.yuunit` reads validate cache schema, compiled-unit format, full
+  source hash, and syntax / namespace / lowering / typed / runtime surface
+  hashes before returning a cache hit.
 - Done: `infer::lowering::lower_loaded_files_with_prefix` and
   `build_poly_from_compiled_unit_prefix_and_collected_sources` can combine a
   compiled-unit prefix with a freshly parsed root/local-module suffix. This is
@@ -186,6 +189,9 @@ source dependency SCC ごとの compiled-unit cache である。
   runtime surfaces under realm/band-qualified keys. A band path alone is never
   enough to identify a cache hit.
 - Not done: source dependency SCC selection and normal-path cache hit import.
+  The active source route has no `SourceSet::compilation_units()` equivalent
+  yet; connecting prefix/suffix import before that would either be a std-only
+  special case or another full source-set bundle read.
 - Next: implement the runtime remap/merge path. Only after that should the
   compiled-unit value import view be connected to the normal lowerer /
   name-resolution path.
