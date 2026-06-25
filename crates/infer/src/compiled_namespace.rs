@@ -139,6 +139,28 @@ pub enum CompiledNamespaceMergeError {
     },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompiledNamespaceMergeOutput {
+    pub surface: CompiledNamespaceSurface,
+    module_remap: HashMap<(usize, u32), u32>,
+    value_remap: HashMap<(usize, u32), u32>,
+    type_remap: HashMap<(usize, u32), u32>,
+}
+
+impl CompiledNamespaceMergeOutput {
+    pub fn map_module(&self, prefix: usize, module: u32) -> Option<u32> {
+        self.module_remap.get(&(prefix, module)).copied()
+    }
+
+    pub fn map_value(&self, prefix: usize, symbol: u32) -> Option<u32> {
+        self.value_remap.get(&(prefix, symbol)).copied()
+    }
+
+    pub fn map_type(&self, prefix: usize, symbol: u32) -> Option<u32> {
+        self.type_remap.get(&(prefix, symbol)).copied()
+    }
+}
+
 impl CompiledNamespaceSurface {
     pub fn from_loaded_files(loaded: &[sources::LoadedFile]) -> Result<Self, LoadedFilesError> {
         let lower = crate::lower_loaded_files_module_map(loaded)?;
@@ -155,6 +177,12 @@ impl CompiledNamespaceSurface {
     pub fn merge_prefixes<'a>(
         prefixes: impl IntoIterator<Item = &'a CompiledNamespaceSurface>,
     ) -> Result<Self, CompiledNamespaceMergeError> {
+        Ok(Self::merge_prefixes_with_remap(prefixes)?.surface)
+    }
+
+    pub fn merge_prefixes_with_remap<'a>(
+        prefixes: impl IntoIterator<Item = &'a CompiledNamespaceSurface>,
+    ) -> Result<CompiledNamespaceMergeOutput, CompiledNamespaceMergeError> {
         CompiledNamespaceMergeBuilder::merge(prefixes.into_iter().collect())
     }
 
@@ -185,7 +213,7 @@ struct CompiledNamespaceMergeBuilder<'a> {
 impl<'a> CompiledNamespaceMergeBuilder<'a> {
     fn merge(
         prefixes: Vec<&'a CompiledNamespaceSurface>,
-    ) -> Result<CompiledNamespaceSurface, CompiledNamespaceMergeError> {
+    ) -> Result<CompiledNamespaceMergeOutput, CompiledNamespaceMergeError> {
         let mut builder = Self {
             prefixes,
             merged: CompiledNamespaceSurface::default(),
@@ -197,7 +225,12 @@ impl<'a> CompiledNamespaceMergeBuilder<'a> {
         builder.merge_modules();
         builder.merge_symbols();
         builder.merge_module_entries()?;
-        Ok(builder.merged)
+        Ok(CompiledNamespaceMergeOutput {
+            surface: builder.merged,
+            module_remap: builder.module_remap,
+            value_remap: builder.value_remap,
+            type_remap: builder.type_remap,
+        })
     }
 
     fn merge_modules(&mut self) {
@@ -894,8 +927,8 @@ mod tests {
         ]))
         .unwrap();
 
-        let merged = CompiledNamespaceSurface::merge_prefixes([&a, &b]).unwrap();
-        let index = CompiledNamespaceIndex::new(&merged);
+        let output = CompiledNamespaceSurface::merge_prefixes_with_remap([&a, &b]).unwrap();
+        let index = CompiledNamespaceIndex::new(&output.surface);
         let root = index.module_by_path(&[]).unwrap();
         let a_symbol = index.exported_value_symbol(&["a".to_string()], "x");
         let b_symbol = index.exported_value_symbol(&["b".to_string()], "y");
@@ -905,6 +938,10 @@ mod tests {
         assert_ne!(a_symbol, b_symbol);
         assert!(a_symbol.is_some());
         assert!(b_symbol.is_some());
+        assert_eq!(output.map_module(0, 0), Some(0));
+        assert_eq!(output.map_module(1, 0), Some(0));
+        assert_eq!(output.map_value(0, 0), a_symbol);
+        assert_eq!(output.map_value(1, 0), b_symbol);
     }
 
     #[test]
