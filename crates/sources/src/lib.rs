@@ -119,6 +119,11 @@ pub struct CompiledSyntaxSurface {
     pub files: Vec<CompiledSyntaxFile>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompiledSyntaxMergeError {
+    ConflictingOperator { module_path: Path, name: Name },
+}
+
 impl CompiledSyntaxSurface {
     pub fn from_loaded_files(files: &[LoadedFile]) -> Self {
         Self {
@@ -127,6 +132,19 @@ impl CompiledSyntaxSurface {
                 .map(CompiledSyntaxFile::from_loaded_file)
                 .collect(),
         }
+    }
+
+    pub fn merge_prefixes<'a>(
+        prefixes: impl IntoIterator<Item = &'a CompiledSyntaxSurface>,
+    ) -> Result<Self, CompiledSyntaxMergeError> {
+        let mut files = Vec::<CompiledSyntaxFile>::new();
+        for prefix in prefixes {
+            for file in &prefix.files {
+                merge_compiled_syntax_file(&mut files, file)?;
+            }
+        }
+        files.sort_by_key(compiled_syntax_file_order);
+        Ok(Self { files })
     }
 }
 
@@ -174,6 +192,69 @@ impl CompiledSyntaxFile {
             },
         }
     }
+}
+
+fn merge_compiled_syntax_file(
+    files: &mut Vec<CompiledSyntaxFile>,
+    file: &CompiledSyntaxFile,
+) -> Result<(), CompiledSyntaxMergeError> {
+    let Some(existing) = files
+        .iter_mut()
+        .find(|existing| existing.module_path == file.module_path)
+    else {
+        files.push(file.clone());
+        return Ok(());
+    };
+
+    for use_decl in &file.uses {
+        push_unique(&mut existing.uses, use_decl.clone());
+    }
+    for op in &file.ops {
+        merge_compiled_op_export(existing, &file.module_path, op)?;
+    }
+    for request in &file.module_loads {
+        push_unique(&mut existing.module_loads, request.clone());
+    }
+    Ok(())
+}
+
+fn merge_compiled_op_export(
+    existing: &mut CompiledSyntaxFile,
+    module_path: &Path,
+    op: &CompiledOpExport,
+) -> Result<(), CompiledSyntaxMergeError> {
+    if existing.ops.iter().any(|existing| existing == op) {
+        return Ok(());
+    }
+    if existing
+        .ops
+        .iter()
+        .any(|existing| existing.name == op.name && existing.visibility == op.visibility)
+    {
+        return Err(CompiledSyntaxMergeError::ConflictingOperator {
+            module_path: module_path.clone(),
+            name: op.name.clone(),
+        });
+    }
+    existing.ops.push(op.clone());
+    Ok(())
+}
+
+fn push_unique<T: PartialEq>(items: &mut Vec<T>, item: T) {
+    if !items.contains(&item) {
+        items.push(item);
+    }
+}
+
+fn compiled_syntax_file_order(file: &CompiledSyntaxFile) -> (usize, Vec<String>) {
+    (
+        file.module_path.segments.len(),
+        file.module_path
+            .segments
+            .iter()
+            .map(|segment| segment.0.clone())
+            .collect(),
+    )
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1124,6 +1205,62 @@ mod tests {
     }
 
     #[test]
+    fn compiled_syntax_surface_merge_combines_synthetic_parent_modules() {
+        let a = syntax_surface_with_synthetic_root("a", "<a>");
+        let b = syntax_surface_with_synthetic_root("b", "<b>");
+
+        let merged = CompiledSyntaxSurface::merge_prefixes([&a, &b]).unwrap();
+        let root = merged
+            .files
+            .iter()
+            .find(|file| file.module_path.segments.is_empty())
+            .unwrap();
+        let loaded = load_suffix_with_syntax_prefix(
+            &merged,
+            vec![SourceFile {
+                module_path: Path::default(),
+                source: "use a::*\nuse b::*\nmy x = 1 <a> 2\nmy y = 3 <b> 4\n".into(),
+            }],
+        );
+        let suffix = loaded
+            .iter()
+            .find(|file| file.module_path.segments.is_empty())
+            .unwrap();
+
+        assert_eq!(
+            root.module_loads
+                .iter()
+                .map(ModuleLoadRequest::module_path)
+                .collect::<Vec<_>>(),
+            vec![path(&["a"]), path(&["b"])]
+        );
+        assert!(suffix.op_table.0.get("<a>".as_bytes()).is_some());
+        assert!(suffix.op_table.0.get("<b>".as_bytes()).is_some());
+    }
+
+    #[test]
+    fn compiled_syntax_surface_merge_rejects_operator_conflict() {
+        let lhs = CompiledSyntaxSurface::from_loaded_files(&load(vec![SourceFile {
+            module_path: path(&["ops"]),
+            source: "pub infix (<+>) 50 50 = add\n".into(),
+        }]));
+        let rhs = CompiledSyntaxSurface::from_loaded_files(&load(vec![SourceFile {
+            module_path: path(&["ops"]),
+            source: "pub infix (<+>) 60 60 = add\n".into(),
+        }]));
+
+        let error = CompiledSyntaxSurface::merge_prefixes([&lhs, &rhs]).unwrap_err();
+
+        assert_eq!(
+            error,
+            CompiledSyntaxMergeError::ConflictingOperator {
+                module_path: path(&["ops"]),
+                name: Name("<+>".into()),
+            }
+        );
+    }
+
+    #[test]
     fn imported_ops_reach_dependent_file() {
         let files = vec![
             SourceFile {
@@ -1163,5 +1300,25 @@ mod tests {
             loaded[1].op_table.0.get("<a>".as_bytes()).is_some(),
             "b should see a's op across the cycle"
         );
+    }
+
+    fn syntax_surface_with_synthetic_root(module: &str, op: &str) -> CompiledSyntaxSurface {
+        let loaded = load(vec![SourceFile {
+            module_path: path(&[module]),
+            source: format!("pub infix ({op}) 50 50 = add\n"),
+        }]);
+        let mut surface = CompiledSyntaxSurface::from_loaded_files(&loaded);
+        surface.files.push(CompiledSyntaxFile {
+            module_path: Path::default(),
+            uses: Vec::new(),
+            ops: Vec::new(),
+            module_loads: vec![ModuleLoadRequest {
+                parent: Path::default(),
+                name: Name(module.to_string()),
+                kind: ModuleLoadKind::ModDecl,
+                visibility: Visibility::Our,
+            }],
+        });
+        surface
     }
 }
