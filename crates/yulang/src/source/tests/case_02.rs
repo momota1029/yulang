@@ -296,6 +296,65 @@ fn source_compilation_units_build_cache_selection() {
     assert_eq!(dependency_prefix.source_files, vec![0]);
 }
 
+#[test]
+fn source_unit_lowering_source_files_synthesize_parent_modules() {
+    let files = vec![
+        CollectedSource {
+            path: PathBuf::from("main.yu"),
+            module_path: Path::default(),
+            source: "pub mod a;\nx\n".into(),
+        },
+        CollectedSource {
+            path: PathBuf::from("a.yu"),
+            module_path: Path {
+                segments: vec![Name("a".to_string())],
+            },
+            source: "mod b;\npub x = b::y\n".into(),
+        },
+        CollectedSource {
+            path: PathBuf::from("a/b.yu"),
+            module_path: Path {
+                segments: vec![Name("a".to_string()), Name("b".to_string())],
+            },
+            source: "pub y = 7\n".into(),
+        },
+    ];
+    let units = source_compilation_units(&files);
+    let b_unit = units.unit_for_file(2).unwrap();
+
+    let lowering_files = source_unit_lowering_source_files(&files, &units, b_unit).unwrap();
+
+    assert_eq!(lowering_files.len(), 3);
+    assert_eq!(lowering_files[0].module_path, Path::default());
+    assert_eq!(lowering_files[0].source, "pub mod a;\n");
+    assert_eq!(
+        lowering_files[1].module_path,
+        Path {
+            segments: vec![Name("a".to_string())],
+        }
+    );
+    assert_eq!(lowering_files[1].source, "mod b;\n");
+    assert_eq!(lowering_files[2].module_path, files[2].module_path);
+    assert_eq!(lowering_files[2].source, files[2].source);
+
+    let loaded = sources::load(lowering_files);
+    let lowered = infer::lowering::lower_loaded_files(&loaded).unwrap();
+    assert!(lowered.errors.is_empty(), "{:?}", lowered.errors);
+    let y = lowered
+        .modules
+        .value_path_at(
+            lowered.modules.root_id(),
+            &[
+                Name("a".to_string()),
+                Name("b".to_string()),
+                Name("y".to_string()),
+            ],
+            infer::ModuleOrder::from_index(u32::MAX),
+        )
+        .expect("synthetic parent modules should expose actual unit value");
+    assert!(lowered.session.poly.defs.get(y).is_some());
+}
+
 #[cfg(unix)]
 #[test]
 fn run_control_with_std_specializes_attached_role_impl_methods() {

@@ -80,11 +80,16 @@ Implemented subset:
   declaration. This is needed before non-root unit artifacts can synthesize
   parent module skeletons without widening non-`pub` modules across unit
   boundaries.
+- non-root source units can now build a synthetic lowering input: missing parent
+  modules are represented by generated `mod` skeleton files, while actual unit
+  files keep their original source. This proves the lowerer can accept a unit
+  such as `a::b` without pretending it is the program root; dependency surface
+  import is still a separate step.
 
 Not implemented yet:
 
 - individual dependency SCC artifacts;
-- non-root module-unit artifact emission;
+- non-root module-unit artifact writing and dependency surface import;
 - merging several source-unit compiled surfaces into one imported prefix;
 - realm/band-qualified cache keys;
 - dependency interface hashes;

@@ -1,12 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
 use super::{CollectedSource, discover_module_loads};
-use sources::Path;
+use sources::{ModuleLoadRequest, Path, SourceFile, Visibility};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceCompilationUnits {
     pub units: Vec<SourceCompilationUnit>,
     pub file_units: Vec<usize>,
+    pub module_loads: Vec<Vec<ModuleLoadRequest>>,
 }
 
 impl SourceCompilationUnits {
@@ -67,13 +68,34 @@ pub struct SourceUnitCacheSelection {
     pub source_files: Vec<usize>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SourceUnitLoweringInputError {
+    UnknownUnit {
+        unit: usize,
+    },
+    MissingModuleLoadVisibility {
+        module_path: Path,
+    },
+    ConflictingModuleLoadVisibility {
+        module_path: Path,
+    },
+    UnsupportedModuleLoadVisibility {
+        module_path: Path,
+        visibility: Visibility,
+    },
+}
+
 pub fn source_compilation_units(files: &[CollectedSource]) -> SourceCompilationUnits {
     let module_files = files
         .iter()
         .enumerate()
         .map(|(index, file)| (file.module_path.clone(), index))
         .collect::<HashMap<_, _>>();
-    let edges = source_dependency_edges(files, &module_files);
+    let module_loads = files
+        .iter()
+        .map(|file| discover_module_loads(&file.module_path, &file.source))
+        .collect::<Vec<_>>();
+    let edges = source_dependency_edges(&module_loads, &module_files);
     let mut units = tarjan_sccs(&edges)
         .into_iter()
         .map(|mut files| {
@@ -89,17 +111,56 @@ pub fn source_compilation_units(files: &[CollectedSource]) -> SourceCompilationU
     attach_unit_dependencies(&edges, &file_units, &mut units);
     order_units_by_dependency(&mut units, &mut file_units);
 
-    SourceCompilationUnits { units, file_units }
+    SourceCompilationUnits {
+        units,
+        file_units,
+        module_loads,
+    }
+}
+
+pub fn source_unit_lowering_source_files(
+    files: &[CollectedSource],
+    units: &SourceCompilationUnits,
+    unit: usize,
+) -> Result<Vec<SourceFile>, SourceUnitLoweringInputError> {
+    let source_unit = units
+        .units
+        .get(unit)
+        .ok_or(SourceUnitLoweringInputError::UnknownUnit { unit })?;
+    let actual_paths = source_unit
+        .files
+        .iter()
+        .map(|file| files[*file].module_path.clone())
+        .collect::<HashSet<_>>();
+    let module_load_visibility = module_load_visibility(&units.module_loads)?;
+    let synthetic_paths = synthetic_parent_module_paths(source_unit, files, &actual_paths);
+    let required_paths = actual_paths
+        .iter()
+        .cloned()
+        .chain(synthetic_paths.iter().cloned())
+        .collect::<HashSet<_>>();
+
+    let mut lowering_files = synthetic_paths
+        .into_iter()
+        .map(|module_path| {
+            synthetic_module_source_file(&module_path, &required_paths, &module_load_visibility)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    lowering_files.extend(source_unit.files.iter().map(|file| SourceFile {
+        module_path: files[*file].module_path.clone(),
+        source: files[*file].source.clone(),
+    }));
+    Ok(lowering_files)
 }
 
 fn source_dependency_edges(
-    files: &[CollectedSource],
+    module_loads: &[Vec<ModuleLoadRequest>],
     module_files: &HashMap<Path, usize>,
 ) -> Vec<Vec<usize>> {
-    let mut edges = Vec::with_capacity(files.len());
-    for file in files {
-        let mut deps = discover_module_loads(&file.module_path, &file.source)
-            .into_iter()
+    let mut edges = Vec::with_capacity(module_loads.len());
+    for requests in module_loads {
+        let mut deps = requests
+            .iter()
             .filter_map(|request| module_files.get(&request.module_path()).copied())
             .collect::<Vec<_>>();
         deps.sort_unstable();
@@ -107,6 +168,129 @@ fn source_dependency_edges(
         edges.push(deps);
     }
     edges
+}
+
+fn module_load_visibility(
+    module_loads: &[Vec<ModuleLoadRequest>],
+) -> Result<HashMap<Path, Visibility>, SourceUnitLoweringInputError> {
+    let mut visibility = HashMap::new();
+    for requests in module_loads {
+        for request in requests {
+            let module_path = request.module_path();
+            match visibility.get(&module_path).copied() {
+                Some(existing) if existing != request.visibility => {
+                    return Err(
+                        SourceUnitLoweringInputError::ConflictingModuleLoadVisibility {
+                            module_path,
+                        },
+                    );
+                }
+                Some(_) => {}
+                None => {
+                    visibility.insert(module_path, request.visibility);
+                }
+            }
+        }
+    }
+    Ok(visibility)
+}
+
+fn synthetic_parent_module_paths(
+    source_unit: &SourceCompilationUnit,
+    files: &[CollectedSource],
+    actual_paths: &HashSet<Path>,
+) -> Vec<Path> {
+    let mut paths = HashSet::new();
+    for file in &source_unit.files {
+        let module_path = &files[*file].module_path;
+        for depth in 0..module_path.segments.len() {
+            let parent = Path {
+                segments: module_path.segments[..depth].to_vec(),
+            };
+            if !actual_paths.contains(&parent) {
+                paths.insert(parent);
+            }
+        }
+    }
+    let mut paths = paths.into_iter().collect::<Vec<_>>();
+    paths.sort_by_key(|path| (path.segments.len(), module_path_sort_key(path)));
+    paths
+}
+
+fn synthetic_module_source_file(
+    module_path: &Path,
+    required_paths: &HashSet<Path>,
+    visibility: &HashMap<Path, Visibility>,
+) -> Result<SourceFile, SourceUnitLoweringInputError> {
+    let mut children = required_paths
+        .iter()
+        .filter_map(|path| direct_child_module_path(module_path, path))
+        .collect::<Vec<_>>();
+    children.sort_by_key(module_path_sort_key);
+    children.dedup();
+
+    let mut source = String::new();
+    for child in children {
+        let visibility = visibility.get(&child).copied().ok_or_else(|| {
+            SourceUnitLoweringInputError::MissingModuleLoadVisibility {
+                module_path: child.clone(),
+            }
+        })?;
+        source.push_str(module_visibility_prefix(&child, visibility)?);
+        source.push_str("mod ");
+        source.push_str(
+            &child
+                .segments
+                .last()
+                .expect("child path should have name")
+                .0,
+        );
+        source.push_str(";\n");
+    }
+
+    Ok(SourceFile {
+        module_path: module_path.clone(),
+        source,
+    })
+}
+
+fn direct_child_module_path(parent: &Path, candidate: &Path) -> Option<Path> {
+    if candidate.segments.len() != parent.segments.len() + 1 {
+        return None;
+    }
+    if !candidate
+        .segments
+        .iter()
+        .zip(&parent.segments)
+        .all(|(candidate, parent)| candidate == parent)
+    {
+        return None;
+    }
+    Some(candidate.clone())
+}
+
+fn module_path_sort_key(path: &Path) -> String {
+    path.segments
+        .iter()
+        .map(|segment| segment.0.as_str())
+        .collect::<Vec<_>>()
+        .join("\0")
+}
+
+fn module_visibility_prefix(
+    module_path: &Path,
+    visibility: Visibility,
+) -> Result<&'static str, SourceUnitLoweringInputError> {
+    match visibility {
+        Visibility::Pub => Ok("pub "),
+        Visibility::Our => Ok(""),
+        Visibility::My => Err(
+            SourceUnitLoweringInputError::UnsupportedModuleLoadVisibility {
+                module_path: module_path.clone(),
+                visibility,
+            },
+        ),
+    }
 }
 
 fn file_units(file_count: usize, units: &[SourceCompilationUnit]) -> Vec<usize> {
