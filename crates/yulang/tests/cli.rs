@@ -205,6 +205,30 @@ fn compatible_dump_runtime_ir_maps_to_mono_dump() {
 }
 
 #[test]
+fn compatible_dump_no_prelude_uses_cache() {
+    let entry = write_entry("dump-no-prelude-cache", "1\n");
+    let root = entry.parent().unwrap().to_path_buf();
+    let cache_root = root.join("cache-root");
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("dump")
+        .arg("--poly")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert!(stdout(&output).contains("roots"), "{}", stdout(&output));
+    assert_eq!(control_cache_file_count(&cache_root), 0);
+    assert_eq!(poly_cache_file_count(&cache_root), 1);
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 2);
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn compatible_parse_expr_prints_event_tree() {
     let entry = write_entry("parse-expr", "1 + 2\n");
 

@@ -1005,7 +1005,7 @@ fn run_compatible_dump(program: &str, options: &GlobalOptions, args: VecDeque<Os
     let (path, selection) = parse_dump_args(program, args);
     print_cst_if_requested(options, &path);
     if options.no_prelude {
-        print_selected_dump_without_std(path, selection);
+        print_selected_dump_without_std(path, selection, options.use_cache);
         return;
     }
 

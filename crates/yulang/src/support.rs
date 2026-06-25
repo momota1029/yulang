@@ -150,21 +150,23 @@ pub(super) fn parse_dump_args(
     (path, selection)
 }
 
-pub(super) fn print_selected_dump_without_std(path: PathBuf, selection: DumpSelection) {
+pub(super) fn print_selected_dump_without_std(
+    path: PathBuf,
+    selection: DumpSelection,
+    use_cache: bool,
+) {
+    let files = run_route_to_value(yulang::collect_local_sources(path));
     if selection.poly {
-        run_route(
-            yulang::dump_poly_from_entry(path.clone()),
-            print_dump_poly_output,
-        );
+        let output = dump_poly_with_optional_cache(files.clone(), false, use_cache);
+        print_dump_poly_output(&output);
     }
     if selection.poly_raw {
-        run_route(
-            yulang::dump_poly_raw_from_entry(path.clone()),
-            print_dump_poly_output,
-        );
+        let output = dump_poly_with_optional_cache(files.clone(), true, use_cache);
+        print_dump_poly_output(&output);
     }
     if selection.mono {
-        run_route(yulang::dump_mono_from_entry(path), print_dump_mono_output);
+        let output = dump_mono_with_optional_cache(files, use_cache);
+        print_dump_mono_output(&output);
     }
 }
 
