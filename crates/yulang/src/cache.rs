@@ -4,6 +4,7 @@
 //! collector or std lookup rules so a cache hit cannot change which files form
 //! the program.
 
+use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::io;
@@ -17,12 +18,13 @@ use crate::source::CollectedSource;
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 1;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 2;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
 const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v1";
 const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
+const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/v1";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 static CACHE_TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -150,6 +152,7 @@ impl ArtifactCache {
         Ok(Some(CachedCompiledUnitArtifact {
             manifest: envelope.manifest,
             syntax: envelope.syntax,
+            namespace: envelope.namespace,
         }))
     }
 
@@ -163,6 +166,7 @@ impl ArtifactCache {
             format: COMPILED_UNIT_CACHE_FORMAT,
             manifest: &artifact.manifest,
             syntax: &artifact.syntax,
+            namespace: &artifact.namespace,
         };
         write_cache_envelope(&path, "yuunit", &envelope)
     }
@@ -191,6 +195,7 @@ pub struct CachedPolyArtifact {
 pub struct CachedCompiledUnitArtifact {
     pub manifest: CompiledUnitManifest,
     pub syntax: sources::CompiledSyntaxSurface,
+    pub namespace: CompiledNamespaceSurface,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -199,6 +204,7 @@ pub struct CompiledUnitManifest {
     pub compiled_unit_format: u32,
     pub source_hash: u64,
     pub syntax_hash: u64,
+    pub namespace_hash: u64,
     pub files: Vec<CompiledUnitSourceFile>,
 }
 
@@ -208,6 +214,88 @@ pub struct CompiledUnitSourceFile {
     pub module_path: Vec<String>,
     pub source_len: usize,
     pub source_hash: u64,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceSurface {
+    pub modules: Vec<CompiledNamespaceModule>,
+    pub values: Vec<CompiledNamespaceSymbol>,
+    pub types: Vec<CompiledNamespaceTypeSymbol>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceModule {
+    pub id: u32,
+    pub path: Vec<String>,
+    pub visibility: Option<CompiledNamespaceVisibility>,
+    pub values: Vec<CompiledNamespaceModuleValue>,
+    pub types: Vec<CompiledNamespaceModuleType>,
+    pub modules: Vec<CompiledNamespaceModuleChild>,
+    pub aliases: Vec<CompiledNamespaceAlias>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceSymbol {
+    pub unit_id: u32,
+    pub path: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceTypeSymbol {
+    pub unit_id: u32,
+    pub path: Vec<String>,
+    pub kind: CompiledNamespaceTypeKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceModuleValue {
+    pub name: String,
+    pub symbol: u32,
+    pub visibility: CompiledNamespaceVisibility,
+    pub order: u32,
+    pub lazy: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceModuleType {
+    pub name: String,
+    pub symbol: u32,
+    pub visibility: CompiledNamespaceVisibility,
+    pub order: u32,
+    pub kind: CompiledNamespaceTypeKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceModuleChild {
+    pub name: String,
+    pub module: u32,
+    pub module_path: Vec<String>,
+    pub visibility: CompiledNamespaceVisibility,
+    pub order: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceAlias {
+    pub visibility: CompiledNamespaceVisibility,
+    pub order: u32,
+    pub import: sources::UseImport,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CompiledNamespaceVisibility {
+    Pub,
+    Our,
+    My,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CompiledNamespaceTypeKind {
+    TypeAlias,
+    Struct,
+    Enum,
+    Error,
+    Role,
+    Act,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -228,10 +316,15 @@ pub fn source_cache_key(files: &[CollectedSource]) -> SourceCacheKey {
 pub fn compiled_unit_artifact_from_loaded_files(
     files: &[CollectedSource],
     loaded: &[sources::LoadedFile],
-) -> CachedCompiledUnitArtifact {
+) -> Result<CachedCompiledUnitArtifact, infer::LoadedFilesError> {
     let syntax = sources::CompiledSyntaxSurface::from_loaded_files(loaded);
-    let manifest = compiled_unit_manifest(files, &syntax);
-    CachedCompiledUnitArtifact { manifest, syntax }
+    let namespace = CompiledNamespaceSurface::from_loaded_files(loaded)?;
+    let manifest = compiled_unit_manifest(files, &syntax, &namespace);
+    Ok(CachedCompiledUnitArtifact {
+        manifest,
+        syntax,
+        namespace,
+    })
 }
 
 fn source_cache_key_with_schema(files: &[CollectedSource], schema: CacheSchema) -> SourceCacheKey {
@@ -257,12 +350,14 @@ fn source_cache_key_with_schema(files: &[CollectedSource], schema: CacheSchema) 
 fn compiled_unit_manifest(
     files: &[CollectedSource],
     syntax: &sources::CompiledSyntaxSurface,
+    namespace: &CompiledNamespaceSurface,
 ) -> CompiledUnitManifest {
     CompiledUnitManifest {
         cache_schema_version: CACHE_SCHEMA_VERSION,
         compiled_unit_format: COMPILED_UNIT_CACHE_FORMAT,
         source_hash: source_cache_key(files).hash,
         syntax_hash: compiled_syntax_hash(syntax),
+        namespace_hash: compiled_namespace_hash(namespace),
         files: files
             .iter()
             .map(|file| CompiledUnitSourceFile {
@@ -292,6 +387,185 @@ fn source_file_hash(file: &CollectedSource) -> u64 {
     hasher.finish()
 }
 
+impl CompiledNamespaceSurface {
+    pub fn from_loaded_files(
+        loaded: &[sources::LoadedFile],
+    ) -> Result<Self, infer::LoadedFilesError> {
+        let lower = infer::lower_loaded_files_module_map(loaded)?;
+        Ok(Self::from_module_table(&lower.modules))
+    }
+
+    pub fn from_module_table(modules: &infer::ModuleTable) -> Self {
+        let mut builder = NamespaceSurfaceBuilder::new(modules);
+        builder.visit_module(modules.root_id(), None);
+        builder.finish()
+    }
+}
+
+struct NamespaceSurfaceBuilder<'a> {
+    modules: &'a infer::ModuleTable,
+    module_ids: HashMap<infer::ModuleId, u32>,
+    surface: CompiledNamespaceSurface,
+}
+
+impl<'a> NamespaceSurfaceBuilder<'a> {
+    fn new(modules: &'a infer::ModuleTable) -> Self {
+        Self {
+            modules,
+            module_ids: HashMap::new(),
+            surface: CompiledNamespaceSurface::default(),
+        }
+    }
+
+    fn finish(self) -> CompiledNamespaceSurface {
+        self.surface
+    }
+
+    fn visit_module(
+        &mut self,
+        module: infer::ModuleId,
+        visibility: Option<CompiledNamespaceVisibility>,
+    ) -> u32 {
+        if let Some(id) = self.module_ids.get(&module) {
+            return *id;
+        }
+
+        let id = self.surface.modules.len() as u32;
+        self.module_ids.insert(module, id);
+        self.surface.modules.push(CompiledNamespaceModule {
+            id,
+            path: namespace_path(&self.modules.module_path(module)),
+            visibility,
+            values: Vec::new(),
+            types: Vec::new(),
+            modules: Vec::new(),
+            aliases: Vec::new(),
+        });
+
+        let values = self.module_value_entries(module);
+        let types = self.module_type_entries(module);
+        let modules = self.module_child_entries(module);
+        let aliases = self.module_alias_entries(module);
+
+        let slot = &mut self.surface.modules[id as usize];
+        slot.values = values;
+        slot.types = types;
+        slot.modules = modules;
+        slot.aliases = aliases;
+        id
+    }
+
+    fn module_value_entries(
+        &mut self,
+        module: infer::ModuleId,
+    ) -> Vec<CompiledNamespaceModuleValue> {
+        self.modules
+            .module_value_decls(module)
+            .into_iter()
+            .map(|decl| {
+                let symbol = self.surface.values.len() as u32;
+                let mut path = namespace_path(&self.modules.module_path(module));
+                path.push(decl.name.0.clone());
+                self.surface.values.push(CompiledNamespaceSymbol {
+                    unit_id: symbol,
+                    path,
+                });
+                CompiledNamespaceModuleValue {
+                    name: decl.name.0,
+                    symbol,
+                    visibility: compiled_visibility(decl.vis),
+                    order: decl.order.index(),
+                    lazy: self.modules.is_lazy_op(decl.def),
+                }
+            })
+            .collect()
+    }
+
+    fn module_type_entries(&mut self, module: infer::ModuleId) -> Vec<CompiledNamespaceModuleType> {
+        self.modules
+            .module_type_decls(module)
+            .into_iter()
+            .map(|decl| {
+                let kind = compiled_type_kind(decl.kind);
+                let symbol = self.surface.types.len() as u32;
+                let mut path = namespace_path(&self.modules.module_path(module));
+                path.push(decl.name.0.clone());
+                self.surface.types.push(CompiledNamespaceTypeSymbol {
+                    unit_id: symbol,
+                    path,
+                    kind,
+                });
+                CompiledNamespaceModuleType {
+                    name: decl.name.0,
+                    symbol,
+                    visibility: compiled_visibility(decl.vis),
+                    order: decl.order.index(),
+                    kind,
+                }
+            })
+            .collect()
+    }
+
+    fn module_child_entries(
+        &mut self,
+        module: infer::ModuleId,
+    ) -> Vec<CompiledNamespaceModuleChild> {
+        self.modules
+            .module_child_decls(module)
+            .into_iter()
+            .map(|decl| {
+                let visibility = compiled_visibility(decl.vis);
+                let child = self.visit_module(decl.module, Some(visibility));
+                CompiledNamespaceModuleChild {
+                    name: decl.name.0,
+                    module: child,
+                    module_path: namespace_path(&self.modules.module_path(decl.module)),
+                    visibility,
+                    order: decl.order.index(),
+                }
+            })
+            .collect()
+    }
+
+    fn module_alias_entries(&self, module: infer::ModuleId) -> Vec<CompiledNamespaceAlias> {
+        self.modules
+            .aliases(module)
+            .iter()
+            .map(|alias| CompiledNamespaceAlias {
+                visibility: compiled_visibility(alias.vis),
+                order: alias.order.index(),
+                import: alias.import.clone(),
+            })
+            .collect()
+    }
+}
+
+fn namespace_path(path: &sources::Path) -> Vec<String> {
+    path.segments
+        .iter()
+        .map(|segment| segment.0.clone())
+        .collect()
+}
+
+fn compiled_visibility(visibility: poly::expr::Vis) -> CompiledNamespaceVisibility {
+    match visibility {
+        poly::expr::Vis::Pub => CompiledNamespaceVisibility::Pub,
+        poly::expr::Vis::Our => CompiledNamespaceVisibility::Our,
+        poly::expr::Vis::My => CompiledNamespaceVisibility::My,
+    }
+}
+
+fn compiled_type_kind(kind: infer::ModuleTypeKind) -> CompiledNamespaceTypeKind {
+    match kind {
+        infer::ModuleTypeKind::TypeAlias => CompiledNamespaceTypeKind::TypeAlias,
+        infer::ModuleTypeKind::Struct => CompiledNamespaceTypeKind::Struct,
+        infer::ModuleTypeKind::Enum => CompiledNamespaceTypeKind::Enum,
+        infer::ModuleTypeKind::Error => CompiledNamespaceTypeKind::Error,
+        infer::ModuleTypeKind::Role => CompiledNamespaceTypeKind::Role,
+        infer::ModuleTypeKind::Act => CompiledNamespaceTypeKind::Act,
+    }
+}
+
 fn compiled_syntax_hash(syntax: &sources::CompiledSyntaxSurface) -> u64 {
     let mut hasher = StableHasher::new();
     hasher.bytes(COMPILED_SYNTAX_HASH_SALT);
@@ -319,10 +593,78 @@ fn compiled_syntax_hash(syntax: &sources::CompiledSyntaxSurface) -> u64 {
     hasher.finish()
 }
 
+fn compiled_namespace_hash(namespace: &CompiledNamespaceSurface) -> u64 {
+    let mut hasher = StableHasher::new();
+    hasher.bytes(COMPILED_NAMESPACE_HASH_SALT);
+
+    hasher.usize(namespace.modules.len());
+    for module in &namespace.modules {
+        hasher.u32(module.id);
+        hash_string_path(&mut hasher, &module.path);
+        hash_optional_compiled_namespace_visibility(&mut hasher, module.visibility);
+
+        hasher.usize(module.values.len());
+        for value in &module.values {
+            hasher.string(&value.name);
+            hasher.u32(value.symbol);
+            hash_compiled_namespace_visibility(&mut hasher, value.visibility);
+            hasher.u32(value.order);
+            hasher.bool(value.lazy);
+        }
+
+        hasher.usize(module.types.len());
+        for ty in &module.types {
+            hasher.string(&ty.name);
+            hasher.u32(ty.symbol);
+            hash_compiled_namespace_visibility(&mut hasher, ty.visibility);
+            hasher.u32(ty.order);
+            hash_compiled_namespace_type_kind(&mut hasher, ty.kind);
+        }
+
+        hasher.usize(module.modules.len());
+        for child in &module.modules {
+            hasher.string(&child.name);
+            hasher.u32(child.module);
+            hash_string_path(&mut hasher, &child.module_path);
+            hash_compiled_namespace_visibility(&mut hasher, child.visibility);
+            hasher.u32(child.order);
+        }
+
+        hasher.usize(module.aliases.len());
+        for alias in &module.aliases {
+            hash_compiled_namespace_visibility(&mut hasher, alias.visibility);
+            hasher.u32(alias.order);
+            hash_use_import(&mut hasher, &alias.import);
+        }
+    }
+
+    hasher.usize(namespace.values.len());
+    for value in &namespace.values {
+        hasher.u32(value.unit_id);
+        hash_string_path(&mut hasher, &value.path);
+    }
+
+    hasher.usize(namespace.types.len());
+    for ty in &namespace.types {
+        hasher.u32(ty.unit_id);
+        hash_string_path(&mut hasher, &ty.path);
+        hash_compiled_namespace_type_kind(&mut hasher, ty.kind);
+    }
+
+    hasher.finish()
+}
+
 fn hash_module_path(hasher: &mut StableHasher, path: &sources::Path) {
     hasher.usize(path.segments.len());
     for segment in &path.segments {
         hasher.string(&segment.0);
+    }
+}
+
+fn hash_string_path(hasher: &mut StableHasher, path: &[String]) {
+    hasher.usize(path.len());
+    for segment in path {
+        hasher.string(segment);
     }
 }
 
@@ -331,6 +673,41 @@ fn hash_visibility(hasher: &mut StableHasher, visibility: sources::Visibility) {
         sources::Visibility::Pub => 0,
         sources::Visibility::Our => 1,
         sources::Visibility::My => 2,
+    });
+}
+
+fn hash_optional_compiled_namespace_visibility(
+    hasher: &mut StableHasher,
+    visibility: Option<CompiledNamespaceVisibility>,
+) {
+    match visibility {
+        Some(visibility) => {
+            hasher.bool(true);
+            hash_compiled_namespace_visibility(hasher, visibility);
+        }
+        None => hasher.bool(false),
+    }
+}
+
+fn hash_compiled_namespace_visibility(
+    hasher: &mut StableHasher,
+    visibility: CompiledNamespaceVisibility,
+) {
+    hasher.u8(match visibility {
+        CompiledNamespaceVisibility::Pub => 0,
+        CompiledNamespaceVisibility::Our => 1,
+        CompiledNamespaceVisibility::My => 2,
+    });
+}
+
+fn hash_compiled_namespace_type_kind(hasher: &mut StableHasher, kind: CompiledNamespaceTypeKind) {
+    hasher.u8(match kind {
+        CompiledNamespaceTypeKind::TypeAlias => 0,
+        CompiledNamespaceTypeKind::Struct => 1,
+        CompiledNamespaceTypeKind::Enum => 2,
+        CompiledNamespaceTypeKind::Error => 3,
+        CompiledNamespaceTypeKind::Role => 4,
+        CompiledNamespaceTypeKind::Act => 5,
     });
 }
 
@@ -488,10 +865,15 @@ struct ControlCacheEnvelope<T = control_vm::Program, L = poly::dump::DumpLabels,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct CompiledUnitCacheEnvelope<M = CompiledUnitManifest, S = sources::CompiledSyntaxSurface> {
+struct CompiledUnitCacheEnvelope<
+    M = CompiledUnitManifest,
+    S = sources::CompiledSyntaxSurface,
+    N = CompiledNamespaceSurface,
+> {
     format: u32,
     manifest: M,
     syntax: S,
+    namespace: N,
 }
 
 fn read_cache_envelope<T>(path: &Path, format: u32) -> Result<Option<T>, CacheError>
@@ -561,7 +943,7 @@ trait CacheEnvelope {
     fn format(&self) -> u32;
 }
 
-impl<T, E> CacheEnvelope for PolyCacheEnvelope<T, E> {
+impl<T, L, E> CacheEnvelope for PolyCacheEnvelope<T, L, E> {
     fn format(&self) -> u32 {
         self.format
     }
@@ -573,7 +955,7 @@ impl<T, L, E> CacheEnvelope for ControlCacheEnvelope<T, L, E> {
     }
 }
 
-impl<M, S> CacheEnvelope for CompiledUnitCacheEnvelope<M, S> {
+impl<M, S, N> CacheEnvelope for CompiledUnitCacheEnvelope<M, S, N> {
     fn format(&self) -> u32 {
         self.format
     }
@@ -754,22 +1136,49 @@ mod tests {
     fn compiled_unit_cache_round_trips_manifest_and_syntax_surface() {
         let root = temp_root("compiled-unit-round-trip");
         let cache = ArtifactCache::new(&root);
-        let files = vec![source(
-            "ops.yu",
-            &["ops"],
-            "pub infix (<+>) 50 50 = add\nmy hidden = 1\n",
-        )];
+        let files = vec![
+            source("main.yu", &[], "mod ops;\n"),
+            source(
+                "ops.yu",
+                &["ops"],
+                "pub infix (<+>) 50 50 = add\nmy hidden = 1\n",
+            ),
+        ];
         let loaded = sources::load(collected_to_source_files(files.clone()));
         let key = source_cache_key(&files);
-        let artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded);
+        let artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded).unwrap();
 
         cache.write_compiled_unit_artifact(key, &artifact).unwrap();
         let restored = cache.read_compiled_unit_artifact(key).unwrap().unwrap();
 
         assert_eq!(restored, artifact);
-        assert_eq!(restored.manifest.files.len(), 1);
-        assert_eq!(restored.manifest.files[0].module_path, vec!["ops"]);
-        assert_eq!(restored.syntax.files[0].ops.len(), 1);
+        assert_eq!(restored.manifest.files.len(), 2);
+        assert_eq!(restored.manifest.files[1].module_path, vec!["ops"]);
+        let ops_path = vec!["ops".to_string()];
+        let ops_syntax = restored
+            .syntax
+            .files
+            .iter()
+            .find(|file| namespace_path(&file.module_path) == ops_path)
+            .unwrap();
+        assert_eq!(ops_syntax.ops.len(), 1);
+        let ops_module = restored
+            .namespace
+            .modules
+            .iter()
+            .find(|module| module.path == ops_path)
+            .unwrap();
+        assert!(
+            ops_module
+                .values
+                .iter()
+                .any(|value| value.name == "#op:infix:<+>"
+                    && value.visibility == CompiledNamespaceVisibility::Pub)
+        );
+        assert!(
+            ops_module.values.iter().any(|value| value.name == "hidden"
+                && value.visibility == CompiledNamespaceVisibility::My)
+        );
         assert!(cache.compiled_unit_artifact_path(key).is_file());
         assert_eq!(
             cache.compiled_unit_artifact_path(key).extension().unwrap(),

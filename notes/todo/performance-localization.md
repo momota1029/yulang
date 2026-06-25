@@ -123,9 +123,12 @@ source dependency SCC ごとの compiled-unit cache である。
   using only a serialized syntax prefix.
 - Done: `yulang::cache` can read/write `.yuunit` compiled-unit envelopes with
   `CompiledUnitManifest` and syntax surface.
+- Done: `.yuunit` envelopes now include `CompiledNamespaceSurface`, including
+  stable module/value/type IDs, declaration visibility/order, aliases, child
+  modules, and lazy operator flags extracted from `infer::ModuleTable`.
 - Not done: source dependency SCC selection and normal-path cache hit import.
-- Next: add `CompiledNamespaceSurface` so imported syntax can resolve to stable
-  value/type/module identities during lowering.
+- Next: add a namespace-surface import route so cached dependency units can
+  resolve names during lowering without re-lowering dependency source bodies.
 
 撤退条件:
 

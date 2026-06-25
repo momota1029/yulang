@@ -130,7 +130,7 @@ impl ModuleTable {
     pub(super) fn mark_lazy_op(&mut self, def: DefId) {
         self.lazy_ops.insert(def);
     }
-    pub(crate) fn is_lazy_op(&self, def: DefId) -> bool {
+    pub fn is_lazy_op(&self, def: DefId) -> bool {
         self.lazy_ops.contains(&def)
     }
     pub(super) fn set_def_source_span(&mut self, def: DefId, source_span: SourceSpan) {
