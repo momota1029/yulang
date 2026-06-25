@@ -42,7 +42,6 @@ impl BodyLowerer {
                             );
                         } else {
                             self.lower_role_method_signature(
-                                &child,
                                 companion,
                                 &decl,
                                 &method,
@@ -117,7 +116,7 @@ impl BodyLowerer {
         &self,
         method: &RoleMethodDecl,
     ) -> Result<Option<RoleMethodRequirement>, LoweringError> {
-        let Some(type_expr) = method.signature.clone() else {
+        let Some(signature) = method.signature.as_ref() else {
             return Ok(None);
         };
         let Some(companion) = self.modules.type_companion(method.owner) else {
@@ -132,7 +131,7 @@ impl BodyLowerer {
         if let Some(first) = role_inputs.first() {
             builder.add_bare_type_var_alias("self", first.clone());
         }
-        let signature = build_signature_type_expr(&mut builder, &type_expr)
+        let signature = build_stored_signature_type_expr(&mut builder, signature)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
         let signature = role_method_signature_with_receiver(
             method.receiver.as_ref(),

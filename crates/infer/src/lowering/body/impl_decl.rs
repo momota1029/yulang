@@ -341,7 +341,6 @@ impl BodyLowerer {
 
     pub(super) fn lower_role_method_signature(
         &mut self,
-        node: &Cst,
         module: ModuleId,
         role: &ModuleTypeDecl,
         method: &RoleMethodDecl,
@@ -358,7 +357,6 @@ impl BodyLowerer {
             }));
 
         let result = self.connect_role_method_signature(
-            node,
             module,
             role,
             method,
@@ -380,7 +378,6 @@ impl BodyLowerer {
 
     pub(super) fn connect_role_method_signature(
         &mut self,
-        node: &Cst,
         module: ModuleId,
         role: &ModuleTypeDecl,
         method: &RoleMethodDecl,
@@ -388,7 +385,7 @@ impl BodyLowerer {
         role_associated: &[String],
         root: TypeVar,
     ) -> Result<(), LoweringError> {
-        let Some(type_expr) = binding_type_expr(node) else {
+        let Some(signature) = method.signature.as_ref() else {
             return Ok(());
         };
         let mut builder = ann_type_builder(&self.modules, module, method.order, None);
@@ -398,7 +395,7 @@ impl BodyLowerer {
         if let Some(first) = role_inputs.first() {
             builder.add_bare_type_var_alias("self", first.clone());
         }
-        let signature = build_signature_type_expr(&mut builder, &type_expr)
+        let signature = build_stored_signature_type_expr(&mut builder, signature)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
         let signature = role_method_signature_with_receiver(
             method.receiver.as_ref(),

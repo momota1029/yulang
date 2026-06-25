@@ -793,6 +793,34 @@ mod tests {
         assert_eq!(lowered.errors, Vec::new());
     }
 
+    #[test]
+    fn runtime_surface_prefix_reads_lowered_role_method_signatures() {
+        let loaded = sources::load(vec![
+            source(&[], "mod roles;\npub use roles::*\n"),
+            source(&["roles"], "pub role Display 'a:\n  pub x.display: unit\n"),
+        ]);
+        let lowering = lower_loaded_files(&loaded).unwrap();
+        let runtime = CompiledRuntimeSurface::from_lowering(&lowering);
+        let mut modules = lowering.modules.clone();
+        replace_test_signatures_with_lowered(&mut modules);
+        let prefix = BodyLoweringPrefix::from_runtime_surface(&runtime, &modules);
+        let root = sources::load(vec![source(
+            &[],
+            "impl int: Display:\n  pub x.display = 1\n",
+        )])
+        .into_iter()
+        .next()
+        .unwrap();
+
+        let lowered = lower_root_loaded_file_with_prefix(&prefix, &root).unwrap();
+
+        let errors = format!("{:?}", lowered.errors);
+        assert!(
+            errors.contains("TypeMismatch"),
+            "lowered role method signature should constrain downstream impl bodies: {errors}"
+        );
+    }
+
     fn replace_test_signatures_with_lowered(modules: &mut crate::ModuleTable) {
         let int_signature = StoredSignature::lowered(SignatureType::Builtin(BuiltinType::Int));
         for constructor in modules.constructors.values_mut() {
@@ -820,6 +848,13 @@ mod tests {
         for ops in modules.act_ops.values_mut() {
             for op in ops {
                 op.signature = Some(operation_signature.clone());
+            }
+        }
+
+        let unit_signature = StoredSignature::lowered(SignatureType::Builtin(BuiltinType::Unit));
+        for methods in modules.role_methods.values_mut() {
+            for method in methods {
+                method.signature = Some(unit_signature.clone());
             }
         }
     }

@@ -335,7 +335,7 @@ pub struct RoleMethodDecl {
     pub def: DefId,
     pub vis: Vis,
     pub order: ModuleOrder,
-    pub signature: Option<SyntaxNode<YulangLanguage>>,
+    pub signature: Option<StoredSignature>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

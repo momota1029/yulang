@@ -700,7 +700,7 @@ impl Lower {
                             def,
                             vis,
                             order,
-                            signature: binding_type_expr(&child),
+                            signature: binding_type_expr(&child).map(StoredSignature::source),
                         });
                         children.push(def);
                         self.register_local_var_act_copies_in_binding(&child, module, def);
