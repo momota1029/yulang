@@ -502,6 +502,48 @@ impl ModuleTable {
             })
             .collect()
     }
+    pub fn module_imported_value_decls(&self, module: ModuleId) -> Vec<ModuleImportedValueDecl> {
+        self.nodes[module.0]
+            .import_values
+            .iter()
+            .flat_map(|(name, entries)| {
+                entries.iter().map(|entry| ModuleImportedValueDecl {
+                    name: name.clone(),
+                    vis: entry.vis,
+                    order: entry.order,
+                    def: entry.def,
+                })
+            })
+            .collect()
+    }
+    pub fn module_imported_type_decls(&self, module: ModuleId) -> Vec<ModuleImportedTypeDecl> {
+        self.nodes[module.0]
+            .import_types
+            .iter()
+            .flat_map(|(name, entries)| {
+                entries.iter().map(|entry| ModuleImportedTypeDecl {
+                    name: name.clone(),
+                    vis: entry.vis,
+                    order: entry.order,
+                    decl: entry.decl.clone(),
+                })
+            })
+            .collect()
+    }
+    pub fn module_imported_module_decls(&self, module: ModuleId) -> Vec<ModuleImportedModuleDecl> {
+        self.nodes[module.0]
+            .import_modules
+            .iter()
+            .flat_map(|(name, entries)| {
+                entries.iter().map(|entry| ModuleImportedModuleDecl {
+                    name: name.clone(),
+                    vis: entry.vis,
+                    order: entry.order,
+                    module: entry.module,
+                })
+            })
+            .collect()
+    }
     pub fn value_decls(&self, module: ModuleId, name: &Name) -> Vec<ModuleValueDecl> {
         self.nodes[module.0]
             .values

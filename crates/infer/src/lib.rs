@@ -356,6 +356,33 @@ pub struct ModuleChildDecl {
     pub def: DefId,
 }
 
+/// module import view に入った値宣言を外へ見せるための summary。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModuleImportedValueDecl {
+    pub name: Name,
+    pub vis: Vis,
+    pub order: ModuleOrder,
+    pub def: DefId,
+}
+
+/// module import view に入った型宣言を外へ見せるための summary。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModuleImportedTypeDecl {
+    pub name: Name,
+    pub vis: Vis,
+    pub order: ModuleOrder,
+    pub decl: ModuleTypeDecl,
+}
+
+/// module import view に入った子 module 宣言を外へ見せるための summary。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModuleImportedModuleDecl {
+    pub name: Name,
+    pub vis: Vis,
+    pub order: ModuleOrder,
+    pub module: ModuleId,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) struct ModulePathTarget {
     pub module: ModuleId,

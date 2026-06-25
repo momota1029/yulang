@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use poly::expr::Vis;
 use serde::{Deserialize, Serialize};
 
-use crate::{LoadedFilesError, ModuleId, ModuleTable, ModuleTypeKind};
+use crate::{LoadedFilesError, ModuleId, ModuleTable, ModuleTypeKind, TypeDeclId};
+use poly::expr::DefId;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompiledNamespaceSurface {
@@ -20,6 +21,9 @@ pub struct CompiledNamespaceModule {
     pub values: Vec<CompiledNamespaceModuleValue>,
     pub types: Vec<CompiledNamespaceModuleType>,
     pub modules: Vec<CompiledNamespaceModuleChild>,
+    pub imported_values: Vec<CompiledNamespaceImportedValue>,
+    pub imported_types: Vec<CompiledNamespaceImportedType>,
+    pub imported_modules: Vec<CompiledNamespaceImportedModule>,
     pub aliases: Vec<CompiledNamespaceAlias>,
 }
 
@@ -64,6 +68,32 @@ pub struct CompiledNamespaceModuleChild {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceImportedValue {
+    pub name: String,
+    pub symbol: u32,
+    pub visibility: CompiledNamespaceVisibility,
+    pub order: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceImportedType {
+    pub name: String,
+    pub symbol: u32,
+    pub visibility: CompiledNamespaceVisibility,
+    pub order: u32,
+    pub kind: CompiledNamespaceTypeKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceImportedModule {
+    pub name: String,
+    pub module: u32,
+    pub module_path: Vec<String>,
+    pub visibility: CompiledNamespaceVisibility,
+    pub order: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompiledNamespaceAlias {
     pub visibility: CompiledNamespaceVisibility,
     pub order: u32,
@@ -96,6 +126,7 @@ impl CompiledNamespaceSurface {
     pub fn from_module_table(modules: &ModuleTable) -> Self {
         let mut builder = NamespaceSurfaceBuilder::new(modules);
         builder.visit_module(modules.root_id(), None);
+        builder.fill_import_views();
         builder.finish()
     }
 }
@@ -103,6 +134,8 @@ impl CompiledNamespaceSurface {
 struct NamespaceSurfaceBuilder<'a> {
     modules: &'a ModuleTable,
     module_ids: HashMap<ModuleId, u32>,
+    value_symbols: HashMap<DefId, u32>,
+    type_symbols: HashMap<TypeDeclId, u32>,
     surface: CompiledNamespaceSurface,
 }
 
@@ -111,6 +144,8 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
         Self {
             modules,
             module_ids: HashMap::new(),
+            value_symbols: HashMap::new(),
+            type_symbols: HashMap::new(),
             surface: CompiledNamespaceSurface::default(),
         }
     }
@@ -137,6 +172,9 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
             values: Vec::new(),
             types: Vec::new(),
             modules: Vec::new(),
+            imported_values: Vec::new(),
+            imported_types: Vec::new(),
+            imported_modules: Vec::new(),
             aliases: Vec::new(),
         });
 
@@ -153,6 +191,16 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
         id
     }
 
+    fn fill_import_views(&mut self) {
+        let modules = self.module_ids.keys().copied().collect::<Vec<ModuleId>>();
+        for module in modules {
+            let id = self.module_ids[&module] as usize;
+            self.surface.modules[id].imported_values = self.module_imported_value_entries(module);
+            self.surface.modules[id].imported_types = self.module_imported_type_entries(module);
+            self.surface.modules[id].imported_modules = self.module_imported_module_entries(module);
+        }
+    }
+
     fn module_value_entries(&mut self, module: ModuleId) -> Vec<CompiledNamespaceModuleValue> {
         self.modules
             .module_value_decls(module)
@@ -161,6 +209,7 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
                 let symbol = self.surface.values.len() as u32;
                 let mut path = namespace_path(&self.modules.module_path(module));
                 path.push(decl.name.0.clone());
+                self.value_symbols.insert(decl.def, symbol);
                 self.surface.values.push(CompiledNamespaceSymbol {
                     unit_id: symbol,
                     path,
@@ -185,6 +234,7 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
                 let symbol = self.surface.types.len() as u32;
                 let mut path = namespace_path(&self.modules.module_path(module));
                 path.push(decl.name.0.clone());
+                self.type_symbols.insert(decl.id, symbol);
                 self.surface.types.push(CompiledNamespaceTypeSymbol {
                     unit_id: symbol,
                     path,
@@ -199,6 +249,78 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
                 }
             })
             .collect()
+    }
+
+    fn module_imported_value_entries(
+        &self,
+        module: ModuleId,
+    ) -> Vec<CompiledNamespaceImportedValue> {
+        let mut entries = self
+            .modules
+            .module_imported_value_decls(module)
+            .into_iter()
+            .filter_map(|decl| {
+                let symbol = *self.value_symbols.get(&decl.def)?;
+                Some(CompiledNamespaceImportedValue {
+                    name: decl.name.0,
+                    symbol,
+                    visibility: compiled_visibility(decl.vis),
+                    order: decl.order.index(),
+                })
+            })
+            .collect::<Vec<_>>();
+        entries.sort_by(|left, right| {
+            (left.order, &left.name, left.symbol).cmp(&(right.order, &right.name, right.symbol))
+        });
+        entries
+    }
+
+    fn module_imported_type_entries(&self, module: ModuleId) -> Vec<CompiledNamespaceImportedType> {
+        let mut entries = self
+            .modules
+            .module_imported_type_decls(module)
+            .into_iter()
+            .filter_map(|decl| {
+                let symbol = *self.type_symbols.get(&decl.decl.id)?;
+                let kind = compiled_type_kind(decl.decl.kind);
+                Some(CompiledNamespaceImportedType {
+                    name: decl.name.0,
+                    symbol,
+                    visibility: compiled_visibility(decl.vis),
+                    order: decl.order.index(),
+                    kind,
+                })
+            })
+            .collect::<Vec<_>>();
+        entries.sort_by(|left, right| {
+            (left.order, &left.name, left.symbol).cmp(&(right.order, &right.name, right.symbol))
+        });
+        entries
+    }
+
+    fn module_imported_module_entries(
+        &self,
+        module: ModuleId,
+    ) -> Vec<CompiledNamespaceImportedModule> {
+        let mut entries = self
+            .modules
+            .module_imported_module_decls(module)
+            .into_iter()
+            .filter_map(|decl| {
+                let module_id = *self.module_ids.get(&decl.module)?;
+                Some(CompiledNamespaceImportedModule {
+                    name: decl.name.0,
+                    module: module_id,
+                    module_path: namespace_path(&self.modules.module_path(decl.module)),
+                    visibility: compiled_visibility(decl.vis),
+                    order: decl.order.index(),
+                })
+            })
+            .collect::<Vec<_>>();
+        entries.sort_by(|left, right| {
+            (left.order, &left.name, left.module).cmp(&(right.order, &right.name, right.module))
+        });
+        entries
     }
 
     fn module_child_entries(&mut self, module: ModuleId) -> Vec<CompiledNamespaceModuleChild> {
@@ -255,5 +377,51 @@ fn compiled_type_kind(kind: ModuleTypeKind) -> CompiledNamespaceTypeKind {
         ModuleTypeKind::Error => CompiledNamespaceTypeKind::Error,
         ModuleTypeKind::Role => CompiledNamespaceTypeKind::Role,
         ModuleTypeKind::Act => CompiledNamespaceTypeKind::Act,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sources::{Name, Path, SourceFile};
+
+    use super::*;
+
+    #[test]
+    fn namespace_surface_records_resolved_import_view() {
+        let loaded = sources::load(vec![
+            source(&[], "mod ops;\npub use ops::*\n"),
+            source(&["ops"], "pub x = 42\n"),
+        ]);
+        let surface = CompiledNamespaceSurface::from_loaded_files(&loaded).unwrap();
+        let root = surface
+            .modules
+            .iter()
+            .find(|module| module.path.is_empty())
+            .unwrap();
+        let ops_path = vec!["ops".to_string()];
+        let ops = surface
+            .modules
+            .iter()
+            .find(|module| module.path == ops_path)
+            .unwrap();
+        let x = ops.values.iter().find(|value| value.name == "x").unwrap();
+
+        assert!(root.imported_values.iter().any(|value| {
+            value.name == "x"
+                && value.symbol == x.symbol
+                && value.visibility == CompiledNamespaceVisibility::Pub
+        }));
+    }
+
+    fn source(module: &[&str], text: &str) -> SourceFile {
+        SourceFile {
+            module_path: Path {
+                segments: module
+                    .iter()
+                    .map(|segment| Name((*segment).to_string()))
+                    .collect(),
+            },
+            source: text.to_string(),
+        }
     }
 }

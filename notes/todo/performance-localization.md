@@ -127,6 +127,9 @@ source dependency SCC ごとの compiled-unit cache である。
   including stable module/value/type IDs, declaration visibility/order,
   aliases, child modules, and lazy operator flags extracted from
   `infer::ModuleTable`.
+- Done: `infer::CompiledNamespaceSurface` also records resolved import views
+  as unit-local symbol/module references, so reexports are not reduced to raw
+  alias syntax.
 - Not done: source dependency SCC selection and normal-path cache hit import.
 - Next: add a namespace-surface import route so cached dependency units can
   resolve names during lowering without re-lowering dependency source bodies.

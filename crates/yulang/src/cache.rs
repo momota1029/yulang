@@ -368,6 +368,32 @@ fn compiled_namespace_hash(namespace: &infer::CompiledNamespaceSurface) -> u64 {
             hasher.u32(child.order);
         }
 
+        hasher.usize(module.imported_values.len());
+        for value in &module.imported_values {
+            hasher.string(&value.name);
+            hasher.u32(value.symbol);
+            hash_compiled_namespace_visibility(&mut hasher, value.visibility);
+            hasher.u32(value.order);
+        }
+
+        hasher.usize(module.imported_types.len());
+        for ty in &module.imported_types {
+            hasher.string(&ty.name);
+            hasher.u32(ty.symbol);
+            hash_compiled_namespace_visibility(&mut hasher, ty.visibility);
+            hasher.u32(ty.order);
+            hash_compiled_namespace_type_kind(&mut hasher, ty.kind);
+        }
+
+        hasher.usize(module.imported_modules.len());
+        for child in &module.imported_modules {
+            hasher.string(&child.name);
+            hasher.u32(child.module);
+            hash_string_path(&mut hasher, &child.module_path);
+            hash_compiled_namespace_visibility(&mut hasher, child.visibility);
+            hasher.u32(child.order);
+        }
+
         hasher.usize(module.aliases.len());
         for alias in &module.aliases {
             hash_compiled_namespace_visibility(&mut hasher, alias.visibility);
