@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::source::CollectedSource;
+use crate::source::{CollectedSource, SourceCompilationUnits};
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
@@ -21,6 +21,7 @@ const COMPILED_UNIT_CACHE_FORMAT: u32 = 11;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
+const SOURCE_UNIT_CACHE_SALT: &[u8] = b"yulang/source-unit-cache/v1";
 const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v1";
 const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
 const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/v1";
@@ -251,6 +252,19 @@ pub fn source_cache_key(files: &[CollectedSource]) -> SourceCacheKey {
     source_cache_key_with_schema(files, CURRENT_CACHE_SCHEMA)
 }
 
+pub fn source_compilation_unit_cache_keys(
+    files: &[CollectedSource],
+    units: &SourceCompilationUnits,
+) -> Vec<SourceCacheKey> {
+    let mut keys = vec![None; units.units.len()];
+    for unit in 0..units.units.len() {
+        compute_source_unit_cache_key(files, units, unit, &mut keys);
+    }
+    keys.into_iter()
+        .map(|key| key.expect("source unit key should be computed"))
+        .collect()
+}
+
 pub fn compiled_unit_artifact_from_loaded_files(
     files: &[CollectedSource],
     loaded: &[sources::LoadedFile],
@@ -317,21 +331,59 @@ fn compiled_unit_envelope_matches_key(
 fn source_cache_key_with_schema(files: &[CollectedSource], schema: CacheSchema) -> SourceCacheKey {
     let mut hasher = StableHasher::new();
     hasher.bytes(SOURCE_CACHE_SALT);
-    hasher.u32(schema.version);
-    hasher.u32(schema.poly_format);
-    hasher.u32(schema.control_format);
+    hash_cache_schema(&mut hasher, schema);
     hasher.usize(files.len());
     for file in files {
-        hasher.string(&file.path.as_os_str().to_string_lossy());
-        hasher.usize(file.module_path.segments.len());
-        for segment in &file.module_path.segments {
-            hasher.string(&segment.0);
-        }
-        hasher.string(&file.source);
+        hash_collected_source(&mut hasher, file);
     }
     SourceCacheKey {
         hash: hasher.finish(),
     }
+}
+
+fn compute_source_unit_cache_key(
+    files: &[CollectedSource],
+    units: &SourceCompilationUnits,
+    unit: usize,
+    keys: &mut [Option<SourceCacheKey>],
+) -> SourceCacheKey {
+    if let Some(key) = keys[unit] {
+        return key;
+    }
+
+    let mut hasher = StableHasher::new();
+    hasher.bytes(SOURCE_UNIT_CACHE_SALT);
+    hash_cache_schema(&mut hasher, CURRENT_CACHE_SCHEMA);
+    let source_unit = &units.units[unit];
+    hasher.usize(source_unit.files.len());
+    for file in &source_unit.files {
+        hash_collected_source(&mut hasher, &files[*file]);
+    }
+    hasher.usize(source_unit.dependencies.len());
+    for dep in &source_unit.dependencies {
+        let dep_key = compute_source_unit_cache_key(files, units, *dep, keys);
+        hasher.u64(dep_key.hash);
+    }
+    let key = SourceCacheKey {
+        hash: hasher.finish(),
+    };
+    keys[unit] = Some(key);
+    key
+}
+
+fn hash_cache_schema(hasher: &mut StableHasher, schema: CacheSchema) {
+    hasher.u32(schema.version);
+    hasher.u32(schema.poly_format);
+    hasher.u32(schema.control_format);
+}
+
+fn hash_collected_source(hasher: &mut StableHasher, file: &CollectedSource) {
+    hasher.string(&file.path.as_os_str().to_string_lossy());
+    hasher.usize(file.module_path.segments.len());
+    for segment in &file.module_path.segments {
+        hasher.string(&segment.0);
+    }
+    hasher.string(&file.source);
 }
 
 fn compiled_unit_manifest(
@@ -2160,6 +2212,52 @@ mod tests {
     }
 
     #[test]
+    fn source_unit_cache_keys_track_dependency_unit_hashes() {
+        let base = module_chain_sources("mod a;\nx\n", "mod b;\npub x = b::y\n", "pub y = 7\n");
+        let base_units = crate::source::source_compilation_units(&base);
+        let base_keys = source_compilation_unit_cache_keys(&base, &base_units);
+        let base_root = base_units.unit_for_file(0).unwrap();
+        let base_a = base_units.unit_for_file(1).unwrap();
+        let base_b = base_units.unit_for_file(2).unwrap();
+
+        let changed_leaf =
+            module_chain_sources("mod a;\nx\n", "mod b;\npub x = b::y\n", "pub y = 8\n");
+        let changed_leaf_units = crate::source::source_compilation_units(&changed_leaf);
+        let changed_leaf_keys =
+            source_compilation_unit_cache_keys(&changed_leaf, &changed_leaf_units);
+        assert_ne!(
+            base_keys[base_b],
+            changed_leaf_keys[changed_leaf_units.unit_for_file(2).unwrap()]
+        );
+        assert_ne!(
+            base_keys[base_a],
+            changed_leaf_keys[changed_leaf_units.unit_for_file(1).unwrap()]
+        );
+        assert_ne!(
+            base_keys[base_root],
+            changed_leaf_keys[changed_leaf_units.unit_for_file(0).unwrap()]
+        );
+
+        let changed_root =
+            module_chain_sources("mod a;\n1\n", "mod b;\npub x = b::y\n", "pub y = 7\n");
+        let changed_root_units = crate::source::source_compilation_units(&changed_root);
+        let changed_root_keys =
+            source_compilation_unit_cache_keys(&changed_root, &changed_root_units);
+        assert_eq!(
+            base_keys[base_b],
+            changed_root_keys[changed_root_units.unit_for_file(2).unwrap()]
+        );
+        assert_eq!(
+            base_keys[base_a],
+            changed_root_keys[changed_root_units.unit_for_file(1).unwrap()]
+        );
+        assert_ne!(
+            base_keys[base_root],
+            changed_root_keys[changed_root_units.unit_for_file(0).unwrap()]
+        );
+    }
+
+    #[test]
     fn cache_tmp_path_is_unique_within_process() {
         let artifact = PathBuf::from("artifact.yuvm");
 
@@ -2441,6 +2539,18 @@ mod tests {
             },
             source: text.to_string(),
         }
+    }
+
+    fn module_chain_sources(
+        root_source: &str,
+        a_source: &str,
+        b_source: &str,
+    ) -> Vec<CollectedSource> {
+        vec![
+            source("main.yu", &[], root_source),
+            source("a.yu", &["a"], a_source),
+            source("a/b.yu", &["a", "b"], b_source),
+        ]
     }
 
     fn collected_to_source_files(files: Vec<CollectedSource>) -> Vec<sources::SourceFile> {

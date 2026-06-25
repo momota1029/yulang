@@ -61,6 +61,9 @@ Implemented subset:
 - the active source route has a read-only `source_compilation_units` helper
   that groups collected local-module files into SCCs and orders those units
   dependency-first.
+- source compilation units have cache keys that hash unit source files plus
+  dependency unit keys, using a salt distinct from the full source-set bundle
+  key.
 
 Not implemented yet:
 
