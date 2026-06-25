@@ -55,6 +55,14 @@ impl VarPolarityCounts {
         };
         table.get(&var).copied().unwrap_or(0)
     }
+
+    pub(super) fn polarity_var_entries(&self) -> usize {
+        self.positive.len() + self.negative.len()
+    }
+
+    pub(super) fn polarity_occurrences(&self) -> usize {
+        self.positive.values().sum::<usize>() + self.negative.values().sum::<usize>()
+    }
 }
 
 pub(super) fn collect_var_polarities(

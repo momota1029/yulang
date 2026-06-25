@@ -141,8 +141,9 @@
     - `analysis.generalize_top_restart_total_restarts`
     - `analysis.generalize_top_restart_{merge,subtype,cast,role}_restarts`
     - `analysis.generalize_top_restart_{role_input,reachable_role,coalesced_role}_constraints`
-    - `analysis.generalize_top_restart_dominance_{role,subtype}_constraints`
+    - `analysis.generalize_top_restart_dominance_{role_constraints,interval_inputs,polarity_vars,polarity_occurrences,subtype_constraints}`
     - `analysis.generalize_top_restart_role_{resolve_inputs,resolutions}`
+    - `analysis.generalize_dominance_{role_constraints,interval_inputs,polarity_vars,polarity_occurrences,subtype_constraints}`
     - `analysis.generalize_compact_shadow_{requests,hits,misses}` (`YULANG_GENERALIZE_COMPACT_SHADOW=1`)
     - `analysis.generalize_compact_cache_{requests,hits,misses,inserts}` (`YULANG_GENERALIZE_COMPACT_CACHE=1`)
     - `analysis.generalize_role_view_shadow_{requests,hits,misses}` (`YULANG_GENERALIZE_ROLE_VIEW_SHADOW=1`)
@@ -153,6 +154,11 @@
     - `analysis.role_resolve_candidate_cache_misses`
   - これは既存 constraint machine / analysis counter の観測だけであり、solver 最適化や replay 停止条件は変えていない。
     recursive な `max_replay_depth` と、tail 以外を含む完全な row variable kinding は次 slice に残す。
+  - 2026-06-26 の dominance scan slice で、interval dominance collection の入力規模を追加した。
+    `analysis.generalize_dominance_interval_inputs` / `polarity_vars` / `polarity_occurrences`
+    は、role view rebuild の hit 率だけでは見えない「再走査している compact view の厚み」を見るための
+    観測点である。`analysis.generalize_dominance_subtype_constraints` は、そこから実際に生成した
+    subtype constraint 数だけを分離する。
   - 2026-06-24 の replay fan-out slice で、1 bound 追加あたりの replay 最大値を追加した。
     `constraint.max_replay_inputs` / `constraint.max_replay_enqueued` /
     `constraint.max_replay_var_var` は、総 replay 数が太いときに局所 fan-out 由来かを切り分けるための

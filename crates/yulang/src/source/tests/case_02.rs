@@ -1951,6 +1951,10 @@ fn check_poly_std_reports_summary_and_type_errors_without_dumping_defs() {
     );
     assert_check_contains(
         &output,
+        "  analysis.generalize_top_restart_dominance_interval_inputs: ",
+    );
+    assert_check_contains(
+        &output,
         "  analysis.generalize_top_restart_role_resolve_inputs: ",
     );
     assert_check_contains(&output, "  analysis.generalize_compact_shadow_requests: ");
@@ -1959,6 +1963,15 @@ fn check_poly_std_reports_summary_and_type_errors_without_dumping_defs() {
     assert_check_contains(&output, "  analysis.generalize_compact_cache_hits: ");
     assert_check_contains(&output, "  analysis.generalize_role_view_shadow_requests: ");
     assert_check_contains(&output, "  analysis.generalize_role_view_shadow_hits: ");
+    assert_check_contains(&output, "  analysis.generalize_dominance_interval_inputs: ");
+    assert_check_contains(
+        &output,
+        "  analysis.generalize_dominance_polarity_occurrences: ",
+    );
+    assert_check_contains(
+        &output,
+        "  analysis.generalize_dominance_subtype_constraints: ",
+    );
     assert_check_contains(&output, "  analysis.role_demand_count: ");
     assert_check_contains(&output, "  analysis.role_resolve_candidate_scans: ");
     assert_check_contains(&output, "  analysis.role_resolve_candidate_cache_hits: ");

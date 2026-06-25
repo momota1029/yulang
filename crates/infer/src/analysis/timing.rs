@@ -7,6 +7,7 @@
 use crate::time::Duration;
 
 use super::{AnalysisWork, GeneralizeRootMetrics, SelectionTarget};
+use crate::compact::IntervalDominanceMetrics;
 use crate::role_solve::RoleResolveStats;
 use crate::scc::SccStats;
 use poly::expr::DefId;
@@ -127,6 +128,9 @@ pub struct AnalysisTiming {
     pub generalize_top_restart_reachable_role_constraints: usize,
     pub generalize_top_restart_coalesced_role_constraints: usize,
     pub generalize_top_restart_dominance_role_constraints: usize,
+    pub generalize_top_restart_dominance_interval_inputs: usize,
+    pub generalize_top_restart_dominance_polarity_vars: usize,
+    pub generalize_top_restart_dominance_polarity_occurrences: usize,
     pub generalize_top_restart_dominance_subtype_constraints: usize,
     pub generalize_top_restart_role_resolve_inputs: usize,
     pub generalize_top_restart_role_resolutions: usize,
@@ -144,6 +148,10 @@ pub struct AnalysisTiming {
     pub generalize_reachable_role_constraints: usize,
     pub generalize_coalesced_role_constraints: usize,
     pub generalize_dominance_role_constraints: usize,
+    pub generalize_dominance_interval_inputs: usize,
+    pub generalize_dominance_polarity_vars: usize,
+    pub generalize_dominance_polarity_occurrences: usize,
+    pub generalize_dominance_subtype_constraints: usize,
     pub generalize_role_resolve_inputs: usize,
     pub role_resolve_demands: usize,
     pub role_resolve_candidate_scans: usize,
@@ -510,6 +518,10 @@ impl AnalysisTiming {
         self.generalize_top_restart_reachable_role_constraints = metrics.reachable_role_constraints;
         self.generalize_top_restart_coalesced_role_constraints = metrics.coalesced_role_constraints;
         self.generalize_top_restart_dominance_role_constraints = metrics.dominance_role_constraints;
+        self.generalize_top_restart_dominance_interval_inputs = metrics.dominance_interval_inputs;
+        self.generalize_top_restart_dominance_polarity_vars = metrics.dominance_polarity_vars;
+        self.generalize_top_restart_dominance_polarity_occurrences =
+            metrics.dominance_polarity_occurrences;
         self.generalize_top_restart_dominance_subtype_constraints =
             metrics.dominance_subtype_constraints;
         self.generalize_top_restart_role_resolve_inputs = metrics.role_resolve_inputs;
@@ -529,6 +541,13 @@ impl AnalysisTiming {
 
     pub(super) fn record_generalize_dominance_roles(&mut self, count: usize) {
         self.generalize_dominance_role_constraints += count;
+    }
+
+    pub(super) fn record_generalize_dominance_scan(&mut self, dominance: IntervalDominanceMetrics) {
+        self.generalize_dominance_interval_inputs += dominance.interval_inputs;
+        self.generalize_dominance_polarity_vars += dominance.polarity_vars;
+        self.generalize_dominance_polarity_occurrences += dominance.polarity_occurrences;
+        self.generalize_dominance_subtype_constraints += dominance.generated_constraints;
     }
 
     pub(super) fn record_generalize_role_resolve_inputs(&mut self, count: usize) {

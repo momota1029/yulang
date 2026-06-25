@@ -10,10 +10,12 @@ mod floor;
 mod occurrence;
 mod sandwich;
 
+#[cfg(test)]
+pub(crate) use floor::collect_interval_dominance_constraints;
 pub(crate) use floor::{
-    coalesce_floor_interval_equalities, coalesce_floor_variable_sandwiches,
-    collect_interval_dominance_constraints, compact_root_has_interval_bounds,
-    eliminate_floor_redundant_variables,
+    IntervalDominanceMetrics, coalesce_floor_interval_equalities,
+    coalesce_floor_variable_sandwiches, collect_interval_dominance_constraints_with_metrics,
+    compact_root_has_interval_bounds, eliminate_floor_redundant_variables,
 };
 pub(crate) use occurrence::normalize_var_substitutions;
 use occurrence::*;

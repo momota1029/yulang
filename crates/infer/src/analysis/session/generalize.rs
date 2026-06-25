@@ -134,7 +134,10 @@ impl AnalysisSession {
                         &coalesced_role_constraints,
                         simplification_boundary,
                     );
-                    let constraints = collect_interval_dominance_constraints(&view.0, &view.1);
+                    let (constraints, dominance) =
+                        collect_interval_dominance_constraints_with_metrics(&view.0, &view.1);
+                    self.timing.record_generalize_dominance_scan(dominance);
+                    metrics.record_dominance_scan(dominance);
                     simplified_role_view = Some(view);
                     constraints
                 } else {

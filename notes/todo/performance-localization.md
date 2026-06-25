@@ -62,6 +62,9 @@ scripts/performance-gate.sh
 - `run.request_resume_steps`
 - `run.marker_scope_frame_touches`
 - `run.continuation_*_cloned`
+- `analysis.generalize_dominance_interval_inputs`
+- `analysis.generalize_dominance_polarity_occurrences`
+- `analysis.generalize_dominance_subtype_constraints`
 
 成功条件:
 

@@ -35,13 +35,27 @@ pub(crate) fn coalesce_floor_interval_equalities(
 /// 必要がある。compact の `Interval(lower, upper)` も同じく「実型を挟む bounds」なので、
 /// まず `lower <: upper` を戻す。そのうえで、片側の足場変数が反対極性で観測されない場合の
 /// 代表制約も追加し、再 collect 後の共起分析へ渡す。
+#[cfg(test)]
 pub(crate) fn collect_interval_dominance_constraints(
     root: &CompactRoot,
     roles: &[CompactRoleConstraint],
 ) -> Vec<CompactSubtypeConstraint> {
+    collect_interval_dominance_constraints_with_metrics(root, roles).0
+}
+
+pub(crate) fn collect_interval_dominance_constraints_with_metrics(
+    root: &CompactRoot,
+    roles: &[CompactRoleConstraint],
+) -> (Vec<CompactSubtypeConstraint>, IntervalDominanceMetrics) {
     let scan = collect_interval_dominance_scan(root, roles);
+    let mut metrics = IntervalDominanceMetrics {
+        interval_inputs: scan.intervals.len(),
+        polarity_vars: scan.counts.polarity_var_entries(),
+        polarity_occurrences: scan.counts.polarity_occurrences(),
+        generated_constraints: 0,
+    };
     if scan.intervals.is_empty() {
-        return Vec::new();
+        return (Vec::new(), metrics);
     }
     let mut out = Vec::new();
     for interval in &scan.intervals {
@@ -54,7 +68,16 @@ pub(crate) fn collect_interval_dominance_constraints(
             &mut out,
         );
     }
-    out
+    metrics.generated_constraints = out.len();
+    (out, metrics)
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct IntervalDominanceMetrics {
+    pub(crate) interval_inputs: usize,
+    pub(crate) polarity_vars: usize,
+    pub(crate) polarity_occurrences: usize,
+    pub(crate) generated_constraints: usize,
 }
 
 #[derive(Default)]

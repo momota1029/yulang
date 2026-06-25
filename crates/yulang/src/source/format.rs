@@ -1625,6 +1625,26 @@ pub(super) fn write_check_timing(out: &mut String, timing: &CheckPolyTimings) {
     );
     let _ = writeln!(
         out,
+        "  analysis.generalize_dominance_interval_inputs: {}",
+        analysis.generalize_dominance_interval_inputs
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_dominance_polarity_vars: {}",
+        analysis.generalize_dominance_polarity_vars
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_dominance_polarity_occurrences: {}",
+        analysis.generalize_dominance_polarity_occurrences
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_dominance_subtype_constraints: {}",
+        analysis.generalize_dominance_subtype_constraints
+    );
+    let _ = writeln!(
+        out,
         "  analysis.generalize_role_resolve_inputs: {}",
         analysis.generalize_role_resolve_inputs
     );
@@ -2300,6 +2320,21 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         out,
         "  analysis.generalize_top_restart_dominance_role_constraints: {}",
         analysis.generalize_top_restart_dominance_role_constraints
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_dominance_interval_inputs: {}",
+        analysis.generalize_top_restart_dominance_interval_inputs
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_dominance_polarity_vars: {}",
+        analysis.generalize_top_restart_dominance_polarity_vars
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_dominance_polarity_occurrences: {}",
+        analysis.generalize_top_restart_dominance_polarity_occurrences
     );
     let _ = writeln!(
         out,

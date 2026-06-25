@@ -29,10 +29,10 @@ use crate::compact::compact_reachable_role_constraints;
 use crate::compact::{
     CompactBounds, CompactCastApplication, CompactCastKey, CompactMergeConstraint,
     CompactMergeConstraintKey, CompactRoleArg, CompactRoleConstraint, CompactRoot,
-    CompactSimplification, CompactSubtypeConstraintKey, CompactType,
+    CompactSimplification, CompactSubtypeConstraintKey, CompactType, IntervalDominanceMetrics,
     apply_compact_merge_constraints, apply_compact_subtype_constraints,
     coalesce_floor_interval_equalities, coalesce_floor_variable_sandwiches,
-    collect_interval_dominance_constraints,
+    collect_interval_dominance_constraints_with_metrics,
     compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints,
     compact_role_constraint, compact_role_constraint_recording_merge_constraints,
     compact_root_has_interval_bounds, compact_type_var_recording_merge_constraints,
@@ -276,6 +276,9 @@ pub(super) struct GeneralizeRootMetrics {
     pub reachable_role_constraints: usize,
     pub coalesced_role_constraints: usize,
     pub dominance_role_constraints: usize,
+    pub dominance_interval_inputs: usize,
+    pub dominance_polarity_vars: usize,
+    pub dominance_polarity_occurrences: usize,
     pub dominance_subtype_constraints: usize,
     pub role_resolve_inputs: usize,
     pub role_resolutions: usize,
@@ -357,6 +360,12 @@ impl GeneralizeRootMetrics {
 
     pub(super) fn record_dominance_input(&mut self, role_count: usize) {
         self.dominance_role_constraints += role_count;
+    }
+
+    pub(super) fn record_dominance_scan(&mut self, dominance: IntervalDominanceMetrics) {
+        self.dominance_interval_inputs += dominance.interval_inputs;
+        self.dominance_polarity_vars += dominance.polarity_vars;
+        self.dominance_polarity_occurrences += dominance.polarity_occurrences;
     }
 
     pub(super) fn record_dominance_constraints(&mut self, subtype_count: usize) {
