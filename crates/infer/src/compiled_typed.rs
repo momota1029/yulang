@@ -242,9 +242,61 @@ impl CompiledTypeArena {
     }
 }
 
-pub struct CompiledTypeImporter<'a, 'b> {
+pub trait CompiledTypeImportTarget {
+    fn fresh_type_var(&mut self) -> TypeVar;
+    fn fresh_subtract_id(&mut self) -> SubtractId;
+    fn alloc_pos(&mut self, pos: Pos) -> PosId;
+    fn alloc_neg(&mut self, neg: Neg) -> NegId;
+    fn alloc_neu(&mut self, neu: Neu) -> NeuId;
+}
+
+impl CompiledTypeImportTarget for InferArena {
+    fn fresh_type_var(&mut self) -> TypeVar {
+        self.fresh_type_var()
+    }
+
+    fn fresh_subtract_id(&mut self) -> SubtractId {
+        self.fresh_subtract_id()
+    }
+
+    fn alloc_pos(&mut self, pos: Pos) -> PosId {
+        self.alloc_pos(pos)
+    }
+
+    fn alloc_neg(&mut self, neg: Neg) -> NegId {
+        self.alloc_neg(neg)
+    }
+
+    fn alloc_neu(&mut self, neu: Neu) -> NeuId {
+        self.alloc_neu(neu)
+    }
+}
+
+impl CompiledTypeImportTarget for PolyArena {
+    fn fresh_type_var(&mut self) -> TypeVar {
+        self.fresh_type_var()
+    }
+
+    fn fresh_subtract_id(&mut self) -> SubtractId {
+        self.fresh_subtract_id()
+    }
+
+    fn alloc_pos(&mut self, pos: Pos) -> PosId {
+        self.typ.alloc_pos(pos)
+    }
+
+    fn alloc_neg(&mut self, neg: Neg) -> NegId {
+        self.typ.alloc_neg(neg)
+    }
+
+    fn alloc_neu(&mut self, neu: Neu) -> NeuId {
+        self.typ.alloc_neu(neu)
+    }
+}
+
+pub struct CompiledTypeImporter<'a, 'b, T: CompiledTypeImportTarget> {
     source: &'a CompiledTypeArena,
-    target: &'b mut InferArena,
+    target: &'b mut T,
     pos: FxHashMap<PosId, PosId>,
     neg: FxHashMap<NegId, NegId>,
     neu: FxHashMap<NeuId, NeuId>,
@@ -252,8 +304,8 @@ pub struct CompiledTypeImporter<'a, 'b> {
     subtracts: FxHashMap<SubtractId, SubtractId>,
 }
 
-impl<'a, 'b> CompiledTypeImporter<'a, 'b> {
-    pub fn new(source: &'a CompiledTypeArena, target: &'b mut InferArena) -> Self {
+impl<'a, 'b, T: CompiledTypeImportTarget> CompiledTypeImporter<'a, 'b, T> {
+    pub fn new(source: &'a CompiledTypeArena, target: &'b mut T) -> Self {
         Self {
             source,
             target,
@@ -537,11 +589,11 @@ impl<'a, 'b> CompiledTypeImporter<'a, 'b> {
         }
     }
 
-    fn import_record_fields<T: Copy, U>(
+    fn import_record_fields<SourceId: Copy, TargetId>(
         &mut self,
-        fields: Vec<RecordField<T>>,
-        import: fn(&mut Self, T) -> U,
-    ) -> Vec<RecordField<U>> {
+        fields: Vec<RecordField<SourceId>>,
+        import: fn(&mut Self, SourceId) -> TargetId,
+    ) -> Vec<RecordField<TargetId>> {
         fields
             .into_iter()
             .map(|field| RecordField {
@@ -644,6 +696,12 @@ mod tests {
             imported.quantifiers.len(),
             index.value_scheme(id.symbol).unwrap().quantifiers.len()
         );
+        let mut poly_type_target = PolyArena::new();
+        let mut poly_type_importer = CompiledTypeImporter::new(&typed.types, &mut poly_type_target);
+        let poly_imported =
+            poly_type_importer.import_scheme(index.value_scheme(id.symbol).unwrap());
+        assert_eq!(poly_imported.quantifiers.len(), imported.quantifiers.len());
+        assert!(poly_type_target.typ.node_len() > 0);
 
         let mut poly = PolyArena::new();
         let mut infer = crate::Arena::new();

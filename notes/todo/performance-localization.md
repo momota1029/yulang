@@ -153,6 +153,9 @@ source dependency SCC ごとの compiled-unit cache である。
   lowered poly arena deterministically. HashMap/HashSet-backed metadata is
   sorted before hashing; labels are intentionally excluded from this semantic
   runtime hash.
+- Done: `CompiledTypeImporter` targets both `infer::Arena` and `poly::Arena`,
+  so the future runtime remap/merge path can reuse the same scheme/type graph
+  remapping machinery instead of implementing a second type importer.
 - Not done: source dependency SCC selection and normal-path cache hit import.
 - Next: implement the runtime remap/merge path. Only after that should the
   compiled-unit value import view be connected to the normal lowerer /
