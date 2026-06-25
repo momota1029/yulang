@@ -13,7 +13,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::source::{CollectedSource, SourceCompilationUnits, SourceUnitCacheSelection};
+use crate::source::{
+    CollectedSource, SourceCompilationUnits, SourceUnitCacheSelection,
+    SourceUnitLoweringInputError, source_unit_lowering_source_files,
+};
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
@@ -319,6 +322,42 @@ pub fn compiled_unit_artifact_from_loaded_files_with_key(
     ))
 }
 
+pub fn compiled_unit_artifact_from_standalone_source_unit(
+    files: &[CollectedSource],
+    units: &SourceCompilationUnits,
+    unit: usize,
+) -> Result<CachedCompiledUnitArtifact, SourceUnitCompiledArtifactError> {
+    let keys = source_compilation_unit_cache_keys(files, units);
+    let key = *keys
+        .get(unit)
+        .ok_or(SourceUnitCompiledArtifactError::UnknownUnit { unit })?;
+    let source_unit = units
+        .units
+        .get(unit)
+        .ok_or(SourceUnitCompiledArtifactError::UnknownUnit { unit })?;
+    let unit_files = source_unit
+        .files
+        .iter()
+        .map(|file| files[*file].clone())
+        .collect::<Vec<_>>();
+    let lowering_files = source_unit_lowering_source_files(files, units, unit)
+        .map_err(SourceUnitCompiledArtifactError::LoweringInput)?;
+    let loaded = sources::load(lowering_files);
+    let lowering = infer::lowering::lower_loaded_files(&loaded)
+        .map_err(SourceUnitCompiledArtifactError::Lower)?;
+    Ok(compiled_unit_artifact_from_lowering_with_key(
+        &unit_files,
+        &loaded,
+        &lowering,
+        lowering
+            .errors
+            .iter()
+            .map(|error| format!("{error:?}"))
+            .collect(),
+        key,
+    ))
+}
+
 pub fn compiled_unit_artifact_from_lowering(
     files: &[CollectedSource],
     loaded: &[sources::LoadedFile],
@@ -365,6 +404,13 @@ pub fn compiled_unit_artifact_from_lowering_with_key(
         runtime,
         errors,
     }
+}
+
+#[derive(Debug)]
+pub enum SourceUnitCompiledArtifactError {
+    UnknownUnit { unit: usize },
+    LoweringInput(SourceUnitLoweringInputError),
+    Lower(infer::LoadedFilesError),
 }
 
 fn compiled_unit_envelope_matches_key(
@@ -2647,6 +2693,49 @@ mod tests {
         assert_eq!(cached.selection.cached_units, vec![0]);
         assert_eq!(cached.selection.cached_files, vec![2]);
         assert_eq!(cached.selection.source_files, vec![0, 1]);
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compiled_unit_cache_writes_non_root_standalone_source_unit() {
+        let root = temp_root("compiled-unit-non-root-source-unit");
+        let cache = ArtifactCache::new(&root);
+        let files =
+            module_chain_sources("pub mod a;\nx\n", "mod b;\npub x = b::y\n", "pub y = 7\n");
+        let units = crate::source::source_compilation_units(&files);
+        let keys = source_compilation_unit_cache_keys(&files, &units);
+        let b_unit = units.unit_for_file(2).unwrap();
+        let artifact =
+            compiled_unit_artifact_from_standalone_source_unit(&files, &units, b_unit).unwrap();
+
+        assert_eq!(artifact.manifest.files.len(), 1);
+        assert_eq!(artifact.manifest.files[0].module_path, vec!["a", "b"]);
+        assert_eq!(artifact.syntax.files.len(), 3);
+        assert!(
+            artifact
+                .namespace
+                .modules
+                .iter()
+                .any(|module| module.path == vec!["a".to_string(), "b".to_string()])
+        );
+        cache
+            .write_compiled_unit_artifact(keys[b_unit], &artifact)
+            .unwrap();
+        let restored = cache
+            .read_compiled_unit_artifact(keys[b_unit])
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(restored.manifest, artifact.manifest);
+        assert_eq!(restored.syntax, artifact.syntax);
+        assert_eq!(restored.namespace, artifact.namespace);
+        assert_eq!(restored.lowering, artifact.lowering);
+        assert_eq!(restored.typed.values.len(), artifact.typed.values.len());
+        assert_eq!(
+            restored.runtime.arena.defs.len(),
+            artifact.runtime.arena.defs.len()
+        );
 
         let _ = fs::remove_dir_all(root);
     }

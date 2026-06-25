@@ -85,11 +85,16 @@ Implemented subset:
   files keep their original source. This proves the lowerer can accept a unit
   such as `a::b` without pretending it is the program root; dependency surface
   import is still a separate step.
+- standalone source units can now be written as `.yuunit` artifacts with their
+  source-unit key. A non-root leaf unit records only its actual source file in
+  the manifest while its serialized surfaces include the synthetic parent
+  module skeletons needed for import/lowering.
 
 Not implemented yet:
 
 - individual dependency SCC artifacts;
-- non-root module-unit artifact writing and dependency surface import;
+- source-unit artifact writing for units that require imported dependency
+  surfaces;
 - merging several source-unit compiled surfaces into one imported prefix;
 - realm/band-qualified cache keys;
 - dependency interface hashes;
