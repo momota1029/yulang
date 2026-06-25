@@ -17,9 +17,12 @@ use crate::source::CollectedSource;
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 1;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
+const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v1";
+const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 static CACHE_TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -59,6 +62,11 @@ impl ArtifactCache {
     pub fn control_artifact_path(&self, key: SourceCacheKey) -> PathBuf {
         self.artifact_dir("control-vm")
             .join(format!("{}.yuvm", key.to_hex()))
+    }
+
+    pub fn compiled_unit_artifact_path(&self, key: SourceCacheKey) -> PathBuf {
+        self.artifact_dir("compiled-unit")
+            .join(format!("{}.yuunit", key.to_hex()))
     }
 
     pub fn read_poly_artifact(
@@ -129,6 +137,36 @@ impl ArtifactCache {
         write_cache_envelope(&path, "yuvm", &envelope)
     }
 
+    pub fn read_compiled_unit_artifact(
+        &self,
+        key: SourceCacheKey,
+    ) -> Result<Option<CachedCompiledUnitArtifact>, CacheError> {
+        let path = self.compiled_unit_artifact_path(key);
+        let Some(envelope): Option<CompiledUnitCacheEnvelope> =
+            read_cache_envelope(&path, COMPILED_UNIT_CACHE_FORMAT)?
+        else {
+            return Ok(None);
+        };
+        Ok(Some(CachedCompiledUnitArtifact {
+            manifest: envelope.manifest,
+            syntax: envelope.syntax,
+        }))
+    }
+
+    pub fn write_compiled_unit_artifact(
+        &self,
+        key: SourceCacheKey,
+        artifact: &CachedCompiledUnitArtifact,
+    ) -> Result<(), CacheError> {
+        let path = self.compiled_unit_artifact_path(key);
+        let envelope = CompiledUnitCacheEnvelope {
+            format: COMPILED_UNIT_CACHE_FORMAT,
+            manifest: &artifact.manifest,
+            syntax: &artifact.syntax,
+        };
+        write_cache_envelope(&path, "yuunit", &envelope)
+    }
+
     fn artifact_dir(&self, stage: &str) -> PathBuf {
         self.root.join("artifacts").join(stage)
     }
@@ -149,6 +187,29 @@ pub struct CachedPolyArtifact {
     pub errors: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CachedCompiledUnitArtifact {
+    pub manifest: CompiledUnitManifest,
+    pub syntax: sources::CompiledSyntaxSurface,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitManifest {
+    pub cache_schema_version: u32,
+    pub compiled_unit_format: u32,
+    pub source_hash: u64,
+    pub syntax_hash: u64,
+    pub files: Vec<CompiledUnitSourceFile>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitSourceFile {
+    pub path: String,
+    pub module_path: Vec<String>,
+    pub source_len: usize,
+    pub source_hash: u64,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SourceCacheKey {
     hash: u64,
@@ -162,6 +223,15 @@ impl SourceCacheKey {
 
 pub fn source_cache_key(files: &[CollectedSource]) -> SourceCacheKey {
     source_cache_key_with_schema(files, CURRENT_CACHE_SCHEMA)
+}
+
+pub fn compiled_unit_artifact_from_loaded_files(
+    files: &[CollectedSource],
+    loaded: &[sources::LoadedFile],
+) -> CachedCompiledUnitArtifact {
+    let syntax = sources::CompiledSyntaxSurface::from_loaded_files(loaded);
+    let manifest = compiled_unit_manifest(files, &syntax);
+    CachedCompiledUnitArtifact { manifest, syntax }
 }
 
 fn source_cache_key_with_schema(files: &[CollectedSource], schema: CacheSchema) -> SourceCacheKey {
@@ -181,6 +251,138 @@ fn source_cache_key_with_schema(files: &[CollectedSource], schema: CacheSchema) 
     }
     SourceCacheKey {
         hash: hasher.finish(),
+    }
+}
+
+fn compiled_unit_manifest(
+    files: &[CollectedSource],
+    syntax: &sources::CompiledSyntaxSurface,
+) -> CompiledUnitManifest {
+    CompiledUnitManifest {
+        cache_schema_version: CACHE_SCHEMA_VERSION,
+        compiled_unit_format: COMPILED_UNIT_CACHE_FORMAT,
+        source_hash: source_cache_key(files).hash,
+        syntax_hash: compiled_syntax_hash(syntax),
+        files: files
+            .iter()
+            .map(|file| CompiledUnitSourceFile {
+                path: file.path.as_os_str().to_string_lossy().into_owned(),
+                module_path: file
+                    .module_path
+                    .segments
+                    .iter()
+                    .map(|segment| segment.0.clone())
+                    .collect(),
+                source_len: file.source.len(),
+                source_hash: source_file_hash(file),
+            })
+            .collect(),
+    }
+}
+
+fn source_file_hash(file: &CollectedSource) -> u64 {
+    let mut hasher = StableHasher::new();
+    hasher.bytes(SOURCE_FILE_HASH_SALT);
+    hasher.string(&file.path.as_os_str().to_string_lossy());
+    hasher.usize(file.module_path.segments.len());
+    for segment in &file.module_path.segments {
+        hasher.string(&segment.0);
+    }
+    hasher.string(&file.source);
+    hasher.finish()
+}
+
+fn compiled_syntax_hash(syntax: &sources::CompiledSyntaxSurface) -> u64 {
+    let mut hasher = StableHasher::new();
+    hasher.bytes(COMPILED_SYNTAX_HASH_SALT);
+    hasher.usize(syntax.files.len());
+    for file in &syntax.files {
+        hash_module_path(&mut hasher, &file.module_path);
+        hasher.usize(file.uses.len());
+        for use_decl in &file.uses {
+            hash_visibility(&mut hasher, use_decl.visibility);
+            hash_use_import(&mut hasher, &use_decl.import);
+        }
+        hasher.usize(file.ops.len());
+        for op in &file.ops {
+            hash_visibility(&mut hasher, op.visibility);
+            hasher.string(&op.name.0);
+            hash_compiled_op_def(&mut hasher, &op.op);
+        }
+        hasher.usize(file.module_loads.len());
+        for request in &file.module_loads {
+            hash_module_path(&mut hasher, &request.parent);
+            hasher.string(&request.name.0);
+            hash_module_load_kind(&mut hasher, request.kind);
+        }
+    }
+    hasher.finish()
+}
+
+fn hash_module_path(hasher: &mut StableHasher, path: &sources::Path) {
+    hasher.usize(path.segments.len());
+    for segment in &path.segments {
+        hasher.string(&segment.0);
+    }
+}
+
+fn hash_visibility(hasher: &mut StableHasher, visibility: sources::Visibility) {
+    hasher.u8(match visibility {
+        sources::Visibility::Pub => 0,
+        sources::Visibility::Our => 1,
+        sources::Visibility::My => 2,
+    });
+}
+
+fn hash_use_import(hasher: &mut StableHasher, import: &sources::UseImport) {
+    match import {
+        sources::UseImport::Alias { name, path } => {
+            hasher.u8(0);
+            hasher.string(&name.0);
+            hash_module_path(hasher, path);
+        }
+        sources::UseImport::Glob { prefix } => {
+            hasher.u8(1);
+            hash_module_path(hasher, prefix);
+        }
+    }
+}
+
+fn hash_module_load_kind(hasher: &mut StableHasher, kind: sources::ModuleLoadKind) {
+    hasher.u8(match kind {
+        sources::ModuleLoadKind::ModDecl => 0,
+        sources::ModuleLoadKind::UseMod => 1,
+    });
+}
+
+fn hash_compiled_op_def(hasher: &mut StableHasher, op: &sources::CompiledOpDef) {
+    hash_optional_bp(hasher, op.prefix.as_deref());
+    match op.infix.as_ref() {
+        Some((left, right)) => {
+            hasher.bool(true);
+            hash_bp(hasher, left);
+            hash_bp(hasher, right);
+        }
+        None => hasher.bool(false),
+    }
+    hash_optional_bp(hasher, op.suffix.as_deref());
+    hasher.bool(op.nullfix);
+}
+
+fn hash_optional_bp(hasher: &mut StableHasher, bp: Option<&[i8]>) {
+    match bp {
+        Some(bp) => {
+            hasher.bool(true);
+            hash_bp(hasher, bp);
+        }
+        None => hasher.bool(false),
+    }
+}
+
+fn hash_bp(hasher: &mut StableHasher, bp: &[i8]) {
+    hasher.usize(bp.len());
+    for value in bp {
+        hasher.i8(*value);
     }
 }
 
@@ -285,6 +487,13 @@ struct ControlCacheEnvelope<T = control_vm::Program, L = poly::dump::DumpLabels,
     errors: E,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CompiledUnitCacheEnvelope<M = CompiledUnitManifest, S = sources::CompiledSyntaxSurface> {
+    format: u32,
+    manifest: M,
+    syntax: S,
+}
+
 fn read_cache_envelope<T>(path: &Path, format: u32) -> Result<Option<T>, CacheError>
 where
     T: CacheEnvelope + DeserializeOwned,
@@ -364,6 +573,12 @@ impl<T, L, E> CacheEnvelope for ControlCacheEnvelope<T, L, E> {
     }
 }
 
+impl<M, S> CacheEnvelope for CompiledUnitCacheEnvelope<M, S> {
+    fn format(&self) -> u32 {
+        self.format
+    }
+}
+
 struct StableHasher {
     state: u64,
 }
@@ -383,6 +598,18 @@ impl StableHasher {
 
     fn u32(&mut self, value: u32) {
         self.bytes(&value.to_le_bytes());
+    }
+
+    fn u8(&mut self, value: u8) {
+        self.raw_bytes(&[value]);
+    }
+
+    fn i8(&mut self, value: i8) {
+        self.raw_bytes(&value.to_le_bytes());
+    }
+
+    fn bool(&mut self, value: bool) {
+        self.u8(u8::from(value));
     }
 
     fn string(&mut self, value: &str) {
@@ -523,6 +750,47 @@ mod tests {
         let _ = fs::remove_dir_all(root);
     }
 
+    #[test]
+    fn compiled_unit_cache_round_trips_manifest_and_syntax_surface() {
+        let root = temp_root("compiled-unit-round-trip");
+        let cache = ArtifactCache::new(&root);
+        let files = vec![source(
+            "ops.yu",
+            &["ops"],
+            "pub infix (<+>) 50 50 = add\nmy hidden = 1\n",
+        )];
+        let loaded = sources::load(collected_to_source_files(files.clone()));
+        let key = source_cache_key(&files);
+        let artifact = compiled_unit_artifact_from_loaded_files(&files, &loaded);
+
+        cache.write_compiled_unit_artifact(key, &artifact).unwrap();
+        let restored = cache.read_compiled_unit_artifact(key).unwrap().unwrap();
+
+        assert_eq!(restored, artifact);
+        assert_eq!(restored.manifest.files.len(), 1);
+        assert_eq!(restored.manifest.files[0].module_path, vec!["ops"]);
+        assert_eq!(restored.syntax.files[0].ops.len(), 1);
+        assert!(cache.compiled_unit_artifact_path(key).is_file());
+        assert_eq!(
+            cache.compiled_unit_artifact_path(key).extension().unwrap(),
+            "yuunit"
+        );
+
+        let suffix = sources::load_suffix_with_syntax_prefix(
+            &restored.syntax,
+            vec![sources::SourceFile {
+                module_path: sources::Path::default(),
+                source: "use ops::*\nmy y = 1 <+> 2\n".into(),
+            }],
+        );
+        assert!(
+            suffix[0].op_table.0.get("<+>".as_bytes()).is_some(),
+            "cached syntax surface should rebuild downstream parser operators"
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
     fn source(path: &str, module: &[&str], text: &str) -> CollectedSource {
         CollectedSource {
             path: PathBuf::from(path),
@@ -534,6 +802,16 @@ mod tests {
             },
             source: text.to_string(),
         }
+    }
+
+    fn collected_to_source_files(files: Vec<CollectedSource>) -> Vec<sources::SourceFile> {
+        files
+            .into_iter()
+            .map(|file| sources::SourceFile {
+                module_path: file.module_path,
+                source: file.source,
+            })
+            .collect()
     }
 
     fn temp_root(name: &str) -> PathBuf {

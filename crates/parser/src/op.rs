@@ -8,6 +8,16 @@ impl BpVec {
         Self(items.into())
     }
 
+    pub fn from_parts(items: impl IntoIterator<Item = i8>) -> Self {
+        let mut out = SmallVec::<[i8; 4]>::new();
+        out.extend(items);
+        Self(out)
+    }
+
+    pub fn as_slice(&self) -> &[i8] {
+        &self.0
+    }
+
     pub fn parse(raw: &str) -> Option<Self> {
         if raw.is_empty() {
             return None;

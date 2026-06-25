@@ -34,14 +34,14 @@ pub struct Path {
     pub segments: Vec<Name>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Visibility {
     Pub,
     Our,
     My,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UseImport {
     /// `use a::b::c` / `use a::b as c`
     Alias { name: Name, path: Path },
@@ -49,14 +49,14 @@ pub enum UseImport {
     Glob { prefix: Path },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UseDecl {
     pub visibility: Visibility,
     pub import: UseImport,
 }
 
 /// 外部 module ファイルを読むきっかけになる構文。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ModuleLoadKind {
     /// `mod foo;`
     ModDecl,
@@ -70,7 +70,7 @@ pub enum ModuleLoadKind {
 /// の先頭 module 名だけを残す。`mod foo;` はフルパース後の
 /// [`module_load_requests`] で拾う。実際の親 module path は
 /// `LoadedFile::module_loads` 側で付く。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModuleLoadDirective {
     pub name: Name,
     pub kind: ModuleLoadKind,
@@ -81,7 +81,7 @@ pub struct ModuleLoadDirective {
 /// `parent` はこの要求が現れた inline module の path、`name` はその直下に生える子 module 名。
 /// たとえば root module 内の `mod foo;` は `parent = []`, `name = foo`。
 /// `mod outer: mod inner;` は `parent = [outer]`, `name = inner`。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModuleLoadRequest {
     pub parent: Path,
     pub name: Name,
@@ -110,6 +110,141 @@ pub struct Header {
     pub uses: Vec<UseDecl>,
     pub ops: Vec<OpExport>,
     pub module_loads: Vec<ModuleLoadDirective>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledSyntaxSurface {
+    pub files: Vec<CompiledSyntaxFile>,
+}
+
+impl CompiledSyntaxSurface {
+    pub fn from_loaded_files(files: &[LoadedFile]) -> Self {
+        Self {
+            files: files
+                .iter()
+                .map(CompiledSyntaxFile::from_loaded_file)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledSyntaxFile {
+    pub module_path: Path,
+    pub uses: Vec<UseDecl>,
+    pub ops: Vec<CompiledOpExport>,
+    pub module_loads: Vec<ModuleLoadRequest>,
+}
+
+impl CompiledSyntaxFile {
+    fn from_loaded_file(file: &LoadedFile) -> Self {
+        Self {
+            module_path: file.module_path.clone(),
+            uses: file
+                .header
+                .uses
+                .iter()
+                .filter(|decl| exports_across_unit_boundary(decl.visibility))
+                .cloned()
+                .collect(),
+            ops: file
+                .header
+                .ops
+                .iter()
+                .filter(|decl| exports_across_unit_boundary(decl.visibility))
+                .map(CompiledOpExport::from_op_export)
+                .collect(),
+            module_loads: file.module_loads.clone(),
+        }
+    }
+
+    fn syntax_input(&self) -> SyntaxFileInput {
+        SyntaxFileInput {
+            module_path: self.module_path.clone(),
+            header: Header {
+                uses: self.uses.clone(),
+                ops: self
+                    .ops
+                    .iter()
+                    .map(CompiledOpExport::to_op_export)
+                    .collect(),
+                module_loads: Vec::new(),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledOpExport {
+    pub visibility: Visibility,
+    pub name: Name,
+    pub op: CompiledOpDef,
+}
+
+impl CompiledOpExport {
+    fn from_op_export(export: &OpExport) -> Self {
+        Self {
+            visibility: export.visibility,
+            name: export.name.clone(),
+            op: CompiledOpDef::from_op_def(&export.op),
+        }
+    }
+
+    fn to_op_export(&self) -> OpExport {
+        OpExport {
+            visibility: self.visibility,
+            name: self.name.clone(),
+            op: self.op.to_op_def(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledOpDef {
+    pub prefix: Option<Vec<i8>>,
+    pub infix: Option<(Vec<i8>, Vec<i8>)>,
+    pub suffix: Option<Vec<i8>>,
+    pub nullfix: bool,
+}
+
+impl CompiledOpDef {
+    fn from_op_def(op: &OpDef) -> Self {
+        Self {
+            prefix: op.prefix.as_ref().map(bp_to_vec),
+            infix: op
+                .infix
+                .as_ref()
+                .map(|(left, right)| (bp_to_vec(left), bp_to_vec(right))),
+            suffix: op.suffix.as_ref().map(bp_to_vec),
+            nullfix: op.nullfix,
+        }
+    }
+
+    fn to_op_def(&self) -> OpDef {
+        OpDef {
+            prefix: self
+                .prefix
+                .as_ref()
+                .map(|parts| BpVec::from_parts(parts.clone())),
+            infix: self.infix.as_ref().map(|(left, right)| {
+                (
+                    BpVec::from_parts(left.clone()),
+                    BpVec::from_parts(right.clone()),
+                )
+            }),
+            suffix: self
+                .suffix
+                .as_ref()
+                .map(|parts| BpVec::from_parts(parts.clone())),
+            nullfix: self.nullfix,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct SyntaxFileInput {
+    module_path: Path,
+    header: Header,
 }
 
 // ── 先読み ──────────────────────────────────────────────────────────────
@@ -435,6 +570,14 @@ fn has_direct_token(node: &SyntaxNode<YulangLanguage>, kind: SyntaxKind) -> bool
         .any(|item| matches!(item, NodeOrToken::Token(tok) if tok.kind() == kind))
 }
 
+fn exports_across_unit_boundary(visibility: Visibility) -> bool {
+    matches!(visibility, Visibility::Pub | Visibility::Our)
+}
+
+fn bp_to_vec(bp: &BpVec) -> Vec<i8> {
+    bp.as_slice().to_vec()
+}
+
 // ── 複数ファイルの読み込み ──────────────────────────────────────────────
 // 依存解決 → 実効 export op の不動点 → ファイル別初期テーブル → フルパース。
 // 全段階が順序無関係（先読み独立／不動点収束／フルパース独立）＝SCC は不要。
@@ -470,6 +613,37 @@ pub fn load(files: Vec<SourceFile>) -> Vec<LoadedFile> {
 /// この入口は compiled-unit artifact import の手前に置く軽量な process-local cache 境界で、
 /// downstream file の op table は prefix の header / export surface から組み直す。
 pub fn load_with_loaded_prefix(prefix: &[LoadedFile], suffix: Vec<SourceFile>) -> Vec<LoadedFile> {
+    let prefix_inputs: Vec<SyntaxFileInput> = prefix
+        .iter()
+        .map(|file| SyntaxFileInput {
+            module_path: file.module_path.clone(),
+            header: file.header.clone(),
+        })
+        .collect();
+    let mut loaded = Vec::with_capacity(prefix.len() + suffix.len());
+    loaded.extend(prefix.iter().cloned());
+    loaded.extend(load_suffix_after_syntax_prefix(&prefix_inputs, suffix));
+    loaded
+}
+
+/// Serialized syntax artifacts provide the same parser-facing surface as an
+/// already-loaded prefix, without requiring the dependency files' CSTs.
+pub fn load_suffix_with_syntax_prefix(
+    prefix: &CompiledSyntaxSurface,
+    suffix: Vec<SourceFile>,
+) -> Vec<LoadedFile> {
+    let prefix_inputs = prefix
+        .files
+        .iter()
+        .map(CompiledSyntaxFile::syntax_input)
+        .collect::<Vec<_>>();
+    load_suffix_after_syntax_prefix(&prefix_inputs, suffix)
+}
+
+fn load_suffix_after_syntax_prefix(
+    prefix: &[SyntaxFileInput],
+    suffix: Vec<SourceFile>,
+) -> Vec<LoadedFile> {
     let n = prefix.len() + suffix.len();
 
     let suffix_headers: Vec<Header> = suffix
@@ -534,8 +708,7 @@ pub fn load_with_loaded_prefix(prefix: &[LoadedFile], suffix: Vec<SourceFile>) -
 
     // 4. prefix は既に full parse 済みなので再利用する。suffix は全体の export surface から
     //    初期テーブルを組んで full parse する。
-    let mut loaded = Vec::with_capacity(n);
-    loaded.extend(prefix.iter().cloned());
+    let mut loaded = Vec::with_capacity(suffix.len());
     for (offset, (file, header)) in suffix.into_iter().zip(suffix_headers).enumerate() {
         let i = prefix.len() + offset;
         let table = initial_op_table(i, &header, &index, &effective);
@@ -884,6 +1057,61 @@ mod tests {
                 .filter_map(NodeOrToken::into_token)
                 .any(|token| token.kind() == SyntaxKind::Infix && token.text() == "<+>")
         );
+    }
+
+    #[test]
+    fn compiled_syntax_surface_round_trips_operator_exports_for_suffix_parse() {
+        let prefix = load(vec![SourceFile {
+            module_path: path(&["ops"]),
+            source: "pub infix (<+>) 50 50 = add\n".into(),
+        }]);
+        let surface = CompiledSyntaxSurface::from_loaded_files(&prefix);
+        let encoded = serde_json::to_string(&surface).unwrap();
+        let decoded: CompiledSyntaxSurface = serde_json::from_str(&encoded).unwrap();
+        let loaded = load_suffix_with_syntax_prefix(
+            &decoded,
+            vec![SourceFile {
+                module_path: Path::default(),
+                source: "use ops::*\nmy y = 1 <+> 2\n".into(),
+            }],
+        );
+        let root = loaded
+            .iter()
+            .find(|file| file.module_path.segments.is_empty())
+            .unwrap();
+        let root_cst = SyntaxNode::<YulangLanguage>::new_root(root.cst.clone());
+
+        assert_eq!(loaded.len(), 1);
+        assert!(root.op_table.0.get("<+>".as_bytes()).is_some());
+        assert!(
+            root_cst
+                .descendants_with_tokens()
+                .filter_map(NodeOrToken::into_token)
+                .any(|token| token.kind() == SyntaxKind::Infix && token.text() == "<+>")
+        );
+    }
+
+    #[test]
+    fn compiled_syntax_surface_does_not_export_my_operator() {
+        let prefix = load(vec![SourceFile {
+            module_path: path(&["ops"]),
+            source: "my infix (<secret>) 50 50 = add\n".into(),
+        }]);
+        let surface = CompiledSyntaxSurface::from_loaded_files(&prefix);
+        let loaded = load_suffix_with_syntax_prefix(
+            &surface,
+            vec![SourceFile {
+                module_path: Path::default(),
+                source: "use ops::*\nmy y = 1 <secret> 2\n".into(),
+            }],
+        );
+        let root = loaded
+            .iter()
+            .find(|file| file.module_path.segments.is_empty())
+            .unwrap();
+
+        assert!(surface.files[0].ops.is_empty());
+        assert!(root.op_table.0.get("<secret>".as_bytes()).is_none());
     }
 
     #[test]
