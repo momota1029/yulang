@@ -2,7 +2,8 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-bin="${YULANG:-"$repo_root/target/release/yulang"}"
+default_bin="$repo_root/target/release/yulang"
+bin="${YULANG:-"$default_bin"}"
 std_root="${YULANG_STD_ROOT:-"$repo_root/lib"}"
 timestamp="$(date +%Y%m%d-%H%M%S)"
 out_dir="${YULANG_PERF_GATE_OUTPUT_DIR:-"$repo_root/target/performance-gate/$timestamp"}"
@@ -19,6 +20,7 @@ run_adversarial="${YULANG_PERF_GATE_ADVERSARIAL:-1}"
 run_release_smoke="${YULANG_PERF_GATE_RELEASE_SMOKE:-1}"
 run_source_metrics="${YULANG_PERF_GATE_SOURCE_METRICS:-1}"
 run_static_bench="${YULANG_PERF_GATE_STATIC_BENCH:-1}"
+build_release="${YULANG_PERF_GATE_BUILD_RELEASE:-1}"
 
 mkdir -p "$out_dir"
 : >"$summary"
@@ -72,15 +74,17 @@ append_metrics() {
 }
 
 ensure_release_binary() {
-    if [[ -x "$bin" ]]; then
+    if [[ "$bin" == "$default_bin" ]]; then
+        if [[ "$build_release" != "0" || ! -x "$bin" ]]; then
+            log "building release yulang"
+            run_with_log build-release "$test_timeout" cargo build -q -p yulang --release
+        fi
         return
     fi
-    if [[ "$bin" != "$repo_root/target/release/yulang" ]]; then
+    if [[ ! -x "$bin" ]]; then
         echo "performance gate: executable yulang binary not found: $bin" >&2
         exit 1
     fi
-    log "building release yulang"
-    run_with_log build-release "$test_timeout" cargo build -q -p yulang --release
 }
 
 run_hardening_smoke() {
