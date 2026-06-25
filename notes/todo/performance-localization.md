@@ -55,6 +55,7 @@ scripts/performance-gate.sh
 - `constraint.drain`
 - `analysis.quantify_generalize`
 - `analysis.generalize_*`
+- `analysis.generalize_top_restart_*`
 - `constraint.replay_*`
 - `run.runtime_execute`
 - `run.active_add_scans`
@@ -79,6 +80,8 @@ static-analysis bench を通している。
 実行結果は `target/performance-gate/<timestamp>/` に保存する。各 command の完全な
 stdout/stderr は個別 log に残し、`summary.txt` へ wall time と主要 metrics を抜き出す。
 `key-metrics.md` には比較用の一枚表を出す。`summary.txt` の最後にも同じ表を追記する。
+新しい run では、clean-build 側の代表 root として `top restart root` / `top restarts`
+も見る。
 
 既定では hardening smoke / adversarial corpus / release smoke / source metrics /
 static-analysis bench を走らせる。個別に切りたい場合は次を使う。

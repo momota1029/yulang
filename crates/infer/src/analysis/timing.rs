@@ -6,9 +6,10 @@
 
 use crate::time::Duration;
 
-use super::{AnalysisWork, SelectionTarget};
+use super::{AnalysisWork, GeneralizeRootMetrics, SelectionTarget};
 use crate::role_solve::RoleResolveStats;
 use crate::scc::SccStats;
+use poly::expr::DefId;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct AnalysisTiming {
@@ -105,6 +106,17 @@ pub struct AnalysisTiming {
     pub quantify_generalize_roots_with_restarts: usize,
     pub quantify_generalize_max_iterations_per_root: usize,
     pub quantify_generalize_max_restarts_per_root: usize,
+    pub generalize_top_restart_root: Option<DefId>,
+    pub generalize_top_restart_iterations: usize,
+    pub generalize_top_restart_total_restarts: usize,
+    pub generalize_top_restart_merge_restarts: usize,
+    pub generalize_top_restart_subtype_restarts: usize,
+    pub generalize_top_restart_cast_restarts: usize,
+    pub generalize_top_restart_role_restarts: usize,
+    pub generalize_top_restart_first_compact_nodes: usize,
+    pub generalize_top_restart_first_compact_vars: usize,
+    pub generalize_top_restart_compact_iteration_nodes: usize,
+    pub generalize_top_restart_compact_iteration_vars: usize,
     pub generalize_role_input_constraints: usize,
     pub generalize_reachable_role_constraints: usize,
     pub generalize_coalesced_role_constraints: usize,
@@ -390,6 +402,49 @@ impl AnalysisTiming {
 
     pub(super) fn record_generalize_role_restart(&mut self) {
         self.generalize_role_restarts += 1;
+    }
+
+    pub(super) fn record_generalize_root_summary(
+        &mut self,
+        def: DefId,
+        metrics: &GeneralizeRootMetrics,
+    ) {
+        let restart_count = metrics.restart_count();
+        if restart_count == 0 {
+            return;
+        }
+
+        let new_score = (
+            restart_count,
+            metrics.iterations,
+            metrics.first_compact_nodes,
+            metrics.first_compact_vars.len(),
+            def.0,
+        );
+        let current_score = (
+            self.generalize_top_restart_total_restarts,
+            self.generalize_top_restart_iterations,
+            self.generalize_top_restart_first_compact_nodes,
+            self.generalize_top_restart_first_compact_vars,
+            self.generalize_top_restart_root
+                .map(|root| root.0)
+                .unwrap_or(0),
+        );
+        if self.generalize_top_restart_root.is_some() && new_score <= current_score {
+            return;
+        }
+
+        self.generalize_top_restart_root = Some(def);
+        self.generalize_top_restart_iterations = metrics.iterations;
+        self.generalize_top_restart_total_restarts = restart_count;
+        self.generalize_top_restart_merge_restarts = metrics.merge_restarts;
+        self.generalize_top_restart_subtype_restarts = metrics.subtype_restarts;
+        self.generalize_top_restart_cast_restarts = metrics.cast_restarts;
+        self.generalize_top_restart_role_restarts = metrics.role_restarts;
+        self.generalize_top_restart_first_compact_nodes = metrics.first_compact_nodes;
+        self.generalize_top_restart_first_compact_vars = metrics.first_compact_vars.len();
+        self.generalize_top_restart_compact_iteration_nodes = metrics.compact_iteration_nodes;
+        self.generalize_top_restart_compact_iteration_vars = metrics.compact_iteration_vars;
     }
 
     pub(super) fn record_generalize_role_constraints(

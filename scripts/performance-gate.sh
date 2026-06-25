@@ -133,7 +133,7 @@ append_key_metrics_row() {
         runtime="$(metric_value "$label" "run.runtime_execute")"
     fi
 
-    printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n' \
+    printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n' \
         "$label" \
         "$(wall_value "$label")" \
         "$route" \
@@ -141,6 +141,8 @@ append_key_metrics_row() {
         "$(metric_value "$label" "constraint.drain")" \
         "$(metric_value "$label" "constraint.replay_accepted")" \
         "$(metric_value "$label" "constraint.replay_duplicate")" \
+        "$(metric_value "$label" "analysis.generalize_top_restart_root")" \
+        "$(metric_value "$label" "analysis.generalize_top_restart_total_restarts")" \
         "$runtime" \
         "$(metric_value "$label" "run.marker_scope_frame_touches")" \
         "$(metric_value "$label" "run.active_add_scans")"
@@ -150,8 +152,8 @@ append_key_metrics() {
     local key_metrics="$out_dir/key-metrics.md"
     {
         printf '\n## Key metrics\n\n'
-        printf '| workload | wall(s) | cache route | infer | constraint.drain | replay accepted | replay duplicate | runtime execute | marker touches | active scans |\n'
-        printf '| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n'
+        printf '| workload | wall(s) | cache route | infer | constraint.drain | replay accepted | replay duplicate | top restart root | top restarts | runtime execute | marker touches | active scans |\n'
+        printf '| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n'
         append_key_metrics_row showcase-check-poly-std
         append_key_metrics_row nondet-no-cache
         append_key_metrics_row showcase-no-cache

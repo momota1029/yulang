@@ -133,6 +133,10 @@
     - `analysis.quantify_generalize_roots_with_restarts`
     - `analysis.quantify_generalize_max_iterations_per_root`
     - `analysis.quantify_generalize_max_restarts_per_root`
+    - `analysis.generalize_top_restart_root`
+    - `analysis.generalize_top_restart_iterations`
+    - `analysis.generalize_top_restart_total_restarts`
+    - `analysis.generalize_top_restart_{merge,subtype,cast,role}_restarts`
     - `analysis.role_demand_count`
     - `analysis.role_resolve_candidate_scans`
     - `analysis.role_resolve_prerequisite_candidate_scans`

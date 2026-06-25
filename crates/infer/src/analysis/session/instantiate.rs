@@ -16,6 +16,7 @@ impl AnalysisSession {
             let phase = Instant::now();
             let (scheme, metrics) = self.generalize_root_with_prepasses_and_metrics(def, root);
             let elapsed = phase.elapsed();
+            self.timing.record_generalize_root_summary(def, &metrics);
             component_metrics.add_root(metrics);
             self.timing.record_quantify_generalize(elapsed);
             trace_quantify_phase(trace, "generalize", def, elapsed, component_start);

@@ -1926,6 +1926,16 @@ fn check_poly_std_reports_summary_and_type_errors_without_dumping_defs() {
         &output,
         "  analysis.quantify_generalize_max_iterations_per_root: ",
     );
+    assert_check_contains(&output, "  analysis.generalize_top_restart_root: ");
+    assert_check_contains(
+        &output,
+        "  analysis.generalize_top_restart_total_restarts: ",
+    );
+    assert_check_contains(
+        &output,
+        "  analysis.generalize_top_restart_merge_restarts: ",
+    );
+    assert_check_contains(&output, "  analysis.generalize_top_restart_role_restarts: ");
     assert_check_contains(&output, "  analysis.role_demand_count: ");
     assert_check_contains(&output, "  analysis.role_resolve_candidate_scans: ");
     assert_check_contains(&output, "  analysis.role_resolve_candidate_cache_hits: ");

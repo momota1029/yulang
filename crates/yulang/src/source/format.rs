@@ -1815,6 +1815,10 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         + analysis.generalize_reachable_role_constraints
         + analysis.generalize_coalesced_role_constraints
         + analysis.generalize_dominance_role_constraints;
+    let top_restart_root = analysis
+        .generalize_top_restart_root
+        .map(|root| root.0.to_string())
+        .unwrap_or_else(|| "none".to_string());
 
     let _ = writeln!(out, "  infer.type_var_count: {}", constraint.type_var_count);
     let _ = writeln!(
@@ -2191,6 +2195,60 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         out,
         "  analysis.quantify_generalize_max_restarts_per_root: {}",
         analysis.quantify_generalize_max_restarts_per_root
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_root: {top_restart_root}"
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_iterations: {}",
+        analysis.generalize_top_restart_iterations
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_total_restarts: {}",
+        analysis.generalize_top_restart_total_restarts
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_merge_restarts: {}",
+        analysis.generalize_top_restart_merge_restarts
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_subtype_restarts: {}",
+        analysis.generalize_top_restart_subtype_restarts
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_cast_restarts: {}",
+        analysis.generalize_top_restart_cast_restarts
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_role_restarts: {}",
+        analysis.generalize_top_restart_role_restarts
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_first_compact_nodes: {}",
+        analysis.generalize_top_restart_first_compact_nodes
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_first_compact_vars: {}",
+        analysis.generalize_top_restart_first_compact_vars
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_compact_iteration_nodes: {}",
+        analysis.generalize_top_restart_compact_iteration_nodes
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_compact_iteration_vars: {}",
+        analysis.generalize_top_restart_compact_iteration_vars
     );
     let _ = writeln!(out, "  analysis.role_demand_count: {role_demand_count}");
     let _ = writeln!(
