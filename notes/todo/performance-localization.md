@@ -172,6 +172,11 @@ source dependency SCC ごとの compiled-unit cache である。
   (`build_poly_from_compiled_unit_artifact`) rather than CLI code reading the
   runtime surface directly. The CLI still owns cache policy and rewrite side
   effects.
+- Done: `infer::lowering::lower_loaded_files_with_prefix` and
+  `build_poly_from_compiled_unit_prefix_and_collected_sources` can combine a
+  compiled-unit prefix with a freshly parsed root/local-module suffix. This is
+  not yet connected to normal CLI cache policy, but it establishes the lowerer
+  boundary needed for future dependency SCC cache hits.
 - Realm/band note: the current source-set cache key is only a coarse placeholder
   for the future identity
   `(resolved realm, band path, source dependency SCC, dependency interface hashes)`.

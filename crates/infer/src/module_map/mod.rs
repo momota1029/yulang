@@ -1023,6 +1023,13 @@ pub(crate) struct RootFileAppend {
     pub synthetic_sub_label_act_copy_ids: Vec<TypeDeclId>,
 }
 
+pub(crate) struct LoadedFilesAppend {
+    pub lower: Lower,
+    pub loaded: LoadedFileCsts,
+    pub synthetic_var_act_copy_ids: Vec<TypeDeclId>,
+    pub synthetic_sub_label_act_copy_ids: Vec<TypeDeclId>,
+}
+
 pub(crate) fn append_root_loaded_file_to_lower(
     mut lower: Lower,
     file: &LoadedFile,
@@ -1076,6 +1083,76 @@ pub(crate) fn append_root_loaded_file_to_lower(
     Ok(RootFileAppend {
         lower,
         root: root.cst.clone(),
+        synthetic_var_act_copy_ids,
+        synthetic_sub_label_act_copy_ids,
+    })
+}
+
+pub(crate) fn append_loaded_files_to_lower(
+    mut lower: Lower,
+    files: &[LoadedFile],
+) -> Result<LoadedFilesAppend, LoadedFilesError> {
+    let previous_act_copies = lower
+        .modules
+        .act_copies
+        .keys()
+        .copied()
+        .collect::<FxHashSet<_>>();
+    let previous_synthetic_var_act_copies = lower
+        .modules
+        .synthetic_var_act_copy_ids()
+        .into_iter()
+        .collect::<FxHashSet<_>>();
+    let previous_synthetic_sub_label_act_copies = lower
+        .modules
+        .synthetic_sub_label_act_copy_ids()
+        .into_iter()
+        .collect::<FxHashSet<_>>();
+
+    let loaded = LoadedFileCsts::new(files)?;
+    let root = loaded.root().ok_or(LoadedFilesError::MissingRoot)?;
+    let roots = lower.register_block(&root.cst, lower.modules.root_id());
+    lower.arena.roots.extend(roots);
+
+    for file in loaded.non_root_by_depth() {
+        let Some(target) = lower.module_path_target(&file.module_path) else {
+            return Err(LoadedFilesError::MissingModulePath {
+                module_path: file.module_path.clone(),
+            });
+        };
+        let Some(def) = target.def else {
+            continue;
+        };
+        let previous_source_file =
+            std::mem::replace(&mut lower.source_file, file.module_path.clone());
+        let children = lower.register_block(&file.cst, target.module);
+        lower.source_file = previous_source_file;
+        lower.set_module_children(def, children);
+    }
+
+    lower.modules.build_import_views();
+    lower.finalize_act_copies_added_after(
+        &previous_act_copies,
+        &previous_synthetic_var_act_copies,
+        &previous_synthetic_sub_label_act_copies,
+    );
+
+    let synthetic_var_act_copy_ids = lower
+        .modules
+        .synthetic_var_act_copy_ids()
+        .into_iter()
+        .filter(|id| !previous_synthetic_var_act_copies.contains(id))
+        .collect();
+    let synthetic_sub_label_act_copy_ids = lower
+        .modules
+        .synthetic_sub_label_act_copy_ids()
+        .into_iter()
+        .filter(|id| !previous_synthetic_sub_label_act_copies.contains(id))
+        .collect();
+
+    Ok(LoadedFilesAppend {
+        lower,
+        loaded,
         synthetic_var_act_copy_ids,
         synthetic_sub_label_act_copy_ids,
     })

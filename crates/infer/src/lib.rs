@@ -46,7 +46,8 @@ pub use compiled_namespace::*;
 pub use compiled_runtime::*;
 pub use compiled_typed::*;
 pub(crate) use module_map::{
-    LoadedFileCsts, append_root_loaded_file_to_lower, lower_loaded_file_csts_module_map,
+    LoadedFileCsts, append_loaded_files_to_lower, append_root_loaded_file_to_lower,
+    lower_loaded_file_csts_module_map,
 };
 pub use module_map::{LoadedFilesError, lower_loaded_files_module_map, lower_module_map};
 pub(crate) use syntax::*;

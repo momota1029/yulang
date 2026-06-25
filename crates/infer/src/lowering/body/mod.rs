@@ -220,6 +220,99 @@ pub fn lower_loaded_files_prefix(
     lower_loaded_files(files).map(BodyLowering::into_prefix)
 }
 
+pub fn lower_loaded_files_with_prefix(
+    prefix: &BodyLoweringPrefix,
+    files: &[LoadedFile],
+) -> Result<BodyLowering, LoadedFilesError> {
+    let timing = InferTiming::from_env();
+    let mut measured = BodyLoweringTiming::default();
+    let total_start = Instant::now();
+
+    let phase_start = Instant::now();
+    let append = append_loaded_files_to_lower(
+        Lower {
+            arena: prefix.poly.clone(),
+            modules: prefix.modules.clone(),
+            source_file: Path::default(),
+        },
+        files,
+    )?;
+    measured.module_map = phase_start.elapsed();
+    timing.phase(
+        "append suffix files to cached lower module map",
+        measured.module_map,
+    );
+
+    let phase_start = Instant::now();
+    let mut lowerer = BodyLowerer::new(append.lower);
+    let suffix_labels = lowerer.labels.clone();
+    lowerer.labels = prefix.labels.clone();
+    lowerer.labels.extend(suffix_labels);
+    lowerer.errors.extend(prefix.errors.clone());
+    measured.init_lowerer = phase_start.elapsed();
+    timing.phase(
+        "initialize cached suffix body lowerer",
+        measured.init_lowerer,
+    );
+
+    let phase_start = Instant::now();
+    for file in append.loaded.by_depth() {
+        let Some(module) = lowerer.modules.module_by_path(&file.module_path) else {
+            return Err(LoadedFilesError::MissingModulePath {
+                module_path: file.module_path.clone(),
+            });
+        };
+        let file_start = Instant::now();
+        timing.file_start(&file.module_path);
+        let previous_source_file =
+            std::mem::replace(&mut lowerer.source_file, file.module_path.clone());
+        lowerer.lower_block(&file.cst, module);
+        lowerer.source_file = previous_source_file;
+        timing.file_done(&file.module_path, file_start.elapsed());
+    }
+    measured.lower_bodies = phase_start.elapsed();
+    timing.phase("lower cached suffix bodies", measured.lower_bodies);
+
+    let phase_start = Instant::now();
+    lowerer.lower_synthetic_act_copy_bodies_for(
+        append.synthetic_var_act_copy_ids,
+        append.synthetic_sub_label_act_copy_ids,
+    );
+    measured.synthetic_act_copy = phase_start.elapsed();
+    timing.phase(
+        "lower cached suffix synthetic act copy bodies",
+        measured.synthetic_act_copy,
+    );
+
+    trace_requested_def_labels(&lowerer.labels);
+
+    let phase_start = Instant::now();
+    lowerer.session.drain_work();
+    measured.drain_analysis = phase_start.elapsed();
+    timing.phase("drain cached suffix analysis work", measured.drain_analysis);
+
+    let phase_start = Instant::now();
+    lowerer
+        .session
+        .resolve_unresolved_selections_as_record_fields();
+    measured.resolve_selections = phase_start.elapsed();
+    measured.analysis = lowerer.session.timing();
+    measured.constraint = lowerer.session.infer.constraint_timing();
+    timing.phase(
+        "resolve cached suffix remaining selections",
+        measured.resolve_selections,
+    );
+
+    let phase_start = Instant::now();
+    let mut output = lowerer.finish();
+    measured.finish = phase_start.elapsed();
+    measured.total = total_start.elapsed();
+    output.timing = measured;
+    timing.phase("finish cached suffix lowering", measured.finish);
+    timing.phase("total lower_loaded_files_with_prefix", measured.total);
+    Ok(output)
+}
+
 pub fn lower_root_loaded_file_with_prefix(
     prefix: &BodyLoweringPrefix,
     root: &LoadedFile,

@@ -140,6 +140,50 @@ fn build_poly_and_compiled_unit_from_collected_sources_share_lowering_output() {
     );
 }
 
+#[test]
+fn build_poly_from_compiled_unit_prefix_lowers_local_suffix_modules() {
+    let prefix_files = vec![
+        CollectedSource {
+            path: PathBuf::from("prefix.yu"),
+            module_path: Path::default(),
+            source: "mod ops;\n".into(),
+        },
+        CollectedSource {
+            path: PathBuf::from("ops.yu"),
+            module_path: Path {
+                segments: vec![Name("ops".to_string())],
+            },
+            source: "pub x = 7\n".into(),
+        },
+    ];
+    let prefix = build_poly_and_compiled_unit_from_collected_sources(prefix_files)
+        .unwrap()
+        .compiled_unit;
+    let suffix_files = vec![
+        CollectedSource {
+            path: PathBuf::from("main.yu"),
+            module_path: Path::default(),
+            source: "mod local;\nuse local::*\ny\n".into(),
+        },
+        CollectedSource {
+            path: PathBuf::from("local.yu"),
+            module_path: Path {
+                segments: vec![Name("local".to_string())],
+            },
+            source: "use ops::*\npub y = x\n".into(),
+        },
+    ];
+
+    let output =
+        build_poly_from_compiled_unit_prefix_and_collected_sources(prefix, suffix_files).unwrap();
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    assert_eq!(output.file_count, 4);
+    let build = build_control_from_poly_output(&output).unwrap();
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(output.0, "run roots [7]\n");
+}
+
 #[cfg(unix)]
 #[test]
 fn run_control_with_std_specializes_attached_role_impl_methods() {

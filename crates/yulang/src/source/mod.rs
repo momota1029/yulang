@@ -130,6 +130,32 @@ pub fn build_poly_from_compiled_unit_artifact(
     }
 }
 
+pub fn build_poly_from_compiled_unit_prefix_and_collected_sources(
+    prefix: crate::cache::CachedCompiledUnitArtifact,
+    suffix: Vec<CollectedSource>,
+) -> Result<BuildPolyOutput, RouteError> {
+    let suffix_file_count = suffix.len();
+    let loaded =
+        sources::load_suffix_with_syntax_prefix(&prefix.syntax, collected_source_files(suffix));
+    let lowering_prefix = infer::lowering::BodyLoweringPrefix::from_compiled_unit_surfaces(
+        &prefix.namespace,
+        &prefix.lowering,
+        &prefix.runtime,
+    )
+    .ok_or(infer::LoadedFilesError::MissingRoot)
+    .map_err(RouteError::Lower)?;
+    let lowering = infer::lowering::lower_loaded_files_with_prefix(&lowering_prefix, &loaded)
+        .map_err(RouteError::Lower)?;
+    let mut errors = prefix.errors;
+    errors.extend(lowering.errors.iter().map(format_body_lowering_error));
+    Ok(BuildPolyOutput {
+        arena: lowering.session.poly,
+        labels: lowering.labels,
+        file_count: prefix.manifest.files.len() + suffix_file_count,
+        errors,
+    })
+}
+
 /// principal poly artifact から control VM artifact 用 IR を作る。
 pub fn build_control_from_poly_output(
     output: &BuildPolyOutput,
