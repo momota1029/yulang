@@ -42,6 +42,11 @@ impl AnalysisSession {
         let mut compact;
         let coalesced_roles = loop {
             self.timing.record_generalize_iteration();
+            let compact_epoch = self.infer.constraints().epoch();
+            if let Some(shadow) = self.generalize_compact_shadow.as_mut() {
+                let hit = shadow.observe(root, compact_epoch);
+                self.timing.record_generalize_compact_shadow(hit);
+            }
             let phase = Instant::now();
             let (next_compact, mut merge_constraints) =
                 compact_type_var_recording_merge_constraints_for_scheme(

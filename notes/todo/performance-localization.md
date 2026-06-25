@@ -271,6 +271,10 @@ compact / dominance / role projection をかなり再走査している。
      `analysis.generalize_top_restart_role_epoch_{start,end,delta}` は root-local に出る。
      performance gate の key table では `top role delta` として見る。
 3. `root compact cache` を作り、involved-variable epoch が変わらない限り再利用する。
+   - 2026-06-26: `YULANG_GENERALIZE_COMPACT_SHADOW=1` で opt-in の shadow metrics を追加した。
+     `(root, constraint_epoch)` が再登場した回数を `analysis.generalize_compact_shadow_*`
+     として数える。これは cache ではなく、root compact cache が conservative key だけで
+     効くかを見る観測器である。既定では HashSet を触らない。
 4. `dominance cache` と `role projection cache` を同じ方式で足す。
 5. restart loop は view 全体を捨てず、dirty な view だけを再構築する。
 

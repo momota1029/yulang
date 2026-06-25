@@ -130,6 +130,9 @@ pub struct AnalysisTiming {
     pub generalize_top_restart_dominance_subtype_constraints: usize,
     pub generalize_top_restart_role_resolve_inputs: usize,
     pub generalize_top_restart_role_resolutions: usize,
+    pub generalize_compact_shadow_requests: usize,
+    pub generalize_compact_shadow_hits: usize,
+    pub generalize_compact_shadow_misses: usize,
     pub generalize_role_input_constraints: usize,
     pub generalize_reachable_role_constraints: usize,
     pub generalize_coalesced_role_constraints: usize,
@@ -415,6 +418,15 @@ impl AnalysisTiming {
 
     pub(super) fn record_generalize_role_restart(&mut self) {
         self.generalize_role_restarts += 1;
+    }
+
+    pub(super) fn record_generalize_compact_shadow(&mut self, hit: bool) {
+        self.generalize_compact_shadow_requests += 1;
+        if hit {
+            self.generalize_compact_shadow_hits += 1;
+        } else {
+            self.generalize_compact_shadow_misses += 1;
+        }
     }
 
     pub(super) fn record_generalize_root_summary(

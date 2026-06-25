@@ -111,9 +111,34 @@ pub struct AnalysisSession {
     diagnostics: Vec<AnalysisDiagnostic>,
     scc_events: Vec<SccEvent>,
     work: VecDeque<AnalysisWork>,
+    generalize_compact_shadow: Option<GeneralizeCompactShadow>,
     timing: AnalysisTiming,
     instantiated_targets: FxHashSet<DefId>,
     def_parent_map: DefParentMapCache,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct GeneralizeCompactShadowKey {
+    root: TypeVar,
+    constraint_epoch: u64,
+}
+
+#[derive(Debug, Default)]
+struct GeneralizeCompactShadow {
+    seen: FxHashSet<GeneralizeCompactShadowKey>,
+}
+
+impl GeneralizeCompactShadow {
+    fn from_env() -> Option<Self> {
+        generalize_compact_shadow_enabled().then(Self::default)
+    }
+
+    fn observe(&mut self, root: TypeVar, constraint_epoch: ConstraintEpoch) -> bool {
+        !self.seen.insert(GeneralizeCompactShadowKey {
+            root,
+            constraint_epoch: constraint_epoch.as_u64(),
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -263,6 +288,14 @@ fn generalize_shape_metrics_enabled() -> bool {
     static ENABLED: OnceLock<bool> = OnceLock::new();
     *ENABLED.get_or_init(|| {
         std::env::var("YULANG_GENERALIZE_SHAPE_TIMING")
+            .is_ok_and(|value| !value.is_empty() && value != "0")
+    })
+}
+
+fn generalize_compact_shadow_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        std::env::var("YULANG_GENERALIZE_COMPACT_SHADOW")
             .is_ok_and(|value| !value.is_empty() && value != "0")
     })
 }
