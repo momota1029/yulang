@@ -33,9 +33,13 @@
    - compiled-unit cache を std 専用特例ではなく source dependency surface として育てる。
    - realm/band と source dependency SCC を cache unit として扱う。
    - type surface audit と cache validation が hot path を壊さないようにする。
-6. `yumark.md`
+6. `performance-localization.md`
+   - 高速化を「意味論税の局所化」として整理する。
+   - release gate、compiled-unit cache、generalize restart、runtime ScopeState、
+     replay frontier、direct-style island の順番と撤退条件を固定する。
+7. `yumark.md`
    - syntax parse 済みの Yumark を value model、lowering、runtime、表示へ接続する。
-7. `research-consultation.md`
+8. `research-consultation.md`
    - Yulang の型推論・effect system を研究相談へ持っていくための短い資料、メール、実例を整理する。
    - 現在の入口は `notes/research/consultation/`。
 
@@ -73,8 +77,9 @@
 2. `yulang-editor` の token classification / diagnostics / hover を playground と LS の共有面にする。
 3. cargo を介さない release smoke を作る。
 4. realm/band と compiled-unit cache の実装単位を `sources` / CLI / cache manifest に接続する。
-5. phase timing と counters を入れ、intern / cache / Rowan cost の順に測る。
-6. Yumark の value model を決め、syntax から runtime までの最初の thin path を作る。
+5. performance localization の release gate を作り、cache / runtime / solver 変更を同じ物差しで測る。
+6. phase timing と counters を入れ、intern / cache / Rowan cost の順に測る。
+7. Yumark の value model を決め、syntax から runtime までの最初の thin path を作る。
 
 ## 運用ルール
 
