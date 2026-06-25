@@ -16,6 +16,7 @@ mod builtin_ops;
 pub mod casts;
 pub mod check;
 pub mod compact;
+mod compiled_namespace;
 pub mod constraints;
 pub mod dump;
 pub mod generalize;
@@ -37,6 +38,7 @@ pub mod typing;
 pub mod uses;
 
 pub use arena::Arena;
+pub use compiled_namespace::*;
 pub(crate) use module_map::{
     LoadedFileCsts, append_root_loaded_file_to_lower, lower_loaded_file_csts_module_map,
 };

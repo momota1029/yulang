@@ -4,7 +4,6 @@
 //! collector or std lookup rules so a cache hit cannot change which files form
 //! the program.
 
-use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::io;
@@ -195,7 +194,7 @@ pub struct CachedPolyArtifact {
 pub struct CachedCompiledUnitArtifact {
     pub manifest: CompiledUnitManifest,
     pub syntax: sources::CompiledSyntaxSurface,
-    pub namespace: CompiledNamespaceSurface,
+    pub namespace: infer::CompiledNamespaceSurface,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -214,88 +213,6 @@ pub struct CompiledUnitSourceFile {
     pub module_path: Vec<String>,
     pub source_len: usize,
     pub source_hash: u64,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CompiledNamespaceSurface {
-    pub modules: Vec<CompiledNamespaceModule>,
-    pub values: Vec<CompiledNamespaceSymbol>,
-    pub types: Vec<CompiledNamespaceTypeSymbol>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CompiledNamespaceModule {
-    pub id: u32,
-    pub path: Vec<String>,
-    pub visibility: Option<CompiledNamespaceVisibility>,
-    pub values: Vec<CompiledNamespaceModuleValue>,
-    pub types: Vec<CompiledNamespaceModuleType>,
-    pub modules: Vec<CompiledNamespaceModuleChild>,
-    pub aliases: Vec<CompiledNamespaceAlias>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CompiledNamespaceSymbol {
-    pub unit_id: u32,
-    pub path: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CompiledNamespaceTypeSymbol {
-    pub unit_id: u32,
-    pub path: Vec<String>,
-    pub kind: CompiledNamespaceTypeKind,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CompiledNamespaceModuleValue {
-    pub name: String,
-    pub symbol: u32,
-    pub visibility: CompiledNamespaceVisibility,
-    pub order: u32,
-    pub lazy: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CompiledNamespaceModuleType {
-    pub name: String,
-    pub symbol: u32,
-    pub visibility: CompiledNamespaceVisibility,
-    pub order: u32,
-    pub kind: CompiledNamespaceTypeKind,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CompiledNamespaceModuleChild {
-    pub name: String,
-    pub module: u32,
-    pub module_path: Vec<String>,
-    pub visibility: CompiledNamespaceVisibility,
-    pub order: u32,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CompiledNamespaceAlias {
-    pub visibility: CompiledNamespaceVisibility,
-    pub order: u32,
-    pub import: sources::UseImport,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum CompiledNamespaceVisibility {
-    Pub,
-    Our,
-    My,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum CompiledNamespaceTypeKind {
-    TypeAlias,
-    Struct,
-    Enum,
-    Error,
-    Role,
-    Act,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -318,7 +235,7 @@ pub fn compiled_unit_artifact_from_loaded_files(
     loaded: &[sources::LoadedFile],
 ) -> Result<CachedCompiledUnitArtifact, infer::LoadedFilesError> {
     let syntax = sources::CompiledSyntaxSurface::from_loaded_files(loaded);
-    let namespace = CompiledNamespaceSurface::from_loaded_files(loaded)?;
+    let namespace = infer::CompiledNamespaceSurface::from_loaded_files(loaded)?;
     let manifest = compiled_unit_manifest(files, &syntax, &namespace);
     Ok(CachedCompiledUnitArtifact {
         manifest,
@@ -350,7 +267,7 @@ fn source_cache_key_with_schema(files: &[CollectedSource], schema: CacheSchema) 
 fn compiled_unit_manifest(
     files: &[CollectedSource],
     syntax: &sources::CompiledSyntaxSurface,
-    namespace: &CompiledNamespaceSurface,
+    namespace: &infer::CompiledNamespaceSurface,
 ) -> CompiledUnitManifest {
     CompiledUnitManifest {
         cache_schema_version: CACHE_SCHEMA_VERSION,
@@ -387,185 +304,6 @@ fn source_file_hash(file: &CollectedSource) -> u64 {
     hasher.finish()
 }
 
-impl CompiledNamespaceSurface {
-    pub fn from_loaded_files(
-        loaded: &[sources::LoadedFile],
-    ) -> Result<Self, infer::LoadedFilesError> {
-        let lower = infer::lower_loaded_files_module_map(loaded)?;
-        Ok(Self::from_module_table(&lower.modules))
-    }
-
-    pub fn from_module_table(modules: &infer::ModuleTable) -> Self {
-        let mut builder = NamespaceSurfaceBuilder::new(modules);
-        builder.visit_module(modules.root_id(), None);
-        builder.finish()
-    }
-}
-
-struct NamespaceSurfaceBuilder<'a> {
-    modules: &'a infer::ModuleTable,
-    module_ids: HashMap<infer::ModuleId, u32>,
-    surface: CompiledNamespaceSurface,
-}
-
-impl<'a> NamespaceSurfaceBuilder<'a> {
-    fn new(modules: &'a infer::ModuleTable) -> Self {
-        Self {
-            modules,
-            module_ids: HashMap::new(),
-            surface: CompiledNamespaceSurface::default(),
-        }
-    }
-
-    fn finish(self) -> CompiledNamespaceSurface {
-        self.surface
-    }
-
-    fn visit_module(
-        &mut self,
-        module: infer::ModuleId,
-        visibility: Option<CompiledNamespaceVisibility>,
-    ) -> u32 {
-        if let Some(id) = self.module_ids.get(&module) {
-            return *id;
-        }
-
-        let id = self.surface.modules.len() as u32;
-        self.module_ids.insert(module, id);
-        self.surface.modules.push(CompiledNamespaceModule {
-            id,
-            path: namespace_path(&self.modules.module_path(module)),
-            visibility,
-            values: Vec::new(),
-            types: Vec::new(),
-            modules: Vec::new(),
-            aliases: Vec::new(),
-        });
-
-        let values = self.module_value_entries(module);
-        let types = self.module_type_entries(module);
-        let modules = self.module_child_entries(module);
-        let aliases = self.module_alias_entries(module);
-
-        let slot = &mut self.surface.modules[id as usize];
-        slot.values = values;
-        slot.types = types;
-        slot.modules = modules;
-        slot.aliases = aliases;
-        id
-    }
-
-    fn module_value_entries(
-        &mut self,
-        module: infer::ModuleId,
-    ) -> Vec<CompiledNamespaceModuleValue> {
-        self.modules
-            .module_value_decls(module)
-            .into_iter()
-            .map(|decl| {
-                let symbol = self.surface.values.len() as u32;
-                let mut path = namespace_path(&self.modules.module_path(module));
-                path.push(decl.name.0.clone());
-                self.surface.values.push(CompiledNamespaceSymbol {
-                    unit_id: symbol,
-                    path,
-                });
-                CompiledNamespaceModuleValue {
-                    name: decl.name.0,
-                    symbol,
-                    visibility: compiled_visibility(decl.vis),
-                    order: decl.order.index(),
-                    lazy: self.modules.is_lazy_op(decl.def),
-                }
-            })
-            .collect()
-    }
-
-    fn module_type_entries(&mut self, module: infer::ModuleId) -> Vec<CompiledNamespaceModuleType> {
-        self.modules
-            .module_type_decls(module)
-            .into_iter()
-            .map(|decl| {
-                let kind = compiled_type_kind(decl.kind);
-                let symbol = self.surface.types.len() as u32;
-                let mut path = namespace_path(&self.modules.module_path(module));
-                path.push(decl.name.0.clone());
-                self.surface.types.push(CompiledNamespaceTypeSymbol {
-                    unit_id: symbol,
-                    path,
-                    kind,
-                });
-                CompiledNamespaceModuleType {
-                    name: decl.name.0,
-                    symbol,
-                    visibility: compiled_visibility(decl.vis),
-                    order: decl.order.index(),
-                    kind,
-                }
-            })
-            .collect()
-    }
-
-    fn module_child_entries(
-        &mut self,
-        module: infer::ModuleId,
-    ) -> Vec<CompiledNamespaceModuleChild> {
-        self.modules
-            .module_child_decls(module)
-            .into_iter()
-            .map(|decl| {
-                let visibility = compiled_visibility(decl.vis);
-                let child = self.visit_module(decl.module, Some(visibility));
-                CompiledNamespaceModuleChild {
-                    name: decl.name.0,
-                    module: child,
-                    module_path: namespace_path(&self.modules.module_path(decl.module)),
-                    visibility,
-                    order: decl.order.index(),
-                }
-            })
-            .collect()
-    }
-
-    fn module_alias_entries(&self, module: infer::ModuleId) -> Vec<CompiledNamespaceAlias> {
-        self.modules
-            .aliases(module)
-            .iter()
-            .map(|alias| CompiledNamespaceAlias {
-                visibility: compiled_visibility(alias.vis),
-                order: alias.order.index(),
-                import: alias.import.clone(),
-            })
-            .collect()
-    }
-}
-
-fn namespace_path(path: &sources::Path) -> Vec<String> {
-    path.segments
-        .iter()
-        .map(|segment| segment.0.clone())
-        .collect()
-}
-
-fn compiled_visibility(visibility: poly::expr::Vis) -> CompiledNamespaceVisibility {
-    match visibility {
-        poly::expr::Vis::Pub => CompiledNamespaceVisibility::Pub,
-        poly::expr::Vis::Our => CompiledNamespaceVisibility::Our,
-        poly::expr::Vis::My => CompiledNamespaceVisibility::My,
-    }
-}
-
-fn compiled_type_kind(kind: infer::ModuleTypeKind) -> CompiledNamespaceTypeKind {
-    match kind {
-        infer::ModuleTypeKind::TypeAlias => CompiledNamespaceTypeKind::TypeAlias,
-        infer::ModuleTypeKind::Struct => CompiledNamespaceTypeKind::Struct,
-        infer::ModuleTypeKind::Enum => CompiledNamespaceTypeKind::Enum,
-        infer::ModuleTypeKind::Error => CompiledNamespaceTypeKind::Error,
-        infer::ModuleTypeKind::Role => CompiledNamespaceTypeKind::Role,
-        infer::ModuleTypeKind::Act => CompiledNamespaceTypeKind::Act,
-    }
-}
-
 fn compiled_syntax_hash(syntax: &sources::CompiledSyntaxSurface) -> u64 {
     let mut hasher = StableHasher::new();
     hasher.bytes(COMPILED_SYNTAX_HASH_SALT);
@@ -593,7 +331,7 @@ fn compiled_syntax_hash(syntax: &sources::CompiledSyntaxSurface) -> u64 {
     hasher.finish()
 }
 
-fn compiled_namespace_hash(namespace: &CompiledNamespaceSurface) -> u64 {
+fn compiled_namespace_hash(namespace: &infer::CompiledNamespaceSurface) -> u64 {
     let mut hasher = StableHasher::new();
     hasher.bytes(COMPILED_NAMESPACE_HASH_SALT);
 
@@ -678,7 +416,7 @@ fn hash_visibility(hasher: &mut StableHasher, visibility: sources::Visibility) {
 
 fn hash_optional_compiled_namespace_visibility(
     hasher: &mut StableHasher,
-    visibility: Option<CompiledNamespaceVisibility>,
+    visibility: Option<infer::CompiledNamespaceVisibility>,
 ) {
     match visibility {
         Some(visibility) => {
@@ -691,23 +429,26 @@ fn hash_optional_compiled_namespace_visibility(
 
 fn hash_compiled_namespace_visibility(
     hasher: &mut StableHasher,
-    visibility: CompiledNamespaceVisibility,
+    visibility: infer::CompiledNamespaceVisibility,
 ) {
     hasher.u8(match visibility {
-        CompiledNamespaceVisibility::Pub => 0,
-        CompiledNamespaceVisibility::Our => 1,
-        CompiledNamespaceVisibility::My => 2,
+        infer::CompiledNamespaceVisibility::Pub => 0,
+        infer::CompiledNamespaceVisibility::Our => 1,
+        infer::CompiledNamespaceVisibility::My => 2,
     });
 }
 
-fn hash_compiled_namespace_type_kind(hasher: &mut StableHasher, kind: CompiledNamespaceTypeKind) {
+fn hash_compiled_namespace_type_kind(
+    hasher: &mut StableHasher,
+    kind: infer::CompiledNamespaceTypeKind,
+) {
     hasher.u8(match kind {
-        CompiledNamespaceTypeKind::TypeAlias => 0,
-        CompiledNamespaceTypeKind::Struct => 1,
-        CompiledNamespaceTypeKind::Enum => 2,
-        CompiledNamespaceTypeKind::Error => 3,
-        CompiledNamespaceTypeKind::Role => 4,
-        CompiledNamespaceTypeKind::Act => 5,
+        infer::CompiledNamespaceTypeKind::TypeAlias => 0,
+        infer::CompiledNamespaceTypeKind::Struct => 1,
+        infer::CompiledNamespaceTypeKind::Enum => 2,
+        infer::CompiledNamespaceTypeKind::Error => 3,
+        infer::CompiledNamespaceTypeKind::Role => 4,
+        infer::CompiledNamespaceTypeKind::Act => 5,
     });
 }
 
@@ -868,7 +609,7 @@ struct ControlCacheEnvelope<T = control_vm::Program, L = poly::dump::DumpLabels,
 struct CompiledUnitCacheEnvelope<
     M = CompiledUnitManifest,
     S = sources::CompiledSyntaxSurface,
-    N = CompiledNamespaceSurface,
+    N = infer::CompiledNamespaceSurface,
 > {
     format: u32,
     manifest: M,
@@ -1159,7 +900,7 @@ mod tests {
             .syntax
             .files
             .iter()
-            .find(|file| namespace_path(&file.module_path) == ops_path)
+            .find(|file| infer::namespace_path(&file.module_path) == ops_path)
             .unwrap();
         assert_eq!(ops_syntax.ops.len(), 1);
         let ops_module = restored
@@ -1173,12 +914,10 @@ mod tests {
                 .values
                 .iter()
                 .any(|value| value.name == "#op:infix:<+>"
-                    && value.visibility == CompiledNamespaceVisibility::Pub)
+                    && value.visibility == infer::CompiledNamespaceVisibility::Pub)
         );
-        assert!(
-            ops_module.values.iter().any(|value| value.name == "hidden"
-                && value.visibility == CompiledNamespaceVisibility::My)
-        );
+        assert!(ops_module.values.iter().any(|value| value.name == "hidden"
+            && value.visibility == infer::CompiledNamespaceVisibility::My));
         assert!(cache.compiled_unit_artifact_path(key).is_file());
         assert_eq!(
             cache.compiled_unit_artifact_path(key).extension().unwrap(),
