@@ -1,6 +1,49 @@
 use super::*;
 
 #[test]
+fn lower_loaded_files_with_prefix_preserves_cached_child_module_defs() {
+    let prefix_loaded = sources::load(vec![
+        source_file(&[], "mod a;\n"),
+        source_file(&["a"], "mod b;\n"),
+        source_file(&["a", "b"], "pub y = 7\n"),
+    ]);
+    let prefix = lower_loaded_files_prefix(&prefix_loaded).unwrap();
+    let suffix_loaded = sources::load(vec![
+        source_file(&[], "mod a;\n"),
+        source_file(&["a"], "pub x = b::y\n"),
+    ]);
+
+    let output = lower_loaded_files_with_prefix(&prefix, &suffix_loaded).unwrap();
+
+    assert_eq!(output.errors, Vec::new());
+    let a_module = output.modules.module_by_path(&module_path(&["a"])).unwrap();
+    let b_module = output
+        .modules
+        .module_by_path(&module_path(&["a", "b"]))
+        .unwrap();
+    let a_def = output.modules.module_def(a_module).unwrap();
+    let b_def = output.modules.module_def(b_module).unwrap();
+    match output.session.poly.defs.get(a_def) {
+        Some(Def::Mod { children, .. }) => {
+            assert!(
+                children.contains(&b_def),
+                "cached child module def should remain in parent children"
+            );
+        }
+        _ => panic!("expected module def"),
+    }
+    let x = output
+        .modules
+        .value_path_at(
+            output.modules.root_id(),
+            &[Name("a".into()), Name("x".into())],
+            ModuleOrder::from_index(u32::MAX),
+        )
+        .expect("suffix value should resolve through cached child module");
+    binding_body_id(&output, x);
+}
+
+#[test]
 fn catch_effect_arm_binds_payload_and_continuation_locals() {
     let root = parse("my run = 1\nmy f = catch run:\n  eff x, k -> k x\n  value -> value\n");
     let lower = lower_module_map(&root);
@@ -65,6 +108,22 @@ fn catch_effect_arm_binds_payload_and_continuation_locals() {
             .iter()
             .any(|bound| matches!(types.neg(bound.neg), Neg::Fun { .. }))
     );
+}
+
+fn source_file(module: &[&str], source: &str) -> sources::SourceFile {
+    sources::SourceFile {
+        module_path: module_path(module),
+        source: source.to_string(),
+    }
+}
+
+fn module_path(module: &[&str]) -> sources::Path {
+    sources::Path {
+        segments: module
+            .iter()
+            .map(|segment| sources::Name((*segment).to_string()))
+            .collect(),
+    }
 }
 
 #[test]

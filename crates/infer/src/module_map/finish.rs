@@ -175,6 +175,29 @@ impl Lower {
         *slot = children;
     }
 
+    pub(super) fn module_children(&self, def: DefId) -> Vec<DefId> {
+        let Some(Def::Mod { children, .. }) = self.arena.defs.get(def) else {
+            return Vec::new();
+        };
+        children.clone()
+    }
+
+    pub(super) fn set_module_children_preserving(
+        &mut self,
+        def: DefId,
+        preserved: &[DefId],
+        children: Vec<DefId>,
+    ) {
+        let mut merged = preserved.to_vec();
+        for child in self.module_children(def) {
+            push_unique_def(&mut merged, child);
+        }
+        for child in children {
+            push_unique_def(&mut merged, child);
+        }
+        self.set_module_children(def, merged);
+    }
+
     pub(super) fn append_module_children(&mut self, def: DefId, children: Vec<DefId>) {
         let Some(Def::Mod { children: slot, .. }) = self.arena.defs.get_mut(def) else {
             return;
@@ -412,5 +435,11 @@ impl Lower {
             };
         }
         Some(target)
+    }
+}
+
+fn push_unique_def(defs: &mut Vec<DefId>, def: DefId) {
+    if !defs.contains(&def) {
+        defs.push(def);
     }
 }

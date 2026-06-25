@@ -1110,6 +1110,12 @@ pub(crate) fn append_loaded_files_to_lower(
         .collect::<FxHashSet<_>>();
 
     let loaded = LoadedFileCsts::new(files)?;
+    let previous_module_children = loaded
+        .non_root_by_depth()
+        .filter_map(|file| lower.module_path_target(&file.module_path))
+        .filter_map(|target| target.def)
+        .map(|def| (def, lower.module_children(def)))
+        .collect::<FxHashMap<_, _>>();
     let root = loaded.root().ok_or(LoadedFilesError::MissingRoot)?;
     let roots = lower.register_block(&root.cst, lower.modules.root_id());
     lower.arena.roots.extend(roots);
@@ -1127,7 +1133,11 @@ pub(crate) fn append_loaded_files_to_lower(
             std::mem::replace(&mut lower.source_file, file.module_path.clone());
         let children = lower.register_block(&file.cst, target.module);
         lower.source_file = previous_source_file;
-        lower.set_module_children(def, children);
+        if let Some(preserved) = previous_module_children.get(&def) {
+            lower.set_module_children_preserving(def, preserved, children);
+        } else {
+            lower.set_module_children(def, children);
+        }
     }
 
     lower.modules.build_import_views();

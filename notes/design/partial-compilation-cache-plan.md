@@ -57,7 +57,8 @@ Implemented subset:
 - embedded full std and compact playground std root-only routes can rebuild a
   `BodyLoweringPrefix` from compiled surfaces and lower only the root source;
 - library-level prefix/suffix lowering can combine one compiled-unit prefix
-  with freshly parsed root/local-module suffix files.
+  with freshly parsed root/local-module suffix files, and preserves cached child
+  module defs when a suffix file extends an already-imported parent module.
 - the active source route has a read-only `source_compilation_units` helper
   that groups collected local-module files into SCCs and orders those units
   dependency-first.
