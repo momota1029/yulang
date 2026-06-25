@@ -16,6 +16,7 @@ mod builtin_ops;
 pub mod casts;
 pub mod check;
 pub mod compact;
+mod compiled_lowering;
 mod compiled_namespace;
 mod compiled_runtime;
 mod compiled_typed;
@@ -40,6 +41,7 @@ pub mod typing;
 pub mod uses;
 
 pub use arena::Arena;
+pub use compiled_lowering::*;
 pub use compiled_namespace::*;
 pub use compiled_runtime::*;
 pub use compiled_typed::*;

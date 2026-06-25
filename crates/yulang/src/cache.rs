@@ -17,13 +17,14 @@ use crate::source::CollectedSource;
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 5;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 6;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
 const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v1";
 const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
 const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/v1";
+const COMPILED_LOWERING_HASH_SALT: &[u8] = b"yulang/compiled-lowering-surface/v1";
 const COMPILED_TYPED_HASH_SALT: &[u8] = b"yulang/compiled-typed-surface/v1";
 const COMPILED_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-runtime-surface/v1";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
@@ -154,6 +155,7 @@ impl ArtifactCache {
             manifest: envelope.manifest,
             syntax: envelope.syntax,
             namespace: envelope.namespace,
+            lowering: envelope.lowering,
             typed: envelope.typed,
             runtime: envelope.runtime,
         }))
@@ -170,6 +172,7 @@ impl ArtifactCache {
             manifest: &artifact.manifest,
             syntax: &artifact.syntax,
             namespace: &artifact.namespace,
+            lowering: &artifact.lowering,
             typed: &artifact.typed,
             runtime: &artifact.runtime,
         };
@@ -201,6 +204,7 @@ pub struct CachedCompiledUnitArtifact {
     pub manifest: CompiledUnitManifest,
     pub syntax: sources::CompiledSyntaxSurface,
     pub namespace: infer::CompiledNamespaceSurface,
+    pub lowering: infer::CompiledLoweringSurface,
     pub typed: infer::CompiledTypedSurface,
     pub runtime: infer::CompiledRuntimeSurface,
 }
@@ -212,6 +216,7 @@ pub struct CompiledUnitManifest {
     pub source_hash: u64,
     pub syntax_hash: u64,
     pub namespace_hash: u64,
+    pub lowering_hash: u64,
     pub typed_hash: u64,
     pub runtime_hash: u64,
     pub files: Vec<CompiledUnitSourceFile>,
@@ -247,13 +252,23 @@ pub fn compiled_unit_artifact_from_loaded_files(
     let syntax = sources::CompiledSyntaxSurface::from_loaded_files(loaded);
     let lowering = infer::lowering::lower_loaded_files(loaded)?;
     let namespace = infer::CompiledNamespaceSurface::from_module_table(&lowering.modules);
+    let lowering_surface =
+        infer::CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
     let typed = infer::CompiledTypedSurface::from_lowering(&lowering, &namespace);
     let runtime = infer::CompiledRuntimeSurface::from_lowering(&lowering);
-    let manifest = compiled_unit_manifest(files, &syntax, &namespace, &typed, &runtime);
+    let manifest = compiled_unit_manifest(
+        files,
+        &syntax,
+        &namespace,
+        &lowering_surface,
+        &typed,
+        &runtime,
+    );
     Ok(CachedCompiledUnitArtifact {
         manifest,
         syntax,
         namespace,
+        lowering: lowering_surface,
         typed,
         runtime,
     })
@@ -283,6 +298,7 @@ fn compiled_unit_manifest(
     files: &[CollectedSource],
     syntax: &sources::CompiledSyntaxSurface,
     namespace: &infer::CompiledNamespaceSurface,
+    lowering: &infer::CompiledLoweringSurface,
     typed: &infer::CompiledTypedSurface,
     runtime: &infer::CompiledRuntimeSurface,
 ) -> CompiledUnitManifest {
@@ -292,6 +308,7 @@ fn compiled_unit_manifest(
         source_hash: source_cache_key(files).hash,
         syntax_hash: compiled_syntax_hash(syntax),
         namespace_hash: compiled_namespace_hash(namespace),
+        lowering_hash: compiled_lowering_hash(lowering),
         typed_hash: compiled_typed_hash(typed),
         runtime_hash: compiled_runtime_hash(runtime),
         files: files
@@ -445,6 +462,21 @@ fn compiled_typed_hash(typed: &infer::CompiledTypedSurface) -> u64 {
     for value in &typed.values {
         hasher.u32(value.symbol);
         hash_scheme(&mut hasher, &value.scheme);
+    }
+    hasher.finish()
+}
+
+fn compiled_lowering_hash(lowering: &infer::CompiledLoweringSurface) -> u64 {
+    let mut hasher = StableHasher::new();
+    hasher.bytes(COMPILED_LOWERING_HASH_SALT);
+    hasher.usize(lowering.act_type_vars.len());
+    for entry in &lowering.act_type_vars {
+        hasher.u32(entry.type_symbol);
+        hash_string_path(&mut hasher, &entry.type_path);
+        hasher.usize(entry.vars.len());
+        for var in &entry.vars {
+            hasher.string(var);
+        }
     }
     hasher.finish()
 }
@@ -1595,6 +1627,7 @@ struct CompiledUnitCacheEnvelope<
     M = CompiledUnitManifest,
     S = sources::CompiledSyntaxSurface,
     N = infer::CompiledNamespaceSurface,
+    L = infer::CompiledLoweringSurface,
     T = infer::CompiledTypedSurface,
     R = infer::CompiledRuntimeSurface,
 > {
@@ -1602,6 +1635,7 @@ struct CompiledUnitCacheEnvelope<
     manifest: M,
     syntax: S,
     namespace: N,
+    lowering: L,
     typed: T,
     runtime: R,
 }
@@ -1685,7 +1719,7 @@ impl<T, L, E> CacheEnvelope for ControlCacheEnvelope<T, L, E> {
     }
 }
 
-impl<M, S, N, T, R> CacheEnvelope for CompiledUnitCacheEnvelope<M, S, N, T, R> {
+impl<M, S, N, L, T, R> CacheEnvelope for CompiledUnitCacheEnvelope<M, S, N, L, T, R> {
     fn format(&self) -> u32 {
         self.format
     }
@@ -1879,7 +1913,7 @@ mod tests {
             source(
                 "ops.yu",
                 &["ops"],
-                "pub infix (<+>) 50 50 = \\x -> \\y -> x\npub x = 1\nmy hidden = 1\n",
+                "pub infix (<+>) 50 50 = \\x -> \\y -> x\npub act signal 'a 'b:\n  pub ping: unit -> never\npub x = 1\nmy hidden = 1\n",
             ),
         ];
         let loaded = sources::load(collected_to_source_files(files.clone()));
@@ -1890,9 +1924,11 @@ mod tests {
         let restored = cache.read_compiled_unit_artifact(key).unwrap().unwrap();
 
         assert_eq!(restored.manifest, artifact.manifest);
+        assert_ne!(restored.manifest.lowering_hash, 0);
         assert_ne!(restored.manifest.runtime_hash, 0);
         assert_eq!(restored.syntax, artifact.syntax);
         assert_eq!(restored.namespace, artifact.namespace);
+        assert_eq!(restored.lowering, artifact.lowering);
         assert_eq!(restored.manifest.files.len(), 2);
         assert_eq!(restored.manifest.files[1].module_path, vec!["ops"]);
         let ops_path = vec!["ops".to_string()];
@@ -1918,6 +1954,14 @@ mod tests {
         );
         assert!(ops_module.values.iter().any(|value| value.name == "hidden"
             && value.visibility == infer::CompiledNamespaceVisibility::My));
+        assert!(
+            restored
+                .lowering
+                .act_type_vars
+                .iter()
+                .any(|entry| entry.type_path == vec!["ops", "signal"]
+                    && entry.vars == vec!["a", "b"])
+        );
         let x_symbol = ops_module
             .values
             .iter()
