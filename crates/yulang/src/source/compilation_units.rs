@@ -28,12 +28,43 @@ impl SourceCompilationUnits {
             .filter_map(|(unit, selected)| selected.then_some(unit))
             .collect()
     }
+
+    pub fn cache_selection(&self, available: &[bool]) -> SourceUnitCacheSelection {
+        let cached_units = self.dependency_closed_available_units(available);
+        let mut cached_unit = vec![false; self.units.len()];
+        for unit in &cached_units {
+            cached_unit[*unit] = true;
+        }
+
+        let mut cached_files = Vec::new();
+        let mut source_files = Vec::new();
+        for (file, unit) in self.file_units.iter().copied().enumerate() {
+            if cached_unit[unit] {
+                cached_files.push(file);
+            } else {
+                source_files.push(file);
+            }
+        }
+
+        SourceUnitCacheSelection {
+            cached_units,
+            cached_files,
+            source_files,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceCompilationUnit {
     pub files: Vec<usize>,
     pub dependencies: Vec<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceUnitCacheSelection {
+    pub cached_units: Vec<usize>,
+    pub cached_files: Vec<usize>,
+    pub source_files: Vec<usize>,
 }
 
 pub fn source_compilation_units(files: &[CollectedSource]) -> SourceCompilationUnits {

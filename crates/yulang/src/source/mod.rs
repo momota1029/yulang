@@ -28,7 +28,8 @@ mod tests;
 
 use collector::*;
 pub use compilation_units::{
-    SourceCompilationUnit, SourceCompilationUnits, source_compilation_units,
+    SourceCompilationUnit, SourceCompilationUnits, SourceUnitCacheSelection,
+    source_compilation_units,
 };
 use format::*;
 use std_sources::*;

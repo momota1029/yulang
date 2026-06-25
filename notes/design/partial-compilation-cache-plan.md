@@ -71,11 +71,16 @@ Implemented subset:
   of always using the full source-set bundle key. This currently works for
   root-containing units; non-root module units still need a module-root lowering
   artifact mode.
+- the artifact cache can compute per-unit keys, read the matching `.yuunit`
+  files, and return both the raw hit map and the dependency-closed unit/source
+  file selection. This is intentionally a read/selection layer only; it does
+  not merge multiple compiled-unit surfaces or lower a suffix yet.
 
 Not implemented yet:
 
 - individual dependency SCC artifacts;
 - non-root module-unit artifact emission;
+- merging several source-unit compiled surfaces into one imported prefix;
 - realm/band-qualified cache keys;
 - dependency interface hashes;
 - normal CLI selection of a dependency-closed compiled prefix plus changed

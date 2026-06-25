@@ -260,6 +260,42 @@ fn source_compilation_units_select_dependency_closed_available_prefix() {
     );
 }
 
+#[test]
+fn source_compilation_units_build_cache_selection() {
+    let files = vec![
+        CollectedSource {
+            path: PathBuf::from("main.yu"),
+            module_path: Path::default(),
+            source: "mod a;\nx\n".into(),
+        },
+        CollectedSource {
+            path: PathBuf::from("a.yu"),
+            module_path: Path {
+                segments: vec![Name("a".to_string())],
+            },
+            source: "mod b;\npub x = b::y\n".into(),
+        },
+        CollectedSource {
+            path: PathBuf::from("a/b.yu"),
+            module_path: Path {
+                segments: vec![Name("a".to_string()), Name("b".to_string())],
+            },
+            source: "pub y = 7\n".into(),
+        },
+    ];
+    let units = source_compilation_units(&files);
+
+    let leaf_only = units.cache_selection(&[true, false, true]);
+    assert_eq!(leaf_only.cached_units, vec![0]);
+    assert_eq!(leaf_only.cached_files, vec![2]);
+    assert_eq!(leaf_only.source_files, vec![0, 1]);
+
+    let dependency_prefix = units.cache_selection(&[true, true, false]);
+    assert_eq!(dependency_prefix.cached_units, vec![0, 1]);
+    assert_eq!(dependency_prefix.cached_files, vec![1, 2]);
+    assert_eq!(dependency_prefix.source_files, vec![0]);
+}
+
 #[cfg(unix)]
 #[test]
 fn run_control_with_std_specializes_attached_role_impl_methods() {

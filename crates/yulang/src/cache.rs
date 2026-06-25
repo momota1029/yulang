@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::source::{CollectedSource, SourceCompilationUnits};
+use crate::source::{CollectedSource, SourceCompilationUnits, SourceUnitCacheSelection};
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
@@ -166,6 +166,28 @@ impl ArtifactCache {
         }))
     }
 
+    pub fn read_source_unit_compiled_artifacts(
+        &self,
+        files: &[CollectedSource],
+        units: &SourceCompilationUnits,
+    ) -> Result<CachedSourceUnitCompiledArtifacts, CacheError> {
+        let keys = source_compilation_unit_cache_keys(files, units);
+        let mut artifacts = Vec::with_capacity(keys.len());
+        let mut available = Vec::with_capacity(keys.len());
+
+        for key in &keys {
+            let artifact = self.read_compiled_unit_artifact(*key)?;
+            available.push(artifact.is_some());
+            artifacts.push(artifact);
+        }
+
+        Ok(CachedSourceUnitCompiledArtifacts {
+            selection: units.cache_selection(&available),
+            keys,
+            artifacts,
+        })
+    }
+
     pub fn write_compiled_unit_artifact(
         &self,
         key: SourceCacheKey,
@@ -214,6 +236,12 @@ pub struct CachedCompiledUnitArtifact {
     pub typed: infer::CompiledTypedSurface,
     pub runtime: infer::CompiledRuntimeSurface,
     pub errors: Vec<String>,
+}
+
+pub struct CachedSourceUnitCompiledArtifacts {
+    pub keys: Vec<SourceCacheKey>,
+    pub artifacts: Vec<Option<CachedCompiledUnitArtifact>>,
+    pub selection: SourceUnitCacheSelection,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2592,6 +2620,36 @@ mod tests {
         let _ = fs::remove_dir_all(root);
     }
 
+    #[test]
+    fn source_unit_compiled_artifact_reads_select_dependency_closed_units() {
+        let root = temp_root("source-unit-compiled-artifacts");
+        let cache = ArtifactCache::new(&root);
+        let files = module_chain_sources("mod a;\nx\n", "mod b;\npub x = b::y\n", "pub y = 7\n");
+        let units = crate::source::source_compilation_units(&files);
+        let keys = source_compilation_unit_cache_keys(&files, &units);
+
+        cache
+            .write_compiled_unit_artifact(keys[0], &empty_compiled_unit_artifact(keys[0]))
+            .unwrap();
+        cache
+            .write_compiled_unit_artifact(keys[2], &empty_compiled_unit_artifact(keys[2]))
+            .unwrap();
+
+        let cached = cache
+            .read_source_unit_compiled_artifacts(&files, &units)
+            .unwrap();
+
+        assert_eq!(cached.keys, keys);
+        assert!(cached.artifacts[0].is_some());
+        assert!(cached.artifacts[1].is_none());
+        assert!(cached.artifacts[2].is_some());
+        assert_eq!(cached.selection.cached_units, vec![0]);
+        assert_eq!(cached.selection.cached_files, vec![2]);
+        assert_eq!(cached.selection.source_files, vec![0, 1]);
+
+        let _ = fs::remove_dir_all(root);
+    }
+
     fn source(path: &str, module: &[&str], text: &str) -> CollectedSource {
         CollectedSource {
             path: PathBuf::from(path),
@@ -2625,6 +2683,37 @@ mod tests {
                 source: file.source,
             })
             .collect()
+    }
+
+    fn empty_compiled_unit_artifact(key: SourceCacheKey) -> CachedCompiledUnitArtifact {
+        let syntax = sources::CompiledSyntaxSurface::default();
+        let namespace = infer::CompiledNamespaceSurface::default();
+        let lowering = infer::CompiledLoweringSurface::default();
+        let typed = infer::CompiledTypedSurface {
+            types: infer::CompiledTypeArena {
+                pos: Vec::new(),
+                neg: Vec::new(),
+                neu: Vec::new(),
+            },
+            values: Vec::new(),
+        };
+        let runtime = infer::CompiledRuntimeSurface {
+            arena: poly::expr::Arena::new(),
+            labels: poly::dump::DumpLabels::new(),
+            modules: Vec::new(),
+            values: Vec::new(),
+        };
+        let manifest =
+            compiled_unit_manifest(&[], &syntax, &namespace, &lowering, &typed, &runtime, key);
+        CachedCompiledUnitArtifact {
+            manifest,
+            syntax,
+            namespace,
+            lowering,
+            typed,
+            runtime,
+            errors: Vec::new(),
+        }
     }
 
     fn temp_root(name: &str) -> PathBuf {
