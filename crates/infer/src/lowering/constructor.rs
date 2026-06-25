@@ -182,9 +182,8 @@ pub(super) fn build_constructor_payload_signatures(
             .map(|item| {
                 let signature = item
                     .ty
-                    .map(|ty| builder.build_type_expr(&ty))
-                    .transpose()
-                    .map_err(|error| LoweringError::NegSignatureBuild { error })?;
+                    .map(|ty| build_stored_neg_signature(ty, builder))
+                    .transpose()?;
                 Ok(ConstructorSignaturePayloadItem { signature })
             })
             .collect::<Result<Vec<_>, LoweringError>>()
@@ -194,9 +193,8 @@ pub(super) fn build_constructor_payload_signatures(
             .map(|field| {
                 let signature = field
                     .ty
-                    .map(|ty| builder.build_type_expr(&ty))
-                    .transpose()
-                    .map_err(|error| LoweringError::NegSignatureBuild { error })?;
+                    .map(|ty| build_stored_neg_signature(ty, builder))
+                    .transpose()?;
                 Ok(ConstructorSignatureRecordPayloadField {
                     name: field.name,
                     signature,
@@ -204,6 +202,18 @@ pub(super) fn build_constructor_payload_signatures(
             })
             .collect::<Result<Vec<_>, LoweringError>>()
             .map(ConstructorSignaturePayload::Record),
+    }
+}
+
+fn build_stored_neg_signature(
+    signature: StoredSignature,
+    builder: &NegSignatureBuilder,
+) -> Result<NegSignature, LoweringError> {
+    match signature {
+        StoredSignature::Source(ty) => builder
+            .build_type_expr(&ty)
+            .map_err(|error| LoweringError::NegSignatureBuild { error }),
+        StoredSignature::Lowered(signature) => Ok(NegSignature::new(signature)),
     }
 }
 

@@ -55,6 +55,16 @@ pub(in crate::lowering) fn build_signature_type_expr(
         .map(|ann| signature_from_ann_type(&ann))
 }
 
+pub(in crate::lowering) fn build_stored_signature_type_expr(
+    builder: &mut AnnTypeBuilder,
+    signature: &StoredSignature,
+) -> Result<SignatureType, AnnBuildError> {
+    match signature {
+        StoredSignature::Source(type_expr) => build_signature_type_expr(builder, type_expr),
+        StoredSignature::Lowered(signature) => Ok(signature.clone()),
+    }
+}
+
 pub(in crate::lowering) fn role_method_signature_with_receiver(
     receiver: Option<&Name>,
     receiver_type: Option<&String>,
@@ -223,6 +233,15 @@ pub(in crate::lowering) fn operation_signature_with_effect(
         ret_eff: Some(operation_return_effect_row(ret_eff, effect)),
         ret,
     })
+}
+
+pub(in crate::lowering) fn signature_operation_param_ret(
+    signature: &SignatureType,
+) -> Option<(&SignatureType, &SignatureType)> {
+    match signature {
+        SignatureType::Function { param, ret, .. } => Some((param, ret)),
+        _ => None,
+    }
 }
 
 pub(in crate::lowering) fn operation_return_effect_row(

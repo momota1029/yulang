@@ -660,12 +660,14 @@ fn sorted_def_ids(arena: &PolyArena) -> Vec<DefId> {
 
 #[cfg(test)]
 mod tests {
+    use poly::types::BuiltinType;
     use sources::{Name, Path, SourceFile};
 
-    use crate::ModuleOrder;
+    use crate::lowering::SignatureType;
     use crate::lowering::{
         BodyLoweringPrefix, lower_loaded_files, lower_root_loaded_file_with_prefix,
     };
+    use crate::{ConstructorPayload, ModuleOrder, StoredSignature};
 
     use super::*;
 
@@ -762,6 +764,64 @@ mod tests {
             .and_then(|operation| operation.def)
             .expect("imported act operation should resolve to a remapped def");
         assert!(lowered.session.poly.defs.get(operation).is_some());
+    }
+
+    #[test]
+    fn runtime_surface_prefix_reads_lowered_constructor_and_operation_signatures() {
+        let loaded = sources::load(vec![
+            source(&[], "mod ops;\npub use ops::*\n"),
+            source(
+                &["ops"],
+                "pub act signal:\n  pub ping: () -> int\n\npub struct Box { value: int }\n",
+            ),
+        ]);
+        let lowering = lower_loaded_files(&loaded).unwrap();
+        let runtime = CompiledRuntimeSurface::from_lowering(&lowering);
+        let mut modules = lowering.modules.clone();
+        replace_test_signatures_with_lowered(&mut modules);
+        let prefix = BodyLoweringPrefix::from_runtime_surface(&runtime, &modules);
+        let root = sources::load(vec![source(
+            &[],
+            "my boxed = Box { value: 1 }\nmy value = boxed.value\nmy handled = catch signal::ping():\n    signal::ping(), k -> k 1\n    v -> v\n",
+        )])
+        .into_iter()
+        .next()
+        .unwrap();
+
+        let lowered = lower_root_loaded_file_with_prefix(&prefix, &root).unwrap();
+
+        assert_eq!(lowered.errors, Vec::new());
+    }
+
+    fn replace_test_signatures_with_lowered(modules: &mut crate::ModuleTable) {
+        let int_signature = StoredSignature::lowered(SignatureType::Builtin(BuiltinType::Int));
+        for constructor in modules.constructors.values_mut() {
+            match &mut constructor.payload {
+                ConstructorPayload::Record(fields) => {
+                    for field in fields {
+                        field.ty = Some(int_signature.clone());
+                    }
+                }
+                ConstructorPayload::Tuple(items) => {
+                    for item in items {
+                        item.ty = Some(int_signature.clone());
+                    }
+                }
+                ConstructorPayload::Unit => {}
+            }
+        }
+
+        let operation_signature = StoredSignature::lowered(SignatureType::Function {
+            param: Box::new(SignatureType::Builtin(BuiltinType::Unit)),
+            arg_eff: None,
+            ret_eff: None,
+            ret: Box::new(SignatureType::Builtin(BuiltinType::Int)),
+        });
+        for ops in modules.act_ops.values_mut() {
+            for op in ops {
+                op.signature = Some(operation_signature.clone());
+            }
+        }
     }
 
     fn source(module: &[&str], text: &str) -> SourceFile {

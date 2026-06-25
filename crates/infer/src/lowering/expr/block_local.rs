@@ -833,7 +833,7 @@ impl<'a> ExprLowerer<'a> {
     fn act_operation_signature_type(
         &self,
         operation_decl: &ActOperationDecl,
-        signature: &Cst,
+        signature: &StoredSignature,
     ) -> Option<SignatureType> {
         let effect_type_vars = self.act_effect_type_var_names(operation_decl.effect.id);
         let mut builder = ann_type_builder(
@@ -852,7 +852,7 @@ impl<'a> ExprLowerer<'a> {
                 &self.act_copy_type_name_aliases(&operation_decl.effect, copy.source),
             );
         }
-        let signature = build_signature_type_expr(&mut builder, signature).ok()?;
+        let signature = build_stored_signature_type_expr(&mut builder, signature).ok()?;
         let effect_ann = builder.type_decl_application(operation_decl.effect.id, &effect_type_vars);
         let effect = signature_from_ann_type(&effect_ann);
         operation_signature_with_effect(signature, effect)

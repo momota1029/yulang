@@ -1152,37 +1152,22 @@ impl<'a> ExprLowerer<'a> {
             add_type_var_aliases(&mut builder, &copy.type_var_aliases);
         }
 
-        let effect_ann = builder.type_decl_application(operation_decl.effect.id, &effect_type_vars);
-        let signature_ann = builder
-            .build_type_expr(signature)
+        let signature = build_stored_signature_type_expr(&mut builder, signature)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
-        let Some((param, ret)) = operation_signature_param_ret(&signature_ann) else {
+        let Some((param, ret)) = signature_operation_param_ret(&signature) else {
             return Ok(None);
         };
 
         let effect_value = self.fresh_type_var();
         let continuation_value = self.fresh_type_var();
-        let mut lowerer = AnnConstraintLowerer::new(&mut self.session.infer, self.modules);
-        lowerer
-            .connect_value(effect_value, &effect_ann)
-            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
-        lowerer
-            .connect_value(payload_value, param)
-            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
-        lowerer
-            .connect_value(continuation_value, ret)
-            .map_err(|error| LoweringError::AnnotationConstraint { error })?;
-        let vars = lowerer.into_vars();
-        let bindings = builder.type_var_bindings();
+        let effect = owner_signature_type(operation_decl.effect.id, &effect_type_vars);
+        let mut vars = FxHashMap::default();
+        vars = self.connect_value_to_signature(effect_value, &effect, vars)?;
+        vars = self.connect_value_to_signature(payload_value, param, vars)?;
+        vars = self.connect_value_to_signature(continuation_value, ret, vars)?;
         let mut row_args = Vec::with_capacity(effect_type_vars.len());
         for name in effect_type_vars {
-            let Some((_, ann_var)) = bindings
-                .iter()
-                .find(|(binding_name, _)| binding_name == &name)
-            else {
-                continue;
-            };
-            let Some(var) = vars.get(ann_var).copied() else {
+            let Some(var) = vars.get(&name).copied() else {
                 continue;
             };
             row_args.push(self.invariant_var_arg(var));
@@ -1285,16 +1270,16 @@ impl<'a> ExprLowerer<'a> {
                 let items = items
                     .iter()
                     .map(|item| {
-                        item.ty
-                            .as_ref()
-                            .map(|ty| builder.build_type_expr(ty))
-                            .transpose()
-                            .map_err(|error| LoweringError::NegSignatureBuild { error })
-                            .map(|signature| {
-                                signature
+                        item.ty.as_ref().map_or_else(
+                            || Ok(SignatureType::Builtin(BuiltinType::Unit)),
+                            |ty| match ty {
+                                StoredSignature::Source(ty) => builder
+                                    .build_type_expr(ty)
                                     .map(|signature| signature.as_type().clone())
-                                    .unwrap_or(SignatureType::Builtin(BuiltinType::Unit))
-                            })
+                                    .map_err(|error| LoweringError::NegSignatureBuild { error }),
+                                StoredSignature::Lowered(signature) => Ok(signature.clone()),
+                            },
+                        )
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 match items.as_slice() {

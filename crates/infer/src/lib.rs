@@ -56,6 +56,7 @@ use poly::dump::DumpLabels;
 use poly::expr::{Arena as PolyArena, Def, DefId, Vis};
 use rowan::{NodeOrToken, SyntaxNode};
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 use sources::{LoadedFile, Name, Path as ModulePath, SourceRange, UseImport};
 use std::fmt;
 
@@ -71,7 +72,7 @@ fn module_path_site() -> ModuleOrder {
 ///
 /// `poly` の最終 IR へは残さない。名前解決中に「今どの module scope にいるか」を持つための
 /// infer-local な ID。
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub struct ModuleId(usize);
 
 /// module 内の宣言位置。
@@ -79,7 +80,7 @@ pub struct ModuleId(usize);
 /// 同じ module の中で、宣言が source 上のどの順に現れたかを表す。
 /// resolver はこの order を基準に「上に同名宣言があれば最後、なければ下の直近」を選ぶ。
 /// binding body は header の後を解決しているので、同じ order の宣言も既に見えているものとして扱う。
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Serialize, Deserialize)]
 pub struct ModuleOrder(u32);
 
 impl ModuleOrder {
@@ -114,7 +115,7 @@ struct ModuleNode {
     next_order: u32,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 struct ModuleDeclId(usize);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -123,7 +124,7 @@ pub struct SourceSpan {
     pub range: SourceRange,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 /// 型名前空間の宣言 identity。
 ///
 /// `poly::DefId` は値・module の IR node を指すため、型名だけの first cut では infer-local な
@@ -199,7 +200,9 @@ impl ConstructorPayload {
         }
         let items = crate::enum_variant_direct_type_exprs(node)
             .into_iter()
-            .map(|ty| ConstructorPayloadItem { ty: Some(ty) })
+            .map(|ty| ConstructorPayloadItem {
+                ty: Some(StoredSignature::source(ty)),
+            })
             .collect::<Vec<_>>();
         if items.is_empty() {
             Self::Unit
@@ -211,13 +214,29 @@ impl ConstructorPayload {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ConstructorPayloadItem {
-    pub ty: Option<Cst>,
+    pub ty: Option<StoredSignature>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ConstructorRecordPayloadField {
     pub name: Name,
-    pub ty: Option<Cst>,
+    pub ty: Option<StoredSignature>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StoredSignature {
+    Source(Cst),
+    Lowered(lowering::SignatureType),
+}
+
+impl StoredSignature {
+    fn source(node: Cst) -> Self {
+        Self::Source(node)
+    }
+
+    pub fn lowered(signature: lowering::SignatureType) -> Self {
+        Self::Lowered(signature)
+    }
 }
 
 fn payload_from_fields(fields: Vec<Cst>) -> ConstructorPayload {
@@ -231,11 +250,11 @@ fn payload_from_fields(fields: Vec<Cst>) -> ConstructorPayload {
         if let Some(name) = crate::struct_field_name(&field) {
             record.push(ConstructorRecordPayloadField {
                 name,
-                ty: crate::field_type_expr(&field),
+                ty: crate::field_type_expr(&field).map(StoredSignature::source),
             });
         } else {
             tuple.push(ConstructorPayloadItem {
-                ty: crate::field_type_expr(&field),
+                ty: crate::field_type_expr(&field).map(StoredSignature::source),
             });
         }
     }
@@ -263,13 +282,13 @@ pub struct ActOperationDecl {
     pub effect: ModuleTypeDecl,
     pub name: Name,
     pub def: Option<DefId>,
-    pub signature: Option<SyntaxNode<YulangLanguage>>,
+    pub signature: Option<StoredSignature>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ActOperationSig {
     name: Name,
-    signature: Option<SyntaxNode<YulangLanguage>>,
+    signature: Option<StoredSignature>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -393,7 +412,7 @@ pub(crate) struct ModulePathTarget {
     pub def: Option<DefId>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 /// 型名前空間に登録される宣言の種類。
 pub enum ModuleTypeKind {
     TypeAlias,

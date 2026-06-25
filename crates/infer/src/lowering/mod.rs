@@ -30,6 +30,7 @@ mod string_lit;
 use parser::lex::SyntaxKind;
 use parser::sink::YulangLanguage;
 use rowan::{NodeOrToken, SyntaxNode};
+use serde::{Deserialize, Serialize};
 use sources::{LoadedFile, Name, Path, SourceRange};
 
 use poly::dump::DumpLabels;
@@ -69,7 +70,7 @@ use crate::uses::{LocalDefRole, LocalDefUse, RefUse, SelectionUse};
 use crate::{
     ActMethodDecl, ActOperationDecl, CastDecl, ConstructorPayload, LoadedFileCsts,
     LoadedFilesError, Lower, ModuleChildDecl, ModuleId, ModuleOrder, ModuleTable, ModuleTypeDecl,
-    ModuleTypeKind, RoleImplDecl, RoleImplMethodDecl, RoleMethodDecl, SourceSpan,
+    ModuleTypeKind, RoleImplDecl, RoleImplMethodDecl, RoleMethodDecl, SourceSpan, StoredSignature,
     SyntheticSubLabelActUse, SyntheticVarActUse, TypeDeclId, TypeFieldMethodDecl, TypeMethodDecl,
     TypeMethodReceiver, append_root_loaded_file_to_lower, binding_type_expr,
     lower_loaded_file_csts_module_map,
@@ -130,7 +131,7 @@ struct ResolvedRoleMethodRequirement {
     signature: SignatureType,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NegSignature {
     signature: SignatureType,
 }
@@ -166,7 +167,7 @@ struct SignatureSelfAlias {
     type_vars: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SignatureType {
     Builtin(BuiltinType),
     Named(TypeDeclId),
@@ -189,7 +190,7 @@ pub enum SignatureType {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SignatureEffectRow {
     items: Vec<SignatureEffectAtom>,
     tail: Option<SignatureVar>,
@@ -218,13 +219,13 @@ fn signature_subtractability_from_atoms(atoms: Vec<(Vec<String>, Vec<NeuId>)>) -
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SignatureEffectAtom {
     Type(SignatureType),
     Wildcard,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SignatureVar {
     name: String,
 }

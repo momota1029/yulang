@@ -900,7 +900,7 @@ fn act_operation_signatures_from_body_filtered(
         .filter_map(|binding| {
             Some(ActOperationSig {
                 name: binding_name(&binding)?,
-                signature: binding_type_expr(&binding),
+                signature: binding_type_expr(&binding).map(StoredSignature::source),
             })
         })
         .collect()

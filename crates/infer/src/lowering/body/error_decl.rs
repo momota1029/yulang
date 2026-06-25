@@ -115,16 +115,10 @@ impl BodyLowerer {
                 let items = items
                     .iter()
                     .map(|item| {
-                        item.ty
-                            .as_ref()
-                            .map(|ty| builder.build_type_expr(ty))
-                            .transpose()
-                            .map_err(|error| LoweringError::NegSignatureBuild { error })
-                            .map(|signature| {
-                                signature
-                                    .map(|signature| signature.as_type().clone())
-                                    .unwrap_or(SignatureType::Builtin(BuiltinType::Unit))
-                            })
+                        item.ty.as_ref().map_or_else(
+                            || Ok(SignatureType::Builtin(BuiltinType::Unit)),
+                            |ty| stored_neg_signature_type(ty, &builder),
+                        )
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 match items.as_slice() {
@@ -374,8 +368,8 @@ impl BodyLowerer {
                 type_vars: error.type_vars.clone(),
             },
         );
-        let signature = builder.build_type_expr(ty).ok()?;
-        let id = signature_named_head(signature.as_type())?;
+        let signature = stored_neg_signature_type(ty, &builder).ok()?;
+        let id = signature_named_head(&signature)?;
         self.modules.error_decl(id).cloned()
     }
 
@@ -795,6 +789,19 @@ fn synthetic_case_pattern(pattern: &str) -> Option<Cst> {
                     | SyntaxKind::PatList
             )
         })
+}
+
+fn stored_neg_signature_type(
+    signature: &StoredSignature,
+    builder: &NegSignatureBuilder,
+) -> Result<SignatureType, LoweringError> {
+    match signature {
+        StoredSignature::Source(ty) => builder
+            .build_type_expr(ty)
+            .map(|signature| signature.as_type().clone())
+            .map_err(|error| LoweringError::NegSignatureBuild { error }),
+        StoredSignature::Lowered(signature) => Ok(signature.clone()),
+    }
 }
 
 fn error_payload_name(variant_index: usize, payload_index: usize) -> Name {

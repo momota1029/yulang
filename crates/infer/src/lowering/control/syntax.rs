@@ -138,10 +138,3 @@ pub(super) fn pat_covers_all(poly: &poly::expr::Arena, pat: PatId) -> bool {
         | Pat::Ref(_) => false,
     }
 }
-
-pub(super) fn operation_signature_param_ret(ann: &AnnType) -> Option<(&AnnType, &AnnType)> {
-    match ann {
-        AnnType::Function { param, ret, .. } => Some((param, ret)),
-        _ => None,
-    }
-}
