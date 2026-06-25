@@ -2250,6 +2250,41 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         "  analysis.generalize_top_restart_compact_iteration_vars: {}",
         analysis.generalize_top_restart_compact_iteration_vars
     );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_role_input_constraints: {}",
+        analysis.generalize_top_restart_role_input_constraints
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_reachable_role_constraints: {}",
+        analysis.generalize_top_restart_reachable_role_constraints
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_coalesced_role_constraints: {}",
+        analysis.generalize_top_restart_coalesced_role_constraints
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_dominance_role_constraints: {}",
+        analysis.generalize_top_restart_dominance_role_constraints
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_dominance_subtype_constraints: {}",
+        analysis.generalize_top_restart_dominance_subtype_constraints
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_role_resolve_inputs: {}",
+        analysis.generalize_top_restart_role_resolve_inputs
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_top_restart_role_resolutions: {}",
+        analysis.generalize_top_restart_role_resolutions
+    );
     let _ = writeln!(out, "  analysis.role_demand_count: {role_demand_count}");
     let _ = writeln!(
         out,

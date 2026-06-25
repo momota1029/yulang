@@ -137,6 +137,9 @@
     - `analysis.generalize_top_restart_iterations`
     - `analysis.generalize_top_restart_total_restarts`
     - `analysis.generalize_top_restart_{merge,subtype,cast,role}_restarts`
+    - `analysis.generalize_top_restart_{role_input,reachable_role,coalesced_role}_constraints`
+    - `analysis.generalize_top_restart_dominance_{role,subtype}_constraints`
+    - `analysis.generalize_top_restart_role_{resolve_inputs,resolutions}`
     - `analysis.role_demand_count`
     - `analysis.role_resolve_candidate_scans`
     - `analysis.role_resolve_prerequisite_candidate_scans`

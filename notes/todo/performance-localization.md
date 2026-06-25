@@ -256,6 +256,8 @@ compact / dominance / role projection をかなり再走査している。
    - compact nodes / vars
    - dominance input count
    - role projection input count
+   - 2026-06-26: `analysis.generalize_top_restart_*` として、最も restart が多い
+     root の role input / reachable / coalesced / dominance / role resolve 入力数を出す。
 2. `constraint epoch` を導入し、root summary が依存する var / bound / role input の epoch を記録する。
 3. `root compact cache` を作り、involved-variable epoch が変わらない限り再利用する。
 4. `dominance cache` と `role projection cache` を同じ方式で足す。

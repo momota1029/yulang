@@ -70,6 +70,11 @@ impl AnalysisSession {
                 reachable_role_count,
                 coalesced_role_constraints.len(),
             );
+            metrics.record_role_constraints(
+                role_input_count,
+                reachable_role_count,
+                coalesced_role_constraints.len(),
+            );
             let elapsed = phase.elapsed();
             self.timing.record_generalize_collect_roles(elapsed);
             trace_generalize_phase(trace, "collect roles", def, elapsed, start);
@@ -115,6 +120,7 @@ impl AnalysisSession {
             let phase = Instant::now();
             self.timing
                 .record_generalize_dominance_roles(coalesced_role_constraints.len());
+            metrics.record_dominance_input(coalesced_role_constraints.len());
             let mut simplified_role_view = None;
             let subtype_constraints =
                 if compact_root_has_interval_bounds(&compact, &coalesced_role_constraints) {
@@ -130,6 +136,7 @@ impl AnalysisSession {
                     Vec::new()
                 };
             let subtype_constraint_count = subtype_constraints.len();
+            metrics.record_dominance_constraints(subtype_constraint_count);
             let elapsed = phase.elapsed();
             self.timing.record_generalize_collect_dominance(elapsed);
             trace_generalize_phase(trace, "collect dominance", def, elapsed, start);
@@ -192,6 +199,7 @@ impl AnalysisSession {
                 } else {
                     self.timing
                         .record_generalize_role_resolve_inputs(roles.len());
+                    metrics.record_role_resolve_inputs(roles.len());
                     let output = resolve_role_constraints_with_stats(
                         self.infer.constraints(),
                         &role_compact,
@@ -204,6 +212,7 @@ impl AnalysisSession {
                 }
             };
             let resolution_count = resolutions.len();
+            metrics.record_role_resolutions(resolution_count);
             let elapsed = phase.elapsed();
             self.timing
                 .record_generalize_resolve_roles(elapsed, resolution_count);

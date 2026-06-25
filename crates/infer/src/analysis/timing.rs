@@ -117,6 +117,13 @@ pub struct AnalysisTiming {
     pub generalize_top_restart_first_compact_vars: usize,
     pub generalize_top_restart_compact_iteration_nodes: usize,
     pub generalize_top_restart_compact_iteration_vars: usize,
+    pub generalize_top_restart_role_input_constraints: usize,
+    pub generalize_top_restart_reachable_role_constraints: usize,
+    pub generalize_top_restart_coalesced_role_constraints: usize,
+    pub generalize_top_restart_dominance_role_constraints: usize,
+    pub generalize_top_restart_dominance_subtype_constraints: usize,
+    pub generalize_top_restart_role_resolve_inputs: usize,
+    pub generalize_top_restart_role_resolutions: usize,
     pub generalize_role_input_constraints: usize,
     pub generalize_reachable_role_constraints: usize,
     pub generalize_coalesced_role_constraints: usize,
@@ -445,6 +452,14 @@ impl AnalysisTiming {
         self.generalize_top_restart_first_compact_vars = metrics.first_compact_vars.len();
         self.generalize_top_restart_compact_iteration_nodes = metrics.compact_iteration_nodes;
         self.generalize_top_restart_compact_iteration_vars = metrics.compact_iteration_vars;
+        self.generalize_top_restart_role_input_constraints = metrics.role_input_constraints;
+        self.generalize_top_restart_reachable_role_constraints = metrics.reachable_role_constraints;
+        self.generalize_top_restart_coalesced_role_constraints = metrics.coalesced_role_constraints;
+        self.generalize_top_restart_dominance_role_constraints = metrics.dominance_role_constraints;
+        self.generalize_top_restart_dominance_subtype_constraints =
+            metrics.dominance_subtype_constraints;
+        self.generalize_top_restart_role_resolve_inputs = metrics.role_resolve_inputs;
+        self.generalize_top_restart_role_resolutions = metrics.role_resolutions;
     }
 
     pub(super) fn record_generalize_role_constraints(

@@ -151,6 +151,13 @@ pub(super) struct GeneralizeRootMetrics {
     pub first_compact_vars: FxHashSet<TypeVar>,
     pub compact_iteration_nodes: usize,
     pub compact_iteration_vars: usize,
+    pub role_input_constraints: usize,
+    pub reachable_role_constraints: usize,
+    pub coalesced_role_constraints: usize,
+    pub dominance_role_constraints: usize,
+    pub dominance_subtype_constraints: usize,
+    pub role_resolve_inputs: usize,
+    pub role_resolutions: usize,
     compact_shape_iterations: usize,
 }
 
@@ -184,6 +191,33 @@ impl GeneralizeRootMetrics {
 
     pub(super) fn record_role_restart(&mut self) {
         self.role_restarts += 1;
+    }
+
+    pub(super) fn record_role_constraints(
+        &mut self,
+        input_count: usize,
+        reachable_count: usize,
+        coalesced_count: usize,
+    ) {
+        self.role_input_constraints += input_count;
+        self.reachable_role_constraints += reachable_count;
+        self.coalesced_role_constraints += coalesced_count;
+    }
+
+    pub(super) fn record_dominance_input(&mut self, role_count: usize) {
+        self.dominance_role_constraints += role_count;
+    }
+
+    pub(super) fn record_dominance_constraints(&mut self, subtype_count: usize) {
+        self.dominance_subtype_constraints += subtype_count;
+    }
+
+    pub(super) fn record_role_resolve_inputs(&mut self, count: usize) {
+        self.role_resolve_inputs += count;
+    }
+
+    pub(super) fn record_role_resolutions(&mut self, count: usize) {
+        self.role_resolutions += count;
     }
 
     fn restart_count(&self) -> usize {
