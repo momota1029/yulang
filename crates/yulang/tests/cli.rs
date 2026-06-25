@@ -341,6 +341,70 @@ fn compatible_run_populates_control_vm_cache() {
 }
 
 #[test]
+fn compatible_runtime_phase_timings_report_cache_route() {
+    let entry = write_entry("runtime-phase-cache-route", "1\n");
+    let root = entry.parent().unwrap().to_path_buf();
+    let cache_root = root.join("cache-root");
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [1]\n");
+    assert_cache_route(&output, "full-miss");
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [1]\n");
+    assert_cache_route(&output, "control-hit");
+
+    remove_cache_stage(&cache_root, "control-vm");
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [1]\n");
+    assert_cache_route(&output, "poly-hit");
+
+    remove_cache_stage(&cache_root, "control-vm");
+    remove_cache_stage(&cache_root, "poly");
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [1]\n");
+    assert_cache_route(&output, "compiled-unit-hit");
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn compatible_run_uses_single_source_unit_prefix_cache() {
     let root = temp_root("run-source-unit-prefix-cache");
     let _ = fs::remove_dir_all(&root);
@@ -550,6 +614,15 @@ fn poly_cache_file_count(root: &Path) -> usize {
 
 fn compiled_unit_cache_file_count(root: &Path) -> usize {
     artifact_cache_file_count(root, "compiled-unit")
+}
+
+fn remove_cache_stage(root: &Path, stage: &str) {
+    let _ = fs::remove_dir_all(root.join("artifacts").join(stage));
+}
+
+fn assert_cache_route(output: &Output, route: &str) {
+    let stderr = stderr(output);
+    assert!(stderr.contains(&format!("run.cache: {route}")), "{stderr}");
 }
 
 fn artifact_cache_file_count(root: &Path, stage: &str) -> usize {
