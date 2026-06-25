@@ -3,6 +3,24 @@ use super::*;
 mod tests {
     use super::*;
 
+    fn on_test_stack<T>(work: impl FnOnce() -> T + Send + 'static) -> T
+    where
+        T: Send + 'static,
+    {
+        std::thread::Builder::new()
+            .name("wasm-run-inner-test-stack".to_string())
+            .stack_size(16 * 1024 * 1024)
+            .spawn(work)
+            .unwrap()
+            .join()
+            .unwrap()
+    }
+
+    fn run_inner_on_test_stack(source: &str) -> RunOutput {
+        let source = source.to_string();
+        on_test_stack(move || run_inner(&source))
+    }
+
     #[test]
     fn run_inner_uses_no_std_fast_path_for_core_source() {
         clear_std_cache();
@@ -61,6 +79,16 @@ mod tests {
             Some("2.2")
         );
         assert!(output.file_count < yulang::stdlib::embedded_std_files().len() + 1);
+    }
+
+    #[test]
+    fn embedded_playground_std_artifact_status_is_valid() {
+        let output = embedded_std_status_inner();
+
+        assert!(output.valid, "{output:?}");
+        assert_eq!(output.artifacts, 1);
+        assert!(output.bytes > 0);
+        assert_eq!(output.fallback_reason, None);
     }
 
     #[test]
@@ -141,7 +169,8 @@ point { x: 3, y: 4 } .norm2 + 1.12
     #[test]
     fn run_inner_routes_junction_prelude_names_to_embedded_std() {
         clear_std_cache();
-        let output = run_inner("if all [1, 2, 3] < any [2, 3, 4]:\n  1\nelse:\n  0\n");
+        let output =
+            run_inner_on_test_stack("if all [1, 2, 3] < any [2, 3, 4]:\n  1\nelse:\n  0\n");
 
         assert!(output.ok, "{output:?}");
         assert_eq!(
@@ -185,19 +214,23 @@ sub:
     println b.show
     2
 ";
-        let output = run_inner(source);
-        let full_std_output = run_control_from_source_text_with_embedded_std(source).unwrap();
+        let source = source.to_string();
+        let (output, full_std_stdout, full_std_text) = on_test_stack(move || {
+            let output = run_inner(&source);
+            let full_std_output = run_control_from_source_text_with_embedded_std(&source).unwrap();
+            (output, full_std_output.stdout, full_std_output.text)
+        });
 
-        assert_eq!(full_std_output.stdout, "");
-        assert_eq!(full_std_output.text, "run roots [0]\n");
+        assert_eq!(full_std_stdout, "");
+        assert_eq!(full_std_text, "run roots [0]\n");
 
         assert!(output.ok, "{output:?}");
-        assert_eq!(output.stdout, full_std_output.stdout);
+        assert_eq!(output.stdout, full_std_stdout);
         assert_eq!(
             output.results.first().map(|result| result.value.as_str()),
             Some("0")
         );
-        assert_eq!(output.text, full_std_output.text);
+        assert_eq!(output.text, full_std_text);
     }
 
     #[test]
@@ -214,16 +247,20 @@ sub:
     (a, b, c)
 } .once
 ";
-        let output = run_inner(source);
-        let full_std_output = run_control_from_source_text_with_embedded_std(source).unwrap();
+        let source = source.to_string();
+        let (output, full_std_text) = on_test_stack(move || {
+            let output = run_inner(&source);
+            let full_std_output = run_control_from_source_text_with_embedded_std(&source).unwrap();
+            (output, full_std_output.text)
+        });
 
-        assert_eq!(full_std_output.text, "run roots [just (3, 4, 5)]\n");
+        assert_eq!(full_std_text, "run roots [just (3, 4, 5)]\n");
         assert!(output.ok, "{output:?}");
         assert_eq!(
             output.results.first().map(|result| result.value.as_str()),
             Some("just (3, 4, 5)")
         );
-        assert_eq!(output.text, full_std_output.text);
+        assert_eq!(output.text, full_std_text);
     }
 
     #[test]

@@ -160,15 +160,7 @@ impl ArtifactCache {
         if !compiled_unit_envelope_matches_key(key, &envelope) {
             return Ok(None);
         }
-        Ok(Some(CachedCompiledUnitArtifact {
-            manifest: envelope.manifest,
-            syntax: envelope.syntax,
-            namespace: envelope.namespace,
-            lowering: envelope.lowering,
-            typed: envelope.typed,
-            runtime: envelope.runtime,
-            errors: envelope.errors,
-        }))
+        Ok(Some(cached_compiled_unit_artifact_from_envelope(envelope)))
     }
 
     pub fn read_source_unit_compiled_artifacts(
@@ -249,6 +241,42 @@ impl CachedCompiledUnitArtifact {
             hash: self.manifest.source_hash,
         }
     }
+}
+
+pub fn encode_compiled_unit_artifact_bytes(
+    artifact: &CachedCompiledUnitArtifact,
+) -> Result<Vec<u8>, CacheError> {
+    let envelope = CompiledUnitCacheEnvelope {
+        format: COMPILED_UNIT_CACHE_FORMAT,
+        manifest: &artifact.manifest,
+        syntax: &artifact.syntax,
+        namespace: &artifact.namespace,
+        lowering: &artifact.lowering,
+        typed: &artifact.typed,
+        runtime: &artifact.runtime,
+        errors: &artifact.errors,
+    };
+    bincode::serialize(&envelope).map_err(|error| CacheError::Encode {
+        path: embedded_compiled_unit_artifact_path(),
+        error,
+    })
+}
+
+pub fn decode_compiled_unit_artifact_bytes(
+    bytes: &[u8],
+    key: SourceCacheKey,
+) -> Result<Option<CachedCompiledUnitArtifact>, CacheError> {
+    let envelope: CompiledUnitCacheEnvelope =
+        bincode::deserialize(bytes).map_err(|error| CacheError::Decode {
+            path: embedded_compiled_unit_artifact_path(),
+            error,
+        })?;
+    if envelope.format != COMPILED_UNIT_CACHE_FORMAT
+        || !compiled_unit_envelope_matches_key(key, &envelope)
+    {
+        return Ok(None);
+    }
+    Ok(Some(cached_compiled_unit_artifact_from_envelope(envelope)))
 }
 
 pub struct CachedSourceUnitCompiledArtifacts {
@@ -603,6 +631,24 @@ fn compiled_unit_envelope_matches_key(
         && manifest.lowering_hash == compiled_lowering_hash(&envelope.lowering)
         && manifest.typed_hash == compiled_typed_hash(&envelope.typed)
         && manifest.runtime_hash == compiled_runtime_hash(&envelope.runtime)
+}
+
+fn cached_compiled_unit_artifact_from_envelope(
+    envelope: CompiledUnitCacheEnvelope,
+) -> CachedCompiledUnitArtifact {
+    CachedCompiledUnitArtifact {
+        manifest: envelope.manifest,
+        syntax: envelope.syntax,
+        namespace: envelope.namespace,
+        lowering: envelope.lowering,
+        typed: envelope.typed,
+        runtime: envelope.runtime,
+        errors: envelope.errors,
+    }
+}
+
+fn embedded_compiled_unit_artifact_path() -> PathBuf {
+    PathBuf::from("<embedded-compiled-unit-artifact>")
 }
 
 fn source_cache_key_with_schema(files: &[CollectedSource], schema: CacheSchema) -> SourceCacheKey {

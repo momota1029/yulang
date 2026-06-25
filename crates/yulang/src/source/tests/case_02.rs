@@ -810,6 +810,18 @@ fn run_control_source_text_with_embedded_playground_std_runs_list_update_example
 }
 
 #[test]
+fn run_control_source_text_with_embedded_playground_std_runs_junction_prelude_example() {
+    let source = "if all [1, 2, 3] < any [2, 3, 4]:\n  1\nelse:\n  0\n";
+    let build =
+        build_control_from_source_text_with_embedded_playground_std("playground.yu", source)
+            .unwrap();
+    assert!(build.errors.is_empty(), "{:?}", build.errors);
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(output.0, "run roots [1]\n");
+}
+
+#[test]
 fn typed_playground_std_prefix_matches_loaded_route_for_list_update() {
     let source = yulang_fixture("regressions/runtime/list_update.yu");
     let loaded =

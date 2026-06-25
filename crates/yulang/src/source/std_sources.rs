@@ -127,30 +127,44 @@ pub(super) fn embedded_playground_std_lowering_with_root(
     source: String,
 ) -> Result<(infer::lowering::BodyLowering, usize), RouteError> {
     let prefix = cached_embedded_playground_std_lowering_prefix()?;
-    let loaded_prefix = cached_embedded_playground_std_loaded_prefix();
-    let loaded = load_with_embedded_prefix_prelude_only(loaded_prefix, source);
-    let file_count = loaded.len();
-    let root = loaded
-        .iter()
-        .find(|file| file.module_path.segments.is_empty())
-        .ok_or(RouteError::Lower(infer::LoadedFilesError::MissingRoot))?;
-    let lowering = infer::lowering::lower_root_loaded_file_with_prefix(&prefix, root)
-        .map_err(RouteError::Lower)?;
-    Ok((lowering, file_count))
+    lower_root_with_embedded_prefix(
+        &prefix,
+        cached_embedded_playground_std_loaded_prefix(),
+        source,
+    )
+}
+
+pub(super) fn embedded_playground_std_lowering_with_root_artifact(
+    artifact: crate::cache::CachedCompiledUnitArtifact,
+    source: String,
+) -> Result<(infer::lowering::BodyLowering, usize), RouteError> {
+    let prefix = lowering_prefix_from_compiled_unit_artifact(artifact)?;
+    lower_root_with_embedded_prefix(
+        &prefix,
+        cached_embedded_playground_std_loaded_prefix(),
+        source,
+    )
 }
 
 pub(super) fn embedded_std_lowering_with_root(
     source: String,
 ) -> Result<(infer::lowering::BodyLowering, usize), RouteError> {
     let prefix = cached_embedded_std_lowering_prefix()?;
-    let loaded_prefix = cached_embedded_std_loaded_prefix();
+    lower_root_with_embedded_prefix(&prefix, cached_embedded_std_loaded_prefix(), source)
+}
+
+fn lower_root_with_embedded_prefix(
+    prefix: &infer::lowering::BodyLoweringPrefix,
+    loaded_prefix: Vec<sources::LoadedFile>,
+    source: String,
+) -> Result<(infer::lowering::BodyLowering, usize), RouteError> {
     let loaded = load_with_embedded_prefix_prelude_only(loaded_prefix, source);
     let file_count = loaded.len();
     let root = loaded
         .iter()
         .find(|file| file.module_path.segments.is_empty())
         .ok_or(RouteError::Lower(infer::LoadedFilesError::MissingRoot))?;
-    let lowering = infer::lowering::lower_root_loaded_file_with_prefix(&prefix, root)
+    let lowering = infer::lowering::lower_root_loaded_file_with_prefix(prefix, root)
         .map_err(RouteError::Lower)?;
     Ok((lowering, file_count))
 }
@@ -181,13 +195,7 @@ fn cached_embedded_std_lowering_prefix() -> Result<infer::lowering::BodyLowering
             embedded_std_sources_with_root(FsPath::new("<embedded-std-root>"), String::new());
         let loaded = load_collected_source_files(files.clone());
         let artifact = cached_embedded_compiled_unit_artifact(&files, &loaded)?;
-        let prefix = infer::lowering::BodyLoweringPrefix::from_compiled_unit_surfaces(
-            &artifact.namespace,
-            &artifact.lowering,
-            &artifact.runtime,
-        )
-        .ok_or(infer::LoadedFilesError::MissingRoot)
-        .map_err(RouteError::Lower)?;
+        let prefix = lowering_prefix_from_compiled_unit_artifact(artifact)?;
         *cache.borrow_mut() = Some(prefix.clone());
         Ok(prefix)
     })
@@ -215,16 +223,22 @@ fn cached_embedded_playground_std_lowering_prefix()
         );
         let loaded = load_collected_source_files(files.clone());
         let artifact = cached_embedded_compiled_unit_artifact(&files, &loaded)?;
-        let prefix = infer::lowering::BodyLoweringPrefix::from_compiled_unit_surfaces(
-            &artifact.namespace,
-            &artifact.lowering,
-            &artifact.runtime,
-        )
-        .ok_or(infer::LoadedFilesError::MissingRoot)
-        .map_err(RouteError::Lower)?;
+        let prefix = lowering_prefix_from_compiled_unit_artifact(artifact)?;
         *cache.borrow_mut() = Some(prefix.clone());
         Ok(prefix)
     })
+}
+
+fn lowering_prefix_from_compiled_unit_artifact(
+    artifact: crate::cache::CachedCompiledUnitArtifact,
+) -> Result<infer::lowering::BodyLoweringPrefix, RouteError> {
+    infer::lowering::BodyLoweringPrefix::from_compiled_unit_surfaces(
+        &artifact.namespace,
+        &artifact.lowering,
+        &artifact.runtime,
+    )
+    .ok_or(infer::LoadedFilesError::MissingRoot)
+    .map_err(RouteError::Lower)
 }
 
 pub(super) fn cached_embedded_compiled_unit_artifact(

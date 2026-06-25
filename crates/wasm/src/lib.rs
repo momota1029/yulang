@@ -9,9 +9,14 @@ use wasm_bindgen::prelude::*;
 use yulang_editor::semantic_tokens;
 
 const PLAYGROUND_ENTRY: &str = "playground.yu";
+const PLAYGROUND_STD_ARTIFACT_ENTRY: &str = "<embedded-playground-std-root>";
+const EMBEDDED_PLAYGROUND_STD_ARTIFACT: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/embedded_playground_std.yuunit"));
 
 thread_local! {
     static RUN_CACHE: RefCell<HashMap<String, RunOutput>> = RefCell::new(HashMap::new());
+    static PLAYGROUND_STD_ARTIFACT: RefCell<Option<Option<yulang::cache::CachedCompiledUnitArtifact>>> =
+        const { RefCell::new(None) };
 }
 
 #[wasm_bindgen]
@@ -150,27 +155,31 @@ fn semantic_highlight_spans(
 }
 
 pub fn warm_std_cache_inner() -> WarmupOutput {
+    let status = embedded_std_status_inner();
     WarmupOutput {
         source_cache_hits: 0,
         source_cache_misses: 0,
         source_cache_clone_ms: 0.0,
         source_cache_build_ms: 0.0,
-        embedded_std_artifacts: yulang::stdlib::embedded_std_files().len(),
-        embedded_std_runtime_bindings: 0,
-        embedded_std_artifacts_bytes: embedded_std_source_bytes(),
-        embedded_std_artifacts_valid: true,
-        embedded_std_artifacts_fallback_reason: None,
+        embedded_std_artifacts: status.artifacts,
+        embedded_std_runtime_bindings: status.runtime_bindings,
+        embedded_std_artifacts_bytes: status.bytes,
+        embedded_std_artifacts_valid: status.valid,
+        embedded_std_artifacts_fallback_reason: status.fallback_reason,
         total_ms: 0.0,
     }
 }
 
 pub fn embedded_std_status_inner() -> EmbeddedStdArtifactsOutput {
+    let artifact = embedded_playground_std_artifact();
     EmbeddedStdArtifactsOutput {
-        artifacts: yulang::stdlib::embedded_std_files().len(),
+        artifacts: 1,
         runtime_bindings: 0,
-        bytes: embedded_std_source_bytes(),
-        valid: true,
-        fallback_reason: None,
+        bytes: EMBEDDED_PLAYGROUND_STD_ARTIFACT.len(),
+        valid: artifact.is_some(),
+        fallback_reason: artifact
+            .is_none()
+            .then(|| "embedded playground std artifact failed validation".to_string()),
     }
 }
 
@@ -288,12 +297,44 @@ fn run_control_from_source_text_with_embedded_std(
 fn run_control_from_source_text_with_playground_std(
     source: &str,
 ) -> Result<WasmControlOutput, yulang::RouteError> {
-    let poly = yulang::build_poly_from_source_text_with_embedded_playground_std(
-        PLAYGROUND_ENTRY,
-        source.to_string(),
-    )?;
+    let poly = match embedded_playground_std_artifact() {
+        Some(artifact) => yulang::build_poly_from_embedded_playground_std_compiled_unit_artifact(
+            artifact,
+            source.to_string(),
+        )?,
+        None => yulang::build_poly_from_source_text_with_embedded_playground_std(
+            PLAYGROUND_ENTRY,
+            source.to_string(),
+        )?,
+    };
     let output = build_named_control_from_poly(poly)?;
     run_built_control_program_with_host(output)
+}
+
+fn embedded_playground_std_artifact() -> Option<yulang::cache::CachedCompiledUnitArtifact> {
+    PLAYGROUND_STD_ARTIFACT.with(|cache| {
+        if let Some(cached) = cache.borrow().as_ref() {
+            return cached.clone();
+        }
+
+        let decoded = decode_embedded_playground_std_artifact();
+        *cache.borrow_mut() = Some(decoded.clone());
+        decoded
+    })
+}
+
+fn decode_embedded_playground_std_artifact() -> Option<yulang::cache::CachedCompiledUnitArtifact> {
+    let files = yulang::collect_source_text_with_embedded_playground_std(
+        PLAYGROUND_STD_ARTIFACT_ENTRY,
+        String::new(),
+    )
+    .ok()?;
+    let key = yulang::cache::source_cache_key(&files);
+    let artifact =
+        yulang::cache::decode_compiled_unit_artifact_bytes(EMBEDDED_PLAYGROUND_STD_ARTIFACT, key)
+            .ok()
+            .flatten()?;
+    artifact.errors.is_empty().then_some(artifact)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -825,13 +866,6 @@ fn format_control_delimited_values(
     out
 }
 
-fn embedded_std_source_bytes() -> usize {
-    yulang::stdlib::embedded_std_files()
-        .iter()
-        .map(|file| file.source.len())
-        .sum()
-}
-
 fn source_likely_needs_embedded_std(source: &str) -> bool {
     source.contains("std::")
         || source.contains("use std")
@@ -908,6 +942,5 @@ fn set_panic_hook() {
     console_error_panic_hook::set_once();
 }
 
-#[cfg(test)]
 #[cfg(test)]
 mod playground_tests;
