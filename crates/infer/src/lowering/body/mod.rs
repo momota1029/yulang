@@ -253,6 +253,10 @@ impl BodyLoweringPrefixRuntime {
         self.defs.contains(&def)
     }
 
+    pub fn def_ids(&self) -> impl Iterator<Item = DefId> + '_ {
+        self.defs.iter().copied()
+    }
+
     pub fn module_def(&self, module: u32) -> Option<DefId> {
         self.modules.get(&module).map(|entry| entry.def)
     }

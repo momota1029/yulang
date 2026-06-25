@@ -270,6 +270,9 @@ The first external-reference preparation is also in place:
   the manifest;
 - compiled-unit merge remaps these external runtime refs through the same
   namespace/runtime remaps used by the merged surfaces.
+- `CompiledRuntimeSurface::import_into_with_external_defs` can map selected
+  source `DefId`s to already-imported target `DefId`s instead of fresh-copying
+  them, and skips external roots / metadata during import.
 
 This does not serialize dependent units without their dependencies yet. It only
 gives the suffix lowering result a reliable way to distinguish prefix-owned
@@ -287,7 +290,7 @@ IDs, importing the artifact later will miswire or point at missing defs.
 Therefore finer-grained dependency-bearing source-unit artifacts still need:
 
 - runtime surface trimming for prefix-owned defs;
-- import-time resolution that maps serialized external refs against the
+- cache-layer wiring that builds external def maps from serialized refs and an
   already-imported dependency prefix;
 - a rejection path for prefix-owned refs that are not namespace-keyed yet.
 

@@ -82,6 +82,7 @@ impl CompiledRuntimeMergeOutput {
 }
 
 pub struct CompiledRuntimeImport {
+    external_defs: FxHashSet<DefId>,
     pub defs: FxHashMap<DefId, DefId>,
     pub exprs: FxHashMap<ExprId, ExprId>,
     pub pats: FxHashMap<PatId, PatId>,
@@ -131,7 +132,20 @@ impl CompiledRuntimeSurface {
         target: &mut PolyArena,
         labels: &mut DumpLabels,
     ) -> CompiledRuntimeImport {
+        self.import_into_with_external_defs(target, labels, [])
+    }
+
+    pub fn import_into_with_external_defs(
+        &self,
+        target: &mut PolyArena,
+        labels: &mut DumpLabels,
+        external_defs: impl IntoIterator<Item = (DefId, DefId)>,
+    ) -> CompiledRuntimeImport {
         let mut import = CompiledRuntimeImport::new();
+        for (source, target) in external_defs {
+            import.external_defs.insert(source);
+            import.defs.insert(source, target);
+        }
         reserve_def_ids(&self.arena, target, &mut import);
         reserve_ref_ids(&self.arena, target, &mut import);
         reserve_select_ids(&self.arena, target, &mut import);
@@ -160,18 +174,21 @@ impl CompiledRuntimeSurface {
             .arena
             .roots
             .iter()
+            .filter(|id| !import.is_external_def(**id))
             .map(|id| import.map_def(*id))
             .collect();
         import.runtime_roots = self
             .arena
             .runtime_roots
             .iter()
+            .filter(|root| !runtime_root_is_external(root, &import))
             .map(|root| import_runtime_root(root, &import))
             .collect();
         import.root_exprs = self
             .arena
             .root_exprs
             .iter()
+            .filter(|id| !root_expr_is_external(&self.arena, **id, &import))
             .map(|id| import.map_expr(*id))
             .collect();
         import.modules = self
@@ -309,6 +326,7 @@ impl CompiledRuntimeSurface {
 impl CompiledRuntimeImport {
     fn new() -> Self {
         Self {
+            external_defs: FxHashSet::default(),
             defs: FxHashMap::default(),
             exprs: FxHashMap::default(),
             pats: FxHashMap::default(),
@@ -327,6 +345,10 @@ impl CompiledRuntimeImport {
             .defs
             .get(&id)
             .unwrap_or_else(|| panic!("compiled runtime def id {} is missing", id.0))
+    }
+
+    fn is_external_def(&self, id: DefId) -> bool {
+        self.external_defs.contains(&id)
     }
 
     fn map_expr(&self, id: ExprId) -> ExprId {
@@ -459,6 +481,9 @@ fn path_from_strings(path: &[String]) -> sources::Path {
 
 fn reserve_def_ids(source: &PolyArena, target: &mut PolyArena, import: &mut CompiledRuntimeImport) {
     for id in sorted_def_ids(source) {
+        if import.is_external_def(id) {
+            continue;
+        }
         import.defs.insert(id, target.defs.fresh());
     }
 }
@@ -509,6 +534,7 @@ fn import_defs(
 ) -> Vec<(DefId, Def)> {
     sorted_def_ids(source)
         .into_iter()
+        .filter(|source_id| !import.is_external_def(*source_id))
         .map(|source_id| {
             let target_id = import.map_def(source_id);
             let source_def = source
@@ -728,6 +754,19 @@ fn import_runtime_root(root: &RuntimeRoot, import: &CompiledRuntimeImport) -> Ru
     }
 }
 
+fn runtime_root_is_external(root: &RuntimeRoot, import: &CompiledRuntimeImport) -> bool {
+    match root {
+        RuntimeRoot::Expr(_) => false,
+        RuntimeRoot::ComputedDef(def) => import.is_external_def(*def),
+    }
+}
+
+fn root_expr_is_external(source: &PolyArena, expr: ExprId, import: &CompiledRuntimeImport) -> bool {
+    source
+        .root_expr_def(expr)
+        .is_some_and(|def| import.is_external_def(def))
+}
+
 fn import_root_expr_defs(
     source: &PolyArena,
     target: &mut PolyArena,
@@ -736,6 +775,9 @@ fn import_root_expr_defs(
     let mut pairs = source.root_expr_defs.iter().collect::<Vec<_>>();
     pairs.sort_by_key(|(expr, _)| expr.0);
     for (expr, def) in pairs {
+        if import.is_external_def(*def) {
+            continue;
+        }
         target
             .root_expr_defs
             .insert(import.map_expr(*expr), import.map_def(*def));
@@ -750,6 +792,7 @@ fn import_cast_rules(
     source
         .cast_rules
         .iter()
+        .filter(|rule| !import.is_external_def(rule.def))
         .map(|rule| CastRule {
             def: import.map_def(rule.def),
             source: rule.source.clone(),
@@ -767,6 +810,11 @@ fn import_role_impls(
     source
         .role_impls
         .iter()
+        .filter(|candidate| {
+            candidate
+                .impl_def
+                .is_none_or(|def| !import.is_external_def(def))
+        })
         .map(|candidate| import_role_impl_candidate(candidate, import, type_importer))
         .collect()
 }
@@ -848,6 +896,9 @@ fn import_effect_operations(
     let mut operations = source.effect_operations.iter().collect::<Vec<_>>();
     operations.sort_by_key(|(def, _)| def.0);
     for (def, operation) in operations {
+        if import.is_external_def(*def) {
+            continue;
+        }
         target.effect_operations.insert(
             import.map_def(*def),
             EffectOperation {
@@ -861,6 +912,9 @@ fn import_constructors(source: &PolyArena, target: &mut PolyArena, import: &Comp
     let mut constructors = source.constructors.iter().collect::<Vec<_>>();
     constructors.sort_by_key(|(def, _)| def.0);
     for (def, constructor) in constructors {
+        if import.is_external_def(*def) {
+            continue;
+        }
         target.constructors.insert(
             import.map_def(*def),
             Constructor {
@@ -880,6 +934,9 @@ fn import_arg_effect_contracts(
     let mut contracts = source.arg_effect_contracts.iter().collect::<Vec<_>>();
     contracts.sort_by_key(|(def, _)| def.0);
     for (def, contract) in contracts {
+        if import.is_external_def(*def) {
+            continue;
+        }
         target
             .arg_effect_contracts
             .insert(import.map_def(*def), import_arg_effect_contract(contract));
@@ -898,6 +955,9 @@ fn import_field_projections(
     let mut projections = source.field_projections.iter().copied().collect::<Vec<_>>();
     projections.sort_by_key(|def| def.0);
     for def in projections {
+        if import.is_external_def(def) {
+            continue;
+        }
         target.field_projections.insert(import.map_def(def));
     }
 }
@@ -906,6 +966,9 @@ fn import_labels(source: &DumpLabels, target: &mut DumpLabels, import: &Compiled
     let mut def_labels = source.def_labels().collect::<Vec<_>>();
     def_labels.sort_by_key(|(def, _)| def.0);
     for (def, label) in def_labels {
+        if import.is_external_def(def) {
+            continue;
+        }
         target.set_def_label(import.map_def(def), label);
     }
 
@@ -1314,6 +1377,59 @@ mod tests {
             .expect("suffix binding should resolve");
         assert!(lowered.prefix_runtime().contains_def(id));
         assert!(!lowered.prefix_runtime().contains_def(y));
+    }
+
+    #[test]
+    fn runtime_surface_import_resolves_external_defs_without_copying_them() {
+        let loaded = sources::load(vec![
+            source(&[], "mod deps;\npub use deps::*\n"),
+            source(&["deps"], "pub id x = x\n"),
+        ]);
+        let lowering = lower_loaded_files(&loaded).unwrap();
+        let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
+        let lowering_surface =
+            CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
+        let runtime = CompiledRuntimeSurface::from_lowering_with_namespace(&lowering, &namespace);
+        let prefix = BodyLoweringPrefix::from_compiled_unit_surfaces(
+            &namespace,
+            &lowering_surface,
+            &runtime,
+        )
+        .expect("compiled surfaces should rebuild a root prefix");
+        let root = sources::load(vec![source(&[], "pub y = id 1\n")])
+            .into_iter()
+            .next()
+            .unwrap();
+        let lowered = lower_root_loaded_file_with_prefix(&prefix, &root).unwrap();
+        assert_eq!(lowered.errors, Vec::new());
+        let namespace = CompiledNamespaceSurface::from_module_table(&lowered.modules);
+        let runtime = CompiledRuntimeSurface::from_lowering_with_namespace(&lowered, &namespace);
+        let external_defs = lowered.prefix_runtime().def_ids().collect::<FxHashSet<_>>();
+        let mut target = lowered.session.poly.clone();
+        let old_def_count = target.defs.len();
+        let external_pairs = external_defs
+            .iter()
+            .map(|def| (*def, *def))
+            .collect::<Vec<_>>();
+        let mut labels = DumpLabels::new();
+
+        let import =
+            runtime.import_into_with_external_defs(&mut target, &mut labels, external_pairs);
+
+        let local_def_count = runtime.arena.defs.len() - external_defs.len();
+        assert_eq!(target.defs.len(), old_def_count + local_def_count);
+        for def in &external_defs {
+            assert_eq!(import.map_def(*def), *def);
+        }
+        let site = ModuleOrder::from_index(u32::MAX);
+        let root = lowered.modules.root_id();
+        let y = lowered
+            .modules
+            .value_path_at(root, &[Name("y".into())], site)
+            .expect("suffix binding should resolve");
+        assert!(!external_defs.contains(&y));
+        assert_ne!(import.map_def(y), y);
+        assert!(target.defs.get(import.map_def(y)).is_some());
     }
 
     #[test]

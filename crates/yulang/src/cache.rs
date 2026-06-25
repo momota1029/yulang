@@ -306,6 +306,7 @@ pub struct CompiledUnitManifest {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompiledUnitExternalRuntimeRefs {
     pub imported_def_count: usize,
+    pub defs: Vec<poly::expr::DefId>,
     pub modules: Vec<CompiledUnitExternalRuntimeModuleRef>,
     pub values: Vec<CompiledUnitExternalRuntimeValueRef>,
 }
@@ -530,6 +531,10 @@ fn compiled_unit_external_runtime_refs(
         .map(|value| (value.unit_id, value.path.clone()))
         .collect::<std::collections::HashMap<_, _>>();
 
+    let mut defs = lowering.prefix_runtime().def_ids().collect::<Vec<_>>();
+    defs.sort_by_key(|def| def.0);
+    defs.dedup();
+
     let mut modules = lowering
         .prefix_runtime()
         .module_defs()
@@ -572,6 +577,7 @@ fn compiled_unit_external_runtime_refs(
 
     CompiledUnitExternalRuntimeRefs {
         imported_def_count: lowering.prefix_runtime().def_count(),
+        defs,
         modules,
         values,
     }
@@ -718,6 +724,15 @@ fn merge_compiled_unit_external_runtime_refs(
             });
         }
     }
+    let mut defs = Vec::new();
+    for (prefix, artifact) in artifacts.iter().enumerate() {
+        for def in &artifact.external_runtime.defs {
+            let def = runtime
+                .map_def(prefix, *def)
+                .ok_or(CompiledUnitExternalRuntimeMergeError::MissingDef { prefix, def: *def })?;
+            defs.push(def);
+        }
+    }
 
     modules.sort_by(|left, right| {
         left.module_path
@@ -733,9 +748,12 @@ fn merge_compiled_unit_external_runtime_refs(
             .then_with(|| left.def.0.cmp(&right.def.0))
     });
     values.dedup();
+    defs.sort_by_key(|def| def.0);
+    defs.dedup();
 
     Ok(CompiledUnitExternalRuntimeRefs {
         imported_def_count,
+        defs,
         modules,
         values,
     })
@@ -1364,6 +1382,7 @@ fn compiled_external_runtime_hash(external: &CompiledUnitExternalRuntimeRefs) ->
     let mut hasher = StableHasher::new();
     hasher.bytes(COMPILED_EXTERNAL_RUNTIME_HASH_SALT);
     hasher.usize(external.imported_def_count);
+    hash_def_ids(&mut hasher, &external.defs);
     hasher.usize(external.modules.len());
     for module in &external.modules {
         hasher.u32(module.module);
@@ -3268,6 +3287,10 @@ mod tests {
         );
 
         assert!(artifact.external_runtime.imported_def_count > 0);
+        assert_eq!(
+            artifact.external_runtime.imported_def_count,
+            artifact.external_runtime.defs.len()
+        );
         assert!(
             artifact
                 .external_runtime
