@@ -16,6 +16,9 @@
 - compiled-unit artifacts は syntax / namespace / typed / runtime surfaces を持つ。
 - wasm playground run は compact playground std と full embedded std の build-time
   compiled-unit artifact を embed する。
+- 2026-06-26 の compiled-unit cache speedup は
+  `notes/benchmarks/2026-06-26-compiled-unit-cache-speedup.md` に固定した。
+  体感速度の改善は clean-build solver 自体ではなく、std/source-unit surface の再推論回避から来ている。
 
 ## 主な risk
 
