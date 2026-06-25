@@ -15,7 +15,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::{
     CollectedSource, SourceCompilationUnits, SourceUnitCacheSelection,
-    SourceUnitLoweringInputError, source_unit_lowering_source_files,
+    SourceUnitLoweringInputError, source_unit_closure_file_indices,
+    source_unit_closure_lowering_source_files, source_unit_lowering_source_files,
 };
 
 const POLY_CACHE_FORMAT: u32 = 7;
@@ -348,6 +349,38 @@ pub fn compiled_unit_artifact_from_standalone_source_unit(
         .map_err(SourceUnitCompiledArtifactError::Lower)?;
     Ok(compiled_unit_artifact_from_lowering_with_key(
         &unit_files,
+        &loaded,
+        &lowering,
+        lowering
+            .errors
+            .iter()
+            .map(|error| format!("{error:?}"))
+            .collect(),
+        key,
+    ))
+}
+
+pub fn compiled_unit_artifact_from_source_unit_closure(
+    files: &[CollectedSource],
+    units: &SourceCompilationUnits,
+    unit: usize,
+) -> Result<CachedCompiledUnitArtifact, SourceUnitCompiledArtifactError> {
+    let keys = source_compilation_unit_cache_keys(files, units);
+    let key = *keys
+        .get(unit)
+        .ok_or(SourceUnitCompiledArtifactError::UnknownUnit { unit })?;
+    let closure_files = source_unit_closure_file_indices(units, unit)
+        .map_err(SourceUnitCompiledArtifactError::LoweringInput)?
+        .into_iter()
+        .map(|file| files[file].clone())
+        .collect::<Vec<_>>();
+    let lowering_files = source_unit_closure_lowering_source_files(files, units, unit)
+        .map_err(SourceUnitCompiledArtifactError::LoweringInput)?;
+    let loaded = sources::load(lowering_files);
+    let lowering = infer::lowering::lower_loaded_files(&loaded)
+        .map_err(SourceUnitCompiledArtifactError::Lower)?;
+    Ok(compiled_unit_artifact_from_lowering_with_key(
+        &closure_files,
         &loaded,
         &lowering,
         lowering
@@ -2854,6 +2887,43 @@ mod tests {
         );
 
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compiled_unit_cache_writes_dependent_source_unit_closure() {
+        let files =
+            module_chain_sources("pub mod a;\nx\n", "mod b;\npub x = b::y\n", "pub y = 7\n");
+        let units = crate::source::source_compilation_units(&files);
+        let a_unit = units.unit_for_file(1).unwrap();
+        let artifact =
+            compiled_unit_artifact_from_source_unit_closure(&files, &units, a_unit).unwrap();
+
+        assert!(artifact.errors.is_empty(), "{:?}", artifact.errors);
+        assert_eq!(artifact.manifest.files.len(), 2);
+        assert_eq!(artifact.manifest.files[0].module_path, vec!["a"]);
+        assert_eq!(artifact.manifest.files[1].module_path, vec!["a", "b"]);
+
+        let namespace = infer::CompiledNamespaceIndex::new(&artifact.namespace);
+        let x = namespace
+            .exported_value_symbol(&["a".to_string()], "x")
+            .unwrap();
+        let y = namespace
+            .exported_value_symbol(&["a".to_string(), "b".to_string()], "y")
+            .unwrap();
+        assert!(
+            artifact
+                .runtime
+                .values
+                .iter()
+                .any(|value| value.symbol == x)
+        );
+        assert!(
+            artifact
+                .runtime
+                .values
+                .iter()
+                .any(|value| value.symbol == y)
+        );
     }
 
     #[test]

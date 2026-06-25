@@ -127,13 +127,50 @@ pub fn source_unit_lowering_source_files(
         .units
         .get(unit)
         .ok_or(SourceUnitLoweringInputError::UnknownUnit { unit })?;
-    let actual_paths = source_unit
-        .files
+    source_unit_lowering_source_files_for_indices(files, units, &source_unit.files)
+}
+
+pub fn source_unit_closure_file_indices(
+    units: &SourceCompilationUnits,
+    unit: usize,
+) -> Result<Vec<usize>, SourceUnitLoweringInputError> {
+    if unit >= units.units.len() {
+        return Err(SourceUnitLoweringInputError::UnknownUnit { unit });
+    }
+
+    let mut selected = vec![false; units.units.len()];
+    collect_source_unit_closure(units, unit, &mut selected);
+    let mut files = Vec::new();
+    for (unit, selected) in selected.into_iter().enumerate() {
+        if selected {
+            files.extend(units.units[unit].files.iter().copied());
+        }
+    }
+    files.sort_unstable();
+    files.dedup();
+    Ok(files)
+}
+
+pub fn source_unit_closure_lowering_source_files(
+    files: &[CollectedSource],
+    units: &SourceCompilationUnits,
+    unit: usize,
+) -> Result<Vec<SourceFile>, SourceUnitLoweringInputError> {
+    let file_indices = source_unit_closure_file_indices(units, unit)?;
+    source_unit_lowering_source_files_for_indices(files, units, &file_indices)
+}
+
+fn source_unit_lowering_source_files_for_indices(
+    files: &[CollectedSource],
+    units: &SourceCompilationUnits,
+    file_indices: &[usize],
+) -> Result<Vec<SourceFile>, SourceUnitLoweringInputError> {
+    let actual_paths = file_indices
         .iter()
         .map(|file| files[*file].module_path.clone())
         .collect::<HashSet<_>>();
     let module_load_visibility = module_load_visibility(&units.module_loads)?;
-    let synthetic_paths = synthetic_parent_module_paths(source_unit, files, &actual_paths);
+    let synthetic_paths = synthetic_parent_module_paths(file_indices, files, &actual_paths);
     let required_paths = actual_paths
         .iter()
         .cloned()
@@ -146,11 +183,21 @@ pub fn source_unit_lowering_source_files(
             synthetic_module_source_file(&module_path, &required_paths, &module_load_visibility)
         })
         .collect::<Result<Vec<_>, _>>()?;
-    lowering_files.extend(source_unit.files.iter().map(|file| SourceFile {
+    lowering_files.extend(file_indices.iter().map(|file| SourceFile {
         module_path: files[*file].module_path.clone(),
         source: files[*file].source.clone(),
     }));
     Ok(lowering_files)
+}
+
+fn collect_source_unit_closure(units: &SourceCompilationUnits, unit: usize, selected: &mut [bool]) {
+    if selected[unit] {
+        return;
+    }
+    selected[unit] = true;
+    for dependency in &units.units[unit].dependencies {
+        collect_source_unit_closure(units, *dependency, selected);
+    }
 }
 
 fn source_dependency_edges(
@@ -196,12 +243,12 @@ fn module_load_visibility(
 }
 
 fn synthetic_parent_module_paths(
-    source_unit: &SourceCompilationUnit,
+    file_indices: &[usize],
     files: &[CollectedSource],
     actual_paths: &HashSet<Path>,
 ) -> Vec<Path> {
     let mut paths = HashSet::new();
-    for file in &source_unit.files {
+    for file in file_indices {
         let module_path = &files[*file].module_path;
         for depth in 0..module_path.segments.len() {
             let parent = Path {

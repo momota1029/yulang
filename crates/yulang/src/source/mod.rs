@@ -29,7 +29,8 @@ mod tests;
 use collector::*;
 pub use compilation_units::{
     SourceCompilationUnit, SourceCompilationUnits, SourceUnitCacheSelection,
-    SourceUnitLoweringInputError, source_compilation_units, source_unit_lowering_source_files,
+    SourceUnitLoweringInputError, source_compilation_units, source_unit_closure_file_indices,
+    source_unit_closure_lowering_source_files, source_unit_lowering_source_files,
 };
 use format::*;
 use std_sources::*;

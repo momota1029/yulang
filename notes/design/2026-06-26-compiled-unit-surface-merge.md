@@ -246,25 +246,34 @@ The accepted surface includes independent leaf modules and shared synthetic
 parent modules. Shared parent `Def::Mod` nodes are coalesced by unioning their
 children.
 
-The remaining item is dependency-bearing source units. A dependent unit cannot
-be serialized safely by simply lowering it with its dependency prefix and then
-dropping the dependency surfaces. Its lowered body may contain `RefId` or
-metadata paths to dependency `DefId`s that live in the prefix arena. If those
-external refs are left as raw arena-local IDs, importing the artifact later will
-miswire or point at missing defs.
+Dependency-bearing source units are now written as dependency-closure artifacts:
+the artifact for unit `u` includes `u` plus all transitive dependency units in
+one compiled unit. This keeps lowered runtime/lowering references inside the
+same artifact and avoids serializing raw external `DefId`s.
 
-Therefore dependency-bearing source-unit artifacts need one of these designs:
+The CLI selects cached prefix candidates by the source file set covered by each
+artifact. Overlapping closure artifacts are not merged together; a larger
+closure candidate wins, and uncovered files remain in the source suffix. This
+keeps shared-dependency cases conservative while still allowing independent
+closure artifacts to merge.
+
+The remaining item is the more incremental external-reference design. A
+dependent unit still cannot be serialized safely by lowering it against a
+compiled dependency prefix and then dropping the dependency surfaces. Its
+lowered body may contain `RefId` or metadata paths to dependency `DefId`s that
+live in the prefix arena. If those external refs are left as raw arena-local
+IDs, importing the artifact later will miswire or point at missing defs.
+
+Therefore finer-grained dependency-bearing source-unit artifacts still need:
 
 - an explicit external-reference table keyed by namespace symbol / module ID,
   with runtime import resolving those externals against the already-imported
   dependency prefix;
-- or a dependency-closure artifact whose cache selection treats the closure as a
-  single prefix and does not merge the dependency artifacts again.
 
-The first option is closer to realm/band incremental compilation. The second is
-simpler but changes source-unit selection semantics and can duplicate compiled
-surfaces if handled carelessly. Until one of these is implemented, the writer
-must continue to emit only dependency-free standalone source-unit artifacts.
+The closure artifact route is simpler and already implemented, but it can
+duplicate dependency surfaces across related cached artifacts. The
+external-reference table is still the route closer to realm/band incremental
+compilation.
 
 ## Non-goals
 

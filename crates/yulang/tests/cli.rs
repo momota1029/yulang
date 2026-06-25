@@ -486,7 +486,7 @@ fn compatible_run_uses_single_source_unit_prefix_cache() {
 
     assert_success(&output);
     assert_eq!(stdout(&output), "run roots [7]\n");
-    assert_eq!(compiled_unit_cache_file_count(&cache_root), 2);
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 3);
     assert_eq!(poly_cache_file_count(&cache_root), 1);
     assert_eq!(control_cache_file_count(&cache_root), 1);
 
@@ -504,7 +504,7 @@ fn compatible_run_uses_single_source_unit_prefix_cache() {
     assert_success(&output);
     assert_eq!(stdout(&output), "run roots [7]\n");
     assert!(stderr(&output).contains("run.cache: source-unit-prefix-hit"));
-    assert_eq!(compiled_unit_cache_file_count(&cache_root), 2);
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 3);
     assert_eq!(poly_cache_file_count(&cache_root), 2);
     assert_eq!(control_cache_file_count(&cache_root), 2);
 
