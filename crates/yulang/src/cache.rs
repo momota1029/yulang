@@ -17,7 +17,7 @@ use crate::source::CollectedSource;
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 3;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 4;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
@@ -154,6 +154,7 @@ impl ArtifactCache {
             syntax: envelope.syntax,
             namespace: envelope.namespace,
             typed: envelope.typed,
+            runtime: envelope.runtime,
         }))
     }
 
@@ -169,6 +170,7 @@ impl ArtifactCache {
             syntax: &artifact.syntax,
             namespace: &artifact.namespace,
             typed: &artifact.typed,
+            runtime: &artifact.runtime,
         };
         write_cache_envelope(&path, "yuunit", &envelope)
     }
@@ -199,6 +201,7 @@ pub struct CachedCompiledUnitArtifact {
     pub syntax: sources::CompiledSyntaxSurface,
     pub namespace: infer::CompiledNamespaceSurface,
     pub typed: infer::CompiledTypedSurface,
+    pub runtime: infer::CompiledRuntimeSurface,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -243,12 +246,14 @@ pub fn compiled_unit_artifact_from_loaded_files(
     let lowering = infer::lowering::lower_loaded_files(loaded)?;
     let namespace = infer::CompiledNamespaceSurface::from_module_table(&lowering.modules);
     let typed = infer::CompiledTypedSurface::from_lowering(&lowering, &namespace);
+    let runtime = infer::CompiledRuntimeSurface::from_lowering(&lowering);
     let manifest = compiled_unit_manifest(files, &syntax, &namespace, &typed);
     Ok(CachedCompiledUnitArtifact {
         manifest,
         syntax,
         namespace,
         typed,
+        runtime,
     })
 }
 
@@ -1023,12 +1028,14 @@ struct CompiledUnitCacheEnvelope<
     S = sources::CompiledSyntaxSurface,
     N = infer::CompiledNamespaceSurface,
     T = infer::CompiledTypedSurface,
+    R = infer::CompiledRuntimeSurface,
 > {
     format: u32,
     manifest: M,
     syntax: S,
     namespace: N,
     typed: T,
+    runtime: R,
 }
 
 fn read_cache_envelope<T>(path: &Path, format: u32) -> Result<Option<T>, CacheError>
@@ -1110,7 +1117,7 @@ impl<T, L, E> CacheEnvelope for ControlCacheEnvelope<T, L, E> {
     }
 }
 
-impl<M, S, N, T> CacheEnvelope for CompiledUnitCacheEnvelope<M, S, N, T> {
+impl<M, S, N, T, R> CacheEnvelope for CompiledUnitCacheEnvelope<M, S, N, T, R> {
     fn format(&self) -> u32 {
         self.format
     }
@@ -1348,6 +1355,11 @@ mod tests {
                 .any(|value| value.symbol == x_symbol)
         );
         assert_eq!(restored.typed.values.len(), artifact.typed.values.len());
+        assert_eq!(
+            restored.runtime.arena.defs.len(),
+            artifact.runtime.arena.defs.len()
+        );
+        assert_eq!(restored.runtime.labels, artifact.runtime.labels);
         assert!(cache.compiled_unit_artifact_path(key).is_file());
         assert_eq!(
             cache.compiled_unit_artifact_path(key).extension().unwrap(),

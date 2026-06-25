@@ -145,9 +145,14 @@ source dependency SCC ごとの compiled-unit cache である。
   typed schemes into a process-local value import view, resolving exported
   `(module path, name)` lookups to fresh `DefId`s without dependency bodies.
 - Done: `.yuunit` envelopes include typed surface data and `typed_hash`.
+- Done: `.yuunit` envelopes include `infer::CompiledRuntimeSurface`, currently
+  the lowered per-unit `poly::Arena` plus labels. This keeps dependency body /
+  effect-operation / constructor metadata available for the future remap/merge
+  path instead of pretending typed schemes alone are executable.
 - Not done: source dependency SCC selection and normal-path cache hit import.
-- Next: connect the compiled-unit value import view to the normal lowerer /
-  name-resolution path for cached dependency units.
+- Next: add a deterministic runtime-surface hash and then implement the
+  runtime remap/merge path. Only after that should the compiled-unit value
+  import view be connected to the normal lowerer/name-resolution path.
 
 撤退条件:
 
