@@ -488,6 +488,7 @@ struct ImportPathTarget {
 pub struct ModuleTable {
     nodes: Vec<ModuleNode>,
     act_templates: FxHashMap<TypeDeclId, Cst>,
+    act_type_vars: FxHashMap<TypeDeclId, Vec<String>>,
     act_copies: FxHashMap<TypeDeclId, ActCopyDecl>,
     resolved_act_copies: FxHashMap<TypeDeclId, ResolvedActCopyDecl>,
     synthetic_var_act_copies: FxHashSet<TypeDeclId>,

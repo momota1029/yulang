@@ -263,8 +263,8 @@ impl Lower {
         };
         let source_type_vars = self
             .modules
-            .act_template(source.id)
-            .map(act_type_var_names)
+            .act_type_vars(source.id)
+            .map(|vars| vars.to_vec())
             .unwrap_or_default();
         let type_var_aliases = source_type_vars
             .into_iter()
@@ -292,8 +292,8 @@ impl Lower {
         };
         let source_type_vars = self
             .modules
-            .act_template(source.id)
-            .map(act_type_var_names)
+            .act_type_vars(source.id)
+            .map(|vars| vars.to_vec())
             .unwrap_or_default();
         let type_var_aliases = source_type_vars
             .into_iter()
@@ -385,8 +385,8 @@ impl Lower {
         let source_decl = source_use.decl;
         let source_type_vars = self
             .modules
-            .act_template(source_decl.id)
-            .map(act_type_var_names)
+            .act_type_vars(source_decl.id)
+            .map(|vars| vars.to_vec())
             .unwrap_or_default();
         let type_var_aliases = source_type_vars
             .into_iter()

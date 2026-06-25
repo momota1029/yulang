@@ -1029,7 +1029,7 @@ impl<'a> ExprLowerer<'a> {
         if let Some(error) = self.modules.error_decl(id) {
             return error.type_vars.clone();
         }
-        if let Some(type_vars) = self.modules.act_template(id).map(crate::act_type_var_names)
+        if let Some(type_vars) = self.modules.act_type_vars(id).map(|vars| vars.to_vec())
             && !type_vars.is_empty()
         {
             return type_vars;
@@ -1043,8 +1043,8 @@ impl<'a> ExprLowerer<'a> {
             .cloned()
             .collect::<FxHashMap<_, _>>();
         self.modules
-            .act_template(copy.source)
-            .map(crate::act_type_var_names)
+            .act_type_vars(copy.source)
+            .map(|vars| vars.to_vec())
             .unwrap_or_default()
             .into_iter()
             .map(|source| aliases.get(&source).cloned().unwrap_or(source))

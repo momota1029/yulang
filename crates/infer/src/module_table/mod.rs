@@ -18,6 +18,7 @@ impl ModuleTable {
                 next_order: 0,
             }],
             act_templates: FxHashMap::default(),
+            act_type_vars: FxHashMap::default(),
             act_copies: FxHashMap::default(),
             resolved_act_copies: FxHashMap::default(),
             synthetic_var_act_copies: FxHashSet::default(),
@@ -150,6 +151,12 @@ impl ModuleTable {
     }
     pub(crate) fn act_template(&self, id: TypeDeclId) -> Option<&Cst> {
         self.act_templates.get(&id)
+    }
+    pub(super) fn set_act_type_vars(&mut self, id: TypeDeclId, type_vars: Vec<String>) {
+        self.act_type_vars.insert(id, type_vars);
+    }
+    pub(crate) fn act_type_vars(&self, id: TypeDeclId) -> Option<&[String]> {
+        self.act_type_vars.get(&id).map(Vec::as_slice)
     }
     pub(super) fn set_act_copy(&mut self, id: TypeDeclId, copy: ActCopyDecl) {
         self.act_copies.insert(id, copy);

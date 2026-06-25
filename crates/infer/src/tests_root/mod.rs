@@ -567,6 +567,19 @@ fn resolves_act_copy_type_arg_aliases() {
 }
 
 #[test]
+fn records_act_type_vars_as_module_metadata() {
+    let cst = parse("act source 'a 'b:\n  our tick: unit -> never\n");
+    let lower = lower_module_map(&cst);
+    let root = lower.modules.root_id();
+    let source = lower.modules.type_decls(root, &Name("source".into()))[0].clone();
+
+    assert_eq!(
+        lower.modules.act_type_vars(source.id),
+        Some(["a".to_string(), "b".to_string()].as_slice())
+    );
+}
+
+#[test]
 fn act_resolution_accepts_strict_function_type_args_without_aliasing() {
     let cst = parse(
         "type a\ntype b\ntype c\nact source 'f:\n  our tick: unit -> never\nact local = source (a -> b -> c)\n",

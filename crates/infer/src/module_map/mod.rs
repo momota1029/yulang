@@ -332,6 +332,7 @@ impl Lower {
         let vis = vis_of(node);
         let id = self.modules.insert_type(module, name.clone(), kind, vis);
         if kind == ModuleTypeKind::Act {
+            self.modules.set_act_type_vars(id, act_type_var_names(node));
             self.modules.set_act_template(id, node.clone());
             let copy = act_copy_decl(node);
             if let Some(copy) = copy {
