@@ -73,6 +73,95 @@ append_metrics() {
     } >>"$summary"
 }
 
+metric_value() {
+    local label="$1"
+    local key="$2"
+    local log_file="$out_dir/$label.log"
+    if [[ ! -s "$log_file" ]]; then
+        printf 'n/a'
+        return
+    fi
+    awk -v key="$key:" '$1 == key { print $2; found = 1; exit } END { if (!found) print "n/a" }' "$log_file"
+}
+
+metric_values() {
+    local label="$1"
+    local key="$2"
+    local log_file="$out_dir/$label.log"
+    if [[ ! -s "$log_file" ]]; then
+        printf 'n/a'
+        return
+    fi
+    awk -v key="$key:" '
+        $1 == key {
+            if (found) {
+                printf ","
+            }
+            printf "%s", $2
+            found = 1
+        }
+        END {
+            if (found) {
+                printf "\n"
+            } else {
+                print "n/a"
+            }
+        }
+    ' "$log_file"
+}
+
+wall_value() {
+    local label="$1"
+    local time_file="$out_dir/$label.time"
+    if [[ ! -s "$time_file" ]]; then
+        printf 'n/a'
+        return
+    fi
+    awk '$1 == "real" { print $2; found = 1; exit } END { if (!found) print "n/a" }' "$time_file"
+}
+
+append_key_metrics_row() {
+    local label="$1"
+    local route_kind="${2:-single}"
+    local route
+    local runtime
+    if [[ "$route_kind" == "multi" ]]; then
+        route="$(metric_values "$label" "run.cache")"
+        runtime="$(metric_values "$label" "run.runtime_execute")"
+    else
+        route="$(metric_value "$label" "run.cache")"
+        runtime="$(metric_value "$label" "run.runtime_execute")"
+    fi
+
+    printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n' \
+        "$label" \
+        "$(wall_value "$label")" \
+        "$route" \
+        "$(metric_value "$label" "infer")" \
+        "$(metric_value "$label" "constraint.drain")" \
+        "$(metric_value "$label" "constraint.replay_accepted")" \
+        "$(metric_value "$label" "constraint.replay_duplicate")" \
+        "$runtime" \
+        "$(metric_value "$label" "run.marker_scope_frame_touches")" \
+        "$(metric_value "$label" "run.active_add_scans")"
+}
+
+append_key_metrics() {
+    local key_metrics="$out_dir/key-metrics.md"
+    {
+        printf '\n## Key metrics\n\n'
+        printf '| workload | wall(s) | cache route | infer | constraint.drain | replay accepted | replay duplicate | runtime execute | marker touches | active scans |\n'
+        printf '| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n'
+        append_key_metrics_row showcase-check-poly-std
+        append_key_metrics_row nondet-no-cache
+        append_key_metrics_row showcase-no-cache
+        append_key_metrics_row nondet-cache-warmup
+        append_key_metrics_row nondet-cache-hit
+        append_key_metrics_row source-unit-cache-smoke multi
+    } >"$key_metrics"
+    cat "$key_metrics" | tee -a "$summary"
+}
+
 ensure_release_binary() {
     if [[ "$bin" == "$default_bin" ]]; then
         if [[ "$build_release" != "0" || ! -x "$bin" ]]; then
@@ -180,6 +269,8 @@ main() {
     if [[ "$run_static_bench" != "0" ]]; then
         run_static_analysis_bench
     fi
+
+    append_key_metrics
 
     log ""
     log "performance gate ok"

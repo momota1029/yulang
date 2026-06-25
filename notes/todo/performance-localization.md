@@ -78,6 +78,7 @@ static-analysis bench を通している。
 
 実行結果は `target/performance-gate/<timestamp>/` に保存する。各 command の完全な
 stdout/stderr は個別 log に残し、`summary.txt` へ wall time と主要 metrics を抜き出す。
+`key-metrics.md` には比較用の一枚表を出す。`summary.txt` の最後にも同じ表を追記する。
 
 既定では hardening smoke / adversarial corpus / release smoke / source metrics /
 static-analysis bench を走らせる。個別に切りたい場合は次を使う。
@@ -89,6 +90,22 @@ YULANG_PERF_GATE_RELEASE_SMOKE=0
 YULANG_PERF_GATE_SOURCE_METRICS=0
 YULANG_PERF_GATE_STATIC_BENCH=0
 ```
+
+2026-06-26 の release baseline:
+
+```text
+target/performance-gate/20260626-020819/summary.txt
+```
+
+主要値:
+
+| workload | wall(s) | cache route | infer | constraint.drain | replay accepted | replay duplicate | runtime execute |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| showcase-check-poly-std | 0.56 | n/a | 484.8ms | 205.8ms | 62792 | 584369 | n/a |
+| nondet-no-cache | 0.58 | disabled | n/a | n/a | n/a | n/a | 28.0ms |
+| showcase-no-cache | 0.63 | disabled | n/a | n/a | n/a | n/a | 54.4ms |
+| nondet-cache-hit | 0.04 | control-hit | n/a | n/a | n/a | n/a | 30.7ms |
+| source-unit-cache-smoke | 0.04 | merged-source-unit-prefix-hit,source-unit-prefix-hit | n/a | n/a | n/a | n/a | 21us,16us |
 
 ## Phase 1: Compiled-Unit Cache To Normal Path
 
