@@ -915,6 +915,28 @@ fn run_control_source_text_with_embedded_std_runs_root_expression() {
     assert_eq!(output.text, "run roots [3]\n");
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn embedded_std_compiled_unit_artifact_persists_to_user_cache() {
+    let root = temp_root("embedded-std-compiled-unit-cache");
+    let cache_root = root.join("cache");
+    let _cache = EnvVarGuard::set_path(crate::stdlib::YULANG_CACHE_DIR_ENV, &cache_root);
+    let files =
+        embedded_std_sources_with_root(FsPath::new("<embedded-std-cache-test>"), String::new());
+    let loaded = load_collected_source_files(files.clone());
+
+    let artifact = cached_embedded_compiled_unit_artifact(&files, &loaded).unwrap();
+    let key = crate::cache::source_cache_key(&files);
+    let cache = crate::cache::ArtifactCache::new(&cache_root);
+    let cached = cache.read_compiled_unit_artifact(key).unwrap().unwrap();
+    let cached_again = cached_embedded_compiled_unit_artifact(&files, &loaded).unwrap();
+
+    assert_eq!(artifact.manifest, cached.manifest);
+    assert_eq!(artifact.manifest, cached_again.manifest);
+    assert_eq!(compiled_unit_artifact_count(&cache_root), 1);
+    let _ = fs::remove_dir_all(&root);
+}
+
 #[test]
 fn run_control_source_text_with_embedded_std_runs_parse_word_to_end() {
     let build = build_control_from_source_text_with_embedded_std(

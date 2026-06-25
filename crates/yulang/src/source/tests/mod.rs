@@ -154,6 +154,22 @@ fn assert_dump_contains(output: &DumpPolyOutput, expected: &str) {
     );
 }
 
+fn compiled_unit_artifact_count(cache_root: &FsPath) -> usize {
+    artifact_stage_count(cache_root, "compiled-unit")
+}
+
+fn artifact_stage_count(cache_root: &FsPath, stage: &str) -> usize {
+    let dir = cache_root.join("artifacts").join(stage);
+    match fs::read_dir(dir) {
+        Ok(entries) => entries
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.is_file())
+            .count(),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => 0,
+        Err(error) => panic!("failed to read artifact stage {stage}: {error}"),
+    }
+}
+
 fn dump_public_signature<'a>(output: &'a DumpPolyOutput, symbol: &str) -> &'a str {
     let quoted = format!("\"{symbol}\"");
     let simple = (!symbol.contains('.')).then(|| format!(":{symbol}:"));

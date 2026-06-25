@@ -180,8 +180,7 @@ fn cached_embedded_std_lowering_prefix() -> Result<infer::lowering::BodyLowering
         let files =
             embedded_std_sources_with_root(FsPath::new("<embedded-std-root>"), String::new());
         let loaded = load_collected_source_files(files.clone());
-        let artifact = crate::cache::compiled_unit_artifact_from_loaded_files(&files, &loaded)
-            .map_err(RouteError::Lower)?;
+        let artifact = cached_embedded_compiled_unit_artifact(&files, &loaded)?;
         let prefix = infer::lowering::BodyLoweringPrefix::from_compiled_unit_surfaces(
             &artifact.namespace,
             &artifact.lowering,
@@ -215,8 +214,7 @@ fn cached_embedded_playground_std_lowering_prefix()
             String::new(),
         );
         let loaded = load_collected_source_files(files.clone());
-        let artifact = crate::cache::compiled_unit_artifact_from_loaded_files(&files, &loaded)
-            .map_err(RouteError::Lower)?;
+        let artifact = cached_embedded_compiled_unit_artifact(&files, &loaded)?;
         let prefix = infer::lowering::BodyLoweringPrefix::from_compiled_unit_surfaces(
             &artifact.namespace,
             &artifact.lowering,
@@ -229,6 +227,59 @@ fn cached_embedded_playground_std_lowering_prefix()
     })
 }
 
+pub(super) fn cached_embedded_compiled_unit_artifact(
+    files: &[CollectedSource],
+    loaded: &[sources::LoadedFile],
+) -> Result<crate::cache::CachedCompiledUnitArtifact, RouteError> {
+    let key = crate::cache::source_cache_key(files);
+    if let Some(artifact) = read_embedded_compiled_unit_artifact(key) {
+        return Ok(artifact);
+    }
+
+    let artifact =
+        crate::cache::compiled_unit_artifact_from_loaded_files_with_key(files, loaded, key)
+            .map_err(RouteError::Lower)?;
+    write_embedded_compiled_unit_artifact(key, &artifact);
+    Ok(artifact)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn read_embedded_compiled_unit_artifact(
+    key: crate::cache::SourceCacheKey,
+) -> Option<crate::cache::CachedCompiledUnitArtifact> {
+    let cache = crate::cache::ArtifactCache::new(crate::stdlib::default_user_cache_root());
+    match cache.read_compiled_unit_artifact(key) {
+        Ok(Some(artifact)) if artifact.errors.is_empty() => Some(artifact),
+        _ => None,
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn read_embedded_compiled_unit_artifact(
+    _key: crate::cache::SourceCacheKey,
+) -> Option<crate::cache::CachedCompiledUnitArtifact> {
+    None
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn write_embedded_compiled_unit_artifact(
+    key: crate::cache::SourceCacheKey,
+    artifact: &crate::cache::CachedCompiledUnitArtifact,
+) {
+    if !artifact.errors.is_empty() {
+        return;
+    }
+    let cache = crate::cache::ArtifactCache::new(crate::stdlib::default_user_cache_root());
+    let _ = cache.write_compiled_unit_artifact(key, artifact);
+}
+
+#[cfg(target_arch = "wasm32")]
+fn write_embedded_compiled_unit_artifact(
+    _key: crate::cache::SourceCacheKey,
+    _artifact: &crate::cache::CachedCompiledUnitArtifact,
+) {
+}
+
 fn cached_loaded_prefix(
     cache: &RefCell<Option<Vec<sources::LoadedFile>>>,
     sources: impl FnOnce() -> Vec<CollectedSource>,
@@ -239,7 +290,7 @@ fn cached_loaded_prefix(
         .clone()
 }
 
-fn load_collected_source_files(files: Vec<CollectedSource>) -> Vec<sources::LoadedFile> {
+pub(super) fn load_collected_source_files(files: Vec<CollectedSource>) -> Vec<sources::LoadedFile> {
     sources::load(collected_source_files(files))
 }
 

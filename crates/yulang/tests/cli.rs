@@ -465,6 +465,51 @@ fn compatible_runtime_phase_timings_report_cache_route() {
 }
 
 #[test]
+fn compatible_run_reuses_std_compiled_unit_prefix_for_new_entry() {
+    let root = temp_root("run-std-prefix-cache");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let std_root = write_minimal_std(&root);
+    let cache_root = root.join("cache-root");
+    let first = root.join("first.yu");
+    let second = root.join("second.yu");
+    fs::write(&first, "1\n").unwrap();
+    fs::write(&second, "2\n").unwrap();
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(&std_root)
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&first)
+        .output()
+        .unwrap();
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [1]\n");
+    assert_cache_route(&output, "std-prefix-build");
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 2);
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(&std_root)
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&second)
+        .output()
+        .unwrap();
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [2]\n");
+    assert_cache_route(&output, "std-prefix-hit");
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 3);
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn compatible_run_uses_single_source_unit_prefix_cache() {
     let root = temp_root("run-source-unit-prefix-cache");
     let _ = fs::remove_dir_all(&root);

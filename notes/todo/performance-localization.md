@@ -231,6 +231,16 @@ source dependency SCC ごとの compiled-unit cache である。
   that provenance into the combined `BodyLowering`. This is only the first
   external-reference table preparation; it does not change artifact selection
   or stop writing dependency-closure artifacts.
+- Done: native CLI runs with a filesystem std root now warm and reuse a std
+  compiled-unit prefix. The first cached run can build the std prefix artifact
+  and lower the entry/local suffix through it (`std-prefix-build`); later
+  different entries with the same std root can reuse that artifact
+  (`std-prefix-hit`) instead of inferring std again.
+- Done: native embedded std / compact playground std source-text routes now
+  persist their compiled-unit prefix artifact in the user cache before turning
+  it into an in-memory `BodyLoweringPrefix`. This improves process-to-process
+  reuse on native targets. On wasm this currently falls back to the old
+  in-memory build path.
 - Realm/band note: the current source-set cache key is only a coarse placeholder
   for the future identity
   `(resolved realm, band path, source dependency SCC, dependency interface hashes)`.
@@ -242,8 +252,10 @@ source dependency SCC ごとの compiled-unit cache である。
   cache hit.
 - Not done: the external-reference table for finer-grained dependency-bearing
   artifacts. Closure artifacts are safe but can duplicate dependency surfaces.
-- Not done: std bundle import for wasm / playground first run.
-- Next: decide whether to push std compiled-unit bundle import first, or design
+- Not done: build-time embedded std compiled-unit artifact for wasm /
+  playground first run. The current native cache path still needs a prior run
+  or a writable cache directory; wasm cannot use the filesystem cache.
+- Next: decide whether to add build-time wasm std artifact embedding, or design
   external references for true source-SCC artifacts.
 
 撤退条件:

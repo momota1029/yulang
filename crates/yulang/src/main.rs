@@ -231,6 +231,8 @@ enum RuntimeBuildCacheKind {
     ControlHit,
     PolyHit,
     CompiledUnitHit,
+    StdPrefixHit,
+    StdPrefixBuild,
     SourceUnitPrefixHit,
     MergedSourceUnitPrefixHit,
     FullMiss,
@@ -245,6 +247,8 @@ impl RuntimeBuildCacheKind {
             Self::ControlHit => "control-hit",
             Self::PolyHit => "poly-hit",
             Self::CompiledUnitHit => "compiled-unit-hit",
+            Self::StdPrefixHit => "std-prefix-hit",
+            Self::StdPrefixBuild => "std-prefix-build",
             Self::SourceUnitPrefixHit => "source-unit-prefix-hit",
             Self::MergedSourceUnitPrefixHit => "merged-source-unit-prefix-hit",
             Self::FullMiss => "full-miss",
@@ -837,7 +841,7 @@ fn build_poly_from_source_unit_prefix_cache(
     cache: &yulang::cache::ArtifactCache,
 ) -> Option<(yulang::BuildPolyOutput, RuntimeBuildCacheKind)> {
     if source_set_contains_std(files) {
-        return None;
+        return build_poly_from_std_prefix_cache(files, key, cache);
     }
     let units = yulang::source_compilation_units(files);
     let cached = match cache.read_source_unit_compiled_artifacts(files, &units) {
@@ -864,6 +868,32 @@ fn build_poly_from_source_unit_prefix_cache(
         prefix.artifact.clone(),
     )
     .map(|output| (output, RuntimeBuildCacheKind::SourceUnitPrefixHit))
+}
+
+fn build_poly_from_std_prefix_cache(
+    files: &[yulang::CollectedSource],
+    key: yulang::cache::SourceCacheKey,
+    cache: &yulang::cache::ArtifactCache,
+) -> Option<(yulang::BuildPolyOutput, RuntimeBuildCacheKind)> {
+    let plan = std_prefix_cache_plan(files)?;
+    let (prefix, kind) = match cache.read_compiled_unit_artifact(plan.key) {
+        Ok(Some(prefix)) if prefix.errors.is_empty() => {
+            (prefix, RuntimeBuildCacheKind::StdPrefixHit)
+        }
+        Ok(Some(_)) | Ok(None) => (
+            build_std_prefix_artifact(files, cache, &plan)?,
+            RuntimeBuildCacheKind::StdPrefixBuild,
+        ),
+        Err(error) => {
+            eprintln!("warning: {error}");
+            (
+                build_std_prefix_artifact(files, cache, &plan)?,
+                RuntimeBuildCacheKind::StdPrefixBuild,
+            )
+        }
+    };
+    build_poly_from_compiled_source_unit_prefix(files, key, cache, &plan.file_indices, prefix)
+        .map(|output| (output, kind))
 }
 
 #[derive(Clone)]
@@ -1027,6 +1057,102 @@ fn write_source_unit_closure_artifacts(
     }
 }
 
+struct StdPrefixCachePlan {
+    file_indices: Vec<usize>,
+    key: yulang::cache::SourceCacheKey,
+}
+
+fn build_std_prefix_artifact(
+    files: &[yulang::CollectedSource],
+    cache: &yulang::cache::ArtifactCache,
+    plan: &StdPrefixCachePlan,
+) -> Option<yulang::cache::CachedCompiledUnitArtifact> {
+    let prefix_files = plan
+        .file_indices
+        .iter()
+        .map(|file| files[*file].clone())
+        .collect::<Vec<_>>();
+    let loaded = sources::load(std_prefix_lowering_source_files(files, &plan.file_indices));
+    let artifact = match yulang::cache::compiled_unit_artifact_from_loaded_files_with_key(
+        &prefix_files,
+        &loaded,
+        plan.key,
+    ) {
+        Ok(artifact) => artifact,
+        Err(error) => {
+            eprintln!("warning: {error}");
+            return None;
+        }
+    };
+    if !artifact.errors.is_empty() {
+        return None;
+    }
+    if let Err(error) = cache.write_compiled_unit_artifact(plan.key, &artifact) {
+        eprintln!("warning: {error}");
+    }
+    Some(artifact)
+}
+
+fn std_prefix_cache_plan(files: &[yulang::CollectedSource]) -> Option<StdPrefixCachePlan> {
+    let units = yulang::source_compilation_units(files);
+    let std_root_file = files
+        .iter()
+        .position(|file| is_std_root_module_path(&file.module_path))?;
+    let unit = units.unit_for_file(std_root_file)?;
+    let file_indices = yulang::source::source_unit_closure_file_indices(&units, unit).ok()?;
+    if file_indices.is_empty()
+        || file_indices
+            .iter()
+            .any(|file| !is_std_module_path(&files[*file].module_path))
+    {
+        return None;
+    }
+    let key = yulang::cache::source_cache_key(&std_prefix_cache_key_sources(files, &file_indices));
+    Some(StdPrefixCachePlan { file_indices, key })
+}
+
+fn std_prefix_cache_key_sources(
+    files: &[yulang::CollectedSource],
+    file_indices: &[usize],
+) -> Vec<yulang::CollectedSource> {
+    let mut cache_sources = Vec::with_capacity(file_indices.len() + 1);
+    cache_sources.push(std_prefix_root_collected_source());
+    cache_sources.extend(file_indices.iter().map(|file| files[*file].clone()));
+    cache_sources
+}
+
+fn std_prefix_lowering_source_files(
+    files: &[yulang::CollectedSource],
+    file_indices: &[usize],
+) -> Vec<sources::SourceFile> {
+    let mut source_files = Vec::with_capacity(file_indices.len() + 1);
+    source_files.push(sources::SourceFile {
+        module_path: sources::Path::default(),
+        source: std_prefix_root_source(),
+    });
+    source_files.extend(file_indices.iter().map(|file| sources::SourceFile {
+        module_path: files[*file].module_path.clone(),
+        source: files[*file].source.clone(),
+    }));
+    source_files
+}
+
+fn std_prefix_root_collected_source() -> yulang::CollectedSource {
+    yulang::CollectedSource {
+        path: PathBuf::from("<std-prefix-root>"),
+        module_path: sources::Path::default(),
+        source: std_prefix_root_source(),
+    }
+}
+
+fn std_prefix_root_source() -> String {
+    format!("{}mod std;\n", yulang::IMPLICIT_PRELUDE_IMPORT)
+}
+
+fn is_std_root_module_path(path: &sources::Path) -> bool {
+    path.segments.len() == 1 && path.segments[0].0 == "std"
+}
+
 fn build_poly_from_compiled_unit_cache(
     cached: yulang::cache::CachedCompiledUnitArtifact,
     key: yulang::cache::SourceCacheKey,
@@ -1059,12 +1185,13 @@ fn write_poly_artifact_from_output(
 }
 
 fn source_set_contains_std(files: &[yulang::CollectedSource]) -> bool {
-    files.iter().any(|file| {
-        file.module_path
-            .segments
-            .first()
-            .is_some_and(|name| name.0 == "std")
-    })
+    files
+        .iter()
+        .any(|file| is_std_module_path(&file.module_path))
+}
+
+fn is_std_module_path(path: &sources::Path) -> bool {
+    path.segments.first().is_some_and(|name| name.0 == "std")
 }
 
 fn dump_poly_with_optional_cache(

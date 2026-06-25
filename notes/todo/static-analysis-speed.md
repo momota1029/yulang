@@ -14,7 +14,9 @@
 - specialization body rewrite は queue 化され、target ごとに profile される。
 - block rewrite は redundant pre-walk を避け、`showcase` の monomorphize time を減らす。
 - compiled-unit artifacts は syntax / namespace / typed / runtime surfaces を持つ。
-- wasm は std compiled-unit artifacts を embed し、source std を fallback として使う。
+- wasm はまだ build-time std compiled-unit artifact を embed していない。
+  現状は embedded source から in-memory prefix を作る経路で、native だけ user cache の
+  compiled-unit artifact を再利用できる。
 
 ## 主な risk
 
