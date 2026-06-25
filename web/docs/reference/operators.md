@@ -7,13 +7,13 @@ after importing the syntax that defines it.
 ## Fixities
 
 ```yulang
-pub nullfix(return) = std::flow::sub::return ()
-pub prefix(return) 1.0.0 = std::flow::sub::return
+pub nullfix(return) = std::control::flow::sub::return ()
+pub prefix(return) 1.0.0 = std::control::flow::sub::return
 
 pub prefix(not) 8.0.0 = std::bool::not
 
-pub infix (+) 5.0.0 5.0.0 = \x -> \y -> x.add y
-pub suffix (..) 8.0.0 = std::range::from_included
+pub infix (+) 5.0.0 5.0.1 = \x -> \y -> x.add y
+pub suffix (..) 8.0.0 = std::data::range::from_included
 ```
 
 | Fixity | Use site | Notes |
@@ -33,8 +33,8 @@ Binding powers are written as dot-separated decimal numbers such as `5.0.0`.
 Larger numbers bind more tightly. Infix operators take a pair of binding
 powers `<left>.<right>`, splitting in the middle to control associativity:
 
-- `5.0.0 5.0.0` — left-associative at level 5 (the standard for `+` and `-`)
-- `4.0.0 4.0.1` — slight bias to the right (right-associative)
+- `5.0.0 5.0.1` — left-associative at level 5 (the standard for `+` and `-`)
+- `4.0.0 4.0.1` — left-associative at level 4 (the standard range operators)
 
 A small reference of the prelude's choices:
 
@@ -59,13 +59,13 @@ form and never has to introduce its own thunk. The prelude's `and` / `or` use
 this to short-circuit:
 
 ```yulang
-pub lazy infix(and) 2.0.0 2.0.0 = \a -> \b ->
+pub lazy infix(and) 2.0.0 2.0.1 = \a -> \b ->
     if a():
         b()
     else:
         false
 
-pub lazy infix(or) 1.0.0 1.0.0 = \a -> \b ->
+pub lazy infix(or) 1.0.0 1.0.1 = \a -> \b ->
     if a():
         true
     else:
@@ -83,7 +83,7 @@ std::int::add 1 2     // explicit form (less idiomatic)
 (1).add 2             // role method form
 ```
 
-`+` itself is defined as `\x -> \y -> x.add y` in `std::ops`, so calling
+`+` itself is defined as `\x -> \y -> x.add y` in `std::core::ops`, so calling
 `x.add y` (the underlying `Add` role method) is the closest first-class form
 of the operator.
 
@@ -93,7 +93,7 @@ implementation.
 ## Importing operators
 
 ```yulang
-use std::ops::*
+use std::core::ops::*
 use my_ops::(+)
 use my_ops::* without (+), debug
 ```
@@ -129,4 +129,4 @@ where the operator belongs in the precedence hierarchy.
 - [Application & Operators](./application) — how parsed operators interact
   with bare application
 - [Syntax Style](./syntax-style) — whitespace rules around symbol use
-- [`std::ops`](./std/core) — prelude operator definitions
+- [`std::core::ops`](./std/core) — prelude operator definitions

@@ -1,9 +1,9 @@
-# std::undet
+# std::control::nondet
 
 The `undet` module provides nondeterminism through the `undet` algebraic effect.
 
 ```yulang
-use std::undet::*
+use std::control::nondet::*
 ```
 
 ## The effect
@@ -64,7 +64,7 @@ The same program can be written with independent infinite choices and `guard: a 
 
 ## Junctions
 
-The companion module `std::junction` exposes `all xs` and `any xs`. They are not part of `undet`, but they share the same theme — they wrap a collection so a single comparison covers every element via the `junction` effect:
+The companion module `std::control::junction` exposes `all xs` and `any xs`. They are not part of `undet`, but they share the same theme — they wrap a collection so a single comparison covers every element via the `junction` effect:
 
 ```yulang
 if all [1, 2, 3] < any [2, 3, 4]:

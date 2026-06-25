@@ -54,8 +54,8 @@ f x
 ## `error E:` の variant は constructor 兼 operation
 
 ```yulang
-my err: fs_err = fs_err::not_found "/x"    // 値
-fs_err::not_found "/x"                      // effect operation
+my err: path_err = path_err::not_found "/x"    // 値
+path_err::not_found "/x"                       // effect operation
 ```
 
 同じ名前が文脈で振る舞いを変えます。期待型が error ADT なら constructor、effectful な位置なら operation を発火します。周囲が意味を決めないときは明示的に注釈してください。

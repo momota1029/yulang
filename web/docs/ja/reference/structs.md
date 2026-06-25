@@ -65,7 +65,7 @@ impl Add int:
 
 impl Index str int:
     type value = str
-    our s.index i = std::str::index_raw s i
+    our s.index i = std::text::str::index_raw s i
 ```
 
 role 名の後ろの型引数が role の type parameter を埋める。

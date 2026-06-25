@@ -47,7 +47,7 @@ actual <: expected
 Effect rows flow through the same graph:
 
 ```text
-[console] str <: [console; e] str
+[console] str <: [console; 'e] str
 ```
 
 The concrete `console` effect can flow into an open row. Residual effects left
@@ -62,13 +62,13 @@ from the inner row:
 act console:
     our read: () -> str
 
-our run_console(action: [console; e] 'a): [e] 'a = catch action:
+our run_console(action: [console; 'e] 'a): ['e] 'a = catch action:
     console::read(), k -> run_console(k "42")
     v -> v
 ```
 
-Informally, if `action` has row `[console; e]`, then outside the `catch` only
-`[e]` remains.
+Informally, if `action` has row `[console; 'e]`, then outside the `catch` only
+`['e]` remains.
 
 Higher-order functions need one more distinction: where an effect came from.
 

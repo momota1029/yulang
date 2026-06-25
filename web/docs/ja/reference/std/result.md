@@ -1,4 +1,4 @@
-# `std::result`
+# `std::data::result`
 
 `result 'ok 'err` は、失敗しうる計算の値表現。エラー effect を値に閉じて、
 保持・返却・パターンマッチしたいときに使う。
@@ -17,7 +17,7 @@ prelude が `result` / `ok` / `err` を re-export している。
 ok 1
 ok "yes"
 err "missing config"
-err fs_err::not_found "p"
+err io_err::not_found "p"
 ```
 
 ## パターンマッチ
@@ -50,7 +50,7 @@ my doubled = (ok 21).map (\x -> x * 2)       // ok 42
 ## `error E:` と `wrap` との関係
 
 ```yulang
-case fs_err::wrap: fs::read_text path:
+case io_err::wrap: read_text path:
     ok text -> use text
     err e   -> e.show
 ```
@@ -74,5 +74,5 @@ case fs_err::wrap: fs::read_text path:
 ## 関連ページ
 
 - [エラー](../errors) — `error E:` と catch-by-name
-- [`std::opt`](./opt) — エラー側が情報を持たないとき
+- [`std::data::opt`](./opt) — エラー側が情報を持たないとき
 - [キャスト](../casts) — result 風 wrapper との変換

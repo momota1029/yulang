@@ -49,7 +49,7 @@ my name = "yu"
 "aあ🙂z".splice (range 1 3) "bc"  // "abcz"
 ```
 
-`std::str::splice` と `.splice` method は、文字範囲を別の文字列で置き換える。
+`std::text::str::splice` と `.splice` method は、文字範囲を別の文字列で置き換える。
 
 ## Display と `.show`
 

@@ -1,4 +1,4 @@
-# `std::opt`
+# `std::data::opt`
 
 `opt 'a` represents an optional value. It has two variants:
 
@@ -43,7 +43,7 @@ case parse_int s:
 ```
 
 For richer combinators on optional values, lift them into `result` (see
-[std::result](./result)) or write the few helpers your project needs.
+[std::data::result](./result)) or write the few helpers your project needs.
 
 ## Quick reference
 
@@ -54,6 +54,6 @@ For richer combinators on optional values, lift them into `result` (see
 
 ## See also
 
-- [`std::result`](./result) — when failure carries information
+- [`std::data::result`](./result) — when failure carries information
 - [Patterns → Enum patterns](../patterns) — variants in patterns
 - [Errors](../errors) — typed failures expressed as effects

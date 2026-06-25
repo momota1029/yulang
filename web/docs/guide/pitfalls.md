@@ -67,8 +67,8 @@ pane.
 ## `error E:` variants are constructors *and* operations
 
 ```yulang
-my err: fs_err = fs_err::not_found path    // value
-fs_err::not_found path                       // effect operation
+my err: path_err = path_err::not_found path    // value
+path_err::not_found path                       // effect operation
 ```
 
 The same name resolves either way based on context. If the expected type is

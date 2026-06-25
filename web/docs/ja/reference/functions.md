@@ -82,7 +82,7 @@ my run_console(action: [console] 'a): 'a = catch action:
 ```
 
 戻り型の角括弧形は effect row。`[console] str` は「`str` を返し、`console`
-effect を要求する」という意味。`[console; e] 'a` のように tail 変数を入れる
+effect を要求する」という意味。`[console; 'e] 'a` のように tail 変数を入れる
 と他の effect も開いたままになる。
 
 ## オプショナル引数としてのレコードパターン

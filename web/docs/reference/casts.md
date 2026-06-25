@@ -55,14 +55,14 @@ pick one.
 
 ```yulang
 enum app_err:
-    fs from fs_err
+    path from path_err
     parse from parse_err
 ```
 
 `from` on an `enum` (or `error`) variant generates two things:
 
-- the variant itself — `app_err::fs` wraps an `fs_err`
-- a `Cast fs_err -> app_err` impl that maps `e` to `app_err::fs e`
+- the variant itself — `app_err::path` wraps a `path_err`
+- a `Cast path_err -> app_err` impl that maps `e` to `app_err::path e`
 
 The source type must be a single payload, and both the source and target are
 nominal.

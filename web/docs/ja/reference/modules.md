@@ -5,9 +5,9 @@
 ## `use`
 
 ```yulang
-use std::undet::*
-use std::list::map
-use std::ops::{(+), (-)}
+use std::control::nondet::*
+use std::data::list::map
+use std::core::ops::{(+), (-)}
 use my_module::old_name as new_name
 use noisy::* without debug
 ```
@@ -30,7 +30,7 @@ point { x: 3, y: 4 } .norm2
 
 ```yulang
 opt::just 1
-fs_err::not_found "path"
+io_err::not_found "path"
 ```
 
 prelude が `just`、`nil`、`ok`、`err` のような標準 variant を reexport するため、通常は修飾名なしで書ける。
@@ -38,8 +38,33 @@ prelude が `just`、`nil`、`ok`、`err` のような標準 variant を reexpor
 `act` の operation も同じ。
 
 ```yulang
-console::println_native "hi"
+out::write "hi"
 ```
+
+## `act copy`
+
+`act copy = source` は、別の `act` から新しい effect family を作る。これは
+alias ではない。copy 先 family から出る operation は、copy 元 family の
+operation とは別物として扱われる。
+
+copy 元から継承されるのは `pub` / `our` の surface だけである。copy 元 body
+の `my` operation や helper member は copy 元 act の private に留まり、copy
+先 companion や `with:` body からは見えない。
+
+```yulang
+act source:
+    my hidden = 1
+    our visible = 2
+
+act copy = source with:
+    my local = 3
+    our own = local
+```
+
+`copy` には `visible`、`local`、`own` が入るが、`hidden` は入らない。copy
+元の exported member が source-private helper に依存している場合、その copy
+は ill-formed になりうる。private helper を copy 経由で持ち出さないことが
+visibility の規則である。
 
 ## Dot selection
 
@@ -50,25 +75,25 @@ console::println_native "hi"
 - `.add`、`.index`、`.show` のような role method
 - `.list`、`.logic`、`.once` のような effect-row method
 
-anonymous record の場合、`.field` は record field を取り出す。act operation 自体は、通常 `console::println_native "hi"` のように path で呼ぶ。
+anonymous record の場合、`.field` は record field を取り出す。act operation 自体は、通常 `out::write "hi"` のように path で呼ぶ。
 
 ## Standard library modules
 
 | Module | 内容 |
 |--------|------|
 | `std::prelude` | entry file が通常 import する基本定義、role、operator、std reexport |
-| `std::ops` | `+`, `-`, `*`, `/`, comparison, `and`, `or`, `not` |
-| `std::list` | list operations と `Index` impl |
-| `std::range` | range constructors と `Fold` impl |
-| `std::opt` | `opt 'a` と、prelude reexport された `nil` / `just` |
-| `std::result` | `result 'ok 'err` と、prelude reexport された `ok` / `err` |
-| `std::str` | `str` と indexing |
-| `std::var` | `ref 'e 'a` と update helper |
-| `std::flow` | `sub`, loop control, label loop primitives |
-| `std::fold` | `Fold` role と default method `.find` / `.contains` |
-| `std::undet` | `each`, `guard`, `.list`, `.once`, `.logic` |
-| `std::junction` | `all`, `any` |
-| `std::console` | `say`, `println`, `print`, host-handled `print_native` / `println_native` |
-| `std::fs` | `read_text`, `read_at`, `open`, `write_text`, `exists`, `is_file`, `is_dir` と `fs_err` |
-| `std::error` | `Throw` role |
-| `std::index` | `Index` role |
+| `std::core::ops` | `+`, `-`, `*`, `/`, comparison, `and`, `or`, `not` |
+| `std::data::list` | list operations と `Index` impl |
+| `std::data::range` | range constructors と `Fold` impl |
+| `std::data::opt` | `opt 'a` と、prelude reexport された `nil` / `just` |
+| `std::data::result` | `result 'ok 'err` と、prelude reexport された `ok` / `err` |
+| `std::text::str` | `str` と indexing |
+| `std::control::var` | `ref 'e 'a`、local mutable binding、update helper |
+| `std::control::flow` | `sub`, loop control, label loop primitives |
+| `std::data::fold` | `Fold` role と default method `.find` / `.contains` |
+| `std::control::nondet` | `each`, `guard`, `.list`, `.once`, `.logic` |
+| `std::control::junction` | `all`, `any` |
+| `std::io::console` | `say`, `println`, `print`, `note`, `eprint`, `warn`, `die` と、背後の `out` / `err` / `warn` / `die` effect |
+| `std::io::file` | `read_text`, `read_at`, `open`, `write_text`, `exists`, `is_file`, `is_dir` と `io_err` |
+| `std::control::throw` | `Throw` role と `fail` |
+| `std::data::index` | `Index` role |

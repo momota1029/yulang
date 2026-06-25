@@ -1,4 +1,4 @@
-# `std::opt`
+# `std::data::opt`
 
 `opt 'a` は省略可能な値を表す。variant は 2 つ：
 
@@ -42,7 +42,7 @@ case parse_int s:
     nil     -> nil
 ```
 
-優れたコンビネータが欲しいときは `result`（[std::result](./result)）に持ち
+優れたコンビネータが欲しいときは `result`（[std::data::result](./result)）に持ち
 上げるか、必要なヘルパーだけプロジェクトで書く。
 
 ## 早見表
@@ -54,6 +54,6 @@ case parse_int s:
 
 ## 関連ページ
 
-- [`std::result`](./result) — 失敗に情報を持たせたいとき
+- [`std::data::result`](./result) — 失敗に情報を持たせたいとき
 - [パターン → enum パターン](../patterns) — variant のパターン
 - [エラー](../errors) — effect として表現する型付きエラー

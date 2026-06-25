@@ -1,11 +1,12 @@
-# `std::fs`
+# `std::io::file`
 
-`std::fs` provides text-oriented filesystem helpers. They are host-handled
-effects: native hosts handle them directly, while browser/Wasm hosts may leave
-filesystem requests unresolved.
+`std::io::file` provides text-oriented filesystem helpers. The module exposes a
+host-handled `file` effect plus `io_err` errors for host failures. Native hosts
+handle the operations directly, while browser/Wasm hosts may leave filesystem
+requests unresolved.
 
-The prelude re-exports `std::fs::*`, so examples normally use `read_text`,
-`read_at`, `open`, and `fs_err` without a `std::fs::` prefix.
+The prelude re-exports `std::io::file::*`, so examples normally use `read_text`,
+`read_at`, `open`, and `io_err` without a `std::io::file::` prefix.
 
 ## Paths
 
@@ -19,7 +20,8 @@ my path: path = "data.txt"
 read_text path
 ```
 
-Use `std::path::of_bytes` when you need to build a path from bytes explicitly.
+Use `std::text::path::of_bytes` when you need to build a path from bytes
+explicitly.
 
 ## Read a whole text file
 
@@ -33,14 +35,14 @@ text.say
 Its type is roughly:
 
 ```yulang
-path -> [fs; fs_err] str
+path -> [file, io_err] str
 ```
 
-Host errors are raised as `fs_err` directly. The API does not return a
-`result`; use `fs_err::wrap` when you want a value-level result.
+Host errors are raised as `io_err` directly. The API does not return a
+`result`; use `io_err::wrap` when you want a value-level result.
 
 ```yulang
-case fs_err::wrap: read_text "data.txt":
+case io_err::wrap: read_text "data.txt":
     result::ok text -> text
     result::err _ -> ""
 ```
@@ -56,7 +58,7 @@ The returned range is the byte range that was actually converted to UTF-8 text.
 If the requested slice ends in the middle of invalid UTF-8, `text` is the
 longest valid prefix and `valid` marks that prefix.
 
-Host errors are raised as `fs_err`, the same as `read_text`.
+Host errors are raised as `io_err`, the same as `read_text`.
 
 ## Open a text handle
 
@@ -101,14 +103,14 @@ updates the file buffer:
     my &fh = open "data.txt"
     for &line in &fh.lines:
         if $line == "old\n":
-            &line[std::range::full()] = "new\n"
+            &line[std::data::range::full()] = "new\n"
 }
 ```
 
 ## Errors
 
 ```yulang
-pub error fs_err:
+pub error io_err:
     not_found path
     denied path
     invalid_path path
@@ -118,30 +120,30 @@ Catch filesystem errors by operation name:
 
 ```yulang
 catch read_text "data.txt":
-    fs_err::not_found _, _ -> ""
-    fs_err::denied _, _ -> ""
+    io_err::not_found _, _ -> ""
+    io_err::denied _, _ -> ""
     text -> text
 ```
 
-`fs_err::wrap` turns the same error effect into `result _ fs_err` when a
+`io_err::wrap` turns the same error effect into `result _ io_err` when a
 function boundary needs a value instead of an open error effect.
 
 ## Quick reference
 
 | Operation | Signature |
 |---|---|
-| `read_text path` | `path -> [fs; fs_err] str` |
-| `read_at path range` | `path -> range -> [fs; fs_err] (str, range)` |
-| `write_text path text` | `path -> str -> [fs; fs_err] unit` |
-| `write_at path range text` | `path -> range -> str -> [fs; fs_err] unit` |
-| `open path` | `path -> [fs; fs_err] ref '[fs] str` |
-| `open_in path f` | `path -> (ref '[fs] str -> [e] 'a) -> [fs; fs_err; e] 'a` |
-| `exists path` | `path -> [fs] bool` |
-| `is_file path` | `path -> [fs] bool` |
-| `is_dir path` | `path -> [fs] bool` |
+| `read_text path` | `path -> [file, io_err] str` |
+| `read_at path range` | `path -> range -> [file, io_err] (str, range)` |
+| `write_text path text` | `path -> str -> [file, io_err] unit` |
+| `write_at path range text` | `path -> range -> str -> [file, io_err] unit` |
+| `open path` | `path -> [file, io_err] ref '[file] str` |
+| `open_in path f` | `path -> (ref '[file] str -> ['e] 'a) -> [file, io_err; 'e] 'a` |
+| `exists path` | `path -> [file] bool` |
+| `is_file path` | `path -> [file] bool` |
+| `is_dir path` | `path -> [file] bool` |
 
 ## See also
 
-- [Errors](../errors) — `fs_err`, `catch`, and `wrap`
-- [`std::str`](./str) — string indexing, splicing, and line views
-- [`std::result`](./result) — value-level success/error results
+- [Errors](../errors) — `io_err`, `catch`, and `wrap`
+- [`std::text::str`](./str) — string indexing, splicing, and line views
+- [`std::data::result`](./result) — value-level success/error results

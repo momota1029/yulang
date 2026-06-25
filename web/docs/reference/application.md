@@ -288,8 +288,8 @@ Use it when an API takes a callback and you want to write the body inline.
 `a::b::c` is left-associative and binds the same as the other postfix forms:
 
 ```yulang
-std::list::map xs f       // ML application of (std::list::map) to xs and f
-fs_err::not_found "p"     // (fs_err::not_found) "p"
+std::data::list::map xs f        // ML application of (std::data::list::map) to xs and f
+path_err::not_found "p"          // (path_err::not_found) "p"
 ```
 
 `::` is purely a path step and never carries an effect or value of its own — it just resolves a sub-name in the left-hand companion module.

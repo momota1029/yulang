@@ -100,16 +100,16 @@ text.say
 ```
 
 `str` は `path` に widen されるので、通常の path なら文字列リテラルをそのまま
-渡せる。filesystem error は effect row の `fs_err` として投げられる。呼び出し側
+渡せる。filesystem error は effect row の `io_err` として投げられる。呼び出し側
 に値としての `result` が必要な境界だけ `wrap` する。
 
 ```yulang
-case fs_err::wrap: read_text "data.txt":
+case io_err::wrap: read_text "data.txt":
     result::ok text -> text
     result::err _ -> ""
 ```
 
-[std::fs](../reference/std/fs)
+[std::io::file](../reference/std/fs)
 
 ## オプショナル引数を作る
 
@@ -128,10 +128,10 @@ area {}
 ## 型付きエラーを投げて捕まえる
 
 ```yulang
-my path = std::path::of_bytes (std::str::to_bytes "/tmp/data")
+my path = std::text::path::of_bytes (std::text::str::to_bytes "/tmp/data")
 
-catch fs::read_text path:
-    fs_err::not_found _, _ -> "(missing)"
+catch read_text path:
+    io_err::not_found _, _ -> "(missing)"
     value -> value
 ```
 
@@ -142,31 +142,31 @@ catch fs::read_text path:
 ## エラーを `result` 値に閉じる
 
 ```yulang
-my path = std::path::of_bytes (std::str::to_bytes "/tmp/data")
-my res = fs_err::wrap: fs::read_text path
+my path = std::text::path::of_bytes (std::text::str::to_bytes "/tmp/data")
+my res = io_err::wrap: read_text path
 case res:
     result::ok text -> text
     result::err _ -> "(fallback)"
 ```
 
-`E::wrap` は thunk を走らせ、対応する error effect を捕まえて `result` 値を返します。エラー側を取り出して名前で分岐したい場合は `result::err (fs_err::not_found p) -> ...` のように pattern を深掘りします。
+`E::wrap` は thunk を走らせ、対応する error effect を捕まえて `result` 値を返します。エラー側を取り出して名前で分岐したい場合は `result::err (io_err::not_found p) -> ...` のように pattern を深掘りします。
 
 [エラー → wrap](../reference/errors)
 
 ## 複数のエラーを一つにまとめる
 
 ```yulang
-pub error io_err:
-    fs from fs_err
+pub error app_err:
+    file from io_err
     parse from parse_err
 
 my read_and_parse path =
-    io_err::up:
-        my text = fs::read_text path
+    app_err::up:
+        my text = read_text path
         parse_json text
 ```
 
-`from` は広いエラー型に narrower error を取り込みます。`io_err::up` はブロック内部の narrower error を `io_err` に持ち上げる handler です。
+`from` は広いエラー型に narrower error を取り込みます。`app_err::up` はブロック内部の narrower error を `app_err` に持ち上げる handler です。
 
 [エラー → from 集約](../reference/errors)
 
@@ -193,14 +193,14 @@ my run_into_strings(action: [log; _] _): (_, list str) =
 ## 非決定的に探索する
 
 ```yulang
-use std::undet::*
+use std::control::nondet::*
 
 (each [1, 2, 3] + each [10, 20]).list
 ```
 
 `each xs` は `xs` から 1 つ要素を非決定的に選びます。`.list` は計算を走らせ、すべての結果を集めます。`.once` / `.logic` などで結果の形を切り替えられます。
 
-[std::undet](../reference/std/undet)
+[std::control::nondet](../reference/std/undet)
 
 ## effectful な真偽値条件を扱う
 
@@ -211,7 +211,7 @@ else:
     "no overlap"
 ```
 
-Yulang の `if` は `std::junction` 経由で effectful な boolean 条件を受け取れます。`all xs` / `any xs` で「全部」「いずれか」を表現します。
+Yulang の `if` は `std::control::junction` 経由で effectful な boolean 条件を受け取れます。`all xs` / `any xs` で「全部」「いずれか」を表現します。
 
 ## 二つの型の間で cast を定義する
 
@@ -298,7 +298,7 @@ keep_evens [1, 2, 3, 4, 5, 6, 7, 8]
 `each` と `guard` で、「条件を満たす組」を探索できます。
 
 ```yulang
-use std::undet::*
+use std::control::nondet::*
 
 {
     my a = each 1..20

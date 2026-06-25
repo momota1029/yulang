@@ -1,4 +1,4 @@
-# `std::str`
+# `std::text::str`
 
 不変な文字列。`Index`、`Len`、`Add`（連結）、`Display`、`Debug` に対応する。
 
@@ -82,6 +82,6 @@ true.show           // "true"
 
 ## 関連ページ
 
-- [`std::list`](./list) — list 操作と組み合わせる場面が多い
+- [`std::data::list`](./list) — list 操作と組み合わせる場面が多い
 - [文字列](../strings) — 文字列まわりの構文
 - [キャスト](../casts) — 文字列と wrapper 型の変換

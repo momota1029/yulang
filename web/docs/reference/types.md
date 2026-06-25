@@ -57,7 +57,7 @@ nil
 
 `opt 'a` is the standard library type `enum opt 'a = nil | just 'a`.
 The prelude reexports both the type and its variants, so ordinary code writes
-`opt`, `just`, and `nil` without `std::opt::` or `opt::` qualification.
+`opt`, `just`, and `nil` without `std::data::opt::` or `opt::` qualification.
 
 ## Result
 
@@ -78,7 +78,7 @@ name would be ambiguous.
 0..     // 0 upward (unbounded)
 ```
 
-`..`, `..<`, `<..`, `<..<` are range operators in `std::range`. Ranges implement `Fold`, so they work with `for x in r:` and the nondeterminism `each` collector.
+`..`, `..<`, `<..`, `<..<` are range operators in `std::data::range`. Ranges implement `Fold`, so they work with `for x in r:` and the nondeterminism `each` collector.
 
 ## Type variables
 
@@ -134,7 +134,7 @@ our run_console(action: [console] 'a): 'a = catch action:
 The type printer may also show an effect row on a function argument, e.g.
 `α [io; β] -> [β] α`. That means the argument is an effectful computation.
 Source annotations usually write that argument type with a concrete value type
-or a type variable, such as `[io; e] 'a`.
+or a type variable, such as `[io; 'e] 'a`.
 
 `_` can appear in annotations as a placeholder to ask inference to fill a type
 hole. It is not a type constructor and should not be read as part of the
@@ -145,12 +145,12 @@ underlying type syntax.
 Effect rows appear in type signatures with `[...]`:
 
 ```yulang
-[console; e] str
-() -> [console; e] str
+[console; 'e] str
+() -> [console; 'e] str
 ```
 
 A row lists the named effects, optionally followed by a row variable such as
-`; e` to indicate "any other effects." A wildcard row such as `[_]` is an
+`; 'e` to indicate "any other effects." A wildcard row such as `[_]` is an
 annotation placeholder for inference; it is not the canonical form of an effect
 row type.
 

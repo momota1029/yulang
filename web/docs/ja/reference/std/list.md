@@ -1,4 +1,4 @@
-# `std::list`
+# `std::data::list`
 
 不変な list。`Index`、`Fold`、`+`（連結）に対応する。
 
@@ -9,9 +9,9 @@
 [1, 2, 3]
 [head, ..tail]
 
-std::list::empty()              // []
-std::list::singleton 1          // [1]
-std::list::cons(0, [1, 2])      // [0, 1, 2]
+std::data::list::empty()              // []
+std::data::list::singleton 1          // [1]
+std::data::list::cons(0, [1, 2])      // [0, 1, 2]
 ```
 
 `[ ... ]` リテラルが日常形。`cons` と `singleton` は型変数の情報を残したい
@@ -36,7 +36,7 @@ index は実行時失敗、`range` スライスは末尾を超えるとクラン
 
 ```yulang
 xs.len              // 4
-std::list::is_empty xs    // false
+std::data::list::is_empty xs    // false
 ```
 
 `Len` を通じて `xs.len` が使える。
@@ -73,7 +73,7 @@ xs + [50, 60]                          // 同じ — list は Add を実装
 xs.first    // opt::just 10
 xs.last     // opt::just 40
 
-case std::list::uncons xs:
+case std::data::list::uncons xs:
     opt::just (head, tail) -> head
     opt::nil               -> default
 ```
@@ -97,7 +97,7 @@ impl で `&xs[i] = value` が書ける。`&xs.push v` も対応する ref method
 ## 非決定性
 
 ```yulang
-use std::undet::*
+use std::control::nondet::*
 
 (each xs).list
 (each xs).once
@@ -127,5 +127,5 @@ use std::undet::*
 ## 関連ページ
 
 - [パターン → リストパターン](../patterns)
-- [`std::range`](./core) — スライスと反復に使う range
-- [`std::undet`](./undet) — 非決定的な反復
+- [`std::data::range`](./core) — スライスと反復に使う range
+- [`std::control::nondet`](./undet) — 非決定的な反復

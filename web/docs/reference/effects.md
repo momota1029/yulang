@@ -97,6 +97,31 @@ This is the main reading rule for effect rows: a handler removes only the
 effects it is contracted to see, and the rest of the row remains available to
 outer code.
 
+### Copying an effect family
+
+`act copy = source` declares a new effect family by copying another `act`:
+
+```yulang
+act original:
+    our tick: () -> never
+
+act local = original with:
+    our label = "local"
+```
+
+The copied operations are rebased onto the destination family. `local::tick`
+is a `local` operation, not an alias for `original::tick`.
+
+Copying respects visibility. The source body's `pub` and `our` operation
+signatures and companion members are inherited, but source `my` declarations
+are not. The destination `with:` body can use its own `my` helpers, but it
+cannot see private helpers from the source act.
+
+This means some acts are not copyable as a usable surface: if an inherited
+`our` member depends on a source-private `my` helper, the copied member may be
+unresolved. That is intentional; `act copy` does not leak private source
+implementation details.
+
 ### Handlers are shallow
 
 Yulang handlers are **shallow**: a handler arm catches one operation, but the
@@ -177,11 +202,11 @@ accidental capture; compiler dumps may show that protection as evidence such as
 Effect rows appear in type signatures with `[...]`:
 
 ```yulang
-[console; e] str
-() -> [console; e] str
+[console; 'e] str
+() -> [console; 'e] str
 ```
 
-A row lists named effects, optionally followed by a row variable such as `; e`
+A row lists named effects, optionally followed by a row variable such as `; 'e`
 standing for any other effects. `[_]` can be used in annotations as a
 placeholder when the exact row should be inferred, but it is not itself the
 canonical type syntax for an effect row. It also does not erase a handler
@@ -202,7 +227,7 @@ Effect-row methods are selected from the receiver's effect row, not from a
 nominal value companion:
 
 ```yulang
-use std::undet::*
+use std::control::nondet::*
 
 (each [1, 2, 3]).list
 ```
@@ -261,7 +286,7 @@ operations, an `impl Throw`, an `impl Display`, and the `wrap` / `up`
 companion helpers into a single declaration:
 
 ```yulang
-error fs_err:
+error path_err:
     not_found path
     denied path
     invalid_path path

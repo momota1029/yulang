@@ -111,8 +111,8 @@ left-hand value. Prefer `module::name` for constructors, effect operations, and
 names that are primarily module exports.
 
 ```yulang
-fs_err::not_found path
-std::undet::each xs
+path_err::not_found path
+std::control::nondet::each xs
 ```
 
 ## Use the Pipe for Left-to-Right Data Flow
@@ -190,12 +190,15 @@ Inline branches are useful for tiny expressions, but pattern-heavy code reads
 better with one arm per line.
 
 ```yulang
+act console:
+    our write: str -> ()
+
 case value:
     nil -> fallback
     just x -> x
 
 catch action:
-    console::println_native text, k -> k ()
+    console::write text, k -> k ()
     value -> value
 ```
 
@@ -216,7 +219,7 @@ thing.
 
 ```yulang
 type str with:
-    our s.splice r insert = std::str::splice s r insert
+    our s.splice r insert = std::text::str::splice s r insert
 
 struct point { x: int, y: int } with:
     our p.len2 = p.x * p.x + p.y * p.y
@@ -301,7 +304,7 @@ make an intended cast boundary explicit.
 ```yulang
 pub my id(x: 'a): 'a = x
 
-my result: result str fs_err = fs_err::wrap:
+my result: result str io_err = io_err::wrap:
     read_text path
 ```
 

@@ -1,4 +1,4 @@
-# `std::list`
+# `std::data::list`
 
 Immutable lists, with `Index`, `Fold`, and `+` (concatenation) support.
 
@@ -9,9 +9,9 @@ Immutable lists, with `Index`, `Fold`, and `+` (concatenation) support.
 [1, 2, 3]
 [head, ..tail]
 
-std::list::empty()              // []
-std::list::singleton 1          // [1]
-std::list::cons(0, [1, 2])      // [0, 1, 2]
+std::data::list::empty()              // []
+std::data::list::singleton 1          // [1]
+std::data::list::cons(0, [1, 2])      // [0, 1, 2]
 ```
 
 The `[ ... ]` literal is the everyday form. `cons` and `singleton` are useful
@@ -36,7 +36,7 @@ fails at runtime; a range slice that runs off the end is clamped.
 
 ```yulang
 xs.len              // 4
-std::list::is_empty xs    // false
+std::data::list::is_empty xs    // false
 ```
 
 `Len` is exposed through `xs.len`.
@@ -73,7 +73,7 @@ is untouched.
 xs.first    // opt::just 10
 xs.last     // opt::just 40
 
-case std::list::uncons xs:
+case std::data::list::uncons xs:
     opt::just (head, tail) -> head
     opt::nil               -> default
 ```
@@ -98,7 +98,7 @@ When `xs` is held in a reference (`my $xs = ...`), the `Index` impl for
 ## Nondeterminism
 
 ```yulang
-use std::undet::*
+use std::control::nondet::*
 
 (each xs).list
 (each xs).once
@@ -128,5 +128,5 @@ into a fresh list, `.once` returns the first as `opt`.
 ## See also
 
 - [Patterns → List patterns](../patterns)
-- [`std::range`](./core) — ranges for slicing and iteration
-- [`std::undet`](./undet) — nondeterministic iteration
+- [`std::data::range`](./core) — ranges for slicing and iteration
+- [`std::control::nondet`](./undet) — nondeterministic iteration

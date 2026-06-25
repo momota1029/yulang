@@ -107,22 +107,22 @@ catch action:
     v -> v
 ```
 
-Function types carry an effect row: `path -> [fs; e] str`.
+Function types carry an effect row: `path -> [file; 'e] str`.
 
 ## Errors
 
 ```yulang
-error fs_err:
+error path_err:
     not_found path
     denied path
 
-fail fs_err::not_found "x"
+fail path_err::not_found "x"
 
 catch read_or_throw:
-    fs_err::not_found p, _ -> recover p
+    path_err::not_found p, _ -> recover p
     v -> v
 
-fs_err::wrap: read_or_throw
+path_err::wrap: read_or_throw
 ```
 
 ## References
@@ -150,16 +150,16 @@ my twice x = x.add x           // inferred: Add<α> => α -> α
 ```yulang
 pub prefix(not) 8.0.0 = std::bool::not
 pub infix (+) 5.0.0 5.0.0 = \x -> \y -> x.add y
-pub suffix (..) 8.0.0 = std::range::from_included
+pub suffix (..) 8.0.0 = std::data::range::from_included
 pub lazy infix(or) 1.0.0 1.0.0 = \a -> \b -> if a(): true else: b()
 ```
 
 ## Modules and imports
 
 ```yulang
-use std::undet::*
-use std::list::{map, filter}
-use std::ops::* without (+), debug
+use std::control::nondet::*
+use std::data::list::{map, filter}
+use std::core::ops::* without (+), debug
 ```
 
 ## Comments

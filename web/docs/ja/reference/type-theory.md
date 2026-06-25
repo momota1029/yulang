@@ -45,7 +45,7 @@ actual <: expected
 effect row も同じ graph の中を流れる。
 
 ```text
-[console] str <: [console; e] str
+[console] str <: [console; 'e] str
 ```
 
 具体的な `console` effect は open row に入る。handler が effect を消した後に残る residual も、
@@ -59,12 +59,12 @@ effect row も同じ graph の中を流れる。
 act console:
     our read: () -> str
 
-our run_console(action: [console; e] 'a): [e] 'a = catch action:
+our run_console(action: [console; 'e] 'a): ['e] 'a = catch action:
     console::read(), k -> run_console(k "42")
     v -> v
 ```
 
-ざっくり言えば、`action` の row が `[console; e]` なら、`catch` の外側には `[e]` だけが残る。
+ざっくり言えば、`action` の row が `[console; 'e]` なら、`catch` の外側には `['e]` だけが残る。
 
 ただし高階関数では、「その effect がどこから来たか」が重要になる。
 

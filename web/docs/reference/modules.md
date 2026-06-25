@@ -3,9 +3,9 @@
 ## `use`
 
 ```yulang
-use std::undet::*
-use std::list::map
-use std::ops::{(+), (-)}
+use std::control::nondet::*
+use std::data::list::map
+use std::core::ops::{(+), (-)}
 use my_module::old_name as new_name
 use noisy::* without debug
 ```
@@ -29,7 +29,31 @@ point::norm2 (point { x: 3, y: 4 })
 point { x: 3, y: 4 } .norm2
 ```
 
-For `enum` and `error`, the variants are members of the companion (`opt::just 1`, `fs_err::not_found "p"`). Prelude reexports make common variants such as `just`, `nil`, `ok`, and `err` available without qualification. For `act`, the operations are members (`console::println_native "hi"` in `std::console`).
+For `enum` and `error`, the variants are members of the companion (`opt::just 1`, `io_err::not_found "p"`). Prelude reexports make common variants such as `just`, `nil`, `ok`, and `err` available without qualification. For `act`, the operations are members (`out::write "hi"` in `std::io::console`).
+
+## `act copy`
+
+`act copy = source` creates a new effect family by copying another `act`. It is
+not an alias: operations emitted through the copied family are distinct from
+operations emitted through the source family.
+
+Only the source act's `pub` and `our` surface is inherited. Source `my`
+operations and helper members remain private to the source act and are not
+visible in the destination companion or its `with:` body.
+
+```yulang
+act source:
+    my hidden = 1
+    our visible = 2
+
+act copy = source with:
+    my local = 3
+    our own = local
+```
+
+`copy` contains `visible`, `local`, and `own`, but not `hidden`. If an exported
+source member depends on a source-private helper, that copied act may be
+ill-formed; the private helper is intentionally not smuggled through the copy.
 
 ## Dot selection
 
@@ -44,25 +68,25 @@ type, then can resolve role methods and effect-row methods. This works for:
 
 Selection on a record (anonymous, structural) instead pulls the field by name.
 Act operations themselves are normally reached by path, for example
-`console::println_native "hi"`.
+`out::write "hi"`.
 
 ## Standard library modules
 
 | Module | Highlights |
 |--------|------------|
 | `std::prelude` | Entry files normally import this: `Add`, `Eq`, `Ord`, `Display`, `len`, `id`, `compose`, `last`/`next`/`redo`, `return`, `fail`, range operators, and core std reexports |
-| `std::ops` | Operator definitions: `+`, `-`, `*`, `/`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `and`, `or`, `not` |
-| `std::list` | List operations: `map`, `filter`, `fold`, `sort`, `cons`, `uncons`, `rev`, `append`, … |
-| `std::range` | Range constructors and `Fold` impl |
-| `std::opt` | `opt 'a`, with prelude-reexported `nil` and `just` |
-| `std::result` | `result 'ok 'err`, with prelude-reexported `ok` and `err`, plus `map`, `and_then`, `unwrap_or` |
-| `std::str` | `str` type, `Index` impls |
-| `std::var` | `ref 'e 'a` and update helpers |
-| `std::flow` | `sub`, `loop`, label-loop primitives |
-| `std::fold` | `Fold` role with `.fold` plus default `.find` and `.contains` methods |
-| `std::undet` | `each`, `guard`, `list`, `once`, `logic` |
-| `std::junction` | `all`, `any` for effectful comparisons |
-| `std::console` | `say`, `println`, `print`, plus host-handled `print_native` / `println_native` |
-| `std::fs` | `read_text`, `read_at`, `open`, `write_text`, `exists`, `is_file`, `is_dir`, plus `fs_err` errors |
-| `std::error` | `Throw` role |
-| `std::index` | `Index` role |
+| `std::core::ops` | Operator definitions: `+`, `-`, `*`, `/`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `and`, `or`, `not` |
+| `std::data::list` | List operations: `map`, `filter`, `fold`, `sort`, `cons`, `uncons`, `rev`, `append`, … |
+| `std::data::range` | Range constructors and `Fold` impl |
+| `std::data::opt` | `opt 'a`, with prelude-reexported `nil` and `just` |
+| `std::data::result` | `result 'ok 'err`, with prelude-reexported `ok` and `err`, plus `map`, `and_then`, `unwrap_or` |
+| `std::text::str` | `str` type, `Index` impls |
+| `std::control::var` | `ref 'e 'a`, local mutable binding support, and update helpers |
+| `std::control::flow` | `sub`, `loop`, label-loop primitives |
+| `std::data::fold` | `Fold` role with `.fold` plus default `.find` and `.contains` methods |
+| `std::control::nondet` | `each`, `guard`, `list`, `once`, `logic` |
+| `std::control::junction` | `all`, `any` for effectful comparisons |
+| `std::io::console` | `say`, `println`, `print`, `note`, `eprint`, `warn`, `die`, backed by the `out` / `err` / `warn` / `die` effects |
+| `std::io::file` | `read_text`, `read_at`, `open`, `write_text`, `exists`, `is_file`, `is_dir`, plus `io_err` errors |
+| `std::control::throw` | `Throw` role and `fail` support |
+| `std::data::index` | `Index` role |

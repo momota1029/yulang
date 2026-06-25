@@ -36,7 +36,7 @@ run_console:
     my answer = ask()
     say answer
 
-fs_err::wrap:
+io_err::wrap:
     read_text path
 ```
 
@@ -102,7 +102,7 @@ nicely.
 ## `error E:` over hand-rolled enums
 
 ```yulang
-pub error fs_err:
+pub error path_err:
     not_found path
     denied path
 ```
@@ -114,7 +114,7 @@ Reach for the sugar; only drop to the long form when you need to deviate.
 ## `fail e` over `e.throw`
 
 ```yulang
-fail fs_err::not_found path
+fail path_err::not_found path
 ```
 
 `fail` is the prefix operator that surfaces an error value into the effect
@@ -153,7 +153,7 @@ else:
     "no overlap"
 ```
 
-Effectful boolean conditions go through `std::junction`. Use them when the
+Effectful boolean conditions go through `std::control::junction`. Use them when the
 condition itself is non-deterministic; ordinary `bool` conditions still work
 plainly.
 
@@ -162,7 +162,7 @@ plainly.
 ```yulang
 pub our_pipeline = read_text "data.txt" | parse | render
 
-pub our_pipeline_typed(path: path): [fs; fs_err] str =
+pub our_pipeline_typed(path: path): [file, io_err] str =
     read_text path | parse | render
 ```
 

@@ -82,7 +82,7 @@ my run_console(action: [console] 'a): 'a = catch action:
 
 The square-bracket form in the return type is the effect row. `[console] str`
 means "this returns `str` while requiring the `console` effect". A row tail
-variable such as `[console; e] 'a` keeps other effects open.
+variable such as `[console; 'e] 'a` keeps other effects open.
 
 ## Record patterns as optional arguments
 

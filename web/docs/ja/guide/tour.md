@@ -82,7 +82,7 @@ $xs
 
 ## 非決定性
 
-`std::undet` の `each` は「選ぶ」を 1 行で書けます。`.list` はすべての結果を集めます。
+`std::control::nondet` の `each` は「選ぶ」を 1 行で書けます。`.list` はすべての結果を集めます。
 
 ```yulang
 (each [1, 2, 3] + each [4, 5, 6]).list
@@ -158,24 +158,24 @@ sub:
 `error` は enum と effect operation 群を同時に作る糖衣です。
 
 ```yulang
-error fs_err:
+error path_err:
     not_found path
     denied path
     invalid_path path
 ```
 
-`fs_err::not_found "path"` は、文脈によって data constructor としても、throwing operation としても読めます。
+`path_err::not_found "path"` は、文脈によって data constructor としても、throwing operation としても読めます。
 
 ```yulang
-my err: fs_err = fs_err::not_found "/x"   // 値
-fs_err::not_found "/x"                     // [fs_err] effect を起こす
+my err: path_err = path_err::not_found "/x"   // 値
+path_err::not_found "/x"                      // [path_err] effect を起こす
 ```
 
 別の error へまとめる場合は `from` を使います。
 
 ```yulang
-error io_err:
-    fs from fs_err
+error app_err:
+    path from path_err
 ```
 
 エラーは effect row の中に名前で残るので、「何が起きうるか」が型を見ればわかります。`anyhow` のように消える `Display` ラッパーは意図的に持たず、必要なら `wrap` で `result` 値に閉じてから扱います。

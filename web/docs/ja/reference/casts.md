@@ -51,14 +51,14 @@ my n: int = "abc"
 
 ```yulang
 enum app_err:
-    fs from fs_err
+    path from path_err
     parse from parse_err
 ```
 
 `enum`（または `error`）の variant に `from` を付けると、次の 2 つが生成される：
 
-- variant 自体 — `app_err::fs` は `fs_err` を包む
-- `Cast fs_err -> app_err` の impl。`e` を `app_err::fs e` に写す
+- variant 自体 — `app_err::path` は `path_err` を包む
+- `Cast path_err -> app_err` の impl。`e` を `app_err::path e` に写す
 
 source 型は payload 1 つ、source と target は両方 nominal である必要がある。
 

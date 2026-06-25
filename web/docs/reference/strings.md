@@ -56,7 +56,7 @@ character position, not byte offset.
 "aあ🙂z".splice (range 1 3) "bc"  // "abcz"
 ```
 
-`std::str::splice` and the `.splice` method replace a character range with new
+`std::text::str::splice` and the `.splice` method replace a character range with new
 text.
 
 ## Display and `.show`

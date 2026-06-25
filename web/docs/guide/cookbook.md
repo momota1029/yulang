@@ -111,16 +111,16 @@ text.say
 ```
 
 `str` widens to `path`, so a string literal is enough for ordinary paths.
-Filesystem errors are raised as `fs_err` in the effect row. Wrap them only
+Filesystem errors are raised as `io_err` in the effect row. Wrap them only
 when the caller needs a value-level `result`.
 
 ```yulang
-case fs_err::wrap: read_text "data.txt":
+case io_err::wrap: read_text "data.txt":
     result::ok text -> text
     result::err _ -> ""
 ```
 
-[std::fs](../reference/std/fs)
+[std::io::file](../reference/std/fs)
 
 ## Set up optional arguments
 
@@ -140,10 +140,10 @@ site. Defaults evaluate left-to-right and may reference earlier fields.
 ## Raise and catch a typed error
 
 ```yulang
-my path = std::path::of_bytes (std::str::to_bytes "/tmp/data")
+my path = std::text::path::of_bytes (std::text::str::to_bytes "/tmp/data")
 
-catch fs::read_text path:
-    fs_err::not_found _, _ -> "(missing)"
+catch read_text path:
+    io_err::not_found _, _ -> "(missing)"
     value -> value
 ```
 
@@ -155,9 +155,9 @@ errors are always caught by their concrete name.
 ## Close an error effect into a `result`
 
 ```yulang
-my path = std::path::of_bytes (std::str::to_bytes "/tmp/data")
+my path = std::text::path::of_bytes (std::text::str::to_bytes "/tmp/data")
 
-case fs_err::wrap: fs::read_text path:
+case io_err::wrap: read_text path:
     result::ok text -> text
     result::err err -> err.show
 ```
@@ -171,18 +171,18 @@ impl.
 ## Aggregate several errors into one
 
 ```yulang
-pub error io_err:
-    fs from fs_err
+pub error app_err:
+    file from io_err
     parse from parse_err
 
 my read_and_parse path =
-    io_err::up:
-        my text = fs::read_text path
+    app_err::up:
+        my text = read_text path
         parse_json text
 ```
 
-`from` makes a wider error type wrap narrower ones. `io_err::up` lifts the
-narrower errors into `io_err` inside the block.
+`from` makes a wider error type wrap narrower ones. `app_err::up` lifts the
+narrower errors into `app_err` inside the block.
 
 [Errors → from aggregation](../reference/errors)
 
@@ -211,7 +211,7 @@ computation.
 ## Search nondeterministically
 
 ```yulang
-use std::undet::*
+use std::control::nondet::*
 
 (each [1, 2, 3] + each [10, 20]).list
 ```
@@ -220,7 +220,7 @@ use std::undet::*
 computation and collects every result. `.once`, `.logic`, and friends produce
 other shapes.
 
-[std::undet](../reference/std/undet)
+[std::control::nondet](../reference/std/undet)
 
 ## Effectful boolean conditions
 
@@ -232,7 +232,7 @@ else:
 ```
 
 Yulang's `if` accepts an `effectful` boolean condition through
-`std::junction`. `all xs` and `any xs` express "every / some element of `xs`".
+`std::control::junction`. `all xs` and `any xs` express "every / some element of `xs`".
 
 ## Define a cast between two types
 
@@ -325,7 +325,7 @@ stays in the scope where it was introduced.
 find it:
 
 ```yulang
-use std::undet::*
+use std::control::nondet::*
 
 {
     my a = each 1..20

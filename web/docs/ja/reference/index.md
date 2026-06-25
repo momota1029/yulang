@@ -72,4 +72,4 @@ doc comment は構文木や tooling に現れる可能性があり、`//` と入
 
 - [中核](./std/core), [list](./std/list), [str](./std/str)
 - [opt](./std/opt), [result](./std/result)
-- [fs](./std/fs), [undet](./std/undet)
+- [io::file](./std/fs), [control::nondet](./std/undet)

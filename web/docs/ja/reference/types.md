@@ -55,7 +55,7 @@ just 42
 nil
 ```
 
-`opt 'a` は標準ライブラリの `enum opt 'a = nil | just 'a` である。prelude は type と variant の両方を reexport するため、通常のコードでは `std::opt::` や `opt::` を付けずに `opt`、`just`、`nil` と書く。
+`opt 'a` は標準ライブラリの `enum opt 'a = nil | just 'a` である。prelude は type と variant の両方を reexport するため、通常のコードでは `std::data::opt::` や `opt::` を付けずに `opt`、`just`、`nil` と書く。
 
 ## Result
 
@@ -122,18 +122,18 @@ our run_console(action: [console] 'a): 'a = catch action:
     console::read(), k -> run_console(k "42")
 ```
 
-型表示では `α [io; β] -> [β] α` のように、関数の引数側にも effect row が出ることがある。これは「引数が effectful computation である」という意味である。source annotation では、`x: [io; e] 'a` のように具体的な値型か type variable を置く。
+型表示では `α [io; β] -> [β] α` のように、関数の引数側にも effect row が出ることがある。これは「引数が effectful computation である」という意味である。source annotation では、`x: [io; 'e] 'a` のように具体的な値型か type variable を置く。
 
 `_` は annotation 内で推論に穴埋めを任せる placeholder として使えるが、型そのものではない。
 
 ## Effect row
 
 ```yulang
-[console; e] str
-() -> [console; e] str
+[console; 'e] str
+() -> [console; 'e] str
 ```
 
-row は named effect の列と、任意の残りを表す row variable `; e` を持てる。`[_]` のような wildcard row は annotation placeholder であり、effect row type そのものの標準形ではない。
+row は named effect の列と、任意の残りを表す row variable `; 'e` を持てる。`[_]` のような wildcard row は annotation placeholder であり、effect row type そのものの標準形ではない。
 
 ## Role constraint
 

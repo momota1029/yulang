@@ -186,7 +186,7 @@ catch action:
     log::put msg, k ->
         my logged = msg + "\n"
         k ()
-    fs_err::not_found _, _ -> "(missing)"
+    path_err::not_found _, _ -> "(missing)"
     value -> value
 ```
 

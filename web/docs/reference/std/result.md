@@ -1,4 +1,4 @@
-# `std::result`
+# `std::data::result`
 
 `result 'ok 'err` is the value-level form of a fallible computation. Use it
 when you want to close an error effect into a value that can be stored,
@@ -18,7 +18,7 @@ The prelude re-exports `result`, `ok`, and `err`.
 ok 1
 ok "yes"
 err "missing config"
-err fs_err::not_found "p"
+err io_err::not_found "p"
 ```
 
 ## Pattern-matching
@@ -51,7 +51,7 @@ my doubled = (ok 21).map (\x -> x * 2)       // ok 42
 ## Relationship with `error E:` and `wrap`
 
 ```yulang
-case fs_err::wrap: fs::read_text path:
+case io_err::wrap: read_text path:
     ok text -> use text
     err e   -> e.show
 ```
@@ -76,5 +76,5 @@ see [Errors](../errors).
 ## See also
 
 - [Errors](../errors) — `error E:` and the catch-by-name story
-- [`std::opt`](./opt) — when the error side carries no information
+- [`std::data::opt`](./opt) — when the error side carries no information
 - [Casts](../casts) — converting between result-shaped wrappers

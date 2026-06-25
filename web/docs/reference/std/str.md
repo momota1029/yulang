@@ -1,4 +1,4 @@
-# `std::str`
+# `std::text::str`
 
 Immutable strings with `Index`, `Len`, `Add` (concatenation), `Display`, and
 `Debug` support.
@@ -94,6 +94,6 @@ and `.println`, which print `.debug` without or with a newline.
 
 ## See also
 
-- [`std::list`](./list) — list operations are often paired with strings
+- [`std::data::list`](./list) — list operations are often paired with strings
 - [Strings](../strings) — string-specific syntax and patterns
 - [Casts](../casts) — between strings and wrapper types

@@ -66,7 +66,7 @@ impl Add int:
 
 impl Index str int:
     type value = str
-    our s.index i = std::str::index_raw s i
+    our s.index i = std::text::str::index_raw s i
 ```
 
 The first type after the role name fills the role's first type variable; further types fill the rest.

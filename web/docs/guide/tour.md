@@ -94,7 +94,7 @@ state shows up in the type and cannot silently escape its binder. Not a
 
 ## Nondeterminism
 
-`each xs` from `std::undet` picks one element of `xs`. `.list` runs the
+`each xs` from `std::control::nondet` picks one element of `xs`. `.list` runs the
 search and collects every result:
 
 ```yulang
@@ -190,25 +190,25 @@ machinery, not special syntax.
 go:
 
 ```yulang
-error fs_err:
+error path_err:
     not_found path
     denied path
     invalid_path path
 ```
 
-`fs_err::not_found "path"` reads either as a data constructor or as a
+`path_err::not_found "path"` reads either as a data constructor or as a
 throwing operation, depending on context:
 
 ```yulang
-my err: fs_err = fs_err::not_found "/x"   // value
-fs_err::not_found "/x"                     // raises [fs_err]
+my err: path_err = path_err::not_found "/x"   // value
+path_err::not_found "/x"                      // raises [path_err]
 ```
 
 Aggregate into a wider error with `from`:
 
 ```yulang
-error io_err:
-    fs from fs_err
+error app_err:
+    path from path_err
 ```
 
 Errors stay named in the effect row, so "what can go wrong" is visible in
