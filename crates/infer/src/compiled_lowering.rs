@@ -6,11 +6,12 @@ use sources::{Name, Path};
 
 use crate::lowering::{self, SignatureEffectAtom, SignatureEffectRow, SignatureType, SignatureVar};
 use crate::{
-    ActMethodDecl, CompiledNamespaceSurface, CompiledNamespaceSymbol, CompiledNamespaceTypeKind,
-    CompiledNamespaceTypeSymbol, CompiledNamespaceVisibility, ConstructorPayload,
-    ConstructorPayloadItem, ConstructorRecordPayloadField, ModuleTable, ModuleTypeDecl,
-    ModuleTypeKind, RoleMethodDecl, StoredSignature, TypeDeclId, TypeFieldMethodDecl,
-    TypeMethodDecl, TypeMethodReceiver, namespace_path,
+    ActMethodDecl, CompiledNamespaceMergeOutput, CompiledNamespaceSurface, CompiledNamespaceSymbol,
+    CompiledNamespaceTypeKind, CompiledNamespaceTypeSymbol, CompiledNamespaceVisibility,
+    CompiledRuntimeMergeOutput, ConstructorPayload, ConstructorPayloadItem,
+    ConstructorRecordPayloadField, ModuleTable, ModuleTypeDecl, ModuleTypeKind, RoleMethodDecl,
+    StoredSignature, TypeDeclId, TypeFieldMethodDecl, TypeMethodDecl, TypeMethodReceiver,
+    namespace_path,
 };
 
 /// Lowering-time metadata exported by a compiled unit.
@@ -31,6 +32,13 @@ pub struct CompiledLoweringSurface {
     pub type_field_methods: Vec<CompiledLoweringTypeFieldMethod>,
     pub act_methods: Vec<CompiledLoweringActMethod>,
     pub role_methods: Vec<CompiledLoweringRoleMethodSignature>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompiledLoweringMergeError {
+    MissingTypeSymbol { prefix: usize, symbol: u32 },
+    MissingValueSymbol { prefix: usize, symbol: u32 },
+    MissingDef { prefix: usize, def: DefId },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -479,6 +487,192 @@ impl CompiledLoweringSurface {
             }
         }
     }
+
+    pub fn merge_prefixes<'a>(
+        prefixes: impl IntoIterator<Item = &'a CompiledLoweringSurface>,
+        namespace: &CompiledNamespaceMergeOutput,
+        runtime: &CompiledRuntimeMergeOutput,
+    ) -> Result<Self, CompiledLoweringMergeError> {
+        let mut merged = Self::default();
+        for (prefix, surface) in prefixes.into_iter().enumerate() {
+            for entry in &surface.act_type_vars {
+                let mut entry = entry.clone();
+                entry.type_symbol = remap_type_symbol(prefix, entry.type_symbol, namespace)?;
+                merged.act_type_vars.push(entry);
+            }
+            for entry in &surface.act_templates {
+                let mut entry = entry.clone();
+                entry.type_symbol = remap_type_symbol(prefix, entry.type_symbol, namespace)?;
+                merged.act_templates.push(entry);
+            }
+            for entry in &surface.constructor_payloads {
+                let mut entry = entry.clone();
+                entry.value_symbol = remap_value_symbol(prefix, entry.value_symbol, namespace)?;
+                entry.owner_type_symbol =
+                    remap_type_symbol(prefix, entry.owner_type_symbol, namespace)?;
+                merged.constructor_payloads.push(entry);
+            }
+            for entry in &surface.act_operations {
+                let mut entry = entry.clone();
+                entry.type_symbol = remap_type_symbol(prefix, entry.type_symbol, namespace)?;
+                entry.source_def = remap_optional_def(prefix, entry.source_def, runtime)?;
+                entry.value_symbol =
+                    remap_optional_value_symbol(prefix, entry.value_symbol, namespace)?;
+                merged.act_operations.push(entry);
+            }
+            for entry in &surface.role_shapes {
+                let mut entry = entry.clone();
+                entry.type_symbol = remap_type_symbol(prefix, entry.type_symbol, namespace)?;
+                merged.role_shapes.push(entry);
+            }
+            for entry in &surface.type_methods {
+                let mut entry = entry.clone();
+                entry.owner_type_symbol =
+                    remap_type_symbol(prefix, entry.owner_type_symbol, namespace)?;
+                entry.source_def = remap_def(prefix, entry.source_def, runtime)?;
+                entry.value_symbol =
+                    remap_optional_value_symbol(prefix, entry.value_symbol, namespace)?;
+                merged.type_methods.push(entry);
+            }
+            for entry in &surface.type_field_methods {
+                let mut entry = entry.clone();
+                entry.owner_type_symbol =
+                    remap_type_symbol(prefix, entry.owner_type_symbol, namespace)?;
+                entry.source_def = remap_def(prefix, entry.source_def, runtime)?;
+                merged.type_field_methods.push(entry);
+            }
+            for entry in &surface.act_methods {
+                let mut entry = entry.clone();
+                entry.owner_type_symbol =
+                    remap_type_symbol(prefix, entry.owner_type_symbol, namespace)?;
+                entry.source_def = remap_def(prefix, entry.source_def, runtime)?;
+                entry.value_symbol =
+                    remap_optional_value_symbol(prefix, entry.value_symbol, namespace)?;
+                merged.act_methods.push(entry);
+            }
+            for entry in &surface.role_methods {
+                let mut entry = entry.clone();
+                entry.type_symbol = remap_type_symbol(prefix, entry.type_symbol, namespace)?;
+                entry.source_def = remap_def(prefix, entry.source_def, runtime)?;
+                entry.value_symbol =
+                    remap_optional_value_symbol(prefix, entry.value_symbol, namespace)?;
+                merged.role_methods.push(entry);
+            }
+        }
+        sort_lowering_surface(&mut merged);
+        Ok(merged)
+    }
+}
+
+fn remap_type_symbol(
+    prefix: usize,
+    symbol: u32,
+    namespace: &CompiledNamespaceMergeOutput,
+) -> Result<u32, CompiledLoweringMergeError> {
+    namespace
+        .map_type(prefix, symbol)
+        .ok_or(CompiledLoweringMergeError::MissingTypeSymbol { prefix, symbol })
+}
+
+fn remap_value_symbol(
+    prefix: usize,
+    symbol: u32,
+    namespace: &CompiledNamespaceMergeOutput,
+) -> Result<u32, CompiledLoweringMergeError> {
+    namespace
+        .map_value(prefix, symbol)
+        .ok_or(CompiledLoweringMergeError::MissingValueSymbol { prefix, symbol })
+}
+
+fn remap_optional_value_symbol(
+    prefix: usize,
+    symbol: Option<u32>,
+    namespace: &CompiledNamespaceMergeOutput,
+) -> Result<Option<u32>, CompiledLoweringMergeError> {
+    symbol
+        .map(|symbol| remap_value_symbol(prefix, symbol, namespace))
+        .transpose()
+}
+
+fn remap_def(
+    prefix: usize,
+    def: DefId,
+    runtime: &CompiledRuntimeMergeOutput,
+) -> Result<DefId, CompiledLoweringMergeError> {
+    runtime
+        .map_def(prefix, def)
+        .ok_or(CompiledLoweringMergeError::MissingDef { prefix, def })
+}
+
+fn remap_optional_def(
+    prefix: usize,
+    def: Option<DefId>,
+    runtime: &CompiledRuntimeMergeOutput,
+) -> Result<Option<DefId>, CompiledLoweringMergeError> {
+    def.map(|def| remap_def(prefix, def, runtime)).transpose()
+}
+
+fn sort_lowering_surface(surface: &mut CompiledLoweringSurface) {
+    surface.act_type_vars.sort_by_key(|entry| entry.type_symbol);
+    surface.act_templates.sort_by_key(|entry| entry.type_symbol);
+    surface
+        .constructor_payloads
+        .sort_by_key(|entry| entry.value_symbol);
+    surface.act_operations.sort_by(|left, right| {
+        (left.type_symbol, &left.name).cmp(&(right.type_symbol, &right.name))
+    });
+    surface.role_shapes.sort_by_key(|entry| entry.type_symbol);
+    surface.type_methods.sort_by(|left, right| {
+        (
+            left.owner_type_symbol,
+            left.order,
+            &left.receiver,
+            &left.name,
+            left.receiver_kind as u8,
+        )
+            .cmp(&(
+                right.owner_type_symbol,
+                right.order,
+                &right.receiver,
+                &right.name,
+                right.receiver_kind as u8,
+            ))
+    });
+    surface.type_field_methods.sort_by(|left, right| {
+        (
+            left.owner_type_symbol,
+            &left.name,
+            left.receiver_kind as u8,
+            left.source_def.0,
+        )
+            .cmp(&(
+                right.owner_type_symbol,
+                &right.name,
+                right.receiver_kind as u8,
+                right.source_def.0,
+            ))
+    });
+    surface.act_methods.sort_by(|left, right| {
+        (
+            left.owner_type_symbol,
+            left.order,
+            &left.receiver,
+            &left.name,
+        )
+            .cmp(&(
+                right.owner_type_symbol,
+                right.order,
+                &right.receiver,
+                &right.name,
+            ))
+    });
+    surface.role_methods.sort_by(|left, right| {
+        (left.type_symbol, left.order, &left.name).cmp(&(
+            right.type_symbol,
+            right.order,
+            &right.name,
+        ))
+    });
 }
 
 pub(crate) fn restore_compiled_act_template(source: &str) -> Option<crate::Cst> {
@@ -997,8 +1191,8 @@ fn path_from_strings(path: &[String]) -> Path {
 mod tests {
     use sources::{Name, Path, SourceFile};
 
-    use crate::CompiledNamespaceSurface;
     use crate::lowering::lower_loaded_files;
+    use crate::{CompiledNamespaceSurface, CompiledRuntimeSurface};
 
     use super::*;
 
@@ -1071,6 +1265,114 @@ mod tests {
                 .iter()
                 .all(|method| matches!(method.signature, Some(StoredSignature::Lowered(_))))
         );
+    }
+
+    #[test]
+    fn lowering_surface_merge_remaps_symbols_and_source_defs() {
+        let left =
+            compiled_lowering_surface(&["left"], "pub act signal 'a:\n  pub ping: () -> 'a\n");
+        let right = compiled_lowering_surface(&["right"], "pub struct Box { value: int }\n");
+        let namespace = CompiledNamespaceSurface::merge_prefixes_with_remap([
+            &left.namespace,
+            &right.namespace,
+        ])
+        .unwrap();
+        let runtime = CompiledRuntimeSurface::merge_prefixes_with_remap(
+            [&left.runtime, &right.runtime],
+            &namespace,
+        )
+        .unwrap();
+        let lowering = CompiledLoweringSurface::merge_prefixes(
+            [&left.lowering, &right.lowering],
+            &namespace,
+            &runtime,
+        )
+        .unwrap();
+        let namespace_index = crate::CompiledNamespaceIndex::new(&namespace.surface);
+        let signal = namespace_index
+            .exported_type_symbol(&["left".to_string()], "signal")
+            .unwrap();
+        let box_ctor = namespace_index
+            .exported_value_symbol(&["right".to_string()], "Box")
+            .unwrap();
+        let source_ping = left
+            .lowering
+            .act_operations
+            .iter()
+            .find(|entry| entry.name == "ping")
+            .and_then(|entry| entry.source_def)
+            .unwrap();
+        let merged_ping = lowering
+            .act_operations
+            .iter()
+            .find(|entry| entry.name == "ping")
+            .unwrap();
+
+        assert!(
+            lowering
+                .act_type_vars
+                .iter()
+                .any(|entry| entry.type_symbol == signal)
+        );
+        assert!(
+            lowering
+                .act_templates
+                .iter()
+                .any(|entry| entry.type_symbol == signal)
+        );
+        assert!(
+            lowering
+                .constructor_payloads
+                .iter()
+                .any(|entry| entry.value_symbol == box_ctor)
+        );
+        assert_eq!(merged_ping.type_symbol, signal);
+        assert_eq!(merged_ping.source_def, runtime.map_def(0, source_ping));
+    }
+
+    #[test]
+    fn lowering_surface_merge_rejects_missing_type_symbol_remap() {
+        let mut unit =
+            compiled_lowering_surface(&["unit"], "pub act signal 'a:\n  pub ping: () -> 'a\n");
+        unit.lowering.act_type_vars[0].type_symbol = u32::MAX;
+        let namespace =
+            CompiledNamespaceSurface::merge_prefixes_with_remap([&unit.namespace]).unwrap();
+        let runtime =
+            CompiledRuntimeSurface::merge_prefixes_with_remap([&unit.runtime], &namespace).unwrap();
+        let error =
+            match CompiledLoweringSurface::merge_prefixes([&unit.lowering], &namespace, &runtime) {
+                Ok(_) => panic!("lowering merge should reject missing type symbol remap"),
+                Err(error) => error,
+            };
+
+        assert_eq!(
+            error,
+            CompiledLoweringMergeError::MissingTypeSymbol {
+                prefix: 0,
+                symbol: u32::MAX,
+            }
+        );
+    }
+
+    struct LoweringSurfaceFixture {
+        namespace: CompiledNamespaceSurface,
+        lowering: CompiledLoweringSurface,
+        runtime: CompiledRuntimeSurface,
+    }
+
+    fn compiled_lowering_surface(module: &[&str], text: &str) -> LoweringSurfaceFixture {
+        assert_eq!(module.len(), 1);
+        let root = format!("mod {};\n", module[0]);
+        let loaded = sources::load(vec![source(&[], &root), source(module, text)]);
+        let lowering = lower_loaded_files(&loaded).unwrap();
+        let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
+        let surface = CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
+        let runtime = CompiledRuntimeSurface::from_lowering_with_namespace(&lowering, &namespace);
+        LoweringSurfaceFixture {
+            namespace,
+            lowering: surface,
+            runtime,
+        }
     }
 
     fn clear_signature_metadata(modules: &mut ModuleTable) {
