@@ -17,14 +17,14 @@ use crate::source::CollectedSource;
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 8;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 9;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
 const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v1";
 const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
 const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/v1";
-const COMPILED_LOWERING_HASH_SALT: &[u8] = b"yulang/compiled-lowering-surface/v2";
+const COMPILED_LOWERING_HASH_SALT: &[u8] = b"yulang/compiled-lowering-surface/v3";
 const COMPILED_TYPED_HASH_SALT: &[u8] = b"yulang/compiled-typed-surface/v1";
 const COMPILED_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-runtime-surface/v2";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
@@ -485,6 +485,8 @@ fn compiled_lowering_hash(lowering: &infer::CompiledLoweringSurface) -> u64 {
     for entry in &lowering.constructor_payloads {
         hasher.u32(entry.value_symbol);
         hash_string_path(&mut hasher, &entry.value_path);
+        hasher.u32(entry.owner_type_symbol);
+        hash_string_path(&mut hasher, &entry.owner_type_path);
         hash_compiled_constructor_payload(&mut hasher, &entry.payload);
     }
 
@@ -492,6 +494,8 @@ fn compiled_lowering_hash(lowering: &infer::CompiledLoweringSurface) -> u64 {
     for entry in &lowering.act_operations {
         hasher.u32(entry.type_symbol);
         hash_string_path(&mut hasher, &entry.type_path);
+        hash_optional_u32(&mut hasher, entry.value_symbol);
+        hash_optional_string_path(&mut hasher, entry.value_path.as_deref());
         hasher.string(&entry.name);
         hash_optional_compiled_signature_type(&mut hasher, &entry.signature);
     }
@@ -500,12 +504,34 @@ fn compiled_lowering_hash(lowering: &infer::CompiledLoweringSurface) -> u64 {
     for entry in &lowering.role_methods {
         hasher.u32(entry.type_symbol);
         hash_string_path(&mut hasher, &entry.type_path);
+        hash_optional_u32(&mut hasher, entry.value_symbol);
+        hash_optional_string_path(&mut hasher, entry.value_path.as_deref());
         hasher.string(&entry.name);
         hasher.u32(entry.order);
         hash_optional_compiled_signature_type(&mut hasher, &entry.signature);
     }
 
     hasher.finish()
+}
+
+fn hash_optional_u32(hasher: &mut StableHasher, value: Option<u32>) {
+    match value {
+        Some(value) => {
+            hasher.bool(true);
+            hasher.u32(value);
+        }
+        None => hasher.bool(false),
+    }
+}
+
+fn hash_optional_string_path(hasher: &mut StableHasher, path: Option<&[String]>) {
+    match path {
+        Some(path) => {
+            hasher.bool(true);
+            hash_string_path(hasher, path);
+        }
+        None => hasher.bool(false),
+    }
 }
 
 fn hash_compiled_constructor_payload(
@@ -2129,6 +2155,7 @@ mod tests {
                 .constructor_payloads
                 .iter()
                 .any(|entry| entry.value_path == vec!["ops", "Box"]
+                    && entry.owner_type_path == vec!["ops", "Box"]
                     && matches!(entry.payload, infer::CompiledConstructorPayload::Record(_)))
         );
         assert!(
@@ -2137,6 +2164,8 @@ mod tests {
                 .act_operations
                 .iter()
                 .any(|entry| entry.type_path == vec!["ops", "signal"]
+                    && entry.value_symbol.is_some()
+                    && entry.value_path.is_some()
                     && entry.name == "ping"
                     && entry.signature.is_some())
         );
@@ -2146,6 +2175,8 @@ mod tests {
                 .role_methods
                 .iter()
                 .any(|entry| entry.type_path == vec!["ops", "Display"]
+                    && entry.value_symbol.is_some()
+                    && entry.value_path.is_some()
                     && entry.name == "display"
                     && entry.signature.is_some())
         );

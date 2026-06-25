@@ -5,9 +5,10 @@ use sources::{Name, Path};
 
 use crate::lowering::{self, SignatureEffectAtom, SignatureEffectRow, SignatureType, SignatureVar};
 use crate::{
-    CompiledNamespaceSurface, CompiledNamespaceTypeKind, ConstructorPayload,
-    ConstructorPayloadItem, ConstructorRecordPayloadField, ModuleTable, ModuleTypeDecl,
-    ModuleTypeKind, RoleMethodDecl, StoredSignature, TypeDeclId, namespace_path,
+    CompiledNamespaceSurface, CompiledNamespaceSymbol, CompiledNamespaceTypeKind,
+    CompiledNamespaceTypeSymbol, ConstructorPayload, ConstructorPayloadItem,
+    ConstructorRecordPayloadField, ModuleTable, ModuleTypeDecl, ModuleTypeKind, RoleMethodDecl,
+    StoredSignature, TypeDeclId, namespace_path,
 };
 
 /// Lowering-time metadata exported by a compiled unit.
@@ -36,6 +37,8 @@ pub struct CompiledLoweringActTypeVars {
 pub struct CompiledLoweringConstructorPayload {
     pub value_symbol: u32,
     pub value_path: Vec<String>,
+    pub owner_type_symbol: u32,
+    pub owner_type_path: Vec<String>,
     pub payload: CompiledConstructorPayload,
 }
 
@@ -56,6 +59,8 @@ pub struct CompiledConstructorRecordPayloadField {
 pub struct CompiledLoweringActOperationSignature {
     pub type_symbol: u32,
     pub type_path: Vec<String>,
+    pub value_symbol: Option<u32>,
+    pub value_path: Option<Vec<String>>,
     pub name: String,
     pub signature: Option<CompiledSignatureType>,
 }
@@ -64,6 +69,8 @@ pub struct CompiledLoweringActOperationSignature {
 pub struct CompiledLoweringRoleMethodSignature {
     pub type_symbol: u32,
     pub type_path: Vec<String>,
+    pub value_symbol: Option<u32>,
+    pub value_path: Option<Vec<String>>,
     pub name: String,
     pub order: u32,
     pub signature: Option<CompiledSignatureType>,
@@ -131,9 +138,12 @@ impl CompiledLoweringSurface {
             .filter_map(|value| {
                 let def = value_def_for_namespace_symbol(modules, namespace, value.unit_id)?;
                 let constructor = modules.constructor_by_def(def)?;
+                let owner = type_symbol_for_decl(modules, namespace, constructor.owner)?;
                 Some(CompiledLoweringConstructorPayload {
                     value_symbol: value.unit_id,
                     value_path: value.path.clone(),
+                    owner_type_symbol: owner.unit_id,
+                    owner_type_path: owner.path,
                     payload: compile_constructor_payload(modules, constructor)?,
                 })
             })
@@ -158,9 +168,13 @@ impl CompiledLoweringSurface {
                 Some(
                     ops.iter()
                         .filter_map(|op| {
+                            let value =
+                                act_operation_value_symbol(modules, namespace, &decl, &op.name);
                             Some(CompiledLoweringActOperationSignature {
                                 type_symbol: ty.unit_id,
                                 type_path: ty.path.clone(),
+                                value_symbol: value.as_ref().map(|value| value.unit_id),
+                                value_path: value.map(|value| value.path),
                                 name: op.name.0.clone(),
                                 signature: compile_act_operation_signature(
                                     modules,
@@ -192,9 +206,12 @@ impl CompiledLoweringSurface {
                         .role_methods(decl.id)
                         .iter()
                         .filter_map(|method| {
+                            let value = value_symbol_for_def(modules, namespace, method.def);
                             Some(CompiledLoweringRoleMethodSignature {
                                 type_symbol: ty.unit_id,
                                 type_path: ty.path.clone(),
+                                value_symbol: value.as_ref().map(|value| value.unit_id),
+                                value_path: value.map(|value| value.path),
                                 name: method.name.0.clone(),
                                 order: method.order.index(),
                                 signature: compile_role_method_signature(modules, method)?,
@@ -613,6 +630,63 @@ fn value_def_for_namespace_symbol(
             .map(|decl| decl.def);
         if found.is_some() {
             return found;
+        }
+    }
+    None
+}
+
+fn type_symbol_for_decl(
+    modules: &ModuleTable,
+    namespace: &CompiledNamespaceSurface,
+    id: TypeDeclId,
+) -> Option<CompiledNamespaceTypeSymbol> {
+    let decl = modules.type_decl_by_id(id)?;
+    let path = namespace_path(&modules.type_decl_path(&decl));
+    namespace.types.iter().find(|ty| ty.path == path).cloned()
+}
+
+fn act_operation_value_symbol(
+    modules: &ModuleTable,
+    namespace: &CompiledNamespaceSurface,
+    decl: &ModuleTypeDecl,
+    name: &Name,
+) -> Option<CompiledNamespaceSymbol> {
+    let companion = modules.type_companion(decl.id)?;
+    let def = modules
+        .value_decls(companion, name)
+        .into_iter()
+        .find(|candidate| {
+            modules
+                .act_op_defs
+                .get(&candidate.def)
+                .is_some_and(|op| op.effect == decl.id && op.name == *name)
+        })
+        .map(|candidate| candidate.def)?;
+    value_symbol_for_def(modules, namespace, def)
+}
+
+fn value_symbol_for_def(
+    modules: &ModuleTable,
+    namespace: &CompiledNamespaceSurface,
+    def: DefId,
+) -> Option<CompiledNamespaceSymbol> {
+    for module in &namespace.modules {
+        let Some(live_module) = modules.module_by_path(&path_from_strings(&module.path)) else {
+            continue;
+        };
+        for value in &module.values {
+            let name = Name(value.name.clone());
+            let matches_def = modules
+                .value_decls(live_module, &name)
+                .into_iter()
+                .any(|decl| decl.order.index() == value.order && decl.def == def);
+            if matches_def {
+                return namespace
+                    .values
+                    .iter()
+                    .find(|symbol| symbol.unit_id == value.symbol)
+                    .cloned();
+            }
         }
     }
     None
