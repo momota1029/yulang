@@ -85,6 +85,14 @@ impl DumpLabels {
         self.refs.extend(other.refs);
     }
 
+    pub fn def_labels(&self) -> impl Iterator<Item = (DefId, &str)> {
+        self.defs.iter().map(|(id, label)| (*id, label.as_str()))
+    }
+
+    pub fn ref_labels(&self) -> impl Iterator<Item = (RefId, &str)> {
+        self.refs.iter().map(|(id, label)| (*id, label.as_str()))
+    }
+
     pub fn def_label(&self, id: DefId) -> Option<&str> {
         self.defs.get(&id).map(String::as_str)
     }

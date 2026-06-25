@@ -179,10 +179,30 @@ impl Arena {
         self.expr.push(expr);
         id
     }
+
+    /// Arena-local ID remapping uses a two-pass import: reserve all IDs first,
+    /// then overwrite placeholders after child IDs are known.
+    pub fn reserve_expr_slot(&mut self) -> ExprId {
+        self.add_expr(Expr::Lit(Lit::Unit))
+    }
+
+    pub fn set_expr(&mut self, id: ExprId, expr: Expr) {
+        self.expr[id.0 as usize] = expr;
+    }
+
     pub fn add_pat(&mut self, pat: Pat) -> PatId {
         let id = PatId(self.pat.len() as u32);
         self.pat.push(pat);
         id
+    }
+
+    /// See `reserve_expr_slot`; pattern graphs need the same import shape.
+    pub fn reserve_pat_slot(&mut self) -> PatId {
+        self.add_pat(Pat::Wild)
+    }
+
+    pub fn set_pat(&mut self, id: PatId, pat: Pat) {
+        self.pat[id.0 as usize] = pat;
     }
 
     // --- 参照: RefId → 解決先 DefId（名前解決前は None）---

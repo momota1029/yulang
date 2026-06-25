@@ -346,7 +346,7 @@ impl<'a, 'b, T: CompiledTypeImportTarget> CompiledTypeImporter<'a, 'b, T> {
         }
     }
 
-    fn import_pos_id(&mut self, id: PosId) -> PosId {
+    pub fn import_pos_id(&mut self, id: PosId) -> PosId {
         if let Some(mapped) = self.pos.get(&id) {
             return *mapped;
         }
@@ -361,7 +361,7 @@ impl<'a, 'b, T: CompiledTypeImportTarget> CompiledTypeImporter<'a, 'b, T> {
         mapped
     }
 
-    fn import_neg_id(&mut self, id: NegId) -> NegId {
+    pub fn import_neg_id(&mut self, id: NegId) -> NegId {
         if let Some(mapped) = self.neg.get(&id) {
             return *mapped;
         }
@@ -376,7 +376,7 @@ impl<'a, 'b, T: CompiledTypeImportTarget> CompiledTypeImporter<'a, 'b, T> {
         mapped
     }
 
-    fn import_neu_id(&mut self, id: NeuId) -> NeuId {
+    pub fn import_neu_id(&mut self, id: NeuId) -> NeuId {
         if let Some(mapped) = self.neu.get(&id) {
             return *mapped;
         }
