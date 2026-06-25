@@ -4,6 +4,7 @@
 //! 実験中の std 取り込みはここへ置く。
 
 mod collector;
+mod compilation_units;
 mod format;
 mod std_sources;
 
@@ -26,6 +27,9 @@ use crate::time::{Duration, Instant};
 mod tests;
 
 use collector::*;
+pub use compilation_units::{
+    SourceCompilationUnit, SourceCompilationUnits, source_compilation_units,
+};
 use format::*;
 use std_sources::*;
 

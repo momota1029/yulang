@@ -58,10 +58,12 @@ Implemented subset:
   `BodyLoweringPrefix` from compiled surfaces and lower only the root source;
 - library-level prefix/suffix lowering can combine one compiled-unit prefix
   with freshly parsed root/local-module suffix files.
+- the active source route has a read-only `source_compilation_units` helper
+  that groups collected local-module files into SCCs and orders those units
+  dependency-first.
 
 Not implemented yet:
 
-- source dependency SCC construction in the active source route;
 - individual dependency SCC artifacts;
 - realm/band-qualified cache keys;
 - dependency interface hashes;
@@ -98,11 +100,11 @@ changed entry SCC
   -> merge imported dependency runtime surfaces
 ```
 
-The next precision step is to introduce the source dependency graph/SCC layer
-and then extend the manifest with interface hashes derived from exported syntax,
-namespace, and typed-surface data. Until then, the full source-set `.yuunit`
-bundle remains a conservative artifact and should not be described as a
-dependency-SCC cache hit.
+The next precision step is to connect the source dependency graph/SCC layer to
+cache artifact selection and then extend the manifest with interface hashes
+derived from exported syntax, namespace, and typed-surface data. Until then, the
+full source-set `.yuunit` bundle remains a conservative artifact and should not
+be described as a dependency-SCC cache hit.
 
 ## Goals
 

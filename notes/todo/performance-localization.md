@@ -180,6 +180,9 @@ source dependency SCC ごとの compiled-unit cache である。
   compiled-unit prefix with a freshly parsed root/local-module suffix. This is
   not yet connected to normal CLI cache policy, but it establishes the lowerer
   boundary needed for future dependency SCC cache hits.
+- Done: `source_compilation_units` groups collected local-module files into
+  SCCs and orders units dependency-first. This is a read-only source-layer
+  boundary, not a cache selection policy yet.
 - Realm/band note: the current source-set cache key is only a coarse placeholder
   for the future identity
   `(resolved realm, band path, source dependency SCC, dependency interface hashes)`.
@@ -189,9 +192,9 @@ source dependency SCC ごとの compiled-unit cache である。
   runtime surfaces under realm/band-qualified keys. A band path alone is never
   enough to identify a cache hit.
 - Not done: source dependency SCC selection and normal-path cache hit import.
-  The active source route has no `SourceSet::compilation_units()` equivalent
-  yet; connecting prefix/suffix import before that would either be a std-only
-  special case or another full source-set bundle read.
+  The active source route now has the first `SourceSet::compilation_units()`
+  equivalent, but normal CLI cache policy still needs artifact selection,
+  dependency-closed prefix import, and suffix artifact emission.
 - Next: implement the runtime remap/merge path. Only after that should the
   compiled-unit value import view be connected to the normal lowerer /
   name-resolution path.
