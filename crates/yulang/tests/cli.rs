@@ -550,7 +550,7 @@ fn compatible_run_uses_merged_source_unit_prefix_when_many_are_cached() {
 
     assert_success(&output);
     assert_eq!(stdout(&output), "run roots [(10, 2)]\n");
-    assert_cache_route(&output, "source-unit-prefix-hit");
+    assert_cache_route(&output, "merged-source-unit-prefix-hit");
     assert_eq!(compiled_unit_cache_file_count(&cache_root), 3);
     assert_eq!(poly_cache_file_count(&cache_root), 2);
     assert_eq!(control_cache_file_count(&cache_root), 2);

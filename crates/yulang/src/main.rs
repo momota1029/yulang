@@ -232,6 +232,7 @@ enum RuntimeBuildCacheKind {
     PolyHit,
     CompiledUnitHit,
     SourceUnitPrefixHit,
+    MergedSourceUnitPrefixHit,
     FullMiss,
     ErrorFallback,
 }
@@ -245,6 +246,7 @@ impl RuntimeBuildCacheKind {
             Self::PolyHit => "poly-hit",
             Self::CompiledUnitHit => "compiled-unit-hit",
             Self::SourceUnitPrefixHit => "source-unit-prefix-hit",
+            Self::MergedSourceUnitPrefixHit => "merged-source-unit-prefix-hit",
             Self::FullMiss => "full-miss",
             Self::ErrorFallback => "error-fallback",
         }
@@ -790,11 +792,10 @@ fn build_poly_with_cache_timed(
                 Ok(None) => {}
                 Err(error) => eprintln!("warning: {error}"),
             }
-            if let Some(output) = build_poly_from_source_unit_prefix_cache(&files, key, cache) {
-                record_runtime_build_cache(
-                    &mut timings,
-                    RuntimeBuildCacheKind::SourceUnitPrefixHit,
-                );
+            if let Some((output, cache_kind)) =
+                build_poly_from_source_unit_prefix_cache(&files, key, cache)
+            {
+                record_runtime_build_cache(&mut timings, cache_kind);
                 return output;
             }
             record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::FullMiss);
@@ -834,7 +835,7 @@ fn build_poly_from_source_unit_prefix_cache(
     files: &[yulang::CollectedSource],
     key: yulang::cache::SourceCacheKey,
     cache: &yulang::cache::ArtifactCache,
-) -> Option<yulang::BuildPolyOutput> {
+) -> Option<(yulang::BuildPolyOutput, RuntimeBuildCacheKind)> {
     if source_set_contains_std(files) {
         return None;
     }
@@ -849,7 +850,7 @@ fn build_poly_from_source_unit_prefix_cache(
     if let Some(output) =
         build_poly_from_merged_source_unit_prefix_cache(files, key, cache, &units, &cached)
     {
-        return Some(output);
+        return Some((output, RuntimeBuildCacheKind::MergedSourceUnitPrefixHit));
     }
     let unit = cached
         .selection
@@ -867,6 +868,7 @@ fn build_poly_from_source_unit_prefix_cache(
         return None;
     };
     build_poly_from_compiled_source_unit_prefix(files, key, cache, &units, &[unit], prefix)
+        .map(|output| (output, RuntimeBuildCacheKind::SourceUnitPrefixHit))
 }
 
 fn build_poly_from_merged_source_unit_prefix_cache(

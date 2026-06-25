@@ -66,7 +66,7 @@ append_metrics() {
             sed 's/^/wall./' "$time_file"
         fi
         rg \
-            '^(files:|summary:|[[:space:]]+(infer|constraint\.(drain|drains|replay_[A-Za-z0-9_]*|max_replay_[A-Za-z0-9_]*|lower_replay_[A-Za-z0-9_]*|upper_replay_[A-Za-z0-9_]*|var_var_direct_[A-Za-z0-9_]*)|analysis\.(quantify_generalize|generalize_[A-Za-z0-9_]*|quantify|work|route|instantiate)|run\.(runtime_execute|active_add_scans|request_resume_steps|marker_scope_[A-Za-z0-9_]*|continuation_[A-Za-z0-9_]*cloned|continuation_capture_clones|continuation_invoke_clones|effect_requests|catch_matches|continuations|frame_allocs)|total):)' \
+            '^(files:|summary:|[[:space:]]+(infer|constraint\.(drain|drains|replay_[A-Za-z0-9_]*|max_replay_[A-Za-z0-9_]*|lower_replay_[A-Za-z0-9_]*|upper_replay_[A-Za-z0-9_]*|var_var_direct_[A-Za-z0-9_]*)|analysis\.(quantify_generalize|generalize_[A-Za-z0-9_]*|quantify|work|route|instantiate)|run\.(cache|runtime_execute|active_add_scans|request_resume_steps|marker_scope_[A-Za-z0-9_]*|continuation_[A-Za-z0-9_]*cloned|continuation_capture_clones|continuation_invoke_clones|effect_requests|catch_matches|continuations|frame_allocs)|total):)' \
             "$log_file" || true
     } >>"$summary"
 }
