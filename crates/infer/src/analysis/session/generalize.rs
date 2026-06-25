@@ -48,11 +48,7 @@ impl AnalysisSession {
                 self.timing.record_generalize_compact_shadow(hit);
             }
             let phase = Instant::now();
-            let (next_compact, mut merge_constraints) =
-                compact_type_var_recording_merge_constraints_for_scheme(
-                    self.infer.constraints(),
-                    root,
-                );
+            let (next_compact, mut merge_constraints) = self.compact_root_for_generalize(root);
             let elapsed = phase.elapsed();
             self.timing.record_generalize_compact(elapsed);
             metrics.record_compact_iteration(&next_compact);
@@ -352,6 +348,30 @@ impl AnalysisSession {
         metrics.record_constraint_epoch_end(self.infer.constraints().epoch());
         metrics.record_role_epoch_end(self.roles.epoch_for_owner(def));
         (generalized, metrics)
+    }
+
+    fn compact_root_for_generalize(
+        &mut self,
+        root: TypeVar,
+    ) -> (CompactRoot, Vec<CompactMergeConstraint>) {
+        let compact_epoch = self.infer.constraints().epoch();
+        if let Some(cache) = self.generalize_compact_cache.as_ref() {
+            if let Some(cached) = cache.get(root, compact_epoch) {
+                self.timing.record_generalize_compact_cache(true);
+                return cached;
+            }
+        }
+
+        if self.generalize_compact_cache.is_some() {
+            self.timing.record_generalize_compact_cache(false);
+        }
+        let out =
+            compact_type_var_recording_merge_constraints_for_scheme(self.infer.constraints(), root);
+        if let Some(cache) = self.generalize_compact_cache.as_mut() {
+            cache.insert(root, compact_epoch, &out.0, &out.1);
+            self.timing.record_generalize_compact_cache_insert();
+        }
+        out
     }
 
     #[cfg(test)]

@@ -275,6 +275,9 @@ compact / dominance / role projection をかなり再走査している。
      `(root, constraint_epoch)` が再登場した回数を `analysis.generalize_compact_shadow_*`
      として数える。これは cache ではなく、root compact cache が conservative key だけで
      効くかを見る観測器である。既定では HashSet を触らない。
+   - 2026-06-26: `YULANG_GENERALIZE_COMPACT_CACHE=1` で opt-in の実験 cache を追加した。
+     同じ `(root, constraint_epoch)` の `CompactRoot + merge constraints` を clone して再利用する。
+     既定では無効で、production path にはまだ切り替えない。
 4. `dominance cache` と `role projection cache` を同じ方式で足す。
 5. restart loop は view 全体を捨てず、dirty な view だけを再構築する。
 

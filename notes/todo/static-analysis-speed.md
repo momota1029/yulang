@@ -144,6 +144,7 @@
     - `analysis.generalize_top_restart_dominance_{role,subtype}_constraints`
     - `analysis.generalize_top_restart_role_{resolve_inputs,resolutions}`
     - `analysis.generalize_compact_shadow_{requests,hits,misses}` (`YULANG_GENERALIZE_COMPACT_SHADOW=1`)
+    - `analysis.generalize_compact_cache_{requests,hits,misses,inserts}` (`YULANG_GENERALIZE_COMPACT_CACHE=1`)
     - `analysis.role_demand_count`
     - `analysis.role_resolve_candidate_scans`
     - `analysis.role_resolve_prerequisite_candidate_scans`

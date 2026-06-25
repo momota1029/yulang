@@ -2331,6 +2331,26 @@ fn write_check_hardening_metrics(out: &mut String, timing: &CheckPolyTimings) {
         "  analysis.generalize_compact_shadow_misses: {}",
         analysis.generalize_compact_shadow_misses
     );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_compact_cache_requests: {}",
+        analysis.generalize_compact_cache_requests
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_compact_cache_hits: {}",
+        analysis.generalize_compact_cache_hits
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_compact_cache_misses: {}",
+        analysis.generalize_compact_cache_misses
+    );
+    let _ = writeln!(
+        out,
+        "  analysis.generalize_compact_cache_inserts: {}",
+        analysis.generalize_compact_cache_inserts
+    );
     let _ = writeln!(out, "  analysis.role_demand_count: {role_demand_count}");
     let _ = writeln!(
         out,

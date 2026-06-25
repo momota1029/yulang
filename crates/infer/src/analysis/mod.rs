@@ -27,11 +27,12 @@ use crate::casts::CastTable;
 #[cfg(test)]
 use crate::compact::compact_reachable_role_constraints;
 use crate::compact::{
-    CompactBounds, CompactCastApplication, CompactCastKey, CompactMergeConstraintKey,
-    CompactRoleArg, CompactRoleConstraint, CompactRoot, CompactSimplification,
-    CompactSubtypeConstraintKey, CompactType, apply_compact_merge_constraints,
-    apply_compact_subtype_constraints, coalesce_floor_interval_equalities,
-    coalesce_floor_variable_sandwiches, collect_interval_dominance_constraints,
+    CompactBounds, CompactCastApplication, CompactCastKey, CompactMergeConstraint,
+    CompactMergeConstraintKey, CompactRoleArg, CompactRoleConstraint, CompactRoot,
+    CompactSimplification, CompactSubtypeConstraintKey, CompactType,
+    apply_compact_merge_constraints, apply_compact_subtype_constraints,
+    coalesce_floor_interval_equalities, coalesce_floor_variable_sandwiches,
+    collect_interval_dominance_constraints,
     compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints,
     compact_role_constraint, compact_role_constraint_recording_merge_constraints,
     compact_root_has_interval_bounds, compact_type_var_recording_merge_constraints,
@@ -112,20 +113,21 @@ pub struct AnalysisSession {
     scc_events: Vec<SccEvent>,
     work: VecDeque<AnalysisWork>,
     generalize_compact_shadow: Option<GeneralizeCompactShadow>,
+    generalize_compact_cache: Option<GeneralizeCompactCache>,
     timing: AnalysisTiming,
     instantiated_targets: FxHashSet<DefId>,
     def_parent_map: DefParentMapCache,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct GeneralizeCompactShadowKey {
+struct GeneralizeCompactEpochKey {
     root: TypeVar,
     constraint_epoch: u64,
 }
 
 #[derive(Debug, Default)]
 struct GeneralizeCompactShadow {
-    seen: FxHashSet<GeneralizeCompactShadowKey>,
+    seen: FxHashSet<GeneralizeCompactEpochKey>,
 }
 
 impl GeneralizeCompactShadow {
@@ -134,10 +136,59 @@ impl GeneralizeCompactShadow {
     }
 
     fn observe(&mut self, root: TypeVar, constraint_epoch: ConstraintEpoch) -> bool {
-        !self.seen.insert(GeneralizeCompactShadowKey {
+        !self.seen.insert(GeneralizeCompactEpochKey {
             root,
             constraint_epoch: constraint_epoch.as_u64(),
         })
+    }
+}
+
+#[derive(Debug, Clone)]
+struct GeneralizeCompactCacheEntry {
+    compact: CompactRoot,
+    merge_constraints: Vec<CompactMergeConstraint>,
+}
+
+#[derive(Debug, Default)]
+struct GeneralizeCompactCache {
+    entries: FxHashMap<GeneralizeCompactEpochKey, GeneralizeCompactCacheEntry>,
+}
+
+impl GeneralizeCompactCache {
+    fn from_env() -> Option<Self> {
+        generalize_compact_cache_enabled().then(Self::default)
+    }
+
+    fn get(
+        &self,
+        root: TypeVar,
+        constraint_epoch: ConstraintEpoch,
+    ) -> Option<(CompactRoot, Vec<CompactMergeConstraint>)> {
+        self.entries
+            .get(&GeneralizeCompactEpochKey {
+                root,
+                constraint_epoch: constraint_epoch.as_u64(),
+            })
+            .map(|entry| (entry.compact.clone(), entry.merge_constraints.clone()))
+    }
+
+    fn insert(
+        &mut self,
+        root: TypeVar,
+        constraint_epoch: ConstraintEpoch,
+        compact: &CompactRoot,
+        merge_constraints: &[CompactMergeConstraint],
+    ) {
+        self.entries.insert(
+            GeneralizeCompactEpochKey {
+                root,
+                constraint_epoch: constraint_epoch.as_u64(),
+            },
+            GeneralizeCompactCacheEntry {
+                compact: compact.clone(),
+                merge_constraints: merge_constraints.to_vec(),
+            },
+        );
     }
 }
 
@@ -296,6 +347,14 @@ fn generalize_compact_shadow_enabled() -> bool {
     static ENABLED: OnceLock<bool> = OnceLock::new();
     *ENABLED.get_or_init(|| {
         std::env::var("YULANG_GENERALIZE_COMPACT_SHADOW")
+            .is_ok_and(|value| !value.is_empty() && value != "0")
+    })
+}
+
+fn generalize_compact_cache_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        std::env::var("YULANG_GENERALIZE_COMPACT_CACHE")
             .is_ok_and(|value| !value.is_empty() && value != "0")
     })
 }
