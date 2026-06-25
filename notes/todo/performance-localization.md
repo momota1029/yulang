@@ -221,6 +221,10 @@ source dependency SCC ごとの compiled-unit cache である。
 - Done: source-unit prefix hits now materialize the full-source `.yuunit` from
   the same prefix + suffix lowering result. A later run for the same source set
   can hydrate from `compiled-unit-hit` when `.yuir` is missing.
+- Done: merged source-unit prefixes now have their own stable cache key. The
+  CLI still selects individual source-unit candidates, but repeated entry edits
+  can reuse the already-merged prefix `.yuunit` instead of recomputing the
+  surface merge each time.
 - Realm/band note: the current source-set cache key is only a coarse placeholder
   for the future identity
   `(resolved realm, band path, source dependency SCC, dependency interface hashes)`.

@@ -243,6 +243,14 @@ pub struct CachedCompiledUnitArtifact {
     pub errors: Vec<String>,
 }
 
+impl CachedCompiledUnitArtifact {
+    pub fn cache_key(&self) -> SourceCacheKey {
+        SourceCacheKey {
+            hash: self.manifest.source_hash,
+        }
+    }
+}
+
 pub struct CachedSourceUnitCompiledArtifacts {
     pub keys: Vec<SourceCacheKey>,
     pub artifacts: Vec<Option<CachedCompiledUnitArtifact>>,
@@ -467,6 +475,7 @@ pub fn merge_compiled_unit_artifacts(
     if artifacts.is_empty() {
         return Err(CompiledUnitMergeError::Empty);
     }
+    let key = merged_compiled_unit_artifact_key(&artifacts)?;
     let files = merge_compiled_unit_manifest_files(&artifacts)?;
     let syntax =
         sources::CompiledSyntaxSurface::merge_prefixes(artifacts.iter().map(|unit| &unit.syntax))
@@ -491,7 +500,6 @@ pub fn merge_compiled_unit_artifacts(
         &runtime,
     )
     .map_err(CompiledUnitMergeError::Lowering)?;
-    let key = merged_compiled_unit_cache_key(&artifacts, &files);
     let namespace = namespace.surface;
     let runtime = runtime.surface;
     let manifest = CompiledUnitManifest {
@@ -517,6 +525,16 @@ pub fn merge_compiled_unit_artifacts(
             .flat_map(|artifact| artifact.errors)
             .collect(),
     })
+}
+
+pub fn merged_compiled_unit_artifact_key(
+    artifacts: &[CachedCompiledUnitArtifact],
+) -> Result<SourceCacheKey, CompiledUnitMergeError> {
+    if artifacts.is_empty() {
+        return Err(CompiledUnitMergeError::Empty);
+    }
+    let files = merge_compiled_unit_manifest_files(artifacts)?;
+    Ok(merged_compiled_unit_cache_key(artifacts, &files))
 }
 
 fn merge_compiled_unit_manifest_files(
@@ -2955,6 +2973,7 @@ mod tests {
         let right =
             compiled_unit_artifact_from_standalone_source_unit(&files, &units, right_unit).unwrap();
 
+        let key = merged_compiled_unit_artifact_key(&[left.clone(), right.clone()]).unwrap();
         let merged = merge_compiled_unit_artifacts(vec![left, right]).unwrap();
         let namespace = infer::CompiledNamespaceIndex::new(&merged.namespace);
         let signal = namespace
@@ -2967,6 +2986,7 @@ mod tests {
         assert_eq!(merged.manifest.files.len(), 2);
         assert_eq!(merged.manifest.files[0].path, "left.yu");
         assert_eq!(merged.manifest.files[1].path, "right.yu");
+        assert_eq!(merged.cache_key(), key);
         assert!(
             merged
                 .lowering

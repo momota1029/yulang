@@ -946,10 +946,25 @@ fn build_poly_from_merged_source_unit_prefix_cache(
     }
     covered_files.sort_unstable();
     covered_files.dedup();
-    let prefix = match yulang::cache::merge_compiled_unit_artifacts(artifacts) {
-        Ok(prefix) => prefix,
-        Err(_) => return None,
-    };
+    let prefix_key = yulang::cache::merged_compiled_unit_artifact_key(&artifacts).ok();
+    let prefix = prefix_key
+        .and_then(|key| match cache.read_compiled_unit_artifact(key) {
+            Ok(cached) => cached,
+            Err(error) => {
+                eprintln!("warning: {error}");
+                None
+            }
+        })
+        .or_else(|| {
+            let prefix = match yulang::cache::merge_compiled_unit_artifacts(artifacts) {
+                Ok(prefix) => prefix,
+                Err(_) => return None,
+            };
+            if let Err(error) = cache.write_compiled_unit_artifact(prefix.cache_key(), &prefix) {
+                eprintln!("warning: {error}");
+            }
+            Some(prefix)
+        })?;
     build_poly_from_compiled_source_unit_prefix(files, key, cache, &covered_files, prefix)
 }
 
