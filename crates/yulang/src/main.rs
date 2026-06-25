@@ -790,9 +790,7 @@ fn build_poly_with_cache_timed(
                 Ok(None) => {}
                 Err(error) => eprintln!("warning: {error}"),
             }
-            if let Some(output) =
-                build_poly_from_single_source_unit_prefix_cache(&files, key, cache)
-            {
+            if let Some(output) = build_poly_from_source_unit_prefix_cache(&files, key, cache) {
                 record_runtime_build_cache(
                     &mut timings,
                     RuntimeBuildCacheKind::SourceUnitPrefixHit,
@@ -832,7 +830,7 @@ fn build_poly_with_cache_timed(
     }
 }
 
-fn build_poly_from_single_source_unit_prefix_cache(
+fn build_poly_from_source_unit_prefix_cache(
     files: &[yulang::CollectedSource],
     key: yulang::cache::SourceCacheKey,
     cache: &yulang::cache::ArtifactCache,
@@ -848,6 +846,11 @@ fn build_poly_from_single_source_unit_prefix_cache(
             return None;
         }
     };
+    if let Some(output) =
+        build_poly_from_merged_source_unit_prefix_cache(files, key, cache, &units, &cached)
+    {
+        return Some(output);
+    }
     let unit = cached
         .selection
         .cached_units
@@ -863,9 +866,50 @@ fn build_poly_from_single_source_unit_prefix_cache(
     else {
         return None;
     };
+    build_poly_from_compiled_source_unit_prefix(files, key, cache, &units, &[unit], prefix)
+}
+
+fn build_poly_from_merged_source_unit_prefix_cache(
+    files: &[yulang::CollectedSource],
+    key: yulang::cache::SourceCacheKey,
+    cache: &yulang::cache::ArtifactCache,
+    units: &yulang::SourceCompilationUnits,
+    cached: &yulang::cache::CachedSourceUnitCompiledArtifacts,
+) -> Option<yulang::BuildPolyOutput> {
+    let prefix_units = cached
+        .selection
+        .cached_units
+        .iter()
+        .copied()
+        .filter(|unit| units.units[*unit].dependencies.is_empty())
+        .collect::<Vec<_>>();
+    if prefix_units.len() < 2 {
+        return None;
+    }
+    let mut artifacts = Vec::with_capacity(prefix_units.len());
+    for unit in &prefix_units {
+        artifacts.push(cached.artifacts.get(*unit)?.as_ref()?.clone());
+    }
+    let prefix = match yulang::cache::merge_compiled_unit_artifacts(artifacts) {
+        Ok(prefix) => prefix,
+        Err(_) => return None,
+    };
+    build_poly_from_compiled_source_unit_prefix(files, key, cache, units, &prefix_units, prefix)
+}
+
+fn build_poly_from_compiled_source_unit_prefix(
+    files: &[yulang::CollectedSource],
+    key: yulang::cache::SourceCacheKey,
+    cache: &yulang::cache::ArtifactCache,
+    units: &yulang::SourceCompilationUnits,
+    prefix_units: &[usize],
+    prefix: yulang::cache::CachedCompiledUnitArtifact,
+) -> Option<yulang::BuildPolyOutput> {
     let mut prefix_files = vec![false; files.len()];
-    for file in &units.units[unit].files {
-        prefix_files[*file] = true;
+    for unit in prefix_units {
+        for file in &units.units[*unit].files {
+            prefix_files[*file] = true;
+        }
     }
     let suffix = files
         .iter()

@@ -512,7 +512,7 @@ fn compatible_run_uses_single_source_unit_prefix_cache() {
 }
 
 #[test]
-fn compatible_run_selects_one_source_unit_prefix_when_many_are_cached() {
+fn compatible_run_uses_merged_source_unit_prefix_when_many_are_cached() {
     let root = temp_root("run-many-source-unit-prefix-cache");
     let _ = fs::remove_dir_all(&root);
     let entry = root.join("main.yu");
