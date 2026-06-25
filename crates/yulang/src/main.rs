@@ -848,17 +848,29 @@ fn build_poly_from_single_source_unit_prefix_cache(
             return None;
         }
     };
-    let [unit] = cached.selection.cached_units.as_slice() else {
-        return None;
-    };
-    let Some(prefix) = cached.artifacts.into_iter().nth(*unit).flatten() else {
-        return None;
-    };
-    let suffix = cached
+    let unit = cached
         .selection
-        .source_files
+        .cached_units
         .iter()
-        .map(|file| files[*file].clone())
+        .copied()
+        .filter(|unit| units.units[*unit].dependencies.is_empty())
+        .max_by_key(|unit| (units.units[*unit].files.len(), *unit))?;
+    let Some(prefix) = cached
+        .artifacts
+        .into_iter()
+        .enumerate()
+        .find_map(|(index, artifact)| (index == unit).then_some(artifact).flatten())
+    else {
+        return None;
+    };
+    let mut prefix_files = vec![false; files.len()];
+    for file in &units.units[unit].files {
+        prefix_files[*file] = true;
+    }
+    let suffix = files
+        .iter()
+        .enumerate()
+        .filter_map(|(file, source)| (!prefix_files[file]).then_some(source.clone()))
         .collect::<Vec<_>>();
     let poly =
         match yulang::build_poly_from_compiled_unit_prefix_and_collected_sources(prefix, suffix) {

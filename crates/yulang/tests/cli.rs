@@ -476,6 +476,53 @@ fn compatible_run_uses_single_source_unit_prefix_cache() {
 }
 
 #[test]
+fn compatible_run_selects_one_source_unit_prefix_when_many_are_cached() {
+    let root = temp_root("run-many-source-unit-prefix-cache");
+    let _ = fs::remove_dir_all(&root);
+    let entry = root.join("main.yu");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(&entry, "mod a;\nmod b;\n(a::x, b::y)\n").unwrap();
+    fs::write(root.join("a.yu"), "pub x = 10\n").unwrap();
+    fs::write(root.join("b.yu"), "pub y = 2\n").unwrap();
+    let cache_root = root.join("cache-root");
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [(10, 2)]\n");
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 3);
+    assert_eq!(poly_cache_file_count(&cache_root), 1);
+    assert_eq!(control_cache_file_count(&cache_root), 1);
+
+    fs::write(&entry, "mod a;\nmod b;\nmy keep v = v\nkeep (a::x, b::y)\n").unwrap();
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [(10, 2)]\n");
+    assert_cache_route(&output, "source-unit-prefix-hit");
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 3);
+    assert_eq!(poly_cache_file_count(&cache_root), 2);
+    assert_eq!(control_cache_file_count(&cache_root), 2);
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn public_regression_list_update_runs_through_cli_cache() {
     let root = temp_root("public-regression-list-update");
     let _ = fs::remove_dir_all(&root);
