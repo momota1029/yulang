@@ -185,6 +185,47 @@ fn build_poly_from_compiled_unit_prefix_lowers_local_suffix_modules() {
 }
 
 #[test]
+fn build_poly_from_non_root_source_unit_prefix_lowers_source_suffix() {
+    let files = vec![
+        CollectedSource {
+            path: PathBuf::from("main.yu"),
+            module_path: Path::default(),
+            source: "mod a;\nuse a::*\nx\n".into(),
+        },
+        CollectedSource {
+            path: PathBuf::from("a.yu"),
+            module_path: Path {
+                segments: vec![Name("a".to_string())],
+            },
+            source: "mod b;\npub x = b::y\n".into(),
+        },
+        CollectedSource {
+            path: PathBuf::from("a/b.yu"),
+            module_path: Path {
+                segments: vec![Name("a".to_string()), Name("b".to_string())],
+            },
+            source: "pub y = 7\n".into(),
+        },
+    ];
+    let units = source_compilation_units(&files);
+    let b_unit = units.unit_for_file(2).unwrap();
+    let prefix =
+        crate::cache::compiled_unit_artifact_from_standalone_source_unit(&files, &units, b_unit)
+            .unwrap();
+    let suffix_files = vec![files[0].clone(), files[1].clone()];
+
+    let output =
+        build_poly_from_compiled_unit_prefix_and_collected_sources(prefix, suffix_files).unwrap();
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    assert_eq!(output.file_count, 3);
+    let build = build_control_from_poly_output(&output).unwrap();
+    let output = run_built_control_on_vm_test_stack(build);
+
+    assert_eq!(output.0, "run roots [7]\n");
+}
+
+#[test]
 fn source_compilation_units_order_local_module_dependencies_first() {
     let files = vec![
         CollectedSource {
