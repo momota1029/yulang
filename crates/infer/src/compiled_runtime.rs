@@ -12,7 +12,9 @@ use poly::roles::{
 use rustc_hash::FxHashMap;
 
 use crate::lowering::BodyLowering;
-use crate::{CompiledTypeArena, CompiledTypeImporter};
+use crate::{
+    CompiledNamespaceSurface, CompiledNamespaceVisibility, CompiledTypeArena, CompiledTypeImporter,
+};
 
 /// Lowered per-unit runtime surface.
 ///
@@ -24,6 +26,13 @@ use crate::{CompiledTypeArena, CompiledTypeImporter};
 pub struct CompiledRuntimeSurface {
     pub arena: poly::expr::Arena,
     pub labels: poly::dump::DumpLabels,
+    pub values: Vec<CompiledRuntimeValueDef>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledRuntimeValueDef {
+    pub symbol: u32,
+    pub def: DefId,
 }
 
 pub struct CompiledRuntimeImport {
@@ -35,6 +44,12 @@ pub struct CompiledRuntimeImport {
     pub roots: Vec<DefId>,
     pub runtime_roots: Vec<RuntimeRoot>,
     pub root_exprs: Vec<ExprId>,
+    pub values: Vec<CompiledRuntimeImportedValue>,
+}
+
+pub struct CompiledRuntimeImportedValue {
+    pub symbol: u32,
+    pub def: DefId,
 }
 
 impl CompiledRuntimeSurface {
@@ -42,6 +57,18 @@ impl CompiledRuntimeSurface {
         Self {
             arena: lowering.session.poly.clone(),
             labels: lowering.labels.clone(),
+            values: Vec::new(),
+        }
+    }
+
+    pub fn from_lowering_with_namespace(
+        lowering: &BodyLowering,
+        namespace: &CompiledNamespaceSurface,
+    ) -> Self {
+        Self {
+            arena: lowering.session.poly.clone(),
+            labels: lowering.labels.clone(),
+            values: runtime_value_defs_from_namespace(lowering, namespace),
         }
     }
 
@@ -93,6 +120,14 @@ impl CompiledRuntimeSurface {
             .iter()
             .map(|id| import.map_expr(*id))
             .collect();
+        import.values = self
+            .values
+            .iter()
+            .map(|value| CompiledRuntimeImportedValue {
+                symbol: value.symbol,
+                def: import.map_def(value.def),
+            })
+            .collect();
         target.roots.extend(import.roots.iter().copied());
         target
             .runtime_roots
@@ -124,6 +159,7 @@ impl CompiledRuntimeImport {
             roots: Vec::new(),
             runtime_roots: Vec::new(),
             root_exprs: Vec::new(),
+            values: Vec::new(),
         }
     }
 
@@ -160,6 +196,49 @@ impl CompiledRuntimeImport {
             .selects
             .get(&id)
             .unwrap_or_else(|| panic!("compiled runtime select id {} is missing", id.0))
+    }
+}
+
+fn runtime_value_defs_from_namespace(
+    lowering: &BodyLowering,
+    namespace: &CompiledNamespaceSurface,
+) -> Vec<CompiledRuntimeValueDef> {
+    let mut values = Vec::new();
+    for module in &namespace.modules {
+        let Some(live_module) = lowering
+            .modules
+            .module_by_path(&path_from_strings(&module.path))
+        else {
+            continue;
+        };
+        for value in module
+            .values
+            .iter()
+            .filter(|value| value.visibility != CompiledNamespaceVisibility::My)
+        {
+            let name = sources::Name(value.name.clone());
+            let Some(def) = lowering
+                .modules
+                .value_decls(live_module, &name)
+                .into_iter()
+                .find(|decl| decl.order.index() == value.order)
+                .map(|decl| decl.def)
+            else {
+                continue;
+            };
+            values.push(CompiledRuntimeValueDef {
+                symbol: value.symbol,
+                def,
+            });
+        }
+    }
+    values.sort_by_key(|value| value.symbol);
+    values
+}
+
+fn path_from_strings(path: &[String]) -> sources::Path {
+    sources::Path {
+        segments: path.iter().cloned().map(sources::Name).collect(),
     }
 }
 
@@ -684,7 +763,9 @@ mod tests {
         assert!(lowering.session.poly.effect_operations.len() > 0);
         assert!(lowering.session.poly.constructors.len() > 0);
 
-        let runtime = CompiledRuntimeSurface::from_lowering(&lowering);
+        let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
+        let runtime = CompiledRuntimeSurface::from_lowering_with_namespace(&lowering, &namespace);
+        assert!(!runtime.values.is_empty());
         let mut target = PolyArena::new();
         let prefix_def = target.defs.fresh();
         target.defs.set(prefix_def, Def::Arg);
@@ -703,6 +784,7 @@ mod tests {
             runtime.arena.runtime_roots.len()
         );
         assert_eq!(import.root_exprs.len(), runtime.arena.root_exprs.len());
+        assert_eq!(import.values.len(), runtime.values.len());
         assert_eq!(
             target.effect_operations.len(),
             runtime.arena.effect_operations.len()
@@ -713,6 +795,9 @@ mod tests {
 
         for root in &import.roots {
             assert!(target.defs.get(*root).is_some());
+        }
+        for value in &import.values {
+            assert!(target.defs.get(value.def).is_some());
         }
         for root in &import.runtime_roots {
             match root {

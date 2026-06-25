@@ -17,7 +17,7 @@ use crate::source::CollectedSource;
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 7;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 8;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
@@ -26,7 +26,7 @@ const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
 const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/v1";
 const COMPILED_LOWERING_HASH_SALT: &[u8] = b"yulang/compiled-lowering-surface/v2";
 const COMPILED_TYPED_HASH_SALT: &[u8] = b"yulang/compiled-typed-surface/v1";
-const COMPILED_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-runtime-surface/v1";
+const COMPILED_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-runtime-surface/v2";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 static CACHE_TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -255,7 +255,8 @@ pub fn compiled_unit_artifact_from_loaded_files(
     let lowering_surface =
         infer::CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
     let typed = infer::CompiledTypedSurface::from_lowering(&lowering, &namespace);
-    let runtime = infer::CompiledRuntimeSurface::from_lowering(&lowering);
+    let runtime =
+        infer::CompiledRuntimeSurface::from_lowering_with_namespace(&lowering, &namespace);
     let manifest = compiled_unit_manifest(
         files,
         &syntax,
@@ -640,6 +641,11 @@ fn compiled_runtime_hash(runtime: &infer::CompiledRuntimeSurface) -> u64 {
     let mut hasher = StableHasher::new();
     hasher.bytes(COMPILED_RUNTIME_HASH_SALT);
     hash_poly_arena(&mut hasher, &runtime.arena);
+    hasher.usize(runtime.values.len());
+    for value in &runtime.values {
+        hasher.u32(value.symbol);
+        hash_def_id(&mut hasher, value.def);
+    }
     hasher.finish()
 }
 
@@ -2152,6 +2158,13 @@ mod tests {
         assert!(
             restored
                 .typed
+                .values
+                .iter()
+                .any(|value| value.symbol == x_symbol)
+        );
+        assert!(
+            restored
+                .runtime
                 .values
                 .iter()
                 .any(|value| value.symbol == x_symbol)
