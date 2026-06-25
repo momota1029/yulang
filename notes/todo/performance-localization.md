@@ -141,11 +141,13 @@ source dependency SCC ごとの compiled-unit cache である。
   stack subtract IDs into a live `infer::Arena`.
 - Done: `CompiledTypedSurface::import_value_defs` can allocate fresh bodyless
   `poly::Def::Let` entries with imported schemes for exported value symbols.
+- Done: `CompiledTypedSurface::import_unit` combines namespace reexports and
+  typed schemes into a process-local value import view, resolving exported
+  `(module path, name)` lookups to fresh `DefId`s without dependency bodies.
 - Done: `.yuunit` envelopes include typed surface data and `typed_hash`.
 - Not done: source dependency SCC selection and normal-path cache hit import.
-- Next: add namespace/typed-surface import routes so cached dependency units can
-  resolve names and instantiate exported schemes without re-lowering dependency
-  source bodies.
+- Next: connect the compiled-unit value import view to the normal lowerer /
+  name-resolution path for cached dependency units.
 
 撤退条件:
 

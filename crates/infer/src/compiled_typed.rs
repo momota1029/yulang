@@ -42,6 +42,20 @@ pub struct CompiledImportedValue {
     pub def: DefId,
 }
 
+pub struct CompiledUnitImport {
+    pub values: CompiledValueImport,
+    exported_values: FxHashMap<Vec<String>, FxHashMap<String, DefId>>,
+}
+
+impl CompiledUnitImport {
+    pub fn exported_value_def(&self, module_path: &[String], name: &str) -> Option<DefId> {
+        self.exported_values
+            .get(module_path)
+            .and_then(|values| values.get(name))
+            .copied()
+    }
+}
+
 pub struct CompiledTypedIndex<'a> {
     surface: &'a CompiledTypedSurface,
     values_by_symbol: FxHashMap<u32, usize>,
@@ -144,6 +158,53 @@ impl CompiledTypedSurface {
             })
             .collect();
         CompiledValueImport { values }
+    }
+
+    pub fn import_unit(
+        &self,
+        namespace: &CompiledNamespaceSurface,
+        poly: &mut PolyArena,
+        infer: &mut InferArena,
+    ) -> CompiledUnitImport {
+        let values = self.import_value_defs(namespace, poly, infer);
+        let value_defs = values
+            .values
+            .iter()
+            .map(|value| (value.symbol, value.def))
+            .collect::<FxHashMap<_, _>>();
+        let mut exported_values = FxHashMap::default();
+        for module in &namespace.modules {
+            for value in module
+                .values
+                .iter()
+                .filter(|value| value.visibility != CompiledNamespaceVisibility::My)
+            {
+                let Some(def) = value_defs.get(&value.symbol).copied() else {
+                    continue;
+                };
+                exported_values
+                    .entry(module.path.clone())
+                    .or_insert_with(FxHashMap::default)
+                    .insert(value.name.clone(), def);
+            }
+            for value in module
+                .imported_values
+                .iter()
+                .filter(|value| value.visibility != CompiledNamespaceVisibility::My)
+            {
+                let Some(def) = value_defs.get(&value.symbol).copied() else {
+                    continue;
+                };
+                exported_values
+                    .entry(module.path.clone())
+                    .or_insert_with(FxHashMap::default)
+                    .insert(value.name.clone(), def);
+            }
+        }
+        CompiledUnitImport {
+            values,
+            exported_values,
+        }
     }
 }
 
@@ -541,10 +602,11 @@ mod tests {
         let lowering = lower_loaded_files(&loaded).unwrap();
         let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
         let typed = CompiledTypedSurface::from_lowering(&lowering, &namespace);
+        let ops_path = vec!["ops".to_string()];
         let ops = namespace
             .modules
             .iter()
-            .find(|module| module.path == ["ops".to_string()])
+            .find(|module| module.path == ops_path)
             .unwrap();
         let x = ops.values.iter().find(|value| value.name == "x").unwrap();
         let id = ops.values.iter().find(|value| value.name == "id").unwrap();
@@ -585,18 +647,19 @@ mod tests {
 
         let mut poly = PolyArena::new();
         let mut infer = crate::Arena::new();
-        let imported_values = typed.import_value_defs(&namespace, &mut poly, &mut infer);
-        let imported_id = imported_values
-            .values
-            .iter()
-            .find(|value| value.symbol == id.symbol)
-            .unwrap();
+        let imported_unit = typed.import_unit(&namespace, &mut poly, &mut infer);
+        let imported_id = imported_unit.exported_value_def(&ops_path, "id").unwrap();
+        assert_eq!(
+            imported_unit.exported_value_def(&[], "id"),
+            Some(imported_id)
+        );
+        assert_eq!(imported_unit.exported_value_def(&ops_path, "hidden"), None);
         let Some(Def::Let {
             vis: Vis::Pub,
             scheme: Some(imported_scheme),
             body: None,
             ..
-        }) = poly.defs.get(imported_id.def)
+        }) = poly.defs.get(imported_id)
         else {
             panic!("expected imported public bodyless let with a scheme");
         };
