@@ -141,6 +141,9 @@ run_source_metric_commands() {
         env "YULANG_CACHE_DIR=$cache_dir" \
         "$bin" --std-root "$std_root" --runtime-phase-timings run --print-roots \
         "$repo_root/bench/nondet_20_discard.yu"
+
+    run_with_log source-unit-cache-smoke "$run_timeout" \
+        "$repo_root/scripts/source-unit-cache-smoke.sh" "$bin"
 }
 
 run_static_analysis_bench() {
