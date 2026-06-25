@@ -121,7 +121,11 @@ through the mono runtime instead of the control VM, pass `--interpreter`.
 The control VM route caches compiled-unit `.yuunit` artifacts, principal
 `.yuir` poly artifacts, and `.yuvm` VM artifacts under the user cache root;
 use `yulang cache path` / `yulang cache clear` to inspect or clear it, or pass
-`--no-cache` to bypass cache read/write for one command.
+`--no-cache` to bypass cache read/write for one command. Local source sets can
+also reuse cached compiled source-unit prefixes when only a suffix of the module
+tree changed. When `--runtime-phase-timings` is enabled, `run.cache` reports the
+route used for the current run, such as `control-hit`, `poly-hit`,
+`compiled-unit-hit`, `source-unit-prefix-hit`, or `full-miss`.
 
 Check a file:
 
