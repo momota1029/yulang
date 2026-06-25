@@ -86,7 +86,7 @@ mod tests {
         let output = embedded_std_status_inner();
 
         assert!(output.valid, "{output:?}");
-        assert_eq!(output.artifacts, 1);
+        assert_eq!(output.artifacts, 2);
         assert!(output.bytes > 0);
         assert_eq!(output.fallback_reason, None);
     }

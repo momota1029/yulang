@@ -153,6 +153,14 @@ pub(super) fn embedded_std_lowering_with_root(
     lower_root_with_embedded_prefix(&prefix, cached_embedded_std_loaded_prefix(), source)
 }
 
+pub(super) fn embedded_std_lowering_with_root_artifact(
+    artifact: crate::cache::CachedCompiledUnitArtifact,
+    source: String,
+) -> Result<(infer::lowering::BodyLowering, usize), RouteError> {
+    let prefix = lowering_prefix_from_compiled_unit_artifact(artifact)?;
+    lower_root_with_embedded_prefix(&prefix, cached_embedded_std_loaded_prefix(), source)
+}
+
 fn lower_root_with_embedded_prefix(
     prefix: &infer::lowering::BodyLoweringPrefix,
     loaded_prefix: Vec<sources::LoadedFile>,

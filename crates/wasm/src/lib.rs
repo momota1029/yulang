@@ -10,12 +10,17 @@ use yulang_editor::semantic_tokens;
 
 const PLAYGROUND_ENTRY: &str = "playground.yu";
 const PLAYGROUND_STD_ARTIFACT_ENTRY: &str = "<embedded-playground-std-root>";
+const FULL_STD_ARTIFACT_ENTRY: &str = "<embedded-std-root>";
 const EMBEDDED_PLAYGROUND_STD_ARTIFACT: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/embedded_playground_std.yuunit"));
+const EMBEDDED_FULL_STD_ARTIFACT: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/embedded_full_std.yuunit"));
 
 thread_local! {
     static RUN_CACHE: RefCell<HashMap<String, RunOutput>> = RefCell::new(HashMap::new());
     static PLAYGROUND_STD_ARTIFACT: RefCell<Option<Option<yulang::cache::CachedCompiledUnitArtifact>>> =
+        const { RefCell::new(None) };
+    static FULL_STD_ARTIFACT: RefCell<Option<Option<yulang::cache::CachedCompiledUnitArtifact>>> =
         const { RefCell::new(None) };
 }
 
@@ -171,15 +176,15 @@ pub fn warm_std_cache_inner() -> WarmupOutput {
 }
 
 pub fn embedded_std_status_inner() -> EmbeddedStdArtifactsOutput {
-    let artifact = embedded_playground_std_artifact();
+    let playground = embedded_playground_std_artifact();
+    let full = embedded_full_std_artifact();
+    let valid = playground.is_some() && full.is_some();
     EmbeddedStdArtifactsOutput {
-        artifacts: 1,
+        artifacts: usize::from(playground.is_some()) + usize::from(full.is_some()),
         runtime_bindings: 0,
-        bytes: EMBEDDED_PLAYGROUND_STD_ARTIFACT.len(),
-        valid: artifact.is_some(),
-        fallback_reason: artifact
-            .is_none()
-            .then(|| "embedded playground std artifact failed validation".to_string()),
+        bytes: EMBEDDED_PLAYGROUND_STD_ARTIFACT.len() + EMBEDDED_FULL_STD_ARTIFACT.len(),
+        valid,
+        fallback_reason: (!valid).then(|| "embedded std artifact failed validation".to_string()),
     }
 }
 
@@ -288,9 +293,22 @@ fn run_control_from_source_text_without_std(
 fn run_control_from_source_text_with_embedded_std(
     source: &str,
 ) -> Result<WasmControlOutput, yulang::RouteError> {
-    let files =
-        yulang::collect_source_text_with_embedded_std(PLAYGROUND_ENTRY, source.to_string())?;
-    let output = build_named_control_from_collected_sources(files)?;
+    let output = match embedded_full_std_artifact() {
+        Some(artifact) => {
+            let poly = yulang::build_poly_from_embedded_std_compiled_unit_artifact(
+                artifact,
+                source.to_string(),
+            )?;
+            build_named_control_from_poly(poly)?
+        }
+        None => {
+            let files = yulang::collect_source_text_with_embedded_std(
+                PLAYGROUND_ENTRY,
+                source.to_string(),
+            )?;
+            build_named_control_from_collected_sources(files)?
+        }
+    };
     run_built_control_program_with_host(output)
 }
 
@@ -323,6 +341,18 @@ fn embedded_playground_std_artifact() -> Option<yulang::cache::CachedCompiledUni
     })
 }
 
+fn embedded_full_std_artifact() -> Option<yulang::cache::CachedCompiledUnitArtifact> {
+    FULL_STD_ARTIFACT.with(|cache| {
+        if let Some(cached) = cache.borrow().as_ref() {
+            return cached.clone();
+        }
+
+        let decoded = decode_embedded_full_std_artifact();
+        *cache.borrow_mut() = Some(decoded.clone());
+        decoded
+    })
+}
+
 fn decode_embedded_playground_std_artifact() -> Option<yulang::cache::CachedCompiledUnitArtifact> {
     let files = yulang::collect_source_text_with_embedded_playground_std(
         PLAYGROUND_STD_ARTIFACT_ENTRY,
@@ -332,6 +362,18 @@ fn decode_embedded_playground_std_artifact() -> Option<yulang::cache::CachedComp
     let key = yulang::cache::source_cache_key(&files);
     let artifact =
         yulang::cache::decode_compiled_unit_artifact_bytes(EMBEDDED_PLAYGROUND_STD_ARTIFACT, key)
+            .ok()
+            .flatten()?;
+    artifact.errors.is_empty().then_some(artifact)
+}
+
+fn decode_embedded_full_std_artifact() -> Option<yulang::cache::CachedCompiledUnitArtifact> {
+    let files =
+        yulang::collect_source_text_with_embedded_std(FULL_STD_ARTIFACT_ENTRY, String::new())
+            .ok()?;
+    let key = yulang::cache::source_cache_key(&files);
+    let artifact =
+        yulang::cache::decode_compiled_unit_artifact_bytes(EMBEDDED_FULL_STD_ARTIFACT, key)
             .ok()
             .flatten()?;
     artifact.errors.is_empty().then_some(artifact)
