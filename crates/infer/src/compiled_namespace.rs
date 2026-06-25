@@ -131,6 +131,90 @@ impl CompiledNamespaceSurface {
     }
 }
 
+pub struct CompiledNamespaceIndex<'a> {
+    surface: &'a CompiledNamespaceSurface,
+    modules_by_path: HashMap<Vec<String>, u32>,
+}
+
+impl<'a> CompiledNamespaceIndex<'a> {
+    pub fn new(surface: &'a CompiledNamespaceSurface) -> Self {
+        let modules_by_path = surface
+            .modules
+            .iter()
+            .map(|module| (module.path.clone(), module.id))
+            .collect();
+        Self {
+            surface,
+            modules_by_path,
+        }
+    }
+
+    pub fn module_by_path(&self, path: &[String]) -> Option<&'a CompiledNamespaceModule> {
+        self.modules_by_path
+            .get(path)
+            .and_then(|id| self.module_by_id(*id))
+    }
+
+    pub fn module_by_id(&self, id: u32) -> Option<&'a CompiledNamespaceModule> {
+        self.surface
+            .modules
+            .get(id as usize)
+            .filter(|module| module.id == id)
+    }
+
+    pub fn exported_value_symbol(&self, path: &[String], name: &str) -> Option<u32> {
+        let module = self.module_by_path(path)?;
+        module
+            .values
+            .iter()
+            .find(|value| value.name == name && value.visibility != CompiledNamespaceVisibility::My)
+            .map(|value| value.symbol)
+            .or_else(|| {
+                module
+                    .imported_values
+                    .iter()
+                    .find(|value| {
+                        value.name == name && value.visibility != CompiledNamespaceVisibility::My
+                    })
+                    .map(|value| value.symbol)
+            })
+    }
+
+    pub fn exported_type_symbol(&self, path: &[String], name: &str) -> Option<u32> {
+        let module = self.module_by_path(path)?;
+        module
+            .types
+            .iter()
+            .find(|ty| ty.name == name && ty.visibility != CompiledNamespaceVisibility::My)
+            .map(|ty| ty.symbol)
+            .or_else(|| {
+                module
+                    .imported_types
+                    .iter()
+                    .find(|ty| ty.name == name && ty.visibility != CompiledNamespaceVisibility::My)
+                    .map(|ty| ty.symbol)
+            })
+    }
+
+    pub fn exported_module_id(&self, path: &[String], name: &str) -> Option<u32> {
+        let module = self.module_by_path(path)?;
+        module
+            .modules
+            .iter()
+            .find(|child| child.name == name && child.visibility != CompiledNamespaceVisibility::My)
+            .map(|child| child.module)
+            .or_else(|| {
+                module
+                    .imported_modules
+                    .iter()
+                    .find(|child| {
+                        child.name == name && child.visibility != CompiledNamespaceVisibility::My
+                    })
+                    .map(|child| child.module)
+            })
+    }
+}
+
 struct NamespaceSurfaceBuilder<'a> {
     modules: &'a ModuleTable,
     module_ids: HashMap<ModuleId, u32>,
@@ -411,6 +495,10 @@ mod tests {
                 && value.symbol == x.symbol
                 && value.visibility == CompiledNamespaceVisibility::Pub
         }));
+
+        let index = CompiledNamespaceIndex::new(&surface);
+        assert_eq!(index.exported_value_symbol(&[], "x"), Some(x.symbol));
+        assert_eq!(index.exported_value_symbol(&ops_path, "x"), Some(x.symbol));
     }
 
     fn source(module: &[&str], text: &str) -> SourceFile {

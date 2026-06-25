@@ -130,6 +130,8 @@ source dependency SCC ごとの compiled-unit cache である。
 - Done: `infer::CompiledNamespaceSurface` also records resolved import views
   as unit-local symbol/module references, so reexports are not reduced to raw
   alias syntax.
+- Done: `infer::CompiledNamespaceIndex` can resolve exported value/type/module
+  symbols from a serialized namespace surface, including reexports.
 - Not done: source dependency SCC selection and normal-path cache hit import.
 - Next: add a namespace-surface import route so cached dependency units can
   resolve names during lowering without re-lowering dependency source bodies.
