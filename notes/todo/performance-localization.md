@@ -156,6 +156,21 @@ source dependency SCC ごとの compiled-unit cache である。
 - Done: `CompiledTypeImporter` targets both `infer::Arena` and `poly::Arena`,
   so the future runtime remap/merge path can reuse the same scheme/type graph
   remapping machinery instead of implementing a second type importer.
+- Done: the normal CLI cache miss path now writes `.yuunit` alongside `.yuir`
+  from the same lowering result, so compiled-unit artifacts are warmed without
+  a second inference pass.
+- Done: `.yuunit` artifacts carry formatted lowering errors and can hydrate the
+  poly cache when `.yuir` is missing. This does not yet skip dependency source
+  lowering, but it proves `.yuunit` is a normal readable cache artifact rather
+  than a write-only side product.
+- Realm/band note: the current source-set cache key is only a coarse placeholder
+  for the future identity
+  `(resolved realm, band path, source dependency SCC, dependency interface hashes)`.
+  The `.yuunit` surface layers should survive that split. The current full
+  source-set artifact becomes a bundle artifact; individual unchanged
+  dependency SCCs later get the same syntax / namespace / lowering / typed /
+  runtime surfaces under realm/band-qualified keys. A band path alone is never
+  enough to identify a cache hit.
 - Not done: source dependency SCC selection and normal-path cache hit import.
 - Next: implement the runtime remap/merge path. Only after that should the
   compiled-unit value import view be connected to the normal lowerer /

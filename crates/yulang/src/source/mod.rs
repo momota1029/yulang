@@ -101,9 +101,13 @@ pub fn build_poly_and_compiled_unit_from_collected_sources(
         .errors
         .iter()
         .map(format_body_lowering_error)
-        .collect();
-    let compiled_unit =
-        crate::cache::compiled_unit_artifact_from_lowering(&files, &loaded, &lowering);
+        .collect::<Vec<_>>();
+    let compiled_unit = crate::cache::compiled_unit_artifact_from_lowering(
+        &files,
+        &loaded,
+        &lowering,
+        errors.clone(),
+    );
     Ok(BuildPolyAndCompiledUnitOutput {
         poly: BuildPolyOutput {
             arena: lowering.session.poly,

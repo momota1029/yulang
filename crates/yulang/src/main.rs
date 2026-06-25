@@ -711,6 +711,13 @@ fn build_poly_with_cache(
             errors: cached.errors,
         },
         Ok(None) => {
+            match cache.read_compiled_unit_artifact(key) {
+                Ok(Some(cached)) => {
+                    return build_poly_from_compiled_unit_cache(cached, key, cache);
+                }
+                Ok(None) => {}
+                Err(error) => eprintln!("warning: {error}"),
+            }
             let output = run_route_to_value(
                 yulang::build_poly_and_compiled_unit_from_collected_sources(files),
             );
@@ -738,6 +745,28 @@ fn build_poly_with_cache(
             eprintln!("warning: {error}");
             run_route_to_value(yulang::build_poly_from_collected_sources(files))
         }
+    }
+}
+
+fn build_poly_from_compiled_unit_cache(
+    cached: yulang::cache::CachedCompiledUnitArtifact,
+    key: yulang::cache::SourceCacheKey,
+    cache: &yulang::cache::ArtifactCache,
+) -> yulang::BuildPolyOutput {
+    let artifact = yulang::cache::CachedPolyArtifact {
+        arena: cached.runtime.arena,
+        labels: cached.runtime.labels,
+        file_count: cached.manifest.files.len(),
+        errors: cached.errors,
+    };
+    if let Err(error) = cache.write_poly_artifact(key, &artifact) {
+        eprintln!("warning: {error}");
+    }
+    yulang::BuildPolyOutput {
+        arena: artifact.arena,
+        labels: artifact.labels,
+        file_count: artifact.file_count,
+        errors: artifact.errors,
     }
 }
 

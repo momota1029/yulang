@@ -116,6 +116,7 @@ fn build_poly_and_compiled_unit_from_collected_sources_share_lowering_output() {
     let output = build_poly_and_compiled_unit_from_collected_sources(files).unwrap();
 
     assert!(output.poly.errors.is_empty(), "{:?}", output.poly.errors);
+    assert_eq!(output.compiled_unit.errors, output.poly.errors);
     assert_eq!(output.poly.file_count, 1);
     assert_eq!(output.compiled_unit.manifest.files.len(), 1);
     assert_eq!(

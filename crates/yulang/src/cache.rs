@@ -17,7 +17,7 @@ use crate::source::CollectedSource;
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 10;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 11;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
@@ -158,6 +158,7 @@ impl ArtifactCache {
             lowering: envelope.lowering,
             typed: envelope.typed,
             runtime: envelope.runtime,
+            errors: envelope.errors,
         }))
     }
 
@@ -175,6 +176,7 @@ impl ArtifactCache {
             lowering: &artifact.lowering,
             typed: &artifact.typed,
             runtime: &artifact.runtime,
+            errors: &artifact.errors,
         };
         write_cache_envelope(&path, "yuunit", &envelope)
     }
@@ -207,6 +209,7 @@ pub struct CachedCompiledUnitArtifact {
     pub lowering: infer::CompiledLoweringSurface,
     pub typed: infer::CompiledTypedSurface,
     pub runtime: infer::CompiledRuntimeSurface,
+    pub errors: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -251,7 +254,14 @@ pub fn compiled_unit_artifact_from_loaded_files(
 ) -> Result<CachedCompiledUnitArtifact, infer::LoadedFilesError> {
     let lowering = infer::lowering::lower_loaded_files(loaded)?;
     Ok(compiled_unit_artifact_from_lowering(
-        files, loaded, &lowering,
+        files,
+        loaded,
+        &lowering,
+        lowering
+            .errors
+            .iter()
+            .map(|error| format!("{error:?}"))
+            .collect(),
     ))
 }
 
@@ -259,6 +269,7 @@ pub fn compiled_unit_artifact_from_lowering(
     files: &[CollectedSource],
     loaded: &[sources::LoadedFile],
     lowering: &infer::lowering::BodyLowering,
+    errors: Vec<String>,
 ) -> CachedCompiledUnitArtifact {
     let syntax = sources::CompiledSyntaxSurface::from_loaded_files(loaded);
     let namespace = infer::CompiledNamespaceSurface::from_module_table(&lowering.modules);
@@ -281,6 +292,7 @@ pub fn compiled_unit_artifact_from_lowering(
         lowering: lowering_surface,
         typed,
         runtime,
+        errors,
     }
 }
 
@@ -1911,6 +1923,7 @@ struct CompiledUnitCacheEnvelope<
     L = infer::CompiledLoweringSurface,
     T = infer::CompiledTypedSurface,
     R = infer::CompiledRuntimeSurface,
+    E = Vec<String>,
 > {
     format: u32,
     manifest: M,
@@ -1919,6 +1932,7 @@ struct CompiledUnitCacheEnvelope<
     lowering: L,
     typed: T,
     runtime: R,
+    errors: E,
 }
 
 fn read_cache_envelope<T>(path: &Path, format: u32) -> Result<Option<T>, CacheError>
@@ -2000,7 +2014,7 @@ impl<T, L, E> CacheEnvelope for ControlCacheEnvelope<T, L, E> {
     }
 }
 
-impl<M, S, N, L, T, R> CacheEnvelope for CompiledUnitCacheEnvelope<M, S, N, L, T, R> {
+impl<M, S, N, L, T, R, E> CacheEnvelope for CompiledUnitCacheEnvelope<M, S, N, L, T, R, E> {
     fn format(&self) -> u32 {
         self.format
     }
@@ -2210,6 +2224,7 @@ mod tests {
         assert_eq!(restored.syntax, artifact.syntax);
         assert_eq!(restored.namespace, artifact.namespace);
         assert_eq!(restored.lowering, artifact.lowering);
+        assert_eq!(restored.errors, artifact.errors);
         assert_eq!(restored.manifest.files.len(), 2);
         assert_eq!(restored.manifest.files[1].module_path, vec!["ops"]);
         let ops_path = vec!["ops".to_string()];
