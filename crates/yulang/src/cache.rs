@@ -2938,6 +2938,71 @@ mod tests {
     }
 
     #[test]
+    fn compiled_unit_artifact_merge_coalesces_shared_parent_modules() {
+        let files = vec![
+            source("main.yu", &[], "mod a;\n"),
+            source("a.yu", &["a"], "mod b;\nmod c;\n"),
+            source("a/b.yu", &["a", "b"], "pub x = 1\n"),
+            source("a/c.yu", &["a", "c"], "pub y = 2\n"),
+        ];
+        let units = crate::source::source_compilation_units(&files);
+        let b_unit = units.unit_for_file(2).unwrap();
+        let c_unit = units.unit_for_file(3).unwrap();
+        let b = compiled_unit_artifact_from_standalone_source_unit(&files, &units, b_unit).unwrap();
+        let c = compiled_unit_artifact_from_standalone_source_unit(&files, &units, c_unit).unwrap();
+
+        let merged = merge_compiled_unit_artifacts(vec![b, c]).unwrap();
+        let namespace = infer::CompiledNamespaceIndex::new(&merged.namespace);
+        let a_module = namespace.exported_module_id(&[], "a").unwrap();
+        let b_module = namespace
+            .exported_module_id(&["a".to_string()], "b")
+            .unwrap();
+        let c_module = namespace
+            .exported_module_id(&["a".to_string()], "c")
+            .unwrap();
+        let a_def = merged
+            .runtime
+            .modules
+            .iter()
+            .find(|module| module.module == a_module)
+            .unwrap()
+            .def;
+        let b_def = merged
+            .runtime
+            .modules
+            .iter()
+            .find(|module| module.module == b_module)
+            .unwrap()
+            .def;
+        let c_def = merged
+            .runtime
+            .modules
+            .iter()
+            .find(|module| module.module == c_module)
+            .unwrap()
+            .def;
+
+        let Some(poly::expr::Def::Mod { children, .. }) = merged.runtime.arena.defs.get(a_def)
+        else {
+            panic!("merged parent module should remain a module def");
+        };
+        assert!(children.contains(&b_def));
+        assert!(children.contains(&c_def));
+        assert!(merged.runtime.values.iter().any(|value| {
+            value.symbol
+                == namespace
+                    .exported_value_symbol(&["a".to_string(), "b".to_string()], "x")
+                    .unwrap()
+        }));
+        assert!(merged.runtime.values.iter().any(|value| {
+            value.symbol
+                == namespace
+                    .exported_value_symbol(&["a".to_string(), "c".to_string()], "y")
+                    .unwrap()
+        }));
+    }
+
+    #[test]
     fn compiled_unit_artifact_merge_rejects_conflicting_manifest_file() {
         let files = vec![
             source("main.yu", &[], "mod unit;\n"),

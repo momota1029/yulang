@@ -58,6 +58,9 @@ pub enum CompiledRuntimeMergeError {
         prefix: usize,
         symbol: u32,
     },
+    ConflictingModuleDef {
+        module: u32,
+    },
     DuplicateModuleDef {
         module: u32,
     },
@@ -219,10 +222,10 @@ impl CompiledRuntimeSurface {
     ) -> Result<CompiledRuntimeMergeOutput, CompiledRuntimeMergeError> {
         let mut arena = PolyArena::new();
         let mut labels = DumpLabels::new();
-        let mut modules = Vec::new();
-        let mut values = Vec::new();
+        let mut modules: Vec<CompiledRuntimeModuleDef> = Vec::new();
+        let mut values: Vec<CompiledRuntimeValueDef> = Vec::new();
         let mut def_remap = FxHashMap::default();
-        let mut seen_modules = FxHashSet::default();
+        let mut module_defs = FxHashMap::default();
         let mut seen_values = FxHashSet::default();
         for (prefix, surface) in prefixes.into_iter().enumerate() {
             let import = surface.import_into(&mut arena, &mut labels);
@@ -236,7 +239,17 @@ impl CompiledRuntimeSurface {
                         module: module.module,
                     });
                 };
-                if !seen_modules.insert(merged_module) {
+                if let Some(existing_def) = module_defs.get(&merged_module).copied() {
+                    merge_imported_module_def_children(
+                        &mut arena,
+                        merged_module,
+                        existing_def,
+                        module.def,
+                    )?;
+                    arena.roots.retain(|root| *root != module.def);
+                    continue;
+                }
+                if modules.iter().any(|module| module.module == merged_module) {
                     return Err(CompiledRuntimeMergeError::DuplicateModuleDef {
                         module: merged_module,
                     });
@@ -254,6 +267,7 @@ impl CompiledRuntimeSurface {
                         mapped_module: merged_module,
                     });
                 };
+                module_defs.insert(merged_module, module.def);
                 modules.push(CompiledRuntimeModuleDef {
                     module: merged_module,
                     module_path,
@@ -342,6 +356,37 @@ impl CompiledRuntimeImport {
             .get(&id)
             .unwrap_or_else(|| panic!("compiled runtime select id {} is missing", id.0))
     }
+}
+
+fn merge_imported_module_def_children(
+    arena: &mut PolyArena,
+    module: u32,
+    target: DefId,
+    source: DefId,
+) -> Result<(), CompiledRuntimeMergeError> {
+    let Some(Def::Mod {
+        vis: source_vis,
+        children: source_children,
+    }) = arena.defs.get(source).cloned()
+    else {
+        return Err(CompiledRuntimeMergeError::ConflictingModuleDef { module });
+    };
+    let Some(Def::Mod {
+        vis: target_vis,
+        children: target_children,
+    }) = arena.defs.get_mut(target)
+    else {
+        return Err(CompiledRuntimeMergeError::ConflictingModuleDef { module });
+    };
+    if *target_vis != source_vis {
+        return Err(CompiledRuntimeMergeError::ConflictingModuleDef { module });
+    }
+    for child in source_children {
+        if !target_children.contains(&child) {
+            target_children.push(child);
+        }
+    }
+    Ok(())
 }
 
 fn runtime_module_defs_from_namespace(
@@ -1074,6 +1119,74 @@ mod tests {
     }
 
     #[test]
+    fn runtime_surface_merge_coalesces_shared_parent_module_defs() {
+        let left = compiled_runtime_surface_from_files(vec![
+            source(&[], "mod a;\n"),
+            source(&["a"], "mod b;\n"),
+            source(&["a", "b"], "pub x = 1\n"),
+        ]);
+        let right = compiled_runtime_surface_from_files(vec![
+            source(&[], "mod a;\n"),
+            source(&["a"], "mod c;\n"),
+            source(&["a", "c"], "pub y = 2\n"),
+        ]);
+        let namespace = CompiledNamespaceSurface::merge_prefixes_with_remap([
+            &left.namespace,
+            &right.namespace,
+        ])
+        .unwrap();
+        let runtime = CompiledRuntimeSurface::merge_prefixes_with_remap(
+            [&left.runtime, &right.runtime],
+            &namespace,
+        )
+        .unwrap();
+        let namespace_index = crate::CompiledNamespaceIndex::new(&namespace.surface);
+        let a_module = namespace_index.exported_module_id(&[], "a").unwrap();
+        let b_module = namespace_index
+            .exported_module_id(&["a".to_string()], "b")
+            .unwrap();
+        let c_module = namespace_index
+            .exported_module_id(&["a".to_string()], "c")
+            .unwrap();
+        let a_def = runtime
+            .surface
+            .modules
+            .iter()
+            .find(|module| module.module == a_module)
+            .unwrap()
+            .def;
+        let b_def = runtime
+            .surface
+            .modules
+            .iter()
+            .find(|module| module.module == b_module)
+            .unwrap()
+            .def;
+        let c_def = runtime
+            .surface
+            .modules
+            .iter()
+            .find(|module| module.module == c_module)
+            .unwrap()
+            .def;
+
+        assert_eq!(
+            runtime
+                .surface
+                .modules
+                .iter()
+                .filter(|module| module.module == a_module)
+                .count(),
+            1
+        );
+        let Some(Def::Mod { children, .. }) = runtime.surface.arena.defs.get(a_def) else {
+            panic!("merged parent module should remain a module def");
+        };
+        assert!(children.contains(&b_def));
+        assert!(children.contains(&c_def));
+    }
+
+    #[test]
     fn compiled_unit_surface_prefix_rebuilds_module_table_without_source_modules() {
         let loaded = sources::load(vec![
             source(&[], "mod ops;\npub use ops::*\n"),
@@ -1272,15 +1385,17 @@ mod tests {
     fn compiled_runtime_surface(module: &[&str], text: &str) -> RuntimeSurfaceFixture {
         assert_eq!(module.len(), 1);
         let root = format!("mod {};\n", module[0]);
-        let loaded = sources::load(vec![source(&[], &root), source(module, text)]);
+        compiled_runtime_surface_from_files(vec![source(&[], &root), source(module, text)])
+    }
+
+    fn compiled_runtime_surface_from_files(files: Vec<SourceFile>) -> RuntimeSurfaceFixture {
+        let path = files.last().unwrap().module_path.segments.clone();
+        let loaded = sources::load(files);
         let lowering = lower_loaded_files(&loaded).unwrap();
         let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
         let runtime = CompiledRuntimeSurface::from_lowering_with_namespace(&lowering, &namespace);
         RuntimeSurfaceFixture {
-            path: module
-                .iter()
-                .map(|segment| (*segment).to_string())
-                .collect(),
+            path: path.into_iter().map(|segment| segment.0).collect(),
             namespace,
             runtime,
         }
