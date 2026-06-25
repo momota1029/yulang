@@ -1,5 +1,6 @@
 use super::*;
 
+mod compiled;
 mod query;
 
 impl ModuleTable {
@@ -707,7 +708,7 @@ impl ModuleTable {
         segments.reverse();
         ModulePath { segments }
     }
-    pub(super) fn module_def(&self, module: ModuleId) -> Option<DefId> {
+    pub(crate) fn module_def(&self, module: ModuleId) -> Option<DefId> {
         let parent = self.nodes[module.0].parent?;
         let parent_node = &self.nodes[parent.module.0];
         parent_node.decls.iter().find_map(|decl| {

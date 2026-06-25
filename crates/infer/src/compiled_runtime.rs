@@ -12,9 +12,7 @@ use poly::roles::{
 use rustc_hash::FxHashMap;
 
 use crate::lowering::BodyLowering;
-use crate::{
-    CompiledNamespaceSurface, CompiledNamespaceVisibility, CompiledTypeArena, CompiledTypeImporter,
-};
+use crate::{CompiledNamespaceSurface, CompiledTypeArena, CompiledTypeImporter};
 
 /// Lowered per-unit runtime surface.
 ///
@@ -26,7 +24,15 @@ use crate::{
 pub struct CompiledRuntimeSurface {
     pub arena: poly::expr::Arena,
     pub labels: poly::dump::DumpLabels,
+    pub modules: Vec<CompiledRuntimeModuleDef>,
     pub values: Vec<CompiledRuntimeValueDef>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledRuntimeModuleDef {
+    pub module: u32,
+    pub module_path: Vec<String>,
+    pub def: DefId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,7 +50,13 @@ pub struct CompiledRuntimeImport {
     pub roots: Vec<DefId>,
     pub runtime_roots: Vec<RuntimeRoot>,
     pub root_exprs: Vec<ExprId>,
+    pub modules: Vec<CompiledRuntimeImportedModule>,
     pub values: Vec<CompiledRuntimeImportedValue>,
+}
+
+pub struct CompiledRuntimeImportedModule {
+    pub module: u32,
+    pub def: DefId,
 }
 
 pub struct CompiledRuntimeImportedValue {
@@ -57,6 +69,7 @@ impl CompiledRuntimeSurface {
         Self {
             arena: lowering.session.poly.clone(),
             labels: lowering.labels.clone(),
+            modules: Vec::new(),
             values: Vec::new(),
         }
     }
@@ -68,6 +81,7 @@ impl CompiledRuntimeSurface {
         Self {
             arena: lowering.session.poly.clone(),
             labels: lowering.labels.clone(),
+            modules: runtime_module_defs_from_namespace(lowering, namespace),
             values: runtime_value_defs_from_namespace(lowering, namespace),
         }
     }
@@ -120,6 +134,14 @@ impl CompiledRuntimeSurface {
             .iter()
             .map(|id| import.map_expr(*id))
             .collect();
+        import.modules = self
+            .modules
+            .iter()
+            .map(|module| CompiledRuntimeImportedModule {
+                module: module.module,
+                def: import.map_def(module.def),
+            })
+            .collect();
         import.values = self
             .values
             .iter()
@@ -159,6 +181,7 @@ impl CompiledRuntimeImport {
             roots: Vec::new(),
             runtime_roots: Vec::new(),
             root_exprs: Vec::new(),
+            modules: Vec::new(),
             values: Vec::new(),
         }
     }
@@ -199,6 +222,35 @@ impl CompiledRuntimeImport {
     }
 }
 
+fn runtime_module_defs_from_namespace(
+    lowering: &BodyLowering,
+    namespace: &CompiledNamespaceSurface,
+) -> Vec<CompiledRuntimeModuleDef> {
+    let mut modules = Vec::new();
+    for module in namespace
+        .modules
+        .iter()
+        .filter(|module| !module.path.is_empty())
+    {
+        let Some(live_module) = lowering
+            .modules
+            .module_by_path(&path_from_strings(&module.path))
+        else {
+            continue;
+        };
+        let Some(def) = lowering.modules.module_def(live_module) else {
+            continue;
+        };
+        modules.push(CompiledRuntimeModuleDef {
+            module: module.id,
+            module_path: module.path.clone(),
+            def,
+        });
+    }
+    modules.sort_by_key(|module| module.module);
+    modules
+}
+
 fn runtime_value_defs_from_namespace(
     lowering: &BodyLowering,
     namespace: &CompiledNamespaceSurface,
@@ -211,11 +263,7 @@ fn runtime_value_defs_from_namespace(
         else {
             continue;
         };
-        for value in module
-            .values
-            .iter()
-            .filter(|value| value.visibility != CompiledNamespaceVisibility::My)
-        {
+        for value in &module.values {
             let name = sources::Name(value.name.clone());
             let Some(def) = lowering
                 .modules
@@ -765,6 +813,7 @@ mod tests {
 
         let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
         let runtime = CompiledRuntimeSurface::from_lowering_with_namespace(&lowering, &namespace);
+        assert!(!runtime.modules.is_empty());
         assert!(!runtime.values.is_empty());
         let mut target = PolyArena::new();
         let prefix_def = target.defs.fresh();
@@ -784,6 +833,7 @@ mod tests {
             runtime.arena.runtime_roots.len()
         );
         assert_eq!(import.root_exprs.len(), runtime.arena.root_exprs.len());
+        assert_eq!(import.modules.len(), runtime.modules.len());
         assert_eq!(import.values.len(), runtime.values.len());
         assert_eq!(
             target.effect_operations.len(),
@@ -799,6 +849,9 @@ mod tests {
         for value in &import.values {
             assert!(target.defs.get(value.def).is_some());
         }
+        for module in &import.modules {
+            assert!(target.defs.get(module.def).is_some());
+        }
         for root in &import.runtime_roots {
             match root {
                 RuntimeRoot::Expr(expr) => {
@@ -809,6 +862,39 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn compiled_unit_surface_prefix_rebuilds_module_table_without_source_modules() {
+        let loaded = sources::load(vec![
+            source(&[], "mod ops;\npub use ops::*\n"),
+            source(
+                &["ops"],
+                "pub act signal:\n  pub ping: () -> int\n\npub struct Box { value: int }\n",
+            ),
+        ]);
+        let lowering = lower_loaded_files(&loaded).unwrap();
+        let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
+        let lowering_surface =
+            CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
+        let runtime = CompiledRuntimeSurface::from_lowering_with_namespace(&lowering, &namespace);
+        let prefix = BodyLoweringPrefix::from_compiled_unit_surfaces(
+            &namespace,
+            &lowering_surface,
+            &runtime,
+        )
+        .expect("compiled surfaces should rebuild a root prefix");
+        let root = sources::load(vec![source(
+            &[],
+            "my boxed = Box { value: 1 }\nmy value = boxed.value\nmy handled = catch signal::ping():\n    signal::ping(), k -> k 1\n    v -> v\n",
+        )])
+        .into_iter()
+        .next()
+        .unwrap();
+
+        let lowered = lower_root_loaded_file_with_prefix(&prefix, &root).unwrap();
+
+        assert_eq!(lowered.errors, Vec::new());
     }
 
     #[test]

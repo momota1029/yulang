@@ -1,14 +1,16 @@
 use poly::expr::DefId;
 use poly::types::BuiltinType;
+use rowan::SyntaxNode;
 use serde::{Deserialize, Serialize};
 use sources::{Name, Path};
 
 use crate::lowering::{self, SignatureEffectAtom, SignatureEffectRow, SignatureType, SignatureVar};
 use crate::{
-    CompiledNamespaceSurface, CompiledNamespaceSymbol, CompiledNamespaceTypeKind,
-    CompiledNamespaceTypeSymbol, ConstructorPayload, ConstructorPayloadItem,
-    ConstructorRecordPayloadField, ModuleTable, ModuleTypeDecl, ModuleTypeKind, RoleMethodDecl,
-    StoredSignature, TypeDeclId, namespace_path,
+    ActMethodDecl, CompiledNamespaceSurface, CompiledNamespaceSymbol, CompiledNamespaceTypeKind,
+    CompiledNamespaceTypeSymbol, CompiledNamespaceVisibility, ConstructorPayload,
+    ConstructorPayloadItem, ConstructorRecordPayloadField, ModuleTable, ModuleTypeDecl,
+    ModuleTypeKind, RoleMethodDecl, StoredSignature, TypeDeclId, TypeFieldMethodDecl,
+    TypeMethodDecl, TypeMethodReceiver, namespace_path,
 };
 
 /// Lowering-time metadata exported by a compiled unit.
@@ -21,8 +23,13 @@ use crate::{
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompiledLoweringSurface {
     pub act_type_vars: Vec<CompiledLoweringActTypeVars>,
+    pub act_templates: Vec<CompiledLoweringActTemplate>,
     pub constructor_payloads: Vec<CompiledLoweringConstructorPayload>,
     pub act_operations: Vec<CompiledLoweringActOperationSignature>,
+    pub role_shapes: Vec<CompiledLoweringRoleShape>,
+    pub type_methods: Vec<CompiledLoweringTypeMethod>,
+    pub type_field_methods: Vec<CompiledLoweringTypeFieldMethod>,
+    pub act_methods: Vec<CompiledLoweringActMethod>,
     pub role_methods: Vec<CompiledLoweringRoleMethodSignature>,
 }
 
@@ -34,11 +41,19 @@ pub struct CompiledLoweringActTypeVars {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledLoweringActTemplate {
+    pub type_symbol: u32,
+    pub type_path: Vec<String>,
+    pub source: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompiledLoweringConstructorPayload {
     pub value_symbol: u32,
     pub value_path: Vec<String>,
     pub owner_type_symbol: u32,
     pub owner_type_path: Vec<String>,
+    pub owner_type_vars: Vec<String>,
     pub payload: CompiledConstructorPayload,
 }
 
@@ -59,6 +74,7 @@ pub struct CompiledConstructorRecordPayloadField {
 pub struct CompiledLoweringActOperationSignature {
     pub type_symbol: u32,
     pub type_path: Vec<String>,
+    pub source_def: Option<DefId>,
     pub value_symbol: Option<u32>,
     pub value_path: Option<Vec<String>>,
     pub name: String,
@@ -66,12 +82,60 @@ pub struct CompiledLoweringActOperationSignature {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CompiledLoweringRoleMethodSignature {
+pub struct CompiledLoweringRoleShape {
     pub type_symbol: u32,
     pub type_path: Vec<String>,
+    pub inputs: Vec<String>,
+    pub associated: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledLoweringTypeMethod {
+    pub owner_type_symbol: u32,
+    pub owner_type_path: Vec<String>,
+    pub source_def: DefId,
     pub value_symbol: Option<u32>,
     pub value_path: Option<Vec<String>>,
     pub name: String,
+    pub receiver: String,
+    pub receiver_kind: TypeMethodReceiver,
+    pub visibility: CompiledNamespaceVisibility,
+    pub order: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledLoweringTypeFieldMethod {
+    pub owner_type_symbol: u32,
+    pub owner_type_path: Vec<String>,
+    pub source_def: DefId,
+    pub name: String,
+    pub receiver_kind: TypeMethodReceiver,
+    pub visibility: CompiledNamespaceVisibility,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledLoweringActMethod {
+    pub owner_type_symbol: u32,
+    pub owner_type_path: Vec<String>,
+    pub source_def: DefId,
+    pub value_symbol: Option<u32>,
+    pub value_path: Option<Vec<String>>,
+    pub name: String,
+    pub receiver: String,
+    pub visibility: CompiledNamespaceVisibility,
+    pub order: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledLoweringRoleMethodSignature {
+    pub type_symbol: u32,
+    pub type_path: Vec<String>,
+    pub source_def: DefId,
+    pub value_symbol: Option<u32>,
+    pub value_path: Option<Vec<String>>,
+    pub name: String,
+    pub receiver: Option<String>,
+    pub visibility: CompiledNamespaceVisibility,
     pub order: u32,
     pub signature: Option<CompiledSignatureType>,
 }
@@ -132,6 +196,25 @@ impl CompiledLoweringSurface {
             .collect::<Vec<_>>();
         act_type_vars.sort_by_key(|entry| entry.type_symbol);
 
+        let mut act_templates = namespace
+            .types
+            .iter()
+            .filter(|ty| ty.kind == CompiledNamespaceTypeKind::Act)
+            .filter_map(|ty| {
+                let decl = type_decl_for_namespace_path(modules, &ty.path)?;
+                if decl.kind != ModuleTypeKind::Act {
+                    return None;
+                }
+                let source = modules.act_template(decl.id)?.text().to_string();
+                Some(CompiledLoweringActTemplate {
+                    type_symbol: ty.unit_id,
+                    type_path: ty.path.clone(),
+                    source,
+                })
+            })
+            .collect::<Vec<_>>();
+        act_templates.sort_by_key(|entry| entry.type_symbol);
+
         let mut constructor_payloads = namespace
             .values
             .iter()
@@ -144,6 +227,7 @@ impl CompiledLoweringSurface {
                     value_path: value.path.clone(),
                     owner_type_symbol: owner.unit_id,
                     owner_type_path: owner.path,
+                    owner_type_vars: constructor.type_vars.clone(),
                     payload: compile_constructor_payload(modules, constructor)?,
                 })
             })
@@ -170,9 +254,11 @@ impl CompiledLoweringSurface {
                         .filter_map(|op| {
                             let value =
                                 act_operation_value_symbol(modules, namespace, &decl, &op.name);
+                            let source_def = act_operation_source_def(modules, decl.id, &op.name);
                             Some(CompiledLoweringActOperationSignature {
                                 type_symbol: ty.unit_id,
                                 type_path: ty.path.clone(),
+                                source_def,
                                 value_symbol: value.as_ref().map(|value| value.unit_id),
                                 value_path: value.map(|value| value.path),
                                 name: op.name.0.clone(),
@@ -190,6 +276,84 @@ impl CompiledLoweringSurface {
             .collect::<Vec<_>>();
         act_operations.sort_by(|left, right| {
             (left.type_symbol, &left.name).cmp(&(right.type_symbol, &right.name))
+        });
+
+        let mut role_shapes = namespace
+            .types
+            .iter()
+            .filter(|ty| ty.kind == CompiledNamespaceTypeKind::Role)
+            .filter_map(|ty| {
+                let decl = type_decl_for_namespace_path(modules, &ty.path)?;
+                if decl.kind != ModuleTypeKind::Role {
+                    return None;
+                }
+                Some(CompiledLoweringRoleShape {
+                    type_symbol: ty.unit_id,
+                    type_path: ty.path.clone(),
+                    inputs: modules.role_inputs(decl.id).to_vec(),
+                    associated: modules.role_associated(decl.id).to_vec(),
+                })
+            })
+            .collect::<Vec<_>>();
+        role_shapes.sort_by_key(|entry| entry.type_symbol);
+
+        let mut type_methods = modules
+            .all_type_methods()
+            .filter_map(|method| compile_type_method(modules, namespace, method))
+            .collect::<Vec<_>>();
+        type_methods.sort_by(|left, right| {
+            (
+                left.owner_type_symbol,
+                left.order,
+                &left.receiver,
+                &left.name,
+                left.receiver_kind as u8,
+            )
+                .cmp(&(
+                    right.owner_type_symbol,
+                    right.order,
+                    &right.receiver,
+                    &right.name,
+                    right.receiver_kind as u8,
+                ))
+        });
+
+        let mut type_field_methods = modules
+            .all_type_field_methods()
+            .filter_map(|method| compile_type_field_method(modules, namespace, method))
+            .collect::<Vec<_>>();
+        type_field_methods.sort_by(|left, right| {
+            (
+                left.owner_type_symbol,
+                &left.name,
+                left.receiver_kind as u8,
+                left.source_def.0,
+            )
+                .cmp(&(
+                    right.owner_type_symbol,
+                    &right.name,
+                    right.receiver_kind as u8,
+                    right.source_def.0,
+                ))
+        });
+
+        let mut act_methods = modules
+            .all_act_methods()
+            .filter_map(|method| compile_act_method(modules, namespace, method))
+            .collect::<Vec<_>>();
+        act_methods.sort_by(|left, right| {
+            (
+                left.owner_type_symbol,
+                left.order,
+                &left.receiver,
+                &left.name,
+            )
+                .cmp(&(
+                    right.owner_type_symbol,
+                    right.order,
+                    &right.receiver,
+                    &right.name,
+                ))
         });
 
         let mut role_methods = namespace
@@ -210,9 +374,12 @@ impl CompiledLoweringSurface {
                             Some(CompiledLoweringRoleMethodSignature {
                                 type_symbol: ty.unit_id,
                                 type_path: ty.path.clone(),
+                                source_def: method.def,
                                 value_symbol: value.as_ref().map(|value| value.unit_id),
                                 value_path: value.map(|value| value.path),
                                 name: method.name.0.clone(),
+                                receiver: method.receiver.as_ref().map(|name| name.0.clone()),
+                                visibility: compiled_visibility(method.vis),
                                 order: method.order.index(),
                                 signature: compile_role_method_signature(modules, method)?,
                             })
@@ -232,8 +399,13 @@ impl CompiledLoweringSurface {
 
         Self {
             act_type_vars,
+            act_templates,
             constructor_payloads,
             act_operations,
+            role_shapes,
+            type_methods,
+            type_field_methods,
+            act_methods,
             role_methods,
         }
     }
@@ -249,11 +421,25 @@ impl CompiledLoweringSurface {
             modules.set_act_type_vars(decl.id, entry.vars.clone());
         }
 
+        for entry in &self.act_templates {
+            let Some(decl) = type_decl_for_namespace_path(modules, &entry.type_path) else {
+                continue;
+            };
+            if decl.kind != ModuleTypeKind::Act {
+                continue;
+            }
+            let Some(template) = restore_compiled_act_template(&entry.source) else {
+                continue;
+            };
+            modules.set_act_template(decl.id, template);
+        }
+
         for entry in &self.constructor_payloads {
             let Some(def) = value_def_for_namespace_path(modules, &entry.value_path) else {
                 continue;
             };
-            let Some(payload) = restore_constructor_payload(modules, &entry.payload) else {
+            let Some(payload) = restore_compiled_constructor_payload(modules, &entry.payload)
+            else {
                 continue;
             };
             if let Some(constructor) = modules.constructors.get_mut(&def) {
@@ -268,7 +454,7 @@ impl CompiledLoweringSurface {
             if !matches!(decl.kind, ModuleTypeKind::Act | ModuleTypeKind::Error) {
                 continue;
             }
-            let signature = restore_optional_stored_signature(modules, &entry.signature);
+            let signature = restore_compiled_optional_stored_signature(modules, &entry.signature);
             if let Some(ops) = modules.act_ops.get_mut(&decl.id)
                 && let Some(op) = ops.iter_mut().find(|op| op.name.0 == entry.name)
             {
@@ -283,7 +469,7 @@ impl CompiledLoweringSurface {
             if decl.kind != ModuleTypeKind::Role {
                 continue;
             }
-            let signature = restore_optional_stored_signature(modules, &entry.signature);
+            let signature = restore_compiled_optional_stored_signature(modules, &entry.signature);
             if let Some(methods) = modules.role_methods.get_mut(&decl.id)
                 && let Some(method) = methods.iter_mut().find(|method| {
                     method.name.0 == entry.name && method.order.index() == entry.order
@@ -293,6 +479,12 @@ impl CompiledLoweringSurface {
             }
         }
     }
+}
+
+pub(crate) fn restore_compiled_act_template(source: &str) -> Option<crate::Cst> {
+    let root = SyntaxNode::new_root(parser::parse_module_to_green(source));
+    root.children()
+        .find(|child| child.kind() == parser::lex::SyntaxKind::ActDecl)
 }
 
 fn compile_constructor_payload(
@@ -407,6 +599,63 @@ fn compile_role_method_signature(
     compile_signature_type(modules, &lowered).map(Some)
 }
 
+fn compile_type_method(
+    modules: &ModuleTable,
+    namespace: &CompiledNamespaceSurface,
+    method: &TypeMethodDecl,
+) -> Option<CompiledLoweringTypeMethod> {
+    let owner = type_symbol_for_decl(modules, namespace, method.owner)?;
+    let value = value_symbol_for_def(modules, namespace, method.def);
+    Some(CompiledLoweringTypeMethod {
+        owner_type_symbol: owner.unit_id,
+        owner_type_path: owner.path,
+        source_def: method.def,
+        value_symbol: value.as_ref().map(|value| value.unit_id),
+        value_path: value.map(|value| value.path),
+        name: method.name.0.clone(),
+        receiver: method.receiver.0.clone(),
+        receiver_kind: method.receiver_kind,
+        visibility: compiled_visibility(method.vis),
+        order: method.order.index(),
+    })
+}
+
+fn compile_type_field_method(
+    modules: &ModuleTable,
+    namespace: &CompiledNamespaceSurface,
+    method: &TypeFieldMethodDecl,
+) -> Option<CompiledLoweringTypeFieldMethod> {
+    let owner = type_symbol_for_decl(modules, namespace, method.owner)?;
+    Some(CompiledLoweringTypeFieldMethod {
+        owner_type_symbol: owner.unit_id,
+        owner_type_path: owner.path,
+        source_def: method.def,
+        name: method.name.0.clone(),
+        receiver_kind: method.receiver_kind,
+        visibility: compiled_visibility(method.vis),
+    })
+}
+
+fn compile_act_method(
+    modules: &ModuleTable,
+    namespace: &CompiledNamespaceSurface,
+    method: &ActMethodDecl,
+) -> Option<CompiledLoweringActMethod> {
+    let owner = type_symbol_for_decl(modules, namespace, method.owner)?;
+    let value = value_symbol_for_def(modules, namespace, method.def);
+    Some(CompiledLoweringActMethod {
+        owner_type_symbol: owner.unit_id,
+        owner_type_path: owner.path,
+        source_def: method.def,
+        value_symbol: value.as_ref().map(|value| value.unit_id),
+        value_path: value.map(|value| value.path),
+        name: method.name.0.clone(),
+        receiver: method.receiver.0.clone(),
+        visibility: compiled_visibility(method.vis),
+        order: method.order.index(),
+    })
+}
+
 fn act_effect_type_var_names(modules: &ModuleTable, id: TypeDeclId) -> Vec<String> {
     if let Some(error) = modules.error_decl(id) {
         return error.type_vars.clone();
@@ -431,7 +680,27 @@ fn act_copy_aliases(
     (copy.type_var_aliases.clone(), type_name_aliases)
 }
 
-fn restore_constructor_payload(
+fn act_operation_source_def(
+    modules: &ModuleTable,
+    owner: TypeDeclId,
+    name: &Name,
+) -> Option<DefId> {
+    modules
+        .act_op_defs
+        .iter()
+        .find(|(_, op)| op.effect == owner && op.name == *name)
+        .map(|(def, _)| *def)
+}
+
+fn compiled_visibility(vis: poly::expr::Vis) -> CompiledNamespaceVisibility {
+    match vis {
+        poly::expr::Vis::Pub => CompiledNamespaceVisibility::Pub,
+        poly::expr::Vis::Our => CompiledNamespaceVisibility::Our,
+        poly::expr::Vis::My => CompiledNamespaceVisibility::My,
+    }
+}
+
+pub(crate) fn restore_compiled_constructor_payload(
     modules: &ModuleTable,
     payload: &CompiledConstructorPayload,
 ) -> Option<ConstructorPayload> {
@@ -441,7 +710,7 @@ fn restore_constructor_payload(
             .iter()
             .map(|item| {
                 Some(ConstructorPayloadItem {
-                    ty: restore_optional_stored_signature(modules, item),
+                    ty: restore_compiled_optional_stored_signature(modules, item),
                 })
             })
             .collect::<Option<Vec<_>>>()
@@ -451,7 +720,7 @@ fn restore_constructor_payload(
             .map(|field| {
                 Some(ConstructorRecordPayloadField {
                     name: Name(field.name.clone()),
-                    ty: restore_optional_stored_signature(modules, &field.ty),
+                    ty: restore_compiled_optional_stored_signature(modules, &field.ty),
                 })
             })
             .collect::<Option<Vec<_>>>()
@@ -459,13 +728,13 @@ fn restore_constructor_payload(
     }
 }
 
-fn restore_optional_stored_signature(
+pub(crate) fn restore_compiled_optional_stored_signature(
     modules: &ModuleTable,
     signature: &Option<CompiledSignatureType>,
 ) -> Option<StoredSignature> {
     signature
         .as_ref()
-        .and_then(|signature| restore_signature_type(modules, signature))
+        .and_then(|signature| restore_compiled_signature_type(modules, signature))
         .map(StoredSignature::lowered)
 }
 
@@ -540,7 +809,7 @@ fn compile_signature_effect_row(
     })
 }
 
-fn restore_signature_type(
+pub(crate) fn restore_compiled_signature_type(
     modules: &ModuleTable,
     signature: &CompiledSignatureType,
 ) -> Option<SignatureType> {
@@ -556,18 +825,18 @@ fn restore_signature_type(
         )),
         CompiledSignatureType::Effectful { eff, ret } => Some(SignatureType::Effectful {
             eff: restore_signature_effect_row(modules, eff)?,
-            ret: Box::new(restore_signature_type(modules, ret)?),
+            ret: Box::new(restore_compiled_signature_type(modules, ret)?),
         }),
         CompiledSignatureType::Tuple(items) => items
             .iter()
-            .map(|item| restore_signature_type(modules, item))
+            .map(|item| restore_compiled_signature_type(modules, item))
             .collect::<Option<Vec<_>>>()
             .map(SignatureType::Tuple),
         CompiledSignatureType::Apply { callee, args } => Some(SignatureType::Apply {
-            callee: Box::new(restore_signature_type(modules, callee)?),
+            callee: Box::new(restore_compiled_signature_type(modules, callee)?),
             args: args
                 .iter()
-                .map(|arg| restore_signature_type(modules, arg))
+                .map(|arg| restore_compiled_signature_type(modules, arg))
                 .collect::<Option<Vec<_>>>()?,
         }),
         CompiledSignatureType::Function {
@@ -576,7 +845,7 @@ fn restore_signature_type(
             ret_eff,
             ret,
         } => Some(SignatureType::Function {
-            param: Box::new(restore_signature_type(modules, param)?),
+            param: Box::new(restore_compiled_signature_type(modules, param)?),
             arg_eff: match arg_eff {
                 Some(row) => Some(restore_signature_effect_row(modules, row)?),
                 None => None,
@@ -585,7 +854,7 @@ fn restore_signature_type(
                 Some(row) => Some(restore_signature_effect_row(modules, row)?),
                 None => None,
             },
-            ret: Box::new(restore_signature_type(modules, ret)?),
+            ret: Box::new(restore_compiled_signature_type(modules, ret)?),
         }),
     }
 }
@@ -599,7 +868,7 @@ fn restore_signature_effect_row(
             .iter()
             .map(|atom| match atom {
                 CompiledSignatureEffectAtom::Type(ty) => Some(SignatureEffectAtom::Type(
-                    restore_signature_type(modules, ty)?,
+                    restore_compiled_signature_type(modules, ty)?,
                 )),
                 CompiledSignatureEffectAtom::Wildcard => Some(SignatureEffectAtom::Wildcard),
             })

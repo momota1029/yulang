@@ -17,16 +17,16 @@ use crate::source::CollectedSource;
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 9;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 10;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
 const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v1";
 const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
 const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/v1";
-const COMPILED_LOWERING_HASH_SALT: &[u8] = b"yulang/compiled-lowering-surface/v3";
+const COMPILED_LOWERING_HASH_SALT: &[u8] = b"yulang/compiled-lowering-surface/v4";
 const COMPILED_TYPED_HASH_SALT: &[u8] = b"yulang/compiled-typed-surface/v1";
-const COMPILED_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-runtime-surface/v2";
+const COMPILED_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-runtime-surface/v3";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 static CACHE_TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -481,12 +481,23 @@ fn compiled_lowering_hash(lowering: &infer::CompiledLoweringSurface) -> u64 {
         }
     }
 
+    hasher.usize(lowering.act_templates.len());
+    for entry in &lowering.act_templates {
+        hasher.u32(entry.type_symbol);
+        hash_string_path(&mut hasher, &entry.type_path);
+        hasher.string(&entry.source);
+    }
+
     hasher.usize(lowering.constructor_payloads.len());
     for entry in &lowering.constructor_payloads {
         hasher.u32(entry.value_symbol);
         hash_string_path(&mut hasher, &entry.value_path);
         hasher.u32(entry.owner_type_symbol);
         hash_string_path(&mut hasher, &entry.owner_type_path);
+        hasher.usize(entry.owner_type_vars.len());
+        for var in &entry.owner_type_vars {
+            hasher.string(var);
+        }
         hash_compiled_constructor_payload(&mut hasher, &entry.payload);
     }
 
@@ -494,19 +505,80 @@ fn compiled_lowering_hash(lowering: &infer::CompiledLoweringSurface) -> u64 {
     for entry in &lowering.act_operations {
         hasher.u32(entry.type_symbol);
         hash_string_path(&mut hasher, &entry.type_path);
+        hash_optional_def_id(&mut hasher, entry.source_def);
         hash_optional_u32(&mut hasher, entry.value_symbol);
         hash_optional_string_path(&mut hasher, entry.value_path.as_deref());
         hasher.string(&entry.name);
         hash_optional_compiled_signature_type(&mut hasher, &entry.signature);
     }
 
+    hasher.usize(lowering.role_shapes.len());
+    for entry in &lowering.role_shapes {
+        hasher.u32(entry.type_symbol);
+        hash_string_path(&mut hasher, &entry.type_path);
+        hasher.usize(entry.inputs.len());
+        for input in &entry.inputs {
+            hasher.string(input);
+        }
+        hasher.usize(entry.associated.len());
+        for associated in &entry.associated {
+            hasher.string(associated);
+        }
+    }
+
+    hasher.usize(lowering.type_methods.len());
+    for entry in &lowering.type_methods {
+        hasher.u32(entry.owner_type_symbol);
+        hash_string_path(&mut hasher, &entry.owner_type_path);
+        hash_def_id(&mut hasher, entry.source_def);
+        hash_optional_u32(&mut hasher, entry.value_symbol);
+        hash_optional_string_path(&mut hasher, entry.value_path.as_deref());
+        hasher.string(&entry.name);
+        hasher.string(&entry.receiver);
+        hash_type_method_receiver(&mut hasher, entry.receiver_kind);
+        hash_compiled_namespace_visibility(&mut hasher, entry.visibility);
+        hasher.u32(entry.order);
+    }
+
+    hasher.usize(lowering.type_field_methods.len());
+    for entry in &lowering.type_field_methods {
+        hasher.u32(entry.owner_type_symbol);
+        hash_string_path(&mut hasher, &entry.owner_type_path);
+        hash_def_id(&mut hasher, entry.source_def);
+        hasher.string(&entry.name);
+        hash_type_method_receiver(&mut hasher, entry.receiver_kind);
+        hash_compiled_namespace_visibility(&mut hasher, entry.visibility);
+    }
+
+    hasher.usize(lowering.act_methods.len());
+    for entry in &lowering.act_methods {
+        hasher.u32(entry.owner_type_symbol);
+        hash_string_path(&mut hasher, &entry.owner_type_path);
+        hash_def_id(&mut hasher, entry.source_def);
+        hash_optional_u32(&mut hasher, entry.value_symbol);
+        hash_optional_string_path(&mut hasher, entry.value_path.as_deref());
+        hasher.string(&entry.name);
+        hasher.string(&entry.receiver);
+        hash_compiled_namespace_visibility(&mut hasher, entry.visibility);
+        hasher.u32(entry.order);
+    }
+
     hasher.usize(lowering.role_methods.len());
     for entry in &lowering.role_methods {
         hasher.u32(entry.type_symbol);
         hash_string_path(&mut hasher, &entry.type_path);
+        hash_def_id(&mut hasher, entry.source_def);
         hash_optional_u32(&mut hasher, entry.value_symbol);
         hash_optional_string_path(&mut hasher, entry.value_path.as_deref());
         hasher.string(&entry.name);
+        match &entry.receiver {
+            Some(receiver) => {
+                hasher.bool(true);
+                hasher.string(receiver);
+            }
+            None => hasher.bool(false),
+        }
+        hash_compiled_namespace_visibility(&mut hasher, entry.visibility);
         hasher.u32(entry.order);
         hash_optional_compiled_signature_type(&mut hasher, &entry.signature);
     }
@@ -667,6 +739,12 @@ fn compiled_runtime_hash(runtime: &infer::CompiledRuntimeSurface) -> u64 {
     let mut hasher = StableHasher::new();
     hasher.bytes(COMPILED_RUNTIME_HASH_SALT);
     hash_poly_arena(&mut hasher, &runtime.arena);
+    hasher.usize(runtime.modules.len());
+    for module in &runtime.modules {
+        hasher.u32(module.module);
+        hash_string_path(&mut hasher, &module.module_path);
+        hash_def_id(&mut hasher, module.def);
+    }
     hasher.usize(runtime.values.len());
     for value in &runtime.values {
         hasher.u32(value.symbol);
@@ -1656,6 +1734,13 @@ fn hash_compiled_namespace_type_kind(
     });
 }
 
+fn hash_type_method_receiver(hasher: &mut StableHasher, receiver: infer::TypeMethodReceiver) {
+    hasher.u8(match receiver {
+        infer::TypeMethodReceiver::Value => 0,
+        infer::TypeMethodReceiver::Ref => 1,
+    });
+}
+
 fn hash_use_import(hasher: &mut StableHasher, import: &sources::UseImport) {
     match import {
         sources::UseImport::Alias { name, path } => {
@@ -2152,10 +2237,19 @@ mod tests {
         assert!(
             restored
                 .lowering
+                .act_templates
+                .iter()
+                .any(|entry| entry.type_path == vec!["ops", "signal"]
+                    && entry.source.contains("pub ping"))
+        );
+        assert!(
+            restored
+                .lowering
                 .constructor_payloads
                 .iter()
                 .any(|entry| entry.value_path == vec!["ops", "Box"]
                     && entry.owner_type_path == vec!["ops", "Box"]
+                    && entry.owner_type_vars.is_empty()
                     && matches!(entry.payload, infer::CompiledConstructorPayload::Record(_)))
         );
         assert!(
@@ -2172,12 +2266,30 @@ mod tests {
         assert!(
             restored
                 .lowering
+                .role_shapes
+                .iter()
+                .any(|entry| entry.type_path == vec!["ops", "Display"]
+                    && entry.inputs == vec!["a"]
+                    && entry.associated.is_empty())
+        );
+        assert!(
+            restored
+                .lowering
+                .type_field_methods
+                .iter()
+                .any(|entry| entry.owner_type_path == vec!["ops", "Box"] && entry.name == "value")
+        );
+        assert!(
+            restored
+                .lowering
                 .role_methods
                 .iter()
                 .any(|entry| entry.type_path == vec!["ops", "Display"]
+                    && entry.source_def.0 > 0
                     && entry.value_symbol.is_some()
                     && entry.value_path.is_some()
                     && entry.name == "display"
+                    && entry.receiver.as_deref() == Some("x")
                     && entry.signature.is_some())
         );
         let x_symbol = ops_module
@@ -2199,6 +2311,26 @@ mod tests {
                 .values
                 .iter()
                 .any(|value| value.symbol == x_symbol)
+        );
+        let hidden_symbol = ops_module
+            .values
+            .iter()
+            .find(|value| value.name == "hidden")
+            .unwrap()
+            .symbol;
+        assert!(
+            restored
+                .runtime
+                .values
+                .iter()
+                .any(|value| value.symbol == hidden_symbol)
+        );
+        assert!(
+            restored
+                .runtime
+                .modules
+                .iter()
+                .any(|module| module.module_path == ops_path)
         );
         assert_eq!(restored.typed.values.len(), artifact.typed.values.len());
         assert_eq!(

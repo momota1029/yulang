@@ -168,16 +168,20 @@ fn cached_embedded_playground_std_lowering_prefix()
             return Ok(prefix.clone());
         }
 
-        let loaded_prefix = cached_embedded_playground_std_loaded_prefix();
-        let loaded = sources::load_with_loaded_prefix(
-            &loaded_prefix,
-            vec![SourceFile {
-                module_path: Path::default(),
-                source: source_with_implicit_std_prelude(String::new()),
-            }],
+        let files = embedded_playground_std_sources_with_root(
+            FsPath::new("<embedded-playground-std-root>"),
+            String::new(),
         );
-        let prefix =
-            infer::lowering::lower_loaded_files_prefix(&loaded).map_err(RouteError::Lower)?;
+        let loaded = load_collected_source_files(files.clone());
+        let artifact = crate::cache::compiled_unit_artifact_from_loaded_files(&files, &loaded)
+            .map_err(RouteError::Lower)?;
+        let prefix = infer::lowering::BodyLoweringPrefix::from_compiled_unit_surfaces(
+            &artifact.namespace,
+            &artifact.lowering,
+            &artifact.runtime,
+        )
+        .ok_or(infer::LoadedFilesError::MissingRoot)
+        .map_err(RouteError::Lower)?;
         *cache.borrow_mut() = Some(prefix.clone());
         Ok(prefix)
     })

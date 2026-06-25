@@ -67,6 +67,23 @@ impl BodyLoweringPrefix {
         Self::from_runtime_surface_inner(runtime, Some(lowering), modules)
     }
 
+    pub fn from_compiled_unit_surfaces(
+        namespace: &crate::CompiledNamespaceSurface,
+        lowering: &crate::CompiledLoweringSurface,
+        runtime: &crate::CompiledRuntimeSurface,
+    ) -> Option<Self> {
+        let mut poly = poly::expr::Arena::new();
+        let mut labels = DumpLabels::new();
+        let import = runtime.import_into(&mut poly, &mut labels);
+        let modules = ModuleTable::from_compiled_surfaces(namespace, lowering, &import)?;
+        Some(Self {
+            poly,
+            modules,
+            labels,
+            errors: Vec::new(),
+        })
+    }
+
     fn from_runtime_surface_inner(
         runtime: &crate::CompiledRuntimeSurface,
         lowering: Option<&crate::CompiledLoweringSurface>,

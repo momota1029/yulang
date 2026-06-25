@@ -365,7 +365,7 @@ pub(crate) struct CastDecl {
     pub order: ModuleOrder,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TypeMethodReceiver {
     Value,
     Ref,
