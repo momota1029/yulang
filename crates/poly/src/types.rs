@@ -709,6 +709,15 @@ impl TypeArena {
     pub fn neu(&self, id: NeuId) -> &Neu {
         &self.neu[id.0 as usize]
     }
+    pub fn pos_nodes(&self) -> &[Pos] {
+        &self.pos
+    }
+    pub fn neg_nodes(&self) -> &[Neg] {
+        &self.neg
+    }
+    pub fn neu_nodes(&self) -> &[Neu] {
+        &self.neu
+    }
     pub fn pos_len(&self) -> usize {
         self.pos.len()
     }

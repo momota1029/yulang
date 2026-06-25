@@ -132,9 +132,14 @@ source dependency SCC ごとの compiled-unit cache である。
   alias syntax.
 - Done: `infer::CompiledNamespaceIndex` can resolve exported value/type/module
   symbols from a serialized namespace surface, including reexports.
+- Done: `infer::CompiledTypedSurface` stores exported value schemes by
+  namespace symbol, with a serialized `CompiledTypeArena` that keeps only type
+  node vectors rather than hash-cons maps.
+- Done: `.yuunit` envelopes include typed surface data and `typed_hash`.
 - Not done: source dependency SCC selection and normal-path cache hit import.
-- Next: add a namespace-surface import route so cached dependency units can
-  resolve names during lowering without re-lowering dependency source bodies.
+- Next: add namespace/typed-surface import routes so cached dependency units can
+  resolve names and instantiate exported schemes without re-lowering dependency
+  source bodies.
 
 撤退条件:
 

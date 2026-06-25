@@ -17,13 +17,14 @@ use crate::source::CollectedSource;
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 2;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 3;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
 const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v1";
 const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
 const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/v1";
+const COMPILED_TYPED_HASH_SALT: &[u8] = b"yulang/compiled-typed-surface/v1";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 static CACHE_TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -152,6 +153,7 @@ impl ArtifactCache {
             manifest: envelope.manifest,
             syntax: envelope.syntax,
             namespace: envelope.namespace,
+            typed: envelope.typed,
         }))
     }
 
@@ -166,6 +168,7 @@ impl ArtifactCache {
             manifest: &artifact.manifest,
             syntax: &artifact.syntax,
             namespace: &artifact.namespace,
+            typed: &artifact.typed,
         };
         write_cache_envelope(&path, "yuunit", &envelope)
     }
@@ -190,11 +193,12 @@ pub struct CachedPolyArtifact {
     pub errors: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct CachedCompiledUnitArtifact {
     pub manifest: CompiledUnitManifest,
     pub syntax: sources::CompiledSyntaxSurface,
     pub namespace: infer::CompiledNamespaceSurface,
+    pub typed: infer::CompiledTypedSurface,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -204,6 +208,7 @@ pub struct CompiledUnitManifest {
     pub source_hash: u64,
     pub syntax_hash: u64,
     pub namespace_hash: u64,
+    pub typed_hash: u64,
     pub files: Vec<CompiledUnitSourceFile>,
 }
 
@@ -235,12 +240,15 @@ pub fn compiled_unit_artifact_from_loaded_files(
     loaded: &[sources::LoadedFile],
 ) -> Result<CachedCompiledUnitArtifact, infer::LoadedFilesError> {
     let syntax = sources::CompiledSyntaxSurface::from_loaded_files(loaded);
-    let namespace = infer::CompiledNamespaceSurface::from_loaded_files(loaded)?;
-    let manifest = compiled_unit_manifest(files, &syntax, &namespace);
+    let lowering = infer::lowering::lower_loaded_files(loaded)?;
+    let namespace = infer::CompiledNamespaceSurface::from_module_table(&lowering.modules);
+    let typed = infer::CompiledTypedSurface::from_lowering(&lowering, &namespace);
+    let manifest = compiled_unit_manifest(files, &syntax, &namespace, &typed);
     Ok(CachedCompiledUnitArtifact {
         manifest,
         syntax,
         namespace,
+        typed,
     })
 }
 
@@ -268,6 +276,7 @@ fn compiled_unit_manifest(
     files: &[CollectedSource],
     syntax: &sources::CompiledSyntaxSurface,
     namespace: &infer::CompiledNamespaceSurface,
+    typed: &infer::CompiledTypedSurface,
 ) -> CompiledUnitManifest {
     CompiledUnitManifest {
         cache_schema_version: CACHE_SCHEMA_VERSION,
@@ -275,6 +284,7 @@ fn compiled_unit_manifest(
         source_hash: source_cache_key(files).hash,
         syntax_hash: compiled_syntax_hash(syntax),
         namespace_hash: compiled_namespace_hash(namespace),
+        typed_hash: compiled_typed_hash(typed),
         files: files
             .iter()
             .map(|file| CompiledUnitSourceFile {
@@ -416,6 +426,382 @@ fn compiled_namespace_hash(namespace: &infer::CompiledNamespaceSurface) -> u64 {
     }
 
     hasher.finish()
+}
+
+fn compiled_typed_hash(typed: &infer::CompiledTypedSurface) -> u64 {
+    let mut hasher = StableHasher::new();
+    hasher.bytes(COMPILED_TYPED_HASH_SALT);
+    hash_compiled_type_arena(&mut hasher, &typed.types);
+    hasher.usize(typed.values.len());
+    for value in &typed.values {
+        hasher.u32(value.symbol);
+        hash_scheme(&mut hasher, &value.scheme);
+    }
+    hasher.finish()
+}
+
+fn hash_compiled_type_arena(hasher: &mut StableHasher, types: &infer::CompiledTypeArena) {
+    hasher.usize(types.pos.len());
+    for node in &types.pos {
+        hash_pos(hasher, node);
+    }
+    hasher.usize(types.neg.len());
+    for node in &types.neg {
+        hash_neg(hasher, node);
+    }
+    hasher.usize(types.neu.len());
+    for node in &types.neu {
+        hash_neu(hasher, node);
+    }
+}
+
+fn hash_scheme(hasher: &mut StableHasher, scheme: &poly::types::Scheme) {
+    hasher.usize(scheme.quantifiers.len());
+    for var in &scheme.quantifiers {
+        hash_type_var(hasher, *var);
+    }
+    hasher.usize(scheme.role_predicates.len());
+    for predicate in &scheme.role_predicates {
+        hash_role_predicate(hasher, predicate);
+    }
+    hasher.usize(scheme.recursive_bounds.len());
+    for bound in &scheme.recursive_bounds {
+        hash_type_var(hasher, bound.var);
+        hash_neu_id(hasher, bound.bounds);
+    }
+    hasher.usize(scheme.stack_quantifiers.len());
+    for id in &scheme.stack_quantifiers {
+        hash_subtract_id(hasher, *id);
+    }
+    hash_pos_id(hasher, scheme.predicate);
+}
+
+fn hash_role_predicate(hasher: &mut StableHasher, predicate: &poly::types::RolePredicate) {
+    hash_string_path(hasher, &predicate.role);
+    hasher.usize(predicate.inputs.len());
+    for input in &predicate.inputs {
+        match input {
+            poly::types::RolePredicateArg::Covariant(id) => {
+                hasher.u8(0);
+                hash_pos_id(hasher, *id);
+            }
+            poly::types::RolePredicateArg::Contravariant(id) => {
+                hasher.u8(1);
+                hash_neg_id(hasher, *id);
+            }
+            poly::types::RolePredicateArg::Invariant(id) => {
+                hasher.u8(2);
+                hash_neu_id(hasher, *id);
+            }
+        }
+    }
+    hasher.usize(predicate.associated.len());
+    for associated in &predicate.associated {
+        hasher.string(&associated.name);
+        hash_neu_id(hasher, associated.value);
+    }
+}
+
+fn hash_pos(hasher: &mut StableHasher, pos: &poly::types::Pos) {
+    match pos {
+        poly::types::Pos::Bot => hasher.u8(0),
+        poly::types::Pos::Var(var) => {
+            hasher.u8(1);
+            hash_type_var(hasher, *var);
+        }
+        poly::types::Pos::Con(path, args) => {
+            hasher.u8(2);
+            hash_string_path(hasher, path);
+            hash_neu_ids(hasher, args);
+        }
+        poly::types::Pos::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            hasher.u8(3);
+            hash_neg_id(hasher, *arg);
+            hash_neg_id(hasher, *arg_eff);
+            hash_pos_id(hasher, *ret_eff);
+            hash_pos_id(hasher, *ret);
+        }
+        poly::types::Pos::Record(fields) => {
+            hasher.u8(4);
+            hash_record_fields(hasher, fields, hash_pos_id);
+        }
+        poly::types::Pos::RecordTailSpread { fields, tail } => {
+            hasher.u8(5);
+            hash_record_fields(hasher, fields, hash_pos_id);
+            hash_pos_id(hasher, *tail);
+        }
+        poly::types::Pos::RecordHeadSpread { tail, fields } => {
+            hasher.u8(6);
+            hash_pos_id(hasher, *tail);
+            hash_record_fields(hasher, fields, hash_pos_id);
+        }
+        poly::types::Pos::PolyVariant(variants) => {
+            hasher.u8(7);
+            hash_variant_pos_fields(hasher, variants);
+        }
+        poly::types::Pos::Tuple(items) => {
+            hasher.u8(8);
+            hash_pos_ids(hasher, items);
+        }
+        poly::types::Pos::Row(items) => {
+            hasher.u8(9);
+            hash_pos_ids(hasher, items);
+        }
+        poly::types::Pos::Stack { inner, weight } => {
+            hasher.u8(10);
+            hash_pos_id(hasher, *inner);
+            hash_stack_weight(hasher, weight);
+        }
+        poly::types::Pos::NonSubtract(inner, weight) => {
+            hasher.u8(11);
+            hash_pos_id(hasher, *inner);
+            hash_stack_weight(hasher, weight);
+        }
+        poly::types::Pos::Union(left, right) => {
+            hasher.u8(12);
+            hash_pos_id(hasher, *left);
+            hash_pos_id(hasher, *right);
+        }
+    }
+}
+
+fn hash_neg(hasher: &mut StableHasher, neg: &poly::types::Neg) {
+    match neg {
+        poly::types::Neg::Top => hasher.u8(0),
+        poly::types::Neg::Bot => hasher.u8(1),
+        poly::types::Neg::Var(var) => {
+            hasher.u8(2);
+            hash_type_var(hasher, *var);
+        }
+        poly::types::Neg::Con(path, args) => {
+            hasher.u8(3);
+            hash_string_path(hasher, path);
+            hash_neu_ids(hasher, args);
+        }
+        poly::types::Neg::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            hasher.u8(4);
+            hash_pos_id(hasher, *arg);
+            hash_pos_id(hasher, *arg_eff);
+            hash_neg_id(hasher, *ret_eff);
+            hash_neg_id(hasher, *ret);
+        }
+        poly::types::Neg::Record(fields) => {
+            hasher.u8(5);
+            hash_record_fields(hasher, fields, hash_neg_id);
+        }
+        poly::types::Neg::PolyVariant(variants) => {
+            hasher.u8(6);
+            hash_variant_neg_fields(hasher, variants);
+        }
+        poly::types::Neg::Tuple(items) => {
+            hasher.u8(7);
+            hash_neg_ids(hasher, items);
+        }
+        poly::types::Neg::Row(items, tail) => {
+            hasher.u8(8);
+            hash_neg_ids(hasher, items);
+            hash_neg_id(hasher, *tail);
+        }
+        poly::types::Neg::Stack { inner, weight } => {
+            hasher.u8(9);
+            hash_neg_id(hasher, *inner);
+            hash_stack_weight(hasher, weight);
+        }
+        poly::types::Neg::Intersection(left, right) => {
+            hasher.u8(10);
+            hash_neg_id(hasher, *left);
+            hash_neg_id(hasher, *right);
+        }
+    }
+}
+
+fn hash_neu(hasher: &mut StableHasher, neu: &poly::types::Neu) {
+    match neu {
+        poly::types::Neu::Bounds(lower, upper) => {
+            hasher.u8(0);
+            hash_pos_id(hasher, *lower);
+            hash_neg_id(hasher, *upper);
+        }
+        poly::types::Neu::Con(path, args) => {
+            hasher.u8(1);
+            hash_string_path(hasher, path);
+            hash_neu_ids(hasher, args);
+        }
+        poly::types::Neu::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            hasher.u8(2);
+            hash_neu_id(hasher, *arg);
+            hash_neu_id(hasher, *arg_eff);
+            hash_neu_id(hasher, *ret_eff);
+            hash_neu_id(hasher, *ret);
+        }
+        poly::types::Neu::Record(fields) => {
+            hasher.u8(3);
+            hash_record_fields(hasher, fields, hash_neu_id);
+        }
+        poly::types::Neu::PolyVariant(variants) => {
+            hasher.u8(4);
+            hash_variant_neu_fields(hasher, variants);
+        }
+        poly::types::Neu::Tuple(items) => {
+            hasher.u8(5);
+            hash_neu_ids(hasher, items);
+        }
+    }
+}
+
+fn hash_record_fields<T: Copy>(
+    hasher: &mut StableHasher,
+    fields: &[poly::types::RecordField<T>],
+    hash_value: fn(&mut StableHasher, T),
+) {
+    hasher.usize(fields.len());
+    for field in fields {
+        hasher.string(&field.name);
+        hasher.bool(field.optional);
+        hash_value(hasher, field.value);
+    }
+}
+
+fn hash_variant_pos_fields(
+    hasher: &mut StableHasher,
+    variants: &[(String, Vec<poly::types::PosId>)],
+) {
+    hasher.usize(variants.len());
+    for (name, fields) in variants {
+        hasher.string(name);
+        hash_pos_ids(hasher, fields);
+    }
+}
+
+fn hash_variant_neg_fields(
+    hasher: &mut StableHasher,
+    variants: &[(String, Vec<poly::types::NegId>)],
+) {
+    hasher.usize(variants.len());
+    for (name, fields) in variants {
+        hasher.string(name);
+        hash_neg_ids(hasher, fields);
+    }
+}
+
+fn hash_variant_neu_fields(
+    hasher: &mut StableHasher,
+    variants: &[(String, Vec<poly::types::NeuId>)],
+) {
+    hasher.usize(variants.len());
+    for (name, fields) in variants {
+        hasher.string(name);
+        hash_neu_ids(hasher, fields);
+    }
+}
+
+fn hash_stack_weight(hasher: &mut StableHasher, weight: &poly::types::StackWeight) {
+    hash_subtractability(hasher, weight.filter_set());
+    hasher.usize(weight.entries().len());
+    for entry in weight.entries() {
+        hash_subtract_id(hasher, entry.id);
+        hasher.u32(entry.pops);
+        hasher.usize(entry.floor.len());
+        for subtractability in &entry.floor {
+            hash_subtractability(hasher, subtractability);
+        }
+        hasher.usize(entry.stack.len());
+        for subtractability in &entry.stack {
+            hash_subtractability(hasher, subtractability);
+        }
+    }
+}
+
+fn hash_subtractability(hasher: &mut StableHasher, subtractability: &poly::types::Subtractability) {
+    match subtractability {
+        poly::types::Subtractability::Empty => hasher.u8(0),
+        poly::types::Subtractability::All => hasher.u8(1),
+        poly::types::Subtractability::AllExcept(path, args) => {
+            hasher.u8(2);
+            hash_string_path(hasher, path);
+            hash_neu_ids(hasher, args);
+        }
+        poly::types::Subtractability::AllExceptMany(families) => {
+            hasher.u8(3);
+            hash_effect_families(hasher, families);
+        }
+        poly::types::Subtractability::Set(path, args) => {
+            hasher.u8(4);
+            hash_string_path(hasher, path);
+            hash_neu_ids(hasher, args);
+        }
+        poly::types::Subtractability::SetMany(families) => {
+            hasher.u8(5);
+            hash_effect_families(hasher, families);
+        }
+    }
+}
+
+fn hash_effect_families(
+    hasher: &mut StableHasher,
+    families: &[(Vec<String>, Vec<poly::types::NeuId>)],
+) {
+    hasher.usize(families.len());
+    for (path, args) in families {
+        hash_string_path(hasher, path);
+        hash_neu_ids(hasher, args);
+    }
+}
+
+fn hash_pos_ids(hasher: &mut StableHasher, ids: &[poly::types::PosId]) {
+    hasher.usize(ids.len());
+    for id in ids {
+        hash_pos_id(hasher, *id);
+    }
+}
+
+fn hash_neg_ids(hasher: &mut StableHasher, ids: &[poly::types::NegId]) {
+    hasher.usize(ids.len());
+    for id in ids {
+        hash_neg_id(hasher, *id);
+    }
+}
+
+fn hash_neu_ids(hasher: &mut StableHasher, ids: &[poly::types::NeuId]) {
+    hasher.usize(ids.len());
+    for id in ids {
+        hash_neu_id(hasher, *id);
+    }
+}
+
+fn hash_pos_id(hasher: &mut StableHasher, id: poly::types::PosId) {
+    hasher.u32(id.0);
+}
+
+fn hash_neg_id(hasher: &mut StableHasher, id: poly::types::NegId) {
+    hasher.u32(id.0);
+}
+
+fn hash_neu_id(hasher: &mut StableHasher, id: poly::types::NeuId) {
+    hasher.u32(id.0);
+}
+
+fn hash_type_var(hasher: &mut StableHasher, var: poly::types::TypeVar) {
+    hasher.u32(var.0);
+}
+
+fn hash_subtract_id(hasher: &mut StableHasher, id: poly::types::SubtractId) {
+    hasher.u32(id.0);
 }
 
 fn hash_module_path(hasher: &mut StableHasher, path: &sources::Path) {
@@ -636,11 +1022,13 @@ struct CompiledUnitCacheEnvelope<
     M = CompiledUnitManifest,
     S = sources::CompiledSyntaxSurface,
     N = infer::CompiledNamespaceSurface,
+    T = infer::CompiledTypedSurface,
 > {
     format: u32,
     manifest: M,
     syntax: S,
     namespace: N,
+    typed: T,
 }
 
 fn read_cache_envelope<T>(path: &Path, format: u32) -> Result<Option<T>, CacheError>
@@ -722,7 +1110,7 @@ impl<T, L, E> CacheEnvelope for ControlCacheEnvelope<T, L, E> {
     }
 }
 
-impl<M, S, N> CacheEnvelope for CompiledUnitCacheEnvelope<M, S, N> {
+impl<M, S, N, T> CacheEnvelope for CompiledUnitCacheEnvelope<M, S, N, T> {
     fn format(&self) -> u32 {
         self.format
     }
@@ -908,7 +1296,7 @@ mod tests {
             source(
                 "ops.yu",
                 &["ops"],
-                "pub infix (<+>) 50 50 = add\nmy hidden = 1\n",
+                "pub infix (<+>) 50 50 = \\x -> \\y -> x\npub x = 1\nmy hidden = 1\n",
             ),
         ];
         let loaded = sources::load(collected_to_source_files(files.clone()));
@@ -918,7 +1306,9 @@ mod tests {
         cache.write_compiled_unit_artifact(key, &artifact).unwrap();
         let restored = cache.read_compiled_unit_artifact(key).unwrap().unwrap();
 
-        assert_eq!(restored, artifact);
+        assert_eq!(restored.manifest, artifact.manifest);
+        assert_eq!(restored.syntax, artifact.syntax);
+        assert_eq!(restored.namespace, artifact.namespace);
         assert_eq!(restored.manifest.files.len(), 2);
         assert_eq!(restored.manifest.files[1].module_path, vec!["ops"]);
         let ops_path = vec!["ops".to_string()];
@@ -944,6 +1334,20 @@ mod tests {
         );
         assert!(ops_module.values.iter().any(|value| value.name == "hidden"
             && value.visibility == infer::CompiledNamespaceVisibility::My));
+        let x_symbol = ops_module
+            .values
+            .iter()
+            .find(|value| value.name == "x")
+            .unwrap()
+            .symbol;
+        assert!(
+            restored
+                .typed
+                .values
+                .iter()
+                .any(|value| value.symbol == x_symbol)
+        );
+        assert_eq!(restored.typed.values.len(), artifact.typed.values.len());
         assert!(cache.compiled_unit_artifact_path(key).is_file());
         assert_eq!(
             cache.compiled_unit_artifact_path(key).extension().unwrap(),
