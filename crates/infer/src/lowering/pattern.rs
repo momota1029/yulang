@@ -247,6 +247,7 @@ impl<'a> ExprLowerer<'a> {
             effect,
             call_return_effect,
             call_predicate_subtracts: Vec::new(),
+            call_public_upper: None,
             call_erased_upper: None,
             call_projection_enabled: false,
             call_uppers: Vec::new(),

@@ -188,10 +188,19 @@ impl Specializer {
                 context: primitive_context(arena, *op, plan.actual_type_of(expr_id)),
             },
             PolyExpr::Var(ref_id) => self.var(arena, *ref_id, var_instance_type(plan, expr_id))?,
-            PolyExpr::App(callee, arg) => ExprKind::Apply(
-                Box::new(self.expr(arena, plan, *callee)?),
-                Box::new(self.expr(arena, plan, *arg)?),
-            ),
+            PolyExpr::App(callee, arg) => {
+                let callee_expr = self.expr(arena, plan, *callee)?;
+                let argument_effect_contract = callee_argument_effect_contract(arena, *callee);
+                let arg_expr = self.expr_without_boundary(arena, plan, *arg)?;
+                let arg_expr = self.wrap_boundary_with_argument_contract(
+                    arena,
+                    *arg,
+                    arg_expr,
+                    plan,
+                    argument_effect_contract,
+                )?;
+                ExprKind::Apply(Box::new(callee_expr), Box::new(arg_expr))
+            }
             PolyExpr::RefSet(reference, value) => ExprKind::RefSet(
                 Box::new(self.expr(arena, plan, *reference)?),
                 Box::new(self.expr(arena, plan, *value)?),
@@ -284,14 +293,32 @@ impl Specializer {
         expr: Expr,
         plan: &solve::ExprTypePlan,
     ) -> Result<Expr, SpecializeError> {
+        self.wrap_boundary_with_argument_contract(
+            arena,
+            expr_id,
+            expr,
+            plan,
+            self.expr_argument_effect_contract(arena, expr_id),
+        )
+    }
+
+    fn wrap_boundary_with_argument_contract(
+        &mut self,
+        _arena: &poly_expr::Arena,
+        expr_id: poly_expr::ExprId,
+        expr: Expr,
+        plan: &solve::ExprTypePlan,
+        argument_effect_contract: Option<&poly_expr::ArgEffectContract>,
+    ) -> Result<Expr, SpecializeError> {
         let Some(boundary) = plan.boundary(expr_id) else {
             return Ok(expr);
         };
-        if equivalent_boundary_types(boundary.actual, boundary.expected) {
-            return Ok(expr);
-        }
         if function_boundary_types(boundary.actual, boundary.expected) {
-            let argument_effect_contract = self.expr_argument_effect_contract(arena, expr_id);
+            if equivalent_boundary_types(boundary.actual, boundary.expected)
+                && argument_effect_contract.is_none()
+            {
+                return Ok(expr);
+            }
             let hygiene = hygiene::function_adapter_hygiene_with_argument_contract(
                 boundary.actual,
                 boundary.expected,
@@ -303,6 +330,9 @@ impl Specializer {
                 expr,
                 hygiene,
             ));
+        }
+        if equivalent_boundary_types(boundary.actual, boundary.expected) {
+            return Ok(expr);
         }
         Ok(boundary_expr(boundary.actual, boundary.expected, expr))
     }
@@ -374,16 +404,20 @@ impl Specializer {
         let Some(actual) = self.instance_signature_type(instance) else {
             return Ok(expr);
         };
-        if equivalent_boundary_types(actual, expected) {
-            return Ok(expr);
-        }
         if function_boundary_types(actual, expected) {
+            let argument_effect_contract = def_argument_effect_contract(arena, def);
+            if equivalent_boundary_types(actual, expected) && argument_effect_contract.is_none() {
+                return Ok(expr);
+            }
             let hygiene = hygiene::function_adapter_hygiene_with_argument_contract(
                 actual,
                 expected,
-                def_argument_effect_contract(arena, def),
+                argument_effect_contract,
             );
             return Ok(boundary_expr_with_hygiene(actual, expected, expr, hygiene));
+        }
+        if equivalent_boundary_types(actual, expected) {
+            return Ok(expr);
         }
         Ok(boundary_expr(actual, expected, expr))
     }
@@ -711,9 +745,45 @@ fn lambda_param_def(arena: &poly_expr::Arena, pat: poly_expr::PatId) -> Option<p
     }
 }
 
+fn callee_argument_effect_contract(
+    arena: &poly_expr::Arena,
+    callee: poly_expr::ExprId,
+) -> Option<&poly_expr::ArgEffectContract> {
+    let (head, index) = call_spine_head_and_arg_index(arena, callee);
+    match arena.expr(head) {
+        poly_expr::Expr::Var(ref_id) => arena
+            .ref_target(*ref_id)
+            .and_then(|def| def_lambda_param_effect_contract(arena, def, index)),
+        poly_expr::Expr::Lambda(param, body) => {
+            lambda_chain_param_effect_contract(arena, *param, *body, index)
+        }
+        _ => None,
+    }
+}
+
+fn call_spine_head_and_arg_index(
+    arena: &poly_expr::Arena,
+    mut callee: poly_expr::ExprId,
+) -> (poly_expr::ExprId, usize) {
+    let mut index = 0;
+    while let poly_expr::Expr::App(next, _) = arena.expr(callee) {
+        index += 1;
+        callee = *next;
+    }
+    (callee, index)
+}
+
 fn def_argument_effect_contract(
     arena: &poly_expr::Arena,
     def: poly_expr::DefId,
+) -> Option<&poly_expr::ArgEffectContract> {
+    def_lambda_param_effect_contract(arena, def, 0)
+}
+
+fn def_lambda_param_effect_contract(
+    arena: &poly_expr::Arena,
+    def: poly_expr::DefId,
+    index: usize,
 ) -> Option<&poly_expr::ArgEffectContract> {
     let Some(poly_expr::Def::Let {
         body: Some(body), ..
@@ -721,10 +791,32 @@ fn def_argument_effect_contract(
     else {
         return None;
     };
-    let poly_expr::Expr::Lambda(param, _) = arena.expr(*body) else {
+    let poly_expr::Expr::Lambda(param, next) = arena.expr(*body) else {
         return None;
     };
-    let Some(def) = lambda_param_def(arena, *param) else {
+    lambda_chain_param_effect_contract(arena, *param, *next, index)
+}
+
+fn lambda_chain_param_effect_contract(
+    arena: &poly_expr::Arena,
+    param: poly_expr::PatId,
+    body: poly_expr::ExprId,
+    index: usize,
+) -> Option<&poly_expr::ArgEffectContract> {
+    if index == 0 {
+        return lambda_param_effect_contract(arena, param);
+    }
+    let poly_expr::Expr::Lambda(param, body) = arena.expr(body) else {
+        return None;
+    };
+    lambda_chain_param_effect_contract(arena, *param, *body, index - 1)
+}
+
+fn lambda_param_effect_contract(
+    arena: &poly_expr::Arena,
+    pat: poly_expr::PatId,
+) -> Option<&poly_expr::ArgEffectContract> {
+    let Some(def) = lambda_param_def(arena, pat) else {
         return None;
     };
     arena.arg_effect_contracts.get(&def)

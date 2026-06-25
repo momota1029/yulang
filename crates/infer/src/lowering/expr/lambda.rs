@@ -35,12 +35,14 @@ impl<'a> ExprLowerer<'a> {
             &self.type_name_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
+        let mut ann_closed_effect_rows = FxHashMap::default();
         self.lower_lambda_params(
             patterns.as_slice(),
             &body,
             lambda_scope,
             &mut ann_builder,
             &mut ann_solver_vars,
+            &mut ann_closed_effect_rows,
             None,
             None,
         )
@@ -63,12 +65,14 @@ impl<'a> ExprLowerer<'a> {
             &self.type_name_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
+        let mut ann_closed_effect_rows = FxHashMap::default();
         self.lower_lambda_params_with_body_mode(
             parts.patterns.as_slice(),
             &parts.body,
             lambda_scope,
             &mut ann_builder,
             &mut ann_solver_vars,
+            &mut ann_closed_effect_rows,
             None,
             None,
             &LambdaBodyMode::Sub { label: parts.label },
@@ -194,6 +198,7 @@ impl<'a> ExprLowerer<'a> {
         lambda_scope: LambdaScope,
         ann_builder: &mut AnnTypeBuilder,
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        ann_closed_effect_rows: &mut FxHashMap<AnnClosedEffectRowKey, TypeVar>,
         body_type_expr: Option<&Cst>,
         self_value: Option<TypeVar>,
     ) -> Result<Computation, LoweringError> {
@@ -203,6 +208,7 @@ impl<'a> ExprLowerer<'a> {
             lambda_scope,
             ann_builder,
             ann_solver_vars,
+            ann_closed_effect_rows,
             body_type_expr,
             self_value,
             &LambdaBodyMode::Expr,
@@ -216,6 +222,7 @@ impl<'a> ExprLowerer<'a> {
         lambda_scope: LambdaScope,
         ann_builder: &mut AnnTypeBuilder,
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        ann_closed_effect_rows: &mut FxHashMap<AnnClosedEffectRowKey, TypeVar>,
         body_type_expr: Option<&Cst>,
         self_value: Option<TypeVar>,
         body_mode: &LambdaBodyMode,
@@ -226,6 +233,7 @@ impl<'a> ExprLowerer<'a> {
                 body,
                 ann_builder,
                 ann_solver_vars,
+                ann_closed_effect_rows,
                 body_type_expr,
                 self_value,
                 &[],
@@ -242,6 +250,7 @@ impl<'a> ExprLowerer<'a> {
                     type_expr,
                     ann_builder,
                     ann_solver_vars,
+                    ann_closed_effect_rows,
                 )?;
             }
             return Ok(body);
@@ -253,6 +262,7 @@ impl<'a> ExprLowerer<'a> {
             param_value,
             ann_builder,
             ann_solver_vars,
+            ann_closed_effect_rows,
         )?;
         let var_bindings = self.prepare_var_pattern_bindings(pattern)?;
         let before_locals = self.locals.len();
@@ -278,6 +288,7 @@ impl<'a> ExprLowerer<'a> {
             lambda_scope,
             ann_builder,
             ann_solver_vars,
+            ann_closed_effect_rows,
             body_type_expr,
             None,
             body_mode,
@@ -331,6 +342,7 @@ impl<'a> ExprLowerer<'a> {
         body: &Cst,
         ann_builder: &mut AnnTypeBuilder,
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        ann_closed_effect_rows: &mut FxHashMap<AnnClosedEffectRowKey, TypeVar>,
         body_type_expr: Option<&Cst>,
         self_value: Option<TypeVar>,
         param_uppers: &[Option<NegId>],
@@ -342,6 +354,7 @@ impl<'a> ExprLowerer<'a> {
                 body,
                 ann_builder,
                 ann_solver_vars,
+                ann_closed_effect_rows,
                 body_type_expr,
                 self_value,
                 param_uppers,
@@ -361,6 +374,7 @@ impl<'a> ExprLowerer<'a> {
                     type_expr,
                     ann_builder,
                     ann_solver_vars,
+                    ann_closed_effect_rows,
                 )?;
             }
             if let Some(requirement_body) = requirement_body {
@@ -379,6 +393,7 @@ impl<'a> ExprLowerer<'a> {
         body: &Cst,
         ann_builder: &mut AnnTypeBuilder,
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        ann_closed_effect_rows: &mut FxHashMap<AnnClosedEffectRowKey, TypeVar>,
         body_type_expr: Option<&Cst>,
         self_value: Option<TypeVar>,
         param_uppers: &[Option<NegId>],
@@ -402,6 +417,7 @@ impl<'a> ExprLowerer<'a> {
                 param_value,
                 ann_builder,
                 ann_solver_vars,
+                ann_closed_effect_rows,
             ) {
                 Ok(annotation) => annotation,
                 Err(error) => {
@@ -517,6 +533,7 @@ impl<'a> ExprLowerer<'a> {
                     type_expr,
                     ann_builder,
                     ann_solver_vars,
+                    ann_closed_effect_rows,
                 )?;
             }
             if let Some(requirement_body) = requirement_body {
@@ -616,6 +633,7 @@ impl<'a> ExprLowerer<'a> {
             local
                 .call_predicate_subtracts
                 .extend(predicate.subtracts.iter().cloned());
+            local.call_public_upper = annotation.call_public_upper;
             local.call_erased_upper = annotation.call_erased_upper;
             local.call_projection_enabled = annotation.call_projection_enabled;
         }
@@ -671,12 +689,34 @@ impl<'a> ExprLowerer<'a> {
             Pat::Var(def) | Pat::As(_, def) => Some(*def),
             _ => None,
         };
-        if let Some(def) = def
-            && let Some(local) = self.local_binding_by_def(def)
-            && local.call_erased_used
+        let local_call = def
+            .and_then(|def| self.local_binding_by_def(def))
+            .filter(|local| local.call_erased_used)
+            .map(|local| {
+                (
+                    local.call_projection_enabled,
+                    local.call_nested,
+                    local.call_uppers.clone(),
+                    local.call_public_upper,
+                    local.call_erased_upper,
+                )
+            });
+        if let Some((
+            call_projection_enabled,
+            call_nested,
+            call_uppers,
+            call_public_upper,
+            call_erased_upper,
+        )) = local_call
         {
-            if project_to_body_effect && local.call_projection_enabled && local.call_nested {
-                let call_uppers = local.call_uppers.clone();
+            if let Some(public_upper) = call_public_upper {
+                return self.callable_upper_with_observed_wildcards(
+                    public_upper,
+                    &call_uppers,
+                    true,
+                );
+            }
+            if project_to_body_effect && call_projection_enabled && call_nested {
                 if !call_uppers.is_empty() {
                     let projected = self.fresh_type_var();
                     for upper in call_uppers {
@@ -687,12 +727,81 @@ impl<'a> ExprLowerer<'a> {
                     return self.alloc_neg(Neg::Var(projected));
                 }
             }
-            if let Some(erased_upper) = local.call_erased_upper {
-                let original = self.alloc_neg(Neg::Var(param.value));
-                return self.alloc_neg(Neg::Intersection(erased_upper, original));
+            if let Some(erased_upper) = call_erased_upper {
+                return self.callable_upper_with_observed_wildcards(
+                    erased_upper,
+                    &call_uppers,
+                    true,
+                );
             }
         }
         self.alloc_neg(Neg::Var(param.value))
+    }
+
+    fn callable_upper_with_observed_wildcards(
+        &mut self,
+        upper: NegId,
+        call_uppers: &[NegId],
+        replace_wildcard_ret: bool,
+    ) -> NegId {
+        let (mut arg, arg_eff, ret_eff, mut ret) =
+            match self.session.infer.constraints().types().neg(upper) {
+                Neg::Fun {
+                    arg,
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                } => (*arg, *arg_eff, *ret_eff, *ret),
+                _ => return upper,
+            };
+
+        if matches!(self.session.infer.constraints().types().pos(arg), Pos::Bot) {
+            let observed_arg = self.fresh_type_var();
+            let mut found_observed_arg = false;
+            for upper in call_uppers {
+                let call_arg = match self.session.infer.constraints().types().neg(*upper) {
+                    Neg::Fun { arg, .. } => *arg,
+                    _ => continue,
+                };
+                self.subtype_pos_to_var(call_arg, observed_arg);
+                found_observed_arg = true;
+            }
+            if found_observed_arg {
+                arg = self.alloc_pos(Pos::Var(observed_arg));
+            }
+        }
+
+        if replace_wildcard_ret
+            && matches!(self.session.infer.constraints().types().neg(ret), Neg::Top)
+        {
+            let observed_ret = self.fresh_type_var();
+            let mut found_observed_ret = false;
+            for upper in call_uppers {
+                let call_ret = match self.session.infer.constraints().types().neg(*upper) {
+                    Neg::Fun { ret, .. } => *ret,
+                    _ => continue,
+                };
+                let call_ret_var = match self.session.infer.constraints().types().neg(call_ret) {
+                    Neg::Var(var) => Some(*var),
+                    _ => None,
+                };
+                self.subtype(Pos::Var(observed_ret), call_ret);
+                if let Some(call_ret_var) = call_ret_var {
+                    self.subtype_var_to_var(call_ret_var, observed_ret);
+                }
+                found_observed_ret = true;
+            }
+            if found_observed_ret {
+                ret = self.alloc_neg(Neg::Var(observed_ret));
+            }
+        }
+
+        self.alloc_neg(Neg::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        })
     }
 
     fn call_upper_with_body_effect(&mut self, upper: NegId, body_effect: TypeVar) -> NegId {
@@ -825,6 +934,7 @@ impl<'a> ExprLowerer<'a> {
         value: TypeVar,
         ann_builder: &mut AnnTypeBuilder,
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        ann_closed_effect_rows: &mut FxHashMap<AnnClosedEffectRowKey, TypeVar>,
     ) -> Result<LambdaPatternAnnotation, LoweringError> {
         let Some(type_expr) = pattern_type_expr(pattern) else {
             return Ok(LambdaPatternAnnotation {
@@ -834,6 +944,7 @@ impl<'a> ExprLowerer<'a> {
                 argument_effect_contract: None,
                 predicate: PredicateOutputConstraints::default(),
                 call_predicate: PredicateOutputConstraints::default(),
+                call_public_upper: None,
                 call_erased_upper: None,
                 call_projection_enabled: false,
                 call_return_effect: LocalCallReturnEffect::Unannotated,
@@ -844,14 +955,29 @@ impl<'a> ExprLowerer<'a> {
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
         let (effect, arg_eff) = self.lambda_param_effect_slot(&ann);
         let vars = std::mem::take(ann_solver_vars);
-        let mut lowerer =
-            AnnConstraintLowerer::with_vars(&mut self.session.infer, self.modules, vars);
+        let closed_effect_rows = std::mem::take(ann_closed_effect_rows);
+        let mut lowerer = AnnConstraintLowerer::with_vars_and_closed_effect_rows(
+            &mut self.session.infer,
+            self.modules,
+            vars,
+            closed_effect_rows,
+        );
         let connection = lowerer
             .connect_parameter_computation_detailed(AnnComputationTarget { value, effect }, &ann)
             .map_err(|error| LoweringError::AnnotationConstraint { error });
         let connection = connection?;
         let call_predicate = lambda_annotation_predicate_constraints(&ann, connection.clone());
         let predicate = lambda_parameter_output_predicate_constraints(&ann, call_predicate.clone());
+        let call_public_upper =
+            if call_predicate.is_empty() || !callable_annotation_has_closed_effect_head(&ann) {
+                None
+            } else {
+                Some(
+                    lowerer
+                        .lower_public_callable_upper_with_evidence(&ann)
+                        .map_err(|error| LoweringError::AnnotationConstraint { error })?,
+                )
+            };
         let call_erased_upper =
             if call_predicate.is_empty() || !callable_annotation_has_effect_head(&ann) {
                 None
@@ -863,7 +989,9 @@ impl<'a> ExprLowerer<'a> {
                         .map_err(|error| LoweringError::AnnotationConstraint { error })?,
                 )
             };
-        *ann_solver_vars = lowerer.into_vars();
+        let (vars, closed_effect_rows) = lowerer.into_vars_and_closed_effect_rows();
+        *ann_solver_vars = vars;
+        *ann_closed_effect_rows = closed_effect_rows;
         let arg_eff = match connection.effect_stack {
             Some(ref effect_stack) => effect_stack.arg_eff,
             None => arg_eff,
@@ -893,6 +1021,7 @@ impl<'a> ExprLowerer<'a> {
             ),
             predicate,
             call_predicate,
+            call_public_upper,
             call_erased_upper,
             call_projection_enabled: !callable_annotation_has_effect_wildcard(&ann),
             call_return_effect: LocalCallReturnEffect::Annotated,
@@ -1032,6 +1161,36 @@ fn callable_annotation_has_effect_head(ann: &AnnType) -> bool {
         AnnType::Tuple(items) => items.iter().any(callable_annotation_has_effect_head),
         _ => false,
     }
+}
+
+fn callable_annotation_has_closed_effect_head(ann: &AnnType) -> bool {
+    match ann {
+        AnnType::Effectful { eff, ret } => {
+            effect_row_is_closed_head(eff) || callable_annotation_has_closed_effect_head(ret)
+        }
+        AnnType::Function {
+            param,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            callable_annotation_has_closed_effect_head(param)
+                || arg_eff.as_ref().is_some_and(effect_row_is_closed_head)
+                || ret_eff.as_ref().is_some_and(effect_row_is_closed_head)
+                || callable_annotation_has_closed_effect_head(ret)
+        }
+        AnnType::Tuple(items) => items.iter().any(callable_annotation_has_closed_effect_head),
+        _ => false,
+    }
+}
+
+fn effect_row_is_closed_head(row: &AnnEffectRow) -> bool {
+    row.tail.is_none()
+        && !row.items.is_empty()
+        && !row
+            .items
+            .iter()
+            .any(|item| matches!(item, AnnEffectAtom::Wildcard))
 }
 
 fn callable_annotation_has_effect_wildcard(ann: &AnnType) -> bool {

@@ -799,8 +799,20 @@ pub(super) fn boundary_expr_with_argument_contract(
     );
     let actual = &actual;
     let expected = &expected;
-    if equivalent_boundary_types(actual, expected) {
+    if equivalent_boundary_types(actual, expected) && argument_effect_contract.is_none() {
         return expr;
+    }
+    if equivalent_boundary_types(actual, expected) && function_boundary_types(actual, expected) {
+        return Expr::new(ExprKind::FunctionAdapter {
+            source: actual.clone(),
+            target: expected.clone(),
+            function: Box::new(expr),
+            hygiene: hygiene::function_adapter_hygiene_with_argument_contract(
+                actual,
+                expected,
+                argument_effect_contract,
+            ),
+        });
     }
     if let (
         Type::Thunk {

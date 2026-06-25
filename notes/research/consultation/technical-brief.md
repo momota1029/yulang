@@ -313,8 +313,8 @@ std.control.var.ref.update:
   std::control::var::ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()
 
 std.text.parse.choice:
-  (() -> ['a] 'b) -> ['a] (() -> ['c] 'b) -> ['c] () -> [std::text::parse::parse 'd 'e 'f 'g] 'b
-  where 'e: std::text::parse::ParseError(item = 'h, pos = 'i)
+  (() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> (() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> () -> [std::text::parse::parse 'a 'b 'c 'd] 'e
+  where 'b: std::text::parse::ParseError(item = 'f, pos = 'g)
 
 std.control.flow.loop.for_in:
   'a -> ('b -> [std::control::flow::loop; 'c] any) -> ['c] ()

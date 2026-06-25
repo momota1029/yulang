@@ -76,6 +76,33 @@ pub enum AnnEffectAtom {
     Wildcard,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AnnClosedEffectRowKey(pub Vec<AnnClosedEffectAtomKey>);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum AnnClosedEffectAtomKey {
+    Builtin(BuiltinType),
+    Named(TypeDeclId),
+    Var(AnnTypeVarId),
+    Wildcard(AnnTypeVarId),
+    EffectRow(AnnClosedEffectRowKey),
+    Effectful {
+        eff: AnnClosedEffectRowKey,
+        ret: Box<AnnClosedEffectAtomKey>,
+    },
+    Tuple(Vec<AnnClosedEffectAtomKey>),
+    Apply {
+        callee: Box<AnnClosedEffectAtomKey>,
+        args: Vec<AnnClosedEffectAtomKey>,
+    },
+    Function {
+        param: Box<AnnClosedEffectAtomKey>,
+        arg_eff: Option<AnnClosedEffectRowKey>,
+        ret_eff: Option<AnnClosedEffectRowKey>,
+        ret: Box<AnnClosedEffectAtomKey>,
+    },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// annotation scope 内の型変数 identity。
 pub struct AnnTypeVarId(pub u32);

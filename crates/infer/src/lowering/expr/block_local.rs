@@ -227,6 +227,7 @@ impl<'a> ExprLowerer<'a> {
             &self.type_name_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
+        let mut ann_closed_effect_rows = FxHashMap::default();
         let body = match label {
             Some(label) => self.lower_labeled_for_body(
                 label,
@@ -234,6 +235,7 @@ impl<'a> ExprLowerer<'a> {
                 &body,
                 &mut ann_builder,
                 &mut ann_solver_vars,
+                &mut ann_closed_effect_rows,
             )?,
             None => self.lower_lambda_params(
                 &[pattern],
@@ -241,6 +243,7 @@ impl<'a> ExprLowerer<'a> {
                 LambdaScope::Anonymous,
                 &mut ann_builder,
                 &mut ann_solver_vars,
+                &mut ann_closed_effect_rows,
                 None,
                 None,
             )?,
@@ -261,6 +264,7 @@ impl<'a> ExprLowerer<'a> {
         body: &Cst,
         ann_builder: &mut AnnTypeBuilder,
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        ann_closed_effect_rows: &mut FxHashMap<AnnClosedEffectRowKey, TypeVar>,
     ) -> Result<Computation, LoweringError> {
         let label_value = self.fresh_type_var();
         let before_locals = self.locals.len();
@@ -276,6 +280,7 @@ impl<'a> ExprLowerer<'a> {
             LambdaScope::Anonymous,
             ann_builder,
             ann_solver_vars,
+            ann_closed_effect_rows,
             None,
             None,
         );
@@ -649,6 +654,7 @@ impl<'a> ExprLowerer<'a> {
             &self.type_name_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
+        let mut ann_closed_effect_rows = FxHashMap::default();
         let result_type_expr = binding_type_expr(binding);
         self.lower_lambda_params(
             arg_patterns.as_slice(),
@@ -656,6 +662,7 @@ impl<'a> ExprLowerer<'a> {
             LambdaScope::Defined,
             &mut ann_builder,
             &mut ann_solver_vars,
+            &mut ann_closed_effect_rows,
             result_type_expr.as_ref(),
             self_value,
         )
@@ -944,6 +951,7 @@ impl<'a> ExprLowerer<'a> {
             effect: None,
             call_return_effect,
             call_predicate_subtracts: Vec::new(),
+            call_public_upper: None,
             call_erased_upper: None,
             call_projection_enabled: false,
             call_uppers: Vec::new(),

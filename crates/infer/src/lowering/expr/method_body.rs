@@ -23,12 +23,14 @@ impl<'a> ExprLowerer<'a> {
             &self.type_name_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
+        let mut ann_closed_effect_rows = FxHashMap::default();
         self.lower_lambda_params(
             arg_patterns,
             body,
             LambdaScope::Defined,
             &mut ann_builder,
             &mut ann_solver_vars,
+            &mut ann_closed_effect_rows,
             result_type_expr,
             self_value,
         )
@@ -76,6 +78,7 @@ impl<'a> ExprLowerer<'a> {
         );
         let self_ann = ann_builder.type_decl_application(owner, type_vars);
         let mut ann_solver_vars = FxHashMap::default();
+        let mut ann_closed_effect_rows = FxHashMap::default();
 
         let receiver_value = self.fresh_type_var();
         self.connect_type_method_receiver(
@@ -109,6 +112,7 @@ impl<'a> ExprLowerer<'a> {
             node,
             &mut ann_builder,
             &mut ann_solver_vars,
+            &mut ann_closed_effect_rows,
             result_type_expr.as_ref(),
             recursive_self.map(|recursive_self| recursive_self.output_value),
             &[],
@@ -170,6 +174,7 @@ impl<'a> ExprLowerer<'a> {
             &self.type_name_aliases,
         );
         let mut ann_solver_vars = FxHashMap::default();
+        let mut ann_closed_effect_rows = FxHashMap::default();
 
         let receiver_value = self.fresh_type_var();
         let receiver_effect = self.fresh_type_var();
@@ -198,6 +203,7 @@ impl<'a> ExprLowerer<'a> {
             node,
             &mut ann_builder,
             &mut ann_solver_vars,
+            &mut ann_closed_effect_rows,
             result_type_expr.as_ref(),
             recursive_self.map(|recursive_self| recursive_self.output_value),
             &[],
@@ -277,6 +283,7 @@ impl<'a> ExprLowerer<'a> {
             .collect::<Vec<_>>();
 
         let mut ann_solver_vars = FxHashMap::default();
+        let mut ann_closed_effect_rows = FxHashMap::default();
         let receiver_value = self.fresh_type_var();
         self.connect_role_method_receiver_and_constraint(
             receiver.as_ref(),
@@ -295,6 +302,7 @@ impl<'a> ExprLowerer<'a> {
                 LambdaScope::Defined,
                 &mut ann_builder,
                 &mut ann_solver_vars,
+                &mut ann_closed_effect_rows,
                 result_type_expr.as_ref(),
                 None,
             );
@@ -324,6 +332,7 @@ impl<'a> ExprLowerer<'a> {
             node,
             &mut ann_builder,
             &mut ann_solver_vars,
+            &mut ann_closed_effect_rows,
             result_type_expr.as_ref(),
             recursive_self.map(|recursive_self| recursive_self.output_value),
             &[],
@@ -389,6 +398,7 @@ impl<'a> ExprLowerer<'a> {
         );
         ann_builder.add_type_alias("self", receiver_ann.clone());
         ann_builder.seed_type_var_bindings(type_var_bindings);
+        let mut ann_closed_effect_rows = FxHashMap::default();
 
         let Some(receiver) = receiver else {
             let body = self.lower_lambda_params(
@@ -397,6 +407,7 @@ impl<'a> ExprLowerer<'a> {
                 LambdaScope::Defined,
                 &mut ann_builder,
                 ann_solver_vars,
+                &mut ann_closed_effect_rows,
                 result_type_expr.as_ref(),
                 None,
             )?;
@@ -451,6 +462,7 @@ impl<'a> ExprLowerer<'a> {
             node,
             &mut ann_builder,
             ann_solver_vars,
+            &mut ann_closed_effect_rows,
             result_type_expr.as_ref(),
             recursive_self.map(|recursive_self| recursive_self.output_value),
             &requirement_plan.param_uppers,
@@ -951,14 +963,20 @@ impl<'a> ExprLowerer<'a> {
         type_expr: &Cst,
         ann_builder: &mut AnnTypeBuilder,
         ann_solver_vars: &mut FxHashMap<AnnTypeVarId, TypeVar>,
+        ann_closed_effect_rows: &mut FxHashMap<AnnClosedEffectRowKey, TypeVar>,
     ) -> Result<(), LoweringError> {
         let ann = ann_builder
             .build_type_expr(type_expr)
             .map_err(|error| LoweringError::AnnotationBuild { error })?;
         self.check_result_annotation_type(body.value, &ann)?;
         let vars = std::mem::take(ann_solver_vars);
-        let mut lowerer =
-            AnnConstraintLowerer::with_vars(&mut self.session.infer, self.modules, vars);
+        let closed_effect_rows = std::mem::take(ann_closed_effect_rows);
+        let mut lowerer = AnnConstraintLowerer::with_vars_and_closed_effect_rows(
+            &mut self.session.infer,
+            self.modules,
+            vars,
+            closed_effect_rows,
+        );
         let result = lowerer
             .connect_computation_detailed(
                 AnnComputationTarget {
@@ -968,7 +986,9 @@ impl<'a> ExprLowerer<'a> {
                 &ann,
             )
             .map_err(|error| LoweringError::AnnotationConstraint { error });
-        *ann_solver_vars = lowerer.into_vars();
+        let (vars, closed_effect_rows) = lowerer.into_vars_and_closed_effect_rows();
+        *ann_solver_vars = vars;
+        *ann_closed_effect_rows = closed_effect_rows;
         let connection = result?;
         self.constrain_effect_filters(body.effect, &connection.subtracts);
         self.extend_current_predicate_connection(connection);

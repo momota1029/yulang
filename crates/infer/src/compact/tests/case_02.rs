@@ -859,6 +859,36 @@ fn row_and_con_same_path_records_payload_merge_constraints() {
     assert_eq!(constraints.len(), 1);
 }
 
+#[test]
+fn negative_filter_stack_effect_projects_set_as_row_prefix() {
+    let mut machine = ConstraintMachine::new();
+    let root = TypeVar(1);
+    let effect_tail = TypeVar(2);
+    let payload = invariant_var(&mut machine, TypeVar(3));
+    let path = vec!["effect".into()];
+    let ret_eff_tail = machine.alloc_neg(Neg::Var(effect_tail));
+    let ret_eff = machine.alloc_neg(Neg::Stack {
+        inner: ret_eff_tail,
+        weight: StackWeight::filter(Subtractability::Set(path.clone(), vec![payload])),
+    });
+    let arg = machine.alloc_pos(Pos::Bot);
+    let arg_eff = machine.alloc_pos(Pos::Bot);
+    let ret = machine.alloc_neg(Neg::Top);
+    let upper = machine.alloc_neg(Neg::Fun {
+        arg,
+        arg_eff,
+        ret_eff,
+        ret,
+    });
+    let lower = machine.alloc_pos(Pos::Var(root));
+
+    machine.subtype(lower, upper);
+
+    let compact = compact_negative_type_var_for_scheme(&machine, root);
+    let fun = compact.root.funs.first().expect("function upper");
+    assert!(compact_row_contains_path(&fun.ret_eff, "effect"));
+}
+
 pub(super) fn compact_row_contains_path(compact: &CompactType, path: &str) -> bool {
     compact.rows.iter().any(|row| {
         row.items

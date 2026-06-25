@@ -164,8 +164,7 @@ impl<'a> SignatureLowerer<'a> {
             return Ok(self.alloc_neg(Neg::Var(tail)));
         }
 
-        let effect = self.fresh_type_var();
-        self.connect_effect_tail_exact(effect, row);
+        let effect = self.function_boundary_effect_stack_inner(row);
         let stack = self.effect_row_stack(row)?;
         self.register_stack_facts(effect, &stack.weight);
         let filter = signature_effect_stack_filter_from_weight(&stack.weight);
@@ -300,6 +299,23 @@ impl<'a> SignatureLowerer<'a> {
         private
     }
 
+    fn function_boundary_effect_stack_inner(&mut self, row: &SignatureEffectRow) -> TypeVar {
+        if let Some(tail) = &row.tail {
+            return self.signature_var(tail);
+        }
+        if !row.items.is_empty()
+            && let Some(key) = closed_signature_effect_row_key(row)
+        {
+            if let Some(found) = self.closed_effect_rows.get(&key) {
+                return *found;
+            }
+            let effect = self.fresh_type_var();
+            self.closed_effect_rows.insert(key, effect);
+            return effect;
+        }
+        self.fresh_type_var()
+    }
+
     fn connect_effect_tail_exact(&mut self, effect: TypeVar, row: &SignatureEffectRow) {
         let Some(tail) = &row.tail else {
             return;
@@ -423,4 +439,72 @@ fn signature_effect_stack_filter_from_weight(weight: &StackWeight) -> Subtractab
         .cloned()
         .reduce(Subtractability::intersect)
         .unwrap_or(Subtractability::All)
+}
+
+fn closed_signature_effect_row_key(
+    row: &SignatureEffectRow,
+) -> Option<SignatureClosedEffectRowKey> {
+    if row.tail.is_some()
+        || row.items.is_empty()
+        || row
+            .items
+            .iter()
+            .any(|item| matches!(item, SignatureEffectAtom::Wildcard))
+    {
+        return None;
+    }
+    let items = row
+        .items
+        .iter()
+        .map(|item| match item {
+            SignatureEffectAtom::Type(ty) => closed_signature_effect_type_key(ty),
+            SignatureEffectAtom::Wildcard => None,
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(SignatureClosedEffectRowKey(items))
+}
+
+fn closed_signature_effect_type_key(ty: &SignatureType) -> Option<SignatureClosedEffectAtomKey> {
+    Some(match ty {
+        SignatureType::Builtin(builtin) => SignatureClosedEffectAtomKey::Builtin(*builtin),
+        SignatureType::Named(id) => SignatureClosedEffectAtomKey::Named(*id),
+        SignatureType::Var(var) => SignatureClosedEffectAtomKey::Var(var.name.clone()),
+        SignatureType::EffectRow(row) => {
+            SignatureClosedEffectAtomKey::EffectRow(closed_signature_effect_row_key(row)?)
+        }
+        SignatureType::Effectful { eff, ret } => SignatureClosedEffectAtomKey::Effectful {
+            eff: closed_signature_effect_row_key(eff)?,
+            ret: Box::new(closed_signature_effect_type_key(ret)?),
+        },
+        SignatureType::Tuple(items) => SignatureClosedEffectAtomKey::Tuple(
+            items
+                .iter()
+                .map(closed_signature_effect_type_key)
+                .collect::<Option<Vec<_>>>()?,
+        ),
+        SignatureType::Apply { callee, args } => SignatureClosedEffectAtomKey::Apply {
+            callee: Box::new(closed_signature_effect_type_key(callee)?),
+            args: args
+                .iter()
+                .map(closed_signature_effect_type_key)
+                .collect::<Option<Vec<_>>>()?,
+        },
+        SignatureType::Function {
+            param,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => SignatureClosedEffectAtomKey::Function {
+            param: Box::new(closed_signature_effect_type_key(param)?),
+            arg_eff: match arg_eff {
+                Some(row) => Some(closed_signature_effect_row_key(row)?),
+                None => None,
+            },
+            ret_eff: match ret_eff {
+                Some(row) => Some(closed_signature_effect_row_key(row)?),
+                None => None,
+            },
+            ret: Box::new(closed_signature_effect_type_key(ret)?),
+        },
+    })
 }

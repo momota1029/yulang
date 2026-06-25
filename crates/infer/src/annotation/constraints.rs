@@ -4,6 +4,7 @@ pub struct AnnConstraintLowerer<'a> {
     infer: &'a mut InferArena,
     modules: &'a ModuleTable,
     vars: FxHashMap<AnnTypeVarId, TypeVar>,
+    closed_effect_rows: FxHashMap<AnnClosedEffectRowKey, TypeVar>,
     new_var_level: Option<TypeLevel>,
     parameter_function_boundary: bool,
 }
@@ -14,6 +15,7 @@ impl<'a> AnnConstraintLowerer<'a> {
             infer,
             modules,
             vars: FxHashMap::default(),
+            closed_effect_rows: FxHashMap::default(),
             new_var_level: None,
             parameter_function_boundary: false,
         }
@@ -28,6 +30,23 @@ impl<'a> AnnConstraintLowerer<'a> {
             infer,
             modules,
             vars,
+            closed_effect_rows: FxHashMap::default(),
+            new_var_level: None,
+            parameter_function_boundary: false,
+        }
+    }
+
+    pub fn with_vars_and_closed_effect_rows(
+        infer: &'a mut InferArena,
+        modules: &'a ModuleTable,
+        vars: FxHashMap<AnnTypeVarId, TypeVar>,
+        closed_effect_rows: FxHashMap<AnnClosedEffectRowKey, TypeVar>,
+    ) -> Self {
+        Self {
+            infer,
+            modules,
+            vars,
+            closed_effect_rows,
             new_var_level: None,
             parameter_function_boundary: false,
         }
@@ -43,6 +62,7 @@ impl<'a> AnnConstraintLowerer<'a> {
             infer,
             modules,
             vars,
+            closed_effect_rows: FxHashMap::default(),
             new_var_level: Some(new_var_level),
             parameter_function_boundary: false,
         }
@@ -52,17 +72,38 @@ impl<'a> AnnConstraintLowerer<'a> {
         self.vars
     }
 
+    pub fn into_vars_and_closed_effect_rows(
+        self,
+    ) -> (
+        FxHashMap<AnnTypeVarId, TypeVar>,
+        FxHashMap<AnnClosedEffectRowKey, TypeVar>,
+    ) {
+        (self.vars, self.closed_effect_rows)
+    }
+
     pub fn connect_value(
         &mut self,
         target: TypeVar,
         ann: &AnnType,
     ) -> Result<Vec<StackWeight>, AnnConstraintError> {
+        self.connect_value_detailed(target, ann)
+            .map(|connection| connection.subtracts)
+    }
+
+    fn connect_value_detailed(
+        &mut self,
+        target: TypeVar,
+        ann: &AnnType,
+    ) -> Result<AnnValueConnection, AnnConstraintError> {
         let bounds = self.lower_value_bounds(ann)?;
         let target_upper = self.alloc_neg(Neg::Var(target));
         let target_lower = self.alloc_pos(Pos::Var(target));
+        let upper = bounds.neg;
         self.infer.subtype(bounds.pos, target_upper);
-        self.infer.subtype(target_lower, bounds.neg);
-        Ok(bounds.output_subtracts)
+        self.infer.subtype(target_lower, upper);
+        Ok(AnnValueConnection {
+            subtracts: bounds.output_subtracts,
+        })
     }
 
     pub fn connect_value_upper(
@@ -78,6 +119,65 @@ impl<'a> AnnConstraintLowerer<'a> {
 
     pub fn lower_value_upper(&mut self, ann: &AnnType) -> Result<NegId, AnnConstraintError> {
         self.lower_value_bounds(ann).map(|bounds| bounds.neg)
+    }
+
+    pub fn lower_public_callable_upper(
+        &mut self,
+        ann: &AnnType,
+    ) -> Result<NegId, AnnConstraintError> {
+        match ann {
+            AnnType::Builtin(builtin) => Ok(self.lower_builtin_neg(*builtin)),
+            AnnType::Named(id) => {
+                let path = self.type_decl_path(*id)?;
+                Ok(self.alloc_neg(Neg::Con(path, Vec::new())))
+            }
+            AnnType::Var(var) => {
+                let var = self.annotation_var(var);
+                Ok(self.alloc_neg(Neg::Var(var)))
+            }
+            AnnType::Wildcard(_) => Ok(self.alloc_neg(Neg::Top)),
+            AnnType::EffectRow(row) => self.lower_effect_row_neg(row),
+            AnnType::Effectful { ret, .. } => self.lower_public_callable_upper(ret),
+            AnnType::Tuple(items) => {
+                let items = items
+                    .iter()
+                    .map(|item| self.lower_public_callable_upper(item))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(self.alloc_neg(Neg::Tuple(items)))
+            }
+            AnnType::Apply { callee, args } => {
+                let (path, head_args) = self.constructor_path(callee)?;
+                let mut neu_args = head_args;
+                for arg in args_from_ann(args) {
+                    neu_args.push(self.lower_invariant_arg(arg)?);
+                }
+                Ok(self.alloc_neg(Neg::Con(path, neu_args)))
+            }
+            AnnType::Function {
+                param,
+                arg_eff,
+                ret_eff,
+                ret,
+            } => {
+                let param = self.lower_value_bounds(param)?;
+                let arg_eff = self.lower_arg_effect_bounds(arg_eff.as_ref())?;
+                let ret_eff = self.lower_public_ret_effect_neg(ret_eff.as_ref())?;
+                let ret = self.lower_public_callable_upper(ret)?;
+                Ok(self.alloc_neg(Neg::Fun {
+                    arg: param.pos,
+                    arg_eff: arg_eff.pos,
+                    ret_eff,
+                    ret,
+                }))
+            }
+        }
+    }
+
+    pub fn lower_public_callable_upper_with_evidence(
+        &mut self,
+        ann: &AnnType,
+    ) -> Result<NegId, AnnConstraintError> {
+        self.lower_public_callable_upper(ann)
     }
 
     pub fn connect_computation(
@@ -96,7 +196,8 @@ impl<'a> AnnConstraintLowerer<'a> {
     ) -> Result<AnnComputationConnection, AnnConstraintError> {
         match ann {
             AnnType::Effectful { eff, ret } => {
-                let mut subtracts = self.connect_value(target.value, ret)?;
+                let value = self.connect_value_detailed(target.value, ret)?;
+                let mut subtracts = value.subtracts;
                 let effect_stack = self.connect_effectful_annotation_effect(target.effect, eff)?;
                 subtracts.extend(predicate_weights(
                     &effect_stack.subtracts,
@@ -107,12 +208,12 @@ impl<'a> AnnConstraintLowerer<'a> {
                     effect_stack: Some(effect_stack),
                 })
             }
-            _ => self
-                .connect_value(target.value, ann)
-                .map(|subtracts| AnnComputationConnection {
-                    subtracts,
+            _ => self.connect_value_detailed(target.value, ann).map(|value| {
+                AnnComputationConnection {
+                    subtracts: value.subtracts,
                     effect_stack: None,
-                }),
+                }
+            }),
         }
     }
 
@@ -137,18 +238,18 @@ impl<'a> AnnConstraintLowerer<'a> {
             AnnType::Effectful { eff, ret } => {
                 let effect_stack =
                     self.connect_parameter_effectful_annotation_effect(target.effect, eff)?;
-                let subtracts = self.connect_value(target.value, ret)?;
+                let value = self.connect_value_detailed(target.value, ret)?;
                 Ok(AnnComputationConnection {
-                    subtracts,
+                    subtracts: value.subtracts,
                     effect_stack: Some(effect_stack),
                 })
             }
-            _ => self
-                .connect_value(target.value, ann)
-                .map(|subtracts| AnnComputationConnection {
-                    subtracts,
+            _ => self.connect_value_detailed(target.value, ann).map(|value| {
+                AnnComputationConnection {
+                    subtracts: value.subtracts,
                     effect_stack: None,
-                }),
+                }
+            }),
         }
     }
 
@@ -338,6 +439,25 @@ impl<'a> AnnConstraintLowerer<'a> {
         })
     }
 
+    fn lower_public_ret_effect_neg(
+        &mut self,
+        row: Option<&AnnEffectRow>,
+    ) -> Result<NegId, AnnConstraintError> {
+        let Some(row) = row else {
+            return Ok(self.pure_effect_bounds().neg);
+        };
+        if row.items.is_empty()
+            && let Some(tail) = &row.tail
+        {
+            let effect = self.annotation_var(tail);
+            return Ok(self.alloc_neg(Neg::Var(effect)));
+        }
+        let inner = self.lower_effect_row_neg(row)?;
+        let stack = self.effect_row_stack(row)?;
+        let filter = effect_stack_filter_from_weight(&stack.weight);
+        Ok(self.wrap_neg_with_stack(inner, &StackWeight::filter(filter)))
+    }
+
     fn pure_effect_bounds(&mut self) -> AnnEffectBounds {
         let top = self.alloc_neg(Neg::Top);
         AnnEffectBounds {
@@ -454,6 +574,16 @@ impl<'a> AnnConstraintLowerer<'a> {
     ) -> Result<TypeVar, AnnConstraintError> {
         if let Some(tail) = &row.tail {
             return Ok(self.annotation_var(tail));
+        }
+        if !row.items.is_empty()
+            && let Some(key) = closed_effect_row_key(row)
+        {
+            if let Some(found) = self.closed_effect_rows.get(&key) {
+                return Ok(*found);
+            }
+            let effect = self.infer.fresh_type_var();
+            self.closed_effect_rows.insert(key, effect);
+            return Ok(effect);
         }
         Ok(self.infer.fresh_type_var())
     }
@@ -795,6 +925,11 @@ struct AnnEffectBounds {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+struct AnnValueConnection {
+    subtracts: Vec<StackWeight>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct EffectStack {
     weight: StackWeight,
     ids: Vec<SubtractId>,
@@ -825,6 +960,71 @@ fn effect_stack_filter_from_weight(weight: &StackWeight) -> Subtractability {
         .cloned()
         .reduce(Subtractability::intersect)
         .unwrap_or(Subtractability::All)
+}
+
+fn closed_effect_row_key(row: &AnnEffectRow) -> Option<AnnClosedEffectRowKey> {
+    if row.tail.is_some()
+        || row.items.is_empty()
+        || row
+            .items
+            .iter()
+            .any(|item| matches!(item, AnnEffectAtom::Wildcard))
+    {
+        return None;
+    }
+    let items = row
+        .items
+        .iter()
+        .map(|item| match item {
+            AnnEffectAtom::Type(ty) => closed_effect_type_key(ty),
+            AnnEffectAtom::Wildcard => None,
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(AnnClosedEffectRowKey(items))
+}
+
+fn closed_effect_type_key(ty: &AnnType) -> Option<AnnClosedEffectAtomKey> {
+    Some(match ty {
+        AnnType::Builtin(builtin) => AnnClosedEffectAtomKey::Builtin(*builtin),
+        AnnType::Named(id) => AnnClosedEffectAtomKey::Named(*id),
+        AnnType::Var(var) => AnnClosedEffectAtomKey::Var(var.id),
+        AnnType::Wildcard(var) => AnnClosedEffectAtomKey::Wildcard(var.id),
+        AnnType::EffectRow(row) => AnnClosedEffectAtomKey::EffectRow(closed_effect_row_key(row)?),
+        AnnType::Effectful { eff, ret } => AnnClosedEffectAtomKey::Effectful {
+            eff: closed_effect_row_key(eff)?,
+            ret: Box::new(closed_effect_type_key(ret)?),
+        },
+        AnnType::Tuple(items) => AnnClosedEffectAtomKey::Tuple(
+            items
+                .iter()
+                .map(closed_effect_type_key)
+                .collect::<Option<Vec<_>>>()?,
+        ),
+        AnnType::Apply { callee, args } => AnnClosedEffectAtomKey::Apply {
+            callee: Box::new(closed_effect_type_key(callee)?),
+            args: args
+                .iter()
+                .map(closed_effect_type_key)
+                .collect::<Option<Vec<_>>>()?,
+        },
+        AnnType::Function {
+            param,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => AnnClosedEffectAtomKey::Function {
+            param: Box::new(closed_effect_type_key(param)?),
+            arg_eff: match arg_eff {
+                Some(row) => Some(closed_effect_row_key(row)?),
+                None => None,
+            },
+            ret_eff: match ret_eff {
+                Some(row) => Some(closed_effect_row_key(row)?),
+                None => None,
+            },
+            ret: Box::new(closed_effect_type_key(ret)?),
+        },
+    })
 }
 
 fn subtractability_from_atoms(atoms: Vec<(Vec<String>, Vec<NeuId>)>) -> Subtractability {

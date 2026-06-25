@@ -564,6 +564,13 @@ impl<'a> CompactCollector<'a> {
 
     fn compact_stack_row_prefix_items(&mut self, weight: &ConstraintWeight) -> CompactRowItemMap {
         let mut items = CompactRowItemMap::default();
+        for (path, args) in concrete_stack_row_prefix_families(weight.filter_set()) {
+            let args = args
+                .into_iter()
+                .map(|arg| self.compact_neu_id(arg, ConstraintWeight::empty()))
+                .collect();
+            items = self.merge_row_items(true, items, singleton_row_item_map(path, args));
+        }
         for entry in weight.entries() {
             for subtractability in &entry.stack {
                 for (path, args) in concrete_stack_row_prefix_families(subtractability) {

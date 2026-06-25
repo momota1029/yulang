@@ -1187,8 +1187,8 @@ fn dump_poly_std_parse_choice_public_signature_hides_stack_evidence() {
 
     assert_eq!(
         assert_public_signature_type_hides_stack_evidence(&output, "std.text.parse.choice"),
-        "(() -> ['a] 'b) -> ['a] (() -> ['c] 'b) -> ['c] () -> [std::text::parse::parse 'd 'e 'f 'g] 'b where 'e: std::text::parse::ParseError(item = 'h, pos = 'i)",
-        "choice should keep parser effects public without hidden stack evidence"
+        "(() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> (() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> () -> [std::text::parse::parse 'a 'b 'c 'd] 'e where 'b: std::text::parse::ParseError(item = 'f, pos = 'g)",
+        "choice should share the parser effect family between both parser arguments and the result"
     );
 }
 
