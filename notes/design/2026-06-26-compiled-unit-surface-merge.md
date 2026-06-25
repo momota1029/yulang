@@ -277,9 +277,14 @@ The first external-reference preparation is also in place:
   namespace-keyed external module/value refs against an already-imported prefix
   runtime by stable module/value path.
 - `compiled_unit_complete_external_runtime_def_pairs` rejects artifacts whose
-  serialized external `DefId` set is not fully explained by those path-keyed
-  refs. Current untrimmed dependent artifacts still hit this rejection even in
-  simple cases, which keeps the cache route conservative until trimming exists.
+  reachable runtime graph still requires external `DefId`s not explained by
+  those path-keyed refs. It intentionally does not require every prefix-owned
+  `DefId` in the serialized table to be keyable, because skipped external
+  bodies can contain private child defs that the suffix graph never imports.
+- `CompiledRuntimeSurface::import_reachable_into_with_external_defs` imports
+  only the non-external runtime graph reachable from local roots and metadata.
+  This lets a dependent suffix reuse a dependency value def without copying the
+  dependency body's private refs, patterns, or child defs.
 - `BodyLoweringPrefix::extend_with_compiled_unit_surfaces_and_external_defs`
   can import a suffix compiled-unit surface on top of an existing prefix arena,
   preserving the dependency prefix's existing runtime defs.
@@ -299,11 +304,11 @@ IDs, importing the artifact later will miswire or point at missing defs.
 
 Therefore finer-grained dependency-bearing source-unit artifacts still need:
 
-- runtime surface trimming for prefix-owned defs;
-- a rejection or copy policy for prefix-owned refs that are not namespace-keyed
-  yet;
 - cache selection that can import dependency artifacts first, then extend that
   prefix with a dependent artifact using the serialized external refs.
+- broader canaries for dependent artifacts involving constructors, effect
+  operations, role impls, casts, and root expressions before replacing the
+  current dependency-closure artifact route.
 
 The closure artifact route is simpler and already implemented, but it can
 duplicate dependency surfaces across related cached artifacts. The

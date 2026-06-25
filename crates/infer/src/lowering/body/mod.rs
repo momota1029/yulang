@@ -143,7 +143,13 @@ impl BodyLoweringPrefix {
         let mut labels = base
             .map(|prefix| prefix.labels.clone())
             .unwrap_or_else(DumpLabels::new);
-        let import = runtime.import_into_with_external_defs(&mut poly, &mut labels, external_defs);
+        let import = if base.is_some() {
+            runtime
+                .import_reachable_into_with_external_defs(&mut poly, &mut labels, external_defs)
+                .ok()?
+        } else {
+            runtime.import_into_with_external_defs(&mut poly, &mut labels, external_defs)
+        };
         let imported_runtime =
             BodyLoweringPrefixRuntime::from_runtime_import_with_namespace(&import, namespace);
         let runtime = if let Some(prefix) = base {

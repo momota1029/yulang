@@ -654,10 +654,9 @@ pub fn compiled_unit_complete_external_runtime_def_pairs(
         .map(|(source, _)| *source)
         .collect::<HashSet<_>>();
     let mut unkeyed = artifact
-        .external_runtime
-        .defs
-        .iter()
-        .copied()
+        .runtime
+        .required_external_defs_for_reachable_import(artifact.external_runtime.defs.iter().copied())
+        .into_iter()
         .filter(|def| !keyed.contains(def))
         .collect::<Vec<_>>();
     unkeyed.sort_by_key(|def| def.0);
@@ -3478,22 +3477,26 @@ mod tests {
 
         let external_defs =
             compiled_unit_external_runtime_def_pairs(&artifact, prefix.runtime()).unwrap();
-        let untrimmed_error =
-            compiled_unit_complete_external_runtime_def_pairs(&artifact, prefix.runtime())
-                .unwrap_err();
-        assert!(matches!(
-            untrimmed_error,
-            CompiledUnitExternalRuntimeDefMapError::UnkeyedExternalDefs { ref defs }
-                if !defs.is_empty()
-        ));
-        let mut keyed_artifact = artifact.clone();
-        keyed_artifact.external_runtime.defs = external_defs
-            .iter()
-            .map(|(source, _)| *source)
-            .collect::<Vec<_>>();
+        let required_external_defs = artifact
+            .runtime
+            .required_external_defs_for_reachable_import(
+                artifact.external_runtime.defs.iter().copied(),
+            );
+        assert!(required_external_defs.contains(&source_id));
+        assert!(
+            required_external_defs
+                .iter()
+                .all(|required| external_defs.iter().any(|(source, _)| source == required))
+        );
+        assert!(
+            artifact
+                .external_runtime
+                .defs
+                .iter()
+                .any(|def| !required_external_defs.contains(def))
+        );
         let complete_external_defs =
-            compiled_unit_complete_external_runtime_def_pairs(&keyed_artifact, prefix.runtime())
-                .unwrap();
+            compiled_unit_complete_external_runtime_def_pairs(&artifact, prefix.runtime()).unwrap();
         let extended = prefix
             .extend_with_compiled_unit_surfaces_and_external_defs(
                 &artifact.namespace,
@@ -3532,11 +3535,8 @@ mod tests {
                 if value_path == vec!["deps".to_string(), "id".to_string()]
         ));
 
-        let mut incomplete_artifact = keyed_artifact.clone();
-        incomplete_artifact
-            .external_runtime
-            .defs
-            .push(poly::expr::DefId(u32::MAX));
+        let mut incomplete_artifact = artifact.clone();
+        incomplete_artifact.external_runtime.values.clear();
         let error = compiled_unit_complete_external_runtime_def_pairs(
             &incomplete_artifact,
             prefix.runtime(),
@@ -3545,7 +3545,7 @@ mod tests {
         assert!(matches!(
             error,
             CompiledUnitExternalRuntimeDefMapError::UnkeyedExternalDefs { defs }
-                if defs == vec![poly::expr::DefId(u32::MAX)]
+                if defs == vec![source_id]
         ));
     }
 
