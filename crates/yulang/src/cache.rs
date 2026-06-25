@@ -17,7 +17,7 @@ use crate::source::CollectedSource;
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 4;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 5;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
@@ -25,6 +25,7 @@ const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v1";
 const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
 const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/v1";
 const COMPILED_TYPED_HASH_SALT: &[u8] = b"yulang/compiled-typed-surface/v1";
+const COMPILED_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-runtime-surface/v1";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 static CACHE_TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -212,6 +213,7 @@ pub struct CompiledUnitManifest {
     pub syntax_hash: u64,
     pub namespace_hash: u64,
     pub typed_hash: u64,
+    pub runtime_hash: u64,
     pub files: Vec<CompiledUnitSourceFile>,
 }
 
@@ -247,7 +249,7 @@ pub fn compiled_unit_artifact_from_loaded_files(
     let namespace = infer::CompiledNamespaceSurface::from_module_table(&lowering.modules);
     let typed = infer::CompiledTypedSurface::from_lowering(&lowering, &namespace);
     let runtime = infer::CompiledRuntimeSurface::from_lowering(&lowering);
-    let manifest = compiled_unit_manifest(files, &syntax, &namespace, &typed);
+    let manifest = compiled_unit_manifest(files, &syntax, &namespace, &typed, &runtime);
     Ok(CachedCompiledUnitArtifact {
         manifest,
         syntax,
@@ -282,6 +284,7 @@ fn compiled_unit_manifest(
     syntax: &sources::CompiledSyntaxSurface,
     namespace: &infer::CompiledNamespaceSurface,
     typed: &infer::CompiledTypedSurface,
+    runtime: &infer::CompiledRuntimeSurface,
 ) -> CompiledUnitManifest {
     CompiledUnitManifest {
         cache_schema_version: CACHE_SCHEMA_VERSION,
@@ -290,6 +293,7 @@ fn compiled_unit_manifest(
         syntax_hash: compiled_syntax_hash(syntax),
         namespace_hash: compiled_namespace_hash(namespace),
         typed_hash: compiled_typed_hash(typed),
+        runtime_hash: compiled_runtime_hash(runtime),
         files: files
             .iter()
             .map(|file| CompiledUnitSourceFile {
@@ -443,6 +447,487 @@ fn compiled_typed_hash(typed: &infer::CompiledTypedSurface) -> u64 {
         hash_scheme(&mut hasher, &value.scheme);
     }
     hasher.finish()
+}
+
+fn compiled_runtime_hash(runtime: &infer::CompiledRuntimeSurface) -> u64 {
+    let mut hasher = StableHasher::new();
+    hasher.bytes(COMPILED_RUNTIME_HASH_SALT);
+    hash_poly_arena(&mut hasher, &runtime.arena);
+    hasher.finish()
+}
+
+fn hash_poly_arena(hasher: &mut StableHasher, arena: &poly::expr::Arena) {
+    hash_def_ids(hasher, &arena.roots);
+    hash_runtime_roots(hasher, &arena.runtime_roots);
+    hash_expr_ids(hasher, &arena.root_exprs);
+    let mut root_expr_defs = arena.root_expr_defs.iter().collect::<Vec<_>>();
+    root_expr_defs.sort_by_key(|(expr, _)| expr.0);
+    hasher.usize(root_expr_defs.len());
+    for (expr, def) in root_expr_defs {
+        hash_expr_id(hasher, *expr);
+        hash_def_id(hasher, *def);
+    }
+    hash_def_arena(hasher, &arena.defs);
+    hash_refs(hasher, arena.refs());
+    hash_selects(hasher, arena.selects());
+    hash_cast_rules(hasher, &arena.cast_rules);
+    hash_role_impl_table(hasher, &arena.role_impls);
+    hash_effect_operations(hasher, &arena.effect_operations);
+    hash_constructors(hasher, &arena.constructors);
+    hash_arg_effect_contracts(hasher, &arena.arg_effect_contracts);
+    hash_field_projections(hasher, &arena.field_projections);
+    hash_exprs(hasher, arena.exprs());
+    hash_pats(hasher, arena.pats());
+    hash_type_arena(hasher, &arena.typ);
+}
+
+fn hash_def_arena(hasher: &mut StableHasher, defs: &poly::expr::DefArena) {
+    let mut entries = defs.iter().collect::<Vec<_>>();
+    entries.sort_by_key(|(id, _)| id.0);
+    hasher.usize(entries.len());
+    for (id, def) in entries {
+        hash_def_id(hasher, id);
+        hash_def(hasher, def);
+    }
+}
+
+fn hash_def(hasher: &mut StableHasher, def: &poly::expr::Def) {
+    match def {
+        poly::expr::Def::Mod { vis, children } => {
+            hasher.u8(0);
+            hash_poly_vis(hasher, *vis);
+            hash_def_ids(hasher, children);
+        }
+        poly::expr::Def::Let {
+            vis,
+            scheme,
+            body,
+            children,
+        } => {
+            hasher.u8(1);
+            hash_poly_vis(hasher, *vis);
+            hash_optional_scheme(hasher, scheme.as_ref());
+            hash_optional_expr_id(hasher, *body);
+            hash_def_ids(hasher, children);
+        }
+        poly::expr::Def::Arg => hasher.u8(2),
+    }
+}
+
+fn hash_runtime_roots(hasher: &mut StableHasher, roots: &[poly::expr::RuntimeRoot]) {
+    hasher.usize(roots.len());
+    for root in roots {
+        match root {
+            poly::expr::RuntimeRoot::Expr(id) => {
+                hasher.u8(0);
+                hash_expr_id(hasher, *id);
+            }
+            poly::expr::RuntimeRoot::ComputedDef(id) => {
+                hasher.u8(1);
+                hash_def_id(hasher, *id);
+            }
+        }
+    }
+}
+
+fn hash_refs(hasher: &mut StableHasher, refs: &[Option<poly::expr::DefId>]) {
+    hasher.usize(refs.len());
+    for target in refs {
+        hash_optional_def_id(hasher, *target);
+    }
+}
+
+fn hash_selects(hasher: &mut StableHasher, selects: &[poly::expr::Select]) {
+    hasher.usize(selects.len());
+    for select in selects {
+        hasher.string(&select.name);
+        match select.resolution {
+            Some(poly::expr::SelectResolution::RecordField) => {
+                hasher.bool(true);
+                hasher.u8(0);
+            }
+            Some(poly::expr::SelectResolution::Method { def }) => {
+                hasher.bool(true);
+                hasher.u8(1);
+                hash_def_id(hasher, def);
+            }
+            Some(poly::expr::SelectResolution::TypeclassMethod { member }) => {
+                hasher.bool(true);
+                hasher.u8(2);
+                hash_def_id(hasher, member);
+            }
+            None => hasher.bool(false),
+        }
+    }
+}
+
+fn hash_cast_rules(hasher: &mut StableHasher, rules: &[poly::expr::CastRule]) {
+    hasher.usize(rules.len());
+    for rule in rules {
+        hash_def_id(hasher, rule.def);
+        hash_string_path(hasher, &rule.source);
+        hash_string_path(hasher, &rule.target);
+        hash_scheme(hasher, &rule.scheme);
+    }
+}
+
+fn hash_role_impl_table(hasher: &mut StableHasher, table: &poly::roles::RoleImplTable) {
+    let mut candidates = table
+        .iter()
+        .map(|candidate| {
+            (
+                bincode::serialize(candidate)
+                    .expect("role impl candidate should be serializable for cache hashing"),
+                candidate,
+            )
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by(|left, right| left.0.cmp(&right.0));
+    hasher.usize(candidates.len());
+    for (bytes, _) in candidates {
+        hasher.bytes(&bytes);
+    }
+}
+
+fn hash_effect_operations<'a>(
+    hasher: &mut StableHasher,
+    operations: impl IntoIterator<Item = (&'a poly::expr::DefId, &'a poly::expr::EffectOperation)>,
+) {
+    let mut entries = operations.into_iter().collect::<Vec<_>>();
+    entries.sort_by_key(|(def, _)| def.0);
+    hasher.usize(entries.len());
+    for (def, operation) in entries {
+        hash_def_id(hasher, *def);
+        hash_string_path(hasher, &operation.path);
+    }
+}
+
+fn hash_constructors<'a>(
+    hasher: &mut StableHasher,
+    constructors: impl IntoIterator<Item = (&'a poly::expr::DefId, &'a poly::expr::Constructor)>,
+) {
+    let mut entries = constructors.into_iter().collect::<Vec<_>>();
+    entries.sort_by_key(|(def, _)| def.0);
+    hasher.usize(entries.len());
+    for (def, constructor) in entries {
+        hash_def_id(hasher, *def);
+        hash_string_path(hasher, &constructor.owner_path);
+        hasher.string(&constructor.name);
+        hasher.usize(constructor.arity);
+    }
+}
+
+fn hash_arg_effect_contracts<'a>(
+    hasher: &mut StableHasher,
+    contracts: impl IntoIterator<Item = (&'a poly::expr::DefId, &'a poly::expr::ArgEffectContract)>,
+) {
+    let mut entries = contracts.into_iter().collect::<Vec<_>>();
+    entries.sort_by_key(|(def, _)| def.0);
+    hasher.usize(entries.len());
+    for (def, contract) in entries {
+        hash_def_id(hasher, *def);
+        hasher.usize(contract.markers.len());
+        for marker in &contract.markers {
+            hash_string_path(hasher, &marker.path);
+            hasher.u32(marker.depth);
+            hasher.u8(match marker.resume {
+                poly::expr::ContractResumePolicy::PreserveMatchingPath => 0,
+                poly::expr::ContractResumePolicy::ForeignOnly => 1,
+            });
+        }
+    }
+}
+
+fn hash_field_projections<'a>(
+    hasher: &mut StableHasher,
+    projections: impl IntoIterator<Item = &'a poly::expr::DefId>,
+) {
+    let mut defs = projections.into_iter().copied().collect::<Vec<_>>();
+    defs.sort_by_key(|def| def.0);
+    hash_def_ids(hasher, &defs);
+}
+
+fn hash_exprs(hasher: &mut StableHasher, exprs: &[poly::expr::Expr]) {
+    hasher.usize(exprs.len());
+    for expr in exprs {
+        hash_expr(hasher, expr);
+    }
+}
+
+fn hash_expr(hasher: &mut StableHasher, expr: &poly::expr::Expr) {
+    match expr {
+        poly::expr::Expr::Lit(lit) => {
+            hasher.u8(0);
+            hash_lit(hasher, lit);
+        }
+        poly::expr::Expr::PrimitiveOp(op) => {
+            hasher.u8(1);
+            hash_primitive_op(hasher, *op);
+        }
+        poly::expr::Expr::Var(id) => {
+            hasher.u8(2);
+            hash_ref_id(hasher, *id);
+        }
+        poly::expr::Expr::App(callee, arg) => {
+            hasher.u8(3);
+            hash_expr_id(hasher, *callee);
+            hash_expr_id(hasher, *arg);
+        }
+        poly::expr::Expr::RefSet(place, value) => {
+            hasher.u8(4);
+            hash_expr_id(hasher, *place);
+            hash_expr_id(hasher, *value);
+        }
+        poly::expr::Expr::Lambda(pat, body) => {
+            hasher.u8(5);
+            hash_pat_id(hasher, *pat);
+            hash_expr_id(hasher, *body);
+        }
+        poly::expr::Expr::Tuple(items) => {
+            hasher.u8(6);
+            hash_expr_ids(hasher, items);
+        }
+        poly::expr::Expr::Record { fields, spread } => {
+            hasher.u8(7);
+            hasher.usize(fields.len());
+            for (name, value) in fields {
+                hasher.string(name);
+                hash_expr_id(hasher, *value);
+            }
+            hash_expr_record_spread(hasher, spread);
+        }
+        poly::expr::Expr::PolyVariant(name, payloads) => {
+            hasher.u8(8);
+            hasher.string(name);
+            hash_expr_ids(hasher, payloads);
+        }
+        poly::expr::Expr::Select(receiver, select) => {
+            hasher.u8(9);
+            hash_expr_id(hasher, *receiver);
+            hash_select_id(hasher, *select);
+        }
+        poly::expr::Expr::Case(scrutinee, arms) => {
+            hasher.u8(10);
+            hash_expr_id(hasher, *scrutinee);
+            hasher.usize(arms.len());
+            for arm in arms {
+                hash_pat_id(hasher, arm.pat);
+                hash_optional_expr_id(hasher, arm.guard);
+                hash_expr_id(hasher, arm.body);
+            }
+        }
+        poly::expr::Expr::Catch(body, arms) => {
+            hasher.u8(11);
+            hash_expr_id(hasher, *body);
+            hasher.usize(arms.len());
+            for arm in arms {
+                hash_optional_catch_operation(hasher, arm.operation.as_ref());
+                hash_pat_id(hasher, arm.pat);
+                hash_optional_pat_id(hasher, arm.continuation);
+                hash_optional_expr_id(hasher, arm.guard);
+                hash_expr_id(hasher, arm.body);
+            }
+        }
+        poly::expr::Expr::Block(stmts, tail) => {
+            hasher.u8(12);
+            hasher.usize(stmts.len());
+            for stmt in stmts {
+                hash_stmt(hasher, stmt);
+            }
+            hash_optional_expr_id(hasher, *tail);
+        }
+    }
+}
+
+fn hash_stmt(hasher: &mut StableHasher, stmt: &poly::expr::Stmt) {
+    match stmt {
+        poly::expr::Stmt::Let(vis, pat, value) => {
+            hasher.u8(0);
+            hash_poly_vis(hasher, *vis);
+            hash_pat_id(hasher, *pat);
+            hash_expr_id(hasher, *value);
+        }
+        poly::expr::Stmt::Expr(expr) => {
+            hasher.u8(1);
+            hash_expr_id(hasher, *expr);
+        }
+        poly::expr::Stmt::Module(def, stmts) => {
+            hasher.u8(2);
+            hash_def_id(hasher, *def);
+            hasher.usize(stmts.len());
+            for stmt in stmts {
+                hash_stmt(hasher, stmt);
+            }
+        }
+    }
+}
+
+fn hash_pats(hasher: &mut StableHasher, pats: &[poly::expr::Pat]) {
+    hasher.usize(pats.len());
+    for pat in pats {
+        hash_pat(hasher, pat);
+    }
+}
+
+fn hash_pat(hasher: &mut StableHasher, pat: &poly::expr::Pat) {
+    match pat {
+        poly::expr::Pat::Wild => hasher.u8(0),
+        poly::expr::Pat::Lit(lit) => {
+            hasher.u8(1);
+            hash_lit(hasher, lit);
+        }
+        poly::expr::Pat::Tuple(items) => {
+            hasher.u8(2);
+            hash_pat_ids(hasher, items);
+        }
+        poly::expr::Pat::List {
+            prefix,
+            spread,
+            suffix,
+        } => {
+            hasher.u8(3);
+            hash_pat_ids(hasher, prefix);
+            hash_optional_pat_id(hasher, *spread);
+            hash_pat_ids(hasher, suffix);
+        }
+        poly::expr::Pat::Record { fields, spread } => {
+            hasher.u8(4);
+            hasher.usize(fields.len());
+            for field in fields {
+                hasher.string(&field.name);
+                hash_pat_id(hasher, field.pat);
+                hash_optional_expr_id(hasher, field.default);
+            }
+            hash_def_record_spread(hasher, spread);
+        }
+        poly::expr::Pat::PolyVariant(name, payloads) => {
+            hasher.u8(5);
+            hasher.string(name);
+            hash_pat_ids(hasher, payloads);
+        }
+        poly::expr::Pat::Con(target, payloads) => {
+            hasher.u8(6);
+            hash_ref_id(hasher, *target);
+            hash_pat_ids(hasher, payloads);
+        }
+        poly::expr::Pat::Ref(target) => {
+            hasher.u8(7);
+            hash_ref_id(hasher, *target);
+        }
+        poly::expr::Pat::Var(def) => {
+            hasher.u8(8);
+            hash_def_id(hasher, *def);
+        }
+        poly::expr::Pat::Or(left, right) => {
+            hasher.u8(9);
+            hash_pat_id(hasher, *left);
+            hash_pat_id(hasher, *right);
+        }
+        poly::expr::Pat::As(inner, def) => {
+            hasher.u8(10);
+            hash_pat_id(hasher, *inner);
+            hash_def_id(hasher, *def);
+        }
+    }
+}
+
+fn hash_lit(hasher: &mut StableHasher, lit: &poly::expr::Lit) {
+    match lit {
+        poly::expr::Lit::Int(value) => {
+            hasher.u8(0);
+            hasher.i64(*value);
+        }
+        poly::expr::Lit::BigInt(value) => {
+            hasher.u8(1);
+            hasher.bytes(&value.to_signed_bytes_le());
+        }
+        poly::expr::Lit::Float(value) => {
+            hasher.u8(2);
+            hasher.u64(value.to_bits());
+        }
+        poly::expr::Lit::Str(value) => {
+            hasher.u8(3);
+            hasher.string(value);
+        }
+        poly::expr::Lit::Bool(value) => {
+            hasher.u8(4);
+            hasher.bool(*value);
+        }
+        poly::expr::Lit::Unit => hasher.u8(5),
+    }
+}
+
+fn hash_optional_catch_operation(
+    hasher: &mut StableHasher,
+    operation: Option<&poly::expr::CatchOperation>,
+) {
+    match operation {
+        Some(operation) => {
+            hasher.bool(true);
+            hash_string_path(hasher, &operation.path);
+            hash_optional_def_id(hasher, operation.def);
+        }
+        None => hasher.bool(false),
+    }
+}
+
+fn hash_expr_record_spread(
+    hasher: &mut StableHasher,
+    spread: &poly::expr::RecordSpread<poly::expr::ExprId>,
+) {
+    match spread {
+        poly::expr::RecordSpread::Head(id) => {
+            hasher.u8(0);
+            hash_expr_id(hasher, *id);
+        }
+        poly::expr::RecordSpread::Tail(id) => {
+            hasher.u8(1);
+            hash_expr_id(hasher, *id);
+        }
+        poly::expr::RecordSpread::None => hasher.u8(2),
+    }
+}
+
+fn hash_def_record_spread(
+    hasher: &mut StableHasher,
+    spread: &poly::expr::RecordSpread<poly::expr::DefId>,
+) {
+    match spread {
+        poly::expr::RecordSpread::Head(id) => {
+            hasher.u8(0);
+            hash_def_id(hasher, *id);
+        }
+        poly::expr::RecordSpread::Tail(id) => {
+            hasher.u8(1);
+            hash_def_id(hasher, *id);
+        }
+        poly::expr::RecordSpread::None => hasher.u8(2),
+    }
+}
+
+fn hash_type_arena(hasher: &mut StableHasher, types: &poly::types::TypeArena) {
+    hasher.usize(types.pos_nodes().len());
+    for node in types.pos_nodes() {
+        hash_pos(hasher, node);
+    }
+    hasher.usize(types.neg_nodes().len());
+    for node in types.neg_nodes() {
+        hash_neg(hasher, node);
+    }
+    hasher.usize(types.neu_nodes().len());
+    for node in types.neu_nodes() {
+        hash_neu(hasher, node);
+    }
+}
+
+fn hash_optional_scheme(hasher: &mut StableHasher, scheme: Option<&poly::types::Scheme>) {
+    match scheme {
+        Some(scheme) => {
+            hasher.bool(true);
+            hash_scheme(hasher, scheme);
+        }
+        None => hasher.bool(false),
+    }
 }
 
 fn hash_compiled_type_arena(hasher: &mut StableHasher, types: &infer::CompiledTypeArena) {
@@ -809,6 +1294,89 @@ fn hash_subtract_id(hasher: &mut StableHasher, id: poly::types::SubtractId) {
     hasher.u32(id.0);
 }
 
+fn hash_def_ids(hasher: &mut StableHasher, ids: &[poly::expr::DefId]) {
+    hasher.usize(ids.len());
+    for id in ids {
+        hash_def_id(hasher, *id);
+    }
+}
+
+fn hash_expr_ids(hasher: &mut StableHasher, ids: &[poly::expr::ExprId]) {
+    hasher.usize(ids.len());
+    for id in ids {
+        hash_expr_id(hasher, *id);
+    }
+}
+
+fn hash_pat_ids(hasher: &mut StableHasher, ids: &[poly::expr::PatId]) {
+    hasher.usize(ids.len());
+    for id in ids {
+        hash_pat_id(hasher, *id);
+    }
+}
+
+fn hash_def_id(hasher: &mut StableHasher, id: poly::expr::DefId) {
+    hasher.u32(id.0);
+}
+
+fn hash_expr_id(hasher: &mut StableHasher, id: poly::expr::ExprId) {
+    hasher.u32(id.0);
+}
+
+fn hash_pat_id(hasher: &mut StableHasher, id: poly::expr::PatId) {
+    hasher.u32(id.0);
+}
+
+fn hash_ref_id(hasher: &mut StableHasher, id: poly::expr::RefId) {
+    hasher.u32(id.0);
+}
+
+fn hash_select_id(hasher: &mut StableHasher, id: poly::expr::SelectId) {
+    hasher.u32(id.0);
+}
+
+fn hash_optional_def_id(hasher: &mut StableHasher, id: Option<poly::expr::DefId>) {
+    match id {
+        Some(id) => {
+            hasher.bool(true);
+            hash_def_id(hasher, id);
+        }
+        None => hasher.bool(false),
+    }
+}
+
+fn hash_optional_expr_id(hasher: &mut StableHasher, id: Option<poly::expr::ExprId>) {
+    match id {
+        Some(id) => {
+            hasher.bool(true);
+            hash_expr_id(hasher, id);
+        }
+        None => hasher.bool(false),
+    }
+}
+
+fn hash_optional_pat_id(hasher: &mut StableHasher, id: Option<poly::expr::PatId>) {
+    match id {
+        Some(id) => {
+            hasher.bool(true);
+            hash_pat_id(hasher, id);
+        }
+        None => hasher.bool(false),
+    }
+}
+
+fn hash_poly_vis(hasher: &mut StableHasher, visibility: poly::expr::Vis) {
+    hasher.u8(match visibility {
+        poly::expr::Vis::Pub => 0,
+        poly::expr::Vis::Our => 1,
+        poly::expr::Vis::My => 2,
+    });
+}
+
+fn hash_primitive_op(hasher: &mut StableHasher, op: poly::expr::PrimitiveOp) {
+    hasher.u8(op as u8);
+}
+
 fn hash_module_path(hasher: &mut StableHasher, path: &sources::Path) {
     hasher.usize(path.segments.len());
     for segment in &path.segments {
@@ -1140,6 +1708,14 @@ impl StableHasher {
         self.bytes(&(value as u64).to_le_bytes());
     }
 
+    fn u64(&mut self, value: u64) {
+        self.bytes(&value.to_le_bytes());
+    }
+
+    fn i64(&mut self, value: i64) {
+        self.bytes(&value.to_le_bytes());
+    }
+
     fn u32(&mut self, value: u32) {
         self.bytes(&value.to_le_bytes());
     }
@@ -1314,6 +1890,7 @@ mod tests {
         let restored = cache.read_compiled_unit_artifact(key).unwrap().unwrap();
 
         assert_eq!(restored.manifest, artifact.manifest);
+        assert_ne!(restored.manifest.runtime_hash, 0);
         assert_eq!(restored.syntax, artifact.syntax);
         assert_eq!(restored.namespace, artifact.namespace);
         assert_eq!(restored.manifest.files.len(), 2);

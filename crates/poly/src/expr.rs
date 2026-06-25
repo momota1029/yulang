@@ -154,6 +154,22 @@ impl Arena {
         &self.pat[id.0 as usize]
     }
 
+    pub fn exprs(&self) -> &[Expr] {
+        &self.expr
+    }
+
+    pub fn pats(&self) -> &[Pat] {
+        &self.pat
+    }
+
+    pub fn refs(&self) -> &[Option<DefId>] {
+        &self.refs
+    }
+
+    pub fn selects(&self) -> &[Select] {
+        &self.selects
+    }
+
     pub fn root_expr_def(&self, expr: ExprId) -> Option<DefId> {
         self.root_expr_defs.get(&expr).copied()
     }

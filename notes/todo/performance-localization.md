@@ -149,10 +149,14 @@ source dependency SCC ごとの compiled-unit cache である。
   the lowered per-unit `poly::Arena` plus labels. This keeps dependency body /
   effect-operation / constructor metadata available for the future remap/merge
   path instead of pretending typed schemes alone are executable.
+- Done: `.yuunit` manifests include `runtime_hash`, computed by walking the
+  lowered poly arena deterministically. HashMap/HashSet-backed metadata is
+  sorted before hashing; labels are intentionally excluded from this semantic
+  runtime hash.
 - Not done: source dependency SCC selection and normal-path cache hit import.
-- Next: add a deterministic runtime-surface hash and then implement the
-  runtime remap/merge path. Only after that should the compiled-unit value
-  import view be connected to the normal lowerer/name-resolution path.
+- Next: implement the runtime remap/merge path. Only after that should the
+  compiled-unit value import view be connected to the normal lowerer /
+  name-resolution path.
 
 撤退条件:
 
