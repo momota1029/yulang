@@ -49,6 +49,10 @@ run_timeout "$test_timeout" \
   -- --test-threads=1
 
 run_timeout "$test_timeout" \
+  cargo test -q -p yulang run_control_source_text_with_embedded_std_choice_recovers_from_parse_fail \
+  -- --test-threads=1
+
+run_timeout "$test_timeout" \
   cargo test -q -p yulang run_control_source_text_with_embedded_std_keeps_repeated_callback_hygiene \
   -- --test-threads=1
 
