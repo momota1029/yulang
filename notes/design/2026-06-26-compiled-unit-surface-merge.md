@@ -226,6 +226,46 @@ Then expand coverage in this order:
 6. role shapes and role methods;
 7. source-unit dependencies beyond dependency-free leaves.
 
+## Implementation Status 2026-06-26
+
+The pure merge path is now implemented for the source-unit prefix cases used by
+the CLI:
+
+- syntax surfaces merge by module path;
+- namespace surfaces merge by module path and expose per-prefix module/value/type
+  remaps;
+- typed surfaces import schemes into one fresh compiled type arena;
+- runtime surfaces import each unit into one fresh `poly::Arena` and expose
+  per-prefix `DefId` remaps;
+- lowering surfaces remap namespace symbols and runtime source defs;
+- cache artifacts merge through `cache::merge_compiled_unit_artifacts`;
+- the CLI tries a merged dependency-free source-unit prefix before falling back
+  to the previous single-prefix source-unit path.
+
+The accepted surface includes independent leaf modules and shared synthetic
+parent modules. Shared parent `Def::Mod` nodes are coalesced by unioning their
+children.
+
+The remaining item is dependency-bearing source units. A dependent unit cannot
+be serialized safely by simply lowering it with its dependency prefix and then
+dropping the dependency surfaces. Its lowered body may contain `RefId` or
+metadata paths to dependency `DefId`s that live in the prefix arena. If those
+external refs are left as raw arena-local IDs, importing the artifact later will
+miswire or point at missing defs.
+
+Therefore dependency-bearing source-unit artifacts need one of these designs:
+
+- an explicit external-reference table keyed by namespace symbol / module ID,
+  with runtime import resolving those externals against the already-imported
+  dependency prefix;
+- or a dependency-closure artifact whose cache selection treats the closure as a
+  single prefix and does not merge the dependency artifacts again.
+
+The first option is closer to realm/band incremental compilation. The second is
+simpler but changes source-unit selection semantics and can duplicate compiled
+surfaces if handled carelessly. Until one of these is implemented, the writer
+must continue to emit only dependency-free standalone source-unit artifacts.
+
 ## Non-goals
 
 - Do not use module path strings inside inference to decide types.

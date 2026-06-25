@@ -41,6 +41,14 @@ run_timeout "$test_timeout" \
   -- --test-threads=1
 
 run_timeout "$test_timeout" \
+  cargo test -q -p yulang cache::tests::compiled_unit_artifact_merge \
+  -- --test-threads=1
+
+run_timeout "$test_timeout" \
+  cargo test -q -p yulang --test cli source_unit_prefix \
+  -- --test-threads=1
+
+run_timeout "$test_timeout" \
   cargo test -q -p yulang check_poly_std_reports_summary_and_type_errors_without_dumping_defs \
   -- --test-threads=1
 
