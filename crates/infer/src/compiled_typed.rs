@@ -2,16 +2,17 @@ use poly::expr::{Arena as PolyArena, Def, DefId, Vis};
 use poly::types::{
     Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RoleAssociatedType, RolePredicate,
     RolePredicateArg, Scheme, SchemeRecursiveBound, StackWeight, SubtractId, Subtractability,
-    TypeArena, TypeVar,
+    TypeArena, TypeIds, TypeVar,
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use sources::{Name, Path};
 
 use crate::Arena as InferArena;
 use crate::lowering::BodyLowering;
 use crate::{
-    CompiledNamespaceSurface, CompiledNamespaceValueVisibility, CompiledNamespaceVisibility,
+    CompiledNamespaceMergeOutput, CompiledNamespaceSurface, CompiledNamespaceValueVisibility,
+    CompiledNamespaceVisibility,
 };
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -31,6 +32,12 @@ pub struct CompiledTypeArena {
 pub struct CompiledTypedValueScheme {
     pub symbol: u32,
     pub scheme: Scheme,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompiledTypedMergeError {
+    MissingValueSymbol { prefix: usize, symbol: u32 },
+    DuplicateValueSymbol { symbol: u32 },
 }
 
 pub struct CompiledValueImport {
@@ -206,6 +213,38 @@ impl CompiledTypedSurface {
             exported_values,
         }
     }
+
+    pub fn merge_prefixes<'a>(
+        prefixes: impl IntoIterator<Item = &'a CompiledTypedSurface>,
+        namespace: &CompiledNamespaceMergeOutput,
+    ) -> Result<Self, CompiledTypedMergeError> {
+        let mut type_target = CompiledTypeArenaBuilder::new();
+        let mut values = Vec::new();
+        let mut seen_values = FxHashSet::default();
+        for (prefix, surface) in prefixes.into_iter().enumerate() {
+            let mut type_importer = CompiledTypeImporter::new(&surface.types, &mut type_target);
+            for value in &surface.values {
+                let Some(symbol) = namespace.map_value(prefix, value.symbol) else {
+                    return Err(CompiledTypedMergeError::MissingValueSymbol {
+                        prefix,
+                        symbol: value.symbol,
+                    });
+                };
+                if !seen_values.insert(symbol) {
+                    return Err(CompiledTypedMergeError::DuplicateValueSymbol { symbol });
+                }
+                values.push(CompiledTypedValueScheme {
+                    symbol,
+                    scheme: type_importer.import_scheme(&value.scheme),
+                });
+            }
+        }
+        values.sort_by_key(|value| value.symbol);
+        Ok(Self {
+            types: type_target.finish(),
+            values,
+        })
+    }
 }
 
 fn compiled_value_visibility(visibility: CompiledNamespaceValueVisibility) -> Vis {
@@ -242,12 +281,52 @@ impl CompiledTypeArena {
     }
 }
 
+struct CompiledTypeArenaBuilder {
+    type_ids: TypeIds,
+    types: TypeArena,
+}
+
+impl CompiledTypeArenaBuilder {
+    fn new() -> Self {
+        Self {
+            type_ids: TypeIds::new(),
+            types: TypeArena::new(),
+        }
+    }
+
+    fn finish(self) -> CompiledTypeArena {
+        CompiledTypeArena::from_type_arena(&self.types)
+    }
+}
+
 pub trait CompiledTypeImportTarget {
     fn fresh_type_var(&mut self) -> TypeVar;
     fn fresh_subtract_id(&mut self) -> SubtractId;
     fn alloc_pos(&mut self, pos: Pos) -> PosId;
     fn alloc_neg(&mut self, neg: Neg) -> NegId;
     fn alloc_neu(&mut self, neu: Neu) -> NeuId;
+}
+
+impl CompiledTypeImportTarget for CompiledTypeArenaBuilder {
+    fn fresh_type_var(&mut self) -> TypeVar {
+        self.type_ids.fresh_type_var()
+    }
+
+    fn fresh_subtract_id(&mut self) -> SubtractId {
+        self.type_ids.fresh_subtract_id()
+    }
+
+    fn alloc_pos(&mut self, pos: Pos) -> PosId {
+        self.types.alloc_pos(pos)
+    }
+
+    fn alloc_neg(&mut self, neg: Neg) -> NegId {
+        self.types.alloc_neg(neg)
+    }
+
+    fn alloc_neu(&mut self, neu: Neu) -> NeuId {
+        self.types.alloc_neu(neu)
+    }
 }
 
 impl CompiledTypeImportTarget for InferArena {
@@ -731,6 +810,97 @@ mod tests {
             restored_types.node_len(),
             lowering.session.infer.constraints().types().node_len()
         );
+    }
+
+    #[test]
+    fn typed_surface_merge_remaps_value_symbols_and_type_arena() {
+        let left = compiled_typed_surface(&["left"], "pub id x = x\n");
+        let right = compiled_typed_surface(&["right"], "pub id x = x\n");
+        let namespace = CompiledNamespaceSurface::merge_prefixes_with_remap([
+            &left.namespace,
+            &right.namespace,
+        ])
+        .unwrap();
+        let typed =
+            CompiledTypedSurface::merge_prefixes([&left.typed, &right.typed], &namespace).unwrap();
+        let namespace_index = crate::CompiledNamespaceIndex::new(&namespace.surface);
+        let left_id = namespace_index
+            .exported_value_symbol(&["left".to_string()], "id")
+            .unwrap();
+        let right_id = namespace_index
+            .exported_value_symbol(&["right".to_string()], "id")
+            .unwrap();
+        let typed_index = CompiledTypedIndex::new(&typed);
+
+        assert_eq!(
+            namespace.map_value(0, left.value_symbol("id")),
+            Some(left_id)
+        );
+        assert_eq!(
+            namespace.map_value(1, right.value_symbol("id")),
+            Some(right_id)
+        );
+        let left_scheme = typed_index.value_scheme(left_id).unwrap();
+        let right_scheme = typed_index.value_scheme(right_id).unwrap();
+        assert!(!left_scheme.quantifiers.is_empty());
+        assert!(!right_scheme.quantifiers.is_empty());
+        assert_ne!(left_scheme.quantifiers[0], right_scheme.quantifiers[0]);
+        assert!(typed.types.pos.len() > 0);
+    }
+
+    #[test]
+    fn typed_surface_merge_rejects_value_symbol_without_namespace_remap() {
+        let mut unit = compiled_typed_surface(&["unit"], "pub id x = x\n");
+        let scheme = unit.typed.values[0].scheme.clone();
+        unit.typed.values.push(CompiledTypedValueScheme {
+            symbol: u32::MAX,
+            scheme,
+        });
+        let namespace =
+            CompiledNamespaceSurface::merge_prefixes_with_remap([&unit.namespace]).unwrap();
+        let error = match CompiledTypedSurface::merge_prefixes([&unit.typed], &namespace) {
+            Ok(_) => panic!("typed merge should reject a value without a namespace remap"),
+            Err(error) => error,
+        };
+
+        assert_eq!(
+            error,
+            CompiledTypedMergeError::MissingValueSymbol {
+                prefix: 0,
+                symbol: u32::MAX,
+            }
+        );
+    }
+
+    struct TypedSurfaceFixture {
+        path: Vec<String>,
+        namespace: CompiledNamespaceSurface,
+        typed: CompiledTypedSurface,
+    }
+
+    impl TypedSurfaceFixture {
+        fn value_symbol(&self, name: &str) -> u32 {
+            crate::CompiledNamespaceIndex::new(&self.namespace)
+                .exported_value_symbol(&self.path, name)
+                .unwrap()
+        }
+    }
+
+    fn compiled_typed_surface(module: &[&str], text: &str) -> TypedSurfaceFixture {
+        assert_eq!(module.len(), 1);
+        let root = format!("mod {};\n", module[0]);
+        let loaded = sources::load(vec![source(&[], &root), source(module, text)]);
+        let lowering = lower_loaded_files(&loaded).unwrap();
+        let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
+        let typed = CompiledTypedSurface::from_lowering(&lowering, &namespace);
+        TypedSurfaceFixture {
+            path: module
+                .iter()
+                .map(|segment| (*segment).to_string())
+                .collect(),
+            namespace,
+            typed,
+        }
     }
 
     fn source(module: &[&str], text: &str) -> SourceFile {
