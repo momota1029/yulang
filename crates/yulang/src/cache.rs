@@ -25,6 +25,7 @@ const COMPILED_UNIT_CACHE_FORMAT: u32 = 12;
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
 const SOURCE_UNIT_CACHE_SALT: &[u8] = b"yulang/source-unit-cache/v1";
+const MERGED_COMPILED_UNIT_CACHE_SALT: &[u8] = b"yulang/merged-compiled-unit-cache/v1";
 const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v1";
 const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
 const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/v1";
@@ -403,6 +404,121 @@ pub fn compiled_unit_artifact_from_lowering_with_key(
         typed,
         runtime,
         errors,
+    }
+}
+
+#[derive(Debug)]
+pub enum CompiledUnitMergeError {
+    Empty,
+    ConflictingFile { path: String },
+    Syntax(sources::CompiledSyntaxMergeError),
+    Namespace(infer::CompiledNamespaceMergeError),
+    Runtime(infer::CompiledRuntimeMergeError),
+    Typed(infer::CompiledTypedMergeError),
+    Lowering(infer::CompiledLoweringMergeError),
+}
+
+pub fn merge_compiled_unit_artifacts(
+    artifacts: Vec<CachedCompiledUnitArtifact>,
+) -> Result<CachedCompiledUnitArtifact, CompiledUnitMergeError> {
+    if artifacts.is_empty() {
+        return Err(CompiledUnitMergeError::Empty);
+    }
+    let files = merge_compiled_unit_manifest_files(&artifacts)?;
+    let syntax =
+        sources::CompiledSyntaxSurface::merge_prefixes(artifacts.iter().map(|unit| &unit.syntax))
+            .map_err(CompiledUnitMergeError::Syntax)?;
+    let namespace = infer::CompiledNamespaceSurface::merge_prefixes_with_remap(
+        artifacts.iter().map(|unit| &unit.namespace),
+    )
+    .map_err(CompiledUnitMergeError::Namespace)?;
+    let runtime = infer::CompiledRuntimeSurface::merge_prefixes_with_remap(
+        artifacts.iter().map(|unit| &unit.runtime),
+        &namespace,
+    )
+    .map_err(CompiledUnitMergeError::Runtime)?;
+    let typed = infer::CompiledTypedSurface::merge_prefixes(
+        artifacts.iter().map(|unit| &unit.typed),
+        &namespace,
+    )
+    .map_err(CompiledUnitMergeError::Typed)?;
+    let lowering = infer::CompiledLoweringSurface::merge_prefixes(
+        artifacts.iter().map(|unit| &unit.lowering),
+        &namespace,
+        &runtime,
+    )
+    .map_err(CompiledUnitMergeError::Lowering)?;
+    let key = merged_compiled_unit_cache_key(&artifacts, &files);
+    let namespace = namespace.surface;
+    let runtime = runtime.surface;
+    let manifest = CompiledUnitManifest {
+        cache_schema_version: CACHE_SCHEMA_VERSION,
+        compiled_unit_format: COMPILED_UNIT_CACHE_FORMAT,
+        source_hash: key.hash,
+        syntax_hash: compiled_syntax_hash(&syntax),
+        namespace_hash: compiled_namespace_hash(&namespace),
+        lowering_hash: compiled_lowering_hash(&lowering),
+        typed_hash: compiled_typed_hash(&typed),
+        runtime_hash: compiled_runtime_hash(&runtime),
+        files,
+    };
+    Ok(CachedCompiledUnitArtifact {
+        manifest,
+        syntax,
+        namespace,
+        lowering,
+        typed,
+        runtime,
+        errors: artifacts
+            .into_iter()
+            .flat_map(|artifact| artifact.errors)
+            .collect(),
+    })
+}
+
+fn merge_compiled_unit_manifest_files(
+    artifacts: &[CachedCompiledUnitArtifact],
+) -> Result<Vec<CompiledUnitSourceFile>, CompiledUnitMergeError> {
+    let mut files = Vec::<CompiledUnitSourceFile>::new();
+    for artifact in artifacts {
+        for file in &artifact.manifest.files {
+            if let Some(existing) = files.iter().find(|existing| existing.path == file.path) {
+                if existing != file {
+                    return Err(CompiledUnitMergeError::ConflictingFile {
+                        path: file.path.clone(),
+                    });
+                }
+                continue;
+            }
+            files.push(file.clone());
+        }
+    }
+    Ok(files)
+}
+
+fn merged_compiled_unit_cache_key(
+    artifacts: &[CachedCompiledUnitArtifact],
+    files: &[CompiledUnitSourceFile],
+) -> SourceCacheKey {
+    let mut hasher = StableHasher::new();
+    hasher.bytes(MERGED_COMPILED_UNIT_CACHE_SALT);
+    hash_cache_schema(&mut hasher, CURRENT_CACHE_SCHEMA);
+    hasher.usize(artifacts.len());
+    for artifact in artifacts {
+        hasher.u64(artifact.manifest.source_hash);
+    }
+    hasher.usize(files.len());
+    for file in files {
+        hasher.string(&file.path);
+        hasher.usize(file.module_path.len());
+        for segment in &file.module_path {
+            hasher.string(segment);
+        }
+        hasher.usize(file.source_len);
+        hasher.u64(file.source_hash);
+    }
+    SourceCacheKey {
+        hash: hasher.finish(),
     }
 }
 
@@ -2738,6 +2854,110 @@ mod tests {
         );
 
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compiled_unit_artifact_merge_combines_independent_leaf_units() {
+        let files = vec![
+            source("main.yu", &[], "mod left;\nmod right;\n"),
+            source(
+                "left.yu",
+                &["left"],
+                "pub act signal 'a:\n  pub ping: () -> 'a\n",
+            ),
+            source("right.yu", &["right"], "pub struct Box { value: int }\n"),
+        ];
+        let units = crate::source::source_compilation_units(&files);
+        let left_unit = units.unit_for_file(1).unwrap();
+        let right_unit = units.unit_for_file(2).unwrap();
+        let left =
+            compiled_unit_artifact_from_standalone_source_unit(&files, &units, left_unit).unwrap();
+        let right =
+            compiled_unit_artifact_from_standalone_source_unit(&files, &units, right_unit).unwrap();
+
+        let merged = merge_compiled_unit_artifacts(vec![left, right]).unwrap();
+        let namespace = infer::CompiledNamespaceIndex::new(&merged.namespace);
+        let signal = namespace
+            .exported_type_symbol(&["left".to_string()], "signal")
+            .unwrap();
+        let box_ctor = namespace
+            .exported_value_symbol(&["right".to_string()], "Box")
+            .unwrap();
+
+        assert_eq!(merged.manifest.files.len(), 2);
+        assert_eq!(merged.manifest.files[0].path, "left.yu");
+        assert_eq!(merged.manifest.files[1].path, "right.yu");
+        assert!(
+            merged
+                .lowering
+                .act_type_vars
+                .iter()
+                .any(|entry| entry.type_symbol == signal)
+        );
+        assert!(
+            merged
+                .lowering
+                .constructor_payloads
+                .iter()
+                .any(|entry| entry.value_symbol == box_ctor)
+        );
+        assert!(
+            merged
+                .runtime
+                .values
+                .iter()
+                .any(|value| value.symbol == box_ctor)
+        );
+        assert!(
+            merged
+                .typed
+                .values
+                .iter()
+                .any(|value| value.symbol == box_ctor)
+        );
+        assert_eq!(
+            merged.manifest.syntax_hash,
+            compiled_syntax_hash(&merged.syntax)
+        );
+        assert_eq!(
+            merged.manifest.namespace_hash,
+            compiled_namespace_hash(&merged.namespace)
+        );
+        assert_eq!(
+            merged.manifest.lowering_hash,
+            compiled_lowering_hash(&merged.lowering)
+        );
+        assert_eq!(
+            merged.manifest.typed_hash,
+            compiled_typed_hash(&merged.typed)
+        );
+        assert_eq!(
+            merged.manifest.runtime_hash,
+            compiled_runtime_hash(&merged.runtime)
+        );
+    }
+
+    #[test]
+    fn compiled_unit_artifact_merge_rejects_conflicting_manifest_file() {
+        let files = vec![
+            source("main.yu", &[], "mod unit;\n"),
+            source("unit.yu", &["unit"], "pub x = 1\n"),
+        ];
+        let units = crate::source::source_compilation_units(&files);
+        let unit = units.unit_for_file(1).unwrap();
+        let artifact =
+            compiled_unit_artifact_from_standalone_source_unit(&files, &units, unit).unwrap();
+        let mut conflicting = artifact.clone();
+        conflicting.manifest.files[0].source_hash ^= 1;
+        let error = match merge_compiled_unit_artifacts(vec![artifact, conflicting]) {
+            Ok(_) => panic!("merge should reject conflicting files with the same path"),
+            Err(error) => error,
+        };
+
+        assert!(matches!(
+            error,
+            CompiledUnitMergeError::ConflictingFile { path } if path == "unit.yu"
+        ));
     }
 
     fn source(path: &str, module: &[&str], text: &str) -> CollectedSource {
