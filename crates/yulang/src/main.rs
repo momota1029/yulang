@@ -210,6 +210,7 @@ struct RunSelection {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 struct RuntimePhaseTimings {
+    build_cache: RuntimeBuildCacheKind,
     collect: Duration,
     build_poly: Duration,
     specialize: Duration,
@@ -220,6 +221,34 @@ struct RuntimePhaseTimings {
     runtime_execute: Duration,
     root_format: Duration,
     total: Duration,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+enum RuntimeBuildCacheKind {
+    #[default]
+    NotMeasured,
+    Disabled,
+    ControlHit,
+    PolyHit,
+    CompiledUnitHit,
+    SourceUnitPrefixHit,
+    FullMiss,
+    ErrorFallback,
+}
+
+impl RuntimeBuildCacheKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::NotMeasured => "not-measured",
+            Self::Disabled => "disabled",
+            Self::ControlHit => "control-hit",
+            Self::PolyHit => "poly-hit",
+            Self::CompiledUnitHit => "compiled-unit-hit",
+            Self::SourceUnitPrefixHit => "source-unit-prefix-hit",
+            Self::FullMiss => "full-miss",
+            Self::ErrorFallback => "error-fallback",
+        }
+    }
 }
 
 fn parse_global_options(
@@ -389,10 +418,11 @@ fn build_control_with_optional_cache(
 fn build_control_with_optional_cache_timed(
     files: Vec<yulang::CollectedSource>,
     use_cache: bool,
-    timings: Option<&mut RuntimePhaseTimings>,
+    mut timings: Option<&mut RuntimePhaseTimings>,
 ) -> yulang::BuildControlOutput {
     if !use_cache {
-        if let Some(timings) = timings {
+        record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::Disabled);
+        if let Some(timings) = timings.as_deref_mut() {
             return build_control_without_cache_timed(files, timings);
         }
         return run_route_to_value(yulang::build_control_from_collected_sources(files));
@@ -402,6 +432,7 @@ fn build_control_with_optional_cache_timed(
     let cache = yulang::cache::ArtifactCache::new(yulang::stdlib::default_user_cache_root());
     match cache.read_control_artifact(key) {
         Ok(Some(cached)) => {
+            record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::ControlHit);
             return yulang::BuildControlOutput {
                 program: cached.program,
                 labels: cached.labels,
@@ -413,8 +444,16 @@ fn build_control_with_optional_cache_timed(
         Err(error) => eprintln!("warning: {error}"),
     }
 
-    let poly = build_poly_with_cache(files, key, &cache);
-    let output = run_route_to_value(yulang::build_control_from_poly_output(&poly));
+    let poly_start = Instant::now();
+    let poly = build_poly_with_cache_timed(files, key, &cache, timings.as_deref_mut());
+    if let Some(timings) = timings.as_deref_mut() {
+        timings.build_poly = poly_start.elapsed();
+    }
+    let output = if let Some(timings) = timings.as_deref_mut() {
+        build_control_from_poly_output_timed(poly, timings)
+    } else {
+        run_route_to_value(yulang::build_control_from_poly_output(&poly))
+    };
     let artifact = yulang::cache::CachedControlArtifact {
         program: output.program.clone(),
         labels: output.labels.clone(),
@@ -435,6 +474,13 @@ fn build_control_without_cache_timed(
     let poly = run_route_to_value(yulang::build_poly_from_collected_sources(files));
     timings.build_poly = poly_start.elapsed();
 
+    build_control_from_poly_output_timed(poly, timings)
+}
+
+fn build_control_from_poly_output_timed(
+    poly: yulang::BuildPolyOutput,
+    timings: &mut RuntimePhaseTimings,
+) -> yulang::BuildControlOutput {
     let specialize_start = Instant::now();
     let mono = match specialize::specialize(&poly.arena) {
         Ok(program) => program,
@@ -463,8 +509,18 @@ fn build_control_without_cache_timed(
     }
 }
 
+fn record_runtime_build_cache(
+    timings: &mut Option<&mut RuntimePhaseTimings>,
+    kind: RuntimeBuildCacheKind,
+) {
+    if let Some(timings) = timings.as_deref_mut() {
+        timings.build_cache = kind;
+    }
+}
+
 fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm::RuntimeStats) {
     eprintln!("runtime timing:");
+    eprintln!("  run.cache: {}", timing.build_cache.as_str());
     eprintln!("  run.collect: {}", format_duration(timing.collect));
     eprintln!("  run.build_poly: {}", format_duration(timing.build_poly));
     eprintln!("  run.specialize: {}", format_duration(timing.specialize));
@@ -703,16 +759,32 @@ fn build_poly_with_cache(
     key: yulang::cache::SourceCacheKey,
     cache: &yulang::cache::ArtifactCache,
 ) -> yulang::BuildPolyOutput {
+    build_poly_with_cache_timed(files, key, cache, None)
+}
+
+fn build_poly_with_cache_timed(
+    files: Vec<yulang::CollectedSource>,
+    key: yulang::cache::SourceCacheKey,
+    cache: &yulang::cache::ArtifactCache,
+    mut timings: Option<&mut RuntimePhaseTimings>,
+) -> yulang::BuildPolyOutput {
     match cache.read_poly_artifact(key) {
-        Ok(Some(cached)) => yulang::BuildPolyOutput {
-            arena: cached.arena,
-            labels: cached.labels,
-            file_count: cached.file_count,
-            errors: cached.errors,
-        },
+        Ok(Some(cached)) => {
+            record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::PolyHit);
+            yulang::BuildPolyOutput {
+                arena: cached.arena,
+                labels: cached.labels,
+                file_count: cached.file_count,
+                errors: cached.errors,
+            }
+        }
         Ok(None) => {
             match cache.read_compiled_unit_artifact(key) {
                 Ok(Some(cached)) => {
+                    record_runtime_build_cache(
+                        &mut timings,
+                        RuntimeBuildCacheKind::CompiledUnitHit,
+                    );
                     return build_poly_from_compiled_unit_cache(cached, key, cache);
                 }
                 Ok(None) => {}
@@ -721,8 +793,13 @@ fn build_poly_with_cache(
             if let Some(output) =
                 build_poly_from_single_source_unit_prefix_cache(&files, key, cache)
             {
+                record_runtime_build_cache(
+                    &mut timings,
+                    RuntimeBuildCacheKind::SourceUnitPrefixHit,
+                );
                 return output;
             }
+            record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::FullMiss);
             let output = run_route_to_value(
                 yulang::build_poly_and_compiled_unit_from_collected_sources(files.clone()),
             );
@@ -749,6 +826,7 @@ fn build_poly_with_cache(
         }
         Err(error) => {
             eprintln!("warning: {error}");
+            record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::ErrorFallback);
             run_route_to_value(yulang::build_poly_from_collected_sources(files))
         }
     }
