@@ -1074,6 +1074,12 @@ fn run_cache(program: &str, mut args: VecDeque<OsString>) {
     let root = yulang::stdlib::default_user_cache_root();
     match op.to_str() {
         Some("path") => println!("{}", root.display()),
+        Some("stats") => {
+            if let Err(error) = print_cache_stats(&root) {
+                eprintln!("failed to inspect cache {}: {error}", root.display());
+                process::exit(1);
+            }
+        }
         Some("clear") => match fs::remove_dir_all(&root) {
             Ok(()) => println!("cleared {}", root.display()),
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
@@ -1085,6 +1091,31 @@ fn run_cache(program: &str, mut args: VecDeque<OsString>) {
             }
         },
         _ => print_usage_and_exit(program),
+    }
+}
+
+fn print_cache_stats(root: &PathBuf) -> io::Result<()> {
+    println!("cache: {}", root.display());
+    for stage in ["control-vm", "poly", "compiled-unit"] {
+        println!("{stage}: {}", cache_stage_file_count(root, stage)?);
+    }
+    Ok(())
+}
+
+fn cache_stage_file_count(root: &PathBuf, stage: &str) -> io::Result<usize> {
+    let dir = root.join("artifacts").join(stage);
+    match fs::read_dir(dir) {
+        Ok(entries) => {
+            let mut count = 0;
+            for entry in entries {
+                if entry?.path().is_file() {
+                    count += 1;
+                }
+            }
+            Ok(count)
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(0),
+        Err(error) => Err(error),
     }
 }
 

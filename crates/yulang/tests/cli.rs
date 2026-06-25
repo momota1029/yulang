@@ -274,6 +274,27 @@ fn cache_path_and_clear_use_yulang_cache_dir() {
     let cache_root = root.join("cache-root");
     fs::create_dir_all(&cache_root).unwrap();
     fs::write(cache_root.join("entry"), "cached").unwrap();
+    fs::create_dir_all(cache_root.join("artifacts").join("control-vm")).unwrap();
+    fs::create_dir_all(cache_root.join("artifacts").join("poly")).unwrap();
+    fs::create_dir_all(cache_root.join("artifacts").join("compiled-unit")).unwrap();
+    fs::write(
+        cache_root
+            .join("artifacts")
+            .join("control-vm")
+            .join("one.yuvm"),
+        "",
+    )
+    .unwrap();
+    fs::write(
+        cache_root.join("artifacts").join("poly").join("one.yuir"),
+        "",
+    )
+    .unwrap();
+    fs::write(
+        cache_root.join("artifacts").join("poly").join("two.yuir"),
+        "",
+    )
+    .unwrap();
 
     let path_output = yulang_command()
         .env("YULANG_CACHE_DIR", &cache_root)
@@ -283,6 +304,21 @@ fn cache_path_and_clear_use_yulang_cache_dir() {
         .unwrap();
     assert_success(&path_output);
     assert_eq!(stdout(&path_output), format!("{}\n", cache_root.display()));
+
+    let stats_output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("cache")
+        .arg("stats")
+        .output()
+        .unwrap();
+    assert_success(&stats_output);
+    assert_eq!(
+        stdout(&stats_output),
+        format!(
+            "cache: {}\ncontrol-vm: 1\npoly: 2\ncompiled-unit: 0\n",
+            cache_root.display()
+        )
+    );
 
     let clear_output = yulang_command()
         .env("YULANG_CACHE_DIR", &cache_root)

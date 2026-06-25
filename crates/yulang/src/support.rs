@@ -491,7 +491,7 @@ pub(super) fn print_usage_and_exit(program: &str) -> ! {
     );
     eprintln!("       {program} parse [path] --as <expr|pat|stmt|type|mark>");
     eprintln!("       {program} [--std-root <path>] install std");
-    eprintln!("       {program} cache <clear|path>");
+    eprintln!("       {program} cache <clear|path|stats>");
     eprintln!("       {program} realm freeze [path] --version <version>");
     eprintln!("       {program} [--std-root <path>] server");
     eprintln!("       {program} debug <control-vm|control-vm-emit|control-vm-load> ...");
