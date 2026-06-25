@@ -9,10 +9,12 @@ use poly::expr::{
 use poly::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate, RoleImplMethod,
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::lowering::BodyLowering;
-use crate::{CompiledNamespaceSurface, CompiledTypeArena, CompiledTypeImporter};
+use crate::{
+    CompiledNamespaceMergeOutput, CompiledNamespaceSurface, CompiledTypeArena, CompiledTypeImporter,
+};
 
 /// Lowered per-unit runtime surface.
 ///
@@ -39,6 +41,29 @@ pub struct CompiledRuntimeModuleDef {
 pub struct CompiledRuntimeValueDef {
     pub symbol: u32,
     pub def: DefId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompiledRuntimeMergeError {
+    MissingModule {
+        prefix: usize,
+        module: u32,
+    },
+    MissingMappedModule {
+        prefix: usize,
+        module: u32,
+        mapped_module: u32,
+    },
+    MissingValueSymbol {
+        prefix: usize,
+        symbol: u32,
+    },
+    DuplicateModuleDef {
+        module: u32,
+    },
+    DuplicateValueDef {
+        symbol: u32,
+    },
 }
 
 pub struct CompiledRuntimeImport {
@@ -167,6 +192,77 @@ impl CompiledRuntimeSurface {
         import_field_projections(&self.arena, target, &import);
         import_labels(&self.labels, labels, &import);
         import
+    }
+
+    pub fn merge_prefixes<'a>(
+        prefixes: impl IntoIterator<Item = &'a CompiledRuntimeSurface>,
+        namespace: &CompiledNamespaceMergeOutput,
+    ) -> Result<Self, CompiledRuntimeMergeError> {
+        let mut arena = PolyArena::new();
+        let mut labels = DumpLabels::new();
+        let mut modules = Vec::new();
+        let mut values = Vec::new();
+        let mut seen_modules = FxHashSet::default();
+        let mut seen_values = FxHashSet::default();
+        for (prefix, surface) in prefixes.into_iter().enumerate() {
+            let import = surface.import_into(&mut arena, &mut labels);
+            for module in import.modules {
+                let Some(merged_module) = namespace.map_module(prefix, module.module) else {
+                    return Err(CompiledRuntimeMergeError::MissingModule {
+                        prefix,
+                        module: module.module,
+                    });
+                };
+                if !seen_modules.insert(merged_module) {
+                    return Err(CompiledRuntimeMergeError::DuplicateModuleDef {
+                        module: merged_module,
+                    });
+                }
+                let Some(module_path) = namespace
+                    .surface
+                    .modules
+                    .get(merged_module as usize)
+                    .filter(|module| module.id == merged_module)
+                    .map(|module| module.path.clone())
+                else {
+                    return Err(CompiledRuntimeMergeError::MissingMappedModule {
+                        prefix,
+                        module: module.module,
+                        mapped_module: merged_module,
+                    });
+                };
+                modules.push(CompiledRuntimeModuleDef {
+                    module: merged_module,
+                    module_path,
+                    def: module.def,
+                });
+            }
+            for value in import.values {
+                let Some(merged_symbol) = namespace.map_value(prefix, value.symbol) else {
+                    return Err(CompiledRuntimeMergeError::MissingValueSymbol {
+                        prefix,
+                        symbol: value.symbol,
+                    });
+                };
+                if !seen_values.insert(merged_symbol) {
+                    return Err(CompiledRuntimeMergeError::DuplicateValueDef {
+                        symbol: merged_symbol,
+                    });
+                }
+                values.push(CompiledRuntimeValueDef {
+                    symbol: merged_symbol,
+                    def: value.def,
+                });
+            }
+        }
+        modules.sort_by_key(|module| module.module);
+        values.sort_by_key(|value| value.symbol);
+        Ok(Self {
+            arena,
+            labels,
+            modules,
+            values,
+        })
     }
 }
 
@@ -865,6 +961,82 @@ mod tests {
     }
 
     #[test]
+    fn runtime_surface_merge_remaps_modules_values_and_arena_ids() {
+        let left = compiled_runtime_surface(&["left"], "pub id x = x\n");
+        let right = compiled_runtime_surface(&["right"], "pub value = 42\n");
+        let namespace = CompiledNamespaceSurface::merge_prefixes_with_remap([
+            &left.namespace,
+            &right.namespace,
+        ])
+        .unwrap();
+        let runtime =
+            CompiledRuntimeSurface::merge_prefixes([&left.runtime, &right.runtime], &namespace)
+                .unwrap();
+        let namespace_index = crate::CompiledNamespaceIndex::new(&namespace.surface);
+        let left_id = namespace_index
+            .exported_value_symbol(&["left".to_string()], "id")
+            .unwrap();
+        let right_value = namespace_index
+            .exported_value_symbol(&["right".to_string()], "value")
+            .unwrap();
+        let left_module = namespace_index.exported_module_id(&[], "left").unwrap();
+        let right_module = namespace_index.exported_module_id(&[], "right").unwrap();
+
+        assert_eq!(
+            namespace.map_value(0, left.value_symbol("id")),
+            Some(left_id)
+        );
+        assert_eq!(
+            namespace.map_value(1, right.value_symbol("value")),
+            Some(right_value)
+        );
+        assert_eq!(runtime.values.len(), 2);
+        assert!(runtime.values.iter().any(|value| value.symbol == left_id));
+        assert!(
+            runtime
+                .values
+                .iter()
+                .any(|value| value.symbol == right_value)
+        );
+        assert!(runtime.modules.iter().any(|module| {
+            module.module == left_module && module.module_path == vec!["left".to_string()]
+        }));
+        assert!(runtime.modules.iter().any(|module| {
+            module.module == right_module && module.module_path == vec!["right".to_string()]
+        }));
+        for value in &runtime.values {
+            assert!(runtime.arena.defs.get(value.def).is_some());
+        }
+        for module in &runtime.modules {
+            assert!(runtime.arena.defs.get(module.def).is_some());
+        }
+    }
+
+    #[test]
+    fn runtime_surface_merge_rejects_value_without_namespace_remap() {
+        let mut unit = compiled_runtime_surface(&["unit"], "pub id x = x\n");
+        let def = unit.runtime.values[0].def;
+        unit.runtime.values.push(CompiledRuntimeValueDef {
+            symbol: u32::MAX,
+            def,
+        });
+        let namespace =
+            CompiledNamespaceSurface::merge_prefixes_with_remap([&unit.namespace]).unwrap();
+        let error = match CompiledRuntimeSurface::merge_prefixes([&unit.runtime], &namespace) {
+            Ok(_) => panic!("runtime merge should reject a value without a namespace remap"),
+            Err(error) => error,
+        };
+
+        assert_eq!(
+            error,
+            CompiledRuntimeMergeError::MissingValueSymbol {
+                prefix: 0,
+                symbol: u32::MAX,
+            }
+        );
+    }
+
+    #[test]
     fn compiled_unit_surface_prefix_rebuilds_module_table_without_source_modules() {
         let loaded = sources::load(vec![
             source(&[], "mod ops;\npub use ops::*\n"),
@@ -1033,6 +1205,37 @@ mod tests {
             for method in methods {
                 method.signature = None;
             }
+        }
+    }
+
+    struct RuntimeSurfaceFixture {
+        path: Vec<String>,
+        namespace: CompiledNamespaceSurface,
+        runtime: CompiledRuntimeSurface,
+    }
+
+    impl RuntimeSurfaceFixture {
+        fn value_symbol(&self, name: &str) -> u32 {
+            crate::CompiledNamespaceIndex::new(&self.namespace)
+                .exported_value_symbol(&self.path, name)
+                .unwrap()
+        }
+    }
+
+    fn compiled_runtime_surface(module: &[&str], text: &str) -> RuntimeSurfaceFixture {
+        assert_eq!(module.len(), 1);
+        let root = format!("mod {};\n", module[0]);
+        let loaded = sources::load(vec![source(&[], &root), source(module, text)]);
+        let lowering = lower_loaded_files(&loaded).unwrap();
+        let namespace = CompiledNamespaceSurface::from_module_table(&lowering.modules);
+        let runtime = CompiledRuntimeSurface::from_lowering_with_namespace(&lowering, &namespace);
+        RuntimeSurfaceFixture {
+            path: module
+                .iter()
+                .map(|segment| (*segment).to_string())
+                .collect(),
+            namespace,
+            runtime,
         }
     }
 
