@@ -17,14 +17,14 @@ use crate::source::CollectedSource;
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 6;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 7;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
 const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v1";
 const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
 const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/v1";
-const COMPILED_LOWERING_HASH_SALT: &[u8] = b"yulang/compiled-lowering-surface/v1";
+const COMPILED_LOWERING_HASH_SALT: &[u8] = b"yulang/compiled-lowering-surface/v2";
 const COMPILED_TYPED_HASH_SALT: &[u8] = b"yulang/compiled-typed-surface/v1";
 const COMPILED_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-runtime-surface/v1";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
@@ -469,6 +469,7 @@ fn compiled_typed_hash(typed: &infer::CompiledTypedSurface) -> u64 {
 fn compiled_lowering_hash(lowering: &infer::CompiledLoweringSurface) -> u64 {
     let mut hasher = StableHasher::new();
     hasher.bytes(COMPILED_LOWERING_HASH_SALT);
+
     hasher.usize(lowering.act_type_vars.len());
     for entry in &lowering.act_type_vars {
         hasher.u32(entry.type_symbol);
@@ -478,7 +479,161 @@ fn compiled_lowering_hash(lowering: &infer::CompiledLoweringSurface) -> u64 {
             hasher.string(var);
         }
     }
+
+    hasher.usize(lowering.constructor_payloads.len());
+    for entry in &lowering.constructor_payloads {
+        hasher.u32(entry.value_symbol);
+        hash_string_path(&mut hasher, &entry.value_path);
+        hash_compiled_constructor_payload(&mut hasher, &entry.payload);
+    }
+
+    hasher.usize(lowering.act_operations.len());
+    for entry in &lowering.act_operations {
+        hasher.u32(entry.type_symbol);
+        hash_string_path(&mut hasher, &entry.type_path);
+        hasher.string(&entry.name);
+        hash_optional_compiled_signature_type(&mut hasher, &entry.signature);
+    }
+
+    hasher.usize(lowering.role_methods.len());
+    for entry in &lowering.role_methods {
+        hasher.u32(entry.type_symbol);
+        hash_string_path(&mut hasher, &entry.type_path);
+        hasher.string(&entry.name);
+        hasher.u32(entry.order);
+        hash_optional_compiled_signature_type(&mut hasher, &entry.signature);
+    }
+
     hasher.finish()
+}
+
+fn hash_compiled_constructor_payload(
+    hasher: &mut StableHasher,
+    payload: &infer::CompiledConstructorPayload,
+) {
+    match payload {
+        infer::CompiledConstructorPayload::Unit => hasher.u8(0),
+        infer::CompiledConstructorPayload::Tuple(items) => {
+            hasher.u8(1);
+            hasher.usize(items.len());
+            for item in items {
+                hash_optional_compiled_signature_type(hasher, item);
+            }
+        }
+        infer::CompiledConstructorPayload::Record(fields) => {
+            hasher.u8(2);
+            hasher.usize(fields.len());
+            for field in fields {
+                hasher.string(&field.name);
+                hash_optional_compiled_signature_type(hasher, &field.ty);
+            }
+        }
+    }
+}
+
+fn hash_optional_compiled_signature_type(
+    hasher: &mut StableHasher,
+    signature: &Option<infer::CompiledSignatureType>,
+) {
+    match signature {
+        Some(signature) => {
+            hasher.bool(true);
+            hash_compiled_signature_type(hasher, signature);
+        }
+        None => hasher.bool(false),
+    }
+}
+
+fn hash_compiled_signature_type(
+    hasher: &mut StableHasher,
+    signature: &infer::CompiledSignatureType,
+) {
+    match signature {
+        infer::CompiledSignatureType::Builtin(builtin) => {
+            hasher.u8(0);
+            hasher.string(builtin.surface_name());
+        }
+        infer::CompiledSignatureType::Named(path) => {
+            hasher.u8(1);
+            hash_string_path(hasher, path);
+        }
+        infer::CompiledSignatureType::Var(name) => {
+            hasher.u8(2);
+            hasher.string(name);
+        }
+        infer::CompiledSignatureType::EffectRow(row) => {
+            hasher.u8(3);
+            hash_compiled_signature_effect_row(hasher, row);
+        }
+        infer::CompiledSignatureType::Effectful { eff, ret } => {
+            hasher.u8(4);
+            hash_compiled_signature_effect_row(hasher, eff);
+            hash_compiled_signature_type(hasher, ret);
+        }
+        infer::CompiledSignatureType::Tuple(items) => {
+            hasher.u8(5);
+            hasher.usize(items.len());
+            for item in items {
+                hash_compiled_signature_type(hasher, item);
+            }
+        }
+        infer::CompiledSignatureType::Apply { callee, args } => {
+            hasher.u8(6);
+            hash_compiled_signature_type(hasher, callee);
+            hasher.usize(args.len());
+            for arg in args {
+                hash_compiled_signature_type(hasher, arg);
+            }
+        }
+        infer::CompiledSignatureType::Function {
+            param,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            hasher.u8(7);
+            hash_compiled_signature_type(hasher, param);
+            hash_optional_compiled_signature_effect_row(hasher, arg_eff);
+            hash_optional_compiled_signature_effect_row(hasher, ret_eff);
+            hash_compiled_signature_type(hasher, ret);
+        }
+    }
+}
+
+fn hash_optional_compiled_signature_effect_row(
+    hasher: &mut StableHasher,
+    row: &Option<infer::CompiledSignatureEffectRow>,
+) {
+    match row {
+        Some(row) => {
+            hasher.bool(true);
+            hash_compiled_signature_effect_row(hasher, row);
+        }
+        None => hasher.bool(false),
+    }
+}
+
+fn hash_compiled_signature_effect_row(
+    hasher: &mut StableHasher,
+    row: &infer::CompiledSignatureEffectRow,
+) {
+    hasher.usize(row.items.len());
+    for item in &row.items {
+        match item {
+            infer::CompiledSignatureEffectAtom::Type(ty) => {
+                hasher.u8(0);
+                hash_compiled_signature_type(hasher, ty);
+            }
+            infer::CompiledSignatureEffectAtom::Wildcard => hasher.u8(1),
+        }
+    }
+    match &row.tail {
+        Some(tail) => {
+            hasher.bool(true);
+            hasher.string(tail);
+        }
+        None => hasher.bool(false),
+    }
 }
 
 fn compiled_runtime_hash(runtime: &infer::CompiledRuntimeSurface) -> u64 {
@@ -1913,7 +2068,7 @@ mod tests {
             source(
                 "ops.yu",
                 &["ops"],
-                "pub infix (<+>) 50 50 = \\x -> \\y -> x\npub act signal 'a 'b:\n  pub ping: unit -> never\npub x = 1\nmy hidden = 1\n",
+                "pub infix (<+>) 50 50 = \\x -> \\y -> x\npub act signal 'a 'b:\n  pub ping: unit -> never\n\npub struct Box { value: int }\n\npub role Display 'a:\n  pub x.display: self\n\npub x = 1\nmy hidden = 1\n",
             ),
         ];
         let loaded = sources::load(collected_to_source_files(files.clone()));
@@ -1961,6 +2116,32 @@ mod tests {
                 .iter()
                 .any(|entry| entry.type_path == vec!["ops", "signal"]
                     && entry.vars == vec!["a", "b"])
+        );
+        assert!(
+            restored
+                .lowering
+                .constructor_payloads
+                .iter()
+                .any(|entry| entry.value_path == vec!["ops", "Box"]
+                    && matches!(entry.payload, infer::CompiledConstructorPayload::Record(_)))
+        );
+        assert!(
+            restored
+                .lowering
+                .act_operations
+                .iter()
+                .any(|entry| entry.type_path == vec!["ops", "signal"]
+                    && entry.name == "ping"
+                    && entry.signature.is_some())
+        );
+        assert!(
+            restored
+                .lowering
+                .role_methods
+                .iter()
+                .any(|entry| entry.type_path == vec!["ops", "Display"]
+                    && entry.name == "display"
+                    && entry.signature.is_some())
         );
         let x_symbol = ops_module
             .values

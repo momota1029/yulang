@@ -196,6 +196,20 @@ pub struct SignatureEffectRow {
     tail: Option<SignatureVar>,
 }
 
+impl SignatureEffectRow {
+    pub(crate) fn new(items: Vec<SignatureEffectAtom>, tail: Option<SignatureVar>) -> Self {
+        Self { items, tail }
+    }
+
+    pub(crate) fn items(&self) -> &[SignatureEffectAtom] {
+        &self.items
+    }
+
+    pub(crate) fn tail(&self) -> Option<&SignatureVar> {
+        self.tail.as_ref()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SignatureEffectStack {
     weight: StackWeight,
@@ -228,6 +242,58 @@ pub enum SignatureEffectAtom {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SignatureVar {
     name: String,
+}
+
+impl SignatureVar {
+    pub(crate) fn new(name: impl Into<String>) -> Self {
+        Self { name: name.into() }
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+pub(crate) fn lower_stored_signature_type_for_surface(
+    modules: &ModuleTable,
+    module: ModuleId,
+    site: ModuleOrder,
+    signature: &StoredSignature,
+    bare_type_vars: &[String],
+    type_var_aliases: &[(String, String)],
+    type_name_aliases: &[(String, TypeDeclId)],
+) -> Result<SignatureType, AnnBuildError> {
+    let mut builder = ann_type_builder(modules, module, site, None);
+    for name in bare_type_vars {
+        builder.add_bare_type_var(name.clone());
+    }
+    add_type_var_aliases(&mut builder, type_var_aliases);
+    add_type_name_aliases(&mut builder, type_name_aliases);
+    build_stored_signature_type_expr(&mut builder, signature)
+}
+
+pub(crate) fn lower_constructor_stored_signature_type_for_surface(
+    modules: &ModuleTable,
+    module: ModuleId,
+    site: ModuleOrder,
+    owner: TypeDeclId,
+    type_vars: &[String],
+    signature: &StoredSignature,
+) -> Result<SignatureType, NegSignatureBuildError> {
+    match signature {
+        StoredSignature::Source(type_expr) => NegSignatureBuilder::with_self_alias(
+            modules,
+            module,
+            site,
+            SignatureSelfAlias {
+                owner,
+                type_vars: type_vars.to_vec(),
+            },
+        )
+        .build_type_expr(type_expr)
+        .map(|signature| signature.as_type().clone()),
+        StoredSignature::Lowered(signature) => Ok(signature.clone()),
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
