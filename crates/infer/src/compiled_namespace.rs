@@ -123,6 +123,22 @@ pub enum CompiledNamespaceValueVisibility {
     Our,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompiledNamespaceMergeError {
+    ConflictingValue {
+        module_path: Vec<String>,
+        name: String,
+    },
+    ConflictingType {
+        module_path: Vec<String>,
+        name: String,
+    },
+    ConflictingModule {
+        module_path: Vec<String>,
+        name: String,
+    },
+}
+
 impl CompiledNamespaceSurface {
     pub fn from_loaded_files(loaded: &[sources::LoadedFile]) -> Result<Self, LoadedFilesError> {
         let lower = crate::lower_loaded_files_module_map(loaded)?;
@@ -134,6 +150,12 @@ impl CompiledNamespaceSurface {
         builder.visit_module(modules.root_id(), None);
         builder.fill_import_views();
         builder.finish()
+    }
+
+    pub fn merge_prefixes<'a>(
+        prefixes: impl IntoIterator<Item = &'a CompiledNamespaceSurface>,
+    ) -> Result<Self, CompiledNamespaceMergeError> {
+        CompiledNamespaceMergeBuilder::merge(prefixes.into_iter().collect())
     }
 
     pub fn value_visibility(&self, symbol: u32) -> Option<CompiledNamespaceValueVisibility> {
@@ -149,6 +171,344 @@ impl CompiledNamespaceSurface {
         }
         None
     }
+}
+
+struct CompiledNamespaceMergeBuilder<'a> {
+    prefixes: Vec<&'a CompiledNamespaceSurface>,
+    merged: CompiledNamespaceSurface,
+    module_by_path: HashMap<Vec<String>, u32>,
+    module_remap: HashMap<(usize, u32), u32>,
+    value_remap: HashMap<(usize, u32), u32>,
+    type_remap: HashMap<(usize, u32), u32>,
+}
+
+impl<'a> CompiledNamespaceMergeBuilder<'a> {
+    fn merge(
+        prefixes: Vec<&'a CompiledNamespaceSurface>,
+    ) -> Result<CompiledNamespaceSurface, CompiledNamespaceMergeError> {
+        let mut builder = Self {
+            prefixes,
+            merged: CompiledNamespaceSurface::default(),
+            module_by_path: HashMap::new(),
+            module_remap: HashMap::new(),
+            value_remap: HashMap::new(),
+            type_remap: HashMap::new(),
+        };
+        builder.merge_modules();
+        builder.merge_symbols();
+        builder.merge_module_entries()?;
+        Ok(builder.merged)
+    }
+
+    fn merge_modules(&mut self) {
+        for (prefix, surface) in self.prefixes.iter().enumerate() {
+            let mut modules = surface.modules.iter().collect::<Vec<_>>();
+            modules.sort_by_key(|module| (module.path.len(), module.path.clone()));
+            for module in modules {
+                let id = self
+                    .module_by_path
+                    .get(&module.path)
+                    .copied()
+                    .unwrap_or_else(|| {
+                        let id = self.merged.modules.len() as u32;
+                        self.module_by_path.insert(module.path.clone(), id);
+                        self.merged.modules.push(CompiledNamespaceModule {
+                            id,
+                            path: module.path.clone(),
+                            visibility: module.visibility,
+                            values: Vec::new(),
+                            types: Vec::new(),
+                            modules: Vec::new(),
+                            imported_values: Vec::new(),
+                            imported_types: Vec::new(),
+                            imported_modules: Vec::new(),
+                            aliases: Vec::new(),
+                        });
+                        id
+                    });
+                self.module_remap.insert((prefix, module.id), id);
+            }
+        }
+    }
+
+    fn merge_symbols(&mut self) {
+        for (prefix, surface) in self.prefixes.iter().enumerate() {
+            for value in &surface.values {
+                let symbol = self.merged.values.len() as u32;
+                self.value_remap.insert((prefix, value.unit_id), symbol);
+                self.merged.values.push(CompiledNamespaceSymbol {
+                    unit_id: symbol,
+                    path: value.path.clone(),
+                });
+            }
+            for ty in &surface.types {
+                let symbol = self.merged.types.len() as u32;
+                self.type_remap.insert((prefix, ty.unit_id), symbol);
+                self.merged.types.push(CompiledNamespaceTypeSymbol {
+                    unit_id: symbol,
+                    path: ty.path.clone(),
+                    kind: ty.kind,
+                });
+            }
+        }
+    }
+
+    fn merge_module_entries(&mut self) -> Result<(), CompiledNamespaceMergeError> {
+        for prefix in 0..self.prefixes.len() {
+            let modules = self.prefixes[prefix].modules.clone();
+            for module in &modules {
+                let target = self.module_remap[&(prefix, module.id)] as usize;
+                self.merge_module_values(prefix, target, module)?;
+                self.merge_module_types(prefix, target, module)?;
+                self.merge_module_children(prefix, target, module)?;
+                self.merge_imported_values(prefix, target, module)?;
+                self.merge_imported_types(prefix, target, module)?;
+                self.merge_imported_modules(prefix, target, module)?;
+                self.merge_aliases(target, module);
+            }
+        }
+        Ok(())
+    }
+
+    fn merge_module_values(
+        &mut self,
+        prefix: usize,
+        target: usize,
+        module: &CompiledNamespaceModule,
+    ) -> Result<(), CompiledNamespaceMergeError> {
+        for value in &module.values {
+            let mut value = value.clone();
+            value.symbol = self.value_remap[&(prefix, value.symbol)];
+            let target_module = &mut self.merged.modules[target];
+            reject_duplicate_value(target_module, &value)?;
+            value.order = next_namespace_order(target_module);
+            target_module.values.push(value);
+        }
+        Ok(())
+    }
+
+    fn merge_module_types(
+        &mut self,
+        prefix: usize,
+        target: usize,
+        module: &CompiledNamespaceModule,
+    ) -> Result<(), CompiledNamespaceMergeError> {
+        for ty in &module.types {
+            let mut ty = ty.clone();
+            ty.symbol = self.type_remap[&(prefix, ty.symbol)];
+            let target_module = &mut self.merged.modules[target];
+            reject_duplicate_type(target_module, &ty)?;
+            ty.order = next_namespace_order(target_module);
+            target_module.types.push(ty);
+        }
+        Ok(())
+    }
+
+    fn merge_module_children(
+        &mut self,
+        prefix: usize,
+        target: usize,
+        module: &CompiledNamespaceModule,
+    ) -> Result<(), CompiledNamespaceMergeError> {
+        for child in &module.modules {
+            let mut child = child.clone();
+            child.module = self.module_remap[&(prefix, child.module)];
+            let target_module = &mut self.merged.modules[target];
+            if target_module
+                .modules
+                .iter()
+                .any(|existing| existing.name == child.name && existing.module == child.module)
+            {
+                continue;
+            }
+            reject_duplicate_module(target_module, &child)?;
+            child.order = next_namespace_order(target_module);
+            target_module.modules.push(child);
+        }
+        Ok(())
+    }
+
+    fn merge_imported_values(
+        &mut self,
+        prefix: usize,
+        target: usize,
+        module: &CompiledNamespaceModule,
+    ) -> Result<(), CompiledNamespaceMergeError> {
+        for value in &module.imported_values {
+            let mut value = value.clone();
+            value.symbol = self.value_remap[&(prefix, value.symbol)];
+            let target_module = &mut self.merged.modules[target];
+            reject_duplicate_imported_value(target_module, &value)?;
+            value.order = next_namespace_order(target_module);
+            target_module.imported_values.push(value);
+        }
+        Ok(())
+    }
+
+    fn merge_imported_types(
+        &mut self,
+        prefix: usize,
+        target: usize,
+        module: &CompiledNamespaceModule,
+    ) -> Result<(), CompiledNamespaceMergeError> {
+        for ty in &module.imported_types {
+            let mut ty = ty.clone();
+            ty.symbol = self.type_remap[&(prefix, ty.symbol)];
+            let target_module = &mut self.merged.modules[target];
+            reject_duplicate_imported_type(target_module, &ty)?;
+            ty.order = next_namespace_order(target_module);
+            target_module.imported_types.push(ty);
+        }
+        Ok(())
+    }
+
+    fn merge_imported_modules(
+        &mut self,
+        prefix: usize,
+        target: usize,
+        module: &CompiledNamespaceModule,
+    ) -> Result<(), CompiledNamespaceMergeError> {
+        for child in &module.imported_modules {
+            let mut child = child.clone();
+            child.module = self.module_remap[&(prefix, child.module)];
+            let target_module = &mut self.merged.modules[target];
+            if target_module
+                .imported_modules
+                .iter()
+                .any(|existing| existing.name == child.name && existing.module == child.module)
+            {
+                continue;
+            }
+            reject_duplicate_imported_module(target_module, &child)?;
+            child.order = next_namespace_order(target_module);
+            target_module.imported_modules.push(child);
+        }
+        Ok(())
+    }
+
+    fn merge_aliases(&mut self, target: usize, module: &CompiledNamespaceModule) {
+        for alias in &module.aliases {
+            if self.merged.modules[target].aliases.contains(alias) {
+                continue;
+            }
+            let mut alias = alias.clone();
+            alias.order = next_namespace_order(&self.merged.modules[target]);
+            self.merged.modules[target].aliases.push(alias);
+        }
+    }
+}
+
+fn reject_duplicate_value(
+    module: &CompiledNamespaceModule,
+    value: &CompiledNamespaceModuleValue,
+) -> Result<(), CompiledNamespaceMergeError> {
+    if module
+        .values
+        .iter()
+        .any(|existing| existing.name == value.name)
+    {
+        return Err(CompiledNamespaceMergeError::ConflictingValue {
+            module_path: module.path.clone(),
+            name: value.name.clone(),
+        });
+    }
+    Ok(())
+}
+
+fn reject_duplicate_type(
+    module: &CompiledNamespaceModule,
+    ty: &CompiledNamespaceModuleType,
+) -> Result<(), CompiledNamespaceMergeError> {
+    if module.types.iter().any(|existing| existing.name == ty.name) {
+        return Err(CompiledNamespaceMergeError::ConflictingType {
+            module_path: module.path.clone(),
+            name: ty.name.clone(),
+        });
+    }
+    Ok(())
+}
+
+fn reject_duplicate_module(
+    module: &CompiledNamespaceModule,
+    child: &CompiledNamespaceModuleChild,
+) -> Result<(), CompiledNamespaceMergeError> {
+    if module
+        .modules
+        .iter()
+        .any(|existing| existing.name == child.name)
+    {
+        return Err(CompiledNamespaceMergeError::ConflictingModule {
+            module_path: module.path.clone(),
+            name: child.name.clone(),
+        });
+    }
+    Ok(())
+}
+
+fn reject_duplicate_imported_value(
+    module: &CompiledNamespaceModule,
+    value: &CompiledNamespaceImportedValue,
+) -> Result<(), CompiledNamespaceMergeError> {
+    if module
+        .imported_values
+        .iter()
+        .any(|existing| existing.name == value.name)
+    {
+        return Err(CompiledNamespaceMergeError::ConflictingValue {
+            module_path: module.path.clone(),
+            name: value.name.clone(),
+        });
+    }
+    Ok(())
+}
+
+fn reject_duplicate_imported_type(
+    module: &CompiledNamespaceModule,
+    ty: &CompiledNamespaceImportedType,
+) -> Result<(), CompiledNamespaceMergeError> {
+    if module
+        .imported_types
+        .iter()
+        .any(|existing| existing.name == ty.name)
+    {
+        return Err(CompiledNamespaceMergeError::ConflictingType {
+            module_path: module.path.clone(),
+            name: ty.name.clone(),
+        });
+    }
+    Ok(())
+}
+
+fn reject_duplicate_imported_module(
+    module: &CompiledNamespaceModule,
+    child: &CompiledNamespaceImportedModule,
+) -> Result<(), CompiledNamespaceMergeError> {
+    if module
+        .imported_modules
+        .iter()
+        .any(|existing| existing.name == child.name)
+    {
+        return Err(CompiledNamespaceMergeError::ConflictingModule {
+            module_path: module.path.clone(),
+            name: child.name.clone(),
+        });
+    }
+    Ok(())
+}
+
+fn next_namespace_order(module: &CompiledNamespaceModule) -> u32 {
+    module
+        .values
+        .iter()
+        .map(|value| value.order)
+        .chain(module.types.iter().map(|ty| ty.order))
+        .chain(module.modules.iter().map(|child| child.order))
+        .chain(module.imported_values.iter().map(|value| value.order))
+        .chain(module.imported_types.iter().map(|ty| ty.order))
+        .chain(module.imported_modules.iter().map(|child| child.order))
+        .chain(module.aliases.iter().map(|alias| alias.order))
+        .max()
+        .map_or(0, |order| order + 1)
 }
 
 pub struct CompiledNamespaceIndex<'a> {
@@ -519,6 +879,56 @@ mod tests {
         let index = CompiledNamespaceIndex::new(&surface);
         assert_eq!(index.exported_value_symbol(&[], "x"), Some(x.symbol));
         assert_eq!(index.exported_value_symbol(&ops_path, "x"), Some(x.symbol));
+    }
+
+    #[test]
+    fn namespace_surface_merge_remaps_independent_modules() {
+        let a = CompiledNamespaceSurface::from_loaded_files(&sources::load(vec![
+            source(&[], "mod a;\n"),
+            source(&["a"], "pub x = 10\n"),
+        ]))
+        .unwrap();
+        let b = CompiledNamespaceSurface::from_loaded_files(&sources::load(vec![
+            source(&[], "mod b;\n"),
+            source(&["b"], "pub y = 2\n"),
+        ]))
+        .unwrap();
+
+        let merged = CompiledNamespaceSurface::merge_prefixes([&a, &b]).unwrap();
+        let index = CompiledNamespaceIndex::new(&merged);
+        let root = index.module_by_path(&[]).unwrap();
+        let a_symbol = index.exported_value_symbol(&["a".to_string()], "x");
+        let b_symbol = index.exported_value_symbol(&["b".to_string()], "y");
+
+        assert!(root.modules.iter().any(|child| child.name == "a"));
+        assert!(root.modules.iter().any(|child| child.name == "b"));
+        assert_ne!(a_symbol, b_symbol);
+        assert!(a_symbol.is_some());
+        assert!(b_symbol.is_some());
+    }
+
+    #[test]
+    fn namespace_surface_merge_rejects_value_conflict() {
+        let lhs = CompiledNamespaceSurface::from_loaded_files(&sources::load(vec![
+            source(&[], "mod a;\n"),
+            source(&["a"], "pub x = 10\n"),
+        ]))
+        .unwrap();
+        let rhs = CompiledNamespaceSurface::from_loaded_files(&sources::load(vec![
+            source(&[], "mod a;\n"),
+            source(&["a"], "pub x = 20\n"),
+        ]))
+        .unwrap();
+
+        let error = CompiledNamespaceSurface::merge_prefixes([&lhs, &rhs]).unwrap_err();
+
+        assert_eq!(
+            error,
+            CompiledNamespaceMergeError::ConflictingValue {
+                module_path: vec!["a".to_string()],
+                name: "x".to_string(),
+            }
+        );
     }
 
     fn source(module: &[&str], text: &str) -> SourceFile {
