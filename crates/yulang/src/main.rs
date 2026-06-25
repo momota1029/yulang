@@ -711,12 +711,18 @@ fn build_poly_with_cache(
             errors: cached.errors,
         },
         Ok(None) => {
-            let output = run_route_to_value(yulang::build_poly_from_collected_sources(files));
+            let output = run_route_to_value(
+                yulang::build_poly_and_compiled_unit_from_collected_sources(files),
+            );
+            if let Err(error) = cache.write_compiled_unit_artifact(key, &output.compiled_unit) {
+                eprintln!("warning: {error}");
+            }
+            let poly = output.poly;
             let artifact = yulang::cache::CachedPolyArtifact {
-                arena: output.arena,
-                labels: output.labels,
-                file_count: output.file_count,
-                errors: output.errors,
+                arena: poly.arena,
+                labels: poly.labels,
+                file_count: poly.file_count,
+                errors: poly.errors,
             };
             if let Err(error) = cache.write_poly_artifact(key, &artifact) {
                 eprintln!("warning: {error}");

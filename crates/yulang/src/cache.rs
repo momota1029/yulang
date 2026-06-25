@@ -249,14 +249,23 @@ pub fn compiled_unit_artifact_from_loaded_files(
     files: &[CollectedSource],
     loaded: &[sources::LoadedFile],
 ) -> Result<CachedCompiledUnitArtifact, infer::LoadedFilesError> {
-    let syntax = sources::CompiledSyntaxSurface::from_loaded_files(loaded);
     let lowering = infer::lowering::lower_loaded_files(loaded)?;
+    Ok(compiled_unit_artifact_from_lowering(
+        files, loaded, &lowering,
+    ))
+}
+
+pub fn compiled_unit_artifact_from_lowering(
+    files: &[CollectedSource],
+    loaded: &[sources::LoadedFile],
+    lowering: &infer::lowering::BodyLowering,
+) -> CachedCompiledUnitArtifact {
+    let syntax = sources::CompiledSyntaxSurface::from_loaded_files(loaded);
     let namespace = infer::CompiledNamespaceSurface::from_module_table(&lowering.modules);
     let lowering_surface =
         infer::CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
-    let typed = infer::CompiledTypedSurface::from_lowering(&lowering, &namespace);
-    let runtime =
-        infer::CompiledRuntimeSurface::from_lowering_with_namespace(&lowering, &namespace);
+    let typed = infer::CompiledTypedSurface::from_lowering(lowering, &namespace);
+    let runtime = infer::CompiledRuntimeSurface::from_lowering_with_namespace(lowering, &namespace);
     let manifest = compiled_unit_manifest(
         files,
         &syntax,
@@ -265,14 +274,14 @@ pub fn compiled_unit_artifact_from_loaded_files(
         &typed,
         &runtime,
     );
-    Ok(CachedCompiledUnitArtifact {
+    CachedCompiledUnitArtifact {
         manifest,
         syntax,
         namespace,
         lowering: lowering_surface,
         typed,
         runtime,
-    })
+    }
 }
 
 fn source_cache_key_with_schema(files: &[CollectedSource], schema: CacheSchema) -> SourceCacheKey {

@@ -12,16 +12,17 @@ pub mod stdlib;
 mod time;
 
 pub use source::{
-    AnalyzeSourceOutput, BuildControlOutput, BuildPolyOutput, CheckPolyOutput, CollectedSource,
-    ControlRunTimings, DumpMonoOutput, DumpPolyOutput, IMPLICIT_PRELUDE_IMPORT, RouteError,
-    RunControlOutput, RunMonoOutput, SourceDefinition, SourceDiagnostic, SourceHover,
-    SourceLocation, SourceRange, SourceRename, SourceTextEdit, StdSourceOptions,
-    analyze_entry_source, analyze_entry_source_with_std_options,
+    AnalyzeSourceOutput, BuildControlOutput, BuildPolyAndCompiledUnitOutput, BuildPolyOutput,
+    CheckPolyOutput, CollectedSource, ControlRunTimings, DumpMonoOutput, DumpPolyOutput,
+    IMPLICIT_PRELUDE_IMPORT, RouteError, RunControlOutput, RunMonoOutput, SourceDefinition,
+    SourceDiagnostic, SourceHover, SourceLocation, SourceRange, SourceRename, SourceTextEdit,
+    StdSourceOptions, analyze_entry_source, analyze_entry_source_with_std_options,
     analyze_source_text_with_embedded_std, build_control_from_collected_sources,
     build_control_from_entry, build_control_from_entry_with_std,
     build_control_from_entry_with_std_options, build_control_from_poly_output,
     build_control_from_source_text_with_embedded_playground_std,
-    build_control_from_source_text_with_embedded_std, build_poly_from_collected_sources,
+    build_control_from_source_text_with_embedded_std,
+    build_poly_and_compiled_unit_from_collected_sources, build_poly_from_collected_sources,
     build_poly_from_loaded_files, build_poly_from_source_text_with_embedded_playground_std,
     build_poly_from_source_text_with_embedded_std, check_poly_from_entry,
     check_poly_from_entry_with_std, check_poly_from_entry_with_std_in_module,

@@ -92,6 +92,29 @@ pub fn build_poly_from_collected_sources(
     build_poly_from_sources(files)
 }
 
+pub fn build_poly_and_compiled_unit_from_collected_sources(
+    files: Vec<CollectedSource>,
+) -> Result<BuildPolyAndCompiledUnitOutput, RouteError> {
+    let loaded = sources::load(collected_source_files(files.clone()));
+    let lowering = infer::lowering::lower_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    let errors = lowering
+        .errors
+        .iter()
+        .map(format_body_lowering_error)
+        .collect();
+    let compiled_unit =
+        crate::cache::compiled_unit_artifact_from_lowering(&files, &loaded, &lowering);
+    Ok(BuildPolyAndCompiledUnitOutput {
+        poly: BuildPolyOutput {
+            arena: lowering.session.poly,
+            labels: lowering.labels,
+            file_count: loaded.len(),
+            errors,
+        },
+        compiled_unit,
+    })
+}
+
 /// principal poly artifact から control VM artifact 用 IR を作る。
 pub fn build_control_from_poly_output(
     output: &BuildPolyOutput,
@@ -892,6 +915,11 @@ pub struct BuildPolyOutput {
     pub file_count: usize,
     /// body lowering が報告したエラーの表示用整形。artifact とは別に stderr へ流す。
     pub errors: Vec<String>,
+}
+
+pub struct BuildPolyAndCompiledUnitOutput {
+    pub poly: BuildPolyOutput,
+    pub compiled_unit: crate::cache::CachedCompiledUnitArtifact,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

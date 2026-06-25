@@ -105,6 +105,35 @@ fn build_poly_without_std_records_attached_role_impl_method_mappings() {
     );
 }
 
+#[test]
+fn build_poly_and_compiled_unit_from_collected_sources_share_lowering_output() {
+    let files = vec![CollectedSource {
+        path: PathBuf::from("main.yu"),
+        module_path: Path::default(),
+        source: "pub struct Box { value: int }\nmy box = Box { value: 1 }\n".into(),
+    }];
+
+    let output = build_poly_and_compiled_unit_from_collected_sources(files).unwrap();
+
+    assert!(output.poly.errors.is_empty(), "{:?}", output.poly.errors);
+    assert_eq!(output.poly.file_count, 1);
+    assert_eq!(output.compiled_unit.manifest.files.len(), 1);
+    assert_eq!(
+        output.compiled_unit.runtime.arena.defs.len(),
+        output.poly.arena.defs.len()
+    );
+    assert_eq!(output.compiled_unit.runtime.labels, output.poly.labels);
+    assert!(
+        output
+            .compiled_unit
+            .lowering
+            .constructor_payloads
+            .iter()
+            .any(|entry| entry.value_path == vec!["Box"]
+                && matches!(entry.payload, infer::CompiledConstructorPayload::Record(_)))
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn run_control_with_std_specializes_attached_role_impl_methods() {
