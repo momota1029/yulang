@@ -13,6 +13,21 @@ impl SourceCompilationUnits {
     pub fn unit_for_file(&self, file: usize) -> Option<usize> {
         self.file_units.get(file).copied()
     }
+
+    pub fn dependency_closed_available_units(&self, available: &[bool]) -> Vec<usize> {
+        let mut selected = vec![false; self.units.len()];
+        for (unit, item) in self.units.iter().enumerate() {
+            let artifact_available = available.get(unit).copied().unwrap_or(false);
+            if artifact_available && item.dependencies.iter().all(|dep| selected[*dep]) {
+                selected[unit] = true;
+            }
+        }
+        selected
+            .into_iter()
+            .enumerate()
+            .filter_map(|(unit, selected)| selected.then_some(unit))
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

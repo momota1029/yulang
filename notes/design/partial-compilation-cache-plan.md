@@ -64,6 +64,9 @@ Implemented subset:
 - source compilation units have cache keys that hash unit source files plus
   dependency unit keys, using a salt distinct from the full source-set bundle
   key.
+- source compilation units can select a dependency-closed subset from a
+  per-unit cache-hit bitmap, so later cache policy never imports a unit whose
+  dependency artifact is missing.
 
 Not implemented yet:
 

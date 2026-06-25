@@ -221,6 +221,45 @@ fn source_compilation_units_order_local_module_dependencies_first() {
     assert_eq!(units.units[2].dependencies, vec![1]);
 }
 
+#[test]
+fn source_compilation_units_select_dependency_closed_available_prefix() {
+    let files = vec![
+        CollectedSource {
+            path: PathBuf::from("main.yu"),
+            module_path: Path::default(),
+            source: "mod a;\nx\n".into(),
+        },
+        CollectedSource {
+            path: PathBuf::from("a.yu"),
+            module_path: Path {
+                segments: vec![Name("a".to_string())],
+            },
+            source: "mod b;\npub x = b::y\n".into(),
+        },
+        CollectedSource {
+            path: PathBuf::from("a/b.yu"),
+            module_path: Path {
+                segments: vec![Name("a".to_string()), Name("b".to_string())],
+            },
+            source: "pub y = 7\n".into(),
+        },
+    ];
+    let units = source_compilation_units(&files);
+
+    assert_eq!(
+        units.dependency_closed_available_units(&[true, false, true]),
+        vec![0]
+    );
+    assert_eq!(
+        units.dependency_closed_available_units(&[true, true, false]),
+        vec![0, 1]
+    );
+    assert_eq!(
+        units.dependency_closed_available_units(&[true, true, true]),
+        vec![0, 1, 2]
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn run_control_with_std_specializes_attached_role_impl_methods() {

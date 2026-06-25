@@ -186,6 +186,8 @@ source dependency SCC ごとの compiled-unit cache である。
 - Done: `source_compilation_unit_cache_keys` gives each source unit a cache key
   derived from its own files and dependency unit keys. It is deliberately
   separate from the full source-set bundle key.
+- Done: `SourceCompilationUnits::dependency_closed_available_units` filters
+  cache-hit units to the subset whose dependencies are also available.
 - Realm/band note: the current source-set cache key is only a coarse placeholder
   for the future identity
   `(resolved realm, band path, source dependency SCC, dependency interface hashes)`.
@@ -197,7 +199,7 @@ source dependency SCC ごとの compiled-unit cache である。
 - Not done: source dependency SCC selection and normal-path cache hit import.
   The active source route now has the first `SourceSet::compilation_units()`
   equivalent and unit keys, but normal CLI cache policy still needs artifact
-  selection, dependency-closed prefix import, and suffix artifact emission.
+  reads, dependency-closed prefix import, and suffix artifact emission.
 - Next: implement the runtime remap/merge path. Only after that should the
   compiled-unit value import view be connected to the normal lowerer /
   name-resolution path.
