@@ -227,10 +227,22 @@ impl<'a> Runtime<'a> {
     }
 
     pub(super) fn mark_request_with_active_markers(&mut self, request: &mut Request) {
-        let scope_expected = self
-            .scope_state_shadow
-            .as_ref()
-            .map(|scope| scope.mark_request(request));
+        let scope_expected = if let Some(scope) = self.scope_state_shadow.as_ref() {
+            let candidate_stats = scope.path_candidate_stats(&request.path_key);
+            self.stats.scope_state_shadow_checks += 1;
+            self.stats.scope_state_shadow_active_add_markers +=
+                candidate_stats.active_add_markers as u64;
+            self.stats.scope_state_shadow_path_candidates += candidate_stats.path_candidates as u64;
+            self.stats.scope_state_shadow_all_path_candidates +=
+                candidate_stats.all_path_candidates as u64;
+            self.stats.scope_state_shadow_own_path_candidates +=
+                candidate_stats.own_path_candidates as u64;
+            self.stats.scope_state_shadow_foreign_path_candidates +=
+                candidate_stats.foreign_path_candidates as u64;
+            Some(scope.mark_request(request))
+        } else {
+            None
+        };
         for active_marker in &self.active_add_ids {
             let marker = &active_marker.marker;
             self.stats.active_add_id_scans += 1;

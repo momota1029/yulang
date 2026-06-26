@@ -177,6 +177,12 @@ pub struct RuntimeStats {
     pub path_eq_segments: u64,
     pub active_add_id_scans: u64,
     pub active_frame_scans: u64,
+    pub scope_state_shadow_checks: u64,
+    pub scope_state_shadow_active_add_markers: u64,
+    pub scope_state_shadow_path_candidates: u64,
+    pub scope_state_shadow_all_path_candidates: u64,
+    pub scope_state_shadow_own_path_candidates: u64,
+    pub scope_state_shadow_foreign_path_candidates: u64,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

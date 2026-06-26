@@ -862,6 +862,30 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
     eprintln!("  run.path_eq_segments: {}", stats.path_eq_segments);
     eprintln!("  run.active_add_scans: {}", stats.active_add_id_scans);
     eprintln!("  run.active_frame_scans: {}", stats.active_frame_scans);
+    eprintln!(
+        "  run.scope_state_shadow_checks: {}",
+        stats.scope_state_shadow_checks
+    );
+    eprintln!(
+        "  run.scope_state_shadow_active_add_markers: {}",
+        stats.scope_state_shadow_active_add_markers
+    );
+    eprintln!(
+        "  run.scope_state_shadow_path_candidates: {}",
+        stats.scope_state_shadow_path_candidates
+    );
+    eprintln!(
+        "  run.scope_state_shadow_all_path_candidates: {}",
+        stats.scope_state_shadow_all_path_candidates
+    );
+    eprintln!(
+        "  run.scope_state_shadow_own_path_candidates: {}",
+        stats.scope_state_shadow_own_path_candidates
+    );
+    eprintln!(
+        "  run.scope_state_shadow_foreign_path_candidates: {}",
+        stats.scope_state_shadow_foreign_path_candidates
+    );
 }
 
 fn format_duration(duration: Duration) -> String {
