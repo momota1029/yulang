@@ -114,6 +114,15 @@ The smallest complete program prints a user-facing string with `say`:
 say "Hello, World"
 ```
 
+For one-line experiments, `run` can also read source from `-e`, explicit stdin
+with `-`, or an implicit pipe:
+
+```bash
+yulang run -e "(each 1..20 + each 1..20).list.say"
+echo "1 + 2" | yulang run --print-roots
+echo "(each 1..3 + each 1..3).list.say" | yulang run
+```
+
 `run` executes the program through the current control VM and only prints
 output produced by the program itself, such as `say` / `println`. To inspect
 root expression values while experimenting, add `--print-roots`. To run
