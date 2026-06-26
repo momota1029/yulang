@@ -432,6 +432,16 @@ materialized evidence を読んでいるためである。
 - public latent effect が消えない。
 - internal tests が「normal bound materialization」を仮定しているだけなら、テスト側で分類して残す。
 
+2026-06-27 update:
+
+- `scripts/replay-skip-compare.sh` では、showcase の `constraint.drain` が
+  default 194.2ms から evidence-only 94.8ms へ下がった。
+- effect-hygiene / public regression 群でも drain はおおむね 87〜95ms に収まり、
+  default の 181〜194ms から半分程度になった。
+- 次の実装単位は、skip prototype をそのまま default にすることではない。
+  `normal bound` と `evidence-only bound` を solver data として分け、
+  generalization / public projection が evidence-only bound を正式に読む層を先に作る。
+
 ## Phase 5: Direct-Style / Pure Island
 
 ここは後回し。
