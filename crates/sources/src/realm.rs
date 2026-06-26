@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
 use std::fs;
@@ -10,6 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub const YULANG_PROJECT_DIR: &str = ".yulang";
 pub const YULANG_MANIFEST_FILE: &str = "realm.toml";
 pub const YULANG_LOCK_FILE: &str = "yulang.lock";
+const FROZEN_REALM_SNAPSHOT_FORMAT_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RealmIdentity(pub String);
@@ -31,16 +31,9 @@ pub enum SourceRealmRoot {
     Virtual,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SourceRealmDependency {
-    pub identity: RealmIdentity,
-    pub requirement: String,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceRealmManifest {
     pub id: ResolvedRealmId,
-    pub dependencies: Vec<SourceRealmDependency>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -189,29 +182,24 @@ pub fn load_realm_manifest(
         .or(realm.name)
         .filter(|identity| !identity.trim().is_empty())
         .ok_or_else(|| invalid_realm_manifest(&path, "missing realm.identity"))?;
-    let version = realm
-        .version
-        .filter(|version| !version.trim().is_empty())
-        .map(RealmVersion);
-    let mut dependencies = decoded
-        .dependencies
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|(identity, requirement)| {
-            (!identity.trim().is_empty()).then_some(SourceRealmDependency {
-                identity: RealmIdentity(identity),
-                requirement,
-            })
-        })
-        .collect::<Vec<_>>();
-    dependencies.sort_by(|left, right| left.identity.0.cmp(&right.identity.0));
+    if realm.version.is_some() {
+        return Err(invalid_realm_manifest(
+            &path,
+            "realm.version is not allowed; freeze versions belong to snapshot.json",
+        ));
+    }
+    if decoded.dependencies.is_some() {
+        return Err(invalid_realm_manifest(
+            &path,
+            "[dependencies] is not allowed; dependency requests belong to source imports and the resolution cache",
+        ));
+    }
 
     Ok(Some(SourceRealmManifest {
         id: ResolvedRealmId {
             identity: RealmIdentity(identity),
-            version,
+            version: None,
         },
-        dependencies,
     }))
 }
 
@@ -248,7 +236,7 @@ pub fn freeze_realm_version(
 #[derive(Debug, Serialize, Deserialize)]
 struct RealmManifestToml {
     realm: Option<RealmManifestRealmToml>,
-    dependencies: Option<BTreeMap<String, String>>,
+    dependencies: Option<toml::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -305,7 +293,7 @@ fn freeze_realm_version_inner(
         path: temp_root.clone(),
         error,
     })?;
-    write_frozen_realm_files(&root, &temp_root, &manifest, &version, &files)?;
+    write_frozen_realm_files(&root, &temp_root, &manifest, &files)?;
     let snapshot_json = serde_json::to_string_pretty(&snapshot).map_err(|error| {
         FreezeRealmError::EncodeSnapshot {
             path: snapshot_path.clone(),
@@ -392,7 +380,7 @@ fn frozen_realm_snapshot(
     version: RealmVersion,
     files: &[PathBuf],
 ) -> Result<FrozenRealmSnapshot, FreezeRealmError> {
-    let frozen_manifest = frozen_realm_manifest_toml(manifest, &version);
+    let frozen_manifest = frozen_realm_manifest_toml(manifest);
     let frozen_manifest_bytes = toml::to_string_pretty(&frozen_manifest)
         .map_err(|error| FreezeRealmError::EncodeManifest {
             path: source_root.join(YULANG_MANIFEST_FILE),
@@ -401,9 +389,8 @@ fn frozen_realm_snapshot(
         .into_bytes();
     let mut snapshot_files = Vec::new();
     let mut hash = StableHash::new();
-    hash.write_str("frozen-realm-v1");
+    hash.write_str("frozen-realm-source-v2");
     hash.write_str(&manifest.id.identity.0);
-    hash.write_str(&version.0);
     for file in files {
         let path = file.to_string_lossy().replace('\\', "/");
         let bytes = if file == FsPath::new(YULANG_MANIFEST_FILE) {
@@ -425,7 +412,7 @@ fn frozen_realm_snapshot(
         });
     }
     Ok(FrozenRealmSnapshot {
-        format_version: 1,
+        format_version: FROZEN_REALM_SNAPSHOT_FORMAT_VERSION,
         identity: manifest.id.identity.clone(),
         version,
         source_hash: hash.finish(),
@@ -437,14 +424,13 @@ fn write_frozen_realm_files(
     source_root: &FsPath,
     output_root: &FsPath,
     manifest: &SourceRealmManifest,
-    version: &RealmVersion,
     files: &[PathBuf],
 ) -> Result<(), FreezeRealmError> {
     for relative in files {
         let output_path = output_root.join(relative);
         ensure_parent_dir(&output_path)?;
         if relative == FsPath::new(YULANG_MANIFEST_FILE) {
-            let manifest = frozen_realm_manifest_toml(manifest, version);
+            let manifest = frozen_realm_manifest_toml(manifest);
             let encoded = toml::to_string_pretty(&manifest).map_err(|error| {
                 FreezeRealmError::EncodeManifest {
                     path: output_path.clone(),
@@ -467,29 +453,14 @@ fn write_frozen_realm_files(
     Ok(())
 }
 
-fn frozen_realm_manifest_toml(
-    manifest: &SourceRealmManifest,
-    version: &RealmVersion,
-) -> RealmManifestToml {
-    let dependencies = (!manifest.dependencies.is_empty()).then(|| {
-        manifest
-            .dependencies
-            .iter()
-            .map(|dependency| {
-                (
-                    dependency.identity.0.clone(),
-                    dependency.requirement.clone(),
-                )
-            })
-            .collect::<BTreeMap<_, _>>()
-    });
+fn frozen_realm_manifest_toml(manifest: &SourceRealmManifest) -> RealmManifestToml {
     RealmManifestToml {
         realm: Some(RealmManifestRealmToml {
             identity: Some(manifest.id.identity.0.clone()),
             name: None,
-            version: Some(version.0.clone()),
+            version: None,
         }),
-        dependencies,
+        dependencies: None,
     }
 }
 
@@ -590,7 +561,7 @@ mod tests {
     }
 
     #[test]
-    fn realm_manifest_sets_identity_version_and_dependencies() {
+    fn realm_manifest_sets_identity_only() {
         let root = temp_root("realm-manifest");
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
@@ -598,11 +569,6 @@ mod tests {
             root.join(YULANG_MANIFEST_FILE),
             r#"[realm]
 identity = "app"
-version = "1.2.3"
-
-[dependencies]
-ui = "^2"
-core = "1"
 "#,
         )
         .unwrap();
@@ -610,19 +576,56 @@ core = "1"
         let manifest = load_realm_manifest(&root).unwrap().unwrap();
 
         assert_eq!(manifest.id.identity, RealmIdentity("app".to_string()));
-        assert_eq!(manifest.id.version, Some(RealmVersion("1.2.3".to_string())));
-        assert_eq!(
-            manifest.dependencies,
-            vec![
-                SourceRealmDependency {
-                    identity: RealmIdentity("core".to_string()),
-                    requirement: "1".to_string(),
-                },
-                SourceRealmDependency {
-                    identity: RealmIdentity("ui".to_string()),
-                    requirement: "^2".to_string(),
-                },
-            ]
+        assert_eq!(manifest.id.version, None);
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn realm_manifest_rejects_human_written_version() {
+        let root = temp_root("realm-manifest-version");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join(YULANG_MANIFEST_FILE),
+            r#"[realm]
+identity = "app"
+version = "1.2.3"
+"#,
+        )
+        .unwrap();
+
+        let err = load_realm_manifest(&root).unwrap_err();
+
+        assert!(
+            err.to_string().contains("realm.version is not allowed"),
+            "{err}"
+        );
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn realm_manifest_rejects_realm_wide_dependencies() {
+        let root = temp_root("realm-manifest-dependencies");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join(YULANG_MANIFEST_FILE),
+            r#"[realm]
+identity = "app"
+
+[dependencies]
+ui = "^2"
+"#,
+        )
+        .unwrap();
+
+        let err = load_realm_manifest(&root).unwrap_err();
+
+        assert!(
+            err.to_string().contains("[dependencies] is not allowed"),
+            "{err}"
         );
 
         let _ = fs::remove_dir_all(&root);
@@ -639,9 +642,6 @@ core = "1"
             root.join(YULANG_MANIFEST_FILE),
             r#"[realm]
 identity = "app"
-
-[dependencies]
-core = "1"
 "#,
         )
         .unwrap();
@@ -671,11 +671,15 @@ core = "1"
         assert!(!files.contains(&".yulang/ignored.yu"));
         assert!(!files.contains(&"target/ignored.yu"));
         assert!(output.root.join("main.yu").is_file());
-        assert!(
-            fs::read_to_string(output.root.join(YULANG_MANIFEST_FILE))
-                .unwrap()
-                .contains("version = \"2.0.0\"")
+        let frozen_manifest = fs::read_to_string(output.root.join(YULANG_MANIFEST_FILE)).unwrap();
+        assert!(frozen_manifest.contains("identity = \"app\""));
+        assert!(!frozen_manifest.contains("version = "));
+        assert!(!frozen_manifest.contains("[dependencies]"));
+        assert_eq!(
+            output.snapshot.format_version,
+            FROZEN_REALM_SNAPSHOT_FORMAT_VERSION
         );
+        assert_eq!(output.snapshot.version, RealmVersion("2.0.0".to_string()));
 
         let repeated = freeze_realm_version(&root, "2.0.0").unwrap();
         assert!(repeated.already_exists);

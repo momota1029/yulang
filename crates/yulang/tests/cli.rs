@@ -733,6 +733,15 @@ identity = "app"
             .join("snapshot.json")
             .is_file()
     );
+    let frozen_manifest = fs::read_to_string(
+        root.join(".yulang")
+            .join("versions")
+            .join("1.0.0")
+            .join("realm.toml"),
+    )
+    .unwrap();
+    assert!(!frozen_manifest.contains("version = "));
+    assert!(!frozen_manifest.contains("[dependencies]"));
 
     let _ = fs::remove_dir_all(&root);
 }

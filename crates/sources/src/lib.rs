@@ -12,10 +12,9 @@ mod realm;
 
 pub use realm::{
     FreezeRealmError, FreezeRealmOutput, FrozenRealmSnapshot, FrozenRealmSnapshotFile,
-    RealmIdentity, RealmManifestError, RealmVersion, ResolvedRealmId, SourceRealmDependency,
-    SourceRealmManifest, SourceRealmRoot, YULANG_LOCK_FILE, YULANG_MANIFEST_FILE,
-    YULANG_PROJECT_DIR, freeze_realm_version, load_realm_manifest, local_realm_id,
-    local_realm_root,
+    RealmIdentity, RealmManifestError, RealmVersion, ResolvedRealmId, SourceRealmManifest,
+    SourceRealmRoot, YULANG_LOCK_FILE, YULANG_MANIFEST_FILE, YULANG_PROJECT_DIR,
+    freeze_realm_version, load_realm_manifest, local_realm_id, local_realm_root,
 };
 
 // ── 基礎型（source loader と parser input の共有語彙）──────────────────────
