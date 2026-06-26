@@ -23,10 +23,13 @@ use crate::source::{
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
 const COMPILED_UNIT_CACHE_FORMAT: u32 = 14;
+const REALM_RESOLUTION_CACHE_FORMAT: u32 = 1;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 3;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
 const SOURCE_UNIT_CACHE_SALT: &[u8] = b"yulang/source-unit-cache/v1";
+const REALM_CACHE_COMPONENT_SALT: &[u8] = b"yulang/realm-cache-component/v1";
+const REALM_RESOLUTION_CACHE_SALT: &[u8] = b"yulang/realm-resolution-cache/v1";
 const MERGED_COMPILED_UNIT_CACHE_SALT: &[u8] = b"yulang/merged-compiled-unit-cache/v1";
 const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v1";
 const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
@@ -79,6 +82,16 @@ impl ArtifactCache {
     pub fn compiled_unit_artifact_path(&self, key: SourceCacheKey) -> PathBuf {
         self.artifact_dir("compiled-unit")
             .join(format!("{}.yucu", key.to_hex()))
+    }
+
+    pub fn realm_resolution_artifact_path(
+        &self,
+        source_realm: &sources::ResolvedRealmId,
+        key: RealmResolutionCacheKey,
+    ) -> PathBuf {
+        self.realm_dir(source_realm)
+            .join("resolution")
+            .join(format!("{}.yures", key.to_hex()))
     }
 
     pub fn read_poly_artifact(
@@ -207,8 +220,56 @@ impl ArtifactCache {
         write_cache_envelope(&path, "yucu", &envelope)
     }
 
+    pub fn read_realm_resolution_artifact(
+        &self,
+        source_realm: &sources::ResolvedRealmId,
+        key: RealmResolutionCacheKey,
+    ) -> Result<Option<CachedRealmResolutionArtifact>, CacheError> {
+        let path = self.realm_resolution_artifact_path(source_realm, key);
+        let Some(envelope): Option<RealmResolutionCacheEnvelope> =
+            read_cache_envelope(&path, REALM_RESOLUTION_CACHE_FORMAT)?
+        else {
+            return Ok(None);
+        };
+        if envelope.key_hash != key.hash {
+            return Ok(None);
+        }
+        if envelope.source_realm != *source_realm {
+            return Ok(None);
+        }
+        Ok(Some(CachedRealmResolutionArtifact {
+            source_realm: envelope.source_realm,
+            request: envelope.request,
+            target: envelope.target,
+        }))
+    }
+
+    pub fn write_realm_resolution_artifact(
+        &self,
+        source_realm: &sources::ResolvedRealmId,
+        key: RealmResolutionCacheKey,
+        artifact: &CachedRealmResolutionArtifact,
+    ) -> Result<(), CacheError> {
+        debug_assert_eq!(&artifact.source_realm, source_realm);
+        let path = self.realm_resolution_artifact_path(source_realm, key);
+        let envelope = RealmResolutionCacheEnvelope {
+            format: REALM_RESOLUTION_CACHE_FORMAT,
+            key_hash: key.hash,
+            source_realm: &artifact.source_realm,
+            request: &artifact.request,
+            target: &artifact.target,
+        };
+        write_cache_envelope(&path, "yures", &envelope)
+    }
+
     fn artifact_dir(&self, stage: &str) -> PathBuf {
         self.root.join("artifacts").join(stage)
+    }
+
+    fn realm_dir(&self, realm: &sources::ResolvedRealmId) -> PathBuf {
+        self.root
+            .join("realms")
+            .join(format!("{:016x}", realm_cache_component_hash(realm)))
     }
 }
 
@@ -288,6 +349,23 @@ pub struct CachedSourceUnitCompiledArtifacts {
     pub keys: Vec<SourceCacheKey>,
     pub artifacts: Vec<Option<CachedCompiledUnitArtifact>>,
     pub selection: SourceUnitCacheSelection,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CachedRealmResolutionArtifact {
+    pub source_realm: sources::ResolvedRealmId,
+    pub request: sources::UseImport,
+    pub target: CachedRealmResolutionTarget,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CachedRealmResolutionTarget {
+    pub realm: sources::ResolvedRealmId,
+    pub band_path: sources::Path,
+    pub module_path: sources::Path,
+    pub source_path: String,
+    pub source_len: usize,
+    pub source_hash: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -393,8 +471,33 @@ impl SourceCacheKey {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RealmResolutionCacheKey {
+    hash: u64,
+}
+
+impl RealmResolutionCacheKey {
+    pub fn to_hex(self) -> String {
+        format!("{:016x}", self.hash)
+    }
+}
+
 pub fn source_cache_key(files: &[CollectedSource]) -> SourceCacheKey {
     source_cache_key_with_schema(files, CURRENT_CACHE_SCHEMA)
+}
+
+pub fn realm_resolution_cache_key(
+    source_file: &CollectedSource,
+    request: &sources::UseImport,
+) -> RealmResolutionCacheKey {
+    let mut hasher = StableHasher::new();
+    hasher.bytes(REALM_RESOLUTION_CACHE_SALT);
+    hash_cache_schema(&mut hasher, CURRENT_CACHE_SCHEMA);
+    hash_source_file_resolution_context(&mut hasher, source_file);
+    hash_use_import(&mut hasher, request);
+    RealmResolutionCacheKey {
+        hash: hasher.finish(),
+    }
 }
 
 pub fn source_compilation_unit_cache_keys(
@@ -1204,6 +1307,33 @@ fn hash_cache_schema(hasher: &mut StableHasher, schema: CacheSchema) {
     hasher.u32(schema.version);
     hasher.u32(schema.poly_format);
     hasher.u32(schema.control_format);
+}
+
+fn realm_cache_component_hash(realm: &sources::ResolvedRealmId) -> u64 {
+    let mut hasher = StableHasher::new();
+    hasher.bytes(REALM_CACHE_COMPONENT_SALT);
+    hash_resolved_realm_id(&mut hasher, realm);
+    hasher.finish()
+}
+
+fn hash_resolved_realm_id(hasher: &mut StableHasher, realm: &sources::ResolvedRealmId) {
+    hasher.string(&realm.identity.0);
+    match &realm.version {
+        Some(version) => {
+            hasher.bool(true);
+            hasher.string(&version.0);
+        }
+        None => hasher.bool(false),
+    }
+}
+
+fn hash_source_file_resolution_context(hasher: &mut StableHasher, file: &CollectedSource) {
+    hasher.string(&file.path.as_os_str().to_string_lossy());
+    hasher.usize(file.module_path.segments.len());
+    for segment in &file.module_path.segments {
+        hasher.string(&segment.0);
+    }
+    hasher.string(&file.source);
 }
 
 fn hash_collected_source(hasher: &mut StableHasher, file: &CollectedSource) {
@@ -2935,6 +3065,19 @@ struct CompiledUnitCacheEnvelope<
     errors: E,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct RealmResolutionCacheEnvelope<
+    R = sources::ResolvedRealmId,
+    Q = sources::UseImport,
+    T = CachedRealmResolutionTarget,
+> {
+    format: u32,
+    key_hash: u64,
+    source_realm: R,
+    request: Q,
+    target: T,
+}
+
 fn read_cache_envelope<T>(path: &Path, format: u32) -> Result<Option<T>, CacheError>
 where
     T: CacheEnvelope + DeserializeOwned,
@@ -3015,6 +3158,12 @@ impl<T, L, E> CacheEnvelope for ControlCacheEnvelope<T, L, E> {
 }
 
 impl<M, S, N, L, T, R, X, E> CacheEnvelope for CompiledUnitCacheEnvelope<M, S, N, L, T, R, X, E> {
+    fn format(&self) -> u32 {
+        self.format
+    }
+}
+
+impl<R, Q, T> CacheEnvelope for RealmResolutionCacheEnvelope<R, Q, T> {
     fn format(&self) -> u32 {
         self.format
     }
@@ -3163,6 +3312,60 @@ mod tests {
             });
 
         assert_ne!(source_cache_key(&[base]), source_cache_key(&[with_request]));
+    }
+
+    #[test]
+    fn realm_resolution_cache_round_trips_under_source_realm() {
+        let root = temp_root("realm-resolution-round-trip");
+        let cache = ArtifactCache::new(&root);
+        let source_realm = realm_id("file:///app", None);
+        let request = slash_import_request();
+        let file = source("main.yu", &[], "use ui/widget::a with program::ui\n");
+        let key = realm_resolution_cache_key(&file, &request);
+        let artifact = CachedRealmResolutionArtifact {
+            source_realm: source_realm.clone(),
+            request: request.clone(),
+            target: CachedRealmResolutionTarget {
+                realm: realm_id("github.com/user/ui", Some("1.2.3")),
+                band_path: path(&["widget"]),
+                module_path: path(&["a"]),
+                source_path: "widget.yu".into(),
+                source_len: 12,
+                source_hash: 0x1234,
+            },
+        };
+
+        cache
+            .write_realm_resolution_artifact(&source_realm, key, &artifact)
+            .unwrap();
+        let restored = cache
+            .read_realm_resolution_artifact(&source_realm, key)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(restored, artifact);
+        assert!(
+            cache
+                .realm_resolution_artifact_path(&source_realm, key)
+                .to_string_lossy()
+                .contains("realms")
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn realm_resolution_cache_path_is_split_by_source_realm() {
+        let root = temp_root("realm-resolution-source-realm");
+        let cache = ArtifactCache::new(&root);
+        let request = slash_import_request();
+        let file = source("main.yu", &[], "use ui/widget::a\n");
+        let key = realm_resolution_cache_key(&file, &request);
+
+        assert_ne!(
+            cache.realm_resolution_artifact_path(&realm_id("file:///left", None), key),
+            cache.realm_resolution_artifact_path(&realm_id("file:///right", None), key)
+        );
     }
 
     #[test]
@@ -4335,14 +4538,42 @@ mod tests {
     fn source(path: &str, module: &[&str], text: &str) -> CollectedSource {
         CollectedSource::new(
             PathBuf::from(path),
-            Path {
-                segments: module
-                    .iter()
-                    .map(|segment| Name((*segment).to_string()))
-                    .collect(),
-            },
+            path_from_segments(module),
             text.to_string(),
         )
+    }
+
+    fn slash_import_request() -> sources::UseImport {
+        sources::UseImport::Alias {
+            name: Name("a".into()),
+            path: path_from_segments(&["ui", "widget", "a"]),
+            route: sources::UsePathRoute::SlashQualified { prefix_segments: 2 },
+            version: None,
+            anchor: Some(sources::UseAnchor {
+                path: path_from_segments(&["program", "ui"]),
+                route: sources::UsePathRoute::Relative,
+            }),
+        }
+    }
+
+    fn realm_id(identity: &str, version: Option<&str>) -> sources::ResolvedRealmId {
+        sources::ResolvedRealmId {
+            identity: sources::RealmIdentity(identity.to_string()),
+            version: version.map(|version| sources::RealmVersion(version.to_string())),
+        }
+    }
+
+    fn path(segments: &[&str]) -> Path {
+        path_from_segments(segments)
+    }
+
+    fn path_from_segments(segments: &[&str]) -> Path {
+        Path {
+            segments: segments
+                .iter()
+                .map(|segment| Name((*segment).to_string()))
+                .collect(),
+        }
     }
 
     fn module_chain_sources(

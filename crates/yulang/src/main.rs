@@ -1344,6 +1344,7 @@ fn print_cache_stats(root: &PathBuf) -> io::Result<()> {
     for stage in ["control-vm", "poly", "compiled-unit"] {
         println!("{stage}: {}", cache_stage_file_count(root, stage)?);
     }
+    println!("realm-resolution: {}", realm_resolution_file_count(root)?);
     Ok(())
 }
 
@@ -1362,6 +1363,31 @@ fn cache_stage_file_count(root: &PathBuf, stage: &str) -> io::Result<usize> {
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(0),
         Err(error) => Err(error),
     }
+}
+
+fn realm_resolution_file_count(root: &PathBuf) -> io::Result<usize> {
+    let realms = root.join("realms");
+    let entries = match fs::read_dir(realms) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(0),
+        Err(error) => return Err(error),
+    };
+    let mut count = 0;
+    for entry in entries {
+        let resolution_dir = entry?.path().join("resolution");
+        match fs::read_dir(resolution_dir) {
+            Ok(files) => {
+                for file in files {
+                    if file?.path().is_file() {
+                        count += 1;
+                    }
+                }
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(count)
 }
 
 fn run_realm(program: &str, mut args: VecDeque<OsString>) {

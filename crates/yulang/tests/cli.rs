@@ -315,7 +315,7 @@ fn cache_path_and_clear_use_yulang_cache_dir() {
     assert_eq!(
         stdout(&stats_output),
         format!(
-            "cache: {}\ncontrol-vm: 1\npoly: 2\ncompiled-unit: 0\n",
+            "cache: {}\ncontrol-vm: 1\npoly: 2\ncompiled-unit: 0\nrealm-resolution: 0\n",
             cache_root.display()
         )
     );
