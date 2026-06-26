@@ -25,6 +25,7 @@ mod engine;
 mod eval;
 mod flow;
 mod frame;
+mod scope_state;
 mod thunk;
 mod time;
 
@@ -33,6 +34,7 @@ use frame::{
     BindThen, Continuation, ContinuationMarkerScope, Frame, RefSetFinish, RefSetResumeMode,
     prepend_marker_scope, push_frame,
 };
+use scope_state::{ScopeRequestMarking, ScopeState};
 use time::{Duration, Instant};
 
 pub fn run_mono_program(program: &mono::Program) -> Result<Vec<Value>, RunError> {

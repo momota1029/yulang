@@ -227,6 +227,10 @@ impl<'a> Runtime<'a> {
     }
 
     pub(super) fn mark_request_with_active_markers(&mut self, request: &mut Request) {
+        let scope_expected = self
+            .scope_state_shadow
+            .as_ref()
+            .map(|scope| scope.mark_request(request));
         for active_marker in &self.active_add_ids {
             let marker = &active_marker.marker;
             self.stats.active_add_id_scans += 1;
@@ -257,6 +261,17 @@ impl<'a> Runtime<'a> {
                 request.guard_ids.push_unique(marker.id);
             }
         }
+        if let Some(scope_expected) = scope_expected {
+            self.assert_scope_state_request_marking(request, scope_expected);
+        }
+    }
+
+    fn assert_scope_state_request_marking(&self, request: &Request, expected: ScopeRequestMarking) {
+        let actual = ScopeRequestMarking::from_request(request);
+        assert_eq!(
+            actual, expected,
+            "ScopeState shadow produced a different request marking"
+        );
     }
 
     fn request_excepted_at_marker_entry(
@@ -624,6 +639,9 @@ impl<'a> Runtime<'a> {
                     }
                     let frame_index = entry_frame_len;
                     self.active_frames.push(ActiveFrame { id: *id });
+                    if let Some(scope) = &mut self.scope_state_shadow {
+                        scope.push_frame(*id);
+                    }
                     frame_entries.push((*id, entry_frame_len));
                     if let Some(handler_key) = handler_key {
                         self.active_handler_frames.push(ActiveHandlerFrame {
@@ -631,6 +649,9 @@ impl<'a> Runtime<'a> {
                             id: *id,
                             handler_key,
                         });
+                        if let Some(scope) = &mut self.scope_state_shadow {
+                            scope.push_handler_frame(frame_index, *id, handler_key);
+                        }
                     }
                 }
                 ValueMarker::AddId(marker) if activate_add_ids && marker.depth == 0 => {
@@ -639,6 +660,9 @@ impl<'a> Runtime<'a> {
                         entry_frame_len: self.entry_frame_len_for_marker(marker.id, &frame_entries),
                     };
                     if !self.active_add_ids.contains(&active_marker) {
+                        if let Some(scope) = &mut self.scope_state_shadow {
+                            scope.push_add_marker(active_marker.clone());
+                        }
                         self.active_add_ids.push(active_marker);
                     }
                 }
@@ -670,6 +694,9 @@ impl<'a> Runtime<'a> {
         self.active_handler_frames.truncate(handler_frame_len);
         self.active_add_ids.truncate(add_id_len);
         self.active_marker_plans.truncate(plan_len);
+        if let Some(scope) = &mut self.scope_state_shadow {
+            scope.truncate(frame_len, handler_frame_len, add_id_len);
+        }
     }
 
     pub(super) fn close_marker_frame_result(

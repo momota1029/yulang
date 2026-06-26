@@ -17,6 +17,7 @@ pub(super) struct Runtime<'a> {
     // transitions and are pushed here after their depth is decremented.
     pub(super) active_add_ids: Vec<ActiveAddIdMarker>,
     pub(super) active_marker_plans: Vec<SharedMarkers>,
+    pub(super) scope_state_shadow: Option<ScopeState>,
     pub(super) next_guard_id: u32,
     pub(super) stats: RuntimeStats,
     pub(super) ref_update_update_key: InternedPath,
@@ -41,6 +42,9 @@ impl<'a> Runtime<'a> {
             active_handler_frames: Vec::new(),
             active_add_ids: Vec::new(),
             active_marker_plans: Vec::new(),
+            scope_state_shadow: std::env::var_os("YULANG_VM_SCOPE_STATE_SHADOW")
+                .is_some()
+                .then(ScopeState::new),
             next_guard_id: 0,
             stats: RuntimeStats::default(),
             ref_update_update_key,
