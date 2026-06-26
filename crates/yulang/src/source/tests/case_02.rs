@@ -3374,10 +3374,14 @@ fn current_realm_band_cannot_claim_mod_owned_file() {
         err,
         RouteError::DuplicateModuleFile {
             first_module,
+            first_band,
             second_module,
+            second_band,
             ..
         } if first_module.segments == vec![Name("helper".into())]
+            && first_band.segments.is_empty()
             && second_module.segments == vec![Name("helper".into())]
+            && second_band.segments == vec![Name("helper".into())]
     ));
 }
 

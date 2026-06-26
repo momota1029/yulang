@@ -1314,7 +1314,9 @@ pub enum RouteError {
     DuplicateModuleFile {
         file: PathBuf,
         first_module: Path,
+        first_band: Path,
         second_module: Path,
+        second_band: Path,
     },
     CrossBandCycle {
         from: Path,
@@ -1409,13 +1411,17 @@ impl fmt::Display for RouteError {
             RouteError::DuplicateModuleFile {
                 file,
                 first_module,
+                first_band,
                 second_module,
+                second_band,
             } => write!(
                 f,
-                "file {} was loaded as both module {} and {}",
+                "file {} was loaded as both module {} in band {} and module {} in band {}",
                 file.display(),
                 format_module_path(first_module),
-                format_module_path(second_module)
+                format_module_path(first_band),
+                format_module_path(second_module),
+                format_module_path(second_band)
             ),
             RouteError::CrossBandCycle { from, to } => write!(
                 f,

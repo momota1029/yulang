@@ -217,7 +217,9 @@ impl Collector {
         Err(RouteError::DuplicateModuleFile {
             file: file.to_path_buf(),
             first_module: first_owner.module_path.clone(),
+            first_band: first_owner.band_path.clone(),
             second_module: module.clone(),
+            second_band: band.clone(),
         })
     }
 
