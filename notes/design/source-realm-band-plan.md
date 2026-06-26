@@ -73,7 +73,9 @@ use theme/colors as theme1 v2
   Private dependencies are not alignment anchors.
 - `realm.toml` must not contain human-written versions. It may declare the
   current realm identity and source providers, but dependency requests live at
-  each `use` site and exact resolutions live in `snapshot.json` / `yulang.lock`.
+  each `use` site and exact resolutions are cached per source file.
+  `snapshot.json` / `yulang.lock` record those resolutions for reproducible
+  realms and human-facing review.
 - Repository source providers should be specified in git-oriented terms before
   implementation: provider name and repository locator in `realm.toml`, plus
   resolved commit, source digest, and diagnostics in `yulang.lock`.
@@ -378,7 +380,7 @@ the current band. `use` can depend on another band once realm resolution exists.
 
 ## Import And Use Resolution
 
-### Manifest, Requests, And Lock
+### Manifest, Requests, Resolution Cache, And Lock
 
 `realm.toml` is not a package-summary dependency graph. In particular, humans
 should not write versions there. Doing so would force the whole realm to agree
@@ -394,8 +396,11 @@ realm.toml
 use ... vN / use ... with anchor
   -> declares a local dependency request at the source site
 
+per-file resolution cache
+  -> maps source-site requests to exact resolved snapshot / commit / digest
+
 yulang.lock
-  -> records the exact resolved snapshot / commit / source digest
+  -> records and constrains observed exact resolutions for reproducible realms
 ```
 
 This means a source file may choose its own realm-family request:
@@ -405,9 +410,21 @@ use theme/colors as theme1 v1
 use theme/colors as theme2 v2
 ```
 
-Those two imports may resolve to different locked realm snapshots if the local
+Those two imports may resolve to different cached realm snapshots if the local
 scope gives them distinct aliases. The manifest should not collapse them into
 one realm-wide dependency entry.
+
+This split is required because Yulang can run a single `.yu` file without a
+project lock file. Such a file still needs to resolve `std` and local/cached
+realms. The resolver should therefore be able to read a source file, resolve its
+requests, and cache the exact result without first requiring a human-readable
+lock. A lock is a reproducibility and audit artifact, not the only exact
+resolution store.
+
+Detailed per-file resolution graphs are allowed to be too verbose for humans to
+read directly. They can be surfaced through LSP, diagnostics, and
+`--explain-cache`-style tools rather than copied verbatim into a hand-edited
+manifest.
 
 ### Same-Realm Lookup
 
@@ -454,9 +471,10 @@ lock file, a previous import, or a `with` constraint. After resolution, the
 compiler should work only with the resolved canonical identity.
 
 When source requests a suffix such as `v2`, it requests a version family. The
-lock records the exact resolved version or revision. If two versions from the
-same realm family are imported into one scope, the source must give explicit
-local aliases:
+per-file resolution cache stores the exact resolved version or revision, and a
+lock may record or constrain that result for reproducible runs. If two versions
+from the same realm family are imported into one scope, the source must give
+explicit local aliases:
 
 ```yulang
 use theme/colors as theme1 v1
@@ -574,6 +592,14 @@ only after its realm has been resolved.
 Cache and lock identity should use structured keys, not display paths:
 
 ```text
+ResolutionRequestKey {
+  resolver_format,
+  importer_source_digest,
+  source_site_request,
+  provider_set_digest,
+  anchor_public_surface_hash_if_with,
+}
+
 ResolvedRealmKey {
   locator,
   version_or_revision,
@@ -585,6 +611,12 @@ ResolvedBandKey {
   band_path,
 }
 ```
+
+The per-file resolution cache maps `ResolutionRequestKey` to
+`ResolvedRealmKey`. A hit is valid only after the referenced realm snapshot and
+source digest are still present and verified. The lock may record the same
+resolution in a readable form, but it is not required for ordinary single-file
+execution.
 
 The digest must be strong and algorithm-tagged, such as `sha256:<hex>` or
 `blake3:<hex>`. The current non-cryptographic hashes used inside in-memory
@@ -662,6 +694,7 @@ This is for reusable cache entries:
 
 ```text
 realms/
+resolution/
 compiled-units/
 native/
 ```
@@ -681,10 +714,13 @@ yulang.lock
 
 `realm.toml` declares the current realm identity when a project wants explicit
 identity. It is not required to declare bands or human-written versions.
-`yulang.lock` records resolved realm dependencies, revisions, and frozen source
-hashes when a resolved realm comes from a snapshot. The lock file is not a
-cache; it is part of reproducible source identity. Fetched realm contents and
-compiled artifacts live in the persistent user cache.
+Per-file exact resolution entries live in the persistent user cache so a single
+source file can run without a project lock. `yulang.lock` records resolved realm
+dependencies, revisions, and frozen source hashes when a realm wants to publish
+or verify its observed resolution graph. The lock file is not the primary
+machine cache; it is part of reproducible source identity. Fetched realm
+contents, resolution entries, and compiled artifacts live in the persistent user
+cache.
 
 `yulang realm freeze --version <version> <path>` copies the editable realm
 source into `.yulang/versions/<version>/` and writes `snapshot.json` with the
@@ -740,15 +776,18 @@ Current first slice:
   current lowerer ignores the suffix for ordinary import binding, so the syntax
   can be introduced before cross-realm version resolution is implemented.
 - `YulangLockFile` defines a serializable first lock schema for resolved realms,
-  source-site dependency requests, and `with` alignment constraints.
+  source-site dependency requests, and `with` alignment constraints. This is a
+  reproducibility surface, not the primary exact resolution cache.
 - `collect_source_with_constraints` gathers `use ... with ...` source metadata
-  into structured constraints, `YulangLockFile::from_source_set` can project the
-  current `SourceSet` into a lock-shaped value, and lock validation rejects
-  conflicting resolved realms for the same target/anchor pair.
+  into structured constraints. The resolver should be able to store the exact
+  per-file result in a persistent resolution cache, and
+  `YulangLockFile::from_source_set` can project the current `SourceSet` into a
+  lock-shaped value for audit / reproducibility.
 - local source collection reads `realm.toml` when present. The target schema
   supports `[realm]` identity and source-provider declarations. Human-written
   version requirements do not belong in this manifest; exact snapshot identity
-  belongs in `snapshot.json` and `yulang.lock`.
+  belongs in the per-file resolution cache and may be recorded in
+  `snapshot.json` / `yulang.lock`.
 - `parse_canonical_realm_path` parses the canonical
   `realm@version/band::module` shape into realm identity/version, band path, and
   module path. It keeps slashes before the final `/` inside the realm identity,
@@ -765,8 +804,9 @@ Current first slice:
   reads the lock file, validates its `with` constraints, and fails if the
   generated graph would change it.
 - source collection can resolve cross-realm `use` when the target realm already
-  exists locally. It first honors `yulang.lock` resolved realm sources, then
-  falls back to manifest-declared source providers, `search_paths`, local
+  exists locally. It first tries the per-file resolution cache and verified
+  realm snapshots, then consults `yulang.lock` when present, then falls back to
+  manifest-declared source providers, `search_paths`, local
   `.yulang/versions/<version>/` snapshots, or the persistent `realms/` cache.
   Loaded files keep their source-level import path for lowering while their
   `ResolvedBandId` is assigned inside the target realm.
@@ -776,6 +816,8 @@ Current first slice:
   the `use` omitted an explicit suffix.
 - generated locks record frozen realm snapshot source hashes, and locked realm
   imports reject a source path whose `snapshot.json` hash no longer matches.
+  Cached resolution entries also verify the referenced `snapshot.json` hash
+  before reuse.
 - version-family requests come from source imports, not from `realm.toml`.
   The local resolver may match those requests against already-present editable
   realms, frozen snapshots, and persistent cache entries. Full registry solving

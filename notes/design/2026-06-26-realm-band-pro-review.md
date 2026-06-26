@@ -989,8 +989,13 @@ Physical snapshot or cache locations are not part of canonical identity.
   `pub use theme/...`. Private dependencies are not visible alignment anchors.
 - Do not put human-written versions in `realm.toml`. The manifest may declare
   the current realm identity and source providers, while dependency requests
-  live at each `use` site and exact resolutions live in `snapshot.json` /
-  `yulang.lock`.
+  live at each `use` site.
+- Store exact source-site resolutions in a persistent per-file resolution cache
+  so single-file Yulang execution can resolve `std` and local/cached realms
+  without requiring a project lock file.
+- Treat `snapshot.json` / `yulang.lock` as reproducibility and audit artifacts.
+  They can record or constrain observed exact resolutions, but they are not the
+  only machine-readable exact resolution store.
 - Keep canonical identity structured rather than stringly typed:
   - resolved realm identity;
   - version or revision;
@@ -999,7 +1004,8 @@ Physical snapshot or cache locations are not part of canonical identity.
   - module/item path.
 - Split hashes by responsibility:
   - realm content hash;
-  - resolution/lock hash;
+  - per-file resolution cache hash;
+  - resolution/lock hash for reproducibility;
   - snapshot hash;
   - dependency syntax / namespace / typed / coherence / runtime ABI surfaces.
 - Do not use machine-local absolute cache paths as lock identity.
@@ -1023,3 +1029,5 @@ Physical snapshot or cache locations are not part of canonical identity.
   or all of them?
 - How much of the cache miss explanation should be visible by default versus
   hidden behind `--explain-cache`?
+- How much of the per-file resolution graph should be emitted into
+  human-readable lock files versus surfaced through LSP / diagnostics only?
