@@ -919,6 +919,38 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
     eprintln!("  run.path_eq_checks: {}", stats.path_eq_checks);
     eprintln!("  run.path_eq_segments: {}", stats.path_eq_segments);
     eprintln!("  run.active_add_scans: {}", stats.active_add_id_scans);
+    eprintln!(
+        "  run.active_add_path_candidates: {}",
+        stats.active_add_id_path_candidates
+    );
+    eprintln!(
+        "  run.active_add_skipped_own_path: {}",
+        stats.active_add_id_skipped_own_path
+    );
+    eprintln!(
+        "  run.active_add_skipped_foreign_path: {}",
+        stats.active_add_id_skipped_foreign_path
+    );
+    eprintln!(
+        "  run.active_add_skipped_disabled_path: {}",
+        stats.active_add_id_skipped_disabled_path
+    );
+    eprintln!(
+        "  run.active_add_skipped_entry_except: {}",
+        stats.active_add_id_skipped_entry_except
+    );
+    eprintln!(
+        "  run.active_add_skipped_carried_duplicate: {}",
+        stats.active_add_id_skipped_carried_duplicate
+    );
+    eprintln!(
+        "  run.active_add_applied_direct: {}",
+        stats.active_add_id_applied_direct
+    );
+    eprintln!(
+        "  run.active_add_applied_carried: {}",
+        stats.active_add_id_applied_carried
+    );
     eprintln!("  run.active_frame_scans: {}", stats.active_frame_scans);
     eprintln!(
         "  run.scope_state_shadow_checks: {}",

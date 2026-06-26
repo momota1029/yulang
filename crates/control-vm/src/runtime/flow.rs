@@ -258,28 +258,38 @@ impl<'a> Runtime<'a> {
                 (true, false) => {
                     if !counted_path_has_prefix(&mut self.stats, &request.path_key, marker.path_key)
                     {
+                        self.stats.active_add_id_skipped_own_path += 1;
                         continue;
                     }
                 }
                 (false, true) => {
                     if counted_path_has_prefix(&mut self.stats, &request.path_key, marker.path_key)
                     {
+                        self.stats.active_add_id_skipped_foreign_path += 1;
                         continue;
                     }
                 }
-                (false, false) => continue,
+                (false, false) => {
+                    self.stats.active_add_id_skipped_disabled_path += 1;
+                    continue;
+                }
             }
+            self.stats.active_add_id_path_candidates += 1;
             if !marker.carry_after_frame
                 && request_excepted_at_marker_entry(&self.active_frames, request, active_marker)
             {
+                self.stats.active_add_id_skipped_entry_except += 1;
                 continue;
             }
-            if marker.carry_after_frame
-                && !request
+            if marker.carry_after_frame {
+                if request
                     .carried_guards
                     .iter()
                     .any(|guard| guard.id == marker.id)
-            {
+                {
+                    self.stats.active_add_id_skipped_carried_duplicate += 1;
+                    continue;
+                }
                 let entry_guard_ids =
                     request_guard_ids_at_marker_entry(&self.active_frames, request, active_marker);
                 let exposed_guard_ids = self.carried_exposed_guard_ids_at_marker_entry(
@@ -293,8 +303,10 @@ impl<'a> Runtime<'a> {
                     entry_frame_len: active_marker.entry_frame_len,
                     exposed_guard_ids,
                 });
+                self.stats.active_add_id_applied_carried += 1;
             } else if !marker.carry_after_frame {
                 request.guard_ids.push_unique(marker.id);
+                self.stats.active_add_id_applied_direct += 1;
             }
         }
         if let Some(scope_expected) = scope_expected {
