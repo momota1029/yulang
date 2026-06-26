@@ -21,6 +21,7 @@ use crate::source::{
 };
 
 const POLY_CACHE_FORMAT: u32 = 7;
+const MONO_CACHE_FORMAT: u32 = 1;
 const CONTROL_CACHE_FORMAT: u32 = 7;
 const COMPILED_UNIT_CACHE_FORMAT: u32 = 14;
 const REALM_RESOLUTION_CACHE_FORMAT: u32 = 1;
@@ -79,6 +80,11 @@ impl ArtifactCache {
             .join(format!("{}.yuvm", key.to_hex()))
     }
 
+    pub fn mono_artifact_path(&self, key: SourceCacheKey) -> PathBuf {
+        self.artifact_dir("mono")
+            .join(format!("{}.yumo", key.to_hex()))
+    }
+
     pub fn compiled_unit_artifact_path(&self, key: SourceCacheKey) -> PathBuf {
         self.artifact_dir("compiled-unit")
             .join(format!("{}.yucu", key.to_hex()))
@@ -126,6 +132,38 @@ impl ArtifactCache {
             errors: &artifact.errors,
         };
         write_cache_envelope(&path, "yuir", &envelope)
+    }
+
+    pub fn read_mono_artifact(
+        &self,
+        key: SourceCacheKey,
+    ) -> Result<Option<CachedMonoArtifact>, CacheError> {
+        let path = self.mono_artifact_path(key);
+        let Some(envelope): Option<MonoCacheEnvelope> =
+            read_cache_envelope(&path, MONO_CACHE_FORMAT)?
+        else {
+            return Ok(None);
+        };
+        Ok(Some(CachedMonoArtifact {
+            program: envelope.program,
+            file_count: envelope.file_count,
+            errors: envelope.errors,
+        }))
+    }
+
+    pub fn write_mono_artifact(
+        &self,
+        key: SourceCacheKey,
+        artifact: &CachedMonoArtifact,
+    ) -> Result<(), CacheError> {
+        let path = self.mono_artifact_path(key);
+        let envelope = MonoCacheEnvelope {
+            format: MONO_CACHE_FORMAT,
+            program: &artifact.program,
+            file_count: artifact.file_count,
+            errors: &artifact.errors,
+        };
+        write_cache_envelope(&path, "yumo", &envelope)
     }
 
     pub fn read_control_artifact(
@@ -284,6 +322,13 @@ pub struct CachedControlArtifact {
 pub struct CachedPolyArtifact {
     pub arena: poly::expr::Arena,
     pub labels: poly::dump::DumpLabels,
+    pub file_count: usize,
+    pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CachedMonoArtifact {
+    pub program: specialize::mono::Program,
     pub file_count: usize,
     pub errors: Vec<String>,
 }
@@ -3035,6 +3080,14 @@ struct PolyCacheEnvelope<T = poly::expr::Arena, L = poly::dump::DumpLabels, E = 
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+struct MonoCacheEnvelope<T = specialize::mono::Program, E = Vec<String>> {
+    format: u32,
+    program: T,
+    file_count: usize,
+    errors: E,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct ControlCacheEnvelope<T = control_vm::Program, L = poly::dump::DumpLabels, E = Vec<String>> {
     format: u32,
     program: T,
@@ -3146,6 +3199,12 @@ trait CacheEnvelope {
 }
 
 impl<T, L, E> CacheEnvelope for PolyCacheEnvelope<T, L, E> {
+    fn format(&self) -> u32 {
+        self.format
+    }
+}
+
+impl<T, E> CacheEnvelope for MonoCacheEnvelope<T, E> {
     fn format(&self) -> u32 {
         self.format
     }
@@ -3468,6 +3527,27 @@ mod tests {
         assert_eq!(restored.errors, artifact.errors);
         assert!(cache.poly_artifact_path(key).is_file());
         assert_eq!(cache.poly_artifact_path(key).extension().unwrap(), "yuir");
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mono_cache_round_trips_binary_artifact_envelope() {
+        let root = temp_root("mono-round-trip");
+        let cache = ArtifactCache::new(&root);
+        let key = source_cache_key(&[source("main.yu", &[], "1\n")]);
+        let artifact = CachedMonoArtifact {
+            program: specialize::mono::Program::default(),
+            file_count: 1,
+            errors: vec!["specialize warning".to_string()],
+        };
+
+        cache.write_mono_artifact(key, &artifact).unwrap();
+        let restored = cache.read_mono_artifact(key).unwrap().unwrap();
+
+        assert_eq!(restored, artifact);
+        assert!(cache.mono_artifact_path(key).is_file());
+        assert_eq!(cache.mono_artifact_path(key).extension().unwrap(), "yumo");
 
         let _ = fs::remove_dir_all(root);
     }

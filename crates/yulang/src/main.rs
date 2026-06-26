@@ -55,11 +55,15 @@ fn main() {
         }
         Some("dump-mono") => {
             let path = require_one_path(&program, args);
-            run_route(yulang::dump_mono_from_entry(path), print_dump_mono_output);
+            let files = run_route_to_value(yulang::collect_local_sources(path));
+            let output = dump_mono_with_optional_cache(files, options.use_cache);
+            print_dump_mono_output(&output);
         }
         Some("run-mono") => {
             let path = require_one_path(&program, args);
-            run_route(yulang::run_mono_from_entry(path), print_run_mono_output);
+            let files = run_route_to_value(yulang::collect_local_sources(path));
+            let output = run_mono_with_optional_cache(files, options.use_cache);
+            print_run_mono_output(&output);
         }
         Some("run-control") => {
             let path = require_one_path(&program, args);
@@ -455,11 +459,11 @@ fn build_control_with_optional_cache_timed(
     if let Some(timings) = timings.as_deref_mut() {
         timings.build_poly = poly_start.elapsed();
     }
-    let output = if let Some(timings) = timings.as_deref_mut() {
-        build_control_from_poly_output_timed(poly, timings)
-    } else {
-        run_route_to_value(yulang::build_control_from_poly_output(&poly))
-    };
+    let output = build_control_from_poly_output_with_optional_mono_cache(
+        poly,
+        Some((&cache, key)),
+        timings.as_deref_mut(),
+    );
     let artifact = yulang::cache::CachedControlArtifact {
         program: output.program.clone(),
         labels: output.labels.clone(),
@@ -487,15 +491,19 @@ fn build_control_from_poly_output_timed(
     poly: yulang::BuildPolyOutput,
     timings: &mut RuntimePhaseTimings,
 ) -> yulang::BuildControlOutput {
+    build_control_from_poly_output_with_optional_mono_cache(poly, None, Some(timings))
+}
+
+fn build_control_from_poly_output_with_optional_mono_cache(
+    poly: yulang::BuildPolyOutput,
+    mono_cache: Option<(&yulang::cache::ArtifactCache, yulang::cache::SourceCacheKey)>,
+    mut timings: Option<&mut RuntimePhaseTimings>,
+) -> yulang::BuildControlOutput {
     let specialize_start = Instant::now();
-    let mono = match specialize::specialize(&poly.arena) {
-        Ok(program) => program,
-        Err(error) => {
-            eprintln!("{error}");
-            process::exit(1);
-        }
-    };
-    timings.specialize = specialize_start.elapsed();
+    let mono = specialize_mono_program(&poly, mono_cache);
+    if let Some(timings) = timings.as_deref_mut() {
+        timings.specialize = specialize_start.elapsed();
+    }
 
     let control_lower_start = Instant::now();
     let program = match control_vm::lower(&mono) {
@@ -505,7 +513,9 @@ fn build_control_from_poly_output_timed(
             process::exit(1);
         }
     };
-    timings.control_lower = control_lower_start.elapsed();
+    if let Some(timings) = timings.as_deref_mut() {
+        timings.control_lower = control_lower_start.elapsed();
+    }
 
     yulang::BuildControlOutput {
         program,
@@ -513,6 +523,40 @@ fn build_control_from_poly_output_timed(
         file_count: poly.file_count,
         errors: poly.errors,
     }
+}
+
+fn specialize_mono_program(
+    poly: &yulang::BuildPolyOutput,
+    mono_cache: Option<(&yulang::cache::ArtifactCache, yulang::cache::SourceCacheKey)>,
+) -> specialize::mono::Program {
+    if let Some((cache, key)) = mono_cache {
+        match cache.read_mono_artifact(key) {
+            Ok(Some(cached)) => return cached.program,
+            Ok(None) => {}
+            Err(error) => eprintln!("warning: {error}"),
+        }
+    }
+
+    let program = match specialize::specialize(&poly.arena) {
+        Ok(program) => program,
+        Err(error) => {
+            eprintln!("{error}");
+            process::exit(1);
+        }
+    };
+
+    if let Some((cache, key)) = mono_cache {
+        let artifact = yulang::cache::CachedMonoArtifact {
+            program: program.clone(),
+            file_count: poly.file_count,
+            errors: poly.errors.clone(),
+        };
+        if let Err(error) = cache.write_mono_artifact(key, &artifact) {
+            eprintln!("warning: {error}");
+        }
+    }
+
+    program
 }
 
 fn record_runtime_build_cache(
@@ -1216,14 +1260,12 @@ fn dump_mono_with_optional_cache(
     files: Vec<yulang::CollectedSource>,
     use_cache: bool,
 ) -> yulang::DumpMonoOutput {
+    let mono_cache = mono_cache_for_files(&files, use_cache);
     let output = build_poly_with_optional_cache(files, use_cache);
-    let program = match specialize::specialize(&output.arena) {
-        Ok(program) => program,
-        Err(error) => {
-            eprintln!("{error}");
-            process::exit(1);
-        }
-    };
+    let program = specialize_mono_program(
+        &output,
+        mono_cache.as_ref().map(|(cache, key)| (cache, *key)),
+    );
     yulang::DumpMonoOutput {
         text: specialize::mono::dump::dump_program(&program),
         file_count: output.file_count,
@@ -1235,14 +1277,12 @@ fn run_mono_with_optional_cache(
     files: Vec<yulang::CollectedSource>,
     use_cache: bool,
 ) -> yulang::RunMonoOutput {
+    let mono_cache = mono_cache_for_files(&files, use_cache);
     let output = build_poly_with_optional_cache(files, use_cache);
-    let program = match specialize::specialize(&output.arena) {
-        Ok(program) => program,
-        Err(error) => {
-            eprintln!("{error}");
-            process::exit(1);
-        }
-    };
+    let program = specialize_mono_program(
+        &output,
+        mono_cache.as_ref().map(|(cache, key)| (cache, *key)),
+    );
     let values = match mono_runtime::run_program(&program) {
         Ok(values) => values,
         Err(error) => {
@@ -1256,6 +1296,18 @@ fn run_mono_with_optional_cache(
         errors: output.errors,
         values,
     }
+}
+
+fn mono_cache_for_files(
+    files: &[yulang::CollectedSource],
+    use_cache: bool,
+) -> Option<(yulang::cache::ArtifactCache, yulang::cache::SourceCacheKey)> {
+    use_cache.then(|| {
+        (
+            yulang::cache::ArtifactCache::new(yulang::stdlib::default_user_cache_root()),
+            yulang::cache::source_cache_key(files),
+        )
+    })
 }
 
 fn run_compatible_dump(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
@@ -1341,7 +1393,7 @@ fn run_cache(program: &str, mut args: VecDeque<OsString>) {
 
 fn print_cache_stats(root: &PathBuf) -> io::Result<()> {
     println!("cache: {}", root.display());
-    for stage in ["control-vm", "poly", "compiled-unit"] {
+    for stage in ["control-vm", "mono", "poly", "compiled-unit"] {
         println!("{stage}: {}", cache_stage_file_count(root, stage)?);
     }
     println!("realm-resolution: {}", realm_resolution_file_count(root)?);

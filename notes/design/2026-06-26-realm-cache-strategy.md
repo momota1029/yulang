@@ -118,6 +118,14 @@ Do not reuse the exact mono artifact for a different source set, even if the
 same realm/band snapshot appears in both programs. That sharing needs a later
 typed/runtime surface key plus a specialization demand key.
 
+Current implementation status:
+
+- exact source/resolution-keyed mono artifacts are stored under
+  `artifacts/mono/<source-key>.yumo`;
+- `dump-mono`, `run-mono`, and the cached control build path read/write this
+  artifact after the poly stage;
+- `yulang cache stats` reports the `mono` artifact count.
+
 ## Implementation Order
 
 1. Preserve source-site resolution metadata and include it in source cache keys.
