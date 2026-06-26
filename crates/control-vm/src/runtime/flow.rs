@@ -250,6 +250,7 @@ impl<'a> Runtime<'a> {
         } else {
             None
         };
+        let mut entry_except_index = RequestEntryExceptIndex::default();
         for active_marker in &self.active_add_ids {
             let marker = &active_marker.marker;
             self.stats.active_add_id_scans += 1;
@@ -276,7 +277,12 @@ impl<'a> Runtime<'a> {
             }
             self.stats.active_add_id_path_candidates += 1;
             if !marker.carry_after_frame
-                && request_excepted_at_marker_entry(&self.active_frames, request, active_marker)
+                && request_excepted_at_marker_entry(
+                    &self.active_frames,
+                    &mut entry_except_index,
+                    request,
+                    active_marker,
+                )
             {
                 self.stats.active_add_id_skipped_entry_except += 1;
                 continue;
@@ -863,18 +869,42 @@ impl<'a> Runtime<'a> {
 
 fn request_excepted_at_marker_entry(
     active_frames: &[ActiveFrame],
+    entry_except_index: &mut RequestEntryExceptIndex,
     request: &Request,
     marker: &ActiveAddIdMarker,
 ) -> bool {
     if request.guard_ids.is_empty() {
         return false;
     }
-    for frame in active_frames.iter().take(marker.entry_frame_len) {
-        if request.guard_ids.contains(frame.id) {
+    for id in request.guard_ids.iter() {
+        if entry_except_index
+            .first_position(active_frames, *id)
+            .is_some_and(|position| position < marker.entry_frame_len)
+        {
             return true;
         }
     }
     false
+}
+
+#[derive(Default)]
+struct RequestEntryExceptIndex {
+    first_positions: SmallVec<[(GuardId, Option<usize>); 4]>,
+}
+
+impl RequestEntryExceptIndex {
+    fn first_position(&mut self, active_frames: &[ActiveFrame], id: GuardId) -> Option<usize> {
+        if let Some((_, position)) = self
+            .first_positions
+            .iter()
+            .find(|(cached_id, _)| *cached_id == id)
+        {
+            return *position;
+        }
+        let position = active_frames.iter().position(|frame| frame.id == id);
+        self.first_positions.push((id, position));
+        position
+    }
 }
 
 fn request_guard_ids_at_marker_entry(
