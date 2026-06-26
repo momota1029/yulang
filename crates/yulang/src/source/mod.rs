@@ -1132,6 +1132,11 @@ pub enum RouteError {
         module: Path,
         candidates: Vec<PathBuf>,
     },
+    RealmBandNotFound {
+        root: PathBuf,
+        band: Path,
+        candidates: Vec<PathBuf>,
+    },
     DuplicateModulePath {
         module: Path,
         first: PathBuf,
@@ -1201,6 +1206,19 @@ impl fmt::Display for RouteError {
                     "module {} requested from {} is ambiguous",
                     format_module_path(module),
                     current.display()
+                )?;
+                write_candidates(f, candidates)
+            }
+            RouteError::RealmBandNotFound {
+                root,
+                band,
+                candidates,
+            } => {
+                write!(
+                    f,
+                    "band {} requested from realm {} was not found",
+                    format_module_path(band),
+                    root.display()
                 )?;
                 write_candidates(f, candidates)
             }

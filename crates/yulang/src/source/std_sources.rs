@@ -393,6 +393,68 @@ pub(super) fn discover_module_loads(module_path: &Path, source: &str) -> Vec<Mod
     sources::module_load_requests(module_path, &root)
 }
 
+pub(super) fn discover_current_realm_band_loads(source: &str) -> Vec<Path> {
+    if !source.contains("realm/") {
+        return Vec::new();
+    }
+    let cst = parser::parse_module_to_green(source);
+    let root = rowan::SyntaxNode::<parser::sink::YulangLanguage>::new_root(cst);
+    let mut bands = Vec::<Path>::new();
+    collect_current_realm_band_loads(&root, &mut bands);
+    bands
+}
+
+fn collect_current_realm_band_loads(
+    node: &rowan::SyntaxNode<parser::sink::YulangLanguage>,
+    bands: &mut Vec<Path>,
+) {
+    if node.kind() == parser::lex::SyntaxKind::UseDecl {
+        collect_current_realm_band_loads_from_use(node, bands);
+    }
+    for child in node.children() {
+        collect_current_realm_band_loads(&child, bands);
+    }
+}
+
+fn collect_current_realm_band_loads_from_use(
+    node: &rowan::SyntaxNode<parser::sink::YulangLanguage>,
+    bands: &mut Vec<Path>,
+) {
+    for import in sources::use_imports(node) {
+        let (path, route) = match import {
+            sources::UseImport::Alias { path, route, .. }
+            | sources::UseImport::Glob {
+                prefix: path,
+                route,
+                ..
+            } => (path, route),
+        };
+        let sources::UsePathRoute::CurrentRealm { band_segments } = route else {
+            continue;
+        };
+        let band = Path {
+            segments: path.segments.into_iter().take(band_segments).collect(),
+        };
+        if !band.segments.is_empty() && !bands.contains(&band) {
+            bands.push(band);
+        }
+    }
+}
+
+pub(super) fn resolve_realm_band_file(root: &FsPath, band: &Path) -> Result<PathBuf, RouteError> {
+    let mut relative = relative_path(&band.segments);
+    relative.set_extension("yu");
+    let candidate = root.join(relative);
+    if candidate.is_file() {
+        return Ok(candidate);
+    }
+    Err(RouteError::RealmBandNotFound {
+        root: root.to_path_buf(),
+        band: band.clone(),
+        candidates: vec![candidate],
+    })
+}
+
 pub(super) fn resolve_module_file(
     current: &FsPath,
     current_module: &Path,

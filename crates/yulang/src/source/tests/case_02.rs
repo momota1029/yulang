@@ -3042,6 +3042,95 @@ fn use_mod_loads_module_file_but_plain_use_does_not() {
 }
 
 #[test]
+fn current_realm_use_loads_band_root_file() {
+    let root = temp_root("realm-use-loads-band");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.yu"),
+        "use realm/helper::value\nmy x = value\n",
+    )
+    .unwrap();
+    fs::write(root.join("helper.yu"), "our value = 1\n").unwrap();
+
+    let files = collect_local_sources(root.join("main.yu")).unwrap();
+    let modules = files
+        .iter()
+        .map(|file| file.module_path.clone())
+        .collect::<Vec<_>>();
+
+    assert_eq!(files.len(), 2);
+    assert!(modules.contains(&Path::default()));
+    assert!(modules.contains(&Path {
+        segments: vec![Name("helper".into())],
+    }));
+}
+
+#[test]
+fn current_band_absolute_use_resolves_from_root_module() {
+    let root = temp_root("band-use-root");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.yu"),
+        "mod helper;\nmod nested;\nmy root = nested::x\n",
+    )
+    .unwrap();
+    fs::write(root.join("helper.yu"), "our value = 1\n").unwrap();
+    fs::write(
+        root.join("nested.yu"),
+        "use band::helper::value\nour x = value\n",
+    )
+    .unwrap();
+
+    let output =
+        build_poly_from_sources(collect_local_sources(root.join("main.yu")).unwrap()).unwrap();
+
+    assert_eq!(output.errors, Vec::<String>::new());
+}
+
+#[test]
+fn missing_current_realm_band_reports_band_not_found() {
+    let root = temp_root("realm-use-missing-band");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(root.join("main.yu"), "use realm/helper::value\n").unwrap();
+
+    let err = collect_local_sources(root.join("main.yu")).unwrap_err();
+
+    assert!(matches!(
+        err,
+        RouteError::RealmBandNotFound { band, .. }
+            if band.segments == vec![Name("helper".into())]
+    ));
+}
+
+#[test]
+fn current_realm_band_cannot_claim_mod_owned_file() {
+    let root = temp_root("realm-use-mod-owned-band");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.yu"),
+        "mod helper;\nuse realm/helper::value\n",
+    )
+    .unwrap();
+    fs::write(root.join("helper.yu"), "our value = 1\n").unwrap();
+
+    let err = collect_local_sources(root.join("main.yu")).unwrap_err();
+
+    assert!(matches!(
+        err,
+        RouteError::DuplicateModuleFile {
+            first_module,
+            second_module,
+            ..
+        } if first_module.segments == vec![Name("helper".into())]
+            && second_module.segments == vec![Name("helper".into())]
+    ));
+}
+
+#[test]
 fn discover_module_loads_uses_lightweight_module_parse() {
     let requests = discover_module_loads(
         &Path::default(),

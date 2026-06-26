@@ -1,7 +1,13 @@
 use super::*;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SourceOwner {
+    module_path: Path,
+    band_path: Path,
+}
+
 pub(super) struct Collector {
-    seen_files: HashMap<PathBuf, Path>,
+    seen_files: HashMap<PathBuf, SourceOwner>,
     module_files: HashMap<Path, PathBuf>,
     files: Vec<CollectedSource>,
 }
@@ -21,6 +27,9 @@ impl Collector {
             Path {
                 segments: vec![Name("std".to_string())],
             },
+            Path {
+                segments: vec![Name("std".to_string())],
+            },
             &mut HashMap::new(),
         )
     }
@@ -35,6 +44,9 @@ impl Collector {
             HashMap::from([(canonicalize_for_dedupe(override_path), source)]);
         self.collect_module_tree_with_source_overrides(
             std_root.join("std.yu"),
+            Path {
+                segments: vec![Name("std".to_string())],
+            },
             Path {
                 segments: vec![Name("std".to_string())],
             },
@@ -69,11 +81,13 @@ impl Collector {
         source: Option<String>,
         implicit_prelude: bool,
     ) -> Result<Vec<CollectedSource>, RouteError> {
-        let mut queue = VecDeque::from([(entry.to_path_buf(), Path::default(), source)]);
-        while let Some((path, module_path, source_override)) = queue.pop_front() {
+        let realm_root = sources::local_realm_root(entry);
+        let root_band = Path::default();
+        let mut queue = VecDeque::from([(entry.to_path_buf(), Path::default(), root_band, source)]);
+        while let Some((path, module_path, band_path, source_override)) = queue.pop_front() {
             let canonical = canonicalize_for_dedupe(&path);
             self.record_module_file(&module_path, &canonical)?;
-            if !self.record_seen_file(&module_path, &canonical)? {
+            if !self.record_seen_file(&module_path, &band_path, &canonical)? {
                 continue;
             }
 
@@ -89,6 +103,7 @@ impl Collector {
             }
 
             let requests = discover_module_loads(&module_path, &source);
+            let current_realm_bands = discover_current_realm_band_loads(&source);
             self.files.push(CollectedSource {
                 path: path.clone(),
                 module_path: module_path.clone(),
@@ -101,7 +116,15 @@ impl Collector {
                     continue;
                 }
                 let child_path = resolve_module_file(&path, &module_path, &request)?;
-                queue.push_back((child_path, requested_module, None));
+                queue.push_back((child_path, requested_module, band_path.clone(), None));
+            }
+
+            for band in current_realm_bands {
+                if self.module_files.contains_key(&band) {
+                    continue;
+                }
+                let band_path = resolve_realm_band_file(&realm_root, &band)?;
+                queue.push_back((band_path, band.clone(), band, None));
             }
         }
         Ok(std::mem::take(&mut self.files))
@@ -111,13 +134,14 @@ impl Collector {
         &mut self,
         entry: PathBuf,
         entry_module_path: Path,
+        entry_band_path: Path,
         source_overrides: &mut HashMap<PathBuf, String>,
     ) -> Result<(), RouteError> {
-        let mut queue = VecDeque::from([(entry, entry_module_path)]);
-        while let Some((path, module_path)) = queue.pop_front() {
+        let mut queue = VecDeque::from([(entry, entry_module_path, entry_band_path)]);
+        while let Some((path, module_path, band_path)) = queue.pop_front() {
             let canonical = canonicalize_for_dedupe(&path);
             self.record_module_file(&module_path, &canonical)?;
-            if !self.record_seen_file(&module_path, &canonical)? {
+            if !self.record_seen_file(&module_path, &band_path, &canonical)? {
                 continue;
             }
 
@@ -141,7 +165,7 @@ impl Collector {
                     continue;
                 }
                 let child_path = resolve_module_file(&path, &module_path, &request)?;
-                queue.push_back((child_path, requested_module));
+                queue.push_back((child_path, requested_module, band_path.clone()));
             }
         }
         Ok(())
@@ -162,17 +186,26 @@ impl Collector {
         })
     }
 
-    fn record_seen_file(&mut self, module: &Path, file: &FsPath) -> Result<bool, RouteError> {
-        let Some(first_module) = self.seen_files.get(file) else {
-            self.seen_files.insert(file.to_path_buf(), module.clone());
+    fn record_seen_file(
+        &mut self,
+        module: &Path,
+        band: &Path,
+        file: &FsPath,
+    ) -> Result<bool, RouteError> {
+        let owner = SourceOwner {
+            module_path: module.clone(),
+            band_path: band.clone(),
+        };
+        let Some(first_owner) = self.seen_files.get(file) else {
+            self.seen_files.insert(file.to_path_buf(), owner);
             return Ok(true);
         };
-        if first_module == module {
+        if first_owner == &owner {
             return Ok(false);
         }
         Err(RouteError::DuplicateModuleFile {
             file: file.to_path_buf(),
-            first_module: first_module.clone(),
+            first_module: first_owner.module_path.clone(),
             second_module: module.clone(),
         })
     }

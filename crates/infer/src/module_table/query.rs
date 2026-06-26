@@ -23,9 +23,13 @@ impl ModuleTable {
     }
     pub(super) fn import_alias(&mut self, module: ModuleId, alias: &AliasDecl) {
         match &alias.import {
-            UseImport::Alias { name, path } => {
-                self.import_op_aliases(module, name, path, alias);
-                let Some(target) = self.import_path_target(module, path, alias.order) else {
+            UseImport::Alias {
+                name, path, route, ..
+            } => {
+                self.import_op_aliases(module, name, path, *route, alias);
+                let Some(target) =
+                    self.import_path_target_from_route(module, path, *route, alias.order)
+                else {
                     return;
                 };
                 if let Some(def) = target.value {
@@ -62,8 +66,9 @@ impl ModuleTable {
                     );
                 }
             }
-            UseImport::Glob { prefix } => {
-                let Some(target) = self.raw_module_path_from(module, &prefix.segments, alias.order)
+            UseImport::Glob { prefix, route, .. } => {
+                let base = self.import_base_module(module, *route);
+                let Some(target) = self.raw_module_path_from(base, &prefix.segments, alias.order)
                 else {
                     return;
                 };
@@ -224,6 +229,7 @@ impl ModuleTable {
         module: ModuleId,
         name: &Name,
         path: &ModulePath,
+        route: sources::UsePathRoute,
         alias: &AliasDecl,
     ) {
         let Some(last) = path.segments.last().cloned() else {
@@ -235,7 +241,9 @@ impl ModuleTable {
                 .segments
                 .last_mut()
                 .expect("op import path should be non-empty") = op_value_name(fixity, &last.0);
-            let Some(target) = self.import_path_target(module, &op_path, alias.order) else {
+            let Some(target) =
+                self.import_path_target_from_route(module, &op_path, route, alias.order)
+            else {
                 continue;
             };
             let Some(def) = target.value else {
@@ -250,6 +258,23 @@ impl ModuleTable {
                     vis: alias.vis,
                 },
             );
+        }
+    }
+    fn import_path_target_from_route(
+        &self,
+        module: ModuleId,
+        path: &ModulePath,
+        route: sources::UsePathRoute,
+        site: ModuleOrder,
+    ) -> Option<ImportPathTarget> {
+        self.import_path_target(self.import_base_module(module, route), path, site)
+    }
+    fn import_base_module(&self, module: ModuleId, route: sources::UsePathRoute) -> ModuleId {
+        match route {
+            sources::UsePathRoute::Relative => module,
+            sources::UsePathRoute::CurrentBand
+            | sources::UsePathRoute::CurrentRealm { .. }
+            | sources::UsePathRoute::SlashQualified { .. } => self.root_id(),
         }
     }
     pub(super) fn import_path_target(

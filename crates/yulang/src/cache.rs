@@ -24,7 +24,7 @@ const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
 const COMPILED_UNIT_CACHE_FORMAT: u32 = 14;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
-const CACHE_SCHEMA_VERSION: u32 = 1;
+const CACHE_SCHEMA_VERSION: u32 = 2;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
 const SOURCE_UNIT_CACHE_SALT: &[u8] = b"yulang/source-unit-cache/v1";
 const MERGED_COMPILED_UNIT_CACHE_SALT: &[u8] = b"yulang/merged-compiled-unit-cache/v1";
@@ -2701,15 +2701,53 @@ fn hash_type_method_receiver(hasher: &mut StableHasher, receiver: infer::TypeMet
 
 fn hash_use_import(hasher: &mut StableHasher, import: &sources::UseImport) {
     match import {
-        sources::UseImport::Alias { name, path } => {
+        sources::UseImport::Alias {
+            name,
+            path,
+            route,
+            version,
+        } => {
             hasher.u8(0);
             hasher.string(&name.0);
             hash_module_path(hasher, path);
+            hash_use_path_route(hasher, *route);
+            hash_optional_string(hasher, version.as_deref());
         }
-        sources::UseImport::Glob { prefix } => {
+        sources::UseImport::Glob {
+            prefix,
+            route,
+            version,
+        } => {
             hasher.u8(1);
             hash_module_path(hasher, prefix);
+            hash_use_path_route(hasher, *route);
+            hash_optional_string(hasher, version.as_deref());
         }
+    }
+}
+
+fn hash_use_path_route(hasher: &mut StableHasher, route: sources::UsePathRoute) {
+    match route {
+        sources::UsePathRoute::Relative => hasher.u8(0),
+        sources::UsePathRoute::CurrentBand => hasher.u8(1),
+        sources::UsePathRoute::CurrentRealm { band_segments } => {
+            hasher.u8(2);
+            hasher.usize(band_segments);
+        }
+        sources::UsePathRoute::SlashQualified { prefix_segments } => {
+            hasher.u8(3);
+            hasher.usize(prefix_segments);
+        }
+    }
+}
+
+fn hash_optional_string(hasher: &mut StableHasher, value: Option<&str>) {
+    match value {
+        Some(value) => {
+            hasher.bool(true);
+            hasher.string(value);
+        }
+        None => hasher.bool(false),
     }
 }
 

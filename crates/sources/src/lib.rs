@@ -34,6 +34,19 @@ pub struct Path {
     pub segments: Vec<Name>,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum UsePathRoute {
+    /// `foo::bar`: resolved inside the current band/module namespace.
+    #[default]
+    Relative,
+    /// `band::foo::bar`: absolute path from the current band root.
+    CurrentBand,
+    /// `realm/foo::bar`: path through another band in the current realm.
+    CurrentRealm { band_segments: usize },
+    /// `remote/realm/band::foo`: slash-qualified path for future source providers.
+    SlashQualified { prefix_segments: usize },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Visibility {
     Pub,
@@ -44,9 +57,22 @@ pub enum Visibility {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UseImport {
     /// `use a::b::c` / `use a::b as c`
-    Alias { name: Name, path: Path },
+    Alias {
+        name: Name,
+        path: Path,
+        #[serde(default)]
+        route: UsePathRoute,
+        #[serde(default)]
+        version: Option<String>,
+    },
     /// `use a::b::*`
-    Glob { prefix: Path },
+    Glob {
+        prefix: Path,
+        #[serde(default)]
+        route: UsePathRoute,
+        #[serde(default)]
+        version: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -384,30 +410,37 @@ pub fn module_load_requests(
 // ── use 抽出（旧 use_decl_imports の最小版。realm/anchor/without は後で）──
 
 pub fn use_imports(node: &SyntaxNode<YulangLanguage>) -> Vec<UseImport> {
-    let mut collector = UseImportCollector::new(Vec::new());
+    let mut collector = UseImportCollector::new(UsePathBuilder::default());
     collector.collect_node(node);
     collector.finish()
 }
 
 struct UseImportCollector {
     imports: Vec<UseImport>,
-    path: Vec<Name>,
+    path: UsePathBuilder,
     base_len: usize,
+    base_pending_separator: Option<UsePathSeparator>,
     alias: Option<Name>,
     after_as: bool,
     paren_depth: usize,
+    skip_tail: bool,
+    recent_group_start: Option<usize>,
 }
 
 impl UseImportCollector {
-    fn new(prefix: Vec<Name>) -> Self {
-        let base_len = prefix.len();
+    fn new(prefix: UsePathBuilder) -> Self {
+        let base_len = prefix.segments.len();
+        let base_pending_separator = prefix.pending_separator;
         Self {
             imports: Vec::new(),
             path: prefix,
             base_len,
+            base_pending_separator,
             alias: None,
             after_as: false,
             paren_depth: 0,
+            skip_tail: false,
+            recent_group_start: None,
         }
     }
 
@@ -436,20 +469,28 @@ impl UseImportCollector {
     fn collect_group(&mut self, group: &SyntaxNode<YulangLanguage>) {
         let mut group_collector = UseImportCollector::new(self.path.clone());
         group_collector.collect_node(group);
+        let start = self.imports.len();
         self.imports.extend(group_collector.finish());
+        if self.imports.len() > start {
+            self.recent_group_start = Some(start);
+        }
         self.reset_item();
     }
 
     fn collect_token(&mut self, kind: SyntaxKind, text: &str) {
+        if self.skip_tail {
+            return;
+        }
         match kind {
             SyntaxKind::As => self.after_as = true,
             SyntaxKind::ParenL => self.paren_depth += 1,
             SyntaxKind::ParenR => self.paren_depth = self.paren_depth.saturating_sub(1),
             SyntaxKind::OpName if text == "*" && self.paren_depth == 0 => {
+                let (prefix, route) = self.path.finish();
                 self.imports.push(UseImport::Glob {
-                    prefix: Path {
-                        segments: self.path.clone(),
-                    },
+                    prefix,
+                    route,
+                    version: None,
                 });
                 self.reset_item();
             }
@@ -457,11 +498,22 @@ impl UseImportCollector {
                 self.alias = Some(Name(text.to_string()));
                 self.after_as = false;
             }
+            SyntaxKind::Ident if text == "with" || text == "without" => {
+                self.push_alias_item();
+                self.reset_item();
+                self.skip_tail = true;
+            }
+            SyntaxKind::Ident if is_use_version_suffix(text) => {
+                self.apply_version(text);
+            }
             SyntaxKind::Ident | SyntaxKind::OpName => {
+                self.recent_group_start = None;
                 self.path.push(Name(text.to_string()));
                 self.after_as = false;
             }
-            // Pub/Our/My/Use/Mod/ColonColon/Slash/Brace/Comma 等は構造トークン。
+            SyntaxKind::Slash => self.path.push_separator(UsePathSeparator::Slash),
+            SyntaxKind::ColonColon => self.path.push_separator(UsePathSeparator::ColonColon),
+            // Pub/Our/My/Use/Mod/Brace/Comma 等は構造トークン。
             _ => {}
         }
     }
@@ -469,20 +521,37 @@ impl UseImportCollector {
     fn finish_item(&mut self) {
         self.push_alias_item();
         self.reset_item();
+        self.recent_group_start = None;
     }
 
     fn push_alias_item(&mut self) {
-        if self.path.len() <= self.base_len {
+        if self.path.segments.len() <= self.base_len {
             return;
         }
-        push_alias_import(&mut self.imports, self.path.clone(), self.alias.clone());
+        push_alias_import(&mut self.imports, &self.path, self.alias.clone());
+    }
+
+    fn apply_version(&mut self, version: &str) {
+        if let Some(start) = self.recent_group_start.take() {
+            for import in &mut self.imports[start..] {
+                set_import_version(import, version);
+            }
+            return;
+        }
+        self.push_alias_item();
+        if let Some(import) = self.imports.last_mut() {
+            set_import_version(import, version);
+        }
+        self.reset_item();
     }
 
     fn reset_item(&mut self) {
         self.path.truncate(self.base_len);
+        self.path.pending_separator = self.base_pending_separator;
         self.alias = None;
         self.after_as = false;
         self.paren_depth = 0;
+        self.skip_tail = false;
     }
 }
 
@@ -554,15 +623,109 @@ fn use_mod_load_name(node: &SyntaxNode<YulangLanguage>) -> Option<Name> {
     None
 }
 
-fn push_alias_import(imports: &mut Vec<UseImport>, path: Vec<Name>, alias: Option<Name>) {
-    let Some(last) = path.last().cloned() else {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UsePathSeparator {
+    Slash,
+    ColonColon,
+}
+
+#[derive(Debug, Clone, Default)]
+struct UsePathBuilder {
+    segments: Vec<Name>,
+    separators: Vec<UsePathSeparator>,
+    pending_separator: Option<UsePathSeparator>,
+}
+
+impl UsePathBuilder {
+    fn push(&mut self, name: Name) {
+        if !self.segments.is_empty() {
+            self.separators.push(
+                self.pending_separator
+                    .take()
+                    .unwrap_or(UsePathSeparator::ColonColon),
+            );
+        }
+        self.segments.push(name);
+    }
+
+    fn push_separator(&mut self, separator: UsePathSeparator) {
+        self.pending_separator = Some(separator);
+    }
+
+    fn truncate(&mut self, len: usize) {
+        self.segments.truncate(len);
+        self.separators.truncate(len.saturating_sub(1));
+        self.pending_separator = None;
+    }
+
+    fn finish(&self) -> (Path, UsePathRoute) {
+        let route = classify_use_path_route(&self.segments, &self.separators);
+        let segments = match route {
+            UsePathRoute::CurrentBand | UsePathRoute::CurrentRealm { .. } => {
+                self.segments.iter().skip(1).cloned().collect()
+            }
+            UsePathRoute::Relative | UsePathRoute::SlashQualified { .. } => self.segments.clone(),
+        };
+        (Path { segments }, route)
+    }
+}
+
+fn classify_use_path_route(segments: &[Name], separators: &[UsePathSeparator]) -> UsePathRoute {
+    let Some(first) = segments.first() else {
+        return UsePathRoute::Relative;
+    };
+    if first.0 == "band" && separators.first() == Some(&UsePathSeparator::ColonColon) {
+        return UsePathRoute::CurrentBand;
+    }
+    if first.0 == "realm" && separators.first() == Some(&UsePathSeparator::Slash) {
+        return UsePathRoute::CurrentRealm {
+            band_segments: count_segments_until_colon_colon(&separators[1..], segments.len() - 1),
+        };
+    }
+    if separators.contains(&UsePathSeparator::Slash) {
+        return UsePathRoute::SlashQualified {
+            prefix_segments: count_segments_until_colon_colon(separators, segments.len()),
+        };
+    }
+    UsePathRoute::Relative
+}
+
+fn count_segments_until_colon_colon(
+    separators: &[UsePathSeparator],
+    segment_count: usize,
+) -> usize {
+    separators
+        .iter()
+        .position(|separator| *separator == UsePathSeparator::ColonColon)
+        .map(|index| index + 1)
+        .unwrap_or(segment_count)
+}
+
+fn push_alias_import(imports: &mut Vec<UseImport>, path: &UsePathBuilder, alias: Option<Name>) {
+    let (path, route) = path.finish();
+    let Some(last) = path.segments.last().cloned() else {
         return;
     };
     let name = alias.unwrap_or(last);
     imports.push(UseImport::Alias {
         name,
-        path: Path { segments: path },
+        path,
+        route,
+        version: None,
     });
+}
+
+fn is_use_version_suffix(text: &str) -> bool {
+    let mut chars = text.chars();
+    matches!(chars.next(), Some('v')) && chars.next().is_some_and(|c| c.is_ascii_digit())
+}
+
+fn set_import_version(import: &mut UseImport, version: &str) {
+    match import {
+        UseImport::Alias { version: slot, .. } | UseImport::Glob { version: slot, .. } => {
+            *slot = Some(version.to_string());
+        }
+    }
 }
 
 // ── op 抽出（旧 syntax_export / op_def_from_header の写経）───────────────────
@@ -839,7 +1002,7 @@ fn initial_op_table(
 fn resolve_use(import: &UseImport, index: &HashMap<Path, usize>) -> Option<usize> {
     let path = match import {
         UseImport::Alias { path, .. } => path,
-        UseImport::Glob { prefix } => prefix,
+        UseImport::Glob { prefix, .. } => prefix,
     };
     let mut segments = path.segments.clone();
     loop {
@@ -946,7 +1109,7 @@ mod tests {
         assert!(
             matches!(
                 &header.uses[0].import,
-                UseImport::Glob { prefix }
+                UseImport::Glob { prefix, .. }
                     if prefix.segments == vec![Name("std".into()), Name("prelude".into())]
             ),
             "first use: {:?}",
@@ -955,7 +1118,7 @@ mod tests {
         assert!(
             matches!(
                 &header.uses[1].import,
-                UseImport::Alias { name, path }
+                UseImport::Alias { name, path, .. }
                     if name == &Name("c".into())
                         && path.segments == vec![Name("a".into()), Name("b".into())]
             ),
@@ -985,7 +1148,7 @@ mod tests {
         assert!(
             matches!(
                 &header.uses[0].import,
-                UseImport::Glob { prefix }
+                UseImport::Glob { prefix, .. }
                     if prefix.segments == vec![Name("math".into())]
             ),
             "use mod should still behave as a normal use import: {:?}",
@@ -999,6 +1162,15 @@ mod tests {
         }
     }
 
+    fn alias(name: &str, segments: &[&str]) -> UseImport {
+        UseImport::Alias {
+            name: Name(name.to_string()),
+            path: path(segments),
+            route: UsePathRoute::Relative,
+            version: None,
+        }
+    }
+
     #[test]
     fn read_header_expands_group_use_imports() {
         let source = "use std::io::{Read, Write}\nmy main = 1\n";
@@ -1009,17 +1181,11 @@ mod tests {
             vec![
                 UseDecl {
                     visibility: Visibility::Our,
-                    import: UseImport::Alias {
-                        name: Name("Read".into()),
-                        path: path(&["std", "io", "Read"]),
-                    },
+                    import: alias("Read", &["std", "io", "Read"]),
                 },
                 UseDecl {
                     visibility: Visibility::Our,
-                    import: UseImport::Alias {
-                        name: Name("Write".into()),
-                        path: path(&["std", "io", "Write"]),
-                    },
+                    import: alias("Write", &["std", "io", "Write"]),
                 },
             ]
         );
@@ -1035,26 +1201,124 @@ mod tests {
             vec![
                 UseDecl {
                     visibility: Visibility::Our,
+                    import: alias("+", &["m", "+"]),
+                },
+                UseDecl {
+                    visibility: Visibility::Our,
+                    import: alias("id", &["m", "id"]),
+                },
+                UseDecl {
+                    visibility: Visibility::Our,
+                    import: alias("o", &["m", "other"]),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn read_header_preserves_current_band_route() {
+        let header = read_header("use band::path::to::func\nmy main = 1\n");
+
+        assert_eq!(
+            header.uses,
+            vec![UseDecl {
+                visibility: Visibility::Our,
+                import: UseImport::Alias {
+                    name: Name("func".into()),
+                    path: path(&["path", "to", "func"]),
+                    route: UsePathRoute::CurrentBand,
+                    version: None,
+                },
+            }]
+        );
+    }
+
+    #[test]
+    fn read_header_preserves_current_realm_band_route() {
+        let header = read_header("use realm/path/to/band::foo::bar as item v2\nmy main = 1\n");
+
+        assert_eq!(
+            header.uses,
+            vec![UseDecl {
+                visibility: Visibility::Our,
+                import: UseImport::Alias {
+                    name: Name("item".into()),
+                    path: path(&["path", "to", "band", "foo", "bar"]),
+                    route: UsePathRoute::CurrentRealm { band_segments: 3 },
+                    version: Some("v2".into()),
+                },
+            }]
+        );
+    }
+
+    #[test]
+    fn read_header_group_version_applies_to_group_items() {
+        let header = read_header("use theme/{colors as theme1, fonts} v2\nmy main = 1\n");
+
+        assert_eq!(
+            header.uses,
+            vec![
+                UseDecl {
+                    visibility: Visibility::Our,
                     import: UseImport::Alias {
-                        name: Name("+".into()),
-                        path: path(&["m", "+"]),
+                        name: Name("theme1".into()),
+                        path: path(&["theme", "colors"]),
+                        route: UsePathRoute::SlashQualified { prefix_segments: 2 },
+                        version: Some("v2".into()),
                     },
                 },
                 UseDecl {
                     visibility: Visibility::Our,
                     import: UseImport::Alias {
-                        name: Name("id".into()),
-                        path: path(&["m", "id"]),
-                    },
-                },
-                UseDecl {
-                    visibility: Visibility::Our,
-                    import: UseImport::Alias {
-                        name: Name("o".into()),
-                        path: path(&["m", "other"]),
+                        name: Name("fonts".into()),
+                        path: path(&["theme", "fonts"]),
+                        route: UsePathRoute::SlashQualified { prefix_segments: 2 },
+                        version: Some("v2".into()),
                     },
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn read_header_group_version_does_not_leak_to_following_item() {
+        let header = read_header("use {theme::{colors}, fonts v2}\nmy main = 1\n");
+
+        assert_eq!(
+            header.uses,
+            vec![
+                UseDecl {
+                    visibility: Visibility::Our,
+                    import: alias("colors", &["theme", "colors"]),
+                },
+                UseDecl {
+                    visibility: Visibility::Our,
+                    import: UseImport::Alias {
+                        name: Name("fonts".into()),
+                        path: path(&["fonts"]),
+                        route: UsePathRoute::Relative,
+                        version: Some("v2".into()),
+                    },
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn read_header_with_anchor_does_not_pollute_import_path() {
+        let header = read_header("use ui/widget::a with program::ui\nmy main = 1\n");
+
+        assert_eq!(
+            header.uses,
+            vec![UseDecl {
+                visibility: Visibility::Our,
+                import: UseImport::Alias {
+                    name: Name("a".into()),
+                    path: path(&["ui", "widget", "a"]),
+                    route: UsePathRoute::SlashQualified { prefix_segments: 2 },
+                    version: None,
+                },
+            }]
         );
     }
 
