@@ -46,6 +46,94 @@ pub struct StdSourceOptions {
     pub std_root: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceCollectionCache {
+    artifact_cache: crate::cache::ArtifactCache,
+}
+
+impl SourceCollectionCache {
+    pub fn new(artifact_cache: crate::cache::ArtifactCache) -> Self {
+        Self { artifact_cache }
+    }
+
+    fn cached_current_realm_band_file(
+        &self,
+        source_file: &CollectedSource,
+        band: &Path,
+        expected_path: &FsPath,
+    ) -> Option<(PathBuf, String)> {
+        let source_realm = sources::local_realm_id(&source_file.path);
+        for request in &source_file.resolution_imports {
+            if crate::cache::current_realm_import_band_path(request).as_ref() != Some(band) {
+                continue;
+            }
+            let key = crate::cache::realm_resolution_cache_key(source_file, request);
+            let Ok(Some(artifact)) = self
+                .artifact_cache
+                .read_realm_resolution_artifact(&source_realm, key)
+            else {
+                continue;
+            };
+            let Some(path) = checked_current_realm_resolution_path(
+                &source_realm,
+                band,
+                expected_path,
+                &artifact,
+            ) else {
+                continue;
+            };
+            if let Some(source) = cached_target_source_if_matches(&path, band, &artifact.target) {
+                return Some((path, source));
+            }
+        }
+        None
+    }
+}
+
+fn checked_current_realm_resolution_path(
+    source_realm: &sources::ResolvedRealmId,
+    band: &Path,
+    expected_path: &FsPath,
+    artifact: &crate::cache::CachedRealmResolutionArtifact,
+) -> Option<PathBuf> {
+    if &artifact.source_realm != source_realm {
+        return None;
+    }
+    if &artifact.target.realm != source_realm {
+        return None;
+    }
+    if &artifact.target.band_path != band || &artifact.target.module_path != band {
+        return None;
+    }
+
+    let path = PathBuf::from(&artifact.target.source_path);
+    if canonicalize_for_dedupe(&path) != canonicalize_for_dedupe(expected_path) {
+        return None;
+    }
+    Some(path)
+}
+
+fn cached_target_source_if_matches(
+    path: &FsPath,
+    module_path: &Path,
+    target: &crate::cache::CachedRealmResolutionTarget,
+) -> Option<String> {
+    let Ok(source) = fs::read_to_string(path) else {
+        return None;
+    };
+    if source.len() != target.source_len {
+        return None;
+    }
+    let metadata = discover_source_header_metadata(module_path, &source);
+    let file = CollectedSource::with_resolution_imports(
+        path.to_path_buf(),
+        module_path.clone(),
+        source,
+        metadata.resolution_imports,
+    );
+    (crate::cache::source_file_hash(&file) == target.source_hash).then_some(file.source)
+}
+
 /// entry file から local module file を読み、1つの module tree として poly dump を返す。
 pub fn dump_poly_from_entry(entry: impl AsRef<FsPath>) -> Result<DumpPolyOutput, RouteError> {
     dump_poly_from_sources(collect_local_sources(entry)?, DumpPolyKind::Compact)
@@ -675,6 +763,13 @@ pub fn collect_local_sources(
     Collector::new().collect_entry(entry.as_ref(), false)
 }
 
+pub fn collect_local_sources_with_cache(
+    entry: impl AsRef<FsPath>,
+    cache: SourceCollectionCache,
+) -> Result<Vec<CollectedSource>, RouteError> {
+    Collector::new_with_cache(Some(cache)).collect_entry(entry.as_ref(), false)
+}
+
 pub fn collect_local_source_text(
     entry: impl AsRef<FsPath>,
     source: String,
@@ -693,11 +788,19 @@ pub fn collect_local_sources_with_std_options(
     entry: impl AsRef<FsPath>,
     options: &StdSourceOptions,
 ) -> Result<Vec<CollectedSource>, RouteError> {
+    collect_local_sources_with_std_options_and_cache(entry, options, None)
+}
+
+pub fn collect_local_sources_with_std_options_and_cache(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+    cache: Option<SourceCollectionCache>,
+) -> Result<Vec<CollectedSource>, RouteError> {
     let entry = entry.as_ref();
     let base = entry.parent().unwrap_or_else(|| FsPath::new("."));
     let std_root = resolve_std_root(base, options)?;
 
-    let mut collector = Collector::new();
+    let mut collector = Collector::new_with_cache(cache);
     collector.collect_std_root(&std_root)?;
     collector.collect_entry(entry, true)
 }

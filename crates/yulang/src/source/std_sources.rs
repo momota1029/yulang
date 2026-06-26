@@ -473,9 +473,7 @@ fn collect_source_resolution_imports_from_use(
 }
 
 pub(super) fn resolve_realm_band_file(root: &FsPath, band: &Path) -> Result<PathBuf, RouteError> {
-    let mut relative = relative_path(&band.segments);
-    relative.set_extension("yu");
-    let candidate = root.join(relative);
+    let candidate = realm_band_file_candidate(root, band);
     if candidate.is_file() {
         return Ok(candidate);
     }
@@ -484,6 +482,12 @@ pub(super) fn resolve_realm_band_file(root: &FsPath, band: &Path) -> Result<Path
         band: band.clone(),
         candidates: vec![candidate],
     })
+}
+
+pub(super) fn realm_band_file_candidate(root: &FsPath, band: &Path) -> PathBuf {
+    let mut relative = relative_path(&band.segments);
+    relative.set_extension("yu");
+    root.join(relative)
 }
 
 pub(super) fn resolve_module_file(

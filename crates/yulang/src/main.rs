@@ -55,13 +55,13 @@ fn main() {
         }
         Some("dump-mono") => {
             let path = require_one_path(&program, args);
-            let files = run_route_to_value(yulang::collect_local_sources(path));
+            let files = collect_bare_sources_or_exit(&path, &options);
             let output = dump_mono_with_optional_cache(files, options.use_cache);
             print_dump_mono_output(&output);
         }
         Some("run-mono") => {
             let path = require_one_path(&program, args);
-            let files = run_route_to_value(yulang::collect_local_sources(path));
+            let files = collect_bare_sources_or_exit(&path, &options);
             let output = run_mono_with_optional_cache(files, options.use_cache);
             print_run_mono_output(&output);
         }
@@ -73,41 +73,25 @@ fn main() {
         }
         Some("dump-poly-std") => {
             let path = require_one_path(&program, args);
-            let source_options = options.std_source_options();
-            let files = run_route_to_value(yulang::collect_local_sources_with_std_options(
-                path,
-                &source_options,
-            ));
+            let files = collect_std_sources_or_exit(&path, &options);
             let output = dump_poly_with_optional_cache(files, false, options.use_cache);
             print_dump_poly_output(&output);
         }
         Some("dump-mono-std") => {
             let path = require_one_path(&program, args);
-            let source_options = options.std_source_options();
-            let files = run_route_to_value(yulang::collect_local_sources_with_std_options(
-                path,
-                &source_options,
-            ));
+            let files = collect_std_sources_or_exit(&path, &options);
             let output = dump_mono_with_optional_cache(files, options.use_cache);
             print_dump_mono_output(&output);
         }
         Some("run-mono-std") => {
             let path = require_one_path(&program, args);
-            let source_options = options.std_source_options();
-            let files = run_route_to_value(yulang::collect_local_sources_with_std_options(
-                path,
-                &source_options,
-            ));
+            let files = collect_std_sources_or_exit(&path, &options);
             let output = run_mono_with_optional_cache(files, options.use_cache);
             print_run_mono_output(&output);
         }
         Some("run-control-std") => {
             let path = require_one_path(&program, args);
-            let source_options = options.std_source_options();
-            let files = run_route_to_value(yulang::collect_local_sources_with_std_options(
-                path,
-                &source_options,
-            ));
+            let files = collect_std_sources_or_exit(&path, &options);
             let build = build_control_with_optional_cache(files, options.use_cache);
             let output = run_built_control_for_cli(build);
             print_cli_control_run_output(&output);
@@ -146,11 +130,7 @@ fn main() {
         }
         Some("dump-poly-std-raw") => {
             let path = require_one_path(&program, args);
-            let source_options = options.std_source_options();
-            let files = run_route_to_value(yulang::collect_local_sources_with_std_options(
-                path,
-                &source_options,
-            ));
+            let files = collect_std_sources_or_exit(&path, &options);
             let output = dump_poly_with_optional_cache(files, true, options.use_cache);
             print_dump_poly_output(&output);
         }
@@ -408,14 +388,40 @@ fn collect_control_sources_or_exit(
     options: &GlobalOptions,
 ) -> Vec<yulang::CollectedSource> {
     if options.no_prelude {
-        return run_route_to_value(yulang::collect_local_sources(path));
+        return collect_bare_sources_or_exit(path, options);
     }
 
+    collect_std_sources_or_exit(path, options)
+}
+
+fn collect_bare_sources_or_exit(
+    path: &PathBuf,
+    options: &GlobalOptions,
+) -> Vec<yulang::CollectedSource> {
+    match source_collection_cache(options) {
+        Some(cache) => run_route_to_value(yulang::collect_local_sources_with_cache(path, cache)),
+        None => run_route_to_value(yulang::collect_local_sources(path)),
+    }
+}
+
+fn collect_std_sources_or_exit(
+    path: &PathBuf,
+    options: &GlobalOptions,
+) -> Vec<yulang::CollectedSource> {
     let source_options = options.std_source_options();
-    run_route_to_value(yulang::collect_local_sources_with_std_options(
+    run_route_to_value(yulang::collect_local_sources_with_std_options_and_cache(
         path,
         &source_options,
+        source_collection_cache(options),
     ))
+}
+
+fn source_collection_cache(options: &GlobalOptions) -> Option<yulang::SourceCollectionCache> {
+    options.use_cache.then(|| {
+        yulang::SourceCollectionCache::new(yulang::cache::ArtifactCache::new(
+            yulang::stdlib::default_user_cache_root(),
+        ))
+    })
 }
 
 fn build_control_with_optional_cache(

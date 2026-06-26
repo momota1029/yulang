@@ -41,6 +41,46 @@ fn alias_import(name: &str, path: &[&str], route: sources::UsePathRoute) -> sour
     }
 }
 
+fn write_current_realm_resolution_cache_entry(
+    cache_root: &FsPath,
+    main_path: &FsPath,
+    main_source: &str,
+    request: sources::UseImport,
+    target_path: &FsPath,
+    target_source_for_hash: &str,
+) {
+    let cache = crate::cache::ArtifactCache::new(cache_root);
+    let source_realm = sources::local_realm_id(main_path);
+    let main = CollectedSource::with_resolution_imports(
+        main_path.to_path_buf(),
+        Path::default(),
+        main_source.to_string(),
+        vec![request.clone()],
+    );
+    let target = CollectedSource::new(
+        target_path.to_path_buf(),
+        path_from_segments(&["helper"]),
+        target_source_for_hash.to_string(),
+    );
+    let key = crate::cache::realm_resolution_cache_key(&main, &request);
+    let artifact = crate::cache::CachedRealmResolutionArtifact {
+        source_realm: source_realm.clone(),
+        request,
+        target: crate::cache::CachedRealmResolutionTarget {
+            realm: source_realm.clone(),
+            band_path: path_from_segments(&["helper"]),
+            module_path: path_from_segments(&["helper"]),
+            source_path: target_path.to_string_lossy().into_owned(),
+            source_len: target_source_for_hash.len(),
+            source_hash: crate::cache::source_file_hash(&target),
+        },
+    };
+
+    cache
+        .write_realm_resolution_artifact(&source_realm, key, &artifact)
+        .unwrap();
+}
+
 #[test]
 fn dump_mono_without_std_specializes_method_select_result() {
     let root = temp_root("dump-mono-method-select-result");
@@ -3076,6 +3116,89 @@ fn current_realm_use_loads_band_root_file() {
     assert!(modules.contains(&Path {
         segments: vec![Name("helper".into())],
     }));
+}
+
+#[test]
+fn current_realm_cache_does_not_redirect_missing_local_band() {
+    let root = temp_root("realm-cache-no-redirect");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let main_path = root.join("main.yu");
+    let cached_path = root.join("cached-helper.yu");
+    let cache_root = root.join("cache-root");
+    let request = alias_import(
+        "value",
+        &["helper", "value"],
+        sources::UsePathRoute::CurrentRealm { band_segments: 1 },
+    );
+    let main_source = "use realm/helper::value\nvalue\n";
+    let cached_source = "pub value = 7\n";
+    fs::write(&main_path, main_source).unwrap();
+    fs::write(&cached_path, cached_source).unwrap();
+
+    write_current_realm_resolution_cache_entry(
+        &cache_root,
+        &main_path,
+        main_source,
+        request,
+        &cached_path,
+        cached_source,
+    );
+
+    let err = collect_local_sources_with_cache(
+        &main_path,
+        SourceCollectionCache::new(crate::cache::ArtifactCache::new(cache_root)),
+    )
+    .unwrap_err();
+
+    assert!(matches!(
+        err,
+        RouteError::RealmBandNotFound { band, .. }
+            if band.segments == vec![Name("helper".into())]
+    ));
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn current_realm_cache_stale_entry_falls_back_to_local_band() {
+    let root = temp_root("realm-cache-stale-fallback");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let main_path = root.join("main.yu");
+    let helper_path = root.join("helper.yu");
+    let cache_root = root.join("cache-root");
+    let request = alias_import(
+        "value",
+        &["helper", "value"],
+        sources::UsePathRoute::CurrentRealm { band_segments: 1 },
+    );
+    let main_source = "use realm/helper::value\nvalue\n";
+    fs::write(&main_path, main_source).unwrap();
+    fs::write(&helper_path, "pub value = 8\n").unwrap();
+
+    write_current_realm_resolution_cache_entry(
+        &cache_root,
+        &main_path,
+        main_source,
+        request,
+        &helper_path,
+        "pub value = 7\n",
+    );
+
+    let files = collect_local_sources_with_cache(
+        &main_path,
+        SourceCollectionCache::new(crate::cache::ArtifactCache::new(cache_root)),
+    )
+    .unwrap();
+    let helper = files
+        .iter()
+        .find(|file| file.module_path == path_from_segments(&["helper"]))
+        .unwrap();
+
+    assert_eq!(helper.source, "pub value = 8\n");
+
+    let _ = fs::remove_dir_all(&root);
 }
 
 #[test]

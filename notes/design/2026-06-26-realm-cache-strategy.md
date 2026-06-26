@@ -67,12 +67,14 @@ Current implementation status:
 - cached CLI builds populate exact current-realm `realm/...::...`
   resolution entries after source collection. These entries are validated by
   target source fingerprint before being left unchanged.
+- cached CLI source collection can use those current-realm entries as a checked
+  lookup. For local current-realm bands, the cached path must match the
+  deterministic `<realm>/<band>.yu` candidate and the target fingerprint; stale
+  or redirected entries fall back to ordinary filesystem resolution.
 
 Next implementation step:
 
 - once exact target identity is available, hash it in addition to the request;
-- use the resolution cache as a checked lookup only after source collection has
-  an explicit cache policy and stale-entry fallback path;
 - extend the same mechanism to slash-qualified global realm providers.
 
 ### Accumulate Generated Mono In The Realm Cache

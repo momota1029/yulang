@@ -597,7 +597,7 @@ fn current_realm_resolution_artifact(
     }
 }
 
-fn current_realm_import_band_path(import: &sources::UseImport) -> Option<sources::Path> {
+pub(crate) fn current_realm_import_band_path(import: &sources::UseImport) -> Option<sources::Path> {
     let (path, route) = match import {
         sources::UseImport::Alias { path, route, .. } => (path, *route),
         sources::UseImport::Glob { prefix, route, .. } => (prefix, *route),
@@ -1499,7 +1499,7 @@ fn compiled_unit_manifest(
     }
 }
 
-fn source_file_hash(file: &CollectedSource) -> u64 {
+pub(crate) fn source_file_hash(file: &CollectedSource) -> u64 {
     let mut hasher = StableHasher::new();
     hasher.bytes(SOURCE_FILE_HASH_SALT);
     hasher.string(&file.path.as_os_str().to_string_lossy());

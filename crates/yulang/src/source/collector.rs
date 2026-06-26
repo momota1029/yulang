@@ -7,6 +7,7 @@ struct SourceOwner {
 }
 
 pub(super) struct Collector {
+    collection_cache: Option<SourceCollectionCache>,
     seen_files: HashMap<PathBuf, SourceOwner>,
     module_files: HashMap<Path, PathBuf>,
     files: Vec<CollectedSource>,
@@ -14,7 +15,12 @@ pub(super) struct Collector {
 
 impl Collector {
     pub(super) fn new() -> Self {
+        Self::new_with_cache(None)
+    }
+
+    pub(super) fn new_with_cache(collection_cache: Option<SourceCollectionCache>) -> Self {
         Self {
+            collection_cache,
             seen_files: HashMap::new(),
             module_files: HashMap::new(),
             files: Vec::new(),
@@ -103,12 +109,13 @@ impl Collector {
             }
 
             let metadata = discover_source_header_metadata(&module_path, &source);
-            self.files.push(CollectedSource::with_resolution_imports(
+            let collected_source = CollectedSource::with_resolution_imports(
                 path.clone(),
                 module_path.clone(),
                 source,
                 metadata.resolution_imports,
-            ));
+            );
+            self.files.push(collected_source.clone());
 
             for request in metadata.module_loads {
                 let requested_module = request.module_path();
@@ -123,8 +130,9 @@ impl Collector {
                 if self.module_files.contains_key(&band) {
                     continue;
                 }
-                let band_path = resolve_realm_band_file(&realm_root, &band)?;
-                queue.push_back((band_path, band.clone(), band, None));
+                let (band_file, source_override) =
+                    self.resolve_current_realm_band_file(&realm_root, &collected_source, &band)?;
+                queue.push_back((band_file, band.clone(), band, source_override));
             }
         }
         Ok(std::mem::take(&mut self.files))
@@ -209,5 +217,22 @@ impl Collector {
             first_module: first_owner.module_path.clone(),
             second_module: module.clone(),
         })
+    }
+
+    fn resolve_current_realm_band_file(
+        &self,
+        realm_root: &FsPath,
+        source_file: &CollectedSource,
+        band: &Path,
+    ) -> Result<(PathBuf, Option<String>), RouteError> {
+        let candidate = realm_band_file_candidate(realm_root, band);
+        if let Some(cache) = &self.collection_cache {
+            if let Some((path, source)) =
+                cache.cached_current_realm_band_file(source_file, band, &candidate)
+            {
+                return Ok((path, Some(source)));
+            }
+        }
+        resolve_realm_band_file(realm_root, band).map(|path| (path, None))
     }
 }
