@@ -236,6 +236,69 @@ YULANG
   fi
 }
 
+run_effect_contract_smoke() {
+  case_dir="$tmp/effect-contract"
+  cache_root="$tmp/effect-contract-cache"
+  main="$case_dir/main.yu"
+  deps="$case_dir/deps.yu"
+  mkdir -p "$cache_root" "$case_dir"
+
+  cat >"$main" <<'YULANG'
+mod deps;
+pub use deps::*
+our handle(action: [signal] _) = catch action:
+  signal::ping(), k -> k 5
+  v -> v
+handle: use_it \() -> signal::ping()
+YULANG
+
+  cat >"$deps" <<'YULANG'
+pub act signal:
+  pub ping: () -> int
+pub use_it(f: () -> [signal] int) = f ()
+YULANG
+
+  first_output="$(
+    YULANG_CACHE_DIR="$cache_root" \
+      run "$bin" --no-prelude run --print-roots "$main"
+  )"
+  if [[ "$first_output" != "run roots [5]" ]]; then
+    echo "source unit cache smoke: unexpected effect contract warmup output" >&2
+    echo "$first_output" >&2
+    exit 1
+  fi
+
+  cat >"$main" <<'YULANG'
+mod deps;
+pub use deps::*
+our handle(action: [signal] _) = catch action:
+  signal::ping(), k -> k 7
+  v -> v
+my keep v = v
+keep (handle: use_it \() -> signal::ping())
+YULANG
+
+  rm -rf "$cache_root/artifacts/control-vm" "$cache_root/artifacts/poly"
+  second_log="$tmp/effect-contract-second.stderr"
+  second_output="$(
+    YULANG_CACHE_DIR="$cache_root" \
+      run "$bin" --no-prelude --runtime-phase-timings run --print-roots "$main" \
+        2>"$second_log"
+  )"
+  if [[ "$second_output" != "run roots [7]" ]]; then
+    echo "source unit cache smoke: unexpected effect contract cached output" >&2
+    echo "$second_output" >&2
+    exit 1
+  fi
+
+  cat "$second_log"
+  if ! rg -q 'run\.cache: source-unit-prefix-hit' "$second_log"; then
+    echo "source unit cache smoke: expected source-unit prefix hit for effect contract dependency" >&2
+    cat "$second_log" >&2
+    exit 1
+  fi
+}
+
 run_role_impl_smoke() {
   case_dir="$tmp/role-impl"
   cache_root="$tmp/role-impl-cache"
@@ -297,6 +360,7 @@ YULANG
 run_independent_merge_smoke
 run_dependency_closure_smoke
 run_struct_cast_smoke
+run_effect_contract_smoke
 run_role_impl_smoke
 
 echo "source unit cache smoke ok: $bin"

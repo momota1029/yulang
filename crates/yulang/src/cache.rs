@@ -3789,6 +3789,159 @@ mod tests {
     }
 
     #[test]
+    fn compiled_unit_reachable_external_refs_key_effect_operations() {
+        let prefix = compiled_unit_prefix_from_sources(vec![
+            source("prefix.yu", &[], "mod deps;\npub use deps::*\n"),
+            source(
+                "deps.yu",
+                &["deps"],
+                "pub act signal:\n  pub ping: () -> int\n",
+            ),
+        ]);
+        let (artifact, lowered) = dependent_artifact_with_prefix(
+            &prefix,
+            concat!(
+                "our handle(action: [signal] _) = catch action:\n",
+                "  signal::ping(), k -> k 5\n",
+                "  v -> v\n",
+                "pub handled = handle: signal::ping()\n",
+            ),
+        );
+
+        assert_eq!(lowered.errors, Vec::new());
+        let op_def = artifact
+            .external_runtime
+            .values
+            .iter()
+            .find(|value| value.value_path == vec!["deps", "signal", "ping"])
+            .map(|value| value.def)
+            .expect("effect operation should be externally keyed by value path");
+        assert!(
+            artifact
+                .runtime
+                .arena
+                .effect_operations
+                .contains_key(&op_def)
+        );
+        let external_defs =
+            compiled_unit_complete_external_runtime_def_pairs(&artifact, prefix.runtime()).unwrap();
+        assert!(external_defs.iter().any(|(source, _)| *source == op_def));
+        let extended = prefix
+            .extend_with_compiled_unit_surfaces_and_external_defs(
+                &artifact.namespace,
+                &artifact.lowering,
+                &artifact.runtime,
+                external_defs,
+            )
+            .expect("effect-operation suffix artifact should extend the prefix");
+        assert!(
+            extended
+                .runtime()
+                .value_defs()
+                .any(|value| value.value_path == vec!["handled".to_string()])
+        );
+    }
+
+    #[test]
+    fn compiled_unit_reachable_external_refs_key_constructors() {
+        let prefix = compiled_unit_prefix_from_sources(vec![
+            source("prefix.yu", &[], "mod deps;\npub use deps::*\n"),
+            source("deps.yu", &["deps"], "pub struct Box { value: int }\n"),
+        ]);
+        let (artifact, lowered) =
+            dependent_artifact_with_prefix(&prefix, "pub made = Box { value: 1 }\n");
+
+        assert_eq!(lowered.errors, Vec::new());
+        let constructor_def = artifact
+            .external_runtime
+            .values
+            .iter()
+            .find(|value| value.value_path == vec!["deps", "Box"])
+            .map(|value| value.def)
+            .expect("constructor should be externally keyed by value path");
+        assert!(
+            artifact
+                .runtime
+                .arena
+                .constructors
+                .contains_key(&constructor_def)
+        );
+        let external_defs =
+            compiled_unit_complete_external_runtime_def_pairs(&artifact, prefix.runtime()).unwrap();
+        assert!(
+            external_defs
+                .iter()
+                .any(|(source, _)| *source == constructor_def)
+        );
+        let extended = prefix
+            .extend_with_compiled_unit_surfaces_and_external_defs(
+                &artifact.namespace,
+                &artifact.lowering,
+                &artifact.runtime,
+                external_defs,
+            )
+            .expect("constructor suffix artifact should extend the prefix");
+        assert!(
+            extended
+                .runtime()
+                .value_defs()
+                .any(|value| value.value_path == vec!["made".to_string()])
+        );
+    }
+
+    #[test]
+    fn compiled_unit_reachable_external_refs_reuse_arg_effect_contracts() {
+        let prefix = compiled_unit_prefix_from_sources(vec![
+            source("prefix.yu", &[], "mod deps;\npub use deps::*\n"),
+            source(
+                "deps.yu",
+                &["deps"],
+                concat!(
+                    "pub act signal:\n",
+                    "  pub ping: () -> int\n",
+                    "pub use_it(f: () -> [signal] int) = f ()\n",
+                ),
+            ),
+        ]);
+        let (artifact, lowered) = dependent_artifact_with_prefix(
+            &prefix,
+            concat!(
+                "our handle(action: [signal] _) = catch action:\n",
+                "  signal::ping(), k -> k 5\n",
+                "  v -> v\n",
+                "pub handled = handle: use_it \\() -> signal::ping()\n",
+            ),
+        );
+
+        assert_eq!(lowered.errors, Vec::new());
+        assert!(
+            artifact
+                .runtime
+                .arena
+                .arg_effect_contracts
+                .keys()
+                .any(|def| artifact.external_runtime.defs.contains(def)),
+            "prefix callback contract metadata should stay attached to an imported prefix def"
+        );
+        let external_defs =
+            compiled_unit_complete_external_runtime_def_pairs(&artifact, prefix.runtime()).unwrap();
+        let extended = prefix
+            .extend_with_compiled_unit_surfaces_and_external_defs(
+                &artifact.namespace,
+                &artifact.lowering,
+                &artifact.runtime,
+                external_defs,
+            )
+            .expect("arg-effect-contract suffix artifact should extend the prefix");
+        assert!(
+            extended
+                .runtime()
+                .value_defs()
+                .any(|value| value.value_path == vec!["handled".to_string()])
+        );
+    }
+
+    #[test]
     fn compiled_unit_reachable_external_refs_key_type_field_methods() {
         let prefix = compiled_unit_prefix_from_sources(vec![
             source("prefix.yu", &[], "mod deps;\npub use deps::*\n"),
