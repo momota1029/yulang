@@ -653,9 +653,7 @@ pub fn compiled_unit_complete_external_runtime_def_pairs(
         .iter()
         .map(|(source, _)| *source)
         .collect::<HashSet<_>>();
-    let mut unkeyed = artifact
-        .runtime
-        .required_external_defs_for_reachable_import(artifact.external_runtime.defs.iter().copied())
+    let mut unkeyed = compiled_unit_required_external_defs_for_import(artifact)
         .into_iter()
         .filter(|def| !keyed.contains(def))
         .collect::<Vec<_>>();
@@ -665,6 +663,30 @@ pub fn compiled_unit_complete_external_runtime_def_pairs(
         return Err(CompiledUnitExternalRuntimeDefMapError::UnkeyedExternalDefs { defs: unkeyed });
     }
     Ok(pairs)
+}
+
+fn compiled_unit_required_external_defs_for_import(
+    artifact: &CachedCompiledUnitArtifact,
+) -> Vec<poly::expr::DefId> {
+    let external_defs = artifact
+        .external_runtime
+        .defs
+        .iter()
+        .copied()
+        .collect::<HashSet<_>>();
+    let mut required = artifact
+        .runtime
+        .required_external_defs_for_reachable_import(external_defs.iter().copied());
+    required.extend(
+        artifact
+            .lowering
+            .required_runtime_defs()
+            .into_iter()
+            .filter(|def| external_defs.contains(def)),
+    );
+    required.sort_by_key(|def| def.0);
+    required.dedup();
+    required
 }
 
 fn insert_external_runtime_def_pair(
@@ -3428,39 +3450,9 @@ mod tests {
             source("prefix.yu", &[], "mod deps;\npub use deps::*\n"),
             source("deps.yu", &["deps"], "pub id x = x\n"),
         ];
-        let prefix_loaded = sources::load(collected_to_source_files(prefix_files));
-        let prefix_lowering = infer::lowering::lower_loaded_files(&prefix_loaded).unwrap();
-        let prefix_namespace =
-            infer::CompiledNamespaceSurface::from_module_table(&prefix_lowering.modules);
-        let prefix_lowering_surface = infer::CompiledLoweringSurface::from_module_table(
-            &prefix_lowering.modules,
-            &prefix_namespace,
-        );
-        let prefix_runtime = infer::CompiledRuntimeSurface::from_lowering_with_namespace(
-            &prefix_lowering,
-            &prefix_namespace,
-        );
-        let prefix = infer::lowering::BodyLoweringPrefix::from_compiled_unit_surfaces(
-            &prefix_namespace,
-            &prefix_lowering_surface,
-            &prefix_runtime,
-        )
-        .unwrap();
-        let suffix_files = vec![source("main.yu", &[], "pub y = id 1\n")];
-        let suffix_loaded = sources::load(collected_to_source_files(suffix_files.clone()));
-        let suffix_root = suffix_loaded.into_iter().next().unwrap();
-        let lowered =
-            infer::lowering::lower_root_loaded_file_with_prefix(&prefix, &suffix_root).unwrap();
-        let syntax =
-            sources::CompiledSyntaxSurface::from_loaded_files(std::slice::from_ref(&suffix_root));
-        let key = source_cache_key(&suffix_files);
-        let artifact = compiled_unit_artifact_from_lowering_with_syntax_and_key(
-            &suffix_files,
-            syntax,
-            &lowered,
-            Vec::new(),
-            key,
-        );
+        let prefix = compiled_unit_prefix_from_sources(prefix_files);
+        let (artifact, lowered) = dependent_artifact_with_prefix(&prefix, "pub y = id 1\n");
+        assert_eq!(lowered.errors, Vec::new());
         let source_id = artifact
             .external_runtime
             .values
@@ -3546,6 +3538,122 @@ mod tests {
             error,
             CompiledUnitExternalRuntimeDefMapError::UnkeyedExternalDefs { defs }
                 if defs == vec![source_id]
+        ));
+    }
+
+    #[test]
+    fn compiled_unit_reachable_external_refs_cover_dependency_metadata() {
+        let prefix = compiled_unit_prefix_from_sources(vec![
+            source("prefix.yu", &[], "mod deps;\npub use deps::*\n"),
+            source(
+                "deps.yu",
+                &["deps"],
+                concat!(
+                    "pub act signal:\n",
+                    "  pub ping: () -> int\n",
+                    "pub role Display 'a:\n",
+                    "  pub x.display: int\n",
+                    "pub id x = x\n",
+                ),
+            ),
+        ]);
+        let (artifact, lowered) = dependent_artifact_with_prefix(
+            &prefix,
+            concat!(
+                "pub handled = catch signal::ping():\n",
+                "    signal::ping(), k -> k 1\n",
+                "    v -> v\n",
+                "impl int: Display:\n",
+                "  pub x.display = id x\n",
+                "id 2\n",
+            ),
+        );
+
+        assert_eq!(lowered.errors, Vec::new());
+        assert!(!artifact.runtime.arena.root_exprs.is_empty());
+        let external_defs =
+            compiled_unit_complete_external_runtime_def_pairs(&artifact, prefix.runtime()).unwrap();
+        let required = compiled_unit_required_external_defs_for_import(&artifact);
+        assert!(required.len() >= 3);
+        assert!(
+            required
+                .iter()
+                .all(|required| external_defs.iter().any(|(source, _)| source == required))
+        );
+
+        let extended = prefix
+            .extend_with_compiled_unit_surfaces_and_external_defs(
+                &artifact.namespace,
+                &artifact.lowering,
+                &artifact.runtime,
+                external_defs,
+            )
+            .expect("metadata-heavy suffix artifact should extend the prefix");
+        for name in ["handled"] {
+            assert!(
+                extended
+                    .runtime()
+                    .value_defs()
+                    .any(|value| value.value_path == vec![name.to_string()]),
+                "extended prefix should include suffix value {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn compiled_unit_reachable_external_refs_reject_unkeyed_type_field_methods() {
+        let prefix = compiled_unit_prefix_from_sources(vec![
+            source("prefix.yu", &[], "mod deps;\npub use deps::*\n"),
+            source("deps.yu", &["deps"], "pub struct Box { value: int }\n"),
+        ]);
+        let (artifact, lowered) =
+            dependent_artifact_with_prefix(&prefix, "pub made = Box { value: 1 }\n");
+
+        assert_eq!(lowered.errors, Vec::new());
+        let field_defs = artifact
+            .lowering
+            .type_field_methods
+            .iter()
+            .filter(|entry| entry.owner_type_path == vec!["deps", "Box"] && entry.name == "value")
+            .map(|entry| entry.source_def)
+            .collect::<Vec<_>>();
+        assert!(!field_defs.is_empty());
+        let error = compiled_unit_complete_external_runtime_def_pairs(&artifact, prefix.runtime())
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            CompiledUnitExternalRuntimeDefMapError::UnkeyedExternalDefs { ref defs }
+                if field_defs.iter().all(|field| defs.contains(field))
+        ));
+    }
+
+    #[test]
+    fn compiled_unit_reachable_external_refs_reject_unkeyed_casts() {
+        let prefix = compiled_unit_prefix_from_sources(vec![
+            source("prefix.yu", &[], "mod deps;\npub use deps::*\n"),
+            source(
+                "deps.yu",
+                &["deps"],
+                concat!(
+                    "pub struct Box { value: int }\n",
+                    "pub cast(x: int): Box = Box { value: x }\n",
+                ),
+            ),
+        ]);
+        let (artifact, lowered) = dependent_artifact_with_prefix(
+            &prefix,
+            "pub wants_box(x: Box) = x\npub casted = wants_box 1\n",
+        );
+
+        assert_eq!(lowered.errors, Vec::new());
+        let error = compiled_unit_complete_external_runtime_def_pairs(&artifact, prefix.runtime())
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            CompiledUnitExternalRuntimeDefMapError::UnkeyedExternalDefs { ref defs }
+                if defs
+                    .iter()
+                    .any(|def| artifact.runtime.labels.def_label(*def) == Some("#cast"))
         ));
     }
 
@@ -3757,6 +3865,50 @@ mod tests {
                 source: file.source,
             })
             .collect()
+    }
+
+    fn compiled_unit_prefix_from_sources(
+        files: Vec<CollectedSource>,
+    ) -> infer::lowering::BodyLoweringPrefix {
+        let loaded = sources::load(collected_to_source_files(files));
+        let lowering = infer::lowering::lower_loaded_files(&loaded).unwrap();
+        let namespace = infer::CompiledNamespaceSurface::from_module_table(&lowering.modules);
+        let lowering_surface =
+            infer::CompiledLoweringSurface::from_module_table(&lowering.modules, &namespace);
+        let runtime =
+            infer::CompiledRuntimeSurface::from_lowering_with_namespace(&lowering, &namespace);
+        infer::lowering::BodyLoweringPrefix::from_compiled_unit_surfaces(
+            &namespace,
+            &lowering_surface,
+            &runtime,
+        )
+        .unwrap()
+    }
+
+    fn dependent_artifact_with_prefix(
+        prefix: &infer::lowering::BodyLoweringPrefix,
+        text: &str,
+    ) -> (CachedCompiledUnitArtifact, infer::lowering::BodyLowering) {
+        let suffix_files = vec![source("main.yu", &[], text)];
+        let suffix_loaded = sources::load(collected_to_source_files(suffix_files.clone()));
+        let suffix_root = suffix_loaded.into_iter().next().unwrap();
+        let lowered =
+            infer::lowering::lower_root_loaded_file_with_prefix(prefix, &suffix_root).unwrap();
+        let syntax =
+            sources::CompiledSyntaxSurface::from_loaded_files(std::slice::from_ref(&suffix_root));
+        let key = source_cache_key(&suffix_files);
+        let artifact = compiled_unit_artifact_from_lowering_with_syntax_and_key(
+            &suffix_files,
+            syntax,
+            &lowered,
+            lowered
+                .errors
+                .iter()
+                .map(|error| format!("{error:?}"))
+                .collect(),
+            key,
+        );
+        (artifact, lowered)
     }
 
     fn empty_compiled_unit_artifact(key: SourceCacheKey) -> CachedCompiledUnitArtifact {

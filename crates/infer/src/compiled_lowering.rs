@@ -488,6 +488,30 @@ impl CompiledLoweringSurface {
         }
     }
 
+    pub fn required_runtime_defs(&self) -> Vec<DefId> {
+        let mut defs = Vec::new();
+        for entry in &self.act_operations {
+            if let Some(def) = entry.source_def {
+                defs.push(def);
+            }
+        }
+        for entry in &self.type_methods {
+            defs.push(entry.source_def);
+        }
+        for entry in &self.type_field_methods {
+            defs.push(entry.source_def);
+        }
+        for entry in &self.act_methods {
+            defs.push(entry.source_def);
+        }
+        for entry in &self.role_methods {
+            defs.push(entry.source_def);
+        }
+        defs.sort_by_key(|def| def.0);
+        defs.dedup();
+        defs
+    }
+
     pub fn merge_prefixes<'a>(
         prefixes: impl IntoIterator<Item = &'a CompiledLoweringSurface>,
         namespace: &CompiledNamespaceMergeOutput,

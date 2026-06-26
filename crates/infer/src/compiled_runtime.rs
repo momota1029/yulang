@@ -681,18 +681,6 @@ impl RuntimeImportSelection {
                 self.select_def(source, external_defs, method.implementation);
             }
         }
-        for def in source.effect_operations.keys() {
-            self.select_def(source, external_defs, *def);
-        }
-        for def in source.constructors.keys() {
-            self.select_def(source, external_defs, *def);
-        }
-        for def in source.arg_effect_contracts.keys() {
-            self.select_def(source, external_defs, *def);
-        }
-        for def in &source.field_projections {
-            self.select_def(source, external_defs, *def);
-        }
     }
 
     fn select_def(&mut self, source: &PolyArena, external_defs: &FxHashSet<DefId>, def: DefId) {
