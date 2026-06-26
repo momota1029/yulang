@@ -668,9 +668,6 @@ impl RuntimeImportSelection {
                 .impl_def
                 .is_some_and(|def| external_defs.contains(&def))
             {
-                if let Some(def) = candidate.impl_def {
-                    self.required_external_defs.insert(def);
-                }
                 continue;
             }
             if let Some(def) = candidate.impl_def {

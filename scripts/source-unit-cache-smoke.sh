@@ -236,8 +236,67 @@ YULANG
   fi
 }
 
+run_role_impl_smoke() {
+  case_dir="$tmp/role-impl"
+  cache_root="$tmp/role-impl-cache"
+  main="$case_dir/main.yu"
+  deps="$case_dir/deps.yu"
+  mkdir -p "$cache_root" "$case_dir"
+
+  cat >"$main" <<'YULANG'
+mod deps;
+pub use deps::*
+1.display
+YULANG
+
+  cat >"$deps" <<'YULANG'
+pub role Display 'a:
+  pub x.display: int
+impl int: Display:
+  pub x.display = x
+YULANG
+
+  first_output="$(
+    YULANG_CACHE_DIR="$cache_root" \
+      run "$bin" --no-prelude run --print-roots "$main"
+  )"
+  if [[ "$first_output" != "run roots [1]" ]]; then
+    echo "source unit cache smoke: unexpected role impl warmup output" >&2
+    echo "$first_output" >&2
+    exit 1
+  fi
+
+  cat >"$main" <<'YULANG'
+mod deps;
+pub use deps::*
+my keep v = v
+keep 2.display
+YULANG
+
+  rm -rf "$cache_root/artifacts/control-vm" "$cache_root/artifacts/poly"
+  second_log="$tmp/role-impl-second.stderr"
+  second_output="$(
+    YULANG_CACHE_DIR="$cache_root" \
+      run "$bin" --no-prelude --runtime-phase-timings run --print-roots "$main" \
+        2>"$second_log"
+  )"
+  if [[ "$second_output" != "run roots [2]" ]]; then
+    echo "source unit cache smoke: unexpected role impl cached output" >&2
+    echo "$second_output" >&2
+    exit 1
+  fi
+
+  cat "$second_log"
+  if ! rg -q 'run\.cache: source-unit-prefix-hit' "$second_log"; then
+    echo "source unit cache smoke: expected source-unit prefix hit for role impl dependency" >&2
+    cat "$second_log" >&2
+    exit 1
+  fi
+}
+
 run_independent_merge_smoke
 run_dependency_closure_smoke
 run_struct_cast_smoke
+run_role_impl_smoke
 
 echo "source unit cache smoke ok: $bin"

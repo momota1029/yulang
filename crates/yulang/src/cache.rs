@@ -3883,6 +3883,43 @@ mod tests {
     }
 
     #[test]
+    fn compiled_unit_reachable_external_refs_reuse_prefix_role_impls() {
+        let prefix = compiled_unit_prefix_from_sources(vec![
+            source("prefix.yu", &[], "mod deps;\npub use deps::*\n"),
+            source(
+                "deps.yu",
+                &["deps"],
+                concat!(
+                    "pub role Display 'a:\n",
+                    "  pub x.display: int\n",
+                    "impl int: Display:\n",
+                    "  pub x.display = x\n",
+                ),
+            ),
+        ]);
+        let (artifact, lowered) =
+            dependent_artifact_with_prefix(&prefix, "pub shown = 1.display\n");
+
+        assert_eq!(lowered.errors, Vec::new());
+        let external_defs =
+            compiled_unit_complete_external_runtime_def_pairs(&artifact, prefix.runtime()).unwrap();
+        let extended = prefix
+            .extend_with_compiled_unit_surfaces_and_external_defs(
+                &artifact.namespace,
+                &artifact.lowering,
+                &artifact.runtime,
+                external_defs,
+            )
+            .expect("role-impl suffix artifact should extend the prefix");
+        assert!(
+            extended
+                .runtime()
+                .value_defs()
+                .any(|value| value.value_path == vec!["shown".to_string()])
+        );
+    }
+
+    #[test]
     fn compiled_unit_artifact_merge_combines_independent_leaf_units() {
         let files = vec![
             source("main.yu", &[], "mod left;\nmod right;\n"),
