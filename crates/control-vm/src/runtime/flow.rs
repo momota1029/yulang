@@ -519,7 +519,6 @@ impl<'a> Runtime<'a> {
             return run(self);
         }
 
-        let guard_len = self.guard_ids.len();
         let frame_len = self.active_frames.len();
         let handler_frame_len = self.active_handler_frames.len();
         let add_id_len = self.active_add_ids.len();
@@ -533,13 +532,7 @@ impl<'a> Runtime<'a> {
             }
             Ok(EvalResult::Value(_)) | Err(_) => None,
         };
-        self.pop_marker_frame(
-            guard_len,
-            frame_len,
-            handler_frame_len,
-            add_id_len,
-            plan_len,
-        );
+        self.pop_marker_frame(frame_len, handler_frame_len, add_id_len, plan_len);
 
         self.close_marker_frame_result(
             result?,
@@ -563,7 +556,6 @@ impl<'a> Runtime<'a> {
             return run(self);
         }
 
-        let guard_len = self.guard_ids.len();
         let frame_len = self.active_frames.len();
         let handler_frame_len = self.active_handler_frames.len();
         let add_id_len = self.active_add_ids.len();
@@ -577,13 +569,7 @@ impl<'a> Runtime<'a> {
             }
             Ok(EvalResult::Value(_)) | Err(_) => None,
         };
-        self.pop_marker_frame(
-            guard_len,
-            frame_len,
-            handler_frame_len,
-            add_id_len,
-            plan_len,
-        );
+        self.pop_marker_frame(frame_len, handler_frame_len, add_id_len, plan_len);
 
         self.close_shared_marker_frame_result(
             result?,
@@ -626,9 +612,6 @@ impl<'a> Runtime<'a> {
             match marker {
                 ValueMarker::Frame { id } => {
                     let entry_frame_len = self.active_frames.len();
-                    if !self.guard_ids.contains(id) {
-                        self.guard_ids.push(*id);
-                    }
                     let frame_index = entry_frame_len;
                     self.active_frames.push(ActiveFrame { id: *id });
                     if let Some(scope) = &mut self.scope_state_shadow {
@@ -678,13 +661,11 @@ impl<'a> Runtime<'a> {
 
     pub(super) fn pop_marker_frame(
         &mut self,
-        guard_len: usize,
         frame_len: usize,
         handler_frame_len: usize,
         add_id_len: usize,
         plan_len: usize,
     ) {
-        self.guard_ids.truncate(guard_len);
         self.active_frames.truncate(frame_len);
         self.active_handler_frames.truncate(handler_frame_len);
         self.active_add_ids.truncate(add_id_len);

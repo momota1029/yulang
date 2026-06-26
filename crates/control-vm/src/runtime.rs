@@ -350,7 +350,6 @@ struct ActiveAddIdMarker {
 
 #[derive(Debug, Clone, Copy)]
 struct MarkerCheckpoint {
-    guard_len: usize,
     frame_len: usize,
     handler_frame_len: usize,
     add_id_len: usize,

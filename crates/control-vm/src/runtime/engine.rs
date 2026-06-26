@@ -9,7 +9,6 @@ pub(super) struct Runtime<'a> {
     pub(super) catch_arms: HashMap<ExprId, RuntimeCatchArms>,
     pub(super) continuations: HashMap<ContinuationId, Continuation>,
     pub(super) next_continuation_id: u32,
-    pub(super) guard_ids: Vec<GuardId>,
     pub(super) active_frames: Vec<ActiveFrame>,
     pub(super) active_handler_frames: Vec<ActiveHandlerFrame>,
     // Only depth-zero add-id markers can attach a guard to a request in the
@@ -37,7 +36,6 @@ impl<'a> Runtime<'a> {
             catch_arms: HashMap::new(),
             continuations: HashMap::new(),
             next_continuation_id: 0,
-            guard_ids: Vec::new(),
             active_frames: Vec::new(),
             active_handler_frames: Vec::new(),
             active_add_ids: Vec::new(),

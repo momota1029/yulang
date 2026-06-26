@@ -449,7 +449,6 @@ impl<'a> Runtime<'a> {
             value,
         );
         self.pop_marker_frame(
-            checkpoint.guard_len,
             checkpoint.frame_len,
             checkpoint.handler_frame_len,
             checkpoint.add_id_len,
@@ -615,7 +614,6 @@ impl<'a> Runtime<'a> {
 
     fn marker_checkpoint(&self) -> MarkerCheckpoint {
         MarkerCheckpoint {
-            guard_len: self.guard_ids.len(),
             frame_len: self.active_frames.len(),
             handler_frame_len: self.active_handler_frames.len(),
             add_id_len: self.active_add_ids.len(),
@@ -998,7 +996,6 @@ impl<'a> Runtime<'a> {
             EvalResult::Value(_) => None,
         };
         self.pop_marker_frame(
-            checkpoint.guard_len,
             checkpoint.frame_len,
             checkpoint.handler_frame_len,
             checkpoint.add_id_len,
