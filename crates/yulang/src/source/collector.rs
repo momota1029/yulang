@@ -33,9 +33,7 @@ impl Collector {
             Path {
                 segments: vec![Name("std".to_string())],
             },
-            Path {
-                segments: vec![Name("std".to_string())],
-            },
+            Path::default(),
             &mut HashMap::new(),
         )
     }
@@ -53,9 +51,7 @@ impl Collector {
             Path {
                 segments: vec![Name("std".to_string())],
             },
-            Path {
-                segments: vec![Name("std".to_string())],
-            },
+            Path::default(),
             &mut source_overrides,
         )
     }
@@ -109,9 +105,10 @@ impl Collector {
             }
 
             let metadata = discover_source_header_metadata(&module_path, &source);
-            let collected_source = CollectedSource::with_resolution_imports(
+            let collected_source = CollectedSource::with_band_path_and_resolution_imports(
                 path.clone(),
                 module_path.clone(),
+                band_path.clone(),
                 source,
                 metadata.resolution_imports,
             );
@@ -161,12 +158,14 @@ impl Collector {
                 })?,
             };
             let metadata = discover_source_header_metadata(&module_path, &source);
-            self.files.push(CollectedSource::with_resolution_imports(
-                path.clone(),
-                module_path.clone(),
-                source,
-                metadata.resolution_imports,
-            ));
+            self.files
+                .push(CollectedSource::with_band_path_and_resolution_imports(
+                    path.clone(),
+                    module_path.clone(),
+                    band_path.clone(),
+                    source,
+                    metadata.resolution_imports,
+                ));
 
             for request in metadata.module_loads {
                 let requested_module = request.module_path();

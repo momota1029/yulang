@@ -23,7 +23,7 @@ use crate::source::{
 const POLY_CACHE_FORMAT: u32 = 7;
 const MONO_CACHE_FORMAT: u32 = 1;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 14;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 15;
 const REALM_RESOLUTION_CACHE_FORMAT: u32 = 1;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 3;
@@ -32,9 +32,9 @@ const SOURCE_UNIT_CACHE_SALT: &[u8] = b"yulang/source-unit-cache/v1";
 const REALM_CACHE_COMPONENT_SALT: &[u8] = b"yulang/realm-cache-component/v1";
 const REALM_RESOLUTION_CACHE_SALT: &[u8] = b"yulang/realm-resolution-cache/v1";
 const MERGED_COMPILED_UNIT_CACHE_SALT: &[u8] = b"yulang/merged-compiled-unit-cache/v1";
-const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v1";
+const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v2";
 const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
-const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/v1";
+const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/v2";
 const COMPILED_LOWERING_HASH_SALT: &[u8] = b"yulang/compiled-lowering-surface/v4";
 const COMPILED_TYPED_HASH_SALT: &[u8] = b"yulang/compiled-typed-surface/v1";
 const COMPILED_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-runtime-surface/v3";
@@ -501,6 +501,8 @@ pub enum CompiledUnitExternalRuntimeDefMapError {
 pub struct CompiledUnitSourceFile {
     pub path: String,
     pub module_path: Vec<String>,
+    #[serde(default)]
+    pub band_path: Vec<String>,
     pub source_len: usize,
     pub source_hash: u64,
 }
@@ -1492,6 +1494,12 @@ fn compiled_unit_manifest(
                     .iter()
                     .map(|segment| segment.0.clone())
                     .collect(),
+                band_path: file
+                    .band_path
+                    .segments
+                    .iter()
+                    .map(|segment| segment.0.clone())
+                    .collect(),
                 source_len: file.source.len(),
                 source_hash: source_file_hash(file),
             })
@@ -1505,6 +1513,10 @@ pub(crate) fn source_file_hash(file: &CollectedSource) -> u64 {
     hasher.string(&file.path.as_os_str().to_string_lossy());
     hasher.usize(file.module_path.segments.len());
     for segment in &file.module_path.segments {
+        hasher.string(&segment.0);
+    }
+    hasher.usize(file.band_path.segments.len());
+    for segment in &file.band_path.segments {
         hasher.string(&segment.0);
     }
     hasher.string(&file.source);
@@ -1551,6 +1563,7 @@ fn compiled_namespace_hash(namespace: &infer::CompiledNamespaceSurface) -> u64 {
     for module in &namespace.modules {
         hasher.u32(module.id);
         hash_string_path(&mut hasher, &module.path);
+        hash_string_path(&mut hasher, &module.band_path);
         hash_optional_compiled_namespace_visibility(&mut hasher, module.visibility);
 
         hasher.usize(module.values.len());

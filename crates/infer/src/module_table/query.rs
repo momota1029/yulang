@@ -1,5 +1,11 @@
 use super::*;
 
+#[derive(Clone, Copy)]
+enum ImportVisibility {
+    SameBand,
+    CrossBand,
+}
+
 impl ModuleTable {
     pub fn type_decl_by_id(&self, id: TypeDeclId) -> Option<ModuleTypeDecl> {
         for module_index in 0..self.nodes.len() {
@@ -67,12 +73,17 @@ impl ModuleTable {
                 }
             }
             UseImport::Glob { prefix, route, .. } => {
+                let visibility = import_visibility(*route);
                 let base = self.import_base_module(module, *route);
-                let Some(target) = self.raw_module_path_from(base, &prefix.segments, alias.order)
-                else {
+                let Some(target) = self.module_path_from_for_import(
+                    base,
+                    &prefix.segments,
+                    alias.order,
+                    visibility,
+                ) else {
                     return;
                 };
-                for decl in self.module_value_imports(target) {
+                for decl in self.module_value_imports_for_import(target, visibility) {
                     self.push_import_value(
                         module,
                         decl.name.clone(),
@@ -83,7 +94,7 @@ impl ModuleTable {
                         },
                     );
                 }
-                for decl in self.module_type_imports(target) {
+                for decl in self.module_type_imports_for_import(target, visibility) {
                     self.push_import_type(
                         module,
                         decl.name.clone(),
@@ -94,7 +105,7 @@ impl ModuleTable {
                         },
                     );
                 }
-                for decl in self.module_module_imports(target) {
+                for decl in self.module_module_imports_for_import(target, visibility) {
                     self.push_import_module(
                         module,
                         decl.name.clone(),
@@ -115,7 +126,7 @@ impl ModuleTable {
                     .map(|(name, entries)| {
                         let defs = entries
                             .iter()
-                            .filter(|entry| entry.vis != Vis::My)
+                            .filter(|entry| import_vis_allows(entry.vis, visibility))
                             .map(|entry| entry.def)
                             .collect::<Vec<_>>();
                         (name.clone(), defs)
@@ -140,7 +151,7 @@ impl ModuleTable {
                     .map(|(name, entries)| {
                         let decls = entries
                             .iter()
-                            .filter(|entry| entry.vis != Vis::My)
+                            .filter(|entry| import_vis_allows(entry.vis, visibility))
                             .map(|entry| entry.decl.clone())
                             .collect::<Vec<_>>();
                         (name.clone(), decls)
@@ -165,7 +176,7 @@ impl ModuleTable {
                     .map(|(name, entries)| {
                         let modules = entries
                             .iter()
-                            .filter(|entry| entry.vis != Vis::My)
+                            .filter(|entry| import_vis_allows(entry.vis, visibility))
                             .map(|entry| entry.module)
                             .collect::<Vec<_>>();
                         (name.clone(), modules)
@@ -267,58 +278,68 @@ impl ModuleTable {
         route: sources::UsePathRoute,
         site: ModuleOrder,
     ) -> Option<ImportPathTarget> {
-        self.import_path_target(self.import_base_module(module, route), path, site)
+        self.import_path_target_for_import(
+            self.import_base_module(module, route),
+            path,
+            site,
+            import_visibility(route),
+        )
     }
     fn import_base_module(&self, module: ModuleId, route: sources::UsePathRoute) -> ModuleId {
         match route {
             sources::UsePathRoute::Relative => module,
-            sources::UsePathRoute::CurrentBand
-            | sources::UsePathRoute::CurrentRealm { .. }
+            sources::UsePathRoute::CurrentBand => self
+                .module_by_path(self.module_band_path(module))
+                .unwrap_or_else(|| self.root_id()),
+            sources::UsePathRoute::CurrentRealm { .. }
             | sources::UsePathRoute::SlashQualified { .. } => self.root_id(),
         }
     }
-    pub(super) fn import_path_target(
+    fn import_path_target_for_import(
         &self,
         module: ModuleId,
         path: &ModulePath,
         site: ModuleOrder,
+        visibility: ImportVisibility,
     ) -> Option<ImportPathTarget> {
         let Some((last, prefix)) = path.segments.split_last() else {
             return None;
         };
         if prefix.is_empty() {
             return Some(ImportPathTarget {
-                value: self.raw_lexical_value_at(module, last, site),
-                ty: self.raw_lexical_type_at(module, last, site),
-                module: self.raw_lexical_module_at(module, last, site),
+                value: self.raw_lexical_value_at_for_import(module, last, site, visibility),
+                ty: self.raw_lexical_type_at_for_import(module, last, site, visibility),
+                module: self.raw_lexical_module_at_for_import(module, last, site, visibility),
             });
         }
 
-        let target = self.raw_module_path_from(module, prefix, site)?;
+        let target = self.module_path_from_for_import(module, prefix, site, visibility)?;
         Some(ImportPathTarget {
             value: self
-                .value_at(target, last, module_path_site())
-                .or_else(|| self.exported_value_at(target, last)),
+                .value_at_for_import(target, last, module_path_site(), visibility)
+                .or_else(|| self.exported_value_at_for_import(target, last, visibility)),
             ty: self
-                .type_at(target, last, module_path_site())
-                .or_else(|| self.exported_type_at(target, last)),
+                .type_at_for_import(target, last, module_path_site(), visibility)
+                .or_else(|| self.exported_type_at_for_import(target, last, visibility)),
             module: self
-                .module_at(target, last, module_path_site())
-                .or_else(|| self.exported_module_at(target, last)),
+                .module_at_for_import(target, last, module_path_site(), visibility)
+                .or_else(|| self.exported_module_at_for_import(target, last, visibility)),
         })
     }
-    pub(super) fn raw_module_path_from(
+    fn module_path_from_for_import(
         &self,
         module: ModuleId,
         path: &[Name],
         site: ModuleOrder,
+        visibility: ImportVisibility,
     ) -> Option<ModuleId> {
         let Some((first, rest)) = path.split_first() else {
             return Some(module);
         };
-        let mut current = self.raw_lexical_module_at(module, first, site)?;
+        let mut current = self.raw_lexical_module_at_for_import(module, first, site, visibility)?;
         for segment in rest {
-            current = self.module_at(current, segment, module_path_site())?;
+            current =
+                self.module_at_for_import(current, segment, module_path_site(), visibility)?;
         }
         Some(current)
     }
@@ -360,14 +381,15 @@ impl ModuleTable {
             site = parent.order;
         }
     }
-    pub(super) fn raw_lexical_value_at(
+    fn raw_lexical_value_at_for_import(
         &self,
         mut module: ModuleId,
         name: &Name,
         mut site: ModuleOrder,
+        visibility: ImportVisibility,
     ) -> Option<DefId> {
         loop {
-            if let Some(def) = self.value_at(module, name, site) {
+            if let Some(def) = self.value_at_for_import(module, name, site, visibility) {
                 return Some(def);
             }
             let parent = self.nodes[module.0].parent?;
@@ -375,14 +397,15 @@ impl ModuleTable {
             site = parent.order;
         }
     }
-    pub(super) fn raw_lexical_type_at(
+    fn raw_lexical_type_at_for_import(
         &self,
         mut module: ModuleId,
         name: &Name,
         mut site: ModuleOrder,
+        visibility: ImportVisibility,
     ) -> Option<ModuleTypeDecl> {
         loop {
-            if let Some(found) = self.type_at(module, name, site) {
+            if let Some(found) = self.type_at_for_import(module, name, site, visibility) {
                 return Some(found);
             }
             let parent = self.nodes[module.0].parent?;
@@ -390,20 +413,87 @@ impl ModuleTable {
             site = parent.order;
         }
     }
-    pub(super) fn raw_lexical_module_at(
+    fn raw_lexical_module_at_for_import(
         &self,
         mut module: ModuleId,
         name: &Name,
         mut site: ModuleOrder,
+        visibility: ImportVisibility,
     ) -> Option<ModuleId> {
         loop {
-            if let Some(found) = self.module_at(module, name, site) {
+            if let Some(found) = self.module_at_for_import(module, name, site, visibility) {
                 return Some(found);
             }
             let parent = self.nodes[module.0].parent?;
             module = parent.module;
             site = parent.order;
         }
+    }
+    fn value_at_for_import(
+        &self,
+        module: ModuleId,
+        name: &Name,
+        site: ModuleOrder,
+        visibility: ImportVisibility,
+    ) -> Option<DefId> {
+        let decl = self.select_decl_for_import(
+            module,
+            self.nodes[module.0].values.get(name)?,
+            site,
+            visibility,
+        )?;
+        match decl.kind {
+            ModuleDeclKind::Value { def } => Some(def),
+            ModuleDeclKind::Type { .. } | ModuleDeclKind::Module { .. } => None,
+        }
+    }
+    fn type_at_for_import(
+        &self,
+        module: ModuleId,
+        name: &Name,
+        site: ModuleOrder,
+        visibility: ImportVisibility,
+    ) -> Option<ModuleTypeDecl> {
+        let decl = self.select_decl_for_import(
+            module,
+            self.nodes[module.0].types.get(name)?,
+            site,
+            visibility,
+        )?;
+        match decl.kind {
+            ModuleDeclKind::Type { id, kind } => Some(ModuleTypeDecl {
+                name: decl.name.clone(),
+                vis: decl.vis,
+                order: decl.order,
+                module,
+                id,
+                kind,
+            }),
+            ModuleDeclKind::Value { .. } | ModuleDeclKind::Module { .. } => None,
+        }
+    }
+    fn module_at_for_import(
+        &self,
+        module: ModuleId,
+        name: &Name,
+        site: ModuleOrder,
+        visibility: ImportVisibility,
+    ) -> Option<ModuleId> {
+        let decl = self.select_decl_for_import(
+            module,
+            self.nodes[module.0].modules.get(name)?,
+            site,
+            visibility,
+        )?;
+        let ModuleDeclKind::Module { module: child, .. } = decl.kind else {
+            return None;
+        };
+        if matches!(visibility, ImportVisibility::SameBand)
+            && self.module_band_path(module) != self.module_band_path(child)
+        {
+            return None;
+        }
+        Some(child)
     }
     pub(super) fn imported_value_at(
         &self,
@@ -458,11 +548,53 @@ impl ModuleTable {
             .find(|entry| entry.vis != Vis::My)
             .map(|entry| entry.module)
     }
-    pub(super) fn module_value_imports(&self, module: ModuleId) -> Vec<ModuleValueDecl> {
+    fn exported_value_at_for_import(
+        &self,
+        module: ModuleId,
+        name: &Name,
+        visibility: ImportVisibility,
+    ) -> Option<DefId> {
         self.nodes[module.0]
-            .values
-            .keys()
-            .flat_map(|name| self.value_decls(module, name))
+            .import_values
+            .get(name)?
+            .iter()
+            .find(|entry| import_vis_allows(entry.vis, visibility))
+            .map(|entry| entry.def)
+    }
+    fn exported_type_at_for_import(
+        &self,
+        module: ModuleId,
+        name: &Name,
+        visibility: ImportVisibility,
+    ) -> Option<ModuleTypeDecl> {
+        self.nodes[module.0]
+            .import_types
+            .get(name)?
+            .iter()
+            .find(|entry| import_vis_allows(entry.vis, visibility))
+            .map(|entry| entry.decl.clone())
+    }
+    fn exported_module_at_for_import(
+        &self,
+        module: ModuleId,
+        name: &Name,
+        visibility: ImportVisibility,
+    ) -> Option<ModuleId> {
+        self.nodes[module.0]
+            .import_modules
+            .get(name)?
+            .iter()
+            .find(|entry| import_vis_allows(entry.vis, visibility))
+            .map(|entry| entry.module)
+    }
+    fn module_value_imports_for_import(
+        &self,
+        module: ModuleId,
+        visibility: ImportVisibility,
+    ) -> Vec<ModuleValueDecl> {
+        self.module_value_decls(module)
+            .into_iter()
+            .filter(|decl| import_vis_allows(decl.vis, visibility))
             .collect()
     }
     pub fn module_value_decls(&self, module: ModuleId) -> Vec<ModuleValueDecl> {
@@ -480,11 +612,14 @@ impl ModuleTable {
             })
             .collect()
     }
-    pub(super) fn module_type_imports(&self, module: ModuleId) -> Vec<ModuleTypeDecl> {
-        self.nodes[module.0]
-            .types
-            .keys()
-            .flat_map(|name| self.type_decls(module, name))
+    fn module_type_imports_for_import(
+        &self,
+        module: ModuleId,
+        visibility: ImportVisibility,
+    ) -> Vec<ModuleTypeDecl> {
+        self.module_type_decls(module)
+            .into_iter()
+            .filter(|decl| import_vis_allows(decl.vis, visibility))
             .collect()
     }
     pub fn module_type_decls(&self, module: ModuleId) -> Vec<ModuleTypeDecl> {
@@ -504,11 +639,18 @@ impl ModuleTable {
             })
             .collect()
     }
-    pub(super) fn module_module_imports(&self, module: ModuleId) -> Vec<ModuleChildDecl> {
-        self.nodes[module.0]
-            .modules
-            .keys()
-            .flat_map(|name| self.module_decls(module, name))
+    fn module_module_imports_for_import(
+        &self,
+        module: ModuleId,
+        visibility: ImportVisibility,
+    ) -> Vec<ModuleChildDecl> {
+        self.module_child_decls(module)
+            .into_iter()
+            .filter(|decl| import_vis_allows(decl.vis, visibility))
+            .filter(|decl| {
+                !matches!(visibility, ImportVisibility::SameBand)
+                    || self.module_band_path(module) == self.module_band_path(decl.module)
+            })
             .collect()
     }
     pub fn module_child_decls(&self, module: ModuleId) -> Vec<ModuleChildDecl> {
@@ -697,6 +839,29 @@ impl ModuleTable {
                     .min_by_key(|decl| decl.order)
             })
     }
+    fn select_decl_for_import(
+        &self,
+        module: ModuleId,
+        decls: &[ModuleDeclId],
+        site: ModuleOrder,
+        visibility: ImportVisibility,
+    ) -> Option<&ModuleDecl> {
+        let node = &self.nodes[module.0];
+        decls
+            .iter()
+            .map(|decl| &node.decls[decl.0])
+            .filter(|decl| decl.order <= site)
+            .filter(|decl| import_vis_allows(decl.vis, visibility))
+            .max_by_key(|decl| decl.order)
+            .or_else(|| {
+                decls
+                    .iter()
+                    .map(|decl| &node.decls[decl.0])
+                    .filter(|decl| decl.order > site)
+                    .filter(|decl| import_vis_allows(decl.vis, visibility))
+                    .min_by_key(|decl| decl.order)
+            })
+    }
     fn select_import<'a, T>(&self, imports: &'a [T], site: ModuleOrder) -> Option<&'a T>
     where
         T: ImportOrder,
@@ -733,5 +898,22 @@ impl ModuleTable {
                 ModuleDeclKind::Type { .. } => {}
             }
         }
+    }
+}
+
+fn import_visibility(route: sources::UsePathRoute) -> ImportVisibility {
+    match route {
+        sources::UsePathRoute::Relative | sources::UsePathRoute::CurrentBand => {
+            ImportVisibility::SameBand
+        }
+        sources::UsePathRoute::CurrentRealm { .. }
+        | sources::UsePathRoute::SlashQualified { .. } => ImportVisibility::CrossBand,
+    }
+}
+
+fn import_vis_allows(vis: Vis, visibility: ImportVisibility) -> bool {
+    match visibility {
+        ImportVisibility::SameBand => vis != Vis::My,
+        ImportVisibility::CrossBand => vis == Vis::Pub,
     }
 }

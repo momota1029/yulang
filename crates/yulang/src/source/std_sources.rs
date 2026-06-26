@@ -190,9 +190,10 @@ pub(super) fn embedded_std_sources() -> Vec<CollectedSource> {
             let module_path = embedded_std_module_path(file.relative_path);
             let source = file.source.to_string();
             let metadata = discover_source_header_metadata(&module_path, &source);
-            CollectedSource::with_resolution_imports(
+            CollectedSource::with_band_path_and_resolution_imports(
                 PathBuf::from("<embedded-std>").join(file.relative_path),
                 module_path,
+                Path::default(),
                 source,
                 metadata.resolution_imports,
             )
@@ -325,7 +326,8 @@ fn cached_loaded_prefix(
 }
 
 pub(super) fn load_collected_source_files(files: Vec<CollectedSource>) -> Vec<sources::LoadedFile> {
-    sources::load(collected_source_files(files))
+    let (source_files, band_paths) = collected_source_files_and_band_paths(files);
+    sources::load_with_band_paths(source_files, band_paths)
 }
 
 fn load_with_embedded_prefix(

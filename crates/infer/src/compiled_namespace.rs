@@ -17,6 +17,8 @@ pub struct CompiledNamespaceSurface {
 pub struct CompiledNamespaceModule {
     pub id: u32,
     pub path: Vec<String>,
+    #[serde(default)]
+    pub band_path: Vec<String>,
     pub visibility: Option<CompiledNamespaceVisibility>,
     pub values: Vec<CompiledNamespaceModuleValue>,
     pub types: Vec<CompiledNamespaceModuleType>,
@@ -248,6 +250,7 @@ impl<'a> CompiledNamespaceMergeBuilder<'a> {
                         self.merged.modules.push(CompiledNamespaceModule {
                             id,
                             path: module.path.clone(),
+                            band_path: module.band_path.clone(),
                             visibility: module.visibility,
                             values: Vec::new(),
                             types: Vec::new(),
@@ -665,6 +668,7 @@ impl<'a> NamespaceSurfaceBuilder<'a> {
         self.surface.modules.push(CompiledNamespaceModule {
             id,
             path: namespace_path(&self.modules.module_path(module)),
+            band_path: namespace_path(self.modules.module_band_path(module)),
             visibility,
             values: Vec::new(),
             types: Vec::new(),

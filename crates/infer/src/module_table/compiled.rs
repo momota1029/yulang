@@ -88,6 +88,8 @@ impl<'a> CompiledModuleTableBuilder<'a> {
         let Some(module_id) = self.module_ids.get(&module.id).copied() else {
             return;
         };
+        self.modules
+            .set_module_band_path(module_id, module_path(&module.band_path));
         let mut entries = Vec::new();
         entries.extend(
             module
@@ -467,5 +469,11 @@ fn module_type_kind(kind: crate::CompiledNamespaceTypeKind) -> ModuleTypeKind {
         crate::CompiledNamespaceTypeKind::Error => ModuleTypeKind::Error,
         crate::CompiledNamespaceTypeKind::Role => ModuleTypeKind::Role,
         crate::CompiledNamespaceTypeKind::Act => ModuleTypeKind::Act,
+    }
+}
+
+fn module_path(path: &[String]) -> sources::Path {
+    sources::Path {
+        segments: path.iter().map(|segment| Name(segment.clone())).collect(),
     }
 }

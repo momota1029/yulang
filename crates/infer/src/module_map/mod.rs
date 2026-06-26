@@ -992,10 +992,14 @@ pub(crate) fn lower_loaded_file_csts_module_map(
     let mut lower = Lower::new();
 
     let root = loaded.root().ok_or(LoadedFilesError::MissingRoot)?;
+    lower
+        .modules
+        .set_module_band_path(lower.modules.root_id(), root.band_path.clone());
     let roots = lower.register_block(&root.cst, lower.modules.root_id());
     lower.arena.roots = roots;
 
     for file in loaded.non_root_by_depth() {
+        lower.ensure_loaded_module_path(&file.module_path, &file.band_path);
         let Some(target) = lower.module_path_target(&file.module_path) else {
             return Err(LoadedFilesError::MissingModulePath {
                 module_path: file.module_path.clone(),
@@ -1117,10 +1121,14 @@ pub(crate) fn append_loaded_files_to_lower(
         .map(|def| (def, lower.module_children(def)))
         .collect::<FxHashMap<_, _>>();
     let root = loaded.root().ok_or(LoadedFilesError::MissingRoot)?;
+    lower
+        .modules
+        .set_module_band_path(lower.modules.root_id(), root.band_path.clone());
     let roots = lower.register_block(&root.cst, lower.modules.root_id());
     lower.arena.roots.extend(roots);
 
     for file in loaded.non_root_by_depth() {
+        lower.ensure_loaded_module_path(&file.module_path, &file.band_path);
         let Some(target) = lower.module_path_target(&file.module_path) else {
             return Err(LoadedFilesError::MissingModulePath {
                 module_path: file.module_path.clone(),
@@ -1201,6 +1209,7 @@ pub(crate) struct LoadedFileCsts {
 
 pub(crate) struct LoadedFileCst {
     pub module_path: ModulePath,
+    pub band_path: ModulePath,
     pub cst: Cst,
 }
 
@@ -1216,6 +1225,7 @@ impl LoadedFileCsts {
             }
             indexed.push(LoadedFileCst {
                 module_path: file.module_path.clone(),
+                band_path: file.band_path.clone(),
                 cst: SyntaxNode::<YulangLanguage>::new_root(file.cst.clone()),
             });
         }

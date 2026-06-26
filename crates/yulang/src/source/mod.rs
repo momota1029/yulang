@@ -125,9 +125,10 @@ fn cached_target_source_if_matches(
         return None;
     }
     let metadata = discover_source_header_metadata(module_path, &source);
-    let file = CollectedSource::with_resolution_imports(
+    let file = CollectedSource::with_band_path_and_resolution_imports(
         path.to_path_buf(),
         module_path.clone(),
+        target.band_path.clone(),
         source,
         metadata.resolution_imports,
     );
@@ -189,7 +190,7 @@ pub fn build_poly_from_collected_sources(
 pub fn build_poly_and_compiled_unit_from_collected_sources(
     files: Vec<CollectedSource>,
 ) -> Result<BuildPolyAndCompiledUnitOutput, RouteError> {
-    let loaded = sources::load(collected_source_files(files.clone()));
+    let loaded = load_collected_sources(files.clone());
     let lowering = infer::lowering::lower_loaded_files(&loaded).map_err(RouteError::Lower)?;
     let errors = lowering
         .errors
@@ -294,7 +295,9 @@ fn lower_compiled_unit_prefix_suffix(
         errors: prefix_errors,
     } = prefix;
     let suffix_file_count = suffix.len();
-    let loaded = sources::load_suffix_with_syntax_prefix(&syntax, collected_source_files(suffix));
+    let (suffix_files, suffix_bands) = collected_source_files_and_band_paths(suffix);
+    let loaded =
+        sources::load_suffix_with_syntax_prefix_and_band_paths(&syntax, suffix_files, suffix_bands);
     let lowering_prefix = infer::lowering::BodyLoweringPrefix::from_compiled_unit_surfaces(
         &namespace, &lowering, &runtime,
     )
@@ -1187,18 +1190,35 @@ pub struct BuildPolyAndCompiledUnitOutput {
 pub struct CollectedSource {
     pub path: PathBuf,
     pub module_path: Path,
+    pub band_path: Path,
     pub source: String,
     pub resolution_imports: Vec<sources::UseImport>,
 }
 
 impl CollectedSource {
     pub fn new(path: PathBuf, module_path: Path, source: String) -> Self {
-        Self {
+        Self::with_band_path_and_resolution_imports(
             path,
             module_path,
+            Path::default(),
             source,
-            resolution_imports: Vec::new(),
-        }
+            Vec::new(),
+        )
+    }
+
+    pub fn with_band_path(
+        path: PathBuf,
+        module_path: Path,
+        band_path: Path,
+        source: String,
+    ) -> Self {
+        Self::with_band_path_and_resolution_imports(
+            path,
+            module_path,
+            band_path,
+            source,
+            Vec::new(),
+        )
     }
 
     pub fn with_resolution_imports(
@@ -1207,9 +1227,26 @@ impl CollectedSource {
         source: String,
         resolution_imports: Vec<sources::UseImport>,
     ) -> Self {
+        Self::with_band_path_and_resolution_imports(
+            path,
+            module_path,
+            Path::default(),
+            source,
+            resolution_imports,
+        )
+    }
+
+    pub fn with_band_path_and_resolution_imports(
+        path: PathBuf,
+        module_path: Path,
+        band_path: Path,
+        source: String,
+        resolution_imports: Vec<sources::UseImport>,
+    ) -> Self {
         Self {
             path,
             module_path,
+            band_path,
             source,
             resolution_imports,
         }
@@ -1416,7 +1453,7 @@ fn check_poly_from_sources(
     kind: CheckPolyKind,
 ) -> Result<CheckPolyOutput, RouteError> {
     let load_start = Instant::now();
-    let loaded = sources::load(collected_source_files(files));
+    let loaded = load_collected_sources(files);
     let load = load_start.elapsed();
     check_poly_from_loaded_files(loaded, collect, load, total_start, kind)
 }
@@ -1475,7 +1512,7 @@ fn check_poly_from_loaded_files(
 }
 
 fn analyze_from_sources(files: Vec<CollectedSource>) -> Result<AnalyzeSourceOutput, RouteError> {
-    analyze_from_loaded_files(sources::load(collected_source_files(files)))
+    analyze_from_loaded_files(load_collected_sources(files))
 }
 
 fn analyze_from_loaded_files(
@@ -1494,11 +1531,7 @@ fn hover_from_sources(
     byte_offset: usize,
     file: &Path,
 ) -> Result<Option<SourceHover>, RouteError> {
-    hover_from_loaded_files(
-        sources::load(collected_source_files(files)),
-        byte_offset,
-        file,
-    )
+    hover_from_loaded_files(load_collected_sources(files), byte_offset, file)
 }
 
 fn hover_from_loaded_files(
@@ -1517,7 +1550,7 @@ fn definition_from_sources(
 ) -> Result<Option<SourceDefinition>, RouteError> {
     let source_index = SourceFileIndex::from_collected_sources(&files);
     definition_from_loaded_files(
-        sources::load(collected_source_files(files)),
+        load_collected_sources(files),
         &source_index,
         byte_offset,
         file,
@@ -1547,7 +1580,7 @@ fn references_from_sources(
 ) -> Result<Vec<SourceLocation>, RouteError> {
     let source_index = SourceFileIndex::from_collected_sources(&files);
     references_from_loaded_files(
-        sources::load(collected_source_files(files)),
+        load_collected_sources(files),
         &source_index,
         byte_offset,
         file,
@@ -1577,11 +1610,7 @@ fn prepare_rename_from_sources(
     byte_offset: usize,
     file: &Path,
 ) -> Result<Option<SourceRange>, RouteError> {
-    prepare_rename_from_loaded_files(
-        sources::load(collected_source_files(files)),
-        byte_offset,
-        file,
-    )
+    prepare_rename_from_loaded_files(load_collected_sources(files), byte_offset, file)
 }
 
 fn prepare_rename_from_loaded_files(
@@ -1601,7 +1630,7 @@ fn rename_from_sources(
 ) -> Result<Option<SourceRename>, RouteError> {
     let source_index = SourceFileIndex::from_collected_sources(&files);
     rename_from_loaded_files(
-        sources::load(collected_source_files(files)),
+        load_collected_sources(files),
         &source_index,
         byte_offset,
         file,
@@ -2370,7 +2399,7 @@ fn dump_poly_from_sources(
     files: Vec<CollectedSource>,
     kind: DumpPolyKind,
 ) -> Result<DumpPolyOutput, RouteError> {
-    dump_poly_from_loaded_files(sources::load(collected_source_files(files)), kind)
+    dump_poly_from_loaded_files(load_collected_sources(files), kind)
 }
 
 fn dump_poly_from_loaded_files(
@@ -2513,7 +2542,7 @@ fn specialize_mono_from_poly_output(
 }
 
 fn build_poly_from_sources(files: Vec<CollectedSource>) -> Result<BuildPolyOutput, RouteError> {
-    build_poly_from_loaded_files(sources::load(collected_source_files(files)))
+    build_poly_from_loaded_files(load_collected_sources(files))
 }
 
 pub fn build_poly_from_loaded_files(
@@ -2533,12 +2562,30 @@ pub fn build_poly_from_loaded_files(
     })
 }
 
-fn collected_source_files(files: Vec<CollectedSource>) -> Vec<SourceFile> {
-    files
-        .into_iter()
-        .map(|file| SourceFile {
+fn load_collected_sources(files: Vec<CollectedSource>) -> Vec<sources::LoadedFile> {
+    let mut source_files = Vec::with_capacity(files.len());
+    let mut band_paths = Vec::with_capacity(files.len());
+    for file in files {
+        source_files.push(SourceFile {
             module_path: file.module_path,
             source: file.source,
-        })
-        .collect()
+        });
+        band_paths.push(file.band_path);
+    }
+    sources::load_with_band_paths(source_files, band_paths)
+}
+
+fn collected_source_files_and_band_paths(
+    files: Vec<CollectedSource>,
+) -> (Vec<SourceFile>, Vec<Path>) {
+    let mut source_files = Vec::with_capacity(files.len());
+    let mut band_paths = Vec::with_capacity(files.len());
+    for file in files {
+        source_files.push(SourceFile {
+            module_path: file.module_path,
+            source: file.source,
+        });
+        band_paths.push(file.band_path);
+    }
+    (source_files, band_paths)
 }

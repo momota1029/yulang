@@ -168,6 +168,27 @@ impl Lower {
         (def, sub, true)
     }
 
+    pub(super) fn ensure_loaded_module_path(
+        &mut self,
+        path: &ModulePath,
+        band_path: &ModulePath,
+    ) -> ModulePathTarget {
+        let mut target = ModulePathTarget {
+            module: self.modules.root_id(),
+            def: None,
+        };
+        for segment in &path.segments {
+            let (def, module, _) =
+                self.ensure_child_module(target.module, segment.clone(), Vis::Pub);
+            self.modules.set_module_band_path(module, band_path.clone());
+            target = ModulePathTarget {
+                module,
+                def: Some(def),
+            };
+        }
+        target
+    }
+
     pub(super) fn set_module_children(&mut self, def: DefId, children: Vec<DefId>) {
         let Some(Def::Mod { children: slot, .. }) = self.arena.defs.get_mut(def) else {
             return;

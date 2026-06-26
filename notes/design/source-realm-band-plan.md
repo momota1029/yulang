@@ -470,6 +470,19 @@ use band::path::to::func
 A bare `ui::widget` path is resolved inside the current band. It is not retried
 as a same-realm band import if local lookup fails.
 
+Implementation slice, 2026-06-26:
+
+- local `realm/...::...` imports carry a band path through source collection,
+  loaded files, module lowering, and compiled namespace artifacts;
+- a current-realm band root may be materialized as a synthetic top-level module
+  for the explicit `realm/...` route without making that module visible to bare
+  paths;
+- cross-band imports require `pub` exports, while same-band imports may use
+  `our` and `pub`;
+- `std::...` still follows the existing prelude/std path. It is not yet modeled
+  as a structured prebound realm/band alias, so std is deliberately left outside
+  this cross-band visibility enforcement slice.
+
 The compiler should avoid allowing a band inside `yulang@0.1.3` to depend on
 `yulang@0.1.2/std` as if it were a normal same-realm import. That makes
 same-realm identity ambiguous and complicates cache keys.

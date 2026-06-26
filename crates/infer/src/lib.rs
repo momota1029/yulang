@@ -106,6 +106,7 @@ struct ModuleParent {
 struct ModuleNode {
     /// 親モジュールと、親の宣言列におけるこの module 宣言の order。
     parent: Option<ModuleParent>,
+    band_path: ModulePath,
     decls: Vec<ModuleDecl>,
     values: FxHashMap<Name, Vec<ModuleDeclId>>,
     types: FxHashMap<Name, Vec<ModuleDeclId>>,

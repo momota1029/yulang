@@ -927,6 +927,7 @@ pub struct SourceFile {
 #[derive(Debug, Clone)]
 pub struct LoadedFile {
     pub module_path: Path,
+    pub band_path: Path,
     pub source: String,
     pub header: Header,
     /// `mod foo;` と `use mod foo::bar` から出た外部 module load request。
@@ -941,12 +942,30 @@ pub fn load(files: Vec<SourceFile>) -> Vec<LoadedFile> {
     load_with_loaded_prefix(&[], files)
 }
 
+pub fn load_with_band_paths(files: Vec<SourceFile>, band_paths: Vec<Path>) -> Vec<LoadedFile> {
+    load_with_loaded_prefix_and_band_paths(&[], files, band_paths)
+}
+
 /// 既に load 済みの dependency prefix を再利用し、suffix だけをフルパースする。
 ///
 /// `prefix` は `suffix` に依存しない dependency-closed な file set であることが前提。
 /// この入口は compiled-unit artifact import の手前に置く軽量な process-local cache 境界で、
 /// downstream file の op table は prefix の header / export surface から組み直す。
 pub fn load_with_loaded_prefix(prefix: &[LoadedFile], suffix: Vec<SourceFile>) -> Vec<LoadedFile> {
+    let band_paths = vec![Path::default(); suffix.len()];
+    load_with_loaded_prefix_and_band_paths(prefix, suffix, band_paths)
+}
+
+pub fn load_with_loaded_prefix_and_band_paths(
+    prefix: &[LoadedFile],
+    suffix: Vec<SourceFile>,
+    band_paths: Vec<Path>,
+) -> Vec<LoadedFile> {
+    assert_eq!(
+        suffix.len(),
+        band_paths.len(),
+        "source files and band paths must have the same length"
+    );
     let prefix_inputs: Vec<SyntaxFileInput> = prefix
         .iter()
         .map(|file| SyntaxFileInput {
@@ -956,7 +975,11 @@ pub fn load_with_loaded_prefix(prefix: &[LoadedFile], suffix: Vec<SourceFile>) -
         .collect();
     let mut loaded = Vec::with_capacity(prefix.len() + suffix.len());
     loaded.extend(prefix.iter().cloned());
-    loaded.extend(load_suffix_after_syntax_prefix(&prefix_inputs, suffix));
+    loaded.extend(load_suffix_after_syntax_prefix(
+        &prefix_inputs,
+        suffix,
+        band_paths,
+    ));
     loaded
 }
 
@@ -966,18 +989,33 @@ pub fn load_suffix_with_syntax_prefix(
     prefix: &CompiledSyntaxSurface,
     suffix: Vec<SourceFile>,
 ) -> Vec<LoadedFile> {
+    let band_paths = vec![Path::default(); suffix.len()];
+    load_suffix_with_syntax_prefix_and_band_paths(prefix, suffix, band_paths)
+}
+
+pub fn load_suffix_with_syntax_prefix_and_band_paths(
+    prefix: &CompiledSyntaxSurface,
+    suffix: Vec<SourceFile>,
+    band_paths: Vec<Path>,
+) -> Vec<LoadedFile> {
     let prefix_inputs = prefix
         .files
         .iter()
         .map(CompiledSyntaxFile::syntax_input)
         .collect::<Vec<_>>();
-    load_suffix_after_syntax_prefix(&prefix_inputs, suffix)
+    load_suffix_after_syntax_prefix(&prefix_inputs, suffix, band_paths)
 }
 
 fn load_suffix_after_syntax_prefix(
     prefix: &[SyntaxFileInput],
     suffix: Vec<SourceFile>,
+    band_paths: Vec<Path>,
 ) -> Vec<LoadedFile> {
+    assert_eq!(
+        suffix.len(),
+        band_paths.len(),
+        "source files and band paths must have the same length"
+    );
     let n = prefix.len() + suffix.len();
 
     let suffix_headers: Vec<Header> = suffix
@@ -1043,7 +1081,12 @@ fn load_suffix_after_syntax_prefix(
     // 4. prefix は既に full parse 済みなので再利用する。suffix は全体の export surface から
     //    初期テーブルを組んで full parse する。
     let mut loaded = Vec::with_capacity(suffix.len());
-    for (offset, (file, header)) in suffix.into_iter().zip(suffix_headers).enumerate() {
+    for (offset, ((file, header), band_path)) in suffix
+        .into_iter()
+        .zip(suffix_headers)
+        .zip(band_paths)
+        .enumerate()
+    {
         let i = prefix.len() + offset;
         let table = initial_op_table(i, &header, &index, &effective);
         let cst = parser::parse_module_to_green_with_ops(&file.source, table.clone());
@@ -1051,6 +1094,7 @@ fn load_suffix_after_syntax_prefix(
         let module_loads = module_load_requests(&file.module_path, &root);
         loaded.push(LoadedFile {
             module_path: file.module_path,
+            band_path,
             source: file.source,
             header,
             module_loads,

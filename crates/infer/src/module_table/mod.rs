@@ -8,6 +8,7 @@ impl ModuleTable {
         Self {
             nodes: vec![ModuleNode {
                 parent: None,
+                band_path: ModulePath::default(),
                 decls: Vec::new(),
                 values: FxHashMap::default(),
                 types: FxHashMap::default(),
@@ -54,6 +55,7 @@ impl ModuleTable {
         let id = ModuleId(self.nodes.len());
         self.nodes.push(ModuleNode {
             parent: None,
+            band_path: ModulePath::default(),
             decls: Vec::new(),
             values: FxHashMap::default(),
             types: FxHashMap::default(),
@@ -379,12 +381,19 @@ impl ModuleTable {
             ModuleDeclKind::Module { module: sub, def },
         );
         let order = self.nodes[module.0].decls[decl.0].order;
+        self.nodes[sub.0].band_path = self.nodes[module.0].band_path.clone();
         self.nodes[module.0]
             .modules
             .entry(name)
             .or_default()
             .push(decl);
         self.nodes[sub.0].parent = Some(ModuleParent { module, order });
+    }
+    pub(super) fn set_module_band_path(&mut self, module: ModuleId, band_path: ModulePath) {
+        self.nodes[module.0].band_path = band_path;
+    }
+    pub(super) fn module_band_path(&self, module: ModuleId) -> &ModulePath {
+        &self.nodes[module.0].band_path
     }
     pub(crate) fn remap_runtime_defs(&mut self, import: &CompiledRuntimeImport) {
         for node in &mut self.nodes {
@@ -542,7 +551,9 @@ impl ModuleTable {
     pub fn module_at(&self, module: ModuleId, name: &Name, site: ModuleOrder) -> Option<ModuleId> {
         let decl = self.select_decl(module, self.nodes[module.0].modules.get(name)?, site)?;
         match decl.kind {
-            ModuleDeclKind::Module { module, .. } => Some(module),
+            ModuleDeclKind::Module { module: child, .. } => {
+                (self.module_band_path(module) == self.module_band_path(child)).then_some(child)
+            }
             ModuleDeclKind::Value { .. } | ModuleDeclKind::Type { .. } => None,
         }
     }

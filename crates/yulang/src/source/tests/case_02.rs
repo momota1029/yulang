@@ -57,8 +57,9 @@ fn write_current_realm_resolution_cache_entry(
         main_source.to_string(),
         vec![request.clone()],
     );
-    let target = CollectedSource::new(
+    let target = CollectedSource::with_band_path(
         target_path.to_path_buf(),
+        path_from_segments(&["helper"]),
         path_from_segments(&["helper"]),
         target_source_for_hash.to_string(),
     );
@@ -3258,6 +3259,85 @@ fn current_band_absolute_use_resolves_from_root_module() {
         build_poly_from_sources(collect_local_sources(root.join("main.yu")).unwrap()).unwrap();
 
     assert_eq!(output.errors, Vec::<String>::new());
+}
+
+#[test]
+fn current_realm_pub_use_resolves_band_root_without_mod_decl() {
+    let root = temp_root("realm-use-pub-band");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.yu"),
+        "use realm/helper::value\nmy x = value\n",
+    )
+    .unwrap();
+    fs::write(root.join("helper.yu"), "pub value = 1\n").unwrap();
+
+    let output =
+        build_poly_from_sources(collect_local_sources(root.join("main.yu")).unwrap()).unwrap();
+
+    assert_eq!(output.errors, Vec::<String>::new());
+}
+
+#[test]
+fn current_realm_band_keeps_current_band_imports_inside_band_root() {
+    let root = temp_root("realm-use-band-current-band");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("helper")).unwrap();
+    fs::write(root.join("main.yu"), "use realm/helper::run\nmy x = run\n").unwrap();
+    fs::write(
+        root.join("helper.yu"),
+        "mod inner;\nuse band::inner::value\npub run = value\n",
+    )
+    .unwrap();
+    fs::write(root.join("helper/inner.yu"), "our value = 1\n").unwrap();
+
+    let output =
+        build_poly_from_sources(collect_local_sources(root.join("main.yu")).unwrap()).unwrap();
+
+    assert_eq!(output.errors, Vec::<String>::new());
+}
+
+#[test]
+fn current_realm_use_does_not_import_our_export() {
+    let root = temp_root("realm-use-hides-our");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.yu"),
+        "use realm/helper::value\nmy x = value\n",
+    )
+    .unwrap();
+    fs::write(root.join("helper.yu"), "our value = 1\n").unwrap();
+
+    let output =
+        build_poly_from_sources(collect_local_sources(root.join("main.yu")).unwrap()).unwrap();
+
+    assert!(
+        !output.errors.is_empty(),
+        "cross-band import should not see our value"
+    );
+}
+
+#[test]
+fn current_realm_use_does_not_make_band_visible_to_bare_paths() {
+    let root = temp_root("realm-use-no-bare-band");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.yu"),
+        "use realm/helper::value\nmy x = helper::value\n",
+    )
+    .unwrap();
+    fs::write(root.join("helper.yu"), "pub value = 1\n").unwrap();
+
+    let output =
+        build_poly_from_sources(collect_local_sources(root.join("main.yu")).unwrap()).unwrap();
+
+    assert!(
+        !output.errors.is_empty(),
+        "current-realm band should not be reachable through bare helper::..."
+    );
 }
 
 #[test]
