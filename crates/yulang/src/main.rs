@@ -844,6 +844,22 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
     eprintln!("  run.marker_frame_empty: {}", stats.marker_frame_empty);
     eprintln!("  run.marker_frame_pushes: {}", stats.marker_frame_pushes);
     eprintln!(
+        "  run.marker_frame_marker_entries: {}",
+        stats.marker_frame_marker_entries
+    );
+    eprintln!(
+        "  run.marker_frame_frame_entries: {}",
+        stats.marker_frame_frame_entries
+    );
+    eprintln!(
+        "  run.marker_frame_add_id_entries: {}",
+        stats.marker_frame_add_id_entries
+    );
+    eprintln!(
+        "  run.marker_frame_active_add_id_entries: {}",
+        stats.marker_frame_active_add_id_entries
+    );
+    eprintln!(
         "  run.marker_frame_value_closes: {}",
         stats.marker_frame_value_closes
     );

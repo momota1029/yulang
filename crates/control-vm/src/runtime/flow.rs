@@ -622,10 +622,12 @@ impl<'a> Runtime<'a> {
         handler_key: Option<InternedPathPrefix>,
         active_plan: SharedMarkers,
     ) {
+        self.stats.marker_frame_marker_entries += markers.len() as u64;
         let mut frame_entries = Vec::new();
         for marker in markers {
             match marker {
                 ValueMarker::Frame { id } => {
+                    self.stats.marker_frame_frame_entries += 1;
                     let entry_frame_len = self.active_frames.len();
                     let frame_index = entry_frame_len;
                     self.active_frames.push(ActiveFrame { id: *id });
@@ -645,6 +647,8 @@ impl<'a> Runtime<'a> {
                     }
                 }
                 ValueMarker::AddId(marker) if activate_add_ids && marker.depth == 0 => {
+                    self.stats.marker_frame_add_id_entries += 1;
+                    self.stats.marker_frame_active_add_id_entries += 1;
                     let active_marker = ActiveAddIdMarker {
                         marker: marker.clone(),
                         entry_frame_len: self.entry_frame_len_for_marker(marker.id, &frame_entries),
@@ -659,7 +663,9 @@ impl<'a> Runtime<'a> {
                     }
                     self.active_add_ids.push(active_marker);
                 }
-                ValueMarker::AddId(_) => {}
+                ValueMarker::AddId(_) => {
+                    self.stats.marker_frame_add_id_entries += 1;
+                }
             }
         }
         self.active_marker_plans.push(active_plan);
