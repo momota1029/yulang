@@ -46,6 +46,13 @@ pub enum UsePathRoute {
     SlashQualified { prefix_segments: usize },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct UseAnchor {
+    pub path: Path,
+    #[serde(default)]
+    pub route: UsePathRoute,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Visibility {
     Pub,
@@ -63,6 +70,8 @@ pub enum UseImport {
         route: UsePathRoute,
         #[serde(default)]
         version: Option<String>,
+        #[serde(default)]
+        anchor: Option<UseAnchor>,
     },
     /// `use a::b::*`
     Glob {
@@ -71,6 +80,8 @@ pub enum UseImport {
         route: UsePathRoute,
         #[serde(default)]
         version: Option<String>,
+        #[serde(default)]
+        anchor: Option<UseAnchor>,
     },
 }
 
@@ -423,7 +434,9 @@ struct UseImportCollector {
     after_as: bool,
     paren_depth: usize,
     skip_tail: bool,
-    recent_group_start: Option<usize>,
+    recent_import_start: Option<usize>,
+    parsing_anchor: bool,
+    anchor_path: UsePathBuilder,
 }
 
 impl UseImportCollector {
@@ -439,7 +452,9 @@ impl UseImportCollector {
             after_as: false,
             paren_depth: 0,
             skip_tail: false,
-            recent_group_start: None,
+            recent_import_start: None,
+            parsing_anchor: false,
+            anchor_path: UsePathBuilder::default(),
         }
     }
 
@@ -453,7 +468,7 @@ impl UseImportCollector {
     }
 
     fn finish(mut self) -> Vec<UseImport> {
-        self.push_alias_item();
+        self.finish_current_item();
         self.imports
     }
 
@@ -471,13 +486,17 @@ impl UseImportCollector {
         let start = self.imports.len();
         self.imports.extend(group_collector.finish());
         if self.imports.len() > start {
-            self.recent_group_start = Some(start);
+            self.recent_import_start = Some(start);
         }
-        self.reset_item();
+        self.reset_path_after_commit();
     }
 
     fn collect_token(&mut self, kind: SyntaxKind, text: &str) {
         if self.skip_tail {
+            return;
+        }
+        if self.parsing_anchor {
+            self.collect_anchor_token(kind, text);
             return;
         }
         match kind {
@@ -490,23 +509,29 @@ impl UseImportCollector {
                     prefix,
                     route,
                     version: None,
+                    anchor: None,
                 });
-                self.reset_item();
+                self.recent_import_start = Some(self.imports.len() - 1);
+                self.reset_path_after_commit();
             }
             SyntaxKind::Ident if self.after_as => {
                 self.alias = Some(Name(text.to_string()));
                 self.after_as = false;
             }
-            SyntaxKind::Ident if text == "with" || text == "without" => {
-                self.push_alias_item();
-                self.reset_item();
+            SyntaxKind::Ident if text == "with" => {
+                self.ensure_current_imports();
+                self.parsing_anchor = true;
+                self.anchor_path = UsePathBuilder::default();
+            }
+            SyntaxKind::Ident if text == "without" => {
+                self.ensure_current_imports();
                 self.skip_tail = true;
             }
             SyntaxKind::Ident if is_use_version_suffix(text) => {
                 self.apply_version(text);
             }
             SyntaxKind::Ident | SyntaxKind::OpName => {
-                self.recent_group_start = None;
+                self.recent_import_start = None;
                 self.path.push(Name(text.to_string()));
                 self.after_as = false;
             }
@@ -518,9 +543,16 @@ impl UseImportCollector {
     }
 
     fn finish_item(&mut self) {
-        self.push_alias_item();
+        self.finish_current_item();
         self.reset_item();
-        self.recent_group_start = None;
+    }
+
+    fn finish_current_item(&mut self) {
+        if self.parsing_anchor {
+            self.finish_anchor();
+        } else {
+            self.ensure_current_imports();
+        }
     }
 
     fn push_alias_item(&mut self) {
@@ -531,26 +563,71 @@ impl UseImportCollector {
     }
 
     fn apply_version(&mut self, version: &str) {
-        if let Some(start) = self.recent_group_start.take() {
+        if let Some(start) = self.ensure_current_imports() {
             for import in &mut self.imports[start..] {
                 set_import_version(import, version);
             }
-            return;
         }
-        self.push_alias_item();
-        if let Some(import) = self.imports.last_mut() {
-            set_import_version(import, version);
-        }
-        self.reset_item();
     }
 
-    fn reset_item(&mut self) {
+    fn ensure_current_imports(&mut self) -> Option<usize> {
+        if let Some(start) = self.recent_import_start {
+            return Some(start);
+        }
+        let start = self.imports.len();
+        self.push_alias_item();
+        if self.imports.len() == start {
+            return None;
+        }
+        self.recent_import_start = Some(start);
+        self.reset_path_after_commit();
+        Some(start)
+    }
+
+    fn collect_anchor_token(&mut self, kind: SyntaxKind, text: &str) {
+        match kind {
+            SyntaxKind::Ident | SyntaxKind::OpName => self.anchor_path.push(Name(text.to_string())),
+            SyntaxKind::Slash => self.anchor_path.push_separator(UsePathSeparator::Slash),
+            SyntaxKind::ColonColon => self
+                .anchor_path
+                .push_separator(UsePathSeparator::ColonColon),
+            _ => {}
+        }
+    }
+
+    fn finish_anchor(&mut self) {
+        let (path, route) = self.anchor_path.finish();
+        if !path.segments.is_empty() {
+            if let Some(start) = self.recent_import_start {
+                for import in &mut self.imports[start..] {
+                    set_import_anchor(
+                        import,
+                        UseAnchor {
+                            path: path.clone(),
+                            route,
+                        },
+                    );
+                }
+            }
+        }
+        self.parsing_anchor = false;
+        self.anchor_path = UsePathBuilder::default();
+    }
+
+    fn reset_path_after_commit(&mut self) {
         self.path.truncate(self.base_len);
         self.path.pending_separator = self.base_pending_separator;
         self.alias = None;
         self.after_as = false;
         self.paren_depth = 0;
+    }
+
+    fn reset_item(&mut self) {
+        self.reset_path_after_commit();
         self.skip_tail = false;
+        self.recent_import_start = None;
+        self.parsing_anchor = false;
+        self.anchor_path = UsePathBuilder::default();
     }
 }
 
@@ -711,6 +788,7 @@ fn push_alias_import(imports: &mut Vec<UseImport>, path: &UsePathBuilder, alias:
         path,
         route,
         version: None,
+        anchor: None,
     });
 }
 
@@ -723,6 +801,14 @@ fn set_import_version(import: &mut UseImport, version: &str) {
     match import {
         UseImport::Alias { version: slot, .. } | UseImport::Glob { version: slot, .. } => {
             *slot = Some(version.to_string());
+        }
+    }
+}
+
+fn set_import_anchor(import: &mut UseImport, anchor: UseAnchor) {
+    match import {
+        UseImport::Alias { anchor: slot, .. } | UseImport::Glob { anchor: slot, .. } => {
+            *slot = Some(anchor);
         }
     }
 }
@@ -1167,6 +1253,7 @@ mod tests {
             path: path(segments),
             route: UsePathRoute::Relative,
             version: None,
+            anchor: None,
         }
     }
 
@@ -1227,6 +1314,7 @@ mod tests {
                     path: path(&["path", "to", "func"]),
                     route: UsePathRoute::CurrentBand,
                     version: None,
+                    anchor: None,
                 },
             }]
         );
@@ -1245,6 +1333,7 @@ mod tests {
                     path: path(&["path", "to", "band", "foo", "bar"]),
                     route: UsePathRoute::CurrentRealm { band_segments: 3 },
                     version: Some("v2".into()),
+                    anchor: None,
                 },
             }]
         );
@@ -1264,6 +1353,7 @@ mod tests {
                         path: path(&["theme", "colors"]),
                         route: UsePathRoute::SlashQualified { prefix_segments: 2 },
                         version: Some("v2".into()),
+                        anchor: None,
                     },
                 },
                 UseDecl {
@@ -1273,6 +1363,7 @@ mod tests {
                         path: path(&["theme", "fonts"]),
                         route: UsePathRoute::SlashQualified { prefix_segments: 2 },
                         version: Some("v2".into()),
+                        anchor: None,
                     },
                 },
             ]
@@ -1297,6 +1388,7 @@ mod tests {
                         path: path(&["fonts"]),
                         route: UsePathRoute::Relative,
                         version: Some("v2".into()),
+                        anchor: None,
                     },
                 },
             ]
@@ -1316,8 +1408,49 @@ mod tests {
                     path: path(&["ui", "widget", "a"]),
                     route: UsePathRoute::SlashQualified { prefix_segments: 2 },
                     version: None,
+                    anchor: Some(UseAnchor {
+                        path: path(&["program", "ui"]),
+                        route: UsePathRoute::Relative,
+                    }),
                 },
             }]
+        );
+    }
+
+    #[test]
+    fn read_header_group_anchor_applies_to_group_items() {
+        let header = read_header("use ui/{widget::a, panel::b} with program::ui\nmy main = 1\n");
+
+        assert_eq!(
+            header.uses,
+            vec![
+                UseDecl {
+                    visibility: Visibility::Our,
+                    import: UseImport::Alias {
+                        name: Name("a".into()),
+                        path: path(&["ui", "widget", "a"]),
+                        route: UsePathRoute::SlashQualified { prefix_segments: 2 },
+                        version: None,
+                        anchor: Some(UseAnchor {
+                            path: path(&["program", "ui"]),
+                            route: UsePathRoute::Relative,
+                        }),
+                    },
+                },
+                UseDecl {
+                    visibility: Visibility::Our,
+                    import: UseImport::Alias {
+                        name: Name("b".into()),
+                        path: path(&["ui", "panel", "b"]),
+                        route: UsePathRoute::SlashQualified { prefix_segments: 2 },
+                        version: None,
+                        anchor: Some(UseAnchor {
+                            path: path(&["program", "ui"]),
+                            route: UsePathRoute::Relative,
+                        }),
+                    },
+                },
+            ]
         );
     }
 

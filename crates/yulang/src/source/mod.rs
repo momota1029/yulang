@@ -722,11 +722,11 @@ fn collect_local_source_text_with_std_context(
         let mut collector = Collector::new();
         collector.collect_std_root_with_source_override(&std_root, entry, source)?;
         let mut files = collector.finish();
-        files.push(CollectedSource {
-            path: entry.to_path_buf(),
-            module_path: Path::default(),
-            source: source_with_implicit_std_prelude(String::new()),
-        });
+        files.push(CollectedSource::new(
+            entry.to_path_buf(),
+            Path::default(),
+            source_with_implicit_std_prelude(String::new()),
+        ));
         return Ok(SourceTextWithStdContext {
             files,
             focus_module: module_path,
@@ -1085,6 +1085,32 @@ pub struct CollectedSource {
     pub path: PathBuf,
     pub module_path: Path,
     pub source: String,
+    pub resolution_imports: Vec<sources::UseImport>,
+}
+
+impl CollectedSource {
+    pub fn new(path: PathBuf, module_path: Path, source: String) -> Self {
+        Self {
+            path,
+            module_path,
+            source,
+            resolution_imports: Vec::new(),
+        }
+    }
+
+    pub fn with_resolution_imports(
+        path: PathBuf,
+        module_path: Path,
+        source: String,
+        resolution_imports: Vec<sources::UseImport>,
+    ) -> Self {
+        Self {
+            path,
+            module_path,
+            source,
+            resolution_imports,
+        }
+    }
 }
 
 struct SourceTextWithStdContext {

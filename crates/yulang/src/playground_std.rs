@@ -14,10 +14,12 @@ use crate::source::CollectedSource;
 pub(crate) fn embedded_playground_std_sources() -> Vec<CollectedSource> {
     PLAYGROUND_STD_FILES
         .iter()
-        .map(|file| CollectedSource {
-            path: PathBuf::from("<embedded-playground-std>").join(file.relative_path),
-            module_path: module_path(file.relative_path),
-            source: file.source.to_string(),
+        .map(|file| {
+            CollectedSource::new(
+                PathBuf::from("<embedded-playground-std>").join(file.relative_path),
+                module_path(file.relative_path),
+                file.source.to_string(),
+            )
         })
         .collect()
 }

@@ -1138,11 +1138,11 @@ fn std_prefix_lowering_source_files(
 }
 
 fn std_prefix_root_collected_source() -> yulang::CollectedSource {
-    yulang::CollectedSource {
-        path: PathBuf::from("<std-prefix-root>"),
-        module_path: sources::Path::default(),
-        source: std_prefix_root_source(),
-    }
+    yulang::CollectedSource::new(
+        PathBuf::from("<std-prefix-root>"),
+        sources::Path::default(),
+        std_prefix_root_source(),
+    )
 }
 
 fn std_prefix_root_source() -> String {

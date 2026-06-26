@@ -78,11 +78,14 @@ pub(super) fn embedded_std_sources_with_root(
     source: String,
 ) -> Vec<CollectedSource> {
     let mut files = embedded_std_sources();
-    files.push(CollectedSource {
-        path: entry.to_path_buf(),
-        module_path: Path::default(),
-        source: source_with_implicit_std_prelude(source),
-    });
+    let source = source_with_implicit_std_prelude(source);
+    let metadata = discover_source_header_metadata(&Path::default(), &source);
+    files.push(CollectedSource::with_resolution_imports(
+        entry.to_path_buf(),
+        Path::default(),
+        source,
+        metadata.resolution_imports,
+    ));
     files
 }
 
@@ -99,11 +102,14 @@ pub(super) fn embedded_playground_std_sources_with_root(
     source: String,
 ) -> Vec<CollectedSource> {
     let mut files = crate::playground_std::embedded_playground_std_sources();
-    files.push(CollectedSource {
-        path: entry.to_path_buf(),
-        module_path: Path::default(),
-        source: source_with_implicit_std_prelude(source),
-    });
+    let source = source_with_implicit_std_prelude(source);
+    let metadata = discover_source_header_metadata(&Path::default(), &source);
+    files.push(CollectedSource::with_resolution_imports(
+        entry.to_path_buf(),
+        Path::default(),
+        source,
+        metadata.resolution_imports,
+    ));
     files
 }
 
@@ -180,10 +186,16 @@ fn lower_root_with_embedded_prefix(
 pub(super) fn embedded_std_sources() -> Vec<CollectedSource> {
     embedded_std_files()
         .iter()
-        .map(|file| CollectedSource {
-            path: PathBuf::from("<embedded-std>").join(file.relative_path),
-            module_path: embedded_std_module_path(file.relative_path),
-            source: file.source.to_string(),
+        .map(|file| {
+            let module_path = embedded_std_module_path(file.relative_path);
+            let source = file.source.to_string();
+            let metadata = discover_source_header_metadata(&module_path, &source);
+            CollectedSource::with_resolution_imports(
+                PathBuf::from("<embedded-std>").join(file.relative_path),
+                module_path,
+                source,
+                metadata.resolution_imports,
+            )
         })
         .collect()
 }
@@ -384,59 +396,78 @@ pub(super) fn is_std_root(path: &FsPath) -> bool {
     crate::stdlib::is_std_root(path)
 }
 
+#[derive(Debug, Clone, Default)]
+pub(super) struct SourceHeaderMetadata {
+    pub module_loads: Vec<ModuleLoadRequest>,
+    pub resolution_imports: Vec<sources::UseImport>,
+    pub current_realm_bands: Vec<Path>,
+}
+
+pub(super) fn discover_source_header_metadata(
+    module_path: &Path,
+    source: &str,
+) -> SourceHeaderMetadata {
+    if !source.contains("mod") && !source.contains("use") {
+        return SourceHeaderMetadata::default();
+    }
+    let cst = parser::parse_module_to_green(source);
+    let root = rowan::SyntaxNode::<parser::sink::YulangLanguage>::new_root(cst);
+    let module_loads = sources::module_load_requests(module_path, &root);
+    let mut metadata = SourceHeaderMetadata {
+        module_loads,
+        resolution_imports: Vec::new(),
+        current_realm_bands: Vec::new(),
+    };
+    collect_source_resolution_imports(&root, &mut metadata);
+    metadata
+}
+
 pub(super) fn discover_module_loads(module_path: &Path, source: &str) -> Vec<ModuleLoadRequest> {
-    if !source.contains("mod") {
-        return Vec::new();
-    }
-    let cst = parser::parse_module_to_green(source);
-    let root = rowan::SyntaxNode::<parser::sink::YulangLanguage>::new_root(cst);
-    sources::module_load_requests(module_path, &root)
+    discover_source_header_metadata(module_path, source).module_loads
 }
 
-pub(super) fn discover_current_realm_band_loads(source: &str) -> Vec<Path> {
-    if !source.contains("realm/") {
-        return Vec::new();
-    }
-    let cst = parser::parse_module_to_green(source);
-    let root = rowan::SyntaxNode::<parser::sink::YulangLanguage>::new_root(cst);
-    let mut bands = Vec::<Path>::new();
-    collect_current_realm_band_loads(&root, &mut bands);
-    bands
-}
-
-fn collect_current_realm_band_loads(
+fn collect_source_resolution_imports(
     node: &rowan::SyntaxNode<parser::sink::YulangLanguage>,
-    bands: &mut Vec<Path>,
+    metadata: &mut SourceHeaderMetadata,
 ) {
     if node.kind() == parser::lex::SyntaxKind::UseDecl {
-        collect_current_realm_band_loads_from_use(node, bands);
+        collect_source_resolution_imports_from_use(node, metadata);
     }
     for child in node.children() {
-        collect_current_realm_band_loads(&child, bands);
+        collect_source_resolution_imports(&child, metadata);
     }
 }
 
-fn collect_current_realm_band_loads_from_use(
+fn collect_source_resolution_imports_from_use(
     node: &rowan::SyntaxNode<parser::sink::YulangLanguage>,
-    bands: &mut Vec<Path>,
+    metadata: &mut SourceHeaderMetadata,
 ) {
     for import in sources::use_imports(node) {
-        let (path, route) = match import {
-            sources::UseImport::Alias { path, route, .. }
+        let (path, route, has_version, has_anchor) = match &import {
+            sources::UseImport::Alias {
+                path,
+                route,
+                version,
+                anchor,
+                ..
+            }
             | sources::UseImport::Glob {
                 prefix: path,
                 route,
-                ..
-            } => (path, route),
+                version,
+                anchor,
+            } => (path, *route, version.is_some(), anchor.is_some()),
         };
-        let sources::UsePathRoute::CurrentRealm { band_segments } = route else {
-            continue;
-        };
-        let band = Path {
-            segments: path.segments.into_iter().take(band_segments).collect(),
-        };
-        if !band.segments.is_empty() && !bands.contains(&band) {
-            bands.push(band);
+        if let sources::UsePathRoute::CurrentRealm { band_segments } = route {
+            let band = Path {
+                segments: path.segments.iter().take(band_segments).cloned().collect(),
+            };
+            if !band.segments.is_empty() && !metadata.current_realm_bands.contains(&band) {
+                metadata.current_realm_bands.push(band);
+            }
+        }
+        if route != sources::UsePathRoute::Relative || has_version || has_anchor {
+            metadata.resolution_imports.push(import);
         }
     }
 }

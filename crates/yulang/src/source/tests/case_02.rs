@@ -1,5 +1,18 @@
 use super::*;
 
+fn collected(path: &str, module: &[&str], source: &str) -> CollectedSource {
+    CollectedSource::new(
+        PathBuf::from(path),
+        Path {
+            segments: module
+                .iter()
+                .map(|segment| Name((*segment).to_string()))
+                .collect(),
+        },
+        source.to_string(),
+    )
+}
+
 #[test]
 fn dump_mono_without_std_specializes_method_select_result() {
     let root = temp_root("dump-mono-method-select-result");
@@ -107,11 +120,11 @@ fn build_poly_without_std_records_attached_role_impl_method_mappings() {
 
 #[test]
 fn build_poly_and_compiled_unit_from_collected_sources_share_lowering_output() {
-    let files = vec![CollectedSource {
-        path: PathBuf::from("main.yu"),
-        module_path: Path::default(),
-        source: "pub struct Box { value: int }\nmy box = Box { value: 1 }\n".into(),
-    }];
+    let files = vec![collected(
+        "main.yu",
+        &[],
+        "pub struct Box { value: int }\nmy box = Box { value: 1 }\n",
+    )];
 
     let output = build_poly_and_compiled_unit_from_collected_sources(files).unwrap();
 
@@ -143,35 +156,15 @@ fn build_poly_and_compiled_unit_from_collected_sources_share_lowering_output() {
 #[test]
 fn build_poly_from_compiled_unit_prefix_lowers_local_suffix_modules() {
     let prefix_files = vec![
-        CollectedSource {
-            path: PathBuf::from("prefix.yu"),
-            module_path: Path::default(),
-            source: "mod ops;\n".into(),
-        },
-        CollectedSource {
-            path: PathBuf::from("ops.yu"),
-            module_path: Path {
-                segments: vec![Name("ops".to_string())],
-            },
-            source: "pub x = 7\n".into(),
-        },
+        collected("prefix.yu", &[], "mod ops;\n"),
+        collected("ops.yu", &["ops"], "pub x = 7\n"),
     ];
     let prefix = build_poly_and_compiled_unit_from_collected_sources(prefix_files)
         .unwrap()
         .compiled_unit;
     let suffix_files = vec![
-        CollectedSource {
-            path: PathBuf::from("main.yu"),
-            module_path: Path::default(),
-            source: "mod local;\nuse local::*\ny\n".into(),
-        },
-        CollectedSource {
-            path: PathBuf::from("local.yu"),
-            module_path: Path {
-                segments: vec![Name("local".to_string())],
-            },
-            source: "use ops::*\npub y = x\n".into(),
-        },
+        collected("main.yu", &[], "mod local;\nuse local::*\ny\n"),
+        collected("local.yu", &["local"], "use ops::*\npub y = x\n"),
     ];
 
     let output =
@@ -187,25 +180,9 @@ fn build_poly_from_compiled_unit_prefix_lowers_local_suffix_modules() {
 #[test]
 fn build_poly_from_non_root_source_unit_prefix_lowers_source_suffix() {
     let files = vec![
-        CollectedSource {
-            path: PathBuf::from("main.yu"),
-            module_path: Path::default(),
-            source: "mod a;\nuse a::*\nx\n".into(),
-        },
-        CollectedSource {
-            path: PathBuf::from("a.yu"),
-            module_path: Path {
-                segments: vec![Name("a".to_string())],
-            },
-            source: "mod b;\npub x = b::y\n".into(),
-        },
-        CollectedSource {
-            path: PathBuf::from("a/b.yu"),
-            module_path: Path {
-                segments: vec![Name("a".to_string()), Name("b".to_string())],
-            },
-            source: "pub y = 7\n".into(),
-        },
+        collected("main.yu", &[], "mod a;\nuse a::*\nx\n"),
+        collected("a.yu", &["a"], "mod b;\npub x = b::y\n"),
+        collected("a/b.yu", &["a", "b"], "pub y = 7\n"),
     ];
     let units = source_compilation_units(&files);
     let b_unit = units.unit_for_file(2).unwrap();
@@ -228,25 +205,9 @@ fn build_poly_from_non_root_source_unit_prefix_lowers_source_suffix() {
 #[test]
 fn source_compilation_units_order_local_module_dependencies_first() {
     let files = vec![
-        CollectedSource {
-            path: PathBuf::from("main.yu"),
-            module_path: Path::default(),
-            source: "mod a;\nx\n".into(),
-        },
-        CollectedSource {
-            path: PathBuf::from("a.yu"),
-            module_path: Path {
-                segments: vec![Name("a".to_string())],
-            },
-            source: "mod b;\npub x = b::y\n".into(),
-        },
-        CollectedSource {
-            path: PathBuf::from("a/b.yu"),
-            module_path: Path {
-                segments: vec![Name("a".to_string()), Name("b".to_string())],
-            },
-            source: "pub y = 7\n".into(),
-        },
+        collected("main.yu", &[], "mod a;\nx\n"),
+        collected("a.yu", &["a"], "mod b;\npub x = b::y\n"),
+        collected("a/b.yu", &["a", "b"], "pub y = 7\n"),
     ];
 
     let units = source_compilation_units(&files);
@@ -265,25 +226,9 @@ fn source_compilation_units_order_local_module_dependencies_first() {
 #[test]
 fn source_compilation_units_select_dependency_closed_available_prefix() {
     let files = vec![
-        CollectedSource {
-            path: PathBuf::from("main.yu"),
-            module_path: Path::default(),
-            source: "mod a;\nx\n".into(),
-        },
-        CollectedSource {
-            path: PathBuf::from("a.yu"),
-            module_path: Path {
-                segments: vec![Name("a".to_string())],
-            },
-            source: "mod b;\npub x = b::y\n".into(),
-        },
-        CollectedSource {
-            path: PathBuf::from("a/b.yu"),
-            module_path: Path {
-                segments: vec![Name("a".to_string()), Name("b".to_string())],
-            },
-            source: "pub y = 7\n".into(),
-        },
+        collected("main.yu", &[], "mod a;\nx\n"),
+        collected("a.yu", &["a"], "mod b;\npub x = b::y\n"),
+        collected("a/b.yu", &["a", "b"], "pub y = 7\n"),
     ];
     let units = source_compilation_units(&files);
 
@@ -304,25 +249,9 @@ fn source_compilation_units_select_dependency_closed_available_prefix() {
 #[test]
 fn source_compilation_units_build_cache_selection() {
     let files = vec![
-        CollectedSource {
-            path: PathBuf::from("main.yu"),
-            module_path: Path::default(),
-            source: "mod a;\nx\n".into(),
-        },
-        CollectedSource {
-            path: PathBuf::from("a.yu"),
-            module_path: Path {
-                segments: vec![Name("a".to_string())],
-            },
-            source: "mod b;\npub x = b::y\n".into(),
-        },
-        CollectedSource {
-            path: PathBuf::from("a/b.yu"),
-            module_path: Path {
-                segments: vec![Name("a".to_string()), Name("b".to_string())],
-            },
-            source: "pub y = 7\n".into(),
-        },
+        collected("main.yu", &[], "mod a;\nx\n"),
+        collected("a.yu", &["a"], "mod b;\npub x = b::y\n"),
+        collected("a/b.yu", &["a", "b"], "pub y = 7\n"),
     ];
     let units = source_compilation_units(&files);
 
@@ -340,25 +269,9 @@ fn source_compilation_units_build_cache_selection() {
 #[test]
 fn source_unit_lowering_source_files_synthesize_parent_modules() {
     let files = vec![
-        CollectedSource {
-            path: PathBuf::from("main.yu"),
-            module_path: Path::default(),
-            source: "pub mod a;\nx\n".into(),
-        },
-        CollectedSource {
-            path: PathBuf::from("a.yu"),
-            module_path: Path {
-                segments: vec![Name("a".to_string())],
-            },
-            source: "mod b;\npub x = b::y\n".into(),
-        },
-        CollectedSource {
-            path: PathBuf::from("a/b.yu"),
-            module_path: Path {
-                segments: vec![Name("a".to_string()), Name("b".to_string())],
-            },
-            source: "pub y = 7\n".into(),
-        },
+        collected("main.yu", &[], "pub mod a;\nx\n"),
+        collected("a.yu", &["a"], "mod b;\npub x = b::y\n"),
+        collected("a/b.yu", &["a", "b"], "pub y = 7\n"),
     ];
     let units = source_compilation_units(&files);
     let b_unit = units.unit_for_file(2).unwrap();
@@ -3064,6 +2977,42 @@ fn current_realm_use_loads_band_root_file() {
     assert!(modules.contains(&Path {
         segments: vec![Name("helper".into())],
     }));
+}
+
+#[test]
+fn source_collection_records_resolution_import_metadata() {
+    let root = temp_root("resolution-import-metadata");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.yu"),
+        "use ui/widget::a as item v1.2 with program::ui\nmy x = 1\n",
+    )
+    .unwrap();
+
+    let files = collect_local_sources(root.join("main.yu")).unwrap();
+    let root_file = files
+        .iter()
+        .find(|file| file.module_path.segments.is_empty())
+        .unwrap();
+
+    assert_eq!(
+        root_file.resolution_imports,
+        vec![sources::UseImport::Alias {
+            name: Name("item".into()),
+            path: Path {
+                segments: vec![Name("ui".into()), Name("widget".into()), Name("a".into())],
+            },
+            route: sources::UsePathRoute::SlashQualified { prefix_segments: 2 },
+            version: Some("v1.2".into()),
+            anchor: Some(sources::UseAnchor {
+                path: Path {
+                    segments: vec![Name("program".into()), Name("ui".into())],
+                },
+                route: sources::UsePathRoute::Relative,
+            }),
+        }]
+    );
 }
 
 #[test]

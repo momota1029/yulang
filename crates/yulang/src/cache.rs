@@ -24,7 +24,7 @@ const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
 const COMPILED_UNIT_CACHE_FORMAT: u32 = 14;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
-const CACHE_SCHEMA_VERSION: u32 = 2;
+const CACHE_SCHEMA_VERSION: u32 = 3;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
 const SOURCE_UNIT_CACHE_SALT: &[u8] = b"yulang/source-unit-cache/v1";
 const MERGED_COMPILED_UNIT_CACHE_SALT: &[u8] = b"yulang/merged-compiled-unit-cache/v1";
@@ -1213,6 +1213,10 @@ fn hash_collected_source(hasher: &mut StableHasher, file: &CollectedSource) {
         hasher.string(&segment.0);
     }
     hasher.string(&file.source);
+    hasher.usize(file.resolution_imports.len());
+    for import in &file.resolution_imports {
+        hash_use_import(hasher, import);
+    }
 }
 
 fn compiled_unit_manifest(
@@ -1261,6 +1265,10 @@ fn source_file_hash(file: &CollectedSource) -> u64 {
         hasher.string(&segment.0);
     }
     hasher.string(&file.source);
+    hasher.usize(file.resolution_imports.len());
+    for import in &file.resolution_imports {
+        hash_use_import(&mut hasher, import);
+    }
     hasher.finish()
 }
 
@@ -2706,23 +2714,38 @@ fn hash_use_import(hasher: &mut StableHasher, import: &sources::UseImport) {
             path,
             route,
             version,
+            anchor,
         } => {
             hasher.u8(0);
             hasher.string(&name.0);
             hash_module_path(hasher, path);
             hash_use_path_route(hasher, *route);
             hash_optional_string(hasher, version.as_deref());
+            hash_use_anchor(hasher, anchor.as_ref());
         }
         sources::UseImport::Glob {
             prefix,
             route,
             version,
+            anchor,
         } => {
             hasher.u8(1);
             hash_module_path(hasher, prefix);
             hash_use_path_route(hasher, *route);
             hash_optional_string(hasher, version.as_deref());
+            hash_use_anchor(hasher, anchor.as_ref());
         }
+    }
+}
+
+fn hash_use_anchor(hasher: &mut StableHasher, anchor: Option<&sources::UseAnchor>) {
+    match anchor {
+        Some(anchor) => {
+            hasher.bool(true);
+            hash_module_path(hasher, &anchor.path);
+            hash_use_path_route(hasher, anchor.route);
+        }
+        None => hasher.bool(false),
     }
 }
 
@@ -3116,6 +3139,30 @@ mod tests {
         assert_ne!(current, changed_version);
         assert_ne!(current, changed_poly);
         assert_ne!(current, changed_control);
+    }
+
+    #[test]
+    fn source_cache_key_tracks_resolution_import_metadata() {
+        let base = source("main.yu", &[], "use ui/widget::a with program::ui\n");
+        let mut with_request = base.clone();
+        with_request
+            .resolution_imports
+            .push(sources::UseImport::Alias {
+                name: Name("a".into()),
+                path: Path {
+                    segments: vec![Name("ui".into()), Name("widget".into()), Name("a".into())],
+                },
+                route: sources::UsePathRoute::SlashQualified { prefix_segments: 2 },
+                version: None,
+                anchor: Some(sources::UseAnchor {
+                    path: Path {
+                        segments: vec![Name("program".into()), Name("ui".into())],
+                    },
+                    route: sources::UsePathRoute::Relative,
+                }),
+            });
+
+        assert_ne!(source_cache_key(&[base]), source_cache_key(&[with_request]));
     }
 
     #[test]
@@ -4286,16 +4333,16 @@ mod tests {
     }
 
     fn source(path: &str, module: &[&str], text: &str) -> CollectedSource {
-        CollectedSource {
-            path: PathBuf::from(path),
-            module_path: Path {
+        CollectedSource::new(
+            PathBuf::from(path),
+            Path {
                 segments: module
                     .iter()
                     .map(|segment| Name((*segment).to_string()))
                     .collect(),
             },
-            source: text.to_string(),
-        }
+            text.to_string(),
+        )
     }
 
     fn module_chain_sources(

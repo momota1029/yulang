@@ -102,15 +102,15 @@ impl Collector {
                 source = source_with_implicit_std_prelude(source);
             }
 
-            let requests = discover_module_loads(&module_path, &source);
-            let current_realm_bands = discover_current_realm_band_loads(&source);
-            self.files.push(CollectedSource {
-                path: path.clone(),
-                module_path: module_path.clone(),
+            let metadata = discover_source_header_metadata(&module_path, &source);
+            self.files.push(CollectedSource::with_resolution_imports(
+                path.clone(),
+                module_path.clone(),
                 source,
-            });
+                metadata.resolution_imports,
+            ));
 
-            for request in requests {
+            for request in metadata.module_loads {
                 let requested_module = request.module_path();
                 if self.module_files.contains_key(&requested_module) {
                     continue;
@@ -119,7 +119,7 @@ impl Collector {
                 queue.push_back((child_path, requested_module, band_path.clone(), None));
             }
 
-            for band in current_realm_bands {
+            for band in metadata.current_realm_bands {
                 if self.module_files.contains_key(&band) {
                     continue;
                 }
@@ -152,14 +152,15 @@ impl Collector {
                     error,
                 })?,
             };
-            let requests = discover_module_loads(&module_path, &source);
-            self.files.push(CollectedSource {
-                path: path.clone(),
-                module_path: module_path.clone(),
+            let metadata = discover_source_header_metadata(&module_path, &source);
+            self.files.push(CollectedSource::with_resolution_imports(
+                path.clone(),
+                module_path.clone(),
                 source,
-            });
+                metadata.resolution_imports,
+            ));
 
-            for request in requests {
+            for request in metadata.module_loads {
                 let requested_module = request.module_path();
                 if self.module_files.contains_key(&requested_module) {
                     continue;
