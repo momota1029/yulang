@@ -246,16 +246,24 @@ impl<'a> Runtime<'a> {
         for active_marker in &self.active_add_ids {
             let marker = &active_marker.marker;
             self.stats.active_add_id_scans += 1;
-            let path_matches_marker =
-                counted_path_has_prefix(&mut self.stats, &request.path_key, marker.path_key);
-            if (path_matches_marker && !marker.guard_own_path)
-                || (!path_matches_marker && !marker.guard_foreign_path)
-                || (!marker.carry_after_frame
-                    && request_excepted_at_marker_entry(
-                        &self.active_frames,
-                        request,
-                        active_marker,
-                    ))
+            match (marker.guard_own_path, marker.guard_foreign_path) {
+                (true, true) => {}
+                (true, false) => {
+                    if !counted_path_has_prefix(&mut self.stats, &request.path_key, marker.path_key)
+                    {
+                        continue;
+                    }
+                }
+                (false, true) => {
+                    if counted_path_has_prefix(&mut self.stats, &request.path_key, marker.path_key)
+                    {
+                        continue;
+                    }
+                }
+                (false, false) => continue,
+            }
+            if !marker.carry_after_frame
+                && request_excepted_at_marker_entry(&self.active_frames, request, active_marker)
             {
                 continue;
             }
