@@ -43,6 +43,13 @@
   — `act copy = source with:` の意味論。copy は alias ではなく新しい effect family で、
   source body からは `pub` / `our` だけを継承し、source `my` は destination companion へ出さない。
 
+### Source resolution / cache identity
+
+- [2026-06-26-local-realm-band.md](2026-06-26-local-realm-band.md)
+  — local/editable realm と band identity の release-target 仕様。entry file は root module
+  でありつつ file path 由来の band identity を持つ。`realm/...::...`、`band::...`、
+  entry-band self alias、ambient empty-band `std`、release `.yucu` artifact の境界を固定する。
+
 ### 後段（単相化）
 
 - [2026-06-15-specialize2-graph-solver.md](2026-06-15-specialize2-graph-solver.md)

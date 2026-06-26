@@ -90,10 +90,31 @@ use std::prelude::*
 
 The standard library lives in `lib/std`, but its module path is `std::...`.
 
-The experimental dependency layer uses the terms realm and band. A realm is a
-versioned resolution space. A band is an import/build island inside a realm.
-Ordinary module paths stay inside the current band unless the import explicitly
-uses a realm route.
+The dependency layer uses the terms realm and band. A realm is a versioned
+resolution space. A band is an import/build island inside a realm. Ordinary
+module paths stay inside the current band unless the import explicitly uses a
+realm route.
+
+For local files, the nearest `realm.toml` marks an editable realm. If no
+`realm.toml` is found, the entry file's parent directory is an implicit editable
+realm. The entry file is the root module, but it also has a band path derived
+from its relative file path:
+
+```text
+main.yu          band main
+tools/parser.yu  band tools/parser
+```
+
+Inside one band, `mod child` grows the module tree. To import another band from
+the same realm, use the explicit current-realm route:
+
+```yulang
+use realm/helper::answer
+use realm/tools/parser::json::value
+```
+
+`band::...` starts at the current band root. In an entry file named `main.yu`,
+`realm/main::...` aliases the root module instead of loading `main.yu` again.
 
 ## Blocks and Bindings
 

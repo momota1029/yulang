@@ -14,6 +14,48 @@ use noisy::* without debug
 
 `use` は module 内の名前を scope へ入れる。`*` は見えているものをまとめて import する。`{...}` による group、`as` による rename、`without` による除外も使える。operator 名は `(+)` のように括弧付きで import できる。
 
+## Realm と band の path
+
+realm は version 付きの解決空間であり、band は realm 内の import / build の島である。
+module path は 1 つの band の中にある。
+
+local file では、`realm.toml` のある directory が explicit editable realm になる。
+`realm.toml` が見つからない場合は、entry file の親 directory が implicit editable
+realm になる。entry file は root module だが、realm root からの相対 file path 由来の
+band path も持つ。
+
+```text
+main.yu          band main
+tools/parser.yu  band tools/parser
+```
+
+bare path は current band の中だけを探す。
+
+```yulang
+use helper::answer
+```
+
+`helper::answer` の same-band lookup が失敗しても、compiler は sibling band として
+探し直さない。current realm の別 band を import する場合は `realm/` を使う。
+
+```yulang
+use realm/helper::answer
+use realm/tools/parser::json::value
+```
+
+band 境界の手前は `/`、band root 以後は `::` で区切る。予約 qualifier `band::` は
+current band root から始まる。
+
+```yulang
+use band::inner::value
+```
+
+entry file が `main.yu` の場合、`realm/main::value` は entry root module への alias
+になる。`main.yu` を二重に load せず、cross-band cycle としても扱わない。
+
+`std::...` は standard library への prebound alias であり、bare first segment を
+same-realm band として fallback 解決する一般規則ではない。
+
 ## Companion module
 
 `struct`、`type ... with:`、`enum`、`act`、`error`、`role` は同名の companion module を作る。body 内の `our` / `pub` はそこへ入る。

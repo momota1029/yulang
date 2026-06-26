@@ -6,6 +6,11 @@ Yulang はコンパイラの artifact をキャッシュします。プログラ
 realm は version 付きの解決空間であり、band は realm 内の import / build の島です。
 module は band の中にあり、bare path は band 境界を越えません。
 
+local file では、`realm.toml` が explicit editable realm を示します。`realm.toml`
+が見つからない場合、entry file の親 directory が implicit editable realm になります。
+entry file は root module のままですが、`main.yu` なら `main` のように、source path
+由来の band path も持ちます。
+
 ## artifact の種類
 
 | Artifact | 保存するもの | 効く場面 |
@@ -18,7 +23,8 @@ module は band の中にあり、bare path は band 境界を越えません。
 
 増分コンパイルで重要なのは `.yucu` です。これは "Yulang compiled unit" の略です。
 キャッシュ済み `.yucu` は prefix として import できるため、Yulang はその prefix に含まれない
-source file だけを再コンパイルできます。
+source file だけを再コンパイルできます。`.yucu` の syntax surface は band path を記録するため、
+cached prefix から `realm/main::*` や `band::inner` のような route-aware import を解決できます。
 
 `.yumo` は exact source key の cache です。realm 全体に対する mono cache ではありません。
 Yulang は同じ source / resolution context に対してだけ再利用します。
@@ -76,5 +82,6 @@ source から compile し直します。
 cache は保守的です。繰り返し実行やローカル編集では速くなりますが、clean build では
 parser、lowering、型推論、runtime lowering の費用をすべて払います。
 
-package-level の `realm.toml` / `yulang.lock` workflow はまだ実験段階です。将来は realm と
-band の identity を使って、dependency cache key をより精密にする予定です。
+local editable realm/band identity route は有効です。`realm/...::...` import や
+entry-band alias も含みます。global package workflow はまだ実験段階です。remote provider、
+version-family solving、`yulang.lock`、release/freeze UX は stable な user workflow ではありません。

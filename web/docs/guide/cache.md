@@ -8,6 +8,11 @@ A realm is a versioned resolution space. A band is an import/build island
 inside a realm. Modules live inside a band, and bare paths do not cross a band
 boundary.
 
+For local files, `realm.toml` marks an explicit editable realm. If no
+`realm.toml` is found, the entry file's parent directory is an implicit editable
+realm. The entry file is still the root module, but it also has a band path
+derived from its source path, such as `main` for `main.yu`.
+
 ## Artifact types
 
 | Artifact | What it stores | When it helps |
@@ -20,7 +25,9 @@ boundary.
 
 The important incremental artifact is `.yucu`, short for "Yulang compiled
 unit". A cached `.yucu` can be imported as a prefix, then Yulang compiles only
-the source files that are not covered by that prefix.
+the source files that are not covered by that prefix. The `.yucu` syntax surface
+records band paths so cached prefixes can resolve route-aware imports such as
+`realm/main::*` and `band::inner`.
 
 `.yumo` is exact-source keyed. It is not a realm-wide mono cache: Yulang only
 reuses it for the same source / resolution context.
@@ -81,5 +88,7 @@ The cache is conservative. It speeds up repeated runs and local edit cycles,
 but clean builds still pay the full parser, lowering, inference, and runtime
 lowering cost.
 
-The package-level `realm.toml` / `yulang.lock` workflow is still experimental.
-Future realm and band identities should make dependency cache keys more precise.
+The local editable realm/band identity route is active, including
+`realm/...::...` imports and entry-band aliases. The global package workflow is
+still experimental: remote providers, version-family solving, `yulang.lock`,
+and release/freeze UX are not stable user workflows yet.

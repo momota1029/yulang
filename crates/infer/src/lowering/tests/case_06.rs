@@ -496,7 +496,7 @@ fn body_lowering_resolves_references_after_queue_drain() {
 
 #[test]
 fn body_lowering_resolves_import_alias_references_after_queue_drain() {
-    let root = parse("mod m:\n  my a = 1\nuse m::a as imported\nmy b = imported\n");
+    let root = parse("mod m:\n  our a = 1\nuse m::a as imported\nmy b = imported\n");
     let lower = lower_module_map(&root);
     let root_module = lower.modules.root_id();
     let m = lower.modules.module_decls(root_module, &Name("m".into()))[0].module;

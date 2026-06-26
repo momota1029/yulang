@@ -121,7 +121,7 @@ fn collects_use_aliases() {
 #[test]
 fn import_view_resolves_aliases_across_namespaces() {
     let cst = parse(
-        "mod m:\n  type T\n  my value = 1\n  mod n:\n    type U\nuse m::T as AliasT\nuse m::value as imported_value\nuse m::n as imported_n\nmy site = imported_value\n",
+        "mod m:\n  type T\n  our value = 1\n  mod n:\n    type U\nuse m::T as AliasT\nuse m::value as imported_value\nuse m::n as imported_n\nmy site = imported_value\n",
     );
     let lower = lower_module_map(&cst);
     let root = lower.modules.root_id();
@@ -172,9 +172,24 @@ fn import_view_resolves_alias_to_reexported_value() {
 }
 
 #[test]
+fn same_band_import_does_not_resolve_private_value() {
+    let cst = parse("mod m:\n  my value = 1\nuse m::value as imported_value\nmy site = 1\n");
+    let lower = lower_module_map(&cst);
+    let root = lower.modules.root_id();
+    let site_order = lower.modules.value_decls(root, &Name("site".into()))[0].order;
+
+    assert_eq!(
+        lower
+            .modules
+            .lexical_value_at(root, &Name("imported_value".into()), site_order),
+        None
+    );
+}
+
+#[test]
 fn import_view_resolves_globs_across_namespaces() {
     let cst = parse(
-        "mod m:\n  type T\n  my value = 1\n  mod n:\n    type U\nuse m::*\nmy site = value\n",
+        "mod m:\n  type T\n  our value = 1\n  mod n:\n    type U\nuse m::*\nmy site = value\n",
     );
     let lower = lower_module_map(&cst);
     let root = lower.modules.root_id();

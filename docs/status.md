@@ -136,14 +136,17 @@ The columns trace a value through the pipeline:
 - The compiled-unit cache is part of the normal CLI route, including exact
   full-source artifacts, std prefixes, and conservative source-unit prefixes.
   A realm is a versioned resolution space, and a band is an import/build island
-  inside a realm. The `realm.toml` / `yulang.lock` package workflow is still
-  not a stable user workflow, and realm/band identity is not yet the public
-  dependency manager.
-- Editable realm/band is moving toward this release rule: a directory with
-  `realm.toml` is an explicit editable realm; otherwise the entry file's parent
-  directory is an implicit editable realm for scripts and small examples.
-  Sibling files become bands only through explicit `realm/...::...` imports,
-  not by automatic directory scanning.
+  inside a realm.
+- Local editable realm/band identity is part of the release target. A directory
+  with `realm.toml` is an explicit editable realm; otherwise the entry file's
+  parent directory is an implicit editable realm for scripts and small
+  examples. The entry file remains the root module while also owning a band
+  path derived from its source path, so `realm/main::...` aliases the entry
+  root instead of loading it twice. Sibling files become bands only through
+  explicit `realm/...::...` imports, not by automatic directory scanning.
+- The global package workflow is still experimental. `realm.toml` may mark an
+  editable realm boundary, but remote providers, version-family solving,
+  `yulang.lock`, and release/freeze UX are not stable user workflows yet.
 - Full diagnostics polish is still in progress. Parser, type, role, and
   effect errors are being moved toward language-level explanations rather
   than internal-implementation messages.

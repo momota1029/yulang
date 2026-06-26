@@ -14,6 +14,48 @@ use noisy::* without debug
 Imports may be grouped with `{...}`, renamed with `as`, and filtered with
 `without`. Operator names can be imported with parentheses, such as `(+)`.
 
+## Realm and band paths
+
+A realm is a versioned resolution space. A band is an import/build island inside
+one realm. A module path lives inside one band.
+
+For local files, a directory with `realm.toml` is an explicit editable realm. If
+there is no `realm.toml`, the entry file's parent directory is an implicit
+editable realm. The entry file is the root module, but its band path comes from
+the file path relative to the realm root:
+
+```text
+main.yu          band main
+tools/parser.yu  band tools/parser
+```
+
+Bare paths stay inside the current band:
+
+```yulang
+use helper::answer
+```
+
+The compiler does not retry `helper::answer` as a sibling band if same-band
+lookup fails. To import another band from the current realm, use `realm/`:
+
+```yulang
+use realm/helper::answer
+use realm/tools/parser::json::value
+```
+
+The separator before the band boundary is `/`; after the band root it is `::`.
+The reserved `band::` qualifier starts at the current band root:
+
+```yulang
+use band::inner::value
+```
+
+In an entry file named `main.yu`, `realm/main::value` aliases the entry root
+module. It does not load `main.yu` a second time and is not a cross-band cycle.
+
+`std::...` is a prebound standard-library alias, not a generic fallback from a
+bare first segment to a same-realm band.
+
 ## Companion modules
 
 Every `struct`, `type ... with:`, `enum`, `act`, `error`, and `role` declaration

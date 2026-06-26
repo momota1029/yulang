@@ -1,7 +1,8 @@
 # Yulang Cache Architecture
 
 This note summarizes the active CLI cache routes. It is not a package manager
-specification; realm/band identity is still being integrated.
+specification; the local editable realm/band identity rules are fixed in
+`spec/2026-06-26-local-realm-band.md`.
 
 The cache stores compiler artifacts, not program output. A cached run still
 collects source files, validates cache keys, and executes the resulting program.
@@ -9,6 +10,12 @@ collects source files, validates cache keys, and executes the resulting program.
 Terminology: a realm is a versioned resolution space. A band is an import/build
 island inside a realm. Modules live inside a band, and bare paths do not cross a
 band boundary.
+
+For local files, a directory with `realm.toml` is an explicit editable realm.
+If no `realm.toml` is found, the entry file's parent directory is an implicit
+editable realm. The entry file is still the root module, but its band path is
+the source path relative to the realm root without `.yu`; for example
+`main.yu` has `module_path = <root>` and `band_path = main`.
 
 ## Artifact layers
 
@@ -27,7 +34,9 @@ fastest when the complete source set is unchanged.
 
 `.yucu` stands for "Yulang compiled unit". It is the incremental layer. It can
 be used as an exact full-source artifact, but it can also be imported as a
-prefix so the compiler only lowers and infers the changed suffix.
+prefix so the compiler only lowers and infers the changed suffix. Its syntax
+surface stores each file's band path, so cached prefixes can resolve route-aware
+imports such as `realm/main::*` and `band::inner`.
 
 `.yures` is not a compiled program artifact. It records source-site realm /
 band resolution. Current local `realm/...::...` entries are used only as checked
@@ -96,6 +105,25 @@ This already improves local edit cycles because the compiler can skip lowering
 and inference for unchanged std or dependency modules. It does not remove the
 clean-build solver cost.
 
+## Realm and band identity
+
+The local release target uses these cache-facing identity rules:
+
+- bare paths stay inside the current band;
+- `band::path::to::item` starts at the current band root;
+- `realm/path/to/band::module::item` imports another band from the current
+  realm;
+- `realm/<entry-band>::...` aliases the entry file's root module instead of
+  loading the entry file again;
+- `std::...` is a prebound standard-library alias, not a generic same-realm
+  fallback;
+- empty-band std modules are ambient so a reusable std prefix can be shared
+  across entries with different user band paths.
+
+Current `.yucu` keys remain conservative source/dependency artifacts, but the
+serialized surfaces now carry the band information needed by future realm-aware
+dependency keys.
+
 ## External references
 
 When a suffix is lowered against a compiled prefix, its runtime graph may refer
@@ -137,6 +165,8 @@ after the deterministic local path and source fingerprint checks pass.
 
 - `spec/2026-06-14-control-artifact-cache.md` defines the pipeline artifact
   cache semantics.
+- `spec/2026-06-26-local-realm-band.md` fixes the local realm/band identity
+  rules used by current source collection and compiled-unit cache.
 - `notes/design/2026-06-26-compiled-unit-surface-merge.md` records the
   compiled-unit merge design and current implementation status.
 - `notes/design/2026-06-26-realm-cache-strategy.md` records the realm

@@ -691,7 +691,10 @@ impl ModuleTable {
             .filter(|decl| import_vis_allows(decl.vis, visibility))
             .filter(|decl| {
                 !matches!(visibility, ImportVisibility::SameBand)
-                    || self.module_band_path(module) == self.module_band_path(decl.module)
+                    || same_band_allows_module_step(
+                        self.module_band_path(module),
+                        self.module_band_path(decl.module),
+                    )
             })
             .collect()
     }
