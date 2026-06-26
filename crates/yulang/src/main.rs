@@ -186,6 +186,12 @@ struct DumpSelection {
     mono: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum RunInput {
+    Path(PathBuf),
+    Source { path: PathBuf, source: String },
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 struct RunSelection {
     interpreter: bool,
@@ -331,29 +337,32 @@ fn run_compatible_build(program: &str, options: &GlobalOptions, args: VecDeque<O
 }
 
 fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
-    let (path, selection) = parse_run_args(program, args);
-    if let Some(artifact) = read_control_artifact_or_exit(&path) {
-        if selection.interpreter {
-            eprintln!("control-vm artifact cannot be run with --interpreter");
-            process::exit(2);
+    let (input, selection) = parse_run_args(program, args);
+    if let RunInput::Path(path) = &input {
+        if let Some(artifact) = read_control_artifact_or_exit(path) {
+            if selection.interpreter {
+                eprintln!("control-vm artifact cannot be run with --interpreter");
+                process::exit(2);
+            }
+            run_control_artifact(artifact, selection.print_roots);
+            return;
         }
-        run_control_artifact(artifact, selection.print_roots);
-        return;
     }
 
-    print_cst_if_requested(options, &path);
+    print_run_input_cst_if_requested(options, &input);
     if selection.interpreter {
         if options.no_prelude {
-            run_route(
-                yulang::run_mono_from_entry(path),
-                run_mono_printer(selection.print_roots),
-            );
+            let output = match input {
+                RunInput::Path(path) => run_route_to_value(yulang::run_mono_from_entry(path)),
+                RunInput::Source { path, source } => {
+                    let files = run_route_to_value(yulang::collect_local_source_text(path, source));
+                    run_mono_with_optional_cache(files, options.use_cache)
+                }
+            };
+            run_mono_printer(selection.print_roots)(&output);
         } else {
             let source_options = options.std_source_options();
-            let files = run_route_to_value(yulang::collect_local_sources_with_std_options(
-                path,
-                &source_options,
-            ));
+            let files = collect_std_run_input_sources_or_exit(input, &source_options);
             let output = run_mono_with_optional_cache(files, options.use_cache);
             run_mono_printer(selection.print_roots)(&output);
         }
@@ -363,7 +372,7 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
     let mut timings = RuntimePhaseTimings::default();
     let total_start = Instant::now();
     let collect_start = Instant::now();
-    let files = collect_control_sources_or_exit(&path, options);
+    let files = collect_control_run_input_sources_or_exit(input, options);
     timings.collect = collect_start.elapsed();
     let build = build_control_with_optional_cache_timed(
         files,
@@ -381,6 +390,61 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
     print_cli_control_run_output_with_roots(&output, selection.print_roots);
     if options.runtime_phase_timings {
         print_runtime_phase_timings(&timings, &output.stats);
+    }
+}
+
+fn print_run_input_cst_if_requested(options: &GlobalOptions, input: &RunInput) {
+    match input {
+        RunInput::Path(path) => print_cst_if_requested(options, path),
+        RunInput::Source { source, .. } => {
+            if options.show_cst {
+                print!("{}", cst_view::format_module_cst(source));
+            }
+        }
+    }
+}
+
+fn collect_control_run_input_sources_or_exit(
+    input: RunInput,
+    options: &GlobalOptions,
+) -> Vec<yulang::CollectedSource> {
+    if options.no_prelude {
+        return collect_bare_run_input_sources_or_exit(input, options);
+    }
+
+    let source_options = options.std_source_options();
+    match input {
+        RunInput::Path(path) => collect_std_sources_or_exit(&path, options),
+        RunInput::Source { path, source } => run_route_to_value(
+            yulang::collect_local_source_text_with_std_options(path, source, &source_options),
+        ),
+    }
+}
+
+fn collect_bare_run_input_sources_or_exit(
+    input: RunInput,
+    options: &GlobalOptions,
+) -> Vec<yulang::CollectedSource> {
+    match input {
+        RunInput::Path(path) => collect_bare_sources_or_exit(&path, options),
+        RunInput::Source { path, source } => {
+            run_route_to_value(yulang::collect_local_source_text(path, source))
+        }
+    }
+}
+
+fn collect_std_run_input_sources_or_exit(
+    input: RunInput,
+    source_options: &yulang::StdSourceOptions,
+) -> Vec<yulang::CollectedSource> {
+    match input {
+        RunInput::Path(path) => run_route_to_value(yulang::collect_local_sources_with_std_options(
+            path,
+            source_options,
+        )),
+        RunInput::Source { path, source } => run_route_to_value(
+            yulang::collect_local_source_text_with_std_options(path, source, source_options),
+        ),
     }
 }
 
@@ -1534,7 +1598,7 @@ fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString
         Some("control-vm") => run_compatible_run(program, options, args),
         Some("control-vm-emit") => run_compatible_build(program, options, args),
         Some("control-vm-load") => {
-            let (path, selection) = parse_run_args(program, args);
+            let (path, selection) = parse_run_path_args(program, args);
             if selection.interpreter {
                 print_usage_error_and_exit(
                     program,

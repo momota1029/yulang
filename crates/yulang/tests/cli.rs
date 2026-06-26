@@ -1,6 +1,7 @@
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 
 #[test]
 fn compatible_run_accepts_explicit_std_root() {
@@ -49,6 +50,37 @@ fn compatible_run_prints_console_stdout_without_roots() {
 
     assert_success(&output);
     assert_eq!(stdout(&output), "Hello, World\n3\n");
+}
+
+#[test]
+fn compatible_run_accepts_eval_source() {
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("run")
+        .arg("--print-roots")
+        .arg("-e")
+        .arg("1")
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [1]\n");
+}
+
+#[test]
+fn compatible_run_reads_piped_stdin_without_path() {
+    let output = yulang_command_with_stdin(["--no-prelude", "run", "--print-roots"], "1\n");
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [1]\n");
+}
+
+#[test]
+fn compatible_run_reads_explicit_stdin_path() {
+    let output = yulang_command_with_stdin(["--no-prelude", "run", "--print-roots", "-"], "1\n");
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [1]\n");
 }
 
 #[test]
@@ -963,6 +995,23 @@ version = "1.0.0"
 
 fn yulang_command() -> Command {
     Command::new(env!("CARGO_BIN_EXE_yulang"))
+}
+
+fn yulang_command_with_stdin<const N: usize>(args: [&str; N], stdin: &str) -> Output {
+    let mut child = yulang_command()
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(stdin.as_bytes())
+        .unwrap();
+    child.wait_with_output().unwrap()
 }
 
 fn write_fixture(name: &str, source: &str) -> (PathBuf, PathBuf) {

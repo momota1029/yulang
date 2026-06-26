@@ -70,6 +70,18 @@ yulang check examples/08_types.yu
 `yulang run --print-roots ...` when you want to inspect root expression values
 from the CLI.
 
+For one-line experiments, `run` also accepts source text from `-e`, explicit
+stdin with `-`, or an implicit pipe:
+
+```sh
+yulang run -e "(each 1..20 + each 1..20).list.say"
+echo "1 + 2" | yulang run --print-roots
+echo "1" | yulang run --print-roots -
+```
+
+A bare `yulang run` in an interactive terminal still prints usage instead of
+waiting for input.
+
 The CLI caches compiler artifacts under the user cache root. See
 [Cache](./cache) for `.yucu`, `.yuir`, `.yuvm`, and the route labels printed
 by `--runtime-phase-timings`.

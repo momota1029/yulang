@@ -1,4 +1,5 @@
 use super::*;
+use std::io::IsTerminal as _;
 
 pub(super) fn parse_build_args(
     program: &str,
@@ -34,6 +35,62 @@ pub(super) fn parse_build_args(
 }
 
 pub(super) fn parse_run_args(
+    program: &str,
+    mut args: VecDeque<OsString>,
+) -> (RunInput, RunSelection) {
+    let mut path = None;
+    let mut source = None;
+    let mut selection = RunSelection::default();
+    while let Some(arg) = args.pop_front() {
+        match arg.to_str() {
+            Some("--print-roots") => {
+                selection.print_roots = true;
+            }
+            Some("--interpreter") => {
+                selection.interpreter = true;
+            }
+            Some("-e") | Some("--eval") => {
+                let Some(value) = args.pop_front() else {
+                    print_usage_error_and_exit(program, "run -e requires source text");
+                };
+                set_run_source(program, &mut source, value);
+            }
+            Some(value) if value.starts_with("--eval=") => {
+                let value = value.strip_prefix("--eval=").unwrap_or_default();
+                if value.is_empty() {
+                    print_usage_error_and_exit(program, "run --eval requires source text");
+                }
+                set_run_source(program, &mut source, OsString::from(value));
+            }
+            Some(flag) if flag.starts_with("--") => {
+                print_usage_error_and_exit(program, &format!("unsupported run option {flag}"));
+            }
+            _ => set_single_path(program, &mut path, arg),
+        }
+    }
+    let input = match (path, source) {
+        (Some(_), Some(_)) => {
+            print_usage_error_and_exit(program, "run accepts either a path, -, or -e source")
+        }
+        (Some(path), None) if path == PathBuf::from("-") => RunInput::Source {
+            path: stdin_virtual_path(),
+            source: read_source_or_exit(None),
+        },
+        (Some(path), None) => RunInput::Path(path),
+        (None, Some(source)) => RunInput::Source {
+            path: eval_virtual_path(),
+            source,
+        },
+        (None, None) if !io::stdin().is_terminal() => RunInput::Source {
+            path: stdin_virtual_path(),
+            source: read_source_or_exit(None),
+        },
+        (None, None) => print_usage_and_exit(program),
+    };
+    (input, selection)
+}
+
+pub(super) fn parse_run_path_args(
     program: &str,
     mut args: VecDeque<OsString>,
 ) -> (PathBuf, RunSelection) {
@@ -227,6 +284,24 @@ pub(super) fn set_single_path(program: &str, path: &mut Option<PathBuf>, value: 
         print_usage_and_exit(program);
     }
     *path = Some(PathBuf::from(value));
+}
+
+fn set_run_source(program: &str, source: &mut Option<String>, value: OsString) {
+    if source.is_some() {
+        print_usage_and_exit(program);
+    }
+    let Some(value) = value.to_str() else {
+        print_usage_error_and_exit(program, "run source text must be UTF-8");
+    };
+    *source = Some(value.to_string());
+}
+
+fn stdin_virtual_path() -> PathBuf {
+    PathBuf::from("<stdin>.yu")
+}
+
+fn eval_virtual_path() -> PathBuf {
+    PathBuf::from("<eval>.yu")
 }
 
 pub(super) fn set_single_output_path(program: &str, out: &mut Option<PathBuf>, value: OsString) {
@@ -484,7 +559,7 @@ pub(super) fn print_usage_and_exit(program: &str) -> ! {
         "       {program} [--std-root <path>] [--no-prelude] [--no-cache] build [--out <path>] <path>"
     );
     eprintln!(
-        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--interpreter] [--print-roots] <path>"
+        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--interpreter] [--print-roots] [-e <source>|-|<path>]"
     );
     eprintln!(
         "       {program} [--std-root <path>] [--no-prelude] dump <path> (--core-ir | --runtime-ir | --poly | --poly-raw | --mono)"

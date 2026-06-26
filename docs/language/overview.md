@@ -58,6 +58,15 @@ cargo run -q -p yulang -- run examples/01_struct_with.yu
 `run` prints only program output such as `print` and `println`. To inspect root
 expression values during experiments, pass `--print-roots`.
 
+For one-line experiments, `run` can read source from `-e`, explicit stdin with
+`-`, or an implicit pipe:
+
+```bash
+cargo run -q -p yulang -- run -e "(each 1..20 + each 1..20).list.say"
+echo "1 + 2" | cargo run -q -p yulang -- run --print-roots
+echo "1" | cargo run -q -p yulang -- run --print-roots -
+```
+
 Use the `check` subcommand to print inferred public bindings:
 
 ```bash

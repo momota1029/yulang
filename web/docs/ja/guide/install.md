@@ -65,6 +65,16 @@ yulang check examples/08_types.yu
 
 `yulang run` が標準で出すのは `say` / `println` など program 自身の出力だけです。CLI で root 式の値を確認したいときは `yulang run --print-roots ...` を使います。
 
+一行で試したい場合は、`-e`、明示 stdin の `-`、または pipe 入力も使えます。
+
+```sh
+yulang run -e "(each 1..20 + each 1..20).list.say"
+echo "1 + 2" | yulang run --print-roots
+echo "1" | yulang run --print-roots -
+```
+
+interactive terminal 上で引数なしの `yulang run` を実行した場合は、入力待ちにはならず usage を表示します。
+
 CLI はユーザー cache root にコンパイラ artifact を保存します。`.yucu`、`.yuir`、`.yuvm`
 と、`--runtime-phase-timings` が出す route label については
 [キャッシュ](./cache) にまとめています。
