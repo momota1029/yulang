@@ -416,6 +416,9 @@ pub(super) fn discover_source_header_metadata(
     if !source.contains("mod") && !source.contains("use") {
         return SourceHeaderMetadata::default();
     }
+    if can_read_metadata_from_header(source) {
+        return metadata_from_header(module_path, sources::read_header(source));
+    }
     let cst = parser::parse_module_to_green(source);
     let root = rowan::SyntaxNode::<parser::sink::YulangLanguage>::new_root(cst);
     let module_loads = sources::module_load_requests(module_path, &root);
@@ -430,6 +433,94 @@ pub(super) fn discover_source_header_metadata(
 
 pub(super) fn discover_module_loads(module_path: &Path, source: &str) -> Vec<ModuleLoadRequest> {
     discover_source_header_metadata(module_path, source).module_loads
+}
+
+fn can_read_metadata_from_header(source: &str) -> bool {
+    if source.contains("mod") {
+        return false;
+    }
+    uses_are_header_only(source)
+}
+
+fn uses_are_header_only(source: &str) -> bool {
+    let mut saw_body = false;
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if is_metadata_header_line(trimmed) {
+            if saw_body {
+                return false;
+            }
+            continue;
+        }
+        saw_body = true;
+        if is_use_line(trimmed) {
+            return false;
+        }
+    }
+    true
+}
+
+fn is_metadata_header_line(line: &str) -> bool {
+    let line = strip_visibility_keyword(line);
+    is_use_line(line) || is_op_header_line(line)
+}
+
+fn strip_visibility_keyword(line: &str) -> &str {
+    ["pub", "our", "my"]
+        .into_iter()
+        .find_map(|keyword| strip_keyword(line, keyword))
+        .map(str::trim_start)
+        .unwrap_or(line)
+}
+
+fn is_use_line(line: &str) -> bool {
+    strip_keyword(line, "use").is_some()
+}
+
+fn is_op_header_line(line: &str) -> bool {
+    let line = strip_keyword(line, "lazy")
+        .map(str::trim_start)
+        .unwrap_or(line);
+    ["prefix", "infix", "suffix", "nullfix"]
+        .into_iter()
+        .any(|keyword| strip_keyword(line, keyword).is_some())
+}
+
+fn strip_keyword<'a>(line: &'a str, keyword: &str) -> Option<&'a str> {
+    let rest = line.strip_prefix(keyword)?;
+    if rest
+        .chars()
+        .next()
+        .is_some_and(unicode_ident::is_xid_continue)
+    {
+        return None;
+    }
+    Some(rest)
+}
+
+fn metadata_from_header(module_path: &Path, header: sources::Header) -> SourceHeaderMetadata {
+    let module_loads = header
+        .module_loads
+        .into_iter()
+        .map(|directive| ModuleLoadRequest {
+            parent: module_path.clone(),
+            name: directive.name,
+            kind: directive.kind,
+            visibility: directive.visibility,
+        })
+        .collect();
+    let mut metadata = SourceHeaderMetadata {
+        module_loads,
+        resolution_imports: Vec::new(),
+        current_realm_bands: Vec::new(),
+    };
+    for use_decl in header.uses {
+        collect_use_import_metadata(use_decl.import, &mut metadata);
+    }
+    metadata
 }
 
 fn collect_source_resolution_imports(
@@ -449,32 +540,36 @@ fn collect_source_resolution_imports_from_use(
     metadata: &mut SourceHeaderMetadata,
 ) {
     for import in sources::use_imports(node) {
-        let (path, route, has_version, has_anchor) = match &import {
-            sources::UseImport::Alias {
-                path,
-                route,
-                version,
-                anchor,
-                ..
-            }
-            | sources::UseImport::Glob {
-                prefix: path,
-                route,
-                version,
-                anchor,
-            } => (path, *route, version.is_some(), anchor.is_some()),
+        collect_use_import_metadata(import, metadata);
+    }
+}
+
+fn collect_use_import_metadata(import: sources::UseImport, metadata: &mut SourceHeaderMetadata) {
+    let (path, route, has_version, has_anchor) = match &import {
+        sources::UseImport::Alias {
+            path,
+            route,
+            version,
+            anchor,
+            ..
+        }
+        | sources::UseImport::Glob {
+            prefix: path,
+            route,
+            version,
+            anchor,
+        } => (path, *route, version.is_some(), anchor.is_some()),
+    };
+    if let sources::UsePathRoute::CurrentRealm { band_segments } = route {
+        let band = Path {
+            segments: path.segments.iter().take(band_segments).cloned().collect(),
         };
-        if let sources::UsePathRoute::CurrentRealm { band_segments } = route {
-            let band = Path {
-                segments: path.segments.iter().take(band_segments).cloned().collect(),
-            };
-            if !band.segments.is_empty() && !metadata.current_realm_bands.contains(&band) {
-                metadata.current_realm_bands.push(band);
-            }
+        if !band.segments.is_empty() && !metadata.current_realm_bands.contains(&band) {
+            metadata.current_realm_bands.push(band);
         }
-        if route != sources::UsePathRoute::Relative || has_version || has_anchor {
-            metadata.resolution_imports.push(import);
-        }
+    }
+    if route != sources::UsePathRoute::Relative || has_version || has_anchor {
+        metadata.resolution_imports.push(import);
     }
 }
 

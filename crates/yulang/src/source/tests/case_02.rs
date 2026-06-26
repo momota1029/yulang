@@ -3549,6 +3549,30 @@ fn discover_module_loads_uses_lightweight_module_parse() {
 }
 
 #[test]
+fn source_header_metadata_reads_header_only_current_realm_use() {
+    let metadata =
+        discover_source_header_metadata(&Path::default(), "use realm/helper::answer\nmy x = 1\n");
+
+    assert_eq!(
+        metadata.current_realm_bands,
+        vec![path_from_segments(&["helper"])]
+    );
+    assert_eq!(metadata.resolution_imports.len(), 1);
+}
+
+#[test]
+fn source_header_metadata_keeps_late_current_realm_use() {
+    let metadata =
+        discover_source_header_metadata(&Path::default(), "my x = 1\nuse realm/helper::answer\n");
+
+    assert_eq!(
+        metadata.current_realm_bands,
+        vec![path_from_segments(&["helper"])]
+    );
+    assert_eq!(metadata.resolution_imports.len(), 1);
+}
+
+#[test]
 fn reports_ambiguous_module_file() {
     let root = temp_root("ambiguous-module");
     let _ = fs::remove_dir_all(&root);
