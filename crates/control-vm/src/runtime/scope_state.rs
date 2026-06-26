@@ -54,8 +54,11 @@ impl ScopeState {
     ) {
         self.frames.truncate(frame_len);
         self.handler_frames.truncate(handler_frame_len);
-        self.add_markers.truncate(add_id_len);
-        self.rebuild_add_marker_indexes();
+        while self.add_markers.len() > add_id_len {
+            let index = self.add_markers.len() - 1;
+            let marker = self.add_markers.pop().expect("checked add marker").marker;
+            self.pop_add_marker_index(index, &marker);
+        }
     }
 
     pub(super) fn path_candidate_stats(
@@ -209,15 +212,43 @@ impl ScopeState {
         }
     }
 
-    fn rebuild_add_marker_indexes(&mut self) {
-        self.all_path_add_marker_count = 0;
-        self.own_path_add_markers.clear();
-        self.foreign_path_add_marker_count = 0;
-        self.foreign_path_add_markers.clear();
-        for index in 0..self.add_markers.len() {
-            let marker = self.add_markers[index].marker.clone();
-            self.push_add_marker_index(index, &marker);
+    fn pop_add_marker_index(&mut self, index: usize, marker: &AddIdMarker) {
+        match (marker.guard_own_path, marker.guard_foreign_path) {
+            (true, true) => {
+                self.all_path_add_marker_count = self
+                    .all_path_add_marker_count
+                    .checked_sub(1)
+                    .expect("all-path add marker index should be balanced");
+            }
+            (true, false) => {
+                pop_marker_index(&mut self.own_path_add_markers, marker.path_key.id, index)
+            }
+            (false, true) => {
+                self.foreign_path_add_marker_count = self
+                    .foreign_path_add_marker_count
+                    .checked_sub(1)
+                    .expect("foreign-path add marker index should be balanced");
+                pop_marker_index(
+                    &mut self.foreign_path_add_markers,
+                    marker.path_key.id,
+                    index,
+                );
+            }
+            (false, false) => {}
         }
+    }
+}
+
+fn pop_marker_index(indexes: &mut HashMap<u32, Vec<usize>>, prefix_id: u32, index: usize) {
+    let Some(entries) = indexes.get_mut(&prefix_id) else {
+        panic!("path add marker index should contain prefix {prefix_id}");
+    };
+    let popped = entries
+        .pop()
+        .expect("path add marker index should not be empty");
+    assert_eq!(popped, index, "path add marker index should be LIFO");
+    if entries.is_empty() {
+        indexes.remove(&prefix_id);
     }
 }
 
