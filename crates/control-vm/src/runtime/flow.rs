@@ -252,7 +252,6 @@ impl<'a> Runtime<'a> {
                 || (!path_matches_marker && !marker.guard_foreign_path)
                 || (!marker.carry_after_frame
                     && request_excepted_at_marker_entry(
-                        &mut self.stats,
                         &self.active_frames,
                         request,
                         active_marker,
@@ -266,12 +265,8 @@ impl<'a> Runtime<'a> {
                     .iter()
                     .any(|guard| guard.id == marker.id)
             {
-                let entry_guard_ids = request_guard_ids_at_marker_entry(
-                    &mut self.stats,
-                    &self.active_frames,
-                    request,
-                    active_marker,
-                );
+                let entry_guard_ids =
+                    request_guard_ids_at_marker_entry(&self.active_frames, request, active_marker);
                 let exposed_guard_ids = self.carried_exposed_guard_ids_at_marker_entry(
                     request,
                     active_marker,
@@ -848,17 +843,14 @@ impl<'a> Runtime<'a> {
 }
 
 fn request_excepted_at_marker_entry(
-    stats: &mut RuntimeStats,
     active_frames: &[ActiveFrame],
     request: &Request,
     marker: &ActiveAddIdMarker,
 ) -> bool {
-    stats.active_add_entry_except_checks += 1;
     if request.guard_ids.is_empty() {
         return false;
     }
     for frame in active_frames.iter().take(marker.entry_frame_len) {
-        stats.active_add_entry_frame_scans += 1;
         if request.guard_ids.contains(frame.id) {
             return true;
         }
@@ -867,15 +859,12 @@ fn request_excepted_at_marker_entry(
 }
 
 fn request_guard_ids_at_marker_entry(
-    stats: &mut RuntimeStats,
     active_frames: &[ActiveFrame],
     request: &Request,
     marker: &ActiveAddIdMarker,
 ) -> GuardIds {
-    stats.active_add_entry_guard_collects += 1;
     let mut ids = GuardIds::new();
     for frame in active_frames.iter().take(marker.entry_frame_len) {
-        stats.active_add_entry_frame_scans += 1;
         if request.guard_ids.contains(frame.id) {
             ids.push_unique(frame.id);
         }

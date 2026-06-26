@@ -881,18 +881,6 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
     eprintln!("  run.path_eq_checks: {}", stats.path_eq_checks);
     eprintln!("  run.path_eq_segments: {}", stats.path_eq_segments);
     eprintln!("  run.active_add_scans: {}", stats.active_add_id_scans);
-    eprintln!(
-        "  run.active_add_entry_except_checks: {}",
-        stats.active_add_entry_except_checks
-    );
-    eprintln!(
-        "  run.active_add_entry_guard_collects: {}",
-        stats.active_add_entry_guard_collects
-    );
-    eprintln!(
-        "  run.active_add_entry_frame_scans: {}",
-        stats.active_add_entry_frame_scans
-    );
     eprintln!("  run.active_frame_scans: {}", stats.active_frame_scans);
     eprintln!(
         "  run.scope_state_shadow_checks: {}",
