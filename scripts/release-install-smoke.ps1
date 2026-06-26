@@ -161,6 +161,16 @@ function Assert-PathRegistered {
     }
 }
 
+function Assert-StdCacheSeeded {
+    $compiledUnitDir = Join-Path $cache "artifacts/compiled-unit"
+    if (-not (Test-Path -LiteralPath $compiledUnitDir)) {
+        throw "release install smoke: installer did not seed std compiled-unit cache"
+    }
+    if (-not (Get-ChildItem -LiteralPath $compiledUnitDir -Filter "*.yucu" -File -Recurse | Select-Object -First 1)) {
+        throw "release install smoke: installer did not seed std compiled-unit cache"
+    }
+}
+
 function Assert-PathRemoved {
     $entry = Join-Path $prefix "bin"
     if (Test-SmokeUserPathContains $entry) {
@@ -192,6 +202,7 @@ try {
 '@
 
     Install-Yulang
+    Assert-StdCacheSeeded
     $bin = Join-Path $prefix "bin/yulang.exe"
     & $bin check $main | Out-Null
     $runOutput = & $bin run --print-roots $main

@@ -91,6 +91,11 @@ The normal build path is conservative:
 5. try std/source-unit prefix `.yucu`;
 6. compile from source and write fresh artifacts.
 
+Release installers seed the standard-library `.yucu` prefix once after
+installing the embedded std sources, using the final installed std path so the
+cache key matches later CLI runs. Set `YULANG_NO_SEED_CACHE=1` to skip this
+optional install-time cache warmup.
+
 ## Source-unit prefix reuse
 
 The source collector builds dependency-ordered source compilation units. A

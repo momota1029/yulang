@@ -71,7 +71,7 @@ if [[ ! -f "$manifest" ]]; then
   echo "release archive smoke: release-manifest.txt not found" >&2
   exit 1
 fi
-for key in name version target stdlib stdlib_source_hash cache_schema poly_cache_format control_cache_format; do
+for key in name version target stdlib stdlib_source_hash cache_schema poly_cache_format control_cache_format compiled_unit_cache_format realm_resolution_cache_format; do
   if ! grep -q "^$key=" "$manifest"; then
     echo "release archive smoke: manifest key missing: $key" >&2
     exit 1

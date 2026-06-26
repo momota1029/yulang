@@ -156,6 +156,14 @@ assert_path_registered() {
   fi
 }
 
+assert_std_cache_seeded() {
+  if ! find "$YULANG_CACHE_DIR/artifacts/compiled-unit" -type f -name '*.yucu' 2>/dev/null | grep -q .; then
+    echo "release install smoke: installer did not seed std compiled-unit cache" >&2
+    find "$YULANG_CACHE_DIR" -maxdepth 4 -type f -print 2>/dev/null >&2 || true
+    exit 1
+  fi
+}
+
 assert_path_removed() {
   if grep -F "$prefix/bin" "$HOME/.profile" >/dev/null 2>&1; then
     echo "release install smoke: uninstaller left $prefix/bin in PATH profile" >&2
@@ -187,6 +195,7 @@ cat >"$main" <<'YULANG'
 YULANG
 
 install_yulang
+assert_std_cache_seeded
 run "$prefix/bin/yulang" check "$main" >/dev/null
 run_output="$(run "$prefix/bin/yulang" run --print-roots "$main")"
 case "$run_output" in

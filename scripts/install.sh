@@ -16,11 +16,12 @@ Environment:
   YULANG_INSTALL_REPO  GitHub repository. Defaults to momota1029/yulang.
   YULANG_RELEASE_BASE_URL
                        Override release download base URL, mainly for CI smoke.
+  YULANG_NO_SEED_CACHE Set to 1 to skip install-time std cache seeding.
   YULANG_NO_MODIFY_PATH
                        Set to 1 to skip shell profile PATH edits.
 
 Alpha releases are GitHub prereleases, so install them with:
-  scripts/install.sh --version v0.1.0-alpha.3
+  scripts/install.sh --version v0.1.0-alpha.4
 EOF
 }
 
@@ -176,6 +177,31 @@ EOF
   echo "Restart your shell to use yulang from PATH."
 }
 
+install_std() {
+  std_install_log="$tmp/std-install.log"
+  if ! YULANG_LIB_DIR="$lib_dir" "$bin_dir/yulang" install std > /dev/null 2>"$std_install_log"; then
+    cat "$std_install_log" >&2
+    exit 1
+  fi
+  std_root="$(sed -n '$p' "$std_install_log")"
+  if [ -z "$std_root" ]; then
+    echo "install.sh: failed to read installed std root" >&2
+    exit 1
+  fi
+}
+
+seed_std_cache() {
+  if [ "${YULANG_NO_SEED_CACHE:-0}" = "1" ]; then
+    return
+  fi
+
+  seed_source="$tmp/std-cache-seed.yu"
+  printf '1\n' > "$seed_source"
+  if ! YULANG_LIB_DIR="$lib_dir" "$bin_dir/yulang" --std-root "$std_root" run "$seed_source" >/dev/null 2>&1; then
+    echo "install.sh: warning: failed to seed std cache" >&2
+  fi
+}
+
 detect_target() {
   os="$(uname -s)"
   arch="$(uname -m)"
@@ -270,7 +296,8 @@ cp "$package_root/bin/yulang" "$bin_dir/yulang"
 chmod 755 "$bin_dir/yulang"
 
 mkdir -p "$lib_dir"
-YULANG_LIB_DIR="$lib_dir" "$bin_dir/yulang" install std >/dev/null
+install_std
+seed_std_cache
 
 echo "Installed yulang to $bin_dir/yulang"
 install_path_entry

@@ -16,6 +16,36 @@ if ([string]::IsNullOrWhiteSpace($Repo)) {
 }
 $Prefix = [System.IO.Path]::GetFullPath($Prefix)
 
+function Initialize-YulangStdCache {
+    param(
+        [string]$Binary,
+        [string]$LibDir,
+        [string]$StdRoot,
+        [string]$TempDir
+    )
+
+    if ($env:YULANG_NO_SEED_CACHE -eq "1") {
+        return
+    }
+
+    $seedSource = Join-Path $TempDir "std-cache-seed.yu"
+    Set-Content -LiteralPath $seedSource -Encoding utf8 -Value "1"
+    $previousLibDir = $env:YULANG_LIB_DIR
+    try {
+        $env:YULANG_LIB_DIR = $LibDir
+        & $Binary --std-root $StdRoot run $seedSource *> $null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "install.ps1: failed to seed std cache"
+        }
+    } finally {
+        if ($null -eq $previousLibDir) {
+            Remove-Item Env:YULANG_LIB_DIR -ErrorAction SilentlyContinue
+        } else {
+            $env:YULANG_LIB_DIR = $previousLibDir
+        }
+    }
+}
+
 function ConvertTo-YulangPathEntry {
     param([string]$Path)
     return [System.IO.Path]::GetFullPath($Path).TrimEnd(
@@ -142,9 +172,16 @@ try {
     $libDir = Join-Path $Prefix "lib"
     New-Item -ItemType Directory -Path $libDir -Force | Out-Null
     $previousLibDir = $env:YULANG_LIB_DIR
+    $stdLog = Join-Path $tmp "std-install.log"
     try {
         $env:YULANG_LIB_DIR = $libDir
-        & $installed install std | Out-Null
+        & $installed install std 2> $stdLog | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            if (Test-Path -LiteralPath $stdLog) {
+                Get-Content -LiteralPath $stdLog | Write-Error
+            }
+            exit 1
+        }
     } finally {
         if ($null -eq $previousLibDir) {
             Remove-Item Env:YULANG_LIB_DIR -ErrorAction SilentlyContinue
@@ -152,6 +189,12 @@ try {
             $env:YULANG_LIB_DIR = $previousLibDir
         }
     }
+    $stdRoot = (Get-Content -LiteralPath $stdLog | Select-Object -Last 1)
+    if ([string]::IsNullOrWhiteSpace($stdRoot)) {
+        Write-Error "install.ps1: failed to read installed std root"
+        exit 1
+    }
+    Initialize-YulangStdCache -Binary $installed -LibDir $libDir -StdRoot $stdRoot -TempDir $tmp
 
     Write-Output "Installed yulang to $installed"
     Add-YulangUserPath $binDir

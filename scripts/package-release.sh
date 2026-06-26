@@ -129,7 +129,19 @@ control_cache_format="$(
   sed -n 's/^const CONTROL_CACHE_FORMAT: u32 = \([0-9][0-9]*\);$/\1/p' \
     "$repo_root/crates/yulang/src/cache.rs"
 )"
-if [[ -z "$cache_schema" || -z "$poly_cache_format" || -z "$control_cache_format" ]]; then
+compiled_unit_cache_format="$(
+  sed -n 's/^const COMPILED_UNIT_CACHE_FORMAT: u32 = \([0-9][0-9]*\);$/\1/p' \
+    "$repo_root/crates/yulang/src/cache.rs"
+)"
+realm_resolution_cache_format="$(
+  sed -n 's/^const REALM_RESOLUTION_CACHE_FORMAT: u32 = \([0-9][0-9]*\);$/\1/p' \
+    "$repo_root/crates/yulang/src/cache.rs"
+)"
+if [[ -z "$cache_schema" \
+  || -z "$poly_cache_format" \
+  || -z "$control_cache_format" \
+  || -z "$compiled_unit_cache_format" \
+  || -z "$realm_resolution_cache_format" ]]; then
   echo "package-release: failed to read cache format constants" >&2
   exit 1
 fi
@@ -168,6 +180,8 @@ stdlib_source_hash=$stdlib_source_hash
 cache_schema=$cache_schema
 poly_cache_format=$poly_cache_format
 control_cache_format=$control_cache_format
+compiled_unit_cache_format=$compiled_unit_cache_format
+realm_resolution_cache_format=$realm_resolution_cache_format
 EOF
 
 rm -f "$archive"

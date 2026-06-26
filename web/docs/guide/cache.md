@@ -85,6 +85,11 @@ falls back to compiling from source.
 `--no-cache` also bypasses checked realm-resolution cache lookups during source
 collection.
 
+Release installers seed the standard-library `.yucu` prefix once after
+installing the embedded std sources, using the final installed std path so the
+cache key matches later CLI runs. Set `YULANG_NO_SEED_CACHE=1` to skip this
+optional install-time cache warmup.
+
 ## Current limits
 
 The cache is conservative. It speeds up repeated runs and local edit cycles,

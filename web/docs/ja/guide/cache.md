@@ -79,6 +79,11 @@ source から compile し直します。
 
 `--no-cache` は source collection 中の checked realm-resolution cache lookup も無効にします。
 
+release installer は embedded std source を install したあと、最終 install path を使って
+standard-library `.yucu` prefix を一度 seed します。これにより、その後の CLI run と
+cache key が一致します。install 時の cache warmup を省く場合は
+`YULANG_NO_SEED_CACHE=1` を設定します。
+
 ## 現在の制限
 
 cache は保守的です。繰り返し実行やローカル編集では速くなりますが、clean build では
