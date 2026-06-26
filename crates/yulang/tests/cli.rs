@@ -599,6 +599,91 @@ fn compatible_run_uses_single_source_unit_prefix_cache() {
 }
 
 #[test]
+fn compatible_run_uses_source_unit_prefix_for_editable_realm_band_imports() {
+    let root = temp_root("run-editable-realm-band-source-unit-prefix-cache");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("helper")).unwrap();
+    fs::write(
+        root.join("realm.toml"),
+        r#"[realm]
+identity = "test/editable-realm-band"
+"#,
+    )
+    .unwrap();
+    let entry = root.join("main.yu");
+    fs::write(
+        &entry,
+        "use realm/helper::answer\nuse realm/view::describe\ndescribe answer\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join("helper.yu"),
+        "mod inner;\nuse band::inner::value as inner_value\npub answer = inner_value\n",
+    )
+    .unwrap();
+    fs::write(root.join("helper").join("inner.yu"), "our value = 42\n").unwrap();
+    fs::write(root.join("view.yu"), "pub describe value = value\n").unwrap();
+    let cache_root = root.join("cache-root");
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [42]\n");
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 4);
+    assert_eq!(poly_cache_file_count(&cache_root), 1);
+    assert_eq!(control_cache_file_count(&cache_root), 1);
+
+    fs::write(
+        &entry,
+        "use realm/helper::answer\nuse realm/view::describe\nmy keep value = value\nkeep (describe answer)\n",
+    )
+    .unwrap();
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [42]\n");
+    assert_cache_route_any(
+        &output,
+        &["source-unit-prefix-hit", "merged-source-unit-prefix-hit"],
+    );
+    assert_eq!(poly_cache_file_count(&cache_root), 2);
+    assert_eq!(control_cache_file_count(&cache_root), 2);
+
+    remove_cache_stage(&cache_root, "control-vm");
+    remove_cache_stage(&cache_root, "poly");
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--no-prelude")
+        .arg("--runtime-phase-timings")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [42]\n");
+    assert_cache_route(&output, "compiled-unit-hit");
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn compatible_run_uses_merged_source_unit_prefix_when_many_are_cached() {
     let root = temp_root("run-many-source-unit-prefix-cache");
     let _ = fs::remove_dir_all(&root);
@@ -847,6 +932,16 @@ fn remove_cache_stage(root: &Path, stage: &str) {
 fn assert_cache_route(output: &Output, route: &str) {
     let stderr = stderr(output);
     assert!(stderr.contains(&format!("run.cache: {route}")), "{stderr}");
+}
+
+fn assert_cache_route_any(output: &Output, routes: &[&str]) {
+    let stderr = stderr(output);
+    assert!(
+        routes
+            .iter()
+            .any(|route| stderr.contains(&format!("run.cache: {route}"))),
+        "{stderr}"
+    );
 }
 
 fn artifact_cache_file_count(root: &Path, stage: &str) -> usize {

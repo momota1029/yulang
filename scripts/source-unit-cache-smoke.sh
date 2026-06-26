@@ -182,6 +182,97 @@ YULANG
   fi
 }
 
+run_editable_realm_band_smoke() {
+  case_dir="$tmp/editable-realm-band"
+  cache_root="$tmp/editable-realm-band-cache"
+  main="$case_dir/main.yu"
+  helper="$case_dir/helper.yu"
+  helper_inner="$case_dir/helper/inner.yu"
+  view="$case_dir/view.yu"
+  mkdir -p "$cache_root" "$case_dir/helper"
+
+  cat >"$case_dir/realm.toml" <<'YULANG'
+[realm]
+identity = "smoke/editable-realm-band"
+YULANG
+
+  cat >"$main" <<'YULANG'
+use realm/helper::answer
+use realm/view::describe
+describe answer
+YULANG
+
+  cat >"$helper" <<'YULANG'
+mod inner;
+use band::inner::value as inner_value
+pub answer = inner_value
+YULANG
+
+  cat >"$helper_inner" <<'YULANG'
+our value = 42
+YULANG
+
+  cat >"$view" <<'YULANG'
+pub describe value = value
+YULANG
+
+  first_output="$(
+    YULANG_CACHE_DIR="$cache_root" \
+      run "$bin" --no-prelude run --print-roots "$main"
+  )"
+  if [[ "$first_output" != "run roots [42]" ]]; then
+    echo "source unit cache smoke: unexpected editable realm/band warmup output" >&2
+    echo "$first_output" >&2
+    exit 1
+  fi
+
+  cat >"$main" <<'YULANG'
+use realm/helper::answer
+use realm/view::describe
+my keep value = value
+keep (describe answer)
+YULANG
+
+  second_log="$tmp/editable-realm-band-second.stderr"
+  second_output="$(
+    YULANG_CACHE_DIR="$cache_root" \
+      run "$bin" --no-prelude --runtime-phase-timings run --print-roots "$main" \
+        2>"$second_log"
+  )"
+  if [[ "$second_output" != "run roots [42]" ]]; then
+    echo "source unit cache smoke: unexpected editable realm/band cached output" >&2
+    echo "$second_output" >&2
+    exit 1
+  fi
+
+  cat "$second_log"
+  if ! rg -q 'run\.cache: (source-unit-prefix-hit|merged-source-unit-prefix-hit)' "$second_log"; then
+    echo "source unit cache smoke: expected source-unit prefix hit for editable realm/band imports" >&2
+    cat "$second_log" >&2
+    exit 1
+  fi
+
+  rm -rf "$cache_root/artifacts/control-vm" "$cache_root/artifacts/poly"
+  third_log="$tmp/editable-realm-band-third.stderr"
+  third_output="$(
+    YULANG_CACHE_DIR="$cache_root" \
+      run "$bin" --no-prelude --runtime-phase-timings run --print-roots "$main" \
+        2>"$third_log"
+  )"
+  if [[ "$third_output" != "run roots [42]" ]]; then
+    echo "source unit cache smoke: unexpected editable realm/band compiled-unit output" >&2
+    echo "$third_output" >&2
+    exit 1
+  fi
+
+  cat "$third_log"
+  if ! rg -q 'run\.cache: compiled-unit-hit' "$third_log"; then
+    echo "source unit cache smoke: expected compiled-unit hit after editable realm/band prefix materialization" >&2
+    cat "$third_log" >&2
+    exit 1
+  fi
+}
+
 run_struct_cast_smoke() {
   case_dir="$tmp/struct-cast"
   cache_root="$tmp/struct-cast-cache"
@@ -359,6 +450,7 @@ YULANG
 
 run_independent_merge_smoke
 run_dependency_closure_smoke
+run_editable_realm_band_smoke
 run_struct_cast_smoke
 run_effect_contract_smoke
 run_role_impl_smoke
