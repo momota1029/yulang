@@ -576,16 +576,39 @@ pub fn analyze_entry_source_with_std_options(
     source: impl Into<String>,
     options: &StdSourceOptions,
 ) -> Result<AnalyzeSourceOutput, RouteError> {
-    analyze_from_sources(
-        collect_local_source_text_with_std_context(entry.as_ref(), source.into(), options)?.files,
-    )
+    Ok(source_text_analysis_with_std_options(entry, source, options)?.analyze())
 }
 
 pub fn analyze_entry_source(
     entry: impl AsRef<FsPath>,
     source: impl Into<String>,
 ) -> Result<AnalyzeSourceOutput, RouteError> {
-    analyze_from_sources(collect_local_source_text(entry, source.into())?)
+    Ok(source_text_analysis(entry, source)?.analyze())
+}
+
+pub(crate) fn source_text_analysis_with_std_options(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+    options: &StdSourceOptions,
+) -> Result<SourceTextAnalysis, RouteError> {
+    let context =
+        collect_local_source_text_with_std_context(entry.as_ref(), source.into(), options)?;
+    source_text_analysis_from_files(
+        context.files,
+        context.focus_module,
+        context.byte_offset_adjust,
+    )
+}
+
+pub(crate) fn source_text_analysis(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<SourceTextAnalysis, RouteError> {
+    source_text_analysis_from_files(
+        collect_local_source_text(entry, source.into())?,
+        Path::default(),
+        0,
+    )
 }
 
 pub fn hover_entry_source_with_std_options(
@@ -893,15 +916,6 @@ fn collect_local_source_text_with_std_context(
     })
 }
 
-pub(crate) fn entry_source_with_std_has_implicit_prelude(
-    entry: &FsPath,
-    options: &StdSourceOptions,
-) -> Result<bool, RouteError> {
-    let base = entry.parent().unwrap_or_else(|| FsPath::new("."));
-    let std_root = resolve_std_root(base, options)?;
-    Ok(std_module_path_for_file(&std_root, entry).is_none())
-}
-
 /// Browser / playground 向けに、root source と埋め込み std だけで source set を作る。
 ///
 /// この入口はファイルシステムを読まない。root source 側の local `mod foo;` を辿る必要が
@@ -1169,6 +1183,81 @@ pub struct CheckPolyOutput {
 pub struct AnalyzeSourceOutput {
     pub file_count: usize,
     pub diagnostics: Vec<SourceDiagnostic>,
+}
+
+pub(crate) struct SourceTextAnalysis {
+    check: infer::check::PolyCheckOutput,
+    source_index: SourceFileIndex,
+    focus_module: Path,
+    file_count: usize,
+    byte_offset_adjust: usize,
+    root_has_implicit_prelude: bool,
+}
+
+impl SourceTextAnalysis {
+    pub(crate) fn analyze(&self) -> AnalyzeSourceOutput {
+        AnalyzeSourceOutput {
+            file_count: self.file_count,
+            diagnostics: source_diagnostics_from_check(&self.check, &self.check.report.diagnostics),
+        }
+    }
+
+    pub(crate) fn hover(&self, byte_offset: usize) -> Option<SourceHover> {
+        source_hover_from_check(
+            &self.check,
+            self.loaded_byte_offset(byte_offset),
+            &self.focus_module,
+        )
+    }
+
+    pub(crate) fn definition(&self, byte_offset: usize) -> Option<SourceDefinition> {
+        source_definition_from_check(
+            &self.check,
+            &self.source_index,
+            self.loaded_byte_offset(byte_offset),
+            &self.focus_module,
+        )
+    }
+
+    pub(crate) fn references(
+        &self,
+        byte_offset: usize,
+        include_declaration: bool,
+    ) -> Vec<SourceLocation> {
+        source_references_from_check(
+            &self.check,
+            &self.source_index,
+            self.loaded_byte_offset(byte_offset),
+            &self.focus_module,
+            include_declaration,
+        )
+    }
+
+    pub(crate) fn prepare_rename(&self, byte_offset: usize) -> Option<SourceRange> {
+        source_prepare_rename_from_check(
+            &self.check,
+            self.loaded_byte_offset(byte_offset),
+            &self.focus_module,
+        )
+    }
+
+    pub(crate) fn rename(&self, byte_offset: usize, new_name: &str) -> Option<SourceRename> {
+        source_rename_from_check(
+            &self.check,
+            &self.source_index,
+            self.loaded_byte_offset(byte_offset),
+            &self.focus_module,
+            new_name,
+        )
+    }
+
+    pub(crate) fn root_has_implicit_prelude(&self) -> bool {
+        self.root_has_implicit_prelude
+    }
+
+    fn loaded_byte_offset(&self, root_byte_offset: usize) -> usize {
+        root_byte_offset + self.byte_offset_adjust
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1640,8 +1729,23 @@ fn check_poly_from_loaded_files(
     })
 }
 
-fn analyze_from_sources(files: Vec<CollectedSource>) -> Result<AnalyzeSourceOutput, RouteError> {
-    analyze_from_loaded_files(load_collected_sources(files))
+fn source_text_analysis_from_files(
+    files: Vec<CollectedSource>,
+    focus_module: Path,
+    byte_offset_adjust: usize,
+) -> Result<SourceTextAnalysis, RouteError> {
+    let file_count = files.len();
+    let source_index = SourceFileIndex::from_collected_sources(&files);
+    let loaded = load_collected_sources(files);
+    let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    Ok(SourceTextAnalysis {
+        check,
+        source_index,
+        focus_module,
+        file_count,
+        byte_offset_adjust,
+        root_has_implicit_prelude: byte_offset_adjust != 0,
+    })
 }
 
 fn analyze_from_loaded_files(

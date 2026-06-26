@@ -8,6 +8,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use yulang_editor::semantic_tokens;
 
+use crate::source::SourceTextAnalysis;
 use crate::{SourceDefinition, SourceHover, SourceLocation, SourceRange, SourceRename};
 
 const LSP_ANALYSIS_TIMEOUT: Duration = Duration::from_secs(3);
@@ -19,13 +20,67 @@ struct Backend {
     std_root: Option<PathBuf>,
     documents: Arc<Mutex<HashMap<Url, String>>>,
     analysis_versions: Arc<Mutex<HashMap<Url, u64>>>,
+    request_cache: Arc<Mutex<HashMap<LspRequestCacheKey, LspRequestCacheValue>>>,
     analysis_slots: Arc<Semaphore>,
     request_slots: Arc<Semaphore>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct LspRequestCacheKey {
+    uri: Url,
+    version: u64,
+    kind: LspRequestKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum LspRequestKind {
+    Hover {
+        position: PositionKey,
+    },
+    Definition {
+        position: PositionKey,
+    },
+    References {
+        position: PositionKey,
+        include_declaration: bool,
+    },
+    PrepareRename {
+        position: PositionKey,
+    },
+    Rename {
+        position: PositionKey,
+        new_name: String,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct PositionKey {
+    line: u32,
+    character: u32,
+}
+
+impl From<Position> for PositionKey {
+    fn from(position: Position) -> Self {
+        Self {
+            line: position.line,
+            character: position.character,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+enum LspRequestCacheValue {
+    Hover(Option<Hover>),
+    Definition(Option<Location>),
+    References(Vec<Location>),
+    PrepareRename(Option<PrepareRenameResponse>),
+    Rename(Option<WorkspaceEdit>),
 }
 
 impl Backend {
     fn schedule_analysis(&self, uri: Url) {
         let version = self.bump_analysis_version(&uri);
+        self.clear_request_cache(&uri);
         let path = match uri.to_file_path() {
             Ok(path) => path,
             Err(_) => return,
@@ -89,6 +144,31 @@ impl Backend {
 
     fn cancel_analysis(&self, uri: &Url) {
         self.bump_analysis_version(uri);
+        self.clear_request_cache(uri);
+    }
+
+    fn current_analysis_version(&self, uri: &Url) -> u64 {
+        self.analysis_versions
+            .lock()
+            .unwrap()
+            .get(uri)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    fn cached_request(&self, key: &LspRequestCacheKey) -> Option<LspRequestCacheValue> {
+        self.request_cache.lock().unwrap().get(key).cloned()
+    }
+
+    fn store_request(&self, key: LspRequestCacheKey, value: LspRequestCacheValue) {
+        self.request_cache.lock().unwrap().insert(key, value);
+    }
+
+    fn clear_request_cache(&self, uri: &Url) {
+        self.request_cache
+            .lock()
+            .unwrap()
+            .retain(|key, _| &key.uri != uri);
     }
 
     fn document_source(&self, uri: &Url) -> Option<String> {
@@ -141,37 +221,56 @@ fn is_current_analysis_version(
     versions.lock().unwrap().get(uri).copied().unwrap_or(0) == version
 }
 
+fn source_analysis_for_source(
+    path: &Path,
+    source: String,
+    options: &crate::StdSourceOptions,
+) -> Result<SourceTextAnalysis, crate::RouteError> {
+    crate::source::source_text_analysis_with_std_options(path, source.clone(), options)
+        .or_else(|_| crate::source::source_text_analysis(path, source))
+}
+
+fn diagnostics_for_analysis(source: &str, analysis: &SourceTextAnalysis) -> Vec<Diagnostic> {
+    analysis
+        .analyze()
+        .diagnostics
+        .into_iter()
+        .map(|diagnostic| Diagnostic {
+            range: diagnostic
+                .range
+                .map(|range| {
+                    lsp_range_for_root_source(source, range, analysis.root_has_implicit_prelude())
+                })
+                .unwrap_or_default(),
+            severity: Some(DiagnosticSeverity::ERROR),
+            source: Some("yulang".to_string()),
+            message: match diagnostic.label {
+                Some(label) => format!("{label}: {}", diagnostic.message),
+                None => diagnostic.message,
+            },
+            ..Default::default()
+        })
+        .collect()
+}
+
+fn diagnostic_for_route_error(error: crate::RouteError) -> Diagnostic {
+    Diagnostic {
+        range: Range::default(),
+        severity: Some(DiagnosticSeverity::ERROR),
+        source: Some("yulang".to_string()),
+        message: error.to_string(),
+        ..Default::default()
+    }
+}
+
 fn diagnostics_for_source(
     path: &Path,
     source: String,
     options: &crate::StdSourceOptions,
 ) -> Vec<Diagnostic> {
-    let document_source = source.clone();
-    match crate::analyze_entry_source_with_std_options(path, source, options) {
-        Ok(output) => output
-            .diagnostics
-            .into_iter()
-            .map(|diagnostic| Diagnostic {
-                range: diagnostic
-                    .range
-                    .map(|range| lsp_range_for_loaded_root_range(&document_source, range))
-                    .unwrap_or_default(),
-                severity: Some(DiagnosticSeverity::ERROR),
-                source: Some("yulang".to_string()),
-                message: match diagnostic.label {
-                    Some(label) => format!("{label}: {}", diagnostic.message),
-                    None => diagnostic.message,
-                },
-                ..Default::default()
-            })
-            .collect(),
-        Err(error) => vec![Diagnostic {
-            range: Range::default(),
-            severity: Some(DiagnosticSeverity::ERROR),
-            source: Some("yulang".to_string()),
-            message: error.to_string(),
-            ..Default::default()
-        }],
+    match crate::source::source_text_analysis_with_std_options(path, source.clone(), options) {
+        Ok(analysis) => diagnostics_for_analysis(&source, &analysis),
+        Err(error) => vec![diagnostic_for_route_error(error)],
     }
 }
 
@@ -181,31 +280,8 @@ fn hover_for_source(
     position: Position,
     options: &crate::StdSourceOptions,
 ) -> Option<Hover> {
-    let byte_offset = position_to_byte_offset(&source, position)?;
-    let (hover, root_has_implicit_prelude) = match crate::hover_entry_source_with_std_options(
-        path,
-        source.clone(),
-        byte_offset,
-        options,
-    ) {
-        Ok(hover) => (
-            hover,
-            crate::source::entry_source_with_std_has_implicit_prelude(path, options)
-                .unwrap_or(true),
-        ),
-        Err(_) => (
-            crate::hover_entry_source(path, source.clone(), byte_offset)
-                .ok()
-                .flatten(),
-            false,
-        ),
-    };
-    let hover = hover?;
-    Some(lsp_hover_for_source_hover(
-        &source,
-        hover,
-        root_has_implicit_prelude,
-    ))
+    let analysis = source_analysis_for_source(path, source.clone(), options).ok()?;
+    hover_for_analysis(&source, &analysis, position)
 }
 
 fn definition_for_source(
@@ -214,28 +290,8 @@ fn definition_for_source(
     position: Position,
     options: &crate::StdSourceOptions,
 ) -> Option<Location> {
-    let byte_offset = position_to_byte_offset(&source, position)?;
-    let (definition, root_has_implicit_prelude) =
-        match crate::definition_entry_source_with_std_options(
-            path,
-            source.clone(),
-            byte_offset,
-            options,
-        ) {
-            Ok(definition) => (
-                definition,
-                crate::source::entry_source_with_std_has_implicit_prelude(path, options)
-                    .unwrap_or(true),
-            ),
-            Err(_) => (
-                crate::definition_entry_source(path, source.clone(), byte_offset)
-                    .ok()
-                    .flatten(),
-                false,
-            ),
-        };
-    let definition = definition?;
-    lsp_location_for_source_definition(path, &source, definition, root_has_implicit_prelude)
+    let analysis = source_analysis_for_source(path, source.clone(), options).ok()?;
+    definition_for_analysis(path, &source, &analysis, position)
 }
 
 fn references_for_source(
@@ -245,39 +301,10 @@ fn references_for_source(
     include_declaration: bool,
     options: &crate::StdSourceOptions,
 ) -> Vec<Location> {
-    let Some(byte_offset) = position_to_byte_offset(&source, position) else {
+    let Ok(analysis) = source_analysis_for_source(path, source.clone(), options) else {
         return Vec::new();
     };
-    let (locations, root_has_implicit_prelude) =
-        match crate::references_entry_source_with_std_options(
-            path,
-            source.clone(),
-            byte_offset,
-            include_declaration,
-            options,
-        ) {
-            Ok(locations) => (
-                locations,
-                crate::source::entry_source_with_std_has_implicit_prelude(path, options)
-                    .unwrap_or(true),
-            ),
-            Err(_) => (
-                crate::references_entry_source(
-                    path,
-                    source.clone(),
-                    byte_offset,
-                    include_declaration,
-                )
-                .unwrap_or_default(),
-                false,
-            ),
-        };
-    locations
-        .into_iter()
-        .filter_map(|location| {
-            lsp_location_for_source_location(path, &source, location, root_has_implicit_prelude)
-        })
-        .collect()
+    references_for_analysis(path, &source, &analysis, position, include_declaration)
 }
 
 fn prepare_rename_for_source(
@@ -286,31 +313,8 @@ fn prepare_rename_for_source(
     position: Position,
     options: &crate::StdSourceOptions,
 ) -> Option<PrepareRenameResponse> {
-    let byte_offset = position_to_byte_offset(&source, position)?;
-    let (range, root_has_implicit_prelude) =
-        match crate::prepare_rename_entry_source_with_std_options(
-            path,
-            source.clone(),
-            byte_offset,
-            options,
-        ) {
-            Ok(range) => (
-                range,
-                crate::source::entry_source_with_std_has_implicit_prelude(path, options)
-                    .unwrap_or(true),
-            ),
-            Err(_) => (
-                crate::prepare_rename_entry_source(path, source.clone(), byte_offset)
-                    .ok()
-                    .flatten(),
-                false,
-            ),
-        };
-    Some(PrepareRenameResponse::Range(lsp_range_for_root_source(
-        &source,
-        range?,
-        root_has_implicit_prelude,
-    )))
+    let analysis = source_analysis_for_source(path, source.clone(), options).ok()?;
+    prepare_rename_for_analysis(&source, &analysis, position)
 }
 
 fn rename_for_source(
@@ -320,27 +324,88 @@ fn rename_for_source(
     new_name: &str,
     options: &crate::StdSourceOptions,
 ) -> Option<WorkspaceEdit> {
+    let analysis = source_analysis_for_source(path, source.clone(), options).ok()?;
+    rename_for_analysis(path, &source, &analysis, position, new_name)
+}
+
+fn hover_for_analysis(
+    source: &str,
+    analysis: &SourceTextAnalysis,
+    position: Position,
+) -> Option<Hover> {
     let byte_offset = position_to_byte_offset(&source, position)?;
-    let (rename, root_has_implicit_prelude) = match crate::rename_entry_source_with_std_options(
+    let hover = analysis.hover(byte_offset)?;
+    Some(lsp_hover_for_source_hover(
+        &source,
+        hover,
+        analysis.root_has_implicit_prelude(),
+    ))
+}
+
+fn definition_for_analysis(
+    path: &Path,
+    source: &str,
+    analysis: &SourceTextAnalysis,
+    position: Position,
+) -> Option<Location> {
+    let byte_offset = position_to_byte_offset(&source, position)?;
+    let definition = analysis.definition(byte_offset)?;
+    lsp_location_for_source_definition(
         path,
-        source.clone(),
-        byte_offset,
-        new_name,
-        options,
-    ) {
-        Ok(rename) => (
-            rename,
-            crate::source::entry_source_with_std_has_implicit_prelude(path, options)
-                .unwrap_or(true),
-        ),
-        Err(_) => (
-            crate::rename_entry_source(path, source.clone(), byte_offset, new_name)
-                .ok()
-                .flatten(),
-            false,
-        ),
+        source,
+        definition,
+        analysis.root_has_implicit_prelude(),
+    )
+}
+
+fn references_for_analysis(
+    path: &Path,
+    source: &str,
+    analysis: &SourceTextAnalysis,
+    position: Position,
+    include_declaration: bool,
+) -> Vec<Location> {
+    let Some(byte_offset) = position_to_byte_offset(&source, position) else {
+        return Vec::new();
     };
-    workspace_edit_for_source_rename(path, &source, rename?, root_has_implicit_prelude)
+    let locations = analysis.references(byte_offset, include_declaration);
+    locations
+        .into_iter()
+        .filter_map(|location| {
+            lsp_location_for_source_location(
+                path,
+                source,
+                location,
+                analysis.root_has_implicit_prelude(),
+            )
+        })
+        .collect()
+}
+
+fn prepare_rename_for_analysis(
+    source: &str,
+    analysis: &SourceTextAnalysis,
+    position: Position,
+) -> Option<PrepareRenameResponse> {
+    let byte_offset = position_to_byte_offset(&source, position)?;
+    let range = analysis.prepare_rename(byte_offset)?;
+    Some(PrepareRenameResponse::Range(lsp_range_for_root_source(
+        &source,
+        range,
+        analysis.root_has_implicit_prelude(),
+    )))
+}
+
+fn rename_for_analysis(
+    path: &Path,
+    source: &str,
+    analysis: &SourceTextAnalysis,
+    position: Position,
+    new_name: &str,
+) -> Option<WorkspaceEdit> {
+    let byte_offset = position_to_byte_offset(&source, position)?;
+    let rename = analysis.rename(byte_offset, new_name)?;
+    workspace_edit_for_source_rename(path, source, rename, analysis.root_has_implicit_prelude())
 }
 
 fn lsp_hover_for_source_hover(
@@ -626,6 +691,16 @@ impl LanguageServer for Backend {
         let options = crate::StdSourceOptions {
             std_root: self.std_root.clone(),
         };
+        let key = LspRequestCacheKey {
+            uri: uri.clone(),
+            version: self.current_analysis_version(&uri),
+            kind: LspRequestKind::Hover {
+                position: position.into(),
+            },
+        };
+        if let Some(LspRequestCacheValue::Hover(hover)) = self.cached_request(&key) {
+            return Ok(hover);
+        }
         let Ok(permit) = self.request_slots.clone().try_acquire_owned() else {
             return Ok(None);
         };
@@ -637,6 +712,9 @@ impl LanguageServer for Backend {
             Ok(Ok(hover)) => hover,
             Ok(Err(_)) | Err(_) => None,
         };
+        if self.current_analysis_version(&uri) == key.version {
+            self.store_request(key, LspRequestCacheValue::Hover(hover.clone()));
+        }
         Ok(hover)
     }
 
@@ -656,6 +734,16 @@ impl LanguageServer for Backend {
         let options = crate::StdSourceOptions {
             std_root: self.std_root.clone(),
         };
+        let key = LspRequestCacheKey {
+            uri: uri.clone(),
+            version: self.current_analysis_version(&uri),
+            kind: LspRequestKind::Definition {
+                position: position.into(),
+            },
+        };
+        if let Some(LspRequestCacheValue::Definition(location)) = self.cached_request(&key) {
+            return Ok(location.map(GotoDefinitionResponse::Scalar));
+        }
         let Ok(permit) = self.request_slots.clone().try_acquire_owned() else {
             return Ok(None);
         };
@@ -667,6 +755,9 @@ impl LanguageServer for Backend {
             Ok(Ok(location)) => location,
             Ok(Err(_)) | Err(_) => None,
         };
+        if self.current_analysis_version(&uri) == key.version {
+            self.store_request(key, LspRequestCacheValue::Definition(location.clone()));
+        }
         Ok(location.map(GotoDefinitionResponse::Scalar))
     }
 
@@ -687,6 +778,17 @@ impl LanguageServer for Backend {
         let options = crate::StdSourceOptions {
             std_root: self.std_root.clone(),
         };
+        let key = LspRequestCacheKey {
+            uri: uri.clone(),
+            version: self.current_analysis_version(&uri),
+            kind: LspRequestKind::References {
+                position: position.into(),
+                include_declaration,
+            },
+        };
+        if let Some(LspRequestCacheValue::References(locations)) = self.cached_request(&key) {
+            return Ok(Some(locations));
+        }
         let Ok(permit) = self.request_slots.clone().try_acquire_owned() else {
             return Ok(None);
         };
@@ -698,6 +800,9 @@ impl LanguageServer for Backend {
             Ok(Ok(locations)) => locations,
             Ok(Err(_)) | Err(_) => Vec::new(),
         };
+        if self.current_analysis_version(&uri) == key.version {
+            self.store_request(key, LspRequestCacheValue::References(locations.clone()));
+        }
         Ok(Some(locations))
     }
 
@@ -717,6 +822,16 @@ impl LanguageServer for Backend {
         let options = crate::StdSourceOptions {
             std_root: self.std_root.clone(),
         };
+        let key = LspRequestCacheKey {
+            uri: uri.clone(),
+            version: self.current_analysis_version(&uri),
+            kind: LspRequestKind::PrepareRename {
+                position: position.into(),
+            },
+        };
+        if let Some(LspRequestCacheValue::PrepareRename(response)) = self.cached_request(&key) {
+            return Ok(response);
+        }
         let Ok(permit) = self.request_slots.clone().try_acquire_owned() else {
             return Ok(None);
         };
@@ -728,6 +843,9 @@ impl LanguageServer for Backend {
             Ok(Ok(response)) => response,
             Ok(Err(_)) | Err(_) => None,
         };
+        if self.current_analysis_version(&uri) == key.version {
+            self.store_request(key, LspRequestCacheValue::PrepareRename(response.clone()));
+        }
         Ok(response)
     }
 
@@ -748,6 +866,17 @@ impl LanguageServer for Backend {
         let options = crate::StdSourceOptions {
             std_root: self.std_root.clone(),
         };
+        let key = LspRequestCacheKey {
+            uri: uri.clone(),
+            version: self.current_analysis_version(&uri),
+            kind: LspRequestKind::Rename {
+                position: position.into(),
+                new_name: new_name.clone(),
+            },
+        };
+        if let Some(LspRequestCacheValue::Rename(edit)) = self.cached_request(&key) {
+            return Ok(edit);
+        }
         let Ok(permit) = self.request_slots.clone().try_acquire_owned() else {
             return Ok(None);
         };
@@ -759,6 +888,9 @@ impl LanguageServer for Backend {
             Ok(Ok(edit)) => edit,
             Ok(Err(_)) | Err(_) => None,
         };
+        if self.current_analysis_version(&uri) == key.version {
+            self.store_request(key, LspRequestCacheValue::Rename(edit.clone()));
+        }
         Ok(edit)
     }
 }
@@ -771,6 +903,7 @@ pub async fn serve(std_root: Option<PathBuf>) {
         std_root,
         documents: Arc::new(Mutex::new(HashMap::new())),
         analysis_versions: Arc::new(Mutex::new(HashMap::new())),
+        request_cache: Arc::new(Mutex::new(HashMap::new())),
         analysis_slots: Arc::new(Semaphore::new(1)),
         request_slots: Arc::new(Semaphore::new(2)),
     });
