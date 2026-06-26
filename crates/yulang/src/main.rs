@@ -893,10 +893,6 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
         "  run.active_add_entry_frame_scans: {}",
         stats.active_add_entry_frame_scans
     );
-    eprintln!(
-        "  run.active_add_insert_checks: {}",
-        stats.active_add_insert_checks
-    );
     eprintln!("  run.active_frame_scans: {}", stats.active_frame_scans);
     eprintln!(
         "  run.scope_state_shadow_checks: {}",

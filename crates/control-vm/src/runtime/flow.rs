@@ -656,7 +656,6 @@ impl<'a> Runtime<'a> {
                         marker: marker.clone(),
                         entry_frame_len: self.entry_frame_len_for_marker(marker.id, &frame_entries),
                     };
-                    self.stats.active_add_insert_checks += 1;
                     // Exact duplicate add-id markers are idempotent during
                     // request marking: GuardIds and carried guards are
                     // de-duplicated by guard id. Avoid a linear membership scan

@@ -184,7 +184,6 @@ pub struct RuntimeStats {
     pub active_add_entry_except_checks: u64,
     pub active_add_entry_guard_collects: u64,
     pub active_add_entry_frame_scans: u64,
-    pub active_add_insert_checks: u64,
     pub active_frame_scans: u64,
     pub scope_state_shadow_checks: u64,
     pub scope_state_shadow_active_add_markers: u64,
