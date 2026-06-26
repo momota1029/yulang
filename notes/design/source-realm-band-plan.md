@@ -248,6 +248,50 @@ std/@v/0.1.0/...
 If that snapshot contains a root `realm.yu`, the single-band case can be laid
 out as `realm = band` without introducing an empty default band.
 
+### Local Realm Boundary
+
+Every Yulang source is interpreted inside a realm. There is no stable notion of
+ordinary source code "outside" a realm.
+
+For the release target, local realm boundaries are:
+
+1. If the entry file is under a directory containing `realm.toml`, the nearest
+   such ancestor is the editable local realm root.
+2. If no `realm.toml` is found, the entry file is a singleton implicit realm.
+   In this mode the entry file itself is also the only band root: `realm =
+   band`.
+
+The second rule is meant for scripts and single-file examples. It avoids a
+surprising interpretation where every sibling `.yu` file next to a script
+silently becomes part of the same current realm. A standalone file can still
+use `std::...` and imported global realms once those providers exist, but it
+cannot discover same-directory bands through `realm/...::...` unless the
+directory is explicitly marked as a local realm.
+
+Therefore multi-band local development should create a `realm.toml` at the
+directory boundary:
+
+```text
+app/
+  realm.toml
+  main.yu          band main
+  helper.yu        band helper
+  helper/inner.yu  module inner inside band helper
+```
+
+Under a manifest realm, unowned `.yu` roots are band roots. `mod` edges still
+own child source files inside the same band. A file first discovered as a band
+root cannot later be claimed by another band's `mod` tree.
+
+`realm.yu` is reserved for single-band published snapshots and explicit
+manifest realms that want a default/root band. Ordinary named bands should use
+their band path (`foo.yu`, `foo/bar.yu`, and so on).
+
+Implementation note: the current local collector still falls back to the entry
+file's parent directory when no `realm.toml` exists. Tightening that fallback to
+the singleton implicit realm rule is a release-blocking compatibility change
+for local realm/band.
+
 When a realm version is fixed for release, Yulang should materialize
 compiled-unit artifacts for the released band roots:
 

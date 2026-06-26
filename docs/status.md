@@ -139,6 +139,11 @@ The columns trace a value through the pipeline:
   inside a realm. The `realm.toml` / `yulang.lock` package workflow is still
   not a stable user workflow, and realm/band identity is not yet the public
   dependency manager.
+- Local realm/band is moving toward this release rule: a directory with
+  `realm.toml` is an editable local realm; a file outside such a manifest is a
+  singleton implicit realm where the file itself is the only band. The current
+  collector still uses the entry file's parent directory as a fallback realm
+  root, so this boundary is not yet stable.
 - Full diagnostics polish is still in progress. Parser, type, role, and
   effect errors are being moved toward language-level explanations rather
   than internal-implementation messages.
