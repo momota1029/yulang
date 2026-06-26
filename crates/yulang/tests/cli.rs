@@ -684,6 +684,50 @@ identity = "test/editable-realm-band"
 }
 
 #[test]
+fn compatible_run_reports_dependency_lowering_errors_before_runtime() {
+    let root = temp_root("run-dependency-lowering-error-before-runtime");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("helper")).unwrap();
+    let entry = root.join("main.yu");
+    fs::write(&entry, "use realm/helper::answer\nanswer\n").unwrap();
+    fs::write(
+        root.join("helper.yu"),
+        "mod inner;\nuse band::inner::bonus\npub answer = 40 + bonus\n",
+    )
+    .unwrap();
+    fs::write(root.join("helper").join("inner.yu"), "our bonus = 2\n").unwrap();
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains("cannot build executable program with lowering errors"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("unresolved value name: #op:infix:+"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("unbound local"), "{stderr}");
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn compatible_run_uses_merged_source_unit_prefix_when_many_are_cached() {
     let root = temp_root("run-many-source-unit-prefix-cache");
     let _ = fs::remove_dir_all(&root);

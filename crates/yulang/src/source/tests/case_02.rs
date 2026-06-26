@@ -3405,6 +3405,28 @@ fn current_realm_cross_band_cycle_is_rejected() {
 }
 
 #[test]
+fn run_control_rejects_lowering_errors_in_current_realm_dependency() {
+    let root = temp_root("realm-use-dependency-lowering-error");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("helper")).unwrap();
+    fs::write(root.join("main.yu"), "use realm/helper::answer\nanswer\n").unwrap();
+    fs::write(
+        root.join("helper.yu"),
+        "mod inner;\nuse band::inner::bonus\npub answer = 40 + bonus\n",
+    )
+    .unwrap();
+    fs::write(root.join("helper").join("inner.yu"), "our bonus = 2\n").unwrap();
+
+    let err = run_control_from_entry(root.join("main.yu")).unwrap_err();
+
+    assert!(matches!(
+        err,
+        RouteError::LoweringDiagnostics { errors }
+            if errors.iter().any(|error| error.contains("unresolved value name: #op:infix:+"))
+    ));
+}
+
+#[test]
 fn discover_module_loads_uses_lightweight_module_parse() {
     let requests = discover_module_loads(
         &Path::default(),

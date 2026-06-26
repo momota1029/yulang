@@ -307,6 +307,7 @@ fn run_compatible_build(program: &str, options: &GlobalOptions, args: VecDeque<O
     print_cst_if_requested(options, &path);
     let files = collect_control_sources_or_exit(&path, options);
     let output = build_control_with_optional_cache(files, options.use_cache);
+    abort_on_runtime_lowering_errors(&output.errors);
     let artifact = match yulang::artifact::encode_control_program(&output.program) {
         Ok(artifact) => artifact,
         Err(error) => {
@@ -535,6 +536,7 @@ fn specialize_mono_program(
     poly: &yulang::BuildPolyOutput,
     mono_cache: Option<(&yulang::cache::ArtifactCache, yulang::cache::SourceCacheKey)>,
 ) -> specialize::mono::Program {
+    abort_on_runtime_lowering_errors(&poly.errors);
     if let Some((cache, key)) = mono_cache {
         match cache.read_mono_artifact(key) {
             Ok(Some(cached)) => return cached.program,
@@ -563,6 +565,17 @@ fn specialize_mono_program(
     }
 
     program
+}
+
+fn abort_on_runtime_lowering_errors(errors: &[String]) {
+    if errors.is_empty() {
+        return;
+    }
+    eprintln!("cannot build executable program with lowering errors");
+    for error in errors {
+        eprintln!("error: {error}");
+    }
+    process::exit(1);
 }
 
 fn record_runtime_build_cache(

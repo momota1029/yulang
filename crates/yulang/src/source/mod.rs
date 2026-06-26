@@ -323,6 +323,7 @@ fn lower_compiled_unit_prefix_suffix(
 pub fn build_control_from_poly_output(
     output: &BuildPolyOutput,
 ) -> Result<BuildControlOutput, RouteError> {
+    output.ensure_runtime_ready()?;
     let mono = specialize::specialize(&output.arena).map_err(RouteError::Specialize)?;
     let program = control_vm::lower(&mono).map_err(RouteError::ControlLower)?;
     Ok(BuildControlOutput {
@@ -348,6 +349,7 @@ pub fn run_built_control_program_with_labels(
     errors: Vec<String>,
     labels: Option<&poly::dump::DumpLabels>,
 ) -> Result<RunControlOutput, RouteError> {
+    reject_runtime_lowering_errors(&errors)?;
     let mut stdout = String::new();
     let (values, stats, runtime_timings) =
         control_vm::run_program_with_host_stats_and_timings(program, &mut |path, payload| {
@@ -1184,9 +1186,24 @@ pub struct BuildPolyOutput {
     pub errors: Vec<String>,
 }
 
+impl BuildPolyOutput {
+    pub fn ensure_runtime_ready(&self) -> Result<(), RouteError> {
+        reject_runtime_lowering_errors(&self.errors)
+    }
+}
+
 pub struct BuildPolyAndCompiledUnitOutput {
     pub poly: BuildPolyOutput,
     pub compiled_unit: crate::cache::CachedCompiledUnitArtifact,
+}
+
+fn reject_runtime_lowering_errors(errors: &[String]) -> Result<(), RouteError> {
+    if errors.is_empty() {
+        return Ok(());
+    }
+    Err(RouteError::LoweringDiagnostics {
+        errors: errors.to_vec(),
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1322,6 +1339,9 @@ pub enum RouteError {
         from: Path,
         to: Path,
     },
+    LoweringDiagnostics {
+        errors: Vec<String>,
+    },
     InvalidDumpModulePath {
         module: String,
     },
@@ -1429,6 +1449,13 @@ impl fmt::Display for RouteError {
                 format_module_path(from),
                 format_module_path(to)
             ),
+            RouteError::LoweringDiagnostics { errors } => {
+                write!(f, "cannot build executable program with lowering errors")?;
+                for error in errors {
+                    write!(f, "\nerror: {error}")?;
+                }
+                Ok(())
+            }
             RouteError::InvalidDumpModulePath { module } => {
                 write!(f, "dump module path `{module}` is invalid")
             }
@@ -2551,6 +2578,7 @@ fn specialize_mono_from_loaded_files(
 fn specialize_mono_from_poly_output(
     output: BuildPolyOutput,
 ) -> Result<SpecializedMonoOutput, RouteError> {
+    output.ensure_runtime_ready()?;
     let program = specialize::specialize(&output.arena).map_err(RouteError::Specialize)?;
     Ok(SpecializedMonoOutput {
         program,
