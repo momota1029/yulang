@@ -2,16 +2,70 @@ use super::*;
 
 #[derive(Clone)]
 pub(super) struct Continuation {
-    pub(super) frames: VecDeque<SharedFrame>,
+    pub(super) frames: ContinuationFrames,
     pub(super) marker_scopes: Option<SharedMarkerScopes>,
 }
 
 impl Default for Continuation {
     fn default() -> Self {
         Self {
-            frames: VecDeque::new(),
+            frames: ContinuationFrames::default(),
             marker_scopes: None,
         }
+    }
+}
+
+#[derive(Clone, Default)]
+pub(super) struct ContinuationFrames {
+    owned: VecDeque<SharedFrame>,
+}
+
+impl ContinuationFrames {
+    pub(super) fn len(&self) -> usize {
+        self.owned.len()
+    }
+
+    pub(super) fn is_empty(&self) -> bool {
+        self.owned.is_empty()
+    }
+
+    pub(super) fn push_front(&mut self, frame: SharedFrame) {
+        self.owned.push_front(frame);
+    }
+
+    pub(super) fn pop_back(&mut self) -> Option<SharedFrame> {
+        self.owned.pop_back()
+    }
+
+    pub(super) fn back(&self) -> Option<&SharedFrame> {
+        self.owned.back()
+    }
+
+    pub(super) fn take_all(&mut self) -> Self {
+        std::mem::take(self)
+    }
+
+    pub(super) fn split_back(&mut self, count: usize) -> Self {
+        if count == 0 {
+            return Self::default();
+        }
+        let split_at = self
+            .owned
+            .len()
+            .checked_sub(count)
+            .expect("marker scope should not cover more frames than remain");
+        Self {
+            owned: self.owned.split_off(split_at),
+        }
+    }
+
+    pub(super) fn prepend_to(self, continuation: &mut Continuation) {
+        continuation.frames.prepend(self);
+    }
+
+    pub(super) fn prepend(&mut self, mut prefix: Self) {
+        prefix.owned.append(&mut self.owned);
+        *self = prefix;
     }
 }
 
@@ -614,10 +668,7 @@ impl<'a> Runtime<'a> {
                 unreachable!("value result is handled above");
             };
             let mut request = request;
-            prepend_frames(
-                &mut request.continuation,
-                std::mem::take(&mut continuation.frames),
-            );
+            prepend_frames(&mut request.continuation, continuation.frames.take_all());
             return Ok(EvalResult::Request(request));
         }
     }
@@ -956,10 +1007,7 @@ impl<'a> Runtime<'a> {
             }
 
             let mut request = request;
-            prepend_frames(
-                &mut request.continuation,
-                std::mem::take(&mut continuation.frames),
-            );
+            prepend_frames(&mut request.continuation, continuation.frames.take_all());
             return Ok(EvalResult::Request(request));
         }
     }
@@ -996,7 +1044,7 @@ impl<'a> Runtime<'a> {
         self.stats.marker_scope_request_closes += 1;
         let frames_remaining =
             marker_scope_remaining(&scope, consumed_marker_frames, *request_close_offset);
-        let inner_frames = split_back_frames(&mut continuation.frames, frames_remaining);
+        let inner_frames = continuation.frames.split_back(frames_remaining);
         *request_close_offset += frames_remaining;
         prepend_frames(&mut request.continuation, inner_frames);
         self.close_active_marker_scope_result(EvalResult::Request(request), scope)
@@ -1650,20 +1698,8 @@ fn marker_scope_remaining(
         .expect("marker scope request-close offset should not exceed remaining frames")
 }
 
-fn split_back_frames(frames: &mut VecDeque<SharedFrame>, count: usize) -> VecDeque<SharedFrame> {
-    if count == 0 {
-        return VecDeque::new();
-    }
-    let split_at = frames
-        .len()
-        .checked_sub(count)
-        .expect("marker scope should not cover more frames than remain");
-    frames.split_off(split_at)
-}
-
-fn prepend_frames(continuation: &mut Continuation, mut frames: VecDeque<SharedFrame>) {
-    frames.append(&mut continuation.frames);
-    continuation.frames = frames;
+fn prepend_frames(continuation: &mut Continuation, frames: ContinuationFrames) {
+    frames.prepend_to(continuation);
 }
 
 fn shared_frame(stats: &mut RuntimeStats, frame: Frame) -> SharedFrame {
