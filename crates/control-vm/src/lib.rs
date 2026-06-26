@@ -6,6 +6,7 @@
 #![forbid(unsafe_code)]
 
 mod boundary;
+mod effect_profile;
 mod format;
 mod ir;
 mod lower;

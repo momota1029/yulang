@@ -13,6 +13,7 @@ use text_tree::{BytesTree, StringTree};
 use crate::boundary::{
     equivalent_runtime_types, function_parts, thunk_value_type, value_boundary_supported,
 };
+use crate::effect_profile::ControlEffectProfile;
 use crate::ir::{
     CaseArm, DefId, Expr, ExprId, InstanceId, Pat, Program, RecordPatField, RecordSpread, Root,
     SelectResolution, Stmt,
@@ -96,6 +97,19 @@ where
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RuntimeStats {
+    pub control_effect_ops: u64,
+    pub control_effect_op_families: u64,
+    pub control_effect_ops_with_handler_arm: u64,
+    pub control_effect_ops_without_handler_arm: u64,
+    pub control_marker_frames: u64,
+    pub control_marker_frame_families: u64,
+    pub control_catches: u64,
+    pub control_handler_arms: u64,
+    pub control_handler_arm_families: u64,
+    pub control_value_arms: u64,
+    pub control_continuation_arms: u64,
+    pub control_function_adapters: u64,
+    pub control_ref_sets: u64,
     pub expr_evals: u64,
     /// Full `Expr` clones performed by eval. This should stay at zero on the dispatch path.
     pub expr_clones: u64,
@@ -209,6 +223,27 @@ pub struct RuntimeStats {
     pub scope_state_shadow_all_path_candidates: u64,
     pub scope_state_shadow_own_path_candidates: u64,
     pub scope_state_shadow_foreign_path_candidates: u64,
+}
+
+impl From<ControlEffectProfile> for RuntimeStats {
+    fn from(profile: ControlEffectProfile) -> Self {
+        Self {
+            control_effect_ops: profile.effect_ops,
+            control_effect_op_families: profile.effect_op_families,
+            control_effect_ops_with_handler_arm: profile.effect_ops_with_handler_arm,
+            control_effect_ops_without_handler_arm: profile.effect_ops_without_handler_arm,
+            control_marker_frames: profile.marker_frames,
+            control_marker_frame_families: profile.marker_frame_families,
+            control_catches: profile.catches,
+            control_handler_arms: profile.handler_arms,
+            control_handler_arm_families: profile.handler_arm_families,
+            control_value_arms: profile.value_arms,
+            control_continuation_arms: profile.continuation_arms,
+            control_function_adapters: profile.function_adapters,
+            control_ref_sets: profile.ref_sets,
+            ..Self::default()
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

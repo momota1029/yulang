@@ -677,6 +677,43 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
     eprintln!("  run.root_format: {}", format_duration(timing.root_format));
     eprintln!("  run.total: {}", format_duration(timing.total));
     eprintln!("runtime stats:");
+    eprintln!("  run.control_effect_ops: {}", stats.control_effect_ops);
+    eprintln!(
+        "  run.control_effect_op_families: {}",
+        stats.control_effect_op_families
+    );
+    eprintln!(
+        "  run.control_effect_ops_with_handler_arm: {}",
+        stats.control_effect_ops_with_handler_arm
+    );
+    eprintln!(
+        "  run.control_effect_ops_without_handler_arm: {}",
+        stats.control_effect_ops_without_handler_arm
+    );
+    eprintln!(
+        "  run.control_marker_frames: {}",
+        stats.control_marker_frames
+    );
+    eprintln!(
+        "  run.control_marker_frame_families: {}",
+        stats.control_marker_frame_families
+    );
+    eprintln!("  run.control_catches: {}", stats.control_catches);
+    eprintln!("  run.control_handler_arms: {}", stats.control_handler_arms);
+    eprintln!(
+        "  run.control_handler_arm_families: {}",
+        stats.control_handler_arm_families
+    );
+    eprintln!("  run.control_value_arms: {}", stats.control_value_arms);
+    eprintln!(
+        "  run.control_continuation_arms: {}",
+        stats.control_continuation_arms
+    );
+    eprintln!(
+        "  run.control_function_adapters: {}",
+        stats.control_function_adapters
+    );
+    eprintln!("  run.control_ref_sets: {}", stats.control_ref_sets);
     eprintln!("  run.expr_evals: {}", stats.expr_evals);
     eprintln!("  run.expr_clones: {}", stats.expr_clones);
     eprintln!("  run.env_lookups: {}", stats.env_lookups);

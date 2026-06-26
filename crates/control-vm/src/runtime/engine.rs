@@ -27,6 +27,7 @@ impl<'a> Runtime<'a> {
     pub(super) fn new(program: &'a Program) -> Self {
         let mut path_interner = PathInterner::default();
         let ref_update_update_key = path_interner.intern(&ref_update_update_path());
+        let profile = ControlEffectProfile::from_program(program);
         Self {
             program,
             instances: HashMap::new(),
@@ -44,7 +45,7 @@ impl<'a> Runtime<'a> {
                 .is_some()
                 .then(ScopeState::new),
             next_guard_id: 0,
-            stats: RuntimeStats::default(),
+            stats: RuntimeStats::from(profile),
             ref_update_update_key,
             path_interner,
         }

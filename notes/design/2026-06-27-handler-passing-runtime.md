@@ -343,3 +343,34 @@ Add Stage 0 metrics to control lowering/runtime:
   - missing lowering metadata.
 
 The result should be a numbers-only commit.  It should not change execution.
+
+## Stage 0 coarse profile
+
+Implemented as `crates/control-vm/src/effect_profile.rs`.
+
+The current pass is deliberately coarse.  It scans the lowered control IR arena
+and records:
+
+- effect operations and exact operation families;
+- effect operations whose exact family appears in some catch handler arm;
+- marker frames and marker frame families;
+- catch expressions;
+- operation handler arms;
+- value arms;
+- continuation arms;
+- function adapters;
+- ref set nodes.
+
+It does not claim that an operation has a statically nearest handler.  The
+`effect_ops_with_handler_arm` counter only means that the same exact operation
+path occurs somewhere in a catch arm in the same lowered program.
+
+This is enough for the first question:
+
+```text
+Does a workload pay generic VM tax around a small number of repeated effect
+families, or around many unrelated effect families?
+```
+
+If this profile is useful, the next stage can add a proper tree traversal with
+a scoped handler stack and callback-boundary markers.
