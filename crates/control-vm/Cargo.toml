@@ -7,6 +7,7 @@ edition = "2024"
 mono = { path = "../mono" }
 num-bigint = "0.4"
 serde = { version = "1", features = ["derive"] }
+smallvec = "1.13.2"
 list-tree = { path = "../list-tree" }
 text-tree = { path = "../text-tree" }
 

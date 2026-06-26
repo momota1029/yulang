@@ -7,6 +7,7 @@ use std::rc::Rc;
 use list_tree::{ListTree, ListView};
 use mono::{FunctionAdapterHygiene, Lit, PrimitiveContext, PrimitiveOp, RangeConstructors, Type};
 use num_bigint::BigInt;
+use smallvec::SmallVec;
 use text_tree::{BytesTree, StringTree};
 
 use crate::boundary::{
@@ -658,7 +659,7 @@ enum EvalResult {
 struct Request {
     path: Vec<String>,
     path_key: InternedPath,
-    guard_ids: Vec<GuardId>,
+    guard_ids: GuardIds,
     carried_guards: Vec<CarriedGuard>,
     handler_boundary: Option<HandlerBoundary>,
     payload: Value,
@@ -682,7 +683,50 @@ impl GuardSkip {
 struct CarriedGuard {
     id: GuardId,
     entry_frame_len: usize,
-    exposed_guard_ids: Vec<GuardId>,
+    exposed_guard_ids: GuardIds,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct GuardIds {
+    ids: SmallVec<[GuardId; 4]>,
+}
+
+impl GuardIds {
+    fn new() -> Self {
+        Self {
+            ids: SmallVec::new(),
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.ids.is_empty()
+    }
+
+    fn contains(&self, id: GuardId) -> bool {
+        self.ids.contains(&id)
+    }
+
+    fn push_unique(&mut self, id: GuardId) -> bool {
+        if self.contains(id) {
+            return false;
+        }
+        self.ids.push(id);
+        true
+    }
+
+    fn iter(&self) -> impl Iterator<Item = &GuardId> {
+        self.ids.iter()
+    }
+}
+
+impl From<Vec<GuardId>> for GuardIds {
+    fn from(ids: Vec<GuardId>) -> Self {
+        let mut guard_ids = Self::new();
+        for id in ids {
+            guard_ids.push_unique(id);
+        }
+        guard_ids
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

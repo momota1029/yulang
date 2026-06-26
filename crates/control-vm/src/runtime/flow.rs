@@ -216,7 +216,7 @@ impl<'a> Runtime<'a> {
         let mut request = Request {
             path,
             path_key,
-            guard_ids: Vec::new(),
+            guard_ids: GuardIds::new(),
             carried_guards: Vec::new(),
             handler_boundary: None,
             payload,
@@ -247,16 +247,14 @@ impl<'a> Runtime<'a> {
             {
                 let exposed_guard_ids =
                     self.carried_exposed_guard_ids_at_marker_entry(request, active_marker);
-                if !request.guard_ids.contains(&marker.id) {
-                    request.guard_ids.push(marker.id);
-                }
+                request.guard_ids.push_unique(marker.id);
                 request.carried_guards.push(CarriedGuard {
                     id: marker.id,
                     entry_frame_len: active_marker.entry_frame_len,
                     exposed_guard_ids,
                 });
-            } else if !marker.carry_after_frame && !request.guard_ids.contains(&marker.id) {
-                request.guard_ids.push(marker.id);
+            } else if !marker.carry_after_frame {
+                request.guard_ids.push_unique(marker.id);
             }
         }
     }
@@ -272,22 +270,20 @@ impl<'a> Runtime<'a> {
         self.active_frames
             .iter()
             .take(marker.entry_frame_len)
-            .any(|frame| request.guard_ids.contains(&frame.id))
+            .any(|frame| request.guard_ids.contains(frame.id))
     }
 
     fn request_guard_ids_at_marker_entry(
         &self,
         request: &Request,
         marker: &ActiveAddIdMarker,
-    ) -> Vec<GuardId> {
+    ) -> GuardIds {
         self.active_frames
             .iter()
             .take(marker.entry_frame_len)
-            .filter_map(|frame| request.guard_ids.contains(&frame.id).then_some(frame.id))
-            .fold(Vec::new(), |mut ids, id| {
-                if !ids.contains(&id) {
-                    ids.push(id);
-                }
+            .filter_map(|frame| request.guard_ids.contains(frame.id).then_some(frame.id))
+            .fold(GuardIds::new(), |mut ids, id| {
+                ids.push_unique(id);
                 ids
             })
     }
@@ -296,7 +292,7 @@ impl<'a> Runtime<'a> {
         &self,
         request: &Request,
         marker: &ActiveAddIdMarker,
-    ) -> Vec<GuardId> {
+    ) -> GuardIds {
         let mut ids = self.request_guard_ids_at_marker_entry(request, marker);
         if marker.marker.preserve_own_on_resume {
             // Explicit argument-effect contracts permit handlers that were
@@ -310,9 +306,9 @@ impl<'a> Runtime<'a> {
         }
         if self.exposes_matching_handler_alias(request, marker.entry_frame_len, &ids)
             && let Some(handler_id) = self.outermost_matching_handler_id(&request.path_key)
-            && !ids.contains(&handler_id)
+            && !ids.contains(handler_id)
         {
-            ids.push(handler_id);
+            ids.push_unique(handler_id);
         }
         ids
     }
@@ -321,14 +317,12 @@ impl<'a> Runtime<'a> {
         &self,
         request: &Request,
         entry_frame_len: usize,
-        ids: &mut Vec<GuardId>,
+        ids: &mut GuardIds,
     ) {
         for frame in &self.active_handler_frames {
-            if frame.frame_index < entry_frame_len
-                && request.path_key.has_prefix(frame.handler_key)
-                && !ids.contains(&frame.id)
+            if frame.frame_index < entry_frame_len && request.path_key.has_prefix(frame.handler_key)
             {
-                ids.push(frame.id);
+                ids.push_unique(frame.id);
             }
         }
     }
@@ -337,7 +331,7 @@ impl<'a> Runtime<'a> {
         &self,
         request: &Request,
         entry_frame_len: usize,
-        ids: &[GuardId],
+        ids: &GuardIds,
     ) -> bool {
         ids.iter().any(|id| {
             self.active_handler_frames.iter().any(|frame| {
@@ -368,7 +362,7 @@ impl<'a> Runtime<'a> {
             return self
                 .active_frames
                 .iter()
-                .find(|frame| request.guard_ids.contains(&frame.id))
+                .find(|frame| request.guard_ids.contains(frame.id))
                 .map(|frame| GuardSkip::Preserve(frame.id))
                 // Function adapter guards can leave their marker frame before the
                 // surrounding catch observes the request, so the request carries
@@ -415,7 +409,7 @@ impl<'a> Runtime<'a> {
             .iter()
             .find(|guard| {
                 matching_handler < guard.entry_frame_len
-                    && !guard.exposed_guard_ids.contains(&handler_id)
+                    && !guard.exposed_guard_ids.contains(handler_id)
             })
             .map(|guard| GuardSkip::Preserve(guard.id))
     }
@@ -426,10 +420,10 @@ impl<'a> Runtime<'a> {
         guard_id: GuardId,
         handler_id: GuardId,
     ) -> bool {
-        request.guard_ids.contains(&guard_id)
+        request.guard_ids.contains(guard_id)
             && !request.carried_guards.iter().any(|guard| {
-                guard.exposed_guard_ids.contains(&handler_id)
-                    && (guard.id == guard_id || guard.exposed_guard_ids.contains(&guard_id))
+                guard.exposed_guard_ids.contains(handler_id)
+                    && (guard.id == guard_id || guard.exposed_guard_ids.contains(guard_id))
             })
     }
 
@@ -845,8 +839,8 @@ mod tests {
         let mut request = request(&mut runtime, &["foreign", "op"], vec![inner]);
         runtime.mark_request_with_active_markers(&mut request);
 
-        assert!(request.guard_ids.contains(&outer));
-        assert!(request.guard_ids.contains(&inner));
+        assert!(request.guard_ids.contains(outer));
+        assert!(request.guard_ids.contains(inner));
     }
 
     #[test]
@@ -864,8 +858,8 @@ mod tests {
         let mut request = request(&mut runtime, &["foreign", "op"], vec![outer]);
         runtime.mark_request_with_active_markers(&mut request);
 
-        assert!(request.guard_ids.contains(&outer));
-        assert!(!request.guard_ids.contains(&inner));
+        assert!(request.guard_ids.contains(outer));
+        assert!(!request.guard_ids.contains(inner));
     }
 
     fn marker_frame(runtime: &mut Runtime<'_>, id: GuardId, prefix: &[&str]) -> Vec<ValueMarker> {
@@ -895,7 +889,7 @@ mod tests {
         Request {
             path: request_path,
             path_key,
-            guard_ids,
+            guard_ids: GuardIds::from(guard_ids),
             carried_guards: Vec::new(),
             handler_boundary: None,
             payload: Value::Unit,

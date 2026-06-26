@@ -109,6 +109,7 @@ dependencies = [
  "mono-runtime",
  "num-bigint",
  "serde",
+ "smallvec",
  "sources",
  "specialize",
  "text-tree",
