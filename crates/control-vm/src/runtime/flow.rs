@@ -656,11 +656,14 @@ impl<'a> Runtime<'a> {
                         marker: marker.clone(),
                         entry_frame_len: self.entry_frame_len_for_marker(marker.id, &frame_entries),
                     };
+                    self.stats.active_add_insert_checks += 1;
                     if !self.active_add_ids.contains(&active_marker) {
                         if let Some(scope) = &mut self.scope_state_shadow {
                             scope.push_add_marker(active_marker.clone());
                         }
                         self.active_add_ids.push(active_marker);
+                    } else {
+                        self.stats.active_add_insert_duplicates += 1;
                     }
                 }
                 ValueMarker::AddId(_) => {}
