@@ -1567,13 +1567,15 @@ fn stack_handler_markers(id: GuardId, path_key: InternedPath) -> Vec<ValueMarker
 }
 
 fn mark_value(value: Value, markers: &[ValueMarker]) -> Value {
-    if markers.is_empty() || is_scalar_value(&value) {
+    if markers.is_empty() {
         return value;
     }
-
     let (value, mut value_markers) = into_value_markers(value);
+    if !value_needs_hygiene_mark(&value) {
+        return value;
+    }
     extend_marker_list(&mut value_markers, markers);
-    if value_markers.is_empty() || is_scalar_value(&value) {
+    if value_markers.is_empty() {
         return value;
     }
     Value::Marked {
@@ -1583,18 +1585,31 @@ fn mark_value(value: Value, markers: &[ValueMarker]) -> Value {
 }
 
 fn mark_value_shared(value: Value, markers: &SharedMarkers) -> Value {
-    if markers.is_empty() || is_scalar_value(&value) {
+    if markers.is_empty() {
         return value;
     }
     match value {
         Value::Marked {
             value,
             markers: value_markers,
-        } if markers_contain_all(&value_markers, markers) => Value::Marked {
-            value,
-            markers: value_markers,
-        },
-        Value::Marked { .. } => mark_value(value, markers),
+        } => {
+            if !value_needs_hygiene_mark(&value) {
+                return *value;
+            }
+            if markers_contain_all(&value_markers, markers) {
+                return Value::Marked {
+                    value,
+                    markers: value_markers,
+                };
+            }
+            let mut value_markers = value_markers.as_ref().to_vec();
+            extend_marker_list(&mut value_markers, markers);
+            Value::Marked {
+                value,
+                markers: shared_markers(value_markers),
+            }
+        }
+        value if !value_needs_hygiene_mark(&value) => value,
         value => Value::Marked {
             value: Box::new(value),
             markers: markers.clone(),
@@ -1653,6 +1668,46 @@ fn callee_apply_closes_without_frame(value: &Value) -> bool {
     )
 }
 
+fn value_needs_hygiene_mark(value: &Value) -> bool {
+    match value {
+        Value::Int(_)
+        | Value::BigInt(_)
+        | Value::Float(_)
+        | Value::Str(_)
+        | Value::Bytes(_)
+        | Value::Bool(_)
+        | Value::Unit => false,
+        Value::Tuple(values)
+        | Value::PolyVariant {
+            payloads: values, ..
+        }
+        | Value::DataConstructor {
+            payloads: values, ..
+        } => values.iter().any(value_needs_hygiene_mark),
+        Value::List(items) => {
+            let mut needs_mark = false;
+            items.for_each_ref(&mut |item| {
+                needs_mark |= value_needs_hygiene_mark(item.as_ref());
+            });
+            needs_mark
+        }
+        Value::Record(fields) => fields
+            .iter()
+            .any(|field| value_needs_hygiene_mark(&field.value)),
+        Value::ConstructorFunction(constructor) => {
+            constructor.args.iter().any(value_needs_hygiene_mark)
+        }
+        Value::PrimitiveOp(primitive) => primitive.args.iter().any(value_needs_hygiene_mark),
+        Value::Closure(_)
+        | Value::RecursiveClosure { .. }
+        | Value::Thunk(_)
+        | Value::FunctionAdapter(_)
+        | Value::EffectOp { .. }
+        | Value::Continuation(_) => true,
+        Value::Marked { value, .. } => value_needs_hygiene_mark(value),
+    }
+}
+
 fn counted_path_has_prefix(
     stats: &mut RuntimeStats,
     path: &InternedPath,
@@ -1693,18 +1748,4 @@ fn dedupe_markers(markers: Vec<ValueMarker>) -> Vec<ValueMarker> {
     let mut deduped = Vec::new();
     extend_marker_list(&mut deduped, &markers);
     deduped
-}
-
-fn is_scalar_value(value: &Value) -> bool {
-    matches!(
-        value,
-        Value::Int(_)
-            | Value::BigInt(_)
-            | Value::Float(_)
-            | Value::Str(_)
-            | Value::Bytes(_)
-            | Value::Bool(_)
-            | Value::Unit
-            | Value::PrimitiveOp(_)
-    )
 }

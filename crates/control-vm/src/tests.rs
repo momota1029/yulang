@@ -156,6 +156,116 @@ fn marker_frame_paints_escaping_request_payload() {
 }
 
 #[test]
+fn marker_frame_does_not_paint_pure_record_payload() {
+    let outer_send = effect_row(&["outer", "send"]);
+    let program = Program {
+        roots: vec![Root::Expr(ExprId(5))],
+        instances: Vec::new(),
+        exprs: vec![
+            Expr::EffectOp {
+                path: vec!["outer".into(), "send".into()],
+            },
+            Expr::Lit(mono::Lit::Int(1)),
+            Expr::Record {
+                fields: vec![super::RecordField {
+                    name: "value".into(),
+                    value: ExprId(1),
+                }],
+                spread: super::RecordSpread::None,
+            },
+            Expr::Apply {
+                callee: ExprId(0),
+                arg: ExprId(2),
+            },
+            Expr::ForceThunk {
+                source: mono::EffectiveThunkType {
+                    effect: outer_send.clone(),
+                    value: Type::Any,
+                },
+                target: mono::ComputationType {
+                    effect: outer_send,
+                    value: Type::Any,
+                },
+                thunk: ExprId(3),
+            },
+            Expr::MarkerFrame {
+                path: vec!["sub".into()],
+                body: ExprId(4),
+            },
+        ],
+    };
+    let mut saw_marked_payload = false;
+
+    let values = run_program_with_host_and_stats(&program, &mut |path, payload| {
+        saw_marked_payload = matches!(payload, Value::Marked { .. });
+        assert_eq!(path, &["outer".to_string(), "send".to_string()]);
+        Some(Value::Int(7))
+    })
+    .unwrap()
+    .0;
+
+    assert!(!saw_marked_payload);
+    assert_eq!(values, vec![Value::Int(7)]);
+}
+
+#[test]
+fn marker_frame_paints_record_payload_containing_closure() {
+    let outer_send = effect_row(&["outer", "send"]);
+    let program = Program {
+        roots: vec![Root::Expr(ExprId(6))],
+        instances: Vec::new(),
+        exprs: vec![
+            Expr::EffectOp {
+                path: vec!["outer".into(), "send".into()],
+            },
+            Expr::Lit(mono::Lit::Unit),
+            Expr::Lambda {
+                param: super::Pat::Wild,
+                body: ExprId(1),
+            },
+            Expr::Record {
+                fields: vec![super::RecordField {
+                    name: "callback".into(),
+                    value: ExprId(2),
+                }],
+                spread: super::RecordSpread::None,
+            },
+            Expr::Apply {
+                callee: ExprId(0),
+                arg: ExprId(3),
+            },
+            Expr::ForceThunk {
+                source: mono::EffectiveThunkType {
+                    effect: outer_send.clone(),
+                    value: Type::Any,
+                },
+                target: mono::ComputationType {
+                    effect: outer_send,
+                    value: Type::Any,
+                },
+                thunk: ExprId(4),
+            },
+            Expr::MarkerFrame {
+                path: vec!["sub".into()],
+                body: ExprId(5),
+            },
+        ],
+    };
+    let mut saw_marked_payload = false;
+
+    let values = run_program_with_host_and_stats(&program, &mut |path, payload| {
+        saw_marked_payload = matches!(payload, Value::Marked { .. });
+        assert_eq!(path, &["outer".to_string(), "send".to_string()]);
+        Some(Value::Int(7))
+    })
+    .unwrap()
+    .0;
+
+    assert!(saw_marked_payload);
+    assert_eq!(values, vec![Value::Int(7)]);
+}
+
+#[test]
 fn keeps_effectful_thunk_argument_suspended_like_oracle() {
     assert_oracle_parity(
         "act out:\n\
