@@ -86,8 +86,14 @@ impl Collector {
         implicit_prelude: bool,
     ) -> Result<Vec<CollectedSource>, RouteError> {
         let realm_root = sources::local_realm_root(entry);
-        let root_band = Path::default();
-        let mut queue = VecDeque::from([(entry.to_path_buf(), Path::default(), root_band, source)]);
+        let entry_canonical = canonicalize_for_dedupe(entry);
+        let entry_band = entry_band_path(&realm_root, entry);
+        let mut queue = VecDeque::from([(
+            entry.to_path_buf(),
+            Path::default(),
+            entry_band.clone(),
+            source,
+        )]);
         while let Some((path, module_path, band_path, source_override)) = queue.pop_front() {
             let canonical = canonicalize_for_dedupe(&path);
             self.record_module_file(&module_path, &canonical)?;
@@ -127,6 +133,9 @@ impl Collector {
 
             for band in metadata.current_realm_bands {
                 self.record_band_edge(&band_path, &band)?;
+                if is_entry_band_alias(&realm_root, &entry_canonical, &entry_band, &band) {
+                    continue;
+                }
                 if self.module_files.contains_key(&band) {
                     continue;
                 }
@@ -273,4 +282,44 @@ impl Collector {
         }
         resolve_realm_band_file(realm_root, band).map(|path| (path, None))
     }
+}
+
+pub(super) fn entry_band_path(realm_root: &FsPath, entry: &FsPath) -> Path {
+    let root = canonicalize_for_dedupe(realm_root);
+    let entry = canonicalize_for_dedupe(entry);
+    let Ok(relative) = entry.strip_prefix(&root) else {
+        return Path::default();
+    };
+
+    let mut components = relative
+        .components()
+        .filter_map(|component| match component {
+            std::path::Component::Normal(part) => Some(part.to_os_string()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let Some(file_name) = components.pop() else {
+        return Path::default();
+    };
+    let Some(stem) = FsPath::new(&file_name).file_stem() else {
+        return Path::default();
+    };
+    components.push(stem.to_os_string());
+
+    Path {
+        segments: components
+            .into_iter()
+            .map(|segment| Name(segment.to_string_lossy().into_owned()))
+            .collect(),
+    }
+}
+
+fn is_entry_band_alias(
+    realm_root: &FsPath,
+    entry_canonical: &FsPath,
+    entry_band: &Path,
+    band: &Path,
+) -> bool {
+    band == entry_band
+        && canonicalize_for_dedupe(&realm_band_file_candidate(realm_root, band)) == entry_canonical
 }

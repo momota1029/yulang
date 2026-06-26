@@ -3117,6 +3117,62 @@ fn current_realm_use_loads_band_root_file() {
     assert!(modules.contains(&Path {
         segments: vec![Name("helper".into())],
     }));
+    let root_file = files
+        .iter()
+        .find(|file| file.module_path.segments.is_empty())
+        .unwrap();
+    assert_eq!(root_file.band_path, path_from_segments(&["main"]));
+}
+
+#[test]
+fn current_realm_entry_band_alias_does_not_load_entry_twice() {
+    let root = temp_root("realm-entry-band-alias");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.yu"),
+        "use realm/main::value as self_value\npub value = 7\nself_value\n",
+    )
+    .unwrap();
+
+    let files = collect_local_sources(root.join("main.yu")).unwrap();
+
+    assert_eq!(files.len(), 1);
+    assert_eq!(files[0].module_path, Path::default());
+    assert_eq!(files[0].band_path, path_from_segments(&["main"]));
+}
+
+#[test]
+fn current_realm_entry_band_alias_resolves_to_root_module() {
+    let root = temp_root("realm-entry-band-alias-run");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.yu"),
+        "use realm/main::value as self_value\npub value = 7\nself_value\n",
+    )
+    .unwrap();
+
+    let output = run_control_from_entry(root.join("main.yu")).unwrap();
+
+    assert_eq!(output.text, "run roots [7]\n");
+}
+
+#[test]
+fn current_band_use_in_entry_band_resolves_from_root_module() {
+    let root = temp_root("entry-band-current-band");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("main")).unwrap();
+    fs::write(
+        root.join("main.yu"),
+        "mod inner;\nuse band::inner::value\nvalue\n",
+    )
+    .unwrap();
+    fs::write(root.join("main").join("inner.yu"), "our value = 9\n").unwrap();
+
+    let output = run_control_from_entry(root.join("main.yu")).unwrap();
+
+    assert_eq!(output.text, "run roots [9]\n");
 }
 
 #[test]
@@ -3379,7 +3435,7 @@ fn current_realm_band_cannot_claim_mod_owned_file() {
             second_band,
             ..
         } if first_module.segments == vec![Name("helper".into())]
-            && first_band.segments.is_empty()
+            && first_band.segments == vec![Name("main".into())]
             && second_module.segments == vec![Name("helper".into())]
             && second_band.segments == vec![Name("helper".into())]
     ));

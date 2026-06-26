@@ -74,7 +74,7 @@ impl ModuleTable {
             }
             UseImport::Glob { prefix, route, .. } => {
                 let visibility = import_visibility(*route);
-                let base = self.import_base_module(module, *route);
+                let (base, prefix) = self.import_base_and_path_segments(module, prefix, *route);
                 let Some(target) = self.module_path_from_for_import(
                     base,
                     &prefix.segments,
@@ -278,22 +278,57 @@ impl ModuleTable {
         route: sources::UsePathRoute,
         site: ModuleOrder,
     ) -> Option<ImportPathTarget> {
-        self.import_path_target_for_import(
-            self.import_base_module(module, route),
-            path,
-            site,
-            import_visibility(route),
-        )
+        let (base, path) = self.import_base_and_path_segments(module, path, route);
+        self.import_path_target_for_import(base, &path, site, import_visibility(route))
     }
     fn import_base_module(&self, module: ModuleId, route: sources::UsePathRoute) -> ModuleId {
         match route {
             sources::UsePathRoute::Relative => module,
-            sources::UsePathRoute::CurrentBand => self
-                .module_by_path(self.module_band_path(module))
-                .unwrap_or_else(|| self.root_id()),
+            sources::UsePathRoute::CurrentBand => {
+                let band = self.module_band_path(module);
+                if band == self.module_band_path(self.root_id()) {
+                    return self.root_id();
+                }
+                self.module_by_path(band).unwrap_or_else(|| self.root_id())
+            }
             sources::UsePathRoute::CurrentRealm { .. }
             | sources::UsePathRoute::SlashQualified { .. } => self.root_id(),
         }
+    }
+    fn import_base_and_path_segments(
+        &self,
+        module: ModuleId,
+        path: &ModulePath,
+        route: sources::UsePathRoute,
+    ) -> (ModuleId, ModulePath) {
+        if let Some(rest) = self.current_realm_root_alias_segments(route, &path.segments) {
+            return (
+                self.root_id(),
+                ModulePath {
+                    segments: rest.to_vec(),
+                },
+            );
+        }
+        (
+            self.import_base_module(module, route),
+            ModulePath {
+                segments: path.segments.clone(),
+            },
+        )
+    }
+    fn current_realm_root_alias_segments<'a>(
+        &self,
+        route: sources::UsePathRoute,
+        path: &'a [Name],
+    ) -> Option<&'a [Name]> {
+        let sources::UsePathRoute::CurrentRealm { band_segments } = route else {
+            return None;
+        };
+        let root_band = self.module_band_path(self.root_id());
+        if root_band.segments.is_empty() || band_segments != root_band.segments.len() {
+            return None;
+        }
+        path.strip_prefix(root_band.segments.as_slice())
     }
     fn import_path_target_for_import(
         &self,
@@ -303,7 +338,11 @@ impl ModuleTable {
         visibility: ImportVisibility,
     ) -> Option<ImportPathTarget> {
         let Some((last, prefix)) = path.segments.split_last() else {
-            return None;
+            return Some(ImportPathTarget {
+                value: None,
+                ty: None,
+                module: Some(module),
+            });
         };
         if prefix.is_empty() {
             return Some(ImportPathTarget {
@@ -489,7 +528,10 @@ impl ModuleTable {
             return None;
         };
         if matches!(visibility, ImportVisibility::SameBand)
-            && self.module_band_path(module) != self.module_band_path(child)
+            && !same_band_allows_module_step(
+                self.module_band_path(module),
+                self.module_band_path(child),
+            )
         {
             return None;
         }

@@ -23,17 +23,17 @@ use crate::source::{
 const POLY_CACHE_FORMAT: u32 = 7;
 const MONO_CACHE_FORMAT: u32 = 1;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 16;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 17;
 const REALM_RESOLUTION_CACHE_FORMAT: u32 = 1;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
-const CACHE_SCHEMA_VERSION: u32 = 3;
+const CACHE_SCHEMA_VERSION: u32 = 4;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v3";
 const SOURCE_UNIT_CACHE_SALT: &[u8] = b"yulang/source-unit-cache/v2";
 const REALM_CACHE_COMPONENT_SALT: &[u8] = b"yulang/realm-cache-component/v1";
 const REALM_RESOLUTION_CACHE_SALT: &[u8] = b"yulang/realm-resolution-cache/v2";
 const MERGED_COMPILED_UNIT_CACHE_SALT: &[u8] = b"yulang/merged-compiled-unit-cache/v1";
 const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v2";
-const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
+const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v2";
 const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/v2";
 const COMPILED_LOWERING_HASH_SALT: &[u8] = b"yulang/compiled-lowering-surface/v4";
 const COMPILED_TYPED_HASH_SALT: &[u8] = b"yulang/compiled-typed-surface/v1";
@@ -1543,6 +1543,7 @@ fn compiled_syntax_hash(syntax: &sources::CompiledSyntaxSurface) -> u64 {
     hasher.usize(syntax.files.len());
     for file in &syntax.files {
         hash_module_path(&mut hasher, &file.module_path);
+        hash_band_path(&mut hasher, &file.band_path);
         hasher.usize(file.uses.len());
         for use_decl in &file.uses {
             hash_visibility(&mut hasher, use_decl.visibility);

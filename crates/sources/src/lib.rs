@@ -187,6 +187,8 @@ impl CompiledSyntaxSurface {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompiledSyntaxFile {
     pub module_path: Path,
+    #[serde(default)]
+    pub band_path: Path,
     pub uses: Vec<UseDecl>,
     pub ops: Vec<CompiledOpExport>,
     pub module_loads: Vec<ModuleLoadRequest>,
@@ -196,6 +198,7 @@ impl CompiledSyntaxFile {
     fn from_loaded_file(file: &LoadedFile) -> Self {
         Self {
             module_path: file.module_path.clone(),
+            band_path: file.band_path.clone(),
             uses: file
                 .header
                 .uses
@@ -217,6 +220,7 @@ impl CompiledSyntaxFile {
     fn syntax_input(&self) -> SyntaxFileInput {
         SyntaxFileInput {
             module_path: self.module_path.clone(),
+            band_path: self.band_path.clone(),
             header: Header {
                 uses: self.uses.clone(),
                 ops: self
@@ -363,6 +367,7 @@ impl CompiledOpDef {
 #[derive(Clone)]
 struct SyntaxFileInput {
     module_path: Path,
+    band_path: Path,
     header: Header,
 }
 
@@ -970,6 +975,7 @@ pub fn load_with_loaded_prefix_and_band_paths(
         .iter()
         .map(|file| SyntaxFileInput {
             module_path: file.module_path.clone(),
+            band_path: file.band_path.clone(),
             header: file.header.clone(),
         })
         .collect();
@@ -1032,6 +1038,12 @@ fn load_suffix_after_syntax_prefix(
         .map(|file| file.module_path.clone())
         .chain(suffix.iter().map(|file| file.module_path.clone()))
         .collect();
+    let all_band_paths: Vec<Path> = prefix
+        .iter()
+        .map(|file| file.band_path.clone())
+        .chain(band_paths.iter().cloned())
+        .collect();
+    let root_band_path = root_band_path(&module_paths, &all_band_paths);
 
     // 1. module_path → ファイル index
     let mut index: HashMap<Path, usize> = HashMap::with_capacity(n);
@@ -1062,7 +1074,7 @@ fn load_suffix_after_syntax_prefix(
                 if matches!(use_decl.visibility, Visibility::My) {
                     continue;
                 }
-                let Some(j) = resolve_use(&use_decl.import, &index) else {
+                let Some(j) = resolve_use(&use_decl.import, &index, &root_band_path) else {
                     continue;
                 };
                 if i == j {
@@ -1088,7 +1100,7 @@ fn load_suffix_after_syntax_prefix(
         .enumerate()
     {
         let i = prefix.len() + offset;
-        let table = initial_op_table(i, &header, &index, &effective);
+        let table = initial_op_table(i, &header, &index, &root_band_path, &effective);
         let cst = parser::parse_module_to_green_with_ops(&file.source, table.clone());
         let root = SyntaxNode::<YulangLanguage>::new_root(cst.clone());
         let module_loads = module_load_requests(&file.module_path, &root);
@@ -1111,11 +1123,12 @@ fn initial_op_table(
     file_index: usize,
     header: &Header,
     index: &HashMap<Path, usize>,
+    root_band_path: &Path,
     effective: &[HashMap<Name, OpDef>],
 ) -> OpTable {
     let mut table = standard_op_table();
     for use_decl in &header.uses {
-        if let Some(import_index) = resolve_use(&use_decl.import, index) {
+        if let Some(import_index) = resolve_use(&use_decl.import, index, root_band_path) {
             if import_index == file_index {
                 continue;
             }
@@ -1128,12 +1141,25 @@ fn initial_op_table(
 }
 
 /// use の指す module_path を、最長 prefix マッチでファイル index に解決する。
-fn resolve_use(import: &UseImport, index: &HashMap<Path, usize>) -> Option<usize> {
-    let path = match import {
-        UseImport::Alias { path, .. } => path,
-        UseImport::Glob { prefix, .. } => prefix,
+fn resolve_use(
+    import: &UseImport,
+    index: &HashMap<Path, usize>,
+    root_band_path: &Path,
+) -> Option<usize> {
+    let (path, route) = match import {
+        UseImport::Alias { path, route, .. } => (path, *route),
+        UseImport::Glob { prefix, route, .. } => (prefix, *route),
     };
-    let mut segments = path.segments.clone();
+    if let Some(rest) = current_realm_root_alias_segments(path, route, root_band_path)
+        && let Some(index) = resolve_module_path_prefix(rest, index)
+    {
+        return Some(index);
+    }
+    resolve_module_path_prefix(&path.segments, index)
+}
+
+fn resolve_module_path_prefix(segments: &[Name], index: &HashMap<Path, usize>) -> Option<usize> {
+    let mut segments = segments.to_vec();
     loop {
         if let Some(&i) = index.get(&Path {
             segments: segments.clone(),
@@ -1144,6 +1170,29 @@ fn resolve_use(import: &UseImport, index: &HashMap<Path, usize>) -> Option<usize
             return None;
         }
     }
+}
+
+fn root_band_path(module_paths: &[Path], band_paths: &[Path]) -> Path {
+    module_paths
+        .iter()
+        .zip(band_paths)
+        .find_map(|(module, band)| module.segments.is_empty().then(|| band.clone()))
+        .unwrap_or_default()
+}
+
+fn current_realm_root_alias_segments<'a>(
+    path: &'a Path,
+    route: UsePathRoute,
+    root_band_path: &Path,
+) -> Option<&'a [Name]> {
+    let UsePathRoute::CurrentRealm { band_segments } = route else {
+        return None;
+    };
+    if root_band_path.segments.is_empty() || band_segments != root_band_path.segments.len() {
+        return None;
+    }
+    path.segments
+        .strip_prefix(root_band_path.segments.as_slice())
 }
 
 fn merge_effective_exports(
@@ -1742,6 +1791,32 @@ mod tests {
         );
     }
 
+    #[test]
+    fn syntax_prefix_resolves_current_realm_entry_band_alias_ops() {
+        let prefix = load_with_band_paths(
+            vec![SourceFile {
+                module_path: Path::default(),
+                source: "pub infix (<root>) 50 50 = add\n".into(),
+            }],
+            vec![path(&["main"])],
+        );
+        let surface = CompiledSyntaxSurface::from_loaded_files(&prefix);
+
+        let suffix = load_suffix_with_syntax_prefix_and_band_paths(
+            &surface,
+            vec![SourceFile {
+                module_path: path(&["consumer"]),
+                source: "use realm/main::*\nmy x = 1 <root> 2\n".into(),
+            }],
+            vec![path(&["consumer"])],
+        );
+
+        assert!(
+            suffix[0].op_table.0.get("<root>".as_bytes()).is_some(),
+            "current-realm entry band alias should import root ops from syntax prefix"
+        );
+    }
+
     fn syntax_surface_with_synthetic_root(module: &str, op: &str) -> CompiledSyntaxSurface {
         let loaded = load(vec![SourceFile {
             module_path: path(&[module]),
@@ -1750,6 +1825,7 @@ mod tests {
         let mut surface = CompiledSyntaxSurface::from_loaded_files(&loaded);
         surface.files.push(CompiledSyntaxFile {
             module_path: Path::default(),
+            band_path: Path::default(),
             uses: Vec::new(),
             ops: Vec::new(),
             module_loads: vec![ModuleLoadRequest {

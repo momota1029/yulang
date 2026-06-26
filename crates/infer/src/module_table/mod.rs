@@ -551,9 +551,11 @@ impl ModuleTable {
     pub fn module_at(&self, module: ModuleId, name: &Name, site: ModuleOrder) -> Option<ModuleId> {
         let decl = self.select_decl(module, self.nodes[module.0].modules.get(name)?, site)?;
         match decl.kind {
-            ModuleDeclKind::Module { module: child, .. } => {
-                (self.module_band_path(module) == self.module_band_path(child)).then_some(child)
-            }
+            ModuleDeclKind::Module { module: child, .. } => same_band_allows_module_step(
+                self.module_band_path(module),
+                self.module_band_path(child),
+            )
+            .then_some(child),
             ModuleDeclKind::Value { .. } | ModuleDeclKind::Type { .. } => None,
         }
     }
@@ -738,6 +740,10 @@ impl ModuleTable {
         path.segments.push(decl.name.clone());
         path
     }
+}
+
+fn same_band_allows_module_step(parent: &ModulePath, child: &ModulePath) -> bool {
+    parent == child || child.segments.is_empty()
 }
 
 fn remap_module_decl_kind(kind: &mut ModuleDeclKind, import: &CompiledRuntimeImport) {

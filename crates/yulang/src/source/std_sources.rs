@@ -77,12 +77,14 @@ pub(super) fn embedded_std_sources_with_root(
     entry: &FsPath,
     source: String,
 ) -> Vec<CollectedSource> {
+    let entry_band = entry_band_path(&sources::local_realm_root(entry), entry);
     let mut files = embedded_std_sources();
     let source = source_with_implicit_std_prelude(source);
     let metadata = discover_source_header_metadata(&Path::default(), &source);
-    files.push(CollectedSource::with_resolution_imports(
+    files.push(CollectedSource::with_band_path_and_resolution_imports(
         entry.to_path_buf(),
         Path::default(),
+        entry_band,
         source,
         metadata.resolution_imports,
     ));
@@ -101,12 +103,14 @@ pub(super) fn embedded_playground_std_sources_with_root(
     entry: &FsPath,
     source: String,
 ) -> Vec<CollectedSource> {
+    let entry_band = entry_band_path(&sources::local_realm_root(entry), entry);
     let mut files = crate::playground_std::embedded_playground_std_sources();
     let source = source_with_implicit_std_prelude(source);
     let metadata = discover_source_header_metadata(&Path::default(), &source);
-    files.push(CollectedSource::with_resolution_imports(
+    files.push(CollectedSource::with_band_path_and_resolution_imports(
         entry.to_path_buf(),
         Path::default(),
+        entry_band,
         source,
         metadata.resolution_imports,
     ));
