@@ -30,12 +30,53 @@ module:     prelude
 is also the normal module / value / type path separator. A version belongs to
 the realm, never to a band.
 
+## Current Decisions
+
+- A realm is the versioned distribution and snapshot boundary.
+- A band is the import / namespace / build boundary inside one realm.
+- A module tree lives inside one band and is grown by `mod`.
+- A resolved realm snapshot is described by three separate graphs:
+  - `G_mod`: structural source containment created by `mod`;
+  - `G_source`: semantic source dependencies inside a band;
+  - `G_band`: cross-band imports and reexports.
+- `G_mod` must be a forest. Each source has at most one `mod` parent, each tree
+  has exactly one root, and each tree defines one band.
+- `G_source` may contain cycles. Its SCCs are compilation and cache units.
+- `G_band` must be acyclic. Cross-band cycles are rejected.
+- A bare `foo::bar` path never crosses a band boundary.
+- Current-band absolute paths use the reserved `band` qualifier:
+
+```text
+band::path::to::func
+```
+
+- Same-realm cross-band imports use the reserved current-realm qualifier:
+
+```text
+realm/foo::bar
+realm/path/to/band::foo::bar
+```
+
+- `std::...` is a prebound alias, not a generic band fallback rule.
+- All unowned `.yu` source roots in a realm snapshot are band roots in the
+  first design.
+- If two versions from the same realm family are imported into one local scope,
+  an explicit alias is required:
+
+```yulang
+use theme/colors as theme1 v2
+```
+
+- A source-level suffix such as `v2` is a version-family request. The lock
+  records the resolved exact version or revision.
+- `with` can align only against public dependency / reexport surfaces.
+  Private dependencies are not alignment anchors.
+- Repository dependencies should be specified in git-oriented terms before
+  implementation: repository locator, revision / tag / branch request, resolved
+  commit, source digest, and lock diagnostics.
+
 ## Design Summary
 
-- A realm is the versioned source universe / distribution boundary.
-- A band is the crate-like import, namespace, and build boundary inside a
-  realm.
-- A module tree lives inside one band and is grown by `mod`.
 - Bands do not have independent versions.
 - A band identity is `resolved realm identity + band path`.
 - Compiled artifacts are still source-dependency SCC artifacts. Realm and band
@@ -67,21 +108,60 @@ github.com/user/app@1.2.0/main
 github.com/user/ui@2.0.1/widget::button
 ```
 
-The parser may accept a surface version suffix such as a trailing `v1.2`
-because the CST already has that shape. Lowering should extract that suffix as
-structured version metadata and canonicalize it before resolution:
+The parser accepts a surface version suffix such as a trailing `v1.2` because
+the CST already has that shape. Lowering should extract that suffix as
+structured version-family metadata and canonicalize it before resolution:
 
 ```text
-surface:   github.com/user/ui/widget::button v1.2
-canonical: github.com/user/ui@1.2/widget::button
+surface:          github.com/user/ui/widget::button v1.2
+resolver request: github.com/user/ui with version family v1.2,
+                  band widget, module button
 ```
+
+After lock resolution, the canonical identity contains the exact resolved
+version or revision. The surface suffix is not itself the resolved identity.
+
+Same-realm cross-band imports use `realm/` as an explicit current-realm
+qualifier:
+
+```text
+realm/ui::widget
+realm/ui::widget::button
+realm/tools/parser::json::value
+realm/path/to/band::foo::bar
+```
+
+Current-band absolute paths use the reserved `band` qualifier:
+
+```text
+band::path::to::func
+```
+
+Bare paths stay inside the current band:
+
+```text
+foo::bar
+```
+
+This never falls back to a same-realm band named `foo`.
+
+The separator rule is:
+
+```text
+before the band boundary: /
+inside the band:          ::
+```
+
+`std::foo` follows this rule because `std` is a prebound alias that already
+resolves to a band.
 
 Grouped imports may put the suffix on each item, or once after the group as a
 default for unversioned items:
 
 ```yulang
 use user/{realm1 v1.3, realm2::a::b::c v1.4}
-use realm/band::{module1, module2::*} v1.2
+use user/theme/colors as theme1 v2
+use user/theme/{colors as theme1 v2, fonts as theme_fonts v2}
 ```
 
 Rules:
@@ -89,6 +169,8 @@ Rules:
 - at most one version spec may appear in a realm reference;
 - the version spec belongs to the realm;
 - the version spec is not a path segment;
+- an alias appears before the version suffix when both are present:
+  `use theme/colors as theme1 v2`;
 - cache keys use canonical resolved identity, not the original CST text.
 
 If the surface form is ambiguous, the resolver should report a path/version
@@ -147,6 +229,17 @@ Therefore a band identity is always:
 resolved realm identity + band path
 ```
 
+Physical storage is not canonical identity. A local project may freeze editable
+source under `.yulang/versions/<version>/`, while a repository/cache layout may
+store snapshots under a realm-owned `@v` directory such as:
+
+```text
+std/@v/0.1.0/...
+```
+
+If that snapshot contains a root `realm.yu`, the single-band case can be laid
+out as `realm = band` without introducing an empty default band.
+
 ### Band
 
 A band is the import / namespace / build unit inside a realm.
@@ -173,8 +266,16 @@ yulang@0.1.3/std
 yulang@0.1.3/ui
 ```
 
-Inside the same resolved realm, a path such as `std::prelude` starts at the
-`std` band and then enters the `prelude` module within that band.
+Inside the same resolved realm, ordinary bare paths stay inside the current
+band. Cross-band access uses the reserved current-realm qualifier:
+
+```text
+realm/ui::widget
+```
+
+The familiar `std::prelude` shape is provided by a prebound alias for the
+standard library. It is not a generic rule that a bare first segment may become
+a same-realm band.
 
 ### Module
 
@@ -195,7 +296,9 @@ module: prelude
 item:   Display
 ```
 
-It does not mean that `std::prelude` is a nested band.
+That reading happens after the prebound `std` alias has resolved. It does not
+mean that every bare `foo::bar` path can discover a same-realm band named
+`foo`, and it does not mean that `std::prelude` is a nested band.
 
 ## Band Boundary
 
@@ -209,9 +312,34 @@ The near-term source boundary is defined by `mod`, not by a new manifest file.
 It does not walk upward and it does not read `child/mod.yu`. This keeps `mod`
 as a local tree edge.
 
-A file that is not reached through a parent `mod` edge becomes a band root. In
-other words, a band is the source tree whose parent is not another local module
-inside the same band.
+For each resolved realm snapshot, the compiler first builds a structural
+`G_mod` graph. This graph must be a forest:
+
+- no `mod` containment cycles;
+- each source file has at most one parent `mod` edge;
+- each weak component has exactly one root;
+- that root defines the band;
+- every unowned `.yu` source root in the realm snapshot becomes an importable
+  band root.
+
+The compiler should reject structural ambiguity instead of picking precedence:
+
+- one source claimed by multiple module parents;
+- a `mod` cycle;
+- two physical candidates for one `mod child`;
+- logical source paths that differ only by case or symlink identity;
+- a source first used as a band root but later discovered to be owned by a
+  different band's `mod` tree.
+
+After this pass, the realm has a `BandIndex`:
+
+```text
+BandPath -> root SourceId
+SourceId -> owning BandId + ModulePath
+```
+
+Ordinary `use` resolution should read this index instead of discovering bands
+on demand. Discovery order must not change source identity.
 
 Example:
 
@@ -225,16 +353,22 @@ realm yulang@0.1.3
     mod widget
 ```
 
-This makes these paths natural:
+This makes these canonical paths natural:
 
 ```text
-std::prelude
-std::list
-ui::widget
+yulang@0.1.3/std::prelude
+yulang@0.1.3/std::list
+yulang@0.1.3/ui::widget
 ```
 
-It also makes `pub use ui::widget` a same-realm reexport from one band to
-another, as long as visibility allows it.
+In source, same-realm cross-band access uses `realm/`:
+
+```yulang
+pub use realm/ui::widget
+```
+
+This is a same-realm reexport from one band to another, as long as visibility
+allows it.
 
 `mod` and band / realm imports are therefore separate operations. `mod` grows
 the current band. `use` can depend on another band once realm resolution exists.
@@ -249,6 +383,23 @@ Same-realm imports use the same resolved realm snapshot:
 yulang@0.1.3/std::prelude
   -> yulang@0.1.3/ui::widget
 ```
+
+The surface form must use the explicit current-realm qualifier:
+
+```yulang
+use realm/ui::widget
+use realm/tools/parser::json::value
+use realm/path/to/band::foo::bar
+```
+
+The current band root can be addressed explicitly with `band::`:
+
+```yulang
+use band::path::to::func
+```
+
+A bare `ui::widget` path is resolved inside the current band. It is not retried
+as a same-realm band import if local lookup fails.
 
 The compiler should avoid allowing a band inside `yulang@0.1.3` to depend on
 `yulang@0.1.2/std` as if it were a normal same-realm import. That makes
@@ -268,6 +419,16 @@ The source path may omit the version if the realm resolver can choose it from a
 lock file, a previous import, or a `with` constraint. After resolution, the
 compiler should work only with the resolved canonical identity.
 
+When source requests a suffix such as `v2`, it requests a version family. The
+lock records the exact resolved version or revision. If two versions from the
+same realm family are imported into one scope, the source must give explicit
+local aliases:
+
+```yulang
+use theme/colors as theme1 v1
+use theme/colors as theme2 v2
+```
+
 ### `with` Version Alignment
 
 `with` is a version alignment constraint. It is not an import by itself.
@@ -281,10 +442,11 @@ use ui/widget::a with program
 
 The first import resolves the `program` band from the `user` realm. The second
 import targets the `widget` band from the `ui` realm and asks the resolver to
-use the same `ui` realm version that the already resolved `program` dependency
-exposes. This works only when `program` publicly exposes a matching dependency
-or reexport such as `program::ui`. Private implementation dependencies of
-`program` are not visible to `with`.
+use the same resolved `ui` realm version that the already resolved `program`
+dependency exposes. This works only when `program` publicly exposes a matching
+dependency or reexport such as `program::ui`. Private implementation
+dependencies of `program` are not visible to `with`, because no outside caller
+can rely on them.
 
 Resolver rule:
 
@@ -295,13 +457,13 @@ target import + with anchor
   -> reuse the anchor-selected version
 ```
 
-If the target import also requests a different explicit version, the resolver
-should report a conflict:
+If the target import also requests a version family that cannot contain the
+anchored exact version, the resolver should report a conflict:
 
 ```text
 use ui/widget with program     # program exposes ui@1.2.0
 use ui/widget v2.0 with program
-                               # conflict: explicit ui@2.0 vs anchored ui@1.2
+                               # conflict: requested ui@2.0 family vs anchored ui@1.2.0
 ```
 
 `with` participates in lock resolution and cache identity because it changes the
@@ -363,6 +525,7 @@ Compiled artifacts should eventually include:
 - parser / operator table format version;
 - resolved realm identity;
 - resolved realm version / revision;
+- immutable realm source digest;
 - band path;
 - source dependency SCC identity;
 - source file identities;
@@ -373,6 +536,37 @@ Compiled artifacts should eventually include:
 
 The cache should never rely on a band path alone. A band path becomes meaningful
 only after its realm has been resolved.
+
+Cache and lock identity should use structured keys, not display paths:
+
+```text
+ResolvedRealmKey {
+  locator,
+  version_or_revision,
+  source_digest,
+}
+
+ResolvedBandKey {
+  realm,
+  band_path,
+}
+```
+
+The digest must be strong and algorithm-tagged, such as `sha256:<hex>` or
+`blake3:<hex>`. The current non-cryptographic hashes used inside in-memory
+tables are not suitable for snapshot or lock integrity.
+
+Keep hash purposes separate:
+
+- realm content hash;
+- resolution / lock hash;
+- snapshot hash;
+- dependency syntax / namespace / typed / coherence / runtime ABI surfaces.
+
+Repository dependencies need a stricter spec before implementation. A git
+dependency should preserve the repository locator, requested branch/tag/rev or
+version family, resolved commit, source digest, and diagnostics that explain
+which part changed. A machine-local checkout path is not dependency identity.
 
 Downstream invalidation should primarily flow through public interface hashes:
 
@@ -447,6 +641,7 @@ Project identity files:
 realm.toml
 yulang.lock
 .yulang/versions/<version>/
+<realm>/@v/<version>/...
 ```
 
 `realm.toml` declares the current realm when a project wants explicit realm
@@ -461,6 +656,12 @@ source into `.yulang/versions/<version>/`, rewrites the frozen `realm.toml` to
 that exact version, and writes `snapshot.json` with file hashes plus a realm
 source hash. Re-running the same freeze is a no-op when the hash matches, and a
 different hash for an existing version is rejected.
+
+The `.yulang/versions/<version>/` route is the current local implementation
+shape. A future repository or standard-library layout may use a realm-owned
+snapshot directory such as `std/@v/0.1.0/...`. Both are storage routes to an
+immutable resolved realm snapshot; neither spelling is part of canonical
+identity.
 
 ## Initial Implementation Shape
 
@@ -516,12 +717,13 @@ Current first slice:
   `realm@version/band::module` shape into realm identity/version, band path, and
   module path. It keeps slashes before the final `/` inside the realm identity,
   so `user/program@2.0/ui::widget` resolves as realm `user/program`.
-- `use realm/band::module v1.2` parses the trailing `v...` suffix as source
+- `use github.com/user/ui/widget::button v1.2` parses the trailing `v...`
+  suffix as source
   metadata (`realm_version`) without adding it to the normal import path. A
   suffix on a grouped item wins over an outer group suffix; the outer suffix
   fills only imports without an item suffix. The ordinary lowerer ignores the
-  suffix, while lock constraint collection can preserve it as the resolved
-  realm version.
+  suffix, while lock constraint collection can preserve it as a version-family
+  request before resolution.
 - `yulang lock <path>` writes the current lock-shaped source graph to the entry
   realm root's `yulang.lock` (or `--out PATH`). `yulang lock <path> --check`
   reads the lock file, validates its `with` constraints, and fails if the
@@ -558,7 +760,7 @@ Resolver work can then proceed in phases:
 
 1. local realm and virtual single-file realm;
 2. local bands from `mod` edges;
-3. `band::module` absolute lookup from the current realm;
+3. `realm/band::module` absolute lookup from the current realm;
 4. canonical path parser for `realm@version/band::module`;
 5. version suffix extraction from CST into structured resolver metadata;
 6. realm manifest and lock file;
