@@ -15,6 +15,7 @@ pub use realm::{
     RealmIdentity, RealmManifestError, RealmVersion, ResolvedRealmId, SourceRealmManifest,
     SourceRealmRoot, YULANG_LOCK_FILE, YULANG_MANIFEST_FILE, YULANG_PROJECT_DIR,
     freeze_realm_version, load_realm_manifest, local_realm_id, local_realm_root,
+    read_frozen_realm_snapshot,
 };
 
 // ── 基礎型（source loader と parser input の共有語彙）──────────────────────

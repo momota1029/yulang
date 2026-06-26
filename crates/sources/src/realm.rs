@@ -34,6 +34,8 @@ pub enum SourceRealmRoot {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceRealmManifest {
     pub id: ResolvedRealmId,
+    pub local_name: Option<String>,
+    pub declared_version: Option<RealmVersion>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -88,6 +90,10 @@ impl Error for RealmManifestError {}
 #[derive(Debug)]
 pub enum FreezeRealmError {
     InvalidVersion(String),
+    VersionMismatch {
+        manifest_version: String,
+        requested_version: String,
+    },
     MissingManifest {
         root: PathBuf,
     },
@@ -119,6 +125,13 @@ impl fmt::Display for FreezeRealmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidVersion(version) => write!(f, "invalid realm version `{version}`"),
+            Self::VersionMismatch {
+                manifest_version,
+                requested_version,
+            } => write!(
+                f,
+                "realm version mismatch: manifest declares `{manifest_version}` but command requested `{requested_version}`"
+            ),
             Self::MissingManifest { root } => {
                 write!(f, "realm manifest not found under {}", root.display())
             }
@@ -177,17 +190,21 @@ pub fn load_realm_manifest(
     let realm = decoded
         .realm
         .ok_or_else(|| invalid_realm_manifest(&path, "missing [realm] table"))?;
+    let local_name = realm
+        .name
+        .map(|name| name.trim().to_string())
+        .filter(|name| !name.is_empty());
     let identity = realm
         .identity
-        .or(realm.name)
-        .filter(|identity| !identity.trim().is_empty())
-        .ok_or_else(|| invalid_realm_manifest(&path, "missing realm.identity"))?;
-    if realm.version.is_some() {
-        return Err(invalid_realm_manifest(
-            &path,
-            "realm.version is not allowed; freeze versions belong to snapshot.json",
-        ));
-    }
+        .map(|identity| identity.trim().to_string())
+        .filter(|identity| !identity.is_empty())
+        .or_else(|| local_name.as_ref().map(|name| format!("local/{name}")))
+        .ok_or_else(|| invalid_realm_manifest(&path, "missing realm.identity or realm.name"))?;
+    let declared_version = realm
+        .version
+        .map(|version| version.trim().to_string())
+        .filter(|version| !version.is_empty())
+        .map(RealmVersion);
     if decoded.dependencies.is_some() {
         return Err(invalid_realm_manifest(
             &path,
@@ -198,8 +215,10 @@ pub fn load_realm_manifest(
     Ok(Some(SourceRealmManifest {
         id: ResolvedRealmId {
             identity: RealmIdentity(identity),
-            version: None,
+            version: declared_version.clone(),
         },
+        local_name,
+        declared_version,
     }))
 }
 
@@ -233,6 +252,12 @@ pub fn freeze_realm_version(
     freeze_realm_version_inner(root.as_ref(), RealmVersion(version.into()))
 }
 
+pub fn read_frozen_realm_snapshot(
+    path: impl AsRef<FsPath>,
+) -> Result<FrozenRealmSnapshot, FreezeRealmError> {
+    read_frozen_realm_snapshot_file(path.as_ref())
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct RealmManifestToml {
     realm: Option<RealmManifestRealmToml>,
@@ -257,6 +282,14 @@ fn freeze_realm_version_inner(
     let manifest = load_realm_manifest(&root)
         .map_err(FreezeRealmError::Manifest)?
         .ok_or_else(|| FreezeRealmError::MissingManifest { root: root.clone() })?;
+    if let Some(manifest_version) = &manifest.declared_version
+        && manifest_version != &version
+    {
+        return Err(FreezeRealmError::VersionMismatch {
+            manifest_version: manifest_version.0.clone(),
+            requested_version: version.0,
+        });
+    }
     let snapshot_root = root
         .join(YULANG_PROJECT_DIR)
         .join("versions")
@@ -457,14 +490,14 @@ fn frozen_realm_manifest_toml(manifest: &SourceRealmManifest) -> RealmManifestTo
     RealmManifestToml {
         realm: Some(RealmManifestRealmToml {
             identity: Some(manifest.id.identity.0.clone()),
-            name: None,
+            name: manifest.local_name.clone(),
             version: None,
         }),
         dependencies: None,
     }
 }
 
-fn read_frozen_realm_snapshot(path: &FsPath) -> Result<FrozenRealmSnapshot, FreezeRealmError> {
+fn read_frozen_realm_snapshot_file(path: &FsPath) -> Result<FrozenRealmSnapshot, FreezeRealmError> {
     let source = fs::read_to_string(path).map_err(|error| FreezeRealmError::Io {
         path: path.to_path_buf(),
         error,
@@ -577,28 +610,62 @@ identity = "app"
 
         assert_eq!(manifest.id.identity, RealmIdentity("app".to_string()));
         assert_eq!(manifest.id.version, None);
+        assert_eq!(manifest.local_name, None);
+        assert_eq!(manifest.declared_version, None);
 
         let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn realm_manifest_rejects_human_written_version() {
+    fn realm_manifest_reads_local_name_and_declared_version() {
         let root = temp_root("realm-manifest-version");
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
         fs::write(
             root.join(YULANG_MANIFEST_FILE),
             r#"[realm]
-identity = "app"
+name = "theme"
 version = "1.2.3"
 "#,
         )
         .unwrap();
 
-        let err = load_realm_manifest(&root).unwrap_err();
+        let manifest = load_realm_manifest(&root).unwrap().unwrap();
+
+        assert_eq!(
+            manifest.id.identity,
+            RealmIdentity("local/theme".to_string())
+        );
+        assert_eq!(manifest.id.version, Some(RealmVersion("1.2.3".to_string())));
+        assert_eq!(manifest.local_name, Some("theme".to_string()));
+        assert_eq!(
+            manifest.declared_version,
+            Some(RealmVersion("1.2.3".to_string()))
+        );
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn freeze_realm_rejects_manifest_version_mismatch() {
+        let root = temp_root("realm-version-mismatch");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join(YULANG_MANIFEST_FILE),
+            r#"[realm]
+name = "theme"
+version = "1.2.3"
+"#,
+        )
+        .unwrap();
+        fs::write(root.join("theme.yu"), "pub value = 1\n").unwrap();
+
+        let err = freeze_realm_version(&root, "2.0.0").unwrap_err();
 
         assert!(
-            err.to_string().contains("realm.version is not allowed"),
+            err.to_string()
+                .contains("manifest declares `1.2.3` but command requested `2.0.0`"),
             "{err}"
         );
 

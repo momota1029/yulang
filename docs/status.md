@@ -144,9 +144,13 @@ The columns trace a value through the pipeline:
   path derived from its source path, so `realm/main::...` aliases the entry
   root instead of loading it twice. Sibling files become bands only through
   explicit `realm/...::...` imports, not by automatic directory scanning.
-- The global package workflow is still experimental. `realm.toml` may mark an
-  editable realm boundary, but remote providers, version-family solving,
-  `yulang.lock`, and release/freeze UX are not stable user workflows yet.
+- Local installed realms are available through `yulang realm install <path>
+  [--version <version>]` and `use local/<name>/<band>::...`. `[realm] name`
+  supplies the local install name, and `[realm] version` may supply the realm's
+  own release candidate version.
+- The global package workflow is still experimental. Remote providers,
+  version-family solving, `yulang.lock`, and registry/git source policies are
+  not stable user workflows yet.
 - Full diagnostics polish is still in progress. Parser, type, role, and
   effect errors are being moved toward language-level explanations rather
   than internal-implementation messages.

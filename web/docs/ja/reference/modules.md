@@ -43,6 +43,24 @@ use realm/helper::answer
 use realm/tools/parser::json::value
 ```
 
+install 済み local realm を import する場合は `local/` provider prefix を使う。
+
+```yulang
+use local/theme/colors::palette v1.0.0
+```
+
+editable realm は次のように install できる。
+
+```toml
+[realm]
+name = "theme"
+version = "1.0.0"
+```
+
+```sh
+yulang realm install .
+```
+
 band 境界の手前は `/`、band root 以後は `::` で区切る。予約 qualifier `band::` は
 current band root から始まる。
 

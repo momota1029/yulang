@@ -126,6 +126,52 @@ inside the band:          ::
 `std::...` is a prebound alias for the standard library band. It is not a
 generic fallback rule for arbitrary same-realm bands.
 
+Installed local realms use the `local/` provider prefix:
+
+```yulang
+use local/theme/colors::palette v1.0.0
+use local/theme/colors::*
+```
+
+The path before `::` is provider / realm name / band path. Yulang resolves the
+longest installed local realm name and treats the remaining slash path as the
+band root. The version suffix is an import-site request; `v1.0.0` resolves to
+the installed snapshot version `1.0.0`.
+
+If no version suffix is present, the current implementation picks the highest
+installed version string for that local realm name. This is a local development
+convenience, not the final version-family solver.
+
+## Editable Manifest And Install
+
+`realm.toml` may declare the editable realm boundary and local install identity:
+
+```toml
+[realm]
+name = "theme"
+version = "1.0.0"
+```
+
+`name` is the local installed name under the `local/` provider. If no explicit
+`identity` is present, the source identity is derived as `local/<name>`.
+
+`version` is the editable realm's own release candidate version. It is not a
+dependency requirement and it does not introduce a realm-wide package graph.
+Human-written `[dependencies]` remains rejected; dependency requests belong to
+source imports and the per-site resolution cache.
+
+`yulang realm install <path> [--version <version>]` freezes the editable realm
+and installs the frozen snapshot into the user library:
+
+```text
+$YULANG_LIB_DIR/realms/local/<name>/<version>/
+```
+
+If `--version` is omitted, `[realm] version` is used. If both are present and
+differ, installation fails. The copied frozen `realm.toml` omits `version`; the
+installed `snapshot.json` is the source of truth for snapshot identity, version,
+and source hash.
+
 ## Visibility
 
 Within a band, `our` and `pub` are visible according to the normal module rules.
@@ -176,6 +222,8 @@ Stable for the local release target:
 - `band::...` current-band absolute imports;
 - entry-band self aliasing without duplicate load;
 - ambient empty-band standard library prefix;
+- local installed realms under `local/<name>/<band>::...`;
+- `yulang realm install` as freeze plus local user-library install;
 - `.yucu` compiled-unit artifacts carrying band identity.
 
 Still experimental:
@@ -183,5 +231,5 @@ Still experimental:
 - global/remote realm provider syntax;
 - exact version-family solving;
 - human-facing lock-file format;
-- release/freeze command UX;
+- remote release/freeze command UX;
 - registry and git source provider policy.

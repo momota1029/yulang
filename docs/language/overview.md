@@ -113,6 +113,16 @@ use realm/helper::answer
 use realm/tools/parser::json::value
 ```
 
+Installed local realms use the `local/` provider prefix:
+
+```yulang
+use local/theme/colors::palette v1.0.0
+```
+
+`yulang realm install <path> [--version <version>]` freezes an editable realm
+and installs it under the user library so this route can load the fixed
+snapshot.
+
 `band::...` starts at the current band root. In an entry file named `main.yu`,
 `realm/main::...` aliases the root module instead of loading `main.yu` again.
 

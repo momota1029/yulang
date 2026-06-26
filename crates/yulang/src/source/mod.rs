@@ -6,6 +6,7 @@
 mod collector;
 mod compilation_units;
 mod format;
+mod realm_install;
 mod std_sources;
 
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -36,6 +37,10 @@ pub(crate) use compilation_units::{
     source_unit_closure_lowering_loaded_files, source_unit_lowering_loaded_files,
 };
 use format::*;
+pub(crate) use realm_install::{
+    InstalledLocalRealmBand, installed_local_import_module_path, resolve_installed_local_realm_band,
+};
+pub use realm_install::{RealmInstallError, RealmInstallOutput, install_local_realm};
 use std_sources::*;
 
 pub use format::{format_run_mono_values, format_run_mono_values_with_labels};
@@ -90,6 +95,40 @@ impl SourceCollectionCache {
             }
         }
         None
+    }
+
+    fn cached_installed_local_realm_band_file(
+        &self,
+        source_file: &CollectedSource,
+        request: &sources::UseImport,
+        resolved: &InstalledLocalRealmBand,
+    ) -> Option<(PathBuf, String)> {
+        let source_realm = sources::local_realm_id(&source_file.path);
+        let key = crate::cache::realm_resolution_cache_key(source_file, request);
+        let Ok(Some(artifact)) = self
+            .artifact_cache
+            .read_realm_resolution_artifact(&source_realm, key)
+        else {
+            return None;
+        };
+        if artifact.source_realm != source_realm {
+            return None;
+        }
+        if artifact.request != *request {
+            return None;
+        }
+        if artifact.target.realm != resolved.realm
+            || artifact.target.band_path != resolved.band_path
+            || artifact.target.module_path != resolved.module_path
+        {
+            return None;
+        }
+        let path = PathBuf::from(&artifact.target.source_path);
+        if canonicalize_for_dedupe(&path) != canonicalize_for_dedupe(&resolved.source_path) {
+            return None;
+        }
+        cached_target_source_if_matches(&path, &resolved.module_path, &artifact.target)
+            .map(|source| (path, source))
     }
 }
 
@@ -1323,6 +1362,21 @@ pub enum RouteError {
         band: Path,
         candidates: Vec<PathBuf>,
     },
+    InvalidInstalledRealmImport {
+        path: Path,
+        reason: String,
+    },
+    InstalledRealmNotFound {
+        name: Path,
+        version: Option<String>,
+        root: PathBuf,
+        candidates: Vec<PathBuf>,
+    },
+    InstalledRealmVersionNotFound {
+        name: Path,
+        version: Option<String>,
+        root: PathBuf,
+    },
     DuplicateModulePath {
         module: Path,
         first: PathBuf,
@@ -1416,6 +1470,35 @@ impl fmt::Display for RouteError {
                     root.display()
                 )?;
                 write_candidates(f, candidates)
+            }
+            RouteError::InvalidInstalledRealmImport { path, reason } => write!(
+                f,
+                "installed realm import {} is invalid: {reason}",
+                format_module_path(path)
+            ),
+            RouteError::InstalledRealmNotFound {
+                name,
+                version,
+                root,
+                candidates,
+            } => {
+                write!(f, "installed local realm {}", format_module_path(name))?;
+                if let Some(version) = version {
+                    write!(f, " {version}")?;
+                }
+                write!(f, " was not found under {}", root.display())?;
+                write_candidates(f, candidates)
+            }
+            RouteError::InstalledRealmVersionNotFound {
+                name,
+                version,
+                root,
+            } => {
+                write!(f, "installed local realm {}", format_module_path(name))?;
+                if let Some(version) = version {
+                    write!(f, " {version}")?;
+                }
+                write!(f, " has no installed snapshot under {}", root.display())
             }
             RouteError::DuplicateModulePath {
                 module,

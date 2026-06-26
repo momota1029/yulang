@@ -900,6 +900,67 @@ identity = "app"
     let _ = fs::remove_dir_all(&root);
 }
 
+#[test]
+fn realm_install_installs_local_snapshot_for_import() {
+    let root = temp_root("realm-install");
+    let _ = fs::remove_dir_all(&root);
+    let lib_root = root.join("lib");
+    let realm_root = root.join("theme");
+    let app_root = root.join("app");
+    fs::create_dir_all(&realm_root).unwrap();
+    fs::create_dir_all(&app_root).unwrap();
+    fs::write(
+        realm_root.join("realm.toml"),
+        r#"[realm]
+name = "theme"
+version = "1.0.0"
+"#,
+    )
+    .unwrap();
+    fs::write(realm_root.join("colors.yu"), "pub value = 7\n").unwrap();
+    let main_path = app_root.join("main.yu");
+    fs::write(&main_path, "use local/theme/colors::value v1.0.0\nvalue\n").unwrap();
+
+    let install = yulang_command()
+        .env("YULANG_LIB_DIR", &lib_root)
+        .arg("realm")
+        .arg("install")
+        .arg(&realm_root)
+        .output()
+        .unwrap();
+
+    assert_success(&install);
+    let install_stdout = stdout(&install);
+    assert!(
+        install_stdout.contains("realm install: installed "),
+        "{install_stdout}"
+    );
+    assert!(install_stdout.contains(" files=2\n"), "{install_stdout}");
+    assert!(
+        lib_root
+            .join("realms")
+            .join("local")
+            .join("theme")
+            .join("1.0.0")
+            .join("snapshot.json")
+            .is_file()
+    );
+
+    let run = yulang_command()
+        .env("YULANG_LIB_DIR", &lib_root)
+        .arg("--no-prelude")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&main_path)
+        .output()
+        .unwrap();
+
+    assert_success(&run);
+    assert_eq!(stdout(&run), "run roots [7]\n");
+
+    let _ = fs::remove_dir_all(&root);
+}
+
 fn yulang_command() -> Command {
     Command::new(env!("CARGO_BIN_EXE_yulang"))
 }

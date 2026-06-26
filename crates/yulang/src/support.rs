@@ -493,6 +493,7 @@ pub(super) fn print_usage_and_exit(program: &str) -> ! {
     eprintln!("       {program} [--std-root <path>] install std");
     eprintln!("       {program} cache <clear|path|stats>");
     eprintln!("       {program} realm freeze [path] --version <version>");
+    eprintln!("       {program} realm install [path] [--version <version>]");
     eprintln!("       {program} [--std-root <path>] server");
     eprintln!("       {program} debug <control-vm|control-vm-emit|control-vm-load> ...");
     eprintln!("       {program} dump-poly <path>");

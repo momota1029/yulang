@@ -36,6 +36,9 @@ reuses it for the same source / resolution context.
 `realm/...::...` imports, a cached entry is accepted only if it still points at
 the deterministic local `<realm>/<band>.yu` path and the source fingerprint
 matches. Otherwise Yulang falls back to the filesystem resolver.
+For installed local `local/<name>/<band>::...` imports, the cached entry records
+the resolved snapshot realm/version and target source fingerprint, and is used
+only after the installed snapshot still matches.
 
 ## Route labels
 
@@ -89,6 +92,8 @@ but clean builds still pay the full parser, lowering, inference, and runtime
 lowering cost.
 
 The local editable realm/band identity route is active, including
-`realm/...::...` imports and entry-band aliases. The global package workflow is
-still experimental: remote providers, version-family solving, `yulang.lock`,
-and release/freeze UX are not stable user workflows yet.
+`realm/...::...` imports, entry-band aliases, and installed local
+`local/<name>/<band>::...` imports created by `yulang realm install`. The global
+package workflow is still experimental: remote providers, version-family
+solving, `yulang.lock`, and registry/git source policies are not stable user
+workflows yet.

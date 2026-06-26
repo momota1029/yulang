@@ -43,6 +43,24 @@ use realm/helper::answer
 use realm/tools/parser::json::value
 ```
 
+To import an installed local realm, use the `local/` provider prefix:
+
+```yulang
+use local/theme/colors::palette v1.0.0
+```
+
+An editable realm can be installed with:
+
+```toml
+[realm]
+name = "theme"
+version = "1.0.0"
+```
+
+```sh
+yulang realm install .
+```
+
 The separator before the band boundary is `/`; after the band root it is `::`.
 The reserved `band::` qualifier starts at the current band root:
 

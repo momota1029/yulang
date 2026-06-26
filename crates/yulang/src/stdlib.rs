@@ -1,3 +1,5 @@
+#[cfg(test)]
+use std::cell::RefCell;
 use std::env;
 use std::fs;
 use std::io;
@@ -37,6 +39,10 @@ pub fn installed_versioned_std_root() -> Option<PathBuf> {
 }
 
 pub fn default_user_lib_root() -> PathBuf {
+    #[cfg(test)]
+    if let Some(path) = test_user_lib_root() {
+        return path;
+    }
     if let Some(path) = env_path(YULANG_LIB_DIR_ENV) {
         return path;
     }
@@ -73,6 +79,35 @@ pub fn env_path(key: &str) -> Option<PathBuf> {
         return None;
     }
     Some(PathBuf::from(value))
+}
+
+#[cfg(test)]
+thread_local! {
+    static TEST_USER_LIB_ROOT: RefCell<Option<PathBuf>> = const { RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_test_user_lib_root<T>(path: &Path, f: impl FnOnce() -> T) -> T {
+    struct Guard {
+        previous: Option<PathBuf>,
+    }
+
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            TEST_USER_LIB_ROOT.with(|cell| {
+                cell.replace(self.previous.take());
+            });
+        }
+    }
+
+    let previous = TEST_USER_LIB_ROOT.with(|cell| cell.replace(Some(path.to_path_buf())));
+    let _guard = Guard { previous };
+    f()
+}
+
+#[cfg(test)]
+fn test_user_lib_root() -> Option<PathBuf> {
+    TEST_USER_LIB_ROOT.with(|cell| cell.borrow().clone())
 }
 
 fn versioned_std_root_for_exe_path(exe: &Path) -> Option<PathBuf> {

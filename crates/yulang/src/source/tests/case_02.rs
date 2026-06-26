@@ -3259,6 +3259,46 @@ fn current_realm_cache_stale_entry_falls_back_to_local_band() {
 }
 
 #[test]
+fn installed_local_realm_import_loads_snapshot_band() {
+    let root = temp_root("installed-local-realm-import");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let lib_root = root.join("lib");
+    let realm_root = root.join("theme-src");
+    fs::create_dir_all(&realm_root).unwrap();
+    fs::write(
+        realm_root.join("realm.toml"),
+        r#"[realm]
+name = "theme"
+version = "1.0.0"
+"#,
+    )
+    .unwrap();
+    fs::write(realm_root.join("colors.yu"), "pub value = 7\n").unwrap();
+    let app_root = root.join("app");
+    fs::create_dir_all(&app_root).unwrap();
+    let main_path = app_root.join("main.yu");
+    fs::write(&main_path, "use local/theme/colors::value v1.0.0\nvalue\n").unwrap();
+
+    let (output, files) = crate::stdlib::with_test_user_lib_root(&lib_root, || {
+        install_local_realm(&realm_root, None).unwrap();
+        (
+            run_control_from_entry(&main_path).unwrap(),
+            collect_local_sources(&main_path).unwrap(),
+        )
+    });
+
+    assert_eq!(output.text, "run roots [7]\n");
+    assert!(files.iter().any(|file| {
+        file.module_path == path_from_segments(&["local", "theme", "colors"])
+            && file.band_path == path_from_segments(&["local", "theme", "colors"])
+            && file.source == "pub value = 7\n"
+    }));
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn source_collection_records_resolution_import_metadata() {
     let root = temp_root("resolution-import-metadata");
     let _ = fs::remove_dir_all(&root);

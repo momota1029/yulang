@@ -143,6 +143,27 @@ impl Collector {
                     self.resolve_current_realm_band_file(&realm_root, &collected_source, &band)?;
                 queue.push_back((band_file, band.clone(), band, source_override));
             }
+
+            for import in &collected_source.resolution_imports {
+                let Some(installed) = resolve_installed_local_realm_band(import)? else {
+                    continue;
+                };
+                self.record_band_edge(&band_path, &installed.band_path)?;
+                if self.module_files.contains_key(&installed.module_path) {
+                    continue;
+                }
+                let source_override = self.resolve_cached_installed_local_realm_band_file(
+                    &collected_source,
+                    import,
+                    &installed,
+                );
+                queue.push_back((
+                    installed.source_path,
+                    installed.module_path,
+                    installed.band_path,
+                    source_override,
+                ));
+            }
         }
         Ok(std::mem::take(&mut self.files))
     }
@@ -281,6 +302,18 @@ impl Collector {
             }
         }
         resolve_realm_band_file(realm_root, band).map(|path| (path, None))
+    }
+
+    fn resolve_cached_installed_local_realm_band_file(
+        &self,
+        source_file: &CollectedSource,
+        import: &sources::UseImport,
+        resolved: &InstalledLocalRealmBand,
+    ) -> Option<String> {
+        self.collection_cache
+            .as_ref()?
+            .cached_installed_local_realm_band_file(source_file, import, resolved)
+            .map(|(_, source)| source)
     }
 }
 

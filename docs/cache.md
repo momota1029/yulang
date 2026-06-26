@@ -43,6 +43,10 @@ band resolution. Current local `realm/...::...` entries are used only as checked
 lookups: the cached path must still match the deterministic local
 `<realm>/<band>.yu` candidate and the target source fingerprint. Stale,
 corrupted, or redirected entries fall back to ordinary filesystem resolution.
+Installed local `local/<name>/<band>::...` entries record the resolved snapshot
+realm, version, band, module path, and target source fingerprint. Collection
+still validates the installed snapshot path and source hash before using the
+cached source text.
 
 ## What a `.yucu` contains
 
@@ -160,6 +164,8 @@ discarded or skipped, then the compiler falls back to source.
 For source collection, `--no-cache` also disables checked `.yures` lookups.
 Without `--no-cache`, local current-realm resolution entries may be used only
 after the deterministic local path and source fingerprint checks pass.
+Installed local realm entries are checked against the frozen snapshot under
+`$YULANG_LIB_DIR/realms/local/<name>/<version>/`.
 
 ## Related documents
 

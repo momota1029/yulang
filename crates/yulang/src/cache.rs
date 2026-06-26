@@ -551,22 +551,39 @@ pub fn write_current_realm_resolution_artifacts(
     cache: &ArtifactCache,
     files: &[CollectedSource],
 ) -> Result<usize, CacheError> {
+    write_realm_resolution_artifacts_with_kind(cache, files, RealmResolutionArtifactKind::Current)
+}
+
+pub fn write_realm_resolution_artifacts(
+    cache: &ArtifactCache,
+    files: &[CollectedSource],
+) -> Result<usize, CacheError> {
+    write_realm_resolution_artifacts_with_kind(cache, files, RealmResolutionArtifactKind::All)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RealmResolutionArtifactKind {
+    Current,
+    All,
+}
+
+fn write_realm_resolution_artifacts_with_kind(
+    cache: &ArtifactCache,
+    files: &[CollectedSource],
+    kind: RealmResolutionArtifactKind,
+) -> Result<usize, CacheError> {
     let mut written = 0;
     for source_file in files {
         let source_realm = sources::local_realm_id(&source_file.path);
         for request in &source_file.resolution_imports {
-            let Some(band_path) = current_realm_import_band_path(request) else {
-                continue;
-            };
-            let Some(target_file) = files
-                .iter()
-                .find(|file| file.module_path == band_path && file.band_path == band_path)
+            let Some((target_realm, target_file)) =
+                realm_resolution_artifact_target(&source_realm, request, files, kind)
             else {
                 continue;
             };
             let key = realm_resolution_cache_key(source_file, request);
             let artifact =
-                current_realm_resolution_artifact(&source_realm, request, &band_path, target_file);
+                realm_resolution_artifact(&source_realm, &target_realm, request, target_file);
 
             if cache
                 .read_realm_resolution_artifact(&source_realm, key)?
@@ -582,18 +599,57 @@ pub fn write_current_realm_resolution_artifacts(
     Ok(written)
 }
 
-fn current_realm_resolution_artifact(
+fn realm_resolution_artifact_target<'a>(
     source_realm: &sources::ResolvedRealmId,
     request: &sources::UseImport,
-    band_path: &sources::Path,
+    files: &'a [CollectedSource],
+    kind: RealmResolutionArtifactKind,
+) -> Option<(sources::ResolvedRealmId, &'a CollectedSource)> {
+    if let Some(band_path) = current_realm_import_band_path(request) {
+        let target_file = files
+            .iter()
+            .find(|file| file.module_path == band_path && file.band_path == band_path)?;
+        return Some((source_realm.clone(), target_file));
+    }
+    if kind == RealmResolutionArtifactKind::Current {
+        return None;
+    }
+    let module_path = crate::source::installed_local_import_module_path(request)?;
+    let target_file = files
+        .iter()
+        .find(|file| file.module_path == module_path && file.band_path == module_path)?;
+    Some((
+        installed_local_realm_id_from_source_path(&target_file.path)?,
+        target_file,
+    ))
+}
+
+fn installed_local_realm_id_from_source_path(
+    source_path: &Path,
+) -> Option<sources::ResolvedRealmId> {
+    source_path
+        .ancestors()
+        .map(|ancestor| ancestor.join("snapshot.json"))
+        .find(|snapshot| snapshot.is_file())
+        .and_then(|snapshot| sources::read_frozen_realm_snapshot(snapshot).ok())
+        .map(|snapshot| sources::ResolvedRealmId {
+            identity: snapshot.identity,
+            version: Some(snapshot.version),
+        })
+}
+
+fn realm_resolution_artifact(
+    source_realm: &sources::ResolvedRealmId,
+    target_realm: &sources::ResolvedRealmId,
+    request: &sources::UseImport,
     target_file: &CollectedSource,
 ) -> CachedRealmResolutionArtifact {
     CachedRealmResolutionArtifact {
         source_realm: source_realm.clone(),
         request: request.clone(),
         target: CachedRealmResolutionTarget {
-            realm: source_realm.clone(),
-            band_path: band_path.clone(),
+            realm: target_realm.clone(),
+            band_path: target_file.band_path.clone(),
             module_path: target_file.module_path.clone(),
             source_path: target_file.path.to_string_lossy().into_owned(),
             source_len: target_file.source.len(),
@@ -3618,6 +3674,78 @@ mod tests {
         assert_eq!(restored.target.module_path, path(&["helper"]));
         assert_eq!(restored.target.source_len, helper.source.len());
         assert_eq!(restored.target.source_hash, source_file_hash(&helper));
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn installed_realm_resolution_artifacts_are_populated_from_collected_sources() {
+        let root = temp_root("installed-realm-resolution-populate");
+        std::fs::create_dir_all(&root).unwrap();
+        let cache = ArtifactCache::new(root.join("cache"));
+        let installed_root = root
+            .join("lib")
+            .join("realms")
+            .join("local")
+            .join("theme")
+            .join("1.0.0");
+        std::fs::create_dir_all(&installed_root).unwrap();
+        let snapshot = sources::FrozenRealmSnapshot {
+            format_version: 2,
+            identity: sources::RealmIdentity("local/theme".into()),
+            version: sources::RealmVersion("1.0.0".into()),
+            source_hash: 0xabc,
+            files: Vec::new(),
+        };
+        std::fs::write(
+            installed_root.join("snapshot.json"),
+            serde_json::to_string(&snapshot).unwrap(),
+        )
+        .unwrap();
+        let main_path = root.join("main.yu");
+        let target_path = installed_root.join("colors.yu");
+        let request = sources::UseImport::Alias {
+            name: Name("value".into()),
+            path: path(&["local", "theme", "colors", "value"]),
+            route: sources::UsePathRoute::SlashQualified { prefix_segments: 3 },
+            version: Some("v1.0.0".into()),
+            anchor: None,
+        };
+        let main = CollectedSource::with_resolution_imports(
+            main_path.clone(),
+            Path::default(),
+            "use local/theme/colors::value v1.0.0\nvalue\n".to_string(),
+            vec![request.clone()],
+        );
+        let target = CollectedSource::with_band_path(
+            target_path,
+            path(&["local", "theme", "colors"]),
+            path(&["local", "theme", "colors"]),
+            "pub value = 7\n".to_string(),
+        );
+        let files = vec![main.clone(), target.clone()];
+        let source_realm = sources::local_realm_id(&main_path);
+        let key = realm_resolution_cache_key(&main, &request);
+
+        assert_eq!(write_realm_resolution_artifacts(&cache, &files).unwrap(), 1);
+
+        let restored = cache
+            .read_realm_resolution_artifact(&source_realm, key)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            restored.target.realm,
+            realm_id("local/theme", Some("1.0.0"))
+        );
+        assert_eq!(
+            restored.target.band_path,
+            path(&["local", "theme", "colors"])
+        );
+        assert_eq!(
+            restored.target.module_path,
+            path(&["local", "theme", "colors"])
+        );
+        assert_eq!(restored.target.source_hash, source_file_hash(&target));
 
         let _ = std::fs::remove_dir_all(&root);
     }

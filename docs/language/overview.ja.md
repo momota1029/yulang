@@ -90,6 +90,9 @@ use std::prelude::*
 実験中の dependency layer では、realm と band という用語を使う。realm は
 version 付きの解決空間であり、band は realm 内の import / build の島である。
 通常の module path は、明示的な realm route を使わない限り current band の中に留まる。
+current realm の別 band は `realm/helper::answer` のように import する。local に
+install 済みの realm は `local/theme/colors::palette v1.0.0` のように provider prefix
+付きで参照する。
 
 ## block と binding
 

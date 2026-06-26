@@ -837,7 +837,7 @@ fn build_poly_with_cache_timed(
     cache: &yulang::cache::ArtifactCache,
     mut timings: Option<&mut RuntimePhaseTimings>,
 ) -> yulang::BuildPolyOutput {
-    if let Err(error) = yulang::cache::write_current_realm_resolution_artifacts(cache, &files) {
+    if let Err(error) = yulang::cache::write_realm_resolution_artifacts(cache, &files) {
         eprintln!("warning: {error}");
     }
     match cache.read_poly_artifact(key) {
@@ -1492,6 +1492,29 @@ fn run_realm(program: &str, mut args: VecDeque<OsString>) {
                 }
             }
         }
+        Some("install") => {
+            let (path, version) = parse_realm_install_args(program, args);
+            let root = path.unwrap_or_else(|| PathBuf::from("."));
+            match yulang::install_local_realm(&root, version) {
+                Ok(output) => {
+                    let status = if output.already_installed {
+                        "already installed"
+                    } else {
+                        "installed"
+                    };
+                    println!(
+                        "realm install: {status} {} hash={:016x} files={}",
+                        output.installed_root.display(),
+                        output.snapshot.source_hash,
+                        output.snapshot.files.len()
+                    );
+                }
+                Err(error) => {
+                    eprintln!("{error}");
+                    process::exit(1);
+                }
+            }
+        }
         _ => print_usage_and_exit(program),
     }
 }
@@ -1561,6 +1584,39 @@ fn parse_realm_freeze_args(
     let Some(version) = version else {
         print_usage_error_and_exit(program, "realm freeze requires --version <version>");
     };
+    (path, version)
+}
+
+fn parse_realm_install_args(
+    program: &str,
+    mut args: VecDeque<OsString>,
+) -> (Option<PathBuf>, Option<String>) {
+    let mut path = None;
+    let mut version = None;
+    while let Some(arg) = args.pop_front() {
+        match arg.to_str() {
+            Some("--version") => {
+                let Some(value) = args.pop_front() else {
+                    print_usage_error_and_exit(program, "realm install --version requires a value");
+                };
+                set_realm_version(program, &mut version, value);
+            }
+            Some(value) if value.starts_with("--version=") => {
+                let value = value.strip_prefix("--version=").unwrap_or_default();
+                if value.is_empty() {
+                    print_usage_error_and_exit(program, "realm install --version requires a value");
+                }
+                set_realm_version(program, &mut version, OsString::from(value));
+            }
+            Some(flag) if flag.starts_with("--") => {
+                print_usage_error_and_exit(
+                    program,
+                    &format!("unsupported realm install option {flag}"),
+                );
+            }
+            _ => set_single_path(program, &mut path, arg),
+        }
+    }
     (path, version)
 }
 
