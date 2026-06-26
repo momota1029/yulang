@@ -282,6 +282,7 @@ run_marker_heavy_runtime() {
 
 run_static_analysis_bench() {
     run_with_log static-analysis-bench "$bench_timeout" \
+        env "YULANG=$bin" \
         "$repo_root/bench/static_analysis_bench.sh" --repeat "$repeat" \
         "$repo_root/examples/showcase.yu" \
         "$repo_root/bench/nondet_20_discard.yu"

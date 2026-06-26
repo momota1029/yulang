@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+YULANG_BIN="${YULANG:-}"
+
 HEADER_COLUMNS=(
     case iter check collect load infer bodies drain resolve finish
     a_route a_sccrt scc_open scc_quant scc_inst scc_oth a_work w_ref w_probe w_aref w_asel w_asel_rec w_asel_m w_asel_eff w_asel_tc w_scc a_role a_taint a_rsolve a_udep a_quant q_gen q_pre q_fin
@@ -100,15 +102,20 @@ run_case_once() {
     out_file="$(mktemp)"
     time_file="$(mktemp)"
 
-    local -a cargo_args=(run -p yulang)
-    if [[ "$release" == "1" ]]; then
-        cargo_args+=(--release)
+    local -a command
+    if [[ -n "$YULANG_BIN" ]]; then
+        command=("$YULANG_BIN" check "$case_path")
+    else
+        command=(cargo run -p yulang)
+        if [[ "$release" == "1" ]]; then
+            command+=(--release)
+        fi
+        command+=(--)
+        command+=(check "$case_path")
     fi
-    cargo_args+=(--)
-    cargo_args+=(check "$case_path")
 
     if ! env RUSTC_WRAPPER="${RUSTC_WRAPPER:-}" RUST_MIN_STACK="${RUST_MIN_STACK:-67108864}" \
-        /usr/bin/time -p -o "$time_file" cargo "${cargo_args[@]}" >"$out_file" 2>&1
+        /usr/bin/time -p -o "$time_file" "${command[@]}" >"$out_file" 2>&1
     then
         print_failed_row "$case_path" "$iteration"
         tail -n 20 "$out_file" >&2
@@ -549,15 +556,27 @@ measure_run_metrics() {
     out_file="$(mktemp)"
     time_file="$(mktemp)"
 
-    local -a cargo_args=(run -p yulang)
-    if [[ "$release" == "1" ]]; then
-        cargo_args+=(--release)
+    local -a command
+    if [[ -n "$YULANG_BIN" ]]; then
+        command=(
+            "$YULANG_BIN"
+            --runtime-phase-timings
+            --no-cache
+            run
+            --print-roots
+            "$case_path"
+        )
+    else
+        command=(cargo run -p yulang)
+        if [[ "$release" == "1" ]]; then
+            command+=(--release)
+        fi
+        command+=(--)
+        command+=(--runtime-phase-timings --no-cache run --print-roots "$case_path")
     fi
-    cargo_args+=(--)
-    cargo_args+=(--runtime-phase-timings --no-cache run --print-roots "$case_path")
 
     if ! env RUSTC_WRAPPER="${RUSTC_WRAPPER:-}" RUST_MIN_STACK="${RUST_MIN_STACK:-67108864}" \
-        /usr/bin/time -p -o "$time_file" cargo "${cargo_args[@]}" >"$out_file" 2>&1
+        /usr/bin/time -p -o "$time_file" "${command[@]}" >"$out_file" 2>&1
     then
         local -a failed=(FAILED)
         local expected=$(( ${#HEADER_COLUMNS[@]} - 2 ))
@@ -661,9 +680,13 @@ usage: bench/static_analysis_bench.sh [--repeat N] [--debug] [--infer-only] [cas
 
 Runs representative Yulang programs through:
   cargo run -p yulang --release -- check
+or, when YULANG is set:
+  $YULANG check
 
 Without --infer-only it also measures:
   cargo run -p yulang --release -- --no-cache run --print-roots
+or, when YULANG is set:
+  $YULANG --no-cache run --print-roots
 
 Use --infer-only for cases that are useful to typecheck but not safe to run.
 
