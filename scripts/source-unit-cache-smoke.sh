@@ -182,7 +182,62 @@ YULANG
   fi
 }
 
+run_struct_cast_smoke() {
+  case_dir="$tmp/struct-cast"
+  cache_root="$tmp/struct-cast-cache"
+  main="$case_dir/main.yu"
+  deps="$case_dir/deps.yu"
+  mkdir -p "$cache_root" "$case_dir"
+
+  cat >"$main" <<'YULANG'
+mod deps;
+(deps::Box { value: 1 }).value
+YULANG
+
+  cat >"$deps" <<'YULANG'
+pub struct Box { value: int }
+pub cast(x: int): Box = Box { value: x }
+YULANG
+
+  first_output="$(
+    YULANG_CACHE_DIR="$cache_root" \
+      run "$bin" --no-prelude run --print-roots "$main"
+  )"
+  if [[ "$first_output" != "run roots [1]" ]]; then
+    echo "source unit cache smoke: unexpected struct/cast warmup output" >&2
+    echo "$first_output" >&2
+    exit 1
+  fi
+
+  cat >"$main" <<'YULANG'
+mod deps;
+my wants_box(x: deps::Box) = x.value
+wants_box 2
+YULANG
+
+  rm -rf "$cache_root/artifacts/control-vm" "$cache_root/artifacts/poly"
+  second_log="$tmp/struct-cast-second.stderr"
+  second_output="$(
+    YULANG_CACHE_DIR="$cache_root" \
+      run "$bin" --no-prelude --runtime-phase-timings run --print-roots "$main" \
+        2>"$second_log"
+  )"
+  if [[ "$second_output" != "run roots [2]" ]]; then
+    echo "source unit cache smoke: unexpected struct/cast compiled-unit output" >&2
+    echo "$second_output" >&2
+    exit 1
+  fi
+
+  cat "$second_log"
+  if ! rg -q 'run\.cache: source-unit-prefix-hit' "$second_log"; then
+    echo "source unit cache smoke: expected source-unit prefix hit for struct/cast dependency" >&2
+    cat "$second_log" >&2
+    exit 1
+  fi
+}
+
 run_independent_merge_smoke
 run_dependency_closure_smoke
+run_struct_cast_smoke
 
 echo "source unit cache smoke ok: $bin"

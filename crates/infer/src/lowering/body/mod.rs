@@ -40,6 +40,8 @@ pub struct BodyLoweringPrefixRuntime {
     defs: FxHashSet<DefId>,
     modules: FxHashMap<u32, BodyLoweringPrefixRuntimeModuleDef>,
     values: FxHashMap<u32, BodyLoweringPrefixRuntimeValueDef>,
+    type_field_methods: Vec<BodyLoweringPrefixRuntimeTypeFieldMethodDef>,
+    casts: Vec<BodyLoweringPrefixRuntimeCastDef>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -56,13 +58,29 @@ pub struct BodyLoweringPrefixRuntimeValueDef {
     pub def: DefId,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BodyLoweringPrefixRuntimeTypeFieldMethodDef {
+    pub owner_type_path: Vec<String>,
+    pub name: String,
+    pub receiver_kind: TypeMethodReceiver,
+    pub def: DefId,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BodyLoweringPrefixRuntimeCastDef {
+    pub source_type_path: Vec<String>,
+    pub target_type_path: Vec<String>,
+    pub ordinal: u32,
+    pub def: DefId,
+}
+
 impl BodyLowering {
     pub fn prefix_runtime(&self) -> &BodyLoweringPrefixRuntime {
         &self.prefix_runtime
     }
 
     pub fn into_prefix(self) -> BodyLoweringPrefix {
-        let runtime = BodyLoweringPrefixRuntime::from_poly_arena(&self.session.poly);
+        let runtime = BodyLoweringPrefixRuntime::from_lowering(&self);
         BodyLoweringPrefix {
             poly: self.session.poly,
             modules: self.modules,
@@ -150,8 +168,9 @@ impl BodyLoweringPrefix {
         } else {
             runtime.import_into_with_external_defs(&mut poly, &mut labels, external_defs)
         };
-        let imported_runtime =
-            BodyLoweringPrefixRuntime::from_runtime_import_with_namespace(&import, namespace);
+        let imported_runtime = BodyLoweringPrefixRuntime::from_runtime_import_with_surfaces(
+            &import, namespace, lowering, runtime,
+        );
         let runtime = if let Some(prefix) = base {
             prefix.runtime.extended_with(imported_runtime)
         } else {
@@ -176,7 +195,9 @@ impl BodyLoweringPrefix {
         let mut poly = poly::expr::Arena::new();
         let mut labels = DumpLabels::new();
         let import = runtime.import_into(&mut poly, &mut labels);
-        let runtime = BodyLoweringPrefixRuntime::from_runtime_import(&import);
+        let runtime = BodyLoweringPrefixRuntime::from_runtime_import_with_optional_surfaces(
+            &import, lowering, runtime,
+        );
         let mut modules = modules.clone();
         modules.remap_runtime_defs(&import);
         if let Some(lowering) = lowering {
@@ -193,15 +214,30 @@ impl BodyLoweringPrefix {
 }
 
 impl BodyLoweringPrefixRuntime {
-    fn from_poly_arena(poly: &poly::expr::Arena) -> Self {
+    fn from_lowering(lowering: &BodyLowering) -> Self {
         Self {
-            defs: poly.defs.iter().map(|(def, _)| def).collect(),
+            defs: lowering
+                .session
+                .poly
+                .defs
+                .iter()
+                .map(|(def, _)| def)
+                .collect(),
             modules: FxHashMap::default(),
             values: FxHashMap::default(),
+            type_field_methods: type_field_method_defs_from_module_table(
+                &lowering.modules,
+                |def| def,
+            ),
+            casts: cast_defs_from_arena(&lowering.session.poly, |def| def),
         }
     }
 
-    fn from_runtime_import(import: &crate::CompiledRuntimeImport) -> Self {
+    fn from_runtime_import_with_optional_surfaces(
+        import: &crate::CompiledRuntimeImport,
+        lowering: Option<&crate::CompiledLoweringSurface>,
+        runtime: &crate::CompiledRuntimeSurface,
+    ) -> Self {
         Self {
             defs: import.defs.values().copied().collect(),
             modules: import
@@ -232,12 +268,18 @@ impl BodyLoweringPrefixRuntime {
                     )
                 })
                 .collect(),
+            type_field_methods: lowering
+                .map(|lowering| type_field_method_defs_from_lowering_surface(lowering, import))
+                .unwrap_or_default(),
+            casts: cast_defs_from_import(import, Some(runtime)),
         }
     }
 
-    fn from_runtime_import_with_namespace(
+    fn from_runtime_import_with_surfaces(
         import: &crate::CompiledRuntimeImport,
         namespace: &crate::CompiledNamespaceSurface,
+        lowering: &crate::CompiledLoweringSurface,
+        runtime: &crate::CompiledRuntimeSurface,
     ) -> Self {
         let module_paths = namespace
             .modules
@@ -282,6 +324,8 @@ impl BodyLoweringPrefixRuntime {
                     )
                 })
                 .collect(),
+            type_field_methods: type_field_method_defs_from_lowering_surface(lowering, import),
+            casts: cast_defs_from_import(import, Some(runtime)),
         }
     }
 
@@ -292,10 +336,18 @@ impl BodyLoweringPrefixRuntime {
         modules.extend(imported.modules);
         let mut values = self.values.clone();
         values.extend(imported.values);
+        let mut type_field_methods = self.type_field_methods.clone();
+        type_field_methods.extend(imported.type_field_methods);
+        sort_type_field_method_defs(&mut type_field_methods);
+        let mut casts = self.casts.clone();
+        casts.extend(imported.casts);
+        sort_cast_defs(&mut casts);
         Self {
             defs,
             modules,
             values,
+            type_field_methods,
+            casts,
         }
     }
 
@@ -334,6 +386,130 @@ impl BodyLoweringPrefixRuntime {
     pub fn value_defs(&self) -> impl Iterator<Item = &BodyLoweringPrefixRuntimeValueDef> {
         self.values.values()
     }
+
+    pub fn type_field_method_defs(
+        &self,
+    ) -> impl Iterator<Item = &BodyLoweringPrefixRuntimeTypeFieldMethodDef> {
+        self.type_field_methods.iter()
+    }
+
+    pub fn cast_defs(&self) -> impl Iterator<Item = &BodyLoweringPrefixRuntimeCastDef> {
+        self.casts.iter()
+    }
+}
+
+fn type_field_method_defs_from_module_table(
+    modules: &ModuleTable,
+    map_def: impl Fn(DefId) -> DefId,
+) -> Vec<BodyLoweringPrefixRuntimeTypeFieldMethodDef> {
+    let mut methods = modules
+        .all_type_field_methods()
+        .filter_map(|method| {
+            let owner = modules.type_decl_by_id(method.owner)?;
+            Some(BodyLoweringPrefixRuntimeTypeFieldMethodDef {
+                owner_type_path: crate::namespace_path(&modules.type_decl_path(&owner)),
+                name: method.name.0.clone(),
+                receiver_kind: method.receiver_kind,
+                def: map_def(method.def),
+            })
+        })
+        .collect::<Vec<_>>();
+    sort_type_field_method_defs(&mut methods);
+    methods
+}
+
+fn type_field_method_defs_from_lowering_surface(
+    lowering: &crate::CompiledLoweringSurface,
+    import: &crate::CompiledRuntimeImport,
+) -> Vec<BodyLoweringPrefixRuntimeTypeFieldMethodDef> {
+    let mut methods = lowering
+        .type_field_methods
+        .iter()
+        .map(|method| BodyLoweringPrefixRuntimeTypeFieldMethodDef {
+            owner_type_path: method.owner_type_path.clone(),
+            name: method.name.clone(),
+            receiver_kind: method.receiver_kind,
+            def: import.map_def(method.source_def),
+        })
+        .collect::<Vec<_>>();
+    sort_type_field_method_defs(&mut methods);
+    methods
+}
+
+fn sort_type_field_method_defs(methods: &mut Vec<BodyLoweringPrefixRuntimeTypeFieldMethodDef>) {
+    methods.sort_by(|left, right| {
+        (
+            &left.owner_type_path,
+            &left.name,
+            left.receiver_kind as u8,
+            left.def.0,
+        )
+            .cmp(&(
+                &right.owner_type_path,
+                &right.name,
+                right.receiver_kind as u8,
+                right.def.0,
+            ))
+    });
+    methods.dedup_by(|left, right| {
+        left.owner_type_path == right.owner_type_path
+            && left.name == right.name
+            && left.receiver_kind == right.receiver_kind
+            && left.def == right.def
+    });
+}
+
+fn cast_defs_from_arena(
+    arena: &poly::expr::Arena,
+    map_def: impl Fn(DefId) -> DefId,
+) -> Vec<BodyLoweringPrefixRuntimeCastDef> {
+    let mut counts = FxHashMap::<(Vec<String>, Vec<String>), u32>::default();
+    let mut casts = Vec::new();
+    for rule in &arena.cast_rules {
+        let key = (rule.source.clone(), rule.target.clone());
+        let ordinal = counts.entry(key).or_insert(0);
+        casts.push(BodyLoweringPrefixRuntimeCastDef {
+            source_type_path: rule.source.clone(),
+            target_type_path: rule.target.clone(),
+            ordinal: *ordinal,
+            def: map_def(rule.def),
+        });
+        *ordinal += 1;
+    }
+    sort_cast_defs(&mut casts);
+    casts
+}
+
+fn cast_defs_from_import(
+    import: &crate::CompiledRuntimeImport,
+    runtime: Option<&crate::CompiledRuntimeSurface>,
+) -> Vec<BodyLoweringPrefixRuntimeCastDef> {
+    runtime
+        .map(|runtime| cast_defs_from_arena(&runtime.arena, |def| import.map_def(def)))
+        .unwrap_or_default()
+}
+
+fn sort_cast_defs(casts: &mut Vec<BodyLoweringPrefixRuntimeCastDef>) {
+    casts.sort_by(|left, right| {
+        (
+            &left.source_type_path,
+            &left.target_type_path,
+            left.ordinal,
+            left.def.0,
+        )
+            .cmp(&(
+                &right.source_type_path,
+                &right.target_type_path,
+                right.ordinal,
+                right.def.0,
+            ))
+    });
+    casts.dedup_by(|left, right| {
+        left.source_type_path == right.source_type_path
+            && left.target_type_path == right.target_type_path
+            && left.ordinal == right.ordinal
+            && left.def == right.def
+    });
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

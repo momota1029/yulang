@@ -22,7 +22,7 @@ use crate::source::{
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 13;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 14;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 1;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
@@ -34,7 +34,7 @@ const COMPILED_NAMESPACE_HASH_SALT: &[u8] = b"yulang/compiled-namespace-surface/
 const COMPILED_LOWERING_HASH_SALT: &[u8] = b"yulang/compiled-lowering-surface/v4";
 const COMPILED_TYPED_HASH_SALT: &[u8] = b"yulang/compiled-typed-surface/v1";
 const COMPILED_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-runtime-surface/v3";
-const COMPILED_EXTERNAL_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-external-runtime-refs/v1";
+const COMPILED_EXTERNAL_RUNTIME_HASH_SALT: &[u8] = b"yulang/compiled-external-runtime-refs/v2";
 const FNV_OFFSET: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 static CACHE_TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -310,6 +310,10 @@ pub struct CompiledUnitExternalRuntimeRefs {
     pub defs: Vec<poly::expr::DefId>,
     pub modules: Vec<CompiledUnitExternalRuntimeModuleRef>,
     pub values: Vec<CompiledUnitExternalRuntimeValueRef>,
+    #[serde(default)]
+    pub type_field_methods: Vec<CompiledUnitExternalRuntimeTypeFieldMethodRef>,
+    #[serde(default)]
+    pub casts: Vec<CompiledUnitExternalRuntimeCastRef>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -326,6 +330,22 @@ pub struct CompiledUnitExternalRuntimeValueRef {
     pub def: poly::expr::DefId,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitExternalRuntimeTypeFieldMethodRef {
+    pub owner_type_path: Vec<String>,
+    pub name: String,
+    pub receiver_kind: infer::TypeMethodReceiver,
+    pub def: poly::expr::DefId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitExternalRuntimeCastRef {
+    pub source_type_path: Vec<String>,
+    pub target_type_path: Vec<String>,
+    pub ordinal: u32,
+    pub def: poly::expr::DefId,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompiledUnitExternalRuntimeDefMapError {
     MissingModulePath {
@@ -333,6 +353,16 @@ pub enum CompiledUnitExternalRuntimeDefMapError {
     },
     MissingValuePath {
         value_path: Vec<String>,
+    },
+    MissingTypeFieldMethod {
+        owner_type_path: Vec<String>,
+        name: String,
+        receiver_kind: infer::TypeMethodReceiver,
+    },
+    MissingCast {
+        source_type_path: Vec<String>,
+        target_type_path: Vec<String>,
+        ordinal: u32,
     },
     ConflictingDefMapping {
         source: poly::expr::DefId,
@@ -594,11 +624,49 @@ fn compiled_unit_external_runtime_refs(
             .then_with(|| left.def.0.cmp(&right.def.0))
     });
 
+    let mut type_field_methods = lowering
+        .prefix_runtime()
+        .type_field_method_defs()
+        .map(|entry| CompiledUnitExternalRuntimeTypeFieldMethodRef {
+            owner_type_path: entry.owner_type_path.clone(),
+            name: entry.name.clone(),
+            receiver_kind: entry.receiver_kind,
+            def: entry.def,
+        })
+        .collect::<Vec<_>>();
+    type_field_methods.sort_by(|left, right| {
+        left.owner_type_path
+            .cmp(&right.owner_type_path)
+            .then_with(|| left.name.cmp(&right.name))
+            .then_with(|| (left.receiver_kind as u8).cmp(&(right.receiver_kind as u8)))
+            .then_with(|| left.def.0.cmp(&right.def.0))
+    });
+
+    let mut casts = lowering
+        .prefix_runtime()
+        .cast_defs()
+        .map(|entry| CompiledUnitExternalRuntimeCastRef {
+            source_type_path: entry.source_type_path.clone(),
+            target_type_path: entry.target_type_path.clone(),
+            ordinal: entry.ordinal,
+            def: entry.def,
+        })
+        .collect::<Vec<_>>();
+    casts.sort_by(|left, right| {
+        left.source_type_path
+            .cmp(&right.source_type_path)
+            .then_with(|| left.target_type_path.cmp(&right.target_type_path))
+            .then_with(|| left.ordinal.cmp(&right.ordinal))
+            .then_with(|| left.def.0.cmp(&right.def.0))
+    });
+
     CompiledUnitExternalRuntimeRefs {
         imported_def_count: lowering.prefix_runtime().def_count(),
         defs,
         modules,
         values,
+        type_field_methods,
+        casts,
     }
 }
 
@@ -613,6 +681,32 @@ pub fn compiled_unit_external_runtime_def_pairs(
     let prefix_values = prefix_runtime
         .value_defs()
         .map(|entry| (entry.value_path.clone(), entry.def))
+        .collect::<HashMap<_, _>>();
+    let prefix_type_field_methods = prefix_runtime
+        .type_field_method_defs()
+        .map(|entry| {
+            (
+                (
+                    entry.owner_type_path.clone(),
+                    entry.name.clone(),
+                    entry.receiver_kind as u8,
+                ),
+                entry.def,
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    let prefix_casts = prefix_runtime
+        .cast_defs()
+        .map(|entry| {
+            (
+                (
+                    entry.source_type_path.clone(),
+                    entry.target_type_path.clone(),
+                    entry.ordinal,
+                ),
+                entry.def,
+            )
+        })
         .collect::<HashMap<_, _>>();
 
     let mut pairs = HashMap::new();
@@ -637,6 +731,38 @@ pub fn compiled_unit_external_runtime_def_pairs(
                 },
             )?;
         insert_external_runtime_def_pair(&mut pairs, value.def, target)?;
+    }
+    for method in &artifact.external_runtime.type_field_methods {
+        let target = prefix_type_field_methods
+            .get(&(
+                method.owner_type_path.clone(),
+                method.name.clone(),
+                method.receiver_kind as u8,
+            ))
+            .copied()
+            .ok_or_else(
+                || CompiledUnitExternalRuntimeDefMapError::MissingTypeFieldMethod {
+                    owner_type_path: method.owner_type_path.clone(),
+                    name: method.name.clone(),
+                    receiver_kind: method.receiver_kind,
+                },
+            )?;
+        insert_external_runtime_def_pair(&mut pairs, method.def, target)?;
+    }
+    for cast in &artifact.external_runtime.casts {
+        let target = prefix_casts
+            .get(&(
+                cast.source_type_path.clone(),
+                cast.target_type_path.clone(),
+                cast.ordinal,
+            ))
+            .copied()
+            .ok_or_else(|| CompiledUnitExternalRuntimeDefMapError::MissingCast {
+                source_type_path: cast.source_type_path.clone(),
+                target_type_path: cast.target_type_path.clone(),
+                ordinal: cast.ordinal,
+            })?;
+        insert_external_runtime_def_pair(&mut pairs, cast.def, target)?;
     }
 
     let mut pairs = pairs.into_iter().collect::<Vec<_>>();
@@ -807,6 +933,8 @@ fn merge_compiled_unit_external_runtime_refs(
     let mut imported_def_count = 0;
     let mut modules = Vec::new();
     let mut values = Vec::new();
+    let mut type_field_methods = Vec::new();
+    let mut casts = Vec::new();
 
     for (prefix, artifact) in artifacts.iter().enumerate() {
         imported_def_count += artifact.external_runtime.imported_def_count;
@@ -848,6 +976,34 @@ fn merge_compiled_unit_external_runtime_refs(
                 def,
             });
         }
+        for method in &artifact.external_runtime.type_field_methods {
+            let def = runtime.map_def(prefix, method.def).ok_or(
+                CompiledUnitExternalRuntimeMergeError::MissingDef {
+                    prefix,
+                    def: method.def,
+                },
+            )?;
+            type_field_methods.push(CompiledUnitExternalRuntimeTypeFieldMethodRef {
+                owner_type_path: method.owner_type_path.clone(),
+                name: method.name.clone(),
+                receiver_kind: method.receiver_kind,
+                def,
+            });
+        }
+        for cast in &artifact.external_runtime.casts {
+            let def = runtime.map_def(prefix, cast.def).ok_or(
+                CompiledUnitExternalRuntimeMergeError::MissingDef {
+                    prefix,
+                    def: cast.def,
+                },
+            )?;
+            casts.push(CompiledUnitExternalRuntimeCastRef {
+                source_type_path: cast.source_type_path.clone(),
+                target_type_path: cast.target_type_path.clone(),
+                ordinal: cast.ordinal,
+                def,
+            });
+        }
     }
     let mut defs = Vec::new();
     for (prefix, artifact) in artifacts.iter().enumerate() {
@@ -873,6 +1029,22 @@ fn merge_compiled_unit_external_runtime_refs(
             .then_with(|| left.def.0.cmp(&right.def.0))
     });
     values.dedup();
+    type_field_methods.sort_by(|left, right| {
+        left.owner_type_path
+            .cmp(&right.owner_type_path)
+            .then_with(|| left.name.cmp(&right.name))
+            .then_with(|| (left.receiver_kind as u8).cmp(&(right.receiver_kind as u8)))
+            .then_with(|| left.def.0.cmp(&right.def.0))
+    });
+    type_field_methods.dedup();
+    casts.sort_by(|left, right| {
+        left.source_type_path
+            .cmp(&right.source_type_path)
+            .then_with(|| left.target_type_path.cmp(&right.target_type_path))
+            .then_with(|| left.ordinal.cmp(&right.ordinal))
+            .then_with(|| left.def.0.cmp(&right.def.0))
+    });
+    casts.dedup();
     defs.sort_by_key(|def| def.0);
     defs.dedup();
 
@@ -881,6 +1053,8 @@ fn merge_compiled_unit_external_runtime_refs(
         defs,
         modules,
         values,
+        type_field_methods,
+        casts,
     })
 }
 
@@ -1519,6 +1693,20 @@ fn compiled_external_runtime_hash(external: &CompiledUnitExternalRuntimeRefs) ->
         hasher.u32(value.symbol);
         hash_string_path(&mut hasher, &value.value_path);
         hash_def_id(&mut hasher, value.def);
+    }
+    hasher.usize(external.type_field_methods.len());
+    for method in &external.type_field_methods {
+        hash_string_path(&mut hasher, &method.owner_type_path);
+        hasher.string(&method.name);
+        hash_type_method_receiver(&mut hasher, method.receiver_kind);
+        hash_def_id(&mut hasher, method.def);
+    }
+    hasher.usize(external.casts.len());
+    for cast in &external.casts {
+        hash_string_path(&mut hasher, &cast.source_type_path);
+        hash_string_path(&mut hasher, &cast.target_type_path);
+        hasher.u32(cast.ordinal);
+        hash_def_id(&mut hasher, cast.def);
     }
     hasher.finish()
 }
@@ -3601,7 +3789,7 @@ mod tests {
     }
 
     #[test]
-    fn compiled_unit_reachable_external_refs_reject_unkeyed_type_field_methods() {
+    fn compiled_unit_reachable_external_refs_key_type_field_methods() {
         let prefix = compiled_unit_prefix_from_sources(vec![
             source("prefix.yu", &[], "mod deps;\npub use deps::*\n"),
             source("deps.yu", &["deps"], "pub struct Box { value: int }\n"),
@@ -3618,17 +3806,32 @@ mod tests {
             .map(|entry| entry.source_def)
             .collect::<Vec<_>>();
         assert!(!field_defs.is_empty());
-        let error = compiled_unit_complete_external_runtime_def_pairs(&artifact, prefix.runtime())
-            .unwrap_err();
-        assert!(matches!(
-            error,
-            CompiledUnitExternalRuntimeDefMapError::UnkeyedExternalDefs { ref defs }
-                if field_defs.iter().all(|field| defs.contains(field))
-        ));
+        assert!(!artifact.external_runtime.type_field_methods.is_empty());
+        let external_defs =
+            compiled_unit_complete_external_runtime_def_pairs(&artifact, prefix.runtime()).unwrap();
+        assert!(
+            field_defs
+                .iter()
+                .all(|field| external_defs.iter().any(|(source, _)| source == field))
+        );
+        let extended = prefix
+            .extend_with_compiled_unit_surfaces_and_external_defs(
+                &artifact.namespace,
+                &artifact.lowering,
+                &artifact.runtime,
+                external_defs,
+            )
+            .expect("type-field suffix artifact should extend the prefix");
+        assert!(
+            extended
+                .runtime()
+                .value_defs()
+                .any(|value| value.value_path == vec!["made".to_string()])
+        );
     }
 
     #[test]
-    fn compiled_unit_reachable_external_refs_reject_unkeyed_casts() {
+    fn compiled_unit_reachable_external_refs_key_casts() {
         let prefix = compiled_unit_prefix_from_sources(vec![
             source("prefix.yu", &[], "mod deps;\npub use deps::*\n"),
             source(
@@ -3646,15 +3849,37 @@ mod tests {
         );
 
         assert_eq!(lowered.errors, Vec::new());
-        let error = compiled_unit_complete_external_runtime_def_pairs(&artifact, prefix.runtime())
-            .unwrap_err();
-        assert!(matches!(
-            error,
-            CompiledUnitExternalRuntimeDefMapError::UnkeyedExternalDefs { ref defs }
-                if defs
-                    .iter()
-                    .any(|def| artifact.runtime.labels.def_label(*def) == Some("#cast"))
-        ));
+        assert!(!artifact.external_runtime.casts.is_empty());
+        let external_defs =
+            compiled_unit_complete_external_runtime_def_pairs(&artifact, prefix.runtime()).unwrap();
+        let cast_defs = artifact
+            .external_runtime
+            .casts
+            .iter()
+            .map(|cast| cast.def)
+            .collect::<Vec<_>>();
+        assert!(
+            cast_defs
+                .iter()
+                .all(|cast| external_defs.iter().any(|(source, _)| source == cast))
+        );
+        let extended = prefix
+            .extend_with_compiled_unit_surfaces_and_external_defs(
+                &artifact.namespace,
+                &artifact.lowering,
+                &artifact.runtime,
+                external_defs,
+            )
+            .expect("cast suffix artifact should extend the prefix");
+        for name in ["wants_box", "casted"] {
+            assert!(
+                extended
+                    .runtime()
+                    .value_defs()
+                    .any(|value| value.value_path == vec![name.to_string()]),
+                "extended prefix should include suffix value {name}"
+            );
+        }
     }
 
     #[test]
