@@ -27,10 +27,10 @@ const COMPILED_UNIT_CACHE_FORMAT: u32 = 16;
 const REALM_RESOLUTION_CACHE_FORMAT: u32 = 1;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 3;
-const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v2";
-const SOURCE_UNIT_CACHE_SALT: &[u8] = b"yulang/source-unit-cache/v1";
+const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v3";
+const SOURCE_UNIT_CACHE_SALT: &[u8] = b"yulang/source-unit-cache/v2";
 const REALM_CACHE_COMPONENT_SALT: &[u8] = b"yulang/realm-cache-component/v1";
-const REALM_RESOLUTION_CACHE_SALT: &[u8] = b"yulang/realm-resolution-cache/v1";
+const REALM_RESOLUTION_CACHE_SALT: &[u8] = b"yulang/realm-resolution-cache/v2";
 const MERGED_COMPILED_UNIT_CACHE_SALT: &[u8] = b"yulang/merged-compiled-unit-cache/v1";
 const SOURCE_FILE_HASH_SALT: &[u8] = b"yulang/source-file/v2";
 const COMPILED_SYNTAX_HASH_SALT: &[u8] = b"yulang/compiled-syntax-surface/v1";
@@ -1449,6 +1449,7 @@ fn hash_source_file_resolution_context(hasher: &mut StableHasher, file: &Collect
     for segment in &file.module_path.segments {
         hasher.string(&segment.0);
     }
+    hash_band_path(hasher, &file.band_path);
     hasher.string(&file.source);
 }
 
@@ -1458,10 +1459,18 @@ fn hash_collected_source(hasher: &mut StableHasher, file: &CollectedSource) {
     for segment in &file.module_path.segments {
         hasher.string(&segment.0);
     }
+    hash_band_path(hasher, &file.band_path);
     hasher.string(&file.source);
     hasher.usize(file.resolution_imports.len());
     for import in &file.resolution_imports {
         hash_use_import(hasher, import);
+    }
+}
+
+fn hash_band_path(hasher: &mut StableHasher, band_path: &sources::Path) {
+    hasher.usize(band_path.segments.len());
+    for segment in &band_path.segments {
+        hasher.string(&segment.0);
     }
 }
 
@@ -3453,6 +3462,69 @@ mod tests {
             });
 
         assert_ne!(source_cache_key(&[base]), source_cache_key(&[with_request]));
+    }
+
+    #[test]
+    fn source_cache_key_tracks_band_path() {
+        let default_band = source("helper.yu", &["helper"], "pub value = 1\n");
+        let current_realm_band = CollectedSource::with_band_path(
+            PathBuf::from("helper.yu"),
+            path(&["helper"]),
+            path(&["helper"]),
+            "pub value = 1\n".to_string(),
+        );
+
+        assert_ne!(
+            source_cache_key(&[default_band]),
+            source_cache_key(&[current_realm_band])
+        );
+    }
+
+    #[test]
+    fn realm_resolution_cache_key_tracks_source_band_path() {
+        let request = sources::UseImport::Alias {
+            name: Name("value".into()),
+            path: path(&["nested", "value"]),
+            route: sources::UsePathRoute::CurrentRealm { band_segments: 1 },
+            version: None,
+            anchor: None,
+        };
+        let default_band = CollectedSource::with_resolution_imports(
+            PathBuf::from("helper.yu"),
+            path(&["helper"]),
+            "use realm/nested::value\nvalue\n".to_string(),
+            vec![request.clone()],
+        );
+        let current_realm_band = CollectedSource::with_band_path_and_resolution_imports(
+            PathBuf::from("helper.yu"),
+            path(&["helper"]),
+            path(&["helper"]),
+            "use realm/nested::value\nvalue\n".to_string(),
+            vec![request.clone()],
+        );
+
+        assert_ne!(
+            realm_resolution_cache_key(&default_band, &request),
+            realm_resolution_cache_key(&current_realm_band, &request)
+        );
+    }
+
+    #[test]
+    fn source_unit_cache_key_tracks_band_path() {
+        let default_band = vec![source("helper.yu", &["helper"], "pub value = 1\n")];
+        let current_realm_band = vec![CollectedSource::with_band_path(
+            PathBuf::from("helper.yu"),
+            path(&["helper"]),
+            path(&["helper"]),
+            "pub value = 1\n".to_string(),
+        )];
+        let default_units = crate::source::source_compilation_units(&default_band);
+        let current_realm_units = crate::source::source_compilation_units(&current_realm_band);
+
+        assert_ne!(
+            source_compilation_unit_cache_keys(&default_band, &default_units),
+            source_compilation_unit_cache_keys(&current_realm_band, &current_realm_units)
+        );
     }
 
     #[test]
