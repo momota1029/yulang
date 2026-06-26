@@ -927,8 +927,6 @@ impl<'a> Runtime<'a> {
                 }
             }
 
-            result =
-                self.close_completed_marker_scopes(result, marker_scopes, *request_close_offset)?;
             let EvalResult::Request(request) = result else {
                 return Ok(result);
             };
@@ -1622,9 +1620,8 @@ fn consume_marker_frame(
     stats.marker_scope_consume_touches += depth;
     stats.marker_scope_max_depth = stats.marker_scope_max_depth.max(depth);
     for scope in marker_scopes {
-        if scope.frames_remaining > 0 {
-            scope.frames_remaining -= 1;
-        }
+        debug_assert!(scope.frames_remaining > 0);
+        scope.frames_remaining -= 1;
     }
 }
 

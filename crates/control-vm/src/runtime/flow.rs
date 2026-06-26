@@ -251,7 +251,12 @@ impl<'a> Runtime<'a> {
             if (path_matches_marker && !marker.guard_own_path)
                 || (!path_matches_marker && !marker.guard_foreign_path)
                 || (!marker.carry_after_frame
-                    && self.request_excepted_at_marker_entry(request, active_marker))
+                    && request_excepted_at_marker_entry(
+                        &mut self.stats,
+                        &self.active_frames,
+                        request,
+                        active_marker,
+                    ))
             {
                 continue;
             }
@@ -261,8 +266,17 @@ impl<'a> Runtime<'a> {
                     .iter()
                     .any(|guard| guard.id == marker.id)
             {
-                let exposed_guard_ids =
-                    self.carried_exposed_guard_ids_at_marker_entry(request, active_marker);
+                let entry_guard_ids = request_guard_ids_at_marker_entry(
+                    &mut self.stats,
+                    &self.active_frames,
+                    request,
+                    active_marker,
+                );
+                let exposed_guard_ids = self.carried_exposed_guard_ids_at_marker_entry(
+                    request,
+                    active_marker,
+                    entry_guard_ids,
+                );
                 request.guard_ids.push_unique(marker.id);
                 request.carried_guards.push(CarriedGuard {
                     id: marker.id,
@@ -286,41 +300,12 @@ impl<'a> Runtime<'a> {
         );
     }
 
-    fn request_excepted_at_marker_entry(
-        &self,
-        request: &Request,
-        marker: &ActiveAddIdMarker,
-    ) -> bool {
-        if request.guard_ids.is_empty() {
-            return false;
-        }
-        self.active_frames
-            .iter()
-            .take(marker.entry_frame_len)
-            .any(|frame| request.guard_ids.contains(frame.id))
-    }
-
-    fn request_guard_ids_at_marker_entry(
-        &self,
-        request: &Request,
-        marker: &ActiveAddIdMarker,
-    ) -> GuardIds {
-        self.active_frames
-            .iter()
-            .take(marker.entry_frame_len)
-            .filter_map(|frame| request.guard_ids.contains(frame.id).then_some(frame.id))
-            .fold(GuardIds::new(), |mut ids, id| {
-                ids.push_unique(id);
-                ids
-            })
-    }
-
     fn carried_exposed_guard_ids_at_marker_entry(
         &self,
         request: &Request,
         marker: &ActiveAddIdMarker,
+        mut ids: GuardIds,
     ) -> GuardIds {
-        let mut ids = self.request_guard_ids_at_marker_entry(request, marker);
         if marker.marker.preserve_own_on_resume {
             // Explicit argument-effect contracts permit handlers that were
             // already visible at the callback call site to handle the matching
@@ -857,6 +842,42 @@ impl<'a> Runtime<'a> {
         );
         Ok(EvalResult::Request(request))
     }
+}
+
+fn request_excepted_at_marker_entry(
+    stats: &mut RuntimeStats,
+    active_frames: &[ActiveFrame],
+    request: &Request,
+    marker: &ActiveAddIdMarker,
+) -> bool {
+    stats.active_add_entry_except_checks += 1;
+    if request.guard_ids.is_empty() {
+        return false;
+    }
+    for frame in active_frames.iter().take(marker.entry_frame_len) {
+        stats.active_add_entry_frame_scans += 1;
+        if request.guard_ids.contains(frame.id) {
+            return true;
+        }
+    }
+    false
+}
+
+fn request_guard_ids_at_marker_entry(
+    stats: &mut RuntimeStats,
+    active_frames: &[ActiveFrame],
+    request: &Request,
+    marker: &ActiveAddIdMarker,
+) -> GuardIds {
+    stats.active_add_entry_guard_collects += 1;
+    let mut ids = GuardIds::new();
+    for frame in active_frames.iter().take(marker.entry_frame_len) {
+        stats.active_add_entry_frame_scans += 1;
+        if request.guard_ids.contains(frame.id) {
+            ids.push_unique(frame.id);
+        }
+    }
+    ids
 }
 
 #[cfg(test)]
