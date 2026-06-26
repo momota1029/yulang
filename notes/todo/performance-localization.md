@@ -349,6 +349,17 @@ runtime 側の次の本命は path 比較ではなく、marker / guard / scope s
 - continuation snapshot clone
 - request ごとの guard / carried marker construction
 
+2026-06-27 update:
+
+- resume step ごとの active marker scope decrement は `close_at_frame` +
+  resume-local consumed-frame counter へ置き換えた。
+- `marker_scope_frame_touches` は 100x nondet workload で
+  56,676,200 から 1,518,200 へ下がった。
+- 壁時計は 2.87〜3.00s で、dedupe scan 削除後の 2.86〜3.23s 範囲内だった。
+  ここは speedup としてではなく、深さ比例の mutable update を消す structural cleanup と見る。
+- 次に runtime で見るべきなのは `active_add_ids` 全走査、marker scope close/request-close、
+  continuation snapshot clone、request marking の guard / marker construction。
+
 方針:
 
 ```text

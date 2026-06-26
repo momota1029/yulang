@@ -59,7 +59,7 @@ impl<'a> Iterator for MarkerScopeListIter<'a> {
 }
 
 struct ActiveContinuationMarkerScope {
-    frames_remaining: usize,
+    close_at_frame: usize,
     resume_markers: SharedMarkers,
     activate_add_ids: bool,
     handler_key: Option<InternedPathPrefix>,
@@ -441,10 +441,12 @@ impl<'a> Runtime<'a> {
             &mut continuation.marker_scopes,
             None,
         ));
+        let mut consumed_marker_frames = 0usize;
         let mut request_close_offset = 0;
         let result = self.resume_with_marker_scopes(
             &mut continuation,
             &mut marker_scopes,
+            &mut consumed_marker_frames,
             &mut request_close_offset,
             value,
         );
@@ -461,12 +463,14 @@ impl<'a> Runtime<'a> {
         &mut self,
         continuation: &mut Continuation,
         marker_scopes: &mut Vec<ActiveContinuationMarkerScope>,
+        consumed_marker_frames: &mut usize,
         request_close_offset: &mut usize,
         mut value: Value,
     ) -> RuntimeResult {
         value = match self.close_completed_marker_scopes(
             EvalResult::Value(value),
             marker_scopes,
+            *consumed_marker_frames,
             *request_close_offset,
         )? {
             EvalResult::Value(value) => value,
@@ -475,6 +479,7 @@ impl<'a> Runtime<'a> {
                     request,
                     continuation,
                     marker_scopes,
+                    consumed_marker_frames,
                     request_close_offset,
                 );
             }
@@ -484,15 +489,19 @@ impl<'a> Runtime<'a> {
             let Some(frame) = continuation.frames.pop_back() else {
                 return value_result(value);
             };
-            consume_marker_frame(&mut self.stats, marker_scopes);
+            consume_marker_frame(&mut self.stats, marker_scopes, consumed_marker_frames);
             self.stats.request_resume_steps += 1;
             let result = if frame.handles_eval_result() {
                 self.apply_shared_result_frame(frame, EvalResult::Value(value))?
             } else {
                 self.apply_shared_value_frame(frame, &mut *continuation, marker_scopes, value)?
             };
-            let result =
-                self.close_completed_marker_scopes(result, marker_scopes, *request_close_offset)?;
+            let result = self.close_completed_marker_scopes(
+                result,
+                marker_scopes,
+                *consumed_marker_frames,
+                *request_close_offset,
+            )?;
             match result {
                 EvalResult::Value(next) => value = next,
                 EvalResult::Request(request) => {
@@ -500,6 +509,7 @@ impl<'a> Runtime<'a> {
                         request,
                         continuation,
                         marker_scopes,
+                        consumed_marker_frames,
                         request_close_offset,
                     )? {
                         EvalResult::Value(next) => {
@@ -885,7 +895,7 @@ impl<'a> Runtime<'a> {
                 );
             }
             active.push(ActiveContinuationMarkerScope {
-                frames_remaining: scope.frames_remaining,
+                close_at_frame: scope.frames_remaining,
                 resume_markers: scope.resume_markers,
                 activate_add_ids: scope.activate_add_ids,
                 handler_key: scope.handler_key,
@@ -900,24 +910,30 @@ impl<'a> Runtime<'a> {
         request: Request,
         continuation: &mut Continuation,
         marker_scopes: &mut Vec<ActiveContinuationMarkerScope>,
+        consumed_marker_frames: &mut usize,
         request_close_offset: &mut usize,
     ) -> RuntimeResult {
         let mut result = EvalResult::Request(request);
         loop {
-            result =
-                self.close_completed_marker_scopes(result, marker_scopes, *request_close_offset)?;
+            result = self.close_completed_marker_scopes(
+                result,
+                marker_scopes,
+                *consumed_marker_frames,
+                *request_close_offset,
+            )?;
             while continuation
                 .frames
                 .back()
                 .is_some_and(|frame| frame.handles_eval_result())
             {
                 let frame = continuation.frames.pop_back().expect("checked frame");
-                consume_marker_frame(&mut self.stats, marker_scopes);
+                consume_marker_frame(&mut self.stats, marker_scopes, consumed_marker_frames);
                 self.stats.request_resume_steps += 1;
                 result = self.apply_shared_result_frame(frame, result)?;
                 result = self.close_completed_marker_scopes(
                     result,
                     marker_scopes,
+                    *consumed_marker_frames,
                     *request_close_offset,
                 )?;
                 if matches!(result, EvalResult::Value(_)) {
@@ -933,6 +949,7 @@ impl<'a> Runtime<'a> {
                     continuation,
                     marker_scopes,
                     request,
+                    *consumed_marker_frames,
                     request_close_offset,
                 )?;
                 continue;
@@ -951,13 +968,13 @@ impl<'a> Runtime<'a> {
         &mut self,
         mut result: EvalResult,
         marker_scopes: &mut Vec<ActiveContinuationMarkerScope>,
+        consumed_marker_frames: usize,
         request_close_offset: usize,
     ) -> RuntimeResult {
         self.stats.marker_scope_close_calls += 1;
-        while marker_scopes
-            .last()
-            .is_some_and(|scope| marker_scope_remaining(scope, request_close_offset) == 0)
-        {
+        while marker_scopes.last().is_some_and(|scope| {
+            marker_scope_remaining(scope, consumed_marker_frames, request_close_offset) == 0
+        }) {
             let scope = marker_scopes.pop().expect("checked marker scope");
             self.stats.marker_scope_close_pops += 1;
             result = self.close_active_marker_scope_result(result, scope)?;
@@ -970,13 +987,15 @@ impl<'a> Runtime<'a> {
         continuation: &mut Continuation,
         marker_scopes: &mut Vec<ActiveContinuationMarkerScope>,
         mut request: Request,
+        consumed_marker_frames: usize,
         request_close_offset: &mut usize,
     ) -> RuntimeResult {
         let scope = marker_scopes
             .pop()
             .expect("request should be inside an active marker scope");
         self.stats.marker_scope_request_closes += 1;
-        let frames_remaining = marker_scope_remaining(&scope, *request_close_offset);
+        let frames_remaining =
+            marker_scope_remaining(&scope, consumed_marker_frames, *request_close_offset);
         let inner_frames = split_back_frames(&mut continuation.frames, frames_remaining);
         *request_close_offset += frames_remaining;
         prepend_frames(&mut request.continuation, inner_frames);
@@ -1606,29 +1625,28 @@ pub(super) fn push_continuation_frame(
 
 fn consume_marker_frame(
     stats: &mut RuntimeStats,
-    marker_scopes: &mut [ActiveContinuationMarkerScope],
+    marker_scopes: &[ActiveContinuationMarkerScope],
+    consumed_marker_frames: &mut usize,
 ) {
     let depth = marker_scopes.len() as u64;
     stats.marker_scope_consume_calls += 1;
     if depth > 0 {
         stats.marker_scope_consume_nonempty_calls += 1;
+        stats.marker_scope_frame_touches += 1;
+        stats.marker_scope_consume_touches += 1;
     }
-    stats.marker_scope_frame_touches += depth;
-    stats.marker_scope_consume_touches += depth;
     stats.marker_scope_max_depth = stats.marker_scope_max_depth.max(depth);
-    for scope in marker_scopes {
-        debug_assert!(scope.frames_remaining > 0);
-        scope.frames_remaining -= 1;
-    }
+    *consumed_marker_frames = consumed_marker_frames.saturating_add(1);
 }
 
 fn marker_scope_remaining(
     scope: &ActiveContinuationMarkerScope,
+    consumed_marker_frames: usize,
     request_close_offset: usize,
 ) -> usize {
     scope
-        .frames_remaining
-        .checked_sub(request_close_offset)
+        .close_at_frame
+        .checked_sub(consumed_marker_frames.saturating_add(request_close_offset))
         .expect("marker scope request-close offset should not exceed remaining frames")
 }
 
