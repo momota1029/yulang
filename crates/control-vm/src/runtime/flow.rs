@@ -13,7 +13,10 @@ impl<'a> Runtime<'a> {
             return self.apply_value(callee, arg);
         }
         match callee {
-            Value::Marked { .. } => self.apply_value(mark_value_shared(callee, &markers), arg),
+            Value::Marked { .. } => {
+                let callee = mark_value_shared_counted(&mut self.stats, callee, &markers);
+                self.apply_value(callee, arg)
+            }
             callee if callee_apply_closes_without_frame(&callee) => {
                 let result = self.apply_value(callee, arg)?;
                 self.close_shared_scoped_result(result, markers)
@@ -92,7 +95,10 @@ impl<'a> Runtime<'a> {
         markers: SharedMarkers,
     ) -> RuntimeResult {
         match result {
-            EvalResult::Value(value) => value_result(mark_value_shared(value, &markers)),
+            EvalResult::Value(value) => {
+                let value = mark_value_shared_counted(&mut self.stats, value, &markers);
+                value_result(value)
+            }
             EvalResult::Request(request) => {
                 let resume_markers = shared_markers_for_continuation_resume(&markers);
                 self.close_marker_request(request, resume_markers, true, None)
@@ -191,7 +197,8 @@ impl<'a> Runtime<'a> {
         let arg_boundary_markers = shared_combined_markers(&body_markers, &arg_markers);
         let ret_boundary_markers = shared_combined_markers(&body_markers, &ret_markers);
         self.with_shared_marker_frame(body_markers, move |runtime| {
-            let arg = mark_value_shared(arg.clone(), &arg_boundary_markers);
+            let arg =
+                mark_value_shared_counted(&mut runtime.stats, arg.clone(), &arg_boundary_markers);
             let arg = runtime.adapt_value(arg, &target_arg, &source_arg)?;
             runtime.continue_with_frame(
                 arg,
@@ -694,7 +701,8 @@ impl<'a> Runtime<'a> {
         match result {
             EvalResult::Value(value) => {
                 self.stats.marker_frame_value_closes += 1;
-                value_result(mark_value(value, &markers))
+                let value = mark_value_counted(&mut self.stats, value, &markers);
+                value_result(value)
             }
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;
@@ -702,7 +710,7 @@ impl<'a> Runtime<'a> {
                 if let Some(handler_boundary) = handler_boundary {
                     request.handler_boundary = Some(handler_boundary);
                 }
-                request.payload = mark_value(request.payload, &markers);
+                request.payload = mark_value_counted(&mut self.stats, request.payload, &markers);
                 let resume_markers = shared_markers(markers_for_continuation_resume(&markers));
                 self.close_marker_request(request, resume_markers, activate_add_ids, handler_key)
             }
@@ -720,7 +728,8 @@ impl<'a> Runtime<'a> {
         match result {
             EvalResult::Value(value) => {
                 self.stats.marker_frame_value_closes += 1;
-                value_result(mark_value_shared(value, &markers))
+                let value = mark_value_shared_counted(&mut self.stats, value, &markers);
+                value_result(value)
             }
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;
@@ -728,7 +737,8 @@ impl<'a> Runtime<'a> {
                 if let Some(handler_boundary) = handler_boundary {
                     request.handler_boundary = Some(handler_boundary);
                 }
-                request.payload = mark_value_shared(request.payload, &markers);
+                request.payload =
+                    mark_value_shared_counted(&mut self.stats, request.payload, &markers);
                 let resume_markers = shared_markers_for_continuation_resume(&markers);
                 self.close_marker_request(request, resume_markers, activate_add_ids, handler_key)
             }
@@ -746,7 +756,8 @@ impl<'a> Runtime<'a> {
         match result {
             EvalResult::Value(value) => {
                 self.stats.marker_frame_value_closes += 1;
-                value_result(mark_value_shared(value, &markers))
+                let value = mark_value_shared_counted(&mut self.stats, value, &markers);
+                value_result(value)
             }
             EvalResult::Request(request) => {
                 self.stats.marker_frame_request_closes += 1;
@@ -754,7 +765,8 @@ impl<'a> Runtime<'a> {
                 if let Some(handler_boundary) = handler_boundary {
                     request.handler_boundary = Some(handler_boundary);
                 }
-                request.payload = mark_value_shared(request.payload, &markers);
+                request.payload =
+                    mark_value_shared_counted(&mut self.stats, request.payload, &markers);
                 // Shared resume marker plans are created after
                 // `markers_for_continuation_resume`; reusing them avoids
                 // re-normalizing the same multi-shot continuation path.

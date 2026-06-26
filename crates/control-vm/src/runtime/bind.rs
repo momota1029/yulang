@@ -29,11 +29,13 @@ impl<'a> Runtime<'a> {
                 if pats.len() != values.len() {
                     return self.finish_bind(false, env, then);
                 }
-                let entries = pats
-                    .into_iter()
-                    .zip(values.iter())
-                    .map(|(pat, value)| (pat, mark_value(value.clone(), &markers)))
-                    .collect();
+                let mut entries = Vec::with_capacity(pats.len());
+                for (pat, value) in pats.into_iter().zip(values.iter()) {
+                    entries.push((
+                        pat,
+                        mark_value_counted(&mut self.stats, value.clone(), &markers),
+                    ));
+                }
                 self.bind_pat_sequence(entries, env, then)
             }
             Pat::List {
@@ -79,11 +81,13 @@ impl<'a> Runtime<'a> {
                 if tag != *value_tag || payload_pats.len() != payloads.len() {
                     return self.finish_bind(false, env, then);
                 }
-                let entries = payload_pats
-                    .into_iter()
-                    .zip(payloads.iter())
-                    .map(|(pat, value)| (pat, mark_value(value.clone(), &markers)))
-                    .collect();
+                let mut entries = Vec::with_capacity(payload_pats.len());
+                for (pat, value) in payload_pats.into_iter().zip(payloads.iter()) {
+                    entries.push((
+                        pat,
+                        mark_value_counted(&mut self.stats, value.clone(), &markers),
+                    ));
+                }
                 self.bind_pat_sequence(entries, env, then)
             }
             Pat::Con(def, payload_pats) => {
@@ -97,11 +101,13 @@ impl<'a> Runtime<'a> {
                 if def != *value_def || payload_pats.len() != payloads.len() {
                     return self.finish_bind(false, env, then);
                 }
-                let entries = payload_pats
-                    .into_iter()
-                    .zip(payloads.iter())
-                    .map(|(pat, value)| (pat, mark_value(value.clone(), &markers)))
-                    .collect();
+                let mut entries = Vec::with_capacity(payload_pats.len());
+                for (pat, value) in payload_pats.into_iter().zip(payloads.iter()) {
+                    entries.push((
+                        pat,
+                        mark_value_counted(&mut self.stats, value.clone(), &markers),
+                    ));
+                }
                 self.bind_pat_sequence(entries, env, then)
             }
             Pat::Ref(instance) => {
@@ -167,7 +173,7 @@ impl<'a> Runtime<'a> {
             let Some(item) = items.index(index) else {
                 return self.finish_bind(false, env, then);
             };
-            let item = mark_value_shared((*item).clone(), &markers);
+            let item = mark_value_shared_counted(&mut self.stats, (*item).clone(), &markers);
             entries.push((pat, item));
         }
 
@@ -176,7 +182,7 @@ impl<'a> Runtime<'a> {
             let Some(item) = items.index(suffix_start + offset) else {
                 return self.finish_bind(false, env, then);
             };
-            let item = mark_value_shared((*item).clone(), &markers);
+            let item = mark_value_shared_counted(&mut self.stats, (*item).clone(), &markers);
             entries.push((pat, item));
         }
 
@@ -184,7 +190,7 @@ impl<'a> Runtime<'a> {
             let Some(slice) = items.index_range(prefix_len, suffix_start) else {
                 return self.finish_bind(false, env, then);
             };
-            let slice = mark_value_shared(Value::List(slice), &markers);
+            let slice = mark_value_shared_counted(&mut self.stats, Value::List(slice), &markers);
             entries.push((spread, slice));
         }
         self.bind_pat_sequence(entries, env, then)
@@ -239,7 +245,8 @@ impl<'a> Runtime<'a> {
         if let Some((index, value_field)) = find_record_field(&record_fields, &name) {
             let mut used = used;
             used.insert(index);
-            let value = mark_value_shared(value_field.value.clone(), &markers);
+            let value =
+                mark_value_shared_counted(&mut self.stats, value_field.value.clone(), &markers);
             return self.bind_record_field_value(
                 pat,
                 value,
@@ -320,7 +327,7 @@ impl<'a> Runtime<'a> {
             .filter(|(index, _)| !used.contains(index))
             .map(|(_, field)| ValueField {
                 name: field.name.clone(),
-                value: mark_value_shared(field.value.clone(), &markers),
+                value: mark_value_shared_counted(&mut self.stats, field.value.clone(), &markers),
             })
             .collect();
         let mut env = env;

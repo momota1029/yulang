@@ -732,6 +732,20 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
     eprintln!("  run.effect_requests: {}", stats.effect_requests);
     eprintln!("  run.host_requests: {}", stats.host_requests);
     eprintln!("  run.catch_matches: {}", stats.catch_request_matches);
+    eprintln!("  run.marked_value_calls: {}", stats.marked_value_calls);
+    eprintln!(
+        "  run.marked_values_created: {}",
+        stats.marked_values_created
+    );
+    eprintln!("  run.marked_values_reused: {}", stats.marked_values_reused);
+    eprintln!(
+        "  run.marked_values_skipped_empty: {}",
+        stats.marked_values_skipped_empty
+    );
+    eprintln!(
+        "  run.marked_values_skipped_pure: {}",
+        stats.marked_values_skipped_pure
+    );
     eprintln!("  run.continuations: {}", stats.continuations_stored);
     eprintln!(
         "  run.continuation_invocations: {}",

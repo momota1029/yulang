@@ -131,6 +131,11 @@ pub struct RuntimeStats {
     pub effect_requests: u64,
     pub host_requests: u64,
     pub catch_request_matches: u64,
+    pub marked_value_calls: u64,
+    pub marked_values_created: u64,
+    pub marked_values_reused: u64,
+    pub marked_values_skipped_empty: u64,
+    pub marked_values_skipped_pure: u64,
     pub continuations_stored: u64,
     pub continuation_invocations: u64,
     pub continuation_capture_clones: u64,
@@ -1567,26 +1572,56 @@ fn stack_handler_markers(id: GuardId, path_key: InternedPath) -> Vec<ValueMarker
 }
 
 fn mark_value(value: Value, markers: &[ValueMarker]) -> Value {
+    mark_value_with_outcome(value, markers).0
+}
+
+fn mark_value_counted(stats: &mut RuntimeStats, value: Value, markers: &[ValueMarker]) -> Value {
+    let (value, outcome) = mark_value_with_outcome(value, markers);
+    record_mark_value_outcome(stats, outcome);
+    value
+}
+
+fn mark_value_with_outcome(value: Value, markers: &[ValueMarker]) -> (Value, MarkValueOutcome) {
     if markers.is_empty() {
-        return value;
+        return (value, MarkValueOutcome::SkippedEmpty);
     }
     let (value, mut value_markers) = into_value_markers(value);
     if !value_needs_hygiene_mark(&value) {
-        return value;
+        return (value, MarkValueOutcome::SkippedPure);
     }
     extend_marker_list(&mut value_markers, markers);
     if value_markers.is_empty() {
-        return value;
+        return (value, MarkValueOutcome::SkippedEmpty);
     }
-    Value::Marked {
-        value: Box::new(value),
-        markers: shared_markers(value_markers),
-    }
+    (
+        Value::Marked {
+            value: Box::new(value),
+            markers: shared_markers(value_markers),
+        },
+        MarkValueOutcome::Created,
+    )
 }
 
 fn mark_value_shared(value: Value, markers: &SharedMarkers) -> Value {
+    mark_value_shared_with_outcome(value, markers).0
+}
+
+fn mark_value_shared_counted(
+    stats: &mut RuntimeStats,
+    value: Value,
+    markers: &SharedMarkers,
+) -> Value {
+    let (value, outcome) = mark_value_shared_with_outcome(value, markers);
+    record_mark_value_outcome(stats, outcome);
+    value
+}
+
+fn mark_value_shared_with_outcome(
+    value: Value,
+    markers: &SharedMarkers,
+) -> (Value, MarkValueOutcome) {
     if markers.is_empty() {
-        return value;
+        return (value, MarkValueOutcome::SkippedEmpty);
     }
     match value {
         Value::Marked {
@@ -1594,26 +1629,53 @@ fn mark_value_shared(value: Value, markers: &SharedMarkers) -> Value {
             markers: value_markers,
         } => {
             if !value_needs_hygiene_mark(&value) {
-                return *value;
+                return (*value, MarkValueOutcome::SkippedPure);
             }
             if markers_contain_all(&value_markers, markers) {
-                return Value::Marked {
-                    value,
-                    markers: value_markers,
-                };
+                return (
+                    Value::Marked {
+                        value,
+                        markers: value_markers,
+                    },
+                    MarkValueOutcome::Reused,
+                );
             }
             let mut value_markers = value_markers.as_ref().to_vec();
             extend_marker_list(&mut value_markers, markers);
-            Value::Marked {
-                value,
-                markers: shared_markers(value_markers),
-            }
+            (
+                Value::Marked {
+                    value,
+                    markers: shared_markers(value_markers),
+                },
+                MarkValueOutcome::Created,
+            )
         }
-        value if !value_needs_hygiene_mark(&value) => value,
-        value => Value::Marked {
-            value: Box::new(value),
-            markers: markers.clone(),
-        },
+        value if !value_needs_hygiene_mark(&value) => (value, MarkValueOutcome::SkippedPure),
+        value => (
+            Value::Marked {
+                value: Box::new(value),
+                markers: markers.clone(),
+            },
+            MarkValueOutcome::Created,
+        ),
+    }
+}
+
+#[derive(Clone, Copy)]
+enum MarkValueOutcome {
+    Created,
+    Reused,
+    SkippedEmpty,
+    SkippedPure,
+}
+
+fn record_mark_value_outcome(stats: &mut RuntimeStats, outcome: MarkValueOutcome) {
+    stats.marked_value_calls += 1;
+    match outcome {
+        MarkValueOutcome::Created => stats.marked_values_created += 1,
+        MarkValueOutcome::Reused => stats.marked_values_reused += 1,
+        MarkValueOutcome::SkippedEmpty => stats.marked_values_skipped_empty += 1,
+        MarkValueOutcome::SkippedPure => stats.marked_values_skipped_pure += 1,
     }
 }
 

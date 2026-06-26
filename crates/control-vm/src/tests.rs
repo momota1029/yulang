@@ -196,15 +196,15 @@ fn marker_frame_does_not_paint_pure_record_payload() {
     };
     let mut saw_marked_payload = false;
 
-    let values = run_program_with_host_and_stats(&program, &mut |path, payload| {
+    let (values, stats) = run_program_with_host_and_stats(&program, &mut |path, payload| {
         saw_marked_payload = matches!(payload, Value::Marked { .. });
         assert_eq!(path, &["outer".to_string(), "send".to_string()]);
         Some(Value::Int(7))
     })
-    .unwrap()
-    .0;
+    .unwrap();
 
     assert!(!saw_marked_payload);
+    assert!(stats.marked_values_skipped_pure > 0);
     assert_eq!(values, vec![Value::Int(7)]);
 }
 
@@ -253,15 +253,15 @@ fn marker_frame_paints_record_payload_containing_closure() {
     };
     let mut saw_marked_payload = false;
 
-    let values = run_program_with_host_and_stats(&program, &mut |path, payload| {
+    let (values, stats) = run_program_with_host_and_stats(&program, &mut |path, payload| {
         saw_marked_payload = matches!(payload, Value::Marked { .. });
         assert_eq!(path, &["outer".to_string(), "send".to_string()]);
         Some(Value::Int(7))
     })
-    .unwrap()
-    .0;
+    .unwrap();
 
     assert!(saw_marked_payload);
+    assert!(stats.marked_values_created > 0);
     assert_eq!(values, vec![Value::Int(7)]);
 }
 

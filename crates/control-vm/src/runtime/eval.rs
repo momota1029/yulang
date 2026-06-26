@@ -252,7 +252,10 @@ impl<'a> Runtime<'a> {
             EvalResult::Value(arg) => self.apply_direct_known_callee_scoped(callee, arg),
             EvalResult::Request(request) => {
                 let callee = match active_markers {
-                    Some(markers) => mark_value_shared(callee.into_value(self), &markers),
+                    Some(markers) => {
+                        let callee = callee.into_value(self);
+                        mark_value_shared_counted(&mut self.stats, callee, &markers)
+                    }
                     None => callee.into_value(self),
                 };
                 Ok(EvalResult::Request(push_frame(

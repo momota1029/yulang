@@ -1144,7 +1144,7 @@ impl<'a> Runtime<'a> {
                 source_ret,
                 target_ret,
             } => {
-                let arg = mark_value_shared(value, arg_markers);
+                let arg = mark_value_shared_counted(&mut self.stats, value, arg_markers);
                 let result = self.apply_value(function.clone(), arg)?;
                 self.continue_with_current_frame(
                     result,
@@ -1162,7 +1162,7 @@ impl<'a> Runtime<'a> {
                 source_ret,
                 target_ret,
             } => {
-                let result = mark_value_shared(value, ret_markers);
+                let result = mark_value_shared_counted(&mut self.stats, value, ret_markers);
                 self.adapt_value(result, source_ret, target_ret)
             }
             Frame::DirectBinaryApply { op, context, first } => {
@@ -1194,7 +1194,10 @@ impl<'a> Runtime<'a> {
                     marker_scopes,
                 )
             }
-            Frame::MarkValue { markers } => value_result(mark_value_shared(value, markers)),
+            Frame::MarkValue { markers } => {
+                let value = mark_value_shared_counted(&mut self.stats, value, markers);
+                value_result(value)
+            }
             Frame::Select { name, resolution } => match resolution {
                 Some(SelectResolution::RecordField) => {
                     value_result(self.project_record_field(value, name)?)
@@ -1465,7 +1468,7 @@ impl<'a> Runtime<'a> {
                 source_ret,
                 target_ret,
             } => {
-                let arg = mark_value_shared(value, &arg_markers);
+                let arg = mark_value_shared_counted(&mut self.stats, value, &arg_markers);
                 let result = self.apply_value(function, arg)?;
                 self.continue_with_current_frame(
                     result,
@@ -1483,7 +1486,7 @@ impl<'a> Runtime<'a> {
                 source_ret,
                 target_ret,
             } => {
-                let result = mark_value_shared(value, &ret_markers);
+                let result = mark_value_shared_counted(&mut self.stats, value, &ret_markers);
                 self.adapt_value(result, &source_ret, &target_ret)
             }
             Frame::DirectBinarySecond {
@@ -1537,7 +1540,7 @@ impl<'a> Runtime<'a> {
             Frame::MakeFunctionAdapter { expr, markers } => {
                 let value = self.function_adapter_value(expr, value.clone())?;
                 value_result(match markers {
-                    Some(markers) => mark_value_shared(value, &markers),
+                    Some(markers) => mark_value_shared_counted(&mut self.stats, value, &markers),
                     None => value,
                 })
             }
@@ -1593,7 +1596,10 @@ impl<'a> Runtime<'a> {
                 );
                 Ok(EvalResult::Request(request))
             }
-            Frame::MarkValue { markers } => value_result(mark_value_shared(value, &markers)),
+            Frame::MarkValue { markers } => {
+                let value = mark_value_shared_counted(&mut self.stats, value, &markers);
+                value_result(value)
+            }
             Frame::ResolveRefSetValues {
                 values,
                 assigned,
@@ -1772,7 +1778,7 @@ impl<'a> Runtime<'a> {
                 env,
                 then,
             } => {
-                let value = mark_value_shared(value, &markers);
+                let value = mark_value_shared_counted(&mut self.stats, value, &markers);
                 self.bind_record_field_value(
                     pat,
                     value,
