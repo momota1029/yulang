@@ -53,11 +53,11 @@ This covers both cache routes:
 
 ## Playground effect
 
-The wasm crate now embeds two build-time `.yuunit` artifacts:
+The wasm crate now embeds two build-time `.yucu` artifacts:
 
 ```text
-embedded_playground_std.yuunit  693861 bytes
-embedded_full_std.yuunit       1130242 bytes
+embedded_playground_std.yucu  693861 bytes
+embedded_full_std.yucu       1130242 bytes
 ```
 
 The normal playground route first decodes the compact playground std artifact.

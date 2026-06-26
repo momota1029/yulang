@@ -118,7 +118,7 @@ say "Hello, World"
 output produced by the program itself, such as `say` / `println`. To inspect
 root expression values while experimenting, add `--print-roots`. To run
 through the mono runtime instead of the control VM, pass `--interpreter`.
-The control VM route caches compiled-unit `.yuunit` artifacts, principal
+The control VM route caches compiled-unit `.yucu` artifacts, principal
 `.yuir` poly artifacts, and `.yuvm` VM artifacts under the user cache root;
 use `yulang cache path`, `yulang cache stats`, and `yulang cache clear` to
 inspect or clear it, or pass `--no-cache` to bypass cache read/write for one
@@ -145,6 +145,17 @@ To use a different standard-library checkout:
 ```bash
 export YULANG_STD=/path/to/yulang/lib/std
 ```
+
+Before pushing a release-like change, run the local release gate:
+
+```bash
+scripts/release-gate.sh
+```
+
+It runs formatting, the core `infer` / `yulang` tests, the release binary build,
+hardening smoke tests, source-unit cache smoke, and the docs build. Set
+`YULANG_RELEASE_GATE_WEB_BUILD=1` when the full playground/docs web bundle
+should be rebuilt too.
 
 Parser-combinator helpers and parser-sugar syntax such as `rule { ... }` and
 `~"..."` are experimental. They are useful for trying the direction of the

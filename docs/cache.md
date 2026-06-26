@@ -12,18 +12,18 @@ Yulang currently uses three persistent artifact layers:
 
 | Extension | Scope | Main purpose |
 | --- | --- | --- |
-| `.yuunit` | full source set, std prefix, source-unit prefix, or merged prefix | Reuse compiled syntax / namespace / lowering / typed / runtime surfaces. |
+| `.yucu` | full source set, std prefix, source-unit prefix, or merged prefix | Reuse compiled syntax / namespace / lowering / typed / runtime surfaces. |
 | `.yuir` | exact full source set | Reuse the principal poly IR after inference. |
 | `.yuvm` | exact full source set | Reuse the final control-VM program after specialization and VM lowering. |
 
 `.yuir` and `.yuvm` are exact whole-program artifacts. They are fastest when
 the complete source set is unchanged.
 
-`.yuunit` is the incremental layer. It can be used as an exact full-source
-artifact, but it can also be imported as a prefix so the compiler only lowers
-and infers the changed suffix.
+`.yucu` stands for "Yulang compiled unit". It is the incremental layer. It can
+be used as an exact full-source artifact, but it can also be imported as a
+prefix so the compiler only lowers and infers the changed suffix.
 
-## What a `.yuunit` contains
+## What a `.yucu` contains
 
 A compiled-unit artifact is split into surfaces:
 
@@ -39,7 +39,7 @@ A compiled-unit artifact is split into surfaces:
 
 The split matters because arena-local IDs are not stable across units. Merging
 or extending compiled units must allocate fresh target IDs and remap every
-surface through that mapping. The CLI does not concatenate `.yuunit` payloads.
+surface through that mapping. The CLI does not concatenate `.yucu` payloads.
 
 ## Runtime routes
 
@@ -49,9 +49,9 @@ With `--runtime-phase-timings`, `run.cache` reports the route used by the CLI:
 | --- | --- |
 | `control-hit` | Exact `.yuvm` hit. |
 | `poly-hit` | Exact `.yuir` hit; specialization and VM lowering still run. |
-| `compiled-unit-hit` | Exact full-source `.yuunit` hit; `.yuir` is rebuilt from surfaces. |
-| `std-prefix-hit` | Cached std `.yuunit` is imported as the prefix. |
-| `std-prefix-build` | Std prefix `.yuunit` is built first, then imported. |
+| `compiled-unit-hit` | Exact full-source `.yucu` hit; `.yuir` is rebuilt from surfaces. |
+| `std-prefix-hit` | Cached std `.yucu` is imported as the prefix. |
+| `std-prefix-build` | Std prefix `.yucu` is built first, then imported. |
 | `source-unit-prefix-hit` | One cached source-unit closure is imported as the prefix. |
 | `merged-source-unit-prefix-hit` | Several independent cached prefixes are merged and imported. |
 | `full-miss` | Fresh compile from source. |
@@ -61,14 +61,14 @@ The normal build path is conservative:
 
 1. try exact `.yuvm` for `run`;
 2. try exact `.yuir`;
-3. try exact full-source `.yuunit`;
-4. try std/source-unit prefix `.yuunit`;
+3. try exact full-source `.yucu`;
+4. try std/source-unit prefix `.yucu`;
 5. compile from source and write fresh artifacts.
 
 ## Source-unit prefix reuse
 
 The source collector builds dependency-ordered source compilation units. A
-non-root unit can be cached as a `.yuunit` and reused by a later run when the
+non-root unit can be cached as a `.yucu` and reused by a later run when the
 entry or local suffix changed but that unit did not.
 
 Current behavior is intentionally conservative:

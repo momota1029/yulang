@@ -7,12 +7,13 @@ Yulang はコンパイラの artifact をキャッシュします。プログラ
 
 | Artifact | 保存するもの | 効く場面 |
 | --- | --- | --- |
-| `.yuunit` | 構文、名前空間、型、runtime surface | 標準ライブラリや変更していない依存モジュールの再利用 |
+| `.yucu` | 構文、名前空間、型、runtime surface | 標準ライブラリや変更していない依存モジュールの再利用 |
 | `.yuir` | 推論済み principal poly IR | 完全に同じ source set を、推論なしで再実行する |
 | `.yuvm` | lower 済み control-VM program | 完全に同じ source set を、specialize / VM lowering なしで再実行する |
 
-増分コンパイルで重要なのは `.yuunit` です。キャッシュ済み `.yuunit` は prefix として import
-できるため、Yulang はその prefix に含まれない source file だけを再コンパイルできます。
+増分コンパイルで重要なのは `.yucu` です。これは "Yulang compiled unit" の略です。
+キャッシュ済み `.yucu` は prefix として import できるため、Yulang はその prefix に含まれない
+source file だけを再コンパイルできます。
 
 ## route label
 
@@ -28,8 +29,8 @@ yulang run --runtime-phase-timings path/to/file.yu
 | --- | --- |
 | `control-hit` | exact `.yuvm` hit |
 | `poly-hit` | exact `.yuir` hit |
-| `compiled-unit-hit` | exact full-source `.yuunit` hit |
-| `std-prefix-hit` | 標準ライブラリの `.yuunit` prefix を再利用 |
+| `compiled-unit-hit` | exact full-source `.yucu` hit |
+| `std-prefix-hit` | 標準ライブラリの `.yucu` prefix を再利用 |
 | `std-prefix-build` | 標準ライブラリ prefix を作ってから再利用 |
 | `source-unit-prefix-hit` | 1つの依存 prefix を再利用 |
 | `merged-source-unit-prefix-hit` | 複数の独立 prefix を merge して再利用 |

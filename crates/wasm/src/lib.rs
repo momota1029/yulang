@@ -12,9 +12,9 @@ const PLAYGROUND_ENTRY: &str = "playground.yu";
 const PLAYGROUND_STD_ARTIFACT_ENTRY: &str = "<embedded-playground-std-root>";
 const FULL_STD_ARTIFACT_ENTRY: &str = "<embedded-std-root>";
 const EMBEDDED_PLAYGROUND_STD_ARTIFACT: &[u8] =
-    include_bytes!(concat!(env!("OUT_DIR"), "/embedded_playground_std.yuunit"));
+    include_bytes!(concat!(env!("OUT_DIR"), "/embedded_playground_std.yucu"));
 const EMBEDDED_FULL_STD_ARTIFACT: &[u8] =
-    include_bytes!(concat!(env!("OUT_DIR"), "/embedded_full_std.yuunit"));
+    include_bytes!(concat!(env!("OUT_DIR"), "/embedded_full_std.yucu"));
 
 thread_local! {
     static RUN_CACHE: RefCell<HashMap<String, RunOutput>> = RefCell::new(HashMap::new());

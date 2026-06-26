@@ -2,13 +2,13 @@
 
 This note defines the next step after the single-prefix source-unit cache.
 
-The current CLI can reuse one cached source-unit `.yuunit` as a lowering prefix.
+The current CLI can reuse one cached source-unit `.yucu` as a lowering prefix.
 When multiple independent leaf units are cached, the CLI selects one
 dependency-free unit and lowers the rest from source. This avoids a full compile
 without merging compiled surfaces.
 
 True multi-prefix reuse needs a real compiled-surface merge. It must not be
-implemented by concatenating `.yuunit` artifacts in the CLI.
+implemented by concatenating `.yucu` artifacts in the CLI.
 
 ## Current Invariant
 

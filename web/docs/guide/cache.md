@@ -8,13 +8,13 @@ artifacts.
 
 | Artifact | What it stores | When it helps |
 | --- | --- | --- |
-| `.yuunit` | compiled syntax, namespace, typed, and runtime surfaces | Reusing standard library or unchanged dependency modules |
+| `.yucu` | compiled syntax, namespace, typed, and runtime surfaces | Reusing standard library or unchanged dependency modules |
 | `.yuir` | inferred principal poly IR | Re-running the exact same source set without inference |
 | `.yuvm` | lowered control-VM program | Re-running the exact same source set without specialization or VM lowering |
 
-The important incremental artifact is `.yuunit`. A cached `.yuunit` can be
-imported as a prefix, then Yulang compiles only the source files that are not
-covered by that prefix.
+The important incremental artifact is `.yucu`, short for "Yulang compiled
+unit". A cached `.yucu` can be imported as a prefix, then Yulang compiles only
+the source files that are not covered by that prefix.
 
 ## Route labels
 
@@ -30,8 +30,8 @@ yulang run --runtime-phase-timings path/to/file.yu
 | --- | --- |
 | `control-hit` | Exact `.yuvm` hit |
 | `poly-hit` | Exact `.yuir` hit |
-| `compiled-unit-hit` | Exact full-source `.yuunit` hit |
-| `std-prefix-hit` | Cached standard-library `.yuunit` was reused |
+| `compiled-unit-hit` | Exact full-source `.yucu` hit |
+| `std-prefix-hit` | Cached standard-library `.yucu` was reused |
 | `std-prefix-build` | The standard-library prefix was built and then reused |
 | `source-unit-prefix-hit` | One cached dependency prefix was reused |
 | `merged-source-unit-prefix-hit` | Several independent cached prefixes were merged and reused |

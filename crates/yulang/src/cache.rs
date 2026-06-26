@@ -78,7 +78,7 @@ impl ArtifactCache {
 
     pub fn compiled_unit_artifact_path(&self, key: SourceCacheKey) -> PathBuf {
         self.artifact_dir("compiled-unit")
-            .join(format!("{}.yuunit", key.to_hex()))
+            .join(format!("{}.yucu", key.to_hex()))
     }
 
     pub fn read_poly_artifact(
@@ -204,7 +204,7 @@ impl ArtifactCache {
             external_runtime: &artifact.external_runtime,
             errors: &artifact.errors,
         };
-        write_cache_envelope(&path, "yuunit", &envelope)
+        write_cache_envelope(&path, "yucu", &envelope)
     }
 
     fn artifact_dir(&self, stage: &str) -> PathBuf {
@@ -3353,7 +3353,7 @@ mod tests {
         assert!(cache.compiled_unit_artifact_path(key).is_file());
         assert_eq!(
             cache.compiled_unit_artifact_path(key).extension().unwrap(),
-            "yuunit"
+            "yucu"
         );
 
         let suffix = sources::load_suffix_with_syntax_prefix(

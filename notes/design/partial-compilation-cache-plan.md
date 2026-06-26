@@ -1,6 +1,6 @@
 # Partial Compilation Cache Plan
 
-Status note, 2026-06-26: the normal CLI route now uses persistent `.yuunit`
+Status note, 2026-06-26: the normal CLI route now uses persistent `.yucu`
 compiled-unit artifacts for exact full-source hits, std prefixes, merged
 dependency-free source-unit prefixes, and conservative dependency-closure
 source-unit prefixes. This document remains the long-term design background.
@@ -57,13 +57,13 @@ and resolves every dependency reference through explicit external refs.
 
 Implemented subset:
 
-- full source-set `.yuunit` bundle artifacts keyed by the current conservative
+- full source-set `.yucu` bundle artifacts keyed by the current conservative
   source-set hash;
-- syntax / namespace / lowering / typed / runtime surfaces inside `.yuunit`;
+- syntax / namespace / lowering / typed / runtime surfaces inside `.yucu`;
 - manifest validation on read, including schema, source hash, and every surface
   hash;
-- normal CLI cache miss path writes `.yuunit` next to `.yuir`;
-- normal CLI can hydrate `.yuir` from a matching full source-set `.yuunit` when
+- normal CLI cache miss path writes `.yucu` next to `.yuir`;
+- normal CLI can hydrate `.yuir` from a matching full source-set `.yucu` when
   the legacy poly artifact is missing;
 - embedded full std and compact playground std root-only routes can rebuild a
   `BodyLoweringPrefix` from compiled surfaces and lower only the root source;
@@ -83,7 +83,7 @@ Implemented subset:
   of always using the full source-set bundle key. This works for full-source
   bundles, standalone non-root source units, and dependency-closure source-unit
   artifacts.
-- the artifact cache can compute per-unit keys, read the matching `.yuunit`
+- the artifact cache can compute per-unit keys, read the matching `.yucu`
   files, and return both the raw hit map and the dependency-closed unit/source
   file selection. The CLI uses this selection to import cached prefixes and
   lower the remaining suffix from source.
@@ -96,7 +96,7 @@ Implemented subset:
   files keep their original source. This proves the lowerer can accept a unit
   such as `a::b` without pretending it is the program root; dependency surface
   import is still a separate step.
-- standalone source units can now be written as `.yuunit` artifacts with their
+- standalone source units can now be written as `.yucu` artifacts with their
   source-unit key. A non-root leaf unit records only its actual source file in
   the manifest while its serialized surfaces include the synthetic parent
   module skeletons needed for import/lowering.
@@ -107,7 +107,7 @@ Implemented subset:
   as dependency-closure artifacts. This duplicates dependency surfaces across
   related artifacts, but it keeps every runtime reference local to one artifact.
 - std source sets can write and reuse a compiled std prefix, and the wasm
-  playground embeds compact/full std `.yuunit` artifacts.
+  playground embeds compact/full std `.yucu` artifacts.
 - compiled-unit artifacts record external runtime refs for the import path.
   Canaries cover value refs, effect operations, constructors, field methods,
   casts, role impl reuse, argument effect contracts, and root expressions.
@@ -155,7 +155,7 @@ changed entry SCC
 The next precision step is to connect the source dependency graph/SCC layer to
 cache artifact selection and then extend the manifest with interface hashes
 derived from exported syntax, namespace, and typed-surface data. Until then, the
-full source-set `.yuunit` bundle remains a conservative artifact and should not
+full source-set `.yucu` bundle remains a conservative artifact and should not
 be described as a dependency-SCC cache hit.
 
 ## Goals

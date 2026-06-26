@@ -65,7 +65,7 @@ yulang check examples/08_types.yu
 
 `yulang run` が標準で出すのは `say` / `println` など program 自身の出力だけです。CLI で root 式の値を確認したいときは `yulang run --print-roots ...` を使います。
 
-CLI はユーザー cache root にコンパイラ artifact を保存します。`.yuunit`、`.yuir`、`.yuvm`
+CLI はユーザー cache root にコンパイラ artifact を保存します。`.yucu`、`.yuir`、`.yuvm`
 と、`--runtime-phase-timings` が出す route label については
 [キャッシュ](./cache) にまとめています。
 

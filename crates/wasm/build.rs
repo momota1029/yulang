@@ -49,7 +49,7 @@ fn write_embedded_playground_std_artifact() -> Result<(), String> {
     let bytes = yulang::cache::encode_compiled_unit_artifact_bytes(&artifact)
         .map_err(|error| error.to_string())?;
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").ok_or("OUT_DIR is not set")?);
-    fs::write(out_dir.join("embedded_playground_std.yuunit"), bytes)
+    fs::write(out_dir.join("embedded_playground_std.yucu"), bytes)
         .map_err(|error| error.to_string())
 }
 
@@ -73,5 +73,5 @@ fn write_embedded_full_std_artifact() -> Result<(), String> {
     let bytes = yulang::cache::encode_compiled_unit_artifact_bytes(&artifact)
         .map_err(|error| error.to_string())?;
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").ok_or("OUT_DIR is not set")?);
-    fs::write(out_dir.join("embedded_full_std.yuunit"), bytes).map_err(|error| error.to_string())
+    fs::write(out_dir.join("embedded_full_std.yucu"), bytes).map_err(|error| error.to_string())
 }

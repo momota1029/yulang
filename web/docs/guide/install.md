@@ -71,7 +71,7 @@ yulang check examples/08_types.yu
 from the CLI.
 
 The CLI caches compiler artifacts under the user cache root. See
-[Cache](./cache) for `.yuunit`, `.yuir`, `.yuvm`, and the route labels printed
+[Cache](./cache) for `.yucu`, `.yuir`, `.yuvm`, and the route labels printed
 by `--runtime-phase-timings`.
 
 The language server ships in the same binary:
