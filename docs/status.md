@@ -140,10 +140,10 @@ The columns trace a value through the pipeline:
   not a stable user workflow, and realm/band identity is not yet the public
   dependency manager.
 - Local realm/band is moving toward this release rule: a directory with
-  `realm.toml` is an editable local realm; a file outside such a manifest is a
-  singleton implicit realm where the file itself is the only band. The current
-  collector still uses the entry file's parent directory as a fallback realm
-  root, so this boundary is not yet stable.
+  `realm.toml` is an editable local realm; otherwise the entry file's parent
+  directory is an implicit local realm for scripts and small local examples.
+  Sibling files become bands only through explicit `realm/...::...` imports,
+  not by automatic directory scanning.
 - Full diagnostics polish is still in progress. Parser, type, role, and
   effect errors are being moved toward language-level explanations rather
   than internal-implementation messages.
