@@ -5,6 +5,21 @@ This note defines the source-level packaging vocabulary for Yulang.
 Terminology rule: a realm is a versioned resolution space. A band is an
 import/build island inside a realm.
 
+Use these terms consistently:
+
+| Term | Meaning |
+| --- | --- |
+| `realm` | A versioned resolution space. |
+| `band` | An import/build island inside a realm. |
+| `editable realm` | The source realm currently being edited or used as an entry source space. |
+| `explicit editable realm` | An editable realm whose root is marked by `realm.toml`. |
+| `implicit editable realm` | An editable realm inferred from the entry file's parent directory when no `realm.toml` is found. |
+| `installed realm` | A dependency realm read from the toolchain, `lib/`, a frozen snapshot, or the persistent cache. |
+| `current realm` | The realm used as the relative base for `realm/...::...` at a source site. |
+
+Avoid using `local realm` as a formal term. It is ambiguous between editable
+filesystem source and installed filesystem dependencies.
+
 The current target shape is:
 
 ```text
@@ -75,7 +90,7 @@ use theme/colors as theme1 v2
 - `with` can align only against public dependency / reexport surfaces.
   Private dependencies are not alignment anchors.
 - `realm.toml` must not contain human-written versions. It may declare the
-  current realm identity and source providers, but dependency requests live at
+  editable realm identity and source providers, but dependency requests live at
   each `use` site and exact resolutions are cached per source file.
   `snapshot.json` / `yulang.lock` record those resolutions for reproducible
   realms and human-facing review.
@@ -248,20 +263,20 @@ std/@v/0.1.0/...
 If that snapshot contains a root `realm.yu`, the single-band case can be laid
 out as `realm = band` without introducing an empty default band.
 
-### Local Realm Boundary
+### Editable Realm Boundary
 
 Every Yulang source is interpreted inside a realm. There is no stable notion of
 ordinary source code "outside" a realm.
 
-For the release target, local realm boundaries are:
+For the release target, editable realm boundaries are:
 
 1. If the entry file is under a directory containing `realm.toml`, the nearest
-   such ancestor is the editable local realm root.
+   such ancestor is the explicit editable realm root.
 2. If no `realm.toml` is found, the entry file's parent directory is an
-   implicit local realm. This mode is for scripts and small local examples; it
+   implicit editable realm. This mode is for scripts and small examples; it
    is not a publishable realm boundary by itself.
 
-The implicit local realm is a search space, not an automatic scan. Sibling
+The implicit editable realm is a search space, not an automatic scan. Sibling
 `.yu` files are loaded only when a source explicitly imports them with
 `realm/...::...`. This lets a one-file script stay one file, while still making
 small multi-file scripts possible without manifest setup.
@@ -287,7 +302,7 @@ matches the directory name. A file named `band.yu` is also allowed as band
 `band`, but from another band it must be referenced as `realm/band::...`;
 inside that file, `band::...` remains the reserved current-band absolute path.
 
-For publishable multi-band local development, create a `realm.toml` at the
+For publishable multi-band development, create a `realm.toml` at the
 directory boundary:
 
 ```text
@@ -306,7 +321,7 @@ root cannot later be claimed by another band's `mod` tree.
 manifest realms that want a default/root band. Ordinary named bands should use
 their band path (`foo.yu`, `foo/bar.yu`, and so on).
 
-Implementation note: the current local collector already falls back to the
+Implementation note: the current editable source collector already falls back to the
 entry file's parent directory when no `realm.toml` exists. Release hardening
 should make this rule explicit in diagnostics, reject ambiguous self/alias
 ownership, and ensure cross-band cycles are rejected.
@@ -475,7 +490,7 @@ Keep the responsibilities separate:
 
 ```text
 realm.toml
-  -> declares the current realm identity and optional source providers
+  -> declares the editable realm identity and optional source providers
 
 use ... vN / use ... with anchor
   -> declares a local dependency request at the source site
@@ -809,7 +824,7 @@ yulang.lock
 <realm>/@v/<version>/...
 ```
 
-`realm.toml` declares the current realm identity when a project wants explicit
+`realm.toml` declares the editable realm identity when a project wants explicit
 identity. It is not required to declare bands or human-written versions.
 Per-file exact resolution entries live in the persistent user cache so a single
 source file can run without a project lock. `yulang.lock` records resolved realm
@@ -863,11 +878,11 @@ Current first slice:
   It validates artifact / parser format versions and rejects mismatched
   manifest keys on read.
 - virtual source loading creates a `virtual:entry` realm with one root band.
-- local file loading creates a `file://...` realm rooted at the entry file's
-  directory.
+- editable file loading creates a `file://...` realm rooted at the entry file's
+  parent directory when no `realm.toml` is present.
 - files connected by `mod` edges share a band.
 - `use mod path::*` is parsed as `mod path; use path::*` sugar at source
-  metadata level, so small local realm/band examples do not need a separate
+  metadata level, so small editable realm/band examples do not need a separate
   leading `mod` declaration.
 - `use ... with anchor` is parsed and preserved on `UseImport` metadata. The
   current lowerer ignores the suffix for ordinary import binding, so the syntax
@@ -931,13 +946,13 @@ during lowering.
 
 Resolver work can then proceed in phases:
 
-1. local realm and virtual single-file realm;
-2. local bands from `mod` edges;
+1. editable realms, installed realms, and virtual inline realms;
+2. band ownership from `mod` edges;
 3. `realm/band::module` absolute lookup from the current realm;
 4. canonical path parser for `realm@version/band::module`;
 5. version suffix extraction from CST into structured resolver metadata;
 6. realm manifest and lock file;
-7. cross-realm `use` resolution for already-local realms;
+7. cross-realm `use` resolution for already-installed or editable realms;
 8. `with` version alignment constraints;
 9. git / GitHub realm fetch;
 10. persistent realm fetch cache;

@@ -9,6 +9,10 @@ implemented. The main constraint is that cache state must not turn
 Terminology used here: a realm is a versioned resolution space. A band is an
 import/build island inside a realm.
 
+An editable realm is the source space for the current entry or project. An
+installed realm is a dependency realm read from the toolchain, `lib/`, a frozen
+snapshot, or the persistent cache.
+
 ## Decisions
 
 ### Source Realms Are Cache Namespaces, Not Mutable Build Directories
@@ -37,7 +41,7 @@ identity, band path, dependency interface hashes, and compiler cache schema.
 
 Cache lookup must not silently change local source selection.
 
-For local current-realm bands, the resolver has a deterministic candidate:
+For editable current-realm bands, the resolver has a deterministic candidate:
 
 ```text
 realm/foo::bar  ->  <current realm root>/foo.yu

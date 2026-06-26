@@ -1,10 +1,10 @@
 # Realm / Band Cache Example
 
-This directory is a small local fixture for the realm / band compiled-unit
-cache.
+This directory is a small editable-realm fixture for the realm / band
+compiled-unit cache.
 
 A realm is a versioned resolution space. A band is an import/build island
-inside a realm. This fixture stays inside one local realm and one band while
+inside a realm. This fixture stays inside one editable realm and one band while
 exercising multiple source dependency SCCs.
 
 ```text
@@ -14,7 +14,7 @@ math/consts.yu   child module loaded by mod consts in math.yu
 render.yu        module loaded by use mod render::*
 ```
 
-This is a local realm / band cache smoke fixture. `use mod math::*` means
+This is an editable realm / band cache smoke fixture. `use mod math::*` means
 `mod math; use math::*`: it loads the local module file and imports the
 module's public names. `math.yu` imports `math/consts.yu` with `mod consts`, so
 the fixture has multiple source dependency SCCs inside the same band.

@@ -139,9 +139,9 @@ The columns trace a value through the pipeline:
   inside a realm. The `realm.toml` / `yulang.lock` package workflow is still
   not a stable user workflow, and realm/band identity is not yet the public
   dependency manager.
-- Local realm/band is moving toward this release rule: a directory with
-  `realm.toml` is an editable local realm; otherwise the entry file's parent
-  directory is an implicit local realm for scripts and small local examples.
+- Editable realm/band is moving toward this release rule: a directory with
+  `realm.toml` is an explicit editable realm; otherwise the entry file's parent
+  directory is an implicit editable realm for scripts and small examples.
   Sibling files become bands only through explicit `realm/...::...` imports,
   not by automatic directory scanning.
 - Full diagnostics polish is still in progress. Parser, type, role, and
