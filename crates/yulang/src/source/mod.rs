@@ -32,6 +32,9 @@ pub use compilation_units::{
     SourceUnitLoweringInputError, source_compilation_units, source_unit_closure_file_indices,
     source_unit_closure_lowering_source_files, source_unit_lowering_source_files,
 };
+pub(crate) use compilation_units::{
+    source_unit_closure_lowering_loaded_files, source_unit_lowering_loaded_files,
+};
 use format::*;
 use std_sources::*;
 

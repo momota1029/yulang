@@ -17,13 +17,13 @@ use serde::{Deserialize, Serialize};
 use crate::source::{
     CollectedSource, SourceCompilationUnits, SourceUnitCacheSelection,
     SourceUnitLoweringInputError, source_unit_closure_file_indices,
-    source_unit_closure_lowering_source_files, source_unit_lowering_source_files,
+    source_unit_closure_lowering_loaded_files, source_unit_lowering_loaded_files,
 };
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const MONO_CACHE_FORMAT: u32 = 1;
 const CONTROL_CACHE_FORMAT: u32 = 7;
-const COMPILED_UNIT_CACHE_FORMAT: u32 = 15;
+const COMPILED_UNIT_CACHE_FORMAT: u32 = 16;
 const REALM_RESOLUTION_CACHE_FORMAT: u32 = 1;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 3;
@@ -672,9 +672,8 @@ pub fn compiled_unit_artifact_from_standalone_source_unit(
         .iter()
         .map(|file| files[*file].clone())
         .collect::<Vec<_>>();
-    let lowering_files = source_unit_lowering_source_files(files, units, unit)
+    let loaded = source_unit_lowering_loaded_files(files, units, unit)
         .map_err(SourceUnitCompiledArtifactError::LoweringInput)?;
-    let loaded = sources::load(lowering_files);
     let lowering = infer::lowering::lower_loaded_files(&loaded)
         .map_err(SourceUnitCompiledArtifactError::Lower)?;
     Ok(compiled_unit_artifact_from_lowering_with_key(
@@ -704,9 +703,8 @@ pub fn compiled_unit_artifact_from_source_unit_closure(
         .into_iter()
         .map(|file| files[file].clone())
         .collect::<Vec<_>>();
-    let lowering_files = source_unit_closure_lowering_source_files(files, units, unit)
+    let loaded = source_unit_closure_lowering_loaded_files(files, units, unit)
         .map_err(SourceUnitCompiledArtifactError::LoweringInput)?;
-    let loaded = sources::load(lowering_files);
     let lowering = infer::lowering::lower_loaded_files(&loaded)
         .map_err(SourceUnitCompiledArtifactError::Lower)?;
     Ok(compiled_unit_artifact_from_lowering_with_key(
@@ -3514,8 +3512,9 @@ mod tests {
             "use realm/helper::value\nvalue\n".to_string(),
             vec![request.clone()],
         );
-        let helper = CollectedSource::new(
+        let helper = CollectedSource::with_band_path(
             helper_path,
+            path(&["helper"]),
             path(&["helper"]),
             "pub value = 7\n".to_string(),
         );
@@ -3545,6 +3544,68 @@ mod tests {
         assert_eq!(restored.target.source_hash, source_file_hash(&helper));
 
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn source_unit_closure_artifact_preserves_current_realm_band_path() {
+        let request = sources::UseImport::Alias {
+            name: Name("run".into()),
+            path: path(&["helper", "run"]),
+            route: sources::UsePathRoute::CurrentRealm { band_segments: 1 },
+            version: None,
+            anchor: None,
+        };
+        let files = vec![
+            CollectedSource::with_resolution_imports(
+                PathBuf::from("main.yu"),
+                Path::default(),
+                "use realm/helper::run\nmy x = run\n".to_string(),
+                vec![request],
+            ),
+            CollectedSource::with_band_path(
+                PathBuf::from("helper.yu"),
+                path(&["helper"]),
+                path(&["helper"]),
+                "mod inner;\nuse band::inner::value\npub run = value\n".to_string(),
+            ),
+            CollectedSource::with_band_path(
+                PathBuf::from("helper/inner.yu"),
+                path(&["helper", "inner"]),
+                path(&["helper"]),
+                "our value = 1\n".to_string(),
+            ),
+        ];
+        let units = crate::source::source_compilation_units(&files);
+        let helper_unit = units.unit_for_file(1).unwrap();
+
+        let artifact =
+            compiled_unit_artifact_from_source_unit_closure(&files, &units, helper_unit).unwrap();
+
+        assert_eq!(artifact.errors, Vec::<String>::new());
+        assert_eq!(
+            artifact
+                .namespace
+                .modules
+                .iter()
+                .find(|module| module.path == vec!["helper".to_string()])
+                .map(|module| module.band_path.clone()),
+            Some(vec!["helper".to_string()])
+        );
+        assert_eq!(
+            artifact
+                .namespace
+                .modules
+                .iter()
+                .find(|module| module.path == vec!["helper".to_string(), "inner".to_string()])
+                .map(|module| module.band_path.clone()),
+            Some(vec!["helper".to_string()])
+        );
+        let namespace = infer::CompiledNamespaceIndex::new(&artifact.namespace);
+        assert!(
+            namespace
+                .exported_value_symbol(&["helper".to_string()], "run")
+                .is_some()
+        );
     }
 
     #[test]

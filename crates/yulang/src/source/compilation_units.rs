@@ -127,7 +127,20 @@ pub fn source_unit_lowering_source_files(
         .units
         .get(unit)
         .ok_or(SourceUnitLoweringInputError::UnknownUnit { unit })?;
-    source_unit_lowering_source_files_for_indices(files, units, &source_unit.files)
+    source_unit_lowering_files_for_indices(files, units, &source_unit.files).map(source_files)
+}
+
+pub(crate) fn source_unit_lowering_loaded_files(
+    files: &[CollectedSource],
+    units: &SourceCompilationUnits,
+    unit: usize,
+) -> Result<Vec<sources::LoadedFile>, SourceUnitLoweringInputError> {
+    let source_unit = units
+        .units
+        .get(unit)
+        .ok_or(SourceUnitLoweringInputError::UnknownUnit { unit })?;
+    source_unit_lowering_files_for_indices(files, units, &source_unit.files)
+        .map(load_source_unit_files)
 }
 
 pub fn source_unit_closure_file_indices(
@@ -157,19 +170,29 @@ pub fn source_unit_closure_lowering_source_files(
     unit: usize,
 ) -> Result<Vec<SourceFile>, SourceUnitLoweringInputError> {
     let file_indices = source_unit_closure_file_indices(units, unit)?;
-    source_unit_lowering_source_files_for_indices(files, units, &file_indices)
+    source_unit_lowering_files_for_indices(files, units, &file_indices).map(source_files)
 }
 
-fn source_unit_lowering_source_files_for_indices(
+pub(crate) fn source_unit_closure_lowering_loaded_files(
+    files: &[CollectedSource],
+    units: &SourceCompilationUnits,
+    unit: usize,
+) -> Result<Vec<sources::LoadedFile>, SourceUnitLoweringInputError> {
+    let file_indices = source_unit_closure_file_indices(units, unit)?;
+    source_unit_lowering_files_for_indices(files, units, &file_indices).map(load_source_unit_files)
+}
+
+fn source_unit_lowering_files_for_indices(
     files: &[CollectedSource],
     units: &SourceCompilationUnits,
     file_indices: &[usize],
-) -> Result<Vec<SourceFile>, SourceUnitLoweringInputError> {
+) -> Result<Vec<SourceUnitLoweringFile>, SourceUnitLoweringInputError> {
     let actual_paths = file_indices
         .iter()
         .map(|file| files[*file].module_path.clone())
         .collect::<HashSet<_>>();
     let module_load_visibility = module_load_visibility(&units.module_loads)?;
+    let current_realm_band_roots = current_realm_band_roots(file_indices, files);
     let synthetic_paths = synthetic_parent_module_paths(file_indices, files, &actual_paths);
     let required_paths = actual_paths
         .iter()
@@ -180,12 +203,25 @@ fn source_unit_lowering_source_files_for_indices(
     let mut lowering_files = synthetic_paths
         .into_iter()
         .map(|module_path| {
-            synthetic_module_source_file(&module_path, &required_paths, &module_load_visibility)
+            let band_path = synthetic_module_band_path(&module_path, file_indices, files);
+            synthetic_module_source_file(
+                &module_path,
+                &required_paths,
+                &module_load_visibility,
+                &current_realm_band_roots,
+            )
+            .map(|source_file| SourceUnitLoweringFile {
+                source_file,
+                band_path,
+            })
         })
         .collect::<Result<Vec<_>, _>>()?;
-    lowering_files.extend(file_indices.iter().map(|file| SourceFile {
-        module_path: files[*file].module_path.clone(),
-        source: files[*file].source.clone(),
+    lowering_files.extend(file_indices.iter().map(|file| SourceUnitLoweringFile {
+        source_file: SourceFile {
+            module_path: files[*file].module_path.clone(),
+            source: files[*file].source.clone(),
+        },
+        band_path: files[*file].band_path.clone(),
     }));
     Ok(lowering_files)
 }
@@ -301,10 +337,49 @@ fn synthetic_parent_module_paths(
     paths
 }
 
+fn current_realm_band_roots(file_indices: &[usize], files: &[CollectedSource]) -> HashSet<Path> {
+    file_indices
+        .iter()
+        .filter_map(|file| {
+            let band_path = &files[*file].band_path;
+            (!band_path.segments.is_empty()).then(|| band_path.clone())
+        })
+        .collect()
+}
+
+fn synthetic_module_band_path(
+    module_path: &Path,
+    file_indices: &[usize],
+    files: &[CollectedSource],
+) -> Path {
+    if module_path.segments.is_empty() {
+        return Path::default();
+    }
+    file_indices
+        .iter()
+        .filter_map(|file| {
+            let candidate = &files[*file];
+            module_path_is_prefix(module_path, &candidate.module_path)
+                .then(|| candidate.band_path.clone())
+        })
+        .next()
+        .unwrap_or_default()
+}
+
+fn module_path_is_prefix(prefix: &Path, path: &Path) -> bool {
+    prefix.segments.len() <= path.segments.len()
+        && prefix
+            .segments
+            .iter()
+            .zip(&path.segments)
+            .all(|(prefix, path)| prefix == path)
+}
+
 fn synthetic_module_source_file(
     module_path: &Path,
     required_paths: &HashSet<Path>,
     visibility: &HashMap<Path, Visibility>,
+    current_realm_band_roots: &HashSet<Path>,
 ) -> Result<SourceFile, SourceUnitLoweringInputError> {
     let mut children = required_paths
         .iter()
@@ -315,12 +390,16 @@ fn synthetic_module_source_file(
 
     let mut source = String::new();
     for child in children {
-        let visibility = visibility.get(&child).copied().ok_or_else(|| {
-            SourceUnitLoweringInputError::MissingModuleLoadVisibility {
-                module_path: child.clone(),
+        let prefix = match visibility.get(&child).copied() {
+            Some(visibility) => module_visibility_prefix(&child, visibility)?,
+            None if current_realm_band_roots.contains(&child) => "pub ",
+            None => {
+                return Err(SourceUnitLoweringInputError::MissingModuleLoadVisibility {
+                    module_path: child.clone(),
+                });
             }
-        })?;
-        source.push_str(module_visibility_prefix(&child, visibility)?);
+        };
+        source.push_str(prefix);
         source.push_str("mod ");
         source.push_str(
             &child
@@ -359,6 +438,25 @@ fn module_path_sort_key(path: &Path) -> String {
         .map(|segment| segment.0.as_str())
         .collect::<Vec<_>>()
         .join("\0")
+}
+
+struct SourceUnitLoweringFile {
+    source_file: SourceFile,
+    band_path: Path,
+}
+
+fn source_files(files: Vec<SourceUnitLoweringFile>) -> Vec<SourceFile> {
+    files.into_iter().map(|file| file.source_file).collect()
+}
+
+fn load_source_unit_files(files: Vec<SourceUnitLoweringFile>) -> Vec<sources::LoadedFile> {
+    let mut source_files = Vec::with_capacity(files.len());
+    let mut band_paths = Vec::with_capacity(files.len());
+    for file in files {
+        source_files.push(file.source_file);
+        band_paths.push(file.band_path);
+    }
+    sources::load_with_band_paths(source_files, band_paths)
 }
 
 fn module_visibility_prefix(
