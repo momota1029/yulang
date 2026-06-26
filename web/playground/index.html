@@ -42,6 +42,7 @@
         <nav class="site-nav" aria-label="Primary">
           <a href="/ja/guide/" data-doc-link="guide">ガイド</a>
           <a href="/ja/reference/" data-doc-link="reference">リファレンス</a>
+          <a href="/ja/guide/install" data-doc-link="install">インストール</a>
           <a
             href="https://github.com/momota1029/yulang"
             target="_blank"
@@ -51,6 +52,26 @@
           </a>
         </nav>
       </header>
+      <section class="install-strip" aria-label="Install Yulang">
+        <div class="install-copy i18n-block lang-ja">
+          <strong>ローカルでも試す</strong>
+          <span>release installer は CLI、標準ライブラリ、初回 cache seed を入れます。</span>
+        </div>
+        <div class="install-copy i18n-block lang-en" lang="en">
+          <strong>Try it locally</strong>
+          <span>The release installer adds the CLI, standard library, and first cache seed.</span>
+        </div>
+        <div class="install-command-list">
+          <p>
+            <span>Unix</span>
+            <code>curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.4</code>
+          </p>
+          <p>
+            <span>Windows</span>
+            <code>iwr https://yulang.momota.pw/install.ps1 -OutFile install.ps1; powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.4</code>
+          </p>
+        </div>
+      </section>
       <section class="workspace" aria-label="Yulang playground">
         <div class="editor-pane">
           <div class="pane-head">

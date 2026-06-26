@@ -266,9 +266,13 @@ impl<'a> Runtime<'a> {
         request: &Request,
         marker: &ActiveAddIdMarker,
     ) -> bool {
-        !self
-            .request_guard_ids_at_marker_entry(request, marker)
-            .is_empty()
+        if request.guard_ids.is_empty() {
+            return false;
+        }
+        self.active_frames
+            .iter()
+            .take(marker.entry_frame_len)
+            .any(|frame| request.guard_ids.contains(&frame.id))
     }
 
     fn request_guard_ids_at_marker_entry(

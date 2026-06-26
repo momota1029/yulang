@@ -11,6 +11,7 @@ use yulang_editor::semantic_tokens;
 use crate::{SourceDefinition, SourceHover, SourceLocation, SourceRange, SourceRename};
 
 const LSP_ANALYSIS_TIMEOUT: Duration = Duration::from_secs(3);
+const LSP_ANALYSIS_DEBOUNCE: Duration = Duration::from_millis(150);
 const LSP_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 struct Backend {
@@ -29,23 +30,27 @@ impl Backend {
             Ok(path) => path,
             Err(_) => return,
         };
-        let source = self
-            .documents
-            .lock()
-            .unwrap()
-            .get(&uri)
-            .cloned()
-            .or_else(|| std::fs::read_to_string(&path).ok());
-        let Some(source) = source else {
-            return;
-        };
         let options = crate::StdSourceOptions {
             std_root: self.std_root.clone(),
         };
         let client = self.client.clone();
+        let documents = Arc::clone(&self.documents);
         let versions = Arc::clone(&self.analysis_versions);
         let slots = Arc::clone(&self.analysis_slots);
         tokio::spawn(async move {
+            tokio::time::sleep(LSP_ANALYSIS_DEBOUNCE).await;
+            if !is_current_analysis_version(&versions, &uri, version) {
+                return;
+            }
+            let source = documents
+                .lock()
+                .unwrap()
+                .get(&uri)
+                .cloned()
+                .or_else(|| std::fs::read_to_string(&path).ok());
+            let Some(source) = source else {
+                return;
+            };
             let result = run_diagnostics_with_timeout(slots, path, source, options).await;
             if !is_current_analysis_version(&versions, &uri, version) {
                 return;

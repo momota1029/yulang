@@ -215,7 +215,7 @@ type MessageKey =
     | "themeLight"
     | "themeDark";
 
-type DocLinkKey = "guide" | "reference";
+type DocLinkKey = "guide" | "reference" | "install";
 
 const messages: Record<Lang, Record<MessageKey, string>> = {
     ja: {
@@ -257,10 +257,12 @@ const docLinks: Record<
     ja: {
         guide: { href: "/ja/guide/", text: "ガイド" },
         reference: { href: "/ja/reference/", text: "リファレンス" },
+        install: { href: "/ja/guide/install", text: "インストール" },
     },
     en: {
         guide: { href: "/guide/", text: "Guide" },
         reference: { href: "/reference/", text: "Reference" },
+        install: { href: "/guide/install", text: "Install" },
     },
 };
 

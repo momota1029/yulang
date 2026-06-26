@@ -194,6 +194,64 @@ textarea {
   background: var(--hover-surface-bg);
 }
 
+.install-strip {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.42fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  max-width: 1320px;
+  margin: 0 auto 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--soft-border);
+  border-bottom: 1px solid var(--soft-border);
+}
+
+.install-copy {
+  min-width: 0;
+}
+
+.install-copy strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.install-copy span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted-text);
+  font-size: 12px;
+}
+
+.install-command-list {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.install-command-list p {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+}
+
+.install-command-list span {
+  color: var(--subtle-text);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.install-command-list code {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: thin;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.65fr);
@@ -589,6 +647,16 @@ code {
   .site-nav {
     justify-content: flex-start;
     margin-top: 12px;
+  }
+
+  .install-strip {
+    grid-template-columns: 1fr;
+    margin-bottom: 12px;
+  }
+
+  .install-command-list p {
+    grid-template-columns: 1fr;
+    gap: 3px;
   }
 
   .workspace {
