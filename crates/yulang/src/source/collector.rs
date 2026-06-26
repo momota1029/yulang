@@ -10,6 +10,7 @@ pub(super) struct Collector {
     collection_cache: Option<SourceCollectionCache>,
     seen_files: HashMap<PathBuf, SourceOwner>,
     module_files: HashMap<Path, PathBuf>,
+    band_edges: HashMap<Path, Vec<Path>>,
     files: Vec<CollectedSource>,
 }
 
@@ -23,6 +24,7 @@ impl Collector {
             collection_cache,
             seen_files: HashMap::new(),
             module_files: HashMap::new(),
+            band_edges: HashMap::new(),
             files: Vec::new(),
         }
     }
@@ -124,6 +126,7 @@ impl Collector {
             }
 
             for band in metadata.current_realm_bands {
+                self.record_band_edge(&band_path, &band)?;
                 if self.module_files.contains_key(&band) {
                     continue;
                 }
@@ -216,6 +219,40 @@ impl Collector {
             first_module: first_owner.module_path.clone(),
             second_module: module.clone(),
         })
+    }
+
+    fn record_band_edge(&mut self, from: &Path, to: &Path) -> Result<(), RouteError> {
+        if from == to {
+            return Ok(());
+        }
+        if self.band_reaches(to, from) {
+            return Err(RouteError::CrossBandCycle {
+                from: from.clone(),
+                to: to.clone(),
+            });
+        }
+        let targets = self.band_edges.entry(from.clone()).or_default();
+        if !targets.contains(to) {
+            targets.push(to.clone());
+        }
+        Ok(())
+    }
+
+    fn band_reaches(&self, start: &Path, target: &Path) -> bool {
+        let mut seen = HashSet::new();
+        let mut stack = vec![start.clone()];
+        while let Some(current) = stack.pop() {
+            if !seen.insert(current.clone()) {
+                continue;
+            }
+            if &current == target {
+                return true;
+            }
+            if let Some(nexts) = self.band_edges.get(&current) {
+                stack.extend(nexts.iter().cloned());
+            }
+        }
+        false
     }
 
     fn resolve_current_realm_band_file(

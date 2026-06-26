@@ -1316,6 +1316,10 @@ pub enum RouteError {
         first_module: Path,
         second_module: Path,
     },
+    CrossBandCycle {
+        from: Path,
+        to: Path,
+    },
     InvalidDumpModulePath {
         module: String,
     },
@@ -1412,6 +1416,12 @@ impl fmt::Display for RouteError {
                 file.display(),
                 format_module_path(first_module),
                 format_module_path(second_module)
+            ),
+            RouteError::CrossBandCycle { from, to } => write!(
+                f,
+                "cross-band import from {} to {} would create a cycle",
+                format_module_path(from),
+                format_module_path(to)
             ),
             RouteError::InvalidDumpModulePath { module } => {
                 write!(f, "dump module path `{module}` is invalid")

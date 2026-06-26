@@ -3382,6 +3382,25 @@ fn current_realm_band_cannot_claim_mod_owned_file() {
 }
 
 #[test]
+fn current_realm_cross_band_cycle_is_rejected() {
+    let root = temp_root("realm-use-band-cycle");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    fs::write(root.join("main.yu"), "use realm/a::value\n").unwrap();
+    fs::write(root.join("a.yu"), "use realm/b::value\npub value = 1\n").unwrap();
+    fs::write(root.join("b.yu"), "use realm/a::value\npub value = 2\n").unwrap();
+
+    let err = collect_local_sources(root.join("main.yu")).unwrap_err();
+
+    assert!(matches!(
+        err,
+        RouteError::CrossBandCycle { from, to }
+            if from.segments == vec![Name("b".into())]
+                && to.segments == vec![Name("a".into())]
+    ));
+}
+
+#[test]
 fn discover_module_loads_uses_lightweight_module_parse() {
     let requests = discover_module_loads(
         &Path::default(),
