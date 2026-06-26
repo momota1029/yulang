@@ -19,6 +19,7 @@ run_hardening="${YULANG_PERF_GATE_HARDENING:-1}"
 run_adversarial="${YULANG_PERF_GATE_ADVERSARIAL:-1}"
 run_release_smoke="${YULANG_PERF_GATE_RELEASE_SMOKE:-1}"
 run_source_metrics="${YULANG_PERF_GATE_SOURCE_METRICS:-1}"
+run_marker_runtime="${YULANG_PERF_GATE_MARKER_RUNTIME:-1}"
 run_static_bench="${YULANG_PERF_GATE_STATIC_BENCH:-1}"
 build_release="${YULANG_PERF_GATE_BUILD_RELEASE:-1}"
 
@@ -68,7 +69,7 @@ append_metrics() {
             sed 's/^/wall./' "$time_file"
         fi
         rg \
-            '^(files:|summary:|[[:space:]]+(infer|constraint\.(drain|drains|replay_[A-Za-z0-9_]*|max_replay_[A-Za-z0-9_]*|lower_replay_[A-Za-z0-9_]*|upper_replay_[A-Za-z0-9_]*|var_var_direct_[A-Za-z0-9_]*)|analysis\.(quantify_generalize|generalize_[A-Za-z0-9_]*|quantify|work|route|instantiate)|run\.(cache|runtime_execute|active_add_scans|request_resume_steps|marker_scope_[A-Za-z0-9_]*|continuation_[A-Za-z0-9_]*cloned|continuation_capture_clones|continuation_invoke_clones|effect_requests|catch_matches|continuations|frame_allocs)|total):)' \
+            '^(files:|summary:|[[:space:]]+(infer|constraint\.(drain|drains|replay_[A-Za-z0-9_]*|max_replay_[A-Za-z0-9_]*|lower_replay_[A-Za-z0-9_]*|upper_replay_[A-Za-z0-9_]*|var_var_direct_[A-Za-z0-9_]*)|analysis\.(quantify_generalize|generalize_[A-Za-z0-9_]*|quantify|work|route|instantiate)|run\.(cache|runtime_execute|active_add_scans|path_prefix_checks|request_resume_steps|marker_scope_[A-Za-z0-9_]*|continuation_[A-Za-z0-9_]*cloned|continuation_capture_clones|continuation_invoke_clones|effect_requests|catch_matches|continuations|frame_allocs)|total):)' \
             "$log_file" || true
     } >>"$summary"
 }
@@ -133,7 +134,7 @@ append_key_metrics_row() {
         runtime="$(metric_value "$label" "run.runtime_execute")"
     fi
 
-    printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n' \
+    printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n' \
         "$label" \
         "$(wall_value "$label")" \
         "$route" \
@@ -150,6 +151,7 @@ append_key_metrics_row() {
         "$(metric_value "$label" "analysis.generalize_dominance_polarity_occurrences")" \
         "$runtime" \
         "$(metric_value "$label" "run.marker_scope_frame_touches")" \
+        "$(metric_value "$label" "run.path_prefix_checks")" \
         "$(metric_value "$label" "run.active_add_scans")"
 }
 
@@ -157,13 +159,14 @@ append_key_metrics() {
     local key_metrics="$out_dir/key-metrics.md"
     {
         printf '\n## Key metrics\n\n'
-        printf '| workload | wall(s) | cache route | infer | constraint.drain | constraint epoch | replay accepted | replay duplicate | top restart root | top restarts | top epoch delta | top role delta | dom intervals | dom polarity occ | runtime execute | marker touches | active scans |\n'
-        printf '| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n'
+        printf '| workload | wall(s) | cache route | infer | constraint.drain | constraint epoch | replay accepted | replay duplicate | top restart root | top restarts | top epoch delta | top role delta | dom intervals | dom polarity occ | runtime execute | marker touches | path prefix checks | active scans |\n'
+        printf '| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n'
         append_key_metrics_row showcase-check-poly-std
         append_key_metrics_row nondet-no-cache
         append_key_metrics_row showcase-no-cache
         append_key_metrics_row nondet-cache-warmup
         append_key_metrics_row nondet-cache-hit
+        append_key_metrics_row marker-heavy-cache-hit
         append_key_metrics_row source-unit-cache-smoke multi
     } >"$key_metrics"
     cat "$key_metrics" | tee -a "$summary"
@@ -246,6 +249,37 @@ run_source_metric_commands() {
         "$repo_root/scripts/source-unit-cache-smoke.sh" "$bin"
 }
 
+write_marker_heavy_workload() {
+    local path="$1"
+    {
+        printf 'use std::control::nondet::*\n\n'
+        local iteration
+        for ((iteration = 1; iteration <= 100; iteration++)); do
+            printf '{\n'
+            printf '    my xs = (each 1..20 + each 1..20).list\n'
+            printf '    ()\n'
+            printf '}\n\n'
+        done
+    } >"$path"
+}
+
+run_marker_heavy_runtime() {
+    local case_path="$out_dir/nondet-100.yu"
+    local cache_dir="$out_dir/marker-cache"
+    write_marker_heavy_workload "$case_path"
+    mkdir -p "$cache_dir"
+
+    run_with_log marker-heavy-cache-warmup "$run_timeout" \
+        env "YULANG_CACHE_DIR=$cache_dir" \
+        "$bin" --std-root "$std_root" --runtime-phase-timings run --print-roots \
+        "$case_path"
+
+    run_with_log marker-heavy-cache-hit "$run_timeout" \
+        env "YULANG_CACHE_DIR=$cache_dir" \
+        "$bin" --std-root "$std_root" --runtime-phase-timings run --print-roots \
+        "$case_path"
+}
+
 run_static_analysis_bench() {
     run_with_log static-analysis-bench "$bench_timeout" \
         "$repo_root/bench/static_analysis_bench.sh" --repeat "$repeat" \
@@ -272,6 +306,9 @@ main() {
     fi
     if [[ "$run_source_metrics" != "0" ]]; then
         run_source_metric_commands
+    fi
+    if [[ "$run_marker_runtime" != "0" ]]; then
+        run_marker_heavy_runtime
     fi
     if [[ "$run_static_bench" != "0" ]]; then
         run_static_analysis_bench
