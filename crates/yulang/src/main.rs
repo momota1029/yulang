@@ -859,6 +859,11 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
         "  run.marker_frame_active_add_id_entries: {}",
         stats.marker_frame_active_add_id_entries
     );
+    eprintln!("  run.marker_plan_pushes: {}", stats.marker_plan_pushes);
+    eprintln!(
+        "  run.marker_plan_reused_parent: {}",
+        stats.marker_plan_reused_parent
+    );
     eprintln!(
         "  run.marker_frame_value_closes: {}",
         stats.marker_frame_value_closes

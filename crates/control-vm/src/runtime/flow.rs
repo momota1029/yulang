@@ -686,6 +686,19 @@ impl<'a> Runtime<'a> {
                 }
             }
         }
+        self.push_active_marker_plan(active_plan);
+    }
+
+    fn push_active_marker_plan(&mut self, active_plan: SharedMarkers) {
+        if self
+            .active_marker_plans
+            .last()
+            .is_some_and(|current| current.as_ref() == active_plan.as_ref())
+        {
+            self.stats.marker_plan_reused_parent += 1;
+            return;
+        }
+        self.stats.marker_plan_pushes += 1;
         self.active_marker_plans.push(active_plan);
     }
 

@@ -171,6 +171,8 @@ pub struct RuntimeStats {
     pub marker_frame_frame_entries: u64,
     pub marker_frame_add_id_entries: u64,
     pub marker_frame_active_add_id_entries: u64,
+    pub marker_plan_pushes: u64,
+    pub marker_plan_reused_parent: u64,
     pub marker_frame_value_closes: u64,
     pub marker_frame_request_closes: u64,
     pub marker_frame_resume_steps: u64,
