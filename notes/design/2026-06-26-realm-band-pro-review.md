@@ -987,6 +987,10 @@ Physical snapshot or cache locations are not part of canonical identity.
   The lock records the resolved exact version or revision.
 - Apply `with` only to public dependency / reexport surfaces, such as
   `pub use theme/...`. Private dependencies are not visible alignment anchors.
+- Do not put human-written versions in `realm.toml`. The manifest may declare
+  the current realm identity and source providers, while dependency requests
+  live at each `use` site and exact resolutions live in `snapshot.json` /
+  `yulang.lock`.
 - Keep canonical identity structured rather than stringly typed:
   - resolved realm identity;
   - version or revision;
@@ -999,9 +1003,9 @@ Physical snapshot or cache locations are not part of canonical identity.
   - snapshot hash;
   - dependency syntax / namespace / typed / coherence / runtime ABI surfaces.
 - Do not use machine-local absolute cache paths as lock identity.
-- Repository dependencies should preserve repository-level identity and
-  revision information, with git-oriented resolution specified explicitly
-  before implementation.
+- Repository source providers should preserve repository-level identity, while
+  selected revision / commit / digest information belongs in `yulang.lock`.
+  Git-oriented resolution still needs an explicit spec before implementation.
 - Use strong algorithm-tagged digests for lock / snapshot integrity.
 - Cache diagnostics should be explainable by route and invalidation reason,
   not only by raw cache keys.
@@ -1010,8 +1014,8 @@ Physical snapshot or cache locations are not part of canonical identity.
 
 - How exactly should `std/@v/...`, `.yulang/versions/<version>/`, persistent
   cache entries, and future registry archives relate as physical layouts?
-- How should git repository dependencies be represented in `realm.toml`,
-  `yulang.lock`, snapshots, diagnostics, and cache keys?
+- How should git repository source providers and locked commits be represented
+  in `realm.toml`, `yulang.lock`, snapshots, diagnostics, and cache keys?
 - What is the minimal `BandIndex` format to freeze in snapshots without
   overcommitting to current source collector internals?
 - Which dependency surfaces belong to `coherence_hash`:

@@ -71,9 +71,12 @@ use theme/colors as theme1 v2
   records the resolved exact version or revision.
 - `with` can align only against public dependency / reexport surfaces.
   Private dependencies are not alignment anchors.
-- Repository dependencies should be specified in git-oriented terms before
-  implementation: repository locator, revision / tag / branch request, resolved
-  commit, source digest, and lock diagnostics.
+- `realm.toml` must not contain human-written versions. It may declare the
+  current realm identity and source providers, but dependency requests live at
+  each `use` site and exact resolutions live in `snapshot.json` / `yulang.lock`.
+- Repository source providers should be specified in git-oriented terms before
+  implementation: provider name and repository locator in `realm.toml`, plus
+  resolved commit, source digest, and diagnostics in `yulang.lock`.
 
 ## Design Summary
 
@@ -211,7 +214,7 @@ A realm owns:
 - identity;
 - optional version or revision;
 - root source tree or archive;
-- dependency requirements;
+- optional source provider declarations;
 - a resolved dependency lock when reproducible builds require it;
 - zero or more bands;
 - cache identity for source and native artifacts.
@@ -374,6 +377,37 @@ allows it.
 the current band. `use` can depend on another band once realm resolution exists.
 
 ## Import And Use Resolution
+
+### Manifest, Requests, And Lock
+
+`realm.toml` is not a package-summary dependency graph. In particular, humans
+should not write versions there. Doing so would force the whole realm to agree
+on one package-level version choice and would block file-level imports from
+resolving different variables of the same realm family.
+
+Keep the responsibilities separate:
+
+```text
+realm.toml
+  -> declares the current realm identity and optional source providers
+
+use ... vN / use ... with anchor
+  -> declares a local dependency request at the source site
+
+yulang.lock
+  -> records the exact resolved snapshot / commit / source digest
+```
+
+This means a source file may choose its own realm-family request:
+
+```yulang
+use theme/colors as theme1 v1
+use theme/colors as theme2 v2
+```
+
+Those two imports may resolve to different locked realm snapshots if the local
+scope gives them distinct aliases. The manifest should not collapse them into
+one realm-wide dependency entry.
 
 ### Same-Realm Lookup
 
@@ -563,10 +597,11 @@ Keep hash purposes separate:
 - snapshot hash;
 - dependency syntax / namespace / typed / coherence / runtime ABI surfaces.
 
-Repository dependencies need a stricter spec before implementation. A git
-dependency should preserve the repository locator, requested branch/tag/rev or
-version family, resolved commit, source digest, and diagnostics that explain
-which part changed. A machine-local checkout path is not dependency identity.
+Repository source providers need a stricter spec before implementation. A git
+provider in `realm.toml` should identify a repository and a local name, not a
+human-written version. The selected commit / snapshot and source digest belong
+in `yulang.lock`, along with diagnostics that explain which part changed. A
+machine-local checkout path is not dependency identity.
 
 Downstream invalidation should primarily flow through public interface hashes:
 
@@ -644,18 +679,18 @@ yulang.lock
 <realm>/@v/<version>/...
 ```
 
-`realm.toml` declares the current realm when a project wants explicit realm
-identity. It is not required to declare bands. `yulang.lock` records resolved
-realm dependencies, revisions, and frozen source hashes when a resolved realm
-comes from a snapshot. The lock file is not a cache; it is part of reproducible
-source identity. Fetched realm contents and compiled artifacts live in the
-persistent user cache.
+`realm.toml` declares the current realm identity when a project wants explicit
+identity. It is not required to declare bands or human-written versions.
+`yulang.lock` records resolved realm dependencies, revisions, and frozen source
+hashes when a resolved realm comes from a snapshot. The lock file is not a
+cache; it is part of reproducible source identity. Fetched realm contents and
+compiled artifacts live in the persistent user cache.
 
 `yulang realm freeze --version <version> <path>` copies the editable realm
-source into `.yulang/versions/<version>/`, rewrites the frozen `realm.toml` to
-that exact version, and writes `snapshot.json` with file hashes plus a realm
-source hash. Re-running the same freeze is a no-op when the hash matches, and a
-different hash for an existing version is rejected.
+source into `.yulang/versions/<version>/` and writes `snapshot.json` with the
+exact version, file hashes, and a realm source hash. Re-running the same freeze
+is a no-op when the hash matches, and a different hash for an existing version
+is rejected.
 
 The `.yulang/versions/<version>/` route is the current local implementation
 shape. A future repository or standard-library layout may use a realm-owned
@@ -705,14 +740,15 @@ Current first slice:
   current lowerer ignores the suffix for ordinary import binding, so the syntax
   can be introduced before cross-realm version resolution is implemented.
 - `YulangLockFile` defines a serializable first lock schema for resolved realms,
-  realm dependencies, and `with` alignment constraints.
+  source-site dependency requests, and `with` alignment constraints.
 - `collect_source_with_constraints` gathers `use ... with ...` source metadata
   into structured constraints, `YulangLockFile::from_source_set` can project the
   current `SourceSet` into a lock-shaped value, and lock validation rejects
   conflicting resolved realms for the same target/anchor pair.
-- local source collection reads `realm.toml` when present. The current schema
-  supports `[realm] identity/version` and `[dependencies]`, and uses that data
-  for `SourceRealm` identity plus lock dependencies.
+- local source collection reads `realm.toml` when present. The target schema
+  supports `[realm]` identity and source-provider declarations. Human-written
+  version requirements do not belong in this manifest; exact snapshot identity
+  belongs in `snapshot.json` and `yulang.lock`.
 - `parse_canonical_realm_path` parses the canonical
   `realm@version/band::module` shape into realm identity/version, band path, and
   module path. It keeps slashes before the final `/` inside the realm identity,
@@ -730,7 +766,7 @@ Current first slice:
   generated graph would change it.
 - source collection can resolve cross-realm `use` when the target realm already
   exists locally. It first honors `yulang.lock` resolved realm sources, then
-  falls back to `[dependencies]` in `realm.toml` plus `search_paths`, local
+  falls back to manifest-declared source providers, `search_paths`, local
   `.yulang/versions/<version>/` snapshots, or the persistent `realms/` cache.
   Loaded files keep their source-level import path for lowering while their
   `ResolvedBandId` is assigned inside the target realm.
@@ -740,12 +776,10 @@ Current first slice:
   the `use` omitted an explicit suffix.
 - generated locks record frozen realm snapshot source hashes, and locked realm
   imports reject a source path whose `snapshot.json` hash no longer matches.
-- exact dependency requirements such as `ui = "2.4.0"` are enough to select a
-  matching frozen local snapshot when the `use` itself omits a version suffix.
-  The local resolver also supports small SemVer-style `^` and `~` requirements
-  over already-present editable realms, frozen snapshots, and persistent cache
-  entries. Full registry solving and inequality sets such as `<3` are still
-  deferred.
+- version-family requests come from source imports, not from `realm.toml`.
+  The local resolver may match those requests against already-present editable
+  realms, frozen snapshots, and persistent cache entries. Full registry solving
+  and inequality sets such as `<3` are still deferred.
 - files loaded only through `use` start separate bands in the same realm for
   now.
 - inline source loading creates an `embedded:inline` realm and assigns bands by
