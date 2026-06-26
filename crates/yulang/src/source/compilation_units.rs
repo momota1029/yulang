@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::{CollectedSource, discover_module_loads};
-use sources::{ModuleLoadRequest, Path, SourceFile, Visibility};
+use sources::{ModuleLoadRequest, Path, SourceFile, UseImport, UsePathRoute, Visibility};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceCompilationUnits {
@@ -95,7 +95,7 @@ pub fn source_compilation_units(files: &[CollectedSource]) -> SourceCompilationU
         .iter()
         .map(|file| discover_module_loads(&file.module_path, &file.source))
         .collect::<Vec<_>>();
-    let edges = source_dependency_edges(&module_loads, &module_files);
+    let edges = source_dependency_edges(files, &module_loads, &module_files);
     let mut units = tarjan_sccs(&edges)
         .into_iter()
         .map(|mut files| {
@@ -201,20 +201,57 @@ fn collect_source_unit_closure(units: &SourceCompilationUnits, unit: usize, sele
 }
 
 fn source_dependency_edges(
+    files: &[CollectedSource],
     module_loads: &[Vec<ModuleLoadRequest>],
     module_files: &HashMap<Path, usize>,
 ) -> Vec<Vec<usize>> {
     let mut edges = Vec::with_capacity(module_loads.len());
-    for requests in module_loads {
+    for (file, requests) in files.iter().zip(module_loads) {
         let mut deps = requests
             .iter()
             .filter_map(|request| module_files.get(&request.module_path()).copied())
             .collect::<Vec<_>>();
+        deps.extend(
+            file.resolution_imports
+                .iter()
+                .filter_map(|import| import_dependency_file(import, module_files)),
+        );
         deps.sort_unstable();
         deps.dedup();
         edges.push(deps);
     }
     edges
+}
+
+fn import_dependency_file(
+    import: &UseImport,
+    module_files: &HashMap<Path, usize>,
+) -> Option<usize> {
+    let (path, route) = match import {
+        UseImport::Alias { path, route, .. } => (path, *route),
+        UseImport::Glob { prefix, route, .. } => (prefix, *route),
+    };
+    match route {
+        UsePathRoute::CurrentBand | UsePathRoute::CurrentRealm { .. } => {
+            longest_existing_module_prefix(path, module_files)
+        }
+        UsePathRoute::Relative | UsePathRoute::SlashQualified { .. } => None,
+    }
+}
+
+fn longest_existing_module_prefix(
+    path: &Path,
+    module_files: &HashMap<Path, usize>,
+) -> Option<usize> {
+    for len in (1..=path.segments.len()).rev() {
+        let candidate = Path {
+            segments: path.segments[..len].to_vec(),
+        };
+        if let Some(file) = module_files.get(&candidate).copied() {
+            return Some(file);
+        }
+    }
+    None
 }
 
 fn module_load_visibility(

@@ -3,14 +3,42 @@ use super::*;
 fn collected(path: &str, module: &[&str], source: &str) -> CollectedSource {
     CollectedSource::new(
         PathBuf::from(path),
-        Path {
-            segments: module
-                .iter()
-                .map(|segment| Name((*segment).to_string()))
-                .collect(),
-        },
+        path_from_segments(module),
         source.to_string(),
     )
+}
+
+fn collected_with_resolution_imports(
+    path: &str,
+    module: &[&str],
+    source: &str,
+    resolution_imports: Vec<sources::UseImport>,
+) -> CollectedSource {
+    CollectedSource::with_resolution_imports(
+        PathBuf::from(path),
+        path_from_segments(module),
+        source.to_string(),
+        resolution_imports,
+    )
+}
+
+fn path_from_segments(segments: &[&str]) -> Path {
+    Path {
+        segments: segments
+            .iter()
+            .map(|segment| Name((*segment).to_string()))
+            .collect(),
+    }
+}
+
+fn alias_import(name: &str, path: &[&str], route: sources::UsePathRoute) -> sources::UseImport {
+    sources::UseImport::Alias {
+        name: Name(name.to_string()),
+        path: path_from_segments(path),
+        route,
+        version: None,
+        anchor: None,
+    }
 }
 
 #[test]
@@ -264,6 +292,77 @@ fn source_compilation_units_build_cache_selection() {
     assert_eq!(dependency_prefix.cached_units, vec![0, 1]);
     assert_eq!(dependency_prefix.cached_files, vec![1, 2]);
     assert_eq!(dependency_prefix.source_files, vec![0]);
+}
+
+#[test]
+fn source_compilation_units_current_realm_import_depends_on_band_root() {
+    let files = vec![
+        collected_with_resolution_imports(
+            "main.yu",
+            &[],
+            "use realm/helper::value\nmy x = value\n",
+            vec![alias_import(
+                "value",
+                &["helper", "value"],
+                sources::UsePathRoute::CurrentRealm { band_segments: 1 },
+            )],
+        ),
+        collected("helper.yu", &["helper"], "pub value = 1\n"),
+    ];
+
+    let units = source_compilation_units(&files);
+    let root_unit = units.unit_for_file(0).unwrap();
+    let helper_unit = units.unit_for_file(1).unwrap();
+
+    assert_ne!(root_unit, helper_unit);
+    assert!(units.units[root_unit].dependencies.contains(&helper_unit));
+}
+
+#[test]
+fn source_compilation_units_current_band_import_depends_on_existing_module_prefix() {
+    let files = vec![
+        collected("helper.yu", &["helper"], "pub value = 1\n"),
+        collected_with_resolution_imports(
+            "nested.yu",
+            &["nested"],
+            "use band::helper::value\npub x = value\n",
+            vec![alias_import(
+                "value",
+                &["helper", "value"],
+                sources::UsePathRoute::CurrentBand,
+            )],
+        ),
+    ];
+
+    let units = source_compilation_units(&files);
+    let helper_unit = units.unit_for_file(0).unwrap();
+    let nested_unit = units.unit_for_file(1).unwrap();
+
+    assert_ne!(helper_unit, nested_unit);
+    assert!(units.units[nested_unit].dependencies.contains(&helper_unit));
+}
+
+#[test]
+fn source_compilation_units_slash_qualified_import_does_not_guess_local_prefix() {
+    let files = vec![
+        collected_with_resolution_imports(
+            "main.yu",
+            &[],
+            "use ui/widget::a\nmy x = 1\n",
+            vec![alias_import(
+                "a",
+                &["ui", "widget", "a"],
+                sources::UsePathRoute::SlashQualified { prefix_segments: 2 },
+            )],
+        ),
+        collected("ui/widget.yu", &["ui", "widget"], "pub a = 1\n"),
+    ];
+
+    let units = source_compilation_units(&files);
+    let root_unit = units.unit_for_file(0).unwrap();
+    let local_unit = units.unit_for_file(1).unwrap();
+
+    assert!(!units.units[root_unit].dependencies.contains(&local_unit));
 }
 
 #[test]
