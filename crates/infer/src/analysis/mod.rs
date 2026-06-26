@@ -403,9 +403,11 @@ fn generalize_compact_shadow_enabled() -> bool {
 
 fn generalize_compact_cache_enabled() -> bool {
     static ENABLED: OnceLock<bool> = OnceLock::new();
-    *ENABLED.get_or_init(|| {
-        std::env::var("YULANG_GENERALIZE_COMPACT_CACHE")
-            .is_ok_and(|value| !value.is_empty() && value != "0")
+    // Exact cache keyed by the global constraint epoch. Keep a one-variable opt-out for
+    // bisecting inference regressions without rebuilding the compiler.
+    *ENABLED.get_or_init(|| match std::env::var("YULANG_GENERALIZE_COMPACT_CACHE") {
+        Ok(value) => !value.is_empty() && value != "0",
+        Err(_) => true,
     })
 }
 

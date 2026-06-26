@@ -308,7 +308,11 @@ compact / dominance / role projection をかなり再走査している。
      効くかを見る観測器である。既定では HashSet を触らない。
    - 2026-06-26: `YULANG_GENERALIZE_COMPACT_CACHE=1` で opt-in の実験 cache を追加した。
      同じ `(root, constraint_epoch)` の `CompactRoot + merge constraints` を clone して再利用する。
-     既定では無効で、production path にはまだ切り替えない。
+   - 2026-06-27: repeat 計測と `infer` / `yulang source::tests` / CLI regression を通した上で、
+     root compact cache を既定オンにした。`YULANG_GENERALIZE_COMPACT_CACHE=0` で無効化できる。
+     coarse な global epoch key でも `bench/nondet_20_discard.yu` では
+     `analysis.generalize_compact` が約 3〜4ms 減る。次に進めるなら、
+     var-local epoch を使う finer-grained key か、role view cache 側を見る。
 4. `dominance cache` と `role projection cache` を同じ方式で足す。
    - 2026-06-26: `YULANG_GENERALIZE_ROLE_VIEW_SHADOW=1` で opt-in の role view shadow を追加した。
      key は `(def, root, constraint_epoch, role_epoch, role_count, simplification_level)`。
