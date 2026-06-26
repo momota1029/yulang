@@ -59,4 +59,5 @@ Every example on this page runs in the <a href="/" target="_self">Playground</a>
 
 - [Tour](./tour) — a guided walkthrough of the language
 - [Cookbook](./cookbook) — task-oriented recipes
+- [Cache](./cache) — local CLI artifact cache and route labels
 - [Reference](/reference/) — syntax and feature details

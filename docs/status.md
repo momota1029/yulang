@@ -133,8 +133,10 @@ The columns trace a value through the pipeline:
   still incomplete.
 - Quoted Yumark expressions (`'[...]` / `'{...}`) parse, but the active infer
   lowering does not assign them a value model yet.
-- The compiled-unit cache and the `realm.toml` / `yulang.lock` package
-  workflow are not part of the main lowering pipeline yet.
+- The compiled-unit cache is part of the normal CLI route, including exact
+  full-source artifacts, std prefixes, and conservative source-unit prefixes.
+  The `realm.toml` / `yulang.lock` package workflow is still not a stable user
+  workflow, and realm/band identity is not yet the public dependency manager.
 - Full diagnostics polish is still in progress. Parser, type, role, and
   effect errors are being moved toward language-level explanations rather
   than internal-implementation messages.

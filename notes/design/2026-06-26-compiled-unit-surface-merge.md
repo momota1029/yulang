@@ -288,6 +288,10 @@ The first external-reference preparation is also in place:
 - `BodyLoweringPrefix::extend_with_compiled_unit_surfaces_and_external_defs`
   can import a suffix compiled-unit surface on top of an existing prefix arena,
   preserving the dependency prefix's existing runtime defs.
+- External-reference canaries now cover value refs, effect operations,
+  constructors, type field methods, casts, role impl reuse, argument effect
+  contracts, and root expressions. The source-unit smoke covers both
+  independent merged prefixes and dependency-closure prefix hits.
 
 This does not serialize dependent units without their dependencies yet. It only
 gives the suffix lowering result a reliable way to distinguish prefix-owned
@@ -306,9 +310,9 @@ Therefore finer-grained dependency-bearing source-unit artifacts still need:
 
 - cache selection that can import dependency artifacts first, then extend that
   prefix with a dependent artifact using the serialized external refs.
-- broader canaries for dependent artifacts involving constructors, effect
-  operations, role impls, casts, and root expressions before replacing the
-  current dependency-closure artifact route.
+- a default route switch from dependency-closure artifacts to dependent-only
+  artifacts after the external-reference import path has enough production
+  coverage.
 
 The closure artifact route is simpler and already implemented, but it can
 duplicate dependency surfaces across related cached artifacts. The

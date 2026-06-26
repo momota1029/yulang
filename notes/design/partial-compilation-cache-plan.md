@@ -1,5 +1,13 @@
 # Partial Compilation Cache Plan
 
+Status note, 2026-06-26: the normal CLI route now uses persistent `.yuunit`
+compiled-unit artifacts for exact full-source hits, std prefixes, merged
+dependency-free source-unit prefixes, and conservative dependency-closure
+source-unit prefixes. This document remains the long-term design background.
+For the current operational summary, read `docs/cache.md`; for the merge and
+external-reference details, read
+`notes/design/2026-06-26-compiled-unit-surface-merge.md`.
+
 This note is the working plan for moving Yulang from a process-local std clone
 cache toward persistent file-SCC compiled artifacts.
 
@@ -40,9 +48,12 @@ are not the final architecture.
 
 ## Current Progress Toward Incremental Cache
 
-Yulang now has a persistent compiled-unit artifact format and a few read paths
-that prove the surface split, but it does not yet have dependency-SCC cache
-selection wired into the normal CLI route.
+Yulang now has a persistent compiled-unit artifact format and a conservative
+source-unit prefix cache wired into the normal CLI route. It can reuse exact
+full-source artifacts, compiled std prefixes, merged independent source-unit
+prefixes, and dependency-closure source-unit prefixes. The remaining work is
+the finer route where a dependent unit artifact stores only its own surfaces
+and resolves every dependency reference through explicit external refs.
 
 Implemented subset:
 
@@ -69,13 +80,13 @@ Implemented subset:
   per-unit cache-hit bitmap, so later cache policy never imports a unit whose
   dependency artifact is missing.
 - compiled-unit artifacts can be built with an explicit source-unit key instead
-  of always using the full source-set bundle key. This currently works for
-  root-containing units; non-root module units still need a module-root lowering
-  artifact mode.
+  of always using the full source-set bundle key. This works for full-source
+  bundles, standalone non-root source units, and dependency-closure source-unit
+  artifacts.
 - the artifact cache can compute per-unit keys, read the matching `.yuunit`
   files, and return both the raw hit map and the dependency-closed unit/source
-  file selection. This is intentionally a read/selection layer only; it does
-  not merge multiple compiled-unit surfaces or lower a suffix yet.
+  file selection. The CLI uses this selection to import cached prefixes and
+  lower the remaining suffix from source.
 - module-load requests now retain the visibility of the `mod` / `use mod`
   declaration. This is needed before non-root unit artifacts can synthesize
   parent module skeletons without widening non-`pub` modules across unit
@@ -89,17 +100,27 @@ Implemented subset:
   source-unit key. A non-root leaf unit records only its actual source file in
   the manifest while its serialized surfaces include the synthetic parent
   module skeletons needed for import/lowering.
+- the normal CLI can select cached source-unit prefix candidates, import a
+  single prefix, or merge several non-overlapping independent prefixes before
+  lowering the changed suffix from source.
+- source-unit artifacts that depend on other local units are currently written
+  as dependency-closure artifacts. This duplicates dependency surfaces across
+  related artifacts, but it keeps every runtime reference local to one artifact.
+- std source sets can write and reuse a compiled std prefix, and the wasm
+  playground embeds compact/full std `.yuunit` artifacts.
+- compiled-unit artifacts record external runtime refs for the import path.
+  Canaries cover value refs, effect operations, constructors, field methods,
+  casts, role impl reuse, argument effect contracts, and root expressions.
 
 Not implemented yet:
 
-- individual dependency SCC artifacts;
-- source-unit artifact writing for units that require imported dependency
-  surfaces;
-- merging several source-unit compiled surfaces into one imported prefix;
+- dependent-only SCC artifacts that drop dependency surfaces and rely entirely
+  on serialized external refs;
+- cache selection that imports dependency artifacts first, then extends that
+  prefix with a dependent-only artifact;
 - realm/band-qualified cache keys;
 - dependency interface hashes;
-- normal CLI selection of a dependency-closed compiled prefix plus changed
-  source suffix.
+- package-level cache invalidation from `realm.toml` / `yulang.lock`.
 
 Target shape:
 

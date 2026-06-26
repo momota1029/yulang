@@ -125,8 +125,9 @@ inspect or clear it, or pass `--no-cache` to bypass cache read/write for one
 command. Local source sets can also reuse cached compiled source-unit prefixes
 when only a suffix of the module tree changed. When `--runtime-phase-timings` is
 enabled, `run.cache` reports the route used for the current run, such as
-`control-hit`, `poly-hit`, `compiled-unit-hit`, `source-unit-prefix-hit`, or
-`full-miss`.
+`control-hit`, `poly-hit`, `compiled-unit-hit`, `std-prefix-hit`,
+`source-unit-prefix-hit`, `merged-source-unit-prefix-hit`, or `full-miss`.
+See [docs/cache.md](docs/cache.md) for the current cache architecture.
 
 Check a file:
 
@@ -157,6 +158,8 @@ language, but their public API and diagnostics are not a compatibility promise.
   Japanese language overview.
 - [docs/status.md](docs/status.md):
   support status across parser, inference, runtime, and archived surfaces.
+- [docs/cache.md](docs/cache.md):
+  compiled-unit, poly, VM, and source-unit cache routes.
 - [web/docs/reference/type-theory.md](web/docs/reference/type-theory.md):
   public reference for effect rows, handler hygiene, and hidden handler
   evidence.

@@ -70,6 +70,10 @@ yulang check examples/08_types.yu
 `yulang run --print-roots ...` when you want to inspect root expression values
 from the CLI.
 
+The CLI caches compiler artifacts under the user cache root. See
+[Cache](./cache) for `.yuunit`, `.yuir`, `.yuvm`, and the route labels printed
+by `--runtime-phase-timings`.
+
 The language server ships in the same binary:
 
 ```sh
