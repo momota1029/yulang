@@ -31,8 +31,8 @@ mod time;
 
 use engine::Runtime;
 use frame::{
-    BindThen, Continuation, ContinuationMarkerScope, Frame, RefSetFinish, RefSetResumeMode,
-    prepend_marker_scope, push_frame,
+    BindThen, Continuation, ContinuationMarkerScope, Frame, MarkerScopeList, RefSetFinish,
+    RefSetResumeMode, prepend_marker_scope, push_frame,
 };
 use scope_state::{ScopeRequestMarking, ScopeState};
 use time::{Duration, Instant};
@@ -660,7 +660,7 @@ type RuntimeCatchArms = Rc<[RuntimeCatchArm]>;
 type SharedFrame = Rc<Frame>;
 type SharedValues = Rc<[Value]>;
 type SharedValueFields = Rc<[ValueField]>;
-type SharedMarkerScopes = Rc<[ContinuationMarkerScope]>;
+type SharedMarkerScopes = Rc<MarkerScopeList>;
 type SharedMarkers = Rc<[ValueMarker]>;
 
 enum EvalResult {

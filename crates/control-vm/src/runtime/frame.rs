@@ -23,6 +23,41 @@ pub(super) struct ContinuationMarkerScope {
     pub(super) handler_key: Option<InternedPathPrefix>,
 }
 
+pub(super) struct MarkerScopeList {
+    scope: ContinuationMarkerScope,
+    tail: Option<SharedMarkerScopes>,
+    len: usize,
+}
+
+impl MarkerScopeList {
+    fn prepend(scope: ContinuationMarkerScope, tail: Option<SharedMarkerScopes>) -> Self {
+        let len = tail.as_ref().map_or(0, |tail| tail.len()) + 1;
+        Self { scope, tail, len }
+    }
+
+    pub(super) fn len(&self) -> usize {
+        self.len
+    }
+
+    fn iter(&self) -> MarkerScopeListIter<'_> {
+        MarkerScopeListIter { next: Some(self) }
+    }
+}
+
+struct MarkerScopeListIter<'a> {
+    next: Option<&'a MarkerScopeList>,
+}
+
+impl<'a> Iterator for MarkerScopeListIter<'a> {
+    type Item = &'a ContinuationMarkerScope;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let list = self.next?;
+        self.next = list.tail.as_deref();
+        Some(&list.scope)
+    }
+}
+
 struct ActiveContinuationMarkerScope {
     frames_remaining: usize,
     resume_markers: SharedMarkers,
@@ -1628,11 +1663,6 @@ pub(super) fn prepend_marker_scope(
     continuation: &mut Continuation,
     scope: ContinuationMarkerScope,
 ) {
-    let existing = continuation.marker_scopes.as_ref();
-    let mut scopes = Vec::with_capacity(existing.map_or(0, |scopes| scopes.len()) + 1);
-    scopes.push(scope);
-    if let Some(existing) = existing {
-        scopes.extend(existing.iter().cloned());
-    }
-    continuation.marker_scopes = Some(Rc::from(scopes.into_boxed_slice()));
+    let existing = continuation.marker_scopes.clone();
+    continuation.marker_scopes = Some(Rc::new(MarkerScopeList::prepend(scope, existing)));
 }
