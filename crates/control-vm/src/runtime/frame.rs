@@ -922,11 +922,13 @@ impl<'a> Runtime<'a> {
         marker_scopes: &mut Vec<ActiveContinuationMarkerScope>,
         request_close_offset: usize,
     ) -> RuntimeResult {
+        self.stats.marker_scope_close_calls += 1;
         while marker_scopes
             .last()
             .is_some_and(|scope| marker_scope_remaining(scope, request_close_offset) == 0)
         {
             let scope = marker_scopes.pop().expect("checked marker scope");
+            self.stats.marker_scope_close_pops += 1;
             result = self.close_active_marker_scope_result(result, scope)?;
         }
         Ok(result)
@@ -942,6 +944,7 @@ impl<'a> Runtime<'a> {
         let scope = marker_scopes
             .pop()
             .expect("request should be inside an active marker scope");
+        self.stats.marker_scope_request_closes += 1;
         let frames_remaining = marker_scope_remaining(&scope, *request_close_offset);
         let inner_frames = split_back_frames(&mut continuation.frames, frames_remaining);
         *request_close_offset += frames_remaining;
@@ -1576,6 +1579,10 @@ fn consume_marker_frame(
     marker_scopes: &mut [ActiveContinuationMarkerScope],
 ) {
     let depth = marker_scopes.len() as u64;
+    stats.marker_scope_consume_calls += 1;
+    if depth > 0 {
+        stats.marker_scope_consume_nonempty_calls += 1;
+    }
     stats.marker_scope_frame_touches += depth;
     stats.marker_scope_consume_touches += depth;
     stats.marker_scope_max_depth = stats.marker_scope_max_depth.max(depth);

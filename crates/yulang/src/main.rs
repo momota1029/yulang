@@ -838,8 +838,28 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
         stats.marker_scope_frame_touches
     );
     eprintln!(
+        "  run.marker_scope_consume_calls: {}",
+        stats.marker_scope_consume_calls
+    );
+    eprintln!(
+        "  run.marker_scope_consume_nonempty_calls: {}",
+        stats.marker_scope_consume_nonempty_calls
+    );
+    eprintln!(
         "  run.marker_scope_consume_touches: {}",
         stats.marker_scope_consume_touches
+    );
+    eprintln!(
+        "  run.marker_scope_close_calls: {}",
+        stats.marker_scope_close_calls
+    );
+    eprintln!(
+        "  run.marker_scope_close_pops: {}",
+        stats.marker_scope_close_pops
+    );
+    eprintln!(
+        "  run.marker_scope_request_closes: {}",
+        stats.marker_scope_request_closes
     );
     eprintln!(
         "  run.marker_scope_extend_touches: {}",
