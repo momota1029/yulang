@@ -10,11 +10,21 @@ artifacts.
 | --- | --- | --- |
 | `.yucu` | compiled syntax, namespace, typed, and runtime surfaces | Reusing standard library or unchanged dependency modules |
 | `.yuir` | inferred principal poly IR | Re-running the exact same source set without inference |
+| `.yumo` | specialized mono IR | Re-running mono commands or rebuilding control VM from an unchanged source set |
 | `.yuvm` | lowered control-VM program | Re-running the exact same source set without specialization or VM lowering |
+| `.yures` | realm / band resolution target | Checking a source-site realm import against a cached target fingerprint |
 
 The important incremental artifact is `.yucu`, short for "Yulang compiled
 unit". A cached `.yucu` can be imported as a prefix, then Yulang compiles only
 the source files that are not covered by that prefix.
+
+`.yumo` is exact-source keyed. It is not a realm-wide mono cache: Yulang only
+reuses it for the same source / resolution context.
+
+`.yures` is a resolution record, not compiled code. For local
+`realm/...::...` imports, a cached entry is accepted only if it still points at
+the deterministic local `<realm>/<band>.yu` path and the source fingerprint
+matches. Otherwise Yulang falls back to the filesystem resolver.
 
 ## Route labels
 
@@ -57,6 +67,9 @@ yulang run --no-cache path/to/file.yu
 
 Invalid or old cache entries are not language errors. Yulang skips them and
 falls back to compiling from source.
+
+`--no-cache` also bypasses checked realm-resolution cache lookups during source
+collection.
 
 ## Current limits
 

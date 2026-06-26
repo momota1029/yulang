@@ -9,11 +9,20 @@ Yulang はコンパイラの artifact をキャッシュします。プログラ
 | --- | --- | --- |
 | `.yucu` | 構文、名前空間、型、runtime surface | 標準ライブラリや変更していない依存モジュールの再利用 |
 | `.yuir` | 推論済み principal poly IR | 完全に同じ source set を、推論なしで再実行する |
+| `.yumo` | specialize 済み mono IR | mono command の再実行や、同じ source set から control VM を作り直す |
 | `.yuvm` | lower 済み control-VM program | 完全に同じ source set を、specialize / VM lowering なしで再実行する |
+| `.yures` | realm / band の解決結果 | source-site の realm import を、cached target fingerprint で確認する |
 
 増分コンパイルで重要なのは `.yucu` です。これは "Yulang compiled unit" の略です。
 キャッシュ済み `.yucu` は prefix として import できるため、Yulang はその prefix に含まれない
 source file だけを再コンパイルできます。
+
+`.yumo` は exact source key の cache です。realm 全体に対する mono cache ではありません。
+Yulang は同じ source / resolution context に対してだけ再利用します。
+
+`.yures` は解決結果の記録で、compiled code ではありません。local な `realm/...::...` import では、
+cached entry が deterministic な local `<realm>/<band>.yu` path を指し、source fingerprint も一致する
+場合だけ使われます。そうでない場合は通常の filesystem resolver に戻ります。
 
 ## route label
 
@@ -56,6 +65,8 @@ yulang run --no-cache path/to/file.yu
 
 古い cache や壊れた cache は、言語エラーではありません。Yulang はその artifact を飛ばし、
 source から compile し直します。
+
+`--no-cache` は source collection 中の checked realm-resolution cache lookup も無効にします。
 
 ## 現在の制限
 

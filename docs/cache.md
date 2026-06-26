@@ -8,20 +8,28 @@ collects source files, validates cache keys, and executes the resulting program.
 
 ## Artifact layers
 
-Yulang currently uses three persistent artifact layers:
+Yulang currently uses five persistent artifact layers:
 
 | Extension | Scope | Main purpose |
 | --- | --- | --- |
 | `.yucu` | full source set, std prefix, source-unit prefix, or merged prefix | Reuse compiled syntax / namespace / lowering / typed / runtime surfaces. |
 | `.yuir` | exact full source set | Reuse the principal poly IR after inference. |
+| `.yumo` | exact full source / resolution key | Reuse the mono IR after specialization. |
 | `.yuvm` | exact full source set | Reuse the final control-VM program after specialization and VM lowering. |
+| `.yures` | source-site realm resolution request | Record an exact resolved realm / band target and source fingerprint. |
 
-`.yuir` and `.yuvm` are exact whole-program artifacts. They are fastest when
-the complete source set is unchanged.
+`.yuir`, `.yumo`, and `.yuvm` are exact whole-program artifacts. They are
+fastest when the complete source set is unchanged.
 
 `.yucu` stands for "Yulang compiled unit". It is the incremental layer. It can
 be used as an exact full-source artifact, but it can also be imported as a
 prefix so the compiler only lowers and infers the changed suffix.
+
+`.yures` is not a compiled program artifact. It records source-site realm /
+band resolution. Current local `realm/...::...` entries are used only as checked
+lookups: the cached path must still match the deterministic local
+`<realm>/<band>.yu` candidate and the target source fingerprint. Stale,
+corrupted, or redirected entries fall back to ordinary filesystem resolution.
 
 ## What a `.yucu` contains
 
@@ -61,9 +69,10 @@ The normal build path is conservative:
 
 1. try exact `.yuvm` for `run`;
 2. try exact `.yuir`;
-3. try exact full-source `.yucu`;
-4. try std/source-unit prefix `.yucu`;
-5. compile from source and write fresh artifacts.
+3. try exact `.yumo` when mono is requested or a cached control build needs it;
+4. try exact full-source `.yucu`;
+5. try std/source-unit prefix `.yucu`;
+6. compile from source and write fresh artifacts.
 
 ## Source-unit prefix reuse
 
@@ -116,12 +125,18 @@ dependency-closure route stays the default.
 Cache failure is not a language error. Invalid, old, or unreadable artifacts are
 discarded or skipped, then the compiler falls back to source.
 
+For source collection, `--no-cache` also disables checked `.yures` lookups.
+Without `--no-cache`, local current-realm resolution entries may be used only
+after the deterministic local path and source fingerprint checks pass.
+
 ## Related documents
 
 - `spec/2026-06-14-control-artifact-cache.md` defines the pipeline artifact
   cache semantics.
 - `notes/design/2026-06-26-compiled-unit-surface-merge.md` records the
   compiled-unit merge design and current implementation status.
+- `notes/design/2026-06-26-realm-cache-strategy.md` records the realm
+  resolution cache split and guardrails.
 - `notes/benchmarks/2026-06-26-compiled-unit-cache-speedup.md` records the
   speedup and remaining bottlenecks from the 2026-06-26 cache work.
 - `notes/design/source-realm-band-plan.md` defines the realm/band identity
