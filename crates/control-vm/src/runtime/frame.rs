@@ -15,57 +15,352 @@ impl Default for Continuation {
     }
 }
 
+#[derive(Clone)]
+pub(super) struct StoredContinuation {
+    frames: StoredContinuationFrames,
+    marker_scopes: Option<SharedMarkerScopes>,
+}
+
+impl StoredContinuation {
+    fn capture(continuation: &Continuation, stats: &mut RuntimeStats) -> Self {
+        Self {
+            frames: StoredContinuationFrames::capture(&continuation.frames, stats),
+            marker_scopes: continuation.marker_scopes.clone(),
+        }
+    }
+
+    fn to_continuation(&self) -> Continuation {
+        Continuation {
+            frames: self.frames.to_continuation_frames(),
+            marker_scopes: self.marker_scopes.clone(),
+        }
+    }
+
+    fn frame_len(&self) -> usize {
+        self.frames.len()
+    }
+
+    fn marker_scope_len(&self) -> usize {
+        self.marker_scopes.as_ref().map_or(0, |scopes| scopes.len())
+    }
+}
+
+#[derive(Clone)]
+struct StoredContinuationFrames {
+    segments: Rc<[FrameSnapshotSegment]>,
+    len: usize,
+}
+
+impl StoredContinuationFrames {
+    fn capture(frames: &ContinuationFrames, stats: &mut RuntimeStats) -> Self {
+        let mut segments = Vec::with_capacity(frames.segments.len());
+        for segment in &frames.segments {
+            if !segment.is_empty() {
+                segments.push(segment.to_snapshot(stats));
+            }
+        }
+        Self {
+            segments: Rc::from(segments.into_boxed_slice()),
+            len: frames.len,
+        }
+    }
+
+    fn to_continuation_frames(&self) -> ContinuationFrames {
+        let mut segments = Vec::with_capacity(self.segments.len());
+        for segment in self.segments.iter().cloned() {
+            segments.push(FrameSegment::Snapshot(segment));
+        }
+        ContinuationFrames {
+            segments,
+            len: self.len,
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.len
+    }
+}
+
 #[derive(Clone, Default)]
 pub(super) struct ContinuationFrames {
-    owned: VecDeque<SharedFrame>,
+    // Keep segment storage heap-backed while the VM still has recursive
+    // eval/apply paths. Inline segment storage makes each recursive frame
+    // larger and can reintroduce CLI stack overflows on ref-update workloads.
+    segments: Vec<FrameSegment>,
+    len: usize,
 }
 
 impl ContinuationFrames {
     pub(super) fn len(&self) -> usize {
-        self.owned.len()
+        self.len
     }
 
     pub(super) fn is_empty(&self) -> bool {
-        self.owned.is_empty()
+        self.len == 0
     }
 
     pub(super) fn push_front(&mut self, frame: SharedFrame) {
-        self.owned.push_front(frame);
+        match self.segments.first_mut() {
+            Some(FrameSegment::Owned(owned)) => owned.push_front(frame),
+            _ => {
+                let mut owned = VecDeque::new();
+                owned.push_front(frame);
+                self.segments.insert(0, FrameSegment::Owned(owned));
+            }
+        }
+        self.len += 1;
     }
 
-    pub(super) fn pop_back(&mut self) -> Option<SharedFrame> {
-        self.owned.pop_back()
-    }
-
-    pub(super) fn back(&self) -> Option<&SharedFrame> {
-        self.owned.back()
+    pub(super) fn pop_back(&mut self) -> Option<ContinuationFrame> {
+        loop {
+            let segment = self.segments.last_mut()?;
+            let frame = segment.pop_back();
+            if segment.is_empty() {
+                self.segments.pop();
+            }
+            if let Some(frame) = frame {
+                self.len -= 1;
+                return Some(frame);
+            }
+        }
     }
 
     pub(super) fn take_all(&mut self) -> Self {
         std::mem::take(self)
     }
 
-    pub(super) fn split_back(&mut self, count: usize) -> Self {
+    pub(super) fn split_back(&mut self, count: usize, stats: &mut RuntimeStats) -> Self {
         if count == 0 {
             return Self::default();
         }
-        let split_at = self
-            .owned
-            .len()
-            .checked_sub(count)
-            .expect("marker scope should not cover more frames than remain");
+        assert!(
+            count <= self.len,
+            "marker scope should not cover more frames than remain"
+        );
+        let mut remaining = count;
+        let mut suffix = Vec::new();
+        while remaining > 0 {
+            let segment = self
+                .segments
+                .last_mut()
+                .expect("checked remaining frame count");
+            let segment_len = segment.len();
+            if remaining >= segment_len {
+                let segment = self.segments.pop().expect("checked segment");
+                remaining -= segment_len;
+                suffix.push(segment);
+            } else {
+                suffix.push(segment.split_back(remaining, stats));
+                remaining = 0;
+            }
+        }
+        suffix.reverse();
+        self.len -= count;
         Self {
-            owned: self.owned.split_off(split_at),
+            segments: suffix,
+            len: count,
         }
     }
 
-    pub(super) fn prepend_to(self, continuation: &mut Continuation) {
-        continuation.frames.prepend(self);
+    pub(super) fn back_handles_eval_result(&self) -> bool {
+        self.segments
+            .last()
+            .and_then(FrameSegment::back_frame)
+            .is_some_and(Frame::handles_eval_result)
     }
 
-    pub(super) fn prepend(&mut self, mut prefix: Self) {
-        prefix.owned.append(&mut self.owned);
-        *self = prefix;
+    pub(super) fn prepend_to(self, continuation: &mut Continuation, stats: &mut RuntimeStats) {
+        continuation.frames.prepend(self, stats);
+    }
+
+    fn prepend(&mut self, prefix: Self, stats: &mut RuntimeStats) {
+        if prefix.is_empty() {
+            return;
+        }
+        if self.is_empty() {
+            *self = prefix;
+            return;
+        }
+        let len = prefix.len + self.len;
+        let mut owned = VecDeque::with_capacity(len);
+        prefix.append_to_owned(&mut owned, stats);
+        self.take_all().append_to_owned(&mut owned, stats);
+        *self = Self {
+            segments: vec![FrameSegment::Owned(owned)],
+            len,
+        };
+    }
+
+    fn append_to_owned(self, owned: &mut VecDeque<SharedFrame>, stats: &mut RuntimeStats) {
+        for segment in self.segments {
+            segment.append_to_owned(owned, stats);
+        }
+    }
+}
+
+#[derive(Clone)]
+enum FrameSegment {
+    Owned(VecDeque<SharedFrame>),
+    Snapshot(FrameSnapshotSegment),
+}
+
+impl FrameSegment {
+    fn len(&self) -> usize {
+        match self {
+            Self::Owned(frames) => frames.len(),
+            Self::Snapshot(segment) => segment.len(),
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    fn pop_back(&mut self) -> Option<ContinuationFrame> {
+        match self {
+            Self::Owned(frames) => frames.pop_back().map(ContinuationFrame::Owned),
+            Self::Snapshot(segment) => segment.pop_back(),
+        }
+    }
+
+    fn back_frame(&self) -> Option<&Frame> {
+        match self {
+            Self::Owned(frames) => frames.back().map(|frame| frame.as_ref()),
+            Self::Snapshot(segment) => segment.back_frame(),
+        }
+    }
+
+    fn split_back(&mut self, count: usize, stats: &mut RuntimeStats) -> Self {
+        match self {
+            Self::Owned(frames) => {
+                let split_at = frames
+                    .len()
+                    .checked_sub(count)
+                    .expect("checked segment split count");
+                Self::Owned(frames.split_off(split_at))
+            }
+            Self::Snapshot(segment) => Self::Snapshot(segment.split_back(count, stats)),
+        }
+    }
+
+    fn to_snapshot(&self, stats: &mut RuntimeStats) -> FrameSnapshotSegment {
+        match self {
+            Self::Owned(frames) => {
+                stats.continuation_frames_cloned += frames.len() as u64;
+                FrameSnapshotSegment::from_owned(frames)
+            }
+            Self::Snapshot(segment) => segment.clone(),
+        }
+    }
+
+    fn append_to_owned(self, owned: &mut VecDeque<SharedFrame>, stats: &mut RuntimeStats) {
+        match self {
+            Self::Owned(mut frames) => owned.append(&mut frames),
+            Self::Snapshot(segment) => segment.append_to_owned(owned, stats),
+        }
+    }
+}
+
+#[derive(Clone)]
+struct FrameSnapshotSegment {
+    frames: Rc<[SharedFrame]>,
+    start: usize,
+    end: usize,
+}
+
+impl FrameSnapshotSegment {
+    fn from_owned(frames: &VecDeque<SharedFrame>) -> Self {
+        let frames = frames.iter().cloned().collect::<Vec<_>>();
+        let end = frames.len();
+        Self {
+            frames: Rc::from(frames.into_boxed_slice()),
+            start: 0,
+            end,
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.end - self.start
+    }
+
+    fn pop_back(&mut self) -> Option<ContinuationFrame> {
+        if self.start == self.end {
+            return None;
+        }
+        self.end -= 1;
+        Some(ContinuationFrame::Snapshot {
+            frames: self.frames.clone(),
+            index: self.end,
+        })
+    }
+
+    fn back_frame(&self) -> Option<&Frame> {
+        if self.start == self.end {
+            return None;
+        }
+        self.frames.get(self.end - 1).map(|frame| frame.as_ref())
+    }
+
+    fn split_back(&mut self, count: usize, stats: &mut RuntimeStats) -> Self {
+        let suffix_start = self.end.checked_sub(count).expect("checked snapshot split");
+        let suffix = if suffix_start == self.start {
+            Self {
+                frames: self.frames.clone(),
+                start: self.start,
+                end: self.end,
+            }
+        } else {
+            // A suffix view would keep the whole source snapshot alive,
+            // including prefix frames that this request has already passed.
+            stats.continuation_frames_cloned += count as u64;
+            let frames = self.frames[suffix_start..self.end]
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>();
+            Self {
+                frames: Rc::from(frames.into_boxed_slice()),
+                start: 0,
+                end: count,
+            }
+        };
+        self.end = suffix_start;
+        suffix
+    }
+
+    fn append_to_owned(self, owned: &mut VecDeque<SharedFrame>, stats: &mut RuntimeStats) {
+        stats.continuation_frames_cloned += self.len() as u64;
+        owned.extend(self.frames[self.start..self.end].iter().cloned());
+    }
+}
+
+pub(super) enum ContinuationFrame {
+    Owned(SharedFrame),
+    Snapshot {
+        frames: Rc<[SharedFrame]>,
+        index: usize,
+    },
+}
+
+impl ContinuationFrame {
+    fn handles_eval_result(&self) -> bool {
+        self.as_frame().handles_eval_result()
+    }
+
+    fn as_frame(&self) -> &Frame {
+        match self {
+            Self::Owned(frame) => frame.as_ref(),
+            Self::Snapshot { frames, index } => frames[*index].as_ref(),
+        }
+    }
+
+    fn into_shared(self, stats: &mut RuntimeStats) -> SharedFrame {
+        match self {
+            Self::Owned(frame) => frame,
+            Self::Snapshot { frames, index } => {
+                stats.continuation_frames_cloned += 1;
+                frames[index].clone()
+            }
+        }
     }
 }
 
@@ -546,9 +841,14 @@ impl<'a> Runtime<'a> {
             consume_marker_frame(&mut self.stats, marker_scopes, consumed_marker_frames);
             self.stats.request_resume_steps += 1;
             let result = if frame.handles_eval_result() {
-                self.apply_shared_result_frame(frame, EvalResult::Value(value))?
+                self.apply_continuation_result_frame(frame, EvalResult::Value(value))?
             } else {
-                self.apply_shared_value_frame(frame, &mut *continuation, marker_scopes, value)?
+                self.apply_continuation_value_frame(
+                    frame,
+                    &mut *continuation,
+                    marker_scopes,
+                    value,
+                )?
             };
             let result = self.close_completed_marker_scopes(
                 result,
@@ -652,14 +952,10 @@ impl<'a> Runtime<'a> {
         debug_assert!(continuation.marker_scopes.is_none());
         let mut result = EvalResult::Request(request);
         loop {
-            while continuation
-                .frames
-                .back()
-                .is_some_and(|frame| frame.handles_eval_result())
-            {
+            while continuation.frames.back_handles_eval_result() {
                 let frame = continuation.frames.pop_back().expect("checked frame");
                 self.stats.request_resume_steps += 1;
-                result = self.apply_shared_result_frame(frame, result)?;
+                result = self.apply_continuation_result_frame(frame, result)?;
                 if let EvalResult::Value(value) = result {
                     return self.resume(std::mem::take(continuation), value);
                 }
@@ -668,7 +964,11 @@ impl<'a> Runtime<'a> {
                 unreachable!("value result is handled above");
             };
             let mut request = request;
-            prepend_frames(&mut request.continuation, continuation.frames.take_all());
+            prepend_frames(
+                &mut request.continuation,
+                continuation.frames.take_all(),
+                &mut self.stats,
+            );
             return Ok(EvalResult::Request(request));
         }
     }
@@ -685,30 +985,61 @@ impl<'a> Runtime<'a> {
     pub(super) fn clone_continuation_for_capture(
         &mut self,
         continuation: &Continuation,
-    ) -> Continuation {
+    ) -> StoredContinuation {
         self.stats.continuation_capture_clones += 1;
-        self.record_continuation_clone_shape(continuation);
-        continuation.clone()
+        self.record_continuation_observed_shape(continuation);
+        StoredContinuation::capture(continuation, &mut self.stats)
     }
 
     pub(super) fn clone_continuation_for_invoke(
         &mut self,
-        continuation: Continuation,
+        continuation: StoredContinuation,
     ) -> Continuation {
         self.stats.continuation_invoke_clones += 1;
-        self.record_continuation_clone_shape(&continuation);
-        continuation
+        self.record_stored_continuation_observed_shape(&continuation);
+        continuation.to_continuation()
     }
 
-    fn record_continuation_clone_shape(&mut self, continuation: &Continuation) {
+    fn record_continuation_observed_shape(&mut self, continuation: &Continuation) {
         let frame_count = continuation.frames.len() as u64;
         let marker_scope_count = continuation
             .marker_scopes
             .as_ref()
             .map_or(0, |scopes| scopes.len() as u64);
-        self.stats.continuation_frames_cloned += frame_count;
-        self.stats.continuation_marker_scopes_cloned += marker_scope_count;
+        self.record_continuation_observed_counts(frame_count, marker_scope_count);
+    }
+
+    fn record_stored_continuation_observed_shape(&mut self, continuation: &StoredContinuation) {
+        self.record_continuation_observed_counts(
+            continuation.frame_len() as u64,
+            continuation.marker_scope_len() as u64,
+        );
+    }
+
+    fn record_continuation_observed_counts(&mut self, frame_count: u64, marker_scope_count: u64) {
+        self.stats.continuation_frames_observed += frame_count;
+        self.stats.continuation_marker_scopes_observed += marker_scope_count;
         self.stats.max_continuation_frames = self.stats.max_continuation_frames.max(frame_count);
+    }
+
+    fn apply_continuation_result_frame(
+        &mut self,
+        frame: ContinuationFrame,
+        result: EvalResult,
+    ) -> RuntimeResult {
+        let frame = frame.into_shared(&mut self.stats);
+        self.apply_shared_result_frame(frame, result)
+    }
+
+    fn apply_continuation_value_frame(
+        &mut self,
+        frame: ContinuationFrame,
+        continuation: &mut Continuation,
+        marker_scopes: &mut [ActiveContinuationMarkerScope],
+        value: Value,
+    ) -> RuntimeResult {
+        let frame = frame.into_shared(&mut self.stats);
+        self.apply_shared_value_frame(frame, continuation, marker_scopes, value)
     }
 
     fn apply_shared_result_frame(
@@ -972,15 +1303,11 @@ impl<'a> Runtime<'a> {
                 *consumed_marker_frames,
                 *request_close_offset,
             )?;
-            while continuation
-                .frames
-                .back()
-                .is_some_and(|frame| frame.handles_eval_result())
-            {
+            while continuation.frames.back_handles_eval_result() {
                 let frame = continuation.frames.pop_back().expect("checked frame");
                 consume_marker_frame(&mut self.stats, marker_scopes, consumed_marker_frames);
                 self.stats.request_resume_steps += 1;
-                result = self.apply_shared_result_frame(frame, result)?;
+                result = self.apply_continuation_result_frame(frame, result)?;
                 result = self.close_completed_marker_scopes(
                     result,
                     marker_scopes,
@@ -1007,7 +1334,11 @@ impl<'a> Runtime<'a> {
             }
 
             let mut request = request;
-            prepend_frames(&mut request.continuation, continuation.frames.take_all());
+            prepend_frames(
+                &mut request.continuation,
+                continuation.frames.take_all(),
+                &mut self.stats,
+            );
             return Ok(EvalResult::Request(request));
         }
     }
@@ -1044,9 +1375,11 @@ impl<'a> Runtime<'a> {
         self.stats.marker_scope_request_closes += 1;
         let frames_remaining =
             marker_scope_remaining(&scope, consumed_marker_frames, *request_close_offset);
-        let inner_frames = continuation.frames.split_back(frames_remaining);
+        let inner_frames = continuation
+            .frames
+            .split_back(frames_remaining, &mut self.stats);
         *request_close_offset += frames_remaining;
-        prepend_frames(&mut request.continuation, inner_frames);
+        prepend_frames(&mut request.continuation, inner_frames, &mut self.stats);
         self.close_active_marker_scope_result(EvalResult::Request(request), scope)
     }
 
@@ -1698,8 +2031,12 @@ fn marker_scope_remaining(
         .expect("marker scope request-close offset should not exceed remaining frames")
 }
 
-fn prepend_frames(continuation: &mut Continuation, frames: ContinuationFrames) {
-    frames.prepend_to(continuation);
+fn prepend_frames(
+    continuation: &mut Continuation,
+    frames: ContinuationFrames,
+    stats: &mut RuntimeStats,
+) {
+    frames.prepend_to(continuation, stats);
 }
 
 fn shared_frame(stats: &mut RuntimeStats, frame: Frame) -> SharedFrame {

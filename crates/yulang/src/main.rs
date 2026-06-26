@@ -746,6 +746,14 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
         stats.continuation_invoke_clones
     );
     eprintln!(
+        "  run.continuation_frames_observed: {}",
+        stats.continuation_frames_observed
+    );
+    eprintln!(
+        "  run.continuation_marker_scopes_observed: {}",
+        stats.continuation_marker_scopes_observed
+    );
+    eprintln!(
         "  run.continuation_frames_cloned: {}",
         stats.continuation_frames_cloned
     );

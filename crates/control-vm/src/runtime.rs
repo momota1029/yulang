@@ -32,7 +32,7 @@ mod time;
 use engine::Runtime;
 use frame::{
     BindThen, Continuation, ContinuationMarkerScope, Frame, MarkerScopeList, RefSetFinish,
-    RefSetResumeMode, prepend_marker_scope, push_frame,
+    RefSetResumeMode, StoredContinuation, prepend_marker_scope, push_frame,
 };
 use scope_state::{ScopeRequestMarking, ScopeState};
 use time::{Duration, Instant};
@@ -135,6 +135,8 @@ pub struct RuntimeStats {
     pub continuation_invocations: u64,
     pub continuation_capture_clones: u64,
     pub continuation_invoke_clones: u64,
+    pub continuation_frames_observed: u64,
+    pub continuation_marker_scopes_observed: u64,
     pub continuation_frames_cloned: u64,
     pub continuation_marker_scopes_cloned: u64,
     pub shared_frame_unwrap_clones: u64,

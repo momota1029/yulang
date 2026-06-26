@@ -7,7 +7,7 @@ pub(super) struct Runtime<'a> {
     pub(super) blocks: HashMap<ExprId, RuntimeBlock>,
     pub(super) case_arms: HashMap<ExprId, RuntimeCaseArms>,
     pub(super) catch_arms: HashMap<ExprId, RuntimeCatchArms>,
-    pub(super) continuations: HashMap<ContinuationId, Continuation>,
+    pub(super) continuations: HashMap<ContinuationId, StoredContinuation>,
     pub(super) next_continuation_id: u32,
     pub(super) active_frames: Vec<ActiveFrame>,
     pub(super) active_handler_frames: Vec<ActiveHandlerFrame>,

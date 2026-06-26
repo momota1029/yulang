@@ -188,7 +188,10 @@ impl<'a> Runtime<'a> {
         value_result(value)
     }
 
-    pub(super) fn store_continuation(&mut self, continuation: Continuation) -> ContinuationId {
+    pub(super) fn store_continuation(
+        &mut self,
+        continuation: StoredContinuation,
+    ) -> ContinuationId {
         self.stats.continuations_stored += 1;
         let id = ContinuationId(self.next_continuation_id);
         self.next_continuation_id += 1;
