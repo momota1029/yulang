@@ -245,6 +245,24 @@ std/@v/0.1.0/...
 If that snapshot contains a root `realm.yu`, the single-band case can be laid
 out as `realm = band` without introducing an empty default band.
 
+When a realm version is fixed for release, Yulang should materialize
+compiled-unit artifacts for the released band roots:
+
+```text
+release snapshot = source snapshot + resolution metadata + .yucu artifacts
+```
+
+The `.yucu` files are release cache artifacts, not the semantic source of
+truth. The source snapshot and resolution metadata define the release. A
+compiled unit is reused only when its compiler cache format, source
+fingerprint, dependency fingerprint, and realm/band release identity match.
+If a `.yucu` artifact is missing or stale, the compiler may rebuild it from the
+fixed source snapshot.
+
+Release fixing should not publish `.yuir`, `.yumo`, or `.yuvm` by default.
+Those artifacts are exact-program caches. A released band is meant to be
+imported as a dependency prefix, so `.yucu` is the natural artifact boundary.
+
 ### Band
 
 A band is the import / namespace / build unit inside a realm.

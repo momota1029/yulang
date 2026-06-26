@@ -99,6 +99,11 @@ release artifact
 
 - `POLY_CACHE_FORMAT` / `CONTROL_CACHE_FORMAT` の bump 漏れが release artifact に混ざらないようにする。
 - std bundle の version、source hash、artifact format を manifest に入れる。
+- 将来の realm/band release freeze では、固定した source snapshot と resolution metadata に加えて
+  published band root の `.yucu` を生成する。
+  `.yucu` は依存 prefix 用の cache artifact であり、release の正本は source snapshot と
+  resolution metadata に置く。`.yuir` / `.yumo` / `.yuvm` は exact program cache なので
+  default release artifact には含めない。
 - installer で入れた binary は、同じ prefix の `lib/yulang-<stdlib-version>` を
   `YULANG_STD` / 近場 `lib/std` の次、user default std の前に発見する。
 - cache miss の理由を diagnostics ではなく build/cache status として出す。

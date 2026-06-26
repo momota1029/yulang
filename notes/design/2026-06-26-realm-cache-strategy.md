@@ -96,6 +96,28 @@ convenience, but validity must be keyed by typed/runtime surface plus
 specialization demand. Do not reuse mono across different source sets merely
 because they mention the same realm snapshot.
 
+### Release Snapshots Publish `.yucu`, Not Exact Program Caches
+
+Future release/freeze commands should treat `.yucu` as the only compiled cache
+artifact that belongs in a realm/band release snapshot.
+
+```text
+released realm/band snapshot
+  -> source files
+  -> exact resolution metadata
+  -> compiled-unit `.yucu` artifacts for published band roots
+```
+
+`.yucu` is the dependency-prefix artifact. It stores syntax, namespace, typed,
+and runtime surfaces that another program can import without rerunning the
+whole dependency through lowering and inference. It is still a cache: the
+release source snapshot remains authoritative, and stale or missing `.yucu`
+entries can be rebuilt from that fixed source snapshot.
+
+Do not include `.yuir`, `.yumo`, or `.yuvm` in the default release snapshot.
+Those artifacts are exact source-set / exact program caches and should stay
+local to the command that produced them.
+
 ## Implemented
 
 ### Resolution Metadata
@@ -177,6 +199,8 @@ The CLI reads/writes `.yumo` after the poly stage in:
 - realm-indexed mono sharing by typed/runtime surface plus specialization
   demand;
 - use of `.yures` to choose non-local provider files.
+- release/freeze command support for materializing `.yucu` artifacts alongside
+  fixed source snapshots.
 
 ## Guardrails
 
