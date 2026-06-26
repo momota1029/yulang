@@ -64,14 +64,16 @@ Current implementation status:
 - `UseImport` preserves route, version-family suffix, and `with` anchor.
 - `CollectedSource` carries resolution imports.
 - source and source-unit cache keys hash those imports.
+- cached CLI builds populate exact current-realm `realm/...::...`
+  resolution entries after source collection. These entries are validated by
+  target source fingerprint before being left unchanged.
 
 Next implementation step:
 
-- add a persistent resolution-entry cache that maps source-site requests to
-  exact local realm/band targets;
 - once exact target identity is available, hash it in addition to the request;
-- teach source-unit dependency analysis that cross-band imports create
-  dependency edges distinct from `mod` containment edges.
+- use the resolution cache as a checked lookup only after source collection has
+  an explicit cache policy and stale-entry fallback path;
+- extend the same mechanism to slash-qualified global realm providers.
 
 ### Accumulate Generated Mono In The Realm Cache
 

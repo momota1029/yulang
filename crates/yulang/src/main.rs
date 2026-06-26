@@ -818,6 +818,9 @@ fn build_poly_with_cache_timed(
     cache: &yulang::cache::ArtifactCache,
     mut timings: Option<&mut RuntimePhaseTimings>,
 ) -> yulang::BuildPolyOutput {
+    if let Err(error) = yulang::cache::write_current_realm_resolution_artifacts(cache, &files) {
+        eprintln!("warning: {error}");
+    }
     match cache.read_poly_artifact(key) {
         Ok(Some(cached)) => {
             record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::PolyHit);
