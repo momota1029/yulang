@@ -558,7 +558,10 @@ pub fn write_current_realm_resolution_artifacts(
             let Some(band_path) = current_realm_import_band_path(request) else {
                 continue;
             };
-            let Some(target_file) = files.iter().find(|file| file.module_path == band_path) else {
+            let Some(target_file) = files
+                .iter()
+                .find(|file| file.module_path == band_path && file.band_path == band_path)
+            else {
                 continue;
             };
             let key = realm_resolution_cache_key(source_file, request);
@@ -3542,6 +3545,40 @@ mod tests {
         assert_eq!(restored.target.module_path, path(&["helper"]));
         assert_eq!(restored.target.source_len, helper.source.len());
         assert_eq!(restored.target.source_hash, source_file_hash(&helper));
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn current_realm_resolution_artifacts_require_target_band_path() {
+        let root = temp_root("current-realm-resolution-target-band");
+        std::fs::create_dir_all(&root).unwrap();
+        let cache = ArtifactCache::new(root.join("cache"));
+        let main_path = root.join("main.yu");
+        let helper_path = root.join("helper.yu");
+        let request = sources::UseImport::Alias {
+            name: Name("value".into()),
+            path: path(&["helper", "value"]),
+            route: sources::UsePathRoute::CurrentRealm { band_segments: 1 },
+            version: None,
+            anchor: None,
+        };
+        let main = CollectedSource::with_resolution_imports(
+            main_path,
+            Path::default(),
+            "use realm/helper::value\nvalue\n".to_string(),
+            vec![request],
+        );
+        let helper = CollectedSource::new(
+            helper_path,
+            path(&["helper"]),
+            "pub value = 7\n".to_string(),
+        );
+
+        assert_eq!(
+            write_current_realm_resolution_artifacts(&cache, &[main, helper]).unwrap(),
+            0
+        );
 
         let _ = std::fs::remove_dir_all(&root);
     }
