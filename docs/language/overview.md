@@ -90,6 +90,11 @@ use std::prelude::*
 
 The standard library lives in `lib/std`, but its module path is `std::...`.
 
+The experimental dependency layer uses the terms realm and band. A realm is a
+versioned resolution space. A band is an import/build island inside a realm.
+Ordinary module paths stay inside the current band unless the import explicitly
+uses a realm route.
+
 ## Blocks and Bindings
 
 Yulang is expression-oriented. Blocks evaluate their statements in order and return the last expression.

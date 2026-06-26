@@ -2,6 +2,9 @@
 
 This note defines the source-level packaging vocabulary for Yulang.
 
+Terminology rule: a realm is a versioned resolution space. A band is an
+import/build island inside a realm.
+
 The current target shape is:
 
 ```text
@@ -32,8 +35,8 @@ the realm, never to a band.
 
 ## Current Decisions
 
-- A realm is the versioned distribution and snapshot boundary.
-- A band is the import / namespace / build boundary inside one realm.
+- A realm is the versioned resolution space and snapshot boundary.
+- A band is the import / namespace / build island inside one realm.
 - A module tree lives inside one band and is grown by `mod`.
 - A resolved realm snapshot is described by three separate graphs:
   - `G_mod`: structural source containment created by `mod`;

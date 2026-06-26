@@ -87,6 +87,10 @@ use std::prelude::*
 
 標準ライブラリの実体は `lib/std` にあるが、言語内の module path は `std::...` である。
 
+実験中の dependency layer では、realm と band という用語を使う。realm は
+version 付きの解決空間であり、band は realm 内の import / build の島である。
+通常の module path は、明示的な realm route を使わない限り current band の中に留まる。
+
 ## block と binding
 
 Yulang は式指向である。block は statement を順に評価し、最後の式を値として返す。

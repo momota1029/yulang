@@ -3,6 +3,10 @@
 This directory is a small local fixture for the realm / band compiled-unit
 cache.
 
+A realm is a versioned resolution space. A band is an import/build island
+inside a realm. This fixture stays inside one local realm and one band while
+exercising multiple source dependency SCCs.
+
 ```text
 main.yu          entry module
 math.yu          module loaded by use mod math::*

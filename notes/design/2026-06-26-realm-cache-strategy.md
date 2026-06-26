@@ -6,6 +6,9 @@ This note records the cache split used while realm / band resolution is being
 implemented. The main constraint is that cache state must not turn
 `realm.toml` back into a package summary or decide which source files exist.
 
+Terminology used here: a realm is a versioned resolution space. A band is an
+import/build island inside a realm.
+
 ## Decisions
 
 ### Source Realms Are Cache Namespaces, Not Mutable Build Directories

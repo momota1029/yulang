@@ -3,6 +3,9 @@
 Yulang はコンパイラの artifact をキャッシュします。プログラムの実行結果はキャッシュしません。
 各 `run` は、必要な artifact を見つけるか作り直したあとで、通常どおりプログラムを実行します。
 
+realm は version 付きの解決空間であり、band は realm 内の import / build の島です。
+module は band の中にあり、bare path は band 境界を越えません。
+
 ## artifact の種類
 
 | Artifact | 保存するもの | 効く場面 |

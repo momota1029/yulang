@@ -4,6 +4,10 @@ Yulang caches compiler artifacts. It does not cache program output: every run
 still executes the program after the compiler has found or rebuilt the needed
 artifacts.
 
+A realm is a versioned resolution space. A band is an import/build island
+inside a realm. Modules live inside a band, and bare paths do not cross a band
+boundary.
+
 ## Artifact types
 
 | Artifact | What it stores | When it helps |

@@ -6,6 +6,10 @@ specification; realm/band identity is still being integrated.
 The cache stores compiler artifacts, not program output. A cached run still
 collects source files, validates cache keys, and executes the resulting program.
 
+Terminology: a realm is a versioned resolution space. A band is an import/build
+island inside a realm. Modules live inside a band, and bare paths do not cross a
+band boundary.
+
 ## Artifact layers
 
 Yulang currently uses five persistent artifact layers:
