@@ -75,7 +75,9 @@ Next implementation step:
 
 ### Accumulate Generated Mono In The Realm Cache
 
-Do not make mono a realm-owned cache artifact yet.
+Do not make mono a realm-owned cache artifact yet. A full-source exact mono
+artifact is safe as an intermediate step, but it is not the same thing as a
+realm-level mono store.
 
 Mono is not only a property of a realm snapshot. It depends on:
 
@@ -98,13 +100,34 @@ The realm cache can index mono artifacts by resolved realm and band for lookup
 convenience, but the validity key must be the typed/runtime surface plus demand
 configuration. It should not be keyed only by realm version.
 
+Accepted near-term shape:
+
+```text
+source / resolution exact key
+  -> poly artifact
+  -> mono artifact
+  -> control artifact
+```
+
+This is conservative. It helps `dump-mono`, `run-mono`, and control-cache
+misses without claiming that mono is shareable between independent programs.
+The source key already includes source-site realm resolution metadata, so the
+artifact naturally splits when the exact resolved import context changes.
+
+Do not reuse the exact mono artifact for a different source set, even if the
+same realm/band snapshot appears in both programs. That sharing needs a later
+typed/runtime surface key plus a specialization demand key.
+
 ## Implementation Order
 
 1. Preserve source-site resolution metadata and include it in source cache keys.
 2. Persist exact resolution entries for local realm/band targets.
 3. Add resolved cross-band dependency edges to source-unit cache planning.
 4. Add realm-scoped cache directories as a namespace for resolution entries.
-5. Only after typed/runtime surface keys are stable, prototype mono artifacts.
+5. Add exact source/resolution-keyed mono artifacts as a safe intermediate
+   cache stage.
+6. Only after typed/runtime surface keys are stable, prototype realm-indexed
+   mono sharing.
 
 This order keeps cache lookup behind source collection and avoids using cache
 state to decide what source files exist.
