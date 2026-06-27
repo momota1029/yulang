@@ -995,9 +995,38 @@ pub(crate) fn run_program(
     RuntimeEvidenceRunner::new(program).run()
 }
 
+fn static_arm_caches(
+    program: &Program,
+) -> (
+    Vec<Option<Rc<[control_vm::CaseArm]>>>,
+    Vec<Option<Rc<[control_vm::CatchArm]>>>,
+) {
+    let mut case_arms = Vec::with_capacity(program.exprs.len());
+    let mut catch_arms = Vec::with_capacity(program.exprs.len());
+    for expr in &program.exprs {
+        match expr {
+            Expr::Case { arms, .. } => {
+                case_arms.push(Some(shared_case_arms(arms)));
+                catch_arms.push(None);
+            }
+            Expr::Catch { arms, .. } => {
+                case_arms.push(None);
+                catch_arms.push(Some(shared_catch_arms(arms)));
+            }
+            _ => {
+                case_arms.push(None);
+                catch_arms.push(None);
+            }
+        }
+    }
+    (case_arms, catch_arms)
+}
+
 struct RuntimeEvidenceRunner<'a> {
     program: &'a Program,
     evidence: ControlEvidenceIndex,
+    case_arms: Vec<Option<Rc<[control_vm::CaseArm]>>>,
+    catch_arms: Vec<Option<Rc<[control_vm::CatchArm]>>>,
     instances: HashMap<InstanceId, SharedValue>,
     evaluating_instances: HashSet<InstanceId>,
     next_guard_id: u32,
@@ -1014,10 +1043,13 @@ struct RuntimeEvidenceRunner<'a> {
 impl<'a> RuntimeEvidenceRunner<'a> {
     fn new(program: &'a Program) -> Self {
         let evidence = ControlEvidenceIndex::new(program);
+        let (case_arms, catch_arms) = static_arm_caches(program);
         let stats = evidence.stats();
         Self {
             program,
             evidence,
+            case_arms,
+            catch_arms,
             instances: HashMap::new(),
             evaluating_instances: HashSet::new(),
             next_guard_id: 0,
@@ -1052,6 +1084,22 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             stdout: self.stdout.clone(),
             evidence_stats: self.stats,
         })
+    }
+
+    fn static_case_arms(&self, expr: ExprId) -> Rc<[control_vm::CaseArm]> {
+        self.case_arms
+            .get(expr.0 as usize)
+            .and_then(|arms| arms.as_ref())
+            .cloned()
+            .expect("case expression must have cached case arms")
+    }
+
+    fn static_catch_arms(&self, expr: ExprId) -> Rc<[control_vm::CatchArm]> {
+        self.catch_arms
+            .get(expr.0 as usize)
+            .and_then(|arms| arms.as_ref())
+            .cloned()
+            .expect("catch expression must have cached catch arms")
     }
 
     fn clone_env(&mut self, env: &Env) -> Env {
@@ -1746,7 +1794,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             } => {
                 return self.eval_select_result(*base, name, resolution, env);
             }
-            Expr::Case { scrutinee, arms } => {
+            Expr::Case { scrutinee, .. } => {
+                let arms = self.static_case_arms(expr_id);
                 return match self.eval_expr_result(*scrutinee, env)? {
                     EvidenceEvalResult::Value(scrutinee) => {
                         self.eval_case_scrutinee_result(scrutinee, arms, env)
@@ -1757,7 +1806,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             self.append_request_continuation(
                                 request,
                                 EvidenceContinuation::case_scrutinee(
-                                    shared_case_arms(arms),
+                                    arms,
                                     env,
                                     EvidenceContinuation::identity(),
                                 ),
@@ -1766,7 +1815,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     }
                 };
             }
-            Expr::Catch { body, arms } => return self.eval_catch(expr_id, *body, arms, env),
+            Expr::Catch { body, .. } => return self.eval_catch(expr_id, *body, env),
             Expr::Block(block) => {
                 return self.eval_block_result(block, env);
             }
@@ -2539,7 +2588,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.continue_result(result, next.clone())
             }
             EvidenceContinuationFrame::CaseScrutinee { arms, env, next } => {
-                let result = self.eval_case_scrutinee_result(value, arms, env)?;
+                let result = self.eval_case_scrutinee_result(value, arms.clone(), env)?;
                 self.continue_result(result, next.clone())
             }
             EvidenceContinuationFrame::CatchBody {
@@ -2550,7 +2599,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             } => {
                 let result = self.continue_catch_body_result(
                     *catch_expr,
-                    arms,
+                    arms.clone(),
                     env,
                     EvidenceEvalResult::Value(value),
                 )?;
@@ -2940,7 +2989,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             } => {
                 let result = self.continue_catch_body_result(
                     *catch_expr,
-                    arms,
+                    arms.clone(),
                     env,
                     EvidenceEvalResult::Request(request),
                 )?;
@@ -3295,9 +3344,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         catch_expr: ExprId,
         body: ExprId,
-        arms: &[control_vm::CatchArm],
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let arms = self.static_catch_arms(catch_expr);
         let mut body_env = self.clone_env(env);
         let result = self.eval_expr_result(body, &mut body_env)?;
         self.continue_catch_body_result(catch_expr, arms, env, result)
@@ -3306,26 +3355,26 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn continue_catch_body_result(
         &mut self,
         catch_expr: ExprId,
-        arms: &[control_vm::CatchArm],
+        arms: Rc<[control_vm::CatchArm]>,
         env: &Env,
         result: EvidenceEvalResult,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         self.stats.catch_body_checks += 1;
         match result {
-            EvidenceEvalResult::Value(value) => self.eval_value_arm(value, arms, env),
+            EvidenceEvalResult::Value(value) => self.eval_value_arm(value, &arms, env),
             EvidenceEvalResult::Request(request) => match request.route {
                 EvidenceEffectRoute::Direct {
                     handler,
                     resumptive,
                 } if handler == catch_expr => {
-                    self.eval_operation_arm(request, resumptive, arms, env)
+                    self.eval_operation_arm(request, resumptive, &arms, env)
                 }
                 EvidenceEffectRoute::Direct { .. } => Ok(EvidenceEvalResult::Request(
                     self.defer_catch_body(catch_expr, arms, env, request),
                 )),
                 EvidenceEffectRoute::Unhandled => {
-                    if let Some(resumptive) = self.visible_operation_resumptive(&request, arms) {
-                        self.eval_operation_arm(request, resumptive, arms, env)
+                    if let Some(resumptive) = self.visible_operation_resumptive(&request, &arms) {
+                        self.eval_operation_arm(request, resumptive, &arms, env)
                     } else {
                         Ok(EvidenceEvalResult::Request(
                             self.defer_catch_body(catch_expr, arms, env, request),
@@ -3362,7 +3411,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn defer_catch_body(
         &mut self,
         catch_expr: ExprId,
-        arms: &[control_vm::CatchArm],
+        arms: Rc<[control_vm::CatchArm]>,
         env: &Env,
         request: EvidenceRequest,
     ) -> EvidenceRequest {
@@ -3371,7 +3420,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             request,
             EvidenceContinuation::catch_body(
                 catch_expr,
-                shared_catch_arms(arms),
+                arms,
                 env,
                 EvidenceContinuation::identity(),
             ),
@@ -3512,18 +3561,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn eval_case_scrutinee_result(
         &mut self,
         scrutinee: SharedValue,
-        arms: &[control_vm::CaseArm],
+        arms: Rc<[control_vm::CaseArm]>,
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         match self.force_value_if_thunk_result(scrutinee)? {
-            EvidenceEvalResult::Value(scrutinee) => self.eval_case_result(scrutinee, arms, env),
+            EvidenceEvalResult::Value(scrutinee) => self.eval_case_result(scrutinee, &arms, env),
             EvidenceEvalResult::Request(request) => {
                 let env = self.clone_env(env);
                 Ok(EvidenceEvalResult::Request(
                     self.append_request_continuation(
                         request,
                         EvidenceContinuation::case_scrutinee(
-                            shared_case_arms(arms),
+                            arms,
                             env,
                             EvidenceContinuation::identity(),
                         ),
