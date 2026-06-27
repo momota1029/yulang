@@ -430,6 +430,40 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
 }
 
 #[test]
+fn debug_evidence_vm_plan_records_handler_definition_env() {
+    let entry = write_entry(
+        "debug-evidence-vm-handler-definition-env",
+        "act out:\n  our say: int -> unit\n\n\
+         catch (catch out::say(1):\n\
+         \x20 out::say(n), k -> k()\n\
+         \x20 v -> v\n\
+         ):\n\
+         \x20 out::say(n), k -> k()\n\
+         \x20 v -> v\n",
+    );
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("evidence-vm-plan")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains("handler-objects:"),
+        "handler evidence objects should be visible in the plan:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("def_env [h0]"),
+        "nested handler objects should record outer definition handler ids:\n{stdout}"
+    );
+}
+
+#[test]
 fn debug_evidence_vm_plan_visits_method_select_handler_body() {
     let entry = write_entry(
         "debug-evidence-vm-plan-method-select-handler",

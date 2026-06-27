@@ -1269,10 +1269,11 @@ fn build_object_plan(
         })
         .collect::<Vec<_>>();
 
-    let handlers = build_handler_objects(handlers, &slot_ids);
+    let mut handlers = build_handler_objects(handlers, &slot_ids);
     let function_objects = build_function_objects(functions, &slot_ids);
-    let value_provider_envs = build_value_provider_envs(program, values, &slot_plans, &handlers);
-    let value_objects = build_value_objects(values, &slot_ids, &value_provider_envs);
+    let lexical_envs = build_lexical_handler_envs(program, values, &slot_plans, &handlers);
+    attach_handler_definition_envs(&lexical_envs.handler_definition_envs, &mut handlers);
+    let value_objects = build_value_objects(values, &slot_ids, &lexical_envs.value_provider_envs);
     let call_objects = build_call_objects(functions, &slot_ids);
     let handler_index = handlers
         .iter()
@@ -1358,18 +1359,24 @@ fn build_value_objects(
         .collect()
 }
 
-fn build_value_provider_envs(
+#[derive(Debug, Default)]
+struct EvidenceVmLexicalHandlerEnvPlan {
+    value_provider_envs: HashMap<ExprId, Vec<EvidenceVmEnvProviderPlan>>,
+    handler_definition_envs: HashMap<u32, Vec<u32>>,
+}
+
+fn build_lexical_handler_envs(
     program: &Program,
     values: &[EvidenceVmValueEnvPlan],
     slots: &[EvidenceVmSlotPlan],
     handlers: &[EvidenceVmHandlerObjectPlan],
-) -> HashMap<ExprId, Vec<EvidenceVmEnvProviderPlan>> {
+) -> EvidenceVmLexicalHandlerEnvPlan {
     let capture_slots = values
         .iter()
         .map(|value| (value.expr, value.signature.captures.clone()))
         .collect::<HashMap<_, _>>();
-    if capture_slots.is_empty() {
-        return HashMap::new();
+    if capture_slots.is_empty() && handlers.is_empty() {
+        return EvidenceVmLexicalHandlerEnvPlan::default();
     }
     let slot_ids = slots
         .iter()
@@ -1386,26 +1393,28 @@ fn build_value_provider_envs(
         .iter()
         .map(|handler| (handler.id, handler))
         .collect::<HashMap<_, _>>();
-    let mut collector = ValueProviderEnvCollector {
+    let mut collector = LexicalHandlerEnvCollector {
         capture_slots,
         slot_ids,
         handlers_by_expr,
         handlers_by_id,
-        providers: HashMap::new(),
+        value_providers: HashMap::new(),
+        handler_definition_envs: HashMap::new(),
     };
     collector.collect_program(program);
     collector.finish()
 }
 
-struct ValueProviderEnvCollector<'a> {
+struct LexicalHandlerEnvCollector<'a> {
     capture_slots: HashMap<ExprId, Vec<EvidenceVmSlotKey>>,
     slot_ids: BTreeMap<EvidenceVmSlotKey, u32>,
     handlers_by_expr: HashMap<ExprId, Vec<u32>>,
     handlers_by_id: HashMap<u32, &'a EvidenceVmHandlerObjectPlan>,
-    providers: HashMap<ExprId, BTreeMap<u32, BTreeSet<u32>>>,
+    value_providers: HashMap<ExprId, BTreeMap<u32, BTreeSet<u32>>>,
+    handler_definition_envs: HashMap<u32, Vec<u32>>,
 }
 
-impl ValueProviderEnvCollector<'_> {
+impl LexicalHandlerEnvCollector<'_> {
     fn collect_program(&mut self, program: &Program) {
         let mut active_handlers = Vec::new();
         for instance in &program.instances {
@@ -1423,8 +1432,9 @@ impl ValueProviderEnvCollector<'_> {
         }
     }
 
-    fn finish(self) -> HashMap<ExprId, Vec<EvidenceVmEnvProviderPlan>> {
-        self.providers
+    fn finish(self) -> EvidenceVmLexicalHandlerEnvPlan {
+        let value_provider_envs = self
+            .value_providers
             .into_iter()
             .map(|(expr, by_slot)| {
                 let providers = by_slot
@@ -1439,7 +1449,11 @@ impl ValueProviderEnvCollector<'_> {
                     .collect::<Vec<_>>();
                 (expr, providers)
             })
-            .collect()
+            .collect();
+        EvidenceVmLexicalHandlerEnvPlan {
+            value_provider_envs,
+            handler_definition_envs: self.handler_definition_envs,
+        }
     }
 
     fn visit_expr(&mut self, program: &Program, id: ExprId, active_handlers: &mut Vec<u32>) {
@@ -1449,10 +1463,15 @@ impl ValueProviderEnvCollector<'_> {
         };
         match expr {
             Expr::Catch { body, arms } => {
-                let start = active_handlers.len();
-                if let Some(handler_ids) = self.handlers_by_expr.get(&id) {
-                    active_handlers.extend(handler_ids.iter().copied());
+                let handler_ids = self.handlers_by_expr.get(&id).cloned().unwrap_or_default();
+                for handler_id in &handler_ids {
+                    self.handler_definition_envs
+                        .entry(*handler_id)
+                        .or_insert_with(|| active_handlers.clone());
                 }
+
+                let start = active_handlers.len();
+                active_handlers.extend(handler_ids);
                 self.visit_expr(program, *body, active_handlers);
                 active_handlers.truncate(start);
                 for arm in arms {
@@ -1535,7 +1554,7 @@ impl ValueProviderEnvCollector<'_> {
             if handler_ids.is_empty() {
                 continue;
             }
-            self.providers
+            self.value_providers
                 .entry(id)
                 .or_default()
                 .entry(slot_id)
@@ -1631,6 +1650,18 @@ fn build_handler_objects(
         }
     }
     objects
+}
+
+fn attach_handler_definition_envs(
+    definition_envs: &HashMap<u32, Vec<u32>>,
+    handlers: &mut [EvidenceVmHandlerObjectPlan],
+) {
+    for handler in handlers {
+        handler.definition_env = definition_envs
+            .get(&handler.id)
+            .cloned()
+            .unwrap_or_default();
+    }
 }
 
 fn build_operation_objects(
@@ -2176,7 +2207,7 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
                 format_path(&handler.path),
                 handler.arm_body.0,
                 format_handler_arm_class(handler.arm_class),
-                format_u32_list(&handler.definition_env)
+                format_u32_list_with_prefix("h", &handler.definition_env)
             )
             .unwrap();
         }
