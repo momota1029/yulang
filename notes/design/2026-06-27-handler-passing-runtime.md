@@ -19,6 +19,7 @@ References:
 - Ningning Xie and Daan Leijen, Generalized Evidence Passing for Effect Handlers
   <https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/>
 - Pro review: `notes/design/2026-06-27-handler-passing-runtime-pro-review.md`
+- Paper notes: `notes/design/2026-06-27-evidence-passing-paper-notes.md`
 
 ## Decision after Pro review
 
