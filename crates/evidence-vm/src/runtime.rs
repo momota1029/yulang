@@ -819,6 +819,16 @@ impl EvidenceContinuation {
         }
     }
 
+    fn into_frame(self) -> Option<EvidenceContinuationFrame> {
+        match self {
+            Self::Identity => None,
+            Self::Frame(frame) => Some(match Rc::try_unwrap(frame) {
+                Ok(frame) => frame,
+                Err(frame) => frame.as_ref().clone(),
+            }),
+        }
+    }
+
     fn force_thunk(target_value_is_thunk: bool, next: Self) -> Self {
         Self::Frame(Rc::new(EvidenceContinuationFrame::ForceThunk {
             target_value_is_thunk,
@@ -3359,7 +3369,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
         self.stats.continuation_resume_steps += 1;
         let frame = continuation
-            .frame()
+            .into_frame()
             .expect("non-identity continuation must have a frame");
         match frame {
             EvidenceContinuationFrame::Then { first, second } => {
@@ -3371,18 +3381,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 next,
             } => {
                 let result = self.force_thunk_result(value)?;
-                if *target_value_is_thunk {
-                    self.continue_result(result, next.clone())
+                if target_value_is_thunk {
+                    self.continue_result(result, next)
                 } else {
-                    self.continue_result(
-                        result,
-                        EvidenceContinuation::force_value_if_thunk(next.clone()),
-                    )
+                    self.continue_result(result, EvidenceContinuation::force_value_if_thunk(next))
                 }
             }
             EvidenceContinuationFrame::ForceValueIfThunk { next } => {
                 let result = self.force_value_if_thunk_result(value)?;
-                self.continue_result(result, next.clone())
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::ApplyCallee {
                 site,
@@ -3390,31 +3397,31 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 env,
                 next,
             } => {
-                let mut env = self.clone_env(env);
-                let result = self.eval_apply_arg_result(*site, value, *arg, &mut env)?;
-                self.continue_result(result, next.clone())
+                let mut env = self.clone_env(&env);
+                let result = self.eval_apply_arg_result(site, value, arg, &mut env)?;
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::ApplyArg { site, callee, next } => {
-                let result = self.apply_scoped_value_result(*site, callee.clone(), value)?;
-                self.continue_result(result, next.clone())
+                let result = self.apply_scoped_value_result(site, callee, value)?;
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::ApplyForcedCallee { site, arg, next } => {
-                let result = self.apply_scoped_value_result(*site, value, arg.clone())?;
-                self.continue_result(result, next.clone())
+                let result = self.apply_scoped_value_result(site, value, arg)?;
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::AdaptValue {
                 source,
                 target,
                 next,
             } => {
-                let result = self.adapt_value_result(value, source, target)?;
-                self.continue_result(result, next.clone())
+                let result = self.adapt_value_result(value, &source, &target)?;
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::WrapThunkValue { next } => self.continue_result(
                 EvidenceEvalResult::Value(shared(RuntimeEvidenceValue::Thunk(Rc::new(
                     RuntimeEvidenceThunk::Value(value),
                 )))),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::ApplyAdapterArg {
                 function,
@@ -3423,14 +3430,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 target_ret,
                 next,
             } => {
-                let result = self.apply_value_result(None, function.clone(), value)?;
+                let result = self.apply_value_result(None, function, value)?;
                 self.continue_result(
                     result,
                     EvidenceContinuation::apply_adapter_result(
-                        ret_markers.clone(),
-                        source_ret.clone(),
-                        target_ret.clone(),
-                        next.clone(),
+                        ret_markers,
+                        source_ret,
+                        target_ret,
+                        next,
                     ),
                 )
             }
@@ -3440,13 +3447,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 target_ret,
                 next,
             } => {
-                let result = self.adapt_value_result(value, source_ret, target_ret)?;
-                let result = self.close_marked_result_for_type(result, ret_markers, target_ret)?;
-                self.continue_result(result, next.clone())
+                let result = self.adapt_value_result(value, &source_ret, &target_ret)?;
+                let result =
+                    self.close_marked_result_for_type(result, &ret_markers, &target_ret)?;
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::CaseScrutinee { arms, env, next } => {
-                let result = self.eval_case_scrutinee_result(value, arms.clone(), env)?;
-                self.continue_result(result, next.clone())
+                let result = self.eval_case_scrutinee_result(value, arms, &env)?;
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::CatchBody {
                 catch_expr,
@@ -3455,47 +3463,42 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 next,
             } => {
                 let result = self.continue_catch_body_result(
-                    *catch_expr,
-                    arms.clone(),
-                    env,
+                    catch_expr,
+                    arms,
+                    &env,
                     EvidenceEvalResult::Value(value),
                 )?;
-                self.continue_result(result, next.clone())
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::MarkerFrame {
                 markers,
                 activate_add_ids,
                 handler_path,
                 next,
-            } => self.with_marker_frame(
-                markers.clone(),
-                *activate_add_ids,
-                handler_path.clone(),
-                |runner| runner.resume_continuation(next.clone(), value),
-            ),
-            EvidenceContinuationFrame::ProviderEnv { provider_env, next } => {
-                let provider_env = provider_env.clone();
-                self.with_provider_env(provider_env, |runner| {
-                    runner.resume_continuation(next.clone(), value)
-                })
-            }
+            } => self.with_marker_frame(markers, activate_add_ids, handler_path, |runner| {
+                runner.resume_continuation(next, value)
+            }),
+            EvidenceContinuationFrame::ProviderEnv { provider_env, next } => self
+                .with_provider_env(provider_env, |runner| {
+                    runner.resume_continuation(next, value)
+                }),
             EvidenceContinuationFrame::TupleItems {
                 values,
                 rest,
                 env,
                 next,
             } => {
-                let mut values = values.clone();
+                let mut values = values;
                 values.push(value);
-                let mut env = self.clone_env(env);
-                let result = self.eval_tuple_items_result(values, rest, &mut env)?;
-                self.continue_result(result, next.clone())
+                let mut env = self.clone_env(&env);
+                let result = self.eval_tuple_items_result(values, &rest, &mut env)?;
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::RecordSpread { fields, env, next } => {
                 let values = record_fields(value.as_ref())?;
-                let mut env = self.clone_env(env);
-                let result = self.eval_record_fields_result(values, fields, &mut env)?;
-                self.continue_result(result, next.clone())
+                let mut env = self.clone_env(&env);
+                let result = self.eval_record_fields_result(values, &fields, &mut env)?;
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::RecordFields {
                 values,
@@ -3503,7 +3506,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 env,
                 next,
             } => {
-                let mut values = values.clone();
+                let mut values = values;
                 let Some((field, remaining)) = rest.split_first() else {
                     return Err(RuntimeEvidenceRunError::UnsupportedExpr(
                         "empty record field continuation",
@@ -3513,9 +3516,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     name: field.name.clone(),
                     value,
                 });
-                let mut env = self.clone_env(env);
+                let mut env = self.clone_env(&env);
                 let result = self.eval_record_fields_result(values, remaining, &mut env)?;
-                self.continue_result(result, next.clone())
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::PolyVariantPayloads {
                 tag,
@@ -3524,20 +3527,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 env,
                 next,
             } => {
-                let mut values = values.clone();
+                let mut values = values;
                 values.push(value);
-                let mut env = self.clone_env(env);
+                let mut env = self.clone_env(&env);
                 let result =
-                    self.eval_poly_variant_payloads_result(tag.clone(), values, rest, &mut env)?;
-                self.continue_result(result, next.clone())
+                    self.eval_poly_variant_payloads_result(tag, values, &rest, &mut env)?;
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::SelectBase {
                 name,
                 resolution,
                 next,
             } => {
-                let result = self.apply_select_base_result(value, name, resolution)?;
-                self.continue_result(result, next.clone())
+                let result = self.apply_select_base_result(value, &name, &resolution)?;
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::BlockStmt {
                 resume,
@@ -3547,17 +3550,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 last,
                 next,
             } => {
-                let mut env = self.clone_env(env);
+                let mut env = self.clone_env(&env);
                 let last = match resume {
                     EvidenceBlockResume::Let(pat) => {
-                        let value = recursive_let_value(pat, value);
-                        self.bind_pat(pat, value, &mut env)?;
+                        let value = recursive_let_value(&pat, value);
+                        self.bind_pat(&pat, value, &mut env)?;
                         last.clone()
                     }
                     EvidenceBlockResume::Expr => value,
                 };
-                let result = self.eval_block_parts_result(rest, *tail, &mut env, last)?;
-                self.continue_result(result, next.clone())
+                let result = self.eval_block_parts_result(&rest, tail, &mut env, last)?;
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::RefSetReference {
                 value: expr,
@@ -3565,10 +3568,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 next,
             } => {
                 let result = self.force_value_if_thunk_result(value)?;
-                let env = self.clone_env(env);
+                let env = self.clone_env(&env);
                 self.continue_result(
                     result,
-                    EvidenceContinuation::ref_set_forced_reference(*expr, env, next.clone()),
+                    EvidenceContinuation::ref_set_forced_reference(expr, env, next),
                 )
             }
             EvidenceContinuationFrame::RefSetForcedReference {
@@ -3576,18 +3579,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 env,
                 next,
             } => {
-                let mut env = self.clone_env(env);
-                let result = self.eval_expr_result(*expr, &mut env)?;
-                self.continue_result(
-                    result,
-                    EvidenceContinuation::ref_set_value(value, next.clone()),
-                )
+                let mut env = self.clone_env(&env);
+                let result = self.eval_expr_result(expr, &mut env)?;
+                self.continue_result(result, EvidenceContinuation::ref_set_value(value, next))
             }
             EvidenceContinuationFrame::RefSetValue { reference, next } => {
                 let result = self.force_value_if_thunk_result(value)?;
                 self.continue_result(
                     result,
-                    EvidenceContinuation::ref_set_forced_value(reference.clone(), next.clone()),
+                    EvidenceContinuation::ref_set_forced_value(reference, next),
                 )
             }
             EvidenceContinuationFrame::RefSetForcedValue { reference, next } => {
@@ -3598,41 +3598,35 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     shared(RuntimeEvidenceValue::Unit),
                 )?;
                 let result = self.handle_ref_set_result(result, value)?;
-                self.continue_result(result, next.clone())
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::RefSetResolvedUnit { next } => self.continue_result(
                 EvidenceEvalResult::Value(shared(RuntimeEvidenceValue::Unit)),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::RefSetHandleResult { assigned, next } => {
                 let result =
-                    self.handle_ref_set_result(EvidenceEvalResult::Value(value), assigned.clone())?;
-                self.continue_result(result, next.clone())
+                    self.handle_ref_set_result(EvidenceEvalResult::Value(value), assigned)?;
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::RefSetHandleValueResult { assigned, next } => {
-                let result = self.handle_ref_set_value_result(
-                    EvidenceEvalResult::Value(value),
-                    assigned.clone(),
-                )?;
-                self.continue_result(result, next.clone())
+                let result =
+                    self.handle_ref_set_value_result(EvidenceEvalResult::Value(value), assigned)?;
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::RefSetEmitResolvedRequest {
-                request,
+                mut request,
                 assigned,
                 mode,
                 next,
             } => {
-                let mut request = request.clone();
                 request.payload = value;
                 let frame = match mode {
                     EvidenceRefSetResumeMode::Result => {
-                        EvidenceContinuation::ref_set_handle_result(assigned.clone(), next.clone())
+                        EvidenceContinuation::ref_set_handle_result(assigned, next)
                     }
                     EvidenceRefSetResumeMode::ValueResult => {
-                        EvidenceContinuation::ref_set_handle_value_result(
-                            assigned.clone(),
-                            next.clone(),
-                        )
+                        EvidenceContinuation::ref_set_handle_value_result(assigned, next)
                     }
                 };
                 Ok(EvidenceEvalResult::Request(
@@ -3647,16 +3641,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 finish,
                 next,
             } => {
-                let mut out = out.clone();
+                let mut out = out;
                 out.push(value);
-                let result = self.resolve_ref_set_values(
-                    values.clone(),
-                    assigned.clone(),
-                    out,
-                    index + 1,
-                    finish.clone(),
-                )?;
-                self.continue_result(result, next.clone())
+                let result =
+                    self.resolve_ref_set_values(values, assigned, out, index + 1, finish)?;
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::ResolveRefSetFields {
                 fields,
@@ -3665,14 +3654,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 index,
                 next,
             } => {
-                let mut out = out.clone();
+                let mut out = out;
                 out.push(RuntimeEvidenceValueField {
-                    name: fields[*index].name.clone(),
+                    name: fields[index].name.clone(),
                     value,
                 });
-                let result =
-                    self.resolve_ref_set_fields(fields.clone(), assigned.clone(), out, index + 1)?;
-                self.continue_result(result, next.clone())
+                let result = self.resolve_ref_set_fields(fields, assigned, out, index + 1)?;
+                self.continue_result(result, next)
             }
         }
     }
