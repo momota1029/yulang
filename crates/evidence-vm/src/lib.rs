@@ -45,6 +45,8 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) evidence_operation_objects: usize,
     pub(crate) evidence_provider_slots: usize,
     pub(crate) evidence_provider_candidates: usize,
+    pub(crate) evidence_env_provider_slots: usize,
+    pub(crate) evidence_env_provider_candidates: usize,
     pub(crate) evidence_direct_candidates: usize,
     pub(crate) evidence_env_values: usize,
     pub(crate) evidence_env_captures: usize,
@@ -208,6 +210,7 @@ pub(crate) struct EvidenceVmValueObjectPlan {
     pub(crate) expr: ExprId,
     pub(crate) kind: EvidenceVmValueEnvKind,
     pub(crate) captures: Vec<u32>,
+    pub(crate) env_providers: Vec<EvidenceVmEnvProviderPlan>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -234,6 +237,12 @@ pub(crate) struct EvidenceVmOperationObjectPlan {
     pub(crate) slot_id: u32,
     pub(crate) candidate_handler: Option<u32>,
     pub(crate) execution: EvidenceVmOperationExecutionPlan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmEnvProviderPlan {
+    pub(crate) slot_id: u32,
+    pub(crate) handler_ids: Vec<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -348,7 +357,7 @@ fn build_plan_from_evidence(
         .collect::<Vec<_>>();
     attach_evidence_call_plans(program, &mut functions);
     let values = collect_value_env_plans(program, control);
-    let objects = build_object_plan(&handlers, &operations, &functions, &values);
+    let objects = build_object_plan(program, &handlers, &operations, &functions, &values);
 
     let summary = summarize_plan(control, surface, &operations, &functions, &values, &objects);
     EvidenceVmPlan {
@@ -407,7 +416,7 @@ pub fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
-        "  evidence_object_slots: {} function_objects: {} value_objects: {} call_objects: {} handler_objects: {} operation_objects: {} provider_slots: {} provider_candidates: {} direct_candidates: {}",
+        "  evidence_object_slots: {} function_objects: {} value_objects: {} call_objects: {} handler_objects: {} operation_objects: {} provider_slots: {} provider_candidates: {} env_provider_slots: {} env_provider_candidates: {} direct_candidates: {}",
         summary.evidence_object_slots,
         summary.evidence_function_objects,
         summary.evidence_value_objects,
@@ -416,6 +425,8 @@ pub fn format_plan(plan: &EvidenceVmPlan) -> String {
         summary.evidence_operation_objects,
         summary.evidence_provider_slots,
         summary.evidence_provider_candidates,
+        summary.evidence_env_provider_slots,
+        summary.evidence_env_provider_candidates,
         summary.evidence_direct_candidates
     )
     .unwrap();
@@ -482,6 +493,8 @@ fn summarize_plan(
             .iter()
             .map(|provider| provider.handler_candidates.len())
             .sum(),
+        evidence_env_provider_slots: env_provider_slot_count(objects),
+        evidence_env_provider_candidates: env_provider_candidate_count(objects),
         evidence_direct_candidates: objects
             .operations
             .iter()
@@ -533,6 +546,23 @@ fn summarize_plan(
         }
     }
     summary
+}
+
+fn env_provider_slot_count(objects: &EvidenceVmObjectPlan) -> usize {
+    objects
+        .values
+        .iter()
+        .map(|value| value.env_providers.len())
+        .sum::<usize>()
+}
+
+fn env_provider_candidate_count(objects: &EvidenceVmObjectPlan) -> usize {
+    objects
+        .values
+        .iter()
+        .flat_map(|value| &value.env_providers)
+        .map(|provider| provider.handler_ids.len())
+        .sum::<usize>()
 }
 
 fn function_plan(
@@ -1199,6 +1229,7 @@ fn value_env_signature(captures: &[EvidenceVmEvidenceRequirement]) -> EvidenceVm
 }
 
 fn build_object_plan(
+    program: &Program,
     handlers: &[EvidenceVmHandlerPlan],
     operations: &[EvidenceVmOperationPlan],
     functions: &[EvidenceVmFunctionPlan],
@@ -1219,10 +1250,11 @@ fn build_object_plan(
         })
         .collect::<Vec<_>>();
 
-    let function_objects = build_function_objects(functions, &slot_ids);
-    let value_objects = build_value_objects(values, &slot_ids);
-    let call_objects = build_call_objects(functions, &slot_ids);
     let handlers = build_handler_objects(handlers, &slot_ids);
+    let function_objects = build_function_objects(functions, &slot_ids);
+    let value_provider_envs = build_value_provider_envs(program, values, &slot_plans, &handlers);
+    let value_objects = build_value_objects(values, &slot_ids, &value_provider_envs);
+    let call_objects = build_call_objects(functions, &slot_ids);
     let handler_index = handlers
         .iter()
         .map(|handler| ((handler.handler, handler.slot_id), handler.id))
@@ -1289,6 +1321,7 @@ fn build_function_objects(
 fn build_value_objects(
     values: &[EvidenceVmValueEnvPlan],
     slot_ids: &BTreeMap<EvidenceVmSlotKey, u32>,
+    value_provider_envs: &HashMap<ExprId, Vec<EvidenceVmEnvProviderPlan>>,
 ) -> Vec<EvidenceVmValueObjectPlan> {
     values
         .iter()
@@ -1298,8 +1331,235 @@ fn build_value_objects(
             expr: value.expr,
             kind: value.kind.clone(),
             captures: slot_ids_for_keys(&value.signature.captures, slot_ids),
+            env_providers: value_provider_envs
+                .get(&value.expr)
+                .cloned()
+                .unwrap_or_default(),
         })
         .collect()
+}
+
+fn build_value_provider_envs(
+    program: &Program,
+    values: &[EvidenceVmValueEnvPlan],
+    slots: &[EvidenceVmSlotPlan],
+    handlers: &[EvidenceVmHandlerObjectPlan],
+) -> HashMap<ExprId, Vec<EvidenceVmEnvProviderPlan>> {
+    let capture_slots = values
+        .iter()
+        .map(|value| (value.expr, value.signature.captures.clone()))
+        .collect::<HashMap<_, _>>();
+    if capture_slots.is_empty() {
+        return HashMap::new();
+    }
+    let slot_ids = slots
+        .iter()
+        .map(|slot| (slot.key.clone(), slot.id))
+        .collect::<BTreeMap<_, _>>();
+    let handlers_by_expr = handlers.iter().fold(
+        HashMap::<ExprId, Vec<u32>>::new(),
+        |mut by_expr, handler| {
+            by_expr.entry(handler.handler).or_default().push(handler.id);
+            by_expr
+        },
+    );
+    let handlers_by_id = handlers
+        .iter()
+        .map(|handler| (handler.id, handler))
+        .collect::<HashMap<_, _>>();
+    let mut collector = ValueProviderEnvCollector {
+        capture_slots,
+        slot_ids,
+        handlers_by_expr,
+        handlers_by_id,
+        providers: HashMap::new(),
+    };
+    collector.collect_program(program);
+    collector.finish()
+}
+
+struct ValueProviderEnvCollector<'a> {
+    capture_slots: HashMap<ExprId, Vec<EvidenceVmSlotKey>>,
+    slot_ids: BTreeMap<EvidenceVmSlotKey, u32>,
+    handlers_by_expr: HashMap<ExprId, Vec<u32>>,
+    handlers_by_id: HashMap<u32, &'a EvidenceVmHandlerObjectPlan>,
+    providers: HashMap<ExprId, BTreeMap<u32, BTreeSet<u32>>>,
+}
+
+impl ValueProviderEnvCollector<'_> {
+    fn collect_program(&mut self, program: &Program) {
+        let mut active_handlers = Vec::new();
+        for instance in &program.instances {
+            self.visit_expr(program, instance.entry, &mut active_handlers);
+        }
+        for root in &program.roots {
+            match root {
+                Root::Instance(instance) | Root::EvalInstance(instance) => {
+                    if let Some(instance) = program.instances.get(instance.0 as usize) {
+                        self.visit_expr(program, instance.entry, &mut active_handlers);
+                    }
+                }
+                Root::Expr(expr) => self.visit_expr(program, *expr, &mut active_handlers),
+            }
+        }
+    }
+
+    fn finish(self) -> HashMap<ExprId, Vec<EvidenceVmEnvProviderPlan>> {
+        self.providers
+            .into_iter()
+            .map(|(expr, by_slot)| {
+                let providers = by_slot
+                    .into_iter()
+                    .filter_map(|(slot_id, handler_ids)| {
+                        let handler_ids = handler_ids.into_iter().collect::<Vec<_>>();
+                        (!handler_ids.is_empty()).then_some(EvidenceVmEnvProviderPlan {
+                            slot_id,
+                            handler_ids,
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                (expr, providers)
+            })
+            .collect()
+    }
+
+    fn visit_expr(&mut self, program: &Program, id: ExprId, active_handlers: &mut Vec<u32>) {
+        self.record_value_env(id, active_handlers);
+        let Some(expr) = control_expr(program, id) else {
+            return;
+        };
+        match expr {
+            Expr::Catch { body, arms } => {
+                let start = active_handlers.len();
+                if let Some(handler_ids) = self.handlers_by_expr.get(&id) {
+                    active_handlers.extend(handler_ids.iter().copied());
+                }
+                self.visit_expr(program, *body, active_handlers);
+                active_handlers.truncate(start);
+                for arm in arms {
+                    if let Some(guard) = arm.guard {
+                        self.visit_expr(program, guard, active_handlers);
+                    }
+                    self.visit_expr(program, arm.body, active_handlers);
+                }
+            }
+            Expr::Apply { callee, arg } => {
+                self.visit_expr(program, *callee, active_handlers);
+                self.visit_expr(program, *arg, active_handlers);
+            }
+            Expr::Coerce { expr, .. }
+            | Expr::ForceThunk { thunk: expr, .. }
+            | Expr::FunctionAdapter { function: expr, .. }
+            | Expr::MakeThunk { body: expr, .. }
+            | Expr::Lambda { body: expr, .. }
+            | Expr::MarkerFrame { body: expr, .. }
+            | Expr::Select { base: expr, .. } => {
+                self.visit_expr(program, *expr, active_handlers);
+            }
+            Expr::RefSet { reference, value } => {
+                self.visit_expr(program, *reference, active_handlers);
+                self.visit_expr(program, *value, active_handlers);
+            }
+            Expr::Tuple(items) => {
+                for item in items {
+                    self.visit_expr(program, *item, active_handlers);
+                }
+            }
+            Expr::Record { fields, spread } => {
+                for field in fields {
+                    self.visit_expr(program, field.value, active_handlers);
+                }
+                self.visit_spread(program, spread, active_handlers);
+            }
+            Expr::PolyVariant { payloads, .. } => {
+                for payload in payloads {
+                    self.visit_expr(program, *payload, active_handlers);
+                }
+            }
+            Expr::Case { scrutinee, arms } => {
+                self.visit_expr(program, *scrutinee, active_handlers);
+                for arm in arms {
+                    if let Some(guard) = arm.guard {
+                        self.visit_expr(program, guard, active_handlers);
+                    }
+                    self.visit_expr(program, arm.body, active_handlers);
+                }
+            }
+            Expr::Block(block) => self.visit_block(program, block, active_handlers),
+            Expr::Lit(_)
+            | Expr::PrimitiveOp { .. }
+            | Expr::Constructor { .. }
+            | Expr::EffectOp { .. }
+            | Expr::Local(_)
+            | Expr::InstanceRef(_) => {}
+        }
+    }
+
+    fn record_value_env(&mut self, id: ExprId, active_handlers: &[u32]) {
+        let Some(captures) = self.capture_slots.get(&id) else {
+            return;
+        };
+        for capture in captures {
+            let Some(slot_id) = self.slot_ids.get(capture).copied() else {
+                continue;
+            };
+            if matches!(capture.route, EvidenceVmSlotRouteKey::Blocked) {
+                continue;
+            }
+            let handler_ids = active_handlers
+                .iter()
+                .filter_map(|handler_id| {
+                    let handler = self.handlers_by_id.get(handler_id)?;
+                    (handler.path == capture.family).then_some(*handler_id)
+                })
+                .collect::<Vec<_>>();
+            if handler_ids.is_empty() {
+                continue;
+            }
+            self.providers
+                .entry(id)
+                .or_default()
+                .entry(slot_id)
+                .or_default()
+                .extend(handler_ids);
+        }
+    }
+
+    fn visit_spread(
+        &mut self,
+        program: &Program,
+        spread: &RecordSpread<ExprId>,
+        active_handlers: &mut Vec<u32>,
+    ) {
+        match spread {
+            RecordSpread::None => {}
+            RecordSpread::Head(expr) | RecordSpread::Tail(expr) => {
+                self.visit_expr(program, *expr, active_handlers);
+            }
+        }
+    }
+
+    fn visit_block(&mut self, program: &Program, block: &Block, active_handlers: &mut Vec<u32>) {
+        for stmt in &block.stmts {
+            self.visit_stmt(program, stmt, active_handlers);
+        }
+        if let Some(tail) = block.tail {
+            self.visit_expr(program, tail, active_handlers);
+        }
+    }
+
+    fn visit_stmt(&mut self, program: &Program, stmt: &Stmt, active_handlers: &mut Vec<u32>) {
+        match stmt {
+            Stmt::Let(_, _, expr) | Stmt::Expr(expr) => {
+                self.visit_expr(program, *expr, active_handlers);
+            }
+            Stmt::Module(_, stmts) => {
+                for stmt in stmts {
+                    self.visit_stmt(program, stmt, active_handlers);
+                }
+            }
+        }
+    }
 }
 
 fn build_call_objects(
@@ -1853,11 +2113,12 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
         for value in &objects.values {
             writeln!(
                 out,
-                "    v{} e{} {} captures [{}]",
+                "    v{} e{} {} captures [{}] env_providers [{}]",
                 value.id,
                 value.expr.0,
                 format_value_env_kind(&value.kind),
-                format_u32_list_with_prefix("s", &value.captures)
+                format_u32_list_with_prefix("s", &value.captures),
+                format_env_providers(&value.env_providers)
             )
             .unwrap();
         }
@@ -2096,6 +2357,20 @@ fn format_call_plans(calls: &[EvidenceVmCallPlan]) -> String {
                 call.apply.0,
                 call.callee_instance,
                 format_slot_keys(&call.required_evidence_slots)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn format_env_providers(providers: &[EvidenceVmEnvProviderPlan]) -> String {
+    providers
+        .iter()
+        .map(|provider| {
+            format!(
+                "s{}=[{}]",
+                provider.slot_id,
+                format_u32_list_with_prefix("h", &provider.handler_ids)
             )
         })
         .collect::<Vec<_>>()

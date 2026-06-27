@@ -330,11 +330,9 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
     let entry = write_entry(
         "debug-evidence-vm-plan",
         "act out:\n  our say: int -> unit\n\n\
-         my handle(action: [out] _) = catch action:\n\
+         catch ((\\_ -> out::say(1)) ()):\n\
          \x20 out::say(n), k -> k()\n\
-         \x20 v -> v\n\n\
-         my f = \\n -> out::say(n)\n\
-         handle(f 1)\n",
+         \x20 v -> v\n",
     );
 
     let output = yulang_command()
@@ -380,6 +378,10 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
         "provider summary should be visible in the plan:\n{stdout}"
     );
     assert!(
+        stdout.contains("env_provider_slots:") && stdout.contains("env_provider_candidates:"),
+        "value environment provider summary should be visible in the plan:\n{stdout}"
+    );
+    assert!(
         stdout.contains("evidence object graph:"),
         "evidence object graph should be visible in the plan:\n{stdout}"
     );
@@ -390,6 +392,10 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
     assert!(
         stdout.contains("value-objects:"),
         "value evidence objects should be visible in the plan:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("env_providers [s") && stdout.contains("=[h"),
+        "value evidence provider environments should carry handler object candidates:\n{stdout}"
     );
     assert!(
         stdout.contains("handler-objects:"),

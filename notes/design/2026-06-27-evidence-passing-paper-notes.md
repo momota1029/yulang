@@ -471,6 +471,10 @@ Status on 2026-06-27:
   without changing operation lowering.
   `fallback` slots remain `needs-evidence-env`, and `blocked` slots remain
   `blocked-by-hygiene`.
+- Value objects now print lexical `env_providers`.
+  This is intentionally narrower than full call/action evidence passing: it
+  records handler objects that are active at value creation sites, but it does
+  not yet prove provider flow through function calls or action parameters.
 - Operation objects carry an execution plan:
   `direct-abortive`, `direct-tail-resumptive`, `yield-fallback`,
   `blocked-fallback`, or `generic-fallback`.
