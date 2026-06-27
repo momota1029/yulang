@@ -506,6 +506,42 @@ fn debug_evidence_vm_run_alias_matches_control_vm_on_pure_lambda_subset() {
 }
 
 #[test]
+fn debug_evidence_vm_run_passes_call_evidence_to_returned_effect_thunks() {
+    let entry = write_entry(
+        "debug-evidence-vm-run-call-evidence",
+        "use std::control::nondet::*\n\n(each 1..2).list\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("evidence-vm-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    let route_hits = stdout
+        .lines()
+        .find_map(|line| {
+            line.trim()
+                .strip_prefix("runtime_evidence.provider_env_route_hits: ")
+                .and_then(|value| value.parse::<usize>().ok())
+        })
+        .unwrap_or(0);
+    assert!(
+        route_hits > 0,
+        "call evidence should reach effect thunks returned by the callee:\n{stdout}"
+    );
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [[1, 2]]\n"), "{stdout}");
+}
+
+#[test]
 fn debug_evidence_vm_run_captures_provider_env_on_closure_value() {
     let entry = write_entry(
         "debug-evidence-vm-run-provider-env",

@@ -1440,6 +1440,7 @@ struct RuntimeEvidenceRunner<'a> {
     active_add_id_index: ActiveAddIdIndex,
     active_marker_plans: Vec<EvidenceActiveMarkerPlan>,
     active_provider_envs: Vec<RuntimeEvidenceProviderFrame>,
+    active_provider_handlers: Vec<u32>,
     stdout: String,
     context: RuntimeEvidenceRunContext,
     stats: RuntimeEvidenceRunStats,
@@ -1469,6 +1470,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             active_add_id_index: ActiveAddIdIndex::default(),
             active_marker_plans: Vec::new(),
             active_provider_envs: Vec::new(),
+            active_provider_handlers: Vec::new(),
             stdout: String::new(),
             context,
             stats,
@@ -1518,7 +1520,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     }
 
     fn provider_env_for_value(&mut self, expr: ExprId) -> RuntimeEvidenceProviderEnv {
-        let provider_env = self.context.provider_env_for_value(expr);
+        let active_provider_envs = self.active_provider_env_values();
+        let provider_env = self.context.provider_env_for_value(
+            expr,
+            &self.active_provider_handlers,
+            &active_provider_envs,
+        );
         if !provider_env.is_empty() {
             self.stats.runtime_provider_env_values += 1;
             self.stats.runtime_provider_env_slots += provider_env.provider_count();
@@ -1652,6 +1659,36 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         };
         self.stats.runtime_provider_env_route_hits += 1;
         provider_route
+    }
+
+    fn provider_env_for_call(&mut self, site: Option<ExprId>) -> RuntimeEvidenceProviderEnv {
+        let Some(site) = site else {
+            return RuntimeEvidenceProviderEnv::default();
+        };
+        if self.active_provider_handlers.is_empty() && self.active_provider_envs.is_empty() {
+            return RuntimeEvidenceProviderEnv::default();
+        }
+        let active_provider_envs = self.active_provider_env_values();
+        let provider_env = self.context.provider_env_for_call(
+            site,
+            &self.active_provider_handlers,
+            &active_provider_envs,
+        );
+        if !provider_env.is_empty() {
+            self.stats.runtime_provider_env_values += 1;
+            self.stats.runtime_provider_env_slots += provider_env.provider_count();
+            self.stats.runtime_provider_env_candidates += provider_env.candidate_count();
+        }
+        provider_env
+    }
+
+    fn with_call_provider_env(
+        &mut self,
+        site: Option<ExprId>,
+        run: impl FnOnce(&mut Self) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError>,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let provider_env = self.provider_env_for_call(site);
+        self.with_provider_env(provider_env, run)
     }
 
     fn append_request_continuation(
@@ -3052,6 +3089,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         callee: SharedValue,
         arg: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.with_call_provider_env(site, |runner| {
+            runner.apply_value_result_inner(site, callee, arg)
+        })
+    }
+
+    fn apply_value_result_inner(
+        &mut self,
+        site: Option<ExprId>,
+        callee: SharedValue,
+        arg: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         self.stats.apply_value_calls += 1;
         match callee.as_ref() {
             RuntimeEvidenceValue::PrimitiveOp { op, context, args } => {
@@ -3126,7 +3174,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 )))
             }
             RuntimeEvidenceValue::Thunk(_) => match self.force_thunk_result(callee)? {
-                EvidenceEvalResult::Value(callee) => self.apply_value_result(site, callee, arg),
+                EvidenceEvalResult::Value(callee) => {
+                    self.apply_value_result_inner(site, callee, arg)
+                }
                 EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
                     self.append_request_continuation(
                         request,
@@ -3166,7 +3216,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     markers_for_function_call(markers)
                 };
                 self.with_marker_frame(share_marker_vec(markers), true, None, |runner| {
-                    runner.apply_value_result(site, value.clone(), arg)
+                    runner.apply_value_result_inner(site, value.clone(), arg)
                 })
             }
             value => Err(RuntimeEvidenceRunError::NotFunction(format_value(value))),
@@ -4733,7 +4783,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         let arms = self.static_catch_arms(catch_expr);
         let mut body_env = self.clone_env(env);
-        let result = self.eval_expr_result(body, &mut body_env)?;
+        let provider_len = self.active_provider_handlers.len();
+        self.active_provider_handlers
+            .extend_from_slice(self.context.handler_ids_for_catch(catch_expr));
+        let result = self.eval_expr_result(body, &mut body_env);
+        self.active_provider_handlers.truncate(provider_len);
+        let result = result?;
         self.continue_catch_body_result(catch_expr, arms, env, result)
     }
 
@@ -6683,6 +6738,6 @@ mod tests {
                 ..EvidenceVmObjectPlan::default()
             },
         };
-        RuntimeEvidenceRunContext::from_plan(&plan).provider_env_for_value(value)
+        RuntimeEvidenceRunContext::from_plan(&plan).provider_env_for_value(value, &[], &[])
     }
 }
