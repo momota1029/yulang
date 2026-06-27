@@ -76,6 +76,7 @@ pub struct RuntimeEvidenceRunStats {
     pub thunk_force_value: usize,
     pub thunk_force_adapter: usize,
     pub continuation_appends: usize,
+    pub continuation_owned_tail_appends: usize,
     pub continuation_append_steps: usize,
     pub continuation_resume_steps: usize,
     pub request_continuation_steps: usize,
@@ -1201,11 +1202,87 @@ impl EvidenceContinuation {
         if self.is_identity() {
             return tail;
         }
-        stats.continuation_append_steps += 1;
-        Self::Frame(Rc::new(EvidenceContinuationFrame::Then {
-            first: self,
-            second: tail,
-        }))
+        let mut head = self;
+        match head.try_append_owned_tail(tail) {
+            Ok(()) => {
+                stats.continuation_owned_tail_appends += 1;
+                return head;
+            }
+            Err(tail) => {
+                stats.continuation_append_steps += 1;
+                return Self::Frame(Rc::new(EvidenceContinuationFrame::Then {
+                    first: head,
+                    second: tail,
+                }));
+            }
+        }
+    }
+
+    fn try_append_owned_tail(&mut self, tail: Self) -> Result<(), Self> {
+        if tail.is_identity() {
+            return Ok(());
+        }
+        match self {
+            Self::Identity => {
+                *self = tail;
+                Ok(())
+            }
+            Self::Frame(frame) => {
+                let Some(frame) = Rc::get_mut(frame) else {
+                    return Err(tail);
+                };
+                frame.try_append_owned_tail(tail)
+            }
+        }
+    }
+}
+
+impl EvidenceContinuationFrame {
+    fn try_append_owned_tail(
+        &mut self,
+        tail: EvidenceContinuation,
+    ) -> Result<(), EvidenceContinuation> {
+        let Some(tail_slot) = self.tail_mut() else {
+            return Err(tail);
+        };
+        tail_slot.try_append_owned_tail(tail)
+    }
+
+    fn tail_mut(&mut self) -> Option<&mut EvidenceContinuation> {
+        match self {
+            EvidenceContinuationFrame::Then { second, .. } => Some(second),
+            // Appending into these frames would move the appended continuation under the dynamic
+            // marker/provider scope. Keep the old Then boundary for scope-preserving composition.
+            EvidenceContinuationFrame::MarkerFrame { .. }
+            | EvidenceContinuationFrame::ProviderEnv { .. } => None,
+            EvidenceContinuationFrame::ForceThunk { next, .. }
+            | EvidenceContinuationFrame::ForceValueIfThunk { next }
+            | EvidenceContinuationFrame::ApplyCallee { next, .. }
+            | EvidenceContinuationFrame::ApplyArg { next, .. }
+            | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
+            | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::WrapThunkValue { next }
+            | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
+            | EvidenceContinuationFrame::ApplyAdapterResult { next, .. }
+            | EvidenceContinuationFrame::CaseScrutinee { next, .. }
+            | EvidenceContinuationFrame::CatchBody { next, .. }
+            | EvidenceContinuationFrame::TupleItems { next, .. }
+            | EvidenceContinuationFrame::RecordSpread { next, .. }
+            | EvidenceContinuationFrame::RecordFields { next, .. }
+            | EvidenceContinuationFrame::PolyVariantPayloads { next, .. }
+            | EvidenceContinuationFrame::SelectBase { next, .. }
+            | EvidenceContinuationFrame::BlockStmt { next, .. }
+            | EvidenceContinuationFrame::RefSetReference { next, .. }
+            | EvidenceContinuationFrame::RefSetForcedReference { next, .. }
+            | EvidenceContinuationFrame::RefSetValue { next, .. }
+            | EvidenceContinuationFrame::RefSetForcedValue { next, .. }
+            | EvidenceContinuationFrame::RefSetResolvedUnit { next }
+            | EvidenceContinuationFrame::RefSetHandleResult { next, .. }
+            | EvidenceContinuationFrame::RefSetHandleValueResult { next, .. }
+            | EvidenceContinuationFrame::RefSetEmitResolvedRequest { next, .. }
+            | EvidenceContinuationFrame::ResolveRefSetValues { next, .. }
+            | EvidenceContinuationFrame::ResolveRefSetFields { next, .. } => Some(next),
+        }
     }
 }
 

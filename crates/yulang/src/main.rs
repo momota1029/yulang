@@ -2385,6 +2385,10 @@ fn run_runtime_evidence_run(
         output.evidence_stats.continuation_appends
     );
     println!(
+        "  runtime_evidence.continuation_owned_tail_appends: {}",
+        output.evidence_stats.continuation_owned_tail_appends
+    );
+    println!(
         "  runtime_evidence.continuation_append_steps: {}",
         output.evidence_stats.continuation_append_steps
     );
