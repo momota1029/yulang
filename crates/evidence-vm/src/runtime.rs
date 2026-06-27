@@ -1829,6 +1829,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         })
     }
 
+    fn route_allows_routed_yield(
+        &self,
+        request_free_yield: bool,
+        evidence: EffectThunkEvidence,
+    ) -> bool {
+        request_free_yield || self.provider_grant_gate_passes(evidence.route_origin)
+    }
+
     fn provider_env_for_call(&mut self, site: Option<ExprId>) -> RuntimeEvidenceProviderEnv {
         let Some(site) = site else {
             return RuntimeEvidenceProviderEnv::default();
@@ -5060,7 +5068,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     evidence,
                 } => {
                     self.stats.thunk_force_effect += 1;
-                    let _ = evidence.route_origin;
                     if let EvidenceEffectRoute::Direct {
                         handler,
                         execution: EvidenceVmOperationExecutionPlan::DirectAbortive,
@@ -5091,9 +5098,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     if let EvidenceEffectRoute::Direct {
                         handler,
                         execution: EvidenceVmOperationExecutionPlan::YieldFallback,
-                        request_free_yield: true,
+                        request_free_yield,
                         ..
                     } = route
+                        && self.route_allows_routed_yield(*request_free_yield, *evidence)
                     {
                         let mut request = EvidenceRequest {
                             path: path.clone(),
@@ -7175,10 +7183,15 @@ mod tests {
         };
         runner.active_provider_envs.push(frame);
         let grant_id = runner.record_provider_grant(grant);
+        let evidence = EffectThunkEvidence {
+            route_origin: Some(EvidenceRouteOrigin::ProviderGrant(grant_id)),
+        };
 
         assert!(
             runner.provider_grant_gate_passes(Some(EvidenceRouteOrigin::ProviderGrant(grant_id)))
         );
+        assert!(runner.route_allows_routed_yield(false, evidence));
+        assert!(runner.route_allows_routed_yield(true, EffectThunkEvidence { route_origin: None }));
 
         let markers: Rc<[EvidenceValueMarker]> = Vec::new().into();
         runner
@@ -7188,6 +7201,7 @@ mod tests {
         assert!(
             !runner.provider_grant_gate_passes(Some(EvidenceRouteOrigin::ProviderGrant(grant_id)))
         );
+        assert!(!runner.route_allows_routed_yield(false, evidence));
     }
 
     fn provider_env_fixture() -> RuntimeEvidenceProviderEnv {
