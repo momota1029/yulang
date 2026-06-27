@@ -20,6 +20,8 @@ use text::{
     string_splice,
 };
 
+use crate::EvidenceVmPlan;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct RuntimeEvidenceRunOutput {
     values: Vec<RuntimeEvidenceValue>,
@@ -40,6 +42,11 @@ impl RuntimeEvidenceRunOutput {
 pub struct RuntimeEvidenceRunStats {
     pub effect_calls: usize,
     pub direct_effect_calls: usize,
+    pub plan_provider_slots: usize,
+    pub plan_provider_candidates: usize,
+    pub plan_env_provider_slots: usize,
+    pub plan_env_provider_candidates: usize,
+    pub plan_direct_candidates: usize,
     pub expr_evals: usize,
     pub env_clones: usize,
     pub env_entries_cloned: usize,
@@ -997,7 +1004,64 @@ impl fmt::Display for RuntimeEvidenceRunError {
 }
 
 pub fn run_program(program: &Program) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
-    RuntimeEvidenceRunner::new(program).run()
+    RuntimeEvidenceRunner::new(program, RuntimeEvidenceRunContext::default()).run()
+}
+
+pub fn run_program_with_plan(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    RuntimeEvidenceRunner::new(program, RuntimeEvidenceRunContext::from_plan(plan)).run()
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct RuntimeEvidenceRunContext {
+    provider_slots: usize,
+    provider_candidates: usize,
+    env_provider_slots: usize,
+    env_provider_candidates: usize,
+    direct_candidates: usize,
+}
+
+impl RuntimeEvidenceRunContext {
+    fn from_plan(plan: &EvidenceVmPlan) -> Self {
+        Self {
+            provider_slots: plan.objects.providers.len(),
+            provider_candidates: plan
+                .objects
+                .providers
+                .iter()
+                .map(|provider| provider.handler_candidates.len())
+                .sum(),
+            env_provider_slots: plan
+                .objects
+                .values
+                .iter()
+                .map(|value| value.env_providers.len())
+                .sum(),
+            env_provider_candidates: plan
+                .objects
+                .values
+                .iter()
+                .flat_map(|value| &value.env_providers)
+                .map(|provider| provider.handler_ids.len())
+                .sum(),
+            direct_candidates: plan
+                .objects
+                .operations
+                .iter()
+                .filter(|operation| operation.candidate_handler.is_some())
+                .count(),
+        }
+    }
+
+    fn apply_to_stats(self, stats: &mut RuntimeEvidenceRunStats) {
+        stats.plan_provider_slots = self.provider_slots;
+        stats.plan_provider_candidates = self.provider_candidates;
+        stats.plan_env_provider_slots = self.env_provider_slots;
+        stats.plan_env_provider_candidates = self.env_provider_candidates;
+        stats.plan_direct_candidates = self.direct_candidates;
+    }
 }
 
 fn static_arm_caches(
@@ -1046,10 +1110,11 @@ struct RuntimeEvidenceRunner<'a> {
 }
 
 impl<'a> RuntimeEvidenceRunner<'a> {
-    fn new(program: &'a Program) -> Self {
+    fn new(program: &'a Program, context: RuntimeEvidenceRunContext) -> Self {
         let evidence = ControlEvidenceIndex::new(program);
         let (case_arms, catch_arms) = static_arm_caches(program);
-        let stats = evidence.stats();
+        let mut stats = evidence.stats();
+        context.apply_to_stats(&mut stats);
         Self {
             program,
             evidence,

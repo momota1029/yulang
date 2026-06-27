@@ -12,6 +12,7 @@ use specialize::{
 mod runtime;
 pub use runtime::{
     RuntimeEvidenceRunError, RuntimeEvidenceRunOutput, RuntimeEvidenceRunStats, run_program,
+    run_program_with_plan,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

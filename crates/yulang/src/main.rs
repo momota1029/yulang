@@ -2223,8 +2223,9 @@ fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeq
     let files = collect_control_sources_or_exit(&args.path, options);
     let build = build_control_with_optional_cache(files, options.use_cache);
     let summary = RuntimeEvidenceBenchSummary::from_surface(&build.runtime_evidence);
+    let plan = evidence_vm::build_plan(&build.program, &build.runtime_evidence);
     let run_start = Instant::now();
-    let output = match evidence_vm::run_program(&build.program) {
+    let output = match evidence_vm::run_program_with_plan(&build.program, &plan) {
         Ok(output) => output,
         Err(error) => {
             eprintln!("{error}");
@@ -2243,6 +2244,26 @@ fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeq
     println!(
         "  evidence.node_evidence_refs: {}",
         summary.node_evidence_refs
+    );
+    println!(
+        "  evidence.plan_provider_slots: {}",
+        output.evidence_stats.plan_provider_slots
+    );
+    println!(
+        "  evidence.plan_provider_candidates: {}",
+        output.evidence_stats.plan_provider_candidates
+    );
+    println!(
+        "  evidence.plan_env_provider_slots: {}",
+        output.evidence_stats.plan_env_provider_slots
+    );
+    println!(
+        "  evidence.plan_env_provider_candidates: {}",
+        output.evidence_stats.plan_env_provider_candidates
+    );
+    println!(
+        "  evidence.plan_direct_candidates: {}",
+        output.evidence_stats.plan_direct_candidates
     );
     println!(
         "  control_evidence.effect_calls: {}",
