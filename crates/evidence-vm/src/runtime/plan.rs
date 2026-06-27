@@ -309,6 +309,7 @@ fn effect_route_from_operation_plan(
             handler,
             resumptive,
             execution,
+            request_free_yield: true,
         },
         EvidenceVmOperationLowering::LexicalHandlerCandidate { .. }
         | EvidenceVmOperationLowering::HygieneFallback { .. }
@@ -408,6 +409,7 @@ fn operation_provider_lookups_from_plan(
                                 handler,
                                 resumptive,
                                 execution: object.execution,
+                                request_free_yield: false,
                             },
                         }],
                     },
@@ -479,6 +481,7 @@ fn route_for_provider_handler(handler: &EvidenceVmHandlerObjectPlan) -> Evidence
         handler: handler.handler,
         resumptive: handler.arm_class != EvidenceVmHandlerArmClass::Abortive,
         execution: execution_for_handler_arm_class(handler.arm_class),
+        request_free_yield: false,
     }
 }
 
@@ -564,6 +567,7 @@ mod tests {
                 handler,
                 resumptive: true,
                 execution: EvidenceVmOperationExecutionPlan::DirectTailResumptive,
+                request_free_yield: false,
             })
         );
     }

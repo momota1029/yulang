@@ -456,6 +456,9 @@ enum EvidenceEffectRoute {
         handler: ExprId,
         resumptive: bool,
         execution: EvidenceVmOperationExecutionPlan,
+        // Provider-env routes still need the generic request path: returned effect thunks rely on
+        // that boundary to keep call evidence and handler visibility aligned.
+        request_free_yield: bool,
     },
     Unhandled,
 }
@@ -740,11 +743,18 @@ struct EvidenceDirectTailResumptive {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+struct EvidenceDirectYield {
+    handler: ExprId,
+    request: EvidenceRequest,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 enum EvidenceEvalResult {
     Value(SharedValue),
     Request(EvidenceRequest),
     DirectAbortive(EvidenceDirectAbortive),
     DirectTailResumptive(EvidenceDirectTailResumptive),
+    DirectYield(EvidenceDirectYield),
 }
 
 type SharedValue = Rc<RuntimeEvidenceValue>;
@@ -1224,6 +1234,7 @@ fn effect_call_route(
             handler: *handler,
             resumptive: *resumptive,
             execution: EvidenceVmOperationExecutionPlan::YieldFallback,
+            request_free_yield: true,
         },
         ControlEvidenceRoute::Blocked { .. } | ControlEvidenceRoute::Unhandled => {
             EvidenceEffectRoute::Unhandled
@@ -1600,6 +1611,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     self.close_provider_direct_tail(call, provider_env),
                 ))
             }
+            EvidenceEvalResult::DirectYield(call) => Ok(EvidenceEvalResult::DirectYield(
+                self.close_provider_direct_yield(call, provider_env),
+            )),
             EvidenceEvalResult::Request(mut request) => {
                 if !request.route.is_direct_abortive() {
                     request.continuation =
@@ -1619,6 +1633,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return call;
         }
         call.continuation = EvidenceContinuation::provider_env(provider_env, call.continuation);
+        call
+    }
+
+    fn close_provider_direct_yield(
+        &mut self,
+        mut call: EvidenceDirectYield,
+        provider_env: RuntimeEvidenceProviderEnv,
+    ) -> EvidenceDirectYield {
+        if provider_env.is_empty() {
+            return call;
+        }
+        call.request.continuation =
+            EvidenceContinuation::provider_env(provider_env, call.request.continuation);
         call
     }
 
@@ -1774,6 +1801,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             Ok(EvidenceEvalResult::Request(request)) => {
                 self.handler_boundary_for_request(request, handler_path.as_deref(), frame_len)
             }
+            Ok(EvidenceEvalResult::DirectYield(call)) => {
+                self.handler_boundary_for_request(&call.request, handler_path.as_deref(), frame_len)
+            }
             Ok(EvidenceEvalResult::Value(_))
             | Ok(EvidenceEvalResult::DirectAbortive(_))
             | Ok(EvidenceEvalResult::DirectTailResumptive(_))
@@ -1879,6 +1909,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectTailResumptive(call) => {
                 self.close_marker_direct_tail(call, markers, activate_add_ids, handler_path)
             }
+            EvidenceEvalResult::DirectYield(mut call) => {
+                if let Some(handler_boundary) = handler_boundary {
+                    call.request.handler_boundary = Some(handler_boundary);
+                }
+                self.close_marker_direct_yield(call, markers, activate_add_ids, handler_path)
+            }
             EvidenceEvalResult::Request(mut request) => {
                 if let Some(handler_boundary) = handler_boundary {
                     request.handler_boundary = Some(handler_boundary);
@@ -1934,6 +1970,26 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             );
         }
         Ok(EvidenceEvalResult::DirectTailResumptive(call))
+    }
+
+    fn close_marker_direct_yield(
+        &mut self,
+        mut call: EvidenceDirectYield,
+        markers: Rc<[EvidenceValueMarker]>,
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        call.request.payload = mark_runtime_value_shared(call.request.payload, markers.clone());
+        let resume_markers = markers_for_continuation_resume(&markers);
+        if !resume_markers.is_empty() {
+            call.request.continuation = EvidenceContinuation::marker_frame(
+                share_marker_vec(resume_markers),
+                activate_add_ids,
+                handler_path,
+                call.request.continuation,
+            );
+        }
+        Ok(EvidenceEvalResult::DirectYield(call))
     }
 
     fn mark_request_with_active_markers(&mut self, request: &mut EvidenceRequest) {
@@ -2224,6 +2280,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectTailResumptive(call) => {
                 self.close_marker_direct_tail(call, share_marker_vec(markers.to_vec()), true, None)
             }
+            EvidenceEvalResult::DirectYield(call) => {
+                self.close_marker_direct_yield(call, share_marker_vec(markers.to_vec()), true, None)
+            }
             EvidenceEvalResult::Request(request) => self.close_marker_request(
                 request,
                 markers_for_continuation_resume(markers),
@@ -2251,6 +2310,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             EvidenceEvalResult::DirectTailResumptive(call) => {
                 self.close_marker_direct_tail(call, share_marker_vec(markers.to_vec()), true, None)
+            }
+            EvidenceEvalResult::DirectYield(call) => {
+                self.close_marker_direct_yield(call, share_marker_vec(markers.to_vec()), true, None)
             }
             EvidenceEvalResult::Request(request) => {
                 self.close_marked_result(EvidenceEvalResult::Request(request), markers)
@@ -2305,6 +2367,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
                 EvidenceEvalResult::DirectTailResumptive(call) => {
                     return Err(RuntimeEvidenceRunError::EscapedEffect(call.path));
+                }
+                EvidenceEvalResult::DirectYield(call) => {
+                    return Err(RuntimeEvidenceRunError::EscapedEffect(call.request.path));
                 }
             }
         }
@@ -2423,6 +2488,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             EvidenceContinuation::identity(),
                         ),
                     ),
+                    EvidenceEvalResult::DirectYield(call) => self.continue_result(
+                        EvidenceEvalResult::DirectYield(call),
+                        EvidenceContinuation::adapt_value(
+                            source,
+                            target,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
                 };
             }
             RuntimeEvidenceExpr::ForceThunk {
@@ -2448,6 +2521,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     }
                     EvidenceEvalResult::DirectTailResumptive(call) => self.continue_result(
                         EvidenceEvalResult::DirectTailResumptive(call),
+                        EvidenceContinuation::force_thunk(
+                            target_value_is_thunk,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                    EvidenceEvalResult::DirectYield(call) => self.continue_result(
+                        EvidenceEvalResult::DirectYield(call),
                         EvidenceContinuation::force_thunk(
                             target_value_is_thunk,
                             EvidenceContinuation::identity(),
@@ -2525,6 +2605,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             ),
                         )
                     }
+                    EvidenceEvalResult::DirectYield(call) => {
+                        let env = self.clone_env(env);
+                        self.continue_result(
+                            EvidenceEvalResult::DirectYield(call),
+                            EvidenceContinuation::case_scrutinee(
+                                arms,
+                                env,
+                                EvidenceContinuation::identity(),
+                            ),
+                        )
+                    }
                 };
             }
             RuntimeEvidenceExpr::Catch { expr, body } => return self.eval_catch(expr, body, env),
@@ -2589,6 +2680,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     ),
                 )
             }
+            EvidenceEvalResult::DirectYield(call) => {
+                let env = self.clone_env(env);
+                self.continue_result(
+                    EvidenceEvalResult::DirectYield(call),
+                    EvidenceContinuation::apply_callee(
+                        site,
+                        arg_expr,
+                        env,
+                        EvidenceContinuation::identity(),
+                    ),
+                )
+            }
         }
     }
 
@@ -2613,6 +2716,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             EvidenceEvalResult::DirectTailResumptive(call) => self.continue_result(
                 EvidenceEvalResult::DirectTailResumptive(call),
+                EvidenceContinuation::apply_arg(site, callee, EvidenceContinuation::identity()),
+            ),
+            EvidenceEvalResult::DirectYield(call) => self.continue_result(
+                EvidenceEvalResult::DirectYield(call),
                 EvidenceContinuation::apply_arg(site, callee, EvidenceContinuation::identity()),
             ),
         }
@@ -2669,6 +2776,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectTailResumptive(call) => {
                 Ok(EvidenceEvalResult::DirectTailResumptive(call))
             }
+            EvidenceEvalResult::DirectYield(call) => Ok(EvidenceEvalResult::DirectYield(call)),
         }
     }
 
@@ -2702,6 +2810,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectTailResumptive(call) => {
                 Ok(EvidenceEvalResult::DirectTailResumptive(call))
             }
+            EvidenceEvalResult::DirectYield(call) => Ok(EvidenceEvalResult::DirectYield(call)),
         }
     }
 
@@ -2846,6 +2955,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         ),
                     );
                 }
+                EvidenceEvalResult::DirectYield(call) => {
+                    let rest = shared_expr_ids(&items[index + 1..]);
+                    let env = self.clone_env(env);
+                    return self.continue_result(
+                        EvidenceEvalResult::DirectYield(call),
+                        EvidenceContinuation::tuple_items(
+                            values,
+                            rest,
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    );
+                }
             }
         }
         Ok(EvidenceEvalResult::Value(shared(
@@ -2883,6 +3005,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     let env = self.clone_env(env);
                     return self.continue_result(
                         EvidenceEvalResult::DirectTailResumptive(call),
+                        EvidenceContinuation::record_spread(
+                            shared_record_fields(fields),
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    );
+                }
+                EvidenceEvalResult::DirectYield(call) => {
+                    let env = self.clone_env(env);
+                    return self.continue_result(
+                        EvidenceEvalResult::DirectYield(call),
                         EvidenceContinuation::record_spread(
                             shared_record_fields(fields),
                             env,
@@ -2943,6 +3076,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         ),
                     );
                 }
+                EvidenceEvalResult::DirectYield(call) => {
+                    let rest = shared_record_fields(&fields[index..]);
+                    let env = self.clone_env(env);
+                    return self.continue_result(
+                        EvidenceEvalResult::DirectYield(call),
+                        EvidenceContinuation::record_fields(
+                            values,
+                            rest,
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    );
+                }
             }
         }
         Ok(EvidenceEvalResult::Value(shared(
@@ -2993,6 +3139,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         ),
                     );
                 }
+                EvidenceEvalResult::DirectYield(call) => {
+                    let rest = shared_expr_ids(&payloads[index + 1..]);
+                    let env = self.clone_env(env);
+                    return self.continue_result(
+                        EvidenceEvalResult::DirectYield(call),
+                        EvidenceContinuation::poly_variant_payloads(
+                            tag,
+                            values,
+                            rest,
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    );
+                }
             }
         }
         Ok(EvidenceEvalResult::Value(shared(
@@ -3029,6 +3189,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             EvidenceEvalResult::DirectTailResumptive(call) => self.continue_result(
                 EvidenceEvalResult::DirectTailResumptive(call),
+                EvidenceContinuation::select_base(
+                    name.to_string(),
+                    resolution.clone(),
+                    EvidenceContinuation::identity(),
+                ),
+            ),
+            EvidenceEvalResult::DirectYield(call) => self.continue_result(
+                EvidenceEvalResult::DirectYield(call),
                 EvidenceContinuation::select_base(
                     name.to_string(),
                     resolution.clone(),
@@ -3198,6 +3366,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
                 EvidenceEvalResult::DirectTailResumptive(call) => self.continue_result(
                     EvidenceEvalResult::DirectTailResumptive(call),
+                    EvidenceContinuation::apply_forced_callee(
+                        site,
+                        arg,
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                EvidenceEvalResult::DirectYield(call) => self.continue_result(
+                    EvidenceEvalResult::DirectYield(call),
                     EvidenceContinuation::apply_forced_callee(
                         site,
                         arg,
@@ -3683,6 +3859,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             EvidenceEvalResult::DirectTailResumptive(call) => {
                 self.continue_direct_tail_resumptive_with_continuation(call, continuation)
+            }
+            EvidenceEvalResult::DirectYield(call) => {
+                self.continue_direct_yield_with_continuation(call, continuation)
             }
         }
     }
@@ -4205,21 +4384,48 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.continue_direct_tail_resumptive_with_continuation(call, next)
     }
 
+    fn continue_direct_yield_with_continuation(
+        &mut self,
+        call: EvidenceDirectYield,
+        continuation: EvidenceContinuation,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.continue_routed_request_with_continuation(
+            Some(call.handler),
+            call.request,
+            continuation,
+        )
+    }
+
     fn continue_request_with_continuation(
         &mut self,
         request: EvidenceRequest,
         continuation: EvidenceContinuation,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.continue_routed_request_with_continuation(None, request, continuation)
+    }
+
+    fn continue_routed_request_with_continuation(
+        &mut self,
+        direct_yield_handler: Option<ExprId>,
+        request: EvidenceRequest,
+        continuation: EvidenceContinuation,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         if continuation.is_identity() {
-            return Ok(EvidenceEvalResult::Request(request));
+            return Ok(self.routed_request_result(direct_yield_handler, request));
         }
-        self.stats.request_continuation_steps += 1;
+        if direct_yield_handler.is_none() {
+            self.stats.request_continuation_steps += 1;
+        }
         let frame = continuation
             .frame()
             .expect("non-identity continuation must have a frame");
         let (request, next) = match frame {
             EvidenceContinuationFrame::Then { first, second } => {
-                let result = self.continue_request_with_continuation(request, first.clone())?;
+                let result = self.continue_routed_request_with_continuation(
+                    direct_yield_handler,
+                    request,
+                    first.clone(),
+                )?;
                 return self.continue_result(result, second.clone());
             }
             EvidenceContinuationFrame::ForceThunk {
@@ -4362,12 +4568,39 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 env,
                 next,
             } => {
-                let result = self.continue_catch_body_result(
-                    *catch_expr,
-                    arms.clone(),
-                    env,
-                    EvidenceEvalResult::Request(request),
-                )?;
+                let result = if let Some(handler) = direct_yield_handler {
+                    if handler == *catch_expr {
+                        self.eval_direct_yield_arm(
+                            EvidenceDirectYield { handler, request },
+                            *catch_expr,
+                            arms.clone(),
+                            env,
+                        )?
+                    } else {
+                        let env = self.clone_env(env);
+                        let request = self.append_request_continuation(
+                            request,
+                            EvidenceContinuation::catch_body(
+                                *catch_expr,
+                                arms.clone(),
+                                env,
+                                EvidenceContinuation::identity(),
+                            ),
+                        );
+                        return self.continue_routed_request_with_continuation(
+                            direct_yield_handler,
+                            request,
+                            next.clone(),
+                        );
+                    }
+                } else {
+                    self.continue_catch_body_result(
+                        *catch_expr,
+                        arms.clone(),
+                        env,
+                        EvidenceEvalResult::Request(request),
+                    )?
+                };
                 return self.continue_result(result, next.clone());
             }
             EvidenceContinuationFrame::MarkerFrame {
@@ -4566,14 +4799,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             ),
             EvidenceContinuationFrame::RefSetHandleResult { assigned, next } => {
                 let result = self.handle_ref_set_result(
-                    EvidenceEvalResult::Request(request),
+                    self.routed_request_result(direct_yield_handler, request),
                     assigned.clone(),
                 )?;
                 return self.continue_result(result, next.clone());
             }
             EvidenceContinuationFrame::RefSetHandleValueResult { assigned, next } => {
                 let result = self.handle_ref_set_value_result(
-                    EvidenceEvalResult::Request(request),
+                    self.routed_request_result(direct_yield_handler, request),
                     assigned.clone(),
                 )?;
                 return self.continue_result(result, next.clone());
@@ -4636,7 +4869,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 next.clone(),
             ),
         };
-        self.continue_request_with_continuation(request, next)
+        self.continue_routed_request_with_continuation(direct_yield_handler, request, next)
+    }
+
+    fn routed_request_result(
+        &self,
+        direct_yield_handler: Option<ExprId>,
+        request: EvidenceRequest,
+    ) -> EvidenceEvalResult {
+        match direct_yield_handler {
+            Some(handler) => {
+                EvidenceEvalResult::DirectYield(EvidenceDirectYield { handler, request })
+            }
+            None => EvidenceEvalResult::Request(request),
+        }
     }
 
     fn finish_force_thunk_result(
@@ -4706,6 +4952,28 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                 continuation: EvidenceContinuation::identity(),
                             },
                         ));
+                    }
+                    if let EvidenceEffectRoute::Direct {
+                        handler,
+                        execution: EvidenceVmOperationExecutionPlan::YieldFallback,
+                        request_free_yield: true,
+                        ..
+                    } = route
+                    {
+                        let mut request = EvidenceRequest {
+                            path: path.clone(),
+                            payload: payload.clone(),
+                            route: *route,
+                            guard_ids: Vec::new(),
+                            carried_guards: Vec::new(),
+                            handler_boundary: None,
+                            continuation: EvidenceContinuation::identity(),
+                        };
+                        self.mark_request_with_active_markers(&mut request);
+                        return Ok(EvidenceEvalResult::DirectYield(EvidenceDirectYield {
+                            handler: *handler,
+                            request,
+                        }));
                     }
                     let mut request = EvidenceRequest {
                         path: path.clone(),
@@ -4798,6 +5066,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     self.eval_direct_tail_resumptive_arm(call, &arms, env)
                 } else {
                     Ok(EvidenceEvalResult::DirectTailResumptive(call))
+                }
+            }
+            EvidenceEvalResult::DirectYield(call) => {
+                if call.handler == catch_expr {
+                    self.eval_direct_yield_arm(call, catch_expr, arms, env)
+                } else {
+                    Ok(EvidenceEvalResult::DirectYield(call))
                 }
             }
             EvidenceEvalResult::Request(request) => match request.route {
@@ -5000,6 +5275,31 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         Ok(EvidenceEvalResult::DirectTailResumptive(call))
     }
 
+    fn eval_direct_yield_arm(
+        &mut self,
+        call: EvidenceDirectYield,
+        catch_expr: ExprId,
+        arms: Rc<[control_vm::CatchArm]>,
+        env: &Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let EvidenceDirectYield { mut request, .. } = call;
+        let resumptive = match request.route {
+            EvidenceEffectRoute::Direct { resumptive, .. } => resumptive,
+            EvidenceEffectRoute::Unhandled => {
+                return Ok(EvidenceEvalResult::Request(
+                    self.defer_catch_body(catch_expr, arms, env, request),
+                ));
+            }
+        };
+        if self.visible_operation_resumptive(&request, &arms).is_some() {
+            return self.eval_operation_arm(request, resumptive, &arms, env);
+        }
+        request.route = EvidenceEffectRoute::Unhandled;
+        Ok(EvidenceEvalResult::Request(
+            self.defer_catch_body(catch_expr, arms, env, request),
+        ))
+    }
+
     fn bind_pat_matches(
         &mut self,
         pat: &Pat,
@@ -5043,6 +5343,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectTailResumptive(call) => {
                 Ok(EvidenceEvalResult::DirectTailResumptive(call))
             }
+            EvidenceEvalResult::DirectYield(call) => Ok(EvidenceEvalResult::DirectYield(call)),
         }
     }
 
@@ -5103,6 +5404,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectTailResumptive(call) => {
                 Ok(EvidenceEvalResult::DirectTailResumptive(call))
             }
+            EvidenceEvalResult::DirectYield(call) => Ok(EvidenceEvalResult::DirectYield(call)),
         }
     }
 
@@ -5167,6 +5469,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             ),
                         );
                     }
+                    EvidenceEvalResult::DirectYield(call) => {
+                        let env = self.clone_env(env);
+                        return self.continue_result(
+                            EvidenceEvalResult::DirectYield(call),
+                            EvidenceContinuation::block_stmt(
+                                EvidenceBlockResume::Let(pat.clone()),
+                                shared_stmts(rest),
+                                tail,
+                                env,
+                                last,
+                                EvidenceContinuation::identity(),
+                            ),
+                        );
+                    }
                 },
                 Stmt::Expr(expr) => match self.eval_expr_result(*expr, env)? {
                     EvidenceEvalResult::Value(value) => last = value,
@@ -5193,6 +5509,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         let env = self.clone_env(env);
                         return self.continue_result(
                             EvidenceEvalResult::DirectTailResumptive(call),
+                            EvidenceContinuation::block_stmt(
+                                EvidenceBlockResume::Expr,
+                                shared_stmts(rest),
+                                tail,
+                                env,
+                                last,
+                                EvidenceContinuation::identity(),
+                            ),
+                        );
+                    }
+                    EvidenceEvalResult::DirectYield(call) => {
+                        let env = self.clone_env(env);
+                        return self.continue_result(
+                            EvidenceEvalResult::DirectYield(call),
                             EvidenceContinuation::block_stmt(
                                 EvidenceBlockResume::Expr,
                                 shared_stmts(rest),
@@ -5234,6 +5564,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             let env = self.clone_env(env);
                             return self.continue_result(
                                 EvidenceEvalResult::DirectTailResumptive(call),
+                                EvidenceContinuation::block_stmt(
+                                    EvidenceBlockResume::Expr,
+                                    shared_stmts(rest),
+                                    tail,
+                                    env,
+                                    last,
+                                    EvidenceContinuation::identity(),
+                                ),
+                            );
+                        }
+                        EvidenceEvalResult::DirectYield(call) => {
+                            let env = self.clone_env(env);
+                            return self.continue_result(
+                                EvidenceEvalResult::DirectYield(call),
                                 EvidenceContinuation::block_stmt(
                                     EvidenceBlockResume::Expr,
                                     shared_stmts(rest),
