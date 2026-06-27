@@ -1810,6 +1810,25 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         id
     }
 
+    #[allow(dead_code)]
+    fn provider_grant_gate_passes(&self, origin: Option<EvidenceRouteOrigin>) -> bool {
+        let Some(EvidenceRouteOrigin::ProviderGrant(id)) = origin else {
+            return false;
+        };
+        let Some(grant) = self.provider_grants.get(id.0 as usize) else {
+            return false;
+        };
+        self.active_provider_envs.iter().any(|frame| {
+            frame.scope_id == grant.scope_id
+                && frame.hygiene_baseline == grant.hygiene_baseline
+                && frame.is_unshadowed(
+                    self.active_marker_plans.len(),
+                    self.active_add_ids.len(),
+                    self.active_handler_frames.len(),
+                )
+        })
+    }
+
     fn provider_env_for_call(&mut self, site: Option<ExprId>) -> RuntimeEvidenceProviderEnv {
         let Some(site) = site else {
             return RuntimeEvidenceProviderEnv::default();
@@ -7139,6 +7158,36 @@ mod tests {
             .push(EvidenceActiveMarkerPlan::new(markers));
 
         assert!(runner.active_provider_env_values().is_empty());
+    }
+
+    #[test]
+    fn provider_grant_gate_requires_active_scope_and_baseline() {
+        let provider_env = provider_env_fixture();
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let frame = runner.provider_frame(provider_env);
+        let grant = EvidenceProviderGrant {
+            demand_slot_id: 7,
+            provider_slot_id: 7,
+            handler_id: 3,
+            scope_id: frame.scope_id,
+            hygiene_baseline: frame.hygiene_baseline,
+        };
+        runner.active_provider_envs.push(frame);
+        let grant_id = runner.record_provider_grant(grant);
+
+        assert!(
+            runner.provider_grant_gate_passes(Some(EvidenceRouteOrigin::ProviderGrant(grant_id)))
+        );
+
+        let markers: Rc<[EvidenceValueMarker]> = Vec::new().into();
+        runner
+            .active_marker_plans
+            .push(EvidenceActiveMarkerPlan::new(markers));
+
+        assert!(
+            !runner.provider_grant_gate_passes(Some(EvidenceRouteOrigin::ProviderGrant(grant_id)))
+        );
     }
 
     fn provider_env_fixture() -> RuntimeEvidenceProviderEnv {
