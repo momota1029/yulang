@@ -259,25 +259,25 @@ enum EvidenceContinuationFrame {
     },
     TupleItems {
         values: Vec<SharedValue>,
-        rest: Vec<ExprId>,
+        rest: Rc<[ExprId]>,
         env: Env,
         next: EvidenceContinuation,
     },
     RecordSpread {
-        fields: Vec<control_vm::RecordField>,
+        fields: Rc<[control_vm::RecordField]>,
         env: Env,
         next: EvidenceContinuation,
     },
     RecordFields {
         values: Vec<RuntimeEvidenceValueField>,
-        rest: Vec<control_vm::RecordField>,
+        rest: Rc<[control_vm::RecordField]>,
         env: Env,
         next: EvidenceContinuation,
     },
     PolyVariantPayloads {
         tag: String,
         values: Vec<SharedValue>,
-        rest: Vec<ExprId>,
+        rest: Rc<[ExprId]>,
         env: Env,
         next: EvidenceContinuation,
     },
@@ -288,7 +288,7 @@ enum EvidenceContinuationFrame {
     },
     BlockStmt {
         resume: EvidenceBlockResume,
-        rest: Vec<Stmt>,
+        rest: Rc<[Stmt]>,
         tail: Option<ExprId>,
         env: Env,
         last: SharedValue,
@@ -691,7 +691,7 @@ impl EvidenceContinuation {
         }))
     }
 
-    fn tuple_items(values: Vec<SharedValue>, rest: Vec<ExprId>, env: Env, next: Self) -> Self {
+    fn tuple_items(values: Vec<SharedValue>, rest: Rc<[ExprId]>, env: Env, next: Self) -> Self {
         Self(Rc::new(EvidenceContinuationFrame::TupleItems {
             values,
             rest,
@@ -700,7 +700,7 @@ impl EvidenceContinuation {
         }))
     }
 
-    fn record_spread(fields: Vec<control_vm::RecordField>, env: Env, next: Self) -> Self {
+    fn record_spread(fields: Rc<[control_vm::RecordField]>, env: Env, next: Self) -> Self {
         Self(Rc::new(EvidenceContinuationFrame::RecordSpread {
             fields,
             env,
@@ -710,7 +710,7 @@ impl EvidenceContinuation {
 
     fn record_fields(
         values: Vec<RuntimeEvidenceValueField>,
-        rest: Vec<control_vm::RecordField>,
+        rest: Rc<[control_vm::RecordField]>,
         env: Env,
         next: Self,
     ) -> Self {
@@ -725,7 +725,7 @@ impl EvidenceContinuation {
     fn poly_variant_payloads(
         tag: String,
         values: Vec<SharedValue>,
-        rest: Vec<ExprId>,
+        rest: Rc<[ExprId]>,
         env: Env,
         next: Self,
     ) -> Self {
@@ -748,7 +748,7 @@ impl EvidenceContinuation {
 
     fn block_stmt(
         resume: EvidenceBlockResume,
-        rest: Vec<Stmt>,
+        rest: Rc<[Stmt]>,
         tail: Option<ExprId>,
         env: Env,
         last: SharedValue,
@@ -2196,7 +2196,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             match self.eval_expr_result(*item, env)? {
                 EvidenceEvalResult::Value(value) => values.push(value),
                 EvidenceEvalResult::Request(request) => {
-                    let rest = items[index + 1..].to_vec();
+                    let rest = shared_expr_ids(&items[index + 1..]);
                     let env = self.clone_env(env);
                     return Ok(EvidenceEvalResult::Request(
                         self.append_request_continuation(
@@ -2233,7 +2233,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         self.append_request_continuation(
                             request,
                             EvidenceContinuation::record_spread(
-                                fields.to_vec(),
+                                shared_record_fields(fields),
                                 env,
                                 EvidenceContinuation::identity(),
                             ),
@@ -2263,7 +2263,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     value,
                 }),
                 EvidenceEvalResult::Request(request) => {
-                    let rest = fields[index..].to_vec();
+                    let rest = shared_record_fields(&fields[index..]);
                     let env = self.clone_env(env);
                     return Ok(EvidenceEvalResult::Request(
                         self.append_request_continuation(
@@ -2295,7 +2295,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             match self.eval_expr_result(*payload, env)? {
                 EvidenceEvalResult::Value(value) => values.push(value),
                 EvidenceEvalResult::Request(request) => {
-                    let rest = payloads[index + 1..].to_vec();
+                    let rest = shared_expr_ids(&payloads[index + 1..]);
                     let env = self.clone_env(env);
                     return Ok(EvidenceEvalResult::Request(
                         self.append_request_continuation(
@@ -3767,7 +3767,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                 request,
                                 EvidenceContinuation::block_stmt(
                                     EvidenceBlockResume::Let(pat.clone()),
-                                    rest.to_vec(),
+                                    shared_stmts(rest),
                                     tail,
                                     env,
                                     last,
@@ -3786,7 +3786,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                 request,
                                 EvidenceContinuation::block_stmt(
                                     EvidenceBlockResume::Expr,
-                                    rest.to_vec(),
+                                    shared_stmts(rest),
                                     tail,
                                     env,
                                     last,
@@ -3810,7 +3810,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                     request,
                                     EvidenceContinuation::block_stmt(
                                         EvidenceBlockResume::Expr,
-                                        rest.to_vec(),
+                                        shared_stmts(rest),
                                         tail,
                                         env,
                                         last,
@@ -4963,6 +4963,18 @@ fn shared_case_arms(arms: &[control_vm::CaseArm]) -> Rc<[control_vm::CaseArm]> {
 
 fn shared_catch_arms(arms: &[control_vm::CatchArm]) -> Rc<[control_vm::CatchArm]> {
     Rc::from(arms.to_vec().into_boxed_slice())
+}
+
+fn shared_expr_ids(exprs: &[ExprId]) -> Rc<[ExprId]> {
+    Rc::from(exprs.to_vec().into_boxed_slice())
+}
+
+fn shared_record_fields(fields: &[control_vm::RecordField]) -> Rc<[control_vm::RecordField]> {
+    Rc::from(fields.to_vec().into_boxed_slice())
+}
+
+fn shared_stmts(stmts: &[Stmt]) -> Rc<[Stmt]> {
+    Rc::from(stmts.to_vec().into_boxed_slice())
 }
 
 fn push_unique_guard(ids: &mut Vec<EvidenceGuardId>, id: EvidenceGuardId) -> bool {
