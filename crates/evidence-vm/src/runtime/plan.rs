@@ -247,3 +247,75 @@ fn operation_provider_lookups_from_plan(
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        EvidenceVmObjectPlan, EvidenceVmOperationExecutionPlan, EvidenceVmOperationObjectPlan,
+        EvidenceVmSlotRouteKey, EvidenceVmSummary, EvidenceVmValueEnvKind,
+        EvidenceVmValueObjectPlan,
+    };
+
+    #[test]
+    fn provider_env_can_route_lexical_candidate_operation() {
+        let apply = ExprId(10);
+        let callee = ExprId(11);
+        let handler = ExprId(20);
+        let value = ExprId(30);
+        let slot_id = 7;
+        let handler_id = 3;
+        let plan = EvidenceVmPlan {
+            summary: EvidenceVmSummary::default(),
+            handlers: Vec::new(),
+            operations: vec![crate::EvidenceVmOperationPlan {
+                expr: callee,
+                path: vec!["out".to_string(), "say".to_string()],
+                slot: crate::EvidenceVmSlotKey {
+                    family: vec!["out".to_string(), "say".to_string()],
+                    route: EvidenceVmSlotRouteKey::UnknownFallback,
+                },
+                kind: EvidenceVmOperationKind::Call { apply, callee },
+                lowering: EvidenceVmOperationLowering::LexicalHandlerCandidate {
+                    handler,
+                    resumptive: true,
+                    delayed_boundary: false,
+                },
+                runtime_nodes: Vec::new(),
+                runtime_evidence_refs: 0,
+            }],
+            functions: Vec::new(),
+            values: Vec::new(),
+            objects: EvidenceVmObjectPlan {
+                operations: vec![EvidenceVmOperationObjectPlan {
+                    expr: callee,
+                    slot_id,
+                    candidate_handler: Some(handler_id),
+                    execution: EvidenceVmOperationExecutionPlan::DirectTailResumptive,
+                }],
+                values: vec![EvidenceVmValueObjectPlan {
+                    id: 0,
+                    expr: value,
+                    kind: EvidenceVmValueEnvKind::Lambda { body: ExprId(31) },
+                    captures: vec![slot_id],
+                    env_providers: vec![crate::EvidenceVmEnvProviderPlan {
+                        slot_id,
+                        handler_ids: vec![handler_id],
+                    }],
+                }],
+                ..EvidenceVmObjectPlan::default()
+            },
+        };
+        let context = RuntimeEvidenceRunContext::from_plan(&plan);
+        let env = context.provider_env_for_value(value);
+
+        assert_eq!(context.provider_route_for_call(apply, callee, &[]), None);
+        assert_eq!(
+            context.provider_route_for_call(apply, callee, &[env]),
+            Some(EvidenceEffectRoute::Direct {
+                handler,
+                resumptive: true,
+            })
+        );
+    }
+}
