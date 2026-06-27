@@ -262,11 +262,13 @@ enum RuntimeEvidenceThunk {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct EvidenceContinuation(Rc<EvidenceContinuationFrame>);
+enum EvidenceContinuation {
+    Identity,
+    Frame(Rc<EvidenceContinuationFrame>),
+}
 
 #[derive(Debug, Clone, PartialEq)]
 enum EvidenceContinuationFrame {
-    Identity,
     Then {
         first: EvidenceContinuation,
         second: EvidenceContinuation,
@@ -718,29 +720,31 @@ fn clone_env_for_stats(env: &Env, stats: &mut RuntimeEvidenceRunStats) -> Env {
 
 impl EvidenceContinuation {
     fn identity() -> Self {
-        thread_local! {
-            static IDENTITY: Rc<EvidenceContinuationFrame> =
-                Rc::new(EvidenceContinuationFrame::Identity);
-        }
+        Self::Identity
+    }
 
-        IDENTITY.with(|identity| Self(identity.clone()))
+    fn frame(&self) -> Option<&EvidenceContinuationFrame> {
+        match self {
+            Self::Identity => None,
+            Self::Frame(frame) => Some(frame.as_ref()),
+        }
     }
 
     fn force_thunk(target_value_is_thunk: bool, next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::ForceThunk {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::ForceThunk {
             target_value_is_thunk,
             next,
         }))
     }
 
     fn force_value_if_thunk(next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::ForceValueIfThunk {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::ForceValueIfThunk {
             next,
         }))
     }
 
     fn apply_callee(site: Option<ExprId>, arg: ExprId, env: Env, next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::ApplyCallee {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::ApplyCallee {
             site,
             arg,
             env,
@@ -749,7 +753,7 @@ impl EvidenceContinuation {
     }
 
     fn apply_arg(site: Option<ExprId>, callee: SharedValue, next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::ApplyArg {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::ApplyArg {
             site,
             callee,
             next,
@@ -757,7 +761,7 @@ impl EvidenceContinuation {
     }
 
     fn apply_forced_callee(site: Option<ExprId>, arg: SharedValue, next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::ApplyForcedCallee {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::ApplyForcedCallee {
             site,
             arg,
             next,
@@ -765,7 +769,7 @@ impl EvidenceContinuation {
     }
 
     fn adapt_value(source: Type, target: Type, next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::AdaptValue {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::AdaptValue {
             source,
             target,
             next,
@@ -773,7 +777,7 @@ impl EvidenceContinuation {
     }
 
     fn wrap_thunk_value(next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::WrapThunkValue { next }))
+        Self::Frame(Rc::new(EvidenceContinuationFrame::WrapThunkValue { next }))
     }
 
     fn apply_adapter_arg(
@@ -783,7 +787,7 @@ impl EvidenceContinuation {
         target_ret: Type,
         next: Self,
     ) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::ApplyAdapterArg {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::ApplyAdapterArg {
             function,
             ret_markers,
             source_ret,
@@ -798,7 +802,7 @@ impl EvidenceContinuation {
         target_ret: Type,
         next: Self,
     ) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::ApplyAdapterResult {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::ApplyAdapterResult {
             ret_markers,
             source_ret,
             target_ret,
@@ -807,7 +811,7 @@ impl EvidenceContinuation {
     }
 
     fn case_scrutinee(arms: Rc<[control_vm::CaseArm]>, env: Env, next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::CaseScrutinee {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::CaseScrutinee {
             arms,
             env,
             next,
@@ -820,7 +824,7 @@ impl EvidenceContinuation {
         env: Env,
         next: Self,
     ) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::CatchBody {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::CatchBody {
             catch_expr,
             arms,
             env,
@@ -834,7 +838,7 @@ impl EvidenceContinuation {
         handler_path: Option<Vec<String>>,
         next: Self,
     ) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::MarkerFrame {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::MarkerFrame {
             markers,
             activate_add_ids,
             handler_path,
@@ -843,7 +847,7 @@ impl EvidenceContinuation {
     }
 
     fn tuple_items(values: Vec<SharedValue>, rest: Rc<[ExprId]>, env: Env, next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::TupleItems {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::TupleItems {
             values,
             rest,
             env,
@@ -852,7 +856,7 @@ impl EvidenceContinuation {
     }
 
     fn record_spread(fields: Rc<[control_vm::RecordField]>, env: Env, next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::RecordSpread {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::RecordSpread {
             fields,
             env,
             next,
@@ -865,7 +869,7 @@ impl EvidenceContinuation {
         env: Env,
         next: Self,
     ) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::RecordFields {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::RecordFields {
             values,
             rest,
             env,
@@ -880,7 +884,7 @@ impl EvidenceContinuation {
         env: Env,
         next: Self,
     ) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::PolyVariantPayloads {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::PolyVariantPayloads {
             tag,
             values,
             rest,
@@ -890,7 +894,7 @@ impl EvidenceContinuation {
     }
 
     fn select_base(name: String, resolution: Option<SelectResolution>, next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::SelectBase {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::SelectBase {
             name,
             resolution,
             next,
@@ -905,7 +909,7 @@ impl EvidenceContinuation {
         last: SharedValue,
         next: Self,
     ) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::BlockStmt {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::BlockStmt {
             resume,
             rest,
             tail,
@@ -916,7 +920,7 @@ impl EvidenceContinuation {
     }
 
     fn ref_set_reference(value: ExprId, env: Env, next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::RefSetReference {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::RefSetReference {
             value,
             env,
             next,
@@ -924,7 +928,7 @@ impl EvidenceContinuation {
     }
 
     fn ref_set_forced_reference(value: ExprId, env: Env, next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::RefSetForcedReference {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::RefSetForcedReference {
             value,
             env,
             next,
@@ -932,34 +936,34 @@ impl EvidenceContinuation {
     }
 
     fn ref_set_value(reference: SharedValue, next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::RefSetValue {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::RefSetValue {
             reference,
             next,
         }))
     }
 
     fn ref_set_forced_value(reference: SharedValue, next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::RefSetForcedValue {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::RefSetForcedValue {
             reference,
             next,
         }))
     }
 
     fn ref_set_resolved_unit(next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::RefSetResolvedUnit {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::RefSetResolvedUnit {
             next,
         }))
     }
 
     fn ref_set_handle_result(assigned: SharedValue, next: Self) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::RefSetHandleResult {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::RefSetHandleResult {
             assigned,
             next,
         }))
     }
 
     fn ref_set_handle_value_result(assigned: SharedValue, next: Self) -> Self {
-        Self(Rc::new(
+        Self::Frame(Rc::new(
             EvidenceContinuationFrame::RefSetHandleValueResult { assigned, next },
         ))
     }
@@ -970,7 +974,7 @@ impl EvidenceContinuation {
         mode: EvidenceRefSetResumeMode,
         next: Self,
     ) -> Self {
-        Self(Rc::new(
+        Self::Frame(Rc::new(
             EvidenceContinuationFrame::RefSetEmitResolvedRequest {
                 request,
                 assigned,
@@ -988,7 +992,7 @@ impl EvidenceContinuation {
         finish: EvidenceRefSetFinish,
         next: Self,
     ) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::ResolveRefSetValues {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::ResolveRefSetValues {
             values,
             assigned,
             out,
@@ -1005,7 +1009,7 @@ impl EvidenceContinuation {
         index: usize,
         next: Self,
     ) -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::ResolveRefSetFields {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::ResolveRefSetFields {
             fields,
             assigned,
             out,
@@ -1015,7 +1019,7 @@ impl EvidenceContinuation {
     }
 
     fn is_identity(&self) -> bool {
-        matches!(self.0.as_ref(), EvidenceContinuationFrame::Identity)
+        matches!(self, Self::Identity)
     }
 
     fn then_counted(self, tail: Self, stats: &mut RuntimeEvidenceRunStats) -> Self {
@@ -1026,7 +1030,7 @@ impl EvidenceContinuation {
             return tail;
         }
         stats.continuation_append_steps += 1;
-        Self(Rc::new(EvidenceContinuationFrame::Then {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::Then {
             first: self,
             second: tail,
         }))
@@ -2921,8 +2925,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return Ok(EvidenceEvalResult::Value(value));
         }
         self.stats.continuation_resume_steps += 1;
-        match continuation.0.as_ref() {
-            EvidenceContinuationFrame::Identity => Ok(EvidenceEvalResult::Value(value)),
+        let frame = continuation
+            .frame()
+            .expect("non-identity continuation must have a frame");
+        match frame {
             EvidenceContinuationFrame::Then { first, second } => {
                 let result = self.resume_continuation(first.clone(), value)?;
                 self.continue_result(result, second.clone())
@@ -3257,10 +3263,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return Ok(EvidenceEvalResult::Request(request));
         }
         self.stats.request_continuation_steps += 1;
-        let (request, next) = match continuation.0.as_ref() {
-            EvidenceContinuationFrame::Identity => {
-                return Ok(EvidenceEvalResult::Request(request));
-            }
+        let frame = continuation
+            .frame()
+            .expect("non-identity continuation must have a frame");
+        let (request, next) = match frame {
             EvidenceContinuationFrame::Then { first, second } => {
                 let result = self.continue_request_with_continuation(request, first.clone())?;
                 return self.continue_result(result, second.clone());
