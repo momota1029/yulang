@@ -9,6 +9,11 @@ use specialize::{
     RuntimeEvidenceNode, RuntimeEvidenceNodeKind, RuntimeEvidenceSurface, RuntimeEvidenceTaskOwner,
 };
 
+mod runtime;
+pub use runtime::{
+    RuntimeEvidenceRunError, RuntimeEvidenceRunOutput, RuntimeEvidenceRunStats, run_program,
+};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvidenceVmPlan {
     pub(crate) summary: EvidenceVmSummary,

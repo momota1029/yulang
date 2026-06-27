@@ -5,4 +5,6 @@ edition = "2024"
 
 [dependencies]
 control-vm = { path = "../control-vm" }
+poly = { path = "../poly" }
 specialize = { path = "../specialize" }
+unicode-segmentation = "1.12"

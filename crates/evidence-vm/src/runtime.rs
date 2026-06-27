@@ -14,14 +14,14 @@ use specialize::mono::{
 use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct RuntimeEvidenceRunOutput {
+pub struct RuntimeEvidenceRunOutput {
     values: Vec<RuntimeEvidenceValue>,
-    pub(crate) stdout: String,
-    pub(crate) evidence_stats: RuntimeEvidenceRunStats,
+    pub stdout: String,
+    pub evidence_stats: RuntimeEvidenceRunStats,
 }
 
 impl RuntimeEvidenceRunOutput {
-    pub(crate) fn roots_text_with_labels(&self, labels: Option<&poly::dump::DumpLabels>) -> String {
+    pub fn roots_text_with_labels(&self, labels: Option<&poly::dump::DumpLabels>) -> String {
         format!(
             "run roots {}\n",
             format_values_with_labels(&self.values, labels)
@@ -30,7 +30,7 @@ impl RuntimeEvidenceRunOutput {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub(crate) struct RuntimeEvidenceRunStats {
+pub struct RuntimeEvidenceRunStats {
     pub effect_calls: usize,
     pub direct_effect_calls: usize,
     pub expr_evals: usize,
@@ -930,7 +930,7 @@ fn effect_call_route(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum RuntimeEvidenceRunError {
+pub enum RuntimeEvidenceRunError {
     MissingExpr(ExprId),
     MissingInstance(InstanceId),
     MismatchedInstanceSlot {
@@ -989,9 +989,7 @@ impl fmt::Display for RuntimeEvidenceRunError {
     }
 }
 
-pub(crate) fn run_program(
-    program: &Program,
-) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+pub fn run_program(program: &Program) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
     RuntimeEvidenceRunner::new(program).run()
 }
 

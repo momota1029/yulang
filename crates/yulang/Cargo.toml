@@ -21,7 +21,6 @@ specialize = { path = "../specialize" }
 sources = { path = "../sources" }
 parser = { path = "../parser" }
 yulang-editor = { path = "../yulang-editor" }
-unicode-segmentation = "1.12"
 unicode-ident = "1.0.12"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

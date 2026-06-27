@@ -213,7 +213,9 @@ name = "evidence-vm"
 version = "0.1.0"
 dependencies = [
  "control-vm",
+ "poly",
  "specialize",
+ "unicode-segmentation",
 ]
 
 [[package]]
@@ -1388,7 +1390,6 @@ dependencies = [
  "tokio",
  "tower-lsp",
  "unicode-ident",
- "unicode-segmentation",
  "yulang-editor",
 ]
 

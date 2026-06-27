@@ -9,7 +9,6 @@ use std::time::{Duration, Instant};
 
 mod cst_view;
 mod parse_view;
-mod runtime_evidence_run;
 mod support;
 use support::*;
 
@@ -2225,7 +2224,7 @@ fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeq
     let build = build_control_with_optional_cache(files, options.use_cache);
     let summary = RuntimeEvidenceBenchSummary::from_surface(&build.runtime_evidence);
     let run_start = Instant::now();
-    let output = match runtime_evidence_run::run_program(&build.program) {
+    let output = match evidence_vm::run_program(&build.program) {
         Ok(output) => output,
         Err(error) => {
             eprintln!("{error}");
