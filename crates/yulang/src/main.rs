@@ -215,6 +215,107 @@ struct RuntimePhaseTimings {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct RuntimeEvidenceBenchSummary {
+    tasks: usize,
+    graph_slots: u64,
+    graph_weighted_constraints: u64,
+    graph_weighted_edges: u64,
+    graph_effect_subtractions: u64,
+    graph_row_residuals: usize,
+    nodes: usize,
+    node_slots: usize,
+    node_weighted_slots: usize,
+    node_effect_subtraction_slots: usize,
+    node_evidence_refs: usize,
+    sites: usize,
+    expr_types: usize,
+    expr_stack_weights: usize,
+    ref_signatures: usize,
+    select_signatures: usize,
+    pat_ref_signatures: usize,
+    typeclass_resolutions: usize,
+    type_stack_weights: usize,
+    raw_thunk_computations: usize,
+}
+
+impl RuntimeEvidenceBenchSummary {
+    fn from_surface(surface: &specialize::RuntimeEvidenceSurface) -> Self {
+        let mut summary = Self {
+            tasks: surface.tasks.len(),
+            ..Self::default()
+        };
+
+        for task in &surface.tasks {
+            summary.graph_slots += u64::from(task.graph.slot_count);
+            summary.graph_weighted_constraints += u64::from(task.graph.weighted_constraint_count);
+            summary.graph_weighted_edges += u64::from(task.graph.weighted_edge_count);
+            summary.graph_effect_subtractions += u64::from(task.graph.effect_subtraction_count);
+            summary.graph_row_residuals += task.graph.row_residuals.len();
+            summary.nodes += task.nodes.len();
+            summary.node_slots += task
+                .nodes
+                .iter()
+                .map(|node| node.slots.len())
+                .sum::<usize>();
+            summary.node_weighted_slots += task
+                .nodes
+                .iter()
+                .map(|node| node.weighted_slots.len())
+                .sum::<usize>();
+            summary.node_effect_subtraction_slots += task
+                .nodes
+                .iter()
+                .map(|node| node.effect_subtraction_slots.len())
+                .sum::<usize>();
+            summary.node_evidence_refs += task
+                .nodes
+                .iter()
+                .map(|node| node.evidence_refs.len())
+                .sum::<usize>();
+            summary.sites += task.sites.len();
+            summary.expr_types += task.expr_types.len();
+            summary.expr_stack_weights += task
+                .expr_types
+                .iter()
+                .map(|expr| expr.stack_weights.len())
+                .sum::<usize>();
+            summary.ref_signatures += task.ref_signatures.len();
+            summary.select_signatures += task.select_signatures.len();
+            summary.pat_ref_signatures += task.pat_ref_signatures.len();
+            summary.typeclass_resolutions += task.typeclass_resolutions.len();
+            summary.type_stack_weights += task
+                .expr_types
+                .iter()
+                .map(|expr| expr.stack_weights.len())
+                .sum::<usize>();
+            summary.type_stack_weights += task
+                .ref_signatures
+                .iter()
+                .map(|signature| signature.stack_weights.len())
+                .sum::<usize>();
+            summary.type_stack_weights += task
+                .select_signatures
+                .iter()
+                .map(|signature| signature.stack_weights.len())
+                .sum::<usize>();
+            summary.type_stack_weights += task
+                .pat_ref_signatures
+                .iter()
+                .map(|signature| signature.stack_weights.len())
+                .sum::<usize>();
+            summary.type_stack_weights += task
+                .typeclass_resolutions
+                .iter()
+                .map(|resolution| resolution.stack_weights.len())
+                .sum::<usize>();
+            summary.raw_thunk_computations += task.raw_thunk_computations.len();
+        }
+
+        summary
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 enum RuntimeBuildCacheKind {
     #[default]
     NotMeasured,
@@ -1923,6 +2024,180 @@ fn run_server(program: &str, options: &GlobalOptions, mut args: VecDeque<OsStrin
     yulang::server::run_blocking(options.std_root.clone());
 }
 
+fn run_runtime_evidence_bench(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
+    let (path, repeat) = parse_runtime_evidence_bench_args(program, args);
+    println!("runtime evidence bench:");
+    println!("  case: {}", path.display());
+    println!("  repeat: {repeat}");
+
+    for iteration in 1..=repeat {
+        let total_start = Instant::now();
+        let mut timings = RuntimePhaseTimings::default();
+        let collect_start = Instant::now();
+        let files = collect_control_sources_or_exit(&path, options);
+        timings.collect = collect_start.elapsed();
+        let output =
+            build_control_with_optional_cache_timed(files, options.use_cache, Some(&mut timings));
+        timings.total = total_start.elapsed();
+        print_runtime_evidence_bench_iteration(iteration, &timings, &output);
+    }
+}
+
+fn parse_runtime_evidence_bench_args(
+    program: &str,
+    mut args: VecDeque<OsString>,
+) -> (PathBuf, usize) {
+    let mut path = None;
+    let mut repeat = 1usize;
+
+    while let Some(arg) = args.pop_front() {
+        match arg.to_str() {
+            Some("--repeat") => {
+                let Some(value) = args.pop_front() else {
+                    print_usage_error_and_exit(
+                        program,
+                        "debug runtime-evidence-bench --repeat requires a value",
+                    );
+                };
+                repeat = parse_runtime_evidence_bench_repeat(program, &value);
+            }
+            Some(value) if value.starts_with("--repeat=") => {
+                repeat =
+                    parse_runtime_evidence_bench_repeat_str(program, &value["--repeat=".len()..]);
+            }
+            Some(value) if value.starts_with("--") => {
+                print_usage_error_and_exit(
+                    program,
+                    &format!("unknown debug runtime-evidence-bench option: {value}"),
+                );
+            }
+            _ => {
+                if path.is_some() {
+                    print_usage_error_and_exit(
+                        program,
+                        "debug runtime-evidence-bench takes exactly one path",
+                    );
+                }
+                path = Some(PathBuf::from(arg));
+            }
+        }
+    }
+
+    let Some(path) = path else {
+        print_usage_error_and_exit(program, "debug runtime-evidence-bench requires a path");
+    };
+    if repeat == 0 {
+        print_usage_error_and_exit(
+            program,
+            "debug runtime-evidence-bench --repeat must be >= 1",
+        );
+    }
+    (path, repeat)
+}
+
+fn parse_runtime_evidence_bench_repeat(program: &str, value: &OsString) -> usize {
+    let Some(value) = value.to_str() else {
+        print_usage_error_and_exit(
+            program,
+            "debug runtime-evidence-bench --repeat must be valid UTF-8",
+        );
+    };
+    parse_runtime_evidence_bench_repeat_str(program, value)
+}
+
+fn parse_runtime_evidence_bench_repeat_str(program: &str, value: &str) -> usize {
+    match value.parse::<usize>() {
+        Ok(repeat) => repeat,
+        Err(_) => print_usage_error_and_exit(
+            program,
+            "debug runtime-evidence-bench --repeat must be an integer",
+        ),
+    }
+}
+
+fn print_runtime_evidence_bench_iteration(
+    iteration: usize,
+    timings: &RuntimePhaseTimings,
+    output: &yulang::BuildControlOutput,
+) {
+    let summary = RuntimeEvidenceBenchSummary::from_surface(&output.runtime_evidence);
+    println!("iteration {iteration}:");
+    println!("  bench.cache: {}", timings.build_cache.as_str());
+    println!("  bench.collect: {}", format_duration(timings.collect));
+    println!(
+        "  bench.build_poly: {}",
+        format_duration(timings.build_poly)
+    );
+    println!(
+        "  bench.specialize: {}",
+        format_duration(timings.specialize)
+    );
+    println!(
+        "  bench.control_lower: {}",
+        format_duration(timings.control_lower)
+    );
+    println!("  bench.total: {}", format_duration(timings.total));
+    println!("  evidence.tasks: {}", summary.tasks);
+    println!("  evidence.graph_slots: {}", summary.graph_slots);
+    println!(
+        "  evidence.graph_weighted_constraints: {}",
+        summary.graph_weighted_constraints
+    );
+    println!(
+        "  evidence.graph_weighted_edges: {}",
+        summary.graph_weighted_edges
+    );
+    println!(
+        "  evidence.graph_effect_subtractions: {}",
+        summary.graph_effect_subtractions
+    );
+    println!(
+        "  evidence.graph_row_residuals: {}",
+        summary.graph_row_residuals
+    );
+    println!("  evidence.nodes: {}", summary.nodes);
+    println!("  evidence.node_slots: {}", summary.node_slots);
+    println!(
+        "  evidence.node_weighted_slots: {}",
+        summary.node_weighted_slots
+    );
+    println!(
+        "  evidence.node_effect_subtraction_slots: {}",
+        summary.node_effect_subtraction_slots
+    );
+    println!(
+        "  evidence.node_evidence_refs: {}",
+        summary.node_evidence_refs
+    );
+    println!("  evidence.sites: {}", summary.sites);
+    println!("  evidence.expr_types: {}", summary.expr_types);
+    println!(
+        "  evidence.expr_stack_weights: {}",
+        summary.expr_stack_weights
+    );
+    println!("  evidence.ref_signatures: {}", summary.ref_signatures);
+    println!(
+        "  evidence.select_signatures: {}",
+        summary.select_signatures
+    );
+    println!(
+        "  evidence.pat_ref_signatures: {}",
+        summary.pat_ref_signatures
+    );
+    println!(
+        "  evidence.typeclass_resolutions: {}",
+        summary.typeclass_resolutions
+    );
+    println!(
+        "  evidence.type_stack_weights: {}",
+        summary.type_stack_weights
+    );
+    println!(
+        "  evidence.raw_thunk_computations: {}",
+        summary.raw_thunk_computations
+    );
+}
+
 fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString>) {
     let Some(op) = args.pop_front() else {
         print_usage_and_exit(program);
@@ -1930,6 +2205,7 @@ fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString
     match op.to_str() {
         Some("control-vm") => run_compatible_run(program, options, args),
         Some("control-vm-emit") => run_compatible_build(program, options, args),
+        Some("runtime-evidence-bench") => run_runtime_evidence_bench(program, options, args),
         Some("control-vm-load") => {
             let (path, selection) = parse_run_path_args(program, args);
             if selection.interpreter {

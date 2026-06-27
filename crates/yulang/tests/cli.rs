@@ -291,6 +291,41 @@ fn compatible_dump_control_evidence_prints_runtime_source_sites() {
 }
 
 #[test]
+fn debug_runtime_evidence_bench_prints_timing_and_size_metrics() {
+    let entry = write_entry(
+        "debug-runtime-evidence-bench",
+        "act out:\n  our say: int -> unit\n\n\
+         my handle(action: [out] _) = catch action:\n\
+         \x20 out::say(n), k -> k()\n\
+         \x20 v -> v\n\n\
+         handle(out::say(1))\n",
+    );
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-bench")
+        .arg("--repeat")
+        .arg("1")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("runtime evidence bench:"), "{stdout}");
+    assert!(stdout.contains("iteration 1:"), "{stdout}");
+    assert!(stdout.contains("bench.cache: disabled"), "{stdout}");
+    assert!(stdout.contains("bench.specialize:"), "{stdout}");
+    assert!(stdout.contains("bench.control_lower:"), "{stdout}");
+    assert!(stdout.contains("evidence.tasks:"), "{stdout}");
+    assert!(stdout.contains("evidence.nodes:"), "{stdout}");
+    assert!(stdout.contains("evidence.node_evidence_refs:"), "{stdout}");
+    assert!(stdout.contains("evidence.type_stack_weights:"), "{stdout}");
+}
+
+#[test]
 fn compatible_dump_no_prelude_uses_cache() {
     let entry = write_entry("dump-no-prelude-cache", "1\n");
     let root = entry.parent().unwrap().to_path_buf();
