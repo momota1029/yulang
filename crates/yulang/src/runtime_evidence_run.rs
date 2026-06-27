@@ -57,6 +57,10 @@ enum RuntimeEvidenceValue {
         args: Vec<SharedValue>,
     },
     Closure(Rc<RuntimeEvidenceClosure>),
+    RecursiveClosure {
+        def: DefId,
+        closure: Rc<RuntimeEvidenceClosure>,
+    },
     EffectOp {
         expr: ExprId,
         path: Vec<String>,
@@ -473,6 +477,11 @@ impl EvidenceRequest {
         self
     }
 
+    fn append_continuation(mut self, tail: EvidenceContinuation) -> Self {
+        self.continuation = self.continuation.then(tail);
+        self
+    }
+
     fn add_visible_marker(&mut self, marker: &[String]) {
         if path_is_prefix(marker, &self.path)
             && !self
@@ -758,9 +767,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         self.finish_force_thunk_result(result, target_value_is_thunk)
                     }
                     EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
-                        request.map_continuation(|continuation| {
-                            EvidenceContinuation::force_thunk(target_value_is_thunk, continuation)
-                        }),
+                        request.append_continuation(EvidenceContinuation::force_thunk(
+                            target_value_is_thunk,
+                            EvidenceContinuation::identity(),
+                        )),
                     )),
                 };
             }
@@ -821,13 +831,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         self.eval_case_scrutinee_result(scrutinee, arms, env)
                     }
                     EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
-                        request.map_continuation(|continuation| {
-                            EvidenceContinuation::case_scrutinee(
-                                arms.clone(),
-                                env.clone(),
-                                continuation,
-                            )
-                        }),
+                        request.append_continuation(EvidenceContinuation::case_scrutinee(
+                            arms.clone(),
+                            env.clone(),
+                            EvidenceContinuation::identity(),
+                        )),
                     )),
                 };
             }
@@ -866,9 +874,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.eval_apply_arg_result(site, callee, arg_expr, env)
             }
             EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
-                request.map_continuation(|continuation| {
-                    EvidenceContinuation::apply_callee(site, arg_expr, env.clone(), continuation)
-                }),
+                request.append_continuation(EvidenceContinuation::apply_callee(
+                    site,
+                    arg_expr,
+                    env.clone(),
+                    EvidenceContinuation::identity(),
+                )),
             )),
         }
     }
@@ -884,8 +895,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         match self.eval_expr_result(arg_expr, &mut arg_env)? {
             EvidenceEvalResult::Value(arg) => self.apply_value_result(site, callee, arg),
             EvidenceEvalResult::Request(request) => {
-                Ok(EvidenceEvalResult::Request(request.map_continuation(
-                    |continuation| EvidenceContinuation::apply_arg(site, callee, continuation),
+                Ok(EvidenceEvalResult::Request(request.append_continuation(
+                    EvidenceContinuation::apply_arg(site, callee, EvidenceContinuation::identity()),
                 )))
             }
         }
@@ -902,15 +913,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceEvalResult::Value(value) => values.push(value),
                 EvidenceEvalResult::Request(request) => {
                     let rest = items[index + 1..].to_vec();
-                    return Ok(EvidenceEvalResult::Request(request.map_continuation(
-                        |continuation| {
-                            EvidenceContinuation::tuple_items(
-                                values,
-                                rest,
-                                env.clone(),
-                                continuation,
-                            )
-                        },
+                    return Ok(EvidenceEvalResult::Request(request.append_continuation(
+                        EvidenceContinuation::tuple_items(
+                            values,
+                            rest,
+                            env.clone(),
+                            EvidenceContinuation::identity(),
+                        ),
                     )));
                 }
             }
@@ -931,14 +940,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             RecordSpread::Head(expr) => match self.eval_expr_result(*expr, env)? {
                 EvidenceEvalResult::Value(spread) => record_fields(spread.as_ref())?,
                 EvidenceEvalResult::Request(request) => {
-                    return Ok(EvidenceEvalResult::Request(request.map_continuation(
-                        |continuation| {
-                            EvidenceContinuation::record_spread(
-                                fields.to_vec(),
-                                env.clone(),
-                                continuation,
-                            )
-                        },
+                    return Ok(EvidenceEvalResult::Request(request.append_continuation(
+                        EvidenceContinuation::record_spread(
+                            fields.to_vec(),
+                            env.clone(),
+                            EvidenceContinuation::identity(),
+                        ),
                     )));
                 }
             },
@@ -965,15 +972,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }),
                 EvidenceEvalResult::Request(request) => {
                     let rest = fields[index..].to_vec();
-                    return Ok(EvidenceEvalResult::Request(request.map_continuation(
-                        |continuation| {
-                            EvidenceContinuation::record_fields(
-                                values,
-                                rest,
-                                env.clone(),
-                                continuation,
-                            )
-                        },
+                    return Ok(EvidenceEvalResult::Request(request.append_continuation(
+                        EvidenceContinuation::record_fields(
+                            values,
+                            rest,
+                            env.clone(),
+                            EvidenceContinuation::identity(),
+                        ),
                     )));
                 }
             }
@@ -995,16 +1000,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceEvalResult::Value(value) => values.push(value),
                 EvidenceEvalResult::Request(request) => {
                     let rest = payloads[index + 1..].to_vec();
-                    return Ok(EvidenceEvalResult::Request(request.map_continuation(
-                        |continuation| {
-                            EvidenceContinuation::poly_variant_payloads(
-                                tag,
-                                values,
-                                rest,
-                                env.clone(),
-                                continuation,
-                            )
-                        },
+                    return Ok(EvidenceEvalResult::Request(request.append_continuation(
+                        EvidenceContinuation::poly_variant_payloads(
+                            tag,
+                            values,
+                            rest,
+                            env.clone(),
+                            EvidenceContinuation::identity(),
+                        ),
                     )));
                 }
             }
@@ -1029,13 +1032,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.apply_select_base_result(base, name, resolution)
             }
             EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
-                request.map_continuation(|continuation| {
-                    EvidenceContinuation::select_base(
-                        name.to_string(),
-                        resolution.clone(),
-                        continuation,
-                    )
-                }),
+                request.append_continuation(EvidenceContinuation::select_base(
+                    name.to_string(),
+                    resolution.clone(),
+                    EvidenceContinuation::identity(),
+                )),
             )),
         }
     }
@@ -1106,6 +1107,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 bind_pat(&closure.param, arg, &mut env)?;
                 self.eval_expr_result(closure.body, &mut env)
             }
+            RuntimeEvidenceValue::RecursiveClosure { def, closure } => {
+                let mut env = closure.env.clone();
+                env.insert(
+                    *def,
+                    shared(RuntimeEvidenceValue::RecursiveClosure {
+                        def: *def,
+                        closure: closure.clone(),
+                    }),
+                );
+                bind_pat(&closure.param, arg, &mut env)?;
+                self.eval_expr_result(closure.body, &mut env)
+            }
             RuntimeEvidenceValue::Continuation(continuation) => {
                 Ok(EvidenceEvalResult::Value(shared(
                     RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Continuation {
@@ -1117,9 +1130,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             RuntimeEvidenceValue::Thunk(_) => match self.force_thunk_result(callee)? {
                 EvidenceEvalResult::Value(callee) => self.apply_value_result(site, callee, arg),
                 EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
-                    request.map_continuation(|continuation| {
-                        EvidenceContinuation::apply_forced_callee(site, arg, continuation)
-                    }),
+                    request.append_continuation(EvidenceContinuation::apply_forced_callee(
+                        site,
+                        arg,
+                        EvidenceContinuation::identity(),
+                    )),
                 )),
             },
             RuntimeEvidenceValue::EffectOp { expr, path } => {
@@ -1259,6 +1274,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let mut env = env.clone();
                 let last = match resume {
                     EvidenceBlockResume::Let(pat) => {
+                        let value = recursive_let_value(pat, value);
                         bind_pat(pat, value, &mut env)?;
                         last.clone()
                     }
@@ -1469,9 +1485,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         match self.force_value_if_thunk_result(scrutinee)? {
             EvidenceEvalResult::Value(scrutinee) => self.eval_case_result(scrutinee, arms, env),
             EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
-                request.map_continuation(|continuation| {
-                    EvidenceContinuation::case_scrutinee(arms.to_vec(), env.clone(), continuation)
-                }),
+                request.append_continuation(EvidenceContinuation::case_scrutinee(
+                    arms.to_vec(),
+                    env.clone(),
+                    EvidenceContinuation::identity(),
+                )),
             )),
         }
     }
@@ -1500,36 +1518,35 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             let rest = &stmts[index + 1..];
             match stmt {
                 Stmt::Let(_, pat, expr) => match self.eval_expr_result(*expr, env)? {
-                    EvidenceEvalResult::Value(value) => bind_pat(pat, value, env)?,
+                    EvidenceEvalResult::Value(value) => {
+                        let value = recursive_let_value(pat, value);
+                        bind_pat(pat, value, env)?;
+                    }
                     EvidenceEvalResult::Request(request) => {
-                        return Ok(EvidenceEvalResult::Request(request.map_continuation(
-                            |continuation| {
-                                EvidenceContinuation::block_stmt(
-                                    EvidenceBlockResume::Let(pat.clone()),
-                                    rest.to_vec(),
-                                    tail,
-                                    env.clone(),
-                                    last,
-                                    continuation,
-                                )
-                            },
+                        return Ok(EvidenceEvalResult::Request(request.append_continuation(
+                            EvidenceContinuation::block_stmt(
+                                EvidenceBlockResume::Let(pat.clone()),
+                                rest.to_vec(),
+                                tail,
+                                env.clone(),
+                                last,
+                                EvidenceContinuation::identity(),
+                            ),
                         )));
                     }
                 },
                 Stmt::Expr(expr) => match self.eval_expr_result(*expr, env)? {
                     EvidenceEvalResult::Value(value) => last = value,
                     EvidenceEvalResult::Request(request) => {
-                        return Ok(EvidenceEvalResult::Request(request.map_continuation(
-                            |continuation| {
-                                EvidenceContinuation::block_stmt(
-                                    EvidenceBlockResume::Expr,
-                                    rest.to_vec(),
-                                    tail,
-                                    env.clone(),
-                                    last,
-                                    continuation,
-                                )
-                            },
+                        return Ok(EvidenceEvalResult::Request(request.append_continuation(
+                            EvidenceContinuation::block_stmt(
+                                EvidenceBlockResume::Expr,
+                                rest.to_vec(),
+                                tail,
+                                env.clone(),
+                                last,
+                                EvidenceContinuation::identity(),
+                            ),
                         )));
                     }
                 },
@@ -1541,17 +1558,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     match self.eval_block_result(&module_block, env)? {
                         EvidenceEvalResult::Value(value) => last = value,
                         EvidenceEvalResult::Request(request) => {
-                            return Ok(EvidenceEvalResult::Request(request.map_continuation(
-                                |continuation| {
-                                    EvidenceContinuation::block_stmt(
-                                        EvidenceBlockResume::Expr,
-                                        rest.to_vec(),
-                                        tail,
-                                        env.clone(),
-                                        last,
-                                        continuation,
-                                    )
-                                },
+                            return Ok(EvidenceEvalResult::Request(request.append_continuation(
+                                EvidenceContinuation::block_stmt(
+                                    EvidenceBlockResume::Expr,
+                                    rest.to_vec(),
+                                    tail,
+                                    env.clone(),
+                                    last,
+                                    EvidenceContinuation::identity(),
+                                ),
                             )));
                         }
                     }
@@ -1718,6 +1733,18 @@ fn bind_pat(pat: &Pat, value: SharedValue, env: &mut Env) -> Result<(), RuntimeE
     }
 }
 
+fn recursive_let_value(pat: &Pat, value: SharedValue) -> SharedValue {
+    match (pat, value.as_ref()) {
+        (Pat::Var(def), RuntimeEvidenceValue::Closure(closure)) => {
+            shared(RuntimeEvidenceValue::RecursiveClosure {
+                def: *def,
+                closure: closure.clone(),
+            })
+        }
+        _ => value,
+    }
+}
+
 fn value_from_lit(lit: &Lit) -> RuntimeEvidenceValue {
     match lit {
         Lit::Int(value) => RuntimeEvidenceValue::Int(*value),
@@ -1870,7 +1897,9 @@ fn format_value(value: &RuntimeEvidenceValue) -> String {
         }
         RuntimeEvidenceValue::ConstructorFunction { def, .. } => format!("<ctor-fn d{}>", def.0),
         RuntimeEvidenceValue::PrimitiveOp { op, .. } => format!("<primitive {op:?}>"),
-        RuntimeEvidenceValue::Closure(_) => "<function>".to_string(),
+        RuntimeEvidenceValue::Closure(_) | RuntimeEvidenceValue::RecursiveClosure { .. } => {
+            "<function>".to_string()
+        }
         RuntimeEvidenceValue::EffectOp { path, .. } => {
             format!("<effect-op {}>", path.join("::"))
         }

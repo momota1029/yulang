@@ -549,6 +549,66 @@ fn debug_runtime_evidence_run_handles_recursive_all_paths_marker_route() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_resumes_through_primitive_apply() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-amount-primitive-apply",
+        "act amount:\n  our coin: () -> int\n\n\
+         our one(action: [amount] _) = catch action:\n\
+         \x20 amount::coin(), k -> k 1\n\
+         \x20 v -> v\n\n\
+         one:\n\
+         \x20 amount::coin() * 10\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [10]\n"), "{stdout}");
+}
+
+#[test]
+fn debug_runtime_evidence_run_handles_recursive_amount_handler() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-recursive-amount",
+        "act amount:\n  our coin: () -> int\n\n\
+         our total_amount(action: [amount] _) =\n\
+         \x20 my loop(n, action: [amount] _) = catch action:\n\
+         \x20\x20 amount::coin(), k -> loop(n, k n)\n\
+         \x20\x20 v -> v\n\
+         \x20 [loop(1, action), loop(2, action)]\n\n\
+         total_amount:\n\
+         \x20 amount::coin() * 10\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [[10, 20]]\n"), "{stdout}");
+}
+
+#[test]
 fn compatible_dump_no_prelude_uses_cache() {
     let entry = write_entry("dump-no-prelude-cache", "1\n");
     let root = entry.parent().unwrap().to_path_buf();
