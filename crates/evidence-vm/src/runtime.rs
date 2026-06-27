@@ -562,7 +562,49 @@ enum EvidenceEvalResult {
 }
 
 type SharedValue = Rc<RuntimeEvidenceValue>;
-type Env = HashMap<DefId, SharedValue>;
+
+#[derive(Debug, Clone, Default, PartialEq)]
+struct Env {
+    head: Option<Rc<EnvEntry>>,
+    depth: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct EnvEntry {
+    def: DefId,
+    value: SharedValue,
+    parent: Option<Rc<EnvEntry>>,
+}
+
+impl Env {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn get(&self, def: &DefId) -> Option<SharedValue> {
+        let mut entry = self.head.as_deref();
+        while let Some(current) = entry {
+            if current.def == *def {
+                return Some(current.value.clone());
+            }
+            entry = current.parent.as_deref();
+        }
+        None
+    }
+
+    fn insert(&mut self, def: DefId, value: SharedValue) {
+        self.head = Some(Rc::new(EnvEntry {
+            def,
+            value,
+            parent: self.head.clone(),
+        }));
+        self.depth += 1;
+    }
+
+    fn len(&self) -> usize {
+        self.depth
+    }
+}
 
 fn clone_env_for_stats(env: &Env, stats: &mut RuntimeEvidenceRunStats) -> Env {
     stats.env_clones += 1;
@@ -1808,7 +1850,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             Expr::Local(def) => {
                 return Ok(EvidenceEvalResult::Value(
                     env.get(def)
-                        .cloned()
                         .ok_or(RuntimeEvidenceRunError::UnboundLocal(*def))?,
                 ));
             }
