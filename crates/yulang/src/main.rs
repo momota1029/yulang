@@ -2206,10 +2206,12 @@ fn print_runtime_evidence_bench_iteration(
 }
 
 fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
+    let total_start = Instant::now();
     let args = parse_runtime_evidence_run_args(program, args);
     let files = collect_control_sources_or_exit(&args.path, options);
     let build = build_control_with_optional_cache(files, options.use_cache);
     let summary = RuntimeEvidenceBenchSummary::from_surface(&build.runtime_evidence);
+    let run_start = Instant::now();
     let output = match runtime_evidence_run::run_program(&build.program) {
         Ok(output) => output,
         Err(error) => {
@@ -2217,7 +2219,11 @@ fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeq
             process::exit(1);
         }
     };
+    let runtime_evidence_execute = run_start.elapsed();
+    let format_start = Instant::now();
     let roots_text = output.roots_text();
+    let root_format = format_start.elapsed();
+    let total = total_start.elapsed();
 
     println!("runtime evidence run:");
     println!("  evidence.tasks: {}", summary.tasks);
@@ -2234,6 +2240,12 @@ fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeq
         "  control_evidence.direct_effect_calls: {}",
         output.evidence_stats.direct_effect_calls
     );
+    println!(
+        "  timing.runtime_evidence_execute: {}",
+        format_duration(runtime_evidence_execute)
+    );
+    println!("  timing.root_format: {}", format_duration(root_format));
+    println!("  timing.total_before_compare: {}", format_duration(total));
 
     if args.compare_control {
         let control = run_built_control_for_cli(build);
