@@ -151,9 +151,21 @@ enum RuntimeEvidenceValue {
 #[derive(Debug, Clone, PartialEq)]
 enum RuntimeEvidenceExpr {
     Value(SharedValue),
-    Local { slot: EnvSlot, def: DefId },
+    Local {
+        slot: EnvSlot,
+        def: DefId,
+    },
     Instance(InstanceId),
     Alias(ExprId),
+    MakeThunk {
+        body: ExprId,
+        provider_expr: ExprId,
+    },
+    Lambda {
+        param: Rc<Pat>,
+        body: ExprId,
+        provider_expr: ExprId,
+    },
     Source,
 }
 
@@ -165,7 +177,7 @@ struct RuntimeEvidenceValueField {
 
 #[derive(Debug, Clone, PartialEq)]
 struct RuntimeEvidenceClosure {
-    param: Pat,
+    param: Rc<Pat>,
     body: ExprId,
     env: Env,
     provider_env: RuntimeEvidenceProviderEnv,
@@ -1130,6 +1142,15 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
             },
             Expr::InstanceRef(instance) => RuntimeEvidenceExpr::Instance(*instance),
             Expr::Coerce { expr, .. } => RuntimeEvidenceExpr::Alias(*expr),
+            Expr::MakeThunk { body, .. } => RuntimeEvidenceExpr::MakeThunk {
+                body: *body,
+                provider_expr: ExprId(index as u32),
+            },
+            Expr::Lambda { param, body } => RuntimeEvidenceExpr::Lambda {
+                param: shared_pat(param),
+                body: *body,
+                provider_expr: ExprId(index as u32),
+            },
             _ => RuntimeEvidenceExpr::Source,
         })
         .collect()
@@ -1904,6 +1925,36 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 return Ok(EvidenceEvalResult::Value(self.eval_instance(instance)?));
             }
             RuntimeEvidenceExpr::Alias(expr) => return self.eval_expr_result(expr, env),
+            RuntimeEvidenceExpr::MakeThunk {
+                body,
+                provider_expr,
+            } => {
+                let provider_env = self.provider_env_for_value(provider_expr);
+                let env = self.clone_env(env);
+                return Ok(EvidenceEvalResult::Value(shared(
+                    RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Expr {
+                        body,
+                        env,
+                        provider_env,
+                    })),
+                )));
+            }
+            RuntimeEvidenceExpr::Lambda {
+                param,
+                body,
+                provider_expr,
+            } => {
+                let provider_env = self.provider_env_for_value(provider_expr);
+                let env = self.clone_env(env);
+                return Ok(EvidenceEvalResult::Value(shared(
+                    RuntimeEvidenceValue::Closure(Rc::new(RuntimeEvidenceClosure {
+                        param,
+                        body,
+                        env,
+                        provider_env,
+                    })),
+                )));
+            }
             RuntimeEvidenceExpr::Source => {}
         }
         let Some(expr) = self.program.exprs.get(expr_id.0 as usize) else {
@@ -2007,7 +2058,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let provider_env = self.provider_env_for_value(expr_id);
                 let env = self.clone_env(env);
                 RuntimeEvidenceValue::Closure(Rc::new(RuntimeEvidenceClosure {
-                    param: param.clone(),
+                    param: shared_pat(param),
                     body: *body,
                     env,
                     provider_env,
@@ -5093,6 +5144,10 @@ fn shared_record_fields(fields: &[control_vm::RecordField]) -> Rc<[control_vm::R
 
 fn shared_stmts(stmts: &[Stmt]) -> Rc<[Stmt]> {
     Rc::from(stmts.to_vec().into_boxed_slice())
+}
+
+fn shared_pat(pat: &Pat) -> Rc<Pat> {
+    Rc::new(pat.clone())
 }
 
 fn shared_markers(markers: &[EvidenceValueMarker]) -> Rc<[EvidenceValueMarker]> {
