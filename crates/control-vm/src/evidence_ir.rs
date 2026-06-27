@@ -7,7 +7,7 @@
 use std::collections::HashSet;
 use std::fmt::Write;
 
-use mono::{FunctionAdapterHygiene, GuardMarker};
+use mono::{FunctionAdapterHygiene, GuardMarker, StackWeight, Type};
 use serde::{Deserialize, Serialize};
 
 use crate::ir::{
@@ -18,6 +18,7 @@ use crate::ir::{
 pub struct ControlEvidenceProgram {
     pub roots: Vec<Root>,
     pub instances: Vec<ControlEvidenceInstance>,
+    pub type_evidence: Vec<ControlTypeEvidence>,
     pub handlers: Vec<ControlHandlerEvidence>,
     pub effects: Vec<ControlEffectEvidence>,
     pub adapters: Vec<ControlAdapterEvidence>,
@@ -35,6 +36,41 @@ impl ControlEvidenceProgram {
 pub struct ControlEvidenceInstance {
     pub instance: InstanceId,
     pub entry: ExprId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ControlTypeEvidence {
+    pub owner: ControlTypeEvidenceOwner,
+    pub path: Vec<String>,
+    pub inner: Type,
+    pub weight: StackWeight,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ControlTypeEvidenceOwner {
+    InstanceSignature {
+        instance: InstanceId,
+    },
+    ExprType {
+        expr: ExprId,
+        slot: ControlTypedExprSlot,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ControlTypedExprSlot {
+    CoerceSource,
+    CoerceTarget,
+    MakeThunkSourceEffect,
+    MakeThunkSourceValue,
+    MakeThunkTargetEffect,
+    MakeThunkTargetValue,
+    ForceThunkSourceEffect,
+    ForceThunkSourceValue,
+    ForceThunkTargetEffect,
+    ForceThunkTargetValue,
+    FunctionAdapterSource,
+    FunctionAdapterTarget,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -140,6 +176,19 @@ pub fn format_control_evidence_program(program: &ControlEvidenceProgram) -> Stri
             .unwrap();
         }
     }
+    if !program.type_evidence.is_empty() {
+        writeln!(&mut out, "type evidence:").unwrap();
+        for evidence in &program.type_evidence {
+            writeln!(
+                &mut out,
+                "  {} {} {}",
+                format_type_evidence_owner(evidence.owner),
+                format_type_path(&evidence.path),
+                format_stack_type(&evidence.inner, &evidence.weight)
+            )
+            .unwrap();
+        }
+    }
     if !program.handlers.is_empty() {
         writeln!(&mut out, "handlers:").unwrap();
         for handler in &program.handlers {
@@ -238,6 +287,7 @@ struct ControlEvidenceBuilder<'a> {
     recorded_handlers: HashSet<ExprId>,
     recorded_adapters: HashSet<ExprId>,
     recorded_delayed_boundaries: HashSet<ExprId>,
+    recorded_type_evidence: HashSet<ControlTypeEvidence>,
     recorded_effects: HashSet<ControlEffectEvidence>,
     recorded_fallbacks: HashSet<ControlFallbackEvidence>,
     active_exprs: HashSet<ExprId>,
@@ -251,6 +301,7 @@ impl<'a> ControlEvidenceBuilder<'a> {
             evidence: ControlEvidenceProgram {
                 roots: program.roots.clone(),
                 instances: Vec::new(),
+                type_evidence: Vec::new(),
                 handlers: Vec::new(),
                 effects: Vec::new(),
                 adapters: Vec::new(),
@@ -260,6 +311,7 @@ impl<'a> ControlEvidenceBuilder<'a> {
             recorded_handlers: HashSet::new(),
             recorded_adapters: HashSet::new(),
             recorded_delayed_boundaries: HashSet::new(),
+            recorded_type_evidence: HashSet::new(),
             recorded_effects: HashSet::new(),
             recorded_fallbacks: HashSet::new(),
             active_exprs: HashSet::new(),
@@ -277,6 +329,15 @@ impl<'a> ControlEvidenceBuilder<'a> {
                 entry: instance.entry,
             })
             .collect();
+        for instance in &self.program.instances {
+            self.record_type_evidence(
+                ControlTypeEvidenceOwner::InstanceSignature {
+                    instance: instance.id,
+                },
+                Vec::new(),
+                &instance.signature.ty,
+            );
+        }
         let mut context = EvidenceContext::default();
         for root in &self.program.roots {
             match root {
@@ -307,19 +368,98 @@ impl<'a> ControlEvidenceBuilder<'a> {
             Expr::EffectOp { path } => {
                 self.record_effect(id, path, ControlEffectUseKind::OperationValue, context)
             }
-            Expr::Coerce { expr, .. } => self.visit_expr_id(*expr, context),
-            Expr::MakeThunk { body, .. } => {
+            Expr::Coerce {
+                source,
+                target,
+                expr,
+            } => {
+                self.record_type_evidence(
+                    ControlTypeEvidenceOwner::ExprType {
+                        expr: id,
+                        slot: ControlTypedExprSlot::CoerceSource,
+                    },
+                    Vec::new(),
+                    source,
+                );
+                self.record_type_evidence(
+                    ControlTypeEvidenceOwner::ExprType {
+                        expr: id,
+                        slot: ControlTypedExprSlot::CoerceTarget,
+                    },
+                    Vec::new(),
+                    target,
+                );
+                self.visit_expr_id(*expr, context);
+            }
+            Expr::MakeThunk {
+                source,
+                target,
+                body,
+            } => {
+                self.record_computation_type_evidence(
+                    id,
+                    ControlTypedExprSlot::MakeThunkSourceEffect,
+                    ControlTypedExprSlot::MakeThunkSourceValue,
+                    &source.effect,
+                    &source.value,
+                );
+                self.record_computation_type_evidence(
+                    id,
+                    ControlTypedExprSlot::MakeThunkTargetEffect,
+                    ControlTypedExprSlot::MakeThunkTargetValue,
+                    &target.effect,
+                    &target.value,
+                );
                 self.record_delayed_boundary(id, *body, ControlDelayedBoundaryKind::Thunk, context)
             }
-            Expr::ForceThunk { thunk, .. } => {
+            Expr::ForceThunk {
+                source,
+                target,
+                thunk,
+            } => {
+                self.record_computation_type_evidence(
+                    id,
+                    ControlTypedExprSlot::ForceThunkSourceEffect,
+                    ControlTypedExprSlot::ForceThunkSourceValue,
+                    &source.effect,
+                    &source.value,
+                );
+                self.record_computation_type_evidence(
+                    id,
+                    ControlTypedExprSlot::ForceThunkTargetEffect,
+                    ControlTypedExprSlot::ForceThunkTargetValue,
+                    &target.effect,
+                    &target.value,
+                );
                 self.visit_expr_id(*thunk, context);
                 if !self.visit_known_force_site(*thunk, context) {
                     self.record_fallback(id, ControlFallbackKind::DynamicForce, context);
                 }
             }
             Expr::FunctionAdapter {
-                function, hygiene, ..
-            } => self.visit_function_adapter(id, *function, hygiene, context),
+                source,
+                target,
+                function,
+                hygiene,
+            } => {
+                self.record_type_evidence(
+                    ControlTypeEvidenceOwner::ExprType {
+                        expr: id,
+                        slot: ControlTypedExprSlot::FunctionAdapterSource,
+                    },
+                    Vec::new(),
+                    source,
+                );
+                self.record_type_evidence(
+                    ControlTypeEvidenceOwner::ExprType {
+                        expr: id,
+                        slot: ControlTypedExprSlot::FunctionAdapterTarget,
+                    },
+                    Vec::new(),
+                    target,
+                );
+                self.visit_function_adapter(id, *function, hygiene, context);
+            }
             Expr::MarkerFrame { body, .. } => self.visit_expr_id(*body, context),
             Expr::Apply { callee, arg } => {
                 self.visit_expr_id(*callee, context);
@@ -728,6 +868,32 @@ impl<'a> ControlEvidenceBuilder<'a> {
         }
     }
 
+    fn record_computation_type_evidence(
+        &mut self,
+        expr: ExprId,
+        effect_slot: ControlTypedExprSlot,
+        value_slot: ControlTypedExprSlot,
+        effect: &Type,
+        value: &Type,
+    ) {
+        self.record_type_evidence(
+            ControlTypeEvidenceOwner::ExprType {
+                expr,
+                slot: effect_slot,
+            },
+            Vec::new(),
+            effect,
+        );
+        self.record_type_evidence(
+            ControlTypeEvidenceOwner::ExprType {
+                expr,
+                slot: value_slot,
+            },
+            Vec::new(),
+            value,
+        );
+    }
+
     fn record_effect(
         &mut self,
         expr: ExprId,
@@ -743,6 +909,83 @@ impl<'a> ControlEvidenceBuilder<'a> {
         };
         if self.recorded_effects.insert(evidence.clone()) {
             self.evidence.effects.push(evidence);
+        }
+    }
+
+    fn record_type_evidence(
+        &mut self,
+        owner: ControlTypeEvidenceOwner,
+        path: Vec<String>,
+        ty: &Type,
+    ) {
+        match ty {
+            Type::Stack { inner, weight } => {
+                let evidence = ControlTypeEvidence {
+                    owner,
+                    path: path.clone(),
+                    inner: (**inner).clone(),
+                    weight: weight.clone(),
+                };
+                if self.recorded_type_evidence.insert(evidence.clone()) {
+                    self.evidence.type_evidence.push(evidence);
+                }
+                self.record_type_evidence(owner, child_type_path(&path, "stack.inner"), inner);
+            }
+            Type::Con { args, .. } | Type::Tuple(args) | Type::EffectRow(args) => {
+                for (index, arg) in args.iter().enumerate() {
+                    self.record_type_evidence(
+                        owner,
+                        child_type_path(&path, &index.to_string()),
+                        arg,
+                    );
+                }
+            }
+            Type::Fun {
+                arg,
+                arg_effect,
+                ret_effect,
+                ret,
+            } => {
+                self.record_type_evidence(owner, child_type_path(&path, "arg"), arg);
+                self.record_type_evidence(owner, child_type_path(&path, "arg_effect"), arg_effect);
+                self.record_type_evidence(owner, child_type_path(&path, "ret_effect"), ret_effect);
+                self.record_type_evidence(owner, child_type_path(&path, "ret"), ret);
+            }
+            Type::Thunk { effect, value } => {
+                self.record_type_evidence(owner, child_type_path(&path, "effect"), effect);
+                self.record_type_evidence(owner, child_type_path(&path, "value"), value);
+            }
+            Type::Record(fields) => {
+                for field in fields {
+                    self.record_type_evidence(
+                        owner,
+                        child_type_path(&path, &field.name),
+                        &field.value,
+                    );
+                }
+            }
+            Type::PolyVariant(variants) => {
+                for variant in variants {
+                    for (index, payload) in variant.payloads.iter().enumerate() {
+                        let mut payload_path = child_type_path(&path, &variant.name);
+                        payload_path.push(index.to_string());
+                        self.record_type_evidence(owner, payload_path, payload);
+                    }
+                }
+            }
+            Type::Union(left, right) => {
+                self.record_type_evidence(owner, child_type_path(&path, "union.left"), left);
+                self.record_type_evidence(owner, child_type_path(&path, "union.right"), right);
+            }
+            Type::Intersection(left, right) => {
+                self.record_type_evidence(owner, child_type_path(&path, "intersection.left"), left);
+                self.record_type_evidence(
+                    owner,
+                    child_type_path(&path, "intersection.right"),
+                    right,
+                );
+            }
+            Type::Any | Type::Never | Type::OpenVar(_) => {}
         }
     }
 
@@ -888,6 +1131,54 @@ fn format_roots(roots: &[Root]) -> String {
         parts.push(part);
     }
     format!("[{}]", parts.join(", "))
+}
+
+fn format_type_evidence_owner(owner: ControlTypeEvidenceOwner) -> String {
+    match owner {
+        ControlTypeEvidenceOwner::InstanceSignature { instance } => {
+            format!("i{} signature", instance.0)
+        }
+        ControlTypeEvidenceOwner::ExprType { expr, slot } => {
+            format!("e{} {}", expr.0, format_typed_expr_slot(slot))
+        }
+    }
+}
+
+fn format_typed_expr_slot(slot: ControlTypedExprSlot) -> &'static str {
+    match slot {
+        ControlTypedExprSlot::CoerceSource => "coerce-source",
+        ControlTypedExprSlot::CoerceTarget => "coerce-target",
+        ControlTypedExprSlot::MakeThunkSourceEffect => "make-thunk-source.effect",
+        ControlTypedExprSlot::MakeThunkSourceValue => "make-thunk-source.value",
+        ControlTypedExprSlot::MakeThunkTargetEffect => "make-thunk-target.effect",
+        ControlTypedExprSlot::MakeThunkTargetValue => "make-thunk-target.value",
+        ControlTypedExprSlot::ForceThunkSourceEffect => "force-thunk-source.effect",
+        ControlTypedExprSlot::ForceThunkSourceValue => "force-thunk-source.value",
+        ControlTypedExprSlot::ForceThunkTargetEffect => "force-thunk-target.effect",
+        ControlTypedExprSlot::ForceThunkTargetValue => "force-thunk-target.value",
+        ControlTypedExprSlot::FunctionAdapterSource => "adapter-source",
+        ControlTypedExprSlot::FunctionAdapterTarget => "adapter-target",
+    }
+}
+
+fn format_type_path(path: &[String]) -> String {
+    if path.is_empty() {
+        return ".".to_string();
+    }
+    format!(".{}", path.join("."))
+}
+
+fn format_stack_type(inner: &Type, weight: &StackWeight) -> String {
+    mono::dump::dump_type(&Type::Stack {
+        inner: Box::new(inner.clone()),
+        weight: weight.clone(),
+    })
+}
+
+fn child_type_path(parent: &[String], segment: &str) -> Vec<String> {
+    let mut path = parent.to_vec();
+    path.push(segment.to_string());
+    path
 }
 
 fn format_path(path: &[String]) -> String {
@@ -1068,6 +1359,46 @@ mod tests {
                 callee: ExprId(0),
             }
         )));
+    }
+
+    #[test]
+    fn records_stack_weight_type_evidence() {
+        let weight = StackWeight {
+            entries: vec![mono::StackWeightEntry {
+                id: 7,
+                pops: 1,
+                floor: vec![mono::EffectFamilies::Empty],
+                stack: Vec::new(),
+            }],
+        };
+        let stack_type = Type::Stack {
+            inner: Box::new(Type::pure_effect()),
+            weight: weight.clone(),
+        };
+        let program = Program {
+            roots: vec![Root::Expr(ExprId(1))],
+            instances: Vec::new(),
+            exprs: vec![
+                Expr::Lit(mono::Lit::Unit),
+                Expr::Coerce {
+                    source: stack_type,
+                    target: Type::unit(),
+                    expr: ExprId(0),
+                },
+            ],
+        };
+
+        let evidence = ControlEvidenceProgram::from_program(&program);
+
+        assert!(evidence.type_evidence.iter().any(|evidence| {
+            evidence.owner
+                == ControlTypeEvidenceOwner::ExprType {
+                    expr: ExprId(1),
+                    slot: ControlTypedExprSlot::CoerceSource,
+                }
+                && evidence.path.is_empty()
+                && evidence.weight == weight
+        }));
     }
 
     fn handler_arm(resumptive: bool, body: u32) -> CatchArm {

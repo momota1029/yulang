@@ -18,7 +18,8 @@ pub use evidence_ir::{
     ControlAdapterEvidence, ControlDelayedBoundary, ControlDelayedBoundaryKind,
     ControlEffectEvidence, ControlEffectUseKind, ControlEvidenceInstance, ControlEvidenceProgram,
     ControlEvidenceRoute, ControlFallbackEvidence, ControlFallbackKind, ControlHandlerArmEvidence,
-    ControlHandlerEvidence, format_control_evidence_program,
+    ControlHandlerEvidence, ControlTypeEvidence, ControlTypeEvidenceOwner, ControlTypedExprSlot,
+    format_control_evidence_program,
 };
 pub use format::format_values;
 pub use ir::{
