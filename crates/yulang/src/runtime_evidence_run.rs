@@ -16,6 +16,7 @@ use unicode_segmentation::UnicodeSegmentation;
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct RuntimeEvidenceRunOutput {
     values: Vec<RuntimeEvidenceValue>,
+    pub(crate) stdout: String,
     pub(crate) evidence_stats: RuntimeEvidenceRunStats,
 }
 
@@ -830,6 +831,7 @@ struct RuntimeEvidenceRunner<'a> {
     evidence: ControlEvidenceIndex,
     instances: HashMap<InstanceId, SharedValue>,
     evaluating_instances: HashSet<InstanceId>,
+    stdout: String,
     stats: RuntimeEvidenceRunStats,
 }
 
@@ -842,6 +844,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             evidence,
             instances: HashMap::new(),
             evaluating_instances: HashSet::new(),
+            stdout: String::new(),
             stats,
         }
     }
@@ -863,6 +866,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 .into_iter()
                 .map(|value| value.as_ref().clone())
                 .collect(),
+            stdout: self.stdout.clone(),
             evidence_stats: self.stats,
         })
     }
@@ -961,12 +965,28 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         expr: ExprId,
         env: &mut Env,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        match self.eval_expr_result(expr, env)? {
-            EvidenceEvalResult::Value(value) => Ok(value),
-            EvidenceEvalResult::Request(request) => {
-                Err(RuntimeEvidenceRunError::EscapedEffect(request.path))
+        let mut result = self.eval_expr_result(expr, env)?;
+        loop {
+            match result {
+                EvidenceEvalResult::Value(value) => return Ok(value),
+                EvidenceEvalResult::Request(request) => {
+                    result = self.handle_escaped_request(request)?;
+                }
             }
         }
+    }
+
+    fn handle_escaped_request(
+        &mut self,
+        request: EvidenceRequest,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if request.path == ["std", "io", "console", "out", "write"] {
+            push_runtime_host_string_payload(request.payload.as_ref(), &mut self.stdout)
+                .ok_or_else(|| RuntimeEvidenceRunError::EscapedEffect(request.path.clone()))?;
+            return self
+                .resume_continuation(request.continuation, shared(RuntimeEvidenceValue::Unit));
+        }
+        Err(RuntimeEvidenceRunError::EscapedEffect(request.path))
     }
 
     fn eval_expr_result(
@@ -3717,6 +3737,19 @@ fn expect_str(value: &SharedValue) -> Result<&str, RuntimeEvidenceRunError> {
         _ => Err(RuntimeEvidenceRunError::UnsupportedExpr(
             "non-string primitive argument",
         )),
+    }
+}
+
+fn push_runtime_host_string_payload(value: &RuntimeEvidenceValue, out: &mut String) -> Option<()> {
+    match value {
+        RuntimeEvidenceValue::Marked { value, .. } => {
+            push_runtime_host_string_payload(value.as_ref(), out)
+        }
+        RuntimeEvidenceValue::Str(value) => {
+            out.push_str(value);
+            Some(())
+        }
+        _ => None,
     }
 }
 

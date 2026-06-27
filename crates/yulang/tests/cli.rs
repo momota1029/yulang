@@ -646,6 +646,34 @@ fn debug_runtime_evidence_run_handles_ref_set() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_handles_console_stdout_host_effect() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-console-stdout",
+        "say \"Hello, World\"\n\
+         say: 1 + 2\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(
+        stdout.contains("Hello, World\n3\nrun roots [(), ()]\n"),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn debug_runtime_evidence_run_uses_direct_handler_evidence() {
     let entry = write_entry(
         "debug-runtime-evidence-run-direct-handler",

@@ -2333,14 +2333,16 @@ fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeq
 
     if args.compare_control {
         let control = run_built_control_for_cli(build);
-        if !control.stdout.is_empty() {
-            eprintln!("runtime-evidence-run compare-control does not support stdout yet");
-            process::exit(1);
-        }
         if !control.errors.is_empty() {
             for error in &control.errors {
                 eprintln!("error: {error}");
             }
+            process::exit(1);
+        }
+        if output.stdout != control.stdout {
+            eprintln!("runtime-evidence-run compare-control stdout mismatch");
+            eprintln!("expected stdout:\n{}", control.stdout);
+            eprintln!("actual stdout:\n{}", output.stdout);
             process::exit(1);
         }
         if roots_text != control.text {
@@ -2352,6 +2354,7 @@ fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeq
         println!("  compare.control: match");
     }
 
+    print!("{}", output.stdout);
     print!("{roots_text}");
 }
 
