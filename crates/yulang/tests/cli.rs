@@ -749,6 +749,96 @@ fn debug_runtime_evidence_run_uses_direct_handler_evidence() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_falls_through_handler_arm_patterns_and_guards() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-handler-arm-fallthrough",
+        "act log:\n  our put: int -> int\n\n\
+         catch log::put 1:\n\
+         \x20 log::put 0, k -> k 10\n\
+         \x20 log::put _, k if false -> k 20\n\
+         \x20 log::put _, k -> k 30\n\
+         \x20 v -> v\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [30]\n"), "{stdout}");
+}
+
+#[test]
+fn debug_runtime_evidence_run_falls_through_value_arm_patterns_and_guards() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-value-arm-fallthrough",
+        "catch 1:\n\
+         \x20 0 -> 10\n\
+         \x20 _ if false -> 20\n\
+         \x20 _ -> 30\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [30]\n"), "{stdout}");
+}
+
+#[test]
+fn debug_runtime_evidence_run_handles_annotated_handler_function_with_state() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-handler-function-state",
+        "act log:\n\
+         \x20 pub put: str -> ()\n\n\
+         my collect_count(comp: [log] 'a): int =\n\
+         \x20 my $count = 0\n\
+         \x20 catch comp:\n\
+         \x20\x20 log::put _, k ->\n\
+         \x20\x20\x20 &count = $count + 1\n\
+         \x20\x20\x20 k ()\n\
+         \x20\x20 v -> v\n\
+         \x20 $count\n\n\
+         collect_count: log::put \"a\"\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [1]\n"), "{stdout}");
+}
+
+#[test]
 fn debug_runtime_evidence_run_resumes_direct_effect_in_apply_argument() {
     let entry = write_entry(
         "debug-runtime-evidence-run-apply-argument-effect",

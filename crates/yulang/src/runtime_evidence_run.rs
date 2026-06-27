@@ -3214,18 +3214,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         arms: &[control_vm::CatchArm],
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        let Some(arm) = arms.iter().find(|arm| arm.operation_path.is_none()) else {
-            return Ok(EvidenceEvalResult::Value(value));
-        };
-        let mut arm_env = self.clone_env(env);
-        self.bind_pat(&arm.pat, value, &mut arm_env)?;
-        if let Some(guard) = arm.guard {
-            let guard = self.eval_expr(guard, &mut arm_env)?;
-            if !matches!(guard.as_ref(), RuntimeEvidenceValue::Bool(true)) {
-                return Err(RuntimeEvidenceRunError::PatternMismatch);
+        for arm in arms {
+            if arm.operation_path.is_some() {
+                continue;
             }
+            let mut arm_env = self.clone_env(env);
+            if !self.bind_pat_matches(&arm.pat, value.clone(), &mut arm_env)? {
+                continue;
+            }
+            if !self.catch_arm_guard_matches(arm.guard, &mut arm_env)? {
+                continue;
+            }
+            return self.eval_expr_result(arm.body, &mut arm_env);
         }
-        self.eval_expr_result(arm.body, &mut arm_env)
+        Ok(EvidenceEvalResult::Value(value))
     }
 
     fn eval_operation_arm(
@@ -3235,33 +3237,65 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         arms: &[control_vm::CatchArm],
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        let Some(arm) = arms
-            .iter()
-            .find(|arm| arm.operation_path.as_ref() == Some(&request.path))
-        else {
-            return Ok(EvidenceEvalResult::Request(request));
+        for arm in arms {
+            if arm.operation_path.as_ref() != Some(&request.path) {
+                continue;
+            }
+            let mut arm_env = self.clone_env(env);
+            if !self.bind_pat_matches(&arm.pat, request.payload.clone(), &mut arm_env)? {
+                continue;
+            }
+            if let Some(continuation_pat) = &arm.continuation {
+                if !resumptive {
+                    return Err(RuntimeEvidenceRunError::UnsupportedExpr(
+                        "abortive continuation binding",
+                    ));
+                }
+                if !self.bind_pat_matches(
+                    continuation_pat,
+                    shared(RuntimeEvidenceValue::Continuation(
+                        request.continuation.clone(),
+                    )),
+                    &mut arm_env,
+                )? {
+                    continue;
+                }
+            }
+            if !self.catch_arm_guard_matches(arm.guard, &mut arm_env)? {
+                continue;
+            }
+            return self.eval_handler_body_result(arm.body, &mut arm_env);
+        }
+        Ok(EvidenceEvalResult::Request(request))
+    }
+
+    fn bind_pat_matches(
+        &mut self,
+        pat: &Pat,
+        value: SharedValue,
+        env: &mut Env,
+    ) -> Result<bool, RuntimeEvidenceRunError> {
+        match self.bind_pat(pat, value, env) {
+            Ok(()) => Ok(true),
+            Err(RuntimeEvidenceRunError::PatternMismatch) => Ok(false),
+            Err(err) => Err(err),
+        }
+    }
+
+    fn catch_arm_guard_matches(
+        &mut self,
+        guard: Option<ExprId>,
+        env: &mut Env,
+    ) -> Result<bool, RuntimeEvidenceRunError> {
+        let Some(guard) = guard else {
+            return Ok(true);
         };
-        let mut arm_env = self.clone_env(env);
-        self.bind_pat(&arm.pat, request.payload, &mut arm_env)?;
-        if let Some(continuation_pat) = &arm.continuation {
-            if !resumptive {
-                return Err(RuntimeEvidenceRunError::UnsupportedExpr(
-                    "abortive continuation binding",
-                ));
-            }
-            self.bind_pat(
-                continuation_pat,
-                shared(RuntimeEvidenceValue::Continuation(request.continuation)),
-                &mut arm_env,
-            )?;
+        let guard = self.eval_expr(guard, env)?;
+        match guard.as_ref() {
+            RuntimeEvidenceValue::Bool(true) => Ok(true),
+            RuntimeEvidenceValue::Bool(false) => Ok(false),
+            _ => Err(RuntimeEvidenceRunError::PatternMismatch),
         }
-        if let Some(guard) = arm.guard {
-            let guard = self.eval_expr(guard, &mut arm_env)?;
-            if !matches!(guard.as_ref(), RuntimeEvidenceValue::Bool(true)) {
-                return Err(RuntimeEvidenceRunError::PatternMismatch);
-            }
-        }
-        self.eval_handler_body_result(arm.body, &mut arm_env)
     }
 
     fn eval_handler_body_result(
