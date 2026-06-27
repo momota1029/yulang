@@ -882,6 +882,14 @@ fn debug_runtime_evidence_run_uses_direct_handler_evidence() {
         stdout.contains("evidence.plan_direct_candidates: 2"),
         "{stdout}"
     );
+    assert!(
+        stdout.contains("evidence.plan_effect_routes: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.plan_direct_effect_routes: 1"),
+        "{stdout}"
+    );
     assert!(stdout.contains("run roots [true]\n"), "{stdout}");
 }
 

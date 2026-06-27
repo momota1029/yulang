@@ -2271,6 +2271,14 @@ fn run_runtime_evidence_run(
         output.evidence_stats.plan_direct_candidates
     );
     println!(
+        "  evidence.plan_effect_routes: {}",
+        output.evidence_stats.plan_effect_routes
+    );
+    println!(
+        "  evidence.plan_direct_effect_routes: {}",
+        output.evidence_stats.plan_direct_effect_routes
+    );
+    println!(
         "  control_evidence.effect_calls: {}",
         output.evidence_stats.effect_calls
     );
