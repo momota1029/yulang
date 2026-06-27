@@ -2289,6 +2289,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         continuation: EvidenceContinuation,
         value: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if continuation.is_identity() {
+            return Ok(EvidenceEvalResult::Value(value));
+        }
         self.stats.continuation_resume_steps += 1;
         match continuation.0.as_ref() {
             EvidenceContinuationFrame::Identity => Ok(EvidenceEvalResult::Value(value)),
@@ -2606,6 +2609,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         result: EvidenceEvalResult,
         continuation: EvidenceContinuation,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if continuation.is_identity() {
+            return Ok(result);
+        }
         match result {
             EvidenceEvalResult::Value(value) => self.resume_continuation(continuation, value),
             EvidenceEvalResult::Request(request) => {
@@ -2619,6 +2625,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         request: EvidenceRequest,
         continuation: EvidenceContinuation,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if continuation.is_identity() {
+            return Ok(EvidenceEvalResult::Request(request));
+        }
         self.stats.request_continuation_steps += 1;
         let (request, next) = match continuation.0.as_ref() {
             EvidenceContinuationFrame::Identity => {
