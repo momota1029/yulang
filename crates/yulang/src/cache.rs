@@ -3932,7 +3932,7 @@ mod tests {
         let key = source_cache_key(&[source("main.yu", &[], "1\n")]);
         let artifact = CachedControlArtifact {
             program: control_vm::Program::default(),
-            runtime_evidence: specialize::RuntimeEvidenceSurface::default(),
+            runtime_evidence: nonempty_runtime_evidence_surface(),
             labels: poly::dump::DumpLabels::new(),
             file_count: 1,
             errors: vec!["lowering warning".to_string()],
@@ -3949,6 +3949,34 @@ mod tests {
         );
 
         let _ = fs::remove_dir_all(root);
+    }
+
+    fn nonempty_runtime_evidence_surface() -> specialize::RuntimeEvidenceSurface {
+        specialize::RuntimeEvidenceSurface {
+            tasks: vec![specialize::RuntimeEvidenceTask {
+                owner: specialize::RuntimeEvidenceTaskOwner::RootExpr {
+                    root_index: 0,
+                    expr: 0,
+                },
+                graph: specialize::RuntimeEvidenceGraph {
+                    slot_count: 1,
+                    value_slot_count: 1,
+                    queued_constraint_count: 1,
+                    ..specialize::RuntimeEvidenceGraph::default()
+                },
+                expr_types: vec![specialize::RuntimeEvidenceExprType {
+                    expr: 0,
+                    actual: specialize::mono::Type::unit(),
+                    consumer: None,
+                    stack_weights: Vec::new(),
+                }],
+                ref_signatures: Vec::new(),
+                select_signatures: Vec::new(),
+                pat_ref_signatures: Vec::new(),
+                typeclass_resolutions: Vec::new(),
+                raw_thunk_computations: Vec::new(),
+            }],
+        }
     }
 
     #[test]
