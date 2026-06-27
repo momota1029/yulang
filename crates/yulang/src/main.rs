@@ -2313,6 +2313,42 @@ fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeq
         output.evidence_stats.catch_body_checks
     );
     println!(
+        "  runtime_evidence.marker_frame_entries: {}",
+        output.evidence_stats.marker_frame_entries
+    );
+    println!(
+        "  runtime_evidence.marker_frame_markers: {}",
+        output.evidence_stats.marker_frame_markers
+    );
+    println!(
+        "  runtime_evidence.active_marker_plan_pushes: {}",
+        output.evidence_stats.active_marker_plan_pushes
+    );
+    println!(
+        "  runtime_evidence.active_marker_plan_dedupes: {}",
+        output.evidence_stats.active_marker_plan_dedupes
+    );
+    println!(
+        "  runtime_evidence.active_add_id_scans: {}",
+        output.evidence_stats.active_add_id_scans
+    );
+    println!(
+        "  runtime_evidence.active_add_id_hits: {}",
+        output.evidence_stats.active_add_id_hits
+    );
+    println!(
+        "  runtime_evidence.function_call_marker_plans: {}",
+        output.evidence_stats.function_call_marker_plans
+    );
+    println!(
+        "  runtime_evidence.function_call_marker_inputs: {}",
+        output.evidence_stats.function_call_marker_inputs
+    );
+    println!(
+        "  runtime_evidence.function_call_marker_outputs: {}",
+        output.evidence_stats.function_call_marker_outputs
+    );
+    println!(
         "  runtime_evidence.list_merge_calls: {}",
         output.evidence_stats.list_merge_calls
     );

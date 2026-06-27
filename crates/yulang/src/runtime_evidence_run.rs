@@ -51,6 +51,15 @@ pub(crate) struct RuntimeEvidenceRunStats {
     pub continuation_resume_steps: usize,
     pub request_continuation_steps: usize,
     pub catch_body_checks: usize,
+    pub marker_frame_entries: usize,
+    pub marker_frame_markers: usize,
+    pub active_marker_plan_pushes: usize,
+    pub active_marker_plan_dedupes: usize,
+    pub active_add_id_scans: usize,
+    pub active_add_id_hits: usize,
+    pub function_call_marker_plans: usize,
+    pub function_call_marker_inputs: usize,
+    pub function_call_marker_outputs: usize,
     pub list_merge_calls: usize,
     pub list_view_raw_calls: usize,
     pub list_values_copied: usize,
@@ -968,6 +977,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if markers.is_empty() {
             return run(self);
         }
+        self.stats.marker_frame_entries += 1;
+        self.stats.marker_frame_markers += markers.len();
 
         let frame_len = self.active_frames.len();
         let handler_frame_len = self.active_handler_frames.len();
@@ -1045,8 +1056,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             .last()
             .is_some_and(|current| current == &markers)
         {
+            self.stats.active_marker_plan_dedupes += 1;
             return;
         }
+        self.stats.active_marker_plan_pushes += 1;
         self.active_marker_plans.push(markers);
     }
 
@@ -1111,7 +1124,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn mark_request_with_active_markers(&mut self, request: &mut EvidenceRequest) {
         let mut entry_except_index = EvidenceRequestEntryExceptIndex::default();
+        let mut scans = 0;
+        let mut hits = 0;
         for active_marker in &self.active_add_ids {
+            scans += 1;
             let marker = &active_marker.marker;
             match (marker.guard_own_path, marker.guard_foreign_path) {
                 (true, true) => {}
@@ -1160,10 +1176,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     entry_frame_len: active_marker.entry_frame_len,
                     exposed_guard_ids,
                 });
+                hits += 1;
             } else {
                 request.push_guard_id(marker.id);
+                hits += 1;
             }
         }
+        self.stats.active_add_id_scans += scans;
+        self.stats.active_add_id_hits += hits;
     }
 
     fn carried_exposed_guard_ids_at_marker_entry(
@@ -2041,7 +2061,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let Some(active_markers) = self.active_marker_plans.last() else {
             return self.apply_value_result(site, callee, arg);
         };
+        self.stats.function_call_marker_plans += 1;
+        self.stats.function_call_marker_inputs += active_markers.len();
         let markers = markers_for_function_call(active_markers);
+        self.stats.function_call_marker_outputs += markers.len();
         if markers.is_empty() {
             return self.apply_value_result(site, callee, arg);
         }
