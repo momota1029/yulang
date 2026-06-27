@@ -78,6 +78,12 @@ pub struct RuntimeEvidenceRunStats {
     pub continuation_appends: usize,
     pub continuation_owned_tail_appends: usize,
     pub continuation_append_steps: usize,
+    pub request_continuation_appends: usize,
+    pub request_continuation_owned_tail_appends: usize,
+    pub request_continuation_then_appends: usize,
+    pub direct_tail_continuation_appends: usize,
+    pub direct_tail_continuation_owned_tail_appends: usize,
+    pub direct_tail_continuation_then_appends: usize,
     pub continuation_resume_steps: usize,
     pub continuation_resume_then_steps: usize,
     pub continuation_resume_force_steps: usize,
@@ -573,6 +579,12 @@ enum EvidenceMarkerFrameSource {
     Adapter,
     ContinuationResume,
     MarkedForce,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceContinuationAppendSource {
+    Request,
+    DirectTail,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -1225,7 +1237,12 @@ impl EvidenceContinuation {
         matches!(self, Self::Identity)
     }
 
-    fn then_counted(self, tail: Self, stats: &mut RuntimeEvidenceRunStats) -> Self {
+    fn then_counted(
+        self,
+        tail: Self,
+        stats: &mut RuntimeEvidenceRunStats,
+        source: EvidenceContinuationAppendSource,
+    ) -> Self {
         if tail.is_identity() {
             return self;
         }
@@ -1236,10 +1253,12 @@ impl EvidenceContinuation {
         match head.try_append_owned_tail(tail) {
             Ok(()) => {
                 stats.continuation_owned_tail_appends += 1;
+                record_continuation_append_owned_tail(stats, source);
                 return head;
             }
             Err(tail) => {
                 stats.continuation_append_steps += 1;
+                record_continuation_append_then(stats, source);
                 return Self::Frame(Rc::new(EvidenceContinuationFrame::Then {
                     first: head,
                     second: tail,
@@ -1369,14 +1388,59 @@ impl EvidenceContinuationFrame {
     }
 }
 
+fn record_continuation_append(
+    stats: &mut RuntimeEvidenceRunStats,
+    source: EvidenceContinuationAppendSource,
+) {
+    stats.continuation_appends += 1;
+    match source {
+        EvidenceContinuationAppendSource::Request => {
+            stats.request_continuation_appends += 1;
+        }
+        EvidenceContinuationAppendSource::DirectTail => {
+            stats.direct_tail_continuation_appends += 1;
+        }
+    }
+}
+
+fn record_continuation_append_owned_tail(
+    stats: &mut RuntimeEvidenceRunStats,
+    source: EvidenceContinuationAppendSource,
+) {
+    match source {
+        EvidenceContinuationAppendSource::Request => {
+            stats.request_continuation_owned_tail_appends += 1;
+        }
+        EvidenceContinuationAppendSource::DirectTail => {
+            stats.direct_tail_continuation_owned_tail_appends += 1;
+        }
+    }
+}
+
+fn record_continuation_append_then(
+    stats: &mut RuntimeEvidenceRunStats,
+    source: EvidenceContinuationAppendSource,
+) {
+    match source {
+        EvidenceContinuationAppendSource::Request => {
+            stats.request_continuation_then_appends += 1;
+        }
+        EvidenceContinuationAppendSource::DirectTail => {
+            stats.direct_tail_continuation_then_appends += 1;
+        }
+    }
+}
+
 impl EvidenceRequest {
     fn append_continuation(
         mut self,
         tail: EvidenceContinuation,
         stats: &mut RuntimeEvidenceRunStats,
     ) -> Self {
-        stats.continuation_appends += 1;
-        self.continuation = self.continuation.then_counted(tail, stats);
+        record_continuation_append(stats, EvidenceContinuationAppendSource::Request);
+        self.continuation =
+            self.continuation
+                .then_counted(tail, stats, EvidenceContinuationAppendSource::Request);
         self
     }
 
@@ -2046,8 +2110,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         mut call: EvidenceDirectTailResumptive,
         tail: EvidenceContinuation,
     ) -> EvidenceDirectTailResumptive {
-        self.stats.continuation_appends += 1;
-        call.continuation = call.continuation.then_counted(tail, &mut self.stats);
+        record_continuation_append(
+            &mut self.stats,
+            EvidenceContinuationAppendSource::DirectTail,
+        );
+        call.continuation = call.continuation.then_counted(
+            tail,
+            &mut self.stats,
+            EvidenceContinuationAppendSource::DirectTail,
+        );
         call
     }
 

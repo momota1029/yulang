@@ -2393,6 +2393,34 @@ fn run_runtime_evidence_run(
         output.evidence_stats.continuation_append_steps
     );
     println!(
+        "  runtime_evidence.request_continuation_appends: {}",
+        output.evidence_stats.request_continuation_appends
+    );
+    println!(
+        "  runtime_evidence.request_continuation_owned_tail_appends: {}",
+        output
+            .evidence_stats
+            .request_continuation_owned_tail_appends
+    );
+    println!(
+        "  runtime_evidence.request_continuation_then_appends: {}",
+        output.evidence_stats.request_continuation_then_appends
+    );
+    println!(
+        "  runtime_evidence.direct_tail_continuation_appends: {}",
+        output.evidence_stats.direct_tail_continuation_appends
+    );
+    println!(
+        "  runtime_evidence.direct_tail_continuation_owned_tail_appends: {}",
+        output
+            .evidence_stats
+            .direct_tail_continuation_owned_tail_appends
+    );
+    println!(
+        "  runtime_evidence.direct_tail_continuation_then_appends: {}",
+        output.evidence_stats.direct_tail_continuation_then_appends
+    );
+    println!(
         "  runtime_evidence.continuation_resume_steps: {}",
         output.evidence_stats.continuation_resume_steps
     );
