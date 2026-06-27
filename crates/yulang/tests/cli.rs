@@ -364,6 +364,22 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
         "evidence slot keys should be visible in the plan:\n{stdout}"
     );
     assert!(
+        stdout.contains("evidence_object_slots:"),
+        "evidence object slot summary should be visible in the plan:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence object graph:"),
+        "evidence object graph should be visible in the plan:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("handler-objects:"),
+        "handler evidence objects should be visible in the plan:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("operation-objects:"),
+        "operation evidence objects should be visible in the plan:\n{stdout}"
+    );
+    assert!(
         stdout.contains("class tail-resumptive"),
         "handler arm classification should be visible in the plan:\n{stdout}"
     );

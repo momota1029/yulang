@@ -16,6 +16,7 @@ pub(crate) struct EvidenceVmPlan {
     pub(crate) operations: Vec<EvidenceVmOperationPlan>,
     pub(crate) functions: Vec<EvidenceVmFunctionPlan>,
     pub(crate) values: Vec<EvidenceVmValueEnvPlan>,
+    pub(crate) objects: EvidenceVmObjectPlan,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -36,6 +37,10 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) evidence_params: usize,
     pub(crate) evidence_arg_calls: usize,
     pub(crate) evidence_slot_keys: usize,
+    pub(crate) evidence_object_slots: usize,
+    pub(crate) evidence_handler_objects: usize,
+    pub(crate) evidence_operation_objects: usize,
+    pub(crate) evidence_direct_candidates: usize,
     pub(crate) evidence_env_values: usize,
     pub(crate) evidence_env_captures: usize,
     pub(crate) runtime_tasks: usize,
@@ -166,6 +171,47 @@ pub(crate) enum EvidenceVmSlotRouteKey {
     UnknownFallback,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct EvidenceVmObjectPlan {
+    pub(crate) slots: Vec<EvidenceVmSlotPlan>,
+    pub(crate) handlers: Vec<EvidenceVmHandlerObjectPlan>,
+    pub(crate) operations: Vec<EvidenceVmOperationObjectPlan>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmSlotPlan {
+    pub(crate) id: u32,
+    pub(crate) key: EvidenceVmSlotKey,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmHandlerObjectPlan {
+    pub(crate) id: u32,
+    pub(crate) handler: ExprId,
+    pub(crate) slot_id: u32,
+    pub(crate) path: Vec<String>,
+    pub(crate) arm_body: ExprId,
+    pub(crate) arm_class: EvidenceVmHandlerArmClass,
+    pub(crate) definition_env: Vec<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmOperationObjectPlan {
+    pub(crate) expr: ExprId,
+    pub(crate) slot_id: u32,
+    pub(crate) candidate_handler: Option<u32>,
+    pub(crate) execution: EvidenceVmOperationExecutionPlan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EvidenceVmOperationExecutionPlan {
+    DirectAbortive,
+    DirectTailResumptive,
+    YieldFallback,
+    BlockedFallback,
+    GenericFallback,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum EvidenceVmValueEnvKind {
     Lambda {
@@ -255,14 +301,16 @@ fn build_plan_from_evidence(
         .collect::<Vec<_>>();
     attach_evidence_call_plans(program, &mut functions);
     let values = collect_value_env_plans(program, control);
+    let objects = build_object_plan(&handlers, &operations, &functions, &values);
 
-    let summary = summarize_plan(control, surface, &operations, &functions, &values);
+    let summary = summarize_plan(control, surface, &operations, &functions, &values, &objects);
     EvidenceVmPlan {
         summary,
         handlers,
         operations,
         functions,
         values,
+        objects,
     }
 }
 
@@ -312,6 +360,15 @@ pub(crate) fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
+        "  evidence_object_slots: {} handler_objects: {} operation_objects: {} direct_candidates: {}",
+        summary.evidence_object_slots,
+        summary.evidence_handler_objects,
+        summary.evidence_operation_objects,
+        summary.evidence_direct_candidates
+    )
+    .unwrap();
+    writeln!(
+        &mut out,
         "  evidence_env_values: {} evidence_env_captures: {}",
         summary.evidence_env_values, summary.evidence_env_captures
     )
@@ -326,6 +383,7 @@ pub(crate) fn format_plan(plan: &EvidenceVmPlan) -> String {
     format_operations(&mut out, &plan.operations);
     format_functions(&mut out, &plan.functions);
     format_value_envs(&mut out, &plan.values);
+    format_object_plan(&mut out, &plan.objects);
     out
 }
 
@@ -335,6 +393,7 @@ fn summarize_plan(
     operations: &[EvidenceVmOperationPlan],
     functions: &[EvidenceVmFunctionPlan],
     values: &[EvidenceVmValueEnvPlan],
+    objects: &EvidenceVmObjectPlan,
 ) -> EvidenceVmSummary {
     let mut summary = EvidenceVmSummary {
         handlers: control.handlers.len(),
@@ -358,7 +417,15 @@ fn summarize_plan(
             .iter()
             .map(|function| function.calls_needing_evidence.len())
             .sum(),
-        evidence_slot_keys: distinct_evidence_slot_count(operations, functions, values),
+        evidence_slot_keys: objects.slots.len(),
+        evidence_object_slots: objects.slots.len(),
+        evidence_handler_objects: objects.handlers.len(),
+        evidence_operation_objects: objects.operations.len(),
+        evidence_direct_candidates: objects
+            .operations
+            .iter()
+            .filter(|operation| operation.candidate_handler.is_some())
+            .count(),
         evidence_env_values: values.len(),
         evidence_env_captures: values
             .iter()
@@ -1070,12 +1137,55 @@ fn value_env_signature(captures: &[EvidenceVmEvidenceRequirement]) -> EvidenceVm
     }
 }
 
-fn distinct_evidence_slot_count(
+fn build_object_plan(
+    handlers: &[EvidenceVmHandlerPlan],
     operations: &[EvidenceVmOperationPlan],
     functions: &[EvidenceVmFunctionPlan],
     values: &[EvidenceVmValueEnvPlan],
-) -> usize {
+) -> EvidenceVmObjectPlan {
+    let slots = collect_object_slots(handlers, operations, functions, values);
+    let slot_ids = slots
+        .iter()
+        .enumerate()
+        .map(|(index, key)| (key.clone(), index as u32))
+        .collect::<BTreeMap<_, _>>();
+    let slot_plans = slots
+        .into_iter()
+        .enumerate()
+        .map(|(index, key)| EvidenceVmSlotPlan {
+            id: index as u32,
+            key,
+        })
+        .collect::<Vec<_>>();
+
+    let handlers = build_handler_objects(handlers, &slot_ids);
+    let handler_index = handlers
+        .iter()
+        .map(|handler| ((handler.handler, handler.slot_id), handler.id))
+        .collect::<HashMap<_, _>>();
+    let operations = build_operation_objects(operations, &slot_ids, &handler_index, &handlers);
+
+    EvidenceVmObjectPlan {
+        slots: slot_plans,
+        handlers,
+        operations,
+    }
+}
+
+fn collect_object_slots(
+    handlers: &[EvidenceVmHandlerPlan],
+    operations: &[EvidenceVmOperationPlan],
+    functions: &[EvidenceVmFunctionPlan],
+    values: &[EvidenceVmValueEnvPlan],
+) -> Vec<EvidenceVmSlotKey> {
     let mut slots = BTreeSet::new();
+    for handler in handlers {
+        for arm in &handler.arms {
+            if let Some(path) = &arm.path {
+                slots.insert(positive_slot(path.clone()));
+            }
+        }
+    }
     for operation in operations {
         slots.insert(operation.slot.clone());
     }
@@ -1087,7 +1197,119 @@ fn distinct_evidence_slot_count(
     for value in values {
         slots.extend(value.signature.captures.iter().cloned());
     }
-    slots.len()
+    slots.into_iter().collect()
+}
+
+fn build_handler_objects(
+    handlers: &[EvidenceVmHandlerPlan],
+    slot_ids: &BTreeMap<EvidenceVmSlotKey, u32>,
+) -> Vec<EvidenceVmHandlerObjectPlan> {
+    let mut objects = Vec::new();
+    for handler in handlers {
+        for arm in &handler.arms {
+            let Some(path) = &arm.path else {
+                continue;
+            };
+            let slot = positive_slot(path.clone());
+            let Some(slot_id) = slot_ids.get(&slot).copied() else {
+                continue;
+            };
+            objects.push(EvidenceVmHandlerObjectPlan {
+                id: objects.len() as u32,
+                handler: handler.expr,
+                slot_id,
+                path: path.clone(),
+                arm_body: arm.body,
+                arm_class: arm.classification,
+                definition_env: Vec::new(),
+            });
+        }
+    }
+    objects
+}
+
+fn build_operation_objects(
+    operations: &[EvidenceVmOperationPlan],
+    slot_ids: &BTreeMap<EvidenceVmSlotKey, u32>,
+    handler_index: &HashMap<(ExprId, u32), u32>,
+    handlers: &[EvidenceVmHandlerObjectPlan],
+) -> Vec<EvidenceVmOperationObjectPlan> {
+    let handler_by_id = handlers
+        .iter()
+        .map(|handler| (handler.id, handler))
+        .collect::<HashMap<_, _>>();
+    operations
+        .iter()
+        .filter_map(|operation| {
+            let slot_id = slot_ids.get(&operation.slot).copied()?;
+            let candidate_handler = operation_candidate_handler(operation).and_then(|handler| {
+                let positive_slot_id = slot_ids
+                    .get(&positive_slot(operation.path.clone()))
+                    .copied()?;
+                handler_index.get(&(handler, positive_slot_id)).copied()
+            });
+            let execution = operation_execution_plan(operation, candidate_handler, &handler_by_id);
+            Some(EvidenceVmOperationObjectPlan {
+                expr: operation.expr,
+                slot_id,
+                candidate_handler,
+                execution,
+            })
+        })
+        .collect()
+}
+
+fn operation_candidate_handler(operation: &EvidenceVmOperationPlan) -> Option<ExprId> {
+    match operation.lowering {
+        EvidenceVmOperationLowering::DirectHandlerCall { handler, .. } => Some(handler),
+        EvidenceVmOperationLowering::LexicalHandlerCandidate {
+            handler,
+            delayed_boundary: false,
+            ..
+        } => Some(handler),
+        EvidenceVmOperationLowering::LexicalHandlerCandidate {
+            delayed_boundary: true,
+            ..
+        }
+        | EvidenceVmOperationLowering::HygieneFallback { .. }
+        | EvidenceVmOperationLowering::GenericFallback => None,
+    }
+}
+
+fn operation_execution_plan(
+    operation: &EvidenceVmOperationPlan,
+    candidate_handler: Option<u32>,
+    handler_by_id: &HashMap<u32, &EvidenceVmHandlerObjectPlan>,
+) -> EvidenceVmOperationExecutionPlan {
+    match operation.lowering {
+        EvidenceVmOperationLowering::HygieneFallback { .. } => {
+            return EvidenceVmOperationExecutionPlan::BlockedFallback;
+        }
+        EvidenceVmOperationLowering::GenericFallback => {
+            return EvidenceVmOperationExecutionPlan::GenericFallback;
+        }
+        EvidenceVmOperationLowering::LexicalHandlerCandidate {
+            delayed_boundary: true,
+            ..
+        } => return EvidenceVmOperationExecutionPlan::YieldFallback,
+        EvidenceVmOperationLowering::DirectHandlerCall { .. }
+        | EvidenceVmOperationLowering::LexicalHandlerCandidate {
+            delayed_boundary: false,
+            ..
+        } => {}
+    }
+    let Some(handler) = candidate_handler.and_then(|id| handler_by_id.get(&id)) else {
+        return EvidenceVmOperationExecutionPlan::GenericFallback;
+    };
+    match handler.arm_class {
+        EvidenceVmHandlerArmClass::Abortive => EvidenceVmOperationExecutionPlan::DirectAbortive,
+        EvidenceVmHandlerArmClass::TailResumptive => {
+            EvidenceVmOperationExecutionPlan::DirectTailResumptive
+        }
+        EvidenceVmHandlerArmClass::MayYield
+        | EvidenceVmHandlerArmClass::Fallback
+        | EvidenceVmHandlerArmClass::Value => EvidenceVmOperationExecutionPlan::YieldFallback,
+    }
 }
 
 fn operation_kind(kind: ControlEffectUseKind) -> EvidenceVmOperationKind {
@@ -1435,6 +1657,54 @@ fn format_value_envs(out: &mut String, values: &[EvidenceVmValueEnvPlan]) {
     }
 }
 
+fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
+    if objects.slots.is_empty() && objects.handlers.is_empty() && objects.operations.is_empty() {
+        return;
+    }
+    writeln!(out, "evidence object graph:").unwrap();
+    if !objects.slots.is_empty() {
+        writeln!(out, "  slots:").unwrap();
+        for slot in &objects.slots {
+            writeln!(out, "    s{} {}", slot.id, format_slot_key(&slot.key)).unwrap();
+        }
+    }
+    if !objects.handlers.is_empty() {
+        writeln!(out, "  handler-objects:").unwrap();
+        for handler in &objects.handlers {
+            writeln!(
+                out,
+                "    h{} handler e{} slot s{} {} arm e{} class {} def_env [{}]",
+                handler.id,
+                handler.handler.0,
+                handler.slot_id,
+                format_path(&handler.path),
+                handler.arm_body.0,
+                format_handler_arm_class(handler.arm_class),
+                format_u32_list(&handler.definition_env)
+            )
+            .unwrap();
+        }
+    }
+    if !objects.operations.is_empty() {
+        writeln!(out, "  operation-objects:").unwrap();
+        for operation in &objects.operations {
+            let handler = operation
+                .candidate_handler
+                .map(|id| format!("h{id}"))
+                .unwrap_or_else(|| "none".to_string());
+            writeln!(
+                out,
+                "    e{} slot s{} handler {} exec {}",
+                operation.expr.0,
+                operation.slot_id,
+                handler,
+                format_operation_execution_plan(operation.execution)
+            )
+            .unwrap();
+        }
+    }
+}
+
 fn format_value_env_kind(kind: &EvidenceVmValueEnvKind) -> String {
     match kind {
         EvidenceVmValueEnvKind::Lambda { body } => format!("lambda body e{}", body.0),
@@ -1463,6 +1733,16 @@ fn format_handler_arm_class(classification: EvidenceVmHandlerArmClass) -> &'stat
         EvidenceVmHandlerArmClass::TailResumptive => "tail-resumptive",
         EvidenceVmHandlerArmClass::MayYield => "may-yield",
         EvidenceVmHandlerArmClass::Fallback => "fallback",
+    }
+}
+
+fn format_operation_execution_plan(plan: EvidenceVmOperationExecutionPlan) -> &'static str {
+    match plan {
+        EvidenceVmOperationExecutionPlan::DirectAbortive => "direct-abortive",
+        EvidenceVmOperationExecutionPlan::DirectTailResumptive => "direct-tail-resumptive",
+        EvidenceVmOperationExecutionPlan::YieldFallback => "yield-fallback",
+        EvidenceVmOperationExecutionPlan::BlockedFallback => "blocked-fallback",
+        EvidenceVmOperationExecutionPlan::GenericFallback => "generic-fallback",
     }
 }
 

@@ -453,6 +453,23 @@ Start with a tiny executable subset:
 This subset should prove that an operation can call a handler evidence object
 without constructing the current `Request`.
 
+Status on 2026-06-27:
+
+- The debug plan now builds a non-executable evidence object graph.
+- The graph separates:
+  - evidence slots;
+  - handler objects;
+  - operation objects.
+- Operation objects carry an execution plan:
+  `direct-abortive`, `direct-tail-resumptive`, `yield-fallback`,
+  `blocked-fallback`, or `generic-fallback`.
+- This is deliberately still a plan.  A handler object may exist even when an
+  operation remains `generic-fallback`, because the current evidence route has
+  not proved that the operation can safely call that handler directly.
+- The next step is not to force direct calls from lexical shape alone.  The
+  next step is to make function/value evidence environments precise enough
+  that operation objects can receive a proven handler object.
+
 ### 5. Add yield representation
 
 Only after direct/tail-resumptive cases are clean, add:
