@@ -1324,7 +1324,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceValueMarker::AddId(_) => {}
             }
         }
-        self.push_active_marker_plan(markers.to_vec());
+        self.push_active_marker_plan(markers);
     }
 
     fn pop_marker_frame(
@@ -1342,17 +1342,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.active_marker_plans.truncate(plan_len);
     }
 
-    fn push_active_marker_plan(&mut self, markers: Vec<EvidenceValueMarker>) {
+    fn push_active_marker_plan(&mut self, markers: &[EvidenceValueMarker]) {
         if self
             .active_marker_plans
             .last()
-            .is_some_and(|current| current == &markers)
+            .is_some_and(|current| current.as_slice() == markers)
         {
             self.stats.active_marker_plan_dedupes += 1;
             return;
         }
         self.stats.active_marker_plan_pushes += 1;
-        self.active_marker_plans.push(markers);
+        self.active_marker_plans.push(markers.to_vec());
     }
 
     fn entry_frame_len_for_marker(
@@ -4696,60 +4696,54 @@ fn combined_markers(
 }
 
 fn markers_for_function_call(markers: &[EvidenceValueMarker]) -> Vec<EvidenceValueMarker> {
-    dedupe_markers(
-        markers
-            .iter()
-            .cloned()
-            .map(|marker| match marker {
-                EvidenceValueMarker::Frame { id } => EvidenceValueMarker::Frame { id },
-                EvidenceValueMarker::AddId(marker) => {
-                    EvidenceValueMarker::AddId(EvidenceAddIdMarker {
-                        depth: marker.depth.saturating_sub(1),
-                        ..marker
-                    })
-                }
-            })
-            .collect(),
-    )
+    let mut out = Vec::with_capacity(markers.len());
+    for marker in markers {
+        let marker = match marker {
+            EvidenceValueMarker::Frame { id } => EvidenceValueMarker::Frame { id: *id },
+            EvidenceValueMarker::AddId(marker) => {
+                let mut marker = marker.clone();
+                marker.depth = marker.depth.saturating_sub(1);
+                EvidenceValueMarker::AddId(marker)
+            }
+        };
+        push_marker_if_absent(&mut out, marker);
+    }
+    out
 }
 
 fn markers_for_continuation_call(markers: &[EvidenceValueMarker]) -> Vec<EvidenceValueMarker> {
-    dedupe_markers(
-        markers
-            .iter()
-            .cloned()
-            .map(|marker| match marker {
-                EvidenceValueMarker::Frame { id } => EvidenceValueMarker::Frame { id },
-                EvidenceValueMarker::AddId(marker) => {
-                    EvidenceValueMarker::AddId(EvidenceAddIdMarker {
-                        depth: marker.depth.saturating_sub(1),
-                        guard_own_path: marker.guard_own_path && marker.preserve_own_on_resume,
-                        guard_foreign_path: true,
-                        ..marker
-                    })
-                }
-            })
-            .collect(),
-    )
+    let mut out = Vec::with_capacity(markers.len());
+    for marker in markers {
+        let marker = match marker {
+            EvidenceValueMarker::Frame { id } => EvidenceValueMarker::Frame { id: *id },
+            EvidenceValueMarker::AddId(marker) => {
+                let mut marker = marker.clone();
+                marker.depth = marker.depth.saturating_sub(1);
+                marker.guard_own_path = marker.guard_own_path && marker.preserve_own_on_resume;
+                marker.guard_foreign_path = true;
+                EvidenceValueMarker::AddId(marker)
+            }
+        };
+        push_marker_if_absent(&mut out, marker);
+    }
+    out
 }
 
 fn markers_for_continuation_resume(markers: &[EvidenceValueMarker]) -> Vec<EvidenceValueMarker> {
-    dedupe_markers(
-        markers
-            .iter()
-            .cloned()
-            .map(|marker| match marker {
-                EvidenceValueMarker::AddId(marker) => {
-                    EvidenceValueMarker::AddId(EvidenceAddIdMarker {
-                        guard_own_path: marker.guard_own_path && marker.preserve_own_on_resume,
-                        guard_foreign_path: true,
-                        ..marker
-                    })
-                }
-                marker => marker,
-            })
-            .collect(),
-    )
+    let mut out = Vec::with_capacity(markers.len());
+    for marker in markers {
+        let marker = match marker {
+            EvidenceValueMarker::AddId(marker) => {
+                let mut marker = marker.clone();
+                marker.guard_own_path = marker.guard_own_path && marker.preserve_own_on_resume;
+                marker.guard_foreign_path = true;
+                EvidenceValueMarker::AddId(marker)
+            }
+            marker => marker.clone(),
+        };
+        push_marker_if_absent(&mut out, marker);
+    }
+    out
 }
 
 fn stack_handler_markers(id: EvidenceGuardId, path: &[String]) -> Vec<EvidenceValueMarker> {
@@ -4776,17 +4770,9 @@ fn stack_handler_markers(id: EvidenceGuardId, path: &[String]) -> Vec<EvidenceVa
     ]
 }
 
-fn dedupe_markers(markers: Vec<EvidenceValueMarker>) -> Vec<EvidenceValueMarker> {
-    let mut deduped = Vec::new();
-    extend_marker_list(&mut deduped, &markers);
-    deduped
-}
-
-fn extend_marker_list(markers: &mut Vec<EvidenceValueMarker>, new_markers: &[EvidenceValueMarker]) {
-    for marker in new_markers {
-        if !markers.iter().any(|existing| existing == marker) {
-            markers.push(marker.clone());
-        }
+fn push_marker_if_absent(markers: &mut Vec<EvidenceValueMarker>, marker: EvidenceValueMarker) {
+    if !markers.iter().any(|existing| existing == &marker) {
+        markers.push(marker);
     }
 }
 
