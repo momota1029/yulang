@@ -609,6 +609,52 @@ fn debug_runtime_evidence_run_handles_recursive_amount_handler() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_handles_nested_flip_amount_handlers() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-nested-flip-amount",
+        "act flip:\n\
+         \x20 our coin: () -> bool\n\
+         act amount:\n\
+         \x20 our coin: () -> int\n\n\
+         our all_paths(action: [flip] _) = catch action:\n\
+         \x20 flip::coin(), k -> all_paths(k true) + all_paths(k false)\n\
+         \x20 v -> [v]\n\n\
+         our total_amount(action: [amount] _) =\n\
+         \x20 my loop(n, action: [amount] _) = catch action:\n\
+         \x20\x20 amount::coin(), k -> loop(n, k n)\n\
+         \x20\x20 v -> v\n\
+         \x20 [loop(1, action), loop(2, action)]\n\n\
+         total_amount: all_paths:\n\
+         \x20 my a = if flip::coin(): amount::coin() else: 0\n\
+         \x20 my b = if flip::coin(): amount::coin() * 10 else: 0\n\
+         \x20 my c = if flip::coin(): amount::coin() * 100 else: 0\n\
+         \x20 a + b + c\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(
+        stdout.contains(
+            "run roots [[[111, 11, 101, 1, 110, 10, 100, 0], \
+             [222, 22, 202, 2, 220, 20, 200, 0]]]\n"
+        ),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn compatible_dump_no_prelude_uses_cache() {
     let entry = write_entry("dump-no-prelude-cache", "1\n");
     let root = entry.parent().unwrap().to_path_buf();

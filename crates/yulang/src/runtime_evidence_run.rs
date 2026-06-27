@@ -133,6 +133,12 @@ enum EvidenceContinuationFrame {
         env: Env,
         next: EvidenceContinuation,
     },
+    CatchBody {
+        catch_expr: ExprId,
+        arms: Vec<control_vm::CatchArm>,
+        env: Env,
+        next: EvidenceContinuation,
+    },
     MarkerFrame {
         path: Vec<String>,
         next: EvidenceContinuation,
@@ -257,6 +263,20 @@ impl EvidenceContinuation {
         }))
     }
 
+    fn catch_body(
+        catch_expr: ExprId,
+        arms: Vec<control_vm::CatchArm>,
+        env: Env,
+        next: Self,
+    ) -> Self {
+        Self(Rc::new(EvidenceContinuationFrame::CatchBody {
+            catch_expr,
+            arms,
+            env,
+            next,
+        }))
+    }
+
     fn marker_frame(path: Vec<String>, next: Self) -> Self {
         Self(Rc::new(EvidenceContinuationFrame::MarkerFrame {
             path,
@@ -369,6 +389,17 @@ impl EvidenceContinuation {
             EvidenceContinuationFrame::CaseScrutinee { arms, env, next } => {
                 Self::case_scrutinee(arms.clone(), env.clone(), next.clone().then(tail))
             }
+            EvidenceContinuationFrame::CatchBody {
+                catch_expr,
+                arms,
+                env,
+                next,
+            } => Self::catch_body(
+                *catch_expr,
+                arms.clone(),
+                env.clone(),
+                next.clone().then(tail),
+            ),
             EvidenceContinuationFrame::MarkerFrame { path, next } => {
                 Self::marker_frame(path.clone(), next.clone().then(tail))
             }
@@ -430,40 +461,6 @@ impl EvidenceContinuation {
                 last.clone(),
                 next.clone().then(tail),
             ),
-        }
-    }
-
-    fn attach_to_request(self, request: EvidenceRequest) -> EvidenceRequest {
-        let request = self.mark_visible_request(request);
-        request.map_continuation(|inner| inner.then(self))
-    }
-
-    fn mark_visible_request(&self, mut request: EvidenceRequest) -> EvidenceRequest {
-        self.mark_visible_request_in_place(&mut request);
-        request
-    }
-
-    fn mark_visible_request_in_place(&self, request: &mut EvidenceRequest) {
-        match self.0.as_ref() {
-            EvidenceContinuationFrame::Identity => {}
-            EvidenceContinuationFrame::ForceThunk { next, .. }
-            | EvidenceContinuationFrame::ForceValueIfThunk { next }
-            | EvidenceContinuationFrame::ApplyCallee { next, .. }
-            | EvidenceContinuationFrame::ApplyArg { next, .. }
-            | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
-            | EvidenceContinuationFrame::CaseScrutinee { next, .. }
-            | EvidenceContinuationFrame::TupleItems { next, .. }
-            | EvidenceContinuationFrame::RecordSpread { next, .. }
-            | EvidenceContinuationFrame::RecordFields { next, .. }
-            | EvidenceContinuationFrame::PolyVariantPayloads { next, .. }
-            | EvidenceContinuationFrame::SelectBase { next, .. }
-            | EvidenceContinuationFrame::BlockStmt { next, .. } => {
-                next.mark_visible_request_in_place(request);
-            }
-            EvidenceContinuationFrame::MarkerFrame { path, next } => {
-                request.add_visible_marker(path);
-                next.mark_visible_request_in_place(request);
-            }
         }
     }
 }
@@ -1200,6 +1197,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let result = self.eval_case_scrutinee_result(value, arms, env)?;
                 self.continue_result(result, next.clone())
             }
+            EvidenceContinuationFrame::CatchBody {
+                catch_expr,
+                arms,
+                env,
+                next,
+            } => {
+                let result = self.continue_catch_body_result(
+                    *catch_expr,
+                    arms,
+                    env,
+                    EvidenceEvalResult::Value(value),
+                )?;
+                self.continue_result(result, next.clone())
+            }
             EvidenceContinuationFrame::MarkerFrame { next, .. } => {
                 self.continue_result(EvidenceEvalResult::Value(value), next.clone())
             }
@@ -1293,10 +1304,182 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         match result {
             EvidenceEvalResult::Value(value) => self.resume_continuation(continuation, value),
-            EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
-                continuation.attach_to_request(request),
-            )),
+            EvidenceEvalResult::Request(request) => {
+                self.continue_request_with_continuation(request, continuation)
+            }
         }
+    }
+
+    fn continue_request_with_continuation(
+        &mut self,
+        request: EvidenceRequest,
+        continuation: EvidenceContinuation,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let (request, next) = match continuation.0.as_ref() {
+            EvidenceContinuationFrame::Identity => {
+                return Ok(EvidenceEvalResult::Request(request));
+            }
+            EvidenceContinuationFrame::ForceThunk {
+                target_value_is_thunk,
+                next,
+            } => (
+                request.append_continuation(EvidenceContinuation::force_thunk(
+                    *target_value_is_thunk,
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ForceValueIfThunk { next } => (
+                request.append_continuation(EvidenceContinuation::force_value_if_thunk(
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ApplyCallee {
+                site,
+                arg,
+                env,
+                next,
+            } => (
+                request.append_continuation(EvidenceContinuation::apply_callee(
+                    *site,
+                    *arg,
+                    env.clone(),
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ApplyArg { site, callee, next } => (
+                request.append_continuation(EvidenceContinuation::apply_arg(
+                    *site,
+                    callee.clone(),
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ApplyForcedCallee { site, arg, next } => (
+                request.append_continuation(EvidenceContinuation::apply_forced_callee(
+                    *site,
+                    arg.clone(),
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::CaseScrutinee { arms, env, next } => (
+                request.append_continuation(EvidenceContinuation::case_scrutinee(
+                    arms.clone(),
+                    env.clone(),
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::CatchBody {
+                catch_expr,
+                arms,
+                env,
+                next,
+            } => {
+                let result = self.continue_catch_body_result(
+                    *catch_expr,
+                    arms,
+                    env,
+                    EvidenceEvalResult::Request(request),
+                )?;
+                return self.continue_result(result, next.clone());
+            }
+            EvidenceContinuationFrame::MarkerFrame { path, next } => (
+                request.with_visible_marker(path).append_continuation(
+                    EvidenceContinuation::marker_frame(
+                        path.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::TupleItems {
+                values,
+                rest,
+                env,
+                next,
+            } => (
+                request.append_continuation(EvidenceContinuation::tuple_items(
+                    values.clone(),
+                    rest.clone(),
+                    env.clone(),
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::RecordSpread { fields, env, next } => (
+                request.append_continuation(EvidenceContinuation::record_spread(
+                    fields.clone(),
+                    env.clone(),
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::RecordFields {
+                values,
+                rest,
+                env,
+                next,
+            } => (
+                request.append_continuation(EvidenceContinuation::record_fields(
+                    values.clone(),
+                    rest.clone(),
+                    env.clone(),
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::PolyVariantPayloads {
+                tag,
+                values,
+                rest,
+                env,
+                next,
+            } => (
+                request.append_continuation(EvidenceContinuation::poly_variant_payloads(
+                    tag.clone(),
+                    values.clone(),
+                    rest.clone(),
+                    env.clone(),
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::SelectBase {
+                name,
+                resolution,
+                next,
+            } => (
+                request.append_continuation(EvidenceContinuation::select_base(
+                    name.clone(),
+                    resolution.clone(),
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::BlockStmt {
+                resume,
+                rest,
+                tail,
+                env,
+                last,
+                next,
+            } => (
+                request.append_continuation(EvidenceContinuation::block_stmt(
+                    resume.clone(),
+                    rest.clone(),
+                    *tail,
+                    env.clone(),
+                    last.clone(),
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+        };
+        self.continue_request_with_continuation(request, next)
     }
 
     fn finish_force_thunk_result(
@@ -1355,7 +1538,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         let mut body_env = env.clone();
-        match self.eval_expr_result(body, &mut body_env)? {
+        let result = self.eval_expr_result(body, &mut body_env)?;
+        self.continue_catch_body_result(catch_expr, arms, env, result)
+    }
+
+    fn continue_catch_body_result(
+        &mut self,
+        catch_expr: ExprId,
+        arms: &[control_vm::CatchArm],
+        env: &Env,
+        result: EvidenceEvalResult,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match result {
             EvidenceEvalResult::Value(value) => self.eval_value_arm(value, arms, env),
             EvidenceEvalResult::Request(request) => match request.route {
                 EvidenceEffectRoute::Direct {
@@ -1364,16 +1558,35 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 } if handler == catch_expr => {
                     self.eval_operation_arm(request, resumptive, arms, env)
                 }
-                EvidenceEffectRoute::Direct { .. } => Ok(EvidenceEvalResult::Request(request)),
+                EvidenceEffectRoute::Direct { .. } => Ok(EvidenceEvalResult::Request(
+                    self.defer_catch_body(catch_expr, arms, env, request),
+                )),
                 EvidenceEffectRoute::Unhandled => {
                     if let Some(resumptive) = visible_operation_resumptive(&request, arms) {
                         self.eval_operation_arm(request, resumptive, arms, env)
                     } else {
-                        Ok(EvidenceEvalResult::Request(request))
+                        Ok(EvidenceEvalResult::Request(
+                            self.defer_catch_body(catch_expr, arms, env, request),
+                        ))
                     }
                 }
             },
         }
+    }
+
+    fn defer_catch_body(
+        &mut self,
+        catch_expr: ExprId,
+        arms: &[control_vm::CatchArm],
+        env: &Env,
+        request: EvidenceRequest,
+    ) -> EvidenceRequest {
+        request.append_continuation(EvidenceContinuation::catch_body(
+            catch_expr,
+            arms.to_vec(),
+            env.clone(),
+            EvidenceContinuation::identity(),
+        ))
     }
 
     fn eval_value_arm(
