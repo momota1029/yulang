@@ -1,3 +1,4 @@
+use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::rc::Rc;
@@ -482,6 +483,26 @@ struct EvidenceActiveHandlerFrame {
 struct EvidenceActiveAddIdMarker {
     marker: EvidenceAddIdMarker,
     entry_frame_len: usize,
+}
+
+struct EvidenceActiveMarkerPlan {
+    markers: Rc<[EvidenceValueMarker]>,
+    function_call_markers: OnceCell<Rc<[EvidenceValueMarker]>>,
+}
+
+impl EvidenceActiveMarkerPlan {
+    fn new(markers: Rc<[EvidenceValueMarker]>) -> Self {
+        Self {
+            markers,
+            function_call_markers: OnceCell::new(),
+        }
+    }
+
+    fn function_call_markers(&self) -> Rc<[EvidenceValueMarker]> {
+        self.function_call_markers
+            .get_or_init(|| share_marker_vec(markers_for_function_call(&self.markers)))
+            .clone()
+    }
 }
 
 #[cfg(debug_assertions)]
@@ -1312,7 +1333,7 @@ struct RuntimeEvidenceRunner<'a> {
     active_add_ids: Vec<EvidenceActiveAddIdMarker>,
     #[cfg(debug_assertions)]
     active_add_id_index: ActiveAddIdIndex,
-    active_marker_plans: Vec<Rc<[EvidenceValueMarker]>>,
+    active_marker_plans: Vec<EvidenceActiveMarkerPlan>,
     active_provider_envs: Vec<RuntimeEvidenceProviderEnv>,
     stdout: String,
     context: RuntimeEvidenceRunContext,
@@ -1579,13 +1600,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if self
             .active_marker_plans
             .last()
-            .is_some_and(|current| current.as_ref() == markers.as_ref())
+            .is_some_and(|current| current.markers.as_ref() == markers.as_ref())
         {
             self.stats.active_marker_plan_dedupes += 1;
             return;
         }
         self.stats.active_marker_plan_pushes += 1;
-        self.active_marker_plans.push(markers);
+        self.active_marker_plans
+            .push(EvidenceActiveMarkerPlan::new(markers));
     }
 
     fn entry_frame_len_for_marker(
@@ -2614,12 +2636,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         callee: SharedValue,
         arg: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        let Some(active_markers) = self.active_marker_plans.last() else {
+        let Some(active_plan) = self.active_marker_plans.last() else {
             return self.apply_value_result(site, callee, arg);
         };
         self.stats.function_call_marker_plans += 1;
-        self.stats.function_call_marker_inputs += active_markers.len();
-        let markers = markers_for_function_call(active_markers);
+        self.stats.function_call_marker_inputs += active_plan.markers.len();
+        let markers = active_plan.function_call_markers();
         self.stats.function_call_marker_outputs += markers.len();
         if markers.is_empty() {
             return self.apply_value_result(site, callee, arg);
@@ -2633,7 +2655,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let result = self.apply_value_result(site, callee, arg)?;
                 self.close_marked_result(result, &markers)
             }
-            _ => self.with_marker_frame(share_marker_vec(markers), true, None, |runner| {
+            _ => self.with_marker_frame(markers, true, None, |runner| {
                 runner.apply_value_result(site, callee, arg)
             }),
         }
