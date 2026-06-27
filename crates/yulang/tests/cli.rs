@@ -399,6 +399,35 @@ fn debug_runtime_evidence_run_reads_struct_record_payload_fields() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_matches_control_vm_on_record_pattern_defaults() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-record-pattern-defaults",
+        "my area({width = 1, height = 2}) = width * height\n\
+         area { width: 3 }\n\
+         area {}\n\
+         area { width: 3, height: 4 }\n\
+         my next_area({width = 2, height = width + 1}) = width * height\n\
+         next_area { width: 3 }\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [6, 2, 12, 12]\n"), "{stdout}");
+}
+
+#[test]
 fn debug_runtime_evidence_run_applies_function_adapter_for_each() {
     let entry = write_entry(
         "debug-runtime-evidence-run-each-list",
@@ -444,6 +473,115 @@ fn debug_runtime_evidence_run_evaluates_list_view_raw() {
     let stdout = stdout(&output);
     assert!(stdout.contains("compare.control: match"), "{stdout}");
     assert!(stdout.contains("run roots [[3, 2, 1]]\n"), "{stdout}");
+}
+
+#[test]
+fn debug_runtime_evidence_run_matches_control_vm_on_text_and_bytes_primitives() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-text-bytes",
+        "std::text::str::index_raw \"aβc\" 1\n\
+         std::text::str::index_range_raw \"aβc\" 1 3\n\
+         std::text::str::splice_raw \"abcd\" 1 3 \"XY\"\n\
+         std::text::str::line_count \"a\\nb\"\n\
+         std::text::str::index_range \"abcdef\" (std::data::range::range 1 4)\n\
+         std::data::list::index_range [1, 2, 3, 4] (std::data::range::range 1 3)\n\
+         std::data::list::splice_raw [1, 2, 3, 4] 1 3 [9]\n\
+         std::text::bytes::len(std::text::str::to_bytes \"abc\")\n\
+         std::text::bytes::index_raw(std::text::str::to_bytes \"abc\", 1)\n\
+         std::text::bytes::to_utf8_raw(std::text::str::to_bytes \"abc\")\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(
+        stdout.contains(
+            "run roots [\"β\", \"βc\", \"aXYd\", 2, \"bcd\", [2, 3], [1, 9, 4], 3, 98, (\"abc\", 3)]\n"
+        ),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn debug_runtime_evidence_run_carries_function_adapter_hygiene_markers() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-function-adapter-hygiene",
+        "pub act sub 'a:\n\
+         \x20 pub return: 'a -> never\n\
+         \x20 pub sub(x: [_] 'a): 'a = catch x:\n\
+         \x20\x20 return a, _ -> a\n\
+         \x20\x20 a -> a\n\n\
+         pub act note:\n\
+         \x20 pub tell: () -> ()\n\n\
+         our use_int = sub::sub:\n\
+         \x20 sub::return 0\n\n\
+         our use_str = sub::sub:\n\
+         \x20 sub::return \"done\"\n\n\
+         our use_residual() = sub::sub:\n\
+         \x20 note::tell()\n\
+         \x20 1\n\n\
+         (use_int, use_str, use_residual)\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(
+        stdout.contains("run roots [(0, \"done\", <closure>)]\n"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn debug_runtime_evidence_run_handles_ref_set() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-ref-set",
+        "{\n\
+         \x20 my $x = 10\n\
+         \x20 my $y = 20\n\
+         \x20 &x = $x + 1\n\
+         \x20 &y = $y + 1\n\
+         \x20 ($x, $y)\n\
+         }\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [(11, 21)]\n"), "{stdout}");
 }
 
 #[test]

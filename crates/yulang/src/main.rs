@@ -2241,6 +2241,90 @@ fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeq
         output.evidence_stats.direct_effect_calls
     );
     println!(
+        "  runtime_evidence.expr_evals: {}",
+        output.evidence_stats.expr_evals
+    );
+    println!(
+        "  runtime_evidence.env_clones: {}",
+        output.evidence_stats.env_clones
+    );
+    println!(
+        "  runtime_evidence.env_entries_cloned: {}",
+        output.evidence_stats.env_entries_cloned
+    );
+    println!(
+        "  runtime_evidence.apply_value_calls: {}",
+        output.evidence_stats.apply_value_calls
+    );
+    println!(
+        "  runtime_evidence.apply_adapter_calls: {}",
+        output.evidence_stats.apply_adapter_calls
+    );
+    println!(
+        "  runtime_evidence.adapt_value_calls: {}",
+        output.evidence_stats.adapt_value_calls
+    );
+    println!(
+        "  runtime_evidence.primitive_apply_calls: {}",
+        output.evidence_stats.primitive_apply_calls
+    );
+    println!(
+        "  runtime_evidence.thunk_forces: {}",
+        output.evidence_stats.thunk_forces
+    );
+    println!(
+        "  runtime_evidence.thunk_force_expr: {}",
+        output.evidence_stats.thunk_force_expr
+    );
+    println!(
+        "  runtime_evidence.thunk_force_effect: {}",
+        output.evidence_stats.thunk_force_effect
+    );
+    println!(
+        "  runtime_evidence.thunk_force_continuation: {}",
+        output.evidence_stats.thunk_force_continuation
+    );
+    println!(
+        "  runtime_evidence.thunk_force_value: {}",
+        output.evidence_stats.thunk_force_value
+    );
+    println!(
+        "  runtime_evidence.thunk_force_adapter: {}",
+        output.evidence_stats.thunk_force_adapter
+    );
+    println!(
+        "  runtime_evidence.continuation_appends: {}",
+        output.evidence_stats.continuation_appends
+    );
+    println!(
+        "  runtime_evidence.continuation_append_steps: {}",
+        output.evidence_stats.continuation_append_steps
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_steps: {}",
+        output.evidence_stats.continuation_resume_steps
+    );
+    println!(
+        "  runtime_evidence.request_continuation_steps: {}",
+        output.evidence_stats.request_continuation_steps
+    );
+    println!(
+        "  runtime_evidence.catch_body_checks: {}",
+        output.evidence_stats.catch_body_checks
+    );
+    println!(
+        "  runtime_evidence.list_merge_calls: {}",
+        output.evidence_stats.list_merge_calls
+    );
+    println!(
+        "  runtime_evidence.list_view_raw_calls: {}",
+        output.evidence_stats.list_view_raw_calls
+    );
+    println!(
+        "  runtime_evidence.list_values_copied: {}",
+        output.evidence_stats.list_values_copied
+    );
+    println!(
         "  timing.runtime_evidence_execute: {}",
         format_duration(runtime_evidence_execute)
     );

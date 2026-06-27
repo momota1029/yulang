@@ -1379,6 +1379,7 @@ dependencies = [
  "tokio",
  "tower-lsp",
  "unicode-ident",
+ "unicode-segmentation",
  "yulang-editor",
 ]
 
