@@ -333,7 +333,8 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
          my handle(action: [out] _) = catch action:\n\
          \x20 out::say(n), k -> k()\n\
          \x20 v -> v\n\n\
-         handle(out::say(1))\n",
+         my f = \\n -> out::say(n)\n\
+         handle(f 1)\n",
     );
 
     let output = yulang_command()
@@ -353,6 +354,14 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
     assert!(
         stdout.contains("evidence_param_functions:"),
         "evidence parameters should be visible in the plan:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence_env_values:"),
+        "value evidence environments should be visible in the plan:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("values:") && stdout.contains("lambda body"),
+        "lambda evidence captures should be visible in the plan:\n{stdout}"
     );
     assert!(
         stdout.contains("lexical-handler-candidate")

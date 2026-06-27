@@ -15,6 +15,7 @@ pub(crate) struct EvidenceVmPlan {
     pub(crate) handlers: Vec<EvidenceVmHandlerPlan>,
     pub(crate) operations: Vec<EvidenceVmOperationPlan>,
     pub(crate) functions: Vec<EvidenceVmFunctionPlan>,
+    pub(crate) values: Vec<EvidenceVmValueEnvPlan>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -34,6 +35,8 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) evidence_param_functions: usize,
     pub(crate) evidence_params: usize,
     pub(crate) evidence_arg_calls: usize,
+    pub(crate) evidence_env_values: usize,
+    pub(crate) evidence_env_captures: usize,
     pub(crate) runtime_tasks: usize,
     pub(crate) runtime_nodes: usize,
     pub(crate) runtime_evidence_refs: usize,
@@ -117,6 +120,30 @@ pub(crate) struct EvidenceVmCallPlan {
     pub(crate) required_evidence_paths: Vec<Vec<String>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmValueEnvPlan {
+    pub(crate) expr: ExprId,
+    pub(crate) kind: EvidenceVmValueEnvKind,
+    pub(crate) captured_evidence: Vec<EvidenceVmEvidenceRequirement>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum EvidenceVmValueEnvKind {
+    Lambda {
+        body: ExprId,
+    },
+    Thunk {
+        body: ExprId,
+    },
+    FunctionAdapter {
+        function: ExprId,
+        creates_callback_boundary: bool,
+        body_marker_count: usize,
+        arg_marker_count: usize,
+        ret_marker_count: usize,
+    },
+}
+
 pub(crate) fn build_plan(program: &Program, surface: &RuntimeEvidenceSurface) -> EvidenceVmPlan {
     let control = ControlEvidenceProgram::from_program(program);
     build_plan_from_evidence(program, &control, surface)
@@ -184,13 +211,15 @@ fn build_plan_from_evidence(
         .map(|task| function_plan(control, task))
         .collect::<Vec<_>>();
     attach_evidence_call_plans(program, &mut functions);
+    let values = collect_value_env_plans(program, control);
 
-    let summary = summarize_plan(control, surface, &operations, &functions);
+    let summary = summarize_plan(control, surface, &operations, &functions, &values);
     EvidenceVmPlan {
         summary,
         handlers,
         operations,
         functions,
+        values,
     }
 }
 
@@ -234,6 +263,12 @@ pub(crate) fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
+        "  evidence_env_values: {} evidence_env_captures: {}",
+        summary.evidence_env_values, summary.evidence_env_captures
+    )
+    .unwrap();
+    writeln!(
+        &mut out,
         "  runtime_tasks: {} runtime_nodes: {} runtime_evidence_refs: {}",
         summary.runtime_tasks, summary.runtime_nodes, summary.runtime_evidence_refs
     )
@@ -241,6 +276,7 @@ pub(crate) fn format_plan(plan: &EvidenceVmPlan) -> String {
     format_handlers(&mut out, &plan.handlers);
     format_operations(&mut out, &plan.operations);
     format_functions(&mut out, &plan.functions);
+    format_value_envs(&mut out, &plan.values);
     out
 }
 
@@ -249,6 +285,7 @@ fn summarize_plan(
     surface: &RuntimeEvidenceSurface,
     operations: &[EvidenceVmOperationPlan],
     functions: &[EvidenceVmFunctionPlan],
+    values: &[EvidenceVmValueEnvPlan],
 ) -> EvidenceVmSummary {
     let mut summary = EvidenceVmSummary {
         handlers: control.handlers.len(),
@@ -271,6 +308,11 @@ fn summarize_plan(
         evidence_arg_calls: functions
             .iter()
             .map(|function| function.calls_needing_evidence.len())
+            .sum(),
+        evidence_env_values: values.len(),
+        evidence_env_captures: values
+            .iter()
+            .map(|value| value.captured_evidence.len())
             .sum(),
         runtime_tasks: surface.tasks.len(),
         runtime_nodes: surface.tasks.iter().map(|task| task.nodes.len()).sum(),
@@ -574,6 +616,314 @@ fn collect_stmt_evidence_arg_calls(
     }
 }
 
+fn collect_value_env_plans(
+    program: &Program,
+    control: &ControlEvidenceProgram,
+) -> Vec<EvidenceVmValueEnvPlan> {
+    let adapters = control
+        .adapters
+        .iter()
+        .map(|adapter| (adapter.expr, adapter))
+        .collect::<HashMap<_, _>>();
+    let mut values = Vec::new();
+    for (index, expr) in program.exprs.iter().enumerate() {
+        let id = ExprId(index as u32);
+        match expr {
+            Expr::Lambda { body, .. } => {
+                let captured_evidence = requirements_in_expr(program, *body);
+                if captured_evidence.is_empty() {
+                    continue;
+                }
+                values.push(EvidenceVmValueEnvPlan {
+                    expr: id,
+                    kind: EvidenceVmValueEnvKind::Lambda { body: *body },
+                    captured_evidence,
+                });
+            }
+            Expr::MakeThunk { body, .. } => {
+                let captured_evidence = requirements_in_expr(program, *body);
+                if captured_evidence.is_empty() {
+                    continue;
+                }
+                values.push(EvidenceVmValueEnvPlan {
+                    expr: id,
+                    kind: EvidenceVmValueEnvKind::Thunk { body: *body },
+                    captured_evidence,
+                });
+            }
+            Expr::FunctionAdapter { function, .. } => {
+                let adapter = adapters.get(&id).copied();
+                let captured_evidence = requirements_for_value_expr(program, *function);
+                let kind = EvidenceVmValueEnvKind::FunctionAdapter {
+                    function: *function,
+                    creates_callback_boundary: adapter
+                        .is_some_and(|adapter| adapter.creates_callback_boundary),
+                    body_marker_count: adapter.map_or(0, |adapter| adapter.body_markers.len()),
+                    arg_marker_count: adapter.map_or(0, |adapter| adapter.arg_markers.len()),
+                    ret_marker_count: adapter.map_or(0, |adapter| adapter.ret_markers.len()),
+                };
+                if captured_evidence.is_empty() && !value_env_kind_has_boundary(&kind) {
+                    continue;
+                }
+                values.push(EvidenceVmValueEnvPlan {
+                    expr: id,
+                    kind,
+                    captured_evidence,
+                });
+            }
+            _ => {}
+        }
+    }
+    values
+}
+
+fn value_env_kind_has_boundary(kind: &EvidenceVmValueEnvKind) -> bool {
+    match kind {
+        EvidenceVmValueEnvKind::Lambda { .. } | EvidenceVmValueEnvKind::Thunk { .. } => false,
+        EvidenceVmValueEnvKind::FunctionAdapter {
+            creates_callback_boundary,
+            body_marker_count,
+            arg_marker_count,
+            ret_marker_count,
+            ..
+        } => {
+            *creates_callback_boundary
+                || *body_marker_count > 0
+                || *arg_marker_count > 0
+                || *ret_marker_count > 0
+        }
+    }
+}
+
+fn requirements_for_value_expr(
+    program: &Program,
+    expr: ExprId,
+) -> Vec<EvidenceVmEvidenceRequirement> {
+    let mut active = HashSet::new();
+    requirements_for_value_expr_inner(program, expr, &mut active)
+}
+
+fn requirements_for_value_expr_inner(
+    program: &Program,
+    expr: ExprId,
+    active: &mut HashSet<ExprId>,
+) -> Vec<EvidenceVmEvidenceRequirement> {
+    if !active.insert(expr) {
+        return Vec::new();
+    }
+    let requirements = match control_expr(program, expr) {
+        Some(Expr::Lambda { body, .. }) | Some(Expr::MakeThunk { body, .. }) => {
+            requirements_in_expr(program, *body)
+        }
+        Some(Expr::FunctionAdapter { function, .. }) => {
+            requirements_for_value_expr_inner(program, *function, active)
+        }
+        Some(Expr::Coerce { expr, .. })
+        | Some(Expr::MarkerFrame { body: expr, .. })
+        | Some(Expr::Select { base: expr, .. }) => {
+            requirements_for_value_expr_inner(program, *expr, active)
+        }
+        Some(_) | None => requirements_in_expr(program, expr),
+    };
+    active.remove(&expr);
+    requirements
+}
+
+fn requirements_in_expr(program: &Program, root: ExprId) -> Vec<EvidenceVmEvidenceRequirement> {
+    let mut collector = RequirementCollector::default();
+    let mut context = RequirementContext::default();
+    let mut active = HashSet::new();
+    collector.visit_expr(program, root, &mut context, &mut active);
+    collector.finish()
+}
+
+#[derive(Default)]
+struct RequirementCollector {
+    by_path: BTreeMap<Vec<String>, BTreeSet<u32>>,
+}
+
+impl RequirementCollector {
+    fn record(&mut self, path: &[String], operation_expr: ExprId) {
+        self.by_path
+            .entry(path.to_vec())
+            .or_default()
+            .insert(operation_expr.0);
+    }
+
+    fn finish(self) -> Vec<EvidenceVmEvidenceRequirement> {
+        self.by_path
+            .into_iter()
+            .map(|(path, operation_exprs)| EvidenceVmEvidenceRequirement {
+                path,
+                operation_exprs: operation_exprs.into_iter().collect(),
+            })
+            .collect()
+    }
+
+    fn visit_expr(
+        &mut self,
+        program: &Program,
+        id: ExprId,
+        context: &mut RequirementContext,
+        active: &mut HashSet<ExprId>,
+    ) {
+        if !active.insert(id) {
+            return;
+        }
+        let Some(expr) = control_expr(program, id) else {
+            active.remove(&id);
+            return;
+        };
+        match expr {
+            Expr::Apply { callee, arg } => {
+                if let Some(path) = effect_op_path(program, *callee)
+                    && !context.handles(path)
+                {
+                    self.record(path, id);
+                }
+                self.visit_expr(program, *callee, context, active);
+                self.visit_expr(program, *arg, context, active);
+            }
+            Expr::Catch { body, arms } => {
+                let handled_paths = arms
+                    .iter()
+                    .filter_map(|arm| arm.operation_path.clone())
+                    .collect::<Vec<_>>();
+                context.with_handled_paths(&handled_paths, |context| {
+                    self.visit_expr(program, *body, context, active);
+                });
+                for arm in arms {
+                    if let Some(guard) = arm.guard {
+                        self.visit_expr(program, guard, context, active);
+                    }
+                    self.visit_expr(program, arm.body, context, active);
+                }
+            }
+            Expr::Coerce { expr, .. }
+            | Expr::ForceThunk { thunk: expr, .. }
+            | Expr::MarkerFrame { body: expr, .. }
+            | Expr::Select { base: expr, .. } => {
+                self.visit_expr(program, *expr, context, active);
+            }
+            Expr::RefSet { reference, value } => {
+                self.visit_expr(program, *reference, context, active);
+                self.visit_expr(program, *value, context, active);
+            }
+            Expr::Tuple(items) => {
+                for item in items {
+                    self.visit_expr(program, *item, context, active);
+                }
+            }
+            Expr::Record { fields, spread } => {
+                for field in fields {
+                    self.visit_expr(program, field.value, context, active);
+                }
+                self.visit_spread(program, spread, context, active);
+            }
+            Expr::PolyVariant { payloads, .. } => {
+                for payload in payloads {
+                    self.visit_expr(program, *payload, context, active);
+                }
+            }
+            Expr::Case { scrutinee, arms } => {
+                self.visit_expr(program, *scrutinee, context, active);
+                for arm in arms {
+                    if let Some(guard) = arm.guard {
+                        self.visit_expr(program, guard, context, active);
+                    }
+                    self.visit_expr(program, arm.body, context, active);
+                }
+            }
+            Expr::Block(block) => self.visit_block(program, block, context, active),
+            Expr::Lambda { .. } | Expr::MakeThunk { .. } | Expr::FunctionAdapter { .. } => {}
+            Expr::Lit(_)
+            | Expr::PrimitiveOp { .. }
+            | Expr::Constructor { .. }
+            | Expr::EffectOp { .. }
+            | Expr::Local(_)
+            | Expr::InstanceRef(_) => {}
+        }
+        active.remove(&id);
+    }
+
+    fn visit_spread(
+        &mut self,
+        program: &Program,
+        spread: &RecordSpread<ExprId>,
+        context: &mut RequirementContext,
+        active: &mut HashSet<ExprId>,
+    ) {
+        match spread {
+            RecordSpread::None => {}
+            RecordSpread::Head(expr) | RecordSpread::Tail(expr) => {
+                self.visit_expr(program, *expr, context, active);
+            }
+        }
+    }
+
+    fn visit_block(
+        &mut self,
+        program: &Program,
+        block: &Block,
+        context: &mut RequirementContext,
+        active: &mut HashSet<ExprId>,
+    ) {
+        for stmt in &block.stmts {
+            self.visit_stmt(program, stmt, context, active);
+        }
+        if let Some(tail) = block.tail {
+            self.visit_expr(program, tail, context, active);
+        }
+    }
+
+    fn visit_stmt(
+        &mut self,
+        program: &Program,
+        stmt: &Stmt,
+        context: &mut RequirementContext,
+        active: &mut HashSet<ExprId>,
+    ) {
+        match stmt {
+            Stmt::Let(_, _, expr) | Stmt::Expr(expr) => {
+                self.visit_expr(program, *expr, context, active);
+            }
+            Stmt::Module(_, stmts) => {
+                for stmt in stmts {
+                    self.visit_stmt(program, stmt, context, active);
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct RequirementContext {
+    handled_paths: Vec<Vec<String>>,
+}
+
+impl RequirementContext {
+    fn handles(&self, path: &[String]) -> bool {
+        self.handled_paths
+            .iter()
+            .rev()
+            .any(|handled_path| handled_path == path)
+    }
+
+    fn with_handled_paths(&mut self, paths: &[Vec<String>], f: impl FnOnce(&mut Self)) {
+        let start = self.handled_paths.len();
+        self.handled_paths.extend(paths.iter().cloned());
+        f(self);
+        self.handled_paths.truncate(start);
+    }
+}
+
+fn effect_op_path(program: &Program, expr: ExprId) -> Option<&[String]> {
+    match control_expr(program, expr)? {
+        Expr::EffectOp { path } => Some(path),
+        _ => None,
+    }
+}
+
 fn instance_ref(program: &Program, expr: ExprId) -> Option<control_vm::InstanceId> {
     match control_expr(program, expr)? {
         Expr::InstanceRef(instance) => Some(*instance),
@@ -751,6 +1101,44 @@ fn format_functions(out: &mut String, functions: &[EvidenceVmFunctionPlan]) {
             format_u32_list(&function.fallback_exprs)
         )
         .unwrap();
+    }
+}
+
+fn format_value_envs(out: &mut String, values: &[EvidenceVmValueEnvPlan]) {
+    if values.is_empty() {
+        return;
+    }
+    writeln!(out, "values:").unwrap();
+    for value in values {
+        writeln!(
+            out,
+            "  e{} {} captures [{}]",
+            value.expr.0,
+            format_value_env_kind(&value.kind),
+            format_requirements(&value.captured_evidence)
+        )
+        .unwrap();
+    }
+}
+
+fn format_value_env_kind(kind: &EvidenceVmValueEnvKind) -> String {
+    match kind {
+        EvidenceVmValueEnvKind::Lambda { body } => format!("lambda body e{}", body.0),
+        EvidenceVmValueEnvKind::Thunk { body } => format!("thunk body e{}", body.0),
+        EvidenceVmValueEnvKind::FunctionAdapter {
+            function,
+            creates_callback_boundary,
+            body_marker_count,
+            arg_marker_count,
+            ret_marker_count,
+        } => format!(
+            "adapter function e{} callback_boundary={} markers body:{} arg:{} ret:{}",
+            function.0,
+            creates_callback_boundary,
+            body_marker_count,
+            arg_marker_count,
+            ret_marker_count
+        ),
     }
 }
 
