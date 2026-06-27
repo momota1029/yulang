@@ -372,6 +372,10 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
         "function and value object summaries should be visible in the plan:\n{stdout}"
     );
     assert!(
+        stdout.contains("call_objects:"),
+        "call object summary should be visible in the plan:\n{stdout}"
+    );
+    assert!(
         stdout.contains("evidence object graph:"),
         "evidence object graph should be visible in the plan:\n{stdout}"
     );

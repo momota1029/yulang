@@ -40,6 +40,7 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) evidence_object_slots: usize,
     pub(crate) evidence_function_objects: usize,
     pub(crate) evidence_value_objects: usize,
+    pub(crate) evidence_call_objects: usize,
     pub(crate) evidence_handler_objects: usize,
     pub(crate) evidence_operation_objects: usize,
     pub(crate) evidence_direct_candidates: usize,
@@ -178,6 +179,7 @@ pub(crate) struct EvidenceVmObjectPlan {
     pub(crate) slots: Vec<EvidenceVmSlotPlan>,
     pub(crate) functions: Vec<EvidenceVmFunctionObjectPlan>,
     pub(crate) values: Vec<EvidenceVmValueObjectPlan>,
+    pub(crate) calls: Vec<EvidenceVmCallObjectPlan>,
     pub(crate) handlers: Vec<EvidenceVmHandlerObjectPlan>,
     pub(crate) operations: Vec<EvidenceVmOperationObjectPlan>,
 }
@@ -203,6 +205,13 @@ pub(crate) struct EvidenceVmValueObjectPlan {
     pub(crate) expr: ExprId,
     pub(crate) kind: EvidenceVmValueEnvKind,
     pub(crate) captures: Vec<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmCallObjectPlan {
+    pub(crate) apply: ExprId,
+    pub(crate) callee_instance: u32,
+    pub(crate) required_slots: Vec<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -381,10 +390,11 @@ pub(crate) fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
-        "  evidence_object_slots: {} function_objects: {} value_objects: {} handler_objects: {} operation_objects: {} direct_candidates: {}",
+        "  evidence_object_slots: {} function_objects: {} value_objects: {} call_objects: {} handler_objects: {} operation_objects: {} direct_candidates: {}",
         summary.evidence_object_slots,
         summary.evidence_function_objects,
         summary.evidence_value_objects,
+        summary.evidence_call_objects,
         summary.evidence_handler_objects,
         summary.evidence_operation_objects,
         summary.evidence_direct_candidates
@@ -444,6 +454,7 @@ fn summarize_plan(
         evidence_object_slots: objects.slots.len(),
         evidence_function_objects: objects.functions.len(),
         evidence_value_objects: objects.values.len(),
+        evidence_call_objects: objects.calls.len(),
         evidence_handler_objects: objects.handlers.len(),
         evidence_operation_objects: objects.operations.len(),
         evidence_direct_candidates: objects
@@ -1183,8 +1194,9 @@ fn build_object_plan(
         })
         .collect::<Vec<_>>();
 
-    let functions = build_function_objects(functions, &slot_ids);
-    let values = build_value_objects(values, &slot_ids);
+    let function_objects = build_function_objects(functions, &slot_ids);
+    let value_objects = build_value_objects(values, &slot_ids);
+    let call_objects = build_call_objects(functions, &slot_ids);
     let handlers = build_handler_objects(handlers, &slot_ids);
     let handler_index = handlers
         .iter()
@@ -1194,8 +1206,9 @@ fn build_object_plan(
 
     EvidenceVmObjectPlan {
         slots: slot_plans,
-        functions,
-        values,
+        functions: function_objects,
+        values: value_objects,
+        calls: call_objects,
         handlers,
         operations,
     }
@@ -1258,6 +1271,21 @@ fn build_value_objects(
             expr: value.expr,
             kind: value.kind.clone(),
             captures: slot_ids_for_keys(&value.signature.captures, slot_ids),
+        })
+        .collect()
+}
+
+fn build_call_objects(
+    functions: &[EvidenceVmFunctionPlan],
+    slot_ids: &BTreeMap<EvidenceVmSlotKey, u32>,
+) -> Vec<EvidenceVmCallObjectPlan> {
+    functions
+        .iter()
+        .flat_map(|function| function.calls_needing_evidence.iter())
+        .map(|call| EvidenceVmCallObjectPlan {
+            apply: call.apply,
+            callee_instance: call.callee_instance,
+            required_slots: slot_ids_for_keys(&call.required_evidence_slots, slot_ids),
         })
         .collect()
 }
@@ -1732,6 +1760,7 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
     if objects.slots.is_empty()
         && objects.functions.is_empty()
         && objects.values.is_empty()
+        && objects.calls.is_empty()
         && objects.handlers.is_empty()
         && objects.operations.is_empty()
     {
@@ -1769,6 +1798,19 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
                 value.expr.0,
                 format_value_env_kind(&value.kind),
                 format_u32_list_with_prefix("s", &value.captures)
+            )
+            .unwrap();
+        }
+    }
+    if !objects.calls.is_empty() {
+        writeln!(out, "  call-objects:").unwrap();
+        for call in &objects.calls {
+            writeln!(
+                out,
+                "    e{} -> i{} evidence [{}]",
+                call.apply.0,
+                call.callee_instance,
+                format_u32_list_with_prefix("s", &call.required_slots)
             )
             .unwrap();
         }
