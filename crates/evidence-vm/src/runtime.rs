@@ -251,6 +251,7 @@ enum RuntimeEvidenceThunk {
         path: Vec<String>,
         payload: SharedValue,
         route: EvidenceEffectRoute,
+        evidence: EffectThunkEvidence,
     },
     Continuation {
         continuation: EvidenceContinuation,
@@ -448,6 +449,27 @@ enum EvidenceRefSetFinish {
 enum EvidenceRefSetResumeMode {
     Result,
     ValueResult,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceRouteOrigin {
+    StaticDirect,
+    ProviderGrant {
+        demand_slot_id: u32,
+        provider_slot_id: u32,
+        handler_id: u32,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EffectThunkEvidence {
+    route_origin: Option<EvidenceRouteOrigin>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceResolvedEffectRoute {
+    route: EvidenceEffectRoute,
+    origin: Option<EvidenceRouteOrigin>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1667,33 +1689,42 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         site: Option<ExprId>,
         callee: ExprId,
-    ) -> EvidenceEffectRoute {
+    ) -> EvidenceResolvedEffectRoute {
         let Some(site) = site else {
-            return EvidenceEffectRoute::Unhandled;
+            return EvidenceResolvedEffectRoute {
+                route: EvidenceEffectRoute::Unhandled,
+                origin: None,
+            };
         };
         let route = self
             .evidence
             .effect_call_route(site, callee)
             .unwrap_or(EvidenceEffectRoute::Unhandled);
+        let resolved = EvidenceResolvedEffectRoute {
+            route,
+            origin: route
+                .is_direct()
+                .then_some(EvidenceRouteOrigin::StaticDirect),
+        };
         if route.is_direct() {
-            return route;
+            return resolved;
         }
         if self.active_provider_envs.is_empty() {
-            return route;
+            return resolved;
         }
         if !self.context.has_provider_lookup_for_call(site, callee) {
-            return route;
+            return resolved;
         }
         let provider_envs = self.active_provider_env_values();
         if provider_envs.is_empty() {
-            return route;
+            return resolved;
         }
         self.stats.runtime_provider_env_route_lookups += 1;
         let Some(provider_route) =
             self.context
                 .provider_route_for_call(site, callee, &provider_envs)
         else {
-            return route;
+            return resolved;
         };
         self.stats.runtime_provider_env_route_hits += 1;
         provider_route
@@ -3382,12 +3413,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 ),
             },
             RuntimeEvidenceValue::EffectOp { expr, path } => {
-                let route = self.effect_route_for_operation_call(site, *expr);
+                let resolved_route = self.effect_route_for_operation_call(site, *expr);
+                let evidence = EffectThunkEvidence {
+                    route_origin: resolved_route.origin,
+                };
                 Ok(EvidenceEvalResult::Value(shared(
                     RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Effect {
                         path: path.clone(),
                         payload: arg,
-                        route,
+                        route: resolved_route.route,
+                        evidence,
                     })),
                 )))
             }
@@ -4924,8 +4959,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     path,
                     payload,
                     route,
+                    evidence,
                 } => {
                     self.stats.thunk_force_effect += 1;
+                    let _ = evidence.route_origin;
                     if let EvidenceEffectRoute::Direct {
                         handler,
                         execution: EvidenceVmOperationExecutionPlan::DirectAbortive,
