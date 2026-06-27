@@ -2118,6 +2118,58 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         )
     }
 
+    fn resume_marker_frame(
+        &mut self,
+        markers: Rc<[EvidenceValueMarker]>,
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
+        next: EvidenceContinuation,
+        value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if markers.is_empty() {
+            return self.resume_continuation(next, value);
+        }
+        if next.is_identity() {
+            self.stats.continuation_resume_marker_identity_fast_paths += 1;
+            return Ok(EvidenceEvalResult::Value(mark_runtime_value_shared(
+                value, markers,
+            )));
+        }
+        self.record_marker_frame_entry(
+            EvidenceMarkerFrameSource::ContinuationResume,
+            markers.len(),
+        );
+
+        let frame_len = self.active_frames.len();
+        let handler_frame_len = self.active_handler_frames.len();
+        let add_id_len = self.active_add_ids.len();
+        let plan_len = self.active_marker_plans.len();
+        self.push_marker_frame(&markers, activate_add_ids, handler_path.clone());
+        self.push_active_marker_plan(markers.clone());
+        let result = self.resume_continuation(next, value);
+        let handler_boundary = match &result {
+            Ok(EvidenceEvalResult::Request(request)) => {
+                self.handler_boundary_for_request(request, handler_path.as_deref(), frame_len)
+            }
+            Ok(EvidenceEvalResult::RoutedYield(call)) => {
+                self.handler_boundary_for_request(&call.request, handler_path.as_deref(), frame_len)
+            }
+            Ok(EvidenceEvalResult::Value(_))
+            | Ok(EvidenceEvalResult::DirectAbortive(_))
+            | Ok(EvidenceEvalResult::DirectTailResumptive(_))
+            | Err(_) => None,
+        };
+        self.pop_marker_frame(frame_len, handler_frame_len, add_id_len, plan_len);
+
+        self.close_marker_frame_result(
+            result?,
+            markers,
+            activate_add_ids,
+            handler_path,
+            handler_boundary,
+        )
+    }
+
     fn record_marker_frame_entry(
         &mut self,
         source: EvidenceMarkerFrameSource,
@@ -3992,21 +4044,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 activate_add_ids,
                 handler_path,
                 next,
-            } => {
-                if next.is_identity() {
-                    self.stats.continuation_resume_marker_identity_fast_paths += 1;
-                    return Ok(EvidenceEvalResult::Value(mark_runtime_value_shared(
-                        value, markers,
-                    )));
-                }
-                self.with_marker_frame(
-                    EvidenceMarkerFrameSource::ContinuationResume,
-                    markers,
-                    activate_add_ids,
-                    handler_path,
-                    |runner| runner.resume_continuation(next, value),
-                )
-            }
+            } => self.resume_marker_frame(markers, activate_add_ids, handler_path, next, value),
             EvidenceContinuationFrame::ProviderEnv { provider_env, next } => self
                 .with_provider_env(provider_env, |runner| {
                     runner.resume_continuation(next, value)
