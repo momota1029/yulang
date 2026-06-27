@@ -731,10 +731,19 @@ struct EvidenceDirectAbortive {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+struct EvidenceDirectTailResumptive {
+    handler: ExprId,
+    path: Vec<String>,
+    payload: SharedValue,
+    continuation: EvidenceContinuation,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 enum EvidenceEvalResult {
     Value(SharedValue),
     Request(EvidenceRequest),
     DirectAbortive(EvidenceDirectAbortive),
+    DirectTailResumptive(EvidenceDirectTailResumptive),
 }
 
 type SharedValue = Rc<RuntimeEvidenceValue>;
@@ -1568,6 +1577,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
+            EvidenceEvalResult::DirectTailResumptive(call) => {
+                Ok(EvidenceEvalResult::DirectTailResumptive(
+                    self.close_provider_direct_tail(call, provider_env),
+                ))
+            }
             EvidenceEvalResult::Request(mut request) => {
                 if !request.route.is_direct_abortive() {
                     request.continuation =
@@ -1576,6 +1590,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 Ok(EvidenceEvalResult::Request(request))
             }
         }
+    }
+
+    fn close_provider_direct_tail(
+        &mut self,
+        mut call: EvidenceDirectTailResumptive,
+        provider_env: RuntimeEvidenceProviderEnv,
+    ) -> EvidenceDirectTailResumptive {
+        if provider_env.is_empty() {
+            return call;
+        }
+        call.continuation = EvidenceContinuation::provider_env(provider_env, call.continuation);
+        call
     }
 
     fn active_provider_env_values(&self) -> Vec<RuntimeEvidenceProviderEnv> {
@@ -1639,6 +1665,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         request.append_continuation(tail, &mut self.stats)
     }
 
+    fn append_direct_tail_continuation(
+        &mut self,
+        mut call: EvidenceDirectTailResumptive,
+        tail: EvidenceContinuation,
+    ) -> EvidenceDirectTailResumptive {
+        self.stats.continuation_appends += 1;
+        call.continuation = call.continuation.then_counted(tail, &mut self.stats);
+        call
+    }
+
     fn fresh_guard_id(&mut self) -> EvidenceGuardId {
         let id = EvidenceGuardId(self.next_guard_id);
         self.next_guard_id += 1;
@@ -1689,6 +1725,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             Ok(EvidenceEvalResult::Value(_))
             | Ok(EvidenceEvalResult::DirectAbortive(_))
+            | Ok(EvidenceEvalResult::DirectTailResumptive(_))
             | Err(_) => None,
         };
         self.pop_marker_frame(frame_len, handler_frame_len, add_id_len, plan_len);
@@ -1796,6 +1833,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
+            EvidenceEvalResult::DirectTailResumptive(call) => {
+                self.close_marker_direct_tail(call, markers, activate_add_ids, handler_path)
+            }
             EvidenceEvalResult::Request(mut request) => {
                 if let Some(handler_boundary) = handler_boundary {
                     request.handler_boundary = Some(handler_boundary);
@@ -1831,6 +1871,26 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             request.continuation,
         );
         Ok(EvidenceEvalResult::Request(request))
+    }
+
+    fn close_marker_direct_tail(
+        &mut self,
+        mut call: EvidenceDirectTailResumptive,
+        markers: Rc<[EvidenceValueMarker]>,
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        call.payload = mark_runtime_value_shared(call.payload, markers.clone());
+        let resume_markers = markers_for_continuation_resume(&markers);
+        if !resume_markers.is_empty() {
+            call.continuation = EvidenceContinuation::marker_frame(
+                share_marker_vec(resume_markers),
+                activate_add_ids,
+                handler_path,
+                call.continuation,
+            );
+        }
+        Ok(EvidenceEvalResult::DirectTailResumptive(call))
     }
 
     fn mark_request_with_active_markers(&mut self, request: &mut EvidenceRequest) {
@@ -2118,6 +2178,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
+            EvidenceEvalResult::DirectTailResumptive(call) => {
+                self.close_marker_direct_tail(call, share_marker_vec(markers.to_vec()), true, None)
+            }
             EvidenceEvalResult::Request(request) => self.close_marker_request(
                 request,
                 markers_for_continuation_resume(markers),
@@ -2142,6 +2205,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             )),
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
+            }
+            EvidenceEvalResult::DirectTailResumptive(call) => {
+                self.close_marker_direct_tail(call, share_marker_vec(markers.to_vec()), true, None)
             }
             EvidenceEvalResult::Request(request) => {
                 self.close_marked_result(EvidenceEvalResult::Request(request), markers)
@@ -2192,6 +2258,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     result = self.handle_escaped_request(request)?;
                 }
                 EvidenceEvalResult::DirectAbortive(call) => {
+                    return Err(RuntimeEvidenceRunError::EscapedEffect(call.path));
+                }
+                EvidenceEvalResult::DirectTailResumptive(call) => {
                     return Err(RuntimeEvidenceRunError::EscapedEffect(call.path));
                 }
             }
@@ -2303,6 +2372,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     EvidenceEvalResult::DirectAbortive(call) => {
                         Ok(EvidenceEvalResult::DirectAbortive(call))
                     }
+                    EvidenceEvalResult::DirectTailResumptive(call) => self.continue_result(
+                        EvidenceEvalResult::DirectTailResumptive(call),
+                        EvidenceContinuation::adapt_value(
+                            source,
+                            target,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
                 };
             }
             RuntimeEvidenceExpr::ForceThunk {
@@ -2326,6 +2403,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     EvidenceEvalResult::DirectAbortive(call) => {
                         Ok(EvidenceEvalResult::DirectAbortive(call))
                     }
+                    EvidenceEvalResult::DirectTailResumptive(call) => self.continue_result(
+                        EvidenceEvalResult::DirectTailResumptive(call),
+                        EvidenceContinuation::force_thunk(
+                            target_value_is_thunk,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
                 };
             }
             RuntimeEvidenceExpr::MarkerFrame { path, body } => {
@@ -2387,6 +2471,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     EvidenceEvalResult::DirectAbortive(call) => {
                         Ok(EvidenceEvalResult::DirectAbortive(call))
                     }
+                    EvidenceEvalResult::DirectTailResumptive(call) => {
+                        let env = self.clone_env(env);
+                        self.continue_result(
+                            EvidenceEvalResult::DirectTailResumptive(call),
+                            EvidenceContinuation::case_scrutinee(
+                                arms,
+                                env,
+                                EvidenceContinuation::identity(),
+                            ),
+                        )
+                    }
                 };
             }
             RuntimeEvidenceExpr::Catch { expr, body } => return self.eval_catch(expr, body, env),
@@ -2439,6 +2534,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
+            EvidenceEvalResult::DirectTailResumptive(call) => {
+                let env = self.clone_env(env);
+                self.continue_result(
+                    EvidenceEvalResult::DirectTailResumptive(call),
+                    EvidenceContinuation::apply_callee(
+                        site,
+                        arg_expr,
+                        env,
+                        EvidenceContinuation::identity(),
+                    ),
+                )
+            }
         }
     }
 
@@ -2461,6 +2568,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
+            EvidenceEvalResult::DirectTailResumptive(call) => self.continue_result(
+                EvidenceEvalResult::DirectTailResumptive(call),
+                EvidenceContinuation::apply_arg(site, callee, EvidenceContinuation::identity()),
+            ),
         }
     }
 
@@ -2512,6 +2623,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
+            EvidenceEvalResult::DirectTailResumptive(call) => {
+                Ok(EvidenceEvalResult::DirectTailResumptive(call))
+            }
         }
     }
 
@@ -2541,6 +2655,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
+            }
+            EvidenceEvalResult::DirectTailResumptive(call) => {
+                Ok(EvidenceEvalResult::DirectTailResumptive(call))
             }
         }
     }
@@ -2673,6 +2790,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceEvalResult::DirectAbortive(call) => {
                     return Ok(EvidenceEvalResult::DirectAbortive(call));
                 }
+                EvidenceEvalResult::DirectTailResumptive(call) => {
+                    let rest = shared_expr_ids(&items[index + 1..]);
+                    let env = self.clone_env(env);
+                    return self.continue_result(
+                        EvidenceEvalResult::DirectTailResumptive(call),
+                        EvidenceContinuation::tuple_items(
+                            values,
+                            rest,
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    );
+                }
             }
         }
         Ok(EvidenceEvalResult::Value(shared(
@@ -2705,6 +2835,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
                 EvidenceEvalResult::DirectAbortive(call) => {
                     return Ok(EvidenceEvalResult::DirectAbortive(call));
+                }
+                EvidenceEvalResult::DirectTailResumptive(call) => {
+                    let env = self.clone_env(env);
+                    return self.continue_result(
+                        EvidenceEvalResult::DirectTailResumptive(call),
+                        EvidenceContinuation::record_spread(
+                            shared_record_fields(fields),
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    );
                 }
             },
             RecordSpread::Tail(_) => {
@@ -2746,6 +2887,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceEvalResult::DirectAbortive(call) => {
                     return Ok(EvidenceEvalResult::DirectAbortive(call));
                 }
+                EvidenceEvalResult::DirectTailResumptive(call) => {
+                    let rest = shared_record_fields(&fields[index..]);
+                    let env = self.clone_env(env);
+                    return self.continue_result(
+                        EvidenceEvalResult::DirectTailResumptive(call),
+                        EvidenceContinuation::record_fields(
+                            values,
+                            rest,
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    );
+                }
             }
         }
         Ok(EvidenceEvalResult::Value(shared(
@@ -2782,6 +2936,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceEvalResult::DirectAbortive(call) => {
                     return Ok(EvidenceEvalResult::DirectAbortive(call));
                 }
+                EvidenceEvalResult::DirectTailResumptive(call) => {
+                    let rest = shared_expr_ids(&payloads[index + 1..]);
+                    let env = self.clone_env(env);
+                    return self.continue_result(
+                        EvidenceEvalResult::DirectTailResumptive(call),
+                        EvidenceContinuation::poly_variant_payloads(
+                            tag,
+                            values,
+                            rest,
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    );
+                }
             }
         }
         Ok(EvidenceEvalResult::Value(shared(
@@ -2816,6 +2984,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
+            EvidenceEvalResult::DirectTailResumptive(call) => self.continue_result(
+                EvidenceEvalResult::DirectTailResumptive(call),
+                EvidenceContinuation::select_base(
+                    name.to_string(),
+                    resolution.clone(),
+                    EvidenceContinuation::identity(),
+                ),
+            ),
         }
     }
 
@@ -2964,6 +3140,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceEvalResult::DirectAbortive(call) => {
                     Ok(EvidenceEvalResult::DirectAbortive(call))
                 }
+                EvidenceEvalResult::DirectTailResumptive(call) => self.continue_result(
+                    EvidenceEvalResult::DirectTailResumptive(call),
+                    EvidenceContinuation::apply_forced_callee(
+                        site,
+                        arg,
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
             },
             RuntimeEvidenceValue::EffectOp { expr, path } => {
                 let route = self.effect_route_for_operation_call(site, *expr);
@@ -3463,6 +3647,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 self.continue_direct_abortive_with_continuation(call, continuation)
             }
+            EvidenceEvalResult::DirectTailResumptive(call) => {
+                self.continue_direct_tail_resumptive_with_continuation(call, continuation)
+            }
         }
     }
 
@@ -3529,6 +3716,459 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.continue_direct_abortive_with_continuation(call, next.clone())
             }
         }
+    }
+
+    fn continue_direct_tail_resumptive_with_continuation(
+        &mut self,
+        call: EvidenceDirectTailResumptive,
+        continuation: EvidenceContinuation,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if continuation.is_identity() {
+            return Ok(EvidenceEvalResult::DirectTailResumptive(call));
+        }
+        let frame = continuation
+            .frame()
+            .expect("non-identity continuation must have a frame");
+        let (call, next) = match frame {
+            EvidenceContinuationFrame::Then { first, second } => {
+                let result =
+                    self.continue_direct_tail_resumptive_with_continuation(call, first.clone())?;
+                return self.continue_result(result, second.clone());
+            }
+            EvidenceContinuationFrame::ForceThunk {
+                target_value_is_thunk,
+                next,
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::force_thunk(
+                        *target_value_is_thunk,
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ForceValueIfThunk { next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ApplyCallee {
+                site,
+                arg,
+                env,
+                next,
+            } => {
+                let env = self.clone_env(env);
+                (
+                    self.append_direct_tail_continuation(
+                        call,
+                        EvidenceContinuation::apply_callee(
+                            *site,
+                            *arg,
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                    next.clone(),
+                )
+            }
+            EvidenceContinuationFrame::ApplyArg { site, callee, next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::apply_arg(
+                        *site,
+                        callee.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ApplyForcedCallee { site, arg, next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::apply_forced_callee(
+                        *site,
+                        arg.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::AdaptValue {
+                source,
+                target,
+                next,
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::adapt_value(
+                        source.clone(),
+                        target.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::WrapThunkValue { next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::wrap_thunk_value(EvidenceContinuation::identity()),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ApplyAdapterArg {
+                function,
+                ret_markers,
+                source_ret,
+                target_ret,
+                next,
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::apply_adapter_arg(
+                        function.clone(),
+                        ret_markers.clone(),
+                        source_ret.clone(),
+                        target_ret.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ApplyAdapterResult {
+                ret_markers,
+                source_ret,
+                target_ret,
+                next,
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::apply_adapter_result(
+                        ret_markers.clone(),
+                        source_ret.clone(),
+                        target_ret.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::CaseScrutinee { arms, env, next } => {
+                let env = self.clone_env(env);
+                (
+                    self.append_direct_tail_continuation(
+                        call,
+                        EvidenceContinuation::case_scrutinee(
+                            arms.clone(),
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                    next.clone(),
+                )
+            }
+            EvidenceContinuationFrame::CatchBody {
+                catch_expr,
+                arms,
+                env,
+                next,
+            } => {
+                if call.handler == *catch_expr {
+                    let result = self.eval_direct_tail_resumptive_arm(call, arms, env)?;
+                    return self.continue_result(result, next.clone());
+                }
+                let env = self.clone_env(env);
+                (
+                    self.append_direct_tail_continuation(
+                        call,
+                        EvidenceContinuation::catch_body(
+                            *catch_expr,
+                            arms.clone(),
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                    next.clone(),
+                )
+            }
+            EvidenceContinuationFrame::MarkerFrame {
+                markers,
+                activate_add_ids,
+                handler_path,
+                next,
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::marker_frame(
+                        markers.clone(),
+                        *activate_add_ids,
+                        handler_path.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ProviderEnv { provider_env, next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::provider_env(
+                        provider_env.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::TupleItems {
+                values,
+                rest,
+                env,
+                next,
+            } => {
+                let env = self.clone_env(env);
+                (
+                    self.append_direct_tail_continuation(
+                        call,
+                        EvidenceContinuation::tuple_items(
+                            values.clone(),
+                            rest.clone(),
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                    next.clone(),
+                )
+            }
+            EvidenceContinuationFrame::RecordSpread { fields, env, next } => {
+                let env = self.clone_env(env);
+                (
+                    self.append_direct_tail_continuation(
+                        call,
+                        EvidenceContinuation::record_spread(
+                            fields.clone(),
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                    next.clone(),
+                )
+            }
+            EvidenceContinuationFrame::RecordFields {
+                values,
+                rest,
+                env,
+                next,
+            } => {
+                let env = self.clone_env(env);
+                (
+                    self.append_direct_tail_continuation(
+                        call,
+                        EvidenceContinuation::record_fields(
+                            values.clone(),
+                            rest.clone(),
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                    next.clone(),
+                )
+            }
+            EvidenceContinuationFrame::PolyVariantPayloads {
+                tag,
+                values,
+                rest,
+                env,
+                next,
+            } => {
+                let env = self.clone_env(env);
+                (
+                    self.append_direct_tail_continuation(
+                        call,
+                        EvidenceContinuation::poly_variant_payloads(
+                            tag.clone(),
+                            values.clone(),
+                            rest.clone(),
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                    next.clone(),
+                )
+            }
+            EvidenceContinuationFrame::SelectBase {
+                name,
+                resolution,
+                next,
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::select_base(
+                        name.clone(),
+                        resolution.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::BlockStmt {
+                resume,
+                rest,
+                tail,
+                env,
+                last,
+                next,
+            } => {
+                let env = self.clone_env(env);
+                (
+                    self.append_direct_tail_continuation(
+                        call,
+                        EvidenceContinuation::block_stmt(
+                            resume.clone(),
+                            rest.clone(),
+                            *tail,
+                            env,
+                            last.clone(),
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                    next.clone(),
+                )
+            }
+            EvidenceContinuationFrame::RefSetReference { value, env, next } => {
+                let env = self.clone_env(env);
+                (
+                    self.append_direct_tail_continuation(
+                        call,
+                        EvidenceContinuation::ref_set_reference(
+                            *value,
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                    next.clone(),
+                )
+            }
+            EvidenceContinuationFrame::RefSetForcedReference { value, env, next } => {
+                let env = self.clone_env(env);
+                (
+                    self.append_direct_tail_continuation(
+                        call,
+                        EvidenceContinuation::ref_set_forced_reference(
+                            *value,
+                            env,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                    next.clone(),
+                )
+            }
+            EvidenceContinuationFrame::RefSetValue { reference, next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::ref_set_value(
+                        reference.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::RefSetForcedValue { reference, next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::ref_set_forced_value(
+                        reference.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::RefSetResolvedUnit { next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::ref_set_resolved_unit(EvidenceContinuation::identity()),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::RefSetHandleResult { assigned, next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::ref_set_handle_result(
+                        assigned.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::RefSetHandleValueResult { assigned, next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::ref_set_handle_value_result(
+                        assigned.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::RefSetEmitResolvedRequest {
+                request,
+                assigned,
+                mode,
+                next,
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::ref_set_emit_resolved_request(
+                        request.clone(),
+                        assigned.clone(),
+                        *mode,
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ResolveRefSetValues {
+                values,
+                assigned,
+                out,
+                index,
+                finish,
+                next,
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::resolve_ref_set_values(
+                        values.clone(),
+                        assigned.clone(),
+                        out.clone(),
+                        *index,
+                        finish.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ResolveRefSetFields {
+                fields,
+                assigned,
+                out,
+                index,
+                next,
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::resolve_ref_set_fields(
+                        fields.clone(),
+                        assigned.clone(),
+                        out.clone(),
+                        *index,
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+                next.clone(),
+            ),
+        };
+        self.continue_direct_tail_resumptive_with_continuation(call, next)
     }
 
     fn continue_request_with_continuation(
@@ -4018,6 +4658,21 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             payload: payload.clone(),
                         }));
                     }
+                    if let EvidenceEffectRoute::Direct {
+                        handler,
+                        execution: EvidenceVmOperationExecutionPlan::DirectTailResumptive,
+                        ..
+                    } = route
+                    {
+                        return Ok(EvidenceEvalResult::DirectTailResumptive(
+                            EvidenceDirectTailResumptive {
+                                handler: *handler,
+                                path: path.clone(),
+                                payload: payload.clone(),
+                                continuation: EvidenceContinuation::identity(),
+                            },
+                        ));
+                    }
                     let mut request = EvidenceRequest {
                         path: path.clone(),
                         payload: payload.clone(),
@@ -4097,6 +4752,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     self.eval_direct_abortive_arm(call, &arms, env)
                 } else {
                     Ok(EvidenceEvalResult::DirectAbortive(call))
+                }
+            }
+            EvidenceEvalResult::DirectTailResumptive(call) => {
+                if call.handler == catch_expr {
+                    self.eval_direct_tail_resumptive_arm(call, &arms, env)
+                } else {
+                    Ok(EvidenceEvalResult::DirectTailResumptive(call))
                 }
             }
             EvidenceEvalResult::Request(request) => match request.route {
@@ -4257,6 +4919,39 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         Ok(EvidenceEvalResult::DirectAbortive(call))
     }
 
+    fn eval_direct_tail_resumptive_arm(
+        &mut self,
+        call: EvidenceDirectTailResumptive,
+        arms: &[control_vm::CatchArm],
+        env: &Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        for arm in arms {
+            if arm.operation_path.as_ref() != Some(&call.path) {
+                continue;
+            }
+            let mut arm_env = self.clone_env(env);
+            if !self.bind_pat_matches(&arm.pat, call.payload.clone(), &mut arm_env)? {
+                continue;
+            }
+            if let Some(continuation_pat) = &arm.continuation
+                && !self.bind_pat_matches(
+                    continuation_pat,
+                    shared(RuntimeEvidenceValue::Continuation(
+                        call.continuation.clone(),
+                    )),
+                    &mut arm_env,
+                )?
+            {
+                continue;
+            }
+            if !self.arm_guard_matches(arm.guard, &mut arm_env)? {
+                continue;
+            }
+            return self.eval_handler_body_result(arm.body, &mut arm_env);
+        }
+        Ok(EvidenceEvalResult::DirectTailResumptive(call))
+    }
+
     fn bind_pat_matches(
         &mut self,
         pat: &Pat,
@@ -4296,6 +4991,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(request)),
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
+            }
+            EvidenceEvalResult::DirectTailResumptive(call) => {
+                Ok(EvidenceEvalResult::DirectTailResumptive(call))
             }
         }
     }
@@ -4354,6 +5052,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
+            EvidenceEvalResult::DirectTailResumptive(call) => {
+                Ok(EvidenceEvalResult::DirectTailResumptive(call))
+            }
         }
     }
 
@@ -4404,6 +5105,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     EvidenceEvalResult::DirectAbortive(call) => {
                         return Ok(EvidenceEvalResult::DirectAbortive(call));
                     }
+                    EvidenceEvalResult::DirectTailResumptive(call) => {
+                        let env = self.clone_env(env);
+                        return self.continue_result(
+                            EvidenceEvalResult::DirectTailResumptive(call),
+                            EvidenceContinuation::block_stmt(
+                                EvidenceBlockResume::Let(pat.clone()),
+                                shared_stmts(rest),
+                                tail,
+                                env,
+                                last,
+                                EvidenceContinuation::identity(),
+                            ),
+                        );
+                    }
                 },
                 Stmt::Expr(expr) => match self.eval_expr_result(*expr, env)? {
                     EvidenceEvalResult::Value(value) => last = value,
@@ -4425,6 +5140,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     }
                     EvidenceEvalResult::DirectAbortive(call) => {
                         return Ok(EvidenceEvalResult::DirectAbortive(call));
+                    }
+                    EvidenceEvalResult::DirectTailResumptive(call) => {
+                        let env = self.clone_env(env);
+                        return self.continue_result(
+                            EvidenceEvalResult::DirectTailResumptive(call),
+                            EvidenceContinuation::block_stmt(
+                                EvidenceBlockResume::Expr,
+                                shared_stmts(rest),
+                                tail,
+                                env,
+                                last,
+                                EvidenceContinuation::identity(),
+                            ),
+                        );
                     }
                 },
                 Stmt::Module(_, module_stmts) => {
@@ -4452,6 +5181,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         }
                         EvidenceEvalResult::DirectAbortive(call) => {
                             return Ok(EvidenceEvalResult::DirectAbortive(call));
+                        }
+                        EvidenceEvalResult::DirectTailResumptive(call) => {
+                            let env = self.clone_env(env);
+                            return self.continue_result(
+                                EvidenceEvalResult::DirectTailResumptive(call),
+                                EvidenceContinuation::block_stmt(
+                                    EvidenceBlockResume::Expr,
+                                    shared_stmts(rest),
+                                    tail,
+                                    env,
+                                    last,
+                                    EvidenceContinuation::identity(),
+                                ),
+                            );
                         }
                     }
                 }

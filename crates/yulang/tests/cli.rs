@@ -1130,6 +1130,14 @@ fn debug_runtime_evidence_run_resumes_direct_effect_in_apply_argument() {
         stdout.contains("control_evidence.direct_effect_calls: 1"),
         "{stdout}"
     );
+    assert!(
+        stdout.contains("evidence.plan_direct_tail_resumptive_effect_routes: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.request_continuation_steps: 0"),
+        "{stdout}"
+    );
     assert!(stdout.contains("run roots [true]\n"), "{stdout}");
 }
 
