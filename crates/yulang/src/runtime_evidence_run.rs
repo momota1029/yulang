@@ -94,7 +94,7 @@ enum RuntimeEvidenceValue {
     },
     Marked {
         value: SharedValue,
-        markers: Vec<Vec<String>>,
+        markers: Vec<EvidenceValueMarker>,
     },
     Closure(Rc<RuntimeEvidenceClosure>),
     RecursiveClosure {
@@ -188,13 +188,13 @@ enum EvidenceContinuationFrame {
     },
     ApplyAdapterArg {
         function: SharedValue,
-        ret_markers: Vec<Vec<String>>,
+        ret_markers: Vec<EvidenceValueMarker>,
         source_ret: Type,
         target_ret: Type,
         next: EvidenceContinuation,
     },
     ApplyAdapterResult {
-        ret_markers: Vec<Vec<String>>,
+        ret_markers: Vec<EvidenceValueMarker>,
         source_ret: Type,
         target_ret: Type,
         next: EvidenceContinuation,
@@ -211,7 +211,9 @@ enum EvidenceContinuationFrame {
         next: EvidenceContinuation,
     },
     MarkerFrame {
-        path: Vec<String>,
+        markers: Vec<EvidenceValueMarker>,
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
         next: EvidenceContinuation,
     },
     TupleItems {
@@ -329,12 +331,71 @@ enum EvidenceEffectRoute {
     Unhandled,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct EvidenceGuardId(u32);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum EvidenceValueMarker {
+    Frame { id: EvidenceGuardId },
+    AddId(EvidenceAddIdMarker),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct EvidenceAddIdMarker {
+    id: EvidenceGuardId,
+    path: Vec<String>,
+    depth: u32,
+    guard_own_path: bool,
+    guard_foreign_path: bool,
+    carry_after_frame: bool,
+    preserve_own_on_resume: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceActiveFrame {
+    id: EvidenceGuardId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EvidenceActiveHandlerFrame {
+    frame_index: usize,
+    id: EvidenceGuardId,
+    path: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EvidenceActiveAddIdMarker {
+    marker: EvidenceAddIdMarker,
+    entry_frame_len: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EvidenceCarriedGuard {
+    id: EvidenceGuardId,
+    entry_frame_len: usize,
+    exposed_guard_ids: Vec<EvidenceGuardId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EvidenceHandlerBoundary {
+    id: EvidenceGuardId,
+    path: Vec<String>,
+    blocked: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceGuardSkip {
+    Preserve(EvidenceGuardId),
+}
+
 #[derive(Debug, Clone, PartialEq)]
 struct EvidenceRequest {
     path: Vec<String>,
     payload: SharedValue,
     route: EvidenceEffectRoute,
-    visible_markers: Vec<Vec<String>>,
+    guard_ids: Vec<EvidenceGuardId>,
+    carried_guards: Vec<EvidenceCarriedGuard>,
+    handler_boundary: Option<EvidenceHandlerBoundary>,
     continuation: EvidenceContinuation,
 }
 
@@ -410,7 +471,7 @@ impl EvidenceContinuation {
 
     fn apply_adapter_arg(
         function: SharedValue,
-        ret_markers: Vec<Vec<String>>,
+        ret_markers: Vec<EvidenceValueMarker>,
         source_ret: Type,
         target_ret: Type,
         next: Self,
@@ -425,7 +486,7 @@ impl EvidenceContinuation {
     }
 
     fn apply_adapter_result(
-        ret_markers: Vec<Vec<String>>,
+        ret_markers: Vec<EvidenceValueMarker>,
         source_ret: Type,
         target_ret: Type,
         next: Self,
@@ -460,9 +521,16 @@ impl EvidenceContinuation {
         }))
     }
 
-    fn marker_frame(path: Vec<String>, next: Self) -> Self {
+    fn marker_frame(
+        markers: Vec<EvidenceValueMarker>,
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
+        next: Self,
+    ) -> Self {
         Self(Rc::new(EvidenceContinuationFrame::MarkerFrame {
-            path,
+            markers,
+            activate_add_ids,
+            handler_path,
             next,
         }))
     }
@@ -669,35 +737,8 @@ impl EvidenceRequest {
         self
     }
 
-    fn add_visible_marker(&mut self, marker: &[String]) {
-        if path_is_prefix(marker, &self.path)
-            && !self
-                .visible_markers
-                .iter()
-                .any(|existing| existing == marker)
-        {
-            self.visible_markers.push(marker.to_vec());
-        }
-    }
-
-    fn with_visible_marker(mut self, marker: &[String]) -> Self {
-        self.add_visible_marker(marker);
-        self
-    }
-
-    fn with_visible_markers(mut self, markers: &[Vec<String>]) -> Self {
-        for marker in markers {
-            self.add_visible_marker(marker);
-        }
-        self
-    }
-
-    fn is_visible_to(&self, operation_path: &[String]) -> bool {
-        operation_path == self.path
-            && self
-                .visible_markers
-                .iter()
-                .any(|marker| path_is_prefix(marker, operation_path))
+    fn push_guard_id(&mut self, id: EvidenceGuardId) -> bool {
+        push_unique_guard(&mut self.guard_ids, id)
     }
 }
 
@@ -831,6 +872,11 @@ struct RuntimeEvidenceRunner<'a> {
     evidence: ControlEvidenceIndex,
     instances: HashMap<InstanceId, SharedValue>,
     evaluating_instances: HashSet<InstanceId>,
+    next_guard_id: u32,
+    active_frames: Vec<EvidenceActiveFrame>,
+    active_handler_frames: Vec<EvidenceActiveHandlerFrame>,
+    active_add_ids: Vec<EvidenceActiveAddIdMarker>,
+    active_marker_plans: Vec<Vec<EvidenceValueMarker>>,
     stdout: String,
     stats: RuntimeEvidenceRunStats,
 }
@@ -844,6 +890,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             evidence,
             instances: HashMap::new(),
             evaluating_instances: HashSet::new(),
+            next_guard_id: 0,
+            active_frames: Vec::new(),
+            active_handler_frames: Vec::new(),
+            active_add_ids: Vec::new(),
+            active_marker_plans: Vec::new(),
             stdout: String::new(),
             stats,
         }
@@ -883,38 +934,460 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         request.append_continuation(tail, &mut self.stats)
     }
 
+    fn fresh_guard_id(&mut self) -> EvidenceGuardId {
+        let id = EvidenceGuardId(self.next_guard_id);
+        self.next_guard_id += 1;
+        id
+    }
+
+    fn instantiate_hygiene_markers(&mut self, markers: &[GuardMarker]) -> Vec<EvidenceValueMarker> {
+        let mut value_markers = Vec::with_capacity(markers.len() * 2);
+        for marker in markers {
+            let id = self.fresh_guard_id();
+            value_markers.push(EvidenceValueMarker::Frame { id });
+            value_markers.push(EvidenceValueMarker::AddId(EvidenceAddIdMarker {
+                id,
+                path: marker.path.clone(),
+                depth: marker.depth,
+                guard_own_path: marker.guard_own_path,
+                guard_foreign_path: marker.guard_foreign_path,
+                carry_after_frame: marker.guard_own_path,
+                preserve_own_on_resume: marker.preserve_own_on_resume,
+            }));
+        }
+        value_markers
+    }
+
+    fn with_marker_frame(
+        &mut self,
+        markers: Vec<EvidenceValueMarker>,
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
+        run: impl FnOnce(&mut Self) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError>,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if markers.is_empty() {
+            return run(self);
+        }
+
+        let frame_len = self.active_frames.len();
+        let handler_frame_len = self.active_handler_frames.len();
+        let add_id_len = self.active_add_ids.len();
+        let plan_len = self.active_marker_plans.len();
+        self.push_marker_frame(&markers, activate_add_ids, handler_path.clone());
+        let result = run(self);
+        let handler_boundary = match &result {
+            Ok(EvidenceEvalResult::Request(request)) => {
+                self.handler_boundary_for_request(request, handler_path.as_deref(), frame_len)
+            }
+            Ok(EvidenceEvalResult::Value(_)) | Err(_) => None,
+        };
+        self.pop_marker_frame(frame_len, handler_frame_len, add_id_len, plan_len);
+
+        self.close_marker_frame_result(
+            result?,
+            markers,
+            activate_add_ids,
+            handler_path,
+            handler_boundary,
+        )
+    }
+
+    fn push_marker_frame(
+        &mut self,
+        markers: &[EvidenceValueMarker],
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
+    ) {
+        let mut frame_entries = Vec::new();
+        for marker in markers {
+            match marker {
+                EvidenceValueMarker::Frame { id } => {
+                    let entry_frame_len = self.active_frames.len();
+                    let frame_index = entry_frame_len;
+                    self.active_frames.push(EvidenceActiveFrame { id: *id });
+                    frame_entries.push((*id, entry_frame_len));
+                    if let Some(path) = &handler_path {
+                        self.active_handler_frames.push(EvidenceActiveHandlerFrame {
+                            frame_index,
+                            id: *id,
+                            path: path.clone(),
+                        });
+                    }
+                }
+                EvidenceValueMarker::AddId(marker) if activate_add_ids && marker.depth == 0 => {
+                    self.active_add_ids.push(EvidenceActiveAddIdMarker {
+                        marker: marker.clone(),
+                        entry_frame_len: self.entry_frame_len_for_marker(marker.id, &frame_entries),
+                    });
+                }
+                EvidenceValueMarker::AddId(_) => {}
+            }
+        }
+        self.push_active_marker_plan(markers.to_vec());
+    }
+
+    fn pop_marker_frame(
+        &mut self,
+        frame_len: usize,
+        handler_frame_len: usize,
+        add_id_len: usize,
+        plan_len: usize,
+    ) {
+        self.active_frames.truncate(frame_len);
+        self.active_handler_frames.truncate(handler_frame_len);
+        self.active_add_ids.truncate(add_id_len);
+        self.active_marker_plans.truncate(plan_len);
+    }
+
+    fn push_active_marker_plan(&mut self, markers: Vec<EvidenceValueMarker>) {
+        if self
+            .active_marker_plans
+            .last()
+            .is_some_and(|current| current == &markers)
+        {
+            return;
+        }
+        self.active_marker_plans.push(markers);
+    }
+
+    fn entry_frame_len_for_marker(
+        &self,
+        id: EvidenceGuardId,
+        frame_entries: &[(EvidenceGuardId, usize)],
+    ) -> usize {
+        frame_entries
+            .iter()
+            .rev()
+            .find_map(|(frame_id, entry_frame_len)| (*frame_id == id).then_some(*entry_frame_len))
+            .or_else(|| self.active_frames.iter().position(|frame| frame.id == id))
+            .unwrap_or(self.active_frames.len())
+    }
+
+    fn close_marker_frame_result(
+        &mut self,
+        result: EvidenceEvalResult,
+        markers: Vec<EvidenceValueMarker>,
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
+        handler_boundary: Option<EvidenceHandlerBoundary>,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match result {
+            EvidenceEvalResult::Value(value) => Ok(EvidenceEvalResult::Value(mark_runtime_value(
+                value, &markers,
+            ))),
+            EvidenceEvalResult::Request(mut request) => {
+                if let Some(handler_boundary) = handler_boundary {
+                    request.handler_boundary = Some(handler_boundary);
+                }
+                request.payload = mark_runtime_value(request.payload, &markers);
+                self.close_marker_request(
+                    request,
+                    markers_for_continuation_resume(&markers),
+                    activate_add_ids,
+                    handler_path,
+                )
+            }
+        }
+    }
+
+    fn close_marker_request(
+        &mut self,
+        mut request: EvidenceRequest,
+        markers: Vec<EvidenceValueMarker>,
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if markers.is_empty() {
+            return Ok(EvidenceEvalResult::Request(request));
+        }
+        request.continuation = EvidenceContinuation::marker_frame(
+            markers,
+            activate_add_ids,
+            handler_path,
+            request.continuation,
+        );
+        Ok(EvidenceEvalResult::Request(request))
+    }
+
+    fn mark_request_with_active_markers(&mut self, request: &mut EvidenceRequest) {
+        let mut entry_except_index = EvidenceRequestEntryExceptIndex::default();
+        for active_marker in &self.active_add_ids {
+            let marker = &active_marker.marker;
+            match (marker.guard_own_path, marker.guard_foreign_path) {
+                (true, true) => {}
+                (true, false) => {
+                    if !path_is_prefix(&marker.path, &request.path) {
+                        continue;
+                    }
+                }
+                (false, true) => {
+                    if path_is_prefix(&marker.path, &request.path) {
+                        continue;
+                    }
+                }
+                (false, false) => continue,
+            }
+
+            if !marker.carry_after_frame
+                && request_excepted_at_marker_entry(
+                    &self.active_frames,
+                    &mut entry_except_index,
+                    request,
+                    active_marker,
+                )
+            {
+                continue;
+            }
+
+            if marker.carry_after_frame {
+                if request
+                    .carried_guards
+                    .iter()
+                    .any(|guard| guard.id == marker.id)
+                {
+                    continue;
+                }
+                let entry_guard_ids =
+                    request_guard_ids_at_marker_entry(&self.active_frames, request, active_marker);
+                let exposed_guard_ids = self.carried_exposed_guard_ids_at_marker_entry(
+                    request,
+                    active_marker,
+                    entry_guard_ids,
+                );
+                request.push_guard_id(marker.id);
+                request.carried_guards.push(EvidenceCarriedGuard {
+                    id: marker.id,
+                    entry_frame_len: active_marker.entry_frame_len,
+                    exposed_guard_ids,
+                });
+            } else {
+                request.push_guard_id(marker.id);
+            }
+        }
+    }
+
+    fn carried_exposed_guard_ids_at_marker_entry(
+        &self,
+        request: &EvidenceRequest,
+        marker: &EvidenceActiveAddIdMarker,
+        mut ids: Vec<EvidenceGuardId>,
+    ) -> Vec<EvidenceGuardId> {
+        if marker.marker.preserve_own_on_resume {
+            self.push_contract_matching_handler_ids_at_marker_entry(
+                request,
+                marker.entry_frame_len,
+                &mut ids,
+            );
+        }
+        if self.exposes_matching_handler_alias(request, marker.entry_frame_len, &ids)
+            && let Some(handler_id) = self.outermost_matching_handler_id(&request.path)
+        {
+            push_unique_guard(&mut ids, handler_id);
+        }
+        ids
+    }
+
+    fn push_contract_matching_handler_ids_at_marker_entry(
+        &self,
+        request: &EvidenceRequest,
+        entry_frame_len: usize,
+        ids: &mut Vec<EvidenceGuardId>,
+    ) {
+        for frame in &self.active_handler_frames {
+            if frame.frame_index < entry_frame_len && path_is_prefix(&frame.path, &request.path) {
+                push_unique_guard(ids, frame.id);
+            }
+        }
+    }
+
+    fn exposes_matching_handler_alias(
+        &self,
+        request: &EvidenceRequest,
+        entry_frame_len: usize,
+        ids: &[EvidenceGuardId],
+    ) -> bool {
+        ids.iter().any(|id| {
+            self.active_handler_frames.iter().any(|frame| {
+                frame.frame_index < entry_frame_len
+                    && frame.id == *id
+                    && path_is_prefix(&frame.path, &request.path)
+            })
+        })
+    }
+
+    fn outermost_matching_handler_id(&self, request_path: &[String]) -> Option<EvidenceGuardId> {
+        self.active_handler_frames
+            .iter()
+            .find(|frame| path_is_prefix(&frame.path, request_path))
+            .map(|frame| frame.id)
+    }
+
+    fn request_guard_for_path(
+        &self,
+        request: &EvidenceRequest,
+        operation_path: &[String],
+    ) -> Option<EvidenceGuardSkip> {
+        let matching_handler = self.find_matching_handler_frame(operation_path);
+        let Some(matching_handler) = matching_handler else {
+            if !self.active_handler_frames.is_empty() {
+                return None;
+            }
+            return self
+                .active_frames
+                .iter()
+                .find(|frame| request.guard_ids.contains(&frame.id))
+                .map(|frame| EvidenceGuardSkip::Preserve(frame.id))
+                .or_else(|| {
+                    request
+                        .carried_guards
+                        .first()
+                        .map(|guard| EvidenceGuardSkip::Preserve(guard.id))
+                });
+        };
+        self.carried_guard_for_matching_handler(request, matching_handler)
+            .or_else(|| {
+                let handler_id = self.active_frames.get(matching_handler)?.id;
+                self.active_frames[matching_handler + 1..]
+                    .iter()
+                    .find(|frame| self.guard_blocks_handler(request, frame.id, handler_id))
+                    .map(|frame| EvidenceGuardSkip::Preserve(frame.id))
+            })
+            .or_else(|| self.current_handler_guard(request, matching_handler))
+            .or_else(|| {
+                if self.active_frames.is_empty() {
+                    request
+                        .carried_guards
+                        .first()
+                        .map(|guard| EvidenceGuardSkip::Preserve(guard.id))
+                } else {
+                    None
+                }
+            })
+    }
+
+    fn carried_guard_for_matching_handler(
+        &self,
+        request: &EvidenceRequest,
+        matching_handler: usize,
+    ) -> Option<EvidenceGuardSkip> {
+        let handler_id = self
+            .active_frames
+            .get(matching_handler)
+            .map(|frame| frame.id)?;
+        request
+            .carried_guards
+            .iter()
+            .find(|guard| {
+                matching_handler < guard.entry_frame_len
+                    && !guard.exposed_guard_ids.contains(&handler_id)
+            })
+            .map(|guard| EvidenceGuardSkip::Preserve(guard.id))
+    }
+
+    fn guard_blocks_handler(
+        &self,
+        request: &EvidenceRequest,
+        guard_id: EvidenceGuardId,
+        handler_id: EvidenceGuardId,
+    ) -> bool {
+        request.guard_ids.contains(&guard_id)
+            && !request.carried_guards.iter().any(|guard| {
+                guard.exposed_guard_ids.contains(&handler_id)
+                    && (guard.id == guard_id || guard.exposed_guard_ids.contains(&guard_id))
+            })
+    }
+
+    fn current_handler_guard(
+        &self,
+        request: &EvidenceRequest,
+        matching_handler: usize,
+    ) -> Option<EvidenceGuardSkip> {
+        for frame in &self.active_handler_frames {
+            if frame.frame_index == matching_handler
+                && self.guard_blocks_handler(request, frame.id, frame.id)
+            {
+                return Some(EvidenceGuardSkip::Preserve(frame.id));
+            }
+        }
+        None
+    }
+
+    fn find_matching_handler_frame(&self, operation_path: &[String]) -> Option<usize> {
+        self.active_handler_frames
+            .iter()
+            .rev()
+            .find(|frame| path_is_prefix(&frame.path, operation_path))
+            .map(|frame| frame.frame_index)
+    }
+
+    fn handler_boundary_for_request(
+        &self,
+        request: &EvidenceRequest,
+        handler_path: Option<&[String]>,
+        frame_len_before_marker: usize,
+    ) -> Option<EvidenceHandlerBoundary> {
+        let handler_path = handler_path?;
+        let handler = self.active_handler_frames.iter().rev().find(|frame| {
+            frame.frame_index >= frame_len_before_marker && frame.path == handler_path
+        })?;
+        let blocked =
+            self.handler_boundary_blocked(request, handler.frame_index, handler.id, handler_path);
+        Some(EvidenceHandlerBoundary {
+            id: handler.id,
+            path: handler.path.clone(),
+            blocked,
+        })
+    }
+
+    fn handler_boundary_blocked(
+        &self,
+        request: &EvidenceRequest,
+        handler_frame_index: usize,
+        handler_id: EvidenceGuardId,
+        handler_path: &[String],
+    ) -> bool {
+        self.carried_guard_for_matching_handler(request, handler_frame_index)
+            .is_some()
+            || self.active_frames.iter().enumerate().any(|(index, frame)| {
+                frame.id != handler_id
+                    && self.guard_blocks_handler(request, frame.id, handler_id)
+                    && (index > handler_frame_index
+                        || self.guard_frame_matches_handler(frame.id, handler_path))
+            })
+    }
+
+    fn guard_frame_matches_handler(
+        &self,
+        guard_id: EvidenceGuardId,
+        handler_path: &[String],
+    ) -> bool {
+        self.active_handler_frames
+            .iter()
+            .any(|frame| frame.id == guard_id && frame.path == handler_path)
+    }
+
     fn close_marked_result(
         &mut self,
         result: EvidenceEvalResult,
-        markers: &[Vec<String>],
+        markers: &[EvidenceValueMarker],
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        if markers.is_empty() {
-            return Ok(result);
-        }
         match result {
             EvidenceEvalResult::Value(value) => Ok(EvidenceEvalResult::Value(mark_runtime_value(
                 value, markers,
             ))),
-            EvidenceEvalResult::Request(request) => {
-                let mut request = request.with_visible_markers(markers);
-                for marker in markers.iter().rev() {
-                    request = self.append_request_continuation(
-                        request,
-                        EvidenceContinuation::marker_frame(
-                            marker.clone(),
-                            EvidenceContinuation::identity(),
-                        ),
-                    );
-                }
-                Ok(EvidenceEvalResult::Request(request))
-            }
+            EvidenceEvalResult::Request(request) => self.close_marker_request(
+                request,
+                markers_for_continuation_resume(markers),
+                true,
+                None,
+            ),
         }
     }
 
     fn close_marked_result_for_type(
         &mut self,
         result: EvidenceEvalResult,
-        markers: &[Vec<String>],
+        markers: &[EvidenceValueMarker],
         ty: &Type,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         if markers.is_empty() || !type_may_need_hygiene_mark(ty) {
@@ -1074,21 +1547,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 };
             }
             Expr::MarkerFrame { path, body } => {
-                return match self.eval_expr_result(*body, env)? {
-                    EvidenceEvalResult::Value(value) => Ok(EvidenceEvalResult::Value(value)),
-                    EvidenceEvalResult::Request(request) => {
-                        let marker = EvidenceContinuation::marker_frame(
-                            path.clone(),
-                            EvidenceContinuation::identity(),
-                        );
-                        Ok(EvidenceEvalResult::Request(
-                            self.append_request_continuation(
-                                request.with_visible_marker(path),
-                                marker,
-                            ),
-                        ))
-                    }
-                };
+                let id = self.fresh_guard_id();
+                let markers = stack_handler_markers(id, path);
+                let path = path.clone();
+                return self.with_marker_frame(markers, true, Some(path), |runner| {
+                    runner.eval_expr_result(*body, env)
+                });
             }
             Expr::Apply { callee, arg } => {
                 return self.eval_apply_result(Some(expr_id), *callee, *arg, env);
@@ -1204,7 +1668,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         let mut arg_env = self.clone_env(env);
         match self.eval_expr_result(arg_expr, &mut arg_env)? {
-            EvidenceEvalResult::Value(arg) => self.apply_value_result(site, callee, arg),
+            EvidenceEvalResult::Value(arg) => self.apply_scoped_value_result(site, callee, arg),
             EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
                 self.append_request_continuation(
                     request,
@@ -1295,6 +1759,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         assigned: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         match value.as_ref() {
+            RuntimeEvidenceValue::Marked { value, markers } => {
+                let result = self.resolve_ref_set_value(value.clone(), assigned)?;
+                self.close_marked_result(result, markers)
+            }
             RuntimeEvidenceValue::Tuple(values) => self.resolve_ref_set_values(
                 values.clone(),
                 assigned,
@@ -1564,6 +2032,34 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
+    fn apply_scoped_value_result(
+        &mut self,
+        site: Option<ExprId>,
+        callee: SharedValue,
+        arg: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let Some(active_markers) = self.active_marker_plans.last() else {
+            return self.apply_value_result(site, callee, arg);
+        };
+        let markers = markers_for_function_call(active_markers);
+        if markers.is_empty() {
+            return self.apply_value_result(site, callee, arg);
+        }
+        match callee.as_ref() {
+            RuntimeEvidenceValue::Marked { .. } => {
+                let callee = mark_runtime_value_unchecked(callee, &markers);
+                self.apply_value_result(site, callee, arg)
+            }
+            callee_value if callee_apply_closes_without_frame(callee_value) => {
+                let result = self.apply_value_result(site, callee, arg)?;
+                self.close_marked_result(result, &markers)
+            }
+            _ => self.with_marker_frame(markers, true, None, |runner| {
+                runner.apply_value_result(site, callee, arg)
+            }),
+        }
+    }
+
     fn apply_value_result(
         &mut self,
         site: Option<ExprId>,
@@ -1651,8 +2147,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 )))
             }
             RuntimeEvidenceValue::Marked { value, markers } => {
-                let result = self.apply_value_result(site, value.clone(), arg)?;
-                self.close_marked_result(result, markers)
+                let markers = if matches!(value.as_ref(), RuntimeEvidenceValue::Continuation(_)) {
+                    markers_for_continuation_call(markers)
+                } else {
+                    markers_for_function_call(markers)
+                };
+                self.with_marker_frame(markers, true, None, |runner| {
+                    runner.apply_value_result(site, value.clone(), arg)
+                })
             }
             value => Err(RuntimeEvidenceRunError::NotFunction(format_value(value))),
         }
@@ -1677,22 +2179,30 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let source_ret = source_ret.clone();
         let target_arg = target_arg.clone();
         let target_ret = target_ret.clone();
-        let body_markers = marker_paths(&hygiene.markers);
-        let arg_markers = combined_markers(&body_markers, &marker_paths(&hygiene.arg_markers));
-        let ret_markers = combined_markers(&body_markers, &marker_paths(&hygiene.ret_markers));
-        let function = mark_runtime_value_unchecked(function, &body_markers);
-        let arg = mark_runtime_value_for_type(arg, &arg_markers, &target_arg);
-        let result = self.adapt_value_result(arg, &target_arg, &source_arg)?;
-        self.continue_result(
-            result,
-            EvidenceContinuation::apply_adapter_arg(
-                function,
-                ret_markers,
-                source_ret,
-                target_ret,
-                EvidenceContinuation::identity(),
-            ),
-        )
+        let body_markers = self.instantiate_hygiene_markers(&hygiene.markers);
+        let arg_markers = combined_markers(
+            &body_markers,
+            &self.instantiate_hygiene_markers(&hygiene.arg_markers),
+        );
+        let ret_markers = combined_markers(
+            &body_markers,
+            &self.instantiate_hygiene_markers(&hygiene.ret_markers),
+        );
+        self.with_marker_frame(body_markers.clone(), true, None, |runner| {
+            let function = mark_runtime_value_unchecked(function, &body_markers);
+            let arg = mark_runtime_value_for_type(arg, &arg_markers, &target_arg);
+            let result = runner.adapt_value_result(arg, &target_arg, &source_arg)?;
+            runner.continue_result(
+                result,
+                EvidenceContinuation::apply_adapter_arg(
+                    function,
+                    ret_markers,
+                    source_ret,
+                    target_ret,
+                    EvidenceContinuation::identity(),
+                ),
+            )
+        })
     }
 
     fn adapt_value_result(
@@ -1815,11 +2325,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.continue_result(result, next.clone())
             }
             EvidenceContinuationFrame::ApplyArg { site, callee, next } => {
-                let result = self.apply_value_result(*site, callee.clone(), value)?;
+                let result = self.apply_scoped_value_result(*site, callee.clone(), value)?;
                 self.continue_result(result, next.clone())
             }
             EvidenceContinuationFrame::ApplyForcedCallee { site, arg, next } => {
-                let result = self.apply_value_result(*site, value, arg.clone())?;
+                let result = self.apply_scoped_value_result(*site, value, arg.clone())?;
                 self.continue_result(result, next.clone())
             }
             EvidenceContinuationFrame::AdaptValue {
@@ -1882,9 +2392,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 )?;
                 self.continue_result(result, next.clone())
             }
-            EvidenceContinuationFrame::MarkerFrame { next, .. } => {
-                self.continue_result(EvidenceEvalResult::Value(value), next.clone())
-            }
+            EvidenceContinuationFrame::MarkerFrame {
+                markers,
+                activate_add_ids,
+                handler_path,
+                next,
+            } => self.with_marker_frame(
+                markers.clone(),
+                *activate_add_ids,
+                handler_path.clone(),
+                |runner| runner.resume_continuation(next.clone(), value),
+            ),
             EvidenceContinuationFrame::TupleItems {
                 values,
                 rest,
@@ -2258,15 +2776,22 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 )?;
                 return self.continue_result(result, next.clone());
             }
-            EvidenceContinuationFrame::MarkerFrame { path, next } => (
+            EvidenceContinuationFrame::MarkerFrame {
+                markers,
+                activate_add_ids,
+                handler_path,
+                next,
+            } => (
                 self.append_request_continuation(
-                    request.with_visible_marker(path),
+                    request,
                     EvidenceContinuation::marker_frame(
-                        path.clone(),
-                        EvidenceContinuation::identity(),
+                        markers.clone(),
+                        *activate_add_ids,
+                        handler_path.clone(),
+                        next.clone(),
                     ),
                 ),
-                next.clone(),
+                EvidenceContinuation::identity(),
             ),
             EvidenceContinuationFrame::TupleItems {
                 values,
@@ -2546,13 +3071,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     route,
                 } => {
                     self.stats.thunk_force_effect += 1;
-                    Ok(EvidenceEvalResult::Request(EvidenceRequest {
+                    let mut request = EvidenceRequest {
                         path: path.clone(),
                         payload: payload.clone(),
                         route: *route,
-                        visible_markers: Vec::new(),
+                        guard_ids: Vec::new(),
+                        carried_guards: Vec::new(),
+                        handler_boundary: None,
                         continuation: EvidenceContinuation::identity(),
-                    }))
+                    };
+                    self.mark_request_with_active_markers(&mut request);
+                    Ok(EvidenceEvalResult::Request(request))
                 }
                 RuntimeEvidenceThunk::Continuation { continuation, arg } => {
                     self.stats.thunk_force_continuation += 1;
@@ -2584,8 +3113,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
             },
             RuntimeEvidenceValue::Marked { value, markers } => {
-                let result = self.force_thunk_result(value.clone())?;
-                self.close_marked_result(result, markers)
+                self.with_marker_frame(markers.clone(), true, None, |runner| {
+                    runner.force_thunk_result(value.clone())
+                })
             }
             value => Err(RuntimeEvidenceRunError::NotThunk(format_value(value))),
         }
@@ -2624,7 +3154,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     self.defer_catch_body(catch_expr, arms, env, request),
                 )),
                 EvidenceEffectRoute::Unhandled => {
-                    if let Some(resumptive) = visible_operation_resumptive(&request, arms) {
+                    if let Some(resumptive) = self.visible_operation_resumptive(&request, arms) {
                         self.eval_operation_arm(request, resumptive, arms, env)
                     } else {
                         Ok(EvidenceEvalResult::Request(
@@ -2634,6 +3164,29 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
             },
         }
+    }
+
+    fn visible_operation_resumptive(
+        &self,
+        request: &EvidenceRequest,
+        arms: &[control_vm::CatchArm],
+    ) -> Option<bool> {
+        arms.iter().find_map(|arm| {
+            let operation_path = arm.operation_path.as_ref()?;
+            if operation_path != &request.path {
+                return None;
+            }
+            let skipped_guard = match &request.handler_boundary {
+                Some(boundary) if path_is_prefix(&boundary.path, &request.path) => boundary
+                    .blocked
+                    .then_some(EvidenceGuardSkip::Preserve(boundary.id)),
+                Some(boundary) => Some(EvidenceGuardSkip::Preserve(boundary.id)),
+                None => self.request_guard_for_path(request, operation_path),
+            };
+            skipped_guard
+                .is_none()
+                .then_some(arm.continuation.is_some())
+        })
     }
 
     fn defer_catch_body(
@@ -2726,7 +3279,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         value: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        if matches!(value.as_ref(), RuntimeEvidenceValue::Thunk(_)) {
+        if runtime_value_is_thunk_like(value.as_ref()) {
             self.force_thunk_result(value)
         } else {
             Ok(EvidenceEvalResult::Value(value))
@@ -3417,7 +3970,9 @@ fn runtime_value_slices_equivalent(left: &[SharedValue], right: &[SharedValue]) 
             .all(|(left, right)| runtime_values_equivalent(left.as_ref(), right.as_ref()))
 }
 
-fn runtime_value_view(value: &RuntimeEvidenceValue) -> (&RuntimeEvidenceValue, Vec<Vec<String>>) {
+fn runtime_value_view(
+    value: &RuntimeEvidenceValue,
+) -> (&RuntimeEvidenceValue, Vec<EvidenceValueMarker>) {
     let mut value = value;
     let mut markers = Vec::new();
     while let RuntimeEvidenceValue::Marked {
@@ -3784,23 +4339,10 @@ fn record_field(
         .ok_or_else(|| RuntimeEvidenceRunError::MissingRecordField(name.to_string()))
 }
 
-fn visible_operation_resumptive(
-    request: &EvidenceRequest,
-    arms: &[control_vm::CatchArm],
-) -> Option<bool> {
-    arms.iter().find_map(|arm| {
-        let operation_path = arm.operation_path.as_ref()?;
-        request
-            .is_visible_to(operation_path)
-            .then_some(arm.continuation.is_some())
-    })
-}
-
-fn marker_paths(markers: &[GuardMarker]) -> Vec<Vec<String>> {
-    markers.iter().map(|marker| marker.path.clone()).collect()
-}
-
-fn combined_markers(left: &[Vec<String>], right: &[Vec<String>]) -> Vec<Vec<String>> {
+fn combined_markers(
+    left: &[EvidenceValueMarker],
+    right: &[EvidenceValueMarker],
+) -> Vec<EvidenceValueMarker> {
     let mut markers = Vec::with_capacity(left.len() + right.len());
     for marker in left.iter().chain(right) {
         if !markers.iter().any(|existing| existing == marker) {
@@ -3808,6 +4350,101 @@ fn combined_markers(left: &[Vec<String>], right: &[Vec<String>]) -> Vec<Vec<Stri
         }
     }
     markers
+}
+
+fn markers_for_function_call(markers: &[EvidenceValueMarker]) -> Vec<EvidenceValueMarker> {
+    dedupe_markers(
+        markers
+            .iter()
+            .cloned()
+            .map(|marker| match marker {
+                EvidenceValueMarker::Frame { id } => EvidenceValueMarker::Frame { id },
+                EvidenceValueMarker::AddId(marker) => {
+                    EvidenceValueMarker::AddId(EvidenceAddIdMarker {
+                        depth: marker.depth.saturating_sub(1),
+                        ..marker
+                    })
+                }
+            })
+            .collect(),
+    )
+}
+
+fn markers_for_continuation_call(markers: &[EvidenceValueMarker]) -> Vec<EvidenceValueMarker> {
+    dedupe_markers(
+        markers
+            .iter()
+            .cloned()
+            .map(|marker| match marker {
+                EvidenceValueMarker::Frame { id } => EvidenceValueMarker::Frame { id },
+                EvidenceValueMarker::AddId(marker) => {
+                    EvidenceValueMarker::AddId(EvidenceAddIdMarker {
+                        depth: marker.depth.saturating_sub(1),
+                        guard_own_path: marker.guard_own_path && marker.preserve_own_on_resume,
+                        guard_foreign_path: true,
+                        ..marker
+                    })
+                }
+            })
+            .collect(),
+    )
+}
+
+fn markers_for_continuation_resume(markers: &[EvidenceValueMarker]) -> Vec<EvidenceValueMarker> {
+    dedupe_markers(
+        markers
+            .iter()
+            .cloned()
+            .map(|marker| match marker {
+                EvidenceValueMarker::AddId(marker) => {
+                    EvidenceValueMarker::AddId(EvidenceAddIdMarker {
+                        guard_own_path: marker.guard_own_path && marker.preserve_own_on_resume,
+                        guard_foreign_path: true,
+                        ..marker
+                    })
+                }
+                marker => marker,
+            })
+            .collect(),
+    )
+}
+
+fn stack_handler_markers(id: EvidenceGuardId, path: &[String]) -> Vec<EvidenceValueMarker> {
+    vec![
+        EvidenceValueMarker::Frame { id },
+        EvidenceValueMarker::AddId(EvidenceAddIdMarker {
+            id,
+            path: path.to_vec(),
+            depth: 0,
+            guard_own_path: false,
+            guard_foreign_path: true,
+            carry_after_frame: false,
+            preserve_own_on_resume: false,
+        }),
+        EvidenceValueMarker::AddId(EvidenceAddIdMarker {
+            id,
+            path: path.to_vec(),
+            depth: 1,
+            guard_own_path: true,
+            guard_foreign_path: true,
+            carry_after_frame: false,
+            preserve_own_on_resume: false,
+        }),
+    ]
+}
+
+fn dedupe_markers(markers: Vec<EvidenceValueMarker>) -> Vec<EvidenceValueMarker> {
+    let mut deduped = Vec::new();
+    extend_marker_list(&mut deduped, &markers);
+    deduped
+}
+
+fn extend_marker_list(markers: &mut Vec<EvidenceValueMarker>, new_markers: &[EvidenceValueMarker]) {
+    for marker in new_markers {
+        if !markers.iter().any(|existing| existing == marker) {
+            markers.push(marker.clone());
+        }
+    }
 }
 
 fn function_parts(ty: &Type) -> Option<(&Type, &Type)> {
@@ -3965,11 +4602,77 @@ fn path_is_prefix(prefix: &[String], path: &[String]) -> bool {
     prefix.len() <= path.len() && prefix.iter().zip(path).all(|(left, right)| left == right)
 }
 
+fn push_unique_guard(ids: &mut Vec<EvidenceGuardId>, id: EvidenceGuardId) -> bool {
+    if ids.contains(&id) {
+        return false;
+    }
+    ids.push(id);
+    true
+}
+
+fn request_excepted_at_marker_entry(
+    active_frames: &[EvidenceActiveFrame],
+    entry_except_index: &mut EvidenceRequestEntryExceptIndex,
+    request: &EvidenceRequest,
+    marker: &EvidenceActiveAddIdMarker,
+) -> bool {
+    if request.guard_ids.is_empty() {
+        return false;
+    }
+    for id in &request.guard_ids {
+        if entry_except_index
+            .first_position(active_frames, *id)
+            .is_some_and(|position| position < marker.entry_frame_len)
+        {
+            return true;
+        }
+    }
+    false
+}
+
+#[derive(Default)]
+struct EvidenceRequestEntryExceptIndex {
+    first_positions: Vec<(EvidenceGuardId, Option<usize>)>,
+}
+
+impl EvidenceRequestEntryExceptIndex {
+    fn first_position(
+        &mut self,
+        active_frames: &[EvidenceActiveFrame],
+        id: EvidenceGuardId,
+    ) -> Option<usize> {
+        if let Some((_, position)) = self
+            .first_positions
+            .iter()
+            .find(|(cached_id, _)| *cached_id == id)
+        {
+            return *position;
+        }
+        let position = active_frames.iter().position(|frame| frame.id == id);
+        self.first_positions.push((id, position));
+        position
+    }
+}
+
+fn request_guard_ids_at_marker_entry(
+    active_frames: &[EvidenceActiveFrame],
+    request: &EvidenceRequest,
+    marker: &EvidenceActiveAddIdMarker,
+) -> Vec<EvidenceGuardId> {
+    let mut ids = Vec::new();
+    for frame in active_frames.iter().take(marker.entry_frame_len) {
+        if request.guard_ids.contains(&frame.id) {
+            push_unique_guard(&mut ids, frame.id);
+        }
+    }
+    ids
+}
+
 fn shared(value: RuntimeEvidenceValue) -> SharedValue {
     Rc::new(value)
 }
 
-fn mark_runtime_value(value: SharedValue, markers: &[Vec<String>]) -> SharedValue {
+fn mark_runtime_value(value: SharedValue, markers: &[EvidenceValueMarker]) -> SharedValue {
     if markers.is_empty() || !runtime_value_needs_hygiene_mark(value.as_ref()) {
         return value;
     }
@@ -3978,7 +4681,7 @@ fn mark_runtime_value(value: SharedValue, markers: &[Vec<String>]) -> SharedValu
 
 fn mark_runtime_value_for_type(
     value: SharedValue,
-    markers: &[Vec<String>],
+    markers: &[EvidenceValueMarker],
     ty: &Type,
 ) -> SharedValue {
     if markers.is_empty() || !type_may_need_hygiene_mark(ty) {
@@ -3987,7 +4690,10 @@ fn mark_runtime_value_for_type(
     mark_runtime_value_unchecked(value, markers)
 }
 
-fn mark_runtime_value_unchecked(value: SharedValue, markers: &[Vec<String>]) -> SharedValue {
+fn mark_runtime_value_unchecked(
+    value: SharedValue,
+    markers: &[EvidenceValueMarker],
+) -> SharedValue {
     if markers.is_empty() {
         return value;
     }
@@ -4032,6 +4738,24 @@ fn runtime_value_needs_hygiene_mark(value: &RuntimeEvidenceValue) -> bool {
         | RuntimeEvidenceValue::Bool(_)
         | RuntimeEvidenceValue::Unit => false,
     }
+}
+
+fn runtime_value_is_thunk_like(value: &RuntimeEvidenceValue) -> bool {
+    match value {
+        RuntimeEvidenceValue::Thunk(_) => true,
+        RuntimeEvidenceValue::Marked { value, .. } => runtime_value_is_thunk_like(value),
+        _ => false,
+    }
+}
+
+fn callee_apply_closes_without_frame(value: &RuntimeEvidenceValue) -> bool {
+    matches!(
+        value,
+        RuntimeEvidenceValue::PrimitiveOp { .. }
+            | RuntimeEvidenceValue::ConstructorFunction { .. }
+            | RuntimeEvidenceValue::EffectOp { .. }
+            | RuntimeEvidenceValue::Continuation(_)
+    )
 }
 
 fn type_may_need_hygiene_mark(ty: &Type) -> bool {

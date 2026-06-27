@@ -555,6 +555,47 @@ fn debug_runtime_evidence_run_carries_function_adapter_hygiene_markers() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_resumes_carried_callback_markers() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-repeated-callback-hygiene",
+        "pub act tick:\n\
+         \x20 pub ping: () -> ()\n\n\
+         pub strip_tick(action: [tick] _) = catch action:\n\
+         \x20 tick::ping(), k -> strip_tick(k ())\n\
+         \x20 v -> v\n\n\
+         pub count_tick(action: [tick] _) = catch action:\n\
+         \x20 tick::ping(), k -> 1 + count_tick(k ())\n\
+         \x20 _ -> 0\n\n\
+         pub bounce(n: int, f, x) =\n\
+         \x20 if n == 0:\n\
+         \x20\x20 x\n\
+         \x20 else:\n\
+         \x20\x20 strip_tick: f (f (bounce(n - 1, f, x)))\n\n\
+         count_tick:\n\
+         \x20 bounce(3, \\x -> {\n\
+         \x20\x20 tick::ping()\n\
+         \x20\x20 x + 1\n\
+         \x20 }, 0)\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [6]\n"), "{stdout}");
+}
+
+#[test]
 fn debug_runtime_evidence_run_handles_for_last_and_nullary_constructors() {
     let entry = write_entry(
         "debug-runtime-evidence-run-for-last",
