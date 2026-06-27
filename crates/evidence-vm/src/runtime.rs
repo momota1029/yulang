@@ -1669,6 +1669,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if self.active_provider_handlers.is_empty() && self.active_provider_envs.is_empty() {
             return RuntimeEvidenceProviderEnv::default();
         }
+        if !self.context.has_provider_env_for_call(site) {
+            return RuntimeEvidenceProviderEnv::default();
+        }
         let active_provider_envs = self.active_provider_env_values();
         let provider_env = self.context.provider_env_for_call(
             site,

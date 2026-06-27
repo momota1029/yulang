@@ -153,6 +153,10 @@ impl RuntimeEvidenceRunContext {
         RuntimeEvidenceProviderEnv { providers }
     }
 
+    pub(super) fn has_provider_env_for_call(&self, apply: ExprId) -> bool {
+        self.call_required_slots.contains_key(&apply)
+    }
+
     pub(super) fn has_provider_lookup_for_call(&self, apply: ExprId, callee: ExprId) -> bool {
         self.operation_provider_lookups
             .contains_key(&(apply, callee))
