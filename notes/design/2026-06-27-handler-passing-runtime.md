@@ -359,6 +359,67 @@ dump-control-evidence can distinguish:
 This is the point where handler-passing lowering can start making decisions
 without re-inference.
 
+#### Cache staging for runtime evidence
+
+Runtime evidence is not a compiled-unit surface at first.
+`infer::CompiledRuntimeSurface` is a pre-specialize poly surface used to load
+unchanged source units.  It is not demand-specific and does not know which
+monomorphized instance, callback adapter, or root expression forced a particular
+stack-weighted relation.
+
+The first cache boundary should therefore be:
+
+```text
+control artifact = control_vm::Program + runtime evidence sidecar
+```
+
+On a control-cache hit, the CLI can reuse both the generic VM program and the
+evidence surface without running `specialize` again.
+
+The mono cache is different.  A `CachedMonoArtifact` currently stores only the
+finished `mono::Program`.  If the control cache misses but the mono cache hits,
+hidden solver evidence has already been erased and cannot be recovered by
+walking the mono program.  Until the mono cache also stores the runtime evidence
+sidecar, any evidence-passing build must either:
+
+1. bypass the mono cache and rerun `specialize`; or
+2. treat the mono-cache hit as program-only and use the generic VM fallback for
+   evidence-dependent lowering.
+
+This is a correctness boundary, not just a performance detail.  Reconstructing
+handler-passing evidence from `mono::Program` would miss solver-local stack
+relations that were intentionally not emitted.
+
+The staged cache plan is:
+
+1. Add a `specialize` output type:
+
+   ```text
+   SpecializeOutput {
+     program: mono::Program,
+     runtime_evidence: RuntimeEvidenceSurface,
+   }
+   ```
+
+   Keep `specialize(arena) -> Program` as the compatibility wrapper.
+
+2. Extend `CachedControlArtifact` and `ControlCacheEnvelope` with the evidence
+   sidecar and bump `CONTROL_CACHE_FORMAT`.
+
+3. Leave `CompiledRuntimeSurface` and `.yucu` unchanged until cross-unit
+   evidence import is actually needed.
+
+4. While `CachedMonoArtifact` has no evidence sidecar, only use it for the
+   legacy generic VM path.  Evidence-passing lowering must request the
+   `SpecializeOutput` path.
+
+5. If evidence generation becomes part of the default control build, either
+   remove the mono-cache-only shortcut or extend `CachedMonoArtifact` with the
+   same `RuntimeEvidenceSurface`.
+
+This keeps old cache entries invalidated by format versioning, and avoids
+making source-unit cache semantics depend on a later demand-specific lowering.
+
 ### Stage 2: callback evidence adapter
 
 Lower the current `FunctionAdapterHygiene` idea into evidence routing:
