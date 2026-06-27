@@ -467,6 +467,10 @@ Status on 2026-06-27:
   stable slot ids.
 - Value objects resolve captured evidence slots to stable slot ids.
 - Call objects resolve known instance call evidence arguments to stable slot ids.
+- The provider index maps each slot to same-family handler object candidates
+  without changing operation lowering.
+  `fallback` slots remain `needs-evidence-env`, and `blocked` slots remain
+  `blocked-by-hygiene`.
 - Operation objects carry an execution plan:
   `direct-abortive`, `direct-tail-resumptive`, `yield-fallback`,
   `blocked-fallback`, or `generic-fallback`.

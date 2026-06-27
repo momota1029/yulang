@@ -376,6 +376,10 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
         "call object summary should be visible in the plan:\n{stdout}"
     );
     assert!(
+        stdout.contains("provider_slots:") && stdout.contains("provider_candidates:"),
+        "provider summary should be visible in the plan:\n{stdout}"
+    );
+    assert!(
         stdout.contains("evidence object graph:"),
         "evidence object graph should be visible in the plan:\n{stdout}"
     );
@@ -394,6 +398,10 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
     assert!(
         stdout.contains("operation-objects:"),
         "operation evidence objects should be visible in the plan:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("provider-index:") && stdout.contains("needs-evidence-env"),
+        "provider candidates should be visible without forcing direct lowering:\n{stdout}"
     );
     assert!(
         stdout.contains("class tail-resumptive"),

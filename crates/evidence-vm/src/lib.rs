@@ -43,6 +43,8 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) evidence_call_objects: usize,
     pub(crate) evidence_handler_objects: usize,
     pub(crate) evidence_operation_objects: usize,
+    pub(crate) evidence_provider_slots: usize,
+    pub(crate) evidence_provider_candidates: usize,
     pub(crate) evidence_direct_candidates: usize,
     pub(crate) evidence_env_values: usize,
     pub(crate) evidence_env_captures: usize,
@@ -182,6 +184,7 @@ pub(crate) struct EvidenceVmObjectPlan {
     pub(crate) calls: Vec<EvidenceVmCallObjectPlan>,
     pub(crate) handlers: Vec<EvidenceVmHandlerObjectPlan>,
     pub(crate) operations: Vec<EvidenceVmOperationObjectPlan>,
+    pub(crate) providers: Vec<EvidenceVmProviderPlan>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -231,6 +234,20 @@ pub(crate) struct EvidenceVmOperationObjectPlan {
     pub(crate) slot_id: u32,
     pub(crate) candidate_handler: Option<u32>,
     pub(crate) execution: EvidenceVmOperationExecutionPlan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmProviderPlan {
+    pub(crate) slot_id: u32,
+    pub(crate) route: EvidenceVmProviderRoute,
+    pub(crate) handler_candidates: Vec<u32>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EvidenceVmProviderRoute {
+    DirectPositive,
+    NeedsEvidenceEnv,
+    BlockedByHygiene,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -390,13 +407,15 @@ pub fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
-        "  evidence_object_slots: {} function_objects: {} value_objects: {} call_objects: {} handler_objects: {} operation_objects: {} direct_candidates: {}",
+        "  evidence_object_slots: {} function_objects: {} value_objects: {} call_objects: {} handler_objects: {} operation_objects: {} provider_slots: {} provider_candidates: {} direct_candidates: {}",
         summary.evidence_object_slots,
         summary.evidence_function_objects,
         summary.evidence_value_objects,
         summary.evidence_call_objects,
         summary.evidence_handler_objects,
         summary.evidence_operation_objects,
+        summary.evidence_provider_slots,
+        summary.evidence_provider_candidates,
         summary.evidence_direct_candidates
     )
     .unwrap();
@@ -457,6 +476,12 @@ fn summarize_plan(
         evidence_call_objects: objects.calls.len(),
         evidence_handler_objects: objects.handlers.len(),
         evidence_operation_objects: objects.operations.len(),
+        evidence_provider_slots: objects.providers.len(),
+        evidence_provider_candidates: objects
+            .providers
+            .iter()
+            .map(|provider| provider.handler_candidates.len())
+            .sum(),
         evidence_direct_candidates: objects
             .operations
             .iter()
@@ -1203,6 +1228,7 @@ fn build_object_plan(
         .map(|handler| ((handler.handler, handler.slot_id), handler.id))
         .collect::<HashMap<_, _>>();
     let operations = build_operation_objects(operations, &slot_ids, &handler_index, &handlers);
+    let providers = build_provider_index(&slot_plans, &handlers);
 
     EvidenceVmObjectPlan {
         slots: slot_plans,
@@ -1211,6 +1237,7 @@ fn build_object_plan(
         calls: call_objects,
         handlers,
         operations,
+        providers,
     }
 }
 
@@ -1356,6 +1383,38 @@ fn build_operation_objects(
             })
         })
         .collect()
+}
+
+fn build_provider_index(
+    slots: &[EvidenceVmSlotPlan],
+    handlers: &[EvidenceVmHandlerObjectPlan],
+) -> Vec<EvidenceVmProviderPlan> {
+    slots
+        .iter()
+        .filter_map(|slot| {
+            let handler_candidates = handlers
+                .iter()
+                .filter(|handler| handler.path == slot.key.family)
+                .map(|handler| handler.id)
+                .collect::<Vec<_>>();
+            if handler_candidates.is_empty() {
+                return None;
+            }
+            Some(EvidenceVmProviderPlan {
+                slot_id: slot.id,
+                route: provider_route_for_slot(slot.key.route),
+                handler_candidates,
+            })
+        })
+        .collect()
+}
+
+fn provider_route_for_slot(route: EvidenceVmSlotRouteKey) -> EvidenceVmProviderRoute {
+    match route {
+        EvidenceVmSlotRouteKey::Positive => EvidenceVmProviderRoute::DirectPositive,
+        EvidenceVmSlotRouteKey::Blocked => EvidenceVmProviderRoute::BlockedByHygiene,
+        EvidenceVmSlotRouteKey::UnknownFallback => EvidenceVmProviderRoute::NeedsEvidenceEnv,
+    }
 }
 
 fn operation_candidate_handler(operation: &EvidenceVmOperationPlan) -> Option<ExprId> {
@@ -1763,6 +1822,7 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
         && objects.calls.is_empty()
         && objects.handlers.is_empty()
         && objects.operations.is_empty()
+        && objects.providers.is_empty()
     {
         return;
     }
@@ -1832,6 +1892,19 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
             .unwrap();
         }
     }
+    if !objects.providers.is_empty() {
+        writeln!(out, "  provider-index:").unwrap();
+        for provider in &objects.providers {
+            writeln!(
+                out,
+                "    s{} {} candidates [{}]",
+                provider.slot_id,
+                format_provider_route(provider.route),
+                format_u32_list_with_prefix("h", &provider.handler_candidates)
+            )
+            .unwrap();
+        }
+    }
     if !objects.operations.is_empty() {
         writeln!(out, "  operation-objects:").unwrap();
         for operation in &objects.operations {
@@ -1890,6 +1963,14 @@ fn format_operation_execution_plan(plan: EvidenceVmOperationExecutionPlan) -> &'
         EvidenceVmOperationExecutionPlan::YieldFallback => "yield-fallback",
         EvidenceVmOperationExecutionPlan::BlockedFallback => "blocked-fallback",
         EvidenceVmOperationExecutionPlan::GenericFallback => "generic-fallback",
+    }
+}
+
+fn format_provider_route(route: EvidenceVmProviderRoute) -> &'static str {
+    match route {
+        EvidenceVmProviderRoute::DirectPositive => "direct-positive",
+        EvidenceVmProviderRoute::NeedsEvidenceEnv => "needs-evidence-env",
+        EvidenceVmProviderRoute::BlockedByHygiene => "blocked-by-hygiene",
     }
 }
 
