@@ -1,27 +1,8 @@
 # Installation
 
-Yulang is still experimental. The playground is the easiest way to try the
-language, and the local CLI is mainly for development and regression testing.
-
-## Playground
-
-Open the <a href="/" target="_self">Playground</a>. It runs in the browser with
-the same standard-library examples used by this documentation.
-
-## From source
-
-Clone the repository and use Cargo:
-
-```sh
-git clone https://github.com/momota1029/yulang.git
-cd yulang
-cargo test
-cargo run -p yulang -- run path/to/file.yu
-```
-
-For local experimentation, `cargo run -p yulang -- run path/to/file.yu` is the
-important command (use `check` instead of `run` to print inferred types). The web deployment steps below are only needed when updating
-the hosted playground/docs site.
+Yulang is still experimental. If you want to follow the guide locally, install
+the release CLI first, then run a tiny `.yu` file. The playground remains the
+fastest way to try examples without installing anything.
 
 ## Binary release
 
@@ -46,6 +27,45 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.4
 The PowerShell installer adds the install `bin` directory to the user `PATH`.
 Use `-NoModifyPath` to skip that step.
 
+## Check that a file runs
+
+Create `hello.yu`:
+
+```sh
+cat > hello.yu <<'YU'
+println "hello from Yulang"
+1 + 2
+YU
+yulang run --print-roots hello.yu
+```
+
+Expected output:
+
+```text
+hello from Yulang
+run roots [(), 3]
+```
+
+`yulang run` prints only program output such as `say` and `println`. Use
+`yulang run --print-roots ...` when you want to inspect root expression values
+from the CLI. Use `check` instead of `run` to print inferred types:
+
+```sh
+yulang check hello.yu
+```
+
+For one-line experiments, `run` also accepts source text from `-e`, explicit
+stdin with `-`, or an implicit pipe:
+
+```sh
+yulang run -e "(each 1..20 + each 1..20).list.say"
+echo "1 + 2" | yulang run --print-roots
+echo "1" | yulang run --print-roots -
+```
+
+A bare `yulang run` in an interactive terminal still prints usage instead of
+waiting for input.
+
 To remove a release install:
 
 ```sh
@@ -59,28 +79,25 @@ Invoke-WebRequest https://yulang.momota.pw/uninstall.ps1 -OutFile uninstall.ps1
 powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
-After that, run or check programs directly:
+## Playground
+
+Open the <a href="/" target="_self">Playground</a>. It runs in the browser with
+the same standard-library examples used by this documentation.
+
+## From source
+
+Clone the repository and use Cargo:
 
 ```sh
-yulang run examples/06_undet_once.yu
-yulang check examples/08_types.yu
+git clone https://github.com/momota1029/yulang.git
+cd yulang
+cargo test
+cargo run -p yulang -- run path/to/file.yu
 ```
 
-`yulang run` prints only program output such as `say` and `println`. Use
-`yulang run --print-roots ...` when you want to inspect root expression values
-from the CLI.
-
-For one-line experiments, `run` also accepts source text from `-e`, explicit
-stdin with `-`, or an implicit pipe:
-
-```sh
-yulang run -e "(each 1..20 + each 1..20).list.say"
-echo "1 + 2" | yulang run --print-roots
-echo "1" | yulang run --print-roots -
-```
-
-A bare `yulang run` in an interactive terminal still prints usage instead of
-waiting for input.
+For source-tree experimentation, `cargo run -p yulang -- run path/to/file.yu`
+is the important command. The web deployment steps below are only needed when
+updating the hosted playground/docs site.
 
 The CLI caches compiler artifacts under the user cache root. See
 [Cache](./cache) for `.yucu`, `.yuir`, `.yuvm`, and the route labels printed

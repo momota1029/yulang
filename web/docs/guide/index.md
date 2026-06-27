@@ -57,6 +57,7 @@ Every example on this page runs in the <a href="/" target="_self">Playground</a>
 
 ## Where to go next
 
+- [Installation](./install) — install the CLI and run a first `.yu` file
 - [Tour](./tour) — a guided walkthrough of the language
 - [Cookbook](./cookbook) — task-oriented recipes
 - [Cache](./cache) — local CLI artifact cache and route labels

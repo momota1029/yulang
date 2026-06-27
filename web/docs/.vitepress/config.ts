@@ -16,13 +16,13 @@ const englishSidebar = {
     {
       text: "Guide",
       items: [
+        { text: "Installation", link: "/guide/install" },
         { text: "Introduction", link: "/guide/" },
         { text: "Tour", link: "/guide/tour" },
         { text: "Cookbook", link: "/guide/cookbook" },
         { text: "Cheat Sheet", link: "/guide/cheat-sheet" },
         { text: "Pitfalls", link: "/guide/pitfalls" },
         { text: "Cache", link: "/guide/cache" },
-        { text: "Installation", link: "/guide/install" },
       ],
     },
   ],
@@ -68,13 +68,13 @@ const japaneseSidebar = {
     {
       text: "ガイド",
       items: [
+        { text: "インストール", link: "/ja/guide/install" },
         { text: "はじめに", link: "/ja/guide/" },
         { text: "ツアー", link: "/ja/guide/tour" },
         { text: "クックブック", link: "/ja/guide/cookbook" },
         { text: "チートシート", link: "/ja/guide/cheat-sheet" },
         { text: "落とし穴", link: "/ja/guide/pitfalls" },
         { text: "キャッシュ", link: "/ja/guide/cache" },
-        { text: "インストール", link: "/ja/guide/install" },
       ],
     },
   ],
