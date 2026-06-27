@@ -97,6 +97,12 @@ pub struct RuntimeEvidenceRunStats {
     pub catch_body_checks: usize,
     pub marker_frame_entries: usize,
     pub marker_frame_markers: usize,
+    pub marker_frame_expr_entries: usize,
+    pub marker_frame_scoped_apply_entries: usize,
+    pub marker_frame_marked_apply_entries: usize,
+    pub marker_frame_adapter_entries: usize,
+    pub marker_frame_continuation_resume_entries: usize,
+    pub marker_frame_marked_force_entries: usize,
     pub active_marker_plan_pushes: usize,
     pub active_marker_plan_dedupes: usize,
     pub active_add_id_scans: usize,
@@ -557,6 +563,16 @@ struct EvidenceGuardId(u32);
 enum EvidenceValueMarker {
     Frame { id: EvidenceGuardId },
     AddId(EvidenceAddIdMarker),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceMarkerFrameSource {
+    Expr,
+    ScopedApply,
+    MarkedApply,
+    Adapter,
+    ContinuationResume,
+    MarkedForce,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -2061,6 +2077,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn with_marker_frame(
         &mut self,
+        source: EvidenceMarkerFrameSource,
         markers: Rc<[EvidenceValueMarker]>,
         activate_add_ids: bool,
         handler_path: Option<Vec<String>>,
@@ -2069,8 +2086,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if markers.is_empty() {
             return run(self);
         }
-        self.stats.marker_frame_entries += 1;
-        self.stats.marker_frame_markers += markers.len();
+        self.record_marker_frame_entry(source, markers.len());
 
         let frame_len = self.active_frames.len();
         let handler_frame_len = self.active_handler_frames.len();
@@ -2100,6 +2116,35 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             handler_path,
             handler_boundary,
         )
+    }
+
+    fn record_marker_frame_entry(
+        &mut self,
+        source: EvidenceMarkerFrameSource,
+        marker_count: usize,
+    ) {
+        self.stats.marker_frame_entries += 1;
+        self.stats.marker_frame_markers += marker_count;
+        match source {
+            EvidenceMarkerFrameSource::Expr => {
+                self.stats.marker_frame_expr_entries += 1;
+            }
+            EvidenceMarkerFrameSource::ScopedApply => {
+                self.stats.marker_frame_scoped_apply_entries += 1;
+            }
+            EvidenceMarkerFrameSource::MarkedApply => {
+                self.stats.marker_frame_marked_apply_entries += 1;
+            }
+            EvidenceMarkerFrameSource::Adapter => {
+                self.stats.marker_frame_adapter_entries += 1;
+            }
+            EvidenceMarkerFrameSource::ContinuationResume => {
+                self.stats.marker_frame_continuation_resume_entries += 1;
+            }
+            EvidenceMarkerFrameSource::MarkedForce => {
+                self.stats.marker_frame_marked_force_entries += 1;
+            }
+        }
     }
 
     fn push_marker_frame(
@@ -2821,6 +2866,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let id = self.fresh_guard_id();
                 let markers = stack_handler_markers(id, &path);
                 return self.with_marker_frame(
+                    EvidenceMarkerFrameSource::Expr,
                     share_marker_vec(markers),
                     true,
                     Some(path.to_vec()),
@@ -3533,9 +3579,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let result = self.apply_value_result(site, callee, arg)?;
                 self.close_marked_result(result, &markers)
             }
-            _ => self.with_marker_frame(markers, true, None, |runner| {
-                runner.apply_value_result(site, callee, arg)
-            }),
+            _ => self.with_marker_frame(
+                EvidenceMarkerFrameSource::ScopedApply,
+                markers,
+                true,
+                None,
+                |runner| runner.apply_value_result(site, callee, arg),
+            ),
         }
     }
 
@@ -3682,9 +3732,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 } else {
                     markers_for_function_call(markers)
                 };
-                self.with_marker_frame(share_marker_vec(markers), true, None, |runner| {
-                    runner.apply_value_result_inner(site, value.clone(), arg)
-                })
+                self.with_marker_frame(
+                    EvidenceMarkerFrameSource::MarkedApply,
+                    share_marker_vec(markers),
+                    true,
+                    None,
+                    |runner| runner.apply_value_result_inner(site, value.clone(), arg),
+                )
             }
             value => Err(RuntimeEvidenceRunError::NotFunction(format_value(value))),
         }
@@ -3719,6 +3773,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             &self.instantiate_hygiene_markers(&hygiene.ret_markers),
         );
         self.with_marker_frame(
+            EvidenceMarkerFrameSource::Adapter,
             share_marker_vec(body_markers.clone()),
             true,
             None,
@@ -3944,9 +3999,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         value, markers,
                     )));
                 }
-                self.with_marker_frame(markers, activate_add_ids, handler_path, |runner| {
-                    runner.resume_continuation(next, value)
-                })
+                self.with_marker_frame(
+                    EvidenceMarkerFrameSource::ContinuationResume,
+                    markers,
+                    activate_add_ids,
+                    handler_path,
+                    |runner| runner.resume_continuation(next, value),
+                )
             }
             EvidenceContinuationFrame::ProviderEnv { provider_env, next } => self
                 .with_provider_env(provider_env, |runner| {
@@ -5378,11 +5437,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     )
                 }
             },
-            RuntimeEvidenceValue::Marked { value, markers } => {
-                self.with_marker_frame(markers.clone(), true, None, |runner| {
-                    runner.force_thunk_result(value.clone())
-                })
-            }
+            RuntimeEvidenceValue::Marked { value, markers } => self.with_marker_frame(
+                EvidenceMarkerFrameSource::MarkedForce,
+                markers.clone(),
+                true,
+                None,
+                |runner| runner.force_thunk_result(value.clone()),
+            ),
             value => Err(RuntimeEvidenceRunError::NotThunk(format_value(value))),
         }
     }

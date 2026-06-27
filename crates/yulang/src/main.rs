@@ -2471,6 +2471,32 @@ fn run_runtime_evidence_run(
         output.evidence_stats.marker_frame_markers
     );
     println!(
+        "  runtime_evidence.marker_frame_expr_entries: {}",
+        output.evidence_stats.marker_frame_expr_entries
+    );
+    println!(
+        "  runtime_evidence.marker_frame_scoped_apply_entries: {}",
+        output.evidence_stats.marker_frame_scoped_apply_entries
+    );
+    println!(
+        "  runtime_evidence.marker_frame_marked_apply_entries: {}",
+        output.evidence_stats.marker_frame_marked_apply_entries
+    );
+    println!(
+        "  runtime_evidence.marker_frame_adapter_entries: {}",
+        output.evidence_stats.marker_frame_adapter_entries
+    );
+    println!(
+        "  runtime_evidence.marker_frame_continuation_resume_entries: {}",
+        output
+            .evidence_stats
+            .marker_frame_continuation_resume_entries
+    );
+    println!(
+        "  runtime_evidence.marker_frame_marked_force_entries: {}",
+        output.evidence_stats.marker_frame_marked_force_entries
+    );
+    println!(
         "  runtime_evidence.active_marker_plan_pushes: {}",
         output.evidence_stats.active_marker_plan_pushes
     );
