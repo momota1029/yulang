@@ -30,12 +30,13 @@ pub(crate) use lib_support::convert::*;
 pub use mono;
 pub use specialize2::{
     RuntimeEvidenceBoundaryCandidate, RuntimeEvidenceEffectSubtraction, RuntimeEvidenceExprType,
-    RuntimeEvidenceGraph, RuntimeEvidenceRowResidual, RuntimeEvidenceSite, RuntimeEvidenceSiteKind,
-    RuntimeEvidenceSlot, RuntimeEvidenceSlotKind, RuntimeEvidenceStackWeight,
-    RuntimeEvidenceSurface, RuntimeEvidenceTask, RuntimeEvidenceTaskOwner,
-    RuntimeEvidenceTypeAtExpr, RuntimeEvidenceTypeAtPat, RuntimeEvidenceTypePathStep,
-    RuntimeEvidenceTypeRole, RuntimeEvidenceTypeclassResolution, RuntimeEvidenceWeightedSlotEdge,
-    RuntimeEvidenceWeightedTypeBound, SpecializeOutput, format_runtime_evidence_surface,
+    RuntimeEvidenceGraph, RuntimeEvidenceNode, RuntimeEvidenceNodeKind, RuntimeEvidenceRowResidual,
+    RuntimeEvidenceSite, RuntimeEvidenceSiteKind, RuntimeEvidenceSlot, RuntimeEvidenceSlotKind,
+    RuntimeEvidenceStackWeight, RuntimeEvidenceSurface, RuntimeEvidenceTask,
+    RuntimeEvidenceTaskOwner, RuntimeEvidenceTypeAtExpr, RuntimeEvidenceTypeAtPat,
+    RuntimeEvidenceTypePathStep, RuntimeEvidenceTypeRole, RuntimeEvidenceTypeclassResolution,
+    RuntimeEvidenceWeightedSlotEdge, RuntimeEvidenceWeightedTypeBound, SpecializeOutput,
+    format_runtime_evidence_surface,
 };
 
 #[derive(Debug, Clone, Default)]

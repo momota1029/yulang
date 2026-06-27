@@ -37,12 +37,13 @@ use effect::*;
 use marker::*;
 pub use runtime_evidence::{
     RuntimeEvidenceBoundaryCandidate, RuntimeEvidenceEffectSubtraction, RuntimeEvidenceExprType,
-    RuntimeEvidenceGraph, RuntimeEvidenceRowResidual, RuntimeEvidenceSite, RuntimeEvidenceSiteKind,
-    RuntimeEvidenceSlot, RuntimeEvidenceSlotKind, RuntimeEvidenceStackWeight,
-    RuntimeEvidenceSurface, RuntimeEvidenceTask, RuntimeEvidenceTaskOwner,
-    RuntimeEvidenceTypeAtExpr, RuntimeEvidenceTypeAtPat, RuntimeEvidenceTypePathStep,
-    RuntimeEvidenceTypeRole, RuntimeEvidenceTypeclassResolution, RuntimeEvidenceWeightedSlotEdge,
-    RuntimeEvidenceWeightedTypeBound, SpecializeOutput, format_runtime_evidence_surface,
+    RuntimeEvidenceGraph, RuntimeEvidenceNode, RuntimeEvidenceNodeKind, RuntimeEvidenceRowResidual,
+    RuntimeEvidenceSite, RuntimeEvidenceSiteKind, RuntimeEvidenceSlot, RuntimeEvidenceSlotKind,
+    RuntimeEvidenceStackWeight, RuntimeEvidenceSurface, RuntimeEvidenceTask,
+    RuntimeEvidenceTaskOwner, RuntimeEvidenceTypeAtExpr, RuntimeEvidenceTypeAtPat,
+    RuntimeEvidenceTypePathStep, RuntimeEvidenceTypeRole, RuntimeEvidenceTypeclassResolution,
+    RuntimeEvidenceWeightedSlotEdge, RuntimeEvidenceWeightedTypeBound, SpecializeOutput,
+    format_runtime_evidence_surface,
 };
 use runtime_shape::*;
 

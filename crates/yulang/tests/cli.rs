@@ -278,6 +278,7 @@ fn compatible_dump_control_evidence_prints_runtime_source_sites() {
 
     assert_success(&output);
     let stdout = stdout(&output);
+    assert!(stdout.contains("  nodes "), "{stdout}");
     assert!(stdout.contains("  sites "), "{stdout}");
     assert!(
         stdout.contains("operation-call callee"),

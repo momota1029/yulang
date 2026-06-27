@@ -1,6 +1,7 @@
 use mono::{EffectFamily, Program, StackWeight, Type};
 use poly::expr as poly_expr;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use std::fmt::Write as _;
 
 use super::{
@@ -37,6 +38,7 @@ pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> Stri
     for task in &surface.tasks {
         let _ = writeln!(out, "{}", format_task_header(task));
         format_graph_summary(&mut out, &task.graph);
+        format_nodes(&mut out, &task.nodes);
         format_sites(&mut out, &task.sites);
         for expr in &task.expr_types {
             let consumer = expr
@@ -108,6 +110,71 @@ pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> Stri
         }
     }
     out
+}
+
+fn format_nodes(out: &mut String, nodes: &[RuntimeEvidenceNode]) {
+    if nodes.is_empty() {
+        return;
+    }
+    let _ = writeln!(out, "  nodes {}", nodes.len());
+    for node in nodes {
+        let _ = writeln!(
+            out,
+            "    n{} e{} {} slots [{}] weighted [{}] subtractions [{}]",
+            node.id,
+            node.expr,
+            format_node_kind(&node.kind),
+            format_slot_ids(&node.slots),
+            format_slot_ids(&node.weighted_slots),
+            format_slot_ids(&node.effect_subtraction_slots),
+        );
+    }
+}
+
+fn format_node_kind(kind: &RuntimeEvidenceNodeKind) -> String {
+    match kind {
+        RuntimeEvidenceNodeKind::OperationValue { def, path } => {
+            format!("operation-value d{def} {}", path.join("::"))
+        }
+        RuntimeEvidenceNodeKind::OperationCall {
+            callee,
+            arg,
+            def,
+            path,
+        } => format!(
+            "operation-call callee e{callee} arg e{arg} d{def} {}",
+            path.join("::")
+        ),
+        RuntimeEvidenceNodeKind::Handler {
+            body,
+            handled_paths,
+            value_arm_count,
+        } => {
+            let handled = handled_paths
+                .iter()
+                .map(|path| path.join("::"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("handler body e{body} handled [{handled}] value_arms {value_arm_count}")
+        }
+        RuntimeEvidenceNodeKind::Application {
+            callee,
+            arg,
+            argument_contract,
+        } => {
+            format!("application callee e{callee} arg e{arg} argument_contract {argument_contract}")
+        }
+        RuntimeEvidenceNodeKind::FunctionValue {
+            param,
+            body,
+            argument_contract,
+        } => format!(
+            "function-value param p{param} body e{body} argument_contract {argument_contract}"
+        ),
+        RuntimeEvidenceNodeKind::RefUpdate { reference, value } => {
+            format!("ref-update reference e{reference} value e{value}")
+        }
+    }
 }
 
 fn format_graph_summary(out: &mut String, graph: &RuntimeEvidenceGraph) {
@@ -280,6 +347,7 @@ fn format_site_kind(kind: &RuntimeEvidenceSiteKind) -> String {
 pub struct RuntimeEvidenceTask {
     pub owner: RuntimeEvidenceTaskOwner,
     pub graph: RuntimeEvidenceGraph,
+    pub nodes: Vec<RuntimeEvidenceNode>,
     pub sites: Vec<RuntimeEvidenceSite>,
     pub expr_types: Vec<RuntimeEvidenceExprType>,
     pub ref_signatures: Vec<RuntimeEvidenceTypeAtExpr>,
@@ -287,6 +355,139 @@ pub struct RuntimeEvidenceTask {
     pub pat_ref_signatures: Vec<RuntimeEvidenceTypeAtPat>,
     pub typeclass_resolutions: Vec<RuntimeEvidenceTypeclassResolution>,
     pub raw_thunk_computations: Vec<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeEvidenceNode {
+    pub id: u32,
+    pub expr: u32,
+    pub kind: RuntimeEvidenceNodeKind,
+    pub slots: Vec<u32>,
+    pub weighted_slots: Vec<u32>,
+    pub effect_subtraction_slots: Vec<u32>,
+}
+
+impl RuntimeEvidenceNode {
+    fn from_site(
+        id: u32,
+        site: &RuntimeEvidenceSite,
+        expr_types: &[RuntimeEvidenceExprType],
+        graph: &RuntimeEvidenceGraph,
+    ) -> Self {
+        let slots = slots_for_site(site, expr_types);
+        let weighted_slots = slots
+            .iter()
+            .copied()
+            .filter(|slot| {
+                graph
+                    .slot(*slot)
+                    .is_some_and(RuntimeEvidenceSlot::has_weighted_evidence)
+            })
+            .collect();
+        let effect_subtraction_slots = slots
+            .iter()
+            .copied()
+            .filter(|slot| {
+                graph
+                    .slot(*slot)
+                    .is_some_and(RuntimeEvidenceSlot::has_effect_subtraction_evidence)
+            })
+            .collect();
+        Self {
+            id,
+            expr: site.expr,
+            kind: RuntimeEvidenceNodeKind::from_site_kind(&site.kind),
+            slots,
+            weighted_slots,
+            effect_subtraction_slots,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RuntimeEvidenceNodeKind {
+    OperationValue {
+        def: u32,
+        path: Vec<String>,
+    },
+    OperationCall {
+        callee: u32,
+        arg: u32,
+        def: u32,
+        path: Vec<String>,
+    },
+    Handler {
+        body: u32,
+        handled_paths: Vec<Vec<String>>,
+        value_arm_count: u32,
+    },
+    Application {
+        callee: u32,
+        arg: u32,
+        argument_contract: bool,
+    },
+    FunctionValue {
+        param: u32,
+        body: u32,
+        argument_contract: bool,
+    },
+    RefUpdate {
+        reference: u32,
+        value: u32,
+    },
+}
+
+impl RuntimeEvidenceNodeKind {
+    fn from_site_kind(kind: &RuntimeEvidenceSiteKind) -> Self {
+        match kind {
+            RuntimeEvidenceSiteKind::OperationValue { def, path } => Self::OperationValue {
+                def: *def,
+                path: path.clone(),
+            },
+            RuntimeEvidenceSiteKind::OperationCall {
+                callee,
+                arg,
+                def,
+                path,
+            } => Self::OperationCall {
+                callee: *callee,
+                arg: *arg,
+                def: *def,
+                path: path.clone(),
+            },
+            RuntimeEvidenceSiteKind::Catch {
+                body,
+                handled_paths,
+                value_arm_count,
+            } => Self::Handler {
+                body: *body,
+                handled_paths: handled_paths.clone(),
+                value_arm_count: *value_arm_count,
+            },
+            RuntimeEvidenceSiteKind::App {
+                callee,
+                arg,
+                argument_contract,
+            } => Self::Application {
+                callee: *callee,
+                arg: *arg,
+                argument_contract: *argument_contract,
+            },
+            RuntimeEvidenceSiteKind::Lambda {
+                param,
+                body,
+                argument_contract,
+            } => Self::FunctionValue {
+                param: *param,
+                body: *body,
+                argument_contract: *argument_contract,
+            },
+            RuntimeEvidenceSiteKind::RefSet { reference, value } => Self::RefUpdate {
+                reference: *reference,
+                value: *value,
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -557,6 +758,18 @@ impl RuntimeEvidenceTask {
             .map(|(expr, ty)| RuntimeEvidenceExprType::new(*expr, ty))
             .collect::<Vec<_>>();
         expr_types.sort_by_key(|item| item.expr);
+        let nodes = sites
+            .iter()
+            .enumerate()
+            .map(|(id, site)| {
+                RuntimeEvidenceNode::from_site(
+                    id as u32,
+                    site,
+                    &expr_types,
+                    &solved.runtime_evidence_graph,
+                )
+            })
+            .collect();
 
         let mut ref_signatures = type_at_exprs(&solved.ref_signatures);
         let mut select_signatures = type_at_exprs(&solved.select_signatures);
@@ -585,6 +798,7 @@ impl RuntimeEvidenceTask {
         Self {
             owner,
             graph: solved.runtime_evidence_graph.clone(),
+            nodes,
             sites,
             expr_types,
             ref_signatures,
@@ -677,6 +891,10 @@ impl RuntimeEvidenceGraph {
             slots,
         }
     }
+
+    fn slot(&self, id: u32) -> Option<&RuntimeEvidenceSlot> {
+        self.slots.get(id as usize).filter(|slot| slot.id == id)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -721,6 +939,17 @@ impl RuntimeEvidenceSlot {
             || !self.weighted_successors.is_empty()
             || !self.weighted_predecessors.is_empty()
             || !self.effect_subtractions.is_empty()
+    }
+
+    fn has_weighted_evidence(&self) -> bool {
+        !self.weighted_lower.is_empty()
+            || !self.weighted_upper.is_empty()
+            || !self.weighted_successors.is_empty()
+            || !self.weighted_predecessors.is_empty()
+    }
+
+    fn has_effect_subtraction_evidence(&self) -> bool {
+        !self.effect_subtractions.is_empty()
     }
 }
 
@@ -939,6 +1168,40 @@ fn type_at_exprs(
         .iter()
         .map(|(expr, ty)| RuntimeEvidenceTypeAtExpr::new(*expr, ty))
         .collect()
+}
+
+fn slots_for_site(site: &RuntimeEvidenceSite, expr_types: &[RuntimeEvidenceExprType]) -> Vec<u32> {
+    let mut slots = BTreeSet::new();
+    insert_expr_slots(site.expr, expr_types, &mut slots);
+    if let Some(boundary) = &site.boundary {
+        slots.extend(boundary.actual_slots.iter().copied());
+        slots.extend(boundary.consumer_slots.iter().copied());
+    }
+    for expr in site.kind.child_exprs() {
+        insert_expr_slots(expr, expr_types, &mut slots);
+    }
+    slots.into_iter().collect()
+}
+
+fn insert_expr_slots(expr: u32, expr_types: &[RuntimeEvidenceExprType], slots: &mut BTreeSet<u32>) {
+    let Some(ty) = expr_types.iter().find(|ty| ty.expr == expr) else {
+        return;
+    };
+    slots.extend(ty.actual_slots.iter().copied());
+    slots.extend(ty.consumer_slots.iter().copied());
+}
+
+impl RuntimeEvidenceSiteKind {
+    fn child_exprs(&self) -> Vec<u32> {
+        match self {
+            RuntimeEvidenceSiteKind::OperationValue { .. } => Vec::new(),
+            RuntimeEvidenceSiteKind::OperationCall { callee, arg, .. } => vec![*callee, *arg],
+            RuntimeEvidenceSiteKind::Catch { body, .. } => vec![*body],
+            RuntimeEvidenceSiteKind::App { callee, arg, .. } => vec![*callee, *arg],
+            RuntimeEvidenceSiteKind::Lambda { body, .. } => vec![*body],
+            RuntimeEvidenceSiteKind::RefSet { reference, value } => vec![*reference, *value],
+        }
+    }
 }
 
 fn weighted_type_bounds(bounds: &[WeightedTypeBound]) -> Vec<RuntimeEvidenceWeightedTypeBound> {

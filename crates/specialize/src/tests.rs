@@ -1,6 +1,6 @@
 mod tests {
     use crate::{
-        RuntimeEvidenceSiteKind, RuntimeEvidenceTaskOwner, boundary_expr,
+        RuntimeEvidenceNodeKind, RuntimeEvidenceSiteKind, RuntimeEvidenceTaskOwner, boundary_expr,
         boundary_expr_with_hygiene, hygiene, specialize, specialize_roots,
         specialize_with_runtime_evidence, specialize2,
     };
@@ -521,6 +521,15 @@ mod tests {
             }),
             "expr runtime evidence should retain source-to-graph slot references"
         );
+        assert!(
+            output.runtime_evidence.tasks.iter().any(|task| {
+                task.nodes.iter().any(|node| {
+                    !node.slots.is_empty()
+                        && node.slots.iter().all(|slot| *slot < task.graph.slot_count)
+                })
+            }),
+            "runtime evidence nodes should link source sites to graph slots"
+        );
     }
 
     #[test]
@@ -558,6 +567,18 @@ mod tests {
                     if handled_paths.iter().any(|path| path == &vec!["out".to_string(), "say".to_string()])
                 )),
             "catch site should retain handled operation paths"
+        );
+        assert!(
+            output.runtime_evidence.tasks.iter().any(|task| {
+                task.nodes.iter().any(|node| {
+                    matches!(
+                        &node.kind,
+                        RuntimeEvidenceNodeKind::OperationCall { path, .. }
+                            if path == &vec!["out".to_string(), "say".to_string()]
+                    )
+                })
+            }),
+            "operation call should be lifted into a runtime evidence node"
         );
     }
 

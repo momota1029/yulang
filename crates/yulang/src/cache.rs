@@ -3964,6 +3964,7 @@ mod tests {
                     queued_constraint_count: 1,
                     ..specialize::RuntimeEvidenceGraph::default()
                 },
+                nodes: Vec::new(),
                 sites: Vec::new(),
                 expr_types: vec![specialize::RuntimeEvidenceExprType {
                     expr: 0,
