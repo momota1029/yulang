@@ -184,6 +184,7 @@ struct DumpSelection {
     poly: bool,
     poly_raw: bool,
     mono: bool,
+    control_evidence: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1638,6 +1639,19 @@ fn dump_mono_with_optional_cache(
     );
     yulang::DumpMonoOutput {
         text: specialize::mono::dump::dump_program(&program),
+        file_count: output.file_count,
+        errors: output.errors,
+    }
+}
+
+fn dump_control_evidence_with_optional_cache(
+    files: Vec<yulang::CollectedSource>,
+    use_cache: bool,
+) -> yulang::DumpMonoOutput {
+    let output = build_control_with_optional_cache(files, use_cache);
+    let evidence = control_vm::ControlEvidenceProgram::from_program(&output.program);
+    yulang::DumpMonoOutput {
+        text: control_vm::format_control_evidence_program(&evidence),
         file_count: output.file_count,
         errors: output.errors,
     }

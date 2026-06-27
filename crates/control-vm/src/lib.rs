@@ -7,12 +7,19 @@
 
 mod boundary;
 mod effect_profile;
+mod evidence_ir;
 mod format;
 mod ir;
 mod lower;
 mod runtime;
 mod validate;
 
+pub use evidence_ir::{
+    ControlAdapterEvidence, ControlDelayedBoundary, ControlDelayedBoundaryKind,
+    ControlEffectEvidence, ControlEffectUseKind, ControlEvidenceInstance, ControlEvidenceProgram,
+    ControlEvidenceRoute, ControlFallbackEvidence, ControlFallbackKind, ControlHandlerArmEvidence,
+    ControlHandlerEvidence, format_control_evidence_program,
+};
 pub use format::format_values;
 pub use ir::{
     Block, CaseArm, CatchArm, DefId, Expr, ExprId, Instance, InstanceId, Pat, Program, RecordField,

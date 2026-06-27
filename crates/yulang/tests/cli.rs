@@ -237,6 +237,24 @@ fn compatible_dump_runtime_ir_maps_to_mono_dump() {
 }
 
 #[test]
+fn compatible_dump_control_evidence_accepts_explicit_std_root() {
+    let (entry, std_root) = write_fixture("dump-control-evidence-explicit-std-root", "1\n");
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(&std_root)
+        .arg("dump")
+        .arg("--control-evidence")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("control evidence roots ["), "{stdout}");
+}
+
+#[test]
 fn compatible_dump_no_prelude_uses_cache() {
     let entry = write_entry("dump-no-prelude-cache", "1\n");
     let root = entry.parent().unwrap().to_path_buf();

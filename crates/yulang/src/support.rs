@@ -182,6 +182,9 @@ pub(super) fn parse_dump_args(
             | Some("--mono") => {
                 selection.mono = true;
             }
+            Some("--control-evidence") | Some("--evidence-ir") => {
+                selection.control_evidence = true;
+            }
             Some("--hygiene-ir") => {
                 print_usage_error_and_exit(
                     program,
@@ -195,10 +198,10 @@ pub(super) fn parse_dump_args(
             _ => set_single_path(program, &mut path, arg),
         }
     }
-    if !selection.poly && !selection.poly_raw && !selection.mono {
+    if !selection.poly && !selection.poly_raw && !selection.mono && !selection.control_evidence {
         print_usage_error_and_exit(
             program,
-            "dump requires at least one of --core-ir, --runtime-ir, --poly, --poly-raw, --mono",
+            "dump requires at least one of --core-ir, --runtime-ir, --poly, --poly-raw, --mono, --control-evidence",
         );
     }
     let Some(path) = path else {
@@ -222,7 +225,11 @@ pub(super) fn print_selected_dump_without_std(
         print_dump_poly_output(&output);
     }
     if selection.mono {
-        let output = dump_mono_with_optional_cache(files, use_cache);
+        let output = dump_mono_with_optional_cache(files.clone(), use_cache);
+        print_dump_mono_output(&output);
+    }
+    if selection.control_evidence {
+        let output = dump_control_evidence_with_optional_cache(files, use_cache);
         print_dump_mono_output(&output);
     }
 }
@@ -245,7 +252,11 @@ pub(super) fn print_selected_dump_with_std(
         print_dump_poly_output(&output);
     }
     if selection.mono {
-        let output = dump_mono_with_optional_cache(files, use_cache);
+        let output = dump_mono_with_optional_cache(files.clone(), use_cache);
+        print_dump_mono_output(&output);
+    }
+    if selection.control_evidence {
+        let output = dump_control_evidence_with_optional_cache(files, use_cache);
         print_dump_mono_output(&output);
     }
 }
