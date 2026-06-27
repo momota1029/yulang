@@ -936,6 +936,44 @@ fn debug_runtime_evidence_run_uses_direct_handler_evidence() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_classifies_unused_continuation_as_direct_abortive() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-direct-abortive-handler",
+        "act stop:\n  our now: () -> int\n\n\
+         catch (stop::now(), 1):\n\
+         \x20 stop::now(), _ -> (42, 0)\n\
+         \x20 v -> v\n",
+    );
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(
+        stdout.contains("evidence.plan_direct_effect_routes: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.plan_direct_abortive_effect_routes: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.plan_direct_tail_resumptive_effect_routes: 0"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("run roots [(42, 0)]\n"), "{stdout}");
+}
+
+#[test]
 fn debug_runtime_evidence_run_falls_through_handler_arm_patterns_and_guards() {
     let entry = write_entry(
         "debug-runtime-evidence-run-handler-arm-fallthrough",

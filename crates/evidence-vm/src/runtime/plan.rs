@@ -4,7 +4,8 @@ use control_vm::ExprId;
 
 use super::{ControlEvidenceIndex, EvidenceEffectRoute, RuntimeEvidenceRunStats};
 use crate::{
-    EvidenceVmOperationKind, EvidenceVmOperationLowering, EvidenceVmOperationPlan, EvidenceVmPlan,
+    EvidenceVmOperationExecutionPlan, EvidenceVmOperationKind, EvidenceVmOperationLowering,
+    EvidenceVmOperationObjectPlan, EvidenceVmOperationPlan, EvidenceVmPlan,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -16,6 +17,8 @@ pub(super) struct RuntimeEvidenceRunContext {
     direct_candidates: usize,
     effect_route_count: usize,
     direct_effect_route_count: usize,
+    direct_abortive_effect_route_count: usize,
+    direct_tail_resumptive_effect_route_count: usize,
     effect_routes: Option<HashMap<(ExprId, ExprId), EvidenceEffectRoute>>,
     value_provider_envs: HashMap<ExprId, RuntimeEvidenceProviderEnv>,
     operation_provider_lookups: HashMap<(ExprId, ExprId), RuntimeEvidenceOperationProviderLookup>,
@@ -27,7 +30,15 @@ impl RuntimeEvidenceRunContext {
         let effect_route_count = effect_routes.len();
         let direct_effect_route_count = effect_routes
             .values()
-            .filter(|route| matches!(route, EvidenceEffectRoute::Direct { .. }))
+            .filter(|route| route.is_direct())
+            .count();
+        let direct_abortive_effect_route_count = effect_routes
+            .values()
+            .filter(|route| route.is_direct_abortive())
+            .count();
+        let direct_tail_resumptive_effect_route_count = effect_routes
+            .values()
+            .filter(|route| route.is_direct_tail_resumptive())
             .count();
         let value_provider_envs = value_provider_envs_from_plan(plan);
         let operation_provider_lookups = operation_provider_lookups_from_plan(plan);
@@ -60,6 +71,8 @@ impl RuntimeEvidenceRunContext {
                 .count(),
             effect_route_count,
             direct_effect_route_count,
+            direct_abortive_effect_route_count,
+            direct_tail_resumptive_effect_route_count,
             effect_routes: Some(effect_routes),
             value_provider_envs,
             operation_provider_lookups,
@@ -80,6 +93,9 @@ impl RuntimeEvidenceRunContext {
         stats.plan_direct_candidates = self.direct_candidates;
         stats.plan_effect_routes = self.effect_route_count;
         stats.plan_direct_effect_routes = self.direct_effect_route_count;
+        stats.plan_direct_abortive_effect_routes = self.direct_abortive_effect_route_count;
+        stats.plan_direct_tail_resumptive_effect_routes =
+            self.direct_tail_resumptive_effect_route_count;
     }
 
     pub(super) fn provider_env_for_value(&self, expr: ExprId) -> RuntimeEvidenceProviderEnv {
@@ -158,18 +174,21 @@ struct RuntimeEvidenceOperationProviderLookup {
 fn effect_routes_from_plan(
     plan: &EvidenceVmPlan,
 ) -> HashMap<(ExprId, ExprId), EvidenceEffectRoute> {
+    let operation_objects = operation_objects_by_expr(plan);
     plan.operations
         .iter()
-        .filter_map(effect_route_from_operation_plan)
+        .filter_map(|operation| effect_route_from_operation_plan(operation, &operation_objects))
         .collect()
 }
 
 fn effect_route_from_operation_plan(
     operation: &EvidenceVmOperationPlan,
+    operation_objects: &HashMap<ExprId, &EvidenceVmOperationObjectPlan>,
 ) -> Option<((ExprId, ExprId), EvidenceEffectRoute)> {
     let EvidenceVmOperationKind::Call { apply, callee } = operation.kind else {
         return None;
     };
+    let execution = operation_execution_for_route(operation, operation_objects);
     let route = match operation.lowering {
         EvidenceVmOperationLowering::DirectHandlerCall {
             handler,
@@ -178,6 +197,7 @@ fn effect_route_from_operation_plan(
         } => EvidenceEffectRoute::Direct {
             handler,
             resumptive,
+            execution,
         },
         EvidenceVmOperationLowering::LexicalHandlerCandidate { .. }
         | EvidenceVmOperationLowering::HygieneFallback { .. }
@@ -211,12 +231,7 @@ fn value_provider_envs_from_plan(
 fn operation_provider_lookups_from_plan(
     plan: &EvidenceVmPlan,
 ) -> HashMap<(ExprId, ExprId), RuntimeEvidenceOperationProviderLookup> {
-    let operation_objects = plan
-        .objects
-        .operations
-        .iter()
-        .map(|operation| (operation.expr, operation))
-        .collect::<HashMap<_, _>>();
+    let operation_objects = operation_objects_by_expr(plan);
     plan.operations
         .iter()
         .filter_map(|operation| {
@@ -241,11 +256,32 @@ fn operation_provider_lookups_from_plan(
                     route: EvidenceEffectRoute::Direct {
                         handler,
                         resumptive,
+                        execution: object.execution,
                     },
                 },
             ))
         })
         .collect()
+}
+
+fn operation_objects_by_expr(
+    plan: &EvidenceVmPlan,
+) -> HashMap<ExprId, &EvidenceVmOperationObjectPlan> {
+    plan.objects
+        .operations
+        .iter()
+        .map(|operation| (operation.expr, operation))
+        .collect()
+}
+
+fn operation_execution_for_route(
+    operation: &EvidenceVmOperationPlan,
+    operation_objects: &HashMap<ExprId, &EvidenceVmOperationObjectPlan>,
+) -> EvidenceVmOperationExecutionPlan {
+    operation_objects
+        .get(&operation.expr)
+        .map(|object| object.execution)
+        .unwrap_or(EvidenceVmOperationExecutionPlan::GenericFallback)
 }
 
 #[cfg(test)]
@@ -315,6 +351,7 @@ mod tests {
             Some(EvidenceEffectRoute::Direct {
                 handler,
                 resumptive: true,
+                execution: EvidenceVmOperationExecutionPlan::DirectTailResumptive,
             })
         );
     }

@@ -1799,12 +1799,21 @@ fn classify_handler_arm(
     if arm.guarded {
         return EvidenceVmHandlerArmClass::Fallback;
     }
-    let Some(continuation) = source_handler_arm(program, handler_expr, arm_index)
+    let Some(continuation_pat) = source_handler_arm(program, handler_expr, arm_index)
         .and_then(|source_arm| source_arm.continuation.as_ref())
-        .and_then(continuation_def)
     else {
         return EvidenceVmHandlerArmClass::MayYield;
     };
+    let Some(continuation) = continuation_def(continuation_pat) else {
+        return if matches!(continuation_pat, control_vm::Pat::Wild) {
+            EvidenceVmHandlerArmClass::Abortive
+        } else {
+            EvidenceVmHandlerArmClass::MayYield
+        };
+    };
+    if !expr_contains_local(program, arm.body, continuation) {
+        return EvidenceVmHandlerArmClass::Abortive;
+    }
     if body_tail_resumes(program, arm.body, continuation) {
         EvidenceVmHandlerArmClass::TailResumptive
     } else {

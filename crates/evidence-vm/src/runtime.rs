@@ -16,7 +16,7 @@ use specialize::mono::{
 mod format;
 mod plan;
 mod text;
-use crate::EvidenceVmPlan;
+use crate::{EvidenceVmOperationExecutionPlan, EvidenceVmPlan};
 use format::{format_float, format_value, format_values_with_labels};
 use plan::{RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext};
 use text::{
@@ -51,6 +51,8 @@ pub struct RuntimeEvidenceRunStats {
     pub plan_direct_candidates: usize,
     pub plan_effect_routes: usize,
     pub plan_direct_effect_routes: usize,
+    pub plan_direct_abortive_effect_routes: usize,
+    pub plan_direct_tail_resumptive_effect_routes: usize,
     pub runtime_provider_env_values: usize,
     pub runtime_provider_env_slots: usize,
     pub runtime_provider_env_candidates: usize,
@@ -445,8 +447,38 @@ enum EvidenceRefSetResumeMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidenceEffectRoute {
-    Direct { handler: ExprId, resumptive: bool },
+    Direct {
+        handler: ExprId,
+        resumptive: bool,
+        execution: EvidenceVmOperationExecutionPlan,
+    },
     Unhandled,
+}
+
+impl EvidenceEffectRoute {
+    fn is_direct(self) -> bool {
+        matches!(self, Self::Direct { .. })
+    }
+
+    fn is_direct_abortive(self) -> bool {
+        matches!(
+            self,
+            Self::Direct {
+                execution: EvidenceVmOperationExecutionPlan::DirectAbortive,
+                ..
+            }
+        )
+    }
+
+    fn is_direct_tail_resumptive(self) -> bool {
+        matches!(
+            self,
+            Self::Direct {
+                execution: EvidenceVmOperationExecutionPlan::DirectTailResumptive,
+                ..
+            }
+        )
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1070,7 +1102,7 @@ impl ControlEvidenceIndex {
         }
         let direct_effect_calls = effect_calls
             .values()
-            .filter(|route| matches!(route, EvidenceEffectRoute::Direct { .. }))
+            .filter(|route| route.is_direct())
             .count();
         Self {
             stats: RuntimeEvidenceRunStats {
@@ -1092,7 +1124,7 @@ impl ControlEvidenceIndex {
     ) {
         let direct_effect_calls = effect_calls
             .values()
-            .filter(|route| matches!(route, EvidenceEffectRoute::Direct { .. }))
+            .filter(|route| route.is_direct())
             .count();
         self.stats.effect_calls = effect_calls.len();
         self.stats.direct_effect_calls = direct_effect_calls;
@@ -1117,6 +1149,7 @@ fn effect_call_route(
         } => EvidenceEffectRoute::Direct {
             handler: *handler,
             resumptive: *resumptive,
+            execution: EvidenceVmOperationExecutionPlan::YieldFallback,
         },
         ControlEvidenceRoute::Blocked { .. } | ControlEvidenceRoute::Unhandled => {
             EvidenceEffectRoute::Unhandled
@@ -1467,7 +1500,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             .evidence
             .effect_call_route(site, callee)
             .unwrap_or(EvidenceEffectRoute::Unhandled);
-        if matches!(route, EvidenceEffectRoute::Direct { .. }) {
+        if route.is_direct() {
             return route;
         }
         if !self.context.has_provider_lookup_for_call(site, callee) {
@@ -1489,6 +1522,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         request: EvidenceRequest,
         tail: EvidenceContinuation,
     ) -> EvidenceRequest {
+        if request.route.is_direct_abortive() {
+            return request;
+        }
         request.append_continuation(tail, &mut self.stats)
     }
 
@@ -1666,6 +1702,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         activate_add_ids: bool,
         handler_path: Option<Vec<String>>,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if request.route.is_direct_abortive() {
+            return Ok(EvidenceEvalResult::Request(request));
+        }
         if markers.is_empty() {
             return Ok(EvidenceEvalResult::Request(request));
         }
@@ -3731,7 +3770,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         handler_boundary: None,
                         continuation: EvidenceContinuation::identity(),
                     };
-                    self.mark_request_with_active_markers(&mut request);
+                    if !request.route.is_direct_abortive() {
+                        self.mark_request_with_active_markers(&mut request);
+                    }
                     Ok(EvidenceEvalResult::Request(request))
                 }
                 RuntimeEvidenceThunk::Continuation { continuation, arg } => {
@@ -3798,6 +3839,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceEffectRoute::Direct {
                     handler,
                     resumptive,
+                    ..
                 } if handler == catch_expr => {
                     self.eval_operation_arm(request, resumptive, &arms, env)
                 }

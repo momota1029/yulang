@@ -2279,6 +2279,16 @@ fn run_runtime_evidence_run(
         output.evidence_stats.plan_direct_effect_routes
     );
     println!(
+        "  evidence.plan_direct_abortive_effect_routes: {}",
+        output.evidence_stats.plan_direct_abortive_effect_routes
+    );
+    println!(
+        "  evidence.plan_direct_tail_resumptive_effect_routes: {}",
+        output
+            .evidence_stats
+            .plan_direct_tail_resumptive_effect_routes
+    );
+    println!(
         "  runtime_evidence.provider_env_values: {}",
         output.evidence_stats.runtime_provider_env_values
     );
