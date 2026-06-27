@@ -2303,6 +2303,14 @@ fn run_runtime_evidence_run(
         output.evidence_stats.runtime_provider_env_read_candidates
     );
     println!(
+        "  runtime_evidence.provider_env_route_lookups: {}",
+        output.evidence_stats.runtime_provider_env_route_lookups
+    );
+    println!(
+        "  runtime_evidence.provider_env_route_hits: {}",
+        output.evidence_stats.runtime_provider_env_route_hits
+    );
+    println!(
         "  control_evidence.effect_calls: {}",
         output.evidence_stats.effect_calls
     );

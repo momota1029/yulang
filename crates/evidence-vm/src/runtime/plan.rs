@@ -18,6 +18,7 @@ pub(super) struct RuntimeEvidenceRunContext {
     direct_effect_route_count: usize,
     effect_routes: Option<HashMap<(ExprId, ExprId), EvidenceEffectRoute>>,
     value_provider_envs: HashMap<ExprId, RuntimeEvidenceProviderEnv>,
+    operation_provider_lookups: HashMap<(ExprId, ExprId), RuntimeEvidenceOperationProviderLookup>,
 }
 
 impl RuntimeEvidenceRunContext {
@@ -29,6 +30,7 @@ impl RuntimeEvidenceRunContext {
             .filter(|route| matches!(route, EvidenceEffectRoute::Direct { .. }))
             .count();
         let value_provider_envs = value_provider_envs_from_plan(plan);
+        let operation_provider_lookups = operation_provider_lookups_from_plan(plan);
         Self {
             provider_slots: plan.objects.providers.len(),
             provider_candidates: plan
@@ -60,6 +62,7 @@ impl RuntimeEvidenceRunContext {
             direct_effect_route_count,
             effect_routes: Some(effect_routes),
             value_provider_envs,
+            operation_provider_lookups,
         }
     }
 
@@ -84,6 +87,24 @@ impl RuntimeEvidenceRunContext {
             .get(&expr)
             .cloned()
             .unwrap_or_default()
+    }
+
+    pub(super) fn has_provider_lookup_for_call(&self, apply: ExprId, callee: ExprId) -> bool {
+        self.operation_provider_lookups
+            .contains_key(&(apply, callee))
+    }
+
+    pub(super) fn provider_route_for_call(
+        &self,
+        apply: ExprId,
+        callee: ExprId,
+        envs: &[RuntimeEvidenceProviderEnv],
+    ) -> Option<EvidenceEffectRoute> {
+        let lookup = self.operation_provider_lookups.get(&(apply, callee))?;
+        envs.iter()
+            .rev()
+            .any(|env| env.provides(lookup.slot_id, lookup.handler_id))
+            .then_some(lookup.route)
     }
 }
 
@@ -113,12 +134,25 @@ impl RuntimeEvidenceProviderEnv {
             .map(|provider| provider.handler_ids.len())
             .sum()
     }
+
+    fn provides(&self, slot_id: u32, handler_id: u32) -> bool {
+        self.providers.iter().any(|provider| {
+            provider.slot_id == slot_id && provider.handler_ids.contains(&handler_id)
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RuntimeEvidenceEnvProvider {
     slot_id: u32,
     handler_ids: Vec<u32>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct RuntimeEvidenceOperationProviderLookup {
+    slot_id: u32,
+    handler_id: u32,
+    route: EvidenceEffectRoute,
 }
 
 fn effect_routes_from_plan(
@@ -170,6 +204,46 @@ fn value_provider_envs_from_plan(
                 .collect::<Vec<_>>();
             (!providers.is_empty())
                 .then_some((value.expr, RuntimeEvidenceProviderEnv { providers }))
+        })
+        .collect()
+}
+
+fn operation_provider_lookups_from_plan(
+    plan: &EvidenceVmPlan,
+) -> HashMap<(ExprId, ExprId), RuntimeEvidenceOperationProviderLookup> {
+    let operation_objects = plan
+        .objects
+        .operations
+        .iter()
+        .map(|operation| (operation.expr, operation))
+        .collect::<HashMap<_, _>>();
+    plan.operations
+        .iter()
+        .filter_map(|operation| {
+            let EvidenceVmOperationKind::Call { apply, callee } = operation.kind else {
+                return None;
+            };
+            let EvidenceVmOperationLowering::LexicalHandlerCandidate {
+                handler,
+                resumptive,
+                delayed_boundary: false,
+            } = operation.lowering
+            else {
+                return None;
+            };
+            let object = operation_objects.get(&operation.expr)?;
+            let handler_id = object.candidate_handler?;
+            Some((
+                (apply, callee),
+                RuntimeEvidenceOperationProviderLookup {
+                    slot_id: object.slot_id,
+                    handler_id,
+                    route: EvidenceEffectRoute::Direct {
+                        handler,
+                        resumptive,
+                    },
+                },
+            ))
         })
         .collect()
 }

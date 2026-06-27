@@ -56,6 +56,8 @@ pub struct RuntimeEvidenceRunStats {
     pub runtime_provider_env_reads: usize,
     pub runtime_provider_env_read_slots: usize,
     pub runtime_provider_env_read_candidates: usize,
+    pub runtime_provider_env_route_lookups: usize,
+    pub runtime_provider_env_route_hits: usize,
     pub expr_evals: usize,
     pub env_clones: usize,
     pub env_entries_cloned: usize,
@@ -1080,6 +1082,7 @@ struct RuntimeEvidenceRunner<'a> {
     #[cfg(debug_assertions)]
     active_add_id_index: ActiveAddIdIndex,
     active_marker_plans: Vec<Vec<EvidenceValueMarker>>,
+    active_provider_envs: Vec<RuntimeEvidenceProviderEnv>,
     stdout: String,
     context: RuntimeEvidenceRunContext,
     stats: RuntimeEvidenceRunStats,
@@ -1106,6 +1109,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             #[cfg(debug_assertions)]
             active_add_id_index: ActiveAddIdIndex::default(),
             active_marker_plans: Vec::new(),
+            active_provider_envs: Vec::new(),
             stdout: String::new(),
             context,
             stats,
@@ -1171,6 +1175,50 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.stats.runtime_provider_env_reads += 1;
         self.stats.runtime_provider_env_read_slots += provider_env.provider_count();
         self.stats.runtime_provider_env_read_candidates += provider_env.candidate_count();
+    }
+
+    fn with_provider_env(
+        &mut self,
+        provider_env: RuntimeEvidenceProviderEnv,
+        run: impl FnOnce(&mut Self) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError>,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if provider_env.is_empty() {
+            return run(self);
+        }
+        let len = self.active_provider_envs.len();
+        self.active_provider_envs.push(provider_env);
+        let result = run(self);
+        self.active_provider_envs.truncate(len);
+        result
+    }
+
+    fn effect_route_for_operation_call(
+        &mut self,
+        site: Option<ExprId>,
+        callee: ExprId,
+    ) -> EvidenceEffectRoute {
+        let Some(site) = site else {
+            return EvidenceEffectRoute::Unhandled;
+        };
+        let route = self
+            .evidence
+            .effect_call_route(site, callee)
+            .unwrap_or(EvidenceEffectRoute::Unhandled);
+        if matches!(route, EvidenceEffectRoute::Direct { .. }) {
+            return route;
+        }
+        if !self.context.has_provider_lookup_for_call(site, callee) {
+            return route;
+        }
+        self.stats.runtime_provider_env_route_lookups += 1;
+        let Some(provider_route) =
+            self.context
+                .provider_route_for_call(site, callee, &self.active_provider_envs)
+        else {
+            return route;
+        };
+        self.stats.runtime_provider_env_route_hits += 1;
+        provider_route
     }
 
     fn append_request_continuation(
@@ -2377,8 +2425,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 hygiene,
                 provider_env,
             } => {
-                self.observe_provider_env(provider_env);
-                self.apply_adapter_result(source, target, function.clone(), hygiene, arg)
+                let provider_env = provider_env.clone();
+                self.observe_provider_env(&provider_env);
+                self.with_provider_env(provider_env, |runner| {
+                    runner.apply_adapter_result(source, target, function.clone(), hygiene, arg)
+                })
             }
             RuntimeEvidenceValue::ConstructorFunction { def, arity, args } => {
                 let mut args = args.clone();
@@ -2388,23 +2439,32 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 ))))
             }
             RuntimeEvidenceValue::Closure(closure) => {
-                self.observe_provider_env(&closure.provider_env);
-                let mut env = self.clone_env(&closure.env);
-                self.bind_pat(&closure.param, arg, &mut env)?;
-                self.eval_expr_result(closure.body, &mut env)
+                let closure = closure.clone();
+                let provider_env = closure.provider_env.clone();
+                self.observe_provider_env(&provider_env);
+                self.with_provider_env(provider_env, |runner| {
+                    let mut env = runner.clone_env(&closure.env);
+                    runner.bind_pat(&closure.param, arg, &mut env)?;
+                    runner.eval_expr_result(closure.body, &mut env)
+                })
             }
             RuntimeEvidenceValue::RecursiveClosure { def, closure } => {
-                self.observe_provider_env(&closure.provider_env);
-                let mut env = self.clone_env(&closure.env);
-                env.insert(
-                    *def,
-                    shared(RuntimeEvidenceValue::RecursiveClosure {
-                        def: *def,
-                        closure: closure.clone(),
-                    }),
-                );
-                self.bind_pat(&closure.param, arg, &mut env)?;
-                self.eval_expr_result(closure.body, &mut env)
+                let def = *def;
+                let closure = closure.clone();
+                let provider_env = closure.provider_env.clone();
+                self.observe_provider_env(&provider_env);
+                self.with_provider_env(provider_env, |runner| {
+                    let mut env = runner.clone_env(&closure.env);
+                    env.insert(
+                        def,
+                        shared(RuntimeEvidenceValue::RecursiveClosure {
+                            def,
+                            closure: closure.clone(),
+                        }),
+                    );
+                    runner.bind_pat(&closure.param, arg, &mut env)?;
+                    runner.eval_expr_result(closure.body, &mut env)
+                })
             }
             RuntimeEvidenceValue::Continuation(continuation) => {
                 Ok(EvidenceEvalResult::Value(shared(
@@ -2428,9 +2488,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 )),
             },
             RuntimeEvidenceValue::EffectOp { expr, path } => {
-                let route = site
-                    .and_then(|site| self.evidence.effect_call_route(site, *expr))
-                    .unwrap_or(EvidenceEffectRoute::Unhandled);
+                let route = self.effect_route_for_operation_call(site, *expr);
                 Ok(EvidenceEvalResult::Value(shared(
                     RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Effect {
                         path: path.clone(),
@@ -3369,9 +3427,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     provider_env,
                 } => {
                     self.stats.thunk_force_expr += 1;
-                    self.observe_provider_env(provider_env);
-                    let mut env = self.clone_env(env);
-                    self.eval_expr_result(*body, &mut env)
+                    let provider_env = provider_env.clone();
+                    self.observe_provider_env(&provider_env);
+                    self.with_provider_env(provider_env, |runner| {
+                        let mut env = runner.clone_env(env);
+                        runner.eval_expr_result(*body, &mut env)
+                    })
                 }
                 RuntimeEvidenceThunk::Effect {
                     path,
