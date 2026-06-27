@@ -1776,9 +1776,11 @@ fn operation_execution_plan(
         EvidenceVmHandlerArmClass::TailResumptive => {
             EvidenceVmOperationExecutionPlan::DirectTailResumptive
         }
+        EvidenceVmHandlerArmClass::MayEscapeYield => {
+            EvidenceVmOperationExecutionPlan::DirectTailResumptive
+        }
         EvidenceVmHandlerArmClass::OneShotYield
         | EvidenceVmHandlerArmClass::MultiShotYield
-        | EvidenceVmHandlerArmClass::MayEscapeYield
         | EvidenceVmHandlerArmClass::Fallback
         | EvidenceVmHandlerArmClass::Value => EvidenceVmOperationExecutionPlan::YieldFallback,
     }

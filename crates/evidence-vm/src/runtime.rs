@@ -2061,6 +2061,46 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         request_free_yield || self.provider_grant_gate_passes(evidence.route_origin)
     }
 
+    fn route_allows_direct_tail_resumptive(
+        &self,
+        request_free_yield: bool,
+        evidence: EffectThunkEvidence,
+        path: &[String],
+    ) -> bool {
+        request_free_yield || self.provider_grant_path_gate_passes(evidence.route_origin, path)
+    }
+
+    fn provider_grant_path_gate_passes(
+        &self,
+        origin: Option<EvidenceRouteOrigin>,
+        path: &[String],
+    ) -> bool {
+        let Some(EvidenceRouteOrigin::ProviderGrant(id)) = origin else {
+            return false;
+        };
+        let Some(grant) = self.provider_grants.get(id.0 as usize) else {
+            return false;
+        };
+        self.active_provider_envs.iter().any(|frame| {
+            frame.scope_id == grant.scope_id
+                && frame.hygiene_baseline == grant.hygiene_baseline
+                && self.provider_grant_path_unshadowed(grant.hygiene_baseline, path)
+        })
+    }
+
+    fn provider_grant_path_unshadowed(
+        &self,
+        baseline: EvidenceProviderHygieneBaseline,
+        path: &[String],
+    ) -> bool {
+        self.active_add_ids[baseline.active_add_id_len..]
+            .iter()
+            .all(|marker| !active_add_id_matches_request_path(&marker.marker, path))
+            && self.active_handler_frames[baseline.active_handler_frame_len..]
+                .iter()
+                .all(|frame| !path_is_prefix(&frame.path, path))
+    }
+
     fn provider_env_for_call(&mut self, site: Option<ExprId>) -> RuntimeEvidenceProviderEnv {
         let Some(site) = site else {
             return RuntimeEvidenceProviderEnv::default();
@@ -3224,10 +3264,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
-            EvidenceEvalResult::DirectTailResumptive(call) => {
-                Ok(EvidenceEvalResult::DirectTailResumptive(call))
-            }
-            EvidenceEvalResult::RoutedYield(call) => Ok(EvidenceEvalResult::RoutedYield(call)),
+            EvidenceEvalResult::DirectTailResumptive(call) => self.continue_result(
+                EvidenceEvalResult::DirectTailResumptive(call),
+                EvidenceContinuation::ref_set_handle_result(
+                    assigned,
+                    EvidenceContinuation::identity(),
+                ),
+            ),
+            EvidenceEvalResult::RoutedYield(call) => self.continue_result(
+                EvidenceEvalResult::RoutedYield(call),
+                EvidenceContinuation::ref_set_handle_result(
+                    assigned,
+                    EvidenceContinuation::identity(),
+                ),
+            ),
         }
     }
 
@@ -3258,10 +3308,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
-            EvidenceEvalResult::DirectTailResumptive(call) => {
-                Ok(EvidenceEvalResult::DirectTailResumptive(call))
-            }
-            EvidenceEvalResult::RoutedYield(call) => Ok(EvidenceEvalResult::RoutedYield(call)),
+            EvidenceEvalResult::DirectTailResumptive(call) => self.continue_result(
+                EvidenceEvalResult::DirectTailResumptive(call),
+                EvidenceContinuation::ref_set_handle_value_result(
+                    assigned,
+                    EvidenceContinuation::identity(),
+                ),
+            ),
+            EvidenceEvalResult::RoutedYield(call) => self.continue_result(
+                EvidenceEvalResult::RoutedYield(call),
+                EvidenceContinuation::ref_set_handle_value_result(
+                    assigned,
+                    EvidenceContinuation::identity(),
+                ),
+            ),
         }
     }
 
@@ -5468,8 +5528,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     if let EvidenceEffectRoute::Direct {
                         handler,
                         execution: EvidenceVmOperationExecutionPlan::DirectTailResumptive,
+                        request_free_yield,
                         ..
                     } = route
+                        && self.route_allows_direct_tail_resumptive(
+                            *request_free_yield,
+                            *evidence,
+                            path,
+                        )
                     {
                         return Ok(EvidenceEvalResult::DirectTailResumptive(
                             EvidenceDirectTailResumptive {
@@ -5932,9 +5998,27 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
             EvidenceEvalResult::DirectTailResumptive(call) => {
-                Ok(EvidenceEvalResult::DirectTailResumptive(call))
+                let env = self.clone_env(env);
+                self.continue_result(
+                    EvidenceEvalResult::DirectTailResumptive(call),
+                    EvidenceContinuation::case_scrutinee(
+                        arms,
+                        env,
+                        EvidenceContinuation::identity(),
+                    ),
+                )
             }
-            EvidenceEvalResult::RoutedYield(call) => Ok(EvidenceEvalResult::RoutedYield(call)),
+            EvidenceEvalResult::RoutedYield(call) => {
+                let env = self.clone_env(env);
+                self.continue_result(
+                    EvidenceEvalResult::RoutedYield(call),
+                    EvidenceContinuation::case_scrutinee(
+                        arms,
+                        env,
+                        EvidenceContinuation::identity(),
+                    ),
+                )
+            }
         }
     }
 
