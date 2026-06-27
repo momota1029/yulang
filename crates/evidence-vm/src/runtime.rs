@@ -151,7 +151,9 @@ enum RuntimeEvidenceValue {
 #[derive(Debug, Clone, PartialEq)]
 enum RuntimeEvidenceExpr {
     Value(SharedValue),
-    Local(EnvSlot),
+    Local { slot: EnvSlot, def: DefId },
+    Instance(InstanceId),
+    Alias(ExprId),
     Source,
 }
 
@@ -1115,7 +1117,19 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
                     path: path.clone(),
                 }))
             }
-            Expr::Local(def) => RuntimeEvidenceExpr::Local(EnvSlot::from(*def)),
+            Expr::PrimitiveOp { op, context } if op.arity() > 0 => {
+                RuntimeEvidenceExpr::Value(shared(RuntimeEvidenceValue::PrimitiveOp {
+                    op: *op,
+                    context: context.clone(),
+                    args: Vec::new(),
+                }))
+            }
+            Expr::Local(def) => RuntimeEvidenceExpr::Local {
+                slot: EnvSlot::from(*def),
+                def: *def,
+            },
+            Expr::InstanceRef(instance) => RuntimeEvidenceExpr::Instance(*instance),
+            Expr::Coerce { expr, .. } => RuntimeEvidenceExpr::Alias(*expr),
             _ => RuntimeEvidenceExpr::Source,
         })
         .collect()
@@ -1880,11 +1894,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             .ok_or(RuntimeEvidenceRunError::MissingExpr(expr))?
         {
             RuntimeEvidenceExpr::Value(value) => return Ok(EvidenceEvalResult::Value(value)),
-            RuntimeEvidenceExpr::Local(slot) => {
-                return Ok(EvidenceEvalResult::Value(env.get_slot(slot).ok_or(
-                    RuntimeEvidenceRunError::UnboundLocal(DefId(slot.0 as u32)),
-                )?));
+            RuntimeEvidenceExpr::Local { slot, def } => {
+                return Ok(EvidenceEvalResult::Value(
+                    env.get_slot(slot)
+                        .ok_or(RuntimeEvidenceRunError::UnboundLocal(def))?,
+                ));
             }
+            RuntimeEvidenceExpr::Instance(instance) => {
+                return Ok(EvidenceEvalResult::Value(self.eval_instance(instance)?));
+            }
+            RuntimeEvidenceExpr::Alias(expr) => return self.eval_expr_result(expr, env),
             RuntimeEvidenceExpr::Source => {}
         }
         let Some(expr) = self.program.exprs.get(expr_id.0 as usize) else {
