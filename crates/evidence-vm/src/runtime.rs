@@ -1783,14 +1783,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         activate_add_ids: bool,
         handler_path: Option<Vec<String>>,
     ) {
-        let mut frame_entries = Vec::new();
         for marker in markers {
             match marker {
                 EvidenceValueMarker::Frame { id } => {
                     let entry_frame_len = self.active_frames.len();
                     let frame_index = entry_frame_len;
                     self.active_frames.push(EvidenceActiveFrame { id: *id });
-                    frame_entries.push((*id, entry_frame_len));
                     if let Some(path) = &handler_path {
                         self.active_handler_frames.push(EvidenceActiveHandlerFrame {
                             frame_index,
@@ -1802,7 +1800,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceValueMarker::AddId(marker) if activate_add_ids && marker.depth == 0 => {
                     let active_marker = EvidenceActiveAddIdMarker {
                         marker: marker.clone(),
-                        entry_frame_len: self.entry_frame_len_for_marker(marker.id, &frame_entries),
+                        entry_frame_len: self.entry_frame_len_for_marker(marker.id),
                     };
                     #[cfg(debug_assertions)]
                     self.active_add_id_index
@@ -1843,16 +1841,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             .push(EvidenceActiveMarkerPlan::new(markers));
     }
 
-    fn entry_frame_len_for_marker(
-        &self,
-        id: EvidenceGuardId,
-        frame_entries: &[(EvidenceGuardId, usize)],
-    ) -> usize {
-        frame_entries
+    fn entry_frame_len_for_marker(&self, id: EvidenceGuardId) -> usize {
+        self.active_frames
             .iter()
-            .rev()
-            .find_map(|(frame_id, entry_frame_len)| (*frame_id == id).then_some(*entry_frame_len))
-            .or_else(|| self.active_frames.iter().position(|frame| frame.id == id))
+            .rposition(|frame| frame.id == id)
             .unwrap_or(self.active_frames.len())
     }
 
