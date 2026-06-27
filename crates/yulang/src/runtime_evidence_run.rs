@@ -213,13 +213,13 @@ enum EvidenceContinuationFrame {
         next: EvidenceContinuation,
     },
     CaseScrutinee {
-        arms: Vec<control_vm::CaseArm>,
+        arms: Rc<[control_vm::CaseArm]>,
         env: Env,
         next: EvidenceContinuation,
     },
     CatchBody {
         catch_expr: ExprId,
-        arms: Vec<control_vm::CatchArm>,
+        arms: Rc<[control_vm::CatchArm]>,
         env: Env,
         next: EvidenceContinuation,
     },
@@ -627,7 +627,7 @@ impl EvidenceContinuation {
         }))
     }
 
-    fn case_scrutinee(arms: Vec<control_vm::CaseArm>, env: Env, next: Self) -> Self {
+    fn case_scrutinee(arms: Rc<[control_vm::CaseArm]>, env: Env, next: Self) -> Self {
         Self(Rc::new(EvidenceContinuationFrame::CaseScrutinee {
             arms,
             env,
@@ -637,7 +637,7 @@ impl EvidenceContinuation {
 
     fn catch_body(
         catch_expr: ExprId,
-        arms: Vec<control_vm::CatchArm>,
+        arms: Rc<[control_vm::CatchArm]>,
         env: Env,
         next: Self,
     ) -> Self {
@@ -1757,7 +1757,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             self.append_request_continuation(
                                 request,
                                 EvidenceContinuation::case_scrutinee(
-                                    arms.clone(),
+                                    shared_case_arms(arms),
                                     env,
                                     EvidenceContinuation::identity(),
                                 ),
@@ -3371,7 +3371,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             request,
             EvidenceContinuation::catch_body(
                 catch_expr,
-                arms.to_vec(),
+                shared_catch_arms(arms),
                 env,
                 EvidenceContinuation::identity(),
             ),
@@ -3523,7 +3523,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     self.append_request_continuation(
                         request,
                         EvidenceContinuation::case_scrutinee(
-                            arms.to_vec(),
+                            shared_case_arms(arms),
                             env,
                             EvidenceContinuation::identity(),
                         ),
@@ -4824,6 +4824,14 @@ fn active_add_id_matches_request_path(
         (false, true) => !path_is_prefix(&marker.path, request_path),
         (false, false) => false,
     }
+}
+
+fn shared_case_arms(arms: &[control_vm::CaseArm]) -> Rc<[control_vm::CaseArm]> {
+    Rc::from(arms.to_vec().into_boxed_slice())
+}
+
+fn shared_catch_arms(arms: &[control_vm::CatchArm]) -> Rc<[control_vm::CatchArm]> {
+    Rc::from(arms.to_vec().into_boxed_slice())
 }
 
 fn push_unique_guard(ids: &mut Vec<EvidenceGuardId>, id: EvidenceGuardId) -> bool {
