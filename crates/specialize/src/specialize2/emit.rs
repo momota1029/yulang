@@ -21,6 +21,7 @@ impl Specializer2 {
                     let expr_id = *expr;
                     let solved = TaskSolver::solve_root_expr(arena, expr_id)?;
                     self.runtime_evidence.push_solved_task(
+                        arena,
                         RuntimeEvidenceTaskOwner::RootExpr {
                             root_index,
                             expr: expr_id.0,
@@ -116,6 +117,7 @@ impl Specializer2 {
 
         let solved = TaskSolver::solve_def_body(arena, def, body, inference_signature_ty)?;
         self.runtime_evidence.push_solved_task(
+            arena,
             RuntimeEvidenceTaskOwner::InstanceBody {
                 instance: id.0,
                 def: def.0,

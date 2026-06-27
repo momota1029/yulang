@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Write as _;
 
 use super::{
-    EffectSubtractionDemand, SolvedTask, TypeGraph, TypeSlot, TypeSlotKind, TypeclassResolution,
-    WeightedSlotEdge, WeightedTypeBound, stack_weight_is_empty,
+    EffectSubtractionDemand, SolvedExprType, SolvedTask, TypeGraph, TypeSlot, TypeSlotKind,
+    TypeclassResolution, WeightedSlotEdge, WeightedTypeBound, stack_weight_is_empty,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -22,11 +22,12 @@ pub struct RuntimeEvidenceSurface {
 impl RuntimeEvidenceSurface {
     pub(super) fn push_solved_task(
         &mut self,
+        arena: &poly_expr::Arena,
         owner: RuntimeEvidenceTaskOwner,
         solved: &SolvedTask,
     ) {
         self.tasks
-            .push(RuntimeEvidenceTask::from_solved(owner, solved));
+            .push(RuntimeEvidenceTask::from_solved(arena, owner, solved));
     }
 }
 
@@ -36,6 +37,7 @@ pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> Stri
     for task in &surface.tasks {
         let _ = writeln!(out, "{}", format_task_header(task));
         format_graph_summary(&mut out, &task.graph);
+        format_sites(&mut out, &task.sites);
         for expr in &task.expr_types {
             let consumer = expr
                 .consumer
@@ -204,10 +206,73 @@ fn format_graph_summary(out: &mut String, graph: &RuntimeEvidenceGraph) {
     }
 }
 
+fn format_sites(out: &mut String, sites: &[RuntimeEvidenceSite]) {
+    if sites.is_empty() {
+        return;
+    }
+    let _ = writeln!(out, "  sites {}", sites.len());
+    for site in sites {
+        let _ = writeln!(out, "    e{} {}", site.expr, format_site_kind(&site.kind));
+        if let Some(boundary) = &site.boundary {
+            let _ = writeln!(
+                out,
+                "      boundary actual {} consumer {} function_like {} argument_contract {}",
+                mono::dump::dump_type(&boundary.actual),
+                mono::dump::dump_type(&boundary.consumer),
+                boundary.function_like,
+                boundary.argument_contract,
+            );
+        }
+    }
+}
+
+fn format_site_kind(kind: &RuntimeEvidenceSiteKind) -> String {
+    match kind {
+        RuntimeEvidenceSiteKind::OperationValue { def, path } => {
+            format!("operation-value d{def} {}", path.join("::"))
+        }
+        RuntimeEvidenceSiteKind::OperationCall {
+            callee,
+            arg,
+            def,
+            path,
+        } => format!(
+            "operation-call callee e{callee} arg e{arg} d{def} {}",
+            path.join("::")
+        ),
+        RuntimeEvidenceSiteKind::Catch {
+            body,
+            handled_paths,
+            value_arm_count,
+        } => {
+            let handled = handled_paths
+                .iter()
+                .map(|path| path.join("::"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("catch body e{body} handled [{handled}] value_arms {value_arm_count}")
+        }
+        RuntimeEvidenceSiteKind::App {
+            callee,
+            arg,
+            argument_contract,
+        } => format!("app callee e{callee} arg e{arg} argument_contract {argument_contract}"),
+        RuntimeEvidenceSiteKind::Lambda {
+            param,
+            body,
+            argument_contract,
+        } => format!("lambda param p{param} body e{body} argument_contract {argument_contract}"),
+        RuntimeEvidenceSiteKind::RefSet { reference, value } => {
+            format!("ref-set reference e{reference} value e{value}")
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeEvidenceTask {
     pub owner: RuntimeEvidenceTaskOwner,
     pub graph: RuntimeEvidenceGraph,
+    pub sites: Vec<RuntimeEvidenceSite>,
     pub expr_types: Vec<RuntimeEvidenceExprType>,
     pub ref_signatures: Vec<RuntimeEvidenceTypeAtExpr>,
     pub select_signatures: Vec<RuntimeEvidenceTypeAtExpr>,
@@ -216,8 +281,264 @@ pub struct RuntimeEvidenceTask {
     pub raw_thunk_computations: Vec<u32>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeEvidenceSite {
+    pub expr: u32,
+    pub kind: RuntimeEvidenceSiteKind,
+    pub boundary: Option<RuntimeEvidenceBoundaryCandidate>,
+}
+
+impl RuntimeEvidenceSite {
+    fn from_expr(
+        arena: &poly_expr::Arena,
+        expr: poly_expr::ExprId,
+        ty: &SolvedExprType,
+    ) -> Option<Self> {
+        let kind = match arena.expr(expr) {
+            poly_expr::Expr::Var(ref_id) => {
+                let (def, path) = effect_operation_for_ref(arena, *ref_id)?;
+                RuntimeEvidenceSiteKind::OperationValue { def: def.0, path }
+            }
+            poly_expr::Expr::App(callee, arg) => {
+                if let poly_expr::Expr::Var(ref_id) = arena.expr(*callee)
+                    && let Some((def, path)) = effect_operation_for_ref(arena, *ref_id)
+                {
+                    RuntimeEvidenceSiteKind::OperationCall {
+                        callee: callee.0,
+                        arg: arg.0,
+                        def: def.0,
+                        path,
+                    }
+                } else {
+                    RuntimeEvidenceSiteKind::App {
+                        callee: callee.0,
+                        arg: arg.0,
+                        argument_contract: callee_has_argument_effect_contract(arena, *callee),
+                    }
+                }
+            }
+            poly_expr::Expr::Catch(body, arms) => {
+                let handled_paths = arms
+                    .iter()
+                    .filter_map(|arm| {
+                        arm.operation
+                            .as_ref()
+                            .map(|operation| operation.path.clone())
+                    })
+                    .collect::<Vec<_>>();
+                let value_arm_count =
+                    arms.iter().filter(|arm| arm.operation.is_none()).count() as u32;
+                RuntimeEvidenceSiteKind::Catch {
+                    body: body.0,
+                    handled_paths,
+                    value_arm_count,
+                }
+            }
+            poly_expr::Expr::Lambda(param, body) => RuntimeEvidenceSiteKind::Lambda {
+                param: param.0,
+                body: body.0,
+                argument_contract: lambda_param_has_effect_contract(arena, *param),
+            },
+            poly_expr::Expr::RefSet(reference, value) => RuntimeEvidenceSiteKind::RefSet {
+                reference: reference.0,
+                value: value.0,
+            },
+            _ => return None,
+        };
+        Some(Self {
+            expr: expr.0,
+            boundary: RuntimeEvidenceBoundaryCandidate::from_expr_type(arena, expr, ty),
+            kind,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RuntimeEvidenceSiteKind {
+    OperationValue {
+        def: u32,
+        path: Vec<String>,
+    },
+    OperationCall {
+        callee: u32,
+        arg: u32,
+        def: u32,
+        path: Vec<String>,
+    },
+    Catch {
+        body: u32,
+        handled_paths: Vec<Vec<String>>,
+        value_arm_count: u32,
+    },
+    App {
+        callee: u32,
+        arg: u32,
+        argument_contract: bool,
+    },
+    Lambda {
+        param: u32,
+        body: u32,
+        argument_contract: bool,
+    },
+    RefSet {
+        reference: u32,
+        value: u32,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeEvidenceBoundaryCandidate {
+    pub actual: Type,
+    pub consumer: Type,
+    pub function_like: bool,
+    pub argument_contract: bool,
+}
+
+impl RuntimeEvidenceBoundaryCandidate {
+    fn from_expr_type(
+        arena: &poly_expr::Arena,
+        expr: poly_expr::ExprId,
+        ty: &SolvedExprType,
+    ) -> Option<Self> {
+        let consumer = ty.consumer.as_ref()?;
+        let argument_contract = expr_has_effect_argument_contract(arena, expr);
+        let function_like = type_is_function_like(&ty.actual) || type_is_function_like(consumer);
+        if !argument_contract && !function_like {
+            return None;
+        }
+        Some(Self {
+            actual: ty.actual.clone(),
+            consumer: consumer.clone(),
+            function_like,
+            argument_contract,
+        })
+    }
+}
+
+fn effect_operation_for_ref(
+    arena: &poly_expr::Arena,
+    ref_id: poly_expr::RefId,
+) -> Option<(poly_expr::DefId, Vec<String>)> {
+    let def = arena.ref_target(ref_id)?;
+    let operation = arena.effect_operations.get(&def)?;
+    Some((def, operation.path.clone()))
+}
+
+fn expr_has_effect_argument_contract(arena: &poly_expr::Arena, expr: poly_expr::ExprId) -> bool {
+    match arena.expr(expr) {
+        poly_expr::Expr::Lambda(param, _) => lambda_param_has_effect_contract(arena, *param),
+        poly_expr::Expr::Var(ref_id) => {
+            let Some(def) = arena.ref_target(*ref_id) else {
+                return false;
+            };
+            def_lambda_param_has_effect_contract(arena, def, 0)
+        }
+        _ => false,
+    }
+}
+
+fn callee_has_argument_effect_contract(
+    arena: &poly_expr::Arena,
+    callee: poly_expr::ExprId,
+) -> bool {
+    let (head, index) = call_spine_head_and_arg_index(arena, callee);
+    match arena.expr(head) {
+        poly_expr::Expr::Var(ref_id) => {
+            let Some(def) = arena.ref_target(*ref_id) else {
+                return false;
+            };
+            def_lambda_param_has_effect_contract(arena, def, index)
+        }
+        poly_expr::Expr::Lambda(param, body) => {
+            lambda_chain_param_has_effect_contract(arena, *param, *body, index)
+        }
+        _ => false,
+    }
+}
+
+fn call_spine_head_and_arg_index(
+    arena: &poly_expr::Arena,
+    mut callee: poly_expr::ExprId,
+) -> (poly_expr::ExprId, usize) {
+    let mut index = 0;
+    while let poly_expr::Expr::App(next, _) = arena.expr(callee) {
+        index += 1;
+        callee = *next;
+    }
+    (callee, index)
+}
+
+fn def_lambda_param_has_effect_contract(
+    arena: &poly_expr::Arena,
+    def: poly_expr::DefId,
+    index: usize,
+) -> bool {
+    let Some(poly_expr::Def::Let {
+        body: Some(body), ..
+    }) = arena.defs.get(def)
+    else {
+        return false;
+    };
+    let poly_expr::Expr::Lambda(param, body) = arena.expr(*body) else {
+        return false;
+    };
+    lambda_chain_param_has_effect_contract(arena, *param, *body, index)
+}
+
+fn lambda_chain_param_has_effect_contract(
+    arena: &poly_expr::Arena,
+    param: poly_expr::PatId,
+    body: poly_expr::ExprId,
+    index: usize,
+) -> bool {
+    if index == 0 {
+        return lambda_param_has_effect_contract(arena, param);
+    }
+    let poly_expr::Expr::Lambda(param, body) = arena.expr(body) else {
+        return false;
+    };
+    lambda_chain_param_has_effect_contract(arena, *param, *body, index - 1)
+}
+
+fn lambda_param_has_effect_contract(arena: &poly_expr::Arena, pat: poly_expr::PatId) -> bool {
+    let Some(def) = lambda_param_def(arena, pat) else {
+        return false;
+    };
+    arena.arg_effect_contracts.contains_key(&def)
+}
+
+fn lambda_param_def(arena: &poly_expr::Arena, pat: poly_expr::PatId) -> Option<poly_expr::DefId> {
+    match arena.pat(pat) {
+        poly_expr::Pat::Var(def) => Some(*def),
+        poly_expr::Pat::As(_, def) => Some(*def),
+        _ => None,
+    }
+}
+
+fn type_is_function_like(ty: &Type) -> bool {
+    match ty {
+        Type::Fun { .. } => true,
+        Type::Stack { inner, .. } => type_is_function_like(inner),
+        Type::Union(left, right) | Type::Intersection(left, right) => {
+            type_is_function_like(left) || type_is_function_like(right)
+        }
+        _ => false,
+    }
+}
+
 impl RuntimeEvidenceTask {
-    fn from_solved(owner: RuntimeEvidenceTaskOwner, solved: &SolvedTask) -> Self {
+    fn from_solved(
+        arena: &poly_expr::Arena,
+        owner: RuntimeEvidenceTaskOwner,
+        solved: &SolvedTask,
+    ) -> Self {
+        let mut sites = solved
+            .exprs
+            .iter()
+            .filter_map(|(expr, ty)| RuntimeEvidenceSite::from_expr(arena, *expr, ty))
+            .collect::<Vec<_>>();
+        sites.sort_by_key(|site| site.expr);
+
         let mut expr_types = solved
             .exprs
             .iter()
@@ -252,6 +573,7 @@ impl RuntimeEvidenceTask {
         Self {
             owner,
             graph: solved.runtime_evidence_graph.clone(),
+            sites,
             expr_types,
             ref_signatures,
             select_signatures,

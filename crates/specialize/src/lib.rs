@@ -29,13 +29,13 @@ pub(crate) use lib_support::boundary::*;
 pub(crate) use lib_support::convert::*;
 pub use mono;
 pub use specialize2::{
-    RuntimeEvidenceEffectSubtraction, RuntimeEvidenceExprType, RuntimeEvidenceGraph,
-    RuntimeEvidenceRowResidual, RuntimeEvidenceSlot, RuntimeEvidenceSlotKind,
-    RuntimeEvidenceStackWeight, RuntimeEvidenceSurface, RuntimeEvidenceTask,
-    RuntimeEvidenceTaskOwner, RuntimeEvidenceTypeAtExpr, RuntimeEvidenceTypeAtPat,
-    RuntimeEvidenceTypePathStep, RuntimeEvidenceTypeRole, RuntimeEvidenceTypeclassResolution,
-    RuntimeEvidenceWeightedSlotEdge, RuntimeEvidenceWeightedTypeBound, SpecializeOutput,
-    format_runtime_evidence_surface,
+    RuntimeEvidenceBoundaryCandidate, RuntimeEvidenceEffectSubtraction, RuntimeEvidenceExprType,
+    RuntimeEvidenceGraph, RuntimeEvidenceRowResidual, RuntimeEvidenceSite, RuntimeEvidenceSiteKind,
+    RuntimeEvidenceSlot, RuntimeEvidenceSlotKind, RuntimeEvidenceStackWeight,
+    RuntimeEvidenceSurface, RuntimeEvidenceTask, RuntimeEvidenceTaskOwner,
+    RuntimeEvidenceTypeAtExpr, RuntimeEvidenceTypeAtPat, RuntimeEvidenceTypePathStep,
+    RuntimeEvidenceTypeRole, RuntimeEvidenceTypeclassResolution, RuntimeEvidenceWeightedSlotEdge,
+    RuntimeEvidenceWeightedTypeBound, SpecializeOutput, format_runtime_evidence_surface,
 };
 
 #[derive(Debug, Clone, Default)]

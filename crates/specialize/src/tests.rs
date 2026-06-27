@@ -1,7 +1,8 @@
 mod tests {
     use crate::{
-        RuntimeEvidenceTaskOwner, boundary_expr, boundary_expr_with_hygiene, hygiene, specialize,
-        specialize_roots, specialize_with_runtime_evidence, specialize2,
+        RuntimeEvidenceSiteKind, RuntimeEvidenceTaskOwner, boundary_expr,
+        boundary_expr_with_hygiene, hygiene, specialize, specialize_roots,
+        specialize_with_runtime_evidence, specialize2,
     };
     use mono::{
         ComputationType, EffectiveThunkType, ExprKind, GuardMarker, InstanceSource, Lit, Type,
@@ -508,6 +509,74 @@ mod tests {
                 task.graph.weighted_constraint_count > 0 || task.graph.weighted_edge_count > 0
             }),
             "runtime evidence graph should retain weighted higher-order constraints"
+        );
+    }
+
+    #[test]
+    fn runtime_evidence_sites_record_effect_operations_and_handlers() {
+        let lowering = lower_source(
+            "act out:\n  our say: int -> unit\n\n\
+             my handle(action: [out] _) = catch action:\n\
+             \x20 out::say(n), k -> k()\n\
+             \x20 v -> v\n\n\
+             handle(out::say(1))\n",
+        );
+        let arena = &lowering.session.poly;
+
+        let output = specialize_with_runtime_evidence(arena)
+            .expect("effect operation and handler should specialize with runtime evidence");
+
+        let sites = output
+            .runtime_evidence
+            .tasks
+            .iter()
+            .flat_map(|task| task.sites.iter())
+            .collect::<Vec<_>>();
+        assert!(
+            sites.iter().any(|site| matches!(
+                &site.kind,
+                RuntimeEvidenceSiteKind::OperationCall { path, .. }
+                    if path == &vec!["out".to_string(), "say".to_string()]
+            )),
+            "operation call site should be retained in runtime evidence"
+        );
+        assert!(
+            sites
+                .iter()
+                .any(|site| matches!(&site.kind, RuntimeEvidenceSiteKind::Catch { handled_paths, .. }
+                    if handled_paths.iter().any(|path| path == &vec!["out".to_string(), "say".to_string()])
+                )),
+            "catch site should retain handled operation paths"
+        );
+    }
+
+    #[test]
+    fn runtime_evidence_sites_record_callback_argument_contracts() {
+        let lowering = lower_source(
+            "act out:\n  our say: int -> unit\n\n\
+             my accept(f: int -> [out] unit) = f 1\n\
+             accept(\\n -> out::say(n))\n",
+        );
+        let arena = &lowering.session.poly;
+
+        let output = specialize_with_runtime_evidence(arena)
+            .expect("callback contract call should specialize with runtime evidence");
+
+        let sites = output
+            .runtime_evidence
+            .tasks
+            .iter()
+            .flat_map(|task| task.sites.iter())
+            .collect::<Vec<_>>();
+        assert!(
+            sites.iter().any(|site| matches!(
+                &site.kind,
+                RuntimeEvidenceSiteKind::App {
+                    argument_contract: true,
+                    ..
+                }
+            )),
+            "application site should retain source-level callback effect contracts"
         );
     }
 
