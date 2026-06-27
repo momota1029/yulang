@@ -571,9 +571,18 @@ struct Env {
 
 #[derive(Debug, Clone, PartialEq)]
 struct EnvEntry {
-    def: DefId,
+    slot: EnvSlot,
     value: SharedValue,
     parent: Option<Rc<EnvEntry>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EnvSlot(usize);
+
+impl From<DefId> for EnvSlot {
+    fn from(def: DefId) -> Self {
+        Self(def.0 as usize)
+    }
 }
 
 impl Env {
@@ -581,10 +590,10 @@ impl Env {
         Self::default()
     }
 
-    fn get(&self, def: &DefId) -> Option<SharedValue> {
+    fn get_slot(&self, slot: EnvSlot) -> Option<SharedValue> {
         let mut entry = self.head.as_deref();
         while let Some(current) = entry {
-            if current.def == *def {
+            if current.slot == slot {
                 return Some(current.value.clone());
             }
             entry = current.parent.as_deref();
@@ -592,9 +601,9 @@ impl Env {
         None
     }
 
-    fn insert(&mut self, def: DefId, value: SharedValue) {
+    fn insert_slot(&mut self, slot: EnvSlot, value: SharedValue) {
         self.head = Some(Rc::new(EnvEntry {
-            def,
+            slot,
             value,
             parent: self.head.clone(),
         }));
@@ -1849,7 +1858,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             },
             Expr::Local(def) => {
                 return Ok(EvidenceEvalResult::Value(
-                    env.get(def)
+                    env.get_slot(EnvSlot::from(*def))
                         .ok_or(RuntimeEvidenceRunError::UnboundLocal(*def))?,
                 ));
             }
@@ -2496,8 +2505,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.observe_provider_env(&provider_env);
                 self.with_provider_env(provider_env, |runner| {
                     let mut env = runner.clone_env(&closure.env);
-                    env.insert(
-                        def,
+                    env.insert_slot(
+                        EnvSlot::from(def),
                         shared(RuntimeEvidenceValue::RecursiveClosure {
                             def,
                             closure: closure.clone(),
@@ -4110,7 +4119,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         match pat {
             Pat::Wild => Ok(()),
             Pat::Var(def) => {
-                env.insert(*def, value);
+                env.insert_slot(EnvSlot::from(*def), value);
                 Ok(())
             }
             Pat::Lit(lit) if lit_matches(lit, view) => Ok(()),
@@ -4172,7 +4181,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         value: mark_runtime_value(field.value.clone(), &markers),
                     })
                     .collect();
-                env.insert(def, shared(RuntimeEvidenceValue::Record(captured)));
+                env.insert_slot(
+                    EnvSlot::from(def),
+                    shared(RuntimeEvidenceValue::Record(captured)),
+                );
                 Ok(())
             }
             Pat::PolyVariant(tag, payload_pats) => {
@@ -4217,7 +4229,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             Pat::As(inner, def) => {
                 self.bind_pat(inner, value.clone(), env)?;
-                env.insert(*def, value);
+                env.insert_slot(EnvSlot::from(*def), value);
                 Ok(())
             }
             Pat::Or(left, right) => {
