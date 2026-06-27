@@ -4822,7 +4822,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     resumptive,
                     ..
                 } if handler == catch_expr => {
-                    self.eval_operation_arm(request, resumptive, &arms, env)
+                    match self.visible_operation_resumptive(&request, &arms) {
+                        Some(_) => self.eval_operation_arm(request, resumptive, &arms, env),
+                        None => {
+                            let mut request = request;
+                            request.route = EvidenceEffectRoute::Unhandled;
+                            Ok(EvidenceEvalResult::Request(
+                                self.defer_catch_body(catch_expr, arms, env, request),
+                            ))
+                        }
+                    }
                 }
                 EvidenceEffectRoute::Direct { .. } => Ok(EvidenceEvalResult::Request(
                     self.defer_catch_body(catch_expr, arms, env, request),
