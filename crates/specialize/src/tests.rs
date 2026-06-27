@@ -1,8 +1,8 @@
 mod tests {
     use crate::{
-        RuntimeEvidenceNodeKind, RuntimeEvidenceSiteKind, RuntimeEvidenceTaskOwner, boundary_expr,
-        boundary_expr_with_hygiene, hygiene, specialize, specialize_roots,
-        specialize_with_runtime_evidence, specialize2,
+        RuntimeEvidenceNodeEvidenceRef, RuntimeEvidenceNodeKind, RuntimeEvidenceSiteKind,
+        RuntimeEvidenceTaskOwner, boundary_expr, boundary_expr_with_hygiene, hygiene, specialize,
+        specialize_roots, specialize_with_runtime_evidence, specialize2,
     };
     use mono::{
         ComputationType, EffectiveThunkType, ExprKind, GuardMarker, InstanceSource, Lit, Type,
@@ -529,6 +529,22 @@ mod tests {
                 })
             }),
             "runtime evidence nodes should link source sites to graph slots"
+        );
+        assert!(
+            output.runtime_evidence.tasks.iter().any(|task| {
+                task.nodes.iter().any(|node| {
+                    node.evidence_refs.iter().any(|reference| {
+                        matches!(
+                            reference,
+                            RuntimeEvidenceNodeEvidenceRef::WeightedLower { .. }
+                                | RuntimeEvidenceNodeEvidenceRef::WeightedUpper { .. }
+                                | RuntimeEvidenceNodeEvidenceRef::WeightedSuccessor { .. }
+                                | RuntimeEvidenceNodeEvidenceRef::WeightedPredecessor { .. }
+                        )
+                    })
+                })
+            }),
+            "runtime evidence nodes should reference weighted graph evidence"
         );
     }
 

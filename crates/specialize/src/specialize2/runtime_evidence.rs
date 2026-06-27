@@ -128,6 +128,15 @@ fn format_nodes(out: &mut String, nodes: &[RuntimeEvidenceNode]) {
             format_slot_ids(&node.weighted_slots),
             format_slot_ids(&node.effect_subtraction_slots),
         );
+        if !node.evidence_refs.is_empty() {
+            let refs = node
+                .evidence_refs
+                .iter()
+                .map(format_node_evidence_ref)
+                .collect::<Vec<_>>()
+                .join(", ");
+            let _ = writeln!(out, "      evidence [{refs}]");
+        }
     }
 }
 
@@ -173,6 +182,30 @@ fn format_node_kind(kind: &RuntimeEvidenceNodeKind) -> String {
         ),
         RuntimeEvidenceNodeKind::RefUpdate { reference, value } => {
             format!("ref-update reference e{reference} value e{value}")
+        }
+    }
+}
+
+fn format_node_evidence_ref(reference: &RuntimeEvidenceNodeEvidenceRef) -> String {
+    match reference {
+        RuntimeEvidenceNodeEvidenceRef::WeightedLower { slot, index } => {
+            format!("t{slot}.weighted_lower#{index}")
+        }
+        RuntimeEvidenceNodeEvidenceRef::WeightedUpper { slot, index } => {
+            format!("t{slot}.weighted_upper#{index}")
+        }
+        RuntimeEvidenceNodeEvidenceRef::WeightedSuccessor {
+            slot,
+            index,
+            target,
+        } => format!("t{slot}.weighted_successor#{index}->t{target}"),
+        RuntimeEvidenceNodeEvidenceRef::WeightedPredecessor {
+            slot,
+            index,
+            source,
+        } => format!("t{slot}.weighted_predecessor#{index}<-t{source}"),
+        RuntimeEvidenceNodeEvidenceRef::EffectSubtraction { slot, index } => {
+            format!("t{slot}.effect_subtraction#{index}")
         }
     }
 }
@@ -365,6 +398,7 @@ pub struct RuntimeEvidenceNode {
     pub slots: Vec<u32>,
     pub weighted_slots: Vec<u32>,
     pub effect_subtraction_slots: Vec<u32>,
+    pub evidence_refs: Vec<RuntimeEvidenceNodeEvidenceRef>,
 }
 
 impl RuntimeEvidenceNode {
@@ -397,11 +431,21 @@ impl RuntimeEvidenceNode {
             id,
             expr: site.expr,
             kind: RuntimeEvidenceNodeKind::from_site_kind(&site.kind),
+            evidence_refs: evidence_refs_for_slots(&slots, graph),
             slots,
             weighted_slots,
             effect_subtraction_slots,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RuntimeEvidenceNodeEvidenceRef {
+    WeightedLower { slot: u32, index: u32 },
+    WeightedUpper { slot: u32, index: u32 },
+    WeightedSuccessor { slot: u32, index: u32, target: u32 },
+    WeightedPredecessor { slot: u32, index: u32, source: u32 },
+    EffectSubtraction { slot: u32, index: u32 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1189,6 +1233,66 @@ fn insert_expr_slots(expr: u32, expr_types: &[RuntimeEvidenceExprType], slots: &
     };
     slots.extend(ty.actual_slots.iter().copied());
     slots.extend(ty.consumer_slots.iter().copied());
+}
+
+fn evidence_refs_for_slots(
+    slots: &[u32],
+    graph: &RuntimeEvidenceGraph,
+) -> Vec<RuntimeEvidenceNodeEvidenceRef> {
+    let mut refs = Vec::new();
+    for slot_id in slots {
+        let Some(slot) = graph.slot(*slot_id) else {
+            continue;
+        };
+        refs.extend(slot.weighted_lower.iter().enumerate().map(|(index, _)| {
+            RuntimeEvidenceNodeEvidenceRef::WeightedLower {
+                slot: *slot_id,
+                index: index as u32,
+            }
+        }));
+        refs.extend(slot.weighted_upper.iter().enumerate().map(|(index, _)| {
+            RuntimeEvidenceNodeEvidenceRef::WeightedUpper {
+                slot: *slot_id,
+                index: index as u32,
+            }
+        }));
+        refs.extend(
+            slot.weighted_successors
+                .iter()
+                .enumerate()
+                .map(
+                    |(index, edge)| RuntimeEvidenceNodeEvidenceRef::WeightedSuccessor {
+                        slot: *slot_id,
+                        index: index as u32,
+                        target: edge.slot,
+                    },
+                ),
+        );
+        refs.extend(
+            slot.weighted_predecessors
+                .iter()
+                .enumerate()
+                .map(
+                    |(index, edge)| RuntimeEvidenceNodeEvidenceRef::WeightedPredecessor {
+                        slot: *slot_id,
+                        index: index as u32,
+                        source: edge.slot,
+                    },
+                ),
+        );
+        refs.extend(
+            slot.effect_subtractions
+                .iter()
+                .enumerate()
+                .map(
+                    |(index, _)| RuntimeEvidenceNodeEvidenceRef::EffectSubtraction {
+                        slot: *slot_id,
+                        index: index as u32,
+                    },
+                ),
+        );
+    }
+    refs
 }
 
 impl RuntimeEvidenceSiteKind {
