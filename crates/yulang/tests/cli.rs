@@ -351,6 +351,10 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
     assert!(stdout.contains("handlers:"), "{stdout}");
     assert!(stdout.contains("operations:"), "{stdout}");
     assert!(
+        stdout.contains("evidence_param_functions:"),
+        "evidence parameters should be visible in the plan:\n{stdout}"
+    );
+    assert!(
         stdout.contains("lexical-handler-candidate")
             || stdout.contains("generic-fallback")
             || stdout.contains("direct-handler"),

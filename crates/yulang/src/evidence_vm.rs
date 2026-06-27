@@ -31,6 +31,8 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) adapter_boundaries: usize,
     pub(crate) delayed_boundaries: usize,
     pub(crate) generic_fallbacks: usize,
+    pub(crate) evidence_param_functions: usize,
+    pub(crate) evidence_params: usize,
     pub(crate) runtime_tasks: usize,
     pub(crate) runtime_nodes: usize,
     pub(crate) runtime_evidence_refs: usize,
@@ -93,9 +95,17 @@ pub(crate) struct EvidenceVmFunctionPlan {
     pub(crate) owner: RuntimeEvidenceTaskOwner,
     pub(crate) node_count: usize,
     pub(crate) evidence_ref_count: usize,
+    pub(crate) required_evidence: Vec<EvidenceVmEvidenceRequirement>,
+    pub(crate) provided_evidence_paths: Vec<Vec<String>>,
     pub(crate) operation_exprs: Vec<u32>,
     pub(crate) handler_exprs: Vec<u32>,
     pub(crate) fallback_exprs: Vec<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmEvidenceRequirement {
+    pub(crate) path: Vec<String>,
+    pub(crate) operation_exprs: Vec<u32>,
 }
 
 pub(crate) fn build_plan(program: &Program, surface: &RuntimeEvidenceSurface) -> EvidenceVmPlan {
@@ -162,38 +172,10 @@ fn build_plan_from_evidence(
     let functions = surface
         .tasks
         .iter()
-        .map(|task| EvidenceVmFunctionPlan {
-            owner: task.owner,
-            node_count: task.nodes.len(),
-            evidence_ref_count: task
-                .nodes
-                .iter()
-                .map(|node| node.evidence_refs.len())
-                .sum::<usize>(),
-            operation_exprs: task
-                .nodes
-                .iter()
-                .filter_map(|node| {
-                    matches!(node.kind, RuntimeEvidenceNodeKind::OperationCall { .. })
-                        .then_some(node.expr)
-                })
-                .collect(),
-            handler_exprs: task
-                .nodes
-                .iter()
-                .filter_map(|node| {
-                    matches!(node.kind, RuntimeEvidenceNodeKind::Handler { .. })
-                        .then_some(node.expr)
-                })
-                .collect(),
-            fallback_exprs: generic_fallback_exprs(
-                control,
-                task.nodes.iter().map(|node| node.expr),
-            ),
-        })
+        .map(|task| function_plan(control, task))
         .collect::<Vec<_>>();
 
-    let summary = summarize_plan(control, surface, &operations);
+    let summary = summarize_plan(control, surface, &operations, &functions);
     EvidenceVmPlan {
         summary,
         handlers,
@@ -236,6 +218,12 @@ pub(crate) fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
+        "  evidence_param_functions: {} evidence_params: {}",
+        summary.evidence_param_functions, summary.evidence_params
+    )
+    .unwrap();
+    writeln!(
+        &mut out,
         "  runtime_tasks: {} runtime_nodes: {} runtime_evidence_refs: {}",
         summary.runtime_tasks, summary.runtime_nodes, summary.runtime_evidence_refs
     )
@@ -250,6 +238,7 @@ fn summarize_plan(
     control: &ControlEvidenceProgram,
     surface: &RuntimeEvidenceSurface,
     operations: &[EvidenceVmOperationPlan],
+    functions: &[EvidenceVmFunctionPlan],
 ) -> EvidenceVmSummary {
     let mut summary = EvidenceVmSummary {
         handlers: control.handlers.len(),
@@ -261,6 +250,14 @@ fn summarize_plan(
             .count(),
         delayed_boundaries: control.delayed_boundaries.len(),
         generic_fallbacks: control.fallbacks.len(),
+        evidence_param_functions: functions
+            .iter()
+            .filter(|function| !function.required_evidence.is_empty())
+            .count(),
+        evidence_params: functions
+            .iter()
+            .map(|function| function.required_evidence.len())
+            .sum(),
         runtime_tasks: surface.tasks.len(),
         runtime_nodes: surface.tasks.iter().map(|task| task.nodes.len()).sum(),
         runtime_evidence_refs: surface
@@ -302,6 +299,75 @@ fn summarize_plan(
         }
     }
     summary
+}
+
+fn function_plan(
+    control: &ControlEvidenceProgram,
+    task: &specialize::RuntimeEvidenceTask,
+) -> EvidenceVmFunctionPlan {
+    let provided_evidence_paths = provided_paths_for_nodes(&task.nodes);
+    let required_evidence = required_evidence_for_nodes(&task.nodes, &provided_evidence_paths);
+    EvidenceVmFunctionPlan {
+        owner: task.owner,
+        node_count: task.nodes.len(),
+        evidence_ref_count: task
+            .nodes
+            .iter()
+            .map(|node| node.evidence_refs.len())
+            .sum::<usize>(),
+        required_evidence,
+        provided_evidence_paths,
+        operation_exprs: task
+            .nodes
+            .iter()
+            .filter_map(|node| {
+                matches!(node.kind, RuntimeEvidenceNodeKind::OperationCall { .. })
+                    .then_some(node.expr)
+            })
+            .collect(),
+        handler_exprs: task
+            .nodes
+            .iter()
+            .filter_map(|node| {
+                matches!(node.kind, RuntimeEvidenceNodeKind::Handler { .. }).then_some(node.expr)
+            })
+            .collect(),
+        fallback_exprs: generic_fallback_exprs(control, task.nodes.iter().map(|node| node.expr)),
+    }
+}
+
+fn provided_paths_for_nodes(nodes: &[RuntimeEvidenceNode]) -> Vec<Vec<String>> {
+    let mut paths = BTreeSet::new();
+    for node in nodes {
+        if let RuntimeEvidenceNodeKind::Handler { handled_paths, .. } = &node.kind {
+            for path in handled_paths {
+                paths.insert(path.clone());
+            }
+        }
+    }
+    paths.into_iter().collect()
+}
+
+fn required_evidence_for_nodes(
+    nodes: &[RuntimeEvidenceNode],
+    provided_paths: &[Vec<String>],
+) -> Vec<EvidenceVmEvidenceRequirement> {
+    let provided = provided_paths.iter().collect::<BTreeSet<_>>();
+    let mut by_path = BTreeMap::<Vec<String>, Vec<u32>>::new();
+    for node in nodes {
+        if let RuntimeEvidenceNodeKind::OperationCall { path, .. } = &node.kind
+            && !provided.contains(path)
+        {
+            by_path.entry(path.clone()).or_default().push(node.expr);
+        }
+    }
+    by_path
+        .into_iter()
+        .map(|(path, operation_exprs)| EvidenceVmEvidenceRequirement {
+            path,
+            operation_exprs,
+        })
+        .collect()
 }
 
 fn operation_kind(kind: ControlEffectUseKind) -> EvidenceVmOperationKind {
@@ -428,10 +494,12 @@ fn format_functions(out: &mut String, functions: &[EvidenceVmFunctionPlan]) {
     for function in functions {
         writeln!(
             out,
-            "  {} nodes {} evidence_refs {} operations [{}] handlers [{}] fallbacks [{}]",
+            "  {} nodes {} evidence_refs {} requires [{}] provides [{}] operations [{}] handlers [{}] fallbacks [{}]",
             format_task_owner(function.owner),
             function.node_count,
             function.evidence_ref_count,
+            format_requirements(&function.required_evidence),
+            format_paths(&function.provided_evidence_paths),
             format_u32_list(&function.operation_exprs),
             format_u32_list(&function.handler_exprs),
             format_u32_list(&function.fallback_exprs)
@@ -513,6 +581,28 @@ fn format_task_owner(owner: RuntimeEvidenceTaskOwner) -> String {
 
 fn format_path(path: &[String]) -> String {
     path.join("::")
+}
+
+fn format_paths(paths: &[Vec<String>]) -> String {
+    paths
+        .iter()
+        .map(|path| format_path(path))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn format_requirements(requirements: &[EvidenceVmEvidenceRequirement]) -> String {
+    requirements
+        .iter()
+        .map(|requirement| {
+            format!(
+                "{}@e{}",
+                format_path(&requirement.path),
+                format_u32_list(&requirement.operation_exprs)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn format_u32_list(values: &[u32]) -> String {
