@@ -388,6 +388,7 @@ pub(super) fn run_built_control_for_cli(build: yulang::BuildControlOutput) -> Cl
     run_control_on_cli_vm_stack(move || {
         let yulang::BuildControlOutput {
             program,
+            runtime_evidence: _,
             labels,
             file_count,
             errors,

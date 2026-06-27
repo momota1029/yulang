@@ -24,6 +24,7 @@ mod candidate;
 mod effect;
 mod emit;
 mod marker;
+mod runtime_evidence;
 mod runtime_shape;
 mod task_solver;
 #[cfg(test)]
@@ -34,7 +35,19 @@ mod type_resolver;
 use candidate::*;
 use effect::*;
 use marker::*;
+pub use runtime_evidence::{
+    RuntimeEvidenceExprType, RuntimeEvidenceStackWeight, RuntimeEvidenceSurface,
+    RuntimeEvidenceTask, RuntimeEvidenceTaskOwner, RuntimeEvidenceTypeAtExpr,
+    RuntimeEvidenceTypeAtPat, RuntimeEvidenceTypePathStep, RuntimeEvidenceTypeRole,
+    RuntimeEvidenceTypeclassResolution, SpecializeOutput,
+};
 use runtime_shape::*;
+
+pub(crate) fn specialize_with_runtime_evidence(
+    arena: &poly_expr::Arena,
+) -> Result<SpecializeOutput, SpecializeError> {
+    Specializer2::new().specialize_with_runtime_evidence(arena)
+}
 
 pub(crate) fn specialize(arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
     Specializer2::new().specialize(arena)
@@ -46,6 +59,7 @@ struct Specializer2 {
     instance_by_key: HashMap<InstanceKey, InstanceId>,
     active_instance_signatures: HashMap<InstanceId, Type>,
     local_defs: HashMap<poly_expr::DefId, usize>,
+    runtime_evidence: RuntimeEvidenceSurface,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

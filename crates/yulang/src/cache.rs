@@ -22,7 +22,7 @@ use crate::source::{
 
 const POLY_CACHE_FORMAT: u32 = 7;
 const MONO_CACHE_FORMAT: u32 = 1;
-const CONTROL_CACHE_FORMAT: u32 = 7;
+const CONTROL_CACHE_FORMAT: u32 = 8;
 const COMPILED_UNIT_CACHE_FORMAT: u32 = 17;
 const REALM_RESOLUTION_CACHE_FORMAT: u32 = 1;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
@@ -178,6 +178,7 @@ impl ArtifactCache {
         };
         Ok(Some(CachedControlArtifact {
             program: envelope.program,
+            runtime_evidence: envelope.runtime_evidence,
             labels: envelope.labels,
             file_count: envelope.file_count,
             errors: envelope.errors,
@@ -193,6 +194,7 @@ impl ArtifactCache {
         let envelope = ControlCacheEnvelope {
             format: CONTROL_CACHE_FORMAT,
             program: &artifact.program,
+            runtime_evidence: &artifact.runtime_evidence,
             labels: &artifact.labels,
             file_count: artifact.file_count,
             errors: &artifact.errors,
@@ -314,6 +316,7 @@ impl ArtifactCache {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CachedControlArtifact {
     pub program: control_vm::Program,
+    pub runtime_evidence: specialize::RuntimeEvidenceSurface,
     pub labels: poly::dump::DumpLabels,
     pub file_count: usize,
     pub errors: Vec<String>,
@@ -3236,9 +3239,15 @@ struct MonoCacheEnvelope<T = specialize::mono::Program, E = Vec<String>> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ControlCacheEnvelope<T = control_vm::Program, L = poly::dump::DumpLabels, E = Vec<String>> {
+struct ControlCacheEnvelope<
+    T = control_vm::Program,
+    R = specialize::RuntimeEvidenceSurface,
+    L = poly::dump::DumpLabels,
+    E = Vec<String>,
+> {
     format: u32,
     program: T,
+    runtime_evidence: R,
     labels: L,
     file_count: usize,
     errors: E,
@@ -3358,7 +3367,7 @@ impl<T, E> CacheEnvelope for MonoCacheEnvelope<T, E> {
     }
 }
 
-impl<T, L, E> CacheEnvelope for ControlCacheEnvelope<T, L, E> {
+impl<T, R, L, E> CacheEnvelope for ControlCacheEnvelope<T, R, L, E> {
     fn format(&self) -> u32 {
         self.format
     }
@@ -3923,6 +3932,7 @@ mod tests {
         let key = source_cache_key(&[source("main.yu", &[], "1\n")]);
         let artifact = CachedControlArtifact {
             program: control_vm::Program::default(),
+            runtime_evidence: specialize::RuntimeEvidenceSurface::default(),
             labels: poly::dump::DumpLabels::new(),
             file_count: 1,
             errors: vec!["lowering warning".to_string()],

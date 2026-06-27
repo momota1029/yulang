@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 mono = { path = "../mono" }
 poly = { path = "../poly" }
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 infer = { path = "../infer" }

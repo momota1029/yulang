@@ -517,6 +517,7 @@ fn build_control_with_optional_cache_timed(
             record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::ControlHit);
             return yulang::BuildControlOutput {
                 program: cached.program,
+                runtime_evidence: cached.runtime_evidence,
                 labels: cached.labels,
                 file_count: cached.file_count,
                 errors: cached.errors,
@@ -538,6 +539,7 @@ fn build_control_with_optional_cache_timed(
     );
     let artifact = yulang::cache::CachedControlArtifact {
         program: output.program.clone(),
+        runtime_evidence: output.runtime_evidence.clone(),
         labels: output.labels.clone(),
         file_count: output.file_count,
         errors: output.errors.clone(),
@@ -572,13 +574,13 @@ fn build_control_from_poly_output_with_optional_mono_cache(
     mut timings: Option<&mut RuntimePhaseTimings>,
 ) -> yulang::BuildControlOutput {
     let specialize_start = Instant::now();
-    let mono = specialize_mono_program(&poly, mono_cache);
+    let specialized = specialize_control_program(&poly, mono_cache);
     if let Some(timings) = timings.as_deref_mut() {
         timings.specialize = specialize_start.elapsed();
     }
 
     let control_lower_start = Instant::now();
-    let program = match control_vm::lower(&mono) {
+    let program = match control_vm::lower(&specialized.program) {
         Ok(program) => program,
         Err(error) => {
             eprintln!("{error}");
@@ -591,6 +593,7 @@ fn build_control_from_poly_output_with_optional_mono_cache(
 
     yulang::BuildControlOutput {
         program,
+        runtime_evidence: specialized.runtime_evidence,
         labels: poly.labels,
         file_count: poly.file_count,
         errors: poly.errors,
@@ -630,6 +633,33 @@ fn specialize_mono_program(
     }
 
     program
+}
+
+fn specialize_control_program(
+    poly: &yulang::BuildPolyOutput,
+    mono_cache: Option<(&yulang::cache::ArtifactCache, yulang::cache::SourceCacheKey)>,
+) -> specialize::SpecializeOutput {
+    abort_on_runtime_lowering_errors(&poly.errors);
+    let output = match specialize::specialize_with_runtime_evidence(&poly.arena) {
+        Ok(output) => output,
+        Err(error) => {
+            eprintln!("{error}");
+            process::exit(1);
+        }
+    };
+
+    if let Some((cache, key)) = mono_cache {
+        let artifact = yulang::cache::CachedMonoArtifact {
+            program: output.program.clone(),
+            file_count: poly.file_count,
+            errors: poly.errors.clone(),
+        };
+        if let Err(error) = cache.write_mono_artifact(key, &artifact) {
+            eprintln!("warning: {error}");
+        }
+    }
+
+    output
 }
 
 fn abort_on_runtime_lowering_errors(errors: &[String]) {

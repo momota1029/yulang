@@ -5,16 +5,28 @@ impl Specializer2 {
         Self::default()
     }
 
-    pub(super) fn specialize(
+    pub(super) fn specialize(self, arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
+        Ok(self.specialize_with_runtime_evidence(arena)?.program)
+    }
+
+    pub(super) fn specialize_with_runtime_evidence(
         mut self,
         arena: &poly_expr::Arena,
-    ) -> Result<Program, SpecializeError> {
+    ) -> Result<SpecializeOutput, SpecializeError> {
         let mut roots = Vec::new();
         for root in &arena.runtime_roots {
             roots.push(match root {
                 poly_expr::RuntimeRoot::Expr(expr) => {
+                    let root_index = roots.len() as u32;
                     let expr_id = *expr;
                     let solved = TaskSolver::solve_root_expr(arena, expr_id)?;
+                    self.runtime_evidence.push_solved_task(
+                        RuntimeEvidenceTaskOwner::RootExpr {
+                            root_index,
+                            expr: expr_id.0,
+                        },
+                        &solved,
+                    );
                     let expr = self.emit_expr_typed(arena, &solved, expr_id)?;
                     Root::Expr(force_emitted_expr_if_thunk(
                         solved.actual_type_of(expr_id),
@@ -40,7 +52,10 @@ impl Specializer2 {
         if std::env::var_os("YULANG_DEBUG_MONO").is_some() {
             eprintln!("{}", mono::dump::dump_program(&program));
         }
-        Ok(program)
+        Ok(SpecializeOutput {
+            program,
+            runtime_evidence: self.runtime_evidence,
+        })
     }
 
     pub(super) fn ensure_computed_def_instance(
@@ -100,6 +115,14 @@ impl Specializer2 {
             .insert(id, runtime_signature_ty.clone());
 
         let solved = TaskSolver::solve_def_body(arena, def, body, inference_signature_ty)?;
+        self.runtime_evidence.push_solved_task(
+            RuntimeEvidenceTaskOwner::InstanceBody {
+                instance: id.0,
+                def: def.0,
+                body: body.0,
+            },
+            &solved,
+        );
         let mut body = self.emit_expr(arena, &solved, body)?;
         body = wrap_stack_handler_marker(&marker_signature_ty, body);
         self.instances[id.0 as usize] = Some(Instance {

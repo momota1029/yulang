@@ -363,10 +363,12 @@ pub fn build_control_from_poly_output(
     output: &BuildPolyOutput,
 ) -> Result<BuildControlOutput, RouteError> {
     output.ensure_runtime_ready()?;
-    let mono = specialize::specialize(&output.arena).map_err(RouteError::Specialize)?;
-    let program = control_vm::lower(&mono).map_err(RouteError::ControlLower)?;
+    let specialized = specialize::specialize_with_runtime_evidence(&output.arena)
+        .map_err(RouteError::Specialize)?;
+    let program = control_vm::lower(&specialized.program).map_err(RouteError::ControlLower)?;
     Ok(BuildControlOutput {
         program,
+        runtime_evidence: specialized.runtime_evidence,
         labels: output.labels.clone(),
         file_count: output.file_count,
         errors: output.errors.clone(),
@@ -1300,6 +1302,7 @@ pub struct SourceDiagnostic {
 #[derive(Debug, Clone, PartialEq)]
 pub struct BuildControlOutput {
     pub program: control_vm::Program,
+    pub runtime_evidence: specialize::RuntimeEvidenceSurface,
     pub labels: poly::dump::DumpLabels,
     pub file_count: usize,
     /// body lowering が報告したエラーの表示用整形。artifact とは別に stderr へ流す。

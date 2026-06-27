@@ -1,7 +1,7 @@
 mod tests {
     use crate::{
-        boundary_expr, boundary_expr_with_hygiene, hygiene, specialize, specialize_roots,
-        specialize2,
+        RuntimeEvidenceTaskOwner, boundary_expr, boundary_expr_with_hygiene, hygiene, specialize,
+        specialize_roots, specialize_with_runtime_evidence, specialize2,
     };
     use mono::{
         ComputationType, EffectiveThunkType, ExprKind, GuardMarker, InstanceSource, Lit, Type,
@@ -455,6 +455,37 @@ mod tests {
             mono::dump::dump_type(&program.instances[0].signature.ty),
             "int -> int"
         );
+    }
+
+    #[test]
+    fn runtime_evidence_surface_records_root_and_instance_tasks() {
+        let lowering = lower_source("my id x = x\nid(1)\n");
+        let arena = &lowering.session.poly;
+        let root = arena.root_exprs[0];
+
+        let output = specialize_with_runtime_evidence(arena)
+            .expect("root expr should specialize with runtime evidence");
+
+        assert_eq!(output.program.roots.len(), 1);
+        assert_eq!(output.program.instances.len(), 1);
+        assert_eq!(output.runtime_evidence.tasks.len(), 2);
+        assert!(matches!(
+            output.runtime_evidence.tasks[0].owner,
+            RuntimeEvidenceTaskOwner::RootExpr { root_index: 0, expr }
+                if expr == root.0
+        ));
+        assert!(matches!(
+            output.runtime_evidence.tasks[1].owner,
+            RuntimeEvidenceTaskOwner::InstanceBody { instance: 0, .. }
+        ));
+
+        let root_type = output.runtime_evidence.tasks[0]
+            .expr_types
+            .iter()
+            .find(|item| item.expr == root.0)
+            .expect("root expr type should be recorded");
+        assert_eq!(mono::dump::dump_type(&root_type.actual), "int");
+        assert!(root_type.consumer.is_none());
     }
 
     #[test]

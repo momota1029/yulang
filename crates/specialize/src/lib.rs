@@ -28,6 +28,12 @@ use poly::expr as poly_expr;
 pub(crate) use lib_support::boundary::*;
 pub(crate) use lib_support::convert::*;
 pub use mono;
+pub use specialize2::{
+    RuntimeEvidenceExprType, RuntimeEvidenceStackWeight, RuntimeEvidenceSurface,
+    RuntimeEvidenceTask, RuntimeEvidenceTaskOwner, RuntimeEvidenceTypeAtExpr,
+    RuntimeEvidenceTypeAtPat, RuntimeEvidenceTypePathStep, RuntimeEvidenceTypeRole,
+    RuntimeEvidenceTypeclassResolution, SpecializeOutput,
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct Specializer {
@@ -45,6 +51,12 @@ struct InstanceKey {
 
 pub fn specialize(arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
     specialize2::specialize(arena)
+}
+
+pub fn specialize_with_runtime_evidence(
+    arena: &poly_expr::Arena,
+) -> Result<SpecializeOutput, SpecializeError> {
+    specialize2::specialize_with_runtime_evidence(arena)
 }
 
 pub fn specialize2(arena: &poly_expr::Arena) -> Result<Program, SpecializeError> {
