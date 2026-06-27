@@ -373,6 +373,32 @@ fn debug_runtime_evidence_run_matches_control_vm_on_std_int_primitives() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_reads_struct_record_payload_fields() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-struct-field",
+        "struct point { x: int, y: int } with:\n\
+         \x20 our p.norm2 = p.x * p.x + p.y * p.y\n\n\
+         point { x: 3, y: 4 } .norm2\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [25]\n"), "{stdout}");
+}
+
+#[test]
 fn debug_runtime_evidence_run_uses_direct_handler_evidence() {
     let entry = write_entry(
         "debug-runtime-evidence-run-direct-handler",

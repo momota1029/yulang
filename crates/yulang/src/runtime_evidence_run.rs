@@ -2036,6 +2036,9 @@ fn record_fields(
 ) -> Result<Vec<RuntimeEvidenceValueField>, RuntimeEvidenceRunError> {
     match value {
         RuntimeEvidenceValue::Record(fields) => Ok(fields.clone()),
+        RuntimeEvidenceValue::DataConstructor { payloads, .. } if payloads.len() == 1 => {
+            record_fields(payloads[0].as_ref())
+        }
         value => Err(RuntimeEvidenceRunError::NotRecord(format_value(value))),
     }
 }
