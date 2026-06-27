@@ -516,6 +516,39 @@ fn debug_runtime_evidence_run_leaves_value_arm_thunk_unforced() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_handles_recursive_all_paths_marker_route() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-all-paths",
+        "act flip:\n  our coin: () -> bool\n\n\
+         our all_paths(action: [flip] _) = catch action:\n\
+         \x20 flip::coin(), k -> all_paths(k true) + all_paths(k false)\n\
+         \x20 v -> [v]\n\n\
+         all_paths:\n\
+         \x20 if flip::coin(): 1 else: 0\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(
+        stdout.contains("control_evidence.direct_effect_calls: 0"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("run roots [[1, 0]]\n"), "{stdout}");
+}
+
+#[test]
 fn compatible_dump_no_prelude_uses_cache() {
     let entry = write_entry("dump-no-prelude-cache", "1\n");
     let root = entry.parent().unwrap().to_path_buf();
