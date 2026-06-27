@@ -56,6 +56,10 @@ pub(crate) struct RuntimeEvidenceRunStats {
     pub active_marker_plan_pushes: usize,
     pub active_marker_plan_dedupes: usize,
     pub active_add_id_scans: usize,
+    pub active_add_id_path_candidates: usize,
+    pub active_add_id_path_rejects: usize,
+    pub active_add_id_entry_except_rejects: usize,
+    pub active_add_id_already_carried_rejects: usize,
     pub active_add_id_hits: usize,
     pub function_call_marker_plans: usize,
     pub function_call_marker_inputs: usize,
@@ -376,6 +380,121 @@ struct EvidenceActiveHandlerFrame {
 struct EvidenceActiveAddIdMarker {
     marker: EvidenceAddIdMarker,
     entry_frame_len: usize,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Debug, Clone, Default)]
+struct ActiveAddIdIndex {
+    entries: Vec<ActiveAddIdIndexEntry>,
+    all_path: Vec<usize>,
+    own_by_path: HashMap<Vec<String>, Vec<usize>>,
+    foreign_all: Vec<usize>,
+    foreign_excluded_by_path: HashMap<Vec<String>, Vec<usize>>,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Debug, Clone)]
+enum ActiveAddIdIndexEntry {
+    AllPath,
+    OwnPath(Vec<String>),
+    ForeignPath(Vec<String>),
+    Never,
+}
+
+#[cfg(debug_assertions)]
+impl ActiveAddIdIndex {
+    fn push(&mut self, index: usize, marker: &EvidenceActiveAddIdMarker) {
+        match (
+            marker.marker.guard_own_path,
+            marker.marker.guard_foreign_path,
+        ) {
+            (true, true) => {
+                self.entries.push(ActiveAddIdIndexEntry::AllPath);
+                self.all_path.push(index);
+            }
+            (true, false) => {
+                let path = marker.marker.path.clone();
+                self.entries
+                    .push(ActiveAddIdIndexEntry::OwnPath(path.clone()));
+                self.own_by_path.entry(path).or_default().push(index);
+            }
+            (false, true) => {
+                let path = marker.marker.path.clone();
+                self.entries
+                    .push(ActiveAddIdIndexEntry::ForeignPath(path.clone()));
+                self.foreign_all.push(index);
+                self.foreign_excluded_by_path
+                    .entry(path)
+                    .or_default()
+                    .push(index);
+            }
+            (false, false) => self.entries.push(ActiveAddIdIndexEntry::Never),
+        }
+    }
+
+    fn truncate(&mut self, len: usize) {
+        while self.entries.len() > len {
+            let index = self.entries.len() - 1;
+            match self.entries.pop().expect("active add-id index entry") {
+                ActiveAddIdIndexEntry::AllPath => {
+                    let popped = self.all_path.pop();
+                    debug_assert_eq!(popped, Some(index));
+                }
+                ActiveAddIdIndexEntry::OwnPath(path) => {
+                    pop_index_map_entry(&mut self.own_by_path, &path, index);
+                }
+                ActiveAddIdIndexEntry::ForeignPath(path) => {
+                    let popped = self.foreign_all.pop();
+                    debug_assert_eq!(popped, Some(index));
+                    pop_index_map_entry(&mut self.foreign_excluded_by_path, &path, index);
+                }
+                ActiveAddIdIndexEntry::Never => {}
+            }
+        }
+    }
+
+    fn candidates_for(&self, request_path: &[String]) -> Vec<usize> {
+        let mut candidates = self.all_path.clone();
+        for prefix_len in 0..=request_path.len() {
+            let prefix = &request_path[..prefix_len];
+            if let Some(indices) = self.own_by_path.get(prefix) {
+                candidates.extend_from_slice(indices);
+            }
+        }
+
+        let mut excluded_foreign = Vec::new();
+        for prefix_len in 0..=request_path.len() {
+            let prefix = &request_path[..prefix_len];
+            if let Some(indices) = self.foreign_excluded_by_path.get(prefix) {
+                excluded_foreign.extend_from_slice(indices);
+            }
+        }
+        excluded_foreign.sort_unstable();
+        excluded_foreign.dedup();
+        candidates.extend(
+            self.foreign_all
+                .iter()
+                .copied()
+                .filter(|index| excluded_foreign.binary_search(index).is_err()),
+        );
+
+        candidates.sort_unstable();
+        candidates.dedup();
+        candidates
+    }
+}
+
+#[cfg(debug_assertions)]
+fn pop_index_map_entry(map: &mut HashMap<Vec<String>, Vec<usize>>, path: &[String], index: usize) {
+    let Some(indices) = map.get_mut(path) else {
+        debug_assert!(false, "missing active add-id index bucket");
+        return;
+    };
+    let popped = indices.pop();
+    debug_assert_eq!(popped, Some(index));
+    if indices.is_empty() {
+        map.remove(path);
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -885,6 +1004,8 @@ struct RuntimeEvidenceRunner<'a> {
     active_frames: Vec<EvidenceActiveFrame>,
     active_handler_frames: Vec<EvidenceActiveHandlerFrame>,
     active_add_ids: Vec<EvidenceActiveAddIdMarker>,
+    #[cfg(debug_assertions)]
+    active_add_id_index: ActiveAddIdIndex,
     active_marker_plans: Vec<Vec<EvidenceValueMarker>>,
     stdout: String,
     stats: RuntimeEvidenceRunStats,
@@ -903,6 +1024,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             active_frames: Vec::new(),
             active_handler_frames: Vec::new(),
             active_add_ids: Vec::new(),
+            #[cfg(debug_assertions)]
+            active_add_id_index: ActiveAddIdIndex::default(),
             active_marker_plans: Vec::new(),
             stdout: String::new(),
             stats,
@@ -1026,10 +1149,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     }
                 }
                 EvidenceValueMarker::AddId(marker) if activate_add_ids && marker.depth == 0 => {
-                    self.active_add_ids.push(EvidenceActiveAddIdMarker {
+                    let active_marker = EvidenceActiveAddIdMarker {
                         marker: marker.clone(),
                         entry_frame_len: self.entry_frame_len_for_marker(marker.id, &frame_entries),
-                    });
+                    };
+                    #[cfg(debug_assertions)]
+                    self.active_add_id_index
+                        .push(self.active_add_ids.len(), &active_marker);
+                    self.active_add_ids.push(active_marker);
                 }
                 EvidenceValueMarker::AddId(_) => {}
             }
@@ -1047,6 +1174,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.active_frames.truncate(frame_len);
         self.active_handler_frames.truncate(handler_frame_len);
         self.active_add_ids.truncate(add_id_len);
+        #[cfg(debug_assertions)]
+        self.active_add_id_index.truncate(add_id_len);
         self.active_marker_plans.truncate(plan_len);
     }
 
@@ -1123,26 +1252,29 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     }
 
     fn mark_request_with_active_markers(&mut self, request: &mut EvidenceRequest) {
+        #[cfg(debug_assertions)]
+        {
+            let path_candidate_indices = self.active_add_id_index.candidates_for(&request.path);
+            debug_assert_eq!(
+                path_candidate_indices,
+                active_add_id_path_candidate_indices_by_scan(&self.active_add_ids, &request.path)
+            );
+        }
         let mut entry_except_index = EvidenceRequestEntryExceptIndex::default();
         let mut scans = 0;
+        let mut path_candidates = 0;
+        let mut path_rejects = 0;
+        let mut entry_except_rejects = 0;
+        let mut already_carried_rejects = 0;
         let mut hits = 0;
         for active_marker in &self.active_add_ids {
             scans += 1;
             let marker = &active_marker.marker;
-            match (marker.guard_own_path, marker.guard_foreign_path) {
-                (true, true) => {}
-                (true, false) => {
-                    if !path_is_prefix(&marker.path, &request.path) {
-                        continue;
-                    }
-                }
-                (false, true) => {
-                    if path_is_prefix(&marker.path, &request.path) {
-                        continue;
-                    }
-                }
-                (false, false) => continue,
+            if !active_add_id_matches_request_path(marker, &request.path) {
+                path_rejects += 1;
+                continue;
             }
+            path_candidates += 1;
 
             if !marker.carry_after_frame
                 && request_excepted_at_marker_entry(
@@ -1152,6 +1284,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     active_marker,
                 )
             {
+                entry_except_rejects += 1;
                 continue;
             }
 
@@ -1161,6 +1294,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     .iter()
                     .any(|guard| guard.id == marker.id)
                 {
+                    already_carried_rejects += 1;
                     continue;
                 }
                 let entry_guard_ids =
@@ -1183,6 +1317,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
         }
         self.stats.active_add_id_scans += scans;
+        self.stats.active_add_id_path_candidates += path_candidates;
+        self.stats.active_add_id_path_rejects += path_rejects;
+        self.stats.active_add_id_entry_except_rejects += entry_except_rejects;
+        self.stats.active_add_id_already_carried_rejects += already_carried_rejects;
         self.stats.active_add_id_hits += hits;
     }
 
@@ -4660,6 +4798,32 @@ fn record_value_boundary_supported(
 
 fn path_is_prefix(prefix: &[String], path: &[String]) -> bool {
     prefix.len() <= path.len() && prefix.iter().zip(path).all(|(left, right)| left == right)
+}
+
+#[cfg(debug_assertions)]
+fn active_add_id_path_candidate_indices_by_scan(
+    markers: &[EvidenceActiveAddIdMarker],
+    request_path: &[String],
+) -> Vec<usize> {
+    markers
+        .iter()
+        .enumerate()
+        .filter_map(|(index, marker)| {
+            active_add_id_matches_request_path(&marker.marker, request_path).then_some(index)
+        })
+        .collect()
+}
+
+fn active_add_id_matches_request_path(
+    marker: &EvidenceAddIdMarker,
+    request_path: &[String],
+) -> bool {
+    match (marker.guard_own_path, marker.guard_foreign_path) {
+        (true, true) => true,
+        (true, false) => path_is_prefix(&marker.path, request_path),
+        (false, true) => !path_is_prefix(&marker.path, request_path),
+        (false, false) => false,
+    }
 }
 
 fn push_unique_guard(ids: &mut Vec<EvidenceGuardId>, id: EvidenceGuardId) -> bool {

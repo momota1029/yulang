@@ -2333,6 +2333,22 @@ fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeq
         output.evidence_stats.active_add_id_scans
     );
     println!(
+        "  runtime_evidence.active_add_id_path_candidates: {}",
+        output.evidence_stats.active_add_id_path_candidates
+    );
+    println!(
+        "  runtime_evidence.active_add_id_path_rejects: {}",
+        output.evidence_stats.active_add_id_path_rejects
+    );
+    println!(
+        "  runtime_evidence.active_add_id_entry_except_rejects: {}",
+        output.evidence_stats.active_add_id_entry_except_rejects
+    );
+    println!(
+        "  runtime_evidence.active_add_id_already_carried_rejects: {}",
+        output.evidence_stats.active_add_id_already_carried_rejects
+    );
+    println!(
         "  runtime_evidence.active_add_id_hits: {}",
         output.evidence_stats.active_add_id_hits
     );
