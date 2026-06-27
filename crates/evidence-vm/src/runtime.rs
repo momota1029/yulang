@@ -252,7 +252,7 @@ enum EvidenceContinuationFrame {
         next: EvidenceContinuation,
     },
     MarkerFrame {
-        markers: Vec<EvidenceValueMarker>,
+        markers: Rc<[EvidenceValueMarker]>,
         activate_add_ids: bool,
         handler_path: Option<Vec<String>>,
         next: EvidenceContinuation,
@@ -678,7 +678,7 @@ impl EvidenceContinuation {
     }
 
     fn marker_frame(
-        markers: Vec<EvidenceValueMarker>,
+        markers: Rc<[EvidenceValueMarker]>,
         activate_add_ids: bool,
         handler_path: Option<Vec<String>>,
         next: Self,
@@ -1406,7 +1406,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return Ok(EvidenceEvalResult::Request(request));
         }
         request.continuation = EvidenceContinuation::marker_frame(
-            markers,
+            share_marker_vec(markers),
             activate_add_ids,
             handler_path,
             request.continuation,
@@ -2753,7 +2753,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 handler_path,
                 next,
             } => self.with_marker_frame(
-                markers.clone(),
+                markers.to_vec(),
                 *activate_add_ids,
                 handler_path.clone(),
                 |runner| runner.resume_continuation(next.clone(), value),
@@ -4979,6 +4979,10 @@ fn shared_stmts(stmts: &[Stmt]) -> Rc<[Stmt]> {
 
 fn shared_markers(markers: &[EvidenceValueMarker]) -> Rc<[EvidenceValueMarker]> {
     Rc::from(markers.to_vec().into_boxed_slice())
+}
+
+fn share_marker_vec(markers: Vec<EvidenceValueMarker>) -> Rc<[EvidenceValueMarker]> {
+    Rc::from(markers.into_boxed_slice())
 }
 
 fn push_unique_guard(ids: &mut Vec<EvidenceGuardId>, id: EvidenceGuardId) -> bool {
