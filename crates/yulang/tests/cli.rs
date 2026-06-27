@@ -252,6 +252,7 @@ fn compatible_dump_control_evidence_accepts_explicit_std_root() {
     assert_success(&output);
     let stdout = stdout(&output);
     assert!(stdout.contains("control evidence roots ["), "{stdout}");
+    assert!(stdout.contains("runtime evidence tasks ["), "{stdout}");
 }
 
 #[test]

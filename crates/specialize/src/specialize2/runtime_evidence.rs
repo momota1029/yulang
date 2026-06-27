@@ -1,6 +1,7 @@
 use mono::{Program, StackWeight, Type};
 use poly::expr as poly_expr;
 use serde::{Deserialize, Serialize};
+use std::fmt::Write as _;
 
 use super::{SolvedTask, TypeclassResolution};
 
@@ -24,6 +25,81 @@ impl RuntimeEvidenceSurface {
         self.tasks
             .push(RuntimeEvidenceTask::from_solved(owner, solved));
     }
+}
+
+pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> String {
+    let mut out = String::new();
+    let _ = writeln!(out, "runtime evidence tasks [{}]", surface.tasks.len());
+    for task in &surface.tasks {
+        let _ = writeln!(out, "{}", format_task_header(task));
+        for expr in &task.expr_types {
+            let consumer = expr
+                .consumer
+                .as_ref()
+                .map(mono::dump::dump_type)
+                .unwrap_or_else(|| "_".to_string());
+            let _ = writeln!(
+                out,
+                "  expr e{} actual {} consumer {} stack_weights {}",
+                expr.expr,
+                mono::dump::dump_type(&expr.actual),
+                consumer,
+                expr.stack_weights.len()
+            );
+            format_stack_weights(&mut out, &expr.stack_weights);
+        }
+        for signature in &task.ref_signatures {
+            let _ = writeln!(
+                out,
+                "  ref e{} signature {} stack_weights {}",
+                signature.expr,
+                mono::dump::dump_type(&signature.ty),
+                signature.stack_weights.len()
+            );
+            format_stack_weights(&mut out, &signature.stack_weights);
+        }
+        for signature in &task.select_signatures {
+            let _ = writeln!(
+                out,
+                "  select e{} signature {} stack_weights {}",
+                signature.expr,
+                mono::dump::dump_type(&signature.ty),
+                signature.stack_weights.len()
+            );
+            format_stack_weights(&mut out, &signature.stack_weights);
+        }
+        for signature in &task.pat_ref_signatures {
+            let _ = writeln!(
+                out,
+                "  pat p{} signature {} stack_weights {}",
+                signature.pat,
+                mono::dump::dump_type(&signature.ty),
+                signature.stack_weights.len()
+            );
+            format_stack_weights(&mut out, &signature.stack_weights);
+        }
+        for resolution in &task.typeclass_resolutions {
+            let _ = writeln!(
+                out,
+                "  typeclass e{} -> d{} signature {} stack_weights {}",
+                resolution.expr,
+                resolution.implementation,
+                mono::dump::dump_type(&resolution.signature),
+                resolution.stack_weights.len()
+            );
+            format_stack_weights(&mut out, &resolution.stack_weights);
+        }
+        if !task.raw_thunk_computations.is_empty() {
+            let raw = task
+                .raw_thunk_computations
+                .iter()
+                .map(|expr| format!("e{expr}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let _ = writeln!(out, "  raw thunk computations [{raw}]");
+        }
+    }
+    out
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -219,6 +295,77 @@ fn type_at_exprs(
         .iter()
         .map(|(expr, ty)| RuntimeEvidenceTypeAtExpr::new(*expr, ty))
         .collect()
+}
+
+fn format_task_header(task: &RuntimeEvidenceTask) -> String {
+    match task.owner {
+        RuntimeEvidenceTaskOwner::RootExpr { root_index, expr } => format!(
+            "task root[{root_index}] expr e{expr} expr_types {} refs {} selects {} pats {} typeclasses {} raw_thunks {}",
+            task.expr_types.len(),
+            task.ref_signatures.len(),
+            task.select_signatures.len(),
+            task.pat_ref_signatures.len(),
+            task.typeclass_resolutions.len(),
+            task.raw_thunk_computations.len(),
+        ),
+        RuntimeEvidenceTaskOwner::InstanceBody {
+            instance,
+            def,
+            body,
+        } => format!(
+            "task instance m{instance} def d{def} body e{body} expr_types {} refs {} selects {} pats {} typeclasses {} raw_thunks {}",
+            task.expr_types.len(),
+            task.ref_signatures.len(),
+            task.select_signatures.len(),
+            task.pat_ref_signatures.len(),
+            task.typeclass_resolutions.len(),
+            task.raw_thunk_computations.len(),
+        ),
+    }
+}
+
+fn format_stack_weights(out: &mut String, weights: &[RuntimeEvidenceStackWeight]) {
+    for weight in weights {
+        let path = weight
+            .path
+            .iter()
+            .map(format_path_step)
+            .collect::<Vec<_>>()
+            .join(".");
+        let path = if path.is_empty() {
+            "<root>".to_string()
+        } else {
+            path
+        };
+        let _ = writeln!(
+            out,
+            "    stack {:?} at {}: {:?}",
+            weight.role, path, weight.weight
+        );
+    }
+}
+
+fn format_path_step(step: &RuntimeEvidenceTypePathStep) -> String {
+    match step {
+        RuntimeEvidenceTypePathStep::Inner => "inner".to_string(),
+        RuntimeEvidenceTypePathStep::FunArg => "fun.arg".to_string(),
+        RuntimeEvidenceTypePathStep::FunArgEffect => "fun.arg_effect".to_string(),
+        RuntimeEvidenceTypePathStep::FunRetEffect => "fun.ret_effect".to_string(),
+        RuntimeEvidenceTypePathStep::FunRet => "fun.ret".to_string(),
+        RuntimeEvidenceTypePathStep::ThunkEffect => "thunk.effect".to_string(),
+        RuntimeEvidenceTypePathStep::ThunkValue => "thunk.value".to_string(),
+        RuntimeEvidenceTypePathStep::RecordField { name } => format!("record.{name}"),
+        RuntimeEvidenceTypePathStep::VariantPayload { name, index } => {
+            format!("variant.{name}.{index}")
+        }
+        RuntimeEvidenceTypePathStep::TupleItem { index } => format!("tuple.{index}"),
+        RuntimeEvidenceTypePathStep::EffectRowItem { index } => format!("effect.{index}"),
+        RuntimeEvidenceTypePathStep::UnionLeft => "union.left".to_string(),
+        RuntimeEvidenceTypePathStep::UnionRight => "union.right".to_string(),
+        RuntimeEvidenceTypePathStep::IntersectionLeft => "intersection.left".to_string(),
+        RuntimeEvidenceTypePathStep::IntersectionRight => "intersection.right".to_string(),
+        RuntimeEvidenceTypePathStep::ConArg { index } => format!("con.{index}"),
+    }
 }
 
 fn stack_weights_for(role: RuntimeEvidenceTypeRole, ty: &Type) -> Vec<RuntimeEvidenceStackWeight> {

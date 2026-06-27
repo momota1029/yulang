@@ -39,7 +39,7 @@ pub use runtime_evidence::{
     RuntimeEvidenceExprType, RuntimeEvidenceStackWeight, RuntimeEvidenceSurface,
     RuntimeEvidenceTask, RuntimeEvidenceTaskOwner, RuntimeEvidenceTypeAtExpr,
     RuntimeEvidenceTypeAtPat, RuntimeEvidenceTypePathStep, RuntimeEvidenceTypeRole,
-    RuntimeEvidenceTypeclassResolution, SpecializeOutput,
+    RuntimeEvidenceTypeclassResolution, SpecializeOutput, format_runtime_evidence_surface,
 };
 use runtime_shape::*;
 

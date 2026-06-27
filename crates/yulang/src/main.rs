@@ -1680,8 +1680,13 @@ fn dump_control_evidence_with_optional_cache(
 ) -> yulang::DumpMonoOutput {
     let output = build_control_with_optional_cache(files, use_cache);
     let evidence = control_vm::ControlEvidenceProgram::from_program(&output.program);
+    let mut text = control_vm::format_control_evidence_program(&evidence);
+    text.push('\n');
+    text.push_str(&specialize::format_runtime_evidence_surface(
+        &output.runtime_evidence,
+    ));
     yulang::DumpMonoOutput {
-        text: control_vm::format_control_evidence_program(&evidence),
+        text,
         file_count: output.file_count,
         errors: output.errors,
     }

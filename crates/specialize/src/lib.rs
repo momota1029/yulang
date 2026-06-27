@@ -32,7 +32,7 @@ pub use specialize2::{
     RuntimeEvidenceExprType, RuntimeEvidenceStackWeight, RuntimeEvidenceSurface,
     RuntimeEvidenceTask, RuntimeEvidenceTaskOwner, RuntimeEvidenceTypeAtExpr,
     RuntimeEvidenceTypeAtPat, RuntimeEvidenceTypePathStep, RuntimeEvidenceTypeRole,
-    RuntimeEvidenceTypeclassResolution, SpecializeOutput,
+    RuntimeEvidenceTypeclassResolution, SpecializeOutput, format_runtime_evidence_surface,
 };
 
 #[derive(Debug, Clone, Default)]
