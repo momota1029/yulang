@@ -2425,6 +2425,12 @@ fn run_runtime_evidence_run(
         output.evidence_stats.continuation_resume_marker_steps
     );
     println!(
+        "  runtime_evidence.continuation_resume_marker_identity_fast_paths: {}",
+        output
+            .evidence_stats
+            .continuation_resume_marker_identity_fast_paths
+    );
+    println!(
         "  runtime_evidence.continuation_resume_provider_steps: {}",
         output.evidence_stats.continuation_resume_provider_steps
     );

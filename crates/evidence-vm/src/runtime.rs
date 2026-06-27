@@ -86,6 +86,7 @@ pub struct RuntimeEvidenceRunStats {
     pub continuation_resume_case_steps: usize,
     pub continuation_resume_catch_steps: usize,
     pub continuation_resume_marker_steps: usize,
+    pub continuation_resume_marker_identity_fast_paths: usize,
     pub continuation_resume_provider_steps: usize,
     pub continuation_resume_aggregate_steps: usize,
     pub continuation_resume_select_steps: usize,
@@ -3936,9 +3937,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 activate_add_ids,
                 handler_path,
                 next,
-            } => self.with_marker_frame(markers, activate_add_ids, handler_path, |runner| {
-                runner.resume_continuation(next, value)
-            }),
+            } => {
+                if next.is_identity() {
+                    self.stats.continuation_resume_marker_identity_fast_paths += 1;
+                    return Ok(EvidenceEvalResult::Value(mark_runtime_value_shared(
+                        value, markers,
+                    )));
+                }
+                self.with_marker_frame(markers, activate_add_ids, handler_path, |runner| {
+                    runner.resume_continuation(next, value)
+                })
+            }
             EvidenceContinuationFrame::ProviderEnv { provider_env, next } => self
                 .with_provider_env(provider_env, |runner| {
                     runner.resume_continuation(next, value)
