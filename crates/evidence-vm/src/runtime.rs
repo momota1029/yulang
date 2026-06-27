@@ -173,6 +173,37 @@ enum RuntimeEvidenceExpr {
         hygiene: FunctionAdapterHygiene,
         provider_expr: ExprId,
     },
+    ForceThunk {
+        target_value_is_thunk: bool,
+        thunk: ExprId,
+    },
+    MarkerFrame {
+        path: Rc<[String]>,
+        body: ExprId,
+    },
+    Apply {
+        site: ExprId,
+        callee: ExprId,
+        arg: ExprId,
+    },
+    RefSet {
+        reference: ExprId,
+        value: ExprId,
+    },
+    Tuple(Rc<[ExprId]>),
+    Record {
+        fields: Rc<[control_vm::RecordField]>,
+        spread: RecordSpread<ExprId>,
+    },
+    PolyVariant {
+        tag: String,
+        payloads: Rc<[ExprId]>,
+    },
+    Select {
+        base: ExprId,
+        name: String,
+        resolution: Option<SelectResolution>,
+    },
     Source,
 }
 
@@ -1170,6 +1201,41 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
                 hygiene: hygiene.clone(),
                 provider_expr: ExprId(index as u32),
             },
+            Expr::ForceThunk { target, thunk, .. } => RuntimeEvidenceExpr::ForceThunk {
+                target_value_is_thunk: matches!(target.value, Type::Thunk { .. }),
+                thunk: *thunk,
+            },
+            Expr::MarkerFrame { path, body } => RuntimeEvidenceExpr::MarkerFrame {
+                path: Rc::from(path.clone().into_boxed_slice()),
+                body: *body,
+            },
+            Expr::Apply { callee, arg } => RuntimeEvidenceExpr::Apply {
+                site: ExprId(index as u32),
+                callee: *callee,
+                arg: *arg,
+            },
+            Expr::RefSet { reference, value } => RuntimeEvidenceExpr::RefSet {
+                reference: *reference,
+                value: *value,
+            },
+            Expr::Tuple(items) => RuntimeEvidenceExpr::Tuple(shared_expr_ids(items)),
+            Expr::Record { fields, spread } => RuntimeEvidenceExpr::Record {
+                fields: shared_record_fields(fields),
+                spread: spread.clone(),
+            },
+            Expr::PolyVariant { tag, payloads } => RuntimeEvidenceExpr::PolyVariant {
+                tag: tag.clone(),
+                payloads: shared_expr_ids(payloads),
+            },
+            Expr::Select {
+                base,
+                name,
+                resolution,
+            } => RuntimeEvidenceExpr::Select {
+                base: *base,
+                name: name.clone(),
+                resolution: resolution.clone(),
+            },
             _ => RuntimeEvidenceExpr::Source,
         })
         .collect()
@@ -2005,6 +2071,60 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         ),
                     )),
                 };
+            }
+            RuntimeEvidenceExpr::ForceThunk {
+                target_value_is_thunk,
+                thunk,
+            } => {
+                return match self.eval_expr_result(thunk, env)? {
+                    EvidenceEvalResult::Value(thunk) => {
+                        let result = self.force_thunk_result(thunk)?;
+                        self.finish_force_thunk_result(result, target_value_is_thunk)
+                    }
+                    EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
+                        self.append_request_continuation(
+                            request,
+                            EvidenceContinuation::force_thunk(
+                                target_value_is_thunk,
+                                EvidenceContinuation::identity(),
+                            ),
+                        ),
+                    )),
+                };
+            }
+            RuntimeEvidenceExpr::MarkerFrame { path, body } => {
+                let id = self.fresh_guard_id();
+                let markers = stack_handler_markers(id, &path);
+                return self.with_marker_frame(markers, true, Some(path.to_vec()), |runner| {
+                    runner.eval_expr_result(body, env)
+                });
+            }
+            RuntimeEvidenceExpr::Apply { site, callee, arg } => {
+                return self.eval_apply_result(Some(site), callee, arg, env);
+            }
+            RuntimeEvidenceExpr::RefSet { reference, value } => {
+                return self.eval_ref_set_result(reference, value, env);
+            }
+            RuntimeEvidenceExpr::Tuple(items) => {
+                return self.eval_tuple_items_result(Vec::with_capacity(items.len()), &items, env);
+            }
+            RuntimeEvidenceExpr::Record { fields, spread } => {
+                return self.eval_record_result(&fields, &spread, env);
+            }
+            RuntimeEvidenceExpr::PolyVariant { tag, payloads } => {
+                return self.eval_poly_variant_payloads_result(
+                    tag,
+                    Vec::with_capacity(payloads.len()),
+                    &payloads,
+                    env,
+                );
+            }
+            RuntimeEvidenceExpr::Select {
+                base,
+                name,
+                resolution,
+            } => {
+                return self.eval_select_result(base, &name, &resolution, env);
             }
             RuntimeEvidenceExpr::Source => {}
         }
