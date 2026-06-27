@@ -718,7 +718,12 @@ fn clone_env_for_stats(env: &Env, stats: &mut RuntimeEvidenceRunStats) -> Env {
 
 impl EvidenceContinuation {
     fn identity() -> Self {
-        Self(Rc::new(EvidenceContinuationFrame::Identity))
+        thread_local! {
+            static IDENTITY: Rc<EvidenceContinuationFrame> =
+                Rc::new(EvidenceContinuationFrame::Identity);
+        }
+
+        IDENTITY.with(|identity| Self(identity.clone()))
     }
 
     fn force_thunk(target_value_is_thunk: bool, next: Self) -> Self {
