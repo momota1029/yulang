@@ -1,5 +1,13 @@
 import { createHash } from "node:crypto";
-import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  cp,
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 
 const docsOutDir = new URL("../../dist-docs/", import.meta.url);
 const webOutDir = new URL("../../dist/", import.meta.url);
@@ -9,6 +17,7 @@ await mkdir(assetsDir, { recursive: true });
 await externalizeInlineScripts(docsOutDir);
 await externalizeCssDataSvgs(assetsDir);
 await mergeDocsOutput();
+await createCleanUrlIndexes(webOutDir);
 
 async function externalizeInlineScripts(dirUrl) {
   const entries = await readdir(dirUrl, { withFileTypes: true });
@@ -100,4 +109,32 @@ async function mergeDocsOutput() {
   await mkdir(webOutDir, { recursive: true });
   await cp(docsOutDir, webOutDir, { recursive: true, force: true });
   await rm(docsOutDir, { recursive: true, force: true });
+}
+
+async function createCleanUrlIndexes(dirUrl) {
+  const entries = await readdir(dirUrl, { withFileTypes: true });
+  for (const entry of entries) {
+    const entryUrl = new URL(entry.name, dirUrl);
+    if (entry.isDirectory()) {
+      await createCleanUrlIndexes(new URL(`${entry.name}/`, dirUrl));
+      continue;
+    }
+    if (!shouldCreateCleanUrlIndex(entry.name)) {
+      continue;
+    }
+    const cleanDir = new URL(
+      `${entry.name.slice(0, -".html".length)}/`,
+      dirUrl,
+    );
+    await mkdir(cleanDir, { recursive: true });
+    await copyFile(entryUrl, new URL("index.html", cleanDir));
+  }
+}
+
+function shouldCreateCleanUrlIndex(filename) {
+  return (
+    filename.endsWith(".html") &&
+    filename !== "index.html" &&
+    filename !== "404.html"
+  );
 }

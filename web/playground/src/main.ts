@@ -5,6 +5,8 @@ import init, {
 import wasmUrl from "./wasm/wasm_bg.wasm?url";
 import "./style.css";
 
+redirectCleanDocsPath();
+
 const wasmModuleReady: Promise<WebAssembly.Module> = WebAssembly.compileStreaming(
     fetch(wasmUrl),
 );
@@ -257,12 +259,12 @@ const docLinks: Record<
     ja: {
         guide: { href: "/ja/guide/", text: "ガイド" },
         reference: { href: "/ja/reference/", text: "リファレンス" },
-        install: { href: "/ja/guide/install", text: "インストール" },
+        install: { href: "/ja/guide/install.html", text: "インストール" },
     },
     en: {
         guide: { href: "/guide/", text: "Guide" },
         reference: { href: "/reference/", text: "Reference" },
-        install: { href: "/guide/install", text: "Install" },
+        install: { href: "/guide/install.html", text: "Install" },
     },
 };
 
@@ -512,6 +514,7 @@ let latestRunOutput: RunOutput | undefined;
 let runGeneration = 0;
 let isRunning = false;
 let nextWorkerRequestId = 0;
+let colorizeFallbackReported = false;
 const pendingWorkerRequests = new Map<number, PendingWorkerRequest>();
 let runWorker: Worker | undefined = createRunWorker();
 
@@ -1050,11 +1053,7 @@ function scheduleRenderColor(): void {
 }
 
 function renderColor(): void {
-    const output = colorize(sourceInput.value) as ColorizeOutput;
-    editorHighlightContent.innerHTML = highlightSource(
-        sourceInput.value,
-        output.spans,
-    );
+    editorHighlightContent.innerHTML = colorizedSourceHtml(sourceInput.value);
     syncEditorLayout();
 }
 
@@ -1091,20 +1090,56 @@ function highlightSource(source: string, spans: HighlightSpan[]): string {
     let cursor = 0;
     let html = "";
     for (const span of spans) {
-        if (span.start < cursor) {
+        const start = clampSourceOffset(span.start, source.length);
+        const end = clampSourceOffset(span.end, source.length);
+        if (start < cursor || end < start) {
             continue;
         }
-        html += escapeHtml(source.slice(cursor, span.start));
+        html += escapeHtml(source.slice(cursor, start));
         html += `<span class="tok tok-${span.kind}">${escapeHtml(
-            source.slice(span.start, span.end),
+            source.slice(start, end),
         )}</span>`;
-        cursor = span.end;
+        cursor = end;
     }
     html += escapeHtml(source.slice(cursor));
+    return preserveTrailingLine(source, html);
+}
+
+function colorizedSourceHtml(source: string): string {
+    try {
+        const output = colorize(source) as ColorizeOutput;
+        const spans = Array.isArray(output.spans) ? output.spans : [];
+        return highlightSource(source, spans);
+    } catch (error) {
+        reportColorizeFallback(error);
+        return plainSourceHtml(source);
+    }
+}
+
+function plainSourceHtml(source: string): string {
+    return preserveTrailingLine(source, escapeHtml(source));
+}
+
+function preserveTrailingLine(source: string, html: string): string {
     if (source.endsWith("\n")) {
-        html += " ";
+        return `${html} `;
     }
     return html;
+}
+
+function clampSourceOffset(offset: number, sourceLength: number): number {
+    if (!Number.isFinite(offset)) {
+        return 0;
+    }
+    return Math.max(0, Math.min(sourceLength, offset));
+}
+
+function reportColorizeFallback(error: unknown): void {
+    if (colorizeFallbackReported) {
+        return;
+    }
+    colorizeFallbackReported = true;
+    console.warn("Yulang colorizer failed; rendering plain source", error);
 }
 
 function formatDiagnostic(diagnostic: Diagnostic): string {
@@ -1152,4 +1187,37 @@ function escapeHtml(text: string): string {
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;");
+}
+
+function redirectCleanDocsPath(): void {
+    const pathname = window.location.pathname;
+    if (pathname.endsWith("/") || pathname.endsWith(".html")) {
+        return;
+    }
+
+    let target: string | undefined;
+    if (isDocsIndexCleanPath(pathname)) {
+        target = `${pathname}/`;
+    } else if (isDocsArticleCleanPath(pathname)) {
+        target = `${pathname}.html`;
+    }
+
+    if (target === undefined) {
+        return;
+    }
+    window.location.replace(
+        `${target}${window.location.search}${window.location.hash}`,
+    );
+}
+
+function isDocsIndexCleanPath(pathname: string): boolean {
+    return /^\/(?:ja\/)?(?:guide|reference)$/.test(pathname);
+}
+
+function isDocsArticleCleanPath(pathname: string): boolean {
+    if (!/^\/(?:ja\/)?(?:guide|reference)\/.+/.test(pathname)) {
+        return false;
+    }
+    const basename = pathname.slice(pathname.lastIndexOf("/") + 1);
+    return !basename.includes(".");
 }
