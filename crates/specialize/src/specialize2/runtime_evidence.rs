@@ -46,10 +46,12 @@ pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> Stri
                 .unwrap_or_else(|| "_".to_string());
             let _ = writeln!(
                 out,
-                "  expr e{} actual {} consumer {} stack_weights {}",
+                "  expr e{} actual {} consumer {} actual_slots [{}] consumer_slots [{}] stack_weights {}",
                 expr.expr,
                 mono::dump::dump_type(&expr.actual),
                 consumer,
+                format_slot_ids(&expr.actual_slots),
+                format_slot_ids(&expr.consumer_slots),
                 expr.stack_weights.len()
             );
             format_stack_weights(&mut out, &expr.stack_weights);
@@ -222,6 +224,12 @@ fn format_sites(out: &mut String, sites: &[RuntimeEvidenceSite]) {
                 boundary.function_like,
                 boundary.argument_contract,
             );
+            let _ = writeln!(
+                out,
+                "      slots actual [{}] consumer [{}]",
+                format_slot_ids(&boundary.actual_slots),
+                format_slot_ids(&boundary.consumer_slots)
+            );
         }
     }
 }
@@ -390,6 +398,8 @@ pub enum RuntimeEvidenceSiteKind {
 pub struct RuntimeEvidenceBoundaryCandidate {
     pub actual: Type,
     pub consumer: Type,
+    pub actual_slots: Vec<u32>,
+    pub consumer_slots: Vec<u32>,
     pub function_like: bool,
     pub argument_contract: bool,
 }
@@ -409,6 +419,8 @@ impl RuntimeEvidenceBoundaryCandidate {
         Some(Self {
             actual: ty.actual.clone(),
             consumer: consumer.clone(),
+            actual_slots: ty.actual_slots.clone(),
+            consumer_slots: ty.consumer_slots.clone(),
             function_like,
             argument_contract,
         })
@@ -542,7 +554,7 @@ impl RuntimeEvidenceTask {
         let mut expr_types = solved
             .exprs
             .iter()
-            .map(|(expr, ty)| RuntimeEvidenceExprType::new(*expr, &ty.actual, ty.consumer.as_ref()))
+            .map(|(expr, ty)| RuntimeEvidenceExprType::new(*expr, ty))
             .collect::<Vec<_>>();
         expr_types.sort_by_key(|item| item.expr);
 
@@ -797,19 +809,21 @@ pub struct RuntimeEvidenceExprType {
     pub expr: u32,
     pub actual: Type,
     pub consumer: Option<Type>,
+    pub actual_slots: Vec<u32>,
+    pub consumer_slots: Vec<u32>,
     pub stack_weights: Vec<RuntimeEvidenceStackWeight>,
 }
 
 impl RuntimeEvidenceExprType {
-    fn new(expr: poly_expr::ExprId, actual: &Type, consumer: Option<&Type>) -> Self {
+    fn new(expr: poly_expr::ExprId, ty: &SolvedExprType) -> Self {
         let mut stack_weights = Vec::new();
         collect_stack_weights(
             RuntimeEvidenceTypeRole::Actual,
-            actual,
+            &ty.actual,
             &mut Vec::new(),
             &mut stack_weights,
         );
-        if let Some(consumer) = consumer {
+        if let Some(consumer) = &ty.consumer {
             collect_stack_weights(
                 RuntimeEvidenceTypeRole::Consumer,
                 consumer,
@@ -819,8 +833,10 @@ impl RuntimeEvidenceExprType {
         }
         Self {
             expr: expr.0,
-            actual: actual.clone(),
-            consumer: consumer.cloned(),
+            actual: ty.actual.clone(),
+            consumer: ty.consumer.clone(),
+            actual_slots: ty.actual_slots.clone(),
+            consumer_slots: ty.consumer_slots.clone(),
             stack_weights,
         }
     }
@@ -950,6 +966,14 @@ fn format_effect_family(family: &EffectFamily) -> String {
         .collect::<Vec<_>>()
         .join(", ");
     format!("{}({args})", family.path.join("::"))
+}
+
+fn format_slot_ids(slots: &[u32]) -> String {
+    slots
+        .iter()
+        .map(|slot| format!("t{slot}"))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn format_task_header(task: &RuntimeEvidenceTask) -> String {

@@ -3969,6 +3969,8 @@ mod tests {
                     expr: 0,
                     actual: specialize::mono::Type::unit(),
                     consumer: None,
+                    actual_slots: Vec::new(),
+                    consumer_slots: Vec::new(),
                     stack_weights: Vec::new(),
                 }],
                 ref_signatures: Vec::new(),

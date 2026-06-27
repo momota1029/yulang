@@ -510,6 +510,17 @@ mod tests {
             }),
             "runtime evidence graph should retain weighted higher-order constraints"
         );
+        assert!(
+            output.runtime_evidence.tasks.iter().any(|task| {
+                task.expr_types.iter().any(|expr| {
+                    expr.actual_slots
+                        .iter()
+                        .chain(expr.consumer_slots.iter())
+                        .any(|slot| *slot < task.graph.slot_count)
+                })
+            }),
+            "expr runtime evidence should retain source-to-graph slot references"
+        );
     }
 
     #[test]

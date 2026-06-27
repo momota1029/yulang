@@ -160,6 +160,8 @@ impl SolvedTask {
 struct SolvedExprType {
     actual: Type,
     consumer: Option<Type>,
+    actual_slots: Vec<u32>,
+    consumer_slots: Vec<u32>,
 }
 
 #[derive(Debug, Clone)]

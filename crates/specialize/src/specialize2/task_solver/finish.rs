@@ -10,11 +10,21 @@ impl<'a> TaskSolver<'a> {
         // recursive demand edges. Slots that are not reachable from those uses may
         // stay undetermined; they are solver-local evidence, not mono output.
         for (expr, ty) in &self.exprs {
+            let actual_slots = type_slot_refs(&ty.actual);
+            let consumer_slots = ty.consumer.as_ref().map(type_slot_refs).unwrap_or_default();
             let Some(actual) = self.resolve_expr_actual(&mut resolver, *expr, ty)? else {
                 continue;
             };
             let consumer = self.resolve_expr_consumer(&mut resolver, ty)?;
-            exprs.insert(*expr, SolvedExprType { actual, consumer });
+            exprs.insert(
+                *expr,
+                SolvedExprType {
+                    actual,
+                    consumer,
+                    actual_slots,
+                    consumer_slots,
+                },
+            );
         }
         let ref_signatures = self
             .ref_uses
@@ -516,5 +526,62 @@ impl<'a> TaskSolver<'a> {
             PrimitiveOp::FloatToString => unary_type(float_type(), str_type()),
             PrimitiveOp::BoolToString => unary_type(bool_type(), str_type()),
         }
+    }
+}
+
+fn type_slot_refs(ty: &Type) -> Vec<u32> {
+    let mut slots = Vec::new();
+    collect_type_slot_refs(ty, &mut slots);
+    slots.sort_unstable();
+    slots.dedup();
+    slots
+}
+
+fn collect_type_slot_refs(ty: &Type, out: &mut Vec<u32>) {
+    match ty {
+        Type::OpenVar(slot) => out.push(*slot),
+        Type::Fun {
+            arg,
+            arg_effect,
+            ret_effect,
+            ret,
+        } => {
+            collect_type_slot_refs(arg, out);
+            collect_type_slot_refs(arg_effect, out);
+            collect_type_slot_refs(ret_effect, out);
+            collect_type_slot_refs(ret, out);
+        }
+        Type::Thunk { effect, value } => {
+            collect_type_slot_refs(effect, out);
+            collect_type_slot_refs(value, out);
+        }
+        Type::Record(fields) => {
+            for field in fields {
+                collect_type_slot_refs(&field.value, out);
+            }
+        }
+        Type::PolyVariant(variants) => {
+            for variant in variants {
+                for payload in &variant.payloads {
+                    collect_type_slot_refs(payload, out);
+                }
+            }
+        }
+        Type::Tuple(items) | Type::EffectRow(items) => {
+            for item in items {
+                collect_type_slot_refs(item, out);
+            }
+        }
+        Type::Stack { inner, .. } => collect_type_slot_refs(inner, out),
+        Type::Union(left, right) | Type::Intersection(left, right) => {
+            collect_type_slot_refs(left, out);
+            collect_type_slot_refs(right, out);
+        }
+        Type::Con { args, .. } => {
+            for arg in args {
+                collect_type_slot_refs(arg, out);
+            }
+        }
+        Type::Any | Type::Never => {}
     }
 }
