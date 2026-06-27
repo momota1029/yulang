@@ -5362,7 +5362,7 @@ fn mark_runtime_value_unchecked(
             markers: existing,
         } => shared(RuntimeEvidenceValue::Marked {
             value: value.clone(),
-            markers: shared_markers(&combined_markers(existing, markers)),
+            markers: share_marker_vec(combined_markers(existing, markers)),
         }),
         _ => shared(RuntimeEvidenceValue::Marked {
             value,
