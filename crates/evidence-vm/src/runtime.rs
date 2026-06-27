@@ -454,11 +454,35 @@ enum EvidenceRefSetResumeMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidenceRouteOrigin {
     StaticDirect,
-    ProviderGrant {
-        demand_slot_id: u32,
-        provider_slot_id: u32,
-        handler_id: u32,
-    },
+    ProviderGrant(EvidenceProviderGrantId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceResolvedRouteOrigin {
+    StaticDirect,
+    ProviderGrant(EvidenceProviderGrant),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderScopeId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderGrantId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderHygieneBaseline {
+    marker_plan_len: usize,
+    active_add_id_len: usize,
+    active_handler_frame_len: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderGrant {
+    demand_slot_id: u32,
+    provider_slot_id: u32,
+    handler_id: u32,
+    scope_id: EvidenceProviderScopeId,
+    hygiene_baseline: EvidenceProviderHygieneBaseline,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -469,7 +493,7 @@ struct EffectThunkEvidence {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct EvidenceResolvedEffectRoute {
     route: EvidenceEffectRoute,
-    origin: Option<EvidenceRouteOrigin>,
+    origin: Option<EvidenceResolvedRouteOrigin>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -551,24 +575,27 @@ struct EvidenceActiveAddIdMarker {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RuntimeEvidenceProviderFrame {
+    scope_id: EvidenceProviderScopeId,
     provider_env: RuntimeEvidenceProviderEnv,
-    marker_plan_len_at_entry: usize,
-    active_add_id_len_at_entry: usize,
-    active_handler_frame_len_at_entry: usize,
+    hygiene_baseline: EvidenceProviderHygieneBaseline,
 }
 
 impl RuntimeEvidenceProviderFrame {
     fn new(
+        scope_id: EvidenceProviderScopeId,
         provider_env: RuntimeEvidenceProviderEnv,
         marker_plan_len_at_entry: usize,
         active_add_id_len_at_entry: usize,
         active_handler_frame_len_at_entry: usize,
     ) -> Self {
         Self {
+            scope_id,
             provider_env,
-            marker_plan_len_at_entry,
-            active_add_id_len_at_entry,
-            active_handler_frame_len_at_entry,
+            hygiene_baseline: EvidenceProviderHygieneBaseline {
+                marker_plan_len: marker_plan_len_at_entry,
+                active_add_id_len: active_add_id_len_at_entry,
+                active_handler_frame_len: active_handler_frame_len_at_entry,
+            },
         }
     }
 
@@ -578,10 +605,17 @@ impl RuntimeEvidenceProviderFrame {
         active_add_id_len: usize,
         active_handler_frame_len: usize,
     ) -> bool {
-        self.marker_plan_len_at_entry == marker_plan_len
-            && self.active_add_id_len_at_entry == active_add_id_len
-            && self.active_handler_frame_len_at_entry == active_handler_frame_len
+        self.hygiene_baseline.marker_plan_len == marker_plan_len
+            && self.hygiene_baseline.active_add_id_len == active_add_id_len
+            && self.hygiene_baseline.active_handler_frame_len == active_handler_frame_len
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RuntimeEvidenceProviderView {
+    scope_id: EvidenceProviderScopeId,
+    provider_env: RuntimeEvidenceProviderEnv,
+    hygiene_baseline: EvidenceProviderHygieneBaseline,
 }
 
 struct EvidenceActiveMarkerPlan {
@@ -1477,6 +1511,8 @@ struct RuntimeEvidenceRunner<'a> {
     instances: HashMap<InstanceId, SharedValue>,
     evaluating_instances: HashSet<InstanceId>,
     next_guard_id: u32,
+    next_provider_scope_id: u32,
+    provider_grants: Vec<EvidenceProviderGrant>,
     active_frames: Vec<EvidenceActiveFrame>,
     active_handler_frames: Vec<EvidenceActiveHandlerFrame>,
     active_add_ids: Vec<EvidenceActiveAddIdMarker>,
@@ -1507,6 +1543,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             instances: HashMap::new(),
             evaluating_instances: HashSet::new(),
             next_guard_id: 0,
+            next_provider_scope_id: 0,
+            provider_grants: Vec::new(),
             active_frames: Vec::new(),
             active_handler_frames: Vec::new(),
             active_add_ids: Vec::new(),
@@ -1604,10 +1642,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     }
 
     fn provider_frame(
-        &self,
+        &mut self,
         provider_env: RuntimeEvidenceProviderEnv,
     ) -> RuntimeEvidenceProviderFrame {
+        let scope_id = EvidenceProviderScopeId(self.next_provider_scope_id);
+        self.next_provider_scope_id += 1;
         RuntimeEvidenceProviderFrame::new(
+            scope_id,
             provider_env,
             self.active_marker_plans.len(),
             self.active_add_ids.len(),
@@ -1685,6 +1726,24 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             .collect()
     }
 
+    fn active_provider_env_views(&self) -> Vec<RuntimeEvidenceProviderView> {
+        self.active_provider_envs
+            .iter()
+            .filter(|frame| {
+                frame.is_unshadowed(
+                    self.active_marker_plans.len(),
+                    self.active_add_ids.len(),
+                    self.active_handler_frames.len(),
+                )
+            })
+            .map(|frame| RuntimeEvidenceProviderView {
+                scope_id: frame.scope_id,
+                provider_env: frame.provider_env.clone(),
+                hygiene_baseline: frame.hygiene_baseline,
+            })
+            .collect()
+    }
+
     fn effect_route_for_operation_call(
         &mut self,
         site: Option<ExprId>,
@@ -1704,7 +1763,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             route,
             origin: route
                 .is_direct()
-                .then_some(EvidenceRouteOrigin::StaticDirect),
+                .then_some(EvidenceResolvedRouteOrigin::StaticDirect),
         };
         if route.is_direct() {
             return resolved;
@@ -1715,7 +1774,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if !self.context.has_provider_lookup_for_call(site, callee) {
             return resolved;
         }
-        let provider_envs = self.active_provider_env_values();
+        let provider_envs = self.active_provider_env_views();
         if provider_envs.is_empty() {
             return resolved;
         }
@@ -1728,6 +1787,27 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         };
         self.stats.runtime_provider_env_route_hits += 1;
         provider_route
+    }
+
+    fn effect_thunk_origin(
+        &mut self,
+        origin: Option<EvidenceResolvedRouteOrigin>,
+    ) -> Option<EvidenceRouteOrigin> {
+        match origin {
+            Some(EvidenceResolvedRouteOrigin::StaticDirect) => {
+                Some(EvidenceRouteOrigin::StaticDirect)
+            }
+            Some(EvidenceResolvedRouteOrigin::ProviderGrant(grant)) => Some(
+                EvidenceRouteOrigin::ProviderGrant(self.record_provider_grant(grant)),
+            ),
+            None => None,
+        }
+    }
+
+    fn record_provider_grant(&mut self, grant: EvidenceProviderGrant) -> EvidenceProviderGrantId {
+        let id = EvidenceProviderGrantId(self.provider_grants.len() as u32);
+        self.provider_grants.push(grant);
+        id
     }
 
     fn provider_env_for_call(&mut self, site: Option<ExprId>) -> RuntimeEvidenceProviderEnv {
@@ -3414,9 +3494,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             },
             RuntimeEvidenceValue::EffectOp { expr, path } => {
                 let resolved_route = self.effect_route_for_operation_call(site, *expr);
-                let evidence = EffectThunkEvidence {
-                    route_origin: resolved_route.origin,
-                };
+                let route_origin = self.effect_thunk_origin(resolved_route.origin);
+                let evidence = EffectThunkEvidence { route_origin };
                 Ok(EvidenceEvalResult::Value(shared(
                     RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Effect {
                         path: path.clone(),

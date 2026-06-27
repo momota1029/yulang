@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use control_vm::ExprId;
 
 use super::{
-    ControlEvidenceIndex, EvidenceEffectRoute, EvidenceResolvedEffectRoute, EvidenceRouteOrigin,
-    RuntimeEvidenceRunStats,
+    ControlEvidenceIndex, EvidenceEffectRoute, EvidenceProviderGrant, EvidenceResolvedEffectRoute,
+    EvidenceResolvedRouteOrigin, RuntimeEvidenceProviderView, RuntimeEvidenceRunStats,
 };
 use crate::{
     EvidenceVmHandlerArmClass, EvidenceVmHandlerObjectPlan, EvidenceVmOperationExecutionPlan,
@@ -169,15 +169,20 @@ impl RuntimeEvidenceRunContext {
         &self,
         apply: ExprId,
         callee: ExprId,
-        envs: &[RuntimeEvidenceProviderEnv],
+        envs: &[RuntimeEvidenceProviderView],
     ) -> Option<EvidenceResolvedEffectRoute> {
         let lookup = self.operation_provider_lookups.get(&(apply, callee))?;
         for env in envs.iter().rev() {
             for candidate in &lookup.candidates {
-                if env.provides(lookup.slot_id, candidate.handler_id) {
+                if env
+                    .provider_env
+                    .provides(lookup.slot_id, candidate.handler_id)
+                {
                     return Some(EvidenceResolvedEffectRoute {
                         route: candidate.route,
-                        origin: Some(candidate.origin),
+                        origin: Some(EvidenceResolvedRouteOrigin::ProviderGrant(
+                            candidate.grant(env.scope_id, env.hygiene_baseline),
+                        )),
                     });
                 }
             }
@@ -286,7 +291,24 @@ struct RuntimeEvidenceOperationProviderLookup {
 struct RuntimeEvidenceOperationProviderCandidate {
     handler_id: u32,
     route: EvidenceEffectRoute,
-    origin: EvidenceRouteOrigin,
+    demand_slot_id: u32,
+    provider_slot_id: u32,
+}
+
+impl RuntimeEvidenceOperationProviderCandidate {
+    fn grant(
+        &self,
+        scope_id: super::EvidenceProviderScopeId,
+        hygiene_baseline: super::EvidenceProviderHygieneBaseline,
+    ) -> EvidenceProviderGrant {
+        EvidenceProviderGrant {
+            demand_slot_id: self.demand_slot_id,
+            provider_slot_id: self.provider_slot_id,
+            handler_id: self.handler_id,
+            scope_id,
+            hygiene_baseline,
+        }
+    }
 }
 
 fn effect_routes_from_plan(
@@ -418,11 +440,8 @@ fn operation_provider_lookups_from_plan(
                                 execution: object.execution,
                                 request_free_yield: false,
                             },
-                            origin: EvidenceRouteOrigin::ProviderGrant {
-                                demand_slot_id: object.slot_id,
-                                provider_slot_id: object.slot_id,
-                                handler_id,
-                            },
+                            demand_slot_id: object.slot_id,
+                            provider_slot_id: object.slot_id,
                         }],
                     },
                 ));
@@ -435,11 +454,8 @@ fn operation_provider_lookups_from_plan(
                     Some(RuntimeEvidenceOperationProviderCandidate {
                         handler_id: *handler_id,
                         route: route_for_provider_handler(handler),
-                        origin: EvidenceRouteOrigin::ProviderGrant {
-                            demand_slot_id: object.slot_id,
-                            provider_slot_id: handler.slot_id,
-                            handler_id: handler.id,
-                        },
+                        demand_slot_id: object.slot_id,
+                        provider_slot_id: handler.slot_id,
                     })
                 })
                 .collect::<Vec<_>>();
@@ -518,6 +534,7 @@ fn execution_for_handler_arm_class(
 
 #[cfg(test)]
 mod tests {
+    use super::super::{EvidenceProviderHygieneBaseline, EvidenceProviderScopeId};
     use super::*;
     use crate::{
         EvidenceVmObjectPlan, EvidenceVmOperationExecutionPlan, EvidenceVmOperationObjectPlan,
@@ -576,10 +593,21 @@ mod tests {
         };
         let context = RuntimeEvidenceRunContext::from_plan(&plan);
         let env = context.provider_env_for_value(value, &[], &[]);
+        let scope_id = EvidenceProviderScopeId(0);
+        let hygiene_baseline = EvidenceProviderHygieneBaseline {
+            marker_plan_len: 0,
+            active_add_id_len: 0,
+            active_handler_frame_len: 0,
+        };
+        let view = RuntimeEvidenceProviderView {
+            scope_id,
+            provider_env: env,
+            hygiene_baseline,
+        };
 
         assert_eq!(context.provider_route_for_call(apply, callee, &[]), None);
         assert_eq!(
-            context.provider_route_for_call(apply, callee, &[env]),
+            context.provider_route_for_call(apply, callee, &[view]),
             Some(EvidenceResolvedEffectRoute {
                 route: EvidenceEffectRoute::Direct {
                     handler,
@@ -587,11 +615,15 @@ mod tests {
                     execution: EvidenceVmOperationExecutionPlan::DirectTailResumptive,
                     request_free_yield: false,
                 },
-                origin: Some(EvidenceRouteOrigin::ProviderGrant {
-                    demand_slot_id: slot_id,
-                    provider_slot_id: slot_id,
-                    handler_id,
-                }),
+                origin: Some(EvidenceResolvedRouteOrigin::ProviderGrant(
+                    EvidenceProviderGrant {
+                        demand_slot_id: slot_id,
+                        provider_slot_id: slot_id,
+                        handler_id,
+                        scope_id,
+                        hygiene_baseline,
+                    }
+                )),
             })
         );
     }
