@@ -38,6 +38,8 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) evidence_arg_calls: usize,
     pub(crate) evidence_slot_keys: usize,
     pub(crate) evidence_object_slots: usize,
+    pub(crate) evidence_function_objects: usize,
+    pub(crate) evidence_value_objects: usize,
     pub(crate) evidence_handler_objects: usize,
     pub(crate) evidence_operation_objects: usize,
     pub(crate) evidence_direct_candidates: usize,
@@ -174,6 +176,8 @@ pub(crate) enum EvidenceVmSlotRouteKey {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct EvidenceVmObjectPlan {
     pub(crate) slots: Vec<EvidenceVmSlotPlan>,
+    pub(crate) functions: Vec<EvidenceVmFunctionObjectPlan>,
+    pub(crate) values: Vec<EvidenceVmValueObjectPlan>,
     pub(crate) handlers: Vec<EvidenceVmHandlerObjectPlan>,
     pub(crate) operations: Vec<EvidenceVmOperationObjectPlan>,
 }
@@ -182,6 +186,23 @@ pub(crate) struct EvidenceVmObjectPlan {
 pub(crate) struct EvidenceVmSlotPlan {
     pub(crate) id: u32,
     pub(crate) key: EvidenceVmSlotKey,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmFunctionObjectPlan {
+    pub(crate) id: u32,
+    pub(crate) owner: RuntimeEvidenceTaskOwner,
+    pub(crate) params: Vec<u32>,
+    pub(crate) provides: Vec<u32>,
+    pub(crate) value_env: Vec<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmValueObjectPlan {
+    pub(crate) id: u32,
+    pub(crate) expr: ExprId,
+    pub(crate) kind: EvidenceVmValueEnvKind,
+    pub(crate) captures: Vec<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -360,8 +381,10 @@ pub(crate) fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
-        "  evidence_object_slots: {} handler_objects: {} operation_objects: {} direct_candidates: {}",
+        "  evidence_object_slots: {} function_objects: {} value_objects: {} handler_objects: {} operation_objects: {} direct_candidates: {}",
         summary.evidence_object_slots,
+        summary.evidence_function_objects,
+        summary.evidence_value_objects,
         summary.evidence_handler_objects,
         summary.evidence_operation_objects,
         summary.evidence_direct_candidates
@@ -419,6 +442,8 @@ fn summarize_plan(
             .sum(),
         evidence_slot_keys: objects.slots.len(),
         evidence_object_slots: objects.slots.len(),
+        evidence_function_objects: objects.functions.len(),
+        evidence_value_objects: objects.values.len(),
         evidence_handler_objects: objects.handlers.len(),
         evidence_operation_objects: objects.operations.len(),
         evidence_direct_candidates: objects
@@ -1158,6 +1183,8 @@ fn build_object_plan(
         })
         .collect::<Vec<_>>();
 
+    let functions = build_function_objects(functions, &slot_ids);
+    let values = build_value_objects(values, &slot_ids);
     let handlers = build_handler_objects(handlers, &slot_ids);
     let handler_index = handlers
         .iter()
@@ -1167,6 +1194,8 @@ fn build_object_plan(
 
     EvidenceVmObjectPlan {
         slots: slot_plans,
+        functions,
+        values,
         handlers,
         operations,
     }
@@ -1198,6 +1227,48 @@ fn collect_object_slots(
         slots.extend(value.signature.captures.iter().cloned());
     }
     slots.into_iter().collect()
+}
+
+fn build_function_objects(
+    functions: &[EvidenceVmFunctionPlan],
+    slot_ids: &BTreeMap<EvidenceVmSlotKey, u32>,
+) -> Vec<EvidenceVmFunctionObjectPlan> {
+    functions
+        .iter()
+        .enumerate()
+        .map(|(index, function)| EvidenceVmFunctionObjectPlan {
+            id: index as u32,
+            owner: function.owner,
+            params: slot_ids_for_keys(&function.signature.params, slot_ids),
+            provides: slot_ids_for_keys(&function.signature.provides, slot_ids),
+            value_env: slot_ids_for_keys(&function.signature.value_env, slot_ids),
+        })
+        .collect()
+}
+
+fn build_value_objects(
+    values: &[EvidenceVmValueEnvPlan],
+    slot_ids: &BTreeMap<EvidenceVmSlotKey, u32>,
+) -> Vec<EvidenceVmValueObjectPlan> {
+    values
+        .iter()
+        .enumerate()
+        .map(|(index, value)| EvidenceVmValueObjectPlan {
+            id: index as u32,
+            expr: value.expr,
+            kind: value.kind.clone(),
+            captures: slot_ids_for_keys(&value.signature.captures, slot_ids),
+        })
+        .collect()
+}
+
+fn slot_ids_for_keys(
+    keys: &[EvidenceVmSlotKey],
+    slot_ids: &BTreeMap<EvidenceVmSlotKey, u32>,
+) -> Vec<u32> {
+    keys.iter()
+        .filter_map(|key| slot_ids.get(key).copied())
+        .collect()
 }
 
 fn build_handler_objects(
@@ -1658,7 +1729,12 @@ fn format_value_envs(out: &mut String, values: &[EvidenceVmValueEnvPlan]) {
 }
 
 fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
-    if objects.slots.is_empty() && objects.handlers.is_empty() && objects.operations.is_empty() {
+    if objects.slots.is_empty()
+        && objects.functions.is_empty()
+        && objects.values.is_empty()
+        && objects.handlers.is_empty()
+        && objects.operations.is_empty()
+    {
         return;
     }
     writeln!(out, "evidence object graph:").unwrap();
@@ -1666,6 +1742,35 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
         writeln!(out, "  slots:").unwrap();
         for slot in &objects.slots {
             writeln!(out, "    s{} {}", slot.id, format_slot_key(&slot.key)).unwrap();
+        }
+    }
+    if !objects.functions.is_empty() {
+        writeln!(out, "  function-objects:").unwrap();
+        for function in &objects.functions {
+            writeln!(
+                out,
+                "    f{} {} params [{}] provides [{}] value_env [{}]",
+                function.id,
+                format_task_owner(function.owner),
+                format_u32_list_with_prefix("s", &function.params),
+                format_u32_list_with_prefix("s", &function.provides),
+                format_u32_list_with_prefix("s", &function.value_env)
+            )
+            .unwrap();
+        }
+    }
+    if !objects.values.is_empty() {
+        writeln!(out, "  value-objects:").unwrap();
+        for value in &objects.values {
+            writeln!(
+                out,
+                "    v{} e{} {} captures [{}]",
+                value.id,
+                value.expr.0,
+                format_value_env_kind(&value.kind),
+                format_u32_list_with_prefix("s", &value.captures)
+            )
+            .unwrap();
         }
     }
     if !objects.handlers.is_empty() {
@@ -1878,6 +1983,14 @@ fn format_u32_list(values: &[u32]) -> String {
     values
         .iter()
         .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn format_u32_list_with_prefix(prefix: &str, values: &[u32]) -> String {
+    values
+        .iter()
+        .map(|value| format!("{prefix}{value}"))
         .collect::<Vec<_>>()
         .join(", ")
 }

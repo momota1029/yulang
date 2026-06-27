@@ -458,8 +458,13 @@ Status on 2026-06-27:
 - The debug plan now builds a non-executable evidence object graph.
 - The graph separates:
   - evidence slots;
+  - function objects;
+  - value objects;
   - handler objects;
   - operation objects.
+- Function objects resolve signature params / provides / value-env slots to
+  stable slot ids.
+- Value objects resolve captured evidence slots to stable slot ids.
 - Operation objects carry an execution plan:
   `direct-abortive`, `direct-tail-resumptive`, `yield-fallback`,
   `blocked-fallback`, or `generic-fallback`.

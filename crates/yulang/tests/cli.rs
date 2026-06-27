@@ -368,8 +368,20 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
         "evidence object slot summary should be visible in the plan:\n{stdout}"
     );
     assert!(
+        stdout.contains("function_objects:") && stdout.contains("value_objects:"),
+        "function and value object summaries should be visible in the plan:\n{stdout}"
+    );
+    assert!(
         stdout.contains("evidence object graph:"),
         "evidence object graph should be visible in the plan:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("function-objects:"),
+        "function evidence objects should be visible in the plan:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("value-objects:"),
+        "value evidence objects should be visible in the plan:\n{stdout}"
     );
     assert!(
         stdout.contains("handler-objects:"),
