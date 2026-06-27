@@ -4,8 +4,9 @@ use control_vm::ExprId;
 
 use super::{ControlEvidenceIndex, EvidenceEffectRoute, RuntimeEvidenceRunStats};
 use crate::{
-    EvidenceVmOperationExecutionPlan, EvidenceVmOperationKind, EvidenceVmOperationLowering,
-    EvidenceVmOperationObjectPlan, EvidenceVmOperationPlan, EvidenceVmPlan,
+    EvidenceVmHandlerArmClass, EvidenceVmHandlerObjectPlan, EvidenceVmOperationExecutionPlan,
+    EvidenceVmOperationKind, EvidenceVmOperationLowering, EvidenceVmOperationObjectPlan,
+    EvidenceVmOperationPlan, EvidenceVmPlan,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -117,10 +118,14 @@ impl RuntimeEvidenceRunContext {
         envs: &[RuntimeEvidenceProviderEnv],
     ) -> Option<EvidenceEffectRoute> {
         let lookup = self.operation_provider_lookups.get(&(apply, callee))?;
-        envs.iter()
-            .rev()
-            .any(|env| env.provides(lookup.slot_id, lookup.handler_id))
-            .then_some(lookup.route)
+        for env in envs.iter().rev() {
+            for candidate in &lookup.candidates {
+                if env.provides(lookup.slot_id, candidate.handler_id) {
+                    return Some(candidate.route);
+                }
+            }
+        }
+        None
     }
 }
 
@@ -164,9 +169,14 @@ struct RuntimeEvidenceEnvProvider {
     handler_ids: Vec<u32>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct RuntimeEvidenceOperationProviderLookup {
     slot_id: u32,
+    candidates: Vec<RuntimeEvidenceOperationProviderCandidate>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct RuntimeEvidenceOperationProviderCandidate {
     handler_id: u32,
     route: EvidenceEffectRoute,
 }
@@ -232,32 +242,62 @@ fn operation_provider_lookups_from_plan(
     plan: &EvidenceVmPlan,
 ) -> HashMap<(ExprId, ExprId), RuntimeEvidenceOperationProviderLookup> {
     let operation_objects = operation_objects_by_expr(plan);
+    let provider_candidates = provider_candidates_by_slot(plan);
+    let handlers = handler_objects_by_id(plan);
     plan.operations
         .iter()
         .filter_map(|operation| {
             let EvidenceVmOperationKind::Call { apply, callee } = operation.kind else {
                 return None;
             };
-            let EvidenceVmOperationLowering::LexicalHandlerCandidate {
+            if matches!(
+                operation.lowering,
+                EvidenceVmOperationLowering::DirectHandlerCall { .. }
+            ) {
+                return None;
+            }
+            let object = operation_objects.get(&operation.expr)?;
+            if let EvidenceVmOperationLowering::LexicalHandlerCandidate {
                 handler,
                 resumptive,
                 delayed_boundary: false,
             } = operation.lowering
-            else {
+                && let Some(handler_id) = object.candidate_handler
+            {
+                return Some((
+                    (apply, callee),
+                    RuntimeEvidenceOperationProviderLookup {
+                        slot_id: object.slot_id,
+                        candidates: vec![RuntimeEvidenceOperationProviderCandidate {
+                            handler_id,
+                            route: EvidenceEffectRoute::Direct {
+                                handler,
+                                resumptive,
+                                execution: object.execution,
+                            },
+                        }],
+                    },
+                ));
+            }
+            let candidates = provider_candidates.get(&object.slot_id)?;
+            let candidates = candidates
+                .iter()
+                .filter_map(|handler_id| {
+                    let handler = handlers.get(handler_id)?;
+                    Some(RuntimeEvidenceOperationProviderCandidate {
+                        handler_id: *handler_id,
+                        route: route_for_provider_handler(handler),
+                    })
+                })
+                .collect::<Vec<_>>();
+            if candidates.is_empty() {
                 return None;
-            };
-            let object = operation_objects.get(&operation.expr)?;
-            let handler_id = object.candidate_handler?;
+            }
             Some((
                 (apply, callee),
                 RuntimeEvidenceOperationProviderLookup {
                     slot_id: object.slot_id,
-                    handler_id,
-                    route: EvidenceEffectRoute::Direct {
-                        handler,
-                        resumptive,
-                        execution: object.execution,
-                    },
+                    candidates,
                 },
             ))
         })
@@ -282,6 +322,44 @@ fn operation_execution_for_route(
         .get(&operation.expr)
         .map(|object| object.execution)
         .unwrap_or(EvidenceVmOperationExecutionPlan::GenericFallback)
+}
+
+fn provider_candidates_by_slot(plan: &EvidenceVmPlan) -> HashMap<u32, Vec<u32>> {
+    plan.objects
+        .providers
+        .iter()
+        .map(|provider| (provider.slot_id, provider.handler_candidates.clone()))
+        .collect()
+}
+
+fn handler_objects_by_id(plan: &EvidenceVmPlan) -> HashMap<u32, &EvidenceVmHandlerObjectPlan> {
+    plan.objects
+        .handlers
+        .iter()
+        .map(|handler| (handler.id, handler))
+        .collect()
+}
+
+fn route_for_provider_handler(handler: &EvidenceVmHandlerObjectPlan) -> EvidenceEffectRoute {
+    EvidenceEffectRoute::Direct {
+        handler: handler.handler,
+        resumptive: handler.arm_class != EvidenceVmHandlerArmClass::Abortive,
+        execution: execution_for_handler_arm_class(handler.arm_class),
+    }
+}
+
+fn execution_for_handler_arm_class(
+    class: EvidenceVmHandlerArmClass,
+) -> EvidenceVmOperationExecutionPlan {
+    match class {
+        EvidenceVmHandlerArmClass::Abortive => EvidenceVmOperationExecutionPlan::DirectAbortive,
+        EvidenceVmHandlerArmClass::TailResumptive => {
+            EvidenceVmOperationExecutionPlan::DirectTailResumptive
+        }
+        EvidenceVmHandlerArmClass::MayYield
+        | EvidenceVmHandlerArmClass::Fallback
+        | EvidenceVmHandlerArmClass::Value => EvidenceVmOperationExecutionPlan::YieldFallback,
+    }
 }
 
 #[cfg(test)]

@@ -1503,6 +1503,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if route.is_direct() {
             return route;
         }
+        if self.active_provider_envs.is_empty() {
+            return route;
+        }
         if !self.context.has_provider_lookup_for_call(site, callee) {
             return route;
         }
