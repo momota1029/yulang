@@ -7,7 +7,7 @@ use control_vm::{
     ControlEvidenceRoute, DefId, Expr, ExprId, InstanceId, Pat, Program, RecordSpread, Root,
     SelectResolution, Stmt,
 };
-use specialize::mono::{Lit, PrimitiveContext, PrimitiveOp, Type};
+use specialize::mono::{FunctionAdapterHygiene, Lit, PrimitiveContext, PrimitiveOp, Type};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct RuntimeEvidenceRunOutput {
@@ -56,6 +56,11 @@ enum RuntimeEvidenceValue {
         context: PrimitiveContext,
         args: Vec<SharedValue>,
     },
+    FunctionAdapter {
+        source: Type,
+        target: Type,
+        function: SharedValue,
+    },
     Closure(Rc<RuntimeEvidenceClosure>),
     RecursiveClosure {
         def: DefId,
@@ -97,6 +102,12 @@ enum RuntimeEvidenceThunk {
         continuation: EvidenceContinuation,
         arg: SharedValue,
     },
+    Value(SharedValue),
+    Adapter {
+        source: Type,
+        target: Type,
+        thunk: SharedValue,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -126,6 +137,25 @@ enum EvidenceContinuationFrame {
     ApplyForcedCallee {
         site: Option<ExprId>,
         arg: SharedValue,
+        next: EvidenceContinuation,
+    },
+    AdaptValue {
+        source: Type,
+        target: Type,
+        next: EvidenceContinuation,
+    },
+    WrapThunkValue {
+        next: EvidenceContinuation,
+    },
+    ApplyAdapterArg {
+        function: SharedValue,
+        source_ret: Type,
+        target_ret: Type,
+        next: EvidenceContinuation,
+    },
+    ApplyAdapterResult {
+        source_ret: Type,
+        target_ret: Type,
         next: EvidenceContinuation,
     },
     CaseScrutinee {
@@ -251,6 +281,40 @@ impl EvidenceContinuation {
         Self(Rc::new(EvidenceContinuationFrame::ApplyForcedCallee {
             site,
             arg,
+            next,
+        }))
+    }
+
+    fn adapt_value(source: Type, target: Type, next: Self) -> Self {
+        Self(Rc::new(EvidenceContinuationFrame::AdaptValue {
+            source,
+            target,
+            next,
+        }))
+    }
+
+    fn wrap_thunk_value(next: Self) -> Self {
+        Self(Rc::new(EvidenceContinuationFrame::WrapThunkValue { next }))
+    }
+
+    fn apply_adapter_arg(
+        function: SharedValue,
+        source_ret: Type,
+        target_ret: Type,
+        next: Self,
+    ) -> Self {
+        Self(Rc::new(EvidenceContinuationFrame::ApplyAdapterArg {
+            function,
+            source_ret,
+            target_ret,
+            next,
+        }))
+    }
+
+    fn apply_adapter_result(source_ret: Type, target_ret: Type, next: Self) -> Self {
+        Self(Rc::new(EvidenceContinuationFrame::ApplyAdapterResult {
+            source_ret,
+            target_ret,
             next,
         }))
     }
@@ -386,6 +450,34 @@ impl EvidenceContinuation {
             EvidenceContinuationFrame::ApplyForcedCallee { site, arg, next } => {
                 Self::apply_forced_callee(*site, arg.clone(), next.clone().then(tail))
             }
+            EvidenceContinuationFrame::AdaptValue {
+                source,
+                target,
+                next,
+            } => Self::adapt_value(source.clone(), target.clone(), next.clone().then(tail)),
+            EvidenceContinuationFrame::WrapThunkValue { next } => {
+                Self::wrap_thunk_value(next.clone().then(tail))
+            }
+            EvidenceContinuationFrame::ApplyAdapterArg {
+                function,
+                source_ret,
+                target_ret,
+                next,
+            } => Self::apply_adapter_arg(
+                function.clone(),
+                source_ret.clone(),
+                target_ret.clone(),
+                next.clone().then(tail),
+            ),
+            EvidenceContinuationFrame::ApplyAdapterResult {
+                source_ret,
+                target_ret,
+                next,
+            } => Self::apply_adapter_result(
+                source_ret.clone(),
+                target_ret.clone(),
+                next.clone().then(tail),
+            ),
             EvidenceContinuationFrame::CaseScrutinee { arms, env, next } => {
                 Self::case_scrutinee(arms.clone(), env.clone(), next.clone().then(tail))
             }
@@ -771,7 +863,34 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     )),
                 };
             }
-            Expr::FunctionAdapter { function, .. } => return self.eval_expr_result(*function, env),
+            Expr::FunctionAdapter {
+                source,
+                target,
+                function,
+                hygiene,
+            } => {
+                if !function_adapter_hygiene_is_empty(hygiene) {
+                    return Err(RuntimeEvidenceRunError::UnsupportedExpr(
+                        "function adapter hygiene",
+                    ));
+                }
+                return match self.eval_expr_result(*function, env)? {
+                    EvidenceEvalResult::Value(function) => Ok(EvidenceEvalResult::Value(shared(
+                        RuntimeEvidenceValue::FunctionAdapter {
+                            source: source.clone(),
+                            target: target.clone(),
+                            function,
+                        },
+                    ))),
+                    EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
+                        request.append_continuation(EvidenceContinuation::adapt_value(
+                            source.clone(),
+                            target.clone(),
+                            EvidenceContinuation::identity(),
+                        )),
+                    )),
+                };
+            }
             Expr::MarkerFrame { path, body } => {
                 return match self.eval_expr_result(*body, env)? {
                     EvidenceEvalResult::Value(value) => Ok(EvidenceEvalResult::Value(value)),
@@ -850,7 +969,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         context: PrimitiveContext,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         if op.arity() == 0 {
-            return self.apply_primitive(op, &[]);
+            return self.apply_primitive(op, &context, &[]);
         }
         Ok(shared(RuntimeEvidenceValue::PrimitiveOp {
             op,
@@ -1077,9 +1196,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         },
                     )));
                 }
-                self.apply_primitive(*op, &args)
+                self.apply_primitive(*op, context, &args)
                     .map(EvidenceEvalResult::Value)
             }
+            RuntimeEvidenceValue::FunctionAdapter {
+                source,
+                target,
+                function,
+            } => self.apply_adapter_result(source, target, function.clone(), arg),
             RuntimeEvidenceValue::ConstructorFunction { def, arity, args } => {
                 let mut args = args.clone();
                 args.push(arg);
@@ -1150,6 +1274,108 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
+    fn apply_adapter_result(
+        &mut self,
+        source: &Type,
+        target: &Type,
+        function: SharedValue,
+        arg: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let (source_arg, source_ret) = function_parts(source).ok_or(
+            RuntimeEvidenceRunError::UnsupportedExpr("function adapter source type"),
+        )?;
+        let (target_arg, target_ret) = function_parts(target).ok_or(
+            RuntimeEvidenceRunError::UnsupportedExpr("function adapter target type"),
+        )?;
+        let source_arg = source_arg.clone();
+        let source_ret = source_ret.clone();
+        let target_arg = target_arg.clone();
+        let target_ret = target_ret.clone();
+        let result = self.adapt_value_result(arg, &target_arg, &source_arg)?;
+        self.continue_result(
+            result,
+            EvidenceContinuation::apply_adapter_arg(
+                function,
+                source_ret,
+                target_ret,
+                EvidenceContinuation::identity(),
+            ),
+        )
+    }
+
+    fn adapt_value_result(
+        &mut self,
+        value: SharedValue,
+        source: &Type,
+        target: &Type,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if equivalent_runtime_types(source, target) || matches!(target, Type::Any) {
+            return Ok(EvidenceEvalResult::Value(value));
+        }
+        if matches!(source, Type::Never) {
+            return Ok(EvidenceEvalResult::Value(value));
+        }
+        match (source, target) {
+            (
+                Type::Thunk {
+                    value: source_value,
+                    ..
+                },
+                Type::Thunk {
+                    value: target_value,
+                    ..
+                },
+            ) => Ok(EvidenceEvalResult::Value(shared(
+                RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Adapter {
+                    source: source_value.as_ref().clone(),
+                    target: target_value.as_ref().clone(),
+                    thunk: value,
+                })),
+            ))),
+            (
+                Type::Thunk {
+                    value: source_value,
+                    ..
+                },
+                target,
+            ) => {
+                let result = self.force_thunk_result(value)?;
+                self.continue_result(
+                    result,
+                    EvidenceContinuation::adapt_value(
+                        source_value.as_ref().clone(),
+                        target.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                )
+            }
+            (
+                source,
+                Type::Thunk {
+                    value: target_value,
+                    ..
+                },
+            ) => {
+                let result = self.adapt_value_result(value, source, target_value)?;
+                self.continue_result(
+                    result,
+                    EvidenceContinuation::wrap_thunk_value(EvidenceContinuation::identity()),
+                )
+            }
+            (Type::Fun { .. }, Type::Fun { .. }) => Ok(EvidenceEvalResult::Value(shared(
+                RuntimeEvidenceValue::FunctionAdapter {
+                    source: source.clone(),
+                    target: target.clone(),
+                    function: value,
+                },
+            ))),
+            (Type::Record(_), Type::Record(_)) if value_boundary_supported(source, target) => {
+                Ok(EvidenceEvalResult::Value(value))
+            }
+            _ => Err(RuntimeEvidenceRunError::UnsupportedExpr("runtime boundary")),
+        }
+    }
+
     fn resume_continuation(
         &mut self,
         continuation: EvidenceContinuation,
@@ -1191,6 +1417,44 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             EvidenceContinuationFrame::ApplyForcedCallee { site, arg, next } => {
                 let result = self.apply_value_result(*site, value, arg.clone())?;
+                self.continue_result(result, next.clone())
+            }
+            EvidenceContinuationFrame::AdaptValue {
+                source,
+                target,
+                next,
+            } => {
+                let result = self.adapt_value_result(value, source, target)?;
+                self.continue_result(result, next.clone())
+            }
+            EvidenceContinuationFrame::WrapThunkValue { next } => self.continue_result(
+                EvidenceEvalResult::Value(shared(RuntimeEvidenceValue::Thunk(Rc::new(
+                    RuntimeEvidenceThunk::Value(value),
+                )))),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ApplyAdapterArg {
+                function,
+                source_ret,
+                target_ret,
+                next,
+            } => {
+                let result = self.apply_value_result(None, function.clone(), value)?;
+                self.continue_result(
+                    result,
+                    EvidenceContinuation::apply_adapter_result(
+                        source_ret.clone(),
+                        target_ret.clone(),
+                        next.clone(),
+                    ),
+                )
+            }
+            EvidenceContinuationFrame::ApplyAdapterResult {
+                source_ret,
+                target_ret,
+                next,
+            } => {
+                let result = self.adapt_value_result(value, source_ret, target_ret)?;
                 self.continue_result(result, next.clone())
             }
             EvidenceContinuationFrame::CaseScrutinee { arms, env, next } => {
@@ -1365,6 +1629,50 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 )),
                 next.clone(),
             ),
+            EvidenceContinuationFrame::AdaptValue {
+                source,
+                target,
+                next,
+            } => (
+                request.append_continuation(EvidenceContinuation::adapt_value(
+                    source.clone(),
+                    target.clone(),
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::WrapThunkValue { next } => (
+                request.append_continuation(EvidenceContinuation::wrap_thunk_value(
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ApplyAdapterArg {
+                function,
+                source_ret,
+                target_ret,
+                next,
+            } => (
+                request.append_continuation(EvidenceContinuation::apply_adapter_arg(
+                    function.clone(),
+                    source_ret.clone(),
+                    target_ret.clone(),
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
+            EvidenceContinuationFrame::ApplyAdapterResult {
+                source_ret,
+                target_ret,
+                next,
+            } => (
+                request.append_continuation(EvidenceContinuation::apply_adapter_result(
+                    source_ret.clone(),
+                    target_ret.clone(),
+                    EvidenceContinuation::identity(),
+                )),
+                next.clone(),
+            ),
             EvidenceContinuationFrame::CaseScrutinee { arms, env, next } => (
                 request.append_continuation(EvidenceContinuation::case_scrutinee(
                     arms.clone(),
@@ -1523,6 +1831,22 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     self.continue_result(
                         result,
                         EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
+                    )
+                }
+                RuntimeEvidenceThunk::Value(value) => Ok(EvidenceEvalResult::Value(value.clone())),
+                RuntimeEvidenceThunk::Adapter {
+                    source,
+                    target,
+                    thunk,
+                } => {
+                    let result = self.force_thunk_result(thunk.clone())?;
+                    self.continue_result(
+                        result,
+                        EvidenceContinuation::adapt_value(
+                            source.clone(),
+                            target.clone(),
+                            EvidenceContinuation::identity(),
+                        ),
                     )
                 }
             },
@@ -1796,6 +2120,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn apply_primitive(
         &mut self,
         op: PrimitiveOp,
+        context: &PrimitiveContext,
         args: &[SharedValue],
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
         use PrimitiveOp::*;
@@ -1810,6 +2135,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 values.extend(expect_list(&args[1])?.iter().cloned());
                 RuntimeEvidenceValue::List(values)
             }
+            ListViewRaw => apply_list_view_raw(context, &args[0])?,
             IntAdd => RuntimeEvidenceValue::Int(expect_int(&args[0])? + expect_int(&args[1])?),
             IntSub => RuntimeEvidenceValue::Int(expect_int(&args[0])? - expect_int(&args[1])?),
             IntMul => RuntimeEvidenceValue::Int(expect_int(&args[0])? * expect_int(&args[1])?),
@@ -2022,6 +2348,37 @@ fn expect_list(value: &SharedValue) -> Result<&[SharedValue], RuntimeEvidenceRun
     }
 }
 
+fn apply_list_view_raw(
+    context: &PrimitiveContext,
+    value: &SharedValue,
+) -> Result<RuntimeEvidenceValue, RuntimeEvidenceRunError> {
+    let constructors = context
+        .list_view
+        .ok_or(RuntimeEvidenceRunError::UnsupportedExpr(
+            "missing list_view primitive context",
+        ))?;
+    let values = expect_list(value)?;
+    match values {
+        [] => Ok(RuntimeEvidenceValue::DataConstructor {
+            def: DefId(constructors.empty.0),
+            payloads: Vec::new(),
+        }),
+        [value] => Ok(RuntimeEvidenceValue::DataConstructor {
+            def: DefId(constructors.leaf.0),
+            payloads: vec![value.clone()],
+        }),
+        values => {
+            let split = values.len() / 2;
+            let left = shared(RuntimeEvidenceValue::List(values[..split].to_vec()));
+            let right = shared(RuntimeEvidenceValue::List(values[split..].to_vec()));
+            Ok(RuntimeEvidenceValue::DataConstructor {
+                def: DefId(constructors.node.0),
+                payloads: vec![left, right],
+            })
+        }
+    }
+}
+
 fn expect_str(value: &SharedValue) -> Result<&str, RuntimeEvidenceRunError> {
     match value.as_ref() {
         RuntimeEvidenceValue::Str(value) => Ok(value),
@@ -2064,6 +2421,161 @@ fn visible_operation_resumptive(
         request
             .is_visible_to(operation_path)
             .then_some(arm.continuation.is_some())
+    })
+}
+
+fn function_adapter_hygiene_is_empty(hygiene: &FunctionAdapterHygiene) -> bool {
+    hygiene.markers.is_empty() && hygiene.arg_markers.is_empty() && hygiene.ret_markers.is_empty()
+}
+
+fn function_parts(ty: &Type) -> Option<(&Type, &Type)> {
+    let Type::Fun { arg, ret, .. } = ty else {
+        return None;
+    };
+    Some((arg, ret))
+}
+
+fn equivalent_runtime_types(source: &Type, target: &Type) -> bool {
+    if source == target || source.is_pure_effect() && target.is_pure_effect() {
+        return true;
+    }
+    match (source, target) {
+        (Type::EffectRow(items), target) if items.len() == 1 => {
+            equivalent_runtime_types(&items[0], target)
+        }
+        (source, Type::EffectRow(items)) if items.len() == 1 => {
+            equivalent_runtime_types(source, &items[0])
+        }
+        (source, Type::Thunk { effect, value }) if effect.is_pure_effect() => {
+            equivalent_runtime_types(source, value)
+        }
+        (Type::Thunk { effect, value }, target) if effect.is_pure_effect() => {
+            equivalent_runtime_types(value, target)
+        }
+        (Type::Record(source_fields), Type::Record(target_fields)) => {
+            target_fields.iter().all(|target| {
+                record_field_type(source_fields, &target.name).map_or(target.optional, |source| {
+                    equivalent_runtime_types(&source.value, &target.value)
+                })
+            })
+        }
+        (Type::EffectRow(source_items), Type::EffectRow(target_items)) => {
+            equivalent_effect_rows(source_items, target_items)
+        }
+        (Type::PolyVariant(source_variants), Type::PolyVariant(target_variants)) => {
+            source_variants.iter().all(|source| {
+                target_variants
+                    .iter()
+                    .find(|target| {
+                        target.name == source.name && target.payloads.len() == source.payloads.len()
+                    })
+                    .is_some_and(|target| {
+                        source
+                            .payloads
+                            .iter()
+                            .zip(&target.payloads)
+                            .all(|(source, target)| equivalent_runtime_types(source, target))
+                    })
+            })
+        }
+        (source, Type::Union(left, right)) => {
+            equivalent_runtime_types(source, left) || equivalent_runtime_types(source, right)
+        }
+        (Type::Union(left, right), target) => {
+            equivalent_runtime_types(left, target) && equivalent_runtime_types(right, target)
+        }
+        (source, Type::Intersection(left, right)) => {
+            equivalent_runtime_types(source, left) && equivalent_runtime_types(source, right)
+        }
+        (Type::Intersection(left, right), target) => {
+            equivalent_runtime_types(left, target) || equivalent_runtime_types(right, target)
+        }
+        _ => false,
+    }
+}
+
+fn equivalent_effect_rows(source_items: &[Type], target_items: &[Type]) -> bool {
+    if source_items.len() != target_items.len() {
+        return false;
+    }
+    let mut used = vec![false; target_items.len()];
+    source_items.iter().all(|source| {
+        let Some(index) = target_items.iter().enumerate().find_map(|(index, target)| {
+            (!used[index] && equivalent_effect_items(source, target)).then_some(index)
+        }) else {
+            return false;
+        };
+        used[index] = true;
+        true
+    })
+}
+
+fn equivalent_effect_items(source: &Type, target: &Type) -> bool {
+    match (source, target) {
+        (
+            Type::Con {
+                path: source_path,
+                args: source_args,
+            },
+            Type::Con {
+                path: target_path,
+                args: target_args,
+            },
+        ) if source_path == target_path && source_args.len() == target_args.len() => source_args
+            .iter()
+            .zip(target_args)
+            .all(|(source, target)| equivalent_runtime_types(source, target)),
+        _ => equivalent_runtime_types(source, target),
+    }
+}
+
+fn record_field_type<'a>(
+    fields: &'a [specialize::mono::TypeField],
+    name: &str,
+) -> Option<&'a specialize::mono::TypeField> {
+    fields.iter().find(|field| field.name == name)
+}
+
+fn value_boundary_supported(source: &Type, target: &Type) -> bool {
+    if equivalent_runtime_types(source, target) || matches!(target, Type::Any) {
+        return true;
+    }
+    if matches!(source, Type::Never) {
+        return true;
+    }
+    match (source, target) {
+        (Type::Fun { .. }, Type::Fun { .. }) => function_boundary_supported(source, target),
+        (Type::Thunk { value: source, .. }, Type::Thunk { value: target, .. }) => {
+            value_boundary_supported(source, target)
+        }
+        (Type::Thunk { value: source, .. }, target) => value_boundary_supported(source, target),
+        (source, Type::Thunk { value: target, .. }) => value_boundary_supported(source, target),
+        (Type::Record(source_fields), Type::Record(target_fields)) => {
+            record_value_boundary_supported(source_fields, target_fields)
+        }
+        _ => false,
+    }
+}
+
+fn function_boundary_supported(source: &Type, target: &Type) -> bool {
+    let Some((source_arg, source_ret)) = function_parts(source) else {
+        return false;
+    };
+    let Some((target_arg, target_ret)) = function_parts(target) else {
+        return false;
+    };
+    value_boundary_supported(target_arg, source_arg)
+        && value_boundary_supported(source_ret, target_ret)
+}
+
+fn record_value_boundary_supported(
+    source_fields: &[specialize::mono::TypeField],
+    target_fields: &[specialize::mono::TypeField],
+) -> bool {
+    target_fields.iter().all(|target| {
+        record_field_type(source_fields, &target.name)
+            .map(|source| value_boundary_supported(&source.value, &target.value))
+            .unwrap_or(target.optional)
     })
 }
 
@@ -2113,6 +2625,7 @@ fn format_value(value: &RuntimeEvidenceValue) -> String {
         }
         RuntimeEvidenceValue::ConstructorFunction { def, .. } => format!("<ctor-fn d{}>", def.0),
         RuntimeEvidenceValue::PrimitiveOp { op, .. } => format!("<primitive {op:?}>"),
+        RuntimeEvidenceValue::FunctionAdapter { .. } => "<function-adapter>".to_string(),
         RuntimeEvidenceValue::Closure(_) | RuntimeEvidenceValue::RecursiveClosure { .. } => {
             "<function>".to_string()
         }

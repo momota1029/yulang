@@ -399,6 +399,54 @@ fn debug_runtime_evidence_run_reads_struct_record_payload_fields() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_applies_function_adapter_for_each() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-each-list",
+        "use std::control::nondet::*\n\n(each 1..3).list\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [[1, 2, 3]]\n"), "{stdout}");
+}
+
+#[test]
+fn debug_runtime_evidence_run_evaluates_list_view_raw() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-list-view-raw",
+        "use std::data::list::*\n\n[1, 2, 3].rev\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [[3, 2, 1]]\n"), "{stdout}");
+}
+
+#[test]
 fn debug_runtime_evidence_run_uses_direct_handler_evidence() {
     let entry = write_entry(
         "debug-runtime-evidence-run-direct-handler",
