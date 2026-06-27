@@ -151,6 +151,10 @@ enum RuntimeEvidenceValue {
 #[derive(Debug, Clone, PartialEq)]
 enum RuntimeEvidenceExpr {
     Value(SharedValue),
+    NullaryPrimitive {
+        op: PrimitiveOp,
+        context: PrimitiveContext,
+    },
     Local {
         slot: EnvSlot,
         def: DefId,
@@ -216,7 +220,6 @@ enum RuntimeEvidenceExpr {
         stmts: Rc<[Stmt]>,
         tail: Option<ExprId>,
     },
-    Source,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1186,6 +1189,10 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
                     args: Vec::new(),
                 }))
             }
+            Expr::PrimitiveOp { op, context } => RuntimeEvidenceExpr::NullaryPrimitive {
+                op: *op,
+                context: context.clone(),
+            },
             Expr::Local(def) => RuntimeEvidenceExpr::Local {
                 slot: EnvSlot::from(*def),
                 def: *def,
@@ -1260,7 +1267,6 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
                 stmts: shared_stmts(&block.stmts),
                 tail: block.tail,
             },
-            _ => RuntimeEvidenceExpr::Source,
         })
         .collect()
 }
@@ -2024,6 +2030,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             .ok_or(RuntimeEvidenceRunError::MissingExpr(expr))?
         {
             RuntimeEvidenceExpr::Value(value) => return Ok(EvidenceEvalResult::Value(value)),
+            RuntimeEvidenceExpr::NullaryPrimitive { op, context } => {
+                return Ok(EvidenceEvalResult::Value(
+                    self.eval_primitive_op(op, context)?,
+                ));
+            }
             RuntimeEvidenceExpr::Local { slot, def } => {
                 return Ok(EvidenceEvalResult::Value(
                     env.get_slot(slot)
@@ -2173,170 +2184,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             RuntimeEvidenceExpr::Catch { expr, body } => return self.eval_catch(expr, body, env),
             RuntimeEvidenceExpr::Block { stmts, tail } => {
-                return self.eval_block_parts_result(
-                    &stmts,
-                    tail,
-                    env,
-                    shared(RuntimeEvidenceValue::Unit),
-                );
+                self.eval_block_parts_result(&stmts, tail, env, shared(RuntimeEvidenceValue::Unit))
             }
-            RuntimeEvidenceExpr::Source => {}
         }
-        let Some(expr) = self.program.exprs.get(expr_id.0 as usize) else {
-            return Err(RuntimeEvidenceRunError::MissingExpr(expr));
-        };
-        let value = match expr {
-            Expr::Lit(lit) => return Ok(value_result(value_from_lit(lit))),
-            Expr::PrimitiveOp { op, context } => {
-                return Ok(EvidenceEvalResult::Value(
-                    self.eval_primitive_op(*op, context.clone())?,
-                ));
-            }
-            Expr::Constructor { def, arity } => constructor_value(*def, *arity, Vec::new()),
-            Expr::EffectOp { path } => RuntimeEvidenceValue::EffectOp {
-                expr: expr_id,
-                path: path.clone(),
-            },
-            Expr::Local(def) => {
-                return Ok(EvidenceEvalResult::Value(
-                    env.get_slot(EnvSlot::from(*def))
-                        .ok_or(RuntimeEvidenceRunError::UnboundLocal(*def))?,
-                ));
-            }
-            Expr::InstanceRef(instance) => {
-                return Ok(EvidenceEvalResult::Value(self.eval_instance(*instance)?));
-            }
-            Expr::Coerce { expr, .. } => return self.eval_expr_result(*expr, env),
-            Expr::MakeThunk { body, .. } => {
-                let provider_env = self.provider_env_for_value(expr_id);
-                let env = self.clone_env(env);
-                RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Expr {
-                    body: *body,
-                    env,
-                    provider_env,
-                }))
-            }
-            Expr::ForceThunk { target, thunk, .. } => {
-                let target_value_is_thunk = matches!(target.value, Type::Thunk { .. });
-                return match self.eval_expr_result(*thunk, env)? {
-                    EvidenceEvalResult::Value(thunk) => {
-                        let result = self.force_thunk_result(thunk)?;
-                        self.finish_force_thunk_result(result, target_value_is_thunk)
-                    }
-                    EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
-                        self.append_request_continuation(
-                            request,
-                            EvidenceContinuation::force_thunk(
-                                target_value_is_thunk,
-                                EvidenceContinuation::identity(),
-                            ),
-                        ),
-                    )),
-                };
-            }
-            Expr::FunctionAdapter {
-                source,
-                target,
-                function,
-                hygiene,
-            } => {
-                return match self.eval_expr_result(*function, env)? {
-                    EvidenceEvalResult::Value(function) => {
-                        let provider_env = self.provider_env_for_value(expr_id);
-                        Ok(EvidenceEvalResult::Value(shared(
-                            RuntimeEvidenceValue::FunctionAdapter {
-                                source: source.clone(),
-                                target: target.clone(),
-                                function,
-                                hygiene: hygiene.clone(),
-                                provider_env,
-                            },
-                        )))
-                    }
-                    EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
-                        self.append_request_continuation(
-                            request,
-                            EvidenceContinuation::adapt_value(
-                                source.clone(),
-                                target.clone(),
-                                EvidenceContinuation::identity(),
-                            ),
-                        ),
-                    )),
-                };
-            }
-            Expr::MarkerFrame { path, body } => {
-                let id = self.fresh_guard_id();
-                let markers = stack_handler_markers(id, path);
-                let path = path.clone();
-                return self.with_marker_frame(markers, true, Some(path), |runner| {
-                    runner.eval_expr_result(*body, env)
-                });
-            }
-            Expr::Apply { callee, arg } => {
-                return self.eval_apply_result(Some(expr_id), *callee, *arg, env);
-            }
-            Expr::RefSet { reference, value } => {
-                return self.eval_ref_set_result(*reference, *value, env);
-            }
-            Expr::Lambda { param, body } => {
-                let provider_env = self.provider_env_for_value(expr_id);
-                let env = self.clone_env(env);
-                RuntimeEvidenceValue::Closure(Rc::new(RuntimeEvidenceClosure {
-                    param: shared_pat(param),
-                    body: *body,
-                    env,
-                    provider_env,
-                }))
-            }
-            Expr::Tuple(items) => {
-                return self.eval_tuple_items_result(Vec::with_capacity(items.len()), items, env);
-            }
-            Expr::Record { fields, spread } => {
-                return self.eval_record_result(fields, spread, env);
-            }
-            Expr::PolyVariant { tag, payloads } => {
-                return self.eval_poly_variant_payloads_result(
-                    tag.clone(),
-                    Vec::with_capacity(payloads.len()),
-                    payloads,
-                    env,
-                );
-            }
-            Expr::Select {
-                base,
-                name,
-                resolution,
-            } => {
-                return self.eval_select_result(*base, name, resolution, env);
-            }
-            Expr::Case { scrutinee, .. } => {
-                let arms = self.static_case_arms(expr_id);
-                return match self.eval_expr_result(*scrutinee, env)? {
-                    EvidenceEvalResult::Value(scrutinee) => {
-                        self.eval_case_scrutinee_result(scrutinee, arms, env)
-                    }
-                    EvidenceEvalResult::Request(request) => {
-                        let env = self.clone_env(env);
-                        Ok(EvidenceEvalResult::Request(
-                            self.append_request_continuation(
-                                request,
-                                EvidenceContinuation::case_scrutinee(
-                                    arms,
-                                    env,
-                                    EvidenceContinuation::identity(),
-                                ),
-                            ),
-                        ))
-                    }
-                };
-            }
-            Expr::Catch { body, .. } => return self.eval_catch(expr_id, *body, env),
-            Expr::Block(block) => {
-                return self.eval_block_result(block, env);
-            }
-        };
-        Ok(value_result(value))
     }
 
     fn eval_primitive_op(
@@ -5555,8 +5405,4 @@ fn type_may_need_hygiene_mark(ty: &Type) -> bool {
         }
         Type::Any | Type::Never | Type::OpenVar(_) => false,
     }
-}
-
-fn value_result(value: RuntimeEvidenceValue) -> EvidenceEvalResult {
-    EvidenceEvalResult::Value(shared(value))
 }
