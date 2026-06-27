@@ -452,6 +452,27 @@ fn debug_runtime_evidence_run_matches_control_vm_on_pure_lambda_subset() {
 }
 
 #[test]
+fn debug_evidence_vm_run_alias_matches_control_vm_on_pure_lambda_subset() {
+    let entry = write_entry("debug-evidence-vm-run", "my id x = x\nid 3\n");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("evidence-vm-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("runtime evidence run:"), "{stdout}");
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [3]\n"), "{stdout}");
+}
+
+#[test]
 fn debug_runtime_evidence_run_matches_control_vm_on_std_int_primitives() {
     let entry = write_entry(
         "debug-runtime-evidence-run-std-int",

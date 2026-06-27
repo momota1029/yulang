@@ -2217,9 +2217,14 @@ fn print_runtime_evidence_bench_iteration(
     );
 }
 
-fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
+fn run_runtime_evidence_run(
+    program: &str,
+    debug_command: &str,
+    options: &GlobalOptions,
+    args: VecDeque<OsString>,
+) {
     let total_start = Instant::now();
-    let args = parse_runtime_evidence_run_args(program, args);
+    let args = parse_runtime_evidence_run_args(program, debug_command, args);
     let files = collect_control_sources_or_exit(&args.path, options);
     let build = build_control_with_optional_cache(files, options.use_cache);
     let summary = RuntimeEvidenceBenchSummary::from_surface(&build.runtime_evidence);
@@ -2425,13 +2430,13 @@ fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeq
             process::exit(1);
         }
         if output.stdout != control.stdout {
-            eprintln!("runtime-evidence-run compare-control stdout mismatch");
+            eprintln!("{debug_command} compare-control stdout mismatch");
             eprintln!("expected stdout:\n{}", control.stdout);
             eprintln!("actual stdout:\n{}", output.stdout);
             process::exit(1);
         }
         if roots_text != control.text {
-            eprintln!("runtime-evidence-run compare-control mismatch");
+            eprintln!("{debug_command} compare-control mismatch");
             eprintln!("expected:\n{}", control.text);
             eprintln!("actual:\n{roots_text}");
             process::exit(1);
@@ -2445,6 +2450,7 @@ fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeq
 
 fn parse_runtime_evidence_run_args(
     program: &str,
+    debug_command: &str,
     mut args: VecDeque<OsString>,
 ) -> RuntimeEvidenceRunArgs {
     let mut path = None;
@@ -2456,14 +2462,14 @@ fn parse_runtime_evidence_run_args(
             Some(value) if value.starts_with("--") => {
                 print_usage_error_and_exit(
                     program,
-                    &format!("unknown debug runtime-evidence-run option: {value}"),
+                    &format!("unknown debug {debug_command} option: {value}"),
                 );
             }
             _ => {
                 if path.is_some() {
                     print_usage_error_and_exit(
                         program,
-                        "debug runtime-evidence-run takes exactly one path",
+                        &format!("debug {debug_command} takes exactly one path"),
                     );
                 }
                 path = Some(PathBuf::from(arg));
@@ -2472,7 +2478,7 @@ fn parse_runtime_evidence_run_args(
     }
 
     let Some(path) = path else {
-        print_usage_error_and_exit(program, "debug runtime-evidence-run requires a path");
+        print_usage_error_and_exit(program, &format!("debug {debug_command} requires a path"));
     };
     RuntimeEvidenceRunArgs {
         path,
@@ -2488,7 +2494,12 @@ fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString
         Some("control-vm") => run_compatible_run(program, options, args),
         Some("control-vm-emit") => run_compatible_build(program, options, args),
         Some("runtime-evidence-bench") => run_runtime_evidence_bench(program, options, args),
-        Some("runtime-evidence-run") => run_runtime_evidence_run(program, options, args),
+        Some("runtime-evidence-run") => {
+            run_runtime_evidence_run(program, "runtime-evidence-run", options, args)
+        }
+        Some("evidence-vm-run") => {
+            run_runtime_evidence_run(program, "evidence-vm-run", options, args)
+        }
         Some("evidence-vm-plan") => {
             let path = require_one_path(program, args);
             let files = collect_control_sources_or_exit(&path, options);
