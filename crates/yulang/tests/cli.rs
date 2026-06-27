@@ -257,6 +257,39 @@ fn compatible_dump_control_evidence_accepts_explicit_std_root() {
 }
 
 #[test]
+fn compatible_dump_control_evidence_prints_runtime_source_sites() {
+    let (entry, std_root) = write_fixture(
+        "dump-control-evidence-runtime-sites",
+        "act out:\n  our say: int -> unit\n\n\
+         my handle(action: [out] _) = catch action:\n\
+         \x20 out::say(n), k -> k()\n\
+         \x20 v -> v\n\n\
+         handle(out::say(1))\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(&std_root)
+        .arg("dump")
+        .arg("--control-evidence")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("  sites "), "{stdout}");
+    assert!(
+        stdout.contains("operation-call callee"),
+        "operation call site should be visible in dump:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("catch body"),
+        "catch site should be visible in dump:\n{stdout}"
+    );
+}
+
+#[test]
 fn compatible_dump_no_prelude_uses_cache() {
     let entry = write_entry("dump-no-prelude-cache", "1\n");
     let root = entry.parent().unwrap().to_path_buf();
