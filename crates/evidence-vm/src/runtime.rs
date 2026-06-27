@@ -79,6 +79,18 @@ pub struct RuntimeEvidenceRunStats {
     pub continuation_owned_tail_appends: usize,
     pub continuation_append_steps: usize,
     pub continuation_resume_steps: usize,
+    pub continuation_resume_then_steps: usize,
+    pub continuation_resume_force_steps: usize,
+    pub continuation_resume_apply_steps: usize,
+    pub continuation_resume_adapter_steps: usize,
+    pub continuation_resume_case_steps: usize,
+    pub continuation_resume_catch_steps: usize,
+    pub continuation_resume_marker_steps: usize,
+    pub continuation_resume_provider_steps: usize,
+    pub continuation_resume_aggregate_steps: usize,
+    pub continuation_resume_select_steps: usize,
+    pub continuation_resume_block_steps: usize,
+    pub continuation_resume_ref_set_steps: usize,
     pub request_whole_continuation_appends: usize,
     pub request_continuation_steps: usize,
     pub catch_body_checks: usize,
@@ -3819,6 +3831,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let frame = continuation
             .into_frame()
             .expect("non-identity continuation must have a frame");
+        self.record_continuation_resume_frame(&frame);
         match frame {
             EvidenceContinuationFrame::Then { first, second } => {
                 let result = self.resume_continuation(first.clone(), value)?;
@@ -4109,6 +4122,65 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 });
                 let result = self.resolve_ref_set_fields(fields, assigned, out, index + 1)?;
                 self.continue_result(result, next)
+            }
+        }
+    }
+
+    fn record_continuation_resume_frame(&mut self, frame: &EvidenceContinuationFrame) {
+        match frame {
+            EvidenceContinuationFrame::Then { .. } => {
+                self.stats.continuation_resume_then_steps += 1;
+            }
+            EvidenceContinuationFrame::ForceThunk { .. }
+            | EvidenceContinuationFrame::ForceValueIfThunk { .. } => {
+                self.stats.continuation_resume_force_steps += 1;
+            }
+            EvidenceContinuationFrame::ApplyCallee { .. }
+            | EvidenceContinuationFrame::ApplyArg { .. }
+            | EvidenceContinuationFrame::ApplyForcedCallee { .. } => {
+                self.stats.continuation_resume_apply_steps += 1;
+            }
+            EvidenceContinuationFrame::AdaptValue { .. }
+            | EvidenceContinuationFrame::WrapThunkValue { .. }
+            | EvidenceContinuationFrame::ApplyAdapterArg { .. }
+            | EvidenceContinuationFrame::ApplyAdapterResult { .. } => {
+                self.stats.continuation_resume_adapter_steps += 1;
+            }
+            EvidenceContinuationFrame::CaseScrutinee { .. } => {
+                self.stats.continuation_resume_case_steps += 1;
+            }
+            EvidenceContinuationFrame::CatchBody { .. } => {
+                self.stats.continuation_resume_catch_steps += 1;
+            }
+            EvidenceContinuationFrame::MarkerFrame { .. } => {
+                self.stats.continuation_resume_marker_steps += 1;
+            }
+            EvidenceContinuationFrame::ProviderEnv { .. } => {
+                self.stats.continuation_resume_provider_steps += 1;
+            }
+            EvidenceContinuationFrame::TupleItems { .. }
+            | EvidenceContinuationFrame::RecordSpread { .. }
+            | EvidenceContinuationFrame::RecordFields { .. }
+            | EvidenceContinuationFrame::PolyVariantPayloads { .. } => {
+                self.stats.continuation_resume_aggregate_steps += 1;
+            }
+            EvidenceContinuationFrame::SelectBase { .. } => {
+                self.stats.continuation_resume_select_steps += 1;
+            }
+            EvidenceContinuationFrame::BlockStmt { .. } => {
+                self.stats.continuation_resume_block_steps += 1;
+            }
+            EvidenceContinuationFrame::RefSetReference { .. }
+            | EvidenceContinuationFrame::RefSetForcedReference { .. }
+            | EvidenceContinuationFrame::RefSetValue { .. }
+            | EvidenceContinuationFrame::RefSetForcedValue { .. }
+            | EvidenceContinuationFrame::RefSetResolvedUnit { .. }
+            | EvidenceContinuationFrame::RefSetHandleResult { .. }
+            | EvidenceContinuationFrame::RefSetHandleValueResult { .. }
+            | EvidenceContinuationFrame::RefSetEmitResolvedRequest { .. }
+            | EvidenceContinuationFrame::ResolveRefSetValues { .. }
+            | EvidenceContinuationFrame::ResolveRefSetFields { .. } => {
+                self.stats.continuation_resume_ref_set_steps += 1;
             }
         }
     }

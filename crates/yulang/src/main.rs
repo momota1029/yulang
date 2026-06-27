@@ -2397,6 +2397,54 @@ fn run_runtime_evidence_run(
         output.evidence_stats.continuation_resume_steps
     );
     println!(
+        "  runtime_evidence.continuation_resume_then_steps: {}",
+        output.evidence_stats.continuation_resume_then_steps
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_force_steps: {}",
+        output.evidence_stats.continuation_resume_force_steps
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_apply_steps: {}",
+        output.evidence_stats.continuation_resume_apply_steps
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_adapter_steps: {}",
+        output.evidence_stats.continuation_resume_adapter_steps
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_case_steps: {}",
+        output.evidence_stats.continuation_resume_case_steps
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_catch_steps: {}",
+        output.evidence_stats.continuation_resume_catch_steps
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_marker_steps: {}",
+        output.evidence_stats.continuation_resume_marker_steps
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_provider_steps: {}",
+        output.evidence_stats.continuation_resume_provider_steps
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_aggregate_steps: {}",
+        output.evidence_stats.continuation_resume_aggregate_steps
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_select_steps: {}",
+        output.evidence_stats.continuation_resume_select_steps
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_block_steps: {}",
+        output.evidence_stats.continuation_resume_block_steps
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_ref_set_steps: {}",
+        output.evidence_stats.continuation_resume_ref_set_steps
+    );
+    println!(
         "  runtime_evidence.request_whole_continuation_appends: {}",
         output.evidence_stats.request_whole_continuation_appends
     );
