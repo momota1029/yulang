@@ -204,6 +204,18 @@ enum RuntimeEvidenceExpr {
         name: String,
         resolution: Option<SelectResolution>,
     },
+    Case {
+        expr: ExprId,
+        scrutinee: ExprId,
+    },
+    Catch {
+        expr: ExprId,
+        body: ExprId,
+    },
+    Block {
+        stmts: Rc<[Stmt]>,
+        tail: Option<ExprId>,
+    },
     Source,
 }
 
@@ -1236,6 +1248,18 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
                 name: name.clone(),
                 resolution: resolution.clone(),
             },
+            Expr::Case { scrutinee, .. } => RuntimeEvidenceExpr::Case {
+                expr: ExprId(index as u32),
+                scrutinee: *scrutinee,
+            },
+            Expr::Catch { body, .. } => RuntimeEvidenceExpr::Catch {
+                expr: ExprId(index as u32),
+                body: *body,
+            },
+            Expr::Block(block) => RuntimeEvidenceExpr::Block {
+                stmts: shared_stmts(&block.stmts),
+                tail: block.tail,
+            },
             _ => RuntimeEvidenceExpr::Source,
         })
         .collect()
@@ -2125,6 +2149,36 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 resolution,
             } => {
                 return self.eval_select_result(base, &name, &resolution, env);
+            }
+            RuntimeEvidenceExpr::Case { expr, scrutinee } => {
+                let arms = self.static_case_arms(expr);
+                return match self.eval_expr_result(scrutinee, env)? {
+                    EvidenceEvalResult::Value(scrutinee) => {
+                        self.eval_case_scrutinee_result(scrutinee, arms, env)
+                    }
+                    EvidenceEvalResult::Request(request) => {
+                        let env = self.clone_env(env);
+                        Ok(EvidenceEvalResult::Request(
+                            self.append_request_continuation(
+                                request,
+                                EvidenceContinuation::case_scrutinee(
+                                    arms,
+                                    env,
+                                    EvidenceContinuation::identity(),
+                                ),
+                            ),
+                        ))
+                    }
+                };
+            }
+            RuntimeEvidenceExpr::Catch { expr, body } => return self.eval_catch(expr, body, env),
+            RuntimeEvidenceExpr::Block { stmts, tail } => {
+                return self.eval_block_parts_result(
+                    &stmts,
+                    tail,
+                    env,
+                    shared(RuntimeEvidenceValue::Unit),
+                );
             }
             RuntimeEvidenceExpr::Source => {}
         }
