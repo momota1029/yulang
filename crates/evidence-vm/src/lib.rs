@@ -3,7 +3,7 @@ use std::fmt::Write as _;
 
 use control_vm::{
     Block, ControlEffectUseKind, ControlEvidenceProgram, ControlEvidenceRoute, DefId, Expr, ExprId,
-    Program, RecordSpread, Root, Stmt,
+    Program, RecordSpread, Root, SelectResolution, Stmt,
 };
 use specialize::{
     RuntimeEvidenceNode, RuntimeEvidenceNodeKind, RuntimeEvidenceSurface, RuntimeEvidenceTaskOwner,
@@ -684,9 +684,22 @@ fn collect_evidence_arg_calls(
         | Expr::FunctionAdapter { function: expr, .. }
         | Expr::MarkerFrame { body: expr, .. }
         | Expr::MakeThunk { body: expr, .. }
-        | Expr::Lambda { body: expr, .. }
-        | Expr::Select { base: expr, .. } => {
+        | Expr::Lambda { body: expr, .. } => {
             collect_evidence_arg_calls(program, *expr, requirements_by_instance, visited, out);
+        }
+        Expr::Select {
+            base, resolution, ..
+        } => {
+            if let Some(SelectResolution::Method { instance }) = resolution
+                && let Some(required_evidence_slots) = requirements_by_instance.get(&instance.0)
+            {
+                out.push(EvidenceVmCallPlan {
+                    apply: expr,
+                    callee_instance: instance.0,
+                    required_evidence_slots: required_evidence_slots.clone(),
+                });
+            }
+            collect_evidence_arg_calls(program, *base, requirements_by_instance, visited, out);
         }
         Expr::RefSet { reference, value } => {
             collect_evidence_arg_calls(program, *reference, requirements_by_instance, visited, out);

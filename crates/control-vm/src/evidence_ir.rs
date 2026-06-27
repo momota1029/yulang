@@ -11,7 +11,8 @@ use mono::{FunctionAdapterHygiene, GuardMarker, StackWeight, Type};
 use serde::{Deserialize, Serialize};
 
 use crate::ir::{
-    Block, CatchArm, Expr, ExprId, InstanceId, Pat, Program, RecordSpread, Root, Stmt,
+    Block, CatchArm, Expr, ExprId, InstanceId, Pat, Program, RecordSpread, Root, SelectResolution,
+    Stmt,
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -489,7 +490,14 @@ impl<'a> ControlEvidenceBuilder<'a> {
                 self.visit_expr_spread(spread, context);
             }
             Expr::PolyVariant { payloads, .. } => self.visit_expr_ids(payloads, context),
-            Expr::Select { base, .. } => self.visit_expr_id(*base, context),
+            Expr::Select {
+                base, resolution, ..
+            } => {
+                self.visit_expr_id(*base, context);
+                if let Some(SelectResolution::Method { instance }) = resolution {
+                    self.visit_known_instance_call_site(id, *instance, context);
+                }
+            }
             Expr::Case { scrutinee, arms } => {
                 self.visit_expr_id(*scrutinee, context);
                 for arm in arms {

@@ -430,6 +430,39 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
 }
 
 #[test]
+fn debug_evidence_vm_plan_visits_method_select_handler_body() {
+    let entry = write_entry(
+        "debug-evidence-vm-plan-method-select-handler",
+        "use std::control::nondet::*\n\n\
+         {\n\
+         \x20 my xs = (each 1..2).list\n\
+         \x20 ()\n\
+         }\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("evidence-vm-plan")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains("std::control::nondet::nondet::branch resumptive class may-yield"),
+        "method-select handler bodies should contribute resumptive operation evidence:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("std::control::nondet::nondet::reject resumptive class abortive"),
+        "method-select handler bodies should contribute abortive operation evidence:\n{stdout}"
+    );
+}
+
+#[test]
 fn debug_runtime_evidence_run_matches_control_vm_on_pure_lambda_subset() {
     let entry = write_entry("debug-runtime-evidence-run", "my id x = x\nid 3\n");
 
