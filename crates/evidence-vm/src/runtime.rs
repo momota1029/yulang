@@ -724,9 +724,17 @@ struct EvidenceRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+struct EvidenceDirectAbortive {
+    handler: ExprId,
+    path: Vec<String>,
+    payload: SharedValue,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 enum EvidenceEvalResult {
     Value(SharedValue),
     Request(EvidenceRequest),
+    DirectAbortive(EvidenceDirectAbortive),
 }
 
 type SharedValue = Rc<RuntimeEvidenceValue>;
@@ -1557,6 +1565,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
         match result {
             EvidenceEvalResult::Value(value) => Ok(EvidenceEvalResult::Value(value)),
+            EvidenceEvalResult::DirectAbortive(call) => {
+                Ok(EvidenceEvalResult::DirectAbortive(call))
+            }
             EvidenceEvalResult::Request(mut request) => {
                 if !request.route.is_direct_abortive() {
                     request.continuation =
@@ -1676,7 +1687,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             Ok(EvidenceEvalResult::Request(request)) => {
                 self.handler_boundary_for_request(request, handler_path.as_deref(), frame_len)
             }
-            Ok(EvidenceEvalResult::Value(_)) | Err(_) => None,
+            Ok(EvidenceEvalResult::Value(_))
+            | Ok(EvidenceEvalResult::DirectAbortive(_))
+            | Err(_) => None,
         };
         self.pop_marker_frame(frame_len, handler_frame_len, add_id_len, plan_len);
 
@@ -1780,6 +1793,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::Value(value) => Ok(EvidenceEvalResult::Value(
                 mark_runtime_value_shared(value, markers.clone()),
             )),
+            EvidenceEvalResult::DirectAbortive(call) => {
+                Ok(EvidenceEvalResult::DirectAbortive(call))
+            }
             EvidenceEvalResult::Request(mut request) => {
                 if let Some(handler_boundary) = handler_boundary {
                     request.handler_boundary = Some(handler_boundary);
@@ -2099,6 +2115,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::Value(value) => Ok(EvidenceEvalResult::Value(mark_runtime_value(
                 value, markers,
             ))),
+            EvidenceEvalResult::DirectAbortive(call) => {
+                Ok(EvidenceEvalResult::DirectAbortive(call))
+            }
             EvidenceEvalResult::Request(request) => self.close_marker_request(
                 request,
                 markers_for_continuation_resume(markers),
@@ -2121,6 +2140,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::Value(value) => Ok(EvidenceEvalResult::Value(
                 mark_runtime_value_unchecked(value, markers),
             )),
+            EvidenceEvalResult::DirectAbortive(call) => {
+                Ok(EvidenceEvalResult::DirectAbortive(call))
+            }
             EvidenceEvalResult::Request(request) => {
                 self.close_marked_result(EvidenceEvalResult::Request(request), markers)
             }
@@ -2168,6 +2190,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceEvalResult::Value(value) => return Ok(value),
                 EvidenceEvalResult::Request(request) => {
                     result = self.handle_escaped_request(request)?;
+                }
+                EvidenceEvalResult::DirectAbortive(call) => {
+                    return Err(RuntimeEvidenceRunError::EscapedEffect(call.path));
                 }
             }
         }
@@ -2275,6 +2300,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             ),
                         ),
                     )),
+                    EvidenceEvalResult::DirectAbortive(call) => {
+                        Ok(EvidenceEvalResult::DirectAbortive(call))
+                    }
                 };
             }
             RuntimeEvidenceExpr::ForceThunk {
@@ -2295,6 +2323,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             ),
                         ),
                     )),
+                    EvidenceEvalResult::DirectAbortive(call) => {
+                        Ok(EvidenceEvalResult::DirectAbortive(call))
+                    }
                 };
             }
             RuntimeEvidenceExpr::MarkerFrame { path, body } => {
@@ -2353,6 +2384,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             ),
                         ))
                     }
+                    EvidenceEvalResult::DirectAbortive(call) => {
+                        Ok(EvidenceEvalResult::DirectAbortive(call))
+                    }
                 };
             }
             RuntimeEvidenceExpr::Catch { expr, body } => return self.eval_catch(expr, body, env),
@@ -2402,6 +2436,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     ),
                 ))
             }
+            EvidenceEvalResult::DirectAbortive(call) => {
+                Ok(EvidenceEvalResult::DirectAbortive(call))
+            }
         }
     }
 
@@ -2421,6 +2458,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     EvidenceContinuation::apply_arg(site, callee, EvidenceContinuation::identity()),
                 ),
             )),
+            EvidenceEvalResult::DirectAbortive(call) => {
+                Ok(EvidenceEvalResult::DirectAbortive(call))
+            }
         }
     }
 
@@ -2469,6 +2509,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     ),
                 )
             }
+            EvidenceEvalResult::DirectAbortive(call) => {
+                Ok(EvidenceEvalResult::DirectAbortive(call))
+            }
         }
     }
 
@@ -2495,6 +2538,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         EvidenceContinuation::identity(),
                     ),
                 )
+            }
+            EvidenceEvalResult::DirectAbortive(call) => {
+                Ok(EvidenceEvalResult::DirectAbortive(call))
             }
         }
     }
@@ -2624,6 +2670,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         ),
                     ));
                 }
+                EvidenceEvalResult::DirectAbortive(call) => {
+                    return Ok(EvidenceEvalResult::DirectAbortive(call));
+                }
             }
         }
         Ok(EvidenceEvalResult::Value(shared(
@@ -2653,6 +2702,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             ),
                         ),
                     ));
+                }
+                EvidenceEvalResult::DirectAbortive(call) => {
+                    return Ok(EvidenceEvalResult::DirectAbortive(call));
                 }
             },
             RecordSpread::Tail(_) => {
@@ -2691,6 +2743,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         ),
                     ));
                 }
+                EvidenceEvalResult::DirectAbortive(call) => {
+                    return Ok(EvidenceEvalResult::DirectAbortive(call));
+                }
             }
         }
         Ok(EvidenceEvalResult::Value(shared(
@@ -2724,6 +2779,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         ),
                     ));
                 }
+                EvidenceEvalResult::DirectAbortive(call) => {
+                    return Ok(EvidenceEvalResult::DirectAbortive(call));
+                }
             }
         }
         Ok(EvidenceEvalResult::Value(shared(
@@ -2755,6 +2813,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     ),
                 ),
             )),
+            EvidenceEvalResult::DirectAbortive(call) => {
+                Ok(EvidenceEvalResult::DirectAbortive(call))
+            }
         }
     }
 
@@ -2900,6 +2961,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         ),
                     ),
                 )),
+                EvidenceEvalResult::DirectAbortive(call) => {
+                    Ok(EvidenceEvalResult::DirectAbortive(call))
+                }
             },
             RuntimeEvidenceValue::EffectOp { expr, path } => {
                 let route = self.effect_route_for_operation_call(site, *expr);
@@ -3396,6 +3460,74 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::Request(request) => {
                 self.continue_request_with_continuation(request, continuation)
             }
+            EvidenceEvalResult::DirectAbortive(call) => {
+                self.continue_direct_abortive_with_continuation(call, continuation)
+            }
+        }
+    }
+
+    fn continue_direct_abortive_with_continuation(
+        &mut self,
+        call: EvidenceDirectAbortive,
+        continuation: EvidenceContinuation,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if continuation.is_identity() {
+            return Ok(EvidenceEvalResult::DirectAbortive(call));
+        }
+        let frame = continuation
+            .frame()
+            .expect("non-identity continuation must have a frame");
+        match frame {
+            EvidenceContinuationFrame::Then { first, second } => {
+                let result =
+                    self.continue_direct_abortive_with_continuation(call, first.clone())?;
+                self.continue_result(result, second.clone())
+            }
+            EvidenceContinuationFrame::CatchBody {
+                catch_expr,
+                arms,
+                env,
+                next,
+            } => {
+                let result = if call.handler == *catch_expr {
+                    self.eval_direct_abortive_arm(call, arms, env)?
+                } else {
+                    EvidenceEvalResult::DirectAbortive(call)
+                };
+                self.continue_result(result, next.clone())
+            }
+            EvidenceContinuationFrame::ForceThunk { next, .. }
+            | EvidenceContinuationFrame::ForceValueIfThunk { next }
+            | EvidenceContinuationFrame::ApplyArg { next, .. }
+            | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
+            | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::WrapThunkValue { next }
+            | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
+            | EvidenceContinuationFrame::ApplyAdapterResult { next, .. }
+            | EvidenceContinuationFrame::MarkerFrame { next, .. }
+            | EvidenceContinuationFrame::ProviderEnv { next, .. }
+            | EvidenceContinuationFrame::SelectBase { next, .. }
+            | EvidenceContinuationFrame::RefSetValue { next, .. }
+            | EvidenceContinuationFrame::RefSetForcedValue { next, .. }
+            | EvidenceContinuationFrame::RefSetResolvedUnit { next }
+            | EvidenceContinuationFrame::RefSetHandleResult { next, .. }
+            | EvidenceContinuationFrame::RefSetHandleValueResult { next, .. }
+            | EvidenceContinuationFrame::RefSetEmitResolvedRequest { next, .. }
+            | EvidenceContinuationFrame::ResolveRefSetValues { next, .. }
+            | EvidenceContinuationFrame::ResolveRefSetFields { next, .. } => {
+                self.continue_direct_abortive_with_continuation(call, next.clone())
+            }
+            EvidenceContinuationFrame::ApplyCallee { next, .. }
+            | EvidenceContinuationFrame::CaseScrutinee { next, .. }
+            | EvidenceContinuationFrame::TupleItems { next, .. }
+            | EvidenceContinuationFrame::RecordSpread { next, .. }
+            | EvidenceContinuationFrame::RecordFields { next, .. }
+            | EvidenceContinuationFrame::PolyVariantPayloads { next, .. }
+            | EvidenceContinuationFrame::BlockStmt { next, .. }
+            | EvidenceContinuationFrame::RefSetReference { next, .. }
+            | EvidenceContinuationFrame::RefSetForcedReference { next, .. } => {
+                self.continue_direct_abortive_with_continuation(call, next.clone())
+            }
         }
     }
 
@@ -3874,6 +4006,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     route,
                 } => {
                     self.stats.thunk_force_effect += 1;
+                    if let EvidenceEffectRoute::Direct {
+                        handler,
+                        execution: EvidenceVmOperationExecutionPlan::DirectAbortive,
+                        ..
+                    } = route
+                    {
+                        return Ok(EvidenceEvalResult::DirectAbortive(EvidenceDirectAbortive {
+                            handler: *handler,
+                            path: path.clone(),
+                            payload: payload.clone(),
+                        }));
+                    }
                     let mut request = EvidenceRequest {
                         path: path.clone(),
                         payload: payload.clone(),
@@ -3948,6 +4092,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.stats.catch_body_checks += 1;
         match result {
             EvidenceEvalResult::Value(value) => self.eval_value_arm(value, &arms, env),
+            EvidenceEvalResult::DirectAbortive(call) => {
+                if call.handler == catch_expr {
+                    self.eval_direct_abortive_arm(call, &arms, env)
+                } else {
+                    Ok(EvidenceEvalResult::DirectAbortive(call))
+                }
+            }
             EvidenceEvalResult::Request(request) => match request.route {
                 EvidenceEffectRoute::Direct {
                     handler,
@@ -4075,6 +4226,37 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         Ok(EvidenceEvalResult::Request(request))
     }
 
+    fn eval_direct_abortive_arm(
+        &mut self,
+        call: EvidenceDirectAbortive,
+        arms: &[control_vm::CatchArm],
+        env: &Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        for arm in arms {
+            if arm.operation_path.as_ref() != Some(&call.path) {
+                continue;
+            }
+            let mut arm_env = self.clone_env(env);
+            if !self.bind_pat_matches(&arm.pat, call.payload.clone(), &mut arm_env)? {
+                continue;
+            }
+            if arm
+                .continuation
+                .as_ref()
+                .is_some_and(|pat| !matches!(pat, Pat::Wild))
+            {
+                return Err(RuntimeEvidenceRunError::UnsupportedExpr(
+                    "direct abortive continuation binding",
+                ));
+            }
+            if !self.arm_guard_matches(arm.guard, &mut arm_env)? {
+                continue;
+            }
+            return self.eval_handler_body_result(arm.body, &mut arm_env);
+        }
+        Ok(EvidenceEvalResult::DirectAbortive(call))
+    }
+
     fn bind_pat_matches(
         &mut self,
         pat: &Pat,
@@ -4112,6 +4294,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         match self.eval_expr_result(body, env)? {
             EvidenceEvalResult::Value(value) => self.force_value_if_thunk_result(value),
             EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(request)),
+            EvidenceEvalResult::DirectAbortive(call) => {
+                Ok(EvidenceEvalResult::DirectAbortive(call))
+            }
         }
     }
 
@@ -4166,6 +4351,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     ),
                 ))
             }
+            EvidenceEvalResult::DirectAbortive(call) => {
+                Ok(EvidenceEvalResult::DirectAbortive(call))
+            }
         }
     }
 
@@ -4213,6 +4401,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                             ),
                         ));
                     }
+                    EvidenceEvalResult::DirectAbortive(call) => {
+                        return Ok(EvidenceEvalResult::DirectAbortive(call));
+                    }
                 },
                 Stmt::Expr(expr) => match self.eval_expr_result(*expr, env)? {
                     EvidenceEvalResult::Value(value) => last = value,
@@ -4231,6 +4422,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                 ),
                             ),
                         ));
+                    }
+                    EvidenceEvalResult::DirectAbortive(call) => {
+                        return Ok(EvidenceEvalResult::DirectAbortive(call));
                     }
                 },
                 Stmt::Module(_, module_stmts) => {
@@ -4255,6 +4449,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                                     ),
                                 ),
                             ));
+                        }
+                        EvidenceEvalResult::DirectAbortive(call) => {
+                            return Ok(EvidenceEvalResult::DirectAbortive(call));
                         }
                     }
                 }

@@ -970,6 +970,18 @@ fn debug_runtime_evidence_run_classifies_unused_continuation_as_direct_abortive(
         stdout.contains("evidence.plan_direct_tail_resumptive_effect_routes: 0"),
         "{stdout}"
     );
+    assert!(
+        stdout.contains("runtime_evidence.thunk_force_continuation: 0"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.continuation_appends: 0"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.request_continuation_steps: 0"),
+        "{stdout}"
+    );
     assert!(stdout.contains("run roots [(42, 0)]\n"), "{stdout}");
 }
 
