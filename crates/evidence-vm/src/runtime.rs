@@ -166,6 +166,13 @@ enum RuntimeEvidenceExpr {
         body: ExprId,
         provider_expr: ExprId,
     },
+    FunctionAdapter {
+        source: Type,
+        target: Type,
+        function: ExprId,
+        hygiene: FunctionAdapterHygiene,
+        provider_expr: ExprId,
+    },
     Source,
 }
 
@@ -1151,6 +1158,18 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
                 body: *body,
                 provider_expr: ExprId(index as u32),
             },
+            Expr::FunctionAdapter {
+                source,
+                target,
+                function,
+                hygiene,
+            } => RuntimeEvidenceExpr::FunctionAdapter {
+                source: source.clone(),
+                target: target.clone(),
+                function: *function,
+                hygiene: hygiene.clone(),
+                provider_expr: ExprId(index as u32),
+            },
             _ => RuntimeEvidenceExpr::Source,
         })
         .collect()
@@ -1954,6 +1973,38 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         provider_env,
                     })),
                 )));
+            }
+            RuntimeEvidenceExpr::FunctionAdapter {
+                source,
+                target,
+                function,
+                hygiene,
+                provider_expr,
+            } => {
+                return match self.eval_expr_result(function, env)? {
+                    EvidenceEvalResult::Value(function) => {
+                        let provider_env = self.provider_env_for_value(provider_expr);
+                        Ok(EvidenceEvalResult::Value(shared(
+                            RuntimeEvidenceValue::FunctionAdapter {
+                                source,
+                                target,
+                                function,
+                                hygiene,
+                                provider_env,
+                            },
+                        )))
+                    }
+                    EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
+                        self.append_request_continuation(
+                            request,
+                            EvidenceContinuation::adapt_value(
+                                source,
+                                target,
+                                EvidenceContinuation::identity(),
+                            ),
+                        ),
+                    )),
+                };
             }
             RuntimeEvidenceExpr::Source => {}
         }
