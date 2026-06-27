@@ -429,3 +429,126 @@ mostly surrounds a dynamic thunk force (`catch action`), not a direct-known
 `EffectOp` call site.  That means the next stage cannot be a purely syntactic
 rewrite of `catch { EffectOp(...) }`; it needs lowering metadata that connects
 typed effect evidence to the value/thunk being forced.
+
+## Decision: stop extending the current VM profile
+
+Do not keep adding more profile logic to the existing control VM as the next
+step.
+
+The Stage 0 / Stage 0.5 counters are useful as a diagnosis of the current VM:
+
+- the current VM pays repeated request/catch/marker costs;
+- effect families are relatively small in number;
+- common handler shapes go through dynamic thunk force rather than a direct
+  lexical `EffectOp` under `catch`.
+
+However, those counters are not a good foundation for designing the
+handler-passing semantics itself.  A handler-passing runtime changes where the
+handler evidence lives and how thunks/functions receive it.  Once that happens,
+"dynamic force site under the current VM" is no longer the main semantic unit.
+
+Therefore the Stage 0.5 profile is a stopping point:
+
+- keep it as a comparison baseline for the existing VM;
+- do not add typed-force profile counters inside `control-vm`;
+- do not mutate the current request/catch VM gradually into handler passing;
+- design the handler-passing runtime as a separate strategy first.
+
+The current control VM remains the behavior oracle and fallback runtime.
+The handler-passing path should be introduced only after its IR and evidence
+semantics are explicit enough to compare against that oracle.
+
+## Separate runtime strategy
+
+The next work item is not another profile pass.  It is a small semantic design
+for an evidence-passing runtime.
+
+Target shape:
+
+```text
+typed mono/control value
+  -> evidence-aware IR
+  -> handler-passing runtime prototype
+  -> generic control VM fallback for unsupported regions
+```
+
+This should be separate from the current VM in three ways.
+
+1. Separate IR
+
+   The new IR should make evidence parameters explicit.  It should not infer
+   evidence routing by re-walking current `Expr::Catch` / `Expr::ForceThunk`
+   shapes.
+
+2. Separate execution model
+
+   The new runtime should call handler evidence objects directly.  The current
+   `Request` object is a fallback representation, not the primary operation
+   representation.
+
+3. Separate proof obligation
+
+   Correctness should be stated as a relation to the current VM behavior:
+   if evidence lowering succeeds, running the evidence runtime should produce
+   the same observable result as the current control VM.
+
+The first prototype can still live in `crates/control-vm` as modules, but it
+should be architecturally separate:
+
+```text
+crates/control-vm/src/evidence_ir.rs
+crates/control-vm/src/evidence_lower.rs
+crates/control-vm/src/evidence_runtime.rs
+```
+
+Those modules should not depend on the current active marker stack as their
+central abstraction.  They may call back into the generic VM when lowering cannot
+explain an effect class.
+
+## Evidence runtime design tasks
+
+Before implementation, decide these in writing:
+
+1. Evidence parameter form
+
+   How does an effectful function or thunk say which handler evidence it needs?
+   This must come from typed hidden stack evidence, not from source path names.
+
+2. Thunk and closure representation
+
+   A thunk that may perform `flip` / `sub` / parser effects should carry an
+   evidence environment or evidence parameter list.  This is the core difference
+   from the current VM, where a thunk is forced and then emits a dynamic request.
+
+3. Handler evidence object
+
+   Define the object that receives an operation payload and resumption.  It must
+   distinguish abortive, one-shot resumptive, and multi-shot resumptive cases.
+
+4. Forwarding/yielding
+
+   If a handler cannot consume an operation, define how the operation is
+   forwarded to outer evidence.  This is where Yulang's hidden stack evidence
+   and Koka-style yield bubbling need to be matched carefully.
+
+5. Callback hygiene
+
+   A callback-derived effect must not be accidentally captured by a handler that
+   did not receive the right evidence contract.  This should be represented as
+   evidence routing, not as a late runtime marker patch.
+
+6. Generic VM fallback
+
+   Unsupported regions should lower to an explicit fallback node that invokes the
+   current control VM.  Falling back should be a visible lowering result, not a
+   hidden branch deep inside the evidence runtime.
+
+7. Validation fixtures
+
+   At minimum, compare against the current VM on:
+
+   - `all_paths`;
+   - `sub` callback hygiene;
+   - `compose` / higher-order effect boundary;
+   - `ref.update`;
+   - parser/nondet branching.
