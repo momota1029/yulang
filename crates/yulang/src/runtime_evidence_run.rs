@@ -1260,7 +1260,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 active_add_id_path_candidate_indices_by_scan(&self.active_add_ids, &request.path)
             );
         }
-        let mut entry_except_index = EvidenceRequestEntryExceptIndex::default();
+        let mut entry_except_index =
+            EvidenceRequestEntryExceptIndex::new(&self.active_frames, request);
         let mut scans = 0;
         let mut path_candidates = 0;
         let mut path_rejects = 0;
@@ -1277,12 +1278,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             path_candidates += 1;
 
             if !marker.carry_after_frame
-                && request_excepted_at_marker_entry(
-                    &self.active_frames,
-                    &mut entry_except_index,
-                    request,
-                    active_marker,
-                )
+                && request_excepted_at_marker_entry(&entry_except_index, active_marker)
             {
                 entry_except_rejects += 1;
                 continue;
@@ -1304,7 +1300,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     active_marker,
                     entry_guard_ids,
                 );
-                request.push_guard_id(marker.id);
+                if request.push_guard_id(marker.id) {
+                    entry_except_index.push_guard_id(&self.active_frames, marker.id);
+                }
                 request.carried_guards.push(EvidenceCarriedGuard {
                     id: marker.id,
                     entry_frame_len: active_marker.entry_frame_len,
@@ -1312,7 +1310,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 });
                 hits += 1;
             } else {
-                request.push_guard_id(marker.id);
+                if request.push_guard_id(marker.id) {
+                    entry_except_index.push_guard_id(&self.active_frames, marker.id);
+                }
                 hits += 1;
             }
         }
@@ -4835,46 +4835,44 @@ fn push_unique_guard(ids: &mut Vec<EvidenceGuardId>, id: EvidenceGuardId) -> boo
 }
 
 fn request_excepted_at_marker_entry(
-    active_frames: &[EvidenceActiveFrame],
-    entry_except_index: &mut EvidenceRequestEntryExceptIndex,
-    request: &EvidenceRequest,
+    entry_except_index: &EvidenceRequestEntryExceptIndex,
     marker: &EvidenceActiveAddIdMarker,
 ) -> bool {
-    if request.guard_ids.is_empty() {
-        return false;
-    }
-    for id in &request.guard_ids {
-        if entry_except_index
-            .first_position(active_frames, *id)
-            .is_some_and(|position| position < marker.entry_frame_len)
-        {
-            return true;
-        }
-    }
-    false
+    entry_except_index.excepted_before(marker.entry_frame_len)
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Default)]
 struct EvidenceRequestEntryExceptIndex {
-    first_positions: Vec<(EvidenceGuardId, Option<usize>)>,
+    min_guard_position: Option<usize>,
 }
 
 impl EvidenceRequestEntryExceptIndex {
-    fn first_position(
-        &mut self,
-        active_frames: &[EvidenceActiveFrame],
-        id: EvidenceGuardId,
-    ) -> Option<usize> {
-        if let Some((_, position)) = self
-            .first_positions
-            .iter()
-            .find(|(cached_id, _)| *cached_id == id)
-        {
-            return *position;
+    fn new(active_frames: &[EvidenceActiveFrame], request: &EvidenceRequest) -> Self {
+        let min_guard_position = if request.guard_ids.is_empty() {
+            None
+        } else {
+            active_frames
+                .iter()
+                .enumerate()
+                .find_map(|(position, frame)| {
+                    request.guard_ids.contains(&frame.id).then_some(position)
+                })
+        };
+        Self { min_guard_position }
+    }
+
+    fn excepted_before(&self, entry_frame_len: usize) -> bool {
+        self.min_guard_position
+            .is_some_and(|position| position < entry_frame_len)
+    }
+
+    fn push_guard_id(&mut self, active_frames: &[EvidenceActiveFrame], id: EvidenceGuardId) {
+        if let Some(position) = active_frames.iter().position(|frame| frame.id == id) {
+            self.min_guard_position = Some(
+                self.min_guard_position
+                    .map_or(position, |current| current.min(position)),
+            );
         }
-        let position = active_frames.iter().position(|frame| frame.id == id);
-        self.first_positions.push((id, position));
-        position
     }
 }
 
