@@ -2397,6 +2397,10 @@ fn run_runtime_evidence_run(
         output.evidence_stats.continuation_resume_steps
     );
     println!(
+        "  runtime_evidence.request_whole_continuation_appends: {}",
+        output.evidence_stats.request_whole_continuation_appends
+    );
+    println!(
         "  runtime_evidence.request_continuation_steps: {}",
         output.evidence_stats.request_continuation_steps
     );

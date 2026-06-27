@@ -79,6 +79,7 @@ pub struct RuntimeEvidenceRunStats {
     pub continuation_owned_tail_appends: usize,
     pub continuation_append_steps: usize,
     pub continuation_resume_steps: usize,
+    pub request_whole_continuation_appends: usize,
     pub request_continuation_steps: usize,
     pub catch_body_checks: usize,
     pub marker_frame_entries: usize,
@@ -1235,9 +1236,62 @@ impl EvidenceContinuation {
             }
         }
     }
+
+    fn has_request_boundary(&self, routed_yield_handler: Option<ExprId>) -> bool {
+        let Some(frame) = self.frame() else {
+            return false;
+        };
+        frame.has_request_boundary(routed_yield_handler)
+    }
 }
 
 impl EvidenceContinuationFrame {
+    fn has_request_boundary(&self, routed_yield_handler: Option<ExprId>) -> bool {
+        match self {
+            EvidenceContinuationFrame::Then { first, second } => {
+                first.has_request_boundary(routed_yield_handler)
+                    || second.has_request_boundary(routed_yield_handler)
+            }
+            EvidenceContinuationFrame::CatchBody {
+                catch_expr, next, ..
+            } => match routed_yield_handler {
+                None => true,
+                Some(handler) if handler == *catch_expr => true,
+                Some(_) => next.has_request_boundary(routed_yield_handler),
+            },
+            EvidenceContinuationFrame::RefSetHandleResult { .. }
+            | EvidenceContinuationFrame::RefSetHandleValueResult { .. } => true,
+            EvidenceContinuationFrame::MarkerFrame { .. }
+            | EvidenceContinuationFrame::ProviderEnv { .. } => false,
+            EvidenceContinuationFrame::ForceThunk { next, .. }
+            | EvidenceContinuationFrame::ForceValueIfThunk { next }
+            | EvidenceContinuationFrame::ApplyCallee { next, .. }
+            | EvidenceContinuationFrame::ApplyArg { next, .. }
+            | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
+            | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::WrapThunkValue { next }
+            | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
+            | EvidenceContinuationFrame::ApplyAdapterResult { next, .. }
+            | EvidenceContinuationFrame::CaseScrutinee { next, .. }
+            | EvidenceContinuationFrame::TupleItems { next, .. }
+            | EvidenceContinuationFrame::RecordSpread { next, .. }
+            | EvidenceContinuationFrame::RecordFields { next, .. }
+            | EvidenceContinuationFrame::PolyVariantPayloads { next, .. }
+            | EvidenceContinuationFrame::SelectBase { next, .. }
+            | EvidenceContinuationFrame::BlockStmt { next, .. }
+            | EvidenceContinuationFrame::RefSetReference { next, .. }
+            | EvidenceContinuationFrame::RefSetForcedReference { next, .. }
+            | EvidenceContinuationFrame::RefSetValue { next, .. }
+            | EvidenceContinuationFrame::RefSetForcedValue { next, .. }
+            | EvidenceContinuationFrame::RefSetResolvedUnit { next }
+            | EvidenceContinuationFrame::RefSetEmitResolvedRequest { next, .. }
+            | EvidenceContinuationFrame::ResolveRefSetValues { next, .. }
+            | EvidenceContinuationFrame::ResolveRefSetFields { next, .. } => {
+                next.has_request_boundary(routed_yield_handler)
+            }
+        }
+    }
+
     fn try_append_owned_tail(
         &mut self,
         tail: EvidenceContinuation,
@@ -4629,6 +4683,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         continuation: EvidenceContinuation,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         if continuation.is_identity() {
+            return Ok(self.routed_request_result(routed_yield_handler, request));
+        }
+        if !continuation.has_request_boundary(routed_yield_handler) {
+            self.stats.request_whole_continuation_appends += 1;
+            let request = self.append_request_continuation(request, continuation);
             return Ok(self.routed_request_result(routed_yield_handler, request));
         }
         if routed_yield_handler.is_none() {
