@@ -133,7 +133,7 @@ enum RuntimeEvidenceValue {
     },
     Marked {
         value: SharedValue,
-        markers: Vec<EvidenceValueMarker>,
+        markers: Rc<[EvidenceValueMarker]>,
     },
     Closure(Rc<RuntimeEvidenceClosure>),
     RecursiveClosure {
@@ -3482,7 +3482,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
             },
             RuntimeEvidenceValue::Marked { value, markers } => {
-                self.with_marker_frame(markers.clone(), true, None, |runner| {
+                self.with_marker_frame(markers.to_vec(), true, None, |runner| {
                     runner.force_thunk_result(value.clone())
                 })
             }
@@ -4977,6 +4977,10 @@ fn shared_stmts(stmts: &[Stmt]) -> Rc<[Stmt]> {
     Rc::from(stmts.to_vec().into_boxed_slice())
 }
 
+fn shared_markers(markers: &[EvidenceValueMarker]) -> Rc<[EvidenceValueMarker]> {
+    Rc::from(markers.to_vec().into_boxed_slice())
+}
+
 fn push_unique_guard(ids: &mut Vec<EvidenceGuardId>, id: EvidenceGuardId) -> bool {
     if ids.contains(&id) {
         return false;
@@ -5076,11 +5080,11 @@ fn mark_runtime_value_unchecked(
             markers: existing,
         } => shared(RuntimeEvidenceValue::Marked {
             value: value.clone(),
-            markers: combined_markers(existing, markers),
+            markers: shared_markers(&combined_markers(existing, markers)),
         }),
         _ => shared(RuntimeEvidenceValue::Marked {
             value,
-            markers: markers.to_vec(),
+            markers: shared_markers(markers),
         }),
     }
 }
