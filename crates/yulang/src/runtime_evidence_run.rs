@@ -124,6 +124,49 @@ enum EvidenceContinuationFrame {
         env: Env,
         next: EvidenceContinuation,
     },
+    TupleItems {
+        values: Vec<SharedValue>,
+        rest: Vec<ExprId>,
+        env: Env,
+        next: EvidenceContinuation,
+    },
+    RecordSpread {
+        fields: Vec<control_vm::RecordField>,
+        env: Env,
+        next: EvidenceContinuation,
+    },
+    RecordFields {
+        values: Vec<RuntimeEvidenceValueField>,
+        rest: Vec<control_vm::RecordField>,
+        env: Env,
+        next: EvidenceContinuation,
+    },
+    PolyVariantPayloads {
+        tag: String,
+        values: Vec<SharedValue>,
+        rest: Vec<ExprId>,
+        env: Env,
+        next: EvidenceContinuation,
+    },
+    SelectBase {
+        name: String,
+        resolution: Option<SelectResolution>,
+        next: EvidenceContinuation,
+    },
+    BlockStmt {
+        resume: EvidenceBlockResume,
+        rest: Vec<Stmt>,
+        tail: Option<ExprId>,
+        env: Env,
+        last: SharedValue,
+        next: EvidenceContinuation,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum EvidenceBlockResume {
+    Let(Pat),
+    Expr,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -191,6 +234,79 @@ impl EvidenceContinuation {
         }))
     }
 
+    fn tuple_items(values: Vec<SharedValue>, rest: Vec<ExprId>, env: Env, next: Self) -> Self {
+        Self(Rc::new(EvidenceContinuationFrame::TupleItems {
+            values,
+            rest,
+            env,
+            next,
+        }))
+    }
+
+    fn record_spread(fields: Vec<control_vm::RecordField>, env: Env, next: Self) -> Self {
+        Self(Rc::new(EvidenceContinuationFrame::RecordSpread {
+            fields,
+            env,
+            next,
+        }))
+    }
+
+    fn record_fields(
+        values: Vec<RuntimeEvidenceValueField>,
+        rest: Vec<control_vm::RecordField>,
+        env: Env,
+        next: Self,
+    ) -> Self {
+        Self(Rc::new(EvidenceContinuationFrame::RecordFields {
+            values,
+            rest,
+            env,
+            next,
+        }))
+    }
+
+    fn poly_variant_payloads(
+        tag: String,
+        values: Vec<SharedValue>,
+        rest: Vec<ExprId>,
+        env: Env,
+        next: Self,
+    ) -> Self {
+        Self(Rc::new(EvidenceContinuationFrame::PolyVariantPayloads {
+            tag,
+            values,
+            rest,
+            env,
+            next,
+        }))
+    }
+
+    fn select_base(name: String, resolution: Option<SelectResolution>, next: Self) -> Self {
+        Self(Rc::new(EvidenceContinuationFrame::SelectBase {
+            name,
+            resolution,
+            next,
+        }))
+    }
+
+    fn block_stmt(
+        resume: EvidenceBlockResume,
+        rest: Vec<Stmt>,
+        tail: Option<ExprId>,
+        env: Env,
+        last: SharedValue,
+        next: Self,
+    ) -> Self {
+        Self(Rc::new(EvidenceContinuationFrame::BlockStmt {
+            resume,
+            rest,
+            tail,
+            env,
+            last,
+            next,
+        }))
+    }
+
     fn is_identity(&self) -> bool {
         matches!(self.0.as_ref(), EvidenceContinuationFrame::Identity)
     }
@@ -219,6 +335,64 @@ impl EvidenceContinuation {
             EvidenceContinuationFrame::CaseScrutinee { arms, env, next } => {
                 Self::case_scrutinee(arms.clone(), env.clone(), next.clone().then(tail))
             }
+            EvidenceContinuationFrame::TupleItems {
+                values,
+                rest,
+                env,
+                next,
+            } => Self::tuple_items(
+                values.clone(),
+                rest.clone(),
+                env.clone(),
+                next.clone().then(tail),
+            ),
+            EvidenceContinuationFrame::RecordSpread { fields, env, next } => {
+                Self::record_spread(fields.clone(), env.clone(), next.clone().then(tail))
+            }
+            EvidenceContinuationFrame::RecordFields {
+                values,
+                rest,
+                env,
+                next,
+            } => Self::record_fields(
+                values.clone(),
+                rest.clone(),
+                env.clone(),
+                next.clone().then(tail),
+            ),
+            EvidenceContinuationFrame::PolyVariantPayloads {
+                tag,
+                values,
+                rest,
+                env,
+                next,
+            } => Self::poly_variant_payloads(
+                tag.clone(),
+                values.clone(),
+                rest.clone(),
+                env.clone(),
+                next.clone().then(tail),
+            ),
+            EvidenceContinuationFrame::SelectBase {
+                name,
+                resolution,
+                next,
+            } => Self::select_base(name.clone(), resolution.clone(), next.clone().then(tail)),
+            EvidenceContinuationFrame::BlockStmt {
+                resume,
+                rest,
+                tail: block_tail,
+                env,
+                last,
+                next,
+            } => Self::block_stmt(
+                resume.clone(),
+                rest.clone(),
+                *block_tail,
+                env.clone(),
+                last.clone(),
+                next.clone().then(tail),
+            ),
         }
     }
 }
@@ -509,51 +683,25 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }))
             }
             Expr::Tuple(items) => {
-                let mut values = Vec::with_capacity(items.len());
-                for item in items {
-                    values.push(self.eval_expr(*item, env)?);
-                }
-                RuntimeEvidenceValue::Tuple(values)
+                return self.eval_tuple_items_result(Vec::with_capacity(items.len()), items, env);
             }
             Expr::Record { fields, spread } => {
-                let mut values = match spread {
-                    RecordSpread::None => Vec::new(),
-                    RecordSpread::Head(expr) => {
-                        let spread = self.eval_expr(*expr, env)?;
-                        record_fields(spread.as_ref())?
-                    }
-                    RecordSpread::Tail(_) => {
-                        return Err(RuntimeEvidenceRunError::UnsupportedExpr(
-                            "tail record spread",
-                        ));
-                    }
-                };
-                for field in fields {
-                    values.push(RuntimeEvidenceValueField {
-                        name: field.name.clone(),
-                        value: self.eval_expr(field.value, env)?,
-                    });
-                }
-                RuntimeEvidenceValue::Record(values)
+                return self.eval_record_result(fields, spread, env);
             }
             Expr::PolyVariant { tag, payloads } => {
-                let mut values = Vec::with_capacity(payloads.len());
-                for payload in payloads {
-                    values.push(self.eval_expr(*payload, env)?);
-                }
-                RuntimeEvidenceValue::PolyVariant {
-                    tag: tag.clone(),
-                    payloads: values,
-                }
+                return self.eval_poly_variant_payloads_result(
+                    tag.clone(),
+                    Vec::with_capacity(payloads.len()),
+                    payloads,
+                    env,
+                );
             }
             Expr::Select {
                 base,
                 name,
                 resolution,
             } => {
-                return Ok(EvidenceEvalResult::Value(
-                    self.eval_select(*base, name, resolution, env)?,
-                ));
+                return self.eval_select_result(*base, name, resolution, env);
             }
             Expr::Case { scrutinee, arms } => {
                 return match self.eval_expr_result(*scrutinee, env)? {
@@ -573,7 +721,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             Expr::Catch { body, arms } => return self.eval_catch(expr_id, *body, arms, env),
             Expr::Block(block) => {
-                return Ok(EvidenceEvalResult::Value(self.eval_block(block, env)?));
+                return self.eval_block_result(block, env);
             }
         };
         Ok(value_result(value))
@@ -631,17 +779,172 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
-    fn apply_value(
+    fn eval_tuple_items_result(
         &mut self,
-        site: Option<ExprId>,
-        callee: SharedValue,
-        arg: SharedValue,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        match self.apply_value_result(site, callee, arg)? {
-            EvidenceEvalResult::Value(value) => Ok(value),
-            EvidenceEvalResult::Request(request) => {
-                Err(RuntimeEvidenceRunError::EscapedEffect(request.path))
+        mut values: Vec<SharedValue>,
+        items: &[ExprId],
+        env: &mut Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        for (index, item) in items.iter().enumerate() {
+            match self.eval_expr_result(*item, env)? {
+                EvidenceEvalResult::Value(value) => values.push(value),
+                EvidenceEvalResult::Request(request) => {
+                    let rest = items[index + 1..].to_vec();
+                    return Ok(EvidenceEvalResult::Request(request.map_continuation(
+                        |continuation| {
+                            EvidenceContinuation::tuple_items(
+                                values,
+                                rest,
+                                env.clone(),
+                                continuation,
+                            )
+                        },
+                    )));
+                }
             }
+        }
+        Ok(EvidenceEvalResult::Value(shared(
+            RuntimeEvidenceValue::Tuple(values),
+        )))
+    }
+
+    fn eval_record_result(
+        &mut self,
+        fields: &[control_vm::RecordField],
+        spread: &RecordSpread<ExprId>,
+        env: &mut Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let values = match spread {
+            RecordSpread::None => Vec::new(),
+            RecordSpread::Head(expr) => match self.eval_expr_result(*expr, env)? {
+                EvidenceEvalResult::Value(spread) => record_fields(spread.as_ref())?,
+                EvidenceEvalResult::Request(request) => {
+                    return Ok(EvidenceEvalResult::Request(request.map_continuation(
+                        |continuation| {
+                            EvidenceContinuation::record_spread(
+                                fields.to_vec(),
+                                env.clone(),
+                                continuation,
+                            )
+                        },
+                    )));
+                }
+            },
+            RecordSpread::Tail(_) => {
+                return Err(RuntimeEvidenceRunError::UnsupportedExpr(
+                    "tail record spread",
+                ));
+            }
+        };
+        self.eval_record_fields_result(values, fields, env)
+    }
+
+    fn eval_record_fields_result(
+        &mut self,
+        mut values: Vec<RuntimeEvidenceValueField>,
+        fields: &[control_vm::RecordField],
+        env: &mut Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        for (index, field) in fields.iter().enumerate() {
+            match self.eval_expr_result(field.value, env)? {
+                EvidenceEvalResult::Value(value) => values.push(RuntimeEvidenceValueField {
+                    name: field.name.clone(),
+                    value,
+                }),
+                EvidenceEvalResult::Request(request) => {
+                    let rest = fields[index..].to_vec();
+                    return Ok(EvidenceEvalResult::Request(request.map_continuation(
+                        |continuation| {
+                            EvidenceContinuation::record_fields(
+                                values,
+                                rest,
+                                env.clone(),
+                                continuation,
+                            )
+                        },
+                    )));
+                }
+            }
+        }
+        Ok(EvidenceEvalResult::Value(shared(
+            RuntimeEvidenceValue::Record(values),
+        )))
+    }
+
+    fn eval_poly_variant_payloads_result(
+        &mut self,
+        tag: String,
+        mut values: Vec<SharedValue>,
+        payloads: &[ExprId],
+        env: &mut Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        for (index, payload) in payloads.iter().enumerate() {
+            match self.eval_expr_result(*payload, env)? {
+                EvidenceEvalResult::Value(value) => values.push(value),
+                EvidenceEvalResult::Request(request) => {
+                    let rest = payloads[index + 1..].to_vec();
+                    return Ok(EvidenceEvalResult::Request(request.map_continuation(
+                        |continuation| {
+                            EvidenceContinuation::poly_variant_payloads(
+                                tag,
+                                values,
+                                rest,
+                                env.clone(),
+                                continuation,
+                            )
+                        },
+                    )));
+                }
+            }
+        }
+        Ok(EvidenceEvalResult::Value(shared(
+            RuntimeEvidenceValue::PolyVariant {
+                tag,
+                payloads: values,
+            },
+        )))
+    }
+
+    fn eval_select_result(
+        &mut self,
+        base: ExprId,
+        name: &str,
+        resolution: &Option<SelectResolution>,
+        env: &mut Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match self.eval_expr_result(base, env)? {
+            EvidenceEvalResult::Value(base) => {
+                self.apply_select_base_result(base, name, resolution)
+            }
+            EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
+                request.map_continuation(|continuation| {
+                    EvidenceContinuation::select_base(
+                        name.to_string(),
+                        resolution.clone(),
+                        continuation,
+                    )
+                }),
+            )),
+        }
+    }
+
+    fn apply_select_base_result(
+        &mut self,
+        base: SharedValue,
+        name: &str,
+        resolution: &Option<SelectResolution>,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match resolution {
+            Some(SelectResolution::RecordField) | None => {
+                record_field(base.as_ref(), name).map(EvidenceEvalResult::Value)
+            }
+            Some(SelectResolution::Method { instance }) => {
+                let method = self.eval_instance(*instance)?;
+                self.apply_value_result(None, method, base)
+            }
+            Some(SelectResolution::TypeclassMethod { .. }) => Err(
+                RuntimeEvidenceRunError::UnsupportedExpr("typeclass method select"),
+            ),
         }
     }
 
@@ -756,6 +1059,85 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let result = self.eval_case_result(value, arms, env)?;
                 self.continue_result(result, next.clone())
             }
+            EvidenceContinuationFrame::TupleItems {
+                values,
+                rest,
+                env,
+                next,
+            } => {
+                let mut values = values.clone();
+                values.push(value);
+                let mut env = env.clone();
+                let result = self.eval_tuple_items_result(values, rest, &mut env)?;
+                self.continue_result(result, next.clone())
+            }
+            EvidenceContinuationFrame::RecordSpread { fields, env, next } => {
+                let values = record_fields(value.as_ref())?;
+                let mut env = env.clone();
+                let result = self.eval_record_fields_result(values, fields, &mut env)?;
+                self.continue_result(result, next.clone())
+            }
+            EvidenceContinuationFrame::RecordFields {
+                values,
+                rest,
+                env,
+                next,
+            } => {
+                let mut values = values.clone();
+                let Some((field, remaining)) = rest.split_first() else {
+                    return Err(RuntimeEvidenceRunError::UnsupportedExpr(
+                        "empty record field continuation",
+                    ));
+                };
+                values.push(RuntimeEvidenceValueField {
+                    name: field.name.clone(),
+                    value,
+                });
+                let mut env = env.clone();
+                let result = self.eval_record_fields_result(values, remaining, &mut env)?;
+                self.continue_result(result, next.clone())
+            }
+            EvidenceContinuationFrame::PolyVariantPayloads {
+                tag,
+                values,
+                rest,
+                env,
+                next,
+            } => {
+                let mut values = values.clone();
+                values.push(value);
+                let mut env = env.clone();
+                let result =
+                    self.eval_poly_variant_payloads_result(tag.clone(), values, rest, &mut env)?;
+                self.continue_result(result, next.clone())
+            }
+            EvidenceContinuationFrame::SelectBase {
+                name,
+                resolution,
+                next,
+            } => {
+                let result = self.apply_select_base_result(value, name, resolution)?;
+                self.continue_result(result, next.clone())
+            }
+            EvidenceContinuationFrame::BlockStmt {
+                resume,
+                rest,
+                tail,
+                env,
+                last,
+                next,
+            } => {
+                let mut env = env.clone();
+                let last = match resume {
+                    EvidenceBlockResume::Let(pat) => {
+                        bind_pat(pat, value, &mut env)?;
+                        last.clone()
+                    }
+                    EvidenceBlockResume::Expr => value,
+                };
+                let result = self.eval_block_parts_result(rest, *tail, &mut env, last)?;
+                self.continue_result(result, next.clone())
+            }
         }
     }
 
@@ -800,29 +1182,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
-    fn eval_select(
-        &mut self,
-        base: ExprId,
-        name: &str,
-        resolution: &Option<SelectResolution>,
-        env: &mut Env,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        match resolution {
-            Some(SelectResolution::RecordField) | None => {
-                let base = self.eval_expr(base, env)?;
-                record_field(base.as_ref(), name)
-            }
-            Some(SelectResolution::Method { instance }) => {
-                let base = self.eval_expr(base, env)?;
-                let method = self.eval_instance(*instance)?;
-                self.apply_value(None, method, base)
-            }
-            Some(SelectResolution::TypeclassMethod { .. }) => Err(
-                RuntimeEvidenceRunError::UnsupportedExpr("typeclass method select"),
-            ),
-        }
-    }
-
     fn eval_catch(
         &mut self,
         catch_expr: ExprId,
@@ -864,7 +1223,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 return Err(RuntimeEvidenceRunError::PatternMismatch);
             }
         }
-        self.eval_handler_body_result(arm.body, &mut arm_env)
+        self.eval_expr_result(arm.body, &mut arm_env)
     }
 
     fn eval_operation_arm(
@@ -947,36 +1306,92 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         Err(RuntimeEvidenceRunError::PatternMismatch)
     }
 
-    fn eval_block(
+    fn eval_block_result(
         &mut self,
         block: &Block,
         env: &mut Env,
-    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let mut last = shared(RuntimeEvidenceValue::Unit);
-        for stmt in &block.stmts {
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.eval_block_parts_result(
+            &block.stmts,
+            block.tail,
+            env,
+            shared(RuntimeEvidenceValue::Unit),
+        )
+    }
+
+    fn eval_block_parts_result(
+        &mut self,
+        stmts: &[Stmt],
+        tail: Option<ExprId>,
+        env: &mut Env,
+        mut last: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        for (index, stmt) in stmts.iter().enumerate() {
+            let rest = &stmts[index + 1..];
             match stmt {
-                Stmt::Let(_, pat, expr) => {
-                    let value = self.eval_expr(*expr, env)?;
-                    bind_pat(pat, value, env)?;
-                }
-                Stmt::Expr(expr) => {
-                    last = self.eval_expr(*expr, env)?;
-                }
-                Stmt::Module(_, stmts) => {
-                    last = self.eval_block(
-                        &Block {
-                            stmts: stmts.clone(),
-                            tail: None,
-                        },
-                        env,
-                    )?;
+                Stmt::Let(_, pat, expr) => match self.eval_expr_result(*expr, env)? {
+                    EvidenceEvalResult::Value(value) => bind_pat(pat, value, env)?,
+                    EvidenceEvalResult::Request(request) => {
+                        return Ok(EvidenceEvalResult::Request(request.map_continuation(
+                            |continuation| {
+                                EvidenceContinuation::block_stmt(
+                                    EvidenceBlockResume::Let(pat.clone()),
+                                    rest.to_vec(),
+                                    tail,
+                                    env.clone(),
+                                    last,
+                                    continuation,
+                                )
+                            },
+                        )));
+                    }
+                },
+                Stmt::Expr(expr) => match self.eval_expr_result(*expr, env)? {
+                    EvidenceEvalResult::Value(value) => last = value,
+                    EvidenceEvalResult::Request(request) => {
+                        return Ok(EvidenceEvalResult::Request(request.map_continuation(
+                            |continuation| {
+                                EvidenceContinuation::block_stmt(
+                                    EvidenceBlockResume::Expr,
+                                    rest.to_vec(),
+                                    tail,
+                                    env.clone(),
+                                    last,
+                                    continuation,
+                                )
+                            },
+                        )));
+                    }
+                },
+                Stmt::Module(_, module_stmts) => {
+                    let module_block = Block {
+                        stmts: module_stmts.clone(),
+                        tail: None,
+                    };
+                    match self.eval_block_result(&module_block, env)? {
+                        EvidenceEvalResult::Value(value) => last = value,
+                        EvidenceEvalResult::Request(request) => {
+                            return Ok(EvidenceEvalResult::Request(request.map_continuation(
+                                |continuation| {
+                                    EvidenceContinuation::block_stmt(
+                                        EvidenceBlockResume::Expr,
+                                        rest.to_vec(),
+                                        tail,
+                                        env.clone(),
+                                        last,
+                                        continuation,
+                                    )
+                                },
+                            )));
+                        }
+                    }
                 }
             }
         }
-        if let Some(tail) = block.tail {
-            self.eval_expr(tail, env)
+        if let Some(tail) = tail {
+            self.eval_expr_result(tail, env)
         } else {
-            Ok(last)
+            Ok(EvidenceEvalResult::Value(last))
         }
     }
 

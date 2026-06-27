@@ -438,6 +438,84 @@ fn debug_runtime_evidence_run_resumes_direct_effect_in_apply_argument() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_resumes_direct_effect_in_tuple_item() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-tuple-item-effect",
+        "act flip:\n  our coin: () -> bool\n\n\
+         catch (1, flip::coin()):\n\
+         \x20 flip::coin(), k -> k true\n\
+         \x20 v -> v\n",
+    );
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [(1, true)]\n"), "{stdout}");
+}
+
+#[test]
+fn debug_runtime_evidence_run_resumes_direct_effect_in_record_field() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-record-field-effect",
+        "act flip:\n  our coin: () -> bool\n\n\
+         catch ({a: flip::coin()}):\n\
+         \x20 flip::coin(), k -> k true\n\
+         \x20 v -> v\n",
+    );
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [{a: true}]\n"), "{stdout}");
+}
+
+#[test]
+fn debug_runtime_evidence_run_leaves_value_arm_thunk_unforced() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-value-arm-thunk",
+        "act flip:\n  our coin: () -> bool\n\n\
+         catch ({a: true}).a:\n\
+         \x20 flip::coin(), k -> k true\n\
+         \x20 v -> v\n",
+    );
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [<thunk>]\n"), "{stdout}");
+}
+
+#[test]
 fn compatible_dump_no_prelude_uses_cache() {
     let entry = write_entry("dump-no-prelude-cache", "1\n");
     let root = entry.parent().unwrap().to_path_buf();
