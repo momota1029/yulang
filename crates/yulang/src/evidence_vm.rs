@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 
 use control_vm::{
-    Block, ControlEffectUseKind, ControlEvidenceProgram, ControlEvidenceRoute, Expr, ExprId,
+    Block, ControlEffectUseKind, ControlEvidenceProgram, ControlEvidenceRoute, DefId, Expr, ExprId,
     Program, RecordSpread, Root, Stmt,
 };
 use specialize::{
@@ -35,6 +35,7 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) evidence_param_functions: usize,
     pub(crate) evidence_params: usize,
     pub(crate) evidence_arg_calls: usize,
+    pub(crate) evidence_slot_keys: usize,
     pub(crate) evidence_env_values: usize,
     pub(crate) evidence_env_captures: usize,
     pub(crate) runtime_tasks: usize,
@@ -54,13 +55,24 @@ pub(crate) struct EvidenceVmHandlerArmPlan {
     pub(crate) path: Option<Vec<String>>,
     pub(crate) resumptive: bool,
     pub(crate) guarded: bool,
+    pub(crate) classification: EvidenceVmHandlerArmClass,
     pub(crate) body: ExprId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EvidenceVmHandlerArmClass {
+    Value,
+    Abortive,
+    TailResumptive,
+    MayYield,
+    Fallback,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EvidenceVmOperationPlan {
     pub(crate) expr: ExprId,
     pub(crate) path: Vec<String>,
+    pub(crate) slot: EvidenceVmSlotKey,
     pub(crate) kind: EvidenceVmOperationKind,
     pub(crate) lowering: EvidenceVmOperationLowering,
     pub(crate) runtime_nodes: Vec<u32>,
@@ -97,6 +109,7 @@ pub(crate) enum EvidenceVmOperationLowering {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EvidenceVmFunctionPlan {
     pub(crate) owner: RuntimeEvidenceTaskOwner,
+    pub(crate) signature: EvidenceVmFunctionSignature,
     pub(crate) node_count: usize,
     pub(crate) evidence_ref_count: usize,
     pub(crate) required_evidence: Vec<EvidenceVmEvidenceRequirement>,
@@ -109,7 +122,7 @@ pub(crate) struct EvidenceVmFunctionPlan {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EvidenceVmEvidenceRequirement {
-    pub(crate) path: Vec<String>,
+    pub(crate) slot: EvidenceVmSlotKey,
     pub(crate) operation_exprs: Vec<u32>,
 }
 
@@ -117,14 +130,40 @@ pub(crate) struct EvidenceVmEvidenceRequirement {
 pub(crate) struct EvidenceVmCallPlan {
     pub(crate) apply: ExprId,
     pub(crate) callee_instance: u32,
-    pub(crate) required_evidence_paths: Vec<Vec<String>>,
+    pub(crate) required_evidence_slots: Vec<EvidenceVmSlotKey>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EvidenceVmValueEnvPlan {
     pub(crate) expr: ExprId,
     pub(crate) kind: EvidenceVmValueEnvKind,
+    pub(crate) signature: EvidenceVmValueEnvSignature,
     pub(crate) captured_evidence: Vec<EvidenceVmEvidenceRequirement>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmFunctionSignature {
+    pub(crate) params: Vec<EvidenceVmSlotKey>,
+    pub(crate) provides: Vec<EvidenceVmSlotKey>,
+    pub(crate) value_env: Vec<EvidenceVmSlotKey>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmValueEnvSignature {
+    pub(crate) captures: Vec<EvidenceVmSlotKey>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct EvidenceVmSlotKey {
+    pub(crate) family: Vec<String>,
+    pub(crate) route: EvidenceVmSlotRouteKey,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum EvidenceVmSlotRouteKey {
+    Positive,
+    Blocked,
+    UnknownFallback,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -171,10 +210,12 @@ fn build_plan_from_evidence(
             arms: handler
                 .arms
                 .iter()
-                .map(|arm| EvidenceVmHandlerArmPlan {
+                .enumerate()
+                .map(|(index, arm)| EvidenceVmHandlerArmPlan {
                     path: arm.operation_path.clone(),
                     resumptive: arm.resumptive,
                     guarded: arm.guarded,
+                    classification: classify_handler_arm(program, handler.expr, index, arm),
                     body: arm.body,
                 })
                 .collect(),
@@ -186,16 +227,18 @@ fn build_plan_from_evidence(
         .iter()
         .map(|effect| {
             let nodes = runtime_nodes.nodes_for_expr(effect.expr.0);
+            let lowering = operation_lowering(
+                effect.expr,
+                &effect.route,
+                &handler_exprs,
+                &lexical_handlers,
+            );
             EvidenceVmOperationPlan {
                 expr: effect.expr,
                 path: effect.path.clone(),
+                slot: slot_for_operation_lowering(&effect.path, &lowering),
                 kind: operation_kind(effect.kind),
-                lowering: operation_lowering(
-                    effect.expr,
-                    &effect.route,
-                    &handler_exprs,
-                    &lexical_handlers,
-                ),
+                lowering,
                 runtime_evidence_refs: nodes
                     .iter()
                     .map(|node| node.evidence_refs.len())
@@ -263,6 +306,12 @@ pub(crate) fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
+        "  evidence_slot_keys: {}",
+        summary.evidence_slot_keys
+    )
+    .unwrap();
+    writeln!(
+        &mut out,
         "  evidence_env_values: {} evidence_env_captures: {}",
         summary.evidence_env_values, summary.evidence_env_captures
     )
@@ -309,6 +358,7 @@ fn summarize_plan(
             .iter()
             .map(|function| function.calls_needing_evidence.len())
             .sum(),
+        evidence_slot_keys: distinct_evidence_slot_count(operations, functions, values),
         evidence_env_values: values.len(),
         evidence_env_captures: values
             .iter()
@@ -363,8 +413,17 @@ fn function_plan(
 ) -> EvidenceVmFunctionPlan {
     let provided_evidence_paths = provided_paths_for_nodes(&task.nodes);
     let required_evidence = required_evidence_for_nodes(&task.nodes, &provided_evidence_paths);
+    let signature = EvidenceVmFunctionSignature {
+        params: requirement_slots(&required_evidence),
+        provides: provided_evidence_paths
+            .iter()
+            .map(|path| positive_slot(path.clone()))
+            .collect(),
+        value_env: Vec::new(),
+    };
     EvidenceVmFunctionPlan {
         owner: task.owner,
+        signature,
         node_count: task.nodes.len(),
         evidence_ref_count: task
             .nodes
@@ -400,16 +459,8 @@ fn attach_evidence_call_plans(program: &Program, functions: &mut [EvidenceVmFunc
             let RuntimeEvidenceTaskOwner::InstanceBody { instance, .. } = function.owner else {
                 return None;
             };
-            (!function.required_evidence.is_empty()).then(|| {
-                (
-                    instance,
-                    function
-                        .required_evidence
-                        .iter()
-                        .map(|requirement| requirement.path.clone())
-                        .collect::<Vec<_>>(),
-                )
-            })
+            (!function.required_evidence.is_empty())
+                .then(|| (instance, function.signature.params.clone()))
         })
         .collect::<HashMap<_, _>>();
     if requirements_by_instance.is_empty() {
@@ -440,7 +491,7 @@ fn function_body(owner: RuntimeEvidenceTaskOwner) -> Option<u32> {
 fn collect_evidence_arg_calls(
     program: &Program,
     expr: ExprId,
-    requirements_by_instance: &HashMap<u32, Vec<Vec<String>>>,
+    requirements_by_instance: &HashMap<u32, Vec<EvidenceVmSlotKey>>,
     visited: &mut HashSet<ExprId>,
     out: &mut Vec<EvidenceVmCallPlan>,
 ) {
@@ -453,12 +504,12 @@ fn collect_evidence_arg_calls(
     match node {
         Expr::Apply { callee, arg } => {
             if let Some(instance) = instance_ref(program, *callee)
-                && let Some(required_evidence_paths) = requirements_by_instance.get(&instance.0)
+                && let Some(required_evidence_slots) = requirements_by_instance.get(&instance.0)
             {
                 out.push(EvidenceVmCallPlan {
                     apply: expr,
                     callee_instance: instance.0,
-                    required_evidence_paths: required_evidence_paths.clone(),
+                    required_evidence_slots: required_evidence_slots.clone(),
                 });
             }
             collect_evidence_arg_calls(program, *callee, requirements_by_instance, visited, out);
@@ -579,7 +630,7 @@ fn collect_evidence_arg_calls(
 fn collect_block_evidence_arg_calls(
     program: &Program,
     block: &Block,
-    requirements_by_instance: &HashMap<u32, Vec<Vec<String>>>,
+    requirements_by_instance: &HashMap<u32, Vec<EvidenceVmSlotKey>>,
     visited: &mut HashSet<ExprId>,
     out: &mut Vec<EvidenceVmCallPlan>,
 ) {
@@ -594,7 +645,7 @@ fn collect_block_evidence_arg_calls(
 fn collect_stmt_evidence_arg_calls(
     program: &Program,
     stmt: &Stmt,
-    requirements_by_instance: &HashMap<u32, Vec<Vec<String>>>,
+    requirements_by_instance: &HashMap<u32, Vec<EvidenceVmSlotKey>>,
     visited: &mut HashSet<ExprId>,
     out: &mut Vec<EvidenceVmCallPlan>,
 ) {
@@ -637,6 +688,7 @@ fn collect_value_env_plans(
                 values.push(EvidenceVmValueEnvPlan {
                     expr: id,
                     kind: EvidenceVmValueEnvKind::Lambda { body: *body },
+                    signature: value_env_signature(&captured_evidence),
                     captured_evidence,
                 });
             }
@@ -648,6 +700,7 @@ fn collect_value_env_plans(
                 values.push(EvidenceVmValueEnvPlan {
                     expr: id,
                     kind: EvidenceVmValueEnvKind::Thunk { body: *body },
+                    signature: value_env_signature(&captured_evidence),
                     captured_evidence,
                 });
             }
@@ -668,6 +721,7 @@ fn collect_value_env_plans(
                 values.push(EvidenceVmValueEnvPlan {
                     expr: id,
                     kind,
+                    signature: value_env_signature(&captured_evidence),
                     captured_evidence,
                 });
             }
@@ -739,22 +793,22 @@ fn requirements_in_expr(program: &Program, root: ExprId) -> Vec<EvidenceVmEviden
 
 #[derive(Default)]
 struct RequirementCollector {
-    by_path: BTreeMap<Vec<String>, BTreeSet<u32>>,
+    by_slot: BTreeMap<EvidenceVmSlotKey, BTreeSet<u32>>,
 }
 
 impl RequirementCollector {
     fn record(&mut self, path: &[String], operation_expr: ExprId) {
-        self.by_path
-            .entry(path.to_vec())
+        self.by_slot
+            .entry(fallback_slot(path.to_vec()))
             .or_default()
             .insert(operation_expr.0);
     }
 
     fn finish(self) -> Vec<EvidenceVmEvidenceRequirement> {
-        self.by_path
+        self.by_slot
             .into_iter()
-            .map(|(path, operation_exprs)| EvidenceVmEvidenceRequirement {
-                path,
+            .map(|(slot, operation_exprs)| EvidenceVmEvidenceRequirement {
+                slot,
                 operation_exprs: operation_exprs.into_iter().collect(),
             })
             .collect()
@@ -948,21 +1002,92 @@ fn required_evidence_for_nodes(
     provided_paths: &[Vec<String>],
 ) -> Vec<EvidenceVmEvidenceRequirement> {
     let provided = provided_paths.iter().collect::<BTreeSet<_>>();
-    let mut by_path = BTreeMap::<Vec<String>, Vec<u32>>::new();
+    let mut by_slot = BTreeMap::<EvidenceVmSlotKey, Vec<u32>>::new();
     for node in nodes {
         if let RuntimeEvidenceNodeKind::OperationCall { path, .. } = &node.kind
             && !provided.contains(path)
         {
-            by_path.entry(path.clone()).or_default().push(node.expr);
+            by_slot
+                .entry(fallback_slot(path.clone()))
+                .or_default()
+                .push(node.expr);
         }
     }
-    by_path
+    by_slot
         .into_iter()
-        .map(|(path, operation_exprs)| EvidenceVmEvidenceRequirement {
-            path,
+        .map(|(slot, operation_exprs)| EvidenceVmEvidenceRequirement {
+            slot,
             operation_exprs,
         })
         .collect()
+}
+
+fn positive_slot(family: Vec<String>) -> EvidenceVmSlotKey {
+    EvidenceVmSlotKey {
+        family,
+        route: EvidenceVmSlotRouteKey::Positive,
+    }
+}
+
+fn blocked_slot(family: Vec<String>) -> EvidenceVmSlotKey {
+    EvidenceVmSlotKey {
+        family,
+        route: EvidenceVmSlotRouteKey::Blocked,
+    }
+}
+
+fn fallback_slot(family: Vec<String>) -> EvidenceVmSlotKey {
+    EvidenceVmSlotKey {
+        family,
+        route: EvidenceVmSlotRouteKey::UnknownFallback,
+    }
+}
+
+fn slot_for_operation_lowering(
+    path: &[String],
+    lowering: &EvidenceVmOperationLowering,
+) -> EvidenceVmSlotKey {
+    match lowering {
+        EvidenceVmOperationLowering::DirectHandlerCall { .. } => positive_slot(path.to_vec()),
+        EvidenceVmOperationLowering::HygieneFallback { .. } => blocked_slot(path.to_vec()),
+        EvidenceVmOperationLowering::LexicalHandlerCandidate { .. }
+        | EvidenceVmOperationLowering::GenericFallback => fallback_slot(path.to_vec()),
+    }
+}
+
+fn requirement_slots(requirements: &[EvidenceVmEvidenceRequirement]) -> Vec<EvidenceVmSlotKey> {
+    requirements
+        .iter()
+        .map(|requirement| requirement.slot.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+fn value_env_signature(captures: &[EvidenceVmEvidenceRequirement]) -> EvidenceVmValueEnvSignature {
+    EvidenceVmValueEnvSignature {
+        captures: requirement_slots(captures),
+    }
+}
+
+fn distinct_evidence_slot_count(
+    operations: &[EvidenceVmOperationPlan],
+    functions: &[EvidenceVmFunctionPlan],
+    values: &[EvidenceVmValueEnvPlan],
+) -> usize {
+    let mut slots = BTreeSet::new();
+    for operation in operations {
+        slots.insert(operation.slot.clone());
+    }
+    for function in functions {
+        slots.extend(function.signature.params.iter().cloned());
+        slots.extend(function.signature.provides.iter().cloned());
+        slots.extend(function.signature.value_env.iter().cloned());
+    }
+    for value in values {
+        slots.extend(value.signature.captures.iter().cloned());
+    }
+    slots.len()
 }
 
 fn operation_kind(kind: ControlEffectUseKind) -> EvidenceVmOperationKind {
@@ -1013,6 +1138,185 @@ fn operation_lowering(
     }
 }
 
+fn classify_handler_arm(
+    program: &Program,
+    handler_expr: ExprId,
+    arm_index: usize,
+    arm: &control_vm::ControlHandlerArmEvidence,
+) -> EvidenceVmHandlerArmClass {
+    if arm.operation_path.is_none() {
+        return EvidenceVmHandlerArmClass::Value;
+    }
+    if !arm.resumptive {
+        return EvidenceVmHandlerArmClass::Abortive;
+    }
+    if arm.guarded {
+        return EvidenceVmHandlerArmClass::Fallback;
+    }
+    let Some(continuation) = source_handler_arm(program, handler_expr, arm_index)
+        .and_then(|source_arm| source_arm.continuation.as_ref())
+        .and_then(continuation_def)
+    else {
+        return EvidenceVmHandlerArmClass::MayYield;
+    };
+    if body_tail_resumes(program, arm.body, continuation) {
+        EvidenceVmHandlerArmClass::TailResumptive
+    } else {
+        EvidenceVmHandlerArmClass::MayYield
+    }
+}
+
+fn source_handler_arm(
+    program: &Program,
+    handler_expr: ExprId,
+    arm_index: usize,
+) -> Option<&control_vm::CatchArm> {
+    let Expr::Catch { arms, .. } = control_expr(program, handler_expr)? else {
+        return None;
+    };
+    arms.get(arm_index)
+}
+
+fn continuation_def(pat: &control_vm::Pat) -> Option<DefId> {
+    match pat {
+        control_vm::Pat::Var(def) | control_vm::Pat::As(_, def) => Some(*def),
+        _ => None,
+    }
+}
+
+fn body_tail_resumes(program: &Program, body: ExprId, continuation: DefId) -> bool {
+    tail_resume_arg(program, body, continuation)
+        .is_some_and(|arg| !expr_contains_local(program, arg, continuation))
+}
+
+fn tail_resume_arg(program: &Program, expr: ExprId, continuation: DefId) -> Option<ExprId> {
+    match control_expr(program, expr)? {
+        Expr::Apply { callee, arg } if expr_is_local(program, *callee, continuation) => Some(*arg),
+        Expr::Coerce { expr, .. }
+        | Expr::MarkerFrame { body: expr, .. }
+        | Expr::Select { base: expr, .. } => tail_resume_arg(program, *expr, continuation),
+        Expr::Block(block) => {
+            if block
+                .stmts
+                .iter()
+                .any(|stmt| stmt_contains_local(program, stmt, continuation))
+            {
+                return None;
+            }
+            tail_resume_arg(program, block.tail?, continuation)
+        }
+        _ => None,
+    }
+}
+
+fn expr_is_local(program: &Program, expr: ExprId, def: DefId) -> bool {
+    matches!(control_expr(program, expr), Some(Expr::Local(local)) if *local == def)
+}
+
+fn expr_contains_local(program: &Program, expr: ExprId, def: DefId) -> bool {
+    let mut visited = HashSet::new();
+    expr_contains_local_inner(program, expr, def, &mut visited)
+}
+
+fn expr_contains_local_inner(
+    program: &Program,
+    expr: ExprId,
+    def: DefId,
+    visited: &mut HashSet<ExprId>,
+) -> bool {
+    if !visited.insert(expr) {
+        return false;
+    }
+    let Some(node) = control_expr(program, expr) else {
+        return false;
+    };
+    match node {
+        Expr::Local(local) => *local == def,
+        Expr::Coerce { expr, .. }
+        | Expr::ForceThunk { thunk: expr, .. }
+        | Expr::FunctionAdapter { function: expr, .. }
+        | Expr::MarkerFrame { body: expr, .. }
+        | Expr::MakeThunk { body: expr, .. }
+        | Expr::Lambda { body: expr, .. }
+        | Expr::Select { base: expr, .. } => {
+            expr_contains_local_inner(program, *expr, def, visited)
+        }
+        Expr::Apply { callee, arg }
+        | Expr::RefSet {
+            reference: callee,
+            value: arg,
+        } => {
+            expr_contains_local_inner(program, *callee, def, visited)
+                || expr_contains_local_inner(program, *arg, def, visited)
+        }
+        Expr::Tuple(items) => items
+            .iter()
+            .any(|item| expr_contains_local_inner(program, *item, def, visited)),
+        Expr::Record { fields, spread } => {
+            fields
+                .iter()
+                .any(|field| expr_contains_local_inner(program, field.value, def, visited))
+                || spread_contains_local(program, spread, def, visited)
+        }
+        Expr::PolyVariant { payloads, .. } => payloads
+            .iter()
+            .any(|payload| expr_contains_local_inner(program, *payload, def, visited)),
+        Expr::Case { scrutinee, arms } => {
+            expr_contains_local_inner(program, *scrutinee, def, visited)
+                || arms.iter().any(|arm| {
+                    arm.guard.is_some_and(|guard| {
+                        expr_contains_local_inner(program, guard, def, visited)
+                    }) || expr_contains_local_inner(program, arm.body, def, visited)
+                })
+        }
+        Expr::Catch { body, arms } => {
+            expr_contains_local_inner(program, *body, def, visited)
+                || arms.iter().any(|arm| {
+                    arm.guard.is_some_and(|guard| {
+                        expr_contains_local_inner(program, guard, def, visited)
+                    }) || expr_contains_local_inner(program, arm.body, def, visited)
+                })
+        }
+        Expr::Block(block) => {
+            block
+                .stmts
+                .iter()
+                .any(|stmt| stmt_contains_local(program, stmt, def))
+                || block
+                    .tail
+                    .is_some_and(|tail| expr_contains_local_inner(program, tail, def, visited))
+        }
+        Expr::Lit(_)
+        | Expr::PrimitiveOp { .. }
+        | Expr::Constructor { .. }
+        | Expr::EffectOp { .. }
+        | Expr::InstanceRef(_) => false,
+    }
+}
+
+fn spread_contains_local(
+    program: &Program,
+    spread: &RecordSpread<ExprId>,
+    def: DefId,
+    visited: &mut HashSet<ExprId>,
+) -> bool {
+    match spread {
+        RecordSpread::None => false,
+        RecordSpread::Head(expr) | RecordSpread::Tail(expr) => {
+            expr_contains_local_inner(program, *expr, def, visited)
+        }
+    }
+}
+
+fn stmt_contains_local(program: &Program, stmt: &Stmt, def: DefId) -> bool {
+    match stmt {
+        Stmt::Let(_, _, expr) | Stmt::Expr(expr) => expr_contains_local(program, *expr, def),
+        Stmt::Module(_, stmts) => stmts
+            .iter()
+            .any(|stmt| stmt_contains_local(program, stmt, def)),
+    }
+}
+
 fn generic_fallback_exprs(
     control: &ControlEvidenceProgram,
     exprs: impl Iterator<Item = u32>,
@@ -1051,7 +1355,13 @@ fn format_handlers(out: &mut String, handlers: &[EvidenceVmHandlerPlan]) {
                 "abortive"
             };
             let guarded = if arm.guarded { " guarded" } else { "" };
-            writeln!(out, "    {path} {mode}{guarded} body e{}", arm.body.0).unwrap();
+            writeln!(
+                out,
+                "    {path} {mode}{guarded} class {} body e{}",
+                format_handler_arm_class(arm.classification),
+                arm.body.0
+            )
+            .unwrap();
         }
     }
 }
@@ -1064,10 +1374,11 @@ fn format_operations(out: &mut String, operations: &[EvidenceVmOperationPlan]) {
     for operation in operations {
         writeln!(
             out,
-            "  e{} {} {} {} runtime_nodes [{}] evidence_refs {}",
+            "  e{} {} {} slot {} {} runtime_nodes [{}] evidence_refs {}",
             operation.expr.0,
             format_operation_kind(operation.kind),
             format_path(&operation.path),
+            format_slot_key(&operation.slot),
             format_operation_lowering(&operation.lowering),
             operation
                 .runtime_nodes
@@ -1089,12 +1400,14 @@ fn format_functions(out: &mut String, functions: &[EvidenceVmFunctionPlan]) {
     for function in functions {
         writeln!(
             out,
-            "  {} nodes {} evidence_refs {} requires [{}] provides [{}] evidence_calls [{}] operations [{}] handlers [{}] fallbacks [{}]",
+            "  {} nodes {} evidence_refs {} signature params [{}] provides [{}] value_env [{}] requires [{}] evidence_calls [{}] operations [{}] handlers [{}] fallbacks [{}]",
             format_task_owner(function.owner),
             function.node_count,
             function.evidence_ref_count,
+            format_slot_keys(&function.signature.params),
+            format_slot_keys(&function.signature.provides),
+            format_slot_keys(&function.signature.value_env),
             format_requirements(&function.required_evidence),
-            format_paths(&function.provided_evidence_paths),
             format_call_plans(&function.calls_needing_evidence),
             format_u32_list(&function.operation_exprs),
             format_u32_list(&function.handler_exprs),
@@ -1112,9 +1425,10 @@ fn format_value_envs(out: &mut String, values: &[EvidenceVmValueEnvPlan]) {
     for value in values {
         writeln!(
             out,
-            "  e{} {} captures [{}]",
+            "  e{} {} signature captures [{}] captures [{}]",
             value.expr.0,
             format_value_env_kind(&value.kind),
+            format_slot_keys(&value.signature.captures),
             format_requirements(&value.captured_evidence)
         )
         .unwrap();
@@ -1139,6 +1453,16 @@ fn format_value_env_kind(kind: &EvidenceVmValueEnvKind) -> String {
             arg_marker_count,
             ret_marker_count
         ),
+    }
+}
+
+fn format_handler_arm_class(classification: EvidenceVmHandlerArmClass) -> &'static str {
+    match classification {
+        EvidenceVmHandlerArmClass::Value => "value",
+        EvidenceVmHandlerArmClass::Abortive => "abortive",
+        EvidenceVmHandlerArmClass::TailResumptive => "tail-resumptive",
+        EvidenceVmHandlerArmClass::MayYield => "may-yield",
+        EvidenceVmHandlerArmClass::Fallback => "fallback",
     }
 }
 
@@ -1217,10 +1541,26 @@ fn format_path(path: &[String]) -> String {
     path.join("::")
 }
 
-fn format_paths(paths: &[Vec<String>]) -> String {
-    paths
+fn format_slot_key(slot: &EvidenceVmSlotKey) -> String {
+    format!(
+        "{}:{}",
+        format_slot_route_key(slot.route),
+        format_path(&slot.family)
+    )
+}
+
+fn format_slot_route_key(route: EvidenceVmSlotRouteKey) -> &'static str {
+    match route {
+        EvidenceVmSlotRouteKey::Positive => "positive",
+        EvidenceVmSlotRouteKey::Blocked => "blocked",
+        EvidenceVmSlotRouteKey::UnknownFallback => "fallback",
+    }
+}
+
+fn format_slot_keys(slots: &[EvidenceVmSlotKey]) -> String {
+    slots
         .iter()
-        .map(|path| format_path(path))
+        .map(format_slot_key)
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -1231,7 +1571,7 @@ fn format_requirements(requirements: &[EvidenceVmEvidenceRequirement]) -> String
         .map(|requirement| {
             format!(
                 "{}@e{}",
-                format_path(&requirement.path),
+                format_slot_key(&requirement.slot),
                 format_u32_list(&requirement.operation_exprs)
             )
         })
@@ -1247,7 +1587,7 @@ fn format_call_plans(calls: &[EvidenceVmCallPlan]) -> String {
                 "e{}->i{}({})",
                 call.apply.0,
                 call.callee_instance,
-                format_paths(&call.required_evidence_paths)
+                format_slot_keys(&call.required_evidence_slots)
             )
         })
         .collect::<Vec<_>>()

@@ -386,6 +386,16 @@ enum EvidenceRouteKey {
 
 This should stay in the evidence VM planning layer, not in type inference.
 
+Status on 2026-06-27:
+
+- `EvidenceVmSlotKey` exists in the evidence VM planning layer.
+- The first key is intentionally conservative:
+  `family path + Positive | Blocked | UnknownFallback`.
+- Direct operations use `Positive`, hygiene fallback uses `Blocked`, and
+  unproven runtime fallback requirements use `UnknownFallback`.
+- This is not yet the final slot key because Yulang still needs a richer
+  visibility / projection route key.
+
 ### 2. Build evidence function signatures
 
 Convert function/value requirements into explicit parameter lists:
@@ -400,6 +410,14 @@ EvidenceFunction {
 
 The output should still be a debug plan first.
 
+Status on 2026-06-27:
+
+- `EvidenceVmFunctionSignature` now reports evidence params, provided evidence,
+  and a future value-env slot list.
+- `EvidenceVmValueEnvSignature` reports captured evidence slots for closures,
+  thunks, and function adapters.
+- The debug plan prints these signatures; execution still uses the old runtime.
+
 ### 3. Classify handler arms
 
 Add a structural arm classifier:
@@ -413,6 +431,14 @@ Fallback
 
 This can inspect the control IR arm body, but must not depend on source names.
 The first version can be conservative and classify unknown cases as `Fallback`.
+
+Status on 2026-06-27:
+
+- `EvidenceVmHandlerArmClass` is in the plan dump.
+- Value arms, abortive operation arms, guarded fallback arms, simple structural
+  tail-resume arms, and remaining resumptive arms are separated.
+- Tail-resume detection uses the control IR body shape and continuation `DefId`,
+  not source names.
 
 ### 4. Prototype direct evidence calls
 

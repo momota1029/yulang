@@ -360,6 +360,18 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
         "value evidence environments should be visible in the plan:\n{stdout}"
     );
     assert!(
+        stdout.contains("evidence_slot_keys:"),
+        "evidence slot keys should be visible in the plan:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("class tail-resumptive"),
+        "handler arm classification should be visible in the plan:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("signature params [") && stdout.contains("signature captures ["),
+        "function and value evidence signatures should be visible in the plan:\n{stdout}"
+    );
+    assert!(
         stdout.contains("values:") && stdout.contains("lambda body"),
         "lambda evidence captures should be visible in the plan:\n{stdout}"
     );
