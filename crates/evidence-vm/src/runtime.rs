@@ -17,7 +17,7 @@ mod plan;
 mod text;
 use crate::EvidenceVmPlan;
 use format::{format_float, format_value, format_values_with_labels};
-use plan::RuntimeEvidenceRunContext;
+use plan::{RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext};
 use text::{
     grapheme_len, string_index, string_index_range, string_line_count, string_line_range,
     string_splice,
@@ -50,6 +50,12 @@ pub struct RuntimeEvidenceRunStats {
     pub plan_direct_candidates: usize,
     pub plan_effect_routes: usize,
     pub plan_direct_effect_routes: usize,
+    pub runtime_provider_env_values: usize,
+    pub runtime_provider_env_slots: usize,
+    pub runtime_provider_env_candidates: usize,
+    pub runtime_provider_env_reads: usize,
+    pub runtime_provider_env_read_slots: usize,
+    pub runtime_provider_env_read_candidates: usize,
     pub expr_evals: usize,
     pub env_clones: usize,
     pub env_entries_cloned: usize,
@@ -121,6 +127,7 @@ enum RuntimeEvidenceValue {
         target: Type,
         function: SharedValue,
         hygiene: FunctionAdapterHygiene,
+        provider_env: RuntimeEvidenceProviderEnv,
     },
     Marked {
         value: SharedValue,
@@ -150,6 +157,7 @@ struct RuntimeEvidenceClosure {
     param: Pat,
     body: ExprId,
     env: Env,
+    provider_env: RuntimeEvidenceProviderEnv,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -157,6 +165,7 @@ enum RuntimeEvidenceThunk {
     Expr {
         body: ExprId,
         env: Env,
+        provider_env: RuntimeEvidenceProviderEnv,
     },
     Effect {
         path: Vec<String>,
@@ -1072,6 +1081,7 @@ struct RuntimeEvidenceRunner<'a> {
     active_add_id_index: ActiveAddIdIndex,
     active_marker_plans: Vec<Vec<EvidenceValueMarker>>,
     stdout: String,
+    context: RuntimeEvidenceRunContext,
     stats: RuntimeEvidenceRunStats,
 }
 
@@ -1097,6 +1107,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             active_add_id_index: ActiveAddIdIndex::default(),
             active_marker_plans: Vec::new(),
             stdout: String::new(),
+            context,
             stats,
         }
     }
@@ -1141,6 +1152,25 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn clone_env(&mut self, env: &Env) -> Env {
         clone_env_for_stats(env, &mut self.stats)
+    }
+
+    fn provider_env_for_value(&mut self, expr: ExprId) -> RuntimeEvidenceProviderEnv {
+        let provider_env = self.context.provider_env_for_value(expr);
+        if !provider_env.is_empty() {
+            self.stats.runtime_provider_env_values += 1;
+            self.stats.runtime_provider_env_slots += provider_env.provider_count();
+            self.stats.runtime_provider_env_candidates += provider_env.candidate_count();
+        }
+        provider_env
+    }
+
+    fn observe_provider_env(&mut self, provider_env: &RuntimeEvidenceProviderEnv) {
+        if provider_env.is_empty() {
+            return;
+        }
+        self.stats.runtime_provider_env_reads += 1;
+        self.stats.runtime_provider_env_read_slots += provider_env.provider_count();
+        self.stats.runtime_provider_env_read_candidates += provider_env.candidate_count();
     }
 
     fn append_request_continuation(
@@ -1739,9 +1769,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             Expr::Coerce { expr, .. } => return self.eval_expr_result(*expr, env),
             Expr::MakeThunk { body, .. } => {
+                let provider_env = self.provider_env_for_value(expr_id);
+                let env = self.clone_env(env);
                 RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Expr {
                     body: *body,
-                    env: self.clone_env(env),
+                    env,
+                    provider_env,
                 }))
             }
             Expr::ForceThunk { target, thunk, .. } => {
@@ -1769,14 +1802,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 hygiene,
             } => {
                 return match self.eval_expr_result(*function, env)? {
-                    EvidenceEvalResult::Value(function) => Ok(EvidenceEvalResult::Value(shared(
-                        RuntimeEvidenceValue::FunctionAdapter {
-                            source: source.clone(),
-                            target: target.clone(),
-                            function,
-                            hygiene: hygiene.clone(),
-                        },
-                    ))),
+                    EvidenceEvalResult::Value(function) => {
+                        let provider_env = self.provider_env_for_value(expr_id);
+                        Ok(EvidenceEvalResult::Value(shared(
+                            RuntimeEvidenceValue::FunctionAdapter {
+                                source: source.clone(),
+                                target: target.clone(),
+                                function,
+                                hygiene: hygiene.clone(),
+                                provider_env,
+                            },
+                        )))
+                    }
                     EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(
                         self.append_request_continuation(
                             request,
@@ -1804,10 +1841,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 return self.eval_ref_set_result(*reference, *value, env);
             }
             Expr::Lambda { param, body } => {
+                let provider_env = self.provider_env_for_value(expr_id);
+                let env = self.clone_env(env);
                 RuntimeEvidenceValue::Closure(Rc::new(RuntimeEvidenceClosure {
                     param: param.clone(),
                     body: *body,
-                    env: self.clone_env(env),
+                    env,
+                    provider_env,
                 }))
             }
             Expr::Tuple(items) => {
@@ -2335,7 +2375,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 target,
                 function,
                 hygiene,
-            } => self.apply_adapter_result(source, target, function.clone(), hygiene, arg),
+                provider_env,
+            } => {
+                self.observe_provider_env(provider_env);
+                self.apply_adapter_result(source, target, function.clone(), hygiene, arg)
+            }
             RuntimeEvidenceValue::ConstructorFunction { def, arity, args } => {
                 let mut args = args.clone();
                 args.push(arg);
@@ -2344,11 +2388,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 ))))
             }
             RuntimeEvidenceValue::Closure(closure) => {
+                self.observe_provider_env(&closure.provider_env);
                 let mut env = self.clone_env(&closure.env);
                 self.bind_pat(&closure.param, arg, &mut env)?;
                 self.eval_expr_result(closure.body, &mut env)
             }
             RuntimeEvidenceValue::RecursiveClosure { def, closure } => {
+                self.observe_provider_env(&closure.provider_env);
                 let mut env = self.clone_env(&closure.env);
                 env.insert(
                     *def,
@@ -2522,6 +2568,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     target: target.clone(),
                     function: value,
                     hygiene: FunctionAdapterHygiene::default(),
+                    provider_env: RuntimeEvidenceProviderEnv::default(),
                 },
             ))),
             (Type::Record(_), Type::Record(_)) if value_boundary_supported(source, target) => {
@@ -3316,8 +3363,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.stats.thunk_forces += 1;
         match thunk.as_ref() {
             RuntimeEvidenceValue::Thunk(thunk) => match thunk.as_ref() {
-                RuntimeEvidenceThunk::Expr { body, env } => {
+                RuntimeEvidenceThunk::Expr {
+                    body,
+                    env,
+                    provider_env,
+                } => {
                     self.stats.thunk_force_expr += 1;
+                    self.observe_provider_env(provider_env);
                     let mut env = self.clone_env(env);
                     self.eval_expr_result(*body, &mut env)
                 }

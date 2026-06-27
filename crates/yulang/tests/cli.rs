@@ -473,6 +473,48 @@ fn debug_evidence_vm_run_alias_matches_control_vm_on_pure_lambda_subset() {
 }
 
 #[test]
+fn debug_evidence_vm_run_captures_provider_env_on_closure_value() {
+    let entry = write_entry(
+        "debug-evidence-vm-run-provider-env",
+        "act out:\n  our say: int -> unit\n\n\
+         catch ((\\_ -> out::say(1)) ()):\n\
+         \x20 out::say(n), k -> k()\n\
+         \x20 v -> v\n",
+    );
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("evidence-vm-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(
+        stdout.contains("evidence.plan_env_provider_slots: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.plan_env_provider_candidates: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.provider_env_values: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.provider_env_reads: 1"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("run roots [()]\n"), "{stdout}");
+}
+
+#[test]
 fn debug_runtime_evidence_run_matches_control_vm_on_std_int_primitives() {
     let entry = write_entry(
         "debug-runtime-evidence-run-std-int",

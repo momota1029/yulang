@@ -17,6 +17,7 @@ pub(super) struct RuntimeEvidenceRunContext {
     effect_route_count: usize,
     direct_effect_route_count: usize,
     effect_routes: Option<HashMap<(ExprId, ExprId), EvidenceEffectRoute>>,
+    value_provider_envs: HashMap<ExprId, RuntimeEvidenceProviderEnv>,
 }
 
 impl RuntimeEvidenceRunContext {
@@ -27,6 +28,7 @@ impl RuntimeEvidenceRunContext {
             .values()
             .filter(|route| matches!(route, EvidenceEffectRoute::Direct { .. }))
             .count();
+        let value_provider_envs = value_provider_envs_from_plan(plan);
         Self {
             provider_slots: plan.objects.providers.len(),
             provider_candidates: plan
@@ -57,6 +59,7 @@ impl RuntimeEvidenceRunContext {
             effect_route_count,
             direct_effect_route_count,
             effect_routes: Some(effect_routes),
+            value_provider_envs,
         }
     }
 
@@ -75,6 +78,47 @@ impl RuntimeEvidenceRunContext {
         stats.plan_effect_routes = self.effect_route_count;
         stats.plan_direct_effect_routes = self.direct_effect_route_count;
     }
+
+    pub(super) fn provider_env_for_value(&self, expr: ExprId) -> RuntimeEvidenceProviderEnv {
+        self.value_provider_envs
+            .get(&expr)
+            .cloned()
+            .unwrap_or_default()
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(super) struct RuntimeEvidenceProviderEnv {
+    providers: Vec<RuntimeEvidenceEnvProvider>,
+}
+
+impl RuntimeEvidenceProviderEnv {
+    pub(super) fn is_empty(&self) -> bool {
+        self.providers.is_empty()
+    }
+
+    pub(super) fn provider_count(&self) -> usize {
+        self.providers
+            .iter()
+            .map(|provider| {
+                let _slot_id = provider.slot_id;
+                1usize
+            })
+            .sum()
+    }
+
+    pub(super) fn candidate_count(&self) -> usize {
+        self.providers
+            .iter()
+            .map(|provider| provider.handler_ids.len())
+            .sum()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RuntimeEvidenceEnvProvider {
+    slot_id: u32,
+    handler_ids: Vec<u32>,
 }
 
 fn effect_routes_from_plan(
@@ -106,4 +150,26 @@ fn effect_route_from_operation_plan(
         | EvidenceVmOperationLowering::GenericFallback => EvidenceEffectRoute::Unhandled,
     };
     Some(((apply, callee), route))
+}
+
+fn value_provider_envs_from_plan(
+    plan: &EvidenceVmPlan,
+) -> HashMap<ExprId, RuntimeEvidenceProviderEnv> {
+    plan.objects
+        .values
+        .iter()
+        .filter_map(|value| {
+            let providers = value
+                .env_providers
+                .iter()
+                .filter(|provider| !provider.handler_ids.is_empty())
+                .map(|provider| RuntimeEvidenceEnvProvider {
+                    slot_id: provider.slot_id,
+                    handler_ids: provider.handler_ids.clone(),
+                })
+                .collect::<Vec<_>>();
+            (!providers.is_empty())
+                .then_some((value.expr, RuntimeEvidenceProviderEnv { providers }))
+        })
+        .collect()
 }

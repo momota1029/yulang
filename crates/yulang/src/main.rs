@@ -2279,6 +2279,30 @@ fn run_runtime_evidence_run(
         output.evidence_stats.plan_direct_effect_routes
     );
     println!(
+        "  runtime_evidence.provider_env_values: {}",
+        output.evidence_stats.runtime_provider_env_values
+    );
+    println!(
+        "  runtime_evidence.provider_env_slots: {}",
+        output.evidence_stats.runtime_provider_env_slots
+    );
+    println!(
+        "  runtime_evidence.provider_env_candidates: {}",
+        output.evidence_stats.runtime_provider_env_candidates
+    );
+    println!(
+        "  runtime_evidence.provider_env_reads: {}",
+        output.evidence_stats.runtime_provider_env_reads
+    );
+    println!(
+        "  runtime_evidence.provider_env_read_slots: {}",
+        output.evidence_stats.runtime_provider_env_read_slots
+    );
+    println!(
+        "  runtime_evidence.provider_env_read_candidates: {}",
+        output.evidence_stats.runtime_provider_env_read_candidates
+    );
+    println!(
         "  control_evidence.effect_calls: {}",
         output.evidence_stats.effect_calls
     );
