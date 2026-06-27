@@ -246,6 +246,36 @@ crates/control-vm/src/evidence_runtime.rs
 The generic VM remains the oracle for behavior.  Evidence-passing paths must
 fall back to generic VM if the lowering cannot prove the required effect class.
 
+### Evidence source correction
+
+The first `control-vm` evidence dump showed an important limitation:
+the lowered control IR can expose handler syntax, function-adapter hygiene
+markers, dynamic call/force fallback sites, and any `mono::Type::Stack` that
+survives into emitted boundary types.  However, normal workloads such as
+`examples/showcase.yu` do not usually retain `Type::Stack` in the final
+control type surface.
+
+This is expected.  `specialize2/task_solver/finish.rs` intentionally resolves
+only the concrete types needed at emitted boundaries and recursive demand
+edges; other slots remain solver-local evidence.  Also,
+`specialize/src/types/type_ops.rs::simplify_stack_type` applies stack weights
+to concrete effect rows and then erases the stack wrapper when possible.
+
+Therefore handler-passing evidence must not be recovered only by walking
+`control_vm::Program`.  The real evidence source has to be explicit data
+emitted by `specialize` while the weighted type graph is still available.
+
+Revised pipeline:
+
+```text
+infer / hidden stack evidence
+  -> specialize / weighted type graph
+  -> runtime evidence surface
+  -> control IR + evidence dump
+  -> evidence-passing lowering
+  -> generic control VM fallback
+```
+
 ## Staged plan
 
 ### Stage 0: classify only
@@ -291,9 +321,43 @@ for each operation/thunk/closure/function adapter,
 dump which evidence slot or adapter it would require
 ```
 
-No direct execution is needed in this stage.  The important thing is to stop
-recovering evidence by re-walking current `Expr::Catch` / `Expr::ForceThunk`
-shapes.
+No direct execution is needed in this stage.
+
+The first slice exists now as `ControlEvidenceProgram::from_program` and
+`yulang dump --control-evidence`.  It is useful as a baseline and fallback
+diagnostic, but it is not sufficient as the final handler-passing input.
+
+### Stage 1a: specialize runtime evidence surface
+
+Add a runtime evidence surface to `specialize` while `TypeGraph` and
+`SolvedTask` are still available.
+
+The surface should describe:
+
+- which expressions have actual / consumer computation types;
+- which effect rows were filtered by stack weights;
+- which function adapters received hygiene markers and why;
+- which catch arms introduce positive handler evidence;
+- which dynamic thunk/function boundaries need evidence parameters;
+- which regions must fall back to the generic VM.
+
+This surface should be structural.  It must not special-case std paths or
+function names.  Std operations may later carry explicit operation metadata,
+but inference and specialization should consume that metadata as structured
+data, not as string matching.
+
+Success condition:
+
+```text
+dump-control-evidence can distinguish:
+  lexical handler syntax
+  emitted boundary types
+  solver-time stack evidence
+  generic fallback sites
+```
+
+This is the point where handler-passing lowering can start making decisions
+without re-inference.
 
 ### Stage 2: callback evidence adapter
 
