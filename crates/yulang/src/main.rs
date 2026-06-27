@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 
 mod cst_view;
 mod parse_view;
+mod runtime_evidence_run;
 mod support;
 use support::*;
 
@@ -313,6 +314,12 @@ impl RuntimeEvidenceBenchSummary {
 
         summary
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RuntimeEvidenceRunArgs {
+    path: PathBuf,
+    compare_control: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -2198,6 +2205,89 @@ fn print_runtime_evidence_bench_iteration(
     );
 }
 
+fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeque<OsString>) {
+    let args = parse_runtime_evidence_run_args(program, args);
+    let files = collect_control_sources_or_exit(&args.path, options);
+    let build = build_control_with_optional_cache(files, options.use_cache);
+    let summary = RuntimeEvidenceBenchSummary::from_surface(&build.runtime_evidence);
+    let output = match runtime_evidence_run::run_program(&build.program) {
+        Ok(output) => output,
+        Err(error) => {
+            eprintln!("{error}");
+            process::exit(1);
+        }
+    };
+    let roots_text = output.roots_text();
+
+    println!("runtime evidence run:");
+    println!("  evidence.tasks: {}", summary.tasks);
+    println!("  evidence.nodes: {}", summary.nodes);
+    println!(
+        "  evidence.node_evidence_refs: {}",
+        summary.node_evidence_refs
+    );
+
+    if args.compare_control {
+        let control = run_built_control_for_cli(build);
+        if !control.stdout.is_empty() {
+            eprintln!("runtime-evidence-run compare-control does not support stdout yet");
+            process::exit(1);
+        }
+        if !control.errors.is_empty() {
+            for error in &control.errors {
+                eprintln!("error: {error}");
+            }
+            process::exit(1);
+        }
+        if roots_text != control.text {
+            eprintln!("runtime-evidence-run compare-control mismatch");
+            eprintln!("expected:\n{}", control.text);
+            eprintln!("actual:\n{roots_text}");
+            process::exit(1);
+        }
+        println!("  compare.control: match");
+    }
+
+    print!("{roots_text}");
+}
+
+fn parse_runtime_evidence_run_args(
+    program: &str,
+    mut args: VecDeque<OsString>,
+) -> RuntimeEvidenceRunArgs {
+    let mut path = None;
+    let mut compare_control = false;
+
+    while let Some(arg) = args.pop_front() {
+        match arg.to_str() {
+            Some("--compare-control") => compare_control = true,
+            Some(value) if value.starts_with("--") => {
+                print_usage_error_and_exit(
+                    program,
+                    &format!("unknown debug runtime-evidence-run option: {value}"),
+                );
+            }
+            _ => {
+                if path.is_some() {
+                    print_usage_error_and_exit(
+                        program,
+                        "debug runtime-evidence-run takes exactly one path",
+                    );
+                }
+                path = Some(PathBuf::from(arg));
+            }
+        }
+    }
+
+    let Some(path) = path else {
+        print_usage_error_and_exit(program, "debug runtime-evidence-run requires a path");
+    };
+    RuntimeEvidenceRunArgs {
+        path,
+        compare_control,
+    }
+}
+
 fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString>) {
     let Some(op) = args.pop_front() else {
         print_usage_and_exit(program);
@@ -2206,6 +2296,7 @@ fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString
         Some("control-vm") => run_compatible_run(program, options, args),
         Some("control-vm-emit") => run_compatible_build(program, options, args),
         Some("runtime-evidence-bench") => run_runtime_evidence_bench(program, options, args),
+        Some("runtime-evidence-run") => run_runtime_evidence_run(program, options, args),
         Some("control-vm-load") => {
             let (path, selection) = parse_run_path_args(program, args);
             if selection.interpreter {

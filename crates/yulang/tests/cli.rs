@@ -326,6 +326,53 @@ fn debug_runtime_evidence_bench_prints_timing_and_size_metrics() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_matches_control_vm_on_pure_lambda_subset() {
+    let entry = write_entry("debug-runtime-evidence-run", "my id x = x\nid 3\n");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("runtime evidence run:"), "{stdout}");
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("evidence.tasks: 2"), "{stdout}");
+    assert!(stdout.contains("run roots [3]\n"), "{stdout}");
+}
+
+#[test]
+fn debug_runtime_evidence_run_matches_control_vm_on_std_int_primitives() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-std-int",
+        "1 + 2\nmy add1 x = x + 1\nadd1 3\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("evidence.tasks:"), "{stdout}");
+    assert!(stdout.contains("run roots [3, 4]\n"), "{stdout}");
+}
+
+#[test]
 fn compatible_dump_no_prelude_uses_cache() {
     let entry = write_entry("dump-no-prelude-cache", "1\n");
     let root = entry.parent().unwrap().to_path_buf();
