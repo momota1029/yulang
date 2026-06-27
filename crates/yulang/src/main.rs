@@ -714,6 +714,134 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
         stats.control_function_adapters
     );
     eprintln!("  run.control_ref_sets: {}", stats.control_ref_sets);
+    eprintln!(
+        "  run.control_scoped_effect_op_visits: {}",
+        stats.control_scoped_effect_op_visits
+    );
+    eprintln!(
+        "  run.control_scoped_unique_effect_ops: {}",
+        stats.control_scoped_unique_effect_ops
+    );
+    eprintln!(
+        "  run.control_scoped_unvisited_effect_ops: {}",
+        stats.control_scoped_unvisited_effect_ops
+    );
+    eprintln!(
+        "  run.control_scoped_effect_ops_with_nearest_handler: {}",
+        stats.control_scoped_effect_ops_with_nearest_handler
+    );
+    eprintln!(
+        "  run.control_scoped_effect_ops_without_nearest_handler: {}",
+        stats.control_scoped_effect_ops_without_nearest_handler
+    );
+    eprintln!(
+        "  run.control_scoped_effect_ops_with_direct_handler_candidate: {}",
+        stats.control_scoped_effect_ops_with_direct_handler_candidate
+    );
+    eprintln!(
+        "  run.control_scoped_effect_ops_blocked_by_callback_boundary: {}",
+        stats.control_scoped_effect_ops_blocked_by_callback_boundary
+    );
+    eprintln!(
+        "  run.control_scoped_effect_ops_blocked_by_delayed_boundary: {}",
+        stats.control_scoped_effect_ops_blocked_by_delayed_boundary
+    );
+    eprintln!(
+        "  run.control_scoped_effect_ops_with_resumptive_handler: {}",
+        stats.control_scoped_effect_ops_with_resumptive_handler
+    );
+    eprintln!(
+        "  run.control_scoped_effect_ops_with_abortive_handler: {}",
+        stats.control_scoped_effect_ops_with_abortive_handler
+    );
+    eprintln!(
+        "  run.control_scoped_effect_call_sites: {}",
+        stats.control_scoped_effect_call_sites
+    );
+    eprintln!(
+        "  run.control_scoped_effect_call_sites_with_nearest_handler: {}",
+        stats.control_scoped_effect_call_sites_with_nearest_handler
+    );
+    eprintln!(
+        "  run.control_scoped_effect_call_sites_without_nearest_handler: {}",
+        stats.control_scoped_effect_call_sites_without_nearest_handler
+    );
+    eprintln!(
+        "  run.control_scoped_effect_call_sites_with_direct_handler_candidate: {}",
+        stats.control_scoped_effect_call_sites_with_direct_handler_candidate
+    );
+    eprintln!(
+        "  run.control_scoped_effect_call_sites_blocked_by_callback_boundary: {}",
+        stats.control_scoped_effect_call_sites_blocked_by_callback_boundary
+    );
+    eprintln!(
+        "  run.control_scoped_effect_call_sites_blocked_by_delayed_boundary: {}",
+        stats.control_scoped_effect_call_sites_blocked_by_delayed_boundary
+    );
+    eprintln!(
+        "  run.control_scoped_effect_call_sites_with_resumptive_handler: {}",
+        stats.control_scoped_effect_call_sites_with_resumptive_handler
+    );
+    eprintln!(
+        "  run.control_scoped_effect_call_sites_with_abortive_handler: {}",
+        stats.control_scoped_effect_call_sites_with_abortive_handler
+    );
+    eprintln!(
+        "  run.control_scoped_known_function_call_sites: {}",
+        stats.control_scoped_known_function_call_sites
+    );
+    eprintln!(
+        "  run.control_scoped_known_instance_call_sites: {}",
+        stats.control_scoped_known_instance_call_sites
+    );
+    eprintln!(
+        "  run.control_scoped_dynamic_call_sites: {}",
+        stats.control_scoped_dynamic_call_sites
+    );
+    eprintln!(
+        "  run.control_scoped_dynamic_call_sites_under_handler: {}",
+        stats.control_scoped_dynamic_call_sites_under_handler
+    );
+    eprintln!(
+        "  run.control_scoped_known_thunk_force_sites: {}",
+        stats.control_scoped_known_thunk_force_sites
+    );
+    eprintln!(
+        "  run.control_scoped_dynamic_force_sites: {}",
+        stats.control_scoped_dynamic_force_sites
+    );
+    eprintln!(
+        "  run.control_scoped_dynamic_force_sites_under_handler: {}",
+        stats.control_scoped_dynamic_force_sites_under_handler
+    );
+    eprintln!(
+        "  run.control_scoped_callback_boundaries: {}",
+        stats.control_scoped_callback_boundaries
+    );
+    eprintln!(
+        "  run.control_scoped_delayed_boundaries: {}",
+        stats.control_scoped_delayed_boundaries
+    );
+    eprintln!(
+        "  run.control_scoped_max_handler_depth: {}",
+        stats.control_scoped_max_handler_depth
+    );
+    eprintln!(
+        "  run.control_scoped_missing_instance_refs: {}",
+        stats.control_scoped_missing_instance_refs
+    );
+    eprintln!(
+        "  run.control_scoped_cycle_instance_refs: {}",
+        stats.control_scoped_cycle_instance_refs
+    );
+    eprintln!(
+        "  run.control_scoped_missing_expr_refs: {}",
+        stats.control_scoped_missing_expr_refs
+    );
+    eprintln!(
+        "  run.control_scoped_cycle_expr_refs: {}",
+        stats.control_scoped_cycle_expr_refs
+    );
     eprintln!("  run.expr_evals: {}", stats.expr_evals);
     eprintln!("  run.expr_clones: {}", stats.expr_clones);
     eprintln!("  run.env_lookups: {}", stats.env_lookups);

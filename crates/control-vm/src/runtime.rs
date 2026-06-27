@@ -110,6 +110,38 @@ pub struct RuntimeStats {
     pub control_continuation_arms: u64,
     pub control_function_adapters: u64,
     pub control_ref_sets: u64,
+    pub control_scoped_effect_op_visits: u64,
+    pub control_scoped_unique_effect_ops: u64,
+    pub control_scoped_unvisited_effect_ops: u64,
+    pub control_scoped_effect_ops_with_nearest_handler: u64,
+    pub control_scoped_effect_ops_without_nearest_handler: u64,
+    pub control_scoped_effect_ops_with_direct_handler_candidate: u64,
+    pub control_scoped_effect_ops_blocked_by_callback_boundary: u64,
+    pub control_scoped_effect_ops_blocked_by_delayed_boundary: u64,
+    pub control_scoped_effect_ops_with_resumptive_handler: u64,
+    pub control_scoped_effect_ops_with_abortive_handler: u64,
+    pub control_scoped_effect_call_sites: u64,
+    pub control_scoped_effect_call_sites_with_nearest_handler: u64,
+    pub control_scoped_effect_call_sites_without_nearest_handler: u64,
+    pub control_scoped_effect_call_sites_with_direct_handler_candidate: u64,
+    pub control_scoped_effect_call_sites_blocked_by_callback_boundary: u64,
+    pub control_scoped_effect_call_sites_blocked_by_delayed_boundary: u64,
+    pub control_scoped_effect_call_sites_with_resumptive_handler: u64,
+    pub control_scoped_effect_call_sites_with_abortive_handler: u64,
+    pub control_scoped_known_function_call_sites: u64,
+    pub control_scoped_known_instance_call_sites: u64,
+    pub control_scoped_dynamic_call_sites: u64,
+    pub control_scoped_dynamic_call_sites_under_handler: u64,
+    pub control_scoped_known_thunk_force_sites: u64,
+    pub control_scoped_dynamic_force_sites: u64,
+    pub control_scoped_dynamic_force_sites_under_handler: u64,
+    pub control_scoped_callback_boundaries: u64,
+    pub control_scoped_delayed_boundaries: u64,
+    pub control_scoped_max_handler_depth: u64,
+    pub control_scoped_missing_instance_refs: u64,
+    pub control_scoped_cycle_instance_refs: u64,
+    pub control_scoped_missing_expr_refs: u64,
+    pub control_scoped_cycle_expr_refs: u64,
     pub expr_evals: u64,
     /// Full `Expr` clones performed by eval. This should stay at zero on the dispatch path.
     pub expr_clones: u64,
@@ -241,6 +273,54 @@ impl From<ControlEffectProfile> for RuntimeStats {
             control_continuation_arms: profile.continuation_arms,
             control_function_adapters: profile.function_adapters,
             control_ref_sets: profile.ref_sets,
+            control_scoped_effect_op_visits: profile.scoped_effect_op_visits,
+            control_scoped_unique_effect_ops: profile.scoped_unique_effect_ops,
+            control_scoped_unvisited_effect_ops: profile.scoped_unvisited_effect_ops,
+            control_scoped_effect_ops_with_nearest_handler: profile
+                .scoped_effect_ops_with_nearest_handler,
+            control_scoped_effect_ops_without_nearest_handler: profile
+                .scoped_effect_ops_without_nearest_handler,
+            control_scoped_effect_ops_with_direct_handler_candidate: profile
+                .scoped_effect_ops_with_direct_handler_candidate,
+            control_scoped_effect_ops_blocked_by_callback_boundary: profile
+                .scoped_effect_ops_blocked_by_callback_boundary,
+            control_scoped_effect_ops_blocked_by_delayed_boundary: profile
+                .scoped_effect_ops_blocked_by_delayed_boundary,
+            control_scoped_effect_ops_with_resumptive_handler: profile
+                .scoped_effect_ops_with_resumptive_handler,
+            control_scoped_effect_ops_with_abortive_handler: profile
+                .scoped_effect_ops_with_abortive_handler,
+            control_scoped_effect_call_sites: profile.scoped_effect_call_sites,
+            control_scoped_effect_call_sites_with_nearest_handler: profile
+                .scoped_effect_call_sites_with_nearest_handler,
+            control_scoped_effect_call_sites_without_nearest_handler: profile
+                .scoped_effect_call_sites_without_nearest_handler,
+            control_scoped_effect_call_sites_with_direct_handler_candidate: profile
+                .scoped_effect_call_sites_with_direct_handler_candidate,
+            control_scoped_effect_call_sites_blocked_by_callback_boundary: profile
+                .scoped_effect_call_sites_blocked_by_callback_boundary,
+            control_scoped_effect_call_sites_blocked_by_delayed_boundary: profile
+                .scoped_effect_call_sites_blocked_by_delayed_boundary,
+            control_scoped_effect_call_sites_with_resumptive_handler: profile
+                .scoped_effect_call_sites_with_resumptive_handler,
+            control_scoped_effect_call_sites_with_abortive_handler: profile
+                .scoped_effect_call_sites_with_abortive_handler,
+            control_scoped_known_function_call_sites: profile.scoped_known_function_call_sites,
+            control_scoped_known_instance_call_sites: profile.scoped_known_instance_call_sites,
+            control_scoped_dynamic_call_sites: profile.scoped_dynamic_call_sites,
+            control_scoped_dynamic_call_sites_under_handler: profile
+                .scoped_dynamic_call_sites_under_handler,
+            control_scoped_known_thunk_force_sites: profile.scoped_known_thunk_force_sites,
+            control_scoped_dynamic_force_sites: profile.scoped_dynamic_force_sites,
+            control_scoped_dynamic_force_sites_under_handler: profile
+                .scoped_dynamic_force_sites_under_handler,
+            control_scoped_callback_boundaries: profile.scoped_callback_boundaries,
+            control_scoped_delayed_boundaries: profile.scoped_delayed_boundaries,
+            control_scoped_max_handler_depth: profile.scoped_max_handler_depth,
+            control_scoped_missing_instance_refs: profile.scoped_missing_instance_refs,
+            control_scoped_cycle_instance_refs: profile.scoped_cycle_instance_refs,
+            control_scoped_missing_expr_refs: profile.scoped_missing_expr_refs,
+            control_scoped_cycle_expr_refs: profile.scoped_cycle_expr_refs,
             ..Self::default()
         }
     }

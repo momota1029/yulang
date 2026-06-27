@@ -374,3 +374,58 @@ families, or around many unrelated effect families?
 
 If this profile is useful, the next stage can add a proper tree traversal with
 a scoped handler stack and callback-boundary markers.
+
+## Stage 0.5 scoped candidate profile
+
+Implemented as a refinement of `crates/control-vm/src/effect_profile.rs`.
+
+This still does not change execution.  It traverses the lowered control IR from
+top-level instance entries and expression roots with a small static context:
+
+- a stack of operation handler arms introduced by `catch`;
+- a callback-boundary depth introduced by `FunctionAdapter` nodes whose hygiene
+  plan contains runtime guard markers;
+- a delayed-computation depth introduced by `lambda` and `make-thunk` bodies.
+
+Traversal rule for `catch`:
+
+- the catch body is traversed with the operation arms pushed as handler
+  candidates;
+- handler arm guards and bodies are traversed in the original context, not under
+  the same handler.
+
+That rule matters because the arm body is the handler implementation, not the
+handled computation.  If an arm body performs another operation, it should see
+outer handlers unless it contains its own nested `catch`.
+
+For each statically visited effect operation, the profile records:
+
+- whether an exact nearest handler candidate is visible;
+- whether the candidate is direct;
+- whether the candidate is blocked by a callback hygiene boundary;
+- whether the candidate is blocked by a delayed computation boundary;
+- whether the matching arm is resumptive.
+
+The pass also records call/force sites:
+
+- direct-known effect call sites, such as applying an instance whose entry is an
+  `EffectOp`;
+- direct-known function call sites, such as applying an instance whose entry is
+  a `Lambda`;
+- dynamic call sites whose callee is not statically known;
+- known `make-thunk` force sites;
+- dynamic force sites, including force of a parameter value like `catch action`.
+
+The "direct handler candidate" counter is intentionally conservative.  An effect
+operation under a `lambda`, `make-thunk`, or guarded function-adapter boundary is
+not counted as directly lowerable to handler passing just because a lexical
+`catch` appears outside it.  Turning those cases into evidence-passing code needs
+typed hidden stack evidence in the IR, not only lexical shape.
+
+Initial measurements showed that this distinction matters.  In the existing
+nondet/showcase workloads, exact effect families often have matching handler arm
+families, but scoped direct candidates remain zero.  The visible handler boundary
+mostly surrounds a dynamic thunk force (`catch action`), not a direct-known
+`EffectOp` call site.  That means the next stage cannot be a purely syntactic
+rewrite of `catch { EffectOp(...) }`; it needs lowering metadata that connects
+typed effect evidence to the value/thunk being forced.
