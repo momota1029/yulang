@@ -10,7 +10,7 @@ use specialize::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct EvidenceVmPlan {
+pub struct EvidenceVmPlan {
     pub(crate) summary: EvidenceVmSummary,
     pub(crate) handlers: Vec<EvidenceVmHandlerPlan>,
     pub(crate) operations: Vec<EvidenceVmOperationPlan>,
@@ -259,7 +259,7 @@ pub(crate) enum EvidenceVmValueEnvKind {
     },
 }
 
-pub(crate) fn build_plan(program: &Program, surface: &RuntimeEvidenceSurface) -> EvidenceVmPlan {
+pub fn build_plan(program: &Program, surface: &RuntimeEvidenceSurface) -> EvidenceVmPlan {
     let control = ControlEvidenceProgram::from_program(program);
     build_plan_from_evidence(program, &control, surface)
 }
@@ -344,7 +344,7 @@ fn build_plan_from_evidence(
     }
 }
 
-pub(crate) fn format_plan(plan: &EvidenceVmPlan) -> String {
+pub fn format_plan(plan: &EvidenceVmPlan) -> String {
     let mut out = String::new();
     let summary = plan.summary;
     writeln!(&mut out, "evidence vm plan:").unwrap();

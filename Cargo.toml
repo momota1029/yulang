@@ -6,6 +6,7 @@ members = [
   "crates/mono-runtime",
   "crates/specialize",
   "crates/control-vm",
+  "crates/evidence-vm",
   "crates/list-tree",
   "crates/text-tree",
   "crates/yulang",

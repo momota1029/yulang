@@ -8,7 +8,6 @@ use std::process;
 use std::time::{Duration, Instant};
 
 mod cst_view;
-mod evidence_vm;
 mod parse_view;
 mod runtime_evidence_run;
 mod support;

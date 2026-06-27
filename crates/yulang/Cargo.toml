@@ -8,6 +8,7 @@ bincode = "1"
 chasa = "0.5.0"
 control-vm = { path = "../control-vm" }
 either = "1.13.0"
+evidence-vm = { path = "../evidence-vm" }
 im = "15.1.0"
 infer = { path = "../infer" }
 mono-runtime = { path = "../mono-runtime" }

@@ -1,0 +1,8 @@
+[package]
+name = "evidence-vm"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+control-vm = { path = "../control-vm" }
+specialize = { path = "../specialize" }

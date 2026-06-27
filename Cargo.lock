@@ -209,6 +209,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "evidence-vm"
+version = "0.1.0"
+dependencies = [
+ "control-vm",
+ "specialize",
+]
+
+[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1365,6 +1373,7 @@ dependencies = [
  "chasa",
  "control-vm",
  "either",
+ "evidence-vm",
  "im",
  "infer",
  "mono-runtime",
