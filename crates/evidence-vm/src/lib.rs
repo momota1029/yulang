@@ -82,7 +82,9 @@ pub(crate) enum EvidenceVmHandlerArmClass {
     Value,
     Abortive,
     TailResumptive,
-    MayYield,
+    OneShotYield,
+    MultiShotYield,
+    MayEscapeYield,
     Fallback,
 }
 
@@ -1774,7 +1776,9 @@ fn operation_execution_plan(
         EvidenceVmHandlerArmClass::TailResumptive => {
             EvidenceVmOperationExecutionPlan::DirectTailResumptive
         }
-        EvidenceVmHandlerArmClass::MayYield
+        EvidenceVmHandlerArmClass::OneShotYield
+        | EvidenceVmHandlerArmClass::MultiShotYield
+        | EvidenceVmHandlerArmClass::MayEscapeYield
         | EvidenceVmHandlerArmClass::Fallback
         | EvidenceVmHandlerArmClass::Value => EvidenceVmOperationExecutionPlan::YieldFallback,
     }
@@ -1846,13 +1850,13 @@ fn classify_handler_arm(
     let Some(continuation_pat) = source_handler_arm(program, handler_expr, arm_index)
         .and_then(|source_arm| source_arm.continuation.as_ref())
     else {
-        return EvidenceVmHandlerArmClass::MayYield;
+        return EvidenceVmHandlerArmClass::MayEscapeYield;
     };
     let Some(continuation) = continuation_def(continuation_pat) else {
         return if matches!(continuation_pat, control_vm::Pat::Wild) {
             EvidenceVmHandlerArmClass::Abortive
         } else {
-            EvidenceVmHandlerArmClass::MayYield
+            EvidenceVmHandlerArmClass::MayEscapeYield
         };
     };
     if !expr_contains_local(program, arm.body, continuation) {
@@ -1861,7 +1865,14 @@ fn classify_handler_arm(
     if body_tail_resumes(program, arm.body, continuation) {
         EvidenceVmHandlerArmClass::TailResumptive
     } else {
-        EvidenceVmHandlerArmClass::MayYield
+        let uses = summarize_continuation_uses(program, arm.body, continuation);
+        if uses.escapes {
+            EvidenceVmHandlerArmClass::MayEscapeYield
+        } else if uses.direct_calls <= 1 {
+            EvidenceVmHandlerArmClass::OneShotYield
+        } else {
+            EvidenceVmHandlerArmClass::MultiShotYield
+        }
     }
 }
 
@@ -1905,6 +1916,237 @@ fn tail_resume_arg(program: &Program, expr: ExprId, continuation: DefId) -> Opti
             tail_resume_arg(program, block.tail?, continuation)
         }
         _ => None,
+    }
+}
+
+#[derive(Debug, Default)]
+struct ContinuationUseSummary {
+    direct_calls: usize,
+    escapes: bool,
+}
+
+impl ContinuationUseSummary {
+    fn add(&mut self, other: ContinuationUseSummary) {
+        self.direct_calls += other.direct_calls;
+        self.escapes |= other.escapes;
+    }
+}
+
+fn summarize_continuation_uses(
+    program: &Program,
+    expr: ExprId,
+    continuation: DefId,
+) -> ContinuationUseSummary {
+    let mut visited = HashSet::new();
+    summarize_continuation_uses_inner(program, expr, continuation, &mut visited)
+}
+
+fn summarize_continuation_uses_inner(
+    program: &Program,
+    expr: ExprId,
+    continuation: DefId,
+    visited: &mut HashSet<ExprId>,
+) -> ContinuationUseSummary {
+    if !visited.insert(expr) {
+        return ContinuationUseSummary::default();
+    }
+    let Some(node) = control_expr(program, expr) else {
+        return ContinuationUseSummary::default();
+    };
+    match node {
+        Expr::Local(local) => ContinuationUseSummary {
+            direct_calls: 0,
+            escapes: *local == continuation,
+        },
+        Expr::Apply { callee, arg } if expr_is_local(program, *callee, continuation) => {
+            let mut summary =
+                summarize_continuation_uses_inner(program, *arg, continuation, visited);
+            summary.direct_calls += 1;
+            summary
+        }
+        Expr::Coerce { expr, .. }
+        | Expr::ForceThunk { thunk: expr, .. }
+        | Expr::MarkerFrame { body: expr, .. }
+        | Expr::Select { base: expr, .. } => {
+            summarize_continuation_uses_inner(program, *expr, continuation, visited)
+        }
+        Expr::FunctionAdapter { function: expr, .. }
+        | Expr::MakeThunk { body: expr, .. }
+        | Expr::Lambda { body: expr, .. } => {
+            let contains = expr_contains_local(program, *expr, continuation);
+            ContinuationUseSummary {
+                direct_calls: 0,
+                escapes: contains,
+            }
+        }
+        Expr::Apply { callee, arg }
+        | Expr::RefSet {
+            reference: callee,
+            value: arg,
+        } => {
+            let mut summary =
+                summarize_continuation_uses_inner(program, *callee, continuation, visited);
+            summary.add(summarize_continuation_uses_inner(
+                program,
+                *arg,
+                continuation,
+                visited,
+            ));
+            summary
+        }
+        Expr::Tuple(items) => {
+            summarize_expr_list_continuation_uses(program, items, continuation, visited)
+        }
+        Expr::Record { fields, spread } => {
+            let mut summary =
+                fields
+                    .iter()
+                    .fold(ContinuationUseSummary::default(), |mut summary, field| {
+                        summary.add(summarize_continuation_uses_inner(
+                            program,
+                            field.value,
+                            continuation,
+                            visited,
+                        ));
+                        summary
+                    });
+            summary.add(summarize_spread_continuation_uses(
+                program,
+                spread,
+                continuation,
+                visited,
+            ));
+            summary
+        }
+        Expr::PolyVariant { payloads, .. } => {
+            summarize_expr_list_continuation_uses(program, payloads, continuation, visited)
+        }
+        Expr::Case { scrutinee, arms } => {
+            let mut summary =
+                summarize_continuation_uses_inner(program, *scrutinee, continuation, visited);
+            for arm in arms {
+                if let Some(guard) = arm.guard {
+                    summary.add(summarize_continuation_uses_inner(
+                        program,
+                        guard,
+                        continuation,
+                        visited,
+                    ));
+                }
+                summary.add(summarize_continuation_uses_inner(
+                    program,
+                    arm.body,
+                    continuation,
+                    visited,
+                ));
+            }
+            summary
+        }
+        Expr::Catch { body, arms } => {
+            let mut summary =
+                summarize_continuation_uses_inner(program, *body, continuation, visited);
+            for arm in arms {
+                if let Some(guard) = arm.guard {
+                    summary.add(summarize_continuation_uses_inner(
+                        program,
+                        guard,
+                        continuation,
+                        visited,
+                    ));
+                }
+                summary.add(summarize_continuation_uses_inner(
+                    program,
+                    arm.body,
+                    continuation,
+                    visited,
+                ));
+            }
+            summary
+        }
+        Expr::Block(block) => {
+            let mut summary = ContinuationUseSummary::default();
+            for stmt in &block.stmts {
+                summary.add(summarize_stmt_continuation_uses(
+                    program,
+                    stmt,
+                    continuation,
+                    visited,
+                ));
+            }
+            if let Some(tail) = block.tail {
+                summary.add(summarize_continuation_uses_inner(
+                    program,
+                    tail,
+                    continuation,
+                    visited,
+                ));
+            }
+            summary
+        }
+        Expr::Lit(_)
+        | Expr::PrimitiveOp { .. }
+        | Expr::Constructor { .. }
+        | Expr::EffectOp { .. }
+        | Expr::InstanceRef(_) => ContinuationUseSummary::default(),
+    }
+}
+
+fn summarize_expr_list_continuation_uses(
+    program: &Program,
+    exprs: &[ExprId],
+    continuation: DefId,
+    visited: &mut HashSet<ExprId>,
+) -> ContinuationUseSummary {
+    exprs
+        .iter()
+        .fold(ContinuationUseSummary::default(), |mut summary, expr| {
+            summary.add(summarize_continuation_uses_inner(
+                program,
+                *expr,
+                continuation,
+                visited,
+            ));
+            summary
+        })
+}
+
+fn summarize_spread_continuation_uses(
+    program: &Program,
+    spread: &RecordSpread<ExprId>,
+    continuation: DefId,
+    visited: &mut HashSet<ExprId>,
+) -> ContinuationUseSummary {
+    match spread {
+        RecordSpread::None => ContinuationUseSummary::default(),
+        RecordSpread::Head(expr) | RecordSpread::Tail(expr) => {
+            summarize_continuation_uses_inner(program, *expr, continuation, visited)
+        }
+    }
+}
+
+fn summarize_stmt_continuation_uses(
+    program: &Program,
+    stmt: &Stmt,
+    continuation: DefId,
+    visited: &mut HashSet<ExprId>,
+) -> ContinuationUseSummary {
+    match stmt {
+        Stmt::Let(_, _, expr) | Stmt::Expr(expr) => {
+            summarize_continuation_uses_inner(program, *expr, continuation, visited)
+        }
+        Stmt::Module(_, stmts) => {
+            stmts
+                .iter()
+                .fold(ContinuationUseSummary::default(), |mut summary, stmt| {
+                    summary.add(summarize_stmt_continuation_uses(
+                        program,
+                        stmt,
+                        continuation,
+                        visited,
+                    ));
+                    summary
+                })
+        }
     }
 }
 
@@ -2271,7 +2513,9 @@ fn format_handler_arm_class(classification: EvidenceVmHandlerArmClass) -> &'stat
         EvidenceVmHandlerArmClass::Value => "value",
         EvidenceVmHandlerArmClass::Abortive => "abortive",
         EvidenceVmHandlerArmClass::TailResumptive => "tail-resumptive",
-        EvidenceVmHandlerArmClass::MayYield => "may-yield",
+        EvidenceVmHandlerArmClass::OneShotYield => "one-shot-yield",
+        EvidenceVmHandlerArmClass::MultiShotYield => "multi-shot-yield",
+        EvidenceVmHandlerArmClass::MayEscapeYield => "may-escape-yield",
         EvidenceVmHandlerArmClass::Fallback => "fallback",
     }
 }

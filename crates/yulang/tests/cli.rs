@@ -487,12 +487,42 @@ fn debug_evidence_vm_plan_visits_method_select_handler_body() {
     assert_success(&output);
     let stdout = stdout(&output);
     assert!(
-        stdout.contains("std::control::nondet::nondet::branch resumptive class may-yield"),
-        "method-select handler bodies should contribute resumptive operation evidence:\n{stdout}"
+        stdout.contains("std::control::nondet::nondet::branch resumptive class may-escape-yield"),
+        "method-select handler bodies should classify delayed continuation use as escaping:\n{stdout}"
     );
     assert!(
         stdout.contains("std::control::nondet::nondet::reject resumptive class abortive"),
         "method-select handler bodies should contribute abortive operation evidence:\n{stdout}"
+    );
+}
+
+#[test]
+fn debug_evidence_vm_plan_classifies_direct_multi_shot_resume() {
+    let entry = write_entry(
+        "debug-evidence-vm-plan-multi-shot-resume",
+        "act flip:\n  our coin: () -> bool\n\n\
+         catch flip::coin():\n\
+         \x20 flip::coin(), k -> {\n\
+         \x20\x20 k(true)\n\
+         \x20\x20 k(false)\n\
+         \x20 }\n\
+         \x20 v -> v\n",
+    );
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("evidence-vm-plan")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains("flip::coin resumptive class multi-shot-yield"),
+        "directly invoking a continuation twice should be classified as multi-shot:\n{stdout}"
     );
 }
 

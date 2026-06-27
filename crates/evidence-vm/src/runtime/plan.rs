@@ -526,7 +526,9 @@ fn execution_for_handler_arm_class(
         EvidenceVmHandlerArmClass::TailResumptive => {
             EvidenceVmOperationExecutionPlan::DirectTailResumptive
         }
-        EvidenceVmHandlerArmClass::MayYield
+        EvidenceVmHandlerArmClass::OneShotYield
+        | EvidenceVmHandlerArmClass::MultiShotYield
+        | EvidenceVmHandlerArmClass::MayEscapeYield
         | EvidenceVmHandlerArmClass::Fallback
         | EvidenceVmHandlerArmClass::Value => EvidenceVmOperationExecutionPlan::YieldFallback,
     }
