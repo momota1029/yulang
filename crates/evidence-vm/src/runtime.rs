@@ -336,6 +336,10 @@ enum EvidenceContinuationFrame {
         handler_path: Option<Vec<String>>,
         next: EvidenceContinuation,
     },
+    ProviderEnv {
+        provider_env: RuntimeEvidenceProviderEnv,
+        next: EvidenceContinuation,
+    },
     TupleItems {
         values: Vec<SharedValue>,
         rest: Rc<[ExprId]>,
@@ -517,6 +521,41 @@ struct EvidenceActiveHandlerFrame {
 struct EvidenceActiveAddIdMarker {
     marker: EvidenceAddIdMarker,
     entry_frame_len: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RuntimeEvidenceProviderFrame {
+    provider_env: RuntimeEvidenceProviderEnv,
+    marker_plan_len_at_entry: usize,
+    active_add_id_len_at_entry: usize,
+    active_handler_frame_len_at_entry: usize,
+}
+
+impl RuntimeEvidenceProviderFrame {
+    fn new(
+        provider_env: RuntimeEvidenceProviderEnv,
+        marker_plan_len_at_entry: usize,
+        active_add_id_len_at_entry: usize,
+        active_handler_frame_len_at_entry: usize,
+    ) -> Self {
+        Self {
+            provider_env,
+            marker_plan_len_at_entry,
+            active_add_id_len_at_entry,
+            active_handler_frame_len_at_entry,
+        }
+    }
+
+    fn is_unshadowed(
+        &self,
+        marker_plan_len: usize,
+        active_add_id_len: usize,
+        active_handler_frame_len: usize,
+    ) -> bool {
+        self.marker_plan_len_at_entry == marker_plan_len
+            && self.active_add_id_len_at_entry == active_add_id_len
+            && self.active_handler_frame_len_at_entry == active_handler_frame_len
+    }
 }
 
 struct EvidenceActiveMarkerPlan {
@@ -874,6 +913,13 @@ impl EvidenceContinuation {
             markers,
             activate_add_ids,
             handler_path,
+            next,
+        }))
+    }
+
+    fn provider_env(provider_env: RuntimeEvidenceProviderEnv, next: Self) -> Self {
+        Self::Frame(Rc::new(EvidenceContinuationFrame::ProviderEnv {
+            provider_env,
             next,
         }))
     }
@@ -1376,7 +1422,7 @@ struct RuntimeEvidenceRunner<'a> {
     #[cfg(debug_assertions)]
     active_add_id_index: ActiveAddIdIndex,
     active_marker_plans: Vec<EvidenceActiveMarkerPlan>,
-    active_provider_envs: Vec<RuntimeEvidenceProviderEnv>,
+    active_provider_envs: Vec<RuntimeEvidenceProviderFrame>,
     stdout: String,
     context: RuntimeEvidenceRunContext,
     stats: RuntimeEvidenceRunStats,
@@ -1482,10 +1528,57 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return run(self);
         }
         let len = self.active_provider_envs.len();
-        self.active_provider_envs.push(provider_env);
+        let frame = self.provider_frame(provider_env.clone());
+        self.active_provider_envs.push(frame);
         let result = run(self);
         self.active_provider_envs.truncate(len);
-        result
+        self.close_provider_env_result(result?, provider_env)
+    }
+
+    fn provider_frame(
+        &self,
+        provider_env: RuntimeEvidenceProviderEnv,
+    ) -> RuntimeEvidenceProviderFrame {
+        RuntimeEvidenceProviderFrame::new(
+            provider_env,
+            self.active_marker_plans.len(),
+            self.active_add_ids.len(),
+            self.active_handler_frames.len(),
+        )
+    }
+
+    fn close_provider_env_result(
+        &mut self,
+        result: EvidenceEvalResult,
+        provider_env: RuntimeEvidenceProviderEnv,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if provider_env.is_empty() {
+            return Ok(result);
+        }
+        match result {
+            EvidenceEvalResult::Value(value) => Ok(EvidenceEvalResult::Value(value)),
+            EvidenceEvalResult::Request(mut request) => {
+                if !request.route.is_direct_abortive() {
+                    request.continuation =
+                        EvidenceContinuation::provider_env(provider_env, request.continuation);
+                }
+                Ok(EvidenceEvalResult::Request(request))
+            }
+        }
+    }
+
+    fn active_provider_env_values(&self) -> Vec<RuntimeEvidenceProviderEnv> {
+        self.active_provider_envs
+            .iter()
+            .filter(|frame| {
+                frame.is_unshadowed(
+                    self.active_marker_plans.len(),
+                    self.active_add_ids.len(),
+                    self.active_handler_frames.len(),
+                )
+            })
+            .map(|frame| frame.provider_env.clone())
+            .collect()
     }
 
     fn effect_route_for_operation_call(
@@ -1509,10 +1602,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if !self.context.has_provider_lookup_for_call(site, callee) {
             return route;
         }
+        let provider_envs = self.active_provider_env_values();
+        if provider_envs.is_empty() {
+            return route;
+        }
         self.stats.runtime_provider_env_route_lookups += 1;
         let Some(provider_route) =
             self.context
-                .provider_route_for_call(site, callee, &self.active_provider_envs)
+                .provider_route_for_call(site, callee, &provider_envs)
         else {
             return route;
         };
@@ -3082,6 +3179,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 handler_path.clone(),
                 |runner| runner.resume_continuation(next.clone(), value),
             ),
+            EvidenceContinuationFrame::ProviderEnv { provider_env, next } => {
+                let provider_env = provider_env.clone();
+                self.with_provider_env(provider_env, |runner| {
+                    runner.resume_continuation(next.clone(), value)
+                })
+            }
             EvidenceContinuationFrame::TupleItems {
                 values,
                 rest,
@@ -3475,6 +3578,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         handler_path.clone(),
                         next.clone(),
                     ),
+                ),
+                EvidenceContinuation::identity(),
+            ),
+            EvidenceContinuationFrame::ProviderEnv { provider_env, next } => (
+                self.append_request_continuation(
+                    request,
+                    EvidenceContinuation::provider_env(provider_env.clone(), next.clone()),
                 ),
                 EvidenceContinuation::identity(),
             ),
@@ -5519,5 +5629,120 @@ fn type_may_need_hygiene_mark(ty: &Type) -> bool {
             type_may_need_hygiene_mark(left) || type_may_need_hygiene_mark(right)
         }
         Type::Any | Type::Never | Type::OpenVar(_) => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        EvidenceVmEnvProviderPlan, EvidenceVmObjectPlan, EvidenceVmOperationKind,
+        EvidenceVmOperationLowering, EvidenceVmOperationObjectPlan, EvidenceVmOperationPlan,
+        EvidenceVmSlotKey, EvidenceVmSlotRouteKey, EvidenceVmSummary, EvidenceVmValueEnvKind,
+        EvidenceVmValueObjectPlan,
+    };
+
+    #[test]
+    fn provider_env_close_wraps_escaped_request_continuation() {
+        let provider_env = provider_env_fixture();
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let request = EvidenceRequest {
+            path: vec!["out".to_string(), "say".to_string()],
+            payload: shared(RuntimeEvidenceValue::Unit),
+            route: EvidenceEffectRoute::Unhandled,
+            guard_ids: Vec::new(),
+            carried_guards: Vec::new(),
+            handler_boundary: None,
+            continuation: EvidenceContinuation::identity(),
+        };
+
+        let result = runner
+            .with_provider_env(provider_env.clone(), move |_| {
+                Ok(EvidenceEvalResult::Request(request))
+            })
+            .expect("provider env close must succeed");
+
+        let EvidenceEvalResult::Request(request) = result else {
+            panic!("provider env close should keep escaped request");
+        };
+        let Some(EvidenceContinuationFrame::ProviderEnv {
+            provider_env: captured,
+            next,
+        }) = request.continuation.frame()
+        else {
+            panic!("escaped request continuation should be wrapped in provider env");
+        };
+        assert_eq!(captured, &provider_env);
+        assert!(next.is_identity());
+    }
+
+    #[test]
+    fn provider_env_frame_is_shadowed_by_later_marker_scope() {
+        let provider_env = provider_env_fixture();
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let frame = runner.provider_frame(provider_env.clone());
+        runner.active_provider_envs.push(frame);
+
+        assert_eq!(runner.active_provider_env_values(), vec![provider_env]);
+
+        let markers: Rc<[EvidenceValueMarker]> = Vec::new().into();
+        runner
+            .active_marker_plans
+            .push(EvidenceActiveMarkerPlan::new(markers));
+
+        assert!(runner.active_provider_env_values().is_empty());
+    }
+
+    fn provider_env_fixture() -> RuntimeEvidenceProviderEnv {
+        let apply = ExprId(10);
+        let callee = ExprId(11);
+        let handler = ExprId(20);
+        let value = ExprId(30);
+        let slot_id = 7;
+        let handler_id = 3;
+        let plan = EvidenceVmPlan {
+            summary: EvidenceVmSummary::default(),
+            handlers: Vec::new(),
+            operations: vec![EvidenceVmOperationPlan {
+                expr: callee,
+                path: vec!["out".to_string(), "say".to_string()],
+                slot: EvidenceVmSlotKey {
+                    family: vec!["out".to_string(), "say".to_string()],
+                    route: EvidenceVmSlotRouteKey::UnknownFallback,
+                },
+                kind: EvidenceVmOperationKind::Call { apply, callee },
+                lowering: EvidenceVmOperationLowering::LexicalHandlerCandidate {
+                    handler,
+                    resumptive: true,
+                    delayed_boundary: false,
+                },
+                runtime_nodes: Vec::new(),
+                runtime_evidence_refs: 0,
+            }],
+            functions: Vec::new(),
+            values: Vec::new(),
+            objects: EvidenceVmObjectPlan {
+                operations: vec![EvidenceVmOperationObjectPlan {
+                    expr: callee,
+                    slot_id,
+                    candidate_handler: Some(handler_id),
+                    execution: EvidenceVmOperationExecutionPlan::DirectTailResumptive,
+                }],
+                values: vec![EvidenceVmValueObjectPlan {
+                    id: 0,
+                    expr: value,
+                    kind: EvidenceVmValueEnvKind::Lambda { body: ExprId(31) },
+                    captures: vec![slot_id],
+                    env_providers: vec![EvidenceVmEnvProviderPlan {
+                        slot_id,
+                        handler_ids: vec![handler_id],
+                    }],
+                }],
+                ..EvidenceVmObjectPlan::default()
+            },
+        };
+        RuntimeEvidenceRunContext::from_plan(&plan).provider_env_for_value(value)
     }
 }
