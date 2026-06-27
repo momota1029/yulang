@@ -18,6 +18,29 @@ References:
   <https://www.microsoft.com/en-us/research/publication/type-directed-compilation-row-typed-algebraic-effects/>
 - Ningning Xie and Daan Leijen, Generalized Evidence Passing for Effect Handlers
   <https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/>
+- Pro review: `notes/design/2026-06-27-handler-passing-runtime-pro-review.md`
+
+## Decision after Pro review
+
+Adopt the handler/evidence-passing direction as the next runtime design track,
+but do not treat evidence as a plain handler pointer.
+
+Yulang needs runtime evidence for both sides of the type-system story:
+
+- positive evidence: which handler can receive an operation;
+- negative / hygiene evidence: which callback-origin operation must remain
+  invisible to an inner handler;
+- private projection evidence: private tails and public tails must not become the
+  same runtime object.
+
+This means the first useful artifact is not a faster VM.  It is an explicit
+evidence IR that can show which evidence slots an operation, thunk, closure, and
+function adapter require.
+
+The current control VM remains the behavior oracle and generic fallback.  Native
+backend work should not try to native-code the current request / marker / resume
+model before the evidence-passing model exists; doing so would freeze the wrong
+cost structure.
 
 ## Core idea
 
@@ -83,7 +106,7 @@ Each class has a different low-level representation.
 | --- | --- | --- |
 | Pure / total | literal, closed record/list construction, pure primitive | direct value code |
 | Local escape | `last`, `break`, `sub::return`-like shallow escape | lightweight prompt / direct jump evidence |
-| Local state | ref get/set/update where the cell does not escape | local cell evidence |
+| Local state | ref get/set where the cell does not escape | local cell evidence |
 | Multi-shot search | nondet `each`, parser branching | resumptive handler evidence with reusable continuation |
 | Host / unknown | console, file, external operation | generic request fallback |
 | Boundary-sensitive callback | higher-order callback under handler | evidence wrapper with hygiene guards |
@@ -242,7 +265,55 @@ Metrics:
 
 This tells whether handler-passing is worth applying to current workloads.
 
-### Stage 1: local escape evidence
+### Stage 1: evidence IR dump
+
+Do not change execution yet.
+
+Add an explicit evidence-aware IR beside the existing control/runtime IR:
+
+```text
+EvidenceFunction
+  value params
+  evidence params
+  body
+
+EvidenceExpr
+  Perform(family, op, payload, evidence_slot)
+  Handle(family, body, handler_evidence, parent_evidence)
+  Call(callee, arg, evidence_args)
+  FallbackToVm(reason, expr)
+```
+
+Success condition:
+
+```text
+for each operation/thunk/closure/function adapter,
+dump which evidence slot or adapter it would require
+```
+
+No direct execution is needed in this stage.  The important thing is to stop
+recovering evidence by re-walking current `Expr::Catch` / `Expr::ForceThunk`
+shapes.
+
+### Stage 2: callback evidence adapter
+
+Lower the current `FunctionAdapterHygiene` idea into evidence routing:
+
+```text
+FunctionAdapterEvidence
+  body evidence transform
+  argument evidence transform
+  return evidence transform
+```
+
+This must model callback-origin effects as hidden from unrelated inner handlers.
+The adapter is the runtime counterpart of protected rows such as `#id[Empty]`.
+
+This stage is needed before direct local escape, because even local escape can be
+wrong if a callback-origin `return` / `sub::return` is captured by the wrong
+handler.
+
+### Stage 3: local escape evidence
 
 Target `last` / `break` / `sub::return`-like effects first.
 
@@ -259,10 +330,10 @@ Constraints:
 - must not capture callback-origin effects unless the type evidence permits it;
 - fallback to generic VM if the handler identity is not statically routed.
 
-### Stage 2: local state evidence
+### Stage 4: first-order local state evidence
 
-Target ref get/set/update only when the cell and handler do not escape in a way
-that requires dynamic handler behavior.
+Target ref get/set only when the cell and handler do not escape in a way that
+requires dynamic handler behavior.
 
 Reason:
 
@@ -272,13 +343,41 @@ Reason:
 
 Risk:
 
-- `ref.update` is a hygiene canary.
-- field-function private evidence must not leak.
-- update callback effects must remain correctly routed.
+- field-function private evidence must not leak;
+- direct get/set evidence must still forward when hidden by callback boundaries.
 
-This stage needs explicit canaries from `std.control.var.ref.update`.
+Do not include `ref.update` in this stage.  It is not just a local-state
+primitive; it combines local state, a data-position effectful function, callback
+evidence routing, and private tail projection.
 
-### Stage 3: resumptive evidence for nondet/parser
+### Stage 5: fallback bridge
+
+Make fallback explicit in the evidence IR.
+
+When evidence lowering cannot explain a region, it should produce a visible
+fallback node rather than hiding a branch deep inside the evidence runtime:
+
+```text
+FallbackToVm(reason, expr, evidence_to_marker_bridge)
+```
+
+This bridge has to convert current blockers / private projections into the
+marker and guard representation expected by the existing VM.
+
+### Stage 6: one-shot resumption
+
+Introduce a resumption object for cases that can be represented without
+multi-shot sharing:
+
+```text
+OneShotResumption
+  moved continuation
+  evidence environment at perform
+```
+
+This is the first stage that should interact with continuation representation.
+
+### Stage 7: multi-shot evidence for nondet/parser
 
 Target effects that genuinely resume continuation zero, one, or many times.
 
@@ -296,7 +395,14 @@ Risk:
 This stage should reuse the stored continuation snapshot/cursor work already in
 the VM.
 
-### Stage 4: inlining and backend use
+### Stage 8: `ref.update`
+
+Only after callback evidence adapters, first-order local state, fallback
+bridging, and resumption are explicit, consider direct-lowering `ref.update`.
+
+Until then, `ref.update` remains a generic VM fallback canary.
+
+### Stage 9: inlining and backend use
 
 Once evidence objects are explicit, small handlers can be inlined.
 
@@ -328,7 +434,7 @@ This is where a future native/direct backend can benefit:
 5. How much of Koka's yield bubbling corresponds to Yulang's current
    marker/request forwarding?
 
-## First concrete task
+## Historical first concrete task
 
 Add Stage 0 metrics to control lowering/runtime:
 
@@ -552,3 +658,27 @@ Before implementation, decide these in writing:
    - `compose` / higher-order effect boundary;
    - `ref.update`;
    - parser/nondet branching.
+
+## Current next task
+
+Build the evidence IR dump from typed mono/control data.
+
+Scope:
+
+- define `EvidenceFunction`, `EvidenceExpr`, `EvidenceSlot`, and
+  `EvidenceAdapter` as data structures only;
+- lower enough metadata to print operation sites, thunk/closure evidence
+  requirements, and function adapter evidence transforms;
+- do not change execution;
+- do not route operations directly yet;
+- do not special-case std paths or function names;
+- keep the current control VM as the only executor.
+
+Success criteria:
+
+- `compose`, `sub` callback hygiene, `all_paths`, parser choice, and
+  `ref.update` can produce an evidence dump;
+- the dump distinguishes positive handler evidence from blocker / private
+  projection evidence;
+- every unsupported region is represented as an explicit fallback reason rather
+  than an implicit runtime branch.
