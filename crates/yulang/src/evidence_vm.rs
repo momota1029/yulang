@@ -33,6 +33,7 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) generic_fallbacks: usize,
     pub(crate) evidence_param_functions: usize,
     pub(crate) evidence_params: usize,
+    pub(crate) evidence_arg_calls: usize,
     pub(crate) runtime_tasks: usize,
     pub(crate) runtime_nodes: usize,
     pub(crate) runtime_evidence_refs: usize,
@@ -97,6 +98,7 @@ pub(crate) struct EvidenceVmFunctionPlan {
     pub(crate) evidence_ref_count: usize,
     pub(crate) required_evidence: Vec<EvidenceVmEvidenceRequirement>,
     pub(crate) provided_evidence_paths: Vec<Vec<String>>,
+    pub(crate) calls_needing_evidence: Vec<EvidenceVmCallPlan>,
     pub(crate) operation_exprs: Vec<u32>,
     pub(crate) handler_exprs: Vec<u32>,
     pub(crate) fallback_exprs: Vec<u32>,
@@ -106,6 +108,13 @@ pub(crate) struct EvidenceVmFunctionPlan {
 pub(crate) struct EvidenceVmEvidenceRequirement {
     pub(crate) path: Vec<String>,
     pub(crate) operation_exprs: Vec<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmCallPlan {
+    pub(crate) apply: ExprId,
+    pub(crate) callee_instance: u32,
+    pub(crate) required_evidence_paths: Vec<Vec<String>>,
 }
 
 pub(crate) fn build_plan(program: &Program, surface: &RuntimeEvidenceSurface) -> EvidenceVmPlan {
@@ -169,11 +178,12 @@ fn build_plan_from_evidence(
         })
         .collect::<Vec<_>>();
 
-    let functions = surface
+    let mut functions = surface
         .tasks
         .iter()
         .map(|task| function_plan(control, task))
         .collect::<Vec<_>>();
+    attach_evidence_call_plans(program, &mut functions);
 
     let summary = summarize_plan(control, surface, &operations, &functions);
     EvidenceVmPlan {
@@ -218,8 +228,8 @@ pub(crate) fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
-        "  evidence_param_functions: {} evidence_params: {}",
-        summary.evidence_param_functions, summary.evidence_params
+        "  evidence_param_functions: {} evidence_params: {} evidence_arg_calls: {}",
+        summary.evidence_param_functions, summary.evidence_params, summary.evidence_arg_calls
     )
     .unwrap();
     writeln!(
@@ -257,6 +267,10 @@ fn summarize_plan(
         evidence_params: functions
             .iter()
             .map(|function| function.required_evidence.len())
+            .sum(),
+        evidence_arg_calls: functions
+            .iter()
+            .map(|function| function.calls_needing_evidence.len())
             .sum(),
         runtime_tasks: surface.tasks.len(),
         runtime_nodes: surface.tasks.iter().map(|task| task.nodes.len()).sum(),
@@ -317,6 +331,7 @@ fn function_plan(
             .sum::<usize>(),
         required_evidence,
         provided_evidence_paths,
+        calls_needing_evidence: Vec::new(),
         operation_exprs: task
             .nodes
             .iter()
@@ -333,6 +348,236 @@ fn function_plan(
             })
             .collect(),
         fallback_exprs: generic_fallback_exprs(control, task.nodes.iter().map(|node| node.expr)),
+    }
+}
+
+fn attach_evidence_call_plans(program: &Program, functions: &mut [EvidenceVmFunctionPlan]) {
+    let requirements_by_instance = functions
+        .iter()
+        .filter_map(|function| {
+            let RuntimeEvidenceTaskOwner::InstanceBody { instance, .. } = function.owner else {
+                return None;
+            };
+            (!function.required_evidence.is_empty()).then(|| {
+                (
+                    instance,
+                    function
+                        .required_evidence
+                        .iter()
+                        .map(|requirement| requirement.path.clone())
+                        .collect::<Vec<_>>(),
+                )
+            })
+        })
+        .collect::<HashMap<_, _>>();
+    if requirements_by_instance.is_empty() {
+        return;
+    }
+    for function in functions {
+        let Some(body) = function_body(function.owner) else {
+            continue;
+        };
+        let mut visited = HashSet::new();
+        collect_evidence_arg_calls(
+            program,
+            ExprId(body),
+            &requirements_by_instance,
+            &mut visited,
+            &mut function.calls_needing_evidence,
+        );
+    }
+}
+
+fn function_body(owner: RuntimeEvidenceTaskOwner) -> Option<u32> {
+    match owner {
+        RuntimeEvidenceTaskOwner::RootExpr { expr, .. } => Some(expr),
+        RuntimeEvidenceTaskOwner::InstanceBody { body, .. } => Some(body),
+    }
+}
+
+fn collect_evidence_arg_calls(
+    program: &Program,
+    expr: ExprId,
+    requirements_by_instance: &HashMap<u32, Vec<Vec<String>>>,
+    visited: &mut HashSet<ExprId>,
+    out: &mut Vec<EvidenceVmCallPlan>,
+) {
+    if !visited.insert(expr) {
+        return;
+    }
+    let Some(node) = control_expr(program, expr) else {
+        return;
+    };
+    match node {
+        Expr::Apply { callee, arg } => {
+            if let Some(instance) = instance_ref(program, *callee)
+                && let Some(required_evidence_paths) = requirements_by_instance.get(&instance.0)
+            {
+                out.push(EvidenceVmCallPlan {
+                    apply: expr,
+                    callee_instance: instance.0,
+                    required_evidence_paths: required_evidence_paths.clone(),
+                });
+            }
+            collect_evidence_arg_calls(program, *callee, requirements_by_instance, visited, out);
+            collect_evidence_arg_calls(program, *arg, requirements_by_instance, visited, out);
+        }
+        Expr::Coerce { expr, .. }
+        | Expr::ForceThunk { thunk: expr, .. }
+        | Expr::FunctionAdapter { function: expr, .. }
+        | Expr::MarkerFrame { body: expr, .. }
+        | Expr::MakeThunk { body: expr, .. }
+        | Expr::Lambda { body: expr, .. }
+        | Expr::Select { base: expr, .. } => {
+            collect_evidence_arg_calls(program, *expr, requirements_by_instance, visited, out);
+        }
+        Expr::RefSet { reference, value } => {
+            collect_evidence_arg_calls(program, *reference, requirements_by_instance, visited, out);
+            collect_evidence_arg_calls(program, *value, requirements_by_instance, visited, out);
+        }
+        Expr::Tuple(items) => {
+            for item in items {
+                collect_evidence_arg_calls(program, *item, requirements_by_instance, visited, out);
+            }
+        }
+        Expr::Record { fields, spread } => {
+            for field in fields {
+                collect_evidence_arg_calls(
+                    program,
+                    field.value,
+                    requirements_by_instance,
+                    visited,
+                    out,
+                );
+            }
+            match spread {
+                RecordSpread::None => {}
+                RecordSpread::Head(expr) | RecordSpread::Tail(expr) => {
+                    collect_evidence_arg_calls(
+                        program,
+                        *expr,
+                        requirements_by_instance,
+                        visited,
+                        out,
+                    );
+                }
+            }
+        }
+        Expr::PolyVariant { payloads, .. } => {
+            for payload in payloads {
+                collect_evidence_arg_calls(
+                    program,
+                    *payload,
+                    requirements_by_instance,
+                    visited,
+                    out,
+                );
+            }
+        }
+        Expr::Case { scrutinee, arms } => {
+            collect_evidence_arg_calls(program, *scrutinee, requirements_by_instance, visited, out);
+            for arm in arms {
+                if let Some(guard) = arm.guard {
+                    collect_evidence_arg_calls(
+                        program,
+                        guard,
+                        requirements_by_instance,
+                        visited,
+                        out,
+                    );
+                }
+                collect_evidence_arg_calls(
+                    program,
+                    arm.body,
+                    requirements_by_instance,
+                    visited,
+                    out,
+                );
+            }
+        }
+        Expr::Catch { body, arms } => {
+            collect_evidence_arg_calls(program, *body, requirements_by_instance, visited, out);
+            for arm in arms {
+                if let Some(guard) = arm.guard {
+                    collect_evidence_arg_calls(
+                        program,
+                        guard,
+                        requirements_by_instance,
+                        visited,
+                        out,
+                    );
+                }
+                collect_evidence_arg_calls(
+                    program,
+                    arm.body,
+                    requirements_by_instance,
+                    visited,
+                    out,
+                );
+            }
+        }
+        Expr::Block(block) => {
+            collect_block_evidence_arg_calls(
+                program,
+                block,
+                requirements_by_instance,
+                visited,
+                out,
+            );
+        }
+        Expr::Lit(_)
+        | Expr::PrimitiveOp { .. }
+        | Expr::Constructor { .. }
+        | Expr::EffectOp { .. }
+        | Expr::Local(_)
+        | Expr::InstanceRef(_) => {}
+    }
+}
+
+fn collect_block_evidence_arg_calls(
+    program: &Program,
+    block: &Block,
+    requirements_by_instance: &HashMap<u32, Vec<Vec<String>>>,
+    visited: &mut HashSet<ExprId>,
+    out: &mut Vec<EvidenceVmCallPlan>,
+) {
+    for stmt in &block.stmts {
+        collect_stmt_evidence_arg_calls(program, stmt, requirements_by_instance, visited, out);
+    }
+    if let Some(tail) = block.tail {
+        collect_evidence_arg_calls(program, tail, requirements_by_instance, visited, out);
+    }
+}
+
+fn collect_stmt_evidence_arg_calls(
+    program: &Program,
+    stmt: &Stmt,
+    requirements_by_instance: &HashMap<u32, Vec<Vec<String>>>,
+    visited: &mut HashSet<ExprId>,
+    out: &mut Vec<EvidenceVmCallPlan>,
+) {
+    match stmt {
+        Stmt::Let(_, _, expr) | Stmt::Expr(expr) => {
+            collect_evidence_arg_calls(program, *expr, requirements_by_instance, visited, out);
+        }
+        Stmt::Module(_, stmts) => {
+            for stmt in stmts {
+                collect_stmt_evidence_arg_calls(
+                    program,
+                    stmt,
+                    requirements_by_instance,
+                    visited,
+                    out,
+                );
+            }
+        }
+    }
+}
+
+fn instance_ref(program: &Program, expr: ExprId) -> Option<control_vm::InstanceId> {
+    match control_expr(program, expr)? {
+        Expr::InstanceRef(instance) => Some(*instance),
+        _ => None,
     }
 }
 
@@ -494,12 +739,13 @@ fn format_functions(out: &mut String, functions: &[EvidenceVmFunctionPlan]) {
     for function in functions {
         writeln!(
             out,
-            "  {} nodes {} evidence_refs {} requires [{}] provides [{}] operations [{}] handlers [{}] fallbacks [{}]",
+            "  {} nodes {} evidence_refs {} requires [{}] provides [{}] evidence_calls [{}] operations [{}] handlers [{}] fallbacks [{}]",
             format_task_owner(function.owner),
             function.node_count,
             function.evidence_ref_count,
             format_requirements(&function.required_evidence),
             format_paths(&function.provided_evidence_paths),
+            format_call_plans(&function.calls_needing_evidence),
             format_u32_list(&function.operation_exprs),
             format_u32_list(&function.handler_exprs),
             format_u32_list(&function.fallback_exprs)
@@ -599,6 +845,21 @@ fn format_requirements(requirements: &[EvidenceVmEvidenceRequirement]) -> String
                 "{}@e{}",
                 format_path(&requirement.path),
                 format_u32_list(&requirement.operation_exprs)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn format_call_plans(calls: &[EvidenceVmCallPlan]) -> String {
+    calls
+        .iter()
+        .map(|call| {
+            format!(
+                "e{}->i{}({})",
+                call.apply.0,
+                call.callee_instance,
+                format_paths(&call.required_evidence_paths)
             )
         })
         .collect::<Vec<_>>()
