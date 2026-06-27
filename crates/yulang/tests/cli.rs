@@ -326,6 +326,39 @@ fn debug_runtime_evidence_bench_prints_timing_and_size_metrics() {
 }
 
 #[test]
+fn debug_evidence_vm_plan_prints_handler_passing_plan() {
+    let entry = write_entry(
+        "debug-evidence-vm-plan",
+        "act out:\n  our say: int -> unit\n\n\
+         my handle(action: [out] _) = catch action:\n\
+         \x20 out::say(n), k -> k()\n\
+         \x20 v -> v\n\n\
+         handle(out::say(1))\n",
+    );
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("evidence-vm-plan")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("evidence vm plan:"), "{stdout}");
+    assert!(stdout.contains("handlers:"), "{stdout}");
+    assert!(stdout.contains("operations:"), "{stdout}");
+    assert!(
+        stdout.contains("lexical-handler-candidate")
+            || stdout.contains("generic-fallback")
+            || stdout.contains("direct-handler"),
+        "operation lowering should be explicit:\n{stdout}"
+    );
+}
+
+#[test]
 fn debug_runtime_evidence_run_matches_control_vm_on_pure_lambda_subset() {
     let entry = write_entry("debug-runtime-evidence-run", "my id x = x\nid 3\n");
 

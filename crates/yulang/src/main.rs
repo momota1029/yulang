@@ -8,6 +8,7 @@ use std::process;
 use std::time::{Duration, Instant};
 
 mod cst_view;
+mod evidence_vm;
 mod parse_view;
 mod runtime_evidence_run;
 mod support;
@@ -1800,6 +1801,19 @@ fn dump_control_evidence_with_optional_cache(
     }
 }
 
+fn dump_evidence_vm_plan_with_optional_cache(
+    files: Vec<yulang::CollectedSource>,
+    use_cache: bool,
+) -> yulang::DumpMonoOutput {
+    let output = build_control_with_optional_cache(files, use_cache);
+    let plan = evidence_vm::build_plan(&output.program, &output.runtime_evidence);
+    yulang::DumpMonoOutput {
+        text: evidence_vm::format_plan(&plan),
+        file_count: output.file_count,
+        errors: output.errors,
+    }
+}
+
 fn run_mono_with_optional_cache(
     files: Vec<yulang::CollectedSource>,
     use_cache: bool,
@@ -2456,6 +2470,12 @@ fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString
         Some("control-vm-emit") => run_compatible_build(program, options, args),
         Some("runtime-evidence-bench") => run_runtime_evidence_bench(program, options, args),
         Some("runtime-evidence-run") => run_runtime_evidence_run(program, options, args),
+        Some("evidence-vm-plan") => {
+            let path = require_one_path(program, args);
+            let files = collect_control_sources_or_exit(&path, options);
+            let output = dump_evidence_vm_plan_with_optional_cache(files, options.use_cache);
+            print_dump_mono_output(&output);
+        }
         Some("control-vm-load") => {
             let (path, selection) = parse_run_path_args(program, args);
             if selection.interpreter {
