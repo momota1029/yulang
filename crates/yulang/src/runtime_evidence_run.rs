@@ -3,20 +3,28 @@ use std::fmt;
 use std::rc::Rc;
 
 use control_vm::{
-    Block, DefId, Expr, ExprId, InstanceId, Pat, Program, RecordSpread, Root, SelectResolution,
-    Stmt,
+    Block, ControlEffectEvidence, ControlEffectUseKind, ControlEvidenceProgram,
+    ControlEvidenceRoute, DefId, Expr, ExprId, InstanceId, Pat, Program, RecordSpread, Root,
+    SelectResolution, Stmt,
 };
 use specialize::mono::{Lit, PrimitiveContext, PrimitiveOp};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct RuntimeEvidenceRunOutput {
     values: Vec<RuntimeEvidenceValue>,
+    pub(crate) evidence_stats: RuntimeEvidenceRunStats,
 }
 
 impl RuntimeEvidenceRunOutput {
     pub(crate) fn roots_text(&self) -> String {
         format!("run roots {}\n", format_values(&self.values))
     }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct RuntimeEvidenceRunStats {
+    pub effect_calls: usize,
+    pub direct_effect_calls: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -49,8 +57,10 @@ enum RuntimeEvidenceValue {
     },
     Closure(Rc<RuntimeEvidenceClosure>),
     EffectOp {
+        expr: ExprId,
         path: Vec<String>,
     },
+    Continuation(EvidenceContinuation),
     Thunk(Rc<RuntimeEvidenceThunk>),
 }
 
@@ -69,11 +79,103 @@ struct RuntimeEvidenceClosure {
 
 #[derive(Debug, Clone, PartialEq)]
 enum RuntimeEvidenceThunk {
-    Expr { body: ExprId, env: Env },
+    Expr {
+        body: ExprId,
+        env: Env,
+    },
+    Effect {
+        path: Vec<String>,
+        payload: SharedValue,
+        route: EvidenceEffectRoute,
+    },
+    Value(SharedValue),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceContinuation {
+    Identity,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceEffectRoute {
+    Direct { handler: ExprId, resumptive: bool },
+    Unhandled,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct EvidenceRequest {
+    path: Vec<String>,
+    payload: SharedValue,
+    route: EvidenceEffectRoute,
+    continuation: EvidenceContinuation,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum EvidenceEvalResult {
+    Value(SharedValue),
+    Request(EvidenceRequest),
 }
 
 type SharedValue = Rc<RuntimeEvidenceValue>;
 type Env = HashMap<DefId, SharedValue>;
+
+#[derive(Debug, Clone, Default)]
+struct ControlEvidenceIndex {
+    effect_calls: HashMap<(ExprId, ExprId), EvidenceEffectRoute>,
+    stats: RuntimeEvidenceRunStats,
+}
+
+impl ControlEvidenceIndex {
+    fn new(program: &Program) -> Self {
+        let evidence = ControlEvidenceProgram::from_program(program);
+        let mut effect_calls = HashMap::new();
+        for effect in &evidence.effects {
+            if let Some((apply, callee, route)) = effect_call_route(effect) {
+                effect_calls.insert((apply, callee), route);
+            }
+        }
+        let direct_effect_calls = effect_calls
+            .values()
+            .filter(|route| matches!(route, EvidenceEffectRoute::Direct { .. }))
+            .count();
+        Self {
+            stats: RuntimeEvidenceRunStats {
+                effect_calls: effect_calls.len(),
+                direct_effect_calls,
+            },
+            effect_calls,
+        }
+    }
+
+    fn effect_call_route(&self, apply: ExprId, callee: ExprId) -> Option<EvidenceEffectRoute> {
+        self.effect_calls.get(&(apply, callee)).copied()
+    }
+
+    fn stats(&self) -> RuntimeEvidenceRunStats {
+        self.stats
+    }
+}
+
+fn effect_call_route(
+    effect: &ControlEffectEvidence,
+) -> Option<(ExprId, ExprId, EvidenceEffectRoute)> {
+    let ControlEffectUseKind::OperationCall { apply, callee } = effect.kind else {
+        return None;
+    };
+    let route = match &effect.route {
+        ControlEvidenceRoute::Direct {
+            handler,
+            resumptive,
+        } => EvidenceEffectRoute::Direct {
+            handler: *handler,
+            resumptive: *resumptive,
+        },
+        ControlEvidenceRoute::Blocked { .. } | ControlEvidenceRoute::Unhandled => {
+            EvidenceEffectRoute::Unhandled
+        }
+    };
+    Some((apply, callee, route))
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum RuntimeEvidenceRunError {
@@ -88,6 +190,7 @@ pub(crate) enum RuntimeEvidenceRunError {
     UnsupportedExpr(&'static str),
     UnsupportedPattern(&'static str),
     UnsupportedPrimitive(PrimitiveOp),
+    EscapedEffect(Vec<String>),
     NotFunction(String),
     NotThunk(String),
     NotRecord(String),
@@ -121,6 +224,11 @@ impl fmt::Display for RuntimeEvidenceRunError {
             Self::UnsupportedPrimitive(op) => {
                 write!(f, "runtime-evidence-run unsupported primitive: {op:?}")
             }
+            Self::EscapedEffect(path) => write!(
+                f,
+                "runtime-evidence-run escaped effect request: {}",
+                path.join("::")
+            ),
             Self::NotFunction(value) => write!(f, "runtime-evidence-run not a function: {value}"),
             Self::NotThunk(value) => write!(f, "runtime-evidence-run not a thunk: {value}"),
             Self::NotRecord(value) => write!(f, "runtime-evidence-run not a record: {value}"),
@@ -141,6 +249,7 @@ pub(crate) fn run_program(
 
 struct RuntimeEvidenceRunner<'a> {
     program: &'a Program,
+    evidence: ControlEvidenceIndex,
     instances: HashMap<InstanceId, SharedValue>,
     evaluating_instances: HashSet<InstanceId>,
 }
@@ -149,6 +258,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn new(program: &'a Program) -> Self {
         Self {
             program,
+            evidence: ControlEvidenceIndex::new(program),
             instances: HashMap::new(),
             evaluating_instances: HashSet::new(),
         }
@@ -166,11 +276,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 Root::Expr(expr) => values.push(self.eval_expr(*expr, &mut env)?),
             }
         }
+        let evidence_stats = self.evidence.stats();
         Ok(RuntimeEvidenceRunOutput {
             values: values
                 .into_iter()
                 .map(|value| value.as_ref().clone())
                 .collect(),
+            evidence_stats,
         })
     }
 
@@ -209,60 +321,88 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         expr: ExprId,
         env: &mut Env,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
-        let Some(expr) = self.program.exprs.get(expr.0 as usize) else {
+        match self.eval_expr_result(expr, env)? {
+            EvidenceEvalResult::Value(value) => Ok(value),
+            EvidenceEvalResult::Request(request) => {
+                Err(RuntimeEvidenceRunError::EscapedEffect(request.path))
+            }
+        }
+    }
+
+    fn eval_expr_result(
+        &mut self,
+        expr: ExprId,
+        env: &mut Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let expr_id = expr;
+        let Some(expr) = self.program.exprs.get(expr_id.0 as usize) else {
             return Err(RuntimeEvidenceRunError::MissingExpr(expr));
         };
-        match expr {
-            Expr::Lit(lit) => Ok(shared(value_from_lit(lit))),
-            Expr::PrimitiveOp { op, context } => self.eval_primitive_op(*op, context.clone()),
-            Expr::Constructor { def, arity } => {
-                Ok(shared(RuntimeEvidenceValue::ConstructorFunction {
-                    def: *def,
-                    arity: *arity,
-                    args: Vec::new(),
-                }))
+        let value = match expr {
+            Expr::Lit(lit) => return Ok(value_result(value_from_lit(lit))),
+            Expr::PrimitiveOp { op, context } => {
+                return Ok(EvidenceEvalResult::Value(
+                    self.eval_primitive_op(*op, context.clone())?,
+                ));
             }
-            Expr::EffectOp { path } => Ok(shared(RuntimeEvidenceValue::EffectOp {
+            Expr::Constructor { def, arity } => RuntimeEvidenceValue::ConstructorFunction {
+                def: *def,
+                arity: *arity,
+                args: Vec::new(),
+            },
+            Expr::EffectOp { path } => RuntimeEvidenceValue::EffectOp {
+                expr: expr_id,
                 path: path.clone(),
-            })),
-            Expr::Local(def) => env
-                .get(def)
-                .cloned()
-                .ok_or(RuntimeEvidenceRunError::UnboundLocal(*def)),
-            Expr::InstanceRef(instance) => self.eval_instance(*instance),
-            Expr::Coerce { expr, .. } => self.eval_expr(*expr, env),
-            Expr::MakeThunk { body, .. } => Ok(shared(RuntimeEvidenceValue::Thunk(Rc::new(
-                RuntimeEvidenceThunk::Expr {
+            },
+            Expr::Local(def) => {
+                return Ok(EvidenceEvalResult::Value(
+                    env.get(def)
+                        .cloned()
+                        .ok_or(RuntimeEvidenceRunError::UnboundLocal(*def))?,
+                ));
+            }
+            Expr::InstanceRef(instance) => {
+                return Ok(EvidenceEvalResult::Value(self.eval_instance(*instance)?));
+            }
+            Expr::Coerce { expr, .. } => return self.eval_expr_result(*expr, env),
+            Expr::MakeThunk { body, .. } => {
+                RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Expr {
                     body: *body,
                     env: env.clone(),
-                },
-            )))),
+                }))
+            }
             Expr::ForceThunk { thunk, .. } => {
                 let thunk = self.eval_expr(*thunk, env)?;
-                self.force_thunk(thunk)
+                return self.force_thunk_result(thunk);
             }
-            Expr::FunctionAdapter { function, .. } => self.eval_expr(*function, env),
-            Expr::MarkerFrame { body, .. } => self.eval_expr(*body, env),
+            Expr::FunctionAdapter { function, .. } => return self.eval_expr_result(*function, env),
+            Expr::MarkerFrame { body, .. } => return self.eval_expr_result(*body, env),
             Expr::Apply { callee, arg } => {
                 let callee = self.eval_expr(*callee, env)?;
                 let mut arg_env = env.clone();
                 let arg = self.eval_expr(*arg, &mut arg_env)?;
-                self.apply_value(callee, arg)
+                return Ok(EvidenceEvalResult::Value(self.apply_value(
+                    Some(expr_id),
+                    callee,
+                    arg,
+                )?));
             }
-            Expr::RefSet { .. } => Err(RuntimeEvidenceRunError::UnsupportedExpr("ref-set")),
-            Expr::Lambda { param, body } => Ok(shared(RuntimeEvidenceValue::Closure(Rc::new(
-                RuntimeEvidenceClosure {
+            Expr::RefSet { .. } => {
+                return Err(RuntimeEvidenceRunError::UnsupportedExpr("ref-set"));
+            }
+            Expr::Lambda { param, body } => {
+                RuntimeEvidenceValue::Closure(Rc::new(RuntimeEvidenceClosure {
                     param: param.clone(),
                     body: *body,
                     env: env.clone(),
-                },
-            )))),
+                }))
+            }
             Expr::Tuple(items) => {
                 let mut values = Vec::with_capacity(items.len());
                 for item in items {
                     values.push(self.eval_expr(*item, env)?);
                 }
-                Ok(shared(RuntimeEvidenceValue::Tuple(values)))
+                RuntimeEvidenceValue::Tuple(values)
             }
             Expr::Record { fields, spread } => {
                 let mut values = match spread {
@@ -283,30 +423,39 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         value: self.eval_expr(field.value, env)?,
                     });
                 }
-                Ok(shared(RuntimeEvidenceValue::Record(values)))
+                RuntimeEvidenceValue::Record(values)
             }
             Expr::PolyVariant { tag, payloads } => {
                 let mut values = Vec::with_capacity(payloads.len());
                 for payload in payloads {
                     values.push(self.eval_expr(*payload, env)?);
                 }
-                Ok(shared(RuntimeEvidenceValue::PolyVariant {
+                RuntimeEvidenceValue::PolyVariant {
                     tag: tag.clone(),
                     payloads: values,
-                }))
+                }
             }
             Expr::Select {
                 base,
                 name,
                 resolution,
-            } => self.eval_select(*base, name, resolution, env),
+            } => {
+                return Ok(EvidenceEvalResult::Value(
+                    self.eval_select(*base, name, resolution, env)?,
+                ));
+            }
             Expr::Case { scrutinee, arms } => {
                 let scrutinee = self.eval_expr(*scrutinee, env)?;
-                self.eval_case(scrutinee, arms, env)
+                return Ok(EvidenceEvalResult::Value(
+                    self.eval_case(scrutinee, arms, env)?,
+                ));
             }
-            Expr::Catch { .. } => Err(RuntimeEvidenceRunError::UnsupportedExpr("catch")),
-            Expr::Block(block) => self.eval_block(block, env),
-        }
+            Expr::Catch { body, arms } => return self.eval_catch(expr_id, *body, arms, env),
+            Expr::Block(block) => {
+                return Ok(EvidenceEvalResult::Value(self.eval_block(block, env)?));
+            }
+        };
+        Ok(value_result(value))
     }
 
     fn eval_primitive_op(
@@ -326,6 +475,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn apply_value(
         &mut self,
+        site: Option<ExprId>,
         callee: SharedValue,
         arg: SharedValue,
     ) -> Result<SharedValue, RuntimeEvidenceRunError> {
@@ -362,24 +512,59 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 bind_pat(&closure.param, arg, &mut env)?;
                 self.eval_expr(closure.body, &mut env)
             }
+            RuntimeEvidenceValue::Continuation(EvidenceContinuation::Identity) => Ok(shared(
+                RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Value(arg))),
+            )),
             RuntimeEvidenceValue::Thunk(_) => {
                 let callee = self.force_thunk(callee)?;
-                self.apply_value(callee, arg)
+                self.apply_value(site, callee, arg)
             }
-            RuntimeEvidenceValue::EffectOp { .. } => Err(RuntimeEvidenceRunError::UnsupportedExpr(
-                "effect operation call",
-            )),
+            RuntimeEvidenceValue::EffectOp { expr, path } => {
+                let route = site
+                    .and_then(|site| self.evidence.effect_call_route(site, *expr))
+                    .unwrap_or(EvidenceEffectRoute::Unhandled);
+                Ok(shared(RuntimeEvidenceValue::Thunk(Rc::new(
+                    RuntimeEvidenceThunk::Effect {
+                        path: path.clone(),
+                        payload: arg,
+                        route,
+                    },
+                ))))
+            }
             value => Err(RuntimeEvidenceRunError::NotFunction(format_value(value))),
         }
     }
 
     fn force_thunk(&mut self, thunk: SharedValue) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        match self.force_thunk_result(thunk)? {
+            EvidenceEvalResult::Value(value) => Ok(value),
+            EvidenceEvalResult::Request(request) => {
+                Err(RuntimeEvidenceRunError::EscapedEffect(request.path))
+            }
+        }
+    }
+
+    fn force_thunk_result(
+        &mut self,
+        thunk: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         match thunk.as_ref() {
             RuntimeEvidenceValue::Thunk(thunk) => match thunk.as_ref() {
                 RuntimeEvidenceThunk::Expr { body, env } => {
                     let mut env = env.clone();
-                    self.eval_expr(*body, &mut env)
+                    self.eval_expr_result(*body, &mut env)
                 }
+                RuntimeEvidenceThunk::Effect {
+                    path,
+                    payload,
+                    route,
+                } => Ok(EvidenceEvalResult::Request(EvidenceRequest {
+                    path: path.clone(),
+                    payload: payload.clone(),
+                    route: *route,
+                    continuation: EvidenceContinuation::Identity,
+                })),
+                RuntimeEvidenceThunk::Value(value) => Ok(EvidenceEvalResult::Value(value.clone())),
             },
             value => Err(RuntimeEvidenceRunError::NotThunk(format_value(value))),
         }
@@ -400,11 +585,113 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             Some(SelectResolution::Method { instance }) => {
                 let base = self.eval_expr(base, env)?;
                 let method = self.eval_instance(*instance)?;
-                self.apply_value(method, base)
+                self.apply_value(None, method, base)
             }
             Some(SelectResolution::TypeclassMethod { .. }) => Err(
                 RuntimeEvidenceRunError::UnsupportedExpr("typeclass method select"),
             ),
+        }
+    }
+
+    fn eval_catch(
+        &mut self,
+        catch_expr: ExprId,
+        body: ExprId,
+        arms: &[control_vm::CatchArm],
+        env: &Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let mut body_env = env.clone();
+        match self.eval_expr_result(body, &mut body_env)? {
+            EvidenceEvalResult::Value(value) => self.eval_value_arm(value, arms, env),
+            EvidenceEvalResult::Request(request) => match request.route {
+                EvidenceEffectRoute::Direct {
+                    handler,
+                    resumptive,
+                } if handler == catch_expr => {
+                    self.eval_operation_arm(request, resumptive, arms, env)
+                }
+                EvidenceEffectRoute::Direct { .. } | EvidenceEffectRoute::Unhandled => {
+                    Ok(EvidenceEvalResult::Request(request))
+                }
+            },
+        }
+    }
+
+    fn eval_value_arm(
+        &mut self,
+        value: SharedValue,
+        arms: &[control_vm::CatchArm],
+        env: &Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let Some(arm) = arms.iter().find(|arm| arm.operation_path.is_none()) else {
+            return Ok(EvidenceEvalResult::Value(value));
+        };
+        let mut arm_env = env.clone();
+        bind_pat(&arm.pat, value, &mut arm_env)?;
+        if let Some(guard) = arm.guard {
+            let guard = self.eval_expr(guard, &mut arm_env)?;
+            if !matches!(guard.as_ref(), RuntimeEvidenceValue::Bool(true)) {
+                return Err(RuntimeEvidenceRunError::PatternMismatch);
+            }
+        }
+        self.eval_handler_body_result(arm.body, &mut arm_env)
+    }
+
+    fn eval_operation_arm(
+        &mut self,
+        request: EvidenceRequest,
+        resumptive: bool,
+        arms: &[control_vm::CatchArm],
+        env: &Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let Some(arm) = arms
+            .iter()
+            .find(|arm| arm.operation_path.as_ref() == Some(&request.path))
+        else {
+            return Ok(EvidenceEvalResult::Request(request));
+        };
+        let mut arm_env = env.clone();
+        bind_pat(&arm.pat, request.payload, &mut arm_env)?;
+        if let Some(continuation_pat) = &arm.continuation {
+            if !resumptive {
+                return Err(RuntimeEvidenceRunError::UnsupportedExpr(
+                    "abortive continuation binding",
+                ));
+            }
+            bind_pat(
+                continuation_pat,
+                shared(RuntimeEvidenceValue::Continuation(request.continuation)),
+                &mut arm_env,
+            )?;
+        }
+        if let Some(guard) = arm.guard {
+            let guard = self.eval_expr(guard, &mut arm_env)?;
+            if !matches!(guard.as_ref(), RuntimeEvidenceValue::Bool(true)) {
+                return Err(RuntimeEvidenceRunError::PatternMismatch);
+            }
+        }
+        self.eval_handler_body_result(arm.body, &mut arm_env)
+    }
+
+    fn eval_handler_body_result(
+        &mut self,
+        body: ExprId,
+        env: &mut Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match self.eval_expr_result(body, env)? {
+            EvidenceEvalResult::Value(value) => self.force_value_if_thunk_result(value),
+            EvidenceEvalResult::Request(request) => Ok(EvidenceEvalResult::Request(request)),
+        }
+    }
+
+    fn force_value_if_thunk_result(
+        &mut self,
+        value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if matches!(value.as_ref(), RuntimeEvidenceValue::Thunk(_)) {
+            self.force_thunk_result(value)
+        } else {
+            Ok(EvidenceEvalResult::Value(value))
         }
     }
 
@@ -735,9 +1022,16 @@ fn format_value(value: &RuntimeEvidenceValue) -> String {
         RuntimeEvidenceValue::ConstructorFunction { def, .. } => format!("<ctor-fn d{}>", def.0),
         RuntimeEvidenceValue::PrimitiveOp { op, .. } => format!("<primitive {op:?}>"),
         RuntimeEvidenceValue::Closure(_) => "<function>".to_string(),
-        RuntimeEvidenceValue::EffectOp { path } => format!("<effect-op {}>", path.join("::")),
+        RuntimeEvidenceValue::EffectOp { path, .. } => {
+            format!("<effect-op {}>", path.join("::"))
+        }
+        RuntimeEvidenceValue::Continuation(_) => "<continuation>".to_string(),
         RuntimeEvidenceValue::Thunk(_) => "<thunk>".to_string(),
     }
+}
+
+fn value_result(value: RuntimeEvidenceValue) -> EvidenceEvalResult {
+    EvidenceEvalResult::Value(shared(value))
 }
 
 fn format_delimited(open: &str, close: &str, values: &[SharedValue]) -> String {

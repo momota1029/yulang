@@ -2226,6 +2226,14 @@ fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeq
         "  evidence.node_evidence_refs: {}",
         summary.node_evidence_refs
     );
+    println!(
+        "  control_evidence.effect_calls: {}",
+        output.evidence_stats.effect_calls
+    );
+    println!(
+        "  control_evidence.direct_effect_calls: {}",
+        output.evidence_stats.direct_effect_calls
+    );
 
     if args.compare_control {
         let control = run_built_control_for_cli(build);

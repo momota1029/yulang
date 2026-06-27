@@ -373,6 +373,40 @@ fn debug_runtime_evidence_run_matches_control_vm_on_std_int_primitives() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_uses_direct_handler_evidence() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-direct-handler",
+        "act flip:\n  our coin: () -> bool\n\n\
+         catch flip::coin():\n\
+         \x20 flip::coin(), k -> k true\n\
+         \x20 v -> v\n",
+    );
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(
+        stdout.contains("control_evidence.effect_calls: 1"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("control_evidence.direct_effect_calls: 1"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("run roots [true]\n"), "{stdout}");
+}
+
+#[test]
 fn compatible_dump_no_prelude_uses_cache() {
     let entry = write_entry("dump-no-prelude-cache", "1\n");
     let root = entry.parent().unwrap().to_path_buf();
