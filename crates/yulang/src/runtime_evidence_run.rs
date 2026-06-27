@@ -20,8 +20,11 @@ pub(crate) struct RuntimeEvidenceRunOutput {
 }
 
 impl RuntimeEvidenceRunOutput {
-    pub(crate) fn roots_text(&self) -> String {
-        format!("run roots {}\n", format_values(&self.values))
+    pub(crate) fn roots_text_with_labels(&self, labels: Option<&poly::dump::DumpLabels>) -> String {
+        format!(
+            "run roots {}\n",
+            format_values_with_labels(&self.values, labels)
+        )
     }
 }
 
@@ -983,11 +986,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     self.eval_primitive_op(*op, context.clone())?,
                 ));
             }
-            Expr::Constructor { def, arity } => RuntimeEvidenceValue::ConstructorFunction {
-                def: *def,
-                arity: *arity,
-                args: Vec::new(),
-            },
+            Expr::Constructor { def, arity } => constructor_value(*def, *arity, Vec::new()),
             Expr::EffectOp { path } => RuntimeEvidenceValue::EffectOp {
                 expr: expr_id,
                 path: path.clone(),
@@ -1577,21 +1576,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             RuntimeEvidenceValue::ConstructorFunction { def, arity, args } => {
                 let mut args = args.clone();
                 args.push(arg);
-                if args.len() < *arity {
-                    return Ok(EvidenceEvalResult::Value(shared(
-                        RuntimeEvidenceValue::ConstructorFunction {
-                            def: *def,
-                            arity: *arity,
-                            args,
-                        },
-                    )));
-                }
-                Ok(EvidenceEvalResult::Value(shared(
-                    RuntimeEvidenceValue::DataConstructor {
-                        def: *def,
-                        payloads: args,
-                    },
-                )))
+                Ok(EvidenceEvalResult::Value(shared(constructor_value(
+                    *def, *arity, args,
+                ))))
             }
             RuntimeEvidenceValue::Closure(closure) => {
                 let mut env = self.clone_env(&closure.env);
@@ -3287,6 +3274,16 @@ fn recursive_let_value(pat: &Pat, value: SharedValue) -> SharedValue {
     }
 }
 
+fn constructor_value(def: DefId, arity: usize, args: Vec<SharedValue>) -> RuntimeEvidenceValue {
+    if args.len() >= arity {
+        return RuntimeEvidenceValue::DataConstructor {
+            def,
+            payloads: args,
+        };
+    }
+    RuntimeEvidenceValue::ConstructorFunction { def, arity, args }
+}
+
 fn finish_ref_set_values(finish: EvidenceRefSetFinish, values: Vec<SharedValue>) -> SharedValue {
     shared(match finish {
         EvidenceRefSetFinish::Tuple => RuntimeEvidenceValue::Tuple(values),
@@ -4024,12 +4021,25 @@ fn type_may_need_hygiene_mark(ty: &Type) -> bool {
     }
 }
 
-fn format_values(values: &[RuntimeEvidenceValue]) -> String {
-    let values = values.iter().map(format_value).collect::<Vec<_>>();
+fn format_values_with_labels(
+    values: &[RuntimeEvidenceValue],
+    labels: Option<&poly::dump::DumpLabels>,
+) -> String {
+    let values = values
+        .iter()
+        .map(|value| format_value_with_labels(value, labels))
+        .collect::<Vec<_>>();
     format!("[{}]", values.join(", "))
 }
 
 fn format_value(value: &RuntimeEvidenceValue) -> String {
+    format_value_with_labels(value, None)
+}
+
+fn format_value_with_labels(
+    value: &RuntimeEvidenceValue,
+    labels: Option<&poly::dump::DumpLabels>,
+) -> String {
     match value {
         RuntimeEvidenceValue::Int(value) => value.to_string(),
         RuntimeEvidenceValue::BigInt(value) => value.clone(),
@@ -4038,12 +4048,18 @@ fn format_value(value: &RuntimeEvidenceValue) -> String {
         RuntimeEvidenceValue::Bytes(value) => format!("<bytes len={}>", value.len()),
         RuntimeEvidenceValue::Bool(value) => value.to_string(),
         RuntimeEvidenceValue::Unit => "()".to_string(),
-        RuntimeEvidenceValue::Tuple(values) => format_delimited("(", ")", values),
-        RuntimeEvidenceValue::List(values) => format_delimited("[", "]", values),
+        RuntimeEvidenceValue::Tuple(values) => format_delimited("(", ")", values, labels),
+        RuntimeEvidenceValue::List(values) => format_delimited("[", "]", values, labels),
         RuntimeEvidenceValue::Record(fields) => {
             let fields = fields
                 .iter()
-                .map(|field| format!("{}: {}", field.name, format_value(&field.value)))
+                .map(|field| {
+                    format!(
+                        "{}: {}",
+                        field.name,
+                        format_value_with_labels(&field.value, labels)
+                    )
+                })
                 .collect::<Vec<_>>();
             format!("{{{}}}", fields.join(", "))
         }
@@ -4051,20 +4067,24 @@ fn format_value(value: &RuntimeEvidenceValue) -> String {
             if payloads.is_empty() {
                 tag.clone()
             } else {
-                format!("{tag}({})", format_shared_values(payloads))
+                format!("{tag}({})", format_shared_values(payloads, labels))
             }
         }
         RuntimeEvidenceValue::DataConstructor { def, payloads } => {
+            let constructor = format_constructor_name(labels, *def);
             if payloads.is_empty() {
-                format!("<ctor d{}>", def.0)
+                constructor
             } else {
-                format!("<ctor d{}>({})", def.0, format_shared_values(payloads))
+                format!("{constructor}({})", format_shared_values(payloads, labels))
             }
         }
-        RuntimeEvidenceValue::ConstructorFunction { def, .. } => format!("<ctor-fn d{}>", def.0),
+        RuntimeEvidenceValue::ConstructorFunction { def, args, arity } => {
+            let constructor = format_constructor_name(labels, *def);
+            format!("<ctor-fn {constructor} {}/{arity}>", args.len())
+        }
         RuntimeEvidenceValue::PrimitiveOp { op, .. } => format!("<primitive {op:?}>"),
         RuntimeEvidenceValue::FunctionAdapter { .. } => "<function-adapter>".to_string(),
-        RuntimeEvidenceValue::Marked { value, .. } => format_value(value),
+        RuntimeEvidenceValue::Marked { value, .. } => format_value_with_labels(value, labels),
         RuntimeEvidenceValue::Closure(_) | RuntimeEvidenceValue::RecursiveClosure { .. } => {
             "<closure>".to_string()
         }
@@ -4080,10 +4100,15 @@ fn value_result(value: RuntimeEvidenceValue) -> EvidenceEvalResult {
     EvidenceEvalResult::Value(shared(value))
 }
 
-fn format_delimited(open: &str, close: &str, values: &[SharedValue]) -> String {
+fn format_delimited(
+    open: &str,
+    close: &str,
+    values: &[SharedValue],
+    labels: Option<&poly::dump::DumpLabels>,
+) -> String {
     let mut out = String::new();
     out.push_str(open);
-    out.push_str(&format_shared_values(values));
+    out.push_str(&format_shared_values(values, labels));
     if values.len() == 1 && open == "(" {
         out.push(',');
     }
@@ -4091,12 +4116,30 @@ fn format_delimited(open: &str, close: &str, values: &[SharedValue]) -> String {
     out
 }
 
-fn format_shared_values(values: &[SharedValue]) -> String {
+fn format_shared_values(values: &[SharedValue], labels: Option<&poly::dump::DumpLabels>) -> String {
     values
         .iter()
-        .map(|value| format_value(value.as_ref()))
+        .map(|value| format_value_with_labels(value.as_ref(), labels))
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+fn format_constructor_name(labels: Option<&poly::dump::DumpLabels>, def: DefId) -> String {
+    let Some(label) = labels.and_then(|labels| labels.def_label(poly::expr::DefId(def.0))) else {
+        return format!("<ctor d{}>", def.0);
+    };
+    shorten_constructor_label(label)
+}
+
+fn shorten_constructor_label(label: &str) -> String {
+    let mut parts = label.rsplit('.').filter(|part| !part.is_empty());
+    let Some(last) = parts.next() else {
+        return label.to_string();
+    };
+    let Some(parent) = parts.next() else {
+        return last.to_string();
+    };
+    format!("{parent}::{last}")
 }
 
 fn format_float(value: f64) -> String {

@@ -2221,7 +2221,7 @@ fn run_runtime_evidence_run(program: &str, options: &GlobalOptions, args: VecDeq
     };
     let runtime_evidence_execute = run_start.elapsed();
     let format_start = Instant::now();
-    let roots_text = output.roots_text();
+    let roots_text = output.roots_text_with_labels(Some(&build.labels));
     let root_format = format_start.elapsed();
     let total = total_start.elapsed();
 

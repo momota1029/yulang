@@ -555,6 +555,67 @@ fn debug_runtime_evidence_run_carries_function_adapter_hygiene_markers() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_handles_for_last_and_nullary_constructors() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-for-last",
+        "{\n\
+         \x20 for x in 0..:\n\
+         \x20\x20 if x == 5: last\n\
+         \x20 5\n\
+         }\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [5]\n"), "{stdout}");
+}
+
+#[test]
+fn debug_runtime_evidence_run_formats_labeled_nullary_constructor_results() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-once",
+        "use std::control::nondet::*\n\n\
+         once:\n\
+         \x20 my a = each 1..\n\
+         \x20 my b = each a<..\n\
+         \x20 my c = each b<..\n\
+         \x20 guard: a * a + b * b == c * c\n\
+         \x20 (a, b, c)\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(
+        stdout.contains("run roots [opt::just((3, 4, 5))]\n"),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn debug_runtime_evidence_run_handles_ref_set() {
     let entry = write_entry(
         "debug-runtime-evidence-run-ref-set",
