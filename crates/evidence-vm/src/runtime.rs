@@ -1632,14 +1632,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         handler_boundary: Option<EvidenceHandlerBoundary>,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         match result {
-            EvidenceEvalResult::Value(value) => Ok(EvidenceEvalResult::Value(mark_runtime_value(
-                value, &markers,
-            ))),
+            EvidenceEvalResult::Value(value) => Ok(EvidenceEvalResult::Value(
+                mark_runtime_value_shared(value, markers.clone()),
+            )),
             EvidenceEvalResult::Request(mut request) => {
                 if let Some(handler_boundary) = handler_boundary {
                     request.handler_boundary = Some(handler_boundary);
                 }
-                request.payload = mark_runtime_value(request.payload, &markers);
+                request.payload = mark_runtime_value_shared(request.payload, markers.clone());
                 self.close_marker_request(
                     request,
                     markers_for_continuation_resume(&markers),
@@ -2648,7 +2648,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
         match callee.as_ref() {
             RuntimeEvidenceValue::Marked { .. } => {
-                let callee = mark_runtime_value_unchecked(callee, &markers);
+                let callee = mark_runtime_value_unchecked_shared(callee, markers.clone());
                 self.apply_value_result(site, callee, arg)
             }
             callee_value if callee_apply_closes_without_frame(callee_value) => {
@@ -5338,6 +5338,16 @@ fn mark_runtime_value(value: SharedValue, markers: &[EvidenceValueMarker]) -> Sh
     mark_runtime_value_unchecked(value, markers)
 }
 
+fn mark_runtime_value_shared(
+    value: SharedValue,
+    markers: Rc<[EvidenceValueMarker]>,
+) -> SharedValue {
+    if markers.is_empty() || !runtime_value_needs_hygiene_mark(value.as_ref()) {
+        return value;
+    }
+    mark_runtime_value_unchecked_shared(value, markers)
+}
+
 fn mark_runtime_value_for_type(
     value: SharedValue,
     markers: &[EvidenceValueMarker],
@@ -5368,6 +5378,25 @@ fn mark_runtime_value_unchecked(
             value,
             markers: shared_markers(markers),
         }),
+    }
+}
+
+fn mark_runtime_value_unchecked_shared(
+    value: SharedValue,
+    markers: Rc<[EvidenceValueMarker]>,
+) -> SharedValue {
+    if markers.is_empty() {
+        return value;
+    }
+    match value.as_ref() {
+        RuntimeEvidenceValue::Marked {
+            value,
+            markers: existing,
+        } => shared(RuntimeEvidenceValue::Marked {
+            value: value.clone(),
+            markers: share_marker_vec(combined_markers(existing, &markers)),
+        }),
+        _ => shared(RuntimeEvidenceValue::Marked { value, markers }),
     }
 }
 
