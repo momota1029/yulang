@@ -3222,7 +3222,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             if !self.bind_pat_matches(&arm.pat, value.clone(), &mut arm_env)? {
                 continue;
             }
-            if !self.catch_arm_guard_matches(arm.guard, &mut arm_env)? {
+            if !self.arm_guard_matches(arm.guard, &mut arm_env)? {
                 continue;
             }
             return self.eval_expr_result(arm.body, &mut arm_env);
@@ -3261,7 +3261,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     continue;
                 }
             }
-            if !self.catch_arm_guard_matches(arm.guard, &mut arm_env)? {
+            if !self.arm_guard_matches(arm.guard, &mut arm_env)? {
                 continue;
             }
             return self.eval_handler_body_result(arm.body, &mut arm_env);
@@ -3282,7 +3282,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
-    fn catch_arm_guard_matches(
+    fn arm_guard_matches(
         &mut self,
         guard: Option<ExprId>,
         env: &mut Env,
@@ -3328,17 +3328,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         for arm in arms {
             let mut arm_env = self.clone_env(env);
-            if self
-                .bind_pat(&arm.pat, scrutinee.clone(), &mut arm_env)
-                .is_err()
-            {
+            if !self.bind_pat_matches(&arm.pat, scrutinee.clone(), &mut arm_env)? {
                 continue;
             }
-            if let Some(guard) = arm.guard {
-                let guard = self.eval_expr(guard, &mut arm_env)?;
-                if !matches!(guard.as_ref(), RuntimeEvidenceValue::Bool(true)) {
-                    continue;
-                }
+            if !self.arm_guard_matches(arm.guard, &mut arm_env)? {
+                continue;
             }
             return self.eval_expr_result(arm.body, &mut arm_env);
         }

@@ -805,6 +805,33 @@ fn debug_runtime_evidence_run_falls_through_value_arm_patterns_and_guards() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_falls_through_case_patterns_and_guards() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-case-fallthrough",
+        "case 1:\n\
+         \x20 0 -> 10\n\
+         \x20 _ if false -> 20\n\
+         \x20 _ -> 30\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [30]\n"), "{stdout}");
+}
+
+#[test]
 fn debug_runtime_evidence_run_handles_annotated_handler_function_with_state() {
     let entry = write_entry(
         "debug-runtime-evidence-run-handler-function-state",
