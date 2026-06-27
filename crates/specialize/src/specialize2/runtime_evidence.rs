@@ -1,9 +1,12 @@
-use mono::{Program, StackWeight, Type};
+use mono::{EffectFamily, Program, StackWeight, Type};
 use poly::expr as poly_expr;
 use serde::{Deserialize, Serialize};
 use std::fmt::Write as _;
 
-use super::{SolvedTask, TypeclassResolution};
+use super::{
+    EffectSubtractionDemand, SolvedTask, TypeGraph, TypeSlot, TypeSlotKind, TypeclassResolution,
+    WeightedSlotEdge, WeightedTypeBound, stack_weight_is_empty,
+};
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SpecializeOutput {
@@ -32,6 +35,7 @@ pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> Stri
     let _ = writeln!(out, "runtime evidence tasks [{}]", surface.tasks.len());
     for task in &surface.tasks {
         let _ = writeln!(out, "{}", format_task_header(task));
+        format_graph_summary(&mut out, &task.graph);
         for expr in &task.expr_types {
             let consumer = expr
                 .consumer
@@ -102,9 +106,108 @@ pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> Stri
     out
 }
 
+fn format_graph_summary(out: &mut String, graph: &RuntimeEvidenceGraph) {
+    let _ = writeln!(
+        out,
+        "  graph slots {} value {} effect {} constraints {} weighted_constraints {} weighted_lower {} weighted_upper {} weighted_edges {} effect_subtractions {} row_residuals {}",
+        graph.slot_count,
+        graph.value_slot_count,
+        graph.effect_slot_count,
+        graph.queued_constraint_count,
+        graph.weighted_constraint_count,
+        graph.weighted_lower_count,
+        graph.weighted_upper_count,
+        graph.weighted_edge_count,
+        graph.effect_subtraction_count,
+        graph.row_residuals.len(),
+    );
+    for residual in &graph.row_residuals {
+        let retained = residual
+            .retained_families
+            .iter()
+            .map(format_effect_family)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let _ = writeln!(
+            out,
+            "    row residual t{} -> t{} retained [{}] weight {:?}",
+            residual.source, residual.residual, retained, residual.weight
+        );
+    }
+    for slot in graph
+        .slots
+        .iter()
+        .filter(|slot| slot.has_runtime_evidence())
+    {
+        let _ = writeln!(
+            out,
+            "    slot t{} {:?} lower {} upper {} successors {} predecessors {} weighted_lower {} weighted_upper {} weighted_successors {} weighted_predecessors {} effect_subtractions {}",
+            slot.id,
+            slot.kind,
+            slot.lower_count,
+            slot.upper_count,
+            slot.successor_count,
+            slot.predecessor_count,
+            slot.weighted_lower.len(),
+            slot.weighted_upper.len(),
+            slot.weighted_successors.len(),
+            slot.weighted_predecessors.len(),
+            slot.effect_subtractions.len(),
+        );
+        for bound in &slot.weighted_lower {
+            let _ = writeln!(
+                out,
+                "      weighted lower {} lower {:?} upper {:?}",
+                mono::dump::dump_type(&bound.ty),
+                bound.lower_weight,
+                bound.upper_weight
+            );
+        }
+        for bound in &slot.weighted_upper {
+            let _ = writeln!(
+                out,
+                "      weighted upper {} lower {:?} upper {:?}",
+                mono::dump::dump_type(&bound.ty),
+                bound.lower_weight,
+                bound.upper_weight
+            );
+        }
+        for edge in &slot.weighted_successors {
+            let _ = writeln!(
+                out,
+                "      weighted successor t{} lower {:?} upper {:?}",
+                edge.slot, edge.lower_weight, edge.upper_weight
+            );
+        }
+        for edge in &slot.weighted_predecessors {
+            let _ = writeln!(
+                out,
+                "      weighted predecessor t{} lower {:?} upper {:?}",
+                edge.slot, edge.lower_weight, edge.upper_weight
+            );
+        }
+        for demand in &slot.effect_subtractions {
+            let handled = demand
+                .handled_items
+                .iter()
+                .map(mono::dump::dump_type)
+                .collect::<Vec<_>>()
+                .join(", ");
+            let _ = writeln!(
+                out,
+                "      subtract tail {} runtime {} handled [{}]",
+                mono::dump::dump_type(&demand.tail),
+                mono::dump::dump_type(&demand.runtime_effect),
+                handled
+            );
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeEvidenceTask {
     pub owner: RuntimeEvidenceTaskOwner,
+    pub graph: RuntimeEvidenceGraph,
     pub expr_types: Vec<RuntimeEvidenceExprType>,
     pub ref_signatures: Vec<RuntimeEvidenceTypeAtExpr>,
     pub select_signatures: Vec<RuntimeEvidenceTypeAtExpr>,
@@ -148,6 +251,7 @@ impl RuntimeEvidenceTask {
 
         Self {
             owner,
+            graph: solved.runtime_evidence_graph.clone(),
             expr_types,
             ref_signatures,
             select_signatures,
@@ -156,6 +260,208 @@ impl RuntimeEvidenceTask {
             raw_thunk_computations,
         }
     }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeEvidenceGraph {
+    pub slot_count: u32,
+    pub value_slot_count: u32,
+    pub effect_slot_count: u32,
+    pub queued_constraint_count: u32,
+    pub weighted_constraint_count: u32,
+    pub weighted_lower_count: u32,
+    pub weighted_upper_count: u32,
+    pub weighted_edge_count: u32,
+    pub effect_subtraction_count: u32,
+    pub row_residuals: Vec<RuntimeEvidenceRowResidual>,
+    pub slots: Vec<RuntimeEvidenceSlot>,
+}
+
+impl RuntimeEvidenceGraph {
+    pub(super) fn from_type_graph(graph: &TypeGraph<'_>) -> Self {
+        let mut value_slot_count = 0u32;
+        let mut effect_slot_count = 0u32;
+        let mut weighted_lower_count = 0u32;
+        let mut weighted_upper_count = 0u32;
+        let mut weighted_edge_count = 0u32;
+        let mut effect_subtraction_count = 0u32;
+        let slots = graph
+            .slots
+            .iter()
+            .enumerate()
+            .map(|(id, slot)| {
+                match slot.kind {
+                    TypeSlotKind::Value => value_slot_count += 1,
+                    TypeSlotKind::Effect => effect_slot_count += 1,
+                }
+                weighted_lower_count += slot.weighted_lower.len() as u32;
+                weighted_upper_count += slot.weighted_upper.len() as u32;
+                weighted_edge_count += slot.weighted_successors.len() as u32;
+                effect_subtraction_count += slot.effect_subtraction_consumers.len() as u32;
+                RuntimeEvidenceSlot::from_slot(id as u32, slot)
+            })
+            .collect::<Vec<_>>();
+        let weighted_constraint_count = graph
+            .queued_constraints
+            .iter()
+            .filter(|constraint| {
+                !stack_weight_is_empty(&constraint.lower_weight)
+                    || !stack_weight_is_empty(&constraint.upper_weight)
+            })
+            .count() as u32;
+        let mut row_residuals = graph
+            .row_residuals
+            .iter()
+            .map(|(key, residual)| RuntimeEvidenceRowResidual {
+                source: key.source,
+                retained_families: key.retained_families.clone(),
+                weight: key.weight.clone(),
+                residual: *residual,
+            })
+            .collect::<Vec<_>>();
+        row_residuals.sort_by(|left, right| {
+            left.source
+                .cmp(&right.source)
+                .then_with(|| left.residual.cmp(&right.residual))
+                .then_with(|| {
+                    format!("{:?}", left.retained_families)
+                        .cmp(&format!("{:?}", right.retained_families))
+                })
+                .then_with(|| format!("{:?}", left.weight).cmp(&format!("{:?}", right.weight)))
+        });
+        Self {
+            slot_count: graph.slots.len() as u32,
+            value_slot_count,
+            effect_slot_count,
+            queued_constraint_count: graph.queued_constraints.len() as u32,
+            weighted_constraint_count,
+            weighted_lower_count,
+            weighted_upper_count,
+            weighted_edge_count,
+            effect_subtraction_count,
+            row_residuals,
+            slots,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeEvidenceSlot {
+    pub id: u32,
+    pub kind: RuntimeEvidenceSlotKind,
+    pub lower_count: u32,
+    pub upper_count: u32,
+    pub successor_count: u32,
+    pub predecessor_count: u32,
+    pub weighted_lower: Vec<RuntimeEvidenceWeightedTypeBound>,
+    pub weighted_upper: Vec<RuntimeEvidenceWeightedTypeBound>,
+    pub weighted_successors: Vec<RuntimeEvidenceWeightedSlotEdge>,
+    pub weighted_predecessors: Vec<RuntimeEvidenceWeightedSlotEdge>,
+    pub effect_subtractions: Vec<RuntimeEvidenceEffectSubtraction>,
+}
+
+impl RuntimeEvidenceSlot {
+    fn from_slot(id: u32, slot: &TypeSlot) -> Self {
+        Self {
+            id,
+            kind: RuntimeEvidenceSlotKind::from_kind(slot.kind),
+            lower_count: slot.lower.len() as u32,
+            upper_count: slot.upper.len() as u32,
+            successor_count: slot.successors.len() as u32,
+            predecessor_count: slot.predecessors.len() as u32,
+            weighted_lower: weighted_type_bounds(&slot.weighted_lower),
+            weighted_upper: weighted_type_bounds(&slot.weighted_upper),
+            weighted_successors: weighted_slot_edges(&slot.weighted_successors),
+            weighted_predecessors: weighted_slot_edges(&slot.weighted_predecessors),
+            effect_subtractions: slot
+                .effect_subtraction_consumers
+                .iter()
+                .map(RuntimeEvidenceEffectSubtraction::from_demand)
+                .collect(),
+        }
+    }
+
+    fn has_runtime_evidence(&self) -> bool {
+        !self.weighted_lower.is_empty()
+            || !self.weighted_upper.is_empty()
+            || !self.weighted_successors.is_empty()
+            || !self.weighted_predecessors.is_empty()
+            || !self.effect_subtractions.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RuntimeEvidenceSlotKind {
+    Value,
+    Effect,
+}
+
+impl RuntimeEvidenceSlotKind {
+    fn from_kind(kind: TypeSlotKind) -> Self {
+        match kind {
+            TypeSlotKind::Value => Self::Value,
+            TypeSlotKind::Effect => Self::Effect,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeEvidenceWeightedTypeBound {
+    pub ty: Type,
+    pub lower_weight: StackWeight,
+    pub upper_weight: StackWeight,
+}
+
+impl RuntimeEvidenceWeightedTypeBound {
+    fn from_bound(bound: &WeightedTypeBound) -> Self {
+        Self {
+            ty: bound.ty.clone(),
+            lower_weight: bound.lower_weight.clone(),
+            upper_weight: bound.upper_weight.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeEvidenceWeightedSlotEdge {
+    pub slot: u32,
+    pub lower_weight: StackWeight,
+    pub upper_weight: StackWeight,
+}
+
+impl RuntimeEvidenceWeightedSlotEdge {
+    fn from_edge(edge: &WeightedSlotEdge) -> Self {
+        Self {
+            slot: edge.slot,
+            lower_weight: edge.lower_weight.clone(),
+            upper_weight: edge.upper_weight.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeEvidenceEffectSubtraction {
+    pub tail: Type,
+    pub runtime_effect: Type,
+    pub handled_items: Vec<Type>,
+}
+
+impl RuntimeEvidenceEffectSubtraction {
+    fn from_demand(demand: &EffectSubtractionDemand) -> Self {
+        Self {
+            tail: demand.tail.clone(),
+            runtime_effect: demand.runtime_effect.clone(),
+            handled_items: demand.handled_items.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeEvidenceRowResidual {
+    pub source: u32,
+    pub retained_families: Vec<EffectFamily>,
+    pub weight: StackWeight,
+    pub residual: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -295,6 +601,33 @@ fn type_at_exprs(
         .iter()
         .map(|(expr, ty)| RuntimeEvidenceTypeAtExpr::new(*expr, ty))
         .collect()
+}
+
+fn weighted_type_bounds(bounds: &[WeightedTypeBound]) -> Vec<RuntimeEvidenceWeightedTypeBound> {
+    bounds
+        .iter()
+        .map(RuntimeEvidenceWeightedTypeBound::from_bound)
+        .collect()
+}
+
+fn weighted_slot_edges(edges: &[WeightedSlotEdge]) -> Vec<RuntimeEvidenceWeightedSlotEdge> {
+    edges
+        .iter()
+        .map(RuntimeEvidenceWeightedSlotEdge::from_edge)
+        .collect()
+}
+
+fn format_effect_family(family: &EffectFamily) -> String {
+    if family.args.is_empty() {
+        return family.path.join("::");
+    }
+    let args = family
+        .args
+        .iter()
+        .map(mono::dump::dump_type)
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("{}({args})", family.path.join("::"))
 }
 
 fn format_task_header(task: &RuntimeEvidenceTask) -> String {

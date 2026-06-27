@@ -94,6 +94,7 @@ impl<'a> TaskSolver<'a> {
                 },
             );
         }
+        let runtime_evidence_graph = RuntimeEvidenceGraph::from_type_graph(&self.graph);
         Ok(SolvedTask {
             exprs,
             ref_signatures,
@@ -101,6 +102,7 @@ impl<'a> TaskSolver<'a> {
             typeclass_resolutions,
             pat_ref_signatures,
             raw_thunk_computations: self.raw_thunk_computations,
+            runtime_evidence_graph,
         })
     }
 

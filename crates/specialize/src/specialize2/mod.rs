@@ -36,10 +36,13 @@ use candidate::*;
 use effect::*;
 use marker::*;
 pub use runtime_evidence::{
-    RuntimeEvidenceExprType, RuntimeEvidenceStackWeight, RuntimeEvidenceSurface,
-    RuntimeEvidenceTask, RuntimeEvidenceTaskOwner, RuntimeEvidenceTypeAtExpr,
-    RuntimeEvidenceTypeAtPat, RuntimeEvidenceTypePathStep, RuntimeEvidenceTypeRole,
-    RuntimeEvidenceTypeclassResolution, SpecializeOutput, format_runtime_evidence_surface,
+    RuntimeEvidenceEffectSubtraction, RuntimeEvidenceExprType, RuntimeEvidenceGraph,
+    RuntimeEvidenceRowResidual, RuntimeEvidenceSlot, RuntimeEvidenceSlotKind,
+    RuntimeEvidenceStackWeight, RuntimeEvidenceSurface, RuntimeEvidenceTask,
+    RuntimeEvidenceTaskOwner, RuntimeEvidenceTypeAtExpr, RuntimeEvidenceTypeAtPat,
+    RuntimeEvidenceTypePathStep, RuntimeEvidenceTypeRole, RuntimeEvidenceTypeclassResolution,
+    RuntimeEvidenceWeightedSlotEdge, RuntimeEvidenceWeightedTypeBound, SpecializeOutput,
+    format_runtime_evidence_surface,
 };
 use runtime_shape::*;
 
@@ -115,6 +118,7 @@ struct SolvedTask {
     typeclass_resolutions: HashMap<poly_expr::ExprId, TypeclassResolution>,
     pat_ref_signatures: HashMap<poly_expr::PatId, Type>,
     raw_thunk_computations: HashSet<poly_expr::ExprId>,
+    runtime_evidence_graph: RuntimeEvidenceGraph,
 }
 
 impl SolvedTask {

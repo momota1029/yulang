@@ -486,6 +486,29 @@ mod tests {
             .expect("root expr type should be recorded");
         assert_eq!(mono::dump::dump_type(&root_type.actual), "int");
         assert!(root_type.consumer.is_none());
+        assert!(output.runtime_evidence.tasks[0].graph.slot_count > 0);
+        assert!(
+            output.runtime_evidence.tasks[0]
+                .graph
+                .queued_constraint_count
+                > 0
+        );
+    }
+
+    #[test]
+    fn runtime_evidence_graph_records_weighted_higher_order_edges() {
+        let lowering = lower_source("my twice f x = f (f x)\ntwice(\\x -> x)(1)\n");
+        let arena = &lowering.session.poly;
+
+        let output = specialize_with_runtime_evidence(arena)
+            .expect("higher-order root should specialize with runtime evidence");
+
+        assert!(
+            output.runtime_evidence.tasks.iter().any(|task| {
+                task.graph.weighted_constraint_count > 0 || task.graph.weighted_edge_count > 0
+            }),
+            "runtime evidence graph should retain weighted higher-order constraints"
+        );
     }
 
     #[test]
