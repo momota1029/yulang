@@ -8,6 +8,7 @@ use control_vm::{
     ControlEvidenceRoute, DefId, Expr, ExprId, InstanceId, Pat, Program, RecordSpread, Root,
     SelectResolution, Stmt,
 };
+use list_tree::{ListTree, ListView};
 use specialize::mono::{
     FunctionAdapterHygiene, GuardMarker, Lit, PrimitiveContext, PrimitiveOp, RangeConstructors,
     Type,
@@ -107,7 +108,7 @@ enum RuntimeEvidenceValue {
     Bool(bool),
     Unit,
     Tuple(Vec<SharedValue>),
-    List(Vec<SharedValue>),
+    List(ListTree<SharedValue>),
     Record(Vec<RuntimeEvidenceValueField>),
     PolyVariant {
         tag: String,
@@ -2717,7 +2718,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceRefSetFinish::Tuple,
             ),
             RuntimeEvidenceValue::List(values) => self.resolve_ref_set_values(
-                values.clone(),
+                values.to_vec(),
                 assigned,
                 Vec::new(),
                 0,
@@ -5282,55 +5283,58 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let value = match op {
             BoolNot => RuntimeEvidenceValue::Bool(!expect_bool(&args[0])?),
             BoolEq => RuntimeEvidenceValue::Bool(expect_bool(&args[0])? == expect_bool(&args[1])?),
-            ListEmpty => RuntimeEvidenceValue::List(Vec::new()),
-            ListSingleton => RuntimeEvidenceValue::List(vec![args[0].clone()]),
+            ListEmpty => RuntimeEvidenceValue::List(ListTree::empty()),
+            ListSingleton => RuntimeEvidenceValue::List(ListTree::singleton(args[0].clone())),
             ListLen => RuntimeEvidenceValue::Int(expect_list(&args[0])?.len() as i64),
             ListIndex => expect_list(&args[0])?
-                .get(value_index(&args[1])?)
+                .index(value_index(&args[1])?)
                 .map(|value| value.as_ref().clone())
                 .ok_or(RuntimeEvidenceRunError::UnsupportedPrimitive(op))?,
             ListIndexRange => {
                 let values = expect_list(&args[0])?;
                 let (start, end) = normalized_range_value(context, op, &args[1], values.len())?;
-                self.stats.list_values_copied += end - start;
-                RuntimeEvidenceValue::List(values[start..end].to_vec())
+                RuntimeEvidenceValue::List(
+                    values
+                        .index_range(start, end)
+                        .ok_or(RuntimeEvidenceRunError::UnsupportedPrimitive(op))?,
+                )
             }
             ListIndexRangeRaw => {
                 let values = expect_list(&args[0])?;
                 let start = value_index(&args[1])?;
                 let end = value_index(&args[2])?;
-                if start > end || end > values.len() {
-                    return Err(RuntimeEvidenceRunError::UnsupportedPrimitive(op));
-                }
-                self.stats.list_values_copied += end - start;
-                RuntimeEvidenceValue::List(values[start..end].to_vec())
+                RuntimeEvidenceValue::List(
+                    values
+                        .index_range(start, end)
+                        .ok_or(RuntimeEvidenceRunError::UnsupportedPrimitive(op))?,
+                )
             }
             ListMerge => {
                 self.stats.list_merge_calls += 1;
                 let left = expect_list(&args[0])?;
                 let right = expect_list(&args[1])?;
-                self.stats.list_values_copied += left.len() + right.len();
-                let mut values = left.to_vec();
-                values.extend(right.iter().cloned());
-                RuntimeEvidenceValue::List(values)
+                RuntimeEvidenceValue::List(ListTree::concat(left.clone(), right.clone()))
             }
             ListSplice => {
                 let values = expect_list(&args[0])?;
                 let (start, end) = normalized_range_value(context, op, &args[1], values.len())?;
                 let insert = expect_list(&args[2])?;
-                self.stats.list_values_copied += values.len() - (end - start) + insert.len();
-                RuntimeEvidenceValue::List(splice_shared_slice(values, start, end, insert)?)
+                RuntimeEvidenceValue::List(
+                    values
+                        .splice(start, end, insert.clone())
+                        .ok_or(RuntimeEvidenceRunError::UnsupportedPrimitive(op))?,
+                )
             }
             ListSpliceRaw => {
                 let values = expect_list(&args[0])?;
                 let start = value_index(&args[1])?;
                 let end = value_index(&args[2])?;
                 let insert = expect_list(&args[3])?;
-                if start > end || end > values.len() {
-                    return Err(RuntimeEvidenceRunError::UnsupportedPrimitive(op));
-                }
-                self.stats.list_values_copied += values.len() - (end - start) + insert.len();
-                RuntimeEvidenceValue::List(splice_shared_slice(values, start, end, insert)?)
+                RuntimeEvidenceValue::List(
+                    values
+                        .splice(start, end, insert.clone())
+                        .ok_or(RuntimeEvidenceRunError::UnsupportedPrimitive(op))?,
+                )
             }
             ListViewRaw => apply_list_view_raw(context, &args[0], &mut self.stats)?,
             IntAdd => RuntimeEvidenceValue::Int(expect_int(&args[0])? + expect_int(&args[1])?),
@@ -5650,6 +5654,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if values.len() < min_len || spread.is_none() && values.len() != min_len {
             return Err(RuntimeEvidenceRunError::PatternMismatch);
         }
+        let values = values.to_vec();
 
         for (pat, value) in prefix.iter().zip(values.iter()) {
             self.bind_pat(pat, mark_runtime_value(value.clone(), &markers), env)?;
@@ -5665,7 +5670,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
 
         if let Some(spread) = spread {
-            let slice = values[prefix.len()..suffix_start].to_vec();
+            let slice = ListTree::from_items(values[prefix.len()..suffix_start].iter().cloned());
             self.bind_pat(
                 spread,
                 mark_runtime_value(shared(RuntimeEvidenceValue::List(slice)), &markers),
@@ -5701,7 +5706,7 @@ fn constructor_value(def: DefId, arity: usize, args: Vec<SharedValue>) -> Runtim
 fn finish_ref_set_values(finish: EvidenceRefSetFinish, values: Vec<SharedValue>) -> SharedValue {
     shared(match finish {
         EvidenceRefSetFinish::Tuple => RuntimeEvidenceValue::Tuple(values),
-        EvidenceRefSetFinish::List => RuntimeEvidenceValue::List(values),
+        EvidenceRefSetFinish::List => RuntimeEvidenceValue::List(ListTree::from_items(values)),
         EvidenceRefSetFinish::PolyVariant { tag } => RuntimeEvidenceValue::PolyVariant {
             tag,
             payloads: values,
@@ -5759,9 +5764,11 @@ fn runtime_values_equivalent(left: &RuntimeEvidenceValue, right: &RuntimeEvidenc
         (RuntimeEvidenceValue::Bytes(left), RuntimeEvidenceValue::Bytes(right)) => left == right,
         (RuntimeEvidenceValue::Bool(left), RuntimeEvidenceValue::Bool(right)) => left == right,
         (RuntimeEvidenceValue::Unit, RuntimeEvidenceValue::Unit) => true,
-        (RuntimeEvidenceValue::Tuple(left), RuntimeEvidenceValue::Tuple(right))
-        | (RuntimeEvidenceValue::List(left), RuntimeEvidenceValue::List(right)) => {
+        (RuntimeEvidenceValue::Tuple(left), RuntimeEvidenceValue::Tuple(right)) => {
             runtime_value_slices_equivalent(left, right)
+        }
+        (RuntimeEvidenceValue::List(left), RuntimeEvidenceValue::List(right)) => {
+            runtime_value_lists_equivalent(left, right)
         }
         (RuntimeEvidenceValue::Record(left), RuntimeEvidenceValue::Record(right)) => {
             left.len() == right.len()
@@ -5809,6 +5816,19 @@ fn runtime_value_slices_equivalent(left: &[SharedValue], right: &[SharedValue]) 
             .iter()
             .zip(right)
             .all(|(left, right)| runtime_values_equivalent(left.as_ref(), right.as_ref()))
+}
+
+fn runtime_value_lists_equivalent(
+    left: &ListTree<SharedValue>,
+    right: &ListTree<SharedValue>,
+) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+    left.to_vec()
+        .iter()
+        .zip(right.to_vec().iter())
+        .all(|(left, right)| runtime_values_equivalent(left.as_ref(), right.as_ref()))
 }
 
 fn runtime_value_view(
@@ -5866,7 +5886,7 @@ fn expect_bool(value: &SharedValue) -> Result<bool, RuntimeEvidenceRunError> {
     }
 }
 
-fn expect_list(value: &SharedValue) -> Result<&[SharedValue], RuntimeEvidenceRunError> {
+fn expect_list(value: &SharedValue) -> Result<&ListTree<SharedValue>, RuntimeEvidenceRunError> {
     match value.as_ref() {
         RuntimeEvidenceValue::Marked { value, .. } => expect_list(value),
         RuntimeEvidenceValue::List(values) => Ok(values),
@@ -5895,24 +5915,6 @@ fn index_to_int(index: usize) -> Result<i64, RuntimeEvidenceRunError> {
     i64::try_from(index).map_err(|_| RuntimeEvidenceRunError::UnsupportedExpr("index too large"))
 }
 
-fn splice_shared_slice(
-    values: &[SharedValue],
-    start: usize,
-    end: usize,
-    insert: &[SharedValue],
-) -> Result<Vec<SharedValue>, RuntimeEvidenceRunError> {
-    if start > end || end > values.len() {
-        return Err(RuntimeEvidenceRunError::UnsupportedExpr(
-            "list splice range out of bounds",
-        ));
-    }
-    let mut out = Vec::with_capacity(values.len() - (end - start) + insert.len());
-    out.extend_from_slice(&values[..start]);
-    out.extend_from_slice(insert);
-    out.extend_from_slice(&values[end..]);
-    Ok(out)
-}
-
 fn apply_list_view_raw(
     context: &PrimitiveContext,
     value: &SharedValue,
@@ -5925,25 +5927,22 @@ fn apply_list_view_raw(
             "missing list_view primitive context",
         ))?;
     let values = expect_list(value)?;
-    match values {
-        [] => Ok(RuntimeEvidenceValue::DataConstructor {
+    match values.view() {
+        ListView::Empty => Ok(RuntimeEvidenceValue::DataConstructor {
             def: DefId(constructors.empty.0),
             payloads: Vec::new(),
         }),
-        [value] => Ok(RuntimeEvidenceValue::DataConstructor {
+        ListView::Leaf(value) => Ok(RuntimeEvidenceValue::DataConstructor {
             def: DefId(constructors.leaf.0),
-            payloads: vec![value.clone()],
+            payloads: vec![value],
         }),
-        values => {
-            let split = values.len() / 2;
-            stats.list_values_copied += values.len();
-            let left = shared(RuntimeEvidenceValue::List(values[..split].to_vec()));
-            let right = shared(RuntimeEvidenceValue::List(values[split..].to_vec()));
-            Ok(RuntimeEvidenceValue::DataConstructor {
-                def: DefId(constructors.node.0),
-                payloads: vec![left, right],
-            })
-        }
+        ListView::Node { left, right, .. } => Ok(RuntimeEvidenceValue::DataConstructor {
+            def: DefId(constructors.node.0),
+            payloads: vec![
+                shared(RuntimeEvidenceValue::List(left)),
+                shared(RuntimeEvidenceValue::List(right)),
+            ],
+        }),
     }
 }
 

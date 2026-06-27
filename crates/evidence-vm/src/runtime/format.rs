@@ -1,5 +1,7 @@
 use control_vm::DefId;
 
+use list_tree::ListTree;
+
 use super::{RuntimeEvidenceValue, SharedValue};
 
 pub(super) fn format_values_with_labels(
@@ -39,7 +41,7 @@ fn format_value_with_labels(
         RuntimeEvidenceValue::Bool(value) => value.to_string(),
         RuntimeEvidenceValue::Unit => "()".to_string(),
         RuntimeEvidenceValue::Tuple(values) => format_delimited("(", ")", values, labels),
-        RuntimeEvidenceValue::List(values) => format_delimited("[", "]", values, labels),
+        RuntimeEvidenceValue::List(values) => format_list(values, labels),
         RuntimeEvidenceValue::Record(fields) => {
             let fields = fields
                 .iter()
@@ -100,6 +102,12 @@ fn format_delimited(
     }
     out.push_str(close);
     out
+}
+
+fn format_list(values: &ListTree<SharedValue>, labels: Option<&poly::dump::DumpLabels>) -> String {
+    let mut items = Vec::with_capacity(values.len());
+    values.for_each_ref(&mut |value| items.push(value.clone()));
+    format_delimited("[", "]", &items, labels)
 }
 
 fn format_shared_values(values: &[SharedValue], labels: Option<&poly::dump::DumpLabels>) -> String {

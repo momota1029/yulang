@@ -213,6 +213,7 @@ name = "evidence-vm"
 version = "0.1.0"
 dependencies = [
  "control-vm",
+ "list-tree",
  "poly",
  "specialize",
  "unicode-segmentation",
