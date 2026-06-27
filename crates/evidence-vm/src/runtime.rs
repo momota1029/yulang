@@ -149,6 +149,13 @@ enum RuntimeEvidenceValue {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+enum RuntimeEvidenceExpr {
+    Value(SharedValue),
+    Local(EnvSlot),
+    Source,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 struct RuntimeEvidenceValueField {
     name: String,
     value: SharedValue,
@@ -1092,6 +1099,28 @@ pub fn run_program_with_plan(
     RuntimeEvidenceRunner::new(program, RuntimeEvidenceRunContext::from_plan(plan)).run()
 }
 
+fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
+    program
+        .exprs
+        .iter()
+        .enumerate()
+        .map(|(index, expr)| match expr {
+            Expr::Lit(lit) => RuntimeEvidenceExpr::Value(shared(value_from_lit(lit))),
+            Expr::Constructor { def, arity } => {
+                RuntimeEvidenceExpr::Value(shared(constructor_value(*def, *arity, Vec::new())))
+            }
+            Expr::EffectOp { path } => {
+                RuntimeEvidenceExpr::Value(shared(RuntimeEvidenceValue::EffectOp {
+                    expr: ExprId(index as u32),
+                    path: path.clone(),
+                }))
+            }
+            Expr::Local(def) => RuntimeEvidenceExpr::Local(EnvSlot::from(*def)),
+            _ => RuntimeEvidenceExpr::Source,
+        })
+        .collect()
+}
+
 fn static_arm_caches(
     program: &Program,
 ) -> (
@@ -1122,6 +1151,7 @@ fn static_arm_caches(
 struct RuntimeEvidenceRunner<'a> {
     program: &'a Program,
     evidence: ControlEvidenceIndex,
+    runtime_exprs: Vec<RuntimeEvidenceExpr>,
     case_arms: Vec<Option<Rc<[control_vm::CaseArm]>>>,
     catch_arms: Vec<Option<Rc<[control_vm::CatchArm]>>>,
     instances: HashMap<InstanceId, SharedValue>,
@@ -1143,12 +1173,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn new(program: &'a Program, mut context: RuntimeEvidenceRunContext) -> Self {
         let mut evidence = ControlEvidenceIndex::new(program);
         context.apply_to_evidence(&mut evidence);
+        let runtime_exprs = runtime_expr_cache(program);
         let (case_arms, catch_arms) = static_arm_caches(program);
         let mut stats = evidence.stats();
         context.apply_to_stats(&mut stats);
         Self {
             program,
             evidence,
+            runtime_exprs,
             case_arms,
             catch_arms,
             instances: HashMap::new(),
@@ -1841,6 +1873,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         self.stats.expr_evals += 1;
         let expr_id = expr;
+        match self
+            .runtime_exprs
+            .get(expr_id.0 as usize)
+            .cloned()
+            .ok_or(RuntimeEvidenceRunError::MissingExpr(expr))?
+        {
+            RuntimeEvidenceExpr::Value(value) => return Ok(EvidenceEvalResult::Value(value)),
+            RuntimeEvidenceExpr::Local(slot) => {
+                return Ok(EvidenceEvalResult::Value(env.get_slot(slot).ok_or(
+                    RuntimeEvidenceRunError::UnboundLocal(DefId(slot.0 as u32)),
+                )?));
+            }
+            RuntimeEvidenceExpr::Source => {}
+        }
         let Some(expr) = self.program.exprs.get(expr_id.0 as usize) else {
             return Err(RuntimeEvidenceRunError::MissingExpr(expr));
         };
