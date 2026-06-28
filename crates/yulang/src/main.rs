@@ -2435,6 +2435,24 @@ fn run_runtime_evidence_run(
             .permission_visibility_handler_boundary_mask
     );
     println!(
+        "  runtime_evidence.permission_visibility_guard_and_boundary_mask: {}",
+        output
+            .evidence_stats
+            .permission_visibility_guard_and_boundary_mask
+    );
+    println!(
+        "  runtime_evidence.permission_visibility_guard_without_boundary: {}",
+        output
+            .evidence_stats
+            .permission_visibility_guard_without_boundary
+    );
+    println!(
+        "  runtime_evidence.permission_visibility_boundary_without_guard: {}",
+        output
+            .evidence_stats
+            .permission_visibility_boundary_without_guard
+    );
+    println!(
         "  control_evidence.effect_calls: {}",
         output.evidence_stats.effect_calls
     );

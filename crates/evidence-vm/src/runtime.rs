@@ -89,6 +89,9 @@ pub struct RuntimeEvidenceRunStats {
     pub permission_visibility_guard_mask: usize,
     pub permission_visibility_resume_delta: usize,
     pub permission_visibility_handler_boundary_mask: usize,
+    pub permission_visibility_guard_and_boundary_mask: usize,
+    pub permission_visibility_guard_without_boundary: usize,
+    pub permission_visibility_boundary_without_guard: usize,
     pub expr_evals: usize,
     pub env_clones: usize,
     pub env_entries_cloned: usize,
@@ -6790,6 +6793,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
         if transform.handler_boundary_mask {
             self.stats.permission_visibility_handler_boundary_mask += 1;
+        }
+        match (transform.guard_mask, transform.handler_boundary_mask) {
+            (true, true) => {
+                self.stats.permission_visibility_guard_and_boundary_mask += 1;
+            }
+            (true, false) => {
+                self.stats.permission_visibility_guard_without_boundary += 1;
+            }
+            (false, true) => {
+                self.stats.permission_visibility_boundary_without_guard += 1;
+            }
+            (false, false) => {}
         }
     }
 
