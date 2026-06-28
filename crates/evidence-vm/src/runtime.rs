@@ -76,6 +76,10 @@ pub struct RuntimeEvidenceRunStats {
     pub direct_tail_gate_fail_add_id_own_path: usize,
     pub direct_tail_gate_fail_add_id_foreign_path: usize,
     pub direct_tail_gate_fail_handler_shadowed: usize,
+    pub direct_tail_guarded_add_id_shadowed: usize,
+    pub direct_tail_guarded_add_id_all_path: usize,
+    pub direct_tail_guarded_add_id_own_path: usize,
+    pub direct_tail_guarded_add_id_foreign_path: usize,
     pub expr_evals: usize,
     pub env_clones: usize,
     pub env_entries_cloned: usize,
@@ -83,6 +87,7 @@ pub struct RuntimeEvidenceRunStats {
     pub apply_adapter_calls: usize,
     pub adapt_value_calls: usize,
     pub primitive_apply_calls: usize,
+    pub forced_effect_call_fusions: usize,
     pub thunk_forces: usize,
     pub thunk_force_expr: usize,
     pub thunk_force_effect: usize,
@@ -225,6 +230,13 @@ enum RuntimeEvidenceExpr {
     ForceThunk {
         target_value_is_thunk: bool,
         thunk: ExprId,
+    },
+    ForceEffectCall {
+        target_value_is_thunk: bool,
+        site: ExprId,
+        effect: ExprId,
+        path: Rc<[String]>,
+        arg: ExprId,
     },
     MarkerFrame {
         path: Rc<[String]>,
@@ -1695,10 +1707,23 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
                 hygiene: hygiene.clone(),
                 provider_expr: ExprId(index as u32),
             },
-            Expr::ForceThunk { target, thunk, .. } => RuntimeEvidenceExpr::ForceThunk {
-                target_value_is_thunk: matches!(target.value, Type::Thunk { .. }),
-                thunk: *thunk,
-            },
+            Expr::ForceThunk { target, thunk, .. } => {
+                let target_value_is_thunk = matches!(target.value, Type::Thunk { .. });
+                if let Some((site, effect, path, arg)) = forced_effect_call_parts(program, *thunk) {
+                    RuntimeEvidenceExpr::ForceEffectCall {
+                        target_value_is_thunk,
+                        site,
+                        effect,
+                        path: Rc::from(path.to_vec().into_boxed_slice()),
+                        arg,
+                    }
+                } else {
+                    RuntimeEvidenceExpr::ForceThunk {
+                        target_value_is_thunk,
+                        thunk: *thunk,
+                    }
+                }
+            }
             Expr::MarkerFrame { path, body } => RuntimeEvidenceExpr::MarkerFrame {
                 path: Rc::from(path.clone().into_boxed_slice()),
                 body: *body,
@@ -1744,6 +1769,20 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
             },
         })
         .collect()
+}
+
+fn forced_effect_call_parts(
+    program: &Program,
+    thunk: ExprId,
+) -> Option<(ExprId, ExprId, &[String], ExprId)> {
+    let site = thunk;
+    let Expr::Apply { callee, arg } = program.exprs.get(thunk.0 as usize)? else {
+        return None;
+    };
+    let Expr::EffectOp { path } = program.exprs.get(callee.0 as usize)? else {
+        return None;
+    };
+    Some((site, *callee, path, *arg))
 }
 
 fn static_arm_caches(
@@ -2164,11 +2203,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }) {
             return Some(ProviderGrantPathGateFail::ScopeMissing);
         }
-        if let Some(kind) = self.provider_grant_add_id_shadow_kind(grant.hygiene_baseline, path) {
-            return Some(ProviderGrantPathGateFail::AddIdShadowed(kind));
-        }
         if self.provider_grant_handler_shadowed(grant.hygiene_baseline, path) {
             return Some(ProviderGrantPathGateFail::HandlerShadowed);
+        }
+        if let Some(kind) = self.provider_grant_add_id_shadow_kind(grant.hygiene_baseline, path) {
+            return Some(ProviderGrantPathGateFail::AddIdShadowed(kind));
         }
         None
     }
@@ -2221,6 +2260,66 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             ProviderGrantPathGateFail::HandlerShadowed => {
                 self.stats.direct_tail_gate_fail_handler_shadowed += 1;
             }
+        }
+    }
+
+    fn record_direct_tail_guarded_add_id(&mut self, kind: ActiveAddIdMatchKind) {
+        self.stats.direct_tail_guarded_add_id_shadowed += 1;
+        match kind {
+            ActiveAddIdMatchKind::AllPath => {
+                self.stats.direct_tail_guarded_add_id_all_path += 1;
+            }
+            ActiveAddIdMatchKind::OwnPath => {
+                self.stats.direct_tail_guarded_add_id_own_path += 1;
+            }
+            ActiveAddIdMatchKind::ForeignPath => {
+                self.stats.direct_tail_guarded_add_id_foreign_path += 1;
+            }
+        }
+    }
+
+    fn direct_tail_resumptive(
+        &self,
+        handler: ExprId,
+        path: Vec<String>,
+        payload: SharedValue,
+    ) -> EvidenceDirectTailResumptive {
+        EvidenceDirectTailResumptive {
+            handler,
+            path,
+            payload,
+            guard_ids: Vec::new(),
+            carried_guards: Vec::new(),
+            handler_boundary: None,
+            continuation: EvidenceContinuation::identity(),
+        }
+    }
+
+    fn guarded_direct_tail_resumptive(
+        &mut self,
+        handler: ExprId,
+        path: Vec<String>,
+        payload: SharedValue,
+        route: EvidenceEffectRoute,
+    ) -> EvidenceDirectTailResumptive {
+        let mut request = EvidenceRequest {
+            path,
+            payload,
+            route,
+            guard_ids: Vec::new(),
+            carried_guards: Vec::new(),
+            handler_boundary: None,
+            continuation: EvidenceContinuation::identity(),
+        };
+        self.mark_request_with_active_markers(&mut request);
+        EvidenceDirectTailResumptive {
+            handler,
+            path: request.path,
+            payload: request.payload,
+            guard_ids: request.guard_ids,
+            carried_guards: request.carried_guards,
+            handler_boundary: request.handler_boundary,
+            continuation: request.continuation,
         }
     }
 
@@ -3203,6 +3302,22 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     ),
                 };
             }
+            RuntimeEvidenceExpr::ForceEffectCall {
+                target_value_is_thunk,
+                site,
+                effect,
+                path,
+                arg,
+            } => {
+                return self.eval_force_effect_call_result(
+                    target_value_is_thunk,
+                    site,
+                    effect,
+                    &path,
+                    arg,
+                    env,
+                );
+            }
             RuntimeEvidenceExpr::MarkerFrame { path, body } => {
                 let id = self.fresh_guard_id();
                 let markers = stack_handler_markers(id, &path);
@@ -3362,6 +3477,109 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 )
             }
         }
+    }
+
+    fn eval_force_effect_call_result(
+        &mut self,
+        target_value_is_thunk: bool,
+        site: ExprId,
+        effect: ExprId,
+        path: &[String],
+        arg_expr: ExprId,
+        env: &mut Env,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let mut arg_env = self.clone_env(env);
+        match self.eval_expr_result(arg_expr, &mut arg_env)? {
+            EvidenceEvalResult::Value(arg) => {
+                let resolved_route = self.effect_route_for_operation_call(Some(site), effect);
+                let route_origin = self.effect_thunk_origin(resolved_route.origin);
+                let evidence = EffectThunkEvidence { route_origin };
+                self.force_effect_call_scoped_result(
+                    target_value_is_thunk,
+                    path,
+                    arg,
+                    resolved_route.route,
+                    evidence,
+                )
+            }
+            result => {
+                let callee = shared(RuntimeEvidenceValue::EffectOp {
+                    expr: effect,
+                    path: path.to_vec(),
+                });
+                self.continue_result(
+                    result,
+                    EvidenceContinuation::apply_arg(
+                        Some(site),
+                        callee,
+                        EvidenceContinuation::force_thunk(
+                            target_value_is_thunk,
+                            EvidenceContinuation::identity(),
+                        ),
+                    ),
+                )
+            }
+        }
+    }
+
+    fn force_effect_call_scoped_result(
+        &mut self,
+        target_value_is_thunk: bool,
+        path: &[String],
+        arg: SharedValue,
+        route: EvidenceEffectRoute,
+        evidence: EffectThunkEvidence,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let Some(active_plan) = self.active_marker_plans.last() else {
+            return self.force_effect_call_payload_result(
+                target_value_is_thunk,
+                path,
+                arg,
+                route,
+                evidence,
+            );
+        };
+        self.stats.function_call_marker_plans += 1;
+        self.stats.function_call_marker_inputs += active_plan.markers.len();
+        let markers = active_plan.function_call_markers();
+        self.stats.function_call_marker_outputs += markers.len();
+        if markers.is_empty() {
+            return self.force_effect_call_payload_result(
+                target_value_is_thunk,
+                path,
+                arg,
+                route,
+                evidence,
+            );
+        }
+        self.with_marker_frame(
+            EvidenceMarkerFrameSource::MarkedForce,
+            markers,
+            true,
+            None,
+            |runner| {
+                runner.force_effect_call_payload_result(
+                    target_value_is_thunk,
+                    path,
+                    arg,
+                    route,
+                    evidence,
+                )
+            },
+        )
+    }
+
+    fn force_effect_call_payload_result(
+        &mut self,
+        target_value_is_thunk: bool,
+        path: &[String],
+        arg: SharedValue,
+        route: EvidenceEffectRoute,
+        evidence: EffectThunkEvidence,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.stats.forced_effect_call_fusions += 1;
+        let result = self.force_effect_result(path, arg, route, evidence)?;
+        self.finish_force_thunk_result(result, target_value_is_thunk)
     }
 
     fn eval_apply_arg_result(
@@ -5609,6 +5827,85 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
+    fn force_effect_result(
+        &mut self,
+        path: &[String],
+        payload: SharedValue,
+        route: EvidenceEffectRoute,
+        evidence: EffectThunkEvidence,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if let EvidenceEffectRoute::Direct {
+            handler,
+            execution: EvidenceVmOperationExecutionPlan::DirectAbortive,
+            ..
+        } = route
+        {
+            return Ok(EvidenceEvalResult::DirectAbortive(EvidenceDirectAbortive {
+                handler,
+                path: path.to_vec(),
+                payload,
+            }));
+        }
+        if let EvidenceEffectRoute::Direct {
+            handler,
+            execution: EvidenceVmOperationExecutionPlan::DirectTailResumptive,
+            request_free_yield,
+            ..
+        } = route
+        {
+            if let Some(fail) = self.direct_tail_gate_failure(request_free_yield, evidence, path) {
+                if let ProviderGrantPathGateFail::AddIdShadowed(kind) = fail {
+                    self.record_direct_tail_guarded_add_id(kind);
+                    return Ok(EvidenceEvalResult::DirectTailResumptive(
+                        self.guarded_direct_tail_resumptive(handler, path.to_vec(), payload, route),
+                    ));
+                } else {
+                    self.record_direct_tail_gate_fail(fail);
+                }
+            } else {
+                return Ok(EvidenceEvalResult::DirectTailResumptive(
+                    self.direct_tail_resumptive(handler, path.to_vec(), payload),
+                ));
+            }
+        }
+        if let EvidenceEffectRoute::Direct {
+            handler,
+            execution: EvidenceVmOperationExecutionPlan::YieldFallback,
+            request_free_yield,
+            ..
+        } = route
+            && self.route_allows_routed_yield(request_free_yield, evidence)
+        {
+            let mut request = EvidenceRequest {
+                path: path.to_vec(),
+                payload,
+                route,
+                guard_ids: Vec::new(),
+                carried_guards: Vec::new(),
+                handler_boundary: None,
+                continuation: EvidenceContinuation::identity(),
+            };
+            self.mark_request_with_active_markers(&mut request);
+            return Ok(EvidenceEvalResult::RoutedYield(EvidenceRoutedYield {
+                handler,
+                request,
+            }));
+        }
+        let mut request = EvidenceRequest {
+            path: path.to_vec(),
+            payload,
+            route,
+            guard_ids: Vec::new(),
+            carried_guards: Vec::new(),
+            handler_boundary: None,
+            continuation: EvidenceContinuation::identity(),
+        };
+        if !request.route.is_direct_abortive() {
+            self.mark_request_with_active_markers(&mut request);
+        }
+        Ok(EvidenceEvalResult::Request(request))
+    }
+
     fn force_thunk_result(
         &mut self,
         thunk: SharedValue,
@@ -5636,79 +5933,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     evidence,
                 } => {
                     self.stats.thunk_force_effect += 1;
-                    if let EvidenceEffectRoute::Direct {
-                        handler,
-                        execution: EvidenceVmOperationExecutionPlan::DirectAbortive,
-                        ..
-                    } = route
-                    {
-                        return Ok(EvidenceEvalResult::DirectAbortive(EvidenceDirectAbortive {
-                            handler: *handler,
-                            path: path.clone(),
-                            payload: payload.clone(),
-                        }));
-                    }
-                    if let EvidenceEffectRoute::Direct {
-                        handler,
-                        execution: EvidenceVmOperationExecutionPlan::DirectTailResumptive,
-                        request_free_yield,
-                        ..
-                    } = route
-                    {
-                        if let Some(fail) =
-                            self.direct_tail_gate_failure(*request_free_yield, *evidence, path)
-                        {
-                            self.record_direct_tail_gate_fail(fail);
-                        } else {
-                            return Ok(EvidenceEvalResult::DirectTailResumptive(
-                                EvidenceDirectTailResumptive {
-                                    handler: *handler,
-                                    path: path.clone(),
-                                    payload: payload.clone(),
-                                    guard_ids: Vec::new(),
-                                    carried_guards: Vec::new(),
-                                    handler_boundary: None,
-                                    continuation: EvidenceContinuation::identity(),
-                                },
-                            ));
-                        }
-                    }
-                    if let EvidenceEffectRoute::Direct {
-                        handler,
-                        execution: EvidenceVmOperationExecutionPlan::YieldFallback,
-                        request_free_yield,
-                        ..
-                    } = route
-                        && self.route_allows_routed_yield(*request_free_yield, *evidence)
-                    {
-                        let mut request = EvidenceRequest {
-                            path: path.clone(),
-                            payload: payload.clone(),
-                            route: *route,
-                            guard_ids: Vec::new(),
-                            carried_guards: Vec::new(),
-                            handler_boundary: None,
-                            continuation: EvidenceContinuation::identity(),
-                        };
-                        self.mark_request_with_active_markers(&mut request);
-                        return Ok(EvidenceEvalResult::RoutedYield(EvidenceRoutedYield {
-                            handler: *handler,
-                            request,
-                        }));
-                    }
-                    let mut request = EvidenceRequest {
-                        path: path.clone(),
-                        payload: payload.clone(),
-                        route: *route,
-                        guard_ids: Vec::new(),
-                        carried_guards: Vec::new(),
-                        handler_boundary: None,
-                        continuation: EvidenceContinuation::identity(),
-                    };
-                    if !request.route.is_direct_abortive() {
-                        self.mark_request_with_active_markers(&mut request);
-                    }
-                    Ok(EvidenceEvalResult::Request(request))
+                    self.force_effect_result(path, payload.clone(), *route, *evidence)
                 }
                 RuntimeEvidenceThunk::Continuation { continuation, arg } => {
                     self.stats.thunk_force_continuation += 1;

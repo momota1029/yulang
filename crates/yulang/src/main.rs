@@ -2391,6 +2391,24 @@ fn run_runtime_evidence_run(
         output.evidence_stats.direct_tail_gate_fail_handler_shadowed
     );
     println!(
+        "  runtime_evidence.direct_tail_guarded_add_id_shadowed: {}",
+        output.evidence_stats.direct_tail_guarded_add_id_shadowed
+    );
+    println!(
+        "  runtime_evidence.direct_tail_guarded_add_id_all_path: {}",
+        output.evidence_stats.direct_tail_guarded_add_id_all_path
+    );
+    println!(
+        "  runtime_evidence.direct_tail_guarded_add_id_own_path: {}",
+        output.evidence_stats.direct_tail_guarded_add_id_own_path
+    );
+    println!(
+        "  runtime_evidence.direct_tail_guarded_add_id_foreign_path: {}",
+        output
+            .evidence_stats
+            .direct_tail_guarded_add_id_foreign_path
+    );
+    println!(
         "  control_evidence.effect_calls: {}",
         output.evidence_stats.effect_calls
     );
@@ -2425,6 +2443,10 @@ fn run_runtime_evidence_run(
     println!(
         "  runtime_evidence.primitive_apply_calls: {}",
         output.evidence_stats.primitive_apply_calls
+    );
+    println!(
+        "  runtime_evidence.forced_effect_call_fusions: {}",
+        output.evidence_stats.forced_effect_call_fusions
     );
     println!(
         "  runtime_evidence.thunk_forces: {}",
