@@ -1081,6 +1081,12 @@ impl EvidencePermissionVisibleResult {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidencePermissionVisibleDecision {
+    NotApplicable,
+    Handled(EvidencePermissionVisibleResult),
+}
+
 #[derive(Debug, Clone, Copy)]
 struct EvidenceGuardBoundaryExposure<'a> {
     handler_boundary: Option<&'a EvidenceHandlerBoundary>,
@@ -6771,8 +6777,30 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         call: &EvidenceDirectTailResumptive,
         arms: &[control_vm::CatchArm],
     ) -> Option<bool> {
-        let exposure = EvidenceGuardBoundaryExposure::from_hygiene(&call.hygiene);
         self.record_permission_visibility_stats(&call.hygiene);
+        if let EvidencePermissionVisibleDecision::Handled(permission_result) = self
+            .provider_guard_boundary_permission_decision(
+                catch_expr,
+                &call.path,
+                &call.hygiene,
+                arms,
+            )
+        {
+            let permission_visible = permission_result.visible();
+            let exposure = EvidenceGuardBoundaryExposure::from_hygiene(&call.hygiene);
+            let legacy_visible =
+                self.visible_operation_resumptive_parts(&call.path, exposure, arms);
+            self.record_provider_boundary_pair_shadow(legacy_visible, permission_result);
+            debug_assert_eq!(
+                permission_visible,
+                legacy_visible,
+                "permission direct-tail visibility diverged from legacy hygiene for {}",
+                call.path.join("::")
+            );
+            return permission_visible;
+        }
+
+        let exposure = EvidenceGuardBoundaryExposure::from_hygiene(&call.hygiene);
         let visible = self.visible_operation_resumptive_parts(&call.path, exposure, arms);
         self.record_permission_visibility_shadow(
             catch_expr,
@@ -6834,6 +6862,29 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 );
             }
         }
+    }
+
+    fn provider_guard_boundary_permission_decision(
+        &self,
+        catch_expr: ExprId,
+        request_path: &[String],
+        hygiene: &EvidenceSignalHygiene,
+        arms: &[control_vm::CatchArm],
+    ) -> EvidencePermissionVisibleDecision {
+        let Some(EvidencePermissionShadowKind::ProviderGrantBoundaryPair(permission)) =
+            hygiene.permission_shadow_kind()
+        else {
+            return EvidencePermissionVisibleDecision::NotApplicable;
+        };
+        EvidencePermissionVisibleDecision::Handled(
+            self.permission_visible_guard_boundary_pair_bridge(
+                catch_expr,
+                request_path,
+                hygiene,
+                permission,
+                arms,
+            ),
+        )
     }
 
     #[cfg(debug_assertions)]
