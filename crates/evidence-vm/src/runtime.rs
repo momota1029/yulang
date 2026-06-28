@@ -344,6 +344,19 @@ pub struct RuntimeEvidenceRunStats {
     pub provider_env_foreign_later_grant_legacy_shape_provider_env_frames: usize,
     pub provider_env_foreign_later_grant_legacy_shape_depth_sum: usize,
     pub provider_env_foreign_later_grant_legacy_shape_max_depth: usize,
+    pub provider_env_then_compaction_candidates: usize,
+    pub provider_env_then_compaction_adjacent_provider_env: usize,
+    pub provider_env_then_compaction_same_provider_env: usize,
+    pub provider_env_then_compaction_provider_env_identity_tail: usize,
+    pub provider_env_then_compaction_provider_env_then_first: usize,
+    pub provider_env_then_compaction_provider_env_then_second: usize,
+    pub provider_env_then_compaction_nested_same_env: usize,
+    pub provider_env_then_compaction_nested_different_env: usize,
+    pub provider_env_then_compaction_reject_different_provider_env: usize,
+    pub provider_env_then_compaction_reject_marker_frame_between: usize,
+    pub provider_env_then_compaction_reject_request_boundary: usize,
+    pub provider_env_then_compaction_reject_handler_boundary: usize,
+    pub provider_env_then_compaction_reject_resume_delta: usize,
     pub continuation_resume_provider_steps: usize,
     pub continuation_resume_aggregate_steps: usize,
     pub continuation_resume_select_steps: usize,
@@ -2631,6 +2644,10 @@ impl EvidenceContinuation {
         self.shape_profile_at(0)
     }
 
+    fn record_provider_env_then_compaction_candidates(&self, stats: &mut RuntimeEvidenceRunStats) {
+        self.record_provider_env_then_compaction_candidates_with_parent(None, stats)
+    }
+
     fn provider_env_placement_at(
         &self,
         handler_id: u32,
@@ -2762,6 +2779,18 @@ impl EvidenceContinuation {
             return EvidenceContinuationShapeProfile::default();
         };
         frame.shape_profile_at(depth)
+    }
+
+    fn record_provider_env_then_compaction_candidates_with_parent(
+        &self,
+        parent_provider_env: Option<&RuntimeEvidenceProviderEnv>,
+        stats: &mut RuntimeEvidenceRunStats,
+    ) {
+        let Some(frame) = self.frame() else {
+            return;
+        };
+        frame
+            .record_provider_env_then_compaction_candidates_with_parent(parent_provider_env, stats);
     }
 }
 
@@ -3384,6 +3413,91 @@ impl EvidenceContinuationFrame {
             }
         }
         shape
+    }
+
+    fn record_provider_env_then_compaction_candidates_with_parent(
+        &self,
+        parent_provider_env: Option<&RuntimeEvidenceProviderEnv>,
+        stats: &mut RuntimeEvidenceRunStats,
+    ) {
+        match self {
+            Self::ProviderEnv { provider_env, next } => {
+                stats.provider_env_then_compaction_candidates += 1;
+                if next.is_identity() {
+                    stats.provider_env_then_compaction_provider_env_identity_tail += 1;
+                }
+                if let Some(parent) = parent_provider_env {
+                    stats.provider_env_then_compaction_adjacent_provider_env += 1;
+                    if parent == provider_env {
+                        stats.provider_env_then_compaction_same_provider_env += 1;
+                        stats.provider_env_then_compaction_nested_same_env += 1;
+                    } else {
+                        stats.provider_env_then_compaction_nested_different_env += 1;
+                        stats.provider_env_then_compaction_reject_different_provider_env += 1;
+                    }
+                }
+                next.record_provider_env_then_compaction_candidates_with_parent(
+                    Some(provider_env),
+                    stats,
+                );
+            }
+            Self::Then { first, second } => {
+                match first.boundary_kind() {
+                    EvidenceContinuationBoundaryKind::ProviderEnv => {
+                        stats.provider_env_then_compaction_provider_env_then_first += 1;
+                        stats.provider_env_then_compaction_candidates += 1;
+                    }
+                    EvidenceContinuationBoundaryKind::MarkerFrame => {
+                        stats.provider_env_then_compaction_reject_marker_frame_between += 1;
+                    }
+                    EvidenceContinuationBoundaryKind::Other => {
+                        stats.provider_env_then_compaction_reject_request_boundary +=
+                            usize::from(first.has_request_boundary(None));
+                    }
+                    EvidenceContinuationBoundaryKind::Identity => {}
+                }
+                match second.boundary_kind() {
+                    EvidenceContinuationBoundaryKind::ProviderEnv => {
+                        stats.provider_env_then_compaction_provider_env_then_second += 1;
+                        stats.provider_env_then_compaction_candidates += 1;
+                    }
+                    EvidenceContinuationBoundaryKind::MarkerFrame => {
+                        stats.provider_env_then_compaction_reject_marker_frame_between += 1;
+                    }
+                    EvidenceContinuationBoundaryKind::Other => {
+                        stats.provider_env_then_compaction_reject_request_boundary +=
+                            usize::from(second.has_request_boundary(None));
+                    }
+                    EvidenceContinuationBoundaryKind::Identity => {}
+                }
+                first.record_provider_env_then_compaction_candidates_with_parent(
+                    parent_provider_env,
+                    stats,
+                );
+                second.record_provider_env_then_compaction_candidates_with_parent(
+                    parent_provider_env,
+                    stats,
+                );
+            }
+            Self::MarkerFrame { handler_path, .. } => {
+                if handler_path.is_some() {
+                    stats.provider_env_then_compaction_reject_handler_boundary += 1;
+                } else {
+                    stats.provider_env_then_compaction_reject_marker_frame_between += 1;
+                }
+            }
+            _ => {
+                if self.has_request_boundary(None) {
+                    stats.provider_env_then_compaction_reject_request_boundary += 1;
+                }
+                if let Some(next) = self.tail_ref() {
+                    next.record_provider_env_then_compaction_candidates_with_parent(
+                        parent_provider_env,
+                        stats,
+                    );
+                }
+            }
+        }
     }
 
     fn tail_ref(&self) -> Option<&EvidenceContinuation> {
@@ -5939,6 +6053,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         call: &EvidenceDirectTailResumptive,
         resume_plan: Option<&EvidenceResumeMarkerPlan>,
     ) {
+        call.continuation
+            .record_provider_env_then_compaction_candidates(&mut self.stats);
         let native_shape = call.continuation.shape_profile();
         let legacy_shape = if resume_plan.is_some() {
             native_shape.prepend_marker_frame()
@@ -13452,6 +13568,61 @@ mod tests {
                 .stats
                 .provider_env_foreign_later_grant_legacy_shape_marker_frames,
             1
+        );
+    }
+
+    #[test]
+    fn provider_env_then_compaction_profile_counts_exact_nested_envs() {
+        let provider_env = provider_env_fixture_for_handler(7);
+        let continuation = EvidenceContinuation::provider_env(
+            provider_env.clone(),
+            EvidenceContinuation::provider_env(provider_env, EvidenceContinuation::identity()),
+        );
+        let mut stats = RuntimeEvidenceRunStats::default();
+
+        continuation.record_provider_env_then_compaction_candidates(&mut stats);
+
+        assert_eq!(stats.provider_env_then_compaction_candidates, 2);
+        assert_eq!(stats.provider_env_then_compaction_adjacent_provider_env, 1);
+        assert_eq!(stats.provider_env_then_compaction_same_provider_env, 1);
+        assert_eq!(stats.provider_env_then_compaction_nested_same_env, 1);
+        assert_eq!(
+            stats.provider_env_then_compaction_provider_env_identity_tail,
+            1
+        );
+        assert_eq!(
+            stats.provider_env_then_compaction_reject_different_provider_env,
+            0
+        );
+    }
+
+    #[test]
+    fn provider_env_then_compaction_profile_counts_then_boundaries() {
+        let continuation = EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+            first: EvidenceContinuation::provider_env(
+                provider_env_fixture_for_handler(3),
+                EvidenceContinuation::identity(),
+            ),
+            second: EvidenceContinuation::provider_env(
+                provider_env_fixture_for_handler(7),
+                EvidenceContinuation::identity(),
+            ),
+        }));
+        let mut stats = RuntimeEvidenceRunStats::default();
+
+        continuation.record_provider_env_then_compaction_candidates(&mut stats);
+
+        assert_eq!(
+            stats.provider_env_then_compaction_provider_env_then_first,
+            1
+        );
+        assert_eq!(
+            stats.provider_env_then_compaction_provider_env_then_second,
+            1
+        );
+        assert_eq!(
+            stats.provider_env_then_compaction_provider_env_identity_tail,
+            2
         );
     }
 

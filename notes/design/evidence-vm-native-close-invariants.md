@@ -227,3 +227,31 @@ Deep later-grant profiling is gated out of release default. Normal
 measure a rejected fast path. Release runs can opt back in with the debug CLI's
 `--runtime-evidence-profile-deep` flag, while debug builds still keep the shadow
 surface available for regression checks.
+
+## ProviderEnv / Then Compaction Profile
+
+ProviderEnv / Then compaction is diagnostic-only. It is not an execution rule,
+and it must not flatten ProviderEnv scopes or reorder `Then` branches.
+
+The profile runs only through the deep later-grant profile path. Release default
+therefore does not scan continuation trees just to find compaction candidates.
+
+The first measurements intentionally use exact ProviderEnv equality only. They
+show no exact same-ProviderEnv compaction candidates in the representative
+nondet/showcase workloads:
+
+- `provider_env_then_compaction_same_provider_env = 0`
+- `provider_env_then_compaction_nested_same_env = 0`
+- adjacent ProviderEnv frames are different environments in the observed cases
+
+The observed shape is instead dominated by:
+
+- ProviderEnv frames under `Then`'s first branch
+- adjacent ProviderEnv frames with different environments
+- marker-frame and request-boundary rejects
+
+So this profile is evidence against a simple
+`ProviderEnv(env, ProviderEnv(env, k)) => ProviderEnv(env, k)` optimization in
+the current workloads. Any future ProviderEnv compaction needs a separate
+shadow phase and an explicit scope-preservation invariant. It must not reuse the
+native close certs above.

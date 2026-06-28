@@ -3870,6 +3870,84 @@ fn run_runtime_evidence_run(
             .provider_env_foreign_later_grant_legacy_shape_max_depth
     );
     println!(
+        "  runtime_evidence.provider_env_then_compaction_candidates: {}",
+        output
+            .evidence_stats
+            .provider_env_then_compaction_candidates
+    );
+    println!(
+        "  runtime_evidence.provider_env_then_compaction_adjacent_provider_env: {}",
+        output
+            .evidence_stats
+            .provider_env_then_compaction_adjacent_provider_env
+    );
+    println!(
+        "  runtime_evidence.provider_env_then_compaction_same_provider_env: {}",
+        output
+            .evidence_stats
+            .provider_env_then_compaction_same_provider_env
+    );
+    println!(
+        "  runtime_evidence.provider_env_then_compaction_provider_env_identity_tail: {}",
+        output
+            .evidence_stats
+            .provider_env_then_compaction_provider_env_identity_tail
+    );
+    println!(
+        "  runtime_evidence.provider_env_then_compaction_provider_env_then_first: {}",
+        output
+            .evidence_stats
+            .provider_env_then_compaction_provider_env_then_first
+    );
+    println!(
+        "  runtime_evidence.provider_env_then_compaction_provider_env_then_second: {}",
+        output
+            .evidence_stats
+            .provider_env_then_compaction_provider_env_then_second
+    );
+    println!(
+        "  runtime_evidence.provider_env_then_compaction_nested_same_env: {}",
+        output
+            .evidence_stats
+            .provider_env_then_compaction_nested_same_env
+    );
+    println!(
+        "  runtime_evidence.provider_env_then_compaction_nested_different_env: {}",
+        output
+            .evidence_stats
+            .provider_env_then_compaction_nested_different_env
+    );
+    println!(
+        "  runtime_evidence.provider_env_then_compaction_reject_different_provider_env: {}",
+        output
+            .evidence_stats
+            .provider_env_then_compaction_reject_different_provider_env
+    );
+    println!(
+        "  runtime_evidence.provider_env_then_compaction_reject_marker_frame_between: {}",
+        output
+            .evidence_stats
+            .provider_env_then_compaction_reject_marker_frame_between
+    );
+    println!(
+        "  runtime_evidence.provider_env_then_compaction_reject_request_boundary: {}",
+        output
+            .evidence_stats
+            .provider_env_then_compaction_reject_request_boundary
+    );
+    println!(
+        "  runtime_evidence.provider_env_then_compaction_reject_handler_boundary: {}",
+        output
+            .evidence_stats
+            .provider_env_then_compaction_reject_handler_boundary
+    );
+    println!(
+        "  runtime_evidence.provider_env_then_compaction_reject_resume_delta: {}",
+        output
+            .evidence_stats
+            .provider_env_then_compaction_reject_resume_delta
+    );
+    println!(
         "  runtime_evidence.continuation_resume_provider_steps: {}",
         output.evidence_stats.continuation_resume_provider_steps
     );
