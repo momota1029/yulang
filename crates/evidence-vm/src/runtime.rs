@@ -230,6 +230,8 @@ pub struct RuntimeEvidenceRunStats {
     pub resume_marker_provider_pair_close_native_hits: usize,
     pub resume_marker_provider_pair_close_legacy_fallbacks: usize,
     pub resume_marker_provider_prefix_boundary_candidates: usize,
+    pub resume_marker_provider_prefix_boundary_native_hits: usize,
+    pub resume_marker_provider_prefix_boundary_legacy_fallbacks: usize,
     pub resume_marker_provider_prefix_boundary_shadow: usize,
     pub resume_marker_provider_prefix_boundary_shadow_match: usize,
     pub resume_marker_provider_prefix_boundary_shadow_mismatch: usize,
@@ -241,6 +243,7 @@ pub struct RuntimeEvidenceRunStats {
     pub resume_marker_provider_prefix_boundary_reject_foreign_family: usize,
     pub resume_marker_provider_prefix_boundary_reject_permission_unknown: usize,
     pub resume_marker_provider_prefix_boundary_reject_exact_family: usize,
+    pub resume_marker_provider_prefix_boundary_reject_permission_family_request_mismatch: usize,
     pub resume_marker_provider_prefix_boundary_reject_carry_after_frame: usize,
     pub resume_marker_provider_prefix_boundary_permission_family_equals_request_path: usize,
     pub resume_marker_provider_prefix_boundary_permission_family_prefixes_request_path: usize,
@@ -1123,7 +1126,7 @@ struct EvidenceSignalHygiene {
     resume_marker_provider_pair_close_shadow: Option<EvidenceResumeMarkerCloseShadow>,
     #[cfg(debug_assertions)]
     resume_marker_provider_prefix_boundary_close_shadow:
-        Option<EvidenceProviderPrefixBoundaryExposure>,
+        Option<EvidenceProviderPrefixBoundaryCloseCert>,
 }
 
 impl EvidenceSignalHygiene {
@@ -1216,15 +1219,15 @@ impl EvidenceSignalHygiene {
     #[cfg(debug_assertions)]
     fn set_resume_marker_provider_prefix_boundary_close_shadow(
         &mut self,
-        exposure: EvidenceProviderPrefixBoundaryExposure,
+        cert: EvidenceProviderPrefixBoundaryCloseCert,
     ) {
-        self.resume_marker_provider_prefix_boundary_close_shadow = Some(exposure);
+        self.resume_marker_provider_prefix_boundary_close_shadow = Some(cert);
     }
 
     #[cfg(debug_assertions)]
     fn resume_marker_provider_prefix_boundary_close_shadow(
         &self,
-    ) -> Option<EvidenceProviderPrefixBoundaryExposure> {
+    ) -> Option<EvidenceProviderPrefixBoundaryCloseCert> {
         self.resume_marker_provider_prefix_boundary_close_shadow
     }
 
@@ -1354,36 +1357,19 @@ enum EvidencePermissionBoundaryExposure {
     ProviderGuardBoundaryPair,
 }
 
-#[cfg(debug_assertions)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct EvidenceProviderPrefixBoundaryExposure {
-    permission: RuntimeEvidenceProviderGrantPermission,
-    boundary_path_len: usize,
-}
-
-#[cfg(debug_assertions)]
-impl EvidenceProviderPrefixBoundaryExposure {
-    fn new(permission: RuntimeEvidenceProviderGrantPermission, boundary_path_len: usize) -> Self {
-        Self {
-            permission,
-            boundary_path_len,
-        }
-    }
-
-    fn permission(self) -> RuntimeEvidenceProviderGrantPermission {
-        self.permission
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidenceMarkerCloseDecision {
     NativeProviderPair(EvidenceProviderMarkerCloseCert),
+    NativeProviderPrefixBoundary(EvidenceProviderPrefixBoundaryCloseCert),
     Legacy,
 }
 
 impl EvidenceMarkerCloseDecision {
     fn is_native(self) -> bool {
-        matches!(self, Self::NativeProviderPair(_))
+        matches!(
+            self,
+            Self::NativeProviderPair(_) | Self::NativeProviderPrefixBoundary(_)
+        )
     }
 }
 
@@ -1398,6 +1384,18 @@ enum EvidenceProviderMarkerCloseReject {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceProviderPrefixBoundaryCloseReject {
+    NoBoundary,
+    Blocked,
+    CallBoundaryMismatch,
+    ForeignFamily,
+    PermissionUnknown,
+    ExactFamily,
+    PermissionFamilyRequestMismatch,
+    CarryAfterFrame,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct EvidenceProviderMarkerCloseCert {
     permission: RuntimeEvidenceProviderGrantPermission,
 }
@@ -1405,6 +1403,31 @@ struct EvidenceProviderMarkerCloseCert {
 impl EvidenceProviderMarkerCloseCert {
     fn new(permission: RuntimeEvidenceProviderGrantPermission) -> Self {
         Self { permission }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderPrefixBoundaryCloseCert {
+    permission: RuntimeEvidenceProviderGrantPermission,
+    boundary_path_len: usize,
+}
+
+impl EvidenceProviderPrefixBoundaryCloseCert {
+    fn new(permission: RuntimeEvidenceProviderGrantPermission, boundary_path_len: usize) -> Self {
+        Self {
+            permission,
+            boundary_path_len,
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn permission(self) -> RuntimeEvidenceProviderGrantPermission {
+        self.permission
+    }
+
+    #[cfg(debug_assertions)]
+    fn boundary_path_len(self) -> usize {
+        self.boundary_path_len
     }
 }
 
@@ -4001,9 +4024,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> EvidenceMarkerCloseDecision {
         // Native provider marker close skips the legacy payload mark and resume-plan attach.
         // It is valid only for a DirectTail signal that already carries provider permission as
-        // a guard-boundary pair, and only while the surrounding marker frame has no handler path
-        // and no carry-after-frame AddId. Value, GenericRequest, RoutedYield, handler-path
-        // boundary, resume-delta, and legacy-bridge cases must keep the marker close fallback.
+        // a guard-boundary pair. The handler-path-free branch requires no carry-after-frame AddId.
+        // The prefix-boundary branch is separately certified below and keeps the c56 shadow
+        // conditions unchanged. Value, GenericRequest, RoutedYield, resume-delta, and
+        // legacy-bridge cases must keep the marker close fallback.
         let Some(permission) = self.provider_guard_boundary_permission(&call.hygiene) else {
             if call.hygiene.provider_grant_permission().is_none() {
                 self.record_provider_marker_close_reject(
@@ -4026,12 +4050,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         };
 
         if let Some(handler_path) = resume_plan.and_then(|plan| plan.handler_path.as_ref()) {
-            self.record_provider_marker_close_handler_path_reject(
-                call,
-                handler_path,
-                markers,
-                permission,
-            );
+            if let Some(cert) =
+                self.provider_prefix_boundary_close_cert(call, handler_path, markers, permission)
+            {
+                #[cfg(debug_assertions)]
+                call.hygiene
+                    .set_resume_marker_provider_prefix_boundary_close_shadow(cert);
+                #[cfg(not(debug_assertions))]
+                let _ = cert;
+                return EvidenceMarkerCloseDecision::NativeProviderPrefixBoundary(cert);
+            }
+            self.record_provider_marker_close_handler_path_reject(call, handler_path, permission);
             return EvidenceMarkerCloseDecision::Legacy;
         }
         if marker_slice_has_carry_after_frame_add_id(markers) {
@@ -4059,17 +4088,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn record_provider_marker_close_handler_path_reject(
         &mut self,
-        call: &mut EvidenceDirectTailResumptive,
+        call: &EvidenceDirectTailResumptive,
         handler_path: &[String],
-        markers: &[EvidenceValueMarker],
         permission: RuntimeEvidenceProviderGrantPermission,
     ) {
         self.record_provider_marker_close_reject(EvidenceProviderMarkerCloseReject::HandlerPath);
-        let mut boundary_matches_call = false;
-        let boundary_blocked = match call.hygiene.handler_boundary.as_ref() {
+        match call.hygiene.handler_boundary.as_ref() {
             Some(boundary) => {
-                let blocked = boundary.blocked;
-                if blocked {
+                if boundary.blocked {
                     self.stats
                         .resume_marker_provider_pair_close_reject_handler_path_blocked += 1;
                 } else {
@@ -4077,7 +4103,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         .resume_marker_provider_pair_close_reject_handler_path_unblocked += 1;
                 }
                 if boundary.path.as_slice() == handler_path {
-                    boundary_matches_call = true;
                     self.stats
                         .resume_marker_provider_pair_close_reject_handler_path_matches_call_boundary += 1;
                 } else {
@@ -4086,7 +4111,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
                 self.stats
                     .resume_marker_provider_pair_close_reject_handler_path_boundary_id_permission_handler_unknown += 1;
-                blocked
             }
             None => {
                 self.stats
@@ -4096,9 +4120,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     1;
                 self.stats
                     .resume_marker_provider_pair_close_reject_handler_path_boundary_id_permission_handler_unknown += 1;
-                false
             }
-        };
+        }
         if path_is_prefix(handler_path, &call.path) {
             self.stats
                 .resume_marker_provider_pair_close_reject_handler_path_same_family += 1;
@@ -4130,82 +4153,129 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.stats
                 .resume_marker_provider_pair_close_reject_handler_path_allowed_handler_family_prefixes += 1;
         }
-        self.record_provider_prefix_boundary_candidate(
-            call,
-            handler_path,
-            markers,
-            permission,
-            &permission_family,
-            boundary_matches_call,
-            boundary_blocked,
-        );
     }
 
-    fn record_provider_prefix_boundary_candidate(
+    fn provider_prefix_boundary_close_cert(
         &mut self,
         call: &mut EvidenceDirectTailResumptive,
         handler_path: &[String],
         markers: &[EvidenceValueMarker],
         permission: RuntimeEvidenceProviderGrantPermission,
-        permission_family: &[String],
-        boundary_matches_call: bool,
-        boundary_blocked: bool,
-    ) {
-        if permission_family == call.path.as_ref() {
+    ) -> Option<EvidenceProviderPrefixBoundaryCloseCert> {
+        let Some(permission_family) = self.context.provider_grant_permission_family(permission)
+        else {
+            self.record_provider_prefix_boundary_legacy_fallback(
+                EvidenceProviderPrefixBoundaryCloseReject::PermissionUnknown,
+            );
+            return None;
+        };
+        let permission_family = permission_family.to_vec();
+        if permission_family.as_slice() == call.path.as_ref() {
             self.stats
                 .resume_marker_provider_prefix_boundary_permission_family_equals_request_path += 1;
         }
-        if path_is_prefix(permission_family, &call.path) {
+        if path_is_prefix(&permission_family, &call.path) {
             self.stats
                 .resume_marker_provider_prefix_boundary_permission_family_prefixes_request_path +=
                 1;
         }
-        if path_is_prefix(&call.path, permission_family) {
+        if path_is_prefix(&call.path, &permission_family) {
             self.stats
                 .resume_marker_provider_prefix_boundary_request_path_prefixes_permission_family +=
                 1;
         }
 
-        if call.hygiene.handler_boundary.is_none() {
-            self.stats
-                .resume_marker_provider_prefix_boundary_reject_no_boundary += 1;
-            return;
+        let Some(boundary) = call.hygiene.handler_boundary.as_ref() else {
+            self.record_provider_prefix_boundary_legacy_fallback(
+                EvidenceProviderPrefixBoundaryCloseReject::NoBoundary,
+            );
+            return None;
+        };
+        if boundary.blocked {
+            self.record_provider_prefix_boundary_legacy_fallback(
+                EvidenceProviderPrefixBoundaryCloseReject::Blocked,
+            );
+            return None;
         }
-        if boundary_blocked {
-            self.stats
-                .resume_marker_provider_prefix_boundary_reject_blocked += 1;
-            return;
+        if boundary.path.as_slice() != handler_path {
+            self.record_provider_prefix_boundary_legacy_fallback(
+                EvidenceProviderPrefixBoundaryCloseReject::CallBoundaryMismatch,
+            );
+            return None;
         }
-        if !boundary_matches_call {
-            self.stats
-                .resume_marker_provider_prefix_boundary_reject_call_boundary_mismatch += 1;
-            return;
+        if !path_is_prefix(handler_path, &permission_family) {
+            self.record_provider_prefix_boundary_legacy_fallback(
+                EvidenceProviderPrefixBoundaryCloseReject::ForeignFamily,
+            );
+            return None;
         }
-        if !path_is_prefix(handler_path, permission_family) {
-            self.stats
-                .resume_marker_provider_prefix_boundary_reject_foreign_family += 1;
-            return;
+        if handler_path == permission_family.as_slice() {
+            self.record_provider_prefix_boundary_legacy_fallback(
+                EvidenceProviderPrefixBoundaryCloseReject::ExactFamily,
+            );
+            return None;
         }
-        if handler_path == permission_family {
-            self.stats
-                .resume_marker_provider_prefix_boundary_reject_exact_family += 1;
-            return;
+        if permission_family.as_slice() != call.path.as_ref() {
+            self.record_provider_prefix_boundary_legacy_fallback(
+                EvidenceProviderPrefixBoundaryCloseReject::PermissionFamilyRequestMismatch,
+            );
+            return None;
         }
         if marker_slice_has_carry_after_frame_add_id(markers) {
-            self.stats
-                .resume_marker_provider_prefix_boundary_reject_carry_after_frame += 1;
-            return;
+            self.record_provider_prefix_boundary_legacy_fallback(
+                EvidenceProviderPrefixBoundaryCloseReject::CarryAfterFrame,
+            );
+            return None;
         }
 
         self.stats.resume_marker_provider_prefix_boundary_candidates += 1;
-        #[cfg(debug_assertions)]
-        call.hygiene
-            .set_resume_marker_provider_prefix_boundary_close_shadow(
-                EvidenceProviderPrefixBoundaryExposure::new(permission, handler_path.len()),
-            );
-        #[cfg(not(debug_assertions))]
-        {
-            let _ = permission;
+        self.stats
+            .resume_marker_provider_prefix_boundary_native_hits += 1;
+        Some(EvidenceProviderPrefixBoundaryCloseCert::new(
+            permission,
+            handler_path.len(),
+        ))
+    }
+
+    fn record_provider_prefix_boundary_legacy_fallback(
+        &mut self,
+        reject: EvidenceProviderPrefixBoundaryCloseReject,
+    ) {
+        self.stats
+            .resume_marker_provider_prefix_boundary_legacy_fallbacks += 1;
+        match reject {
+            EvidenceProviderPrefixBoundaryCloseReject::NoBoundary => {
+                self.stats
+                    .resume_marker_provider_prefix_boundary_reject_no_boundary += 1;
+            }
+            EvidenceProviderPrefixBoundaryCloseReject::Blocked => {
+                self.stats
+                    .resume_marker_provider_prefix_boundary_reject_blocked += 1;
+            }
+            EvidenceProviderPrefixBoundaryCloseReject::CallBoundaryMismatch => {
+                self.stats
+                    .resume_marker_provider_prefix_boundary_reject_call_boundary_mismatch += 1;
+            }
+            EvidenceProviderPrefixBoundaryCloseReject::ForeignFamily => {
+                self.stats
+                    .resume_marker_provider_prefix_boundary_reject_foreign_family += 1;
+            }
+            EvidenceProviderPrefixBoundaryCloseReject::PermissionUnknown => {
+                self.stats
+                    .resume_marker_provider_prefix_boundary_reject_permission_unknown += 1;
+            }
+            EvidenceProviderPrefixBoundaryCloseReject::ExactFamily => {
+                self.stats
+                    .resume_marker_provider_prefix_boundary_reject_exact_family += 1;
+            }
+            EvidenceProviderPrefixBoundaryCloseReject::PermissionFamilyRequestMismatch => {
+                self.stats
+                    .resume_marker_provider_prefix_boundary_reject_permission_family_request_mismatch += 1;
+            }
+            EvidenceProviderPrefixBoundaryCloseReject::CarryAfterFrame => {
+                self.stats
+                    .resume_marker_provider_prefix_boundary_reject_carry_after_frame += 1;
+            }
         }
     }
 
@@ -8229,15 +8299,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         legacy_visible: Option<bool>,
         permission_result: EvidencePermissionVisibleResult,
     ) {
-        let Some(exposure) = hygiene.resume_marker_provider_prefix_boundary_close_shadow() else {
+        let Some(cert) = hygiene.resume_marker_provider_prefix_boundary_close_shadow() else {
             return;
         };
         debug_assert_ne!(
-            exposure.boundary_path_len, 0,
+            cert.boundary_path_len(),
+            0,
             "prefix boundary shadow lost boundary path length"
         );
         debug_assert_eq!(
-            Some(exposure.permission()),
+            Some(cert.permission()),
             self.provider_guard_boundary_permission(hygiene),
             "prefix boundary shadow lost provider permission"
         );

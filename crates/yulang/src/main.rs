@@ -3183,6 +3183,18 @@ fn run_runtime_evidence_run(
             .resume_marker_provider_prefix_boundary_candidates
     );
     println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_native_hits: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_native_hits
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_legacy_fallbacks: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_legacy_fallbacks
+    );
+    println!(
         "  runtime_evidence.resume_marker_provider_prefix_boundary_shadow: {}",
         output
             .evidence_stats
@@ -3247,6 +3259,12 @@ fn run_runtime_evidence_run(
         output
             .evidence_stats
             .resume_marker_provider_prefix_boundary_reject_exact_family
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_reject_permission_family_request_mismatch: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_reject_permission_family_request_mismatch
     );
     println!(
         "  runtime_evidence.resume_marker_provider_prefix_boundary_reject_carry_after_frame: {}",
