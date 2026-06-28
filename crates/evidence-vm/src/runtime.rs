@@ -993,6 +993,40 @@ struct EvidenceDirectTailResumptive {
 }
 
 impl EvidenceDirectTailResumptive {
+    fn from_request(handler: ExprId, request: EvidenceRequest) -> Self {
+        Self {
+            handler,
+            path: request.path,
+            payload: request.payload,
+            guard_ids: request.guard_ids,
+            carried_guards: request.carried_guards,
+            handler_boundary: request.handler_boundary,
+            continuation: request.continuation,
+        }
+    }
+
+    fn with_handler_boundary(mut self, handler_boundary: EvidenceHandlerBoundary) -> Self {
+        self.handler_boundary = Some(handler_boundary);
+        self
+    }
+
+    fn close_provider_env(mut self, provider_env: RuntimeEvidenceProviderEnv) -> Self {
+        self.continuation = EvidenceContinuation::provider_env(provider_env, self.continuation);
+        self
+    }
+
+    fn close_marker_frame(
+        mut self,
+        markers: Rc<[EvidenceValueMarker]>,
+        resume_plan: Option<EvidenceResumeMarkerPlan>,
+    ) -> Self {
+        self.payload = mark_runtime_value_shared(self.payload, markers);
+        if let Some(plan) = resume_plan {
+            self.continuation = plan.attach(self.continuation);
+        }
+        self
+    }
+
     fn into_request(self, route: EvidenceEffectRoute) -> EvidenceRequest {
         EvidenceRequest {
             path: self.path,
@@ -2150,14 +2184,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn close_provider_direct_tail(
         &mut self,
-        mut call: EvidenceDirectTailResumptive,
+        call: EvidenceDirectTailResumptive,
         provider_env: RuntimeEvidenceProviderEnv,
     ) -> EvidenceDirectTailResumptive {
         if provider_env.is_empty() {
             return call;
         }
-        call.continuation = EvidenceContinuation::provider_env(provider_env, call.continuation);
-        call
+        call.close_provider_env(provider_env)
     }
 
     fn close_provider_routed_yield(
@@ -2459,15 +2492,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             continuation: EvidenceContinuation::identity(),
         };
         self.mark_request_with_active_markers(&mut request);
-        EvidenceDirectTailResumptive {
-            handler,
-            path: request.path,
-            payload: request.payload,
-            guard_ids: request.guard_ids,
-            carried_guards: request.carried_guards,
-            handler_boundary: request.handler_boundary,
-            continuation: request.continuation,
-        }
+        EvidenceDirectTailResumptive::from_request(handler, request)
     }
 
     fn provider_env_for_call(&mut self, site: Option<ExprId>) -> RuntimeEvidenceProviderEnv {
@@ -2834,19 +2859,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn close_marker_direct_tail(
         &mut self,
-        mut call: EvidenceDirectTailResumptive,
+        call: EvidenceDirectTailResumptive,
         markers: Rc<[EvidenceValueMarker]>,
         resume_plan: Option<EvidenceResumeMarkerPlan>,
         handler_boundary: Option<EvidenceHandlerBoundary>,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        if let Some(handler_boundary) = handler_boundary {
-            call.handler_boundary = Some(handler_boundary);
-        }
-        call.payload = mark_runtime_value_shared(call.payload, markers.clone());
-        if let Some(plan) = resume_plan {
-            call.continuation = plan.attach(call.continuation);
-        }
-        Ok(EvidenceEvalResult::DirectTailResumptive(call))
+        let call = match handler_boundary {
+            Some(handler_boundary) => call.with_handler_boundary(handler_boundary),
+            None => call,
+        };
+        Ok(EvidenceEvalResult::DirectTailResumptive(
+            call.close_marker_frame(markers, resume_plan),
+        ))
     }
 
     fn close_marker_routed_yield(
