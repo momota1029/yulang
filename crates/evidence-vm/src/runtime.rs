@@ -804,6 +804,21 @@ enum EvidenceContinuationAppendBlocker {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceAppendScopeBlockerInfo {
+    MarkerFrame { has_handler_path: bool },
+    ProviderEnv,
+}
+
+impl EvidenceAppendScopeBlockerInfo {
+    fn blocker(self) -> EvidenceContinuationAppendBlocker {
+        match self {
+            Self::MarkerFrame { .. } => EvidenceContinuationAppendBlocker::MarkerFrame,
+            Self::ProviderEnv => EvidenceContinuationAppendBlocker::ProviderEnv,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidenceContinuationBoundaryKind {
     Identity,
     MarkerFrame,
@@ -1928,11 +1943,11 @@ impl EvidenceContinuation {
         frame.has_request_boundary(routed_yield_handler)
     }
 
-    fn append_marker_frame_blocker_has_handler_path(&self) -> Option<bool> {
+    fn append_scope_blocker_info(&self) -> Option<EvidenceAppendScopeBlockerInfo> {
         let Some(frame) = self.frame() else {
             return None;
         };
-        frame.append_marker_frame_blocker_has_handler_path()
+        frame.append_scope_blocker_info()
     }
 }
 
@@ -2015,17 +2030,23 @@ impl EvidenceContinuationFrame {
         }
     }
 
-    fn append_marker_frame_blocker_has_handler_path(&self) -> Option<bool> {
+    fn append_scope_blocker_info(&self) -> Option<EvidenceAppendScopeBlockerInfo> {
         match self.append_scope_blocker() {
             Some(EvidenceContinuationAppendBlocker::MarkerFrame) => match self {
-                Self::MarkerFrame { handler_path, .. } => Some(handler_path.is_some()),
+                Self::MarkerFrame { handler_path, .. } => {
+                    Some(EvidenceAppendScopeBlockerInfo::MarkerFrame {
+                        has_handler_path: handler_path.is_some(),
+                    })
+                }
                 _ => None,
             },
-            Some(EvidenceContinuationAppendBlocker::ProviderEnv)
-            | Some(EvidenceContinuationAppendBlocker::RcShared) => None,
+            Some(EvidenceContinuationAppendBlocker::ProviderEnv) => {
+                Some(EvidenceAppendScopeBlockerInfo::ProviderEnv)
+            }
+            Some(EvidenceContinuationAppendBlocker::RcShared) => None,
             None => self
                 .tail_ref()
-                .and_then(EvidenceContinuation::append_marker_frame_blocker_has_handler_path),
+                .and_then(EvidenceContinuation::append_scope_blocker_info),
         }
     }
 
@@ -3131,11 +3152,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         tail: EvidenceContinuation,
     ) -> EvidenceDirectTailResumptive {
         if !tail.is_identity()
-            && let Some(has_handler_path) = call
-                .continuation
-                .append_marker_frame_blocker_has_handler_path()
+            && let Some(blocker) = call.continuation.append_scope_blocker_info()
         {
-            self.record_direct_tail_permission_boundary_append_candidate(&call, has_handler_path);
+            if let EvidenceAppendScopeBlockerInfo::MarkerFrame { has_handler_path } = blocker {
+                self.record_direct_tail_permission_boundary_append_candidate(
+                    &call,
+                    has_handler_path,
+                );
+            }
             record_continuation_append(
                 &mut self.stats,
                 EvidenceContinuationAppendSource::DirectTail,
@@ -3148,7 +3172,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             record_continuation_append_blocker(
                 &mut self.stats,
                 EvidenceContinuationAppendSource::DirectTail,
-                EvidenceContinuationAppendBlocker::MarkerFrame,
+                blocker.blocker(),
             );
             call.continuation =
                 EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
