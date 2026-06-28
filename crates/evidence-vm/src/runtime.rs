@@ -2924,6 +2924,13 @@ impl EvidenceContinuation {
         frame.request_boundary_profile(routed_yield_handler, stats)
     }
 
+    fn starts_with_foreign_catch_boundary(&self, routed_yield_handler: Option<ExprId>) -> bool {
+        let Some(frame) = self.frame() else {
+            return false;
+        };
+        frame.starts_with_foreign_catch_boundary(routed_yield_handler)
+    }
+
     fn append_scope_blocker_info(&self) -> Option<EvidenceAppendScopeBlockerInfo> {
         let Some(frame) = self.frame() else {
             return None;
@@ -3167,6 +3174,13 @@ impl EvidenceContinuation {
 }
 
 impl EvidenceContinuationFrame {
+    fn starts_with_foreign_catch_boundary(&self, routed_yield_handler: Option<ExprId>) -> bool {
+        match (self, routed_yield_handler) {
+            (Self::CatchBody { catch_expr, .. }, Some(handler)) => *catch_expr != handler,
+            _ => false,
+        }
+    }
+
     fn append_provider_delta_shadow_key(&self, key: &mut EvidenceProviderDeltaShadowKey) {
         match self {
             Self::Then { first, second } => {
@@ -9657,8 +9671,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if continuation.is_identity() {
             return Ok(EvidenceEvalResult::direct_tail_resumptive(call));
         }
-        let boundary = continuation.request_boundary_profile(Some(call.handler), &mut self.stats);
-        if !boundary.has_boundary() {
+        let routed_handler = Some(call.handler);
+        let starts_with_foreign_catch =
+            continuation.starts_with_foreign_catch_boundary(routed_handler);
+        let boundary = if starts_with_foreign_catch {
+            EvidenceRequestBoundaryProfile::None
+        } else {
+            continuation.request_boundary_profile(routed_handler, &mut self.stats)
+        };
+        if !starts_with_foreign_catch && !boundary.has_boundary() {
             let call = self.append_direct_tail_continuation(call, continuation);
             return Ok(EvidenceEvalResult::direct_tail_resumptive(call));
         }
@@ -10096,10 +10117,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if continuation.is_identity() {
             return Ok(EvidenceEvalResult::routed_yield(call));
         }
-        if !continuation
-            .request_boundary_profile(Some(call.handler), &mut self.stats)
-            .has_boundary()
-        {
+        let routed_handler = Some(call.handler);
+        let starts_with_foreign_catch =
+            continuation.starts_with_foreign_catch_boundary(routed_handler);
+        let has_boundary = !starts_with_foreign_catch
+            && continuation
+                .request_boundary_profile(routed_handler, &mut self.stats)
+                .has_boundary();
+        if !starts_with_foreign_catch && !has_boundary {
             self.stats.request_whole_continuation_appends += 1;
             let call = call.append_continuation(continuation, &mut self.stats);
             return Ok(EvidenceEvalResult::routed_yield(call));
@@ -10128,10 +10153,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if continuation.is_identity() {
             return Ok(self.routed_request_result(routed_yield_handler, request));
         }
-        if !continuation
-            .request_boundary_profile(routed_yield_handler, &mut self.stats)
-            .has_boundary()
-        {
+        let starts_with_foreign_catch =
+            continuation.starts_with_foreign_catch_boundary(routed_yield_handler);
+        let has_boundary = !starts_with_foreign_catch
+            && continuation
+                .request_boundary_profile(routed_yield_handler, &mut self.stats)
+                .has_boundary();
+        if !starts_with_foreign_catch && !has_boundary {
             self.stats.request_whole_continuation_appends += 1;
             let request = self.append_request_continuation(request, continuation);
             return Ok(self.routed_request_result(routed_yield_handler, request));
