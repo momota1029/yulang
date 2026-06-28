@@ -610,7 +610,7 @@ struct EvidenceGuardId(u32);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum EvidenceValueMarker {
     Frame { id: EvidenceGuardId },
-    AddId(EvidenceAddIdMarker),
+    AddId(Rc<EvidenceAddIdMarker>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -654,7 +654,7 @@ struct EvidenceActiveHandlerFrame {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct EvidenceActiveAddIdMarker {
-    marker: EvidenceAddIdMarker,
+    marker: Rc<EvidenceAddIdMarker>,
     entry_frame_len: usize,
 }
 
@@ -2395,7 +2395,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         for marker in markers {
             let id = self.fresh_guard_id();
             value_markers.push(EvidenceValueMarker::Frame { id });
-            value_markers.push(EvidenceValueMarker::AddId(EvidenceAddIdMarker {
+            value_markers.push(EvidenceValueMarker::AddId(Rc::new(EvidenceAddIdMarker {
                 id,
                 path: marker.path.clone(),
                 depth: marker.depth,
@@ -2403,7 +2403,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 guard_foreign_path: marker.guard_foreign_path,
                 carry_after_frame: marker.guard_own_path,
                 preserve_own_on_resume: marker.preserve_own_on_resume,
-            }));
+            })));
         }
         value_markers
     }
@@ -7502,9 +7502,9 @@ fn markers_for_function_call(markers: &[EvidenceValueMarker]) -> Vec<EvidenceVal
         let marker = match marker {
             EvidenceValueMarker::Frame { id } => EvidenceValueMarker::Frame { id: *id },
             EvidenceValueMarker::AddId(marker) => {
-                let mut marker = marker.clone();
+                let mut marker = marker.as_ref().clone();
                 marker.depth = marker.depth.saturating_sub(1);
-                EvidenceValueMarker::AddId(marker)
+                EvidenceValueMarker::AddId(Rc::new(marker))
             }
         };
         push_marker_if_absent(&mut out, marker);
@@ -7518,11 +7518,11 @@ fn markers_for_continuation_call(markers: &[EvidenceValueMarker]) -> Vec<Evidenc
         let marker = match marker {
             EvidenceValueMarker::Frame { id } => EvidenceValueMarker::Frame { id: *id },
             EvidenceValueMarker::AddId(marker) => {
-                let mut marker = marker.clone();
+                let mut marker = marker.as_ref().clone();
                 marker.depth = marker.depth.saturating_sub(1);
                 marker.guard_own_path = marker.guard_own_path && marker.preserve_own_on_resume;
                 marker.guard_foreign_path = true;
-                EvidenceValueMarker::AddId(marker)
+                EvidenceValueMarker::AddId(Rc::new(marker))
             }
         };
         push_marker_if_absent(&mut out, marker);
@@ -7535,10 +7535,10 @@ fn markers_for_continuation_resume(markers: &[EvidenceValueMarker]) -> Vec<Evide
     for marker in markers {
         let marker = match marker {
             EvidenceValueMarker::AddId(marker) => {
-                let mut marker = marker.clone();
+                let mut marker = marker.as_ref().clone();
                 marker.guard_own_path = marker.guard_own_path && marker.preserve_own_on_resume;
                 marker.guard_foreign_path = true;
-                EvidenceValueMarker::AddId(marker)
+                EvidenceValueMarker::AddId(Rc::new(marker))
             }
             marker => marker.clone(),
         };
@@ -7550,7 +7550,7 @@ fn markers_for_continuation_resume(markers: &[EvidenceValueMarker]) -> Vec<Evide
 fn stack_handler_markers(id: EvidenceGuardId, path: &[String]) -> Vec<EvidenceValueMarker> {
     vec![
         EvidenceValueMarker::Frame { id },
-        EvidenceValueMarker::AddId(EvidenceAddIdMarker {
+        EvidenceValueMarker::AddId(Rc::new(EvidenceAddIdMarker {
             id,
             path: path.to_vec(),
             depth: 0,
@@ -7558,8 +7558,8 @@ fn stack_handler_markers(id: EvidenceGuardId, path: &[String]) -> Vec<EvidenceVa
             guard_foreign_path: true,
             carry_after_frame: false,
             preserve_own_on_resume: false,
-        }),
-        EvidenceValueMarker::AddId(EvidenceAddIdMarker {
+        })),
+        EvidenceValueMarker::AddId(Rc::new(EvidenceAddIdMarker {
             id,
             path: path.to_vec(),
             depth: 1,
@@ -7567,7 +7567,7 @@ fn stack_handler_markers(id: EvidenceGuardId, path: &[String]) -> Vec<EvidenceVa
             guard_foreign_path: true,
             carry_after_frame: false,
             preserve_own_on_resume: false,
-        }),
+        })),
     ]
 }
 
