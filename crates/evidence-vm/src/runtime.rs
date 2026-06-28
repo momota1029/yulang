@@ -3347,29 +3347,32 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         match self
             .runtime_exprs
             .get(expr_id.0 as usize)
-            .cloned()
             .ok_or(RuntimeEvidenceRunError::MissingExpr(expr))?
         {
-            RuntimeEvidenceExpr::Value(value) => return Ok(EvidenceEvalResult::Value(value)),
+            RuntimeEvidenceExpr::Value(value) => {
+                return Ok(EvidenceEvalResult::Value(value.clone()));
+            }
             RuntimeEvidenceExpr::NullaryPrimitive { op, context } => {
                 return Ok(EvidenceEvalResult::Value(
-                    self.eval_primitive_op(op, context)?,
+                    self.eval_primitive_op(*op, context.clone())?,
                 ));
             }
             RuntimeEvidenceExpr::Local { slot, def } => {
                 return Ok(EvidenceEvalResult::Value(
-                    env.get_slot(slot)
-                        .ok_or(RuntimeEvidenceRunError::UnboundLocal(def))?,
+                    env.get_slot(*slot)
+                        .ok_or(RuntimeEvidenceRunError::UnboundLocal(*def))?,
                 ));
             }
             RuntimeEvidenceExpr::Instance(instance) => {
-                return Ok(EvidenceEvalResult::Value(self.eval_instance(instance)?));
+                return Ok(EvidenceEvalResult::Value(self.eval_instance(*instance)?));
             }
-            RuntimeEvidenceExpr::Alias(expr) => return self.eval_expr_result(expr, env),
+            RuntimeEvidenceExpr::Alias(expr) => return self.eval_expr_result(*expr, env),
             RuntimeEvidenceExpr::MakeThunk {
                 body,
                 provider_expr,
             } => {
+                let body = *body;
+                let provider_expr = *provider_expr;
                 let provider_env = self.provider_env_for_value(provider_expr);
                 let env = self.clone_env(env);
                 return Ok(EvidenceEvalResult::Value(shared(
@@ -3385,6 +3388,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 body,
                 provider_expr,
             } => {
+                let param = param.clone();
+                let body = *body;
+                let provider_expr = *provider_expr;
                 let provider_env = self.provider_env_for_value(provider_expr);
                 let env = self.clone_env(env);
                 return Ok(EvidenceEvalResult::Value(shared(
@@ -3403,6 +3409,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 hygiene,
                 provider_expr,
             } => {
+                let source = source.clone();
+                let target = target.clone();
+                let function = *function;
+                let hygiene = hygiene.clone();
+                let provider_expr = *provider_expr;
                 return match self.eval_expr_result(function, env)? {
                     EvidenceEvalResult::Value(function) => {
                         let provider_env = self.provider_env_for_value(provider_expr);
@@ -3456,6 +3467,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 target_value_is_thunk,
                 thunk,
             } => {
+                let target_value_is_thunk = *target_value_is_thunk;
+                let thunk = *thunk;
                 return match self.eval_expr_result(thunk, env)? {
                     EvidenceEvalResult::Value(thunk) => {
                         let result = self.force_thunk_result(thunk)?;
@@ -3501,6 +3514,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 path,
                 arg,
             } => {
+                let target_value_is_thunk = *target_value_is_thunk;
+                let site = *site;
+                let effect = *effect;
+                let path = path.clone();
+                let arg = *arg;
                 return self.eval_force_effect_call_result(
                     target_value_is_thunk,
                     site,
@@ -3511,6 +3529,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 );
             }
             RuntimeEvidenceExpr::MarkerFrame { path, body } => {
+                let path = path.clone();
+                let body = *body;
                 let id = self.fresh_guard_id();
                 let markers = stack_handler_markers(id, &path);
                 return self.with_marker_frame(
@@ -3522,18 +3542,23 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 );
             }
             RuntimeEvidenceExpr::Apply { site, callee, arg } => {
-                return self.eval_apply_result(Some(site), callee, arg, env);
+                return self.eval_apply_result(Some(*site), *callee, *arg, env);
             }
             RuntimeEvidenceExpr::RefSet { reference, value } => {
-                return self.eval_ref_set_result(reference, value, env);
+                return self.eval_ref_set_result(*reference, *value, env);
             }
             RuntimeEvidenceExpr::Tuple(items) => {
+                let items = items.clone();
                 return self.eval_tuple_items_result(Vec::with_capacity(items.len()), &items, env);
             }
             RuntimeEvidenceExpr::Record { fields, spread } => {
+                let fields = fields.clone();
+                let spread = spread.clone();
                 return self.eval_record_result(&fields, &spread, env);
             }
             RuntimeEvidenceExpr::PolyVariant { tag, payloads } => {
+                let tag = tag.clone();
+                let payloads = payloads.clone();
                 return self.eval_poly_variant_payloads_result(
                     tag,
                     Vec::with_capacity(payloads.len()),
@@ -3546,11 +3571,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 name,
                 resolution,
             } => {
-                return self.eval_select_result(base, &name, &resolution, env);
+                let name = name.clone();
+                let resolution = resolution.clone();
+                return self.eval_select_result(*base, &name, &resolution, env);
             }
             RuntimeEvidenceExpr::Case { expr, scrutinee } => {
-                let arms = self.static_case_arms(expr);
-                return match self.eval_expr_result(scrutinee, env)? {
+                let arms = self.static_case_arms(*expr);
+                return match self.eval_expr_result(*scrutinee, env)? {
                     EvidenceEvalResult::Value(scrutinee) => {
                         self.eval_case_scrutinee_result(scrutinee, arms, env)
                     }
@@ -3596,8 +3623,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     }
                 };
             }
-            RuntimeEvidenceExpr::Catch { expr, body } => return self.eval_catch(expr, body, env),
+            RuntimeEvidenceExpr::Catch { expr, body } => return self.eval_catch(*expr, *body, env),
             RuntimeEvidenceExpr::Block { stmts, tail } => {
+                let stmts = stmts.clone();
+                let tail = *tail;
                 self.eval_block_parts_result(&stmts, tail, env, shared(RuntimeEvidenceValue::Unit))
             }
         }
