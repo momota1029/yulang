@@ -117,3 +117,37 @@ matches legacy visibility for all shadow candidates, while the
 foreign-boundary-preserving invisible interpretation mismatches all candidates.
 This is evidence for a future `ProviderEnvForeignBoundaryGrantCert`, not a
 reason to widen `NativeProviderPrefixBoundary`.
+
+## NativeProviderEnvForeignBoundary
+
+`NativeProviderEnvForeignBoundary` is a separate native close branch from
+`NativeProviderPrefixBoundary`. It skips the legacy marker close only when the
+ProviderEnv foreign-boundary shadow candidate condition holds and the nearest
+ProviderEnv grants the permission handler.
+
+The nearest-ProviderEnv-misses half remains legacy fallback. It must not be
+treated as native merely because some ProviderEnv exists in the continuation.
+
+The cert is valid only when:
+
+- the signal is `DirectTailResumptive`
+- provider guard-boundary permission exists
+- the active handler-path branch is a foreign-family prefix-boundary fallback
+- permission family equals the operation request path
+- handler path is unrelated to the request path by prefix
+- nearest ProviderEnv grants the permission handler
+- nearest ProviderEnv is under `Then`'s first branch at depth 1
+- no MarkerFrame appears before the nearest ProviderEnv
+- no later ProviderEnv grant is present
+- no carry-after-frame AddId is present
+- no resume-delta or legacy-bridge transform is present
+
+The visible semantics is the naive ProviderEnv grant interpretation:
+
+```text
+catch_has_provider_grant_permission && operation_arm_visible
+```
+
+The blocked-preserving invisible interpretation was measured and mismatched the
+legacy result for every representative shadow candidate, so it is not the
+native semantics for this branch.

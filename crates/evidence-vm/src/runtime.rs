@@ -290,6 +290,17 @@ pub struct RuntimeEvidenceRunStats {
     pub provider_env_foreign_boundary_shadow_blocked_visible: usize,
     pub provider_env_foreign_boundary_shadow_blocked_match: usize,
     pub provider_env_foreign_boundary_shadow_blocked_mismatch: usize,
+    pub provider_env_foreign_boundary_native_hits: usize,
+    pub provider_env_foreign_boundary_legacy_fallbacks: usize,
+    pub provider_env_foreign_boundary_reject_nearest_misses: usize,
+    pub provider_env_foreign_boundary_reject_no_provider_env: usize,
+    pub provider_env_foreign_boundary_reject_marker_before_provider_env: usize,
+    pub provider_env_foreign_boundary_reject_depth: usize,
+    pub provider_env_foreign_boundary_reject_then_second: usize,
+    pub provider_env_foreign_boundary_reject_later_grant: usize,
+    pub provider_env_foreign_boundary_reject_permission_family_request_mismatch: usize,
+    pub provider_env_foreign_boundary_reject_handler_path_related_to_request: usize,
+    pub provider_env_foreign_boundary_reject_carry_after_frame: usize,
     pub continuation_resume_provider_steps: usize,
     pub continuation_resume_aggregate_steps: usize,
     pub continuation_resume_select_steps: usize,
@@ -1223,7 +1234,7 @@ struct EvidenceSignalHygiene {
     resume_marker_provider_prefix_boundary_close_shadow:
         Option<EvidenceProviderPrefixBoundaryCloseCert>,
     #[cfg(debug_assertions)]
-    provider_env_foreign_boundary_shadow: Option<EvidenceProviderEnvForeignBoundaryExposure>,
+    provider_env_foreign_boundary_shadow: Option<EvidenceProviderEnvForeignBoundaryGrantCert>,
 }
 
 impl EvidenceSignalHygiene {
@@ -1331,15 +1342,15 @@ impl EvidenceSignalHygiene {
     #[cfg(debug_assertions)]
     fn set_provider_env_foreign_boundary_shadow(
         &mut self,
-        exposure: EvidenceProviderEnvForeignBoundaryExposure,
+        cert: EvidenceProviderEnvForeignBoundaryGrantCert,
     ) {
-        self.provider_env_foreign_boundary_shadow = Some(exposure);
+        self.provider_env_foreign_boundary_shadow = Some(cert);
     }
 
     #[cfg(debug_assertions)]
     fn provider_env_foreign_boundary_shadow(
         &self,
-    ) -> Option<EvidenceProviderEnvForeignBoundaryExposure> {
+    ) -> Option<EvidenceProviderEnvForeignBoundaryGrantCert> {
         self.provider_env_foreign_boundary_shadow
     }
 
@@ -1390,31 +1401,6 @@ impl EvidenceResumeMarkerCloseShadow {
 
     fn permission(self) -> RuntimeEvidenceProviderGrantPermission {
         self.permission
-    }
-}
-
-#[cfg(debug_assertions)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct EvidenceProviderEnvForeignBoundaryExposure {
-    permission: RuntimeEvidenceProviderGrantPermission,
-    provider_env_depth: usize,
-}
-
-#[cfg(debug_assertions)]
-impl EvidenceProviderEnvForeignBoundaryExposure {
-    fn new(permission: RuntimeEvidenceProviderGrantPermission, provider_env_depth: usize) -> Self {
-        Self {
-            permission,
-            provider_env_depth,
-        }
-    }
-
-    fn permission(self) -> RuntimeEvidenceProviderGrantPermission {
-        self.permission
-    }
-
-    fn provider_env_depth(self) -> usize {
-        self.provider_env_depth
     }
 }
 
@@ -1498,6 +1484,7 @@ enum EvidencePermissionBoundaryExposure {
 enum EvidenceMarkerCloseDecision {
     NativeProviderPair(EvidenceProviderMarkerCloseCert),
     NativeProviderPrefixBoundary(EvidenceProviderPrefixBoundaryCloseCert),
+    NativeProviderEnvForeignBoundary(EvidenceProviderEnvForeignBoundaryGrantCert),
     Legacy,
 }
 
@@ -1505,9 +1492,18 @@ impl EvidenceMarkerCloseDecision {
     fn is_native(self) -> bool {
         matches!(
             self,
-            Self::NativeProviderPair(_) | Self::NativeProviderPrefixBoundary(_)
+            Self::NativeProviderPair(_)
+                | Self::NativeProviderPrefixBoundary(_)
+                | Self::NativeProviderEnvForeignBoundary(_)
         )
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceProviderEnvForeignBoundaryCloseDecision {
+    Native(EvidenceProviderEnvForeignBoundaryGrantCert),
+    Legacy,
+    NotForeign,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1529,6 +1525,19 @@ enum EvidenceProviderPrefixBoundaryCloseReject {
     PermissionUnknown,
     ExactFamily,
     PermissionFamilyRequestMismatch,
+    CarryAfterFrame,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceProviderEnvForeignBoundaryCloseReject {
+    NearestMisses,
+    NoProviderEnv,
+    MarkerBeforeProviderEnv,
+    Depth,
+    ThenSecond,
+    LaterGrant,
+    PermissionFamilyRequestMismatch,
+    HandlerPathRelatedToRequest,
     CarryAfterFrame,
 }
 
@@ -1565,6 +1574,31 @@ impl EvidenceProviderPrefixBoundaryCloseCert {
     #[cfg(debug_assertions)]
     fn boundary_path_len(self) -> usize {
         self.boundary_path_len
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderEnvForeignBoundaryGrantCert {
+    permission: RuntimeEvidenceProviderGrantPermission,
+    provider_env_depth: usize,
+}
+
+impl EvidenceProviderEnvForeignBoundaryGrantCert {
+    fn new(permission: RuntimeEvidenceProviderGrantPermission, provider_env_depth: usize) -> Self {
+        Self {
+            permission,
+            provider_env_depth,
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn permission(self) -> RuntimeEvidenceProviderGrantPermission {
+        self.permission
+    }
+
+    #[cfg(debug_assertions)]
+    fn provider_env_depth(self) -> usize {
+        self.provider_env_depth
     }
 }
 
@@ -4338,6 +4372,32 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         };
 
         if let Some(handler_path) = resume_plan.and_then(|plan| plan.handler_path.as_ref()) {
+            match self.provider_env_foreign_boundary_close_decision(
+                call,
+                handler_path,
+                markers,
+                permission,
+            ) {
+                EvidenceProviderEnvForeignBoundaryCloseDecision::Native(cert) => {
+                    #[cfg(debug_assertions)]
+                    call.hygiene.set_provider_env_foreign_boundary_shadow(cert);
+                    #[cfg(not(debug_assertions))]
+                    let _ = cert;
+                    return EvidenceMarkerCloseDecision::NativeProviderEnvForeignBoundary(cert);
+                }
+                EvidenceProviderEnvForeignBoundaryCloseDecision::Legacy => {
+                    self.record_provider_marker_close_handler_path_reject(
+                        call,
+                        handler_path,
+                        permission,
+                    );
+                    self.record_provider_prefix_boundary_legacy_fallback(
+                        EvidenceProviderPrefixBoundaryCloseReject::ForeignFamily,
+                    );
+                    return EvidenceMarkerCloseDecision::Legacy;
+                }
+                EvidenceProviderEnvForeignBoundaryCloseDecision::NotForeign => {}
+            }
             if let Some(cert) =
                 self.provider_prefix_boundary_close_cert(call, handler_path, markers, permission)
             {
@@ -4539,6 +4599,50 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         ))
     }
 
+    fn provider_env_foreign_boundary_close_decision(
+        &mut self,
+        call: &mut EvidenceDirectTailResumptive,
+        handler_path: &[String],
+        markers: &[EvidenceValueMarker],
+        permission: RuntimeEvidenceProviderGrantPermission,
+    ) -> EvidenceProviderEnvForeignBoundaryCloseDecision {
+        let Some(boundary) = call.hygiene.handler_boundary.as_ref() else {
+            return EvidenceProviderEnvForeignBoundaryCloseDecision::NotForeign;
+        };
+        if boundary.blocked || boundary.path.as_slice() != handler_path {
+            return EvidenceProviderEnvForeignBoundaryCloseDecision::NotForeign;
+        }
+        let Some(permission_family) = self.context.provider_grant_permission_family(permission)
+        else {
+            return EvidenceProviderEnvForeignBoundaryCloseDecision::NotForeign;
+        };
+        let permission_family = permission_family.to_vec();
+        if path_is_prefix(handler_path, &permission_family) {
+            return EvidenceProviderEnvForeignBoundaryCloseDecision::NotForeign;
+        }
+
+        let placement = self.record_provider_foreign_boundary_profile(
+            call,
+            handler_path,
+            permission,
+            &permission_family,
+        );
+        match self.provider_env_foreign_boundary_close_cert(
+            call,
+            handler_path,
+            markers,
+            permission,
+            &permission_family,
+            placement,
+        ) {
+            Some(cert) => EvidenceProviderEnvForeignBoundaryCloseDecision::Native(cert),
+            None => {
+                self.stats.provider_env_foreign_boundary_legacy_fallbacks += 1;
+                EvidenceProviderEnvForeignBoundaryCloseDecision::Legacy
+            }
+        }
+    }
+
     fn record_provider_foreign_boundary_profile(
         &mut self,
         call: &EvidenceDirectTailResumptive,
@@ -4682,6 +4786,148 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
+    fn provider_env_foreign_boundary_close_cert(
+        &mut self,
+        call: &EvidenceDirectTailResumptive,
+        handler_path: &[String],
+        markers: &[EvidenceValueMarker],
+        permission: RuntimeEvidenceProviderGrantPermission,
+        permission_family: &[String],
+        placement: EvidenceProviderEnvPlacement,
+    ) -> Option<EvidenceProviderEnvForeignBoundaryGrantCert> {
+        if permission_family != call.path.as_ref() {
+            self.record_provider_env_foreign_boundary_close_reject(
+                EvidenceProviderEnvForeignBoundaryCloseReject::PermissionFamilyRequestMismatch,
+            );
+            return None;
+        }
+        if path_is_prefix(handler_path, &call.path) || path_is_prefix(&call.path, handler_path) {
+            self.record_provider_env_foreign_boundary_close_reject(
+                EvidenceProviderEnvForeignBoundaryCloseReject::HandlerPathRelatedToRequest,
+            );
+            return None;
+        }
+        match placement.nearest {
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission => {}
+            EvidenceProviderEnvBoundaryStatus::MissesPermission => {
+                self.record_provider_env_foreign_boundary_close_reject(
+                    EvidenceProviderEnvForeignBoundaryCloseReject::NearestMisses,
+                );
+                return None;
+            }
+            EvidenceProviderEnvBoundaryStatus::BlockedByMarkerFrame => {
+                self.record_provider_env_foreign_boundary_close_reject(
+                    EvidenceProviderEnvForeignBoundaryCloseReject::MarkerBeforeProviderEnv,
+                );
+                return None;
+            }
+            EvidenceProviderEnvBoundaryStatus::None => {
+                self.record_provider_env_foreign_boundary_close_reject(
+                    EvidenceProviderEnvForeignBoundaryCloseReject::NoProviderEnv,
+                );
+                return None;
+            }
+        }
+        let Some(depth) = placement.depth else {
+            self.record_provider_env_foreign_boundary_close_reject(
+                EvidenceProviderEnvForeignBoundaryCloseReject::Depth,
+            );
+            return None;
+        };
+        if depth != 1 {
+            self.record_provider_env_foreign_boundary_close_reject(
+                EvidenceProviderEnvForeignBoundaryCloseReject::Depth,
+            );
+            return None;
+        }
+        if !placement.under_then_first || placement.under_then_second {
+            self.record_provider_env_foreign_boundary_close_reject(
+                EvidenceProviderEnvForeignBoundaryCloseReject::ThenSecond,
+            );
+            return None;
+        }
+        if matches!(
+            placement.any_after_nearest,
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission
+        ) {
+            self.record_provider_env_foreign_boundary_close_reject(
+                EvidenceProviderEnvForeignBoundaryCloseReject::LaterGrant,
+            );
+            return None;
+        }
+        if marker_slice_has_carry_after_frame_add_id(markers) {
+            self.record_provider_env_foreign_boundary_close_reject(
+                EvidenceProviderEnvForeignBoundaryCloseReject::CarryAfterFrame,
+            );
+            return None;
+        }
+
+        self.stats.provider_env_foreign_boundary_native_hits += 1;
+        self.stats.provider_env_foreign_boundary_shadow_candidates += 1;
+        Some(EvidenceProviderEnvForeignBoundaryGrantCert::new(
+            permission, depth,
+        ))
+    }
+
+    fn record_provider_env_foreign_boundary_close_reject(
+        &mut self,
+        reject: EvidenceProviderEnvForeignBoundaryCloseReject,
+    ) {
+        match reject {
+            EvidenceProviderEnvForeignBoundaryCloseReject::NearestMisses => {
+                self.stats
+                    .provider_env_foreign_boundary_reject_nearest_misses += 1;
+                self.stats
+                    .provider_env_foreign_boundary_shadow_reject_nearest_misses += 1;
+            }
+            EvidenceProviderEnvForeignBoundaryCloseReject::NoProviderEnv => {
+                self.stats
+                    .provider_env_foreign_boundary_reject_no_provider_env += 1;
+                self.stats
+                    .provider_env_foreign_boundary_shadow_reject_no_provider_env += 1;
+            }
+            EvidenceProviderEnvForeignBoundaryCloseReject::MarkerBeforeProviderEnv => {
+                self.stats
+                    .provider_env_foreign_boundary_reject_marker_before_provider_env += 1;
+                self.stats
+                    .provider_env_foreign_boundary_shadow_reject_marker_before_provider_env += 1;
+            }
+            EvidenceProviderEnvForeignBoundaryCloseReject::Depth => {
+                self.stats.provider_env_foreign_boundary_reject_depth += 1;
+                self.stats.provider_env_foreign_boundary_shadow_reject_depth += 1;
+            }
+            EvidenceProviderEnvForeignBoundaryCloseReject::ThenSecond => {
+                self.stats.provider_env_foreign_boundary_reject_then_second += 1;
+                self.stats
+                    .provider_env_foreign_boundary_shadow_reject_then_second += 1;
+            }
+            EvidenceProviderEnvForeignBoundaryCloseReject::LaterGrant => {
+                self.stats.provider_env_foreign_boundary_reject_later_grant += 1;
+                self.stats
+                    .provider_env_foreign_boundary_shadow_reject_later_grant += 1;
+            }
+            EvidenceProviderEnvForeignBoundaryCloseReject::PermissionFamilyRequestMismatch => {
+                self.stats
+                    .provider_env_foreign_boundary_reject_permission_family_request_mismatch += 1;
+                self.stats
+                    .provider_env_foreign_boundary_shadow_reject_permission_family_request_mismatch += 1;
+            }
+            EvidenceProviderEnvForeignBoundaryCloseReject::HandlerPathRelatedToRequest => {
+                self.stats
+                    .provider_env_foreign_boundary_reject_handler_path_related_to_request += 1;
+                self.stats
+                    .provider_env_foreign_boundary_shadow_reject_handler_path_related_to_request +=
+                    1;
+            }
+            EvidenceProviderEnvForeignBoundaryCloseReject::CarryAfterFrame => {
+                self.stats
+                    .provider_env_foreign_boundary_reject_carry_after_frame += 1;
+                self.stats
+                    .provider_env_foreign_boundary_shadow_reject_carry_after_frame += 1;
+            }
+        }
+    }
+
     fn record_provider_env_foreign_boundary_shadow_candidate(
         &mut self,
         call: &mut EvidenceDirectTailResumptive,
@@ -4750,7 +4996,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.stats.provider_env_foreign_boundary_shadow_candidates += 1;
         #[cfg(debug_assertions)]
         call.hygiene.set_provider_env_foreign_boundary_shadow(
-            EvidenceProviderEnvForeignBoundaryExposure::new(permission, depth),
+            EvidenceProviderEnvForeignBoundaryGrantCert::new(permission, depth),
         );
         #[cfg(not(debug_assertions))]
         {
@@ -11449,6 +11695,230 @@ mod tests {
     }
 
     #[test]
+    fn provider_env_foreign_boundary_close_accepts_nearest_grant() {
+        let program = Program::default();
+        let mut runner = provider_prefix_boundary_runner(&program, &permission_test_path());
+        let permission = provider_prefix_boundary_permission();
+        let call = provider_env_foreign_boundary_call(permission_test_path());
+        let markers = Vec::new();
+        let handler_path = provider_env_foreign_handler_path();
+
+        let cert = runner.provider_env_foreign_boundary_close_cert(
+            &call,
+            &handler_path,
+            &markers,
+            permission,
+            &permission_test_path(),
+            provider_env_foreign_grant_placement(),
+        );
+
+        assert_eq!(
+            cert,
+            Some(EvidenceProviderEnvForeignBoundaryGrantCert::new(
+                permission, 1
+            ))
+        );
+        assert_eq!(runner.stats.provider_env_foreign_boundary_native_hits, 1);
+        assert_eq!(
+            runner.stats.provider_env_foreign_boundary_shadow_candidates,
+            1
+        );
+    }
+
+    #[test]
+    fn provider_env_foreign_boundary_close_rejects_nearest_miss() {
+        let program = Program::default();
+        let mut runner = provider_prefix_boundary_runner(&program, &permission_test_path());
+        let permission = provider_prefix_boundary_permission();
+        let call = provider_env_foreign_boundary_call(permission_test_path());
+        let markers = Vec::new();
+        let handler_path = provider_env_foreign_handler_path();
+
+        let cert = runner.provider_env_foreign_boundary_close_cert(
+            &call,
+            &handler_path,
+            &markers,
+            permission,
+            &permission_test_path(),
+            provider_env_foreign_miss_placement(),
+        );
+
+        assert_eq!(cert, None);
+        assert_eq!(
+            runner
+                .stats
+                .provider_env_foreign_boundary_reject_nearest_misses,
+            1
+        );
+        assert_eq!(
+            runner
+                .stats
+                .provider_env_foreign_boundary_shadow_reject_nearest_misses,
+            1
+        );
+    }
+
+    #[test]
+    fn provider_env_foreign_boundary_close_rejects_later_grant() {
+        let program = Program::default();
+        let mut runner = provider_prefix_boundary_runner(&program, &permission_test_path());
+        let permission = provider_prefix_boundary_permission();
+        let call = provider_env_foreign_boundary_call(permission_test_path());
+        let markers = Vec::new();
+        let handler_path = provider_env_foreign_handler_path();
+        let placement = EvidenceProviderEnvPlacement::nearest(
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission,
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission,
+            1,
+            true,
+            false,
+        );
+
+        let cert = runner.provider_env_foreign_boundary_close_cert(
+            &call,
+            &handler_path,
+            &markers,
+            permission,
+            &permission_test_path(),
+            placement,
+        );
+
+        assert_eq!(cert, None);
+        assert_eq!(
+            runner
+                .stats
+                .provider_env_foreign_boundary_reject_later_grant,
+            1
+        );
+    }
+
+    #[test]
+    fn provider_env_foreign_boundary_close_rejects_depth_not_one() {
+        let program = Program::default();
+        let mut runner = provider_prefix_boundary_runner(&program, &permission_test_path());
+        let permission = provider_prefix_boundary_permission();
+        let call = provider_env_foreign_boundary_call(permission_test_path());
+        let markers = Vec::new();
+        let handler_path = provider_env_foreign_handler_path();
+        let placement = EvidenceProviderEnvPlacement::nearest(
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission,
+            EvidenceProviderEnvBoundaryStatus::None,
+            2,
+            true,
+            false,
+        );
+
+        let cert = runner.provider_env_foreign_boundary_close_cert(
+            &call,
+            &handler_path,
+            &markers,
+            permission,
+            &permission_test_path(),
+            placement,
+        );
+
+        assert_eq!(cert, None);
+        assert_eq!(runner.stats.provider_env_foreign_boundary_reject_depth, 1);
+    }
+
+    #[test]
+    fn provider_env_foreign_boundary_close_rejects_then_second() {
+        let program = Program::default();
+        let mut runner = provider_prefix_boundary_runner(&program, &permission_test_path());
+        let permission = provider_prefix_boundary_permission();
+        let call = provider_env_foreign_boundary_call(permission_test_path());
+        let markers = Vec::new();
+        let handler_path = provider_env_foreign_handler_path();
+        let placement = EvidenceProviderEnvPlacement::nearest(
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission,
+            EvidenceProviderEnvBoundaryStatus::None,
+            1,
+            false,
+            true,
+        );
+
+        let cert = runner.provider_env_foreign_boundary_close_cert(
+            &call,
+            &handler_path,
+            &markers,
+            permission,
+            &permission_test_path(),
+            placement,
+        );
+
+        assert_eq!(cert, None);
+        assert_eq!(
+            runner
+                .stats
+                .provider_env_foreign_boundary_reject_then_second,
+            1
+        );
+    }
+
+    #[test]
+    fn provider_env_foreign_boundary_close_rejects_carry_after_frame() {
+        let program = Program::default();
+        let mut runner = provider_prefix_boundary_runner(&program, &permission_test_path());
+        let permission = provider_prefix_boundary_permission();
+        let call = provider_env_foreign_boundary_call(permission_test_path());
+        let markers = vec![EvidenceValueMarker::AddId(Rc::new(EvidenceAddIdMarker {
+            id: EvidenceGuardId(42),
+            path: shared_path(&permission_test_path()),
+            depth: 0,
+            guard_own_path: true,
+            guard_foreign_path: false,
+            carry_after_frame: true,
+            preserve_own_on_resume: false,
+        }))];
+        let handler_path = provider_env_foreign_handler_path();
+
+        let cert = runner.provider_env_foreign_boundary_close_cert(
+            &call,
+            &handler_path,
+            &markers,
+            permission,
+            &permission_test_path(),
+            provider_env_foreign_grant_placement(),
+        );
+
+        assert_eq!(cert, None);
+        assert_eq!(
+            runner
+                .stats
+                .provider_env_foreign_boundary_reject_carry_after_frame,
+            1
+        );
+    }
+
+    #[test]
+    fn provider_env_foreign_boundary_close_rejects_permission_family_request_mismatch() {
+        let program = Program::default();
+        let mut runner = provider_prefix_boundary_runner(&program, &permission_test_path());
+        let permission = provider_prefix_boundary_permission();
+        let call =
+            provider_env_foreign_boundary_call(vec!["flip".to_string(), "other".to_string()]);
+        let markers = Vec::new();
+        let handler_path = provider_env_foreign_handler_path();
+
+        let cert = runner.provider_env_foreign_boundary_close_cert(
+            &call,
+            &handler_path,
+            &markers,
+            permission,
+            &permission_test_path(),
+            provider_env_foreign_grant_placement(),
+        );
+
+        assert_eq!(cert, None);
+        assert_eq!(
+            runner
+                .stats
+                .provider_env_foreign_boundary_reject_permission_family_request_mismatch,
+            1
+        );
+    }
+
+    #[test]
     fn provider_env_frame_is_shadowed_by_later_marker_scope() {
         let provider_env = provider_env_fixture();
         let program = Program::default();
@@ -11564,6 +12034,40 @@ mod tests {
             shared_path(&request_path),
             shared(RuntimeEvidenceValue::Unit),
             hygiene,
+        )
+    }
+
+    fn provider_env_foreign_boundary_call(
+        request_path: Vec<String>,
+    ) -> EvidenceDirectTailResumptive {
+        provider_prefix_boundary_call_with_boundary(
+            false,
+            request_path,
+            provider_env_foreign_handler_path(),
+        )
+    }
+
+    fn provider_env_foreign_handler_path() -> Vec<String> {
+        vec!["amount".to_string(), "coin".to_string()]
+    }
+
+    fn provider_env_foreign_grant_placement() -> EvidenceProviderEnvPlacement {
+        EvidenceProviderEnvPlacement::nearest(
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission,
+            EvidenceProviderEnvBoundaryStatus::None,
+            1,
+            true,
+            false,
+        )
+    }
+
+    fn provider_env_foreign_miss_placement() -> EvidenceProviderEnvPlacement {
+        EvidenceProviderEnvPlacement::nearest(
+            EvidenceProviderEnvBoundaryStatus::MissesPermission,
+            EvidenceProviderEnvBoundaryStatus::None,
+            1,
+            true,
+            false,
         )
     }
 
