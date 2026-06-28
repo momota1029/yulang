@@ -905,25 +905,31 @@ struct EvidenceRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct EvidenceEffectSignal {
-    request: EvidenceRequest,
+enum EvidenceEffectSignal {
+    GenericRequest(EvidenceRequest),
 }
 
 impl EvidenceEffectSignal {
     fn from_request(request: EvidenceRequest) -> Self {
-        Self { request }
+        Self::GenericRequest(request)
     }
 
     fn request(&self) -> &EvidenceRequest {
-        &self.request
+        match self {
+            Self::GenericRequest(request) => request,
+        }
     }
 
     fn request_mut(&mut self) -> &mut EvidenceRequest {
-        &mut self.request
+        match self {
+            Self::GenericRequest(request) => request,
+        }
     }
 
     fn into_request(self) -> EvidenceRequest {
-        self.request
+        match self {
+            Self::GenericRequest(request) => request,
+        }
     }
 }
 
