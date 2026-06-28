@@ -1,6 +1,7 @@
 use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::mem;
 use std::rc::Rc;
 
 use control_vm::{
@@ -927,6 +928,34 @@ struct EvidenceCarriedGuard {
     exposed_guard_ids: Vec<EvidenceGuardId>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct EvidenceSignalHygiene {
+    guard_ids: Vec<EvidenceGuardId>,
+    carried_guards: Vec<EvidenceCarriedGuard>,
+}
+
+impl EvidenceSignalHygiene {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn from_request(request: &mut EvidenceRequest) -> Self {
+        Self {
+            guard_ids: mem::take(&mut request.guard_ids),
+            carried_guards: mem::take(&mut request.carried_guards),
+        }
+    }
+
+    fn apply_to_request(self, request: &mut EvidenceRequest) {
+        request.guard_ids = self.guard_ids;
+        request.carried_guards = self.carried_guards;
+    }
+
+    fn push_guard_id(&mut self, id: EvidenceGuardId) -> bool {
+        push_unique_guard(&mut self.guard_ids, id)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct EvidenceHandlerBoundary {
     id: EvidenceGuardId,
@@ -1022,15 +1051,20 @@ struct EvidenceDirectTailResumptive {
 }
 
 impl EvidenceDirectTailResumptive {
-    fn from_request(handler: ExprId, request: EvidenceRequest) -> Self {
+    fn with_hygiene(
+        handler: ExprId,
+        path: Rc<[String]>,
+        payload: SharedValue,
+        hygiene: EvidenceSignalHygiene,
+    ) -> Self {
         Self {
             handler,
-            path: request.path,
-            payload: request.payload,
-            guard_ids: request.guard_ids,
-            carried_guards: request.carried_guards,
-            handler_boundary: request.handler_boundary,
-            continuation: request.continuation,
+            path,
+            payload,
+            guard_ids: hygiene.guard_ids,
+            carried_guards: hygiene.carried_guards,
+            handler_boundary: None,
+            continuation: EvidenceContinuation::identity(),
         }
     }
 
@@ -1731,10 +1765,6 @@ impl EvidenceRequest {
             self.continuation
                 .then_counted(tail, stats, EvidenceContinuationAppendSource::Request);
         self
-    }
-
-    fn push_guard_id(&mut self, id: EvidenceGuardId) -> bool {
-        push_unique_guard(&mut self.guard_ids, id)
     }
 }
 
@@ -2541,19 +2571,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         handler: ExprId,
         path: Rc<[String]>,
         payload: SharedValue,
-        route: EvidenceEffectRoute,
     ) -> EvidenceDirectTailResumptive {
-        let mut request = EvidenceRequest {
-            path,
-            payload,
-            route,
-            guard_ids: Vec::new(),
-            carried_guards: Vec::new(),
-            handler_boundary: None,
-            continuation: EvidenceContinuation::identity(),
-        };
-        self.mark_request_with_active_markers(&mut request);
-        EvidenceDirectTailResumptive::from_request(handler, request)
+        let hygiene = self.signal_hygiene_with_active_markers(&path);
+        EvidenceDirectTailResumptive::with_hygiene(handler, path, payload, hygiene)
     }
 
     fn provider_env_for_call(&mut self, site: Option<ExprId>) -> RuntimeEvidenceProviderEnv {
@@ -3013,16 +3033,32 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     }
 
     fn mark_request_with_active_markers(&mut self, request: &mut EvidenceRequest) {
+        let mut hygiene = EvidenceSignalHygiene::from_request(request);
+        self.mark_signal_hygiene_with_active_markers(&request.path, &mut hygiene);
+        hygiene.apply_to_request(request);
+    }
+
+    fn signal_hygiene_with_active_markers(&mut self, path: &[String]) -> EvidenceSignalHygiene {
+        let mut hygiene = EvidenceSignalHygiene::new();
+        self.mark_signal_hygiene_with_active_markers(path, &mut hygiene);
+        hygiene
+    }
+
+    fn mark_signal_hygiene_with_active_markers(
+        &mut self,
+        path: &[String],
+        hygiene: &mut EvidenceSignalHygiene,
+    ) {
         #[cfg(debug_assertions)]
         {
-            let path_candidate_indices = self.active_add_id_index.candidates_for(&request.path);
+            let path_candidate_indices = self.active_add_id_index.candidates_for(path);
             debug_assert_eq!(
                 path_candidate_indices,
-                active_add_id_path_candidate_indices_by_scan(&self.active_add_ids, &request.path)
+                active_add_id_path_candidate_indices_by_scan(&self.active_add_ids, path)
             );
         }
         let mut entry_except_index =
-            EvidenceRequestEntryExceptIndex::new(&self.active_frames, request);
+            EvidenceRequestEntryExceptIndex::new(&self.active_frames, &hygiene.guard_ids);
         let mut scans = 0;
         let mut path_candidates = 0;
         let mut path_rejects = 0;
@@ -3032,21 +3068,21 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         for active_marker in &self.active_add_ids {
             scans += 1;
             let marker = &active_marker.marker;
-            if !active_add_id_matches_request_path(marker, &request.path) {
+            if !active_add_id_matches_request_path(marker, path) {
                 path_rejects += 1;
                 continue;
             }
             path_candidates += 1;
 
             if !marker.carry_after_frame
-                && request_excepted_at_marker_entry(&entry_except_index, active_marker)
+                && signal_excepted_at_marker_entry(&entry_except_index, active_marker)
             {
                 entry_except_rejects += 1;
                 continue;
             }
 
             if marker.carry_after_frame {
-                if request
+                if hygiene
                     .carried_guards
                     .iter()
                     .any(|guard| guard.id == marker.id)
@@ -3054,24 +3090,27 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     already_carried_rejects += 1;
                     continue;
                 }
-                let entry_guard_ids =
-                    request_guard_ids_at_marker_entry(&self.active_frames, request, active_marker);
+                let entry_guard_ids = signal_guard_ids_at_marker_entry(
+                    &self.active_frames,
+                    &hygiene.guard_ids,
+                    active_marker,
+                );
                 let exposed_guard_ids = self.carried_exposed_guard_ids_at_marker_entry(
-                    request,
+                    path,
                     active_marker,
                     entry_guard_ids,
                 );
-                if request.push_guard_id(marker.id) {
+                if hygiene.push_guard_id(marker.id) {
                     entry_except_index.push_guard_id(&self.active_frames, marker.id);
                 }
-                request.carried_guards.push(EvidenceCarriedGuard {
+                hygiene.carried_guards.push(EvidenceCarriedGuard {
                     id: marker.id,
                     entry_frame_len: active_marker.entry_frame_len,
                     exposed_guard_ids,
                 });
                 hits += 1;
             } else {
-                if request.push_guard_id(marker.id) {
+                if hygiene.push_guard_id(marker.id) {
                     entry_except_index.push_guard_id(&self.active_frames, marker.id);
                 }
                 hits += 1;
@@ -3087,19 +3126,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn carried_exposed_guard_ids_at_marker_entry(
         &self,
-        request: &EvidenceRequest,
+        path: &[String],
         marker: &EvidenceActiveAddIdMarker,
         mut ids: Vec<EvidenceGuardId>,
     ) -> Vec<EvidenceGuardId> {
         if marker.marker.preserve_own_on_resume {
             self.push_contract_matching_handler_ids_at_marker_entry(
-                request,
+                path,
                 marker.entry_frame_len,
                 &mut ids,
             );
         }
-        if self.exposes_matching_handler_alias(request, marker.entry_frame_len, &ids)
-            && let Some(handler_id) = self.outermost_matching_handler_id(&request.path)
+        if self.exposes_matching_handler_alias(path, marker.entry_frame_len, &ids)
+            && let Some(handler_id) = self.outermost_matching_handler_id(path)
         {
             push_unique_guard(&mut ids, handler_id);
         }
@@ -3108,12 +3147,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn push_contract_matching_handler_ids_at_marker_entry(
         &self,
-        request: &EvidenceRequest,
+        path: &[String],
         entry_frame_len: usize,
         ids: &mut Vec<EvidenceGuardId>,
     ) {
         for frame in &self.active_handler_frames {
-            if frame.frame_index < entry_frame_len && path_is_prefix(&frame.path, &request.path) {
+            if frame.frame_index < entry_frame_len && path_is_prefix(&frame.path, path) {
                 push_unique_guard(ids, frame.id);
             }
         }
@@ -3121,7 +3160,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn exposes_matching_handler_alias(
         &self,
-        request: &EvidenceRequest,
+        path: &[String],
         entry_frame_len: usize,
         ids: &[EvidenceGuardId],
     ) -> bool {
@@ -3129,7 +3168,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.active_handler_frames.iter().any(|frame| {
                 frame.frame_index < entry_frame_len
                     && frame.id == *id
-                    && path_is_prefix(&frame.path, &request.path)
+                    && path_is_prefix(&frame.path, path)
             })
         })
     }
@@ -6229,7 +6268,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 if let ProviderGrantPathGateFail::AddIdShadowed(kind) = fail {
                     self.record_direct_tail_guarded_add_id(kind);
                     return Ok(EvidenceEvalResult::direct_tail_resumptive(
-                        self.guarded_direct_tail_resumptive(handler, path.clone(), payload, route),
+                        self.guarded_direct_tail_resumptive(handler, path.clone(), payload),
                     ));
                 } else {
                     self.record_direct_tail_gate_fail(fail);
@@ -8311,7 +8350,7 @@ fn push_unique_guard(ids: &mut Vec<EvidenceGuardId>, id: EvidenceGuardId) -> boo
     true
 }
 
-fn request_excepted_at_marker_entry(
+fn signal_excepted_at_marker_entry(
     entry_except_index: &EvidenceRequestEntryExceptIndex,
     marker: &EvidenceActiveAddIdMarker,
 ) -> bool {
@@ -8324,16 +8363,14 @@ struct EvidenceRequestEntryExceptIndex {
 }
 
 impl EvidenceRequestEntryExceptIndex {
-    fn new(active_frames: &[EvidenceActiveFrame], request: &EvidenceRequest) -> Self {
-        let min_guard_position = if request.guard_ids.is_empty() {
+    fn new(active_frames: &[EvidenceActiveFrame], guard_ids: &[EvidenceGuardId]) -> Self {
+        let min_guard_position = if guard_ids.is_empty() {
             None
         } else {
             active_frames
                 .iter()
                 .enumerate()
-                .find_map(|(position, frame)| {
-                    request.guard_ids.contains(&frame.id).then_some(position)
-                })
+                .find_map(|(position, frame)| guard_ids.contains(&frame.id).then_some(position))
         };
         Self { min_guard_position }
     }
@@ -8353,14 +8390,14 @@ impl EvidenceRequestEntryExceptIndex {
     }
 }
 
-fn request_guard_ids_at_marker_entry(
+fn signal_guard_ids_at_marker_entry(
     active_frames: &[EvidenceActiveFrame],
-    request: &EvidenceRequest,
+    guard_ids: &[EvidenceGuardId],
     marker: &EvidenceActiveAddIdMarker,
 ) -> Vec<EvidenceGuardId> {
     let mut ids = Vec::new();
     for frame in active_frames.iter().take(marker.entry_frame_len) {
-        if request.guard_ids.contains(&frame.id) {
+        if guard_ids.contains(&frame.id) {
             push_unique_guard(&mut ids, frame.id);
         }
     }
