@@ -1155,6 +1155,34 @@ enum EvidencePermissionShadowKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidencePermissionBoundarySegment {
+    permission: RuntimeEvidenceProviderGrantPermission,
+    exposure: EvidencePermissionBoundaryExposure,
+}
+
+impl EvidencePermissionBoundarySegment {
+    fn provider_guard_boundary(permission: RuntimeEvidenceProviderGrantPermission) -> Self {
+        Self {
+            permission,
+            exposure: EvidencePermissionBoundaryExposure::ProviderGuardBoundaryPair,
+        }
+    }
+
+    fn permission(self) -> RuntimeEvidenceProviderGrantPermission {
+        self.permission
+    }
+
+    fn exposure(self) -> EvidencePermissionBoundaryExposure {
+        self.exposure
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidencePermissionBoundaryExposure {
+    ProviderGuardBoundaryPair,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidencePermissionVisibleResult {
     NoAllowedHandler,
     Visible(Option<bool>),
@@ -3288,17 +3316,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     .resume_marker_permission_native_reject_value_result += 1;
             }
             Ok(EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call))) => {
-                if self
-                    .provider_guard_boundary_permission(&call.hygiene)
-                    .is_some()
-                {
-                    self.stats.resume_marker_permission_native_provider_pair += 1;
-                    if has_handler_path {
-                        self.stats
-                            .resume_marker_permission_native_reject_handler_path += 1;
-                    } else {
-                        self.stats.resume_marker_permission_native_candidates += 1;
-                    }
+                if let Some(permission) = self.provider_guard_boundary_permission(&call.hygiene) {
+                    let segment =
+                        EvidencePermissionBoundarySegment::provider_guard_boundary(permission);
+                    self.record_resume_marker_permission_boundary_candidate(
+                        segment,
+                        has_handler_path,
+                    );
                     return;
                 }
                 if call.hygiene.provider_grant_permission().is_none() {
@@ -3326,6 +3350,25 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             Err(_) => {
                 self.stats
                     .resume_marker_permission_native_reject_error_result += 1;
+            }
+        }
+    }
+
+    fn record_resume_marker_permission_boundary_candidate(
+        &mut self,
+        segment: EvidencePermissionBoundarySegment,
+        has_handler_path: bool,
+    ) {
+        match segment.exposure() {
+            EvidencePermissionBoundaryExposure::ProviderGuardBoundaryPair => {
+                self.stats.resume_marker_permission_native_provider_pair += 1;
+                if has_handler_path {
+                    self.stats
+                        .resume_marker_permission_native_reject_handler_path += 1;
+                } else {
+                    let _handler_id = segment.permission().handler_id();
+                    self.stats.resume_marker_permission_native_candidates += 1;
+                }
             }
         }
     }
