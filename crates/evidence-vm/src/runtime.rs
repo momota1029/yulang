@@ -987,6 +987,27 @@ struct EvidenceDirectAbortive {
     handler: ExprId,
     path: Rc<[String]>,
     payload: SharedValue,
+    close_cert: EvidenceDirectAbortiveCloseCert,
+}
+
+impl EvidenceDirectAbortive {
+    fn static_handler(handler: ExprId, path: Rc<[String]>, payload: SharedValue) -> Self {
+        Self {
+            handler,
+            path,
+            payload,
+            close_cert: EvidenceDirectAbortiveCloseCert::StaticAbortiveHandler,
+        }
+    }
+
+    fn close_cert(&self) -> EvidenceDirectAbortiveCloseCert {
+        self.close_cert
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceDirectAbortiveCloseCert {
+    StaticAbortiveHandler,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -2891,9 +2912,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         handler_boundary: Option<EvidenceHandlerBoundary>,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         match signal {
-            EvidenceEffectSignal::DirectAbortive(call) => {
-                Ok(EvidenceEvalResult::direct_abortive(call))
-            }
+            EvidenceEffectSignal::DirectAbortive(call) => self.close_direct_abortive(call),
             EvidenceEffectSignal::DirectTailResumptive(call) => {
                 let resume_plan = self.resume_marker_plan(&markers, activate_add_ids, handler_path);
                 self.close_marker_direct_tail(call, markers, resume_plan, handler_boundary)
@@ -3314,15 +3333,24 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
+    fn close_direct_abortive(
+        &mut self,
+        call: EvidenceDirectAbortive,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match call.close_cert() {
+            EvidenceDirectAbortiveCloseCert::StaticAbortiveHandler => {
+                Ok(EvidenceEvalResult::direct_abortive(call))
+            }
+        }
+    }
+
     fn close_marked_signal(
         &mut self,
         signal: EvidenceEffectSignal,
         markers: &[EvidenceValueMarker],
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         match signal {
-            EvidenceEffectSignal::DirectAbortive(call) => {
-                Ok(EvidenceEvalResult::direct_abortive(call))
-            }
+            EvidenceEffectSignal::DirectAbortive(call) => self.close_direct_abortive(call),
             EvidenceEffectSignal::DirectTailResumptive(call) => {
                 let markers = share_marker_vec(markers.to_vec());
                 let resume_plan = self.resume_marker_plan(&markers, true, None);
@@ -3354,7 +3382,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 mark_runtime_value_unchecked(value, markers),
             )),
             EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => {
-                Ok(EvidenceEvalResult::direct_abortive(call))
+                self.close_direct_abortive(call)
             }
             EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call)) => {
                 let markers = share_marker_vec(markers.to_vec());
@@ -6187,11 +6215,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         } = route
         {
             return Ok(EvidenceEvalResult::direct_abortive(
-                EvidenceDirectAbortive {
-                    handler,
-                    path: path.clone(),
-                    payload,
-                },
+                EvidenceDirectAbortive::static_handler(handler, path.clone(), payload),
             ));
         }
         if let EvidenceEffectRoute::Direct {
