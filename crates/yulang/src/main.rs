@@ -3057,6 +3057,36 @@ fn run_runtime_evidence_run(
             .resume_marker_provider_pair_close_reject_handler_path
     );
     println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_blocked: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_blocked
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_unblocked: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_unblocked
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_no_boundary: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_no_boundary
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_same_family: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_same_family
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_foreign_family: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_foreign_family
+    );
+    println!(
         "  runtime_evidence.resume_marker_provider_pair_close_reject_carry_after_frame: {}",
         output
             .evidence_stats

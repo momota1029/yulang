@@ -204,6 +204,11 @@ pub struct RuntimeEvidenceRunStats {
     pub resume_marker_provider_pair_close_reject_no_provider_permission: usize,
     pub resume_marker_provider_pair_close_reject_resume_delta: usize,
     pub resume_marker_provider_pair_close_reject_handler_path: usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_blocked: usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_unblocked: usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_no_boundary: usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_same_family: usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_foreign_family: usize,
     pub resume_marker_provider_pair_close_reject_carry_after_frame: usize,
     pub resume_marker_provider_pair_close_reject_legacy_bridge: usize,
     pub resume_marker_provider_pair_close_reject_other_transform: usize,
@@ -3950,13 +3955,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return EvidenceMarkerCloseDecision::Legacy;
         };
 
-        if resume_plan
-            .and_then(|plan| plan.handler_path.as_ref())
-            .is_some()
-        {
-            self.record_provider_marker_close_reject(
-                EvidenceProviderMarkerCloseReject::HandlerPath,
-            );
+        if let Some(handler_path) = resume_plan.and_then(|plan| plan.handler_path.as_ref()) {
+            self.record_provider_marker_close_handler_path_reject(call, handler_path);
             return EvidenceMarkerCloseDecision::Legacy;
         }
         if marker_slice_has_carry_after_frame_add_id(markers) {
@@ -3980,6 +3980,35 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn record_provider_marker_close_candidate(&mut self) {
         self.stats.resume_marker_provider_pair_close_candidates += 1;
         self.stats.resume_marker_provider_pair_close_native_hits += 1;
+    }
+
+    fn record_provider_marker_close_handler_path_reject(
+        &mut self,
+        call: &EvidenceDirectTailResumptive,
+        handler_path: &[String],
+    ) {
+        self.record_provider_marker_close_reject(EvidenceProviderMarkerCloseReject::HandlerPath);
+        match call.hygiene.handler_boundary.as_ref() {
+            Some(boundary) if boundary.blocked => {
+                self.stats
+                    .resume_marker_provider_pair_close_reject_handler_path_blocked += 1;
+            }
+            Some(_) => {
+                self.stats
+                    .resume_marker_provider_pair_close_reject_handler_path_unblocked += 1;
+            }
+            None => {
+                self.stats
+                    .resume_marker_provider_pair_close_reject_handler_path_no_boundary += 1;
+            }
+        }
+        if path_is_prefix(handler_path, &call.path) {
+            self.stats
+                .resume_marker_provider_pair_close_reject_handler_path_same_family += 1;
+        } else {
+            self.stats
+                .resume_marker_provider_pair_close_reject_handler_path_foreign_family += 1;
+        }
     }
 
     fn record_provider_marker_close_reject(&mut self, reject: EvidenceProviderMarkerCloseReject) {
