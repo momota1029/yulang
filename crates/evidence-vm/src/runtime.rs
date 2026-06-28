@@ -1044,8 +1044,7 @@ struct EvidenceDirectTailResumptive {
     handler: ExprId,
     path: Rc<[String]>,
     payload: SharedValue,
-    guard_ids: Vec<EvidenceGuardId>,
-    carried_guards: Vec<EvidenceCarriedGuard>,
+    hygiene: EvidenceSignalHygiene,
     handler_boundary: Option<EvidenceHandlerBoundary>,
     continuation: EvidenceContinuation,
 }
@@ -1061,8 +1060,7 @@ impl EvidenceDirectTailResumptive {
             handler,
             path,
             payload,
-            guard_ids: hygiene.guard_ids,
-            carried_guards: hygiene.carried_guards,
+            hygiene,
             handler_boundary: None,
             continuation: EvidenceContinuation::identity(),
         }
@@ -1095,8 +1093,8 @@ impl EvidenceDirectTailResumptive {
             path: self.path,
             payload: self.payload,
             route,
-            guard_ids: self.guard_ids,
-            carried_guards: self.carried_guards,
+            guard_ids: self.hygiene.guard_ids,
+            carried_guards: self.hygiene.carried_guards,
             handler_boundary: self.handler_boundary,
             continuation: self.continuation,
         }
@@ -2559,8 +2557,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             handler,
             path,
             payload,
-            guard_ids: Vec::new(),
-            carried_guards: Vec::new(),
+            hygiene: EvidenceSignalHygiene::new(),
             handler_boundary: None,
             continuation: EvidenceContinuation::identity(),
         }
@@ -6584,8 +6581,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.visible_operation_resumptive_parts(
             &call.path,
             call.handler_boundary.as_ref(),
-            &call.guard_ids,
-            &call.carried_guards,
+            &call.hygiene.guard_ids,
+            &call.hygiene.carried_guards,
             arms,
         )
     }
@@ -6597,8 +6594,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         frame_len_before_marker: usize,
     ) -> Option<EvidenceHandlerBoundary> {
         self.handler_boundary_for_request_parts(
-            &call.guard_ids,
-            &call.carried_guards,
+            &call.hygiene.guard_ids,
+            &call.hygiene.carried_guards,
             handler_path,
             frame_len_before_marker,
         )
