@@ -20,6 +20,8 @@ mod plan;
 mod text;
 use crate::{EvidenceVmOperationExecutionPlan, EvidenceVmPlan};
 use format::{format_float, format_value, format_values_with_labels};
+#[cfg(debug_assertions)]
+use plan::RuntimeEvidenceProviderGrantPermission;
 use plan::{
     RuntimeEvidenceOperationVisibility, RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext,
 };
@@ -1041,9 +1043,11 @@ impl EvidenceSignalPermissionVisibility {
             return Some(EvidencePermissionShadowKind::Direct);
         }
         if self.transform.is_guard_boundary_pair()
-            && visibility.provider_grant_permission().is_some()
+            && let Some(permission) = visibility.provider_grant_permission()
         {
-            return Some(EvidencePermissionShadowKind::GuardBoundaryPairBridge);
+            return Some(EvidencePermissionShadowKind::ProviderGrantBoundaryPair(
+                permission,
+            ));
         }
         None
     }
@@ -1053,7 +1057,7 @@ impl EvidenceSignalPermissionVisibility {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidencePermissionShadowKind {
     Direct,
-    GuardBoundaryPairBridge,
+    ProviderGrantBoundaryPair(RuntimeEvidenceProviderGrantPermission),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -6774,12 +6778,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 visibility,
                 arms,
             ),
-            EvidencePermissionShadowKind::GuardBoundaryPairBridge => self
+            EvidencePermissionShadowKind::ProviderGrantBoundaryPair(permission) => self
                 .permission_visible_guard_boundary_pair_bridge(
                     catch_expr,
                     request_path,
                     hygiene,
-                    visibility,
+                    permission,
                     arms,
                 ),
         };
@@ -6825,13 +6829,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         catch_expr: ExprId,
         request_path: &[String],
         hygiene: &EvidenceSignalHygiene,
-        visibility: RuntimeEvidenceOperationVisibility,
+        permission: RuntimeEvidenceProviderGrantPermission,
         arms: &[control_vm::CatchArm],
     ) -> Option<bool> {
-        visibility.provider_grant_permission()?;
         if !self
             .context
-            .catch_has_allowed_handler(catch_expr, request_path, visibility)
+            .catch_has_provider_grant_permission(catch_expr, request_path, permission)
         {
             return None;
         }
@@ -9032,9 +9035,12 @@ mod tests {
             path: vec!["flip".to_string(), "coin".to_string()],
             blocked: false,
         });
+        let provider_permission = provider_visibility.provider_grant_permission().unwrap();
         assert_eq!(
             provider_pair.permission_shadow_kind(),
-            Some(EvidencePermissionShadowKind::GuardBoundaryPairBridge)
+            Some(EvidencePermissionShadowKind::ProviderGrantBoundaryPair(
+                provider_permission
+            ))
         );
 
         let mut provider_guarded = provider_clean.clone();

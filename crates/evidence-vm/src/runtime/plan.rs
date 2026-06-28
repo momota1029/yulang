@@ -165,6 +165,26 @@ impl RuntimeEvidenceRunContext {
         let Some(allowed_handler_id) = visibility.allowed_handler_id() else {
             return false;
         };
+        self.catch_has_allowed_handler_id(catch_expr, request_path, allowed_handler_id)
+    }
+
+    #[cfg(debug_assertions)]
+    pub(super) fn catch_has_provider_grant_permission(
+        &self,
+        catch_expr: ExprId,
+        request_path: &[String],
+        permission: RuntimeEvidenceProviderGrantPermission,
+    ) -> bool {
+        self.catch_has_allowed_handler_id(catch_expr, request_path, permission.handler_id())
+    }
+
+    #[cfg(debug_assertions)]
+    fn catch_has_allowed_handler_id(
+        &self,
+        catch_expr: ExprId,
+        request_path: &[String],
+        allowed_handler_id: u32,
+    ) -> bool {
         self.handlers_by_catch
             .get(&catch_expr)
             .into_iter()
