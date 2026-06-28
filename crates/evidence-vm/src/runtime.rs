@@ -838,7 +838,24 @@ struct EvidenceDirectTailResumptive {
     handler: ExprId,
     path: Vec<String>,
     payload: SharedValue,
+    guard_ids: Vec<EvidenceGuardId>,
+    carried_guards: Vec<EvidenceCarriedGuard>,
+    handler_boundary: Option<EvidenceHandlerBoundary>,
     continuation: EvidenceContinuation,
+}
+
+impl EvidenceDirectTailResumptive {
+    fn into_request(self, route: EvidenceEffectRoute) -> EvidenceRequest {
+        EvidenceRequest {
+            path: self.path,
+            payload: self.payload,
+            route,
+            guard_ids: self.guard_ids,
+            carried_guards: self.carried_guards,
+            handler_boundary: self.handler_boundary,
+            continuation: self.continuation,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -2213,9 +2230,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             Ok(EvidenceEvalResult::RoutedYield(call)) => {
                 self.handler_boundary_for_request(&call.request, handler_path.as_deref(), frame_len)
             }
+            Ok(EvidenceEvalResult::DirectTailResumptive(call)) => {
+                self.handler_boundary_for_direct_tail(call, handler_path.as_deref(), frame_len)
+            }
             Ok(EvidenceEvalResult::Value(_))
             | Ok(EvidenceEvalResult::DirectAbortive(_))
-            | Ok(EvidenceEvalResult::DirectTailResumptive(_))
             | Err(_) => None,
         };
         self.pop_marker_frame(frame_len, handler_frame_len, add_id_len, plan_len);
@@ -2265,9 +2284,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             Ok(EvidenceEvalResult::RoutedYield(call)) => {
                 self.handler_boundary_for_request(&call.request, handler_path.as_deref(), frame_len)
             }
+            Ok(EvidenceEvalResult::DirectTailResumptive(call)) => {
+                self.handler_boundary_for_direct_tail(call, handler_path.as_deref(), frame_len)
+            }
             Ok(EvidenceEvalResult::Value(_))
             | Ok(EvidenceEvalResult::DirectAbortive(_))
-            | Ok(EvidenceEvalResult::DirectTailResumptive(_))
             | Err(_) => None,
         };
         self.pop_marker_frame(frame_len, handler_frame_len, add_id_len, plan_len);
@@ -2396,9 +2417,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
-            EvidenceEvalResult::DirectTailResumptive(call) => {
-                self.close_marker_direct_tail(call, markers, activate_add_ids, handler_path)
-            }
+            EvidenceEvalResult::DirectTailResumptive(call) => self.close_marker_direct_tail(
+                call,
+                markers,
+                activate_add_ids,
+                handler_path,
+                handler_boundary,
+            ),
             EvidenceEvalResult::RoutedYield(mut call) => {
                 if let Some(handler_boundary) = handler_boundary {
                     call.request.handler_boundary = Some(handler_boundary);
@@ -2448,7 +2473,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         markers: Rc<[EvidenceValueMarker]>,
         activate_add_ids: bool,
         handler_path: Option<Vec<String>>,
+        handler_boundary: Option<EvidenceHandlerBoundary>,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if let Some(handler_boundary) = handler_boundary {
+            call.handler_boundary = Some(handler_boundary);
+        }
         call.payload = mark_runtime_value_shared(call.payload, markers.clone());
         let resume_markers = markers_for_continuation_resume(&markers);
         if !resume_markers.is_empty() {
@@ -2611,9 +2640,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             .map(|frame| frame.id)
     }
 
-    fn request_guard_for_path(
+    fn request_guard_for_path_parts(
         &self,
-        request: &EvidenceRequest,
+        guard_ids: &[EvidenceGuardId],
+        carried_guards: &[EvidenceCarriedGuard],
         operation_path: &[String],
     ) -> Option<EvidenceGuardSkip> {
         let matching_handler = self.find_matching_handler_frame(operation_path);
@@ -2624,28 +2654,35 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return self
                 .active_frames
                 .iter()
-                .find(|frame| request.guard_ids.contains(&frame.id))
+                .find(|frame| guard_ids.contains(&frame.id))
                 .map(|frame| EvidenceGuardSkip::Preserve(frame.id))
                 .or_else(|| {
-                    request
-                        .carried_guards
+                    carried_guards
                         .first()
                         .map(|guard| EvidenceGuardSkip::Preserve(guard.id))
                 });
         };
-        self.carried_guard_for_matching_handler(request, matching_handler)
+        self.carried_guard_for_matching_handler_parts(carried_guards, matching_handler)
             .or_else(|| {
                 let handler_id = self.active_frames.get(matching_handler)?.id;
                 self.active_frames[matching_handler + 1..]
                     .iter()
-                    .find(|frame| self.guard_blocks_handler(request, frame.id, handler_id))
+                    .find(|frame| {
+                        self.guard_blocks_handler_parts(
+                            guard_ids,
+                            carried_guards,
+                            frame.id,
+                            handler_id,
+                        )
+                    })
                     .map(|frame| EvidenceGuardSkip::Preserve(frame.id))
             })
-            .or_else(|| self.current_handler_guard(request, matching_handler))
+            .or_else(|| {
+                self.current_handler_guard_parts(guard_ids, carried_guards, matching_handler)
+            })
             .or_else(|| {
                 if self.active_frames.is_empty() {
-                    request
-                        .carried_guards
+                    carried_guards
                         .first()
                         .map(|guard| EvidenceGuardSkip::Preserve(guard.id))
                 } else {
@@ -2654,17 +2691,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             })
     }
 
-    fn carried_guard_for_matching_handler(
+    fn carried_guard_for_matching_handler_parts(
         &self,
-        request: &EvidenceRequest,
+        carried_guards: &[EvidenceCarriedGuard],
         matching_handler: usize,
     ) -> Option<EvidenceGuardSkip> {
         let handler_id = self
             .active_frames
             .get(matching_handler)
             .map(|frame| frame.id)?;
-        request
-            .carried_guards
+        carried_guards
             .iter()
             .find(|guard| {
                 matching_handler < guard.entry_frame_len
@@ -2673,27 +2709,29 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             .map(|guard| EvidenceGuardSkip::Preserve(guard.id))
     }
 
-    fn guard_blocks_handler(
+    fn guard_blocks_handler_parts(
         &self,
-        request: &EvidenceRequest,
+        guard_ids: &[EvidenceGuardId],
+        carried_guards: &[EvidenceCarriedGuard],
         guard_id: EvidenceGuardId,
         handler_id: EvidenceGuardId,
     ) -> bool {
-        request.guard_ids.contains(&guard_id)
-            && !request.carried_guards.iter().any(|guard| {
+        guard_ids.contains(&guard_id)
+            && !carried_guards.iter().any(|guard| {
                 guard.exposed_guard_ids.contains(&handler_id)
                     && (guard.id == guard_id || guard.exposed_guard_ids.contains(&guard_id))
             })
     }
 
-    fn current_handler_guard(
+    fn current_handler_guard_parts(
         &self,
-        request: &EvidenceRequest,
+        guard_ids: &[EvidenceGuardId],
+        carried_guards: &[EvidenceCarriedGuard],
         matching_handler: usize,
     ) -> Option<EvidenceGuardSkip> {
         for frame in &self.active_handler_frames {
             if frame.frame_index == matching_handler
-                && self.guard_blocks_handler(request, frame.id, frame.id)
+                && self.guard_blocks_handler_parts(guard_ids, carried_guards, frame.id, frame.id)
             {
                 return Some(EvidenceGuardSkip::Preserve(frame.id));
             }
@@ -2715,12 +2753,32 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         handler_path: Option<&[String]>,
         frame_len_before_marker: usize,
     ) -> Option<EvidenceHandlerBoundary> {
+        self.handler_boundary_for_request_parts(
+            &request.guard_ids,
+            &request.carried_guards,
+            handler_path,
+            frame_len_before_marker,
+        )
+    }
+
+    fn handler_boundary_for_request_parts(
+        &self,
+        guard_ids: &[EvidenceGuardId],
+        carried_guards: &[EvidenceCarriedGuard],
+        handler_path: Option<&[String]>,
+        frame_len_before_marker: usize,
+    ) -> Option<EvidenceHandlerBoundary> {
         let handler_path = handler_path?;
         let handler = self.active_handler_frames.iter().rev().find(|frame| {
             frame.frame_index >= frame_len_before_marker && frame.path == handler_path
         })?;
-        let blocked =
-            self.handler_boundary_blocked(request, handler.frame_index, handler.id, handler_path);
+        let blocked = self.handler_boundary_blocked_parts(
+            guard_ids,
+            carried_guards,
+            handler.frame_index,
+            handler.id,
+            handler_path,
+        );
         Some(EvidenceHandlerBoundary {
             id: handler.id,
             path: handler.path.clone(),
@@ -2728,18 +2786,24 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         })
     }
 
-    fn handler_boundary_blocked(
+    fn handler_boundary_blocked_parts(
         &self,
-        request: &EvidenceRequest,
+        guard_ids: &[EvidenceGuardId],
+        carried_guards: &[EvidenceCarriedGuard],
         handler_frame_index: usize,
         handler_id: EvidenceGuardId,
         handler_path: &[String],
     ) -> bool {
-        self.carried_guard_for_matching_handler(request, handler_frame_index)
+        self.carried_guard_for_matching_handler_parts(carried_guards, handler_frame_index)
             .is_some()
             || self.active_frames.iter().enumerate().any(|(index, frame)| {
                 frame.id != handler_id
-                    && self.guard_blocks_handler(request, frame.id, handler_id)
+                    && self.guard_blocks_handler_parts(
+                        guard_ids,
+                        carried_guards,
+                        frame.id,
+                        handler_id,
+                    )
                     && (index > handler_frame_index
                         || self.guard_frame_matches_handler(frame.id, handler_path))
             })
@@ -2767,9 +2831,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
-            EvidenceEvalResult::DirectTailResumptive(call) => {
-                self.close_marker_direct_tail(call, share_marker_vec(markers.to_vec()), true, None)
-            }
+            EvidenceEvalResult::DirectTailResumptive(call) => self.close_marker_direct_tail(
+                call,
+                share_marker_vec(markers.to_vec()),
+                true,
+                None,
+                None,
+            ),
             EvidenceEvalResult::RoutedYield(call) => {
                 self.close_marker_routed_yield(call, share_marker_vec(markers.to_vec()), true, None)
             }
@@ -2798,9 +2866,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
-            EvidenceEvalResult::DirectTailResumptive(call) => {
-                self.close_marker_direct_tail(call, share_marker_vec(markers.to_vec()), true, None)
-            }
+            EvidenceEvalResult::DirectTailResumptive(call) => self.close_marker_direct_tail(
+                call,
+                share_marker_vec(markers.to_vec()),
+                true,
+                None,
+                None,
+            ),
             EvidenceEvalResult::RoutedYield(call) => {
                 self.close_marker_routed_yield(call, share_marker_vec(markers.to_vec()), true, None)
             }
@@ -4073,8 +4145,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.record_continuation_resume_frame(&frame);
         match frame {
             EvidenceContinuationFrame::Then { first, second } => {
-                let result = self.resume_continuation(first.clone(), value)?;
-                self.continue_result(result, second.clone())
+                let result = self.resume_continuation(first, value)?;
+                self.continue_result(result, second)
             }
             EvidenceContinuationFrame::ForceThunk {
                 target_value_is_thunk,
@@ -4520,6 +4592,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if continuation.is_identity() {
             return Ok(EvidenceEvalResult::DirectTailResumptive(call));
         }
+        if !continuation.has_request_boundary(Some(call.handler)) {
+            let call = self.append_direct_tail_continuation(call, continuation);
+            return Ok(EvidenceEvalResult::DirectTailResumptive(call));
+        }
         let frame = continuation
             .frame()
             .expect("non-identity continuation must have a frame");
@@ -4670,7 +4746,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 next,
             } => {
                 if call.handler == *catch_expr {
-                    let result = self.eval_direct_tail_resumptive_arm(call, arms, env)?;
+                    let result = if self.visible_direct_tail_resumptive(&call, arms).is_some() {
+                        self.eval_direct_tail_resumptive_arm(call, arms, env)?
+                    } else {
+                        let request = call.into_request(EvidenceEffectRoute::Unhandled);
+                        EvidenceEvalResult::Request(self.defer_catch_body(
+                            *catch_expr,
+                            arms.clone(),
+                            env,
+                            request,
+                        ))
+                    };
                     return self.continue_result(result, next.clone());
                 }
                 let env = self.clone_env(env);
@@ -5531,20 +5617,24 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         request_free_yield,
                         ..
                     } = route
-                        && self.route_allows_direct_tail_resumptive(
+                    {
+                        if self.route_allows_direct_tail_resumptive(
                             *request_free_yield,
                             *evidence,
                             path,
-                        )
-                    {
-                        return Ok(EvidenceEvalResult::DirectTailResumptive(
-                            EvidenceDirectTailResumptive {
-                                handler: *handler,
-                                path: path.clone(),
-                                payload: payload.clone(),
-                                continuation: EvidenceContinuation::identity(),
-                            },
-                        ));
+                        ) {
+                            return Ok(EvidenceEvalResult::DirectTailResumptive(
+                                EvidenceDirectTailResumptive {
+                                    handler: *handler,
+                                    path: path.clone(),
+                                    payload: payload.clone(),
+                                    guard_ids: Vec::new(),
+                                    carried_guards: Vec::new(),
+                                    handler_boundary: None,
+                                    continuation: EvidenceContinuation::identity(),
+                                },
+                            ));
+                        }
                     }
                     if let EvidenceEffectRoute::Direct {
                         handler,
@@ -5659,9 +5749,27 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             EvidenceEvalResult::DirectTailResumptive(call) => {
                 if call.handler == catch_expr {
-                    self.eval_direct_tail_resumptive_arm(call, &arms, env)
+                    if self.visible_direct_tail_resumptive(&call, &arms).is_some() {
+                        self.eval_direct_tail_resumptive_arm(call, &arms, env)
+                    } else {
+                        let request = call.into_request(EvidenceEffectRoute::Unhandled);
+                        Ok(EvidenceEvalResult::Request(
+                            self.defer_catch_body(catch_expr, arms, env, request),
+                        ))
+                    }
                 } else {
-                    Ok(EvidenceEvalResult::DirectTailResumptive(call))
+                    let env = self.clone_env(env);
+                    Ok(EvidenceEvalResult::DirectTailResumptive(
+                        self.append_direct_tail_continuation(
+                            call,
+                            EvidenceContinuation::catch_body(
+                                catch_expr,
+                                arms,
+                                env,
+                                EvidenceContinuation::identity(),
+                            ),
+                        ),
+                    ))
                 }
             }
             EvidenceEvalResult::RoutedYield(call) => {
@@ -5709,22 +5817,69 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         request: &EvidenceRequest,
         arms: &[control_vm::CatchArm],
     ) -> Option<bool> {
+        self.visible_operation_resumptive_parts(
+            &request.path,
+            request.handler_boundary.as_ref(),
+            &request.guard_ids,
+            &request.carried_guards,
+            arms,
+        )
+    }
+
+    fn visible_operation_resumptive_parts(
+        &self,
+        request_path: &[String],
+        handler_boundary: Option<&EvidenceHandlerBoundary>,
+        guard_ids: &[EvidenceGuardId],
+        carried_guards: &[EvidenceCarriedGuard],
+        arms: &[control_vm::CatchArm],
+    ) -> Option<bool> {
         arms.iter().find_map(|arm| {
             let operation_path = arm.operation_path.as_ref()?;
-            if operation_path != &request.path {
+            if operation_path.as_slice() != request_path {
                 return None;
             }
-            let skipped_guard = match &request.handler_boundary {
-                Some(boundary) if path_is_prefix(&boundary.path, &request.path) => boundary
+            let skipped_guard = match handler_boundary {
+                Some(boundary) if path_is_prefix(&boundary.path, request_path) => boundary
                     .blocked
                     .then_some(EvidenceGuardSkip::Preserve(boundary.id)),
                 Some(boundary) => Some(EvidenceGuardSkip::Preserve(boundary.id)),
-                None => self.request_guard_for_path(request, operation_path),
+                None => {
+                    self.request_guard_for_path_parts(guard_ids, carried_guards, operation_path)
+                }
             };
             skipped_guard
                 .is_none()
                 .then_some(arm.continuation.is_some())
         })
+    }
+
+    fn visible_direct_tail_resumptive(
+        &self,
+        call: &EvidenceDirectTailResumptive,
+        arms: &[control_vm::CatchArm],
+    ) -> Option<bool> {
+        self.visible_operation_resumptive_parts(
+            &call.path,
+            call.handler_boundary.as_ref(),
+            &call.guard_ids,
+            &call.carried_guards,
+            arms,
+        )
+    }
+
+    fn handler_boundary_for_direct_tail(
+        &self,
+        call: &EvidenceDirectTailResumptive,
+        handler_path: Option<&[String]>,
+        frame_len_before_marker: usize,
+    ) -> Option<EvidenceHandlerBoundary> {
+        self.handler_boundary_for_request_parts(
+            &call.guard_ids,
+            &call.carried_guards,
+            handler_path,
+            frame_len_before_marker,
+        )
     }
 
     fn defer_catch_body(
