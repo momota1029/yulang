@@ -3226,6 +3226,50 @@ fn run_runtime_evidence_run(
             .resume_plan_shadow_request_delta_provider_dirty_add_id
     );
     println!(
+        "  runtime_evidence.resume_plan_marker_delta_candidates: {}",
+        output.evidence_stats.resume_plan_marker_delta_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_marker_delta_direct_tail_candidates: {}",
+        output
+            .evidence_stats
+            .resume_plan_marker_delta_direct_tail_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_marker_delta_resume_pack_candidates: {}",
+        output
+            .evidence_stats
+            .resume_plan_marker_delta_resume_pack_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_marker_delta_unique: {}",
+        output.evidence_stats.resume_plan_marker_delta_unique
+    );
+    println!(
+        "  runtime_evidence.resume_plan_marker_delta_reused: {}",
+        output.evidence_stats.resume_plan_marker_delta_reused
+    );
+    println!(
+        "  runtime_evidence.resume_plan_marker_delta_frames: {}",
+        output.evidence_stats.resume_plan_marker_delta_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_marker_delta_active_add_id_ops: {}",
+        output
+            .evidence_stats
+            .resume_plan_marker_delta_active_add_id_ops
+    );
+    println!(
+        "  runtime_evidence.resume_plan_marker_delta_handler_boundary_ops: {}",
+        output
+            .evidence_stats
+            .resume_plan_marker_delta_handler_boundary_ops
+    );
+    println!(
+        "  runtime_evidence.resume_plan_marker_delta_max_frames: {}",
+        output.evidence_stats.resume_plan_marker_delta_max_frames
+    );
+    println!(
         "  runtime_evidence.resume_pack_candidates: {}",
         output.evidence_stats.resume_pack_candidates
     );

@@ -216,6 +216,15 @@ pub struct RuntimeEvidenceRunStats {
     pub resume_plan_shadow_request_delta_requires_provider_delta: usize,
     pub resume_plan_shadow_request_delta_requires_both_scope_deltas: usize,
     pub resume_plan_shadow_request_delta_provider_dirty_add_id: usize,
+    pub resume_plan_marker_delta_candidates: usize,
+    pub resume_plan_marker_delta_direct_tail_candidates: usize,
+    pub resume_plan_marker_delta_resume_pack_candidates: usize,
+    pub resume_plan_marker_delta_unique: usize,
+    pub resume_plan_marker_delta_reused: usize,
+    pub resume_plan_marker_delta_frames: usize,
+    pub resume_plan_marker_delta_active_add_id_ops: usize,
+    pub resume_plan_marker_delta_handler_boundary_ops: usize,
+    pub resume_plan_marker_delta_max_frames: usize,
     pub resume_pack_candidates: usize,
     pub resume_pack_thunks_forced: usize,
     pub resume_pack_multi_shot_required: usize,
@@ -1368,6 +1377,50 @@ struct EvidenceAddIdMarker {
     guard_foreign_path: bool,
     carry_after_frame: bool,
     preserve_own_on_resume: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct EvidenceMarkerDeltaFrameShadowKey {
+    markers: Vec<EvidenceValueMarker>,
+    activate_add_ids: bool,
+    handler_path: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+struct EvidenceMarkerDeltaShadowKey {
+    frames: Vec<EvidenceMarkerDeltaFrameShadowKey>,
+}
+
+impl EvidenceMarkerDeltaShadowKey {
+    fn is_empty(&self) -> bool {
+        self.frames.is_empty()
+    }
+
+    fn frame_count(&self) -> usize {
+        self.frames.len()
+    }
+
+    fn active_add_id_ops(&self) -> usize {
+        self.frames
+            .iter()
+            .map(|frame| {
+                frame
+                    .markers
+                    .iter()
+                    .filter(|marker| {
+                        matches!(marker, EvidenceValueMarker::AddId(marker) if frame.activate_add_ids && marker.depth == 0)
+                    })
+                    .count()
+            })
+            .sum()
+    }
+
+    fn handler_boundary_ops(&self) -> usize {
+        self.frames
+            .iter()
+            .filter(|frame| frame.handler_path.is_some())
+            .count()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2904,6 +2957,14 @@ impl EvidenceContinuation {
         frame.resume_plan_shadow_profile(routed_yield_handler)
     }
 
+    fn marker_delta_shadow_key(&self) -> EvidenceMarkerDeltaShadowKey {
+        let mut key = EvidenceMarkerDeltaShadowKey::default();
+        if let Some(frame) = self.frame() {
+            frame.append_marker_delta_shadow_key(&mut key);
+        }
+        key
+    }
+
     fn record_provider_env_then_compaction_candidates(&self, stats: &mut RuntimeEvidenceRunStats) {
         self.record_provider_env_then_compaction_candidates_with_parent(None, stats)
     }
@@ -3055,6 +3116,41 @@ impl EvidenceContinuation {
 }
 
 impl EvidenceContinuationFrame {
+    fn append_marker_delta_shadow_key(&self, key: &mut EvidenceMarkerDeltaShadowKey) {
+        match self {
+            Self::Then { first, second } => {
+                if let Some(frame) = first.frame() {
+                    frame.append_marker_delta_shadow_key(key);
+                }
+                if let Some(frame) = second.frame() {
+                    frame.append_marker_delta_shadow_key(key);
+                }
+            }
+            Self::MarkerFrame {
+                markers,
+                activate_add_ids,
+                handler_path,
+                next,
+            } => {
+                key.frames.push(EvidenceMarkerDeltaFrameShadowKey {
+                    markers: markers.as_ref().to_vec(),
+                    activate_add_ids: *activate_add_ids,
+                    handler_path: handler_path.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_marker_delta_shadow_key(key);
+                }
+            }
+            _ => {
+                if let Some(next) = self.tail_ref()
+                    && let Some(frame) = next.frame()
+                {
+                    frame.append_marker_delta_shadow_key(key);
+                }
+            }
+        }
+    }
+
     fn resume_plan_shadow_profile(
         &self,
         routed_yield_handler: Option<ExprId>,
@@ -4554,6 +4650,7 @@ struct RuntimeEvidenceRunner<'a> {
     active_marker_plans: Vec<EvidenceActiveMarkerPlan>,
     active_provider_envs: Vec<RuntimeEvidenceProviderFrame>,
     active_provider_handlers: Vec<u32>,
+    marker_delta_shadow_ids: HashMap<EvidenceMarkerDeltaShadowKey, usize>,
     stdout: String,
     context: RuntimeEvidenceRunContext,
     stats: RuntimeEvidenceRunStats,
@@ -4588,6 +4685,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             active_marker_plans: Vec::new(),
             active_provider_envs: Vec::new(),
             active_provider_handlers: Vec::new(),
+            marker_delta_shadow_ids: HashMap::new(),
             stdout: String::new(),
             context,
             stats,
@@ -6729,6 +6827,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
 
         let profile = continuation.resume_plan_shadow_profile(routed_yield_handler);
+        let marker_delta_key = continuation.marker_delta_shadow_key();
         self.stats.resume_plan_shadow_eval_frames += profile.eval_frames;
         self.stats.resume_plan_shadow_then_frames += profile.then_frames;
         self.stats.resume_plan_shadow_catch_boundaries += profile.catch_boundaries;
@@ -6755,12 +6854,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if profile.has_provider_delta() {
             self.stats.resume_plan_shadow_with_provider_delta += 1;
         }
-        self.record_resume_plan_request_delta_shadow(profile, direct_tail, provider_dirty_add_id);
+        self.record_resume_plan_request_delta_shadow(
+            profile,
+            marker_delta_key,
+            direct_tail,
+            provider_dirty_add_id,
+        );
     }
 
     fn record_resume_plan_request_delta_shadow(
         &mut self,
         profile: EvidenceResumePlanShadowProfile,
+        marker_delta_key: EvidenceMarkerDeltaShadowKey,
         direct_tail: bool,
         provider_dirty_add_id: bool,
     ) {
@@ -6802,6 +6907,39 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.stats
                 .resume_plan_shadow_request_delta_provider_dirty_add_id += 1;
         }
+        self.record_resume_plan_marker_delta_shadow(marker_delta_key, direct_tail);
+    }
+
+    fn record_resume_plan_marker_delta_shadow(
+        &mut self,
+        key: EvidenceMarkerDeltaShadowKey,
+        direct_tail: bool,
+    ) {
+        if key.is_empty() {
+            return;
+        }
+
+        self.stats.resume_plan_marker_delta_candidates += 1;
+        if direct_tail {
+            self.stats.resume_plan_marker_delta_direct_tail_candidates += 1;
+        } else {
+            self.stats.resume_plan_marker_delta_resume_pack_candidates += 1;
+        }
+        self.stats.resume_plan_marker_delta_frames += key.frame_count();
+        self.stats.resume_plan_marker_delta_active_add_id_ops += key.active_add_id_ops();
+        self.stats.resume_plan_marker_delta_handler_boundary_ops += key.handler_boundary_ops();
+        self.stats.resume_plan_marker_delta_max_frames = self
+            .stats
+            .resume_plan_marker_delta_max_frames
+            .max(key.frame_count());
+
+        if self.marker_delta_shadow_ids.contains_key(&key) {
+            self.stats.resume_plan_marker_delta_reused += 1;
+            return;
+        }
+        let id = self.marker_delta_shadow_ids.len();
+        self.marker_delta_shadow_ids.insert(key, id);
+        self.stats.resume_plan_marker_delta_unique += 1;
     }
 
     fn record_provider_env_foreign_later_grant_shape_profile(
@@ -14659,6 +14797,11 @@ mod tests {
         assert!(profile.has_provider_delta());
         assert!(!profile.is_eval_only());
         assert_eq!(profile.request_delta_rejection(), None);
+
+        let marker_delta = continuation.marker_delta_shadow_key();
+        assert_eq!(marker_delta.frame_count(), 1);
+        assert_eq!(marker_delta.active_add_id_ops(), 1);
+        assert_eq!(marker_delta.handler_boundary_ops(), 0);
     }
 
     #[test]
