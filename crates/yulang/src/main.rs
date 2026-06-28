@@ -2593,6 +2593,28 @@ fn run_runtime_evidence_run(
             .provider_add_id_shortcut_full_scan_extra_carried_guards
     );
     println!(
+        "  runtime_evidence.provider_add_id_shortcut_visible_verify: {}",
+        output
+            .evidence_stats
+            .provider_add_id_shortcut_visible_verify
+    );
+    println!(
+        "  runtime_evidence.provider_add_id_shortcut_visible_match: {}",
+        output.evidence_stats.provider_add_id_shortcut_visible_match
+    );
+    println!(
+        "  runtime_evidence.provider_add_id_shortcut_visible_mismatch: {}",
+        output
+            .evidence_stats
+            .provider_add_id_shortcut_visible_mismatch
+    );
+    println!(
+        "  runtime_evidence.provider_add_id_shortcut_full_scan_visible: {}",
+        output
+            .evidence_stats
+            .provider_add_id_shortcut_full_scan_visible
+    );
+    println!(
         "  control_evidence.effect_calls: {}",
         output.evidence_stats.effect_calls
     );

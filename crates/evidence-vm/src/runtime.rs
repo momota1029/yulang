@@ -117,6 +117,10 @@ pub struct RuntimeEvidenceRunStats {
     pub provider_add_id_shortcut_full_scan_guard_visible_mismatch: usize,
     pub provider_add_id_shortcut_full_scan_extra_guards: usize,
     pub provider_add_id_shortcut_full_scan_extra_carried_guards: usize,
+    pub provider_add_id_shortcut_visible_verify: usize,
+    pub provider_add_id_shortcut_visible_match: usize,
+    pub provider_add_id_shortcut_visible_mismatch: usize,
+    pub provider_add_id_shortcut_full_scan_visible: usize,
     pub expr_evals: usize,
     pub env_clones: usize,
     pub env_entries_cloned: usize,
@@ -1063,6 +1067,8 @@ struct EvidenceSignalHygiene {
     carried_guards: Vec<EvidenceCarriedGuard>,
     handler_boundary: Option<EvidenceHandlerBoundary>,
     permission_visibility: EvidenceSignalPermissionVisibility,
+    #[cfg(debug_assertions)]
+    provider_add_id_shortcut_full_scan: Option<Box<EvidenceFullScanHygieneSnapshot>>,
 }
 
 impl EvidenceSignalHygiene {
@@ -1089,6 +1095,10 @@ impl EvidenceSignalHygiene {
     fn set_handler_boundary(&mut self, handler_boundary: EvidenceHandlerBoundary) {
         self.permission_visibility.record_handler_boundary_mask();
         self.handler_boundary = Some(handler_boundary);
+        #[cfg(debug_assertions)]
+        if let Some(full_scan) = self.provider_add_id_shortcut_full_scan.as_mut() {
+            full_scan.handler_boundary = self.handler_boundary.clone();
+        }
     }
 
     fn with_operation_visibility(
@@ -1123,8 +1133,48 @@ impl EvidenceSignalHygiene {
     }
 
     #[cfg(debug_assertions)]
+    fn set_provider_add_id_shortcut_full_scan(
+        &mut self,
+        full_scan: EvidenceFullScanHygieneSnapshot,
+    ) {
+        self.provider_add_id_shortcut_full_scan = Some(Box::new(full_scan));
+    }
+
+    #[cfg(debug_assertions)]
+    fn provider_add_id_shortcut_full_scan(&self) -> Option<&EvidenceFullScanHygieneSnapshot> {
+        self.provider_add_id_shortcut_full_scan.as_deref()
+    }
+
+    #[cfg(debug_assertions)]
     fn operation_visibility(&self) -> Option<RuntimeEvidenceOperationVisibility> {
         self.permission_visibility.base
+    }
+}
+
+#[cfg(debug_assertions)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EvidenceFullScanHygieneSnapshot {
+    guard_ids: Vec<EvidenceGuardId>,
+    carried_guards: Vec<EvidenceCarriedGuard>,
+    handler_boundary: Option<EvidenceHandlerBoundary>,
+}
+
+#[cfg(debug_assertions)]
+impl EvidenceFullScanHygieneSnapshot {
+    fn from_hygiene(hygiene: &EvidenceSignalHygiene) -> Self {
+        Self {
+            guard_ids: hygiene.guard_ids.clone(),
+            carried_guards: hygiene.carried_guards.clone(),
+            handler_boundary: hygiene.handler_boundary.clone(),
+        }
+    }
+
+    fn exposure(&self) -> EvidenceGuardBoundaryExposure<'_> {
+        EvidenceGuardBoundaryExposure {
+            handler_boundary: self.handler_boundary.as_ref(),
+            guard_ids: &self.guard_ids,
+            carried_guards: &self.carried_guards,
+        }
     }
 }
 
@@ -3097,6 +3147,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 &hygiene,
                 &full_scan_hygiene,
                 &path,
+            );
+            hygiene.set_provider_add_id_shortcut_full_scan(
+                EvidenceFullScanHygieneSnapshot::from_hygiene(&full_scan_hygiene),
             );
         }
         EvidenceDirectTailResumptive::with_hygiene(handler, path, payload, hygiene)
@@ -7438,6 +7491,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let exposure = EvidenceGuardBoundaryExposure::from_hygiene(&call.hygiene);
                 let legacy_visible =
                     self.visible_operation_resumptive_parts(&call.path, exposure, arms);
+                #[cfg(debug_assertions)]
+                {
+                    self.record_provider_add_id_shortcut_visible_shadow(
+                        &call.hygiene,
+                        &call.path,
+                        arms,
+                        legacy_visible,
+                    );
+                }
                 self.record_provider_boundary_pair_shadow(legacy_visible, permission_result);
                 self.record_provider_boundary_pair_native_shadow(legacy_visible, native_result);
                 debug_assert_eq!(
@@ -7685,6 +7747,30 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         } else {
             self.stats
                 .permission_provider_boundary_pair_native_shadow_mismatch += 1;
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn record_provider_add_id_shortcut_visible_shadow(
+        &mut self,
+        hygiene: &EvidenceSignalHygiene,
+        request_path: &[String],
+        arms: &[control_vm::CatchArm],
+        shortcut_visible: Option<bool>,
+    ) {
+        let Some(full_scan) = hygiene.provider_add_id_shortcut_full_scan() else {
+            return;
+        };
+        self.stats.provider_add_id_shortcut_visible_verify += 1;
+        let full_scan_visible =
+            self.visible_operation_resumptive_parts(request_path, full_scan.exposure(), arms);
+        if full_scan_visible.is_some() {
+            self.stats.provider_add_id_shortcut_full_scan_visible += 1;
+        }
+        if shortcut_visible == full_scan_visible {
+            self.stats.provider_add_id_shortcut_visible_match += 1;
+        } else {
+            self.stats.provider_add_id_shortcut_visible_mismatch += 1;
         }
     }
 
