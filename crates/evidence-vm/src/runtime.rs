@@ -955,6 +955,18 @@ impl EvidenceEffectSignal {
         }
     }
 
+    fn append_continuation(
+        self,
+        tail: EvidenceContinuation,
+        stats: &mut RuntimeEvidenceRunStats,
+    ) -> Self {
+        match self {
+            Self::GenericRequest(request) => {
+                Self::GenericRequest(request.append_continuation(tail, stats))
+            }
+        }
+    }
+
     fn into_request(self) -> EvidenceRequest {
         match self {
             Self::GenericRequest(request) => request,
@@ -1028,6 +1040,15 @@ impl EvidenceRoutedYield {
         resume_plan: Option<EvidenceResumeMarkerPlan>,
     ) -> Self {
         self.signal = self.signal.close_marker_frame(markers, resume_plan);
+        self
+    }
+
+    fn append_continuation(
+        mut self,
+        tail: EvidenceContinuation,
+        stats: &mut RuntimeEvidenceRunStats,
+    ) -> Self {
+        self.signal = self.signal.append_continuation(tail, stats);
         self
     }
 
@@ -5465,6 +5486,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         call: EvidenceRoutedYield,
         continuation: EvidenceContinuation,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if continuation.is_identity() {
+            return Ok(EvidenceEvalResult::RoutedYield(call));
+        }
+        if !continuation.has_request_boundary(Some(call.handler)) {
+            self.stats.request_whole_continuation_appends += 1;
+            let call = call.append_continuation(continuation, &mut self.stats);
+            return Ok(EvidenceEvalResult::RoutedYield(call));
+        }
         self.continue_routed_request_with_continuation(
             Some(call.handler),
             call.into_request(),
