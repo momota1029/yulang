@@ -185,6 +185,28 @@ pub struct RuntimeEvidenceRunStats {
     pub direct_tail_segment_scope_marker_empty: usize,
     pub direct_tail_segment_scope_provider_env_frames: usize,
     pub direct_tail_segment_request_boundary_rejected: usize,
+    pub resume_plan_shadow_candidates: usize,
+    pub resume_plan_shadow_direct_tail_candidates: usize,
+    pub resume_plan_shadow_resume_pack_candidates: usize,
+    pub resume_plan_shadow_eval_frames: usize,
+    pub resume_plan_shadow_then_frames: usize,
+    pub resume_plan_shadow_catch_boundaries: usize,
+    pub resume_plan_shadow_catch_same_handler: usize,
+    pub resume_plan_shadow_catch_no_routed_handler: usize,
+    pub resume_plan_shadow_catch_foreign_handler: usize,
+    pub resume_plan_shadow_ref_set_boundaries: usize,
+    pub resume_plan_shadow_marker_frames: usize,
+    pub resume_plan_shadow_marker_dynamic_frames: usize,
+    pub resume_plan_shadow_marker_empty_frames: usize,
+    pub resume_plan_shadow_marker_active_add_id_ops: usize,
+    pub resume_plan_shadow_marker_handler_boundary_ops: usize,
+    pub resume_plan_shadow_provider_env_deltas: usize,
+    pub resume_plan_shadow_provider_grant_dirty_add_id: usize,
+    pub resume_plan_shadow_multi_shot: usize,
+    pub resume_plan_shadow_eval_only: usize,
+    pub resume_plan_shadow_with_catch_boundary: usize,
+    pub resume_plan_shadow_with_dynamic_marker: usize,
+    pub resume_plan_shadow_with_provider_delta: usize,
     pub resume_pack_candidates: usize,
     pub resume_pack_thunks_forced: usize,
     pub resume_pack_multi_shot_required: usize,
@@ -1183,6 +1205,44 @@ struct EvidenceDirectTailSegmentProfile {
     request_boundaries: usize,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct EvidenceResumePlanShadowProfile {
+    eval_frames: usize,
+    then_frames: usize,
+    catch_boundaries: usize,
+    catch_same_handler: usize,
+    catch_no_routed_handler: usize,
+    catch_foreign_handler: usize,
+    ref_set_boundaries: usize,
+    marker_frames: usize,
+    marker_dynamic_frames: usize,
+    marker_empty_frames: usize,
+    marker_active_add_id_ops: usize,
+    marker_handler_boundary_ops: usize,
+    provider_env_deltas: usize,
+}
+
+impl EvidenceResumePlanShadowProfile {
+    fn has_catch_boundary(self) -> bool {
+        self.catch_boundaries > 0
+    }
+
+    fn has_dynamic_marker(self) -> bool {
+        self.marker_dynamic_frames > 0
+    }
+
+    fn has_provider_delta(self) -> bool {
+        self.provider_env_deltas > 0
+    }
+
+    fn is_eval_only(self) -> bool {
+        self.catch_boundaries == 0
+            && self.ref_set_boundaries == 0
+            && self.marker_frames == 0
+            && self.provider_env_deltas == 0
+    }
+}
+
 impl EvidenceDirectTailSegmentProfile {
     fn is_identity(self) -> bool {
         self.eval_frames == 0
@@ -1212,6 +1272,26 @@ fn merge_direct_tail_segment_profile(
     lhs.marker_empty_frames += rhs.marker_empty_frames;
     lhs.provider_env_frames += rhs.provider_env_frames;
     lhs.request_boundaries += rhs.request_boundaries;
+    lhs
+}
+
+fn merge_resume_plan_shadow_profile(
+    mut lhs: EvidenceResumePlanShadowProfile,
+    rhs: EvidenceResumePlanShadowProfile,
+) -> EvidenceResumePlanShadowProfile {
+    lhs.eval_frames += rhs.eval_frames;
+    lhs.then_frames += rhs.then_frames;
+    lhs.catch_boundaries += rhs.catch_boundaries;
+    lhs.catch_same_handler += rhs.catch_same_handler;
+    lhs.catch_no_routed_handler += rhs.catch_no_routed_handler;
+    lhs.catch_foreign_handler += rhs.catch_foreign_handler;
+    lhs.ref_set_boundaries += rhs.ref_set_boundaries;
+    lhs.marker_frames += rhs.marker_frames;
+    lhs.marker_dynamic_frames += rhs.marker_dynamic_frames;
+    lhs.marker_empty_frames += rhs.marker_empty_frames;
+    lhs.marker_active_add_id_ops += rhs.marker_active_add_id_ops;
+    lhs.marker_handler_boundary_ops += rhs.marker_handler_boundary_ops;
+    lhs.provider_env_deltas += rhs.provider_env_deltas;
     lhs
 }
 
@@ -2789,6 +2869,16 @@ impl EvidenceContinuation {
         frame.direct_tail_segment_profile()
     }
 
+    fn resume_plan_shadow_profile(
+        &self,
+        routed_yield_handler: Option<ExprId>,
+    ) -> EvidenceResumePlanShadowProfile {
+        let Some(frame) = self.frame() else {
+            return EvidenceResumePlanShadowProfile::default();
+        };
+        frame.resume_plan_shadow_profile(routed_yield_handler)
+    }
+
     fn record_provider_env_then_compaction_candidates(&self, stats: &mut RuntimeEvidenceRunStats) {
         self.record_provider_env_then_compaction_candidates_with_parent(None, stats)
     }
@@ -2940,6 +3030,102 @@ impl EvidenceContinuation {
 }
 
 impl EvidenceContinuationFrame {
+    fn resume_plan_shadow_profile(
+        &self,
+        routed_yield_handler: Option<ExprId>,
+    ) -> EvidenceResumePlanShadowProfile {
+        match self {
+            Self::Then { first, second } => {
+                let mut profile = EvidenceResumePlanShadowProfile {
+                    then_frames: 1,
+                    ..EvidenceResumePlanShadowProfile::default()
+                };
+                profile = merge_resume_plan_shadow_profile(
+                    profile,
+                    first.resume_plan_shadow_profile(routed_yield_handler),
+                );
+                merge_resume_plan_shadow_profile(
+                    profile,
+                    second.resume_plan_shadow_profile(routed_yield_handler),
+                )
+            }
+            Self::CatchBody {
+                catch_expr, next, ..
+            } => {
+                let mut profile = EvidenceResumePlanShadowProfile {
+                    catch_boundaries: 1,
+                    ..EvidenceResumePlanShadowProfile::default()
+                };
+                match routed_yield_handler {
+                    None => profile.catch_no_routed_handler += 1,
+                    Some(handler) if handler == *catch_expr => profile.catch_same_handler += 1,
+                    Some(_) => profile.catch_foreign_handler += 1,
+                }
+                merge_resume_plan_shadow_profile(
+                    profile,
+                    next.resume_plan_shadow_profile(routed_yield_handler),
+                )
+            }
+            Self::MarkerFrame {
+                markers,
+                activate_add_ids,
+                handler_path,
+                next,
+            } => {
+                let active_add_id_ops = markers
+                    .iter()
+                    .filter(|marker| {
+                        matches!(marker, EvidenceValueMarker::AddId(marker) if *activate_add_ids && marker.depth == 0)
+                    })
+                    .count();
+                let mut profile = EvidenceResumePlanShadowProfile {
+                    marker_frames: 1,
+                    marker_active_add_id_ops: active_add_id_ops,
+                    marker_handler_boundary_ops: usize::from(handler_path.is_some()),
+                    ..EvidenceResumePlanShadowProfile::default()
+                };
+                if markers.is_empty() && !*activate_add_ids && handler_path.is_none() {
+                    profile.marker_empty_frames += 1;
+                } else {
+                    profile.marker_dynamic_frames += 1;
+                }
+                merge_resume_plan_shadow_profile(
+                    profile,
+                    next.resume_plan_shadow_profile(routed_yield_handler),
+                )
+            }
+            Self::ProviderEnv { next, .. } => {
+                let profile = EvidenceResumePlanShadowProfile {
+                    provider_env_deltas: 1,
+                    ..EvidenceResumePlanShadowProfile::default()
+                };
+                merge_resume_plan_shadow_profile(
+                    profile,
+                    next.resume_plan_shadow_profile(routed_yield_handler),
+                )
+            }
+            Self::RefSetHandleResult { .. } | Self::RefSetHandleValueResult { .. } => {
+                EvidenceResumePlanShadowProfile {
+                    ref_set_boundaries: 1,
+                    ..EvidenceResumePlanShadowProfile::default()
+                }
+            }
+            _ => {
+                let mut profile = EvidenceResumePlanShadowProfile {
+                    eval_frames: 1,
+                    ..EvidenceResumePlanShadowProfile::default()
+                };
+                if let Some(next) = self.tail_ref() {
+                    profile = merge_resume_plan_shadow_profile(
+                        profile,
+                        next.resume_plan_shadow_profile(routed_yield_handler),
+                    );
+                }
+                profile
+            }
+        }
+    }
+
     fn direct_tail_segment_profile(&self) -> EvidenceDirectTailSegmentProfile {
         match self {
             Self::Then { first, second } => {
@@ -6438,6 +6624,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if !self.should_collect_runtime_breakdown_stats() {
             return;
         }
+        let provider_dirty_add_id = call.hygiene.provider_grant_permission().is_some()
+            && call.hygiene.permission_transform().guard_mask;
+        self.record_resume_plan_shadow(
+            &call.continuation,
+            Some(call.handler),
+            false,
+            true,
+            provider_dirty_add_id,
+        );
         self.stats.direct_tail_segment_candidates += 1;
         let profile = call.continuation.direct_tail_segment_profile();
         self.stats.direct_tail_segment_eval_frames += profile.eval_frames;
@@ -6469,6 +6664,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return;
         }
 
+        self.record_resume_plan_shadow(continuation, None, true, false, false);
         let profile = continuation.direct_tail_segment_profile();
         self.stats.resume_pack_eval_frames += profile.eval_frames;
         self.stats.resume_pack_then_frames += profile.then_frames;
@@ -6484,6 +6680,56 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
         self.stats.resume_pack_can_share_segment += 1;
         self.stats.resume_pack_to_tree_fallbacks += 1;
+    }
+
+    fn record_resume_plan_shadow(
+        &mut self,
+        continuation: &EvidenceContinuation,
+        routed_yield_handler: Option<ExprId>,
+        multi_shot: bool,
+        direct_tail: bool,
+        provider_dirty_add_id: bool,
+    ) {
+        self.stats.resume_plan_shadow_candidates += 1;
+        if direct_tail {
+            self.stats.resume_plan_shadow_direct_tail_candidates += 1;
+        } else {
+            self.stats.resume_plan_shadow_resume_pack_candidates += 1;
+        }
+        if multi_shot {
+            self.stats.resume_plan_shadow_multi_shot += 1;
+        }
+        if provider_dirty_add_id {
+            self.stats.resume_plan_shadow_provider_grant_dirty_add_id += 1;
+        }
+
+        let profile = continuation.resume_plan_shadow_profile(routed_yield_handler);
+        self.stats.resume_plan_shadow_eval_frames += profile.eval_frames;
+        self.stats.resume_plan_shadow_then_frames += profile.then_frames;
+        self.stats.resume_plan_shadow_catch_boundaries += profile.catch_boundaries;
+        self.stats.resume_plan_shadow_catch_same_handler += profile.catch_same_handler;
+        self.stats.resume_plan_shadow_catch_no_routed_handler += profile.catch_no_routed_handler;
+        self.stats.resume_plan_shadow_catch_foreign_handler += profile.catch_foreign_handler;
+        self.stats.resume_plan_shadow_ref_set_boundaries += profile.ref_set_boundaries;
+        self.stats.resume_plan_shadow_marker_frames += profile.marker_frames;
+        self.stats.resume_plan_shadow_marker_dynamic_frames += profile.marker_dynamic_frames;
+        self.stats.resume_plan_shadow_marker_empty_frames += profile.marker_empty_frames;
+        self.stats.resume_plan_shadow_marker_active_add_id_ops += profile.marker_active_add_id_ops;
+        self.stats.resume_plan_shadow_marker_handler_boundary_ops +=
+            profile.marker_handler_boundary_ops;
+        self.stats.resume_plan_shadow_provider_env_deltas += profile.provider_env_deltas;
+        if profile.is_eval_only() {
+            self.stats.resume_plan_shadow_eval_only += 1;
+        }
+        if profile.has_catch_boundary() {
+            self.stats.resume_plan_shadow_with_catch_boundary += 1;
+        }
+        if profile.has_dynamic_marker() {
+            self.stats.resume_plan_shadow_with_dynamic_marker += 1;
+        }
+        if profile.has_provider_delta() {
+            self.stats.resume_plan_shadow_with_provider_delta += 1;
+        }
     }
 
     fn record_provider_env_foreign_later_grant_shape_profile(
@@ -14297,6 +14543,49 @@ mod tests {
         assert_eq!(profile.eval_frames, 1);
         assert_eq!(profile.request_boundaries, 1);
         assert!(!profile.can_shadow_segment());
+    }
+
+    #[test]
+    fn resume_plan_shadow_profile_splits_boundary_scope_and_provider_lanes() {
+        let catch_expr = ExprId(12);
+        let markers: Rc<[EvidenceValueMarker]> =
+            vec![EvidenceValueMarker::AddId(Rc::new(EvidenceAddIdMarker {
+                id: EvidenceGuardId(1),
+                path: shared_path(&permission_test_path()),
+                depth: 0,
+                guard_own_path: true,
+                guard_foreign_path: false,
+                carry_after_frame: false,
+                preserve_own_on_resume: false,
+            }))]
+            .into();
+        let continuation = EvidenceContinuation::catch_body(
+            catch_expr,
+            empty_catch_arms(),
+            Env::new(),
+            EvidenceContinuation::marker_frame(
+                markers,
+                true,
+                None,
+                EvidenceContinuation::provider_env(
+                    provider_env_fixture_for_handler(7),
+                    EvidenceContinuation::identity(),
+                ),
+            ),
+        );
+
+        let profile = continuation.resume_plan_shadow_profile(Some(catch_expr));
+
+        assert_eq!(profile.catch_boundaries, 1);
+        assert_eq!(profile.catch_same_handler, 1);
+        assert_eq!(profile.marker_frames, 1);
+        assert_eq!(profile.marker_dynamic_frames, 1);
+        assert_eq!(profile.marker_active_add_id_ops, 1);
+        assert_eq!(profile.provider_env_deltas, 1);
+        assert!(profile.has_catch_boundary());
+        assert!(profile.has_dynamic_marker());
+        assert!(profile.has_provider_delta());
+        assert!(!profile.is_eval_only());
     }
 
     #[test]

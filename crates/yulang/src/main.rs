@@ -3068,6 +3068,110 @@ fn run_runtime_evidence_run(
             .direct_tail_segment_request_boundary_rejected
     );
     println!(
+        "  runtime_evidence.resume_plan_shadow_candidates: {}",
+        output.evidence_stats.resume_plan_shadow_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_direct_tail_candidates: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_direct_tail_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_resume_pack_candidates: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_resume_pack_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_eval_frames: {}",
+        output.evidence_stats.resume_plan_shadow_eval_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_then_frames: {}",
+        output.evidence_stats.resume_plan_shadow_then_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_catch_boundaries: {}",
+        output.evidence_stats.resume_plan_shadow_catch_boundaries
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_catch_same_handler: {}",
+        output.evidence_stats.resume_plan_shadow_catch_same_handler
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_catch_no_routed_handler: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_catch_no_routed_handler
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_catch_foreign_handler: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_catch_foreign_handler
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_ref_set_boundaries: {}",
+        output.evidence_stats.resume_plan_shadow_ref_set_boundaries
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_marker_frames: {}",
+        output.evidence_stats.resume_plan_shadow_marker_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_marker_dynamic_frames: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_marker_dynamic_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_marker_empty_frames: {}",
+        output.evidence_stats.resume_plan_shadow_marker_empty_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_marker_active_add_id_ops: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_marker_active_add_id_ops
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_marker_handler_boundary_ops: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_marker_handler_boundary_ops
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_provider_env_deltas: {}",
+        output.evidence_stats.resume_plan_shadow_provider_env_deltas
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_provider_grant_dirty_add_id: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_provider_grant_dirty_add_id
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_multi_shot: {}",
+        output.evidence_stats.resume_plan_shadow_multi_shot
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_eval_only: {}",
+        output.evidence_stats.resume_plan_shadow_eval_only
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_with_catch_boundary: {}",
+        output.evidence_stats.resume_plan_shadow_with_catch_boundary
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_with_dynamic_marker: {}",
+        output.evidence_stats.resume_plan_shadow_with_dynamic_marker
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_with_provider_delta: {}",
+        output.evidence_stats.resume_plan_shadow_with_provider_delta
+    );
+    println!(
         "  runtime_evidence.resume_pack_candidates: {}",
         output.evidence_stats.resume_pack_candidates
     );
