@@ -1026,7 +1026,7 @@ impl EvidenceSignalPermissionVisibility {
     fn can_shadow_legacy(&self) -> bool {
         self.base
             .is_some_and(|visibility| !visibility.legacy_guard_bridge)
-            && self.transform.is_identity()
+            && self.transform.can_shadow_direct_permission()
     }
 }
 
@@ -1040,6 +1040,23 @@ struct EvidenceSignalPermissionTransform {
 impl EvidenceSignalPermissionTransform {
     fn is_identity(self) -> bool {
         !self.guard_mask && !self.resume_delta && !self.handler_boundary_mask
+    }
+
+    fn is_guard_boundary_pair(self) -> bool {
+        self.guard_mask && self.handler_boundary_mask && !self.resume_delta
+    }
+
+    fn is_guard_only(self) -> bool {
+        self.guard_mask && !self.handler_boundary_mask && !self.resume_delta
+    }
+
+    fn is_boundary_only(self) -> bool {
+        !self.guard_mask && self.handler_boundary_mask && !self.resume_delta
+    }
+
+    #[cfg(debug_assertions)]
+    fn can_shadow_direct_permission(self) -> bool {
+        self.is_identity()
     }
 }
 
@@ -6794,17 +6811,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if transform.handler_boundary_mask {
             self.stats.permission_visibility_handler_boundary_mask += 1;
         }
-        match (transform.guard_mask, transform.handler_boundary_mask) {
-            (true, true) => {
-                self.stats.permission_visibility_guard_and_boundary_mask += 1;
-            }
-            (true, false) => {
-                self.stats.permission_visibility_guard_without_boundary += 1;
-            }
-            (false, true) => {
-                self.stats.permission_visibility_boundary_without_guard += 1;
-            }
-            (false, false) => {}
+        if transform.is_guard_boundary_pair() {
+            self.stats.permission_visibility_guard_and_boundary_mask += 1;
+        } else if transform.is_guard_only() {
+            self.stats.permission_visibility_guard_without_boundary += 1;
+        } else if transform.is_boundary_only() {
+            self.stats.permission_visibility_boundary_without_guard += 1;
         }
     }
 
