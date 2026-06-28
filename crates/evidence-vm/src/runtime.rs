@@ -650,7 +650,7 @@ enum EvidenceContinuationAppendSource {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct EvidenceAddIdMarker {
     id: EvidenceGuardId,
-    path: Vec<String>,
+    path: Rc<[String]>,
     depth: u32,
     guard_own_path: bool,
     guard_foreign_path: bool,
@@ -772,13 +772,13 @@ impl ActiveAddIdIndex {
                 self.all_path.push(index);
             }
             (true, false) => {
-                let path = marker.marker.path.clone();
+                let path = marker.marker.path.to_vec();
                 self.entries
                     .push(ActiveAddIdIndexEntry::OwnPath(path.clone()));
                 self.own_by_path.entry(path).or_default().push(index);
             }
             (false, true) => {
-                let path = marker.marker.path.clone();
+                let path = marker.marker.path.to_vec();
                 self.entries
                     .push(ActiveAddIdIndexEntry::ForeignPath(path.clone()));
                 self.foreign_all.push(index);
@@ -2541,7 +2541,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             value_markers.push(EvidenceValueMarker::Frame { id });
             value_markers.push(EvidenceValueMarker::AddId(Rc::new(EvidenceAddIdMarker {
                 id,
-                path: marker.path.clone(),
+                path: shared_path(&marker.path),
                 depth: marker.depth,
                 guard_own_path: marker.guard_own_path,
                 guard_foreign_path: marker.guard_foreign_path,
@@ -7844,7 +7844,7 @@ fn stack_handler_markers(id: EvidenceGuardId, path: &[String]) -> Vec<EvidenceVa
         EvidenceValueMarker::Frame { id },
         EvidenceValueMarker::AddId(Rc::new(EvidenceAddIdMarker {
             id,
-            path: path.to_vec(),
+            path: shared_path(path),
             depth: 0,
             guard_own_path: false,
             guard_foreign_path: true,
@@ -7853,7 +7853,7 @@ fn stack_handler_markers(id: EvidenceGuardId, path: &[String]) -> Vec<EvidenceVa
         })),
         EvidenceValueMarker::AddId(Rc::new(EvidenceAddIdMarker {
             id,
-            path: path.to_vec(),
+            path: shared_path(path),
             depth: 1,
             guard_own_path: true,
             guard_foreign_path: true,
