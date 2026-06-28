@@ -93,3 +93,27 @@ So the remaining cases are not a simple "skip ProviderEnv boundary" extension.
 They are a separate foreign-family / provider-env-placement problem. They must
 not be folded into the prefix-boundary branch, and any ProviderEnv native close
 must be introduced through a separate shadow phase.
+
+## ProviderEnv Foreign-Boundary Shadow
+
+The first ProviderEnv shadow phase keeps execution unchanged and considers only
+the nearest-ProviderEnv-grants half of the remaining foreign-family fallbacks.
+The nearest-ProviderEnv-misses half remains fallback-only.
+
+The candidate condition is intentionally narrower than ProviderEnv presence:
+
+- the signal is `DirectTailResumptive`
+- provider guard-boundary permission exists
+- the current prefix-boundary fallback reason is foreign-family
+- permission family equals the operation request path
+- handler path is unrelated to the request path by prefix
+- nearest ProviderEnv grants the permission handler
+- nearest ProviderEnv is under `Then`'s first branch at depth 1
+- no later ProviderEnv grant is present
+- no carry-after-frame AddId is present
+
+For the current nondet/showcase workloads, naive ProviderEnv grant visibility
+matches legacy visibility for all shadow candidates, while the
+foreign-boundary-preserving invisible interpretation mismatches all candidates.
+This is evidence for a future `ProviderEnvForeignBoundaryGrantCert`, not a
+reason to widen `NativeProviderPrefixBoundary`.

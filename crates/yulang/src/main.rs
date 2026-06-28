@@ -3439,6 +3439,108 @@ fn run_runtime_evidence_run(
             .provider_foreign_boundary_request_path_prefixes_handler_path
     );
     println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_candidates: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_candidates
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_reject_nearest_misses: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_reject_nearest_misses
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_reject_no_provider_env: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_reject_no_provider_env
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_reject_marker_before_provider_env: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_reject_marker_before_provider_env
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_reject_depth: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_reject_depth
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_reject_then_second: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_reject_then_second
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_reject_later_grant: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_reject_later_grant
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_reject_permission_family_request_mismatch: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_reject_permission_family_request_mismatch
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_reject_handler_path_related_to_request: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_reject_handler_path_related_to_request
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_reject_carry_after_frame: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_reject_carry_after_frame
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_legacy_visible: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_legacy_visible
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_naive_visible: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_naive_visible
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_naive_match: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_naive_match
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_naive_mismatch: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_naive_mismatch
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_blocked_visible: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_blocked_visible
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_blocked_match: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_blocked_match
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_boundary_shadow_blocked_mismatch: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_boundary_shadow_blocked_mismatch
+    );
+    println!(
         "  runtime_evidence.continuation_resume_provider_steps: {}",
         output.evidence_stats.continuation_resume_provider_steps
     );

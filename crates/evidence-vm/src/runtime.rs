@@ -273,6 +273,23 @@ pub struct RuntimeEvidenceRunStats {
     pub provider_foreign_boundary_request_path_prefixes_permission_family: usize,
     pub provider_foreign_boundary_handler_path_prefixes_request_path: usize,
     pub provider_foreign_boundary_request_path_prefixes_handler_path: usize,
+    pub provider_env_foreign_boundary_shadow_candidates: usize,
+    pub provider_env_foreign_boundary_shadow_reject_nearest_misses: usize,
+    pub provider_env_foreign_boundary_shadow_reject_no_provider_env: usize,
+    pub provider_env_foreign_boundary_shadow_reject_marker_before_provider_env: usize,
+    pub provider_env_foreign_boundary_shadow_reject_depth: usize,
+    pub provider_env_foreign_boundary_shadow_reject_then_second: usize,
+    pub provider_env_foreign_boundary_shadow_reject_later_grant: usize,
+    pub provider_env_foreign_boundary_shadow_reject_permission_family_request_mismatch: usize,
+    pub provider_env_foreign_boundary_shadow_reject_handler_path_related_to_request: usize,
+    pub provider_env_foreign_boundary_shadow_reject_carry_after_frame: usize,
+    pub provider_env_foreign_boundary_shadow_legacy_visible: usize,
+    pub provider_env_foreign_boundary_shadow_naive_visible: usize,
+    pub provider_env_foreign_boundary_shadow_naive_match: usize,
+    pub provider_env_foreign_boundary_shadow_naive_mismatch: usize,
+    pub provider_env_foreign_boundary_shadow_blocked_visible: usize,
+    pub provider_env_foreign_boundary_shadow_blocked_match: usize,
+    pub provider_env_foreign_boundary_shadow_blocked_mismatch: usize,
     pub continuation_resume_provider_steps: usize,
     pub continuation_resume_aggregate_steps: usize,
     pub continuation_resume_select_steps: usize,
@@ -1205,6 +1222,8 @@ struct EvidenceSignalHygiene {
     #[cfg(debug_assertions)]
     resume_marker_provider_prefix_boundary_close_shadow:
         Option<EvidenceProviderPrefixBoundaryCloseCert>,
+    #[cfg(debug_assertions)]
+    provider_env_foreign_boundary_shadow: Option<EvidenceProviderEnvForeignBoundaryExposure>,
 }
 
 impl EvidenceSignalHygiene {
@@ -1310,6 +1329,21 @@ impl EvidenceSignalHygiene {
     }
 
     #[cfg(debug_assertions)]
+    fn set_provider_env_foreign_boundary_shadow(
+        &mut self,
+        exposure: EvidenceProviderEnvForeignBoundaryExposure,
+    ) {
+        self.provider_env_foreign_boundary_shadow = Some(exposure);
+    }
+
+    #[cfg(debug_assertions)]
+    fn provider_env_foreign_boundary_shadow(
+        &self,
+    ) -> Option<EvidenceProviderEnvForeignBoundaryExposure> {
+        self.provider_env_foreign_boundary_shadow
+    }
+
+    #[cfg(debug_assertions)]
     fn operation_visibility(&self) -> Option<RuntimeEvidenceOperationVisibility> {
         self.permission_visibility.base
     }
@@ -1356,6 +1390,31 @@ impl EvidenceResumeMarkerCloseShadow {
 
     fn permission(self) -> RuntimeEvidenceProviderGrantPermission {
         self.permission
+    }
+}
+
+#[cfg(debug_assertions)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderEnvForeignBoundaryExposure {
+    permission: RuntimeEvidenceProviderGrantPermission,
+    provider_env_depth: usize,
+}
+
+#[cfg(debug_assertions)]
+impl EvidenceProviderEnvForeignBoundaryExposure {
+    fn new(permission: RuntimeEvidenceProviderGrantPermission, provider_env_depth: usize) -> Self {
+        Self {
+            permission,
+            provider_env_depth,
+        }
+    }
+
+    fn permission(self) -> RuntimeEvidenceProviderGrantPermission {
+        self.permission
+    }
+
+    fn provider_env_depth(self) -> usize {
+        self.provider_env_depth
     }
 }
 
@@ -4433,11 +4492,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return None;
         }
         if !path_is_prefix(handler_path, &permission_family) {
-            self.record_provider_foreign_boundary_profile(
+            let placement = self.record_provider_foreign_boundary_profile(
                 call,
                 handler_path,
                 permission,
                 &permission_family,
+            );
+            self.record_provider_env_foreign_boundary_shadow_candidate(
+                call,
+                handler_path,
+                markers,
+                permission,
+                &permission_family,
+                placement,
             );
             self.record_provider_prefix_boundary_legacy_fallback(
                 EvidenceProviderPrefixBoundaryCloseReject::ForeignFamily,
@@ -4478,7 +4545,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         handler_path: &[String],
         permission: RuntimeEvidenceProviderGrantPermission,
         permission_family: &[String],
-    ) {
+    ) -> EvidenceProviderEnvPlacement {
         self.stats.provider_foreign_boundary_candidates += 1;
         if permission_family == call.path.as_ref() {
             self.stats
@@ -4549,10 +4616,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
         }
 
-        self.record_provider_foreign_boundary_provider_env_placement(
-            call.continuation
-                .provider_env_placement(permission.handler_id()),
-        );
+        let placement = call
+            .continuation
+            .provider_env_placement(permission.handler_id());
+        self.record_provider_foreign_boundary_provider_env_placement(placement);
+        placement
     }
 
     fn record_provider_foreign_boundary_provider_env_placement(
@@ -4611,6 +4679,83 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     .provider_foreign_boundary_nearest_provider_env_max_depth
                     .max(depth);
             }
+        }
+    }
+
+    fn record_provider_env_foreign_boundary_shadow_candidate(
+        &mut self,
+        call: &mut EvidenceDirectTailResumptive,
+        handler_path: &[String],
+        markers: &[EvidenceValueMarker],
+        permission: RuntimeEvidenceProviderGrantPermission,
+        permission_family: &[String],
+        placement: EvidenceProviderEnvPlacement,
+    ) {
+        if permission_family != call.path.as_ref() {
+            self.stats
+                .provider_env_foreign_boundary_shadow_reject_permission_family_request_mismatch +=
+                1;
+            return;
+        }
+        if path_is_prefix(handler_path, &call.path) || path_is_prefix(&call.path, handler_path) {
+            self.stats
+                .provider_env_foreign_boundary_shadow_reject_handler_path_related_to_request += 1;
+            return;
+        }
+        match placement.nearest {
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission => {}
+            EvidenceProviderEnvBoundaryStatus::MissesPermission => {
+                self.stats
+                    .provider_env_foreign_boundary_shadow_reject_nearest_misses += 1;
+                return;
+            }
+            EvidenceProviderEnvBoundaryStatus::BlockedByMarkerFrame => {
+                self.stats
+                    .provider_env_foreign_boundary_shadow_reject_marker_before_provider_env += 1;
+                return;
+            }
+            EvidenceProviderEnvBoundaryStatus::None => {
+                self.stats
+                    .provider_env_foreign_boundary_shadow_reject_no_provider_env += 1;
+                return;
+            }
+        }
+        let Some(depth) = placement.depth else {
+            self.stats.provider_env_foreign_boundary_shadow_reject_depth += 1;
+            return;
+        };
+        if depth != 1 {
+            self.stats.provider_env_foreign_boundary_shadow_reject_depth += 1;
+            return;
+        }
+        if !placement.under_then_first || placement.under_then_second {
+            self.stats
+                .provider_env_foreign_boundary_shadow_reject_then_second += 1;
+            return;
+        }
+        if matches!(
+            placement.any_after_nearest,
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission
+        ) {
+            self.stats
+                .provider_env_foreign_boundary_shadow_reject_later_grant += 1;
+            return;
+        }
+        if marker_slice_has_carry_after_frame_add_id(markers) {
+            self.stats
+                .provider_env_foreign_boundary_shadow_reject_carry_after_frame += 1;
+            return;
+        }
+
+        self.stats.provider_env_foreign_boundary_shadow_candidates += 1;
+        #[cfg(debug_assertions)]
+        call.hygiene.set_provider_env_foreign_boundary_shadow(
+            EvidenceProviderEnvForeignBoundaryExposure::new(permission, depth),
+        );
+        #[cfg(not(debug_assertions))]
+        {
+            let _ = permission;
+            let _ = depth;
         }
     }
 
@@ -8362,6 +8507,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         legacy_visible,
                         native_result,
                     );
+                    self.record_provider_env_foreign_boundary_visible_shadow(
+                        &call.hygiene,
+                        legacy_visible,
+                        native_result,
+                    );
                 }
                 self.record_provider_boundary_pair_shadow(legacy_visible, permission_result);
                 self.record_provider_boundary_pair_native_shadow(legacy_visible, native_result);
@@ -8371,12 +8521,21 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     "bridge provider permission visibility diverged from legacy hygiene for {}",
                     call.path.join("::")
                 );
-                debug_assert_eq!(
-                    native_visible,
-                    legacy_visible,
-                    "native provider permission visibility diverged from legacy hygiene for {}",
-                    call.path.join("::")
-                );
+                #[cfg(debug_assertions)]
+                let provider_env_foreign_shadow = call
+                    .hygiene
+                    .provider_env_foreign_boundary_shadow()
+                    .is_some();
+                #[cfg(not(debug_assertions))]
+                let provider_env_foreign_shadow = false;
+                if !provider_env_foreign_shadow {
+                    debug_assert_eq!(
+                        native_visible,
+                        legacy_visible,
+                        "native provider permission visibility diverged from legacy hygiene for {}",
+                        call.path.join("::")
+                    );
+                }
             }
             self.record_provider_boundary_pair_fast_path(native_result);
             return native_visible;
@@ -8705,6 +8864,57 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         } else {
             self.stats
                 .resume_marker_provider_prefix_boundary_shadow_mismatch += 1;
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn record_provider_env_foreign_boundary_visible_shadow(
+        &mut self,
+        hygiene: &EvidenceSignalHygiene,
+        legacy_visible: Option<bool>,
+        naive_result: EvidencePermissionVisibleResult,
+    ) {
+        let Some(exposure) = hygiene.provider_env_foreign_boundary_shadow() else {
+            return;
+        };
+        debug_assert_eq!(
+            Some(exposure.permission()),
+            self.provider_guard_boundary_permission(hygiene),
+            "ProviderEnv foreign boundary shadow lost provider permission"
+        );
+        debug_assert_eq!(
+            exposure.provider_env_depth(),
+            1,
+            "ProviderEnv foreign boundary shadow must stay at the profiled depth"
+        );
+        if legacy_visible.is_some() {
+            self.stats
+                .provider_env_foreign_boundary_shadow_legacy_visible += 1;
+        }
+
+        let naive_visible = naive_result.visible();
+        if naive_visible.is_some() {
+            self.stats
+                .provider_env_foreign_boundary_shadow_naive_visible += 1;
+        }
+        if legacy_visible == naive_visible {
+            self.stats.provider_env_foreign_boundary_shadow_naive_match += 1;
+        } else {
+            self.stats
+                .provider_env_foreign_boundary_shadow_naive_mismatch += 1;
+        }
+
+        let blocked_visible = None;
+        if blocked_visible.is_some() {
+            self.stats
+                .provider_env_foreign_boundary_shadow_blocked_visible += 1;
+        }
+        if legacy_visible == blocked_visible {
+            self.stats
+                .provider_env_foreign_boundary_shadow_blocked_match += 1;
+        } else {
+            self.stats
+                .provider_env_foreign_boundary_shadow_blocked_mismatch += 1;
         }
     }
 
