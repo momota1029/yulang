@@ -196,6 +196,15 @@ impl RuntimeEvidenceRunContext {
             })
     }
 
+    pub(super) fn provider_grant_permission_family(
+        &self,
+        permission: RuntimeEvidenceProviderGrantPermission,
+    ) -> Option<&[String]> {
+        self.handler_families_by_id
+            .get(&permission.handler_id())
+            .map(Vec::as_slice)
+    }
+
     pub(super) fn provider_env_for_call(
         &self,
         apply: ExprId,

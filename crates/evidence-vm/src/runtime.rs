@@ -209,6 +209,17 @@ pub struct RuntimeEvidenceRunStats {
     pub resume_marker_provider_pair_close_reject_handler_path_no_boundary: usize,
     pub resume_marker_provider_pair_close_reject_handler_path_same_family: usize,
     pub resume_marker_provider_pair_close_reject_handler_path_foreign_family: usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_matches_call_boundary: usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_differs_call_boundary: usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_matches_allowed_handler_family: usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_differs_allowed_handler_family: usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_permission_handler_unknown: usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_boundary_id_matches_permission_handler:
+        usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_boundary_id_differs_permission_handler:
+        usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_boundary_id_permission_handler_unknown:
+        usize,
     pub resume_marker_provider_pair_close_reject_carry_after_frame: usize,
     pub resume_marker_provider_pair_close_reject_legacy_bridge: usize,
     pub resume_marker_provider_pair_close_reject_other_transform: usize,
@@ -3956,7 +3967,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         };
 
         if let Some(handler_path) = resume_plan.and_then(|plan| plan.handler_path.as_ref()) {
-            self.record_provider_marker_close_handler_path_reject(call, handler_path);
+            self.record_provider_marker_close_handler_path_reject(call, handler_path, permission);
             return EvidenceMarkerCloseDecision::Legacy;
         }
         if marker_slice_has_carry_after_frame_add_id(markers) {
@@ -3986,20 +3997,36 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         call: &EvidenceDirectTailResumptive,
         handler_path: &[String],
+        permission: RuntimeEvidenceProviderGrantPermission,
     ) {
         self.record_provider_marker_close_reject(EvidenceProviderMarkerCloseReject::HandlerPath);
         match call.hygiene.handler_boundary.as_ref() {
-            Some(boundary) if boundary.blocked => {
+            Some(boundary) => {
+                if boundary.blocked {
+                    self.stats
+                        .resume_marker_provider_pair_close_reject_handler_path_blocked += 1;
+                } else {
+                    self.stats
+                        .resume_marker_provider_pair_close_reject_handler_path_unblocked += 1;
+                }
+                if boundary.path.as_slice() == handler_path {
+                    self.stats
+                        .resume_marker_provider_pair_close_reject_handler_path_matches_call_boundary += 1;
+                } else {
+                    self.stats
+                        .resume_marker_provider_pair_close_reject_handler_path_differs_call_boundary += 1;
+                }
                 self.stats
-                    .resume_marker_provider_pair_close_reject_handler_path_blocked += 1;
-            }
-            Some(_) => {
-                self.stats
-                    .resume_marker_provider_pair_close_reject_handler_path_unblocked += 1;
+                    .resume_marker_provider_pair_close_reject_handler_path_boundary_id_permission_handler_unknown += 1;
             }
             None => {
                 self.stats
                     .resume_marker_provider_pair_close_reject_handler_path_no_boundary += 1;
+                self.stats
+                    .resume_marker_provider_pair_close_reject_handler_path_differs_call_boundary +=
+                    1;
+                self.stats
+                    .resume_marker_provider_pair_close_reject_handler_path_boundary_id_permission_handler_unknown += 1;
             }
         }
         if path_is_prefix(handler_path, &call.path) {
@@ -4008,6 +4035,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         } else {
             self.stats
                 .resume_marker_provider_pair_close_reject_handler_path_foreign_family += 1;
+        }
+        let Some(permission_family) = self.context.provider_grant_permission_family(permission)
+        else {
+            self.stats
+                .resume_marker_provider_pair_close_reject_handler_path_permission_handler_unknown += 1;
+            return;
+        };
+        if permission_family == handler_path {
+            self.stats
+                .resume_marker_provider_pair_close_reject_handler_path_matches_allowed_handler_family += 1;
+        } else {
+            self.stats
+                .resume_marker_provider_pair_close_reject_handler_path_differs_allowed_handler_family += 1;
         }
     }
 

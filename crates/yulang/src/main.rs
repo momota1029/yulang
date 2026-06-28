@@ -3087,6 +3087,54 @@ fn run_runtime_evidence_run(
             .resume_marker_provider_pair_close_reject_handler_path_foreign_family
     );
     println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_matches_call_boundary: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_matches_call_boundary
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_differs_call_boundary: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_differs_call_boundary
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_matches_allowed_handler_family: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_matches_allowed_handler_family
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_differs_allowed_handler_family: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_differs_allowed_handler_family
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_permission_handler_unknown: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_permission_handler_unknown
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_boundary_id_matches_permission_handler: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_boundary_id_matches_permission_handler
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_boundary_id_differs_permission_handler: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_boundary_id_differs_permission_handler
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_boundary_id_permission_handler_unknown: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_boundary_id_permission_handler_unknown
+    );
+    println!(
         "  runtime_evidence.resume_marker_provider_pair_close_reject_carry_after_frame: {}",
         output
             .evidence_stats
