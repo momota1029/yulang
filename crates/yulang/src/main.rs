@@ -4130,6 +4130,80 @@ fn run_runtime_evidence_run(
         output.evidence_stats.catch_body_checks
     );
     println!(
+        "  runtime_evidence.catch_boundary_entries: {}",
+        output.evidence_stats.catch_boundary_entries
+    );
+    println!(
+        "  runtime_evidence.catch_boundary_value_results: {}",
+        output.evidence_stats.catch_boundary_value_results
+    );
+    println!(
+        "  runtime_evidence.catch_boundary_effect_signals: {}",
+        output.evidence_stats.catch_boundary_effect_signals
+    );
+    println!(
+        "  runtime_evidence.catch_boundary_direct_tail_signals: {}",
+        output.evidence_stats.catch_boundary_direct_tail_signals
+    );
+    println!(
+        "  runtime_evidence.catch_boundary_direct_abortive_signals: {}",
+        output.evidence_stats.catch_boundary_direct_abortive_signals
+    );
+    println!(
+        "  runtime_evidence.catch_boundary_generic_request_signals: {}",
+        output.evidence_stats.catch_boundary_generic_request_signals
+    );
+    println!(
+        "  runtime_evidence.has_request_boundary_catch_same_handler: {}",
+        output
+            .evidence_stats
+            .has_request_boundary_catch_same_handler
+    );
+    println!(
+        "  runtime_evidence.has_request_boundary_catch_no_routed_handler: {}",
+        output
+            .evidence_stats
+            .has_request_boundary_catch_no_routed_handler
+    );
+    println!(
+        "  runtime_evidence.has_request_boundary_catch_foreign_handler_recurse: {}",
+        output
+            .evidence_stats
+            .has_request_boundary_catch_foreign_handler_recurse
+    );
+    println!(
+        "  runtime_evidence.has_request_boundary_ref_set: {}",
+        output.evidence_stats.has_request_boundary_ref_set
+    );
+    println!(
+        "  runtime_evidence.direct_tail_blocked_by_catch_boundary: {}",
+        output.evidence_stats.direct_tail_blocked_by_catch_boundary
+    );
+    println!(
+        "  runtime_evidence.direct_tail_target_catch_boundary_visible: {}",
+        output
+            .evidence_stats
+            .direct_tail_target_catch_boundary_visible
+    );
+    println!(
+        "  runtime_evidence.direct_tail_target_catch_boundary_provider_grant_clean: {}",
+        output
+            .evidence_stats
+            .direct_tail_target_catch_boundary_provider_grant_clean
+    );
+    println!(
+        "  runtime_evidence.direct_tail_target_catch_boundary_provider_grant_dirty: {}",
+        output
+            .evidence_stats
+            .direct_tail_target_catch_boundary_provider_grant_dirty
+    );
+    println!(
+        "  runtime_evidence.direct_tail_target_catch_boundary_to_generic_request: {}",
+        output
+            .evidence_stats
+            .direct_tail_target_catch_boundary_to_generic_request
+    );
+    println!(
         "  runtime_evidence.marker_frame_entries: {}",
         output.evidence_stats.marker_frame_entries
     );

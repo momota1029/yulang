@@ -401,6 +401,21 @@ pub struct RuntimeEvidenceRunStats {
     pub request_whole_continuation_appends: usize,
     pub request_continuation_steps: usize,
     pub catch_body_checks: usize,
+    pub catch_boundary_entries: usize,
+    pub catch_boundary_value_results: usize,
+    pub catch_boundary_effect_signals: usize,
+    pub catch_boundary_direct_tail_signals: usize,
+    pub catch_boundary_direct_abortive_signals: usize,
+    pub catch_boundary_generic_request_signals: usize,
+    pub has_request_boundary_catch_same_handler: usize,
+    pub has_request_boundary_catch_no_routed_handler: usize,
+    pub has_request_boundary_catch_foreign_handler_recurse: usize,
+    pub has_request_boundary_ref_set: usize,
+    pub direct_tail_blocked_by_catch_boundary: usize,
+    pub direct_tail_target_catch_boundary_visible: usize,
+    pub direct_tail_target_catch_boundary_provider_grant_clean: usize,
+    pub direct_tail_target_catch_boundary_provider_grant_dirty: usize,
+    pub direct_tail_target_catch_boundary_to_generic_request: usize,
     pub marker_frame_entries: usize,
     pub marker_frame_markers: usize,
     pub marker_frame_add_id_markers: usize,
@@ -1219,6 +1234,24 @@ enum EvidenceContinuationBoundaryKind {
     MarkerFrame,
     ProviderEnv,
     Other,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceRequestBoundaryProfile {
+    None,
+    CatchSameHandler,
+    CatchNoRoutedHandler,
+    RefSet,
+}
+
+impl EvidenceRequestBoundaryProfile {
+    fn has_boundary(self) -> bool {
+        !matches!(self, Self::None)
+    }
+
+    fn is_catch_boundary(self) -> bool {
+        matches!(self, Self::CatchSameHandler | Self::CatchNoRoutedHandler)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -2679,6 +2712,17 @@ impl EvidenceContinuation {
         frame.has_request_boundary(routed_yield_handler)
     }
 
+    fn request_boundary_profile(
+        &self,
+        routed_yield_handler: Option<ExprId>,
+        stats: &mut RuntimeEvidenceRunStats,
+    ) -> EvidenceRequestBoundaryProfile {
+        let Some(frame) = self.frame() else {
+            return EvidenceRequestBoundaryProfile::None;
+        };
+        frame.request_boundary_profile(routed_yield_handler, stats)
+    }
+
     fn append_scope_blocker_info(&self) -> Option<EvidenceAppendScopeBlockerInfo> {
         let Some(frame) = self.frame() else {
             return None;
@@ -3002,6 +3046,72 @@ impl EvidenceContinuationFrame {
             | EvidenceContinuationFrame::ResolveRefSetValues { next, .. }
             | EvidenceContinuationFrame::ResolveRefSetFields { next, .. } => {
                 next.has_request_boundary(routed_yield_handler)
+            }
+        }
+    }
+
+    fn request_boundary_profile(
+        &self,
+        routed_yield_handler: Option<ExprId>,
+        stats: &mut RuntimeEvidenceRunStats,
+    ) -> EvidenceRequestBoundaryProfile {
+        match self {
+            EvidenceContinuationFrame::Then { first, second } => {
+                let first = first.request_boundary_profile(routed_yield_handler, stats);
+                if first.has_boundary() {
+                    first
+                } else {
+                    second.request_boundary_profile(routed_yield_handler, stats)
+                }
+            }
+            EvidenceContinuationFrame::CatchBody {
+                catch_expr, next, ..
+            } => match routed_yield_handler {
+                None => {
+                    stats.has_request_boundary_catch_no_routed_handler += 1;
+                    EvidenceRequestBoundaryProfile::CatchNoRoutedHandler
+                }
+                Some(handler) if handler == *catch_expr => {
+                    stats.has_request_boundary_catch_same_handler += 1;
+                    EvidenceRequestBoundaryProfile::CatchSameHandler
+                }
+                Some(_) => {
+                    stats.has_request_boundary_catch_foreign_handler_recurse += 1;
+                    next.request_boundary_profile(routed_yield_handler, stats)
+                }
+            },
+            EvidenceContinuationFrame::RefSetHandleResult { .. }
+            | EvidenceContinuationFrame::RefSetHandleValueResult { .. } => {
+                stats.has_request_boundary_ref_set += 1;
+                EvidenceRequestBoundaryProfile::RefSet
+            }
+            EvidenceContinuationFrame::MarkerFrame { .. }
+            | EvidenceContinuationFrame::ProviderEnv { .. } => EvidenceRequestBoundaryProfile::None,
+            EvidenceContinuationFrame::ForceThunk { next, .. }
+            | EvidenceContinuationFrame::ForceValueIfThunk { next }
+            | EvidenceContinuationFrame::ApplyCallee { next, .. }
+            | EvidenceContinuationFrame::ApplyArg { next, .. }
+            | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
+            | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::WrapThunkValue { next }
+            | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
+            | EvidenceContinuationFrame::ApplyAdapterResult { next, .. }
+            | EvidenceContinuationFrame::CaseScrutinee { next, .. }
+            | EvidenceContinuationFrame::TupleItems { next, .. }
+            | EvidenceContinuationFrame::RecordSpread { next, .. }
+            | EvidenceContinuationFrame::RecordFields { next, .. }
+            | EvidenceContinuationFrame::PolyVariantPayloads { next, .. }
+            | EvidenceContinuationFrame::SelectBase { next, .. }
+            | EvidenceContinuationFrame::BlockStmt { next, .. }
+            | EvidenceContinuationFrame::RefSetReference { next, .. }
+            | EvidenceContinuationFrame::RefSetForcedReference { next, .. }
+            | EvidenceContinuationFrame::RefSetValue { next, .. }
+            | EvidenceContinuationFrame::RefSetForcedValue { next, .. }
+            | EvidenceContinuationFrame::RefSetResolvedUnit { next }
+            | EvidenceContinuationFrame::RefSetEmitResolvedRequest { next, .. }
+            | EvidenceContinuationFrame::ResolveRefSetValues { next, .. }
+            | EvidenceContinuationFrame::ResolveRefSetFields { next, .. } => {
+                next.request_boundary_profile(routed_yield_handler, stats)
             }
         }
     }
@@ -8969,9 +9079,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if continuation.is_identity() {
             return Ok(EvidenceEvalResult::direct_tail_resumptive(call));
         }
-        if !continuation.has_request_boundary(Some(call.handler)) {
+        let boundary = continuation.request_boundary_profile(Some(call.handler), &mut self.stats);
+        if !boundary.has_boundary() {
             let call = self.append_direct_tail_continuation(call, continuation);
             return Ok(EvidenceEvalResult::direct_tail_resumptive(call));
+        }
+        if boundary.is_catch_boundary() {
+            self.stats.direct_tail_blocked_by_catch_boundary += 1;
         }
         let frame = continuation
             .into_frame()
@@ -9112,10 +9226,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 next,
             } => {
                 if call.handler == catch_expr {
-                    let result = if self
+                    let visible = self
                         .visible_direct_tail_resumptive(catch_expr, &call, &arms)
-                        .is_some()
-                    {
+                        .is_some();
+                    self.record_direct_tail_target_catch_boundary(&call, visible);
+                    let result = if visible {
                         self.eval_direct_tail_resumptive_arm(call, &arms, &env)?
                     } else {
                         let request = call.into_request(EvidenceEffectRoute::Unhandled);
@@ -9403,7 +9518,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if continuation.is_identity() {
             return Ok(EvidenceEvalResult::routed_yield(call));
         }
-        if !continuation.has_request_boundary(Some(call.handler)) {
+        if !continuation
+            .request_boundary_profile(Some(call.handler), &mut self.stats)
+            .has_boundary()
+        {
             self.stats.request_whole_continuation_appends += 1;
             let call = call.append_continuation(continuation, &mut self.stats);
             return Ok(EvidenceEvalResult::routed_yield(call));
@@ -9432,7 +9550,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if continuation.is_identity() {
             return Ok(self.routed_request_result(routed_yield_handler, request));
         }
-        if !continuation.has_request_boundary(routed_yield_handler) {
+        if !continuation
+            .request_boundary_profile(routed_yield_handler, &mut self.stats)
+            .has_boundary()
+        {
             self.stats.request_whole_continuation_appends += 1;
             let request = self.append_request_continuation(request, continuation);
             return Ok(self.routed_request_result(routed_yield_handler, request));
@@ -10131,10 +10252,37 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         result: EvidenceEvalResult,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         self.stats.catch_body_checks += 1;
+        self.stats.catch_boundary_entries += 1;
         match result {
-            EvidenceEvalResult::Value(value) => self.eval_value_arm(value, &arms, env),
+            EvidenceEvalResult::Value(value) => {
+                self.stats.catch_boundary_value_results += 1;
+                self.eval_value_arm(value, &arms, env)
+            }
             EvidenceEvalResult::Effect(signal) => {
+                self.stats.catch_boundary_effect_signals += 1;
                 self.continue_catch_body_signal(catch_expr, arms, env, signal)
+            }
+        }
+    }
+
+    fn record_direct_tail_target_catch_boundary(
+        &mut self,
+        call: &EvidenceDirectTailResumptive,
+        visible: bool,
+    ) {
+        if visible {
+            self.stats.direct_tail_target_catch_boundary_visible += 1;
+        } else {
+            self.stats
+                .direct_tail_target_catch_boundary_to_generic_request += 1;
+        }
+        if call.hygiene.provider_grant_permission().is_some() {
+            if call.hygiene.permission_transform().is_identity() {
+                self.stats
+                    .direct_tail_target_catch_boundary_provider_grant_clean += 1;
+            } else {
+                self.stats
+                    .direct_tail_target_catch_boundary_provider_grant_dirty += 1;
             }
         }
     }
@@ -10148,6 +10296,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         match signal {
             EvidenceEffectSignal::DirectAbortive(call) => {
+                self.stats.catch_boundary_direct_abortive_signals += 1;
                 if call.handler == catch_expr {
                     self.eval_direct_abortive_arm(call, &arms, env)
                 } else {
@@ -10155,11 +10304,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
             }
             EvidenceEffectSignal::DirectTailResumptive(call) => {
+                self.stats.catch_boundary_direct_tail_signals += 1;
                 if call.handler == catch_expr {
-                    if self
+                    let visible = self
                         .visible_direct_tail_resumptive(catch_expr, &call, &arms)
-                        .is_some()
-                    {
+                        .is_some();
+                    self.record_direct_tail_target_catch_boundary(&call, visible);
+                    if visible {
                         self.eval_direct_tail_resumptive_arm(call, &arms, env)
                     } else {
                         let request = call.into_request(EvidenceEffectRoute::Unhandled);
@@ -10190,37 +10341,52 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
             }
             EvidenceEffectSignal::GenericRequest(request) => match request.route {
-                EvidenceEffectRoute::Direct {
-                    handler,
-                    resumptive,
-                    ..
-                } if handler == catch_expr => {
-                    match self.visible_operation_resumptive(catch_expr, &request, &arms) {
-                        Some(_) => self.eval_operation_arm(request, resumptive, &arms, env),
-                        None => {
-                            let mut request = request;
-                            request.route = EvidenceEffectRoute::Unhandled;
-                            Ok(EvidenceEvalResult::request(
-                                self.defer_catch_body(catch_expr, arms, env, request),
-                            ))
-                        }
-                    }
+                EvidenceEffectRoute::Direct { .. } | EvidenceEffectRoute::Unhandled => {
+                    self.stats.catch_boundary_generic_request_signals += 1;
+                    self.continue_catch_body_request(catch_expr, arms, env, request)
                 }
-                EvidenceEffectRoute::Direct { .. } => Ok(EvidenceEvalResult::request(
-                    self.defer_catch_body(catch_expr, arms, env, request),
-                )),
-                EvidenceEffectRoute::Unhandled => {
-                    if let Some(resumptive) =
-                        self.visible_operation_resumptive(catch_expr, &request, &arms)
-                    {
-                        self.eval_operation_arm(request, resumptive, &arms, env)
-                    } else {
+            },
+        }
+    }
+
+    fn continue_catch_body_request(
+        &mut self,
+        catch_expr: ExprId,
+        arms: Rc<[control_vm::CatchArm]>,
+        env: &Env,
+        request: EvidenceRequest,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match request.route {
+            EvidenceEffectRoute::Direct {
+                handler,
+                resumptive,
+                ..
+            } if handler == catch_expr => {
+                match self.visible_operation_resumptive(catch_expr, &request, &arms) {
+                    Some(_) => self.eval_operation_arm(request, resumptive, &arms, env),
+                    None => {
+                        let mut request = request;
+                        request.route = EvidenceEffectRoute::Unhandled;
                         Ok(EvidenceEvalResult::request(
                             self.defer_catch_body(catch_expr, arms, env, request),
                         ))
                     }
                 }
-            },
+            }
+            EvidenceEffectRoute::Direct { .. } => Ok(EvidenceEvalResult::request(
+                self.defer_catch_body(catch_expr, arms, env, request),
+            )),
+            EvidenceEffectRoute::Unhandled => {
+                if let Some(resumptive) =
+                    self.visible_operation_resumptive(catch_expr, &request, &arms)
+                {
+                    self.eval_operation_arm(request, resumptive, &arms, env)
+                } else {
+                    Ok(EvidenceEvalResult::request(
+                        self.defer_catch_body(catch_expr, arms, env, request),
+                    ))
+                }
+            }
         }
     }
 
@@ -13219,6 +13385,71 @@ mod tests {
     }
 
     #[test]
+    fn request_boundary_profile_matches_catch_boundary_semantics() {
+        let catch = EvidenceContinuation::catch_body(
+            ExprId(1),
+            empty_catch_arms(),
+            Env::new(),
+            EvidenceContinuation::identity(),
+        );
+        let mut stats = RuntimeEvidenceRunStats::default();
+
+        assert!(catch.has_request_boundary(Some(ExprId(1))));
+        assert_eq!(
+            catch.request_boundary_profile(Some(ExprId(1)), &mut stats),
+            EvidenceRequestBoundaryProfile::CatchSameHandler
+        );
+        assert_eq!(stats.has_request_boundary_catch_same_handler, 1);
+
+        let nested = EvidenceContinuation::catch_body(
+            ExprId(1),
+            empty_catch_arms(),
+            Env::new(),
+            EvidenceContinuation::catch_body(
+                ExprId(2),
+                empty_catch_arms(),
+                Env::new(),
+                EvidenceContinuation::identity(),
+            ),
+        );
+        let mut stats = RuntimeEvidenceRunStats::default();
+
+        assert!(nested.has_request_boundary(Some(ExprId(2))));
+        assert_eq!(
+            nested.request_boundary_profile(Some(ExprId(2)), &mut stats),
+            EvidenceRequestBoundaryProfile::CatchSameHandler
+        );
+        assert_eq!(stats.has_request_boundary_catch_foreign_handler_recurse, 1);
+        assert_eq!(stats.has_request_boundary_catch_same_handler, 1);
+
+        let marker_wrapped = EvidenceContinuation::marker_frame(
+            Rc::from([EvidenceValueMarker::Frame {
+                id: EvidenceGuardId(0),
+            }]),
+            true,
+            None,
+            nested,
+        );
+        let mut stats = RuntimeEvidenceRunStats::default();
+
+        assert!(!marker_wrapped.has_request_boundary(Some(ExprId(2))));
+        assert_eq!(
+            marker_wrapped.request_boundary_profile(Some(ExprId(2)), &mut stats),
+            EvidenceRequestBoundaryProfile::None
+        );
+        assert_eq!(stats.has_request_boundary_catch_same_handler, 0);
+        assert_eq!(stats.has_request_boundary_catch_foreign_handler_recurse, 0);
+
+        let mut stats = RuntimeEvidenceRunStats::default();
+        assert!(catch.has_request_boundary(None));
+        assert_eq!(
+            catch.request_boundary_profile(None, &mut stats),
+            EvidenceRequestBoundaryProfile::CatchNoRoutedHandler
+        );
+        assert_eq!(stats.has_request_boundary_catch_no_routed_handler, 1);
+    }
+
+    #[test]
     fn provider_prefix_boundary_close_accepts_strict_prefix() {
         let program = Program::default();
         let mut runner = provider_prefix_boundary_runner(&program, &permission_test_path());
@@ -14182,6 +14413,10 @@ mod tests {
             guard: None,
             body: ExprId(1),
         }
+    }
+
+    fn empty_catch_arms() -> Rc<[control_vm::CatchArm]> {
+        Vec::new().into()
     }
 
     fn permission_test_path() -> Vec<String> {
