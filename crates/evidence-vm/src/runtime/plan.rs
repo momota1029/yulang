@@ -169,7 +169,7 @@ impl RuntimeEvidenceRunContext {
         &self,
         apply: ExprId,
         callee: ExprId,
-        envs: &[RuntimeEvidenceProviderView],
+        envs: &[RuntimeEvidenceProviderView<'_>],
     ) -> Option<EvidenceResolvedEffectRoute> {
         let lookup = self.operation_provider_lookups.get(&(apply, callee))?;
         for env in envs.iter().rev() {
@@ -605,7 +605,7 @@ mod tests {
         };
         let view = RuntimeEvidenceProviderView {
             scope_id,
-            provider_env: env,
+            provider_env: &env,
             hygiene_baseline,
         };
 

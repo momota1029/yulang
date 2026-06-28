@@ -655,9 +655,9 @@ impl RuntimeEvidenceProviderFrame {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct RuntimeEvidenceProviderView {
+struct RuntimeEvidenceProviderView<'a> {
     scope_id: EvidenceProviderScopeId,
-    provider_env: RuntimeEvidenceProviderEnv,
+    provider_env: &'a RuntimeEvidenceProviderEnv,
     hygiene_baseline: EvidenceProviderHygieneBaseline,
 }
 
@@ -1967,7 +1967,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             .collect()
     }
 
-    fn active_provider_env_views(&self) -> Vec<RuntimeEvidenceProviderView> {
+    fn active_provider_env_views(&self) -> Vec<RuntimeEvidenceProviderView<'_>> {
         self.active_provider_envs
             .iter()
             .filter(|frame| {
@@ -1979,7 +1979,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             })
             .map(|frame| RuntimeEvidenceProviderView {
                 scope_id: frame.scope_id,
-                provider_env: frame.provider_env.clone(),
+                provider_env: &frame.provider_env,
                 hygiene_baseline: frame.hygiene_baseline,
             })
             .collect()
@@ -2015,15 +2015,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if !self.context.has_provider_lookup_for_call(site, callee) {
             return resolved;
         }
-        let provider_envs = self.active_provider_env_views();
-        if provider_envs.is_empty() {
-            return resolved;
-        }
-        self.stats.runtime_provider_env_route_lookups += 1;
-        let Some(provider_route) =
+        let provider_route = {
+            let provider_envs = self.active_provider_env_views();
+            if provider_envs.is_empty() {
+                return resolved;
+            }
             self.context
                 .provider_route_for_call(site, callee, &provider_envs)
-        else {
+        };
+        self.stats.runtime_provider_env_route_lookups += 1;
+        let Some(provider_route) = provider_route else {
             return resolved;
         };
         self.stats.runtime_provider_env_route_hits += 1;
