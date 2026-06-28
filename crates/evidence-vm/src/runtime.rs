@@ -20,8 +20,6 @@ mod plan;
 mod text;
 use crate::{EvidenceVmOperationExecutionPlan, EvidenceVmPlan};
 use format::{format_float, format_value, format_values_with_labels};
-#[cfg(debug_assertions)]
-use plan::RuntimeEvidenceOperationVisibilitySource;
 use plan::{
     RuntimeEvidenceOperationVisibility, RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext,
 };
@@ -1027,17 +1025,14 @@ impl EvidenceSignalPermissionVisibility {
     #[cfg(debug_assertions)]
     fn shadow_kind(&self) -> Option<EvidencePermissionShadowKind> {
         let visibility = self.base?;
-        if visibility.legacy_guard_bridge {
+        if visibility.legacy_guard_bridge() {
             return None;
         }
         if self.transform.is_identity() {
             return Some(EvidencePermissionShadowKind::Direct);
         }
         if self.transform.is_guard_boundary_pair()
-            && matches!(
-                visibility.source,
-                RuntimeEvidenceOperationVisibilitySource::ProviderGrant
-            )
+            && visibility.provider_grant_permission().is_some()
         {
             return Some(EvidencePermissionShadowKind::GuardBoundaryPairBridge);
         }
@@ -6824,6 +6819,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         visibility: RuntimeEvidenceOperationVisibility,
         arms: &[control_vm::CatchArm],
     ) -> Option<bool> {
+        visibility.provider_grant_permission()?;
         if !self
             .context
             .catch_has_allowed_handler(catch_expr, request_path, visibility)
@@ -6844,7 +6840,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return;
         };
         self.stats.permission_visibility_signals += 1;
-        if visibility.legacy_guard_bridge {
+        if visibility.legacy_guard_bridge() {
             self.stats.permission_visibility_legacy_bridge += 1;
             return;
         }
@@ -8919,7 +8915,6 @@ mod tests {
         EvidenceVmSlotKey, EvidenceVmSlotRouteKey, EvidenceVmSummary, EvidenceVmValueEnvKind,
         EvidenceVmValueObjectPlan,
     };
-    use plan::RuntimeEvidenceOperationVisibilitySource;
 
     #[test]
     fn provider_env_close_wraps_escaped_request_continuation() {
@@ -8982,13 +8977,11 @@ mod tests {
 
     #[test]
     fn permission_visibility_shadow_check_allows_identity_and_provider_pair() {
-        let visibility = RuntimeEvidenceOperationVisibility {
-            source: RuntimeEvidenceOperationVisibilitySource::PlanAllowedSet(
-                crate::EvidenceVmAllowedSetId(0),
-            ),
-            allowed_handler_id: Some(7),
-            legacy_guard_bridge: false,
-        };
+        let visibility = RuntimeEvidenceOperationVisibility::plan_allowed_set(
+            crate::EvidenceVmAllowedSetId(0),
+            Some(7),
+            false,
+        );
         let clean = EvidenceSignalHygiene::new().with_operation_visibility(Some(visibility));
         assert_eq!(
             clean.permission_shadow_kind(),
@@ -9015,11 +9008,7 @@ mod tests {
         });
         assert_eq!(bounded.permission_shadow_kind(), None);
 
-        let provider_visibility = RuntimeEvidenceOperationVisibility {
-            source: RuntimeEvidenceOperationVisibilitySource::ProviderGrant,
-            allowed_handler_id: Some(7),
-            legacy_guard_bridge: false,
-        };
+        let provider_visibility = RuntimeEvidenceOperationVisibility::provider_grant(7);
         let provider_clean =
             EvidenceSignalHygiene::new().with_operation_visibility(Some(provider_visibility));
         assert_eq!(
@@ -9052,13 +9041,11 @@ mod tests {
         assert_eq!(provider_bounded.permission_shadow_kind(), None);
 
         let legacy_bridge = EvidenceSignalHygiene::new().with_operation_visibility(Some(
-            RuntimeEvidenceOperationVisibility {
-                source: RuntimeEvidenceOperationVisibilitySource::PlanAllowedSet(
-                    crate::EvidenceVmAllowedSetId(1),
-                ),
-                allowed_handler_id: None,
-                legacy_guard_bridge: true,
-            },
+            RuntimeEvidenceOperationVisibility::plan_allowed_set(
+                crate::EvidenceVmAllowedSetId(1),
+                None,
+                true,
+            ),
         ));
         assert_eq!(legacy_bridge.permission_shadow_kind(), None);
     }

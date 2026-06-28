@@ -162,7 +162,7 @@ impl RuntimeEvidenceRunContext {
         request_path: &[String],
         visibility: RuntimeEvidenceOperationVisibility,
     ) -> bool {
-        let Some(allowed_handler_id) = visibility.allowed_handler_id else {
+        let Some(allowed_handler_id) = visibility.allowed_handler_id() else {
             return false;
         };
         self.handlers_by_catch
@@ -257,38 +257,73 @@ impl RuntimeEvidenceRunContext {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct RuntimeEvidenceOperationVisibility {
-    pub(super) source: RuntimeEvidenceOperationVisibilitySource,
-    pub(super) allowed_handler_id: Option<u32>,
-    pub(super) legacy_guard_bridge: bool,
+pub(super) enum RuntimeEvidenceOperationVisibility {
+    PlanAllowedSet {
+        allowed_set_id: EvidenceVmAllowedSetId,
+        allowed_handler_id: Option<u32>,
+        legacy_guard_bridge: bool,
+    },
+    ProviderGrant(RuntimeEvidenceProviderGrantPermission),
 }
 
 impl RuntimeEvidenceOperationVisibility {
-    fn plan_allowed_set(
+    pub(super) fn plan_allowed_set(
         allowed_set_id: EvidenceVmAllowedSetId,
         allowed_handler_id: Option<u32>,
         legacy_guard_bridge: bool,
     ) -> Self {
-        Self {
-            source: RuntimeEvidenceOperationVisibilitySource::PlanAllowedSet(allowed_set_id),
+        Self::PlanAllowedSet {
+            allowed_set_id,
             allowed_handler_id,
             legacy_guard_bridge,
         }
     }
 
-    fn provider_grant(handler_id: u32) -> Self {
-        Self {
-            source: RuntimeEvidenceOperationVisibilitySource::ProviderGrant,
-            allowed_handler_id: Some(handler_id),
-            legacy_guard_bridge: false,
+    pub(super) fn provider_grant(handler_id: u32) -> Self {
+        Self::ProviderGrant(RuntimeEvidenceProviderGrantPermission { handler_id })
+    }
+
+    #[cfg(debug_assertions)]
+    pub(super) fn allowed_handler_id(self) -> Option<u32> {
+        match self {
+            Self::PlanAllowedSet {
+                allowed_handler_id, ..
+            } => allowed_handler_id,
+            Self::ProviderGrant(permission) => Some(permission.handler_id()),
+        }
+    }
+
+    pub(super) fn legacy_guard_bridge(self) -> bool {
+        match self {
+            Self::PlanAllowedSet {
+                legacy_guard_bridge,
+                ..
+            } => legacy_guard_bridge,
+            Self::ProviderGrant(_) => false,
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    pub(super) fn provider_grant_permission(
+        self,
+    ) -> Option<RuntimeEvidenceProviderGrantPermission> {
+        match self {
+            Self::ProviderGrant(permission) => Some(permission),
+            Self::PlanAllowedSet { .. } => None,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum RuntimeEvidenceOperationVisibilitySource {
-    PlanAllowedSet(EvidenceVmAllowedSetId),
-    ProviderGrant,
+pub(super) struct RuntimeEvidenceProviderGrantPermission {
+    handler_id: u32,
+}
+
+impl RuntimeEvidenceProviderGrantPermission {
+    #[cfg(debug_assertions)]
+    pub(super) fn handler_id(self) -> u32 {
+        self.handler_id
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
