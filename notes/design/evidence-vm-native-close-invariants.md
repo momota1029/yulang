@@ -80,6 +80,16 @@ native prefix close showed:
 - half of those any-provider-env frames grant the same permission handler, and
   half miss it, in the current nondet/showcase workloads
 
+ProviderEnv placement profiling refined this further:
+
+- the nearest ProviderEnv also splits exactly half grant / half miss in the
+  current nondet/showcase workloads
+- the nearest ProviderEnv is always under `Then`'s first branch at depth 1
+- `provider_foreign_boundary_marker_before_nearest_provider_env = 0`
+- later ProviderEnv frames are rare and only miss the permission handler in the
+  current workloads
+
 So the remaining cases are not a simple "skip ProviderEnv boundary" extension.
 They are a separate foreign-family / provider-env-placement problem. They must
-not be folded into the prefix-boundary branch.
+not be folded into the prefix-boundary branch, and any ProviderEnv native close
+must be introduced through a separate shadow phase.

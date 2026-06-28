@@ -258,6 +258,16 @@ pub struct RuntimeEvidenceRunStats {
     pub provider_foreign_boundary_without_any_provider_env: usize,
     pub provider_foreign_boundary_any_provider_env_grants_permission: usize,
     pub provider_foreign_boundary_any_provider_env_misses_permission: usize,
+    pub provider_foreign_boundary_nearest_provider_env_grants_permission: usize,
+    pub provider_foreign_boundary_nearest_provider_env_misses_permission: usize,
+    pub provider_foreign_boundary_nearest_provider_env_none: usize,
+    pub provider_foreign_boundary_marker_before_nearest_provider_env: usize,
+    pub provider_foreign_boundary_any_later_provider_env_grants_permission: usize,
+    pub provider_foreign_boundary_any_later_provider_env_misses_permission: usize,
+    pub provider_foreign_boundary_provider_env_under_then_first: usize,
+    pub provider_foreign_boundary_provider_env_under_then_second: usize,
+    pub provider_foreign_boundary_nearest_provider_env_depth_sum: usize,
+    pub provider_foreign_boundary_nearest_provider_env_max_depth: usize,
     pub provider_foreign_boundary_permission_family_equals_request_path: usize,
     pub provider_foreign_boundary_permission_family_prefixes_request_path: usize,
     pub provider_foreign_boundary_request_path_prefixes_permission_family: usize,
@@ -896,6 +906,51 @@ enum EvidenceProviderEnvBoundaryStatus {
     MissesPermission,
     BlockedByMarkerFrame,
     None,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderEnvPlacement {
+    nearest: EvidenceProviderEnvBoundaryStatus,
+    any_after_nearest: EvidenceProviderEnvBoundaryStatus,
+    depth: Option<usize>,
+    under_then_first: bool,
+    under_then_second: bool,
+}
+
+impl EvidenceProviderEnvPlacement {
+    fn none() -> Self {
+        Self {
+            nearest: EvidenceProviderEnvBoundaryStatus::None,
+            any_after_nearest: EvidenceProviderEnvBoundaryStatus::None,
+            depth: None,
+            under_then_first: false,
+            under_then_second: false,
+        }
+    }
+
+    fn nearest(
+        nearest: EvidenceProviderEnvBoundaryStatus,
+        any_after_nearest: EvidenceProviderEnvBoundaryStatus,
+        depth: usize,
+        under_then_first: bool,
+        under_then_second: bool,
+    ) -> Self {
+        Self {
+            nearest,
+            any_after_nearest,
+            depth: Some(depth),
+            under_then_first,
+            under_then_second,
+        }
+    }
+
+    fn has_nearest_boundary(&self) -> bool {
+        !matches!(self.nearest, EvidenceProviderEnvBoundaryStatus::None)
+    }
+
+    fn merge_any_after_nearest(&mut self, status: EvidenceProviderEnvBoundaryStatus) {
+        self.any_after_nearest = merge_provider_env_presence(self.any_after_nearest, status);
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2213,6 +2268,23 @@ impl EvidenceContinuation {
         };
         frame.any_provider_env_status(handler_id)
     }
+
+    fn provider_env_placement(&self, handler_id: u32) -> EvidenceProviderEnvPlacement {
+        self.provider_env_placement_at(handler_id, 0, false, false)
+    }
+
+    fn provider_env_placement_at(
+        &self,
+        handler_id: u32,
+        depth: usize,
+        under_then_first: bool,
+        under_then_second: bool,
+    ) -> EvidenceProviderEnvPlacement {
+        let Some(frame) = self.frame() else {
+            return EvidenceProviderEnvPlacement::none();
+        };
+        frame.provider_env_placement_at(handler_id, depth, under_then_first, under_then_second)
+    }
 }
 
 impl EvidenceContinuationFrame {
@@ -2353,6 +2425,61 @@ impl EvidenceContinuationFrame {
                 .tail_ref()
                 .map(|tail| tail.any_provider_env_status(handler_id))
                 .unwrap_or(EvidenceProviderEnvBoundaryStatus::None),
+        }
+    }
+
+    fn provider_env_placement_at(
+        &self,
+        handler_id: u32,
+        depth: usize,
+        under_then_first: bool,
+        under_then_second: bool,
+    ) -> EvidenceProviderEnvPlacement {
+        match self {
+            Self::ProviderEnv {
+                provider_env, next, ..
+            } => {
+                let nearest = if provider_env.contains_handler(handler_id) {
+                    EvidenceProviderEnvBoundaryStatus::GrantsPermission
+                } else {
+                    EvidenceProviderEnvBoundaryStatus::MissesPermission
+                };
+                EvidenceProviderEnvPlacement::nearest(
+                    nearest,
+                    next.any_provider_env_status(handler_id),
+                    depth,
+                    under_then_first,
+                    under_then_second,
+                )
+            }
+            Self::MarkerFrame { next, .. } => EvidenceProviderEnvPlacement::nearest(
+                EvidenceProviderEnvBoundaryStatus::BlockedByMarkerFrame,
+                next.any_provider_env_status(handler_id),
+                depth,
+                under_then_first,
+                under_then_second,
+            ),
+            Self::Then { first, second } => {
+                let mut first_placement =
+                    first.provider_env_placement_at(handler_id, depth + 1, true, under_then_second);
+                if first_placement.has_nearest_boundary() {
+                    first_placement
+                        .merge_any_after_nearest(second.any_provider_env_status(handler_id));
+                    return first_placement;
+                }
+                second.provider_env_placement_at(handler_id, depth + 1, under_then_first, true)
+            }
+            _ => self
+                .tail_ref()
+                .map(|tail| {
+                    tail.provider_env_placement_at(
+                        handler_id,
+                        depth + 1,
+                        under_then_first,
+                        under_then_second,
+                    )
+                })
+                .unwrap_or_else(EvidenceProviderEnvPlacement::none),
         }
     }
 
@@ -4419,6 +4546,70 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             | EvidenceProviderEnvBoundaryStatus::None => {
                 self.stats
                     .provider_foreign_boundary_without_any_provider_env += 1;
+            }
+        }
+
+        self.record_provider_foreign_boundary_provider_env_placement(
+            call.continuation
+                .provider_env_placement(permission.handler_id()),
+        );
+    }
+
+    fn record_provider_foreign_boundary_provider_env_placement(
+        &mut self,
+        placement: EvidenceProviderEnvPlacement,
+    ) {
+        match placement.nearest {
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission => {
+                self.stats
+                    .provider_foreign_boundary_nearest_provider_env_grants_permission += 1;
+            }
+            EvidenceProviderEnvBoundaryStatus::MissesPermission => {
+                self.stats
+                    .provider_foreign_boundary_nearest_provider_env_misses_permission += 1;
+            }
+            EvidenceProviderEnvBoundaryStatus::BlockedByMarkerFrame => {
+                self.stats
+                    .provider_foreign_boundary_marker_before_nearest_provider_env += 1;
+            }
+            EvidenceProviderEnvBoundaryStatus::None => {
+                self.stats
+                    .provider_foreign_boundary_nearest_provider_env_none += 1;
+            }
+        }
+        match placement.any_after_nearest {
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission => {
+                self.stats
+                    .provider_foreign_boundary_any_later_provider_env_grants_permission += 1;
+            }
+            EvidenceProviderEnvBoundaryStatus::MissesPermission => {
+                self.stats
+                    .provider_foreign_boundary_any_later_provider_env_misses_permission += 1;
+            }
+            EvidenceProviderEnvBoundaryStatus::BlockedByMarkerFrame
+            | EvidenceProviderEnvBoundaryStatus::None => {}
+        }
+        if placement.under_then_first {
+            self.stats
+                .provider_foreign_boundary_provider_env_under_then_first += 1;
+        }
+        if placement.under_then_second {
+            self.stats
+                .provider_foreign_boundary_provider_env_under_then_second += 1;
+        }
+        if matches!(
+            placement.nearest,
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission
+                | EvidenceProviderEnvBoundaryStatus::MissesPermission
+        ) {
+            if let Some(depth) = placement.depth {
+                self.stats
+                    .provider_foreign_boundary_nearest_provider_env_depth_sum += depth;
+                self.stats
+                    .provider_foreign_boundary_nearest_provider_env_max_depth = self
+                    .stats
+                    .provider_foreign_boundary_nearest_provider_env_max_depth
+                    .max(depth);
             }
         }
     }

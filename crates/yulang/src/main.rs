@@ -3349,6 +3349,66 @@ fn run_runtime_evidence_run(
             .provider_foreign_boundary_any_provider_env_misses_permission
     );
     println!(
+        "  runtime_evidence.provider_foreign_boundary_nearest_provider_env_grants_permission: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_nearest_provider_env_grants_permission
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_nearest_provider_env_misses_permission: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_nearest_provider_env_misses_permission
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_nearest_provider_env_none: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_nearest_provider_env_none
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_marker_before_nearest_provider_env: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_marker_before_nearest_provider_env
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_any_later_provider_env_grants_permission: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_any_later_provider_env_grants_permission
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_any_later_provider_env_misses_permission: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_any_later_provider_env_misses_permission
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_provider_env_under_then_first: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_provider_env_under_then_first
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_provider_env_under_then_second: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_provider_env_under_then_second
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_nearest_provider_env_depth_sum: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_nearest_provider_env_depth_sum
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_nearest_provider_env_max_depth: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_nearest_provider_env_max_depth
+    );
+    println!(
         "  runtime_evidence.provider_foreign_boundary_permission_family_equals_request_path: {}",
         output
             .evidence_stats
