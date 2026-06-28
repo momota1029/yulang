@@ -1843,7 +1843,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     }
 
     fn provider_env_for_value(&mut self, expr: ExprId) -> RuntimeEvidenceProviderEnv {
-        let active_provider_envs = self.active_provider_env_values();
+        let active_provider_envs = self.active_provider_env_refs();
         let provider_env = self.context.provider_env_for_value(
             expr,
             &self.active_provider_handlers,
@@ -1953,7 +1953,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         call
     }
 
-    fn active_provider_env_values(&self) -> Vec<RuntimeEvidenceProviderEnv> {
+    fn active_provider_env_refs(&self) -> Vec<&RuntimeEvidenceProviderEnv> {
         self.active_provider_envs
             .iter()
             .filter(|frame| {
@@ -1963,7 +1963,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     self.active_handler_frames.len(),
                 )
             })
-            .map(|frame| frame.provider_env.clone())
+            .map(|frame| &frame.provider_env)
             .collect()
     }
 
@@ -2129,7 +2129,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if !self.context.has_provider_env_for_call(site) {
             return RuntimeEvidenceProviderEnv::default();
         }
-        let active_provider_envs = self.active_provider_env_values();
+        let active_provider_envs = self.active_provider_env_refs();
         let provider_env = self.context.provider_env_for_call(
             site,
             &self.active_provider_handlers,
@@ -7716,14 +7716,14 @@ mod tests {
         let frame = runner.provider_frame(provider_env.clone());
         runner.active_provider_envs.push(frame);
 
-        assert_eq!(runner.active_provider_env_values(), vec![provider_env]);
+        assert_eq!(runner.active_provider_env_refs(), vec![&provider_env]);
 
         let markers: Rc<[EvidenceValueMarker]> = Vec::new().into();
         runner
             .active_marker_plans
             .push(EvidenceActiveMarkerPlan::new(markers));
 
-        assert!(runner.active_provider_env_values().is_empty());
+        assert!(runner.active_provider_env_refs().is_empty());
     }
 
     #[test]

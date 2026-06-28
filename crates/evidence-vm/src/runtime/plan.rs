@@ -118,7 +118,7 @@ impl RuntimeEvidenceRunContext {
         &self,
         expr: ExprId,
         active_handlers: &[u32],
-        active_envs: &[RuntimeEvidenceProviderEnv],
+        active_envs: &[&RuntimeEvidenceProviderEnv],
     ) -> RuntimeEvidenceProviderEnv {
         let mut provider_env = self
             .value_provider_envs
@@ -144,7 +144,7 @@ impl RuntimeEvidenceRunContext {
         &self,
         apply: ExprId,
         active_handlers: &[u32],
-        active_envs: &[RuntimeEvidenceProviderEnv],
+        active_envs: &[&RuntimeEvidenceProviderEnv],
     ) -> RuntimeEvidenceProviderEnv {
         let Some(required_slots) = self.call_required_slots.get(&apply) else {
             return RuntimeEvidenceProviderEnv::default();
@@ -194,7 +194,7 @@ impl RuntimeEvidenceRunContext {
         &self,
         slot_id: u32,
         active_handlers: &[u32],
-        active_envs: &[RuntimeEvidenceProviderEnv],
+        active_envs: &[&RuntimeEvidenceProviderEnv],
     ) -> Option<RuntimeEvidenceEnvProvider> {
         let candidates = self.provider_candidates_by_slot.get(&slot_id)?;
         let handler_id = active_handlers
