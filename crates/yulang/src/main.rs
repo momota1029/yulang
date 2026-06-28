@@ -2621,6 +2621,36 @@ fn run_runtime_evidence_run(
         output.evidence_stats.marked_force_value_fast_paths
     );
     println!(
+        "  runtime_evidence.marked_force_fallback_expr_thunks: {}",
+        output.evidence_stats.marked_force_fallback_expr_thunks
+    );
+    println!(
+        "  runtime_evidence.marked_force_fallback_effect_thunks: {}",
+        output.evidence_stats.marked_force_fallback_effect_thunks
+    );
+    println!(
+        "  runtime_evidence.marked_force_fallback_continuation_thunks: {}",
+        output
+            .evidence_stats
+            .marked_force_fallback_continuation_thunks
+    );
+    println!(
+        "  runtime_evidence.marked_force_fallback_adapter_thunks: {}",
+        output.evidence_stats.marked_force_fallback_adapter_thunks
+    );
+    println!(
+        "  runtime_evidence.marked_force_fallback_other: {}",
+        output.evidence_stats.marked_force_fallback_other
+    );
+    println!(
+        "  runtime_evidence.marked_force_active_add_id_markers: {}",
+        output.evidence_stats.marked_force_active_add_id_markers
+    );
+    println!(
+        "  runtime_evidence.marked_force_carry_after_frame_markers: {}",
+        output.evidence_stats.marked_force_carry_after_frame_markers
+    );
+    println!(
         "  runtime_evidence.active_marker_plan_pushes: {}",
         output.evidence_stats.active_marker_plan_pushes
     );

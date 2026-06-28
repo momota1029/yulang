@@ -129,6 +129,13 @@ pub struct RuntimeEvidenceRunStats {
     pub marker_frame_continuation_resume_entries: usize,
     pub marker_frame_marked_force_entries: usize,
     pub marked_force_value_fast_paths: usize,
+    pub marked_force_fallback_expr_thunks: usize,
+    pub marked_force_fallback_effect_thunks: usize,
+    pub marked_force_fallback_continuation_thunks: usize,
+    pub marked_force_fallback_adapter_thunks: usize,
+    pub marked_force_fallback_other: usize,
+    pub marked_force_active_add_id_markers: usize,
+    pub marked_force_carry_after_frame_markers: usize,
     pub active_marker_plan_pushes: usize,
     pub active_marker_plan_dedupes: usize,
     pub active_add_id_scans: usize,
@@ -5974,6 +5981,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         value, markers,
                     )));
                 }
+                let marker_summary = marked_force_marker_summary(&markers);
+                self.stats.marked_force_active_add_id_markers += marker_summary.active_add_ids;
+                self.stats.marked_force_carry_after_frame_markers +=
+                    marker_summary.carry_after_frame;
+                self.record_marked_force_fallback(value.as_ref());
                 self.with_marker_frame(
                     EvidenceMarkerFrameSource::MarkedForce,
                     markers.clone(),
@@ -5983,6 +5995,26 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 )
             }
             value => Err(RuntimeEvidenceRunError::NotThunk(format_value(value))),
+        }
+    }
+
+    fn record_marked_force_fallback(&mut self, value: &RuntimeEvidenceValue) {
+        match marked_force_thunk_kind(value) {
+            Some(RuntimeEvidenceThunkKind::Expr) => {
+                self.stats.marked_force_fallback_expr_thunks += 1;
+            }
+            Some(RuntimeEvidenceThunkKind::Effect) => {
+                self.stats.marked_force_fallback_effect_thunks += 1;
+            }
+            Some(RuntimeEvidenceThunkKind::Continuation) => {
+                self.stats.marked_force_fallback_continuation_thunks += 1;
+            }
+            Some(RuntimeEvidenceThunkKind::Adapter) => {
+                self.stats.marked_force_fallback_adapter_thunks += 1;
+            }
+            Some(RuntimeEvidenceThunkKind::Value) | None => {
+                self.stats.marked_force_fallback_other += 1;
+            }
         }
     }
 
@@ -8000,6 +8032,52 @@ fn marked_force_value_thunk(
             value.as_ref(),
             share_marker_vec(combined_markers(&markers, nested)),
         ),
+        _ => None,
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct MarkedForceMarkerSummary {
+    active_add_ids: usize,
+    carry_after_frame: usize,
+}
+
+fn marked_force_marker_summary(markers: &[EvidenceValueMarker]) -> MarkedForceMarkerSummary {
+    let mut summary = MarkedForceMarkerSummary::default();
+    for marker in markers {
+        let EvidenceValueMarker::AddId(marker) = marker else {
+            continue;
+        };
+        if marker.depth != 0 {
+            continue;
+        }
+        summary.active_add_ids += 1;
+        if marker.carry_after_frame {
+            summary.carry_after_frame += 1;
+        }
+    }
+    summary
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RuntimeEvidenceThunkKind {
+    Expr,
+    Effect,
+    Continuation,
+    Value,
+    Adapter,
+}
+
+fn marked_force_thunk_kind(value: &RuntimeEvidenceValue) -> Option<RuntimeEvidenceThunkKind> {
+    match value {
+        RuntimeEvidenceValue::Thunk(thunk) => Some(match thunk.as_ref() {
+            RuntimeEvidenceThunk::Expr { .. } => RuntimeEvidenceThunkKind::Expr,
+            RuntimeEvidenceThunk::Effect { .. } => RuntimeEvidenceThunkKind::Effect,
+            RuntimeEvidenceThunk::Continuation { .. } => RuntimeEvidenceThunkKind::Continuation,
+            RuntimeEvidenceThunk::Value(_) => RuntimeEvidenceThunkKind::Value,
+            RuntimeEvidenceThunk::Adapter { .. } => RuntimeEvidenceThunkKind::Adapter,
+        }),
+        RuntimeEvidenceValue::Marked { value, .. } => marked_force_thunk_kind(value),
         _ => None,
     }
 }
