@@ -3607,6 +3607,78 @@ fn run_runtime_evidence_run(
             .provider_env_foreign_boundary_reject_carry_after_frame
     );
     println!(
+        "  runtime_evidence.provider_env_foreign_miss_boundary_shadow_candidates: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_miss_boundary_shadow_candidates
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_miss_boundary_shadow_legacy_visible: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_miss_boundary_shadow_legacy_visible
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_miss_boundary_shadow_invisible_match: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_miss_boundary_shadow_invisible_match
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_miss_boundary_shadow_invisible_mismatch: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_miss_boundary_shadow_invisible_mismatch
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_miss_boundary_reject_no_provider_env: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_miss_boundary_reject_no_provider_env
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_miss_boundary_reject_marker_before_provider_env: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_miss_boundary_reject_marker_before_provider_env
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_miss_boundary_reject_depth: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_miss_boundary_reject_depth
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_miss_boundary_reject_then_second: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_miss_boundary_reject_then_second
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_miss_boundary_reject_later_grant: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_miss_boundary_reject_later_grant
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_miss_boundary_reject_permission_family_request_mismatch: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_miss_boundary_reject_permission_family_request_mismatch
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_miss_boundary_reject_handler_path_related_to_request: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_miss_boundary_reject_handler_path_related_to_request
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_miss_boundary_reject_carry_after_frame: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_miss_boundary_reject_carry_after_frame
+    );
+    println!(
         "  runtime_evidence.continuation_resume_provider_steps: {}",
         output.evidence_stats.continuation_resume_provider_steps
     );

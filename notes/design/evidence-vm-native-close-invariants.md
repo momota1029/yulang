@@ -148,6 +148,39 @@ The visible semantics is the naive ProviderEnv grant interpretation:
 catch_has_provider_grant_permission && operation_arm_visible
 ```
 
+## ProviderEnv Foreign-Boundary Miss Shadow
+
+The nearest-ProviderEnv-misses half is not part of
+`NativeProviderEnvForeignBoundary`. It is observed separately as a possible
+native-invisible close:
+
+```text
+legacy_visible == None
+```
+
+The shadow candidate condition mirrors the grant branch, except that the
+nearest ProviderEnv must miss the permission handler:
+
+- the signal is `DirectTailResumptive`
+- provider guard-boundary permission exists
+- the active handler-path branch is a foreign-family prefix-boundary fallback
+- permission family equals the operation request path
+- handler path is unrelated to the request path by prefix
+- nearest ProviderEnv misses the permission handler
+- nearest ProviderEnv is under `Then`'s first branch at depth 1
+- no MarkerFrame appears before the nearest ProviderEnv
+- no later ProviderEnv grant is present
+- no carry-after-frame AddId is present
+- no resume-delta or legacy-bridge transform is present
+
+This phase is shadow-only. It must not make the miss branch visible, and it must
+not use any later ProviderEnv grant as evidence.
+
+Initial nondet/showcase measurements did not validate this as a native-invisible
+branch. The nondet miss side is rejected entirely by the later-ProviderEnv-grant
+guard, and the small showcase candidate set remains legacy-visible. The miss
+branch therefore stays a measured fallback, not a native close rule.
+
 The blocked-preserving invisible interpretation was measured and mismatched the
 legacy result for every representative shadow candidate, so it is not the
 native semantics for this branch.
