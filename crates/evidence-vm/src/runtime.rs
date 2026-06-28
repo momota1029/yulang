@@ -513,15 +513,25 @@ enum EvidenceRefSetResumeMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum EvidenceRouteOrigin {
+enum EvidenceResolvedRouteOrigin {
+    StaticDirect,
+    ProviderGrant(EvidenceProviderGrant),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceRouteCert {
+    None,
     StaticDirect,
     ProviderGrant(EvidenceProviderGrantId),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum EvidenceResolvedRouteOrigin {
-    StaticDirect,
-    ProviderGrant(EvidenceProviderGrant),
+impl EvidenceRouteCert {
+    fn provider_grant_id(self) -> Option<EvidenceProviderGrantId> {
+        match self {
+            Self::ProviderGrant(id) => Some(id),
+            Self::None | Self::StaticDirect => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -548,7 +558,7 @@ struct EvidenceProviderGrant {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct EffectThunkEvidence {
-    route_origin: Option<EvidenceRouteOrigin>,
+    route_cert: EvidenceRouteCert,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2153,18 +2163,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
-    fn effect_thunk_origin(
+    fn effect_route_cert(
         &mut self,
         origin: Option<EvidenceResolvedRouteOrigin>,
-    ) -> Option<EvidenceRouteOrigin> {
+    ) -> EvidenceRouteCert {
         match origin {
-            Some(EvidenceResolvedRouteOrigin::StaticDirect) => {
-                Some(EvidenceRouteOrigin::StaticDirect)
+            Some(EvidenceResolvedRouteOrigin::StaticDirect) => EvidenceRouteCert::StaticDirect,
+            Some(EvidenceResolvedRouteOrigin::ProviderGrant(grant)) => {
+                EvidenceRouteCert::ProviderGrant(self.record_provider_grant(grant))
             }
-            Some(EvidenceResolvedRouteOrigin::ProviderGrant(grant)) => Some(
-                EvidenceRouteOrigin::ProviderGrant(self.record_provider_grant(grant)),
-            ),
-            None => None,
+            None => EvidenceRouteCert::None,
         }
     }
 
@@ -2175,8 +2183,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     }
 
     #[allow(dead_code)]
-    fn provider_grant_gate_passes(&self, origin: Option<EvidenceRouteOrigin>) -> bool {
-        let Some(EvidenceRouteOrigin::ProviderGrant(id)) = origin else {
+    fn provider_grant_gate_passes(&self, cert: EvidenceRouteCert) -> bool {
+        let Some(id) = cert.provider_grant_id() else {
             return false;
         };
         let Some(grant) = self.provider_grants.get(id.0 as usize) else {
@@ -2198,7 +2206,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         request_free_yield: bool,
         evidence: EffectThunkEvidence,
     ) -> bool {
-        request_free_yield || self.provider_grant_gate_passes(evidence.route_origin)
+        request_free_yield || self.provider_grant_gate_passes(evidence.route_cert)
     }
 
     fn direct_tail_gate_failure(
@@ -2210,15 +2218,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if request_free_yield {
             return None;
         }
-        self.provider_grant_path_gate_failure(evidence.route_origin, path)
+        self.provider_grant_path_gate_failure(evidence.route_cert, path)
     }
 
     fn provider_grant_path_gate_failure(
         &self,
-        origin: Option<EvidenceRouteOrigin>,
+        cert: EvidenceRouteCert,
         path: &[String],
     ) -> Option<ProviderGrantPathGateFail> {
-        let Some(EvidenceRouteOrigin::ProviderGrant(id)) = origin else {
+        let Some(id) = cert.provider_grant_id() else {
             return Some(ProviderGrantPathGateFail::NoGrant);
         };
         let Some(grant) = self.provider_grants.get(id.0 as usize) else {
@@ -3510,8 +3518,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         match self.eval_expr_result(arg_expr, &mut arg_env)? {
             EvidenceEvalResult::Value(arg) => {
                 let resolved_route = self.effect_route_for_operation_call(Some(site), effect);
-                let route_origin = self.effect_thunk_origin(resolved_route.origin);
-                let evidence = EffectThunkEvidence { route_origin };
+                let route_cert = self.effect_route_cert(resolved_route.origin);
+                let evidence = EffectThunkEvidence { route_cert };
                 self.force_effect_call_scoped_result(
                     target_value_is_thunk,
                     path,
@@ -4312,8 +4320,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             },
             RuntimeEvidenceValue::EffectOp { expr, path } => {
                 let resolved_route = self.effect_route_for_operation_call(site, *expr);
-                let route_origin = self.effect_thunk_origin(resolved_route.origin);
-                let evidence = EffectThunkEvidence { route_origin };
+                let route_cert = self.effect_route_cert(resolved_route.origin);
+                let evidence = EffectThunkEvidence { route_cert };
                 Ok(EvidenceEvalResult::Value(shared(
                     RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Effect {
                         path: path.clone(),
@@ -8201,23 +8209,24 @@ mod tests {
         runner.active_provider_envs.push(frame);
         let grant_id = runner.record_provider_grant(grant);
         let evidence = EffectThunkEvidence {
-            route_origin: Some(EvidenceRouteOrigin::ProviderGrant(grant_id)),
+            route_cert: EvidenceRouteCert::ProviderGrant(grant_id),
         };
 
-        assert!(
-            runner.provider_grant_gate_passes(Some(EvidenceRouteOrigin::ProviderGrant(grant_id)))
-        );
+        assert!(runner.provider_grant_gate_passes(EvidenceRouteCert::ProviderGrant(grant_id)));
         assert!(runner.route_allows_routed_yield(false, evidence));
-        assert!(runner.route_allows_routed_yield(true, EffectThunkEvidence { route_origin: None }));
+        assert!(runner.route_allows_routed_yield(
+            true,
+            EffectThunkEvidence {
+                route_cert: EvidenceRouteCert::None
+            }
+        ));
 
         let markers: Rc<[EvidenceValueMarker]> = Vec::new().into();
         runner
             .active_marker_plans
             .push(EvidenceActiveMarkerPlan::new(markers));
 
-        assert!(
-            !runner.provider_grant_gate_passes(Some(EvidenceRouteOrigin::ProviderGrant(grant_id)))
-        );
+        assert!(!runner.provider_grant_gate_passes(EvidenceRouteCert::ProviderGrant(grant_id)));
         assert!(!runner.route_allows_routed_yield(false, evidence));
     }
 
