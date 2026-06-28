@@ -83,6 +83,12 @@ pub struct RuntimeEvidenceRunStats {
     pub direct_tail_guarded_add_id_all_path: usize,
     pub direct_tail_guarded_add_id_own_path: usize,
     pub direct_tail_guarded_add_id_foreign_path: usize,
+    pub permission_visibility_signals: usize,
+    pub permission_visibility_identity: usize,
+    pub permission_visibility_legacy_bridge: usize,
+    pub permission_visibility_guard_mask: usize,
+    pub permission_visibility_resume_delta: usize,
+    pub permission_visibility_handler_boundary_mask: usize,
     pub expr_evals: usize,
     pub env_clones: usize,
     pub env_entries_cloned: usize,
@@ -1029,7 +1035,6 @@ struct EvidenceSignalPermissionTransform {
 }
 
 impl EvidenceSignalPermissionTransform {
-    #[cfg(debug_assertions)]
     fn is_identity(self) -> bool {
         !self.guard_mask && !self.resume_delta && !self.handler_boundary_mask
     }
@@ -2445,7 +2450,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         EvidenceResolvedEffectRoute {
             route: provider_route.route,
             origin: provider_route.origin,
-            visibility,
+            visibility: provider_route.visibility.or(visibility),
         }
     }
 
@@ -6631,11 +6636,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     }
 
     fn visible_operation_resumptive(
-        &self,
+        &mut self,
         catch_expr: ExprId,
         request: &EvidenceRequest,
         arms: &[control_vm::CatchArm],
     ) -> Option<bool> {
+        self.record_permission_visibility_stats(&request.hygiene);
         let visible = self.visible_operation_resumptive_parts(
             &request.path,
             request.hygiene.handler_boundary.as_ref(),
@@ -6682,11 +6688,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     }
 
     fn visible_direct_tail_resumptive(
-        &self,
+        &mut self,
         catch_expr: ExprId,
         call: &EvidenceDirectTailResumptive,
         arms: &[control_vm::CatchArm],
     ) -> Option<bool> {
+        self.record_permission_visibility_stats(&call.hygiene);
         let visible = self.visible_operation_resumptive_parts(
             &call.path,
             call.hygiene.handler_boundary.as_ref(),
@@ -6759,6 +6766,31 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.context
             .catch_has_allowed_handler(catch_expr, request_path, visibility)
             .then_some(arm_resumptive)
+    }
+
+    fn record_permission_visibility_stats(&mut self, hygiene: &EvidenceSignalHygiene) {
+        let Some(visibility) = hygiene.permission_visibility.base else {
+            return;
+        };
+        self.stats.permission_visibility_signals += 1;
+        if visibility.legacy_guard_bridge {
+            self.stats.permission_visibility_legacy_bridge += 1;
+            return;
+        }
+        let transform = hygiene.permission_visibility.transform;
+        if transform.is_identity() {
+            self.stats.permission_visibility_identity += 1;
+            return;
+        }
+        if transform.guard_mask {
+            self.stats.permission_visibility_guard_mask += 1;
+        }
+        if transform.resume_delta {
+            self.stats.permission_visibility_resume_delta += 1;
+        }
+        if transform.handler_boundary_mask {
+            self.stats.permission_visibility_handler_boundary_mask += 1;
+        }
     }
 
     fn handler_boundary_for_direct_tail(
@@ -8809,6 +8841,7 @@ mod tests {
         EvidenceVmSlotKey, EvidenceVmSlotRouteKey, EvidenceVmSummary, EvidenceVmValueEnvKind,
         EvidenceVmValueObjectPlan,
     };
+    use plan::RuntimeEvidenceOperationVisibilitySource;
 
     #[test]
     fn provider_env_close_wraps_escaped_request_continuation() {
@@ -8872,7 +8905,9 @@ mod tests {
     #[test]
     fn permission_visibility_shadow_check_requires_identity_transform() {
         let visibility = RuntimeEvidenceOperationVisibility {
-            allowed_set_id: crate::EvidenceVmAllowedSetId(0),
+            source: RuntimeEvidenceOperationVisibilitySource::PlanAllowedSet(
+                crate::EvidenceVmAllowedSetId(0),
+            ),
             allowed_handler_id: Some(7),
             legacy_guard_bridge: false,
         };
@@ -8901,7 +8936,9 @@ mod tests {
 
         let legacy_bridge = EvidenceSignalHygiene::new().with_operation_visibility(Some(
             RuntimeEvidenceOperationVisibility {
-                allowed_set_id: crate::EvidenceVmAllowedSetId(1),
+                source: RuntimeEvidenceOperationVisibilitySource::PlanAllowedSet(
+                    crate::EvidenceVmAllowedSetId(1),
+                ),
                 allowed_handler_id: None,
                 legacy_guard_bridge: true,
             },

@@ -221,7 +221,9 @@ impl RuntimeEvidenceRunContext {
                         origin: Some(EvidenceResolvedRouteOrigin::ProviderGrant(
                             candidate.grant(env.scope_id, env.hygiene_baseline),
                         )),
-                        visibility: None,
+                        visibility: Some(RuntimeEvidenceOperationVisibility::provider_grant(
+                            candidate.handler_id,
+                        )),
                     });
                 }
             }
@@ -256,9 +258,37 @@ impl RuntimeEvidenceRunContext {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct RuntimeEvidenceOperationVisibility {
-    pub(super) allowed_set_id: EvidenceVmAllowedSetId,
+    pub(super) source: RuntimeEvidenceOperationVisibilitySource,
     pub(super) allowed_handler_id: Option<u32>,
     pub(super) legacy_guard_bridge: bool,
+}
+
+impl RuntimeEvidenceOperationVisibility {
+    fn plan_allowed_set(
+        allowed_set_id: EvidenceVmAllowedSetId,
+        allowed_handler_id: Option<u32>,
+        legacy_guard_bridge: bool,
+    ) -> Self {
+        Self {
+            source: RuntimeEvidenceOperationVisibilitySource::PlanAllowedSet(allowed_set_id),
+            allowed_handler_id,
+            legacy_guard_bridge,
+        }
+    }
+
+    fn provider_grant(handler_id: u32) -> Self {
+        Self {
+            source: RuntimeEvidenceOperationVisibilitySource::ProviderGrant,
+            allowed_handler_id: Some(handler_id),
+            legacy_guard_bridge: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum RuntimeEvidenceOperationVisibilitySource {
+    PlanAllowedSet(EvidenceVmAllowedSetId),
+    ProviderGrant,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -476,16 +506,15 @@ fn operation_visibilities_from_plan(
                 }
                 EvidenceVmAllowedSetKind::LegacyGuardBridge => None,
             };
+            let legacy_guard_bridge =
+                matches!(allowed.kind, EvidenceVmAllowedSetKind::LegacyGuardBridge);
             (
                 allowed.id,
-                RuntimeEvidenceOperationVisibility {
-                    allowed_set_id: allowed.id,
+                RuntimeEvidenceOperationVisibility::plan_allowed_set(
+                    allowed.id,
                     allowed_handler_id,
-                    legacy_guard_bridge: matches!(
-                        allowed.kind,
-                        EvidenceVmAllowedSetKind::LegacyGuardBridge
-                    ),
-                },
+                    legacy_guard_bridge,
+                ),
             )
         })
         .collect::<HashMap<_, _>>();
@@ -740,7 +769,9 @@ mod tests {
                         hygiene_baseline,
                     }
                 )),
-                visibility: None,
+                visibility: Some(RuntimeEvidenceOperationVisibility::provider_grant(
+                    handler_id
+                )),
             })
         );
     }

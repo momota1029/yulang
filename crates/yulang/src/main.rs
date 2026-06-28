@@ -2409,6 +2409,32 @@ fn run_runtime_evidence_run(
             .direct_tail_guarded_add_id_foreign_path
     );
     println!(
+        "  runtime_evidence.permission_visibility_signals: {}",
+        output.evidence_stats.permission_visibility_signals
+    );
+    println!(
+        "  runtime_evidence.permission_visibility_identity: {}",
+        output.evidence_stats.permission_visibility_identity
+    );
+    println!(
+        "  runtime_evidence.permission_visibility_legacy_bridge: {}",
+        output.evidence_stats.permission_visibility_legacy_bridge
+    );
+    println!(
+        "  runtime_evidence.permission_visibility_guard_mask: {}",
+        output.evidence_stats.permission_visibility_guard_mask
+    );
+    println!(
+        "  runtime_evidence.permission_visibility_resume_delta: {}",
+        output.evidence_stats.permission_visibility_resume_delta
+    );
+    println!(
+        "  runtime_evidence.permission_visibility_handler_boundary_mask: {}",
+        output
+            .evidence_stats
+            .permission_visibility_handler_boundary_mask
+    );
+    println!(
         "  control_evidence.effect_calls: {}",
         output.evidence_stats.effect_calls
     );
