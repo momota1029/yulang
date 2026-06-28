@@ -151,6 +151,10 @@ pub struct RuntimeEvidenceRunStats {
     pub catch_body_checks: usize,
     pub marker_frame_entries: usize,
     pub marker_frame_markers: usize,
+    pub marker_frame_add_id_markers: usize,
+    pub marker_frame_active_add_id_markers: usize,
+    pub marker_frame_frame_only_entries: usize,
+    pub marker_frame_no_active_add_id_no_handler_entries: usize,
     pub marker_frame_expr_entries: usize,
     pub marker_frame_scoped_apply_entries: usize,
     pub marker_frame_marked_apply_entries: usize,
@@ -2929,7 +2933,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if markers.is_empty() {
             return run(self);
         }
-        self.record_marker_frame_entry(source, markers.len());
+        self.record_marker_frame_entry(source, &markers, activate_add_ids, handler_path.is_some());
 
         let frame_len = self.active_frames.len();
         let handler_frame_len = self.active_handler_frames.len();
@@ -2981,7 +2985,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
         self.record_marker_frame_entry(
             EvidenceMarkerFrameSource::ContinuationResume,
-            markers.len(),
+            &markers,
+            activate_add_ids,
+            handler_path.is_some(),
         );
 
         let frame_len = self.active_frames.len();
@@ -3018,10 +3024,31 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn record_marker_frame_entry(
         &mut self,
         source: EvidenceMarkerFrameSource,
-        marker_count: usize,
+        markers: &[EvidenceValueMarker],
+        activate_add_ids: bool,
+        has_handler_path: bool,
     ) {
         self.stats.marker_frame_entries += 1;
-        self.stats.marker_frame_markers += marker_count;
+        self.stats.marker_frame_markers += markers.len();
+        let mut add_id_markers = 0;
+        let mut active_add_id_markers = 0;
+        for marker in markers {
+            let EvidenceValueMarker::AddId(marker) = marker else {
+                continue;
+            };
+            add_id_markers += 1;
+            if activate_add_ids && marker.depth == 0 {
+                active_add_id_markers += 1;
+            }
+        }
+        self.stats.marker_frame_add_id_markers += add_id_markers;
+        self.stats.marker_frame_active_add_id_markers += active_add_id_markers;
+        if add_id_markers == 0 {
+            self.stats.marker_frame_frame_only_entries += 1;
+        }
+        if active_add_id_markers == 0 && !has_handler_path {
+            self.stats.marker_frame_no_active_add_id_no_handler_entries += 1;
+        }
         match source {
             EvidenceMarkerFrameSource::Expr => {
                 self.stats.marker_frame_expr_entries += 1;

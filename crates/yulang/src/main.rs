@@ -2731,6 +2731,24 @@ fn run_runtime_evidence_run(
         output.evidence_stats.marker_frame_markers
     );
     println!(
+        "  runtime_evidence.marker_frame_add_id_markers: {}",
+        output.evidence_stats.marker_frame_add_id_markers
+    );
+    println!(
+        "  runtime_evidence.marker_frame_active_add_id_markers: {}",
+        output.evidence_stats.marker_frame_active_add_id_markers
+    );
+    println!(
+        "  runtime_evidence.marker_frame_frame_only_entries: {}",
+        output.evidence_stats.marker_frame_frame_only_entries
+    );
+    println!(
+        "  runtime_evidence.marker_frame_no_active_add_id_no_handler_entries: {}",
+        output
+            .evidence_stats
+            .marker_frame_no_active_add_id_no_handler_entries
+    );
+    println!(
         "  runtime_evidence.marker_frame_expr_entries: {}",
         output.evidence_stats.marker_frame_expr_entries
     );
