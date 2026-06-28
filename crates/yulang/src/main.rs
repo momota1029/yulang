@@ -323,6 +323,17 @@ struct RuntimeEvidenceRunArgs {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct RuntimeEvidenceRunTimings {
+    args_parse: Duration,
+    control_build_total: Duration,
+    evidence_summary: Duration,
+    evidence_plan_build: Duration,
+    runtime_evidence_execute: Duration,
+    root_format: Duration,
+    total_before_compare: Duration,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 enum RuntimeBuildCacheKind {
     #[default]
     NotMeasured,
@@ -2225,11 +2236,24 @@ fn run_runtime_evidence_run(
     args: VecDeque<OsString>,
 ) {
     let total_start = Instant::now();
+    let mut timings = RuntimeEvidenceRunTimings::default();
+    let mut build_timings = RuntimePhaseTimings::default();
+    let args_start = Instant::now();
     let args = parse_runtime_evidence_run_args(program, debug_command, args);
+    timings.args_parse = args_start.elapsed();
+    let collect_start = Instant::now();
     let files = collect_control_sources_or_exit(&args.path, options);
-    let build = build_control_with_optional_cache(files, options.use_cache);
+    build_timings.collect = collect_start.elapsed();
+    let build_start = Instant::now();
+    let build =
+        build_control_with_optional_cache_timed(files, options.use_cache, Some(&mut build_timings));
+    timings.control_build_total = build_start.elapsed();
+    let summary_start = Instant::now();
     let summary = RuntimeEvidenceBenchSummary::from_surface(&build.runtime_evidence);
+    timings.evidence_summary = summary_start.elapsed();
+    let plan_start = Instant::now();
     let plan = evidence_vm::build_plan(&build.program, &build.runtime_evidence);
+    timings.evidence_plan_build = plan_start.elapsed();
     let run_start = Instant::now();
     let output = match evidence_vm::run_program_with_plan_deep_profile(
         &build.program,
@@ -2242,11 +2266,11 @@ fn run_runtime_evidence_run(
             process::exit(1);
         }
     };
-    let runtime_evidence_execute = run_start.elapsed();
+    timings.runtime_evidence_execute = run_start.elapsed();
     let format_start = Instant::now();
     let roots_text = output.roots_text_with_labels(Some(&build.labels));
-    let root_format = format_start.elapsed();
-    let total = total_start.elapsed();
+    timings.root_format = format_start.elapsed();
+    timings.total_before_compare = total_start.elapsed();
 
     println!("runtime evidence run:");
     println!("  evidence.tasks: {}", summary.tasks);
@@ -4373,12 +4397,7 @@ fn run_runtime_evidence_run(
         "  runtime_evidence.list_values_copied: {}",
         output.evidence_stats.list_values_copied
     );
-    println!(
-        "  timing.runtime_evidence_execute: {}",
-        format_duration(runtime_evidence_execute)
-    );
-    println!("  timing.root_format: {}", format_duration(root_format));
-    println!("  timing.total_before_compare: {}", format_duration(total));
+    print_runtime_evidence_run_timings(&timings, &build_timings);
 
     if args.compare_control {
         let control = run_built_control_for_cli(build);
@@ -4405,6 +4424,60 @@ fn run_runtime_evidence_run(
 
     print!("{}", output.stdout);
     print!("{roots_text}");
+}
+
+fn print_runtime_evidence_run_timings(
+    timings: &RuntimeEvidenceRunTimings,
+    build_timings: &RuntimePhaseTimings,
+) {
+    println!(
+        "  timing.args_parse: {}",
+        format_duration(timings.args_parse)
+    );
+    println!(
+        "  timing.collect: {}",
+        format_duration(build_timings.collect)
+    );
+    println!(
+        "  timing.control_build_cache: {}",
+        build_timings.build_cache.as_str()
+    );
+    println!(
+        "  timing.control_build_total: {}",
+        format_duration(timings.control_build_total)
+    );
+    println!(
+        "  timing.build_poly: {}",
+        format_duration(build_timings.build_poly)
+    );
+    println!(
+        "  timing.specialize: {}",
+        format_duration(build_timings.specialize)
+    );
+    println!(
+        "  timing.control_lower: {}",
+        format_duration(build_timings.control_lower)
+    );
+    println!(
+        "  timing.evidence_summary: {}",
+        format_duration(timings.evidence_summary)
+    );
+    println!(
+        "  timing.evidence_plan_build: {}",
+        format_duration(timings.evidence_plan_build)
+    );
+    println!(
+        "  timing.runtime_evidence_execute: {}",
+        format_duration(timings.runtime_evidence_execute)
+    );
+    println!(
+        "  timing.root_format: {}",
+        format_duration(timings.root_format)
+    );
+    println!(
+        "  timing.total_before_compare: {}",
+        format_duration(timings.total_before_compare)
+    );
 }
 
 fn parse_runtime_evidence_run_args(
