@@ -20,6 +20,8 @@ mod plan;
 mod text;
 use crate::{EvidenceVmOperationExecutionPlan, EvidenceVmPlan};
 use format::{format_float, format_value, format_values_with_labels};
+#[cfg(debug_assertions)]
+use plan::RuntimeEvidenceOperationVisibilitySource;
 use plan::{
     RuntimeEvidenceOperationVisibility, RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext,
 };
@@ -989,8 +991,8 @@ impl EvidenceSignalHygiene {
     }
 
     #[cfg(debug_assertions)]
-    fn can_shadow_with_permission_visibility(&self) -> bool {
-        self.permission_visibility.can_shadow_legacy()
+    fn permission_shadow_kind(&self) -> Option<EvidencePermissionShadowKind> {
+        self.permission_visibility.shadow_kind()
     }
 
     #[cfg(debug_assertions)]
@@ -1023,11 +1025,31 @@ impl EvidenceSignalPermissionVisibility {
     }
 
     #[cfg(debug_assertions)]
-    fn can_shadow_legacy(&self) -> bool {
-        self.base
-            .is_some_and(|visibility| !visibility.legacy_guard_bridge)
-            && self.transform.can_shadow_direct_permission()
+    fn shadow_kind(&self) -> Option<EvidencePermissionShadowKind> {
+        let visibility = self.base?;
+        if visibility.legacy_guard_bridge {
+            return None;
+        }
+        if self.transform.is_identity() {
+            return Some(EvidencePermissionShadowKind::Direct);
+        }
+        if self.transform.is_guard_boundary_pair()
+            && matches!(
+                visibility.source,
+                RuntimeEvidenceOperationVisibilitySource::ProviderGrant
+            )
+        {
+            return Some(EvidencePermissionShadowKind::GuardBoundaryPairBridge);
+        }
+        None
     }
+}
+
+#[cfg(debug_assertions)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidencePermissionShadowKind {
+    Direct,
+    GuardBoundaryPairBridge,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -1052,11 +1074,6 @@ impl EvidenceSignalPermissionTransform {
 
     fn is_boundary_only(self) -> bool {
         !self.guard_mask && self.handler_boundary_mask && !self.resume_delta
-    }
-
-    #[cfg(debug_assertions)]
-    fn can_shadow_direct_permission(self) -> bool {
-        self.is_identity()
     }
 }
 
@@ -6740,22 +6757,32 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         arms: &[control_vm::CatchArm],
         legacy_visible: Option<bool>,
     ) {
-        if !hygiene.can_shadow_with_permission_visibility() {
+        let Some(shadow_kind) = hygiene.permission_shadow_kind() else {
             return;
-        }
+        };
         let Some(visibility) = hygiene.operation_visibility() else {
             return;
         };
-        let permission_visible = self.permission_visible_operation_resumptive(
-            catch_expr,
-            request_path,
-            visibility,
-            arms,
-        );
+        let permission_visible = match shadow_kind {
+            EvidencePermissionShadowKind::Direct => self.permission_visible_operation_resumptive(
+                catch_expr,
+                request_path,
+                visibility,
+                arms,
+            ),
+            EvidencePermissionShadowKind::GuardBoundaryPairBridge => self
+                .permission_visible_guard_boundary_pair_bridge(
+                    catch_expr,
+                    request_path,
+                    hygiene,
+                    visibility,
+                    arms,
+                ),
+        };
         debug_assert_eq!(
             permission_visible,
             legacy_visible,
-            "permission visibility diverged from legacy hygiene for {}",
+            "permission visibility ({shadow_kind:?}) diverged from legacy hygiene for {}",
             request_path.join("::")
         );
     }
@@ -6786,6 +6813,30 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.context
             .catch_has_allowed_handler(catch_expr, request_path, visibility)
             .then_some(arm_resumptive)
+    }
+
+    #[cfg(debug_assertions)]
+    fn permission_visible_guard_boundary_pair_bridge(
+        &self,
+        catch_expr: ExprId,
+        request_path: &[String],
+        hygiene: &EvidenceSignalHygiene,
+        visibility: RuntimeEvidenceOperationVisibility,
+        arms: &[control_vm::CatchArm],
+    ) -> Option<bool> {
+        if !self
+            .context
+            .catch_has_allowed_handler(catch_expr, request_path, visibility)
+        {
+            return None;
+        }
+        self.visible_operation_resumptive_parts(
+            request_path,
+            hygiene.handler_boundary.as_ref(),
+            &hygiene.guard_ids,
+            &hygiene.carried_guards,
+            arms,
+        )
     }
 
     fn record_permission_visibility_stats(&mut self, hygiene: &EvidenceSignalHygiene) {
@@ -8930,7 +8981,7 @@ mod tests {
     }
 
     #[test]
-    fn permission_visibility_shadow_check_requires_identity_transform() {
+    fn permission_visibility_shadow_check_allows_identity_and_provider_pair() {
         let visibility = RuntimeEvidenceOperationVisibility {
             source: RuntimeEvidenceOperationVisibilitySource::PlanAllowedSet(
                 crate::EvidenceVmAllowedSetId(0),
@@ -8939,11 +8990,14 @@ mod tests {
             legacy_guard_bridge: false,
         };
         let clean = EvidenceSignalHygiene::new().with_operation_visibility(Some(visibility));
-        assert!(clean.can_shadow_with_permission_visibility());
+        assert_eq!(
+            clean.permission_shadow_kind(),
+            Some(EvidencePermissionShadowKind::Direct)
+        );
 
         let mut guarded = clean.clone();
         assert!(guarded.push_guard_id(EvidenceGuardId(1)));
-        assert!(!guarded.can_shadow_with_permission_visibility());
+        assert_eq!(guarded.permission_shadow_kind(), None);
 
         let mut resumed = clean.clone();
         resumed.push_carried_guard(EvidenceCarriedGuard {
@@ -8951,7 +9005,7 @@ mod tests {
             entry_frame_len: 0,
             exposed_guard_ids: Vec::new(),
         });
-        assert!(!resumed.can_shadow_with_permission_visibility());
+        assert_eq!(resumed.permission_shadow_kind(), None);
 
         let mut bounded = clean.clone();
         bounded.set_handler_boundary(EvidenceHandlerBoundary {
@@ -8959,7 +9013,43 @@ mod tests {
             path: vec!["flip".to_string(), "coin".to_string()],
             blocked: false,
         });
-        assert!(!bounded.can_shadow_with_permission_visibility());
+        assert_eq!(bounded.permission_shadow_kind(), None);
+
+        let provider_visibility = RuntimeEvidenceOperationVisibility {
+            source: RuntimeEvidenceOperationVisibilitySource::ProviderGrant,
+            allowed_handler_id: Some(7),
+            legacy_guard_bridge: false,
+        };
+        let provider_clean =
+            EvidenceSignalHygiene::new().with_operation_visibility(Some(provider_visibility));
+        assert_eq!(
+            provider_clean.permission_shadow_kind(),
+            Some(EvidencePermissionShadowKind::Direct)
+        );
+
+        let mut provider_pair = provider_clean.clone();
+        assert!(provider_pair.push_guard_id(EvidenceGuardId(4)));
+        provider_pair.set_handler_boundary(EvidenceHandlerBoundary {
+            id: EvidenceGuardId(4),
+            path: vec!["flip".to_string(), "coin".to_string()],
+            blocked: false,
+        });
+        assert_eq!(
+            provider_pair.permission_shadow_kind(),
+            Some(EvidencePermissionShadowKind::GuardBoundaryPairBridge)
+        );
+
+        let mut provider_guarded = provider_clean.clone();
+        assert!(provider_guarded.push_guard_id(EvidenceGuardId(5)));
+        assert_eq!(provider_guarded.permission_shadow_kind(), None);
+
+        let mut provider_bounded = provider_clean.clone();
+        provider_bounded.set_handler_boundary(EvidenceHandlerBoundary {
+            id: EvidenceGuardId(6),
+            path: vec!["flip".to_string(), "coin".to_string()],
+            blocked: false,
+        });
+        assert_eq!(provider_bounded.permission_shadow_kind(), None);
 
         let legacy_bridge = EvidenceSignalHygiene::new().with_operation_visibility(Some(
             RuntimeEvidenceOperationVisibility {
@@ -8970,7 +9060,7 @@ mod tests {
                 legacy_guard_bridge: true,
             },
         ));
-        assert!(!legacy_bridge.can_shadow_with_permission_visibility());
+        assert_eq!(legacy_bridge.permission_shadow_kind(), None);
     }
 
     #[test]
