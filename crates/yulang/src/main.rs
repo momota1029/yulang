@@ -3111,6 +3111,18 @@ fn run_runtime_evidence_run(
             .resume_marker_provider_pair_close_reject_handler_path_differs_allowed_handler_family
     );
     println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_prefixes_allowed_handler_family: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_prefixes_allowed_handler_family
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_allowed_handler_family_prefixes: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path_allowed_handler_family_prefixes
+    );
+    println!(
         "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path_permission_handler_unknown: {}",
         output
             .evidence_stats

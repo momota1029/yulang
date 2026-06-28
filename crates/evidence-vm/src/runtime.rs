@@ -213,6 +213,10 @@ pub struct RuntimeEvidenceRunStats {
     pub resume_marker_provider_pair_close_reject_handler_path_differs_call_boundary: usize,
     pub resume_marker_provider_pair_close_reject_handler_path_matches_allowed_handler_family: usize,
     pub resume_marker_provider_pair_close_reject_handler_path_differs_allowed_handler_family: usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_prefixes_allowed_handler_family:
+        usize,
+    pub resume_marker_provider_pair_close_reject_handler_path_allowed_handler_family_prefixes:
+        usize,
     pub resume_marker_provider_pair_close_reject_handler_path_permission_handler_unknown: usize,
     pub resume_marker_provider_pair_close_reject_handler_path_boundary_id_matches_permission_handler:
         usize,
@@ -4048,6 +4052,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         } else {
             self.stats
                 .resume_marker_provider_pair_close_reject_handler_path_differs_allowed_handler_family += 1;
+        }
+        if path_is_prefix(handler_path, permission_family) {
+            self.stats
+                .resume_marker_provider_pair_close_reject_handler_path_prefixes_allowed_handler_family += 1;
+        }
+        if path_is_prefix(permission_family, handler_path) {
+            self.stats
+                .resume_marker_provider_pair_close_reject_handler_path_allowed_handler_family_prefixes += 1;
         }
     }
 
