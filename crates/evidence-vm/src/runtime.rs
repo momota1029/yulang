@@ -608,12 +608,12 @@ struct EffectThunkEvidence {
     visibility: Option<RuntimeEvidenceOperationVisibility>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum ProviderGrantPathGateFail {
     NoGrant,
     MissingGrant,
     ScopeMissing,
-    AddIdShadowed(ActiveAddIdMatchKind),
+    AddIdShadowed(EvidenceProviderShadowedAddId),
     HandlerShadowed,
 }
 
@@ -622,6 +622,12 @@ enum ActiveAddIdMatchKind {
     AllPath,
     OwnPath,
     ForeignPath,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EvidenceProviderShadowedAddId {
+    marker: EvidenceActiveAddIdMarker,
+    kind: ActiveAddIdMatchKind,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1091,6 +1097,7 @@ impl EvidencePermissionVisibleResult {
     }
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidencePermissionVisibleDecision {
     NotApplicable,
@@ -2659,20 +2666,26 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if self.provider_grant_handler_shadowed(gate, path) {
             return Some(ProviderGrantPathGateFail::HandlerShadowed);
         }
-        if let Some(kind) = self.provider_grant_add_id_shadow_kind(gate, path) {
-            return Some(ProviderGrantPathGateFail::AddIdShadowed(kind));
+        if let Some(shadowed) = self.provider_grant_add_id_shadow(gate, path) {
+            return Some(ProviderGrantPathGateFail::AddIdShadowed(shadowed));
         }
         None
     }
 
-    fn provider_grant_add_id_shadow_kind(
+    fn provider_grant_add_id_shadow(
         &self,
         gate: EvidenceProviderGrantGate,
         path: &[String],
-    ) -> Option<ActiveAddIdMatchKind> {
+    ) -> Option<EvidenceProviderShadowedAddId> {
         self.active_add_ids[gate.hygiene_baseline.active_add_id_len..]
             .iter()
-            .find_map(|marker| active_add_id_match_kind(&marker.marker, path))
+            .find_map(|marker| {
+                let kind = active_add_id_match_kind(&marker.marker, path)?;
+                Some(EvidenceProviderShadowedAddId {
+                    marker: marker.clone(),
+                    kind,
+                })
+            })
     }
 
     fn provider_grant_handler_shadowed(
@@ -2696,9 +2709,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             ProviderGrantPathGateFail::ScopeMissing => {
                 self.stats.direct_tail_gate_fail_scope_missing += 1;
             }
-            ProviderGrantPathGateFail::AddIdShadowed(kind) => {
+            ProviderGrantPathGateFail::AddIdShadowed(shadowed) => {
                 self.stats.direct_tail_gate_fail_add_id_shadowed += 1;
-                match kind {
+                match shadowed.kind {
                     ActiveAddIdMatchKind::AllPath => {
                         self.stats.direct_tail_gate_fail_add_id_all_path += 1;
                     }
@@ -2757,6 +2770,27 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let hygiene = self
             .signal_hygiene_with_active_markers(&path)
             .with_operation_visibility(evidence.visibility);
+        EvidenceDirectTailResumptive::with_hygiene(handler, path, payload, hygiene)
+    }
+
+    fn provider_permission_guarded_direct_tail_resumptive(
+        &mut self,
+        handler: ExprId,
+        path: Rc<[String]>,
+        payload: SharedValue,
+        evidence: EffectThunkEvidence,
+        shadowed: EvidenceProviderShadowedAddId,
+    ) -> EvidenceDirectTailResumptive {
+        let Some(visibility) = evidence.visibility else {
+            return self.guarded_direct_tail_resumptive(handler, path, payload, evidence);
+        };
+        if visibility.provider_grant_permission().is_none()
+            || shadowed.marker.marker.carry_after_frame
+        {
+            return self.guarded_direct_tail_resumptive(handler, path, payload, evidence);
+        }
+        let mut hygiene = EvidenceSignalHygiene::new().with_operation_visibility(Some(visibility));
+        hygiene.push_guard_id(shadowed.marker.marker.id);
         EvidenceDirectTailResumptive::with_hygiene(handler, path, payload, hygiene)
     }
 
@@ -6458,14 +6492,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         } = route
         {
             if let Some(fail) = self.direct_tail_gate_failure(request_free_yield, evidence, &path) {
-                if let ProviderGrantPathGateFail::AddIdShadowed(kind) = fail {
-                    self.record_direct_tail_guarded_add_id(kind);
+                if let ProviderGrantPathGateFail::AddIdShadowed(shadowed) = fail {
+                    self.record_direct_tail_guarded_add_id(shadowed.kind);
                     return Ok(EvidenceEvalResult::direct_tail_resumptive(
-                        self.guarded_direct_tail_resumptive(
+                        self.provider_permission_guarded_direct_tail_resumptive(
                             handler,
                             path.clone(),
                             payload,
                             evidence,
+                            shadowed,
                         ),
                     ));
                 } else {
@@ -6799,48 +6834,40 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         arms: &[control_vm::CatchArm],
     ) -> Option<bool> {
         self.record_permission_visibility_stats(&call.hygiene);
-        if let EvidencePermissionVisibleDecision::Handled(permission_result) = self
-            .provider_guard_boundary_permission_decision(
-                catch_expr,
-                &call.path,
-                &call.hygiene,
-                arms,
-            )
-        {
-            let permission_visible = permission_result.visible();
-            let native_result =
-                if let Some(EvidencePermissionShadowKind::ProviderGrantBoundaryPair(permission)) =
-                    call.hygiene.permission_shadow_kind()
-                {
-                    self.permission_visible_guard_boundary_pair_native(
-                        catch_expr, &call.path, permission, arms,
-                    )
-                } else {
-                    EvidencePermissionVisibleResult::NoAllowedHandler
-                };
+        if let Some(permission) = self.provider_guard_boundary_permission(&call.hygiene) {
+            let native_result = self.permission_visible_guard_boundary_pair_native(
+                catch_expr, &call.path, permission, arms,
+            );
+            let native_visible = native_result.visible();
             if self.should_verify_permission_visibility() {
+                let permission_result = self.permission_visible_guard_boundary_pair_bridge(
+                    catch_expr,
+                    &call.path,
+                    &call.hygiene,
+                    permission,
+                    arms,
+                );
+                let bridge_visible = permission_result.visible();
                 let exposure = EvidenceGuardBoundaryExposure::from_hygiene(&call.hygiene);
                 let legacy_visible =
                     self.visible_operation_resumptive_parts(&call.path, exposure, arms);
                 self.record_provider_boundary_pair_shadow(legacy_visible, permission_result);
                 self.record_provider_boundary_pair_native_shadow(legacy_visible, native_result);
                 debug_assert_eq!(
-                    permission_visible,
+                    bridge_visible,
                     legacy_visible,
-                    "permission direct-tail visibility diverged from legacy hygiene for {}",
+                    "bridge provider permission visibility diverged from legacy hygiene for {}",
                     call.path.join("::")
                 );
                 debug_assert_eq!(
-                    native_result.visible(),
+                    native_visible,
                     legacy_visible,
                     "native provider permission visibility diverged from legacy hygiene for {}",
                     call.path.join("::")
                 );
-            } else {
-                self.record_provider_boundary_pair_native_shadow(permission_visible, native_result);
-                self.record_provider_boundary_pair_fast_path(permission_result);
             }
-            return permission_visible;
+            self.record_provider_boundary_pair_fast_path(native_result);
+            return native_visible;
         }
 
         let exposure = EvidenceGuardBoundaryExposure::from_hygiene(&call.hygiene);
@@ -6853,6 +6880,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             visible,
         );
         visible
+    }
+
+    fn provider_guard_boundary_permission(
+        &self,
+        hygiene: &EvidenceSignalHygiene,
+    ) -> Option<RuntimeEvidenceProviderGrantPermission> {
+        let EvidencePermissionShadowKind::ProviderGrantBoundaryPair(permission) =
+            hygiene.permission_shadow_kind()?
+        else {
+            return None;
+        };
+        Some(permission)
     }
 
     fn should_verify_permission_visibility(&self) -> bool {
@@ -6911,6 +6950,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
+    #[cfg(test)]
     fn provider_guard_boundary_permission_decision(
         &self,
         catch_expr: ExprId,
