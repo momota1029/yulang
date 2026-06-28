@@ -920,9 +920,38 @@ impl EvidenceEffectSignal {
         }
     }
 
-    fn request_mut(&mut self) -> &mut EvidenceRequest {
+    fn with_handler_boundary(self, handler_boundary: EvidenceHandlerBoundary) -> Self {
         match self {
-            Self::GenericRequest(request) => request,
+            Self::GenericRequest(mut request) => {
+                request.handler_boundary = Some(handler_boundary);
+                Self::GenericRequest(request)
+            }
+        }
+    }
+
+    fn close_provider_env(self, provider_env: RuntimeEvidenceProviderEnv) -> Self {
+        match self {
+            Self::GenericRequest(mut request) => {
+                request.continuation =
+                    EvidenceContinuation::provider_env(provider_env, request.continuation);
+                Self::GenericRequest(request)
+            }
+        }
+    }
+
+    fn close_marker_frame(
+        self,
+        markers: Rc<[EvidenceValueMarker]>,
+        resume_plan: Option<EvidenceResumeMarkerPlan>,
+    ) -> Self {
+        match self {
+            Self::GenericRequest(mut request) => {
+                request.payload = mark_runtime_value_shared(request.payload, markers);
+                if let Some(plan) = resume_plan {
+                    request.continuation = plan.attach(request.continuation);
+                }
+                Self::GenericRequest(request)
+            }
         }
     }
 
@@ -983,8 +1012,23 @@ impl EvidenceRoutedYield {
         self.signal.request()
     }
 
-    fn request_mut(&mut self) -> &mut EvidenceRequest {
-        self.signal.request_mut()
+    fn with_handler_boundary(mut self, handler_boundary: EvidenceHandlerBoundary) -> Self {
+        self.signal = self.signal.with_handler_boundary(handler_boundary);
+        self
+    }
+
+    fn close_provider_env(mut self, provider_env: RuntimeEvidenceProviderEnv) -> Self {
+        self.signal = self.signal.close_provider_env(provider_env);
+        self
+    }
+
+    fn close_marker_frame(
+        mut self,
+        markers: Rc<[EvidenceValueMarker]>,
+        resume_plan: Option<EvidenceResumeMarkerPlan>,
+    ) -> Self {
+        self.signal = self.signal.close_marker_frame(markers, resume_plan);
+        self
     }
 
     fn into_request(self) -> EvidenceRequest {
@@ -2103,11 +2147,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if provider_env.is_empty() {
             return call;
         }
-        let handler = call.handler;
-        let mut request = call.into_request();
-        let continuation = request.continuation;
-        request.continuation = EvidenceContinuation::provider_env(provider_env, continuation);
-        EvidenceRoutedYield::from_request(handler, request)
+        call.close_provider_env(provider_env)
     }
 
     fn active_provider_env_refs(&self) -> Vec<&RuntimeEvidenceProviderEnv> {
@@ -2722,7 +2762,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             EvidenceEvalResult::RoutedYield(mut call) => {
                 if let Some(handler_boundary) = handler_boundary {
-                    call.request_mut().handler_boundary = Some(handler_boundary);
+                    call = call.with_handler_boundary(handler_boundary);
                 }
                 let resume_plan = self.resume_marker_plan(&markers, activate_add_ids, handler_path);
                 self.close_marker_routed_yield(call, markers, resume_plan)
@@ -2794,14 +2834,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         markers: Rc<[EvidenceValueMarker]>,
         resume_plan: Option<EvidenceResumeMarkerPlan>,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        let handler = call.handler;
-        let mut request = call.into_request();
-        request.payload = mark_runtime_value_shared(request.payload, markers.clone());
-        if let Some(plan) = resume_plan {
-            request.continuation = plan.attach(request.continuation);
-        }
         Ok(EvidenceEvalResult::RoutedYield(
-            EvidenceRoutedYield::from_request(handler, request),
+            call.close_marker_frame(markers, resume_plan),
         ))
     }
 
