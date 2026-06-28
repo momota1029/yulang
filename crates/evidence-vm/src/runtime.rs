@@ -614,6 +614,15 @@ struct EvidenceResolvedEffectRoute {
     visibility: Option<RuntimeEvidenceOperationVisibility>,
 }
 
+fn merge_operation_visibility(
+    static_visibility: Option<RuntimeEvidenceOperationVisibility>,
+    provider_visibility: Option<RuntimeEvidenceOperationVisibility>,
+) -> Option<RuntimeEvidenceOperationVisibility> {
+    // Provider grants are runtime evidence selected from the active provider env, so they are
+    // more specific than the static operation visibility attached to the operation object.
+    provider_visibility.or(static_visibility)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidenceEffectRoute {
     Direct {
@@ -2482,7 +2491,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         EvidenceResolvedEffectRoute {
             route: provider_route.route,
             origin: provider_route.origin,
-            visibility: provider_route.visibility.or(visibility),
+            visibility: merge_operation_visibility(visibility, provider_route.visibility),
         }
     }
 
