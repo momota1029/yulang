@@ -15,6 +15,7 @@ use crate::{
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct RuntimeEvidenceRunContext {
+    deep_profile: bool,
     provider_slots: usize,
     provider_candidates: usize,
     env_provider_slots: usize,
@@ -60,6 +61,7 @@ impl RuntimeEvidenceRunContext {
         let operation_visibilities = operation_visibilities_from_plan(plan);
         let operation_provider_lookups = operation_provider_lookups_from_plan(plan);
         Self {
+            deep_profile: false,
             provider_slots: plan.objects.providers.len(),
             provider_candidates: plan
                 .objects
@@ -100,6 +102,15 @@ impl RuntimeEvidenceRunContext {
             operation_visibilities,
             operation_provider_lookups,
         }
+    }
+
+    pub(super) fn with_deep_profile(mut self, enabled: bool) -> Self {
+        self.deep_profile = enabled;
+        self
+    }
+
+    pub(super) fn deep_profile_enabled(&self) -> bool {
+        self.deep_profile
     }
 
     pub(super) fn apply_to_evidence(&mut self, evidence: &mut ControlEvidenceIndex) {

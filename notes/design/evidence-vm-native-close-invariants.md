@@ -221,3 +221,9 @@ continuation frames and the hypothetical native branch keeps a large
 `Then`/`ProviderEnv` shape. The rejected native close should not be re-enabled
 until the continuation representation, rather than the close condition, is made
 cheaper.
+
+Deep later-grant profiling is gated out of release default. Normal
+`runtime_evidence_execute` must not walk the later-grant placement tree just to
+measure a rejected fast path. Release runs can opt back in with the debug CLI's
+`--runtime-evidence-profile-deep` flag, while debug builds still keep the shadow
+surface available for regression checks.

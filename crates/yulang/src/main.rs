@@ -319,6 +319,7 @@ impl RuntimeEvidenceBenchSummary {
 struct RuntimeEvidenceRunArgs {
     path: PathBuf,
     compare_control: bool,
+    runtime_evidence_profile_deep: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -2230,7 +2231,11 @@ fn run_runtime_evidence_run(
     let summary = RuntimeEvidenceBenchSummary::from_surface(&build.runtime_evidence);
     let plan = evidence_vm::build_plan(&build.program, &build.runtime_evidence);
     let run_start = Instant::now();
-    let output = match evidence_vm::run_program_with_plan(&build.program, &plan) {
+    let output = match evidence_vm::run_program_with_plan_deep_profile(
+        &build.program,
+        &plan,
+        args.runtime_evidence_profile_deep,
+    ) {
         Ok(output) => output,
         Err(error) => {
             eprintln!("{error}");
@@ -4079,10 +4084,12 @@ fn parse_runtime_evidence_run_args(
 ) -> RuntimeEvidenceRunArgs {
     let mut path = None;
     let mut compare_control = false;
+    let mut runtime_evidence_profile_deep = false;
 
     while let Some(arg) = args.pop_front() {
         match arg.to_str() {
             Some("--compare-control") => compare_control = true,
+            Some("--runtime-evidence-profile-deep") => runtime_evidence_profile_deep = true,
             Some(value) if value.starts_with("--") => {
                 print_usage_error_and_exit(
                     program,
@@ -4107,6 +4114,7 @@ fn parse_runtime_evidence_run_args(
     RuntimeEvidenceRunArgs {
         path,
         compare_control,
+        runtime_evidence_profile_deep,
     }
 }
 

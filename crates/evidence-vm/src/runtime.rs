@@ -3740,6 +3740,15 @@ pub fn run_program_with_plan(
     RuntimeEvidenceRunner::new(program, RuntimeEvidenceRunContext::from_plan(plan)).run()
 }
 
+pub fn run_program_with_plan_deep_profile(
+    program: &Program,
+    plan: &EvidenceVmPlan,
+    enabled: bool,
+) -> Result<RuntimeEvidenceRunOutput, RuntimeEvidenceRunError> {
+    let context = RuntimeEvidenceRunContext::from_plan(plan).with_deep_profile(enabled);
+    RuntimeEvidenceRunner::new(program, context).run()
+}
+
 fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
     program
         .exprs
@@ -5809,15 +5818,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             placement.any_after_nearest,
             EvidenceProviderEnvBoundaryStatus::GrantsPermission
         ) {
-            self.record_provider_env_foreign_later_grant_profile_candidate(
-                call,
-                handler_path,
-                markers,
-                permission,
-                permission_family,
-                placement,
-                resume_plan,
-            );
+            if self.should_profile_later_grant_deep() {
+                self.record_provider_env_foreign_later_grant_profile_candidate(
+                    call,
+                    handler_path,
+                    markers,
+                    permission,
+                    permission_family,
+                    placement,
+                    resume_plan,
+                );
+            }
             self.record_provider_env_foreign_miss_boundary_reject(
                 EvidenceProviderEnvForeignMissBoundaryReject::LaterGrant,
             );
@@ -5917,6 +5928,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let _ = permission;
             }
         }
+    }
+
+    fn should_profile_later_grant_deep(&self) -> bool {
+        cfg!(debug_assertions) || self.context.deep_profile_enabled()
     }
 
     fn record_provider_env_foreign_later_grant_shape_profile(
