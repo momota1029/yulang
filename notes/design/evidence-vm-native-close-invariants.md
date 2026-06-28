@@ -71,5 +71,15 @@ prefix-boundary legacy fallback counts, but they are foreign-family cases:
 - `examples/showcase.yu`: `legacy_fallbacks = 1644`,
   `reject_foreign_family = 1644`
 
-Those cases are a separate `ProviderEnv` / foreign-family exposure problem.
-They must not be folded into the prefix-boundary branch.
+Those cases are not append-scope `ProviderEnv` blockers. Profiling after the
+native prefix close showed:
+
+- `provider_foreign_boundary_with_provider_env_blocker = 0`
+- `provider_foreign_boundary_with_any_provider_env` equals the foreign-family
+  candidate count
+- half of those any-provider-env frames grant the same permission handler, and
+  half miss it, in the current nondet/showcase workloads
+
+So the remaining cases are not a simple "skip ProviderEnv boundary" extension.
+They are a separate foreign-family / provider-env-placement problem. They must
+not be folded into the prefix-boundary branch.

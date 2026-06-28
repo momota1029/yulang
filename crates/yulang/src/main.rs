@@ -3291,6 +3291,94 @@ fn run_runtime_evidence_run(
             .resume_marker_provider_prefix_boundary_request_path_prefixes_permission_family
     );
     println!(
+        "  runtime_evidence.provider_foreign_boundary_candidates: {}",
+        output.evidence_stats.provider_foreign_boundary_candidates
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_with_provider_env_blocker: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_with_provider_env_blocker
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_without_provider_env_blocker: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_without_provider_env_blocker
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_provider_env_grants_permission: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_provider_env_grants_permission
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_provider_env_misses_permission: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_provider_env_misses_permission
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_blocked_by_marker_frame: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_blocked_by_marker_frame
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_with_any_provider_env: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_with_any_provider_env
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_without_any_provider_env: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_without_any_provider_env
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_any_provider_env_grants_permission: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_any_provider_env_grants_permission
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_any_provider_env_misses_permission: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_any_provider_env_misses_permission
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_permission_family_equals_request_path: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_permission_family_equals_request_path
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_permission_family_prefixes_request_path: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_permission_family_prefixes_request_path
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_request_path_prefixes_permission_family: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_request_path_prefixes_permission_family
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_handler_path_prefixes_request_path: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_handler_path_prefixes_request_path
+    );
+    println!(
+        "  runtime_evidence.provider_foreign_boundary_request_path_prefixes_handler_path: {}",
+        output
+            .evidence_stats
+            .provider_foreign_boundary_request_path_prefixes_handler_path
+    );
+    println!(
         "  runtime_evidence.continuation_resume_provider_steps: {}",
         output.evidence_stats.continuation_resume_provider_steps
     );

@@ -248,6 +248,21 @@ pub struct RuntimeEvidenceRunStats {
     pub resume_marker_provider_prefix_boundary_permission_family_equals_request_path: usize,
     pub resume_marker_provider_prefix_boundary_permission_family_prefixes_request_path: usize,
     pub resume_marker_provider_prefix_boundary_request_path_prefixes_permission_family: usize,
+    pub provider_foreign_boundary_candidates: usize,
+    pub provider_foreign_boundary_with_provider_env_blocker: usize,
+    pub provider_foreign_boundary_without_provider_env_blocker: usize,
+    pub provider_foreign_boundary_provider_env_grants_permission: usize,
+    pub provider_foreign_boundary_provider_env_misses_permission: usize,
+    pub provider_foreign_boundary_blocked_by_marker_frame: usize,
+    pub provider_foreign_boundary_with_any_provider_env: usize,
+    pub provider_foreign_boundary_without_any_provider_env: usize,
+    pub provider_foreign_boundary_any_provider_env_grants_permission: usize,
+    pub provider_foreign_boundary_any_provider_env_misses_permission: usize,
+    pub provider_foreign_boundary_permission_family_equals_request_path: usize,
+    pub provider_foreign_boundary_permission_family_prefixes_request_path: usize,
+    pub provider_foreign_boundary_request_path_prefixes_permission_family: usize,
+    pub provider_foreign_boundary_handler_path_prefixes_request_path: usize,
+    pub provider_foreign_boundary_request_path_prefixes_handler_path: usize,
     pub continuation_resume_provider_steps: usize,
     pub continuation_resume_aggregate_steps: usize,
     pub continuation_resume_select_steps: usize,
@@ -873,6 +888,14 @@ impl EvidenceAppendScopeBlockerInfo {
             Self::ProviderEnv => EvidenceContinuationAppendBlocker::ProviderEnv,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceProviderEnvBoundaryStatus {
+    GrantsPermission,
+    MissesPermission,
+    BlockedByMarkerFrame,
+    None,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2176,6 +2199,20 @@ impl EvidenceContinuation {
         };
         frame.append_scope_blocker_info()
     }
+
+    fn provider_env_boundary_status(&self, handler_id: u32) -> EvidenceProviderEnvBoundaryStatus {
+        let Some(frame) = self.frame() else {
+            return EvidenceProviderEnvBoundaryStatus::None;
+        };
+        frame.provider_env_boundary_status(handler_id)
+    }
+
+    fn any_provider_env_status(&self, handler_id: u32) -> EvidenceProviderEnvBoundaryStatus {
+        let Some(frame) = self.frame() else {
+            return EvidenceProviderEnvBoundaryStatus::None;
+        };
+        frame.any_provider_env_status(handler_id)
+    }
 }
 
 impl EvidenceContinuationFrame {
@@ -2277,6 +2314,48 @@ impl EvidenceContinuationFrame {
         }
     }
 
+    fn provider_env_boundary_status(&self, handler_id: u32) -> EvidenceProviderEnvBoundaryStatus {
+        match self {
+            Self::ProviderEnv { provider_env, .. } => {
+                if provider_env.contains_handler(handler_id) {
+                    EvidenceProviderEnvBoundaryStatus::GrantsPermission
+                } else {
+                    EvidenceProviderEnvBoundaryStatus::MissesPermission
+                }
+            }
+            Self::MarkerFrame { .. } => EvidenceProviderEnvBoundaryStatus::BlockedByMarkerFrame,
+            _ => self
+                .tail_ref()
+                .map(|tail| tail.provider_env_boundary_status(handler_id))
+                .unwrap_or(EvidenceProviderEnvBoundaryStatus::None),
+        }
+    }
+
+    fn any_provider_env_status(&self, handler_id: u32) -> EvidenceProviderEnvBoundaryStatus {
+        match self {
+            Self::ProviderEnv {
+                provider_env, next, ..
+            } => {
+                if provider_env.contains_handler(handler_id) {
+                    EvidenceProviderEnvBoundaryStatus::GrantsPermission
+                } else {
+                    merge_provider_env_presence(
+                        EvidenceProviderEnvBoundaryStatus::MissesPermission,
+                        next.any_provider_env_status(handler_id),
+                    )
+                }
+            }
+            Self::Then { first, second } => merge_provider_env_presence(
+                first.any_provider_env_status(handler_id),
+                second.any_provider_env_status(handler_id),
+            ),
+            _ => self
+                .tail_ref()
+                .map(|tail| tail.any_provider_env_status(handler_id))
+                .unwrap_or(EvidenceProviderEnvBoundaryStatus::None),
+        }
+    }
+
     fn tail_ref(&self) -> Option<&EvidenceContinuation> {
         match self {
             EvidenceContinuationFrame::Then { second, .. } => Some(second),
@@ -2346,6 +2425,29 @@ impl EvidenceContinuationFrame {
             | EvidenceContinuationFrame::RefSetEmitResolvedRequest { next, .. }
             | EvidenceContinuationFrame::ResolveRefSetValues { next, .. }
             | EvidenceContinuationFrame::ResolveRefSetFields { next, .. } => Some(next),
+        }
+    }
+}
+
+fn merge_provider_env_presence(
+    left: EvidenceProviderEnvBoundaryStatus,
+    right: EvidenceProviderEnvBoundaryStatus,
+) -> EvidenceProviderEnvBoundaryStatus {
+    match (left, right) {
+        (EvidenceProviderEnvBoundaryStatus::GrantsPermission, _)
+        | (_, EvidenceProviderEnvBoundaryStatus::GrantsPermission) => {
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission
+        }
+        (EvidenceProviderEnvBoundaryStatus::MissesPermission, _)
+        | (_, EvidenceProviderEnvBoundaryStatus::MissesPermission) => {
+            EvidenceProviderEnvBoundaryStatus::MissesPermission
+        }
+        (EvidenceProviderEnvBoundaryStatus::BlockedByMarkerFrame, _)
+        | (_, EvidenceProviderEnvBoundaryStatus::BlockedByMarkerFrame) => {
+            EvidenceProviderEnvBoundaryStatus::BlockedByMarkerFrame
+        }
+        (EvidenceProviderEnvBoundaryStatus::None, EvidenceProviderEnvBoundaryStatus::None) => {
+            EvidenceProviderEnvBoundaryStatus::None
         }
     }
 }
@@ -4204,6 +4306,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return None;
         }
         if !path_is_prefix(handler_path, &permission_family) {
+            self.record_provider_foreign_boundary_profile(
+                call,
+                handler_path,
+                permission,
+                &permission_family,
+            );
             self.record_provider_prefix_boundary_legacy_fallback(
                 EvidenceProviderPrefixBoundaryCloseReject::ForeignFamily,
             );
@@ -4235,6 +4343,84 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             permission,
             handler_path.len(),
         ))
+    }
+
+    fn record_provider_foreign_boundary_profile(
+        &mut self,
+        call: &EvidenceDirectTailResumptive,
+        handler_path: &[String],
+        permission: RuntimeEvidenceProviderGrantPermission,
+        permission_family: &[String],
+    ) {
+        self.stats.provider_foreign_boundary_candidates += 1;
+        if permission_family == call.path.as_ref() {
+            self.stats
+                .provider_foreign_boundary_permission_family_equals_request_path += 1;
+        }
+        if path_is_prefix(permission_family, &call.path) {
+            self.stats
+                .provider_foreign_boundary_permission_family_prefixes_request_path += 1;
+        }
+        if path_is_prefix(&call.path, permission_family) {
+            self.stats
+                .provider_foreign_boundary_request_path_prefixes_permission_family += 1;
+        }
+        if path_is_prefix(handler_path, &call.path) {
+            self.stats
+                .provider_foreign_boundary_handler_path_prefixes_request_path += 1;
+        }
+        if path_is_prefix(&call.path, handler_path) {
+            self.stats
+                .provider_foreign_boundary_request_path_prefixes_handler_path += 1;
+        }
+
+        match call
+            .continuation
+            .provider_env_boundary_status(permission.handler_id())
+        {
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission => {
+                self.stats
+                    .provider_foreign_boundary_with_provider_env_blocker += 1;
+                self.stats
+                    .provider_foreign_boundary_provider_env_grants_permission += 1;
+            }
+            EvidenceProviderEnvBoundaryStatus::MissesPermission => {
+                self.stats
+                    .provider_foreign_boundary_with_provider_env_blocker += 1;
+                self.stats
+                    .provider_foreign_boundary_provider_env_misses_permission += 1;
+            }
+            EvidenceProviderEnvBoundaryStatus::BlockedByMarkerFrame => {
+                self.stats
+                    .provider_foreign_boundary_without_provider_env_blocker += 1;
+                self.stats.provider_foreign_boundary_blocked_by_marker_frame += 1;
+            }
+            EvidenceProviderEnvBoundaryStatus::None => {
+                self.stats
+                    .provider_foreign_boundary_without_provider_env_blocker += 1;
+            }
+        }
+
+        match call
+            .continuation
+            .any_provider_env_status(permission.handler_id())
+        {
+            EvidenceProviderEnvBoundaryStatus::GrantsPermission => {
+                self.stats.provider_foreign_boundary_with_any_provider_env += 1;
+                self.stats
+                    .provider_foreign_boundary_any_provider_env_grants_permission += 1;
+            }
+            EvidenceProviderEnvBoundaryStatus::MissesPermission => {
+                self.stats.provider_foreign_boundary_with_any_provider_env += 1;
+                self.stats
+                    .provider_foreign_boundary_any_provider_env_misses_permission += 1;
+            }
+            EvidenceProviderEnvBoundaryStatus::BlockedByMarkerFrame
+            | EvidenceProviderEnvBoundaryStatus::None => {
+                self.stats
+                    .provider_foreign_boundary_without_any_provider_env += 1;
+            }
+        }
     }
 
     fn record_provider_prefix_boundary_legacy_fallback(

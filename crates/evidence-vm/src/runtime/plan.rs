@@ -397,6 +397,12 @@ impl RuntimeEvidenceProviderEnv {
         })
     }
 
+    pub(super) fn contains_handler(&self, handler_id: u32) -> bool {
+        self.providers
+            .iter()
+            .any(|provider| provider.handler_ids.contains(&handler_id))
+    }
+
     fn handler_for_slot(&self, slot_id: u32, candidates: &[u32]) -> Option<u32> {
         self.providers.iter().find_map(|provider| {
             if provider.slot_id != slot_id {
