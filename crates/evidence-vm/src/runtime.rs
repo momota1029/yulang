@@ -860,6 +860,24 @@ struct EvidenceHandlerBoundary {
     blocked: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EvidenceResumeMarkerPlan {
+    markers: Rc<[EvidenceValueMarker]>,
+    activate_add_ids: bool,
+    handler_path: Option<Vec<String>>,
+}
+
+impl EvidenceResumeMarkerPlan {
+    fn attach(self, continuation: EvidenceContinuation) -> EvidenceContinuation {
+        EvidenceContinuation::marker_frame(
+            self.markers,
+            self.activate_add_ids,
+            self.handler_path,
+            continuation,
+        )
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidenceGuardSkip {
     Preserve(EvidenceGuardId),
@@ -2634,18 +2652,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
-            EvidenceEvalResult::DirectTailResumptive(call) => self.close_marker_direct_tail(
-                call,
-                markers,
-                activate_add_ids,
-                handler_path,
-                handler_boundary,
-            ),
+            EvidenceEvalResult::DirectTailResumptive(call) => {
+                let resume_plan = self.resume_marker_plan(&markers, activate_add_ids, handler_path);
+                self.close_marker_direct_tail(call, markers, resume_plan, handler_boundary)
+            }
             EvidenceEvalResult::RoutedYield(mut call) => {
                 if let Some(handler_boundary) = handler_boundary {
                     call.request.handler_boundary = Some(handler_boundary);
                 }
-                self.close_marker_routed_yield(call, markers, activate_add_ids, handler_path)
+                let resume_plan = self.resume_marker_plan(&markers, activate_add_ids, handler_path);
+                self.close_marker_routed_yield(call, markers, resume_plan)
             }
             EvidenceEvalResult::Request(mut request) => {
                 if let Some(handler_boundary) = handler_boundary {
@@ -2654,33 +2670,40 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 request.payload = mark_runtime_value_shared(request.payload, markers.clone());
                 self.close_marker_request(
                     request,
-                    markers_for_continuation_resume(&markers),
-                    activate_add_ids,
-                    handler_path,
+                    self.resume_marker_plan(&markers, activate_add_ids, handler_path),
                 )
             }
         }
     }
 
+    fn resume_marker_plan(
+        &self,
+        markers: &[EvidenceValueMarker],
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
+    ) -> Option<EvidenceResumeMarkerPlan> {
+        let markers = markers_for_continuation_resume(markers);
+        if markers.is_empty() {
+            return None;
+        }
+        Some(EvidenceResumeMarkerPlan {
+            markers: share_marker_vec(markers),
+            activate_add_ids,
+            handler_path,
+        })
+    }
+
     fn close_marker_request(
         &mut self,
         mut request: EvidenceRequest,
-        markers: Vec<EvidenceValueMarker>,
-        activate_add_ids: bool,
-        handler_path: Option<Vec<String>>,
+        resume_plan: Option<EvidenceResumeMarkerPlan>,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         if request.route.is_direct_abortive() {
             return Ok(EvidenceEvalResult::Request(request));
         }
-        if markers.is_empty() {
-            return Ok(EvidenceEvalResult::Request(request));
+        if let Some(plan) = resume_plan {
+            request.continuation = plan.attach(request.continuation);
         }
-        request.continuation = EvidenceContinuation::marker_frame(
-            share_marker_vec(markers),
-            activate_add_ids,
-            handler_path,
-            request.continuation,
-        );
         Ok(EvidenceEvalResult::Request(request))
     }
 
@@ -2688,22 +2711,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         mut call: EvidenceDirectTailResumptive,
         markers: Rc<[EvidenceValueMarker]>,
-        activate_add_ids: bool,
-        handler_path: Option<Vec<String>>,
+        resume_plan: Option<EvidenceResumeMarkerPlan>,
         handler_boundary: Option<EvidenceHandlerBoundary>,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         if let Some(handler_boundary) = handler_boundary {
             call.handler_boundary = Some(handler_boundary);
         }
         call.payload = mark_runtime_value_shared(call.payload, markers.clone());
-        let resume_markers = markers_for_continuation_resume(&markers);
-        if !resume_markers.is_empty() {
-            call.continuation = EvidenceContinuation::marker_frame(
-                share_marker_vec(resume_markers),
-                activate_add_ids,
-                handler_path,
-                call.continuation,
-            );
+        if let Some(plan) = resume_plan {
+            call.continuation = plan.attach(call.continuation);
         }
         Ok(EvidenceEvalResult::DirectTailResumptive(call))
     }
@@ -2712,18 +2728,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         mut call: EvidenceRoutedYield,
         markers: Rc<[EvidenceValueMarker]>,
-        activate_add_ids: bool,
-        handler_path: Option<Vec<String>>,
+        resume_plan: Option<EvidenceResumeMarkerPlan>,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         call.request.payload = mark_runtime_value_shared(call.request.payload, markers.clone());
-        let resume_markers = markers_for_continuation_resume(&markers);
-        if !resume_markers.is_empty() {
-            call.request.continuation = EvidenceContinuation::marker_frame(
-                share_marker_vec(resume_markers),
-                activate_add_ids,
-                handler_path,
-                call.request.continuation,
-            );
+        if let Some(plan) = resume_plan {
+            call.request.continuation = plan.attach(call.request.continuation);
         }
         Ok(EvidenceEvalResult::RoutedYield(call))
     }
@@ -3048,22 +3057,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
-            EvidenceEvalResult::DirectTailResumptive(call) => self.close_marker_direct_tail(
-                call,
-                share_marker_vec(markers.to_vec()),
-                true,
-                None,
-                None,
-            ),
-            EvidenceEvalResult::RoutedYield(call) => {
-                self.close_marker_routed_yield(call, share_marker_vec(markers.to_vec()), true, None)
+            EvidenceEvalResult::DirectTailResumptive(call) => {
+                let markers = share_marker_vec(markers.to_vec());
+                let resume_plan = self.resume_marker_plan(&markers, true, None);
+                self.close_marker_direct_tail(call, markers, resume_plan, None)
             }
-            EvidenceEvalResult::Request(request) => self.close_marker_request(
-                request,
-                markers_for_continuation_resume(markers),
-                true,
-                None,
-            ),
+            EvidenceEvalResult::RoutedYield(call) => {
+                let markers = share_marker_vec(markers.to_vec());
+                let resume_plan = self.resume_marker_plan(&markers, true, None);
+                self.close_marker_routed_yield(call, markers, resume_plan)
+            }
+            EvidenceEvalResult::Request(request) => {
+                self.close_marker_request(request, self.resume_marker_plan(markers, true, None))
+            }
         }
     }
 
@@ -3083,15 +3089,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::DirectAbortive(call) => {
                 Ok(EvidenceEvalResult::DirectAbortive(call))
             }
-            EvidenceEvalResult::DirectTailResumptive(call) => self.close_marker_direct_tail(
-                call,
-                share_marker_vec(markers.to_vec()),
-                true,
-                None,
-                None,
-            ),
+            EvidenceEvalResult::DirectTailResumptive(call) => {
+                let markers = share_marker_vec(markers.to_vec());
+                let resume_plan = self.resume_marker_plan(&markers, true, None);
+                self.close_marker_direct_tail(call, markers, resume_plan, None)
+            }
             EvidenceEvalResult::RoutedYield(call) => {
-                self.close_marker_routed_yield(call, share_marker_vec(markers.to_vec()), true, None)
+                let markers = share_marker_vec(markers.to_vec());
+                let resume_plan = self.resume_marker_plan(&markers, true, None);
+                self.close_marker_routed_yield(call, markers, resume_plan)
             }
             EvidenceEvalResult::Request(request) => {
                 self.close_marked_result(EvidenceEvalResult::Request(request), markers)
