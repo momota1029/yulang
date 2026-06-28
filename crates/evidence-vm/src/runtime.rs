@@ -736,7 +736,7 @@ impl EvidenceActiveMarkerPlan {
 
     fn function_call_markers(&self) -> Rc<[EvidenceValueMarker]> {
         self.function_call_markers
-            .get_or_init(|| share_marker_vec(markers_for_function_call(&self.markers)))
+            .get_or_init(|| markers_for_function_call_shared(&self.markers))
             .clone()
     }
 }
@@ -2813,6 +2813,23 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn resume_marker_plan(
         &self,
+        markers: &Rc<[EvidenceValueMarker]>,
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
+    ) -> Option<EvidenceResumeMarkerPlan> {
+        let markers = markers_for_continuation_resume_shared(markers);
+        if markers.is_empty() {
+            return None;
+        }
+        Some(EvidenceResumeMarkerPlan {
+            markers,
+            activate_add_ids,
+            handler_path,
+        })
+    }
+
+    fn resume_marker_plan_for_slice(
+        &self,
         markers: &[EvidenceValueMarker],
         activate_add_ids: bool,
         handler_path: Option<Vec<String>>,
@@ -3209,9 +3226,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let resume_plan = self.resume_marker_plan(&markers, true, None);
                 self.close_marker_routed_yield(call, markers, resume_plan)
             }
-            EvidenceEffectSignal::GenericRequest(request) => {
-                self.close_marker_request(request, self.resume_marker_plan(markers, true, None))
-            }
+            EvidenceEffectSignal::GenericRequest(request) => self.close_marker_request(
+                request,
+                self.resume_marker_plan_for_slice(markers, true, None),
+            ),
         }
     }
 
@@ -4498,13 +4516,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             RuntimeEvidenceValue::Marked { value, markers } => {
                 let markers = if matches!(value.as_ref(), RuntimeEvidenceValue::Continuation(_)) {
-                    markers_for_continuation_call(markers)
+                    markers_for_continuation_call_shared(markers)
                 } else {
-                    markers_for_function_call(markers)
+                    markers_for_function_call_shared(markers)
                 };
                 self.with_marker_frame(
                     EvidenceMarkerFrameSource::MarkedApply,
-                    share_marker_vec(markers),
+                    markers,
                     true,
                     None,
                     |runner| runner.apply_value_result_inner(site, value.clone(), arg),
@@ -7768,40 +7786,86 @@ fn combined_markers(
     markers
 }
 
-fn markers_for_function_call(markers: &[EvidenceValueMarker]) -> Vec<EvidenceValueMarker> {
-    let mut out = Vec::with_capacity(markers.len());
-    for marker in markers {
-        let marker = match marker {
-            EvidenceValueMarker::Frame { id } => EvidenceValueMarker::Frame { id: *id },
-            EvidenceValueMarker::AddId(marker) => function_call_add_id_marker(marker),
-        };
-        push_marker_if_absent(&mut out, marker);
-    }
-    out
+fn markers_for_function_call_shared(
+    markers: &Rc<[EvidenceValueMarker]>,
+) -> Rc<[EvidenceValueMarker]> {
+    transformed_markers_shared(markers, function_call_marker)
 }
 
-fn markers_for_continuation_call(markers: &[EvidenceValueMarker]) -> Vec<EvidenceValueMarker> {
-    let mut out = Vec::with_capacity(markers.len());
-    for marker in markers {
-        let marker = match marker {
-            EvidenceValueMarker::Frame { id } => EvidenceValueMarker::Frame { id: *id },
-            EvidenceValueMarker::AddId(marker) => continuation_call_add_id_marker(marker),
-        };
-        push_marker_if_absent(&mut out, marker);
-    }
-    out
+fn markers_for_continuation_call_shared(
+    markers: &Rc<[EvidenceValueMarker]>,
+) -> Rc<[EvidenceValueMarker]> {
+    transformed_markers_shared(markers, continuation_call_marker)
 }
 
 fn markers_for_continuation_resume(markers: &[EvidenceValueMarker]) -> Vec<EvidenceValueMarker> {
     let mut out = Vec::with_capacity(markers.len());
     for marker in markers {
-        let marker = match marker {
-            EvidenceValueMarker::AddId(marker) => continuation_resume_add_id_marker(marker),
-            marker => marker.clone(),
-        };
+        let marker = continuation_resume_marker(marker);
         push_marker_if_absent(&mut out, marker);
     }
     out
+}
+
+fn markers_for_continuation_resume_shared(
+    markers: &Rc<[EvidenceValueMarker]>,
+) -> Rc<[EvidenceValueMarker]> {
+    transformed_markers_shared(markers, continuation_resume_marker)
+}
+
+fn transformed_markers_shared(
+    markers: &Rc<[EvidenceValueMarker]>,
+    transform: fn(&EvidenceValueMarker) -> EvidenceValueMarker,
+) -> Rc<[EvidenceValueMarker]> {
+    let mut out = None::<Vec<EvidenceValueMarker>>;
+    for (index, marker) in markers.iter().enumerate() {
+        let transformed = transform(marker);
+        let duplicate = match &out {
+            Some(out) => out.iter().any(|existing| existing == &transformed),
+            None => markers[..index]
+                .iter()
+                .any(|existing| existing == &transformed),
+        };
+        if let Some(out) = &mut out {
+            if !duplicate {
+                out.push(transformed);
+            }
+            continue;
+        }
+        if duplicate || &transformed != marker {
+            let mut next = Vec::with_capacity(markers.len());
+            next.extend_from_slice(&markers[..index]);
+            if !duplicate {
+                next.push(transformed);
+            }
+            out = Some(next);
+        }
+    }
+    match out {
+        Some(out) => share_marker_vec(out),
+        None => markers.clone(),
+    }
+}
+
+fn function_call_marker(marker: &EvidenceValueMarker) -> EvidenceValueMarker {
+    match marker {
+        EvidenceValueMarker::Frame { id } => EvidenceValueMarker::Frame { id: *id },
+        EvidenceValueMarker::AddId(marker) => function_call_add_id_marker(marker),
+    }
+}
+
+fn continuation_call_marker(marker: &EvidenceValueMarker) -> EvidenceValueMarker {
+    match marker {
+        EvidenceValueMarker::Frame { id } => EvidenceValueMarker::Frame { id: *id },
+        EvidenceValueMarker::AddId(marker) => continuation_call_add_id_marker(marker),
+    }
+}
+
+fn continuation_resume_marker(marker: &EvidenceValueMarker) -> EvidenceValueMarker {
+    match marker {
+        EvidenceValueMarker::AddId(marker) => continuation_resume_add_id_marker(marker),
+        marker => marker.clone(),
+    }
 }
 
 fn function_call_add_id_marker(marker: &Rc<EvidenceAddIdMarker>) -> EvidenceValueMarker {
