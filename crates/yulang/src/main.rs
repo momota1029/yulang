@@ -3679,6 +3679,66 @@ fn run_runtime_evidence_run(
             .provider_env_foreign_miss_boundary_reject_carry_after_frame
     );
     println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_candidates: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_candidates
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_under_then_first: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_under_then_first
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_under_then_second: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_under_then_second
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_in_provider_env_next: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_in_provider_env_next
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_depth_sum: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_depth_sum
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_max_depth: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_max_depth
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_legacy_visible: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_legacy_visible
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_naive_visible: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_naive_visible
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_naive_match: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_naive_match
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_naive_mismatch: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_naive_mismatch
+    );
+    println!(
         "  runtime_evidence.continuation_resume_provider_steps: {}",
         output.evidence_stats.continuation_resume_provider_steps
     );

@@ -148,6 +148,10 @@ The visible semantics is the naive ProviderEnv grant interpretation:
 catch_has_provider_grant_permission && operation_arm_visible
 ```
 
+The blocked-preserving invisible interpretation was measured and mismatched the
+legacy result for every representative shadow candidate, so it is not the
+native semantics for this branch.
+
 ## ProviderEnv Foreign-Boundary Miss Shadow
 
 The nearest-ProviderEnv-misses half is not part of
@@ -181,6 +185,18 @@ branch. The nondet miss side is rejected entirely by the later-ProviderEnv-grant
 guard, and the small showcase candidate set remains legacy-visible. The miss
 branch therefore stays a measured fallback, not a native close rule.
 
-The blocked-preserving invisible interpretation was measured and mismatched the
-legacy result for every representative shadow candidate, so it is not the
-native semantics for this branch.
+## ProviderEnv Later-Grant Shadow
+
+The common nearest-miss case has a later ProviderEnv grant rather than a native
+invisible result. This is a separate profile surface, not a native close rule.
+
+For the current nondet/showcase workloads:
+
+- later grants are under `Then`'s first branch
+- later grants are found through the nearest ProviderEnv's `next` continuation
+- no later grant is under `Then`'s second branch
+- naive ProviderEnv grant visibility matches legacy visibility in debug runs
+
+This suggests that a future cert would need to model the nearest-miss plus
+later-grant sequence explicitly. It must not be collapsed into the nearest-miss
+shadow, and it must not use arbitrary `any ProviderEnv` presence.

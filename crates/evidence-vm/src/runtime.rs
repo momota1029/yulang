@@ -313,6 +313,16 @@ pub struct RuntimeEvidenceRunStats {
     pub provider_env_foreign_miss_boundary_reject_permission_family_request_mismatch: usize,
     pub provider_env_foreign_miss_boundary_reject_handler_path_related_to_request: usize,
     pub provider_env_foreign_miss_boundary_reject_carry_after_frame: usize,
+    pub provider_env_foreign_later_grant_candidates: usize,
+    pub provider_env_foreign_later_grant_under_then_first: usize,
+    pub provider_env_foreign_later_grant_under_then_second: usize,
+    pub provider_env_foreign_later_grant_in_provider_env_next: usize,
+    pub provider_env_foreign_later_grant_depth_sum: usize,
+    pub provider_env_foreign_later_grant_max_depth: usize,
+    pub provider_env_foreign_later_grant_legacy_visible: usize,
+    pub provider_env_foreign_later_grant_naive_visible: usize,
+    pub provider_env_foreign_later_grant_naive_match: usize,
+    pub provider_env_foreign_later_grant_naive_mismatch: usize,
     pub continuation_resume_provider_steps: usize,
     pub continuation_resume_aggregate_steps: usize,
     pub continuation_resume_select_steps: usize,
@@ -994,6 +1004,43 @@ impl EvidenceProviderEnvPlacement {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderEnvLaterGrantPlacement {
+    depth: Option<usize>,
+    under_then_first: bool,
+    under_then_second: bool,
+    in_provider_env_next: bool,
+}
+
+impl EvidenceProviderEnvLaterGrantPlacement {
+    fn none() -> Self {
+        Self {
+            depth: None,
+            under_then_first: false,
+            under_then_second: false,
+            in_provider_env_next: false,
+        }
+    }
+
+    fn found(
+        depth: usize,
+        under_then_first: bool,
+        under_then_second: bool,
+        in_provider_env_next: bool,
+    ) -> Self {
+        Self {
+            depth: Some(depth),
+            under_then_first,
+            under_then_second,
+            in_provider_env_next,
+        }
+    }
+
+    fn is_found(self) -> bool {
+        self.depth.is_some()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidenceContinuationBoundaryKind {
     Identity,
     MarkerFrame,
@@ -1249,6 +1296,8 @@ struct EvidenceSignalHygiene {
     provider_env_foreign_boundary_shadow: Option<EvidenceProviderEnvForeignBoundaryGrantCert>,
     #[cfg(debug_assertions)]
     provider_env_foreign_miss_boundary_shadow: Option<EvidenceProviderEnvForeignBoundaryMissCert>,
+    #[cfg(debug_assertions)]
+    provider_env_foreign_later_grant_shadow: Option<EvidenceProviderEnvLaterGrantShadow>,
 }
 
 impl EvidenceSignalHygiene {
@@ -1381,6 +1430,21 @@ impl EvidenceSignalHygiene {
         &self,
     ) -> Option<EvidenceProviderEnvForeignBoundaryMissCert> {
         self.provider_env_foreign_miss_boundary_shadow
+    }
+
+    #[cfg(debug_assertions)]
+    fn set_provider_env_foreign_later_grant_shadow(
+        &mut self,
+        shadow: EvidenceProviderEnvLaterGrantShadow,
+    ) {
+        self.provider_env_foreign_later_grant_shadow = Some(shadow);
+    }
+
+    #[cfg(debug_assertions)]
+    fn provider_env_foreign_later_grant_shadow(
+        &self,
+    ) -> Option<EvidenceProviderEnvLaterGrantShadow> {
+        self.provider_env_foreign_later_grant_shadow
     }
 
     #[cfg(debug_assertions)]
@@ -1667,6 +1731,31 @@ impl EvidenceProviderEnvForeignBoundaryMissCert {
     #[cfg(debug_assertions)]
     fn provider_env_depth(self) -> usize {
         self.provider_env_depth
+    }
+}
+
+#[cfg(debug_assertions)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderEnvLaterGrantShadow {
+    permission: RuntimeEvidenceProviderGrantPermission,
+    later_grant_depth: usize,
+}
+
+#[cfg(debug_assertions)]
+impl EvidenceProviderEnvLaterGrantShadow {
+    fn new(permission: RuntimeEvidenceProviderGrantPermission, later_grant_depth: usize) -> Self {
+        Self {
+            permission,
+            later_grant_depth,
+        }
+    }
+
+    fn permission(self) -> RuntimeEvidenceProviderGrantPermission {
+        self.permission
+    }
+
+    fn later_grant_depth(self) -> usize {
+        self.later_grant_depth
     }
 }
 
@@ -2434,6 +2523,13 @@ impl EvidenceContinuation {
         self.provider_env_placement_at(handler_id, 0, false, false)
     }
 
+    fn provider_env_later_grant_placement(
+        &self,
+        handler_id: u32,
+    ) -> EvidenceProviderEnvLaterGrantPlacement {
+        self.provider_env_later_grant_placement_at(handler_id, 0, false, false)
+    }
+
     fn provider_env_placement_at(
         &self,
         handler_id: u32,
@@ -2445,6 +2541,44 @@ impl EvidenceContinuation {
             return EvidenceProviderEnvPlacement::none();
         };
         frame.provider_env_placement_at(handler_id, depth, under_then_first, under_then_second)
+    }
+
+    fn provider_env_later_grant_placement_at(
+        &self,
+        handler_id: u32,
+        depth: usize,
+        under_then_first: bool,
+        under_then_second: bool,
+    ) -> EvidenceProviderEnvLaterGrantPlacement {
+        let Some(frame) = self.frame() else {
+            return EvidenceProviderEnvLaterGrantPlacement::none();
+        };
+        frame.provider_env_later_grant_placement_at(
+            handler_id,
+            depth,
+            under_then_first,
+            under_then_second,
+        )
+    }
+
+    fn provider_env_grant_placement_at(
+        &self,
+        handler_id: u32,
+        depth: usize,
+        under_then_first: bool,
+        under_then_second: bool,
+        in_provider_env_next: bool,
+    ) -> EvidenceProviderEnvLaterGrantPlacement {
+        let Some(frame) = self.frame() else {
+            return EvidenceProviderEnvLaterGrantPlacement::none();
+        };
+        frame.provider_env_grant_placement_at(
+            handler_id,
+            depth,
+            under_then_first,
+            under_then_second,
+            in_provider_env_next,
+        )
     }
 }
 
@@ -2641,6 +2775,134 @@ impl EvidenceContinuationFrame {
                     )
                 })
                 .unwrap_or_else(EvidenceProviderEnvPlacement::none),
+        }
+    }
+
+    fn provider_env_later_grant_placement_at(
+        &self,
+        handler_id: u32,
+        depth: usize,
+        under_then_first: bool,
+        under_then_second: bool,
+    ) -> EvidenceProviderEnvLaterGrantPlacement {
+        match self {
+            Self::ProviderEnv {
+                provider_env, next, ..
+            } => {
+                if provider_env.contains_handler(handler_id) {
+                    return EvidenceProviderEnvLaterGrantPlacement::none();
+                }
+                next.provider_env_grant_placement_at(
+                    handler_id,
+                    depth + 1,
+                    under_then_first,
+                    under_then_second,
+                    true,
+                )
+            }
+            Self::MarkerFrame { .. } => EvidenceProviderEnvLaterGrantPlacement::none(),
+            Self::Then { first, second } => {
+                let first_placement =
+                    first.provider_env_placement_at(handler_id, depth + 1, true, under_then_second);
+                if first_placement.has_nearest_boundary() {
+                    let first_later = first.provider_env_later_grant_placement_at(
+                        handler_id,
+                        depth + 1,
+                        true,
+                        under_then_second,
+                    );
+                    if first_later.is_found() {
+                        return first_later;
+                    }
+                    return second.provider_env_grant_placement_at(
+                        handler_id,
+                        depth + 1,
+                        under_then_first,
+                        true,
+                        false,
+                    );
+                }
+                second.provider_env_later_grant_placement_at(
+                    handler_id,
+                    depth + 1,
+                    under_then_first,
+                    true,
+                )
+            }
+            _ => self
+                .tail_ref()
+                .map(|tail| {
+                    tail.provider_env_later_grant_placement_at(
+                        handler_id,
+                        depth + 1,
+                        under_then_first,
+                        under_then_second,
+                    )
+                })
+                .unwrap_or_else(EvidenceProviderEnvLaterGrantPlacement::none),
+        }
+    }
+
+    fn provider_env_grant_placement_at(
+        &self,
+        handler_id: u32,
+        depth: usize,
+        under_then_first: bool,
+        under_then_second: bool,
+        in_provider_env_next: bool,
+    ) -> EvidenceProviderEnvLaterGrantPlacement {
+        match self {
+            Self::ProviderEnv {
+                provider_env, next, ..
+            } => {
+                if provider_env.contains_handler(handler_id) {
+                    return EvidenceProviderEnvLaterGrantPlacement::found(
+                        depth,
+                        under_then_first,
+                        under_then_second,
+                        in_provider_env_next,
+                    );
+                }
+                next.provider_env_grant_placement_at(
+                    handler_id,
+                    depth + 1,
+                    under_then_first,
+                    under_then_second,
+                    true,
+                )
+            }
+            Self::MarkerFrame { .. } => EvidenceProviderEnvLaterGrantPlacement::none(),
+            Self::Then { first, second } => {
+                let first_grant = first.provider_env_grant_placement_at(
+                    handler_id,
+                    depth + 1,
+                    true,
+                    under_then_second,
+                    in_provider_env_next,
+                );
+                if first_grant.is_found() {
+                    return first_grant;
+                }
+                second.provider_env_grant_placement_at(
+                    handler_id,
+                    depth + 1,
+                    under_then_first,
+                    true,
+                    in_provider_env_next,
+                )
+            }
+            _ => self
+                .tail_ref()
+                .map(|tail| {
+                    tail.provider_env_grant_placement_at(
+                        handler_id,
+                        depth + 1,
+                        under_then_first,
+                        under_then_second,
+                        in_provider_env_next,
+                    )
+                })
+                .unwrap_or_else(EvidenceProviderEnvLaterGrantPlacement::none),
         }
     }
 
@@ -5063,6 +5325,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             placement.any_after_nearest,
             EvidenceProviderEnvBoundaryStatus::GrantsPermission
         ) {
+            self.record_provider_env_foreign_later_grant_profile_candidate(
+                call,
+                handler_path,
+                markers,
+                permission,
+                permission_family,
+                placement,
+            );
             self.record_provider_env_foreign_miss_boundary_reject(
                 EvidenceProviderEnvForeignMissBoundaryReject::LaterGrant,
             );
@@ -5085,6 +5355,67 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         {
             let _ = permission;
             let _ = depth;
+        }
+    }
+
+    fn record_provider_env_foreign_later_grant_profile_candidate(
+        &mut self,
+        call: &mut EvidenceDirectTailResumptive,
+        handler_path: &[String],
+        markers: &[EvidenceValueMarker],
+        permission: RuntimeEvidenceProviderGrantPermission,
+        permission_family: &[String],
+        placement: EvidenceProviderEnvPlacement,
+    ) {
+        if permission_family != call.path.as_ref() {
+            return;
+        }
+        if path_is_prefix(handler_path, &call.path) || path_is_prefix(&call.path, handler_path) {
+            return;
+        }
+        if !matches!(
+            placement.nearest,
+            EvidenceProviderEnvBoundaryStatus::MissesPermission
+        ) {
+            return;
+        }
+        if placement.depth != Some(1) || !placement.under_then_first || placement.under_then_second
+        {
+            return;
+        }
+        if marker_slice_has_carry_after_frame_add_id(markers) {
+            return;
+        }
+
+        let later_placement = call
+            .continuation
+            .provider_env_later_grant_placement(permission.handler_id());
+        self.stats.provider_env_foreign_later_grant_candidates += 1;
+        if later_placement.under_then_first {
+            self.stats.provider_env_foreign_later_grant_under_then_first += 1;
+        }
+        if later_placement.under_then_second {
+            self.stats
+                .provider_env_foreign_later_grant_under_then_second += 1;
+        }
+        if later_placement.in_provider_env_next {
+            self.stats
+                .provider_env_foreign_later_grant_in_provider_env_next += 1;
+        }
+        if let Some(depth) = later_placement.depth {
+            self.stats.provider_env_foreign_later_grant_depth_sum += depth;
+            self.stats.provider_env_foreign_later_grant_max_depth = self
+                .stats
+                .provider_env_foreign_later_grant_max_depth
+                .max(depth);
+            #[cfg(debug_assertions)]
+            call.hygiene.set_provider_env_foreign_later_grant_shadow(
+                EvidenceProviderEnvLaterGrantShadow::new(permission, depth),
+            );
+            #[cfg(not(debug_assertions))]
+            {
+                let _ = permission;
+            }
         }
     }
 
@@ -8962,6 +9293,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         &call.hygiene,
                         legacy_visible,
                     );
+                    self.record_provider_env_foreign_later_grant_visible_shadow(
+                        &call.hygiene,
+                        legacy_visible,
+                        native_result,
+                    );
                 }
                 self.record_provider_boundary_pair_shadow(legacy_visible, permission_result);
                 self.record_provider_boundary_pair_native_shadow(legacy_visible, native_result);
@@ -8979,6 +9315,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     || call
                         .hygiene
                         .provider_env_foreign_miss_boundary_shadow()
+                        .is_some()
+                    || call
+                        .hygiene
+                        .provider_env_foreign_later_grant_shadow()
                         .is_some();
                 #[cfg(not(debug_assertions))]
                 let provider_env_foreign_shadow = false;
@@ -9401,6 +9741,40 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         } else {
             self.stats
                 .provider_env_foreign_miss_boundary_shadow_invisible_mismatch += 1;
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn record_provider_env_foreign_later_grant_visible_shadow(
+        &mut self,
+        hygiene: &EvidenceSignalHygiene,
+        legacy_visible: Option<bool>,
+        naive_result: EvidencePermissionVisibleResult,
+    ) {
+        let Some(shadow) = hygiene.provider_env_foreign_later_grant_shadow() else {
+            return;
+        };
+        debug_assert_eq!(
+            Some(shadow.permission()),
+            self.provider_guard_boundary_permission(hygiene),
+            "ProviderEnv later grant shadow lost provider permission"
+        );
+        debug_assert_ne!(
+            shadow.later_grant_depth(),
+            0,
+            "ProviderEnv later grant shadow must keep the grant depth"
+        );
+        if legacy_visible.is_some() {
+            self.stats.provider_env_foreign_later_grant_legacy_visible += 1;
+        }
+        let naive_visible = naive_result.visible();
+        if naive_visible.is_some() {
+            self.stats.provider_env_foreign_later_grant_naive_visible += 1;
+        }
+        if legacy_visible == naive_visible {
+            self.stats.provider_env_foreign_later_grant_naive_match += 1;
+        } else {
+            self.stats.provider_env_foreign_later_grant_naive_mismatch += 1;
         }
     }
 
@@ -12413,6 +12787,70 @@ mod tests {
     }
 
     #[test]
+    fn provider_env_later_grant_placement_finds_provider_env_next() {
+        let continuation = provider_env_later_grant_continuation();
+
+        let placement = continuation.provider_env_later_grant_placement(7);
+
+        assert_eq!(
+            placement,
+            EvidenceProviderEnvLaterGrantPlacement::found(2, true, false, true)
+        );
+    }
+
+    #[test]
+    fn provider_env_foreign_later_grant_profile_records_position() {
+        let program = Program::default();
+        let mut runner = provider_prefix_boundary_runner(&program, &permission_test_path());
+        let permission = provider_prefix_boundary_permission();
+        let mut call = provider_env_foreign_boundary_call(permission_test_path());
+        call.continuation = provider_env_later_grant_continuation();
+        let markers = Vec::new();
+        let handler_path = provider_env_foreign_handler_path();
+
+        runner.record_provider_env_foreign_later_grant_profile_candidate(
+            &mut call,
+            &handler_path,
+            &markers,
+            permission,
+            &permission_test_path(),
+            EvidenceProviderEnvPlacement::nearest(
+                EvidenceProviderEnvBoundaryStatus::MissesPermission,
+                EvidenceProviderEnvBoundaryStatus::GrantsPermission,
+                1,
+                true,
+                false,
+            ),
+        );
+
+        assert_eq!(runner.stats.provider_env_foreign_later_grant_candidates, 1);
+        assert_eq!(
+            runner
+                .stats
+                .provider_env_foreign_later_grant_under_then_first,
+            1
+        );
+        assert_eq!(
+            runner
+                .stats
+                .provider_env_foreign_later_grant_under_then_second,
+            0
+        );
+        assert_eq!(
+            runner
+                .stats
+                .provider_env_foreign_later_grant_in_provider_env_next,
+            1
+        );
+        assert_eq!(runner.stats.provider_env_foreign_later_grant_depth_sum, 2);
+        assert_eq!(runner.stats.provider_env_foreign_later_grant_max_depth, 2);
+        assert_eq!(
+            call.hygiene.provider_env_foreign_later_grant_shadow(),
+            Some(EvidenceProviderEnvLaterGrantShadow::new(permission, 2))
+        );
+    }
+
+    #[test]
     fn provider_env_frame_is_shadowed_by_later_marker_scope() {
         let provider_env = provider_env_fixture();
         let program = Program::default();
@@ -12565,6 +13003,19 @@ mod tests {
         )
     }
 
+    fn provider_env_later_grant_continuation() -> EvidenceContinuation {
+        EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+            first: EvidenceContinuation::provider_env(
+                provider_env_fixture_for_handler(3),
+                EvidenceContinuation::provider_env(
+                    provider_env_fixture_for_handler(7),
+                    EvidenceContinuation::identity(),
+                ),
+            ),
+            second: EvidenceContinuation::identity(),
+        }))
+    }
+
     fn provider_prefix_boundary_runner<'a>(
         program: &'a Program,
         provider_family: &[String],
@@ -12594,12 +13045,15 @@ mod tests {
     }
 
     fn provider_env_fixture() -> RuntimeEvidenceProviderEnv {
+        provider_env_fixture_for_handler(3)
+    }
+
+    fn provider_env_fixture_for_handler(handler_id: u32) -> RuntimeEvidenceProviderEnv {
         let apply = ExprId(10);
         let callee = ExprId(11);
         let handler = ExprId(20);
         let value = ExprId(30);
         let slot_id = 7;
-        let handler_id = 3;
         let plan = EvidenceVmPlan {
             summary: EvidenceVmSummary::default(),
             handlers: Vec::new(),
