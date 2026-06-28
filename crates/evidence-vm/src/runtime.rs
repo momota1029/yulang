@@ -99,6 +99,10 @@ pub struct RuntimeEvidenceRunStats {
     pub permission_shadow_provider_boundary_pair_match: usize,
     pub permission_shadow_provider_boundary_pair_mismatch: usize,
     pub permission_shadow_provider_boundary_pair_no_allowed_handler: usize,
+    pub permission_provider_boundary_pair_fast_paths: usize,
+    pub permission_provider_boundary_pair_fast_path_visible: usize,
+    pub permission_provider_boundary_pair_fast_path_invisible: usize,
+    pub permission_provider_boundary_pair_fast_path_no_allowed_handler: usize,
     pub expr_evals: usize,
     pub env_clones: usize,
     pub env_entries_cloned: usize,
@@ -6787,16 +6791,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             )
         {
             let permission_visible = permission_result.visible();
-            let exposure = EvidenceGuardBoundaryExposure::from_hygiene(&call.hygiene);
-            let legacy_visible =
-                self.visible_operation_resumptive_parts(&call.path, exposure, arms);
-            self.record_provider_boundary_pair_shadow(legacy_visible, permission_result);
-            debug_assert_eq!(
-                permission_visible,
-                legacy_visible,
-                "permission direct-tail visibility diverged from legacy hygiene for {}",
-                call.path.join("::")
-            );
+            if self.should_verify_permission_visibility() {
+                let exposure = EvidenceGuardBoundaryExposure::from_hygiene(&call.hygiene);
+                let legacy_visible =
+                    self.visible_operation_resumptive_parts(&call.path, exposure, arms);
+                self.record_provider_boundary_pair_shadow(legacy_visible, permission_result);
+                debug_assert_eq!(
+                    permission_visible,
+                    legacy_visible,
+                    "permission direct-tail visibility diverged from legacy hygiene for {}",
+                    call.path.join("::")
+                );
+            } else {
+                self.record_provider_boundary_pair_fast_path(permission_result);
+            }
             return permission_visible;
         }
 
@@ -6810,6 +6818,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             visible,
         );
         visible
+    }
+
+    fn should_verify_permission_visibility(&self) -> bool {
+        cfg!(debug_assertions)
     }
 
     fn record_permission_visibility_shadow(
@@ -6949,6 +6961,24 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.stats.permission_shadow_provider_boundary_pair_match += 1;
         } else {
             self.stats.permission_shadow_provider_boundary_pair_mismatch += 1;
+        }
+    }
+
+    fn record_provider_boundary_pair_fast_path(
+        &mut self,
+        permission_result: EvidencePermissionVisibleResult,
+    ) {
+        self.stats.permission_provider_boundary_pair_fast_paths += 1;
+        if permission_result.visible().is_some() {
+            self.stats
+                .permission_provider_boundary_pair_fast_path_visible += 1;
+        } else {
+            self.stats
+                .permission_provider_boundary_pair_fast_path_invisible += 1;
+        }
+        if permission_result.no_allowed_handler() {
+            self.stats
+                .permission_provider_boundary_pair_fast_path_no_allowed_handler += 1;
         }
     }
 
@@ -9171,6 +9201,90 @@ mod tests {
     }
 
     #[test]
+    fn provider_pair_permission_decision_preserves_no_allowed_handler() {
+        let program = Program::default();
+        let runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let request_path = permission_test_path();
+        let visibility = RuntimeEvidenceOperationVisibility::provider_grant(7);
+        let hygiene = permission_pair_hygiene(visibility, EvidenceGuardId(4));
+        let arms = vec![permission_test_arm(true)];
+
+        let decision = runner.provider_guard_boundary_permission_decision(
+            ExprId(99),
+            &request_path,
+            &hygiene,
+            &arms,
+        );
+
+        assert_eq!(
+            decision,
+            EvidencePermissionVisibleDecision::Handled(
+                EvidencePermissionVisibleResult::NoAllowedHandler
+            )
+        );
+        let EvidencePermissionVisibleDecision::Handled(result) = decision else {
+            panic!("provider pair must be handled, not treated as not applicable");
+        };
+        assert_eq!(result.visible(), None);
+        assert!(result.no_allowed_handler());
+    }
+
+    #[test]
+    fn non_provider_pair_permission_decision_is_not_applicable() {
+        let program = Program::default();
+        let runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let request_path = permission_test_path();
+        let arms = vec![permission_test_arm(true)];
+
+        let plan_visibility = RuntimeEvidenceOperationVisibility::plan_allowed_set(
+            crate::EvidenceVmAllowedSetId(0),
+            Some(7),
+            false,
+        );
+        let plan_pair = permission_pair_hygiene(plan_visibility, EvidenceGuardId(4));
+        assert_eq!(
+            runner.provider_guard_boundary_permission_decision(
+                ExprId(99),
+                &request_path,
+                &plan_pair,
+                &arms
+            ),
+            EvidencePermissionVisibleDecision::NotApplicable
+        );
+
+        let provider_visibility = RuntimeEvidenceOperationVisibility::provider_grant(7);
+        let mut provider_guard_only =
+            EvidenceSignalHygiene::new().with_operation_visibility(Some(provider_visibility));
+        assert!(provider_guard_only.push_guard_id(EvidenceGuardId(5)));
+        assert_eq!(
+            runner.provider_guard_boundary_permission_decision(
+                ExprId(99),
+                &request_path,
+                &provider_guard_only,
+                &arms
+            ),
+            EvidencePermissionVisibleDecision::NotApplicable
+        );
+
+        let mut provider_boundary_only =
+            EvidenceSignalHygiene::new().with_operation_visibility(Some(provider_visibility));
+        provider_boundary_only.set_handler_boundary(EvidenceHandlerBoundary {
+            id: EvidenceGuardId(6),
+            path: permission_test_path(),
+            blocked: false,
+        });
+        assert_eq!(
+            runner.provider_guard_boundary_permission_decision(
+                ExprId(99),
+                &request_path,
+                &provider_boundary_only,
+                &arms
+            ),
+            EvidencePermissionVisibleDecision::NotApplicable
+        );
+    }
+
+    #[test]
     fn provider_env_frame_is_shadowed_by_later_marker_scope() {
         let provider_env = provider_env_fixture();
         let program = Program::default();
@@ -9225,6 +9339,34 @@ mod tests {
 
         assert!(!runner.provider_grant_gate_passes(EvidenceRouteCert::ProviderGrant(grant_id)));
         assert!(!runner.route_allows_routed_yield(false, evidence));
+    }
+
+    fn permission_pair_hygiene(
+        visibility: RuntimeEvidenceOperationVisibility,
+        guard_id: EvidenceGuardId,
+    ) -> EvidenceSignalHygiene {
+        let mut hygiene = EvidenceSignalHygiene::new().with_operation_visibility(Some(visibility));
+        assert!(hygiene.push_guard_id(guard_id));
+        hygiene.set_handler_boundary(EvidenceHandlerBoundary {
+            id: guard_id,
+            path: permission_test_path(),
+            blocked: false,
+        });
+        hygiene
+    }
+
+    fn permission_test_arm(resumptive: bool) -> control_vm::CatchArm {
+        control_vm::CatchArm {
+            operation_path: Some(permission_test_path()),
+            pat: Pat::Wild,
+            continuation: resumptive.then_some(Pat::Wild),
+            guard: None,
+            body: ExprId(1),
+        }
+    }
+
+    fn permission_test_path() -> Vec<String> {
+        vec!["flip".to_string(), "coin".to_string()]
     }
 
     fn provider_env_fixture() -> RuntimeEvidenceProviderEnv {

@@ -2489,6 +2489,30 @@ fn run_runtime_evidence_run(
             .permission_shadow_provider_boundary_pair_no_allowed_handler
     );
     println!(
+        "  runtime_evidence.permission_provider_boundary_pair_fast_paths: {}",
+        output
+            .evidence_stats
+            .permission_provider_boundary_pair_fast_paths
+    );
+    println!(
+        "  runtime_evidence.permission_provider_boundary_pair_fast_path_visible: {}",
+        output
+            .evidence_stats
+            .permission_provider_boundary_pair_fast_path_visible
+    );
+    println!(
+        "  runtime_evidence.permission_provider_boundary_pair_fast_path_invisible: {}",
+        output
+            .evidence_stats
+            .permission_provider_boundary_pair_fast_path_invisible
+    );
+    println!(
+        "  runtime_evidence.permission_provider_boundary_pair_fast_path_no_allowed_handler: {}",
+        output
+            .evidence_stats
+            .permission_provider_boundary_pair_fast_path_no_allowed_handler
+    );
+    println!(
         "  control_evidence.effect_calls: {}",
         output.evidence_stats.effect_calls
     );
