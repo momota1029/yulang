@@ -2453,6 +2453,42 @@ fn run_runtime_evidence_run(
             .permission_visibility_boundary_without_guard
     );
     println!(
+        "  runtime_evidence.permission_shadow_provider_boundary_pair: {}",
+        output
+            .evidence_stats
+            .permission_shadow_provider_boundary_pair
+    );
+    println!(
+        "  runtime_evidence.permission_shadow_provider_boundary_pair_legacy_visible: {}",
+        output
+            .evidence_stats
+            .permission_shadow_provider_boundary_pair_legacy_visible
+    );
+    println!(
+        "  runtime_evidence.permission_shadow_provider_boundary_pair_permission_visible: {}",
+        output
+            .evidence_stats
+            .permission_shadow_provider_boundary_pair_permission_visible
+    );
+    println!(
+        "  runtime_evidence.permission_shadow_provider_boundary_pair_match: {}",
+        output
+            .evidence_stats
+            .permission_shadow_provider_boundary_pair_match
+    );
+    println!(
+        "  runtime_evidence.permission_shadow_provider_boundary_pair_mismatch: {}",
+        output
+            .evidence_stats
+            .permission_shadow_provider_boundary_pair_mismatch
+    );
+    println!(
+        "  runtime_evidence.permission_shadow_provider_boundary_pair_no_allowed_handler: {}",
+        output
+            .evidence_stats
+            .permission_shadow_provider_boundary_pair_no_allowed_handler
+    );
+    println!(
         "  control_evidence.effect_calls: {}",
         output.evidence_stats.effect_calls
     );

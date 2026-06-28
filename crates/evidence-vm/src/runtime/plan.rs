@@ -168,7 +168,6 @@ impl RuntimeEvidenceRunContext {
         self.catch_has_allowed_handler_id(catch_expr, request_path, allowed_handler_id)
     }
 
-    #[cfg(debug_assertions)]
     pub(super) fn catch_has_provider_grant_permission(
         &self,
         catch_expr: ExprId,
@@ -178,7 +177,6 @@ impl RuntimeEvidenceRunContext {
         self.catch_has_allowed_handler_id(catch_expr, request_path, permission.handler_id())
     }
 
-    #[cfg(debug_assertions)]
     fn catch_has_allowed_handler_id(
         &self,
         catch_expr: ExprId,
@@ -323,7 +321,6 @@ impl RuntimeEvidenceOperationVisibility {
         }
     }
 
-    #[cfg(debug_assertions)]
     pub(super) fn provider_grant_permission(
         self,
     ) -> Option<RuntimeEvidenceProviderGrantPermission> {
@@ -340,7 +337,6 @@ pub(super) struct RuntimeEvidenceProviderGrantPermission {
 }
 
 impl RuntimeEvidenceProviderGrantPermission {
-    #[cfg(debug_assertions)]
     pub(super) fn handler_id(self) -> u32 {
         self.handler_id
     }

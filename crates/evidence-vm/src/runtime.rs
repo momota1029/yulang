@@ -20,7 +20,6 @@ mod plan;
 mod text;
 use crate::{EvidenceVmOperationExecutionPlan, EvidenceVmPlan};
 use format::{format_float, format_value, format_values_with_labels};
-#[cfg(debug_assertions)]
 use plan::RuntimeEvidenceProviderGrantPermission;
 use plan::{
     RuntimeEvidenceOperationVisibility, RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext,
@@ -94,6 +93,12 @@ pub struct RuntimeEvidenceRunStats {
     pub permission_visibility_guard_and_boundary_mask: usize,
     pub permission_visibility_guard_without_boundary: usize,
     pub permission_visibility_boundary_without_guard: usize,
+    pub permission_shadow_provider_boundary_pair: usize,
+    pub permission_shadow_provider_boundary_pair_legacy_visible: usize,
+    pub permission_shadow_provider_boundary_pair_permission_visible: usize,
+    pub permission_shadow_provider_boundary_pair_match: usize,
+    pub permission_shadow_provider_boundary_pair_mismatch: usize,
+    pub permission_shadow_provider_boundary_pair_no_allowed_handler: usize,
     pub expr_evals: usize,
     pub env_clones: usize,
     pub env_entries_cloned: usize,
@@ -999,7 +1004,6 @@ impl EvidenceSignalHygiene {
         self.carried_guards.push(guard);
     }
 
-    #[cfg(debug_assertions)]
     fn permission_shadow_kind(&self) -> Option<EvidencePermissionShadowKind> {
         self.permission_visibility.shadow_kind()
     }
@@ -1033,7 +1037,6 @@ impl EvidenceSignalPermissionVisibility {
         self.transform.handler_boundary_mask = true;
     }
 
-    #[cfg(debug_assertions)]
     fn shadow_kind(&self) -> Option<EvidencePermissionShadowKind> {
         let visibility = self.base?;
         if visibility.legacy_guard_bridge() {
@@ -1053,11 +1056,29 @@ impl EvidenceSignalPermissionVisibility {
     }
 }
 
-#[cfg(debug_assertions)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidencePermissionShadowKind {
     Direct,
     ProviderGrantBoundaryPair(RuntimeEvidenceProviderGrantPermission),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidencePermissionVisibleResult {
+    NoAllowedHandler,
+    Visible(Option<bool>),
+}
+
+impl EvidencePermissionVisibleResult {
+    fn visible(self) -> Option<bool> {
+        match self {
+            Self::NoAllowedHandler => None,
+            Self::Visible(visible) => visible,
+        }
+    }
+
+    fn no_allowed_handler(self) -> bool {
+        matches!(self, Self::NoAllowedHandler)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -6706,7 +6727,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let exposure = EvidenceGuardBoundaryExposure::from_hygiene(&request.hygiene);
         self.record_permission_visibility_stats(&request.hygiene);
         let visible = self.visible_operation_resumptive_parts(&request.path, exposure, arms);
-        self.debug_assert_permission_visibility_matches(
+        self.record_permission_visibility_shadow(
             catch_expr,
             &request.path,
             &request.hygiene,
@@ -6753,7 +6774,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let exposure = EvidenceGuardBoundaryExposure::from_hygiene(&call.hygiene);
         self.record_permission_visibility_stats(&call.hygiene);
         let visible = self.visible_operation_resumptive_parts(&call.path, exposure, arms);
-        self.debug_assert_permission_visibility_matches(
+        self.record_permission_visibility_shadow(
             catch_expr,
             &call.path,
             &call.hygiene,
@@ -6763,9 +6784,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         visible
     }
 
-    #[cfg(debug_assertions)]
-    fn debug_assert_permission_visibility_matches(
-        &self,
+    fn record_permission_visibility_shadow(
+        &mut self,
         catch_expr: ExprId,
         request_path: &[String],
         hygiene: &EvidenceSignalHygiene,
@@ -6775,42 +6795,45 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let Some(shadow_kind) = hygiene.permission_shadow_kind() else {
             return;
         };
-        let Some(visibility) = hygiene.operation_visibility() else {
-            return;
-        };
-        let permission_visible = match shadow_kind {
-            EvidencePermissionShadowKind::Direct => self.permission_visible_operation_resumptive(
-                catch_expr,
-                request_path,
-                visibility,
-                arms,
-            ),
-            EvidencePermissionShadowKind::ProviderGrantBoundaryPair(permission) => self
-                .permission_visible_guard_boundary_pair_bridge(
+        match shadow_kind {
+            EvidencePermissionShadowKind::Direct => {
+                #[cfg(debug_assertions)]
+                {
+                    let Some(visibility) = hygiene.operation_visibility() else {
+                        return;
+                    };
+                    let permission_visible = self.permission_visible_operation_resumptive(
+                        catch_expr,
+                        request_path,
+                        visibility,
+                        arms,
+                    );
+                    debug_assert_eq!(
+                        permission_visible,
+                        legacy_visible,
+                        "permission visibility ({shadow_kind:?}) diverged from legacy hygiene for {}",
+                        request_path.join("::")
+                    );
+                }
+            }
+            EvidencePermissionShadowKind::ProviderGrantBoundaryPair(permission) => {
+                let permission_result = self.permission_visible_guard_boundary_pair_bridge(
                     catch_expr,
                     request_path,
                     hygiene,
                     permission,
                     arms,
-                ),
-        };
-        debug_assert_eq!(
-            permission_visible,
-            legacy_visible,
-            "permission visibility ({shadow_kind:?}) diverged from legacy hygiene for {}",
-            request_path.join("::")
-        );
-    }
-
-    #[cfg(not(debug_assertions))]
-    fn debug_assert_permission_visibility_matches(
-        &self,
-        _catch_expr: ExprId,
-        _request_path: &[String],
-        _hygiene: &EvidenceSignalHygiene,
-        _arms: &[control_vm::CatchArm],
-        _legacy_visible: Option<bool>,
-    ) {
+                );
+                let permission_visible = permission_result.visible();
+                self.record_provider_boundary_pair_shadow(legacy_visible, permission_result);
+                debug_assert_eq!(
+                    permission_visible,
+                    legacy_visible,
+                    "permission visibility ({shadow_kind:?}) diverged from legacy hygiene for {}",
+                    request_path.join("::")
+                );
+            }
+        }
     }
 
     #[cfg(debug_assertions)]
@@ -6830,7 +6853,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             .then_some(arm_resumptive)
     }
 
-    #[cfg(debug_assertions)]
     fn permission_visible_guard_boundary_pair_bridge(
         &self,
         catch_expr: ExprId,
@@ -6838,15 +6860,45 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         hygiene: &EvidenceSignalHygiene,
         permission: RuntimeEvidenceProviderGrantPermission,
         arms: &[control_vm::CatchArm],
-    ) -> Option<bool> {
+    ) -> EvidencePermissionVisibleResult {
         if !self
             .context
             .catch_has_provider_grant_permission(catch_expr, request_path, permission)
         {
-            return None;
+            return EvidencePermissionVisibleResult::NoAllowedHandler;
         }
         let exposure = EvidenceGuardBoundaryExposure::from_hygiene(hygiene);
-        self.visible_operation_resumptive_parts(request_path, exposure, arms)
+        EvidencePermissionVisibleResult::Visible(self.visible_operation_resumptive_parts(
+            request_path,
+            exposure,
+            arms,
+        ))
+    }
+
+    fn record_provider_boundary_pair_shadow(
+        &mut self,
+        legacy_visible: Option<bool>,
+        permission_result: EvidencePermissionVisibleResult,
+    ) {
+        self.stats.permission_shadow_provider_boundary_pair += 1;
+        if legacy_visible.is_some() {
+            self.stats
+                .permission_shadow_provider_boundary_pair_legacy_visible += 1;
+        }
+        let permission_visible = permission_result.visible();
+        if permission_visible.is_some() {
+            self.stats
+                .permission_shadow_provider_boundary_pair_permission_visible += 1;
+        }
+        if permission_result.no_allowed_handler() {
+            self.stats
+                .permission_shadow_provider_boundary_pair_no_allowed_handler += 1;
+        }
+        if legacy_visible == permission_visible {
+            self.stats.permission_shadow_provider_boundary_pair_match += 1;
+        } else {
+            self.stats.permission_shadow_provider_boundary_pair_mismatch += 1;
+        }
     }
 
     fn record_permission_visibility_stats(&mut self, hygiene: &EvidenceSignalHygiene) {
