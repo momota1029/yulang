@@ -128,6 +128,7 @@ pub struct RuntimeEvidenceRunStats {
     pub marker_frame_adapter_entries: usize,
     pub marker_frame_continuation_resume_entries: usize,
     pub marker_frame_marked_force_entries: usize,
+    pub marked_force_value_fast_paths: usize,
     pub active_marker_plan_pushes: usize,
     pub active_marker_plan_dedupes: usize,
     pub active_add_id_scans: usize,
@@ -5964,13 +5965,23 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     )
                 }
             },
-            RuntimeEvidenceValue::Marked { value, markers } => self.with_marker_frame(
-                EvidenceMarkerFrameSource::MarkedForce,
-                markers.clone(),
-                true,
-                None,
-                |runner| runner.force_thunk_result(value.clone()),
-            ),
+            RuntimeEvidenceValue::Marked { value, markers } => {
+                if let Some((value, markers)) =
+                    marked_force_value_thunk(value.as_ref(), markers.clone())
+                {
+                    self.stats.marked_force_value_fast_paths += 1;
+                    return Ok(EvidenceEvalResult::Value(mark_runtime_value_shared(
+                        value, markers,
+                    )));
+                }
+                self.with_marker_frame(
+                    EvidenceMarkerFrameSource::MarkedForce,
+                    markers.clone(),
+                    true,
+                    None,
+                    |runner| runner.force_thunk_result(value.clone()),
+                )
+            }
             value => Err(RuntimeEvidenceRunError::NotThunk(format_value(value))),
         }
     }
@@ -7970,6 +7981,26 @@ fn runtime_value_is_thunk_like(value: &RuntimeEvidenceValue) -> bool {
         RuntimeEvidenceValue::Thunk(_) => true,
         RuntimeEvidenceValue::Marked { value, .. } => runtime_value_is_thunk_like(value),
         _ => false,
+    }
+}
+
+fn marked_force_value_thunk(
+    value: &RuntimeEvidenceValue,
+    markers: Rc<[EvidenceValueMarker]>,
+) -> Option<(SharedValue, Rc<[EvidenceValueMarker]>)> {
+    match value {
+        RuntimeEvidenceValue::Thunk(thunk) => match thunk.as_ref() {
+            RuntimeEvidenceThunk::Value(value) => Some((value.clone(), markers)),
+            _ => None,
+        },
+        RuntimeEvidenceValue::Marked {
+            value,
+            markers: nested,
+        } => marked_force_value_thunk(
+            value.as_ref(),
+            share_marker_vec(combined_markers(&markers, nested)),
+        ),
+        _ => None,
     }
 }
 

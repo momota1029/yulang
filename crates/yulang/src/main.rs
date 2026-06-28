@@ -2617,6 +2617,10 @@ fn run_runtime_evidence_run(
         output.evidence_stats.marker_frame_marked_force_entries
     );
     println!(
+        "  runtime_evidence.marked_force_value_fast_paths: {}",
+        output.evidence_stats.marked_force_value_fast_paths
+    );
+    println!(
         "  runtime_evidence.active_marker_plan_pushes: {}",
         output.evidence_stats.active_marker_plan_pushes
     );
