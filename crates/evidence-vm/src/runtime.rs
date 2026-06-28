@@ -1060,6 +1060,23 @@ enum EvidencePermissionShadowKind {
     ProviderGrantBoundaryPair(RuntimeEvidenceProviderGrantPermission),
 }
 
+#[derive(Debug, Clone, Copy)]
+struct EvidenceGuardBoundaryExposure<'a> {
+    handler_boundary: Option<&'a EvidenceHandlerBoundary>,
+    guard_ids: &'a [EvidenceGuardId],
+    carried_guards: &'a [EvidenceCarriedGuard],
+}
+
+impl<'a> EvidenceGuardBoundaryExposure<'a> {
+    fn from_hygiene(hygiene: &'a EvidenceSignalHygiene) -> Self {
+        Self {
+            handler_boundary: hygiene.handler_boundary.as_ref(),
+            guard_ids: &hygiene.guard_ids,
+            carried_guards: &hygiene.carried_guards,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 struct EvidenceSignalPermissionTransform {
     guard_mask: bool,
@@ -6686,14 +6703,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         request: &EvidenceRequest,
         arms: &[control_vm::CatchArm],
     ) -> Option<bool> {
+        let exposure = EvidenceGuardBoundaryExposure::from_hygiene(&request.hygiene);
         self.record_permission_visibility_stats(&request.hygiene);
-        let visible = self.visible_operation_resumptive_parts(
-            &request.path,
-            request.hygiene.handler_boundary.as_ref(),
-            &request.hygiene.guard_ids,
-            &request.hygiene.carried_guards,
-            arms,
-        );
+        let visible = self.visible_operation_resumptive_parts(&request.path, exposure, arms);
         self.debug_assert_permission_visibility_matches(
             catch_expr,
             &request.path,
@@ -6707,9 +6719,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn visible_operation_resumptive_parts(
         &self,
         request_path: &[String],
-        handler_boundary: Option<&EvidenceHandlerBoundary>,
-        guard_ids: &[EvidenceGuardId],
-        carried_guards: &[EvidenceCarriedGuard],
+        exposure: EvidenceGuardBoundaryExposure<'_>,
         arms: &[control_vm::CatchArm],
     ) -> Option<bool> {
         arms.iter().find_map(|arm| {
@@ -6717,14 +6727,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             if operation_path.as_slice() != request_path {
                 return None;
             }
-            let skipped_guard = match handler_boundary {
+            let skipped_guard = match exposure.handler_boundary {
                 Some(boundary) if path_is_prefix(&boundary.path, request_path) => boundary
                     .blocked
                     .then_some(EvidenceGuardSkip::Preserve(boundary.id)),
                 Some(boundary) => Some(EvidenceGuardSkip::Preserve(boundary.id)),
-                None => {
-                    self.request_guard_for_path_parts(guard_ids, carried_guards, operation_path)
-                }
+                None => self.request_guard_for_path_parts(
+                    exposure.guard_ids,
+                    exposure.carried_guards,
+                    operation_path,
+                ),
             };
             skipped_guard
                 .is_none()
@@ -6738,14 +6750,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         call: &EvidenceDirectTailResumptive,
         arms: &[control_vm::CatchArm],
     ) -> Option<bool> {
+        let exposure = EvidenceGuardBoundaryExposure::from_hygiene(&call.hygiene);
         self.record_permission_visibility_stats(&call.hygiene);
-        let visible = self.visible_operation_resumptive_parts(
-            &call.path,
-            call.hygiene.handler_boundary.as_ref(),
-            &call.hygiene.guard_ids,
-            &call.hygiene.carried_guards,
-            arms,
-        );
+        let visible = self.visible_operation_resumptive_parts(&call.path, exposure, arms);
         self.debug_assert_permission_visibility_matches(
             catch_expr,
             &call.path,
@@ -6838,13 +6845,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         {
             return None;
         }
-        self.visible_operation_resumptive_parts(
-            request_path,
-            hygiene.handler_boundary.as_ref(),
-            &hygiene.guard_ids,
-            &hygiene.carried_guards,
-            arms,
-        )
+        let exposure = EvidenceGuardBoundaryExposure::from_hygiene(hygiene);
+        self.visible_operation_resumptive_parts(request_path, exposure, arms)
     }
 
     fn record_permission_visibility_stats(&mut self, hygiene: &EvidenceSignalHygiene) {
