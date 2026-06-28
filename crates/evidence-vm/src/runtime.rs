@@ -558,6 +558,21 @@ struct EvidenceProviderGrant {
     hygiene_baseline: EvidenceProviderHygieneBaseline,
 }
 
+impl EvidenceProviderGrant {
+    fn gate(&self) -> EvidenceProviderGrantGate {
+        EvidenceProviderGrantGate {
+            scope_id: self.scope_id,
+            hygiene_baseline: self.hygiene_baseline,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderGrantGate {
+    scope_id: EvidenceProviderScopeId,
+    hygiene_baseline: EvidenceProviderHygieneBaseline,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct EffectThunkEvidence {
     route_cert: EvidenceRouteCert,
@@ -745,6 +760,21 @@ impl RuntimeEvidenceProviderFrame {
         self.hygiene_baseline.marker_plan_len == marker_plan_len
             && self.hygiene_baseline.active_add_id_len == active_add_id_len
             && self.hygiene_baseline.active_handler_frame_len == active_handler_frame_len
+    }
+
+    fn matches_gate(&self, gate: EvidenceProviderGrantGate) -> bool {
+        self.scope_id == gate.scope_id && self.hygiene_baseline == gate.hygiene_baseline
+    }
+
+    fn gate_is_unshadowed(
+        &self,
+        gate: EvidenceProviderGrantGate,
+        marker_plan_len: usize,
+        active_add_id_len: usize,
+        active_handler_frame_len: usize,
+    ) -> bool {
+        self.matches_gate(gate)
+            && self.is_unshadowed(marker_plan_len, active_add_id_len, active_handler_frame_len)
     }
 }
 
@@ -2343,14 +2373,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let Some(grant) = self.provider_grants.get(id.0 as usize) else {
             return false;
         };
+        let gate = grant.gate();
         self.active_provider_envs.iter().any(|frame| {
-            frame.scope_id == grant.scope_id
-                && frame.hygiene_baseline == grant.hygiene_baseline
-                && frame.is_unshadowed(
-                    self.active_marker_plans.len(),
-                    self.active_add_ids.len(),
-                    self.active_handler_frames.len(),
-                )
+            frame.gate_is_unshadowed(
+                gate,
+                self.active_marker_plans.len(),
+                self.active_add_ids.len(),
+                self.active_handler_frames.len(),
+            )
         })
     }
 
@@ -2385,15 +2415,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let Some(grant) = self.provider_grants.get(id.0 as usize) else {
             return Some(ProviderGrantPathGateFail::MissingGrant);
         };
-        if !self.active_provider_envs.iter().any(|frame| {
-            frame.scope_id == grant.scope_id && frame.hygiene_baseline == grant.hygiene_baseline
-        }) {
+        let gate = grant.gate();
+        if !self
+            .active_provider_envs
+            .iter()
+            .any(|frame| frame.matches_gate(gate))
+        {
             return Some(ProviderGrantPathGateFail::ScopeMissing);
         }
-        if self.provider_grant_handler_shadowed(grant.hygiene_baseline, path) {
+        if self.provider_grant_handler_shadowed(gate, path) {
             return Some(ProviderGrantPathGateFail::HandlerShadowed);
         }
-        if let Some(kind) = self.provider_grant_add_id_shadow_kind(grant.hygiene_baseline, path) {
+        if let Some(kind) = self.provider_grant_add_id_shadow_kind(gate, path) {
             return Some(ProviderGrantPathGateFail::AddIdShadowed(kind));
         }
         None
@@ -2401,20 +2434,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn provider_grant_add_id_shadow_kind(
         &self,
-        baseline: EvidenceProviderHygieneBaseline,
+        gate: EvidenceProviderGrantGate,
         path: &[String],
     ) -> Option<ActiveAddIdMatchKind> {
-        self.active_add_ids[baseline.active_add_id_len..]
+        self.active_add_ids[gate.hygiene_baseline.active_add_id_len..]
             .iter()
             .find_map(|marker| active_add_id_match_kind(&marker.marker, path))
     }
 
     fn provider_grant_handler_shadowed(
         &self,
-        baseline: EvidenceProviderHygieneBaseline,
+        gate: EvidenceProviderGrantGate,
         path: &[String],
     ) -> bool {
-        self.active_handler_frames[baseline.active_handler_frame_len..]
+        self.active_handler_frames[gate.hygiene_baseline.active_handler_frame_len..]
             .iter()
             .any(|frame| path_is_prefix(&frame.path, path))
     }
