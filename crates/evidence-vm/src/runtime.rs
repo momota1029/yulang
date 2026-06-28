@@ -643,6 +643,38 @@ enum EvidenceMarkerFrameSource {
     MarkedForce,
 }
 
+// Function-call markers are not an implementation detail of apply/force.
+// They are the hygiene boundary that must be closed on every result shape.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EvidenceCallBoundary {
+    source: EvidenceMarkerFrameSource,
+    markers: Rc<[EvidenceValueMarker]>,
+    activate_add_ids: bool,
+    handler_path: Option<Vec<String>>,
+}
+
+impl EvidenceCallBoundary {
+    fn new(
+        source: EvidenceMarkerFrameSource,
+        markers: Rc<[EvidenceValueMarker]>,
+        activate_add_ids: bool,
+        handler_path: Option<Vec<String>>,
+    ) -> Self {
+        Self {
+            source,
+            markers,
+            activate_add_ids,
+            handler_path,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceCallBoundaryBypassCert {
+    NoActiveMarkerPlan,
+    NoFunctionCallMarkers,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidenceContinuationAppendSource {
     Request,
@@ -2555,6 +2587,45 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         value_markers
     }
 
+    fn active_function_call_boundary(
+        &mut self,
+        source: EvidenceMarkerFrameSource,
+    ) -> Result<EvidenceCallBoundary, EvidenceCallBoundaryBypassCert> {
+        let Some(active_plan) = self.active_marker_plans.last() else {
+            return Err(EvidenceCallBoundaryBypassCert::NoActiveMarkerPlan);
+        };
+        self.stats.function_call_marker_plans += 1;
+        self.stats.function_call_marker_inputs += active_plan.markers.len();
+        let markers = active_plan.function_call_markers();
+        self.stats.function_call_marker_outputs += markers.len();
+        if markers.is_empty() {
+            return Err(EvidenceCallBoundaryBypassCert::NoFunctionCallMarkers);
+        }
+        Ok(EvidenceCallBoundary::new(source, markers, true, None))
+    }
+
+    fn with_call_boundary(
+        &mut self,
+        boundary: EvidenceCallBoundary,
+        run: impl FnOnce(&mut Self) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError>,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.with_marker_frame(
+            boundary.source,
+            boundary.markers,
+            boundary.activate_add_ids,
+            boundary.handler_path,
+            run,
+        )
+    }
+
+    fn close_call_boundary_without_frame(
+        &mut self,
+        result: EvidenceEvalResult,
+        boundary: &EvidenceCallBoundary,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.close_marked_result(result, boundary.markers.as_ref())
+    }
+
     fn with_marker_frame(
         &mut self,
         source: EvidenceMarkerFrameSource,
@@ -3759,34 +3830,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         route: EvidenceEffectRoute,
         evidence: EffectThunkEvidence,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        let Some(active_plan) = self.active_marker_plans.last() else {
-            return self.force_effect_call_payload_result(
+        let boundary = self.active_function_call_boundary(EvidenceMarkerFrameSource::MarkedForce);
+        match boundary {
+            Err(
+                EvidenceCallBoundaryBypassCert::NoActiveMarkerPlan
+                | EvidenceCallBoundaryBypassCert::NoFunctionCallMarkers,
+            ) => self.force_effect_call_payload_result(
                 target_value_is_thunk,
                 path,
                 arg,
                 route,
                 evidence,
-            );
-        };
-        self.stats.function_call_marker_plans += 1;
-        self.stats.function_call_marker_inputs += active_plan.markers.len();
-        let markers = active_plan.function_call_markers();
-        self.stats.function_call_marker_outputs += markers.len();
-        if markers.is_empty() {
-            return self.force_effect_call_payload_result(
-                target_value_is_thunk,
-                path,
-                arg,
-                route,
-                evidence,
-            );
-        }
-        self.with_marker_frame(
-            EvidenceMarkerFrameSource::MarkedForce,
-            markers,
-            true,
-            None,
-            |runner| {
+            ),
+            Ok(boundary) => self.with_call_boundary(boundary, |runner| {
                 runner.force_effect_call_payload_result(
                     target_value_is_thunk,
                     path,
@@ -3794,8 +3850,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     route,
                     evidence,
                 )
-            },
-        )
+            }),
+        }
     }
 
     fn force_effect_call_payload_result(
@@ -4380,32 +4436,26 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         callee: SharedValue,
         arg: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        let Some(active_plan) = self.active_marker_plans.last() else {
-            return self.apply_value_result(site, callee, arg);
-        };
-        self.stats.function_call_marker_plans += 1;
-        self.stats.function_call_marker_inputs += active_plan.markers.len();
-        let markers = active_plan.function_call_markers();
-        self.stats.function_call_marker_outputs += markers.len();
-        if markers.is_empty() {
-            return self.apply_value_result(site, callee, arg);
-        }
-        match callee.as_ref() {
-            RuntimeEvidenceValue::Marked { .. } => {
-                let callee = mark_runtime_value_unchecked_shared(callee, markers.clone());
-                self.apply_value_result(site, callee, arg)
-            }
-            callee_value if callee_apply_closes_without_frame(callee_value) => {
-                let result = self.apply_value_result(site, callee, arg)?;
-                self.close_marked_result(result, &markers)
-            }
-            _ => self.with_marker_frame(
-                EvidenceMarkerFrameSource::ScopedApply,
-                markers,
-                true,
-                None,
-                |runner| runner.apply_value_result(site, callee, arg),
-            ),
+        let boundary = self.active_function_call_boundary(EvidenceMarkerFrameSource::ScopedApply);
+        match boundary {
+            Err(
+                EvidenceCallBoundaryBypassCert::NoActiveMarkerPlan
+                | EvidenceCallBoundaryBypassCert::NoFunctionCallMarkers,
+            ) => self.apply_value_result(site, callee, arg),
+            Ok(boundary) => match callee.as_ref() {
+                RuntimeEvidenceValue::Marked { .. } => {
+                    let callee =
+                        mark_runtime_value_unchecked_shared(callee, boundary.markers.clone());
+                    self.apply_value_result(site, callee, arg)
+                }
+                callee_value if callee_apply_closes_without_frame(callee_value) => {
+                    let result = self.apply_value_result(site, callee, arg)?;
+                    self.close_call_boundary_without_frame(result, &boundary)
+                }
+                _ => self.with_call_boundary(boundary, |runner| {
+                    runner.apply_value_result(site, callee, arg)
+                }),
+            },
         }
     }
 
