@@ -200,7 +200,7 @@ enum RuntimeEvidenceValue {
     },
     EffectOp {
         expr: ExprId,
-        path: Vec<String>,
+        path: Rc<[String]>,
     },
     Continuation(EvidenceContinuation),
     Thunk(Rc<RuntimeEvidenceThunk>),
@@ -309,7 +309,7 @@ enum RuntimeEvidenceThunk {
         provider_env: RuntimeEvidenceProviderEnv,
     },
     Effect {
-        path: Vec<String>,
+        path: Rc<[String]>,
         payload: SharedValue,
         route: EvidenceEffectRoute,
         evidence: EffectThunkEvidence,
@@ -895,7 +895,7 @@ enum EvidenceGuardSkip {
 
 #[derive(Debug, Clone, PartialEq)]
 struct EvidenceRequest {
-    path: Vec<String>,
+    path: Rc<[String]>,
     payload: SharedValue,
     route: EvidenceEffectRoute,
     guard_ids: Vec<EvidenceGuardId>,
@@ -921,14 +921,14 @@ impl EvidenceEffectSignal {
 #[derive(Debug, Clone, PartialEq)]
 struct EvidenceDirectAbortive {
     handler: ExprId,
-    path: Vec<String>,
+    path: Rc<[String]>,
     payload: SharedValue,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 struct EvidenceDirectTailResumptive {
     handler: ExprId,
-    path: Vec<String>,
+    path: Rc<[String]>,
     payload: SharedValue,
     guard_ids: Vec<EvidenceGuardId>,
     carried_guards: Vec<EvidenceCarriedGuard>,
@@ -1811,7 +1811,7 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
             Expr::EffectOp { path } => {
                 RuntimeEvidenceExpr::Value(shared(RuntimeEvidenceValue::EffectOp {
                     expr: ExprId(index as u32),
-                    path: path.clone(),
+                    path: shared_path(path),
                 }))
             }
             Expr::PrimitiveOp { op, context } if op.arity() > 0 => {
@@ -1859,7 +1859,7 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
                         target_value_is_thunk,
                         site,
                         effect,
-                        path: Rc::from(path.to_vec().into_boxed_slice()),
+                        path: shared_path(path),
                         arg,
                     }
                 } else {
@@ -2433,7 +2433,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn direct_tail_resumptive(
         &self,
         handler: ExprId,
-        path: Vec<String>,
+        path: Rc<[String]>,
         payload: SharedValue,
     ) -> EvidenceDirectTailResumptive {
         EvidenceDirectTailResumptive {
@@ -2450,7 +2450,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn guarded_direct_tail_resumptive(
         &mut self,
         handler: ExprId,
-        path: Vec<String>,
+        path: Rc<[String]>,
         payload: SharedValue,
         route: EvidenceEffectRoute,
     ) -> EvidenceDirectTailResumptive {
@@ -3290,14 +3290,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     result = self.handle_escaped_request(request)?;
                 }
                 EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => {
-                    return Err(RuntimeEvidenceRunError::EscapedEffect(call.path));
+                    return Err(RuntimeEvidenceRunError::EscapedEffect(call.path.to_vec()));
                 }
                 EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call)) => {
-                    return Err(RuntimeEvidenceRunError::EscapedEffect(call.path));
+                    return Err(RuntimeEvidenceRunError::EscapedEffect(call.path.to_vec()));
                 }
                 EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
                     return Err(RuntimeEvidenceRunError::EscapedEffect(
-                        call.request().path.clone(),
+                        call.request().path.to_vec(),
                     ));
                 }
             }
@@ -3308,13 +3308,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         request: EvidenceRequest,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        if request.path == ["std", "io", "console", "out", "write"] {
+        if request.path.as_ref() == ["std", "io", "console", "out", "write"] {
             push_runtime_host_string_payload(request.payload.as_ref(), &mut self.stdout)
-                .ok_or_else(|| RuntimeEvidenceRunError::EscapedEffect(request.path.clone()))?;
+                .ok_or_else(|| RuntimeEvidenceRunError::EscapedEffect(request.path.to_vec()))?;
             return self
                 .resume_continuation(request.continuation, shared(RuntimeEvidenceValue::Unit));
         }
-        Err(RuntimeEvidenceRunError::EscapedEffect(request.path))
+        Err(RuntimeEvidenceRunError::EscapedEffect(
+            request.path.to_vec(),
+        ))
     }
 
     fn eval_expr_result(
@@ -3679,7 +3681,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             result => {
                 let callee = shared(RuntimeEvidenceValue::EffectOp {
                     expr: effect,
-                    path: path.to_vec(),
+                    path: shared_path(path),
                 });
                 self.continue_result(
                     result,
@@ -6041,6 +6043,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         route: EvidenceEffectRoute,
         evidence: EffectThunkEvidence,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let path = shared_path(path);
         if let EvidenceEffectRoute::Direct {
             handler,
             execution: EvidenceVmOperationExecutionPlan::DirectAbortive,
@@ -6050,7 +6053,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return Ok(EvidenceEvalResult::direct_abortive(
                 EvidenceDirectAbortive {
                     handler,
-                    path: path.to_vec(),
+                    path: path.clone(),
                     payload,
                 },
             ));
@@ -6062,18 +6065,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             ..
         } = route
         {
-            if let Some(fail) = self.direct_tail_gate_failure(request_free_yield, evidence, path) {
+            if let Some(fail) = self.direct_tail_gate_failure(request_free_yield, evidence, &path) {
                 if let ProviderGrantPathGateFail::AddIdShadowed(kind) = fail {
                     self.record_direct_tail_guarded_add_id(kind);
                     return Ok(EvidenceEvalResult::direct_tail_resumptive(
-                        self.guarded_direct_tail_resumptive(handler, path.to_vec(), payload, route),
+                        self.guarded_direct_tail_resumptive(handler, path.clone(), payload, route),
                     ));
                 } else {
                     self.record_direct_tail_gate_fail(fail);
                 }
             } else {
                 return Ok(EvidenceEvalResult::direct_tail_resumptive(
-                    self.direct_tail_resumptive(handler, path.to_vec(), payload),
+                    self.direct_tail_resumptive(handler, path.clone(), payload),
                 ));
             }
         }
@@ -6086,7 +6089,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             && self.route_allows_routed_yield(request_free_yield, evidence)
         {
             let mut request = EvidenceRequest {
-                path: path.to_vec(),
+                path: path.clone(),
                 payload,
                 route,
                 guard_ids: Vec::new(),
@@ -6100,7 +6103,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             ));
         }
         let mut request = EvidenceRequest {
-            path: path.to_vec(),
+            path,
             payload,
             route,
             guard_ids: Vec::new(),
@@ -6450,7 +6453,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         for arm in arms {
-            if arm.operation_path.as_ref() != Some(&request.path) {
+            if arm.operation_path.as_deref() != Some(request.path.as_ref()) {
                 continue;
             }
             let mut arm_env = self.clone_env(env);
@@ -6488,7 +6491,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         for arm in arms {
-            if arm.operation_path.as_ref() != Some(&call.path) {
+            if arm.operation_path.as_deref() != Some(call.path.as_ref()) {
                 continue;
             }
             let mut arm_env = self.clone_env(env);
@@ -6519,7 +6522,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         for arm in arms {
-            if arm.operation_path.as_ref() != Some(&call.path) {
+            if arm.operation_path.as_deref() != Some(call.path.as_ref()) {
                 continue;
             }
             let mut arm_env = self.clone_env(env);
@@ -8069,6 +8072,10 @@ fn shared_expr_ids(exprs: &[ExprId]) -> Rc<[ExprId]> {
     Rc::from(exprs.to_vec().into_boxed_slice())
 }
 
+fn shared_path(path: &[String]) -> Rc<[String]> {
+    Rc::from(path.to_vec().into_boxed_slice())
+}
+
 fn shared_record_fields(fields: &[control_vm::RecordField]) -> Rc<[control_vm::RecordField]> {
     Rc::from(fields.to_vec().into_boxed_slice())
 }
@@ -8374,7 +8381,7 @@ mod tests {
         let program = Program::default();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
         let request = EvidenceRequest {
-            path: vec!["out".to_string(), "say".to_string()],
+            path: shared_path(&["out".to_string(), "say".to_string()]),
             payload: shared(RuntimeEvidenceValue::Unit),
             route: EvidenceEffectRoute::Unhandled,
             guard_ids: Vec::new(),
