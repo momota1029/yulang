@@ -114,10 +114,7 @@ impl<T: Clone> ListTree<T> {
     pub fn black_height(&self) -> usize {
         match self {
             Self::Empty | Self::Leaf(_) => 0,
-            Self::Node(node) => {
-                let child_height = node.left.black_height();
-                child_height + usize::from(node.color == Color::Black)
-            }
+            Self::Node(node) => node.black_height,
         }
     }
 
@@ -143,9 +140,11 @@ impl<T: Clone> ListTree<T> {
     }
 
     fn node(color: Color, left: Self, right: Self) -> Self {
+        let black_height = left.black_height() + usize::from(color == Color::Black);
         Self::Node(Rc::new(ListNode {
             color,
             len: left.len() + right.len(),
+            black_height,
             left,
             right,
         }))
@@ -253,6 +252,7 @@ pub enum Color {
 pub struct ListNode<T> {
     pub color: Color,
     pub len: usize,
+    pub black_height: usize,
     pub left: ListTree<T>,
     pub right: ListTree<T>,
 }
