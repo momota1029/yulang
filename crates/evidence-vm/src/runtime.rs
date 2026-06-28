@@ -3130,11 +3130,32 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         mut call: EvidenceDirectTailResumptive,
         tail: EvidenceContinuation,
     ) -> EvidenceDirectTailResumptive {
-        if let Some(has_handler_path) = call
-            .continuation
-            .append_marker_frame_blocker_has_handler_path()
+        if !tail.is_identity()
+            && let Some(has_handler_path) = call
+                .continuation
+                .append_marker_frame_blocker_has_handler_path()
         {
             self.record_direct_tail_permission_boundary_append_candidate(&call, has_handler_path);
+            record_continuation_append(
+                &mut self.stats,
+                EvidenceContinuationAppendSource::DirectTail,
+            );
+            self.stats.continuation_append_steps += 1;
+            record_continuation_append_then(
+                &mut self.stats,
+                EvidenceContinuationAppendSource::DirectTail,
+            );
+            record_continuation_append_blocker(
+                &mut self.stats,
+                EvidenceContinuationAppendSource::DirectTail,
+                EvidenceContinuationAppendBlocker::MarkerFrame,
+            );
+            call.continuation =
+                EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+                    first: call.continuation,
+                    second: tail,
+                }));
+            return call;
         }
         record_continuation_append(
             &mut self.stats,
