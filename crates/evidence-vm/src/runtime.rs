@@ -10,8 +10,8 @@ use control_vm::{
 };
 use list_tree::{ListTree, ListView};
 use specialize::mono::{
-    FunctionAdapterHygiene, GuardMarker, Lit, PrimitiveContext, PrimitiveOp, RangeConstructors,
-    Type,
+    EffectiveThunkType, FunctionAdapterHygiene, GuardMarker, Lit, PrimitiveContext, PrimitiveOp,
+    RangeConstructors, Type,
 };
 
 mod format;
@@ -222,6 +222,7 @@ enum RuntimeEvidenceExpr {
     MakeThunk {
         body: ExprId,
         provider_expr: ExprId,
+        needs_hygiene_mark: bool,
     },
     Lambda {
         param: Rc<Pat>,
@@ -307,6 +308,7 @@ enum RuntimeEvidenceThunk {
         body: ExprId,
         env: Env,
         provider_env: RuntimeEvidenceProviderEnv,
+        needs_hygiene_mark: bool,
     },
     Effect {
         path: Rc<[String]>,
@@ -1831,9 +1833,10 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
             },
             Expr::InstanceRef(instance) => RuntimeEvidenceExpr::Instance(*instance),
             Expr::Coerce { expr, .. } => RuntimeEvidenceExpr::Alias(*expr),
-            Expr::MakeThunk { body, .. } => RuntimeEvidenceExpr::MakeThunk {
+            Expr::MakeThunk { target, body, .. } => RuntimeEvidenceExpr::MakeThunk {
                 body: *body,
                 provider_expr: ExprId(index as u32),
+                needs_hygiene_mark: effective_thunk_type_may_need_hygiene_mark(target),
             },
             Expr::Lambda { param, body } => RuntimeEvidenceExpr::Lambda {
                 param: shared_pat(param),
@@ -3370,9 +3373,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             RuntimeEvidenceExpr::MakeThunk {
                 body,
                 provider_expr,
+                needs_hygiene_mark,
             } => {
                 let body = *body;
                 let provider_expr = *provider_expr;
+                let needs_hygiene_mark = *needs_hygiene_mark;
                 let provider_env = self.provider_env_for_value(provider_expr);
                 let env = self.clone_env(env);
                 return Ok(EvidenceEvalResult::Value(shared(
@@ -3380,6 +3385,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         body,
                         env,
                         provider_env,
+                        needs_hygiene_mark,
                     })),
                 )));
             }
@@ -6175,6 +6181,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     body,
                     env,
                     provider_env,
+                    ..
                 } => {
                     self.stats.thunk_force_expr += 1;
                     let provider_env = provider_env.clone();
@@ -8332,8 +8339,8 @@ fn runtime_value_needs_hygiene_mark(value: &RuntimeEvidenceValue) -> bool {
         | RuntimeEvidenceValue::RecursiveClosure { .. }
         | RuntimeEvidenceValue::EffectOp { .. }
         | RuntimeEvidenceValue::Continuation(_)
-        | RuntimeEvidenceValue::Thunk(_)
         | RuntimeEvidenceValue::FunctionAdapter { .. } => true,
+        RuntimeEvidenceValue::Thunk(thunk) => runtime_thunk_needs_hygiene_mark(thunk),
         RuntimeEvidenceValue::Marked { value, .. } => runtime_value_needs_hygiene_mark(value),
         RuntimeEvidenceValue::ConstructorFunction { args, .. }
         | RuntimeEvidenceValue::PrimitiveOp { args, .. } => args
@@ -8351,6 +8358,18 @@ fn runtime_value_needs_hygiene_mark(value: &RuntimeEvidenceValue) -> bool {
         | RuntimeEvidenceValue::Bytes(_)
         | RuntimeEvidenceValue::Bool(_)
         | RuntimeEvidenceValue::Unit => false,
+    }
+}
+
+fn runtime_thunk_needs_hygiene_mark(thunk: &RuntimeEvidenceThunk) -> bool {
+    match thunk {
+        RuntimeEvidenceThunk::Expr {
+            needs_hygiene_mark, ..
+        } => *needs_hygiene_mark,
+        RuntimeEvidenceThunk::Effect { .. }
+        | RuntimeEvidenceThunk::Continuation { .. }
+        | RuntimeEvidenceThunk::Adapter { .. } => true,
+        RuntimeEvidenceThunk::Value(value) => runtime_value_needs_hygiene_mark(value.as_ref()),
     }
 }
 
@@ -8458,6 +8477,10 @@ fn type_may_need_hygiene_mark(ty: &Type) -> bool {
     }
 }
 
+fn effective_thunk_type_may_need_hygiene_mark(ty: &EffectiveThunkType) -> bool {
+    !ty.effect.is_pure_effect() || type_may_need_hygiene_mark(&ty.value)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -8502,6 +8525,31 @@ mod tests {
         };
         assert_eq!(captured, &provider_env);
         assert!(next.is_identity());
+    }
+
+    #[test]
+    fn pure_expr_thunk_does_not_need_hygiene_mark() {
+        let pure = RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Expr {
+            body: ExprId(0),
+            env: Env::new(),
+            provider_env: RuntimeEvidenceProviderEnv::default(),
+            needs_hygiene_mark: false,
+        }));
+        let effectful = RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Expr {
+            body: ExprId(0),
+            env: Env::new(),
+            provider_env: RuntimeEvidenceProviderEnv::default(),
+            needs_hygiene_mark: true,
+        }));
+        let continuation =
+            RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Continuation {
+                continuation: EvidenceContinuation::identity(),
+                arg: shared(RuntimeEvidenceValue::Unit),
+            }));
+
+        assert!(!runtime_value_needs_hygiene_mark(&pure));
+        assert!(runtime_value_needs_hygiene_mark(&effectful));
+        assert!(runtime_value_needs_hygiene_mark(&continuation));
     }
 
     #[test]
