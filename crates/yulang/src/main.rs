@@ -2549,6 +2549,50 @@ fn run_runtime_evidence_run(
             .permission_provider_boundary_pair_native_shadow_no_allowed_handler
     );
     println!(
+        "  runtime_evidence.provider_add_id_shortcut_attempts: {}",
+        output.evidence_stats.provider_add_id_shortcut_attempts
+    );
+    println!(
+        "  runtime_evidence.provider_add_id_shortcut_used: {}",
+        output.evidence_stats.provider_add_id_shortcut_used
+    );
+    println!(
+        "  runtime_evidence.provider_add_id_shortcut_fallback_carry_after_frame: {}",
+        output
+            .evidence_stats
+            .provider_add_id_shortcut_fallback_carry_after_frame
+    );
+    println!(
+        "  runtime_evidence.provider_add_id_shortcut_fallback_no_provider_permission: {}",
+        output
+            .evidence_stats
+            .provider_add_id_shortcut_fallback_no_provider_permission
+    );
+    println!(
+        "  runtime_evidence.provider_add_id_shortcut_full_scan_guard_visible_match: {}",
+        output
+            .evidence_stats
+            .provider_add_id_shortcut_full_scan_guard_visible_match
+    );
+    println!(
+        "  runtime_evidence.provider_add_id_shortcut_full_scan_guard_visible_mismatch: {}",
+        output
+            .evidence_stats
+            .provider_add_id_shortcut_full_scan_guard_visible_mismatch
+    );
+    println!(
+        "  runtime_evidence.provider_add_id_shortcut_full_scan_extra_guards: {}",
+        output
+            .evidence_stats
+            .provider_add_id_shortcut_full_scan_extra_guards
+    );
+    println!(
+        "  runtime_evidence.provider_add_id_shortcut_full_scan_extra_carried_guards: {}",
+        output
+            .evidence_stats
+            .provider_add_id_shortcut_full_scan_extra_carried_guards
+    );
+    println!(
         "  control_evidence.effect_calls: {}",
         output.evidence_stats.effect_calls
     );

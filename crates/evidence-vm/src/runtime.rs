@@ -109,6 +109,14 @@ pub struct RuntimeEvidenceRunStats {
     pub permission_provider_boundary_pair_native_shadow_match: usize,
     pub permission_provider_boundary_pair_native_shadow_mismatch: usize,
     pub permission_provider_boundary_pair_native_shadow_no_allowed_handler: usize,
+    pub provider_add_id_shortcut_attempts: usize,
+    pub provider_add_id_shortcut_used: usize,
+    pub provider_add_id_shortcut_fallback_carry_after_frame: usize,
+    pub provider_add_id_shortcut_fallback_no_provider_permission: usize,
+    pub provider_add_id_shortcut_full_scan_guard_visible_match: usize,
+    pub provider_add_id_shortcut_full_scan_guard_visible_mismatch: usize,
+    pub provider_add_id_shortcut_full_scan_extra_guards: usize,
+    pub provider_add_id_shortcut_full_scan_extra_carried_guards: usize,
     pub expr_evals: usize,
     pub env_clones: usize,
     pub env_entries_cloned: usize,
@@ -1410,6 +1418,9 @@ impl EvidenceEvalResult {
 }
 
 type SharedValue = Rc<RuntimeEvidenceValue>;
+
+#[cfg(debug_assertions)]
+const PROVIDER_ADD_ID_SHORTCUT_FULL_SCAN_VERIFY_LIMIT: usize = 1024;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 struct Env {
@@ -2924,16 +2935,38 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         evidence: EffectThunkEvidence,
         shadowed: EvidenceProviderShadowedAddId,
     ) -> EvidenceDirectTailResumptive {
+        self.stats.provider_add_id_shortcut_attempts += 1;
         let Some(visibility) = evidence.visibility else {
+            self.stats
+                .provider_add_id_shortcut_fallback_no_provider_permission += 1;
             return self.guarded_direct_tail_resumptive(handler, path, payload, evidence);
         };
-        if visibility.provider_grant_permission().is_none()
-            || shadowed.marker.marker.carry_after_frame
-        {
+        if visibility.provider_grant_permission().is_none() {
+            self.stats
+                .provider_add_id_shortcut_fallback_no_provider_permission += 1;
+            return self.guarded_direct_tail_resumptive(handler, path, payload, evidence);
+        }
+        if shadowed.marker.marker.carry_after_frame {
+            self.stats
+                .provider_add_id_shortcut_fallback_carry_after_frame += 1;
             return self.guarded_direct_tail_resumptive(handler, path, payload, evidence);
         }
         let mut hygiene = EvidenceSignalHygiene::new().with_operation_visibility(Some(visibility));
         hygiene.push_guard_id(shadowed.marker.marker.id);
+        self.stats.provider_add_id_shortcut_used += 1;
+        #[cfg(debug_assertions)]
+        if self.stats.provider_add_id_shortcut_used
+            <= PROVIDER_ADD_ID_SHORTCUT_FULL_SCAN_VERIFY_LIMIT
+        {
+            let full_scan_hygiene = self
+                .signal_hygiene_with_active_markers(&path)
+                .with_operation_visibility(evidence.visibility);
+            self.record_provider_add_id_shortcut_full_scan_guard_visible(
+                &hygiene,
+                &full_scan_hygiene,
+                &path,
+            );
+        }
         EvidenceDirectTailResumptive::with_hygiene(handler, path, payload, hygiene)
     }
 
@@ -7371,6 +7404,52 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.stats
                 .permission_provider_boundary_pair_native_shadow_mismatch += 1;
         }
+    }
+
+    #[cfg(debug_assertions)]
+    fn record_provider_add_id_shortcut_full_scan_guard_visible(
+        &mut self,
+        shortcut_hygiene: &EvidenceSignalHygiene,
+        full_scan_hygiene: &EvidenceSignalHygiene,
+        request_path: &[String],
+    ) {
+        let shortcut_visible = self
+            .request_guard_for_path_parts(
+                &shortcut_hygiene.guard_ids,
+                &shortcut_hygiene.carried_guards,
+                request_path,
+            )
+            .is_none();
+        let full_scan_visible = self
+            .request_guard_for_path_parts(
+                &full_scan_hygiene.guard_ids,
+                &full_scan_hygiene.carried_guards,
+                request_path,
+            )
+            .is_none();
+        if shortcut_visible == full_scan_visible {
+            self.stats
+                .provider_add_id_shortcut_full_scan_guard_visible_match += 1;
+        } else {
+            self.stats
+                .provider_add_id_shortcut_full_scan_guard_visible_mismatch += 1;
+        }
+        self.stats.provider_add_id_shortcut_full_scan_extra_guards += full_scan_hygiene
+            .guard_ids
+            .iter()
+            .filter(|id| !shortcut_hygiene.guard_ids.contains(id))
+            .count();
+        self.stats
+            .provider_add_id_shortcut_full_scan_extra_carried_guards += full_scan_hygiene
+            .carried_guards
+            .iter()
+            .filter(|guard| {
+                !shortcut_hygiene
+                    .carried_guards
+                    .iter()
+                    .any(|shortcut| shortcut.id == guard.id)
+            })
+            .count();
     }
 
     fn record_permission_visibility_stats(&mut self, hygiene: &EvidenceSignalHygiene) {
