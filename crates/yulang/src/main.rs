@@ -2820,6 +2820,68 @@ fn run_runtime_evidence_run(
             .direct_tail_permission_boundary_append_reject_other_transform
     );
     println!(
+        "  runtime_evidence.direct_tail_segment_candidates: {}",
+        output.evidence_stats.direct_tail_segment_candidates
+    );
+    println!(
+        "  runtime_evidence.direct_tail_segment_materialized_continuations: {}",
+        output
+            .evidence_stats
+            .direct_tail_segment_materialized_continuations
+    );
+    println!(
+        "  runtime_evidence.direct_tail_segment_created: {}",
+        output.evidence_stats.direct_tail_segment_created
+    );
+    println!(
+        "  runtime_evidence.direct_tail_segment_to_tree_fallbacks: {}",
+        output.evidence_stats.direct_tail_segment_to_tree_fallbacks
+    );
+    println!(
+        "  runtime_evidence.direct_tail_segment_identity: {}",
+        output.evidence_stats.direct_tail_segment_identity
+    );
+    println!(
+        "  runtime_evidence.direct_tail_segment_eval_only: {}",
+        output.evidence_stats.direct_tail_segment_eval_only
+    );
+    println!(
+        "  runtime_evidence.direct_tail_segment_eval_frames: {}",
+        output.evidence_stats.direct_tail_segment_eval_frames
+    );
+    println!(
+        "  runtime_evidence.direct_tail_segment_then_frames: {}",
+        output.evidence_stats.direct_tail_segment_then_frames
+    );
+    println!(
+        "  runtime_evidence.direct_tail_segment_scope_marker_frames: {}",
+        output
+            .evidence_stats
+            .direct_tail_segment_scope_marker_frames
+    );
+    println!(
+        "  runtime_evidence.direct_tail_segment_scope_marker_dynamic: {}",
+        output
+            .evidence_stats
+            .direct_tail_segment_scope_marker_dynamic
+    );
+    println!(
+        "  runtime_evidence.direct_tail_segment_scope_marker_empty: {}",
+        output.evidence_stats.direct_tail_segment_scope_marker_empty
+    );
+    println!(
+        "  runtime_evidence.direct_tail_segment_scope_provider_env_frames: {}",
+        output
+            .evidence_stats
+            .direct_tail_segment_scope_provider_env_frames
+    );
+    println!(
+        "  runtime_evidence.direct_tail_segment_request_boundary_rejected: {}",
+        output
+            .evidence_stats
+            .direct_tail_segment_request_boundary_rejected
+    );
+    println!(
         "  runtime_evidence.continuation_resume_steps: {}",
         output.evidence_stats.continuation_resume_steps
     );

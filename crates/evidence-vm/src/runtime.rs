@@ -162,6 +162,19 @@ pub struct RuntimeEvidenceRunStats {
     pub direct_tail_permission_boundary_append_reject_handler_path: usize,
     pub direct_tail_permission_boundary_append_reject_legacy_bridge: usize,
     pub direct_tail_permission_boundary_append_reject_other_transform: usize,
+    pub direct_tail_segment_candidates: usize,
+    pub direct_tail_segment_materialized_continuations: usize,
+    pub direct_tail_segment_created: usize,
+    pub direct_tail_segment_to_tree_fallbacks: usize,
+    pub direct_tail_segment_identity: usize,
+    pub direct_tail_segment_eval_only: usize,
+    pub direct_tail_segment_eval_frames: usize,
+    pub direct_tail_segment_then_frames: usize,
+    pub direct_tail_segment_scope_marker_frames: usize,
+    pub direct_tail_segment_scope_marker_dynamic: usize,
+    pub direct_tail_segment_scope_marker_empty: usize,
+    pub direct_tail_segment_scope_provider_env_frames: usize,
+    pub direct_tail_segment_request_boundary_rejected: usize,
     pub continuation_resume_steps: usize,
     pub continuation_resume_then_steps: usize,
     pub continuation_resume_then_first_marker_frame: usize,
@@ -1114,6 +1127,49 @@ impl EvidenceContinuationShapeProfile {
     fn record_provider_env(&mut self) {
         self.provider_env_frames += 1;
     }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct EvidenceDirectTailSegmentProfile {
+    eval_frames: usize,
+    then_frames: usize,
+    marker_frames: usize,
+    marker_dynamic_frames: usize,
+    marker_empty_frames: usize,
+    provider_env_frames: usize,
+    request_boundaries: usize,
+}
+
+impl EvidenceDirectTailSegmentProfile {
+    fn is_identity(self) -> bool {
+        self.eval_frames == 0
+            && self.then_frames == 0
+            && self.marker_frames == 0
+            && self.provider_env_frames == 0
+            && self.request_boundaries == 0
+    }
+
+    fn has_scope_delta(self) -> bool {
+        self.marker_frames > 0 || self.provider_env_frames > 0
+    }
+
+    fn can_shadow_segment(self) -> bool {
+        !self.is_identity() && self.request_boundaries == 0
+    }
+}
+
+fn merge_direct_tail_segment_profile(
+    mut lhs: EvidenceDirectTailSegmentProfile,
+    rhs: EvidenceDirectTailSegmentProfile,
+) -> EvidenceDirectTailSegmentProfile {
+    lhs.eval_frames += rhs.eval_frames;
+    lhs.then_frames += rhs.then_frames;
+    lhs.marker_frames += rhs.marker_frames;
+    lhs.marker_dynamic_frames += rhs.marker_dynamic_frames;
+    lhs.marker_empty_frames += rhs.marker_empty_frames;
+    lhs.provider_env_frames += rhs.provider_env_frames;
+    lhs.request_boundaries += rhs.request_boundaries;
+    lhs
 }
 
 fn merge_continuation_shape(
@@ -2654,6 +2710,13 @@ impl EvidenceContinuation {
         self.shape_profile_at(0)
     }
 
+    fn direct_tail_segment_profile(&self) -> EvidenceDirectTailSegmentProfile {
+        let Some(frame) = self.frame() else {
+            return EvidenceDirectTailSegmentProfile::default();
+        };
+        frame.direct_tail_segment_profile()
+    }
+
     fn record_provider_env_then_compaction_candidates(&self, stats: &mut RuntimeEvidenceRunStats) {
         self.record_provider_env_then_compaction_candidates_with_parent(None, stats)
     }
@@ -2805,6 +2868,70 @@ impl EvidenceContinuation {
 }
 
 impl EvidenceContinuationFrame {
+    fn direct_tail_segment_profile(&self) -> EvidenceDirectTailSegmentProfile {
+        match self {
+            Self::Then { first, second } => {
+                let mut profile = EvidenceDirectTailSegmentProfile {
+                    then_frames: 1,
+                    ..EvidenceDirectTailSegmentProfile::default()
+                };
+                profile =
+                    merge_direct_tail_segment_profile(profile, first.direct_tail_segment_profile());
+                merge_direct_tail_segment_profile(profile, second.direct_tail_segment_profile())
+            }
+            Self::MarkerFrame {
+                markers,
+                activate_add_ids,
+                handler_path,
+                next,
+            } => {
+                let mut profile = EvidenceDirectTailSegmentProfile {
+                    marker_frames: 1,
+                    ..EvidenceDirectTailSegmentProfile::default()
+                };
+                if markers.is_empty() && !*activate_add_ids && handler_path.is_none() {
+                    profile.marker_empty_frames += 1;
+                } else {
+                    profile.marker_dynamic_frames += 1;
+                }
+                merge_direct_tail_segment_profile(profile, next.direct_tail_segment_profile())
+            }
+            Self::ProviderEnv { next, .. } => {
+                let profile = EvidenceDirectTailSegmentProfile {
+                    provider_env_frames: 1,
+                    ..EvidenceDirectTailSegmentProfile::default()
+                };
+                merge_direct_tail_segment_profile(profile, next.direct_tail_segment_profile())
+            }
+            Self::CatchBody { next, .. } => {
+                let profile = EvidenceDirectTailSegmentProfile {
+                    request_boundaries: 1,
+                    ..EvidenceDirectTailSegmentProfile::default()
+                };
+                merge_direct_tail_segment_profile(profile, next.direct_tail_segment_profile())
+            }
+            Self::RefSetHandleResult { .. } | Self::RefSetHandleValueResult { .. } => {
+                EvidenceDirectTailSegmentProfile {
+                    request_boundaries: 1,
+                    ..EvidenceDirectTailSegmentProfile::default()
+                }
+            }
+            _ => {
+                let mut profile = EvidenceDirectTailSegmentProfile {
+                    eval_frames: 1,
+                    ..EvidenceDirectTailSegmentProfile::default()
+                };
+                if let Some(next) = self.tail_ref() {
+                    profile = merge_direct_tail_segment_profile(
+                        profile,
+                        next.direct_tail_segment_profile(),
+                    );
+                }
+                profile
+            }
+        }
+    }
+
     fn has_request_boundary(&self, routed_yield_handler: Option<ExprId>) -> bool {
         match self {
             EvidenceContinuationFrame::Then { first, second } => {
@@ -6114,6 +6241,34 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn should_collect_runtime_breakdown_stats(&self) -> bool {
         self.stats.runtime_breakdown_stats_enabled
+    }
+
+    fn record_direct_tail_segment_shadow(&mut self, call: &EvidenceDirectTailResumptive) {
+        if !self.should_collect_runtime_breakdown_stats() {
+            return;
+        }
+        self.stats.direct_tail_segment_candidates += 1;
+        let profile = call.continuation.direct_tail_segment_profile();
+        self.stats.direct_tail_segment_eval_frames += profile.eval_frames;
+        self.stats.direct_tail_segment_then_frames += profile.then_frames;
+        self.stats.direct_tail_segment_scope_marker_frames += profile.marker_frames;
+        self.stats.direct_tail_segment_scope_marker_dynamic += profile.marker_dynamic_frames;
+        self.stats.direct_tail_segment_scope_marker_empty += profile.marker_empty_frames;
+        self.stats.direct_tail_segment_scope_provider_env_frames += profile.provider_env_frames;
+
+        if profile.is_identity() {
+            self.stats.direct_tail_segment_identity += 1;
+            return;
+        }
+        if !profile.can_shadow_segment() {
+            self.stats.direct_tail_segment_request_boundary_rejected += 1;
+            return;
+        }
+        self.stats.direct_tail_segment_created += 1;
+        self.stats.direct_tail_segment_to_tree_fallbacks += 1;
+        if !profile.has_scope_delta() {
+            self.stats.direct_tail_segment_eval_only += 1;
+        }
     }
 
     fn record_provider_env_foreign_later_grant_shape_profile(
@@ -10755,13 +10910,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 continue;
             }
             if let Some(continuation_pat) = &arm.continuation
-                && !self.bind_pat_matches(
-                    continuation_pat,
-                    shared(RuntimeEvidenceValue::Continuation(
-                        call.continuation.clone(),
-                    )),
-                    &mut arm_env,
-                )?
+                && {
+                    self.stats.direct_tail_segment_materialized_continuations += 1;
+                    self.record_direct_tail_segment_shadow(&call);
+                    !self.bind_pat_matches(
+                        continuation_pat,
+                        shared(RuntimeEvidenceValue::Continuation(
+                            call.continuation.clone(),
+                        )),
+                        &mut arm_env,
+                    )?
+                }
             {
                 continue;
             }
@@ -13745,6 +13904,42 @@ mod tests {
             stats.provider_env_then_compaction_provider_env_identity_tail,
             2
         );
+    }
+
+    #[test]
+    fn direct_tail_segment_profile_splits_eval_scope_and_request_frames() {
+        let markers: Rc<[EvidenceValueMarker]> = vec![EvidenceValueMarker::Frame {
+            id: EvidenceGuardId(1),
+        }]
+        .into();
+        let continuation = EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+            first: EvidenceContinuation::marker_frame(
+                markers,
+                true,
+                Some(vec!["flip".to_string()]),
+                EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
+            ),
+            second: EvidenceContinuation::provider_env(
+                provider_env_fixture_for_handler(7),
+                EvidenceContinuation::Frame(Rc::new(
+                    EvidenceContinuationFrame::RefSetHandleResult {
+                        assigned: shared(RuntimeEvidenceValue::Unit),
+                        next: EvidenceContinuation::identity(),
+                    },
+                )),
+            ),
+        }));
+
+        let profile = continuation.direct_tail_segment_profile();
+
+        assert_eq!(profile.then_frames, 1);
+        assert_eq!(profile.marker_frames, 1);
+        assert_eq!(profile.marker_dynamic_frames, 1);
+        assert_eq!(profile.marker_empty_frames, 0);
+        assert_eq!(profile.provider_env_frames, 1);
+        assert_eq!(profile.eval_frames, 1);
+        assert_eq!(profile.request_boundaries, 1);
+        assert!(!profile.can_shadow_segment());
     }
 
     #[test]
