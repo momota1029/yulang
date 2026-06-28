@@ -72,6 +72,9 @@ pub struct RuntimeEvidenceRunStats {
     pub direct_tail_gate_fail_missing_grant: usize,
     pub direct_tail_gate_fail_scope_missing: usize,
     pub direct_tail_gate_fail_add_id_shadowed: usize,
+    pub direct_tail_gate_fail_add_id_all_path: usize,
+    pub direct_tail_gate_fail_add_id_own_path: usize,
+    pub direct_tail_gate_fail_add_id_foreign_path: usize,
     pub direct_tail_gate_fail_handler_shadowed: usize,
     pub expr_evals: usize,
     pub env_clones: usize,
@@ -533,8 +536,15 @@ enum ProviderGrantPathGateFail {
     NoGrant,
     MissingGrant,
     ScopeMissing,
-    AddIdShadowed,
+    AddIdShadowed(ActiveAddIdMatchKind),
     HandlerShadowed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ActiveAddIdMatchKind {
+    AllPath,
+    OwnPath,
+    ForeignPath,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2154,8 +2164,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }) {
             return Some(ProviderGrantPathGateFail::ScopeMissing);
         }
-        if self.provider_grant_add_id_shadowed(grant.hygiene_baseline, path) {
-            return Some(ProviderGrantPathGateFail::AddIdShadowed);
+        if let Some(kind) = self.provider_grant_add_id_shadow_kind(grant.hygiene_baseline, path) {
+            return Some(ProviderGrantPathGateFail::AddIdShadowed(kind));
         }
         if self.provider_grant_handler_shadowed(grant.hygiene_baseline, path) {
             return Some(ProviderGrantPathGateFail::HandlerShadowed);
@@ -2163,14 +2173,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         None
     }
 
-    fn provider_grant_add_id_shadowed(
+    fn provider_grant_add_id_shadow_kind(
         &self,
         baseline: EvidenceProviderHygieneBaseline,
         path: &[String],
-    ) -> bool {
+    ) -> Option<ActiveAddIdMatchKind> {
         self.active_add_ids[baseline.active_add_id_len..]
             .iter()
-            .any(|marker| active_add_id_matches_request_path(&marker.marker, path))
+            .find_map(|marker| active_add_id_match_kind(&marker.marker, path))
     }
 
     fn provider_grant_handler_shadowed(
@@ -2194,8 +2204,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             ProviderGrantPathGateFail::ScopeMissing => {
                 self.stats.direct_tail_gate_fail_scope_missing += 1;
             }
-            ProviderGrantPathGateFail::AddIdShadowed => {
+            ProviderGrantPathGateFail::AddIdShadowed(kind) => {
                 self.stats.direct_tail_gate_fail_add_id_shadowed += 1;
+                match kind {
+                    ActiveAddIdMatchKind::AllPath => {
+                        self.stats.direct_tail_gate_fail_add_id_all_path += 1;
+                    }
+                    ActiveAddIdMatchKind::OwnPath => {
+                        self.stats.direct_tail_gate_fail_add_id_own_path += 1;
+                    }
+                    ActiveAddIdMatchKind::ForeignPath => {
+                        self.stats.direct_tail_gate_fail_add_id_foreign_path += 1;
+                    }
+                }
             }
             ProviderGrantPathGateFail::HandlerShadowed => {
                 self.stats.direct_tail_gate_fail_handler_shadowed += 1;
@@ -7504,11 +7525,21 @@ fn active_add_id_matches_request_path(
     marker: &EvidenceAddIdMarker,
     request_path: &[String],
 ) -> bool {
+    active_add_id_match_kind(marker, request_path).is_some()
+}
+
+fn active_add_id_match_kind(
+    marker: &EvidenceAddIdMarker,
+    request_path: &[String],
+) -> Option<ActiveAddIdMatchKind> {
     match (marker.guard_own_path, marker.guard_foreign_path) {
-        (true, true) => true,
-        (true, false) => path_is_prefix(&marker.path, request_path),
-        (false, true) => !path_is_prefix(&marker.path, request_path),
-        (false, false) => false,
+        (true, true) => Some(ActiveAddIdMatchKind::AllPath),
+        (true, false) => {
+            path_is_prefix(&marker.path, request_path).then_some(ActiveAddIdMatchKind::OwnPath)
+        }
+        (false, true) => (!path_is_prefix(&marker.path, request_path))
+            .then_some(ActiveAddIdMatchKind::ForeignPath),
+        (false, false) => None,
     }
 }
 

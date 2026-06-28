@@ -2373,6 +2373,20 @@ fn run_runtime_evidence_run(
         output.evidence_stats.direct_tail_gate_fail_add_id_shadowed
     );
     println!(
+        "  runtime_evidence.direct_tail_gate_fail_add_id_all_path: {}",
+        output.evidence_stats.direct_tail_gate_fail_add_id_all_path
+    );
+    println!(
+        "  runtime_evidence.direct_tail_gate_fail_add_id_own_path: {}",
+        output.evidence_stats.direct_tail_gate_fail_add_id_own_path
+    );
+    println!(
+        "  runtime_evidence.direct_tail_gate_fail_add_id_foreign_path: {}",
+        output
+            .evidence_stats
+            .direct_tail_gate_fail_add_id_foreign_path
+    );
+    println!(
         "  runtime_evidence.direct_tail_gate_fail_handler_shadowed: {}",
         output.evidence_stats.direct_tail_gate_fail_handler_shadowed
     );
