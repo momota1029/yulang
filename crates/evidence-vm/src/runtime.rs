@@ -932,6 +932,7 @@ struct EvidenceCarriedGuard {
 struct EvidenceSignalHygiene {
     guard_ids: Vec<EvidenceGuardId>,
     carried_guards: Vec<EvidenceCarriedGuard>,
+    handler_boundary: Option<EvidenceHandlerBoundary>,
 }
 
 impl EvidenceSignalHygiene {
@@ -949,6 +950,10 @@ impl EvidenceSignalHygiene {
 
     fn push_guard_id(&mut self, id: EvidenceGuardId) -> bool {
         push_unique_guard(&mut self.guard_ids, id)
+    }
+
+    fn set_handler_boundary(&mut self, handler_boundary: EvidenceHandlerBoundary) {
+        self.handler_boundary = Some(handler_boundary);
     }
 }
 
@@ -988,7 +993,6 @@ struct EvidenceRequest {
     payload: SharedValue,
     route: EvidenceEffectRoute,
     hygiene: EvidenceSignalHygiene,
-    handler_boundary: Option<EvidenceHandlerBoundary>,
     continuation: EvidenceContinuation,
 }
 
@@ -1040,7 +1044,6 @@ struct EvidenceDirectTailResumptive {
     path: Rc<[String]>,
     payload: SharedValue,
     hygiene: EvidenceSignalHygiene,
-    handler_boundary: Option<EvidenceHandlerBoundary>,
     continuation: EvidenceContinuation,
 }
 
@@ -1056,13 +1059,12 @@ impl EvidenceDirectTailResumptive {
             path,
             payload,
             hygiene,
-            handler_boundary: None,
             continuation: EvidenceContinuation::identity(),
         }
     }
 
     fn with_handler_boundary(mut self, handler_boundary: EvidenceHandlerBoundary) -> Self {
-        self.handler_boundary = Some(handler_boundary);
+        self.hygiene.set_handler_boundary(handler_boundary);
         self
     }
 
@@ -1089,7 +1091,6 @@ impl EvidenceDirectTailResumptive {
             payload: self.payload,
             route,
             hygiene: self.hygiene,
-            handler_boundary: self.handler_boundary,
             continuation: self.continuation,
         }
     }
@@ -1111,7 +1112,7 @@ impl EvidenceRoutedYield {
     }
 
     fn with_handler_boundary(mut self, handler_boundary: EvidenceHandlerBoundary) -> Self {
-        self.request.handler_boundary = Some(handler_boundary);
+        self.request.hygiene.set_handler_boundary(handler_boundary);
         self
     }
 
@@ -2552,7 +2553,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             path,
             payload,
             hygiene: EvidenceSignalHygiene::new(),
-            handler_boundary: None,
             continuation: EvidenceContinuation::identity(),
         }
     }
@@ -2937,7 +2937,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             EvidenceEffectSignal::GenericRequest(mut request) => {
                 if let Some(handler_boundary) = handler_boundary {
-                    request.handler_boundary = Some(handler_boundary);
+                    request.hygiene.set_handler_boundary(handler_boundary);
                 }
                 request.payload = mark_runtime_value_shared(request.payload, markers.clone());
                 self.close_marker_request(
@@ -6283,7 +6283,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 payload,
                 route,
                 hygiene: EvidenceSignalHygiene::new(),
-                handler_boundary: None,
                 continuation: EvidenceContinuation::identity(),
             };
             self.mark_request_with_active_markers(&mut request);
@@ -6296,7 +6295,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             payload,
             route,
             hygiene: EvidenceSignalHygiene::new(),
-            handler_boundary: None,
             continuation: EvidenceContinuation::identity(),
         };
         if !request.route.is_direct_abortive() {
@@ -6530,7 +6528,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> Option<bool> {
         self.visible_operation_resumptive_parts(
             &request.path,
-            request.handler_boundary.as_ref(),
+            request.hygiene.handler_boundary.as_ref(),
             &request.hygiene.guard_ids,
             &request.hygiene.carried_guards,
             arms,
@@ -6572,7 +6570,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> Option<bool> {
         self.visible_operation_resumptive_parts(
             &call.path,
-            call.handler_boundary.as_ref(),
+            call.hygiene.handler_boundary.as_ref(),
             &call.hygiene.guard_ids,
             &call.hygiene.carried_guards,
             arms,
@@ -8634,7 +8632,6 @@ mod tests {
             payload: shared(RuntimeEvidenceValue::Unit),
             route: EvidenceEffectRoute::Unhandled,
             hygiene: EvidenceSignalHygiene::new(),
-            handler_boundary: None,
             continuation: EvidenceContinuation::identity(),
         };
 
