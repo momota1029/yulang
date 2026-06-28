@@ -869,12 +869,20 @@ pub fn collect_local_sources_with_std_options_and_cache(
     cache: Option<SourceCollectionCache>,
 ) -> Result<Vec<CollectedSource>, RouteError> {
     let entry = entry.as_ref();
-    let base = entry.parent().unwrap_or_else(|| FsPath::new("."));
-    let std_root = resolve_std_root(base, options)?;
+    let std_root = resolve_std_root_for_entry(entry, options)?;
 
     let mut collector = Collector::new_with_cache(cache);
     collector.collect_std_root(&std_root)?;
     collector.collect_entry(entry, true)
+}
+
+pub fn resolve_std_root_for_entry(
+    entry: impl AsRef<FsPath>,
+    options: &StdSourceOptions,
+) -> Result<PathBuf, RouteError> {
+    let entry = entry.as_ref();
+    let base = entry.parent().unwrap_or_else(|| FsPath::new("."));
+    resolve_std_root(base, options)
 }
 
 pub fn collect_local_source_text_with_std_options(

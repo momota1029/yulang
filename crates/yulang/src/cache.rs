@@ -10,6 +10,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::UNIX_EPOCH;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -25,9 +26,11 @@ const MONO_CACHE_FORMAT: u32 = 1;
 const CONTROL_CACHE_FORMAT: u32 = 8;
 const COMPILED_UNIT_CACHE_FORMAT: u32 = 17;
 const REALM_RESOLUTION_CACHE_FORMAT: u32 = 1;
+const SOURCE_KEY_INDEX_CACHE_FORMAT: u32 = 1;
 // Bump when compiler/cache semantics change without a serialized envelope bump.
 const CACHE_SCHEMA_VERSION: u32 = 4;
 const SOURCE_CACHE_SALT: &[u8] = b"yulang/source-set-cache/v3";
+const SOURCE_KEY_INDEX_CACHE_SALT: &[u8] = b"yulang/source-key-index-cache/v1";
 const SOURCE_UNIT_CACHE_SALT: &[u8] = b"yulang/source-unit-cache/v2";
 const REALM_CACHE_COMPONENT_SALT: &[u8] = b"yulang/realm-cache-component/v1";
 const REALM_RESOLUTION_CACHE_SALT: &[u8] = b"yulang/realm-resolution-cache/v2";
@@ -98,6 +101,11 @@ impl ArtifactCache {
         self.realm_dir(source_realm)
             .join("resolution")
             .join(format!("{}.yures", key.to_hex()))
+    }
+
+    pub fn source_key_index_artifact_path(&self, key: SourceKeyIndexCacheKey) -> PathBuf {
+        self.artifact_dir("source-key")
+            .join(format!("{}.yuskey", key.to_hex()))
     }
 
     pub fn read_poly_artifact(
@@ -200,6 +208,40 @@ impl ArtifactCache {
             errors: &artifact.errors,
         };
         write_cache_envelope(&path, "yuvm", &envelope)
+    }
+
+    pub fn read_source_key_index_artifact(
+        &self,
+        key: SourceKeyIndexCacheKey,
+    ) -> Result<Option<CachedSourceKeyIndexArtifact>, CacheError> {
+        let path = self.source_key_index_artifact_path(key);
+        let Some(envelope): Option<SourceKeyIndexCacheEnvelope> =
+            read_cache_envelope(&path, SOURCE_KEY_INDEX_CACHE_FORMAT)?
+        else {
+            return Ok(None);
+        };
+        Ok(Some(CachedSourceKeyIndexArtifact {
+            source_key: SourceCacheKey {
+                hash: envelope.source_key_hash,
+            },
+            file_count: envelope.file_count,
+            files: envelope.files,
+        }))
+    }
+
+    pub fn write_source_key_index_artifact(
+        &self,
+        key: SourceKeyIndexCacheKey,
+        artifact: &CachedSourceKeyIndexArtifact,
+    ) -> Result<(), CacheError> {
+        let path = self.source_key_index_artifact_path(key);
+        let envelope = SourceKeyIndexCacheEnvelope {
+            format: SOURCE_KEY_INDEX_CACHE_FORMAT,
+            source_key_hash: artifact.source_key.hash,
+            file_count: artifact.file_count,
+            files: &artifact.files,
+        };
+        write_cache_envelope(&path, "yuskey", &envelope)
     }
 
     pub fn read_compiled_unit_artifact(
@@ -334,6 +376,73 @@ pub struct CachedMonoArtifact {
     pub program: specialize::mono::Program,
     pub file_count: usize,
     pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CachedSourceKeyIndexArtifact {
+    pub source_key: SourceCacheKey,
+    pub file_count: usize,
+    pub files: Vec<SourceKeyFileFingerprint>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceKeyFileFingerprint {
+    pub path: String,
+    pub len: u64,
+    pub modified_secs: u64,
+    pub modified_nanos: u32,
+}
+
+impl CachedSourceKeyIndexArtifact {
+    pub fn from_files(
+        files: &[CollectedSource],
+        source_key: SourceCacheKey,
+    ) -> Option<CachedSourceKeyIndexArtifact> {
+        // Resolution imports can retarget without changing the already-collected
+        // target files, so the first shortcut stays on local/module-only source sets.
+        if files.iter().any(|file| !file.resolution_imports.is_empty()) {
+            return None;
+        }
+        let files = files
+            .iter()
+            .map(|file| SourceKeyFileFingerprint::from_path(&file.path))
+            .collect::<Option<Vec<_>>>()?;
+        Some(CachedSourceKeyIndexArtifact {
+            source_key,
+            file_count: files.len(),
+            files,
+        })
+    }
+
+    pub fn current_files_match(&self) -> bool {
+        self.file_count == self.files.len()
+            && self
+                .files
+                .iter()
+                .all(SourceKeyFileFingerprint::current_file_matches)
+    }
+}
+
+impl SourceKeyFileFingerprint {
+    fn from_path(path: &Path) -> Option<Self> {
+        // This is an entry-point shortcut, not the source of truth. A matching
+        // fingerprint only lets us try an existing full source-key artifact.
+        let metadata = fs::metadata(path).ok()?;
+        let modified = metadata.modified().ok()?.duration_since(UNIX_EPOCH).ok()?;
+        Some(Self {
+            path: path.as_os_str().to_string_lossy().into_owned(),
+            len: metadata.len(),
+            modified_secs: modified.as_secs(),
+            modified_nanos: modified.subsec_nanos(),
+        })
+    }
+
+    fn current_file_matches(&self) -> bool {
+        let Some(current) = Self::from_path(Path::new(&self.path)) else {
+            return false;
+        };
+        current == *self
+    }
 }
 
 #[derive(Clone)]
@@ -522,6 +631,17 @@ impl SourceCacheKey {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SourceKeyIndexCacheKey {
+    hash: u64,
+}
+
+impl SourceKeyIndexCacheKey {
+    pub fn to_hex(self) -> String {
+        format!("{:016x}", self.hash)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RealmResolutionCacheKey {
     hash: u64,
 }
@@ -534,6 +654,28 @@ impl RealmResolutionCacheKey {
 
 pub fn source_cache_key(files: &[CollectedSource]) -> SourceCacheKey {
     source_cache_key_with_schema(files, CURRENT_CACHE_SCHEMA)
+}
+
+pub fn source_key_index_cache_key(
+    entry: &Path,
+    std_root: Option<&Path>,
+    implicit_std_prelude: bool,
+) -> SourceKeyIndexCacheKey {
+    let mut hasher = StableHasher::new();
+    hasher.bytes(SOURCE_KEY_INDEX_CACHE_SALT);
+    hash_cache_schema(&mut hasher, CURRENT_CACHE_SCHEMA);
+    hash_path_for_cache(&mut hasher, entry);
+    hasher.bool(implicit_std_prelude);
+    match std_root {
+        Some(std_root) => {
+            hasher.bool(true);
+            hash_path_for_cache(&mut hasher, std_root);
+        }
+        None => hasher.bool(false),
+    }
+    SourceKeyIndexCacheKey {
+        hash: hasher.finish(),
+    }
 }
 
 pub fn realm_resolution_cache_key(
@@ -1482,6 +1624,11 @@ fn hash_cache_schema(hasher: &mut StableHasher, schema: CacheSchema) {
     hasher.u32(schema.version);
     hasher.u32(schema.poly_format);
     hasher.u32(schema.control_format);
+}
+
+fn hash_path_for_cache(hasher: &mut StableHasher, path: &Path) {
+    let path = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    hasher.string(&path.as_os_str().to_string_lossy());
 }
 
 fn realm_cache_component_hash(realm: &sources::ResolvedRealmId) -> u64 {
@@ -3288,6 +3435,14 @@ struct RealmResolutionCacheEnvelope<
     target: T,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SourceKeyIndexCacheEnvelope<F = Vec<SourceKeyFileFingerprint>> {
+    format: u32,
+    source_key_hash: u64,
+    file_count: usize,
+    files: F,
+}
+
 fn read_cache_envelope<T>(path: &Path, format: u32) -> Result<Option<T>, CacheError>
 where
     T: CacheEnvelope + DeserializeOwned,
@@ -3385,6 +3540,12 @@ impl<R, Q, T> CacheEnvelope for RealmResolutionCacheEnvelope<R, Q, T> {
     }
 }
 
+impl<F> CacheEnvelope for SourceKeyIndexCacheEnvelope<F> {
+    fn format(&self) -> u32 {
+        self.format
+    }
+}
+
 struct StableHasher {
     state: u64,
 }
@@ -3445,6 +3606,7 @@ impl StableHasher {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -3528,6 +3690,37 @@ mod tests {
             });
 
         assert_ne!(source_cache_key(&[base]), source_cache_key(&[with_request]));
+    }
+
+    #[test]
+    fn source_key_index_artifact_matches_current_file_fingerprints() {
+        let root = temp_root("source-key-index-fingerprint");
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("main.yu");
+        fs::write(&path, "pub x = 1\n").unwrap();
+        let files = vec![CollectedSource::new(
+            path.clone(),
+            Path::default(),
+            "pub x = 1\n".to_string(),
+        )];
+        let key = source_cache_key(&files);
+
+        let artifact = CachedSourceKeyIndexArtifact::from_files(&files, key).unwrap();
+
+        assert_eq!(artifact.source_key, key);
+        assert!(artifact.current_files_match());
+
+        fs::write(&path, "pub x = 100\n").unwrap();
+        assert!(!artifact.current_files_match());
+    }
+
+    #[test]
+    fn source_key_index_artifact_rejects_resolution_imports() {
+        let mut file = source("main.yu", &[], "use ui/widget::a with program::ui\n");
+        file.resolution_imports.push(slash_import_request());
+        let key = source_cache_key(&[file.clone()]);
+
+        assert!(CachedSourceKeyIndexArtifact::from_files(&[file], key).is_none());
     }
 
     #[test]

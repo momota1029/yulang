@@ -52,7 +52,7 @@ pub use source::{
     load_source_text_with_embedded_std, prepare_rename_entry_source,
     prepare_rename_entry_source_with_std_options, references_entry_source,
     references_entry_source_with_std_options, rename_entry_source,
-    rename_entry_source_with_std_options, run_built_control_program,
+    rename_entry_source_with_std_options, resolve_std_root_for_entry, run_built_control_program,
     run_built_control_program_with_labels, run_control_from_entry, run_control_from_entry_with_std,
     run_control_from_entry_with_std_options, run_control_from_source_text_with_embedded_std,
     run_mono_from_entry, run_mono_from_entry_with_std, run_mono_from_entry_with_std_options,

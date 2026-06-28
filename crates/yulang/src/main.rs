@@ -338,6 +338,7 @@ enum RuntimeBuildCacheKind {
     #[default]
     NotMeasured,
     Disabled,
+    SourceKeyControlHit,
     ControlHit,
     PolyHit,
     CompiledUnitHit,
@@ -354,6 +355,7 @@ impl RuntimeBuildCacheKind {
         match self {
             Self::NotMeasured => "not-measured",
             Self::Disabled => "disabled",
+            Self::SourceKeyControlHit => "source-key-control-hit",
             Self::ControlHit => "control-hit",
             Self::PolyHit => "poly-hit",
             Self::CompiledUnitHit => "compiled-unit-hit",
@@ -491,14 +493,26 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
 
     let mut timings = RuntimePhaseTimings::default();
     let total_start = Instant::now();
-    let collect_start = Instant::now();
-    let files = collect_control_run_input_sources_or_exit(input, options);
-    timings.collect = collect_start.elapsed();
-    let build = build_control_with_optional_cache_timed(
-        files,
-        options.use_cache,
-        options.runtime_phase_timings.then_some(&mut timings),
-    );
+    let build = match input {
+        RunInput::Path(path) => build_control_path_with_optional_source_key_cache(
+            &path,
+            options,
+            options.runtime_phase_timings.then_some(&mut timings),
+        ),
+        RunInput::Source { path, source } => {
+            let collect_start = Instant::now();
+            let files = collect_control_run_input_sources_or_exit(
+                RunInput::Source { path, source },
+                options,
+            );
+            timings.collect = collect_start.elapsed();
+            build_control_with_optional_cache_timed(
+                files,
+                options.use_cache,
+                options.runtime_phase_timings.then_some(&mut timings),
+            )
+        }
+    };
     let eval_start = Instant::now();
     let output = run_built_control_for_cli(build);
     timings.vm_eval = eval_start.elapsed();
@@ -616,6 +630,105 @@ fn build_control_with_optional_cache(
     build_control_with_optional_cache_timed(files, use_cache, None)
 }
 
+fn build_control_path_with_optional_source_key_cache(
+    path: &PathBuf,
+    options: &GlobalOptions,
+    mut timings: Option<&mut RuntimePhaseTimings>,
+) -> yulang::BuildControlOutput {
+    let collect_start = Instant::now();
+    if options.use_cache {
+        if let Some(output) =
+            read_control_from_source_key_index(path, options, timings.as_deref_mut())
+        {
+            return output;
+        }
+    }
+
+    let files = collect_control_sources_or_exit(path, options);
+    if let Some(timings) = timings.as_deref_mut() {
+        timings.collect = collect_start.elapsed();
+    }
+
+    if !options.use_cache {
+        return build_control_with_optional_cache_timed(files, false, timings);
+    }
+
+    let key = yulang::cache::source_cache_key(&files);
+    write_source_key_index_if_supported(path, options, key, &files);
+    build_control_with_source_key_timed(files, key, timings)
+}
+
+fn read_control_from_source_key_index(
+    path: &PathBuf,
+    options: &GlobalOptions,
+    mut timings: Option<&mut RuntimePhaseTimings>,
+) -> Option<yulang::BuildControlOutput> {
+    let cache = yulang::cache::ArtifactCache::new(yulang::stdlib::default_user_cache_root());
+    let index_key = source_key_index_cache_key_for_path(path, options).ok()?;
+    let artifact = match cache.read_source_key_index_artifact(index_key) {
+        Ok(Some(artifact)) => artifact,
+        Ok(None) => return None,
+        Err(error) => {
+            eprintln!("warning: {error}");
+            return None;
+        }
+    };
+    if !artifact.current_files_match() {
+        return None;
+    }
+    let cached = match cache.read_control_artifact(artifact.source_key) {
+        Ok(Some(cached)) => cached,
+        Ok(None) => return None,
+        Err(error) => {
+            eprintln!("warning: {error}");
+            return None;
+        }
+    };
+    record_runtime_build_cache(&mut timings, RuntimeBuildCacheKind::SourceKeyControlHit);
+    Some(yulang::BuildControlOutput {
+        program: cached.program,
+        runtime_evidence: cached.runtime_evidence,
+        labels: cached.labels,
+        file_count: cached.file_count,
+        errors: cached.errors,
+    })
+}
+
+fn write_source_key_index_if_supported(
+    path: &PathBuf,
+    options: &GlobalOptions,
+    key: yulang::cache::SourceCacheKey,
+    files: &[yulang::CollectedSource],
+) {
+    let Some(artifact) = yulang::cache::CachedSourceKeyIndexArtifact::from_files(files, key) else {
+        return;
+    };
+    let Ok(index_key) = source_key_index_cache_key_for_path(path, options) else {
+        return;
+    };
+    let cache = yulang::cache::ArtifactCache::new(yulang::stdlib::default_user_cache_root());
+    if let Err(error) = cache.write_source_key_index_artifact(index_key, &artifact) {
+        eprintln!("warning: {error}");
+    }
+}
+
+fn source_key_index_cache_key_for_path(
+    path: &PathBuf,
+    options: &GlobalOptions,
+) -> Result<yulang::cache::SourceKeyIndexCacheKey, yulang::RouteError> {
+    if options.no_prelude {
+        return Ok(yulang::cache::source_key_index_cache_key(path, None, false));
+    }
+
+    let source_options = options.std_source_options();
+    let std_root = yulang::resolve_std_root_for_entry(path, &source_options)?;
+    Ok(yulang::cache::source_key_index_cache_key(
+        path,
+        Some(&std_root),
+        true,
+    ))
+}
+
 fn build_control_with_optional_cache_timed(
     files: Vec<yulang::CollectedSource>,
     use_cache: bool,
@@ -630,6 +743,14 @@ fn build_control_with_optional_cache_timed(
     }
 
     let key = yulang::cache::source_cache_key(&files);
+    build_control_with_source_key_timed(files, key, timings)
+}
+
+fn build_control_with_source_key_timed(
+    files: Vec<yulang::CollectedSource>,
+    key: yulang::cache::SourceCacheKey,
+    mut timings: Option<&mut RuntimePhaseTimings>,
+) -> yulang::BuildControlOutput {
     let cache = yulang::cache::ArtifactCache::new(yulang::stdlib::default_user_cache_root());
     match cache.read_control_artifact(key) {
         Ok(Some(cached)) => {
@@ -2064,11 +2185,8 @@ fn run_runtime_evidence_bench(program: &str, options: &GlobalOptions, args: VecD
     for iteration in 1..=repeat {
         let total_start = Instant::now();
         let mut timings = RuntimePhaseTimings::default();
-        let collect_start = Instant::now();
-        let files = collect_control_sources_or_exit(&path, options);
-        timings.collect = collect_start.elapsed();
         let output =
-            build_control_with_optional_cache_timed(files, options.use_cache, Some(&mut timings));
+            build_control_path_with_optional_source_key_cache(&path, options, Some(&mut timings));
         timings.total = total_start.elapsed();
         print_runtime_evidence_bench_iteration(iteration, &timings, &output);
     }
@@ -2241,12 +2359,12 @@ fn run_runtime_evidence_run(
     let args_start = Instant::now();
     let args = parse_runtime_evidence_run_args(program, debug_command, args);
     timings.args_parse = args_start.elapsed();
-    let collect_start = Instant::now();
-    let files = collect_control_sources_or_exit(&args.path, options);
-    build_timings.collect = collect_start.elapsed();
     let build_start = Instant::now();
-    let build =
-        build_control_with_optional_cache_timed(files, options.use_cache, Some(&mut build_timings));
+    let build = build_control_path_with_optional_source_key_cache(
+        &args.path,
+        options,
+        Some(&mut build_timings),
+    );
     timings.control_build_total = build_start.elapsed();
     let summary_start = Instant::now();
     let summary = RuntimeEvidenceBenchSummary::from_surface(&build.runtime_evidence);
