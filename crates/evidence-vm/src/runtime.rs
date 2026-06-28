@@ -132,8 +132,24 @@ pub struct RuntimeEvidenceRunStats {
     pub direct_tail_continuation_appends: usize,
     pub direct_tail_continuation_owned_tail_appends: usize,
     pub direct_tail_continuation_then_appends: usize,
+    pub continuation_append_blocked_by_marker_frame: usize,
+    pub continuation_append_blocked_by_provider_env: usize,
+    pub continuation_append_blocked_by_rc_shared: usize,
+    pub request_continuation_append_blocked_by_marker_frame: usize,
+    pub request_continuation_append_blocked_by_provider_env: usize,
+    pub request_continuation_append_blocked_by_rc_shared: usize,
+    pub direct_tail_continuation_append_blocked_by_marker_frame: usize,
+    pub direct_tail_continuation_append_blocked_by_provider_env: usize,
+    pub direct_tail_continuation_append_blocked_by_rc_shared: usize,
     pub continuation_resume_steps: usize,
     pub continuation_resume_then_steps: usize,
+    pub continuation_resume_then_first_marker_frame: usize,
+    pub continuation_resume_then_first_provider_env: usize,
+    pub continuation_resume_then_first_other: usize,
+    pub continuation_resume_then_second_marker_frame: usize,
+    pub continuation_resume_then_second_provider_env: usize,
+    pub continuation_resume_then_second_other: usize,
+    pub continuation_resume_then_plain: usize,
     pub continuation_resume_force_steps: usize,
     pub continuation_resume_apply_steps: usize,
     pub continuation_resume_adapter_steps: usize,
@@ -141,6 +157,15 @@ pub struct RuntimeEvidenceRunStats {
     pub continuation_resume_catch_steps: usize,
     pub continuation_resume_marker_steps: usize,
     pub continuation_resume_marker_identity_fast_paths: usize,
+    pub continuation_resume_marker_empty_markers: usize,
+    pub continuation_resume_marker_with_active_add_id: usize,
+    pub continuation_resume_marker_with_handler_path: usize,
+    pub continuation_resume_marker_result_value: usize,
+    pub continuation_resume_marker_result_direct_tail: usize,
+    pub continuation_resume_marker_result_direct_tail_provider_permission: usize,
+    pub continuation_resume_marker_result_direct_tail_provider_boundary_pair: usize,
+    pub continuation_resume_marker_result_legacy_signal: usize,
+    pub continuation_resume_marker_result_error: usize,
     pub continuation_resume_provider_steps: usize,
     pub continuation_resume_aggregate_steps: usize,
     pub continuation_resume_select_steps: usize,
@@ -746,6 +771,21 @@ enum EvidenceContinuationAppendSource {
     DirectTail,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceContinuationAppendBlocker {
+    MarkerFrame,
+    ProviderEnv,
+    RcShared,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceContinuationBoundaryKind {
+    Identity,
+    MarkerFrame,
+    ProviderEnv,
+    Other,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct EvidenceAddIdMarker {
     id: EvidenceGuardId,
@@ -1026,6 +1066,10 @@ impl EvidenceSignalHygiene {
 
     fn permission_shadow_kind(&self) -> Option<EvidencePermissionShadowKind> {
         self.permission_visibility.shadow_kind()
+    }
+
+    fn provider_grant_permission(&self) -> Option<RuntimeEvidenceProviderGrantPermission> {
+        self.permission_visibility.base?.provider_grant_permission()
     }
 
     #[cfg(debug_assertions)]
@@ -1759,7 +1803,7 @@ impl EvidenceContinuation {
             return tail;
         }
         let mut head = self;
-        match head.try_append_owned_tail(tail) {
+        match head.try_append_owned_tail_counted(tail, stats, source) {
             Ok(()) => {
                 stats.continuation_owned_tail_appends += 1;
                 record_continuation_append_owned_tail(stats, source);
@@ -1776,7 +1820,12 @@ impl EvidenceContinuation {
         }
     }
 
-    fn try_append_owned_tail(&mut self, tail: Self) -> Result<(), Self> {
+    fn try_append_owned_tail_counted(
+        &mut self,
+        tail: Self,
+        stats: &mut RuntimeEvidenceRunStats,
+        source: EvidenceContinuationAppendSource,
+    ) -> Result<(), Self> {
         if tail.is_identity() {
             return Ok(());
         }
@@ -1787,10 +1836,22 @@ impl EvidenceContinuation {
             }
             Self::Frame(frame) => {
                 let Some(frame) = Rc::get_mut(frame) else {
+                    record_continuation_append_blocker(
+                        stats,
+                        source,
+                        EvidenceContinuationAppendBlocker::RcShared,
+                    );
                     return Err(tail);
                 };
-                frame.try_append_owned_tail(tail)
+                frame.try_append_owned_tail_counted(tail, stats, source)
             }
+        }
+    }
+
+    fn boundary_kind(&self) -> EvidenceContinuationBoundaryKind {
+        match self {
+            Self::Identity => EvidenceContinuationBoundaryKind::Identity,
+            Self::Frame(frame) => frame.boundary_kind(),
         }
     }
 
@@ -1849,14 +1910,36 @@ impl EvidenceContinuationFrame {
         }
     }
 
-    fn try_append_owned_tail(
+    fn try_append_owned_tail_counted(
         &mut self,
         tail: EvidenceContinuation,
+        stats: &mut RuntimeEvidenceRunStats,
+        source: EvidenceContinuationAppendSource,
     ) -> Result<(), EvidenceContinuation> {
+        let blocker = self.append_scope_blocker();
         let Some(tail_slot) = self.tail_mut() else {
+            if let Some(blocker) = blocker {
+                record_continuation_append_blocker(stats, source, blocker);
+            }
             return Err(tail);
         };
-        tail_slot.try_append_owned_tail(tail)
+        tail_slot.try_append_owned_tail_counted(tail, stats, source)
+    }
+
+    fn boundary_kind(&self) -> EvidenceContinuationBoundaryKind {
+        match self {
+            Self::MarkerFrame { .. } => EvidenceContinuationBoundaryKind::MarkerFrame,
+            Self::ProviderEnv { .. } => EvidenceContinuationBoundaryKind::ProviderEnv,
+            _ => EvidenceContinuationBoundaryKind::Other,
+        }
+    }
+
+    fn append_scope_blocker(&self) -> Option<EvidenceContinuationAppendBlocker> {
+        match self {
+            Self::MarkerFrame { .. } => Some(EvidenceContinuationAppendBlocker::MarkerFrame),
+            Self::ProviderEnv { .. } => Some(EvidenceContinuationAppendBlocker::ProviderEnv),
+            _ => None,
+        }
     }
 
     fn tail_mut(&mut self) -> Option<&mut EvidenceContinuation> {
@@ -1936,6 +2019,62 @@ fn record_continuation_append_then(
         }
         EvidenceContinuationAppendSource::DirectTail => {
             stats.direct_tail_continuation_then_appends += 1;
+        }
+    }
+}
+
+fn record_continuation_append_blocker(
+    stats: &mut RuntimeEvidenceRunStats,
+    source: EvidenceContinuationAppendSource,
+    blocker: EvidenceContinuationAppendBlocker,
+) {
+    match blocker {
+        EvidenceContinuationAppendBlocker::MarkerFrame => {
+            stats.continuation_append_blocked_by_marker_frame += 1;
+        }
+        EvidenceContinuationAppendBlocker::ProviderEnv => {
+            stats.continuation_append_blocked_by_provider_env += 1;
+        }
+        EvidenceContinuationAppendBlocker::RcShared => {
+            stats.continuation_append_blocked_by_rc_shared += 1;
+        }
+    }
+    match (source, blocker) {
+        (
+            EvidenceContinuationAppendSource::Request,
+            EvidenceContinuationAppendBlocker::MarkerFrame,
+        ) => {
+            stats.request_continuation_append_blocked_by_marker_frame += 1;
+        }
+        (
+            EvidenceContinuationAppendSource::Request,
+            EvidenceContinuationAppendBlocker::ProviderEnv,
+        ) => {
+            stats.request_continuation_append_blocked_by_provider_env += 1;
+        }
+        (
+            EvidenceContinuationAppendSource::Request,
+            EvidenceContinuationAppendBlocker::RcShared,
+        ) => {
+            stats.request_continuation_append_blocked_by_rc_shared += 1;
+        }
+        (
+            EvidenceContinuationAppendSource::DirectTail,
+            EvidenceContinuationAppendBlocker::MarkerFrame,
+        ) => {
+            stats.direct_tail_continuation_append_blocked_by_marker_frame += 1;
+        }
+        (
+            EvidenceContinuationAppendSource::DirectTail,
+            EvidenceContinuationAppendBlocker::ProviderEnv,
+        ) => {
+            stats.direct_tail_continuation_append_blocked_by_provider_env += 1;
+        }
+        (
+            EvidenceContinuationAppendSource::DirectTail,
+            EvidenceContinuationAppendBlocker::RcShared,
+        ) => {
+            stats.direct_tail_continuation_append_blocked_by_rc_shared += 1;
         }
     }
 }
@@ -2974,11 +3113,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         next: EvidenceContinuation,
         value: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.record_continuation_resume_marker_boundary(
+            &markers,
+            activate_add_ids,
+            handler_path.is_some(),
+        );
         if markers.is_empty() {
             return self.resume_continuation(next, value);
         }
         if next.is_identity() {
             self.stats.continuation_resume_marker_identity_fast_paths += 1;
+            self.stats.continuation_resume_marker_result_value += 1;
             return Ok(EvidenceEvalResult::Value(mark_runtime_value_shared(
                 value, markers,
             )));
@@ -2997,6 +3142,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.push_marker_frame(&markers, activate_add_ids, handler_path.clone());
         self.push_active_marker_plan(markers.clone());
         let result = self.resume_continuation(next, value);
+        self.record_continuation_resume_marker_result(&result);
         let handler_boundary = match &result {
             Ok(EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request))) => {
                 self.handler_boundary_for_request(request, handler_path.as_deref(), frame_len)
@@ -3019,6 +3165,60 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             handler_path,
             handler_boundary,
         )
+    }
+
+    fn record_continuation_resume_marker_boundary(
+        &mut self,
+        markers: &[EvidenceValueMarker],
+        activate_add_ids: bool,
+        has_handler_path: bool,
+    ) {
+        if markers.is_empty() {
+            self.stats.continuation_resume_marker_empty_markers += 1;
+            return;
+        }
+        if markers.iter().any(|marker| {
+            matches!(
+                marker,
+                EvidenceValueMarker::AddId(marker) if activate_add_ids && marker.depth == 0
+            )
+        }) {
+            self.stats.continuation_resume_marker_with_active_add_id += 1;
+        }
+        if has_handler_path {
+            self.stats.continuation_resume_marker_with_handler_path += 1;
+        }
+    }
+
+    fn record_continuation_resume_marker_result(
+        &mut self,
+        result: &Result<EvidenceEvalResult, RuntimeEvidenceRunError>,
+    ) {
+        match result {
+            Ok(EvidenceEvalResult::Value(_)) => {
+                self.stats.continuation_resume_marker_result_value += 1;
+            }
+            Ok(EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call))) => {
+                self.stats.continuation_resume_marker_result_direct_tail += 1;
+                if call.hygiene.provider_grant_permission().is_some() {
+                    self.stats
+                        .continuation_resume_marker_result_direct_tail_provider_permission += 1;
+                }
+                if self
+                    .provider_guard_boundary_permission(&call.hygiene)
+                    .is_some()
+                {
+                    self.stats
+                        .continuation_resume_marker_result_direct_tail_provider_boundary_pair += 1;
+                }
+            }
+            Ok(EvidenceEvalResult::Effect(_)) => {
+                self.stats.continuation_resume_marker_result_legacy_signal += 1;
+            }
+            Err(_) => {
+                self.stats.continuation_resume_marker_result_error += 1;
+            }
+        }
     }
 
     fn record_marker_frame_entry(
@@ -5114,6 +5314,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.record_continuation_resume_frame(&frame);
         match frame {
             EvidenceContinuationFrame::Then { first, second } => {
+                self.record_continuation_resume_then_boundary(&first, &second);
                 let result = self.resume_continuation(first, value)?;
                 self.continue_result(result, second)
             }
@@ -5460,6 +5661,50 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             | EvidenceContinuationFrame::ResolveRefSetFields { .. } => {
                 self.stats.continuation_resume_ref_set_steps += 1;
             }
+        }
+    }
+
+    fn record_continuation_resume_then_boundary(
+        &mut self,
+        first: &EvidenceContinuation,
+        second: &EvidenceContinuation,
+    ) {
+        let first_kind = first.boundary_kind();
+        let second_kind = second.boundary_kind();
+        match first_kind {
+            EvidenceContinuationBoundaryKind::MarkerFrame => {
+                self.stats.continuation_resume_then_first_marker_frame += 1;
+            }
+            EvidenceContinuationBoundaryKind::ProviderEnv => {
+                self.stats.continuation_resume_then_first_provider_env += 1;
+            }
+            EvidenceContinuationBoundaryKind::Identity
+            | EvidenceContinuationBoundaryKind::Other => {
+                self.stats.continuation_resume_then_first_other += 1;
+            }
+        }
+        match second_kind {
+            EvidenceContinuationBoundaryKind::MarkerFrame => {
+                self.stats.continuation_resume_then_second_marker_frame += 1;
+            }
+            EvidenceContinuationBoundaryKind::ProviderEnv => {
+                self.stats.continuation_resume_then_second_provider_env += 1;
+            }
+            EvidenceContinuationBoundaryKind::Identity
+            | EvidenceContinuationBoundaryKind::Other => {
+                self.stats.continuation_resume_then_second_other += 1;
+            }
+        }
+        if !matches!(
+            first_kind,
+            EvidenceContinuationBoundaryKind::MarkerFrame
+                | EvidenceContinuationBoundaryKind::ProviderEnv
+        ) && !matches!(
+            second_kind,
+            EvidenceContinuationBoundaryKind::MarkerFrame
+                | EvidenceContinuationBoundaryKind::ProviderEnv
+        ) {
+            self.stats.continuation_resume_then_plain += 1;
         }
     }
 

@@ -2653,12 +2653,102 @@ fn run_runtime_evidence_run(
         output.evidence_stats.direct_tail_continuation_then_appends
     );
     println!(
+        "  runtime_evidence.continuation_append_blocked_by_marker_frame: {}",
+        output
+            .evidence_stats
+            .continuation_append_blocked_by_marker_frame
+    );
+    println!(
+        "  runtime_evidence.continuation_append_blocked_by_provider_env: {}",
+        output
+            .evidence_stats
+            .continuation_append_blocked_by_provider_env
+    );
+    println!(
+        "  runtime_evidence.continuation_append_blocked_by_rc_shared: {}",
+        output
+            .evidence_stats
+            .continuation_append_blocked_by_rc_shared
+    );
+    println!(
+        "  runtime_evidence.request_continuation_append_blocked_by_marker_frame: {}",
+        output
+            .evidence_stats
+            .request_continuation_append_blocked_by_marker_frame
+    );
+    println!(
+        "  runtime_evidence.request_continuation_append_blocked_by_provider_env: {}",
+        output
+            .evidence_stats
+            .request_continuation_append_blocked_by_provider_env
+    );
+    println!(
+        "  runtime_evidence.request_continuation_append_blocked_by_rc_shared: {}",
+        output
+            .evidence_stats
+            .request_continuation_append_blocked_by_rc_shared
+    );
+    println!(
+        "  runtime_evidence.direct_tail_continuation_append_blocked_by_marker_frame: {}",
+        output
+            .evidence_stats
+            .direct_tail_continuation_append_blocked_by_marker_frame
+    );
+    println!(
+        "  runtime_evidence.direct_tail_continuation_append_blocked_by_provider_env: {}",
+        output
+            .evidence_stats
+            .direct_tail_continuation_append_blocked_by_provider_env
+    );
+    println!(
+        "  runtime_evidence.direct_tail_continuation_append_blocked_by_rc_shared: {}",
+        output
+            .evidence_stats
+            .direct_tail_continuation_append_blocked_by_rc_shared
+    );
+    println!(
         "  runtime_evidence.continuation_resume_steps: {}",
         output.evidence_stats.continuation_resume_steps
     );
     println!(
         "  runtime_evidence.continuation_resume_then_steps: {}",
         output.evidence_stats.continuation_resume_then_steps
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_then_first_marker_frame: {}",
+        output
+            .evidence_stats
+            .continuation_resume_then_first_marker_frame
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_then_first_provider_env: {}",
+        output
+            .evidence_stats
+            .continuation_resume_then_first_provider_env
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_then_first_other: {}",
+        output.evidence_stats.continuation_resume_then_first_other
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_then_second_marker_frame: {}",
+        output
+            .evidence_stats
+            .continuation_resume_then_second_marker_frame
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_then_second_provider_env: {}",
+        output
+            .evidence_stats
+            .continuation_resume_then_second_provider_env
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_then_second_other: {}",
+        output.evidence_stats.continuation_resume_then_second_other
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_then_plain: {}",
+        output.evidence_stats.continuation_resume_then_plain
     );
     println!(
         "  runtime_evidence.continuation_resume_force_steps: {}",
@@ -2689,6 +2779,60 @@ fn run_runtime_evidence_run(
         output
             .evidence_stats
             .continuation_resume_marker_identity_fast_paths
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_marker_empty_markers: {}",
+        output
+            .evidence_stats
+            .continuation_resume_marker_empty_markers
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_marker_with_active_add_id: {}",
+        output
+            .evidence_stats
+            .continuation_resume_marker_with_active_add_id
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_marker_with_handler_path: {}",
+        output
+            .evidence_stats
+            .continuation_resume_marker_with_handler_path
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_marker_result_value: {}",
+        output
+            .evidence_stats
+            .continuation_resume_marker_result_value
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_marker_result_direct_tail: {}",
+        output
+            .evidence_stats
+            .continuation_resume_marker_result_direct_tail
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_marker_result_direct_tail_provider_permission: {}",
+        output
+            .evidence_stats
+            .continuation_resume_marker_result_direct_tail_provider_permission
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_marker_result_direct_tail_provider_boundary_pair: {}",
+        output
+            .evidence_stats
+            .continuation_resume_marker_result_direct_tail_provider_boundary_pair
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_marker_result_legacy_signal: {}",
+        output
+            .evidence_stats
+            .continuation_resume_marker_result_legacy_signal
+    );
+    println!(
+        "  runtime_evidence.continuation_resume_marker_result_error: {}",
+        output
+            .evidence_stats
+            .continuation_resume_marker_result_error
     );
     println!(
         "  runtime_evidence.continuation_resume_provider_steps: {}",
