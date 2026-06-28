@@ -392,6 +392,13 @@ pub struct RuntimeEvidenceRunStats {
     pub marker_frame_adapter_entries: usize,
     pub marker_frame_continuation_resume_entries: usize,
     pub marker_frame_marked_force_entries: usize,
+    pub resume_marker_plan_empty: usize,
+    pub resume_marker_plan_pure_value: usize,
+    pub resume_marker_plan_dynamic_scope: usize,
+    pub resume_marker_plan_enter_ops_total: usize,
+    pub resume_marker_plan_handler_boundary: usize,
+    pub resume_marker_plan_active_add_id_ops: usize,
+    pub resume_marker_plan_to_legacy_push_pop: usize,
     pub marked_force_value_fast_paths: usize,
     pub marked_force_fallback_expr_thunks: usize,
     pub marked_force_fallback_effect_thunks: usize,
@@ -5264,6 +5271,47 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
+    fn record_resume_marker_plan_profile(
+        &mut self,
+        markers: &[EvidenceValueMarker],
+        activate_add_ids: bool,
+        has_handler_path: bool,
+    ) {
+        if !self.should_collect_runtime_breakdown_stats() {
+            return;
+        }
+        if markers.is_empty() {
+            self.stats.resume_marker_plan_empty += 1;
+            return;
+        }
+
+        let mut frame_ops = 0usize;
+        let mut active_add_id_ops = 0usize;
+        for marker in markers {
+            match marker {
+                EvidenceValueMarker::Frame { .. } => frame_ops += 1,
+                EvidenceValueMarker::AddId(marker) if activate_add_ids && marker.depth == 0 => {
+                    active_add_id_ops += 1;
+                }
+                EvidenceValueMarker::AddId(_) => {}
+            }
+        }
+
+        if has_handler_path {
+            self.stats.resume_marker_plan_handler_boundary += 1;
+        }
+        self.stats.resume_marker_plan_active_add_id_ops += active_add_id_ops;
+        let handler_frame_ops = if has_handler_path { frame_ops } else { 0 };
+        self.stats.resume_marker_plan_enter_ops_total +=
+            frame_ops + active_add_id_ops + handler_frame_ops;
+        if active_add_id_ops > 0 || has_handler_path {
+            self.stats.resume_marker_plan_dynamic_scope += 1;
+        } else {
+            self.stats.resume_marker_plan_pure_value += 1;
+        }
+        self.stats.resume_marker_plan_to_legacy_push_pop += 1;
+    }
+
     fn push_marker_frame(
         &mut self,
         markers: &[EvidenceValueMarker],
@@ -5385,21 +5433,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     request.hygiene.set_handler_boundary(handler_boundary);
                 }
                 request.payload = mark_runtime_value_shared(request.payload, markers.clone());
-                self.close_marker_request(
-                    request,
-                    self.resume_marker_plan(&markers, activate_add_ids, handler_path),
-                )
+                let resume_plan = self.resume_marker_plan(&markers, activate_add_ids, handler_path);
+                self.close_marker_request(request, resume_plan)
             }
         }
     }
 
     fn resume_marker_plan(
-        &self,
+        &mut self,
         markers: &Rc<[EvidenceValueMarker]>,
         activate_add_ids: bool,
         handler_path: Option<Vec<String>>,
     ) -> Option<EvidenceResumeMarkerPlan> {
         let markers = markers_for_continuation_resume_shared(markers);
+        self.record_resume_marker_plan_profile(&markers, activate_add_ids, handler_path.is_some());
         if markers.is_empty() {
             return None;
         }
@@ -5411,12 +5458,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     }
 
     fn resume_marker_plan_for_slice(
-        &self,
+        &mut self,
         markers: &[EvidenceValueMarker],
         activate_add_ids: bool,
         handler_path: Option<Vec<String>>,
     ) -> Option<EvidenceResumeMarkerPlan> {
         let markers = markers_for_continuation_resume(markers);
+        self.record_resume_marker_plan_profile(&markers, activate_add_ids, handler_path.is_some());
         if markers.is_empty() {
             return None;
         }
@@ -6887,10 +6935,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let resume_plan = self.resume_marker_plan(&markers, true, None);
                 self.close_marker_routed_yield(call, markers, resume_plan)
             }
-            EvidenceEffectSignal::GenericRequest(request) => self.close_marker_request(
-                request,
-                self.resume_marker_plan_for_slice(markers, true, None),
-            ),
+            EvidenceEffectSignal::GenericRequest(request) => {
+                let resume_plan = self.resume_marker_plan_for_slice(markers, true, None);
+                self.close_marker_request(request, resume_plan)
+            }
         }
     }
 
@@ -13940,6 +13988,38 @@ mod tests {
         assert_eq!(profile.eval_frames, 1);
         assert_eq!(profile.request_boundaries, 1);
         assert!(!profile.can_shadow_segment());
+    }
+
+    #[test]
+    fn resume_marker_plan_profile_counts_dynamic_enter_ops() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        runner.stats.runtime_breakdown_stats_enabled = true;
+        let markers = vec![
+            EvidenceValueMarker::Frame {
+                id: EvidenceGuardId(1),
+            },
+            EvidenceValueMarker::AddId(Rc::new(EvidenceAddIdMarker {
+                id: EvidenceGuardId(1),
+                path: shared_path(&permission_test_path()),
+                depth: 0,
+                guard_own_path: true,
+                guard_foreign_path: true,
+                carry_after_frame: false,
+                preserve_own_on_resume: true,
+            })),
+        ];
+
+        runner.record_resume_marker_plan_profile(&markers, true, true);
+        runner.record_resume_marker_plan_profile(&[], true, false);
+
+        assert_eq!(runner.stats.resume_marker_plan_dynamic_scope, 1);
+        assert_eq!(runner.stats.resume_marker_plan_pure_value, 0);
+        assert_eq!(runner.stats.resume_marker_plan_empty, 1);
+        assert_eq!(runner.stats.resume_marker_plan_handler_boundary, 1);
+        assert_eq!(runner.stats.resume_marker_plan_active_add_id_ops, 1);
+        assert_eq!(runner.stats.resume_marker_plan_enter_ops_total, 3);
+        assert_eq!(runner.stats.resume_marker_plan_to_legacy_push_pop, 1);
     }
 
     #[test]

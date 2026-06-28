@@ -4094,6 +4094,34 @@ fn run_runtime_evidence_run(
         output.evidence_stats.marker_frame_marked_force_entries
     );
     println!(
+        "  runtime_evidence.resume_marker_plan_empty: {}",
+        output.evidence_stats.resume_marker_plan_empty
+    );
+    println!(
+        "  runtime_evidence.resume_marker_plan_pure_value: {}",
+        output.evidence_stats.resume_marker_plan_pure_value
+    );
+    println!(
+        "  runtime_evidence.resume_marker_plan_dynamic_scope: {}",
+        output.evidence_stats.resume_marker_plan_dynamic_scope
+    );
+    println!(
+        "  runtime_evidence.resume_marker_plan_enter_ops_total: {}",
+        output.evidence_stats.resume_marker_plan_enter_ops_total
+    );
+    println!(
+        "  runtime_evidence.resume_marker_plan_handler_boundary: {}",
+        output.evidence_stats.resume_marker_plan_handler_boundary
+    );
+    println!(
+        "  runtime_evidence.resume_marker_plan_active_add_id_ops: {}",
+        output.evidence_stats.resume_marker_plan_active_add_id_ops
+    );
+    println!(
+        "  runtime_evidence.resume_marker_plan_to_legacy_push_pop: {}",
+        output.evidence_stats.resume_marker_plan_to_legacy_push_pop
+    );
+    println!(
         "  runtime_evidence.marked_force_value_fast_paths: {}",
         output.evidence_stats.marked_force_value_fast_paths
     );
