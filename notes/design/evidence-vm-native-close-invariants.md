@@ -200,3 +200,8 @@ For the current nondet/showcase workloads:
 This suggests that a future cert would need to model the nearest-miss plus
 later-grant sequence explicitly. It must not be collapsed into the nearest-miss
 shadow, and it must not use arbitrary `any ProviderEnv` presence.
+
+A first native-close experiment for this branch preserved visible behavior but
+slowed the representative runtime workloads. The later-grant branch therefore
+remains profile-only until its execution shape is understood. The profile result
+is evidence about visibility, not yet a valid fast-path invariant.
