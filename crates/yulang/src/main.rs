@@ -3172,6 +3172,60 @@ fn run_runtime_evidence_run(
         output.evidence_stats.resume_plan_shadow_with_provider_delta
     );
     println!(
+        "  runtime_evidence.resume_plan_shadow_request_delta_candidates: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_request_delta_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_request_delta_direct_tail_candidates: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_request_delta_direct_tail_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_request_delta_resume_pack_candidates: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_request_delta_resume_pack_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_request_delta_reject_no_catch_boundary: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_request_delta_reject_no_catch_boundary
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_request_delta_reject_ref_set_boundary: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_request_delta_reject_ref_set_boundary
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_request_delta_requires_marker_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_request_delta_requires_marker_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_request_delta_requires_provider_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_request_delta_requires_provider_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_request_delta_requires_both_scope_deltas: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_request_delta_requires_both_scope_deltas
+    );
+    println!(
+        "  runtime_evidence.resume_plan_shadow_request_delta_provider_dirty_add_id: {}",
+        output
+            .evidence_stats
+            .resume_plan_shadow_request_delta_provider_dirty_add_id
+    );
+    println!(
         "  runtime_evidence.resume_pack_candidates: {}",
         output.evidence_stats.resume_pack_candidates
     );

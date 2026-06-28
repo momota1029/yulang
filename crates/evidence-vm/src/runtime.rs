@@ -207,6 +207,15 @@ pub struct RuntimeEvidenceRunStats {
     pub resume_plan_shadow_with_catch_boundary: usize,
     pub resume_plan_shadow_with_dynamic_marker: usize,
     pub resume_plan_shadow_with_provider_delta: usize,
+    pub resume_plan_shadow_request_delta_candidates: usize,
+    pub resume_plan_shadow_request_delta_direct_tail_candidates: usize,
+    pub resume_plan_shadow_request_delta_resume_pack_candidates: usize,
+    pub resume_plan_shadow_request_delta_reject_no_catch_boundary: usize,
+    pub resume_plan_shadow_request_delta_reject_ref_set_boundary: usize,
+    pub resume_plan_shadow_request_delta_requires_marker_delta: usize,
+    pub resume_plan_shadow_request_delta_requires_provider_delta: usize,
+    pub resume_plan_shadow_request_delta_requires_both_scope_deltas: usize,
+    pub resume_plan_shadow_request_delta_provider_dirty_add_id: usize,
     pub resume_pack_candidates: usize,
     pub resume_pack_thunks_forced: usize,
     pub resume_pack_multi_shot_required: usize,
@@ -1241,6 +1250,22 @@ impl EvidenceResumePlanShadowProfile {
             && self.marker_frames == 0
             && self.provider_env_deltas == 0
     }
+
+    fn request_delta_rejection(self) -> Option<EvidenceResumePlanRequestDeltaReject> {
+        if self.catch_boundaries == 0 {
+            return Some(EvidenceResumePlanRequestDeltaReject::NoCatchBoundary);
+        }
+        if self.ref_set_boundaries > 0 {
+            return Some(EvidenceResumePlanRequestDeltaReject::RefSetBoundary);
+        }
+        None
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceResumePlanRequestDeltaReject {
+    NoCatchBoundary,
+    RefSetBoundary,
 }
 
 impl EvidenceDirectTailSegmentProfile {
@@ -6729,6 +6754,53 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
         if profile.has_provider_delta() {
             self.stats.resume_plan_shadow_with_provider_delta += 1;
+        }
+        self.record_resume_plan_request_delta_shadow(profile, direct_tail, provider_dirty_add_id);
+    }
+
+    fn record_resume_plan_request_delta_shadow(
+        &mut self,
+        profile: EvidenceResumePlanShadowProfile,
+        direct_tail: bool,
+        provider_dirty_add_id: bool,
+    ) {
+        match profile.request_delta_rejection() {
+            None => {}
+            Some(EvidenceResumePlanRequestDeltaReject::NoCatchBoundary) => {
+                self.stats
+                    .resume_plan_shadow_request_delta_reject_no_catch_boundary += 1;
+                return;
+            }
+            Some(EvidenceResumePlanRequestDeltaReject::RefSetBoundary) => {
+                self.stats
+                    .resume_plan_shadow_request_delta_reject_ref_set_boundary += 1;
+                return;
+            }
+        }
+
+        self.stats.resume_plan_shadow_request_delta_candidates += 1;
+        if direct_tail {
+            self.stats
+                .resume_plan_shadow_request_delta_direct_tail_candidates += 1;
+        } else {
+            self.stats
+                .resume_plan_shadow_request_delta_resume_pack_candidates += 1;
+        }
+        if profile.has_dynamic_marker() {
+            self.stats
+                .resume_plan_shadow_request_delta_requires_marker_delta += 1;
+        }
+        if profile.has_provider_delta() {
+            self.stats
+                .resume_plan_shadow_request_delta_requires_provider_delta += 1;
+        }
+        if profile.has_dynamic_marker() && profile.has_provider_delta() {
+            self.stats
+                .resume_plan_shadow_request_delta_requires_both_scope_deltas += 1;
+        }
+        if provider_dirty_add_id {
+            self.stats
+                .resume_plan_shadow_request_delta_provider_dirty_add_id += 1;
         }
     }
 
@@ -14586,6 +14658,38 @@ mod tests {
         assert!(profile.has_dynamic_marker());
         assert!(profile.has_provider_delta());
         assert!(!profile.is_eval_only());
+        assert_eq!(profile.request_delta_rejection(), None);
+    }
+
+    #[test]
+    fn resume_plan_shadow_request_delta_rejects_ref_set_boundary() {
+        let continuation = EvidenceContinuation::ref_set_handle_result(
+            shared(RuntimeEvidenceValue::Unit),
+            EvidenceContinuation::identity(),
+        );
+
+        let profile = continuation.resume_plan_shadow_profile(None);
+
+        assert_eq!(profile.ref_set_boundaries, 1);
+        assert_eq!(
+            profile.request_delta_rejection(),
+            Some(EvidenceResumePlanRequestDeltaReject::NoCatchBoundary)
+        );
+
+        let catch_wrapped = EvidenceContinuation::catch_body(
+            ExprId(1),
+            empty_catch_arms(),
+            Env::new(),
+            continuation,
+        );
+        let profile = catch_wrapped.resume_plan_shadow_profile(None);
+
+        assert_eq!(profile.catch_boundaries, 1);
+        assert_eq!(profile.ref_set_boundaries, 1);
+        assert_eq!(
+            profile.request_delta_rejection(),
+            Some(EvidenceResumePlanRequestDeltaReject::RefSetBoundary)
+        );
     }
 
     #[test]
