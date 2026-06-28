@@ -103,6 +103,12 @@ pub struct RuntimeEvidenceRunStats {
     pub permission_provider_boundary_pair_fast_path_visible: usize,
     pub permission_provider_boundary_pair_fast_path_invisible: usize,
     pub permission_provider_boundary_pair_fast_path_no_allowed_handler: usize,
+    pub permission_provider_boundary_pair_native_shadow: usize,
+    pub permission_provider_boundary_pair_native_shadow_legacy_visible: usize,
+    pub permission_provider_boundary_pair_native_shadow_native_visible: usize,
+    pub permission_provider_boundary_pair_native_shadow_match: usize,
+    pub permission_provider_boundary_pair_native_shadow_mismatch: usize,
+    pub permission_provider_boundary_pair_native_shadow_no_allowed_handler: usize,
     pub expr_evals: usize,
     pub env_clones: usize,
     pub env_entries_cloned: usize,
@@ -6747,6 +6753,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         visible
     }
 
+    fn operation_arm_visible(
+        &self,
+        request_path: &[String],
+        arms: &[control_vm::CatchArm],
+    ) -> Option<bool> {
+        arms.iter().find_map(|arm| {
+            let operation_path = arm.operation_path.as_ref()?;
+            (operation_path.as_slice() == request_path).then_some(arm.continuation.is_some())
+        })
+    }
+
     fn visible_operation_resumptive_parts(
         &self,
         request_path: &[String],
@@ -6791,18 +6808,36 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             )
         {
             let permission_visible = permission_result.visible();
+            let native_result =
+                if let Some(EvidencePermissionShadowKind::ProviderGrantBoundaryPair(permission)) =
+                    call.hygiene.permission_shadow_kind()
+                {
+                    self.permission_visible_guard_boundary_pair_native(
+                        catch_expr, &call.path, permission, arms,
+                    )
+                } else {
+                    EvidencePermissionVisibleResult::NoAllowedHandler
+                };
             if self.should_verify_permission_visibility() {
                 let exposure = EvidenceGuardBoundaryExposure::from_hygiene(&call.hygiene);
                 let legacy_visible =
                     self.visible_operation_resumptive_parts(&call.path, exposure, arms);
                 self.record_provider_boundary_pair_shadow(legacy_visible, permission_result);
+                self.record_provider_boundary_pair_native_shadow(legacy_visible, native_result);
                 debug_assert_eq!(
                     permission_visible,
                     legacy_visible,
                     "permission direct-tail visibility diverged from legacy hygiene for {}",
                     call.path.join("::")
                 );
+                debug_assert_eq!(
+                    native_result.visible(),
+                    legacy_visible,
+                    "native provider permission visibility diverged from legacy hygiene for {}",
+                    call.path.join("::")
+                );
             } else {
+                self.record_provider_boundary_pair_native_shadow(permission_visible, native_result);
                 self.record_provider_boundary_pair_fast_path(permission_result);
             }
             return permission_visible;
@@ -6938,6 +6973,22 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         ))
     }
 
+    fn permission_visible_guard_boundary_pair_native(
+        &self,
+        catch_expr: ExprId,
+        request_path: &[String],
+        permission: RuntimeEvidenceProviderGrantPermission,
+        arms: &[control_vm::CatchArm],
+    ) -> EvidencePermissionVisibleResult {
+        if !self
+            .context
+            .catch_has_provider_grant_permission(catch_expr, request_path, permission)
+        {
+            return EvidencePermissionVisibleResult::NoAllowedHandler;
+        }
+        EvidencePermissionVisibleResult::Visible(self.operation_arm_visible(request_path, arms))
+    }
+
     fn record_provider_boundary_pair_shadow(
         &mut self,
         legacy_visible: Option<bool>,
@@ -6979,6 +7030,34 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if permission_result.no_allowed_handler() {
             self.stats
                 .permission_provider_boundary_pair_fast_path_no_allowed_handler += 1;
+        }
+    }
+
+    fn record_provider_boundary_pair_native_shadow(
+        &mut self,
+        legacy_visible: Option<bool>,
+        native_result: EvidencePermissionVisibleResult,
+    ) {
+        self.stats.permission_provider_boundary_pair_native_shadow += 1;
+        if legacy_visible.is_some() {
+            self.stats
+                .permission_provider_boundary_pair_native_shadow_legacy_visible += 1;
+        }
+        let native_visible = native_result.visible();
+        if native_visible.is_some() {
+            self.stats
+                .permission_provider_boundary_pair_native_shadow_native_visible += 1;
+        }
+        if native_result.no_allowed_handler() {
+            self.stats
+                .permission_provider_boundary_pair_native_shadow_no_allowed_handler += 1;
+        }
+        if legacy_visible == native_visible {
+            self.stats
+                .permission_provider_boundary_pair_native_shadow_match += 1;
+        } else {
+            self.stats
+                .permission_provider_boundary_pair_native_shadow_mismatch += 1;
         }
     }
 

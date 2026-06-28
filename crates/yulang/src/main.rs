@@ -2513,6 +2513,42 @@ fn run_runtime_evidence_run(
             .permission_provider_boundary_pair_fast_path_no_allowed_handler
     );
     println!(
+        "  runtime_evidence.permission_provider_boundary_pair_native_shadow: {}",
+        output
+            .evidence_stats
+            .permission_provider_boundary_pair_native_shadow
+    );
+    println!(
+        "  runtime_evidence.permission_provider_boundary_pair_native_shadow_legacy_visible: {}",
+        output
+            .evidence_stats
+            .permission_provider_boundary_pair_native_shadow_legacy_visible
+    );
+    println!(
+        "  runtime_evidence.permission_provider_boundary_pair_native_shadow_native_visible: {}",
+        output
+            .evidence_stats
+            .permission_provider_boundary_pair_native_shadow_native_visible
+    );
+    println!(
+        "  runtime_evidence.permission_provider_boundary_pair_native_shadow_match: {}",
+        output
+            .evidence_stats
+            .permission_provider_boundary_pair_native_shadow_match
+    );
+    println!(
+        "  runtime_evidence.permission_provider_boundary_pair_native_shadow_mismatch: {}",
+        output
+            .evidence_stats
+            .permission_provider_boundary_pair_native_shadow_mismatch
+    );
+    println!(
+        "  runtime_evidence.permission_provider_boundary_pair_native_shadow_no_allowed_handler: {}",
+        output
+            .evidence_stats
+            .permission_provider_boundary_pair_native_shadow_no_allowed_handler
+    );
+    println!(
         "  control_evidence.effect_calls: {}",
         output.evidence_stats.effect_calls
     );
