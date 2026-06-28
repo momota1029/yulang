@@ -3177,6 +3177,102 @@ fn run_runtime_evidence_run(
             .resume_marker_provider_pair_close_legacy_fallbacks
     );
     println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_candidates: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_shadow: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_shadow
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_shadow_match: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_shadow_match
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_shadow_mismatch: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_shadow_mismatch
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_shadow_legacy_visible: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_shadow_legacy_visible
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_shadow_permission_visible: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_shadow_permission_visible
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_reject_no_boundary: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_reject_no_boundary
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_reject_blocked: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_reject_blocked
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_reject_call_boundary_mismatch: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_reject_call_boundary_mismatch
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_reject_foreign_family: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_reject_foreign_family
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_reject_permission_unknown: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_reject_permission_unknown
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_reject_exact_family: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_reject_exact_family
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_reject_carry_after_frame: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_reject_carry_after_frame
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_permission_family_equals_request_path: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_permission_family_equals_request_path
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_permission_family_prefixes_request_path: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_permission_family_prefixes_request_path
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_prefix_boundary_request_path_prefixes_permission_family: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_prefix_boundary_request_path_prefixes_permission_family
+    );
+    println!(
         "  runtime_evidence.continuation_resume_provider_steps: {}",
         output.evidence_stats.continuation_resume_provider_steps
     );

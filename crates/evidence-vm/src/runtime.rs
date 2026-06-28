@@ -229,6 +229,22 @@ pub struct RuntimeEvidenceRunStats {
     pub resume_marker_provider_pair_close_reject_other_transform: usize,
     pub resume_marker_provider_pair_close_native_hits: usize,
     pub resume_marker_provider_pair_close_legacy_fallbacks: usize,
+    pub resume_marker_provider_prefix_boundary_candidates: usize,
+    pub resume_marker_provider_prefix_boundary_shadow: usize,
+    pub resume_marker_provider_prefix_boundary_shadow_match: usize,
+    pub resume_marker_provider_prefix_boundary_shadow_mismatch: usize,
+    pub resume_marker_provider_prefix_boundary_shadow_legacy_visible: usize,
+    pub resume_marker_provider_prefix_boundary_shadow_permission_visible: usize,
+    pub resume_marker_provider_prefix_boundary_reject_no_boundary: usize,
+    pub resume_marker_provider_prefix_boundary_reject_blocked: usize,
+    pub resume_marker_provider_prefix_boundary_reject_call_boundary_mismatch: usize,
+    pub resume_marker_provider_prefix_boundary_reject_foreign_family: usize,
+    pub resume_marker_provider_prefix_boundary_reject_permission_unknown: usize,
+    pub resume_marker_provider_prefix_boundary_reject_exact_family: usize,
+    pub resume_marker_provider_prefix_boundary_reject_carry_after_frame: usize,
+    pub resume_marker_provider_prefix_boundary_permission_family_equals_request_path: usize,
+    pub resume_marker_provider_prefix_boundary_permission_family_prefixes_request_path: usize,
+    pub resume_marker_provider_prefix_boundary_request_path_prefixes_permission_family: usize,
     pub continuation_resume_provider_steps: usize,
     pub continuation_resume_aggregate_steps: usize,
     pub continuation_resume_select_steps: usize,
@@ -1105,6 +1121,9 @@ struct EvidenceSignalHygiene {
     provider_add_id_shortcut_full_scan: Option<Box<EvidenceFullScanHygieneSnapshot>>,
     #[cfg(debug_assertions)]
     resume_marker_provider_pair_close_shadow: Option<EvidenceResumeMarkerCloseShadow>,
+    #[cfg(debug_assertions)]
+    resume_marker_provider_prefix_boundary_close_shadow:
+        Option<EvidenceProviderPrefixBoundaryExposure>,
 }
 
 impl EvidenceSignalHygiene {
@@ -1192,6 +1211,21 @@ impl EvidenceSignalHygiene {
     #[cfg(debug_assertions)]
     fn resume_marker_provider_pair_close_shadow(&self) -> Option<EvidenceResumeMarkerCloseShadow> {
         self.resume_marker_provider_pair_close_shadow
+    }
+
+    #[cfg(debug_assertions)]
+    fn set_resume_marker_provider_prefix_boundary_close_shadow(
+        &mut self,
+        exposure: EvidenceProviderPrefixBoundaryExposure,
+    ) {
+        self.resume_marker_provider_prefix_boundary_close_shadow = Some(exposure);
+    }
+
+    #[cfg(debug_assertions)]
+    fn resume_marker_provider_prefix_boundary_close_shadow(
+        &self,
+    ) -> Option<EvidenceProviderPrefixBoundaryExposure> {
+        self.resume_marker_provider_prefix_boundary_close_shadow
     }
 
     #[cfg(debug_assertions)]
@@ -1318,6 +1352,27 @@ impl EvidencePermissionBoundarySegment {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidencePermissionBoundaryExposure {
     ProviderGuardBoundaryPair,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderPrefixBoundaryExposure {
+    permission: RuntimeEvidenceProviderGrantPermission,
+    boundary_path_len: usize,
+}
+
+#[cfg(debug_assertions)]
+impl EvidenceProviderPrefixBoundaryExposure {
+    fn new(permission: RuntimeEvidenceProviderGrantPermission, boundary_path_len: usize) -> Self {
+        Self {
+            permission,
+            boundary_path_len,
+        }
+    }
+
+    fn permission(self) -> RuntimeEvidenceProviderGrantPermission {
+        self.permission
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3971,7 +4026,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         };
 
         if let Some(handler_path) = resume_plan.and_then(|plan| plan.handler_path.as_ref()) {
-            self.record_provider_marker_close_handler_path_reject(call, handler_path, permission);
+            self.record_provider_marker_close_handler_path_reject(
+                call,
+                handler_path,
+                markers,
+                permission,
+            );
             return EvidenceMarkerCloseDecision::Legacy;
         }
         if marker_slice_has_carry_after_frame_add_id(markers) {
@@ -3999,14 +4059,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn record_provider_marker_close_handler_path_reject(
         &mut self,
-        call: &EvidenceDirectTailResumptive,
+        call: &mut EvidenceDirectTailResumptive,
         handler_path: &[String],
+        markers: &[EvidenceValueMarker],
         permission: RuntimeEvidenceProviderGrantPermission,
     ) {
         self.record_provider_marker_close_reject(EvidenceProviderMarkerCloseReject::HandlerPath);
-        match call.hygiene.handler_boundary.as_ref() {
+        let mut boundary_matches_call = false;
+        let boundary_blocked = match call.hygiene.handler_boundary.as_ref() {
             Some(boundary) => {
-                if boundary.blocked {
+                let blocked = boundary.blocked;
+                if blocked {
                     self.stats
                         .resume_marker_provider_pair_close_reject_handler_path_blocked += 1;
                 } else {
@@ -4014,6 +4077,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         .resume_marker_provider_pair_close_reject_handler_path_unblocked += 1;
                 }
                 if boundary.path.as_slice() == handler_path {
+                    boundary_matches_call = true;
                     self.stats
                         .resume_marker_provider_pair_close_reject_handler_path_matches_call_boundary += 1;
                 } else {
@@ -4022,6 +4086,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
                 self.stats
                     .resume_marker_provider_pair_close_reject_handler_path_boundary_id_permission_handler_unknown += 1;
+                blocked
             }
             None => {
                 self.stats
@@ -4031,8 +4096,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     1;
                 self.stats
                     .resume_marker_provider_pair_close_reject_handler_path_boundary_id_permission_handler_unknown += 1;
+                false
             }
-        }
+        };
         if path_is_prefix(handler_path, &call.path) {
             self.stats
                 .resume_marker_provider_pair_close_reject_handler_path_same_family += 1;
@@ -4044,22 +4110,102 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         else {
             self.stats
                 .resume_marker_provider_pair_close_reject_handler_path_permission_handler_unknown += 1;
+            self.stats
+                .resume_marker_provider_prefix_boundary_reject_permission_unknown += 1;
             return;
         };
-        if permission_family == handler_path {
+        let permission_family = permission_family.to_vec();
+        if permission_family.as_slice() == handler_path {
             self.stats
                 .resume_marker_provider_pair_close_reject_handler_path_matches_allowed_handler_family += 1;
         } else {
             self.stats
                 .resume_marker_provider_pair_close_reject_handler_path_differs_allowed_handler_family += 1;
         }
-        if path_is_prefix(handler_path, permission_family) {
+        if path_is_prefix(handler_path, &permission_family) {
             self.stats
                 .resume_marker_provider_pair_close_reject_handler_path_prefixes_allowed_handler_family += 1;
         }
-        if path_is_prefix(permission_family, handler_path) {
+        if path_is_prefix(&permission_family, handler_path) {
             self.stats
                 .resume_marker_provider_pair_close_reject_handler_path_allowed_handler_family_prefixes += 1;
+        }
+        self.record_provider_prefix_boundary_candidate(
+            call,
+            handler_path,
+            markers,
+            permission,
+            &permission_family,
+            boundary_matches_call,
+            boundary_blocked,
+        );
+    }
+
+    fn record_provider_prefix_boundary_candidate(
+        &mut self,
+        call: &mut EvidenceDirectTailResumptive,
+        handler_path: &[String],
+        markers: &[EvidenceValueMarker],
+        permission: RuntimeEvidenceProviderGrantPermission,
+        permission_family: &[String],
+        boundary_matches_call: bool,
+        boundary_blocked: bool,
+    ) {
+        if permission_family == call.path.as_ref() {
+            self.stats
+                .resume_marker_provider_prefix_boundary_permission_family_equals_request_path += 1;
+        }
+        if path_is_prefix(permission_family, &call.path) {
+            self.stats
+                .resume_marker_provider_prefix_boundary_permission_family_prefixes_request_path +=
+                1;
+        }
+        if path_is_prefix(&call.path, permission_family) {
+            self.stats
+                .resume_marker_provider_prefix_boundary_request_path_prefixes_permission_family +=
+                1;
+        }
+
+        if call.hygiene.handler_boundary.is_none() {
+            self.stats
+                .resume_marker_provider_prefix_boundary_reject_no_boundary += 1;
+            return;
+        }
+        if boundary_blocked {
+            self.stats
+                .resume_marker_provider_prefix_boundary_reject_blocked += 1;
+            return;
+        }
+        if !boundary_matches_call {
+            self.stats
+                .resume_marker_provider_prefix_boundary_reject_call_boundary_mismatch += 1;
+            return;
+        }
+        if !path_is_prefix(handler_path, permission_family) {
+            self.stats
+                .resume_marker_provider_prefix_boundary_reject_foreign_family += 1;
+            return;
+        }
+        if handler_path == permission_family {
+            self.stats
+                .resume_marker_provider_prefix_boundary_reject_exact_family += 1;
+            return;
+        }
+        if marker_slice_has_carry_after_frame_add_id(markers) {
+            self.stats
+                .resume_marker_provider_prefix_boundary_reject_carry_after_frame += 1;
+            return;
+        }
+
+        self.stats.resume_marker_provider_prefix_boundary_candidates += 1;
+        #[cfg(debug_assertions)]
+        call.hygiene
+            .set_resume_marker_provider_prefix_boundary_close_shadow(
+                EvidenceProviderPrefixBoundaryExposure::new(permission, handler_path.len()),
+            );
+        #[cfg(not(debug_assertions))]
+        {
+            let _ = permission;
         }
     }
 
@@ -7764,6 +7910,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         legacy_visible,
                         native_result,
                     );
+                    self.record_resume_marker_provider_prefix_boundary_close_visible_shadow(
+                        &call.hygiene,
+                        legacy_visible,
+                        native_result,
+                    );
                 }
                 self.record_provider_boundary_pair_shadow(legacy_visible, permission_result);
                 self.record_provider_boundary_pair_native_shadow(legacy_visible, native_result);
@@ -8068,6 +8219,44 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.stats.resume_marker_provider_pair_close_shadow_match += 1;
         } else {
             self.stats.resume_marker_provider_pair_close_shadow_mismatch += 1;
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn record_resume_marker_provider_prefix_boundary_close_visible_shadow(
+        &mut self,
+        hygiene: &EvidenceSignalHygiene,
+        legacy_visible: Option<bool>,
+        permission_result: EvidencePermissionVisibleResult,
+    ) {
+        let Some(exposure) = hygiene.resume_marker_provider_prefix_boundary_close_shadow() else {
+            return;
+        };
+        debug_assert_ne!(
+            exposure.boundary_path_len, 0,
+            "prefix boundary shadow lost boundary path length"
+        );
+        debug_assert_eq!(
+            Some(exposure.permission()),
+            self.provider_guard_boundary_permission(hygiene),
+            "prefix boundary shadow lost provider permission"
+        );
+        self.stats.resume_marker_provider_prefix_boundary_shadow += 1;
+        if legacy_visible.is_some() {
+            self.stats
+                .resume_marker_provider_prefix_boundary_shadow_legacy_visible += 1;
+        }
+        let permission_visible = permission_result.visible();
+        if permission_visible.is_some() {
+            self.stats
+                .resume_marker_provider_prefix_boundary_shadow_permission_visible += 1;
+        }
+        if legacy_visible == permission_visible {
+            self.stats
+                .resume_marker_provider_prefix_boundary_shadow_match += 1;
+        } else {
+            self.stats
+                .resume_marker_provider_prefix_boundary_shadow_mismatch += 1;
         }
     }
 
