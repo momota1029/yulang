@@ -149,6 +149,13 @@ pub struct RuntimeEvidenceRunStats {
     pub direct_tail_continuation_append_blocked_by_marker_frame: usize,
     pub direct_tail_continuation_append_blocked_by_provider_env: usize,
     pub direct_tail_continuation_append_blocked_by_rc_shared: usize,
+    pub direct_tail_permission_boundary_append_candidates: usize,
+    pub direct_tail_permission_boundary_append_provider_pair: usize,
+    pub direct_tail_permission_boundary_append_reject_no_provider_permission: usize,
+    pub direct_tail_permission_boundary_append_reject_resume_delta: usize,
+    pub direct_tail_permission_boundary_append_reject_handler_path: usize,
+    pub direct_tail_permission_boundary_append_reject_legacy_bridge: usize,
+    pub direct_tail_permission_boundary_append_reject_other_transform: usize,
     pub continuation_resume_steps: usize,
     pub continuation_resume_then_steps: usize,
     pub continuation_resume_then_first_marker_frame: usize,
@@ -1920,6 +1927,13 @@ impl EvidenceContinuation {
         };
         frame.has_request_boundary(routed_yield_handler)
     }
+
+    fn append_marker_frame_blocker_has_handler_path(&self) -> Option<bool> {
+        let Some(frame) = self.frame() else {
+            return None;
+        };
+        frame.append_marker_frame_blocker_has_handler_path()
+    }
 }
 
 impl EvidenceContinuationFrame {
@@ -1998,6 +2012,55 @@ impl EvidenceContinuationFrame {
             Self::MarkerFrame { .. } => Some(EvidenceContinuationAppendBlocker::MarkerFrame),
             Self::ProviderEnv { .. } => Some(EvidenceContinuationAppendBlocker::ProviderEnv),
             _ => None,
+        }
+    }
+
+    fn append_marker_frame_blocker_has_handler_path(&self) -> Option<bool> {
+        match self.append_scope_blocker() {
+            Some(EvidenceContinuationAppendBlocker::MarkerFrame) => match self {
+                Self::MarkerFrame { handler_path, .. } => Some(handler_path.is_some()),
+                _ => None,
+            },
+            Some(EvidenceContinuationAppendBlocker::ProviderEnv)
+            | Some(EvidenceContinuationAppendBlocker::RcShared) => None,
+            None => self
+                .tail_ref()
+                .and_then(EvidenceContinuation::append_marker_frame_blocker_has_handler_path),
+        }
+    }
+
+    fn tail_ref(&self) -> Option<&EvidenceContinuation> {
+        match self {
+            EvidenceContinuationFrame::Then { second, .. } => Some(second),
+            EvidenceContinuationFrame::MarkerFrame { .. }
+            | EvidenceContinuationFrame::ProviderEnv { .. } => None,
+            EvidenceContinuationFrame::ForceThunk { next, .. }
+            | EvidenceContinuationFrame::ForceValueIfThunk { next }
+            | EvidenceContinuationFrame::ApplyCallee { next, .. }
+            | EvidenceContinuationFrame::ApplyArg { next, .. }
+            | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
+            | EvidenceContinuationFrame::AdaptValue { next, .. }
+            | EvidenceContinuationFrame::WrapThunkValue { next }
+            | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
+            | EvidenceContinuationFrame::ApplyAdapterResult { next, .. }
+            | EvidenceContinuationFrame::CaseScrutinee { next, .. }
+            | EvidenceContinuationFrame::CatchBody { next, .. }
+            | EvidenceContinuationFrame::TupleItems { next, .. }
+            | EvidenceContinuationFrame::RecordSpread { next, .. }
+            | EvidenceContinuationFrame::RecordFields { next, .. }
+            | EvidenceContinuationFrame::PolyVariantPayloads { next, .. }
+            | EvidenceContinuationFrame::SelectBase { next, .. }
+            | EvidenceContinuationFrame::BlockStmt { next, .. }
+            | EvidenceContinuationFrame::RefSetReference { next, .. }
+            | EvidenceContinuationFrame::RefSetForcedReference { next, .. }
+            | EvidenceContinuationFrame::RefSetValue { next, .. }
+            | EvidenceContinuationFrame::RefSetForcedValue { next, .. }
+            | EvidenceContinuationFrame::RefSetResolvedUnit { next }
+            | EvidenceContinuationFrame::RefSetHandleResult { next, .. }
+            | EvidenceContinuationFrame::RefSetHandleValueResult { next, .. }
+            | EvidenceContinuationFrame::RefSetEmitResolvedRequest { next, .. }
+            | EvidenceContinuationFrame::ResolveRefSetValues { next, .. }
+            | EvidenceContinuationFrame::ResolveRefSetFields { next, .. } => Some(next),
         }
     }
 
@@ -3067,6 +3130,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         mut call: EvidenceDirectTailResumptive,
         tail: EvidenceContinuation,
     ) -> EvidenceDirectTailResumptive {
+        if let Some(has_handler_path) = call
+            .continuation
+            .append_marker_frame_blocker_has_handler_path()
+        {
+            self.record_direct_tail_permission_boundary_append_candidate(&call, has_handler_path);
+        }
         record_continuation_append(
             &mut self.stats,
             EvidenceContinuationAppendSource::DirectTail,
@@ -3368,6 +3437,55 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 } else {
                     let _handler_id = segment.permission().handler_id();
                     self.stats.resume_marker_permission_native_candidates += 1;
+                }
+            }
+        }
+    }
+
+    fn record_direct_tail_permission_boundary_append_candidate(
+        &mut self,
+        call: &EvidenceDirectTailResumptive,
+        has_handler_path: bool,
+    ) {
+        if let Some(permission) = self.provider_guard_boundary_permission(&call.hygiene) {
+            let segment = EvidencePermissionBoundarySegment::provider_guard_boundary(permission);
+            self.record_direct_tail_permission_boundary_append_segment(segment, has_handler_path);
+            return;
+        }
+        if call.hygiene.provider_grant_permission().is_none() {
+            self.stats
+                .direct_tail_permission_boundary_append_reject_no_provider_permission += 1;
+            return;
+        }
+        if call.hygiene.legacy_guard_bridge() {
+            self.stats
+                .direct_tail_permission_boundary_append_reject_legacy_bridge += 1;
+            return;
+        }
+        if call.hygiene.permission_transform().resume_delta {
+            self.stats
+                .direct_tail_permission_boundary_append_reject_resume_delta += 1;
+            return;
+        }
+        self.stats
+            .direct_tail_permission_boundary_append_reject_other_transform += 1;
+    }
+
+    fn record_direct_tail_permission_boundary_append_segment(
+        &mut self,
+        segment: EvidencePermissionBoundarySegment,
+        has_handler_path: bool,
+    ) {
+        match segment.exposure() {
+            EvidencePermissionBoundaryExposure::ProviderGuardBoundaryPair => {
+                self.stats
+                    .direct_tail_permission_boundary_append_provider_pair += 1;
+                if has_handler_path {
+                    self.stats
+                        .direct_tail_permission_boundary_append_reject_handler_path += 1;
+                } else {
+                    let _handler_id = segment.permission().handler_id();
+                    self.stats.direct_tail_permission_boundary_append_candidates += 1;
                 }
             }
         }

@@ -2751,6 +2751,48 @@ fn run_runtime_evidence_run(
             .direct_tail_continuation_append_blocked_by_rc_shared
     );
     println!(
+        "  runtime_evidence.direct_tail_permission_boundary_append_candidates: {}",
+        output
+            .evidence_stats
+            .direct_tail_permission_boundary_append_candidates
+    );
+    println!(
+        "  runtime_evidence.direct_tail_permission_boundary_append_provider_pair: {}",
+        output
+            .evidence_stats
+            .direct_tail_permission_boundary_append_provider_pair
+    );
+    println!(
+        "  runtime_evidence.direct_tail_permission_boundary_append_reject_no_provider_permission: {}",
+        output
+            .evidence_stats
+            .direct_tail_permission_boundary_append_reject_no_provider_permission
+    );
+    println!(
+        "  runtime_evidence.direct_tail_permission_boundary_append_reject_resume_delta: {}",
+        output
+            .evidence_stats
+            .direct_tail_permission_boundary_append_reject_resume_delta
+    );
+    println!(
+        "  runtime_evidence.direct_tail_permission_boundary_append_reject_handler_path: {}",
+        output
+            .evidence_stats
+            .direct_tail_permission_boundary_append_reject_handler_path
+    );
+    println!(
+        "  runtime_evidence.direct_tail_permission_boundary_append_reject_legacy_bridge: {}",
+        output
+            .evidence_stats
+            .direct_tail_permission_boundary_append_reject_legacy_bridge
+    );
+    println!(
+        "  runtime_evidence.direct_tail_permission_boundary_append_reject_other_transform: {}",
+        output
+            .evidence_stats
+            .direct_tail_permission_boundary_append_reject_other_transform
+    );
+    println!(
         "  runtime_evidence.continuation_resume_steps: {}",
         output.evidence_stats.continuation_resume_steps
     );
