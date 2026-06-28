@@ -940,15 +940,11 @@ impl EvidenceSignalHygiene {
     }
 
     fn from_request(request: &mut EvidenceRequest) -> Self {
-        Self {
-            guard_ids: mem::take(&mut request.guard_ids),
-            carried_guards: mem::take(&mut request.carried_guards),
-        }
+        mem::take(&mut request.hygiene)
     }
 
     fn apply_to_request(self, request: &mut EvidenceRequest) {
-        request.guard_ids = self.guard_ids;
-        request.carried_guards = self.carried_guards;
+        request.hygiene = self;
     }
 
     fn push_guard_id(&mut self, id: EvidenceGuardId) -> bool {
@@ -991,8 +987,7 @@ struct EvidenceRequest {
     path: Rc<[String]>,
     payload: SharedValue,
     route: EvidenceEffectRoute,
-    guard_ids: Vec<EvidenceGuardId>,
-    carried_guards: Vec<EvidenceCarriedGuard>,
+    hygiene: EvidenceSignalHygiene,
     handler_boundary: Option<EvidenceHandlerBoundary>,
     continuation: EvidenceContinuation,
 }
@@ -1093,8 +1088,7 @@ impl EvidenceDirectTailResumptive {
             path: self.path,
             payload: self.payload,
             route,
-            guard_ids: self.hygiene.guard_ids,
-            carried_guards: self.hygiene.carried_guards,
+            hygiene: self.hygiene,
             handler_boundary: self.handler_boundary,
             continuation: self.continuation,
         }
@@ -3291,8 +3285,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         frame_len_before_marker: usize,
     ) -> Option<EvidenceHandlerBoundary> {
         self.handler_boundary_for_request_parts(
-            &request.guard_ids,
-            &request.carried_guards,
+            &request.hygiene.guard_ids,
+            &request.hygiene.carried_guards,
             handler_path,
             frame_len_before_marker,
         )
@@ -6288,8 +6282,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 path: path.clone(),
                 payload,
                 route,
-                guard_ids: Vec::new(),
-                carried_guards: Vec::new(),
+                hygiene: EvidenceSignalHygiene::new(),
                 handler_boundary: None,
                 continuation: EvidenceContinuation::identity(),
             };
@@ -6302,8 +6295,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             path,
             payload,
             route,
-            guard_ids: Vec::new(),
-            carried_guards: Vec::new(),
+            hygiene: EvidenceSignalHygiene::new(),
             handler_boundary: None,
             continuation: EvidenceContinuation::identity(),
         };
@@ -6539,8 +6531,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.visible_operation_resumptive_parts(
             &request.path,
             request.handler_boundary.as_ref(),
-            &request.guard_ids,
-            &request.carried_guards,
+            &request.hygiene.guard_ids,
+            &request.hygiene.carried_guards,
             arms,
         )
     }
@@ -8641,8 +8633,7 @@ mod tests {
             path: shared_path(&["out".to_string(), "say".to_string()]),
             payload: shared(RuntimeEvidenceValue::Unit),
             route: EvidenceEffectRoute::Unhandled,
-            guard_ids: Vec::new(),
-            carried_guards: Vec::new(),
+            hygiene: EvidenceSignalHygiene::new(),
             handler_boundary: None,
             continuation: EvidenceContinuation::identity(),
         };
