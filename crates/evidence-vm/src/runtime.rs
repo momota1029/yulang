@@ -207,6 +207,8 @@ pub struct RuntimeEvidenceRunStats {
     pub resume_marker_provider_pair_close_reject_carry_after_frame: usize,
     pub resume_marker_provider_pair_close_reject_legacy_bridge: usize,
     pub resume_marker_provider_pair_close_reject_other_transform: usize,
+    pub resume_marker_provider_pair_close_native_hits: usize,
+    pub resume_marker_provider_pair_close_legacy_fallbacks: usize,
     pub continuation_resume_provider_steps: usize,
     pub continuation_resume_aggregate_steps: usize,
     pub continuation_resume_select_steps: usize,
@@ -3977,9 +3979,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn record_provider_marker_close_candidate(&mut self) {
         self.stats.resume_marker_provider_pair_close_candidates += 1;
+        self.stats.resume_marker_provider_pair_close_native_hits += 1;
     }
 
     fn record_provider_marker_close_reject(&mut self, reject: EvidenceProviderMarkerCloseReject) {
+        self.stats
+            .resume_marker_provider_pair_close_legacy_fallbacks += 1;
         match reject {
             EvidenceProviderMarkerCloseReject::NoProviderPermission => {
                 self.stats

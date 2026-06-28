@@ -3075,6 +3075,18 @@ fn run_runtime_evidence_run(
             .resume_marker_provider_pair_close_reject_other_transform
     );
     println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_native_hits: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_native_hits
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_legacy_fallbacks: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_legacy_fallbacks
+    );
+    println!(
         "  runtime_evidence.continuation_resume_provider_steps: {}",
         output.evidence_stats.continuation_resume_provider_steps
     );
