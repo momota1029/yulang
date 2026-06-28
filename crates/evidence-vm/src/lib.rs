@@ -28,6 +28,10 @@ pub struct EvidenceVmPlan {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) struct EvidenceVmSummary {
     pub(crate) handlers: usize,
+    pub(crate) handler_continuation_direct_calls: usize,
+    pub(crate) handler_continuation_delayed_calls: usize,
+    pub(crate) handler_continuation_escape_arms: usize,
+    pub(crate) handler_tail_resume_arms: usize,
     pub(crate) operations: usize,
     pub(crate) direct_operations: usize,
     pub(crate) direct_abortive_operations: usize,
@@ -74,7 +78,16 @@ pub(crate) struct EvidenceVmHandlerArmPlan {
     pub(crate) resumptive: bool,
     pub(crate) guarded: bool,
     pub(crate) classification: EvidenceVmHandlerArmClass,
+    pub(crate) continuation_use: EvidenceVmContinuationUsePlan,
     pub(crate) body: ExprId,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct EvidenceVmContinuationUsePlan {
+    pub(crate) direct_calls: usize,
+    pub(crate) delayed_calls: usize,
+    pub(crate) escapes: bool,
+    pub(crate) tail_arg: Option<ExprId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -236,6 +249,7 @@ pub(crate) struct EvidenceVmHandlerObjectPlan {
     pub(crate) path: Vec<String>,
     pub(crate) arm_body: ExprId,
     pub(crate) arm_class: EvidenceVmHandlerArmClass,
+    pub(crate) continuation_use: EvidenceVmContinuationUsePlan,
     pub(crate) definition_env: Vec<u32>,
 }
 
@@ -321,12 +335,16 @@ fn build_plan_from_evidence(
                 .arms
                 .iter()
                 .enumerate()
-                .map(|(index, arm)| EvidenceVmHandlerArmPlan {
-                    path: arm.operation_path.clone(),
-                    resumptive: arm.resumptive,
-                    guarded: arm.guarded,
-                    classification: classify_handler_arm(program, handler.expr, index, arm),
-                    body: arm.body,
+                .map(|(index, arm)| {
+                    let analysis = analyze_handler_arm(program, handler.expr, index, arm);
+                    EvidenceVmHandlerArmPlan {
+                        path: arm.operation_path.clone(),
+                        resumptive: arm.resumptive,
+                        guarded: arm.guarded,
+                        classification: analysis.classification,
+                        continuation_use: analysis.continuation_use,
+                        body: arm.body,
+                    }
                 })
                 .collect(),
         })
@@ -367,7 +385,15 @@ fn build_plan_from_evidence(
     let values = collect_value_env_plans(program, control);
     let objects = build_object_plan(program, &handlers, &operations, &functions, &values);
 
-    let summary = summarize_plan(control, surface, &operations, &functions, &values, &objects);
+    let summary = summarize_plan(
+        control,
+        surface,
+        &handlers,
+        &operations,
+        &functions,
+        &values,
+        &objects,
+    );
     EvidenceVmPlan {
         summary,
         handlers,
@@ -383,6 +409,15 @@ pub fn format_plan(plan: &EvidenceVmPlan) -> String {
     let summary = plan.summary;
     writeln!(&mut out, "evidence vm plan:").unwrap();
     writeln!(&mut out, "  handlers: {}", summary.handlers).unwrap();
+    writeln!(
+        &mut out,
+        "  handler_continuations: direct_calls {} delayed_calls {} escape_arms {} tail_arms {}",
+        summary.handler_continuation_direct_calls,
+        summary.handler_continuation_delayed_calls,
+        summary.handler_continuation_escape_arms,
+        summary.handler_tail_resume_arms
+    )
+    .unwrap();
     writeln!(&mut out, "  operations: {}", summary.operations).unwrap();
     writeln!(
         &mut out,
@@ -461,6 +496,7 @@ pub fn format_plan(plan: &EvidenceVmPlan) -> String {
 fn summarize_plan(
     control: &ControlEvidenceProgram,
     surface: &RuntimeEvidenceSurface,
+    handlers: &[EvidenceVmHandlerPlan],
     operations: &[EvidenceVmOperationPlan],
     functions: &[EvidenceVmFunctionPlan],
     values: &[EvidenceVmValueEnvPlan],
@@ -468,6 +504,26 @@ fn summarize_plan(
 ) -> EvidenceVmSummary {
     let mut summary = EvidenceVmSummary {
         handlers: control.handlers.len(),
+        handler_continuation_direct_calls: handlers
+            .iter()
+            .flat_map(|handler| handler.arms.iter())
+            .map(|arm| arm.continuation_use.direct_calls)
+            .sum(),
+        handler_continuation_delayed_calls: handlers
+            .iter()
+            .flat_map(|handler| handler.arms.iter())
+            .map(|arm| arm.continuation_use.delayed_calls)
+            .sum(),
+        handler_continuation_escape_arms: handlers
+            .iter()
+            .flat_map(|handler| handler.arms.iter())
+            .filter(|arm| arm.continuation_use.escapes)
+            .count(),
+        handler_tail_resume_arms: handlers
+            .iter()
+            .flat_map(|handler| handler.arms.iter())
+            .filter(|arm| arm.continuation_use.tail_arg.is_some())
+            .count(),
         operations: operations.len(),
         adapter_boundaries: control
             .adapters
@@ -1647,6 +1703,7 @@ fn build_handler_objects(
                 path: path.clone(),
                 arm_body: arm.body,
                 arm_class: arm.classification,
+                continuation_use: arm.continuation_use,
                 definition_env: Vec::new(),
             });
         }
@@ -1834,47 +1891,66 @@ fn operation_lowering(
     }
 }
 
-fn classify_handler_arm(
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct HandlerArmAnalysis {
+    classification: EvidenceVmHandlerArmClass,
+    continuation_use: EvidenceVmContinuationUsePlan,
+}
+
+impl HandlerArmAnalysis {
+    fn new(classification: EvidenceVmHandlerArmClass) -> Self {
+        Self {
+            classification,
+            continuation_use: EvidenceVmContinuationUsePlan::default(),
+        }
+    }
+}
+
+fn analyze_handler_arm(
     program: &Program,
     handler_expr: ExprId,
     arm_index: usize,
     arm: &control_vm::ControlHandlerArmEvidence,
-) -> EvidenceVmHandlerArmClass {
+) -> HandlerArmAnalysis {
     if arm.operation_path.is_none() {
-        return EvidenceVmHandlerArmClass::Value;
+        return HandlerArmAnalysis::new(EvidenceVmHandlerArmClass::Value);
     }
     if !arm.resumptive {
-        return EvidenceVmHandlerArmClass::Abortive;
+        return HandlerArmAnalysis::new(EvidenceVmHandlerArmClass::Abortive);
     }
     if arm.guarded {
-        return EvidenceVmHandlerArmClass::Fallback;
+        return HandlerArmAnalysis::new(EvidenceVmHandlerArmClass::Fallback);
     }
     let Some(continuation_pat) = source_handler_arm(program, handler_expr, arm_index)
         .and_then(|source_arm| source_arm.continuation.as_ref())
     else {
-        return EvidenceVmHandlerArmClass::MayEscapeYield;
+        return HandlerArmAnalysis::new(EvidenceVmHandlerArmClass::MayEscapeYield);
     };
     let Some(continuation) = continuation_def(continuation_pat) else {
         return if matches!(continuation_pat, control_vm::Pat::Wild) {
-            EvidenceVmHandlerArmClass::Abortive
+            HandlerArmAnalysis::new(EvidenceVmHandlerArmClass::Abortive)
         } else {
-            EvidenceVmHandlerArmClass::MayEscapeYield
+            HandlerArmAnalysis::new(EvidenceVmHandlerArmClass::MayEscapeYield)
         };
     };
     if !expr_contains_local(program, arm.body, continuation) {
-        return EvidenceVmHandlerArmClass::Abortive;
+        return HandlerArmAnalysis::new(EvidenceVmHandlerArmClass::Abortive);
     }
-    if body_tail_resumes(program, arm.body, continuation) {
+    let continuation_use = handler_arm_continuation_use(program, arm.body, continuation);
+    let classification = if continuation_use.tail_arg.is_some() {
         EvidenceVmHandlerArmClass::TailResumptive
     } else {
-        let uses = summarize_continuation_uses(program, arm.body, continuation);
-        if uses.escapes {
+        if continuation_use.escapes {
             EvidenceVmHandlerArmClass::MayEscapeYield
-        } else if uses.direct_calls <= 1 {
+        } else if continuation_use.direct_calls <= 1 {
             EvidenceVmHandlerArmClass::OneShotYield
         } else {
             EvidenceVmHandlerArmClass::MultiShotYield
         }
+    };
+    HandlerArmAnalysis {
+        classification,
+        continuation_use,
     }
 }
 
@@ -1896,9 +1972,20 @@ fn continuation_def(pat: &control_vm::Pat) -> Option<DefId> {
     }
 }
 
-fn body_tail_resumes(program: &Program, body: ExprId, continuation: DefId) -> bool {
-    tail_resume_arg(program, body, continuation)
-        .is_some_and(|arg| !expr_contains_local(program, arg, continuation))
+fn handler_arm_continuation_use(
+    program: &Program,
+    body: ExprId,
+    continuation: DefId,
+) -> EvidenceVmContinuationUsePlan {
+    let summary = summarize_continuation_uses(program, body, continuation);
+    let tail_arg = tail_resume_arg(program, body, continuation)
+        .filter(|arg| !expr_contains_local(program, *arg, continuation));
+    EvidenceVmContinuationUsePlan {
+        direct_calls: summary.direct_calls,
+        delayed_calls: summary.delayed_calls,
+        escapes: summary.escapes,
+        tail_arg,
+    }
 }
 
 fn tail_resume_arg(program: &Program, expr: ExprId, continuation: DefId) -> Option<ExprId> {
@@ -1924,13 +2011,21 @@ fn tail_resume_arg(program: &Program, expr: ExprId, continuation: DefId) -> Opti
 #[derive(Debug, Default)]
 struct ContinuationUseSummary {
     direct_calls: usize,
+    delayed_calls: usize,
     escapes: bool,
 }
 
 impl ContinuationUseSummary {
     fn add(&mut self, other: ContinuationUseSummary) {
         self.direct_calls += other.direct_calls;
+        self.delayed_calls += other.delayed_calls;
         self.escapes |= other.escapes;
+    }
+
+    fn delay(mut self) -> Self {
+        self.delayed_calls += self.direct_calls;
+        self.direct_calls = 0;
+        self
     }
 }
 
@@ -1958,6 +2053,7 @@ fn summarize_continuation_uses_inner(
     match node {
         Expr::Local(local) => ContinuationUseSummary {
             direct_calls: 0,
+            delayed_calls: 0,
             escapes: *local == continuation,
         },
         Expr::Apply { callee, arg } if expr_is_local(program, *callee, continuation) => {
@@ -1972,12 +2068,17 @@ fn summarize_continuation_uses_inner(
         | Expr::Select { base: expr, .. } => {
             summarize_continuation_uses_inner(program, *expr, continuation, visited)
         }
-        Expr::FunctionAdapter { function: expr, .. }
-        | Expr::MakeThunk { body: expr, .. }
-        | Expr::Lambda { body: expr, .. } => {
+        Expr::MakeThunk { body: expr, .. } => {
+            let mut summary =
+                summarize_continuation_uses_inner(program, *expr, continuation, visited).delay();
+            summary.escapes |= expr_contains_local(program, *expr, continuation);
+            summary
+        }
+        Expr::FunctionAdapter { function: expr, .. } | Expr::Lambda { body: expr, .. } => {
             let contains = expr_contains_local(program, *expr, continuation);
             ContinuationUseSummary {
                 direct_calls: 0,
+                delayed_calls: 0,
                 escapes: contains,
             }
         }
@@ -2300,9 +2401,10 @@ fn format_handlers(out: &mut String, handlers: &[EvidenceVmHandlerPlan]) {
             let guarded = if arm.guarded { " guarded" } else { "" };
             writeln!(
                 out,
-                "    {path} {mode}{guarded} class {} body e{}",
+                "    {path} {mode}{guarded} class {} body e{} {}",
                 format_handler_arm_class(arm.classification),
-                arm.body.0
+                arm.body.0,
+                format_continuation_use(arm.continuation_use)
             )
             .unwrap();
         }
@@ -2444,13 +2546,14 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
         for handler in &objects.handlers {
             writeln!(
                 out,
-                "    h{} handler e{} slot s{} {} arm e{} class {} def_env [{}]",
+                "    h{} handler e{} slot s{} {} arm e{} class {} {} def_env [{}]",
                 handler.id,
                 handler.handler.0,
                 handler.slot_id,
                 format_path(&handler.path),
                 handler.arm_body.0,
                 format_handler_arm_class(handler.arm_class),
+                format_continuation_use(handler.continuation_use),
                 format_u32_list_with_prefix("h", &handler.definition_env)
             )
             .unwrap();
@@ -2520,6 +2623,17 @@ fn format_handler_arm_class(classification: EvidenceVmHandlerArmClass) -> &'stat
         EvidenceVmHandlerArmClass::MayEscapeYield => "may-escape-yield",
         EvidenceVmHandlerArmClass::Fallback => "fallback",
     }
+}
+
+fn format_continuation_use(use_plan: EvidenceVmContinuationUsePlan) -> String {
+    let tail = use_plan
+        .tail_arg
+        .map(|arg| format!("e{}", arg.0))
+        .unwrap_or_else(|| "-".to_string());
+    format!(
+        "cont calls {} delayed {} escapes {} tail {}",
+        use_plan.direct_calls, use_plan.delayed_calls, use_plan.escapes, tail
+    )
 }
 
 fn format_operation_execution_plan(plan: EvidenceVmOperationExecutionPlan) -> &'static str {
