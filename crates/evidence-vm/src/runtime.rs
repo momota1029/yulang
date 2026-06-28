@@ -937,7 +937,7 @@ struct EvidenceSignalHygiene {
     guard_ids: Vec<EvidenceGuardId>,
     carried_guards: Vec<EvidenceCarriedGuard>,
     handler_boundary: Option<EvidenceHandlerBoundary>,
-    operation_visibility: Option<RuntimeEvidenceOperationVisibility>,
+    permission_visibility: EvidenceSignalPermissionVisibility,
 }
 
 impl EvidenceSignalHygiene {
@@ -954,10 +954,15 @@ impl EvidenceSignalHygiene {
     }
 
     fn push_guard_id(&mut self, id: EvidenceGuardId) -> bool {
-        push_unique_guard(&mut self.guard_ids, id)
+        let pushed = push_unique_guard(&mut self.guard_ids, id);
+        if pushed {
+            self.permission_visibility.record_guard_mask();
+        }
+        pushed
     }
 
     fn set_handler_boundary(&mut self, handler_boundary: EvidenceHandlerBoundary) {
+        self.permission_visibility.record_handler_boundary_mask();
         self.handler_boundary = Some(handler_boundary);
     }
 
@@ -965,17 +970,68 @@ impl EvidenceSignalHygiene {
         mut self,
         visibility: Option<RuntimeEvidenceOperationVisibility>,
     ) -> Self {
-        self.operation_visibility = visibility;
+        self.permission_visibility.set_base(visibility);
         self
+    }
+
+    fn push_carried_guard(&mut self, guard: EvidenceCarriedGuard) {
+        self.permission_visibility.record_resume_delta();
+        self.carried_guards.push(guard);
     }
 
     #[cfg(debug_assertions)]
     fn can_shadow_with_permission_visibility(&self) -> bool {
-        self.operation_visibility
+        self.permission_visibility.can_shadow_legacy()
+    }
+
+    #[cfg(debug_assertions)]
+    fn operation_visibility(&self) -> Option<RuntimeEvidenceOperationVisibility> {
+        self.permission_visibility.base
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct EvidenceSignalPermissionVisibility {
+    base: Option<RuntimeEvidenceOperationVisibility>,
+    transform: EvidenceSignalPermissionTransform,
+}
+
+impl EvidenceSignalPermissionVisibility {
+    fn set_base(&mut self, base: Option<RuntimeEvidenceOperationVisibility>) {
+        self.base = base;
+    }
+
+    fn record_guard_mask(&mut self) {
+        self.transform.guard_mask = true;
+    }
+
+    fn record_resume_delta(&mut self) {
+        self.transform.resume_delta = true;
+    }
+
+    fn record_handler_boundary_mask(&mut self) {
+        self.transform.handler_boundary_mask = true;
+    }
+
+    #[cfg(debug_assertions)]
+    fn can_shadow_legacy(&self) -> bool {
+        self.base
             .is_some_and(|visibility| !visibility.legacy_guard_bridge)
-            && self.guard_ids.is_empty()
-            && self.carried_guards.is_empty()
-            && self.handler_boundary.is_none()
+            && self.transform.is_identity()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct EvidenceSignalPermissionTransform {
+    guard_mask: bool,
+    resume_delta: bool,
+    handler_boundary_mask: bool,
+}
+
+impl EvidenceSignalPermissionTransform {
+    #[cfg(debug_assertions)]
+    fn is_identity(self) -> bool {
+        !self.guard_mask && !self.resume_delta && !self.handler_boundary_mask
     }
 }
 
@@ -3127,7 +3183,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 if hygiene.push_guard_id(marker.id) {
                     entry_except_index.push_guard_id(&self.active_frames, marker.id);
                 }
-                hygiene.carried_guards.push(EvidenceCarriedGuard {
+                hygiene.push_carried_guard(EvidenceCarriedGuard {
                     id: marker.id,
                     entry_frame_len: active_marker.entry_frame_len,
                     exposed_guard_ids,
@@ -6660,7 +6716,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if !hygiene.can_shadow_with_permission_visibility() {
             return;
         }
-        let Some(visibility) = hygiene.operation_visibility else {
+        let Some(visibility) = hygiene.operation_visibility() else {
             return;
         };
         let permission_visible = self.permission_visible_operation_resumptive(
@@ -8811,6 +8867,46 @@ mod tests {
         assert!(!runtime_value_needs_hygiene_mark(&pure));
         assert!(runtime_value_needs_hygiene_mark(&effectful));
         assert!(runtime_value_needs_hygiene_mark(&continuation));
+    }
+
+    #[test]
+    fn permission_visibility_shadow_check_requires_identity_transform() {
+        let visibility = RuntimeEvidenceOperationVisibility {
+            allowed_set_id: crate::EvidenceVmAllowedSetId(0),
+            allowed_handler_id: Some(7),
+            legacy_guard_bridge: false,
+        };
+        let clean = EvidenceSignalHygiene::new().with_operation_visibility(Some(visibility));
+        assert!(clean.can_shadow_with_permission_visibility());
+
+        let mut guarded = clean.clone();
+        assert!(guarded.push_guard_id(EvidenceGuardId(1)));
+        assert!(!guarded.can_shadow_with_permission_visibility());
+
+        let mut resumed = clean.clone();
+        resumed.push_carried_guard(EvidenceCarriedGuard {
+            id: EvidenceGuardId(2),
+            entry_frame_len: 0,
+            exposed_guard_ids: Vec::new(),
+        });
+        assert!(!resumed.can_shadow_with_permission_visibility());
+
+        let mut bounded = clean.clone();
+        bounded.set_handler_boundary(EvidenceHandlerBoundary {
+            id: EvidenceGuardId(3),
+            path: vec!["flip".to_string(), "coin".to_string()],
+            blocked: false,
+        });
+        assert!(!bounded.can_shadow_with_permission_visibility());
+
+        let legacy_bridge = EvidenceSignalHygiene::new().with_operation_visibility(Some(
+            RuntimeEvidenceOperationVisibility {
+                allowed_set_id: crate::EvidenceVmAllowedSetId(1),
+                allowed_handler_id: None,
+                legacy_guard_bridge: true,
+            },
+        ));
+        assert!(!legacy_bridge.can_shadow_with_permission_visibility());
     }
 
     #[test]
