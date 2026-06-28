@@ -174,6 +174,16 @@ pub struct RuntimeEvidenceRunStats {
     pub continuation_resume_marker_result_direct_tail_provider_boundary_pair: usize,
     pub continuation_resume_marker_result_legacy_signal: usize,
     pub continuation_resume_marker_result_error: usize,
+    pub resume_marker_permission_native_candidates: usize,
+    pub resume_marker_permission_native_provider_pair: usize,
+    pub resume_marker_permission_native_reject_no_provider_permission: usize,
+    pub resume_marker_permission_native_reject_resume_delta: usize,
+    pub resume_marker_permission_native_reject_handler_path: usize,
+    pub resume_marker_permission_native_reject_value_result: usize,
+    pub resume_marker_permission_native_reject_legacy_signal: usize,
+    pub resume_marker_permission_native_reject_legacy_bridge: usize,
+    pub resume_marker_permission_native_reject_other_transform: usize,
+    pub resume_marker_permission_native_reject_error_result: usize,
     pub continuation_resume_provider_steps: usize,
     pub continuation_resume_aggregate_steps: usize,
     pub continuation_resume_select_steps: usize,
@@ -1078,6 +1088,16 @@ impl EvidenceSignalHygiene {
 
     fn provider_grant_permission(&self) -> Option<RuntimeEvidenceProviderGrantPermission> {
         self.permission_visibility.base?.provider_grant_permission()
+    }
+
+    fn permission_transform(&self) -> EvidenceSignalPermissionTransform {
+        self.permission_visibility.transform
+    }
+
+    fn legacy_guard_bridge(&self) -> bool {
+        self.permission_visibility
+            .base
+            .is_some_and(|visibility| visibility.legacy_guard_bridge())
     }
 
     #[cfg(debug_assertions)]
@@ -3157,6 +3177,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if next.is_identity() {
             self.stats.continuation_resume_marker_identity_fast_paths += 1;
             self.stats.continuation_resume_marker_result_value += 1;
+            self.stats
+                .resume_marker_permission_native_reject_value_result += 1;
             return Ok(EvidenceEvalResult::Value(mark_runtime_value_shared(
                 value, markers,
             )));
@@ -3176,6 +3198,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.push_active_marker_plan(markers.clone());
         let result = self.resume_continuation(next, value);
         self.record_continuation_resume_marker_result(&result);
+        self.record_resume_marker_permission_native_candidate(&result, handler_path.is_some());
         let handler_boundary = match &result {
             Ok(EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request))) => {
                 self.handler_boundary_for_request(request, handler_path.as_deref(), frame_len)
@@ -3250,6 +3273,59 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             Err(_) => {
                 self.stats.continuation_resume_marker_result_error += 1;
+            }
+        }
+    }
+
+    fn record_resume_marker_permission_native_candidate(
+        &mut self,
+        result: &Result<EvidenceEvalResult, RuntimeEvidenceRunError>,
+        has_handler_path: bool,
+    ) {
+        match result {
+            Ok(EvidenceEvalResult::Value(_)) => {
+                self.stats
+                    .resume_marker_permission_native_reject_value_result += 1;
+            }
+            Ok(EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call))) => {
+                if self
+                    .provider_guard_boundary_permission(&call.hygiene)
+                    .is_some()
+                {
+                    self.stats.resume_marker_permission_native_provider_pair += 1;
+                    if has_handler_path {
+                        self.stats
+                            .resume_marker_permission_native_reject_handler_path += 1;
+                    } else {
+                        self.stats.resume_marker_permission_native_candidates += 1;
+                    }
+                    return;
+                }
+                if call.hygiene.provider_grant_permission().is_none() {
+                    self.stats
+                        .resume_marker_permission_native_reject_no_provider_permission += 1;
+                    return;
+                }
+                if call.hygiene.legacy_guard_bridge() {
+                    self.stats
+                        .resume_marker_permission_native_reject_legacy_bridge += 1;
+                    return;
+                }
+                if call.hygiene.permission_transform().resume_delta {
+                    self.stats
+                        .resume_marker_permission_native_reject_resume_delta += 1;
+                    return;
+                }
+                self.stats
+                    .resume_marker_permission_native_reject_other_transform += 1;
+            }
+            Ok(EvidenceEvalResult::Effect(_)) => {
+                self.stats
+                    .resume_marker_permission_native_reject_legacy_signal += 1;
+            }
+            Err(_) => {
+                self.stats
+                    .resume_marker_permission_native_reject_error_result += 1;
             }
         }
     }
