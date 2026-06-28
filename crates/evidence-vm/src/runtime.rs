@@ -905,6 +905,29 @@ struct EvidenceRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+struct EvidenceEffectSignal {
+    request: EvidenceRequest,
+}
+
+impl EvidenceEffectSignal {
+    fn from_request(request: EvidenceRequest) -> Self {
+        Self { request }
+    }
+
+    fn request(&self) -> &EvidenceRequest {
+        &self.request
+    }
+
+    fn request_mut(&mut self) -> &mut EvidenceRequest {
+        &mut self.request
+    }
+
+    fn into_request(self) -> EvidenceRequest {
+        self.request
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 struct EvidenceDirectAbortive {
     handler: ExprId,
     path: Vec<String>,
@@ -939,7 +962,28 @@ impl EvidenceDirectTailResumptive {
 #[derive(Debug, Clone, PartialEq)]
 struct EvidenceRoutedYield {
     handler: ExprId,
-    request: EvidenceRequest,
+    signal: EvidenceEffectSignal,
+}
+
+impl EvidenceRoutedYield {
+    fn from_request(handler: ExprId, request: EvidenceRequest) -> Self {
+        Self {
+            handler,
+            signal: EvidenceEffectSignal::from_request(request),
+        }
+    }
+
+    fn request(&self) -> &EvidenceRequest {
+        self.signal.request()
+    }
+
+    fn request_mut(&mut self) -> &mut EvidenceRequest {
+        self.signal.request_mut()
+    }
+
+    fn into_request(self) -> EvidenceRequest {
+        self.signal.into_request()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -2047,15 +2091,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn close_provider_routed_yield(
         &mut self,
-        mut call: EvidenceRoutedYield,
+        call: EvidenceRoutedYield,
         provider_env: RuntimeEvidenceProviderEnv,
     ) -> EvidenceRoutedYield {
         if provider_env.is_empty() {
             return call;
         }
-        call.request.continuation =
-            EvidenceContinuation::provider_env(provider_env, call.request.continuation);
-        call
+        let handler = call.handler;
+        let mut request = call.into_request();
+        let continuation = request.continuation;
+        request.continuation = EvidenceContinuation::provider_env(provider_env, continuation);
+        EvidenceRoutedYield::from_request(handler, request)
     }
 
     fn active_provider_env_refs(&self) -> Vec<&RuntimeEvidenceProviderEnv> {
@@ -2466,9 +2512,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             Ok(EvidenceEvalResult::Request(request)) => {
                 self.handler_boundary_for_request(request, handler_path.as_deref(), frame_len)
             }
-            Ok(EvidenceEvalResult::RoutedYield(call)) => {
-                self.handler_boundary_for_request(&call.request, handler_path.as_deref(), frame_len)
-            }
+            Ok(EvidenceEvalResult::RoutedYield(call)) => self.handler_boundary_for_request(
+                call.request(),
+                handler_path.as_deref(),
+                frame_len,
+            ),
             Ok(EvidenceEvalResult::DirectTailResumptive(call)) => {
                 self.handler_boundary_for_direct_tail(call, handler_path.as_deref(), frame_len)
             }
@@ -2520,9 +2568,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             Ok(EvidenceEvalResult::Request(request)) => {
                 self.handler_boundary_for_request(request, handler_path.as_deref(), frame_len)
             }
-            Ok(EvidenceEvalResult::RoutedYield(call)) => {
-                self.handler_boundary_for_request(&call.request, handler_path.as_deref(), frame_len)
-            }
+            Ok(EvidenceEvalResult::RoutedYield(call)) => self.handler_boundary_for_request(
+                call.request(),
+                handler_path.as_deref(),
+                frame_len,
+            ),
             Ok(EvidenceEvalResult::DirectTailResumptive(call)) => {
                 self.handler_boundary_for_direct_tail(call, handler_path.as_deref(), frame_len)
             }
@@ -2666,7 +2716,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             EvidenceEvalResult::RoutedYield(mut call) => {
                 if let Some(handler_boundary) = handler_boundary {
-                    call.request.handler_boundary = Some(handler_boundary);
+                    call.request_mut().handler_boundary = Some(handler_boundary);
                 }
                 let resume_plan = self.resume_marker_plan(&markers, activate_add_ids, handler_path);
                 self.close_marker_routed_yield(call, markers, resume_plan)
@@ -2734,15 +2784,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn close_marker_routed_yield(
         &mut self,
-        mut call: EvidenceRoutedYield,
+        call: EvidenceRoutedYield,
         markers: Rc<[EvidenceValueMarker]>,
         resume_plan: Option<EvidenceResumeMarkerPlan>,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        call.request.payload = mark_runtime_value_shared(call.request.payload, markers.clone());
+        let handler = call.handler;
+        let mut request = call.into_request();
+        request.payload = mark_runtime_value_shared(request.payload, markers.clone());
         if let Some(plan) = resume_plan {
-            call.request.continuation = plan.attach(call.request.continuation);
+            request.continuation = plan.attach(request.continuation);
         }
-        Ok(EvidenceEvalResult::RoutedYield(call))
+        Ok(EvidenceEvalResult::RoutedYield(
+            EvidenceRoutedYield::from_request(handler, request),
+        ))
     }
 
     fn mark_request_with_active_markers(&mut self, request: &mut EvidenceRequest) {
@@ -3162,7 +3216,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     return Err(RuntimeEvidenceRunError::EscapedEffect(call.path));
                 }
                 EvidenceEvalResult::RoutedYield(call) => {
-                    return Err(RuntimeEvidenceRunError::EscapedEffect(call.request.path));
+                    return Err(RuntimeEvidenceRunError::EscapedEffect(
+                        call.request().path.clone(),
+                    ));
                 }
             }
         }
@@ -5371,7 +5427,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         self.continue_routed_request_with_continuation(
             Some(call.handler),
-            call.request,
+            call.into_request(),
             continuation,
         )
     }
@@ -5546,7 +5602,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let result = if let Some(handler) = routed_yield_handler {
                     if handler == catch_expr {
                         self.eval_routed_yield_arm(
-                            EvidenceRoutedYield { handler, request },
+                            EvidenceRoutedYield::from_request(handler, request),
                             catch_expr,
                             arms,
                             &env,
@@ -5832,7 +5888,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> EvidenceEvalResult {
         match routed_yield_handler {
             Some(handler) => {
-                EvidenceEvalResult::RoutedYield(EvidenceRoutedYield { handler, request })
+                EvidenceEvalResult::RoutedYield(EvidenceRoutedYield::from_request(handler, request))
             }
             None => EvidenceEvalResult::Request(request),
         }
@@ -5912,10 +5968,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 continuation: EvidenceContinuation::identity(),
             };
             self.mark_request_with_active_markers(&mut request);
-            return Ok(EvidenceEvalResult::RoutedYield(EvidenceRoutedYield {
-                handler,
-                request,
-            }));
+            return Ok(EvidenceEvalResult::RoutedYield(
+                EvidenceRoutedYield::from_request(handler, request),
+            ));
         }
         let mut request = EvidenceRequest {
             path: path.to_vec(),
@@ -6356,7 +6411,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         arms: Rc<[control_vm::CatchArm]>,
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        let EvidenceRoutedYield { mut request, .. } = call;
+        let mut request = call.into_request();
         let resumptive = match request.route {
             EvidenceEffectRoute::Direct { resumptive, .. } => resumptive,
             EvidenceEffectRoute::Unhandled => {
