@@ -1299,6 +1299,39 @@ enum EvidencePermissionBoundaryExposure {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceMarkerCloseDecision {
+    NativeProviderPair(EvidenceProviderMarkerCloseCert),
+    Legacy,
+}
+
+impl EvidenceMarkerCloseDecision {
+    fn is_native(self) -> bool {
+        matches!(self, Self::NativeProviderPair(_))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceProviderMarkerCloseReject {
+    NoProviderPermission,
+    ResumeDelta,
+    HandlerPath,
+    CarryAfterFrame,
+    LegacyBridge,
+    OtherTransform,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderMarkerCloseCert {
+    permission: RuntimeEvidenceProviderGrantPermission,
+}
+
+impl EvidenceProviderMarkerCloseCert {
+    fn new(permission: RuntimeEvidenceProviderGrantPermission) -> Self {
+        Self { permission }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidencePermissionVisibleResult {
     NoAllowedHandler,
     Visible(Option<bool>),
@@ -3873,12 +3906,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             Some(handler_boundary) => call.with_handler_boundary(handler_boundary),
             None => call,
         };
-        let use_permission_native_close = self.record_resume_marker_provider_pair_close_candidate(
-            &mut call,
-            &markers,
-            resume_plan.as_ref(),
-        );
-        if use_permission_native_close {
+        let close_decision =
+            self.provider_marker_close_decision(&mut call, &markers, resume_plan.as_ref());
+        if close_decision.is_native() {
             return Ok(EvidenceEvalResult::direct_tail_resumptive(call));
         }
         Ok(EvidenceEvalResult::direct_tail_resumptive(
@@ -3886,51 +3916,96 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         ))
     }
 
-    fn record_resume_marker_provider_pair_close_candidate(
+    fn provider_marker_close_decision(
         &mut self,
         call: &mut EvidenceDirectTailResumptive,
         markers: &[EvidenceValueMarker],
         resume_plan: Option<&EvidenceResumeMarkerPlan>,
-    ) -> bool {
+    ) -> EvidenceMarkerCloseDecision {
+        // Native provider marker close skips the legacy payload mark and resume-plan attach.
+        // It is valid only for a DirectTail signal that already carries provider permission as
+        // a guard-boundary pair, and only while the surrounding marker frame has no handler path
+        // and no carry-after-frame AddId. Value, GenericRequest, RoutedYield, handler-path
+        // boundary, resume-delta, and legacy-bridge cases must keep the marker close fallback.
         let Some(permission) = self.provider_guard_boundary_permission(&call.hygiene) else {
             if call.hygiene.provider_grant_permission().is_none() {
-                self.stats
-                    .resume_marker_provider_pair_close_reject_no_provider_permission += 1;
+                self.record_provider_marker_close_reject(
+                    EvidenceProviderMarkerCloseReject::NoProviderPermission,
+                );
             } else if call.hygiene.legacy_guard_bridge() {
-                self.stats
-                    .resume_marker_provider_pair_close_reject_legacy_bridge += 1;
+                self.record_provider_marker_close_reject(
+                    EvidenceProviderMarkerCloseReject::LegacyBridge,
+                );
             } else if call.hygiene.permission_transform().resume_delta {
-                self.stats
-                    .resume_marker_provider_pair_close_reject_resume_delta += 1;
+                self.record_provider_marker_close_reject(
+                    EvidenceProviderMarkerCloseReject::ResumeDelta,
+                );
             } else {
-                self.stats
-                    .resume_marker_provider_pair_close_reject_other_transform += 1;
+                self.record_provider_marker_close_reject(
+                    EvidenceProviderMarkerCloseReject::OtherTransform,
+                );
             }
-            return false;
+            return EvidenceMarkerCloseDecision::Legacy;
         };
 
         if resume_plan
             .and_then(|plan| plan.handler_path.as_ref())
             .is_some()
         {
-            self.stats
-                .resume_marker_provider_pair_close_reject_handler_path += 1;
-            return false;
+            self.record_provider_marker_close_reject(
+                EvidenceProviderMarkerCloseReject::HandlerPath,
+            );
+            return EvidenceMarkerCloseDecision::Legacy;
         }
         if marker_slice_has_carry_after_frame_add_id(markers) {
-            self.stats
-                .resume_marker_provider_pair_close_reject_carry_after_frame += 1;
-            return false;
+            self.record_provider_marker_close_reject(
+                EvidenceProviderMarkerCloseReject::CarryAfterFrame,
+            );
+            return EvidenceMarkerCloseDecision::Legacy;
         }
 
-        self.stats.resume_marker_provider_pair_close_candidates += 1;
+        let cert = EvidenceProviderMarkerCloseCert::new(permission);
+        self.record_provider_marker_close_candidate();
         #[cfg(debug_assertions)]
         call.hygiene.set_resume_marker_provider_pair_close_shadow(
-            EvidenceResumeMarkerCloseShadow::provider_pair(permission),
+            EvidenceResumeMarkerCloseShadow::provider_pair(cert.permission),
         );
         #[cfg(not(debug_assertions))]
-        let _ = permission;
-        true
+        let _ = cert;
+        EvidenceMarkerCloseDecision::NativeProviderPair(cert)
+    }
+
+    fn record_provider_marker_close_candidate(&mut self) {
+        self.stats.resume_marker_provider_pair_close_candidates += 1;
+    }
+
+    fn record_provider_marker_close_reject(&mut self, reject: EvidenceProviderMarkerCloseReject) {
+        match reject {
+            EvidenceProviderMarkerCloseReject::NoProviderPermission => {
+                self.stats
+                    .resume_marker_provider_pair_close_reject_no_provider_permission += 1;
+            }
+            EvidenceProviderMarkerCloseReject::ResumeDelta => {
+                self.stats
+                    .resume_marker_provider_pair_close_reject_resume_delta += 1;
+            }
+            EvidenceProviderMarkerCloseReject::HandlerPath => {
+                self.stats
+                    .resume_marker_provider_pair_close_reject_handler_path += 1;
+            }
+            EvidenceProviderMarkerCloseReject::CarryAfterFrame => {
+                self.stats
+                    .resume_marker_provider_pair_close_reject_carry_after_frame += 1;
+            }
+            EvidenceProviderMarkerCloseReject::LegacyBridge => {
+                self.stats
+                    .resume_marker_provider_pair_close_reject_legacy_bridge += 1;
+            }
+            EvidenceProviderMarkerCloseReject::OtherTransform => {
+                self.stats
+                    .resume_marker_provider_pair_close_reject_other_transform += 1;
+            }
+        }
     }
 
     fn close_marker_routed_yield(
