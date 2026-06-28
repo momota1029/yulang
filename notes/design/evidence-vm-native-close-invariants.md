@@ -205,3 +205,19 @@ A first native-close experiment for this branch preserved visible behavior but
 slowed the representative runtime workloads. The later-grant branch therefore
 remains profile-only until its execution shape is understood. The profile result
 is evidence about visibility, not yet a valid fast-path invariant.
+
+The later-grant profile now also records traversal and continuation-shape cost.
+This is intentionally diagnostic-only:
+
+- placement search frame steps
+- placement `Then` / `ProviderEnv` / `MarkerFrame` counts
+- native-eligible-if-enabled counts
+- hypothetical native continuation shape
+- legacy marker-close continuation shape
+
+Representative measurements show that the later-grant profile candidates remain
+visible-compatible with legacy behavior, but placement search walks thousands of
+continuation frames and the hypothetical native branch keeps a large
+`Then`/`ProviderEnv` shape. The rejected native close should not be re-enabled
+until the continuation representation, rather than the close condition, is made
+cheaper.

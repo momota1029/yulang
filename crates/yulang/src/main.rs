@@ -3739,6 +3739,132 @@ fn run_runtime_evidence_run(
             .provider_env_foreign_later_grant_naive_mismatch
     );
     println!(
+        "  runtime_evidence.provider_env_later_grant_placement_calls: {}",
+        output
+            .evidence_stats
+            .provider_env_later_grant_placement_calls
+    );
+    println!(
+        "  runtime_evidence.provider_env_later_grant_placement_calls_for_shadow: {}",
+        output
+            .evidence_stats
+            .provider_env_later_grant_placement_calls_for_shadow
+    );
+    println!(
+        "  runtime_evidence.provider_env_later_grant_placement_calls_for_rejected_native_candidate: {}",
+        output
+            .evidence_stats
+            .provider_env_later_grant_placement_calls_for_rejected_native_candidate
+    );
+    println!(
+        "  runtime_evidence.provider_env_later_grant_placement_frame_steps: {}",
+        output
+            .evidence_stats
+            .provider_env_later_grant_placement_frame_steps
+    );
+    println!(
+        "  runtime_evidence.provider_env_later_grant_placement_then_steps: {}",
+        output
+            .evidence_stats
+            .provider_env_later_grant_placement_then_steps
+    );
+    println!(
+        "  runtime_evidence.provider_env_later_grant_placement_provider_env_steps: {}",
+        output
+            .evidence_stats
+            .provider_env_later_grant_placement_provider_env_steps
+    );
+    println!(
+        "  runtime_evidence.provider_env_later_grant_placement_marker_frame_stops: {}",
+        output
+            .evidence_stats
+            .provider_env_later_grant_placement_marker_frame_stops
+    );
+    println!(
+        "  runtime_evidence.provider_env_later_grant_placement_found: {}",
+        output
+            .evidence_stats
+            .provider_env_later_grant_placement_found
+    );
+    println!(
+        "  runtime_evidence.provider_env_later_grant_placement_not_found: {}",
+        output
+            .evidence_stats
+            .provider_env_later_grant_placement_not_found
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_native_eligible_if_enabled: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_native_eligible_if_enabled
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_native_hits_if_enabled: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_native_hits_if_enabled
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_native_shape_then_frames: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_native_shape_then_frames
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_native_shape_marker_frames: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_native_shape_marker_frames
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_native_shape_provider_env_frames: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_native_shape_provider_env_frames
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_native_shape_depth_sum: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_native_shape_depth_sum
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_native_shape_max_depth: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_native_shape_max_depth
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_legacy_shape_then_frames: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_legacy_shape_then_frames
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_legacy_shape_marker_frames: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_legacy_shape_marker_frames
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_legacy_shape_provider_env_frames: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_legacy_shape_provider_env_frames
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_legacy_shape_depth_sum: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_legacy_shape_depth_sum
+    );
+    println!(
+        "  runtime_evidence.provider_env_foreign_later_grant_legacy_shape_max_depth: {}",
+        output
+            .evidence_stats
+            .provider_env_foreign_later_grant_legacy_shape_max_depth
+    );
+    println!(
         "  runtime_evidence.continuation_resume_provider_steps: {}",
         output.evidence_stats.continuation_resume_provider_steps
     );
