@@ -195,6 +195,18 @@ pub struct RuntimeEvidenceRunStats {
     pub resume_marker_permission_native_reject_legacy_bridge: usize,
     pub resume_marker_permission_native_reject_other_transform: usize,
     pub resume_marker_permission_native_reject_error_result: usize,
+    pub resume_marker_provider_pair_close_candidates: usize,
+    pub resume_marker_provider_pair_close_shadow: usize,
+    pub resume_marker_provider_pair_close_shadow_match: usize,
+    pub resume_marker_provider_pair_close_shadow_mismatch: usize,
+    pub resume_marker_provider_pair_close_shadow_legacy_visible: usize,
+    pub resume_marker_provider_pair_close_shadow_permission_visible: usize,
+    pub resume_marker_provider_pair_close_reject_no_provider_permission: usize,
+    pub resume_marker_provider_pair_close_reject_resume_delta: usize,
+    pub resume_marker_provider_pair_close_reject_handler_path: usize,
+    pub resume_marker_provider_pair_close_reject_carry_after_frame: usize,
+    pub resume_marker_provider_pair_close_reject_legacy_bridge: usize,
+    pub resume_marker_provider_pair_close_reject_other_transform: usize,
     pub continuation_resume_provider_steps: usize,
     pub continuation_resume_aggregate_steps: usize,
     pub continuation_resume_select_steps: usize,
@@ -1069,6 +1081,8 @@ struct EvidenceSignalHygiene {
     permission_visibility: EvidenceSignalPermissionVisibility,
     #[cfg(debug_assertions)]
     provider_add_id_shortcut_full_scan: Option<Box<EvidenceFullScanHygieneSnapshot>>,
+    #[cfg(debug_assertions)]
+    resume_marker_provider_pair_close_shadow: Option<EvidenceResumeMarkerCloseShadow>,
 }
 
 impl EvidenceSignalHygiene {
@@ -1146,6 +1160,19 @@ impl EvidenceSignalHygiene {
     }
 
     #[cfg(debug_assertions)]
+    fn set_resume_marker_provider_pair_close_shadow(
+        &mut self,
+        shadow: EvidenceResumeMarkerCloseShadow,
+    ) {
+        self.resume_marker_provider_pair_close_shadow = Some(shadow);
+    }
+
+    #[cfg(debug_assertions)]
+    fn resume_marker_provider_pair_close_shadow(&self) -> Option<EvidenceResumeMarkerCloseShadow> {
+        self.resume_marker_provider_pair_close_shadow
+    }
+
+    #[cfg(debug_assertions)]
     fn operation_visibility(&self) -> Option<RuntimeEvidenceOperationVisibility> {
         self.permission_visibility.base
     }
@@ -1175,6 +1202,23 @@ impl EvidenceFullScanHygieneSnapshot {
             guard_ids: &self.guard_ids,
             carried_guards: &self.carried_guards,
         }
+    }
+}
+
+#[cfg(debug_assertions)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceResumeMarkerCloseShadow {
+    permission: RuntimeEvidenceProviderGrantPermission,
+}
+
+#[cfg(debug_assertions)]
+impl EvidenceResumeMarkerCloseShadow {
+    fn provider_pair(permission: RuntimeEvidenceProviderGrantPermission) -> Self {
+        Self { permission }
+    }
+
+    fn permission(self) -> RuntimeEvidenceProviderGrantPermission {
+        self.permission
     }
 }
 
@@ -3825,13 +3869,64 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         resume_plan: Option<EvidenceResumeMarkerPlan>,
         handler_boundary: Option<EvidenceHandlerBoundary>,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        let call = match handler_boundary {
+        let mut call = match handler_boundary {
             Some(handler_boundary) => call.with_handler_boundary(handler_boundary),
             None => call,
         };
+        self.record_resume_marker_provider_pair_close_candidate(
+            &mut call,
+            &markers,
+            resume_plan.as_ref(),
+        );
         Ok(EvidenceEvalResult::direct_tail_resumptive(
             call.close_marker_frame(markers, resume_plan),
         ))
+    }
+
+    fn record_resume_marker_provider_pair_close_candidate(
+        &mut self,
+        call: &mut EvidenceDirectTailResumptive,
+        markers: &[EvidenceValueMarker],
+        resume_plan: Option<&EvidenceResumeMarkerPlan>,
+    ) {
+        let Some(permission) = self.provider_guard_boundary_permission(&call.hygiene) else {
+            if call.hygiene.provider_grant_permission().is_none() {
+                self.stats
+                    .resume_marker_provider_pair_close_reject_no_provider_permission += 1;
+            } else if call.hygiene.legacy_guard_bridge() {
+                self.stats
+                    .resume_marker_provider_pair_close_reject_legacy_bridge += 1;
+            } else if call.hygiene.permission_transform().resume_delta {
+                self.stats
+                    .resume_marker_provider_pair_close_reject_resume_delta += 1;
+            } else {
+                self.stats
+                    .resume_marker_provider_pair_close_reject_other_transform += 1;
+            }
+            return;
+        };
+
+        if resume_plan
+            .and_then(|plan| plan.handler_path.as_ref())
+            .is_some()
+        {
+            self.stats
+                .resume_marker_provider_pair_close_reject_handler_path += 1;
+            return;
+        }
+        if marker_slice_has_carry_after_frame_add_id(markers) {
+            self.stats
+                .resume_marker_provider_pair_close_reject_carry_after_frame += 1;
+            return;
+        }
+
+        self.stats.resume_marker_provider_pair_close_candidates += 1;
+        #[cfg(debug_assertions)]
+        call.hygiene.set_resume_marker_provider_pair_close_shadow(
+            EvidenceResumeMarkerCloseShadow::provider_pair(permission),
+        );
+        #[cfg(not(debug_assertions))]
+        let _ = permission;
     }
 
     fn close_marker_routed_yield(
@@ -7499,6 +7594,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         arms,
                         legacy_visible,
                     );
+                    self.record_resume_marker_provider_pair_close_visible_shadow(
+                        &call.hygiene,
+                        legacy_visible,
+                        native_result,
+                    );
                 }
                 self.record_provider_boundary_pair_shadow(legacy_visible, permission_result);
                 self.record_provider_boundary_pair_native_shadow(legacy_visible, native_result);
@@ -7771,6 +7871,38 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.stats.provider_add_id_shortcut_visible_match += 1;
         } else {
             self.stats.provider_add_id_shortcut_visible_mismatch += 1;
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn record_resume_marker_provider_pair_close_visible_shadow(
+        &mut self,
+        hygiene: &EvidenceSignalHygiene,
+        legacy_visible: Option<bool>,
+        permission_result: EvidencePermissionVisibleResult,
+    ) {
+        let Some(shadow) = hygiene.resume_marker_provider_pair_close_shadow() else {
+            return;
+        };
+        debug_assert_eq!(
+            Some(shadow.permission()),
+            self.provider_guard_boundary_permission(hygiene),
+            "resume marker close shadow lost provider permission"
+        );
+        self.stats.resume_marker_provider_pair_close_shadow += 1;
+        if legacy_visible.is_some() {
+            self.stats
+                .resume_marker_provider_pair_close_shadow_legacy_visible += 1;
+        }
+        let permission_visible = permission_result.visible();
+        if permission_visible.is_some() {
+            self.stats
+                .resume_marker_provider_pair_close_shadow_permission_visible += 1;
+        }
+        if legacy_visible == permission_visible {
+            self.stats.resume_marker_provider_pair_close_shadow_match += 1;
+        } else {
+            self.stats.resume_marker_provider_pair_close_shadow_mismatch += 1;
         }
     }
 
@@ -9831,6 +9963,15 @@ fn marked_force_marker_summary(markers: &[EvidenceValueMarker]) -> MarkedForceMa
         }
     }
     summary
+}
+
+fn marker_slice_has_carry_after_frame_add_id(markers: &[EvidenceValueMarker]) -> bool {
+    markers.iter().any(|marker| {
+        matches!(
+            marker,
+            EvidenceValueMarker::AddId(marker) if marker.carry_after_frame
+        )
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

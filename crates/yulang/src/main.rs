@@ -3003,6 +3003,78 @@ fn run_runtime_evidence_run(
             .resume_marker_permission_native_reject_error_result
     );
     println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_candidates: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_shadow: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_shadow
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_shadow_match: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_shadow_match
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_shadow_mismatch: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_shadow_mismatch
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_shadow_legacy_visible: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_shadow_legacy_visible
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_shadow_permission_visible: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_shadow_permission_visible
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_no_provider_permission: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_no_provider_permission
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_resume_delta: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_resume_delta
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_handler_path: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_handler_path
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_carry_after_frame: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_carry_after_frame
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_legacy_bridge: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_legacy_bridge
+    );
+    println!(
+        "  runtime_evidence.resume_marker_provider_pair_close_reject_other_transform: {}",
+        output
+            .evidence_stats
+            .resume_marker_provider_pair_close_reject_other_transform
+    );
+    println!(
         "  runtime_evidence.continuation_resume_provider_steps: {}",
         output.evidence_stats.continuation_resume_provider_steps
     );
