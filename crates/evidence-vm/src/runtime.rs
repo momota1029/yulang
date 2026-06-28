@@ -4528,13 +4528,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return Ok(EvidenceEvalResult::DirectAbortive(call));
         }
         let frame = continuation
-            .frame()
+            .into_frame()
             .expect("non-identity continuation must have a frame");
         match frame {
             EvidenceContinuationFrame::Then { first, second } => {
-                let result =
-                    self.continue_direct_abortive_with_continuation(call, first.clone())?;
-                self.continue_result(result, second.clone())
+                let result = self.continue_direct_abortive_with_continuation(call, first)?;
+                self.continue_result(result, second)
             }
             EvidenceContinuationFrame::CatchBody {
                 catch_expr,
@@ -4542,12 +4541,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 env,
                 next,
             } => {
-                let result = if call.handler == *catch_expr {
-                    self.eval_direct_abortive_arm(call, arms, env)?
+                let result = if call.handler == catch_expr {
+                    self.eval_direct_abortive_arm(call, &arms, &env)?
                 } else {
                     EvidenceEvalResult::DirectAbortive(call)
                 };
-                self.continue_result(result, next.clone())
+                self.continue_result(result, next)
             }
             EvidenceContinuationFrame::ForceThunk { next, .. }
             | EvidenceContinuationFrame::ForceValueIfThunk { next }
@@ -4568,7 +4567,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             | EvidenceContinuationFrame::RefSetEmitResolvedRequest { next, .. }
             | EvidenceContinuationFrame::ResolveRefSetValues { next, .. }
             | EvidenceContinuationFrame::ResolveRefSetFields { next, .. } => {
-                self.continue_direct_abortive_with_continuation(call, next.clone())
+                self.continue_direct_abortive_with_continuation(call, next)
             }
             EvidenceContinuationFrame::ApplyCallee { next, .. }
             | EvidenceContinuationFrame::CaseScrutinee { next, .. }
@@ -4579,7 +4578,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             | EvidenceContinuationFrame::BlockStmt { next, .. }
             | EvidenceContinuationFrame::RefSetReference { next, .. }
             | EvidenceContinuationFrame::RefSetForcedReference { next, .. } => {
-                self.continue_direct_abortive_with_continuation(call, next.clone())
+                self.continue_direct_abortive_with_continuation(call, next)
             }
         }
     }
@@ -4597,13 +4596,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return Ok(EvidenceEvalResult::DirectTailResumptive(call));
         }
         let frame = continuation
-            .frame()
+            .into_frame()
             .expect("non-identity continuation must have a frame");
         let (call, next) = match frame {
             EvidenceContinuationFrame::Then { first, second } => {
-                let result =
-                    self.continue_direct_tail_resumptive_with_continuation(call, first.clone())?;
-                return self.continue_result(result, second.clone());
+                let result = self.continue_direct_tail_resumptive_with_continuation(call, first)?;
+                return self.continue_result(result, second);
             }
             EvidenceContinuationFrame::ForceThunk {
                 target_value_is_thunk,
@@ -4612,60 +4610,53 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::force_thunk(
-                        *target_value_is_thunk,
+                        target_value_is_thunk,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::ForceValueIfThunk { next } => (
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::ApplyCallee {
                 site,
                 arg,
                 env,
                 next,
-            } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_direct_tail_continuation(
-                        call,
-                        EvidenceContinuation::apply_callee(
-                            *site,
-                            *arg,
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
-                    ),
-                    next.clone(),
-                )
-            }
-            EvidenceContinuationFrame::ApplyArg { site, callee, next } => (
+            } => (
                 self.append_direct_tail_continuation(
                     call,
-                    EvidenceContinuation::apply_arg(
-                        *site,
-                        callee.clone(),
+                    EvidenceContinuation::apply_callee(
+                        site,
+                        arg,
+                        env,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
+            ),
+            EvidenceContinuationFrame::ApplyArg { site, callee, next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::apply_arg(site, callee, EvidenceContinuation::identity()),
+                ),
+                next,
             ),
             EvidenceContinuationFrame::ApplyForcedCallee { site, arg, next } => (
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::apply_forced_callee(
-                        *site,
-                        arg.clone(),
+                        site,
+                        arg,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::AdaptValue {
                 source,
@@ -4675,19 +4666,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::adapt_value(
-                        source.clone(),
-                        target.clone(),
+                        source,
+                        target,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::WrapThunkValue { next } => (
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::wrap_thunk_value(EvidenceContinuation::identity()),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::ApplyAdapterArg {
                 function,
@@ -4699,14 +4690,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::apply_adapter_arg(
-                        function.clone(),
-                        ret_markers.clone(),
-                        source_ret.clone(),
-                        target_ret.clone(),
+                        function,
+                        ret_markers,
+                        source_ret,
+                        target_ret,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::ApplyAdapterResult {
                 ret_markers,
@@ -4717,60 +4708,53 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::apply_adapter_result(
-                        ret_markers.clone(),
-                        source_ret.clone(),
-                        target_ret.clone(),
+                        ret_markers,
+                        source_ret,
+                        target_ret,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
-            EvidenceContinuationFrame::CaseScrutinee { arms, env, next } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_direct_tail_continuation(
-                        call,
-                        EvidenceContinuation::case_scrutinee(
-                            arms.clone(),
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+            EvidenceContinuationFrame::CaseScrutinee { arms, env, next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::case_scrutinee(
+                        arms,
+                        env,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
+                ),
+                next,
+            ),
             EvidenceContinuationFrame::CatchBody {
                 catch_expr,
                 arms,
                 env,
                 next,
             } => {
-                if call.handler == *catch_expr {
-                    let result = if self.visible_direct_tail_resumptive(&call, arms).is_some() {
-                        self.eval_direct_tail_resumptive_arm(call, arms, env)?
+                if call.handler == catch_expr {
+                    let result = if self.visible_direct_tail_resumptive(&call, &arms).is_some() {
+                        self.eval_direct_tail_resumptive_arm(call, &arms, &env)?
                     } else {
                         let request = call.into_request(EvidenceEffectRoute::Unhandled);
-                        EvidenceEvalResult::Request(self.defer_catch_body(
-                            *catch_expr,
-                            arms.clone(),
-                            env,
-                            request,
-                        ))
+                        EvidenceEvalResult::Request(
+                            self.defer_catch_body(catch_expr, arms, &env, request),
+                        )
                     };
-                    return self.continue_result(result, next.clone());
+                    return self.continue_result(result, next);
                 }
-                let env = self.clone_env(env);
                 (
                     self.append_direct_tail_continuation(
                         call,
                         EvidenceContinuation::catch_body(
-                            *catch_expr,
-                            arms.clone(),
+                            catch_expr,
+                            arms,
                             env,
                             EvidenceContinuation::identity(),
                         ),
                     ),
-                    next.clone(),
+                    next,
                 )
             }
             EvidenceContinuationFrame::MarkerFrame {
@@ -4782,100 +4766,88 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::marker_frame(
-                        markers.clone(),
-                        *activate_add_ids,
-                        handler_path.clone(),
+                        markers,
+                        activate_add_ids,
+                        handler_path,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::ProviderEnv { provider_env, next } => (
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::provider_env(
-                        provider_env.clone(),
+                        provider_env,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::TupleItems {
                 values,
                 rest,
                 env,
                 next,
-            } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_direct_tail_continuation(
-                        call,
-                        EvidenceContinuation::tuple_items(
-                            values.clone(),
-                            rest.clone(),
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::tuple_items(
+                        values,
+                        rest,
+                        env,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
-            EvidenceContinuationFrame::RecordSpread { fields, env, next } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_direct_tail_continuation(
-                        call,
-                        EvidenceContinuation::record_spread(
-                            fields.clone(),
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+                ),
+                next,
+            ),
+            EvidenceContinuationFrame::RecordSpread { fields, env, next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::record_spread(
+                        fields,
+                        env,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
+                ),
+                next,
+            ),
             EvidenceContinuationFrame::RecordFields {
                 values,
                 rest,
                 env,
                 next,
-            } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_direct_tail_continuation(
-                        call,
-                        EvidenceContinuation::record_fields(
-                            values.clone(),
-                            rest.clone(),
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::record_fields(
+                        values,
+                        rest,
+                        env,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
+                ),
+                next,
+            ),
             EvidenceContinuationFrame::PolyVariantPayloads {
                 tag,
                 values,
                 rest,
                 env,
                 next,
-            } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_direct_tail_continuation(
-                        call,
-                        EvidenceContinuation::poly_variant_payloads(
-                            tag.clone(),
-                            values.clone(),
-                            rest.clone(),
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::poly_variant_payloads(
+                        tag,
+                        values,
+                        rest,
+                        env,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
+                ),
+                next,
+            ),
             EvidenceContinuationFrame::SelectBase {
                 name,
                 resolution,
@@ -4884,12 +4856,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::select_base(
-                        name.clone(),
-                        resolution.clone(),
+                        name,
+                        resolution,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::BlockStmt {
                 resume,
@@ -4898,97 +4870,88 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 env,
                 last,
                 next,
-            } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_direct_tail_continuation(
-                        call,
-                        EvidenceContinuation::block_stmt(
-                            resume.clone(),
-                            rest.clone(),
-                            *tail,
-                            env,
-                            last.clone(),
-                            EvidenceContinuation::identity(),
-                        ),
+            } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::block_stmt(
+                        resume,
+                        rest,
+                        tail,
+                        env,
+                        last,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
-            EvidenceContinuationFrame::RefSetReference { value, env, next } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_direct_tail_continuation(
-                        call,
-                        EvidenceContinuation::ref_set_reference(
-                            *value,
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+                ),
+                next,
+            ),
+            EvidenceContinuationFrame::RefSetReference { value, env, next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::ref_set_reference(
+                        value,
+                        env,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
-            EvidenceContinuationFrame::RefSetForcedReference { value, env, next } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_direct_tail_continuation(
-                        call,
-                        EvidenceContinuation::ref_set_forced_reference(
-                            *value,
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+                ),
+                next,
+            ),
+            EvidenceContinuationFrame::RefSetForcedReference { value, env, next } => (
+                self.append_direct_tail_continuation(
+                    call,
+                    EvidenceContinuation::ref_set_forced_reference(
+                        value,
+                        env,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
+                ),
+                next,
+            ),
             EvidenceContinuationFrame::RefSetValue { reference, next } => (
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::ref_set_value(
-                        reference.clone(),
+                        reference,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::RefSetForcedValue { reference, next } => (
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::ref_set_forced_value(
-                        reference.clone(),
+                        reference,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::RefSetResolvedUnit { next } => (
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::ref_set_resolved_unit(EvidenceContinuation::identity()),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::RefSetHandleResult { assigned, next } => (
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::ref_set_handle_result(
-                        assigned.clone(),
+                        assigned,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::RefSetHandleValueResult { assigned, next } => (
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::ref_set_handle_value_result(
-                        assigned.clone(),
+                        assigned,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::RefSetEmitResolvedRequest {
                 request,
@@ -4999,13 +4962,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::ref_set_emit_resolved_request(
-                        request.clone(),
-                        assigned.clone(),
-                        *mode,
+                        request,
+                        assigned,
+                        mode,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::ResolveRefSetValues {
                 values,
@@ -5018,15 +4981,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::resolve_ref_set_values(
-                        values.clone(),
-                        assigned.clone(),
-                        out.clone(),
-                        *index,
-                        finish.clone(),
+                        values,
+                        assigned,
+                        out,
+                        index,
+                        finish,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::ResolveRefSetFields {
                 fields,
@@ -5038,14 +5001,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_direct_tail_continuation(
                     call,
                     EvidenceContinuation::resolve_ref_set_fields(
-                        fields.clone(),
-                        assigned.clone(),
-                        out.clone(),
-                        *index,
+                        fields,
+                        assigned,
+                        out,
+                        index,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
         };
         self.continue_direct_tail_resumptive_with_continuation(call, next)
@@ -5089,16 +5052,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.stats.request_continuation_steps += 1;
         }
         let frame = continuation
-            .frame()
+            .into_frame()
             .expect("non-identity continuation must have a frame");
         let (request, next) = match frame {
             EvidenceContinuationFrame::Then { first, second } => {
                 let result = self.continue_routed_request_with_continuation(
                     routed_yield_handler,
                     request,
-                    first.clone(),
+                    first,
                 )?;
-                return self.continue_result(result, second.clone());
+                return self.continue_result(result, second);
             }
             EvidenceContinuationFrame::ForceThunk {
                 target_value_is_thunk,
@@ -5107,60 +5070,53 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::force_thunk(
-                        *target_value_is_thunk,
+                        target_value_is_thunk,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::ForceValueIfThunk { next } => (
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::ApplyCallee {
                 site,
                 arg,
                 env,
                 next,
-            } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_request_continuation(
-                        request,
-                        EvidenceContinuation::apply_callee(
-                            *site,
-                            *arg,
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
-                    ),
-                    next.clone(),
-                )
-            }
-            EvidenceContinuationFrame::ApplyArg { site, callee, next } => (
+            } => (
                 self.append_request_continuation(
                     request,
-                    EvidenceContinuation::apply_arg(
-                        *site,
-                        callee.clone(),
+                    EvidenceContinuation::apply_callee(
+                        site,
+                        arg,
+                        env,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
+            ),
+            EvidenceContinuationFrame::ApplyArg { site, callee, next } => (
+                self.append_request_continuation(
+                    request,
+                    EvidenceContinuation::apply_arg(site, callee, EvidenceContinuation::identity()),
+                ),
+                next,
             ),
             EvidenceContinuationFrame::ApplyForcedCallee { site, arg, next } => (
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::apply_forced_callee(
-                        *site,
-                        arg.clone(),
+                        site,
+                        arg,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::AdaptValue {
                 source,
@@ -5170,19 +5126,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::adapt_value(
-                        source.clone(),
-                        target.clone(),
+                        source,
+                        target,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::WrapThunkValue { next } => (
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::wrap_thunk_value(EvidenceContinuation::identity()),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::ApplyAdapterArg {
                 function,
@@ -5194,14 +5150,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::apply_adapter_arg(
-                        function.clone(),
-                        ret_markers.clone(),
-                        source_ret.clone(),
-                        target_ret.clone(),
+                        function,
+                        ret_markers,
+                        source_ret,
+                        target_ret,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::ApplyAdapterResult {
                 ret_markers,
@@ -5212,28 +5168,25 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::apply_adapter_result(
-                        ret_markers.clone(),
-                        source_ret.clone(),
-                        target_ret.clone(),
+                        ret_markers,
+                        source_ret,
+                        target_ret,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
-            EvidenceContinuationFrame::CaseScrutinee { arms, env, next } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_request_continuation(
-                        request,
-                        EvidenceContinuation::case_scrutinee(
-                            arms.clone(),
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+            EvidenceContinuationFrame::CaseScrutinee { arms, env, next } => (
+                self.append_request_continuation(
+                    request,
+                    EvidenceContinuation::case_scrutinee(
+                        arms,
+                        env,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
+                ),
+                next,
+            ),
             EvidenceContinuationFrame::CatchBody {
                 catch_expr,
                 arms,
@@ -5241,20 +5194,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 next,
             } => {
                 let result = if let Some(handler) = routed_yield_handler {
-                    if handler == *catch_expr {
+                    if handler == catch_expr {
                         self.eval_routed_yield_arm(
                             EvidenceRoutedYield { handler, request },
-                            *catch_expr,
-                            arms.clone(),
-                            env,
+                            catch_expr,
+                            arms,
+                            &env,
                         )?
                     } else {
-                        let env = self.clone_env(env);
                         let request = self.append_request_continuation(
                             request,
                             EvidenceContinuation::catch_body(
-                                *catch_expr,
-                                arms.clone(),
+                                catch_expr,
+                                arms,
                                 env,
                                 EvidenceContinuation::identity(),
                             ),
@@ -5262,18 +5214,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         return self.continue_routed_request_with_continuation(
                             routed_yield_handler,
                             request,
-                            next.clone(),
+                            next,
                         );
                     }
                 } else {
                     self.continue_catch_body_result(
-                        *catch_expr,
-                        arms.clone(),
-                        env,
+                        catch_expr,
+                        arms,
+                        &env,
                         EvidenceEvalResult::Request(request),
                     )?
                 };
-                return self.continue_result(result, next.clone());
+                return self.continue_result(result, next);
             }
             EvidenceContinuationFrame::MarkerFrame {
                 markers,
@@ -5284,10 +5236,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::marker_frame(
-                        markers.clone(),
-                        *activate_add_ids,
-                        handler_path.clone(),
-                        next.clone(),
+                        markers,
+                        activate_add_ids,
+                        handler_path,
+                        next,
                     ),
                 ),
                 EvidenceContinuation::identity(),
@@ -5295,7 +5247,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceContinuationFrame::ProviderEnv { provider_env, next } => (
                 self.append_request_continuation(
                     request,
-                    EvidenceContinuation::provider_env(provider_env.clone(), next.clone()),
+                    EvidenceContinuation::provider_env(provider_env, next),
                 ),
                 EvidenceContinuation::identity(),
             ),
@@ -5304,77 +5256,65 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 rest,
                 env,
                 next,
-            } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_request_continuation(
-                        request,
-                        EvidenceContinuation::tuple_items(
-                            values.clone(),
-                            rest.clone(),
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+            } => (
+                self.append_request_continuation(
+                    request,
+                    EvidenceContinuation::tuple_items(
+                        values,
+                        rest,
+                        env,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
-            EvidenceContinuationFrame::RecordSpread { fields, env, next } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_request_continuation(
-                        request,
-                        EvidenceContinuation::record_spread(
-                            fields.clone(),
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+                ),
+                next,
+            ),
+            EvidenceContinuationFrame::RecordSpread { fields, env, next } => (
+                self.append_request_continuation(
+                    request,
+                    EvidenceContinuation::record_spread(
+                        fields,
+                        env,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
+                ),
+                next,
+            ),
             EvidenceContinuationFrame::RecordFields {
                 values,
                 rest,
                 env,
                 next,
-            } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_request_continuation(
-                        request,
-                        EvidenceContinuation::record_fields(
-                            values.clone(),
-                            rest.clone(),
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+            } => (
+                self.append_request_continuation(
+                    request,
+                    EvidenceContinuation::record_fields(
+                        values,
+                        rest,
+                        env,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
+                ),
+                next,
+            ),
             EvidenceContinuationFrame::PolyVariantPayloads {
                 tag,
                 values,
                 rest,
                 env,
                 next,
-            } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_request_continuation(
-                        request,
-                        EvidenceContinuation::poly_variant_payloads(
-                            tag.clone(),
-                            values.clone(),
-                            rest.clone(),
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+            } => (
+                self.append_request_continuation(
+                    request,
+                    EvidenceContinuation::poly_variant_payloads(
+                        tag,
+                        values,
+                        rest,
+                        env,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
+                ),
+                next,
+            ),
             EvidenceContinuationFrame::SelectBase {
                 name,
                 resolution,
@@ -5383,12 +5323,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::select_base(
-                        name.clone(),
-                        resolution.clone(),
+                        name,
+                        resolution,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::BlockStmt {
                 resume,
@@ -5397,91 +5337,82 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 env,
                 last,
                 next,
-            } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_request_continuation(
-                        request,
-                        EvidenceContinuation::block_stmt(
-                            resume.clone(),
-                            rest.clone(),
-                            *tail,
-                            env,
-                            last.clone(),
-                            EvidenceContinuation::identity(),
-                        ),
+            } => (
+                self.append_request_continuation(
+                    request,
+                    EvidenceContinuation::block_stmt(
+                        resume,
+                        rest,
+                        tail,
+                        env,
+                        last,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
-            EvidenceContinuationFrame::RefSetReference { value, env, next } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_request_continuation(
-                        request,
-                        EvidenceContinuation::ref_set_reference(
-                            *value,
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+                ),
+                next,
+            ),
+            EvidenceContinuationFrame::RefSetReference { value, env, next } => (
+                self.append_request_continuation(
+                    request,
+                    EvidenceContinuation::ref_set_reference(
+                        value,
+                        env,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
-            EvidenceContinuationFrame::RefSetForcedReference { value, env, next } => {
-                let env = self.clone_env(env);
-                (
-                    self.append_request_continuation(
-                        request,
-                        EvidenceContinuation::ref_set_forced_reference(
-                            *value,
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+                ),
+                next,
+            ),
+            EvidenceContinuationFrame::RefSetForcedReference { value, env, next } => (
+                self.append_request_continuation(
+                    request,
+                    EvidenceContinuation::ref_set_forced_reference(
+                        value,
+                        env,
+                        EvidenceContinuation::identity(),
                     ),
-                    next.clone(),
-                )
-            }
+                ),
+                next,
+            ),
             EvidenceContinuationFrame::RefSetValue { reference, next } => (
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::ref_set_value(
-                        reference.clone(),
+                        reference,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::RefSetForcedValue { reference, next } => (
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::ref_set_forced_value(
-                        reference.clone(),
+                        reference,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::RefSetResolvedUnit { next } => (
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::ref_set_resolved_unit(EvidenceContinuation::identity()),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::RefSetHandleResult { assigned, next } => {
                 let result = self.handle_ref_set_result(
                     self.routed_request_result(routed_yield_handler, request),
-                    assigned.clone(),
+                    assigned,
                 )?;
-                return self.continue_result(result, next.clone());
+                return self.continue_result(result, next);
             }
             EvidenceContinuationFrame::RefSetHandleValueResult { assigned, next } => {
                 let result = self.handle_ref_set_value_result(
                     self.routed_request_result(routed_yield_handler, request),
-                    assigned.clone(),
+                    assigned,
                 )?;
-                return self.continue_result(result, next.clone());
+                return self.continue_result(result, next);
             }
             EvidenceContinuationFrame::RefSetEmitResolvedRequest {
                 request: pending,
@@ -5492,13 +5423,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::ref_set_emit_resolved_request(
-                        pending.clone(),
-                        assigned.clone(),
-                        *mode,
+                        pending,
+                        assigned,
+                        mode,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::ResolveRefSetValues {
                 values,
@@ -5511,15 +5442,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::resolve_ref_set_values(
-                        values.clone(),
-                        assigned.clone(),
-                        out.clone(),
-                        *index,
-                        finish.clone(),
+                        values,
+                        assigned,
+                        out,
+                        index,
+                        finish,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
             EvidenceContinuationFrame::ResolveRefSetFields {
                 fields,
@@ -5531,14 +5462,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.append_request_continuation(
                     request,
                     EvidenceContinuation::resolve_ref_set_fields(
-                        fields.clone(),
-                        assigned.clone(),
-                        out.clone(),
-                        *index,
+                        fields,
+                        assigned,
+                        out,
+                        index,
                         EvidenceContinuation::identity(),
                     ),
                 ),
-                next.clone(),
+                next,
             ),
         };
         self.continue_routed_request_with_continuation(routed_yield_handler, request, next)
