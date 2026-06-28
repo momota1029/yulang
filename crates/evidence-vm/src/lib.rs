@@ -53,6 +53,8 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) evidence_call_objects: usize,
     pub(crate) evidence_handler_objects: usize,
     pub(crate) evidence_operation_objects: usize,
+    pub(crate) evidence_handler_capabilities: usize,
+    pub(crate) evidence_allowed_sets: usize,
     pub(crate) evidence_provider_slots: usize,
     pub(crate) evidence_provider_candidates: usize,
     pub(crate) evidence_env_provider_slots: usize,
@@ -199,6 +201,12 @@ pub(crate) enum EvidenceVmSlotRouteKey {
     UnknownFallback,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct EvidenceVmHandlerCapId(pub(crate) u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct EvidenceVmAllowedSetId(pub(crate) u32);
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct EvidenceVmObjectPlan {
     pub(crate) slots: Vec<EvidenceVmSlotPlan>,
@@ -207,6 +215,8 @@ pub(crate) struct EvidenceVmObjectPlan {
     pub(crate) calls: Vec<EvidenceVmCallObjectPlan>,
     pub(crate) handlers: Vec<EvidenceVmHandlerObjectPlan>,
     pub(crate) operations: Vec<EvidenceVmOperationObjectPlan>,
+    pub(crate) handler_capabilities: Vec<EvidenceVmHandlerCapabilityPlan>,
+    pub(crate) allowed_sets: Vec<EvidenceVmAllowedSetPlan>,
     pub(crate) providers: Vec<EvidenceVmProviderPlan>,
 }
 
@@ -244,6 +254,7 @@ pub(crate) struct EvidenceVmCallObjectPlan {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EvidenceVmHandlerObjectPlan {
     pub(crate) id: u32,
+    pub(crate) capability_id: EvidenceVmHandlerCapId,
     pub(crate) handler: ExprId,
     pub(crate) slot_id: u32,
     pub(crate) path: Vec<String>,
@@ -259,6 +270,33 @@ pub(crate) struct EvidenceVmOperationObjectPlan {
     pub(crate) slot_id: u32,
     pub(crate) candidate_handler: Option<u32>,
     pub(crate) execution: EvidenceVmOperationExecutionPlan,
+    pub(crate) visibility: EvidenceVmOperationVisibilityPlan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmHandlerCapabilityPlan {
+    pub(crate) id: EvidenceVmHandlerCapId,
+    pub(crate) handler_id: u32,
+    pub(crate) slot_id: u32,
+    pub(crate) family: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmAllowedSetPlan {
+    pub(crate) id: EvidenceVmAllowedSetId,
+    pub(crate) kind: EvidenceVmAllowedSetKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum EvidenceVmAllowedSetKind {
+    HandlerCapability(EvidenceVmHandlerCapId),
+    LegacyGuardBridge,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmOperationVisibilityPlan {
+    pub(crate) allowed_set_id: EvidenceVmAllowedSetId,
+    pub(crate) legacy_guard_bridge: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -459,13 +497,15 @@ pub fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
-        "  evidence_object_slots: {} function_objects: {} value_objects: {} call_objects: {} handler_objects: {} operation_objects: {} provider_slots: {} provider_candidates: {} env_provider_slots: {} env_provider_candidates: {} direct_candidates: {}",
+        "  evidence_object_slots: {} function_objects: {} value_objects: {} call_objects: {} handler_objects: {} operation_objects: {} handler_caps: {} allowed_sets: {} provider_slots: {} provider_candidates: {} env_provider_slots: {} env_provider_candidates: {} direct_candidates: {}",
         summary.evidence_object_slots,
         summary.evidence_function_objects,
         summary.evidence_value_objects,
         summary.evidence_call_objects,
         summary.evidence_handler_objects,
         summary.evidence_operation_objects,
+        summary.evidence_handler_capabilities,
+        summary.evidence_allowed_sets,
         summary.evidence_provider_slots,
         summary.evidence_provider_candidates,
         summary.evidence_env_provider_slots,
@@ -551,6 +591,8 @@ fn summarize_plan(
         evidence_call_objects: objects.calls.len(),
         evidence_handler_objects: objects.handlers.len(),
         evidence_operation_objects: objects.operations.len(),
+        evidence_handler_capabilities: objects.handler_capabilities.len(),
+        evidence_allowed_sets: objects.allowed_sets.len(),
         evidence_provider_slots: objects.providers.len(),
         evidence_provider_candidates: objects
             .providers
@@ -1328,6 +1370,7 @@ fn build_object_plan(
         .collect::<Vec<_>>();
 
     let mut handlers = build_handler_objects(handlers, &slot_ids);
+    let handler_capabilities = build_handler_capabilities(&handlers);
     let function_objects = build_function_objects(functions, &slot_ids);
     let lexical_envs = build_lexical_handler_envs(program, values, &slot_plans, &handlers);
     attach_handler_definition_envs(&lexical_envs.handler_definition_envs, &mut handlers);
@@ -1337,7 +1380,8 @@ fn build_object_plan(
         .iter()
         .map(|handler| ((handler.handler, handler.slot_id), handler.id))
         .collect::<HashMap<_, _>>();
-    let operations = build_operation_objects(operations, &slot_ids, &handler_index, &handlers);
+    let (operations, allowed_sets) =
+        build_operation_objects(operations, &slot_ids, &handler_index, &handlers);
     let providers = build_provider_index(&slot_plans, &handlers);
 
     EvidenceVmObjectPlan {
@@ -1347,6 +1391,8 @@ fn build_object_plan(
         calls: call_objects,
         handlers,
         operations,
+        handler_capabilities,
+        allowed_sets,
         providers,
     }
 }
@@ -1698,6 +1744,7 @@ fn build_handler_objects(
             };
             objects.push(EvidenceVmHandlerObjectPlan {
                 id: objects.len() as u32,
+                capability_id: EvidenceVmHandlerCapId(objects.len() as u32),
                 handler: handler.expr,
                 slot_id,
                 path: path.clone(),
@@ -1709,6 +1756,20 @@ fn build_handler_objects(
         }
     }
     objects
+}
+
+fn build_handler_capabilities(
+    handlers: &[EvidenceVmHandlerObjectPlan],
+) -> Vec<EvidenceVmHandlerCapabilityPlan> {
+    handlers
+        .iter()
+        .map(|handler| EvidenceVmHandlerCapabilityPlan {
+            id: handler.capability_id,
+            handler_id: handler.id,
+            slot_id: handler.slot_id,
+            family: handler.path.clone(),
+        })
+        .collect()
 }
 
 fn attach_handler_definition_envs(
@@ -1728,12 +1789,16 @@ fn build_operation_objects(
     slot_ids: &BTreeMap<EvidenceVmSlotKey, u32>,
     handler_index: &HashMap<(ExprId, u32), u32>,
     handlers: &[EvidenceVmHandlerObjectPlan],
-) -> Vec<EvidenceVmOperationObjectPlan> {
+) -> (
+    Vec<EvidenceVmOperationObjectPlan>,
+    Vec<EvidenceVmAllowedSetPlan>,
+) {
     let handler_by_id = handlers
         .iter()
         .map(|handler| (handler.id, handler))
         .collect::<HashMap<_, _>>();
-    operations
+    let mut allowed_sets = EvidenceVmAllowedSetInterner::new();
+    let objects = operations
         .iter()
         .filter_map(|operation| {
             let slot_id = slot_ids.get(&operation.slot).copied()?;
@@ -1744,14 +1809,59 @@ fn build_operation_objects(
                 handler_index.get(&(handler, positive_slot_id)).copied()
             });
             let execution = operation_execution_plan(operation, candidate_handler, &handler_by_id);
+            let visibility =
+                operation_visibility_plan(candidate_handler, &handler_by_id, &mut allowed_sets);
             Some(EvidenceVmOperationObjectPlan {
                 expr: operation.expr,
                 slot_id,
                 candidate_handler,
                 execution,
+                visibility,
             })
         })
-        .collect()
+        .collect::<Vec<_>>();
+    (objects, allowed_sets.finish())
+}
+
+#[derive(Default)]
+struct EvidenceVmAllowedSetInterner {
+    ids: BTreeMap<EvidenceVmAllowedSetKind, EvidenceVmAllowedSetId>,
+    plans: Vec<EvidenceVmAllowedSetPlan>,
+}
+
+impl EvidenceVmAllowedSetInterner {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn intern(&mut self, kind: EvidenceVmAllowedSetKind) -> EvidenceVmAllowedSetId {
+        if let Some(id) = self.ids.get(&kind) {
+            return *id;
+        }
+        let id = EvidenceVmAllowedSetId(self.plans.len() as u32);
+        self.ids.insert(kind, id);
+        self.plans.push(EvidenceVmAllowedSetPlan { id, kind });
+        id
+    }
+
+    fn finish(self) -> Vec<EvidenceVmAllowedSetPlan> {
+        self.plans
+    }
+}
+
+fn operation_visibility_plan(
+    candidate_handler: Option<u32>,
+    handler_by_id: &HashMap<u32, &EvidenceVmHandlerObjectPlan>,
+    allowed_sets: &mut EvidenceVmAllowedSetInterner,
+) -> EvidenceVmOperationVisibilityPlan {
+    let kind = candidate_handler
+        .and_then(|handler_id| handler_by_id.get(&handler_id))
+        .map(|handler| EvidenceVmAllowedSetKind::HandlerCapability(handler.capability_id))
+        .unwrap_or(EvidenceVmAllowedSetKind::LegacyGuardBridge);
+    EvidenceVmOperationVisibilityPlan {
+        allowed_set_id: allowed_sets.intern(kind),
+        legacy_guard_bridge: matches!(kind, EvidenceVmAllowedSetKind::LegacyGuardBridge),
+    }
 }
 
 fn build_provider_index(
@@ -2487,6 +2597,8 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
         && objects.calls.is_empty()
         && objects.handlers.is_empty()
         && objects.operations.is_empty()
+        && objects.handler_capabilities.is_empty()
+        && objects.allowed_sets.is_empty()
         && objects.providers.is_empty()
     {
         return;
@@ -2546,8 +2658,9 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
         for handler in &objects.handlers {
             writeln!(
                 out,
-                "    h{} handler e{} slot s{} {} arm e{} class {} {} def_env [{}]",
+                "    h{} cap c{} handler e{} slot s{} {} arm e{} class {} {} def_env [{}]",
                 handler.id,
+                handler.capability_id.0,
                 handler.handler.0,
                 handler.slot_id,
                 format_path(&handler.path),
@@ -2555,6 +2668,32 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
                 format_handler_arm_class(handler.arm_class),
                 format_continuation_use(handler.continuation_use),
                 format_u32_list_with_prefix("h", &handler.definition_env)
+            )
+            .unwrap();
+        }
+    }
+    if !objects.handler_capabilities.is_empty() {
+        writeln!(out, "  handler-capabilities:").unwrap();
+        for capability in &objects.handler_capabilities {
+            writeln!(
+                out,
+                "    c{} handler h{} slot s{} {}",
+                capability.id.0,
+                capability.handler_id,
+                capability.slot_id,
+                format_path(&capability.family)
+            )
+            .unwrap();
+        }
+    }
+    if !objects.allowed_sets.is_empty() {
+        writeln!(out, "  allowed-sets:").unwrap();
+        for allowed in &objects.allowed_sets {
+            writeln!(
+                out,
+                "    a{} {}",
+                allowed.id.0,
+                format_allowed_set_kind(allowed.kind)
             )
             .unwrap();
         }
@@ -2581,14 +2720,25 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
                 .unwrap_or_else(|| "none".to_string());
             writeln!(
                 out,
-                "    e{} slot s{} handler {} exec {}",
+                "    e{} slot s{} handler {} exec {} visibility a{} legacy_bridge={}",
                 operation.expr.0,
                 operation.slot_id,
                 handler,
-                format_operation_execution_plan(operation.execution)
+                format_operation_execution_plan(operation.execution),
+                operation.visibility.allowed_set_id.0,
+                operation.visibility.legacy_guard_bridge
             )
             .unwrap();
         }
+    }
+}
+
+fn format_allowed_set_kind(kind: EvidenceVmAllowedSetKind) -> String {
+    match kind {
+        EvidenceVmAllowedSetKind::HandlerCapability(capability) => {
+            format!("handler-cap c{}", capability.0)
+        }
+        EvidenceVmAllowedSetKind::LegacyGuardBridge => "legacy-guard-bridge".to_string(),
     }
 }
 
@@ -3055,5 +3205,61 @@ impl<'a> RuntimeNodeIndex<'a> {
 
     fn nodes_for_expr(&self, expr: u32) -> Vec<&'a RuntimeEvidenceNode> {
         self.by_expr.get(&expr).cloned().unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn object_plan_names_handler_capability_and_operation_visibility() {
+        let path = vec!["flip".to_string(), "coin".to_string()];
+        let handler_expr = ExprId(1);
+        let operation_expr = ExprId(3);
+        let handler = EvidenceVmHandlerPlan {
+            expr: handler_expr,
+            body: ExprId(2),
+            arms: vec![EvidenceVmHandlerArmPlan {
+                path: Some(path.clone()),
+                resumptive: true,
+                guarded: false,
+                classification: EvidenceVmHandlerArmClass::TailResumptive,
+                continuation_use: EvidenceVmContinuationUsePlan::default(),
+                body: ExprId(4),
+            }],
+        };
+        let operation = EvidenceVmOperationPlan {
+            expr: operation_expr,
+            path: path.clone(),
+            slot: positive_slot(path),
+            kind: EvidenceVmOperationKind::Value,
+            lowering: EvidenceVmOperationLowering::DirectHandlerCall {
+                handler: handler_expr,
+                resumptive: true,
+                handler_known: true,
+            },
+            runtime_nodes: Vec::new(),
+            runtime_evidence_refs: 0,
+        };
+
+        let objects = build_object_plan(&Program::default(), &[handler], &[operation], &[], &[]);
+
+        assert_eq!(objects.handlers.len(), 1);
+        assert_eq!(objects.handler_capabilities.len(), 1);
+        assert_eq!(
+            objects.handler_capabilities[0].id,
+            objects.handlers[0].capability_id
+        );
+        assert_eq!(objects.allowed_sets.len(), 1);
+        assert_eq!(
+            objects.allowed_sets[0].kind,
+            EvidenceVmAllowedSetKind::HandlerCapability(objects.handlers[0].capability_id)
+        );
+        assert_eq!(
+            objects.operations[0].visibility.allowed_set_id,
+            objects.allowed_sets[0].id
+        );
+        assert!(!objects.operations[0].visibility.legacy_guard_bridge);
     }
 }

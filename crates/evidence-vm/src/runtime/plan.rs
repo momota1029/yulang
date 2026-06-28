@@ -7,9 +7,10 @@ use super::{
     EvidenceResolvedRouteOrigin, RuntimeEvidenceProviderView, RuntimeEvidenceRunStats,
 };
 use crate::{
-    EvidenceVmHandlerArmClass, EvidenceVmHandlerObjectPlan, EvidenceVmOperationExecutionPlan,
-    EvidenceVmOperationKind, EvidenceVmOperationLowering, EvidenceVmOperationObjectPlan,
-    EvidenceVmOperationPlan, EvidenceVmPlan,
+    EvidenceVmAllowedSetId, EvidenceVmAllowedSetKind, EvidenceVmHandlerArmClass,
+    EvidenceVmHandlerObjectPlan, EvidenceVmOperationExecutionPlan, EvidenceVmOperationKind,
+    EvidenceVmOperationLowering, EvidenceVmOperationObjectPlan, EvidenceVmOperationPlan,
+    EvidenceVmPlan,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -29,6 +30,8 @@ pub(super) struct RuntimeEvidenceRunContext {
     call_required_slots: HashMap<ExprId, Vec<u32>>,
     provider_candidates_by_slot: HashMap<u32, Vec<u32>>,
     handlers_by_catch: HashMap<ExprId, Vec<u32>>,
+    handler_families_by_id: HashMap<u32, Vec<String>>,
+    operation_visibilities: HashMap<(ExprId, ExprId), RuntimeEvidenceOperationVisibility>,
     operation_provider_lookups: HashMap<(ExprId, ExprId), RuntimeEvidenceOperationProviderLookup>,
 }
 
@@ -53,6 +56,8 @@ impl RuntimeEvidenceRunContext {
         let call_required_slots = call_required_slots_from_plan(plan);
         let provider_candidates_by_slot = provider_candidates_by_slot(plan);
         let handlers_by_catch = handlers_by_catch_from_plan(plan);
+        let handler_families_by_id = handler_families_by_id_from_plan(plan);
+        let operation_visibilities = operation_visibilities_from_plan(plan);
         let operation_provider_lookups = operation_provider_lookups_from_plan(plan);
         Self {
             provider_slots: plan.objects.providers.len(),
@@ -91,6 +96,8 @@ impl RuntimeEvidenceRunContext {
             call_required_slots,
             provider_candidates_by_slot,
             handlers_by_catch,
+            handler_families_by_id,
+            operation_visibilities,
             operation_provider_lookups,
         }
     }
@@ -140,6 +147,37 @@ impl RuntimeEvidenceRunContext {
             .unwrap_or_default()
     }
 
+    pub(super) fn operation_visibility_for_call(
+        &self,
+        apply: ExprId,
+        callee: ExprId,
+    ) -> Option<RuntimeEvidenceOperationVisibility> {
+        self.operation_visibilities.get(&(apply, callee)).copied()
+    }
+
+    #[cfg(debug_assertions)]
+    pub(super) fn catch_has_allowed_handler(
+        &self,
+        catch_expr: ExprId,
+        request_path: &[String],
+        visibility: RuntimeEvidenceOperationVisibility,
+    ) -> bool {
+        let Some(allowed_handler_id) = visibility.allowed_handler_id else {
+            return false;
+        };
+        self.handlers_by_catch
+            .get(&catch_expr)
+            .into_iter()
+            .flatten()
+            .any(|handler_id| {
+                *handler_id == allowed_handler_id
+                    && self
+                        .handler_families_by_id
+                        .get(handler_id)
+                        .is_some_and(|family| family.as_slice() == request_path)
+            })
+    }
+
     pub(super) fn provider_env_for_call(
         &self,
         apply: ExprId,
@@ -183,6 +221,7 @@ impl RuntimeEvidenceRunContext {
                         origin: Some(EvidenceResolvedRouteOrigin::ProviderGrant(
                             candidate.grant(env.scope_id, env.hygiene_baseline),
                         )),
+                        visibility: None,
                     });
                 }
             }
@@ -213,6 +252,13 @@ impl RuntimeEvidenceRunContext {
             handler_ids: vec![handler_id],
         })
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RuntimeEvidenceOperationVisibility {
+    pub(super) allowed_set_id: EvidenceVmAllowedSetId,
+    pub(super) allowed_handler_id: Option<u32>,
+    pub(super) legacy_guard_bridge: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -402,6 +448,63 @@ fn handlers_by_catch_from_plan(plan: &EvidenceVmPlan) -> HashMap<ExprId, Vec<u32
     )
 }
 
+fn handler_families_by_id_from_plan(plan: &EvidenceVmPlan) -> HashMap<u32, Vec<String>> {
+    plan.objects
+        .handlers
+        .iter()
+        .map(|handler| (handler.id, handler.path.clone()))
+        .collect()
+}
+
+fn operation_visibilities_from_plan(
+    plan: &EvidenceVmPlan,
+) -> HashMap<(ExprId, ExprId), RuntimeEvidenceOperationVisibility> {
+    let cap_handlers = plan
+        .objects
+        .handler_capabilities
+        .iter()
+        .map(|capability| (capability.id, capability.handler_id))
+        .collect::<HashMap<_, _>>();
+    let allowed_sets = plan
+        .objects
+        .allowed_sets
+        .iter()
+        .map(|allowed| {
+            let allowed_handler_id = match allowed.kind {
+                EvidenceVmAllowedSetKind::HandlerCapability(capability_id) => {
+                    cap_handlers.get(&capability_id).copied()
+                }
+                EvidenceVmAllowedSetKind::LegacyGuardBridge => None,
+            };
+            (
+                allowed.id,
+                RuntimeEvidenceOperationVisibility {
+                    allowed_set_id: allowed.id,
+                    allowed_handler_id,
+                    legacy_guard_bridge: matches!(
+                        allowed.kind,
+                        EvidenceVmAllowedSetKind::LegacyGuardBridge
+                    ),
+                },
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    let operation_objects = operation_objects_by_expr(plan);
+    plan.operations
+        .iter()
+        .filter_map(|operation| {
+            let EvidenceVmOperationKind::Call { apply, callee } = operation.kind else {
+                return None;
+            };
+            let object = operation_objects.get(&operation.expr)?;
+            let visibility = allowed_sets
+                .get(&object.visibility.allowed_set_id)
+                .copied()?;
+            Some(((apply, callee), visibility))
+        })
+        .collect()
+}
+
 fn operation_provider_lookups_from_plan(
     plan: &EvidenceVmPlan,
 ) -> HashMap<(ExprId, ExprId), RuntimeEvidenceOperationProviderLookup> {
@@ -541,9 +644,10 @@ mod tests {
     use super::super::{EvidenceProviderHygieneBaseline, EvidenceProviderScopeId};
     use super::*;
     use crate::{
-        EvidenceVmObjectPlan, EvidenceVmOperationExecutionPlan, EvidenceVmOperationObjectPlan,
-        EvidenceVmSlotRouteKey, EvidenceVmSummary, EvidenceVmValueEnvKind,
-        EvidenceVmValueObjectPlan,
+        EvidenceVmAllowedSetKind, EvidenceVmAllowedSetPlan, EvidenceVmObjectPlan,
+        EvidenceVmOperationExecutionPlan, EvidenceVmOperationObjectPlan,
+        EvidenceVmOperationVisibilityPlan, EvidenceVmSlotRouteKey, EvidenceVmSummary,
+        EvidenceVmValueEnvKind, EvidenceVmValueObjectPlan,
     };
 
     #[test]
@@ -581,6 +685,10 @@ mod tests {
                     slot_id,
                     candidate_handler: Some(handler_id),
                     execution: EvidenceVmOperationExecutionPlan::DirectTailResumptive,
+                    visibility: EvidenceVmOperationVisibilityPlan {
+                        allowed_set_id: crate::EvidenceVmAllowedSetId(0),
+                        legacy_guard_bridge: true,
+                    },
                 }],
                 values: vec![EvidenceVmValueObjectPlan {
                     id: 0,
@@ -591,6 +699,10 @@ mod tests {
                         slot_id,
                         handler_ids: vec![handler_id],
                     }],
+                }],
+                allowed_sets: vec![EvidenceVmAllowedSetPlan {
+                    id: crate::EvidenceVmAllowedSetId(0),
+                    kind: EvidenceVmAllowedSetKind::LegacyGuardBridge,
                 }],
                 ..EvidenceVmObjectPlan::default()
             },
@@ -628,6 +740,7 @@ mod tests {
                         hygiene_baseline,
                     }
                 )),
+                visibility: None,
             })
         );
     }

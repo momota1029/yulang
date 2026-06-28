@@ -20,7 +20,9 @@ mod plan;
 mod text;
 use crate::{EvidenceVmOperationExecutionPlan, EvidenceVmPlan};
 use format::{format_float, format_value, format_values_with_labels};
-use plan::{RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext};
+use plan::{
+    RuntimeEvidenceOperationVisibility, RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext,
+};
 use text::{
     grapheme_len, string_index, string_index_range, string_line_count, string_line_range,
     string_splice,
@@ -577,6 +579,7 @@ struct EvidenceProviderGrantGate {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct EffectThunkEvidence {
     route_cert: EvidenceRouteCert,
+    visibility: Option<RuntimeEvidenceOperationVisibility>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -599,6 +602,7 @@ enum ActiveAddIdMatchKind {
 struct EvidenceResolvedEffectRoute {
     route: EvidenceEffectRoute,
     origin: Option<EvidenceResolvedRouteOrigin>,
+    visibility: Option<RuntimeEvidenceOperationVisibility>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -933,6 +937,7 @@ struct EvidenceSignalHygiene {
     guard_ids: Vec<EvidenceGuardId>,
     carried_guards: Vec<EvidenceCarriedGuard>,
     handler_boundary: Option<EvidenceHandlerBoundary>,
+    operation_visibility: Option<RuntimeEvidenceOperationVisibility>,
 }
 
 impl EvidenceSignalHygiene {
@@ -954,6 +959,23 @@ impl EvidenceSignalHygiene {
 
     fn set_handler_boundary(&mut self, handler_boundary: EvidenceHandlerBoundary) {
         self.handler_boundary = Some(handler_boundary);
+    }
+
+    fn with_operation_visibility(
+        mut self,
+        visibility: Option<RuntimeEvidenceOperationVisibility>,
+    ) -> Self {
+        self.operation_visibility = visibility;
+        self
+    }
+
+    #[cfg(debug_assertions)]
+    fn can_shadow_with_permission_visibility(&self) -> bool {
+        self.operation_visibility
+            .is_some_and(|visibility| !visibility.legacy_guard_bridge)
+            && self.guard_ids.is_empty()
+            && self.carried_guards.is_empty()
+            && self.handler_boundary.is_none()
     }
 }
 
@@ -2326,8 +2348,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return EvidenceResolvedEffectRoute {
                 route: EvidenceEffectRoute::Unhandled,
                 origin: None,
+                visibility: None,
             };
         };
+        let visibility = self.context.operation_visibility_for_call(site, callee);
         let route = self
             .evidence
             .effect_call_route(site, callee)
@@ -2337,6 +2361,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             origin: route
                 .is_direct()
                 .then_some(EvidenceResolvedRouteOrigin::StaticDirect),
+            visibility,
         };
         if route.is_direct() {
             return resolved;
@@ -2361,7 +2386,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         };
         self.stats.runtime_provider_env_route_hits += 1;
         self.record_provider_env_route_hit(provider_route.route);
-        provider_route
+        EvidenceResolvedEffectRoute {
+            route: provider_route.route,
+            origin: provider_route.origin,
+            visibility,
+        }
     }
 
     fn record_provider_env_route_hit(&mut self, route: EvidenceEffectRoute) {
@@ -2547,12 +2576,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         handler: ExprId,
         path: Rc<[String]>,
         payload: SharedValue,
+        evidence: EffectThunkEvidence,
     ) -> EvidenceDirectTailResumptive {
         EvidenceDirectTailResumptive {
             handler,
             path,
             payload,
-            hygiene: EvidenceSignalHygiene::new(),
+            hygiene: EvidenceSignalHygiene::new().with_operation_visibility(evidence.visibility),
             continuation: EvidenceContinuation::identity(),
         }
     }
@@ -2562,8 +2592,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         handler: ExprId,
         path: Rc<[String]>,
         payload: SharedValue,
+        evidence: EffectThunkEvidence,
     ) -> EvidenceDirectTailResumptive {
-        let hygiene = self.signal_hygiene_with_active_markers(&path);
+        let hygiene = self
+            .signal_hygiene_with_active_markers(&path)
+            .with_operation_visibility(evidence.visibility);
         EvidenceDirectTailResumptive::with_hygiene(handler, path, payload, hygiene)
     }
 
@@ -3884,7 +3917,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::Value(arg) => {
                 let resolved_route = self.effect_route_for_operation_call(Some(site), effect);
                 let route_cert = self.effect_route_cert(resolved_route.origin);
-                let evidence = EffectThunkEvidence { route_cert };
+                let evidence = EffectThunkEvidence {
+                    route_cert,
+                    visibility: resolved_route.visibility,
+                };
                 self.force_effect_call_scoped_result(
                     target_value_is_thunk,
                     path,
@@ -4680,7 +4716,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             RuntimeEvidenceValue::EffectOp { expr, path } => {
                 let resolved_route = self.effect_route_for_operation_call(site, *expr);
                 let route_cert = self.effect_route_cert(resolved_route.origin);
-                let evidence = EffectThunkEvidence { route_cert };
+                let evidence = EffectThunkEvidence {
+                    route_cert,
+                    visibility: resolved_route.visibility,
+                };
                 Ok(EvidenceEvalResult::Value(shared(
                     RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Effect {
                         path: path.clone(),
@@ -5453,7 +5492,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 next,
             } => {
                 if call.handler == catch_expr {
-                    let result = if self.visible_direct_tail_resumptive(&call, &arms).is_some() {
+                    let result = if self
+                        .visible_direct_tail_resumptive(catch_expr, &call, &arms)
+                        .is_some()
+                    {
                         self.eval_direct_tail_resumptive_arm(call, &arms, &env)?
                     } else {
                         let request = call.into_request(EvidenceEffectRoute::Unhandled);
@@ -6259,14 +6301,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 if let ProviderGrantPathGateFail::AddIdShadowed(kind) = fail {
                     self.record_direct_tail_guarded_add_id(kind);
                     return Ok(EvidenceEvalResult::direct_tail_resumptive(
-                        self.guarded_direct_tail_resumptive(handler, path.clone(), payload),
+                        self.guarded_direct_tail_resumptive(
+                            handler,
+                            path.clone(),
+                            payload,
+                            evidence,
+                        ),
                     ));
                 } else {
                     self.record_direct_tail_gate_fail(fail);
                 }
             } else {
                 return Ok(EvidenceEvalResult::direct_tail_resumptive(
-                    self.direct_tail_resumptive(handler, path.clone(), payload),
+                    self.direct_tail_resumptive(handler, path.clone(), payload, evidence),
                 ));
             }
         }
@@ -6282,7 +6329,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 path: path.clone(),
                 payload,
                 route,
-                hygiene: EvidenceSignalHygiene::new(),
+                hygiene: EvidenceSignalHygiene::new()
+                    .with_operation_visibility(evidence.visibility),
                 continuation: EvidenceContinuation::identity(),
             };
             self.mark_request_with_active_markers(&mut request);
@@ -6294,7 +6342,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             path,
             payload,
             route,
-            hygiene: EvidenceSignalHygiene::new(),
+            hygiene: EvidenceSignalHygiene::new().with_operation_visibility(evidence.visibility),
             continuation: EvidenceContinuation::identity(),
         };
         if !request.route.is_direct_abortive() {
@@ -6458,7 +6506,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             EvidenceEffectSignal::DirectTailResumptive(call) => {
                 if call.handler == catch_expr {
-                    if self.visible_direct_tail_resumptive(&call, &arms).is_some() {
+                    if self
+                        .visible_direct_tail_resumptive(catch_expr, &call, &arms)
+                        .is_some()
+                    {
                         self.eval_direct_tail_resumptive_arm(call, &arms, env)
                     } else {
                         let request = call.into_request(EvidenceEffectRoute::Unhandled);
@@ -6494,7 +6545,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     resumptive,
                     ..
                 } if handler == catch_expr => {
-                    match self.visible_operation_resumptive(&request, &arms) {
+                    match self.visible_operation_resumptive(catch_expr, &request, &arms) {
                         Some(_) => self.eval_operation_arm(request, resumptive, &arms, env),
                         None => {
                             let mut request = request;
@@ -6509,7 +6560,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     self.defer_catch_body(catch_expr, arms, env, request),
                 )),
                 EvidenceEffectRoute::Unhandled => {
-                    if let Some(resumptive) = self.visible_operation_resumptive(&request, &arms) {
+                    if let Some(resumptive) =
+                        self.visible_operation_resumptive(catch_expr, &request, &arms)
+                    {
                         self.eval_operation_arm(request, resumptive, &arms, env)
                     } else {
                         Ok(EvidenceEvalResult::request(
@@ -6523,16 +6576,25 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn visible_operation_resumptive(
         &self,
+        catch_expr: ExprId,
         request: &EvidenceRequest,
         arms: &[control_vm::CatchArm],
     ) -> Option<bool> {
-        self.visible_operation_resumptive_parts(
+        let visible = self.visible_operation_resumptive_parts(
             &request.path,
             request.hygiene.handler_boundary.as_ref(),
             &request.hygiene.guard_ids,
             &request.hygiene.carried_guards,
             arms,
-        )
+        );
+        self.debug_assert_permission_visibility_matches(
+            catch_expr,
+            &request.path,
+            &request.hygiene,
+            arms,
+            visible,
+        );
+        visible
     }
 
     fn visible_operation_resumptive_parts(
@@ -6565,16 +6627,82 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn visible_direct_tail_resumptive(
         &self,
+        catch_expr: ExprId,
         call: &EvidenceDirectTailResumptive,
         arms: &[control_vm::CatchArm],
     ) -> Option<bool> {
-        self.visible_operation_resumptive_parts(
+        let visible = self.visible_operation_resumptive_parts(
             &call.path,
             call.hygiene.handler_boundary.as_ref(),
             &call.hygiene.guard_ids,
             &call.hygiene.carried_guards,
             arms,
-        )
+        );
+        self.debug_assert_permission_visibility_matches(
+            catch_expr,
+            &call.path,
+            &call.hygiene,
+            arms,
+            visible,
+        );
+        visible
+    }
+
+    #[cfg(debug_assertions)]
+    fn debug_assert_permission_visibility_matches(
+        &self,
+        catch_expr: ExprId,
+        request_path: &[String],
+        hygiene: &EvidenceSignalHygiene,
+        arms: &[control_vm::CatchArm],
+        legacy_visible: Option<bool>,
+    ) {
+        if !hygiene.can_shadow_with_permission_visibility() {
+            return;
+        }
+        let Some(visibility) = hygiene.operation_visibility else {
+            return;
+        };
+        let permission_visible = self.permission_visible_operation_resumptive(
+            catch_expr,
+            request_path,
+            visibility,
+            arms,
+        );
+        debug_assert_eq!(
+            permission_visible,
+            legacy_visible,
+            "permission visibility diverged from legacy hygiene for {}",
+            request_path.join("::")
+        );
+    }
+
+    #[cfg(not(debug_assertions))]
+    fn debug_assert_permission_visibility_matches(
+        &self,
+        _catch_expr: ExprId,
+        _request_path: &[String],
+        _hygiene: &EvidenceSignalHygiene,
+        _arms: &[control_vm::CatchArm],
+        _legacy_visible: Option<bool>,
+    ) {
+    }
+
+    #[cfg(debug_assertions)]
+    fn permission_visible_operation_resumptive(
+        &self,
+        catch_expr: ExprId,
+        request_path: &[String],
+        visibility: RuntimeEvidenceOperationVisibility,
+        arms: &[control_vm::CatchArm],
+    ) -> Option<bool> {
+        let arm_resumptive = arms.iter().find_map(|arm| {
+            let operation_path = arm.operation_path.as_ref()?;
+            (operation_path.as_slice() == request_path).then_some(arm.continuation.is_some())
+        })?;
+        self.context
+            .catch_has_allowed_handler(catch_expr, request_path, visibility)
+            .then_some(arm_resumptive)
     }
 
     fn handler_boundary_for_direct_tail(
@@ -6751,7 +6879,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 ));
             }
         };
-        if self.visible_operation_resumptive(&request, &arms).is_some() {
+        if self
+            .visible_operation_resumptive(catch_expr, &request, &arms)
+            .is_some()
+        {
             return self.eval_operation_arm(request, resumptive, &arms, env);
         }
         request.route = EvidenceEffectRoute::Unhandled;
@@ -8616,8 +8747,9 @@ fn effective_thunk_type_may_need_hygiene_mark(ty: &EffectiveThunkType) -> bool {
 mod tests {
     use super::*;
     use crate::{
-        EvidenceVmEnvProviderPlan, EvidenceVmObjectPlan, EvidenceVmOperationKind,
-        EvidenceVmOperationLowering, EvidenceVmOperationObjectPlan, EvidenceVmOperationPlan,
+        EvidenceVmAllowedSetKind, EvidenceVmAllowedSetPlan, EvidenceVmEnvProviderPlan,
+        EvidenceVmObjectPlan, EvidenceVmOperationKind, EvidenceVmOperationLowering,
+        EvidenceVmOperationObjectPlan, EvidenceVmOperationPlan, EvidenceVmOperationVisibilityPlan,
         EvidenceVmSlotKey, EvidenceVmSlotRouteKey, EvidenceVmSummary, EvidenceVmValueEnvKind,
         EvidenceVmValueObjectPlan,
     };
@@ -8716,6 +8848,7 @@ mod tests {
         let grant_id = runner.record_provider_grant(grant);
         let evidence = EffectThunkEvidence {
             route_cert: EvidenceRouteCert::ProviderGrant(grant_id),
+            visibility: None,
         };
 
         assert!(runner.provider_grant_gate_passes(EvidenceRouteCert::ProviderGrant(grant_id)));
@@ -8723,7 +8856,8 @@ mod tests {
         assert!(runner.route_allows_routed_yield(
             true,
             EffectThunkEvidence {
-                route_cert: EvidenceRouteCert::None
+                route_cert: EvidenceRouteCert::None,
+                visibility: None
             }
         ));
 
@@ -8770,6 +8904,10 @@ mod tests {
                     slot_id,
                     candidate_handler: Some(handler_id),
                     execution: EvidenceVmOperationExecutionPlan::DirectTailResumptive,
+                    visibility: EvidenceVmOperationVisibilityPlan {
+                        allowed_set_id: crate::EvidenceVmAllowedSetId(0),
+                        legacy_guard_bridge: true,
+                    },
                 }],
                 values: vec![EvidenceVmValueObjectPlan {
                     id: 0,
@@ -8780,6 +8918,10 @@ mod tests {
                         slot_id,
                         handler_ids: vec![handler_id],
                     }],
+                }],
+                allowed_sets: vec![EvidenceVmAllowedSetPlan {
+                    id: crate::EvidenceVmAllowedSetId(0),
+                    kind: EvidenceVmAllowedSetKind::LegacyGuardBridge,
                 }],
                 ..EvidenceVmObjectPlan::default()
             },
