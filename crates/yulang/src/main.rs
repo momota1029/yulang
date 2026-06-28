@@ -2362,6 +2362,50 @@ fn run_runtime_evidence_run(
             .runtime_provider_env_route_hit_unhandled
     );
     println!(
+        "  runtime_evidence.route_cert_none: {}",
+        output.evidence_stats.route_cert_none
+    );
+    println!(
+        "  runtime_evidence.route_cert_static_direct: {}",
+        output.evidence_stats.route_cert_static_direct
+    );
+    println!(
+        "  runtime_evidence.route_cert_provider_grant: {}",
+        output.evidence_stats.route_cert_provider_grant
+    );
+    println!(
+        "  runtime_evidence.route_cert_provider_grant_clean: {}",
+        output.evidence_stats.route_cert_provider_grant_clean
+    );
+    println!(
+        "  runtime_evidence.route_cert_provider_grant_dirty_scope: {}",
+        output.evidence_stats.route_cert_provider_grant_dirty_scope
+    );
+    println!(
+        "  runtime_evidence.route_cert_provider_grant_dirty_add_id: {}",
+        output.evidence_stats.route_cert_provider_grant_dirty_add_id
+    );
+    println!(
+        "  runtime_evidence.route_cert_provider_grant_dirty_handler: {}",
+        output
+            .evidence_stats
+            .route_cert_provider_grant_dirty_handler
+    );
+    println!(
+        "  runtime_evidence.route_cert_provider_grant_dirty_missing: {}",
+        output
+            .evidence_stats
+            .route_cert_provider_grant_dirty_missing
+    );
+    println!(
+        "  runtime_evidence.route_cert_request_free: {}",
+        output.evidence_stats.route_cert_request_free
+    );
+    println!(
+        "  runtime_evidence.route_cert_legacy_request_fallbacks: {}",
+        output.evidence_stats.route_cert_legacy_request_fallbacks
+    );
+    println!(
         "  runtime_evidence.direct_tail_gate_fail_no_grant: {}",
         output.evidence_stats.direct_tail_gate_fail_no_grant
     );
@@ -2880,6 +2924,50 @@ fn run_runtime_evidence_run(
         output
             .evidence_stats
             .direct_tail_segment_request_boundary_rejected
+    );
+    println!(
+        "  runtime_evidence.resume_pack_candidates: {}",
+        output.evidence_stats.resume_pack_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_pack_thunks_forced: {}",
+        output.evidence_stats.resume_pack_thunks_forced
+    );
+    println!(
+        "  runtime_evidence.resume_pack_multi_shot_required: {}",
+        output.evidence_stats.resume_pack_multi_shot_required
+    );
+    println!(
+        "  runtime_evidence.resume_pack_can_share_segment: {}",
+        output.evidence_stats.resume_pack_can_share_segment
+    );
+    println!(
+        "  runtime_evidence.resume_pack_to_tree_fallbacks: {}",
+        output.evidence_stats.resume_pack_to_tree_fallbacks
+    );
+    println!(
+        "  runtime_evidence.resume_pack_identity: {}",
+        output.evidence_stats.resume_pack_identity
+    );
+    println!(
+        "  runtime_evidence.resume_pack_eval_frames: {}",
+        output.evidence_stats.resume_pack_eval_frames
+    );
+    println!(
+        "  runtime_evidence.resume_pack_then_frames: {}",
+        output.evidence_stats.resume_pack_then_frames
+    );
+    println!(
+        "  runtime_evidence.resume_pack_scope_marker_frames: {}",
+        output.evidence_stats.resume_pack_scope_marker_frames
+    );
+    println!(
+        "  runtime_evidence.resume_pack_scope_provider_env_frames: {}",
+        output.evidence_stats.resume_pack_scope_provider_env_frames
+    );
+    println!(
+        "  runtime_evidence.resume_pack_request_boundary_rejected: {}",
+        output.evidence_stats.resume_pack_request_boundary_rejected
     );
     println!(
         "  runtime_evidence.continuation_resume_steps: {}",

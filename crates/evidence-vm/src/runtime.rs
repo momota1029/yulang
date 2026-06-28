@@ -74,6 +74,16 @@ pub struct RuntimeEvidenceRunStats {
     pub runtime_provider_env_route_hit_blocked_fallback: usize,
     pub runtime_provider_env_route_hit_generic_fallback: usize,
     pub runtime_provider_env_route_hit_unhandled: usize,
+    pub route_cert_none: usize,
+    pub route_cert_static_direct: usize,
+    pub route_cert_provider_grant: usize,
+    pub route_cert_provider_grant_clean: usize,
+    pub route_cert_provider_grant_dirty_scope: usize,
+    pub route_cert_provider_grant_dirty_add_id: usize,
+    pub route_cert_provider_grant_dirty_handler: usize,
+    pub route_cert_provider_grant_dirty_missing: usize,
+    pub route_cert_request_free: usize,
+    pub route_cert_legacy_request_fallbacks: usize,
     pub direct_tail_gate_fail_no_grant: usize,
     pub direct_tail_gate_fail_missing_grant: usize,
     pub direct_tail_gate_fail_scope_missing: usize,
@@ -175,6 +185,17 @@ pub struct RuntimeEvidenceRunStats {
     pub direct_tail_segment_scope_marker_empty: usize,
     pub direct_tail_segment_scope_provider_env_frames: usize,
     pub direct_tail_segment_request_boundary_rejected: usize,
+    pub resume_pack_candidates: usize,
+    pub resume_pack_thunks_forced: usize,
+    pub resume_pack_multi_shot_required: usize,
+    pub resume_pack_can_share_segment: usize,
+    pub resume_pack_to_tree_fallbacks: usize,
+    pub resume_pack_identity: usize,
+    pub resume_pack_eval_frames: usize,
+    pub resume_pack_then_frames: usize,
+    pub resume_pack_scope_marker_frames: usize,
+    pub resume_pack_scope_provider_env_frames: usize,
+    pub resume_pack_request_boundary_rejected: usize,
     pub continuation_resume_steps: usize,
     pub continuation_resume_then_steps: usize,
     pub continuation_resume_then_first_marker_frame: usize,
@@ -4543,11 +4564,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         origin: Option<EvidenceResolvedRouteOrigin>,
     ) -> EvidenceRouteCert {
         match origin {
-            Some(EvidenceResolvedRouteOrigin::StaticDirect) => EvidenceRouteCert::StaticDirect,
+            Some(EvidenceResolvedRouteOrigin::StaticDirect) => {
+                self.stats.route_cert_static_direct += 1;
+                EvidenceRouteCert::StaticDirect
+            }
             Some(EvidenceResolvedRouteOrigin::ProviderGrant(grant)) => {
+                self.stats.route_cert_provider_grant += 1;
                 EvidenceRouteCert::ProviderGrant(self.record_provider_grant(grant))
             }
-            None => EvidenceRouteCert::None,
+            None => {
+                self.stats.route_cert_none += 1;
+                EvidenceRouteCert::None
+            }
         }
     }
 
@@ -4654,15 +4682,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         match fail {
             ProviderGrantPathGateFail::NoGrant => {
                 self.stats.direct_tail_gate_fail_no_grant += 1;
+                self.stats.route_cert_provider_grant_dirty_missing += 1;
             }
             ProviderGrantPathGateFail::MissingGrant => {
                 self.stats.direct_tail_gate_fail_missing_grant += 1;
+                self.stats.route_cert_provider_grant_dirty_missing += 1;
             }
             ProviderGrantPathGateFail::ScopeMissing => {
                 self.stats.direct_tail_gate_fail_scope_missing += 1;
+                self.stats.route_cert_provider_grant_dirty_scope += 1;
             }
             ProviderGrantPathGateFail::AddIdShadowed(shadowed) => {
                 self.stats.direct_tail_gate_fail_add_id_shadowed += 1;
+                self.stats.route_cert_provider_grant_dirty_add_id += 1;
                 match shadowed.kind {
                     ActiveAddIdMatchKind::AllPath => {
                         self.stats.direct_tail_gate_fail_add_id_all_path += 1;
@@ -4677,6 +4709,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             ProviderGrantPathGateFail::HandlerShadowed => {
                 self.stats.direct_tail_gate_fail_handler_shadowed += 1;
+                self.stats.route_cert_provider_grant_dirty_handler += 1;
             }
         }
     }
@@ -6317,6 +6350,30 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if !profile.has_scope_delta() {
             self.stats.direct_tail_segment_eval_only += 1;
         }
+    }
+
+    fn record_resume_pack_candidate(&mut self, continuation: &EvidenceContinuation) {
+        self.stats.resume_pack_candidates += 1;
+        self.stats.resume_pack_multi_shot_required += 1;
+        if !self.should_collect_runtime_breakdown_stats() {
+            return;
+        }
+
+        let profile = continuation.direct_tail_segment_profile();
+        self.stats.resume_pack_eval_frames += profile.eval_frames;
+        self.stats.resume_pack_then_frames += profile.then_frames;
+        self.stats.resume_pack_scope_marker_frames += profile.marker_frames;
+        self.stats.resume_pack_scope_provider_env_frames += profile.provider_env_frames;
+        if profile.is_identity() {
+            self.stats.resume_pack_identity += 1;
+            return;
+        }
+        if !profile.can_shadow_segment() {
+            self.stats.resume_pack_request_boundary_rejected += 1;
+            return;
+        }
+        self.stats.resume_pack_can_share_segment += 1;
+        self.stats.resume_pack_to_tree_fallbacks += 1;
     }
 
     fn record_provider_env_foreign_later_grant_shape_profile(
@@ -8175,6 +8232,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 })
             }
             RuntimeEvidenceValue::Continuation(continuation) => {
+                self.record_resume_pack_candidate(continuation);
                 Ok(EvidenceEvalResult::Value(shared(
                     RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Continuation {
                         continuation: continuation.clone(),
@@ -9861,8 +9919,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             ..
         } = route
         {
+            if request_free_yield {
+                self.stats.route_cert_request_free += 1;
+            }
             if let Some(fail) = self.direct_tail_gate_failure(request_free_yield, evidence, &path) {
                 if let ProviderGrantPathGateFail::AddIdShadowed(shadowed) = fail {
+                    self.stats.route_cert_provider_grant_dirty_add_id += 1;
                     self.record_direct_tail_guarded_add_id(shadowed.kind);
                     return Ok(EvidenceEvalResult::direct_tail_resumptive(
                         self.provider_permission_guarded_direct_tail_resumptive(
@@ -9875,8 +9937,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     ));
                 } else {
                     self.record_direct_tail_gate_fail(fail);
+                    self.stats.route_cert_legacy_request_fallbacks += 1;
                 }
             } else {
+                if !request_free_yield && evidence.route_cert.provider_grant_id().is_some() {
+                    self.stats.route_cert_provider_grant_clean += 1;
+                }
                 return Ok(EvidenceEvalResult::direct_tail_resumptive(
                     self.direct_tail_resumptive(handler, path.clone(), payload, evidence),
                 ));
@@ -9888,20 +9954,31 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             request_free_yield,
             ..
         } = route
-            && self.route_allows_routed_yield(request_free_yield, evidence)
         {
-            let mut request = EvidenceRequest {
-                path: path.clone(),
-                payload,
-                route,
-                hygiene: EvidenceSignalHygiene::new()
-                    .with_operation_visibility(evidence.visibility),
-                continuation: EvidenceContinuation::identity(),
-            };
-            self.mark_request_with_active_markers(&mut request);
-            return Ok(EvidenceEvalResult::routed_yield(
-                EvidenceRoutedYield::from_request(handler, request),
-            ));
+            let route_allowed = self.route_allows_routed_yield(request_free_yield, evidence);
+            if request_free_yield {
+                self.stats.route_cert_request_free += 1;
+            } else if route_allowed {
+                self.stats.route_cert_provider_grant_clean += 1;
+            } else {
+                self.stats.route_cert_legacy_request_fallbacks += 1;
+            }
+            if !route_allowed {
+                // Fall through to the generic request path.
+            } else {
+                let mut request = EvidenceRequest {
+                    path: path.clone(),
+                    payload,
+                    route,
+                    hygiene: EvidenceSignalHygiene::new()
+                        .with_operation_visibility(evidence.visibility),
+                    continuation: EvidenceContinuation::identity(),
+                };
+                self.mark_request_with_active_markers(&mut request);
+                return Ok(EvidenceEvalResult::routed_yield(
+                    EvidenceRoutedYield::from_request(handler, request),
+                ));
+            }
         }
         let mut request = EvidenceRequest {
             path,
@@ -9948,6 +10025,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
                 RuntimeEvidenceThunk::Continuation { continuation, arg } => {
                     self.stats.thunk_force_continuation += 1;
+                    self.stats.resume_pack_thunks_forced += 1;
                     let result = self.resume_continuation(continuation.clone(), arg.clone())?;
                     match result {
                         EvidenceEvalResult::Value(value) => self.force_value_if_thunk_result(value),
