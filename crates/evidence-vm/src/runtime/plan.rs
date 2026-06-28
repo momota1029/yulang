@@ -31,8 +31,8 @@ pub(super) struct RuntimeEvidenceRunContext {
     value_capture_slots: Vec<Option<SmallVec<[u32; 2]>>>,
     call_required_slots: Vec<Option<SmallVec<[u32; 2]>>>,
     provider_candidates_by_slot: HashMap<u32, SmallVec<[u32; 2]>>,
-    handlers_by_catch: HashMap<ExprId, SmallVec<[u32; 2]>>,
-    handler_families_by_id: HashMap<u32, Vec<String>>,
+    handlers_by_catch: Vec<Option<SmallVec<[u32; 2]>>>,
+    handler_families_by_id: Vec<Option<Vec<String>>>,
     operation_visibilities: Vec<Option<(ExprId, RuntimeEvidenceOperationVisibility)>>,
     operation_provider_lookups: Vec<Option<(ExprId, RuntimeEvidenceOperationProviderLookup)>>,
 }
@@ -58,7 +58,7 @@ impl RuntimeEvidenceRunContext {
         let value_capture_slots = value_capture_slots_from_plan(plan, expr_table_len);
         let call_required_slots = call_required_slots_from_plan(plan, expr_table_len);
         let provider_candidates_by_slot = provider_candidates_by_slot(plan);
-        let handlers_by_catch = handlers_by_catch_from_plan(plan);
+        let handlers_by_catch = handlers_by_catch_from_plan(plan, expr_table_len);
         let handler_families_by_id = handler_families_by_id_from_plan(plan);
         let operation_visibilities = operation_visibilities_from_plan(plan, expr_table_len);
         let operation_provider_lookups = operation_provider_lookups_from_plan(plan, expr_table_len);
@@ -160,7 +160,8 @@ impl RuntimeEvidenceRunContext {
 
     pub(super) fn handler_ids_for_catch(&self, expr: ExprId) -> &[u32] {
         self.handlers_by_catch
-            .get(&expr)
+            .get(expr.0 as usize)
+            .and_then(Option::as_ref)
             .map(SmallVec::as_slice)
             .unwrap_or_default()
     }
@@ -206,17 +207,18 @@ impl RuntimeEvidenceRunContext {
         request_path: &[String],
         allowed_handler_id: u32,
     ) -> bool {
-        self.handlers_by_catch
-            .get(&catch_expr)
-            .into_iter()
-            .flatten()
-            .any(|handler_id| {
-                *handler_id == allowed_handler_id
-                    && self
-                        .handler_families_by_id
-                        .get(handler_id)
-                        .is_some_and(|family| family.as_slice() == request_path)
-            })
+        let Some(family) = self
+            .handler_families_by_id
+            .get(allowed_handler_id as usize)
+            .and_then(Option::as_ref)
+        else {
+            return false;
+        };
+        if family.as_slice() != request_path {
+            return false;
+        }
+        self.handler_ids_for_catch(catch_expr)
+            .contains(&allowed_handler_id)
     }
 
     pub(super) fn provider_grant_permission_family(
@@ -224,7 +226,8 @@ impl RuntimeEvidenceRunContext {
         permission: RuntimeEvidenceProviderGrantPermission,
     ) -> Option<&[String]> {
         self.handler_families_by_id
-            .get(&permission.handler_id())
+            .get(permission.handler_id() as usize)
+            .and_then(Option::as_ref)
             .map(Vec::as_slice)
     }
 
@@ -579,6 +582,7 @@ fn evidence_context_expr_table_len(plan: &EvidenceVmPlan) -> usize {
         .values
         .iter()
         .map(|value| value.expr)
+        .chain(plan.objects.handlers.iter().map(|handler| handler.handler))
         .chain(plan.objects.calls.iter().map(|call| call.apply))
         .chain(plan.operations.iter().flat_map(|operation| {
             let mut exprs = SmallVec::<[ExprId; 3]>::new();
@@ -594,25 +598,33 @@ fn evidence_context_expr_table_len(plan: &EvidenceVmPlan) -> usize {
         .unwrap_or(0)
 }
 
-fn handlers_by_catch_from_plan(plan: &EvidenceVmPlan) -> HashMap<ExprId, SmallVec<[u32; 2]>> {
-    plan.objects.handlers.iter().fold(
-        HashMap::<ExprId, SmallVec<[u32; 2]>>::new(),
-        |mut by_catch, handler| {
-            by_catch
-                .entry(handler.handler)
-                .or_default()
-                .push(handler.id);
-            by_catch
-        },
-    )
+fn handlers_by_catch_from_plan(
+    plan: &EvidenceVmPlan,
+    len: usize,
+) -> Vec<Option<SmallVec<[u32; 2]>>> {
+    let mut table = empty_expr_table(len);
+    for handler in &plan.objects.handlers {
+        table[handler.handler.0 as usize]
+            .get_or_insert_with(SmallVec::new)
+            .push(handler.id);
+    }
+    table
 }
 
-fn handler_families_by_id_from_plan(plan: &EvidenceVmPlan) -> HashMap<u32, Vec<String>> {
-    plan.objects
+fn handler_families_by_id_from_plan(plan: &EvidenceVmPlan) -> Vec<Option<Vec<String>>> {
+    let len = plan
+        .objects
         .handlers
         .iter()
-        .map(|handler| (handler.id, handler.path.clone()))
-        .collect()
+        .map(|handler| handler.id as usize + 1)
+        .max()
+        .unwrap_or(0);
+    let mut table = Vec::with_capacity(len);
+    table.resize_with(len, || None);
+    for handler in &plan.objects.handlers {
+        table[handler.id as usize] = Some(handler.path.clone());
+    }
+    table
 }
 
 fn operation_visibilities_from_plan(
