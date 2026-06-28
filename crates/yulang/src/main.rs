@@ -2321,6 +2321,62 @@ fn run_runtime_evidence_run(
         output.evidence_stats.runtime_provider_env_route_hits
     );
     println!(
+        "  runtime_evidence.provider_env_route_hit_direct_abortive: {}",
+        output
+            .evidence_stats
+            .runtime_provider_env_route_hit_direct_abortive
+    );
+    println!(
+        "  runtime_evidence.provider_env_route_hit_direct_tail_resumptive: {}",
+        output
+            .evidence_stats
+            .runtime_provider_env_route_hit_direct_tail_resumptive
+    );
+    println!(
+        "  runtime_evidence.provider_env_route_hit_yield_fallback: {}",
+        output
+            .evidence_stats
+            .runtime_provider_env_route_hit_yield_fallback
+    );
+    println!(
+        "  runtime_evidence.provider_env_route_hit_blocked_fallback: {}",
+        output
+            .evidence_stats
+            .runtime_provider_env_route_hit_blocked_fallback
+    );
+    println!(
+        "  runtime_evidence.provider_env_route_hit_generic_fallback: {}",
+        output
+            .evidence_stats
+            .runtime_provider_env_route_hit_generic_fallback
+    );
+    println!(
+        "  runtime_evidence.provider_env_route_hit_unhandled: {}",
+        output
+            .evidence_stats
+            .runtime_provider_env_route_hit_unhandled
+    );
+    println!(
+        "  runtime_evidence.direct_tail_gate_fail_no_grant: {}",
+        output.evidence_stats.direct_tail_gate_fail_no_grant
+    );
+    println!(
+        "  runtime_evidence.direct_tail_gate_fail_missing_grant: {}",
+        output.evidence_stats.direct_tail_gate_fail_missing_grant
+    );
+    println!(
+        "  runtime_evidence.direct_tail_gate_fail_scope_missing: {}",
+        output.evidence_stats.direct_tail_gate_fail_scope_missing
+    );
+    println!(
+        "  runtime_evidence.direct_tail_gate_fail_add_id_shadowed: {}",
+        output.evidence_stats.direct_tail_gate_fail_add_id_shadowed
+    );
+    println!(
+        "  runtime_evidence.direct_tail_gate_fail_handler_shadowed: {}",
+        output.evidence_stats.direct_tail_gate_fail_handler_shadowed
+    );
+    println!(
         "  control_evidence.effect_calls: {}",
         output.evidence_stats.effect_calls
     );

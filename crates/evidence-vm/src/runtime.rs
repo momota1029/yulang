@@ -62,6 +62,17 @@ pub struct RuntimeEvidenceRunStats {
     pub runtime_provider_env_read_candidates: usize,
     pub runtime_provider_env_route_lookups: usize,
     pub runtime_provider_env_route_hits: usize,
+    pub runtime_provider_env_route_hit_direct_abortive: usize,
+    pub runtime_provider_env_route_hit_direct_tail_resumptive: usize,
+    pub runtime_provider_env_route_hit_yield_fallback: usize,
+    pub runtime_provider_env_route_hit_blocked_fallback: usize,
+    pub runtime_provider_env_route_hit_generic_fallback: usize,
+    pub runtime_provider_env_route_hit_unhandled: usize,
+    pub direct_tail_gate_fail_no_grant: usize,
+    pub direct_tail_gate_fail_missing_grant: usize,
+    pub direct_tail_gate_fail_scope_missing: usize,
+    pub direct_tail_gate_fail_add_id_shadowed: usize,
+    pub direct_tail_gate_fail_handler_shadowed: usize,
     pub expr_evals: usize,
     pub env_clones: usize,
     pub env_entries_cloned: usize,
@@ -515,6 +526,15 @@ struct EvidenceProviderGrant {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct EffectThunkEvidence {
     route_origin: Option<EvidenceRouteOrigin>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProviderGrantPathGateFail {
+    NoGrant,
+    MissingGrant,
+    ScopeMissing,
+    AddIdShadowed,
+    HandlerShadowed,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2028,7 +2048,34 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return resolved;
         };
         self.stats.runtime_provider_env_route_hits += 1;
+        self.record_provider_env_route_hit(provider_route.route);
         provider_route
+    }
+
+    fn record_provider_env_route_hit(&mut self, route: EvidenceEffectRoute) {
+        match route {
+            EvidenceEffectRoute::Direct { execution, .. } => match execution {
+                EvidenceVmOperationExecutionPlan::DirectAbortive => {
+                    self.stats.runtime_provider_env_route_hit_direct_abortive += 1;
+                }
+                EvidenceVmOperationExecutionPlan::DirectTailResumptive => {
+                    self.stats
+                        .runtime_provider_env_route_hit_direct_tail_resumptive += 1;
+                }
+                EvidenceVmOperationExecutionPlan::YieldFallback => {
+                    self.stats.runtime_provider_env_route_hit_yield_fallback += 1;
+                }
+                EvidenceVmOperationExecutionPlan::BlockedFallback => {
+                    self.stats.runtime_provider_env_route_hit_blocked_fallback += 1;
+                }
+                EvidenceVmOperationExecutionPlan::GenericFallback => {
+                    self.stats.runtime_provider_env_route_hit_generic_fallback += 1;
+                }
+            },
+            EvidenceEffectRoute::Unhandled => {
+                self.stats.runtime_provider_env_route_hit_unhandled += 1;
+            }
+        }
     }
 
     fn effect_thunk_origin(
@@ -2079,44 +2126,81 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         request_free_yield || self.provider_grant_gate_passes(evidence.route_origin)
     }
 
-    fn route_allows_direct_tail_resumptive(
+    fn direct_tail_gate_failure(
         &self,
         request_free_yield: bool,
         evidence: EffectThunkEvidence,
         path: &[String],
-    ) -> bool {
-        request_free_yield || self.provider_grant_path_gate_passes(evidence.route_origin, path)
+    ) -> Option<ProviderGrantPathGateFail> {
+        if request_free_yield {
+            return None;
+        }
+        self.provider_grant_path_gate_failure(evidence.route_origin, path)
     }
 
-    fn provider_grant_path_gate_passes(
+    fn provider_grant_path_gate_failure(
         &self,
         origin: Option<EvidenceRouteOrigin>,
         path: &[String],
-    ) -> bool {
+    ) -> Option<ProviderGrantPathGateFail> {
         let Some(EvidenceRouteOrigin::ProviderGrant(id)) = origin else {
-            return false;
+            return Some(ProviderGrantPathGateFail::NoGrant);
         };
         let Some(grant) = self.provider_grants.get(id.0 as usize) else {
-            return false;
+            return Some(ProviderGrantPathGateFail::MissingGrant);
         };
-        self.active_provider_envs.iter().any(|frame| {
-            frame.scope_id == grant.scope_id
-                && frame.hygiene_baseline == grant.hygiene_baseline
-                && self.provider_grant_path_unshadowed(grant.hygiene_baseline, path)
-        })
+        if !self.active_provider_envs.iter().any(|frame| {
+            frame.scope_id == grant.scope_id && frame.hygiene_baseline == grant.hygiene_baseline
+        }) {
+            return Some(ProviderGrantPathGateFail::ScopeMissing);
+        }
+        if self.provider_grant_add_id_shadowed(grant.hygiene_baseline, path) {
+            return Some(ProviderGrantPathGateFail::AddIdShadowed);
+        }
+        if self.provider_grant_handler_shadowed(grant.hygiene_baseline, path) {
+            return Some(ProviderGrantPathGateFail::HandlerShadowed);
+        }
+        None
     }
 
-    fn provider_grant_path_unshadowed(
+    fn provider_grant_add_id_shadowed(
         &self,
         baseline: EvidenceProviderHygieneBaseline,
         path: &[String],
     ) -> bool {
         self.active_add_ids[baseline.active_add_id_len..]
             .iter()
-            .all(|marker| !active_add_id_matches_request_path(&marker.marker, path))
-            && self.active_handler_frames[baseline.active_handler_frame_len..]
-                .iter()
-                .all(|frame| !path_is_prefix(&frame.path, path))
+            .any(|marker| active_add_id_matches_request_path(&marker.marker, path))
+    }
+
+    fn provider_grant_handler_shadowed(
+        &self,
+        baseline: EvidenceProviderHygieneBaseline,
+        path: &[String],
+    ) -> bool {
+        self.active_handler_frames[baseline.active_handler_frame_len..]
+            .iter()
+            .any(|frame| path_is_prefix(&frame.path, path))
+    }
+
+    fn record_direct_tail_gate_fail(&mut self, fail: ProviderGrantPathGateFail) {
+        match fail {
+            ProviderGrantPathGateFail::NoGrant => {
+                self.stats.direct_tail_gate_fail_no_grant += 1;
+            }
+            ProviderGrantPathGateFail::MissingGrant => {
+                self.stats.direct_tail_gate_fail_missing_grant += 1;
+            }
+            ProviderGrantPathGateFail::ScopeMissing => {
+                self.stats.direct_tail_gate_fail_scope_missing += 1;
+            }
+            ProviderGrantPathGateFail::AddIdShadowed => {
+                self.stats.direct_tail_gate_fail_add_id_shadowed += 1;
+            }
+            ProviderGrantPathGateFail::HandlerShadowed => {
+                self.stats.direct_tail_gate_fail_handler_shadowed += 1;
+            }
+        }
     }
 
     fn provider_env_for_call(&mut self, site: Option<ExprId>) -> RuntimeEvidenceProviderEnv {
@@ -5550,11 +5634,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         ..
                     } = route
                     {
-                        if self.route_allows_direct_tail_resumptive(
-                            *request_free_yield,
-                            *evidence,
-                            path,
-                        ) {
+                        if let Some(fail) =
+                            self.direct_tail_gate_failure(*request_free_yield, *evidence, path)
+                        {
+                            self.record_direct_tail_gate_fail(fail);
+                        } else {
                             return Ok(EvidenceEvalResult::DirectTailResumptive(
                                 EvidenceDirectTailResumptive {
                                     handler: *handler,
