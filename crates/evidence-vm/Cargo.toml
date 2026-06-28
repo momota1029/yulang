@@ -7,5 +7,6 @@ edition = "2024"
 control-vm = { path = "../control-vm" }
 list-tree = { path = "../list-tree" }
 poly = { path = "../poly" }
+smallvec = "1.13.2"
 specialize = { path = "../specialize" }
 unicode-segmentation = "1.12"

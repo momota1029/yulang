@@ -215,6 +215,7 @@ dependencies = [
  "control-vm",
  "list-tree",
  "poly",
+ "smallvec",
  "specialize",
  "unicode-segmentation",
 ]

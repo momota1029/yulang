@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use control_vm::ExprId;
+use smallvec::{SmallVec, smallvec};
 
 use super::{
     ControlEvidenceIndex, EvidenceEffectRoute, EvidenceProviderGrant, EvidenceResolvedEffectRoute,
@@ -26,14 +27,14 @@ pub(super) struct RuntimeEvidenceRunContext {
     direct_abortive_effect_route_count: usize,
     direct_tail_resumptive_effect_route_count: usize,
     effect_routes: Option<HashMap<(ExprId, ExprId), EvidenceEffectRoute>>,
-    value_provider_envs: HashMap<ExprId, RuntimeEvidenceProviderEnv>,
-    value_capture_slots: HashMap<ExprId, Vec<u32>>,
-    call_required_slots: HashMap<ExprId, Vec<u32>>,
-    provider_candidates_by_slot: HashMap<u32, Vec<u32>>,
-    handlers_by_catch: HashMap<ExprId, Vec<u32>>,
+    value_provider_envs: Vec<Option<RuntimeEvidenceProviderEnv>>,
+    value_capture_slots: Vec<Option<SmallVec<[u32; 2]>>>,
+    call_required_slots: Vec<Option<SmallVec<[u32; 2]>>>,
+    provider_candidates_by_slot: HashMap<u32, SmallVec<[u32; 2]>>,
+    handlers_by_catch: HashMap<ExprId, SmallVec<[u32; 2]>>,
     handler_families_by_id: HashMap<u32, Vec<String>>,
-    operation_visibilities: HashMap<(ExprId, ExprId), RuntimeEvidenceOperationVisibility>,
-    operation_provider_lookups: HashMap<(ExprId, ExprId), RuntimeEvidenceOperationProviderLookup>,
+    operation_visibilities: Vec<Option<(ExprId, RuntimeEvidenceOperationVisibility)>>,
+    operation_provider_lookups: Vec<Option<(ExprId, RuntimeEvidenceOperationProviderLookup)>>,
 }
 
 impl RuntimeEvidenceRunContext {
@@ -52,14 +53,15 @@ impl RuntimeEvidenceRunContext {
             .values()
             .filter(|route| route.is_direct_tail_resumptive())
             .count();
-        let value_provider_envs = value_provider_envs_from_plan(plan);
-        let value_capture_slots = value_capture_slots_from_plan(plan);
-        let call_required_slots = call_required_slots_from_plan(plan);
+        let expr_table_len = evidence_context_expr_table_len(plan);
+        let value_provider_envs = value_provider_envs_from_plan(plan, expr_table_len);
+        let value_capture_slots = value_capture_slots_from_plan(plan, expr_table_len);
+        let call_required_slots = call_required_slots_from_plan(plan, expr_table_len);
         let provider_candidates_by_slot = provider_candidates_by_slot(plan);
         let handlers_by_catch = handlers_by_catch_from_plan(plan);
         let handler_families_by_id = handler_families_by_id_from_plan(plan);
-        let operation_visibilities = operation_visibilities_from_plan(plan);
-        let operation_provider_lookups = operation_provider_lookups_from_plan(plan);
+        let operation_visibilities = operation_visibilities_from_plan(plan, expr_table_len);
+        let operation_provider_lookups = operation_provider_lookups_from_plan(plan, expr_table_len);
         Self {
             deep_profile: false,
             provider_slots: plan.objects.providers.len(),
@@ -140,10 +142,15 @@ impl RuntimeEvidenceRunContext {
     ) -> RuntimeEvidenceProviderEnv {
         let mut provider_env = self
             .value_provider_envs
-            .get(&expr)
+            .get(expr.0 as usize)
+            .and_then(Option::as_ref)
             .cloned()
             .unwrap_or_default();
-        if let Some(capture_slots) = self.value_capture_slots.get(&expr) {
+        if let Some(capture_slots) = self
+            .value_capture_slots
+            .get(expr.0 as usize)
+            .and_then(Option::as_ref)
+        {
             provider_env.extend_missing(capture_slots.iter().filter_map(|slot_id| {
                 self.provider_for_slot(*slot_id, active_handlers, active_envs)
             }));
@@ -154,7 +161,7 @@ impl RuntimeEvidenceRunContext {
     pub(super) fn handler_ids_for_catch(&self, expr: ExprId) -> &[u32] {
         self.handlers_by_catch
             .get(&expr)
-            .map(Vec::as_slice)
+            .map(SmallVec::as_slice)
             .unwrap_or_default()
     }
 
@@ -163,7 +170,12 @@ impl RuntimeEvidenceRunContext {
         apply: ExprId,
         callee: ExprId,
     ) -> Option<RuntimeEvidenceOperationVisibility> {
-        self.operation_visibilities.get(&(apply, callee)).copied()
+        self.operation_visibilities
+            .get(apply.0 as usize)
+            .and_then(Option::as_ref)
+            .and_then(|(expected_callee, visibility)| {
+                (*expected_callee == callee).then_some(*visibility)
+            })
     }
 
     #[cfg(debug_assertions)]
@@ -222,23 +234,31 @@ impl RuntimeEvidenceRunContext {
         active_handlers: &[u32],
         active_envs: &[&RuntimeEvidenceProviderEnv],
     ) -> RuntimeEvidenceProviderEnv {
-        let Some(required_slots) = self.call_required_slots.get(&apply) else {
+        let Some(required_slots) = self
+            .call_required_slots
+            .get(apply.0 as usize)
+            .and_then(Option::as_ref)
+        else {
             return RuntimeEvidenceProviderEnv::default();
         };
         let providers = required_slots
             .iter()
             .filter_map(|slot_id| self.provider_for_slot(*slot_id, active_handlers, active_envs))
-            .collect::<Vec<_>>();
+            .collect::<SmallVec<_>>();
         RuntimeEvidenceProviderEnv { providers }
     }
 
     pub(super) fn has_provider_env_for_call(&self, apply: ExprId) -> bool {
-        self.call_required_slots.contains_key(&apply)
+        self.call_required_slots
+            .get(apply.0 as usize)
+            .is_some_and(Option::is_some)
     }
 
     pub(super) fn has_provider_lookup_for_call(&self, apply: ExprId, callee: ExprId) -> bool {
         self.operation_provider_lookups
-            .contains_key(&(apply, callee))
+            .get(apply.0 as usize)
+            .and_then(Option::as_ref)
+            .is_some_and(|(expected_callee, _)| *expected_callee == callee)
     }
 
     pub(super) fn provider_route_for_call(
@@ -247,7 +267,13 @@ impl RuntimeEvidenceRunContext {
         callee: ExprId,
         envs: &[RuntimeEvidenceProviderView<'_>],
     ) -> Option<EvidenceResolvedEffectRoute> {
-        let lookup = self.operation_provider_lookups.get(&(apply, callee))?;
+        let (expected_callee, lookup) = self
+            .operation_provider_lookups
+            .get(apply.0 as usize)
+            .and_then(Option::as_ref)?;
+        if *expected_callee != callee {
+            return None;
+        }
         for env in envs.iter().rev() {
             for candidate in &lookup.candidates {
                 if env
@@ -289,7 +315,7 @@ impl RuntimeEvidenceRunContext {
             })?;
         Some(RuntimeEvidenceEnvProvider {
             slot_id,
-            handler_ids: vec![handler_id],
+            handler_ids: smallvec![handler_id],
         })
     }
 }
@@ -364,7 +390,7 @@ impl RuntimeEvidenceProviderGrantPermission {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct RuntimeEvidenceProviderEnv {
-    providers: Vec<RuntimeEvidenceEnvProvider>,
+    providers: SmallVec<[RuntimeEvidenceEnvProvider; 2]>,
 }
 
 impl RuntimeEvidenceProviderEnv {
@@ -373,13 +399,7 @@ impl RuntimeEvidenceProviderEnv {
     }
 
     pub(super) fn provider_count(&self) -> usize {
-        self.providers
-            .iter()
-            .map(|provider| {
-                let _slot_id = provider.slot_id;
-                1usize
-            })
-            .sum()
+        self.providers.len()
     }
 
     pub(super) fn candidate_count(&self) -> usize {
@@ -431,13 +451,13 @@ impl RuntimeEvidenceProviderEnv {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RuntimeEvidenceEnvProvider {
     slot_id: u32,
-    handler_ids: Vec<u32>,
+    handler_ids: SmallVec<[u32; 2]>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RuntimeEvidenceOperationProviderLookup {
     slot_id: u32,
-    candidates: Vec<RuntimeEvidenceOperationProviderCandidate>,
+    candidates: SmallVec<[RuntimeEvidenceOperationProviderCandidate; 2]>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -502,49 +522,81 @@ fn effect_route_from_operation_plan(
 
 fn value_provider_envs_from_plan(
     plan: &EvidenceVmPlan,
-) -> HashMap<ExprId, RuntimeEvidenceProviderEnv> {
+    len: usize,
+) -> Vec<Option<RuntimeEvidenceProviderEnv>> {
+    let mut table = empty_expr_table(len);
+    for value in &plan.objects.values {
+        let providers = value
+            .env_providers
+            .iter()
+            .filter(|provider| !provider.handler_ids.is_empty())
+            .map(|provider| RuntimeEvidenceEnvProvider {
+                slot_id: provider.slot_id,
+                handler_ids: provider.handler_ids.iter().copied().collect(),
+            })
+            .collect::<SmallVec<_>>();
+        if !providers.is_empty() {
+            table[value.expr.0 as usize] = Some(RuntimeEvidenceProviderEnv { providers });
+        }
+    }
+    table
+}
+
+fn call_required_slots_from_plan(
+    plan: &EvidenceVmPlan,
+    len: usize,
+) -> Vec<Option<SmallVec<[u32; 2]>>> {
+    let mut table = empty_expr_table(len);
+    for call in &plan.objects.calls {
+        if !call.required_slots.is_empty() {
+            table[call.apply.0 as usize] = Some(call.required_slots.iter().copied().collect());
+        }
+    }
+    table
+}
+
+fn value_capture_slots_from_plan(
+    plan: &EvidenceVmPlan,
+    len: usize,
+) -> Vec<Option<SmallVec<[u32; 2]>>> {
+    let mut table = empty_expr_table(len);
+    for value in &plan.objects.values {
+        if !value.captures.is_empty() {
+            table[value.expr.0 as usize] = Some(value.captures.iter().copied().collect());
+        }
+    }
+    table
+}
+
+fn empty_expr_table<T>(len: usize) -> Vec<Option<T>> {
+    let mut table = Vec::with_capacity(len);
+    table.resize_with(len, || None);
+    table
+}
+
+fn evidence_context_expr_table_len(plan: &EvidenceVmPlan) -> usize {
     plan.objects
         .values
         .iter()
-        .filter_map(|value| {
-            let providers = value
-                .env_providers
-                .iter()
-                .filter(|provider| !provider.handler_ids.is_empty())
-                .map(|provider| RuntimeEvidenceEnvProvider {
-                    slot_id: provider.slot_id,
-                    handler_ids: provider.handler_ids.clone(),
-                })
-                .collect::<Vec<_>>();
-            (!providers.is_empty())
-                .then_some((value.expr, RuntimeEvidenceProviderEnv { providers }))
-        })
-        .collect()
+        .map(|value| value.expr)
+        .chain(plan.objects.calls.iter().map(|call| call.apply))
+        .chain(plan.operations.iter().flat_map(|operation| {
+            let mut exprs = SmallVec::<[ExprId; 3]>::new();
+            exprs.push(operation.expr);
+            if let EvidenceVmOperationKind::Call { apply, callee } = operation.kind {
+                exprs.push(apply);
+                exprs.push(callee);
+            }
+            exprs
+        }))
+        .map(|expr| expr.0 as usize + 1)
+        .max()
+        .unwrap_or(0)
 }
 
-fn call_required_slots_from_plan(plan: &EvidenceVmPlan) -> HashMap<ExprId, Vec<u32>> {
-    plan.objects
-        .calls
-        .iter()
-        .filter_map(|call| {
-            (!call.required_slots.is_empty()).then_some((call.apply, call.required_slots.clone()))
-        })
-        .collect()
-}
-
-fn value_capture_slots_from_plan(plan: &EvidenceVmPlan) -> HashMap<ExprId, Vec<u32>> {
-    plan.objects
-        .values
-        .iter()
-        .filter_map(|value| {
-            (!value.captures.is_empty()).then_some((value.expr, value.captures.clone()))
-        })
-        .collect()
-}
-
-fn handlers_by_catch_from_plan(plan: &EvidenceVmPlan) -> HashMap<ExprId, Vec<u32>> {
+fn handlers_by_catch_from_plan(plan: &EvidenceVmPlan) -> HashMap<ExprId, SmallVec<[u32; 2]>> {
     plan.objects.handlers.iter().fold(
-        HashMap::<ExprId, Vec<u32>>::new(),
+        HashMap::<ExprId, SmallVec<[u32; 2]>>::new(),
         |mut by_catch, handler| {
             by_catch
                 .entry(handler.handler)
@@ -565,7 +617,8 @@ fn handler_families_by_id_from_plan(plan: &EvidenceVmPlan) -> HashMap<u32, Vec<S
 
 fn operation_visibilities_from_plan(
     plan: &EvidenceVmPlan,
-) -> HashMap<(ExprId, ExprId), RuntimeEvidenceOperationVisibility> {
+    len: usize,
+) -> Vec<Option<(ExprId, RuntimeEvidenceOperationVisibility)>> {
     let cap_handlers = plan
         .objects
         .handler_capabilities
@@ -596,9 +649,9 @@ fn operation_visibilities_from_plan(
         })
         .collect::<HashMap<_, _>>();
     let operation_objects = operation_objects_by_expr(plan);
-    plan.operations
-        .iter()
-        .filter_map(|operation| {
+    let mut table = empty_expr_table(len);
+    for operation in &plan.operations {
+        let Some((apply, callee, visibility)) = (|| {
             let EvidenceVmOperationKind::Call { apply, callee } = operation.kind else {
                 return None;
             };
@@ -606,20 +659,25 @@ fn operation_visibilities_from_plan(
             let visibility = allowed_sets
                 .get(&object.visibility.allowed_set_id)
                 .copied()?;
-            Some(((apply, callee), visibility))
-        })
-        .collect()
+            Some((apply, callee, visibility))
+        })() else {
+            continue;
+        };
+        table[apply.0 as usize] = Some((callee, visibility));
+    }
+    table
 }
 
 fn operation_provider_lookups_from_plan(
     plan: &EvidenceVmPlan,
-) -> HashMap<(ExprId, ExprId), RuntimeEvidenceOperationProviderLookup> {
+    len: usize,
+) -> Vec<Option<(ExprId, RuntimeEvidenceOperationProviderLookup)>> {
     let operation_objects = operation_objects_by_expr(plan);
     let provider_candidates = provider_candidates_by_slot(plan);
     let handlers = handler_objects_by_id(plan);
-    plan.operations
-        .iter()
-        .filter_map(|operation| {
+    let mut table = empty_expr_table(len);
+    for operation in &plan.operations {
+        let Some((apply, callee, lookup)) = (|| {
             let EvidenceVmOperationKind::Call { apply, callee } = operation.kind else {
                 return None;
             };
@@ -638,10 +696,11 @@ fn operation_provider_lookups_from_plan(
                 && let Some(handler_id) = object.candidate_handler
             {
                 return Some((
-                    (apply, callee),
+                    apply,
+                    callee,
                     RuntimeEvidenceOperationProviderLookup {
                         slot_id: object.slot_id,
-                        candidates: vec![RuntimeEvidenceOperationProviderCandidate {
+                        candidates: smallvec![RuntimeEvidenceOperationProviderCandidate {
                             handler_id,
                             route: EvidenceEffectRoute::Direct {
                                 handler,
@@ -667,19 +726,24 @@ fn operation_provider_lookups_from_plan(
                         provider_slot_id: handler.slot_id,
                     })
                 })
-                .collect::<Vec<_>>();
+                .collect::<SmallVec<_>>();
             if candidates.is_empty() {
                 return None;
             }
             Some((
-                (apply, callee),
+                apply,
+                callee,
                 RuntimeEvidenceOperationProviderLookup {
                     slot_id: object.slot_id,
                     candidates,
                 },
             ))
-        })
-        .collect()
+        })() else {
+            continue;
+        };
+        table[apply.0 as usize] = Some((callee, lookup));
+    }
+    table
 }
 
 fn operation_objects_by_expr(
@@ -702,11 +766,16 @@ fn operation_execution_for_route(
         .unwrap_or(EvidenceVmOperationExecutionPlan::GenericFallback)
 }
 
-fn provider_candidates_by_slot(plan: &EvidenceVmPlan) -> HashMap<u32, Vec<u32>> {
+fn provider_candidates_by_slot(plan: &EvidenceVmPlan) -> HashMap<u32, SmallVec<[u32; 2]>> {
     plan.objects
         .providers
         .iter()
-        .map(|provider| (provider.slot_id, provider.handler_candidates.clone()))
+        .map(|provider| {
+            (
+                provider.slot_id,
+                provider.handler_candidates.iter().copied().collect(),
+            )
+        })
         .collect()
 }
 

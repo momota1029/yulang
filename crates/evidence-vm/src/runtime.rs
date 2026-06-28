@@ -10,6 +10,7 @@ use control_vm::{
     SelectResolution, Stmt,
 };
 use list_tree::{ListTree, ListView};
+use smallvec::SmallVec;
 use specialize::mono::{
     EffectiveThunkType, FunctionAdapterHygiene, GuardMarker, Lit, PrimitiveContext, PrimitiveOp,
     RangeConstructors, Type,
@@ -47,6 +48,7 @@ impl RuntimeEvidenceRunOutput {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RuntimeEvidenceRunStats {
+    pub runtime_breakdown_stats_enabled: bool,
     pub effect_calls: usize,
     pub direct_effect_calls: usize,
     pub plan_provider_slots: usize,
@@ -429,7 +431,7 @@ enum RuntimeEvidenceValue {
     PrimitiveOp {
         op: PrimitiveOp,
         context: PrimitiveContext,
-        args: Vec<SharedValue>,
+        args: PrimitiveArgs,
     },
     FunctionAdapter {
         source: Type,
@@ -2130,6 +2132,7 @@ impl EvidenceEvalResult {
 }
 
 type SharedValue = Rc<RuntimeEvidenceValue>;
+type PrimitiveArgs = SmallVec<[SharedValue; 4]>;
 
 #[cfg(debug_assertions)]
 const PROVIDER_ADD_ID_SHORTCUT_FULL_SCAN_VERIFY_LIMIT: usize = 1024;
@@ -2184,12 +2187,6 @@ impl Env {
     fn len(&self) -> usize {
         self.depth
     }
-}
-
-fn clone_env_for_stats(env: &Env, stats: &mut RuntimeEvidenceRunStats) -> Env {
-    stats.env_clones += 1;
-    stats.env_entries_cloned += env.len();
-    env.clone()
 }
 
 impl EvidenceContinuation {
@@ -2558,15 +2555,28 @@ impl EvidenceContinuation {
                 Ok(())
             }
             Self::Frame(frame) => {
-                let Some(frame) = Rc::get_mut(frame) else {
-                    record_continuation_append_blocker(
-                        stats,
-                        source,
-                        EvidenceContinuationAppendBlocker::RcShared,
-                    );
-                    return Err(tail);
-                };
-                frame.try_append_owned_tail_counted(tail, stats, source)
+                if let Some(frame) = Rc::get_mut(frame) {
+                    return frame.try_append_owned_tail_counted(tail, stats, source);
+                }
+
+                // A shared frame does not imply a dynamic scope boundary. Clone the pure
+                // continuation spine and append into the clone when the existing tail rules allow
+                // it, so repeated resumes do not pay an extra Then frame solely for Rc sharing.
+                let mut cloned = frame.as_ref().clone();
+                match cloned.try_append_owned_tail_counted(tail, stats, source) {
+                    Ok(()) => {
+                        *self = Self::Frame(Rc::new(cloned));
+                        Ok(())
+                    }
+                    Err(tail) => {
+                        record_continuation_append_blocker(
+                            stats,
+                            source,
+                            EvidenceContinuationAppendBlocker::RcShared,
+                        );
+                        Err(tail)
+                    }
+                }
             }
         }
     }
@@ -3601,6 +3611,9 @@ fn record_continuation_append(
     source: EvidenceContinuationAppendSource,
 ) {
     stats.continuation_appends += 1;
+    if !stats.runtime_breakdown_stats_enabled {
+        return;
+    }
     match source {
         EvidenceContinuationAppendSource::Request => {
             stats.request_continuation_appends += 1;
@@ -3615,6 +3628,9 @@ fn record_continuation_append_owned_tail(
     stats: &mut RuntimeEvidenceRunStats,
     source: EvidenceContinuationAppendSource,
 ) {
+    if !stats.runtime_breakdown_stats_enabled {
+        return;
+    }
     match source {
         EvidenceContinuationAppendSource::Request => {
             stats.request_continuation_owned_tail_appends += 1;
@@ -3629,6 +3645,9 @@ fn record_continuation_append_then(
     stats: &mut RuntimeEvidenceRunStats,
     source: EvidenceContinuationAppendSource,
 ) {
+    if !stats.runtime_breakdown_stats_enabled {
+        return;
+    }
     match source {
         EvidenceContinuationAppendSource::Request => {
             stats.request_continuation_then_appends += 1;
@@ -3644,6 +3663,9 @@ fn record_continuation_append_blocker(
     source: EvidenceContinuationAppendSource,
     blocker: EvidenceContinuationAppendBlocker,
 ) {
+    if !stats.runtime_breakdown_stats_enabled {
+        return;
+    }
     match blocker {
         EvidenceContinuationAppendBlocker::MarkerFrame => {
             stats.continuation_append_blocked_by_marker_frame += 1;
@@ -3711,26 +3733,27 @@ impl EvidenceRequest {
 
 #[derive(Debug, Clone, Default)]
 struct ControlEvidenceIndex {
-    effect_calls: HashMap<(ExprId, ExprId), EvidenceEffectRoute>,
+    effect_calls: Vec<Option<(ExprId, EvidenceEffectRoute)>>,
     stats: RuntimeEvidenceRunStats,
 }
 
 impl ControlEvidenceIndex {
     fn new(program: &Program) -> Self {
         let evidence = ControlEvidenceProgram::from_program(program);
-        let mut effect_calls = HashMap::new();
+        let mut effect_calls = vec![None; program.exprs.len()];
         for effect in &evidence.effects {
             if let Some((apply, callee, route)) = effect_call_route(effect) {
-                effect_calls.insert((apply, callee), route);
+                effect_calls[apply.0 as usize] = Some((callee, route));
             }
         }
         let direct_effect_calls = effect_calls
-            .values()
+            .iter()
+            .filter_map(|entry| entry.map(|(_, route)| route))
             .filter(|route| route.is_direct())
             .count();
         Self {
             stats: RuntimeEvidenceRunStats {
-                effect_calls: effect_calls.len(),
+                effect_calls: effect_calls.iter().filter(|entry| entry.is_some()).count(),
                 direct_effect_calls,
                 ..RuntimeEvidenceRunStats::default()
             },
@@ -3739,7 +3762,10 @@ impl ControlEvidenceIndex {
     }
 
     fn effect_call_route(&self, apply: ExprId, callee: ExprId) -> Option<EvidenceEffectRoute> {
-        self.effect_calls.get(&(apply, callee)).copied()
+        self.effect_calls
+            .get(apply.0 as usize)
+            .and_then(|entry| entry.as_ref())
+            .and_then(|(expected_callee, route)| (*expected_callee == callee).then_some(*route))
     }
 
     fn replace_effect_calls(
@@ -3752,7 +3778,17 @@ impl ControlEvidenceIndex {
             .count();
         self.stats.effect_calls = effect_calls.len();
         self.stats.direct_effect_calls = direct_effect_calls;
-        self.effect_calls = effect_calls;
+        let len = effect_calls
+            .keys()
+            .map(|(apply, _)| apply.0 as usize + 1)
+            .max()
+            .unwrap_or(0)
+            .max(self.effect_calls.len());
+        let mut table = vec![None; len];
+        for ((apply, callee), route) in effect_calls {
+            table[apply.0 as usize] = Some((callee, route));
+        }
+        self.effect_calls = table;
     }
 
     fn stats(&self) -> RuntimeEvidenceRunStats {
@@ -3883,7 +3919,7 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
                 RuntimeEvidenceExpr::Value(shared(RuntimeEvidenceValue::PrimitiveOp {
                     op: *op,
                     context: context.clone(),
-                    args: Vec::new(),
+                    args: PrimitiveArgs::new(),
                 }))
             }
             Expr::PrimitiveOp { op, context } => RuntimeEvidenceExpr::NullaryPrimitive {
@@ -4055,6 +4091,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let (case_arms, catch_arms) = static_arm_caches(program);
         let mut stats = evidence.stats();
         context.apply_to_stats(&mut stats);
+        stats.runtime_breakdown_stats_enabled =
+            cfg!(debug_assertions) || context.deep_profile_enabled();
         Self {
             program,
             evidence,
@@ -4119,16 +4157,22 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     }
 
     fn clone_env(&mut self, env: &Env) -> Env {
-        clone_env_for_stats(env, &mut self.stats)
+        self.stats.env_clones += 1;
+        if self.should_collect_runtime_breakdown_stats() {
+            self.stats.env_entries_cloned += env.len();
+        }
+        env.clone()
     }
 
     fn provider_env_for_value(&mut self, expr: ExprId) -> RuntimeEvidenceProviderEnv {
-        let active_provider_envs = self.active_provider_env_refs();
-        let provider_env = self.context.provider_env_for_value(
-            expr,
-            &self.active_provider_handlers,
-            &active_provider_envs,
-        );
+        let provider_env = {
+            let active_provider_envs = self.active_provider_env_refs();
+            self.context.provider_env_for_value(
+                expr,
+                &self.active_provider_handlers,
+                &active_provider_envs,
+            )
+        };
         if !provider_env.is_empty() {
             self.stats.runtime_provider_env_values += 1;
             self.stats.runtime_provider_env_slots += provider_env.provider_count();
@@ -4155,10 +4199,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return run(self);
         }
         let len = self.active_provider_envs.len();
-        let frame = self.provider_frame(provider_env.clone());
+        let frame = self.provider_frame(provider_env);
         self.active_provider_envs.push(frame);
         let result = run(self);
+        let frame = self
+            .active_provider_envs
+            .pop()
+            .expect("provider frame must be active after provider-scoped run");
+        debug_assert_eq!(self.active_provider_envs.len(), len);
         self.active_provider_envs.truncate(len);
+        let provider_env = frame.provider_env;
         self.close_provider_env_result(result?, provider_env)
     }
 
@@ -4242,7 +4292,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         call.close_provider_env(provider_env)
     }
 
-    fn active_provider_env_refs(&self) -> Vec<&RuntimeEvidenceProviderEnv> {
+    fn active_provider_env_refs(&self) -> SmallVec<[&RuntimeEvidenceProviderEnv; 4]> {
         self.active_provider_envs
             .iter()
             .filter(|frame| {
@@ -4256,7 +4306,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             .collect()
     }
 
-    fn active_provider_env_views(&self) -> Vec<RuntimeEvidenceProviderView<'_>> {
+    fn active_provider_env_views(&self) -> SmallVec<[RuntimeEvidenceProviderView<'_>; 4]> {
         self.active_provider_envs
             .iter()
             .filter(|frame| {
@@ -4597,12 +4647,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if !self.context.has_provider_env_for_call(site) {
             return RuntimeEvidenceProviderEnv::default();
         }
-        let active_provider_envs = self.active_provider_env_refs();
-        let provider_env = self.context.provider_env_for_call(
-            site,
-            &self.active_provider_handlers,
-            &active_provider_envs,
-        );
+        let provider_env = {
+            let active_provider_envs = self.active_provider_env_refs();
+            self.context.provider_env_for_call(
+                site,
+                &self.active_provider_handlers,
+                &active_provider_envs,
+            )
+        };
         if !provider_env.is_empty() {
             self.stats.runtime_provider_env_values += 1;
             self.stats.runtime_provider_env_slots += provider_env.provider_count();
@@ -4649,7 +4701,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 &mut self.stats,
                 EvidenceContinuationAppendSource::DirectTail,
             );
-            self.stats.continuation_append_steps += 1;
+            if self.should_collect_runtime_breakdown_stats() {
+                self.stats.continuation_append_steps += 1;
+            }
             record_continuation_append_then(
                 &mut self.stats,
                 EvidenceContinuationAppendSource::DirectTail,
@@ -4709,10 +4763,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let Some(active_plan) = self.active_marker_plans.last() else {
             return Err(EvidenceCallBoundaryBypassCert::NoActiveMarkerPlan);
         };
+        let record_breakdown = self.should_collect_runtime_breakdown_stats();
         self.stats.function_call_marker_plans += 1;
-        self.stats.function_call_marker_inputs += active_plan.markers.len();
+        if record_breakdown {
+            self.stats.function_call_marker_inputs += active_plan.markers.len();
+        }
         let markers = active_plan.function_call_markers();
-        self.stats.function_call_marker_outputs += markers.len();
+        if record_breakdown {
+            self.stats.function_call_marker_outputs += markers.len();
+        }
         if markers.is_empty() {
             return Err(EvidenceCallBoundaryBypassCert::NoFunctionCallMarkers);
         }
@@ -4793,11 +4852,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         next: EvidenceContinuation,
         value: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        self.record_continuation_resume_marker_boundary(
-            &markers,
-            activate_add_ids,
-            handler_path.is_some(),
-        );
+        let record_breakdown = self.should_collect_runtime_breakdown_stats();
+        if record_breakdown {
+            self.record_continuation_resume_marker_boundary(
+                &markers,
+                activate_add_ids,
+                handler_path.is_some(),
+            );
+        }
         if markers.is_empty() {
             return self.resume_continuation(next, value);
         }
@@ -4824,8 +4886,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.push_marker_frame(&markers, activate_add_ids, handler_path.clone());
         self.push_active_marker_plan(markers.clone());
         let result = self.resume_continuation(next, value);
-        self.record_continuation_resume_marker_result(&result);
-        self.record_resume_marker_permission_native_candidate(&result, handler_path.is_some());
+        if record_breakdown {
+            self.record_continuation_resume_marker_result(&result);
+            self.record_resume_marker_permission_native_candidate(&result, handler_path.is_some());
+        }
         let handler_boundary = match &result {
             Ok(EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request))) => {
                 self.handler_boundary_for_request(request, handler_path.as_deref(), frame_len)
@@ -5029,25 +5093,27 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         has_handler_path: bool,
     ) {
         self.stats.marker_frame_entries += 1;
-        self.stats.marker_frame_markers += markers.len();
-        let mut add_id_markers = 0;
-        let mut active_add_id_markers = 0;
-        for marker in markers {
-            let EvidenceValueMarker::AddId(marker) = marker else {
-                continue;
-            };
-            add_id_markers += 1;
-            if activate_add_ids && marker.depth == 0 {
-                active_add_id_markers += 1;
+        if self.should_collect_runtime_breakdown_stats() {
+            self.stats.marker_frame_markers += markers.len();
+            let mut add_id_markers = 0;
+            let mut active_add_id_markers = 0;
+            for marker in markers {
+                let EvidenceValueMarker::AddId(marker) = marker else {
+                    continue;
+                };
+                add_id_markers += 1;
+                if activate_add_ids && marker.depth == 0 {
+                    active_add_id_markers += 1;
+                }
             }
-        }
-        self.stats.marker_frame_add_id_markers += add_id_markers;
-        self.stats.marker_frame_active_add_id_markers += active_add_id_markers;
-        if add_id_markers == 0 {
-            self.stats.marker_frame_frame_only_entries += 1;
-        }
-        if active_add_id_markers == 0 && !has_handler_path {
-            self.stats.marker_frame_no_active_add_id_no_handler_entries += 1;
+            self.stats.marker_frame_add_id_markers += add_id_markers;
+            self.stats.marker_frame_active_add_id_markers += active_add_id_markers;
+            if add_id_markers == 0 {
+                self.stats.marker_frame_frame_only_entries += 1;
+            }
+            if active_add_id_markers == 0 && !has_handler_path {
+                self.stats.marker_frame_no_active_add_id_no_handler_entries += 1;
+            }
         }
         match source {
             EvidenceMarkerFrameSource::Expr => {
@@ -5126,11 +5192,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     }
 
     fn push_active_marker_plan(&mut self, markers: Rc<[EvidenceValueMarker]>) {
-        if self
-            .active_marker_plans
-            .last()
-            .is_some_and(|current| current.markers.as_ref() == markers.as_ref())
-        {
+        if self.active_marker_plans.last().is_some_and(|current| {
+            Rc::ptr_eq(&current.markers, &markers) || current.markers.as_ref() == markers.as_ref()
+        }) {
             self.stats.active_marker_plan_dedupes += 1;
             return;
         }
@@ -6048,6 +6112,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         cfg!(debug_assertions) || self.context.deep_profile_enabled()
     }
 
+    fn should_collect_runtime_breakdown_stats(&self) -> bool {
+        self.stats.runtime_breakdown_stats_enabled
+    }
+
     fn record_provider_env_foreign_later_grant_shape_profile(
         &mut self,
         call: &EvidenceDirectTailResumptive,
@@ -6781,12 +6849,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         env: &mut Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         self.stats.expr_evals += 1;
-        let expr_id = expr;
-        match self
-            .runtime_exprs
-            .get(expr_id.0 as usize)
-            .ok_or(RuntimeEvidenceRunError::MissingExpr(expr))?
-        {
+        match &self.runtime_exprs[expr.0 as usize] {
             RuntimeEvidenceExpr::Value(value) => {
                 return Ok(EvidenceEvalResult::Value(value.clone()));
             }
@@ -6964,7 +7027,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     target_value_is_thunk,
                     site,
                     effect,
-                    &path,
+                    path,
                     arg,
                     env,
                 );
@@ -7084,7 +7147,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         Ok(shared(RuntimeEvidenceValue::PrimitiveOp {
             op,
             context,
-            args: Vec::new(),
+            args: PrimitiveArgs::new(),
         }))
     }
 
@@ -7148,7 +7211,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         target_value_is_thunk: bool,
         site: ExprId,
         effect: ExprId,
-        path: &[String],
+        path: Rc<[String]>,
         arg_expr: ExprId,
         env: &mut Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
@@ -7170,10 +7233,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 )
             }
             result => {
-                let callee = shared(RuntimeEvidenceValue::EffectOp {
-                    expr: effect,
-                    path: shared_path(path),
-                });
+                let callee = shared(RuntimeEvidenceValue::EffectOp { expr: effect, path });
                 self.continue_result(
                     result,
                     EvidenceContinuation::apply_arg(
@@ -7192,7 +7252,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn force_effect_call_scoped_result(
         &mut self,
         target_value_is_thunk: bool,
-        path: &[String],
+        path: Rc<[String]>,
         arg: SharedValue,
         route: EvidenceEffectRoute,
         evidence: EffectThunkEvidence,
@@ -7224,7 +7284,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn force_effect_call_payload_result(
         &mut self,
         target_value_is_thunk: bool,
-        path: &[String],
+        path: Rc<[String]>,
         arg: SharedValue,
         route: EvidenceEffectRoute,
         evidence: EffectThunkEvidence,
@@ -7832,6 +7892,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         callee: SharedValue,
         arg: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if !runtime_value_needs_call_provider_env(callee.as_ref()) {
+            return self.apply_value_result_inner(site, callee, arg);
+        }
         self.with_call_provider_env(site, |runner| {
             runner.apply_value_result_inner(site, callee, arg)
         })
@@ -8133,7 +8196,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.record_continuation_resume_frame(&frame);
         match frame {
             EvidenceContinuationFrame::Then { first, second } => {
-                self.record_continuation_resume_then_boundary(&first, &second);
+                if self.should_collect_runtime_breakdown_stats() {
+                    self.record_continuation_resume_then_boundary(&first, &second);
+                }
                 let result = self.resume_continuation(first, value)?;
                 self.continue_result(result, second)
             }
@@ -8145,7 +8210,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 if target_value_is_thunk {
                     self.continue_result(result, next)
                 } else {
-                    self.continue_result(result, EvidenceContinuation::force_value_if_thunk(next))
+                    match result {
+                        EvidenceEvalResult::Value(value) => {
+                            let result = self.force_value_if_thunk_result(value)?;
+                            self.continue_result(result, next)
+                        }
+                        result => self.continue_result(
+                            result,
+                            EvidenceContinuation::force_value_if_thunk(next),
+                        ),
+                    }
                 }
             }
             EvidenceContinuationFrame::ForceValueIfThunk { next } => {
@@ -9550,21 +9624,23 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if target_value_is_thunk {
             Ok(result)
         } else {
-            self.continue_result(
-                result,
-                EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
-            )
+            match result {
+                EvidenceEvalResult::Value(value) => self.force_value_if_thunk_result(value),
+                result => self.continue_result(
+                    result,
+                    EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
+                ),
+            }
         }
     }
 
     fn force_effect_result(
         &mut self,
-        path: &[String],
+        path: Rc<[String]>,
         payload: SharedValue,
         route: EvidenceEffectRoute,
         evidence: EffectThunkEvidence,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        let path = shared_path(path);
         if let EvidenceEffectRoute::Direct {
             handler,
             execution: EvidenceVmOperationExecutionPlan::DirectAbortive,
@@ -9665,15 +9741,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     evidence,
                 } => {
                     self.stats.thunk_force_effect += 1;
-                    self.force_effect_result(path, payload.clone(), *route, *evidence)
+                    self.force_effect_result(path.clone(), payload.clone(), *route, *evidence)
                 }
                 RuntimeEvidenceThunk::Continuation { continuation, arg } => {
                     self.stats.thunk_force_continuation += 1;
                     let result = self.resume_continuation(continuation.clone(), arg.clone())?;
-                    self.continue_result(
-                        result,
-                        EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
-                    )
+                    match result {
+                        EvidenceEvalResult::Value(value) => self.force_value_if_thunk_result(value),
+                        result => self.continue_result(
+                            result,
+                            EvidenceContinuation::force_value_if_thunk(
+                                EvidenceContinuation::identity(),
+                            ),
+                        ),
+                    }
                 }
                 RuntimeEvidenceThunk::Value(value) => {
                     self.stats.thunk_force_value += 1;
@@ -9705,11 +9786,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         value, markers,
                     )));
                 }
-                let marker_summary = marked_force_marker_summary(&markers);
-                self.stats.marked_force_active_add_id_markers += marker_summary.active_add_ids;
-                self.stats.marked_force_carry_after_frame_markers +=
-                    marker_summary.carry_after_frame;
-                self.record_marked_force_fallback(value.as_ref());
+                if self.should_collect_runtime_breakdown_stats() {
+                    let marker_summary = marked_force_marker_summary(&markers);
+                    self.stats.marked_force_active_add_id_markers += marker_summary.active_add_ids;
+                    self.stats.marked_force_carry_after_frame_markers +=
+                        marker_summary.carry_after_frame;
+                    self.record_marked_force_fallback(value.as_ref());
+                }
                 self.with_marker_frame(
                     EvidenceMarkerFrameSource::MarkedForce,
                     markers.clone(),
@@ -11285,13 +11368,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         value: SharedValue,
         env: &mut Env,
     ) -> Result<(), RuntimeEvidenceRunError> {
-        let (view, markers) = runtime_value_view(value.as_ref());
         match pat {
-            Pat::Wild => Ok(()),
+            Pat::Wild => return Ok(()),
             Pat::Var(def) => {
                 env.insert_slot(EnvSlot::from(*def), value);
-                Ok(())
+                return Ok(());
             }
+            _ => {}
+        }
+        let (view, markers) = runtime_value_view(value.as_ref());
+        match pat {
+            Pat::Wild | Pat::Var(_) => unreachable!("simple patterns return before value view"),
             Pat::Lit(lit) if lit_matches(lit, view) => Ok(()),
             Pat::Lit(_) => Err(RuntimeEvidenceRunError::PatternMismatch),
             Pat::Tuple(items) => {
@@ -11947,6 +12034,9 @@ fn transformed_markers_shared(
     let mut out = None::<Vec<EvidenceValueMarker>>;
     for (index, marker) in markers.iter().enumerate() {
         let transformed = transform(marker);
+        if out.is_none() && &transformed == marker {
+            continue;
+        }
         let duplicate = match &out {
             Some(out) => out.iter().any(|existing| existing == &transformed),
             None => markers[..index]
@@ -12388,6 +12478,13 @@ fn mark_runtime_value_unchecked(
     if markers.is_empty() {
         return value;
     }
+    if let RuntimeEvidenceValue::Marked {
+        markers: existing, ..
+    } = value.as_ref()
+        && markers_include_all(existing, markers)
+    {
+        return value;
+    }
     match value.as_ref() {
         RuntimeEvidenceValue::Marked {
             value,
@@ -12410,6 +12507,13 @@ fn mark_runtime_value_unchecked_shared(
     if markers.is_empty() {
         return value;
     }
+    if let RuntimeEvidenceValue::Marked {
+        markers: existing, ..
+    } = value.as_ref()
+        && markers_include_all(existing, &markers)
+    {
+        return value;
+    }
     match value.as_ref() {
         RuntimeEvidenceValue::Marked {
             value,
@@ -12422,6 +12526,12 @@ fn mark_runtime_value_unchecked_shared(
     }
 }
 
+fn markers_include_all(existing: &[EvidenceValueMarker], markers: &[EvidenceValueMarker]) -> bool {
+    markers
+        .iter()
+        .all(|marker| existing.iter().any(|existing| existing == marker))
+}
+
 fn runtime_value_needs_hygiene_mark(value: &RuntimeEvidenceValue) -> bool {
     match value {
         RuntimeEvidenceValue::Closure(_)
@@ -12431,8 +12541,10 @@ fn runtime_value_needs_hygiene_mark(value: &RuntimeEvidenceValue) -> bool {
         | RuntimeEvidenceValue::FunctionAdapter { .. } => true,
         RuntimeEvidenceValue::Thunk(thunk) => runtime_thunk_needs_hygiene_mark(thunk),
         RuntimeEvidenceValue::Marked { value, .. } => runtime_value_needs_hygiene_mark(value),
-        RuntimeEvidenceValue::ConstructorFunction { args, .. }
-        | RuntimeEvidenceValue::PrimitiveOp { args, .. } => args
+        RuntimeEvidenceValue::ConstructorFunction { args, .. } => args
+            .iter()
+            .any(|value| runtime_value_needs_hygiene_mark(value.as_ref())),
+        RuntimeEvidenceValue::PrimitiveOp { args, .. } => args
             .iter()
             .any(|value| runtime_value_needs_hygiene_mark(value.as_ref())),
         RuntimeEvidenceValue::Tuple(_)
@@ -12448,6 +12560,15 @@ fn runtime_value_needs_hygiene_mark(value: &RuntimeEvidenceValue) -> bool {
         | RuntimeEvidenceValue::Bool(_)
         | RuntimeEvidenceValue::Unit => false,
     }
+}
+
+fn runtime_value_needs_call_provider_env(value: &RuntimeEvidenceValue) -> bool {
+    !matches!(
+        value,
+        RuntimeEvidenceValue::PrimitiveOp { .. }
+            | RuntimeEvidenceValue::ConstructorFunction { .. }
+            | RuntimeEvidenceValue::Continuation(_)
+    )
 }
 
 fn runtime_thunk_needs_hygiene_mark(thunk: &RuntimeEvidenceThunk) -> bool {
@@ -13634,7 +13755,10 @@ mod tests {
         let frame = runner.provider_frame(provider_env.clone());
         runner.active_provider_envs.push(frame);
 
-        assert_eq!(runner.active_provider_env_refs(), vec![&provider_env]);
+        assert_eq!(
+            runner.active_provider_env_refs().as_slice(),
+            [&provider_env]
+        );
 
         let markers: Rc<[EvidenceValueMarker]> = Vec::new().into();
         runner
