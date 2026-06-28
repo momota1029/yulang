@@ -2550,12 +2550,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         activate_add_ids: bool,
         handler_path: Option<Vec<String>>,
     ) {
+        let mut last_local_frame_entry = None;
         for marker in markers {
             match marker {
                 EvidenceValueMarker::Frame { id } => {
                     let entry_frame_len = self.active_frames.len();
                     let frame_index = entry_frame_len;
                     self.active_frames.push(EvidenceActiveFrame { id: *id });
+                    last_local_frame_entry = Some((*id, entry_frame_len));
                     if let Some(path) = &handler_path {
                         self.active_handler_frames.push(EvidenceActiveHandlerFrame {
                             frame_index,
@@ -2567,7 +2569,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 EvidenceValueMarker::AddId(marker) if activate_add_ids && marker.depth == 0 => {
                     let active_marker = EvidenceActiveAddIdMarker {
                         marker: marker.clone(),
-                        entry_frame_len: self.entry_frame_len_for_marker(marker.id),
+                        entry_frame_len: last_local_frame_entry
+                            .and_then(|(id, entry)| (id == marker.id).then_some(entry))
+                            .unwrap_or_else(|| self.entry_frame_len_for_marker(marker.id)),
                     };
                     #[cfg(debug_assertions)]
                     self.active_add_id_index
