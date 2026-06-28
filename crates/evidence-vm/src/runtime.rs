@@ -10460,7 +10460,8 @@ fn effective_thunk_type_may_need_hygiene_mark(ty: &EffectiveThunkType) -> bool {
 mod tests {
     use super::*;
     use crate::{
-        EvidenceVmAllowedSetKind, EvidenceVmAllowedSetPlan, EvidenceVmEnvProviderPlan,
+        EvidenceVmAllowedSetKind, EvidenceVmAllowedSetPlan, EvidenceVmContinuationUsePlan,
+        EvidenceVmEnvProviderPlan, EvidenceVmHandlerArmClass, EvidenceVmHandlerObjectPlan,
         EvidenceVmObjectPlan, EvidenceVmOperationKind, EvidenceVmOperationLowering,
         EvidenceVmOperationObjectPlan, EvidenceVmOperationPlan, EvidenceVmOperationVisibilityPlan,
         EvidenceVmSlotKey, EvidenceVmSlotRouteKey, EvidenceVmSummary, EvidenceVmValueEnvKind,
@@ -10689,6 +10690,178 @@ mod tests {
     }
 
     #[test]
+    fn provider_prefix_boundary_close_accepts_strict_prefix() {
+        let program = Program::default();
+        let mut runner = provider_prefix_boundary_runner(&program, &permission_test_path());
+        let permission = provider_prefix_boundary_permission();
+        let mut call = provider_prefix_boundary_call(false, permission_test_path());
+        let markers = Vec::new();
+        let handler_path = vec!["flip".to_string()];
+
+        let cert = runner.provider_prefix_boundary_close_cert(
+            &mut call,
+            &handler_path,
+            &markers,
+            permission,
+        );
+
+        assert_eq!(
+            cert,
+            Some(EvidenceProviderPrefixBoundaryCloseCert::new(permission, 1))
+        );
+        assert_eq!(
+            runner
+                .stats
+                .resume_marker_provider_prefix_boundary_native_hits,
+            1
+        );
+        assert_eq!(
+            runner
+                .stats
+                .resume_marker_provider_prefix_boundary_legacy_fallbacks,
+            0
+        );
+    }
+
+    #[test]
+    fn provider_prefix_boundary_close_requires_strict_prefix() {
+        let program = Program::default();
+        let mut runner = provider_prefix_boundary_runner(&program, &permission_test_path());
+        let permission = provider_prefix_boundary_permission();
+        let mut call = provider_prefix_boundary_call_with_boundary(
+            false,
+            permission_test_path(),
+            permission_test_path(),
+        );
+        let markers = Vec::new();
+        let handler_path = permission_test_path();
+
+        let cert = runner.provider_prefix_boundary_close_cert(
+            &mut call,
+            &handler_path,
+            &markers,
+            permission,
+        );
+
+        assert_eq!(cert, None);
+        assert_eq!(
+            runner
+                .stats
+                .resume_marker_provider_prefix_boundary_reject_exact_family,
+            1
+        );
+        assert_eq!(
+            runner
+                .stats
+                .resume_marker_provider_prefix_boundary_legacy_fallbacks,
+            1
+        );
+    }
+
+    #[test]
+    fn provider_prefix_boundary_close_rejects_permission_family_request_mismatch() {
+        let program = Program::default();
+        let provider_family = vec!["flip".to_string(), "coin".to_string()];
+        let mut runner = provider_prefix_boundary_runner(&program, &provider_family);
+        let permission = provider_prefix_boundary_permission();
+        let mut call =
+            provider_prefix_boundary_call(false, vec!["flip".to_string(), "other".to_string()]);
+        let markers = Vec::new();
+        let handler_path = vec!["flip".to_string()];
+
+        let cert = runner.provider_prefix_boundary_close_cert(
+            &mut call,
+            &handler_path,
+            &markers,
+            permission,
+        );
+
+        assert_eq!(cert, None);
+        assert_eq!(
+            runner
+                .stats
+                .resume_marker_provider_prefix_boundary_reject_permission_family_request_mismatch,
+            1
+        );
+        assert_eq!(
+            runner
+                .stats
+                .resume_marker_provider_prefix_boundary_legacy_fallbacks,
+            1
+        );
+    }
+
+    #[test]
+    fn provider_prefix_boundary_close_rejects_carry_after_frame() {
+        let program = Program::default();
+        let mut runner = provider_prefix_boundary_runner(&program, &permission_test_path());
+        let permission = provider_prefix_boundary_permission();
+        let mut call = provider_prefix_boundary_call(false, permission_test_path());
+        let markers = vec![EvidenceValueMarker::AddId(Rc::new(EvidenceAddIdMarker {
+            id: EvidenceGuardId(42),
+            path: shared_path(&permission_test_path()),
+            depth: 0,
+            guard_own_path: true,
+            guard_foreign_path: false,
+            carry_after_frame: true,
+            preserve_own_on_resume: false,
+        }))];
+        let handler_path = vec!["flip".to_string()];
+
+        let cert = runner.provider_prefix_boundary_close_cert(
+            &mut call,
+            &handler_path,
+            &markers,
+            permission,
+        );
+
+        assert_eq!(cert, None);
+        assert_eq!(
+            runner
+                .stats
+                .resume_marker_provider_prefix_boundary_reject_carry_after_frame,
+            1
+        );
+        assert_eq!(
+            runner
+                .stats
+                .resume_marker_provider_prefix_boundary_legacy_fallbacks,
+            1
+        );
+    }
+
+    #[test]
+    fn provider_prefix_boundary_close_rejects_blocked_boundary() {
+        let program = Program::default();
+        let mut runner = provider_prefix_boundary_runner(&program, &permission_test_path());
+        let permission = provider_prefix_boundary_permission();
+        let mut call = provider_prefix_boundary_call(true, permission_test_path());
+        let markers = Vec::new();
+        let handler_path = vec!["flip".to_string()];
+
+        let cert = runner.provider_prefix_boundary_close_cert(
+            &mut call,
+            &handler_path,
+            &markers,
+            permission,
+        );
+
+        assert_eq!(cert, None);
+        assert_eq!(
+            runner
+                .stats
+                .resume_marker_provider_prefix_boundary_reject_blocked,
+            1
+        );
+        assert_eq!(
+            runner
+                .stats
+                .resume_marker_provider_prefix_boundary_legacy_fallbacks,
+            1
+        );
+    }
+
+    #[test]
     fn provider_env_frame_is_shadowed_by_later_marker_scope() {
         let provider_env = provider_env_fixture();
         let program = Program::default();
@@ -10771,6 +10944,68 @@ mod tests {
 
     fn permission_test_path() -> Vec<String> {
         vec!["flip".to_string(), "coin".to_string()]
+    }
+
+    fn provider_prefix_boundary_permission() -> RuntimeEvidenceProviderGrantPermission {
+        RuntimeEvidenceOperationVisibility::provider_grant(7)
+            .provider_grant_permission()
+            .unwrap()
+    }
+
+    fn provider_prefix_boundary_call(
+        blocked: bool,
+        request_path: Vec<String>,
+    ) -> EvidenceDirectTailResumptive {
+        provider_prefix_boundary_call_with_boundary(blocked, request_path, vec!["flip".to_string()])
+    }
+
+    fn provider_prefix_boundary_call_with_boundary(
+        blocked: bool,
+        request_path: Vec<String>,
+        boundary_path: Vec<String>,
+    ) -> EvidenceDirectTailResumptive {
+        let visibility = RuntimeEvidenceOperationVisibility::provider_grant(7);
+        let mut hygiene = EvidenceSignalHygiene::new().with_operation_visibility(Some(visibility));
+        assert!(hygiene.push_guard_id(EvidenceGuardId(4)));
+        hygiene.set_handler_boundary(EvidenceHandlerBoundary {
+            id: EvidenceGuardId(4),
+            path: boundary_path,
+            blocked,
+        });
+        EvidenceDirectTailResumptive::with_hygiene(
+            ExprId(20),
+            shared_path(&request_path),
+            shared(RuntimeEvidenceValue::Unit),
+            hygiene,
+        )
+    }
+
+    fn provider_prefix_boundary_runner<'a>(
+        program: &'a Program,
+        provider_family: &[String],
+    ) -> RuntimeEvidenceRunner<'a> {
+        let plan = EvidenceVmPlan {
+            summary: EvidenceVmSummary::default(),
+            handlers: Vec::new(),
+            operations: Vec::new(),
+            functions: Vec::new(),
+            values: Vec::new(),
+            objects: EvidenceVmObjectPlan {
+                handlers: vec![EvidenceVmHandlerObjectPlan {
+                    id: 7,
+                    capability_id: crate::EvidenceVmHandlerCapId(0),
+                    handler: ExprId(20),
+                    slot_id: 7,
+                    path: provider_family.to_vec(),
+                    arm_body: ExprId(21),
+                    arm_class: EvidenceVmHandlerArmClass::TailResumptive,
+                    continuation_use: EvidenceVmContinuationUsePlan::default(),
+                    definition_env: Vec::new(),
+                }],
+                ..EvidenceVmObjectPlan::default()
+            },
+        };
+        RuntimeEvidenceRunner::new(program, RuntimeEvidenceRunContext::from_plan(&plan))
     }
 
     fn provider_env_fixture() -> RuntimeEvidenceProviderEnv {
