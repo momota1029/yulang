@@ -3873,11 +3873,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             Some(handler_boundary) => call.with_handler_boundary(handler_boundary),
             None => call,
         };
-        self.record_resume_marker_provider_pair_close_candidate(
+        let use_permission_native_close = self.record_resume_marker_provider_pair_close_candidate(
             &mut call,
             &markers,
             resume_plan.as_ref(),
         );
+        if use_permission_native_close {
+            return Ok(EvidenceEvalResult::direct_tail_resumptive(call));
+        }
         Ok(EvidenceEvalResult::direct_tail_resumptive(
             call.close_marker_frame(markers, resume_plan),
         ))
@@ -3888,7 +3891,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         call: &mut EvidenceDirectTailResumptive,
         markers: &[EvidenceValueMarker],
         resume_plan: Option<&EvidenceResumeMarkerPlan>,
-    ) {
+    ) -> bool {
         let Some(permission) = self.provider_guard_boundary_permission(&call.hygiene) else {
             if call.hygiene.provider_grant_permission().is_none() {
                 self.stats
@@ -3903,7 +3906,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.stats
                     .resume_marker_provider_pair_close_reject_other_transform += 1;
             }
-            return;
+            return false;
         };
 
         if resume_plan
@@ -3912,12 +3915,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         {
             self.stats
                 .resume_marker_provider_pair_close_reject_handler_path += 1;
-            return;
+            return false;
         }
         if marker_slice_has_carry_after_frame_add_id(markers) {
             self.stats
                 .resume_marker_provider_pair_close_reject_carry_after_frame += 1;
-            return;
+            return false;
         }
 
         self.stats.resume_marker_provider_pair_close_candidates += 1;
@@ -3927,6 +3930,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         );
         #[cfg(not(debug_assertions))]
         let _ = permission;
+        true
     }
 
     fn close_marker_routed_yield(
