@@ -3270,6 +3270,48 @@ fn run_runtime_evidence_run(
         output.evidence_stats.resume_plan_marker_delta_max_frames
     );
     println!(
+        "  runtime_evidence.resume_plan_provider_delta_candidates: {}",
+        output.evidence_stats.resume_plan_provider_delta_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_provider_delta_direct_tail_candidates: {}",
+        output
+            .evidence_stats
+            .resume_plan_provider_delta_direct_tail_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_provider_delta_resume_pack_candidates: {}",
+        output
+            .evidence_stats
+            .resume_plan_provider_delta_resume_pack_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_provider_delta_unique: {}",
+        output.evidence_stats.resume_plan_provider_delta_unique
+    );
+    println!(
+        "  runtime_evidence.resume_plan_provider_delta_reused: {}",
+        output.evidence_stats.resume_plan_provider_delta_reused
+    );
+    println!(
+        "  runtime_evidence.resume_plan_provider_delta_frames: {}",
+        output.evidence_stats.resume_plan_provider_delta_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_provider_delta_slots: {}",
+        output.evidence_stats.resume_plan_provider_delta_slots
+    );
+    println!(
+        "  runtime_evidence.resume_plan_provider_delta_handler_candidates: {}",
+        output
+            .evidence_stats
+            .resume_plan_provider_delta_handler_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_provider_delta_max_frames: {}",
+        output.evidence_stats.resume_plan_provider_delta_max_frames
+    );
+    println!(
         "  runtime_evidence.resume_pack_candidates: {}",
         output.evidence_stats.resume_pack_candidates
     );

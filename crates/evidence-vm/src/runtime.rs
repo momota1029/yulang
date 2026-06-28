@@ -225,6 +225,15 @@ pub struct RuntimeEvidenceRunStats {
     pub resume_plan_marker_delta_active_add_id_ops: usize,
     pub resume_plan_marker_delta_handler_boundary_ops: usize,
     pub resume_plan_marker_delta_max_frames: usize,
+    pub resume_plan_provider_delta_candidates: usize,
+    pub resume_plan_provider_delta_direct_tail_candidates: usize,
+    pub resume_plan_provider_delta_resume_pack_candidates: usize,
+    pub resume_plan_provider_delta_unique: usize,
+    pub resume_plan_provider_delta_reused: usize,
+    pub resume_plan_provider_delta_frames: usize,
+    pub resume_plan_provider_delta_slots: usize,
+    pub resume_plan_provider_delta_handler_candidates: usize,
+    pub resume_plan_provider_delta_max_frames: usize,
     pub resume_pack_candidates: usize,
     pub resume_pack_thunks_forced: usize,
     pub resume_pack_multi_shot_required: usize,
@@ -1420,6 +1429,40 @@ impl EvidenceMarkerDeltaShadowKey {
             .iter()
             .filter(|frame| frame.handler_path.is_some())
             .count()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct EvidenceProviderDeltaFrameShadowKey {
+    provider_env: RuntimeEvidenceProviderEnv,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+struct EvidenceProviderDeltaShadowKey {
+    frames: Vec<EvidenceProviderDeltaFrameShadowKey>,
+}
+
+impl EvidenceProviderDeltaShadowKey {
+    fn is_empty(&self) -> bool {
+        self.frames.is_empty()
+    }
+
+    fn frame_count(&self) -> usize {
+        self.frames.len()
+    }
+
+    fn slot_count(&self) -> usize {
+        self.frames
+            .iter()
+            .map(|frame| frame.provider_env.provider_count())
+            .sum()
+    }
+
+    fn handler_candidate_count(&self) -> usize {
+        self.frames
+            .iter()
+            .map(|frame| frame.provider_env.candidate_count())
+            .sum()
     }
 }
 
@@ -2965,6 +3008,14 @@ impl EvidenceContinuation {
         key
     }
 
+    fn provider_delta_shadow_key(&self) -> EvidenceProviderDeltaShadowKey {
+        let mut key = EvidenceProviderDeltaShadowKey::default();
+        if let Some(frame) = self.frame() {
+            frame.append_provider_delta_shadow_key(&mut key);
+        }
+        key
+    }
+
     fn record_provider_env_then_compaction_candidates(&self, stats: &mut RuntimeEvidenceRunStats) {
         self.record_provider_env_then_compaction_candidates_with_parent(None, stats)
     }
@@ -3116,6 +3167,39 @@ impl EvidenceContinuation {
 }
 
 impl EvidenceContinuationFrame {
+    fn append_provider_delta_shadow_key(&self, key: &mut EvidenceProviderDeltaShadowKey) {
+        match self {
+            Self::Then { first, second } => {
+                if let Some(frame) = first.frame() {
+                    frame.append_provider_delta_shadow_key(key);
+                }
+                if let Some(frame) = second.frame() {
+                    frame.append_provider_delta_shadow_key(key);
+                }
+            }
+            Self::ProviderEnv { provider_env, next } => {
+                key.frames.push(EvidenceProviderDeltaFrameShadowKey {
+                    provider_env: provider_env.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_provider_delta_shadow_key(key);
+                }
+            }
+            Self::MarkerFrame { next, .. } => {
+                if let Some(frame) = next.frame() {
+                    frame.append_provider_delta_shadow_key(key);
+                }
+            }
+            _ => {
+                if let Some(next) = self.tail_ref()
+                    && let Some(frame) = next.frame()
+                {
+                    frame.append_provider_delta_shadow_key(key);
+                }
+            }
+        }
+    }
+
     fn append_marker_delta_shadow_key(&self, key: &mut EvidenceMarkerDeltaShadowKey) {
         match self {
             Self::Then { first, second } => {
@@ -4651,6 +4735,7 @@ struct RuntimeEvidenceRunner<'a> {
     active_provider_envs: Vec<RuntimeEvidenceProviderFrame>,
     active_provider_handlers: Vec<u32>,
     marker_delta_shadow_ids: HashMap<EvidenceMarkerDeltaShadowKey, usize>,
+    provider_delta_shadow_ids: HashMap<EvidenceProviderDeltaShadowKey, usize>,
     stdout: String,
     context: RuntimeEvidenceRunContext,
     stats: RuntimeEvidenceRunStats,
@@ -4686,6 +4771,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             active_provider_envs: Vec::new(),
             active_provider_handlers: Vec::new(),
             marker_delta_shadow_ids: HashMap::new(),
+            provider_delta_shadow_ids: HashMap::new(),
             stdout: String::new(),
             context,
             stats,
@@ -6828,6 +6914,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
         let profile = continuation.resume_plan_shadow_profile(routed_yield_handler);
         let marker_delta_key = continuation.marker_delta_shadow_key();
+        let provider_delta_key = continuation.provider_delta_shadow_key();
         self.stats.resume_plan_shadow_eval_frames += profile.eval_frames;
         self.stats.resume_plan_shadow_then_frames += profile.then_frames;
         self.stats.resume_plan_shadow_catch_boundaries += profile.catch_boundaries;
@@ -6857,6 +6944,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.record_resume_plan_request_delta_shadow(
             profile,
             marker_delta_key,
+            provider_delta_key,
             direct_tail,
             provider_dirty_add_id,
         );
@@ -6866,6 +6954,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         profile: EvidenceResumePlanShadowProfile,
         marker_delta_key: EvidenceMarkerDeltaShadowKey,
+        provider_delta_key: EvidenceProviderDeltaShadowKey,
         direct_tail: bool,
         provider_dirty_add_id: bool,
     ) {
@@ -6908,6 +6997,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 .resume_plan_shadow_request_delta_provider_dirty_add_id += 1;
         }
         self.record_resume_plan_marker_delta_shadow(marker_delta_key, direct_tail);
+        self.record_resume_plan_provider_delta_shadow(provider_delta_key, direct_tail);
     }
 
     fn record_resume_plan_marker_delta_shadow(
@@ -6940,6 +7030,38 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let id = self.marker_delta_shadow_ids.len();
         self.marker_delta_shadow_ids.insert(key, id);
         self.stats.resume_plan_marker_delta_unique += 1;
+    }
+
+    fn record_resume_plan_provider_delta_shadow(
+        &mut self,
+        key: EvidenceProviderDeltaShadowKey,
+        direct_tail: bool,
+    ) {
+        if key.is_empty() {
+            return;
+        }
+
+        self.stats.resume_plan_provider_delta_candidates += 1;
+        if direct_tail {
+            self.stats.resume_plan_provider_delta_direct_tail_candidates += 1;
+        } else {
+            self.stats.resume_plan_provider_delta_resume_pack_candidates += 1;
+        }
+        self.stats.resume_plan_provider_delta_frames += key.frame_count();
+        self.stats.resume_plan_provider_delta_slots += key.slot_count();
+        self.stats.resume_plan_provider_delta_handler_candidates += key.handler_candidate_count();
+        self.stats.resume_plan_provider_delta_max_frames = self
+            .stats
+            .resume_plan_provider_delta_max_frames
+            .max(key.frame_count());
+
+        if self.provider_delta_shadow_ids.contains_key(&key) {
+            self.stats.resume_plan_provider_delta_reused += 1;
+            return;
+        }
+        let id = self.provider_delta_shadow_ids.len();
+        self.provider_delta_shadow_ids.insert(key, id);
+        self.stats.resume_plan_provider_delta_unique += 1;
     }
 
     fn record_provider_env_foreign_later_grant_shape_profile(
@@ -14802,6 +14924,11 @@ mod tests {
         assert_eq!(marker_delta.frame_count(), 1);
         assert_eq!(marker_delta.active_add_id_ops(), 1);
         assert_eq!(marker_delta.handler_boundary_ops(), 0);
+
+        let provider_delta = continuation.provider_delta_shadow_key();
+        assert_eq!(provider_delta.frame_count(), 1);
+        assert_eq!(provider_delta.slot_count(), 1);
+        assert_eq!(provider_delta.handler_candidate_count(), 1);
     }
 
     #[test]

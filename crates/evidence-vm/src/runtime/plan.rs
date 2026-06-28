@@ -391,7 +391,7 @@ impl RuntimeEvidenceProviderGrantPermission {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub(super) struct RuntimeEvidenceProviderEnv {
     providers: SmallVec<[RuntimeEvidenceEnvProvider; 2]>,
 }
@@ -451,7 +451,7 @@ impl RuntimeEvidenceProviderEnv {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct RuntimeEvidenceEnvProvider {
     slot_id: u32,
     handler_ids: SmallVec<[u32; 2]>,
