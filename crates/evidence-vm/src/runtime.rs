@@ -1598,6 +1598,13 @@ impl EvidenceRequestDeltaPlan {
             .filter(|frame| matches!(frame.kind, EvidenceRequestDeltaFrameKind::NoRoutedHandler))
             .count()
     }
+
+    fn is_foreign_pass_through_only(&self) -> bool {
+        self.frame_count() > 0
+            && self.same_handler_count() == 0
+            && self.no_routed_handler_count() == 0
+            && self.foreign_handler_count() == self.frame_count()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8408,6 +8415,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) {
         self.stats.scope_plan_candidates += 1;
         self.stats.scope_plan_weighted_resume_steps += resume_profile.estimated_resume_steps();
+        self.record_scope_plan_foreign_catch_shadow(scope_plan, request_delta, resume_profile);
         match scope_plan {
             EvidenceScopePlanShadow::Planned(profile) => {
                 self.stats.scope_plan_planned += 1;
@@ -8441,6 +8449,47 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.stats.scope_plan_root_marker_mismatch += 1;
             }
         }
+    }
+
+    fn record_scope_plan_foreign_catch_shadow(
+        &mut self,
+        scope_plan: EvidenceScopePlanShadow,
+        request_delta: Option<EvidenceRequestDeltaId>,
+        resume_profile: EvidenceResumePlanShadowProfile,
+    ) {
+        self.stats.scope_plan_foreign_catch_candidates += 1;
+        let EvidenceScopePlanShadow::Planned(_) = scope_plan else {
+            self.stats
+                .scope_plan_foreign_catch_reject_root_marker_mismatch += 1;
+            return;
+        };
+        if resume_profile.ref_set_boundaries > 0 {
+            self.stats.scope_plan_foreign_catch_reject_ref_set += 1;
+            return;
+        }
+        let Some(request_delta) = request_delta else {
+            self.stats
+                .scope_plan_foreign_catch_reject_missing_request_delta += 1;
+            return;
+        };
+        let request_delta = &self.request_delta_plans[request_delta.0];
+        if request_delta.same_handler_count() > 0 {
+            self.stats.scope_plan_foreign_catch_reject_same_handler += 1;
+        }
+        if request_delta.no_routed_handler_count() > 0 {
+            self.stats.scope_plan_foreign_catch_reject_no_routed += 1;
+        }
+        if !request_delta.is_foreign_pass_through_only() {
+            return;
+        }
+
+        self.stats.scope_plan_foreign_catch_ready += 1;
+        self.stats.scope_plan_foreign_catch_boundaries += request_delta.frame_count();
+        self.stats
+            .scope_plan_foreign_catch_signal_passthrough_boundaries += request_delta.frame_count();
+        self.stats.scope_plan_foreign_catch_value_resume_boundaries += request_delta.frame_count();
+        self.stats
+            .scope_plan_foreign_catch_legacy_materialize_fallback_available += 1;
     }
 
     fn record_resume_plan_eval_delta_plan(
@@ -17182,6 +17231,37 @@ mod tests {
                 root_marker_match: true,
             })
         );
+    }
+
+    #[test]
+    fn request_delta_identifies_foreign_pass_through_boundaries() {
+        let outer = ExprId(12);
+        let routed = ExprId(13);
+        let continuation = EvidenceContinuation::catch_body(
+            outer,
+            empty_catch_arms(),
+            Env::new(),
+            EvidenceContinuation::catch_body(
+                ExprId(14),
+                empty_catch_arms(),
+                Env::new(),
+                EvidenceContinuation::identity(),
+            ),
+        );
+
+        let foreign_delta =
+            EvidenceRequestDeltaPlan::from_continuation(&continuation, Some(routed));
+        assert_eq!(foreign_delta.frame_count(), 2);
+        assert_eq!(foreign_delta.foreign_handler_count(), 2);
+        assert!(foreign_delta.is_foreign_pass_through_only());
+
+        let same_delta = EvidenceRequestDeltaPlan::from_continuation(&continuation, Some(outer));
+        assert_eq!(same_delta.same_handler_count(), 1);
+        assert!(!same_delta.is_foreign_pass_through_only());
+
+        let no_routed_delta = EvidenceRequestDeltaPlan::from_continuation(&continuation, None);
+        assert_eq!(no_routed_delta.no_routed_handler_count(), 2);
+        assert!(!no_routed_delta.is_foreign_pass_through_only());
     }
 
     #[test]

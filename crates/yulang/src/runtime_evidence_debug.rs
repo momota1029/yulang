@@ -1168,6 +1168,66 @@ pub(crate) fn print_run_report(
             .scope_plan_legacy_tree_fallback_available
     );
     println!(
+        "  runtime_evidence.scope_plan_foreign_catch_candidates: {}",
+        output.evidence_stats.scope_plan_foreign_catch_candidates
+    );
+    println!(
+        "  runtime_evidence.scope_plan_foreign_catch_ready: {}",
+        output.evidence_stats.scope_plan_foreign_catch_ready
+    );
+    println!(
+        "  runtime_evidence.scope_plan_foreign_catch_boundaries: {}",
+        output.evidence_stats.scope_plan_foreign_catch_boundaries
+    );
+    println!(
+        "  runtime_evidence.scope_plan_foreign_catch_signal_passthrough_boundaries: {}",
+        output
+            .evidence_stats
+            .scope_plan_foreign_catch_signal_passthrough_boundaries
+    );
+    println!(
+        "  runtime_evidence.scope_plan_foreign_catch_value_resume_boundaries: {}",
+        output
+            .evidence_stats
+            .scope_plan_foreign_catch_value_resume_boundaries
+    );
+    println!(
+        "  runtime_evidence.scope_plan_foreign_catch_legacy_materialize_fallback_available: {}",
+        output
+            .evidence_stats
+            .scope_plan_foreign_catch_legacy_materialize_fallback_available
+    );
+    println!(
+        "  runtime_evidence.scope_plan_foreign_catch_reject_root_marker_mismatch: {}",
+        output
+            .evidence_stats
+            .scope_plan_foreign_catch_reject_root_marker_mismatch
+    );
+    println!(
+        "  runtime_evidence.scope_plan_foreign_catch_reject_missing_request_delta: {}",
+        output
+            .evidence_stats
+            .scope_plan_foreign_catch_reject_missing_request_delta
+    );
+    println!(
+        "  runtime_evidence.scope_plan_foreign_catch_reject_same_handler: {}",
+        output
+            .evidence_stats
+            .scope_plan_foreign_catch_reject_same_handler
+    );
+    println!(
+        "  runtime_evidence.scope_plan_foreign_catch_reject_no_routed: {}",
+        output
+            .evidence_stats
+            .scope_plan_foreign_catch_reject_no_routed
+    );
+    println!(
+        "  runtime_evidence.scope_plan_foreign_catch_reject_ref_set: {}",
+        output
+            .evidence_stats
+            .scope_plan_foreign_catch_reject_ref_set
+    );
+    println!(
         "  runtime_evidence.resume_plan_exec_shadow_checks: {}",
         output.evidence_stats.resume_plan_exec_shadow_checks
     );
