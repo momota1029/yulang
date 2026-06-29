@@ -10799,11 +10799,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     ..
                 } => {
                     self.stats.thunk_force_expr += 1;
+                    let body = *body;
+                    if provider_env.is_empty() {
+                        let mut env = self.clone_env(env);
+                        return self.eval_expr_result(body, &mut env);
+                    }
                     let provider_env = provider_env.clone();
                     self.observe_provider_env(&provider_env);
                     self.with_provider_env(provider_env, |runner| {
                         let mut env = runner.clone_env(env);
-                        runner.eval_expr_result(*body, &mut env)
+                        runner.eval_expr_result(body, &mut env)
                     })
                 }
                 RuntimeEvidenceThunk::Effect {
