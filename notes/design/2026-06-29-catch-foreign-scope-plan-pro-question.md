@@ -674,3 +674,48 @@ Reading:
   lane for the representative hot paths.
 - This is still not a semantic executor. It proves the target surface is coherent enough to try a
   narrow executor under a legacy fallback/shadow comparison.
+
+## Implementation note: direct-tail CatchForeign delta append
+
+A first runtime slice now routes direct-tail foreign catch materialization through a named
+`CatchForeignBoundaryDelta` helper. It still materializes a normal `CatchBody` continuation for the
+value-resume side, so this is not yet the full segment executor.
+
+The useful change is narrower:
+
+```text
+normal release:
+  skip the diagnostic provider-pair append probe for this foreign-catch direct-tail path
+
+debug / deep-profile:
+  keep the probe enabled
+```
+
+Normal profile:
+
+```text
+nondet:
+  catch_foreign_boundary_delta_direct_tail_appends: 840
+  catch_foreign_boundary_delta_direct_tail_scope_blockers: 420
+  catch_foreign_boundary_delta_direct_tail_probe_enabled: 0
+  catch_foreign_boundary_delta_direct_tail_probe_skipped: 420
+  runtime_evidence_execute: 8.4ms - 9.4ms in the sampled runs
+
+showcase:
+  catch_foreign_boundary_delta_direct_tail_appends: 1644
+  catch_foreign_boundary_delta_direct_tail_scope_blockers: 822
+  catch_foreign_boundary_delta_direct_tail_probe_enabled: 0
+  catch_foreign_boundary_delta_direct_tail_probe_skipped: 822
+  runtime_evidence_execute: 20.5ms - 21.0ms in the sampled runs
+```
+
+Deep profile keeps the old probe visible. For `nondet`, the probe reports `provider_pair: 420` and
+`reject_handler_path: 420`, with compare-control still matching.
+
+Reading:
+
+- This is a small runtime cleanup, not the full `CatchBoundarySegment` executor.
+- The remaining large boundary is still the scope-preserving `Then` / value-resume `CatchBody`
+  materialization.
+- A larger executor should keep the same invariant: signal side passes through the foreign catch,
+  value side retains full `CatchBody` behavior.

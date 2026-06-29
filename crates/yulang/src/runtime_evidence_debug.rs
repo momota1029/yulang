@@ -1322,6 +1322,30 @@ pub(crate) fn print_run_report(
             .scope_plan_catch_foreign_boundary_delta_value_resume_mismatch
     );
     println!(
+        "  runtime_evidence.catch_foreign_boundary_delta_direct_tail_appends: {}",
+        output
+            .evidence_stats
+            .catch_foreign_boundary_delta_direct_tail_appends
+    );
+    println!(
+        "  runtime_evidence.catch_foreign_boundary_delta_direct_tail_scope_blockers: {}",
+        output
+            .evidence_stats
+            .catch_foreign_boundary_delta_direct_tail_scope_blockers
+    );
+    println!(
+        "  runtime_evidence.catch_foreign_boundary_delta_direct_tail_probe_enabled: {}",
+        output
+            .evidence_stats
+            .catch_foreign_boundary_delta_direct_tail_probe_enabled
+    );
+    println!(
+        "  runtime_evidence.catch_foreign_boundary_delta_direct_tail_probe_skipped: {}",
+        output
+            .evidence_stats
+            .catch_foreign_boundary_delta_direct_tail_probe_skipped
+    );
+    println!(
         "  runtime_evidence.scope_plan_foreign_catch_reject_root_marker_mismatch: {}",
         output
             .evidence_stats

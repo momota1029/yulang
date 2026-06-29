@@ -6623,6 +6623,65 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         call
     }
 
+    fn append_direct_tail_foreign_catch_boundary_delta(
+        &mut self,
+        mut call: EvidenceDirectTailResumptive,
+        tail: EvidenceContinuation,
+    ) -> EvidenceDirectTailResumptive {
+        self.stats.catch_foreign_boundary_delta_direct_tail_appends += 1;
+        if !tail.is_identity()
+            && let Some(blocker) = call.continuation.append_scope_blocker_info()
+        {
+            self.stats
+                .catch_foreign_boundary_delta_direct_tail_scope_blockers += 1;
+            if self.should_collect_runtime_breakdown_stats() {
+                self.stats
+                    .catch_foreign_boundary_delta_direct_tail_probe_enabled += 1;
+                if let EvidenceAppendScopeBlockerInfo::MarkerFrame { has_handler_path } = blocker {
+                    self.record_direct_tail_permission_boundary_append_candidate(
+                        &call,
+                        has_handler_path,
+                    );
+                }
+            } else {
+                self.stats
+                    .catch_foreign_boundary_delta_direct_tail_probe_skipped += 1;
+            }
+            record_continuation_append(
+                &mut self.stats,
+                EvidenceContinuationAppendSource::DirectTail,
+            );
+            if self.should_collect_runtime_breakdown_stats() {
+                self.stats.continuation_append_steps += 1;
+                record_continuation_append_then(
+                    &mut self.stats,
+                    EvidenceContinuationAppendSource::DirectTail,
+                );
+                record_continuation_append_blocker(
+                    &mut self.stats,
+                    EvidenceContinuationAppendSource::DirectTail,
+                    blocker.blocker(),
+                );
+            }
+            call.continuation =
+                EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+                    first: call.continuation,
+                    second: tail,
+                }));
+            return call;
+        }
+        record_continuation_append(
+            &mut self.stats,
+            EvidenceContinuationAppendSource::DirectTail,
+        );
+        call.continuation = call.continuation.then_counted(
+            tail,
+            &mut self.stats,
+            EvidenceContinuationAppendSource::DirectTail,
+        );
+        call
+    }
+
     fn fresh_guard_id(&mut self) -> EvidenceGuardId {
         let id = EvidenceGuardId(self.next_guard_id);
         self.next_guard_id += 1;
@@ -11847,7 +11906,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     return self.continue_result(result, next);
                 }
                 (
-                    self.append_direct_tail_continuation(
+                    self.append_direct_tail_foreign_catch_boundary_delta(
                         call,
                         EvidenceContinuation::catch_body(
                             catch_expr,
@@ -12939,7 +12998,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 } else {
                     let env = self.clone_env(env);
                     Ok(EvidenceEvalResult::direct_tail_resumptive(
-                        self.append_direct_tail_continuation(
+                        self.append_direct_tail_foreign_catch_boundary_delta(
                             call,
                             EvidenceContinuation::catch_body(
                                 catch_expr,
