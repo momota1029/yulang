@@ -350,6 +350,10 @@ enum EvidenceContinuationFrame {
         env: Env,
         next: EvidenceContinuation,
     },
+    CatchForeignBoundarySegment {
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+        next: EvidenceContinuation,
+    },
     MarkerFrame {
         markers: Rc<[EvidenceValueMarker]>,
         activate_add_ids: bool,
@@ -1288,6 +1292,16 @@ impl EvidenceResumeScopedTraceBuilder {
                     self.append_frame(scope, frame, routed_yield_handler);
                 }
             }
+            EvidenceContinuationFrame::CatchForeignBoundarySegment { boundaries, next } => {
+                for _ in boundaries.iter() {
+                    let index = self.cursors[scope].request;
+                    self.cursors[scope].request += 1;
+                    self.push_step(scope, EvidenceResumeScopeStep::Request(index));
+                }
+                if let Some(frame) = next.frame() {
+                    self.append_frame(scope, frame, routed_yield_handler);
+                }
+            }
             EvidenceContinuationFrame::MarkerFrame { next, .. } => {
                 let index = self.cursors[scope].marker;
                 self.cursors[scope].marker += 1;
@@ -1615,6 +1629,19 @@ enum EvidenceCatchBoundarySignalClass {
 }
 
 impl EvidenceCatchBoundaryDeltaPlan {
+    fn foreign_pass_through(
+        catch_expr: ExprId,
+        arms: Rc<[control_vm::CatchArm]>,
+        env: Env,
+    ) -> Self {
+        Self {
+            mode: EvidenceCatchBoundaryMode::ForeignPassThrough,
+            catch_expr,
+            arms,
+            env,
+        }
+    }
+
     fn from_request_delta_frame(frame: &EvidenceRequestDeltaFramePlan) -> Self {
         Self {
             mode: EvidenceCatchBoundaryMode::from_request_delta_kind(frame.kind),
@@ -3555,6 +3582,32 @@ impl EvidenceContinuation {
         }))
     }
 
+    fn catch_foreign_boundary_segment(
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+        next: Self,
+    ) -> Self {
+        if boundaries.is_empty() {
+            return next;
+        }
+        Self::Frame(Rc::new(
+            EvidenceContinuationFrame::CatchForeignBoundarySegment { boundaries, next },
+        ))
+    }
+
+    fn materialize_catch_boundaries(
+        boundaries: &[EvidenceCatchBoundaryDeltaPlan],
+        next: Self,
+    ) -> Self {
+        boundaries.iter().rev().fold(next, |next, boundary| {
+            Self::catch_body(
+                boundary.catch_expr,
+                boundary.arms.clone(),
+                boundary.env.clone(),
+                next,
+            )
+        })
+    }
+
     fn marker_frame(
         markers: Rc<[EvidenceValueMarker]>,
         activate_add_ids: bool,
@@ -4078,6 +4131,9 @@ impl EvidenceContinuationFrame {
     fn starts_with_foreign_catch_boundary(&self, routed_yield_handler: Option<ExprId>) -> bool {
         match (self, routed_yield_handler) {
             (Self::CatchBody { catch_expr, .. }, Some(handler)) => *catch_expr != handler,
+            (Self::CatchForeignBoundarySegment { boundaries, .. }, Some(handler)) => boundaries
+                .first()
+                .is_some_and(|boundary| boundary.catch_expr != handler),
             _ => false,
         }
     }
@@ -4186,6 +4242,25 @@ impl EvidenceContinuationFrame {
                     next.resume_plan_shadow_profile(routed_yield_handler),
                 )
             }
+            Self::CatchForeignBoundarySegment { boundaries, next } => {
+                let mut profile = EvidenceResumePlanShadowProfile {
+                    catch_boundaries: boundaries.len(),
+                    ..EvidenceResumePlanShadowProfile::default()
+                };
+                for boundary in boundaries.iter() {
+                    match routed_yield_handler {
+                        None => profile.catch_no_routed_handler += 1,
+                        Some(handler) if handler == boundary.catch_expr => {
+                            profile.catch_same_handler += 1;
+                        }
+                        Some(_) => profile.catch_foreign_handler += 1,
+                    }
+                }
+                merge_resume_plan_shadow_profile(
+                    profile,
+                    next.resume_plan_shadow_profile(routed_yield_handler),
+                )
+            }
             Self::MarkerFrame {
                 markers,
                 activate_add_ids,
@@ -4257,6 +4332,7 @@ impl EvidenceContinuationFrame {
                 }
             }
             Self::CatchBody { next, .. }
+            | Self::CatchForeignBoundarySegment { next, .. }
             | Self::MarkerFrame { next, .. }
             | Self::ProviderEnv { next, .. } => {
                 if let Some(frame) = next.frame() {
@@ -4578,6 +4654,15 @@ impl EvidenceContinuationFrame {
                     frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
                 }
             }
+            Self::CatchForeignBoundarySegment { boundaries, next } => {
+                for _ in boundaries.iter() {
+                    steps.push(EvidenceResumePlanStep::Request(cursor.request));
+                    cursor.request += 1;
+                }
+                if let Some(frame) = next.frame() {
+                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                }
+            }
             Self::MarkerFrame { next, .. } => {
                 steps.push(EvidenceResumePlanStep::Marker(cursor.marker));
                 cursor.marker += 1;
@@ -4642,6 +4727,26 @@ impl EvidenceContinuationFrame {
                     frame.append_request_delta_plan(frames, routed_yield_handler);
                 }
             }
+            Self::CatchForeignBoundarySegment { boundaries, next } => {
+                for boundary in boundaries.iter() {
+                    let kind = match routed_yield_handler {
+                        None => EvidenceRequestDeltaFrameKind::NoRoutedHandler,
+                        Some(handler) if handler == boundary.catch_expr => {
+                            EvidenceRequestDeltaFrameKind::SameHandler
+                        }
+                        Some(_) => EvidenceRequestDeltaFrameKind::ForeignHandler,
+                    };
+                    frames.push(EvidenceRequestDeltaFramePlan {
+                        kind,
+                        catch_expr: boundary.catch_expr,
+                        arms: boundary.arms.clone(),
+                        env: boundary.env.clone(),
+                    });
+                }
+                if let Some(frame) = next.frame() {
+                    frame.append_request_delta_plan(frames, routed_yield_handler);
+                }
+            }
             Self::MarkerFrame { next, .. } | Self::ProviderEnv { next, .. } => {
                 if let Some(frame) = next.frame() {
                     frame.append_request_delta_plan(frames, routed_yield_handler);
@@ -4699,6 +4804,13 @@ impl EvidenceContinuationFrame {
                 };
                 merge_direct_tail_segment_profile(profile, next.direct_tail_segment_profile())
             }
+            Self::CatchForeignBoundarySegment { boundaries, next } => {
+                let profile = EvidenceDirectTailSegmentProfile {
+                    request_boundaries: boundaries.len(),
+                    ..EvidenceDirectTailSegmentProfile::default()
+                };
+                merge_direct_tail_segment_profile(profile, next.direct_tail_segment_profile())
+            }
             Self::RefSetHandleResult { .. } | Self::RefSetHandleValueResult { .. } => {
                 EvidenceDirectTailSegmentProfile {
                     request_boundaries: 1,
@@ -4751,6 +4863,27 @@ impl EvidenceContinuationFrame {
                     next.request_boundary_profile(routed_yield_handler, stats)
                 }
             },
+            EvidenceContinuationFrame::CatchForeignBoundarySegment { boundaries, next } => {
+                match routed_yield_handler {
+                    None => {
+                        stats.has_request_boundary_catch_no_routed_handler += 1;
+                        EvidenceRequestBoundaryProfile::CatchNoRoutedHandler
+                    }
+                    Some(handler)
+                        if boundaries
+                            .iter()
+                            .any(|boundary| boundary.catch_expr == handler) =>
+                    {
+                        stats.has_request_boundary_catch_same_handler += 1;
+                        EvidenceRequestBoundaryProfile::CatchSameHandler
+                    }
+                    Some(_) => {
+                        stats.has_request_boundary_catch_foreign_handler_recurse +=
+                            boundaries.len();
+                        next.request_boundary_profile(routed_yield_handler, stats)
+                    }
+                }
+            }
             EvidenceContinuationFrame::RefSetHandleResult { .. }
             | EvidenceContinuationFrame::RefSetHandleValueResult { .. } => {
                 stats.has_request_boundary_ref_set += 1;
@@ -4793,6 +4926,23 @@ impl EvidenceContinuationFrame {
         stats: &mut RuntimeEvidenceRunStats,
         source: EvidenceContinuationAppendSource,
     ) -> Result<(), EvidenceContinuation> {
+        if let Self::CatchForeignBoundarySegment { boundaries, next } = self
+            && next.is_identity()
+            && let EvidenceContinuation::Frame(tail_frame) = &tail
+            && let EvidenceContinuationFrame::CatchForeignBoundarySegment {
+                boundaries: tail_boundaries,
+                next: tail_next,
+            } = tail_frame.as_ref()
+            && tail_next.is_identity()
+        {
+            let merged_len = boundaries.len() + tail_boundaries.len();
+            let mut merged = Vec::with_capacity(merged_len);
+            merged.extend(boundaries.iter().cloned());
+            merged.extend(tail_boundaries.iter().cloned());
+            *boundaries = Rc::from(merged.into_boxed_slice());
+            stats.catch_foreign_boundary_segment_merged_boundaries += tail_boundaries.len();
+            return Ok(());
+        }
         let blocker = self.append_scope_blocker();
         let Some(tail_slot) = self.tail_mut() else {
             if let Some(blocker) = blocker {
@@ -5377,6 +5527,7 @@ impl EvidenceContinuationFrame {
             | EvidenceContinuationFrame::ApplyAdapterResult { next, .. }
             | EvidenceContinuationFrame::CaseScrutinee { next, .. }
             | EvidenceContinuationFrame::CatchBody { next, .. }
+            | EvidenceContinuationFrame::CatchForeignBoundarySegment { next, .. }
             | EvidenceContinuationFrame::TupleItems { next, .. }
             | EvidenceContinuationFrame::RecordSpread { next, .. }
             | EvidenceContinuationFrame::RecordFields { next, .. }
@@ -5414,6 +5565,7 @@ impl EvidenceContinuationFrame {
             | EvidenceContinuationFrame::ApplyAdapterResult { next, .. }
             | EvidenceContinuationFrame::CaseScrutinee { next, .. }
             | EvidenceContinuationFrame::CatchBody { next, .. }
+            | EvidenceContinuationFrame::CatchForeignBoundarySegment { next, .. }
             | EvidenceContinuationFrame::TupleItems { next, .. }
             | EvidenceContinuationFrame::RecordSpread { next, .. }
             | EvidenceContinuationFrame::RecordFields { next, .. }
@@ -6626,12 +6778,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn append_direct_tail_foreign_catch_boundary_delta(
         &mut self,
         mut call: EvidenceDirectTailResumptive,
-        tail: EvidenceContinuation,
+        boundary: EvidenceCatchBoundaryDeltaPlan,
     ) -> EvidenceDirectTailResumptive {
         self.stats.catch_foreign_boundary_delta_direct_tail_appends += 1;
-        if !tail.is_identity()
-            && let Some(blocker) = call.continuation.append_scope_blocker_info()
-        {
+        self.stats
+            .catch_foreign_boundary_segment_direct_tail_appends += 1;
+        let tail = EvidenceContinuation::catch_foreign_boundary_segment(
+            Rc::from(vec![boundary].into_boxed_slice()),
+            EvidenceContinuation::identity(),
+        );
+        if let Some(blocker) = call.continuation.append_scope_blocker_info() {
             self.stats
                 .catch_foreign_boundary_delta_direct_tail_scope_blockers += 1;
             if self.should_collect_runtime_breakdown_stats() {
@@ -11334,6 +11490,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 )?;
                 self.continue_result(result, next)
             }
+            EvidenceContinuationFrame::CatchForeignBoundarySegment { boundaries, next } => {
+                self.resume_catch_foreign_boundary_segment(boundaries, next, value)
+            }
             EvidenceContinuationFrame::MarkerFrame {
                 markers,
                 activate_add_ids,
@@ -11527,6 +11686,146 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
+    fn resume_catch_foreign_boundary_segment(
+        &mut self,
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+        next: EvidenceContinuation,
+        value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.stats.catch_foreign_boundary_segment_resume_entries += 1;
+        let mut result = EvidenceEvalResult::Value(value);
+        for (index, boundary) in boundaries.iter().enumerate() {
+            self.stats.catch_foreign_boundary_segment_resume_boundaries += 1;
+            result = self.continue_catch_body_result(
+                boundary.catch_expr,
+                boundary.arms.clone(),
+                &boundary.env,
+                result,
+            )?;
+            if let EvidenceEvalResult::Effect(_) = result {
+                let rest = EvidenceContinuation::materialize_catch_boundaries(
+                    &boundaries[index + 1..],
+                    next,
+                );
+                self.stats
+                    .catch_foreign_boundary_segment_resume_effect_fallbacks += 1;
+                return self.continue_result(result, rest);
+            }
+        }
+        self.continue_result(result, next)
+    }
+
+    fn continue_direct_tail_resumptive_through_catch_foreign_boundary_segment(
+        &mut self,
+        mut call: EvidenceDirectTailResumptive,
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+        next: EvidenceContinuation,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        for (index, boundary) in boundaries.iter().enumerate() {
+            if call.handler == boundary.catch_expr {
+                let visible = self
+                    .visible_direct_tail_resumptive(boundary.catch_expr, &call, &boundary.arms)
+                    .is_some();
+                self.record_direct_tail_target_catch_boundary(&call, visible);
+                let result = if visible {
+                    self.eval_direct_tail_resumptive_arm(call, &boundary.arms, &boundary.env)?
+                } else {
+                    let request = call.into_request(EvidenceEffectRoute::Unhandled);
+                    EvidenceEvalResult::request(self.defer_catch_body(
+                        boundary.catch_expr,
+                        boundary.arms.clone(),
+                        &boundary.env,
+                        request,
+                    ))
+                };
+                let rest = EvidenceContinuation::catch_foreign_boundary_segment(
+                    Rc::from(boundaries[index + 1..].to_vec().into_boxed_slice()),
+                    next,
+                );
+                return self.continue_result(result, rest);
+            }
+
+            call = self.append_direct_tail_foreign_catch_boundary_delta(call, boundary.clone());
+        }
+
+        self.continue_direct_tail_resumptive_with_continuation(call, next)
+    }
+
+    fn continue_direct_abortive_through_catch_foreign_boundary_segment(
+        &mut self,
+        call: EvidenceDirectAbortive,
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+        next: EvidenceContinuation,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        for (index, boundary) in boundaries.iter().enumerate() {
+            if call.handler == boundary.catch_expr {
+                let result = self.eval_direct_abortive_arm(call, &boundary.arms, &boundary.env)?;
+                let rest = EvidenceContinuation::catch_foreign_boundary_segment(
+                    Rc::from(boundaries[index + 1..].to_vec().into_boxed_slice()),
+                    next,
+                );
+                return self.continue_result(result, rest);
+            }
+        }
+
+        self.continue_direct_abortive_with_continuation(call, next)
+    }
+
+    fn continue_routed_yield_through_catch_foreign_boundary_segment(
+        &mut self,
+        call: EvidenceRoutedYield,
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+        next: EvidenceContinuation,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        for (index, boundary) in boundaries.iter().enumerate() {
+            if call.handler == boundary.catch_expr {
+                let result = self.eval_routed_yield_arm(
+                    call,
+                    boundary.catch_expr,
+                    boundary.arms.clone(),
+                    &boundary.env,
+                )?;
+                let rest = EvidenceContinuation::catch_foreign_boundary_segment(
+                    Rc::from(boundaries[index + 1..].to_vec().into_boxed_slice()),
+                    next,
+                );
+                return self.continue_result(result, rest);
+            }
+        }
+
+        self.continue_routed_yield_with_continuation(call, next)
+    }
+
+    fn continue_generic_request_through_catch_foreign_boundary_segment(
+        &mut self,
+        mut request: EvidenceRequest,
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+        next: EvidenceContinuation,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        for (index, boundary) in boundaries.iter().enumerate() {
+            let result = self.continue_catch_body_result(
+                boundary.catch_expr,
+                boundary.arms.clone(),
+                &boundary.env,
+                EvidenceEvalResult::request(request),
+            )?;
+            match result {
+                EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(next_request)) => {
+                    request = next_request;
+                }
+                result => {
+                    let rest = EvidenceContinuation::catch_foreign_boundary_segment(
+                        Rc::from(boundaries[index + 1..].to_vec().into_boxed_slice()),
+                        next,
+                    );
+                    return self.continue_result(result, rest);
+                }
+            }
+        }
+
+        self.continue_request_with_continuation(request, next)
+    }
+
     fn record_continuation_resume_frame(&mut self, frame: &EvidenceContinuationFrame) {
         match frame {
             EvidenceContinuationFrame::Then { .. } => {
@@ -11550,7 +11849,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceContinuationFrame::CaseScrutinee { .. } => {
                 self.stats.continuation_resume_case_steps += 1;
             }
-            EvidenceContinuationFrame::CatchBody { .. } => {
+            EvidenceContinuationFrame::CatchBody { .. }
+            | EvidenceContinuationFrame::CatchForeignBoundarySegment { .. } => {
                 self.stats.continuation_resume_catch_steps += 1;
             }
             EvidenceContinuationFrame::MarkerFrame { .. } => {
@@ -11694,6 +11994,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 };
                 self.continue_result(result, next)
             }
+            EvidenceContinuationFrame::CatchForeignBoundarySegment { boundaries, next } => self
+                .continue_direct_abortive_through_catch_foreign_boundary_segment(
+                    call, boundaries, next,
+                ),
             EvidenceContinuationFrame::ForceThunk { next, .. }
             | EvidenceContinuationFrame::ForceValueIfThunk { next }
             | EvidenceContinuationFrame::ApplyArg { next, .. }
@@ -11908,15 +12212,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 (
                     self.append_direct_tail_foreign_catch_boundary_delta(
                         call,
-                        EvidenceContinuation::catch_body(
-                            catch_expr,
-                            arms,
-                            env,
-                            EvidenceContinuation::identity(),
-                        ),
+                        EvidenceCatchBoundaryDeltaPlan::foreign_pass_through(catch_expr, arms, env),
                     ),
                     next,
                 )
+            }
+            EvidenceContinuationFrame::CatchForeignBoundarySegment { boundaries, next } => {
+                return self
+                    .continue_direct_tail_resumptive_through_catch_foreign_boundary_segment(
+                        call, boundaries, next,
+                    );
             }
             EvidenceContinuationFrame::MarkerFrame {
                 markers,
@@ -12408,6 +12713,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     )?
                 };
                 return self.continue_result(result, next);
+            }
+            EvidenceContinuationFrame::CatchForeignBoundarySegment { boundaries, next } => {
+                if let Some(handler) = routed_yield_handler {
+                    return self.continue_routed_yield_through_catch_foreign_boundary_segment(
+                        EvidenceRoutedYield::from_request(handler, request),
+                        boundaries,
+                        next,
+                    );
+                }
+                return self.continue_generic_request_through_catch_foreign_boundary_segment(
+                    request, boundaries, next,
+                );
             }
             EvidenceContinuationFrame::MarkerFrame {
                 markers,
@@ -13000,11 +13317,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     Ok(EvidenceEvalResult::direct_tail_resumptive(
                         self.append_direct_tail_foreign_catch_boundary_delta(
                             call,
-                            EvidenceContinuation::catch_body(
-                                catch_expr,
-                                arms,
-                                env,
-                                EvidenceContinuation::identity(),
+                            EvidenceCatchBoundaryDeltaPlan::foreign_pass_through(
+                                catch_expr, arms, env,
                             ),
                         ),
                     ))
@@ -17260,6 +17574,67 @@ mod tests {
     }
 
     #[test]
+    fn catch_foreign_boundary_segment_materializes_in_legacy_order() {
+        let boundaries = Rc::from(
+            vec![
+                catch_foreign_boundary_fixture(ExprId(1)),
+                catch_foreign_boundary_fixture(ExprId(2)),
+            ]
+            .into_boxed_slice(),
+        );
+
+        let continuation = EvidenceContinuation::materialize_catch_boundaries(
+            &boundaries,
+            EvidenceContinuation::identity(),
+        );
+        let Some(EvidenceContinuationFrame::CatchBody {
+            catch_expr, next, ..
+        }) = continuation.into_frame()
+        else {
+            panic!("expected first catch body");
+        };
+        assert_eq!(catch_expr, ExprId(1));
+        let Some(EvidenceContinuationFrame::CatchBody {
+            catch_expr, next, ..
+        }) = next.into_frame()
+        else {
+            panic!("expected second catch body");
+        };
+        assert_eq!(catch_expr, ExprId(2));
+        assert!(next.is_identity());
+    }
+
+    #[test]
+    fn catch_foreign_boundary_segment_merges_adjacent_boundaries() {
+        let first = EvidenceContinuation::catch_foreign_boundary_segment(
+            Rc::from(vec![catch_foreign_boundary_fixture(ExprId(1))].into_boxed_slice()),
+            EvidenceContinuation::identity(),
+        );
+        let second = EvidenceContinuation::catch_foreign_boundary_segment(
+            Rc::from(vec![catch_foreign_boundary_fixture(ExprId(2))].into_boxed_slice()),
+            EvidenceContinuation::identity(),
+        );
+        let mut stats = RuntimeEvidenceRunStats::default();
+
+        let merged = first.then_counted(
+            second,
+            &mut stats,
+            EvidenceContinuationAppendSource::DirectTail,
+        );
+
+        let Some(EvidenceContinuationFrame::CatchForeignBoundarySegment { boundaries, next }) =
+            merged.into_frame()
+        else {
+            panic!("expected merged catch foreign boundary segment");
+        };
+        assert_eq!(boundaries.len(), 2);
+        assert_eq!(boundaries[0].catch_expr, ExprId(1));
+        assert_eq!(boundaries[1].catch_expr, ExprId(2));
+        assert!(next.is_identity());
+        assert_eq!(stats.catch_foreign_boundary_segment_merged_boundaries, 1);
+    }
+
+    #[test]
     fn resume_plan_shadow_profile_splits_boundary_scope_and_provider_lanes() {
         let catch_expr = ExprId(12);
         let markers: Rc<[EvidenceValueMarker]> =
@@ -17867,6 +18242,14 @@ mod tests {
 
     fn empty_catch_arms() -> Rc<[control_vm::CatchArm]> {
         Vec::new().into()
+    }
+
+    fn catch_foreign_boundary_fixture(catch_expr: ExprId) -> EvidenceCatchBoundaryDeltaPlan {
+        EvidenceCatchBoundaryDeltaPlan::foreign_pass_through(
+            catch_expr,
+            empty_catch_arms(),
+            Env::default(),
+        )
     }
 
     fn permission_test_path() -> Vec<String> {

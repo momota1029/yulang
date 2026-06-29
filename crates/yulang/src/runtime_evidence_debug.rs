@@ -2856,6 +2856,42 @@ pub(crate) fn print_run_report(
         output.evidence_stats.catch_boundary_generic_request_signals
     );
     println!(
+        "  runtime_evidence.catch_foreign_boundary_segment_direct_tail_appends: {}",
+        output
+            .evidence_stats
+            .catch_foreign_boundary_segment_direct_tail_appends
+    );
+    println!(
+        "  runtime_evidence.catch_foreign_boundary_segment_merged_boundaries: {}",
+        output
+            .evidence_stats
+            .catch_foreign_boundary_segment_merged_boundaries
+    );
+    println!(
+        "  runtime_evidence.catch_foreign_boundary_segment_resume_entries: {}",
+        output
+            .evidence_stats
+            .catch_foreign_boundary_segment_resume_entries
+    );
+    println!(
+        "  runtime_evidence.catch_foreign_boundary_segment_resume_boundaries: {}",
+        output
+            .evidence_stats
+            .catch_foreign_boundary_segment_resume_boundaries
+    );
+    println!(
+        "  runtime_evidence.catch_foreign_boundary_segment_resume_effect_fallbacks: {}",
+        output
+            .evidence_stats
+            .catch_foreign_boundary_segment_resume_effect_fallbacks
+    );
+    println!(
+        "  runtime_evidence.catch_foreign_boundary_segment_signal_materialize_fallbacks: {}",
+        output
+            .evidence_stats
+            .catch_foreign_boundary_segment_signal_materialize_fallbacks
+    );
+    println!(
         "  runtime_evidence.has_request_boundary_catch_same_handler: {}",
         output
             .evidence_stats

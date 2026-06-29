@@ -719,3 +719,66 @@ Reading:
   materialization.
 - A larger executor should keep the same invariant: signal side passes through the foreign catch,
   value side retains full `CatchBody` behavior.
+
+## Implementation note: CatchForeign boundary segment executor
+
+The next slice introduces a concrete `CatchForeignBoundarySegment` continuation frame. It carries a
+compact sequence of `EvidenceCatchBoundaryDeltaPlan` entries instead of rebuilding a chain of
+ordinary `CatchBody` frames for the value-resume side.
+
+The invariant is intentionally narrow:
+
+```text
+CatchForeignBoundarySegment on value:
+  run each boundary's value-arm semantics in order
+  if a value arm returns an effect, materialize the remaining boundaries to legacy CatchBody frames
+
+CatchForeignBoundarySegment on signal:
+  DirectTailResumptive: pass foreign boundaries by appending their boundary delta to the call
+  DirectAbortive: pass foreign boundaries, handle only the matching handler
+  RoutedYield: pass foreign boundaries, handle only the matching handler
+  GenericRequest: run the existing catch-body request transition per boundary
+```
+
+This is not a general catch-boundary weakening. The segment still preserves full `CatchBody`
+value-resume behavior. For non-modeled escape shapes it can still fall back to legacy
+materialization, though the representative hot paths do not hit that fallback after this slice.
+
+Normal release profile:
+
+```text
+nondet:
+  catch_foreign_boundary_segment_direct_tail_appends: 840
+  catch_foreign_boundary_segment_resume_entries: 840
+  catch_foreign_boundary_segment_resume_boundaries: 840
+  catch_foreign_boundary_segment_resume_effect_fallbacks: 0
+  catch_foreign_boundary_segment_signal_materialize_fallbacks: 0
+  request_continuation_steps: 399
+  runtime_evidence_execute repeat 5: 9.4ms / 9.3ms / 9.0ms / 9.3ms / 8.8ms
+
+showcase:
+  catch_foreign_boundary_segment_direct_tail_appends: 1644
+  catch_foreign_boundary_segment_resume_entries: 1644
+  catch_foreign_boundary_segment_resume_boundaries: 1644
+  catch_foreign_boundary_segment_resume_effect_fallbacks: 0
+  catch_foreign_boundary_segment_signal_materialize_fallbacks: 0
+  request_continuation_steps: 682
+  runtime_evidence_execute repeat 5: 21.1ms / 20.8ms / 21.6ms / 21.8ms / 19.3ms
+```
+
+Deep profile on `bench/nondet_20_discard.yu` keeps the existing shadow checks clean:
+
+```text
+scope_plan_catch_foreign_boundary_delta_signal_mismatch: 0
+scope_plan_catch_foreign_boundary_delta_generic_fallback_mismatch: 0
+scope_plan_catch_foreign_boundary_delta_materialized_shape_mismatch: 0
+scope_plan_catch_foreign_boundary_delta_value_resume_mismatch: 0
+provider_env_foreign_later_grant_naive_mismatch: 0
+```
+
+Reading:
+
+- The segment removes catch-foreign signal materialization from the representative hot path.
+- It halves the generic request continuation steps in the two representative workloads.
+- Runtime does not drop dramatically because the remaining cost is now dominated by the surrounding
+  `Then`, marker, and provider resume structure rather than by catch-foreign materialization alone.
