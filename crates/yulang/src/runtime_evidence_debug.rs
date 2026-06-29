@@ -836,6 +836,10 @@ pub(crate) fn print_run_report(
             .resume_plan_candidate_estimated_resume_steps
     );
     println!(
+        "  runtime_evidence.resume_plan_candidate_with_trace: {}",
+        output.evidence_stats.resume_plan_candidate_with_trace
+    );
+    println!(
         "  runtime_evidence.resume_plan_candidate_with_eval_delta: {}",
         output.evidence_stats.resume_plan_candidate_with_eval_delta
     );
@@ -936,6 +940,10 @@ pub(crate) fn print_run_report(
         output.evidence_stats.resume_plan_cert_reject_not_planned
     );
     println!(
+        "  runtime_evidence.resume_plan_cert_reject_missing_trace: {}",
+        output.evidence_stats.resume_plan_cert_reject_missing_trace
+    );
+    println!(
         "  runtime_evidence.resume_plan_cert_reject_missing_eval_delta: {}",
         output
             .evidence_stats
@@ -1002,6 +1010,42 @@ pub(crate) fn print_run_report(
         output
             .evidence_stats
             .resume_plan_provider_dirty_foreign_scope_plans
+    );
+    println!(
+        "  runtime_evidence.resume_plan_trace_plans: {}",
+        output.evidence_stats.resume_plan_trace_plans
+    );
+    println!(
+        "  runtime_evidence.resume_plan_trace_direct_tail_plans: {}",
+        output.evidence_stats.resume_plan_trace_direct_tail_plans
+    );
+    println!(
+        "  runtime_evidence.resume_plan_trace_resume_pack_plans: {}",
+        output.evidence_stats.resume_plan_trace_resume_pack_plans
+    );
+    println!(
+        "  runtime_evidence.resume_plan_trace_steps: {}",
+        output.evidence_stats.resume_plan_trace_steps
+    );
+    println!(
+        "  runtime_evidence.resume_plan_trace_eval_steps: {}",
+        output.evidence_stats.resume_plan_trace_eval_steps
+    );
+    println!(
+        "  runtime_evidence.resume_plan_trace_request_steps: {}",
+        output.evidence_stats.resume_plan_trace_request_steps
+    );
+    println!(
+        "  runtime_evidence.resume_plan_trace_marker_steps: {}",
+        output.evidence_stats.resume_plan_trace_marker_steps
+    );
+    println!(
+        "  runtime_evidence.resume_plan_trace_provider_steps: {}",
+        output.evidence_stats.resume_plan_trace_provider_steps
+    );
+    println!(
+        "  runtime_evidence.resume_plan_trace_max_steps: {}",
+        output.evidence_stats.resume_plan_trace_max_steps
     );
     println!(
         "  runtime_evidence.resume_plan_shadow_request_delta_candidates: {}",

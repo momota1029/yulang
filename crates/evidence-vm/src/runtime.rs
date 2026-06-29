@@ -882,6 +882,7 @@ impl EvidenceResumePlanShadowProfile {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct EvidenceResumePlanPlannedCandidate {
     eval_frames: usize,
+    trace: Option<EvidenceResumePlanTraceId>,
     eval_delta: Option<EvidenceEvalDeltaId>,
     request: EvidenceResumePlanRequestCandidate,
     request_delta: Option<EvidenceRequestDeltaId>,
@@ -893,6 +894,10 @@ struct EvidenceResumePlanPlannedCandidate {
 }
 
 impl EvidenceResumePlanPlannedCandidate {
+    fn has_trace(&self) -> bool {
+        self.trace.is_some()
+    }
+
     fn has_eval_delta(&self) -> bool {
         self.eval_delta.is_some()
     }
@@ -924,6 +929,78 @@ enum EvidenceResumePlanRequestCandidate {
         no_routed_handler: usize,
         foreign_handler: usize,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct EvidenceResumePlanTraceId(usize);
+
+#[derive(Debug, Clone, PartialEq)]
+struct EvidenceResumePlanTracePlan {
+    steps: Rc<[EvidenceResumePlanStep]>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceResumePlanStep {
+    Eval(usize),
+    Request(usize),
+    Marker(usize),
+    Provider(usize),
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct EvidenceResumePlanTraceCursor {
+    eval: usize,
+    request: usize,
+    marker: usize,
+    provider: usize,
+}
+
+impl EvidenceResumePlanTracePlan {
+    fn from_continuation(
+        continuation: &EvidenceContinuation,
+        routed_yield_handler: Option<ExprId>,
+    ) -> Self {
+        let mut steps = Vec::new();
+        let mut cursor = EvidenceResumePlanTraceCursor::default();
+        if let Some(frame) = continuation.frame() {
+            frame.append_resume_plan_trace(&mut steps, &mut cursor, routed_yield_handler);
+        }
+        Self {
+            steps: Rc::from(steps.into_boxed_slice()),
+        }
+    }
+
+    fn step_count(&self) -> usize {
+        self.steps.len()
+    }
+
+    fn eval_count(&self) -> usize {
+        self.steps
+            .iter()
+            .filter(|step| matches!(step, EvidenceResumePlanStep::Eval(_)))
+            .count()
+    }
+
+    fn request_count(&self) -> usize {
+        self.steps
+            .iter()
+            .filter(|step| matches!(step, EvidenceResumePlanStep::Request(_)))
+            .count()
+    }
+
+    fn marker_count(&self) -> usize {
+        self.steps
+            .iter()
+            .filter(|step| matches!(step, EvidenceResumePlanStep::Marker(_)))
+            .count()
+    }
+
+    fn provider_count(&self) -> usize {
+        self.steps
+            .iter()
+            .filter(|step| matches!(step, EvidenceResumePlanStep::Provider(_)))
+            .count()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1218,6 +1295,7 @@ enum EvidenceResumePlanCandidateReject {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct EvidenceProviderDirtyForeignCatchScopeCert {
+    trace: EvidenceResumePlanTraceId,
     eval_delta: EvidenceEvalDeltaId,
     request_delta: EvidenceRequestDeltaId,
     marker_delta: EvidenceMarkerDeltaId,
@@ -1232,6 +1310,7 @@ struct EvidenceResumePlanId(usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct EvidenceResumePlan {
     kind: EvidenceResumePlanKind,
+    trace: EvidenceResumePlanTraceId,
     eval_delta: EvidenceEvalDeltaId,
     request_delta: EvidenceRequestDeltaId,
     marker_delta: EvidenceMarkerDeltaId,
@@ -1249,6 +1328,7 @@ impl EvidenceResumePlan {
     ) -> Self {
         Self {
             kind: EvidenceResumePlanKind::ProviderDirtyForeignCatchScope,
+            trace: cert.trace,
             eval_delta: cert.eval_delta,
             request_delta: cert.request_delta,
             marker_delta: cert.marker_delta,
@@ -1266,6 +1346,7 @@ enum EvidenceResumePlanExecutionCert {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidenceResumePlanExecutionCertReject {
     NotPlanned,
+    MissingTrace,
     MissingEvalDelta,
     MissingRequestDelta,
     MissingMarkerDelta,
@@ -1279,6 +1360,7 @@ enum EvidenceResumePlanExecutionCertReject {
 
 fn resume_plan_candidate_from_shadow(
     profile: EvidenceResumePlanShadowProfile,
+    trace: Option<EvidenceResumePlanTraceId>,
     eval_delta: Option<EvidenceEvalDeltaId>,
     request_delta: Option<EvidenceRequestDeltaId>,
     marker_delta: Option<EvidenceMarkerDeltaId>,
@@ -1293,6 +1375,7 @@ fn resume_plan_candidate_from_shadow(
     }
     EvidenceResumePlanCandidate::Planned(EvidenceResumePlanPlannedCandidate {
         eval_frames: profile.eval_frames,
+        trace,
         eval_delta,
         request: resume_plan_request_candidate(profile),
         request_delta,
@@ -1318,6 +1401,11 @@ fn resume_plan_execution_cert_from_candidate(
     let EvidenceResumePlanCandidate::Planned(candidate) = candidate else {
         return EvidenceResumePlanExecutionCert::Rejected(
             EvidenceResumePlanExecutionCertReject::NotPlanned,
+        );
+    };
+    let Some(trace) = candidate.trace else {
+        return EvidenceResumePlanExecutionCert::Rejected(
+            EvidenceResumePlanExecutionCertReject::MissingTrace,
         );
     };
     let Some(eval_delta) = candidate.eval_delta else {
@@ -1378,6 +1466,7 @@ fn resume_plan_execution_cert_from_candidate(
     }
     EvidenceResumePlanExecutionCert::ProviderDirtyForeignCatchScope(
         EvidenceProviderDirtyForeignCatchScopeCert {
+            trace,
             eval_delta,
             request_delta,
             marker_delta,
@@ -3897,6 +3986,55 @@ impl EvidenceContinuationFrame {
         }
     }
 
+    fn append_resume_plan_trace(
+        &self,
+        steps: &mut Vec<EvidenceResumePlanStep>,
+        cursor: &mut EvidenceResumePlanTraceCursor,
+        routed_yield_handler: Option<ExprId>,
+    ) {
+        match self {
+            Self::Then { first, second } => {
+                if let Some(frame) = first.frame() {
+                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                }
+                if let Some(frame) = second.frame() {
+                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                }
+            }
+            Self::CatchBody { next, .. } => {
+                steps.push(EvidenceResumePlanStep::Request(cursor.request));
+                cursor.request += 1;
+                if let Some(frame) = next.frame() {
+                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                }
+            }
+            Self::MarkerFrame { next, .. } => {
+                steps.push(EvidenceResumePlanStep::Marker(cursor.marker));
+                cursor.marker += 1;
+                if let Some(frame) = next.frame() {
+                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                }
+            }
+            Self::ProviderEnv { next, .. } => {
+                steps.push(EvidenceResumePlanStep::Provider(cursor.provider));
+                cursor.provider += 1;
+                if let Some(frame) = next.frame() {
+                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                }
+            }
+            Self::RefSetHandleResult { .. } | Self::RefSetHandleValueResult { .. } => {}
+            _ => {
+                steps.push(EvidenceResumePlanStep::Eval(cursor.eval));
+                cursor.eval += 1;
+                if let Some(next) = self.tail_ref()
+                    && let Some(frame) = next.frame()
+                {
+                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                }
+            }
+        }
+    }
+
     fn append_request_delta_plan(
         &self,
         frames: &mut Vec<EvidenceRequestDeltaFramePlan>,
@@ -5222,6 +5360,7 @@ struct RuntimeEvidenceRunner<'a> {
     active_provider_envs: Vec<RuntimeEvidenceProviderFrame>,
     active_provider_handlers: Vec<u32>,
     resume_plans: Vec<EvidenceResumePlan>,
+    resume_plan_traces: Vec<EvidenceResumePlanTracePlan>,
     eval_delta_plans: Vec<EvidenceEvalDeltaPlan>,
     request_delta_plans: Vec<EvidenceRequestDeltaPlan>,
     marker_delta_shadow_ids: HashMap<EvidenceMarkerDeltaShadowKey, EvidenceMarkerDeltaId>,
@@ -5263,6 +5402,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             active_provider_envs: Vec::new(),
             active_provider_handlers: Vec::new(),
             resume_plans: Vec::new(),
+            resume_plan_traces: Vec::new(),
             eval_delta_plans: Vec::new(),
             request_delta_plans: Vec::new(),
             marker_delta_shadow_ids: HashMap::new(),
@@ -7513,7 +7653,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if profile.has_provider_delta() {
             self.stats.resume_plan_shadow_with_provider_delta += 1;
         }
-        let (eval_delta, request_delta, marker_delta, provider_delta) = self
+        let (trace, eval_delta, request_delta, marker_delta, provider_delta) = self
             .record_resume_plan_request_delta_shadow(
                 profile,
                 continuation,
@@ -7526,6 +7666,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.record_resume_plan_candidate(
             resume_plan_candidate_from_shadow(
                 profile,
+                trace,
                 eval_delta,
                 request_delta,
                 marker_delta,
@@ -7554,6 +7695,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.stats.resume_plan_candidate_eval_frames += candidate.eval_frames;
                 self.stats.resume_plan_candidate_estimated_resume_steps +=
                     candidate.estimated_resume_steps;
+                if candidate.has_trace() {
+                    self.stats.resume_plan_candidate_with_trace += 1;
+                }
                 if candidate.has_eval_delta() {
                     self.stats.resume_plan_candidate_with_eval_delta += 1;
                 }
@@ -7642,6 +7786,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     EvidenceResumePlanExecutionCertReject::NotPlanned => {
                         self.stats.resume_plan_cert_reject_not_planned += 1;
                     }
+                    EvidenceResumePlanExecutionCertReject::MissingTrace => {
+                        self.stats.resume_plan_cert_reject_missing_trace += 1;
+                    }
                     EvidenceResumePlanExecutionCertReject::MissingEvalDelta => {
                         self.stats.resume_plan_cert_reject_missing_eval_delta += 1;
                     }
@@ -7708,6 +7855,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         direct_tail: bool,
         provider_dirty_add_id: bool,
     ) -> (
+        Option<EvidenceResumePlanTraceId>,
         Option<EvidenceEvalDeltaId>,
         Option<EvidenceRequestDeltaId>,
         Option<EvidenceMarkerDeltaId>,
@@ -7718,12 +7866,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             Some(EvidenceResumePlanRequestDeltaReject::NoCatchBoundary) => {
                 self.stats
                     .resume_plan_shadow_request_delta_reject_no_catch_boundary += 1;
-                return (None, None, None, None);
+                return (None, None, None, None, None);
             }
             Some(EvidenceResumePlanRequestDeltaReject::RefSetBoundary) => {
                 self.stats
                     .resume_plan_shadow_request_delta_reject_ref_set_boundary += 1;
-                return (None, None, None, None);
+                return (None, None, None, None, None);
             }
         }
 
@@ -7751,6 +7899,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.stats
                 .resume_plan_shadow_request_delta_provider_dirty_add_id += 1;
         }
+        let trace =
+            self.record_resume_plan_trace_plan(continuation, routed_yield_handler, direct_tail);
         let eval_delta = self.record_resume_plan_eval_delta_plan(continuation, direct_tail);
         let request_delta = self.record_resume_plan_request_delta_plan(
             continuation,
@@ -7762,11 +7912,40 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let provider_delta =
             self.record_resume_plan_provider_delta_shadow(provider_delta_key, direct_tail);
         (
+            Some(trace),
             Some(eval_delta),
             Some(request_delta),
             marker_delta,
             provider_delta,
         )
+    }
+
+    fn record_resume_plan_trace_plan(
+        &mut self,
+        continuation: &EvidenceContinuation,
+        routed_yield_handler: Option<ExprId>,
+        direct_tail: bool,
+    ) -> EvidenceResumePlanTraceId {
+        let plan =
+            EvidenceResumePlanTracePlan::from_continuation(continuation, routed_yield_handler);
+        let id = EvidenceResumePlanTraceId(self.resume_plan_traces.len());
+        self.stats.resume_plan_trace_plans += 1;
+        if direct_tail {
+            self.stats.resume_plan_trace_direct_tail_plans += 1;
+        } else {
+            self.stats.resume_plan_trace_resume_pack_plans += 1;
+        }
+        self.stats.resume_plan_trace_steps += plan.step_count();
+        self.stats.resume_plan_trace_eval_steps += plan.eval_count();
+        self.stats.resume_plan_trace_request_steps += plan.request_count();
+        self.stats.resume_plan_trace_marker_steps += plan.marker_count();
+        self.stats.resume_plan_trace_provider_steps += plan.provider_count();
+        self.stats.resume_plan_trace_max_steps = self
+            .stats
+            .resume_plan_trace_max_steps
+            .max(plan.step_count());
+        self.resume_plan_traces.push(plan);
+        id
     }
 
     fn record_resume_plan_eval_delta_plan(
@@ -15066,6 +15245,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             true,
             true,
         );
@@ -15074,6 +15254,7 @@ mod tests {
             candidate,
             EvidenceResumePlanCandidate::Planned(EvidenceResumePlanPlannedCandidate {
                 eval_frames: 3,
+                trace: None,
                 eval_delta: None,
                 request: EvidenceResumePlanRequestCandidate::Catch {
                     same_handler: 1,
@@ -15101,6 +15282,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             false,
             false,
         );
@@ -15118,6 +15300,7 @@ mod tests {
         let cert = resume_plan_execution_cert_from_candidate(EvidenceResumePlanCandidate::Planned(
             EvidenceResumePlanPlannedCandidate {
                 eval_frames: 3,
+                trace: Some(EvidenceResumePlanTraceId(9)),
                 eval_delta: Some(EvidenceEvalDeltaId(0)),
                 request: EvidenceResumePlanRequestCandidate::Catch {
                     same_handler: 0,
@@ -15137,6 +15320,7 @@ mod tests {
             cert,
             EvidenceResumePlanExecutionCert::ProviderDirtyForeignCatchScope(
                 EvidenceProviderDirtyForeignCatchScopeCert {
+                    trace: EvidenceResumePlanTraceId(9),
                     eval_delta: EvidenceEvalDeltaId(0),
                     request_delta: EvidenceRequestDeltaId(1),
                     marker_delta: EvidenceMarkerDeltaId(3),
@@ -15149,10 +15333,40 @@ mod tests {
     }
 
     #[test]
+    fn resume_plan_execution_cert_rejects_missing_trace() {
+        let cert = resume_plan_execution_cert_from_candidate(EvidenceResumePlanCandidate::Planned(
+            EvidenceResumePlanPlannedCandidate {
+                eval_frames: 0,
+                trace: None,
+                eval_delta: Some(EvidenceEvalDeltaId(0)),
+                request: EvidenceResumePlanRequestCandidate::Catch {
+                    same_handler: 0,
+                    no_routed_handler: 0,
+                    foreign_handler: 1,
+                },
+                request_delta: Some(EvidenceRequestDeltaId(0)),
+                marker_delta: Some(EvidenceMarkerDeltaId(0)),
+                provider_delta: Some(EvidenceProviderDeltaId(0)),
+                route: EvidenceResumePlanRouteCandidate::ProviderDirtyAddId,
+                multiplicity: EvidenceResumePlanMultiplicityCandidate::OneShot,
+                estimated_resume_steps: 1,
+            },
+        ));
+
+        assert_eq!(
+            cert,
+            EvidenceResumePlanExecutionCert::Rejected(
+                EvidenceResumePlanExecutionCertReject::MissingTrace
+            )
+        );
+    }
+
+    #[test]
     fn resume_plan_execution_cert_rejects_missing_eval_delta() {
         let cert = resume_plan_execution_cert_from_candidate(EvidenceResumePlanCandidate::Planned(
             EvidenceResumePlanPlannedCandidate {
                 eval_frames: 0,
+                trace: Some(EvidenceResumePlanTraceId(0)),
                 eval_delta: None,
                 request: EvidenceResumePlanRequestCandidate::Catch {
                     same_handler: 0,
@@ -15181,6 +15395,7 @@ mod tests {
         let cert = resume_plan_execution_cert_from_candidate(EvidenceResumePlanCandidate::Planned(
             EvidenceResumePlanPlannedCandidate {
                 eval_frames: 0,
+                trace: Some(EvidenceResumePlanTraceId(0)),
                 eval_delta: Some(EvidenceEvalDeltaId(0)),
                 request: EvidenceResumePlanRequestCandidate::Catch {
                     same_handler: 0,
@@ -15209,6 +15424,7 @@ mod tests {
         let cert = resume_plan_execution_cert_from_candidate(EvidenceResumePlanCandidate::Planned(
             EvidenceResumePlanPlannedCandidate {
                 eval_frames: 0,
+                trace: Some(EvidenceResumePlanTraceId(0)),
                 eval_delta: Some(EvidenceEvalDeltaId(0)),
                 request: EvidenceResumePlanRequestCandidate::Catch {
                     same_handler: 1,
@@ -15237,6 +15453,7 @@ mod tests {
         let cert = resume_plan_execution_cert_from_candidate(EvidenceResumePlanCandidate::Planned(
             EvidenceResumePlanPlannedCandidate {
                 eval_frames: 0,
+                trace: Some(EvidenceResumePlanTraceId(0)),
                 eval_delta: Some(EvidenceEvalDeltaId(0)),
                 request: EvidenceResumePlanRequestCandidate::Catch {
                     same_handler: 0,
@@ -15265,6 +15482,7 @@ mod tests {
         let program = Program::default();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
         let cert = EvidenceProviderDirtyForeignCatchScopeCert {
+            trace: EvidenceResumePlanTraceId(0),
             eval_delta: EvidenceEvalDeltaId(1),
             request_delta: EvidenceRequestDeltaId(2),
             marker_delta: EvidenceMarkerDeltaId(3),
@@ -15281,6 +15499,7 @@ mod tests {
             runner.resume_plans[0],
             EvidenceResumePlan {
                 kind: EvidenceResumePlanKind::ProviderDirtyForeignCatchScope,
+                trace: EvidenceResumePlanTraceId(0),
                 eval_delta: EvidenceEvalDeltaId(1),
                 request_delta: EvidenceRequestDeltaId(2),
                 marker_delta: EvidenceMarkerDeltaId(3),
@@ -16193,6 +16412,20 @@ mod tests {
         assert_eq!(eval_delta.force_count(), 0);
         assert_eq!(eval_delta.apply_count(), 0);
 
+        let trace = EvidenceResumePlanTracePlan::from_continuation(&continuation, Some(catch_expr));
+        assert_eq!(trace.step_count(), 3);
+        assert_eq!(trace.request_count(), 1);
+        assert_eq!(trace.marker_count(), 1);
+        assert_eq!(trace.provider_count(), 1);
+        assert_eq!(
+            trace.steps.as_ref(),
+            &[
+                EvidenceResumePlanStep::Request(0),
+                EvidenceResumePlanStep::Marker(0),
+                EvidenceResumePlanStep::Provider(0),
+            ]
+        );
+
         let request_delta =
             EvidenceRequestDeltaPlan::from_continuation(&continuation, Some(catch_expr));
         assert_eq!(request_delta.frame_count(), 1);
@@ -16240,6 +16473,49 @@ mod tests {
             eval_delta.frames[2],
             EvidenceEvalDeltaFramePlan::RecordFields { .. }
         ));
+    }
+
+    #[test]
+    fn resume_plan_trace_preserves_depth_first_lane_order() {
+        let catch_expr = ExprId(12);
+        let continuation = EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+            first: EvidenceContinuation::marker_frame(
+                Vec::new().into(),
+                false,
+                None,
+                EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
+            ),
+            second: EvidenceContinuation::catch_body(
+                catch_expr,
+                empty_catch_arms(),
+                Env::new(),
+                EvidenceContinuation::provider_env(
+                    provider_env_fixture_for_handler(7),
+                    EvidenceContinuation::apply_arg(
+                        None,
+                        shared(RuntimeEvidenceValue::Unit),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+            ),
+        }));
+
+        let trace = EvidenceResumePlanTracePlan::from_continuation(&continuation, Some(catch_expr));
+
+        assert_eq!(
+            trace.steps.as_ref(),
+            &[
+                EvidenceResumePlanStep::Marker(0),
+                EvidenceResumePlanStep::Eval(0),
+                EvidenceResumePlanStep::Request(0),
+                EvidenceResumePlanStep::Provider(0),
+                EvidenceResumePlanStep::Eval(1),
+            ]
+        );
+        assert_eq!(trace.eval_count(), 2);
+        assert_eq!(trace.request_count(), 1);
+        assert_eq!(trace.marker_count(), 1);
+        assert_eq!(trace.provider_count(), 1);
     }
 
     #[test]
