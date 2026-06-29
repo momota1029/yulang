@@ -1560,6 +1560,82 @@ enum EvidenceRequestDeltaFrameKind {
     ForeignHandler,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+struct EvidenceCatchBoundaryDeltaPlan {
+    mode: EvidenceCatchBoundaryMode,
+    catch_expr: ExprId,
+    arms: Rc<[control_vm::CatchArm]>,
+    env: Env,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceCatchBoundaryMode {
+    SameHandler,
+    ForeignPassThrough,
+    NoRoutedHandler,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct EvidenceCatchBoundaryShapeDigest {
+    boundaries: usize,
+    foreign_pass_through: usize,
+    same_handler: usize,
+    no_routed_handler: usize,
+}
+
+impl EvidenceCatchBoundaryDeltaPlan {
+    fn from_request_delta_frame(frame: &EvidenceRequestDeltaFramePlan) -> Self {
+        Self {
+            mode: EvidenceCatchBoundaryMode::from_request_delta_kind(frame.kind),
+            catch_expr: frame.catch_expr,
+            arms: frame.arms.clone(),
+            env: frame.env.clone(),
+        }
+    }
+
+    fn is_signal_passthrough(&self) -> bool {
+        matches!(self.mode, EvidenceCatchBoundaryMode::ForeignPassThrough)
+    }
+
+    fn has_value_resume_payload(&self) -> bool {
+        true
+    }
+}
+
+impl EvidenceCatchBoundaryMode {
+    fn from_request_delta_kind(kind: EvidenceRequestDeltaFrameKind) -> Self {
+        match kind {
+            EvidenceRequestDeltaFrameKind::SameHandler => Self::SameHandler,
+            EvidenceRequestDeltaFrameKind::NoRoutedHandler => Self::NoRoutedHandler,
+            EvidenceRequestDeltaFrameKind::ForeignHandler => Self::ForeignPassThrough,
+        }
+    }
+}
+
+impl EvidenceCatchBoundaryShapeDigest {
+    fn from_deltas(deltas: &[EvidenceCatchBoundaryDeltaPlan]) -> Self {
+        let mut digest = Self::default();
+        for delta in deltas {
+            digest.boundaries += 1;
+            match delta.mode {
+                EvidenceCatchBoundaryMode::SameHandler => digest.same_handler += 1,
+                EvidenceCatchBoundaryMode::ForeignPassThrough => {
+                    digest.foreign_pass_through += 1;
+                }
+                EvidenceCatchBoundaryMode::NoRoutedHandler => digest.no_routed_handler += 1,
+            }
+        }
+        digest
+    }
+
+    fn is_foreign_pass_through_only(&self) -> bool {
+        self.boundaries > 0
+            && self.same_handler == 0
+            && self.no_routed_handler == 0
+            && self.foreign_pass_through == self.boundaries
+    }
+}
+
 impl EvidenceRequestDeltaPlan {
     fn from_continuation(
         continuation: &EvidenceContinuation,
@@ -1604,6 +1680,28 @@ impl EvidenceRequestDeltaPlan {
             && self.same_handler_count() == 0
             && self.no_routed_handler_count() == 0
             && self.foreign_handler_count() == self.frame_count()
+    }
+
+    fn catch_boundary_delta_plans(&self) -> Vec<EvidenceCatchBoundaryDeltaPlan> {
+        self.frames
+            .iter()
+            .map(EvidenceCatchBoundaryDeltaPlan::from_request_delta_frame)
+            .collect()
+    }
+
+    fn catch_boundary_shape_digest(&self) -> EvidenceCatchBoundaryShapeDigest {
+        let mut digest = EvidenceCatchBoundaryShapeDigest::default();
+        for frame in self.frames.iter() {
+            digest.boundaries += 1;
+            match EvidenceCatchBoundaryMode::from_request_delta_kind(frame.kind) {
+                EvidenceCatchBoundaryMode::SameHandler => digest.same_handler += 1,
+                EvidenceCatchBoundaryMode::ForeignPassThrough => {
+                    digest.foreign_pass_through += 1;
+                }
+                EvidenceCatchBoundaryMode::NoRoutedHandler => digest.no_routed_handler += 1,
+            }
+        }
+        digest
     }
 }
 
@@ -8473,6 +8571,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return;
         };
         let request_delta = &self.request_delta_plans[request_delta.0];
+        let catch_boundary_deltas = request_delta.catch_boundary_delta_plans();
+        let shape_digest = request_delta.catch_boundary_shape_digest();
+        debug_assert_eq!(
+            shape_digest,
+            EvidenceCatchBoundaryShapeDigest::from_deltas(catch_boundary_deltas.as_slice())
+        );
+        self.stats.scope_plan_catch_boundary_delta_plans += 1;
+        self.stats.scope_plan_catch_boundary_delta_boundaries += shape_digest.boundaries;
+        self.stats
+            .scope_plan_catch_boundary_delta_foreign_pass_through +=
+            shape_digest.foreign_pass_through;
+        self.stats.scope_plan_catch_boundary_delta_same_handler += shape_digest.same_handler;
+        self.stats.scope_plan_catch_boundary_delta_no_routed += shape_digest.no_routed_handler;
         if request_delta.same_handler_count() > 0 {
             self.stats.scope_plan_foreign_catch_reject_same_handler += 1;
         }
@@ -8480,8 +8591,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.stats.scope_plan_foreign_catch_reject_no_routed += 1;
         }
         if !request_delta.is_foreign_pass_through_only() {
+            debug_assert!(!shape_digest.is_foreign_pass_through_only());
             return;
         }
+        debug_assert!(shape_digest.is_foreign_pass_through_only());
 
         self.stats.scope_plan_foreign_catch_ready += 1;
         self.stats.scope_plan_foreign_catch_boundaries += request_delta.frame_count();
@@ -8490,6 +8603,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.stats.scope_plan_foreign_catch_value_resume_boundaries += request_delta.frame_count();
         self.stats
             .scope_plan_foreign_catch_legacy_materialize_fallback_available += 1;
+        self.stats.scope_plan_catch_foreign_boundary_delta_ready += 1;
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_signal_ready += catch_boundary_deltas
+            .iter()
+            .filter(|delta| delta.is_signal_passthrough())
+            .count();
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_value_resume_ready += catch_boundary_deltas
+            .iter()
+            .filter(|delta| delta.has_value_resume_payload())
+            .count();
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_shape_digest_ready += 1;
     }
 
     fn record_resume_plan_eval_delta_plan(
@@ -17254,14 +17380,53 @@ mod tests {
         assert_eq!(foreign_delta.frame_count(), 2);
         assert_eq!(foreign_delta.foreign_handler_count(), 2);
         assert!(foreign_delta.is_foreign_pass_through_only());
+        assert_eq!(
+            foreign_delta.catch_boundary_shape_digest(),
+            EvidenceCatchBoundaryShapeDigest {
+                boundaries: 2,
+                foreign_pass_through: 2,
+                same_handler: 0,
+                no_routed_handler: 0,
+            }
+        );
+        let foreign_boundary_deltas = foreign_delta.catch_boundary_delta_plans();
+        assert_eq!(foreign_boundary_deltas.len(), 2);
+        assert!(
+            foreign_boundary_deltas
+                .iter()
+                .all(EvidenceCatchBoundaryDeltaPlan::is_signal_passthrough)
+        );
+        assert!(
+            foreign_boundary_deltas
+                .iter()
+                .all(EvidenceCatchBoundaryDeltaPlan::has_value_resume_payload)
+        );
 
         let same_delta = EvidenceRequestDeltaPlan::from_continuation(&continuation, Some(outer));
         assert_eq!(same_delta.same_handler_count(), 1);
         assert!(!same_delta.is_foreign_pass_through_only());
+        assert_eq!(
+            same_delta.catch_boundary_shape_digest(),
+            EvidenceCatchBoundaryShapeDigest {
+                boundaries: 2,
+                foreign_pass_through: 1,
+                same_handler: 1,
+                no_routed_handler: 0,
+            }
+        );
 
         let no_routed_delta = EvidenceRequestDeltaPlan::from_continuation(&continuation, None);
         assert_eq!(no_routed_delta.no_routed_handler_count(), 2);
         assert!(!no_routed_delta.is_foreign_pass_through_only());
+        assert_eq!(
+            no_routed_delta.catch_boundary_shape_digest(),
+            EvidenceCatchBoundaryShapeDigest {
+                boundaries: 2,
+                foreign_pass_through: 0,
+                same_handler: 0,
+                no_routed_handler: 2,
+            }
+        );
     }
 
     #[test]

@@ -1198,6 +1198,58 @@ pub(crate) fn print_run_report(
             .scope_plan_foreign_catch_legacy_materialize_fallback_available
     );
     println!(
+        "  runtime_evidence.scope_plan_catch_boundary_delta_plans: {}",
+        output.evidence_stats.scope_plan_catch_boundary_delta_plans
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_boundary_delta_boundaries: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_boundary_delta_boundaries
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_boundary_delta_foreign_pass_through: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_boundary_delta_foreign_pass_through
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_boundary_delta_same_handler: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_boundary_delta_same_handler
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_boundary_delta_no_routed: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_boundary_delta_no_routed
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_ready: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_ready
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_signal_ready: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_signal_ready
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_value_resume_ready: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_value_resume_ready
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_shape_digest_ready: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_shape_digest_ready
+    );
+    println!(
         "  runtime_evidence.scope_plan_foreign_catch_reject_root_marker_mismatch: {}",
         output
             .evidence_stats

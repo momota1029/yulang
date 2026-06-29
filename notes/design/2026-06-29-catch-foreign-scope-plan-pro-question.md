@@ -562,3 +562,58 @@ value-resume behavior through the foreign catch
 ```
 
 Only after those are mismatch-free should the narrow executor use the boundary lane.
+
+## Implementation note: first-class CatchForeign boundary delta surface
+
+The next profile-only slice has named the boundary lane explicitly:
+
+```text
+EvidenceCatchBoundaryDeltaPlan
+EvidenceCatchBoundaryMode::{SameHandler, ForeignPassThrough, NoRoutedHandler}
+EvidenceCatchBoundaryShapeDigest
+```
+
+`EvidenceRequestDeltaPlan` still remains the source of truth, but it can now project a list of
+catch boundary deltas and a mode digest. This keeps the current runtime behavior unchanged while
+making the future executor target explicit.
+
+Deep profile:
+
+```text
+nondet:
+  scope_plan_catch_boundary_delta_plans: 420
+  scope_plan_catch_boundary_delta_boundaries: 840
+  scope_plan_catch_boundary_delta_foreign_pass_through: 840
+  scope_plan_catch_boundary_delta_same_handler: 0
+  scope_plan_catch_boundary_delta_no_routed: 0
+  scope_plan_catch_foreign_boundary_delta_ready: 420
+  scope_plan_catch_foreign_boundary_delta_signal_ready: 840
+  scope_plan_catch_foreign_boundary_delta_value_resume_ready: 840
+  scope_plan_catch_foreign_boundary_delta_shape_digest_ready: 420
+
+showcase:
+  scope_plan_catch_boundary_delta_plans: 829
+  scope_plan_catch_boundary_delta_boundaries: 1644
+  scope_plan_catch_boundary_delta_foreign_pass_through: 1644
+  scope_plan_catch_boundary_delta_same_handler: 0
+  scope_plan_catch_boundary_delta_no_routed: 0
+  scope_plan_catch_foreign_boundary_delta_ready: 829
+  scope_plan_catch_foreign_boundary_delta_signal_ready: 1644
+  scope_plan_catch_foreign_boundary_delta_value_resume_ready: 1644
+  scope_plan_catch_foreign_boundary_delta_shape_digest_ready: 829
+```
+
+Normal release still keeps the sidecar disabled:
+
+```text
+scope_plan_catch_boundary_delta_plans: 0
+compare.control: match
+```
+
+Reading:
+
+- The representative hot lanes remain entirely `ForeignPassThrough` after projection to the
+  first-class delta surface.
+- Signal and value sides are still only "ready" counters. The executor is not using these deltas.
+- The next safe slice is an actual shadow comparison for signal kind preservation, generic fallback
+  classification, continuation shape digest after legacy materialization, and value-resume behavior.
