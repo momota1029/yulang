@@ -980,6 +980,29 @@ struct EvidenceResumeScopedTraceBuilder {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct EvidenceScopePlanShadowProfile {
+    weighted_resume_steps: usize,
+    scope_count: usize,
+    provider_child_scopes: usize,
+    eval_steps: usize,
+    request_steps: usize,
+    marker_steps: usize,
+    child_marker_steps: usize,
+    root_marker_match: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceScopePlanShadow {
+    Planned(EvidenceScopePlanShadowProfile),
+    Rejected(EvidenceScopePlanShadowReject),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceScopePlanShadowReject {
+    RootMarkerMismatch,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 struct EvidenceResumePlanExecShadowProfile {
     steps: usize,
     eval_steps: usize,
@@ -1128,6 +1151,27 @@ impl EvidenceResumeScopedTracePlan {
         self.scopes.iter().map(|scope| scope.steps.len()).sum()
     }
 
+    fn eval_count(&self) -> usize {
+        self.scopes
+            .iter()
+            .map(EvidenceResumeScopeTracePlan::eval_count)
+            .sum()
+    }
+
+    fn request_count(&self) -> usize {
+        self.scopes
+            .iter()
+            .map(EvidenceResumeScopeTracePlan::request_count)
+            .sum()
+    }
+
+    fn marker_count(&self) -> usize {
+        self.scopes
+            .iter()
+            .map(EvidenceResumeScopeTracePlan::marker_count)
+            .sum()
+    }
+
     fn root_marker_count(&self) -> usize {
         self.scopes
             .first()
@@ -1142,9 +1186,46 @@ impl EvidenceResumeScopedTracePlan {
             .map(EvidenceResumeScopeTracePlan::marker_count)
             .sum()
     }
+
+    fn scope_plan_shadow(
+        &self,
+        marker_delta_frames: usize,
+        weighted_resume_steps: usize,
+    ) -> EvidenceScopePlanShadow {
+        let root_marker_match = self.root_marker_count() == marker_delta_frames;
+        let profile = EvidenceScopePlanShadowProfile {
+            weighted_resume_steps,
+            scope_count: self.scope_count(),
+            provider_child_scopes: self.provider_child_scope_count(),
+            eval_steps: self.eval_count(),
+            request_steps: self.request_count(),
+            marker_steps: self.marker_count(),
+            child_marker_steps: self.child_marker_count(),
+            root_marker_match,
+        };
+        if root_marker_match {
+            EvidenceScopePlanShadow::Planned(profile)
+        } else {
+            EvidenceScopePlanShadow::Rejected(EvidenceScopePlanShadowReject::RootMarkerMismatch)
+        }
+    }
 }
 
 impl EvidenceResumeScopeTracePlan {
+    fn eval_count(&self) -> usize {
+        self.steps
+            .iter()
+            .filter(|step| matches!(step, EvidenceResumeScopeStep::Eval(_)))
+            .count()
+    }
+
+    fn request_count(&self) -> usize {
+        self.steps
+            .iter()
+            .filter(|step| matches!(step, EvidenceResumeScopeStep::Request(_)))
+            .count()
+    }
+
     fn marker_count(&self) -> usize {
         self.steps
             .iter()
@@ -8239,7 +8320,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.record_resume_plan_marker_delta_shadow(marker_delta_key, direct_tail);
         let provider_delta =
             self.record_resume_plan_provider_delta_shadow(provider_delta_key, direct_tail);
-        self.record_resume_plan_scoped_trace_plan(continuation, routed_yield_handler, marker_delta);
+        self.record_resume_plan_scoped_trace_plan(
+            continuation,
+            routed_yield_handler,
+            marker_delta,
+            Some(request_delta),
+            profile,
+        );
         (
             Some(trace),
             Some(eval_delta),
@@ -8282,6 +8369,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         continuation: &EvidenceContinuation,
         routed_yield_handler: Option<ExprId>,
         marker_delta: Option<EvidenceMarkerDeltaId>,
+        request_delta: Option<EvidenceRequestDeltaId>,
+        profile: EvidenceResumePlanShadowProfile,
     ) {
         let plan =
             EvidenceResumeScopedTracePlan::from_continuation(continuation, routed_yield_handler);
@@ -8302,7 +8391,56 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     .resume_plan_scoped_trace_root_marker_mismatches_marker_delta += 1;
             }
         }
+        let marker_delta_frames = marker_delta
+            .map(|marker_delta| self.marker_delta_plans[marker_delta.0].frame_count())
+            .unwrap_or(0);
+        let scope_plan =
+            plan.scope_plan_shadow(marker_delta_frames, profile.estimated_resume_steps());
+        self.record_scope_plan_shadow(scope_plan, request_delta, profile);
         self.resume_plan_scoped_traces.push(plan);
+    }
+
+    fn record_scope_plan_shadow(
+        &mut self,
+        scope_plan: EvidenceScopePlanShadow,
+        request_delta: Option<EvidenceRequestDeltaId>,
+        resume_profile: EvidenceResumePlanShadowProfile,
+    ) {
+        self.stats.scope_plan_candidates += 1;
+        self.stats.scope_plan_weighted_resume_steps += resume_profile.estimated_resume_steps();
+        match scope_plan {
+            EvidenceScopePlanShadow::Planned(profile) => {
+                self.stats.scope_plan_planned += 1;
+                self.stats.scope_plan_weighted_planned_resume_steps +=
+                    profile.weighted_resume_steps;
+                self.stats.scope_plan_scope_count += profile.scope_count;
+                self.stats.scope_plan_provider_child_scopes += profile.provider_child_scopes;
+                self.stats.scope_plan_eval_steps += profile.eval_steps;
+                self.stats.scope_plan_request_steps += profile.request_steps;
+                self.stats.scope_plan_marker_steps += profile.marker_steps;
+                self.stats.scope_plan_child_marker_steps += profile.child_marker_steps;
+                if profile.root_marker_match {
+                    self.stats.scope_plan_root_marker_match += 1;
+                }
+                if let Some(request_delta) = request_delta {
+                    let request_delta = &self.request_delta_plans[request_delta.0];
+                    self.stats.scope_plan_request_lane_catch_same +=
+                        request_delta.same_handler_count();
+                    self.stats.scope_plan_request_lane_catch_foreign +=
+                        request_delta.foreign_handler_count();
+                    self.stats.scope_plan_request_lane_catch_no_routed +=
+                        request_delta.no_routed_handler_count();
+                }
+                self.stats.scope_plan_request_lane_ref_set += resume_profile.ref_set_boundaries;
+                self.stats.scope_plan_legacy_tree_fallback_available += 1;
+            }
+            EvidenceScopePlanShadow::Rejected(
+                EvidenceScopePlanShadowReject::RootMarkerMismatch,
+            ) => {
+                self.stats.scope_plan_rejected += 1;
+                self.stats.scope_plan_root_marker_mismatch += 1;
+            }
+        }
     }
 
     fn record_resume_plan_eval_delta_plan(
@@ -17029,6 +17167,21 @@ mod tests {
         let marker_delta =
             EvidenceMarkerDeltaPlan::from_shadow_key(&continuation.marker_delta_shadow_key());
         assert_eq!(marker_delta.frame_count(), scoped.root_marker_count());
+
+        let scope_plan = scoped.scope_plan_shadow(marker_delta.frame_count(), 5);
+        assert_eq!(
+            scope_plan,
+            EvidenceScopePlanShadow::Planned(EvidenceScopePlanShadowProfile {
+                weighted_resume_steps: 5,
+                scope_count: 2,
+                provider_child_scopes: 1,
+                eval_steps: 0,
+                request_steps: 0,
+                marker_steps: 2,
+                child_marker_steps: 1,
+                root_marker_match: true,
+            })
+        );
     }
 
     #[test]

@@ -1090,6 +1090,84 @@ pub(crate) fn print_run_report(
             .resume_plan_scoped_trace_root_marker_mismatches_marker_delta
     );
     println!(
+        "  runtime_evidence.scope_plan_candidates: {}",
+        output.evidence_stats.scope_plan_candidates
+    );
+    println!(
+        "  runtime_evidence.scope_plan_planned: {}",
+        output.evidence_stats.scope_plan_planned
+    );
+    println!(
+        "  runtime_evidence.scope_plan_rejected: {}",
+        output.evidence_stats.scope_plan_rejected
+    );
+    println!(
+        "  runtime_evidence.scope_plan_weighted_resume_steps: {}",
+        output.evidence_stats.scope_plan_weighted_resume_steps
+    );
+    println!(
+        "  runtime_evidence.scope_plan_weighted_planned_resume_steps: {}",
+        output
+            .evidence_stats
+            .scope_plan_weighted_planned_resume_steps
+    );
+    println!(
+        "  runtime_evidence.scope_plan_root_marker_match: {}",
+        output.evidence_stats.scope_plan_root_marker_match
+    );
+    println!(
+        "  runtime_evidence.scope_plan_root_marker_mismatch: {}",
+        output.evidence_stats.scope_plan_root_marker_mismatch
+    );
+    println!(
+        "  runtime_evidence.scope_plan_provider_child_scopes: {}",
+        output.evidence_stats.scope_plan_provider_child_scopes
+    );
+    println!(
+        "  runtime_evidence.scope_plan_scope_count: {}",
+        output.evidence_stats.scope_plan_scope_count
+    );
+    println!(
+        "  runtime_evidence.scope_plan_eval_steps: {}",
+        output.evidence_stats.scope_plan_eval_steps
+    );
+    println!(
+        "  runtime_evidence.scope_plan_request_steps: {}",
+        output.evidence_stats.scope_plan_request_steps
+    );
+    println!(
+        "  runtime_evidence.scope_plan_marker_steps: {}",
+        output.evidence_stats.scope_plan_marker_steps
+    );
+    println!(
+        "  runtime_evidence.scope_plan_child_marker_steps: {}",
+        output.evidence_stats.scope_plan_child_marker_steps
+    );
+    println!(
+        "  runtime_evidence.scope_plan_request_lane_catch_same: {}",
+        output.evidence_stats.scope_plan_request_lane_catch_same
+    );
+    println!(
+        "  runtime_evidence.scope_plan_request_lane_catch_foreign: {}",
+        output.evidence_stats.scope_plan_request_lane_catch_foreign
+    );
+    println!(
+        "  runtime_evidence.scope_plan_request_lane_catch_no_routed: {}",
+        output
+            .evidence_stats
+            .scope_plan_request_lane_catch_no_routed
+    );
+    println!(
+        "  runtime_evidence.scope_plan_request_lane_ref_set: {}",
+        output.evidence_stats.scope_plan_request_lane_ref_set
+    );
+    println!(
+        "  runtime_evidence.scope_plan_legacy_tree_fallback_available: {}",
+        output
+            .evidence_stats
+            .scope_plan_legacy_tree_fallback_available
+    );
+    println!(
         "  runtime_evidence.resume_plan_exec_shadow_checks: {}",
         output.evidence_stats.resume_plan_exec_shadow_checks
     );
