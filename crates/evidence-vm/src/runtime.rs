@@ -8012,8 +8012,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let thunk = *thunk;
                 return match self.eval_expr_result(thunk, env)? {
                     EvidenceEvalResult::Value(thunk) => {
-                        let result = self.force_thunk_result(thunk)?;
-                        self.finish_force_thunk_result(result, target_value_is_thunk)
+                        self.force_thunk_value_result(thunk, target_value_is_thunk)
                     }
                     EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => {
                         Ok(EvidenceEvalResult::request(
@@ -8171,6 +8170,109 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.eval_block_parts_result(&stmts, tail, env, shared(RuntimeEvidenceValue::Unit))
             }
         }
+    }
+
+    fn force_thunk_value_result(
+        &mut self,
+        thunk: SharedValue,
+        target_value_is_thunk: bool,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        // Only value-target force may consume an Expr thunk whose body returns a
+        // continuation thunk. Thunk-target force must preserve that intermediate
+        // thunk as an observable value.
+        if !target_value_is_thunk {
+            if let Some(result) = self.try_force_continuation_apply_expr(thunk.as_ref())? {
+                return Ok(result);
+            }
+        }
+        let result = self.force_thunk_result(thunk)?;
+        self.finish_force_thunk_result(result, target_value_is_thunk)
+    }
+
+    fn try_force_continuation_apply_expr(
+        &mut self,
+        thunk: &RuntimeEvidenceValue,
+    ) -> Result<Option<EvidenceEvalResult>, RuntimeEvidenceRunError> {
+        let RuntimeEvidenceValue::Thunk(thunk) = thunk else {
+            return Ok(None);
+        };
+        let RuntimeEvidenceThunk::Expr {
+            body,
+            env,
+            provider_env,
+            ..
+        } = thunk.as_ref()
+        else {
+            return Ok(None);
+        };
+        if !provider_env.is_empty() {
+            return Ok(None);
+        }
+        let RuntimeEvidenceExpr::Apply { callee, arg, .. } =
+            self.runtime_exprs[body.0 as usize].clone()
+        else {
+            return Ok(None);
+        };
+        let Some(callee) = self.eval_immediate_value_expr(callee, env)? else {
+            return Ok(None);
+        };
+        let RuntimeEvidenceValue::Continuation(continuation) = callee.as_ref() else {
+            return Ok(None);
+        };
+        let Some(arg) = self.eval_immediate_value_expr(arg, env)? else {
+            return Ok(None);
+        };
+        self.stats.thunk_forces += 1;
+        self.stats.thunk_force_expr += 1;
+        Ok(Some(self.force_continuation_apply_scoped_result(
+            continuation.clone(),
+            arg,
+        )?))
+    }
+
+    fn eval_immediate_value_expr(
+        &mut self,
+        expr: ExprId,
+        env: &Env,
+    ) -> Result<Option<SharedValue>, RuntimeEvidenceRunError> {
+        match self.runtime_exprs[expr.0 as usize].clone() {
+            RuntimeEvidenceExpr::Value(value) => Ok(Some(value)),
+            RuntimeEvidenceExpr::NullaryPrimitive { op, context } => {
+                Ok(Some(self.eval_primitive_op(op, context)?))
+            }
+            RuntimeEvidenceExpr::Local { slot, def } => Ok(Some(
+                env.get_slot(slot)
+                    .ok_or(RuntimeEvidenceRunError::UnboundLocal(def))?,
+            )),
+            RuntimeEvidenceExpr::Alias(expr) => self.eval_immediate_value_expr(expr, env),
+            _ => Ok(None),
+        }
+    }
+
+    fn force_continuation_apply_scoped_result(
+        &mut self,
+        continuation: EvidenceContinuation,
+        arg: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let boundary = self.active_function_call_boundary(EvidenceMarkerFrameSource::MarkedForce);
+        match boundary {
+            Err(
+                EvidenceCallBoundaryBypassCert::NoActiveMarkerPlan
+                | EvidenceCallBoundaryBypassCert::NoFunctionCallMarkers,
+            ) => self.force_continuation_apply_payload_result(continuation, arg),
+            Ok(boundary) => self.with_call_boundary(boundary, |runner| {
+                runner.force_continuation_apply_payload_result(continuation, arg)
+            }),
+        }
+    }
+
+    fn force_continuation_apply_payload_result(
+        &mut self,
+        continuation: EvidenceContinuation,
+        arg: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let result = self.resume_continuation(continuation, arg)?;
+        self.finish_force_thunk_result(result, false)
     }
 
     fn eval_primitive_op(
