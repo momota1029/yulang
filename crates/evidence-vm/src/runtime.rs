@@ -955,6 +955,29 @@ struct EvidenceResumePlanTraceCursor {
     provider: usize,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct EvidenceResumePlanExecShadowProfile {
+    steps: usize,
+    eval_steps: usize,
+    request_steps: usize,
+    marker_steps: usize,
+    provider_steps: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceResumePlanExecShadowReject {
+    MissingTrace,
+    MissingEvalDelta,
+    MissingRequestDelta,
+    MissingMarkerDelta,
+    MissingProviderDelta,
+    TraceEvalBounds,
+    TraceRequestBounds,
+    TraceMarkerBounds,
+    TraceProviderBounds,
+    TraceUnusedPayload,
+}
+
 impl EvidenceResumePlanTracePlan {
     fn from_continuation(
         continuation: &EvidenceContinuation,
@@ -1000,6 +1023,60 @@ impl EvidenceResumePlanTracePlan {
             .iter()
             .filter(|step| matches!(step, EvidenceResumePlanStep::Provider(_)))
             .count()
+    }
+
+    fn exec_shadow_profile(
+        &self,
+        eval_delta: &EvidenceEvalDeltaPlan,
+        request_delta: &EvidenceRequestDeltaPlan,
+        marker_delta: &EvidenceMarkerDeltaPlan,
+        provider_delta: &EvidenceProviderDeltaPlan,
+    ) -> Result<EvidenceResumePlanExecShadowProfile, EvidenceResumePlanExecShadowReject> {
+        let mut profile = EvidenceResumePlanExecShadowProfile::default();
+        let mut cursor = EvidenceResumePlanTraceCursor::default();
+        for step in self.steps.iter().copied() {
+            profile.steps += 1;
+            match step {
+                EvidenceResumePlanStep::Eval(index) => {
+                    if index != cursor.eval || index >= eval_delta.frame_count() {
+                        return Err(EvidenceResumePlanExecShadowReject::TraceEvalBounds);
+                    }
+                    cursor.eval += 1;
+                    profile.eval_steps += 1;
+                }
+                EvidenceResumePlanStep::Request(index) => {
+                    if index != cursor.request || index >= request_delta.frame_count() {
+                        return Err(EvidenceResumePlanExecShadowReject::TraceRequestBounds);
+                    }
+                    cursor.request += 1;
+                    profile.request_steps += 1;
+                }
+                EvidenceResumePlanStep::Marker(index) => {
+                    if index != cursor.marker || index >= marker_delta.frame_count() {
+                        return Err(EvidenceResumePlanExecShadowReject::TraceMarkerBounds);
+                    }
+                    cursor.marker += 1;
+                    profile.marker_steps += 1;
+                }
+                EvidenceResumePlanStep::Provider(index) => {
+                    if index != cursor.provider || index >= provider_delta.frame_count() {
+                        return Err(EvidenceResumePlanExecShadowReject::TraceProviderBounds);
+                    }
+                    cursor.provider += 1;
+                    profile.provider_steps += 1;
+                }
+            }
+        }
+
+        if cursor.eval != eval_delta.frame_count()
+            || cursor.request != request_delta.frame_count()
+            || cursor.marker != marker_delta.frame_count()
+            || cursor.provider != provider_delta.frame_count()
+        {
+            return Err(EvidenceResumePlanExecShadowReject::TraceUnusedPayload);
+        }
+
+        Ok(profile)
     }
 }
 
@@ -7841,8 +7918,91 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.stats.resume_plan_provider_dirty_foreign_scope_plans += 1;
             }
         }
+        self.record_resume_plan_exec_shadow(plan, direct_tail, cert.estimated_resume_steps);
         self.resume_plans.push(plan);
         id
+    }
+
+    fn record_resume_plan_exec_shadow(
+        &mut self,
+        plan: EvidenceResumePlan,
+        direct_tail: bool,
+        estimated_resume_steps: usize,
+    ) {
+        self.stats.resume_plan_exec_shadow_checks += 1;
+        let result = (|| {
+            let trace = self
+                .resume_plan_traces
+                .get(plan.trace.0)
+                .ok_or(EvidenceResumePlanExecShadowReject::MissingTrace)?;
+            let eval_delta = self
+                .eval_delta_plans
+                .get(plan.eval_delta.0)
+                .ok_or(EvidenceResumePlanExecShadowReject::MissingEvalDelta)?;
+            let request_delta = self
+                .request_delta_plans
+                .get(plan.request_delta.0)
+                .ok_or(EvidenceResumePlanExecShadowReject::MissingRequestDelta)?;
+            let marker_delta = self
+                .marker_delta_plans
+                .get(plan.marker_delta.0)
+                .ok_or(EvidenceResumePlanExecShadowReject::MissingMarkerDelta)?;
+            let provider_delta = self
+                .provider_delta_plans
+                .get(plan.provider_delta.0)
+                .ok_or(EvidenceResumePlanExecShadowReject::MissingProviderDelta)?;
+            trace.exec_shadow_profile(eval_delta, request_delta, marker_delta, provider_delta)
+        })();
+
+        match result {
+            Ok(profile) => {
+                self.stats.resume_plan_exec_shadow_ready += 1;
+                if direct_tail {
+                    self.stats.resume_plan_exec_shadow_direct_tail_ready += 1;
+                } else {
+                    self.stats.resume_plan_exec_shadow_resume_pack_ready += 1;
+                }
+                self.stats.resume_plan_exec_shadow_steps += profile.steps;
+                self.stats.resume_plan_exec_shadow_estimated_saved_steps += estimated_resume_steps;
+            }
+            Err(EvidenceResumePlanExecShadowReject::MissingTrace) => {
+                self.stats.resume_plan_exec_shadow_reject_missing_trace += 1;
+            }
+            Err(EvidenceResumePlanExecShadowReject::MissingEvalDelta) => {
+                self.stats.resume_plan_exec_shadow_reject_missing_eval_delta += 1;
+            }
+            Err(EvidenceResumePlanExecShadowReject::MissingRequestDelta) => {
+                self.stats
+                    .resume_plan_exec_shadow_reject_missing_request_delta += 1;
+            }
+            Err(EvidenceResumePlanExecShadowReject::MissingMarkerDelta) => {
+                self.stats
+                    .resume_plan_exec_shadow_reject_missing_marker_delta += 1;
+            }
+            Err(EvidenceResumePlanExecShadowReject::MissingProviderDelta) => {
+                self.stats
+                    .resume_plan_exec_shadow_reject_missing_provider_delta += 1;
+            }
+            Err(EvidenceResumePlanExecShadowReject::TraceEvalBounds) => {
+                self.stats.resume_plan_exec_shadow_reject_trace_eval_bounds += 1;
+            }
+            Err(EvidenceResumePlanExecShadowReject::TraceRequestBounds) => {
+                self.stats
+                    .resume_plan_exec_shadow_reject_trace_request_bounds += 1;
+            }
+            Err(EvidenceResumePlanExecShadowReject::TraceMarkerBounds) => {
+                self.stats
+                    .resume_plan_exec_shadow_reject_trace_marker_bounds += 1;
+            }
+            Err(EvidenceResumePlanExecShadowReject::TraceProviderBounds) => {
+                self.stats
+                    .resume_plan_exec_shadow_reject_trace_provider_bounds += 1;
+            }
+            Err(EvidenceResumePlanExecShadowReject::TraceUnusedPayload) => {
+                self.stats
+                    .resume_plan_exec_shadow_reject_trace_unused_payload += 1;
+            }
+        }
     }
 
     fn record_resume_plan_request_delta_shadow(
@@ -16516,6 +16676,116 @@ mod tests {
         assert_eq!(trace.request_count(), 1);
         assert_eq!(trace.marker_count(), 1);
         assert_eq!(trace.provider_count(), 1);
+    }
+
+    #[test]
+    fn resume_plan_trace_exec_shadow_accepts_full_lane_consumption() {
+        let catch_expr = ExprId(12);
+        let continuation = EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+            first: EvidenceContinuation::marker_frame(
+                Vec::new().into(),
+                false,
+                None,
+                EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
+            ),
+            second: EvidenceContinuation::catch_body(
+                catch_expr,
+                empty_catch_arms(),
+                Env::new(),
+                EvidenceContinuation::provider_env(
+                    provider_env_fixture_for_handler(7),
+                    EvidenceContinuation::apply_arg(
+                        None,
+                        shared(RuntimeEvidenceValue::Unit),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+            ),
+        }));
+
+        let trace = EvidenceResumePlanTracePlan::from_continuation(&continuation, Some(catch_expr));
+        let eval_delta = EvidenceEvalDeltaPlan::from_continuation(&continuation);
+        let request_delta =
+            EvidenceRequestDeltaPlan::from_continuation(&continuation, Some(catch_expr));
+        let marker_delta =
+            EvidenceMarkerDeltaPlan::from_shadow_key(&continuation.marker_delta_shadow_key());
+        let provider_delta =
+            EvidenceProviderDeltaPlan::from_shadow_key(&continuation.provider_delta_shadow_key());
+
+        let profile = trace
+            .exec_shadow_profile(&eval_delta, &request_delta, &marker_delta, &provider_delta)
+            .expect("trace should consume every lane exactly once");
+
+        assert_eq!(profile.steps, 5);
+        assert_eq!(profile.eval_steps, 2);
+        assert_eq!(profile.request_steps, 1);
+        assert_eq!(profile.marker_steps, 1);
+        assert_eq!(profile.provider_steps, 1);
+    }
+
+    #[test]
+    fn resume_plan_trace_exec_shadow_rejects_out_of_order_eval_lane() {
+        let catch_expr = ExprId(12);
+        let continuation =
+            EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::apply_arg(
+                None,
+                shared(RuntimeEvidenceValue::Unit),
+                EvidenceContinuation::catch_body(
+                    catch_expr,
+                    empty_catch_arms(),
+                    Env::new(),
+                    EvidenceContinuation::identity(),
+                ),
+            ));
+        let trace = EvidenceResumePlanTracePlan {
+            steps: Rc::from(
+                vec![
+                    EvidenceResumePlanStep::Eval(1),
+                    EvidenceResumePlanStep::Eval(0),
+                    EvidenceResumePlanStep::Request(0),
+                ]
+                .into_boxed_slice(),
+            ),
+        };
+        let eval_delta = EvidenceEvalDeltaPlan::from_continuation(&continuation);
+        let request_delta =
+            EvidenceRequestDeltaPlan::from_continuation(&continuation, Some(catch_expr));
+        let marker_delta =
+            EvidenceMarkerDeltaPlan::from_shadow_key(&continuation.marker_delta_shadow_key());
+        let provider_delta =
+            EvidenceProviderDeltaPlan::from_shadow_key(&continuation.provider_delta_shadow_key());
+
+        assert_eq!(
+            trace.exec_shadow_profile(&eval_delta, &request_delta, &marker_delta, &provider_delta),
+            Err(EvidenceResumePlanExecShadowReject::TraceEvalBounds)
+        );
+    }
+
+    #[test]
+    fn resume_plan_trace_exec_shadow_rejects_unused_payload_lane() {
+        let catch_expr = ExprId(12);
+        let continuation =
+            EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::catch_body(
+                catch_expr,
+                empty_catch_arms(),
+                Env::new(),
+                EvidenceContinuation::identity(),
+            ));
+        let trace = EvidenceResumePlanTracePlan {
+            steps: Rc::from(vec![EvidenceResumePlanStep::Request(0)].into_boxed_slice()),
+        };
+        let eval_delta = EvidenceEvalDeltaPlan::from_continuation(&continuation);
+        let request_delta =
+            EvidenceRequestDeltaPlan::from_continuation(&continuation, Some(catch_expr));
+        let marker_delta =
+            EvidenceMarkerDeltaPlan::from_shadow_key(&continuation.marker_delta_shadow_key());
+        let provider_delta =
+            EvidenceProviderDeltaPlan::from_shadow_key(&continuation.provider_delta_shadow_key());
+
+        assert_eq!(
+            trace.exec_shadow_profile(&eval_delta, &request_delta, &marker_delta, &provider_delta),
+            Err(EvidenceResumePlanExecShadowReject::TraceUnusedPayload)
+        );
     }
 
     #[test]

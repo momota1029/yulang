@@ -1048,6 +1048,96 @@ pub(crate) fn print_run_report(
         output.evidence_stats.resume_plan_trace_max_steps
     );
     println!(
+        "  runtime_evidence.resume_plan_exec_shadow_checks: {}",
+        output.evidence_stats.resume_plan_exec_shadow_checks
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_ready: {}",
+        output.evidence_stats.resume_plan_exec_shadow_ready
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_direct_tail_ready: {}",
+        output
+            .evidence_stats
+            .resume_plan_exec_shadow_direct_tail_ready
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_resume_pack_ready: {}",
+        output
+            .evidence_stats
+            .resume_plan_exec_shadow_resume_pack_ready
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_steps: {}",
+        output.evidence_stats.resume_plan_exec_shadow_steps
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_estimated_saved_steps: {}",
+        output
+            .evidence_stats
+            .resume_plan_exec_shadow_estimated_saved_steps
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_reject_missing_trace: {}",
+        output
+            .evidence_stats
+            .resume_plan_exec_shadow_reject_missing_trace
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_reject_missing_eval_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_exec_shadow_reject_missing_eval_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_reject_missing_request_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_exec_shadow_reject_missing_request_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_reject_missing_marker_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_exec_shadow_reject_missing_marker_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_reject_missing_provider_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_exec_shadow_reject_missing_provider_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_reject_trace_eval_bounds: {}",
+        output
+            .evidence_stats
+            .resume_plan_exec_shadow_reject_trace_eval_bounds
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_reject_trace_request_bounds: {}",
+        output
+            .evidence_stats
+            .resume_plan_exec_shadow_reject_trace_request_bounds
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_reject_trace_marker_bounds: {}",
+        output
+            .evidence_stats
+            .resume_plan_exec_shadow_reject_trace_marker_bounds
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_reject_trace_provider_bounds: {}",
+        output
+            .evidence_stats
+            .resume_plan_exec_shadow_reject_trace_provider_bounds
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_shadow_reject_trace_unused_payload: {}",
+        output
+            .evidence_stats
+            .resume_plan_exec_shadow_reject_trace_unused_payload
+    );
+    println!(
         "  runtime_evidence.resume_plan_shadow_request_delta_candidates: {}",
         output
             .evidence_stats
