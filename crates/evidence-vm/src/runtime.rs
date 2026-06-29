@@ -8957,6 +8957,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 hygiene,
                 provider_env,
             } => {
+                if provider_env.is_empty() {
+                    return self.apply_adapter_result(
+                        source,
+                        target,
+                        function.clone(),
+                        hygiene,
+                        arg,
+                    );
+                }
                 let provider_env = provider_env.clone();
                 self.observe_provider_env(&provider_env);
                 self.with_provider_env(provider_env, |runner| {
@@ -8972,6 +8981,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             }
             RuntimeEvidenceValue::Closure(closure) => {
                 let closure = closure.clone();
+                if closure.provider_env.is_empty() {
+                    let mut env = self.clone_env(&closure.env);
+                    self.bind_pat(&closure.param, arg, &mut env)?;
+                    return self.eval_expr_result(closure.body, &mut env);
+                }
                 let provider_env = closure.provider_env.clone();
                 self.observe_provider_env(&provider_env);
                 self.with_provider_env(provider_env, |runner| {
@@ -8983,6 +8997,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             RuntimeEvidenceValue::RecursiveClosure { def, closure } => {
                 let def = *def;
                 let closure = closure.clone();
+                if closure.provider_env.is_empty() {
+                    let mut env = self.clone_env(&closure.env);
+                    env.insert_slot(
+                        EnvSlot::from(def),
+                        shared(RuntimeEvidenceValue::RecursiveClosure {
+                            def,
+                            closure: closure.clone(),
+                        }),
+                    );
+                    self.bind_pat(&closure.param, arg, &mut env)?;
+                    return self.eval_expr_result(closure.body, &mut env);
+                }
                 let provider_env = closure.provider_env.clone();
                 self.observe_provider_env(&provider_env);
                 self.with_provider_env(provider_env, |runner| {
