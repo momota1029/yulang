@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt;
 
 use parser::sink::YulangLanguage;
 use poly::expr::{Def, Vis};
@@ -240,14 +241,14 @@ pub fn dump_mono_inner(source: &str) -> DumpOutput {
 }
 
 fn run_inner_uncached(source: &str) -> RunOutput {
-    match run_control_from_source_text_without_std(source) {
+    match run_evidence_from_source_text_without_std(source) {
         Ok(output) if output.errors.is_empty() => {
-            return RunOutput::from_control_output(output, source, false);
+            return RunOutput::from_runtime_output(output, source, false);
         }
         Ok(output) if should_retry_with_embedded_std(source, &output.errors) => {
             return run_with_embedded_std_fallback(source, None);
         }
-        Ok(output) => return RunOutput::from_control_output(output, source, false),
+        Ok(output) => return RunOutput::from_runtime_output(output, source, false),
         Err(_) if source_likely_needs_embedded_std(source) => {
             return run_with_embedded_std_fallback(source, None);
         }
@@ -259,17 +260,17 @@ fn run_inner_uncached(source: &str) -> RunOutput {
 
 fn run_with_embedded_std_fallback(
     source: &str,
-    no_std_error: Option<yulang::RouteError>,
+    no_std_error: Option<WasmRuntimeError>,
 ) -> RunOutput {
-    match run_control_from_source_text_with_playground_std(source) {
+    match run_evidence_from_source_text_with_playground_std(source) {
         Ok(output) if output.errors.is_empty() => {
-            return RunOutput::from_control_output(output, source, true);
+            return RunOutput::from_runtime_output(output, source, true);
         }
         Ok(_) | Err(_) => {}
     }
 
-    match run_control_from_source_text_with_embedded_std(source) {
-        Ok(output) => RunOutput::from_control_output(output, source, true),
+    match run_evidence_from_source_text_with_embedded_std(source) {
+        Ok(output) => RunOutput::from_runtime_output(output, source, true),
         Err(std_error) => {
             let message = match no_std_error {
                 Some(no_std_error) => format!(
@@ -282,39 +283,39 @@ fn run_with_embedded_std_fallback(
     }
 }
 
-fn run_control_from_source_text_without_std(
+fn run_evidence_from_source_text_without_std(
     source: &str,
-) -> Result<WasmControlOutput, yulang::RouteError> {
+) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
     let files = yulang::collect_local_source_text(PLAYGROUND_ENTRY, source.to_string())?;
-    let output = build_named_control_from_collected_sources(files)?;
-    run_built_control_program_with_host(output)
+    let output = build_named_runtime_from_collected_sources(files)?;
+    run_built_evidence_program(output)
 }
 
-fn run_control_from_source_text_with_embedded_std(
+fn run_evidence_from_source_text_with_embedded_std(
     source: &str,
-) -> Result<WasmControlOutput, yulang::RouteError> {
+) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
     let output = match embedded_full_std_artifact() {
         Some(artifact) => {
             let poly = yulang::build_poly_from_embedded_std_compiled_unit_artifact(
                 artifact,
                 source.to_string(),
             )?;
-            build_named_control_from_poly(poly)?
+            build_named_runtime_from_poly(poly)?
         }
         None => {
             let files = yulang::collect_source_text_with_embedded_std(
                 PLAYGROUND_ENTRY,
                 source.to_string(),
             )?;
-            build_named_control_from_collected_sources(files)?
+            build_named_runtime_from_collected_sources(files)?
         }
     };
-    run_built_control_program_with_host(output)
+    run_built_evidence_program(output)
 }
 
-fn run_control_from_source_text_with_playground_std(
+fn run_evidence_from_source_text_with_playground_std(
     source: &str,
-) -> Result<WasmControlOutput, yulang::RouteError> {
+) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
     let poly = match embedded_playground_std_artifact() {
         Some(artifact) => yulang::build_poly_from_embedded_playground_std_compiled_unit_artifact(
             artifact,
@@ -325,8 +326,8 @@ fn run_control_from_source_text_with_playground_std(
             source.to_string(),
         )?,
     };
-    let output = build_named_control_from_poly(poly)?;
-    run_built_control_program_with_host(output)
+    let output = build_named_runtime_from_poly(poly)?;
+    run_built_evidence_program(output)
 }
 
 fn embedded_playground_std_artifact() -> Option<yulang::cache::CachedCompiledUnitArtifact> {
@@ -380,40 +381,24 @@ fn decode_embedded_full_std_artifact() -> Option<yulang::cache::CachedCompiledUn
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct NamedControlBuild {
+struct NamedRuntimeBuild {
     output: yulang::BuildControlOutput,
-    constructor_names: ConstructorNames,
     types: Vec<TypeResult>,
 }
 
-type ConstructorNames = HashMap<control_vm::DefId, String>;
-
-fn build_named_control_from_collected_sources(
+fn build_named_runtime_from_collected_sources(
     files: Vec<yulang::CollectedSource>,
-) -> Result<NamedControlBuild, yulang::RouteError> {
+) -> Result<NamedRuntimeBuild, yulang::RouteError> {
     let poly = yulang::build_poly_from_collected_sources(files)?;
-    build_named_control_from_poly(poly)
+    build_named_runtime_from_poly(poly)
 }
 
-fn build_named_control_from_poly(
+fn build_named_runtime_from_poly(
     poly: yulang::BuildPolyOutput,
-) -> Result<NamedControlBuild, yulang::RouteError> {
-    let constructor_names = constructor_display_names(&poly);
+) -> Result<NamedRuntimeBuild, yulang::RouteError> {
     let types = exported_type_results(&poly);
     let output = yulang::build_control_from_poly_output(&poly)?;
-    Ok(NamedControlBuild {
-        output,
-        constructor_names,
-        types,
-    })
-}
-
-fn constructor_display_names(poly: &yulang::BuildPolyOutput) -> ConstructorNames {
-    poly.arena
-        .constructors
-        .iter()
-        .map(|(def, constructor)| (control_vm::DefId(def.0), constructor.name.clone()))
-        .collect()
+    Ok(NamedRuntimeBuild { output, types })
 }
 
 fn exported_type_results(poly: &yulang::BuildPolyOutput) -> Vec<TypeResult> {
@@ -448,58 +433,60 @@ fn exported_type_result(
     Some(TypeResult { name, ty })
 }
 
-fn run_built_control_program_with_host(
-    build: NamedControlBuild,
-) -> Result<WasmControlOutput, yulang::RouteError> {
-    let mut stdout = String::new();
-    let values = control_vm::run_program_with_host(&build.output.program, |path, payload| {
-        handle_host_effect(path, payload, &mut stdout)
-    })
-    .map_err(yulang::RouteError::Control)?;
-    let text = format_control_values(&values, &build.constructor_names);
-    Ok(WasmControlOutput {
+fn run_built_evidence_program(
+    build: NamedRuntimeBuild,
+) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
+    let plan = evidence_vm::build_plan(&build.output.program, &build.output.runtime_evidence);
+    let output = evidence_vm::run_program_with_plan(&build.output.program, &plan)?;
+    let results = output.root_value_texts_with_labels(Some(&build.output.labels));
+    let text = output.roots_text_with_labels(Some(&build.output.labels));
+    Ok(WasmRuntimeOutput {
         file_count: build.output.file_count,
         errors: build.output.errors,
-        text: format!("run roots {text}\n"),
-        values,
-        constructor_names: build.constructor_names,
+        text,
+        results,
         types: build.types,
-        stdout,
+        stdout: output.stdout,
+        stats: output.evidence_stats,
     })
-}
-
-fn handle_host_effect(
-    path: &[String],
-    payload: &control_vm::Value,
-    stdout: &mut String,
-) -> Option<control_vm::Value> {
-    if path == ["std", "io", "console", "out", "write"] {
-        push_host_string_payload(payload, stdout)?;
-        return Some(control_vm::Value::Unit);
-    }
-    None
-}
-
-fn push_host_string_payload(value: &control_vm::Value, out: &mut String) -> Option<()> {
-    match value {
-        control_vm::Value::Str(value) => {
-            value.push_to_string(out);
-            Some(())
-        }
-        control_vm::Value::Marked { value, .. } => push_host_string_payload(value, out),
-        _ => None,
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct WasmControlOutput {
+struct WasmRuntimeOutput {
     file_count: usize,
     errors: Vec<String>,
     text: String,
-    values: Vec<control_vm::Value>,
-    constructor_names: ConstructorNames,
+    results: Vec<String>,
     types: Vec<TypeResult>,
     stdout: String,
+    stats: evidence_vm::RuntimeEvidenceRunStats,
+}
+
+#[derive(Debug)]
+enum WasmRuntimeError {
+    Route(yulang::RouteError),
+    Runtime(evidence_vm::RuntimeEvidenceRunError),
+}
+
+impl From<yulang::RouteError> for WasmRuntimeError {
+    fn from(error: yulang::RouteError) -> Self {
+        Self::Route(error)
+    }
+}
+
+impl From<evidence_vm::RuntimeEvidenceRunError> for WasmRuntimeError {
+    fn from(error: evidence_vm::RuntimeEvidenceRunError) -> Self {
+        Self::Runtime(error)
+    }
+}
+
+impl fmt::Display for WasmRuntimeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Route(error) => write!(f, "{error}"),
+            Self::Runtime(error) => write!(f, "{error}"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -636,21 +623,19 @@ pub struct EmbeddedStdArtifactsOutput {
 }
 
 impl RunOutput {
-    fn from_control_output(
-        output: WasmControlOutput,
+    fn from_runtime_output(
+        output: WasmRuntimeOutput,
         source: &str,
         used_embedded_std: bool,
     ) -> Self {
         let diagnostics = diagnostics_from_messages(&output.errors, source.len());
         let results = output
-            .values
-            .iter()
+            .results
+            .into_iter()
             .enumerate()
-            .map(|(index, value)| RunResult {
-                index,
-                value: format_single_control_value(value, &output.constructor_names),
-            })
+            .map(|(index, value)| RunResult { index, value })
             .collect::<Vec<_>>();
+        let vm_continuation_steps = evidence_vm_continuation_steps(&output.stats);
         Self {
             ok: diagnostics.is_empty(),
             file_count: output.file_count,
@@ -659,7 +644,7 @@ impl RunOutput {
             stdout: output.stdout,
             types: output.types,
             timings: Some(RunTimings {
-                vm_continuation_steps: 0,
+                vm_continuation_steps,
                 source_cache_hits: 0,
                 source_cache_misses: 1,
                 used_embedded_std,
@@ -687,6 +672,12 @@ impl RunOutput {
             errors: vec![message],
         }
     }
+}
+
+fn evidence_vm_continuation_steps(stats: &evidence_vm::RuntimeEvidenceRunStats) -> usize {
+    stats.continuation_append_steps
+        + stats.continuation_resume_steps
+        + stats.request_continuation_steps
 }
 
 impl CheckOutput {
@@ -755,157 +746,6 @@ fn diagnostics_from_messages(messages: &[String], source_len: usize) -> Vec<Diag
         .cloned()
         .map(|message| Diagnostic::error(message, source_len))
         .collect()
-}
-
-fn format_control_values(
-    values: &[control_vm::Value],
-    constructor_names: &ConstructorNames,
-) -> String {
-    let mut out = String::new();
-    out.push('[');
-    for (index, value) in values.iter().enumerate() {
-        if index > 0 {
-            out.push_str(", ");
-        }
-        out.push_str(&format_single_control_value(value, constructor_names));
-    }
-    out.push(']');
-    out
-}
-
-fn format_single_control_value(
-    value: &control_vm::Value,
-    constructor_names: &ConstructorNames,
-) -> String {
-    match value {
-        control_vm::Value::Int(value) => value.to_string(),
-        control_vm::Value::BigInt(value) => value.to_string(),
-        control_vm::Value::Float(value) => value.to_string(),
-        control_vm::Value::Str(value) => format!("{:?}", value.to_flat_string()),
-        control_vm::Value::Bytes(value) => format!("<bytes len={}>", value.len()),
-        control_vm::Value::Bool(value) => value.to_string(),
-        control_vm::Value::Unit => "()".to_string(),
-        control_vm::Value::Tuple(values) => {
-            format_control_delimited_values("(", ")", values, constructor_names, true)
-        }
-        control_vm::Value::List(values) => {
-            let values = values
-                .to_vec()
-                .into_iter()
-                .map(|value| (*value).clone())
-                .collect::<Vec<_>>();
-            format_control_delimited_values("[", "]", &values, constructor_names, false)
-        }
-        control_vm::Value::Record(fields) => {
-            let mut out = String::new();
-            out.push('{');
-            for (index, field) in fields.iter().enumerate() {
-                if index > 0 {
-                    out.push_str(", ");
-                }
-                out.push_str(&field.name);
-                out.push_str(": ");
-                out.push_str(&format_single_control_value(
-                    &field.value,
-                    constructor_names,
-                ));
-            }
-            out.push('}');
-            out
-        }
-        control_vm::Value::PolyVariant { tag, payloads } => {
-            if payloads.is_empty() {
-                return tag.clone();
-            }
-            format!(
-                "{tag}{}",
-                format_control_delimited_values("(", ")", payloads, constructor_names, true)
-            )
-        }
-        control_vm::Value::DataConstructor { def, payloads } => {
-            if let Some(name) = constructor_names.get(def) {
-                return format_named_constructor(name, payloads, constructor_names);
-            }
-            if payloads.is_empty() {
-                return format!("<ctor d{}>", def.0);
-            }
-            format!(
-                "<ctor d{}>{}",
-                def.0,
-                format_control_delimited_values("(", ")", payloads, constructor_names, true)
-            )
-        }
-        control_vm::Value::ConstructorFunction(constructor) => {
-            let name = constructor_names
-                .get(&constructor.def)
-                .map(String::as_str)
-                .unwrap_or("<ctor>");
-            format!(
-                "<ctor-fn {name} d{} {}/{}>",
-                constructor.def.0,
-                constructor.args.len(),
-                constructor.arity
-            )
-        }
-        control_vm::Value::PrimitiveOp(primitive) => {
-            format!(
-                "<prim {:?} {}/{}>",
-                primitive.op,
-                primitive.args.len(),
-                primitive.op.arity()
-            )
-        }
-        control_vm::Value::Closure(_) | control_vm::Value::RecursiveClosure { .. } => {
-            "<closure>".to_string()
-        }
-        control_vm::Value::Thunk(_) => "<thunk>".to_string(),
-        control_vm::Value::FunctionAdapter(_) => "<function-adapter>".to_string(),
-        control_vm::Value::EffectOp { path, .. } => format!("<effect-op {}>", path.join("::")),
-        control_vm::Value::Continuation(id) => format!("<continuation {}>", id.0),
-        control_vm::Value::Marked { value, .. } => {
-            format_single_control_value(value, constructor_names)
-        }
-    }
-}
-
-fn format_named_constructor(
-    name: &str,
-    payloads: &[control_vm::Value],
-    constructor_names: &ConstructorNames,
-) -> String {
-    match payloads {
-        [] => name.to_string(),
-        [payload] => format!(
-            "{name} {}",
-            format_single_control_value(payload, constructor_names)
-        ),
-        payloads => format!(
-            "{name}{}",
-            format_control_delimited_values("(", ")", payloads, constructor_names, false)
-        ),
-    }
-}
-
-fn format_control_delimited_values(
-    open: &str,
-    close: &str,
-    values: &[control_vm::Value],
-    constructor_names: &ConstructorNames,
-    tuple_singleton: bool,
-) -> String {
-    let mut out = String::new();
-    out.push_str(open);
-    for (index, value) in values.iter().enumerate() {
-        if index > 0 {
-            out.push_str(", ");
-        }
-        out.push_str(&format_single_control_value(value, constructor_names));
-    }
-    if tuple_singleton && values.len() == 1 && open == "(" {
-        out.push(',');
-    }
-    out.push_str(close);
-    out
 }
 
 fn source_likely_needs_embedded_std(source: &str) -> bool {

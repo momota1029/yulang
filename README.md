@@ -227,6 +227,9 @@ Yulang currently has three runtime surfaces:
 - the evidence VM, used by the default `run` command;
 - the control VM, kept as a fallback route with `run --control-vm`.
 
+The browser playground run path also uses the evidence VM through the wasm
+crate, while `check` / dump tools still share the normal frontend pipeline.
+
 The evidence VM is the fastest route for the effect-heavy examples used during
 runtime work. It can still be checked against the control VM with:
 
@@ -294,7 +297,7 @@ printf '1\n' >/tmp/yulang-main.yu
 - `archive/crates`: old `yulang` implementation, retained as reference-only code outside the workspace.
 - `examples`: executable examples for the current language implementation.
 - `lib/std`: standard library written in Yulang.
-- `web/playground`: legacy Vite-based browser playground sources; the active workspace does not build through it.
+- `web/playground`: Vite-based browser playground sources.
 - `web/docs`: reference documentation.
 - `notes`: bug, refactor, and progress notes.
 

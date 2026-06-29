@@ -217,7 +217,7 @@ sub:
         let source = source.to_string();
         let (output, full_std_stdout, full_std_text) = on_test_stack(move || {
             let output = run_inner(&source);
-            let full_std_output = run_control_from_source_text_with_embedded_std(&source).unwrap();
+            let full_std_output = run_evidence_from_source_text_with_embedded_std(&source).unwrap();
             (output, full_std_output.stdout, full_std_output.text)
         });
 
@@ -250,15 +250,15 @@ sub:
         let source = source.to_string();
         let (output, full_std_text) = on_test_stack(move || {
             let output = run_inner(&source);
-            let full_std_output = run_control_from_source_text_with_embedded_std(&source).unwrap();
+            let full_std_output = run_evidence_from_source_text_with_embedded_std(&source).unwrap();
             (output, full_std_output.text)
         });
 
-        assert_eq!(full_std_text, "run roots [just (3, 4, 5)]\n");
+        assert_eq!(full_std_text, "run roots [opt::just((3, 4, 5))]\n");
         assert!(output.ok, "{output:?}");
         assert_eq!(
             output.results.first().map(|result| result.value.as_str()),
-            Some("just (3, 4, 5)")
+            Some("opt::just((3, 4, 5))")
         );
         assert_eq!(output.text, full_std_text);
     }

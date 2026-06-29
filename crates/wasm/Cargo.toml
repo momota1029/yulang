@@ -7,7 +7,7 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-control-vm = { path = "../control-vm" }
+evidence-vm = { path = "../evidence-vm" }
 parser = { path = "../parser" }
 poly = { path = "../poly" }
 rowan = "0.15"

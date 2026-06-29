@@ -28,7 +28,7 @@ pub(super) fn format_float(value: f64) -> String {
     }
 }
 
-fn format_value_with_labels(
+pub(super) fn format_value_with_labels(
     value: &RuntimeEvidenceValue,
     labels: Option<&poly::dump::DumpLabels>,
 ) -> String {

@@ -20,7 +20,7 @@ mod format;
 mod plan;
 mod text;
 use crate::{EvidenceVmOperationExecutionPlan, EvidenceVmPlan};
-use format::{format_float, format_value, format_values_with_labels};
+use format::{format_float, format_value, format_value_with_labels, format_values_with_labels};
 use plan::RuntimeEvidenceProviderGrantPermission;
 use plan::{
     RuntimeEvidenceOperationVisibility, RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext,
@@ -43,6 +43,16 @@ impl RuntimeEvidenceRunOutput {
             "run roots {}\n",
             format_values_with_labels(&self.values, labels)
         )
+    }
+
+    pub fn root_value_texts_with_labels(
+        &self,
+        labels: Option<&poly::dump::DumpLabels>,
+    ) -> Vec<String> {
+        self.values
+            .iter()
+            .map(|value| format_value_with_labels(value, labels))
+            .collect()
     }
 }
 
