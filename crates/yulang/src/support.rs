@@ -47,7 +47,23 @@ pub(super) fn parse_run_args(
                 selection.print_roots = true;
             }
             Some("--interpreter") => {
-                selection.interpreter = true;
+                set_run_backend(program, &mut selection, RunBackend::Mono, "--interpreter");
+            }
+            Some("--control-vm") => {
+                set_run_backend(
+                    program,
+                    &mut selection,
+                    RunBackend::ControlVm,
+                    "--control-vm",
+                );
+            }
+            Some("--evidence-vm") => {
+                set_run_backend(
+                    program,
+                    &mut selection,
+                    RunBackend::EvidenceVm,
+                    "--evidence-vm",
+                );
             }
             Some("-e") | Some("--eval") => {
                 let Some(value) = args.pop_front() else {
@@ -102,7 +118,7 @@ pub(super) fn parse_run_path_args(
                 selection.print_roots = true;
             }
             Some("--interpreter") => {
-                selection.interpreter = true;
+                set_run_backend(program, &mut selection, RunBackend::Mono, "--interpreter");
             }
             Some(flag) if flag.starts_with("--") => {
                 print_usage_error_and_exit(program, &format!("unsupported run option {flag}"));
@@ -114,6 +130,14 @@ pub(super) fn parse_run_path_args(
         print_usage_and_exit(program);
     };
     (path, selection)
+}
+
+fn set_run_backend(program: &str, selection: &mut RunSelection, backend: RunBackend, flag: &str) {
+    if selection.backend_explicit && selection.backend != backend {
+        print_usage_error_and_exit(program, &format!("conflicting run backend option {flag}"));
+    }
+    selection.backend = backend;
+    selection.backend_explicit = true;
 }
 
 pub(super) fn parse_parse_args(
@@ -372,6 +396,21 @@ pub(super) struct CliControlRunOutput {
     pub timings: yulang::ControlRunTimings,
 }
 
+pub(super) struct CliEvidenceRunOutput {
+    pub text: String,
+    pub stdout: String,
+    pub errors: Vec<String>,
+    pub stats: evidence_vm::RuntimeEvidenceRunStats,
+    pub timings: CliEvidenceRunTimings,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(super) struct CliEvidenceRunTimings {
+    pub plan_build: Duration,
+    pub execute: Duration,
+    pub root_format: Duration,
+}
+
 impl From<yulang::RunControlOutput> for CliControlRunOutput {
     fn from(output: yulang::RunControlOutput) -> Self {
         Self {
@@ -403,6 +442,50 @@ pub(super) fn run_built_control_for_cli(build: yulang::BuildControlOutput) -> Cl
     })
 }
 
+pub(super) fn run_built_evidence_for_cli(
+    build: yulang::BuildControlOutput,
+) -> CliEvidenceRunOutput {
+    run_control_on_cli_vm_stack(move || {
+        let yulang::BuildControlOutput {
+            program,
+            runtime_evidence,
+            labels,
+            file_count: _,
+            errors,
+        } = build;
+
+        let plan_start = Instant::now();
+        let plan = evidence_vm::build_plan(&program, &runtime_evidence);
+        let plan_build = plan_start.elapsed();
+
+        let run_start = Instant::now();
+        let output = match evidence_vm::run_program_with_plan(&program, &plan) {
+            Ok(output) => output,
+            Err(error) => {
+                eprintln!("{error}");
+                process::exit(1);
+            }
+        };
+        let execute = run_start.elapsed();
+
+        let root_format_start = Instant::now();
+        let text = output.roots_text_with_labels(Some(&labels));
+        let root_format = root_format_start.elapsed();
+
+        CliEvidenceRunOutput {
+            text,
+            stdout: output.stdout,
+            errors,
+            stats: output.evidence_stats,
+            timings: CliEvidenceRunTimings {
+                plan_build,
+                execute,
+                root_format,
+            },
+        }
+    })
+}
+
 pub(super) fn run_control_artifact(program: control_vm::Program, print_roots: bool) {
     let text = run_control_on_cli_vm_stack(move || {
         let values = match control_vm::run_program(&program) {
@@ -426,9 +509,9 @@ pub(super) fn run_control_artifact(program: control_vm::Program, print_roots: bo
     }
 }
 
-// The control VM still has recursive eval/apply paths. CLI execution isolates
-// those paths on a dedicated stack until the runtime is fully trampolined.
-const CONTROL_VM_CLI_STACK_SIZE: usize = 64 * 1024 * 1024;
+// The VM runtimes still have recursive eval/apply paths. CLI execution isolates
+// those paths on a dedicated stack until the runtimes are fully trampolined.
+const CONTROL_VM_CLI_STACK_SIZE: usize = 256 * 1024 * 1024;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn run_control_on_cli_vm_stack<T: Send>(run: impl FnOnce() -> T + Send) -> T {
@@ -543,6 +626,19 @@ pub(super) fn print_cli_control_run_output_with_roots(
     }
 }
 
+pub(super) fn print_cli_evidence_run_output_with_roots(
+    output: &CliEvidenceRunOutput,
+    print_roots: bool,
+) {
+    print!("{}", output.stdout);
+    if print_roots {
+        print!("{}", output.text);
+    }
+    for error in &output.errors {
+        eprintln!("error: {error}");
+    }
+}
+
 pub(super) fn run_mono_printer(print_roots: bool) -> impl FnOnce(&yulang::RunMonoOutput) {
     move |output| {
         if print_roots {
@@ -571,7 +667,7 @@ pub(super) fn print_usage_and_exit(program: &str) -> ! {
         "       {program} [--std-root <path>] [--no-prelude] [--no-cache] build [--out <path>] <path>"
     );
     eprintln!(
-        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--interpreter] [--print-roots] [-e <source>|-|<path>]"
+        "       {program} [--std-root <path>] [--no-prelude] [--no-cache] run [--evidence-vm|--control-vm|--interpreter] [--print-roots] [-e <source>|-|<path>]"
     );
     eprintln!(
         "       {program} [--std-root <path>] [--no-prelude] dump <path> (--core-ir | --runtime-ir | --poly | --poly-raw | --mono)"

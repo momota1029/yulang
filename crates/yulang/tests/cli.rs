@@ -1730,6 +1730,7 @@ fn compatible_runtime_phase_timings_report_cache_route() {
     assert_success(&output);
     assert_eq!(stdout(&output), "run roots [1]\n");
     assert_cache_route(&output, "full-miss");
+    assert_run_backend(&output, "evidence-vm");
 
     let output = yulang_command()
         .env("YULANG_CACHE_DIR", &cache_root)
@@ -1742,7 +1743,8 @@ fn compatible_runtime_phase_timings_report_cache_route() {
         .unwrap();
     assert_success(&output);
     assert_eq!(stdout(&output), "run roots [1]\n");
-    assert_cache_route(&output, "control-hit");
+    assert_cache_route_any(&output, &["source-key-control-hit", "control-hit"]);
+    assert_run_backend(&output, "evidence-vm");
 
     remove_cache_stage(&cache_root, "control-vm");
     let output = yulang_command()
@@ -1757,6 +1759,7 @@ fn compatible_runtime_phase_timings_report_cache_route() {
     assert_success(&output);
     assert_eq!(stdout(&output), "run roots [1]\n");
     assert_cache_route(&output, "poly-hit");
+    assert_run_backend(&output, "evidence-vm");
 
     remove_cache_stage(&cache_root, "control-vm");
     remove_cache_stage(&cache_root, "poly");
@@ -1772,6 +1775,7 @@ fn compatible_runtime_phase_timings_report_cache_route() {
     assert_success(&output);
     assert_eq!(stdout(&output), "run roots [1]\n");
     assert_cache_route(&output, "compiled-unit-hit");
+    assert_run_backend(&output, "evidence-vm");
 
     let _ = fs::remove_dir_all(&root);
 }
@@ -2349,6 +2353,14 @@ fn assert_cache_route_any(output: &Output, routes: &[&str]) {
         routes
             .iter()
             .any(|route| stderr.contains(&format!("run.cache: {route}"))),
+        "{stderr}"
+    );
+}
+
+fn assert_run_backend(output: &Output, backend: &str) {
+    let stderr = stderr(output);
+    assert!(
+        stderr.contains(&format!("run.backend: {backend}")),
         "{stderr}"
     );
 }

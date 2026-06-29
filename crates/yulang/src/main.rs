@@ -195,8 +195,17 @@ enum RunInput {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 struct RunSelection {
-    interpreter: bool,
+    backend: RunBackend,
+    backend_explicit: bool,
     print_roots: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+enum RunBackend {
+    #[default]
+    EvidenceVm,
+    ControlVm,
+    Mono,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -462,8 +471,12 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
     let (input, selection) = parse_run_args(program, args);
     if let RunInput::Path(path) = &input {
         if let Some(artifact) = read_control_artifact_or_exit(path) {
-            if selection.interpreter {
+            if selection.backend == RunBackend::Mono {
                 eprintln!("control-vm artifact cannot be run with --interpreter");
+                process::exit(2);
+            }
+            if selection.backend == RunBackend::EvidenceVm && selection.backend_explicit {
+                eprintln!("control-vm artifact cannot be run with --evidence-vm");
                 process::exit(2);
             }
             run_control_artifact(artifact, selection.print_roots);
@@ -472,7 +485,7 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
     }
 
     print_run_input_cst_if_requested(options, &input);
-    if selection.interpreter {
+    if selection.backend == RunBackend::Mono {
         if options.no_prelude {
             let output = match input {
                 RunInput::Path(path) => run_route_to_value(yulang::run_mono_from_entry(path)),
@@ -514,16 +527,32 @@ fn run_compatible_run(program: &str, options: &GlobalOptions, args: VecDeque<OsS
         }
     };
     let eval_start = Instant::now();
-    let output = run_built_control_for_cli(build);
-    timings.vm_eval = eval_start.elapsed();
-    timings.control_validate = output.timings.validate;
-    timings.runtime_init = output.timings.init;
-    timings.runtime_execute = output.timings.execute;
-    timings.root_format = output.timings.root_format;
-    timings.total = total_start.elapsed();
-    print_cli_control_run_output_with_roots(&output, selection.print_roots);
-    if options.runtime_phase_timings {
-        print_runtime_phase_timings(&timings, &output.stats);
+    match selection.backend {
+        RunBackend::ControlVm => {
+            let output = run_built_control_for_cli(build);
+            timings.vm_eval = eval_start.elapsed();
+            timings.control_validate = output.timings.validate;
+            timings.runtime_init = output.timings.init;
+            timings.runtime_execute = output.timings.execute;
+            timings.root_format = output.timings.root_format;
+            timings.total = total_start.elapsed();
+            print_cli_control_run_output_with_roots(&output, selection.print_roots);
+            if options.runtime_phase_timings {
+                print_runtime_phase_timings(&timings, &output.stats);
+            }
+        }
+        RunBackend::EvidenceVm => {
+            let output = run_built_evidence_for_cli(build);
+            timings.vm_eval = eval_start.elapsed();
+            timings.runtime_execute = output.timings.execute;
+            timings.root_format = output.timings.root_format;
+            timings.total = total_start.elapsed();
+            print_cli_evidence_run_output_with_roots(&output, selection.print_roots);
+            if options.runtime_phase_timings {
+                print_runtime_evidence_phase_timings(&timings, &output.timings, &output.stats);
+            }
+        }
+        RunBackend::Mono => unreachable!("mono backend returned before control build"),
     }
 }
 
@@ -924,6 +953,7 @@ fn record_runtime_build_cache(
 
 fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm::RuntimeStats) {
     eprintln!("runtime timing:");
+    eprintln!("  run.backend: control-vm");
     eprintln!("  run.cache: {}", timing.build_cache.as_str());
     eprintln!("  run.collect: {}", format_duration(timing.collect));
     eprintln!("  run.build_poly: {}", format_duration(timing.build_poly));
@@ -1416,6 +1446,50 @@ fn print_runtime_phase_timings(timing: &RuntimePhaseTimings, stats: &control_vm:
     eprintln!(
         "  run.scope_state_shadow_foreign_path_candidates: {}",
         stats.scope_state_shadow_foreign_path_candidates
+    );
+}
+
+fn print_runtime_evidence_phase_timings(
+    timing: &RuntimePhaseTimings,
+    evidence_timing: &CliEvidenceRunTimings,
+    stats: &evidence_vm::RuntimeEvidenceRunStats,
+) {
+    eprintln!("runtime timing:");
+    eprintln!("  run.backend: evidence-vm");
+    eprintln!("  run.cache: {}", timing.build_cache.as_str());
+    eprintln!("  run.collect: {}", format_duration(timing.collect));
+    eprintln!("  run.build_poly: {}", format_duration(timing.build_poly));
+    eprintln!("  run.specialize: {}", format_duration(timing.specialize));
+    eprintln!(
+        "  run.control_lower: {}",
+        format_duration(timing.control_lower)
+    );
+    eprintln!(
+        "  run.evidence_plan_build: {}",
+        format_duration(evidence_timing.plan_build)
+    );
+    eprintln!("  run.vm_eval: {}", format_duration(timing.vm_eval));
+    eprintln!(
+        "  run.runtime_execute: {}",
+        format_duration(timing.runtime_execute)
+    );
+    eprintln!("  run.root_format: {}", format_duration(timing.root_format));
+    eprintln!("  run.total: {}", format_duration(timing.total));
+
+    eprintln!("runtime stats:");
+    eprintln!(
+        "  run.runtime_evidence.effect_calls: {}",
+        stats.effect_calls
+    );
+    eprintln!(
+        "  run.runtime_evidence.direct_effect_calls: {}",
+        stats.direct_effect_calls
+    );
+    eprintln!("  run.runtime_evidence.expr_evals: {}", stats.expr_evals);
+    eprintln!("  run.runtime_evidence.env_clones: {}", stats.env_clones);
+    eprintln!(
+        "  run.runtime_evidence.list_merge_calls: {}",
+        stats.list_merge_calls
     );
 }
 
@@ -4905,7 +4979,7 @@ fn run_debug(program: &str, options: &GlobalOptions, mut args: VecDeque<OsString
         }
         Some("control-vm-load") => {
             let (path, selection) = parse_run_path_args(program, args);
-            if selection.interpreter {
+            if selection.backend == RunBackend::Mono {
                 print_usage_error_and_exit(
                     program,
                     "debug control-vm-load does not take --interpreter",
