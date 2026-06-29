@@ -6111,7 +6111,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     return EvidenceMarkerCloseDecision::NativeProviderEnvForeignBoundary(cert);
                 }
                 EvidenceProviderEnvForeignBoundaryCloseDecision::Legacy => {
-                    self.record_provider_marker_close_handler_path_reject(
+                    self.record_provider_marker_close_handler_path_reject_maybe_profile(
                         call,
                         handler_path,
                         permission,
@@ -6133,7 +6133,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let _ = cert;
                 return EvidenceMarkerCloseDecision::NativeProviderPrefixBoundary(cert);
             }
-            self.record_provider_marker_close_handler_path_reject(call, handler_path, permission);
+            self.record_provider_marker_close_handler_path_reject_maybe_profile(
+                call,
+                handler_path,
+                permission,
+            );
             return EvidenceMarkerCloseDecision::Legacy;
         }
         if marker_slice_has_carry_after_frame_add_id(markers) {
@@ -6157,6 +6161,21 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn record_provider_marker_close_candidate(&mut self) {
         self.stats.resume_marker_provider_pair_close_candidates += 1;
         self.stats.resume_marker_provider_pair_close_native_hits += 1;
+    }
+
+    fn record_provider_marker_close_handler_path_reject_maybe_profile(
+        &mut self,
+        call: &EvidenceDirectTailResumptive,
+        handler_path: &[String],
+        permission: RuntimeEvidenceProviderGrantPermission,
+    ) {
+        if self.should_collect_runtime_breakdown_stats() {
+            self.record_provider_marker_close_handler_path_reject(call, handler_path, permission);
+        } else {
+            self.record_provider_marker_close_reject(
+                EvidenceProviderMarkerCloseReject::HandlerPath,
+            );
+        }
     }
 
     fn record_provider_marker_close_handler_path_reject(
@@ -6277,20 +6296,22 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return None;
         }
         if !path_is_prefix(handler_path, &permission_family) {
-            let placement = self.record_provider_foreign_boundary_profile(
+            let placement = self.provider_foreign_boundary_placement(
                 call,
                 handler_path,
                 permission,
                 &permission_family,
             );
-            self.record_provider_env_foreign_boundary_shadow_candidate(
-                call,
-                handler_path,
-                markers,
-                permission,
-                &permission_family,
-                placement,
-            );
+            if self.should_collect_runtime_breakdown_stats() {
+                self.record_provider_env_foreign_boundary_shadow_candidate(
+                    call,
+                    handler_path,
+                    markers,
+                    permission,
+                    &permission_family,
+                    placement,
+                );
+            }
             self.record_provider_prefix_boundary_legacy_fallback(
                 EvidenceProviderPrefixBoundaryCloseReject::ForeignFamily,
             );
@@ -6347,7 +6368,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return EvidenceProviderEnvForeignBoundaryCloseDecision::NotForeign;
         }
 
-        let placement = self.record_provider_foreign_boundary_profile(
+        let placement = self.provider_foreign_boundary_placement(
             call,
             handler_path,
             permission,
@@ -6363,18 +6384,40 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         ) {
             Some(cert) => EvidenceProviderEnvForeignBoundaryCloseDecision::Native(cert),
             None => {
-                self.record_provider_env_foreign_miss_boundary_shadow_candidate(
-                    call,
-                    handler_path,
-                    markers,
-                    permission,
-                    &permission_family,
-                    placement,
-                    resume_plan,
-                );
+                if self.should_collect_runtime_breakdown_stats() {
+                    self.record_provider_env_foreign_miss_boundary_shadow_candidate(
+                        call,
+                        handler_path,
+                        markers,
+                        permission,
+                        &permission_family,
+                        placement,
+                        resume_plan,
+                    );
+                }
                 self.stats.provider_env_foreign_boundary_legacy_fallbacks += 1;
                 EvidenceProviderEnvForeignBoundaryCloseDecision::Legacy
             }
+        }
+    }
+
+    fn provider_foreign_boundary_placement(
+        &mut self,
+        call: &EvidenceDirectTailResumptive,
+        handler_path: &[String],
+        permission: RuntimeEvidenceProviderGrantPermission,
+        permission_family: &[String],
+    ) -> EvidenceProviderEnvPlacement {
+        if self.should_collect_runtime_breakdown_stats() {
+            self.record_provider_foreign_boundary_profile(
+                call,
+                handler_path,
+                permission,
+                permission_family,
+            )
+        } else {
+            call.continuation
+                .provider_env_placement(permission.handler_id())
         }
     }
 
@@ -6598,7 +6641,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
 
         self.stats.provider_env_foreign_boundary_native_hits += 1;
-        self.stats.provider_env_foreign_boundary_shadow_candidates += 1;
+        if self.should_collect_runtime_breakdown_stats() {
+            self.stats.provider_env_foreign_boundary_shadow_candidates += 1;
+        }
         Some(EvidenceProviderEnvForeignBoundaryGrantCert::new(
             permission, depth,
         ))
@@ -6608,57 +6653,77 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         reject: EvidenceProviderEnvForeignBoundaryCloseReject,
     ) {
+        let record_shadow = self.should_collect_runtime_breakdown_stats();
         match reject {
             EvidenceProviderEnvForeignBoundaryCloseReject::NearestMisses => {
                 self.stats
                     .provider_env_foreign_boundary_reject_nearest_misses += 1;
-                self.stats
-                    .provider_env_foreign_boundary_shadow_reject_nearest_misses += 1;
+                if record_shadow {
+                    self.stats
+                        .provider_env_foreign_boundary_shadow_reject_nearest_misses += 1;
+                }
             }
             EvidenceProviderEnvForeignBoundaryCloseReject::NoProviderEnv => {
                 self.stats
                     .provider_env_foreign_boundary_reject_no_provider_env += 1;
-                self.stats
-                    .provider_env_foreign_boundary_shadow_reject_no_provider_env += 1;
+                if record_shadow {
+                    self.stats
+                        .provider_env_foreign_boundary_shadow_reject_no_provider_env += 1;
+                }
             }
             EvidenceProviderEnvForeignBoundaryCloseReject::MarkerBeforeProviderEnv => {
                 self.stats
                     .provider_env_foreign_boundary_reject_marker_before_provider_env += 1;
-                self.stats
-                    .provider_env_foreign_boundary_shadow_reject_marker_before_provider_env += 1;
+                if record_shadow {
+                    self.stats
+                        .provider_env_foreign_boundary_shadow_reject_marker_before_provider_env +=
+                        1;
+                }
             }
             EvidenceProviderEnvForeignBoundaryCloseReject::Depth => {
                 self.stats.provider_env_foreign_boundary_reject_depth += 1;
-                self.stats.provider_env_foreign_boundary_shadow_reject_depth += 1;
+                if record_shadow {
+                    self.stats.provider_env_foreign_boundary_shadow_reject_depth += 1;
+                }
             }
             EvidenceProviderEnvForeignBoundaryCloseReject::ThenSecond => {
                 self.stats.provider_env_foreign_boundary_reject_then_second += 1;
-                self.stats
-                    .provider_env_foreign_boundary_shadow_reject_then_second += 1;
+                if record_shadow {
+                    self.stats
+                        .provider_env_foreign_boundary_shadow_reject_then_second += 1;
+                }
             }
             EvidenceProviderEnvForeignBoundaryCloseReject::LaterGrant => {
                 self.stats.provider_env_foreign_boundary_reject_later_grant += 1;
-                self.stats
-                    .provider_env_foreign_boundary_shadow_reject_later_grant += 1;
+                if record_shadow {
+                    self.stats
+                        .provider_env_foreign_boundary_shadow_reject_later_grant += 1;
+                }
             }
             EvidenceProviderEnvForeignBoundaryCloseReject::PermissionFamilyRequestMismatch => {
                 self.stats
                     .provider_env_foreign_boundary_reject_permission_family_request_mismatch += 1;
-                self.stats
-                    .provider_env_foreign_boundary_shadow_reject_permission_family_request_mismatch += 1;
+                if record_shadow {
+                    self.stats
+                        .provider_env_foreign_boundary_shadow_reject_permission_family_request_mismatch += 1;
+                }
             }
             EvidenceProviderEnvForeignBoundaryCloseReject::HandlerPathRelatedToRequest => {
                 self.stats
                     .provider_env_foreign_boundary_reject_handler_path_related_to_request += 1;
-                self.stats
-                    .provider_env_foreign_boundary_shadow_reject_handler_path_related_to_request +=
-                    1;
+                if record_shadow {
+                    self.stats
+                        .provider_env_foreign_boundary_shadow_reject_handler_path_related_to_request +=
+                        1;
+                }
             }
             EvidenceProviderEnvForeignBoundaryCloseReject::CarryAfterFrame => {
                 self.stats
                     .provider_env_foreign_boundary_reject_carry_after_frame += 1;
-                self.stats
-                    .provider_env_foreign_boundary_shadow_reject_carry_after_frame += 1;
+                if record_shadow {
+                    self.stats
+                        .provider_env_foreign_boundary_shadow_reject_carry_after_frame += 1;
+                }
             }
         }
     }
