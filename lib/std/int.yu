@@ -1,5 +1,6 @@
 use std::text::str::str
 
+pub (mod): int -> int -> int = builtin_op::int_mod
 pub eq: int -> int -> bool = builtin_op::int_eq
 pub lt: int -> int -> bool = builtin_op::int_lt
 pub le: int -> int -> bool = builtin_op::int_le
@@ -10,7 +11,6 @@ pub add: int -> int -> int = builtin_op::int_add
 pub sub: int -> int -> int = builtin_op::int_sub
 pub mul: int -> int -> int = builtin_op::int_mul
 pub div: int -> int -> int = builtin_op::int_div
-pub (mod): int -> int -> int = builtin_op::int_mod
 
 pub to_string: int -> str = builtin_op::int_to_string
 pub to_hex: int -> str = builtin_op::int_to_hex
