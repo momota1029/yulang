@@ -20,7 +20,10 @@ mod format;
 mod plan;
 mod text;
 use crate::{EvidenceVmOperationExecutionPlan, EvidenceVmPlan};
-use format::{format_float, format_value, format_value_with_labels, format_values_with_labels};
+use format::{
+    format_float, format_value, format_value_with_display_context, format_value_with_labels,
+    format_values_with_display_context, format_values_with_labels,
+};
 use plan::RuntimeEvidenceProviderGrantPermission;
 use plan::{
     RuntimeEvidenceOperationVisibility, RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext,
@@ -53,6 +56,52 @@ impl RuntimeEvidenceRunOutput {
             .iter()
             .map(|value| format_value_with_labels(value, labels))
             .collect()
+    }
+
+    pub fn roots_text_with_display_context(
+        &self,
+        labels: Option<&poly::dump::DumpLabels>,
+        display: &RuntimeEvidenceDisplayContext,
+    ) -> String {
+        format!(
+            "run roots {}\n",
+            format_values_with_display_context(&self.values, labels, display)
+        )
+    }
+
+    pub fn root_value_texts_with_display_context(
+        &self,
+        labels: Option<&poly::dump::DumpLabels>,
+        display: &RuntimeEvidenceDisplayContext,
+    ) -> Vec<String> {
+        self.values
+            .iter()
+            .map(|value| format_value_with_display_context(value, labels, display))
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RuntimeEvidenceDisplayContext {
+    constructor_names: HashMap<u32, String>,
+}
+
+impl RuntimeEvidenceDisplayContext {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn set_constructor_name(&mut self, def: DefId, name: impl Into<String>) -> &mut Self {
+        self.set_constructor_name_id(def.0, name)
+    }
+
+    pub fn set_constructor_name_id(&mut self, def: u32, name: impl Into<String>) -> &mut Self {
+        self.constructor_names.insert(def, name.into());
+        self
+    }
+
+    fn constructor_name(&self, def: DefId) -> Option<&str> {
+        self.constructor_names.get(&def.0).map(String::as_str)
     }
 }
 

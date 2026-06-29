@@ -254,13 +254,43 @@ sub:
             (output, full_std_output.text)
         });
 
-        assert_eq!(full_std_text, "run roots [opt::just((3, 4, 5))]\n");
+        assert_eq!(full_std_text, "run roots [just (3, 4, 5)]\n");
         assert!(output.ok, "{output:?}");
         assert_eq!(
             output.results.first().map(|result| result.value.as_str()),
-            Some("opt::just((3, 4, 5))")
+            Some("just (3, 4, 5)")
         );
         assert_eq!(output.text, full_std_text);
+    }
+
+    #[test]
+    fn display_path_context_uses_shortest_unique_suffixes() {
+        let paths = vec![
+            vec![
+                "std".into(),
+                "data".into(),
+                "opt".into(),
+                "opt".into(),
+                "just".into(),
+            ],
+            vec![
+                "std".into(),
+                "data".into(),
+                "result".into(),
+                "result".into(),
+                "just".into(),
+            ],
+        ];
+        let index = ShortPathIndex::new(paths.iter());
+
+        assert_eq!(
+            index.rewrite(&paths[0]),
+            vec!["opt".to_string(), "just".to_string()]
+        );
+        assert_eq!(
+            index.rewrite(&paths[1]),
+            vec!["result".to_string(), "just".to_string()]
+        );
     }
 
     #[test]
@@ -404,12 +434,8 @@ pair
         let output = run_inner("pub xs = [1, 2, 3]\nxs\n");
 
         assert!(output.ok, "{output:?}");
-        assert!(
-            output
-                .types
-                .iter()
-                .any(|item| item.name == "xs" && item.ty.contains("list"))
-        );
+        let xs = output.types.iter().find(|item| item.name == "xs");
+        assert_eq!(xs.map(|item| item.ty.as_str()), Some("list int"));
     }
 
     #[test]

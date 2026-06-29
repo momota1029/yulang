@@ -11,8 +11,9 @@ use specialize::{
 
 mod runtime;
 pub use runtime::{
-    RuntimeEvidenceRunError, RuntimeEvidenceRunOutput, RuntimeEvidenceRunStats, run_program,
-    run_program_with_plan, run_program_with_plan_deep_profile,
+    RuntimeEvidenceDisplayContext, RuntimeEvidenceRunError, RuntimeEvidenceRunOutput,
+    RuntimeEvidenceRunStats, run_program, run_program_with_plan,
+    run_program_with_plan_deep_profile,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

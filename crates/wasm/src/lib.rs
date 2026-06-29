@@ -4,6 +4,7 @@ use std::fmt;
 
 use parser::sink::YulangLanguage;
 use poly::expr::{Def, Vis};
+use poly::types::{Neg, Neu, Pos, StackWeight, Subtractability};
 use rowan::SyntaxNode;
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
@@ -384,6 +385,7 @@ fn decode_embedded_full_std_artifact() -> Option<yulang::cache::CachedCompiledUn
 struct NamedRuntimeBuild {
     output: yulang::BuildControlOutput,
     types: Vec<TypeResult>,
+    display: PlaygroundDisplayContext,
 }
 
 fn build_named_runtime_from_collected_sources(
@@ -396,21 +398,30 @@ fn build_named_runtime_from_collected_sources(
 fn build_named_runtime_from_poly(
     poly: yulang::BuildPolyOutput,
 ) -> Result<NamedRuntimeBuild, yulang::RouteError> {
-    let types = exported_type_results(&poly);
+    let display = PlaygroundDisplayContext::from_poly(&poly);
+    let types = exported_type_results(&poly, &display);
     let output = yulang::build_control_from_poly_output(&poly)?;
-    Ok(NamedRuntimeBuild { output, types })
+    Ok(NamedRuntimeBuild {
+        output,
+        types,
+        display,
+    })
 }
 
-fn exported_type_results(poly: &yulang::BuildPolyOutput) -> Vec<TypeResult> {
+fn exported_type_results(
+    poly: &yulang::BuildPolyOutput,
+    display: &PlaygroundDisplayContext,
+) -> Vec<TypeResult> {
     poly.arena
         .roots
         .iter()
-        .filter_map(|def| exported_type_result(poly, *def))
+        .filter_map(|def| exported_type_result(poly, display, *def))
         .collect()
 }
 
 fn exported_type_result(
     poly: &yulang::BuildPolyOutput,
+    display: &PlaygroundDisplayContext,
     def: poly::expr::DefId,
 ) -> Option<TypeResult> {
     let Def::Let {
@@ -429,7 +440,9 @@ fn exported_type_result(
         .def_label(def)
         .map(str::to_string)
         .unwrap_or_else(|| format!("d{}", def.0));
-    let ty = poly::dump::format_scheme(&poly.arena.typ, scheme);
+    let ty = poly::dump::format_scheme_with_path_rewriter(&poly.arena.typ, scheme, &|path| {
+        display.rewrite_type_path(path)
+    });
     Some(TypeResult { name, ty })
 }
 
@@ -438,8 +451,10 @@ fn run_built_evidence_program(
 ) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
     let plan = evidence_vm::build_plan(&build.output.program, &build.output.runtime_evidence);
     let output = evidence_vm::run_program_with_plan(&build.output.program, &plan)?;
-    let results = output.root_value_texts_with_labels(Some(&build.output.labels));
-    let text = output.roots_text_with_labels(Some(&build.output.labels));
+    let runtime_display = build.display.runtime_evidence_context();
+    let results =
+        output.root_value_texts_with_display_context(Some(&build.output.labels), &runtime_display);
+    let text = output.roots_text_with_display_context(Some(&build.output.labels), &runtime_display);
     Ok(WasmRuntimeOutput {
         file_count: build.output.file_count,
         errors: build.output.errors,
@@ -449,6 +464,168 @@ fn run_built_evidence_program(
         stdout: output.stdout,
         stats: output.evidence_stats,
     })
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct PlaygroundDisplayContext {
+    constructors: HashMap<u32, String>,
+    type_paths: ShortPathIndex,
+}
+
+impl PlaygroundDisplayContext {
+    fn from_poly(poly: &yulang::BuildPolyOutput) -> Self {
+        let constructor_paths = poly
+            .arena
+            .constructors
+            .iter()
+            .map(|(def, constructor)| (*def, constructor_full_path(constructor)))
+            .collect::<Vec<_>>();
+        let value_paths = ShortPathIndex::new(constructor_paths.iter().map(|(_, path)| path));
+        let constructors = constructor_paths
+            .into_iter()
+            .map(|(def, path)| (def.0, value_paths.rewrite(&path).join("::")))
+            .collect();
+
+        let type_paths = ShortPathIndex::new(collect_type_display_paths(poly).iter());
+
+        Self {
+            constructors,
+            type_paths,
+        }
+    }
+
+    fn runtime_evidence_context(&self) -> evidence_vm::RuntimeEvidenceDisplayContext {
+        let mut context = evidence_vm::RuntimeEvidenceDisplayContext::new();
+        for (def, name) in &self.constructors {
+            context.set_constructor_name_id(*def, name.clone());
+        }
+        context
+    }
+
+    fn rewrite_type_path(&self, path: &[String]) -> Vec<String> {
+        self.type_paths.rewrite(path)
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct ShortPathIndex {
+    rewrites: HashMap<Vec<String>, Vec<String>>,
+}
+
+impl ShortPathIndex {
+    fn new<'a>(paths: impl IntoIterator<Item = &'a Vec<String>>) -> Self {
+        let mut unique_paths = paths
+            .into_iter()
+            .filter(|path| !path.is_empty())
+            .cloned()
+            .collect::<Vec<_>>();
+        unique_paths.sort();
+        unique_paths.dedup();
+
+        let mut suffix_counts: HashMap<Vec<String>, usize> = HashMap::new();
+        for path in &unique_paths {
+            for start in 0..path.len() {
+                *suffix_counts.entry(path[start..].to_vec()).or_default() += 1;
+            }
+        }
+
+        let rewrites = unique_paths
+            .into_iter()
+            .map(|path| {
+                let suffix = (0..path.len())
+                    .rev()
+                    .map(|start| path[start..].to_vec())
+                    .find(|suffix| suffix_counts.get(suffix) == Some(&1))
+                    .unwrap_or_else(|| path.clone());
+                (path, suffix)
+            })
+            .collect();
+
+        Self { rewrites }
+    }
+
+    fn rewrite(&self, path: &[String]) -> Vec<String> {
+        self.rewrites
+            .get(path)
+            .cloned()
+            .unwrap_or_else(|| path.to_vec())
+    }
+}
+
+fn constructor_full_path(constructor: &poly::expr::Constructor) -> Vec<String> {
+    let mut path = constructor.owner_path.clone();
+    path.push(constructor.name.clone());
+    path
+}
+
+fn collect_type_display_paths(poly: &yulang::BuildPolyOutput) -> Vec<Vec<String>> {
+    let mut paths = Vec::new();
+    for node in poly.arena.typ.pos_nodes() {
+        collect_pos_type_paths(node, &mut paths);
+    }
+    for node in poly.arena.typ.neg_nodes() {
+        collect_neg_type_paths(node, &mut paths);
+    }
+    for node in poly.arena.typ.neu_nodes() {
+        collect_neu_type_paths(node, &mut paths);
+    }
+    for (_, def) in poly.arena.defs.iter() {
+        if let Def::Let {
+            scheme: Some(scheme),
+            ..
+        } = def
+        {
+            for predicate in &scheme.role_predicates {
+                paths.push(predicate.role.clone());
+            }
+        }
+    }
+    paths
+}
+
+fn collect_pos_type_paths(node: &Pos, paths: &mut Vec<Vec<String>>) {
+    match node {
+        Pos::Con(path, _) => paths.push(path.clone()),
+        Pos::Stack { weight, .. } | Pos::NonSubtract(_, weight) => {
+            collect_stack_weight_paths(weight, paths);
+        }
+        _ => {}
+    }
+}
+
+fn collect_neg_type_paths(node: &Neg, paths: &mut Vec<Vec<String>>) {
+    match node {
+        Neg::Con(path, _) => paths.push(path.clone()),
+        Neg::Stack { weight, .. } => collect_stack_weight_paths(weight, paths),
+        _ => {}
+    }
+}
+
+fn collect_neu_type_paths(node: &Neu, paths: &mut Vec<Vec<String>>) {
+    if let Neu::Con(path, _) = node {
+        paths.push(path.clone());
+    }
+}
+
+fn collect_stack_weight_paths(weight: &StackWeight, paths: &mut Vec<Vec<String>>) {
+    collect_subtractability_paths(weight.filter_set(), paths);
+    for entry in weight.entries() {
+        for bound in entry.floor.iter().chain(entry.stack.iter()) {
+            collect_subtractability_paths(bound, paths);
+        }
+    }
+}
+
+fn collect_subtractability_paths(value: &Subtractability, paths: &mut Vec<Vec<String>>) {
+    match value {
+        Subtractability::Empty | Subtractability::All => {}
+        Subtractability::Set(path, _) | Subtractability::AllExcept(path, _) => {
+            paths.push(path.clone());
+        }
+        Subtractability::SetMany(families) | Subtractability::AllExceptMany(families) => {
+            paths.extend(families.iter().map(|(path, _)| path.clone()));
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
