@@ -1250,6 +1250,78 @@ pub(crate) fn print_run_report(
             .scope_plan_catch_foreign_boundary_delta_shape_digest_ready
     );
     println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_signal_shadow: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_signal_shadow
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_signal_match: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_signal_match
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_signal_mismatch: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_signal_mismatch
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_generic_fallback_shadow: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_generic_fallback_shadow
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_generic_fallback_match: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_generic_fallback_match
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_generic_fallback_mismatch: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_generic_fallback_mismatch
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_materialized_shape_shadow: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_materialized_shape_shadow
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_materialized_shape_match: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_materialized_shape_match
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_materialized_shape_mismatch: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_materialized_shape_mismatch
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_value_resume_shadow: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_value_resume_shadow
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_value_resume_match: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_value_resume_match
+    );
+    println!(
+        "  runtime_evidence.scope_plan_catch_foreign_boundary_delta_value_resume_mismatch: {}",
+        output
+            .evidence_stats
+            .scope_plan_catch_foreign_boundary_delta_value_resume_mismatch
+    );
+    println!(
         "  runtime_evidence.scope_plan_foreign_catch_reject_root_marker_mismatch: {}",
         output
             .evidence_stats

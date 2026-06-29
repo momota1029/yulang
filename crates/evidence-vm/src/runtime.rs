@@ -1583,6 +1583,37 @@ struct EvidenceCatchBoundaryShapeDigest {
     no_routed_handler: usize,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct EvidenceCatchBoundaryMaterializedShapeDigest {
+    catch_frames: usize,
+    foreign_pass_through_frames: usize,
+    same_handler_frames: usize,
+    generic_fallback_frames: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct EvidenceCatchBoundaryDeltaShadowComparison {
+    signal_shadow: usize,
+    signal_match: usize,
+    signal_mismatch: usize,
+    generic_fallback_shadow: usize,
+    generic_fallback_match: usize,
+    generic_fallback_mismatch: usize,
+    materialized_shape_shadow: usize,
+    materialized_shape_match: usize,
+    materialized_shape_mismatch: usize,
+    value_resume_shadow: usize,
+    value_resume_match: usize,
+    value_resume_mismatch: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceCatchBoundarySignalClass {
+    SameHandler,
+    ForeignPassThrough,
+    GenericFallback,
+}
+
 impl EvidenceCatchBoundaryDeltaPlan {
     fn from_request_delta_frame(frame: &EvidenceRequestDeltaFramePlan) -> Self {
         Self {
@@ -1599,6 +1630,14 @@ impl EvidenceCatchBoundaryDeltaPlan {
 
     fn has_value_resume_payload(&self) -> bool {
         true
+    }
+
+    fn signal_class(&self) -> EvidenceCatchBoundarySignalClass {
+        EvidenceCatchBoundarySignalClass::from_boundary_mode(self.mode)
+    }
+
+    fn has_same_value_resume_payload_as(&self, frame: &EvidenceRequestDeltaFramePlan) -> bool {
+        self.catch_expr == frame.catch_expr && self.arms == frame.arms && self.env == frame.env
     }
 }
 
@@ -1633,6 +1672,64 @@ impl EvidenceCatchBoundaryShapeDigest {
             && self.same_handler == 0
             && self.no_routed_handler == 0
             && self.foreign_pass_through == self.boundaries
+    }
+}
+
+impl EvidenceCatchBoundaryMaterializedShapeDigest {
+    fn from_deltas(deltas: &[EvidenceCatchBoundaryDeltaPlan]) -> Self {
+        let mut digest = Self::default();
+        for delta in deltas {
+            digest.catch_frames += 1;
+            match delta.mode {
+                EvidenceCatchBoundaryMode::SameHandler => digest.same_handler_frames += 1,
+                EvidenceCatchBoundaryMode::ForeignPassThrough => {
+                    digest.foreign_pass_through_frames += 1;
+                }
+                EvidenceCatchBoundaryMode::NoRoutedHandler => {
+                    digest.generic_fallback_frames += 1;
+                }
+            }
+        }
+        digest
+    }
+
+    fn from_request_delta_plan(plan: &EvidenceRequestDeltaPlan) -> Self {
+        let mut digest = Self::default();
+        for frame in plan.frames.iter() {
+            digest.catch_frames += 1;
+            match frame.kind {
+                EvidenceRequestDeltaFrameKind::SameHandler => digest.same_handler_frames += 1,
+                EvidenceRequestDeltaFrameKind::ForeignHandler => {
+                    digest.foreign_pass_through_frames += 1;
+                }
+                EvidenceRequestDeltaFrameKind::NoRoutedHandler => {
+                    digest.generic_fallback_frames += 1;
+                }
+            }
+        }
+        digest
+    }
+}
+
+impl EvidenceCatchBoundarySignalClass {
+    fn from_request_delta_kind(kind: EvidenceRequestDeltaFrameKind) -> Self {
+        match kind {
+            EvidenceRequestDeltaFrameKind::SameHandler => Self::SameHandler,
+            EvidenceRequestDeltaFrameKind::ForeignHandler => Self::ForeignPassThrough,
+            EvidenceRequestDeltaFrameKind::NoRoutedHandler => Self::GenericFallback,
+        }
+    }
+
+    fn from_boundary_mode(mode: EvidenceCatchBoundaryMode) -> Self {
+        match mode {
+            EvidenceCatchBoundaryMode::SameHandler => Self::SameHandler,
+            EvidenceCatchBoundaryMode::ForeignPassThrough => Self::ForeignPassThrough,
+            EvidenceCatchBoundaryMode::NoRoutedHandler => Self::GenericFallback,
+        }
+    }
+
+    fn is_generic_fallback(self) -> bool {
+        matches!(self, Self::GenericFallback)
     }
 }
 
@@ -1702,6 +1799,50 @@ impl EvidenceRequestDeltaPlan {
             }
         }
         digest
+    }
+
+    fn catch_boundary_delta_shadow_comparison(
+        &self,
+        deltas: &[EvidenceCatchBoundaryDeltaPlan],
+    ) -> EvidenceCatchBoundaryDeltaShadowComparison {
+        let mut comparison = EvidenceCatchBoundaryDeltaShadowComparison::default();
+        for (frame, delta) in self.frames.iter().zip(deltas.iter()) {
+            comparison.signal_shadow += 1;
+            let legacy_signal =
+                EvidenceCatchBoundarySignalClass::from_request_delta_kind(frame.kind);
+            if delta.signal_class() == legacy_signal {
+                comparison.signal_match += 1;
+            } else {
+                comparison.signal_mismatch += 1;
+            }
+
+            comparison.generic_fallback_shadow += 1;
+            let legacy_generic_fallback = legacy_signal.is_generic_fallback();
+            let delta_generic_fallback = delta.signal_class().is_generic_fallback();
+            if delta_generic_fallback == legacy_generic_fallback {
+                comparison.generic_fallback_match += 1;
+            } else {
+                comparison.generic_fallback_mismatch += 1;
+            }
+
+            comparison.value_resume_shadow += 1;
+            if delta.has_same_value_resume_payload_as(frame) {
+                comparison.value_resume_match += 1;
+            } else {
+                comparison.value_resume_mismatch += 1;
+            }
+        }
+
+        comparison.materialized_shape_shadow += 1;
+        if EvidenceCatchBoundaryMaterializedShapeDigest::from_deltas(deltas)
+            == EvidenceCatchBoundaryMaterializedShapeDigest::from_request_delta_plan(self)
+        {
+            comparison.materialized_shape_match += 1;
+        } else {
+            comparison.materialized_shape_mismatch += 1;
+        }
+
+        comparison
     }
 }
 
@@ -8584,6 +8725,42 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             shape_digest.foreign_pass_through;
         self.stats.scope_plan_catch_boundary_delta_same_handler += shape_digest.same_handler;
         self.stats.scope_plan_catch_boundary_delta_no_routed += shape_digest.no_routed_handler;
+        let delta_shadow =
+            request_delta.catch_boundary_delta_shadow_comparison(catch_boundary_deltas.as_slice());
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_signal_shadow += delta_shadow.signal_shadow;
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_signal_match += delta_shadow.signal_match;
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_signal_mismatch +=
+            delta_shadow.signal_mismatch;
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_generic_fallback_shadow +=
+            delta_shadow.generic_fallback_shadow;
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_generic_fallback_match +=
+            delta_shadow.generic_fallback_match;
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_generic_fallback_mismatch +=
+            delta_shadow.generic_fallback_mismatch;
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_materialized_shape_shadow +=
+            delta_shadow.materialized_shape_shadow;
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_materialized_shape_match +=
+            delta_shadow.materialized_shape_match;
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_materialized_shape_mismatch +=
+            delta_shadow.materialized_shape_mismatch;
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_value_resume_shadow +=
+            delta_shadow.value_resume_shadow;
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_value_resume_match +=
+            delta_shadow.value_resume_match;
+        self.stats
+            .scope_plan_catch_foreign_boundary_delta_value_resume_mismatch +=
+            delta_shadow.value_resume_mismatch;
         if request_delta.same_handler_count() > 0 {
             self.stats.scope_plan_foreign_catch_reject_same_handler += 1;
         }
@@ -17401,6 +17578,23 @@ mod tests {
                 .iter()
                 .all(EvidenceCatchBoundaryDeltaPlan::has_value_resume_payload)
         );
+        assert_eq!(
+            foreign_delta.catch_boundary_delta_shadow_comparison(&foreign_boundary_deltas),
+            EvidenceCatchBoundaryDeltaShadowComparison {
+                signal_shadow: 2,
+                signal_match: 2,
+                signal_mismatch: 0,
+                generic_fallback_shadow: 2,
+                generic_fallback_match: 2,
+                generic_fallback_mismatch: 0,
+                materialized_shape_shadow: 1,
+                materialized_shape_match: 1,
+                materialized_shape_mismatch: 0,
+                value_resume_shadow: 2,
+                value_resume_match: 2,
+                value_resume_mismatch: 0,
+            }
+        );
 
         let same_delta = EvidenceRequestDeltaPlan::from_continuation(&continuation, Some(outer));
         assert_eq!(same_delta.same_handler_count(), 1);
@@ -17414,6 +17608,24 @@ mod tests {
                 no_routed_handler: 0,
             }
         );
+        let same_boundary_deltas = same_delta.catch_boundary_delta_plans();
+        assert_eq!(
+            same_delta.catch_boundary_delta_shadow_comparison(&same_boundary_deltas),
+            EvidenceCatchBoundaryDeltaShadowComparison {
+                signal_shadow: 2,
+                signal_match: 2,
+                signal_mismatch: 0,
+                generic_fallback_shadow: 2,
+                generic_fallback_match: 2,
+                generic_fallback_mismatch: 0,
+                materialized_shape_shadow: 1,
+                materialized_shape_match: 1,
+                materialized_shape_mismatch: 0,
+                value_resume_shadow: 2,
+                value_resume_match: 2,
+                value_resume_mismatch: 0,
+            }
+        );
 
         let no_routed_delta = EvidenceRequestDeltaPlan::from_continuation(&continuation, None);
         assert_eq!(no_routed_delta.no_routed_handler_count(), 2);
@@ -17425,6 +17637,24 @@ mod tests {
                 foreign_pass_through: 0,
                 same_handler: 0,
                 no_routed_handler: 2,
+            }
+        );
+        let no_routed_boundary_deltas = no_routed_delta.catch_boundary_delta_plans();
+        assert_eq!(
+            no_routed_delta.catch_boundary_delta_shadow_comparison(&no_routed_boundary_deltas),
+            EvidenceCatchBoundaryDeltaShadowComparison {
+                signal_shadow: 2,
+                signal_match: 2,
+                signal_mismatch: 0,
+                generic_fallback_shadow: 2,
+                generic_fallback_match: 2,
+                generic_fallback_mismatch: 0,
+                materialized_shape_shadow: 1,
+                materialized_shape_match: 1,
+                materialized_shape_mismatch: 0,
+                value_resume_shadow: 2,
+                value_resume_match: 2,
+                value_resume_mismatch: 0,
             }
         );
     }

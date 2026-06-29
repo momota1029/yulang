@@ -617,3 +617,60 @@ Reading:
 - Signal and value sides are still only "ready" counters. The executor is not using these deltas.
 - The next safe slice is an actual shadow comparison for signal kind preservation, generic fallback
   classification, continuation shape digest after legacy materialization, and value-resume behavior.
+
+## Implementation note: CatchForeign boundary delta shadow comparison
+
+The next profile-only slice compares the first-class delta projection against the legacy request
+lane classification. It still does not execute the boundary lane.
+
+Compared facets:
+
+```text
+signal kind preservation
+generic fallback classification
+materialized catch-frame shape digest
+value-resume payload
+```
+
+Deep profile:
+
+```text
+nondet:
+  signal_shadow: 840
+  signal_match: 840
+  signal_mismatch: 0
+  generic_fallback_shadow: 840
+  generic_fallback_match: 840
+  generic_fallback_mismatch: 0
+  materialized_shape_shadow: 420
+  materialized_shape_match: 420
+  materialized_shape_mismatch: 0
+  value_resume_shadow: 840
+  value_resume_match: 840
+  value_resume_mismatch: 0
+
+showcase:
+  signal_shadow: 1644
+  signal_match: 1644
+  signal_mismatch: 0
+  generic_fallback_shadow: 1644
+  generic_fallback_match: 1644
+  generic_fallback_mismatch: 0
+  materialized_shape_shadow: 829
+  materialized_shape_match: 829
+  materialized_shape_mismatch: 0
+  value_resume_shadow: 1644
+  value_resume_match: 1644
+  value_resume_mismatch: 0
+```
+
+Normal release still keeps these counters at 0 because the sidecar is disabled. Representative
+normal runs stayed compare-control clean (`nondet` around 8.7ms, `showcase` around 19.7ms in this
+run).
+
+Reading:
+
+- The `CatchForeignBoundaryDelta` projection is now structurally aligned with the legacy request
+  lane for the representative hot paths.
+- This is still not a semantic executor. It proves the target surface is coherent enough to try a
+  narrow executor under a legacy fallback/shadow comparison.
