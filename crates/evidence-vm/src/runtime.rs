@@ -8208,10 +8208,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if !provider_env.is_empty() {
             return Ok(None);
         }
-        let RuntimeEvidenceExpr::Apply { callee, arg, .. } =
-            self.runtime_exprs[body.0 as usize].clone()
-        else {
-            return Ok(None);
+        let (callee, arg) = match &self.runtime_exprs[body.0 as usize] {
+            RuntimeEvidenceExpr::Apply { callee, arg, .. } => (*callee, *arg),
+            _ => return Ok(None),
         };
         let Some(callee) = self.eval_immediate_value_expr(callee, env)? else {
             return Ok(None);
@@ -8235,17 +8234,35 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         expr: ExprId,
         env: &Env,
     ) -> Result<Option<SharedValue>, RuntimeEvidenceRunError> {
-        match self.runtime_exprs[expr.0 as usize].clone() {
-            RuntimeEvidenceExpr::Value(value) => Ok(Some(value)),
+        enum ImmediateValueExpr {
+            Value(SharedValue),
+            NullaryPrimitive(PrimitiveOp, PrimitiveContext),
+            Local(EnvSlot, DefId),
+            Alias(ExprId),
+            Other,
+        }
+
+        let immediate = match &self.runtime_exprs[expr.0 as usize] {
+            RuntimeEvidenceExpr::Value(value) => ImmediateValueExpr::Value(value.clone()),
             RuntimeEvidenceExpr::NullaryPrimitive { op, context } => {
+                ImmediateValueExpr::NullaryPrimitive(*op, context.clone())
+            }
+            RuntimeEvidenceExpr::Local { slot, def } => ImmediateValueExpr::Local(*slot, *def),
+            RuntimeEvidenceExpr::Alias(expr) => ImmediateValueExpr::Alias(*expr),
+            _ => ImmediateValueExpr::Other,
+        };
+
+        match immediate {
+            ImmediateValueExpr::Value(value) => Ok(Some(value)),
+            ImmediateValueExpr::NullaryPrimitive(op, context) => {
                 Ok(Some(self.eval_primitive_op(op, context)?))
             }
-            RuntimeEvidenceExpr::Local { slot, def } => Ok(Some(
+            ImmediateValueExpr::Local(slot, def) => Ok(Some(
                 env.get_slot(slot)
                     .ok_or(RuntimeEvidenceRunError::UnboundLocal(def))?,
             )),
-            RuntimeEvidenceExpr::Alias(expr) => self.eval_immediate_value_expr(expr, env),
-            _ => Ok(None),
+            ImmediateValueExpr::Alias(expr) => self.eval_immediate_value_expr(expr, env),
+            ImmediateValueExpr::Other => Ok(None),
         }
     }
 
@@ -8354,6 +8371,21 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         arg_expr: ExprId,
         env: &mut Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if let Some(arg) = self.eval_immediate_value_expr(arg_expr, env)? {
+            let resolved_route = self.effect_route_for_operation_call(Some(site), effect);
+            let route_cert = self.effect_route_cert(resolved_route.origin);
+            let evidence = EffectThunkEvidence {
+                route_cert,
+                visibility: resolved_route.visibility,
+            };
+            return self.force_effect_call_scoped_result(
+                target_value_is_thunk,
+                path,
+                arg,
+                resolved_route.route,
+                evidence,
+            );
+        }
         let mut arg_env = self.clone_env(env);
         match self.eval_expr_result(arg_expr, &mut arg_env)? {
             EvidenceEvalResult::Value(arg) => {
@@ -8440,6 +8472,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         arg_expr: ExprId,
         env: &mut Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if let Some(arg) = self.eval_immediate_value_expr(arg_expr, env)? {
+            return self.apply_scoped_value_result(site, callee, arg);
+        }
         let mut arg_env = self.clone_env(env);
         match self.eval_expr_result(arg_expr, &mut arg_env)? {
             EvidenceEvalResult::Value(arg) => self.apply_scoped_value_result(site, callee, arg),
