@@ -2505,13 +2505,6 @@ impl EvidenceContinuation {
         }
     }
 
-    fn has_request_boundary(&self, routed_yield_handler: Option<ExprId>) -> bool {
-        let Some(frame) = self.frame() else {
-            return false;
-        };
-        frame.has_request_boundary(routed_yield_handler)
-    }
-
     fn request_boundary_profile(
         &self,
         routed_yield_handler: Option<ExprId>,
@@ -2620,10 +2613,6 @@ impl EvidenceContinuation {
             frame.append_provider_delta_shadow_key(&mut key);
         }
         key
-    }
-
-    fn record_provider_env_then_compaction_candidates(&self, stats: &mut RuntimeEvidenceRunStats) {
-        self.record_provider_env_then_compaction_candidates_with_parent(None, stats)
     }
 
     fn provider_env_placement_at(
@@ -2757,18 +2746,6 @@ impl EvidenceContinuation {
             return EvidenceContinuationShapeProfile::default();
         };
         frame.shape_profile_at(depth)
-    }
-
-    fn record_provider_env_then_compaction_candidates_with_parent(
-        &self,
-        parent_provider_env: Option<&RuntimeEvidenceProviderEnv>,
-        stats: &mut RuntimeEvidenceRunStats,
-    ) {
-        let Some(frame) = self.frame() else {
-            return;
-        };
-        frame
-            .record_provider_env_then_compaction_candidates_with_parent(parent_provider_env, stats);
     }
 }
 
@@ -3004,52 +2981,6 @@ impl EvidenceContinuationFrame {
                     );
                 }
                 profile
-            }
-        }
-    }
-
-    fn has_request_boundary(&self, routed_yield_handler: Option<ExprId>) -> bool {
-        match self {
-            EvidenceContinuationFrame::Then { first, second } => {
-                first.has_request_boundary(routed_yield_handler)
-                    || second.has_request_boundary(routed_yield_handler)
-            }
-            EvidenceContinuationFrame::CatchBody {
-                catch_expr, next, ..
-            } => match routed_yield_handler {
-                None => true,
-                Some(handler) if handler == *catch_expr => true,
-                Some(_) => next.has_request_boundary(routed_yield_handler),
-            },
-            EvidenceContinuationFrame::RefSetHandleResult { .. }
-            | EvidenceContinuationFrame::RefSetHandleValueResult { .. } => true,
-            EvidenceContinuationFrame::MarkerFrame { .. }
-            | EvidenceContinuationFrame::ProviderEnv { .. } => false,
-            EvidenceContinuationFrame::ForceThunk { next, .. }
-            | EvidenceContinuationFrame::ForceValueIfThunk { next }
-            | EvidenceContinuationFrame::ApplyCallee { next, .. }
-            | EvidenceContinuationFrame::ApplyArg { next, .. }
-            | EvidenceContinuationFrame::ApplyForcedCallee { next, .. }
-            | EvidenceContinuationFrame::AdaptValue { next, .. }
-            | EvidenceContinuationFrame::WrapThunkValue { next }
-            | EvidenceContinuationFrame::ApplyAdapterArg { next, .. }
-            | EvidenceContinuationFrame::ApplyAdapterResult { next, .. }
-            | EvidenceContinuationFrame::CaseScrutinee { next, .. }
-            | EvidenceContinuationFrame::TupleItems { next, .. }
-            | EvidenceContinuationFrame::RecordSpread { next, .. }
-            | EvidenceContinuationFrame::RecordFields { next, .. }
-            | EvidenceContinuationFrame::PolyVariantPayloads { next, .. }
-            | EvidenceContinuationFrame::SelectBase { next, .. }
-            | EvidenceContinuationFrame::BlockStmt { next, .. }
-            | EvidenceContinuationFrame::RefSetReference { next, .. }
-            | EvidenceContinuationFrame::RefSetForcedReference { next, .. }
-            | EvidenceContinuationFrame::RefSetValue { next, .. }
-            | EvidenceContinuationFrame::RefSetForcedValue { next, .. }
-            | EvidenceContinuationFrame::RefSetResolvedUnit { next }
-            | EvidenceContinuationFrame::RefSetEmitResolvedRequest { next, .. }
-            | EvidenceContinuationFrame::ResolveRefSetValues { next, .. }
-            | EvidenceContinuationFrame::ResolveRefSetFields { next, .. } => {
-                next.has_request_boundary(routed_yield_handler)
             }
         }
     }
@@ -3692,91 +3623,6 @@ impl EvidenceContinuationFrame {
             }
         }
         shape
-    }
-
-    fn record_provider_env_then_compaction_candidates_with_parent(
-        &self,
-        parent_provider_env: Option<&RuntimeEvidenceProviderEnv>,
-        stats: &mut RuntimeEvidenceRunStats,
-    ) {
-        match self {
-            Self::ProviderEnv { provider_env, next } => {
-                stats.provider_env_then_compaction_candidates += 1;
-                if next.is_identity() {
-                    stats.provider_env_then_compaction_provider_env_identity_tail += 1;
-                }
-                if let Some(parent) = parent_provider_env {
-                    stats.provider_env_then_compaction_adjacent_provider_env += 1;
-                    if parent == provider_env {
-                        stats.provider_env_then_compaction_same_provider_env += 1;
-                        stats.provider_env_then_compaction_nested_same_env += 1;
-                    } else {
-                        stats.provider_env_then_compaction_nested_different_env += 1;
-                        stats.provider_env_then_compaction_reject_different_provider_env += 1;
-                    }
-                }
-                next.record_provider_env_then_compaction_candidates_with_parent(
-                    Some(provider_env),
-                    stats,
-                );
-            }
-            Self::Then { first, second } => {
-                match first.boundary_kind() {
-                    EvidenceContinuationBoundaryKind::ProviderEnv => {
-                        stats.provider_env_then_compaction_provider_env_then_first += 1;
-                        stats.provider_env_then_compaction_candidates += 1;
-                    }
-                    EvidenceContinuationBoundaryKind::MarkerFrame => {
-                        stats.provider_env_then_compaction_reject_marker_frame_between += 1;
-                    }
-                    EvidenceContinuationBoundaryKind::Other => {
-                        stats.provider_env_then_compaction_reject_request_boundary +=
-                            usize::from(first.has_request_boundary(None));
-                    }
-                    EvidenceContinuationBoundaryKind::Identity => {}
-                }
-                match second.boundary_kind() {
-                    EvidenceContinuationBoundaryKind::ProviderEnv => {
-                        stats.provider_env_then_compaction_provider_env_then_second += 1;
-                        stats.provider_env_then_compaction_candidates += 1;
-                    }
-                    EvidenceContinuationBoundaryKind::MarkerFrame => {
-                        stats.provider_env_then_compaction_reject_marker_frame_between += 1;
-                    }
-                    EvidenceContinuationBoundaryKind::Other => {
-                        stats.provider_env_then_compaction_reject_request_boundary +=
-                            usize::from(second.has_request_boundary(None));
-                    }
-                    EvidenceContinuationBoundaryKind::Identity => {}
-                }
-                first.record_provider_env_then_compaction_candidates_with_parent(
-                    parent_provider_env,
-                    stats,
-                );
-                second.record_provider_env_then_compaction_candidates_with_parent(
-                    parent_provider_env,
-                    stats,
-                );
-            }
-            Self::MarkerFrame { handler_path, .. } => {
-                if handler_path.is_some() {
-                    stats.provider_env_then_compaction_reject_handler_boundary += 1;
-                } else {
-                    stats.provider_env_then_compaction_reject_marker_frame_between += 1;
-                }
-            }
-            _ => {
-                if self.has_request_boundary(None) {
-                    stats.provider_env_then_compaction_reject_request_boundary += 1;
-                }
-                if let Some(next) = self.tail_ref() {
-                    next.record_provider_env_then_compaction_candidates_with_parent(
-                        parent_provider_env,
-                        stats,
-                    );
-                }
-            }
-        }
     }
 
     fn tail_ref(&self) -> Option<&EvidenceContinuation> {
@@ -6757,8 +6603,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         call: &EvidenceDirectTailResumptive,
         resume_plan: Option<&EvidenceResumeMarkerPlan>,
     ) {
-        call.continuation
-            .record_provider_env_then_compaction_candidates(&mut self.stats);
         let native_shape = call.continuation.shape_profile();
         let legacy_shape = if resume_plan.is_some() {
             native_shape.prepend_marker_frame()
@@ -13856,7 +13700,6 @@ mod tests {
         );
         let mut stats = RuntimeEvidenceRunStats::default();
 
-        assert!(catch.has_request_boundary(Some(ExprId(1))));
         assert_eq!(
             catch.request_boundary_profile(Some(ExprId(1)), &mut stats),
             EvidenceRequestBoundaryProfile::CatchSameHandler
@@ -13876,7 +13719,6 @@ mod tests {
         );
         let mut stats = RuntimeEvidenceRunStats::default();
 
-        assert!(nested.has_request_boundary(Some(ExprId(2))));
         assert_eq!(
             nested.request_boundary_profile(Some(ExprId(2)), &mut stats),
             EvidenceRequestBoundaryProfile::CatchSameHandler
@@ -13894,7 +13736,6 @@ mod tests {
         );
         let mut stats = RuntimeEvidenceRunStats::default();
 
-        assert!(!marker_wrapped.has_request_boundary(Some(ExprId(2))));
         assert_eq!(
             marker_wrapped.request_boundary_profile(Some(ExprId(2)), &mut stats),
             EvidenceRequestBoundaryProfile::None
@@ -13903,7 +13744,6 @@ mod tests {
         assert_eq!(stats.has_request_boundary_catch_foreign_handler_recurse, 0);
 
         let mut stats = RuntimeEvidenceRunStats::default();
-        assert!(catch.has_request_boundary(None));
         assert_eq!(
             catch.request_boundary_profile(None, &mut stats),
             EvidenceRequestBoundaryProfile::CatchNoRoutedHandler
@@ -14667,61 +14507,6 @@ mod tests {
                 .stats
                 .provider_env_foreign_later_grant_legacy_shape_marker_frames,
             1
-        );
-    }
-
-    #[test]
-    fn provider_env_then_compaction_profile_counts_exact_nested_envs() {
-        let provider_env = provider_env_fixture_for_handler(7);
-        let continuation = EvidenceContinuation::provider_env(
-            provider_env.clone(),
-            EvidenceContinuation::provider_env(provider_env, EvidenceContinuation::identity()),
-        );
-        let mut stats = RuntimeEvidenceRunStats::default();
-
-        continuation.record_provider_env_then_compaction_candidates(&mut stats);
-
-        assert_eq!(stats.provider_env_then_compaction_candidates, 2);
-        assert_eq!(stats.provider_env_then_compaction_adjacent_provider_env, 1);
-        assert_eq!(stats.provider_env_then_compaction_same_provider_env, 1);
-        assert_eq!(stats.provider_env_then_compaction_nested_same_env, 1);
-        assert_eq!(
-            stats.provider_env_then_compaction_provider_env_identity_tail,
-            1
-        );
-        assert_eq!(
-            stats.provider_env_then_compaction_reject_different_provider_env,
-            0
-        );
-    }
-
-    #[test]
-    fn provider_env_then_compaction_profile_counts_then_boundaries() {
-        let continuation = EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
-            first: EvidenceContinuation::provider_env(
-                provider_env_fixture_for_handler(3),
-                EvidenceContinuation::identity(),
-            ),
-            second: EvidenceContinuation::provider_env(
-                provider_env_fixture_for_handler(7),
-                EvidenceContinuation::identity(),
-            ),
-        }));
-        let mut stats = RuntimeEvidenceRunStats::default();
-
-        continuation.record_provider_env_then_compaction_candidates(&mut stats);
-
-        assert_eq!(
-            stats.provider_env_then_compaction_provider_env_then_first,
-            1
-        );
-        assert_eq!(
-            stats.provider_env_then_compaction_provider_env_then_second,
-            1
-        );
-        assert_eq!(
-            stats.provider_env_then_compaction_provider_env_identity_tail,
-            2
         );
     }
 

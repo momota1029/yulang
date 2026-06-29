@@ -233,8 +233,11 @@ surface available for regression checks.
 ProviderEnv / Then compaction is diagnostic-only. It is not an execution rule,
 and it must not flatten ProviderEnv scopes or reorder `Then` branches.
 
-The profile runs only through the deep later-grant profile path. Release default
-therefore does not scan continuation trees just to find compaction candidates.
+The profile used to run only through the deep later-grant profile path. It has
+since been removed from the runtime stats surface after the exact-env hypothesis
+was falsified. Release default therefore does not scan continuation trees just
+to find compaction candidates, and the rejected experiment remains recorded here
+as design history rather than a live counter set.
 
 The first measurements intentionally use exact ProviderEnv equality only. They
 show no exact same-ProviderEnv compaction candidates in the representative
