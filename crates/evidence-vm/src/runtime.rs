@@ -12172,6 +12172,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         env: &Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         for arm in arms {
+            if lit_pat_mismatches_value(&arm.pat, scrutinee.as_ref()) {
+                continue;
+            }
             let mut arm_env = self.clone_env(env);
             if !self.bind_pat_matches(&arm.pat, scrutinee.clone(), &mut arm_env)? {
                 continue;
@@ -12843,6 +12846,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
         Ok(())
     }
+}
+
+fn lit_pat_mismatches_value(pat: &Pat, value: &RuntimeEvidenceValue) -> bool {
+    let Pat::Lit(lit) = pat else {
+        return false;
+    };
+    let (view, _) = runtime_value_view(value);
+    !lit_matches(lit, view)
 }
 
 fn recursive_let_value(pat: &Pat, value: SharedValue) -> SharedValue {
