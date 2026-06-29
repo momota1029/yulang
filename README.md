@@ -58,7 +58,7 @@ and let the binary place the embedded standard library in the user library
 directory:
 
 ```bash
-curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.4
+curl -fsSL https://yulang.momota.pw/install.sh | sh -s -- --version v0.1.0-alpha.5
 ```
 
 The installer adds `~/.yulang/bin` to your shell profile when it is not already
@@ -75,7 +75,7 @@ On Windows, download and run the PowerShell installer:
 
 ```powershell
 Invoke-WebRequest https://yulang.momota.pw/install.ps1 -OutFile install.ps1
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.4
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v0.1.0-alpha.5
 ```
 
 The PowerShell installer adds the install `bin` directory to the user `PATH`.
