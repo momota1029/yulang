@@ -794,6 +794,216 @@ pub(crate) fn print_run_report(
         output.evidence_stats.resume_plan_shadow_with_provider_delta
     );
     println!(
+        "  runtime_evidence.resume_plan_candidate_candidates: {}",
+        output.evidence_stats.resume_plan_candidate_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_direct_tail_candidates: {}",
+        output
+            .evidence_stats
+            .resume_plan_candidate_direct_tail_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_resume_pack_candidates: {}",
+        output
+            .evidence_stats
+            .resume_plan_candidate_resume_pack_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_planned: {}",
+        output.evidence_stats.resume_plan_candidate_planned
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_rejected: {}",
+        output.evidence_stats.resume_plan_candidate_rejected
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_reject_ref_set: {}",
+        output.evidence_stats.resume_plan_candidate_reject_ref_set
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_multi_shot: {}",
+        output.evidence_stats.resume_plan_candidate_multi_shot
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_eval_frames: {}",
+        output.evidence_stats.resume_plan_candidate_eval_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_estimated_resume_steps: {}",
+        output
+            .evidence_stats
+            .resume_plan_candidate_estimated_resume_steps
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_with_eval_delta: {}",
+        output.evidence_stats.resume_plan_candidate_with_eval_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_request_delta_none: {}",
+        output
+            .evidence_stats
+            .resume_plan_candidate_request_delta_none
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_request_delta_catch_same: {}",
+        output
+            .evidence_stats
+            .resume_plan_candidate_request_delta_catch_same
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_request_delta_catch_no_routed: {}",
+        output
+            .evidence_stats
+            .resume_plan_candidate_request_delta_catch_no_routed
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_request_delta_catch_foreign: {}",
+        output
+            .evidence_stats
+            .resume_plan_candidate_request_delta_catch_foreign
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_with_request_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_candidate_with_request_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_with_marker_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_candidate_with_marker_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_with_provider_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_candidate_with_provider_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_with_both_scope_deltas: {}",
+        output
+            .evidence_stats
+            .resume_plan_candidate_with_both_scope_deltas
+    );
+    println!(
+        "  runtime_evidence.resume_plan_candidate_provider_dirty_add_id: {}",
+        output
+            .evidence_stats
+            .resume_plan_candidate_provider_dirty_add_id
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_candidates: {}",
+        output.evidence_stats.resume_plan_cert_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_provider_dirty_foreign_scope: {}",
+        output
+            .evidence_stats
+            .resume_plan_cert_provider_dirty_foreign_scope
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_direct_tail_provider_dirty_foreign_scope: {}",
+        output
+            .evidence_stats
+            .resume_plan_cert_direct_tail_provider_dirty_foreign_scope
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_resume_pack_provider_dirty_foreign_scope: {}",
+        output
+            .evidence_stats
+            .resume_plan_cert_resume_pack_provider_dirty_foreign_scope
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_provider_dirty_foreign_scope_handlers: {}",
+        output
+            .evidence_stats
+            .resume_plan_cert_provider_dirty_foreign_scope_handlers
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_provider_dirty_foreign_scope_estimated_resume_steps: {}",
+        output
+            .evidence_stats
+            .resume_plan_cert_provider_dirty_foreign_scope_estimated_resume_steps
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_rejected: {}",
+        output.evidence_stats.resume_plan_cert_rejected
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_reject_not_planned: {}",
+        output.evidence_stats.resume_plan_cert_reject_not_planned
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_reject_missing_eval_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_cert_reject_missing_eval_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_reject_missing_request_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_cert_reject_missing_request_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_reject_missing_marker_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_cert_reject_missing_marker_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_reject_missing_provider_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_cert_reject_missing_provider_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_reject_route_not_provider_dirty_add_id: {}",
+        output
+            .evidence_stats
+            .resume_plan_cert_reject_route_not_provider_dirty_add_id
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_reject_multi_shot: {}",
+        output.evidence_stats.resume_plan_cert_reject_multi_shot
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_reject_request_none: {}",
+        output.evidence_stats.resume_plan_cert_reject_request_none
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_reject_request_catch_same_or_no_routed: {}",
+        output
+            .evidence_stats
+            .resume_plan_cert_reject_request_catch_same_or_no_routed
+    );
+    println!(
+        "  runtime_evidence.resume_plan_cert_reject_request_no_foreign_catch: {}",
+        output
+            .evidence_stats
+            .resume_plan_cert_reject_request_no_foreign_catch
+    );
+    println!(
+        "  runtime_evidence.resume_plan_plans: {}",
+        output.evidence_stats.resume_plan_plans
+    );
+    println!(
+        "  runtime_evidence.resume_plan_direct_tail_plans: {}",
+        output.evidence_stats.resume_plan_direct_tail_plans
+    );
+    println!(
+        "  runtime_evidence.resume_plan_resume_pack_plans: {}",
+        output.evidence_stats.resume_plan_resume_pack_plans
+    );
+    println!(
+        "  runtime_evidence.resume_plan_provider_dirty_foreign_scope_plans: {}",
+        output
+            .evidence_stats
+            .resume_plan_provider_dirty_foreign_scope_plans
+    );
+    println!(
         "  runtime_evidence.resume_plan_shadow_request_delta_candidates: {}",
         output
             .evidence_stats
@@ -846,6 +1056,106 @@ pub(crate) fn print_run_report(
         output
             .evidence_stats
             .resume_plan_shadow_request_delta_provider_dirty_add_id
+    );
+    println!(
+        "  runtime_evidence.resume_plan_eval_delta_plans: {}",
+        output.evidence_stats.resume_plan_eval_delta_plans
+    );
+    println!(
+        "  runtime_evidence.resume_plan_eval_delta_direct_tail_plans: {}",
+        output
+            .evidence_stats
+            .resume_plan_eval_delta_direct_tail_plans
+    );
+    println!(
+        "  runtime_evidence.resume_plan_eval_delta_resume_pack_plans: {}",
+        output
+            .evidence_stats
+            .resume_plan_eval_delta_resume_pack_plans
+    );
+    println!(
+        "  runtime_evidence.resume_plan_eval_delta_frames: {}",
+        output.evidence_stats.resume_plan_eval_delta_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_eval_delta_force_frames: {}",
+        output.evidence_stats.resume_plan_eval_delta_force_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_eval_delta_apply_frames: {}",
+        output.evidence_stats.resume_plan_eval_delta_apply_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_eval_delta_adapter_frames: {}",
+        output.evidence_stats.resume_plan_eval_delta_adapter_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_eval_delta_case_frames: {}",
+        output.evidence_stats.resume_plan_eval_delta_case_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_eval_delta_aggregate_frames: {}",
+        output
+            .evidence_stats
+            .resume_plan_eval_delta_aggregate_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_eval_delta_select_frames: {}",
+        output.evidence_stats.resume_plan_eval_delta_select_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_eval_delta_block_frames: {}",
+        output.evidence_stats.resume_plan_eval_delta_block_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_eval_delta_ref_set_frames: {}",
+        output.evidence_stats.resume_plan_eval_delta_ref_set_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_eval_delta_max_frames: {}",
+        output.evidence_stats.resume_plan_eval_delta_max_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_request_delta_plans: {}",
+        output.evidence_stats.resume_plan_request_delta_plans
+    );
+    println!(
+        "  runtime_evidence.resume_plan_request_delta_direct_tail_plans: {}",
+        output
+            .evidence_stats
+            .resume_plan_request_delta_direct_tail_plans
+    );
+    println!(
+        "  runtime_evidence.resume_plan_request_delta_resume_pack_plans: {}",
+        output
+            .evidence_stats
+            .resume_plan_request_delta_resume_pack_plans
+    );
+    println!(
+        "  runtime_evidence.resume_plan_request_delta_frames: {}",
+        output.evidence_stats.resume_plan_request_delta_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_request_delta_same_handler_frames: {}",
+        output
+            .evidence_stats
+            .resume_plan_request_delta_same_handler_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_request_delta_no_routed_handler_frames: {}",
+        output
+            .evidence_stats
+            .resume_plan_request_delta_no_routed_handler_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_request_delta_foreign_handler_frames: {}",
+        output
+            .evidence_stats
+            .resume_plan_request_delta_foreign_handler_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_request_delta_max_frames: {}",
+        output.evidence_stats.resume_plan_request_delta_max_frames
     );
     println!(
         "  runtime_evidence.resume_plan_marker_delta_candidates: {}",

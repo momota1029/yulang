@@ -880,6 +880,539 @@ impl EvidenceResumePlanShadowProfile {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceResumePlanPlannedCandidate {
+    eval_frames: usize,
+    eval_delta: Option<EvidenceEvalDeltaId>,
+    request: EvidenceResumePlanRequestCandidate,
+    request_delta: Option<EvidenceRequestDeltaId>,
+    marker_delta: Option<EvidenceMarkerDeltaId>,
+    provider_delta: Option<EvidenceProviderDeltaId>,
+    route: EvidenceResumePlanRouteCandidate,
+    multiplicity: EvidenceResumePlanMultiplicityCandidate,
+    estimated_resume_steps: usize,
+}
+
+impl EvidenceResumePlanPlannedCandidate {
+    fn has_eval_delta(&self) -> bool {
+        self.eval_delta.is_some()
+    }
+
+    fn has_request_delta(&self) -> bool {
+        self.request_delta.is_some()
+    }
+
+    fn has_marker_delta(&self) -> bool {
+        self.marker_delta.is_some()
+    }
+
+    fn has_provider_delta(&self) -> bool {
+        self.provider_delta.is_some()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceResumePlanCandidate {
+    Planned(EvidenceResumePlanPlannedCandidate),
+    Rejected(EvidenceResumePlanCandidateReject),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceResumePlanRequestCandidate {
+    None,
+    Catch {
+        same_handler: usize,
+        no_routed_handler: usize,
+        foreign_handler: usize,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct EvidenceEvalDeltaId(usize);
+
+#[derive(Debug, Clone, PartialEq)]
+struct EvidenceEvalDeltaPlan {
+    frames: Rc<[EvidenceEvalDeltaFramePlan]>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceEvalDeltaFrameKind {
+    Force,
+    Apply,
+    Adapter,
+    Case,
+    Aggregate,
+    Select,
+    Block,
+    RefSet,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum EvidenceEvalDeltaFramePlan {
+    ForceThunk {
+        target_value_is_thunk: bool,
+    },
+    ForceValueIfThunk,
+    ApplyCallee {
+        site: Option<ExprId>,
+        arg: ExprId,
+        env: Env,
+    },
+    ApplyArg {
+        site: Option<ExprId>,
+        callee: SharedValue,
+    },
+    ApplyForcedCallee {
+        site: Option<ExprId>,
+        arg: SharedValue,
+    },
+    AdaptValue {
+        source: Type,
+        target: Type,
+    },
+    WrapThunkValue,
+    ApplyAdapterArg {
+        function: SharedValue,
+        ret_markers: Vec<EvidenceValueMarker>,
+        source_ret: Type,
+        target_ret: Type,
+    },
+    ApplyAdapterResult {
+        ret_markers: Vec<EvidenceValueMarker>,
+        source_ret: Type,
+        target_ret: Type,
+    },
+    CaseScrutinee {
+        arms: Rc<[control_vm::CaseArm]>,
+        env: Env,
+    },
+    TupleItems {
+        values: Vec<SharedValue>,
+        rest: Rc<[ExprId]>,
+        env: Env,
+    },
+    RecordSpread {
+        fields: Rc<[control_vm::RecordField]>,
+        env: Env,
+    },
+    RecordFields {
+        values: Vec<RuntimeEvidenceValueField>,
+        rest: Rc<[control_vm::RecordField]>,
+        env: Env,
+    },
+    PolyVariantPayloads {
+        tag: String,
+        values: Vec<SharedValue>,
+        rest: Rc<[ExprId]>,
+        env: Env,
+    },
+    SelectBase {
+        name: String,
+        resolution: Option<SelectResolution>,
+    },
+    BlockStmt {
+        resume: EvidenceBlockResume,
+        rest: Rc<[Stmt]>,
+        tail: Option<ExprId>,
+        env: Env,
+        last: SharedValue,
+    },
+    RefSetReference {
+        value: ExprId,
+        env: Env,
+    },
+    RefSetForcedReference {
+        value: ExprId,
+        env: Env,
+    },
+    RefSetValue {
+        reference: SharedValue,
+    },
+    RefSetForcedValue {
+        reference: SharedValue,
+    },
+    RefSetResolvedUnit,
+    RefSetEmitResolvedRequest {
+        request: EvidenceRequest,
+        assigned: SharedValue,
+        mode: EvidenceRefSetResumeMode,
+    },
+    ResolveRefSetValues {
+        values: Vec<SharedValue>,
+        assigned: SharedValue,
+        out: Vec<SharedValue>,
+        index: usize,
+        finish: EvidenceRefSetFinish,
+    },
+    ResolveRefSetFields {
+        fields: Vec<RuntimeEvidenceValueField>,
+        assigned: SharedValue,
+        out: Vec<RuntimeEvidenceValueField>,
+        index: usize,
+    },
+}
+
+impl EvidenceEvalDeltaFramePlan {
+    fn kind(&self) -> EvidenceEvalDeltaFrameKind {
+        match self {
+            Self::ForceThunk { .. } | Self::ForceValueIfThunk => EvidenceEvalDeltaFrameKind::Force,
+            Self::ApplyCallee { .. } | Self::ApplyArg { .. } | Self::ApplyForcedCallee { .. } => {
+                EvidenceEvalDeltaFrameKind::Apply
+            }
+            Self::AdaptValue { .. }
+            | Self::WrapThunkValue
+            | Self::ApplyAdapterArg { .. }
+            | Self::ApplyAdapterResult { .. } => EvidenceEvalDeltaFrameKind::Adapter,
+            Self::CaseScrutinee { .. } => EvidenceEvalDeltaFrameKind::Case,
+            Self::TupleItems { .. }
+            | Self::RecordSpread { .. }
+            | Self::RecordFields { .. }
+            | Self::PolyVariantPayloads { .. } => EvidenceEvalDeltaFrameKind::Aggregate,
+            Self::SelectBase { .. } => EvidenceEvalDeltaFrameKind::Select,
+            Self::BlockStmt { .. } => EvidenceEvalDeltaFrameKind::Block,
+            Self::RefSetReference { .. }
+            | Self::RefSetForcedReference { .. }
+            | Self::RefSetValue { .. }
+            | Self::RefSetForcedValue { .. }
+            | Self::RefSetResolvedUnit
+            | Self::RefSetEmitResolvedRequest { .. }
+            | Self::ResolveRefSetValues { .. }
+            | Self::ResolveRefSetFields { .. } => EvidenceEvalDeltaFrameKind::RefSet,
+        }
+    }
+}
+
+impl EvidenceEvalDeltaPlan {
+    fn from_continuation(continuation: &EvidenceContinuation) -> Self {
+        let mut frames = Vec::new();
+        if let Some(frame) = continuation.frame() {
+            frame.append_eval_delta_plan(&mut frames);
+        }
+        Self {
+            frames: Rc::from(frames.into_boxed_slice()),
+        }
+    }
+
+    fn frame_count(&self) -> usize {
+        self.frames.len()
+    }
+
+    fn force_count(&self) -> usize {
+        self.count_kind(EvidenceEvalDeltaFrameKind::Force)
+    }
+
+    fn apply_count(&self) -> usize {
+        self.count_kind(EvidenceEvalDeltaFrameKind::Apply)
+    }
+
+    fn adapter_count(&self) -> usize {
+        self.count_kind(EvidenceEvalDeltaFrameKind::Adapter)
+    }
+
+    fn case_count(&self) -> usize {
+        self.count_kind(EvidenceEvalDeltaFrameKind::Case)
+    }
+
+    fn aggregate_count(&self) -> usize {
+        self.count_kind(EvidenceEvalDeltaFrameKind::Aggregate)
+    }
+
+    fn select_count(&self) -> usize {
+        self.count_kind(EvidenceEvalDeltaFrameKind::Select)
+    }
+
+    fn block_count(&self) -> usize {
+        self.count_kind(EvidenceEvalDeltaFrameKind::Block)
+    }
+
+    fn ref_set_count(&self) -> usize {
+        self.count_kind(EvidenceEvalDeltaFrameKind::RefSet)
+    }
+
+    fn count_kind(&self, kind: EvidenceEvalDeltaFrameKind) -> usize {
+        self.frames
+            .iter()
+            .filter(|frame| frame.kind() == kind)
+            .count()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct EvidenceRequestDeltaId(usize);
+
+#[derive(Debug, Clone, PartialEq)]
+struct EvidenceRequestDeltaPlan {
+    frames: Rc<[EvidenceRequestDeltaFramePlan]>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct EvidenceRequestDeltaFramePlan {
+    kind: EvidenceRequestDeltaFrameKind,
+    catch_expr: ExprId,
+    arms: Rc<[control_vm::CatchArm]>,
+    env: Env,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceRequestDeltaFrameKind {
+    SameHandler,
+    NoRoutedHandler,
+    ForeignHandler,
+}
+
+impl EvidenceRequestDeltaPlan {
+    fn from_continuation(
+        continuation: &EvidenceContinuation,
+        routed_yield_handler: Option<ExprId>,
+    ) -> Self {
+        let mut frames = Vec::new();
+        if let Some(frame) = continuation.frame() {
+            frame.append_request_delta_plan(&mut frames, routed_yield_handler);
+        }
+        Self {
+            frames: Rc::from(frames.into_boxed_slice()),
+        }
+    }
+
+    fn frame_count(&self) -> usize {
+        self.frames.len()
+    }
+
+    fn foreign_handler_count(&self) -> usize {
+        self.frames
+            .iter()
+            .filter(|frame| matches!(frame.kind, EvidenceRequestDeltaFrameKind::ForeignHandler))
+            .count()
+    }
+
+    fn same_handler_count(&self) -> usize {
+        self.frames
+            .iter()
+            .filter(|frame| matches!(frame.kind, EvidenceRequestDeltaFrameKind::SameHandler))
+            .count()
+    }
+
+    fn no_routed_handler_count(&self) -> usize {
+        self.frames
+            .iter()
+            .filter(|frame| matches!(frame.kind, EvidenceRequestDeltaFrameKind::NoRoutedHandler))
+            .count()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceResumePlanRouteCandidate {
+    Unknown,
+    ProviderDirtyAddId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceResumePlanMultiplicityCandidate {
+    OneShot,
+    MultiShot,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceResumePlanCandidateReject {
+    RefSetBoundary,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderDirtyForeignCatchScopeCert {
+    eval_delta: EvidenceEvalDeltaId,
+    request_delta: EvidenceRequestDeltaId,
+    marker_delta: EvidenceMarkerDeltaId,
+    provider_delta: EvidenceProviderDeltaId,
+    foreign_handler_count: usize,
+    estimated_resume_steps: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct EvidenceResumePlanId(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceResumePlan {
+    kind: EvidenceResumePlanKind,
+    eval_delta: EvidenceEvalDeltaId,
+    request_delta: EvidenceRequestDeltaId,
+    marker_delta: EvidenceMarkerDeltaId,
+    provider_delta: EvidenceProviderDeltaId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceResumePlanKind {
+    ProviderDirtyForeignCatchScope,
+}
+
+impl EvidenceResumePlan {
+    fn provider_dirty_foreign_catch_scope(
+        cert: EvidenceProviderDirtyForeignCatchScopeCert,
+    ) -> Self {
+        Self {
+            kind: EvidenceResumePlanKind::ProviderDirtyForeignCatchScope,
+            eval_delta: cert.eval_delta,
+            request_delta: cert.request_delta,
+            marker_delta: cert.marker_delta,
+            provider_delta: cert.provider_delta,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceResumePlanExecutionCert {
+    ProviderDirtyForeignCatchScope(EvidenceProviderDirtyForeignCatchScopeCert),
+    Rejected(EvidenceResumePlanExecutionCertReject),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceResumePlanExecutionCertReject {
+    NotPlanned,
+    MissingEvalDelta,
+    MissingRequestDelta,
+    MissingMarkerDelta,
+    MissingProviderDelta,
+    RouteNotProviderDirtyAddId,
+    MultiShot,
+    RequestNone,
+    RequestCatchSameOrNoRouted,
+    RequestNoForeignCatch,
+}
+
+fn resume_plan_candidate_from_shadow(
+    profile: EvidenceResumePlanShadowProfile,
+    eval_delta: Option<EvidenceEvalDeltaId>,
+    request_delta: Option<EvidenceRequestDeltaId>,
+    marker_delta: Option<EvidenceMarkerDeltaId>,
+    provider_delta: Option<EvidenceProviderDeltaId>,
+    multi_shot: bool,
+    provider_dirty_add_id: bool,
+) -> EvidenceResumePlanCandidate {
+    if profile.ref_set_boundaries > 0 {
+        return EvidenceResumePlanCandidate::Rejected(
+            EvidenceResumePlanCandidateReject::RefSetBoundary,
+        );
+    }
+    EvidenceResumePlanCandidate::Planned(EvidenceResumePlanPlannedCandidate {
+        eval_frames: profile.eval_frames,
+        eval_delta,
+        request: resume_plan_request_candidate(profile),
+        request_delta,
+        marker_delta,
+        provider_delta,
+        route: if provider_dirty_add_id {
+            EvidenceResumePlanRouteCandidate::ProviderDirtyAddId
+        } else {
+            EvidenceResumePlanRouteCandidate::Unknown
+        },
+        multiplicity: if multi_shot {
+            EvidenceResumePlanMultiplicityCandidate::MultiShot
+        } else {
+            EvidenceResumePlanMultiplicityCandidate::OneShot
+        },
+        estimated_resume_steps: profile.estimated_resume_steps(),
+    })
+}
+
+fn resume_plan_execution_cert_from_candidate(
+    candidate: EvidenceResumePlanCandidate,
+) -> EvidenceResumePlanExecutionCert {
+    let EvidenceResumePlanCandidate::Planned(candidate) = candidate else {
+        return EvidenceResumePlanExecutionCert::Rejected(
+            EvidenceResumePlanExecutionCertReject::NotPlanned,
+        );
+    };
+    let Some(eval_delta) = candidate.eval_delta else {
+        return EvidenceResumePlanExecutionCert::Rejected(
+            EvidenceResumePlanExecutionCertReject::MissingEvalDelta,
+        );
+    };
+    let Some(request_delta) = candidate.request_delta else {
+        return EvidenceResumePlanExecutionCert::Rejected(
+            EvidenceResumePlanExecutionCertReject::MissingRequestDelta,
+        );
+    };
+    let Some(marker_delta) = candidate.marker_delta else {
+        return EvidenceResumePlanExecutionCert::Rejected(
+            EvidenceResumePlanExecutionCertReject::MissingMarkerDelta,
+        );
+    };
+    let Some(provider_delta) = candidate.provider_delta else {
+        return EvidenceResumePlanExecutionCert::Rejected(
+            EvidenceResumePlanExecutionCertReject::MissingProviderDelta,
+        );
+    };
+    if !matches!(
+        candidate.route,
+        EvidenceResumePlanRouteCandidate::ProviderDirtyAddId
+    ) {
+        return EvidenceResumePlanExecutionCert::Rejected(
+            EvidenceResumePlanExecutionCertReject::RouteNotProviderDirtyAddId,
+        );
+    }
+    if matches!(
+        candidate.multiplicity,
+        EvidenceResumePlanMultiplicityCandidate::MultiShot
+    ) {
+        return EvidenceResumePlanExecutionCert::Rejected(
+            EvidenceResumePlanExecutionCertReject::MultiShot,
+        );
+    }
+    let EvidenceResumePlanRequestCandidate::Catch {
+        same_handler,
+        no_routed_handler,
+        foreign_handler,
+    } = candidate.request
+    else {
+        return EvidenceResumePlanExecutionCert::Rejected(
+            EvidenceResumePlanExecutionCertReject::RequestNone,
+        );
+    };
+    if same_handler > 0 || no_routed_handler > 0 {
+        return EvidenceResumePlanExecutionCert::Rejected(
+            EvidenceResumePlanExecutionCertReject::RequestCatchSameOrNoRouted,
+        );
+    }
+    if foreign_handler == 0 {
+        return EvidenceResumePlanExecutionCert::Rejected(
+            EvidenceResumePlanExecutionCertReject::RequestNoForeignCatch,
+        );
+    }
+    EvidenceResumePlanExecutionCert::ProviderDirtyForeignCatchScope(
+        EvidenceProviderDirtyForeignCatchScopeCert {
+            eval_delta,
+            request_delta,
+            marker_delta,
+            provider_delta,
+            foreign_handler_count: foreign_handler,
+            estimated_resume_steps: candidate.estimated_resume_steps,
+        },
+    )
+}
+
+fn resume_plan_request_candidate(
+    profile: EvidenceResumePlanShadowProfile,
+) -> EvidenceResumePlanRequestCandidate {
+    if profile.catch_boundaries == 0 {
+        return EvidenceResumePlanRequestCandidate::None;
+    }
+    EvidenceResumePlanRequestCandidate::Catch {
+        same_handler: profile.catch_same_handler,
+        no_routed_handler: profile.catch_no_routed_handler,
+        foreign_handler: profile.catch_foreign_handler,
+    }
+}
+
+impl EvidenceResumePlanShadowProfile {
+    fn estimated_resume_steps(self) -> usize {
+        self.eval_frames
+            + self.then_frames
+            + self.catch_boundaries
+            + self.ref_set_boundaries
+            + self.marker_frames
+            + self.provider_env_deltas
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidenceResumePlanRequestDeltaReject {
     NoCatchBoundary,
     RefSetBoundary,
@@ -1004,10 +1537,12 @@ impl EvidenceMarkerDeltaShadowKey {
         self.frames.is_empty()
     }
 
+    #[cfg(test)]
     fn frame_count(&self) -> usize {
         self.frames.len()
     }
 
+    #[cfg(test)]
     fn active_add_id_ops(&self) -> usize {
         self.frames
             .iter()
@@ -1023,11 +1558,87 @@ impl EvidenceMarkerDeltaShadowKey {
             .sum()
     }
 
+    #[cfg(test)]
     fn handler_boundary_ops(&self) -> usize {
         self.frames
             .iter()
             .filter(|frame| frame.handler_path.is_some())
             .count()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct EvidenceMarkerDeltaId(usize);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EvidenceMarkerDeltaPlan {
+    frames: Rc<[EvidenceMarkerDeltaFramePlan]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EvidenceMarkerDeltaFramePlan {
+    markers: Rc<[EvidenceValueMarker]>,
+    activate_add_ids: bool,
+    handler_path: Option<Rc<[String]>>,
+}
+
+impl EvidenceMarkerDeltaPlan {
+    fn from_shadow_key(key: &EvidenceMarkerDeltaShadowKey) -> Self {
+        Self {
+            frames: key
+                .frames
+                .iter()
+                .map(EvidenceMarkerDeltaFramePlan::from_shadow_key)
+                .collect::<Vec<_>>()
+                .into(),
+        }
+    }
+
+    fn frame_count(&self) -> usize {
+        self.frames.len()
+    }
+
+    fn active_add_id_ops(&self) -> usize {
+        self.frames
+            .iter()
+            .map(EvidenceMarkerDeltaFramePlan::active_add_id_ops)
+            .sum()
+    }
+
+    fn handler_boundary_ops(&self) -> usize {
+        self.frames
+            .iter()
+            .filter(|frame| frame.has_handler_boundary())
+            .count()
+    }
+}
+
+impl EvidenceMarkerDeltaFramePlan {
+    fn from_shadow_key(key: &EvidenceMarkerDeltaFrameShadowKey) -> Self {
+        Self {
+            markers: key.markers.clone().into(),
+            activate_add_ids: key.activate_add_ids,
+            handler_path: key
+                .handler_path
+                .as_ref()
+                .map(|path| Rc::from(path.clone().into_boxed_slice())),
+        }
+    }
+
+    fn active_add_id_ops(&self) -> usize {
+        if !self.activate_add_ids {
+            return 0;
+        }
+        self.markers
+            .iter()
+            .filter(
+                |marker| matches!(marker, EvidenceValueMarker::AddId(marker) if marker.depth == 0),
+            )
+            .count()
+    }
+
+    fn has_handler_boundary(&self) -> bool {
+        self.handler_path.is_some()
     }
 }
 
@@ -1046,6 +1657,53 @@ impl EvidenceProviderDeltaShadowKey {
         self.frames.is_empty()
     }
 
+    #[cfg(test)]
+    fn frame_count(&self) -> usize {
+        self.frames.len()
+    }
+
+    #[cfg(test)]
+    fn slot_count(&self) -> usize {
+        self.frames
+            .iter()
+            .map(|frame| frame.provider_env.provider_count())
+            .sum()
+    }
+
+    #[cfg(test)]
+    fn handler_candidate_count(&self) -> usize {
+        self.frames
+            .iter()
+            .map(|frame| frame.provider_env.candidate_count())
+            .sum()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct EvidenceProviderDeltaId(usize);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EvidenceProviderDeltaPlan {
+    frames: Rc<[EvidenceProviderDeltaFramePlan]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EvidenceProviderDeltaFramePlan {
+    provider_env: RuntimeEvidenceProviderEnv,
+}
+
+impl EvidenceProviderDeltaPlan {
+    fn from_shadow_key(key: &EvidenceProviderDeltaShadowKey) -> Self {
+        Self {
+            frames: key
+                .frames
+                .iter()
+                .map(EvidenceProviderDeltaFramePlan::from_shadow_key)
+                .collect::<Vec<_>>()
+                .into(),
+        }
+    }
+
     fn frame_count(&self) -> usize {
         self.frames.len()
     }
@@ -1062,6 +1720,14 @@ impl EvidenceProviderDeltaShadowKey {
             .iter()
             .map(|frame| frame.provider_env.candidate_count())
             .sum()
+    }
+}
+
+impl EvidenceProviderDeltaFramePlan {
+    fn from_shadow_key(key: &EvidenceProviderDeltaFrameShadowKey) -> Self {
+        Self {
+            provider_env: key.provider_env.clone(),
+        }
     }
 }
 
@@ -2921,6 +3587,368 @@ impl EvidenceContinuationFrame {
         }
     }
 
+    fn append_eval_delta_plan(&self, frames: &mut Vec<EvidenceEvalDeltaFramePlan>) {
+        match self {
+            Self::Then { first, second } => {
+                if let Some(frame) = first.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+                if let Some(frame) = second.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::CatchBody { next, .. }
+            | Self::MarkerFrame { next, .. }
+            | Self::ProviderEnv { next, .. } => {
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::RefSetHandleResult { .. } | Self::RefSetHandleValueResult { .. } => {}
+            Self::ForceThunk {
+                target_value_is_thunk,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::ForceThunk {
+                    target_value_is_thunk: *target_value_is_thunk,
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::ForceValueIfThunk { next } => {
+                frames.push(EvidenceEvalDeltaFramePlan::ForceValueIfThunk);
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::ApplyCallee {
+                site,
+                arg,
+                env,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::ApplyCallee {
+                    site: *site,
+                    arg: *arg,
+                    env: env.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::ApplyArg { site, callee, next } => {
+                frames.push(EvidenceEvalDeltaFramePlan::ApplyArg {
+                    site: *site,
+                    callee: callee.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::ApplyForcedCallee { site, arg, next } => {
+                frames.push(EvidenceEvalDeltaFramePlan::ApplyForcedCallee {
+                    site: *site,
+                    arg: arg.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::AdaptValue {
+                source,
+                target,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::AdaptValue {
+                    source: source.clone(),
+                    target: target.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::WrapThunkValue { next } => {
+                frames.push(EvidenceEvalDeltaFramePlan::WrapThunkValue);
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::ApplyAdapterArg {
+                function,
+                ret_markers,
+                source_ret,
+                target_ret,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::ApplyAdapterArg {
+                    function: function.clone(),
+                    ret_markers: ret_markers.clone(),
+                    source_ret: source_ret.clone(),
+                    target_ret: target_ret.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::ApplyAdapterResult {
+                ret_markers,
+                source_ret,
+                target_ret,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::ApplyAdapterResult {
+                    ret_markers: ret_markers.clone(),
+                    source_ret: source_ret.clone(),
+                    target_ret: target_ret.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::CaseScrutinee { arms, env, next } => {
+                frames.push(EvidenceEvalDeltaFramePlan::CaseScrutinee {
+                    arms: arms.clone(),
+                    env: env.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::TupleItems {
+                values,
+                rest,
+                env,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::TupleItems {
+                    values: values.clone(),
+                    rest: rest.clone(),
+                    env: env.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::RecordSpread { fields, env, next } => {
+                frames.push(EvidenceEvalDeltaFramePlan::RecordSpread {
+                    fields: fields.clone(),
+                    env: env.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::RecordFields {
+                values,
+                rest,
+                env,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::RecordFields {
+                    values: values.clone(),
+                    rest: rest.clone(),
+                    env: env.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::PolyVariantPayloads {
+                tag,
+                values,
+                rest,
+                env,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::PolyVariantPayloads {
+                    tag: tag.clone(),
+                    values: values.clone(),
+                    rest: rest.clone(),
+                    env: env.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::SelectBase {
+                name,
+                resolution,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::SelectBase {
+                    name: name.clone(),
+                    resolution: resolution.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::BlockStmt {
+                resume,
+                rest,
+                tail,
+                env,
+                last,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::BlockStmt {
+                    resume: resume.clone(),
+                    rest: rest.clone(),
+                    tail: *tail,
+                    env: env.clone(),
+                    last: last.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::RefSetReference { value, env, next } => {
+                frames.push(EvidenceEvalDeltaFramePlan::RefSetReference {
+                    value: *value,
+                    env: env.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::RefSetForcedReference { value, env, next } => {
+                frames.push(EvidenceEvalDeltaFramePlan::RefSetForcedReference {
+                    value: *value,
+                    env: env.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::RefSetValue { reference, next } => {
+                frames.push(EvidenceEvalDeltaFramePlan::RefSetValue {
+                    reference: reference.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::RefSetForcedValue { reference, next } => {
+                frames.push(EvidenceEvalDeltaFramePlan::RefSetForcedValue {
+                    reference: reference.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::RefSetResolvedUnit { next } => {
+                frames.push(EvidenceEvalDeltaFramePlan::RefSetResolvedUnit);
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::RefSetEmitResolvedRequest {
+                request,
+                assigned,
+                mode,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::RefSetEmitResolvedRequest {
+                    request: request.clone(),
+                    assigned: assigned.clone(),
+                    mode: *mode,
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::ResolveRefSetValues {
+                values,
+                assigned,
+                out,
+                index,
+                finish,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::ResolveRefSetValues {
+                    values: values.clone(),
+                    assigned: assigned.clone(),
+                    out: out.clone(),
+                    index: *index,
+                    finish: finish.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::ResolveRefSetFields {
+                fields,
+                assigned,
+                out,
+                index,
+                next,
+            } => {
+                frames.push(EvidenceEvalDeltaFramePlan::ResolveRefSetFields {
+                    fields: fields.clone(),
+                    assigned: assigned.clone(),
+                    out: out.clone(),
+                    index: *index,
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+        }
+    }
+
+    fn append_request_delta_plan(
+        &self,
+        frames: &mut Vec<EvidenceRequestDeltaFramePlan>,
+        routed_yield_handler: Option<ExprId>,
+    ) {
+        match self {
+            Self::Then { first, second } => {
+                if let Some(frame) = first.frame() {
+                    frame.append_request_delta_plan(frames, routed_yield_handler);
+                }
+                if let Some(frame) = second.frame() {
+                    frame.append_request_delta_plan(frames, routed_yield_handler);
+                }
+            }
+            Self::CatchBody {
+                catch_expr,
+                arms,
+                env,
+                next,
+            } => {
+                let kind = match routed_yield_handler {
+                    None => EvidenceRequestDeltaFrameKind::NoRoutedHandler,
+                    Some(handler) if handler == *catch_expr => {
+                        EvidenceRequestDeltaFrameKind::SameHandler
+                    }
+                    Some(_) => EvidenceRequestDeltaFrameKind::ForeignHandler,
+                };
+                frames.push(EvidenceRequestDeltaFramePlan {
+                    kind,
+                    catch_expr: *catch_expr,
+                    arms: arms.clone(),
+                    env: env.clone(),
+                });
+                if let Some(frame) = next.frame() {
+                    frame.append_request_delta_plan(frames, routed_yield_handler);
+                }
+            }
+            Self::MarkerFrame { next, .. } | Self::ProviderEnv { next, .. } => {
+                if let Some(frame) = next.frame() {
+                    frame.append_request_delta_plan(frames, routed_yield_handler);
+                }
+            }
+            _ => {
+                if let Some(next) = self.tail_ref()
+                    && let Some(frame) = next.frame()
+                {
+                    frame.append_request_delta_plan(frames, routed_yield_handler);
+                }
+            }
+        }
+    }
+
     fn direct_tail_segment_profile(&self) -> EvidenceDirectTailSegmentProfile {
         match self {
             Self::Then { first, second } => {
@@ -4193,8 +5221,13 @@ struct RuntimeEvidenceRunner<'a> {
     active_marker_plans: Vec<EvidenceActiveMarkerPlan>,
     active_provider_envs: Vec<RuntimeEvidenceProviderFrame>,
     active_provider_handlers: Vec<u32>,
-    marker_delta_shadow_ids: HashMap<EvidenceMarkerDeltaShadowKey, usize>,
-    provider_delta_shadow_ids: HashMap<EvidenceProviderDeltaShadowKey, usize>,
+    resume_plans: Vec<EvidenceResumePlan>,
+    eval_delta_plans: Vec<EvidenceEvalDeltaPlan>,
+    request_delta_plans: Vec<EvidenceRequestDeltaPlan>,
+    marker_delta_shadow_ids: HashMap<EvidenceMarkerDeltaShadowKey, EvidenceMarkerDeltaId>,
+    marker_delta_plans: Vec<EvidenceMarkerDeltaPlan>,
+    provider_delta_shadow_ids: HashMap<EvidenceProviderDeltaShadowKey, EvidenceProviderDeltaId>,
+    provider_delta_plans: Vec<EvidenceProviderDeltaPlan>,
     stdout: String,
     context: RuntimeEvidenceRunContext,
     stats: RuntimeEvidenceRunStats,
@@ -4229,8 +5262,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             active_marker_plans: Vec::new(),
             active_provider_envs: Vec::new(),
             active_provider_handlers: Vec::new(),
+            resume_plans: Vec::new(),
+            eval_delta_plans: Vec::new(),
+            request_delta_plans: Vec::new(),
             marker_delta_shadow_ids: HashMap::new(),
+            marker_delta_plans: Vec::new(),
             provider_delta_shadow_ids: HashMap::new(),
+            provider_delta_plans: Vec::new(),
             stdout: String::new(),
             context,
             stats,
@@ -6475,34 +7513,217 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if profile.has_provider_delta() {
             self.stats.resume_plan_shadow_with_provider_delta += 1;
         }
-        self.record_resume_plan_request_delta_shadow(
-            profile,
-            marker_delta_key,
-            provider_delta_key,
+        let (eval_delta, request_delta, marker_delta, provider_delta) = self
+            .record_resume_plan_request_delta_shadow(
+                profile,
+                continuation,
+                routed_yield_handler,
+                marker_delta_key,
+                provider_delta_key,
+                direct_tail,
+                provider_dirty_add_id,
+            );
+        self.record_resume_plan_candidate(
+            resume_plan_candidate_from_shadow(
+                profile,
+                eval_delta,
+                request_delta,
+                marker_delta,
+                provider_delta,
+                multi_shot,
+                provider_dirty_add_id,
+            ),
             direct_tail,
-            provider_dirty_add_id,
         );
+    }
+
+    fn record_resume_plan_candidate(
+        &mut self,
+        candidate: EvidenceResumePlanCandidate,
+        direct_tail: bool,
+    ) {
+        self.stats.resume_plan_candidate_candidates += 1;
+        if direct_tail {
+            self.stats.resume_plan_candidate_direct_tail_candidates += 1;
+        } else {
+            self.stats.resume_plan_candidate_resume_pack_candidates += 1;
+        }
+        match candidate {
+            EvidenceResumePlanCandidate::Planned(candidate) => {
+                self.stats.resume_plan_candidate_planned += 1;
+                self.stats.resume_plan_candidate_eval_frames += candidate.eval_frames;
+                self.stats.resume_plan_candidate_estimated_resume_steps +=
+                    candidate.estimated_resume_steps;
+                if candidate.has_eval_delta() {
+                    self.stats.resume_plan_candidate_with_eval_delta += 1;
+                }
+                if candidate.has_request_delta() {
+                    self.stats.resume_plan_candidate_with_request_delta += 1;
+                }
+                if candidate.has_marker_delta() {
+                    self.stats.resume_plan_candidate_with_marker_delta += 1;
+                }
+                if candidate.has_provider_delta() {
+                    self.stats.resume_plan_candidate_with_provider_delta += 1;
+                }
+                if candidate.has_marker_delta() && candidate.has_provider_delta() {
+                    self.stats.resume_plan_candidate_with_both_scope_deltas += 1;
+                }
+                if matches!(
+                    candidate.route,
+                    EvidenceResumePlanRouteCandidate::ProviderDirtyAddId
+                ) {
+                    self.stats.resume_plan_candidate_provider_dirty_add_id += 1;
+                }
+                if matches!(
+                    candidate.multiplicity,
+                    EvidenceResumePlanMultiplicityCandidate::MultiShot
+                ) {
+                    self.stats.resume_plan_candidate_multi_shot += 1;
+                }
+                match candidate.request {
+                    EvidenceResumePlanRequestCandidate::None => {
+                        self.stats.resume_plan_candidate_request_delta_none += 1;
+                    }
+                    EvidenceResumePlanRequestCandidate::Catch {
+                        same_handler,
+                        no_routed_handler,
+                        foreign_handler,
+                    } => {
+                        self.stats.resume_plan_candidate_request_delta_catch_same += same_handler;
+                        self.stats
+                            .resume_plan_candidate_request_delta_catch_no_routed +=
+                            no_routed_handler;
+                        self.stats.resume_plan_candidate_request_delta_catch_foreign +=
+                            foreign_handler;
+                    }
+                }
+            }
+            EvidenceResumePlanCandidate::Rejected(
+                EvidenceResumePlanCandidateReject::RefSetBoundary,
+            ) => {
+                self.stats.resume_plan_candidate_rejected += 1;
+                self.stats.resume_plan_candidate_reject_ref_set += 1;
+            }
+        }
+        self.record_resume_plan_execution_cert(
+            resume_plan_execution_cert_from_candidate(candidate),
+            direct_tail,
+        );
+    }
+
+    fn record_resume_plan_execution_cert(
+        &mut self,
+        cert: EvidenceResumePlanExecutionCert,
+        direct_tail: bool,
+    ) {
+        self.stats.resume_plan_cert_candidates += 1;
+        match cert {
+            EvidenceResumePlanExecutionCert::ProviderDirtyForeignCatchScope(cert) => {
+                self.record_resume_plan_from_cert(cert, direct_tail);
+                self.stats.resume_plan_cert_provider_dirty_foreign_scope += 1;
+                if direct_tail {
+                    self.stats
+                        .resume_plan_cert_direct_tail_provider_dirty_foreign_scope += 1;
+                } else {
+                    self.stats
+                        .resume_plan_cert_resume_pack_provider_dirty_foreign_scope += 1;
+                }
+                self.stats
+                    .resume_plan_cert_provider_dirty_foreign_scope_handlers +=
+                    cert.foreign_handler_count;
+                self.stats
+                    .resume_plan_cert_provider_dirty_foreign_scope_estimated_resume_steps +=
+                    cert.estimated_resume_steps;
+            }
+            EvidenceResumePlanExecutionCert::Rejected(reject) => {
+                self.stats.resume_plan_cert_rejected += 1;
+                match reject {
+                    EvidenceResumePlanExecutionCertReject::NotPlanned => {
+                        self.stats.resume_plan_cert_reject_not_planned += 1;
+                    }
+                    EvidenceResumePlanExecutionCertReject::MissingEvalDelta => {
+                        self.stats.resume_plan_cert_reject_missing_eval_delta += 1;
+                    }
+                    EvidenceResumePlanExecutionCertReject::MissingRequestDelta => {
+                        self.stats.resume_plan_cert_reject_missing_request_delta += 1;
+                    }
+                    EvidenceResumePlanExecutionCertReject::MissingMarkerDelta => {
+                        self.stats.resume_plan_cert_reject_missing_marker_delta += 1;
+                    }
+                    EvidenceResumePlanExecutionCertReject::MissingProviderDelta => {
+                        self.stats.resume_plan_cert_reject_missing_provider_delta += 1;
+                    }
+                    EvidenceResumePlanExecutionCertReject::RouteNotProviderDirtyAddId => {
+                        self.stats
+                            .resume_plan_cert_reject_route_not_provider_dirty_add_id += 1;
+                    }
+                    EvidenceResumePlanExecutionCertReject::MultiShot => {
+                        self.stats.resume_plan_cert_reject_multi_shot += 1;
+                    }
+                    EvidenceResumePlanExecutionCertReject::RequestNone => {
+                        self.stats.resume_plan_cert_reject_request_none += 1;
+                    }
+                    EvidenceResumePlanExecutionCertReject::RequestCatchSameOrNoRouted => {
+                        self.stats
+                            .resume_plan_cert_reject_request_catch_same_or_no_routed += 1;
+                    }
+                    EvidenceResumePlanExecutionCertReject::RequestNoForeignCatch => {
+                        self.stats.resume_plan_cert_reject_request_no_foreign_catch += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    fn record_resume_plan_from_cert(
+        &mut self,
+        cert: EvidenceProviderDirtyForeignCatchScopeCert,
+        direct_tail: bool,
+    ) -> EvidenceResumePlanId {
+        let plan = EvidenceResumePlan::provider_dirty_foreign_catch_scope(cert);
+        let id = EvidenceResumePlanId(self.resume_plans.len());
+        self.stats.resume_plan_plans += 1;
+        if direct_tail {
+            self.stats.resume_plan_direct_tail_plans += 1;
+        } else {
+            self.stats.resume_plan_resume_pack_plans += 1;
+        }
+        match plan.kind {
+            EvidenceResumePlanKind::ProviderDirtyForeignCatchScope => {
+                self.stats.resume_plan_provider_dirty_foreign_scope_plans += 1;
+            }
+        }
+        self.resume_plans.push(plan);
+        id
     }
 
     fn record_resume_plan_request_delta_shadow(
         &mut self,
         profile: EvidenceResumePlanShadowProfile,
+        continuation: &EvidenceContinuation,
+        routed_yield_handler: Option<ExprId>,
         marker_delta_key: EvidenceMarkerDeltaShadowKey,
         provider_delta_key: EvidenceProviderDeltaShadowKey,
         direct_tail: bool,
         provider_dirty_add_id: bool,
+    ) -> (
+        Option<EvidenceEvalDeltaId>,
+        Option<EvidenceRequestDeltaId>,
+        Option<EvidenceMarkerDeltaId>,
+        Option<EvidenceProviderDeltaId>,
     ) {
         match profile.request_delta_rejection() {
             None => {}
             Some(EvidenceResumePlanRequestDeltaReject::NoCatchBoundary) => {
                 self.stats
                     .resume_plan_shadow_request_delta_reject_no_catch_boundary += 1;
-                return;
+                return (None, None, None, None);
             }
             Some(EvidenceResumePlanRequestDeltaReject::RefSetBoundary) => {
                 self.stats
                     .resume_plan_shadow_request_delta_reject_ref_set_boundary += 1;
-                return;
+                return (None, None, None, None);
             }
         }
 
@@ -6530,72 +7751,149 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.stats
                 .resume_plan_shadow_request_delta_provider_dirty_add_id += 1;
         }
-        self.record_resume_plan_marker_delta_shadow(marker_delta_key, direct_tail);
-        self.record_resume_plan_provider_delta_shadow(provider_delta_key, direct_tail);
+        let eval_delta = self.record_resume_plan_eval_delta_plan(continuation, direct_tail);
+        let request_delta = self.record_resume_plan_request_delta_plan(
+            continuation,
+            routed_yield_handler,
+            direct_tail,
+        );
+        let marker_delta =
+            self.record_resume_plan_marker_delta_shadow(marker_delta_key, direct_tail);
+        let provider_delta =
+            self.record_resume_plan_provider_delta_shadow(provider_delta_key, direct_tail);
+        (
+            Some(eval_delta),
+            Some(request_delta),
+            marker_delta,
+            provider_delta,
+        )
+    }
+
+    fn record_resume_plan_eval_delta_plan(
+        &mut self,
+        continuation: &EvidenceContinuation,
+        direct_tail: bool,
+    ) -> EvidenceEvalDeltaId {
+        let plan = EvidenceEvalDeltaPlan::from_continuation(continuation);
+        let id = EvidenceEvalDeltaId(self.eval_delta_plans.len());
+        self.stats.resume_plan_eval_delta_plans += 1;
+        if direct_tail {
+            self.stats.resume_plan_eval_delta_direct_tail_plans += 1;
+        } else {
+            self.stats.resume_plan_eval_delta_resume_pack_plans += 1;
+        }
+        self.stats.resume_plan_eval_delta_frames += plan.frame_count();
+        self.stats.resume_plan_eval_delta_force_frames += plan.force_count();
+        self.stats.resume_plan_eval_delta_apply_frames += plan.apply_count();
+        self.stats.resume_plan_eval_delta_adapter_frames += plan.adapter_count();
+        self.stats.resume_plan_eval_delta_case_frames += plan.case_count();
+        self.stats.resume_plan_eval_delta_aggregate_frames += plan.aggregate_count();
+        self.stats.resume_plan_eval_delta_select_frames += plan.select_count();
+        self.stats.resume_plan_eval_delta_block_frames += plan.block_count();
+        self.stats.resume_plan_eval_delta_ref_set_frames += plan.ref_set_count();
+        self.stats.resume_plan_eval_delta_max_frames = self
+            .stats
+            .resume_plan_eval_delta_max_frames
+            .max(plan.frame_count());
+        self.eval_delta_plans.push(plan);
+        id
+    }
+
+    fn record_resume_plan_request_delta_plan(
+        &mut self,
+        continuation: &EvidenceContinuation,
+        routed_yield_handler: Option<ExprId>,
+        direct_tail: bool,
+    ) -> EvidenceRequestDeltaId {
+        let plan = EvidenceRequestDeltaPlan::from_continuation(continuation, routed_yield_handler);
+        let id = EvidenceRequestDeltaId(self.request_delta_plans.len());
+        self.stats.resume_plan_request_delta_plans += 1;
+        if direct_tail {
+            self.stats.resume_plan_request_delta_direct_tail_plans += 1;
+        } else {
+            self.stats.resume_plan_request_delta_resume_pack_plans += 1;
+        }
+        self.stats.resume_plan_request_delta_frames += plan.frame_count();
+        self.stats.resume_plan_request_delta_same_handler_frames += plan.same_handler_count();
+        self.stats
+            .resume_plan_request_delta_no_routed_handler_frames += plan.no_routed_handler_count();
+        self.stats.resume_plan_request_delta_foreign_handler_frames += plan.foreign_handler_count();
+        self.stats.resume_plan_request_delta_max_frames = self
+            .stats
+            .resume_plan_request_delta_max_frames
+            .max(plan.frame_count());
+        self.request_delta_plans.push(plan);
+        id
     }
 
     fn record_resume_plan_marker_delta_shadow(
         &mut self,
         key: EvidenceMarkerDeltaShadowKey,
         direct_tail: bool,
-    ) {
+    ) -> Option<EvidenceMarkerDeltaId> {
         if key.is_empty() {
-            return;
+            return None;
         }
 
+        let plan = EvidenceMarkerDeltaPlan::from_shadow_key(&key);
         self.stats.resume_plan_marker_delta_candidates += 1;
         if direct_tail {
             self.stats.resume_plan_marker_delta_direct_tail_candidates += 1;
         } else {
             self.stats.resume_plan_marker_delta_resume_pack_candidates += 1;
         }
-        self.stats.resume_plan_marker_delta_frames += key.frame_count();
-        self.stats.resume_plan_marker_delta_active_add_id_ops += key.active_add_id_ops();
-        self.stats.resume_plan_marker_delta_handler_boundary_ops += key.handler_boundary_ops();
+        self.stats.resume_plan_marker_delta_frames += plan.frame_count();
+        self.stats.resume_plan_marker_delta_active_add_id_ops += plan.active_add_id_ops();
+        self.stats.resume_plan_marker_delta_handler_boundary_ops += plan.handler_boundary_ops();
         self.stats.resume_plan_marker_delta_max_frames = self
             .stats
             .resume_plan_marker_delta_max_frames
-            .max(key.frame_count());
+            .max(plan.frame_count());
 
-        if self.marker_delta_shadow_ids.contains_key(&key) {
+        if let Some(id) = self.marker_delta_shadow_ids.get(&key).copied() {
             self.stats.resume_plan_marker_delta_reused += 1;
-            return;
+            return Some(id);
         }
-        let id = self.marker_delta_shadow_ids.len();
+        let id = EvidenceMarkerDeltaId(self.marker_delta_plans.len());
         self.marker_delta_shadow_ids.insert(key, id);
+        self.marker_delta_plans.push(plan);
         self.stats.resume_plan_marker_delta_unique += 1;
+        Some(id)
     }
 
     fn record_resume_plan_provider_delta_shadow(
         &mut self,
         key: EvidenceProviderDeltaShadowKey,
         direct_tail: bool,
-    ) {
+    ) -> Option<EvidenceProviderDeltaId> {
         if key.is_empty() {
-            return;
+            return None;
         }
 
+        let plan = EvidenceProviderDeltaPlan::from_shadow_key(&key);
         self.stats.resume_plan_provider_delta_candidates += 1;
         if direct_tail {
             self.stats.resume_plan_provider_delta_direct_tail_candidates += 1;
         } else {
             self.stats.resume_plan_provider_delta_resume_pack_candidates += 1;
         }
-        self.stats.resume_plan_provider_delta_frames += key.frame_count();
-        self.stats.resume_plan_provider_delta_slots += key.slot_count();
-        self.stats.resume_plan_provider_delta_handler_candidates += key.handler_candidate_count();
+        self.stats.resume_plan_provider_delta_frames += plan.frame_count();
+        self.stats.resume_plan_provider_delta_slots += plan.slot_count();
+        self.stats.resume_plan_provider_delta_handler_candidates += plan.handler_candidate_count();
         self.stats.resume_plan_provider_delta_max_frames = self
             .stats
             .resume_plan_provider_delta_max_frames
-            .max(key.frame_count());
+            .max(plan.frame_count());
 
-        if self.provider_delta_shadow_ids.contains_key(&key) {
+        if let Some(id) = self.provider_delta_shadow_ids.get(&key).copied() {
             self.stats.resume_plan_provider_delta_reused += 1;
-            return;
+            return Some(id);
         }
-        let id = self.provider_delta_shadow_ids.len();
+        let id = EvidenceProviderDeltaId(self.provider_delta_plans.len());
         self.provider_delta_shadow_ids.insert(key, id);
+        self.provider_delta_plans.push(plan);
         self.stats.resume_plan_provider_delta_unique += 1;
+        Some(id)
     }
 
     fn record_provider_env_foreign_later_grant_shape_profile(
@@ -13752,6 +15050,296 @@ mod tests {
     }
 
     #[test]
+    fn resume_plan_candidate_keeps_request_route_and_multiplicity() {
+        let candidate = resume_plan_candidate_from_shadow(
+            EvidenceResumePlanShadowProfile {
+                eval_frames: 3,
+                then_frames: 2,
+                catch_boundaries: 2,
+                catch_same_handler: 1,
+                catch_foreign_handler: 1,
+                marker_frames: 1,
+                provider_env_deltas: 1,
+                ..EvidenceResumePlanShadowProfile::default()
+            },
+            None,
+            None,
+            None,
+            None,
+            true,
+            true,
+        );
+
+        assert_eq!(
+            candidate,
+            EvidenceResumePlanCandidate::Planned(EvidenceResumePlanPlannedCandidate {
+                eval_frames: 3,
+                eval_delta: None,
+                request: EvidenceResumePlanRequestCandidate::Catch {
+                    same_handler: 1,
+                    no_routed_handler: 0,
+                    foreign_handler: 1
+                },
+                request_delta: None,
+                marker_delta: None,
+                provider_delta: None,
+                route: EvidenceResumePlanRouteCandidate::ProviderDirtyAddId,
+                multiplicity: EvidenceResumePlanMultiplicityCandidate::MultiShot,
+                estimated_resume_steps: 9,
+            })
+        );
+    }
+
+    #[test]
+    fn resume_plan_candidate_rejects_ref_set_boundary() {
+        let candidate = resume_plan_candidate_from_shadow(
+            EvidenceResumePlanShadowProfile {
+                ref_set_boundaries: 1,
+                ..EvidenceResumePlanShadowProfile::default()
+            },
+            None,
+            None,
+            None,
+            None,
+            false,
+            false,
+        );
+
+        assert_eq!(
+            candidate,
+            EvidenceResumePlanCandidate::Rejected(
+                EvidenceResumePlanCandidateReject::RefSetBoundary
+            )
+        );
+    }
+
+    #[test]
+    fn resume_plan_execution_cert_accepts_provider_dirty_foreign_scope() {
+        let cert = resume_plan_execution_cert_from_candidate(EvidenceResumePlanCandidate::Planned(
+            EvidenceResumePlanPlannedCandidate {
+                eval_frames: 3,
+                eval_delta: Some(EvidenceEvalDeltaId(0)),
+                request: EvidenceResumePlanRequestCandidate::Catch {
+                    same_handler: 0,
+                    no_routed_handler: 0,
+                    foreign_handler: 2,
+                },
+                request_delta: Some(EvidenceRequestDeltaId(1)),
+                marker_delta: Some(EvidenceMarkerDeltaId(3)),
+                provider_delta: Some(EvidenceProviderDeltaId(5)),
+                route: EvidenceResumePlanRouteCandidate::ProviderDirtyAddId,
+                multiplicity: EvidenceResumePlanMultiplicityCandidate::OneShot,
+                estimated_resume_steps: 9,
+            },
+        ));
+
+        assert_eq!(
+            cert,
+            EvidenceResumePlanExecutionCert::ProviderDirtyForeignCatchScope(
+                EvidenceProviderDirtyForeignCatchScopeCert {
+                    eval_delta: EvidenceEvalDeltaId(0),
+                    request_delta: EvidenceRequestDeltaId(1),
+                    marker_delta: EvidenceMarkerDeltaId(3),
+                    provider_delta: EvidenceProviderDeltaId(5),
+                    foreign_handler_count: 2,
+                    estimated_resume_steps: 9,
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn resume_plan_execution_cert_rejects_missing_eval_delta() {
+        let cert = resume_plan_execution_cert_from_candidate(EvidenceResumePlanCandidate::Planned(
+            EvidenceResumePlanPlannedCandidate {
+                eval_frames: 0,
+                eval_delta: None,
+                request: EvidenceResumePlanRequestCandidate::Catch {
+                    same_handler: 0,
+                    no_routed_handler: 0,
+                    foreign_handler: 1,
+                },
+                request_delta: Some(EvidenceRequestDeltaId(0)),
+                marker_delta: Some(EvidenceMarkerDeltaId(0)),
+                provider_delta: Some(EvidenceProviderDeltaId(0)),
+                route: EvidenceResumePlanRouteCandidate::ProviderDirtyAddId,
+                multiplicity: EvidenceResumePlanMultiplicityCandidate::OneShot,
+                estimated_resume_steps: 1,
+            },
+        ));
+
+        assert_eq!(
+            cert,
+            EvidenceResumePlanExecutionCert::Rejected(
+                EvidenceResumePlanExecutionCertReject::MissingEvalDelta
+            )
+        );
+    }
+
+    #[test]
+    fn resume_plan_execution_cert_rejects_missing_scope_delta() {
+        let cert = resume_plan_execution_cert_from_candidate(EvidenceResumePlanCandidate::Planned(
+            EvidenceResumePlanPlannedCandidate {
+                eval_frames: 0,
+                eval_delta: Some(EvidenceEvalDeltaId(0)),
+                request: EvidenceResumePlanRequestCandidate::Catch {
+                    same_handler: 0,
+                    no_routed_handler: 0,
+                    foreign_handler: 1,
+                },
+                request_delta: Some(EvidenceRequestDeltaId(0)),
+                marker_delta: None,
+                provider_delta: Some(EvidenceProviderDeltaId(0)),
+                route: EvidenceResumePlanRouteCandidate::ProviderDirtyAddId,
+                multiplicity: EvidenceResumePlanMultiplicityCandidate::OneShot,
+                estimated_resume_steps: 1,
+            },
+        ));
+
+        assert_eq!(
+            cert,
+            EvidenceResumePlanExecutionCert::Rejected(
+                EvidenceResumePlanExecutionCertReject::MissingMarkerDelta
+            )
+        );
+    }
+
+    #[test]
+    fn resume_plan_execution_cert_rejects_same_or_no_routed_catch() {
+        let cert = resume_plan_execution_cert_from_candidate(EvidenceResumePlanCandidate::Planned(
+            EvidenceResumePlanPlannedCandidate {
+                eval_frames: 0,
+                eval_delta: Some(EvidenceEvalDeltaId(0)),
+                request: EvidenceResumePlanRequestCandidate::Catch {
+                    same_handler: 1,
+                    no_routed_handler: 0,
+                    foreign_handler: 1,
+                },
+                request_delta: Some(EvidenceRequestDeltaId(0)),
+                marker_delta: Some(EvidenceMarkerDeltaId(0)),
+                provider_delta: Some(EvidenceProviderDeltaId(0)),
+                route: EvidenceResumePlanRouteCandidate::ProviderDirtyAddId,
+                multiplicity: EvidenceResumePlanMultiplicityCandidate::OneShot,
+                estimated_resume_steps: 1,
+            },
+        ));
+
+        assert_eq!(
+            cert,
+            EvidenceResumePlanExecutionCert::Rejected(
+                EvidenceResumePlanExecutionCertReject::RequestCatchSameOrNoRouted
+            )
+        );
+    }
+
+    #[test]
+    fn resume_plan_execution_cert_rejects_non_dirty_route() {
+        let cert = resume_plan_execution_cert_from_candidate(EvidenceResumePlanCandidate::Planned(
+            EvidenceResumePlanPlannedCandidate {
+                eval_frames: 0,
+                eval_delta: Some(EvidenceEvalDeltaId(0)),
+                request: EvidenceResumePlanRequestCandidate::Catch {
+                    same_handler: 0,
+                    no_routed_handler: 0,
+                    foreign_handler: 1,
+                },
+                request_delta: Some(EvidenceRequestDeltaId(0)),
+                marker_delta: Some(EvidenceMarkerDeltaId(0)),
+                provider_delta: Some(EvidenceProviderDeltaId(0)),
+                route: EvidenceResumePlanRouteCandidate::Unknown,
+                multiplicity: EvidenceResumePlanMultiplicityCandidate::OneShot,
+                estimated_resume_steps: 1,
+            },
+        ));
+
+        assert_eq!(
+            cert,
+            EvidenceResumePlanExecutionCert::Rejected(
+                EvidenceResumePlanExecutionCertReject::RouteNotProviderDirtyAddId
+            )
+        );
+    }
+
+    #[test]
+    fn resume_plan_materializes_accepted_cert() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let cert = EvidenceProviderDirtyForeignCatchScopeCert {
+            eval_delta: EvidenceEvalDeltaId(1),
+            request_delta: EvidenceRequestDeltaId(2),
+            marker_delta: EvidenceMarkerDeltaId(3),
+            provider_delta: EvidenceProviderDeltaId(4),
+            foreign_handler_count: 2,
+            estimated_resume_steps: 9,
+        };
+
+        let id = runner.record_resume_plan_from_cert(cert, true);
+
+        assert_eq!(id, EvidenceResumePlanId(0));
+        assert_eq!(runner.resume_plans.len(), 1);
+        assert_eq!(
+            runner.resume_plans[0],
+            EvidenceResumePlan {
+                kind: EvidenceResumePlanKind::ProviderDirtyForeignCatchScope,
+                eval_delta: EvidenceEvalDeltaId(1),
+                request_delta: EvidenceRequestDeltaId(2),
+                marker_delta: EvidenceMarkerDeltaId(3),
+                provider_delta: EvidenceProviderDeltaId(4),
+            }
+        );
+        assert_eq!(runner.stats.resume_plan_plans, 1);
+        assert_eq!(runner.stats.resume_plan_direct_tail_plans, 1);
+        assert_eq!(
+            runner.stats.resume_plan_provider_dirty_foreign_scope_plans,
+            1
+        );
+    }
+
+    #[test]
+    fn resume_plan_marker_delta_interns_real_plan() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let key = EvidenceMarkerDeltaShadowKey {
+            frames: vec![EvidenceMarkerDeltaFrameShadowKey {
+                markers: vec![EvidenceValueMarker::Frame {
+                    id: EvidenceGuardId(1),
+                }],
+                activate_add_ids: true,
+                handler_path: Some(permission_test_path()),
+            }],
+        };
+
+        runner.record_resume_plan_marker_delta_shadow(key.clone(), true);
+        runner.record_resume_plan_marker_delta_shadow(key, true);
+
+        assert_eq!(runner.stats.resume_plan_marker_delta_unique, 1);
+        assert_eq!(runner.stats.resume_plan_marker_delta_reused, 1);
+        assert_eq!(runner.marker_delta_plans.len(), 1);
+        assert_eq!(runner.marker_delta_plans[0].frame_count(), 1);
+        assert_eq!(runner.marker_delta_shadow_ids.len(), 1);
+    }
+
+    #[test]
+    fn resume_plan_provider_delta_interns_real_plan() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let key = EvidenceProviderDeltaShadowKey {
+            frames: vec![EvidenceProviderDeltaFrameShadowKey {
+                provider_env: provider_env_fixture_for_handler(7),
+            }],
+        };
+
+        runner.record_resume_plan_provider_delta_shadow(key.clone(), false);
+        runner.record_resume_plan_provider_delta_shadow(key, false);
+
+        assert_eq!(runner.stats.resume_plan_provider_delta_unique, 1);
+        assert_eq!(runner.stats.resume_plan_provider_delta_reused, 1);
+        assert_eq!(runner.provider_delta_plans.len(), 1);
+        assert_eq!(runner.provider_delta_plans[0].frame_count(), 1);
+        assert_eq!(runner.provider_delta_shadow_ids.len(), 1);
+    }
+
+    #[test]
     fn provider_prefix_boundary_close_accepts_strict_prefix() {
         let program = Program::default();
         let mut runner = provider_prefix_boundary_runner(&program, &permission_test_path());
@@ -14578,6 +16166,7 @@ mod tests {
         let profile = continuation.resume_plan_shadow_profile(Some(catch_expr));
 
         assert_eq!(profile.catch_boundaries, 1);
+        assert_eq!(profile.eval_frames, 0);
         assert_eq!(profile.catch_same_handler, 1);
         assert_eq!(profile.marker_frames, 1);
         assert_eq!(profile.marker_dynamic_frames, 1);
@@ -14598,6 +16187,59 @@ mod tests {
         assert_eq!(provider_delta.frame_count(), 1);
         assert_eq!(provider_delta.slot_count(), 1);
         assert_eq!(provider_delta.handler_candidate_count(), 1);
+
+        let eval_delta = EvidenceEvalDeltaPlan::from_continuation(&continuation);
+        assert_eq!(eval_delta.frame_count(), 0);
+        assert_eq!(eval_delta.force_count(), 0);
+        assert_eq!(eval_delta.apply_count(), 0);
+
+        let request_delta =
+            EvidenceRequestDeltaPlan::from_continuation(&continuation, Some(catch_expr));
+        assert_eq!(request_delta.frame_count(), 1);
+        assert_eq!(request_delta.same_handler_count(), 1);
+        assert_eq!(request_delta.no_routed_handler_count(), 0);
+        assert_eq!(request_delta.foreign_handler_count(), 0);
+        assert_eq!(
+            request_delta.frames[0].kind,
+            EvidenceRequestDeltaFrameKind::SameHandler
+        );
+        assert_eq!(request_delta.frames[0].catch_expr, catch_expr);
+    }
+
+    #[test]
+    fn resume_plan_eval_delta_counts_eval_frame_kinds() {
+        let continuation =
+            EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::apply_arg(
+                None,
+                shared(RuntimeEvidenceValue::Unit),
+                EvidenceContinuation::record_fields(
+                    Vec::new(),
+                    Rc::from(Vec::<control_vm::RecordField>::new().into_boxed_slice()),
+                    Env::new(),
+                    EvidenceContinuation::identity(),
+                ),
+            ));
+
+        let profile = continuation.resume_plan_shadow_profile(None);
+        let eval_delta = EvidenceEvalDeltaPlan::from_continuation(&continuation);
+
+        assert_eq!(profile.eval_frames, 3);
+        assert_eq!(eval_delta.frame_count(), 3);
+        assert_eq!(eval_delta.force_count(), 1);
+        assert_eq!(eval_delta.apply_count(), 1);
+        assert_eq!(eval_delta.aggregate_count(), 1);
+        assert!(matches!(
+            eval_delta.frames[0],
+            EvidenceEvalDeltaFramePlan::ForceValueIfThunk
+        ));
+        assert!(matches!(
+            eval_delta.frames[1],
+            EvidenceEvalDeltaFramePlan::ApplyArg { .. }
+        ));
+        assert!(matches!(
+            eval_delta.frames[2],
+            EvidenceEvalDeltaFramePlan::RecordFields { .. }
+        ));
     }
 
     #[test]
