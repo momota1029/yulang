@@ -5358,6 +5358,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.with_provider_env(provider_env, run)
     }
 
+    fn call_provider_env_may_apply(&self, site: Option<ExprId>) -> bool {
+        let Some(site) = site else {
+            return false;
+        };
+        if self.active_provider_handlers.is_empty() && self.active_provider_envs.is_empty() {
+            return false;
+        }
+        self.context.has_provider_env_for_call(site)
+    }
+
     fn append_request_continuation(
         &mut self,
         request: EvidenceRequest,
@@ -8919,7 +8929,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         callee: SharedValue,
         arg: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
-        if !runtime_value_needs_call_provider_env(callee.as_ref()) {
+        if !runtime_value_needs_call_provider_env(callee.as_ref())
+            || !self.call_provider_env_may_apply(site)
+        {
             return self.apply_value_result_inner(site, callee, arg);
         }
         self.with_call_provider_env(site, |runner| {
