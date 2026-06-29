@@ -13286,11 +13286,12 @@ fn continuation_resume_add_id_marker(marker: &Rc<EvidenceAddIdMarker>) -> Eviden
 }
 
 fn stack_handler_markers(id: EvidenceGuardId, path: &[String]) -> Vec<EvidenceValueMarker> {
+    let path = shared_path(path);
     vec![
         EvidenceValueMarker::Frame { id },
         EvidenceValueMarker::AddId(Rc::new(EvidenceAddIdMarker {
             id,
-            path: shared_path(path),
+            path: path.clone(),
             depth: 0,
             guard_own_path: false,
             guard_foreign_path: true,
@@ -13299,7 +13300,7 @@ fn stack_handler_markers(id: EvidenceGuardId, path: &[String]) -> Vec<EvidenceVa
         })),
         EvidenceValueMarker::AddId(Rc::new(EvidenceAddIdMarker {
             id,
-            path: shared_path(path),
+            path,
             depth: 1,
             guard_own_path: true,
             guard_foreign_path: true,
