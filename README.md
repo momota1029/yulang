@@ -123,10 +123,12 @@ echo "1 + 2" | yulang run --print-roots
 echo "(each 1..3 + each 1..3).list.say" | yulang run
 ```
 
-`run` executes the program through the current control VM and only prints
+`run` currently executes the program through the control VM and only prints
 output produced by the program itself, such as `say` / `println`. To inspect
 root expression values while experimenting, add `--print-roots`. To run
 through the mono runtime instead of the control VM, pass `--interpreter`.
+The evidence VM is the next runtime backend and can be compared against the
+control VM with `debug evidence-vm-run --compare-control`.
 The control VM route caches compiled-unit `.yucu` artifacts, principal
 `.yuir` poly artifacts, and `.yuvm` VM artifacts under the user cache root;
 use `yulang cache path`, `yulang cache stats`, and `yulang cache clear` to
@@ -220,9 +222,39 @@ separate `momota1029/yulang-zed` extension repository.
 
 ## Execution Backend
 
-Yulang currently executes through the new mono runtime or the lighter control
-VM built from the specialized mono IR. An earlier Cranelift/MMTk native backend
-was explored in the old implementation and has been retired.
+Yulang currently has three runtime surfaces:
+
+- the mono runtime, kept as a simple interpreter and oracle path;
+- the control VM, used by the default `run` command;
+- the evidence VM, an evidence-passing runtime being prepared as the next
+  effect-handler backend.
+
+The evidence VM is still opt-in, but it is now the fastest route for the
+effect-heavy examples used during runtime work. It is checked against the
+control VM with:
+
+```bash
+target/release/yulang --std-root lib debug evidence-vm-run --compare-control bench/nondet_20_discard.yu
+target/release/yulang --std-root lib debug evidence-vm-run --compare-control examples/showcase.yu
+```
+
+Recent release measurements on commit `0f95bf6a` with a warm source-key cache:
+
+| Program | Backend | Runtime execute | Total before compare / run total | Check |
+| --- | --- | ---: | ---: | --- |
+| `bench/nondet_20_discard.yu` | evidence VM | 9.0-9.6ms | 10.6-11.2ms | `compare.control: match` |
+| `bench/nondet_20_discard.yu` | default control VM | 22.4-28.7ms | 26.2-33.7ms | default `run` |
+| `examples/showcase.yu` | evidence VM | 20.4-22.8ms | 23.5-27.2ms | `compare.control: match` |
+| `examples/showcase.yu` | default control VM | 50.1-63.2ms | 61.1-77.4ms | default `run` |
+
+The evidence VM uses permission-native handler visibility for certified
+direct-tail handler paths and leaves the generic request machinery as the
+fallback surface. The default switch is intentionally staged: the control VM
+remains the reference route for `run` while evidence VM coverage and diagnostics
+are hardened.
+
+An earlier Cranelift/MMTk native backend was explored in the old implementation
+and has been retired.
 
 Background notes on the experiment and the optimizer plans that grew out of
 it still live in:
@@ -259,6 +291,7 @@ printf '1\n' >/tmp/yulang-main.yu
 - `crates/mono`: monomorphic IR.
 - `crates/mono-runtime`: oracle-style mono interpreter.
 - `crates/control-vm`: lightweight control VM IR and runtime.
+- `crates/evidence-vm`: evidence-passing runtime plan and runner.
 - `crates/parser`: parser and syntax tree support.
 - `crates/list-tree`: shared persistent list implementation.
 - `archive/crates`: old `yulang` implementation, retained as reference-only code outside the workspace.
