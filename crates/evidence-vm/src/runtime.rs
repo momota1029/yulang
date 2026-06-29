@@ -354,6 +354,13 @@ enum EvidenceContinuationFrame {
         boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
         next: EvidenceContinuation,
     },
+    ScopePlanForeignCatchBoundary {
+        scope: EvidenceContinuation,
+        scope_direct_tail_boundary_free: bool,
+        scope_local_plan: Option<Rc<EvidenceScopeLocalPlan>>,
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+        next: EvidenceContinuation,
+    },
     MarkerFrame {
         markers: Rc<[EvidenceValueMarker]>,
         activate_add_ids: bool,
@@ -888,7 +895,7 @@ struct EvidenceResumePlanPlannedCandidate {
     eval_frames: usize,
     trace: Option<EvidenceResumePlanTraceId>,
     eval_delta: Option<EvidenceEvalDeltaId>,
-    request: EvidenceResumePlanRequestCandidate,
+    boundary_lane: EvidenceScopePlanBoundaryLane,
     request_delta: Option<EvidenceRequestDeltaId>,
     marker_delta: Option<EvidenceMarkerDeltaId>,
     provider_delta: Option<EvidenceProviderDeltaId>,
@@ -926,13 +933,38 @@ enum EvidenceResumePlanCandidate {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum EvidenceResumePlanRequestCandidate {
+enum EvidenceScopePlanBoundaryLane {
     None,
     Catch {
         same_handler: usize,
         no_routed_handler: usize,
         foreign_handler: usize,
     },
+    RefSet {
+        boundaries: usize,
+    },
+}
+
+impl EvidenceScopePlanBoundaryLane {
+    fn from_shadow_profile(profile: EvidenceResumePlanShadowProfile) -> Self {
+        if profile.ref_set_boundaries > 0 {
+            return Self::RefSet {
+                boundaries: profile.ref_set_boundaries,
+            };
+        }
+        if profile.catch_boundaries == 0 {
+            return Self::None;
+        }
+        Self::Catch {
+            same_handler: profile.catch_same_handler,
+            no_routed_handler: profile.catch_no_routed_handler,
+            foreign_handler: profile.catch_foreign_handler,
+        }
+    }
+
+    fn has_ref_set(self) -> bool {
+        matches!(self, Self::RefSet { boundaries } if boundaries > 0)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1302,6 +1334,24 @@ impl EvidenceResumeScopedTraceBuilder {
                     self.append_frame(scope, frame, routed_yield_handler);
                 }
             }
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+                scope: scope_continuation,
+                boundaries,
+                next,
+                ..
+            } => {
+                if let Some(frame) = scope_continuation.frame() {
+                    self.append_frame(scope, frame, routed_yield_handler);
+                }
+                for _ in boundaries.iter() {
+                    let index = self.cursors[scope].request;
+                    self.cursors[scope].request += 1;
+                    self.push_step(scope, EvidenceResumeScopeStep::Request(index));
+                }
+                if let Some(frame) = next.frame() {
+                    self.append_frame(scope, frame, routed_yield_handler);
+                }
+            }
             EvidenceContinuationFrame::MarkerFrame { next, .. } => {
                 let index = self.cursors[scope].marker;
                 self.cursors[scope].marker += 1;
@@ -1494,6 +1544,314 @@ impl EvidenceEvalDeltaFramePlan {
             | Self::ResolveRefSetFields { .. } => EvidenceEvalDeltaFrameKind::RefSet,
         }
     }
+
+    fn from_continuation_frame(frame: &EvidenceContinuationFrame) -> Option<Self> {
+        match frame {
+            EvidenceContinuationFrame::ForceThunk {
+                target_value_is_thunk,
+                ..
+            } => Some(Self::ForceThunk {
+                target_value_is_thunk: *target_value_is_thunk,
+            }),
+            EvidenceContinuationFrame::ForceValueIfThunk { .. } => Some(Self::ForceValueIfThunk),
+            EvidenceContinuationFrame::ApplyCallee { site, arg, env, .. } => {
+                Some(Self::ApplyCallee {
+                    site: *site,
+                    arg: *arg,
+                    env: env.clone(),
+                })
+            }
+            EvidenceContinuationFrame::ApplyArg { site, callee, .. } => Some(Self::ApplyArg {
+                site: *site,
+                callee: callee.clone(),
+            }),
+            EvidenceContinuationFrame::ApplyForcedCallee { site, arg, .. } => {
+                Some(Self::ApplyForcedCallee {
+                    site: *site,
+                    arg: arg.clone(),
+                })
+            }
+            EvidenceContinuationFrame::AdaptValue { source, target, .. } => {
+                Some(Self::AdaptValue {
+                    source: source.clone(),
+                    target: target.clone(),
+                })
+            }
+            EvidenceContinuationFrame::WrapThunkValue { .. } => Some(Self::WrapThunkValue),
+            EvidenceContinuationFrame::ApplyAdapterArg {
+                function,
+                ret_markers,
+                source_ret,
+                target_ret,
+                ..
+            } => Some(Self::ApplyAdapterArg {
+                function: function.clone(),
+                ret_markers: ret_markers.clone(),
+                source_ret: source_ret.clone(),
+                target_ret: target_ret.clone(),
+            }),
+            EvidenceContinuationFrame::ApplyAdapterResult {
+                ret_markers,
+                source_ret,
+                target_ret,
+                ..
+            } => Some(Self::ApplyAdapterResult {
+                ret_markers: ret_markers.clone(),
+                source_ret: source_ret.clone(),
+                target_ret: target_ret.clone(),
+            }),
+            EvidenceContinuationFrame::CaseScrutinee { arms, env, .. } => {
+                Some(Self::CaseScrutinee {
+                    arms: arms.clone(),
+                    env: env.clone(),
+                })
+            }
+            EvidenceContinuationFrame::TupleItems {
+                values, rest, env, ..
+            } => Some(Self::TupleItems {
+                values: values.clone(),
+                rest: rest.clone(),
+                env: env.clone(),
+            }),
+            EvidenceContinuationFrame::RecordSpread { fields, env, .. } => {
+                Some(Self::RecordSpread {
+                    fields: fields.clone(),
+                    env: env.clone(),
+                })
+            }
+            EvidenceContinuationFrame::RecordFields {
+                values, rest, env, ..
+            } => Some(Self::RecordFields {
+                values: values.clone(),
+                rest: rest.clone(),
+                env: env.clone(),
+            }),
+            EvidenceContinuationFrame::PolyVariantPayloads {
+                tag,
+                values,
+                rest,
+                env,
+                ..
+            } => Some(Self::PolyVariantPayloads {
+                tag: tag.clone(),
+                values: values.clone(),
+                rest: rest.clone(),
+                env: env.clone(),
+            }),
+            EvidenceContinuationFrame::SelectBase {
+                name, resolution, ..
+            } => Some(Self::SelectBase {
+                name: name.clone(),
+                resolution: resolution.clone(),
+            }),
+            EvidenceContinuationFrame::BlockStmt {
+                resume,
+                rest,
+                tail,
+                env,
+                last,
+                ..
+            } => Some(Self::BlockStmt {
+                resume: resume.clone(),
+                rest: rest.clone(),
+                tail: *tail,
+                env: env.clone(),
+                last: last.clone(),
+            }),
+            EvidenceContinuationFrame::RefSetReference { value, env, .. } => {
+                Some(Self::RefSetReference {
+                    value: *value,
+                    env: env.clone(),
+                })
+            }
+            EvidenceContinuationFrame::RefSetForcedReference { value, env, .. } => {
+                Some(Self::RefSetForcedReference {
+                    value: *value,
+                    env: env.clone(),
+                })
+            }
+            EvidenceContinuationFrame::RefSetValue { reference, .. } => Some(Self::RefSetValue {
+                reference: reference.clone(),
+            }),
+            EvidenceContinuationFrame::RefSetForcedValue { reference, .. } => {
+                Some(Self::RefSetForcedValue {
+                    reference: reference.clone(),
+                })
+            }
+            EvidenceContinuationFrame::RefSetResolvedUnit { .. } => Some(Self::RefSetResolvedUnit),
+            EvidenceContinuationFrame::RefSetEmitResolvedRequest {
+                request,
+                assigned,
+                mode,
+                ..
+            } => Some(Self::RefSetEmitResolvedRequest {
+                request: request.clone(),
+                assigned: assigned.clone(),
+                mode: *mode,
+            }),
+            EvidenceContinuationFrame::ResolveRefSetValues {
+                values,
+                assigned,
+                out,
+                index,
+                finish,
+                ..
+            } => Some(Self::ResolveRefSetValues {
+                values: values.clone(),
+                assigned: assigned.clone(),
+                out: out.clone(),
+                index: *index,
+                finish: finish.clone(),
+            }),
+            EvidenceContinuationFrame::ResolveRefSetFields {
+                fields,
+                assigned,
+                out,
+                index,
+                ..
+            } => Some(Self::ResolveRefSetFields {
+                fields: fields.clone(),
+                assigned: assigned.clone(),
+                out: out.clone(),
+                index: *index,
+            }),
+            _ => None,
+        }
+    }
+
+    fn to_continuation(&self, next: EvidenceContinuation) -> EvidenceContinuation {
+        match self {
+            Self::ForceThunk {
+                target_value_is_thunk,
+            } => EvidenceContinuation::force_thunk(*target_value_is_thunk, next),
+            Self::ForceValueIfThunk => EvidenceContinuation::force_value_if_thunk(next),
+            Self::ApplyCallee { site, arg, env } => {
+                EvidenceContinuation::apply_callee(*site, *arg, env.clone(), next)
+            }
+            Self::ApplyArg { site, callee } => {
+                EvidenceContinuation::apply_arg(*site, callee.clone(), next)
+            }
+            Self::ApplyForcedCallee { site, arg } => {
+                EvidenceContinuation::apply_forced_callee(*site, arg.clone(), next)
+            }
+            Self::AdaptValue { source, target } => {
+                EvidenceContinuation::adapt_value(source.clone(), target.clone(), next)
+            }
+            Self::WrapThunkValue => EvidenceContinuation::wrap_thunk_value(next),
+            Self::ApplyAdapterArg {
+                function,
+                ret_markers,
+                source_ret,
+                target_ret,
+            } => EvidenceContinuation::apply_adapter_arg(
+                function.clone(),
+                ret_markers.clone(),
+                source_ret.clone(),
+                target_ret.clone(),
+                next,
+            ),
+            Self::ApplyAdapterResult {
+                ret_markers,
+                source_ret,
+                target_ret,
+            } => EvidenceContinuation::apply_adapter_result(
+                ret_markers.clone(),
+                source_ret.clone(),
+                target_ret.clone(),
+                next,
+            ),
+            Self::CaseScrutinee { arms, env } => {
+                EvidenceContinuation::case_scrutinee(arms.clone(), env.clone(), next)
+            }
+            Self::TupleItems { values, rest, env } => {
+                EvidenceContinuation::tuple_items(values.clone(), rest.clone(), env.clone(), next)
+            }
+            Self::RecordSpread { fields, env } => {
+                EvidenceContinuation::record_spread(fields.clone(), env.clone(), next)
+            }
+            Self::RecordFields { values, rest, env } => {
+                EvidenceContinuation::record_fields(values.clone(), rest.clone(), env.clone(), next)
+            }
+            Self::PolyVariantPayloads {
+                tag,
+                values,
+                rest,
+                env,
+            } => EvidenceContinuation::poly_variant_payloads(
+                tag.clone(),
+                values.clone(),
+                rest.clone(),
+                env.clone(),
+                next,
+            ),
+            Self::SelectBase { name, resolution } => {
+                EvidenceContinuation::select_base(name.clone(), resolution.clone(), next)
+            }
+            Self::BlockStmt {
+                resume,
+                rest,
+                tail,
+                env,
+                last,
+            } => EvidenceContinuation::block_stmt(
+                resume.clone(),
+                rest.clone(),
+                *tail,
+                env.clone(),
+                last.clone(),
+                next,
+            ),
+            Self::RefSetReference { value, env } => {
+                EvidenceContinuation::ref_set_reference(*value, env.clone(), next)
+            }
+            Self::RefSetForcedReference { value, env } => {
+                EvidenceContinuation::ref_set_forced_reference(*value, env.clone(), next)
+            }
+            Self::RefSetValue { reference } => {
+                EvidenceContinuation::ref_set_value(reference.clone(), next)
+            }
+            Self::RefSetForcedValue { reference } => {
+                EvidenceContinuation::ref_set_forced_value(reference.clone(), next)
+            }
+            Self::RefSetResolvedUnit => EvidenceContinuation::ref_set_resolved_unit(next),
+            Self::RefSetEmitResolvedRequest {
+                request,
+                assigned,
+                mode,
+            } => EvidenceContinuation::ref_set_emit_resolved_request(
+                request.clone(),
+                assigned.clone(),
+                *mode,
+                next,
+            ),
+            Self::ResolveRefSetValues {
+                values,
+                assigned,
+                out,
+                index,
+                finish,
+            } => EvidenceContinuation::resolve_ref_set_values(
+                values.clone(),
+                assigned.clone(),
+                out.clone(),
+                *index,
+                finish.clone(),
+                next,
+            ),
+            Self::ResolveRefSetFields {
+                fields,
+                assigned,
+                out,
+                index,
+            } => EvidenceContinuation::resolve_ref_set_fields(
+                fields.clone(),
+                assigned.clone(),
+                out.clone(),
+                *index,
+                next,
+            ),
+        }
+    }
 }
 
 impl EvidenceEvalDeltaPlan {
@@ -1666,6 +2024,32 @@ impl EvidenceCatchBoundaryDeltaPlan {
     fn has_same_value_resume_payload_as(&self, frame: &EvidenceRequestDeltaFramePlan) -> bool {
         self.catch_expr == frame.catch_expr && self.arms == frame.arms && self.env == frame.env
     }
+}
+
+fn catch_boundaries_pass_direct_tail_signal(
+    boundaries: &[EvidenceCatchBoundaryDeltaPlan],
+    handler: ExprId,
+) -> bool {
+    boundaries
+        .iter()
+        .all(|boundary| boundary.catch_expr != handler)
+}
+
+fn catch_boundaries_are_foreign_pass_through(
+    boundaries: &[EvidenceCatchBoundaryDeltaPlan],
+) -> bool {
+    !boundaries.is_empty()
+        && boundaries
+            .iter()
+            .all(|boundary| boundary.is_signal_passthrough() && boundary.has_value_resume_payload())
+}
+
+fn scope_plan_direct_tail_signal_can_compact(
+    scope_direct_tail_boundary_free: bool,
+    boundaries: &[EvidenceCatchBoundaryDeltaPlan],
+    handler: ExprId,
+) -> bool {
+    scope_direct_tail_boundary_free && catch_boundaries_pass_direct_tail_signal(boundaries, handler)
 }
 
 impl EvidenceCatchBoundaryMode {
@@ -1891,14 +2275,24 @@ enum EvidenceResumePlanCandidateReject {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct EvidenceProviderDirtyForeignCatchScopeCert {
+struct EvidenceProviderDirtyScopeCert {
     trace: EvidenceResumePlanTraceId,
     eval_delta: EvidenceEvalDeltaId,
-    request_delta: EvidenceRequestDeltaId,
     marker_delta: EvidenceMarkerDeltaId,
     provider_delta: EvidenceProviderDeltaId,
-    foreign_handler_count: usize,
     estimated_resume_steps: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceForeignCatchPassThroughCert {
+    request_delta: EvidenceRequestDeltaId,
+    foreign_handler_count: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceProviderDirtyForeignCatchScopeCert {
+    provider: EvidenceProviderDirtyScopeCert,
+    catch: EvidenceForeignCatchPassThroughCert,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1925,11 +2319,11 @@ impl EvidenceResumePlan {
     ) -> Self {
         Self {
             kind: EvidenceResumePlanKind::ProviderDirtyForeignCatchScope,
-            trace: cert.trace,
-            eval_delta: cert.eval_delta,
-            request_delta: cert.request_delta,
-            marker_delta: cert.marker_delta,
-            provider_delta: cert.provider_delta,
+            trace: cert.provider.trace,
+            eval_delta: cert.provider.eval_delta,
+            request_delta: cert.catch.request_delta,
+            marker_delta: cert.provider.marker_delta,
+            provider_delta: cert.provider.provider_delta,
         }
     }
 }
@@ -1965,7 +2359,8 @@ fn resume_plan_candidate_from_shadow(
     multi_shot: bool,
     provider_dirty_add_id: bool,
 ) -> EvidenceResumePlanCandidate {
-    if profile.ref_set_boundaries > 0 {
+    let boundary_lane = EvidenceScopePlanBoundaryLane::from_shadow_profile(profile);
+    if boundary_lane.has_ref_set() {
         return EvidenceResumePlanCandidate::Rejected(
             EvidenceResumePlanCandidateReject::RefSetBoundary,
         );
@@ -1974,7 +2369,7 @@ fn resume_plan_candidate_from_shadow(
         eval_frames: profile.eval_frames,
         trace,
         eval_delta,
-        request: resume_plan_request_candidate(profile),
+        boundary_lane,
         request_delta,
         marker_delta,
         provider_delta,
@@ -2041,11 +2436,11 @@ fn resume_plan_execution_cert_from_candidate(
             EvidenceResumePlanExecutionCertReject::MultiShot,
         );
     }
-    let EvidenceResumePlanRequestCandidate::Catch {
+    let EvidenceScopePlanBoundaryLane::Catch {
         same_handler,
         no_routed_handler,
         foreign_handler,
-    } = candidate.request
+    } = candidate.boundary_lane
     else {
         return EvidenceResumePlanExecutionCert::Rejected(
             EvidenceResumePlanExecutionCertReject::RequestNone,
@@ -2063,28 +2458,19 @@ fn resume_plan_execution_cert_from_candidate(
     }
     EvidenceResumePlanExecutionCert::ProviderDirtyForeignCatchScope(
         EvidenceProviderDirtyForeignCatchScopeCert {
-            trace,
-            eval_delta,
-            request_delta,
-            marker_delta,
-            provider_delta,
-            foreign_handler_count: foreign_handler,
-            estimated_resume_steps: candidate.estimated_resume_steps,
+            provider: EvidenceProviderDirtyScopeCert {
+                trace,
+                eval_delta,
+                marker_delta,
+                provider_delta,
+                estimated_resume_steps: candidate.estimated_resume_steps,
+            },
+            catch: EvidenceForeignCatchPassThroughCert {
+                request_delta,
+                foreign_handler_count: foreign_handler,
+            },
         },
     )
-}
-
-fn resume_plan_request_candidate(
-    profile: EvidenceResumePlanShadowProfile,
-) -> EvidenceResumePlanRequestCandidate {
-    if profile.catch_boundaries == 0 {
-        return EvidenceResumePlanRequestCandidate::None;
-    }
-    EvidenceResumePlanRequestCandidate::Catch {
-        same_handler: profile.catch_same_handler,
-        no_routed_handler: profile.catch_no_routed_handler,
-        foreign_handler: profile.catch_foreign_handler,
-    }
 }
 
 impl EvidenceResumePlanShadowProfile {
@@ -2413,6 +2799,206 @@ impl EvidenceProviderDeltaFramePlan {
     fn from_shadow_key(key: &EvidenceProviderDeltaFrameShadowKey) -> Self {
         Self {
             provider_env: key.provider_env.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct EvidenceScopeLocalPlan {
+    actions: Rc<[EvidenceScopeLocalAction]>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum EvidenceScopeLocalAction {
+    Eval(EvidenceEvalDeltaFramePlan),
+    CatchForeign {
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+    },
+    Marker {
+        frame: EvidenceMarkerDeltaFramePlan,
+        child: EvidenceScopeLocalPlan,
+    },
+    Provider {
+        frame: EvidenceProviderDeltaFramePlan,
+        child: EvidenceScopeLocalPlan,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceScopeLocalPlanReject {
+    RequestBoundary,
+    RefSetBoundary,
+}
+
+impl EvidenceScopeLocalPlan {
+    fn from_continuation(
+        continuation: &EvidenceContinuation,
+    ) -> Result<Self, EvidenceScopeLocalPlanReject> {
+        let mut builder = EvidenceScopeLocalPlanBuilder::default();
+        builder.append_continuation(continuation)?;
+        Ok(builder.finish())
+    }
+
+    fn materialize(&self, tail: EvidenceContinuation) -> EvidenceContinuation {
+        Self::materialize_actions(self.actions.as_ref(), tail)
+    }
+
+    fn materialize_actions(
+        actions: &[EvidenceScopeLocalAction],
+        tail: EvidenceContinuation,
+    ) -> EvidenceContinuation {
+        actions
+            .iter()
+            .rev()
+            .fold(tail, |tail, action| action.materialize_before(tail))
+    }
+}
+
+impl EvidenceScopeLocalAction {
+    fn materialize_before(&self, tail: EvidenceContinuation) -> EvidenceContinuation {
+        match self {
+            Self::Eval(frame) => frame.to_continuation(tail),
+            Self::CatchForeign { boundaries } => {
+                EvidenceContinuation::catch_foreign_boundary_segment(boundaries.clone(), tail)
+            }
+            Self::Marker { frame, child } => {
+                let scoped = EvidenceContinuation::marker_frame(
+                    frame.markers.clone(),
+                    frame.activate_add_ids,
+                    frame
+                        .handler_path
+                        .as_ref()
+                        .map(|path| path.as_ref().to_vec()),
+                    child.materialize(EvidenceContinuation::identity()),
+                );
+                if tail.is_identity() {
+                    scoped
+                } else {
+                    EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+                        first: scoped,
+                        second: tail,
+                    }))
+                }
+            }
+            Self::Provider { frame, child } => {
+                let scoped = EvidenceContinuation::provider_env(
+                    frame.provider_env.clone(),
+                    child.materialize(EvidenceContinuation::identity()),
+                );
+                if tail.is_identity() {
+                    scoped
+                } else {
+                    EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+                        first: scoped,
+                        second: tail,
+                    }))
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct EvidenceScopeLocalPlanBuilder {
+    actions: Vec<EvidenceScopeLocalAction>,
+}
+
+impl EvidenceScopeLocalPlanBuilder {
+    fn finish(self) -> EvidenceScopeLocalPlan {
+        EvidenceScopeLocalPlan {
+            actions: Rc::from(self.actions.into_boxed_slice()),
+        }
+    }
+
+    fn append_continuation(
+        &mut self,
+        continuation: &EvidenceContinuation,
+    ) -> Result<(), EvidenceScopeLocalPlanReject> {
+        let Some(frame) = continuation.frame() else {
+            return Ok(());
+        };
+        self.append_frame(frame)
+    }
+
+    fn append_frame(
+        &mut self,
+        frame: &EvidenceContinuationFrame,
+    ) -> Result<(), EvidenceScopeLocalPlanReject> {
+        match frame {
+            EvidenceContinuationFrame::Then { first, second } => {
+                self.append_continuation(first)?;
+                self.append_continuation(second)
+            }
+            EvidenceContinuationFrame::MarkerFrame {
+                markers,
+                activate_add_ids,
+                handler_path,
+                next,
+            } => {
+                let child = EvidenceScopeLocalPlan::from_continuation(next)?;
+                self.actions.push(EvidenceScopeLocalAction::Marker {
+                    frame: EvidenceMarkerDeltaFramePlan {
+                        markers: markers.clone(),
+                        activate_add_ids: *activate_add_ids,
+                        handler_path: handler_path
+                            .as_ref()
+                            .map(|path| Rc::from(path.clone().into_boxed_slice())),
+                    },
+                    child,
+                });
+                Ok(())
+            }
+            EvidenceContinuationFrame::ProviderEnv { provider_env, next } => {
+                let child = EvidenceScopeLocalPlan::from_continuation(next)?;
+                self.actions.push(EvidenceScopeLocalAction::Provider {
+                    frame: EvidenceProviderDeltaFramePlan {
+                        provider_env: provider_env.clone(),
+                    },
+                    child,
+                });
+                Ok(())
+            }
+            EvidenceContinuationFrame::CatchBody { .. } => {
+                Err(EvidenceScopeLocalPlanReject::RequestBoundary)
+            }
+            EvidenceContinuationFrame::CatchForeignBoundarySegment { boundaries, next } => {
+                if !catch_boundaries_are_foreign_pass_through(boundaries.as_ref()) {
+                    return Err(EvidenceScopeLocalPlanReject::RequestBoundary);
+                }
+                self.actions.push(EvidenceScopeLocalAction::CatchForeign {
+                    boundaries: boundaries.clone(),
+                });
+                self.append_continuation(next)
+            }
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+                scope,
+                boundaries,
+                next,
+                ..
+            } => {
+                if !catch_boundaries_are_foreign_pass_through(boundaries.as_ref()) {
+                    return Err(EvidenceScopeLocalPlanReject::RequestBoundary);
+                }
+                self.append_continuation(scope)?;
+                self.actions.push(EvidenceScopeLocalAction::CatchForeign {
+                    boundaries: boundaries.clone(),
+                });
+                self.append_continuation(next)
+            }
+            EvidenceContinuationFrame::RefSetHandleResult { .. }
+            | EvidenceContinuationFrame::RefSetHandleValueResult { .. } => {
+                Err(EvidenceScopeLocalPlanReject::RefSetBoundary)
+            }
+            _ => {
+                let frame_plan = EvidenceEvalDeltaFramePlan::from_continuation_frame(frame)
+                    .ok_or(EvidenceScopeLocalPlanReject::RequestBoundary)?;
+                self.actions
+                    .push(EvidenceScopeLocalAction::Eval(frame_plan));
+                if let Some(next) = frame.tail_ref() {
+                    self.append_continuation(next)?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -3405,6 +3991,8 @@ type PrimitiveArgs = SmallVec<[SharedValue; 4]>;
 
 #[cfg(debug_assertions)]
 const PROVIDER_ADD_ID_SHORTCUT_FULL_SCAN_VERIFY_LIMIT: usize = 1024;
+const SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED: bool = true;
+const SCOPE_PLAN_FOREIGN_CATCH_VALUE_EXECUTOR_ENABLED: bool = false;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 struct Env {
@@ -3591,6 +4179,57 @@ impl EvidenceContinuation {
         }
         Self::Frame(Rc::new(
             EvidenceContinuationFrame::CatchForeignBoundarySegment { boundaries, next },
+        ))
+    }
+
+    fn scope_plan_foreign_catch_boundary(
+        scope: Self,
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+        next: Self,
+    ) -> Self {
+        let scope_direct_tail_boundary_free =
+            scope.direct_tail_segment_profile().request_boundaries == 0;
+        Self::scope_plan_foreign_catch_boundary_with_scope_profile(
+            scope,
+            scope_direct_tail_boundary_free,
+            boundaries,
+            next,
+        )
+    }
+
+    fn scope_plan_foreign_catch_boundary_with_scope_profile(
+        scope: Self,
+        scope_direct_tail_boundary_free: bool,
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+        next: Self,
+    ) -> Self {
+        if boundaries.is_empty() {
+            if scope.is_identity() {
+                return next;
+            }
+            if next.is_identity() {
+                return scope;
+            }
+            return Self::Frame(Rc::new(EvidenceContinuationFrame::Then {
+                first: scope,
+                second: next,
+            }));
+        }
+        let scope_local_plan = SCOPE_PLAN_FOREIGN_CATCH_VALUE_EXECUTOR_ENABLED
+            .then(|| {
+                EvidenceScopeLocalPlan::from_continuation(&scope)
+                    .ok()
+                    .map(Rc::new)
+            })
+            .flatten();
+        Self::Frame(Rc::new(
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+                scope,
+                scope_direct_tail_boundary_free,
+                scope_local_plan,
+                boundaries,
+                next,
+            },
         ))
     }
 
@@ -4134,6 +4773,14 @@ impl EvidenceContinuationFrame {
             (Self::CatchForeignBoundarySegment { boundaries, .. }, Some(handler)) => boundaries
                 .first()
                 .is_some_and(|boundary| boundary.catch_expr != handler),
+            (
+                Self::ScopePlanForeignCatchBoundary {
+                    boundaries, scope, ..
+                },
+                Some(handler),
+            ) if scope.is_identity() => boundaries
+                .first()
+                .is_some_and(|boundary| boundary.catch_expr != handler),
             _ => false,
         }
     }
@@ -4152,6 +4799,14 @@ impl EvidenceContinuationFrame {
                 key.frames.push(EvidenceProviderDeltaFrameShadowKey {
                     provider_env: provider_env.clone(),
                 });
+                if let Some(frame) = next.frame() {
+                    frame.append_provider_delta_shadow_key(key);
+                }
+            }
+            Self::ScopePlanForeignCatchBoundary { scope, next, .. } => {
+                if let Some(frame) = scope.frame() {
+                    frame.append_provider_delta_shadow_key(key);
+                }
                 if let Some(frame) = next.frame() {
                     frame.append_provider_delta_shadow_key(key);
                 }
@@ -4192,6 +4847,14 @@ impl EvidenceContinuationFrame {
                     activate_add_ids: *activate_add_ids,
                     handler_path: handler_path.clone(),
                 });
+                if let Some(frame) = next.frame() {
+                    frame.append_marker_delta_shadow_key(key);
+                }
+            }
+            Self::ScopePlanForeignCatchBoundary { scope, next, .. } => {
+                if let Some(frame) = scope.frame() {
+                    frame.append_marker_delta_shadow_key(key);
+                }
                 if let Some(frame) = next.frame() {
                     frame.append_marker_delta_shadow_key(key);
                 }
@@ -4247,6 +4910,33 @@ impl EvidenceContinuationFrame {
                     catch_boundaries: boundaries.len(),
                     ..EvidenceResumePlanShadowProfile::default()
                 };
+                for boundary in boundaries.iter() {
+                    match routed_yield_handler {
+                        None => profile.catch_no_routed_handler += 1,
+                        Some(handler) if handler == boundary.catch_expr => {
+                            profile.catch_same_handler += 1;
+                        }
+                        Some(_) => profile.catch_foreign_handler += 1,
+                    }
+                }
+                merge_resume_plan_shadow_profile(
+                    profile,
+                    next.resume_plan_shadow_profile(routed_yield_handler),
+                )
+            }
+            Self::ScopePlanForeignCatchBoundary {
+                scope,
+                boundaries,
+                next,
+                ..
+            } => {
+                let mut profile = merge_resume_plan_shadow_profile(
+                    scope.resume_plan_shadow_profile(routed_yield_handler),
+                    EvidenceResumePlanShadowProfile {
+                        catch_boundaries: boundaries.len(),
+                        ..EvidenceResumePlanShadowProfile::default()
+                    },
+                );
                 for boundary in boundaries.iter() {
                     match routed_yield_handler {
                         None => profile.catch_no_routed_handler += 1,
@@ -4335,6 +5025,14 @@ impl EvidenceContinuationFrame {
             | Self::CatchForeignBoundarySegment { next, .. }
             | Self::MarkerFrame { next, .. }
             | Self::ProviderEnv { next, .. } => {
+                if let Some(frame) = next.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
+            }
+            Self::ScopePlanForeignCatchBoundary { scope, next, .. } => {
+                if let Some(frame) = scope.frame() {
+                    frame.append_eval_delta_plan(frames);
+                }
                 if let Some(frame) = next.frame() {
                     frame.append_eval_delta_plan(frames);
                 }
@@ -4663,6 +5361,23 @@ impl EvidenceContinuationFrame {
                     frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
                 }
             }
+            Self::ScopePlanForeignCatchBoundary {
+                scope,
+                boundaries,
+                next,
+                ..
+            } => {
+                if let Some(frame) = scope.frame() {
+                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                }
+                for _ in boundaries.iter() {
+                    steps.push(EvidenceResumePlanStep::Request(cursor.request));
+                    cursor.request += 1;
+                }
+                if let Some(frame) = next.frame() {
+                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                }
+            }
             Self::MarkerFrame { next, .. } => {
                 steps.push(EvidenceResumePlanStep::Marker(cursor.marker));
                 cursor.marker += 1;
@@ -4747,6 +5462,34 @@ impl EvidenceContinuationFrame {
                     frame.append_request_delta_plan(frames, routed_yield_handler);
                 }
             }
+            Self::ScopePlanForeignCatchBoundary {
+                scope,
+                boundaries,
+                next,
+                ..
+            } => {
+                if let Some(frame) = scope.frame() {
+                    frame.append_request_delta_plan(frames, routed_yield_handler);
+                }
+                for boundary in boundaries.iter() {
+                    let kind = match routed_yield_handler {
+                        None => EvidenceRequestDeltaFrameKind::NoRoutedHandler,
+                        Some(handler) if handler == boundary.catch_expr => {
+                            EvidenceRequestDeltaFrameKind::SameHandler
+                        }
+                        Some(_) => EvidenceRequestDeltaFrameKind::ForeignHandler,
+                    };
+                    frames.push(EvidenceRequestDeltaFramePlan {
+                        kind,
+                        catch_expr: boundary.catch_expr,
+                        arms: boundary.arms.clone(),
+                        env: boundary.env.clone(),
+                    });
+                }
+                if let Some(frame) = next.frame() {
+                    frame.append_request_delta_plan(frames, routed_yield_handler);
+                }
+            }
             Self::MarkerFrame { next, .. } | Self::ProviderEnv { next, .. } => {
                 if let Some(frame) = next.frame() {
                     frame.append_request_delta_plan(frames, routed_yield_handler);
@@ -4809,6 +5552,16 @@ impl EvidenceContinuationFrame {
                     request_boundaries: boundaries.len(),
                     ..EvidenceDirectTailSegmentProfile::default()
                 };
+                merge_direct_tail_segment_profile(profile, next.direct_tail_segment_profile())
+            }
+            Self::ScopePlanForeignCatchBoundary {
+                scope,
+                boundaries,
+                next,
+                ..
+            } => {
+                let mut profile = scope.direct_tail_segment_profile();
+                profile.request_boundaries += boundaries.len();
                 merge_direct_tail_segment_profile(profile, next.direct_tail_segment_profile())
             }
             Self::RefSetHandleResult { .. } | Self::RefSetHandleValueResult { .. } => {
@@ -4884,6 +5637,36 @@ impl EvidenceContinuationFrame {
                     }
                 }
             }
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+                scope,
+                boundaries,
+                next,
+                ..
+            } => {
+                let scope_profile = scope.request_boundary_profile(routed_yield_handler, stats);
+                if scope_profile.has_boundary() {
+                    return scope_profile;
+                }
+                match routed_yield_handler {
+                    None => {
+                        stats.has_request_boundary_catch_no_routed_handler += 1;
+                        EvidenceRequestBoundaryProfile::CatchNoRoutedHandler
+                    }
+                    Some(handler)
+                        if boundaries
+                            .iter()
+                            .any(|boundary| boundary.catch_expr == handler) =>
+                    {
+                        stats.has_request_boundary_catch_same_handler += 1;
+                        EvidenceRequestBoundaryProfile::CatchSameHandler
+                    }
+                    Some(_) => {
+                        stats.has_request_boundary_catch_foreign_handler_recurse +=
+                            boundaries.len();
+                        next.request_boundary_profile(routed_yield_handler, stats)
+                    }
+                }
+            }
             EvidenceContinuationFrame::RefSetHandleResult { .. }
             | EvidenceContinuationFrame::RefSetHandleValueResult { .. } => {
                 stats.has_request_boundary_ref_set += 1;
@@ -4926,22 +5709,27 @@ impl EvidenceContinuationFrame {
         stats: &mut RuntimeEvidenceRunStats,
         source: EvidenceContinuationAppendSource,
     ) -> Result<(), EvidenceContinuation> {
-        if let Self::CatchForeignBoundarySegment { boundaries, next } = self
-            && next.is_identity()
-            && let EvidenceContinuation::Frame(tail_frame) = &tail
-            && let EvidenceContinuationFrame::CatchForeignBoundarySegment {
-                boundaries: tail_boundaries,
-                next: tail_next,
-            } = tail_frame.as_ref()
-            && tail_next.is_identity()
-        {
-            let merged_len = boundaries.len() + tail_boundaries.len();
-            let mut merged = Vec::with_capacity(merged_len);
-            merged.extend(boundaries.iter().cloned());
-            merged.extend(tail_boundaries.iter().cloned());
-            *boundaries = Rc::from(merged.into_boxed_slice());
-            stats.catch_foreign_boundary_segment_merged_boundaries += tail_boundaries.len();
-            return Ok(());
+        match self {
+            Self::CatchForeignBoundarySegment { boundaries, next }
+            | Self::ScopePlanForeignCatchBoundary {
+                boundaries, next, ..
+            } if next.is_identity()
+                && let EvidenceContinuation::Frame(tail_frame) = &tail
+                && let EvidenceContinuationFrame::CatchForeignBoundarySegment {
+                    boundaries: tail_boundaries,
+                    next: tail_next,
+                } = tail_frame.as_ref()
+                && tail_next.is_identity() =>
+            {
+                let merged_len = boundaries.len() + tail_boundaries.len();
+                let mut merged = Vec::with_capacity(merged_len);
+                merged.extend(boundaries.iter().cloned());
+                merged.extend(tail_boundaries.iter().cloned());
+                *boundaries = Rc::from(merged.into_boxed_slice());
+                stats.catch_foreign_boundary_segment_merged_boundaries += tail_boundaries.len();
+                return Ok(());
+            }
+            _ => {}
         }
         let blocker = self.append_scope_blocker();
         let Some(tail_slot) = self.tail_mut() else {
@@ -4983,9 +5771,14 @@ impl EvidenceContinuationFrame {
                 Some(EvidenceAppendScopeBlockerInfo::ProviderEnv)
             }
             Some(EvidenceContinuationAppendBlocker::RcShared) => None,
-            None => self
-                .tail_ref()
-                .and_then(EvidenceContinuation::append_scope_blocker_info),
+            None => match self {
+                Self::ScopePlanForeignCatchBoundary { next, .. } => {
+                    next.append_scope_blocker_info()
+                }
+                _ => self
+                    .tail_ref()
+                    .and_then(EvidenceContinuation::append_scope_blocker_info),
+            },
         }
     }
 
@@ -4999,6 +5792,10 @@ impl EvidenceContinuationFrame {
                 }
             }
             Self::MarkerFrame { .. } => EvidenceProviderEnvBoundaryStatus::BlockedByMarkerFrame,
+            Self::ScopePlanForeignCatchBoundary { scope, next, .. } => merge_provider_env_presence(
+                scope.provider_env_boundary_status(handler_id),
+                next.provider_env_boundary_status(handler_id),
+            ),
             _ => self
                 .tail_ref()
                 .map(|tail| tail.provider_env_boundary_status(handler_id))
@@ -5023,6 +5820,10 @@ impl EvidenceContinuationFrame {
             Self::Then { first, second } => merge_provider_env_presence(
                 first.any_provider_env_status(handler_id),
                 second.any_provider_env_status(handler_id),
+            ),
+            Self::ScopePlanForeignCatchBoundary { scope, next, .. } => merge_provider_env_presence(
+                scope.any_provider_env_status(handler_id),
+                next.any_provider_env_status(handler_id),
             ),
             _ => self
                 .tail_ref()
@@ -5071,6 +5872,16 @@ impl EvidenceContinuationFrame {
                     return first_placement;
                 }
                 second.provider_env_placement_at(handler_id, depth + 1, under_then_first, true)
+            }
+            Self::ScopePlanForeignCatchBoundary { scope, next, .. } => {
+                let mut scope_placement =
+                    scope.provider_env_placement_at(handler_id, depth + 1, true, under_then_second);
+                if scope_placement.has_nearest_boundary() {
+                    scope_placement
+                        .merge_any_after_nearest(next.any_provider_env_status(handler_id));
+                    return scope_placement;
+                }
+                next.provider_env_placement_at(handler_id, depth + 1, under_then_first, true)
             }
             _ => self
                 .tail_ref()
@@ -5132,6 +5943,34 @@ impl EvidenceContinuationFrame {
                     );
                 }
                 second.provider_env_later_grant_placement_at(
+                    handler_id,
+                    depth + 1,
+                    under_then_first,
+                    true,
+                )
+            }
+            Self::ScopePlanForeignCatchBoundary { scope, next, .. } => {
+                let scope_placement =
+                    scope.provider_env_placement_at(handler_id, depth + 1, true, under_then_second);
+                if scope_placement.has_nearest_boundary() {
+                    let scope_later = scope.provider_env_later_grant_placement_at(
+                        handler_id,
+                        depth + 1,
+                        true,
+                        under_then_second,
+                    );
+                    if scope_later.is_found() {
+                        return scope_later;
+                    }
+                    return next.provider_env_grant_placement_at(
+                        handler_id,
+                        depth + 1,
+                        under_then_first,
+                        true,
+                        false,
+                    );
+                }
+                next.provider_env_later_grant_placement_at(
                     handler_id,
                     depth + 1,
                     under_then_first,
@@ -5219,6 +6058,43 @@ impl EvidenceContinuationFrame {
                     stats,
                 )
             }
+            Self::ScopePlanForeignCatchBoundary { scope, next, .. } => {
+                stats.provider_env_later_grant_placement_then_steps += 1;
+                let scope_placement = scope.provider_env_placement_at_profiled(
+                    handler_id,
+                    depth + 1,
+                    true,
+                    under_then_second,
+                    stats,
+                );
+                if scope_placement.has_nearest_boundary() {
+                    let scope_later = scope.provider_env_later_grant_placement_at_profiled(
+                        handler_id,
+                        depth + 1,
+                        true,
+                        under_then_second,
+                        stats,
+                    );
+                    if scope_later.is_found() {
+                        return scope_later;
+                    }
+                    return next.provider_env_grant_placement_at_profiled(
+                        handler_id,
+                        depth + 1,
+                        under_then_first,
+                        true,
+                        false,
+                        stats,
+                    );
+                }
+                next.provider_env_later_grant_placement_at_profiled(
+                    handler_id,
+                    depth + 1,
+                    under_then_first,
+                    true,
+                    stats,
+                )
+            }
             _ => self
                 .tail_ref()
                 .map(|tail| {
@@ -5276,6 +6152,25 @@ impl EvidenceContinuationFrame {
                     return first_grant;
                 }
                 second.provider_env_grant_placement_at(
+                    handler_id,
+                    depth + 1,
+                    under_then_first,
+                    true,
+                    in_provider_env_next,
+                )
+            }
+            Self::ScopePlanForeignCatchBoundary { scope, next, .. } => {
+                let scope_grant = scope.provider_env_grant_placement_at(
+                    handler_id,
+                    depth + 1,
+                    true,
+                    under_then_second,
+                    in_provider_env_next,
+                );
+                if scope_grant.is_found() {
+                    return scope_grant;
+                }
+                next.provider_env_grant_placement_at(
                     handler_id,
                     depth + 1,
                     under_then_first,
@@ -5348,6 +6243,28 @@ impl EvidenceContinuationFrame {
                     return first_grant;
                 }
                 second.provider_env_grant_placement_at_profiled(
+                    handler_id,
+                    depth + 1,
+                    under_then_first,
+                    true,
+                    in_provider_env_next,
+                    stats,
+                )
+            }
+            Self::ScopePlanForeignCatchBoundary { scope, next, .. } => {
+                stats.provider_env_later_grant_placement_then_steps += 1;
+                let scope_grant = scope.provider_env_grant_placement_at_profiled(
+                    handler_id,
+                    depth + 1,
+                    true,
+                    under_then_second,
+                    in_provider_env_next,
+                    stats,
+                );
+                if scope_grant.is_found() {
+                    return scope_grant;
+                }
+                next.provider_env_grant_placement_at_profiled(
                     handler_id,
                     depth + 1,
                     under_then_first,
@@ -5432,6 +6349,29 @@ impl EvidenceContinuationFrame {
                     stats,
                 )
             }
+            Self::ScopePlanForeignCatchBoundary { scope, next, .. } => {
+                stats.provider_env_later_grant_placement_then_steps += 1;
+                let mut scope_placement = scope.provider_env_placement_at_profiled(
+                    handler_id,
+                    depth + 1,
+                    true,
+                    under_then_second,
+                    stats,
+                );
+                if scope_placement.has_nearest_boundary() {
+                    scope_placement.merge_any_after_nearest(
+                        next.any_provider_env_status_profiled(handler_id, stats),
+                    );
+                    return scope_placement;
+                }
+                next.provider_env_placement_at_profiled(
+                    handler_id,
+                    depth + 1,
+                    under_then_first,
+                    true,
+                    stats,
+                )
+            }
             _ => self
                 .tail_ref()
                 .map(|tail| {
@@ -5474,6 +6414,13 @@ impl EvidenceContinuationFrame {
                     second.any_provider_env_status_profiled(handler_id, stats),
                 )
             }
+            Self::ScopePlanForeignCatchBoundary { scope, next, .. } => {
+                stats.provider_env_later_grant_placement_then_steps += 1;
+                merge_provider_env_presence(
+                    scope.any_provider_env_status_profiled(handler_id, stats),
+                    next.any_provider_env_status_profiled(handler_id, stats),
+                )
+            }
             Self::MarkerFrame { .. } => {
                 stats.provider_env_later_grant_placement_marker_frame_stops += 1;
                 EvidenceProviderEnvBoundaryStatus::BlockedByMarkerFrame
@@ -5493,6 +6440,11 @@ impl EvidenceContinuationFrame {
                 shape.record_then();
                 shape = merge_continuation_shape(shape, first.shape_profile_at(depth + 1));
                 shape = merge_continuation_shape(shape, second.shape_profile_at(depth + 1));
+            }
+            Self::ScopePlanForeignCatchBoundary { scope, next, .. } => {
+                shape.record_then();
+                shape = merge_continuation_shape(shape, scope.shape_profile_at(depth + 1));
+                shape = merge_continuation_shape(shape, next.shape_profile_at(depth + 1));
             }
             Self::MarkerFrame { next, .. } => {
                 shape.record_marker_frame();
@@ -5516,6 +6468,7 @@ impl EvidenceContinuationFrame {
             EvidenceContinuationFrame::Then { second, .. } => Some(second),
             EvidenceContinuationFrame::MarkerFrame { .. }
             | EvidenceContinuationFrame::ProviderEnv { .. } => None,
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary { next, .. } => Some(next),
             EvidenceContinuationFrame::ForceThunk { next, .. }
             | EvidenceContinuationFrame::ForceValueIfThunk { next }
             | EvidenceContinuationFrame::ApplyCallee { next, .. }
@@ -5554,6 +6507,7 @@ impl EvidenceContinuationFrame {
             // marker/provider scope. Keep the old Then boundary for scope-preserving composition.
             EvidenceContinuationFrame::MarkerFrame { .. }
             | EvidenceContinuationFrame::ProviderEnv { .. } => None,
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary { next, .. } => Some(next),
             EvidenceContinuationFrame::ForceThunk { next, .. }
             | EvidenceContinuationFrame::ForceValueIfThunk { next }
             | EvidenceContinuationFrame::ApplyCallee { next, .. }
@@ -6783,10 +7737,6 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.stats.catch_foreign_boundary_delta_direct_tail_appends += 1;
         self.stats
             .catch_foreign_boundary_segment_direct_tail_appends += 1;
-        let tail = EvidenceContinuation::catch_foreign_boundary_segment(
-            Rc::from(vec![boundary].into_boxed_slice()),
-            EvidenceContinuation::identity(),
-        );
         if let Some(blocker) = call.continuation.append_scope_blocker_info() {
             self.stats
                 .catch_foreign_boundary_delta_direct_tail_scope_blockers += 1;
@@ -6809,23 +7759,46 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             );
             if self.should_collect_runtime_breakdown_stats() {
                 self.stats.continuation_append_steps += 1;
-                record_continuation_append_then(
-                    &mut self.stats,
-                    EvidenceContinuationAppendSource::DirectTail,
-                );
                 record_continuation_append_blocker(
                     &mut self.stats,
                     EvidenceContinuationAppendSource::DirectTail,
                     blocker.blocker(),
                 );
             }
-            call.continuation =
-                EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
-                    first: call.continuation,
-                    second: tail,
-                }));
+            if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED
+                && boundary.is_signal_passthrough()
+                && boundary.has_value_resume_payload()
+            {
+                call.continuation = EvidenceContinuation::scope_plan_foreign_catch_boundary(
+                    call.continuation,
+                    Rc::from(vec![boundary].into_boxed_slice()),
+                    EvidenceContinuation::identity(),
+                );
+            } else {
+                self.stats.scope_exec_tree_fallbacks += 1;
+                if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED {
+                    self.stats.scope_exec_reject_non_foreign_catch += 1;
+                }
+                record_continuation_append_then(
+                    &mut self.stats,
+                    EvidenceContinuationAppendSource::DirectTail,
+                );
+                let tail = EvidenceContinuation::catch_foreign_boundary_segment(
+                    Rc::from(vec![boundary].into_boxed_slice()),
+                    EvidenceContinuation::identity(),
+                );
+                call.continuation =
+                    EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+                        first: call.continuation,
+                        second: tail,
+                    }));
+            }
             return call;
         }
+        let tail = EvidenceContinuation::catch_foreign_boundary_segment(
+            Rc::from(vec![boundary].into_boxed_slice()),
+            EvidenceContinuation::identity(),
+        );
         record_continuation_append(
             &mut self.stats,
             EvidenceContinuationAppendSource::DirectTail,
@@ -8512,11 +9485,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 ) {
                     self.stats.resume_plan_candidate_multi_shot += 1;
                 }
-                match candidate.request {
-                    EvidenceResumePlanRequestCandidate::None => {
+                match candidate.boundary_lane {
+                    EvidenceScopePlanBoundaryLane::None => {
                         self.stats.resume_plan_candidate_request_delta_none += 1;
                     }
-                    EvidenceResumePlanRequestCandidate::Catch {
+                    EvidenceScopePlanBoundaryLane::Catch {
                         same_handler,
                         no_routed_handler,
                         foreign_handler,
@@ -8528,6 +9501,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         self.stats.resume_plan_candidate_request_delta_catch_foreign +=
                             foreign_handler;
                     }
+                    EvidenceScopePlanBoundaryLane::RefSet { .. } => {}
                 }
             }
             EvidenceResumePlanCandidate::Rejected(
@@ -8562,10 +9536,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
                 self.stats
                     .resume_plan_cert_provider_dirty_foreign_scope_handlers +=
-                    cert.foreign_handler_count;
+                    cert.catch.foreign_handler_count;
                 self.stats
                     .resume_plan_cert_provider_dirty_foreign_scope_estimated_resume_steps +=
-                    cert.estimated_resume_steps;
+                    cert.provider.estimated_resume_steps;
             }
             EvidenceResumePlanExecutionCert::Rejected(reject) => {
                 self.stats.resume_plan_cert_rejected += 1;
@@ -8594,6 +9568,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     }
                     EvidenceResumePlanExecutionCertReject::MultiShot => {
                         self.stats.resume_plan_cert_reject_multi_shot += 1;
+                        self.stats.scope_exec_reject_not_one_shot += 1;
                     }
                     EvidenceResumePlanExecutionCertReject::RequestNone => {
                         self.stats.resume_plan_cert_reject_request_none += 1;
@@ -8628,7 +9603,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 self.stats.resume_plan_provider_dirty_foreign_scope_plans += 1;
             }
         }
-        self.record_resume_plan_exec_shadow(plan, direct_tail, cert.estimated_resume_steps);
+        self.record_resume_plan_exec_shadow(
+            plan,
+            direct_tail,
+            cert.provider.estimated_resume_steps,
+        );
         self.resume_plans.push(plan);
         id
     }
@@ -8915,15 +9894,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let EvidenceScopePlanShadow::Planned(_) = scope_plan else {
             self.stats
                 .scope_plan_foreign_catch_reject_root_marker_mismatch += 1;
+            self.stats.scope_exec_reject_root_marker_mismatch += 1;
             return;
         };
         if resume_profile.ref_set_boundaries > 0 {
             self.stats.scope_plan_foreign_catch_reject_ref_set += 1;
+            self.stats.scope_exec_reject_ref_set += 1;
             return;
         }
         let Some(request_delta) = request_delta else {
             self.stats
                 .scope_plan_foreign_catch_reject_missing_request_delta += 1;
+            self.stats.scope_exec_reject_missing_materialize_fallback += 1;
             return;
         };
         let request_delta = &self.request_delta_plans[request_delta.0];
@@ -8976,14 +9958,26 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.stats
             .scope_plan_catch_foreign_boundary_delta_value_resume_mismatch +=
             delta_shadow.value_resume_mismatch;
+        let has_non_foreign_catch = request_delta.same_handler_count() > 0
+            || request_delta.no_routed_handler_count() > 0
+            || !request_delta.is_foreign_pass_through_only();
         if request_delta.same_handler_count() > 0 {
             self.stats.scope_plan_foreign_catch_reject_same_handler += 1;
         }
         if request_delta.no_routed_handler_count() > 0 {
             self.stats.scope_plan_foreign_catch_reject_no_routed += 1;
         }
-        if !request_delta.is_foreign_pass_through_only() {
+        if delta_shadow.signal_mismatch > 0
+            || delta_shadow.generic_fallback_mismatch > 0
+            || delta_shadow.materialized_shape_mismatch > 0
+            || delta_shadow.value_resume_mismatch > 0
+        {
+            self.stats.scope_exec_reject_shape_mismatch += 1;
+            return;
+        }
+        if has_non_foreign_catch {
             debug_assert!(!shape_digest.is_foreign_pass_through_only());
+            self.stats.scope_exec_reject_non_foreign_catch += 1;
             return;
         }
         debug_assert!(shape_digest.is_foreign_pass_through_only());
@@ -11493,6 +12487,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceContinuationFrame::CatchForeignBoundarySegment { boundaries, next } => {
                 self.resume_catch_foreign_boundary_segment(boundaries, next, value)
             }
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+                scope,
+                scope_direct_tail_boundary_free,
+                scope_local_plan,
+                boundaries,
+                next,
+            } => self.resume_scope_plan_foreign_catch_boundary(
+                scope,
+                scope_direct_tail_boundary_free,
+                scope_local_plan,
+                boundaries,
+                next,
+                value,
+            ),
             EvidenceContinuationFrame::MarkerFrame {
                 markers,
                 activate_add_ids,
@@ -11686,6 +12694,438 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
+    fn resume_scope_plan_foreign_catch_boundary(
+        &mut self,
+        scope: EvidenceContinuation,
+        _scope_direct_tail_boundary_free: bool,
+        scope_local_plan: Option<Rc<EvidenceScopeLocalPlan>>,
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+        next: EvidenceContinuation,
+        value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED
+            && SCOPE_PLAN_FOREIGN_CATCH_VALUE_EXECUTOR_ENABLED
+        {
+            match scope_local_plan {
+                Some(plan) => {
+                    self.stats.scope_exec_hits += 1;
+                    self.stats.scope_exec_foreign_catch_hits += 1;
+                    let result = self.resume_scope_local_plan(plan.as_ref(), value)?;
+                    return self.continue_scope_plan_foreign_catch_result(result, boundaries, next);
+                }
+                None => {
+                    self.stats.scope_exec_reject_shape_mismatch += 1;
+                }
+            }
+        }
+        self.stats.scope_exec_hits += 1;
+        self.stats.scope_exec_foreign_catch_hits += 1;
+        let result = self.resume_continuation(scope, value)?;
+        self.continue_scope_plan_foreign_catch_result(result, boundaries, next)
+    }
+
+    fn resume_scope_local_plan(
+        &mut self,
+        plan: &EvidenceScopeLocalPlan,
+        value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.resume_scope_local_actions(plan.actions.as_ref(), value)
+    }
+
+    fn resume_scope_local_actions(
+        &mut self,
+        actions: &[EvidenceScopeLocalAction],
+        mut value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        for (index, action) in actions.iter().enumerate() {
+            let result = self.resume_scope_local_action(action, value)?;
+            match result {
+                EvidenceEvalResult::Value(next_value) => {
+                    value = next_value;
+                }
+                EvidenceEvalResult::Effect(signal) => {
+                    let rest = EvidenceScopeLocalPlan::materialize_actions(
+                        &actions[index + 1..],
+                        EvidenceContinuation::identity(),
+                    );
+                    return self.continue_signal(signal, rest);
+                }
+            }
+        }
+        Ok(EvidenceEvalResult::Value(value))
+    }
+
+    fn resume_scope_local_action(
+        &mut self,
+        action: &EvidenceScopeLocalAction,
+        value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match action {
+            EvidenceScopeLocalAction::Eval(frame) => self.resume_eval_delta_frame(frame, value),
+            EvidenceScopeLocalAction::CatchForeign { boundaries } => self
+                .continue_scope_plan_foreign_catch_result(
+                    EvidenceEvalResult::Value(value),
+                    boundaries.clone(),
+                    EvidenceContinuation::identity(),
+                ),
+            EvidenceScopeLocalAction::Marker { frame, child } => {
+                self.resume_scope_local_marker_frame(frame, child, value)
+            }
+            EvidenceScopeLocalAction::Provider { frame, child } => {
+                self.resume_scope_local_provider_frame(frame, child, value)
+            }
+        }
+    }
+
+    fn resume_scope_local_marker_frame(
+        &mut self,
+        frame: &EvidenceMarkerDeltaFramePlan,
+        child: &EvidenceScopeLocalPlan,
+        value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if frame.markers.is_empty() {
+            return self.resume_scope_local_plan(child, value);
+        }
+
+        let markers = frame.markers.clone();
+        let handler_path = frame
+            .handler_path
+            .as_ref()
+            .map(|path| path.as_ref().to_vec());
+        self.record_marker_frame_entry(
+            EvidenceMarkerFrameSource::ContinuationResume,
+            &markers,
+            frame.activate_add_ids,
+            handler_path.is_some(),
+        );
+
+        let frame_len = self.active_frames.len();
+        let handler_frame_len = self.active_handler_frames.len();
+        let add_id_len = self.active_add_ids.len();
+        let plan_len = self.active_marker_plans.len();
+        self.push_marker_frame(&markers, frame.activate_add_ids, handler_path.clone());
+        self.push_active_marker_plan(markers.clone());
+        let result = self.resume_scope_local_plan(child, value);
+        let handler_boundary = match &result {
+            Ok(EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request))) => {
+                self.handler_boundary_for_request(request, handler_path.as_deref(), frame_len)
+            }
+            Ok(EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call))) => self
+                .handler_boundary_for_request(call.request(), handler_path.as_deref(), frame_len),
+            Ok(EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call))) => {
+                self.handler_boundary_for_direct_tail(call, handler_path.as_deref(), frame_len)
+            }
+            Ok(EvidenceEvalResult::Value(_))
+            | Ok(EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(_)))
+            | Err(_) => None,
+        };
+        self.pop_marker_frame(frame_len, handler_frame_len, add_id_len, plan_len);
+
+        self.close_marker_frame_result(
+            result?,
+            markers,
+            frame.activate_add_ids,
+            handler_path,
+            handler_boundary,
+        )
+    }
+
+    fn resume_scope_local_provider_frame(
+        &mut self,
+        frame: &EvidenceProviderDeltaFramePlan,
+        child: &EvidenceScopeLocalPlan,
+        value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if frame.provider_env.is_empty() {
+            return self.resume_scope_local_plan(child, value);
+        }
+
+        let len = self.active_provider_envs.len();
+        let provider_env = frame.provider_env.clone();
+        let active_frame = self.provider_frame(provider_env);
+        self.active_provider_envs.push(active_frame);
+        let result = self.resume_scope_local_plan(child, value);
+        let active_frame = self
+            .active_provider_envs
+            .pop()
+            .expect("provider frame must be active after provider-scoped scope plan run");
+        debug_assert_eq!(self.active_provider_envs.len(), len);
+        self.active_provider_envs.truncate(len);
+        self.close_provider_env_result(result?, active_frame.provider_env)
+    }
+
+    fn resume_eval_delta_frame(
+        &mut self,
+        frame: &EvidenceEvalDeltaFramePlan,
+        value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match frame {
+            EvidenceEvalDeltaFramePlan::ForceThunk {
+                target_value_is_thunk,
+            } => {
+                let result = self.force_thunk_result(value)?;
+                if *target_value_is_thunk {
+                    Ok(result)
+                } else {
+                    match result {
+                        EvidenceEvalResult::Value(value) => self.force_value_if_thunk_result(value),
+                        result => self.continue_result(
+                            result,
+                            EvidenceContinuation::force_value_if_thunk(
+                                EvidenceContinuation::identity(),
+                            ),
+                        ),
+                    }
+                }
+            }
+            EvidenceEvalDeltaFramePlan::ForceValueIfThunk => {
+                self.force_value_if_thunk_result(value)
+            }
+            EvidenceEvalDeltaFramePlan::ApplyCallee { site, arg, env } => {
+                let mut env = self.clone_env(env);
+                self.eval_apply_arg_result(*site, value, *arg, &mut env)
+            }
+            EvidenceEvalDeltaFramePlan::ApplyArg { site, callee } => {
+                self.apply_scoped_value_result(*site, callee.clone(), value)
+            }
+            EvidenceEvalDeltaFramePlan::ApplyForcedCallee { site, arg } => {
+                self.apply_scoped_value_result(*site, value, arg.clone())
+            }
+            EvidenceEvalDeltaFramePlan::AdaptValue { source, target } => {
+                self.adapt_value_result(value, source, target)
+            }
+            EvidenceEvalDeltaFramePlan::WrapThunkValue => Ok(EvidenceEvalResult::Value(shared(
+                RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Value(value))),
+            ))),
+            EvidenceEvalDeltaFramePlan::ApplyAdapterArg {
+                function,
+                ret_markers,
+                source_ret,
+                target_ret,
+            } => {
+                let result = self.apply_value_result(None, function.clone(), value)?;
+                self.continue_result(
+                    result,
+                    EvidenceContinuation::apply_adapter_result(
+                        ret_markers.clone(),
+                        source_ret.clone(),
+                        target_ret.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                )
+            }
+            EvidenceEvalDeltaFramePlan::ApplyAdapterResult {
+                ret_markers,
+                source_ret,
+                target_ret,
+            } => {
+                let result = self.adapt_value_result(value, source_ret, target_ret)?;
+                self.close_marked_result_for_type(result, ret_markers, target_ret)
+            }
+            EvidenceEvalDeltaFramePlan::CaseScrutinee { arms, env } => {
+                self.eval_case_scrutinee_result(value, arms.clone(), env)
+            }
+            EvidenceEvalDeltaFramePlan::TupleItems { values, rest, env } => {
+                let mut values = values.clone();
+                values.push(value);
+                let mut env = self.clone_env(env);
+                self.eval_tuple_items_result(values, rest, &mut env)
+            }
+            EvidenceEvalDeltaFramePlan::RecordSpread { fields, env } => {
+                let values = record_fields(value.as_ref())?;
+                let mut env = self.clone_env(env);
+                self.eval_record_fields_result(values, fields, &mut env)
+            }
+            EvidenceEvalDeltaFramePlan::RecordFields { values, rest, env } => {
+                let mut values = values.clone();
+                let Some((field, remaining)) = rest.split_first() else {
+                    return Err(RuntimeEvidenceRunError::UnsupportedExpr(
+                        "empty record field continuation",
+                    ));
+                };
+                values.push(RuntimeEvidenceValueField {
+                    name: field.name.clone(),
+                    value,
+                });
+                let mut env = self.clone_env(env);
+                self.eval_record_fields_result(values, remaining, &mut env)
+            }
+            EvidenceEvalDeltaFramePlan::PolyVariantPayloads {
+                tag,
+                values,
+                rest,
+                env,
+            } => {
+                let mut values = values.clone();
+                values.push(value);
+                let mut env = self.clone_env(env);
+                self.eval_poly_variant_payloads_result(tag.clone(), values, rest, &mut env)
+            }
+            EvidenceEvalDeltaFramePlan::SelectBase { name, resolution } => {
+                self.apply_select_base_result(value, name, resolution)
+            }
+            EvidenceEvalDeltaFramePlan::BlockStmt {
+                resume,
+                rest,
+                tail,
+                env,
+                last,
+            } => {
+                let mut env = self.clone_env(env);
+                let last = match resume {
+                    EvidenceBlockResume::Let(pat) => {
+                        let value = recursive_let_value(pat, value);
+                        self.bind_pat(pat, value, &mut env)?;
+                        last.clone()
+                    }
+                    EvidenceBlockResume::Expr => value,
+                };
+                self.eval_block_parts_result(rest, *tail, &mut env, last)
+            }
+            EvidenceEvalDeltaFramePlan::RefSetReference { value: expr, env } => {
+                let result = self.force_value_if_thunk_result(value)?;
+                let env = self.clone_env(env);
+                self.continue_result(
+                    result,
+                    EvidenceContinuation::ref_set_forced_reference(
+                        *expr,
+                        env,
+                        EvidenceContinuation::identity(),
+                    ),
+                )
+            }
+            EvidenceEvalDeltaFramePlan::RefSetForcedReference { value: expr, env } => {
+                let mut env = self.clone_env(env);
+                let result = self.eval_expr_result(*expr, &mut env)?;
+                self.continue_result(
+                    result,
+                    EvidenceContinuation::ref_set_value(value, EvidenceContinuation::identity()),
+                )
+            }
+            EvidenceEvalDeltaFramePlan::RefSetValue { reference } => {
+                let result = self.force_value_if_thunk_result(value)?;
+                self.continue_result(
+                    result,
+                    EvidenceContinuation::ref_set_forced_value(
+                        reference.clone(),
+                        EvidenceContinuation::identity(),
+                    ),
+                )
+            }
+            EvidenceEvalDeltaFramePlan::RefSetForcedValue { reference } => {
+                let update_effect = record_field(reference.as_ref(), "update_effect")?;
+                let result = self.apply_value_result(
+                    None,
+                    update_effect,
+                    shared(RuntimeEvidenceValue::Unit),
+                )?;
+                self.handle_ref_set_result(result, value)
+            }
+            EvidenceEvalDeltaFramePlan::RefSetResolvedUnit => Ok(EvidenceEvalResult::Value(
+                shared(RuntimeEvidenceValue::Unit),
+            )),
+            EvidenceEvalDeltaFramePlan::RefSetEmitResolvedRequest {
+                request,
+                assigned,
+                mode,
+            } => {
+                let mut request = request.clone();
+                request.payload = value;
+                let frame = match mode {
+                    EvidenceRefSetResumeMode::Result => {
+                        EvidenceContinuation::ref_set_handle_result(
+                            assigned.clone(),
+                            EvidenceContinuation::identity(),
+                        )
+                    }
+                    EvidenceRefSetResumeMode::ValueResult => {
+                        EvidenceContinuation::ref_set_handle_value_result(
+                            assigned.clone(),
+                            EvidenceContinuation::identity(),
+                        )
+                    }
+                };
+                Ok(EvidenceEvalResult::request(
+                    self.append_request_continuation(request, frame),
+                ))
+            }
+            EvidenceEvalDeltaFramePlan::ResolveRefSetValues {
+                values,
+                assigned,
+                out,
+                index,
+                finish,
+            } => {
+                let mut out = out.clone();
+                out.push(value);
+                self.resolve_ref_set_values(
+                    values.clone(),
+                    assigned.clone(),
+                    out,
+                    index + 1,
+                    finish.clone(),
+                )
+            }
+            EvidenceEvalDeltaFramePlan::ResolveRefSetFields {
+                fields,
+                assigned,
+                out,
+                index,
+            } => {
+                let mut out = out.clone();
+                out.push(RuntimeEvidenceValueField {
+                    name: fields[*index].name.clone(),
+                    value,
+                });
+                self.resolve_ref_set_fields(fields.clone(), assigned.clone(), out, index + 1)
+            }
+        }
+    }
+
+    fn continue_scope_plan_foreign_catch_result(
+        &mut self,
+        result: EvidenceEvalResult,
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+        next: EvidenceContinuation,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match result {
+            EvidenceEvalResult::Value(value) => {
+                self.stats.scope_exec_value_resume_hits += 1;
+                self.resume_catch_foreign_boundary_segment(boundaries, next, value)
+            }
+            EvidenceEvalResult::Effect(signal) => {
+                self.stats.scope_exec_signal_passthrough_hits += 1;
+                self.continue_signal_through_catch_foreign_boundaries(signal, boundaries, next)
+            }
+        }
+    }
+
+    fn continue_signal_through_catch_foreign_boundaries(
+        &mut self,
+        signal: EvidenceEffectSignal,
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+        next: EvidenceContinuation,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match signal {
+            EvidenceEffectSignal::GenericRequest(request) => self
+                .continue_generic_request_through_catch_foreign_boundary_segment(
+                    request, boundaries, next,
+                ),
+            EvidenceEffectSignal::DirectAbortive(call) => self
+                .continue_direct_abortive_through_catch_foreign_boundary_segment(
+                    call, boundaries, next,
+                ),
+            EvidenceEffectSignal::DirectTailResumptive(call) => self
+                .continue_direct_tail_resumptive_through_catch_foreign_boundary_segment(
+                    call, boundaries, next,
+                ),
+            EvidenceEffectSignal::RoutedYield(call) => self
+                .continue_routed_yield_through_catch_foreign_boundary_segment(
+                    call, boundaries, next,
+                ),
+        }
+    }
+
     fn resume_catch_foreign_boundary_segment(
         &mut self,
         boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
@@ -11853,6 +13293,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             | EvidenceContinuationFrame::CatchForeignBoundarySegment { .. } => {
                 self.stats.continuation_resume_catch_steps += 1;
             }
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary { .. } => {}
             EvidenceContinuationFrame::MarkerFrame { .. } => {
                 self.stats.continuation_resume_marker_steps += 1;
             }
@@ -11998,6 +13439,15 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 .continue_direct_abortive_through_catch_foreign_boundary_segment(
                     call, boundaries, next,
                 ),
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+                scope,
+                boundaries,
+                next,
+                ..
+            } => {
+                let result = self.continue_direct_abortive_with_continuation(call, scope)?;
+                self.continue_scope_plan_foreign_catch_result(result, boundaries, next)
+            }
             EvidenceContinuationFrame::ForceThunk { next, .. }
             | EvidenceContinuationFrame::ForceValueIfThunk { next }
             | EvidenceContinuationFrame::ApplyArg { next, .. }
@@ -12222,6 +13672,44 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     .continue_direct_tail_resumptive_through_catch_foreign_boundary_segment(
                         call, boundaries, next,
                     );
+            }
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+                scope,
+                scope_direct_tail_boundary_free,
+                boundaries,
+                next,
+                ..
+            } => {
+                if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED
+                    && scope_plan_direct_tail_signal_can_compact(
+                        scope_direct_tail_boundary_free,
+                        boundaries.as_ref(),
+                        call.handler,
+                    )
+                {
+                    self.stats.scope_exec_hits += 1;
+                    self.stats.scope_exec_foreign_catch_hits += 1;
+                    self.stats.scope_exec_signal_passthrough_hits += 1;
+                    let tail =
+                        EvidenceContinuation::scope_plan_foreign_catch_boundary_with_scope_profile(
+                            scope,
+                            scope_direct_tail_boundary_free,
+                            boundaries,
+                            EvidenceContinuation::identity(),
+                        );
+                    let mut call = call;
+                    if call.continuation.is_identity() {
+                        call.continuation = tail;
+                    } else {
+                        call = self.append_direct_tail_continuation(call, tail);
+                    }
+                    return self.continue_direct_tail_resumptive_with_continuation(call, next);
+                }
+                if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED {
+                    self.stats.scope_exec_reject_shape_mismatch += 1;
+                }
+                let result = self.continue_direct_tail_resumptive_with_continuation(call, scope)?;
+                return self.continue_scope_plan_foreign_catch_result(result, boundaries, next);
             }
             EvidenceContinuationFrame::MarkerFrame {
                 markers,
@@ -12725,6 +14213,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 return self.continue_generic_request_through_catch_foreign_boundary_segment(
                     request, boundaries, next,
                 );
+            }
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+                scope,
+                boundaries,
+                next,
+                ..
+            } => {
+                let result = self.continue_routed_request_with_continuation(
+                    routed_yield_handler,
+                    request,
+                    scope,
+                )?;
+                return self.continue_scope_plan_foreign_catch_result(result, boundaries, next);
             }
             EvidenceContinuationFrame::MarkerFrame {
                 markers,
@@ -16476,7 +17977,7 @@ mod tests {
                 eval_frames: 3,
                 trace: None,
                 eval_delta: None,
-                request: EvidenceResumePlanRequestCandidate::Catch {
+                boundary_lane: EvidenceScopePlanBoundaryLane::Catch {
                     same_handler: 1,
                     no_routed_handler: 0,
                     foreign_handler: 1
@@ -16522,7 +18023,7 @@ mod tests {
                 eval_frames: 3,
                 trace: Some(EvidenceResumePlanTraceId(9)),
                 eval_delta: Some(EvidenceEvalDeltaId(0)),
-                request: EvidenceResumePlanRequestCandidate::Catch {
+                boundary_lane: EvidenceScopePlanBoundaryLane::Catch {
                     same_handler: 0,
                     no_routed_handler: 0,
                     foreign_handler: 2,
@@ -16540,13 +18041,17 @@ mod tests {
             cert,
             EvidenceResumePlanExecutionCert::ProviderDirtyForeignCatchScope(
                 EvidenceProviderDirtyForeignCatchScopeCert {
-                    trace: EvidenceResumePlanTraceId(9),
-                    eval_delta: EvidenceEvalDeltaId(0),
-                    request_delta: EvidenceRequestDeltaId(1),
-                    marker_delta: EvidenceMarkerDeltaId(3),
-                    provider_delta: EvidenceProviderDeltaId(5),
-                    foreign_handler_count: 2,
-                    estimated_resume_steps: 9,
+                    provider: EvidenceProviderDirtyScopeCert {
+                        trace: EvidenceResumePlanTraceId(9),
+                        eval_delta: EvidenceEvalDeltaId(0),
+                        marker_delta: EvidenceMarkerDeltaId(3),
+                        provider_delta: EvidenceProviderDeltaId(5),
+                        estimated_resume_steps: 9,
+                    },
+                    catch: EvidenceForeignCatchPassThroughCert {
+                        request_delta: EvidenceRequestDeltaId(1),
+                        foreign_handler_count: 2,
+                    },
                 }
             )
         );
@@ -16559,7 +18064,7 @@ mod tests {
                 eval_frames: 0,
                 trace: None,
                 eval_delta: Some(EvidenceEvalDeltaId(0)),
-                request: EvidenceResumePlanRequestCandidate::Catch {
+                boundary_lane: EvidenceScopePlanBoundaryLane::Catch {
                     same_handler: 0,
                     no_routed_handler: 0,
                     foreign_handler: 1,
@@ -16588,7 +18093,7 @@ mod tests {
                 eval_frames: 0,
                 trace: Some(EvidenceResumePlanTraceId(0)),
                 eval_delta: None,
-                request: EvidenceResumePlanRequestCandidate::Catch {
+                boundary_lane: EvidenceScopePlanBoundaryLane::Catch {
                     same_handler: 0,
                     no_routed_handler: 0,
                     foreign_handler: 1,
@@ -16617,7 +18122,7 @@ mod tests {
                 eval_frames: 0,
                 trace: Some(EvidenceResumePlanTraceId(0)),
                 eval_delta: Some(EvidenceEvalDeltaId(0)),
-                request: EvidenceResumePlanRequestCandidate::Catch {
+                boundary_lane: EvidenceScopePlanBoundaryLane::Catch {
                     same_handler: 0,
                     no_routed_handler: 0,
                     foreign_handler: 1,
@@ -16646,7 +18151,7 @@ mod tests {
                 eval_frames: 0,
                 trace: Some(EvidenceResumePlanTraceId(0)),
                 eval_delta: Some(EvidenceEvalDeltaId(0)),
-                request: EvidenceResumePlanRequestCandidate::Catch {
+                boundary_lane: EvidenceScopePlanBoundaryLane::Catch {
                     same_handler: 1,
                     no_routed_handler: 0,
                     foreign_handler: 1,
@@ -16675,7 +18180,7 @@ mod tests {
                 eval_frames: 0,
                 trace: Some(EvidenceResumePlanTraceId(0)),
                 eval_delta: Some(EvidenceEvalDeltaId(0)),
-                request: EvidenceResumePlanRequestCandidate::Catch {
+                boundary_lane: EvidenceScopePlanBoundaryLane::Catch {
                     same_handler: 0,
                     no_routed_handler: 0,
                     foreign_handler: 1,
@@ -16702,13 +18207,17 @@ mod tests {
         let program = Program::default();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
         let cert = EvidenceProviderDirtyForeignCatchScopeCert {
-            trace: EvidenceResumePlanTraceId(0),
-            eval_delta: EvidenceEvalDeltaId(1),
-            request_delta: EvidenceRequestDeltaId(2),
-            marker_delta: EvidenceMarkerDeltaId(3),
-            provider_delta: EvidenceProviderDeltaId(4),
-            foreign_handler_count: 2,
-            estimated_resume_steps: 9,
+            provider: EvidenceProviderDirtyScopeCert {
+                trace: EvidenceResumePlanTraceId(0),
+                eval_delta: EvidenceEvalDeltaId(1),
+                marker_delta: EvidenceMarkerDeltaId(3),
+                provider_delta: EvidenceProviderDeltaId(4),
+                estimated_resume_steps: 9,
+            },
+            catch: EvidenceForeignCatchPassThroughCert {
+                request_delta: EvidenceRequestDeltaId(2),
+                foreign_handler_count: 2,
+            },
         };
 
         let id = runner.record_resume_plan_from_cert(cert, true);
@@ -17632,6 +19141,315 @@ mod tests {
         assert_eq!(boundaries[1].catch_expr, ExprId(2));
         assert!(next.is_identity());
         assert_eq!(stats.catch_foreign_boundary_segment_merged_boundaries, 1);
+    }
+
+    #[test]
+    fn scope_plan_foreign_catch_boundary_merges_boundary_lane_outside_scope() {
+        let scope = EvidenceContinuation::marker_frame(
+            Rc::from([EvidenceValueMarker::Frame {
+                id: EvidenceGuardId(1),
+            }]),
+            true,
+            None,
+            EvidenceContinuation::identity(),
+        );
+        let first = EvidenceContinuation::scope_plan_foreign_catch_boundary(
+            scope,
+            Rc::from(vec![catch_foreign_boundary_fixture(ExprId(1))].into_boxed_slice()),
+            EvidenceContinuation::identity(),
+        );
+        let second = EvidenceContinuation::catch_foreign_boundary_segment(
+            Rc::from(vec![catch_foreign_boundary_fixture(ExprId(2))].into_boxed_slice()),
+            EvidenceContinuation::identity(),
+        );
+        let mut stats = RuntimeEvidenceRunStats::default();
+
+        let merged = first.then_counted(
+            second,
+            &mut stats,
+            EvidenceContinuationAppendSource::DirectTail,
+        );
+
+        let Some(EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+            scope,
+            boundaries,
+            next,
+            ..
+        }) = merged.into_frame()
+        else {
+            panic!("expected scope plan foreign catch boundary");
+        };
+        assert!(matches!(
+            scope.into_frame(),
+            Some(EvidenceContinuationFrame::MarkerFrame { .. })
+        ));
+        assert_eq!(boundaries.len(), 2);
+        assert_eq!(boundaries[0].catch_expr, ExprId(1));
+        assert_eq!(boundaries[1].catch_expr, ExprId(2));
+        assert!(next.is_identity());
+        assert_eq!(stats.catch_foreign_boundary_segment_merged_boundaries, 1);
+    }
+
+    #[test]
+    fn scope_plan_foreign_catch_boundary_matches_legacy_tree_shadow_shape() {
+        let scope = EvidenceContinuation::marker_frame(
+            Rc::from([EvidenceValueMarker::Frame {
+                id: EvidenceGuardId(1),
+            }]),
+            true,
+            Some(vec!["flip".to_string()]),
+            EvidenceContinuation::provider_env(
+                provider_env_fixture_for_handler(7),
+                EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
+            ),
+        );
+        let boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]> = Rc::from(
+            vec![
+                catch_foreign_boundary_fixture(ExprId(1)),
+                catch_foreign_boundary_fixture(ExprId(2)),
+            ]
+            .into_boxed_slice(),
+        );
+        let planned = EvidenceContinuation::scope_plan_foreign_catch_boundary(
+            scope.clone(),
+            boundaries.clone(),
+            EvidenceContinuation::identity(),
+        );
+        let legacy = EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+            first: scope,
+            second: EvidenceContinuation::catch_foreign_boundary_segment(
+                boundaries,
+                EvidenceContinuation::identity(),
+            ),
+        }));
+        let routed_handler = Some(ExprId(99));
+
+        let planned_profile = planned.resume_plan_shadow_profile(routed_handler);
+        let legacy_profile = legacy.resume_plan_shadow_profile(routed_handler);
+        assert_eq!(planned_profile.then_frames, 0);
+        assert_eq!(legacy_profile.then_frames, 1);
+        assert_eq!(
+            EvidenceResumePlanShadowProfile {
+                then_frames: legacy_profile.then_frames,
+                ..planned_profile
+            },
+            legacy_profile
+        );
+        assert_eq!(
+            EvidenceResumePlanTracePlan::from_continuation(&planned, routed_handler),
+            EvidenceResumePlanTracePlan::from_continuation(&legacy, routed_handler)
+        );
+        assert_eq!(
+            EvidenceResumeScopedTracePlan::from_continuation(&planned, routed_handler),
+            EvidenceResumeScopedTracePlan::from_continuation(&legacy, routed_handler)
+        );
+        assert_eq!(
+            EvidenceEvalDeltaPlan::from_continuation(&planned),
+            EvidenceEvalDeltaPlan::from_continuation(&legacy)
+        );
+        assert_eq!(
+            EvidenceRequestDeltaPlan::from_continuation(&planned, routed_handler),
+            EvidenceRequestDeltaPlan::from_continuation(&legacy, routed_handler)
+        );
+        assert_eq!(
+            planned.marker_delta_shadow_key(),
+            legacy.marker_delta_shadow_key()
+        );
+        assert_eq!(
+            planned.provider_delta_shadow_key(),
+            legacy.provider_delta_shadow_key()
+        );
+
+        assert_eq!(planned_profile.catch_foreign_handler, 2);
+        assert_eq!(planned_profile.marker_frames, 1);
+        assert_eq!(planned_profile.provider_env_deltas, 1);
+        assert_eq!(planned_profile.eval_frames, 1);
+    }
+
+    #[test]
+    fn scope_plan_foreign_catch_boundary_tracks_direct_tail_boundary_free_scope() {
+        let boundary: Rc<[EvidenceCatchBoundaryDeltaPlan]> =
+            Rc::from(vec![catch_foreign_boundary_fixture(ExprId(3))].into_boxed_slice());
+        let boundary_free_scope = EvidenceContinuation::marker_frame(
+            Rc::from([EvidenceValueMarker::Frame {
+                id: EvidenceGuardId(1),
+            }]),
+            true,
+            None,
+            EvidenceContinuation::provider_env(
+                provider_env_fixture_for_handler(7),
+                EvidenceContinuation::identity(),
+            ),
+        );
+        let planned = EvidenceContinuation::scope_plan_foreign_catch_boundary(
+            boundary_free_scope,
+            boundary.clone(),
+            EvidenceContinuation::identity(),
+        );
+        let Some(EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+            scope_direct_tail_boundary_free,
+            scope_local_plan,
+            ..
+        }) = planned.into_frame()
+        else {
+            panic!("expected scope plan foreign catch boundary");
+        };
+        assert!(scope_direct_tail_boundary_free);
+        assert_eq!(
+            scope_local_plan.is_some(),
+            SCOPE_PLAN_FOREIGN_CATCH_VALUE_EXECUTOR_ENABLED
+        );
+
+        let scoped_request_boundary = EvidenceContinuation::catch_body(
+            ExprId(4),
+            empty_catch_arms(),
+            Env::new(),
+            EvidenceContinuation::identity(),
+        );
+        let planned = EvidenceContinuation::scope_plan_foreign_catch_boundary(
+            scoped_request_boundary,
+            boundary,
+            EvidenceContinuation::identity(),
+        );
+        let Some(EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+            scope_direct_tail_boundary_free,
+            scope_local_plan,
+            ..
+        }) = planned.into_frame()
+        else {
+            panic!("expected scope plan foreign catch boundary");
+        };
+        assert!(!scope_direct_tail_boundary_free);
+        assert!(scope_local_plan.is_none());
+    }
+
+    #[test]
+    fn scope_plan_direct_tail_signal_compact_rejects_same_handler_boundary() {
+        let boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]> = Rc::from(
+            vec![
+                catch_foreign_boundary_fixture(ExprId(3)),
+                catch_foreign_boundary_fixture(ExprId(4)),
+            ]
+            .into_boxed_slice(),
+        );
+
+        assert!(scope_plan_direct_tail_signal_can_compact(
+            true,
+            boundaries.as_ref(),
+            ExprId(99)
+        ));
+        assert!(!scope_plan_direct_tail_signal_can_compact(
+            true,
+            boundaries.as_ref(),
+            ExprId(3)
+        ));
+        assert!(!scope_plan_direct_tail_signal_can_compact(
+            false,
+            boundaries.as_ref(),
+            ExprId(99)
+        ));
+    }
+
+    #[test]
+    fn scope_local_plan_materializes_marker_provider_siblings_without_flattening_scope() {
+        let continuation = EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+            first: EvidenceContinuation::marker_frame(
+                Rc::from([EvidenceValueMarker::Frame {
+                    id: EvidenceGuardId(1),
+                }]),
+                true,
+                None,
+                EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
+            ),
+            second: EvidenceContinuation::provider_env(
+                provider_env_fixture_for_handler(7),
+                EvidenceContinuation::marker_frame(
+                    Rc::from([EvidenceValueMarker::Frame {
+                        id: EvidenceGuardId(2),
+                    }]),
+                    true,
+                    None,
+                    EvidenceContinuation::apply_arg(
+                        None,
+                        shared(RuntimeEvidenceValue::Unit),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+            ),
+        }));
+        let plan = EvidenceScopeLocalPlan::from_continuation(&continuation)
+            .expect("scope should be representable as a local plan");
+        let materialized = plan.materialize(EvidenceContinuation::identity());
+
+        assert_eq!(
+            EvidenceResumePlanTracePlan::from_continuation(&materialized, None),
+            EvidenceResumePlanTracePlan::from_continuation(&continuation, None)
+        );
+        assert_eq!(
+            EvidenceResumeScopedTracePlan::from_continuation(&materialized, None),
+            EvidenceResumeScopedTracePlan::from_continuation(&continuation, None)
+        );
+        assert_eq!(
+            EvidenceEvalDeltaPlan::from_continuation(&materialized),
+            EvidenceEvalDeltaPlan::from_continuation(&continuation)
+        );
+        assert_eq!(
+            materialized.marker_delta_shadow_key(),
+            continuation.marker_delta_shadow_key()
+        );
+        assert_eq!(
+            materialized.provider_delta_shadow_key(),
+            continuation.provider_delta_shadow_key()
+        );
+    }
+
+    #[test]
+    fn scope_local_plan_rejects_request_and_ref_set_boundaries() {
+        let request_boundary = EvidenceContinuation::catch_body(
+            ExprId(1),
+            empty_catch_arms(),
+            Env::new(),
+            EvidenceContinuation::identity(),
+        );
+        assert_eq!(
+            EvidenceScopeLocalPlan::from_continuation(&request_boundary),
+            Err(EvidenceScopeLocalPlanReject::RequestBoundary)
+        );
+
+        let ref_set_boundary = EvidenceContinuation::ref_set_handle_result(
+            shared(RuntimeEvidenceValue::Unit),
+            EvidenceContinuation::identity(),
+        );
+        assert_eq!(
+            EvidenceScopeLocalPlan::from_continuation(&ref_set_boundary),
+            Err(EvidenceScopeLocalPlanReject::RefSetBoundary)
+        );
+    }
+
+    #[test]
+    fn scope_local_plan_value_resume_preserves_marker_provider_scope() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let scope = EvidenceContinuation::marker_frame(
+            Rc::from([EvidenceValueMarker::Frame {
+                id: EvidenceGuardId(1),
+            }]),
+            true,
+            None,
+            EvidenceContinuation::provider_env(
+                provider_env_fixture_for_handler(7),
+                EvidenceContinuation::identity(),
+            ),
+        );
+        let scope_local_plan = EvidenceScopeLocalPlan::from_continuation(&scope)
+            .expect("scope should be representable as a local plan");
+
+        let result = runner
+            .resume_scope_local_plan(&scope_local_plan, shared(RuntimeEvidenceValue::Unit))
+            .expect("scope local value resume should succeed");
+
+        assert!(matches!(result, EvidenceEvalResult::Value(_)));
+        assert_eq!(runner.stats.marker_frame_entries, 1);
     }
 
     #[test]

@@ -2892,6 +2892,52 @@ pub(crate) fn print_run_report(
             .catch_foreign_boundary_segment_signal_materialize_fallbacks
     );
     println!(
+        "  runtime_evidence.scope_exec_hits: {}",
+        output.evidence_stats.scope_exec_hits
+    );
+    println!(
+        "  runtime_evidence.scope_exec_foreign_catch_hits: {}",
+        output.evidence_stats.scope_exec_foreign_catch_hits
+    );
+    println!(
+        "  runtime_evidence.scope_exec_tree_fallbacks: {}",
+        output.evidence_stats.scope_exec_tree_fallbacks
+    );
+    println!(
+        "  runtime_evidence.scope_exec_signal_passthrough_hits: {}",
+        output.evidence_stats.scope_exec_signal_passthrough_hits
+    );
+    println!(
+        "  runtime_evidence.scope_exec_value_resume_hits: {}",
+        output.evidence_stats.scope_exec_value_resume_hits
+    );
+    println!(
+        "  runtime_evidence.scope_exec_reject_not_one_shot: {}",
+        output.evidence_stats.scope_exec_reject_not_one_shot
+    );
+    println!(
+        "  runtime_evidence.scope_exec_reject_root_marker_mismatch: {}",
+        output.evidence_stats.scope_exec_reject_root_marker_mismatch
+    );
+    println!(
+        "  runtime_evidence.scope_exec_reject_non_foreign_catch: {}",
+        output.evidence_stats.scope_exec_reject_non_foreign_catch
+    );
+    println!(
+        "  runtime_evidence.scope_exec_reject_ref_set: {}",
+        output.evidence_stats.scope_exec_reject_ref_set
+    );
+    println!(
+        "  runtime_evidence.scope_exec_reject_missing_materialize_fallback: {}",
+        output
+            .evidence_stats
+            .scope_exec_reject_missing_materialize_fallback
+    );
+    println!(
+        "  runtime_evidence.scope_exec_reject_shape_mismatch: {}",
+        output.evidence_stats.scope_exec_reject_shape_mismatch
+    );
+    println!(
         "  runtime_evidence.has_request_boundary_catch_same_handler: {}",
         output
             .evidence_stats
