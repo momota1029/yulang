@@ -131,6 +131,50 @@ normal release:
 
 Only after this passes should a narrow executor be attempted.
 
+## First scoped-trace result
+
+The first profile-only scoped trace has been added. It treats `ProviderEnv` as a child resume
+scope and keeps provider-contained marker frames out of the root marker lane.
+
+Deep profile:
+
+```text
+nondet:
+  resume_plan_scoped_trace_plans: 420
+  resume_plan_scoped_trace_scopes: 1281
+  resume_plan_scoped_trace_provider_child_scopes: 861
+  resume_plan_scoped_trace_root_marker_steps: 420
+  resume_plan_scoped_trace_child_marker_steps: 420
+  resume_plan_scoped_trace_root_marker_matches_marker_delta: 420
+  resume_plan_scoped_trace_root_marker_mismatches_marker_delta: 0
+
+showcase:
+  resume_plan_scoped_trace_plans: 829
+  resume_plan_scoped_trace_scopes: 2616
+  resume_plan_scoped_trace_provider_child_scopes: 1787
+  resume_plan_scoped_trace_root_marker_steps: 822
+  resume_plan_scoped_trace_child_marker_steps: 856
+  resume_plan_scoped_trace_root_marker_matches_marker_delta: 822
+  resume_plan_scoped_trace_root_marker_mismatches_marker_delta: 0
+```
+
+This supports the diagnosis: flat trace failed because it mixed provider-contained marker frames
+into the root marker lane. With provider child scopes, the root marker count matches the current
+top-level marker delta.
+
+The next step is not execution yet. The next step is scope-local payload lanes:
+
+```text
+root scope:
+  eval/request/marker lanes for root steps
+
+provider child scope:
+  eval/request/marker lanes for provider-contained steps
+```
+
+Once each scope can validate its own trace against its own lanes, a narrow executor can consume the
+scoped plan without reading the old continuation tree.
+
 ## First executable slice
 
 The first execution slice should be narrower than the representation:

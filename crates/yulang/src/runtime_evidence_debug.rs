@@ -1048,6 +1048,48 @@ pub(crate) fn print_run_report(
         output.evidence_stats.resume_plan_trace_max_steps
     );
     println!(
+        "  runtime_evidence.resume_plan_scoped_trace_plans: {}",
+        output.evidence_stats.resume_plan_scoped_trace_plans
+    );
+    println!(
+        "  runtime_evidence.resume_plan_scoped_trace_scopes: {}",
+        output.evidence_stats.resume_plan_scoped_trace_scopes
+    );
+    println!(
+        "  runtime_evidence.resume_plan_scoped_trace_provider_child_scopes: {}",
+        output
+            .evidence_stats
+            .resume_plan_scoped_trace_provider_child_scopes
+    );
+    println!(
+        "  runtime_evidence.resume_plan_scoped_trace_steps: {}",
+        output.evidence_stats.resume_plan_scoped_trace_steps
+    );
+    println!(
+        "  runtime_evidence.resume_plan_scoped_trace_root_marker_steps: {}",
+        output
+            .evidence_stats
+            .resume_plan_scoped_trace_root_marker_steps
+    );
+    println!(
+        "  runtime_evidence.resume_plan_scoped_trace_child_marker_steps: {}",
+        output
+            .evidence_stats
+            .resume_plan_scoped_trace_child_marker_steps
+    );
+    println!(
+        "  runtime_evidence.resume_plan_scoped_trace_root_marker_matches_marker_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_scoped_trace_root_marker_matches_marker_delta
+    );
+    println!(
+        "  runtime_evidence.resume_plan_scoped_trace_root_marker_mismatches_marker_delta: {}",
+        output
+            .evidence_stats
+            .resume_plan_scoped_trace_root_marker_mismatches_marker_delta
+    );
+    println!(
         "  runtime_evidence.resume_plan_exec_shadow_checks: {}",
         output.evidence_stats.resume_plan_exec_shadow_checks
     );

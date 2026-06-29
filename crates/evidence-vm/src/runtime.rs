@@ -939,6 +939,16 @@ struct EvidenceResumePlanTracePlan {
     steps: Rc<[EvidenceResumePlanStep]>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+struct EvidenceResumeScopedTracePlan {
+    scopes: Rc<[EvidenceResumeScopeTracePlan]>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct EvidenceResumeScopeTracePlan {
+    steps: Rc<[EvidenceResumeScopeStep]>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidenceResumePlanStep {
     Eval(usize),
@@ -947,12 +957,26 @@ enum EvidenceResumePlanStep {
     Provider(usize),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceResumeScopeStep {
+    Eval(usize),
+    Request(usize),
+    Marker(usize),
+    Provider { provider: usize, child_scope: usize },
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 struct EvidenceResumePlanTraceCursor {
     eval: usize,
     request: usize,
     marker: usize,
     provider: usize,
+}
+
+#[derive(Debug, Default)]
+struct EvidenceResumeScopedTraceBuilder {
+    scopes: Vec<Vec<EvidenceResumeScopeStep>>,
+    cursors: Vec<EvidenceResumePlanTraceCursor>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -1077,6 +1101,148 @@ impl EvidenceResumePlanTracePlan {
         }
 
         Ok(profile)
+    }
+}
+
+impl EvidenceResumeScopedTracePlan {
+    fn from_continuation(
+        continuation: &EvidenceContinuation,
+        routed_yield_handler: Option<ExprId>,
+    ) -> Self {
+        let mut builder = EvidenceResumeScopedTraceBuilder::new();
+        if let Some(frame) = continuation.frame() {
+            builder.append_frame(0, frame, routed_yield_handler);
+        }
+        builder.finish()
+    }
+
+    fn scope_count(&self) -> usize {
+        self.scopes.len()
+    }
+
+    fn provider_child_scope_count(&self) -> usize {
+        self.scope_count().saturating_sub(1)
+    }
+
+    fn step_count(&self) -> usize {
+        self.scopes.iter().map(|scope| scope.steps.len()).sum()
+    }
+
+    fn root_marker_count(&self) -> usize {
+        self.scopes
+            .first()
+            .map(EvidenceResumeScopeTracePlan::marker_count)
+            .unwrap_or(0)
+    }
+
+    fn child_marker_count(&self) -> usize {
+        self.scopes
+            .iter()
+            .skip(1)
+            .map(EvidenceResumeScopeTracePlan::marker_count)
+            .sum()
+    }
+}
+
+impl EvidenceResumeScopeTracePlan {
+    fn marker_count(&self) -> usize {
+        self.steps
+            .iter()
+            .filter(|step| matches!(step, EvidenceResumeScopeStep::Marker(_)))
+            .count()
+    }
+}
+
+impl EvidenceResumeScopedTraceBuilder {
+    fn new() -> Self {
+        let mut builder = Self::default();
+        builder.push_scope();
+        builder
+    }
+
+    fn push_scope(&mut self) -> usize {
+        let scope = self.scopes.len();
+        self.scopes.push(Vec::new());
+        self.cursors.push(EvidenceResumePlanTraceCursor::default());
+        scope
+    }
+
+    fn finish(self) -> EvidenceResumeScopedTracePlan {
+        EvidenceResumeScopedTracePlan {
+            scopes: self
+                .scopes
+                .into_iter()
+                .map(|steps| EvidenceResumeScopeTracePlan {
+                    steps: Rc::from(steps.into_boxed_slice()),
+                })
+                .collect::<Vec<_>>()
+                .into(),
+        }
+    }
+
+    fn push_step(&mut self, scope: usize, step: EvidenceResumeScopeStep) {
+        self.scopes[scope].push(step);
+    }
+
+    fn append_frame(
+        &mut self,
+        scope: usize,
+        frame: &EvidenceContinuationFrame,
+        routed_yield_handler: Option<ExprId>,
+    ) {
+        match frame {
+            EvidenceContinuationFrame::Then { first, second } => {
+                if let Some(frame) = first.frame() {
+                    self.append_frame(scope, frame, routed_yield_handler);
+                }
+                if let Some(frame) = second.frame() {
+                    self.append_frame(scope, frame, routed_yield_handler);
+                }
+            }
+            EvidenceContinuationFrame::CatchBody { next, .. } => {
+                let index = self.cursors[scope].request;
+                self.cursors[scope].request += 1;
+                self.push_step(scope, EvidenceResumeScopeStep::Request(index));
+                if let Some(frame) = next.frame() {
+                    self.append_frame(scope, frame, routed_yield_handler);
+                }
+            }
+            EvidenceContinuationFrame::MarkerFrame { next, .. } => {
+                let index = self.cursors[scope].marker;
+                self.cursors[scope].marker += 1;
+                self.push_step(scope, EvidenceResumeScopeStep::Marker(index));
+                if let Some(frame) = next.frame() {
+                    self.append_frame(scope, frame, routed_yield_handler);
+                }
+            }
+            EvidenceContinuationFrame::ProviderEnv { next, .. } => {
+                let provider = self.cursors[scope].provider;
+                self.cursors[scope].provider += 1;
+                let child_scope = self.push_scope();
+                self.push_step(
+                    scope,
+                    EvidenceResumeScopeStep::Provider {
+                        provider,
+                        child_scope,
+                    },
+                );
+                if let Some(frame) = next.frame() {
+                    self.append_frame(child_scope, frame, routed_yield_handler);
+                }
+            }
+            EvidenceContinuationFrame::RefSetHandleResult { .. }
+            | EvidenceContinuationFrame::RefSetHandleValueResult { .. } => {}
+            _ => {
+                let index = self.cursors[scope].eval;
+                self.cursors[scope].eval += 1;
+                self.push_step(scope, EvidenceResumeScopeStep::Eval(index));
+                if let Some(next) = frame.tail_ref()
+                    && let Some(frame) = next.frame()
+                {
+                    self.append_frame(scope, frame, routed_yield_handler);
+                }
+            }
+        }
     }
 }
 
@@ -5438,6 +5604,7 @@ struct RuntimeEvidenceRunner<'a> {
     active_provider_handlers: Vec<u32>,
     resume_plans: Vec<EvidenceResumePlan>,
     resume_plan_traces: Vec<EvidenceResumePlanTracePlan>,
+    resume_plan_scoped_traces: Vec<EvidenceResumeScopedTracePlan>,
     eval_delta_plans: Vec<EvidenceEvalDeltaPlan>,
     request_delta_plans: Vec<EvidenceRequestDeltaPlan>,
     marker_delta_shadow_ids: HashMap<EvidenceMarkerDeltaShadowKey, EvidenceMarkerDeltaId>,
@@ -5480,6 +5647,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             active_provider_handlers: Vec::new(),
             resume_plans: Vec::new(),
             resume_plan_traces: Vec::new(),
+            resume_plan_scoped_traces: Vec::new(),
             eval_delta_plans: Vec::new(),
             request_delta_plans: Vec::new(),
             marker_delta_shadow_ids: HashMap::new(),
@@ -8071,6 +8239,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.record_resume_plan_marker_delta_shadow(marker_delta_key, direct_tail);
         let provider_delta =
             self.record_resume_plan_provider_delta_shadow(provider_delta_key, direct_tail);
+        self.record_resume_plan_scoped_trace_plan(continuation, routed_yield_handler, marker_delta);
         (
             Some(trace),
             Some(eval_delta),
@@ -8106,6 +8275,34 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             .max(plan.step_count());
         self.resume_plan_traces.push(plan);
         id
+    }
+
+    fn record_resume_plan_scoped_trace_plan(
+        &mut self,
+        continuation: &EvidenceContinuation,
+        routed_yield_handler: Option<ExprId>,
+        marker_delta: Option<EvidenceMarkerDeltaId>,
+    ) {
+        let plan =
+            EvidenceResumeScopedTracePlan::from_continuation(continuation, routed_yield_handler);
+        self.stats.resume_plan_scoped_trace_plans += 1;
+        self.stats.resume_plan_scoped_trace_scopes += plan.scope_count();
+        self.stats.resume_plan_scoped_trace_provider_child_scopes +=
+            plan.provider_child_scope_count();
+        self.stats.resume_plan_scoped_trace_steps += plan.step_count();
+        self.stats.resume_plan_scoped_trace_root_marker_steps += plan.root_marker_count();
+        self.stats.resume_plan_scoped_trace_child_marker_steps += plan.child_marker_count();
+        if let Some(marker_delta) = marker_delta {
+            let marker_delta_frames = self.marker_delta_plans[marker_delta.0].frame_count();
+            if plan.root_marker_count() == marker_delta_frames {
+                self.stats
+                    .resume_plan_scoped_trace_root_marker_matches_marker_delta += 1;
+            } else {
+                self.stats
+                    .resume_plan_scoped_trace_root_marker_mismatches_marker_delta += 1;
+            }
+        }
+        self.resume_plan_scoped_traces.push(plan);
     }
 
     fn record_resume_plan_eval_delta_plan(
@@ -16786,6 +16983,52 @@ mod tests {
             trace.exec_shadow_profile(&eval_delta, &request_delta, &marker_delta, &provider_delta),
             Err(EvidenceResumePlanExecShadowReject::TraceUnusedPayload)
         );
+    }
+
+    #[test]
+    fn resume_plan_scoped_trace_places_provider_inner_marker_in_child_scope() {
+        let continuation = EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+            first: EvidenceContinuation::marker_frame(
+                Vec::new().into(),
+                false,
+                None,
+                EvidenceContinuation::identity(),
+            ),
+            second: EvidenceContinuation::provider_env(
+                provider_env_fixture_for_handler(7),
+                EvidenceContinuation::marker_frame(
+                    Vec::new().into(),
+                    false,
+                    None,
+                    EvidenceContinuation::identity(),
+                ),
+            ),
+        }));
+
+        let scoped = EvidenceResumeScopedTracePlan::from_continuation(&continuation, None);
+
+        assert_eq!(scoped.scope_count(), 2);
+        assert_eq!(scoped.provider_child_scope_count(), 1);
+        assert_eq!(scoped.root_marker_count(), 1);
+        assert_eq!(scoped.child_marker_count(), 1);
+        assert_eq!(
+            scoped.scopes[0].steps.as_ref(),
+            &[
+                EvidenceResumeScopeStep::Marker(0),
+                EvidenceResumeScopeStep::Provider {
+                    provider: 0,
+                    child_scope: 1,
+                },
+            ]
+        );
+        assert_eq!(
+            scoped.scopes[1].steps.as_ref(),
+            &[EvidenceResumeScopeStep::Marker(0)]
+        );
+
+        let marker_delta =
+            EvidenceMarkerDeltaPlan::from_shadow_key(&continuation.marker_delta_shadow_key());
+        assert_eq!(marker_delta.frame_count(), scoped.root_marker_count());
     }
 
     #[test]
