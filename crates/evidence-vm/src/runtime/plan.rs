@@ -11,9 +11,9 @@ use crate::{
     EvidenceVmAllowedSetId, EvidenceVmAllowedSetKind, EvidenceVmHandlerArmClass,
     EvidenceVmHandlerObjectPlan, EvidenceVmKnownHandlerPlan, EvidenceVmKnownHandlerPlanId,
     EvidenceVmKnownOperationReject, EvidenceVmKnownOperationRole,
-    EvidenceVmKnownStateOperationRouteProofId, EvidenceVmOperationExecutionPlan,
-    EvidenceVmOperationKind, EvidenceVmOperationLowering, EvidenceVmOperationObjectPlan,
-    EvidenceVmOperationPlan, EvidenceVmPlan,
+    EvidenceVmKnownStateOperationPayloadProof, EvidenceVmKnownStateOperationRouteProofId,
+    EvidenceVmOperationExecutionPlan, EvidenceVmOperationKind, EvidenceVmOperationLowering,
+    EvidenceVmOperationObjectPlan, EvidenceVmOperationPlan, EvidenceVmPlan,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -82,6 +82,7 @@ pub(super) struct RuntimeEvidenceKnownStateRouteProof {
     pub(super) catch_expr: ExprId,
     pub(super) handler_id: u32,
     pub(super) role: EvidenceVmKnownOperationRole,
+    pub(super) payload: EvidenceVmKnownStateOperationPayloadProof,
 }
 
 impl RuntimeEvidenceRunContext {
@@ -952,6 +953,7 @@ fn known_state_route_proofs_from_plan(
             catch_expr: proof.catch_expr,
             handler_id: proof.handler_id,
             role: proof.role,
+            payload: proof.payload,
         });
     }
     table

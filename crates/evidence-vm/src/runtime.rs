@@ -22,7 +22,7 @@ mod stats;
 mod text;
 use crate::{
     EvidenceVmKnownHandlerPlanId, EvidenceVmKnownOperationReject, EvidenceVmKnownOperationRole,
-    EvidenceVmOperationExecutionPlan, EvidenceVmPlan,
+    EvidenceVmKnownStateOperationPayloadProof, EvidenceVmOperationExecutionPlan, EvidenceVmPlan,
 };
 use format::{
     format_float, format_value, format_value_with_display_context, format_value_with_labels,
@@ -16120,6 +16120,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         if let Some(operation) = evidence.known_operation {
             self.record_known_operation_hit(operation);
+            if let Some(value) = self.try_eval_known_state_route_direct_get(operation, &payload) {
+                return Ok(EvidenceEvalResult::Value(value));
+            }
         }
         if let EvidenceEffectRoute::Direct {
             handler,
@@ -16210,6 +16213,53 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             self.mark_request_with_active_markers(&mut request);
         }
         Ok(EvidenceEvalResult::request(request))
+    }
+
+    fn try_eval_known_state_route_direct_get(
+        &mut self,
+        operation: RuntimeEvidenceKnownOperationCall,
+        payload: &SharedValue,
+    ) -> Option<SharedValue> {
+        if !operation.direct_ready || operation.role != EvidenceVmKnownOperationRole::StateGet {
+            return None;
+        }
+        self.stats.known_operation_route_direct_get_attempts += 1;
+        let Some(proof_id) = operation.route_proof else {
+            self.stats.known_operation_route_direct_get_missing_proof += 1;
+            return None;
+        };
+        let Some(proof) = self.context.known_state_route_proof(proof_id) else {
+            self.stats.known_operation_route_direct_get_missing_proof += 1;
+            return None;
+        };
+        if proof.role != EvidenceVmKnownOperationRole::StateGet
+            || proof.plan_id != operation.plan_id
+            || proof.handler_id != operation.handler_id
+        {
+            self.stats.known_operation_route_direct_get_role_mismatch += 1;
+            return None;
+        }
+        if proof.payload != EvidenceVmKnownStateOperationPayloadProof::UnitPayloadForGet {
+            self.stats.known_operation_route_direct_get_payload_mismatch += 1;
+            return None;
+        }
+        if !matches!(payload.as_ref(), RuntimeEvidenceValue::Unit) {
+            self.stats.known_operation_route_direct_get_payload_mismatch += 1;
+            return None;
+        }
+        let state = self
+            .active_state_handler_frames
+            .iter()
+            .rev()
+            .find(|frame| frame.plan_id == proof.plan_id && frame.catch_expr == proof.catch_expr)
+            .map(|frame| frame.state.clone());
+        let Some(state) = state else {
+            self.stats.known_operation_route_direct_get_missing_frame += 1;
+            return None;
+        };
+        self.stats.known_state_direct_gets += 1;
+        self.stats.known_operation_route_direct_get_hits += 1;
+        Some(state)
     }
 
     fn force_thunk_result(

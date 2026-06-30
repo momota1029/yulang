@@ -1669,6 +1669,30 @@ fn print_runtime_evidence_phase_timings(
         stats.known_operation_route_shadow_role_mismatch
     );
     eprintln!(
+        "  run.runtime_evidence.known_operation_route_direct_get_attempts: {}",
+        stats.known_operation_route_direct_get_attempts
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_operation_route_direct_get_hits: {}",
+        stats.known_operation_route_direct_get_hits
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_operation_route_direct_get_missing_proof: {}",
+        stats.known_operation_route_direct_get_missing_proof
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_operation_route_direct_get_missing_frame: {}",
+        stats.known_operation_route_direct_get_missing_frame
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_operation_route_direct_get_role_mismatch: {}",
+        stats.known_operation_route_direct_get_role_mismatch
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_operation_route_direct_get_payload_mismatch: {}",
+        stats.known_operation_route_direct_get_payload_mismatch
+    );
+    eprintln!(
         "  run.runtime_evidence.known_operation_reject_no_candidate_handler_hits: {}",
         stats.known_operation_reject_no_candidate_handler_hits
     );

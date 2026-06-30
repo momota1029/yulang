@@ -3196,6 +3196,40 @@ pub(crate) fn print_run_report(
             .known_operation_route_shadow_role_mismatch
     );
     println!(
+        "  runtime_evidence.known_operation_route_direct_get_attempts: {}",
+        output
+            .evidence_stats
+            .known_operation_route_direct_get_attempts
+    );
+    println!(
+        "  runtime_evidence.known_operation_route_direct_get_hits: {}",
+        output.evidence_stats.known_operation_route_direct_get_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_route_direct_get_missing_proof: {}",
+        output
+            .evidence_stats
+            .known_operation_route_direct_get_missing_proof
+    );
+    println!(
+        "  runtime_evidence.known_operation_route_direct_get_missing_frame: {}",
+        output
+            .evidence_stats
+            .known_operation_route_direct_get_missing_frame
+    );
+    println!(
+        "  runtime_evidence.known_operation_route_direct_get_role_mismatch: {}",
+        output
+            .evidence_stats
+            .known_operation_route_direct_get_role_mismatch
+    );
+    println!(
+        "  runtime_evidence.known_operation_route_direct_get_payload_mismatch: {}",
+        output
+            .evidence_stats
+            .known_operation_route_direct_get_payload_mismatch
+    );
+    println!(
         "  runtime_evidence.known_operation_reject_no_visibility_hits: {}",
         output
             .evidence_stats

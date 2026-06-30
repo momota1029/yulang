@@ -2013,7 +2013,7 @@ fn known_state_operation_payload_proof(
 fn known_operation_direct_ready(
     operation: &EvidenceVmOperationPlan,
     _object: &EvidenceVmOperationObjectPlan,
-    _target: &EvidenceVmKnownOperationTarget,
+    target: &EvidenceVmKnownOperationTarget,
     has_route_proof: bool,
 ) -> Option<EvidenceVmKnownOperationReject> {
     match operation.lowering {
@@ -2034,7 +2034,12 @@ fn known_operation_direct_ready(
     if !has_route_proof {
         return Some(EvidenceVmKnownOperationReject::NoKnownStateAccessProof);
     }
-    Some(EvidenceVmKnownOperationReject::DirectExecutionDisabled)
+    match target.role {
+        EvidenceVmKnownOperationRole::StateGet => None,
+        EvidenceVmKnownOperationRole::StateSet => {
+            Some(EvidenceVmKnownOperationReject::DirectExecutionDisabled)
+        }
+    }
 }
 
 fn compiler_state_param_for_handler(program: &Program, handler: ExprId) -> Option<DefId> {
