@@ -3052,6 +3052,42 @@ pub(crate) fn print_run_report(
             .known_state_frame_shadow_compat_fallbacks
     );
     println!(
+        "  runtime_evidence.known_state_frame_snapshots: {}",
+        output.evidence_stats.known_state_frame_snapshots
+    );
+    println!(
+        "  runtime_evidence.known_state_frame_snapshot_missing_frame: {}",
+        output
+            .evidence_stats
+            .known_state_frame_snapshot_missing_frame
+    );
+    println!(
+        "  runtime_evidence.known_state_frame_snapshot_max_depth: {}",
+        output.evidence_stats.known_state_frame_snapshot_max_depth
+    );
+    println!(
+        "  runtime_evidence.known_state_frame_forks: {}",
+        output.evidence_stats.known_state_frame_forks
+    );
+    println!(
+        "  runtime_evidence.known_state_frame_multishot_forks: {}",
+        output.evidence_stats.known_state_frame_multishot_forks
+    );
+    println!(
+        "  runtime_evidence.known_state_frame_resume_entries: {}",
+        output.evidence_stats.known_state_frame_resume_entries
+    );
+    println!(
+        "  runtime_evidence.known_state_frame_resume_exits: {}",
+        output.evidence_stats.known_state_frame_resume_exits
+    );
+    println!(
+        "  runtime_evidence.known_state_frame_resume_request_rewraps: {}",
+        output
+            .evidence_stats
+            .known_state_frame_resume_request_rewraps
+    );
+    println!(
         "  runtime_evidence.known_operation_state_get_candidate_hits: {}",
         output
             .evidence_stats

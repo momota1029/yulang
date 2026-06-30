@@ -1115,6 +1115,14 @@ fn debug_runtime_evidence_run_handles_ref_set() {
         "local ref canary should not need env shadow compatibility fallback:\n{stdout}"
     );
     assert!(
+        stdout.contains("runtime_evidence.known_state_frame_snapshots: 0"),
+        "straight-line local ref handling should not snapshot state frames:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_state_frame_forks: 0"),
+        "straight-line local ref handling should not fork state frames:\n{stdout}"
+    );
+    assert!(
         stdout.contains("evidence.plan_known_operation_state_get_candidates: 2"),
         "known operation plan should classify the two static get call sites:\n{stdout}"
     );
@@ -1198,6 +1206,14 @@ fn debug_runtime_evidence_run_known_state_frame_matches_control_across_nondet_re
     assert!(
         stdout.contains("runtime_evidence.known_state_frame_missing_late: 0"),
         "nondet resume should not lose the active state frame:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_state_frame_snapshots: 0"),
+        "state outside nondet/list should stay shared rather than snapshotted:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_state_frame_forks: 0"),
+        "state outside nondet/list should not be forked by nondet resume:\n{stdout}"
     );
     assert!(
         stdout.contains("runtime_evidence.known_operation_state_get_active_frame_hits: 7"),

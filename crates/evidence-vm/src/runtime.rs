@@ -299,6 +299,10 @@ enum EvidenceContinuationFrame {
         first: EvidenceContinuation,
         second: EvidenceContinuation,
     },
+    StateFrames {
+        snapshots: Rc<[RuntimeStateHandlerFrameSnapshot]>,
+        inner: EvidenceContinuation,
+    },
     ForceThunk {
         target_value_is_thunk: bool,
         next: EvidenceContinuation,
@@ -1379,6 +1383,11 @@ impl EvidenceResumeScopedTraceBuilder {
                     self.append_frame(scope, frame, routed_yield_handler);
                 }
                 if let Some(frame) = second.frame() {
+                    self.append_frame(scope, frame, routed_yield_handler);
+                }
+            }
+            EvidenceContinuationFrame::StateFrames { inner, .. } => {
+                if let Some(frame) = inner.frame() {
                     self.append_frame(scope, frame, routed_yield_handler);
                 }
             }
@@ -3335,6 +3344,9 @@ impl EvidenceScopeInstructionPlanBuilder {
                 self.append_continuation(first)?;
                 self.append_continuation(second)
             }
+            EvidenceContinuationFrame::StateFrames { .. } => {
+                Err(EvidenceScopeLocalPlanReject::RequestBoundary)
+            }
             EvidenceContinuationFrame::MarkerFrame {
                 markers,
                 activate_add_ids,
@@ -3440,6 +3452,9 @@ impl EvidenceScopeLocalPlanBuilder {
                 self.append_continuation(first)?;
                 self.append_continuation(second)
             }
+            EvidenceContinuationFrame::StateFrames { .. } => {
+                Err(EvidenceScopeLocalPlanReject::RequestBoundary)
+            }
             EvidenceContinuationFrame::MarkerFrame {
                 markers,
                 activate_add_ids,
@@ -3539,6 +3554,9 @@ impl EvidenceScopeSidecarPlanBuilder {
             EvidenceContinuationFrame::Then { first, second } => {
                 self.append_continuation(first)?;
                 self.append_continuation(second)
+            }
+            EvidenceContinuationFrame::StateFrames { .. } => {
+                Err(EvidenceScopeSidecarPlanReject::RequestBoundary)
             }
             EvidenceContinuationFrame::MarkerFrame {
                 markers,
@@ -4691,6 +4709,16 @@ impl EvidenceContinuation {
         }))
     }
 
+    fn state_frames(snapshots: Rc<[RuntimeStateHandlerFrameSnapshot]>, inner: Self) -> Self {
+        if snapshots.is_empty() {
+            return inner;
+        }
+        Self::Frame(Rc::new(EvidenceContinuationFrame::StateFrames {
+            snapshots,
+            inner,
+        }))
+    }
+
     fn force_value_if_thunk(next: Self) -> Self {
         Self::Frame(Rc::new(EvidenceContinuationFrame::ForceValueIfThunk {
             next,
@@ -5393,6 +5421,9 @@ impl EvidenceContinuation {
 impl EvidenceContinuationFrame {
     fn starts_with_foreign_catch_boundary(&self, routed_yield_handler: Option<ExprId>) -> bool {
         match (self, routed_yield_handler) {
+            (Self::StateFrames { inner, .. }, _) => {
+                inner.starts_with_foreign_catch_boundary(routed_yield_handler)
+            }
             (Self::CatchBody { catch_expr, .. }, Some(handler)) => *catch_expr != handler,
             (Self::CatchForeignBoundarySegment { boundaries, .. }, Some(handler)) => boundaries
                 .first()
@@ -5512,6 +5543,10 @@ impl EvidenceContinuationFrame {
                     second.resume_plan_shadow_profile(routed_yield_handler),
                 )
             }
+            Self::StateFrames { .. } => EvidenceResumePlanShadowProfile {
+                eval_frames: 1,
+                ..EvidenceResumePlanShadowProfile::default()
+            },
             Self::CatchBody {
                 catch_expr, next, ..
             } => {
@@ -5951,6 +5986,7 @@ impl EvidenceContinuationFrame {
                     frame.append_eval_delta_plan(frames);
                 }
             }
+            Self::StateFrames { .. } => {}
         }
     }
 
@@ -6185,6 +6221,10 @@ impl EvidenceContinuationFrame {
                     merge_direct_tail_segment_profile(profile, first.direct_tail_segment_profile());
                 merge_direct_tail_segment_profile(profile, second.direct_tail_segment_profile())
             }
+            Self::StateFrames { .. } => EvidenceDirectTailSegmentProfile {
+                request_boundaries: 1,
+                ..EvidenceDirectTailSegmentProfile::default()
+            },
             Self::MarkerFrame {
                 markers,
                 activate_add_ids,
@@ -6268,6 +6308,9 @@ impl EvidenceContinuationFrame {
                 } else {
                     second.request_boundary_profile(routed_yield_handler, stats)
                 }
+            }
+            EvidenceContinuationFrame::StateFrames { inner, .. } => {
+                inner.request_boundary_profile(routed_yield_handler, stats)
             }
             EvidenceContinuationFrame::CatchBody {
                 catch_expr, next, ..
@@ -7136,7 +7179,8 @@ impl EvidenceContinuationFrame {
         match self {
             EvidenceContinuationFrame::Then { second, .. } => Some(second),
             EvidenceContinuationFrame::MarkerFrame { .. }
-            | EvidenceContinuationFrame::ProviderEnv { .. } => None,
+            | EvidenceContinuationFrame::ProviderEnv { .. }
+            | EvidenceContinuationFrame::StateFrames { .. } => None,
             EvidenceContinuationFrame::ScopePlanForeignCatchBoundary { next, .. } => Some(next),
             EvidenceContinuationFrame::ForceThunk { next, .. }
             | EvidenceContinuationFrame::ForceValueIfThunk { next }
@@ -7172,10 +7216,11 @@ impl EvidenceContinuationFrame {
     fn tail_mut(&mut self) -> Option<&mut EvidenceContinuation> {
         match self {
             EvidenceContinuationFrame::Then { second, .. } => Some(second),
-            // Appending into these frames would move the appended continuation under the dynamic
-            // marker/provider scope. Keep the old Then boundary for scope-preserving composition.
+            // Appending into these frames would move the appended continuation under a dynamic
+            // scope. Keep the old Then boundary for scope-preserving composition.
             EvidenceContinuationFrame::MarkerFrame { .. }
-            | EvidenceContinuationFrame::ProviderEnv { .. } => None,
+            | EvidenceContinuationFrame::ProviderEnv { .. }
+            | EvidenceContinuationFrame::StateFrames { .. } => None,
             EvidenceContinuationFrame::ScopePlanForeignCatchBoundary { next, .. } => Some(next),
             EvidenceContinuationFrame::ForceThunk { next, .. }
             | EvidenceContinuationFrame::ForceValueIfThunk { next }
@@ -7685,12 +7730,43 @@ fn static_arm_caches(
     (case_arms, catch_arms)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct RuntimeStateFrameId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct RuntimeStateScopeId(u32);
+
+#[derive(Debug, Clone, PartialEq)]
+struct RuntimeStateHandlerFrameSnapshot {
+    catch_expr: ExprId,
+    plan_id: EvidenceVmKnownHandlerPlanId,
+    state_def: DefId,
+    state: SharedValue,
+    source_frame_id: RuntimeStateFrameId,
+    state_scope_id: RuntimeStateScopeId,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 struct RuntimeStateHandlerFrame {
     catch_expr: ExprId,
     plan_id: EvidenceVmKnownHandlerPlanId,
     state_def: DefId,
     state: SharedValue,
+    frame_id: RuntimeStateFrameId,
+    state_scope_id: RuntimeStateScopeId,
+}
+
+fn snapshot_state_handler_frame(
+    frame: &RuntimeStateHandlerFrame,
+) -> RuntimeStateHandlerFrameSnapshot {
+    RuntimeStateHandlerFrameSnapshot {
+        catch_expr: frame.catch_expr,
+        plan_id: frame.plan_id,
+        state_def: frame.state_def,
+        state: frame.state.clone(),
+        source_frame_id: frame.frame_id,
+        state_scope_id: frame.state_scope_id,
+    }
 }
 
 struct RuntimeEvidenceRunner<'a> {
@@ -7702,6 +7778,8 @@ struct RuntimeEvidenceRunner<'a> {
     instances: HashMap<InstanceId, SharedValue>,
     evaluating_instances: HashSet<InstanceId>,
     next_guard_id: u32,
+    next_state_frame_id: u32,
+    next_state_scope_id: u32,
     next_provider_scope_id: u32,
     provider_grants: Vec<EvidenceProviderGrant>,
     active_frames: Vec<EvidenceActiveFrame>,
@@ -7713,6 +7791,7 @@ struct RuntimeEvidenceRunner<'a> {
     active_provider_envs: Vec<RuntimeEvidenceProviderFrame>,
     active_provider_handlers: Vec<u32>,
     active_state_handler_frames: Vec<RuntimeStateHandlerFrame>,
+    state_frame_snapshot_resume_counts: HashMap<RuntimeStateFrameId, usize>,
     resume_plans: Vec<EvidenceResumePlan>,
     resume_plan_traces: Vec<EvidenceResumePlanTracePlan>,
     resume_plan_scoped_traces: Vec<EvidenceResumeScopedTracePlan>,
@@ -7746,6 +7825,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             instances: HashMap::new(),
             evaluating_instances: HashSet::new(),
             next_guard_id: 0,
+            next_state_frame_id: 0,
+            next_state_scope_id: 0,
             next_provider_scope_id: 0,
             provider_grants: Vec::new(),
             active_frames: Vec::new(),
@@ -7757,6 +7838,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             active_provider_envs: Vec::new(),
             active_provider_handlers: Vec::new(),
             active_state_handler_frames: Vec::new(),
+            state_frame_snapshot_resume_counts: HashMap::new(),
             resume_plans: Vec::new(),
             resume_plan_traces: Vec::new(),
             resume_plan_scoped_traces: Vec::new(),
@@ -8523,6 +8605,18 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn fresh_guard_id(&mut self) -> EvidenceGuardId {
         let id = EvidenceGuardId(self.next_guard_id);
         self.next_guard_id += 1;
+        id
+    }
+
+    fn fresh_state_frame_id(&mut self) -> RuntimeStateFrameId {
+        let id = RuntimeStateFrameId(self.next_state_frame_id);
+        self.next_state_frame_id += 1;
+        id
+    }
+
+    fn fresh_state_scope_id(&mut self) -> RuntimeStateScopeId {
+        let id = RuntimeStateScopeId(self.next_state_scope_id);
+        self.next_state_scope_id += 1;
         id
     }
 
@@ -12052,6 +12146,99 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.finish_force_thunk_result(result, false)
     }
 
+    fn continue_result_under_state_frames(
+        &mut self,
+        snapshots: Rc<[RuntimeStateHandlerFrameSnapshot]>,
+        result: EvidenceEvalResult,
+        inner: EvidenceContinuation,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let state_frame_len = self.active_state_handler_frames.len();
+        self.push_restored_state_frames(&snapshots);
+        let result = self.continue_result(result, inner);
+        match result {
+            Ok(result) => Ok(self.close_state_frame_resume_result(state_frame_len, result)),
+            Err(err) => {
+                self.pop_restored_state_frames(state_frame_len);
+                Err(err)
+            }
+        }
+    }
+
+    fn close_state_frame_resume_result(
+        &mut self,
+        state_frame_len: usize,
+        result: EvidenceEvalResult,
+    ) -> EvidenceEvalResult {
+        match result {
+            EvidenceEvalResult::Value(value) => {
+                self.pop_restored_state_frames(state_frame_len);
+                EvidenceEvalResult::Value(value)
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => {
+                let snapshots = self.snapshot_state_frame_suffix(state_frame_len);
+                self.pop_restored_state_frames(state_frame_len);
+                EvidenceEvalResult::request(
+                    self.rewrap_request_with_state_frames(request, snapshots),
+                )
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(call)) => {
+                let snapshots = self.snapshot_state_frame_suffix(state_frame_len);
+                self.pop_restored_state_frames(state_frame_len);
+                EvidenceEvalResult::direct_tail_resumptive(
+                    self.rewrap_direct_tail_with_state_frames(call, snapshots),
+                )
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => {
+                let snapshots = self.snapshot_state_frame_suffix(state_frame_len);
+                self.pop_restored_state_frames(state_frame_len);
+                EvidenceEvalResult::routed_yield(
+                    self.rewrap_routed_yield_with_state_frames(call, snapshots),
+                )
+            }
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(call)) => {
+                self.pop_restored_state_frames(state_frame_len);
+                EvidenceEvalResult::direct_abortive(call)
+            }
+        }
+    }
+
+    fn state_frame_rewrap_continuation(
+        &mut self,
+        snapshots: Rc<[RuntimeStateHandlerFrameSnapshot]>,
+    ) -> EvidenceContinuation {
+        if !snapshots.is_empty() {
+            self.stats.known_state_frame_resume_request_rewraps += 1;
+        }
+        EvidenceContinuation::state_frames(snapshots, EvidenceContinuation::identity())
+    }
+
+    fn rewrap_request_with_state_frames(
+        &mut self,
+        request: EvidenceRequest,
+        snapshots: Rc<[RuntimeStateHandlerFrameSnapshot]>,
+    ) -> EvidenceRequest {
+        let continuation = self.state_frame_rewrap_continuation(snapshots);
+        self.append_request_continuation(request, continuation)
+    }
+
+    fn rewrap_direct_tail_with_state_frames(
+        &mut self,
+        call: EvidenceDirectTailResumptive,
+        snapshots: Rc<[RuntimeStateHandlerFrameSnapshot]>,
+    ) -> EvidenceDirectTailResumptive {
+        let continuation = self.state_frame_rewrap_continuation(snapshots);
+        self.append_direct_tail_continuation(call, continuation)
+    }
+
+    fn rewrap_routed_yield_with_state_frames(
+        &mut self,
+        call: EvidenceRoutedYield,
+        snapshots: Rc<[RuntimeStateHandlerFrameSnapshot]>,
+    ) -> EvidenceRoutedYield {
+        let continuation = self.state_frame_rewrap_continuation(snapshots);
+        call.append_continuation(continuation, &mut self.stats)
+    }
+
     fn eval_primitive_op(
         &mut self,
         op: PrimitiveOp,
@@ -13228,6 +13415,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let result = self.resume_continuation(first, value)?;
                 self.continue_result(result, second)
             }
+            EvidenceContinuationFrame::StateFrames { snapshots, inner } => self
+                .continue_result_under_state_frames(
+                    snapshots,
+                    EvidenceEvalResult::Value(value),
+                    inner,
+                ),
             EvidenceContinuationFrame::ForceThunk {
                 target_value_is_thunk,
                 next,
@@ -14542,6 +14735,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceContinuationFrame::Then { .. } => {
                 self.stats.continuation_resume_then_steps += 1;
             }
+            EvidenceContinuationFrame::StateFrames { .. } => {
+                self.stats.continuation_resume_force_steps += 1;
+            }
             EvidenceContinuationFrame::ForceThunk { .. }
             | EvidenceContinuationFrame::ForceValueIfThunk { .. } => {
                 self.stats.continuation_resume_force_steps += 1;
@@ -14693,6 +14889,12 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let result = self.continue_direct_abortive_with_continuation(call, first)?;
                 self.continue_result(result, second)
             }
+            EvidenceContinuationFrame::StateFrames { snapshots, inner } => self
+                .continue_result_under_state_frames(
+                    snapshots,
+                    EvidenceEvalResult::direct_abortive(call),
+                    inner,
+                ),
             EvidenceContinuationFrame::CatchBody {
                 catch_expr,
                 arms,
@@ -14881,6 +15083,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceContinuationFrame::Then { first, second } => {
                 let result = self.continue_direct_tail_resumptive_with_continuation(call, first)?;
                 return self.continue_result(result, second);
+            }
+            EvidenceContinuationFrame::StateFrames { snapshots, inner } => {
+                return self.continue_result_under_state_frames(
+                    snapshots,
+                    EvidenceEvalResult::direct_tail_resumptive(call),
+                    inner,
+                );
             }
             EvidenceContinuationFrame::ForceThunk {
                 target_value_is_thunk,
@@ -15383,6 +15592,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     first,
                 )?;
                 return self.continue_result(result, second);
+            }
+            EvidenceContinuationFrame::StateFrames { snapshots, inner } => {
+                return self.continue_result_under_state_frames(
+                    snapshots,
+                    self.routed_request_result(routed_yield_handler, request),
+                    inner,
+                );
             }
             EvidenceContinuationFrame::ForceThunk {
                 target_value_is_thunk,
@@ -16102,6 +16318,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let Some(state) = env.get_slot(state_slot) else {
             return;
         };
+        let frame_id = self.fresh_state_frame_id();
+        let state_scope_id = self.fresh_state_scope_id();
         self.stats.known_state_frame_entries += 1;
         self.active_state_handler_frames
             .push(RuntimeStateHandlerFrame {
@@ -16109,11 +16327,79 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 plan_id: frame_plan.plan_id,
                 state_def: frame_plan.state,
                 state,
+                frame_id,
+                state_scope_id,
             });
     }
 
     fn pop_known_state_frames(&mut self, len: usize) {
         self.stats.known_state_frame_exits += self.active_state_handler_frames.len() - len;
+        self.active_state_handler_frames.truncate(len);
+    }
+
+    fn snapshot_known_state_frame_for_crossed_catch(
+        &mut self,
+        catch_expr: ExprId,
+    ) -> Option<RuntimeStateHandlerFrameSnapshot> {
+        self.context.known_state_frame_for_catch(catch_expr)?;
+        let Some(index) = self
+            .active_state_handler_frames
+            .iter()
+            .rposition(|frame| frame.catch_expr == catch_expr)
+        else {
+            self.stats.known_state_frame_snapshot_missing_frame += 1;
+            return None;
+        };
+        self.stats.known_state_frame_snapshots += 1;
+        self.stats.known_state_frame_snapshot_max_depth =
+            self.stats.known_state_frame_snapshot_max_depth.max(1);
+        Some(snapshot_state_handler_frame(
+            &self.active_state_handler_frames[index],
+        ))
+    }
+
+    fn snapshot_state_frame_suffix(
+        &mut self,
+        start: usize,
+    ) -> Rc<[RuntimeStateHandlerFrameSnapshot]> {
+        let snapshots = self.active_state_handler_frames[start..]
+            .iter()
+            .map(snapshot_state_handler_frame)
+            .collect::<Vec<_>>();
+        self.stats.known_state_frame_snapshot_max_depth = self
+            .stats
+            .known_state_frame_snapshot_max_depth
+            .max(snapshots.len());
+        Rc::from(snapshots.into_boxed_slice())
+    }
+
+    fn push_restored_state_frames(&mut self, snapshots: &[RuntimeStateHandlerFrameSnapshot]) {
+        for snapshot in snapshots {
+            let resume_count = self
+                .state_frame_snapshot_resume_counts
+                .entry(snapshot.source_frame_id)
+                .or_insert(0);
+            if *resume_count > 0 {
+                self.stats.known_state_frame_multishot_forks += 1;
+            }
+            *resume_count += 1;
+            let frame_id = self.fresh_state_frame_id();
+            self.active_state_handler_frames
+                .push(RuntimeStateHandlerFrame {
+                    catch_expr: snapshot.catch_expr,
+                    plan_id: snapshot.plan_id,
+                    state_def: snapshot.state_def,
+                    state: snapshot.state.clone(),
+                    frame_id,
+                    state_scope_id: snapshot.state_scope_id,
+                });
+        }
+        self.stats.known_state_frame_forks += snapshots.len();
+        self.stats.known_state_frame_resume_entries += snapshots.len();
+    }
+
+    fn pop_restored_state_frames(&mut self, len: usize) {
+        self.stats.known_state_frame_resume_exits += self.active_state_handler_frames.len() - len;
         self.active_state_handler_frames.truncate(len);
     }
 
@@ -17060,16 +17346,25 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         env: &Env,
         request: EvidenceRequest,
     ) -> EvidenceRequest {
-        let env = self.clone_env(env);
-        self.append_request_continuation(
-            request,
-            EvidenceContinuation::catch_body(
-                catch_expr,
-                arms,
-                env,
-                EvidenceContinuation::identity(),
+        let snapshot = self.snapshot_known_state_frame_for_crossed_catch(catch_expr);
+        let mut env = self.clone_env(env);
+        if let Some(snapshot) = &snapshot {
+            env.insert_slot(EnvSlot::from(snapshot.state_def), snapshot.state.clone());
+        }
+        let catch_body = EvidenceContinuation::catch_body(
+            catch_expr,
+            arms,
+            env,
+            EvidenceContinuation::identity(),
+        );
+        let continuation = match snapshot {
+            Some(snapshot) => EvidenceContinuation::state_frames(
+                Rc::from(vec![snapshot].into_boxed_slice()),
+                catch_body,
             ),
-        )
+            None => catch_body,
+        };
+        self.append_request_continuation(request, continuation)
     }
 
     fn eval_value_arm(
@@ -19184,6 +19479,74 @@ mod tests {
         };
         assert_eq!(captured, &provider_env);
         assert!(next.is_identity());
+    }
+
+    #[test]
+    fn state_frame_continuation_resume_forks_snapshot_frames() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let snapshot = state_frame_snapshot_fixture(shared(RuntimeEvidenceValue::Int(10)));
+        let snapshots: Rc<[RuntimeStateHandlerFrameSnapshot]> =
+            Rc::from(vec![snapshot].into_boxed_slice());
+        let continuation =
+            EvidenceContinuation::state_frames(snapshots, EvidenceContinuation::identity());
+
+        let result = runner
+            .resume_continuation(continuation.clone(), shared(RuntimeEvidenceValue::Unit))
+            .expect("state frame resume should finish");
+
+        assert_eq!(
+            result,
+            EvidenceEvalResult::Value(shared(RuntimeEvidenceValue::Unit))
+        );
+        assert!(runner.active_state_handler_frames.is_empty());
+        assert_eq!(runner.stats.known_state_frame_forks, 1);
+        assert_eq!(runner.stats.known_state_frame_multishot_forks, 0);
+        assert_eq!(runner.stats.known_state_frame_resume_entries, 1);
+        assert_eq!(runner.stats.known_state_frame_resume_exits, 1);
+
+        runner
+            .resume_continuation(continuation, shared(RuntimeEvidenceValue::Unit))
+            .expect("state frame resume should be repeatable");
+
+        assert!(runner.active_state_handler_frames.is_empty());
+        assert_eq!(runner.stats.known_state_frame_forks, 2);
+        assert_eq!(runner.stats.known_state_frame_multishot_forks, 1);
+        assert_eq!(runner.stats.known_state_frame_resume_entries, 2);
+        assert_eq!(runner.stats.known_state_frame_resume_exits, 2);
+        assert_eq!(runner.stats.known_state_frame_resume_request_rewraps, 0);
+    }
+
+    #[test]
+    fn state_frame_resume_rewraps_escaped_request_with_updated_snapshot() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let snapshot = state_frame_snapshot_fixture(shared(RuntimeEvidenceValue::Int(10)));
+        runner.push_restored_state_frames(&[snapshot]);
+        runner.active_state_handler_frames[0].state = shared(RuntimeEvidenceValue::Int(20));
+
+        let result = runner.close_state_frame_resume_result(
+            0,
+            EvidenceEvalResult::request(request_fixture("state", "get")),
+        );
+
+        let EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) = result
+        else {
+            panic!("escaped request should stay generic");
+        };
+        let Some(EvidenceContinuationFrame::StateFrames { snapshots, inner }) =
+            request.continuation.frame()
+        else {
+            panic!("escaped request continuation should be rewrapped in state frames");
+        };
+        assert!(inner.is_identity());
+        assert_eq!(snapshots.len(), 1);
+        assert_eq!(snapshots[0].state.as_ref(), &RuntimeEvidenceValue::Int(20));
+        assert!(runner.active_state_handler_frames.is_empty());
+        assert_eq!(runner.stats.known_state_frame_snapshot_max_depth, 1);
+        assert_eq!(runner.stats.known_state_frame_forks, 1);
+        assert_eq!(runner.stats.known_state_frame_resume_exits, 1);
+        assert_eq!(runner.stats.known_state_frame_resume_request_rewraps, 1);
     }
 
     #[test]
@@ -21916,6 +22279,27 @@ mod tests {
 
     fn permission_test_path() -> Vec<String> {
         vec!["flip".to_string(), "coin".to_string()]
+    }
+
+    fn request_fixture(family: &str, operation: &str) -> EvidenceRequest {
+        EvidenceRequest {
+            path: shared_path(&[family.to_string(), operation.to_string()]),
+            payload: shared(RuntimeEvidenceValue::Unit),
+            route: EvidenceEffectRoute::Unhandled,
+            hygiene: EvidenceSignalHygiene::new(),
+            continuation: EvidenceContinuation::identity(),
+        }
+    }
+
+    fn state_frame_snapshot_fixture(state: SharedValue) -> RuntimeStateHandlerFrameSnapshot {
+        RuntimeStateHandlerFrameSnapshot {
+            catch_expr: ExprId(1),
+            plan_id: EvidenceVmKnownHandlerPlanId(2),
+            state_def: DefId(3),
+            state,
+            source_frame_id: RuntimeStateFrameId(4),
+            state_scope_id: RuntimeStateScopeId(5),
+        }
     }
 
     fn provider_prefix_boundary_permission() -> RuntimeEvidenceProviderGrantPermission {

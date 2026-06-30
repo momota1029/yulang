@@ -1561,6 +1561,38 @@ fn print_runtime_evidence_phase_timings(
         stats.known_state_frame_shadow_compat_fallbacks
     );
     eprintln!(
+        "  run.runtime_evidence.known_state_frame_snapshots: {}",
+        stats.known_state_frame_snapshots
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_frame_snapshot_missing_frame: {}",
+        stats.known_state_frame_snapshot_missing_frame
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_frame_snapshot_max_depth: {}",
+        stats.known_state_frame_snapshot_max_depth
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_frame_forks: {}",
+        stats.known_state_frame_forks
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_frame_multishot_forks: {}",
+        stats.known_state_frame_multishot_forks
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_frame_resume_entries: {}",
+        stats.known_state_frame_resume_entries
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_frame_resume_exits: {}",
+        stats.known_state_frame_resume_exits
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_frame_resume_request_rewraps: {}",
+        stats.known_state_frame_resume_request_rewraps
+    );
+    eprintln!(
         "  run.runtime_evidence.known_operation_state_get_candidate_hits: {}",
         stats.known_operation_state_get_candidate_hits
     );
