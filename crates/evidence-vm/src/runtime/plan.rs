@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use control_vm::ExprId;
+use control_vm::{DefId, ExprId};
 use smallvec::{SmallVec, smallvec};
 
 use super::{
@@ -9,9 +9,9 @@ use super::{
 };
 use crate::{
     EvidenceVmAllowedSetId, EvidenceVmAllowedSetKind, EvidenceVmHandlerArmClass,
-    EvidenceVmHandlerObjectPlan, EvidenceVmOperationExecutionPlan, EvidenceVmOperationKind,
-    EvidenceVmOperationLowering, EvidenceVmOperationObjectPlan, EvidenceVmOperationPlan,
-    EvidenceVmPlan,
+    EvidenceVmHandlerObjectPlan, EvidenceVmKnownHandlerPlan, EvidenceVmOperationExecutionPlan,
+    EvidenceVmOperationKind, EvidenceVmOperationLowering, EvidenceVmOperationObjectPlan,
+    EvidenceVmOperationPlan, EvidenceVmPlan,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -26,12 +26,16 @@ pub(super) struct RuntimeEvidenceRunContext {
     direct_effect_route_count: usize,
     direct_abortive_effect_route_count: usize,
     direct_tail_resumptive_effect_route_count: usize,
+    known_handler_count: usize,
+    known_state_handler_count: usize,
+    known_state_handler_compiler_certificate_count: usize,
     effect_routes: Option<HashMap<(ExprId, ExprId), EvidenceEffectRoute>>,
     value_provider_envs: Vec<Option<RuntimeEvidenceProviderEnv>>,
     value_capture_slots: Vec<Option<SmallVec<[u32; 2]>>>,
     call_required_slots: Vec<Option<SmallVec<[u32; 2]>>>,
     provider_candidates_by_slot: HashMap<u32, SmallVec<[u32; 2]>>,
     handlers_by_catch: Vec<Option<SmallVec<[u32; 2]>>>,
+    known_state_handlers_by_catch: Vec<Option<RuntimeEvidenceKnownStateHandler>>,
     handler_families_by_id: Vec<Option<Vec<String>>>,
     operation_visibilities: Vec<Option<(ExprId, RuntimeEvidenceOperationVisibility)>>,
     operation_provider_lookups: Vec<Option<(ExprId, RuntimeEvidenceOperationProviderLookup)>>,
@@ -53,12 +57,34 @@ impl RuntimeEvidenceRunContext {
             .values()
             .filter(|route| route.is_direct_tail_resumptive())
             .count();
+        let known_handler_count = plan.objects.known_handlers.len();
+        let known_state_handler_count = plan
+            .objects
+            .known_handlers
+            .iter()
+            .filter(|handler| matches!(handler, EvidenceVmKnownHandlerPlan::State(_)))
+            .count();
+        let known_state_handler_compiler_certificate_count = plan
+            .objects
+            .known_handlers
+            .iter()
+            .filter(|handler| match handler {
+                EvidenceVmKnownHandlerPlan::State(plan) => {
+                    matches!(
+                        plan.source,
+                        crate::EvidenceVmKnownStateHandlerSource::CompilerLocalVar
+                    )
+                }
+            })
+            .count();
         let expr_table_len = evidence_context_expr_table_len(plan);
         let value_provider_envs = value_provider_envs_from_plan(plan, expr_table_len);
         let value_capture_slots = value_capture_slots_from_plan(plan, expr_table_len);
         let call_required_slots = call_required_slots_from_plan(plan, expr_table_len);
         let provider_candidates_by_slot = provider_candidates_by_slot(plan);
         let handlers_by_catch = handlers_by_catch_from_plan(plan, expr_table_len);
+        let known_state_handlers_by_catch =
+            known_state_handlers_by_catch_from_plan(plan, expr_table_len);
         let handler_families_by_id = handler_families_by_id_from_plan(plan);
         let operation_visibilities = operation_visibilities_from_plan(plan, expr_table_len);
         let operation_provider_lookups = operation_provider_lookups_from_plan(plan, expr_table_len);
@@ -94,12 +120,16 @@ impl RuntimeEvidenceRunContext {
             direct_effect_route_count,
             direct_abortive_effect_route_count,
             direct_tail_resumptive_effect_route_count,
+            known_handler_count,
+            known_state_handler_count,
+            known_state_handler_compiler_certificate_count,
             effect_routes: Some(effect_routes),
             value_provider_envs,
             value_capture_slots,
             call_required_slots,
             provider_candidates_by_slot,
             handlers_by_catch,
+            known_state_handlers_by_catch,
             handler_families_by_id,
             operation_visibilities,
             operation_provider_lookups,
@@ -132,6 +162,10 @@ impl RuntimeEvidenceRunContext {
         stats.plan_direct_abortive_effect_routes = self.direct_abortive_effect_route_count;
         stats.plan_direct_tail_resumptive_effect_routes =
             self.direct_tail_resumptive_effect_route_count;
+        stats.plan_known_handlers = self.known_handler_count;
+        stats.plan_known_state_handlers = self.known_state_handler_count;
+        stats.plan_known_state_handler_compiler_certificates =
+            self.known_state_handler_compiler_certificate_count;
     }
 
     pub(super) fn provider_env_for_value(
@@ -164,6 +198,28 @@ impl RuntimeEvidenceRunContext {
             .and_then(Option::as_ref)
             .map(SmallVec::as_slice)
             .unwrap_or_default()
+    }
+
+    pub(super) fn known_state_operation_for_request(
+        &self,
+        catch_expr: ExprId,
+        request_path: &[String],
+    ) -> Option<RuntimeEvidenceKnownStateOperation> {
+        let handler = self
+            .known_state_handlers_by_catch
+            .get(catch_expr.0 as usize)
+            .and_then(Option::as_ref)?;
+        let operation = if request_path == handler.get_path.as_slice() {
+            RuntimeEvidenceKnownStateOperationKind::Get
+        } else if request_path == handler.set_path.as_slice() {
+            RuntimeEvidenceKnownStateOperationKind::Set
+        } else {
+            return None;
+        };
+        Some(RuntimeEvidenceKnownStateOperation {
+            state: handler.state,
+            kind: operation,
+        })
     }
 
     pub(super) fn operation_visibility_for_call(
@@ -321,6 +377,25 @@ impl RuntimeEvidenceRunContext {
             handler_ids: smallvec![handler_id],
         })
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RuntimeEvidenceKnownStateHandler {
+    state: DefId,
+    get_path: Vec<String>,
+    set_path: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RuntimeEvidenceKnownStateOperation {
+    pub(super) state: DefId,
+    pub(super) kind: RuntimeEvidenceKnownStateOperationKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum RuntimeEvidenceKnownStateOperationKind {
+    Get,
+    Set,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -609,6 +684,28 @@ fn handlers_by_catch_from_plan(
             .push(handler.id);
     }
     table
+}
+
+fn known_state_handlers_by_catch_from_plan(
+    plan: &EvidenceVmPlan,
+    len: usize,
+) -> Vec<Option<RuntimeEvidenceKnownStateHandler>> {
+    let mut table = empty_expr_table(len);
+    for known in &plan.objects.known_handlers {
+        let EvidenceVmKnownHandlerPlan::State(state) = known;
+        table[state.handler.0 as usize] = Some(RuntimeEvidenceKnownStateHandler {
+            state: state.state,
+            get_path: state_operation_path(&state.family, "get"),
+            set_path: state_operation_path(&state.family, "set"),
+        });
+    }
+    table
+}
+
+fn state_operation_path(family: &[String], operation: &str) -> Vec<String> {
+    let mut path = family.to_vec();
+    path.push(operation.to_string());
+    path
 }
 
 fn handler_families_by_id_from_plan(plan: &EvidenceVmPlan) -> Vec<Option<Vec<String>>> {

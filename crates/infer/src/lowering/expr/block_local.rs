@@ -904,6 +904,9 @@ impl<'a> ExprLowerer<'a> {
     ) -> Result<TypeVar, LoweringError> {
         let effect = self.fresh_type_var();
         let path = self.local_var_act_effect_path(act)?;
+        self.session
+            .poly
+            .register_synthetic_var_effect(path.clone());
         let payload_arg = self.invariant_var_arg(payload);
         let lower_item = self.alloc_pos(Pos::Con(path.clone(), vec![payload_arg]));
         self.constrain_lower(effect, Pos::Row(vec![lower_item]));

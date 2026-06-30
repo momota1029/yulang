@@ -37,9 +37,10 @@ use effect::*;
 use marker::*;
 pub use runtime_evidence::{
     RuntimeEvidenceBoundaryCandidate, RuntimeEvidenceEffectSubtraction, RuntimeEvidenceExprType,
-    RuntimeEvidenceGraph, RuntimeEvidenceNode, RuntimeEvidenceNodeEvidenceRef,
-    RuntimeEvidenceNodeKind, RuntimeEvidenceRowResidual, RuntimeEvidenceSite,
-    RuntimeEvidenceSiteKind, RuntimeEvidenceSlot, RuntimeEvidenceSlotKind,
+    RuntimeEvidenceGraph, RuntimeEvidenceKnownStateContinuationSemantics,
+    RuntimeEvidenceKnownStateHandler, RuntimeEvidenceKnownStateHandlerSource, RuntimeEvidenceNode,
+    RuntimeEvidenceNodeEvidenceRef, RuntimeEvidenceNodeKind, RuntimeEvidenceRowResidual,
+    RuntimeEvidenceSite, RuntimeEvidenceSiteKind, RuntimeEvidenceSlot, RuntimeEvidenceSlotKind,
     RuntimeEvidenceStackWeight, RuntimeEvidenceSurface, RuntimeEvidenceTask,
     RuntimeEvidenceTaskOwner, RuntimeEvidenceTypeAtExpr, RuntimeEvidenceTypeAtPat,
     RuntimeEvidenceTypePathStep, RuntimeEvidenceTypeRole, RuntimeEvidenceTypeclassResolution,

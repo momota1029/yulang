@@ -224,6 +224,7 @@ impl CompiledRuntimeSurface {
             target.role_impls.insert(candidate);
         }
         import_effect_operations(&self.arena, target, &import);
+        import_synthetic_var_effects(&self.arena, target);
         import_constructors(&self.arena, target, &import);
         import_arg_effect_contracts(&self.arena, target, &import);
         import_field_projections(&self.arena, target, &import);
@@ -323,6 +324,7 @@ impl CompiledRuntimeSurface {
             target.role_impls.insert(candidate);
         }
         import_selected_effect_operations(&self.arena, target, &import, &selection);
+        import_synthetic_var_effects(&self.arena, target);
         import_selected_constructors(&self.arena, target, &import, &selection);
         import_selected_arg_effect_contracts(&self.arena, target, &import, &selection);
         import_selected_field_projections(&self.arena, target, &import, &selection);
@@ -1557,6 +1559,14 @@ fn import_selected_effect_operations(
                 path: operation.path.clone(),
             },
         );
+    }
+}
+
+fn import_synthetic_var_effects(source: &PolyArena, target: &mut PolyArena) {
+    let mut effects = source.synthetic_var_effects.iter().collect::<Vec<_>>();
+    effects.sort_by(|left, right| left.effect_path.cmp(&right.effect_path));
+    for effect in effects {
+        target.register_synthetic_var_effect(effect.effect_path.clone());
     }
 }
 

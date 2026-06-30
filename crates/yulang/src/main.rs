@@ -1486,8 +1486,48 @@ fn print_runtime_evidence_phase_timings(
         "  run.runtime_evidence.direct_effect_calls: {}",
         stats.direct_effect_calls
     );
+    eprintln!(
+        "  run.runtime_evidence.plan_known_state_handlers: {}",
+        stats.plan_known_state_handlers
+    );
+    eprintln!(
+        "  run.runtime_evidence.plan_known_state_handler_compiler_certificates: {}",
+        stats.plan_known_state_handler_compiler_certificates
+    );
     eprintln!("  run.runtime_evidence.expr_evals: {}", stats.expr_evals);
     eprintln!("  run.runtime_evidence.env_clones: {}", stats.env_clones);
+    eprintln!(
+        "  run.runtime_evidence.known_state_direct_gets: {}",
+        stats.known_state_direct_gets
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_direct_sets: {}",
+        stats.known_state_direct_sets
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_direct_missing_state: {}",
+        stats.known_state_direct_missing_state
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_direct_non_resumptive: {}",
+        stats.known_state_direct_non_resumptive
+    );
+    eprintln!(
+        "  run.runtime_evidence.ref_set_evals: {}",
+        stats.ref_set_evals
+    );
+    eprintln!(
+        "  run.runtime_evidence.ref_set_update_effect_calls: {}",
+        stats.ref_set_update_effect_calls
+    );
+    eprintln!(
+        "  run.runtime_evidence.ref_set_assignment_ref_update_requests: {}",
+        stats.ref_set_assignment_ref_update_requests
+    );
+    eprintln!(
+        "  run.runtime_evidence.ref_set_value_ref_update_requests: {}",
+        stats.ref_set_value_ref_update_requests
+    );
     eprintln!(
         "  run.runtime_evidence.list_merge_calls: {}",
         stats.list_merge_calls

@@ -56,6 +56,12 @@ pub struct Arena {
     /// effect request を送出する値である。後段が `DefId` から送出 path を読めるように
     /// 構造化された metadata として残す。
     pub effect_operations: FxHashMap<DefId, EffectOperation>,
+    /// source lowering が生成した local mutable var effect family。
+    ///
+    /// This is a compiler certificate, not a naming convention. Later stages may match this
+    /// family against handler/effect paths, but only after the family appears here.
+    #[serde(default)]
+    pub synthetic_var_effects: Vec<SyntheticVarEffect>,
     /// source lowering で宣言された data constructor。
     ///
     /// constructor も body を持たない `Def::Let` だが、runtime では constructor 値として
@@ -89,6 +95,11 @@ pub struct CastRule {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct EffectOperation {
     pub path: Vec<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SyntheticVarEffect {
+    pub effect_path: Vec<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -138,6 +149,7 @@ impl Arena {
             cast_rules: Vec::new(),
             role_impls: RoleImplTable::new(),
             effect_operations: FxHashMap::default(),
+            synthetic_var_effects: Vec::new(),
             constructors: FxHashMap::default(),
             arg_effect_contracts: FxHashMap::default(),
             field_projections: FxHashSet::default(),
@@ -247,6 +259,18 @@ impl Arena {
     /// SubtractId も TypeVar と同じく、Arena ごとの engine-local ID として発行する。
     pub fn fresh_subtract_id(&mut self) -> SubtractId {
         self.type_ids.fresh_subtract_id()
+    }
+
+    pub fn register_synthetic_var_effect(&mut self, effect_path: Vec<String>) {
+        if self
+            .synthetic_var_effects
+            .iter()
+            .any(|effect| effect.effect_path == effect_path)
+        {
+            return;
+        }
+        self.synthetic_var_effects
+            .push(SyntheticVarEffect { effect_path });
     }
 }
 

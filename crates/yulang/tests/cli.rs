@@ -382,6 +382,10 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
         "value environment provider summary should be visible in the plan:\n{stdout}"
     );
     assert!(
+        stdout.contains("known_handler_objects:") && stdout.contains("compiler_state_certificates"),
+        "known handler plan summary should be visible in the plan:\n{stdout}"
+    );
+    assert!(
         stdout.contains("evidence object graph:"),
         "evidence object graph should be visible in the plan:\n{stdout}"
     );
@@ -426,6 +430,78 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
             || stdout.contains("generic-fallback")
             || stdout.contains("direct-handler"),
         "operation lowering should be explicit:\n{stdout}"
+    );
+}
+
+#[test]
+fn debug_evidence_vm_plan_marks_local_var_known_state_handler() {
+    let entry = write_entry(
+        "debug-evidence-vm-plan-local-var-known-state",
+        concat!("my f =\n", "  my $x = 1\n", "  $x\n", "f\n",),
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("evidence-vm-plan")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains("known_handler_objects: 1 state 1 compiler_state_certificates 1"),
+        "compiler-generated local var should produce one known state handler:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("known-handlers:")
+            && stdout.contains("state d")
+            && stdout.contains("source compiler-local-var"),
+        "known state handler details should be visible:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("continuation snapshot-fork"),
+        "known state handler should carry snapshot/fork continuation semantics:\n{stdout}"
+    );
+}
+
+#[test]
+fn debug_evidence_vm_plan_does_not_mark_user_state_like_handler_without_certificate() {
+    let entry = write_entry(
+        "debug-evidence-vm-plan-user-state-like-not-known",
+        concat!(
+            "act state 't:\n",
+            "  pub get: () -> 't\n",
+            "  pub set: 't -> ()\n",
+            "my run(v: int, x: [_] int): int = catch x:\n",
+            "  state::get(), k -> run v: k v\n",
+            "  state::set v, k -> run v: k()\n",
+            "my f = run 1: state::get()\n",
+            "f\n",
+        ),
+    );
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("evidence-vm-plan")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains("known_handler_objects: 0 state 0 compiler_state_certificates 0"),
+        "state-like source handler should not be marked without compiler certificate:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("known-handlers:"),
+        "uncertified user handler should not produce known handler details:\n{stdout}"
     );
 }
 
@@ -984,6 +1060,14 @@ fn debug_runtime_evidence_run_handles_ref_set() {
     let stdout = stdout(&output);
     assert!(stdout.contains("compare.control: match"), "{stdout}");
     assert!(stdout.contains("run roots [(11, 21)]\n"), "{stdout}");
+    assert!(
+        stdout.contains("runtime_evidence.known_state_direct_gets: 3"),
+        "compiler local refs should use direct state get handling:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_state_direct_sets: 1"),
+        "compiler local refs should use direct state set handling:\n{stdout}"
+    );
 }
 
 #[test]

@@ -58,6 +58,20 @@ pub(crate) fn print_run_report(
             .plan_direct_tail_resumptive_effect_routes
     );
     println!(
+        "  evidence.plan_known_handlers: {}",
+        output.evidence_stats.plan_known_handlers
+    );
+    println!(
+        "  evidence.plan_known_state_handlers: {}",
+        output.evidence_stats.plan_known_state_handlers
+    );
+    println!(
+        "  evidence.plan_known_state_handler_compiler_certificates: {}",
+        output
+            .evidence_stats
+            .plan_known_state_handler_compiler_certificates
+    );
+    println!(
         "  runtime_evidence.provider_env_values: {}",
         output.evidence_stats.runtime_provider_env_values
     );
@@ -2916,6 +2930,38 @@ pub(crate) fn print_run_report(
     println!(
         "  runtime_evidence.continuation_resume_ref_set_steps: {}",
         output.evidence_stats.continuation_resume_ref_set_steps
+    );
+    println!(
+        "  runtime_evidence.known_state_direct_gets: {}",
+        output.evidence_stats.known_state_direct_gets
+    );
+    println!(
+        "  runtime_evidence.known_state_direct_sets: {}",
+        output.evidence_stats.known_state_direct_sets
+    );
+    println!(
+        "  runtime_evidence.known_state_direct_missing_state: {}",
+        output.evidence_stats.known_state_direct_missing_state
+    );
+    println!(
+        "  runtime_evidence.known_state_direct_non_resumptive: {}",
+        output.evidence_stats.known_state_direct_non_resumptive
+    );
+    println!(
+        "  runtime_evidence.ref_set_evals: {}",
+        output.evidence_stats.ref_set_evals
+    );
+    println!(
+        "  runtime_evidence.ref_set_update_effect_calls: {}",
+        output.evidence_stats.ref_set_update_effect_calls
+    );
+    println!(
+        "  runtime_evidence.ref_set_assignment_ref_update_requests: {}",
+        output.evidence_stats.ref_set_assignment_ref_update_requests
+    );
+    println!(
+        "  runtime_evidence.ref_set_value_ref_update_requests: {}",
+        output.evidence_stats.ref_set_value_ref_update_requests
     );
     println!(
         "  runtime_evidence.request_whole_continuation_appends: {}",

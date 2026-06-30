@@ -3,7 +3,7 @@ use std::fmt::Write as _;
 
 use control_vm::{
     Block, ControlEffectUseKind, ControlEvidenceProgram, ControlEvidenceRoute, DefId, Expr, ExprId,
-    Program, RecordSpread, Root, SelectResolution, Stmt,
+    Pat, Program, RecordSpread, Root, SelectResolution, Stmt,
 };
 use specialize::{
     RuntimeEvidenceNode, RuntimeEvidenceNodeKind, RuntimeEvidenceSurface, RuntimeEvidenceTaskOwner,
@@ -54,6 +54,9 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) evidence_call_objects: usize,
     pub(crate) evidence_handler_objects: usize,
     pub(crate) evidence_operation_objects: usize,
+    pub(crate) evidence_known_handler_objects: usize,
+    pub(crate) evidence_known_state_handler_objects: usize,
+    pub(crate) evidence_known_state_handler_compiler_certificates: usize,
     pub(crate) evidence_handler_capabilities: usize,
     pub(crate) evidence_allowed_sets: usize,
     pub(crate) evidence_provider_slots: usize,
@@ -216,6 +219,7 @@ pub(crate) struct EvidenceVmObjectPlan {
     pub(crate) calls: Vec<EvidenceVmCallObjectPlan>,
     pub(crate) handlers: Vec<EvidenceVmHandlerObjectPlan>,
     pub(crate) operations: Vec<EvidenceVmOperationObjectPlan>,
+    pub(crate) known_handlers: Vec<EvidenceVmKnownHandlerPlan>,
     pub(crate) handler_capabilities: Vec<EvidenceVmHandlerCapabilityPlan>,
     pub(crate) allowed_sets: Vec<EvidenceVmAllowedSetPlan>,
     pub(crate) providers: Vec<EvidenceVmProviderPlan>,
@@ -272,6 +276,52 @@ pub(crate) struct EvidenceVmOperationObjectPlan {
     pub(crate) candidate_handler: Option<u32>,
     pub(crate) execution: EvidenceVmOperationExecutionPlan,
     pub(crate) visibility: EvidenceVmOperationVisibilityPlan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+// The certificate surface lands before the compiler-generated local-var producer.
+#[allow(dead_code)]
+pub(crate) enum EvidenceVmKnownHandlerPlan {
+    State(EvidenceVmKnownStateHandlerPlan),
+}
+
+impl EvidenceVmKnownHandlerPlan {
+    fn is_state(&self) -> bool {
+        matches!(self, Self::State(_))
+    }
+
+    fn is_compiler_state_certificate(&self) -> bool {
+        match self {
+            Self::State(plan) => plan.source == EvidenceVmKnownStateHandlerSource::CompilerLocalVar,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmKnownStateHandlerPlan {
+    pub(crate) id: EvidenceVmKnownHandlerPlanId,
+    pub(crate) handler: ExprId,
+    pub(crate) state: DefId,
+    pub(crate) family: Vec<String>,
+    pub(crate) get_handler_id: u32,
+    pub(crate) set_handler_id: u32,
+    pub(crate) source: EvidenceVmKnownStateHandlerSource,
+    pub(crate) continuation: EvidenceVmKnownStateContinuationSemantics,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct EvidenceVmKnownHandlerPlanId(pub(crate) u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EvidenceVmKnownStateHandlerSource {
+    CompilerLocalVar,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// Snapshot/fork is the semantic contract even before direct state execution exists.
+#[allow(dead_code)]
+pub(crate) enum EvidenceVmKnownStateContinuationSemantics {
+    SnapshotFork,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -422,7 +472,14 @@ fn build_plan_from_evidence(
         .collect::<Vec<_>>();
     attach_evidence_call_plans(program, &mut functions);
     let values = collect_value_env_plans(program, control);
-    let objects = build_object_plan(program, &handlers, &operations, &functions, &values);
+    let objects = build_object_plan(
+        program,
+        surface,
+        &handlers,
+        &operations,
+        &functions,
+        &values,
+    );
 
     let summary = summarize_plan(
         control,
@@ -516,6 +573,14 @@ pub fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
+        "  known_handler_objects: {} state {} compiler_state_certificates {}",
+        summary.evidence_known_handler_objects,
+        summary.evidence_known_state_handler_objects,
+        summary.evidence_known_state_handler_compiler_certificates
+    )
+    .unwrap();
+    writeln!(
+        &mut out,
         "  evidence_env_values: {} evidence_env_captures: {}",
         summary.evidence_env_values, summary.evidence_env_captures
     )
@@ -592,6 +657,17 @@ fn summarize_plan(
         evidence_call_objects: objects.calls.len(),
         evidence_handler_objects: objects.handlers.len(),
         evidence_operation_objects: objects.operations.len(),
+        evidence_known_handler_objects: objects.known_handlers.len(),
+        evidence_known_state_handler_objects: objects
+            .known_handlers
+            .iter()
+            .filter(|handler| handler.is_state())
+            .count(),
+        evidence_known_state_handler_compiler_certificates: objects
+            .known_handlers
+            .iter()
+            .filter(|handler| handler.is_compiler_state_certificate())
+            .count(),
         evidence_handler_capabilities: objects.handler_capabilities.len(),
         evidence_allowed_sets: objects.allowed_sets.len(),
         evidence_provider_slots: objects.providers.len(),
@@ -1350,6 +1426,7 @@ fn value_env_signature(captures: &[EvidenceVmEvidenceRequirement]) -> EvidenceVm
 
 fn build_object_plan(
     program: &Program,
+    surface: &RuntimeEvidenceSurface,
     handlers: &[EvidenceVmHandlerPlan],
     operations: &[EvidenceVmOperationPlan],
     functions: &[EvidenceVmFunctionPlan],
@@ -1372,6 +1449,7 @@ fn build_object_plan(
 
     let mut handlers = build_handler_objects(handlers, &slot_ids);
     let handler_capabilities = build_handler_capabilities(&handlers);
+    let known_handlers = build_known_handler_plans(program, &handlers, surface);
     let function_objects = build_function_objects(functions, &slot_ids);
     let lexical_envs = build_lexical_handler_envs(program, values, &slot_plans, &handlers);
     attach_handler_definition_envs(&lexical_envs.handler_definition_envs, &mut handlers);
@@ -1392,9 +1470,146 @@ fn build_object_plan(
         calls: call_objects,
         handlers,
         operations,
+        known_handlers,
         handler_capabilities,
         allowed_sets,
         providers,
+    }
+}
+
+fn build_known_handler_plans(
+    program: &Program,
+    handlers: &[EvidenceVmHandlerObjectPlan],
+    surface: &RuntimeEvidenceSurface,
+) -> Vec<EvidenceVmKnownHandlerPlan> {
+    let mut plans = Vec::new();
+    for certificate in &surface.known_state_handlers {
+        for pair in state_handler_pairs_for_family(handlers, &certificate.effect_path) {
+            let Some(state) = compiler_state_param_for_handler(program, pair.handler) else {
+                continue;
+            };
+            plans.push(EvidenceVmKnownHandlerPlan::State(
+                EvidenceVmKnownStateHandlerPlan {
+                    id: EvidenceVmKnownHandlerPlanId(plans.len() as u32),
+                    handler: pair.handler,
+                    state,
+                    family: certificate.effect_path.clone(),
+                    get_handler_id: pair.get_handler_id,
+                    set_handler_id: pair.set_handler_id,
+                    source: known_state_source(certificate.source),
+                    continuation: known_state_continuation(certificate.continuation),
+                },
+            ));
+        }
+    }
+    plans
+}
+
+fn compiler_state_param_for_handler(program: &Program, handler: ExprId) -> Option<DefId> {
+    let mut found = None;
+    for expr in &program.exprs {
+        let Expr::Lambda {
+            param: Pat::Var(state),
+            body,
+        } = expr
+        else {
+            continue;
+        };
+        let Some(Expr::Lambda {
+            param: Pat::Var(_),
+            body: inner,
+        }) = program.exprs.get(body.0 as usize)
+        else {
+            continue;
+        };
+        if *inner != handler {
+            continue;
+        }
+        match found {
+            Some(existing) if existing != *state => return None,
+            Some(_) => {}
+            None => found = Some(*state),
+        }
+    }
+    found
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceVmKnownStateHandlerPair {
+    handler: ExprId,
+    get_handler_id: u32,
+    set_handler_id: u32,
+}
+
+fn state_handler_pairs_for_family(
+    handlers: &[EvidenceVmHandlerObjectPlan],
+    family: &[String],
+) -> Vec<EvidenceVmKnownStateHandlerPair> {
+    let get_path = state_operation_path(family, EvidenceVmKnownStateOperation::Get);
+    let set_path = state_operation_path(family, EvidenceVmKnownStateOperation::Set);
+    let mut by_handler = BTreeMap::<u32, (ExprId, Vec<&EvidenceVmHandlerObjectPlan>)>::new();
+    for handler in handlers {
+        by_handler
+            .entry(handler.handler.0)
+            .or_insert_with(|| (handler.handler, Vec::new()))
+            .1
+            .push(handler);
+    }
+    by_handler
+        .into_iter()
+        .filter_map(|(_, (handler, arms))| {
+            if arms.len() != 2 {
+                return None;
+            }
+            let get = arms.iter().find(|arm| arm.path == get_path)?;
+            let set = arms.iter().find(|arm| arm.path == set_path)?;
+            Some(EvidenceVmKnownStateHandlerPair {
+                handler,
+                get_handler_id: get.id,
+                set_handler_id: set.id,
+            })
+        })
+        .collect()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceVmKnownStateOperation {
+    Get,
+    Set,
+}
+
+fn state_operation_path(
+    family: &[String],
+    operation: EvidenceVmKnownStateOperation,
+) -> Vec<String> {
+    let mut path = family.to_vec();
+    path.push(
+        match operation {
+            EvidenceVmKnownStateOperation::Get => "get",
+            EvidenceVmKnownStateOperation::Set => "set",
+        }
+        .to_string(),
+    );
+    path
+}
+
+fn known_state_source(
+    source: specialize::RuntimeEvidenceKnownStateHandlerSource,
+) -> EvidenceVmKnownStateHandlerSource {
+    match source {
+        specialize::RuntimeEvidenceKnownStateHandlerSource::CompilerLocalVar => {
+            EvidenceVmKnownStateHandlerSource::CompilerLocalVar
+        }
+    }
+}
+
+fn known_state_continuation(
+    continuation: specialize::RuntimeEvidenceKnownStateContinuationSemantics,
+) -> EvidenceVmKnownStateContinuationSemantics {
+    match continuation {
+        specialize::RuntimeEvidenceKnownStateContinuationSemantics::SnapshotFork => {
+            EvidenceVmKnownStateContinuationSemantics::SnapshotFork
+        }
     }
 }
 
@@ -2598,6 +2813,7 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
         && objects.calls.is_empty()
         && objects.handlers.is_empty()
         && objects.operations.is_empty()
+        && objects.known_handlers.is_empty()
         && objects.handler_capabilities.is_empty()
         && objects.allowed_sets.is_empty()
         && objects.providers.is_empty()
@@ -2687,6 +2903,12 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
             .unwrap();
         }
     }
+    if !objects.known_handlers.is_empty() {
+        writeln!(out, "  known-handlers:").unwrap();
+        for known in &objects.known_handlers {
+            writeln!(out, "    {}", format_known_handler_plan(known)).unwrap();
+        }
+    }
     if !objects.allowed_sets.is_empty() {
         writeln!(out, "  allowed-sets:").unwrap();
         for allowed in &objects.allowed_sets {
@@ -2731,6 +2953,36 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
             )
             .unwrap();
         }
+    }
+}
+
+fn format_known_handler_plan(plan: &EvidenceVmKnownHandlerPlan) -> String {
+    match plan {
+        EvidenceVmKnownHandlerPlan::State(state) => format!(
+            "k{} state handler e{} state d{} family {} get h{} set h{} source {} continuation {}",
+            state.id.0,
+            state.handler.0,
+            state.state.0,
+            format_path(&state.family),
+            state.get_handler_id,
+            state.set_handler_id,
+            format_known_state_handler_source(state.source),
+            format_known_state_continuation(state.continuation)
+        ),
+    }
+}
+
+fn format_known_state_handler_source(source: EvidenceVmKnownStateHandlerSource) -> &'static str {
+    match source {
+        EvidenceVmKnownStateHandlerSource::CompilerLocalVar => "compiler-local-var",
+    }
+}
+
+fn format_known_state_continuation(
+    continuation: EvidenceVmKnownStateContinuationSemantics,
+) -> &'static str {
+    match continuation {
+        EvidenceVmKnownStateContinuationSemantics::SnapshotFork => "snapshot-fork",
     }
 }
 
@@ -3244,7 +3496,14 @@ mod tests {
             runtime_evidence_refs: 0,
         };
 
-        let objects = build_object_plan(&Program::default(), &[handler], &[operation], &[], &[]);
+        let objects = build_object_plan(
+            &Program::default(),
+            &RuntimeEvidenceSurface::default(),
+            &[handler],
+            &[operation],
+            &[],
+            &[],
+        );
 
         assert_eq!(objects.handlers.len(), 1);
         assert_eq!(objects.handler_capabilities.len(), 1);
@@ -3262,5 +3521,99 @@ mod tests {
             objects.allowed_sets[0].id
         );
         assert!(!objects.operations[0].visibility.legacy_guard_bridge);
+        assert!(objects.known_handlers.is_empty());
+    }
+
+    #[test]
+    fn object_plan_marks_compiler_known_state_handler_from_certificate() {
+        let family = vec!["local".to_string(), "var".to_string()];
+        let handler_expr = ExprId(2);
+        let state_def = DefId(10);
+        let body_def = DefId(11);
+        let program = Program {
+            exprs: vec![
+                Expr::Lambda {
+                    param: Pat::Var(state_def),
+                    body: ExprId(1),
+                },
+                Expr::Lambda {
+                    param: Pat::Var(body_def),
+                    body: handler_expr,
+                },
+                Expr::Catch {
+                    body: ExprId(3),
+                    arms: Vec::new(),
+                },
+                Expr::Local(body_def),
+            ],
+            ..Program::default()
+        };
+        let handler = EvidenceVmHandlerPlan {
+            expr: handler_expr,
+            body: ExprId(2),
+            arms: vec![
+                EvidenceVmHandlerArmPlan {
+                    path: Some(state_operation_path(
+                        &family,
+                        EvidenceVmKnownStateOperation::Get,
+                    )),
+                    resumptive: true,
+                    guarded: false,
+                    classification: EvidenceVmHandlerArmClass::MayEscapeYield,
+                    continuation_use: EvidenceVmContinuationUsePlan {
+                        delayed_calls: 1,
+                        escapes: true,
+                        ..EvidenceVmContinuationUsePlan::default()
+                    },
+                    body: ExprId(3),
+                },
+                EvidenceVmHandlerArmPlan {
+                    path: Some(state_operation_path(
+                        &family,
+                        EvidenceVmKnownStateOperation::Set,
+                    )),
+                    resumptive: true,
+                    guarded: false,
+                    classification: EvidenceVmHandlerArmClass::MayEscapeYield,
+                    continuation_use: EvidenceVmContinuationUsePlan {
+                        delayed_calls: 1,
+                        escapes: true,
+                        ..EvidenceVmContinuationUsePlan::default()
+                    },
+                    body: ExprId(4),
+                },
+            ],
+        };
+        let surface = RuntimeEvidenceSurface {
+            known_state_handlers: vec![specialize::RuntimeEvidenceKnownStateHandler {
+                effect_path: family.clone(),
+                source: specialize::RuntimeEvidenceKnownStateHandlerSource::CompilerLocalVar,
+                continuation:
+                    specialize::RuntimeEvidenceKnownStateContinuationSemantics::SnapshotFork,
+            }],
+            ..RuntimeEvidenceSurface::default()
+        };
+
+        let objects = build_object_plan(&program, &surface, &[handler], &[], &[], &[]);
+
+        let [EvidenceVmKnownHandlerPlan::State(state)] = objects.known_handlers.as_slice() else {
+            panic!(
+                "expected one known state handler: {:?}",
+                objects.known_handlers
+            );
+        };
+        assert_eq!(state.handler, handler_expr);
+        assert_eq!(state.state, state_def);
+        assert_eq!(state.family, family);
+        assert_eq!(state.get_handler_id, 0);
+        assert_eq!(state.set_handler_id, 1);
+        assert_eq!(
+            state.source,
+            EvidenceVmKnownStateHandlerSource::CompilerLocalVar
+        );
+        assert_eq!(
+            state.continuation,
+            EvidenceVmKnownStateContinuationSemantics::SnapshotFork
+        );
     }
 }

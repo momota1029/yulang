@@ -2209,6 +2209,7 @@ fn hash_poly_arena(hasher: &mut StableHasher, arena: &poly::expr::Arena) {
     hash_cast_rules(hasher, &arena.cast_rules);
     hash_role_impl_table(hasher, &arena.role_impls);
     hash_effect_operations(hasher, &arena.effect_operations);
+    hash_synthetic_var_effects(hasher, &arena.synthetic_var_effects);
     hash_constructors(hasher, &arena.constructors);
     hash_arg_effect_contracts(hasher, &arena.arg_effect_contracts);
     hash_field_projections(hasher, &arena.field_projections);
@@ -2335,6 +2336,18 @@ fn hash_effect_operations<'a>(
     for (def, operation) in entries {
         hash_def_id(hasher, *def);
         hash_string_path(hasher, &operation.path);
+    }
+}
+
+fn hash_synthetic_var_effects(
+    hasher: &mut StableHasher,
+    effects: &[poly::expr::SyntheticVarEffect],
+) {
+    let mut entries = effects.iter().collect::<Vec<_>>();
+    entries.sort_by(|left, right| left.effect_path.cmp(&right.effect_path));
+    hasher.usize(entries.len());
+    for effect in entries {
+        hash_string_path(hasher, &effect.effect_path);
     }
 }
 
@@ -4146,6 +4159,7 @@ mod tests {
 
     fn nonempty_runtime_evidence_surface() -> specialize::RuntimeEvidenceSurface {
         specialize::RuntimeEvidenceSurface {
+            known_state_handlers: Vec::new(),
             tasks: vec![specialize::RuntimeEvidenceTask {
                 owner: specialize::RuntimeEvidenceTaskOwner::RootExpr {
                     root_index: 0,

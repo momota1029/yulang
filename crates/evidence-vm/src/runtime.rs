@@ -27,7 +27,8 @@ use format::{
 };
 use plan::RuntimeEvidenceProviderGrantPermission;
 use plan::{
-    RuntimeEvidenceOperationVisibility, RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext,
+    RuntimeEvidenceKnownStateOperationKind, RuntimeEvidenceOperationVisibility,
+    RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext,
 };
 pub use stats::RuntimeEvidenceRunStats;
 use text::{
@@ -12237,6 +12238,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         value: ExprId,
         env: &mut Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.stats.ref_set_evals += 1;
         let mut reference_env = self.clone_env(env);
         let result = self.eval_expr_result(reference, &mut reference_env)?;
         let env = self.clone_env(env);
@@ -12262,6 +12264,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request))
                 if request_is_ref_update(&request) =>
             {
+                self.stats.ref_set_assignment_ref_update_requests += 1;
                 let resumed = self.resume_continuation(request.continuation, assigned.clone())?;
                 self.handle_ref_set_result(resumed, assigned)
             }
@@ -12310,6 +12313,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request))
                 if request_is_ref_update(&request) =>
             {
+                self.stats.ref_set_value_ref_update_requests += 1;
                 let resumed = self.resume_continuation(request.continuation, assigned.clone())?;
                 self.handle_ref_set_value_result(resumed, assigned)
             }
@@ -13377,6 +13381,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 )
             }
             EvidenceContinuationFrame::RefSetForcedValue { reference, next } => {
+                self.stats.ref_set_update_effect_calls += 1;
                 let update_effect = record_field(reference.as_ref(), "update_effect")?;
                 let result = self.apply_value_result(
                     None,
@@ -16108,7 +16113,19 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 ..
             } if handler == catch_expr => {
                 match self.visible_operation_resumptive(catch_expr, &request, &arms) {
-                    Some(_) => self.eval_operation_arm(request, resumptive, &arms, env),
+                    Some(_) => {
+                        if let Some(result) = self.try_eval_known_state_operation(
+                            catch_expr,
+                            arms.clone(),
+                            env,
+                            &request,
+                            resumptive,
+                        )? {
+                            Ok(result)
+                        } else {
+                            self.eval_operation_arm(request, resumptive, &arms, env)
+                        }
+                    }
                     None => {
                         let mut request = request;
                         request.route = EvidenceEffectRoute::Unhandled;
@@ -16125,7 +16142,17 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 if let Some(resumptive) =
                     self.visible_operation_resumptive(catch_expr, &request, &arms)
                 {
-                    self.eval_operation_arm(request, resumptive, &arms, env)
+                    if let Some(result) = self.try_eval_known_state_operation(
+                        catch_expr,
+                        arms.clone(),
+                        env,
+                        &request,
+                        resumptive,
+                    )? {
+                        Ok(result)
+                    } else {
+                        self.eval_operation_arm(request, resumptive, &arms, env)
+                    }
                 } else {
                     Ok(EvidenceEvalResult::request(
                         self.defer_catch_body(catch_expr, arms, env, request),
@@ -16133,6 +16160,66 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 }
             }
         }
+    }
+
+    fn try_eval_known_state_operation(
+        &mut self,
+        catch_expr: ExprId,
+        arms: Rc<[control_vm::CatchArm]>,
+        env: &Env,
+        request: &EvidenceRequest,
+        resumptive: bool,
+    ) -> Result<Option<EvidenceEvalResult>, RuntimeEvidenceRunError> {
+        let Some(operation) = self
+            .context
+            .known_state_operation_for_request(catch_expr, request.path.as_ref())
+        else {
+            return Ok(None);
+        };
+        if !resumptive {
+            self.stats.known_state_direct_non_resumptive += 1;
+            return Ok(None);
+        }
+        let state_slot = EnvSlot::from(operation.state);
+        let Some(state) = env.get_slot(state_slot) else {
+            self.stats.known_state_direct_missing_state += 1;
+            return Ok(None);
+        };
+        let (next_env, resume_value) = match operation.kind {
+            RuntimeEvidenceKnownStateOperationKind::Get => {
+                self.stats.known_state_direct_gets += 1;
+                (None, state)
+            }
+            RuntimeEvidenceKnownStateOperationKind::Set => {
+                self.stats.known_state_direct_sets += 1;
+                let mut next_env = self.clone_env(env);
+                next_env.insert_slot(state_slot, request.payload.clone());
+                (Some(next_env), shared(RuntimeEvidenceValue::Unit))
+            }
+        };
+        let result = self.resume_under_catch_provider_handlers(
+            catch_expr,
+            request.continuation.clone(),
+            resume_value,
+        )?;
+        let next_env = next_env.as_ref().unwrap_or(env);
+        Ok(Some(self.continue_catch_body_result(
+            catch_expr, arms, next_env, result,
+        )?))
+    }
+
+    fn resume_under_catch_provider_handlers(
+        &mut self,
+        catch_expr: ExprId,
+        continuation: EvidenceContinuation,
+        value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let provider_len = self.active_provider_handlers.len();
+        self.active_provider_handlers
+            .extend_from_slice(self.context.handler_ids_for_catch(catch_expr));
+        let result = self.resume_continuation(continuation, value);
+        self.active_provider_handlers.truncate(provider_len);
+        result
     }
 
     fn visible_operation_resumptive(

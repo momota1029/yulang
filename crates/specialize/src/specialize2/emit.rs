@@ -53,9 +53,11 @@ impl Specializer2 {
         if std::env::var_os("YULANG_DEBUG_MONO").is_some() {
             eprintln!("{}", mono::dump::dump_program(&program));
         }
+        let mut runtime_evidence = self.runtime_evidence;
+        runtime_evidence.attach_known_state_handlers(arena);
         Ok(SpecializeOutput {
             program,
-            runtime_evidence: self.runtime_evidence,
+            runtime_evidence,
         })
     }
 

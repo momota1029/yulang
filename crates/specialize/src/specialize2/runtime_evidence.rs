@@ -17,10 +17,16 @@ pub struct SpecializeOutput {
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeEvidenceSurface {
+    #[serde(default)]
+    pub known_state_handlers: Vec<RuntimeEvidenceKnownStateHandler>,
     pub tasks: Vec<RuntimeEvidenceTask>,
 }
 
 impl RuntimeEvidenceSurface {
+    pub(super) fn attach_known_state_handlers(&mut self, arena: &poly_expr::Arena) {
+        self.known_state_handlers = known_state_handlers_from_arena(arena);
+    }
+
     pub(super) fn push_solved_task(
         &mut self,
         arena: &poly_expr::Arena,
@@ -32,9 +38,57 @@ impl RuntimeEvidenceSurface {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeEvidenceKnownStateHandler {
+    pub effect_path: Vec<String>,
+    pub source: RuntimeEvidenceKnownStateHandlerSource,
+    pub continuation: RuntimeEvidenceKnownStateContinuationSemantics,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RuntimeEvidenceKnownStateHandlerSource {
+    CompilerLocalVar,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RuntimeEvidenceKnownStateContinuationSemantics {
+    SnapshotFork,
+}
+
+fn known_state_handlers_from_arena(
+    arena: &poly_expr::Arena,
+) -> Vec<RuntimeEvidenceKnownStateHandler> {
+    let mut effects = arena.synthetic_var_effects.clone();
+    effects.sort_by(|left, right| left.effect_path.cmp(&right.effect_path));
+    effects
+        .into_iter()
+        .map(|effect| RuntimeEvidenceKnownStateHandler {
+            effect_path: effect.effect_path,
+            source: RuntimeEvidenceKnownStateHandlerSource::CompilerLocalVar,
+            continuation: RuntimeEvidenceKnownStateContinuationSemantics::SnapshotFork,
+        })
+        .collect()
+}
+
 pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> String {
     let mut out = String::new();
     let _ = writeln!(out, "runtime evidence tasks [{}]", surface.tasks.len());
+    if !surface.known_state_handlers.is_empty() {
+        let _ = writeln!(
+            out,
+            "known state handlers [{}]",
+            surface.known_state_handlers.len()
+        );
+        for handler in &surface.known_state_handlers {
+            let _ = writeln!(
+                out,
+                "  {} source {} continuation {}",
+                handler.effect_path.join("::"),
+                format_known_state_handler_source(handler.source),
+                format_known_state_continuation(handler.continuation)
+            );
+        }
+    }
     for task in &surface.tasks {
         let _ = writeln!(out, "{}", format_task_header(task));
         format_graph_summary(&mut out, &task.graph);
@@ -110,6 +164,22 @@ pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> Stri
         }
     }
     out
+}
+
+fn format_known_state_handler_source(
+    source: RuntimeEvidenceKnownStateHandlerSource,
+) -> &'static str {
+    match source {
+        RuntimeEvidenceKnownStateHandlerSource::CompilerLocalVar => "compiler-local-var",
+    }
+}
+
+fn format_known_state_continuation(
+    continuation: RuntimeEvidenceKnownStateContinuationSemantics,
+) -> &'static str {
+    match continuation {
+        RuntimeEvidenceKnownStateContinuationSemantics::SnapshotFork => "snapshot-fork",
+    }
 }
 
 fn format_nodes(out: &mut String, nodes: &[RuntimeEvidenceNode]) {
