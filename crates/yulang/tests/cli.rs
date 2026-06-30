@@ -1091,6 +1091,30 @@ fn debug_runtime_evidence_run_handles_ref_set() {
         "compiler local refs should use direct state set handling:\n{stdout}"
     );
     assert!(
+        stdout.contains("runtime_evidence.known_state_frame_entries: 1"),
+        "known state catch should push a runtime state frame:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_state_frame_exits: 1"),
+        "known state catch should pop the runtime state frame:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_state_frame_reads_late: 3"),
+        "late known state gets should read from the runtime state frame:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_state_frame_writes_late: 1"),
+        "late known state sets should write to the runtime state frame:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_state_frame_missing_late: 0"),
+        "known state frame lookup should not miss in the local ref canary:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_state_frame_shadow_compat_fallbacks: 0"),
+        "local ref canary should not need env shadow compatibility fallback:\n{stdout}"
+    );
+    assert!(
         stdout.contains("evidence.plan_known_operation_state_get_candidates: 2"),
         "known operation plan should classify the two static get call sites:\n{stdout}"
     );

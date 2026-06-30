@@ -9,10 +9,10 @@ use super::{
 };
 use crate::{
     EvidenceVmAllowedSetId, EvidenceVmAllowedSetKind, EvidenceVmHandlerArmClass,
-    EvidenceVmHandlerObjectPlan, EvidenceVmKnownHandlerPlan, EvidenceVmKnownOperationReject,
-    EvidenceVmKnownOperationRole, EvidenceVmOperationExecutionPlan, EvidenceVmOperationKind,
-    EvidenceVmOperationLowering, EvidenceVmOperationObjectPlan, EvidenceVmOperationPlan,
-    EvidenceVmPlan,
+    EvidenceVmHandlerObjectPlan, EvidenceVmKnownHandlerPlan, EvidenceVmKnownHandlerPlanId,
+    EvidenceVmKnownOperationReject, EvidenceVmKnownOperationRole, EvidenceVmOperationExecutionPlan,
+    EvidenceVmOperationKind, EvidenceVmOperationLowering, EvidenceVmOperationObjectPlan,
+    EvidenceVmOperationPlan, EvidenceVmPlan,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -293,6 +293,20 @@ impl RuntimeEvidenceRunContext {
             .unwrap_or_default()
     }
 
+    pub(super) fn known_state_frame_for_catch(
+        &self,
+        catch_expr: ExprId,
+    ) -> Option<RuntimeEvidenceKnownStateFramePlan> {
+        let handler = self
+            .known_state_handlers_by_catch
+            .get(catch_expr.0 as usize)
+            .and_then(Option::as_ref)?;
+        Some(RuntimeEvidenceKnownStateFramePlan {
+            plan_id: handler.plan_id,
+            state: handler.state,
+        })
+    }
+
     pub(super) fn known_state_operation_for_request(
         &self,
         catch_expr: ExprId,
@@ -310,6 +324,7 @@ impl RuntimeEvidenceRunContext {
             return None;
         };
         Some(RuntimeEvidenceKnownStateOperation {
+            plan_id: handler.plan_id,
             state: handler.state,
             kind: operation,
         })
@@ -487,13 +502,21 @@ impl RuntimeEvidenceRunContext {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RuntimeEvidenceKnownStateHandler {
+    plan_id: EvidenceVmKnownHandlerPlanId,
     state: DefId,
     get_path: Vec<String>,
     set_path: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RuntimeEvidenceKnownStateFramePlan {
+    pub(super) plan_id: EvidenceVmKnownHandlerPlanId,
+    pub(super) state: DefId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct RuntimeEvidenceKnownStateOperation {
+    pub(super) plan_id: EvidenceVmKnownHandlerPlanId,
     pub(super) state: DefId,
     pub(super) kind: RuntimeEvidenceKnownStateOperationKind,
 }
@@ -800,6 +823,7 @@ fn known_state_handlers_by_catch_from_plan(
     for known in &plan.objects.known_handlers {
         let EvidenceVmKnownHandlerPlan::State(state) = known;
         table[state.handler.0 as usize] = Some(RuntimeEvidenceKnownStateHandler {
+            plan_id: state.id,
             state: state.state,
             get_path: state_operation_path(&state.family, "get"),
             set_path: state_operation_path(&state.family, "set"),

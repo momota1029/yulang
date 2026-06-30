@@ -21,8 +21,8 @@ mod plan;
 mod stats;
 mod text;
 use crate::{
-    EvidenceVmKnownOperationReject, EvidenceVmKnownOperationRole, EvidenceVmOperationExecutionPlan,
-    EvidenceVmPlan,
+    EvidenceVmKnownHandlerPlanId, EvidenceVmKnownOperationReject, EvidenceVmKnownOperationRole,
+    EvidenceVmOperationExecutionPlan, EvidenceVmPlan,
 };
 use format::{
     format_float, format_value, format_value_with_display_context, format_value_with_labels,
@@ -7685,6 +7685,14 @@ fn static_arm_caches(
     (case_arms, catch_arms)
 }
 
+#[derive(Debug, Clone, PartialEq)]
+struct RuntimeStateHandlerFrame {
+    catch_expr: ExprId,
+    plan_id: EvidenceVmKnownHandlerPlanId,
+    state_def: DefId,
+    state: SharedValue,
+}
+
 struct RuntimeEvidenceRunner<'a> {
     program: &'a Program,
     evidence: ControlEvidenceIndex,
@@ -7704,6 +7712,7 @@ struct RuntimeEvidenceRunner<'a> {
     active_marker_plans: Vec<EvidenceActiveMarkerPlan>,
     active_provider_envs: Vec<RuntimeEvidenceProviderFrame>,
     active_provider_handlers: Vec<u32>,
+    active_state_handler_frames: Vec<RuntimeStateHandlerFrame>,
     resume_plans: Vec<EvidenceResumePlan>,
     resume_plan_traces: Vec<EvidenceResumePlanTracePlan>,
     resume_plan_scoped_traces: Vec<EvidenceResumeScopedTracePlan>,
@@ -7747,6 +7756,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             active_marker_plans: Vec::new(),
             active_provider_envs: Vec::new(),
             active_provider_handlers: Vec::new(),
+            active_state_handler_frames: Vec::new(),
             resume_plans: Vec::new(),
             resume_plan_traces: Vec::new(),
             resume_plan_scoped_traces: Vec::new(),
@@ -16049,12 +16059,41 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let arms = self.static_catch_arms(catch_expr);
         let mut body_env = self.clone_env(env);
         let provider_len = self.active_provider_handlers.len();
+        let state_frame_len = self.active_state_handler_frames.len();
+        self.push_known_state_frame_for_catch(catch_expr, env);
         self.active_provider_handlers
             .extend_from_slice(self.context.handler_ids_for_catch(catch_expr));
-        let result = self.eval_expr_result(body, &mut body_env);
+        let body_result = self.eval_expr_result(body, &mut body_env);
         self.active_provider_handlers.truncate(provider_len);
-        let result = result?;
-        self.continue_catch_body_result(catch_expr, arms, env, result)
+        let result = match body_result {
+            Ok(result) => self.continue_catch_body_result(catch_expr, arms, env, result),
+            Err(err) => Err(err),
+        };
+        self.pop_known_state_frames(state_frame_len);
+        result
+    }
+
+    fn push_known_state_frame_for_catch(&mut self, catch_expr: ExprId, env: &Env) {
+        let Some(frame_plan) = self.context.known_state_frame_for_catch(catch_expr) else {
+            return;
+        };
+        let state_slot = EnvSlot::from(frame_plan.state);
+        let Some(state) = env.get_slot(state_slot) else {
+            return;
+        };
+        self.stats.known_state_frame_entries += 1;
+        self.active_state_handler_frames
+            .push(RuntimeStateHandlerFrame {
+                catch_expr,
+                plan_id: frame_plan.plan_id,
+                state_def: frame_plan.state,
+                state,
+            });
+    }
+
+    fn pop_known_state_frames(&mut self, len: usize) {
+        self.stats.known_state_frame_exits += self.active_state_handler_frames.len() - len;
+        self.active_state_handler_frames.truncate(len);
     }
 
     fn continue_catch_body_result(
@@ -16241,17 +16280,42 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return Ok(None);
         }
         let state_slot = EnvSlot::from(operation.state);
-        let Some(state) = env.get_slot(state_slot) else {
+        let frame_index = self.active_state_handler_frames.iter().rposition(|frame| {
+            frame.catch_expr == catch_expr
+                && frame.plan_id == operation.plan_id
+                && frame.state_def == operation.state
+        });
+        if frame_index.is_none() {
+            self.stats.known_state_frame_missing_late += 1;
+        }
+        let frame_state =
+            frame_index.map(|index| self.active_state_handler_frames[index].state.clone());
+        let shadow_state = if frame_state.is_none() {
+            env.get_slot(state_slot)
+        } else {
+            None
+        };
+        if frame_state.is_none() && shadow_state.is_some() {
+            self.stats.known_state_frame_shadow_compat_fallbacks += 1;
+        }
+        let Some(state) = frame_state.or(shadow_state) else {
             self.stats.known_state_direct_missing_state += 1;
             return Ok(None);
         };
         let (next_env, resume_value) = match operation.kind {
             RuntimeEvidenceKnownStateOperationKind::Get => {
                 self.stats.known_state_direct_gets += 1;
+                if frame_index.is_some() {
+                    self.stats.known_state_frame_reads_late += 1;
+                }
                 (None, state)
             }
             RuntimeEvidenceKnownStateOperationKind::Set => {
                 self.stats.known_state_direct_sets += 1;
+                if let Some(index) = frame_index {
+                    self.stats.known_state_frame_writes_late += 1;
+                    self.active_state_handler_frames[index].state = request.payload.clone();
+                }
                 let mut next_env = self.clone_env(env);
                 next_env.insert_slot(state_slot, request.payload.clone());
                 (Some(next_env), shared(RuntimeEvidenceValue::Unit))

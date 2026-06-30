@@ -202,8 +202,10 @@ Current implementation status on 2026-06-30:
     state parameter.
   - runtime context builds a catch-indexed known-state lookup.
   - after the existing operation visibility check succeeds, `get` resumes the
-    operation continuation with the current state and `set` resumes it with
-    unit under an env where the state slot is shadowed by the new state.
+    operation continuation with the current runtime state frame value and
+    `set` writes the runtime state frame before resuming with unit.
+  - `set` still also shadows the old env state slot as a compatibility path for
+    generic fallback code.
   - `RefSet` still uses the generic `update_effect` / `ref_update` path.
   - route-specific `DirectStateGet/Set` operation execution is still later work.
 - Stage A follow-up plan-only `KnownOperationCall` classification is present:
@@ -214,6 +216,11 @@ Current implementation status on 2026-06-30:
   - current compiler-local refs classify as state get/set candidates but reject
     route-specific direct execution with `no-candidate-handler`; operation
     objects still execute through `generic-fallback`.
+- Stage B semantic storage migration is present for the late intercept:
+  - known state catch entry pushes a runtime state handler frame.
+  - late catch-boundary known-state `get` / `set` reads and writes that frame.
+  - counters report frame entry/exit, late reads/writes, frame misses, and env
+    shadow compatibility fallbacks.
 
 ### Stage 0: Plan Surface, Counters, Canaries
 
@@ -240,6 +247,19 @@ handler. The first slice intercepts generic catch requests. Route-specific
 
 Rollback: disable the known-state catch intercept and fall back to
 `eval_operation_arm`.
+
+### Stage B Follow-Up: Runtime State Handler Frame
+
+The late catch-boundary intercept uses runtime state handler frames as semantic
+storage.
+
+- Push a state frame when entering a certified known-state catch.
+- Keep it active until the catch body and handler continuation processing finish.
+- Read/write the frame in the existing late known-state intercept.
+- Keep env shadow writes as compatibility for fallback code until route-specific
+  direct state ops and continuation snapshot/fork canaries are in place.
+
+Rollback: ignore the active state frame and read/write the env shadow path.
 
 ### Stage A Follow-Up: Plan-Only Known Operation Calls
 

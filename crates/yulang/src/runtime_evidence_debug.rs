@@ -3026,6 +3026,32 @@ pub(crate) fn print_run_report(
         output.evidence_stats.known_state_direct_non_resumptive
     );
     println!(
+        "  runtime_evidence.known_state_frame_entries: {}",
+        output.evidence_stats.known_state_frame_entries
+    );
+    println!(
+        "  runtime_evidence.known_state_frame_exits: {}",
+        output.evidence_stats.known_state_frame_exits
+    );
+    println!(
+        "  runtime_evidence.known_state_frame_reads_late: {}",
+        output.evidence_stats.known_state_frame_reads_late
+    );
+    println!(
+        "  runtime_evidence.known_state_frame_writes_late: {}",
+        output.evidence_stats.known_state_frame_writes_late
+    );
+    println!(
+        "  runtime_evidence.known_state_frame_missing_late: {}",
+        output.evidence_stats.known_state_frame_missing_late
+    );
+    println!(
+        "  runtime_evidence.known_state_frame_shadow_compat_fallbacks: {}",
+        output
+            .evidence_stats
+            .known_state_frame_shadow_compat_fallbacks
+    );
+    println!(
         "  runtime_evidence.known_operation_state_get_candidate_hits: {}",
         output
             .evidence_stats

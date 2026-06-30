@@ -1537,6 +1537,30 @@ fn print_runtime_evidence_phase_timings(
         stats.known_state_direct_non_resumptive
     );
     eprintln!(
+        "  run.runtime_evidence.known_state_frame_entries: {}",
+        stats.known_state_frame_entries
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_frame_exits: {}",
+        stats.known_state_frame_exits
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_frame_reads_late: {}",
+        stats.known_state_frame_reads_late
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_frame_writes_late: {}",
+        stats.known_state_frame_writes_late
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_frame_missing_late: {}",
+        stats.known_state_frame_missing_late
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_state_frame_shadow_compat_fallbacks: {}",
+        stats.known_state_frame_shadow_compat_fallbacks
+    );
+    eprintln!(
         "  run.runtime_evidence.known_operation_state_get_candidate_hits: {}",
         stats.known_operation_state_get_candidate_hits
     );
