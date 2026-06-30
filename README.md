@@ -247,6 +247,22 @@ Recent release measurements with a warm source-key cache:
 | `examples/showcase.yu` | default evidence VM | 24.1-26.6ms | 28.6-31.2ms | default `run` / `compare.control: match` |
 | `examples/showcase.yu` | control VM | 48.5-51.5ms | 60.7-65.6ms | `run --control-vm` |
 
+Loop/effect microbenchmarks are more informative when read side by side. These
+numbers come from the same release binary, using
+`debug runtime-evidence-run --compare-control --no-cache`. The table reports
+only `timing.runtime_evidence_execute` over 20 samples, so frontend and
+formatting time are excluded:
+
+| Program | Shape | Median runtime execute | Sample range | Median vs recursive |
+| --- | --- | ---: | ---: | ---: |
+| `bench/loop_recursive_sum_20_discard.yu` | direct recursive 20x20 sum | 1.5ms | 1.4-3.8ms | 1.0x |
+| `bench/loop_for_sum_ref_20_discard.yu` | std `for` loop with mutable sum | 7.5ms | 7.0-8.3ms | 5.0x |
+| `bench/nondet_20_discard.yu` | `(each 1..20 + each 1..20).list` discard | 10.4ms | 9.4-11.1ms | 6.9x |
+
+Direct recursion is expected to be the fastest baseline. The useful comparison
+here is that the std-library `for` loop and nondeterministic search are now in
+the same order of magnitude once both go through the effect-runtime machinery.
+
 The evidence VM uses permission-native handler visibility for certified
 direct-tail handler paths and leaves the generic request machinery as the
 fallback surface. The default switch is intentionally staged: the control VM
