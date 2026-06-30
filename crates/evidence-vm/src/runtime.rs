@@ -1027,6 +1027,40 @@ struct EvidenceScopePlanShadowProfile {
     root_marker_match: bool,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct EvidenceSidecarPlanShadowProfile {
+    marker_frames: usize,
+    marker_active_add_id_ops: usize,
+    marker_handler_boundary_ops: usize,
+    provider_frames: usize,
+    provider_slots: usize,
+    provider_handler_candidates: usize,
+    child_marker_frames: usize,
+    legacy_frame_avoid_estimate: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct EvidenceSidecarPlanShadowInput {
+    marker_frames: usize,
+    marker_active_add_id_ops: usize,
+    marker_handler_boundary_ops: usize,
+    provider_frames: usize,
+    provider_slots: usize,
+    provider_handler_candidates: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceSidecarPlanShadow {
+    Planned(EvidenceSidecarPlanShadowProfile),
+    Rejected(EvidenceSidecarPlanShadowReject),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceSidecarPlanShadowReject {
+    RootMarkerMismatch,
+    ProviderScopeMismatch,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidenceScopePlanShadow {
     Planned(EvidenceScopePlanShadowProfile),
@@ -1069,7 +1103,7 @@ impl EvidenceResumePlanTracePlan {
         let mut steps = Vec::new();
         let mut cursor = EvidenceResumePlanTraceCursor::default();
         if let Some(frame) = continuation.frame() {
-            frame.append_resume_plan_trace(&mut steps, &mut cursor, routed_yield_handler);
+            frame.append_resume_plan_trace(&mut steps, &mut cursor, routed_yield_handler, true);
         }
         Self {
             steps: Rc::from(steps.into_boxed_slice()),
@@ -1244,6 +1278,32 @@ impl EvidenceResumeScopedTracePlan {
         } else {
             EvidenceScopePlanShadow::Rejected(EvidenceScopePlanShadowReject::RootMarkerMismatch)
         }
+    }
+
+    fn sidecar_plan_shadow(
+        &self,
+        input: EvidenceSidecarPlanShadowInput,
+    ) -> EvidenceSidecarPlanShadow {
+        if self.root_marker_count() != input.marker_frames {
+            return EvidenceSidecarPlanShadow::Rejected(
+                EvidenceSidecarPlanShadowReject::RootMarkerMismatch,
+            );
+        }
+        if self.provider_child_scope_count() != input.provider_frames {
+            return EvidenceSidecarPlanShadow::Rejected(
+                EvidenceSidecarPlanShadowReject::ProviderScopeMismatch,
+            );
+        }
+        EvidenceSidecarPlanShadow::Planned(EvidenceSidecarPlanShadowProfile {
+            marker_frames: input.marker_frames,
+            marker_active_add_id_ops: input.marker_active_add_id_ops,
+            marker_handler_boundary_ops: input.marker_handler_boundary_ops,
+            provider_frames: input.provider_frames,
+            provider_slots: input.provider_slots,
+            provider_handler_candidates: input.provider_handler_candidates,
+            child_marker_frames: self.child_marker_count(),
+            legacy_frame_avoid_estimate: input.marker_frames + input.provider_frames,
+        })
     }
 }
 
@@ -2044,12 +2104,24 @@ fn catch_boundaries_are_foreign_pass_through(
             .all(|boundary| boundary.is_signal_passthrough() && boundary.has_value_resume_payload())
 }
 
-fn scope_plan_direct_tail_signal_can_compact(
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceScopePlanDirectTailSignalReject {
+    ScopeHasRequestBoundary,
+    SameHandlerBoundary,
+}
+
+fn scope_plan_direct_tail_signal_compact_reject(
     scope_direct_tail_boundary_free: bool,
     boundaries: &[EvidenceCatchBoundaryDeltaPlan],
     handler: ExprId,
-) -> bool {
-    scope_direct_tail_boundary_free && catch_boundaries_pass_direct_tail_signal(boundaries, handler)
+) -> Option<EvidenceScopePlanDirectTailSignalReject> {
+    if !scope_direct_tail_boundary_free {
+        return Some(EvidenceScopePlanDirectTailSignalReject::ScopeHasRequestBoundary);
+    }
+    if !catch_boundaries_pass_direct_tail_signal(boundaries, handler) {
+        return Some(EvidenceScopePlanDirectTailSignalReject::SameHandlerBoundary);
+    }
+    None
 }
 
 impl EvidenceCatchBoundaryMode {
@@ -2809,6 +2881,11 @@ struct EvidenceScopeLocalPlan {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+struct EvidenceScopeSidecarPlan {
+    actions: Rc<[EvidenceScopeSidecarAction]>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 enum EvidenceScopeLocalAction {
     Eval(EvidenceEvalDeltaFramePlan),
     CatchForeign {
@@ -2824,8 +2901,30 @@ enum EvidenceScopeLocalAction {
     },
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum EvidenceScopeSidecarAction {
+    Eval(EvidenceEvalDeltaFramePlan),
+    CatchForeign {
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+    },
+    Marker {
+        frame: EvidenceMarkerDeltaFramePlan,
+        child: EvidenceScopeSidecarPlan,
+    },
+    Provider {
+        frame: EvidenceProviderDeltaFramePlan,
+        child: EvidenceScopeSidecarPlan,
+    },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvidenceScopeLocalPlanReject {
+    RequestBoundary,
+    RefSetBoundary,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceScopeSidecarPlanReject {
     RequestBoundary,
     RefSetBoundary,
 }
@@ -2845,6 +2944,30 @@ impl EvidenceScopeLocalPlan {
 
     fn materialize_actions(
         actions: &[EvidenceScopeLocalAction],
+        tail: EvidenceContinuation,
+    ) -> EvidenceContinuation {
+        actions
+            .iter()
+            .rev()
+            .fold(tail, |tail, action| action.materialize_before(tail))
+    }
+}
+
+impl EvidenceScopeSidecarPlan {
+    fn from_continuation(
+        continuation: &EvidenceContinuation,
+    ) -> Result<Self, EvidenceScopeSidecarPlanReject> {
+        let mut builder = EvidenceScopeSidecarPlanBuilder::default();
+        builder.append_continuation(continuation)?;
+        Ok(builder.finish())
+    }
+
+    fn materialize(&self, tail: EvidenceContinuation) -> EvidenceContinuation {
+        Self::materialize_actions(self.actions.as_ref(), tail)
+    }
+
+    fn materialize_actions(
+        actions: &[EvidenceScopeSidecarAction],
         tail: EvidenceContinuation,
     ) -> EvidenceContinuation {
         actions
@@ -2898,9 +3021,60 @@ impl EvidenceScopeLocalAction {
     }
 }
 
+impl EvidenceScopeSidecarAction {
+    fn materialize_before(&self, tail: EvidenceContinuation) -> EvidenceContinuation {
+        match self {
+            Self::Eval(frame) => frame.to_continuation(tail),
+            Self::CatchForeign { boundaries } => {
+                EvidenceContinuation::catch_foreign_boundary_segment(boundaries.clone(), tail)
+            }
+            Self::Marker { frame, child } => {
+                let scoped = EvidenceContinuation::marker_frame(
+                    frame.markers.clone(),
+                    frame.activate_add_ids,
+                    frame
+                        .handler_path
+                        .as_ref()
+                        .map(|path| path.as_ref().to_vec()),
+                    child.materialize(EvidenceContinuation::identity()),
+                );
+                append_continuation_unprofiled(scoped, tail)
+            }
+            Self::Provider { frame, child } => {
+                let scoped = EvidenceContinuation::provider_env(
+                    frame.provider_env.clone(),
+                    child.materialize(EvidenceContinuation::identity()),
+                );
+                append_continuation_unprofiled(scoped, tail)
+            }
+        }
+    }
+}
+
+fn append_continuation_unprofiled(
+    head: EvidenceContinuation,
+    tail: EvidenceContinuation,
+) -> EvidenceContinuation {
+    if tail.is_identity() {
+        return head;
+    }
+    if head.is_identity() {
+        return tail;
+    }
+    EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+        first: head,
+        second: tail,
+    }))
+}
+
 #[derive(Debug, Default)]
 struct EvidenceScopeLocalPlanBuilder {
     actions: Vec<EvidenceScopeLocalAction>,
+}
+
+#[derive(Debug, Default)]
+struct EvidenceScopeSidecarPlanBuilder {
+    actions: Vec<EvidenceScopeSidecarAction>,
 }
 
 impl EvidenceScopeLocalPlanBuilder {
@@ -2994,6 +3168,106 @@ impl EvidenceScopeLocalPlanBuilder {
                     .ok_or(EvidenceScopeLocalPlanReject::RequestBoundary)?;
                 self.actions
                     .push(EvidenceScopeLocalAction::Eval(frame_plan));
+                if let Some(next) = frame.tail_ref() {
+                    self.append_continuation(next)?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+impl EvidenceScopeSidecarPlanBuilder {
+    fn finish(self) -> EvidenceScopeSidecarPlan {
+        EvidenceScopeSidecarPlan {
+            actions: Rc::from(self.actions.into_boxed_slice()),
+        }
+    }
+
+    fn append_continuation(
+        &mut self,
+        continuation: &EvidenceContinuation,
+    ) -> Result<(), EvidenceScopeSidecarPlanReject> {
+        let Some(frame) = continuation.frame() else {
+            return Ok(());
+        };
+        self.append_frame(frame)
+    }
+
+    fn append_frame(
+        &mut self,
+        frame: &EvidenceContinuationFrame,
+    ) -> Result<(), EvidenceScopeSidecarPlanReject> {
+        match frame {
+            EvidenceContinuationFrame::Then { first, second } => {
+                self.append_continuation(first)?;
+                self.append_continuation(second)
+            }
+            EvidenceContinuationFrame::MarkerFrame {
+                markers,
+                activate_add_ids,
+                handler_path,
+                next,
+            } => {
+                let child = EvidenceScopeSidecarPlan::from_continuation(next)?;
+                self.actions.push(EvidenceScopeSidecarAction::Marker {
+                    frame: EvidenceMarkerDeltaFramePlan {
+                        markers: markers.clone(),
+                        activate_add_ids: *activate_add_ids,
+                        handler_path: handler_path
+                            .as_ref()
+                            .map(|path| Rc::from(path.clone().into_boxed_slice())),
+                    },
+                    child,
+                });
+                Ok(())
+            }
+            EvidenceContinuationFrame::ProviderEnv { provider_env, next } => {
+                let child = EvidenceScopeSidecarPlan::from_continuation(next)?;
+                self.actions.push(EvidenceScopeSidecarAction::Provider {
+                    frame: EvidenceProviderDeltaFramePlan {
+                        provider_env: provider_env.clone(),
+                    },
+                    child,
+                });
+                Ok(())
+            }
+            EvidenceContinuationFrame::CatchBody { .. } => {
+                Err(EvidenceScopeSidecarPlanReject::RequestBoundary)
+            }
+            EvidenceContinuationFrame::CatchForeignBoundarySegment { boundaries, next } => {
+                if !catch_boundaries_are_foreign_pass_through(boundaries.as_ref()) {
+                    return Err(EvidenceScopeSidecarPlanReject::RequestBoundary);
+                }
+                self.actions.push(EvidenceScopeSidecarAction::CatchForeign {
+                    boundaries: boundaries.clone(),
+                });
+                self.append_continuation(next)
+            }
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+                scope,
+                boundaries,
+                next,
+                ..
+            } => {
+                if !catch_boundaries_are_foreign_pass_through(boundaries.as_ref()) {
+                    return Err(EvidenceScopeSidecarPlanReject::RequestBoundary);
+                }
+                self.append_continuation(scope)?;
+                self.actions.push(EvidenceScopeSidecarAction::CatchForeign {
+                    boundaries: boundaries.clone(),
+                });
+                self.append_continuation(next)
+            }
+            EvidenceContinuationFrame::RefSetHandleResult { .. }
+            | EvidenceContinuationFrame::RefSetHandleValueResult { .. } => {
+                Err(EvidenceScopeSidecarPlanReject::RefSetBoundary)
+            }
+            _ => {
+                let frame_plan = EvidenceEvalDeltaFramePlan::from_continuation_frame(frame)
+                    .ok_or(EvidenceScopeSidecarPlanReject::RequestBoundary)?;
+                self.actions
+                    .push(EvidenceScopeSidecarAction::Eval(frame_plan));
                 if let Some(next) = frame.tail_ref() {
                     self.append_continuation(next)?;
                 }
@@ -3993,6 +4267,10 @@ type PrimitiveArgs = SmallVec<[SharedValue; 4]>;
 const PROVIDER_ADD_ID_SHORTCUT_FULL_SCAN_VERIFY_LIMIT: usize = 1024;
 const SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED: bool = true;
 const SCOPE_PLAN_FOREIGN_CATCH_VALUE_EXECUTOR_ENABLED: bool = false;
+// The sidecar value executor preserves scoped marker/provider semantics, but executable trials
+// regressed representative runtime even after lazy plan construction and direct eval-frame ops.
+// Keep it gated until scope ops can run from a lower-overhead instruction stream.
+const SCOPE_PLAN_FOREIGN_CATCH_SIDECAR_VALUE_EXECUTOR_ENABLED: bool = false;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 struct Env {
@@ -5335,21 +5613,37 @@ impl EvidenceContinuationFrame {
         steps: &mut Vec<EvidenceResumePlanStep>,
         cursor: &mut EvidenceResumePlanTraceCursor,
         routed_yield_handler: Option<ExprId>,
+        root_marker_scope: bool,
     ) {
         match self {
             Self::Then { first, second } => {
                 if let Some(frame) = first.frame() {
-                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                    frame.append_resume_plan_trace(
+                        steps,
+                        cursor,
+                        routed_yield_handler,
+                        root_marker_scope,
+                    );
                 }
                 if let Some(frame) = second.frame() {
-                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                    frame.append_resume_plan_trace(
+                        steps,
+                        cursor,
+                        routed_yield_handler,
+                        root_marker_scope,
+                    );
                 }
             }
             Self::CatchBody { next, .. } => {
                 steps.push(EvidenceResumePlanStep::Request(cursor.request));
                 cursor.request += 1;
                 if let Some(frame) = next.frame() {
-                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                    frame.append_resume_plan_trace(
+                        steps,
+                        cursor,
+                        routed_yield_handler,
+                        root_marker_scope,
+                    );
                 }
             }
             Self::CatchForeignBoundarySegment { boundaries, next } => {
@@ -5358,7 +5652,12 @@ impl EvidenceContinuationFrame {
                     cursor.request += 1;
                 }
                 if let Some(frame) = next.frame() {
-                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                    frame.append_resume_plan_trace(
+                        steps,
+                        cursor,
+                        routed_yield_handler,
+                        root_marker_scope,
+                    );
                 }
             }
             Self::ScopePlanForeignCatchBoundary {
@@ -5368,28 +5667,47 @@ impl EvidenceContinuationFrame {
                 ..
             } => {
                 if let Some(frame) = scope.frame() {
-                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                    frame.append_resume_plan_trace(
+                        steps,
+                        cursor,
+                        routed_yield_handler,
+                        root_marker_scope,
+                    );
                 }
                 for _ in boundaries.iter() {
                     steps.push(EvidenceResumePlanStep::Request(cursor.request));
                     cursor.request += 1;
                 }
                 if let Some(frame) = next.frame() {
-                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                    frame.append_resume_plan_trace(
+                        steps,
+                        cursor,
+                        routed_yield_handler,
+                        root_marker_scope,
+                    );
                 }
             }
             Self::MarkerFrame { next, .. } => {
-                steps.push(EvidenceResumePlanStep::Marker(cursor.marker));
-                cursor.marker += 1;
+                if root_marker_scope {
+                    steps.push(EvidenceResumePlanStep::Marker(cursor.marker));
+                    cursor.marker += 1;
+                }
                 if let Some(frame) = next.frame() {
-                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                    frame.append_resume_plan_trace(
+                        steps,
+                        cursor,
+                        routed_yield_handler,
+                        root_marker_scope,
+                    );
                 }
             }
             Self::ProviderEnv { next, .. } => {
                 steps.push(EvidenceResumePlanStep::Provider(cursor.provider));
                 cursor.provider += 1;
                 if let Some(frame) = next.frame() {
-                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                    // ProviderEnv opens a child scope. Its inner markers stay in the scoped
+                    // trace, while the flat marker lane tracks only the root marker delta.
+                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler, false);
                 }
             }
             Self::RefSetHandleResult { .. } | Self::RefSetHandleValueResult { .. } => {}
@@ -5399,7 +5717,12 @@ impl EvidenceContinuationFrame {
                 if let Some(next) = self.tail_ref()
                     && let Some(frame) = next.frame()
                 {
-                    frame.append_resume_plan_trace(steps, cursor, routed_yield_handler);
+                    frame.append_resume_plan_trace(
+                        steps,
+                        cursor,
+                        routed_yield_handler,
+                        root_marker_scope,
+                    );
                 }
             }
         }
@@ -7769,12 +8092,28 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 && boundary.is_signal_passthrough()
                 && boundary.has_value_resume_payload()
             {
+                if self.should_collect_runtime_breakdown_stats() {
+                    self.stats.resume_plan_exec_attempts += 1;
+                    self.stats.resume_plan_exec_hits += 1;
+                    self.stats.resume_plan_exec_eval_steps_saved_estimate += call
+                        .continuation
+                        .resume_plan_shadow_profile(Some(call.handler))
+                        .estimated_resume_steps();
+                }
                 call.continuation = EvidenceContinuation::scope_plan_foreign_catch_boundary(
                     call.continuation,
                     Rc::from(vec![boundary].into_boxed_slice()),
                     EvidenceContinuation::identity(),
                 );
             } else {
+                if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED
+                    && self.should_collect_runtime_breakdown_stats()
+                {
+                    self.stats.resume_plan_exec_attempts += 1;
+                    self.stats.resume_plan_exec_fallbacks += 1;
+                    self.stats.resume_plan_exec_reject_boundary += 1;
+                    self.stats.resume_plan_exec_materialized_legacy += 1;
+                }
                 self.stats.scope_exec_tree_fallbacks += 1;
                 if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED {
                     self.stats.scope_exec_reject_non_foreign_catch += 1;
@@ -9764,6 +10103,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             continuation,
             routed_yield_handler,
             marker_delta,
+            provider_delta,
             Some(request_delta),
             profile,
         );
@@ -9809,6 +10149,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         continuation: &EvidenceContinuation,
         routed_yield_handler: Option<ExprId>,
         marker_delta: Option<EvidenceMarkerDeltaId>,
+        provider_delta: Option<EvidenceProviderDeltaId>,
         request_delta: Option<EvidenceRequestDeltaId>,
         profile: EvidenceResumePlanShadowProfile,
     ) {
@@ -9831,13 +10172,86 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     .resume_plan_scoped_trace_root_marker_mismatches_marker_delta += 1;
             }
         }
-        let marker_delta_frames = marker_delta
-            .map(|marker_delta| self.marker_delta_plans[marker_delta.0].frame_count())
-            .unwrap_or(0);
+        let sidecar_input = self.resume_plan_sidecar_shadow_input(marker_delta, provider_delta);
+        let marker_delta_frames = sidecar_input.marker_frames;
+        self.record_resume_plan_sidecar_shadow(&plan, sidecar_input);
         let scope_plan =
             plan.scope_plan_shadow(marker_delta_frames, profile.estimated_resume_steps());
         self.record_scope_plan_shadow(scope_plan, request_delta, profile);
         self.resume_plan_scoped_traces.push(plan);
+    }
+
+    fn resume_plan_sidecar_shadow_input(
+        &self,
+        marker_delta: Option<EvidenceMarkerDeltaId>,
+        provider_delta: Option<EvidenceProviderDeltaId>,
+    ) -> EvidenceSidecarPlanShadowInput {
+        let marker_delta =
+            marker_delta.map(|marker_delta| &self.marker_delta_plans[marker_delta.0]);
+        let provider_delta =
+            provider_delta.map(|provider_delta| &self.provider_delta_plans[provider_delta.0]);
+        EvidenceSidecarPlanShadowInput {
+            marker_frames: marker_delta
+                .map(EvidenceMarkerDeltaPlan::frame_count)
+                .unwrap_or(0),
+            marker_active_add_id_ops: marker_delta
+                .map(EvidenceMarkerDeltaPlan::active_add_id_ops)
+                .unwrap_or(0),
+            marker_handler_boundary_ops: marker_delta
+                .map(EvidenceMarkerDeltaPlan::handler_boundary_ops)
+                .unwrap_or(0),
+            provider_frames: provider_delta
+                .map(EvidenceProviderDeltaPlan::frame_count)
+                .unwrap_or(0),
+            provider_slots: provider_delta
+                .map(EvidenceProviderDeltaPlan::slot_count)
+                .unwrap_or(0),
+            provider_handler_candidates: provider_delta
+                .map(EvidenceProviderDeltaPlan::handler_candidate_count)
+                .unwrap_or(0),
+        }
+    }
+
+    fn record_resume_plan_sidecar_shadow(
+        &mut self,
+        plan: &EvidenceResumeScopedTracePlan,
+        input: EvidenceSidecarPlanShadowInput,
+    ) {
+        self.stats.resume_plan_sidecar_shadow_candidates += 1;
+        match plan.sidecar_plan_shadow(input) {
+            EvidenceSidecarPlanShadow::Planned(profile) => {
+                self.stats.resume_plan_sidecar_shadow_ready += 1;
+                self.stats.resume_plan_sidecar_shadow_marker_frames += profile.marker_frames;
+                self.stats
+                    .resume_plan_sidecar_shadow_marker_active_add_id_ops +=
+                    profile.marker_active_add_id_ops;
+                self.stats
+                    .resume_plan_sidecar_shadow_marker_handler_boundary_ops +=
+                    profile.marker_handler_boundary_ops;
+                self.stats.resume_plan_sidecar_shadow_provider_frames += profile.provider_frames;
+                self.stats.resume_plan_sidecar_shadow_provider_slots += profile.provider_slots;
+                self.stats
+                    .resume_plan_sidecar_shadow_provider_handler_candidates +=
+                    profile.provider_handler_candidates;
+                self.stats.resume_plan_sidecar_shadow_child_marker_frames +=
+                    profile.child_marker_frames;
+                self.stats
+                    .resume_plan_sidecar_shadow_legacy_frame_avoid_estimate +=
+                    profile.legacy_frame_avoid_estimate;
+            }
+            EvidenceSidecarPlanShadow::Rejected(
+                EvidenceSidecarPlanShadowReject::RootMarkerMismatch,
+            ) => {
+                self.stats
+                    .resume_plan_sidecar_shadow_reject_root_marker_mismatch += 1;
+            }
+            EvidenceSidecarPlanShadow::Rejected(
+                EvidenceSidecarPlanShadowReject::ProviderScopeMismatch,
+            ) => {
+                self.stats
+                    .resume_plan_sidecar_shadow_reject_provider_scope_mismatch += 1;
+            }
+        }
     }
 
     fn record_scope_plan_shadow(
@@ -12704,6 +13118,36 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         value: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED
+            && SCOPE_PLAN_FOREIGN_CATCH_SIDECAR_VALUE_EXECUTOR_ENABLED
+        {
+            if catch_boundaries_are_foreign_pass_through(boundaries.as_ref()) {
+                self.stats.scope_sidecar_value_resume_build_attempts += 1;
+                match EvidenceScopeSidecarPlan::from_continuation(&scope) {
+                    Ok(plan) => {
+                        self.stats.scope_exec_hits += 1;
+                        self.stats.scope_exec_foreign_catch_hits += 1;
+                        self.stats.scope_sidecar_value_resume_hits += 1;
+                        let result = self.resume_scope_sidecar_plan(&plan, value)?;
+                        return self
+                            .continue_scope_plan_foreign_catch_result(result, boundaries, next);
+                    }
+                    Err(EvidenceScopeSidecarPlanReject::RequestBoundary) => {
+                        self.stats
+                            .scope_sidecar_value_resume_reject_request_boundary += 1;
+                        self.stats.scope_exec_reject_shape_mismatch += 1;
+                    }
+                    Err(EvidenceScopeSidecarPlanReject::RefSetBoundary) => {
+                        self.stats.scope_sidecar_value_resume_reject_ref_set += 1;
+                        self.stats.scope_exec_reject_shape_mismatch += 1;
+                    }
+                }
+            } else {
+                self.stats
+                    .scope_sidecar_value_resume_reject_non_foreign_boundary += 1;
+                self.stats.scope_exec_reject_shape_mismatch += 1;
+            }
+        }
+        if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED
             && SCOPE_PLAN_FOREIGN_CATCH_VALUE_EXECUTOR_ENABLED
         {
             match scope_local_plan {
@@ -12722,6 +13166,91 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.stats.scope_exec_foreign_catch_hits += 1;
         let result = self.resume_continuation(scope, value)?;
         self.continue_scope_plan_foreign_catch_result(result, boundaries, next)
+    }
+
+    fn resume_scope_sidecar_plan(
+        &mut self,
+        plan: &EvidenceScopeSidecarPlan,
+        value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.resume_scope_sidecar_actions(plan.actions.as_ref(), value)
+    }
+
+    fn resume_scope_sidecar_actions(
+        &mut self,
+        actions: &[EvidenceScopeSidecarAction],
+        mut value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        for (index, action) in actions.iter().enumerate() {
+            let result = self.resume_scope_sidecar_action(action, value)?;
+            match result {
+                EvidenceEvalResult::Value(next_value) => {
+                    value = next_value;
+                }
+                EvidenceEvalResult::Effect(signal) => {
+                    let rest = EvidenceScopeSidecarPlan::materialize_actions(
+                        &actions[index + 1..],
+                        EvidenceContinuation::identity(),
+                    );
+                    return self.continue_signal(signal, rest);
+                }
+            }
+        }
+        Ok(EvidenceEvalResult::Value(value))
+    }
+
+    fn resume_scope_sidecar_action(
+        &mut self,
+        action: &EvidenceScopeSidecarAction,
+        value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match action {
+            EvidenceScopeSidecarAction::Eval(frame) => self.resume_eval_delta_frame(frame, value),
+            EvidenceScopeSidecarAction::CatchForeign { boundaries } => self
+                .continue_scope_plan_foreign_catch_result(
+                    EvidenceEvalResult::Value(value),
+                    boundaries.clone(),
+                    EvidenceContinuation::identity(),
+                ),
+            EvidenceScopeSidecarAction::Marker { frame, child } => {
+                self.resume_scope_sidecar_marker_frame(frame, child, value)
+            }
+            EvidenceScopeSidecarAction::Provider { frame, child } => {
+                self.resume_scope_sidecar_provider_frame(frame, child, value)
+            }
+        }
+    }
+
+    fn resume_scope_sidecar_marker_frame(
+        &mut self,
+        frame: &EvidenceMarkerDeltaFramePlan,
+        child: &EvidenceScopeSidecarPlan,
+        value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let markers = frame.markers.clone();
+        let handler_path = frame
+            .handler_path
+            .as_ref()
+            .map(|path| path.as_ref().to_vec());
+        self.with_marker_frame(
+            EvidenceMarkerFrameSource::ContinuationResume,
+            markers,
+            frame.activate_add_ids,
+            handler_path,
+            |runner| runner.resume_scope_sidecar_plan(child, value),
+        )
+    }
+
+    fn resume_scope_sidecar_provider_frame(
+        &mut self,
+        frame: &EvidenceProviderDeltaFramePlan,
+        child: &EvidenceScopeSidecarPlan,
+        value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let provider_env = frame.provider_env.clone();
+        self.with_provider_env(provider_env, |runner| {
+            runner.resume_scope_sidecar_plan(child, value)
+        })
     }
 
     fn resume_scope_local_plan(
@@ -13483,6 +14012,72 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
+    fn continue_direct_tail_resumptive_through_scope_plan_foreign_catch_boundary(
+        &mut self,
+        call: EvidenceDirectTailResumptive,
+        scope: EvidenceContinuation,
+        scope_direct_tail_boundary_free: bool,
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+        next: EvidenceContinuation,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let record_resume_plan_exec = self.should_collect_runtime_breakdown_stats();
+        if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED && record_resume_plan_exec {
+            self.stats.resume_plan_exec_attempts += 1;
+        }
+        let compact_reject = if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED {
+            scope_plan_direct_tail_signal_compact_reject(
+                scope_direct_tail_boundary_free,
+                boundaries.as_ref(),
+                call.handler,
+            )
+        } else {
+            None
+        };
+        if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED && compact_reject.is_none() {
+            if record_resume_plan_exec {
+                self.stats.resume_plan_exec_hits += 1;
+            }
+            self.stats.scope_exec_hits += 1;
+            self.stats.scope_exec_foreign_catch_hits += 1;
+            self.stats.scope_exec_signal_passthrough_hits += 1;
+            if record_resume_plan_exec {
+                self.stats.resume_plan_exec_eval_steps_saved_estimate += scope
+                    .resume_plan_shadow_profile(Some(call.handler))
+                    .estimated_resume_steps();
+            }
+            let tail = EvidenceContinuation::scope_plan_foreign_catch_boundary_with_scope_profile(
+                scope,
+                scope_direct_tail_boundary_free,
+                boundaries,
+                EvidenceContinuation::identity(),
+            );
+            let mut call = call;
+            if call.continuation.is_identity() {
+                call.continuation = tail;
+            } else {
+                call = self.append_direct_tail_continuation(call, tail);
+            }
+            return self.continue_direct_tail_resumptive_with_continuation(call, next);
+        }
+        if let Some(reject) = compact_reject {
+            if record_resume_plan_exec {
+                self.stats.resume_plan_exec_fallbacks += 1;
+                self.stats.resume_plan_exec_materialized_legacy += 1;
+                match reject {
+                    EvidenceScopePlanDirectTailSignalReject::ScopeHasRequestBoundary => {
+                        self.stats.resume_plan_exec_reject_shape += 1;
+                    }
+                    EvidenceScopePlanDirectTailSignalReject::SameHandlerBoundary => {
+                        self.stats.resume_plan_exec_reject_boundary += 1;
+                    }
+                }
+            }
+            self.stats.scope_exec_reject_shape_mismatch += 1;
+        }
+        let result = self.continue_direct_tail_resumptive_with_continuation(call, scope)?;
+        self.continue_scope_plan_foreign_catch_result(result, boundaries, next)
+    }
+
     fn continue_direct_tail_resumptive_with_continuation(
         &mut self,
         call: EvidenceDirectTailResumptive,
@@ -13490,6 +14085,37 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         if continuation.is_identity() {
             return Ok(EvidenceEvalResult::direct_tail_resumptive(call));
+        }
+        if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED
+            && let Some(EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+                scope_direct_tail_boundary_free,
+                boundaries,
+                ..
+            }) = continuation.frame()
+            && scope_plan_direct_tail_signal_compact_reject(
+                *scope_direct_tail_boundary_free,
+                boundaries.as_ref(),
+                call.handler,
+            )
+            .is_none()
+        {
+            let Some(EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+                scope,
+                scope_direct_tail_boundary_free,
+                boundaries,
+                next,
+                ..
+            }) = continuation.into_frame()
+            else {
+                unreachable!("prechecked scope plan continuation frame");
+            };
+            return self.continue_direct_tail_resumptive_through_scope_plan_foreign_catch_boundary(
+                call,
+                scope,
+                scope_direct_tail_boundary_free,
+                boundaries,
+                next,
+            );
         }
         let routed_handler = Some(call.handler);
         let starts_with_foreign_catch =
@@ -13680,36 +14306,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 next,
                 ..
             } => {
-                if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED
-                    && scope_plan_direct_tail_signal_can_compact(
+                return self
+                    .continue_direct_tail_resumptive_through_scope_plan_foreign_catch_boundary(
+                        call,
+                        scope,
                         scope_direct_tail_boundary_free,
-                        boundaries.as_ref(),
-                        call.handler,
-                    )
-                {
-                    self.stats.scope_exec_hits += 1;
-                    self.stats.scope_exec_foreign_catch_hits += 1;
-                    self.stats.scope_exec_signal_passthrough_hits += 1;
-                    let tail =
-                        EvidenceContinuation::scope_plan_foreign_catch_boundary_with_scope_profile(
-                            scope,
-                            scope_direct_tail_boundary_free,
-                            boundaries,
-                            EvidenceContinuation::identity(),
-                        );
-                    let mut call = call;
-                    if call.continuation.is_identity() {
-                        call.continuation = tail;
-                    } else {
-                        call = self.append_direct_tail_continuation(call, tail);
-                    }
-                    return self.continue_direct_tail_resumptive_with_continuation(call, next);
-                }
-                if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED {
-                    self.stats.scope_exec_reject_shape_mismatch += 1;
-                }
-                let result = self.continue_direct_tail_resumptive_with_continuation(call, scope)?;
-                return self.continue_scope_plan_foreign_catch_result(result, boundaries, next);
+                        boundaries,
+                        next,
+                    );
             }
             EvidenceContinuationFrame::MarkerFrame {
                 markers,
@@ -19333,21 +19937,18 @@ mod tests {
             .into_boxed_slice(),
         );
 
-        assert!(scope_plan_direct_tail_signal_can_compact(
-            true,
-            boundaries.as_ref(),
-            ExprId(99)
-        ));
-        assert!(!scope_plan_direct_tail_signal_can_compact(
-            true,
-            boundaries.as_ref(),
-            ExprId(3)
-        ));
-        assert!(!scope_plan_direct_tail_signal_can_compact(
-            false,
-            boundaries.as_ref(),
-            ExprId(99)
-        ));
+        assert_eq!(
+            scope_plan_direct_tail_signal_compact_reject(true, boundaries.as_ref(), ExprId(99)),
+            None
+        );
+        assert_eq!(
+            scope_plan_direct_tail_signal_compact_reject(true, boundaries.as_ref(), ExprId(3)),
+            Some(EvidenceScopePlanDirectTailSignalReject::SameHandlerBoundary)
+        );
+        assert_eq!(
+            scope_plan_direct_tail_signal_compact_reject(false, boundaries.as_ref(), ExprId(99)),
+            Some(EvidenceScopePlanDirectTailSignalReject::ScopeHasRequestBoundary)
+        );
     }
 
     #[test]
@@ -19427,6 +20028,82 @@ mod tests {
     }
 
     #[test]
+    fn scope_sidecar_plan_materializes_marker_provider_siblings_without_flattening_scope() {
+        let continuation = EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+            first: EvidenceContinuation::marker_frame(
+                Rc::from([EvidenceValueMarker::Frame {
+                    id: EvidenceGuardId(1),
+                }]),
+                true,
+                None,
+                EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
+            ),
+            second: EvidenceContinuation::provider_env(
+                provider_env_fixture_for_handler(7),
+                EvidenceContinuation::marker_frame(
+                    Rc::from([EvidenceValueMarker::Frame {
+                        id: EvidenceGuardId(2),
+                    }]),
+                    true,
+                    None,
+                    EvidenceContinuation::apply_arg(
+                        None,
+                        shared(RuntimeEvidenceValue::Unit),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+            ),
+        }));
+        let plan = EvidenceScopeSidecarPlan::from_continuation(&continuation)
+            .expect("scope should be representable as a sidecar plan");
+        let materialized = plan.materialize(EvidenceContinuation::identity());
+
+        assert_eq!(
+            EvidenceResumePlanTracePlan::from_continuation(&materialized, None),
+            EvidenceResumePlanTracePlan::from_continuation(&continuation, None)
+        );
+        assert_eq!(
+            EvidenceResumeScopedTracePlan::from_continuation(&materialized, None),
+            EvidenceResumeScopedTracePlan::from_continuation(&continuation, None)
+        );
+        assert_eq!(
+            EvidenceEvalDeltaPlan::from_continuation(&materialized),
+            EvidenceEvalDeltaPlan::from_continuation(&continuation)
+        );
+        assert_eq!(
+            materialized.marker_delta_shadow_key(),
+            continuation.marker_delta_shadow_key()
+        );
+        assert_eq!(
+            materialized.provider_delta_shadow_key(),
+            continuation.provider_delta_shadow_key()
+        );
+    }
+
+    #[test]
+    fn scope_sidecar_plan_rejects_request_and_ref_set_boundaries() {
+        let request_boundary = EvidenceContinuation::catch_body(
+            ExprId(1),
+            empty_catch_arms(),
+            Env::new(),
+            EvidenceContinuation::identity(),
+        );
+        assert_eq!(
+            EvidenceScopeSidecarPlan::from_continuation(&request_boundary),
+            Err(EvidenceScopeSidecarPlanReject::RequestBoundary)
+        );
+
+        let ref_set_boundary = EvidenceContinuation::ref_set_handle_result(
+            shared(RuntimeEvidenceValue::Unit),
+            EvidenceContinuation::identity(),
+        );
+        assert_eq!(
+            EvidenceScopeSidecarPlan::from_continuation(&ref_set_boundary),
+            Err(EvidenceScopeSidecarPlanReject::RefSetBoundary)
+        );
+    }
+
+    #[test]
     fn scope_local_plan_value_resume_preserves_marker_provider_scope() {
         let program = Program::default();
         let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
@@ -19450,6 +20127,33 @@ mod tests {
 
         assert!(matches!(result, EvidenceEvalResult::Value(_)));
         assert_eq!(runner.stats.marker_frame_entries, 1);
+    }
+
+    #[test]
+    fn scope_sidecar_plan_value_resume_preserves_marker_provider_scope() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let scope = EvidenceContinuation::marker_frame(
+            Rc::from([EvidenceValueMarker::Frame {
+                id: EvidenceGuardId(1),
+            }]),
+            true,
+            None,
+            EvidenceContinuation::provider_env(
+                provider_env_fixture_for_handler(7),
+                EvidenceContinuation::identity(),
+            ),
+        );
+        let scope_sidecar_plan = EvidenceScopeSidecarPlan::from_continuation(&scope)
+            .expect("scope should be representable as a sidecar plan");
+
+        let result = runner
+            .resume_scope_sidecar_plan(&scope_sidecar_plan, shared(RuntimeEvidenceValue::Unit))
+            .expect("scope sidecar value resume should succeed");
+
+        assert!(matches!(result, EvidenceEvalResult::Value(_)));
+        assert_eq!(runner.stats.marker_frame_entries, 1);
+        assert!(runner.active_provider_envs.is_empty());
     }
 
     #[test]
@@ -19771,6 +20475,51 @@ mod tests {
         let marker_delta =
             EvidenceMarkerDeltaPlan::from_shadow_key(&continuation.marker_delta_shadow_key());
         assert_eq!(marker_delta.frame_count(), scoped.root_marker_count());
+        let provider_delta =
+            EvidenceProviderDeltaPlan::from_shadow_key(&continuation.provider_delta_shadow_key());
+        assert_eq!(
+            provider_delta.frame_count(),
+            scoped.provider_child_scope_count()
+        );
+        let sidecar_input = EvidenceSidecarPlanShadowInput {
+            marker_frames: marker_delta.frame_count(),
+            marker_active_add_id_ops: marker_delta.active_add_id_ops(),
+            marker_handler_boundary_ops: marker_delta.handler_boundary_ops(),
+            provider_frames: provider_delta.frame_count(),
+            provider_slots: provider_delta.slot_count(),
+            provider_handler_candidates: provider_delta.handler_candidate_count(),
+        };
+        assert_eq!(
+            scoped.sidecar_plan_shadow(sidecar_input),
+            EvidenceSidecarPlanShadow::Planned(EvidenceSidecarPlanShadowProfile {
+                marker_frames: 1,
+                marker_active_add_id_ops: 0,
+                marker_handler_boundary_ops: 0,
+                provider_frames: 1,
+                provider_slots: provider_delta.slot_count(),
+                provider_handler_candidates: provider_delta.handler_candidate_count(),
+                child_marker_frames: 1,
+                legacy_frame_avoid_estimate: 2,
+            })
+        );
+        assert_eq!(
+            scoped.sidecar_plan_shadow(EvidenceSidecarPlanShadowInput {
+                provider_frames: provider_delta.frame_count() + 1,
+                ..sidecar_input
+            }),
+            EvidenceSidecarPlanShadow::Rejected(
+                EvidenceSidecarPlanShadowReject::ProviderScopeMismatch
+            )
+        );
+        assert_eq!(
+            scoped.sidecar_plan_shadow(EvidenceSidecarPlanShadowInput {
+                marker_frames: marker_delta.frame_count() + 1,
+                ..sidecar_input
+            }),
+            EvidenceSidecarPlanShadow::Rejected(
+                EvidenceSidecarPlanShadowReject::RootMarkerMismatch
+            )
+        );
 
         let scope_plan = scoped.scope_plan_shadow(marker_delta.frame_count(), 5);
         assert_eq!(
@@ -19786,6 +20535,54 @@ mod tests {
                 root_marker_match: true,
             })
         );
+    }
+
+    #[test]
+    fn resume_plan_trace_keeps_provider_child_marker_out_of_root_marker_lane() {
+        let continuation = EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+            first: EvidenceContinuation::provider_env(
+                provider_env_fixture_for_handler(7),
+                EvidenceContinuation::marker_frame(
+                    Vec::new().into(),
+                    false,
+                    None,
+                    EvidenceContinuation::identity(),
+                ),
+            ),
+            second: EvidenceContinuation::marker_frame(
+                Vec::new().into(),
+                false,
+                None,
+                EvidenceContinuation::identity(),
+            ),
+        }));
+
+        let trace = EvidenceResumePlanTracePlan::from_continuation(&continuation, None);
+        let scoped = EvidenceResumeScopedTracePlan::from_continuation(&continuation, None);
+        let eval_delta = EvidenceEvalDeltaPlan::from_continuation(&continuation);
+        let request_delta = EvidenceRequestDeltaPlan::from_continuation(&continuation, None);
+        let marker_delta =
+            EvidenceMarkerDeltaPlan::from_shadow_key(&continuation.marker_delta_shadow_key());
+        let provider_delta =
+            EvidenceProviderDeltaPlan::from_shadow_key(&continuation.provider_delta_shadow_key());
+
+        assert_eq!(
+            trace.steps.as_ref(),
+            &[
+                EvidenceResumePlanStep::Provider(0),
+                EvidenceResumePlanStep::Marker(0),
+            ]
+        );
+        assert_eq!(scoped.root_marker_count(), 1);
+        assert_eq!(scoped.child_marker_count(), 1);
+        assert_eq!(marker_delta.frame_count(), scoped.root_marker_count());
+
+        let profile = trace
+            .exec_shadow_profile(&eval_delta, &request_delta, &marker_delta, &provider_delta)
+            .expect("root marker lane should match the marker delta sidecar");
+
+        assert_eq!(profile.marker_steps, 1);
+        assert_eq!(profile.provider_steps, 1);
     }
 
     #[test]

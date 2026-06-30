@@ -1090,6 +1090,74 @@ pub(crate) fn print_run_report(
             .resume_plan_scoped_trace_root_marker_mismatches_marker_delta
     );
     println!(
+        "  runtime_evidence.resume_plan_sidecar_shadow_candidates: {}",
+        output.evidence_stats.resume_plan_sidecar_shadow_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_shadow_ready: {}",
+        output.evidence_stats.resume_plan_sidecar_shadow_ready
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_shadow_reject_root_marker_mismatch: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_shadow_reject_root_marker_mismatch
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_shadow_reject_provider_scope_mismatch: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_shadow_reject_provider_scope_mismatch
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_shadow_marker_frames: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_shadow_marker_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_shadow_marker_active_add_id_ops: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_shadow_marker_active_add_id_ops
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_shadow_marker_handler_boundary_ops: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_shadow_marker_handler_boundary_ops
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_shadow_provider_frames: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_shadow_provider_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_shadow_provider_slots: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_shadow_provider_slots
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_shadow_provider_handler_candidates: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_shadow_provider_handler_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_shadow_child_marker_frames: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_shadow_child_marker_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_shadow_legacy_frame_avoid_estimate: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_shadow_legacy_frame_avoid_estimate
+    );
+    println!(
         "  runtime_evidence.scope_plan_candidates: {}",
         output.evidence_stats.scope_plan_candidates
     );
@@ -1374,6 +1442,36 @@ pub(crate) fn print_run_report(
         output
             .evidence_stats
             .scope_plan_foreign_catch_reject_ref_set
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_attempts: {}",
+        output.evidence_stats.resume_plan_exec_attempts
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_hits: {}",
+        output.evidence_stats.resume_plan_exec_hits
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_fallbacks: {}",
+        output.evidence_stats.resume_plan_exec_fallbacks
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_reject_shape: {}",
+        output.evidence_stats.resume_plan_exec_reject_shape
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_reject_boundary: {}",
+        output.evidence_stats.resume_plan_exec_reject_boundary
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_materialized_legacy: {}",
+        output.evidence_stats.resume_plan_exec_materialized_legacy
+    );
+    println!(
+        "  runtime_evidence.resume_plan_exec_eval_steps_saved_estimate: {}",
+        output
+            .evidence_stats
+            .resume_plan_exec_eval_steps_saved_estimate
     );
     println!(
         "  runtime_evidence.resume_plan_exec_shadow_checks: {}",
@@ -2910,6 +3008,34 @@ pub(crate) fn print_run_report(
     println!(
         "  runtime_evidence.scope_exec_value_resume_hits: {}",
         output.evidence_stats.scope_exec_value_resume_hits
+    );
+    println!(
+        "  runtime_evidence.scope_sidecar_value_resume_build_attempts: {}",
+        output
+            .evidence_stats
+            .scope_sidecar_value_resume_build_attempts
+    );
+    println!(
+        "  runtime_evidence.scope_sidecar_value_resume_hits: {}",
+        output.evidence_stats.scope_sidecar_value_resume_hits
+    );
+    println!(
+        "  runtime_evidence.scope_sidecar_value_resume_reject_request_boundary: {}",
+        output
+            .evidence_stats
+            .scope_sidecar_value_resume_reject_request_boundary
+    );
+    println!(
+        "  runtime_evidence.scope_sidecar_value_resume_reject_ref_set: {}",
+        output
+            .evidence_stats
+            .scope_sidecar_value_resume_reject_ref_set
+    );
+    println!(
+        "  runtime_evidence.scope_sidecar_value_resume_reject_non_foreign_boundary: {}",
+        output
+            .evidence_stats
+            .scope_sidecar_value_resume_reject_non_foreign_boundary
     );
     println!(
         "  runtime_evidence.scope_exec_reject_not_one_shot: {}",
