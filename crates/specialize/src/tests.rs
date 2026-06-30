@@ -760,6 +760,7 @@ mod tests {
     fn string_input_materializes_effect_operation_ref_as_effect_op() {
         let lowering = lower_source("act out:\n  our say: int -> unit\nout::say(1)\n");
         let arena = &lowering.session.poly;
+        let say_def = effect_operation_def(arena, &["out", "say"]);
 
         let program = specialize(arena).expect("effect operation root should specialize");
 
@@ -775,6 +776,7 @@ mod tests {
         assert_eq!(
             callee.kind,
             ExprKind::EffectOp {
+                def: Some(mono::DefId(say_def.0)),
                 path: vec!["out".to_string(), "say".to_string()]
             }
         );
@@ -785,6 +787,7 @@ mod tests {
     fn specialize2_string_input_materializes_effect_operation_ref_as_effect_op() {
         let lowering = lower_source("act out:\n  our say: int -> unit\nout::say(1)\n");
         let arena = &lowering.session.poly;
+        let say_def = effect_operation_def(arena, &["out", "say"]);
 
         let program = specialize2(arena).expect("effect operation root should specialize");
 
@@ -800,6 +803,7 @@ mod tests {
         assert_eq!(
             callee.kind,
             ExprKind::EffectOp {
+                def: Some(mono::DefId(say_def.0)),
                 path: vec!["out".to_string(), "say".to_string()]
             }
         );
@@ -818,6 +822,15 @@ mod tests {
             output.lowering.errors
         );
         output.lowering
+    }
+
+    fn effect_operation_def(arena: &poly::expr::Arena, path: &[&str]) -> poly::expr::DefId {
+        let path = path.iter().map(|part| part.to_string()).collect::<Vec<_>>();
+        arena
+            .effect_operations
+            .iter()
+            .find_map(|(def, operation)| (operation.path == path).then_some(*def))
+            .expect("effect operation should be registered")
     }
 
     fn pure_function_type(arg: Type, ret: Type) -> Type {

@@ -10,7 +10,8 @@ use super::{
 use crate::{
     EvidenceVmAllowedSetId, EvidenceVmAllowedSetKind, EvidenceVmHandlerArmClass,
     EvidenceVmHandlerObjectPlan, EvidenceVmKnownHandlerPlan, EvidenceVmKnownHandlerPlanId,
-    EvidenceVmKnownOperationReject, EvidenceVmKnownOperationRole, EvidenceVmOperationExecutionPlan,
+    EvidenceVmKnownOperationReject, EvidenceVmKnownOperationRole,
+    EvidenceVmKnownStateOperationRouteProofId, EvidenceVmOperationExecutionPlan,
     EvidenceVmOperationKind, EvidenceVmOperationLowering, EvidenceVmOperationObjectPlan,
     EvidenceVmOperationPlan, EvidenceVmPlan,
 };
@@ -59,6 +60,7 @@ pub(super) struct RuntimeEvidenceRunContext {
     known_state_handlers_by_catch: Vec<Option<RuntimeEvidenceKnownStateHandler>>,
     handler_families_by_id: Vec<Option<Vec<String>>>,
     known_operations_by_call: Vec<Option<(ExprId, RuntimeEvidenceKnownOperationCall)>>,
+    known_state_route_proofs: Vec<Option<RuntimeEvidenceKnownStateRouteProof>>,
     operation_visibilities: Vec<Option<(ExprId, RuntimeEvidenceOperationVisibility)>>,
     operation_provider_lookups: Vec<Option<(ExprId, RuntimeEvidenceOperationProviderLookup)>>,
 }
@@ -71,6 +73,15 @@ pub(super) struct RuntimeEvidenceKnownOperationCall {
     pub(super) role: EvidenceVmKnownOperationRole,
     pub(super) direct_ready: bool,
     pub(super) reject: Option<EvidenceVmKnownOperationReject>,
+    pub(super) route_proof: Option<EvidenceVmKnownStateOperationRouteProofId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RuntimeEvidenceKnownStateRouteProof {
+    pub(super) plan_id: EvidenceVmKnownHandlerPlanId,
+    pub(super) catch_expr: ExprId,
+    pub(super) handler_id: u32,
+    pub(super) role: EvidenceVmKnownOperationRole,
 }
 
 impl RuntimeEvidenceRunContext {
@@ -161,6 +172,7 @@ impl RuntimeEvidenceRunContext {
             known_state_handlers_by_catch_from_plan(plan, expr_table_len);
         let handler_families_by_id = handler_families_by_id_from_plan(plan);
         let known_operations_by_call = known_operations_by_call_from_plan(plan, expr_table_len);
+        let known_state_route_proofs = known_state_route_proofs_from_plan(plan);
         let operation_visibilities = operation_visibilities_from_plan(plan, expr_table_len);
         let operation_provider_lookups = operation_provider_lookups_from_plan(plan, expr_table_len);
         Self {
@@ -227,6 +239,7 @@ impl RuntimeEvidenceRunContext {
             known_state_handlers_by_catch,
             handler_families_by_id,
             known_operations_by_call,
+            known_state_route_proofs,
             operation_visibilities,
             operation_provider_lookups,
         }
@@ -391,6 +404,15 @@ impl RuntimeEvidenceRunContext {
             .and_then(|(expected_callee, operation)| {
                 (*expected_callee == callee).then_some(*operation)
             })
+    }
+
+    pub(super) fn known_state_route_proof(
+        &self,
+        proof_id: EvidenceVmKnownStateOperationRouteProofId,
+    ) -> Option<RuntimeEvidenceKnownStateRouteProof> {
+        self.known_state_route_proofs
+            .get(proof_id.0 as usize)
+            .and_then(|proof| *proof)
     }
 
     #[cfg(debug_assertions)]
@@ -905,8 +927,32 @@ fn known_operations_by_call_from_plan(
                 role: operation.role,
                 direct_ready: operation.direct_ready,
                 reject: operation.reject,
+                route_proof: operation.route_proof,
             },
         ));
+    }
+    table
+}
+
+fn known_state_route_proofs_from_plan(
+    plan: &EvidenceVmPlan,
+) -> Vec<Option<RuntimeEvidenceKnownStateRouteProof>> {
+    let len = plan
+        .objects
+        .known_state_operation_route_proofs
+        .iter()
+        .map(|proof| proof.id.0 as usize + 1)
+        .max()
+        .unwrap_or(0);
+    let mut table = Vec::with_capacity(len);
+    table.resize_with(len, || None);
+    for proof in &plan.objects.known_state_operation_route_proofs {
+        table[proof.id.0 as usize] = Some(RuntimeEvidenceKnownStateRouteProof {
+            plan_id: proof.plan_id,
+            catch_expr: proof.catch_expr,
+            handler_id: proof.handler_id,
+            role: proof.role,
+        });
     }
     table
 }
@@ -1134,6 +1180,7 @@ mod tests {
             handlers: Vec::new(),
             operations: vec![crate::EvidenceVmOperationPlan {
                 expr: callee,
+                operation_def: None,
                 path: vec!["out".to_string(), "say".to_string()],
                 slot: crate::EvidenceVmSlotKey {
                     family: vec!["out".to_string(), "say".to_string()],

@@ -98,7 +98,10 @@ impl Lowerer {
                 def: convert_def(*def),
                 arity: *arity,
             },
-            MonoExpr::EffectOp { path } => Expr::EffectOp { path: path.clone() },
+            MonoExpr::EffectOp { def, path } => Expr::EffectOp {
+                def: def.map(convert_def),
+                path: path.clone(),
+            },
             MonoExpr::Local(def) => Expr::Local(convert_def(*def)),
             MonoExpr::InstanceRef(instance) => Expr::InstanceRef(convert_instance(*instance)),
             MonoExpr::Coerce {

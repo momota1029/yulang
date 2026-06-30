@@ -193,6 +193,8 @@ pub enum ExprKind {
         arity: usize,
     },
     EffectOp {
+        #[serde(default)]
+        def: Option<DefId>,
         path: Vec<String>,
     },
     Local(DefId),

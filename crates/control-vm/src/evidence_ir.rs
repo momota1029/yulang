@@ -92,6 +92,8 @@ pub struct ControlHandlerArmEvidence {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ControlEffectEvidence {
     pub expr: ExprId,
+    #[serde(default)]
+    pub def: Option<crate::ir::DefId>,
     pub path: Vec<String>,
     pub kind: ControlEffectUseKind,
     pub route: ControlEvidenceRoute,
@@ -223,10 +225,15 @@ pub fn format_control_evidence_program(program: &ControlEvidenceProgram) -> Stri
     if !program.effects.is_empty() {
         writeln!(&mut out, "effects:").unwrap();
         for effect in &program.effects {
+            let def = effect
+                .def
+                .map(|def| format!(" d{}", def.0))
+                .unwrap_or_default();
             writeln!(
                 &mut out,
-                "  e{} {} {} {}",
+                "  e{}{} {} {} {}",
                 effect.expr.0,
+                def,
                 format_effect_kind(effect.kind),
                 format_path(&effect.path),
                 format_route(&effect.route)
@@ -366,9 +373,13 @@ impl<'a> ControlEvidenceBuilder<'a> {
 
     fn visit_expr(&mut self, id: ExprId, expr: &Expr, context: &mut EvidenceContext) {
         match expr {
-            Expr::EffectOp { path } => {
-                self.record_effect(id, path, ControlEffectUseKind::OperationValue, context)
-            }
+            Expr::EffectOp { def, path } => self.record_effect(
+                id,
+                *def,
+                path,
+                ControlEffectUseKind::OperationValue,
+                context,
+            ),
             Expr::Coerce {
                 source,
                 target,
@@ -638,9 +649,10 @@ impl<'a> ControlEvidenceBuilder<'a> {
             return false;
         };
         match expr {
-            Expr::EffectOp { path } => {
+            Expr::EffectOp { def, path } => {
                 self.record_effect(
                     callee,
+                    *def,
                     path,
                     ControlEffectUseKind::OperationCall { apply, callee },
                     context,
@@ -698,9 +710,10 @@ impl<'a> ControlEvidenceBuilder<'a> {
             return false;
         };
         match expr {
-            Expr::EffectOp { path } => {
+            Expr::EffectOp { def, path } => {
                 self.record_effect(
                     entry,
+                    *def,
                     path,
                     ControlEffectUseKind::OperationCall {
                         apply,
@@ -905,12 +918,14 @@ impl<'a> ControlEvidenceBuilder<'a> {
     fn record_effect(
         &mut self,
         expr: ExprId,
+        def: Option<crate::ir::DefId>,
         path: &[String],
         kind: ControlEffectUseKind,
         context: &EvidenceContext,
     ) {
         let evidence = ControlEffectEvidence {
             expr,
+            def,
             path: path.to_vec(),
             kind,
             route: classify_route(path, context),
@@ -1253,6 +1268,7 @@ mod tests {
             instances: Vec::new(),
             exprs: vec![
                 Expr::EffectOp {
+                    def: None,
                     path: vec!["flip".into(), "coin".into()],
                 },
                 Expr::Catch {
@@ -1260,6 +1276,7 @@ mod tests {
                     arms: vec![handler_arm(false, 9)],
                 },
                 Expr::EffectOp {
+                    def: None,
                     path: vec!["flip".into(), "coin".into()],
                 },
                 Expr::Lambda {
@@ -1271,6 +1288,7 @@ mod tests {
                     arms: vec![handler_arm(false, 9)],
                 },
                 Expr::EffectOp {
+                    def: None,
                     path: vec!["flip".into(), "coin".into()],
                 },
                 Expr::FunctionAdapter {
@@ -1294,6 +1312,7 @@ mod tests {
                     arms: vec![handler_arm(true, 9)],
                 },
                 Expr::EffectOp {
+                    def: None,
                     path: vec!["host".into(), "print".into()],
                 },
                 Expr::Lit(mono::Lit::Unit),
@@ -1344,6 +1363,7 @@ mod tests {
             instances: Vec::new(),
             exprs: vec![
                 Expr::EffectOp {
+                    def: None,
                     path: vec!["flip".into(), "coin".into()],
                 },
                 Expr::Lit(mono::Lit::Unit),

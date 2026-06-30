@@ -1172,6 +1172,30 @@ fn debug_runtime_evidence_run_handles_ref_set() {
         stdout.contains("runtime_evidence.known_operation_state_set_active_frame_misses: 0"),
         "known set operations should not miss the active state frame in this canary:\n{stdout}"
     );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_route_shadow_hits: 4"),
+        "route proof shadow guard should hit for every dynamic local ref operation:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_route_shadow_get_hits: 3"),
+        "route proof shadow guard should count dynamic local ref gets:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_route_shadow_set_hits: 1"),
+        "route proof shadow guard should count dynamic local ref sets:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_route_shadow_missing_proof: 0"),
+        "route proof shadow guard should not miss proofs in the local ref canary:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_route_shadow_missing_frame: 0"),
+        "route proof shadow guard should see the active state frame in the local ref canary:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_route_shadow_role_mismatch: 0"),
+        "route proof shadow guard should not see role mismatches in the local ref canary:\n{stdout}"
+    );
 }
 
 #[test]

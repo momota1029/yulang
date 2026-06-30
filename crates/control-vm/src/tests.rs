@@ -113,6 +113,7 @@ fn marker_frame_paints_escaping_request_payload() {
         instances: Vec::new(),
         exprs: vec![
             Expr::EffectOp {
+                def: None,
                 path: vec!["outer".into(), "send".into()],
             },
             Expr::Lambda {
@@ -163,6 +164,7 @@ fn marker_frame_does_not_paint_pure_record_payload() {
         instances: Vec::new(),
         exprs: vec![
             Expr::EffectOp {
+                def: None,
                 path: vec!["outer".into(), "send".into()],
             },
             Expr::Lit(mono::Lit::Int(1)),
@@ -216,6 +218,7 @@ fn marker_frame_paints_record_payload_containing_closure() {
         instances: Vec::new(),
         exprs: vec![
             Expr::EffectOp {
+                def: None,
                 path: vec!["outer".into(), "send".into()],
             },
             Expr::Lit(mono::Lit::Unit),
@@ -732,7 +735,10 @@ fn force_effect_call(path: Vec<String>, payload: mono::Expr) -> mono::Expr {
             value: Type::Any,
         },
         thunk: Box::new(mono::Expr::new(mono::ExprKind::Apply(
-            Box::new(mono::Expr::new(mono::ExprKind::EffectOp { path })),
+            Box::new(mono::Expr::new(mono::ExprKind::EffectOp {
+                def: None,
+                path,
+            })),
             Box::new(payload),
         ))),
     })

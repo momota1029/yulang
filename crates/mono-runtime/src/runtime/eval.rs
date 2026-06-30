@@ -8,7 +8,7 @@ impl<'a> Runtime<'a> {
             ExprKind::Constructor { def, arity } => {
                 value_result(constructor_value(*def, *arity, Vec::new()))
             }
-            ExprKind::EffectOp { path } => value_result(Value::EffectOp { path: path.clone() }),
+            ExprKind::EffectOp { path, .. } => value_result(Value::EffectOp { path: path.clone() }),
             ExprKind::Local(def) => value_result(
                 self.mark_active_value(
                     env.locals

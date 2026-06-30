@@ -7580,7 +7580,7 @@ fn runtime_expr_cache(program: &Program) -> Vec<RuntimeEvidenceExpr> {
             Expr::Constructor { def, arity } => {
                 RuntimeEvidenceExpr::Value(shared(constructor_value(*def, *arity, Vec::new())))
             }
-            Expr::EffectOp { path } => {
+            Expr::EffectOp { path, .. } => {
                 RuntimeEvidenceExpr::Value(shared(RuntimeEvidenceValue::EffectOp {
                     expr: ExprId(index as u32),
                     path: shared_path(path),
@@ -7697,7 +7697,7 @@ fn forced_effect_call_parts(
     let Expr::Apply { callee, arg } = program.exprs.get(thunk.0 as usize)? else {
         return None;
     };
-    let Expr::EffectOp { path } = program.exprs.get(callee.0 as usize)? else {
+    let Expr::EffectOp { path, .. } = program.exprs.get(callee.0 as usize)? else {
         return None;
     };
     Some((site, *callee, path, *arg))
@@ -13193,6 +13193,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
 
     fn record_known_operation_hit(&mut self, operation: RuntimeEvidenceKnownOperationCall) {
         let active_state_frame = self.known_operation_has_active_state_frame(operation);
+        self.record_known_operation_route_shadow_guard(operation);
         match operation.role {
             EvidenceVmKnownOperationRole::StateGet => {
                 self.stats.known_operation_state_get_candidate_hits += 1;
@@ -13219,6 +13220,44 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
         if let Some(reject) = operation.reject {
             self.record_known_operation_reject_hit(reject);
+        }
+    }
+
+    fn record_known_operation_route_shadow_guard(
+        &mut self,
+        operation: RuntimeEvidenceKnownOperationCall,
+    ) {
+        let Some(proof_id) = operation.route_proof else {
+            self.stats.known_operation_route_shadow_missing_proof += 1;
+            return;
+        };
+        let Some(proof) = self.context.known_state_route_proof(proof_id) else {
+            self.stats.known_operation_route_shadow_missing_proof += 1;
+            return;
+        };
+        if proof.role != operation.role
+            || proof.plan_id != operation.plan_id
+            || proof.handler_id != operation.handler_id
+        {
+            self.stats.known_operation_route_shadow_role_mismatch += 1;
+            return;
+        }
+        let has_frame =
+            self.active_state_handler_frames.iter().rev().any(|frame| {
+                frame.plan_id == proof.plan_id && frame.catch_expr == proof.catch_expr
+            });
+        if !has_frame {
+            self.stats.known_operation_route_shadow_missing_frame += 1;
+            return;
+        }
+        self.stats.known_operation_route_shadow_hits += 1;
+        match operation.role {
+            EvidenceVmKnownOperationRole::StateGet => {
+                self.stats.known_operation_route_shadow_get_hits += 1;
+            }
+            EvidenceVmKnownOperationRole::StateSet => {
+                self.stats.known_operation_route_shadow_set_hits += 1;
+            }
         }
     }
 
@@ -22430,6 +22469,7 @@ mod tests {
             handlers: Vec::new(),
             operations: vec![EvidenceVmOperationPlan {
                 expr: callee,
+                operation_def: None,
                 path: vec!["out".to_string(), "say".to_string()],
                 slot: EvidenceVmSlotKey {
                     family: vec!["out".to_string(), "say".to_string()],

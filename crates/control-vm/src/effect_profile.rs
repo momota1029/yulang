@@ -84,9 +84,11 @@ mod tests {
             instances: Vec::new(),
             exprs: vec![
                 Expr::EffectOp {
+                    def: None,
                     path: vec!["flip".into(), "coin".into()],
                 },
                 Expr::EffectOp {
+                    def: None,
                     path: vec!["host".into(), "print".into()],
                 },
                 Expr::MarkerFrame {
@@ -149,6 +151,7 @@ mod tests {
             instances: Vec::new(),
             exprs: vec![
                 Expr::EffectOp {
+                    def: None,
                     path: vec!["flip".into(), "coin".into()],
                 },
                 Expr::Catch {
@@ -156,6 +159,7 @@ mod tests {
                     arms: vec![handler_arm(false, 8)],
                 },
                 Expr::EffectOp {
+                    def: None,
                     path: vec!["flip".into(), "coin".into()],
                 },
                 Expr::Lambda {
@@ -167,6 +171,7 @@ mod tests {
                     arms: vec![handler_arm(false, 8)],
                 },
                 Expr::EffectOp {
+                    def: None,
                     path: vec!["flip".into(), "coin".into()],
                 },
                 Expr::FunctionAdapter {
@@ -225,6 +230,7 @@ mod tests {
             }],
             exprs: vec![
                 Expr::EffectOp {
+                    def: None,
                     path: vec!["flip".into(), "coin".into()],
                 },
                 Expr::InstanceRef(InstanceId(0)),
@@ -280,7 +286,7 @@ struct ControlEffectProfileBuilder {
 impl ControlEffectProfileBuilder {
     fn visit_expr(&mut self, expr: &Expr) {
         match expr {
-            Expr::EffectOp { path } => {
+            Expr::EffectOp { path, .. } => {
                 self.profile.effect_ops += 1;
                 self.effect_op_paths.push(path.clone());
                 self.effect_op_families.insert(path.clone());
@@ -482,7 +488,7 @@ impl<'a> ScopedEffectProfileBuilder<'a> {
 
     fn visit_expr(&mut self, id: ExprId, expr: &Expr, context: &mut ScopedContext) {
         match expr {
-            Expr::EffectOp { path } => self.record_effect_op(id, path, context),
+            Expr::EffectOp { path, .. } => self.record_effect_op(id, path, context),
             Expr::Coerce { expr, .. } => self.visit_expr_id(*expr, context),
             Expr::MakeThunk { body, .. } => self.visit_delayed_boundary(*body, context),
             Expr::ForceThunk { thunk, .. } => {
@@ -617,7 +623,7 @@ impl<'a> ScopedEffectProfileBuilder<'a> {
             return false;
         };
         match expr {
-            Expr::EffectOp { path } => {
+            Expr::EffectOp { path, .. } => {
                 self.record_effect_call_site(path, context);
                 true
             }
@@ -658,7 +664,7 @@ impl<'a> ScopedEffectProfileBuilder<'a> {
             return false;
         };
         match expr {
-            Expr::EffectOp { path } => {
+            Expr::EffectOp { path, .. } => {
                 self.record_effect_call_site(path, context);
                 true
             }

@@ -130,6 +130,7 @@ pub(crate) enum EvidenceVmHandlerArmClass {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EvidenceVmOperationPlan {
     pub(crate) expr: ExprId,
+    pub(crate) operation_def: Option<DefId>,
     pub(crate) path: Vec<String>,
     pub(crate) slot: EvidenceVmSlotKey,
     pub(crate) kind: EvidenceVmOperationKind,
@@ -557,6 +558,7 @@ fn build_plan_from_evidence(
             );
             EvidenceVmOperationPlan {
                 expr: effect.expr,
+                operation_def: effect.def,
                 path: effect.path.clone(),
                 slot: slot_for_operation_lowering(&effect.path, &lowering),
                 kind: operation_kind(effect.kind),
@@ -1610,7 +1612,7 @@ impl RequirementContext {
 
 fn effect_op_path(program: &Program, expr: ExprId) -> Option<&[String]> {
     match control_expr(program, expr)? {
-        Expr::EffectOp { path } => Some(path),
+        Expr::EffectOp { path, .. } => Some(path),
         _ => None,
     }
 }
@@ -1821,14 +1823,18 @@ fn build_known_operation_plans(
             let EvidenceVmOperationKind::Call { apply, callee } = operation.kind else {
                 return None;
             };
+            let operation_def = operation.operation_def.map(|def| def.0);
             let proof = build_known_state_operation_route_proof(
                 operation,
                 target,
                 apply,
                 callee,
-                accesses.get(&EvidenceVmKnownStateAccessKey {
-                    synthetic_var: target.synthetic_var,
-                    role: target.role,
+                operation_def.and_then(|operation_def| {
+                    accesses.get(&EvidenceVmKnownStateAccessKey {
+                        synthetic_var: target.synthetic_var,
+                        role: target.role,
+                        operation_def,
+                    })
                 }),
                 &mut proofs,
             );
@@ -1894,14 +1900,11 @@ struct EvidenceVmKnownStateAccessTarget {
     operation_def: u32,
 }
 
-// RuntimeEvidenceSurface still carries poly expr ids, while Evidence VM plans use
-// control expr ids. For D1, the stable bridge is the compiler-issued synthetic
-// var id plus the certified operation role; the emitted proof remains per
-// control call site.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct EvidenceVmKnownStateAccessKey {
     synthetic_var: u32,
     role: EvidenceVmKnownOperationRole,
+    operation_def: u32,
 }
 
 fn known_state_access_targets(
@@ -1913,6 +1916,7 @@ fn known_state_access_targets(
             .entry(EvidenceVmKnownStateAccessKey {
                 synthetic_var: access.synthetic_var,
                 role: known_state_access_role(access.role),
+                operation_def: access.operation_def,
             })
             .or_insert(EvidenceVmKnownStateAccessTarget {
                 operation_def: access.operation_def,
@@ -3271,10 +3275,15 @@ fn format_operations(out: &mut String, operations: &[EvidenceVmOperationPlan]) {
     }
     writeln!(out, "operations:").unwrap();
     for operation in operations {
+        let def = operation
+            .operation_def
+            .map(|def| format!(" d{}", def.0))
+            .unwrap_or_default();
         writeln!(
             out,
-            "  e{} {} {} slot {} {} runtime_nodes [{}] evidence_refs {}",
+            "  e{}{} {} {} slot {} {} runtime_nodes [{}] evidence_refs {}",
             operation.expr.0,
+            def,
             format_operation_kind(operation.kind),
             format_path(&operation.path),
             format_slot_key(&operation.slot),
@@ -3938,7 +3947,7 @@ impl LexicalHandlerIndex {
             return;
         };
         match expr {
-            Expr::EffectOp { path } => {
+            Expr::EffectOp { path, .. } => {
                 if let Some(candidate) = context.candidate_for(path) {
                     self.by_operation_expr.entry(id).or_insert(candidate);
                 }
@@ -4148,6 +4157,7 @@ mod tests {
         };
         let operation = EvidenceVmOperationPlan {
             expr: operation_expr,
+            operation_def: None,
             path: path.clone(),
             slot: positive_slot(path),
             kind: EvidenceVmOperationKind::Value,

@@ -829,7 +829,7 @@ fn effect_call(path: Vec<String>, payload: ExprKind) -> Expr {
     }]);
     force_thunk_expr(
         Expr::new(ExprKind::Apply(
-            Box::new(Expr::new(ExprKind::EffectOp { path })),
+            Box::new(Expr::new(ExprKind::EffectOp { def: None, path })),
             Box::new(Expr::new(payload)),
         )),
         effect,

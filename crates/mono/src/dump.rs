@@ -104,7 +104,7 @@ impl Dumper {
             ExprKind::Constructor { def, arity } => {
                 format!("<ctor d{} / {}>", def.0, arity)
             }
-            ExprKind::EffectOp { path } => format!("<effect-op {}>", path.join("::")),
+            ExprKind::EffectOp { path, .. } => format!("<effect-op {}>", path.join("::")),
             ExprKind::Local(def) => format!("d{}", def.0),
             ExprKind::InstanceRef(instance) => format!("m{}", instance.0),
             ExprKind::Coerce {
@@ -711,6 +711,7 @@ mod tests {
                     hygiene: FunctionAdapterHygiene::default(),
                 })),
                 Root::Expr(Expr::new(ExprKind::EffectOp {
+                    def: None,
                     path: vec!["out".to_string(), "say".to_string()],
                 })),
             ],

@@ -3166,6 +3166,36 @@ pub(crate) fn print_run_report(
             .known_operation_state_direct_set_plan_hits
     );
     println!(
+        "  runtime_evidence.known_operation_route_shadow_hits: {}",
+        output.evidence_stats.known_operation_route_shadow_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_route_shadow_get_hits: {}",
+        output.evidence_stats.known_operation_route_shadow_get_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_route_shadow_set_hits: {}",
+        output.evidence_stats.known_operation_route_shadow_set_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_route_shadow_missing_proof: {}",
+        output
+            .evidence_stats
+            .known_operation_route_shadow_missing_proof
+    );
+    println!(
+        "  runtime_evidence.known_operation_route_shadow_missing_frame: {}",
+        output
+            .evidence_stats
+            .known_operation_route_shadow_missing_frame
+    );
+    println!(
+        "  runtime_evidence.known_operation_route_shadow_role_mismatch: {}",
+        output
+            .evidence_stats
+            .known_operation_route_shadow_role_mismatch
+    );
+    println!(
         "  runtime_evidence.known_operation_reject_no_visibility_hits: {}",
         output
             .evidence_stats

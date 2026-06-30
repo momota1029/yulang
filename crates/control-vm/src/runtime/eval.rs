@@ -187,7 +187,7 @@ impl<'a> Runtime<'a> {
                 def: *def,
                 arity: *arity,
             }),
-            Expr::EffectOp { path } => Some(DirectKnownCallee::EffectOp { path: path.clone() }),
+            Expr::EffectOp { path, .. } => Some(DirectKnownCallee::EffectOp { path: path.clone() }),
             Expr::InstanceRef(instance) => {
                 let entry = self
                     .program
@@ -210,7 +210,7 @@ impl<'a> Runtime<'a> {
                 def: *def,
                 arity: *arity,
             }),
-            Expr::EffectOp { path } => Some(DirectKnownCallee::EffectOp { path: path.clone() }),
+            Expr::EffectOp { path, .. } => Some(DirectKnownCallee::EffectOp { path: path.clone() }),
             Expr::Lambda { param, body } => Some(DirectKnownCallee::Closure {
                 param: param.clone(),
                 body: *body,
@@ -1117,7 +1117,7 @@ impl EvalExpr {
                 def: *def,
                 arity: *arity,
             },
-            Expr::EffectOp { path } => Self::EffectOp { path: path.clone() },
+            Expr::EffectOp { path, .. } => Self::EffectOp { path: path.clone() },
             Expr::Local(def) => Self::Local(*def),
             Expr::InstanceRef(instance) => Self::InstanceRef(*instance),
             Expr::Coerce { expr, .. } => Self::Coerce { expr: *expr },

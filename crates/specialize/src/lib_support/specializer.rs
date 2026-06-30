@@ -373,6 +373,7 @@ impl Specializer {
             }
             _ if let Some(operation) = arena.effect_operations.get(&def) => {
                 Ok(ExprKind::EffectOp {
+                    def: Some(convert_def(def)),
                     path: operation.path.clone(),
                 })
             }
