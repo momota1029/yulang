@@ -1130,6 +1130,22 @@ fn debug_runtime_evidence_run_handles_ref_set() {
         stdout.contains("runtime_evidence.known_operation_state_set_candidate_hits: 1"),
         "known operation runtime hits should count forced set requests:\n{stdout}"
     );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_state_get_active_frame_hits: 3"),
+        "known get operations should see the active state frame at force time:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_state_set_active_frame_hits: 1"),
+        "known set operations should see the active state frame at force time:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_state_get_active_frame_misses: 0"),
+        "known get operations should not miss the active state frame in this canary:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_state_set_active_frame_misses: 0"),
+        "known set operations should not miss the active state frame in this canary:\n{stdout}"
+    );
 }
 
 #[test]
@@ -1182,6 +1198,14 @@ fn debug_runtime_evidence_run_known_state_frame_matches_control_across_nondet_re
     assert!(
         stdout.contains("runtime_evidence.known_state_frame_missing_late: 0"),
         "nondet resume should not lose the active state frame:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_state_get_active_frame_hits: 7"),
+        "known get operations should see the active state frame across nondet resume:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_state_set_active_frame_hits: 2"),
+        "known set operations should see the active state frame across nondet resume:\n{stdout}"
     );
 }
 

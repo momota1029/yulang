@@ -270,6 +270,9 @@ No behavior change.
   direct-ready candidates, and reject reasons.
 - Count runtime candidate hits from forced effect thunks so hot benchmarks can
   compare static call sites with dynamic request volume.
+- Count whether those forced known operation thunks already have a matching
+  active runtime state frame. This is observation only; it is not a route proof
+  by itself.
 
 Rollback: ignore `EvidenceVmObjectPlan::known_operations`.
 

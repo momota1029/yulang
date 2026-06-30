@@ -1569,6 +1569,22 @@ fn print_runtime_evidence_phase_timings(
         stats.known_operation_state_set_candidate_hits
     );
     eprintln!(
+        "  run.runtime_evidence.known_operation_state_get_active_frame_hits: {}",
+        stats.known_operation_state_get_active_frame_hits
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_operation_state_set_active_frame_hits: {}",
+        stats.known_operation_state_set_active_frame_hits
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_operation_state_get_active_frame_misses: {}",
+        stats.known_operation_state_get_active_frame_misses
+    );
+    eprintln!(
+        "  run.runtime_evidence.known_operation_state_set_active_frame_misses: {}",
+        stats.known_operation_state_set_active_frame_misses
+    );
+    eprintln!(
         "  run.runtime_evidence.known_operation_state_direct_get_plan_hits: {}",
         stats.known_operation_state_direct_get_plan_hits
     );

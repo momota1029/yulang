@@ -60,6 +60,9 @@ pub(super) struct RuntimeEvidenceRunContext {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct RuntimeEvidenceKnownOperationCall {
+    pub(super) plan_id: EvidenceVmKnownHandlerPlanId,
+    #[allow(dead_code)]
+    pub(super) handler_id: u32,
     pub(super) role: EvidenceVmKnownOperationRole,
     pub(super) direct_ready: bool,
     pub(super) reject: Option<EvidenceVmKnownOperationReject>,
@@ -863,6 +866,8 @@ fn known_operations_by_call_from_plan(
         table[operation.apply.0 as usize] = Some((
             operation.callee,
             RuntimeEvidenceKnownOperationCall {
+                plan_id: operation.known_handler,
+                handler_id: operation.handler_id,
                 role: operation.role,
                 direct_ready: operation.direct_ready,
                 reject: operation.reject,

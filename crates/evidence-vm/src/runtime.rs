@@ -13005,15 +13005,26 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     }
 
     fn record_known_operation_hit(&mut self, operation: RuntimeEvidenceKnownOperationCall) {
+        let active_state_frame = self.known_operation_has_active_state_frame(operation);
         match operation.role {
             EvidenceVmKnownOperationRole::StateGet => {
                 self.stats.known_operation_state_get_candidate_hits += 1;
+                if active_state_frame {
+                    self.stats.known_operation_state_get_active_frame_hits += 1;
+                } else {
+                    self.stats.known_operation_state_get_active_frame_misses += 1;
+                }
                 if operation.direct_ready {
                     self.stats.known_operation_state_direct_get_plan_hits += 1;
                 }
             }
             EvidenceVmKnownOperationRole::StateSet => {
                 self.stats.known_operation_state_set_candidate_hits += 1;
+                if active_state_frame {
+                    self.stats.known_operation_state_set_active_frame_hits += 1;
+                } else {
+                    self.stats.known_operation_state_set_active_frame_misses += 1;
+                }
                 if operation.direct_ready {
                     self.stats.known_operation_state_direct_set_plan_hits += 1;
                 }
@@ -13022,6 +13033,16 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         if let Some(reject) = operation.reject {
             self.record_known_operation_reject_hit(reject);
         }
+    }
+
+    fn known_operation_has_active_state_frame(
+        &self,
+        operation: RuntimeEvidenceKnownOperationCall,
+    ) -> bool {
+        self.active_state_handler_frames
+            .iter()
+            .rev()
+            .any(|frame| frame.plan_id == operation.plan_id)
     }
 
     fn record_known_operation_reject_hit(&mut self, reject: EvidenceVmKnownOperationReject) {

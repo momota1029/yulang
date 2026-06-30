@@ -3064,6 +3064,30 @@ pub(crate) fn print_run_report(
             .known_operation_state_set_candidate_hits
     );
     println!(
+        "  runtime_evidence.known_operation_state_get_active_frame_hits: {}",
+        output
+            .evidence_stats
+            .known_operation_state_get_active_frame_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_state_set_active_frame_hits: {}",
+        output
+            .evidence_stats
+            .known_operation_state_set_active_frame_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_state_get_active_frame_misses: {}",
+        output
+            .evidence_stats
+            .known_operation_state_get_active_frame_misses
+    );
+    println!(
+        "  runtime_evidence.known_operation_state_set_active_frame_misses: {}",
+        output
+            .evidence_stats
+            .known_operation_state_set_active_frame_misses
+    );
+    println!(
         "  runtime_evidence.known_operation_state_direct_get_plan_hits: {}",
         output
             .evidence_stats
