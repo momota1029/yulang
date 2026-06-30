@@ -862,6 +862,62 @@ fn debug_runtime_evidence_run_applies_function_adapter_for_each() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_inlines_pure_for_adapter_thunks() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-pure-for-adapter-inline",
+        "{\n\
+         \x20 for x in 1..3:\n\
+         \x20\x20 x + 1\n\
+         \x20 ()\n\
+         }\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [()]\n"), "{stdout}");
+    assert!(
+        stdout.contains("runtime_evidence.apply_adapter_inline_attempts: 6"),
+        "pure for callbacks should try the adapter inline route:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.apply_adapter_inline_hits: 6"),
+        "pure for callbacks should finish adapter application without continuation frames:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.apply_adapter_inline_effect_fallbacks: 0"),
+        "pure for callbacks should not need the effect fallback in the adapter inline route:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.adapt_value_inline_thunk_wraps: 6"),
+        "pure for callback returns should wrap values into thunk values directly:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.catch_body_env_clone_elided: 20"),
+        "pure for loop-control catches should reuse env when the body cannot extend it:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.catch_body_env_clone_kept: 0"),
+        "pure for loop-control catches should not clone env for preserving bodies:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.continuation_resume_adapter_steps: 0"),
+        "pure for callbacks should not resume adapter continuation frames:\n{stdout}"
+    );
+}
+
+#[test]
 fn debug_runtime_evidence_run_evaluates_list_view_raw() {
     let entry = write_entry(
         "debug-runtime-evidence-run-list-view-raw",

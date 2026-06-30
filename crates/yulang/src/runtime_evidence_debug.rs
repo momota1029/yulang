@@ -578,8 +578,24 @@ pub(crate) fn print_run_report(
         output.evidence_stats.apply_adapter_calls
     );
     println!(
+        "  runtime_evidence.apply_adapter_inline_attempts: {}",
+        output.evidence_stats.apply_adapter_inline_attempts
+    );
+    println!(
+        "  runtime_evidence.apply_adapter_inline_hits: {}",
+        output.evidence_stats.apply_adapter_inline_hits
+    );
+    println!(
+        "  runtime_evidence.apply_adapter_inline_effect_fallbacks: {}",
+        output.evidence_stats.apply_adapter_inline_effect_fallbacks
+    );
+    println!(
         "  runtime_evidence.adapt_value_calls: {}",
         output.evidence_stats.adapt_value_calls
+    );
+    println!(
+        "  runtime_evidence.adapt_value_inline_thunk_wraps: {}",
+        output.evidence_stats.adapt_value_inline_thunk_wraps
     );
     println!(
         "  runtime_evidence.primitive_apply_calls: {}",
@@ -612,6 +628,14 @@ pub(crate) fn print_run_report(
     println!(
         "  runtime_evidence.thunk_force_adapter: {}",
         output.evidence_stats.thunk_force_adapter
+    );
+    println!(
+        "  runtime_evidence.thunk_force_adapter_inline_hits: {}",
+        output.evidence_stats.thunk_force_adapter_inline_hits
+    );
+    println!(
+        "  runtime_evidence.make_thunk_inline_value_hits: {}",
+        output.evidence_stats.make_thunk_inline_value_hits
     );
     println!(
         "  runtime_evidence.continuation_appends: {}",
@@ -3330,6 +3354,14 @@ pub(crate) fn print_run_report(
     println!(
         "  runtime_evidence.request_continuation_steps: {}",
         output.evidence_stats.request_continuation_steps
+    );
+    println!(
+        "  runtime_evidence.catch_body_env_clone_elided: {}",
+        output.evidence_stats.catch_body_env_clone_elided
+    );
+    println!(
+        "  runtime_evidence.catch_body_env_clone_kept: {}",
+        output.evidence_stats.catch_body_env_clone_kept
     );
     println!(
         "  runtime_evidence.catch_body_checks: {}",

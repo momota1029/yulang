@@ -7730,6 +7730,93 @@ fn static_arm_caches(
     (case_arms, catch_arms)
 }
 
+fn env_preserving_expr_cache(runtime_exprs: &[RuntimeEvidenceExpr]) -> Vec<bool> {
+    // This proof is only about the caller Env not being extended. It is not an
+    // effect-freedom proof; effectful work may still happen behind an internal
+    // env clone or a captured continuation.
+    let mut preserving = vec![false; runtime_exprs.len()];
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for (index, expr) in runtime_exprs.iter().enumerate() {
+            if preserving[index] || !runtime_expr_preserves_env(expr, &preserving) {
+                continue;
+            }
+            preserving[index] = true;
+            changed = true;
+        }
+    }
+    preserving
+}
+
+fn runtime_expr_preserves_env(expr: &RuntimeEvidenceExpr, preserving: &[bool]) -> bool {
+    match expr {
+        RuntimeEvidenceExpr::Value(_)
+        | RuntimeEvidenceExpr::NullaryPrimitive { .. }
+        | RuntimeEvidenceExpr::Local { .. }
+        | RuntimeEvidenceExpr::Instance(_)
+        | RuntimeEvidenceExpr::MakeThunk { .. }
+        | RuntimeEvidenceExpr::Lambda { .. }
+        | RuntimeEvidenceExpr::ForceEffectCall { .. }
+        | RuntimeEvidenceExpr::RefSet { .. }
+        | RuntimeEvidenceExpr::Catch { .. } => true,
+        RuntimeEvidenceExpr::Alias(expr)
+        | RuntimeEvidenceExpr::FunctionAdapter { function: expr, .. }
+        | RuntimeEvidenceExpr::ForceThunk { thunk: expr, .. }
+        | RuntimeEvidenceExpr::MarkerFrame { body: expr, .. }
+        | RuntimeEvidenceExpr::Select { base: expr, .. }
+        | RuntimeEvidenceExpr::Case {
+            scrutinee: expr, ..
+        } => expr_id_preserves_env(*expr, preserving),
+        RuntimeEvidenceExpr::Apply { callee, .. } => {
+            // Non-immediate args are evaluated in an internal cloned env.
+            expr_id_preserves_env(*callee, preserving)
+        }
+        RuntimeEvidenceExpr::Tuple(items)
+        | RuntimeEvidenceExpr::PolyVariant {
+            payloads: items, ..
+        } => expr_ids_preserve_env(items, preserving),
+        RuntimeEvidenceExpr::Record { fields, spread } => {
+            record_spread_preserves_env(spread, preserving)
+                && fields
+                    .iter()
+                    .all(|field| expr_id_preserves_env(field.value, preserving))
+        }
+        RuntimeEvidenceExpr::Block { stmts, tail } => {
+            stmts
+                .iter()
+                .all(|stmt| stmt_preserves_env(stmt, preserving))
+                && tail.map_or(true, |tail| expr_id_preserves_env(tail, preserving))
+        }
+    }
+}
+
+fn expr_ids_preserve_env(exprs: &[ExprId], preserving: &[bool]) -> bool {
+    exprs
+        .iter()
+        .all(|expr| expr_id_preserves_env(*expr, preserving))
+}
+
+fn expr_id_preserves_env(expr: ExprId, preserving: &[bool]) -> bool {
+    preserving.get(expr.0 as usize).copied().unwrap_or(false)
+}
+
+fn record_spread_preserves_env(spread: &RecordSpread<ExprId>, preserving: &[bool]) -> bool {
+    match spread {
+        RecordSpread::None => true,
+        RecordSpread::Head(expr) | RecordSpread::Tail(expr) => {
+            expr_id_preserves_env(*expr, preserving)
+        }
+    }
+}
+
+fn stmt_preserves_env(stmt: &Stmt, preserving: &[bool]) -> bool {
+    match stmt {
+        Stmt::Expr(expr) => expr_id_preserves_env(*expr, preserving),
+        Stmt::Let(..) | Stmt::Module(..) => false,
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct RuntimeStateFrameId(u32);
 
@@ -7773,6 +7860,7 @@ struct RuntimeEvidenceRunner<'a> {
     program: &'a Program,
     evidence: ControlEvidenceIndex,
     runtime_exprs: Vec<RuntimeEvidenceExpr>,
+    env_preserving_exprs: Vec<bool>,
     case_arms: Vec<Option<Rc<[control_vm::CaseArm]>>>,
     catch_arms: Vec<Option<Rc<[control_vm::CatchArm]>>>,
     instances: HashMap<InstanceId, SharedValue>,
@@ -7811,6 +7899,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         let mut evidence = ControlEvidenceIndex::new(program);
         context.apply_to_evidence(&mut evidence);
         let runtime_exprs = runtime_expr_cache(program);
+        let env_preserving_exprs = env_preserving_expr_cache(&runtime_exprs);
         let (case_arms, catch_arms) = static_arm_caches(program);
         let mut stats = evidence.stats();
         context.apply_to_stats(&mut stats);
@@ -7820,6 +7909,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             program,
             evidence,
             runtime_exprs,
+            env_preserving_exprs,
             case_arms,
             catch_arms,
             instances: HashMap::new(),
@@ -7890,6 +7980,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             .and_then(|arms| arms.as_ref())
             .cloned()
             .expect("catch expression must have cached catch arms")
+    }
+
+    fn expr_preserves_env(&self, expr: ExprId) -> bool {
+        expr_id_preserves_env(expr, &self.env_preserving_exprs)
     }
 
     fn clone_env(&mut self, env: &Env) -> Env {
@@ -11768,6 +11862,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 let provider_expr = *provider_expr;
                 let needs_hygiene_mark = *needs_hygiene_mark;
                 let provider_env = self.provider_env_for_value(provider_expr);
+                if provider_env.is_empty()
+                    && let Some(value) = self.eval_immediate_value_expr(body, env)?
+                {
+                    self.stats.make_thunk_inline_value_hits += 1;
+                    return Ok(EvidenceEvalResult::Value(shared(
+                        RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Value(value))),
+                    )));
+                }
                 let env = self.clone_env(env);
                 return Ok(EvidenceEvalResult::Value(shared(
                     RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Expr {
@@ -13342,8 +13444,36 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             |runner| {
                 let function = mark_runtime_value_unchecked(function, &body_markers);
                 let arg = mark_runtime_value_for_type(arg, &arg_markers, &target_arg);
-                let result = runner.adapt_value_result(arg, &target_arg, &source_arg)?;
-                runner.continue_result(
+                runner.apply_adapter_value_inline_result(
+                    function,
+                    arg,
+                    target_arg,
+                    source_arg,
+                    source_ret,
+                    target_ret,
+                    ret_markers,
+                )
+            },
+        )
+    }
+
+    fn apply_adapter_value_inline_result(
+        &mut self,
+        function: SharedValue,
+        arg: SharedValue,
+        target_arg: Type,
+        source_arg: Type,
+        source_ret: Type,
+        target_ret: Type,
+        ret_markers: Vec<EvidenceValueMarker>,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        self.stats.apply_adapter_inline_attempts += 1;
+        let arg_result = self.adapt_value_result(arg, &target_arg, &source_arg)?;
+        let arg = match arg_result {
+            EvidenceEvalResult::Value(arg) => arg,
+            result => {
+                self.stats.apply_adapter_inline_effect_fallbacks += 1;
+                return self.continue_result(
                     result,
                     EvidenceContinuation::apply_adapter_arg(
                         function,
@@ -13352,9 +13482,35 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                         target_ret,
                         EvidenceContinuation::identity(),
                     ),
-                )
-            },
-        )
+                );
+            }
+        };
+
+        let result = self.apply_value_result(None, function, arg)?;
+        let value = match result {
+            EvidenceEvalResult::Value(value) => value,
+            result => {
+                self.stats.apply_adapter_inline_effect_fallbacks += 1;
+                return self.continue_result(
+                    result,
+                    EvidenceContinuation::apply_adapter_result(
+                        ret_markers,
+                        source_ret,
+                        target_ret,
+                        EvidenceContinuation::identity(),
+                    ),
+                );
+            }
+        };
+
+        let result = self.adapt_value_result(value, &source_ret, &target_ret)?;
+        let result = self.close_marked_result_for_type(result, &ret_markers, &target_ret)?;
+        if matches!(result, EvidenceEvalResult::Value(_)) {
+            self.stats.apply_adapter_inline_hits += 1;
+        } else {
+            self.stats.apply_adapter_inline_effect_fallbacks += 1;
+        }
+        Ok(result)
     }
 
     fn adapt_value_result(
@@ -13416,10 +13572,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 },
             ) => {
                 let result = self.adapt_value_result(value, source, target_value)?;
-                self.continue_result(
-                    result,
-                    EvidenceContinuation::wrap_thunk_value(EvidenceContinuation::identity()),
-                )
+                match result {
+                    EvidenceEvalResult::Value(value) => {
+                        self.stats.adapt_value_inline_thunk_wraps += 1;
+                        Ok(EvidenceEvalResult::Value(shared(
+                            RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Value(
+                                value,
+                            ))),
+                        )))
+                    }
+                    result => self.continue_result(
+                        result,
+                        EvidenceContinuation::wrap_thunk_value(EvidenceContinuation::identity()),
+                    ),
+                }
             }
             (Type::Fun { .. }, Type::Fun { .. }) => Ok(EvidenceEvalResult::Value(shared(
                 RuntimeEvidenceValue::FunctionAdapter {
@@ -16365,14 +16531,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 } => {
                     self.stats.thunk_force_adapter += 1;
                     let result = self.force_thunk_result(thunk.clone())?;
-                    self.continue_result(
-                        result,
-                        EvidenceContinuation::adapt_value(
-                            source.clone(),
-                            target.clone(),
-                            EvidenceContinuation::identity(),
+                    match result {
+                        EvidenceEvalResult::Value(value) => {
+                            self.stats.thunk_force_adapter_inline_hits += 1;
+                            self.adapt_value_result(value, source, target)
+                        }
+                        result => self.continue_result(
+                            result,
+                            EvidenceContinuation::adapt_value(
+                                source.clone(),
+                                target.clone(),
+                                EvidenceContinuation::identity(),
+                            ),
                         ),
-                    )
+                    }
                 }
             },
             RuntimeEvidenceValue::Marked { value, markers } => {
@@ -16427,16 +16599,22 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         catch_expr: ExprId,
         body: ExprId,
-        env: &Env,
+        env: &mut Env,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         let arms = self.static_catch_arms(catch_expr);
-        let mut body_env = self.clone_env(env);
         let provider_len = self.active_provider_handlers.len();
         let state_frame_len = self.active_state_handler_frames.len();
         self.push_known_state_frame_for_catch(catch_expr, env);
         self.active_provider_handlers
             .extend_from_slice(self.context.handler_ids_for_catch(catch_expr));
-        let body_result = self.eval_expr_result(body, &mut body_env);
+        let body_result = if self.expr_preserves_env(body) {
+            self.stats.catch_body_env_clone_elided += 1;
+            self.eval_expr_result(body, env)
+        } else {
+            self.stats.catch_body_env_clone_kept += 1;
+            let mut body_env = self.clone_env(env);
+            self.eval_expr_result(body, &mut body_env)
+        };
         self.active_provider_handlers.truncate(provider_len);
         let result = match body_result {
             Ok(result) => self.continue_catch_body_result(catch_expr, arms, env, result),
