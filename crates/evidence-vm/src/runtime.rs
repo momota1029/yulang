@@ -357,6 +357,7 @@ enum EvidenceContinuationFrame {
     ScopePlanForeignCatchBoundary {
         scope: EvidenceContinuation,
         scope_direct_tail_boundary_free: bool,
+        scope_instruction_plan: Option<Rc<EvidenceScopeInstructionPlan>>,
         scope_local_plan: Option<Rc<EvidenceScopeLocalPlan>>,
         boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
         next: EvidenceContinuation,
@@ -2876,6 +2877,11 @@ impl EvidenceProviderDeltaFramePlan {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+struct EvidenceScopeInstructionPlan {
+    instructions: Rc<[EvidenceScopeInstruction]>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 struct EvidenceScopeLocalPlan {
     actions: Rc<[EvidenceScopeLocalAction]>,
 }
@@ -2883,6 +2889,69 @@ struct EvidenceScopeLocalPlan {
 #[derive(Debug, Clone, PartialEq)]
 struct EvidenceScopeSidecarPlan {
     actions: Rc<[EvidenceScopeSidecarAction]>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum EvidenceScopeInstruction {
+    Eval(EvidenceEvalDeltaFramePlan),
+    CatchForeign {
+        boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
+    },
+    EnterMarker(EvidenceMarkerDeltaFramePlan),
+    ExitMarker,
+    EnterProvider(EvidenceProviderDeltaFramePlan),
+    ExitProvider,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceScopeInstructionExit {
+    Marker,
+    Provider,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EvidenceScopeInstructionMaterializeStop {
+    End,
+    Exit(EvidenceScopeInstructionExit),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceScopeInstructionMaterializeResult {
+    next_index: usize,
+    closed_exit: bool,
+}
+
+#[derive(Debug)]
+enum EvidenceScopeInstructionActiveScope {
+    Marker(EvidenceScopeInstructionActiveMarker),
+    Provider(EvidenceScopeInstructionActiveProvider),
+}
+
+#[derive(Debug)]
+struct EvidenceScopeInstructionActiveMarker {
+    markers: Rc<[EvidenceValueMarker]>,
+    activate_add_ids: bool,
+    handler_path: Option<Vec<String>>,
+    frame_len: usize,
+    handler_frame_len: usize,
+    add_id_len: usize,
+    plan_len: usize,
+}
+
+#[derive(Debug)]
+struct EvidenceScopeInstructionActiveProvider {
+    len: usize,
+    provider_env: RuntimeEvidenceProviderEnv,
+    frame: Option<RuntimeEvidenceProviderFrame>,
+}
+
+impl EvidenceScopeInstructionActiveScope {
+    fn exit(&self) -> EvidenceScopeInstructionExit {
+        match self {
+            Self::Marker(_) => EvidenceScopeInstructionExit::Marker,
+            Self::Provider(_) => EvidenceScopeInstructionExit::Provider,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -2927,6 +2996,40 @@ enum EvidenceScopeLocalPlanReject {
 enum EvidenceScopeSidecarPlanReject {
     RequestBoundary,
     RefSetBoundary,
+}
+
+impl EvidenceScopeInstructionPlan {
+    fn from_continuation(
+        continuation: &EvidenceContinuation,
+    ) -> Result<Self, EvidenceScopeLocalPlanReject> {
+        let mut builder = EvidenceScopeInstructionPlanBuilder::default();
+        builder.append_continuation(continuation)?;
+        Ok(builder.finish())
+    }
+
+    fn instruction_count(&self) -> usize {
+        self.instructions.len()
+    }
+
+    #[cfg(test)]
+    fn materialize(&self, tail: EvidenceContinuation) -> EvidenceContinuation {
+        let (continuation, result) =
+            self.materialize_from(0, EvidenceScopeInstructionMaterializeStop::End);
+        debug_assert!(!result.closed_exit);
+        debug_assert_eq!(result.next_index, self.instructions.len());
+        append_continuation_unprofiled(continuation, tail)
+    }
+
+    fn materialize_from(
+        &self,
+        start: usize,
+        stop: EvidenceScopeInstructionMaterializeStop,
+    ) -> (
+        EvidenceContinuation,
+        EvidenceScopeInstructionMaterializeResult,
+    ) {
+        materialize_scope_instructions(self.instructions.as_ref(), start, stop)
+    }
 }
 
 impl EvidenceScopeLocalPlan {
@@ -2974,6 +3077,21 @@ impl EvidenceScopeSidecarPlan {
             .iter()
             .rev()
             .fold(tail, |tail, action| action.materialize_before(tail))
+    }
+}
+
+impl EvidenceScopeInstruction {
+    fn materialize_before(&self, tail: EvidenceContinuation) -> EvidenceContinuation {
+        match self {
+            Self::Eval(frame) => frame.to_continuation(tail),
+            Self::CatchForeign { boundaries } => {
+                EvidenceContinuation::catch_foreign_boundary_segment(boundaries.clone(), tail)
+            }
+            Self::EnterMarker(_)
+            | Self::ExitMarker
+            | Self::EnterProvider(_)
+            | Self::ExitProvider => tail,
+        }
     }
 }
 
@@ -3067,6 +3185,115 @@ fn append_continuation_unprofiled(
     }))
 }
 
+fn materialize_scope_instructions(
+    instructions: &[EvidenceScopeInstruction],
+    start: usize,
+    stop: EvidenceScopeInstructionMaterializeStop,
+) -> (
+    EvidenceContinuation,
+    EvidenceScopeInstructionMaterializeResult,
+) {
+    let mut index = start;
+    let mut parts = Vec::new();
+    while index < instructions.len() {
+        match &instructions[index] {
+            EvidenceScopeInstruction::ExitMarker
+                if stop
+                    == EvidenceScopeInstructionMaterializeStop::Exit(
+                        EvidenceScopeInstructionExit::Marker,
+                    ) =>
+            {
+                return (
+                    materialize_scope_instruction_parts(parts),
+                    EvidenceScopeInstructionMaterializeResult {
+                        next_index: index + 1,
+                        closed_exit: true,
+                    },
+                );
+            }
+            EvidenceScopeInstruction::ExitProvider
+                if stop
+                    == EvidenceScopeInstructionMaterializeStop::Exit(
+                        EvidenceScopeInstructionExit::Provider,
+                    ) =>
+            {
+                return (
+                    materialize_scope_instruction_parts(parts),
+                    EvidenceScopeInstructionMaterializeResult {
+                        next_index: index + 1,
+                        closed_exit: true,
+                    },
+                );
+            }
+            EvidenceScopeInstruction::EnterMarker(frame) => {
+                let (child, result) = materialize_scope_instructions(
+                    instructions,
+                    index + 1,
+                    EvidenceScopeInstructionMaterializeStop::Exit(
+                        EvidenceScopeInstructionExit::Marker,
+                    ),
+                );
+                debug_assert!(result.closed_exit);
+                parts.push(EvidenceContinuation::marker_frame(
+                    frame.markers.clone(),
+                    frame.activate_add_ids,
+                    frame
+                        .handler_path
+                        .as_ref()
+                        .map(|path| path.as_ref().to_vec()),
+                    child,
+                ));
+                index = result.next_index;
+            }
+            EvidenceScopeInstruction::EnterProvider(frame) => {
+                let (child, result) = materialize_scope_instructions(
+                    instructions,
+                    index + 1,
+                    EvidenceScopeInstructionMaterializeStop::Exit(
+                        EvidenceScopeInstructionExit::Provider,
+                    ),
+                );
+                debug_assert!(result.closed_exit);
+                parts.push(EvidenceContinuation::provider_env(
+                    frame.provider_env.clone(),
+                    child,
+                ));
+                index = result.next_index;
+            }
+            EvidenceScopeInstruction::ExitMarker | EvidenceScopeInstruction::ExitProvider => {
+                debug_assert_eq!(stop, EvidenceScopeInstructionMaterializeStop::End);
+                index += 1;
+            }
+            action => {
+                parts.push(action.materialize_before(EvidenceContinuation::identity()));
+                index += 1;
+            }
+        }
+    }
+
+    (
+        materialize_scope_instruction_parts(parts),
+        EvidenceScopeInstructionMaterializeResult {
+            next_index: index,
+            closed_exit: false,
+        },
+    )
+}
+
+fn materialize_scope_instruction_parts(parts: Vec<EvidenceContinuation>) -> EvidenceContinuation {
+    parts
+        .into_iter()
+        .rev()
+        .fold(EvidenceContinuation::identity(), |tail, part| {
+            append_continuation_unprofiled(part, tail)
+        })
+}
+
+#[derive(Debug, Default)]
+struct EvidenceScopeInstructionPlanBuilder {
+    instructions: Vec<EvidenceScopeInstruction>,
+}
+
 #[derive(Debug, Default)]
 struct EvidenceScopeLocalPlanBuilder {
     actions: Vec<EvidenceScopeLocalAction>,
@@ -3075,6 +3302,111 @@ struct EvidenceScopeLocalPlanBuilder {
 #[derive(Debug, Default)]
 struct EvidenceScopeSidecarPlanBuilder {
     actions: Vec<EvidenceScopeSidecarAction>,
+}
+
+impl EvidenceScopeInstructionPlanBuilder {
+    fn finish(self) -> EvidenceScopeInstructionPlan {
+        EvidenceScopeInstructionPlan {
+            instructions: Rc::from(self.instructions.into_boxed_slice()),
+        }
+    }
+
+    fn append_continuation(
+        &mut self,
+        continuation: &EvidenceContinuation,
+    ) -> Result<(), EvidenceScopeLocalPlanReject> {
+        let Some(frame) = continuation.frame() else {
+            return Ok(());
+        };
+        self.append_frame(frame)
+    }
+
+    fn append_frame(
+        &mut self,
+        frame: &EvidenceContinuationFrame,
+    ) -> Result<(), EvidenceScopeLocalPlanReject> {
+        match frame {
+            EvidenceContinuationFrame::Then { first, second } => {
+                self.append_continuation(first)?;
+                self.append_continuation(second)
+            }
+            EvidenceContinuationFrame::MarkerFrame {
+                markers,
+                activate_add_ids,
+                handler_path,
+                next,
+            } => {
+                self.instructions
+                    .push(EvidenceScopeInstruction::EnterMarker(
+                        EvidenceMarkerDeltaFramePlan {
+                            markers: markers.clone(),
+                            activate_add_ids: *activate_add_ids,
+                            handler_path: handler_path
+                                .as_ref()
+                                .map(|path| Rc::from(path.clone().into_boxed_slice())),
+                        },
+                    ));
+                self.append_continuation(next)?;
+                self.instructions.push(EvidenceScopeInstruction::ExitMarker);
+                Ok(())
+            }
+            EvidenceContinuationFrame::ProviderEnv { provider_env, next } => {
+                self.instructions
+                    .push(EvidenceScopeInstruction::EnterProvider(
+                        EvidenceProviderDeltaFramePlan {
+                            provider_env: provider_env.clone(),
+                        },
+                    ));
+                self.append_continuation(next)?;
+                self.instructions
+                    .push(EvidenceScopeInstruction::ExitProvider);
+                Ok(())
+            }
+            EvidenceContinuationFrame::CatchBody { .. } => {
+                Err(EvidenceScopeLocalPlanReject::RequestBoundary)
+            }
+            EvidenceContinuationFrame::CatchForeignBoundarySegment { boundaries, next } => {
+                if !catch_boundaries_are_foreign_pass_through(boundaries.as_ref()) {
+                    return Err(EvidenceScopeLocalPlanReject::RequestBoundary);
+                }
+                self.instructions
+                    .push(EvidenceScopeInstruction::CatchForeign {
+                        boundaries: boundaries.clone(),
+                    });
+                self.append_continuation(next)
+            }
+            EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
+                scope,
+                boundaries,
+                next,
+                ..
+            } => {
+                if !catch_boundaries_are_foreign_pass_through(boundaries.as_ref()) {
+                    return Err(EvidenceScopeLocalPlanReject::RequestBoundary);
+                }
+                self.append_continuation(scope)?;
+                self.instructions
+                    .push(EvidenceScopeInstruction::CatchForeign {
+                        boundaries: boundaries.clone(),
+                    });
+                self.append_continuation(next)
+            }
+            EvidenceContinuationFrame::RefSetHandleResult { .. }
+            | EvidenceContinuationFrame::RefSetHandleValueResult { .. } => {
+                Err(EvidenceScopeLocalPlanReject::RefSetBoundary)
+            }
+            _ => {
+                let frame_plan = EvidenceEvalDeltaFramePlan::from_continuation_frame(frame)
+                    .ok_or(EvidenceScopeLocalPlanReject::RequestBoundary)?;
+                self.instructions
+                    .push(EvidenceScopeInstruction::Eval(frame_plan));
+                if let Some(next) = frame.tail_ref() {
+                    self.append_continuation(next)?;
+                }
+                Ok(())
+            }
+        }
+    }
 }
 
 impl EvidenceScopeLocalPlanBuilder {
@@ -4266,6 +4598,7 @@ type PrimitiveArgs = SmallVec<[SharedValue; 4]>;
 #[cfg(debug_assertions)]
 const PROVIDER_ADD_ID_SHORTCUT_FULL_SCAN_VERIFY_LIMIT: usize = 1024;
 const SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED: bool = true;
+const SCOPE_PLAN_FOREIGN_CATCH_INSTRUCTION_VALUE_EXECUTOR_ENABLED: bool = false;
 const SCOPE_PLAN_FOREIGN_CATCH_VALUE_EXECUTOR_ENABLED: bool = false;
 // The sidecar value executor preserves scoped marker/provider semantics, but executable trials
 // regressed representative runtime even after lazy plan construction and direct eval-frame ops.
@@ -4493,6 +4826,13 @@ impl EvidenceContinuation {
                 second: next,
             }));
         }
+        let scope_instruction_plan = SCOPE_PLAN_FOREIGN_CATCH_INSTRUCTION_VALUE_EXECUTOR_ENABLED
+            .then(|| {
+                EvidenceScopeInstructionPlan::from_continuation(&scope)
+                    .ok()
+                    .map(Rc::new)
+            })
+            .flatten();
         let scope_local_plan = SCOPE_PLAN_FOREIGN_CATCH_VALUE_EXECUTOR_ENABLED
             .then(|| {
                 EvidenceScopeLocalPlan::from_continuation(&scope)
@@ -4504,6 +4844,7 @@ impl EvidenceContinuation {
             EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
                 scope,
                 scope_direct_tail_boundary_free,
+                scope_instruction_plan,
                 scope_local_plan,
                 boundaries,
                 next,
@@ -12904,12 +13245,14 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
                 scope,
                 scope_direct_tail_boundary_free,
+                scope_instruction_plan,
                 scope_local_plan,
                 boundaries,
                 next,
             } => self.resume_scope_plan_foreign_catch_boundary(
                 scope,
                 scope_direct_tail_boundary_free,
+                scope_instruction_plan,
                 scope_local_plan,
                 boundaries,
                 next,
@@ -13112,11 +13455,40 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         &mut self,
         scope: EvidenceContinuation,
         _scope_direct_tail_boundary_free: bool,
+        scope_instruction_plan: Option<Rc<EvidenceScopeInstructionPlan>>,
         scope_local_plan: Option<Rc<EvidenceScopeLocalPlan>>,
         boundaries: Rc<[EvidenceCatchBoundaryDeltaPlan]>,
         next: EvidenceContinuation,
         value: SharedValue,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED
+            && SCOPE_PLAN_FOREIGN_CATCH_INSTRUCTION_VALUE_EXECUTOR_ENABLED
+        {
+            self.stats.scope_instruction_value_resume_attempts += 1;
+            if catch_boundaries_are_foreign_pass_through(boundaries.as_ref()) {
+                match scope_instruction_plan {
+                    Some(plan) => {
+                        self.stats.scope_exec_hits += 1;
+                        self.stats.scope_exec_foreign_catch_hits += 1;
+                        self.stats.scope_instruction_value_resume_hits += 1;
+                        self.stats.scope_instruction_value_resume_instructions +=
+                            plan.instruction_count();
+                        let result = self.resume_scope_instruction_plan(plan.as_ref(), value)?;
+                        return self
+                            .continue_scope_plan_foreign_catch_result(result, boundaries, next);
+                    }
+                    None => {
+                        self.stats
+                            .scope_instruction_value_resume_reject_missing_plan += 1;
+                        self.stats.scope_exec_reject_shape_mismatch += 1;
+                    }
+                }
+            } else {
+                self.stats
+                    .scope_instruction_value_resume_reject_non_foreign_boundary += 1;
+                self.stats.scope_exec_reject_shape_mismatch += 1;
+            }
+        }
         if SCOPE_PLAN_FOREIGN_CATCH_EXECUTOR_ENABLED
             && SCOPE_PLAN_FOREIGN_CATCH_SIDECAR_VALUE_EXECUTOR_ENABLED
         {
@@ -13166,6 +13538,283 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.stats.scope_exec_foreign_catch_hits += 1;
         let result = self.resume_continuation(scope, value)?;
         self.continue_scope_plan_foreign_catch_result(result, boundaries, next)
+    }
+
+    fn resume_scope_instruction_plan(
+        &mut self,
+        plan: &EvidenceScopeInstructionPlan,
+        mut value: SharedValue,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        let mut active_scopes = Vec::new();
+        let mut index = 0;
+        let instructions = plan.instructions.as_ref();
+        while index < instructions.len() {
+            match &instructions[index] {
+                EvidenceScopeInstruction::Eval(frame) => {
+                    let result = self.resume_eval_delta_frame(frame, value)?;
+                    match result {
+                        EvidenceEvalResult::Value(next_value) => {
+                            value = next_value;
+                            index += 1;
+                        }
+                        EvidenceEvalResult::Effect(signal) => {
+                            return self.unwind_scope_instruction_result(
+                                plan,
+                                index + 1,
+                                active_scopes,
+                                EvidenceEvalResult::Effect(signal),
+                            );
+                        }
+                    }
+                }
+                EvidenceScopeInstruction::CatchForeign { boundaries } => {
+                    let result = self.continue_scope_plan_foreign_catch_result(
+                        EvidenceEvalResult::Value(value),
+                        boundaries.clone(),
+                        EvidenceContinuation::identity(),
+                    )?;
+                    match result {
+                        EvidenceEvalResult::Value(next_value) => {
+                            value = next_value;
+                            index += 1;
+                        }
+                        EvidenceEvalResult::Effect(signal) => {
+                            return self.unwind_scope_instruction_result(
+                                plan,
+                                index + 1,
+                                active_scopes,
+                                EvidenceEvalResult::Effect(signal),
+                            );
+                        }
+                    }
+                }
+                EvidenceScopeInstruction::EnterMarker(frame) => {
+                    active_scopes.push(self.enter_scope_instruction_marker(frame));
+                    index += 1;
+                }
+                EvidenceScopeInstruction::EnterProvider(frame) => {
+                    active_scopes.push(self.enter_scope_instruction_provider(frame));
+                    index += 1;
+                }
+                EvidenceScopeInstruction::ExitMarker => {
+                    let scope =
+                        active_scopes
+                            .pop()
+                            .ok_or(RuntimeEvidenceRunError::UnsupportedExpr(
+                                "scope instruction marker exit without active scope",
+                            ))?;
+                    if !matches!(&scope, EvidenceScopeInstructionActiveScope::Marker(_)) {
+                        return Err(RuntimeEvidenceRunError::UnsupportedExpr(
+                            "scope instruction marker exit closed provider scope",
+                        ));
+                    }
+                    let result = self
+                        .close_scope_instruction_scope(scope, EvidenceEvalResult::Value(value))?;
+                    index += 1;
+                    match result {
+                        EvidenceEvalResult::Value(next_value) => {
+                            value = next_value;
+                        }
+                        EvidenceEvalResult::Effect(signal) => {
+                            return self.unwind_scope_instruction_result(
+                                plan,
+                                index,
+                                active_scopes,
+                                EvidenceEvalResult::Effect(signal),
+                            );
+                        }
+                    }
+                }
+                EvidenceScopeInstruction::ExitProvider => {
+                    let scope =
+                        active_scopes
+                            .pop()
+                            .ok_or(RuntimeEvidenceRunError::UnsupportedExpr(
+                                "scope instruction provider exit without active scope",
+                            ))?;
+                    if !matches!(&scope, EvidenceScopeInstructionActiveScope::Provider(_)) {
+                        return Err(RuntimeEvidenceRunError::UnsupportedExpr(
+                            "scope instruction provider exit closed marker scope",
+                        ));
+                    }
+                    let result = self
+                        .close_scope_instruction_scope(scope, EvidenceEvalResult::Value(value))?;
+                    index += 1;
+                    match result {
+                        EvidenceEvalResult::Value(next_value) => {
+                            value = next_value;
+                        }
+                        EvidenceEvalResult::Effect(signal) => {
+                            return self.unwind_scope_instruction_result(
+                                plan,
+                                index,
+                                active_scopes,
+                                EvidenceEvalResult::Effect(signal),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(EvidenceEvalResult::Value(value))
+    }
+
+    fn enter_scope_instruction_marker(
+        &mut self,
+        frame: &EvidenceMarkerDeltaFramePlan,
+    ) -> EvidenceScopeInstructionActiveScope {
+        let markers = frame.markers.clone();
+        let handler_path = frame
+            .handler_path
+            .as_ref()
+            .map(|path| path.as_ref().to_vec());
+        let frame_len = self.active_frames.len();
+        let handler_frame_len = self.active_handler_frames.len();
+        let add_id_len = self.active_add_ids.len();
+        let plan_len = self.active_marker_plans.len();
+        if !markers.is_empty() {
+            self.record_marker_frame_entry(
+                EvidenceMarkerFrameSource::ContinuationResume,
+                &markers,
+                frame.activate_add_ids,
+                handler_path.is_some(),
+            );
+            self.push_marker_frame(&markers, frame.activate_add_ids, handler_path.clone());
+            self.push_active_marker_plan(markers.clone());
+        }
+        EvidenceScopeInstructionActiveScope::Marker(EvidenceScopeInstructionActiveMarker {
+            markers,
+            activate_add_ids: frame.activate_add_ids,
+            handler_path,
+            frame_len,
+            handler_frame_len,
+            add_id_len,
+            plan_len,
+        })
+    }
+
+    fn enter_scope_instruction_provider(
+        &mut self,
+        frame: &EvidenceProviderDeltaFramePlan,
+    ) -> EvidenceScopeInstructionActiveScope {
+        let provider_env = frame.provider_env.clone();
+        let len = self.active_provider_envs.len();
+        let active_frame = if provider_env.is_empty() {
+            None
+        } else {
+            let active_frame = self.provider_frame(provider_env.clone());
+            self.active_provider_envs.push(active_frame.clone());
+            Some(active_frame)
+        };
+        EvidenceScopeInstructionActiveScope::Provider(EvidenceScopeInstructionActiveProvider {
+            len,
+            provider_env,
+            frame: active_frame,
+        })
+    }
+
+    fn unwind_scope_instruction_result(
+        &mut self,
+        plan: &EvidenceScopeInstructionPlan,
+        mut index: usize,
+        mut active_scopes: Vec<EvidenceScopeInstructionActiveScope>,
+        mut result: EvidenceEvalResult,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        while let Some(scope) = active_scopes.pop() {
+            let (rest, materialized) = plan.materialize_from(
+                index,
+                EvidenceScopeInstructionMaterializeStop::Exit(scope.exit()),
+            );
+            debug_assert!(materialized.closed_exit);
+            result = self.continue_scope_instruction_rest(result, rest)?;
+            result = self.close_scope_instruction_scope(scope, result)?;
+            index = materialized.next_index;
+        }
+
+        let (rest, materialized) =
+            plan.materialize_from(index, EvidenceScopeInstructionMaterializeStop::End);
+        debug_assert!(!materialized.closed_exit);
+        debug_assert_eq!(materialized.next_index, plan.instruction_count());
+        self.continue_scope_instruction_rest(result, rest)
+    }
+
+    fn continue_scope_instruction_rest(
+        &mut self,
+        result: EvidenceEvalResult,
+        rest: EvidenceContinuation,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if rest.is_identity() {
+            return Ok(result);
+        }
+        match result {
+            EvidenceEvalResult::Value(value) => self.resume_continuation(rest, value),
+            EvidenceEvalResult::Effect(signal) => self.continue_signal(signal, rest),
+        }
+    }
+
+    fn close_scope_instruction_scope(
+        &mut self,
+        scope: EvidenceScopeInstructionActiveScope,
+        result: EvidenceEvalResult,
+    ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        match scope {
+            EvidenceScopeInstructionActiveScope::Marker(scope) => {
+                let handler_boundary = match &result {
+                    EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(request)) => {
+                        self.handler_boundary_for_request(
+                            request,
+                            scope.handler_path.as_deref(),
+                            scope.frame_len,
+                        )
+                    }
+                    EvidenceEvalResult::Effect(EvidenceEffectSignal::RoutedYield(call)) => self
+                        .handler_boundary_for_request(
+                            call.request(),
+                            scope.handler_path.as_deref(),
+                            scope.frame_len,
+                        ),
+                    EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectTailResumptive(
+                        call,
+                    )) => self.handler_boundary_for_direct_tail(
+                        call,
+                        scope.handler_path.as_deref(),
+                        scope.frame_len,
+                    ),
+                    EvidenceEvalResult::Value(_)
+                    | EvidenceEvalResult::Effect(EvidenceEffectSignal::DirectAbortive(_)) => None,
+                };
+                self.pop_marker_frame(
+                    scope.frame_len,
+                    scope.handler_frame_len,
+                    scope.add_id_len,
+                    scope.plan_len,
+                );
+                self.close_marker_frame_result(
+                    result,
+                    scope.markers,
+                    scope.activate_add_ids,
+                    scope.handler_path,
+                    handler_boundary,
+                )
+            }
+            EvidenceScopeInstructionActiveScope::Provider(scope) => {
+                if scope.frame.is_some() {
+                    let active_frame = self.active_provider_envs.pop().ok_or(
+                        RuntimeEvidenceRunError::UnsupportedExpr(
+                            "scope instruction provider frame stack underflow",
+                        ),
+                    )?;
+                    debug_assert_eq!(
+                        active_frame.scope_id,
+                        scope.frame.as_ref().unwrap().scope_id
+                    );
+                }
+                debug_assert_eq!(self.active_provider_envs.len(), scope.len);
+                self.active_provider_envs.truncate(scope.len);
+                self.close_provider_env_result(result, scope.provider_env)
+            }
+        }
     }
 
     fn resume_scope_sidecar_plan(
@@ -19892,6 +20541,7 @@ mod tests {
         );
         let Some(EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
             scope_direct_tail_boundary_free,
+            scope_instruction_plan,
             scope_local_plan,
             ..
         }) = planned.into_frame()
@@ -19899,6 +20549,10 @@ mod tests {
             panic!("expected scope plan foreign catch boundary");
         };
         assert!(scope_direct_tail_boundary_free);
+        assert_eq!(
+            scope_instruction_plan.is_some(),
+            SCOPE_PLAN_FOREIGN_CATCH_INSTRUCTION_VALUE_EXECUTOR_ENABLED
+        );
         assert_eq!(
             scope_local_plan.is_some(),
             SCOPE_PLAN_FOREIGN_CATCH_VALUE_EXECUTOR_ENABLED
@@ -19917,6 +20571,7 @@ mod tests {
         );
         let Some(EvidenceContinuationFrame::ScopePlanForeignCatchBoundary {
             scope_direct_tail_boundary_free,
+            scope_instruction_plan,
             scope_local_plan,
             ..
         }) = planned.into_frame()
@@ -19924,6 +20579,7 @@ mod tests {
             panic!("expected scope plan foreign catch boundary");
         };
         assert!(!scope_direct_tail_boundary_free);
+        assert!(scope_instruction_plan.is_none());
         assert!(scope_local_plan.is_none());
     }
 
@@ -19948,6 +20604,82 @@ mod tests {
         assert_eq!(
             scope_plan_direct_tail_signal_compact_reject(false, boundaries.as_ref(), ExprId(99)),
             Some(EvidenceScopePlanDirectTailSignalReject::ScopeHasRequestBoundary)
+        );
+    }
+
+    #[test]
+    fn scope_instruction_plan_materializes_marker_provider_siblings_without_flattening_scope() {
+        let continuation = EvidenceContinuation::Frame(Rc::new(EvidenceContinuationFrame::Then {
+            first: EvidenceContinuation::marker_frame(
+                Rc::from([EvidenceValueMarker::Frame {
+                    id: EvidenceGuardId(1),
+                }]),
+                true,
+                None,
+                EvidenceContinuation::force_value_if_thunk(EvidenceContinuation::identity()),
+            ),
+            second: EvidenceContinuation::provider_env(
+                provider_env_fixture_for_handler(7),
+                EvidenceContinuation::marker_frame(
+                    Rc::from([EvidenceValueMarker::Frame {
+                        id: EvidenceGuardId(2),
+                    }]),
+                    true,
+                    None,
+                    EvidenceContinuation::apply_arg(
+                        None,
+                        shared(RuntimeEvidenceValue::Unit),
+                        EvidenceContinuation::identity(),
+                    ),
+                ),
+            ),
+        }));
+        let plan = EvidenceScopeInstructionPlan::from_continuation(&continuation)
+            .expect("scope should be representable as an instruction plan");
+        let materialized = plan.materialize(EvidenceContinuation::identity());
+
+        assert_eq!(
+            EvidenceResumePlanTracePlan::from_continuation(&materialized, None),
+            EvidenceResumePlanTracePlan::from_continuation(&continuation, None)
+        );
+        assert_eq!(
+            EvidenceResumeScopedTracePlan::from_continuation(&materialized, None),
+            EvidenceResumeScopedTracePlan::from_continuation(&continuation, None)
+        );
+        assert_eq!(
+            EvidenceEvalDeltaPlan::from_continuation(&materialized),
+            EvidenceEvalDeltaPlan::from_continuation(&continuation)
+        );
+        assert_eq!(
+            materialized.marker_delta_shadow_key(),
+            continuation.marker_delta_shadow_key()
+        );
+        assert_eq!(
+            materialized.provider_delta_shadow_key(),
+            continuation.provider_delta_shadow_key()
+        );
+    }
+
+    #[test]
+    fn scope_instruction_plan_rejects_request_and_ref_set_boundaries() {
+        let request_boundary = EvidenceContinuation::catch_body(
+            ExprId(1),
+            empty_catch_arms(),
+            Env::new(),
+            EvidenceContinuation::identity(),
+        );
+        assert_eq!(
+            EvidenceScopeInstructionPlan::from_continuation(&request_boundary),
+            Err(EvidenceScopeLocalPlanReject::RequestBoundary)
+        );
+
+        let ref_set_boundary = EvidenceContinuation::ref_set_handle_result(
+            shared(RuntimeEvidenceValue::Unit),
+            EvidenceContinuation::identity(),
+        );
+        assert_eq!(
+            EvidenceScopeInstructionPlan::from_continuation(&ref_set_boundary),
+            Err(EvidenceScopeLocalPlanReject::RefSetBoundary)
         );
     }
 
@@ -20127,6 +20859,87 @@ mod tests {
 
         assert!(matches!(result, EvidenceEvalResult::Value(_)));
         assert_eq!(runner.stats.marker_frame_entries, 1);
+    }
+
+    #[test]
+    fn scope_instruction_plan_value_resume_preserves_marker_provider_scope() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let scope = EvidenceContinuation::marker_frame(
+            Rc::from([EvidenceValueMarker::Frame {
+                id: EvidenceGuardId(1),
+            }]),
+            true,
+            None,
+            EvidenceContinuation::provider_env(
+                provider_env_fixture_for_handler(7),
+                EvidenceContinuation::identity(),
+            ),
+        );
+        let scope_instruction_plan = EvidenceScopeInstructionPlan::from_continuation(&scope)
+            .expect("scope should be representable as an instruction plan");
+
+        let result = runner
+            .resume_scope_instruction_plan(
+                &scope_instruction_plan,
+                shared(RuntimeEvidenceValue::Unit),
+            )
+            .expect("scope instruction value resume should succeed");
+
+        assert!(matches!(result, EvidenceEvalResult::Value(_)));
+        assert_eq!(runner.stats.marker_frame_entries, 1);
+        assert!(runner.active_provider_envs.is_empty());
+    }
+
+    #[test]
+    fn scope_instruction_plan_unwinds_marker_provider_scope_on_effect() {
+        let program = Program::default();
+        let mut runner = RuntimeEvidenceRunner::new(&program, RuntimeEvidenceRunContext::default());
+        let request = EvidenceRequest {
+            path: Rc::from(vec!["op".to_string()].into_boxed_slice()),
+            payload: shared(RuntimeEvidenceValue::Unit),
+            route: EvidenceEffectRoute::Unhandled,
+            hygiene: EvidenceSignalHygiene::new(),
+            continuation: EvidenceContinuation::identity(),
+        };
+        let plan = EvidenceScopeInstructionPlan {
+            instructions: Rc::from(
+                vec![
+                    EvidenceScopeInstruction::EnterMarker(EvidenceMarkerDeltaFramePlan {
+                        markers: Rc::from([EvidenceValueMarker::Frame {
+                            id: EvidenceGuardId(1),
+                        }]),
+                        activate_add_ids: true,
+                        handler_path: None,
+                    }),
+                    EvidenceScopeInstruction::EnterProvider(EvidenceProviderDeltaFramePlan {
+                        provider_env: provider_env_fixture_for_handler(7),
+                    }),
+                    EvidenceScopeInstruction::Eval(
+                        EvidenceEvalDeltaFramePlan::RefSetEmitResolvedRequest {
+                            request,
+                            assigned: shared(RuntimeEvidenceValue::Unit),
+                            mode: EvidenceRefSetResumeMode::Result,
+                        },
+                    ),
+                    EvidenceScopeInstruction::ExitProvider,
+                    EvidenceScopeInstruction::ExitMarker,
+                ]
+                .into_boxed_slice(),
+            ),
+        };
+
+        let result = runner
+            .resume_scope_instruction_plan(&plan, shared(RuntimeEvidenceValue::Unit))
+            .expect("scope instruction effect unwind should succeed");
+
+        assert!(matches!(
+            result,
+            EvidenceEvalResult::Effect(EvidenceEffectSignal::GenericRequest(_))
+        ));
+        assert_eq!(runner.stats.marker_frame_entries, 1);
+        assert!(runner.active_provider_envs.is_empty());
+        assert!(runner.active_frames.is_empty());
     }
 
     #[test]

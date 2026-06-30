@@ -3010,6 +3010,34 @@ pub(crate) fn print_run_report(
         output.evidence_stats.scope_exec_value_resume_hits
     );
     println!(
+        "  runtime_evidence.scope_instruction_value_resume_attempts: {}",
+        output
+            .evidence_stats
+            .scope_instruction_value_resume_attempts
+    );
+    println!(
+        "  runtime_evidence.scope_instruction_value_resume_hits: {}",
+        output.evidence_stats.scope_instruction_value_resume_hits
+    );
+    println!(
+        "  runtime_evidence.scope_instruction_value_resume_instructions: {}",
+        output
+            .evidence_stats
+            .scope_instruction_value_resume_instructions
+    );
+    println!(
+        "  runtime_evidence.scope_instruction_value_resume_reject_missing_plan: {}",
+        output
+            .evidence_stats
+            .scope_instruction_value_resume_reject_missing_plan
+    );
+    println!(
+        "  runtime_evidence.scope_instruction_value_resume_reject_non_foreign_boundary: {}",
+        output
+            .evidence_stats
+            .scope_instruction_value_resume_reject_non_foreign_boundary
+    );
+    println!(
         "  runtime_evidence.scope_sidecar_value_resume_build_attempts: {}",
         output
             .evidence_stats
