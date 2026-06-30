@@ -20,15 +20,18 @@ mod format;
 mod plan;
 mod stats;
 mod text;
-use crate::{EvidenceVmOperationExecutionPlan, EvidenceVmPlan};
+use crate::{
+    EvidenceVmKnownOperationReject, EvidenceVmKnownOperationRole, EvidenceVmOperationExecutionPlan,
+    EvidenceVmPlan,
+};
 use format::{
     format_float, format_value, format_value_with_display_context, format_value_with_labels,
     format_values_with_display_context, format_values_with_labels,
 };
 use plan::RuntimeEvidenceProviderGrantPermission;
 use plan::{
-    RuntimeEvidenceKnownStateOperationKind, RuntimeEvidenceOperationVisibility,
-    RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext,
+    RuntimeEvidenceKnownOperationCall, RuntimeEvidenceKnownStateOperationKind,
+    RuntimeEvidenceOperationVisibility, RuntimeEvidenceProviderEnv, RuntimeEvidenceRunContext,
 };
 pub use stats::RuntimeEvidenceRunStats;
 use text::{
@@ -545,6 +548,7 @@ struct EvidenceProviderGrantGate {
 struct EffectThunkEvidence {
     route_cert: EvidenceRouteCert,
     visibility: Option<RuntimeEvidenceOperationVisibility>,
+    known_operation: Option<RuntimeEvidenceKnownOperationCall>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -8018,6 +8022,20 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         }
     }
 
+    fn effect_thunk_evidence(
+        &mut self,
+        site: Option<ExprId>,
+        callee: ExprId,
+        resolved_route: EvidenceResolvedEffectRoute,
+    ) -> EffectThunkEvidence {
+        EffectThunkEvidence {
+            route_cert: self.effect_route_cert(resolved_route.origin),
+            visibility: resolved_route.visibility,
+            known_operation: site
+                .and_then(|site| self.context.known_operation_for_call(site, callee)),
+        }
+    }
+
     fn record_provider_env_route_hit(&mut self, route: EvidenceEffectRoute) {
         match route {
             EvidenceEffectRoute::Direct { execution, .. } => match execution {
@@ -12105,11 +12123,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
         if let Some(arg) = self.eval_immediate_value_expr(arg_expr, env)? {
             let resolved_route = self.effect_route_for_operation_call(Some(site), effect);
-            let route_cert = self.effect_route_cert(resolved_route.origin);
-            let evidence = EffectThunkEvidence {
-                route_cert,
-                visibility: resolved_route.visibility,
-            };
+            let evidence = self.effect_thunk_evidence(Some(site), effect, resolved_route);
             return self.force_effect_call_scoped_result(
                 target_value_is_thunk,
                 path,
@@ -12122,11 +12136,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         match self.eval_expr_result(arg_expr, &mut arg_env)? {
             EvidenceEvalResult::Value(arg) => {
                 let resolved_route = self.effect_route_for_operation_call(Some(site), effect);
-                let route_cert = self.effect_route_cert(resolved_route.origin);
-                let evidence = EffectThunkEvidence {
-                    route_cert,
-                    visibility: resolved_route.visibility,
-                };
+                let evidence = self.effect_thunk_evidence(Some(site), effect, resolved_route);
                 self.force_effect_call_scoped_result(
                     target_value_is_thunk,
                     path,
@@ -12956,11 +12966,7 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             },
             RuntimeEvidenceValue::EffectOp { expr, path } => {
                 let resolved_route = self.effect_route_for_operation_call(site, *expr);
-                let route_cert = self.effect_route_cert(resolved_route.origin);
-                let evidence = EffectThunkEvidence {
-                    route_cert,
-                    visibility: resolved_route.visibility,
-                };
+                let evidence = self.effect_thunk_evidence(site, *expr, resolved_route);
                 Ok(EvidenceEvalResult::Value(shared(
                     RuntimeEvidenceValue::Thunk(Rc::new(RuntimeEvidenceThunk::Effect {
                         path: path.clone(),
@@ -12985,6 +12991,57 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                 )
             }
             value => Err(RuntimeEvidenceRunError::NotFunction(format_value(value))),
+        }
+    }
+
+    fn record_known_operation_hit(&mut self, operation: RuntimeEvidenceKnownOperationCall) {
+        match operation.role {
+            EvidenceVmKnownOperationRole::StateGet => {
+                self.stats.known_operation_state_get_candidate_hits += 1;
+                if operation.direct_ready {
+                    self.stats.known_operation_state_direct_get_plan_hits += 1;
+                }
+            }
+            EvidenceVmKnownOperationRole::StateSet => {
+                self.stats.known_operation_state_set_candidate_hits += 1;
+                if operation.direct_ready {
+                    self.stats.known_operation_state_direct_set_plan_hits += 1;
+                }
+            }
+        }
+        if let Some(reject) = operation.reject {
+            self.record_known_operation_reject_hit(reject);
+        }
+    }
+
+    fn record_known_operation_reject_hit(&mut self, reject: EvidenceVmKnownOperationReject) {
+        match reject {
+            EvidenceVmKnownOperationReject::NoOperationObject
+            | EvidenceVmKnownOperationReject::NotCall => {}
+            EvidenceVmKnownOperationReject::NoVisibility => {
+                self.stats.known_operation_reject_no_visibility_hits += 1;
+            }
+            EvidenceVmKnownOperationReject::NoCandidateHandler => {
+                self.stats.known_operation_reject_no_candidate_handler_hits += 1;
+            }
+            EvidenceVmKnownOperationReject::NoKnownHandler => {
+                self.stats.known_operation_reject_no_known_handler_hits += 1;
+            }
+            EvidenceVmKnownOperationReject::WrongHandler => {
+                self.stats.known_operation_reject_wrong_handler_hits += 1;
+            }
+            EvidenceVmKnownOperationReject::WrongOperation => {
+                self.stats.known_operation_reject_wrong_operation_hits += 1;
+            }
+            EvidenceVmKnownOperationReject::Blocked => {
+                self.stats.known_operation_reject_blocked_hits += 1;
+            }
+            EvidenceVmKnownOperationReject::Delayed => {
+                self.stats.known_operation_reject_delayed_hits += 1;
+            }
+            EvidenceVmKnownOperationReject::ProviderDirty => {
+                self.stats.known_operation_reject_provider_dirty_hits += 1;
+            }
         }
     }
 
@@ -15771,6 +15828,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         route: EvidenceEffectRoute,
         evidence: EffectThunkEvidence,
     ) -> Result<EvidenceEvalResult, RuntimeEvidenceRunError> {
+        if let Some(operation) = evidence.known_operation {
+            self.record_known_operation_hit(operation);
+        }
         if let EvidenceEffectRoute::Direct {
             handler,
             execution: EvidenceVmOperationExecutionPlan::DirectAbortive,
@@ -21710,6 +21770,7 @@ mod tests {
         let evidence = EffectThunkEvidence {
             route_cert: EvidenceRouteCert::ProviderGrant(grant_id),
             visibility: None,
+            known_operation: None,
         };
 
         assert!(runner.provider_grant_gate_passes(EvidenceRouteCert::ProviderGrant(grant_id)));
@@ -21718,7 +21779,8 @@ mod tests {
             true,
             EffectThunkEvidence {
                 route_cert: EvidenceRouteCert::None,
-                visibility: None
+                visibility: None,
+                known_operation: None,
             }
         ));
 

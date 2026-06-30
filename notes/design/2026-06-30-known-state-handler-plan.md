@@ -206,6 +206,14 @@ Current implementation status on 2026-06-30:
     unit under an env where the state slot is shadowed by the new state.
   - `RefSet` still uses the generic `update_effect` / `ref_update` path.
   - route-specific `DirectStateGet/Set` operation execution is still later work.
+- Stage A follow-up plan-only `KnownOperationCall` classification is present:
+  - `EvidenceVmObjectPlan::known_operations` records certified state `get` /
+    `set` call sites that intersect a `KnownHandlerPlan::State`.
+  - plan/debug counters distinguish static call-site candidates from runtime
+    candidate hits.
+  - current compiler-local refs classify as state get/set candidates but reject
+    route-specific direct execution with `no-candidate-handler`; operation
+    objects still execute through `generic-fallback`.
 
 ### Stage 0: Plan Surface, Counters, Canaries
 
@@ -232,6 +240,18 @@ handler. The first slice intercepts generic catch requests. Route-specific
 
 Rollback: disable the known-state catch intercept and fall back to
 `eval_operation_arm`.
+
+### Stage A Follow-Up: Plan-Only Known Operation Calls
+
+No behavior change.
+
+- Join known state handler certificates with concrete operation call sites.
+- Print `known-operation-calls` and plan counters for state get/set candidates,
+  direct-ready candidates, and reject reasons.
+- Count runtime candidate hits from forced effect thunks so hot benchmarks can
+  compare static call sites with dynamic request volume.
+
+Rollback: ignore `EvidenceVmObjectPlan::known_operations`.
 
 ### Stage 3: Snapshot/Fork
 

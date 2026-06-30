@@ -57,6 +57,21 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) evidence_known_handler_objects: usize,
     pub(crate) evidence_known_state_handler_objects: usize,
     pub(crate) evidence_known_state_handler_compiler_certificates: usize,
+    pub(crate) plan_known_operation_calls: usize,
+    pub(crate) plan_known_operation_state_get_candidates: usize,
+    pub(crate) plan_known_operation_state_set_candidates: usize,
+    pub(crate) plan_known_operation_state_direct_gets: usize,
+    pub(crate) plan_known_operation_state_direct_sets: usize,
+    pub(crate) plan_known_operation_reject_no_operation_object: usize,
+    pub(crate) plan_known_operation_reject_not_call: usize,
+    pub(crate) plan_known_operation_reject_no_visibility: usize,
+    pub(crate) plan_known_operation_reject_no_candidate_handler: usize,
+    pub(crate) plan_known_operation_reject_no_known_handler: usize,
+    pub(crate) plan_known_operation_reject_wrong_handler: usize,
+    pub(crate) plan_known_operation_reject_wrong_operation: usize,
+    pub(crate) plan_known_operation_reject_blocked: usize,
+    pub(crate) plan_known_operation_reject_delayed: usize,
+    pub(crate) plan_known_operation_reject_provider_dirty: usize,
     pub(crate) evidence_handler_capabilities: usize,
     pub(crate) evidence_allowed_sets: usize,
     pub(crate) evidence_provider_slots: usize,
@@ -220,6 +235,7 @@ pub(crate) struct EvidenceVmObjectPlan {
     pub(crate) handlers: Vec<EvidenceVmHandlerObjectPlan>,
     pub(crate) operations: Vec<EvidenceVmOperationObjectPlan>,
     pub(crate) known_handlers: Vec<EvidenceVmKnownHandlerPlan>,
+    pub(crate) known_operations: Vec<EvidenceVmKnownOperationPlan>,
     pub(crate) handler_capabilities: Vec<EvidenceVmHandlerCapabilityPlan>,
     pub(crate) allowed_sets: Vec<EvidenceVmAllowedSetPlan>,
     pub(crate) providers: Vec<EvidenceVmProviderPlan>,
@@ -322,6 +338,40 @@ pub(crate) enum EvidenceVmKnownStateHandlerSource {
 #[allow(dead_code)]
 pub(crate) enum EvidenceVmKnownStateContinuationSemantics {
     SnapshotFork,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EvidenceVmKnownOperationRole {
+    StateGet,
+    StateSet,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
+pub(crate) enum EvidenceVmKnownOperationReject {
+    NoOperationObject,
+    NotCall,
+    NoVisibility,
+    NoCandidateHandler,
+    NoKnownHandler,
+    WrongHandler,
+    WrongOperation,
+    Blocked,
+    Delayed,
+    ProviderDirty,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmKnownOperationPlan {
+    pub(crate) expr: ExprId,
+    pub(crate) apply: ExprId,
+    pub(crate) callee: ExprId,
+    pub(crate) known_handler: EvidenceVmKnownHandlerPlanId,
+    pub(crate) handler_id: u32,
+    pub(crate) role: EvidenceVmKnownOperationRole,
+    pub(crate) direct_ready: bool,
+    pub(crate) reject: Option<EvidenceVmKnownOperationReject>,
+    pub(crate) visibility: EvidenceVmAllowedSetId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -581,6 +631,31 @@ pub fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
+        "  known_operation_calls: {} state_get_candidates {} state_set_candidates {} direct_gets {} direct_sets {}",
+        summary.plan_known_operation_calls,
+        summary.plan_known_operation_state_get_candidates,
+        summary.plan_known_operation_state_set_candidates,
+        summary.plan_known_operation_state_direct_gets,
+        summary.plan_known_operation_state_direct_sets
+    )
+    .unwrap();
+    writeln!(
+        &mut out,
+        "  known_operation_rejects: no_operation_object {} not_call {} no_visibility {} no_candidate_handler {} no_known_handler {} wrong_handler {} wrong_operation {} blocked {} delayed {} provider_dirty {}",
+        summary.plan_known_operation_reject_no_operation_object,
+        summary.plan_known_operation_reject_not_call,
+        summary.plan_known_operation_reject_no_visibility,
+        summary.plan_known_operation_reject_no_candidate_handler,
+        summary.plan_known_operation_reject_no_known_handler,
+        summary.plan_known_operation_reject_wrong_handler,
+        summary.plan_known_operation_reject_wrong_operation,
+        summary.plan_known_operation_reject_blocked,
+        summary.plan_known_operation_reject_delayed,
+        summary.plan_known_operation_reject_provider_dirty
+    )
+    .unwrap();
+    writeln!(
+        &mut out,
         "  evidence_env_values: {} evidence_env_captures: {}",
         summary.evidence_env_values, summary.evidence_env_captures
     )
@@ -608,6 +683,7 @@ fn summarize_plan(
     values: &[EvidenceVmValueEnvPlan],
     objects: &EvidenceVmObjectPlan,
 ) -> EvidenceVmSummary {
+    let known_operation_counts = known_operation_counts(operations, objects);
     let mut summary = EvidenceVmSummary {
         handlers: control.handlers.len(),
         handler_continuation_direct_calls: handlers
@@ -668,6 +744,24 @@ fn summarize_plan(
             .iter()
             .filter(|handler| handler.is_compiler_state_certificate())
             .count(),
+        plan_known_operation_calls: known_operation_counts.calls,
+        plan_known_operation_state_get_candidates: known_operation_counts.state_get_candidates,
+        plan_known_operation_state_set_candidates: known_operation_counts.state_set_candidates,
+        plan_known_operation_state_direct_gets: known_operation_counts.state_direct_gets,
+        plan_known_operation_state_direct_sets: known_operation_counts.state_direct_sets,
+        plan_known_operation_reject_no_operation_object: known_operation_counts
+            .reject_no_operation_object,
+        plan_known_operation_reject_not_call: known_operation_counts.reject_not_call,
+        plan_known_operation_reject_no_visibility: known_operation_counts.reject_no_visibility,
+        plan_known_operation_reject_no_candidate_handler: known_operation_counts
+            .reject_no_candidate_handler,
+        plan_known_operation_reject_no_known_handler: known_operation_counts
+            .reject_no_known_handler,
+        plan_known_operation_reject_wrong_handler: known_operation_counts.reject_wrong_handler,
+        plan_known_operation_reject_wrong_operation: known_operation_counts.reject_wrong_operation,
+        plan_known_operation_reject_blocked: known_operation_counts.reject_blocked,
+        plan_known_operation_reject_delayed: known_operation_counts.reject_delayed,
+        plan_known_operation_reject_provider_dirty: known_operation_counts.reject_provider_dirty,
         evidence_handler_capabilities: objects.handler_capabilities.len(),
         evidence_allowed_sets: objects.allowed_sets.len(),
         evidence_provider_slots: objects.providers.len(),
@@ -729,6 +823,108 @@ fn summarize_plan(
         }
     }
     summary
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+struct EvidenceVmKnownOperationCounts {
+    calls: usize,
+    state_get_candidates: usize,
+    state_set_candidates: usize,
+    state_direct_gets: usize,
+    state_direct_sets: usize,
+    reject_no_operation_object: usize,
+    reject_not_call: usize,
+    reject_no_visibility: usize,
+    reject_no_candidate_handler: usize,
+    reject_no_known_handler: usize,
+    reject_wrong_handler: usize,
+    reject_wrong_operation: usize,
+    reject_blocked: usize,
+    reject_delayed: usize,
+    reject_provider_dirty: usize,
+}
+
+fn known_operation_counts(
+    operations: &[EvidenceVmOperationPlan],
+    objects: &EvidenceVmObjectPlan,
+) -> EvidenceVmKnownOperationCounts {
+    let targets = known_state_operation_targets_by_path(&objects.known_handlers);
+    let known_call_sites = operations
+        .iter()
+        .filter(|operation| {
+            targets.contains_key(&operation.path)
+                && matches!(operation.kind, EvidenceVmOperationKind::Call { .. })
+        })
+        .count();
+    let mut counts = EvidenceVmKnownOperationCounts {
+        calls: objects.known_operations.len(),
+        reject_no_operation_object: known_call_sites.saturating_sub(objects.known_operations.len()),
+        reject_not_call: operations
+            .iter()
+            .filter(|operation| {
+                targets.contains_key(&operation.path)
+                    && !matches!(operation.kind, EvidenceVmOperationKind::Call { .. })
+            })
+            .count(),
+        ..EvidenceVmKnownOperationCounts::default()
+    };
+    for operation in &objects.known_operations {
+        match operation.role {
+            EvidenceVmKnownOperationRole::StateGet => {
+                counts.state_get_candidates += 1;
+                if operation.direct_ready {
+                    counts.state_direct_gets += 1;
+                }
+            }
+            EvidenceVmKnownOperationRole::StateSet => {
+                counts.state_set_candidates += 1;
+                if operation.direct_ready {
+                    counts.state_direct_sets += 1;
+                }
+            }
+        }
+        if let Some(reject) = operation.reject {
+            counts.record_reject(reject);
+        }
+    }
+    counts
+}
+
+impl EvidenceVmKnownOperationCounts {
+    fn record_reject(&mut self, reject: EvidenceVmKnownOperationReject) {
+        match reject {
+            EvidenceVmKnownOperationReject::NoOperationObject => {
+                self.reject_no_operation_object += 1;
+            }
+            EvidenceVmKnownOperationReject::NotCall => {
+                self.reject_not_call += 1;
+            }
+            EvidenceVmKnownOperationReject::NoVisibility => {
+                self.reject_no_visibility += 1;
+            }
+            EvidenceVmKnownOperationReject::NoCandidateHandler => {
+                self.reject_no_candidate_handler += 1;
+            }
+            EvidenceVmKnownOperationReject::NoKnownHandler => {
+                self.reject_no_known_handler += 1;
+            }
+            EvidenceVmKnownOperationReject::WrongHandler => {
+                self.reject_wrong_handler += 1;
+            }
+            EvidenceVmKnownOperationReject::WrongOperation => {
+                self.reject_wrong_operation += 1;
+            }
+            EvidenceVmKnownOperationReject::Blocked => {
+                self.reject_blocked += 1;
+            }
+            EvidenceVmKnownOperationReject::Delayed => {
+                self.reject_delayed += 1;
+            }
+            EvidenceVmKnownOperationReject::ProviderDirty => {
+                self.reject_provider_dirty += 1;
+            }
+        }
+    }
 }
 
 fn env_provider_slot_count(objects: &EvidenceVmObjectPlan) -> usize {
@@ -1459,8 +1655,10 @@ fn build_object_plan(
         .iter()
         .map(|handler| ((handler.handler, handler.slot_id), handler.id))
         .collect::<HashMap<_, _>>();
-    let (operations, allowed_sets) =
+    let (operation_objects, allowed_sets) =
         build_operation_objects(operations, &slot_ids, &handler_index, &handlers);
+    let known_operations =
+        build_known_operation_plans(operations, &operation_objects, &known_handlers);
     let providers = build_provider_index(&slot_plans, &handlers);
 
     EvidenceVmObjectPlan {
@@ -1469,8 +1667,9 @@ fn build_object_plan(
         values: value_objects,
         calls: call_objects,
         handlers,
-        operations,
+        operations: operation_objects,
         known_handlers,
+        known_operations,
         handler_capabilities,
         allowed_sets,
         providers,
@@ -1503,6 +1702,111 @@ fn build_known_handler_plans(
         }
     }
     plans
+}
+
+fn build_known_operation_plans(
+    operations: &[EvidenceVmOperationPlan],
+    operation_objects: &[EvidenceVmOperationObjectPlan],
+    known_handlers: &[EvidenceVmKnownHandlerPlan],
+) -> Vec<EvidenceVmKnownOperationPlan> {
+    debug_assert_eq!(
+        operations.len(),
+        operation_objects.len(),
+        "operation objects are built in operation plan order"
+    );
+    let targets = known_state_operation_targets_by_path(known_handlers);
+    if targets.is_empty() {
+        return Vec::new();
+    }
+    operations
+        .iter()
+        .zip(operation_objects.iter())
+        .filter_map(|(operation, object)| {
+            let target = targets.get(&operation.path)?;
+            let EvidenceVmOperationKind::Call { apply, callee } = operation.kind else {
+                return None;
+            };
+            let reject = known_operation_direct_ready(operation, object, target);
+            Some(EvidenceVmKnownOperationPlan {
+                expr: operation.expr,
+                apply,
+                callee,
+                known_handler: target.known_handler,
+                handler_id: target.handler_id,
+                role: target.role,
+                direct_ready: reject.is_none(),
+                reject,
+                visibility: object.visibility.allowed_set_id,
+            })
+        })
+        .collect()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceVmKnownOperationTarget {
+    known_handler: EvidenceVmKnownHandlerPlanId,
+    handler_id: u32,
+    role: EvidenceVmKnownOperationRole,
+}
+
+fn known_state_operation_targets_by_path(
+    known_handlers: &[EvidenceVmKnownHandlerPlan],
+) -> BTreeMap<Vec<String>, EvidenceVmKnownOperationTarget> {
+    let mut targets = BTreeMap::new();
+    for known in known_handlers {
+        let EvidenceVmKnownHandlerPlan::State(state) = known;
+        targets.insert(
+            state_operation_path(&state.family, EvidenceVmKnownStateOperation::Get),
+            EvidenceVmKnownOperationTarget {
+                known_handler: state.id,
+                handler_id: state.get_handler_id,
+                role: EvidenceVmKnownOperationRole::StateGet,
+            },
+        );
+        targets.insert(
+            state_operation_path(&state.family, EvidenceVmKnownStateOperation::Set),
+            EvidenceVmKnownOperationTarget {
+                known_handler: state.id,
+                handler_id: state.set_handler_id,
+                role: EvidenceVmKnownOperationRole::StateSet,
+            },
+        );
+    }
+    targets
+}
+
+fn known_operation_direct_ready(
+    operation: &EvidenceVmOperationPlan,
+    object: &EvidenceVmOperationObjectPlan,
+    target: &EvidenceVmKnownOperationTarget,
+) -> Option<EvidenceVmKnownOperationReject> {
+    match operation.lowering {
+        EvidenceVmOperationLowering::HygieneFallback { .. } => {
+            return Some(EvidenceVmKnownOperationReject::Blocked);
+        }
+        EvidenceVmOperationLowering::LexicalHandlerCandidate {
+            delayed_boundary: true,
+            ..
+        } => return Some(EvidenceVmKnownOperationReject::Delayed),
+        EvidenceVmOperationLowering::GenericFallback => {
+            return Some(EvidenceVmKnownOperationReject::NoCandidateHandler);
+        }
+        EvidenceVmOperationLowering::DirectHandlerCall { .. }
+        | EvidenceVmOperationLowering::LexicalHandlerCandidate {
+            delayed_boundary: false,
+            ..
+        } => {}
+    }
+    let Some(candidate_handler) = object.candidate_handler else {
+        return Some(EvidenceVmKnownOperationReject::NoCandidateHandler);
+    };
+    if candidate_handler != target.handler_id {
+        return Some(EvidenceVmKnownOperationReject::WrongHandler);
+    }
+    if object.visibility.legacy_guard_bridge {
+        return Some(EvidenceVmKnownOperationReject::NoVisibility);
+    }
+    None
 }
 
 fn compiler_state_param_for_handler(program: &Program, handler: ExprId) -> Option<DefId> {
@@ -2814,6 +3118,7 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
         && objects.handlers.is_empty()
         && objects.operations.is_empty()
         && objects.known_handlers.is_empty()
+        && objects.known_operations.is_empty()
         && objects.handler_capabilities.is_empty()
         && objects.allowed_sets.is_empty()
         && objects.providers.is_empty()
@@ -2909,6 +3214,29 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
             writeln!(out, "    {}", format_known_handler_plan(known)).unwrap();
         }
     }
+    if !objects.known_operations.is_empty() {
+        writeln!(out, "  known-operation-calls:").unwrap();
+        for operation in &objects.known_operations {
+            let reject = operation
+                .reject
+                .map(format_known_operation_reject)
+                .unwrap_or("-");
+            writeln!(
+                out,
+                "    e{} apply e{} callee e{} k{} {} handler h{} visibility a{} direct_ready={} reject {}",
+                operation.expr.0,
+                operation.apply.0,
+                operation.callee.0,
+                operation.known_handler.0,
+                format_known_operation_role(operation.role),
+                operation.handler_id,
+                operation.visibility.0,
+                operation.direct_ready,
+                reject
+            )
+            .unwrap();
+        }
+    }
     if !objects.allowed_sets.is_empty() {
         writeln!(out, "  allowed-sets:").unwrap();
         for allowed in &objects.allowed_sets {
@@ -2983,6 +3311,28 @@ fn format_known_state_continuation(
 ) -> &'static str {
     match continuation {
         EvidenceVmKnownStateContinuationSemantics::SnapshotFork => "snapshot-fork",
+    }
+}
+
+fn format_known_operation_role(role: EvidenceVmKnownOperationRole) -> &'static str {
+    match role {
+        EvidenceVmKnownOperationRole::StateGet => "state-get",
+        EvidenceVmKnownOperationRole::StateSet => "state-set",
+    }
+}
+
+fn format_known_operation_reject(reject: EvidenceVmKnownOperationReject) -> &'static str {
+    match reject {
+        EvidenceVmKnownOperationReject::NoOperationObject => "no-operation-object",
+        EvidenceVmKnownOperationReject::NotCall => "not-call",
+        EvidenceVmKnownOperationReject::NoVisibility => "no-visibility",
+        EvidenceVmKnownOperationReject::NoCandidateHandler => "no-candidate-handler",
+        EvidenceVmKnownOperationReject::NoKnownHandler => "no-known-handler",
+        EvidenceVmKnownOperationReject::WrongHandler => "wrong-handler",
+        EvidenceVmKnownOperationReject::WrongOperation => "wrong-operation",
+        EvidenceVmKnownOperationReject::Blocked => "blocked",
+        EvidenceVmKnownOperationReject::Delayed => "delayed",
+        EvidenceVmKnownOperationReject::ProviderDirty => "provider-dirty",
     }
 }
 

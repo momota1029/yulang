@@ -386,6 +386,10 @@ fn debug_evidence_vm_plan_prints_handler_passing_plan() {
         "known handler plan summary should be visible in the plan:\n{stdout}"
     );
     assert!(
+        stdout.contains("known_operation_calls:") && stdout.contains("known_operation_rejects:"),
+        "known operation call classification summary should be visible in the plan:\n{stdout}"
+    );
+    assert!(
         stdout.contains("evidence object graph:"),
         "evidence object graph should be visible in the plan:\n{stdout}"
     );
@@ -466,6 +470,16 @@ fn debug_evidence_vm_plan_marks_local_var_known_state_handler() {
         stdout.contains("continuation snapshot-fork"),
         "known state handler should carry snapshot/fork continuation semantics:\n{stdout}"
     );
+    assert!(
+        stdout.contains("known_operation_calls: 3 state_get_candidates 2 state_set_candidates 1"),
+        "compiler local var should produce known state get/set call candidates:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("known-operation-calls:")
+            && stdout.contains("state-get")
+            && stdout.contains("reject no-candidate-handler"),
+        "known state operation call details should be visible without changing execution:\n{stdout}"
+    );
 }
 
 #[test]
@@ -502,6 +516,14 @@ fn debug_evidence_vm_plan_does_not_mark_user_state_like_handler_without_certific
     assert!(
         !stdout.contains("known-handlers:"),
         "uncertified user handler should not produce known handler details:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("known_operation_calls: 0 state_get_candidates 0 state_set_candidates 0"),
+        "uncertified user handler should not produce known operation candidates:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("known-operation-calls:"),
+        "uncertified user handler should not produce known operation details:\n{stdout}"
     );
 }
 
@@ -1067,6 +1089,22 @@ fn debug_runtime_evidence_run_handles_ref_set() {
     assert!(
         stdout.contains("runtime_evidence.known_state_direct_sets: 1"),
         "compiler local refs should use direct state set handling:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.plan_known_operation_state_get_candidates: 2"),
+        "known operation plan should classify the two static get call sites:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.plan_known_operation_state_set_candidates: 1"),
+        "known operation plan should classify the static set call site:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_state_get_candidate_hits: 3"),
+        "known operation runtime hits should count forced get requests:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_state_set_candidate_hits: 1"),
+        "known operation runtime hits should count forced set requests:\n{stdout}"
     );
 }
 

@@ -9,9 +9,10 @@ use super::{
 };
 use crate::{
     EvidenceVmAllowedSetId, EvidenceVmAllowedSetKind, EvidenceVmHandlerArmClass,
-    EvidenceVmHandlerObjectPlan, EvidenceVmKnownHandlerPlan, EvidenceVmOperationExecutionPlan,
-    EvidenceVmOperationKind, EvidenceVmOperationLowering, EvidenceVmOperationObjectPlan,
-    EvidenceVmOperationPlan, EvidenceVmPlan,
+    EvidenceVmHandlerObjectPlan, EvidenceVmKnownHandlerPlan, EvidenceVmKnownOperationReject,
+    EvidenceVmKnownOperationRole, EvidenceVmOperationExecutionPlan, EvidenceVmOperationKind,
+    EvidenceVmOperationLowering, EvidenceVmOperationObjectPlan, EvidenceVmOperationPlan,
+    EvidenceVmPlan,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -29,6 +30,21 @@ pub(super) struct RuntimeEvidenceRunContext {
     known_handler_count: usize,
     known_state_handler_count: usize,
     known_state_handler_compiler_certificate_count: usize,
+    known_operation_call_count: usize,
+    known_operation_state_get_candidate_count: usize,
+    known_operation_state_set_candidate_count: usize,
+    known_operation_state_direct_get_count: usize,
+    known_operation_state_direct_set_count: usize,
+    known_operation_reject_no_operation_object_count: usize,
+    known_operation_reject_not_call_count: usize,
+    known_operation_reject_no_visibility_count: usize,
+    known_operation_reject_no_candidate_handler_count: usize,
+    known_operation_reject_no_known_handler_count: usize,
+    known_operation_reject_wrong_handler_count: usize,
+    known_operation_reject_wrong_operation_count: usize,
+    known_operation_reject_blocked_count: usize,
+    known_operation_reject_delayed_count: usize,
+    known_operation_reject_provider_dirty_count: usize,
     effect_routes: Option<HashMap<(ExprId, ExprId), EvidenceEffectRoute>>,
     value_provider_envs: Vec<Option<RuntimeEvidenceProviderEnv>>,
     value_capture_slots: Vec<Option<SmallVec<[u32; 2]>>>,
@@ -37,8 +53,16 @@ pub(super) struct RuntimeEvidenceRunContext {
     handlers_by_catch: Vec<Option<SmallVec<[u32; 2]>>>,
     known_state_handlers_by_catch: Vec<Option<RuntimeEvidenceKnownStateHandler>>,
     handler_families_by_id: Vec<Option<Vec<String>>>,
+    known_operations_by_call: Vec<Option<(ExprId, RuntimeEvidenceKnownOperationCall)>>,
     operation_visibilities: Vec<Option<(ExprId, RuntimeEvidenceOperationVisibility)>>,
     operation_provider_lookups: Vec<Option<(ExprId, RuntimeEvidenceOperationProviderLookup)>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RuntimeEvidenceKnownOperationCall {
+    pub(super) role: EvidenceVmKnownOperationRole,
+    pub(super) direct_ready: bool,
+    pub(super) reject: Option<EvidenceVmKnownOperationReject>,
 }
 
 impl RuntimeEvidenceRunContext {
@@ -77,6 +101,34 @@ impl RuntimeEvidenceRunContext {
                 }
             })
             .count();
+        let known_operation_call_count = plan.summary.plan_known_operation_calls;
+        let known_operation_state_get_candidate_count =
+            plan.summary.plan_known_operation_state_get_candidates;
+        let known_operation_state_set_candidate_count =
+            plan.summary.plan_known_operation_state_set_candidates;
+        let known_operation_state_direct_get_count =
+            plan.summary.plan_known_operation_state_direct_gets;
+        let known_operation_state_direct_set_count =
+            plan.summary.plan_known_operation_state_direct_sets;
+        let known_operation_reject_no_operation_object_count =
+            plan.summary.plan_known_operation_reject_no_operation_object;
+        let known_operation_reject_not_call_count =
+            plan.summary.plan_known_operation_reject_not_call;
+        let known_operation_reject_no_visibility_count =
+            plan.summary.plan_known_operation_reject_no_visibility;
+        let known_operation_reject_no_candidate_handler_count = plan
+            .summary
+            .plan_known_operation_reject_no_candidate_handler;
+        let known_operation_reject_no_known_handler_count =
+            plan.summary.plan_known_operation_reject_no_known_handler;
+        let known_operation_reject_wrong_handler_count =
+            plan.summary.plan_known_operation_reject_wrong_handler;
+        let known_operation_reject_wrong_operation_count =
+            plan.summary.plan_known_operation_reject_wrong_operation;
+        let known_operation_reject_blocked_count = plan.summary.plan_known_operation_reject_blocked;
+        let known_operation_reject_delayed_count = plan.summary.plan_known_operation_reject_delayed;
+        let known_operation_reject_provider_dirty_count =
+            plan.summary.plan_known_operation_reject_provider_dirty;
         let expr_table_len = evidence_context_expr_table_len(plan);
         let value_provider_envs = value_provider_envs_from_plan(plan, expr_table_len);
         let value_capture_slots = value_capture_slots_from_plan(plan, expr_table_len);
@@ -86,6 +138,7 @@ impl RuntimeEvidenceRunContext {
         let known_state_handlers_by_catch =
             known_state_handlers_by_catch_from_plan(plan, expr_table_len);
         let handler_families_by_id = handler_families_by_id_from_plan(plan);
+        let known_operations_by_call = known_operations_by_call_from_plan(plan, expr_table_len);
         let operation_visibilities = operation_visibilities_from_plan(plan, expr_table_len);
         let operation_provider_lookups = operation_provider_lookups_from_plan(plan, expr_table_len);
         Self {
@@ -123,6 +176,21 @@ impl RuntimeEvidenceRunContext {
             known_handler_count,
             known_state_handler_count,
             known_state_handler_compiler_certificate_count,
+            known_operation_call_count,
+            known_operation_state_get_candidate_count,
+            known_operation_state_set_candidate_count,
+            known_operation_state_direct_get_count,
+            known_operation_state_direct_set_count,
+            known_operation_reject_no_operation_object_count,
+            known_operation_reject_not_call_count,
+            known_operation_reject_no_visibility_count,
+            known_operation_reject_no_candidate_handler_count,
+            known_operation_reject_no_known_handler_count,
+            known_operation_reject_wrong_handler_count,
+            known_operation_reject_wrong_operation_count,
+            known_operation_reject_blocked_count,
+            known_operation_reject_delayed_count,
+            known_operation_reject_provider_dirty_count,
             effect_routes: Some(effect_routes),
             value_provider_envs,
             value_capture_slots,
@@ -131,6 +199,7 @@ impl RuntimeEvidenceRunContext {
             handlers_by_catch,
             known_state_handlers_by_catch,
             handler_families_by_id,
+            known_operations_by_call,
             operation_visibilities,
             operation_provider_lookups,
         }
@@ -166,6 +235,30 @@ impl RuntimeEvidenceRunContext {
         stats.plan_known_state_handlers = self.known_state_handler_count;
         stats.plan_known_state_handler_compiler_certificates =
             self.known_state_handler_compiler_certificate_count;
+        stats.plan_known_operation_calls = self.known_operation_call_count;
+        stats.plan_known_operation_state_get_candidates =
+            self.known_operation_state_get_candidate_count;
+        stats.plan_known_operation_state_set_candidates =
+            self.known_operation_state_set_candidate_count;
+        stats.plan_known_operation_state_direct_gets = self.known_operation_state_direct_get_count;
+        stats.plan_known_operation_state_direct_sets = self.known_operation_state_direct_set_count;
+        stats.plan_known_operation_reject_no_operation_object =
+            self.known_operation_reject_no_operation_object_count;
+        stats.plan_known_operation_reject_not_call = self.known_operation_reject_not_call_count;
+        stats.plan_known_operation_reject_no_visibility =
+            self.known_operation_reject_no_visibility_count;
+        stats.plan_known_operation_reject_no_candidate_handler =
+            self.known_operation_reject_no_candidate_handler_count;
+        stats.plan_known_operation_reject_no_known_handler =
+            self.known_operation_reject_no_known_handler_count;
+        stats.plan_known_operation_reject_wrong_handler =
+            self.known_operation_reject_wrong_handler_count;
+        stats.plan_known_operation_reject_wrong_operation =
+            self.known_operation_reject_wrong_operation_count;
+        stats.plan_known_operation_reject_blocked = self.known_operation_reject_blocked_count;
+        stats.plan_known_operation_reject_delayed = self.known_operation_reject_delayed_count;
+        stats.plan_known_operation_reject_provider_dirty =
+            self.known_operation_reject_provider_dirty_count;
     }
 
     pub(super) fn provider_env_for_value(
@@ -232,6 +325,19 @@ impl RuntimeEvidenceRunContext {
             .and_then(Option::as_ref)
             .and_then(|(expected_callee, visibility)| {
                 (*expected_callee == callee).then_some(*visibility)
+            })
+    }
+
+    pub(super) fn known_operation_for_call(
+        &self,
+        apply: ExprId,
+        callee: ExprId,
+    ) -> Option<RuntimeEvidenceKnownOperationCall> {
+        self.known_operations_by_call
+            .get(apply.0 as usize)
+            .and_then(Option::as_ref)
+            .and_then(|(expected_callee, operation)| {
+                (*expected_callee == callee).then_some(*operation)
             })
     }
 
@@ -720,6 +826,24 @@ fn handler_families_by_id_from_plan(plan: &EvidenceVmPlan) -> Vec<Option<Vec<Str
     table.resize_with(len, || None);
     for handler in &plan.objects.handlers {
         table[handler.id as usize] = Some(handler.path.clone());
+    }
+    table
+}
+
+fn known_operations_by_call_from_plan(
+    plan: &EvidenceVmPlan,
+    len: usize,
+) -> Vec<Option<(ExprId, RuntimeEvidenceKnownOperationCall)>> {
+    let mut table = empty_expr_table(len);
+    for operation in &plan.objects.known_operations {
+        table[operation.apply.0 as usize] = Some((
+            operation.callee,
+            RuntimeEvidenceKnownOperationCall {
+                role: operation.role,
+                direct_ready: operation.direct_ready,
+                reject: operation.reject,
+            },
+        ));
     }
     table
 }

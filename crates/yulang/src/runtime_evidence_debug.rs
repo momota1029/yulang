@@ -72,6 +72,84 @@ pub(crate) fn print_run_report(
             .plan_known_state_handler_compiler_certificates
     );
     println!(
+        "  evidence.plan_known_operation_calls: {}",
+        output.evidence_stats.plan_known_operation_calls
+    );
+    println!(
+        "  evidence.plan_known_operation_state_get_candidates: {}",
+        output
+            .evidence_stats
+            .plan_known_operation_state_get_candidates
+    );
+    println!(
+        "  evidence.plan_known_operation_state_set_candidates: {}",
+        output
+            .evidence_stats
+            .plan_known_operation_state_set_candidates
+    );
+    println!(
+        "  evidence.plan_known_operation_state_direct_gets: {}",
+        output.evidence_stats.plan_known_operation_state_direct_gets
+    );
+    println!(
+        "  evidence.plan_known_operation_state_direct_sets: {}",
+        output.evidence_stats.plan_known_operation_state_direct_sets
+    );
+    println!(
+        "  evidence.plan_known_operation_reject_no_operation_object: {}",
+        output
+            .evidence_stats
+            .plan_known_operation_reject_no_operation_object
+    );
+    println!(
+        "  evidence.plan_known_operation_reject_not_call: {}",
+        output.evidence_stats.plan_known_operation_reject_not_call
+    );
+    println!(
+        "  evidence.plan_known_operation_reject_no_visibility: {}",
+        output
+            .evidence_stats
+            .plan_known_operation_reject_no_visibility
+    );
+    println!(
+        "  evidence.plan_known_operation_reject_no_candidate_handler: {}",
+        output
+            .evidence_stats
+            .plan_known_operation_reject_no_candidate_handler
+    );
+    println!(
+        "  evidence.plan_known_operation_reject_no_known_handler: {}",
+        output
+            .evidence_stats
+            .plan_known_operation_reject_no_known_handler
+    );
+    println!(
+        "  evidence.plan_known_operation_reject_wrong_handler: {}",
+        output
+            .evidence_stats
+            .plan_known_operation_reject_wrong_handler
+    );
+    println!(
+        "  evidence.plan_known_operation_reject_wrong_operation: {}",
+        output
+            .evidence_stats
+            .plan_known_operation_reject_wrong_operation
+    );
+    println!(
+        "  evidence.plan_known_operation_reject_blocked: {}",
+        output.evidence_stats.plan_known_operation_reject_blocked
+    );
+    println!(
+        "  evidence.plan_known_operation_reject_delayed: {}",
+        output.evidence_stats.plan_known_operation_reject_delayed
+    );
+    println!(
+        "  evidence.plan_known_operation_reject_provider_dirty: {}",
+        output
+            .evidence_stats
+            .plan_known_operation_reject_provider_dirty
+    );
+    println!(
         "  runtime_evidence.provider_env_values: {}",
         output.evidence_stats.runtime_provider_env_values
     );
@@ -2946,6 +3024,74 @@ pub(crate) fn print_run_report(
     println!(
         "  runtime_evidence.known_state_direct_non_resumptive: {}",
         output.evidence_stats.known_state_direct_non_resumptive
+    );
+    println!(
+        "  runtime_evidence.known_operation_state_get_candidate_hits: {}",
+        output
+            .evidence_stats
+            .known_operation_state_get_candidate_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_state_set_candidate_hits: {}",
+        output
+            .evidence_stats
+            .known_operation_state_set_candidate_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_state_direct_get_plan_hits: {}",
+        output
+            .evidence_stats
+            .known_operation_state_direct_get_plan_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_state_direct_set_plan_hits: {}",
+        output
+            .evidence_stats
+            .known_operation_state_direct_set_plan_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_reject_no_visibility_hits: {}",
+        output
+            .evidence_stats
+            .known_operation_reject_no_visibility_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_reject_no_candidate_handler_hits: {}",
+        output
+            .evidence_stats
+            .known_operation_reject_no_candidate_handler_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_reject_no_known_handler_hits: {}",
+        output
+            .evidence_stats
+            .known_operation_reject_no_known_handler_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_reject_wrong_handler_hits: {}",
+        output
+            .evidence_stats
+            .known_operation_reject_wrong_handler_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_reject_wrong_operation_hits: {}",
+        output
+            .evidence_stats
+            .known_operation_reject_wrong_operation_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_reject_blocked_hits: {}",
+        output.evidence_stats.known_operation_reject_blocked_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_reject_delayed_hits: {}",
+        output.evidence_stats.known_operation_reject_delayed_hits
+    );
+    println!(
+        "  runtime_evidence.known_operation_reject_provider_dirty_hits: {}",
+        output
+            .evidence_stats
+            .known_operation_reject_provider_dirty_hits
     );
     println!(
         "  runtime_evidence.ref_set_evals: {}",
