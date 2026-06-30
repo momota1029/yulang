@@ -1133,6 +1133,59 @@ fn debug_runtime_evidence_run_handles_ref_set() {
 }
 
 #[test]
+fn debug_runtime_evidence_run_known_state_frame_matches_control_across_nondet_resume() {
+    let entry = write_entry(
+        "debug-runtime-evidence-run-known-state-frame-nondet",
+        "use std::control::nondet::*\n\n\
+         {\n\
+         \x20 my $x = 0\n\
+         \x20 my ys = {\n\
+         \x20\x20 my b = each [true, false]\n\
+         \x20\x20 &x = $x + 1\n\
+         \x20\x20 $x\n\
+         \x20 }.list\n\
+         \x20 (ys, $x)\n\
+         }\n",
+    );
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("debug")
+        .arg("runtime-evidence-run")
+        .arg("--compare-control")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("compare.control: match"), "{stdout}");
+    assert!(stdout.contains("run roots [([1, 2], 2)]\n"), "{stdout}");
+    assert!(
+        stdout.contains("runtime_evidence.known_state_frame_entries: 1"),
+        "known state frame should be active across the nondet body:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_state_frame_exits: 1"),
+        "known state frame should be popped after the enclosing state handler:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_state_frame_reads_late: 7"),
+        "late known state reads should come from the runtime state frame:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_state_frame_writes_late: 2"),
+        "late known state writes should update the runtime state frame:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_state_frame_missing_late: 0"),
+        "nondet resume should not lose the active state frame:\n{stdout}"
+    );
+}
+
+#[test]
 fn debug_runtime_evidence_run_handles_console_stdout_host_effect() {
     let entry = write_entry(
         "debug-runtime-evidence-run-console-stdout",

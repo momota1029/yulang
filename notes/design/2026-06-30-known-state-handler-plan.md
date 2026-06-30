@@ -278,6 +278,13 @@ Rollback: ignore `EvidenceVmObjectPlan::known_operations`.
 Capture active state handler frames in continuation snapshots and fork them on
 multi-shot resume. Do not default-enable direct state before canaries pass.
 
+Current canary status:
+
+- A known state frame active across a nondet resume path matches the control VM
+  on `([1, 2], 2)` and does not lose the active frame.
+- Full state-frame snapshot/fork representation is still later work before
+  route-specific `DirectStateGet/Set` is enabled.
+
 ### Stage 4: Escaped `StateRef` Receiver Fast Path
 
 Allow `&x` passed to generic code to remain fast when the matching active frame is
