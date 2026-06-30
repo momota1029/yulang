@@ -2035,10 +2035,7 @@ fn known_operation_direct_ready(
         return Some(EvidenceVmKnownOperationReject::NoKnownStateAccessProof);
     }
     match target.role {
-        EvidenceVmKnownOperationRole::StateGet => None,
-        EvidenceVmKnownOperationRole::StateSet => {
-            Some(EvidenceVmKnownOperationReject::DirectExecutionDisabled)
-        }
+        EvidenceVmKnownOperationRole::StateGet | EvidenceVmKnownOperationRole::StateSet => None,
     }
 }
 

@@ -16123,6 +16123,9 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             if let Some(value) = self.try_eval_known_state_route_direct_get(operation, &payload) {
                 return Ok(EvidenceEvalResult::Value(value));
             }
+            if let Some(value) = self.try_eval_known_state_route_direct_set(operation, &payload) {
+                return Ok(EvidenceEvalResult::Value(value));
+            }
         }
         if let EvidenceEffectRoute::Direct {
             handler,
@@ -16260,6 +16263,46 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         self.stats.known_state_direct_gets += 1;
         self.stats.known_operation_route_direct_get_hits += 1;
         Some(state)
+    }
+
+    fn try_eval_known_state_route_direct_set(
+        &mut self,
+        operation: RuntimeEvidenceKnownOperationCall,
+        payload: &SharedValue,
+    ) -> Option<SharedValue> {
+        if !operation.direct_ready || operation.role != EvidenceVmKnownOperationRole::StateSet {
+            return None;
+        }
+        self.stats.known_operation_route_direct_set_attempts += 1;
+        let Some(proof_id) = operation.route_proof else {
+            self.stats.known_operation_route_direct_set_missing_proof += 1;
+            return None;
+        };
+        let Some(proof) = self.context.known_state_route_proof(proof_id) else {
+            self.stats.known_operation_route_direct_set_missing_proof += 1;
+            return None;
+        };
+        if proof.role != EvidenceVmKnownOperationRole::StateSet
+            || proof.plan_id != operation.plan_id
+            || proof.handler_id != operation.handler_id
+        {
+            self.stats.known_operation_route_direct_set_role_mismatch += 1;
+            return None;
+        }
+        if proof.payload != EvidenceVmKnownStateOperationPayloadProof::SingleValuePayloadForSet {
+            self.stats.known_operation_route_direct_set_payload_mismatch += 1;
+            return None;
+        }
+        let Some(index) = self.active_state_handler_frames.iter().rposition(|frame| {
+            frame.plan_id == proof.plan_id && frame.catch_expr == proof.catch_expr
+        }) else {
+            self.stats.known_operation_route_direct_set_missing_frame += 1;
+            return None;
+        };
+        self.active_state_handler_frames[index].state = payload.clone();
+        self.stats.known_state_direct_sets += 1;
+        self.stats.known_operation_route_direct_set_hits += 1;
+        Some(shared(RuntimeEvidenceValue::Unit))
     }
 
     fn force_thunk_result(
@@ -17469,6 +17512,13 @@ impl<'a> RuntimeEvidenceRunner<'a> {
         for arm in arms {
             if arm.operation_path.is_some() {
                 continue;
+            }
+            if matches!(arm.pat, Pat::Wild) && arm.guard.is_none() {
+                if let Some(value) = self.eval_immediate_value_expr(arm.body, env)? {
+                    return Ok(EvidenceEvalResult::Value(value));
+                }
+                let mut arm_env = self.clone_env(env);
+                return self.eval_expr_result(arm.body, &mut arm_env);
             }
             let mut arm_env = self.clone_env(env);
             if !self.bind_pat_matches(&arm.pat, value.clone(), &mut arm_env)? {

@@ -472,7 +472,7 @@ fn debug_evidence_vm_plan_marks_local_var_known_state_handler() {
     );
     assert!(
         stdout.contains(
-            "known_operation_calls: 3 state_get_candidates 2 state_set_candidates 1 direct_gets 2 direct_sets 0 route_proofs 3"
+            "known_operation_calls: 3 state_get_candidates 2 state_set_candidates 1 direct_gets 2 direct_sets 1 route_proofs 3"
         ),
         "compiler local var should produce known state get/set call candidates:\n{stdout}"
     );
@@ -482,8 +482,8 @@ fn debug_evidence_vm_plan_marks_local_var_known_state_handler() {
             && stdout.contains("proof p")
             && stdout.contains("direct_ready=true reject -")
             && stdout.contains("state-set")
-            && stdout.contains("direct_ready=false reject direct-execution-disabled"),
-        "known state operation call route proofs should enable direct get only:\n{stdout}"
+            && !stdout.contains("reject direct-execution-disabled"),
+        "known state operation call route proofs should enable direct get/set:\n{stdout}"
     );
     assert!(
         stdout.contains("known-state-operation-route-proofs:")
@@ -1115,8 +1115,8 @@ fn debug_runtime_evidence_run_handles_ref_set() {
         "request-free known state gets should bypass late request reads:\n{stdout}"
     );
     assert!(
-        stdout.contains("runtime_evidence.known_state_frame_writes_late: 1"),
-        "late known state sets should write to the runtime state frame:\n{stdout}"
+        stdout.contains("runtime_evidence.known_state_frame_writes_late: 0"),
+        "request-free known state sets should bypass late request writes:\n{stdout}"
     );
     assert!(
         stdout.contains("runtime_evidence.known_state_frame_missing_late: 0"),
@@ -1151,8 +1151,12 @@ fn debug_runtime_evidence_run_handles_ref_set() {
         "D3 should enable direct get for the two static local ref get sites:\n{stdout}"
     );
     assert!(
-        stdout.contains("evidence.plan_known_operation_reject_direct_execution_disabled: 1"),
-        "D3 should keep route-proven local ref set on the generic runtime path:\n{stdout}"
+        stdout.contains("evidence.plan_known_operation_state_direct_sets: 1"),
+        "D4 should enable direct set for the static local ref set site:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.plan_known_operation_reject_direct_execution_disabled: 0"),
+        "D4 should not leave route-proven local refs on the disabled direct path:\n{stdout}"
     );
     assert!(
         stdout.contains("runtime_evidence.known_operation_state_get_candidate_hits: 3"),
@@ -1226,6 +1230,30 @@ fn debug_runtime_evidence_run_handles_ref_set() {
         stdout.contains("runtime_evidence.known_operation_route_direct_get_payload_mismatch: 0"),
         "route proof direct get guard should only see unit get payloads:\n{stdout}"
     );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_route_direct_set_attempts: 1"),
+        "route proof direct set guard should run for every dynamic local ref set:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_route_direct_set_hits: 1"),
+        "route proof direct set guard should bypass requests for local ref sets:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_route_direct_set_missing_proof: 0"),
+        "route proof direct set guard should not miss proofs in the local ref canary:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_route_direct_set_missing_frame: 0"),
+        "route proof direct set guard should see the active state frame:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_route_direct_set_role_mismatch: 0"),
+        "route proof direct set guard should not see role mismatches:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_route_direct_set_payload_mismatch: 0"),
+        "route proof direct set guard should see a single-value set payload proof:\n{stdout}"
+    );
 }
 
 #[test]
@@ -1272,8 +1300,8 @@ fn debug_runtime_evidence_run_known_state_frame_matches_control_across_nondet_re
         "request-free known state reads should bypass late request handling:\n{stdout}"
     );
     assert!(
-        stdout.contains("runtime_evidence.known_state_frame_writes_late: 2"),
-        "late known state writes should update the runtime state frame:\n{stdout}"
+        stdout.contains("runtime_evidence.known_state_frame_writes_late: 0"),
+        "request-free known state writes should update the runtime state frame directly:\n{stdout}"
     );
     assert!(
         stdout.contains("runtime_evidence.known_state_frame_missing_late: 0"),
@@ -1298,6 +1326,10 @@ fn debug_runtime_evidence_run_known_state_frame_matches_control_across_nondet_re
     assert!(
         stdout.contains("runtime_evidence.known_operation_route_direct_get_hits: 7"),
         "known get operations should use route-proof direct reads across nondet resume:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("runtime_evidence.known_operation_route_direct_set_hits: 2"),
+        "known set operations should use route-proof direct writes across nondet resume:\n{stdout}"
     );
 }
 
