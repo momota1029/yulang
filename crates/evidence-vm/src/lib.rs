@@ -62,10 +62,15 @@ pub(crate) struct EvidenceVmSummary {
     pub(crate) plan_known_operation_state_set_candidates: usize,
     pub(crate) plan_known_operation_state_direct_gets: usize,
     pub(crate) plan_known_operation_state_direct_sets: usize,
+    pub(crate) plan_known_state_operation_route_proofs: usize,
     pub(crate) plan_known_operation_reject_no_operation_object: usize,
     pub(crate) plan_known_operation_reject_not_call: usize,
     pub(crate) plan_known_operation_reject_no_visibility: usize,
     pub(crate) plan_known_operation_reject_no_candidate_handler: usize,
+    pub(crate) plan_known_operation_reject_no_known_state_access_proof: usize,
+    pub(crate) plan_known_operation_reject_known_state_access_handler_mismatch: usize,
+    pub(crate) plan_known_operation_reject_known_state_access_boundary_unsafe: usize,
+    pub(crate) plan_known_operation_reject_direct_execution_disabled: usize,
     pub(crate) plan_known_operation_reject_no_known_handler: usize,
     pub(crate) plan_known_operation_reject_wrong_handler: usize,
     pub(crate) plan_known_operation_reject_wrong_operation: usize,
@@ -236,6 +241,7 @@ pub(crate) struct EvidenceVmObjectPlan {
     pub(crate) operations: Vec<EvidenceVmOperationObjectPlan>,
     pub(crate) known_handlers: Vec<EvidenceVmKnownHandlerPlan>,
     pub(crate) known_operations: Vec<EvidenceVmKnownOperationPlan>,
+    pub(crate) known_state_operation_route_proofs: Vec<EvidenceVmKnownStateOperationRouteProof>,
     pub(crate) handler_capabilities: Vec<EvidenceVmHandlerCapabilityPlan>,
     pub(crate) allowed_sets: Vec<EvidenceVmAllowedSetPlan>,
     pub(crate) providers: Vec<EvidenceVmProviderPlan>,
@@ -316,6 +322,7 @@ impl EvidenceVmKnownHandlerPlan {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EvidenceVmKnownStateHandlerPlan {
     pub(crate) id: EvidenceVmKnownHandlerPlanId,
+    pub(crate) synthetic_var: u32,
     pub(crate) handler: ExprId,
     pub(crate) state: DefId,
     pub(crate) family: Vec<String>,
@@ -340,7 +347,7 @@ pub(crate) enum EvidenceVmKnownStateContinuationSemantics {
     SnapshotFork,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum EvidenceVmKnownOperationRole {
     StateGet,
     StateSet,
@@ -353,6 +360,10 @@ pub(crate) enum EvidenceVmKnownOperationReject {
     NotCall,
     NoVisibility,
     NoCandidateHandler,
+    NoKnownStateAccessProof,
+    KnownStateAccessHandlerMismatch,
+    KnownStateAccessBoundaryUnsafe,
+    DirectExecutionDisabled,
     NoKnownHandler,
     WrongHandler,
     WrongOperation,
@@ -372,6 +383,50 @@ pub(crate) struct EvidenceVmKnownOperationPlan {
     pub(crate) direct_ready: bool,
     pub(crate) reject: Option<EvidenceVmKnownOperationReject>,
     pub(crate) visibility: EvidenceVmAllowedSetId,
+    pub(crate) route_proof: Option<EvidenceVmKnownStateOperationRouteProofId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct EvidenceVmKnownStateOperationRouteProofId(pub(crate) u32);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EvidenceVmKnownStateOperationRouteProof {
+    pub(crate) id: EvidenceVmKnownStateOperationRouteProofId,
+    pub(crate) operation_expr: ExprId,
+    pub(crate) apply: ExprId,
+    pub(crate) callee: ExprId,
+    pub(crate) access_operation_def: u32,
+    pub(crate) synthetic_var: u32,
+    pub(crate) plan_id: EvidenceVmKnownHandlerPlanId,
+    pub(crate) catch_expr: ExprId,
+    pub(crate) handler_id: u32,
+    pub(crate) role: EvidenceVmKnownOperationRole,
+    pub(crate) source: EvidenceVmKnownStateOperationRouteProofSource,
+    pub(crate) visibility: EvidenceVmKnownStateOperationVisibilityProof,
+    pub(crate) payload: EvidenceVmKnownStateOperationPayloadProof,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EvidenceVmKnownStateOperationRouteProofSource {
+    CompilerLocalVar { synthetic_var: u32 },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EvidenceVmKnownStateOperationVisibilityProof {
+    CleanKnownStateCatch {
+        catch_expr: ExprId,
+        plan_id: EvidenceVmKnownHandlerPlanId,
+        handler_id: u32,
+        no_delayed_boundary: bool,
+        no_callback_boundary: bool,
+        no_blocking_marker: bool,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EvidenceVmKnownStateOperationPayloadProof {
+    UnitPayloadForGet,
+    SingleValuePayloadForSet,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -631,21 +686,26 @@ pub fn format_plan(plan: &EvidenceVmPlan) -> String {
     .unwrap();
     writeln!(
         &mut out,
-        "  known_operation_calls: {} state_get_candidates {} state_set_candidates {} direct_gets {} direct_sets {}",
+        "  known_operation_calls: {} state_get_candidates {} state_set_candidates {} direct_gets {} direct_sets {} route_proofs {}",
         summary.plan_known_operation_calls,
         summary.plan_known_operation_state_get_candidates,
         summary.plan_known_operation_state_set_candidates,
         summary.plan_known_operation_state_direct_gets,
-        summary.plan_known_operation_state_direct_sets
+        summary.plan_known_operation_state_direct_sets,
+        summary.plan_known_state_operation_route_proofs
     )
     .unwrap();
     writeln!(
         &mut out,
-        "  known_operation_rejects: no_operation_object {} not_call {} no_visibility {} no_candidate_handler {} no_known_handler {} wrong_handler {} wrong_operation {} blocked {} delayed {} provider_dirty {}",
+        "  known_operation_rejects: no_operation_object {} not_call {} no_visibility {} no_candidate_handler {} no_known_state_access_proof {} known_state_access_handler_mismatch {} known_state_access_boundary_unsafe {} direct_execution_disabled {} no_known_handler {} wrong_handler {} wrong_operation {} blocked {} delayed {} provider_dirty {}",
         summary.plan_known_operation_reject_no_operation_object,
         summary.plan_known_operation_reject_not_call,
         summary.plan_known_operation_reject_no_visibility,
         summary.plan_known_operation_reject_no_candidate_handler,
+        summary.plan_known_operation_reject_no_known_state_access_proof,
+        summary.plan_known_operation_reject_known_state_access_handler_mismatch,
+        summary.plan_known_operation_reject_known_state_access_boundary_unsafe,
+        summary.plan_known_operation_reject_direct_execution_disabled,
         summary.plan_known_operation_reject_no_known_handler,
         summary.plan_known_operation_reject_wrong_handler,
         summary.plan_known_operation_reject_wrong_operation,
@@ -749,12 +809,21 @@ fn summarize_plan(
         plan_known_operation_state_set_candidates: known_operation_counts.state_set_candidates,
         plan_known_operation_state_direct_gets: known_operation_counts.state_direct_gets,
         plan_known_operation_state_direct_sets: known_operation_counts.state_direct_sets,
+        plan_known_state_operation_route_proofs: known_operation_counts.route_proofs,
         plan_known_operation_reject_no_operation_object: known_operation_counts
             .reject_no_operation_object,
         plan_known_operation_reject_not_call: known_operation_counts.reject_not_call,
         plan_known_operation_reject_no_visibility: known_operation_counts.reject_no_visibility,
         plan_known_operation_reject_no_candidate_handler: known_operation_counts
             .reject_no_candidate_handler,
+        plan_known_operation_reject_no_known_state_access_proof: known_operation_counts
+            .reject_no_known_state_access_proof,
+        plan_known_operation_reject_known_state_access_handler_mismatch: known_operation_counts
+            .reject_known_state_access_handler_mismatch,
+        plan_known_operation_reject_known_state_access_boundary_unsafe: known_operation_counts
+            .reject_known_state_access_boundary_unsafe,
+        plan_known_operation_reject_direct_execution_disabled: known_operation_counts
+            .reject_direct_execution_disabled,
         plan_known_operation_reject_no_known_handler: known_operation_counts
             .reject_no_known_handler,
         plan_known_operation_reject_wrong_handler: known_operation_counts.reject_wrong_handler,
@@ -832,10 +901,15 @@ struct EvidenceVmKnownOperationCounts {
     state_set_candidates: usize,
     state_direct_gets: usize,
     state_direct_sets: usize,
+    route_proofs: usize,
     reject_no_operation_object: usize,
     reject_not_call: usize,
     reject_no_visibility: usize,
     reject_no_candidate_handler: usize,
+    reject_no_known_state_access_proof: usize,
+    reject_known_state_access_handler_mismatch: usize,
+    reject_known_state_access_boundary_unsafe: usize,
+    reject_direct_execution_disabled: usize,
     reject_no_known_handler: usize,
     reject_wrong_handler: usize,
     reject_wrong_operation: usize,
@@ -858,6 +932,7 @@ fn known_operation_counts(
         .count();
     let mut counts = EvidenceVmKnownOperationCounts {
         calls: objects.known_operations.len(),
+        route_proofs: objects.known_state_operation_route_proofs.len(),
         reject_no_operation_object: known_call_sites.saturating_sub(objects.known_operations.len()),
         reject_not_call: operations
             .iter()
@@ -904,6 +979,18 @@ impl EvidenceVmKnownOperationCounts {
             }
             EvidenceVmKnownOperationReject::NoCandidateHandler => {
                 self.reject_no_candidate_handler += 1;
+            }
+            EvidenceVmKnownOperationReject::NoKnownStateAccessProof => {
+                self.reject_no_known_state_access_proof += 1;
+            }
+            EvidenceVmKnownOperationReject::KnownStateAccessHandlerMismatch => {
+                self.reject_known_state_access_handler_mismatch += 1;
+            }
+            EvidenceVmKnownOperationReject::KnownStateAccessBoundaryUnsafe => {
+                self.reject_known_state_access_boundary_unsafe += 1;
+            }
+            EvidenceVmKnownOperationReject::DirectExecutionDisabled => {
+                self.reject_direct_execution_disabled += 1;
             }
             EvidenceVmKnownOperationReject::NoKnownHandler => {
                 self.reject_no_known_handler += 1;
@@ -1657,8 +1744,8 @@ fn build_object_plan(
         .collect::<HashMap<_, _>>();
     let (operation_objects, allowed_sets) =
         build_operation_objects(operations, &slot_ids, &handler_index, &handlers);
-    let known_operations =
-        build_known_operation_plans(operations, &operation_objects, &known_handlers);
+    let (known_operations, known_state_operation_route_proofs) =
+        build_known_operation_plans(operations, &operation_objects, &known_handlers, surface);
     let providers = build_provider_index(&slot_plans, &handlers);
 
     EvidenceVmObjectPlan {
@@ -1670,6 +1757,7 @@ fn build_object_plan(
         operations: operation_objects,
         known_handlers,
         known_operations,
+        known_state_operation_route_proofs,
         handler_capabilities,
         allowed_sets,
         providers,
@@ -1690,6 +1778,7 @@ fn build_known_handler_plans(
             plans.push(EvidenceVmKnownHandlerPlan::State(
                 EvidenceVmKnownStateHandlerPlan {
                     id: EvidenceVmKnownHandlerPlanId(plans.len() as u32),
+                    synthetic_var: certificate.synthetic_var,
                     handler: pair.handler,
                     state,
                     family: certificate.effect_path.clone(),
@@ -1708,7 +1797,11 @@ fn build_known_operation_plans(
     operations: &[EvidenceVmOperationPlan],
     operation_objects: &[EvidenceVmOperationObjectPlan],
     known_handlers: &[EvidenceVmKnownHandlerPlan],
-) -> Vec<EvidenceVmKnownOperationPlan> {
+    surface: &RuntimeEvidenceSurface,
+) -> (
+    Vec<EvidenceVmKnownOperationPlan>,
+    Vec<EvidenceVmKnownStateOperationRouteProof>,
+) {
     debug_assert_eq!(
         operations.len(),
         operation_objects.len(),
@@ -1716,9 +1809,11 @@ fn build_known_operation_plans(
     );
     let targets = known_state_operation_targets_by_path(known_handlers);
     if targets.is_empty() {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     }
-    operations
+    let accesses = known_state_access_targets(surface);
+    let mut proofs = Vec::new();
+    let operations = operations
         .iter()
         .zip(operation_objects.iter())
         .filter_map(|(operation, object)| {
@@ -1726,7 +1821,18 @@ fn build_known_operation_plans(
             let EvidenceVmOperationKind::Call { apply, callee } = operation.kind else {
                 return None;
             };
-            let reject = known_operation_direct_ready(operation, object, target);
+            let proof = build_known_state_operation_route_proof(
+                operation,
+                target,
+                apply,
+                callee,
+                accesses.get(&EvidenceVmKnownStateAccessKey {
+                    synthetic_var: target.synthetic_var,
+                    role: target.role,
+                }),
+                &mut proofs,
+            );
+            let reject = known_operation_direct_ready(operation, object, target, proof.is_some());
             Some(EvidenceVmKnownOperationPlan {
                 expr: operation.expr,
                 apply,
@@ -1737,13 +1843,17 @@ fn build_known_operation_plans(
                 direct_ready: reject.is_none(),
                 reject,
                 visibility: object.visibility.allowed_set_id,
+                route_proof: proof,
             })
         })
-        .collect()
+        .collect();
+    (operations, proofs)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct EvidenceVmKnownOperationTarget {
+    synthetic_var: u32,
+    catch_expr: ExprId,
     known_handler: EvidenceVmKnownHandlerPlanId,
     handler_id: u32,
     role: EvidenceVmKnownOperationRole,
@@ -1758,6 +1868,8 @@ fn known_state_operation_targets_by_path(
         targets.insert(
             state_operation_path(&state.family, EvidenceVmKnownStateOperation::Get),
             EvidenceVmKnownOperationTarget {
+                synthetic_var: state.synthetic_var,
+                catch_expr: state.handler,
                 known_handler: state.id,
                 handler_id: state.get_handler_id,
                 role: EvidenceVmKnownOperationRole::StateGet,
@@ -1766,6 +1878,8 @@ fn known_state_operation_targets_by_path(
         targets.insert(
             state_operation_path(&state.family, EvidenceVmKnownStateOperation::Set),
             EvidenceVmKnownOperationTarget {
+                synthetic_var: state.synthetic_var,
+                catch_expr: state.handler,
                 known_handler: state.id,
                 handler_id: state.set_handler_id,
                 role: EvidenceVmKnownOperationRole::StateSet,
@@ -1775,38 +1889,148 @@ fn known_state_operation_targets_by_path(
     targets
 }
 
+#[derive(Debug, Clone, Copy)]
+struct EvidenceVmKnownStateAccessTarget {
+    operation_def: u32,
+}
+
+// RuntimeEvidenceSurface still carries poly expr ids, while Evidence VM plans use
+// control expr ids. For D1, the stable bridge is the compiler-issued synthetic
+// var id plus the certified operation role; the emitted proof remains per
+// control call site.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct EvidenceVmKnownStateAccessKey {
+    synthetic_var: u32,
+    role: EvidenceVmKnownOperationRole,
+}
+
+fn known_state_access_targets(
+    surface: &RuntimeEvidenceSurface,
+) -> BTreeMap<EvidenceVmKnownStateAccessKey, EvidenceVmKnownStateAccessTarget> {
+    let mut targets = BTreeMap::new();
+    for access in &surface.known_state_accesses {
+        targets
+            .entry(EvidenceVmKnownStateAccessKey {
+                synthetic_var: access.synthetic_var,
+                role: known_state_access_role(access.role),
+            })
+            .or_insert(EvidenceVmKnownStateAccessTarget {
+                operation_def: access.operation_def,
+            });
+    }
+    targets
+}
+
+fn known_state_access_role(
+    role: specialize::RuntimeEvidenceKnownStateAccessRole,
+) -> EvidenceVmKnownOperationRole {
+    match role {
+        specialize::RuntimeEvidenceKnownStateAccessRole::StateGet => {
+            EvidenceVmKnownOperationRole::StateGet
+        }
+        specialize::RuntimeEvidenceKnownStateAccessRole::StateSet => {
+            EvidenceVmKnownOperationRole::StateSet
+        }
+    }
+}
+
+fn build_known_state_operation_route_proof(
+    operation: &EvidenceVmOperationPlan,
+    target: &EvidenceVmKnownOperationTarget,
+    apply: ExprId,
+    callee: ExprId,
+    access: Option<&EvidenceVmKnownStateAccessTarget>,
+    proofs: &mut Vec<EvidenceVmKnownStateOperationRouteProof>,
+) -> Option<EvidenceVmKnownStateOperationRouteProofId> {
+    let access = access?;
+    let id = EvidenceVmKnownStateOperationRouteProofId(proofs.len() as u32);
+    proofs.push(EvidenceVmKnownStateOperationRouteProof {
+        id,
+        operation_expr: operation.expr,
+        apply,
+        callee,
+        access_operation_def: access.operation_def,
+        synthetic_var: target.synthetic_var,
+        plan_id: target.known_handler,
+        catch_expr: target.catch_expr,
+        handler_id: target.handler_id,
+        role: target.role,
+        source: EvidenceVmKnownStateOperationRouteProofSource::CompilerLocalVar {
+            synthetic_var: target.synthetic_var,
+        },
+        visibility: clean_known_state_visibility_proof(operation, target),
+        payload: known_state_operation_payload_proof(target.role),
+    });
+    Some(id)
+}
+
+fn clean_known_state_visibility_proof(
+    operation: &EvidenceVmOperationPlan,
+    target: &EvidenceVmKnownOperationTarget,
+) -> EvidenceVmKnownStateOperationVisibilityProof {
+    EvidenceVmKnownStateOperationVisibilityProof::CleanKnownStateCatch {
+        catch_expr: target.catch_expr,
+        plan_id: target.known_handler,
+        handler_id: target.handler_id,
+        no_delayed_boundary: !matches!(
+            operation.lowering,
+            EvidenceVmOperationLowering::LexicalHandlerCandidate {
+                delayed_boundary: true,
+                ..
+            }
+        ),
+        no_callback_boundary: !matches!(
+            operation.lowering,
+            EvidenceVmOperationLowering::HygieneFallback {
+                callback_boundary: true,
+                ..
+            }
+        ),
+        no_blocking_marker: !matches!(
+            operation.lowering,
+            EvidenceVmOperationLowering::HygieneFallback { .. }
+        ),
+    }
+}
+
+fn known_state_operation_payload_proof(
+    role: EvidenceVmKnownOperationRole,
+) -> EvidenceVmKnownStateOperationPayloadProof {
+    match role {
+        EvidenceVmKnownOperationRole::StateGet => {
+            EvidenceVmKnownStateOperationPayloadProof::UnitPayloadForGet
+        }
+        EvidenceVmKnownOperationRole::StateSet => {
+            EvidenceVmKnownStateOperationPayloadProof::SingleValuePayloadForSet
+        }
+    }
+}
+
 fn known_operation_direct_ready(
     operation: &EvidenceVmOperationPlan,
-    object: &EvidenceVmOperationObjectPlan,
-    target: &EvidenceVmKnownOperationTarget,
+    _object: &EvidenceVmOperationObjectPlan,
+    _target: &EvidenceVmKnownOperationTarget,
+    has_route_proof: bool,
 ) -> Option<EvidenceVmKnownOperationReject> {
     match operation.lowering {
         EvidenceVmOperationLowering::HygieneFallback { .. } => {
-            return Some(EvidenceVmKnownOperationReject::Blocked);
+            return Some(EvidenceVmKnownOperationReject::KnownStateAccessBoundaryUnsafe);
         }
         EvidenceVmOperationLowering::LexicalHandlerCandidate {
             delayed_boundary: true,
             ..
-        } => return Some(EvidenceVmKnownOperationReject::Delayed),
-        EvidenceVmOperationLowering::GenericFallback => {
-            return Some(EvidenceVmKnownOperationReject::NoCandidateHandler);
-        }
+        } => return Some(EvidenceVmKnownOperationReject::KnownStateAccessBoundaryUnsafe),
+        EvidenceVmOperationLowering::GenericFallback => {}
         EvidenceVmOperationLowering::DirectHandlerCall { .. }
         | EvidenceVmOperationLowering::LexicalHandlerCandidate {
             delayed_boundary: false,
             ..
         } => {}
     }
-    let Some(candidate_handler) = object.candidate_handler else {
-        return Some(EvidenceVmKnownOperationReject::NoCandidateHandler);
-    };
-    if candidate_handler != target.handler_id {
-        return Some(EvidenceVmKnownOperationReject::WrongHandler);
+    if !has_route_proof {
+        return Some(EvidenceVmKnownOperationReject::NoKnownStateAccessProof);
     }
-    if object.visibility.legacy_guard_bridge {
-        return Some(EvidenceVmKnownOperationReject::NoVisibility);
-    }
-    None
+    Some(EvidenceVmKnownOperationReject::DirectExecutionDisabled)
 }
 
 fn compiler_state_param_for_handler(program: &Program, handler: ExprId) -> Option<DefId> {
@@ -3221,9 +3445,13 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
                 .reject
                 .map(format_known_operation_reject)
                 .unwrap_or("-");
+            let proof = operation
+                .route_proof
+                .map(|id| format!("p{}", id.0))
+                .unwrap_or_else(|| "-".to_string());
             writeln!(
                 out,
-                "    e{} apply e{} callee e{} k{} {} handler h{} visibility a{} direct_ready={} reject {}",
+                "    e{} apply e{} callee e{} k{} {} handler h{} visibility a{} proof {} direct_ready={} reject {}",
                 operation.expr.0,
                 operation.apply.0,
                 operation.callee.0,
@@ -3231,8 +3459,20 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
                 format_known_operation_role(operation.role),
                 operation.handler_id,
                 operation.visibility.0,
+                proof,
                 operation.direct_ready,
                 reject
+            )
+            .unwrap();
+        }
+    }
+    if !objects.known_state_operation_route_proofs.is_empty() {
+        writeln!(out, "  known-state-operation-route-proofs:").unwrap();
+        for proof in &objects.known_state_operation_route_proofs {
+            writeln!(
+                out,
+                "    {}",
+                format_known_state_operation_route_proof(proof)
             )
             .unwrap();
         }
@@ -3287,8 +3527,9 @@ fn format_object_plan(out: &mut String, objects: &EvidenceVmObjectPlan) {
 fn format_known_handler_plan(plan: &EvidenceVmKnownHandlerPlan) -> String {
     match plan {
         EvidenceVmKnownHandlerPlan::State(state) => format!(
-            "k{} state handler e{} state d{} family {} get h{} set h{} source {} continuation {}",
+            "k{} state sv{} handler e{} state d{} family {} get h{} set h{} source {} continuation {}",
             state.id.0,
+            state.synthetic_var,
             state.handler.0,
             state.state.0,
             format_path(&state.family),
@@ -3297,6 +3538,71 @@ fn format_known_handler_plan(plan: &EvidenceVmKnownHandlerPlan) -> String {
             format_known_state_handler_source(state.source),
             format_known_state_continuation(state.continuation)
         ),
+    }
+}
+
+fn format_known_state_operation_route_proof(
+    proof: &EvidenceVmKnownStateOperationRouteProof,
+) -> String {
+    format!(
+        "p{} e{} apply e{} callee e{} def d{} sv{} k{} catch e{} handler h{} {} source {} visibility {} payload {}",
+        proof.id.0,
+        proof.operation_expr.0,
+        proof.apply.0,
+        proof.callee.0,
+        proof.access_operation_def,
+        proof.synthetic_var,
+        proof.plan_id.0,
+        proof.catch_expr.0,
+        proof.handler_id,
+        format_known_operation_role(proof.role),
+        format_known_state_route_proof_source(proof.source),
+        format_known_state_visibility_proof(proof.visibility),
+        format_known_state_payload_proof(proof.payload)
+    )
+}
+
+fn format_known_state_route_proof_source(
+    source: EvidenceVmKnownStateOperationRouteProofSource,
+) -> String {
+    match source {
+        EvidenceVmKnownStateOperationRouteProofSource::CompilerLocalVar { synthetic_var } => {
+            format!("compiler-local-var sv{synthetic_var}")
+        }
+    }
+}
+
+fn format_known_state_visibility_proof(
+    visibility: EvidenceVmKnownStateOperationVisibilityProof,
+) -> String {
+    match visibility {
+        EvidenceVmKnownStateOperationVisibilityProof::CleanKnownStateCatch {
+            catch_expr,
+            plan_id,
+            handler_id,
+            no_delayed_boundary,
+            no_callback_boundary,
+            no_blocking_marker,
+        } => format!(
+            "clean-known-state-catch e{} k{} h{} delayed={} callback={} blocking={}",
+            catch_expr.0,
+            plan_id.0,
+            handler_id,
+            !no_delayed_boundary,
+            !no_callback_boundary,
+            !no_blocking_marker
+        ),
+    }
+}
+
+fn format_known_state_payload_proof(
+    payload: EvidenceVmKnownStateOperationPayloadProof,
+) -> &'static str {
+    match payload {
+        EvidenceVmKnownStateOperationPayloadProof::UnitPayloadForGet => "unit-payload-for-get",
+        EvidenceVmKnownStateOperationPayloadProof::SingleValuePayloadForSet => {
+            "single-value-payload-for-set"
+        }
     }
 }
 
@@ -3327,6 +3633,14 @@ fn format_known_operation_reject(reject: EvidenceVmKnownOperationReject) -> &'st
         EvidenceVmKnownOperationReject::NotCall => "not-call",
         EvidenceVmKnownOperationReject::NoVisibility => "no-visibility",
         EvidenceVmKnownOperationReject::NoCandidateHandler => "no-candidate-handler",
+        EvidenceVmKnownOperationReject::NoKnownStateAccessProof => "no-known-state-access-proof",
+        EvidenceVmKnownOperationReject::KnownStateAccessHandlerMismatch => {
+            "known-state-access-handler-mismatch"
+        }
+        EvidenceVmKnownOperationReject::KnownStateAccessBoundaryUnsafe => {
+            "known-state-access-boundary-unsafe"
+        }
+        EvidenceVmKnownOperationReject::DirectExecutionDisabled => "direct-execution-disabled",
         EvidenceVmKnownOperationReject::NoKnownHandler => "no-known-handler",
         EvidenceVmKnownOperationReject::WrongHandler => "wrong-handler",
         EvidenceVmKnownOperationReject::WrongOperation => "wrong-operation",
@@ -3936,6 +4250,7 @@ mod tests {
         };
         let surface = RuntimeEvidenceSurface {
             known_state_handlers: vec![specialize::RuntimeEvidenceKnownStateHandler {
+                synthetic_var: 0,
                 effect_path: family.clone(),
                 source: specialize::RuntimeEvidenceKnownStateHandlerSource::CompilerLocalVar,
                 continuation:
@@ -3953,6 +4268,7 @@ mod tests {
             );
         };
         assert_eq!(state.handler, handler_expr);
+        assert_eq!(state.synthetic_var, 0);
         assert_eq!(state.state, state_def);
         assert_eq!(state.family, family);
         assert_eq!(state.get_handler_id, 0);

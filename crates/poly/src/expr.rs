@@ -100,6 +100,10 @@ pub struct EffectOperation {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SyntheticVarEffect {
     pub effect_path: Vec<String>,
+    #[serde(default)]
+    pub get_operation: Option<DefId>,
+    #[serde(default)]
+    pub set_operation: Option<DefId>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -262,15 +266,35 @@ impl Arena {
     }
 
     pub fn register_synthetic_var_effect(&mut self, effect_path: Vec<String>) {
-        if self
+        self.ensure_synthetic_var_effect(effect_path);
+    }
+
+    pub fn register_synthetic_var_effect_operations(
+        &mut self,
+        effect_path: Vec<String>,
+        get_operation: DefId,
+        set_operation: DefId,
+    ) {
+        let effect = self.ensure_synthetic_var_effect(effect_path);
+        effect.get_operation = Some(get_operation);
+        effect.set_operation = Some(set_operation);
+    }
+
+    fn ensure_synthetic_var_effect(&mut self, effect_path: Vec<String>) -> &mut SyntheticVarEffect {
+        if let Some(index) = self
             .synthetic_var_effects
             .iter()
-            .any(|effect| effect.effect_path == effect_path)
+            .position(|effect| effect.effect_path == effect_path)
         {
-            return;
+            return &mut self.synthetic_var_effects[index];
         }
-        self.synthetic_var_effects
-            .push(SyntheticVarEffect { effect_path });
+        let index = self.synthetic_var_effects.len();
+        self.synthetic_var_effects.push(SyntheticVarEffect {
+            effect_path,
+            get_operation: None,
+            set_operation: None,
+        });
+        &mut self.synthetic_var_effects[index]
     }
 }
 

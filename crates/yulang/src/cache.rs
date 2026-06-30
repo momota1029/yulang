@@ -4160,6 +4160,7 @@ mod tests {
     fn nonempty_runtime_evidence_surface() -> specialize::RuntimeEvidenceSurface {
         specialize::RuntimeEvidenceSurface {
             known_state_handlers: Vec::new(),
+            known_state_accesses: Vec::new(),
             tasks: vec![specialize::RuntimeEvidenceTask {
                 owner: specialize::RuntimeEvidenceTaskOwner::RootExpr {
                     root_index: 0,

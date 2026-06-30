@@ -471,14 +471,24 @@ fn debug_evidence_vm_plan_marks_local_var_known_state_handler() {
         "known state handler should carry snapshot/fork continuation semantics:\n{stdout}"
     );
     assert!(
-        stdout.contains("known_operation_calls: 3 state_get_candidates 2 state_set_candidates 1"),
+        stdout.contains(
+            "known_operation_calls: 3 state_get_candidates 2 state_set_candidates 1 direct_gets 0 direct_sets 0 route_proofs 3"
+        ),
         "compiler local var should produce known state get/set call candidates:\n{stdout}"
     );
     assert!(
         stdout.contains("known-operation-calls:")
             && stdout.contains("state-get")
-            && stdout.contains("reject no-candidate-handler"),
-        "known state operation call details should be visible without changing execution:\n{stdout}"
+            && stdout.contains("proof p")
+            && stdout.contains("reject direct-execution-disabled"),
+        "known state operation call route proofs should be visible without enabling direct execution:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("known-state-operation-route-proofs:")
+            && stdout.contains("source compiler-local-var")
+            && stdout.contains("visibility clean-known-state-catch")
+            && stdout.contains("payload unit-payload-for-get"),
+        "plan-only known state operation route proofs should be printed:\n{stdout}"
     );
 }
 
@@ -1129,6 +1139,14 @@ fn debug_runtime_evidence_run_handles_ref_set() {
     assert!(
         stdout.contains("evidence.plan_known_operation_state_set_candidates: 1"),
         "known operation plan should classify the static set call site:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.plan_known_state_operation_route_proofs: 3"),
+        "known operation plan should build plan-only route proofs for local refs:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("evidence.plan_known_operation_reject_direct_execution_disabled: 3"),
+        "D1 should keep route-proven local refs on the generic runtime path:\n{stdout}"
     );
     assert!(
         stdout.contains("runtime_evidence.known_operation_state_get_candidate_hits: 3"),

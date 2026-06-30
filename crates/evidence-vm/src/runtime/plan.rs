@@ -35,10 +35,15 @@ pub(super) struct RuntimeEvidenceRunContext {
     known_operation_state_set_candidate_count: usize,
     known_operation_state_direct_get_count: usize,
     known_operation_state_direct_set_count: usize,
+    known_state_operation_route_proof_count: usize,
     known_operation_reject_no_operation_object_count: usize,
     known_operation_reject_not_call_count: usize,
     known_operation_reject_no_visibility_count: usize,
     known_operation_reject_no_candidate_handler_count: usize,
+    known_operation_reject_no_known_state_access_proof_count: usize,
+    known_operation_reject_known_state_access_handler_mismatch_count: usize,
+    known_operation_reject_known_state_access_boundary_unsafe_count: usize,
+    known_operation_reject_direct_execution_disabled_count: usize,
     known_operation_reject_no_known_handler_count: usize,
     known_operation_reject_wrong_handler_count: usize,
     known_operation_reject_wrong_operation_count: usize,
@@ -113,6 +118,8 @@ impl RuntimeEvidenceRunContext {
             plan.summary.plan_known_operation_state_direct_gets;
         let known_operation_state_direct_set_count =
             plan.summary.plan_known_operation_state_direct_sets;
+        let known_state_operation_route_proof_count =
+            plan.summary.plan_known_state_operation_route_proofs;
         let known_operation_reject_no_operation_object_count =
             plan.summary.plan_known_operation_reject_no_operation_object;
         let known_operation_reject_not_call_count =
@@ -122,6 +129,18 @@ impl RuntimeEvidenceRunContext {
         let known_operation_reject_no_candidate_handler_count = plan
             .summary
             .plan_known_operation_reject_no_candidate_handler;
+        let known_operation_reject_no_known_state_access_proof_count = plan
+            .summary
+            .plan_known_operation_reject_no_known_state_access_proof;
+        let known_operation_reject_known_state_access_handler_mismatch_count = plan
+            .summary
+            .plan_known_operation_reject_known_state_access_handler_mismatch;
+        let known_operation_reject_known_state_access_boundary_unsafe_count = plan
+            .summary
+            .plan_known_operation_reject_known_state_access_boundary_unsafe;
+        let known_operation_reject_direct_execution_disabled_count = plan
+            .summary
+            .plan_known_operation_reject_direct_execution_disabled;
         let known_operation_reject_no_known_handler_count =
             plan.summary.plan_known_operation_reject_no_known_handler;
         let known_operation_reject_wrong_handler_count =
@@ -184,10 +203,15 @@ impl RuntimeEvidenceRunContext {
             known_operation_state_set_candidate_count,
             known_operation_state_direct_get_count,
             known_operation_state_direct_set_count,
+            known_state_operation_route_proof_count,
             known_operation_reject_no_operation_object_count,
             known_operation_reject_not_call_count,
             known_operation_reject_no_visibility_count,
             known_operation_reject_no_candidate_handler_count,
+            known_operation_reject_no_known_state_access_proof_count,
+            known_operation_reject_known_state_access_handler_mismatch_count,
+            known_operation_reject_known_state_access_boundary_unsafe_count,
+            known_operation_reject_direct_execution_disabled_count,
             known_operation_reject_no_known_handler_count,
             known_operation_reject_wrong_handler_count,
             known_operation_reject_wrong_operation_count,
@@ -245,6 +269,8 @@ impl RuntimeEvidenceRunContext {
             self.known_operation_state_set_candidate_count;
         stats.plan_known_operation_state_direct_gets = self.known_operation_state_direct_get_count;
         stats.plan_known_operation_state_direct_sets = self.known_operation_state_direct_set_count;
+        stats.plan_known_state_operation_route_proofs =
+            self.known_state_operation_route_proof_count;
         stats.plan_known_operation_reject_no_operation_object =
             self.known_operation_reject_no_operation_object_count;
         stats.plan_known_operation_reject_not_call = self.known_operation_reject_not_call_count;
@@ -252,6 +278,14 @@ impl RuntimeEvidenceRunContext {
             self.known_operation_reject_no_visibility_count;
         stats.plan_known_operation_reject_no_candidate_handler =
             self.known_operation_reject_no_candidate_handler_count;
+        stats.plan_known_operation_reject_no_known_state_access_proof =
+            self.known_operation_reject_no_known_state_access_proof_count;
+        stats.plan_known_operation_reject_known_state_access_handler_mismatch =
+            self.known_operation_reject_known_state_access_handler_mismatch_count;
+        stats.plan_known_operation_reject_known_state_access_boundary_unsafe =
+            self.known_operation_reject_known_state_access_boundary_unsafe_count;
+        stats.plan_known_operation_reject_direct_execution_disabled =
+            self.known_operation_reject_direct_execution_disabled_count;
         stats.plan_known_operation_reject_no_known_handler =
             self.known_operation_reject_no_known_handler_count;
         stats.plan_known_operation_reject_wrong_handler =

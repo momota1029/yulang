@@ -904,9 +904,17 @@ impl<'a> ExprLowerer<'a> {
     ) -> Result<TypeVar, LoweringError> {
         let effect = self.fresh_type_var();
         let path = self.local_var_act_effect_path(act)?;
-        self.session
-            .poly
-            .register_synthetic_var_effect(path.clone());
+        if let Some((get_operation, set_operation)) = self.local_var_state_operation_defs(act) {
+            self.session.poly.register_synthetic_var_effect_operations(
+                path.clone(),
+                get_operation,
+                set_operation,
+            );
+        } else {
+            self.session
+                .poly
+                .register_synthetic_var_effect(path.clone());
+        }
         let payload_arg = self.invariant_var_arg(payload);
         let lower_item = self.alloc_pos(Pos::Con(path.clone(), vec![payload_arg]));
         self.constrain_lower(effect, Pos::Row(vec![lower_item]));
@@ -914,6 +922,21 @@ impl<'a> ExprLowerer<'a> {
         let upper_tail = self.alloc_neg(Neg::Bot);
         self.constrain_upper(effect, Neg::Row(vec![upper_item], upper_tail));
         Ok(effect)
+    }
+
+    fn local_var_state_operation_defs(&self, act: &SyntheticVarActUse) -> Option<(DefId, DefId)> {
+        let companion = self.modules.type_companion(act.act)?;
+        let get = self
+            .modules
+            .value_decls(companion, &Name("get".to_string()))
+            .first()?
+            .def;
+        let set = self
+            .modules
+            .value_decls(companion, &Name("set".to_string()))
+            .first()?
+            .def;
+        Some((get, set))
     }
 
     pub(in crate::lowering) fn local_var_act_effect_path(

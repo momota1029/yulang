@@ -96,6 +96,12 @@ pub(crate) fn print_run_report(
         output.evidence_stats.plan_known_operation_state_direct_sets
     );
     println!(
+        "  evidence.plan_known_state_operation_route_proofs: {}",
+        output
+            .evidence_stats
+            .plan_known_state_operation_route_proofs
+    );
+    println!(
         "  evidence.plan_known_operation_reject_no_operation_object: {}",
         output
             .evidence_stats
@@ -116,6 +122,30 @@ pub(crate) fn print_run_report(
         output
             .evidence_stats
             .plan_known_operation_reject_no_candidate_handler
+    );
+    println!(
+        "  evidence.plan_known_operation_reject_no_known_state_access_proof: {}",
+        output
+            .evidence_stats
+            .plan_known_operation_reject_no_known_state_access_proof
+    );
+    println!(
+        "  evidence.plan_known_operation_reject_known_state_access_handler_mismatch: {}",
+        output
+            .evidence_stats
+            .plan_known_operation_reject_known_state_access_handler_mismatch
+    );
+    println!(
+        "  evidence.plan_known_operation_reject_known_state_access_boundary_unsafe: {}",
+        output
+            .evidence_stats
+            .plan_known_operation_reject_known_state_access_boundary_unsafe
+    );
+    println!(
+        "  evidence.plan_known_operation_reject_direct_execution_disabled: {}",
+        output
+            .evidence_stats
+            .plan_known_operation_reject_direct_execution_disabled
     );
     println!(
         "  evidence.plan_known_operation_reject_no_known_handler: {}",

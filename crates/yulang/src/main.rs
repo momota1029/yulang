@@ -1515,8 +1515,28 @@ fn print_runtime_evidence_phase_timings(
         stats.plan_known_operation_state_direct_sets
     );
     eprintln!(
+        "  run.runtime_evidence.plan_known_state_operation_route_proofs: {}",
+        stats.plan_known_state_operation_route_proofs
+    );
+    eprintln!(
         "  run.runtime_evidence.plan_known_operation_reject_no_candidate_handler: {}",
         stats.plan_known_operation_reject_no_candidate_handler
+    );
+    eprintln!(
+        "  run.runtime_evidence.plan_known_operation_reject_no_known_state_access_proof: {}",
+        stats.plan_known_operation_reject_no_known_state_access_proof
+    );
+    eprintln!(
+        "  run.runtime_evidence.plan_known_operation_reject_known_state_access_handler_mismatch: {}",
+        stats.plan_known_operation_reject_known_state_access_handler_mismatch
+    );
+    eprintln!(
+        "  run.runtime_evidence.plan_known_operation_reject_known_state_access_boundary_unsafe: {}",
+        stats.plan_known_operation_reject_known_state_access_boundary_unsafe
+    );
+    eprintln!(
+        "  run.runtime_evidence.plan_known_operation_reject_direct_execution_disabled: {}",
+        stats.plan_known_operation_reject_direct_execution_disabled
     );
     eprintln!("  run.runtime_evidence.expr_evals: {}", stats.expr_evals);
     eprintln!("  run.runtime_evidence.env_clones: {}", stats.env_clones);

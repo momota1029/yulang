@@ -13235,7 +13235,11 @@ impl<'a> RuntimeEvidenceRunner<'a> {
     fn record_known_operation_reject_hit(&mut self, reject: EvidenceVmKnownOperationReject) {
         match reject {
             EvidenceVmKnownOperationReject::NoOperationObject
-            | EvidenceVmKnownOperationReject::NotCall => {}
+            | EvidenceVmKnownOperationReject::NotCall
+            | EvidenceVmKnownOperationReject::NoKnownStateAccessProof
+            | EvidenceVmKnownOperationReject::KnownStateAccessHandlerMismatch
+            | EvidenceVmKnownOperationReject::KnownStateAccessBoundaryUnsafe
+            | EvidenceVmKnownOperationReject::DirectExecutionDisabled => {}
             EvidenceVmKnownOperationReject::NoVisibility => {
                 self.stats.known_operation_reject_no_visibility_hits += 1;
             }

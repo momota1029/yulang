@@ -30,10 +30,11 @@ pub(crate) use lib_support::convert::*;
 pub use mono;
 pub use specialize2::{
     RuntimeEvidenceBoundaryCandidate, RuntimeEvidenceEffectSubtraction, RuntimeEvidenceExprType,
-    RuntimeEvidenceGraph, RuntimeEvidenceKnownStateContinuationSemantics,
-    RuntimeEvidenceKnownStateHandler, RuntimeEvidenceKnownStateHandlerSource, RuntimeEvidenceNode,
-    RuntimeEvidenceNodeEvidenceRef, RuntimeEvidenceNodeKind, RuntimeEvidenceRowResidual,
-    RuntimeEvidenceSite, RuntimeEvidenceSiteKind, RuntimeEvidenceSlot, RuntimeEvidenceSlotKind,
+    RuntimeEvidenceGraph, RuntimeEvidenceKnownStateAccessRole,
+    RuntimeEvidenceKnownStateContinuationSemantics, RuntimeEvidenceKnownStateHandler,
+    RuntimeEvidenceKnownStateHandlerSource, RuntimeEvidenceNode, RuntimeEvidenceNodeEvidenceRef,
+    RuntimeEvidenceNodeKind, RuntimeEvidenceRowResidual, RuntimeEvidenceSite,
+    RuntimeEvidenceSiteKind, RuntimeEvidenceSlot, RuntimeEvidenceSlotKind,
     RuntimeEvidenceStackWeight, RuntimeEvidenceSurface, RuntimeEvidenceTask,
     RuntimeEvidenceTaskOwner, RuntimeEvidenceTypeAtExpr, RuntimeEvidenceTypeAtPat,
     RuntimeEvidenceTypePathStep, RuntimeEvidenceTypeRole, RuntimeEvidenceTypeclassResolution,

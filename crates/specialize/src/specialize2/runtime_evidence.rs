@@ -19,12 +19,17 @@ pub struct SpecializeOutput {
 pub struct RuntimeEvidenceSurface {
     #[serde(default)]
     pub known_state_handlers: Vec<RuntimeEvidenceKnownStateHandler>,
+    #[serde(default)]
+    pub known_state_accesses: Vec<RuntimeEvidenceKnownStateAccess>,
     pub tasks: Vec<RuntimeEvidenceTask>,
 }
 
 impl RuntimeEvidenceSurface {
     pub(super) fn attach_known_state_handlers(&mut self, arena: &poly_expr::Arena) {
-        self.known_state_handlers = known_state_handlers_from_arena(arena);
+        let known_state_effects = known_state_effects_from_arena(arena);
+        self.known_state_handlers = known_state_handlers_from_effects(&known_state_effects);
+        self.known_state_accesses =
+            known_state_accesses_from_tasks(&known_state_effects, &self.tasks);
     }
 
     pub(super) fn push_solved_task(
@@ -40,9 +45,28 @@ impl RuntimeEvidenceSurface {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeEvidenceKnownStateHandler {
+    #[serde(default)]
+    pub synthetic_var: u32,
     pub effect_path: Vec<String>,
     pub source: RuntimeEvidenceKnownStateHandlerSource,
     pub continuation: RuntimeEvidenceKnownStateContinuationSemantics,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeEvidenceKnownStateAccess {
+    pub synthetic_var: u32,
+    pub operation_expr: u32,
+    pub apply: u32,
+    pub callee: u32,
+    pub arg: u32,
+    pub operation_def: u32,
+    pub role: RuntimeEvidenceKnownStateAccessRole,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RuntimeEvidenceKnownStateAccessRole {
+    StateGet,
+    StateSet,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,19 +79,105 @@ pub enum RuntimeEvidenceKnownStateContinuationSemantics {
     SnapshotFork,
 }
 
-fn known_state_handlers_from_arena(
+#[derive(Debug, Clone)]
+struct RuntimeEvidenceKnownStateEffect {
+    synthetic_var: u32,
+    effect_path: Vec<String>,
+    get_operation: Option<u32>,
+    set_operation: Option<u32>,
+}
+
+fn known_state_effects_from_arena(
     arena: &poly_expr::Arena,
-) -> Vec<RuntimeEvidenceKnownStateHandler> {
+) -> Vec<RuntimeEvidenceKnownStateEffect> {
     let mut effects = arena.synthetic_var_effects.clone();
     effects.sort_by(|left, right| left.effect_path.cmp(&right.effect_path));
     effects
         .into_iter()
-        .map(|effect| RuntimeEvidenceKnownStateHandler {
+        .enumerate()
+        .map(|(index, effect)| RuntimeEvidenceKnownStateEffect {
+            synthetic_var: index as u32,
             effect_path: effect.effect_path,
+            get_operation: effect.get_operation.map(|def| def.0),
+            set_operation: effect.set_operation.map(|def| def.0),
+        })
+        .collect()
+}
+
+fn known_state_handlers_from_effects(
+    effects: &[RuntimeEvidenceKnownStateEffect],
+) -> Vec<RuntimeEvidenceKnownStateHandler> {
+    effects
+        .iter()
+        .map(|effect| RuntimeEvidenceKnownStateHandler {
+            synthetic_var: effect.synthetic_var,
+            effect_path: effect.effect_path.clone(),
             source: RuntimeEvidenceKnownStateHandlerSource::CompilerLocalVar,
             continuation: RuntimeEvidenceKnownStateContinuationSemantics::SnapshotFork,
         })
         .collect()
+}
+
+fn known_state_accesses_from_tasks(
+    effects: &[RuntimeEvidenceKnownStateEffect],
+    tasks: &[RuntimeEvidenceTask],
+) -> Vec<RuntimeEvidenceKnownStateAccess> {
+    let mut operations = std::collections::BTreeMap::new();
+    for effect in effects {
+        if let Some(def) = effect.get_operation {
+            operations.insert(
+                def,
+                (
+                    effect.synthetic_var,
+                    RuntimeEvidenceKnownStateAccessRole::StateGet,
+                ),
+            );
+        }
+        if let Some(def) = effect.set_operation {
+            operations.insert(
+                def,
+                (
+                    effect.synthetic_var,
+                    RuntimeEvidenceKnownStateAccessRole::StateSet,
+                ),
+            );
+        }
+    }
+    if operations.is_empty() {
+        return Vec::new();
+    }
+
+    let mut accesses = Vec::new();
+    for task in tasks {
+        for node in &task.nodes {
+            let RuntimeEvidenceNodeKind::OperationCall {
+                callee, arg, def, ..
+            } = &node.kind
+            else {
+                continue;
+            };
+            let Some((synthetic_var, role)) = operations.get(def).copied() else {
+                continue;
+            };
+            accesses.push(RuntimeEvidenceKnownStateAccess {
+                synthetic_var,
+                operation_expr: node.expr,
+                apply: node.expr,
+                callee: *callee,
+                arg: *arg,
+                operation_def: *def,
+                role,
+            });
+        }
+    }
+    accesses.sort_by_key(|access| {
+        (
+            access.synthetic_var,
+            access.operation_def,
+            access.operation_expr,
+        )
+    });
+    accesses
 }
 
 pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> String {
@@ -82,10 +192,31 @@ pub fn format_runtime_evidence_surface(surface: &RuntimeEvidenceSurface) -> Stri
         for handler in &surface.known_state_handlers {
             let _ = writeln!(
                 out,
-                "  {} source {} continuation {}",
+                "  sv{} {} source {} continuation {}",
+                handler.synthetic_var,
                 handler.effect_path.join("::"),
                 format_known_state_handler_source(handler.source),
                 format_known_state_continuation(handler.continuation)
+            );
+        }
+    }
+    if !surface.known_state_accesses.is_empty() {
+        let _ = writeln!(
+            out,
+            "known state accesses [{}]",
+            surface.known_state_accesses.len()
+        );
+        for access in &surface.known_state_accesses {
+            let _ = writeln!(
+                out,
+                "  sv{} e{} apply e{} callee e{} arg e{} d{} {}",
+                access.synthetic_var,
+                access.operation_expr,
+                access.apply,
+                access.callee,
+                access.arg,
+                access.operation_def,
+                format_known_state_access_role(access.role)
             );
         }
     }
@@ -179,6 +310,13 @@ fn format_known_state_continuation(
 ) -> &'static str {
     match continuation {
         RuntimeEvidenceKnownStateContinuationSemantics::SnapshotFork => "snapshot-fork",
+    }
+}
+
+fn format_known_state_access_role(role: RuntimeEvidenceKnownStateAccessRole) -> &'static str {
+    match role {
+        RuntimeEvidenceKnownStateAccessRole::StateGet => "state-get",
+        RuntimeEvidenceKnownStateAccessRole::StateSet => "state-set",
     }
 }
 
