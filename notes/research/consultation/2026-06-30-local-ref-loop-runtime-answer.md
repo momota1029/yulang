@@ -2,650 +2,1045 @@
 
 ## 結論
 
-VM レベルの `LocalRefCell` は、この性能問題に対して正しい方向である。ただし、単純な `Rc<RefCell<Value>>` のような「共有 heap cell」をそのまま入れるのは危険である。Yulang の現在の local var lowering は、local state を algebraic effect handler で表現しているので、captured continuation / multi-shot resume の下では state が continuation とどう一緒に複製されるかを明示する必要がある。
+VM レベルの `LocalRefCell` は、**そのままの共有 mutable cell として入れるなら危険**である。一方で、`LocalRefCell` という発想を「compiler-generated local state handler の runtime 表現」として言い換えるなら、方向性はかなりよい。
 
-推奨方針は次の形である。
+推奨する名前と構造は、裸の `LocalRefCell` ではなく次である。
 
-1. `std.control.var.ref` は公開 abstraction として維持する。
-2. compiler が生成した local mutable var だけを、内部表現として `LocalRefCell` に置き換える。
-3. `LocalRefCell` は escaped ref value として持ち運べる。
-4. ただし continuation capture 時には local cell state を snapshot し、multi-shot resume では snapshot から fork した cell 群で実行する。
-5. generic / user-defined / file / projected ref は今の `get` / `update_effect` / `ref_update` protocol を truth surface として残す。
-6. 最初から全置換せず、feature flag と compare oracle で段階導入する。
+```text
+KnownHandlerPlan::State
+  -> RuntimeStateHandlerFrame
+  -> StateRef token
+  -> DirectStateGet / DirectStateSet
+```
 
-目標は「`for` + local mutable ref` の hot path を、record field selection + `update_effect()` + `ref_update` + local `get` + local `set` + catch/resume の連鎖から外す」ことである。`for` そのものの最適化はその後でよい。現在の測定では `for_no_ref` が数 ms、`for + ref` が約 2 秒なので、まず local ref representation を直すのが支配的である。
+重要なのは、最適化対象を「local variable」や「`for` body」ではなく、**証明済みの state-like handler** に置くことである。最初の producer が compiler-generated local mutable variable であることは問題ない。ただし runtime が `my $x`、`std.control.var.ref`、`get`/`set` という source name や record field shape を直接見始めると、すぐに special case が積み上がる。
+
+したがって、短く言うと次になる。
+
+```text
+bad:
+  local var syntax -> Rc<RefCell<Value>> に置換
+  escaped &x は cell pointer
+  continuation はあとで辻褄合わせ
+
+good:
+  compiler-generated var.run に certificate
+  Evidence VM が KnownHandlerPlan::State を作る
+  runtime は active StateHandlerFrame に状態を持つ
+  &x は storage ではなく StateRef capability token
+  continuation capture/resume は state frame を snapshot/fork
+```
+
+2 秒の問題に対する近道は存在する。だが、それは downstream patch ではなく、`var.get` / `var.set` / `RefSet` が generic effect protocol を通っている原因側を段階的に外すことだ。
 
 ---
 
-## 1. `LocalRefCell` は正しいか
+## 1. 測定値から読むべきこと
 
-正しい。ただし、採用してよいのは次の意味での `LocalRefCell` だけである。
-
-```text
-LocalRefCell = compiler-generated local var act の等価な VM 内部表現
-```
-
-採用してはいけないのは次である。
+現在の測定はかなりはっきりしている。
 
 ```text
-LocalRefCell = どこからでも見える普通の共有 mutable box
+recursive sum loop:
+  約 1.4ms - 1.6ms
+
+recursive list loop:
+  約 1.7ms - 1.9ms
+
+std for without local ref:
+  約 6ms
+
+std for + local ref sum:
+  約 1.8s - 2.0s
+
+std for + local ref push:
+  約 1.8s - 2.0s
+
+nondet list:
+  約 10ms
 ```
 
-現在の lowering は、local mutable var を次のように扱っている。
+ここから読むべき主因は次である。
 
 ```text
-let #x = init
-let &x = synthetic_var_act::var_ref()
-synthetic_var_act::run #x {
-  body
-}
+pure recursion is fine
+std for has overhead, but not catastrophic
+local mutable ref update through public ref protocol is catastrophic
 ```
 
-この形は遅いが、意味論上はかなり強い情報を持っている。
+`for` そのものを最初に高速化するのは順序が悪い。`for_no_ref` が 6ms である以上、`for` を完全に消しても 2 秒の大半は残る。逆に local mutable ref update を direct 化できれば、`for` はまだ 6ms 級の通常問題に戻る。
 
-- local var act は compiler-generated で hygienic である。
-- local state の lifetime は `run` の dynamic extent に対応する。
-- `get` / `set` は普通の effect operation として handler に捕まる。
-- `ref.update` は `ref_update` effect を使って projection chain を更新できる。
+現行 lowering で 1 回の assignment が通る道は次である。
 
-したがって VM は、任意の `ref` を勝手に cell 化してはいけない。最適化対象は「compiler が作った synthetic local var act に由来する ref」だけに限定するべきである。
+```text
+&total = $total + i + j
+
+reference evaluation
+  -> record field selection
+  -> update_effect() call
+  -> ref_update::update request
+  -> var.get request
+  -> var.set request
+  -> catch/resume machinery
+  -> handler recursion
+```
+
+これは「state slot に値を書くだけ」に対して過剰に一般的である。ただし public `std.control.var.ref` はこの一般性が必要なので、一般 protocol を壊すのではなく、**証明済み local state ref だけが protocol の内側から短絡できる**ようにするのが正しい。
 
 ---
 
-## 2. captured continuation / multi-shot resume での意味論
+## 2. `LocalRefCell` は正しい方向か
 
-ここが一番重要である。推奨する意味論は **snapshot/fork semantics** である。
+### 2.1 raw `LocalRefCell` は危険
 
-### 通常実行
-
-`my $x = v` は fresh な logical local cell `c` を作る。
-
-```text
-$x              => read c
-&x = v2         => write c v2; return ()
-&x.update(f)    => old = read c; new = f old; write c new; return ()
-&x              => ref value pointing to c
-```
-
-`f old` の評価は、現行の `ref.update` と同じ dynamic context で起こす。つまり marker / provider / handler boundary を飛ばさない。
-
-### continuation capture
-
-continuation を capture するとき、その continuation から到達可能な `LocalRefCell` の値を snapshot に含める。
-
-```text
-StoredContinuation {
-  frames,
-  marker_scopes,
-  local_cell_snapshot: [(cell_handle, value)]
-}
-```
-
-「到達可能」は少なくとも次を含む。
-
-- continuation frame 内の `Value`
-- closure env 内の `Value`
-- active local-cell scope に登録された cell
-- record / tuple / list などの中に入った escaped local ref
-
-最初の実装は少し保守的に「active local-cell scope にある cell をすべて snapshot」でもよい。capture は通常 loop hot path ではないので、ここで単純さを優先する価値が高い。
-
-### resume
-
-captured continuation を resume するときは、snapshot から fresh な cell 群を作り、captured frames/env 内の local cell handle を fresh handle に remap してから実行する。
-
-```text
-capture at state x = 10
-resume k ()  => branch A starts with x = 10
-resume k ()  => branch B starts with x = 10
-```
-
-branch A の中で `x = 20` になっても、branch B は `x = 10` から始まる。
-
-これは current `var.run` lowering に最も近い保守的な意味論である。state を handler recursion の引数として持っている現在のモデルでは、multi-shot continuation を再利用するときに「以前の resume が変えた cell を次の resume が見る」と考えるより、「capture 時点の handler state から再開する」と考える方が安全である。
-
-### one-shot optimization
-
-後から one-shot が証明できる場合だけ、fresh remap を省いて既存 cell を reuse してよい。ただしこれは optimization であり、observable semantics は snapshot/fork のままである。
-
-```text
-semantic rule: snapshot/fork
-optimization: if one-shot proven, destructive reuse is allowed
-```
-
-逆に、raw shared-cell semantics を既定にしてから「multi-shot のときだけ何とかする」は避けるべきである。これは高確率で小さな canary をすり抜け、後で handler と nondet の組み合わせで壊れる。
-
----
-
-## 3. 実装形態の推奨
-
-一番よい形は **new control IR node + tagged runtime ref representation** である。
-
-### 推奨 IR
-
-source / type inference 側は、当面 current lowering を大きく壊さなくてよい。ただし lowerer が synthetic local var act を作るタイミングで、control lowering に渡せる metadata を残す。
-
-その metadata を使って、control IR へ次のような node を出す。
+次のような表現は避けたい。
 
 ```rust
-enum ControlExpr {
-    LocalCellScope {
-        slot: LocalCellSlot,
-        init: ExprId,
-        ref_binding: LocalDef,
-        body: ExprId,
-    },
-    LocalCellGet {
-        slot: LocalCellSlot,
-    },
-    LocalCellSet {
-        slot: LocalCellSlot,
-        value: ExprId,
-    },
-    LocalCellMakeRef {
-        slot: LocalCellSlot,
-    },
-    LocalCellUpdate {
-        slot: LocalCellSlot,
-        function: ExprId,
-    },
+Value::LocalRefCell(Rc<RefCell<Value>>)
+```
+
+これをそのまま escaped `&x` の実体にすると、captured continuation / multi-shot resume で semantic bug が出る。
+
+例えば state handler semantics では次が自然である。
+
+```text
+x = 10
+capture k
+resume k -> branch A starts with x = 10
+branch A sets x = 20
+resume k -> branch B starts with x = 10
+```
+
+しかし `Rc<RefCell<Value>>` を continuation 間で共有すると、branch A の `x = 20` が branch B に漏れる。これは state handler の再帰的実装と違う。Yulang が algebraic effects と multi-shot continuation を言語機能として持つなら、ここは曖昧にできない。
+
+### 2.2 continuation-aware cell なら viable
+
+`LocalRefCell` を次の意味で定義するなら viable である。
+
+```text
+Local state is not a heap cell.
+Local state is a slot in the active state handler frame.
+
+&x is not the storage itself.
+&x is a capability token that resolves to the active frame.
+```
+
+runtime representation はこう置くのがよい。
+
+```rust
+enum RuntimeKnownHandlerFrame {
+    State(RuntimeStateHandlerFrame),
+}
+
+struct RuntimeStateHandlerFrame {
+    plan_id: EvidenceVmKnownHandlerPlanId,
+    handler_id: u32,
+    state_slot: StateSlotId,
+    state_def: DefId,
+    value: Value,
+    continuation_semantics: StateContinuationSemantics,
+}
+
+enum StateContinuationSemantics {
+    SnapshotFork,
+}
+
+enum RefRepr {
+    StateSlot(StateRef),
+    Generic(Value),
+    Projection(ProjectionRef), // later
+}
+
+struct StateRef {
+    plan_id: EvidenceVmKnownHandlerPlanId,
+    handler_id: u32,
+    state_slot: StateSlotId,
+    scope_id: StateScopeId,
 }
 ```
 
-実際の Rust の enum 名は既存設計に合わせてよい。重要なのは「runtime が偶然の AST shape や record field name を覗いて判断しない」ことである。
-
-### なぜ runtime pattern specialization だけでは弱いか
-
-`var_ref` / `run` の既存 source shape を runtime で認識する案は魅力的だが、避けたい。
-
-理由は次である。
-
-- std の実装 shape 変更に弱い。
-- user-defined ref record と compiler-generated local var ref の区別が曖昧になる。
-- handler hygiene / marker / provider の根拠が「たまたまこの形だった」になりやすい。
-- projection ref や escaped ref を拡張すると、後から special case が増殖する。
-
-ただし、DefId / synthetic act metadata に基づく **compiler-generated local var act の specialization** はよい。これは string matching ではなく、lowerer が作った内部事実に基づく変換である。
+この設計なら、`&x` は関数や record に escape しても「active state frame を探す token」として正しく振る舞える。scope 外に出た後で使われた場合は、現在の generic behavior に合わせて fallback か unhandled/runtime error にする。勝手に heap cell として延命しない。
 
 ---
 
-## 4. escaped ref の表現
+## 3. captured continuation / multi-shot resume の意味論
 
-escaped `&x` は `Value::Ref` 系の tagged value として表すのがよい。
+推奨 semantics は **snapshot/fork** である。
+
+```text
+continuation capture:
+  active RuntimeStateHandlerFrame を continuation snapshot に含める
+
+resume:
+  snapshot から state frame を復元する
+
+multi-shot resume:
+  resume ごとに state frame を fork する
+
+set:
+  現在 branch の state frame だけを書き換える
+```
+
+これにより、handler recursion で表現していた local state と同じ意味を保てる。
+
+### 3.1 one-shot destructive reuse は後回し
+
+将来、one-shot continuation が証明できるなら、snapshot を clone せず move/reuse する最適化はあり得る。
+
+```text
+if continuation is proven one-shot:
+  frame can be reused destructively
+else:
+  fork frame on resume
+```
+
+ただし最初から one-shot 前提にしない方がよい。local ref の correctness canary が multi-shot を含むなら、最初は常に snapshot/fork で実装するべきである。
+
+### 3.2 shared-cell semantics を入れるなら別機能
+
+もし将来「本当に共有 heap cell」が欲しいなら、それは local mutable var ではなく別 primitive として入れるべきである。
+
+```text
+State handler local var:
+  snapshot/fork
+
+Explicit shared cell primitive:
+  shared mutation across continuation branches, if language chooses to expose it
+```
+
+この 2 つを混ぜると、effect handler の state semantics が壊れる。
+
+---
+
+## 4. 実装場所: lowering 変更か、intrinsic か、pattern specialization か、new IR か
+
+最初にやるべきなのは、source lowering を全面変更することではない。既存の `var_ref/run` lowering を truth surface として残し、compiler が生成した local var handler に **certificate** を付けるのが安全である。
+
+推奨分担は次。
+
+```text
+lowering:
+  compiler-generated local var handler に certificate を付ける
+
+specialize / runtime evidence surface:
+  effect family / operation / handler identity を保持する
+
+Evidence VM plan:
+  certificate と route proof を突き合わせて KnownHandlerPlan::State を作る
+
+runtime:
+  known state catch に RuntimeStateHandlerFrame を張る
+  certified get/set を direct 実行する
+
+later control IR:
+  DirectStateGet / DirectStateSet / KnownOperationCall を入れる
+```
+
+### 4.1 source path や std 名で認識しない
+
+避けるべき判定は次。
+
+```text
+path == std.control.var.ref
+field name == update_effect
+operation name == get / set
+source var name starts with #
+benchmark file path matches loop_for_sum_ref
+```
+
+代わりに、内部 identity を使う。
+
+```rust
+struct LocalStateHandlerCertificate {
+    synthetic_var_id: SyntheticLocalVarId,
+    handler_expr: ExprId,
+    family_id: EffectFamilyId,
+    get_operation_id: OperationId,
+    set_operation_id: OperationId,
+    state_def: DefId,
+}
+```
+
+今の compiler が local mutable var lowering を生成しているなら、最初の producer は compiler 自身でよい。任意 user handler の source shape recognition は後回しにする。
+
+### 4.2 pattern specialization は「compiler certificate + verifier」だけ許す
+
+`var.run` と似た形の arbitrary user code を VM が勝手に state handler とみなすのは危険である。同じ型・同じ row でも、次の handler があり得る。
+
+```text
+set を無視する
+get 時に log を出す
+continuation を 2 回呼ぶ
+continuation を保存する
+別 handler へ forward する
+```
+
+最初は次だけを認める。
+
+```text
+source = CompilerGeneratedLocalVar
+handler has exactly get/set for one family
+get arm tail-resumes exactly once with current state
+set arm tail-resumes exactly once with new state and unit
+continuation does not escape
+no guards
+no delayed/callback boundary around continuation use
+```
+
+### 4.3 new control IR は「最終形」、最初は VM plan でよい
+
+理想の最終形はこうである。
+
+```rust
+enum EvidenceVmOperationExecutionPlan {
+    DirectStateGet { plan_id: EvidenceVmKnownHandlerPlanId },
+    DirectStateSet { plan_id: EvidenceVmKnownHandlerPlanId },
+    DirectAbortive,
+    DirectTailResumptive,
+    YieldFallback,
+    BlockedFallback,
+    GenericFallback,
+}
+```
+
+または、より一般化してこうする。
+
+```rust
+enum EvidenceVmOperationExecutionPlan {
+    KnownOperationCall(KnownOperationExecutionPlan),
+    DirectAbortive,
+    DirectTailResumptive,
+    YieldFallback,
+    BlockedFallback,
+    GenericFallback,
+}
+
+enum KnownOperationExecutionPlan {
+    StateGet { plan_id: EvidenceVmKnownHandlerPlanId },
+    StateSet { plan_id: EvidenceVmKnownHandlerPlanId },
+}
+```
+
+最初は Rust enum を増やすだけでもよい。source/control IR へ `DirectStateGet` を出すのは、plan/runtime canary が揃ってからで十分である。
+
+---
+
+## 5. escaped refs の表現
+
+escaped `&x` は、storage ではなく `StateRef` token として表現する。
+
+```text
+&x evaluates to:
+  StateRef(plan_id, handler_id, state_slot, scope_id)
+```
+
+この token を使う時に active frame を解決する。
+
+```text
+StateRef.get:
+  active RuntimeStateHandlerFrame を plan_id / handler_id / scope_id で探す
+  見つかれば value を読む
+  見つからなければ generic fallback または current behavior と同じ error
+
+StateRef.set:
+  同じ frame lookup
+  現在 branch の frame.value を更新する
+```
+
+これにより、次が両立できる。
+
+```text
+&x passed into function:
+  same dynamic extent なら fast
+
+&x stored in record/tuple/list:
+  same dynamic extent なら fast
+
+&x returned outside run scope:
+  active frame がないので、generic/current behavior に従う
+
+user/file/projected refs:
+  StateRef でないので generic protocol
+```
+
+### 5.1 generic `std.control.var.ref` との接続
+
+public `std.control.var.ref` は壊さない。runtime 側で ref value の表現を分けるだけである。
+
+```rust
+enum Value {
+    Ref(RefRepr),
+    Record(...),
+    Closure(...),
+    ...
+}
+
+enum RefRepr {
+    StateSlot(StateRef),
+    Generic(Value),
+}
+```
+
+generic code が `r.get()` や `r.update(f)` を呼ぶ場合、`r` が `StateSlot` なら fast path、そうでなければ既存 protocol へ落とす。これなら public API は普通の ref のままであり、VM は認証済み receiver だけを速くする。
+
+---
+
+## 6. projected refs と `ref_update`
+
+projected refs は最初の stage に混ぜない方がよい。
+
+`ref_update` は、record/list/string の一部を focused update するために必要な protocol である。例えば projected ref は概念的にこう動く。
+
+```text
+old_base = base.get()
+old_focus = projection.read(old_base)
+new_focus = f(old_focus)
+new_base = projection.write(old_base, new_focus)
+base.set(new_base)
+```
+
+この順序は、単純な local state slot assignment よりずっと繊細である。`f` の評価中に effect が起きる、continuation が capture される、projection chain が nested する、といったケースがある。
+
+したがって最初はこう分ける。
+
+```text
+Stage local state:
+  StateRef get/set/direct assignment only
+
+Stage projection later:
+  ProjectionRef(base_ref, ProjectionPlan)
+  base_ref may be StateRef or Generic
+  read/evaluate/write order canaries を先に追加
+```
+
+`&xs.push(i + j)` が遅いからといって list projection/builder を先に触るのは危ない。`loop_for_20_discard` は local state + ref protocol + list merge が混ざっている。先に local state/ref を抜くと、list merge の真の重さが見える。
+
+---
+
+## 7. staged implementation plan
+
+### Stage 0: counters and semantic canaries
+
+挙動変更なし。
+
+追加 counters:
+
+```text
+ref_set_evals
+ref_set_update_effect_calls
+ref_set_assignment_ref_update_requests
+ref_set_value_ref_update_requests
+local_state_handler_candidates
+local_state_handler_certificates
+known_state_handler_plans
+known_state_get_requests
+known_state_set_requests
+state_ref_values_created
+```
+
+canaries:
+
+```text
+single local var read/write
+two locals updated interleaved
+shadowed local vars
+local ref escapes into closure and record
+local ref returned outside scope matches current behavior
+user ref remains generic
+file ref remains generic
+projected ref remains generic
+nondet around local update
+continuation captured before/after update and resumed twice
+same operation names in different hygienic families do not collide
+blocked handler route does not direct execute
+```
+
+Rollback:
+
+```text
+no behavior change, only counters/debug output
+```
+
+### Stage 1: compiler certificate + KnownHandlerPlan::State, plan-only
+
+Compiler-generated local mutable var lowering emits a certificate. Evidence VM consumes it and prints/debugs the known handler plan, but runtime still uses generic path.
+
+Data:
+
+```rust
+enum KnownHandlerPlan {
+    State(StateHandlerPlan),
+}
+
+struct StateHandlerPlan {
+    plan_id: KnownHandlerPlanId,
+    handler_expr: ExprId,
+    state_def: DefId,
+    family: EffectFamilyId,
+    get_op: OperationId,
+    set_op: OperationId,
+    source: StateHandlerSource,
+    continuation: StateContinuationSemantics,
+}
+
+enum StateHandlerSource {
+    CompilerGeneratedLocalVar(SyntheticLocalVarId),
+}
+```
+
+Acceptance:
+
+```text
+local mutable var program produces one StateHandlerPlan per local ref
+user/file/projected refs produce no StateHandlerPlan
+all existing tests pass
+```
+
+Rollback:
+
+```text
+ignore KnownHandlerPlan at runtime
+```
+
+### Stage 2: RuntimeStateHandlerFrame, but no request-free call site yet
+
+Known state handler entry creates a runtime frame.
+
+```text
+enter var.run:
+  push RuntimeStateHandlerFrame(value = initial state)
+  eval body
+  pop frame
+```
+
+At catch boundary, if a request is certified `get` / `set` for that handler, execute against the state frame instead of evaluating the handler arm body.
+
+This is still late. It does not remove request allocation, but it removes handler recursion and is likely enough to reduce the 2-second case substantially.
+
+Counters:
+
+```text
+known_state_frame_entries
+known_state_frame_exits
+known_state_direct_gets_late
+known_state_direct_sets_late
+known_state_direct_missing_frame
+known_state_direct_non_resumptive
+known_state_direct_hygiene_rejects
+```
+
+Acceptance:
+
+```text
+2-second local-ref loop drops by a large factor
+compare-control / canaries match
+no direct path for user/file/projected refs
+```
+
+Rollback:
+
+```text
+gate off -> eval original handler arms
+```
+
+### Stage 3: continuation snapshot/fork for state frames
+
+Before enabling broader direct state execution, state frames must be part of continuation snapshots.
+
+Implementation:
+
+```text
+StoredContinuation includes active state frame snapshot
+resume installs forked state frames
+multi-shot resume clones/forks frame values
+```
+
+Counters:
+
+```text
+known_state_frame_snapshots
+known_state_frame_forks
+known_state_frame_multishot_forks
+known_state_frame_one_shot_reuses  // later, likely zero first
+```
+
+Acceptance:
+
+```text
+capture/resume local state canaries pass
+nondet around local update matches generic behavior
+```
+
+Rollback:
+
+```text
+disable direct state execution if snapshot/fork canaries fail
+```
+
+### Stage 4: route-specific DirectStateGet / DirectStateSet
+
+Now move from late catch-boundary optimization to call-site direct execution.
+
+Plan condition:
+
+```text
+operation call route proves handler H is visible
+H has KnownHandlerPlan::State P
+operation is P.get or P.set
+route is not blocked/delayed/callback-unsafe
+```
+
+Runtime execution:
+
+```text
+DirectStateGet:
+  find active StateHandlerFrame by plan_id/handler_id
+  return frame.value
+
+DirectStateSet(new):
+  evaluate new first, preserving existing order
+  find active StateHandlerFrame
+  frame.value = new
+  return ()
+```
+
+Counters:
+
+```text
+plan_direct_state_get_ops
+plan_direct_state_set_ops
+direct_state_get_calls
+direct_state_set_calls
+direct_state_frame_hits
+direct_state_frame_misses
+direct_state_hygiene_rejects
+direct_state_generic_fallbacks
+direct_effect_calls
+```
+
+Acceptance:
+
+```text
+direct_effect_calls increases for certified local state get/set
+late catch-boundary direct counters decrease
+2-second case remains fixed or improves further
+```
+
+Rollback:
+
+```text
+execution plan remains in debug output, runtime falls back to generic request
+```
+
+### Stage 5: `RefSet` fast path for `StateRef`
+
+This is the stage that turns assignment into an actual local state write.
+
+Current assignment uses:
+
+```text
+reference -> update_effect -> ref_update::update -> get -> set
+```
+
+For `StateRef`, shortcut to:
+
+```text
+evaluate reference
+evaluate assigned value
+if reference is StateRef and active frame visible:
+  frame.value = assigned
+  return ()
+else:
+  generic RefSet path
+```
+
+Counters:
+
+```text
+ref_set_state_ref_candidates
+ref_set_state_ref_direct_sets
+ref_set_state_ref_frame_misses
+ref_set_state_ref_hygiene_rejects
+ref_set_state_ref_generic_fallbacks
+ref_set_protocol_calls_saved
+```
+
+Acceptance:
+
+```text
+local assignment avoids update_effect/ref_update for StateRef
+user/file/projected refs still use generic protocol
+assignment value effect order canaries pass
+```
+
+Rollback:
+
+```text
+StateRef remains a value, but RefSet ignores its fast path
+```
+
+### Stage 6: escaped `StateRef` receiver get/set
+
+Generic code receiving `&x` can remain fast.
+
+```text
+fn f(r) = r.get()
+f(&x)
+```
+
+If `r` is `StateRef`, direct get. If not, generic method call.
+
+Counters:
+
+```text
+state_ref_receiver_get_candidates
+state_ref_receiver_set_candidates
+state_ref_receiver_direct_gets
+state_ref_receiver_direct_sets
+state_ref_receiver_fallback_no_active_frame
+state_ref_receiver_fallback_generic_ref
+```
+
+Rollback:
+
+```text
+StateRef receiver methods use generic record/ref behavior
+```
+
+### Stage 7: `StateRef.update(f)`
+
+Only after get/set and assignment are stable.
+
+Correct order:
+
+```text
+old = read frame.value
+new = evaluate f(old) in same dynamic context
+write frame.value = new only after f returns normally
+```
+
+Canaries:
+
+```text
+f throws effect before return -> state unchanged
+f captures continuation -> resume branches isolate state
+f resumes multiple times -> no shared mutation leak
+nested update -> order preserved
+```
+
+Rollback:
+
+```text
+r.update(f) uses existing ref_update protocol
+```
+
+### Stage 8: ProjectionRef / lens plan
+
+Add structural projection after local StateRef is stable.
 
 ```rust
 enum RefRepr {
-    LocalCell(LocalCellHandle),
-    Projection {
-        base: Rc<RefRepr>,
-        lenses: Rc<[LensStep]>,
-    },
+    StateSlot(StateRef),
+    Projection { base: Box<RefRepr>, plan: ProjectionPlan },
     Generic(Value),
 }
-
-enum Value {
-    Ref(Rc<RefRepr>),
-    // existing variants...
-}
 ```
 
-あるいは既存の `Value::Record` との互換を保ちたいなら、`Value::Ref` を直接公開せず、`select("get")` / `select("update_effect")` 時に intrinsic closure を返す実装でもよい。
+This allows projected refs to become faster without pretending they are simple cells.
 
-重要な点は、`&x` が closure や record に入っても、次の情報を失わないことである。
+### Stage 9: std `for` / iterator IR
+
+Only after local refs are no longer catastrophic.
+
+Safe route:
 
 ```text
-this is a compiler-generated local ref backed by LocalCellHandle
+lowering emits LoopPlan / IteratorPlan certificate
+VM executes certified loop shape directly
+fallback keeps generic std for
 ```
 
-これにより、次が可能になる。
-
-- `$x` は direct get。
-- `&x = v` は direct set。
-- `&x.update(f)` は direct update。
-- `foo(&x)` の中で generic `r.get()` が呼ばれても、receiver が `LocalCell` なら fast path。
-- receiver が user ref / file ref / generic record なら既存 protocol に fallback。
-
-`std.control.var.ref` は公開型として維持する。VM 内部で `LocalCell` を持っていても、型上は `ref e a` として扱える必要がある。
+Avoid matching `std.for` by name. Use compiler/lowering identity or checked iterator shape.
 
 ---
 
-## 5. projected refs と `ref_update`
+## 8. Near-term optimization: yes, but keep it principled
 
-projected refs は `LocalCell` と相性がよいが、ここで `ref_update` protocol を壊してはいけない。
-
-推奨表現は lens chain である。
-
-```rust
-enum LensStep {
-    RecordField(FieldKey),
-    TupleIndex(usize),
-    ListIndex(usize),
-    StringRangeOrChar(...),
-}
-```
-
-`Projection { base, lenses }` の操作は次のように定義する。
+There is a smaller near-term optimization that is safe and likely to reduce the 2-second case substantially:
 
 ```text
-projection.get():
-  root = base.get()
-  return lenses.get(root)
-
-projection.set(v):
-  base.update(root => lenses.set(root, v))
-
-projection.update(f):
-  base.update(root => {
-    focus = lenses.get(root)
-    new_focus = f(focus)
-    lenses.set(root, new_focus)
-  })
+compiler certificate
+  -> KnownHandlerPlan::State
+  -> late catch-boundary direct get/set
 ```
 
-base が `LocalCell` なら、`base.update` は direct cell update に落とせる。base が generic ref なら、現在の `update_effect` + `ref_update` protocol に fallback する。
+This is not the final architecture, because it still allocates effect requests and still goes through catch/resume. But it is a good first slice because:
 
-この構造にすると、次の両方が守れる。
+```text
+- it preserves existing source lowering
+- it does not alter public ref abstraction
+- it uses certificate identity, not source names
+- it can be gated off
+- it proves the state-handler representation before call-site direct ops
+```
 
-- `&xs[i] = v` のような known projection は速い。
-- user-defined ref や custom projection は今まで通り `ref_update` で動く。
+The second near-term optimization is `RefSet` direct assignment to `StateRef`, but that should wait until state frames and continuation snapshot/fork are solid. It has bigger performance upside, but also bigger semantic surface.
 
-`ref_update` は消すのではなく、generic truth surface として残す。VM-known pure structural projection だけを direct lens update に置き換える。
+Avoid tiny benchmark patches such as:
+
+```text
+if file == loop_for_sum_ref_20_discard then shortcut
+if callee name ends with update_effect then direct
+if record has fields get/update_effect then assume ref
+if path string is std.control.var.ref then assume local cell
+```
+
+These will make later projected refs and user refs painful.
 
 ---
 
-## 6. staged implementation plan
+## 9. Handler hygiene / marker / provider semantics
 
-### Stage 0: baseline と semantic canary を固定する
-
-コード変更前に、性能と意味論の baseline を固定する。
-
-最低限の baseline workload:
+Direct state access must preserve this invariant:
 
 ```text
-bench/nondet_20_discard.yu
-bench/loop_recursive_20_discard.yu
-bench/loop_recursive_sum_20_discard.yu
-bench/loop_for_no_ref_20_discard.yu
-bench/loop_for_sum_ref_20_discard.yu
-bench/loop_for_20_discard.yu
-examples/showcase.yu
+A direct state operation may access only the active state frame
+belonging to the same handler/capability that the evidence route proves visible.
 ```
 
-追加したい counters:
+Runtime lookup should use ids, not names.
 
 ```text
-local_ref_generic_get_requests
-local_ref_generic_set_requests
-local_ref_generic_update_effect_calls
-local_ref_ref_update_requests
-local_cell_allocs
-local_cell_direct_get_hits
-local_cell_direct_set_hits
-local_cell_direct_update_hits
-local_cell_projection_get_hits
-local_cell_projection_set_hits
-local_cell_projection_update_hits
-local_cell_generic_fallbacks
-local_cell_snapshot_captures
-local_cell_snapshot_cells
-local_cell_resume_forks
-local_cell_resume_reuses_one_shot
+lookup key:
+  plan_id
+  handler_id or capability_id
+  allowed_set_id / provider grant permission
+  active frame scope
 ```
 
-rollback point:
+Direct path rejects if:
 
 ```text
-No behavior change. counters only.
+route is blocked
+route crosses delayed/callback boundary without explicit evidence
+provider grant is dirty under current marker/provider state
+active frame not found
+handler id mismatch
+operation role mismatch
 ```
 
-### Stage 1: `LocalCellHandle` と `RefRepr` を入れるが、まだ lowering しない
-
-runtime に `LocalCellHandle` と `RefRepr` を追加する。手書きの internal test で direct get/set/update だけ動かす。
-
-この段階では通常の Yulang program はまだ旧 path を通る。
-
-rollback point:
+Counters should distinguish these reasons. A single `fallback` counter is not enough.
 
 ```text
-Value representation change を feature flag で未使用に戻せる。
-```
-
-### Stage 2: continuation snapshot/remap を先に実装する
-
-`StoredContinuation::capture` に local cell snapshot を追加する。
-
-最初は安全寄りでよい。
-
-- capture 時に active local cells を全部 snapshot。
-- resume 時に fresh cells を作る。
-- captured continuation frames/env の中の `LocalCellHandle` を fresh handle に remap する。
-- multi-shot resume は毎回 fresh fork。
-
-この stage が入る前に `LocalRefCell` を default 有効化しない方がよい。
-
-rollback point:
-
-```text
-Local cell lowering はまだ off。
-既存 program の behavior/perf が変わらない。
-```
-
-### Stage 3: compiler-generated local var だけを `LocalCellScope` へ lowering する
-
-`lower_local_var_binding` が持っている synthetic var act 情報から、control lowering で `LocalCellScope` を生成する。
-
-ここで重要なのは、source 名や std 関数名の文字列一致ではなく、compiler が作った synthetic var act の内部 ID を根拠にすることである。
-
-最初に direct 化するもの:
-
-```text
-my $x = init
-$x
-&x
-&x = value
-```
-
-まだ `&x.update(f)` と generic `r.update(f)` は fallback でもよい。
-
-期待値:
-
-```text
-loop_for_sum_ref_20_discard:
-  2s class から for_no_ref と同じ桁へ落ちる可能性が高い
-```
-
-rollback point:
-
-```text
-LOCAL_REF_CELL_LOWERING_ENABLED=false で旧 lowering へ戻る。
-```
-
-### Stage 4: `RefSet` fast path
-
-`RefSet` frames で reference value が次なら direct set にする。
-
-```text
-RefRepr::LocalCell(_)
-RefRepr::Projection { base: LocalCell-capable, lenses: VM-known structural lenses }
-```
-
-generic `Value::Record` ref は触らない。
-
-この stage で、assignment は `update_effect()` を呼ばなくなる。ただしこれは observable な `ref_update` を消しているのではない。current assignment machinery が内部で捕まえていた constant update を、同じ意味の direct set に置き換えるだけである。
-
-rollback point:
-
-```text
-LOCAL_REF_FAST_REFSET_ENABLED=false
-```
-
-### Stage 5: local `get` / `update` method fast path
-
-`select("get")` / `select("update_effect")` / `std.control.var.ref.update` の呼び出しで receiver が `LocalCell` なら fast path する。
-
-ただし `ref.update` の評価順序を守る。
-
-```text
-old = read cell
-new = apply f old   // same marker/provider/handler context
-write cell new
-return ()
-```
-
-`f old` が request を出した場合は、write は continuation frame として後続に置く。つまり「先に write してから f の effect を処理する」形にしてはいけない。
-
-rollback point:
-
-```text
-LOCAL_REF_FAST_UPDATE_ENABLED=false
-```
-
-### Stage 6: projected ref direct update
-
-list / string / record / tuple projection を `LensStep` として tagged ref にする。
-
-最初は record field と tuple/list index だけでもよい。string は UTF-8 boundary、grapheme、byte index の仕様が絡むなら後回しでよい。
-
-rollback point:
-
-```text
-LOCAL_REF_FAST_PROJECTION_ENABLED=false
-```
-
-### Stage 7: default 有効化
-
-次の条件を満たしてから default on にする。
-
-```text
-- compare-control parity が通る
-- adversarial corpus が通る
-- local ref continuation canaries が通る
-- projected ref canaries が通る
-- representative local-ref loop が 2s class から脱出している
-- fallback counters が説明できる
+direct_state_reject_blocked_route
+direct_state_reject_delayed_boundary
+direct_state_reject_callback_boundary
+direct_state_reject_provider_dirty_scope
+direct_state_reject_provider_dirty_add_id
+direct_state_reject_provider_dirty_handler
+direct_state_reject_missing_frame
+direct_state_reject_wrong_handler
 ```
 
 ---
 
-## 7. 追加する invariants / tests
+## 10. Tests and invariants before behavior changes
 
-### Basic local ref tests
+### Local state basics
 
 ```text
-- my $x = 0; $x == 0
-- &x = 1; $x == 1
-- &x.update(\v -> v + 1); $x == 2
-- shadowed local vars are independent
-- two local refs in same scope are independent
-- local ref captured by closure inside same dynamic extent works
-- local ref stored in record/list and read/written later works
+read initial state
+write then read
+two writes in sequence
+two independent locals updated interleaved
+shadowed locals do not collide
+nested handlers with same operation names do not collide
 ```
 
-### Generic ref tests
+### Escaping
 
 ```text
-- function takes r: ref e int and calls r.get()
-- function takes r and calls r.update(...)
-- local cell ref passed to generic function uses same observable behavior
-- user-defined ref record still uses get/update_effect path
-- file ref does not become LocalCell
+&x passed to function and read
+&x passed to function and assigned
+&x stored in record and used inside scope
+&x stored in list/tuple and used inside scope
+&x returned outside scope preserves current behavior
+closure captures &x and is called inside scope
+closure captures &x and is called after resume
 ```
 
-### Projection tests
+### Generic refs
 
 ```text
-- record field ref get/set/update
-- list element ref get/set/update
-- nested projection: &record.field[i]
-- projection update function performs an effect
-- projection update function captures/resumes continuation
-- out-of-range behavior is identical to current runtime
+user-defined ref remains generic
+file ref remains generic
+record projected ref remains generic
+list/string projected ref remains generic
+record-shaped value with get/update_effect is not treated as StateRef unless certified
 ```
 
-### `ref_update` protocol tests
+### Continuation and nondet
 
 ```text
-- generic projected ref still uses ref_update
-- direct LocalCell assignment does not leak ref_update to outer user catch
-- user custom update_effect that emits ref_update still works
-- nested projection updates only focused subvalue
+capture before update, resume twice
+capture after update, resume twice
+nondet branches update same local, no branch leaks into another
+StateRef captured in closure remaps to resumed frame
+multi-shot resume does not share raw cell mutation
 ```
 
-### continuation / multi-shot tests
-
-この領域は old lowering と new lowering の比較を oracle にするのがよい。期待値を人間が決め打ちするより安全である。
-
-追加したい canary の形:
+### Evaluation order
 
 ```text
-- mutate local ref, capture continuation, resume once
-- mutate local ref, capture continuation, resume twice
-- two nondet branches mutate same local ref
-- branch A mutation does not leak into branch B unless current old lowering also leaks
-- continuation returns closure containing &x; closure call behavior matches old lowering
-- continuation returns record containing &x; later projection/update behavior matches old lowering
+assignment reference evaluated before assigned value, if that is current behavior
+assigned value effect occurs before write
+assigned value abort/unhandled means no write
+update(f) writes only after f returns normally
+projection update preserves read/evaluate/write order
 ```
 
-特に次の property を見る。
+### Hygiene
 
 ```text
-capture state = S
-resume k first time starts from S
-resume k second time starts from S again
-first resume mutations do not silently become second resume initial state
-```
-
-もし old lowering が別の結果を示すなら、old lowering を truth として合わせるべきである。ここは推測で決めない。
-
-### hygiene / marker / provider tests
-
-```text
-- local cell fast path does not catch foreign handler operations
-- direct get/set does not create or remove marker frames for unrelated effects
-- provider boundary grant/miss behavior is unchanged
-- same operation short name in different act does not collide
-- synthetic var act is not recognized by source name string
-- fallback path preserves handler boundary and callback marker semantics
+blocked route never direct executes
+delayed/callback boundary falls back
+same operation path in different hygienic family does not collide
+provider grant direct path rejects when dirty
 ```
 
 ---
 
-## 8. smaller near-term optimization
+## 11. Ranking of options
 
-安全に近い短期最適化はあるが、順番が大事である。
-
-推奨する短期最適化:
-
-```text
-LocalCellScope を入れた後に、assignment-only RefSet fast path を入れる。
-```
-
-つまり、`&x = value` のときだけ、`RefRepr::LocalCell` に対して direct set する。これは `loop_for_sum_ref_20_discard` にかなり効くはずである。
-
-避けたい短期 patch:
-
-```text
-現在の handle_ref_set_result 内で、たまたま ref_update::update が来たら assigned value で downstream patch する
-```
-
-これは attractive だが、層が悪い。`ref_update` は projection protocol の一部なので、後段で雑に潰すと custom ref / nested projection / effectful update function で壊れやすい。
-
-もう一つの短期案として、`var_ref().update_effect` の closure shape を runtime で見て `get` を省く案もある。ただしこれも source shape 依存になりやすい。やるなら、shape recognition ではなく compiler-generated metadata から `RefRepr::LocalCell` を作る方がよい。
+| Option | Semantic risk | Expected gain | Implementation size | Fit with algebraic effects | Recommendation |
+|---|---:|---:|---:|---:|---|
+| Raw `Rc<RefCell<Value>>` `LocalRefCell` | Very high | High | Medium | Low | Avoid |
+| Continuation-aware `RuntimeStateHandlerFrame` | Medium | High | Medium | Very high | Do |
+| Compiler certificate for local var state handler | Low | Enables gain | Small-medium | Very high | Do first |
+| Late catch-boundary direct get/set | Low-medium | High for 2s case | Medium | High | Good first execution slice |
+| Route-specific `DirectStateGet/Set` | Medium | Medium-high | Medium | Very high | Do after frame/canaries |
+| `RefSet` direct assignment to `StateRef` | Medium | Very high | Medium | High if certified | Do after state frame |
+| Escaped `StateRef` receiver get/set | Medium | Medium-high | Medium | High | Later |
+| `StateRef.update(f)` | High | Medium-high | Large | Medium-high | Later with canaries |
+| Projection/lens ref plan | High | Medium | Large | High if carefully staged | Defer |
+| std `for` LoopPlan | Medium | Medium | Medium | Orthogonal | After local refs |
+| Matching std paths / field names / benchmark files | Very high | Short-term | Small | Very low | Avoid |
+| Arbitrary user handler shape recognition | Very high | Uncertain | Large | Risky | Avoid until explicit certificates |
 
 ---
 
-## 9. std `for` optimization は後でやる
+## 12. Direct answers to the questions
 
-local ref が直った後で、`for` も最適化する価値はある。
+### 1. Is VM-level `LocalRefCell` right or dangerous?
 
-現在の測定では、pure recursive loop が約 1.5ms〜1.9ms、`for_no_ref` が約 6ms なので、`for` にも 3〜4 倍程度の余地がある。ただし `for + local ref` の 2 秒問題とは別物である。
+A raw shared `LocalRefCell` is dangerous. A continuation-aware state frame with `StateRef` token is the right direction. The architecture should be known state handler specialization, not local variable special casing.
 
-安全な route は次である。
+### 2. What semantics under captured continuations / multi-shot resume?
 
-1. local ref fast path を default on にする。
-2. `for_no_ref` と `for_sum_ref` の新 baseline を取り直す。
-3. `std.control.loop.for_in` の DefId に基づき、range/list iterator だけ `ForInRange` / `ForInList` control IR にする。
-4. body callback は最初は通常の function application で呼ぶ。
-5. marker/provider/handler scope を通常 call と同じように閉じる。
-6. labeled break/continue がある場合は、専用 canary が通るまで fallback。
-7. その後で callback inline / direct body executor を検討する。
+Snapshot/fork. Captured continuations include state frame snapshots. Multi-shot resume forks those frames. Direct writes affect only the current branch. One-shot destructive reuse is a later optimization after proof.
 
-避けるべき route:
+### 3. Implement by lowering, intrinsic, pattern specialization, or new IR?
 
-```text
-- source-level for body を文字列や AST shape で special-case
-- body callback の effect を無視して Rust loop に変換
-- label / break / handler boundary を shortcut
-- local ref 問題が残ったまま for だけ最適化して成果に見せる
-```
+Do not replace the source semantics wholesale. Add compiler certificates to existing local var lowering, carry them through specialize/evidence, build `KnownHandlerPlan::State`, then add runtime state frames and direct op execution. New `DirectStateGet/Set` IR is the eventual call-site execution form. Arbitrary pattern specialization is not first-stage work.
 
----
+### 4. Escaped refs representation?
 
-## 10. option ranking
+`&x` becomes `StateRef(plan_id, handler_id, slot, scope)` rather than a storage cell. It resolves to an active runtime state frame when used. If no matching frame exists, fallback/error according to current semantics. Generic refs remain generic.
 
-| option | semantic risk | expected gain | implementation size | fit with algebraic effects | recommendation |
-| --- | --- | --- | --- | --- | --- |
-| New control IR `LocalCellScope` + `RefRepr::LocalCell` + continuation snapshot/fork | Low to Medium | Very High | Medium to Large | High | Best long-term route |
-| Compiler-generated synthetic var act metadata を control lowering で intrinsic 化 | Medium | Very High | Medium | High | Good transition route |
-| Assignment-only `RefSet` fast path for `LocalCell` | Low after LocalCell exists | High for current 2s case | Small to Medium | High | Good early win |
-| Fast generic `r.get()` / `r.update(f)` for `LocalCell` receiver | Medium | High | Medium | Medium to High | Do after assignment fast path |
-| VM-known `Projection` lens chain over `LocalCell` | Medium | Medium to High | Medium | High if fallback preserved | Do after base LocalCell |
-| Existing `var_ref/run` source-shape runtime specialization | Medium to High | High | Medium | Medium to Low | Avoid unless metadata-based |
-| Raw shared heap cell with no continuation snapshot | High | Very High | Small | Low | Avoid |
-| Optimize std `for` first | Low | Medium | Medium | High | Do later |
-| Benchmark/file-path/source-name special casing | Very High | Misleading | Small | Very Low | Never do |
+### 5. Projected refs interaction?
+
+Keep projected refs on `ref_update` initially. Later introduce `ProjectionRef(base, ProjectionPlan)`, where base may be `StateRef`. Preserve read/evaluate/write order and continuation behavior. Do not treat projections as simple local cells.
+
+### 6. Implementation stages and rollback?
+
+Use the stages above: counters/canaries, certificate plan-only, runtime state frame, snapshot/fork, direct get/set, `RefSet` StateRef assignment, escaped receiver fast path, update(f), projection, loop IR. Every stage gets a feature gate that falls back to existing generic protocol.
+
+### 7. Invariants/tests?
+
+Add local state, escaping, generic refs, continuation/multi-shot, evaluation order, and hygiene canaries before enabling default behavior. Especially test multi-shot state isolation before any cell-like representation ships.
+
+### 8. Smaller near-term optimization?
+
+Yes. Known state handler late direct get/set is a safe first execution slice and should cut the 2-second case substantially. It is not a benchmark trick if driven by compiler certificate + handler identity. `RefSet` StateRef shortcut is the next bigger win, but should wait until state frame semantics are pinned.
+
+### 9. Should std `for` be optimized after local refs?
+
+Yes, after local refs. The safe route is a compiler/lowering-certified loop/iterator plan, not matching `for` by std name. Current data says `for` overhead is real but secondary.
 
 ---
 
-## 11. option that looks attractive but should be avoided
+## 13. Attractive paths to avoid
 
-### Raw `Rc<RefCell<Value>>`
+### 13.1 Raw heap cell for local vars
 
-これは最も tempting だが、multi-shot continuation で危険である。
+Fast but wrong under multi-shot unless wrapped in snapshot/fork machinery. Once wrapped, it is no longer a simple heap cell; it is a state frame.
 
-```text
-capture k at x = 0
-resume k -> x becomes 1
-resume k again
-```
+### 13.2 Path/name matching
 
-second resume が `x = 1` から始まるのか、`x = 0` から始まるのかは、言語意味論そのものである。現在の handler-based lowering と整合させるなら、`x = 0` から始める方を既定にすべきである。
+`std.control.var.ref`, `update_effect`, `get`, `set`, benchmark file names, and source variable names are not proof. Use internal ids and certificates.
 
-### `ref_update` を後段で握りつぶす
+### 13.3 Record-shape recognition for refs
 
-assignment のために内部 `ref_update` を使っているからといって、`ref_update` 全体を optimization target として雑に消すのは危ない。projection update の焦点移動 protocol でもあるためである。
+A record with `get` and `update_effect` is not necessarily a local ref. It may be user code, file state, logging, validation, projection, or effectful logic.
 
-### record field name による ref 判定
+### 13.4 Optimizing `update(f)` too early
 
-`get` と `update_effect` という field がある record を見て local ref と判定してはいけない。public abstraction と user-defined abstraction を壊す。
+`update(f)` has evaluation-order and continuation subtleties. Direct assignment is much simpler. Do assignment first.
 
-### provider / marker shortcut と混ぜる
+### 13.5 Optimizing list builder before local ref
 
-local cell optimization は state representation の最適化であって、handler selection や provider grant/miss の最適化ではない。ここを混ぜると、既存の handler hygiene 修正を巻き戻しやすい。
+`&xs.push` is slow, but it combines local state, ref protocol, and list merge. Fix local state/ref first, then measure builder/list separately.
+
+### 13.6 Optimizing std `for` before local ref
+
+`for` is slower than handwritten recursion, but not the 2-second catastrophe. Fix state/ref first.
 
 ---
 
-## 12. 実装上の最終形
+## 14. Recommended near-term target
 
-最終的には次の構成がよい。
-
-```text
-source syntax:
-  my $x = init
-  $x
-  &x
-
-inference-level meaning:
-  still compatible with std.control.var.ref and local var act abstraction
-
-control IR:
-  LocalCellScope / LocalCellGet / LocalCellSet / LocalCellMakeRef / LocalCellUpdate
-
-runtime value:
-  Value::Ref(RefRepr::LocalCell(handle))
-  Value::Ref(RefRepr::Projection { base, lenses })
-  Generic ref fallback remains existing record/function/effect protocol
-
-continuation:
-  StoredContinuation captures local cell snapshot
-  multi-shot resume forks fresh cells
-  one-shot resume may reuse only as an optimization
-
-fallback:
-  any non-VM-known ref uses get/update_effect/ref_update exactly as before
-```
-
-この形なら、2 秒級の local ref update path を cause-side で取り除ける。かつ、Yulang の algebraic effects / handlers / effect rows / hygiene を「実装都合で弱める」方向にはならない。
-
-最初の実用上の成功条件は次で十分である。
+The first concrete target should be:
 
 ```text
-loop_for_sum_ref_20_discard: 2s class -> single-digit or low-10ms class
-loop_for_20_discard:        2s class -> list allocation cost + for overhead class
-nondet_20_discard:          regressionなし
-showcase:                   regressionなし
-adversarial corpus:          regressionなし
-continuation canaries:       old lowering と一致
+compiler-generated local var certificate
+  -> KnownHandlerPlan::State
+  -> RuntimeStateHandlerFrame
+  -> late direct get/set at catch boundary
+  -> snapshot/fork canaries
 ```
 
-その後で `for` を direct iterator IR に落とすと、recursive loop との差を詰められる。順番は local ref first, `for` second がよい。
+Then move to:
+
+```text
+DirectStateGet/Set at operation call site
+  -> StateRef direct RefSet assignment
+```
+
+Expected performance shape:
+
+```text
+before:
+  for + local ref: ~2s
+
+after late known-state get/set:
+  likely tens of ms rather than seconds
+
+after DirectStateGet/Set:
+  lower again, but RefSet protocol may still dominate
+
+after StateRef RefSet direct assignment:
+  should approach std for without refs, plus arithmetic/ref overhead
+
+after LoopPlan:
+  std for gap vs handwritten recursion can be addressed
+```
+
+The design stays principled if every fast path is justified by:
+
+```text
+handler meaning certificate
++ route/visibility proof
++ active frame guard
++ continuation snapshot/fork semantics
+```
+
+That is the difference between a maintainable Evidence VM optimization and a local-variable-only runtime hack.
