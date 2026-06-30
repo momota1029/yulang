@@ -15,6 +15,8 @@ impl<'a> ExprLowerer<'a> {
                 self.apply_arguments(acc, node)
             }
             SyntaxKind::Field => self.lower_field_selection(acc, node),
+            SyntaxKind::ProjectionTuple => self.lower_projection_tuple_tail(acc, node),
+            SyntaxKind::ProjectionRecord => self.lower_projection_record_tail(acc, node),
             SyntaxKind::Index => self.lower_index_selection(acc, node),
             SyntaxKind::Assign => self.lower_ref_assignment(acc, node),
             SyntaxKind::InfixNode => self.lower_infix_op_use(acc, node),

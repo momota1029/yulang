@@ -57,6 +57,30 @@ pub(super) fn pratt_tail_bp<I: EventInput, S: EventSink>(
             i.env.state.sink.finish();
             parse_tail_bp(min_bp, led.lex.trailing_trivia_info(), i)
         }
+        ExprLedTag::ProjectionDot => {
+            let nud = scan_expr_nud(led.lex.trailing_trivia_info(), i.rb())?;
+            let (node_kind, group_kind, end_kind) = match nud.tag {
+                ExprNudTag::OpenParen => (
+                    SyntaxKind::ProjectionTuple,
+                    SyntaxKind::Paren,
+                    SyntaxKind::ParenR,
+                ),
+                ExprNudTag::OpenBrace => (
+                    SyntaxKind::ProjectionRecord,
+                    SyntaxKind::BraceGroup,
+                    SyntaxKind::BraceR,
+                ),
+                _ => {
+                    emit_invalid(i.rb(), nud.lex.clone());
+                    return Some(Ok(Either::Left(nud.lex.trailing_trivia_info())));
+                }
+            };
+            i.env.state.sink.start(node_kind);
+            i.env.state.sink.lex(&led.lex);
+            let next_info = delimited(i.rb(), group_kind, end_kind, nud.lex)?;
+            i.env.state.sink.finish();
+            parse_tail_bp(min_bp, next_info, i)
+        }
         ExprLedTag::PathSep => {
             i.env.state.sink.start(SyntaxKind::PathSep);
             i.env.state.sink.lex(&led.lex);

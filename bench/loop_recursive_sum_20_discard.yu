@@ -1,0 +1,16 @@
+my sum_inner(i, j, acc) =
+    if j <= 20:
+        sum_inner(i, j + 1, acc + i + j)
+    else:
+        acc
+
+my sum_outer(i, acc) =
+    if i <= 20:
+        sum_outer(i + 1, sum_inner(i, 1, acc))
+    else:
+        acc
+
+{
+    my total = sum_outer(1, 0)
+    ()
+}

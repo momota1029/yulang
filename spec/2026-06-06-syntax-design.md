@@ -801,6 +801,8 @@ primary の後に続けられる tail は次である。
 ```text
 expr_tail =
     "." field
+  | ".(" projection_expr_list? ")"
+  | ".{" projection_record_fields? "}"
   | "::" path_segment
   | "(" expr_list? ")"
   | "[" expr_list? "]"
@@ -902,6 +904,39 @@ expression を引数にする `ApplyML` になる。
 x.foo(a)   // Field + ApplyC
 x.foo (a)  // Field + ApplyML(Paren)
 ```
+
+projection tail は receiver を共有して複数の field / method selection を作る sugar である。
+`.` と opening group の間には空白を入れない。
+
+```yu
+a.(x, y(arg))
+```
+
+上は次と同じ selection を作る。
+
+```yu
+(a.x, a.y(arg))
+```
+
+record projection では、record field の右辺を receiver からの相対 selection として読む。
+
+```yu
+a.{ x: y, y: z(arg) }
+```
+
+上は次と同じ record を作る。
+
+```yu
+{ x: a.y, y: a.z(arg) }
+```
+
+receiver が計算式の場合、projection tail は receiver を一度だけ評価する。
+lowering は必要に応じて内部 binding を作り、各 selection はその binding を receiver として使う。
+
+projection item は identifier から始まる相対式である。
+先頭の `foo` / `foo::bar` が `receiver.foo` / `receiver.foo::bar` になり、
+その後ろの call / index / field / operator tail は通常の expression tail と同じ規則で下がる。
+record projection は `name: relative_expr` の field だけを扱い、spread は projection record の構文要素ではない。
 
 path separator は `::` である。右側 path segment として次を許す。
 

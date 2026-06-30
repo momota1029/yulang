@@ -136,6 +136,86 @@ fn expr_yada_yada() {
 }
 
 #[test]
+fn expr_projection_tuple_tail() {
+    let got = parse_expression("a.(x, y(arg))");
+    let expected = vec![
+        "(Expr",
+        "  Ident \"a\"",
+        "  (ProjectionTuple",
+        "    Dot \".\"",
+        "    (Paren",
+        "      ParenL \"(\"",
+        "      (Expr",
+        "        Ident \"x\"",
+        "      )",
+        "      (Separator",
+        "        Comma \",\"",
+        "      )",
+        "      (Expr",
+        "        Ident \"y\"",
+        "        (ApplyC",
+        "          ParenL \"(\"",
+        "          (Expr",
+        "            Ident \"arg\"",
+        "          )",
+        "          ParenR \")\"",
+        "        )",
+        "      )",
+        "      ParenR \")\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn expr_projection_record_tail() {
+    let got = parse_expression("a.{ x: y, y: z(arg) }");
+    let expected = vec![
+        "(Expr",
+        "  Ident \"a\"",
+        "  (ProjectionRecord",
+        "    Dot \".\"",
+        "    (BraceGroup",
+        "      BraceL \"{\"",
+        "      (Expr",
+        "        Ident \"x\"",
+        "        (ApplyColon",
+        "          Colon \":\"",
+        "          (Expr",
+        "            Ident \"y\"",
+        "          )",
+        "        )",
+        "      )",
+        "      (Separator",
+        "        Comma \",\"",
+        "      )",
+        "      (Expr",
+        "        Ident \"y\"",
+        "        (ApplyColon",
+        "          Colon \":\"",
+        "          (Expr",
+        "            Ident \"z\"",
+        "            (ApplyC",
+        "              ParenL \"(\"",
+        "              (Expr",
+        "                Ident \"arg\"",
+        "              )",
+        "              ParenR \")\"",
+        "            )",
+        "          )",
+        "        )",
+        "      )",
+        "      BraceR \"}\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_loop_control_call_remains_ident_call() {
     let got = parse_expression_with_word_ops("last()");
     let expected = vec![

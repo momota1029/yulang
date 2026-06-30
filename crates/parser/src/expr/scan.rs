@@ -12,7 +12,8 @@ use crate::op::{BpVec, OpUse};
 use crate::scan::trivia::scan_trivia;
 use crate::scan::{
     scan_doc_comment_token, scan_dot_field, scan_expr_led_word, scan_expr_nud_word, scan_number,
-    scan_punct_expr, scan_sigil_ident, scan_stmt_head_word, scan_symbol, scan_unknown,
+    scan_projection_dot, scan_punct_expr, scan_sigil_ident, scan_stmt_head_word, scan_symbol,
+    scan_unknown,
 };
 use crate::sink::EventSink;
 use crate::string::scan::scan_string_start;
@@ -37,6 +38,7 @@ pub enum ExprLedTag {
     Infix(BpVec, BpVec),
     Suffix(BpVec),
     Field,
+    ProjectionDot,
     As,
     With,
     MlNud(ExprNudTag),
@@ -212,6 +214,7 @@ pub fn scan_expr_led<I: EventInput, S: EventSink>(
         let stop = i.env.stop.clone();
         let word_stop = stop.clone();
         let (tag, (kind, text)) = i.choice((
+            (value(ExprLedTag::ProjectionDot), scan_projection_dot),
             (value(ExprLedTag::Field), scan_dot_field),
             from_fn(|i| scan_symbol(leading_info, false, i))
                 .map(|(kind, text)| (ExprLedTag::MlNud(ExprNudTag::Atom), (kind, text))),

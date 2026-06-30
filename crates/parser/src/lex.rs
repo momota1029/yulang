@@ -235,6 +235,7 @@ pub enum SyntaxKind {
     Lazy = 208,
     YadaYada = 209,
     Sub = 210,
+    Dot = 211,
 
     // nodes
     InvalidToken = 500,
@@ -398,6 +399,8 @@ pub enum SyntaxKind {
     SubExpr = 640,
     SubLambdaExpr = 641,
     SubLabel = 642,
+    ProjectionTuple = 643,
+    ProjectionRecord = 644,
 }
 
 #[derive(Debug, Clone)]

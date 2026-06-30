@@ -21,38 +21,45 @@ impl<'a> ExprLowerer<'a> {
                     .iter()
                     .map(|expr| self.lower_expr(expr))
                     .collect::<Result<Vec<_>, _>>()?;
-                let items = item_lowers
-                    .iter()
-                    .map(|computation| computation.expr)
-                    .collect::<Vec<_>>();
-                let value = self.fresh_type_var();
-                let expansive = item_lowers.iter().any(|item| item.is_expansive());
-                let effect = if expansive {
-                    self.fresh_type_var()
-                } else {
-                    self.fresh_exact_pure_effect()
-                };
-                let expr = self.session.poly.add_expr(Expr::Tuple(items));
-                let item_values = item_lowers
-                    .iter()
-                    .map(|item| self.alloc_pos(Pos::Var(item.value)))
-                    .collect::<Vec<_>>();
-                for item in &item_lowers {
-                    self.subtype_var_to_var(item.effect, effect);
-                }
-                self.constrain_lower(value, Pos::Tuple(item_values));
-                Ok(Computation::new(
-                    expr,
-                    value,
-                    effect,
-                    if expansive {
-                        Evaluation::Computation
-                    } else {
-                        Evaluation::Value
-                    },
-                ))
+                Ok(self.synthetic_tuple_value(item_lowers))
             }
         }
+    }
+
+    pub(in crate::lowering) fn synthetic_tuple_value(
+        &mut self,
+        items: Vec<Computation>,
+    ) -> Computation {
+        let expr_items = items
+            .iter()
+            .map(|computation| computation.expr)
+            .collect::<Vec<_>>();
+        let value = self.fresh_type_var();
+        let expansive = items.iter().any(|item| item.is_expansive());
+        let effect = if expansive {
+            self.fresh_type_var()
+        } else {
+            self.fresh_exact_pure_effect()
+        };
+        let expr = self.session.poly.add_expr(Expr::Tuple(expr_items));
+        let item_values = items
+            .iter()
+            .map(|item| self.alloc_pos(Pos::Var(item.value)))
+            .collect::<Vec<_>>();
+        for item in &items {
+            self.subtype_var_to_var(item.effect, effect);
+        }
+        self.constrain_lower(value, Pos::Tuple(item_values));
+        Computation::new(
+            expr,
+            value,
+            effect,
+            if expansive {
+                Evaluation::Computation
+            } else {
+                Evaluation::Value
+            },
+        )
     }
 
     pub(in crate::lowering) fn lower_expr_block(

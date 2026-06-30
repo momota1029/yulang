@@ -424,6 +424,184 @@ fn record_literal_spread_lowers_to_head_and_tail_spread() {
 }
 
 #[test]
+fn projection_tuple_tail_lowers_to_tuple_of_receiver_selections() {
+    let root = parse("my id x = x\nmy a = {x: 1, y: id}\nmy arg = 2\nmy got = a.(x, y(arg))\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (a, _) = binding_def_and_order(&lower.modules, module, "a");
+    let (arg, _) = binding_def_and_order(&lower.modules, module, "arg");
+    let (got, _) = binding_def_and_order(&lower.modules, module, "got");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let body = binding_body_id(&output, got);
+    let items = match output.session.poly.expr(body) {
+        Expr::Tuple(items) => items,
+        _ => panic!("expected projection tuple to lower to tuple"),
+    };
+    let [x_item, y_item] = items.as_slice() else {
+        panic!("expected two projection tuple items");
+    };
+
+    let x_select = match output.session.poly.expr(*x_item) {
+        Expr::Select(receiver, select) => {
+            assert_eq!(
+                output
+                    .session
+                    .poly
+                    .ref_target(expr_ref(&output.session, *receiver)),
+                Some(a)
+            );
+            *select
+        }
+        _ => panic!("expected first projection item to be a selection"),
+    };
+    assert_eq!(output.session.poly.select(x_select).name, "x");
+
+    let (callee, app_arg) = match output.session.poly.expr(*y_item) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => panic!("expected second projection item to be a call"),
+    };
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, app_arg)),
+        Some(arg)
+    );
+    let y_select = match output.session.poly.expr(callee) {
+        Expr::Select(receiver, select) => {
+            assert_eq!(
+                output
+                    .session
+                    .poly
+                    .ref_target(expr_ref(&output.session, *receiver)),
+                Some(a)
+            );
+            *select
+        }
+        _ => panic!("expected projection call callee to be a selection"),
+    };
+    assert_eq!(output.session.poly.select(y_select).name, "y");
+}
+
+#[test]
+fn projection_record_tail_lowers_to_record_of_receiver_selections() {
+    let root =
+        parse("my id x = x\nmy a = {y: id, z: id}\nmy arg = 2\nmy got = a.{ x: y, y: z(arg) }\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (a, _) = binding_def_and_order(&lower.modules, module, "a");
+    let (arg, _) = binding_def_and_order(&lower.modules, module, "arg");
+    let (got, _) = binding_def_and_order(&lower.modules, module, "got");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let body = binding_body_id(&output, got);
+    let fields = match output.session.poly.expr(body) {
+        Expr::Record { fields, spread } => {
+            assert!(matches!(spread, RecordSpread::None));
+            fields
+        }
+        _ => panic!("expected projection record to lower to record"),
+    };
+    let [(x_name, x_expr), (y_name, y_expr)] = fields.as_slice() else {
+        panic!("expected two projection record fields");
+    };
+    assert_eq!(x_name, "x");
+    assert_eq!(y_name, "y");
+
+    let x_select = match output.session.poly.expr(*x_expr) {
+        Expr::Select(receiver, select) => {
+            assert_eq!(
+                output
+                    .session
+                    .poly
+                    .ref_target(expr_ref(&output.session, *receiver)),
+                Some(a)
+            );
+            *select
+        }
+        _ => panic!("expected first record projection value to be a selection"),
+    };
+    assert_eq!(output.session.poly.select(x_select).name, "y");
+
+    let (callee, app_arg) = match output.session.poly.expr(*y_expr) {
+        Expr::App(callee, arg) => (*callee, *arg),
+        _ => panic!("expected second record projection value to be a call"),
+    };
+    assert_eq!(
+        output
+            .session
+            .poly
+            .ref_target(expr_ref(&output.session, app_arg)),
+        Some(arg)
+    );
+    let z_select = match output.session.poly.expr(callee) {
+        Expr::Select(receiver, select) => {
+            assert_eq!(
+                output
+                    .session
+                    .poly
+                    .ref_target(expr_ref(&output.session, *receiver)),
+                Some(a)
+            );
+            *select
+        }
+        _ => panic!("expected record projection call callee to be a selection"),
+    };
+    assert_eq!(output.session.poly.select(z_select).name, "z");
+}
+
+#[test]
+fn projection_tail_binds_expansive_receiver_once() {
+    let root = parse("my make n = {x: n, y: n}\nmy got = make(1).(x, y)\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let (got, _) = binding_def_and_order(&lower.modules, module, "got");
+
+    let output = lower_binding_bodies(&root, lower);
+
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let body = binding_body_id(&output, got);
+    let (temp_def, tail) = match output.session.poly.expr(body) {
+        Expr::Block(stmts, Some(tail)) => {
+            let [Stmt::Let(Vis::My, pat, receiver_expr)] = stmts.as_slice() else {
+                panic!("expected one projection receiver binding");
+            };
+            assert!(matches!(
+                output.session.poly.expr(*receiver_expr),
+                Expr::App(_, _)
+            ));
+            let Pat::Var(def) = output.session.poly.pat(*pat) else {
+                panic!("expected projection receiver var pattern");
+            };
+            (*def, *tail)
+        }
+        _ => panic!("expected expansive projection receiver to lower through a block"),
+    };
+    let items = match output.session.poly.expr(tail) {
+        Expr::Tuple(items) => items,
+        _ => panic!("expected projection tail block to end in tuple"),
+    };
+    assert_eq!(items.len(), 2);
+    for item in items {
+        let Expr::Select(receiver, _) = output.session.poly.expr(*item) else {
+            panic!("expected projection item to be a selection");
+        };
+        assert_eq!(
+            output
+                .session
+                .poly
+                .ref_target(expr_ref(&output.session, *receiver)),
+            Some(temp_def)
+        );
+    }
+}
+
+#[test]
 fn brace_block_with_qualified_apply_colon_lowers_as_block_expr() {
     let root = parse(concat!(
         "mod std:\n",

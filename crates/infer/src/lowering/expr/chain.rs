@@ -557,7 +557,7 @@ impl<'a> ExprLowerer<'a> {
     }
 }
 
-fn qualified_field_selection_name(
+pub(in crate::lowering) fn qualified_field_selection_name(
     field: &Cst,
     tail: &[CstItem],
 ) -> Result<(String, usize), LoweringError> {

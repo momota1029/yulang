@@ -120,6 +120,16 @@ pub fn scan_dot_field<I: EventInput, S: EventSink>(
     Some((SyntaxKind::DotField, text.as_ref().into()))
 }
 
+pub fn scan_projection_dot<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+) -> Option<(SyntaxKind, Box<str>)> {
+    i.lookahead(choice((tag(".("), tag(".{"))))
+        .is_some()
+        .then_some(())?;
+    let (_, text) = i.run(item('.').with_seq())?;
+    Some((SyntaxKind::Dot, text.as_ref().into()))
+}
+
 pub fn scan_symbol<I: EventInput, S: EventSink>(
     leading_info: crate::lex::TriviaInfo,
     allow_start: bool,

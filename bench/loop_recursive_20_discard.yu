@@ -1,0 +1,16 @@
+my collect_inner(i, j, xs) =
+    if j <= 20:
+        collect_inner(i, j + 1, std::data::list::append xs [i + j])
+    else:
+        xs
+
+my collect_outer(i, xs) =
+    if i <= 20:
+        collect_outer(i + 1, collect_inner(i, 1, xs))
+    else:
+        xs
+
+{
+    my xs = collect_outer(1, [])
+    ()
+}

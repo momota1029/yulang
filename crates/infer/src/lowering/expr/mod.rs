@@ -5,6 +5,7 @@ pub(super) mod chain;
 pub(super) mod constraints;
 pub(super) mod lambda;
 pub(super) mod method_body;
+pub(super) mod projection;
 pub(super) mod tail;
 
 use super::*;
