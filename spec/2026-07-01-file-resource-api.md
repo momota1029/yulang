@@ -8,6 +8,42 @@
 目的は、`read_text` / `write_text` / `exists` のような薄い関数群ではなく、
 Yulang の lens / effect / continuation marker に沿った file resource API を作ること。
 
+## Current executable slice
+
+2026-07-02 時点では、中心設計の一部だけが executable contract になっている。
+これは最終的な stable file resource API ではなく、host bridge と public surface を
+固定するための first slice である。
+
+現在 `tests/yulang/cases.toml` と CLI regression で守るもの:
+
+- `std::text::path::of_bytes` / `to_bytes` は string-backed path model の
+  byte conversion として動く。
+- `path.show` は `path.to_bytes` と UTF-8 lossy conversion によって path payload を
+  user-facing text にする。
+- `std::io::file::read_text` / `write_text` は native CLI evidence VM route で
+  host filesystem を読み書きする。
+- `std::io::file::exists` / `is_file` / `is_dir` は native CLI evidence VM route で
+  host metadata predicate として動く。
+- `std::io::file::io_err::wrap` は failed file read/write を typed result boundary
+  に変換し、display は失敗した path payload を含める。
+- `std::io::file::open_text` / `open` / `open_in` は basic whole-file text ref の
+  get/set と scoped callback spelling を通す。
+
+まだ executable stable contract ではないもの:
+
+- `read_at` / `write_at` の partial range semantics。
+- `file::meta` と exact metadata type。
+- directory listing、symlink、readonly、mtime などの portable metadata。
+- OS-level locking と overlapping write session policy。
+- explicit close/save/flush を置かない設計の最終 lowering。
+- scope exit write-back / unlock / close 相当の完全な resource lifetime。
+- wasm / playground / sandboxed host の unsupported-host typed failure。
+- platform-native non-UTF-8 path の exact behavior。
+
+この slice は `read_text` / `write_text` helper を中心 API へ昇格させるものではない。
+helper は host bridge と error/result integration を観測するための executable surface
+であり、中心 API は引き続き file session と managed lens である。
+
 ## 中心の形
 
 標準 filesystem API の中心は、path 文字列から file session を作り、
