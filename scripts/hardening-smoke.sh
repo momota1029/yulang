@@ -6,6 +6,7 @@ bin="${YULANG:-"$repo_root/target/release/yulang"}"
 test_timeout="${YULANG_HARDENING_TEST_TIMEOUT:-240s}"
 smoke_timeout="${YULANG_HARDENING_SMOKE_TIMEOUT:-360s}"
 run_public_examples="${YULANG_HARDENING_PUBLIC_EXAMPLES:-1}"
+run_public_contract_manifest="${YULANG_HARDENING_PUBLIC_CONTRACT_MANIFEST:-1}"
 run_evidence_public_examples="${YULANG_HARDENING_EVIDENCE_PUBLIC_EXAMPLES:-1}"
 run_replay_compare="${YULANG_HARDENING_REPLAY_COMPARE:-1}"
 run_replay_public_diff="${YULANG_HARDENING_REPLAY_PUBLIC_DIFF:-1}"
@@ -40,6 +41,12 @@ run_timeout "$test_timeout" \
 run_timeout "$test_timeout" \
   cargo test -q -p yulang public \
   -- --test-threads=1
+
+if [[ "$run_public_contract_manifest" != "0" ]]; then
+  run_timeout "$test_timeout" \
+    cargo test -q -p yulang public_contract_manifest_cli_cases_hold --test cli \
+    -- --test-threads=1
+fi
 
 run_timeout "$test_timeout" \
   cargo test -q -p yulang cache::tests::compiled_unit_artifact_merge \
