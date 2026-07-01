@@ -1055,6 +1055,12 @@ mod tests {
             "catch_missing_arm_body" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/catch_missing_arm_body.yu"
             ),
+            "unresolved_method_error" => {
+                include_str!("../../../tests/yulang/regressions/runtime/unresolved_method_error.yu")
+            }
+            "ambiguous_method_error" => {
+                include_str!("../../../tests/yulang/regressions/runtime/ambiguous_method_error.yu")
+            }
             _ => panic!("unknown diagnostics fixture: {name}"),
         }
     }
@@ -1752,6 +1758,104 @@ mod tests {
             contents
                 .value
                 .contains("hint: write an expression after `->`"),
+            "{:?}",
+            contents.value
+        );
+    }
+
+    #[test]
+    fn hover_for_source_reports_unresolved_role_method_diagnostic_summary() {
+        let root = temp_root("hover-unresolved-role-method-diagnostic-summary");
+        let source = diagnostics_fixture("unresolved_method_error");
+        let method_offset = source.find("show").unwrap();
+        let line_starts = compute_line_starts(source);
+
+        let hover = hover_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            byte_offset_to_position(source, &line_starts, method_offset + 1),
+            &crate::StdSourceOptions {
+                std_root: Some(workspace_std_root()),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            hover.range,
+            Some(source_range_to_lsp_range(
+                source,
+                SourceRange {
+                    start: method_offset,
+                    end: method_offset + "show".len()
+                }
+            ))
+        );
+        let HoverContents::Markup(contents) = hover.contents else {
+            panic!("expected markdown hover");
+        };
+        assert!(
+            contents.value.contains("yulang.unresolved-method"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents
+                .value
+                .contains("show: no role implementation satisfies this method call for receiver"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents
+                .value
+                .contains("hint: add or import an impl for the receiver type"),
+            "{:?}",
+            contents.value
+        );
+    }
+
+    #[test]
+    fn hover_for_source_reports_ambiguous_role_method_candidates() {
+        let root = temp_root("hover-ambiguous-role-method-candidates");
+        let source = diagnostics_fixture("ambiguous_method_error");
+        let method_offset = source.rfind("foo").unwrap();
+        let line_starts = compute_line_starts(source);
+
+        let hover = hover_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            byte_offset_to_position(source, &line_starts, method_offset + 1),
+            &crate::StdSourceOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            hover.range,
+            Some(source_range_to_lsp_range(
+                source,
+                SourceRange {
+                    start: method_offset,
+                    end: method_offset + "foo".len()
+                }
+            ))
+        );
+        let HoverContents::Markup(contents) = hover.contents else {
+            panic!("expected markdown hover");
+        };
+        assert!(
+            contents.value.contains("yulang.ambiguous-method"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents
+                .value
+                .contains("foo: more than one role implementation satisfies this method call"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents.value.contains("matching impl method candidate"),
             "{:?}",
             contents.value
         );
