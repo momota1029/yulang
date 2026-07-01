@@ -1136,6 +1136,45 @@ mod tests {
     }
 
     #[test]
+    fn diagnostics_use_rule_lazy_quantifier_range() {
+        let root = temp_root("rule-lazy-quantifier-range");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "my p = rule { \"ha\"*? }\n";
+        let diagnostics = diagnostics_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        assert_eq!(
+            diagnostics[0].range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 18
+                },
+                end: Position {
+                    line: 0,
+                    character: 20
+                },
+            }
+        );
+        assert!(
+            diagnostics[0]
+                .message
+                .contains("rule lazy quantifier `*?` is not supported"),
+            "{diagnostics:?}"
+        );
+        assert_diagnostic_code(&diagnostics[0], "yulang.unsupported-rule-lazy-quantifier");
+    }
+
+    #[test]
     fn lsp_range_uses_utf16_columns() {
         let source = "my x = \"💡\"\nmy y: bool = 1\n";
         let start = source.find("y:").unwrap();
