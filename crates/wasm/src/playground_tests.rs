@@ -29,6 +29,9 @@ mod tests {
             "unresolved_type_name" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/unresolved_type_name.yu"
             ),
+            "rule_lazy_quantifier" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/rule_lazy_quantifier.yu"
+            ),
             _ => panic!("unknown diagnostics fixture: {name}"),
         }
     }
@@ -485,6 +488,25 @@ pair
         assert_eq!(
             output.diagnostics[0].message,
             "unresolved type name: missing_type"
+        );
+    }
+
+    #[test]
+    fn check_inner_returns_rule_lazy_quantifier_code_and_range() {
+        let output = check_inner(diagnostics_fixture("rule_lazy_quantifier"));
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        assert_eq!(output.diagnostics[0].label.as_deref(), Some("p"));
+        assert_eq!(
+            output.diagnostics[0].code.as_deref(),
+            Some("yulang.unsupported-rule-lazy-quantifier")
+        );
+        assert_eq!(output.diagnostics[0].start, 18);
+        assert_eq!(output.diagnostics[0].end, 20);
+        assert_eq!(
+            output.diagnostics[0].message,
+            "rule lazy quantifier `*?` is not supported; rule uses PEG-style greedy repetition"
         );
     }
 
