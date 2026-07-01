@@ -12,6 +12,9 @@ The manifest runner checks that `run` cases carry a runtime-facing tag, `check`
 cases carry `diagnostics`, and `public-signature` cases carry
 `public-signature`, so the tags remain useful as a contract index rather than
 free-form notes.
+All `public-signature` cases also reject private evidence fragments such as
+`#...` and `AllExcept(...)` in the projected public type. Individual cases can
+still add narrower `deny_type_contains` checks for surface-specific leaks.
 Diagnostic entries may also assert the structured `SourceDiagnostic` payload
 with compact fields such as diagnostic count, severity, code, label, related
 count, and related origins.

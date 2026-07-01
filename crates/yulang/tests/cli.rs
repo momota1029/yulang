@@ -3854,6 +3854,7 @@ fn public_signature_contract_manifest_case(case: &PublicContractCase) {
         ),
     };
     let ty = public_contract_signature_type(case, &output);
+    assert_public_contract_signature_type_is_clean(case, &ty);
 
     if let Some(expected) = &case.expect_type {
         assert_eq!(&ty, expected, "{}", case.name);
@@ -3869,6 +3870,16 @@ fn public_signature_contract_manifest_case(case: &PublicContractCase) {
         assert!(
             !ty.contains(denied),
             "case {} leaked denied type fragment {denied:?}:\n{ty}",
+            case.name
+        );
+    }
+}
+
+fn assert_public_contract_signature_type_is_clean(case: &PublicContractCase, ty: &str) {
+    for denied in ["#", "AllExcept"] {
+        assert!(
+            !ty.contains(denied),
+            "case {} leaked private public-signature fragment {denied:?}:\n{ty}",
             case.name
         );
     }
