@@ -1701,6 +1701,63 @@ mod tests {
     }
 
     #[test]
+    fn hover_for_source_reports_catch_diagnostic_summary() {
+        let root = temp_root("hover-catch-diagnostic-summary");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let hover = hover_for_source(
+            &root.join("main.yu"),
+            diagnostics_fixture("catch_missing_arm_body").to_string(),
+            Position {
+                line: 1,
+                character: 10,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            hover.range,
+            Some(Range {
+                start: Position {
+                    line: 1,
+                    character: 10
+                },
+                end: Position {
+                    line: 1,
+                    character: 12
+                },
+            })
+        );
+        let HoverContents::Markup(contents) = hover.contents else {
+            panic!("expected markdown hover");
+        };
+        assert!(
+            contents.value.contains("yulang.missing-catch-arm-body"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents
+                .value
+                .contains("catch arm is missing a body expression"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents
+                .value
+                .contains("hint: write an expression after `->`"),
+            "{:?}",
+            contents.value
+        );
+    }
+
+    #[test]
     fn definition_for_source_reports_reference_target_location() {
         let root = temp_root("definition-reference-target-location");
         std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
