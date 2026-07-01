@@ -280,6 +280,90 @@ fn compatible_run_reports_unsatisfied_subtype_hint() {
 }
 
 #[test]
+fn compatible_run_reports_unresolved_method_hint() {
+    let entry = write_entry("run-unresolved-method", "(\\x -> x).show\n");
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains(
+            "compile error [yulang.unresolved-method]: no role implementation satisfies this method call\n"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("detail: unresolved typeclass method"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "hint: add or import an impl for the receiver type, or call a method supported by that value"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn compatible_run_reports_ambiguous_method_hint() {
+    let entry = write_entry(
+        "run-ambiguous-method",
+        "role R 'a:\n    our a.foo: int\n\nimpl int: R:\n    our x.foo = 1\n\nimpl int: R:\n    our x.foo = 2\n\n1.foo\n",
+    );
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains(
+            "compile error [yulang.ambiguous-method]: more than one role implementation satisfies this method call\n"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("detail: ambiguous typeclass method"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "hint: make the receiver type more specific or keep only one matching impl in scope"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn compatible_check_accepts_explicit_std_root() {
     let (entry, std_root) = write_fixture("check-explicit-std-root", "1\n");
 

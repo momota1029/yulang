@@ -82,6 +82,9 @@ Diagnostics の最初の slice:
   origin と接続する。
 - 同日後続 slice で、`SourceDiagnostic` は optional `hint` を持つ。未解決 value/type
   name は CLI / LSP / playground に同じ修復案を流す。
+- 同日後続 slice で、通常の `run` 経路に漏れる role method 解決失敗は
+  `yulang.unresolved-method` / `yulang.ambiguous-method` として、impl の追加/import
+  または receiver 型の具体化を促す hint を出す。
 
 API 固定の最初の slice:
 
@@ -126,6 +129,8 @@ TODO:
 - Role / method errors:
   - missing role impl
   - ambiguous role impl
+    - first CLI canaries: unresolved/ambiguous typeclass method route errors
+      are formatted as user-facing method diagnostics on normal `run`.
   - missing method
   - missing field
 - Effect errors:

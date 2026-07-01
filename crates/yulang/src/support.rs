@@ -629,6 +629,20 @@ fn format_route_error(error: &yulang::RouteError) -> String {
                 "compile error [yulang.unsatisfied-subtype]: {error}\n  hint: check that the value provides the fields or shape required by this use"
             )
         }
+        yulang::RouteError::Specialize(
+            specialize::SpecializeError::UnresolvedTypeclassMethod { .. },
+        ) => {
+            format!(
+                "compile error [yulang.unresolved-method]: no role implementation satisfies this method call\n  detail: {error}\n  hint: add or import an impl for the receiver type, or call a method supported by that value"
+            )
+        }
+        yulang::RouteError::Specialize(specialize::SpecializeError::AmbiguousTypeclassMethod {
+            ..
+        }) => {
+            format!(
+                "compile error [yulang.ambiguous-method]: more than one role implementation satisfies this method call\n  detail: {error}\n  hint: make the receiver type more specific or keep only one matching impl in scope"
+            )
+        }
         _ => error.to_string(),
     }
 }
