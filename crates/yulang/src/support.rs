@@ -587,7 +587,7 @@ pub(super) fn run_route<T>(result: Result<T, yulang::RouteError>, print: impl Fn
     match result {
         Ok(output) => print(&output),
         Err(error) => {
-            eprintln!("{error}");
+            eprintln!("{}", format_route_error(&error));
             process::exit(1);
         }
     }
@@ -597,9 +597,20 @@ pub(super) fn run_route_to_value<T>(result: Result<T, yulang::RouteError>) -> T 
     match result {
         Ok(output) => output,
         Err(error) => {
-            eprintln!("{error}");
+            eprintln!("{}", format_route_error(&error));
             process::exit(1);
         }
+    }
+}
+
+fn format_route_error(error: &yulang::RouteError) -> String {
+    match error {
+        yulang::RouteError::Specialize(specialize::SpecializeError::UnsatisfiedSubtype {
+            ..
+        }) => format!(
+            "compile error [yulang.unsatisfied-subtype]: {error}\n  hint: check that the value provides the fields or shape required by this use"
+        ),
+        _ => error.to_string(),
     }
 }
 

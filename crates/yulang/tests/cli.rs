@@ -243,6 +243,40 @@ fn compatible_run_reports_pattern_mismatch_hint() {
 }
 
 #[test]
+fn compatible_run_reports_unsatisfied_subtype_hint() {
+    let entry = write_entry("run-unsatisfied-subtype", "{ a: 1 }.b\n");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains("compile error [yulang.unsatisfied-subtype]: unsatisfied subtype constraint: {a: int} <: {b: 'open"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "hint: check that the value provides the fields or shape required by this use"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn compatible_check_accepts_explicit_std_root() {
     let (entry, std_root) = write_fixture("check-explicit-std-root", "1\n");
 

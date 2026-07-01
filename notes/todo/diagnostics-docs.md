@@ -68,6 +68,9 @@ Diagnostics の最初の slice:
 - 同日後続 slice で、`1.a` と unmatched `case` の normal run runtime failure は
   それぞれ `yulang.not-record` / `yulang.pattern-mismatch` として、field access /
   fallback pattern の hint を出す。
+- 同日後続 slice で、特殊化段の `UnsatisfiedSubtype` は
+  `compile error [yulang.unsatisfied-subtype]` として、値が要求された field/shape を
+  満たしているか見直す hint を出す。
 
 API 固定の最初の slice:
 
@@ -126,6 +129,8 @@ TODO:
     見直せる user-facing message として出す。
   - not-record / pattern-mismatch も同じ normal run formatter を通し、VM 内部文言を
     user-facing contract にしない。
+  - specialize の unsatisfied subtype は型/shape 契約違反として compile error code
+    を付ける。将来的には source range / expected-origin と接続する。
 
 ## Examples
 
