@@ -152,10 +152,11 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   - high-level: `read_at` / `write_at` / `read_text` / `write_text`
   - host predicates: `file.exists` / `file.is_file` / `file.is_dir`
   - typed failure boundary: `io_err.wrap`
-- 同日後続 slice で、`open_text` / `open` / `open_in` の public signatures と
-  temp file を使う CLI get/set regression も追加した。basic managed text ref
-  は executable contract に入れる一方、metadata、directory listing、range
-  writes、locking、explicit close / scope-exit write-back はまだ spec/TODO 側に残す。
+- 同日後続 slice で、`open_text` / `open` / `open_in` / `text` /
+  `text_with` の public signatures と temp file を使う CLI get/set regression
+  も追加した。basic managed text ref は executable contract に入れる一方、
+  metadata、directory listing、range writes、locking、explicit close /
+  scope-exit write-back はまだ spec/TODO 側に残す。
 - 同日、`tests/yulang/regressions/diagnostics/` を追加し、compact CLI diagnostics golden の
   入力を inline source から共有 fixture へ移した。
   - `type_annotation_mismatch.yu`

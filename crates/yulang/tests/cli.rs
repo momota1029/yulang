@@ -200,6 +200,63 @@ my scoped_result = std::io::file::open_in {scoped}: \\&txt ->
 }
 
 #[test]
+fn compatible_run_std_file_text_shorthand_host_contract() {
+    let root = temp_root("run-std-file-text-shorthand");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let direct = root.join("direct.txt");
+    let scoped = root.join("scoped.txt");
+    let entry = root.join("main.yu");
+    fs::write(&direct, "hello").unwrap();
+    fs::write(&scoped, "hi").unwrap();
+    fs::write(
+        &entry,
+        format!(
+            "\
+my direct_result = {{
+    my &txt = std::io::file::text {direct}
+    my before = $txt
+    &txt = before + \" text\"
+    my after = std::io::file::read_text {direct}
+    (before, after)
+}}
+
+my scoped_result = std::io::file::text_with {scoped}: \\&txt ->
+    my before = $txt
+    &txt = before + \" scoped\"
+    my after = std::io::file::read_text {scoped}
+    (before, after)
+
+(direct_result, scoped_result)
+",
+            direct = yulang_string_literal(&direct),
+            scoped = yulang_string_literal(&scoped),
+        ),
+    )
+    .unwrap();
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(
+        stdout(&output),
+        "run roots [((\"hello\", \"hello text\"), (\"hi\", \"hi scoped\"))]\n"
+    );
+    assert_eq!(fs::read_to_string(&direct).unwrap(), "hello text");
+    assert_eq!(fs::read_to_string(&scoped).unwrap(), "hi scoped");
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn compatible_run_accepts_eval_source() {
     let output = yulang_command()
         .arg("--no-prelude")

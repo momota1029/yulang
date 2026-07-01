@@ -64,4 +64,8 @@ pub open(path: path): ref '[file] str = open_text path
 
 pub open_in(path: path, f) = f (open path)
 
+pub text(path: path): ref '[file] str = open path
+
+pub text_with(path: path, f) = open_in path f
+
 pub use file::*

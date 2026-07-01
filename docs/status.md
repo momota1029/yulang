@@ -159,10 +159,11 @@ The columns trace a value through the pipeline:
   per-variant wording is a future surface, not part of the current contract.
 - `std::io::file::read_text`, `write_text`, `exists`, `is_file`, and `is_dir`
   run through the native CLI host path and return typed `io_err` effects for
-  failed reads/writes. `open_text`, `open`, and `open_in` also cover the first
-  managed text-ref get/set path. This is the first executable filesystem
-  contract; range writes, metadata, directory listing, locking, and explicit
-  close/scope-exit write-back semantics are still provisional.
+  failed reads/writes. `open_text`, `open`, `open_in`, `text`, and `text_with`
+  also cover the first managed text-ref get/set path. This is the first
+  executable filesystem contract; range writes, metadata, directory listing,
+  locking, and explicit close/scope-exit write-back semantics are still
+  provisional.
 - `std::text::path` is currently represented by the runtime string value
   model. `path.of_bytes`, `path.to_bytes`, and `Display path` use UTF-8 bytes
   and are covered by the public manifest. Platform-native non-UTF-8 path
