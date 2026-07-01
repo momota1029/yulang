@@ -29,7 +29,7 @@ fi
 
 if [[ "$run_core_tests" != "0" ]]; then
   run_timeout "$test_timeout" \
-    cargo test -q -p infer -p yulang -- --test-threads=1
+    cargo test -q -p parser -p infer -p yulang -- --test-threads=1
 fi
 
 if [[ "$run_release_build" != "0" || ! -x "$bin" ]]; then
