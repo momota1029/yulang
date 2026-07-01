@@ -280,6 +280,10 @@ expect_stdout_contains = [
   "note: expected type comes from this type annotation: int",
   "note: actual type comes from this expression: bool",
 ]
+expect_diagnostic_code = "yulang.type-mismatch"
+expect_diagnostic_label = "x"
+expect_diagnostic_related_count = 2
+expect_diagnostic_related_origins = ["type-annotation", "expression"]
 contracts = ["diagnostics", "typechecker", "related-ranges"]
 
 [[case]]
@@ -292,6 +296,9 @@ expect_stdout_contains = [
   "error [yulang.unresolved-type]: x: unresolved type name: missing_type",
   "hint: define type `missing_type` before this annotation, or import it",
 ]
+expect_diagnostic_code = "yulang.unresolved-type"
+expect_diagnostic_label = "x"
+expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "names"]
 
 [[case]]
@@ -304,6 +311,9 @@ expect_stdout_contains = [
   "error [yulang.unresolved-value]: result: unresolved value name: missing",
   "hint: define `missing` before this use, or import the module that provides it",
 ]
+expect_diagnostic_code = "yulang.unresolved-value"
+expect_diagnostic_label = "result"
+expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "names"]
 
 [[case]]
@@ -316,6 +326,9 @@ expect_stdout_contains = [
   "error [yulang.unsupported-type-syntax]: x: unsupported type annotation syntax: TypeRecord",
   "hint: use a supported type annotation form and keep effect rows in effect position",
 ]
+expect_diagnostic_code = "yulang.unsupported-type-syntax"
+expect_diagnostic_label = "x"
+expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "typechecker", "records"]
 
 [[case]]
@@ -328,6 +341,9 @@ expect_stdout_contains = [
   "error [yulang.top-level-mutable-binding]: $x: top-level mutable binding $x is not supported; move it into a block or function body",
   "hint: move the mutable binding into a block or function body",
 ]
+expect_diagnostic_code = "yulang.top-level-mutable-binding"
+expect_diagnostic_label = "$x"
+expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "bindings"]
 
 [[case]]
@@ -340,6 +356,9 @@ expect_stdout_contains = [
   "error [yulang.unsupported-rule-lazy-quantifier]: p: rule lazy quantifier `*?` is not supported; rule uses PEG-style greedy repetition",
   "hint: use greedy `*` or `+`, then handle optional matching explicitly",
 ]
+expect_diagnostic_code = "yulang.unsupported-rule-lazy-quantifier"
+expect_diagnostic_label = "p"
+expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "parser-dsl"]
 
 [[case]]
@@ -352,6 +371,8 @@ expect_stdout_contains = [
   "error [yulang.syntax]: syntax error: unexpected end of input",
   "--> line 1, column 10",
 ]
+expect_diagnostic_code = "yulang.syntax"
+expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "syntax"]
 
 [[case]]
@@ -364,6 +385,8 @@ expect_stdout_contains = [
   "error [yulang.syntax]: syntax error: unexpected token",
   "--> line 1, column 10",
 ]
+expect_diagnostic_code = "yulang.syntax"
+expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "syntax"]
 
 [[case]]
@@ -376,6 +399,8 @@ expect_stdout_contains = [
   "error [yulang.missing-catch-scrutinee]: catch expression is missing the computation to handle",
   "hint: write `catch <expr>:` before the handler arms",
 ]
+expect_diagnostic_code = "yulang.missing-catch-scrutinee"
+expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "effects", "handler-syntax"]
 
 [[case]]
@@ -388,6 +413,8 @@ expect_stdout_contains = [
   "error [yulang.missing-catch-arm-pattern]: catch arm is missing a value pattern or effect operation",
   "hint: write a value pattern or effect operation before `->`",
 ]
+expect_diagnostic_code = "yulang.missing-catch-arm-pattern"
+expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "effects", "handler-syntax"]
 
 [[case]]
@@ -400,6 +427,8 @@ expect_stdout_contains = [
   "error [yulang.missing-catch-arm-body]: catch arm is missing a body expression",
   "hint: write an expression after `->`",
 ]
+expect_diagnostic_code = "yulang.missing-catch-arm-body"
+expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "effects", "handler-syntax"]
 
 [[case]]

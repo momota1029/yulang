@@ -3349,7 +3349,11 @@ fn assert_contract_manifest_case_has_expectation(case: &PublicContractCase) {
         || !case.expect_stderr_contains.is_empty()
         || case.expect_type.is_some()
         || !case.expect_type_contains.is_empty()
-        || !case.deny_type_contains.is_empty();
+        || !case.deny_type_contains.is_empty()
+        || case.expect_diagnostic_code.is_some()
+        || case.expect_diagnostic_label.is_some()
+        || case.expect_diagnostic_related_count.is_some()
+        || !case.expect_diagnostic_related_origins.is_empty();
     assert!(
         has_output_expectation,
         "contract manifest case {} should assert output or public type",
@@ -3657,6 +3661,9 @@ struct PublicContractCase {
     expect_stdout: Option<String>,
     expect_stderr: Option<String>,
     expect_type: Option<String>,
+    expect_diagnostic_code: Option<String>,
+    expect_diagnostic_label: Option<String>,
+    expect_diagnostic_related_count: Option<usize>,
     #[serde(default)]
     expect_stdout_contains: Vec<String>,
     #[serde(default)]
@@ -3665,6 +3672,8 @@ struct PublicContractCase {
     expect_type_contains: Vec<String>,
     #[serde(default)]
     deny_type_contains: Vec<String>,
+    #[serde(default)]
+    expect_diagnostic_related_origins: Vec<String>,
     #[serde(default)]
     contracts: Vec<String>,
 }
@@ -3712,6 +3721,7 @@ fn check_contract_manifest_case(case: &PublicContractCase) {
 
     assert_contract_status(case, &output);
     assert_contract_output(case, &output);
+    assert_contract_diagnostics(case, &entry);
 }
 
 fn public_signature_contract_manifest_case(case: &PublicContractCase) {
@@ -3780,6 +3790,71 @@ fn public_contract_case_entry(case: &PublicContractCase) -> PathBuf {
             "unsupported root mode `{other}` in contract case {}",
             case.name
         ),
+    }
+}
+
+fn assert_contract_diagnostics(case: &PublicContractCase, entry: &Path) {
+    let expects_diagnostic = case.expect_diagnostic_code.is_some()
+        || case.expect_diagnostic_label.is_some()
+        || case.expect_diagnostic_related_count.is_some()
+        || !case.expect_diagnostic_related_origins.is_empty();
+    if !expects_diagnostic {
+        return;
+    }
+
+    let source = fs::read_to_string(entry).unwrap();
+    let output = match case.std.as_deref().unwrap_or("repo") {
+        "repo" => yulang::analyze_entry_source_with_std_options(
+            entry,
+            source,
+            &yulang::StdSourceOptions {
+                std_root: Some(repo_lib_root()),
+            },
+        )
+        .unwrap(),
+        "none" => yulang::analyze_entry_source(entry, source).unwrap(),
+        other => panic!(
+            "unsupported std mode `{other}` in contract case {}",
+            case.name
+        ),
+    };
+    let diagnostic = output.diagnostics.first().unwrap_or_else(|| {
+        panic!(
+            "contract manifest case {} expected a diagnostic payload",
+            case.name
+        )
+    });
+
+    if let Some(expected) = &case.expect_diagnostic_code {
+        assert_eq!(diagnostic.code.as_ref(), Some(expected), "{}", case.name);
+    }
+    if let Some(expected) = &case.expect_diagnostic_label {
+        assert_eq!(diagnostic.label.as_ref(), Some(expected), "{}", case.name);
+    }
+    if let Some(expected) = case.expect_diagnostic_related_count {
+        assert_eq!(diagnostic.related.len(), expected, "{}", case.name);
+    }
+    if !case.expect_diagnostic_related_origins.is_empty() {
+        let origins = diagnostic
+            .related
+            .iter()
+            .map(|related| public_contract_related_origin_name(related.origin.as_ref()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            origins, case.expect_diagnostic_related_origins,
+            "{}",
+            case.name
+        );
+    }
+}
+
+fn public_contract_related_origin_name(
+    origin: Option<&yulang::SourceDiagnosticRelatedOrigin>,
+) -> &'static str {
+    match origin {
+        Some(yulang::SourceDiagnosticRelatedOrigin::TypeAnnotation) => "type-annotation",
+        Some(yulang::SourceDiagnosticRelatedOrigin::Expression) => "expression",
+        None => "none",
     }
 }
 

@@ -8,6 +8,8 @@ same files without copying source text out of inline strings.
 currently define the executable language floor for CLI runtime, diagnostics,
 runtime error, compile error, and public signature behavior. Each entry should
 point at a focused `.yu` file and list the contract tags it protects.
+Diagnostic entries may also assert the structured `SourceDiagnostic` payload
+with compact fields such as code, label, related count, and related origins.
 
 `support/fake_std/` contains narrow std shims for tests that need compiler-known
 surface paths such as `std::control::flow::sub` but do not need the full public
