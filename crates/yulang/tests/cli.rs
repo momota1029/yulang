@@ -3467,6 +3467,7 @@ fn public_contract_manifest_cli_cases_hold() {
             case.name
         );
         assert_contract_manifest_tags_match_kind(&case);
+        assert_contract_manifest_tags_match_shape(&case);
         assert_contract_manifest_case_has_expectation(&case);
         assert!(
             public_contract_case_entry(&case).exists(),
@@ -3484,6 +3485,40 @@ fn public_contract_manifest_cli_cases_hold() {
                 case.name
             ),
         }
+    }
+}
+
+fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
+    if contract_manifest_case_has_tag(case, "runtime-error") {
+        assert_eq!(
+            case.expect_success,
+            Some(false),
+            "runtime-error contract manifest case {} should set expect_success = false",
+            case.name
+        );
+    }
+
+    if contract_manifest_case_has_tag(case, "public-example") {
+        assert_eq!(
+            case.root.as_deref(),
+            Some("repo"),
+            "public-example contract manifest case {} should read from repo root",
+            case.name
+        );
+        assert!(
+            case.file.starts_with("examples/"),
+            "public-example contract manifest case {} should point at examples/, got {}",
+            case.name,
+            case.file
+        );
+    }
+
+    if contract_manifest_case_has_tag(case, "standard-api") {
+        assert!(
+            contract_manifest_case_has_any_tag(case, &["result", "errors", "path", "file"]),
+            "standard-api contract manifest case {} should include a narrower API area tag",
+            case.name
+        );
     }
 }
 
