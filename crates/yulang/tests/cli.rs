@@ -2692,10 +2692,25 @@ fn public_examples_smoke_bridge_runs_representative_cli_golden() {
             "examples/01_struct_with.yu",
             "run roots [25]\n",
         ),
+        ("refs", "examples/02_refs.yu", "run roots [(11, 21)]\n"),
+        ("for-last", "examples/03_for_last.yu", "run roots [5]\n"),
+        ("sub-return", "examples/04_sub_return.yu", "run roots [5]\n"),
         (
             "nondet-all",
             "examples/05_undet_all.yu",
             "run roots [[5, 6, 7, 6, 7, 8, 7, 8, 9]]\n",
+        ),
+        (
+            "nondet-once",
+            "examples/06_undet_once.yu",
+            "run roots [opt::just((3, 4, 5))]\n",
+        ),
+        ("junction", "examples/07_junction.yu", "run roots [1]\n"),
+        ("types", "examples/08_types.yu", "run roots [42]\n"),
+        (
+            "optional-record-args",
+            "examples/09_optional_record_args.yu",
+            "run roots [6, 2, 12, 12]\n",
         ),
         (
             "effect-handler",
@@ -2707,6 +2722,7 @@ fn public_examples_smoke_bridge_runs_representative_cli_golden() {
             "examples/11_attached_impl.yu",
             "run roots [(10, false)]\n",
         ),
+        ("cast", "examples/12_cast.yu", "run roots []\n"),
     ];
 
     for (slug, example, expected_stdout) in cases {
@@ -2731,6 +2747,21 @@ fn public_examples_smoke_bridge_runs_representative_cli_golden() {
 
         let _ = fs::remove_dir_all(&root);
     }
+}
+
+#[test]
+fn public_examples_smoke_bridge_keeps_console_stdout() {
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("run")
+        .arg(repo_file("examples/13_console.yu"))
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "Hello, World\n3\n");
+    assert_eq!(stderr(&output), "");
 }
 
 #[test]
