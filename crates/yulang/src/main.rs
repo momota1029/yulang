@@ -885,10 +885,7 @@ fn specialize_mono_program(
 
     let program = match specialize::specialize(&poly.arena) {
         Ok(program) => program,
-        Err(error) => {
-            eprintln!("{error}");
-            process::exit(1);
-        }
+        Err(error) => exit_on_specialize_error(error),
     };
 
     if let Some((cache, key)) = mono_cache {
@@ -912,10 +909,7 @@ fn specialize_control_program(
     abort_on_runtime_lowering_errors(&poly.errors);
     let output = match specialize::specialize_with_runtime_evidence(&poly.arena) {
         Ok(output) => output,
-        Err(error) => {
-            eprintln!("{error}");
-            process::exit(1);
-        }
+        Err(error) => exit_on_specialize_error(error),
     };
 
     if let Some((cache, key)) = mono_cache {
@@ -930,6 +924,14 @@ fn specialize_control_program(
     }
 
     output
+}
+
+fn exit_on_specialize_error(error: specialize::SpecializeError) -> ! {
+    eprintln!(
+        "{}",
+        format_route_error(&yulang::RouteError::Specialize(error))
+    );
+    process::exit(1);
 }
 
 fn abort_on_runtime_lowering_errors(errors: &[String]) {

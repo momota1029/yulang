@@ -6,8 +6,8 @@ same files without copying source text out of inline strings.
 
 `cases.toml` is the public contract manifest. It names the small fixtures that
 currently define the executable language floor for CLI runtime, diagnostics,
-and public signature behavior. Each entry should point at a focused `.yu` file
-and list the contract tags it protects.
+runtime error, compile error, and public signature behavior. Each entry should
+point at a focused `.yu` file and list the contract tags it protects.
 
 `support/fake_std/` contains narrow std shims for tests that need compiler-known
 surface paths such as `std::control::flow::sub` but do not need the full public

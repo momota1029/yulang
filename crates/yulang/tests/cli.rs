@@ -3625,6 +3625,7 @@ struct PublicContractCase {
     file: String,
     kind: String,
     std: Option<String>,
+    expect_success: Option<bool>,
     module: Option<String>,
     symbol: Option<String>,
     symbol_contains: Option<String>,
@@ -3671,7 +3672,7 @@ fn run_contract_manifest_case(case: &PublicContractCase) {
         .arg("--print-roots");
     let output = command.arg(&entry).output().unwrap();
 
-    assert_success(&output);
+    assert_contract_status(case, &output);
     assert_contract_output(case, &output);
 
     let _ = fs::remove_dir_all(&root);
@@ -3684,7 +3685,7 @@ fn check_contract_manifest_case(case: &PublicContractCase) {
     command.arg("--no-cache").arg("check");
     let output = command.arg(&entry).output().unwrap();
 
-    assert_success(&output);
+    assert_contract_status(case, &output);
     assert_contract_output(case, &output);
 }
 
@@ -3827,6 +3828,19 @@ fn trim_public_signature_body(line: &str) -> &str {
         .or_else(|| line.find(" = <missing>"))
         .map(|body_start| &line[..body_start])
         .unwrap_or(line)
+}
+
+fn assert_contract_status(case: &PublicContractCase, output: &Output) {
+    let expected_success = case.expect_success.unwrap_or(true);
+    assert_eq!(
+        output.status.success(),
+        expected_success,
+        "case {}\nstatus: {}\nstdout:\n{}\nstderr:\n{}",
+        case.name,
+        output.status,
+        stdout(output),
+        stderr(output)
+    );
 }
 
 fn assert_contract_output(case: &PublicContractCase, output: &Output) {

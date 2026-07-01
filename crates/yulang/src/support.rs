@@ -630,7 +630,7 @@ pub(super) fn format_runtime_lowering_errors(errors: &[String]) -> String {
     })
 }
 
-fn format_route_error(error: &yulang::RouteError) -> String {
+pub(super) fn format_route_error(error: &yulang::RouteError) -> String {
     match error {
         yulang::RouteError::Specialize(specialize::SpecializeError::UnsatisfiedSubtype {
             origin:

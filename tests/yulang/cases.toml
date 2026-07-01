@@ -35,6 +35,97 @@ expect_stderr = ""
 contracts = ["runtime", "lists", "update"]
 
 [[case]]
+name = "unhandled_nondet_effect_error"
+file = "regressions/runtime/unhandled_nondet_effect_error.yu"
+kind = "run"
+std = "repo"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "runtime error [yulang.unhandled-effect]: unhandled effect request std::control::nondet::nondet::branch",
+  "hint: handle this computation with a matching effect handler before running it",
+]
+contracts = ["runtime-error", "std.nondet", "effects"]
+
+[[case]]
+name = "not_callable_error"
+file = "regressions/runtime/not_callable_error.yu"
+kind = "run"
+std = "none"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "runtime error [yulang.not-callable]: tried to call a non-function value 1",
+  "hint: check the expression before the argument; calls are written as `f x` or `f(...)`",
+]
+contracts = ["runtime-error", "calls"]
+
+[[case]]
+name = "not_record_error"
+file = "regressions/runtime/not_record_error.yu"
+kind = "run"
+std = "none"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "runtime error [yulang.not-record]: tried to read fields from non-record value 1",
+  "hint: use `.field` only on record values",
+]
+contracts = ["runtime-error", "records"]
+
+[[case]]
+name = "pattern_mismatch_error"
+file = "regressions/runtime/pattern_mismatch_error.yu"
+kind = "run"
+std = "none"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "runtime error [yulang.pattern-mismatch]: no pattern matched the value",
+  "hint: add a fallback pattern such as `_ -> ...`",
+]
+contracts = ["runtime-error", "patterns"]
+
+[[case]]
+name = "missing_record_field_error"
+file = "regressions/runtime/missing_record_field_error.yu"
+kind = "run"
+std = "none"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "compile error [yulang.unsatisfied-subtype]: record is missing field `b`",
+  "hint: add `b` to this record or use a value that provides it; actual record has fields a",
+]
+contracts = ["runtime-error", "diagnostics", "records"]
+
+[[case]]
+name = "unresolved_method_error"
+file = "regressions/runtime/unresolved_method_error.yu"
+kind = "run"
+std = "repo"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "compile error [yulang.unresolved-method]: no role implementation satisfies this method call",
+  "hint: add or import an impl for the receiver type, or call a method supported by that value",
+]
+contracts = ["runtime-error", "diagnostics", "roles"]
+
+[[case]]
+name = "ambiguous_method_error"
+file = "regressions/runtime/ambiguous_method_error.yu"
+kind = "run"
+std = "none"
+expect_success = false
+expect_stdout = ""
+expect_stderr_contains = [
+  "compile error [yulang.ambiguous-method]: more than one role implementation satisfies this method call",
+  "hint: make the receiver type more specific or keep only one matching impl in scope",
+]
+contracts = ["runtime-error", "diagnostics", "roles"]
+
+[[case]]
 name = "type_annotation_mismatch"
 file = "regressions/diagnostics/type_annotation_mismatch.yu"
 kind = "check"
@@ -48,6 +139,18 @@ expect_stdout_contains = [
 contracts = ["diagnostics", "typechecker", "related-ranges"]
 
 [[case]]
+name = "unresolved_type_name"
+file = "regressions/diagnostics/unresolved_type_name.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.unresolved-type]: x: unresolved type name: missing_type",
+  "hint: define type `missing_type` before this annotation, or import it",
+]
+contracts = ["diagnostics", "names"]
+
+[[case]]
 name = "unresolved_value_name"
 file = "regressions/diagnostics/unresolved_value_name.yu"
 kind = "check"
@@ -58,6 +161,90 @@ expect_stdout_contains = [
   "hint: define `missing` before this use, or import the module that provides it",
 ]
 contracts = ["diagnostics", "names"]
+
+[[case]]
+name = "unsupported_record_type_annotation"
+file = "regressions/diagnostics/unsupported_record_type_annotation.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.unsupported-type-syntax]: x: unsupported type annotation syntax: TypeRecord",
+  "hint: use a supported type annotation form and keep effect rows in effect position",
+]
+contracts = ["diagnostics", "typechecker", "records"]
+
+[[case]]
+name = "top_level_mutable_binding"
+file = "regressions/diagnostics/top_level_mutable_binding.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.top-level-mutable-binding]: $x: top-level mutable binding $x is not supported; move it into a block or function body",
+  "hint: move the mutable binding into a block or function body",
+]
+contracts = ["diagnostics", "bindings"]
+
+[[case]]
+name = "rule_lazy_quantifier"
+file = "regressions/diagnostics/rule_lazy_quantifier.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.unsupported-rule-lazy-quantifier]: p: rule lazy quantifier `*?` is not supported; rule uses PEG-style greedy repetition",
+  "hint: use greedy `*` or `+`, then handle optional matching explicitly",
+]
+contracts = ["diagnostics", "parser-dsl"]
+
+[[case]]
+name = "unclosed_paren"
+file = "regressions/diagnostics/unclosed_paren.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.syntax]: syntax error: unexpected end of input",
+  "--> line 1, column 10",
+]
+contracts = ["diagnostics", "syntax"]
+
+[[case]]
+name = "trailing_operator"
+file = "regressions/diagnostics/trailing_operator.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.syntax]: syntax error: unexpected token",
+  "--> line 1, column 10",
+]
+contracts = ["diagnostics", "syntax"]
+
+[[case]]
+name = "catch_missing_scrutinee"
+file = "regressions/diagnostics/catch_missing_scrutinee.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.missing-catch-scrutinee]: catch expression is missing the computation to handle",
+  "hint: write `catch <expr>:` before the handler arms",
+]
+contracts = ["diagnostics", "effects", "handler-syntax"]
+
+[[case]]
+name = "catch_missing_arm_pattern"
+file = "regressions/diagnostics/catch_missing_arm_pattern.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.missing-catch-arm-pattern]: catch arm is missing a value pattern or effect operation",
+  "hint: write a value pattern or effect operation before `->`",
+]
+contracts = ["diagnostics", "effects", "handler-syntax"]
 
 [[case]]
 name = "catch_missing_arm_body"

@@ -1,0 +1,3 @@
+use std::control::nondet::*
+
+each [1, 2]

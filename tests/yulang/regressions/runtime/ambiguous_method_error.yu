@@ -1,0 +1,10 @@
+role R 'a:
+    our a.foo: int
+
+impl int: R:
+    our x.foo = 1
+
+impl int: R:
+    our x.foo = 2
+
+1.foo
