@@ -261,7 +261,7 @@ expect_stderr_contains = [
   "runtime error [yulang.unhandled-effect]: unhandled effect request std::control::nondet::nondet::branch",
   "hint: handle this computation with a matching effect handler before running it",
 ]
-contracts = ["runtime-error", "std.nondet", "effects"]
+contracts = ["runtime-error", "runtime-failure", "std.nondet", "effects"]
 
 [[case]]
 name = "not_callable_error"
@@ -274,7 +274,7 @@ expect_stderr_contains = [
   "runtime error [yulang.not-callable]: tried to call a non-function value 1",
   "hint: check the expression before the argument; calls are written as `f x` or `f(...)`",
 ]
-contracts = ["runtime-error", "calls"]
+contracts = ["runtime-error", "runtime-failure", "calls"]
 
 [[case]]
 name = "not_record_error"
@@ -287,7 +287,7 @@ expect_stderr_contains = [
   "runtime error [yulang.not-record]: tried to read fields from non-record value 1",
   "hint: use `.field` only on record values",
 ]
-contracts = ["runtime-error", "records"]
+contracts = ["runtime-error", "runtime-failure", "records"]
 
 [[case]]
 name = "pattern_mismatch_error"
@@ -300,7 +300,7 @@ expect_stderr_contains = [
   "runtime error [yulang.pattern-mismatch]: no pattern matched the value",
   "hint: add a fallback pattern such as `_ -> ...`",
 ]
-contracts = ["runtime-error", "patterns"]
+contracts = ["runtime-error", "runtime-failure", "patterns"]
 
 [[case]]
 name = "missing_record_field_error"
@@ -313,7 +313,7 @@ expect_stderr_contains = [
   "compile error [yulang.unsatisfied-subtype]: record is missing field `b`",
   "hint: add `b` to this record or use a value that provides it; actual record has fields a",
 ]
-contracts = ["runtime-error", "diagnostics", "records"]
+contracts = ["runtime-error", "compile-error", "diagnostics", "records"]
 
 [[case]]
 name = "unresolved_method_error"
@@ -326,7 +326,7 @@ expect_stderr_contains = [
   "compile error [yulang.unresolved-method]: no role implementation satisfies this method call",
   "hint: add or import an impl for the receiver type, or call a method supported by that value",
 ]
-contracts = ["runtime-error", "diagnostics", "roles"]
+contracts = ["runtime-error", "compile-error", "diagnostics", "roles"]
 
 [[case]]
 name = "ambiguous_method_error"
@@ -339,7 +339,7 @@ expect_stderr_contains = [
   "compile error [yulang.ambiguous-method]: more than one role implementation satisfies this method call",
   "hint: make the receiver type more specific or keep only one matching impl in scope",
 ]
-contracts = ["runtime-error", "diagnostics", "roles"]
+contracts = ["runtime-error", "compile-error", "diagnostics", "roles"]
 
 [[case]]
 name = "type_annotation_mismatch"

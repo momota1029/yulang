@@ -12,9 +12,10 @@ The manifest runner checks that `run` cases carry a runtime-facing tag, `check`
 cases carry `diagnostics`, and `public-signature` cases carry
 `public-signature`, so the tags remain useful as a contract index rather than
 free-form notes.
-`runtime-error` cases must set `expect_success = false`; `public-example` cases
-must point at `examples/` from the repo root; and `standard-api` cases must name
-a narrower API area such as `result`, `errors`, `path`, or `file`.
+`runtime-error` cases must set `expect_success = false` and be classified as
+either `runtime-failure` or `compile-error`; `public-example` cases must point
+at `examples/` from the repo root; and `standard-api` cases must name a
+narrower API area such as `result`, `errors`, `path`, or `file`.
 All `public-signature` cases also reject private evidence fragments such as
 `#...` and `AllExcept(...)` in the projected public type. Individual cases can
 still add narrower `deny_type_contains` checks for surface-specific leaks.

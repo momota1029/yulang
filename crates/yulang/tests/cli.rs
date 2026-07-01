@@ -3542,6 +3542,11 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
             "runtime-error contract manifest case {} should set expect_success = false",
             case.name
         );
+        assert!(
+            contract_manifest_case_has_any_tag(case, &["runtime-failure", "compile-error"]),
+            "runtime-error contract manifest case {} should be tagged runtime-failure or compile-error",
+            case.name
+        );
     }
 
     if contract_manifest_case_has_tag(case, "public-example") {
