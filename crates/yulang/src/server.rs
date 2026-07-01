@@ -14,6 +14,7 @@ use crate::{SourceDefinition, SourceHover, SourceLocation, SourceRange, SourceRe
 const LSP_ANALYSIS_TIMEOUT: Duration = Duration::from_secs(3);
 const LSP_ANALYSIS_DEBOUNCE: Duration = Duration::from_millis(150);
 const LSP_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
+const LSP_HOVER_CONTENT_CHAR_LIMIT: usize = 1200;
 
 struct Backend {
     client: Client,
@@ -472,10 +473,11 @@ fn lsp_hover_for_source_hover(
     hover: SourceHover,
     root_has_implicit_prelude: bool,
 ) -> Hover {
+    let contents = lsp_hover_source_contents(&hover.contents);
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
-            value: format!("```yulang\n{}\n```", hover.contents),
+            value: format!("```yulang\n{contents}\n```"),
         }),
         range: Some(lsp_range_for_root_source(
             source,
@@ -483,6 +485,18 @@ fn lsp_hover_for_source_hover(
             root_has_implicit_prelude,
         )),
     }
+}
+
+fn lsp_hover_source_contents(contents: &str) -> String {
+    let mut chars = contents.chars();
+    let mut out = chars
+        .by_ref()
+        .take(LSP_HOVER_CONTENT_CHAR_LIMIT)
+        .collect::<String>();
+    if chars.next().is_some() {
+        out.push_str("\n...");
+    }
+    out
 }
 
 fn lsp_hover_for_diagnostic(diagnostic: Diagnostic) -> Hover {
@@ -1640,6 +1654,53 @@ mod tests {
                 kind: MarkupKind::Markdown,
                 value: "```yulang\nx: int\n```".to_string(),
             })
+        );
+    }
+
+    #[test]
+    fn lsp_hover_for_source_hover_limits_large_payloads() {
+        let source = "my x = 1\n";
+        let long_type = format!("x: {}int", "int -> ".repeat(300));
+        let hover = lsp_hover_for_source_hover(
+            source,
+            SourceHover {
+                range: SourceRange { start: 3, end: 4 },
+                contents: long_type,
+            },
+            false,
+        );
+
+        assert_eq!(
+            hover.range,
+            Some(Range {
+                start: Position {
+                    line: 0,
+                    character: 3
+                },
+                end: Position {
+                    line: 0,
+                    character: 4
+                },
+            })
+        );
+        let HoverContents::Markup(contents) = hover.contents else {
+            panic!("expected markdown hover");
+        };
+        assert!(
+            contents.value.starts_with("```yulang\nx: int -> "),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents.value.ends_with("\n...\n```"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents.value.chars().count()
+                <= LSP_HOVER_CONTENT_CHAR_LIMIT + "```yulang\n\n...\n```".chars().count(),
+            "{:?}",
+            contents.value
         );
     }
 
