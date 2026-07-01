@@ -35,6 +35,150 @@ expect_stderr = ""
 contracts = ["runtime", "lists", "update"]
 
 [[case]]
+name = "example_struct_with"
+file = "examples/01_struct_with.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [25]\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "records"]
+
+[[case]]
+name = "example_refs"
+file = "examples/02_refs.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(11, 21)]\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "refs"]
+
+[[case]]
+name = "example_for_last"
+file = "examples/03_for_last.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [5]\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "std.flow"]
+
+[[case]]
+name = "example_sub_return"
+file = "examples/04_sub_return.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [5]\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "sub-return"]
+
+[[case]]
+name = "example_nondet_all"
+file = "examples/05_undet_all.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [[5, 6, 7, 6, 7, 8, 7, 8, 9]]\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "std.nondet"]
+
+[[case]]
+name = "example_nondet_once"
+file = "examples/06_undet_once.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [opt::just((3, 4, 5))]\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "std.nondet", "deep-handler"]
+
+[[case]]
+name = "example_junction"
+file = "examples/07_junction.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [1]\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "junction"]
+
+[[case]]
+name = "example_types"
+file = "examples/08_types.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [42]\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "types"]
+
+[[case]]
+name = "example_optional_record_args"
+file = "examples/09_optional_record_args.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [6, 2, 12, 12]\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "records", "defaults"]
+
+[[case]]
+name = "example_effect_handler"
+file = "examples/10_effect_handler.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(9, \"3\\n6\\n\")]\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "effects"]
+
+[[case]]
+name = "example_attached_impl"
+file = "examples/11_attached_impl.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(10, false)]\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "roles", "attached-impl"]
+
+[[case]]
+name = "example_cast"
+file = "examples/12_cast.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots []\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "casts"]
+
+[[case]]
+name = "example_console"
+file = "examples/13_console.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+print_roots = false
+expect_stdout = "Hello, World\n3\n"
+expect_stderr = ""
+contracts = ["public-example", "runtime", "console"]
+
+[[case]]
+name = "example_showcase"
+file = "examples/showcase.yu"
+root = "repo"
+kind = "run"
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = [
+  "run roots [25,",
+  "[111, 11, 101, 1, 110, 10, 100, 0]",
+]
+contracts = ["public-example", "runtime", "showcase"]
+
+[[case]]
 name = "unhandled_nondet_effect_error"
 file = "regressions/runtime/unhandled_nondet_effect_error.yu"
 kind = "run"

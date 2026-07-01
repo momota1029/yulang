@@ -32,7 +32,8 @@ Yulang test file
 ## Fixture と golden test
 
 - `tests/yulang/cases.toml` を public contract manifest とする。runtime / diagnostics /
-  standard API / release expectation の小さい `.yu` fixture は、可能ならここへ登録する。
+  runtime error / public signature / public example / standard API / release expectation の
+  小さい `.yu` fixture は、可能ならここへ登録する。
 - manifest case は fixture path、case kind、compact expected output、contract tags を持つ。
   現在は Rust CLI test が読む。将来の `yulang test` / playground / LSP canary も同じ
   manifest を読む前提にする。
@@ -114,6 +115,8 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   `examples/13_console.yu` までを Rust CLI golden に広げた。
   - `examples/13_console.yu` は `--print-roots` ではなく stdout contract として見る。
   - `examples/showcase.yu` は大きいため、shell smoke の contains check に残す。
+- 2026-07-02 に public examples sweep を `tests/yulang/cases.toml` にも載せた。
+  `examples/showcase.yu` は manifest でも compact contains check に留める。
 - 同日、`tests/yulang/regressions/diagnostics/` を追加し、compact CLI diagnostics golden の
   入力を inline source から共有 fixture へ移した。
   - `type_annotation_mismatch.yu`

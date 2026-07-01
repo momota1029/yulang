@@ -15,7 +15,8 @@ It complements these documents:
 - [tests/yulang/](../tests/yulang/) — small public regression fixtures used by
   CLI and Rust tests.
 - [tests/yulang/cases.toml](../tests/yulang/cases.toml) — the executable
-  public contract manifest for focused CLI runtime and diagnostic cases.
+  public contract manifest for focused CLI runtime, diagnostics, runtime
+  errors, public signatures, and public examples.
 - [docs/native-backend.md](native-backend.md) — archived native backend status.
 - [docs/native-experimental-release.md](native-experimental-release.md) —
   release-gate notes for the archived opt-in native subset.

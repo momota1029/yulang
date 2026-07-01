@@ -3316,7 +3316,7 @@ fn public_contract_manifest_cli_cases_hold() {
             case.name
         );
         assert!(
-            repo_yulang_fixture(&case.file).exists(),
+            public_contract_case_entry(&case).exists(),
             "contract manifest case {} points at missing fixture {}",
             case.name,
             case.file
@@ -3624,8 +3624,10 @@ struct PublicContractCase {
     name: String,
     file: String,
     kind: String,
+    root: Option<String>,
     std: Option<String>,
     expect_success: Option<bool>,
+    print_roots: Option<bool>,
     module: Option<String>,
     symbol: Option<String>,
     symbol_contains: Option<String>,
@@ -3662,14 +3664,14 @@ fn run_contract_manifest_case(case: &PublicContractCase) {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
     let cache_root = root.join("cache-root");
-    let entry = repo_yulang_fixture(&case.file);
+    let entry = public_contract_case_entry(case);
 
     let mut command = yulang_command();
     push_contract_std_args(&mut command, case);
-    command
-        .env("YULANG_CACHE_DIR", &cache_root)
-        .arg("run")
-        .arg("--print-roots");
+    command.env("YULANG_CACHE_DIR", &cache_root).arg("run");
+    if case.print_roots.unwrap_or(true) {
+        command.arg("--print-roots");
+    }
     let output = command.arg(&entry).output().unwrap();
 
     assert_contract_status(case, &output);
@@ -3679,7 +3681,7 @@ fn run_contract_manifest_case(case: &PublicContractCase) {
 }
 
 fn check_contract_manifest_case(case: &PublicContractCase) {
-    let entry = repo_yulang_fixture(&case.file);
+    let entry = public_contract_case_entry(case);
     let mut command = yulang_command();
     push_contract_std_args(&mut command, case);
     command.arg("--no-cache").arg("check");
@@ -3690,7 +3692,7 @@ fn check_contract_manifest_case(case: &PublicContractCase) {
 }
 
 fn public_signature_contract_manifest_case(case: &PublicContractCase) {
-    let entry = repo_yulang_fixture(&case.file);
+    let entry = public_contract_case_entry(case);
     let output = match (
         case.std.as_deref().unwrap_or("repo"),
         case.module.as_deref(),
@@ -3742,6 +3744,17 @@ fn push_contract_std_args(command: &mut Command, case: &PublicContractCase) {
         }
         other => panic!(
             "unsupported std mode `{other}` in contract case {}",
+            case.name
+        ),
+    }
+}
+
+fn public_contract_case_entry(case: &PublicContractCase) -> PathBuf {
+    match case.root.as_deref().unwrap_or("tests/yulang") {
+        "tests/yulang" => repo_yulang_fixture(&case.file),
+        "repo" => repo_file(&case.file),
+        other => panic!(
+            "unsupported root mode `{other}` in contract case {}",
             case.name
         ),
     }
