@@ -1,7 +1,10 @@
 use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::fs;
+use std::io;
 use std::mem;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use control_vm::{
@@ -7983,6 +7986,8 @@ struct RuntimeEvidenceRunner<'a> {
     provider_delta_shadow_ids: HashMap<EvidenceProviderDeltaShadowKey, EvidenceProviderDeltaId>,
     provider_delta_plans: Vec<EvidenceProviderDeltaPlan>,
     stdout: String,
+    file_handles: HashMap<i64, PathBuf>,
+    next_file_handle: i64,
     context: RuntimeEvidenceRunContext,
     stats: RuntimeEvidenceRunStats,
 }
@@ -8032,6 +8037,8 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             provider_delta_shadow_ids: HashMap::new(),
             provider_delta_plans: Vec::new(),
             stdout: String::new(),
+            file_handles: HashMap::new(),
+            next_file_handle: 0,
             context,
             stats,
         }
@@ -11916,9 +11923,165 @@ impl<'a> RuntimeEvidenceRunner<'a> {
             return self
                 .resume_continuation(request.continuation, shared(RuntimeEvidenceValue::Unit));
         }
+        if let Some(value) =
+            self.handle_escaped_file_request(request.path.as_ref(), request.payload.as_ref())?
+        {
+            return self.resume_continuation(request.continuation, value);
+        }
         Err(RuntimeEvidenceRunError::EscapedEffect(
             request.path.to_vec(),
         ))
+    }
+
+    fn handle_escaped_file_request(
+        &mut self,
+        path: &[String],
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<Option<SharedValue>, RuntimeEvidenceRunError> {
+        if path == ["std", "io", "file", "file", "read_at"] {
+            return self.file_read_at(payload).map(Some);
+        }
+        if path == ["std", "io", "file", "file", "write_at"] {
+            return self.file_write_at(payload).map(Some);
+        }
+        if path == ["std", "io", "file", "file", "open_text_raw"] {
+            return self.file_open_text_raw(payload).map(Some);
+        }
+        if path == ["std", "io", "file", "file", "file_get"] {
+            return self.file_get(payload).map(Some);
+        }
+        if path == ["std", "io", "file", "file", "file_set"] {
+            return self.file_set(payload).map(Some);
+        }
+        if path == ["std", "io", "file", "file", "file_flush"] {
+            return self.file_flush(payload).map(Some);
+        }
+        if path == ["std", "io", "file", "file", "exists"] {
+            let path = runtime_host_path(payload)?;
+            return Ok(Some(shared(RuntimeEvidenceValue::Bool(path.exists()))));
+        }
+        if path == ["std", "io", "file", "file", "is_file"] {
+            let path = runtime_host_path(payload)?;
+            return Ok(Some(shared(RuntimeEvidenceValue::Bool(path.is_file()))));
+        }
+        if path == ["std", "io", "file", "file", "is_dir"] {
+            let path = runtime_host_path(payload)?;
+            return Ok(Some(shared(RuntimeEvidenceValue::Bool(path.is_dir()))));
+        }
+        Ok(None)
+    }
+
+    fn file_read_at(
+        &self,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let args = runtime_host_tuple(payload, 2)?;
+        let path = runtime_host_path(args[0].as_ref())?;
+        let range = args[1].clone();
+        let (code, text) = match fs::read_to_string(path) {
+            Ok(text) => (0, text),
+            Err(error) => (runtime_file_error_code(&error), String::new()),
+        };
+        Ok(shared(RuntimeEvidenceValue::Tuple(vec![
+            shared(RuntimeEvidenceValue::Int(code)),
+            shared(RuntimeEvidenceValue::Str(text)),
+            range,
+        ])))
+    }
+
+    fn file_write_at(
+        &self,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let args = runtime_host_tuple(payload, 3)?;
+        let path = runtime_host_path(args[0].as_ref())?;
+        let text = runtime_host_string(args[2].as_ref())?;
+        let code = match fs::write(path, text) {
+            Ok(()) => 0,
+            Err(error) => runtime_file_error_code(&error),
+        };
+        Ok(shared(RuntimeEvidenceValue::Int(code)))
+    }
+
+    fn file_open_text_raw(
+        &mut self,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let path = runtime_host_path(payload)?;
+        let code = match fs::read_to_string(&path) {
+            Ok(_) => 0,
+            Err(error) => runtime_file_error_code(&error),
+        };
+        if code != 0 {
+            return Ok(shared(RuntimeEvidenceValue::Tuple(vec![
+                shared(RuntimeEvidenceValue::Int(code)),
+                shared(RuntimeEvidenceValue::Int(0)),
+            ])));
+        }
+        let handle = self.next_file_handle;
+        self.next_file_handle += 1;
+        self.file_handles.insert(handle, path);
+        Ok(shared(RuntimeEvidenceValue::Tuple(vec![
+            shared(RuntimeEvidenceValue::Int(0)),
+            shared(RuntimeEvidenceValue::Int(handle)),
+        ])))
+    }
+
+    fn file_get(
+        &self,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let handle = runtime_host_int(payload)?;
+        let Some(path) = self.file_handles.get(&handle) else {
+            return Err(RuntimeEvidenceRunError::EscapedEffect(vec![
+                "std".into(),
+                "io".into(),
+                "file".into(),
+                "file".into(),
+                "file_get".into(),
+            ]));
+        };
+        let text = fs::read_to_string(path)
+            .map_err(|_| RuntimeEvidenceRunError::EscapedEffect(vec!["std::io::file".into()]))?;
+        Ok(shared(RuntimeEvidenceValue::Str(text)))
+    }
+
+    fn file_set(
+        &self,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let args = runtime_host_tuple(payload, 2)?;
+        let handle = runtime_host_int(args[0].as_ref())?;
+        let text = runtime_host_string(args[1].as_ref())?;
+        let Some(path) = self.file_handles.get(&handle) else {
+            return Err(RuntimeEvidenceRunError::EscapedEffect(vec![
+                "std".into(),
+                "io".into(),
+                "file".into(),
+                "file".into(),
+                "file_set".into(),
+            ]));
+        };
+        fs::write(path, text)
+            .map_err(|_| RuntimeEvidenceRunError::EscapedEffect(vec!["std::io::file".into()]))?;
+        Ok(shared(RuntimeEvidenceValue::Unit))
+    }
+
+    fn file_flush(
+        &self,
+        payload: &RuntimeEvidenceValue,
+    ) -> Result<SharedValue, RuntimeEvidenceRunError> {
+        let handle = runtime_host_int(payload)?;
+        if !self.file_handles.contains_key(&handle) {
+            return Err(RuntimeEvidenceRunError::EscapedEffect(vec![
+                "std".into(),
+                "io".into(),
+                "file".into(),
+                "file".into(),
+                "file_flush".into(),
+            ]));
+        }
+        Ok(shared(RuntimeEvidenceValue::Int(0)))
     }
 
     fn eval_expr_result(
@@ -19283,6 +19446,51 @@ fn expect_str(value: &SharedValue) -> Result<&str, RuntimeEvidenceRunError> {
         _ => Err(RuntimeEvidenceRunError::UnsupportedExpr(
             "non-string primitive argument",
         )),
+    }
+}
+
+fn runtime_host_string(value: &RuntimeEvidenceValue) -> Result<String, RuntimeEvidenceRunError> {
+    match value {
+        RuntimeEvidenceValue::Marked { value, .. } => runtime_host_string(value),
+        RuntimeEvidenceValue::Str(value) => Ok(value.clone()),
+        _ => Err(RuntimeEvidenceRunError::UnsupportedExpr(
+            "non-string host argument",
+        )),
+    }
+}
+
+fn runtime_host_path(value: &RuntimeEvidenceValue) -> Result<PathBuf, RuntimeEvidenceRunError> {
+    runtime_host_string(value).map(PathBuf::from)
+}
+
+fn runtime_host_int(value: &RuntimeEvidenceValue) -> Result<i64, RuntimeEvidenceRunError> {
+    match value {
+        RuntimeEvidenceValue::Marked { value, .. } => runtime_host_int(value),
+        RuntimeEvidenceValue::Int(value) => Ok(*value),
+        _ => Err(RuntimeEvidenceRunError::UnsupportedExpr(
+            "non-int host argument",
+        )),
+    }
+}
+
+fn runtime_host_tuple(
+    value: &RuntimeEvidenceValue,
+    len: usize,
+) -> Result<&[SharedValue], RuntimeEvidenceRunError> {
+    match value {
+        RuntimeEvidenceValue::Marked { value, .. } => runtime_host_tuple(value, len),
+        RuntimeEvidenceValue::Tuple(values) if values.len() == len => Ok(values.as_slice()),
+        _ => Err(RuntimeEvidenceRunError::UnsupportedExpr(
+            "non-tuple host argument",
+        )),
+    }
+}
+
+fn runtime_file_error_code(error: &io::Error) -> i64 {
+    match error.kind() {
+        io::ErrorKind::NotFound => 1,
+        io::ErrorKind::PermissionDenied => 2,
+        _ => 3,
     }
 }
 

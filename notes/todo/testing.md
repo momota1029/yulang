@@ -135,6 +135,12 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   `error E:` から生成される `Display E` impl も public CLI manifest に載せた。
   通常 payload は variant label + payload display、unit variant は label、
   `from` variant は wrapped error の display へ委譲する contract として見る。
+- 同日、`std::io::file` の native CLI host contract として、
+  `read_text` / `write_text` / `exists` / `is_file` / `is_dir` を temp file
+  を使う compact CLI test に載せた。これは default evidence VM 経路で
+  host capability が unhandled effect にならないことを見る first slice で、
+  range write、metadata、managed text ref (`open_text` / `open`)、scope-exit
+  close/write-back、path payload display は後続の standard API contract として残す。
 - 同日、`tests/yulang/regressions/diagnostics/` を追加し、compact CLI diagnostics golden の
   入力を inline source から共有 fixture へ移した。
   - `type_annotation_mismatch.yu`

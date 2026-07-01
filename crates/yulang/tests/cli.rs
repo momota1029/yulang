@@ -56,6 +56,52 @@ fn compatible_run_prints_console_stdout_without_roots() {
 }
 
 #[test]
+fn compatible_run_std_file_read_write_text_host_contract() {
+    let root = temp_root("run-std-file-read-write-text");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let input = root.join("input.txt");
+    let output_path = root.join("output.txt");
+    let entry = root.join("main.yu");
+    fs::write(&input, "hello").unwrap();
+    fs::write(
+        &entry,
+        format!(
+            "\
+my input = {input}
+my output = {output}
+my before = std::io::file::read_text input
+my wrote = std::io::file::write_text output (before + \" world\")
+my after = std::io::file::read_text output
+(before, after, std::io::file::exists output, std::io::file::is_file output, std::io::file::is_dir output)
+",
+            input = yulang_string_literal(&input),
+            output = yulang_string_literal(&output_path),
+        ),
+    )
+    .unwrap();
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(
+        stdout(&output),
+        "run roots [(\"hello\", \"hello world\", true, true, false)]\n"
+    );
+    assert_eq!(fs::read_to_string(&output_path).unwrap(), "hello world");
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn compatible_run_accepts_eval_source() {
     let output = yulang_command()
         .arg("--no-prelude")
@@ -3929,6 +3975,10 @@ fn repo_file(path: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .join(path)
+}
+
+fn yulang_string_literal(path: &Path) -> String {
+    format!("{:?}", path.display().to_string())
 }
 
 fn temp_root(name: &str) -> PathBuf {
