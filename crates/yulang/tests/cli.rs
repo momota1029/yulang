@@ -251,6 +251,36 @@ fn public_diagnostics_check_reports_top_level_mutable_binding() {
 }
 
 #[test]
+fn public_diagnostics_check_reports_rule_lazy_quantifier() {
+    let entry = repo_yulang_fixture("regressions/diagnostics/rule_lazy_quantifier.yu");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains(
+            "diagnostics:\n  error [yulang.unsupported-rule-lazy-quantifier]: p: rule lazy quantifier `*?` is not supported; rule uses PEG-style greedy repetition\n"
+        ),
+        "{stdout}"
+    );
+    assert!(stdout.contains("lowering errors:\n"), "{stdout}");
+    assert!(
+        stdout.contains(
+            "  p: rule lazy quantifier `*?` is not supported; rule uses PEG-style greedy repetition\n"
+        ),
+        "{stdout}"
+    );
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
 fn public_diagnostics_check_recovers_unclosed_paren_without_panic() {
     let entry = repo_yulang_fixture("regressions/diagnostics/unclosed_paren.yu");
 
