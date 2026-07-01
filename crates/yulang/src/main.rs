@@ -2278,7 +2278,7 @@ fn run_mono_with_optional_cache(
     let values = match mono_runtime::run_program(&program) {
         Ok(values) => values,
         Err(error) => {
-            eprintln!("{error}");
+            eprintln!("{}", format_mono_runtime_error(&error));
             process::exit(1);
         }
     };

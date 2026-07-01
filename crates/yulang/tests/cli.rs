@@ -177,6 +177,120 @@ fn compatible_run_reports_not_callable_hint() {
 }
 
 #[test]
+fn compatible_run_interpreter_reports_unsupported_runtime_feature_hint() {
+    let entry = write_entry("run-interpreter-not-callable", "my x = 1 2\nx\n");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--interpreter")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains("runtime error [yulang.unsupported-runtime-feature]:"),
+        "{stderr}"
+    );
+    assert!(
+        stderr
+            .contains("hint: try the control VM oracle or reduce this source to a smaller report"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("value is not a function"), "{stderr}");
+}
+
+#[test]
+fn compatible_run_control_vm_reports_unsupported_runtime_feature_hint() {
+    let entry = write_entry("run-control-not-callable", "my x = 1 2\nx\n");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--control-vm")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains("runtime error [yulang.unsupported-runtime-feature]:"),
+        "{stderr}"
+    );
+    assert!(
+        stderr
+            .contains("hint: try the control VM oracle or reduce this source to a smaller report"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("value is not a function"), "{stderr}");
+}
+
+#[test]
+fn compatible_run_control_artifact_reports_unsupported_runtime_feature_hint() {
+    let entry = write_entry("run-control-artifact-not-callable", "my x = 1 2\nx\n");
+    let artifact = entry.with_extension("yuir");
+
+    let build_output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("build")
+        .arg("--out")
+        .arg(&artifact)
+        .arg(&entry)
+        .output()
+        .unwrap();
+    assert_success(&build_output);
+
+    let output = yulang_command()
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&artifact)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains("runtime error [yulang.unsupported-runtime-feature]:"),
+        "{stderr}"
+    );
+    assert!(
+        stderr
+            .contains("hint: try the control VM oracle or reduce this source to a smaller report"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("value is not a function"), "{stderr}");
+}
+
+#[test]
 fn compatible_run_reports_not_record_hint() {
     let entry = write_entry("run-not-record", "1.a\n");
 

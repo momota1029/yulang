@@ -150,6 +150,9 @@ TODO:
     見直せる user-facing message として出す。
   - not-record / pattern-mismatch も同じ normal run formatter を通し、VM 内部文言を
     user-facing contract にしない。
+  - default evidence VM だけでなく、`--interpreter` / `--control-vm` /
+    control artifact 実行でも runtime errors は `runtime error [yulang.*]` と
+    hint を通す。unsupported VM feature も raw VM wording だけにしない。
   - normal `run` の lowering abort は `compile error [yulang.lowering]` と
     `yulang check` hint を出す。source range は `check` 側へ誘導する。
   - lowering error formatter は既知の `LoweringError` variant を明示的に整形し、

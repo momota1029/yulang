@@ -501,7 +501,28 @@ fn format_runtime_evidence_run_error(error: &evidence_vm::RuntimeEvidenceRunErro
         evidence_vm::RuntimeEvidenceRunError::PatternMismatch => {
             "runtime error [yulang.pattern-mismatch]: no pattern matched the value\n  hint: add a fallback pattern such as `_ -> ...`".to_string()
         }
-        _ => error.to_string(),
+        evidence_vm::RuntimeEvidenceRunError::MissingRecordField(name) => format!(
+            "runtime error [yulang.missing-field]: record does not contain field `{name}`\n  hint: check the field name or provide a record value with this field"
+        ),
+        evidence_vm::RuntimeEvidenceRunError::DivideByZero => {
+            "runtime error [yulang.divide-by-zero]: attempted to divide by zero\n  hint: check the divisor before division".to_string()
+        }
+        evidence_vm::RuntimeEvidenceRunError::NotThunk(value) => format!(
+            "runtime error [yulang.runtime-internal]: expected a delayed computation, got {value}\n  hint: report this with the source program if it came from normal `yulang run`"
+        ),
+        evidence_vm::RuntimeEvidenceRunError::UnsupportedExpr(feature) => format!(
+            "runtime error [yulang.unsupported-runtime-feature]: unsupported expression in runtime: {feature}\n  hint: try the control VM oracle or reduce this source to a smaller report"
+        ),
+        evidence_vm::RuntimeEvidenceRunError::UnsupportedPrimitive(op) => format!(
+            "runtime error [yulang.unsupported-runtime-feature]: unsupported primitive in runtime: {op:?}\n  hint: this primitive is not available in the selected runtime"
+        ),
+        evidence_vm::RuntimeEvidenceRunError::MissingExpr(_)
+        | evidence_vm::RuntimeEvidenceRunError::MissingInstance(_)
+        | evidence_vm::RuntimeEvidenceRunError::MismatchedInstanceSlot { .. }
+        | evidence_vm::RuntimeEvidenceRunError::RecursiveInstance(_)
+        | evidence_vm::RuntimeEvidenceRunError::UnboundLocal(_) => format!(
+            "runtime error [yulang.runtime-internal]: {error}\n  hint: report this with the source program if it came from normal `yulang run`"
+        ),
     }
 }
 
@@ -510,7 +531,7 @@ pub(super) fn run_control_artifact(program: control_vm::Program, print_roots: bo
         let values = match control_vm::run_program(&program) {
             Ok(values) => values,
             Err(error) => {
-                eprintln!("{error}");
+                eprintln!("{}", format_control_run_error(&error));
                 process::exit(1);
             }
         };
@@ -649,8 +670,202 @@ fn format_route_error(error: &yulang::RouteError) -> String {
                 "compile error [yulang.ambiguous-method]: more than one role implementation satisfies this method call\n  detail: {error}\n  hint: make the receiver type more specific or keep only one matching impl in scope"
             )
         }
+        yulang::RouteError::Runtime(error) => format_mono_runtime_error(error),
+        yulang::RouteError::Control(error) => format_control_run_error(error),
         _ => error.to_string(),
     }
+}
+
+pub(super) fn format_mono_runtime_error(error: &mono_runtime::RuntimeError) -> String {
+    match error {
+        mono_runtime::RuntimeError::UnhandledEffect { path } => {
+            format_unhandled_effect_runtime_error(path)
+        }
+        mono_runtime::RuntimeError::NotFunction { value } => {
+            format_not_callable_runtime_error(&format_mono_runtime_value(value))
+        }
+        mono_runtime::RuntimeError::ExpectedRecord { value } => {
+            format_not_record_runtime_error(&format_mono_runtime_value(value))
+        }
+        mono_runtime::RuntimeError::MissingRecordField { name } => {
+            format_missing_field_runtime_error(name)
+        }
+        mono_runtime::RuntimeError::PatternMismatch
+        | mono_runtime::RuntimeError::NoMatchingCase => format_pattern_mismatch_runtime_error(),
+        mono_runtime::RuntimeError::NonBoolGuard { value } => {
+            format_non_bool_guard_runtime_error(&format_mono_runtime_value(value))
+        }
+        mono_runtime::RuntimeError::ExpectedInt { value } => {
+            format_expected_runtime_type_error("int", &format_mono_runtime_value(value))
+        }
+        mono_runtime::RuntimeError::ExpectedFloat { value } => {
+            format_expected_runtime_type_error("float", &format_mono_runtime_value(value))
+        }
+        mono_runtime::RuntimeError::ExpectedBool { value } => {
+            format_expected_runtime_type_error("bool", &format_mono_runtime_value(value))
+        }
+        mono_runtime::RuntimeError::ExpectedList { value } => {
+            format_expected_runtime_type_error("list", &format_mono_runtime_value(value))
+        }
+        mono_runtime::RuntimeError::ExpectedBytes { value } => {
+            format_expected_runtime_type_error("bytes", &format_mono_runtime_value(value))
+        }
+        mono_runtime::RuntimeError::UnsupportedExpr { feature }
+        | mono_runtime::RuntimeError::UnsupportedPattern { feature }
+        | mono_runtime::RuntimeError::UnsupportedBoundary { feature } => {
+            format_unsupported_runtime_feature_error(feature)
+        }
+        mono_runtime::RuntimeError::MissingPrimitiveContext { op }
+        | mono_runtime::RuntimeError::UnsupportedPrimitive { op } => format!(
+            "runtime error [yulang.unsupported-runtime-feature]: unsupported primitive in runtime: {op:?}\n  hint: this primitive is not available in the selected runtime"
+        ),
+        mono_runtime::RuntimeError::ExpectedFunctionType
+        | mono_runtime::RuntimeError::NotThunk { .. }
+        | mono_runtime::RuntimeError::MissingInstance { .. }
+        | mono_runtime::RuntimeError::MismatchedInstanceSlot { .. }
+        | mono_runtime::RuntimeError::RecursiveInstance { .. }
+        | mono_runtime::RuntimeError::UnboundLocal { .. }
+        | mono_runtime::RuntimeError::MissingContinuation { .. }
+        | mono_runtime::RuntimeError::UnresolvedSelect { .. } => {
+            format_internal_runtime_error(&error.to_string())
+        }
+    }
+}
+
+pub(super) fn format_control_run_error(error: &control_vm::RunError) -> String {
+    match error {
+        control_vm::RunError::Runtime(error) => format_control_runtime_error(error),
+        control_vm::RunError::Lower(_) | control_vm::RunError::Validate(_) => {
+            format_unsupported_runtime_feature_error(&error.to_string())
+        }
+    }
+}
+
+fn format_control_runtime_error(error: &control_vm::RuntimeError) -> String {
+    match error {
+        control_vm::RuntimeError::UnhandledEffect { path } => {
+            format_unhandled_effect_runtime_error(path)
+        }
+        control_vm::RuntimeError::NotFunction { value } => {
+            format_not_callable_runtime_error(&format_control_runtime_value(value))
+        }
+        control_vm::RuntimeError::ExpectedRecord { value } => {
+            format_not_record_runtime_error(&format_control_runtime_value(value))
+        }
+        control_vm::RuntimeError::MissingRecordField { name } => {
+            format_missing_field_runtime_error(name)
+        }
+        control_vm::RuntimeError::PatternMismatch | control_vm::RuntimeError::NoMatchingCase => {
+            format_pattern_mismatch_runtime_error()
+        }
+        control_vm::RuntimeError::NonBoolGuard { value } => {
+            format_non_bool_guard_runtime_error(&format_control_runtime_value(value))
+        }
+        control_vm::RuntimeError::ExpectedInt { value } => {
+            format_expected_runtime_type_error("int", &format_control_runtime_value(value))
+        }
+        control_vm::RuntimeError::ExpectedFloat { value } => {
+            format_expected_runtime_type_error("float", &format_control_runtime_value(value))
+        }
+        control_vm::RuntimeError::ExpectedBool { value } => {
+            format_expected_runtime_type_error("bool", &format_control_runtime_value(value))
+        }
+        control_vm::RuntimeError::ExpectedList { value } => {
+            format_expected_runtime_type_error("list", &format_control_runtime_value(value))
+        }
+        control_vm::RuntimeError::ExpectedBytes { value } => {
+            format_expected_runtime_type_error("bytes", &format_control_runtime_value(value))
+        }
+        control_vm::RuntimeError::UnsupportedExpr { feature }
+        | control_vm::RuntimeError::UnsupportedPattern { feature }
+        | control_vm::RuntimeError::UnsupportedBoundary { feature } => {
+            format_unsupported_runtime_feature_error(feature)
+        }
+        control_vm::RuntimeError::MissingPrimitiveContext { op }
+        | control_vm::RuntimeError::UnsupportedPrimitive { op } => format!(
+            "runtime error [yulang.unsupported-runtime-feature]: unsupported primitive in runtime: {op:?}\n  hint: this primitive is not available in the selected runtime"
+        ),
+        control_vm::RuntimeError::MissingExpr { .. }
+        | control_vm::RuntimeError::ExpectedFunctionType
+        | control_vm::RuntimeError::NotThunk { .. }
+        | control_vm::RuntimeError::MissingInstance { .. }
+        | control_vm::RuntimeError::MismatchedInstanceSlot { .. }
+        | control_vm::RuntimeError::RecursiveInstance { .. }
+        | control_vm::RuntimeError::UnboundLocal { .. }
+        | control_vm::RuntimeError::MissingContinuation { .. }
+        | control_vm::RuntimeError::UnresolvedSelect { .. } => {
+            format_internal_runtime_error(&error.to_string())
+        }
+    }
+}
+
+fn format_unhandled_effect_runtime_error(path: &[String]) -> String {
+    format!(
+        "runtime error [yulang.unhandled-effect]: unhandled effect request {}\n  hint: handle this computation with a matching effect handler before running it",
+        path.join("::")
+    )
+}
+
+fn format_not_callable_runtime_error(value: &str) -> String {
+    format!(
+        "runtime error [yulang.not-callable]: tried to call a non-function value {value}\n  hint: check the expression before the argument; calls are written as `f x` or `f(...)`"
+    )
+}
+
+fn format_not_record_runtime_error(value: &str) -> String {
+    format!(
+        "runtime error [yulang.not-record]: tried to read fields from non-record value {value}\n  hint: use `.field` only on record values"
+    )
+}
+
+fn format_missing_field_runtime_error(name: &str) -> String {
+    format!(
+        "runtime error [yulang.missing-field]: record does not contain field `{name}`\n  hint: check the field name or provide a record value with this field"
+    )
+}
+
+fn format_pattern_mismatch_runtime_error() -> String {
+    "runtime error [yulang.pattern-mismatch]: no pattern matched the value\n  hint: add a fallback pattern such as `_ -> ...`".to_string()
+}
+
+fn format_non_bool_guard_runtime_error(value: &str) -> String {
+    format!(
+        "runtime error [yulang.non-bool-guard]: case guard returned non-bool value {value}\n  hint: make the guard return true or false"
+    )
+}
+
+fn format_expected_runtime_type_error(expected: &str, actual: &str) -> String {
+    format!(
+        "runtime error [yulang.runtime-type]: expected {expected}, got {actual}\n  hint: check the value passed to this operation"
+    )
+}
+
+fn format_unsupported_runtime_feature_error(feature: &str) -> String {
+    format!(
+        "runtime error [yulang.unsupported-runtime-feature]: unsupported runtime feature: {feature}\n  hint: try the control VM oracle or reduce this source to a smaller report"
+    )
+}
+
+fn format_internal_runtime_error(detail: &str) -> String {
+    format!(
+        "runtime error [yulang.runtime-internal]: {detail}\n  hint: report this with the source program if it came from normal `yulang run`"
+    )
+}
+
+fn format_mono_runtime_value(value: &mono_runtime::Value) -> String {
+    let text = yulang::format_run_mono_values(std::slice::from_ref(value));
+    text.strip_prefix("run roots [")
+        .and_then(|text| text.strip_suffix("]\n"))
+        .unwrap_or(text.trim())
+        .to_string()
+}
+
+fn format_control_runtime_value(value: &control_vm::Value) -> String {
+    let text = control_vm::format_values(std::slice::from_ref(value));
+    text.strip_prefix('[')
+        .and_then(|text| text.strip_suffix(']'))
+        .unwrap_or(text.as_str())
+        .to_string()
 }
 
 pub(super) fn print_dump_poly_output(output: &yulang::DumpPolyOutput) {
