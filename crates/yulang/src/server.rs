@@ -317,7 +317,7 @@ fn hover_for_source(
     options: &crate::StdSourceOptions,
 ) -> Option<Hover> {
     let analysis = source_analysis_for_source(path, source.clone(), options).ok()?;
-    hover_for_analysis(&source, &analysis, position)
+    hover_for_analysis(path, &source, &analysis, position)
 }
 
 fn definition_for_source(
@@ -365,17 +365,34 @@ fn rename_for_source(
 }
 
 fn hover_for_analysis(
+    path: &Path,
     source: &str,
     analysis: &SourceTextAnalysis,
     position: Position,
 ) -> Option<Hover> {
-    let byte_offset = position_to_byte_offset(&source, position)?;
+    if let Some(hover) = diagnostic_hover_for_analysis(path, source, analysis, position) {
+        return Some(hover);
+    }
+
+    let byte_offset = position_to_byte_offset(source, position)?;
     let hover = analysis.hover(byte_offset)?;
     Some(lsp_hover_for_source_hover(
-        &source,
+        source,
         hover,
         analysis.root_has_implicit_prelude(),
     ))
+}
+
+fn diagnostic_hover_for_analysis(
+    path: &Path,
+    source: &str,
+    analysis: &SourceTextAnalysis,
+    position: Position,
+) -> Option<Hover> {
+    diagnostics_for_analysis(path, source, analysis)
+        .into_iter()
+        .find(|diagnostic| position_is_in_lsp_range(position, diagnostic.range))
+        .map(lsp_hover_for_diagnostic)
 }
 
 fn definition_for_analysis(
@@ -459,6 +476,36 @@ fn lsp_hover_for_source_hover(
             hover.range,
             root_has_implicit_prelude,
         )),
+    }
+}
+
+fn lsp_hover_for_diagnostic(diagnostic: Diagnostic) -> Hover {
+    let mut value = String::new();
+    if let Some(code) = diagnostic.code.as_ref().and_then(diagnostic_code_string) {
+        value.push_str("**");
+        value.push_str(code);
+        value.push_str("**\n\n");
+    }
+    value.push_str(&diagnostic.message);
+    if let Some(related) = diagnostic.related_information.as_ref() {
+        for related in related.iter().take(3) {
+            value.push_str("\n\n- ");
+            value.push_str(&related.message);
+        }
+    }
+    Hover {
+        contents: HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value,
+        }),
+        range: Some(diagnostic.range),
+    }
+}
+
+fn diagnostic_code_string(code: &NumberOrString) -> Option<&str> {
+    match code {
+        NumberOrString::String(code) => Some(code),
+        NumberOrString::Number(_) => None,
     }
 }
 
@@ -596,6 +643,18 @@ fn position_to_byte_offset(source: &str, position: Position) -> Option<usize> {
         utf16_column = next_column;
     }
     (utf16_column == position.character).then_some(line_end)
+}
+
+fn position_is_in_lsp_range(position: Position, range: Range) -> bool {
+    position_is_at_or_after(position, range.start) && position_is_before(position, range.end)
+}
+
+fn position_is_at_or_after(position: Position, boundary: Position) -> bool {
+    (position.line, position.character) >= (boundary.line, boundary.character)
+}
+
+fn position_is_before(position: Position, boundary: Position) -> bool {
+    (position.line, position.character) < (boundary.line, boundary.character)
 }
 
 fn clamp_to_char_boundary(source: &str, mut offset: usize) -> usize {
@@ -1466,6 +1525,69 @@ mod tests {
                 kind: MarkupKind::Markdown,
                 value: "```yulang\nx: int\n```".to_string(),
             })
+        );
+    }
+
+    #[test]
+    fn hover_for_source_reports_diagnostic_summary_at_error_range() {
+        let root = temp_root("hover-diagnostic-summary");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "my x: bool = 1\n";
+        let hover = hover_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            Position {
+                line: 0,
+                character: 3,
+            },
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            hover.range,
+            Some(Range {
+                start: Position {
+                    line: 0,
+                    character: 3
+                },
+                end: Position {
+                    line: 0,
+                    character: 4
+                },
+            })
+        );
+        let HoverContents::Markup(contents) = hover.contents else {
+            panic!("expected markdown hover");
+        };
+        assert!(
+            contents.value.contains("yulang.type-mismatch"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents.value.contains("type mismatch"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents
+                .value
+                .contains("expected type comes from this type annotation: bool"),
+            "{:?}",
+            contents.value
+        );
+        assert!(
+            contents
+                .value
+                .contains("actual type comes from this expression: int"),
+            "{:?}",
+            contents.value
         );
     }
 
