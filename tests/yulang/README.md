@@ -15,9 +15,10 @@ free-form notes.
 `runtime-error` cases must set `expect_success = false` and be classified as
 exactly one of `runtime-failure` or `compile-error`; `compile-error` cases also
 carry `diagnostics`, because their current contract is the user-facing compile
-error text rather than a completed runtime path. `public-example` cases must
-point at `examples/` from the repo root; and `standard-api` cases must name a
-narrower API area such as `result`, `errors`, `path`, or `file`.
+error text rather than a completed runtime path. These cases should assert a
+matching `compile error [` or `runtime error [` stderr prefix. `public-example`
+cases must point at `examples/` from the repo root; and `standard-api` cases
+must name a narrower API area such as `result`, `errors`, `path`, or `file`.
 All `public-signature` cases also reject private evidence fragments such as
 `#...` and `AllExcept(...)` in the projected public type. Individual cases can
 still add narrower `deny_type_contains` checks for surface-specific leaks.

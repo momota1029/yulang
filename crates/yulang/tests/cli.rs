@@ -3555,6 +3555,18 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
                 "compile-error contract manifest case {} should be tagged diagnostics",
                 case.name
             );
+            assert!(
+                contract_manifest_case_expects_stderr_prefix(case, "compile error ["),
+                "compile-error contract manifest case {} should assert a compile error prefix",
+                case.name
+            );
+        }
+        if is_runtime_failure {
+            assert!(
+                contract_manifest_case_expects_stderr_prefix(case, "runtime error ["),
+                "runtime-failure contract manifest case {} should assert a runtime error prefix",
+                case.name
+            );
         }
     } else {
         assert!(
@@ -3632,6 +3644,16 @@ fn contract_manifest_case_has_tag(case: &PublicContractCase, tag: &str) -> bool 
     case.contracts
         .iter()
         .any(|contract| contract.as_str() == tag)
+}
+
+fn contract_manifest_case_expects_stderr_prefix(case: &PublicContractCase, prefix: &str) -> bool {
+    case.expect_stderr
+        .as_deref()
+        .map_or(false, |stderr| stderr.starts_with(prefix))
+        || case
+            .expect_stderr_contains
+            .iter()
+            .any(|fragment| fragment.starts_with(prefix))
 }
 
 fn assert_contract_manifest_case_has_expectation(case: &PublicContractCase) {
