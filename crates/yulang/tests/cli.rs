@@ -337,11 +337,15 @@ fn public_diagnostics_check_reports_type_annotation_mismatch() {
         "{stdout}"
     );
     assert!(
-        stdout.contains("    note: expected type: int\n    --> line 1, column 7\n"),
+        stdout.contains(
+            "    note: expected type comes from this type annotation: int\n    --> line 1, column 7\n"
+        ),
         "{stdout}"
     );
     assert!(
-        stdout.contains("    note: actual expression type: bool\n    --> line 1, column 13\n"),
+        stdout.contains(
+            "    note: actual type comes from this expression: bool\n    --> line 1, column 13\n"
+        ),
         "{stdout}"
     );
     assert!(stdout.contains("lowering errors:\n"), "{stdout}");

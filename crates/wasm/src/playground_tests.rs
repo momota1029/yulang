@@ -482,13 +482,21 @@ pair
         assert_eq!(output.diagnostics[0].related.len(), 2);
         assert_eq!(
             output.diagnostics[0].related[0].message,
-            "expected type: int"
+            "expected type comes from this type annotation: int"
+        );
+        assert_eq!(
+            output.diagnostics[0].related[0].origin.as_deref(),
+            Some("type_annotation")
         );
         assert_eq!(output.diagnostics[0].related[0].start, 6);
         assert_eq!(output.diagnostics[0].related[0].end, 9);
         assert_eq!(
             output.diagnostics[0].related[1].message,
-            "actual expression type: bool"
+            "actual type comes from this expression: bool"
+        );
+        assert_eq!(
+            output.diagnostics[0].related[1].origin.as_deref(),
+            Some("expression")
         );
         assert_eq!(output.diagnostics[0].related[1].start, 12);
         assert_eq!(output.diagnostics[0].related[1].end, 16);

@@ -1328,6 +1328,13 @@ pub struct SourceDiagnostic {
 pub struct SourceDiagnosticRelated {
     pub message: String,
     pub range: SourceRange,
+    pub origin: Option<SourceDiagnosticRelatedOrigin>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SourceDiagnosticRelatedOrigin {
+    TypeAnnotation,
+    Expression,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -2784,14 +2791,16 @@ fn body_lowering_error_related(
             let mut related = Vec::new();
             if let Some(range) = expected_range {
                 related.push(SourceDiagnosticRelated {
-                    message: format!("expected type: {expected}"),
+                    message: format!("expected type comes from this type annotation: {expected}"),
                     range: *range,
+                    origin: Some(SourceDiagnosticRelatedOrigin::TypeAnnotation),
                 });
             }
             if let Some(range) = actual_range {
                 related.push(SourceDiagnosticRelated {
-                    message: format!("actual expression type: {actual}"),
+                    message: format!("actual type comes from this expression: {actual}"),
                     range: *range,
+                    origin: Some(SourceDiagnosticRelatedOrigin::Expression),
                 });
             }
             related

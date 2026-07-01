@@ -1057,7 +1057,10 @@ mod tests {
             .as_ref()
             .expect("type mismatch should carry related ranges");
         assert_eq!(related.len(), 2, "{related:?}");
-        assert_eq!(related[0].message, "expected type: bool");
+        assert_eq!(
+            related[0].message,
+            "expected type comes from this type annotation: bool"
+        );
         assert_eq!(
             related[0].location.range,
             Range {
@@ -1071,7 +1074,10 @@ mod tests {
                 },
             }
         );
-        assert_eq!(related[1].message, "actual expression type: int");
+        assert_eq!(
+            related[1].message,
+            "actual type comes from this expression: int"
+        );
         assert_eq!(
             related[1].location.range,
             Range {

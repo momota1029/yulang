@@ -734,6 +734,8 @@ pub struct DiagnosticRelated {
     pub message: String,
     pub start: usize,
     pub end: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub origin: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -924,11 +926,19 @@ impl Diagnostic {
                         message: related.message.clone(),
                         start,
                         end,
+                        origin: related.origin.as_ref().map(diagnostic_origin_code),
                     }
                 })
                 .collect(),
             label: diagnostic.label.clone(),
         }
+    }
+}
+
+fn diagnostic_origin_code(origin: &yulang::SourceDiagnosticRelatedOrigin) -> String {
+    match origin {
+        yulang::SourceDiagnosticRelatedOrigin::TypeAnnotation => "type_annotation".to_string(),
+        yulang::SourceDiagnosticRelatedOrigin::Expression => "expression".to_string(),
     }
 }
 

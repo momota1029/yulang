@@ -2105,18 +2105,20 @@ fn analyze_entry_source_uses_in_memory_root_source() {
             message: "type mismatch: bool is not int".to_string(),
             related: vec![
                 SourceDiagnosticRelated {
-                    message: "expected type: int".to_string(),
+                    message: "expected type comes from this type annotation: int".to_string(),
                     range: SourceRange {
                         start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 6,
                         end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 9,
                     },
+                    origin: Some(SourceDiagnosticRelatedOrigin::TypeAnnotation),
                 },
                 SourceDiagnosticRelated {
-                    message: "actual expression type: bool".to_string(),
+                    message: "actual type comes from this expression: bool".to_string(),
                     range: SourceRange {
                         start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 12,
                         end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 16,
                     },
+                    origin: Some(SourceDiagnosticRelatedOrigin::Expression),
                 },
             ],
         }]

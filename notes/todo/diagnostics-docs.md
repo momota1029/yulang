@@ -19,6 +19,7 @@
 近い作業:
 
 - 型エラーの comparison に `expected_origin` / `actual_origin` 相当の構造を持たせる。
+  - first slice: `SourceDiagnosticRelated.origin` で type annotation / expression を区別する。
 - LSP diagnostic の `relatedInformation` を、型比較の両側と注釈位置へ張る。
 - diagnostic hover 用に、短い markdown summary を構造化 diagnostic から作る。
 - `my a = 1 2` のような最小失敗例で、primary range と related range を固定する。
@@ -71,6 +72,9 @@ Diagnostics の最初の slice:
 - 同日後続 slice で、特殊化段の `UnsatisfiedSubtype` は
   `compile error [yulang.unsatisfied-subtype]` として、値が要求された field/shape を
   満たしているか見直す hint を出す。
+- 同日後続 slice で、`type mismatch` の related payload は
+  `SourceDiagnosticRelated.origin` を持ち、expected が type annotation 由来、
+  actual が expression 由来であることを CLI / LSP / playground へ同じ message として流す。
 
 API 固定の最初の slice:
 
