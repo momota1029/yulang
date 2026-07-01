@@ -121,6 +121,9 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
 - 2026-07-02 に public examples sweep を `tests/yulang/cases.toml` にも載せた。
   `examples/showcase.yu` は manifest でも compact contains check に留める。
   同日、重複していた Rust 側の inline public examples bridge は manifest runner へ統合した。
+- 同日、`std::data::result` の `map` / `and_then` / `unwrap_or` を runtime fixture と
+  public signature case の両方で manifest に載せた。standard API case は、実行挙動と
+  公開型の両方が現在の public surface として観測できるものから追加する。
 - 同日、`tests/yulang/regressions/diagnostics/` を追加し、compact CLI diagnostics golden の
   入力を inline source から共有 fixture へ移した。
   - `type_annotation_mismatch.yu`

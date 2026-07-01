@@ -1,0 +1,13 @@
+my plus_one x = x + 1
+
+my keep_even x =
+    if std::int::eq (std::int::mod x 2) 0:
+        result::ok (x * 2)
+    else:
+        result::err "odd"
+
+my mapped = (result::ok 10).map plus_one
+my chained = mapped.and_then keep_even
+my fallback = (result::err "missing").unwrap_or 42
+
+(mapped, chained, fallback)

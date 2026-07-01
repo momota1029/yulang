@@ -35,6 +35,15 @@ expect_stderr = ""
 contracts = ["runtime", "lists", "update"]
 
 [[case]]
+name = "result_api"
+file = "regressions/runtime/result_api.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(result::ok(11), result::err(\"odd\"), 42)]\n"
+expect_stderr = ""
+contracts = ["runtime", "standard-api", "result"]
+
+[[case]]
 name = "example_struct_with"
 file = "examples/01_struct_with.yu"
 root = "repo"
@@ -483,6 +492,39 @@ symbol = "std.control.var.ref.update"
 expect_type = "std::control::var::ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"
 deny_type_contains = ["#", "AllExcept", "std::control::var::ref_update"]
 contracts = ["public-signature", "std.ref", "effect-hygiene"]
+
+[[case]]
+name = "std_result_map_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.data.result"
+symbol = "std.data.result.map"
+expect_type = "std::data::result::result 'a 'b -> ('a -> ['c] 'd) -> ['c] std::data::result::result 'd 'b"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "result"]
+
+[[case]]
+name = "std_result_and_then_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.data.result"
+symbol = "std.data.result.and_then"
+expect_type = "std::data::result::result 'a 'b -> ('a -> ['c] std::data::result::result 'd 'b) -> ['c] std::data::result::result 'd 'b"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "result"]
+
+[[case]]
+name = "std_result_unwrap_or_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.data.result"
+symbol = "std.data.result.unwrap_or"
+expect_type = "std::data::result::result 'a 'b -> 'a -> 'a"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "result"]
 
 [[case]]
 name = "std_parse_choice_public_signature"
