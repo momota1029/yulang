@@ -143,6 +143,9 @@ file.raw
 
 server API は HTTP framework から始めない。
 stable core は、host event session と request/response resource の lifetime contract である。
+詳細な server resource API は
+[2026-07-02-server-resource-api.md](2026-07-02-server-resource-api.md) を現在の
+anchor とする。
 
 server session は、外部 event を受け取り、Yulang continuation を resume し、
 response を host へ返す capability を持つ。

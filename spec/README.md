@@ -60,6 +60,10 @@
   — filesystem API の中心を file session、metadata、whole-file managed text/bytes lens、
   `raw` resource に分ける。managed lens には close/save/flush を置かず、scope exit で
   write-back / unlock / close 相当を行う。`sync` などの低レベル操作は `file.raw` に閉じる。
+- [2026-07-02-server-resource-api.md](2026-07-02-server-resource-api.md)
+  — server API の中心を HTTP framework ではなく host event session と request/response
+  resource に置く。`accept` は continuation suspend/resume 境界で、request response は
+  one-shot capability 消費として扱い、host boundary を越える値には explicit wire codec を要求する。
 
 ### 後段（単相化）
 
