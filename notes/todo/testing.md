@@ -117,7 +117,8 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   - `top_level_mutable_binding.yu`
   - `unclosed_paren.yu`
 - 同日後続 slice で、annotation builder が未対応の type syntax を debug dump ではなく
-  compact diagnostic として出す canary を追加した。
+  compact diagnostic として出す canary を追加し、CLI / LSP / playground の
+  code と range を固定した。
   - `unsupported_record_type_annotation.yu`
 - 同日後続 slice で、`rule_lazy_quantifier.yu` を diagnostics fixture に追加した。
   - CLI summary、LSP diagnostic、playground diagnostic が同じ

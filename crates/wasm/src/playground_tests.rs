@@ -29,6 +29,9 @@ mod tests {
             "unresolved_type_name" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/unresolved_type_name.yu"
             ),
+            "unsupported_record_type_annotation" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/unsupported_record_type_annotation.yu"
+            ),
             "rule_lazy_quantifier" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/rule_lazy_quantifier.yu"
             ),
@@ -501,6 +504,25 @@ pair
         assert_eq!(
             output.diagnostics[0].message,
             "unresolved type name: missing_type"
+        );
+    }
+
+    #[test]
+    fn check_inner_returns_unsupported_type_syntax_code_and_range() {
+        let output = check_inner(diagnostics_fixture("unsupported_record_type_annotation"));
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        assert_eq!(output.diagnostics[0].label.as_deref(), Some("x"));
+        assert_eq!(
+            output.diagnostics[0].code.as_deref(),
+            Some("yulang.unsupported-type-syntax")
+        );
+        assert_eq!(output.diagnostics[0].start, 6);
+        assert_eq!(output.diagnostics[0].end, 25);
+        assert_eq!(
+            output.diagnostics[0].message,
+            "unsupported type annotation syntax: TypeRecord"
         );
     }
 

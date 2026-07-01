@@ -1162,6 +1162,45 @@ mod tests {
     }
 
     #[test]
+    fn diagnostics_use_unsupported_type_syntax_range() {
+        let root = temp_root("unsupported-type-syntax-range");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "my x: { a: int, b: int } = { a: 1 }\n";
+        let diagnostics = diagnostics_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        assert_eq!(
+            diagnostics[0].range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 6
+                },
+                end: Position {
+                    line: 0,
+                    character: 25
+                },
+            }
+        );
+        assert!(
+            diagnostics[0]
+                .message
+                .contains("unsupported type annotation syntax"),
+            "{diagnostics:?}"
+        );
+        assert_diagnostic_code(&diagnostics[0], "yulang.unsupported-type-syntax");
+    }
+
+    #[test]
     fn diagnostics_use_top_level_mutable_binding_range() {
         let root = temp_root("top-level-mutable-binding-range");
         std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
