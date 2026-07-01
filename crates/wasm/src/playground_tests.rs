@@ -21,6 +21,18 @@ mod tests {
         on_test_stack(move || run_inner(&source))
     }
 
+    fn diagnostics_fixture(name: &str) -> &'static str {
+        match name {
+            "type_annotation_mismatch" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/type_annotation_mismatch.yu"
+            ),
+            "unresolved_type_name" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/unresolved_type_name.yu"
+            ),
+            _ => panic!("unknown diagnostics fixture: {name}"),
+        }
+    }
+
     #[test]
     fn run_inner_uses_no_std_fast_path_for_core_source() {
         clear_std_cache();
@@ -440,7 +452,7 @@ pair
 
     #[test]
     fn check_inner_returns_structured_diagnostic() {
-        let output = check_inner("my x: int = true\n");
+        let output = check_inner(diagnostics_fixture("type_annotation_mismatch"));
 
         assert!(!output.ok, "{output:?}");
         assert_eq!(output.diagnostics.len(), 1);
@@ -459,7 +471,7 @@ pair
 
     #[test]
     fn check_inner_returns_diagnostic_code_and_type_name_range() {
-        let output = check_inner("my x: missing_type = 1\n");
+        let output = check_inner(diagnostics_fixture("unresolved_type_name"));
 
         assert!(!output.ok, "{output:?}");
         assert_eq!(output.diagnostics.len(), 1);
