@@ -905,15 +905,35 @@ impl Diagnostic {
     }
 
     fn from_source_diagnostic(diagnostic: &yulang::SourceDiagnostic, source_len: usize) -> Self {
+        let (start, end) = diagnostic
+            .range
+            .map(|range| playground_diagnostic_range(range, source_len))
+            .unwrap_or((0, source_len));
         Self {
             severity: DiagnosticSeverity::Error,
-            code: None,
+            code: diagnostic.code.clone(),
             message: diagnostic.message.clone(),
-            start: 0,
-            end: source_len,
+            start,
+            end,
             related: Vec::new(),
             label: diagnostic.label.clone(),
         }
+    }
+}
+
+fn playground_diagnostic_range(range: yulang::SourceRange, source_len: usize) -> (usize, usize) {
+    let start = range
+        .start
+        .saturating_sub(yulang::IMPLICIT_STD_SOURCE_PREFIX_LEN)
+        .min(source_len);
+    let end = range
+        .end
+        .saturating_sub(yulang::IMPLICIT_STD_SOURCE_PREFIX_LEN)
+        .min(source_len);
+    if end < start {
+        (start, start)
+    } else {
+        (start, end)
     }
 }
 

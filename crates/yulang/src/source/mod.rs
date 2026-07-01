@@ -48,6 +48,8 @@ pub use sources::SourceRange;
 
 pub const IMPLICIT_PRELUDE_IMPORT: &str = "use std::prelude::*\n";
 pub(crate) const IMPLICIT_STD_MODULE_DECL: &str = "mod std;\n";
+pub const IMPLICIT_STD_SOURCE_PREFIX_LEN: usize =
+    IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len();
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StdSourceOptions {
@@ -922,7 +924,7 @@ fn collect_local_source_text_with_std_context(
     Ok(SourceTextWithStdContext {
         files: collector.collect_entry_source(entry, source, true)?,
         focus_module: Path::default(),
-        byte_offset_adjust: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len(),
+        byte_offset_adjust: IMPLICIT_STD_SOURCE_PREFIX_LEN,
     })
 }
 

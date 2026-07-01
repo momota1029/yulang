@@ -446,8 +446,33 @@ pair
         assert_eq!(output.diagnostics.len(), 1);
         assert_eq!(output.diagnostics[0].label.as_deref(), Some("x"));
         assert_eq!(
+            output.diagnostics[0].code.as_deref(),
+            Some("yulang.type-mismatch")
+        );
+        assert_eq!(output.diagnostics[0].start, 3);
+        assert_eq!(output.diagnostics[0].end, 4);
+        assert_eq!(
             output.diagnostics[0].message,
             "type mismatch: bool is not int"
+        );
+    }
+
+    #[test]
+    fn check_inner_returns_diagnostic_code_and_type_name_range() {
+        let output = check_inner("my x: missing_type = 1\n");
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        assert_eq!(output.diagnostics[0].label.as_deref(), Some("x"));
+        assert_eq!(
+            output.diagnostics[0].code.as_deref(),
+            Some("yulang.unresolved-type")
+        );
+        assert_eq!(output.diagnostics[0].start, 6);
+        assert_eq!(output.diagnostics[0].end, 18);
+        assert_eq!(
+            output.diagnostics[0].message,
+            "unresolved type name: missing_type"
         );
     }
 
