@@ -105,6 +105,17 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   - `attached_impl_pick.yu`
 - 同日、`scripts/public-example-smoke.sh` だけに寄っていた代表 public examples の一部を、
   小さい table-driven CLI golden として Rust 側にも橋渡しした。
+- 2026-07-01 後続 slice で、showcase を除く `examples/01_*.yu` から
+  `examples/13_console.yu` までを Rust CLI golden に広げた。
+  - `examples/13_console.yu` は `--print-roots` ではなく stdout contract として見る。
+  - `examples/showcase.yu` は大きいため、shell smoke の contains check に残す。
+- 同日、`tests/yulang/regressions/diagnostics/` を追加し、compact CLI diagnostics golden の
+  入力を inline source から共有 fixture へ移した。
+  - `type_annotation_mismatch.yu`
+  - `unresolved_value_name.yu`
+  - `unresolved_type_name.yu`
+  - `top_level_mutable_binding.yu`
+  - `unclosed_paren.yu`
 
 ## 2026-06-23 public signature golden first slice
 
@@ -161,6 +172,17 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   - `SubtractId` は raw/global ID ではなく、その公開型内の初出順 `#0` で表示される。
   - `twice` / `compose2` の `#0[Empty]` evidence は消さずに固定する。
   - data-position / std public canary は `contains` ではなく exact public type として固定する。
+
+## 2026-07-01 public signature golden fourth slice
+
+- `std.control.var.ref` constructor surface を exact golden に追加した。
+  - `update_effect` field が `[std::control::var::ref_update 'b; 'c] ()` として残る。
+  - constructor result は `ref('a | 'c, 'b)` になり、field residual と session residual を
+    public surface で失わない。
+- `std.control.nondet.nondet.#act-method:once` と `#act-method:list` を exact golden に強化した。
+  - `once`: `'a [std::control::nondet::nondet; 'b] -> ['b] opt 'a`
+  - `list`: `'a [std::control::nondet::nondet; 'b] -> ['b] list 'a`
+  - これまでの shallow collapse 否定だけでなく、deep handler の public 型全体を固定する。
 
 ## やらないこと
 

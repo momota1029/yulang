@@ -8,6 +8,7 @@
 
 優先する情報:
 
+- code: CLI / playground / LSP が同じ原因を同じ分類として扱える安定した識別子。
 - primary range: 実際に直すべき式・型・pattern の位置。
 - related information: 比較対象になった型、注釈、リテラル、束縛、呼び出し元の位置。
 - provenance: expected / actual が注釈、リテラル、関数適用、role/method 解決、
@@ -31,13 +32,20 @@ Diagnostics の最初の slice:
 
 - public CLI golden を小さく追加し、現在の `check` で見える代表的な lowering
   diagnostics を固定する。
-- 最初に固定するケースは、型注釈 mismatch と未解決 value name。
+- 最初に固定するケースは、型注釈 mismatch、未解決 value name、未解決 type name、
+  top-level mutable binding、未閉じ delimiter recovery。
 - `check` は source diagnostics がある場合、詳細 dump の前に compact な
   `diagnostics:` summary を出す。
+- malformed module parse は CLI panic にしない。2026-07-01 時点では未閉じ `(` を
+  empty `InvalidToken` として recovery し、`check` が完走するところまで固定した。
+  次の改善で user-facing parser diagnostic へ接続する。
 - 続けて parser error、role/method error、effect/runtime error を足す。
 - 期待値は全文 snapshot にせず、ユーザーが直すために必要な主文言と label だけを
   compact に見る。
 - その後、同じ原因を `CheckReport` / LSP / playground で共有できる表示へ移す。
+- 2026-07-01 時点で、type mismatch、unresolved value/type、top-level mutable
+  binding は `SourceDiagnostic.code` から LSP diagnostic code へ流れる。CLI summary
+  の文面はまだ大きく変えず、compact golden を保つ。
 
 API 固定の最初の slice:
 

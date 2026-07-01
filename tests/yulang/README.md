@@ -16,10 +16,13 @@ standard library.
 - `regressions/runtime/` holds focused public runtime examples. CLI tests run
   these through the normal `yulang` binary with the repository standard
   library.
+- `regressions/diagnostics/` holds small invalid programs for compact CLI,
+  LSP, and playground diagnostic contracts. These fixtures should each focus on
+  one user-facing cause.
 - `yulang-adversarial-corpus/` holds broader hardening probes. These are not
   examples for users; they are stress cases for replay termination, handler
   hygiene, and runtime fallback behavior.
 
 Future diagnostic fixtures should keep expected output compact: check the
-diagnostic cause, label/range, and user-facing message rather than snapshotting
-large internal dumps.
+diagnostic cause, code, label/range, and user-facing message rather than
+snapshotting large internal dumps.
