@@ -5,7 +5,11 @@
 
 設計参照:
 
+- `spec/2026-07-01-file-resource-api.md`
 - `notes/design/error-handling-plan.md`
+
+2026-07-01 時点の現行方針は `spec/2026-07-01-file-resource-api.md` を優先する。
+この TODO の `File-backed str 案` は、その前段の設計メモとして読む。
 
 ## File-backed str 案(2026-05-23編集)
 

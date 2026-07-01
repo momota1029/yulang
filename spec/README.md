@@ -50,6 +50,13 @@
   でありつつ file path 由来の band identity を持つ。`realm/...::...`、`band::...`、
   entry-band self alias、ambient empty-band `std`、release `.yucu` artifact の境界を固定する。
 
+### Standard API / host capabilities
+
+- [2026-07-01-file-resource-api.md](2026-07-01-file-resource-api.md)
+  — filesystem API の中心を file session、metadata、whole-file managed text/bytes lens、
+  `raw` resource に分ける。managed lens には close/save/flush を置かず、scope exit で
+  write-back / unlock / close 相当を行う。`sync` などの低レベル操作は `file.raw` に閉じる。
+
 ### 後段（単相化）
 
 - [2026-06-15-specialize2-graph-solver.md](2026-06-15-specialize2-graph-solver.md)

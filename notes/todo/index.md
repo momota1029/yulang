@@ -58,6 +58,9 @@
 - `host-filesystem.md`
   - host capability と filesystem API。
   - `error` と diagnostics の語彙が固まってから public contract を決める。
+- `ffi.md`
+  - Yulang にはまだ FFI がない。遅い言語の escape hatch として将来必須だが、
+    まず host capability / effect boundary として設計し、native ABI 直結は後段にする。
 - `parser-combinators.md`
   - parser combinator API。
   - error handling と parser diagnostics が安定するまで広げない。
