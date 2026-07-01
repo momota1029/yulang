@@ -232,6 +232,16 @@ public signature golden test は、見た目だけではなく次を守る。
 - effect row が shallow/deep handler の違いを保つ。
 - 失敗時に、どの symbol の public line が壊れたか分かる。
 
+2026-07-02 時点では、個別 golden に加えて次の gate を置いている。
+
+- `tests/yulang/cases.toml` の `public-signature` cases:
+  `ref.update`、`choice`、`for_in`、`nondet.once/list`、data-position effectful
+  function canary を CLI manifest 経由で固定する。
+- `dump_poly_public_contract_spine_modules_hide_private_stack_evidence`:
+  `std.control.var.ref`、`std.control.flow.loop`、`std.control.nondet.nondet`、
+  `std.text.parse` の public signature type 部分を全走査し、private stack
+  evidence が型表示へ漏れていないことを見る。
+
 期待値は現在の実装出力に合わせて書き換えない。
 `α [undet; β] -> [β] α` のような residual は、principal surface の一部として扱う。
 
