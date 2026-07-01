@@ -1308,6 +1308,13 @@ pub struct SourceDiagnostic {
     pub label: Option<String>,
     pub range: Option<SourceRange>,
     pub message: String,
+    pub related: Vec<SourceDiagnosticRelated>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceDiagnosticRelated {
+    pub message: String,
+    pub range: SourceRange,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -2609,6 +2616,7 @@ fn source_diagnostics_from_check(
                         .and_then(|def| check.lowering.modules.def_source_range(def))
                 }),
                 message: format_body_lowering_error(error),
+                related: body_lowering_error_related(error),
             }
         })
         .collect()
@@ -2660,6 +2668,48 @@ fn body_lowering_error_source_range(
         | infer::lowering::BodyLoweringError::MissingBody { .. }
         | infer::lowering::BodyLoweringError::NonLetDef { .. }
         | infer::lowering::BodyLoweringError::Analysis(_) => None,
+    }
+}
+
+fn body_lowering_error_related(
+    error: &infer::lowering::BodyLoweringError,
+) -> Vec<SourceDiagnosticRelated> {
+    match error {
+        infer::lowering::BodyLoweringError::Expr {
+            error:
+                infer::lowering::LoweringError::TypeMismatch {
+                    actual,
+                    expected,
+                    actual_range,
+                    expected_range,
+                },
+            ..
+        }
+        | infer::lowering::BodyLoweringError::RootExpr {
+            error:
+                infer::lowering::LoweringError::TypeMismatch {
+                    actual,
+                    expected,
+                    actual_range,
+                    expected_range,
+                },
+        } => {
+            let mut related = Vec::new();
+            if let Some(range) = expected_range {
+                related.push(SourceDiagnosticRelated {
+                    message: format!("expected type: {expected}"),
+                    range: *range,
+                });
+            }
+            if let Some(range) = actual_range {
+                related.push(SourceDiagnosticRelated {
+                    message: format!("actual expression type: {actual}"),
+                    range: *range,
+                });
+            }
+            related
+        }
+        _ => Vec::new(),
     }
 }
 

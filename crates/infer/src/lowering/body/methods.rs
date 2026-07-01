@@ -208,7 +208,12 @@ impl BodyLowerer {
         let ann = builder
             .build_type_expr(&type_expr)
             .map_err(|error| LoweringError::annotation_build(error, &type_expr))?;
-        self.check_binding_annotation_type(computation.value, &ann)?;
+        self.check_binding_annotation_type(
+            computation.value,
+            &ann,
+            binding_body_expr(node).map(|expr| crate::node_trimmed_source_range(&expr)),
+            Some(crate::node_trimmed_source_range(&type_expr)),
+        )?;
         AnnConstraintLowerer::new(&mut self.session.infer, &self.modules)
             .connect_computation(
                 AnnComputationTarget {
@@ -262,6 +267,8 @@ impl BodyLowerer {
         &self,
         value: TypeVar,
         ann: &AnnType,
+        actual_range: Option<SourceRange>,
+        expected_range: Option<SourceRange>,
     ) -> Result<(), LoweringError> {
         let expected = signature_from_ann_type(ann);
         let actual = compact_type_var(self.session.infer.constraints(), value);
@@ -269,6 +276,8 @@ impl BodyLowerer {
             return Err(LoweringError::TypeMismatch {
                 actual: actual.surface_name().to_string(),
                 expected: expected.surface_name().to_string(),
+                actual_range,
+                expected_range,
             });
         }
         Ok(())

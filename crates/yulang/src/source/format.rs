@@ -2473,7 +2473,10 @@ pub(super) fn write_check_diagnostics(
 pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringError) -> String {
     match error {
         infer::lowering::BodyLoweringError::Expr {
-            error: infer::lowering::LoweringError::TypeMismatch { actual, expected },
+            error:
+                infer::lowering::LoweringError::TypeMismatch {
+                    actual, expected, ..
+                },
             ..
         } => format!("type mismatch: {actual} is not {expected}"),
         infer::lowering::BodyLoweringError::Expr {

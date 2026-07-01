@@ -915,7 +915,18 @@ impl Diagnostic {
             message: diagnostic.message.clone(),
             start,
             end,
-            related: Vec::new(),
+            related: diagnostic
+                .related
+                .iter()
+                .map(|related| {
+                    let (start, end) = playground_diagnostic_range(related.range, source_len);
+                    DiagnosticRelated {
+                        message: related.message.clone(),
+                        start,
+                        end,
+                    }
+                })
+                .collect(),
             label: diagnostic.label.clone(),
         }
     }

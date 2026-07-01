@@ -73,6 +73,8 @@ pub enum LoweringError {
     TypeMismatch {
         actual: String,
         expected: String,
+        actual_range: Option<SourceRange>,
+        expected_range: Option<SourceRange>,
     },
 }
 

@@ -44,6 +44,30 @@ pub(crate) fn node_source_range(node: &Cst) -> SourceRange {
     }
 }
 
+pub(crate) fn node_trimmed_source_range(node: &Cst) -> SourceRange {
+    let mut trimmed: Option<SourceRange> = None;
+    for token in node
+        .descendants_with_tokens()
+        .filter_map(|item| item.into_token())
+    {
+        let text = token.text();
+        if text.trim().is_empty() {
+            continue;
+        }
+        let range = token.text_range();
+        let start = usize::from(range.start()) + text.len() - text.trim_start().len();
+        let end = usize::from(range.end()) - (text.len() - text.trim_end().len());
+        trimmed = Some(match trimmed {
+            Some(range) => SourceRange {
+                start: range.start,
+                end,
+            },
+            None => SourceRange { start, end },
+        });
+    }
+    trimmed.unwrap_or_else(|| node_source_range(node))
+}
+
 pub(crate) fn source_range_for_name(node: &Cst, name: &Name) -> Option<SourceRange> {
     node.descendants_with_tokens()
         .filter_map(|item| item.into_token())

@@ -230,26 +230,56 @@ fn source_analysis_for_source(
         .or_else(|_| crate::source::source_text_analysis(path, source))
 }
 
-fn diagnostics_for_analysis(source: &str, analysis: &SourceTextAnalysis) -> Vec<Diagnostic> {
+fn diagnostics_for_analysis(
+    path: &Path,
+    source: &str,
+    analysis: &SourceTextAnalysis,
+) -> Vec<Diagnostic> {
+    let uri = Url::from_file_path(path).ok();
     analysis
         .analyze()
         .diagnostics
         .into_iter()
-        .map(|diagnostic| Diagnostic {
-            range: diagnostic
-                .range
-                .map(|range| {
-                    lsp_range_for_root_source(source, range, analysis.root_has_implicit_prelude())
-                })
-                .unwrap_or_default(),
-            severity: Some(DiagnosticSeverity::ERROR),
-            code: diagnostic.code.map(NumberOrString::String),
-            source: Some("yulang".to_string()),
-            message: match diagnostic.label {
-                Some(label) => format!("{label}: {}", diagnostic.message),
-                None => diagnostic.message,
-            },
-            ..Default::default()
+        .map(|diagnostic| {
+            let related_information = uri.as_ref().and_then(|uri| {
+                let related = diagnostic
+                    .related
+                    .into_iter()
+                    .map(|related| DiagnosticRelatedInformation {
+                        location: Location {
+                            uri: uri.clone(),
+                            range: lsp_range_for_root_source(
+                                source,
+                                related.range,
+                                analysis.root_has_implicit_prelude(),
+                            ),
+                        },
+                        message: related.message,
+                    })
+                    .collect::<Vec<_>>();
+                (!related.is_empty()).then_some(related)
+            });
+            Diagnostic {
+                range: diagnostic
+                    .range
+                    .map(|range| {
+                        lsp_range_for_root_source(
+                            source,
+                            range,
+                            analysis.root_has_implicit_prelude(),
+                        )
+                    })
+                    .unwrap_or_default(),
+                severity: Some(DiagnosticSeverity::ERROR),
+                code: diagnostic.code.map(NumberOrString::String),
+                source: Some("yulang".to_string()),
+                message: match diagnostic.label {
+                    Some(label) => format!("{label}: {}", diagnostic.message),
+                    None => diagnostic.message,
+                },
+                related_information,
+                ..Default::default()
+            }
         })
         .collect()
 }
@@ -270,7 +300,7 @@ fn diagnostics_for_source(
     options: &crate::StdSourceOptions,
 ) -> Vec<Diagnostic> {
     match crate::source::source_text_analysis_with_std_options(path, source.clone(), options) {
-        Ok(analysis) => diagnostics_for_analysis(&source, &analysis),
+        Ok(analysis) => diagnostics_for_analysis(path, &source, &analysis),
         Err(error) => vec![diagnostic_for_route_error(error)],
     }
 }
@@ -1022,6 +1052,39 @@ mod tests {
             "{diagnostics:?}"
         );
         assert_diagnostic_code(&diagnostics[0], "yulang.type-mismatch");
+        let related = diagnostics[0]
+            .related_information
+            .as_ref()
+            .expect("type mismatch should carry related ranges");
+        assert_eq!(related.len(), 2, "{related:?}");
+        assert_eq!(related[0].message, "expected type: bool");
+        assert_eq!(
+            related[0].location.range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 6
+                },
+                end: Position {
+                    line: 0,
+                    character: 10
+                },
+            }
+        );
+        assert_eq!(related[1].message, "actual expression type: int");
+        assert_eq!(
+            related[1].location.range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 13
+                },
+                end: Position {
+                    line: 0,
+                    character: 14
+                },
+            }
+        );
     }
 
     #[test]

@@ -470,6 +470,19 @@ pair
             output.diagnostics[0].message,
             "type mismatch: bool is not int"
         );
+        assert_eq!(output.diagnostics[0].related.len(), 2);
+        assert_eq!(
+            output.diagnostics[0].related[0].message,
+            "expected type: int"
+        );
+        assert_eq!(output.diagnostics[0].related[0].start, 6);
+        assert_eq!(output.diagnostics[0].related[0].end, 9);
+        assert_eq!(
+            output.diagnostics[0].related[1].message,
+            "actual expression type: bool"
+        );
+        assert_eq!(output.diagnostics[0].related[1].start, 12);
+        assert_eq!(output.diagnostics[0].related[1].end, 16);
     }
 
     #[test]

@@ -2103,6 +2103,22 @@ fn analyze_entry_source_uses_in_memory_root_source() {
                 end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 4,
             }),
             message: "type mismatch: bool is not int".to_string(),
+            related: vec![
+                SourceDiagnosticRelated {
+                    message: "expected type: int".to_string(),
+                    range: SourceRange {
+                        start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 6,
+                        end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 9,
+                    },
+                },
+                SourceDiagnosticRelated {
+                    message: "actual expression type: bool".to_string(),
+                    range: SourceRange {
+                        start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 12,
+                        end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 16,
+                    },
+                },
+            ],
         }]
     );
 }
@@ -2134,6 +2150,7 @@ fn analyze_entry_source_reports_unresolved_name_source_range() {
                 end: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 19,
             }),
             message: "unresolved value name: missing".to_string(),
+            related: Vec::new(),
         }]
     );
 }
