@@ -32,6 +32,9 @@ mod tests {
             "unsupported_record_type_annotation" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/unsupported_record_type_annotation.yu"
             ),
+            "unclosed_paren" => {
+                include_str!("../../../tests/yulang/regressions/diagnostics/unclosed_paren.yu")
+            }
             "rule_lazy_quantifier" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/rule_lazy_quantifier.yu"
             ),
@@ -523,6 +526,22 @@ pair
         assert_eq!(
             output.diagnostics[0].message,
             "unsupported type annotation syntax: TypeRecord"
+        );
+    }
+
+    #[test]
+    fn check_inner_returns_unclosed_paren_syntax_code_and_range() {
+        let output = check_inner(diagnostics_fixture("unclosed_paren"));
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        assert_eq!(output.diagnostics[0].label, None);
+        assert_eq!(output.diagnostics[0].code.as_deref(), Some("yulang.syntax"));
+        assert_eq!(output.diagnostics[0].start, 9);
+        assert_eq!(output.diagnostics[0].end, 9);
+        assert_eq!(
+            output.diagnostics[0].message,
+            "syntax error: unexpected end of input"
         );
     }
 

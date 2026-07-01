@@ -52,6 +52,9 @@ Diagnostics の最初の slice:
 - 同日後続 slice で、CLI `check` summary は primary / related range に対して
   1-based line / column と source frame を表示する。std-root で差し込まれる
   implicit prelude は CLI 表示から差し引く。
+- 同日後続 slice で、root module の parser recovery `InvalidToken` は
+  `yulang.syntax` として CLI / LSP / playground に流れる。未閉じ `(` は
+  `syntax error: unexpected end of input` として user source line の末尾を指す。
 
 API 固定の最初の slice:
 

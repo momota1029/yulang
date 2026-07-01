@@ -358,6 +358,16 @@ fn public_diagnostics_check_recovers_unclosed_paren_without_panic() {
 
     assert_success(&output);
     let stdout = stdout(&output);
+    assert!(
+        stdout.contains(
+            "diagnostics:\n  error [yulang.syntax]: syntax error: unexpected end of input\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("    --> line 1, column 10\n    1 | my x = (1\n      |          ^\n"),
+        "{stdout}"
+    );
     assert!(stdout.contains("check-poly\n"), "{stdout}");
     assert!(stdout.contains("lowering errors: 0\n"), "{stdout}");
     assert_eq!(stderr(&output), "");

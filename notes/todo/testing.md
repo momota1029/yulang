@@ -124,6 +124,10 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   - CLI summary、LSP diagnostic、playground diagnostic が同じ
     `yulang.unsupported-rule-lazy-quantifier` code と `*?` primary range を見る。
   - wasm playground diagnostics tests も共有 diagnostics fixture を読む形へ寄せた。
+- 同日後続 slice で、`unclosed_paren.yu` を no-panic canary から parser recovery
+  diagnostic canary へ強化した。
+  - CLI summary、LSP diagnostic、playground diagnostic が同じ `yulang.syntax` code と
+    EOF recovery range を見る。
 
 ## 2026-06-23 public signature golden first slice
 

@@ -1207,6 +1207,7 @@ pub struct AnalyzeSourceOutput {
 pub(crate) struct SourceTextAnalysis {
     check: infer::check::PolyCheckOutput,
     source_index: SourceFileIndex,
+    parse_diagnostics: Vec<SourceDiagnostic>,
     focus_module: Path,
     file_count: usize,
     byte_offset_adjust: usize,
@@ -1215,9 +1216,14 @@ pub(crate) struct SourceTextAnalysis {
 
 impl SourceTextAnalysis {
     pub(crate) fn analyze(&self) -> AnalyzeSourceOutput {
+        let mut diagnostics = self.parse_diagnostics.clone();
+        diagnostics.extend(source_diagnostics_from_check(
+            &self.check,
+            &self.check.report.diagnostics,
+        ));
         AnalyzeSourceOutput {
             file_count: self.file_count,
-            diagnostics: source_diagnostics_from_check(&self.check, &self.check.report.diagnostics),
+            diagnostics,
         }
     }
 
@@ -1720,7 +1726,8 @@ fn check_poly_from_loaded_files(
         total: total_start.elapsed(),
         lowering: check.timing.lowering,
     };
-    let diagnostics = match &kind {
+    let mut diagnostics = parser_diagnostics_from_loaded(&loaded);
+    diagnostics.extend(match &kind {
         CheckPolyKind::All { .. } => {
             source_diagnostics_from_check(&check, &check.report.diagnostics)
         }
@@ -1737,7 +1744,7 @@ fn check_poly_from_loaded_files(
             };
             source_diagnostics_from_check(&check, &module_check.diagnostics)
         }
-    };
+    });
     let diagnostic_source = check_diagnostic_source(&loaded);
     let text = match kind {
         CheckPolyKind::All { title } => {
@@ -1789,15 +1796,54 @@ fn source_text_analysis_from_files(
     let file_count = files.len();
     let source_index = SourceFileIndex::from_collected_sources(&files);
     let loaded = load_collected_sources(files);
+    let parse_diagnostics = parser_diagnostics_from_loaded(&loaded);
     let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
     Ok(SourceTextAnalysis {
         check,
         source_index,
+        parse_diagnostics,
         focus_module,
         file_count,
         byte_offset_adjust,
         root_has_implicit_prelude: byte_offset_adjust != 0,
     })
+}
+
+fn parser_diagnostics_from_loaded(loaded: &[sources::LoadedFile]) -> Vec<SourceDiagnostic> {
+    let Some(root) = loaded
+        .iter()
+        .find(|file| file.module_path.segments.is_empty())
+    else {
+        return Vec::new();
+    };
+    let cst = rowan::SyntaxNode::<parser::sink::YulangLanguage>::new_root(root.cst.clone());
+    cst.descendants()
+        .filter(|node| node.kind() == parser::lex::SyntaxKind::InvalidToken)
+        .map(|node| {
+            let range = parser_diagnostic_range(&root.source, node.text_range());
+            SourceDiagnostic {
+                code: Some("yulang.syntax".to_string()),
+                label: None,
+                range: Some(range),
+                message: if node.text().is_empty() {
+                    "syntax error: unexpected end of input".to_string()
+                } else {
+                    "syntax error: unexpected token".to_string()
+                },
+                related: Vec::new(),
+            }
+        })
+        .collect()
+}
+
+fn parser_diagnostic_range(source: &str, range: rowan::TextRange) -> SourceRange {
+    let mut start = usize::from(range.start());
+    let mut end = usize::from(range.end());
+    if start == end && start >= source.len() {
+        start = source.trim_end().len();
+        end = start;
+    }
+    SourceRange { start, end }
 }
 
 fn analyze_from_loaded_files(
