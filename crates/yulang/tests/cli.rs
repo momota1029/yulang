@@ -3469,6 +3469,7 @@ fn public_contract_manifest_cli_cases_hold() {
         assert_contract_manifest_tags_match_kind(&case);
         assert_contract_manifest_tags_match_shape(&case);
         assert_contract_manifest_case_has_expectation(&case);
+        assert_contract_manifest_diagnostic_shape(&case);
         assert!(
             public_contract_case_entry(&case).exists(),
             "contract manifest case {} points at missing fixture {}",
@@ -3485,6 +3486,51 @@ fn public_contract_manifest_cli_cases_hold() {
                 case.name
             ),
         }
+    }
+}
+
+fn assert_contract_manifest_diagnostic_shape(case: &PublicContractCase) {
+    if case.kind != "check" {
+        assert!(
+            case.expect_diagnostic_start.is_none() && case.expect_diagnostic_end.is_none(),
+            "non-check contract manifest case {} should not assert source diagnostic primary ranges",
+            case.name
+        );
+        return;
+    }
+
+    assert!(
+        case.expect_diagnostic_count.is_some(),
+        "check contract manifest case {} should assert diagnostic count",
+        case.name
+    );
+    assert!(
+        case.expect_diagnostic_code.is_some(),
+        "check contract manifest case {} should assert diagnostic code",
+        case.name
+    );
+    assert!(
+        case.expect_diagnostic_severity.is_some(),
+        "check contract manifest case {} should assert diagnostic severity",
+        case.name
+    );
+    assert!(
+        case.expect_diagnostic_start.is_some() && case.expect_diagnostic_end.is_some(),
+        "check contract manifest case {} should assert a complete diagnostic primary range",
+        case.name
+    );
+    assert!(
+        case.expect_diagnostic_related_count.is_some(),
+        "check contract manifest case {} should assert related diagnostic count",
+        case.name
+    );
+    if let Some(related_count) = case.expect_diagnostic_related_count {
+        assert!(
+            case.expect_diagnostic_related_origins.is_empty()
+                || case.expect_diagnostic_related_origins.len() == related_count,
+            "check contract manifest case {} should keep related origins aligned with related count",
+            case.name
+        );
     }
 }
 

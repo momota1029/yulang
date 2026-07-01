@@ -21,6 +21,9 @@ still add narrower `deny_type_contains` checks for surface-specific leaks.
 Diagnostic entries may also assert the structured `SourceDiagnostic` payload
 with compact fields such as diagnostic count, severity, code, label, primary
 byte range, related count, and related origins.
+For `kind = "check"` entries, the manifest requires diagnostic count, code,
+severity, a complete primary byte range, and related-count assertions so new
+diagnostic fixtures cannot silently fall back to message-only coverage.
 
 `support/fake_std/` contains narrow std shims for tests that need compiler-known
 surface paths such as `std::control::flow::sub` but do not need the full public
