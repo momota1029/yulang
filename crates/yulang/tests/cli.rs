@@ -102,6 +102,47 @@ my after = std::io::file::read_text output
 }
 
 #[test]
+fn compatible_run_std_file_missing_error_displays_path() {
+    let root = temp_root("run-std-file-missing-error-display");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let missing = root.join("missing.txt");
+    let entry = root.join("main.yu");
+    fs::write(
+        &entry,
+        format!(
+            "\
+my result = std::io::file::io_err::wrap:
+    std::io::file::read_text {missing}
+case result:
+    ok text -> text
+    err e -> e.show
+",
+            missing = yulang_string_literal(&missing),
+        ),
+    )
+    .unwrap();
+
+    let output = yulang_command()
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(
+        stdout(&output),
+        format!("run roots [\"not_found: {}\"]\n", missing.display())
+    );
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn compatible_run_accepts_eval_source() {
     let output = yulang_command()
         .arg("--no-prelude")

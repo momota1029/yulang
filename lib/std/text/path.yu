@@ -1,4 +1,5 @@
 use std::text::bytes::bytes
+use std::core::fmt::Display
 
 pub of_bytes_raw: bytes -> path = builtin_op::bytes_to_path
 pub to_bytes: path -> bytes = builtin_op::path_to_bytes
@@ -7,3 +8,6 @@ pub type path with:
     pub p.to_bytes = std::text::path::to_bytes p
 
 pub of_bytes(b: bytes): path = std::text::path::of_bytes_raw b
+
+impl path: Display:
+    our p.show = std::text::bytes::to_utf8_lossy (std::text::path::to_bytes p)

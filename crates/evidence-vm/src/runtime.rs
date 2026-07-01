@@ -18847,6 +18847,10 @@ impl<'a> RuntimeEvidenceRunner<'a> {
                     shared(RuntimeEvidenceValue::Int(valid as i64)),
                 ])
             }
+            BytesToPath => RuntimeEvidenceValue::Str(
+                String::from_utf8_lossy(expect_bytes(&args[0])?).into_owned(),
+            ),
+            PathToBytes => RuntimeEvidenceValue::Bytes(expect_str(&args[0])?.as_bytes().to_vec()),
             IntToString => RuntimeEvidenceValue::Str(expect_int(&args[0])?.to_string()),
             IntToHex => RuntimeEvidenceValue::Str(format!("{:x}", expect_int(&args[0])?)),
             IntToUpperHex => RuntimeEvidenceValue::Str(format!("{:X}", expect_int(&args[0])?)),

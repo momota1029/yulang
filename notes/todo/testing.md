@@ -141,6 +141,10 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   host capability が unhandled effect にならないことを見る first slice で、
   range write、metadata、managed text ref (`open_text` / `open`)、scope-exit
   close/write-back、path payload display は後続の standard API contract として残す。
+- 同日後続 slice で、`std::text::path` の byte conversion と `Display path` を
+  `path_display.yu` と CLI missing-file display test に載せた。これにより
+  generated `Display E` の path payload が user-facing error text まで届く。
+  platform-native non-UTF-8 path behavior はまだ stable contract にしない。
 - 同日、`tests/yulang/regressions/diagnostics/` を追加し、compact CLI diagnostics golden の
   入力を inline source から共有 fixture へ移した。
   - `type_annotation_mismatch.yu`

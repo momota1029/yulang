@@ -1184,8 +1184,15 @@ fn apply_primitive(
                 }
             }
         }
-        PrimitiveOp::BytesToPath | PrimitiveOp::PathToBytes => {
-            Err(RuntimeError::UnsupportedPrimitive { op })
+        PrimitiveOp::BytesToPath => {
+            let bytes = expect_bytes(&args[0])?.to_flat_vec();
+            Ok(Value::Str(StringTree::from(
+                String::from_utf8_lossy(&bytes).into_owned(),
+            )))
+        }
+        PrimitiveOp::PathToBytes => {
+            let bytes = expect_str(&args[0])?.to_flat_string().into_bytes();
+            Ok(Value::Bytes(BytesTree::from_bytes(&bytes)))
         }
     }
 }

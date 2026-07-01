@@ -44,6 +44,15 @@ expect_stderr = ""
 contracts = ["runtime", "standard-api", "result"]
 
 [[case]]
+name = "path_display"
+file = "regressions/runtime/path_display.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(\"/tmp/yulang-path\", \"/tmp/yulang-path\")]\n"
+expect_stderr = ""
+contracts = ["runtime", "standard-api", "path", "display"]
+
+[[case]]
 name = "error_wrap_fail"
 file = "regressions/runtime/error_wrap_fail.yu"
 kind = "run"
@@ -570,6 +579,28 @@ symbol = "std.data.result.unwrap_or"
 expect_type = "std::data::result::result 'a 'b -> 'a -> 'a"
 deny_type_contains = ["#", "AllExcept"]
 contracts = ["public-signature", "standard-api", "result"]
+
+[[case]]
+name = "std_path_of_bytes_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.text.path"
+symbol = "std.text.path.of_bytes"
+expect_type = "std::text::bytes::bytes -> std::text::path::path"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "path"]
+
+[[case]]
+name = "std_path_to_bytes_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.text.path"
+symbol = "std.text.path.to_bytes"
+expect_type = "std::text::path::path -> std::text::bytes::bytes"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "standard-api", "path"]
 
 [[case]]
 name = "std_parse_choice_public_signature"
