@@ -597,6 +597,7 @@ impl Specializer {
                     debug_expr_tree(arena, select, 3)
                 );
                 Err(SpecializeError::UnresolvedTypeclassMethod {
+                    expr: select.0,
                     member: convert_def(member),
                     receiver,
                 })
@@ -608,6 +609,7 @@ impl Specializer {
                     debug_expr_tree(arena, select, 3)
                 );
                 Err(SpecializeError::AmbiguousTypeclassMethod {
+                    expr: select.0,
                     member: convert_def(member),
                     receiver,
                     candidates: implementations.into_iter().map(convert_def).collect(),

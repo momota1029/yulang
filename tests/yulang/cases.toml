@@ -342,6 +342,45 @@ expect_stderr_contains = [
 contracts = ["runtime-error", "compile-error", "diagnostics", "roles"]
 
 [[case]]
+name = "unresolved_method_diagnostic"
+file = "regressions/runtime/unresolved_method_error.yu"
+kind = "check"
+std = "repo"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.unresolved-method]: show: no role implementation satisfies this method call",
+  "hint: add or import an impl for the receiver type, or call a method supported by that value",
+]
+expect_diagnostic_code = "yulang.unresolved-method"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_label = "show"
+expect_diagnostic_start = 39
+expect_diagnostic_end = 43
+expect_diagnostic_related_count = 0
+contracts = ["diagnostics", "roles"]
+
+[[case]]
+name = "ambiguous_method_diagnostic"
+file = "regressions/runtime/ambiguous_method_error.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.ambiguous-method]: foo: more than one role implementation satisfies this method call",
+  "hint: make the receiver type more specific or keep only one matching impl in scope",
+  "note: matching impl method candidate",
+]
+expect_diagnostic_code = "yulang.ambiguous-method"
+expect_diagnostic_severity = "error"
+expect_diagnostic_count = 1
+expect_diagnostic_label = "foo"
+expect_diagnostic_start = 97
+expect_diagnostic_end = 100
+expect_diagnostic_related_count = 2
+contracts = ["diagnostics", "roles"]
+
+[[case]]
 name = "type_annotation_mismatch"
 file = "regressions/diagnostics/type_annotation_mismatch.yu"
 kind = "check"

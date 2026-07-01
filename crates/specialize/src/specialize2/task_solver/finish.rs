@@ -95,7 +95,7 @@ impl<'a> TaskSolver<'a> {
                     TypeSlotKind::Value,
                 )?,
             };
-            let implementation = self.resolve_typeclass_use(use_.member, &signature)?;
+            let implementation = self.resolve_typeclass_use(use_.expr, use_.member, &signature)?;
             typeclass_resolutions.insert(
                 use_.expr,
                 TypeclassResolution {
@@ -288,6 +288,7 @@ impl<'a> TaskSolver<'a> {
 
     pub(super) fn resolve_typeclass_use(
         &self,
+        expr: poly_expr::ExprId,
         member: poly_expr::DefId,
         signature: &Type,
     ) -> Result<poly_expr::DefId, SpecializeError> {
@@ -333,10 +334,12 @@ impl<'a> TaskSolver<'a> {
             [implementation] => Ok(*implementation),
             [] if body.is_some() && matched_candidate_count > 0 => Ok(member),
             [] => Err(SpecializeError::UnresolvedTypeclassMethod {
+                expr: expr.0,
                 member: convert_def(member),
                 receiver: signature.clone(),
             }),
             _ => Err(SpecializeError::AmbiguousTypeclassMethod {
+                expr: expr.0,
                 member: convert_def(member),
                 receiver: signature.clone(),
                 candidates: implementations.into_iter().map(convert_def).collect(),

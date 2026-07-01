@@ -135,10 +135,12 @@ pub enum SpecializeError {
         ref_id: u32,
     },
     UnresolvedTypeclassMethod {
+        expr: u32,
         member: DefId,
         receiver: Type,
     },
     AmbiguousTypeclassMethod {
+        expr: u32,
         member: DefId,
         receiver: Type,
         candidates: Vec<DefId>,
@@ -250,7 +252,9 @@ impl fmt::Display for SpecializeError {
             }
             Self::InvalidTypeSlot { slot } => write!(f, "invalid type slot {slot}"),
             Self::UnresolvedRef { ref_id } => write!(f, "unresolved ref r{ref_id}"),
-            Self::UnresolvedTypeclassMethod { member, receiver } => {
+            Self::UnresolvedTypeclassMethod {
+                member, receiver, ..
+            } => {
                 write!(
                     f,
                     "unresolved typeclass method d{} for receiver {}",
@@ -262,6 +266,7 @@ impl fmt::Display for SpecializeError {
                 member,
                 receiver,
                 candidates,
+                ..
             } => {
                 let candidates = candidates
                     .iter()

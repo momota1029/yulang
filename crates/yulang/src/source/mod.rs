@@ -1217,7 +1217,7 @@ pub(crate) struct SourceTextAnalysis {
 impl SourceTextAnalysis {
     pub(crate) fn analyze(&self) -> AnalyzeSourceOutput {
         let mut diagnostics = self.parse_diagnostics.clone();
-        diagnostics.extend(source_diagnostics_from_check(
+        diagnostics.extend(source_diagnostics_for_check(
             &self.check,
             &self.check.report.diagnostics,
         ));
@@ -1755,7 +1755,7 @@ fn check_poly_from_loaded_files(
     let mut diagnostics = parser_diagnostics_from_loaded(&loaded);
     diagnostics.extend(match &kind {
         CheckPolyKind::All { .. } => {
-            source_diagnostics_from_check(&check, &check.report.diagnostics)
+            source_diagnostics_for_check(&check, &check.report.diagnostics)
         }
         CheckPolyKind::Module { module, .. } => {
             let Some(module_check) = check
@@ -1768,7 +1768,7 @@ fn check_poly_from_loaded_files(
                     module: module.clone(),
                 });
             };
-            source_diagnostics_from_check(&check, &module_check.diagnostics)
+            source_diagnostics_for_check(&check, &module_check.diagnostics)
         }
     });
     let diagnostic_source = check_diagnostic_source(&loaded);
@@ -1881,7 +1881,7 @@ fn analyze_from_loaded_files(
     loaded: Vec<sources::LoadedFile>,
 ) -> Result<AnalyzeSourceOutput, RouteError> {
     let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
-    let diagnostics = source_diagnostics_from_check(&check, &check.report.diagnostics);
+    let diagnostics = source_diagnostics_for_check(&check, &check.report.diagnostics);
     Ok(AnalyzeSourceOutput {
         file_count: loaded.len(),
         diagnostics,
@@ -2728,6 +2728,142 @@ fn source_diagnostics_from_check(
                 hint: body_lowering_error_hint(error),
                 related: body_lowering_error_related(error),
             }
+        })
+        .collect()
+}
+
+fn source_diagnostics_for_check(
+    check: &infer::check::PolyCheckOutput,
+    diagnostics: &[infer::check::CheckDiagnostic],
+) -> Vec<SourceDiagnostic> {
+    let mut out = source_diagnostics_from_check(check, diagnostics);
+    if check.lowering.errors.is_empty() {
+        out.extend(role_method_diagnostics_from_specialize(check));
+    }
+    out
+}
+
+fn role_method_diagnostics_from_specialize(
+    check: &infer::check::PolyCheckOutput,
+) -> Vec<SourceDiagnostic> {
+    // Role impl satisfaction currently belongs to specialization. Keep check/LSP
+    // on the same oracle and only bridge source payload for role method failures.
+    if !check.lowering.session.poly.selects().iter().any(|select| {
+        matches!(
+            select.resolution,
+            Some(poly::expr::SelectResolution::TypeclassMethod { .. })
+        )
+    }) {
+        return Vec::new();
+    }
+    match specialize::specialize(&check.lowering.session.poly) {
+        Ok(_) => Vec::new(),
+        Err(error) => source_diagnostic_from_role_method_specialize_error(check, &error)
+            .into_iter()
+            .collect(),
+    }
+}
+
+fn source_diagnostic_from_role_method_specialize_error(
+    check: &infer::check::PolyCheckOutput,
+    error: &specialize::SpecializeError,
+) -> Option<SourceDiagnostic> {
+    match error {
+        specialize::SpecializeError::UnresolvedTypeclassMethod {
+            expr,
+            receiver,
+            ..
+        } => Some(SourceDiagnostic {
+            severity: SourceDiagnosticSeverity::Error,
+            code: Some("yulang.unresolved-method".to_string()),
+            label: role_method_diagnostic_label(check, *expr),
+            range: role_method_expr_source_range(check, *expr),
+            message: format!(
+                "no role implementation satisfies this method call for receiver {}",
+                specialize::mono::dump::dump_type(receiver)
+            ),
+            hint: Some(
+                "add or import an impl for the receiver type, or call a method supported by that value"
+                    .to_string(),
+            ),
+            related: Vec::new(),
+        }),
+        specialize::SpecializeError::AmbiguousTypeclassMethod {
+            expr,
+            receiver,
+            candidates,
+            ..
+        } => Some(SourceDiagnostic {
+            severity: SourceDiagnosticSeverity::Error,
+            code: Some("yulang.ambiguous-method".to_string()),
+            label: role_method_diagnostic_label(check, *expr),
+            range: role_method_expr_source_range(check, *expr),
+            message: format!(
+                "more than one role implementation satisfies this method call for receiver {}",
+                specialize::mono::dump::dump_type(receiver)
+            ),
+            hint: Some(
+                "make the receiver type more specific or keep only one matching impl in scope"
+                    .to_string(),
+            ),
+            related: role_method_candidate_related(check, candidates),
+        }),
+        _ => None,
+    }
+}
+
+fn role_method_expr_select(
+    check: &infer::check::PolyCheckOutput,
+    expr: u32,
+) -> Option<poly::expr::SelectId> {
+    let expr = check.lowering.session.poly.exprs().get(expr as usize)?;
+    match expr {
+        poly::expr::Expr::Select(_, select) => Some(*select),
+        _ => None,
+    }
+}
+
+fn role_method_expr_source_range(
+    check: &infer::check::PolyCheckOutput,
+    expr: u32,
+) -> Option<SourceRange> {
+    let select = role_method_expr_select(check, expr)?;
+    check
+        .lowering
+        .session
+        .selections
+        .source_span(select)
+        .map(|span| span.range)
+}
+
+fn role_method_diagnostic_label(
+    check: &infer::check::PolyCheckOutput,
+    expr: u32,
+) -> Option<String> {
+    let select = role_method_expr_select(check, expr)?;
+    Some(check.lowering.session.poly.select(select).name.clone())
+}
+
+fn role_method_candidate_related(
+    check: &infer::check::PolyCheckOutput,
+    candidates: &[specialize::mono::DefId],
+) -> Vec<SourceDiagnosticRelated> {
+    candidates
+        .iter()
+        .filter_map(|candidate| {
+            let def = poly::expr::DefId(candidate.0);
+            let range = check.lowering.modules.def_source_range(def)?;
+            let label = check
+                .lowering
+                .labels
+                .def_label(def)
+                .map(str::to_string)
+                .unwrap_or_else(|| format!("d{}", candidate.0));
+            Some(SourceDiagnosticRelated {
+                message: format!("matching impl method candidate: {label}"),
+                range,
+                origin: None,
+            })
         })
         .collect()
 }
