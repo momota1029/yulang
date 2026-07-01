@@ -2488,6 +2488,10 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
             ..
         } => format!("unresolved type name: {}", format_name_path(path)),
         infer::lowering::BodyLoweringError::Expr {
+            error: infer::lowering::LoweringError::AnnotationBuild { error, .. },
+            ..
+        } => format_annotation_build_error(error),
+        infer::lowering::BodyLoweringError::Expr {
             error:
                 infer::lowering::LoweringError::NegSignatureBuild {
                     error: infer::lowering::NegSignatureBuildError::UnresolvedTypeName { path },
@@ -2559,6 +2563,33 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
             )
         }
         _ => format!("{error:?}"),
+    }
+}
+
+fn format_annotation_build_error(error: &infer::annotation::AnnBuildError) -> String {
+    match error {
+        infer::annotation::AnnBuildError::ExpectedTypeExpr { kind } => {
+            format!("expected type expression, found {kind:?}")
+        }
+        infer::annotation::AnnBuildError::EmptyTypeExpr => "expected type expression".to_string(),
+        infer::annotation::AnnBuildError::EmptyEffectfulType => {
+            "expected effectful type".to_string()
+        }
+        infer::annotation::AnnBuildError::MissingFunctionReturn => {
+            "function type annotation is missing a return type".to_string()
+        }
+        infer::annotation::AnnBuildError::MissingEffectRow => {
+            "effectful type annotation is missing an effect row".to_string()
+        }
+        infer::annotation::AnnBuildError::InvalidEffectRowTail { .. } => {
+            "effect row tail must be a row variable".to_string()
+        }
+        infer::annotation::AnnBuildError::UnresolvedTypeName { path } => {
+            format!("unresolved type name: {}", format_name_path(path))
+        }
+        infer::annotation::AnnBuildError::UnsupportedSyntax { kind } => {
+            format!("unsupported type annotation syntax: {kind:?}")
+        }
     }
 }
 

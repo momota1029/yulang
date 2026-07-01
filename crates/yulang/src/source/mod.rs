@@ -2644,6 +2644,13 @@ fn lowering_error_code(error: &infer::lowering::LoweringError) -> Option<&'stati
         | infer::lowering::LoweringError::NegSignatureBuild {
             error: infer::lowering::NegSignatureBuildError::UnresolvedTypeName { .. },
         } => Some("yulang.unresolved-type"),
+        infer::lowering::LoweringError::AnnotationBuild {
+            error: infer::annotation::AnnBuildError::UnsupportedSyntax { .. },
+            ..
+        } => Some("yulang.unsupported-type-syntax"),
+        infer::lowering::LoweringError::AnnotationBuild { .. } => {
+            Some("yulang.invalid-type-annotation")
+        }
         infer::lowering::LoweringError::UnresolvedName { .. } => Some("yulang.unresolved-value"),
         infer::lowering::LoweringError::UnsupportedTopLevelVarBinding { .. } => {
             Some("yulang.top-level-mutable-binding")

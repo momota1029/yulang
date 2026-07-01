@@ -116,6 +116,9 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
   - `unresolved_type_name.yu`
   - `top_level_mutable_binding.yu`
   - `unclosed_paren.yu`
+- 同日後続 slice で、annotation builder が未対応の type syntax を debug dump ではなく
+  compact diagnostic として出す canary を追加した。
+  - `unsupported_record_type_annotation.yu`
 - 同日後続 slice で、`rule_lazy_quantifier.yu` を diagnostics fixture に追加した。
   - CLI summary、LSP diagnostic、playground diagnostic が同じ
     `yulang.unsupported-rule-lazy-quantifier` code と `*?` primary range を見る。

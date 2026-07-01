@@ -221,6 +221,35 @@ fn public_diagnostics_check_reports_unresolved_type_name() {
 }
 
 #[test]
+fn public_diagnostics_check_reports_unsupported_type_syntax() {
+    let entry =
+        repo_yulang_fixture("regressions/diagnostics/unsupported_record_type_annotation.yu");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains(
+            "diagnostics:\n  error [yulang.unsupported-type-syntax]: x: unsupported type annotation syntax: TypeRecord\n"
+        ),
+        "{stdout}"
+    );
+    assert!(stdout.contains("lowering errors:\n"), "{stdout}");
+    assert!(
+        stdout.contains("  x: unsupported type annotation syntax: TypeRecord\n"),
+        "{stdout}"
+    );
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
 fn public_diagnostics_check_reports_top_level_mutable_binding() {
     let entry = repo_yulang_fixture("regressions/diagnostics/top_level_mutable_binding.yu");
 
