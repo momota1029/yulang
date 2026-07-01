@@ -2794,13 +2794,13 @@ fn lowering_error_code(error: &infer::lowering::LoweringError) -> Option<&'stati
         infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { .. } => {
             Some("yulang.unsupported-rule-lazy-quantifier")
         }
-        infer::lowering::LoweringError::MissingCatchScrutinee => {
+        infer::lowering::LoweringError::MissingCatchScrutinee { .. } => {
             Some("yulang.missing-catch-scrutinee")
         }
-        infer::lowering::LoweringError::MissingCatchArmPattern => {
+        infer::lowering::LoweringError::MissingCatchArmPattern { .. } => {
             Some("yulang.missing-catch-arm-pattern")
         }
-        infer::lowering::LoweringError::MissingCatchArmBody => {
+        infer::lowering::LoweringError::MissingCatchArmBody { .. } => {
             Some("yulang.missing-catch-arm-body")
         }
         infer::lowering::LoweringError::MissingFieldName => Some("yulang.missing-field-name"),
@@ -2936,13 +2936,13 @@ fn lowering_error_hint(error: &infer::lowering::LoweringError) -> Option<String>
         infer::lowering::LoweringError::MissingCaseArmBody => {
             Some("write an expression after `->`".to_string())
         }
-        infer::lowering::LoweringError::MissingCatchScrutinee => {
+        infer::lowering::LoweringError::MissingCatchScrutinee { .. } => {
             Some("write `catch <expr>:` before the handler arms".to_string())
         }
-        infer::lowering::LoweringError::MissingCatchArmPattern => {
+        infer::lowering::LoweringError::MissingCatchArmPattern { .. } => {
             Some("write a value pattern or effect operation before `->`".to_string())
         }
-        infer::lowering::LoweringError::MissingCatchArmBody => {
+        infer::lowering::LoweringError::MissingCatchArmBody { .. } => {
             Some("write an expression after `->`".to_string())
         }
         infer::lowering::LoweringError::MissingFieldName => {
@@ -3010,6 +3010,11 @@ fn lowering_error_source_range(error: &infer::lowering::LoweringError) -> Option
             *source_range
         }
         infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { source_range, .. } => {
+            Some(*source_range)
+        }
+        infer::lowering::LoweringError::MissingCatchScrutinee { source_range }
+        | infer::lowering::LoweringError::MissingCatchArmPattern { source_range }
+        | infer::lowering::LoweringError::MissingCatchArmBody { source_range } => {
             Some(*source_range)
         }
         infer::lowering::LoweringError::AnnotationBuild { source_range, .. } => *source_range,

@@ -497,6 +497,8 @@ expect_stdout_contains = [
 expect_diagnostic_code = "yulang.missing-catch-scrutinee"
 expect_diagnostic_severity = "error"
 expect_diagnostic_count = 1
+expect_diagnostic_start = 0
+expect_diagnostic_end = 5
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "effects", "handler-syntax"]
 
@@ -513,6 +515,8 @@ expect_stdout_contains = [
 expect_diagnostic_code = "yulang.missing-catch-arm-pattern"
 expect_diagnostic_severity = "error"
 expect_diagnostic_count = 1
+expect_diagnostic_start = 13
+expect_diagnostic_end = 15
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "effects", "handler-syntax"]
 
@@ -529,6 +533,8 @@ expect_stdout_contains = [
 expect_diagnostic_code = "yulang.missing-catch-arm-body"
 expect_diagnostic_severity = "error"
 expect_diagnostic_count = 1
+expect_diagnostic_start = 19
+expect_diagnostic_end = 21
 expect_diagnostic_related_count = 0
 contracts = ["diagnostics", "effects", "handler-syntax"]
 

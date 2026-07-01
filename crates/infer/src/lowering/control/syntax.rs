@@ -99,6 +99,13 @@ pub(super) fn arm_body_expr(arm: &Cst) -> Option<Cst> {
         .last()
 }
 
+pub(super) fn first_token_source_range(node: &Cst, kind: SyntaxKind) -> Option<SourceRange> {
+    node.descendants_with_tokens()
+        .filter_map(|item| item.into_token())
+        .find(|token| token.kind() == kind)
+        .map(|token| crate::token_source_range(&token))
+}
+
 pub(super) fn catch_effect_op(path: Vec<Name>) -> CatchEffectOp {
     let Some((operation, family_path)) = path.split_last() else {
         return CatchEffectOp {

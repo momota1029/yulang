@@ -30,9 +30,15 @@ pub enum LoweringError {
     MissingCaseScrutinee,
     MissingCaseArmPattern,
     MissingCaseArmBody,
-    MissingCatchScrutinee,
-    MissingCatchArmPattern,
-    MissingCatchArmBody,
+    MissingCatchScrutinee {
+        source_range: SourceRange,
+    },
+    MissingCatchArmPattern {
+        source_range: SourceRange,
+    },
+    MissingCatchArmBody {
+        source_range: SourceRange,
+    },
     MissingFieldName,
     MissingOpName,
     MissingOpOperand,

@@ -2568,13 +2568,13 @@ fn format_lowering_error(error: &infer::lowering::LoweringError) -> String {
         infer::lowering::LoweringError::MissingCaseArmBody => {
             "case arm is missing a body expression".to_string()
         }
-        infer::lowering::LoweringError::MissingCatchScrutinee => {
+        infer::lowering::LoweringError::MissingCatchScrutinee { .. } => {
             "catch expression is missing the computation to handle".to_string()
         }
-        infer::lowering::LoweringError::MissingCatchArmPattern => {
+        infer::lowering::LoweringError::MissingCatchArmPattern { .. } => {
             "catch arm is missing a value pattern or effect operation".to_string()
         }
-        infer::lowering::LoweringError::MissingCatchArmBody => {
+        infer::lowering::LoweringError::MissingCatchArmBody { .. } => {
             "catch arm is missing a body expression".to_string()
         }
         infer::lowering::LoweringError::MissingFieldName => {

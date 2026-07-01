@@ -740,7 +740,10 @@ impl<'a> ExprLowerer<'a> {
         lambda_scope: LambdaScope,
     ) -> Result<Computation, LoweringError> {
         let scrutinee_node =
-            case_like_scrutinee_expr(node).ok_or(LoweringError::MissingCatchScrutinee)?;
+            case_like_scrutinee_expr(node).ok_or_else(|| LoweringError::MissingCatchScrutinee {
+                source_range: first_token_source_range(node, SyntaxKind::Catch)
+                    .unwrap_or_else(|| crate::node_trimmed_source_range(node)),
+            })?;
         let scrutinee = self.lower_expr(&scrutinee_node)?;
         if let Some(label) = case_like_label(node) {
             return self.lower_recursive_case_like(
@@ -989,7 +992,10 @@ impl<'a> ExprLowerer<'a> {
         handled: &mut CatchHandledEffects,
     ) -> Result<LoweredCatchArm, LoweringError> {
         let patterns = arm_patterns(arm);
-        let body_node = arm_body_expr(arm).ok_or(LoweringError::MissingCatchArmBody)?;
+        let body_node = arm_body_expr(arm).ok_or_else(|| LoweringError::MissingCatchArmBody {
+            source_range: first_token_source_range(arm, SyntaxKind::Arrow)
+                .unwrap_or_else(|| crate::node_trimmed_source_range(arm)),
+        })?;
         match patterns.as_slice() {
             [value_pattern] => {
                 let pattern_value = self.fresh_type_var();
@@ -1023,9 +1029,11 @@ impl<'a> ExprLowerer<'a> {
                 })
             }
             [effect_pattern, continuation_pattern] => {
-                let effect_op = catch_effect_op(
-                    pattern_path(effect_pattern).ok_or(LoweringError::MissingCatchArmPattern)?,
-                );
+                let effect_op = catch_effect_op(pattern_path(effect_pattern).ok_or_else(|| {
+                    LoweringError::MissingCatchArmPattern {
+                        source_range: crate::node_trimmed_source_range(effect_pattern),
+                    }
+                })?);
                 let operation_decl = self.resolve_catch_operation_decl(&effect_op);
                 let handled_op = operation_decl
                     .as_ref()
@@ -1101,7 +1109,10 @@ impl<'a> ExprLowerer<'a> {
                     value_covers_all: false,
                 })
             }
-            [] => Err(LoweringError::MissingCatchArmPattern),
+            [] => Err(LoweringError::MissingCatchArmPattern {
+                source_range: first_token_source_range(arm, SyntaxKind::Arrow)
+                    .unwrap_or_else(|| crate::node_trimmed_source_range(arm)),
+            }),
             _ => Err(LoweringError::UnsupportedPatternSyntax { kind: arm.kind() }),
         }
     }
