@@ -661,9 +661,13 @@ fn print_check_diagnostics_summary(diagnostics: &[yulang::SourceDiagnostic]) {
     }
     println!("diagnostics:");
     for diagnostic in diagnostics {
-        match diagnostic.label.as_deref() {
-            Some(label) => println!("  error: {label}: {}", diagnostic.message),
-            None => println!("  error: {}", diagnostic.message),
+        match (diagnostic.code.as_deref(), diagnostic.label.as_deref()) {
+            (Some(code), Some(label)) => {
+                println!("  error [{code}]: {label}: {}", diagnostic.message)
+            }
+            (Some(code), None) => println!("  error [{code}]: {}", diagnostic.message),
+            (None, Some(label)) => println!("  error: {label}: {}", diagnostic.message),
+            (None, None) => println!("  error: {}", diagnostic.message),
         }
     }
 }

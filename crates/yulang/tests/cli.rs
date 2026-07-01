@@ -151,7 +151,9 @@ fn public_diagnostics_check_reports_type_annotation_mismatch() {
     assert_success(&output);
     let stdout = stdout(&output);
     assert!(
-        stdout.contains("diagnostics:\n  error: x: type mismatch: bool is not int\n"),
+        stdout.contains(
+            "diagnostics:\n  error [yulang.type-mismatch]: x: type mismatch: bool is not int\n"
+        ),
         "{stdout}"
     );
     assert!(stdout.contains("lowering errors:\n"), "{stdout}");
@@ -177,7 +179,9 @@ fn public_diagnostics_check_reports_unresolved_value_name() {
     assert_success(&output);
     let stdout = stdout(&output);
     assert!(
-        stdout.contains("diagnostics:\n  error: result: unresolved value name: missing\n"),
+        stdout.contains(
+            "diagnostics:\n  error [yulang.unresolved-value]: result: unresolved value name: missing\n"
+        ),
         "{stdout}"
     );
     assert!(stdout.contains("lowering errors:\n"), "{stdout}");
@@ -203,7 +207,9 @@ fn public_diagnostics_check_reports_unresolved_type_name() {
     assert_success(&output);
     let stdout = stdout(&output);
     assert!(
-        stdout.contains("diagnostics:\n  error: x: unresolved type name: missing_type\n"),
+        stdout.contains(
+            "diagnostics:\n  error [yulang.unresolved-type]: x: unresolved type name: missing_type\n"
+        ),
         "{stdout}"
     );
     assert!(stdout.contains("lowering errors:\n"), "{stdout}");
@@ -230,7 +236,7 @@ fn public_diagnostics_check_reports_top_level_mutable_binding() {
     let stdout = stdout(&output);
     assert!(
         stdout.contains(
-            "diagnostics:\n  error: $x: top-level mutable binding $x is not supported; move it into a block or function body\n"
+            "diagnostics:\n  error [yulang.top-level-mutable-binding]: $x: top-level mutable binding $x is not supported; move it into a block or function body\n"
         ),
         "{stdout}"
     );
