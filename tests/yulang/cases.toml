@@ -1,0 +1,72 @@
+[[case]]
+name = "nondet_once_triple"
+file = "regressions/runtime/nondet_once_triple.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [opt::just((3, 4, 5))]\n"
+expect_stderr = ""
+contracts = ["runtime", "std.nondet", "deep-handler"]
+
+[[case]]
+name = "optional_record_defaults"
+file = "regressions/runtime/optional_record_defaults.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [6, 2, 12, 12]\n"
+expect_stderr = ""
+contracts = ["runtime", "records", "defaults"]
+
+[[case]]
+name = "attached_impl_pick"
+file = "regressions/runtime/attached_impl_pick.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [(10, false)]\n"
+expect_stderr = ""
+contracts = ["runtime", "roles", "attached-impl"]
+
+[[case]]
+name = "list_update"
+file = "regressions/runtime/list_update.yu"
+kind = "run"
+std = "repo"
+expect_stdout = "run roots [[2, 6, 4]]\n"
+expect_stderr = ""
+contracts = ["runtime", "lists", "update"]
+
+[[case]]
+name = "type_annotation_mismatch"
+file = "regressions/diagnostics/type_annotation_mismatch.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.type-mismatch]: x: type mismatch: bool is not int",
+  "note: expected type comes from this type annotation: int",
+  "note: actual type comes from this expression: bool",
+]
+contracts = ["diagnostics", "typechecker", "related-ranges"]
+
+[[case]]
+name = "unresolved_value_name"
+file = "regressions/diagnostics/unresolved_value_name.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.unresolved-value]: result: unresolved value name: missing",
+  "hint: define `missing` before this use, or import the module that provides it",
+]
+contracts = ["diagnostics", "names"]
+
+[[case]]
+name = "catch_missing_arm_body"
+file = "regressions/diagnostics/catch_missing_arm_body.yu"
+kind = "check"
+std = "none"
+expect_stderr = ""
+expect_stdout_contains = [
+  "error [yulang.missing-catch-arm-body]: catch arm is missing a body expression",
+  "hint: write an expression after `->`",
+]
+contracts = ["diagnostics", "effects", "handler-syntax"]

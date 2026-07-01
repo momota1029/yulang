@@ -3,6 +3,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
+use serde::Deserialize;
+
 #[test]
 fn compatible_run_accepts_explicit_std_root() {
     let (entry, std_root) = write_fixture("run-explicit-std-root", "1\n");
@@ -3303,6 +3305,35 @@ fn public_regression_runtime_fixtures_run_through_cli_golden() {
 }
 
 #[test]
+fn public_contract_manifest_cli_cases_hold() {
+    let cases = public_contract_manifest_cases();
+    assert!(!cases.is_empty());
+
+    for case in cases {
+        assert!(
+            !case.contracts.is_empty(),
+            "contract manifest case {} should list contracts",
+            case.name
+        );
+        assert!(
+            repo_yulang_fixture(&case.file).exists(),
+            "contract manifest case {} points at missing fixture {}",
+            case.name,
+            case.file
+        );
+
+        match case.kind.as_str() {
+            "run" => run_contract_manifest_case(&case),
+            "check" => check_contract_manifest_case(&case),
+            other => panic!(
+                "unsupported contract manifest case kind `{other}`: {}",
+                case.name
+            ),
+        }
+    }
+}
+
+#[test]
 fn public_examples_smoke_bridge_runs_representative_cli_golden() {
     let cases = [
         (
@@ -3580,6 +3611,113 @@ fn repo_lib_root() -> PathBuf {
 
 fn repo_yulang_fixture(path: &str) -> PathBuf {
     repo_file("tests").join("yulang").join(path)
+}
+
+#[derive(Debug, Deserialize)]
+struct PublicContractManifest {
+    case: Vec<PublicContractCase>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PublicContractCase {
+    name: String,
+    file: String,
+    kind: String,
+    std: Option<String>,
+    expect_stdout: Option<String>,
+    expect_stderr: Option<String>,
+    #[serde(default)]
+    expect_stdout_contains: Vec<String>,
+    #[serde(default)]
+    expect_stderr_contains: Vec<String>,
+    #[serde(default)]
+    contracts: Vec<String>,
+}
+
+fn public_contract_manifest_cases() -> Vec<PublicContractCase> {
+    let manifest_path = repo_yulang_fixture("cases.toml");
+    let manifest = fs::read_to_string(&manifest_path).unwrap_or_else(|error| {
+        panic!(
+            "failed to read public contract manifest {}: {error}",
+            manifest_path.display()
+        )
+    });
+    toml::from_str::<PublicContractManifest>(&manifest)
+        .unwrap_or_else(|error| panic!("failed to parse {}: {error}", manifest_path.display()))
+        .case
+}
+
+fn run_contract_manifest_case(case: &PublicContractCase) {
+    let root = temp_root(&format!("public-contract-{}", case.name));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let cache_root = root.join("cache-root");
+    let entry = repo_yulang_fixture(&case.file);
+
+    let mut command = yulang_command();
+    push_contract_std_args(&mut command, case);
+    command
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("run")
+        .arg("--print-roots");
+    let output = command.arg(&entry).output().unwrap();
+
+    assert_success(&output);
+    assert_contract_output(case, &output);
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+fn check_contract_manifest_case(case: &PublicContractCase) {
+    let entry = repo_yulang_fixture(&case.file);
+    let mut command = yulang_command();
+    push_contract_std_args(&mut command, case);
+    command.arg("--no-cache").arg("check");
+    let output = command.arg(&entry).output().unwrap();
+
+    assert_success(&output);
+    assert_contract_output(case, &output);
+}
+
+fn push_contract_std_args(command: &mut Command, case: &PublicContractCase) {
+    match case.std.as_deref().unwrap_or("repo") {
+        "repo" => {
+            command.arg("--std-root").arg(repo_lib_root());
+        }
+        "none" => {
+            command.arg("--no-prelude");
+        }
+        other => panic!(
+            "unsupported std mode `{other}` in contract case {}",
+            case.name
+        ),
+    }
+}
+
+fn assert_contract_output(case: &PublicContractCase, output: &Output) {
+    let stdout = stdout(output);
+    let stderr = stderr(output);
+
+    if let Some(expected_stdout) = &case.expect_stdout {
+        assert_eq!(&stdout, expected_stdout, "{}", case.name);
+    }
+    if let Some(expected_stderr) = &case.expect_stderr {
+        assert_eq!(&stderr, expected_stderr, "{}", case.name);
+    }
+    for expected in &case.expect_stdout_contains {
+        assert!(
+            stdout.contains(expected),
+            "case {} missing stdout fragment {expected:?}:\n{stdout}",
+            case.name
+        );
+    }
+    for expected in &case.expect_stderr_contains {
+        assert!(
+            stderr.contains(expected),
+            "case {} missing stderr fragment {expected:?}:\n{stderr}",
+            case.name
+        );
+    }
 }
 
 fn repo_file(path: &str) -> PathBuf {

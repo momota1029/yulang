@@ -1390,6 +1390,7 @@ dependencies = [
  "sources",
  "specialize",
  "tokio",
+ "toml",
  "tower-lsp",
  "unicode-ident",
  "yulang-editor",

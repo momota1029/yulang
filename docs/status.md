@@ -14,6 +14,8 @@ It complements these documents:
   and public-signature contracts that must stay true when inference changes.
 - [tests/yulang/](../tests/yulang/) — small public regression fixtures used by
   CLI and Rust tests.
+- [tests/yulang/cases.toml](../tests/yulang/cases.toml) — the executable
+  public contract manifest for focused CLI runtime and diagnostic cases.
 - [docs/native-backend.md](native-backend.md) — archived native backend status.
 - [docs/native-experimental-release.md](native-experimental-release.md) —
   release-gate notes for the archived opt-in native subset.
@@ -34,8 +36,8 @@ The public contract is the combination of these gates:
 | Contract area | What must stay true | Main gates |
 | --- | --- | --- |
 | Public signatures | Printed public types do not leak private stack evidence such as `#...`, `AllExcept(...)`, or data-position private tails. Callback residuals and reference residuals must not disappear. Deep handler surfaces must not collapse into shallow handler surfaces. | `cargo test -q -p yulang public -- --test-threads=1`; fixtures under `tests/yulang/regressions/effect/`; [docs/infer-solver-invariants.md](infer-solver-invariants.md) |
-| Runtime behavior | The default evidence VM must preserve the control/oracle behavior for public examples and focused runtime regressions. Fast paths need a proof or shape gate and must fall back to the generic route when the proof is absent. | `cargo test -q -p yulang --test cli -- --test-threads=1`; `scripts/hardening-smoke.sh`; `debug evidence-vm-run --compare-control` on representative programs |
-| Diagnostics | Parser, type, role/method, effect, and runtime errors should point at source-level causes. Compact CLI golden tests should check diagnostic codes/ranges/messages without freezing broad internal dumps. CLI, LSP, and playground should read the same structured diagnostic payload. | `public_diagnostics_check` CLI tests; `CheckReport` / `SourceDiagnostic`; LSP and wasm diagnostic tests |
+| Runtime behavior | The default evidence VM must preserve the control/oracle behavior for public examples and focused runtime regressions. Fast paths need a proof or shape gate and must fall back to the generic route when the proof is absent. | `tests/yulang/cases.toml`; `cargo test -q -p yulang --test cli -- --test-threads=1`; `scripts/hardening-smoke.sh`; `debug evidence-vm-run --compare-control` on representative programs |
+| Diagnostics | Parser, type, role/method, effect, and runtime errors should point at source-level causes. Compact CLI golden tests should check diagnostic codes/ranges/messages without freezing broad internal dumps. CLI, LSP, and playground should read the same structured diagnostic payload. | `tests/yulang/cases.toml`; `public_diagnostics_check` CLI tests; `CheckReport` / `SourceDiagnostic`; LSP and wasm diagnostic tests |
 | Release artifacts | A released `yulang` binary must run with the bundled standard library, start `yulang server`, keep cache status understandable, and pass public examples and hardening smoke. | `scripts/release-gate.sh`; `scripts/release-smoke.sh`; `scripts/release-archive-smoke.sh`; installer smoke scripts |
 | Standard API surface | Stable APIs should be resource/lifetime contracts, not accidental thin wrappers around the current host implementation. Provisional std shapes are not compatibility promises. Filesystem and server APIs share host capability, scope-exit, and unsupported-host rules. | [spec/2026-07-01-stable-standard-api.md](../spec/2026-07-01-stable-standard-api.md); [spec/2026-07-01-file-resource-api.md](../spec/2026-07-01-file-resource-api.md); host/filesystem/FFI TODO notes |
 
