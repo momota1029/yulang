@@ -141,6 +141,42 @@ fn compatible_run_reports_unhandled_effect_hint() {
 }
 
 #[test]
+fn compatible_run_reports_not_callable_hint() {
+    let entry = write_entry("run-not-callable", "my x = 1 2\nx\n");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        stdout(&output),
+        stderr(&output)
+    );
+    assert_eq!(stdout(&output), "");
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains(
+            "runtime error [yulang.not-callable]: tried to call a non-function value 1\n"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "hint: check the expression before the argument; calls are written as `f x` or `f(...)`"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn compatible_check_accepts_explicit_std_root() {
     let (entry, std_root) = write_fixture("check-explicit-std-root", "1\n");
 

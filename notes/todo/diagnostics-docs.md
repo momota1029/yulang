@@ -63,6 +63,8 @@ Diagnostics の最初の slice:
   とき、CLI は `yulang.unhandled-effect` と handler 追加を促す hint を表示する。
   これは runtime evidence VM の内部エラー文言を user-facing contract にしないための
   最初の runtime diagnostic canary とする。
+- 同日後続 slice で、文法上は application として valid な `1 2` のような
+  not-callable runtime failure は `yulang.not-callable` と call syntax hint を出す。
 
 API 固定の最初の slice:
 
@@ -117,6 +119,8 @@ TODO:
 - Runtime / lowering errors:
   - 普通の user path で residual polymorphic runtime IR を漏らさない
   - impossible runtime state は recoverable value ではなく trap として説明する
+  - not-callable は `runtime-evidence-run not a function` ではなく、call syntax を
+    見直せる user-facing message として出す。
 
 ## Examples
 
