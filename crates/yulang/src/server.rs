@@ -1044,6 +1044,21 @@ mod tests {
         );
     }
 
+    fn diagnostics_fixture(name: &str) -> &'static str {
+        match name {
+            "catch_missing_scrutinee" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/catch_missing_scrutinee.yu"
+            ),
+            "catch_missing_arm_pattern" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/catch_missing_arm_pattern.yu"
+            ),
+            "catch_missing_arm_body" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/catch_missing_arm_body.yu"
+            ),
+            _ => panic!("unknown diagnostics fixture: {name}"),
+        }
+    }
+
     #[test]
     fn semantic_tokens_include_keyword_number_and_string() {
         let tokens = semantic_tokens_for_source("my x = \"hi\"\n1\n");
@@ -1436,6 +1451,94 @@ mod tests {
             "{diagnostics:?}"
         );
         assert_diagnostic_code(&diagnostics[0], "yulang.syntax");
+    }
+
+    #[test]
+    fn diagnostics_use_catch_syntax_ranges() {
+        let root = temp_root("catch-syntax-ranges");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let cases = [
+            (
+                "catch_missing_scrutinee",
+                "yulang.missing-catch-scrutinee",
+                Range {
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 0,
+                        character: 5,
+                    },
+                },
+                "catch expression is missing the computation to handle",
+                "hint: write `catch <expr>:` before the handler arms",
+            ),
+            (
+                "catch_missing_arm_pattern",
+                "yulang.missing-catch-arm-pattern",
+                Range {
+                    start: Position {
+                        line: 1,
+                        character: 4,
+                    },
+                    end: Position {
+                        line: 1,
+                        character: 6,
+                    },
+                },
+                "catch arm is missing a value pattern or effect operation",
+                "hint: write a value pattern or effect operation before `->`",
+            ),
+            (
+                "catch_missing_arm_body",
+                "yulang.missing-catch-arm-body",
+                Range {
+                    start: Position {
+                        line: 1,
+                        character: 10,
+                    },
+                    end: Position {
+                        line: 1,
+                        character: 12,
+                    },
+                },
+                "catch arm is missing a body expression",
+                "hint: write an expression after `->`",
+            ),
+        ];
+
+        for (fixture, code, range, message, hint) in cases {
+            let diagnostics = diagnostics_for_source(
+                &root.join(format!("{fixture}.yu")),
+                diagnostics_fixture(fixture).to_string(),
+                &crate::StdSourceOptions {
+                    std_root: Some(root.join("lib")),
+                },
+            );
+
+            assert_eq!(diagnostics.len(), 1, "{fixture}: {diagnostics:?}");
+            let diagnostic = &diagnostics[0];
+            assert_eq!(diagnostic.range, range, "{fixture}");
+            assert_eq!(
+                diagnostic.severity,
+                Some(DiagnosticSeverity::ERROR),
+                "{fixture}"
+            );
+            assert!(
+                diagnostic.message.contains(message),
+                "{fixture}: {diagnostics:?}"
+            );
+            assert!(
+                diagnostic.message.contains(hint),
+                "{fixture}: {diagnostics:?}"
+            );
+            assert_eq!(diagnostic.related_information, None, "{fixture}");
+            assert_diagnostic_code(diagnostic, code);
+        }
     }
 
     #[test]

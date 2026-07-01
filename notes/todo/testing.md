@@ -176,7 +176,7 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
 - 同日後続 slice で、catch syntax の missing scrutinee / missing arm pattern /
   missing arm body diagnostics を primary range 付きの public contract にした。
   - CLI manifest は `catch` keyword / arm `->` range を固定する。
-  - wasm playground diagnostics tests も同じ共有 fixture を読む。
+  - LSP diagnostics と wasm playground diagnostics tests も同じ共有 fixture を読む。
 
 ## 2026-06-23 public signature golden first slice
 
