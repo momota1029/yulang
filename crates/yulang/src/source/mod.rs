@@ -1839,6 +1839,9 @@ fn parser_diagnostics_from_loaded(loaded: &[sources::LoadedFile]) -> Vec<SourceD
 fn parser_diagnostic_range(source: &str, range: rowan::TextRange) -> SourceRange {
     let mut start = usize::from(range.start());
     let mut end = usize::from(range.end());
+    if start < end {
+        end = start + source[start..end].trim_end().len();
+    }
     if start == end && start >= source.len() {
         start = source.trim_end().len();
         end = start;

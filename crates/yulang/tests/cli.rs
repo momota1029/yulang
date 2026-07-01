@@ -414,6 +414,33 @@ fn public_diagnostics_check_recovers_unclosed_paren_without_panic() {
 }
 
 #[test]
+fn public_diagnostics_check_reports_trailing_operator_syntax() {
+    let entry = repo_yulang_fixture("regressions/diagnostics/trailing_operator.yu");
+
+    let output = yulang_command()
+        .arg("--no-prelude")
+        .arg("--no-cache")
+        .arg("check")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains("diagnostics:\n  error [yulang.syntax]: syntax error: unexpected token\n"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("    --> line 1, column 10\n    1 | my x = 1 +\n      |          ^\n"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("check-poly\n"), "{stdout}");
+    assert!(stdout.contains("lowering errors: 0\n"), "{stdout}");
+    assert_eq!(stderr(&output), "");
+}
+
+#[test]
 fn compatible_global_cst_and_timing_flags_are_accepted() {
     let entry = write_entry("global-cst", "1\n");
 

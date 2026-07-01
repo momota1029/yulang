@@ -35,6 +35,7 @@ pub fn parse_module_to_green_with_ops(source: &str, ops: crate::op::OpTable) -> 
     use reborrow_generic::Reborrow as _;
 
     use crate::context::{Env, State};
+    use crate::parse::emit_invalid;
     use crate::scan::trivia::scan_trivia;
     use crate::sink::{EventSink as _, GreenSink};
     use crate::stmt::parse_statement;
@@ -63,7 +64,17 @@ pub fn parse_module_to_green_with_ops(source: &str, ops: crate::op::OpTable) -> 
                     }
                     info = next_info;
                 }
-                Some(Either::Right(_)) => break,
+                Some(Either::Right(stop)) => {
+                    let next_info = stop.trailing_trivia_info();
+                    if stop.kind == SyntaxKind::Semicolon {
+                        i.env.state.sink.start(SyntaxKind::Separator);
+                        i.env.state.sink.lex(&stop);
+                        i.env.state.sink.finish();
+                    } else {
+                        emit_invalid(i.rb(), stop);
+                    }
+                    info = next_info;
+                }
             }
         }
     }

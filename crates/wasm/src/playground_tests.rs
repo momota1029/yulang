@@ -35,6 +35,9 @@ mod tests {
             "unclosed_paren" => {
                 include_str!("../../../tests/yulang/regressions/diagnostics/unclosed_paren.yu")
             }
+            "trailing_operator" => {
+                include_str!("../../../tests/yulang/regressions/diagnostics/trailing_operator.yu")
+            }
             "rule_lazy_quantifier" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/rule_lazy_quantifier.yu"
             ),
@@ -542,6 +545,22 @@ pair
         assert_eq!(
             output.diagnostics[0].message,
             "syntax error: unexpected end of input"
+        );
+    }
+
+    #[test]
+    fn check_inner_returns_trailing_operator_syntax_code_and_range() {
+        let output = check_inner(diagnostics_fixture("trailing_operator"));
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        assert_eq!(output.diagnostics[0].label, None);
+        assert_eq!(output.diagnostics[0].code.as_deref(), Some("yulang.syntax"));
+        assert_eq!(output.diagnostics[0].start, 9);
+        assert_eq!(output.diagnostics[0].end, 10);
+        assert_eq!(
+            output.diagnostics[0].message,
+            "syntax error: unexpected token"
         );
     }
 

@@ -2536,6 +2536,18 @@ fn stmt_module_unclosed_paren_recovers_as_invalid_token() {
 }
 
 #[test]
+fn stmt_module_trailing_operator_recovers_as_invalid_token() {
+    let module = parse_module_green("my x = 1 +\n");
+    let invalid_tokens = module
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::InvalidToken)
+        .collect::<Vec<_>>();
+
+    assert_eq!(invalid_tokens.len(), 1);
+    assert_eq!(invalid_tokens[0].text().to_string().trim(), "+");
+}
+
+#[test]
 fn stmt_binding_rhs_keeps_indented_pipeline_continuation() {
     let source = "my xs = [1, 2]\n    | f\n";
     let module = parse_module_green(source);
