@@ -8,6 +8,10 @@ same files without copying source text out of inline strings.
 currently define the executable language floor for CLI runtime, diagnostics,
 runtime error, compile error, and public signature behavior. Each entry should
 point at a focused `.yu` file and list the contract tags it protects.
+The manifest runner checks that `run` cases carry a runtime-facing tag, `check`
+cases carry `diagnostics`, and `public-signature` cases carry
+`public-signature`, so the tags remain useful as a contract index rather than
+free-form notes.
 Diagnostic entries may also assert the structured `SourceDiagnostic` payload
 with compact fields such as diagnostic count, severity, code, label, related
 count, and related origins.

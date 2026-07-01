@@ -3466,6 +3466,7 @@ fn public_contract_manifest_cli_cases_hold() {
             "contract manifest case {} should list contracts",
             case.name
         );
+        assert_contract_manifest_tags_match_kind(&case);
         assert_contract_manifest_case_has_expectation(&case);
         assert!(
             public_contract_case_entry(&case).exists(),
@@ -3484,6 +3485,44 @@ fn public_contract_manifest_cli_cases_hold() {
             ),
         }
     }
+}
+
+fn assert_contract_manifest_tags_match_kind(case: &PublicContractCase) {
+    match case.kind.as_str() {
+        "run" => assert!(
+            contract_manifest_case_has_any_tag(
+                case,
+                &["runtime", "runtime-error", "public-example"]
+            ),
+            "run contract manifest case {} should be tagged runtime, runtime-error, or public-example",
+            case.name
+        ),
+        "check" => assert!(
+            contract_manifest_case_has_tag(case, "diagnostics"),
+            "check contract manifest case {} should be tagged diagnostics",
+            case.name
+        ),
+        "public-signature" => assert!(
+            contract_manifest_case_has_tag(case, "public-signature"),
+            "public-signature contract manifest case {} should be tagged public-signature",
+            case.name
+        ),
+        other => panic!(
+            "unsupported contract manifest case kind `{other}`: {}",
+            case.name
+        ),
+    }
+}
+
+fn contract_manifest_case_has_any_tag(case: &PublicContractCase, tags: &[&str]) -> bool {
+    tags.iter()
+        .any(|tag| contract_manifest_case_has_tag(case, tag))
+}
+
+fn contract_manifest_case_has_tag(case: &PublicContractCase, tag: &str) -> bool {
+    case.contracts
+        .iter()
+        .any(|contract| contract.as_str() == tag)
 }
 
 fn assert_contract_manifest_case_has_expectation(case: &PublicContractCase) {
