@@ -2512,6 +2512,101 @@ fn public_regression_list_update_runs_through_cli_cache() {
 }
 
 #[test]
+fn public_regression_runtime_fixtures_run_through_cli_golden() {
+    let cases = [
+        (
+            "nondet-once-triple",
+            "regressions/runtime/nondet_once_triple.yu",
+            "run roots [opt::just((3, 4, 5))]\n",
+        ),
+        (
+            "optional-record-defaults",
+            "regressions/runtime/optional_record_defaults.yu",
+            "run roots [6, 2, 12, 12]\n",
+        ),
+        (
+            "attached-impl-pick",
+            "regressions/runtime/attached_impl_pick.yu",
+            "run roots [(10, false)]\n",
+        ),
+    ];
+
+    for (slug, fixture, expected_stdout) in cases {
+        let root = temp_root(&format!("public-regression-{slug}"));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let cache_root = root.join("cache-root");
+        let entry = repo_yulang_fixture(fixture);
+
+        let output = yulang_command()
+            .env("YULANG_CACHE_DIR", &cache_root)
+            .arg("--std-root")
+            .arg(repo_lib_root())
+            .arg("run")
+            .arg("--print-roots")
+            .arg(&entry)
+            .output()
+            .unwrap();
+
+        assert_success(&output);
+        assert_eq!(stdout(&output), expected_stdout, "{slug}");
+        assert_eq!(control_cache_file_count(&cache_root), 1, "{slug}");
+        assert_eq!(poly_cache_file_count(&cache_root), 1, "{slug}");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+}
+
+#[test]
+fn public_examples_smoke_bridge_runs_representative_cli_golden() {
+    let cases = [
+        (
+            "struct-method",
+            "examples/01_struct_with.yu",
+            "run roots [25]\n",
+        ),
+        (
+            "nondet-all",
+            "examples/05_undet_all.yu",
+            "run roots [[5, 6, 7, 6, 7, 8, 7, 8, 9]]\n",
+        ),
+        (
+            "effect-handler",
+            "examples/10_effect_handler.yu",
+            "run roots [(9, \"3\\n6\\n\")]\n",
+        ),
+        (
+            "attached-impl",
+            "examples/11_attached_impl.yu",
+            "run roots [(10, false)]\n",
+        ),
+    ];
+
+    for (slug, example, expected_stdout) in cases {
+        let root = temp_root(&format!("public-example-{slug}"));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let cache_root = root.join("cache-root");
+        let entry = repo_file(example);
+
+        let output = yulang_command()
+            .env("YULANG_CACHE_DIR", &cache_root)
+            .arg("--std-root")
+            .arg(repo_lib_root())
+            .arg("run")
+            .arg("--print-roots")
+            .arg(&entry)
+            .output()
+            .unwrap();
+
+        assert_success(&output);
+        assert_eq!(stdout(&output), expected_stdout, "{slug}");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+}
+
+#[test]
 fn public_regression_ref_update_loop_runs_on_cli_vm_stack() {
     let root = temp_root("public-regression-ref-update-loop");
     let _ = fs::remove_dir_all(&root);
@@ -2704,14 +2799,16 @@ fn write_minimal_std(root: &Path) -> PathBuf {
 }
 
 fn repo_lib_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib")
+    repo_file("lib")
 }
 
 fn repo_yulang_fixture(path: &str) -> PathBuf {
+    repo_file("tests").join("yulang").join(path)
+}
+
+fn repo_file(path: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
-        .join("tests")
-        .join("yulang")
         .join(path)
 }
 

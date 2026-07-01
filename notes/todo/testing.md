@@ -98,7 +98,13 @@ playground 公開前に、最近壊れた境界を小さい fixture として固
 - 同日、完全実行系の regression は `yulang` CLI 起動を第一経路にする方針へ切り替えた。
   list update fixture は `crates/yulang/tests/cli.rs` から `--std-root lib run --print-roots` で実行し、
   isolated cache に poly / control artifact が出ることも見る。
-- 次は nondet once triple、optional record default、public examples を同じ置き場へ広げる。
+- 2026-07-01 に次を `tests/yulang/regressions/runtime/` へ追加し、`crates/yulang/tests/cli.rs`
+  から repo `lib` std root と isolated cache で実行する CLI golden にした。
+  - `nondet_once_triple.yu`
+  - `optional_record_defaults.yu`
+  - `attached_impl_pick.yu`
+- 同日、`scripts/public-example-smoke.sh` だけに寄っていた代表 public examples の一部を、
+  小さい table-driven CLI golden として Rust 側にも橋渡しした。
 
 ## 2026-06-23 public signature golden first slice
 
