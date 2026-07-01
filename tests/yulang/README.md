@@ -30,6 +30,10 @@ matching `compile error [` or `runtime error [` stderr prefix.
 `path`, or `file`. Standard file API cases must also declare a host scope such as
 `host.native` or `host.unsupported`; the broad `host` tag is intentionally not
 part of the manifest taxonomy.
+Every `standard-api` case must also be classified as exactly one of
+`stable-api` or `migration-canary`. Use `migration-canary` for executable
+coverage of current helper spellings that should not be read as long-term
+compatibility promises.
 All `public-signature` cases also reject private evidence and placeholder-like
 fragments such as `#...`, `AllExcept(...)`, `Unknown`, and `Any` in the
 projected public type. Individual cases can still add narrower

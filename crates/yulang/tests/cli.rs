@@ -3553,6 +3553,11 @@ fn public_contract_manifest_covers_status_spine_claims() {
         StatusSpineManifestRequirement::new("runtime error behavior", &["runtime-error"]),
         StatusSpineManifestRequirement::new("diagnostics", &["diagnostics"]),
         StatusSpineManifestRequirement::new("standard API", &["standard-api"]),
+        StatusSpineManifestRequirement::new("stable standard API", &["standard-api", "stable-api"]),
+        StatusSpineManifestRequirement::new(
+            "standard API migration canary",
+            &["standard-api", "migration-canary"],
+        ),
         StatusSpineManifestRequirement::new("result API", &["standard-api", "result"]),
         StatusSpineManifestRequirement::new("error API", &["standard-api", "errors"]),
         StatusSpineManifestRequirement::new("path API", &["standard-api", "path"]),
@@ -3639,6 +3644,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "host.unsupported"
             | "junction"
             | "lists"
+            | "migration-canary"
             | "names"
             | "parser-dsl"
             | "path"
@@ -3656,6 +3662,7 @@ fn is_known_contract_tag(tag: &str) -> bool {
             | "runtime-error"
             | "runtime-failure"
             | "showcase"
+            | "stable-api"
             | "standard-api"
             | "std.flow"
             | "std.nondet"
@@ -3779,6 +3786,13 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
     }
 
     if contract_manifest_case_has_tag(case, "standard-api") {
+        let is_stable_api = contract_manifest_case_has_tag(case, "stable-api");
+        let is_migration_canary = contract_manifest_case_has_tag(case, "migration-canary");
+        assert!(
+            is_stable_api ^ is_migration_canary,
+            "standard-api contract manifest case {} should be tagged exactly one of stable-api or migration-canary",
+            case.name
+        );
         assert!(
             contract_manifest_case_has_any_tag(case, &["result", "errors", "path", "file"]),
             "standard-api contract manifest case {} should include a narrower API area tag",
@@ -3791,6 +3805,13 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
                 case.name
             );
         }
+    }
+    if contract_manifest_case_has_any_tag(case, &["stable-api", "migration-canary"]) {
+        assert!(
+            contract_manifest_case_has_tag(case, "standard-api"),
+            "contract manifest case {} should only use stable-api or migration-canary with standard-api",
+            case.name
+        );
     }
 
     if case.kind == "public-signature" {
