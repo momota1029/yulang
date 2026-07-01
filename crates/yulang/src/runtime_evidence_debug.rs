@@ -1304,6 +1304,82 @@ pub(crate) fn print_run_report(
             .resume_plan_sidecar_shadow_legacy_frame_avoid_estimate
     );
     println!(
+        "  runtime_evidence.resume_plan_sidecar_exec_candidates: {}",
+        output.evidence_stats.resume_plan_sidecar_exec_candidates
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_exec_ready: {}",
+        output.evidence_stats.resume_plan_sidecar_exec_ready
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_exec_hits: {}",
+        output.evidence_stats.resume_plan_sidecar_exec_hits
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_exec_fallbacks: {}",
+        output.evidence_stats.resume_plan_sidecar_exec_fallbacks
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_exec_reject_root_marker_mismatch: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_exec_reject_root_marker_mismatch
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_exec_reject_provider_scope_mismatch: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_exec_reject_provider_scope_mismatch
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_exec_reject_child_marker_scope: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_exec_reject_child_marker_scope
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_exec_reject_same_handler_boundary: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_exec_reject_same_handler_boundary
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_exec_reject_ref_set_boundary: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_exec_reject_ref_set_boundary
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_exec_reject_shape_mismatch: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_exec_reject_shape_mismatch
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_exec_root_marker_frames: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_exec_root_marker_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_exec_provider_frames: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_exec_provider_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_exec_child_marker_frames: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_exec_child_marker_frames
+    );
+    println!(
+        "  runtime_evidence.resume_plan_sidecar_exec_legacy_frame_avoid_estimate: {}",
+        output
+            .evidence_stats
+            .resume_plan_sidecar_exec_legacy_frame_avoid_estimate
+    );
+    println!(
         "  runtime_evidence.scope_plan_candidates: {}",
         output.evidence_stats.scope_plan_candidates
     );
