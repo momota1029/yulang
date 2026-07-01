@@ -70,3 +70,78 @@ expect_stdout_contains = [
   "hint: write an expression after `->`",
 ]
 contracts = ["diagnostics", "effects", "handler-syntax"]
+
+[[case]]
+name = "data_position_effect_function_public_signature"
+file = "regressions/effect/data_position_effect_function_public_signature.yu"
+kind = "public-signature"
+std = "none"
+symbol = "box.handle"
+expect_type = "box('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"
+deny_type_contains = ["#", "AllExcept", "tick"]
+contracts = ["public-signature", "effect-hygiene", "data-position-effect"]
+
+[[case]]
+name = "nested_data_position_effect_function_public_signature"
+file = "regressions/effect/nested_data_position_effect_function_public_signature.yu"
+kind = "public-signature"
+std = "none"
+symbol = "demo.cell.apply"
+expect_type = "demo::cell('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"
+deny_type_contains = ["#", "AllExcept", "pulse"]
+contracts = ["public-signature", "effect-hygiene", "data-position-effect"]
+
+[[case]]
+name = "std_ref_update_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.control.var.ref"
+symbol = "std.control.var.ref.update"
+expect_type = "std::control::var::ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"
+deny_type_contains = ["#", "AllExcept", "std::control::var::ref_update"]
+contracts = ["public-signature", "std.ref", "effect-hygiene"]
+
+[[case]]
+name = "std_parse_choice_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.text.parse"
+symbol = "std.text.parse.choice"
+expect_type = "(() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> (() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> () -> [std::text::parse::parse 'a 'b 'c 'd] 'e where 'b: std::text::parse::ParseError(item = 'f, pos = 'g)"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "std.parse", "effect-hygiene"]
+
+[[case]]
+name = "std_flow_for_in_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.control.flow.loop"
+symbol = "std.control.flow.loop.for_in"
+expect_type = "'a -> ('b -> [std::control::flow::loop; 'c] any) -> ['c] () where 'a: std::data::fold::Fold(item = 'b)"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "std.flow", "callback-residual"]
+
+[[case]]
+name = "std_nondet_once_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.control.nondet.nondet"
+symbol_contains = "#act-method:once"
+expect_type = "'a [std::control::nondet::nondet; 'b] -> ['b] std::data::opt::opt 'a"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "std.nondet", "deep-handler"]
+
+[[case]]
+name = "std_nondet_list_public_signature"
+file = "support/empty.yu"
+kind = "public-signature"
+std = "repo"
+module = "std.control.nondet.nondet"
+symbol_contains = "#act-method:list"
+expect_type = "'a [std::control::nondet::nondet; 'b] -> ['b] std::data::list::list 'a"
+deny_type_contains = ["#", "AllExcept"]
+contracts = ["public-signature", "std.nondet", "deep-handler"]

@@ -3325,6 +3325,7 @@ fn public_contract_manifest_cli_cases_hold() {
         match case.kind.as_str() {
             "run" => run_contract_manifest_case(&case),
             "check" => check_contract_manifest_case(&case),
+            "public-signature" => public_signature_contract_manifest_case(&case),
             other => panic!(
                 "unsupported contract manifest case kind `{other}`: {}",
                 case.name
@@ -3624,12 +3625,20 @@ struct PublicContractCase {
     file: String,
     kind: String,
     std: Option<String>,
+    module: Option<String>,
+    symbol: Option<String>,
+    symbol_contains: Option<String>,
     expect_stdout: Option<String>,
     expect_stderr: Option<String>,
+    expect_type: Option<String>,
     #[serde(default)]
     expect_stdout_contains: Vec<String>,
     #[serde(default)]
     expect_stderr_contains: Vec<String>,
+    #[serde(default)]
+    expect_type_contains: Vec<String>,
+    #[serde(default)]
+    deny_type_contains: Vec<String>,
     #[serde(default)]
     contracts: Vec<String>,
 }
@@ -3679,6 +3688,49 @@ fn check_contract_manifest_case(case: &PublicContractCase) {
     assert_contract_output(case, &output);
 }
 
+fn public_signature_contract_manifest_case(case: &PublicContractCase) {
+    let entry = repo_yulang_fixture(&case.file);
+    let output = match (
+        case.std.as_deref().unwrap_or("repo"),
+        case.module.as_deref(),
+    ) {
+        ("repo", Some(module)) => {
+            yulang::dump_poly_from_entry_with_std_in_module(&entry, module).unwrap()
+        }
+        ("repo", None) => yulang::dump_poly_from_entry_with_std(&entry).unwrap(),
+        ("none", None) => yulang::dump_poly_from_entry(&entry).unwrap(),
+        ("none", Some(module)) => {
+            panic!(
+                "contract case {} cannot request module `{module}` without std",
+                case.name
+            )
+        }
+        (other, _) => panic!(
+            "unsupported std mode `{other}` in contract case {}",
+            case.name
+        ),
+    };
+    let ty = public_contract_signature_type(case, &output);
+
+    if let Some(expected) = &case.expect_type {
+        assert_eq!(&ty, expected, "{}", case.name);
+    }
+    for expected in &case.expect_type_contains {
+        assert!(
+            ty.contains(expected),
+            "case {} missing type fragment {expected:?}:\n{ty}",
+            case.name
+        );
+    }
+    for denied in &case.deny_type_contains {
+        assert!(
+            !ty.contains(denied),
+            "case {} leaked denied type fragment {denied:?}:\n{ty}",
+            case.name
+        );
+    }
+}
+
 fn push_contract_std_args(command: &mut Command, case: &PublicContractCase) {
     match case.std.as_deref().unwrap_or("repo") {
         "repo" => {
@@ -3692,6 +3744,89 @@ fn push_contract_std_args(command: &mut Command, case: &PublicContractCase) {
             case.name
         ),
     }
+}
+
+fn public_contract_signature_type(
+    case: &PublicContractCase,
+    output: &yulang::DumpPolyOutput,
+) -> String {
+    match (&case.symbol, &case.symbol_contains) {
+        (Some(symbol), None) => dump_public_signature_type(output, symbol).to_string(),
+        (None, Some(needle)) => dump_public_signature_type_containing(output, needle).to_string(),
+        _ => panic!(
+            "public-signature case {} must set exactly one of symbol or symbol_contains",
+            case.name
+        ),
+    }
+}
+
+fn dump_public_signature_type<'a>(output: &'a yulang::DumpPolyOutput, symbol: &str) -> &'a str {
+    let signature = dump_public_signature(output, symbol);
+    let quoted = format!("\"{symbol}\": ");
+    if let Some(start) = signature.find(&quoted) {
+        return &signature[start + quoted.len()..];
+    }
+    let simple = format!(":{symbol}: ");
+    if let Some(start) = signature.find(&simple) {
+        return &signature[start + simple.len()..];
+    }
+    panic!("public symbol {symbol:?} has an unexpected signature line:\n{signature}");
+}
+
+fn dump_public_signature<'a>(output: &'a yulang::DumpPolyOutput, symbol: &str) -> &'a str {
+    let quoted = format!("\"{symbol}\"");
+    let simple = (!symbol.contains('.')).then(|| format!(":{symbol}:"));
+    let line = output
+        .text
+        .lines()
+        .find(|line| {
+            if !line.trim_start().starts_with("pub ") {
+                return false;
+            }
+            line.contains(&quoted) || simple.as_ref().is_some_and(|simple| line.contains(simple))
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "public symbol {symbol:?} should be dumped:\n{}",
+                output.text
+            )
+        });
+    trim_public_signature_body(line)
+}
+
+fn dump_public_signature_type_containing<'a>(
+    output: &'a yulang::DumpPolyOutput,
+    needle: &str,
+) -> &'a str {
+    let signature = dump_public_signature_containing(output, needle);
+    let Some(start) = signature.find("\": ") else {
+        panic!("public signature containing {needle:?} is not quoted:\n{signature}");
+    };
+    &signature[start + "\": ".len()..]
+}
+
+fn dump_public_signature_containing<'a>(
+    output: &'a yulang::DumpPolyOutput,
+    needle: &str,
+) -> &'a str {
+    let line = output
+        .text
+        .lines()
+        .find(|line| line.trim_start().starts_with("pub ") && line.contains(needle))
+        .unwrap_or_else(|| {
+            panic!(
+                "public signature containing {needle:?} should be dumped:\n{}",
+                output.text
+            )
+        });
+    trim_public_signature_body(line)
+}
+
+fn trim_public_signature_body(line: &str) -> &str {
+    line.find(" = e")
+        .or_else(|| line.find(" = <missing>"))
+        .map(|body_start| &line[..body_start])
+        .unwrap_or(line)
 }
 
 fn assert_contract_output(case: &PublicContractCase, output: &Output) {
