@@ -53,6 +53,7 @@ pub enum LoweringError {
     },
     AnnotationBuild {
         error: AnnBuildError,
+        source_range: Option<SourceRange>,
     },
     AnnotationConstraint {
         error: AnnConstraintError,
@@ -73,4 +74,42 @@ pub enum LoweringError {
         actual: String,
         expected: String,
     },
+}
+
+impl LoweringError {
+    pub(in crate::lowering) fn annotation_build(error: AnnBuildError, type_expr: &Cst) -> Self {
+        let source_range = annotation_build_source_range(&error, type_expr);
+        Self::annotation_build_at(error, Some(source_range))
+    }
+
+    pub(in crate::lowering) fn annotation_build_for_stored_signature(
+        error: AnnBuildError,
+        signature: &StoredSignature,
+    ) -> Self {
+        let source_range = match signature {
+            StoredSignature::Source(type_expr) => Some(crate::node_source_range(type_expr)),
+            StoredSignature::Lowered(_) => None,
+        };
+        Self::annotation_build_at(error, source_range)
+    }
+
+    pub(in crate::lowering) fn annotation_build_at(
+        error: AnnBuildError,
+        source_range: Option<SourceRange>,
+    ) -> Self {
+        Self::AnnotationBuild {
+            error,
+            source_range,
+        }
+    }
+}
+
+fn annotation_build_source_range(error: &AnnBuildError, type_expr: &Cst) -> SourceRange {
+    match error {
+        AnnBuildError::UnresolvedTypeName { path } => path
+            .last()
+            .and_then(|name| crate::source_range_for_name(type_expr, name))
+            .unwrap_or_else(|| crate::node_source_range(type_expr)),
+        _ => crate::node_source_range(type_expr),
+    }
 }

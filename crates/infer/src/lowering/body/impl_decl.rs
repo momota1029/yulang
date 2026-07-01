@@ -102,11 +102,14 @@ impl BodyLowerer {
         let attached_target_ann = ann_builder.self_alias_type();
         let head_ann = ann_builder
             .build_type_expr(&head)
-            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+            .map_err(|error| LoweringError::annotation_build(error, &head))?;
         let description_ann = impl_description_type_expr(node)
-            .map(|type_expr| ann_builder.build_type_expr(&type_expr))
-            .transpose()
-            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+            .map(|type_expr| {
+                ann_builder
+                    .build_type_expr(&type_expr)
+                    .map_err(|error| LoweringError::annotation_build(error, &type_expr))
+            })
+            .transpose()?;
         let spec = role_impl_ann_spec(
             &self.modules,
             head_ann,
@@ -122,9 +125,12 @@ impl BodyLowerer {
             .map(|name| {
                 let ann = explicit_associated
                     .get(name)
-                    .map(|type_expr| ann_builder.build_type_expr(type_expr))
-                    .transpose()
-                    .map_err(|error| LoweringError::AnnotationBuild { error })?
+                    .map(|type_expr| {
+                        ann_builder
+                            .build_type_expr(type_expr)
+                            .map_err(|error| LoweringError::annotation_build(error, type_expr))
+                    })
+                    .transpose()?
                     .unwrap_or_else(|| AnnType::Var(ann_builder.ann_type_var_for_role(name)));
                 Ok((name.clone(), ann))
             })
@@ -395,8 +401,10 @@ impl BodyLowerer {
         if let Some(first) = role_inputs.first() {
             builder.add_bare_type_var_alias("self", first.clone());
         }
-        let signature = build_stored_signature_type_expr(&mut builder, signature)
-            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        let signature =
+            build_stored_signature_type_expr(&mut builder, signature).map_err(|error| {
+                LoweringError::annotation_build_for_stored_signature(error, signature)
+            })?;
         let signature = role_method_signature_with_receiver(
             method.receiver.as_ref(),
             role_inputs.first(),

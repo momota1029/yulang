@@ -243,6 +243,7 @@ fn diagnostics_for_analysis(source: &str, analysis: &SourceTextAnalysis) -> Vec<
                 })
                 .unwrap_or_default(),
             severity: Some(DiagnosticSeverity::ERROR),
+            code: diagnostic.code.map(NumberOrString::String),
             source: Some("yulang".to_string()),
             message: match diagnostic.label {
                 Some(label) => format!("{label}: {}", diagnostic.message),
@@ -935,6 +936,14 @@ fn semantic_tokens_for_source(source: &str) -> Vec<SemanticToken> {
 mod tests {
     use super::*;
 
+    fn assert_diagnostic_code(diagnostic: &Diagnostic, expected: &str) {
+        assert_eq!(
+            diagnostic.code.as_ref(),
+            Some(&NumberOrString::String(expected.to_string())),
+            "{diagnostic:?}"
+        );
+    }
+
     #[test]
     fn semantic_tokens_include_keyword_number_and_string() {
         let tokens = semantic_tokens_for_source("my x = \"hi\"\n1\n");
@@ -1012,6 +1021,7 @@ mod tests {
             diagnostics[0].message.contains("type mismatch"),
             "{diagnostics:?}"
         );
+        assert_diagnostic_code(&diagnostics[0], "yulang.type-mismatch");
     }
 
     #[test]
@@ -1048,6 +1058,81 @@ mod tests {
             diagnostics[0].message.contains("unresolved value name"),
             "{diagnostics:?}"
         );
+        assert_diagnostic_code(&diagnostics[0], "yulang.unresolved-value");
+    }
+
+    #[test]
+    fn diagnostics_use_unresolved_type_name_range() {
+        let root = temp_root("unresolved-type-name-range");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "my x: missing_type = 1\n";
+        let diagnostics = diagnostics_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        assert_eq!(
+            diagnostics[0].range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 6
+                },
+                end: Position {
+                    line: 0,
+                    character: 18
+                },
+            }
+        );
+        assert!(
+            diagnostics[0].message.contains("unresolved type name"),
+            "{diagnostics:?}"
+        );
+        assert_diagnostic_code(&diagnostics[0], "yulang.unresolved-type");
+    }
+
+    #[test]
+    fn diagnostics_use_top_level_mutable_binding_range() {
+        let root = temp_root("top-level-mutable-binding-range");
+        std::fs::create_dir_all(root.join("lib").join("std")).unwrap();
+        std::fs::write(root.join("lib").join("std.yu"), "mod prelude;\n").unwrap();
+        std::fs::write(root.join("lib").join("std").join("prelude.yu"), "").unwrap();
+
+        let source = "my $x = 0\n";
+        let diagnostics = diagnostics_for_source(
+            &root.join("main.yu"),
+            source.to_string(),
+            &crate::StdSourceOptions {
+                std_root: Some(root.join("lib")),
+            },
+        );
+
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        assert_eq!(
+            diagnostics[0].range,
+            Range {
+                start: Position {
+                    line: 0,
+                    character: 3
+                },
+                end: Position {
+                    line: 0,
+                    character: 5
+                },
+            }
+        );
+        assert!(
+            diagnostics[0].message.contains("top-level mutable binding"),
+            "{diagnostics:?}"
+        );
+        assert_diagnostic_code(&diagnostics[0], "yulang.top-level-mutable-binding");
     }
 
     #[test]

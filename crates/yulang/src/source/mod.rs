@@ -1302,6 +1302,7 @@ pub struct SourceTextEdit {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceDiagnostic {
+    pub code: Option<String>,
     pub label: Option<String>,
     pub range: Option<SourceRange>,
     pub message: String,
@@ -2598,6 +2599,7 @@ fn source_diagnostics_from_check(
         .map(|diagnostic| {
             let error = &check.lowering.errors[diagnostic.error_index];
             SourceDiagnostic {
+                code: body_lowering_error_code(error).map(str::to_string),
                 label: diagnostic.label.clone(),
                 range: body_lowering_error_source_range(error).or_else(|| {
                     diagnostic
@@ -2608,6 +2610,39 @@ fn source_diagnostics_from_check(
             }
         })
         .collect()
+}
+
+fn body_lowering_error_code(error: &infer::lowering::BodyLoweringError) -> Option<&'static str> {
+    match error {
+        infer::lowering::BodyLoweringError::Expr { error, .. }
+        | infer::lowering::BodyLoweringError::RootExpr { error } => lowering_error_code(error),
+        infer::lowering::BodyLoweringError::Analysis(_) => Some("yulang.analysis"),
+        infer::lowering::BodyLoweringError::MissingBindingDecl { .. }
+        | infer::lowering::BodyLoweringError::MissingModuleDecl { .. }
+        | infer::lowering::BodyLoweringError::MissingBody { .. }
+        | infer::lowering::BodyLoweringError::NonLetDef { .. } => Some("yulang.lowering"),
+    }
+}
+
+fn lowering_error_code(error: &infer::lowering::LoweringError) -> Option<&'static str> {
+    match error {
+        infer::lowering::LoweringError::TypeMismatch { .. } => Some("yulang.type-mismatch"),
+        infer::lowering::LoweringError::AnnotationBuild {
+            error: infer::annotation::AnnBuildError::UnresolvedTypeName { .. },
+            ..
+        }
+        | infer::lowering::LoweringError::NegSignatureBuild {
+            error: infer::lowering::NegSignatureBuildError::UnresolvedTypeName { .. },
+        } => Some("yulang.unresolved-type"),
+        infer::lowering::LoweringError::UnresolvedName { .. } => Some("yulang.unresolved-value"),
+        infer::lowering::LoweringError::UnsupportedTopLevelVarBinding { .. } => {
+            Some("yulang.top-level-mutable-binding")
+        }
+        infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { .. } => {
+            Some("yulang.unsupported-rule-lazy-quantifier")
+        }
+        _ => Some("yulang.lowering"),
+    }
 }
 
 fn body_lowering_error_source_range(
@@ -2635,6 +2670,7 @@ fn lowering_error_source_range(error: &infer::lowering::LoweringError) -> Option
         infer::lowering::LoweringError::UnsupportedRuleLazyQuantifier { source_range, .. } => {
             Some(*source_range)
         }
+        infer::lowering::LoweringError::AnnotationBuild { source_range, .. } => *source_range,
         _ => None,
     }
 }

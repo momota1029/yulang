@@ -207,7 +207,7 @@ impl BodyLowerer {
         add_type_name_aliases(&mut builder, type_name_aliases);
         let ann = builder
             .build_type_expr(&type_expr)
-            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+            .map_err(|error| LoweringError::annotation_build(error, &type_expr))?;
         self.check_binding_annotation_type(computation.value, &ann)?;
         AnnConstraintLowerer::new(&mut self.session.infer, &self.modules)
             .connect_computation(

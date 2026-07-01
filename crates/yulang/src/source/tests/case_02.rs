@@ -2096,6 +2096,7 @@ fn analyze_entry_source_uses_in_memory_root_source() {
     assert_eq!(
         output.diagnostics,
         vec![SourceDiagnostic {
+            code: Some("yulang.type-mismatch".to_string()),
             label: Some("x".to_string()),
             range: Some(SourceRange {
                 start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 3,
@@ -2126,6 +2127,7 @@ fn analyze_entry_source_reports_unresolved_name_source_range() {
     assert_eq!(
         output.diagnostics,
         vec![SourceDiagnostic {
+            code: Some("yulang.unresolved-value".to_string()),
             label: Some("result".to_string()),
             range: Some(SourceRange {
                 start: IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len() + 12,

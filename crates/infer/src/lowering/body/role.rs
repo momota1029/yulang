@@ -131,8 +131,10 @@ impl BodyLowerer {
         if let Some(first) = role_inputs.first() {
             builder.add_bare_type_var_alias("self", first.clone());
         }
-        let signature = build_stored_signature_type_expr(&mut builder, signature)
-            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        let signature =
+            build_stored_signature_type_expr(&mut builder, signature).map_err(|error| {
+                LoweringError::annotation_build_for_stored_signature(error, signature)
+            })?;
         let signature = role_method_signature_with_receiver(
             method.receiver.as_ref(),
             role_inputs.first(),

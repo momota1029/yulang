@@ -1152,8 +1152,10 @@ impl<'a> ExprLowerer<'a> {
             add_type_var_aliases(&mut builder, &copy.type_var_aliases);
         }
 
-        let signature = build_stored_signature_type_expr(&mut builder, signature)
-            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+        let signature =
+            build_stored_signature_type_expr(&mut builder, signature).map_err(|error| {
+                LoweringError::annotation_build_for_stored_signature(error, signature)
+            })?;
         let Some((param, ret)) = signature_operation_param_ret(&signature) else {
             return Ok(None);
         };

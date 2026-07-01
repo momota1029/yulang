@@ -2480,6 +2480,7 @@ pub(super) fn format_body_lowering_error(error: &infer::lowering::BodyLoweringEr
             error:
                 infer::lowering::LoweringError::AnnotationBuild {
                     error: infer::annotation::AnnBuildError::UnresolvedTypeName { path },
+                    ..
                 },
             ..
         } => format!("unresolved type name: {}", format_name_path(path)),

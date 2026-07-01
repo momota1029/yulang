@@ -176,7 +176,7 @@ impl BodyLowerer {
         add_type_name_aliases(&mut builder, type_name_aliases);
 
         let signature = build_signature_type_expr(&mut builder, signature)
-            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+            .map_err(|error| LoweringError::annotation_build(error, signature))?;
         let effect_ann = builder.type_decl_application(operation_decl.effect.id, &effect_type_vars);
         let effect = signature_from_ann_type(&effect_ann);
         operation_signature_with_effect(signature, effect).ok_or(

@@ -58,6 +58,7 @@ impl<'a> ExprLowerer<'a> {
             .find(|child| child.kind() == SyntaxKind::TypeExpr)
             .ok_or(LoweringError::AnnotationBuild {
                 error: AnnBuildError::ExpectedTypeExpr { kind: node.kind() },
+                source_range: Some(crate::node_source_range(node)),
             })?;
         let mut builder = ann_type_builder_with_aliases(
             self.modules,
@@ -69,7 +70,7 @@ impl<'a> ExprLowerer<'a> {
         );
         let ann = builder
             .build_type_expr(&type_expr)
-            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+            .map_err(|error| LoweringError::annotation_build(error, &type_expr))?;
         let connection = AnnConstraintLowerer::new(&mut self.session.infer, self.modules)
             .connect_computation_detailed(
                 AnnComputationTarget {

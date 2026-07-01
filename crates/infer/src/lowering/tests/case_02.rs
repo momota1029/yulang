@@ -62,6 +62,7 @@ fn unresolved_role_impl_head_reports_lowering_error() {
                 error:
                     LoweringError::AnnotationBuild {
                         error: AnnBuildError::UnresolvedTypeName { path },
+                        ..
                     },
                 ..
             } if path == &vec![Name("Missing".into())]

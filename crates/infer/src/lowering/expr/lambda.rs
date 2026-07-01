@@ -952,7 +952,7 @@ impl<'a> ExprLowerer<'a> {
         };
         let ann = ann_builder
             .build_type_expr(&type_expr)
-            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+            .map_err(|error| LoweringError::annotation_build(error, &type_expr))?;
         let (effect, arg_eff) = self.lambda_param_effect_slot(&ann);
         let vars = std::mem::take(ann_solver_vars);
         let closed_effect_rows = std::mem::take(ann_closed_effect_rows);

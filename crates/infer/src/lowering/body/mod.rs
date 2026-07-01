@@ -1555,10 +1555,10 @@ impl BodyLowerer {
         let mut builder = ann_type_builder(&self.modules, module, site, None);
         let source = builder
             .build_type_expr(source_type_expr)
-            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+            .map_err(|error| LoweringError::annotation_build(error, source_type_expr))?;
         let target = builder
             .build_type_expr(target_type_expr)
-            .map_err(|error| LoweringError::AnnotationBuild { error })?;
+            .map_err(|error| LoweringError::annotation_build(error, target_type_expr))?;
         build_cast_scheme_from_ann(&mut self.session.poly, &self.modules, &source, &target)
     }
 }
