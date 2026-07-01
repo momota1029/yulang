@@ -18,6 +18,8 @@ a narrower API area such as `result`, `errors`, `path`, or `file`.
 All `public-signature` cases also reject private evidence fragments such as
 `#...` and `AllExcept(...)` in the projected public type. Individual cases can
 still add narrower `deny_type_contains` checks for surface-specific leaks.
+Each `public-signature` case must also carry an exact `expect_type`; broad
+substring-only public type checks are not enough for the contract manifest.
 Diagnostic entries may also assert the structured `SourceDiagnostic` payload
 with compact fields such as diagnostic count, severity, code, label, primary
 byte range, related count, and related origins.

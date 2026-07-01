@@ -3566,6 +3566,14 @@ fn assert_contract_manifest_tags_match_shape(case: &PublicContractCase) {
             case.name
         );
     }
+
+    if case.kind == "public-signature" {
+        assert!(
+            case.expect_type.is_some(),
+            "public-signature contract manifest case {} should assert an exact expected type",
+            case.name
+        );
+    }
 }
 
 fn assert_contract_manifest_tags_match_kind(case: &PublicContractCase) {
