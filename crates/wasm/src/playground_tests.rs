@@ -26,11 +26,17 @@ mod tests {
             "type_annotation_mismatch" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/type_annotation_mismatch.yu"
             ),
+            "unresolved_value_name" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/unresolved_value_name.yu"
+            ),
             "unresolved_type_name" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/unresolved_type_name.yu"
             ),
             "unsupported_record_type_annotation" => include_str!(
                 "../../../tests/yulang/regressions/diagnostics/unsupported_record_type_annotation.yu"
+            ),
+            "top_level_mutable_binding" => include_str!(
+                "../../../tests/yulang/regressions/diagnostics/top_level_mutable_binding.yu"
             ),
             "unclosed_paren" => {
                 include_str!("../../../tests/yulang/regressions/diagnostics/unclosed_paren.yu")
@@ -509,6 +515,7 @@ pair
 
         assert!(!output.ok, "{output:?}");
         assert_eq!(output.diagnostics.len(), 1);
+        assert_eq!(output.diagnostics[0].severity, DiagnosticSeverity::Error);
         assert_eq!(output.diagnostics[0].label.as_deref(), Some("x"));
         assert_eq!(
             output.diagnostics[0].code.as_deref(),
@@ -523,6 +530,54 @@ pair
         assert_eq!(
             output.diagnostics[0].hint.as_deref(),
             Some("define type `missing_type` before this annotation, or import it")
+        );
+    }
+
+    #[test]
+    fn check_inner_returns_diagnostic_code_and_value_name_range() {
+        let output = check_inner(diagnostics_fixture("unresolved_value_name"));
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        assert_eq!(output.diagnostics[0].severity, DiagnosticSeverity::Error);
+        assert_eq!(output.diagnostics[0].label.as_deref(), Some("result"));
+        assert_eq!(
+            output.diagnostics[0].code.as_deref(),
+            Some("yulang.unresolved-value")
+        );
+        assert_eq!(output.diagnostics[0].start, 12);
+        assert_eq!(output.diagnostics[0].end, 19);
+        assert_eq!(
+            output.diagnostics[0].message,
+            "unresolved value name: missing"
+        );
+        assert_eq!(
+            output.diagnostics[0].hint.as_deref(),
+            Some("define `missing` before this use, or import the module that provides it")
+        );
+    }
+
+    #[test]
+    fn check_inner_returns_top_level_mutable_binding_code_and_range() {
+        let output = check_inner(diagnostics_fixture("top_level_mutable_binding"));
+
+        assert!(!output.ok, "{output:?}");
+        assert_eq!(output.diagnostics.len(), 1);
+        assert_eq!(output.diagnostics[0].severity, DiagnosticSeverity::Error);
+        assert_eq!(output.diagnostics[0].label.as_deref(), Some("$x"));
+        assert_eq!(
+            output.diagnostics[0].code.as_deref(),
+            Some("yulang.top-level-mutable-binding")
+        );
+        assert_eq!(output.diagnostics[0].start, 3);
+        assert_eq!(output.diagnostics[0].end, 5);
+        assert_eq!(
+            output.diagnostics[0].message,
+            "top-level mutable binding $x is not supported; move it into a block or function body"
+        );
+        assert_eq!(
+            output.diagnostics[0].hint.as_deref(),
+            Some("move the mutable binding into a block or function body")
         );
     }
 
