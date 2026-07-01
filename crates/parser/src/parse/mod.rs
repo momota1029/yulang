@@ -33,7 +33,11 @@ pub trait DelimitedListMachine<I: EventInput, S: EventSink> {
         };
 
         loop {
-            let parsed = self.parse_item(i.rb(), leading_info, base_indent)?;
+            let Some(parsed) = self.parse_item(i.rb(), leading_info, base_indent) else {
+                i.env.state.sink.start(SyntaxKind::InvalidToken);
+                i.env.state.sink.finish();
+                return Some(TriviaInfo::None);
+            };
             match parsed {
                 Either::Left(info) => {
                     if self.is_implicit_separator(info, base_indent) {

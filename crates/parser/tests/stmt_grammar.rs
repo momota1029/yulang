@@ -2526,6 +2526,16 @@ fn stmt_binding_case_body_with_or_pattern_builds_green_tree() {
 }
 
 #[test]
+fn stmt_module_unclosed_paren_recovers_as_invalid_token() {
+    let module = parse_module_green("my x = (1\n");
+    let invalid_tokens = module
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::InvalidToken)
+        .count();
+    assert_eq!(invalid_tokens, 1);
+}
+
+#[test]
 fn stmt_binding_rhs_keeps_indented_pipeline_continuation() {
     let source = "my xs = [1, 2]\n    | f\n";
     let module = parse_module_green(source);
